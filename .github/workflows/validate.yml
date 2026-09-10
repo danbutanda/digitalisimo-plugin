@@ -1,0 +1,28 @@
+name: Validar suite Digitalisimo
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validar sintaxis PHP
+        run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo-geolocalizacion digitalisimo.chatbot digitalisimo-hosting -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Construir paquetes limpios
+        run: bash scripts/build-packages.sh dist
+      - name: Validar suite y paquetes
+        run: DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs

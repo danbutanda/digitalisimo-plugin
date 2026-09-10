@@ -1,0 +1,29 @@
+/* Digitalisimo shared administration surface. Scoped to plugin screens only. */
+.digitalisimo-admin #wpcontent { background: #f6f8ff; }
+.digitalisimo-admin .wrap { max-width: 1280px; margin: 24px 28px 40px 20px; padding: 30px; color: #17213a; background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(246,247,255,.96)); border: 1px solid #dce4ff; border-radius: 22px; box-shadow: 0 18px 50px rgba(61,75,155,.10); position: relative; overflow: hidden; }
+.digitalisimo-admin .wrap:before { content: ''; position: absolute; width: 420px; height: 420px; top: -280px; right: -170px; pointer-events: none; border-radius: 50%; background: radial-gradient(circle, rgba(102,72,255,.15), rgba(236,50,157,.04) 48%, transparent 70%); }
+.digitalisimo-admin .wrap > * { position: relative; }
+.digitalisimo-admin .wrap h1 { display: flex; align-items: center; gap: 13px; margin: 0 0 22px; color: #17213a; font-size: 30px; line-height: 1.2; letter-spacing: -.65px; }
+.digitalisimo-admin .wrap h1:before { content: 'D'; display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 14px; color: #fff; font-size: 23px; font-weight: 800; background: linear-gradient(135deg, #245eff, #8249ee 55%, #f13b9b); box-shadow: 0 10px 22px rgba(86,75,238,.27); }
+.digitalisimo-admin .wrap h2, .digitalisimo-admin .wrap h3 { color: #1e2944; letter-spacing: -.25px; }
+.digitalisimo-admin .wrap p { color: #52617e; font-size: 14px; line-height: 1.65; }
+.digitalisimo-admin .wrap a { color: #355cf5; }
+.digitalisimo-admin .wrap .nav-tab-wrapper { border: 0; margin: 0 0 24px; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; }
+.digitalisimo-admin .wrap .nav-tab { float: none; margin: 0; padding: 9px 14px; color: #52617e; background: #f3f5fc; border: 1px solid #e0e5f5; border-radius: 10px; font-size: 13px; font-weight: 600; }
+.digitalisimo-admin .wrap .nav-tab:hover, .digitalisimo-admin .wrap .nav-tab-active { color: #fff; border-color: transparent; background: linear-gradient(135deg, #285eff, #7b4cf1 60%, #d93eba); box-shadow: 0 8px 17px rgba(72,78,222,.20); }
+.digitalisimo-admin .wrap .postbox, .digitalisimo-admin .wrap .card, .digitalisimo-admin .wrap .inside, .digitalisimo-admin .wrap .form-table { border-radius: 15px; }
+.digitalisimo-admin .wrap .postbox, .digitalisimo-admin .wrap .card { border: 1px solid #e2e7f7; box-shadow: 0 7px 22px rgba(42,56,115,.06); background: rgba(255,255,255,.94); }
+.digitalisimo-admin .wrap .postbox .hndle { border-bottom: 1px solid #edf0f8; color: #1f2c4a; }
+.digitalisimo-admin .wrap .form-table { width: 100%; border: 1px solid #e4e8f5; border-collapse: separate; border-spacing: 0; overflow: hidden; background: rgba(255,255,255,.78); }
+.digitalisimo-admin .wrap .form-table th, .digitalisimo-admin .wrap .form-table td { padding: 16px; border-bottom: 1px solid #edf0f7; vertical-align: top; }
+.digitalisimo-admin .wrap .form-table tr:last-child th, .digitalisimo-admin .wrap .form-table tr:last-child td { border-bottom: 0; }
+.digitalisimo-admin .wrap input[type=text], .digitalisimo-admin .wrap input[type=url], .digitalisimo-admin .wrap input[type=password], .digitalisimo-admin .wrap input[type=number], .digitalisimo-admin .wrap select, .digitalisimo-admin .wrap textarea { border: 1px solid #cfd8ee; border-radius: 9px; min-height: 38px; padding: 7px 10px; box-shadow: 0 1px 2px rgba(24,42,90,.03); }
+.digitalisimo-admin .wrap input:focus, .digitalisimo-admin .wrap select:focus, .digitalisimo-admin .wrap textarea:focus { border-color: #5365f5; box-shadow: 0 0 0 3px rgba(83,101,245,.15); }
+.digitalisimo-admin .wrap .button, .digitalisimo-admin .wrap .button-secondary { min-height: 36px; border: 1px solid #d2d9ef; border-radius: 9px; color: #34415e; background: #fff; box-shadow: none; }
+.digitalisimo-admin .wrap .button:hover, .digitalisimo-admin .wrap .button-secondary:hover { border-color: #8a9aff; color: #2f55e8; }
+.digitalisimo-admin .wrap .button-primary { border: 0; color: #fff; background: linear-gradient(135deg, #285eff, #774af0 58%, #e13da9); box-shadow: 0 8px 17px rgba(66,74,219,.23); }
+.digitalisimo-admin .wrap .button-primary:hover, .digitalisimo-admin .wrap .button-primary:focus { color: #fff; background: linear-gradient(135deg, #164ce4, #6635db 58%, #c72f91); }
+.digitalisimo-admin .wrap .notice { margin: 18px 0; border: 0; border-left: 4px solid #5264f2; border-radius: 10px; box-shadow: 0 5px 15px rgba(40,50,110,.06); }
+.digitalisimo-admin .wrap ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; padding: 0; }
+.digitalisimo-admin .wrap ul li { margin: 0; padding: 12px 14px; list-style: none; border: 1px solid #e2e7f6; border-radius: 11px; color: #2e3d5b; background: linear-gradient(135deg, #fff, #f7f8ff); }
+@media (max-width: 782px) { .digitalisimo-admin .wrap { margin: 16px 10px 28px; padding: 22px 17px; border-radius: 16px; } .digitalisimo-admin .wrap h1 { font-size: 25px; } .digitalisimo-admin .wrap .form-table, .digitalisimo-admin .wrap .form-table tbody, .digitalisimo-admin .wrap .form-table tr, .digitalisimo-admin .wrap .form-table th, .digitalisimo-admin .wrap .form-table td { display: block; width: auto; } .digitalisimo-admin .wrap .form-table th { padding-bottom: 4px; } }

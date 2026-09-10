@@ -1,0 +1,9 @@
+<?php
+defined( 'ABSPATH' ) || exit;
+class Digitalisimo_Chatbot_Updater {
+	const REPO='danbutanda/digitalisimo-plugin'; const CACHE='digitalisimo_chatbot_releases';
+	public static function init(){add_filter('pre_set_site_transient_update_plugins',array(__CLASS__,'inject'));add_action('upgrader_process_complete',array(__CLASS__,'clear'),10,2);}
+	private static function release(){ $c=get_site_transient(self::CACHE);if(false!==$c)return$c;$r=wp_remote_get('https://api.github.com/repos/'.self::REPO.'/releases?per_page=50',array('timeout'=>10,'headers'=>array('Accept'=>'application/vnd.github+json','User-Agent'=>'Digitalisimo-Chatbot/'.DIGITALISIMO_CHATBOT_VERSION)));$best=array();if(!is_wp_error($r)&&200===wp_remote_retrieve_response_code($r)){foreach((array)json_decode(wp_remote_retrieve_body($r),true)as$release)foreach((array)($release['assets']??array())as$a)if(preg_match('/^digitalisimo-chatbot-([0-9.]+)\.zip$/',(string)($a['name']??''),$m)&&(!isset($best['version'])||version_compare($m[1],$best['version'],'>')))$best=array('version'=>$m[1],'url'=>esc_url_raw($a['browser_download_url']??''),'details'=>esc_url_raw($release['html_url']??''));}set_site_transient(self::CACHE,$best,$best?6*HOUR_IN_SECONDS:HOUR_IN_SECONDS);return$best; }
+	public static function inject($t){$file=plugin_basename(__DIR__.'/../digitalisimo-chatbot.php');if(empty($t->checked[$file]))return$t;$r=self::release();if(!empty($r['url'])&&version_compare($r['version'],DIGITALISIMO_CHATBOT_VERSION,'>'))$t->response[$file]=(object)array('slug'=>'digitalisimo-chatbot','plugin'=>$file,'new_version'=>$r['version'],'url'=>$r['details'],'package'=>$r['url'],'requires'=>'6.0','requires_php'=>'7.4');return$t;}
+	public static function clear($upgrader,$options){if(('update'??'')===($options['action']??'')&&'plugin'===($options['type']??''))delete_site_transient(self::CACHE);}
+}

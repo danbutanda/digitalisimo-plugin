@@ -1,0 +1,10 @@
+# Paquetes generados localmente y artefactos de compilación.
+*.zip
+dist/
+rollback/
+.tools/
+.DS_Store
+
+# Dependencias y archivos de desarrollo locales.
+node_modules/
+vendor/

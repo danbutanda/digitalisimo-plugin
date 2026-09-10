@@ -1,0 +1,29 @@
+/* Interfaz administrativa Digitalisimo: acentos tech sin invadir WordPress. */
+:root { --digi-blue:#2563eb; --digi-violet:#7c3aed; --digi-pink:#ec4899; --digi-ink:#172033; --digi-line:#dbe4f3; }
+.digitalisimo-admin-shell { position:relative; max-width:1280px; margin-top:24px; color:var(--digi-ink); }
+.digitalisimo-admin-shell:before { content:""; position:absolute; z-index:-1; inset:-24px -28px auto; height:210px; pointer-events:none; background:radial-gradient(circle at 8% 5%,rgba(37,99,235,.12),transparent 34%),radial-gradient(circle at 72% 4%,rgba(236,72,153,.10),transparent 30%),linear-gradient(115deg,rgba(255,255,255,.9),rgba(247,249,255,.74)); border-radius:0 0 34px 34px; }
+.digitalisimo-admin-shell h1 { display:flex; align-items:center; gap:10px; font-size:28px; letter-spacing:-.5px; }
+.digitalisimo-admin-shell h1:before { content:"D"; display:inline-grid; place-items:center; width:36px; height:36px; color:#fff; font-size:19px; font-weight:800; border-radius:12px; background:linear-gradient(135deg,var(--digi-blue),var(--digi-violet) 52%,var(--digi-pink)); box-shadow:0 9px 22px rgba(89,65,218,.28); }
+.digitalisimo-admin-shell .nav-tab-wrapper { border-bottom:1px solid var(--digi-line); padding-top:12px; }
+.digitalisimo-admin-shell .nav-tab { border:0; background:transparent; color:#546176; border-radius:10px 10px 0 0; margin:0 4px 0 0; padding:10px 13px; font-weight:600; }
+.digitalisimo-admin-shell .nav-tab:hover { color:var(--digi-blue); background:rgba(37,99,235,.06); }
+.digitalisimo-admin-shell .nav-tab-active { color:var(--digi-ink); background:#fff; box-shadow:0 -3px 0 var(--digi-pink),0 0 0 1px var(--digi-line); }
+.digitalisimo-admin-shell .form-table, .digitalisimo-admin-shell .widefat { margin-top:22px; background:rgba(255,255,255,.92); border:1px solid var(--digi-line); border-radius:16px; box-shadow:0 12px 35px rgba(45,67,111,.08); overflow:hidden; }
+.digitalisimo-admin-shell .form-table th, .digitalisimo-admin-shell .form-table td { padding:18px 20px; border-bottom:1px solid #edf1f8; }
+.digitalisimo-admin-shell .form-table tr:last-child th, .digitalisimo-admin-shell .form-table tr:last-child td { border-bottom:0; }
+.digitalisimo-admin-shell input[type=text], .digitalisimo-admin-shell input[type=url], .digitalisimo-admin-shell input[type=number], .digitalisimo-admin-shell input[type=password], .digitalisimo-admin-shell select, .digitalisimo-admin-shell textarea { border-color:#cbd7eb; border-radius:9px; box-shadow:inset 0 1px 2px rgba(17,24,39,.03); }
+.digitalisimo-admin-shell input:focus, .digitalisimo-admin-shell select:focus, .digitalisimo-admin-shell textarea:focus { border-color:var(--digi-blue); box-shadow:0 0 0 2px rgba(37,99,235,.15); }
+.digitalisimo-admin-shell .button-primary { border:0; border-radius:9px; padding:2px 16px; background:linear-gradient(110deg,var(--digi-blue),var(--digi-violet) 60%,var(--digi-pink)); box-shadow:0 8px 18px rgba(82,69,219,.25); text-shadow:none; }
+.digitalisimo-admin-shell .button-secondary { border-radius:9px; border-color:#cdd8ec; color:#334155; }
+.digitalisimo-admin-shell .notice.inline { border-radius:12px; border-left-color:var(--digi-violet); box-shadow:0 5px 18px rgba(44,62,108,.08); }
+.digitalisimo-admin-shell details { margin-top:18px; padding:14px 16px; border:1px solid var(--digi-line); border-radius:12px; background:linear-gradient(115deg,rgba(37,99,235,.035),rgba(236,72,153,.035)); }
+.digitalisimo-admin-shell summary { cursor:pointer; color:#263551; }
+.digitalisimo-admin-shell code, .digitalisimo-admin-shell pre { border-radius:8px; background:#f4f7fd; }
+/* Las pantallas especializadas también usan el sistema visual sin afectar wp-admin. */
+.digitalisimo-admin .wrap { position:relative; max-width:1280px; margin-top:24px; color:var(--digi-ink); }
+.digitalisimo-admin .wrap:before { content:""; position:absolute; z-index:-1; inset:-24px -28px auto; height:210px; pointer-events:none; background:radial-gradient(circle at 8% 5%,rgba(37,99,235,.12),transparent 34%),radial-gradient(circle at 72% 4%,rgba(236,72,153,.10),transparent 30%),linear-gradient(115deg,rgba(255,255,255,.9),rgba(247,249,255,.74)); border-radius:0 0 34px 34px; }
+.digitalisimo-admin .wrap h1 { display:flex; align-items:center; gap:10px; font-size:28px; letter-spacing:-.5px; }
+.digitalisimo-admin .wrap h1:before { content:"D"; display:inline-grid; place-items:center; width:36px; height:36px; color:#fff; font-size:19px; font-weight:800; border-radius:12px; background:linear-gradient(135deg,var(--digi-blue),var(--digi-violet) 52%,var(--digi-pink)); box-shadow:0 9px 22px rgba(89,65,218,.28); }
+.digitalisimo-admin .wrap .widefat { margin-top:22px; border:1px solid var(--digi-line); border-radius:16px; box-shadow:0 12px 35px rgba(45,67,111,.08); overflow:hidden; }
+.digitalisimo-admin .wrap .button-primary { border:0; border-radius:9px; background:linear-gradient(110deg,var(--digi-blue),var(--digi-violet) 60%,var(--digi-pink)); box-shadow:0 8px 18px rgba(82,69,219,.25); text-shadow:none; }
+.digitalisimo-admin .wrap .notice.inline { border-radius:12px; border-left-color:var(--digi-violet); }

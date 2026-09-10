@@ -1,0 +1,33 @@
+name: Publicar módulos Digitalisimo
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Validar sintaxis PHP
+        run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo-geolocalizacion digitalisimo.chatbot digitalisimo-hosting -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Crear paquetes instalables
+        run: bash scripts/build-packages.sh dist
+      - name: Validar paquetes
+        run: DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
+      - name: Publicar Release y assets
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*.zip
