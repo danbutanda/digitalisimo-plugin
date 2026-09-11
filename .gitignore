@@ -8,3 +8,11 @@ rollback/
 # Dependencias y archivos de desarrollo locales.
 node_modules/
 vendor/
+
+# Archivos duplicados obsoletos (superados por sus versiones activas).
+functions 2.php
+*/includes/* 2.php
+
+# Tema hijo Hello Elementor: no forma parte de la suite de plugins.
+functions.php
+style.css
