@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.26
+ * Version: 1.0.27
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Digitalísimo
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.26' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.27' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -30,7 +30,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-indexnow-too
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-referral-tools.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-entities-tools.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-client.php';
-require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-github-updater.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-digitalisimo-updater.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-admin-ui.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-editorial.php';
 
@@ -46,7 +46,7 @@ function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_SEO_AI_Referral_Tools::init();
 	Digitalisimo_Integrations_SEO_AI_Entities_Tools::init();
 	Digitalisimo_Integrations_Editorial::init();
-	Digitalisimo_GitHub_Updater::init();
+	Digitalisimo_Updater::register( DIGITALISIMO_INTEGRATIONS_FILE, DIGITALISIMO_INTEGRATIONS_VERSION, 'digitalisimo-seo' );
 	Digitalisimo_Admin_UI::init();
 	Digitalisimo_Core::boot( 'seo', 'SEO', null, array( 'Digitalisimo_Integrations_SEO_Suite', 'network_page' ) );
 }

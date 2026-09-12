@@ -1,0 +1,142 @@
+<?php
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Actualizador compartido de los módulos Digitalisimo.
+ *
+ * Se declara una sola vez aunque haya varios módulos activos: cada uno se
+ * registra con su archivo principal, su versión y el prefijo del ZIP publicado
+ * como asset en las Releases del repositorio.
+ *
+ * Además de anunciar la versión disponible, habilita la actualización
+ * automática de WordPress para los módulos registrados, de modo que se
+ * instalen solos sin intervención manual.
+ */
+if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
+	final class Digitalisimo_Updater {
+		const REPOSITORY = 'danbutanda/digitalisimo-plugin';
+		const CACHE_KEY  = 'digitalisimo_releases_index';
+		const CACHE_TTL  = 21600;
+
+		/** Módulos registrados, indexados por su archivo principal relativo. */
+		private static $modules = array();
+		private static $hooked  = false;
+
+		/**
+		 * Registra un módulo para su actualización automática.
+		 *
+		 * @param string $file    Ruta absoluta del archivo principal del plugin.
+		 * @param string $version Versión instalada.
+		 * @param string $slug    Identificador del módulo y prefijo del ZIP.
+		 */
+		public static function register( $file, $version, $slug ) {
+			self::$modules[ plugin_basename( $file ) ] = array( 'version' => $version, 'slug' => $slug );
+			if ( self::$hooked ) return;
+			self::$hooked = true;
+			add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject' ) );
+			add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
+			add_filter( 'plugins_api', array( __CLASS__, 'info' ), 20, 3 );
+			add_action( 'upgrader_process_complete', array( __CLASS__, 'clear' ), 10, 2 );
+		}
+
+		/** Índice de versiones publicadas, por slug de módulo. */
+		private static function releases() {
+			$cached = get_site_transient( self::CACHE_KEY );
+			if ( false !== $cached ) return (array) $cached;
+
+			$response = wp_remote_get(
+				'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50',
+				array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-WordPress-Updater' ) )
+			);
+			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+				// Reintento corto ante fallos de red para no quedar seis horas sin comprobar.
+				set_site_transient( self::CACHE_KEY, array(), HOUR_IN_SECONDS );
+				return array();
+			}
+
+			$index = array();
+			foreach ( (array) json_decode( wp_remote_retrieve_body( $response ), true ) as $release ) {
+				if ( ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) continue;
+				foreach ( (array) ( $release['assets'] ?? array() ) as $asset ) {
+					if ( ! preg_match( '/^(digitalisimo-[a-z]+)-([0-9][0-9.]*)\.zip$/', (string) ( $asset['name'] ?? '' ), $match ) ) continue;
+					$slug = $match[1];
+					if ( isset( $index[ $slug ]['version'] ) && ! version_compare( $match[2], $index[ $slug ]['version'], '>' ) ) continue;
+					$index[ $slug ] = array(
+						'version'  => $match[2],
+						'package'  => esc_url_raw( $asset['browser_download_url'] ?? '' ),
+						'url'      => esc_url_raw( $release['html_url'] ?? 'https://github.com/' . self::REPOSITORY . '/releases' ),
+						'notes'    => wp_kses_post( $release['body'] ?? '' ),
+					);
+				}
+			}
+			set_site_transient( self::CACHE_KEY, $index, $index ? self::CACHE_TTL : HOUR_IN_SECONDS );
+			return $index;
+		}
+
+		/** Versión publicada que supera a la instalada, o array vacío. */
+		private static function pending( $file ) {
+			$module = self::$modules[ $file ] ?? array();
+			if ( ! $module ) return array();
+			$release = self::releases()[ $module['slug'] ] ?? array();
+			if ( empty( $release['version'] ) || empty( $release['package'] ) ) return array();
+			return version_compare( $release['version'], $module['version'], '>' ) ? $release : array();
+		}
+
+		public static function inject( $transient ) {
+			if ( empty( $transient->checked ) ) return $transient;
+			foreach ( self::$modules as $file => $module ) {
+				if ( ! isset( $transient->checked[ $file ] ) ) continue;
+				$release = self::pending( $file );
+				if ( ! $release ) continue;
+				$transient->response[ $file ] = (object) array(
+					'slug'         => $module['slug'],
+					'plugin'       => $file,
+					'new_version'  => $release['version'],
+					'url'          => $release['url'],
+					'package'      => $release['package'],
+					'tested'       => get_bloginfo( 'version' ),
+					'requires'     => '6.0',
+					'requires_php' => '7.4',
+				);
+			}
+			return $transient;
+		}
+
+		/**
+		 * Activa la instalación automática de los módulos Digitalisimo.
+		 *
+		 * Puede desactivarse por sitio con el filtro digitalisimo_auto_update.
+		 */
+		public static function auto_update( $update, $item ) {
+			$file = is_object( $item ) ? ( $item->plugin ?? '' ) : '';
+			if ( ! $file || ! isset( self::$modules[ $file ] ) ) return $update;
+			return apply_filters( 'digitalisimo_auto_update', true, $file );
+		}
+
+		public static function info( $result, $action, $args ) {
+			if ( 'plugin_information' !== $action || empty( $args->slug ) ) return $result;
+			foreach ( self::$modules as $file => $module ) {
+				if ( $module['slug'] !== $args->slug ) continue;
+				$release = self::releases()[ $module['slug'] ] ?? array();
+				return (object) array(
+					'name'          => $module['slug'],
+					'slug'          => $module['slug'],
+					'version'       => $release['version'] ?? $module['version'],
+					'author'        => 'Digitalísimo',
+					'homepage'      => 'https://github.com/' . self::REPOSITORY,
+					'download_link' => $release['package'] ?? '',
+					'requires'      => '6.0',
+					'requires_php'  => '7.4',
+					'sections'      => array( 'changelog' => $release['notes'] ?? 'Sin notas de versión.' ),
+				);
+			}
+			return $result;
+		}
+
+		/** Fuerza una comprobación nueva tras instalar cualquier actualización. */
+		public static function clear( $upgrader, $options ) {
+			if ( 'update' !== ( $options['action'] ?? '' ) || 'plugin' !== ( $options['type'] ?? '' ) ) return;
+			delete_site_transient( self::CACHE_KEY );
+		}
+	}
+}
