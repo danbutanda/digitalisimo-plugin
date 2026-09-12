@@ -26,6 +26,10 @@ class Digitalisimo_Integrations_Settings {
 			'noindex_page_ids'       => '',
 			'openai_api_key'         => '',
 			'openai_model'           => 'gpt-4o-mini',
+			'ai_providers'           => array(),
+			'ai_profile_provider'    => 'openai',
+			'ai_profile_model'       => 'gpt-4o-mini',
+			'ai_profile_fallback'    => '',
 			'namecheap_api_user'     => '',
 			'namecheap_username'     => '',
 			'namecheap_api_key'      => '',
@@ -126,17 +130,26 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_sitemap_images' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
+		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
+		// nunca se vacía. De lo contrario, guardar una pestaña borraría las demás.
 		foreach ( array( 'openai_model', 'namecheap_api_user', 'namecheap_username', 'namecheap_client_ip', 'seo_site_name', 'seo_separator', 'seo_organization_type', 'seo_organization_name', 'seo_organization_url', 'seo_organization_email', 'seo_logo', 'seo_default_image', 'seo_twitter_card', 'seo_twitter_user', 'seo_local_type', 'seo_local_name', 'seo_local_phone', 'seo_local_city', 'seo_local_region', 'seo_local_postal', 'seo_local_country', 'seo_local_latitude', 'seo_local_longitude', 'seo_local_price_range' ) as $key ) {
-			$output[ $key ] = isset( $input[ $key ] ) ? sanitize_text_field( $input[ $key ] ) : '';
+			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
 		}
 		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ipinfo_tokens', 'sitemap_post_types', 'sitemap_exclude_ids', 'keyword_post_types', 'noindex_page_slugs', 'noindex_page_ids', 'seo_knowledge_urls', 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_local_address', 'seo_local_hours', 'seo_taxonomies', 'seo_sitemap_taxonomies' ) as $key ) {
-			$output[ $key ] = isset( $input[ $key ] ) ? sanitize_textarea_field( $input[ $key ] ) : '';
+			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_textarea_field( $input[ $key ] );
 		}
-		$output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ?? 60 ) );
+		if ( isset( $input['ipinfo_cache_minutes'] ) ) $output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ) );
 		if ( isset( $input['keyword_max_count'] ) ) $output['keyword_max_count'] = min( 20, max( 1, absint( $input['keyword_max_count'] ) ) );
+		// Las claves sólo se escriben si llega un valor nuevo; vacío conserva la almacenada.
 		foreach ( array( 'openai_api_key', 'namecheap_api_key' ) as $key ) {
-			$output[ $key ] = ! empty( $input[ $key ] ) ? sanitize_text_field( $input[ $key ] ) : ( $current[ $key ] ?? '' );
+			if ( ! empty( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
+			elseif ( ! array_key_exists( $key, $output ) ) $output[ $key ] = '';
 		}
+		$output['ai_providers'] = self::sanitize_providers( $input['ai_providers'] ?? null, (array) ( $current['ai_providers'] ?? array() ) );
+		foreach ( array( 'ai_profile_provider' => 'openai', 'ai_profile_fallback' => '' ) as $key => $unused ) {
+			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_key( $input[ $key ] );
+		}
+		if ( isset( $input['ai_profile_model'] ) ) $output['ai_profile_model'] = sanitize_text_field( $input['ai_profile_model'] );
 		if ( is_multisite() && isset( $input['network_inherit'] ) ) {
 			$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
 			foreach ( self::defaults() as $key => $unused ) if ( isset( $input['network_inherit'][ $key ] ) ) $inherit[ $key ] = empty( $input['network_inherit'][ $key ] ) ? 0 : 1;
@@ -145,7 +158,57 @@ class Digitalisimo_Integrations_Settings {
 		return $output;
 	}
 
-	private static function field( $key, $label, $type = 'text', $help = '' ) {
+	/** Proveedores de IA admitidos, en el orden en que se muestran. */
+	public static function ai_providers() {
+		return array( 'openai' => 'OpenAI / GPT', 'anthropic' => 'Anthropic / Claude', 'google' => 'Google / Gemini', 'deepseek' => 'DeepSeek', 'xai' => 'xAI / Grok' );
+	}
+
+	/**
+	 * Normaliza los proveedores conservando cada clave existente cuando el campo
+	 * llega vacío, de modo que guardar no obliga a reescribir las credenciales.
+	 */
+	private static function sanitize_providers( $input, $current ) {
+		if ( ! is_array( $input ) ) return $current;
+		$output = $current;
+		foreach ( self::ai_providers() as $id => $unused ) {
+			if ( ! isset( $input[ $id ] ) ) continue;
+			$in = (array) $input[ $id ];
+			$output[ $id ]['enabled'] = empty( $in['enabled'] ) ? 0 : 1;
+			$output[ $id ]['url']     = esc_url_raw( $in['url'] ?? '' );
+			if ( ! empty( $in['key'] ) ) $output[ $id ]['key'] = sanitize_text_field( $in['key'] );
+			elseif ( ! isset( $output[ $id ]['key'] ) ) $output[ $id ]['key'] = '';
+		}
+		return $output;
+	}
+
+	/** Indica si el proveedor tiene clave guardada, sin exponer su valor. */
+	public static function ai_provider_has_key( $id ) {
+		$providers = (array) self::get( 'ai_providers' );
+		return ! empty( $providers[ $id ]['key'] );
+	}
+
+	/** Pestaña de proveedores IA: credenciales y perfil usado por las funciones SEO. */
+	private static function ai_fields() {
+		$providers = (array) self::get( 'ai_providers' );
+		$option    = esc_attr( self::OPTION );
+		echo '<tr><th scope="row">Proveedores</th><td><p class="description">Las claves se guardan en los ajustes del sitio y no se muestran de vuelta en el formulario. Deja el campo vacío para conservar la clave existente.</p>';
+		foreach ( self::ai_providers() as $id => $name ) {
+			$p       = (array) ( $providers[ $id ] ?? array() );
+			$has_key = ! empty( $p['key'] );
+			echo '<fieldset style="margin:14px 0;padding:14px 16px;border:1px solid #ccd6e5;border-radius:12px"><legend><strong>' . esc_html( $name ) . '</strong></legend>';
+			echo '<p><label><input type="hidden" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label></p>';
+			echo '<p><input class="regular-text" type="password" autocomplete="new-password" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][key]" placeholder="API Key"> <span class="description">' . ( $has_key ? 'Clave guardada. Déjala vacía para conservarla.' : 'Sin clave configurada.' ) . '</span></p>';
+			echo '<p><label>URL compatible <input class="regular-text" type="url" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p>';
+			echo '</fieldset>';
+		}
+		echo '</td></tr>';
+		$choices = self::ai_providers();
+		self::field( 'ai_profile_provider', 'Proveedor para funciones SEO', 'select', 'Se usa al detectar intención de búsqueda y en el resto de apoyos de IA.', $choices );
+		self::field( 'ai_profile_model', 'Modelo', 'text', 'Por ejemplo: gpt-4o-mini, claude-sonnet-5 o gemini-2.0-flash.' );
+		self::field( 'ai_profile_fallback', 'Proveedor alternativo', 'select', 'Se intenta si el principal falla. Deja «Sin alternativa» para no reintentar.', array( '' => 'Sin alternativa' ) + $choices );
+	}
+
+	private static function field( $key, $label, $type = 'text', $help = '', $choices = array() ) {
 		$value = self::get( $key );
 		$inherit = is_multisite() && class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && Digitalisimo_Integrations_SEO_Resolver::inherits_network( $key );
 		$disabled = $inherit ? ' disabled' : '';
@@ -154,6 +217,10 @@ class Digitalisimo_Integrations_Settings {
 			echo '<input type="hidden" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="0"><label><input class="digitalisimo-site-field" type="checkbox" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="1" ' . checked( $value, 1, false ) . $disabled . '> ' . esc_html__( 'Activar', 'digitalisimo-integrations' ) . '</label>';
 		} elseif ( 'textarea' === $type ) {
 			echo '<textarea class="large-text code digitalisimo-site-field" rows="4" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']"' . $disabled . '>' . esc_textarea( $value ) . '</textarea>';
+		} elseif ( 'select' === $type ) {
+			echo '<select class="digitalisimo-site-field" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']"' . $disabled . '>';
+			foreach ( (array) $choices as $choice => $label_choice ) echo '<option value="' . esc_attr( $choice ) . '" ' . selected( (string) $value, (string) $choice, false ) . '>' . esc_html( $label_choice ) . '</option>';
+			echo '</select>';
 		} else {
 			$actual_type = 'secret' === $type ? 'password' : $type;
 			$actual_value = 'secret' === $type ? '' : $value;
@@ -168,7 +235,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function settings_page( $fixed_tab = null ) {
 		if ( ! current_user_can( 'manage_options' ) ) return;
 		$tab = $fixed_tab ? $fixed_tab : sanitize_key( $_GET['tab'] ?? 'general' );
-		$tabs = array( 'general' => 'General', 'seo' => 'Contenido', 'sitemap' => 'Avanzado: Sitemap', 'indexing' => 'Avanzado: Indexación' );
+		$tabs = array( 'general' => 'General', 'seo' => 'Contenido', 'ai' => 'Proveedores IA', 'sitemap' => 'Avanzado: Sitemap', 'indexing' => 'Avanzado: Indexación' );
 		if ( ! isset( $tabs[ $tab ] ) ) $tab = 'general';
 		echo '<div class="wrap digitalisimo-admin-shell"><h1>' . esc_html__( 'Digitalisimo · SEO', 'digitalisimo-integrations' ) . '</h1><h2 class="nav-tab-wrapper">';
 		foreach ( $tabs as $slug => $name ) echo '<a class="nav-tab ' . ( $tab === $slug ? 'nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-settings&tab=' . $slug ) ) . '">' . esc_html( $name ) . '</a>';
@@ -184,6 +251,8 @@ class Digitalisimo_Integrations_Settings {
 			self::field( 'keyword_max_count', 'Máximo de keywords por contenido', 'number', 'Entre 1 y 20.' );
 			self::field( 'keyword_auto_from_title', 'Usar título como keyword inicial', 'checkbox', 'Si no se asigna una keyword al guardar, se usa el título del contenido.' );
 			echo '<tr><th scope="row">Palabras clave</th><td><p>Las keywords se configuran por entrada o página, en el metabox <strong>SEO de Digitalisimo</strong>.</p><p><a class="button" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-keywords' ) ) . '">Gestionar keywords</a></p></td></tr>';
+		} elseif ( 'ai' === $tab ) {
+			self::ai_fields();
 		} elseif ( 'sitemap' === $tab ) {
 			self::field( 'sitemap_enabled', 'Activar sitemap XML', 'checkbox', 'Usa el sitemap nativo de WordPress: /wp-sitemap.xml.' );
 			self::field( 'sitemap_post_types', 'Tipos de contenido incluidos', 'textarea', 'Separados por comas. Ejemplo: post,page,product. Solo se incluyen tipos públicos.' );

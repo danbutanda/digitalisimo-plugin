@@ -29,6 +29,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-llms-tools.p
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-indexnow-tools.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-referral-tools.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-entities-tools.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-client.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-github-updater.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-admin-ui.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-editorial.php';

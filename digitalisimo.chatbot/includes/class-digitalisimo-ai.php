@@ -45,11 +45,13 @@ class Digitalisimo_AI {
 
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
-		if ( isset( $_POST['digitalisimo_ai_save'] ) && check_admin_referer( 'digitalisimo_ai_save' ) ) self::save_site();
+		$saved = isset( $_POST['digitalisimo_ai_save'] ) && check_admin_referer( 'digitalisimo_ai_save' );
+		if ( $saved ) self::save_site();
 		$tab = sanitize_key( $_GET['tab'] ?? 'general' );
 		$tabs = array( 'general' => 'General', 'providers' => 'Proveedores', 'profiles' => 'Perfiles de uso', 'chat' => 'Chatbot', 'knowledge' => 'Conocimiento del sitio', 'images' => 'Imágenes', 'advanced' => 'Avanzado' );
 		$o = self::get();
 		echo '<div class="wrap"><h1>Digitalisimo AI</h1><p>Motor IA compartido. Genera bajo demanda y nunca publica ni modifica contenido automáticamente.</p>';
+		if ( $saved ) echo '<div class="notice notice-success is-dismissible"><p>Configuración guardada.</p></div>';
 		if ( is_multisite() ) echo '<div class="notice notice-info inline"><p><strong>Valor efectivo:</strong> ' . esc_html( self::origin() ) . '. Puedes elegir heredar los ajustes completos de la red o usar los de este sitio.</p></div>';
 		echo '<h2 class="nav-tab-wrapper">'; foreach ( $tabs as $id => $name ) echo '<a class="nav-tab ' . ( $id === $tab ? 'nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai&tab=' . $id ) ) . '">' . esc_html( $name ) . '</a>'; echo '</h2><form method="post">'; wp_nonce_field( 'digitalisimo_ai_save' );
 		if ( 'general' === $tab ) {
@@ -69,7 +71,7 @@ class Digitalisimo_AI {
 		if ( ! current_user_can( 'manage_network_options' ) || ! is_super_admin() ) return;
 		if ( isset( $_POST['digitalisimo_ai_network_save'] ) && check_admin_referer( 'digitalisimo_ai_network_save' ) ) self::save_network();
 		$o = wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() );
-		echo '<div class="wrap"><h1>Digitalisimo · AI y Chatbot de red</h1><p>Estos valores son dinámicos: todos los sitios que elijan heredarlos reflejarán los cambios sin copiar credenciales.</p><form method="post">'; wp_nonce_field( 'digitalisimo_ai_network_save' );
+		echo '<div class="wrap"><h1>Digitalisimo · AI y Chatbot de red</h1><p>Estos valores son dinámicos: todos los sitios que elijan heredarlos reflejarán los cambios sin copiar credenciales.</p>'; if ( isset( $_POST['digitalisimo_ai_network_save'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Configuración de red guardada.</p></div>'; echo '<form method="post">'; wp_nonce_field( 'digitalisimo_ai_network_save' );
 		self::check( 'chat_enabled', 'Activar motor IA por defecto', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento por defecto', $o ); self::check( 'knowledge_embeddings_enabled', 'Permitir embeddings opcionales de OpenAI', $o ); self::check( 'knowledge_semantic_rerank', 'Reordenar conocimiento con similitud semántica', $o ); self::input( 'knowledge_embeddings_model', 'Modelo de embeddings', $o ); self::input( 'knowledge_results', 'Resultados de conocimiento por consulta', $o, 'number' ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); self::providers( $o ); self::profiles( $o ); self::input( 'image_size', 'Tamaño predeterminado de imagen', $o ); self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' );
 		submit_button( 'Guardar configuración de red', 'primary', 'digitalisimo_ai_network_save' ); echo '</form></div>';
 	}
@@ -95,7 +97,7 @@ class Digitalisimo_AI {
 	}
 	private static function providers( $o ) {
 		$names = array( 'openai' => 'OpenAI / GPT', 'anthropic' => 'Anthropic / Claude', 'google' => 'Google / Gemini', 'deepseek' => 'DeepSeek', 'xai' => 'xAI / Grok' );
-		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" placeholder="API Key"> <span class="description">Déjala vacía para conservar la clave existente.</span></p><p><label>URL compatible <input class="regular-text" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
+		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" placeholder="API Key"> <span class="description">' . ( $has_key ? 'Clave guardada. Déjala vacía para conservarla.' : 'Sin clave configurada.' ) . '</span></p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
 	}
 	private static function profiles( $o ) { foreach ( $o['profiles'] as $id => $p ) { echo '<p><strong>' . esc_html( ucfirst( $id ) ) . '</strong><br><label>Proveedor <select name="profiles[' . esc_attr( $id ) . '][provider]">'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['provider'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label> <label>Modelo <input name="profiles[' . esc_attr( $id ) . '][model]" value="' . esc_attr( $p['model'] ) . '"></label> <label>Alternativa <select name="profiles[' . esc_attr( $id ) . '][fallback]"><option value="">Sin alternativa</option>'; foreach ( array( 'openai', 'anthropic', 'google', 'deepseek', 'xai' ) as $provider ) echo '<option value="' . esc_attr( $provider ) . '" ' . selected( $p['fallback'], $provider, false ) . '>' . esc_html( $provider ) . '</option>'; echo '</select></label></p>'; } }
 
