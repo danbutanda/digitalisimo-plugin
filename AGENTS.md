@@ -8,6 +8,14 @@ Este repositorio entrega módulos WordPress independientes que comparten un núc
 
 - Cada módulo se instala solo o junto a los demás; nunca debe requerir que otro módulo esté activo salvo para una mejora opcional.
 - WordPress Multisite: la red define defaults y cada sitio puede heredar o personalizar. La resolución es `contenido → sitio → red → default`.
+
+- **Paridad obligatoria sitio/red.** Toda opción nueva debe quedar operativa en las dos superficies antes de darse por terminada; una opción que sólo existe en una de ellas se considera incompleta. Los cuatro puntos son:
+  1. `Digitalisimo_Integrations_Settings::defaults()` — declarar la clave con su valor neutro.
+  2. `Digitalisimo_Integrations_Settings::sanitize()` — validar el envío **por sitio** (Digitalisimo → SEO).
+  3. `Digitalisimo_Integrations_SEO_Suite::network_fields()` — pintar el campo en **Red → Digitalisimo → SEO**.
+  4. `Digitalisimo_Integrations_SEO_Suite::save_network()` — validar el envío **de red**. Este método sanitiza por defecto con `sanitize_textarea_field()`: cualquier clave que necesite reglas propias (rutas, slugs, secretos, enumeraciones) debe declarar su caso explícito, o la red aceptará valores que el formulario del sitio rechaza.
+- La lectura en runtime siempre pasa por `Digitalisimo_Integrations_SEO_Resolver::option()`, nunca por `get_option()` directo: es lo que hace efectiva la herencia. Recordar que `inherits_network()` hereda **por defecto** cuando la clave aún no figura en `digitalisimo_seo_network_inherit`, así que un valor de red recién definido se aplica de inmediato a los sitios que nunca lo personalizaron.
+- Las URLs se construyen con `home_url()`/`site_url()` del sitio en curso, no con constantes ni con el dominio principal: es lo que permite que la misma opción de red funcione en subdominios y en subdirectorios.
 - Nunca duplicar title, description, canonical, robots, sitemap o schema en motores paralelos.
 - Nunca crear metatags inventados para IA, contenido invisible, modificaciones automáticas de contenido ni promesas de posicionamiento/citación.
 - Configuraciones sensibles se protegen con capability, nonce y sanitización. Las tareas remotas se ejecutan en cola, no durante el guardado.
