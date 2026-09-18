@@ -44,3 +44,9 @@
 @media (prefers-reduced-motion: no-preference) {
 	.digitalisimo-admin .wrap .nav-tab, .digitalisimo-admin .wrap .button, .digitalisimo-admin .digitalisimo-admin-shell .nav-tab, .digitalisimo-admin .digitalisimo-admin-shell .button { transition: background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease; }
 }
+
+/* Estado de un dato sensible: se ve que está guardado sin exponerlo. */
+.digitalisimo-secret { display: inline-block; margin-left: 8px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.digitalisimo-secret.is-set { color: #145c33; background: #e3f6ea; }
+.digitalisimo-secret.is-set:before { content: '\2713 '; }
+.digitalisimo-secret.is-empty { color: #5c6a88; background: #eef1f9; }

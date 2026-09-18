@@ -4,6 +4,9 @@ defined( 'ABSPATH' ) || exit;
 class Digitalisimo_Integrations_Settings {
 	const OPTION = 'digitalisimo_integrations_options';
 
+	/** Máscara mostrada en lugar de un secreto ya guardado. */
+	const MASK = '••••••••••••';
+
 	public static function defaults() {
 		return array(
 			'enable_seo'             => 1,
@@ -213,7 +216,7 @@ class Digitalisimo_Integrations_Settings {
 			$has_key = ! empty( $p['key'] );
 			echo '<fieldset style="margin:14px 0;padding:14px 16px;border:1px solid #ccd6e5;border-radius:12px"><legend><strong>' . esc_html( $name ) . '</strong></legend>';
 			echo '<p><label><input type="hidden" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label></p>';
-			echo '<p><input class="regular-text" type="password" autocomplete="new-password" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][key]" placeholder="API Key"> <span class="description">' . ( $has_key ? 'Clave guardada. Déjala vacía para conservarla.' : 'Sin clave configurada.' ) . '</span></p>';
+			echo '<p><input class="regular-text" type="password" autocomplete="new-password" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][key]" placeholder="' . esc_attr( $has_key ? self::MASK : 'API Key' ) . '"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span></p>';
 			echo '<p><label>URL compatible <input class="regular-text" type="url" name="' . $option . '[ai_providers][' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p>';
 			echo '</fieldset>';
 		}
@@ -240,10 +243,14 @@ class Digitalisimo_Integrations_Settings {
 			foreach ( (array) $choices as $choice => $label_choice ) echo '<option value="' . esc_attr( $choice ) . '" ' . selected( (string) $value, (string) $choice, false ) . '>' . esc_html( $label_choice ) . '</option>';
 			echo '</select>';
 		} else {
-			$actual_type = 'secret' === $type ? 'password' : $type;
-			$actual_value = 'secret' === $type ? '' : $value;
-			echo '<input class="regular-text digitalisimo-site-field" type="' . esc_attr( $actual_type ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="' . esc_attr( $actual_value ) . '"' . $disabled . '>';
-			if ( 'secret' === $type && ! empty( $value ) ) echo ' <span class="description">' . esc_html__( 'Ya configurada. Déjala vacía para conservarla.', 'digitalisimo-integrations' ) . '</span>';
+			$secret       = 'secret' === $type;
+			$actual_type  = $secret ? 'password' : $type;
+			$actual_value = $secret ? '' : $value;
+			// El valor nunca viaja al navegador: la máscara sólo va en el placeholder,
+			// así el campo sigue llegando vacío y la clave almacenada se conserva.
+			$placeholder  = ( $secret && ! empty( $value ) ) ? ' placeholder="' . esc_attr( self::MASK ) . '" autocomplete="new-password"' : '';
+			echo '<input class="regular-text digitalisimo-site-field" type="' . esc_attr( $actual_type ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="' . esc_attr( $actual_value ) . '"' . $placeholder . $disabled . '>';
+			if ( $secret ) echo ' <span class="digitalisimo-secret ' . ( empty( $value ) ? 'is-empty' : 'is-set' ) . '">' . esc_html( empty( $value ) ? __( 'Sin configurar', 'digitalisimo-integrations' ) : __( 'Guardada · escribe una nueva sólo si quieres reemplazarla', 'digitalisimo-integrations' ) ) . '</span>';
 		}
 		if ( $help ) echo '<p class="description">' . esc_html( $help ) . '</p>';
 		if ( is_multisite() && class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) ) { $origin = Digitalisimo_Integrations_SEO_Resolver::option_with_origin( $key ); echo '<p><input type="hidden" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="0"><label><input class="digitalisimo-network-inherit" data-field="' . esc_attr( $key ) . '" type="checkbox" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="1" ' . checked( $inherit, true, false ) . '> Heredar de la red</label><br><span class="description">Valor efectivo: <strong>' . esc_html( is_scalar( $origin['value'] ) ? (string) $origin['value'] : '' ) . '</strong> · Origen: ' . esc_html( $origin['label'] ) . '</span></p>'; }
@@ -252,17 +259,37 @@ class Digitalisimo_Integrations_Settings {
 
 	public static function settings_page( $fixed_tab = null ) {
 		if ( ! current_user_can( 'manage_options' ) ) return;
-		$tab = $fixed_tab ? $fixed_tab : sanitize_key( $_GET['tab'] ?? 'general' );
+		$tab  = $fixed_tab ? $fixed_tab : sanitize_key( $_GET['tab'] ?? 'general' );
 		$tabs = array( 'general' => 'General', 'seo' => 'Contenido', 'ai' => 'Proveedores IA', 'sitemap' => 'Avanzado: Sitemap', 'indexing' => 'Avanzado: Indexación' );
 		if ( ! isset( $tabs[ $tab ] ) ) $tab = 'general';
-		echo '<div class="wrap digitalisimo-admin-shell"><h1>' . esc_html__( 'Digitalisimo · SEO', 'digitalisimo-integrations' ) . '</h1><h2 class="nav-tab-wrapper">';
-		foreach ( $tabs as $slug => $name ) echo '<a class="nav-tab ' . ( $tab === $slug ? 'nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-settings&tab=' . $slug ) ) . '">' . esc_html( $name ) . '</a>';
+
+		echo '<div class="wrap digitalisimo-admin-shell"><h1>' . esc_html__( 'Digitalisimo · SEO', 'digitalisimo-integrations' ) . '</h1>';
+		echo '<h2 class="nav-tab-wrapper digitalisimo-tabs">';
+		foreach ( $tabs as $slug => $name ) echo '<a class="nav-tab ' . ( $tab === $slug ? 'nav-tab-active' : '' ) . '" data-tab="' . esc_attr( $slug ) . '" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-settings&tab=' . $slug ) ) . '">' . esc_html( $name ) . '</a>';
 		echo '</h2>';
 		// En un menú propio los avisos de register_setting() no se imprimen solos.
 		settings_errors( 'digitalisimo_integrations' );
-		echo '<p class="description">Configura primero módulos y contenido. Las reglas técnicas e integraciones especializadas están agrupadas como opciones avanzadas.</p><form method="post" action="options.php">';
+		echo '<p class="description">Configura primero módulos y contenido. Las reglas técnicas e integraciones especializadas están agrupadas como opciones avanzadas.</p>';
+		echo '<form method="post" action="options.php">';
 		settings_fields( 'digitalisimo_integrations' );
-		echo '<table class="form-table" role="presentation">';
+
+		// Todas las pestañas viven en el mismo formulario: cambiar de pestaña no
+		// recarga, así que lo escrito en una no se pierde al pasar a otra y un
+		// único guardado las envía todas.
+		foreach ( $tabs as $slug => $name ) {
+			echo '<div class="digitalisimo-panel" data-tab="' . esc_attr( $slug ) . '"' . ( $slug === $tab ? '' : ' hidden' ) . '>';
+			echo '<table class="form-table" role="presentation">';
+			self::tab_fields( $slug );
+			echo '</table></div>';
+		}
+
+		echo '<input type="hidden" class="digitalisimo-active-tab" name="digitalisimo_active_tab" value="' . esc_attr( $tab ) . '">';
+		submit_button();
+		echo '</form><script>document.querySelectorAll(".digitalisimo-network-inherit").forEach(function(c){var f=document.getElementById(c.dataset.field);function s(){if(f)f.disabled=c.checked;}c.addEventListener("change",s);s();});</script></div>';
+	}
+
+	/** Campos de una pestaña. Separado para poder pintarlas todas de una vez. */
+	private static function tab_fields( $tab ) {
 		if ( 'general' === $tab ) {
 			self::field( 'enable_seo', 'Módulo SEO propio', 'checkbox', 'Añade metadatos SEO, clusters, shortcodes, breadcrumbs, schema y sitemap nativos.' );
 			self::hide_login_field();
@@ -290,7 +317,6 @@ class Digitalisimo_Integrations_Settings {
 			self::field( 'noindex_page_slugs', 'Slugs de páginas de prueba o privadas', 'textarea', 'Uno por línea. Ejemplo: prueba, gracias-por-contactar.' );
 			self::field( 'noindex_page_ids', 'IDs de páginas de prueba o privadas', 'textarea', 'Separados por comas.' );
 		}
-		echo '</table>'; submit_button(); echo '</form><script>document.querySelectorAll(".digitalisimo-network-inherit").forEach(function(c){var f=document.getElementById(c.dataset.field);function s(){if(f)f.disabled=c.checked;}c.addEventListener("change",s);s();});</script></div>';
 	}
 
 	/** Ruta privada de acceso: sustituye a wp-login.php y a /wp-admin para las visitas sin sesión. */

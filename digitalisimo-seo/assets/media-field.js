@@ -247,10 +247,58 @@
 		} );
 	}
 
+	/**
+	 * Pestañas en cliente. Todos los paneles están en el mismo formulario, así que
+	 * cambiar de pestaña no recarga y lo escrito no se pierde. Además deja la
+	 * pestaña abierta en la URL y en el referer, para volver a ella al guardar.
+	 */
+	function tabs() {
+		var nav = document.querySelector( '.digitalisimo-tabs' );
+		var panels = document.querySelectorAll( '.digitalisimo-panel' );
+		if ( ! nav || ! panels.length ) return;
+		var links = nav.querySelectorAll( '[data-tab]' );
+
+		function open( slug ) {
+			var found = false;
+			panels.forEach( function ( panel ) {
+				var match = panel.dataset.tab === slug;
+				panel.hidden = ! match;
+				if ( match ) found = true;
+			} );
+			if ( ! found ) return false;
+			links.forEach( function ( link ) { link.classList.toggle( 'nav-tab-active', link.dataset.tab === slug ); } );
+
+			var active = document.querySelector( '.digitalisimo-active-tab' );
+			if ( active ) active.value = slug;
+
+			try {
+				var url = new URL( window.location.href );
+				url.searchParams.set( 'tab', slug );
+				url.searchParams.delete( 'settings-updated' );
+				url.searchParams.delete( 'updated' );
+				window.history.replaceState( {}, '', url );
+				// options.php devuelve al referer enviado: sin esto se vuelve a la primera pestaña.
+				var referer = document.querySelector( 'input[name="_wp_http_referer"]' );
+				if ( referer ) referer.value = url.pathname + url.search;
+			} catch ( error ) {
+				// Una URL que el navegador no sabe parsear no debe romper la navegación.
+			}
+			return true;
+		}
+
+		links.forEach( function ( link ) {
+			link.addEventListener( 'click', function ( event ) {
+				// Sin JS el enlace sigue funcionando como recarga normal.
+				if ( open( link.dataset.tab ) ) event.preventDefault();
+			} );
+		} );
+	}
+
 	function boot() {
 		document.querySelectorAll( '.digitalisimo-media' ).forEach( setup );
 		inheritGroups();
 		schedule();
+		tabs();
 	}
 
 	if ( document.readyState === 'loading' ) document.addEventListener( 'DOMContentLoaded', boot );
