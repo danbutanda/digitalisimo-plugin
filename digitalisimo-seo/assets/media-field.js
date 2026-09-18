@@ -178,9 +178,79 @@
 		} );
 	}
 
+	/** Horario semanal: estado por día, horario partido y copia entre días. */
+	function schedule() {
+		document.querySelectorAll( '.digitalisimo-hours' ).forEach( function ( box ) {
+			if ( box.dataset.ready === '1' ) return;
+			box.dataset.ready = '1';
+
+			function row( day ) {
+				return box.querySelector( '.digitalisimo-hours__day[data-day="' + day + '"]' );
+			}
+
+			// Un día cerrado o de 24 horas no necesita mostrar franjas.
+			function sync( day ) {
+				var el = row( day );
+				if ( ! el ) return;
+				var state = el.querySelector( '.digitalisimo-hours__state' );
+				var open = state && state.value === 'open';
+				el.classList.toggle( 'is-open', open );
+				el.querySelectorAll( '.digitalisimo-hours__range' ).forEach( function ( range ) {
+					if ( ! range.classList.contains( 'digitalisimo-hours__range--second' ) ) range.hidden = ! open;
+				} );
+				var split = el.querySelector( '.digitalisimo-hours__split' );
+				var second = el.querySelector( '.digitalisimo-hours__range--second' );
+				if ( split ) split.hidden = ! open;
+				if ( second && ! open ) second.hidden = true;
+			}
+
+			box.querySelectorAll( '.digitalisimo-hours__day' ).forEach( function ( el ) {
+				var day = el.dataset.day;
+				var state = el.querySelector( '.digitalisimo-hours__state' );
+				if ( state ) state.addEventListener( 'change', function () { sync( day ); } );
+
+				var split = el.querySelector( '.digitalisimo-hours__split' );
+				var second = el.querySelector( '.digitalisimo-hours__range--second' );
+				if ( split && second ) {
+					split.addEventListener( 'click', function ( event ) {
+						event.preventDefault();
+						second.hidden = ! second.hidden;
+						split.setAttribute( 'aria-pressed', second.hidden ? 'false' : 'true' );
+						// Un tramo oculto no debe viajar: se vacía al plegarlo.
+						if ( second.hidden ) second.querySelectorAll( 'select' ).forEach( function ( sel ) { sel.selectedIndex = 0; } );
+					} );
+				}
+				sync( day );
+			} );
+
+			box.querySelectorAll( '.digitalisimo-hours__copy' ).forEach( function ( button ) {
+				button.addEventListener( 'click', function ( event ) {
+					event.preventDefault();
+					var from = row( button.dataset.source );
+					if ( ! from ) return;
+					var fields = [ 'state', 'from', 'to', 'from2', 'to2' ];
+					button.dataset.targets.split( ',' ).forEach( function ( day ) {
+						var to = row( day );
+						if ( ! to ) return;
+						fields.forEach( function ( field ) {
+							var a = from.querySelector( '.digitalisimo-hours__' + field );
+							var b = to.querySelector( '.digitalisimo-hours__' + field );
+							if ( a && b ) b.value = a.value;
+						} );
+						var source2 = from.querySelector( '.digitalisimo-hours__range--second' );
+						var target2 = to.querySelector( '.digitalisimo-hours__range--second' );
+						if ( source2 && target2 ) target2.hidden = source2.hidden;
+						sync( day );
+					} );
+				} );
+			} );
+		} );
+	}
+
 	function boot() {
 		document.querySelectorAll( '.digitalisimo-media' ).forEach( setup );
 		inheritGroups();
+		schedule();
 	}
 
 	if ( document.readyState === 'loading' ) document.addEventListener( 'DOMContentLoaded', boot );

@@ -99,6 +99,8 @@ class Digitalisimo_Integrations_Settings {
 			'seo_ai_referral_retention'=> 90,
 			'seo_hide_login_slug'    => '',
 			'seo_social_profiles'    => array(),
+			'seo_local_phone_cc'     => '',
+			'seo_local_schedule'     => array(),
 		);
 	}
 
@@ -134,7 +136,7 @@ class Digitalisimo_Integrations_Settings {
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
 		// nunca se vacía. De lo contrario, guardar una pestaña borraría las demás.
-		foreach ( array( 'openai_model', 'namecheap_api_user', 'namecheap_username', 'namecheap_client_ip', 'seo_site_name', 'seo_separator', 'seo_organization_type', 'seo_organization_name', 'seo_organization_url', 'seo_organization_email', 'seo_twitter_card', 'seo_twitter_user', 'seo_local_type', 'seo_local_name', 'seo_local_phone', 'seo_local_city', 'seo_local_region', 'seo_local_postal', 'seo_local_country', 'seo_local_latitude', 'seo_local_longitude', 'seo_local_price_range' ) as $key ) {
+		foreach ( array( 'openai_model', 'namecheap_api_user', 'namecheap_username', 'namecheap_client_ip', 'seo_site_name', 'seo_separator', 'seo_organization_type', 'seo_organization_name', 'seo_organization_url', 'seo_organization_email', 'seo_twitter_card', 'seo_twitter_user', 'seo_local_type', 'seo_local_name', 'seo_local_city', 'seo_local_region', 'seo_local_postal', 'seo_local_country', 'seo_local_latitude', 'seo_local_longitude', 'seo_local_price_range' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
 		}
 		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ipinfo_tokens', 'sitemap_post_types', 'sitemap_exclude_ids', 'keyword_post_types', 'noindex_page_slugs', 'noindex_page_ids', 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_local_address', 'seo_local_hours', 'seo_taxonomies', 'seo_sitemap_taxonomies' ) as $key ) {
@@ -147,6 +149,9 @@ class Digitalisimo_Integrations_Settings {
 			if ( ! empty( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
 			elseif ( ! array_key_exists( $key, $output ) ) $output[ $key ] = '';
 		}
+		if ( isset( $input['seo_local_phone'] ) ) $output['seo_local_phone'] = Digitalisimo_Integrations_Local_Business::sanitize_phone( $input['seo_local_phone'] );
+		if ( isset( $input['seo_local_phone_cc'] ) ) $output['seo_local_phone_cc'] = Digitalisimo_Integrations_Local_Business::sanitize_code( $input['seo_local_phone_cc'] );
+		if ( isset( $input['seo_local_schedule'] ) ) $output['seo_local_schedule'] = Digitalisimo_Integrations_Local_Business::sanitize_schedule( $input['seo_local_schedule'] );
 		$output[ Digitalisimo_Integrations_Social_Profiles::KEY ] = isset( $input[ Digitalisimo_Integrations_Social_Profiles::KEY ] )
 			? Digitalisimo_Integrations_Social_Profiles::sanitize( $input[ Digitalisimo_Integrations_Social_Profiles::KEY ], $current[ Digitalisimo_Integrations_Social_Profiles::KEY ] ?? array() )
 			: ( $current[ Digitalisimo_Integrations_Social_Profiles::KEY ] ?? array() );

@@ -23,3 +23,22 @@
 	.digitalisimo-social__row label { width: auto; display: block; margin-bottom: 4px; }
 	.digitalisimo-social__row input { width: 100%; }
 }
+
+/* Teléfono: lada y número en una sola línea. */
+.digitalisimo-phone { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Horario semanal, una fila por día. */
+.digitalisimo-hours { max-width: 760px; }
+.digitalisimo-hours__actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.digitalisimo-hours__day { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid #e4e8f5; border-radius: 11px; background: rgba(255,255,255,.7); margin-bottom: 6px; }
+.digitalisimo-hours__day.is-open { border-color: #ccd8fb; background: linear-gradient(135deg, rgba(36,94,255,.04), rgba(241,59,155,.02)); }
+.digitalisimo-hours__label { flex: none; width: 96px; color: #3a4765; font-size: 13px; font-weight: 600; }
+.digitalisimo-hours__range { display: inline-flex; align-items: center; gap: 6px; }
+.digitalisimo-hours__sep { color: #8a96b4; }
+.digitalisimo-hours__split { margin-left: auto; font-size: 12px; }
+.digitalisimo-hours__split[aria-pressed="true"] { font-weight: 700; }
+@media (max-width: 782px) {
+	.digitalisimo-hours__day { align-items: flex-start; }
+	.digitalisimo-hours__label { width: 100%; }
+	.digitalisimo-hours__split { margin-left: 0; }
+}
