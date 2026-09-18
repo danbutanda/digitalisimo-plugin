@@ -18,6 +18,7 @@ Este repositorio entrega módulos WordPress independientes que comparten un núc
 - Las URLs se construyen con `home_url()`/`site_url()` del sitio en curso, no con constantes ni con el dominio principal: es lo que permite que la misma opción de red funcione en subdominios y en subdirectorios.
 - Nunca duplicar title, description, canonical, robots, sitemap o schema en motores paralelos.
 - Nunca crear metatags inventados para IA, contenido invisible, modificaciones automáticas de contenido ni promesas de posicionamiento/citación.
+- Toda opción cuyo valor sea un archivo se pinta con el tipo `media` (`Digitalisimo_Media_Field`), nunca como input de URL a mano: da biblioteca de medios, arrastre y pegado de URL con un solo marcado. El valor se guarda como URL con `esc_url_raw()`, y la clave se declara en `Digitalisimo_Integrations_SEO_Suite::media_keys()` para que las dos superficies la sanitizen igual.
 - Configuraciones sensibles se protegen con capability, nonce y sanitización. Las tareas remotas se ejecutan en cola, no durante el guardado.
 - Al incrementar una versión, mover el ZIP anterior a `rollback/`, actualizar `tests/validate-suite.mjs`, crear el nuevo ZIP y comprobarlo con `unzip -t`.
 - No borrar fuentes ni paquetes históricos: usar `rollback/`.
