@@ -10,13 +10,15 @@ defined( 'ABSPATH' ) || exit;
  *
  * Además de anunciar la versión disponible, habilita la actualización
  * automática de WordPress para los módulos registrados, de modo que se
- * instalen solos sin intervención manual.
+ * instalen solos sin intervención manual, y añade un enlace «Buscar
+ * actualizaciones» que invalida la caché para no tener que esperarla.
  */
 if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 	final class Digitalisimo_Updater {
 		const REPOSITORY = 'danbutanda/digitalisimo-plugin';
 		const CACHE_KEY  = 'digitalisimo_releases_index';
-		const CACHE_TTL  = 21600;
+		const CACHE_TTL  = 3600;
+		const ACTION     = 'digitalisimo_check_updates';
 
 		/** Módulos registrados, indexados por su archivo principal relativo. */
 		private static $modules = array();
@@ -30,13 +32,57 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		 * @param string $slug    Identificador del módulo y prefijo del ZIP.
 		 */
 		public static function register( $file, $version, $slug ) {
-			self::$modules[ plugin_basename( $file ) ] = array( 'version' => $version, 'slug' => $slug );
+			$basename = plugin_basename( $file );
+			self::$modules[ $basename ] = array( 'version' => $version, 'slug' => $slug );
+			// El enlace se registra por módulo; el resto de hooks es compartido.
+			add_filter( 'plugin_action_links_' . $basename, array( __CLASS__, 'action_link' ) );
+			add_filter( 'network_admin_plugin_action_links_' . $basename, array( __CLASS__, 'action_link' ) );
 			if ( self::$hooked ) return;
 			self::$hooked = true;
 			add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject' ) );
 			add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
 			add_filter( 'plugins_api', array( __CLASS__, 'info' ), 20, 3 );
 			add_action( 'upgrader_process_complete', array( __CLASS__, 'clear' ), 10, 2 );
+			add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'force_check' ) );
+			add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
+			add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
+		}
+
+		/** Enlace «Buscar actualizaciones» en la fila del plugin. */
+		public static function action_link( $links ) {
+			if ( ! current_user_can( 'update_plugins' ) ) return $links;
+			$url = wp_nonce_url( admin_url( 'admin-post.php?action=' . self::ACTION ), self::ACTION );
+			$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Buscar actualizaciones', 'digitalisimo' ) . '</a>';
+			return $links;
+		}
+
+		/**
+		 * Comprobación manual: sin esto habría que esperar a que expire la caché,
+		 * porque «Volver a comprobar» de WordPress no la invalida.
+		 */
+		public static function force_check() {
+			if ( ! current_user_can( 'update_plugins' ) ) wp_die( esc_html__( 'No autorizado.', 'digitalisimo' ) );
+			check_admin_referer( self::ACTION );
+			delete_site_transient( self::CACHE_KEY );
+			delete_site_transient( 'update_plugins' );
+			wp_update_plugins();
+			$back = wp_get_referer();
+			wp_safe_redirect( add_query_arg( 'digitalisimo-checked', '1', $back ? $back : admin_url( 'plugins.php' ) ) );
+			exit;
+		}
+
+		/** Resultado de la comprobación manual. */
+		public static function notice() {
+			if ( empty( $_GET['digitalisimo-checked'] ) || ! current_user_can( 'update_plugins' ) ) return;
+			$pending = array();
+			foreach ( self::$modules as $file => $module ) {
+				$release = self::pending( $file );
+				if ( $release ) $pending[] = $module['slug'] . ' ' . $release['version'];
+			}
+			$message = $pending
+				? sprintf( __( 'Digitalisimo: actualizaciones disponibles · %s', 'digitalisimo' ), implode( ', ', $pending ) )
+				: __( 'Digitalisimo está al día: no hay versiones nuevas publicadas.', 'digitalisimo' );
+			echo '<div class="notice notice-' . ( $pending ? 'warning' : 'success' ) . ' is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
 		}
 
 		/** Índice de versiones publicadas, por slug de módulo. */
@@ -49,7 +95,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 				array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-WordPress-Updater' ) )
 			);
 			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-				// Reintento corto ante fallos de red para no quedar seis horas sin comprobar.
+				// Reintento corto ante fallos de red: un error puntual no debe bloquear la comprobación.
 				set_site_transient( self::CACHE_KEY, array(), HOUR_IN_SECONDS );
 				return array();
 			}
