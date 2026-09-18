@@ -97,6 +97,7 @@ class Digitalisimo_Integrations_Settings {
 			'seo_ai_indexnow_auto'   => 1,
 			'seo_ai_referrals_enabled'=> 0,
 			'seo_ai_referral_retention'=> 90,
+			'seo_hide_login_slug'    => '',
 		);
 	}
 
@@ -145,6 +146,7 @@ class Digitalisimo_Integrations_Settings {
 			if ( ! empty( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
 			elseif ( ! array_key_exists( $key, $output ) ) $output[ $key ] = '';
 		}
+		if ( isset( $input['seo_hide_login_slug'] ) ) $output['seo_hide_login_slug'] = Digitalisimo_Integrations_Hide_Login::sanitize_option( $input['seo_hide_login_slug'], $current['seo_hide_login_slug'] ?? '' );
 		$output['ai_providers'] = self::sanitize_providers( $input['ai_providers'] ?? null, (array) ( $current['ai_providers'] ?? array() ) );
 		foreach ( array( 'ai_profile_provider' => 'openai', 'ai_profile_fallback' => '' ) as $key => $unused ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_key( $input[ $key ] );
@@ -239,11 +241,15 @@ class Digitalisimo_Integrations_Settings {
 		if ( ! isset( $tabs[ $tab ] ) ) $tab = 'general';
 		echo '<div class="wrap digitalisimo-admin-shell"><h1>' . esc_html__( 'Digitalisimo · SEO', 'digitalisimo-integrations' ) . '</h1><h2 class="nav-tab-wrapper">';
 		foreach ( $tabs as $slug => $name ) echo '<a class="nav-tab ' . ( $tab === $slug ? 'nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-settings&tab=' . $slug ) ) . '">' . esc_html( $name ) . '</a>';
-		echo '</h2><p class="description">Configura primero módulos y contenido. Las reglas técnicas e integraciones especializadas están agrupadas como opciones avanzadas.</p><form method="post" action="options.php">';
+		echo '</h2>';
+		// En un menú propio los avisos de register_setting() no se imprimen solos.
+		settings_errors( 'digitalisimo_integrations' );
+		echo '<p class="description">Configura primero módulos y contenido. Las reglas técnicas e integraciones especializadas están agrupadas como opciones avanzadas.</p><form method="post" action="options.php">';
 		settings_fields( 'digitalisimo_integrations' );
 		echo '<table class="form-table" role="presentation">';
 		if ( 'general' === $tab ) {
 			self::field( 'enable_seo', 'Módulo SEO propio', 'checkbox', 'Añade metadatos SEO, clusters, shortcodes, breadcrumbs, schema y sitemap nativos.' );
+			self::hide_login_field();
 		} elseif ( 'seo' === $tab ) {
 			self::field( 'openai_api_key', 'Clave API de OpenAI', 'secret', 'Se usa solo para detectar intención de búsqueda.' );
 			self::field( 'openai_model', 'Modelo OpenAI', 'text', 'Por ejemplo: gpt-4o-mini.' );
@@ -269,6 +275,16 @@ class Digitalisimo_Integrations_Settings {
 			self::field( 'noindex_page_ids', 'IDs de páginas de prueba o privadas', 'textarea', 'Separados por comas.' );
 		}
 		echo '</table>'; submit_button(); echo '</form><script>document.querySelectorAll(".digitalisimo-network-inherit").forEach(function(c){var f=document.getElementById(c.dataset.field);function s(){if(f)f.disabled=c.checked;}c.addEventListener("change",s);s();});</script></div>';
+	}
+
+	/** Ruta privada de acceso: sustituye a wp-login.php y a /wp-admin para las visitas sin sesión. */
+	private static function hide_login_field() {
+		$slug = Digitalisimo_Integrations_Hide_Login::slug();
+		$help = $slug
+			? 'Acceso activo en ' . Digitalisimo_Integrations_Hide_Login::login_url() . ' · Guarda esta URL: wp-login.php, /wp-admin, /admin y /dashboard ya no responden sin sesión.'
+			: 'Escribe una sola palabra o guiones (ejemplo: acceso-digitalisimo). Déjalo vacío para conservar el acceso estándar de WordPress.';
+		self::field( 'seo_hide_login_slug', 'Ruta privada de acceso', 'text', $help );
+		echo '<tr><th scope="row"></th><td><p class="description">Con la sesión iniciada, /wp-admin funciona igual que siempre. Si pierdes la ruta, añade <code>define( \'DIGITALISIMO_HIDE_LOGIN_DISABLE\', true );</code> a wp-config.php o desactiva el plugin para recuperar el acceso.</p></td></tr>';
 	}
 
 	public static function keyword_settings_page() { self::settings_page( 'seo' ); }
