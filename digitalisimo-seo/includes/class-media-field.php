@@ -4,10 +4,10 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Campo de archivo compartido por los módulos Digitalisimo.
  *
- * Sustituye a los inputs de URL escritos a mano: permite elegir de la
- * biblioteca de medios, arrastrar un archivo sobre el campo o pegar una URL
- * externa. El valor sigue guardándose como una URL en la misma clave, de modo
- * que ni la sanitización ni el consumo en el frontend cambian.
+ * Sustituye a los inputs de URL escritos a mano: se elige de la biblioteca de
+ * medios o se arrastra el archivo sobre el campo, sin escribir direcciones. El
+ * valor viaja en un input oculto y se sigue guardando como URL en la misma
+ * clave, de modo que ni la sanitización ni el consumo en el frontend cambian.
  *
  * Se declara una sola vez aunque haya varios módulos activos.
  */
@@ -76,8 +76,8 @@ if ( ! class_exists( 'Digitalisimo_Media_Field' ) ) {
 			$value      = (string) $value;
 			$can_upload = current_user_can( 'upload_files' );
 			$hint       = $can_upload
-				? __( 'Arrastra un archivo aquí, elígelo de la biblioteca o pega una URL.', 'digitalisimo' )
-				: __( 'Elige un archivo ya subido o pega una URL.', 'digitalisimo' );
+				? __( 'Arrastra un archivo aquí o elígelo de la biblioteca de medios.', 'digitalisimo' )
+				: __( 'Elige un archivo de la biblioteca de medios.', 'digitalisimo' );
 
 			echo '<div class="digitalisimo-media' . ( $disabled ? ' is-locked' : '' ) . '">';
 			echo '<div class="digitalisimo-media__drop">';
@@ -88,7 +88,7 @@ if ( ! class_exists( 'Digitalisimo_Media_Field' ) ) {
 			echo '<button type="button" class="button-link digitalisimo-media__clear" hidden>' . esc_html__( 'Quitar', 'digitalisimo' ) . '</button>';
 			echo '<span class="digitalisimo-media__status"></span>';
 			echo '</div></div>';
-			echo '<input class="regular-text digitalisimo-media__input ' . esc_attr( $classes ) . '" type="url" id="' . esc_attr( $id ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" placeholder="https://"' . disabled( $disabled, true, false ) . '>';
+			echo '<input class="digitalisimo-media__input ' . esc_attr( $classes ) . '" type="hidden" id="' . esc_attr( $id ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . disabled( $disabled, true, false ) . '>';
 			echo '</div>';
 		}
 	}

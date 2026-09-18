@@ -1,10 +1,10 @@
 /**
  * Campo de archivo de Digitalisimo.
  *
- * Convierte un input de URL en un selector completo: biblioteca de medios,
- * subida por arrastre y pegado manual de una URL externa. El input sigue
- * siendo la única fuente de verdad, de modo que el formulario se guarda igual
- * que antes y un campo heredado de la red (input deshabilitado) queda inerte.
+ * Selector de archivo: biblioteca de medios y subida por arrastre. El valor
+ * vive en un input oculto que sigue siendo la única fuente de verdad, de modo
+ * que el formulario se guarda igual que antes y un campo heredado de la red
+ * (input deshabilitado) queda inerte.
  */
 ( function () {
 	'use strict';
@@ -57,8 +57,8 @@
 			}
 			if ( clear ) clear.hidden = ! url;
 			wrap.classList.toggle( 'has-file', !! url );
-			if ( url && ! isImage( url ) ) say( url.split( '/' ).pop() );
-			else say( '' );
+			// El input está oculto: sin el nombre no habría forma de saber qué hay elegido.
+			say( url ? decodeURIComponent( url.split( '/' ).pop().split( '?' )[ 0 ] ) : '' );
 		}
 
 		function apply( url ) {
@@ -160,8 +160,27 @@
 		render();
 	}
 
+	/**
+	 * «Heredar de la red» para un grupo de campos. El script de los ajustes sólo
+	 * sabe deshabilitar un id; los perfiles sociales son diez inputs.
+	 */
+	function inheritGroups() {
+		document.querySelectorAll( '.digitalisimo-network-inherit[data-group]' ).forEach( function ( toggle ) {
+			var group = document.querySelector( toggle.dataset.group );
+			if ( ! group ) return;
+			function sync() {
+				group.querySelectorAll( 'input, select, textarea' ).forEach( function ( field ) {
+					field.disabled = toggle.checked;
+				} );
+			}
+			toggle.addEventListener( 'change', sync );
+			sync();
+		} );
+	}
+
 	function boot() {
 		document.querySelectorAll( '.digitalisimo-media' ).forEach( setup );
+		inheritGroups();
 	}
 
 	if ( document.readyState === 'loading' ) document.addEventListener( 'DOMContentLoaded', boot );

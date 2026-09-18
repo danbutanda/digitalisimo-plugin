@@ -1,14 +1,25 @@
 /* Campo de archivo: biblioteca de medios, arrastre y URL manual sobre el mismo input. */
 .digitalisimo-media { max-width: 520px; }
-.digitalisimo-media__drop { display: flex; align-items: center; gap: 14px; margin-bottom: 9px; padding: 14px; border: 1px dashed #c3cdeb; border-radius: 13px; background: linear-gradient(135deg, rgba(36,94,255,.035), rgba(241,59,155,.03)); }
+.digitalisimo-media__drop { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px dashed #c3cdeb; border-radius: 13px; background: linear-gradient(135deg, rgba(36,94,255,.035), rgba(241,59,155,.03)); }
 .digitalisimo-media.is-dragging .digitalisimo-media__drop { border-color: var(--digi-blue); border-style: solid; background: rgba(36,94,255,.08); }
 .digitalisimo-media.is-busy .digitalisimo-media__drop { opacity: .6; }
 .digitalisimo-media__preview { flex: none; width: 62px; height: 62px; object-fit: contain; border: 1px solid #e2e7f7; border-radius: 10px; background: #fff; }
 .digitalisimo-media__body { flex: 1; min-width: 0; }
 .digitalisimo-media__hint { margin: 0 0 7px; color: #5c6a88; font-size: 13px; }
-.digitalisimo-media__status { display: block; margin-top: 6px; color: #52617e; font-size: 12px; overflow-wrap: anywhere; }
+.digitalisimo-media__status { display: block; margin-top: 6px; color: #52617e; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
 .digitalisimo-media__status.is-error { color: #b32d2e; }
 .digitalisimo-media__clear { color: #b32d2e; }
 /* Un campo heredado de la red se deshabilita: la zona debe verse inerte. */
 .digitalisimo-media.is-locked .digitalisimo-media__drop { opacity: .55; border-style: dotted; }
 .digitalisimo-media.is-locked .digitalisimo-media__pick { pointer-events: none; }
+
+/* Perfiles sociales: una red por fila, etiqueta fija y campo alineado. */
+.digitalisimo-social { display: grid; gap: 6px; max-width: 640px; margin-top: 10px; }
+.digitalisimo-social__row { display: flex; align-items: center; gap: 12px; margin: 0; }
+.digitalisimo-social__row label { flex: none; width: 190px; color: #3a4765; font-size: 13px; font-weight: 600; }
+.digitalisimo-social__row input { flex: 1; min-width: 0; }
+@media (max-width: 782px) {
+	.digitalisimo-social__row { display: block; }
+	.digitalisimo-social__row label { width: auto; display: block; margin-bottom: 4px; }
+	.digitalisimo-social__row input { width: 100%; }
+}
