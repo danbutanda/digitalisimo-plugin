@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.36.zip', version: '1.0.36' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.37.zip', version: '1.0.37' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.12.zip', version: '1.0.12' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.10.zip', version: '1.0.10' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-chatbot-1.0.16.zip', version: '1.0.16' },
@@ -62,6 +62,7 @@ const seoAiTools = [
 ].map((file) => readFileSync(join('digitalisimo-seo/includes', file), 'utf8'));
 if (!seoSuite.includes("add_submenu_page( 'digitalisimo', 'SEO', 'SEO'")) throw new Error('Falta el acceso unificado SEO');
 if (!seoEditorial.includes("add_submenu_page( null, 'Contenido', 'Contenido'")) throw new Error('Contenido debe abrirse dentro de la navegación SEO, no como submenú lateral');
+if (!seoSuite.includes("'digitalisimo-content' => array( 'Contenido', 'content_page' )")) throw new Error('La pantalla Contenido no está registrada por el módulo SEO activo');
 if (!seoSettings.includes('add_submenu_page( null,')) throw new Error('Los ajustes SEO heredados deben ocultarse del menú lateral');
 if (!seoAi.includes("add_submenu_page( null, 'SEO AI'")) throw new Error('SEO AI debe abrirse desde la navegación interna de SEO');
 if (chatbotAi.includes("add_action( 'admin_menu', array( __CLASS__, 'menu' )")) throw new Error('AI y Chatbot no debe registrar un segundo submenú');

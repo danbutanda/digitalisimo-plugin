@@ -30,7 +30,7 @@ class Digitalisimo_Integrations_SEO {
 	public static function content_page() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
 		$items = array( 'digitalisimo-keywords' => array( 'Keywords', 'Define términos principales y revisa su uso en cada contenido.' ), 'digitalisimo-clusters' => array( 'Clusters', 'Organiza contenido pilar y contenido relacionado.' ), 'digitalisimo-intents' => array( 'Intención de búsqueda', 'Revisa o actualiza las intenciones detectadas.' ) );
-		echo '<div class="wrap digitalisimo-admin-shell"><h1>Contenido · Digitalisimo</h1>'; Digitalisimo_Integrations_SEO_Suite::module_navigation( 'content' ); echo '<p>Gestiona la estrategia editorial. Los ajustes técnicos están en SEO y las reglas de rastreadores en SEO AI.</p><div class="digitalisimo-content-navigation">';
+		echo '<div class="wrap digitalisimo-admin-shell"><h1>Contenido · Digitalisimo</h1><p><a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo' ) ) . '">← Volver a SEO</a> · <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-ai' ) ) . '">SEO AI</a></p><p>Gestiona la estrategia editorial. Los ajustes técnicos están en SEO y las reglas de rastreadores en SEO AI.</p><div class="digitalisimo-content-navigation">';
 		foreach ( $items as $slug => $item ) echo '<section class="card"><h2>' . esc_html( $item[0] ) . '</h2><p>' . esc_html( $item[1] ) . '</p><p><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=' . $slug ) ) . '">Abrir ' . esc_html( $item[0] ) . '</a></p></section>';
 		echo '</div></div>';
 	}
