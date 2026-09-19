@@ -24,13 +24,13 @@ class Digitalisimo_Integrations_SEO {
 	private static function keyword_post_types() { $types = array_filter( array_map( 'sanitize_key', array_map( 'trim', explode( ',', (string) Digitalisimo_Integrations_Settings::get( 'keyword_post_types', 'all' ) ) ) ) ); if ( in_array( 'all', $types, true ) ) return get_post_types( array( 'show_ui' => true ), 'names' ); return $types; }
 
 	public static function admin_menu() {
-		add_submenu_page( 'digitalisimo', 'Contenido', 'Contenido', 'manage_options', 'digitalisimo-content', array( __CLASS__, 'content_page' ) );
+		add_submenu_page( null, 'Contenido', 'Contenido', 'manage_options', 'digitalisimo-content', array( __CLASS__, 'content_page' ) );
 		foreach ( array( 'digitalisimo-keywords' => 'Keywords', 'digitalisimo-clusters' => 'Clusters', 'digitalisimo-intents' => 'Intención SEO' ) as $slug => $label ) add_submenu_page( null, $label, $label, 'manage_options', $slug, array( __CLASS__, strtolower( str_replace( array( 'digitalisimo-', '-' ), array( '', '_' ), $slug ) ) . '_page' ) );
 	}
 	public static function content_page() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
 		$items = array( 'digitalisimo-keywords' => array( 'Keywords', 'Define términos principales y revisa su uso en cada contenido.' ), 'digitalisimo-clusters' => array( 'Clusters', 'Organiza contenido pilar y contenido relacionado.' ), 'digitalisimo-intents' => array( 'Intención de búsqueda', 'Revisa o actualiza las intenciones detectadas.' ) );
-		echo '<div class="wrap digitalisimo-admin-shell"><h1>Contenido · Digitalisimo</h1><p>Gestiona la estrategia editorial. Los ajustes técnicos están en SEO y las reglas de rastreadores en SEO AI.</p><div class="digitalisimo-content-navigation">';
+		echo '<div class="wrap digitalisimo-admin-shell"><h1>Contenido · Digitalisimo</h1>'; Digitalisimo_Integrations_SEO_Suite::module_navigation( 'content' ); echo '<p>Gestiona la estrategia editorial. Los ajustes técnicos están en SEO y las reglas de rastreadores en SEO AI.</p><div class="digitalisimo-content-navigation">';
 		foreach ( $items as $slug => $item ) echo '<section class="card"><h2>' . esc_html( $item[0] ) . '</h2><p>' . esc_html( $item[1] ) . '</p><p><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=' . $slug ) ) . '">Abrir ' . esc_html( $item[0] ) . '</a></p></section>';
 		echo '</div></div>';
 	}

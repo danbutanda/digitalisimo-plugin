@@ -7,7 +7,6 @@ class Digitalisimo_AI {
 	const LOG_OPTION = 'digitalisimo_ai_usage_log';
 
 	public static function init() {
-		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 20 );
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
 		add_shortcode( 'digitalisimo_chatbot', array( __CLASS__, 'shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'assets' ) );
@@ -41,7 +40,7 @@ class Digitalisimo_AI {
 	}
 	private static function origin() { return is_multisite() && ! empty( self::local_options()['inherit_network'] ) ? 'Configuración de red' : 'Este sitio'; }
 
-	public static function menu() { add_submenu_page( 'digitalisimo', 'AI y Chatbot', 'AI y Chatbot', 'manage_options', 'digitalisimo-ai', array( __CLASS__, 'page' ) ); }
+	public static function menu() { add_submenu_page( null, 'AI y Chatbot', 'AI y Chatbot', 'manage_options', 'digitalisimo-ai', array( __CLASS__, 'page' ) ); }
 
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
@@ -62,7 +61,7 @@ class Digitalisimo_AI {
 		elseif ( 'profiles' === $tab ) self::profiles( $o );
 		elseif ( 'chat' === $tab ) { self::check( 'chat_enabled', 'Activar chatbot público', $o ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); echo '<p><code>[digitalisimo_chatbot]</code> añade el chat donde tú lo decidas. No registra prompts ni direcciones IP.</p>'; }
 		elseif ( 'knowledge' === $tab ) { self::knowledge_fields( $o ); }
-		elseif ( 'images' === $tab ) { self::input( 'image_size', 'Tamaño predeterminado', $o ); self::input( 'image_style', 'Estilo predeterminado', $o ); echo '<p>Las imágenes se guardan en la Biblioteca de Medios para revisión manual.</p>'; }
+		elseif ( 'images' === $tab ) { self::input( 'image_size', 'Tamaño predeterminado', $o ); self::input( 'image_style', 'Estilo predeterminado', $o ); echo '<p>Las imágenes se guardan en la Biblioteca de Medios para revisión manual.</p><p><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai-images' ) ) . '">Abrir generador de imágenes</a></p>'; }
 		else { self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' ); echo '<p>Los registros contienen fecha, perfil, proveedor y resultado. No se guardan claves, prompts, respuestas, IPs ni conversaciones.</p>'; }
 		submit_button( 'Guardar configuración' ); echo '</form></div>';
 	}

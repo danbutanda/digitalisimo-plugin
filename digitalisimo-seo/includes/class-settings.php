@@ -121,10 +121,8 @@ class Digitalisimo_Integrations_Settings {
 	}
 
 	public static function admin_menu() {
-		add_submenu_page( 'digitalisimo', __( 'SEO', 'digitalisimo-integrations' ), __( 'SEO', 'digitalisimo-integrations' ), 'manage_options', 'digitalisimo-seo-settings', array( __CLASS__, 'settings_page' ) );
-		add_submenu_page( 'digitalisimo', __( 'Ajustes de keywords', 'digitalisimo-integrations' ), __( 'Ajustes de keywords', 'digitalisimo-integrations' ), 'manage_options', 'digitalisimo-keyword-settings', array( __CLASS__, 'keyword_settings_page' ) );
-		add_submenu_page( 'digitalisimo', __( 'Ajustes de sitemap', 'digitalisimo-integrations' ), __( 'Ajustes de sitemap', 'digitalisimo-integrations' ), 'manage_options', 'digitalisimo-sitemap-settings', array( __CLASS__, 'sitemap_settings_page' ) );
-		add_submenu_page( 'digitalisimo', __( 'Ajustes de indexación', 'digitalisimo-integrations' ), __( 'Ajustes de indexación', 'digitalisimo-integrations' ), 'manage_options', 'digitalisimo-indexing-settings', array( __CLASS__, 'indexing_settings_page' ) );
+		$pages = array( 'digitalisimo-seo-settings' => array( 'SEO', 'settings_page' ), 'digitalisimo-keyword-settings' => array( 'Ajustes de keywords', 'keyword_settings_page' ), 'digitalisimo-sitemap-settings' => array( 'Ajustes de sitemap', 'sitemap_settings_page' ), 'digitalisimo-indexing-settings' => array( 'Ajustes de indexación', 'indexing_settings_page' ) );
+		foreach ( $pages as $slug => $page ) add_submenu_page( null, __( $page[0], 'digitalisimo-integrations' ), __( $page[0], 'digitalisimo-integrations' ), 'manage_options', $slug, array( __CLASS__, $page[1] ) );
 	}
 
 	public static function register_settings() {
