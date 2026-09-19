@@ -5,11 +5,11 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.38.zip', version: '1.0.38' },
-  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.12.zip', version: '1.0.12' },
-  { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.10.zip', version: '1.0.10' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-chatbot-1.0.16.zip', version: '1.0.16' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.6.zip', version: '1.0.6' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.39.zip', version: '1.0.39' },
+  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.13.zip', version: '1.0.13' },
+  { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.11.zip', version: '1.0.11' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-chatbot-1.0.17.zip', version: '1.0.17' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.7.zip', version: '1.0.7' },
 ];
 const phpFiles = [];
 function walk(dir) {
@@ -52,6 +52,7 @@ const seoSettings = readFileSync('digitalisimo-seo/includes/class-settings.php',
 const seoAi = readFileSync('digitalisimo-seo/includes/class-seo-ai.php', 'utf8');
 const chatbotAi = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai.php', 'utf8');
 const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-images.php', 'utf8');
+const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
 const seoAiTools = [
   'class-seo-ai-crawler-tools.php',
   'class-seo-ai-crawler-verifier.php',
@@ -70,5 +71,6 @@ if (!seoBootstrap.includes("if ( class_exists( 'Digitalisimo_AI' ) ) {")) throw 
 if (chatbotAi.includes("add_action( 'admin_menu', array( __CLASS__, 'menu' )")) throw new Error('AI y Chatbot no debe registrar un segundo submenú');
 if (!chatbotImages.includes("add_submenu_page( null, 'IA · Imágenes'")) throw new Error('El generador de imágenes debe abrirse desde la pestaña AI y Chatbot');
 if (seoAiTools.some((source) => source.includes("add_submenu_page( 'digitalisimo'"))) throw new Error('Una herramienta SEO AI sigue expuesta como submenú lateral');
+if (coreFiles.some((source) => !source.includes("remove_submenu_page( 'digitalisimo', 'digitalisimo' )"))) throw new Error('El submenú automático Digitalisimo no se oculta en todos los módulos');
 
 console.log(`Suite validada: ${modules.length} módulos, ${phpFiles.length} archivos PHP, sin clases duplicadas no protegidas.`);
