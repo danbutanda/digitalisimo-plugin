@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.37
+ * Version: 1.0.38
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Digitalísimo
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.37' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.38' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -44,14 +44,17 @@ Digitalisimo_Integrations_Hide_Login::boot();
 function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Settings::init();
 	Digitalisimo_Integrations_SEO_Suite::init();
-	Digitalisimo_Integrations_SEO_AI::init();
-	Digitalisimo_Integrations_SEO_AI_Crawler_Tools::init();
-	Digitalisimo_Integrations_SEO_AI_Crawler_Verifier::init();
-	Digitalisimo_Integrations_SEO_AI_Audit_Tools::init();
-	Digitalisimo_Integrations_SEO_AI_LLMS_Tools::init();
-	Digitalisimo_Integrations_SEO_AI_IndexNow_Tools::init();
-	Digitalisimo_Integrations_SEO_AI_Referral_Tools::init();
-	Digitalisimo_Integrations_SEO_AI_Entities_Tools::init();
+	// SEO AI usa el motor y los proveedores del módulo AI y Chatbot.
+	if ( class_exists( 'Digitalisimo_AI' ) ) {
+		Digitalisimo_Integrations_SEO_AI::init();
+		Digitalisimo_Integrations_SEO_AI_Crawler_Tools::init();
+		Digitalisimo_Integrations_SEO_AI_Crawler_Verifier::init();
+		Digitalisimo_Integrations_SEO_AI_Audit_Tools::init();
+		Digitalisimo_Integrations_SEO_AI_LLMS_Tools::init();
+		Digitalisimo_Integrations_SEO_AI_IndexNow_Tools::init();
+		Digitalisimo_Integrations_SEO_AI_Referral_Tools::init();
+		Digitalisimo_Integrations_SEO_AI_Entities_Tools::init();
+	}
 	Digitalisimo_Integrations_Editorial::init();
 	Digitalisimo_Updater::register( DIGITALISIMO_INTEGRATIONS_FILE, DIGITALISIMO_INTEGRATIONS_VERSION, 'digitalisimo-seo' );
 	Digitalisimo_Media_Field::boot( DIGITALISIMO_INTEGRATIONS_URL, DIGITALISIMO_INTEGRATIONS_VERSION );

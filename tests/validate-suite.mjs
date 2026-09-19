@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.37.zip', version: '1.0.37' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.38.zip', version: '1.0.38' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.12.zip', version: '1.0.12' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.10.zip', version: '1.0.10' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-chatbot-1.0.16.zip', version: '1.0.16' },
@@ -47,6 +47,7 @@ for (const [name, records] of declarations) {
 
 const seoSuite = readFileSync('digitalisimo-seo/includes/class-seo-suite.php', 'utf8');
 const seoEditorial = readFileSync('digitalisimo-seo/includes/class-seo.php', 'utf8');
+const seoBootstrap = readFileSync('digitalisimo-seo/digitalisimo-integrations.php', 'utf8');
 const seoSettings = readFileSync('digitalisimo-seo/includes/class-settings.php', 'utf8');
 const seoAi = readFileSync('digitalisimo-seo/includes/class-seo-ai.php', 'utf8');
 const chatbotAi = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai.php', 'utf8');
@@ -64,7 +65,8 @@ if (!seoSuite.includes("add_submenu_page( 'digitalisimo', 'SEO', 'SEO'")) throw 
 if (!seoEditorial.includes("add_submenu_page( null, 'Contenido', 'Contenido'")) throw new Error('Contenido debe abrirse dentro de la navegación SEO, no como submenú lateral');
 if (!seoSuite.includes("'digitalisimo-content' => array( 'Contenido', 'content_page' )")) throw new Error('La pantalla Contenido no está registrada por el módulo SEO activo');
 if (!seoSettings.includes('add_submenu_page( null,')) throw new Error('Los ajustes SEO heredados deben ocultarse del menú lateral');
-if (!seoAi.includes("add_submenu_page( null, 'SEO AI'")) throw new Error('SEO AI debe abrirse desde la navegación interna de SEO');
+if (!seoAi.includes("class_exists( 'Digitalisimo_AI' ) ) add_submenu_page( 'digitalisimo', 'SEO AI'")) throw new Error('SEO AI debe ser un submenú independiente condicionado por AI y Chatbot');
+if (!seoBootstrap.includes("if ( class_exists( 'Digitalisimo_AI' ) ) {")) throw new Error('SEO AI debe inicializarse sólo con AI y Chatbot activo');
 if (chatbotAi.includes("add_action( 'admin_menu', array( __CLASS__, 'menu' )")) throw new Error('AI y Chatbot no debe registrar un segundo submenú');
 if (!chatbotImages.includes("add_submenu_page( null, 'IA · Imágenes'")) throw new Error('El generador de imágenes debe abrirse desde la pestaña AI y Chatbot');
 if (seoAiTools.some((source) => source.includes("add_submenu_page( 'digitalisimo'"))) throw new Error('Una herramienta SEO AI sigue expuesta como submenú lateral');
