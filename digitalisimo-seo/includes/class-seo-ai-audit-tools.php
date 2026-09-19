@@ -4,7 +4,7 @@ defined( 'ABSPATH' ) || exit;
 /** Auditoría técnica bajo demanda para URLs públicas; no hace llamadas externas al guardar. */
 class Digitalisimo_Integrations_SEO_AI_Audit_Tools {
 	public static function init() { add_action( 'admin_menu', array( __CLASS__, 'menu' ), 32 ); }
-	public static function menu() { add_submenu_page( 'digitalisimo', 'SEO AI · Auditoría', 'SEO AI · Auditoría', 'manage_options', 'digitalisimo-seo-ai-audit', array( __CLASS__, 'page' ) ); }
+	public static function menu() { add_submenu_page( null, 'SEO AI · Auditoría', 'SEO AI · Auditoría', 'manage_options', 'digitalisimo-seo-ai-audit', array( __CLASS__, 'page' ) ); }
 	private static function audit( $url ) {
 		$response = wp_remote_get( $url, array( 'timeout' => 15, 'redirection' => 5, 'user-agent' => 'Digitalisimo SEO Audit/1.0' ) );
 		if ( is_wp_error( $response ) ) return array( 'error' => $response->get_error_message() );

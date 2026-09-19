@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 class Digitalisimo_Integrations_SEO_AI_LLMS_Tools {
 	const OPTION = 'digitalisimo_integrations_options';
 	public static function init() { add_filter( 'digitalisimo_seo_ai_llms_content', array( __CLASS__, 'automatic_resources' ), 20 ); add_action( 'admin_menu', array( __CLASS__, 'menu' ), 34 ); add_action( 'wp_ajax_digitalisimo_llms_search', array( __CLASS__, 'search' ) ); }
-	public static function menu() { add_submenu_page( 'digitalisimo', 'SEO AI · llms.txt', 'SEO AI · llms.txt', 'manage_options', 'digitalisimo-seo-ai-llms', array( __CLASS__, 'page' ) ); }
+	public static function menu() { add_submenu_page( null, 'SEO AI · llms.txt', 'SEO AI · llms.txt', 'manage_options', 'digitalisimo-seo-ai-llms', array( __CLASS__, 'page' ) ); }
 	public static function automatic_resources( $content ) {
 		$selected = array_filter( preg_split( '/\r\n|\r|\n/', (string) Digitalisimo_Integrations_Settings::get( 'seo_ai_llms_urls', '' ) ) );
 		if ( $selected ) return $content;

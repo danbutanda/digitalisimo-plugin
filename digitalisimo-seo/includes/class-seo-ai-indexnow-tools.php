@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 class Digitalisimo_Integrations_SEO_AI_IndexNow_Tools {
 	const OPTION = 'digitalisimo_integrations_options';
 	public static function init() { add_action( 'admin_menu', array( __CLASS__, 'menu' ), 33 ); add_action( 'admin_post_digitalisimo_indexnow_tools', array( __CLASS__, 'action' ) ); }
-	public static function menu() { add_submenu_page( 'digitalisimo', 'SEO AI · IndexNow', 'SEO AI · IndexNow', 'manage_options', 'digitalisimo-seo-ai-indexnow', array( __CLASS__, 'page' ) ); }
+	public static function menu() { add_submenu_page( null, 'SEO AI · IndexNow', 'SEO AI · IndexNow', 'manage_options', 'digitalisimo-seo-ai-indexnow', array( __CLASS__, 'page' ) ); }
 	public static function action() {
 		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'digitalisimo_indexnow_tools' ) ) wp_die( esc_html__( 'Solicitud no autorizada.', 'digitalisimo-integrations' ) );
 		$action = sanitize_key( wp_unslash( $_POST['indexnow_action'] ?? '' ) ); $option = (array) get_option( self::OPTION, array() );

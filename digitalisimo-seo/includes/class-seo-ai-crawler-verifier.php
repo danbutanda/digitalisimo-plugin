@@ -12,7 +12,7 @@ class Digitalisimo_Integrations_SEO_AI_Crawler_Verifier {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 32 );
 		if ( is_multisite() ) add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ), 32 );
 	}
-	public static function menu() { add_submenu_page( 'digitalisimo', 'SEO AI · Verificar crawler', 'SEO AI · Verificar crawler', 'manage_options', 'digitalisimo-seo-ai-verify-crawler', array( __CLASS__, 'page' ) ); }
+	public static function menu() { add_submenu_page( null, 'SEO AI · Verificar crawler', 'SEO AI · Verificar crawler', 'manage_options', 'digitalisimo-seo-ai-verify-crawler', array( __CLASS__, 'page' ) ); }
 	public static function network_menu() { add_submenu_page( 'digitalisimo-network', 'SEO AI · Verificar crawler', 'SEO AI · Verificar crawler', 'manage_network_options', 'digitalisimo-network-seo-ai-verify-crawler', array( __CLASS__, 'page' ) ); }
 
 	/** El registro es extensible sin dispersar reglas de confianza por el plugin. */

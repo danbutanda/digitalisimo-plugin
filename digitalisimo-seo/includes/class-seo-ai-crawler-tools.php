@@ -9,7 +9,7 @@ class Digitalisimo_Integrations_SEO_AI_Crawler_Tools {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 31 );
 		if ( is_multisite() ) add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ), 31 );
 	}
-	public static function menu() { add_submenu_page( 'digitalisimo', 'SEO AI · Rastreadores', 'SEO AI · Rastreadores', 'manage_options', 'digitalisimo-seo-ai-crawlers', array( __CLASS__, 'page' ) ); }
+	public static function menu() { add_submenu_page( null, 'SEO AI · Rastreadores', 'SEO AI · Rastreadores', 'manage_options', 'digitalisimo-seo-ai-crawlers', array( __CLASS__, 'page' ) ); }
 	public static function network_menu() { add_submenu_page( 'digitalisimo-network', 'SEO AI · Rastreadores', 'SEO AI · Rastreadores', 'manage_network_options', 'digitalisimo-network-seo-ai-crawlers', array( __CLASS__, 'page' ) ); }
 	private static function option( $network ) { return $network ? (array) get_site_option( self::OPTION, array() ) : (array) get_option( self::OPTION, array() ); }
 	private static function effective( $key, $default = '' ) { return Digitalisimo_Integrations_Settings::get( $key, $default ); }

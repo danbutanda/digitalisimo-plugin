@@ -6,7 +6,7 @@ class Digitalisimo_Integrations_SEO_AI_Referral_Tools {
 	const OPTION = 'digitalisimo_integrations_options';
 	const LOG = 'digitalisimo_seo_ai_referrals';
 	public static function init() { add_action( 'admin_menu', array( __CLASS__, 'menu' ), 34 ); add_action( 'admin_post_digitalisimo_ai_referrals', array( __CLASS__, 'save' ) ); }
-	public static function menu() { add_submenu_page( 'digitalisimo', 'SEO AI · Referencias', 'SEO AI · Referencias', 'manage_options', 'digitalisimo-seo-ai-references', array( __CLASS__, 'page' ) ); }
+	public static function menu() { add_submenu_page( null, 'SEO AI · Referencias', 'SEO AI · Referencias', 'manage_options', 'digitalisimo-seo-ai-references', array( __CLASS__, 'page' ) ); }
 	/** Registro único de fuentes; las fuentes personalizadas usan "hostname | nombre" por línea. */
 	public static function sources() { $base = array( 'chatgpt.com' => 'ChatGPT', 'perplexity.ai' => 'Perplexity', 'copilot.microsoft.com' => 'Copilot', 'gemini.google.com' => 'Gemini', 'claude.ai' => 'Claude' ); $custom = (array) get_option( self::OPTION, array() ); foreach ( preg_split( '/\r\n|\r|\n/', (string) ( $custom['seo_ai_referral_sources'] ?? '' ) ) as $line ) { $parts = array_map( 'trim', explode( '|', $line, 2 ) ); if ( ! empty( $parts[0] ) && ! empty( $parts[1] ) && preg_match( '/^[a-z0-9.-]+$/i', $parts[0] ) ) $base[ strtolower( $parts[0] ) ] = sanitize_text_field( $parts[1] ); } return apply_filters( 'digitalisimo_seo_ai_referral_sources', $base ); }
 	public static function save() {
