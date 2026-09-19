@@ -120,7 +120,30 @@ class Digitalisimo_Integrations_SEO {
 		}
 		echo '</div>';
 	}
-	public static function keywords_page() { if ( ! current_user_can( 'manage_options' ) ) return; $posts = get_posts( array( 'post_type' => self::keyword_post_types(), 'posts_per_page' => -1 ) ); echo '<div class="wrap"><h1>Keywords</h1><p>Gestiona cada keyword desde el editor de su contenido, en el metabox SEO de Digitalísimo.</p><table class="widefat striped"><thead><tr><th>Contenido</th><th>Keyword principal</th><th>Keywords</th></tr></thead><tbody>'; foreach ( $posts as $post ) { $keywords = (string) self::meta( $post->ID, 'keywords' ); $primary = trim( explode( ',', $keywords )[0] ?? '' ); echo '<tr><td><a href="' . esc_url( get_edit_post_link( $post->ID ) ) . '">' . esc_html( $post->post_title ) . '</a></td><td>' . esc_html( $primary ) . '</td><td>' . esc_html( $keywords ) . '</td></tr>'; } echo '</tbody></table></div>'; }
+	/** Normaliza una lista de keywords sin escribir ni modificar los metadatos originales. */
+	private static function keyword_list( $value ) {
+		if ( is_array( $value ) ) $value = implode( ',', array_filter( array_map( 'strval', $value ) ) );
+		return array_values( array_unique( array_filter( array_map( 'trim', preg_split( '/[,\r\n]+/', (string) $value ) ) ) ) );
+	}
+	/** Obtiene las keywords de cada fuente conocida: Digitalisimo, Rank Math y Yoast. */
+	private static function post_keywords( $post_id ) {
+		$sources = array();
+		$known = array( 'Digitalisimo' => get_post_meta( $post_id, self::key( 'keywords' ), true ), 'Rank Math' => get_post_meta( $post_id, 'rank_math_focus_keyword', true ), 'Yoast SEO' => get_post_meta( $post_id, '_yoast_wpseo_focuskw', true ) );
+		$yoast_multiple = get_post_meta( $post_id, '_yoast_wpseo_focuskeywords', true );
+		if ( is_array( $yoast_multiple ) ) { $values = array(); foreach ( $yoast_multiple as $item ) { if ( is_array( $item ) && ! empty( $item['focuskw'] ) ) $values[] = $item['focuskw']; elseif ( is_string( $item ) ) $values[] = $item; } if ( $values ) $known['Yoast SEO'] = array_merge( self::keyword_list( $known['Yoast SEO'] ), $values ); }
+		foreach ( $known as $source => $value ) { $keywords = self::keyword_list( $value ); if ( $keywords ) $sources[ $source ] = $keywords; }
+		return $sources;
+	}
+	/** Inventario de keywords de páginas, entradas y tipos de contenido públicos, sin limitarse al editor activo. */
+	public static function keywords_page() {
+		if ( ! current_user_can( 'manage_options' ) ) return;
+		$posts = get_posts( array( 'post_type' => get_post_types( array( 'public' => true ), 'names' ), 'post_status' => 'any', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ) );
+		echo '<div class="wrap digitalisimo-admin-shell"><h1>Keywords</h1><p>Inventario de keywords guardadas en Digitalisimo, Rank Math o Yoast SEO. Incluye páginas, entradas y tipos de contenido públicos; no modifica ningún dato.</p><table class="widefat striped"><thead><tr><th>Contenido</th><th>Tipo y estado</th><th>Keyword principal</th><th>Todas las keywords</th><th>Fuente</th></tr></thead><tbody>';
+		$count = 0;
+		foreach ( $posts as $post ) { $sources = self::post_keywords( $post->ID ); if ( ! $sources ) continue; $all = array(); foreach ( $sources as $keywords ) $all = array_merge( $all, $keywords ); $all = array_values( array_unique( $all ) ); $count++; echo '<tr><td><a href="' . esc_url( get_edit_post_link( $post->ID ) ) . '">' . esc_html( $post->post_title ?: __( '(Sin título)', 'digitalisimo-integrations' ) ) . '</a></td><td>' . esc_html( get_post_type_object( $post->post_type )->labels->singular_name ) . '<br><small>' . esc_html( $post->post_status ) . '</small></td><td>' . esc_html( $all[0] ?? '' ) . '</td><td>' . esc_html( implode( ', ', $all ) ) . '</td><td>' . esc_html( implode( ', ', array_keys( $sources ) ) ) . '</td></tr>'; }
+		if ( ! $count ) echo '<tr><td colspan="5">No se encontraron keywords en los campos de Digitalisimo, Rank Math o Yoast SEO.</td></tr>';
+		echo '</tbody></table><p class="description">Se encontraron ' . absint( $count ) . ' contenidos con keywords.</p></div>';
+	}
 	public static function clusters_page() { if ( ! current_user_can( 'manage_options' ) ) return; $pillars = get_posts( array( 'post_type' => array( 'post', 'page' ), 'posts_per_page' => -1, 'meta_key' => self::key( 'pillar' ), 'meta_value' => 'on' ) ); echo '<div class="wrap"><h1>Clusters</h1><ul>'; foreach ( $pillars as $pillar ) { echo '<li><strong>' . esc_html( $pillar->post_title ) . '</strong>'; $children = get_posts( array( 'post_type' => array( 'post', 'page' ), 'posts_per_page' => -1, 'meta_key' => '_related_pillar', 'meta_value' => $pillar->ID ) ); if ( $children ) { echo '<ul>'; foreach ( $children as $child ) echo '<li>' . esc_html( $child->post_title ) . '</li>'; echo '</ul>'; } echo '</li>'; } echo '</ul></div>'; }
 	public static function intents_page() { if ( ! current_user_can( 'manage_options' ) ) return; $posts = get_posts( array( 'post_type' => 'post', 'posts_per_page' => -1 ) ); echo '<div class="wrap"><h1>Intención de búsqueda</h1><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="digitalisimo_refresh_intents">'; wp_nonce_field( 'digitalisimo_refresh_intents' ); submit_button( 'Actualizar intenciones con OpenAI', 'secondary', 'submit', false ); echo '</form><table class="widefat striped"><thead><tr><th>Entrada</th><th>Keyword</th><th>Intención</th></tr></thead><tbody>'; foreach ( $posts as $post ) { $keyword = trim( explode( ',', (string) self::meta( $post->ID, 'keywords' ) )[0] ?? '' ); if ( $keyword ) echo '<tr><td>' . esc_html( $post->post_title ) . '</td><td>' . esc_html( $keyword ) . '</td><td>' . esc_html( get_post_meta( $post->ID, self::key( 'search_intent' ), true ) ) . '</td></tr>'; } echo '</tbody></table></div>'; }
 }
