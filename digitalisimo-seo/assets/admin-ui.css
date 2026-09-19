@@ -27,6 +27,8 @@
 .digitalisimo-admin .wrap .button:hover, .digitalisimo-admin .wrap .button-secondary:hover, .digitalisimo-admin .digitalisimo-admin-shell .button:hover, .digitalisimo-admin .digitalisimo-admin-shell .button-secondary:hover { border-color: #8a9aff; color: #2f55e8; }
 .digitalisimo-admin .wrap .button-primary, .digitalisimo-admin .digitalisimo-admin-shell .button-primary { border: 0; color: #fff; background: linear-gradient(135deg, var(--digi-blue), #774af0 58%, #e13da9); box-shadow: 0 8px 17px rgba(66,74,219,.23); text-shadow: none; }
 .digitalisimo-admin .wrap .button-primary:hover, .digitalisimo-admin .wrap .button-primary:focus, .digitalisimo-admin .digitalisimo-admin-shell .button-primary:hover, .digitalisimo-admin .digitalisimo-admin-shell .button-primary:focus { color: #fff; background: linear-gradient(135deg, #164ce4, #6635db 58%, #c72f91); }
+.digitalisimo-admin .digitalisimo-content-links { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 22px; }
+.digitalisimo-admin .digitalisimo-content-body { min-height: 120px; }
 .digitalisimo-admin .wrap .notice, .digitalisimo-admin .digitalisimo-admin-shell .notice { margin: 18px 0; border: 0; border-left: 4px solid #5264f2; border-radius: 10px; box-shadow: 0 5px 15px rgba(40,50,110,.06); }
 /* Listas de resumen en rejilla; se excluyen las listas internas de wp-admin para no romper menús ni selectores. */
 .digitalisimo-admin .wrap > ul, .digitalisimo-admin .wrap .inside > ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; padding: 0; }
