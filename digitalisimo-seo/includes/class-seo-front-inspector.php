@@ -17,14 +17,18 @@ class Digitalisimo_Integrations_SEO_Front_Inspector {
 		return $origin . trailingslashit( dirname( $path ) ) . $location;
 	}
 	private static function fetch( $url ) {
-		$current = $url; $redirects = array();
+		$current = $url; $redirects = array(); $insecure_tls = false;
 		for ( $step = 0; $step < 6; $step++ ) {
 			if ( ! self::same_site_url( $current ) ) return new WP_Error( 'digitalisimo_front_url', 'La URL y sus redirecciones deben permanecer en este mismo sitio.' );
 			$response = wp_safe_remote_get( $current, array( 'timeout' => 15, 'redirection' => 0, 'limit_response_size' => 1048576, 'user-agent' => 'Digitalisimo Front Inspector/1.0', 'headers' => array( 'Cache-Control' => 'no-cache' ) ) );
+			if ( is_wp_error( $response ) && ( false !== stripos( $response->get_error_message(), 'cURL error 60' ) || false !== stripos( $response->get_error_message(), 'certificate' ) ) ) {
+				$response = wp_safe_remote_get( $current, array( 'timeout' => 15, 'redirection' => 0, 'limit_response_size' => 1048576, 'sslverify' => false, 'user-agent' => 'Digitalisimo Front Inspector/1.0', 'headers' => array( 'Cache-Control' => 'no-cache' ) ) );
+				$insecure_tls = ! is_wp_error( $response );
+			}
 			if ( is_wp_error( $response ) ) return $response;
 			$code = (int) wp_remote_retrieve_response_code( $response ); $location = wp_remote_retrieve_header( $response, 'location' );
 			if ( $code >= 300 && $code < 400 && $location ) { $next = self::resolve_url( $current, $location ); $redirects[] = array( 'code' => $code, 'from' => $current, 'to' => $next ); $current = $next; continue; }
-			return array( 'url' => $current, 'response' => $response, 'redirects' => $redirects );
+			return array( 'url' => $current, 'response' => $response, 'redirects' => $redirects, 'insecure_tls' => $insecure_tls );
 		}
 		return new WP_Error( 'digitalisimo_front_redirect', 'La URL superó el máximo de cinco redirecciones.' );
 	}
@@ -66,10 +70,11 @@ class Digitalisimo_Integrations_SEO_Front_Inspector {
 			if ( ! self::same_site_url( $url ) ) $error = 'Escribe una URL pública de este mismo sitio.';
 			else { $fetched = self::fetch( $url ); if ( is_wp_error( $fetched ) ) $error = $fetched->get_error_message(); else $report = $fetched; }
 		}
-		echo '<section class="digitalisimo-front-inspector"><h2>Inspector del front</h2><p>Lee la respuesta pública y anónima de una URL de este sitio. Muestra las señales que están realmente en el HTML; no cambia contenido ni configuración.</p><form method="post" class="digitalisimo-front-form">'; wp_nonce_field( 'digitalisimo_front_inspect' ); echo '<label for="digitalisimo_front_url">URL pública</label><input id="digitalisimo_front_url" class="large-text" name="digitalisimo_front_url" type="url" required value="' . esc_attr( $url ) . '">'; submit_button( 'Inspeccionar front', 'primary', 'digitalisimo_front_inspect', false ); echo '</form>';
+		echo '<section class="digitalisimo-front-inspector"><h2>SEO Front</h2><p>Lee la respuesta pública y anónima de una URL de este sitio. Muestra las señales que están realmente en el HTML; no cambia contenido ni configuración.</p><form method="post" class="digitalisimo-front-form">'; wp_nonce_field( 'digitalisimo_front_inspect' ); echo '<label for="digitalisimo_front_url">URL pública</label><input id="digitalisimo_front_url" class="large-text" name="digitalisimo_front_url" type="url" required value="' . esc_attr( $url ) . '">'; submit_button( 'Inspeccionar front', 'primary', 'digitalisimo_front_inspect', false ); echo '</form>';
 		if ( $error ) { echo '<div class="notice notice-error inline"><p>' . esc_html( $error ) . '</p></div></section>'; return; }
 		if ( ! $report ) { echo '<p class="description">Selecciona una página, entrada o producto publicado para revisar title, metas, social, canonical, robots y Schema tal como salen al front.</p></section>'; return; }
 		$response = $report['response']; $body = (string) wp_remote_retrieve_body( $response ); $head = self::head( $body ); $meta = self::meta( $head ); $links = self::links( $head ); $schemas = self::schemas( $head ); $canonicals = array(); $hreflangs = array(); $pagination = array();
+		if ( ! empty( $report['insecure_tls'] ) ) echo '<div class="notice notice-warning inline"><p>El servidor que ejecuta WordPress no pudo validar el certificado SSL de este mismo dominio y se consultó únicamente esta URL propia sin esa validación. El informe se generó; revisa la resolución DNS, SNI o cadena de certificados desde el hosting. Esto no confirma por sí solo un fallo para visitantes externos.</p></div>';
 		foreach ( $links as $link ) { $rels = preg_split( '/\s+/', strtolower( $link['rel'] ) ); if ( in_array( 'canonical', $rels, true ) && ! empty( $link['href'] ) ) $canonicals[] = $link['href']; if ( in_array( 'alternate', $rels, true ) && ! empty( $link['hreflang'] ) && ! empty( $link['href'] ) ) $hreflangs[] = $link['hreflang'] . ': ' . $link['href']; if ( ( in_array( 'next', $rels, true ) || in_array( 'prev', $rels, true ) ) && ! empty( $link['href'] ) ) $pagination[] = implode( ' ', $rels ) . ': ' . $link['href']; }
 		preg_match_all( '#<title\b[^>]*>(.*?)</title\s*>#is', $head, $titles ); $titles = array_map( function( $title ) { return trim( wp_strip_all_tags( html_entity_decode( $title, ENT_QUOTES, get_bloginfo( 'charset' ) ) ) ); }, $titles[1] ?? array() );
 		$schema_types = array(); $schema_ids = array(); $invalid_schema = 0; foreach ( $schemas as $schema ) { $schema_types = array_merge( $schema_types, $schema['types'] ); $schema_ids = array_merge( $schema_ids, $schema['ids'] ); if ( ! $schema['valid'] ) $invalid_schema++; } $schema_types = array_values( array_unique( $schema_types ) ); $duplicate_schema_ids = array_keys( array_filter( array_count_values( $schema_ids ), function( $count ) { return $count > 1; } ) );
