@@ -30,7 +30,8 @@ class Digitalisimo_AI {
 		);
 	}
 
-	private static function local_options() { return (array) get_option( self::OPTION, array() ); }
+	/** Los sitios nuevos de una red heredan IA hasta que el administrador elige personalizarlos. */
+	private static function local_options() { $options = (array) get_option( self::OPTION, array() ); if ( is_multisite() && ! array_key_exists( 'inherit_network', $options ) ) $options['inherit_network'] = 1; return $options; }
 	public static function get( $key = null ) {
 		$local = self::local_options();
 		$raw = $local;
@@ -54,7 +55,7 @@ class Digitalisimo_AI {
 		if ( is_multisite() ) echo '<div class="notice notice-info inline"><p><strong>Valor efectivo:</strong> ' . esc_html( self::origin() ) . '. Puedes elegir heredar los ajustes completos de la red o usar los de este sitio.</p></div>';
 		echo '<h2 class="nav-tab-wrapper">'; foreach ( $tabs as $id => $name ) echo '<a class="nav-tab ' . ( $id === $tab ? 'nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai&tab=' . $id ) ) . '">' . esc_html( $name ) . '</a>'; echo '</h2><form method="post">'; wp_nonce_field( 'digitalisimo_ai_save' );
 		if ( 'general' === $tab ) {
-			if ( is_multisite() ) self::check( 'inherit_network', 'Heredar toda la configuración de IA de la red', self::local_options() );
+		if ( is_multisite() ) self::check( 'inherit_network', 'Heredar toda la configuración de IA de la red', self::local_options() );
 			self::check( 'chat_enabled', 'Activar motor Digitalisimo AI', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento del sitio', $o );
 			echo '<p>Perfiles disponibles: chatbot, creación de contenido, SEO, ecommerce, automatizaciones e imágenes.</p>';
 		} elseif ( 'providers' === $tab ) self::providers( $o );
