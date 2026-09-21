@@ -52,7 +52,8 @@ class Digitalisimo_Integrations_SEO_Front_Inspector {
 	}
 	private static function schema_ids( $value, &$ids ) {
 		if ( ! is_array( $value ) ) return;
-		if ( ! empty( $value['@id'] ) ) $ids[] = (string) $value['@id'];
+		// Un @id sin @type es una referencia a una entidad, no una segunda definición.
+		if ( ! empty( $value['@id'] ) && ! empty( $value['@type'] ) ) $ids[] = (string) $value['@id'];
 		foreach ( $value as $item ) self::schema_ids( $item, $ids );
 	}
 	private static function schemas( $head ) {
