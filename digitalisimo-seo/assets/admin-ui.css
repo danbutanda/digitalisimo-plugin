@@ -29,6 +29,14 @@
 .digitalisimo-admin .wrap .button-primary:hover, .digitalisimo-admin .wrap .button-primary:focus, .digitalisimo-admin .digitalisimo-admin-shell .button-primary:hover, .digitalisimo-admin .digitalisimo-admin-shell .button-primary:focus { color: #fff; background: linear-gradient(135deg, #164ce4, #6635db 58%, #c72f91); }
 .digitalisimo-admin .digitalisimo-content-links { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 22px; }
 .digitalisimo-admin .digitalisimo-content-body { min-height: 120px; }
+.digitalisimo-admin .digitalisimo-front-inspector { margin-top: 28px; padding-top: 24px; border-top: 1px solid #e2e7f6; }
+.digitalisimo-admin .digitalisimo-front-form { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+.digitalisimo-admin .digitalisimo-front-form label { display: block; width: 100%; font-weight: 600; color: #263551; }
+.digitalisimo-admin .digitalisimo-front-form .large-text { flex: 1 1 460px; max-width: 760px; }
+.digitalisimo-admin .digitalisimo-front-table td { white-space: pre-line; overflow-wrap: anywhere; }
+.digitalisimo-admin .digitalisimo-front-missing { color: #8a4562; }
+.digitalisimo-admin .digitalisimo-front-warnings { display: grid; grid-template-columns: 1fr; }
+.digitalisimo-admin .digitalisimo-front-head { max-height: 420px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .digitalisimo-admin .wrap .notice, .digitalisimo-admin .digitalisimo-admin-shell .notice { margin: 18px 0; border: 0; border-left: 4px solid #5264f2; border-radius: 10px; box-shadow: 0 5px 15px rgba(40,50,110,.06); }
 /* Listas de resumen en rejilla; se excluyen las listas internas de wp-admin para no romper menús ni selectores. */
 .digitalisimo-admin .wrap > ul, .digitalisimo-admin .wrap .inside > ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; padding: 0; }
