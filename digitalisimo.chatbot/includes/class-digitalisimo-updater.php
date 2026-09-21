@@ -104,7 +104,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			foreach ( (array) json_decode( wp_remote_retrieve_body( $response ), true ) as $release ) {
 				if ( ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) continue;
 				foreach ( (array) ( $release['assets'] ?? array() ) as $asset ) {
-					if ( ! preg_match( '/^(digitalisimo-[a-z]+)-([0-9][0-9.]*)\.zip$/', (string) ( $asset['name'] ?? '' ), $match ) ) continue;
+					if ( ! preg_match( '/^(digitalisimo-[a-z]+(?:-[a-z]+)*)-([0-9][0-9.]*)\.zip$/', (string) ( $asset['name'] ?? '' ), $match ) ) continue;
 					$slug = $match[1];
 					if ( isset( $index[ $slug ]['version'] ) && ! version_compare( $match[2], $index[ $slug ]['version'], '>' ) ) continue;
 					$index[ $slug ] = array(
