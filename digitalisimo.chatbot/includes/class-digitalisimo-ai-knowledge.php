@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-/** Base de conocimiento local para recuperación contextual (RAG) de Digitalisimo AI. */
+/** Base de conocimiento local para recuperación contextual (RAG) de Digitalisimo IA Tools. */
 class Digitalisimo_AI_Knowledge {
 	const OPTION = 'digitalisimo_ai_knowledge';
 	const META = '_digitalisimo_ai_knowledge';

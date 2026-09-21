@@ -41,7 +41,7 @@ class Digitalisimo_AI {
 	}
 	private static function origin() { return is_multisite() && ! empty( self::local_options()['inherit_network'] ) ? 'Configuración de red' : 'Este sitio'; }
 
-	public static function menu() { add_submenu_page( null, 'AI y Chatbot', 'AI y Chatbot', 'manage_options', 'digitalisimo-ai', array( __CLASS__, 'page' ) ); }
+	public static function menu() { add_submenu_page( null, 'Digitalisimo IA Tools', 'IA Tools', 'manage_options', 'digitalisimo-ai', array( __CLASS__, 'page' ) ); }
 
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
@@ -50,13 +50,13 @@ class Digitalisimo_AI {
 		$tab = sanitize_key( $_GET['tab'] ?? 'general' );
 		$tabs = array( 'general' => 'General', 'providers' => 'Proveedores', 'profiles' => 'Perfiles de uso', 'chat' => 'Chatbot', 'knowledge' => 'Conocimiento del sitio', 'images' => 'Imágenes', 'advanced' => 'Avanzado' );
 		$o = self::get();
-		echo '<div class="wrap"><h1>Digitalisimo AI</h1><p>Motor IA compartido. Genera bajo demanda y nunca publica ni modifica contenido automáticamente.</p>';
+		echo '<div class="wrap"><h1>Digitalisimo IA Tools</h1><p>Herramientas de IA compartidas para chatbot, contenido, SEO, ecommerce, conocimiento e imágenes. Generan bajo demanda y nunca publican ni modifican contenido automáticamente.</p>';
 		if ( $saved ) echo '<div class="notice notice-success is-dismissible"><p>Configuración guardada.</p></div>';
 		if ( is_multisite() ) echo '<div class="notice notice-info inline"><p><strong>Valor efectivo:</strong> ' . esc_html( self::origin() ) . '. Puedes elegir heredar los ajustes completos de la red o usar los de este sitio.</p></div>';
 		echo '<h2 class="nav-tab-wrapper">'; foreach ( $tabs as $id => $name ) echo '<a class="nav-tab ' . ( $id === $tab ? 'nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai&tab=' . $id ) ) . '">' . esc_html( $name ) . '</a>'; echo '</h2><form method="post">'; wp_nonce_field( 'digitalisimo_ai_save' );
 		if ( 'general' === $tab ) {
 		if ( is_multisite() ) self::check( 'inherit_network', 'Heredar toda la configuración de IA de la red', self::local_options() );
-			self::check( 'chat_enabled', 'Activar motor Digitalisimo AI', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento del sitio', $o );
+			self::check( 'chat_enabled', 'Activar Digitalisimo IA Tools', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento del sitio', $o );
 			echo '<p>Perfiles disponibles: chatbot, creación de contenido, SEO, ecommerce, automatizaciones e imágenes.</p>';
 		} elseif ( 'providers' === $tab ) self::providers( $o );
 		elseif ( 'profiles' === $tab ) self::profiles( $o );
@@ -71,7 +71,7 @@ class Digitalisimo_AI {
 		if ( ! current_user_can( 'manage_network_options' ) || ! is_super_admin() ) return;
 		if ( isset( $_POST['digitalisimo_ai_network_save'] ) && check_admin_referer( 'digitalisimo_ai_network_save' ) ) self::save_network();
 		$o = wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() );
-		echo '<div class="wrap"><h1>Digitalisimo · AI y Chatbot de red</h1><p>Estos valores son dinámicos: todos los sitios que elijan heredarlos reflejarán los cambios sin copiar credenciales.</p>'; if ( isset( $_POST['digitalisimo_ai_network_save'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Configuración de red guardada.</p></div>'; echo '<form method="post">'; wp_nonce_field( 'digitalisimo_ai_network_save' );
+		echo '<div class="wrap"><h1>Digitalisimo · IA Tools de red</h1><p>Estos valores son dinámicos: todos los sitios que elijan heredarlos reflejarán los cambios sin copiar credenciales.</p>'; if ( isset( $_POST['digitalisimo_ai_network_save'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Configuración de red guardada.</p></div>'; echo '<form method="post">'; wp_nonce_field( 'digitalisimo_ai_network_save' );
 		self::check( 'chat_enabled', 'Activar motor IA por defecto', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento por defecto', $o ); self::check( 'knowledge_embeddings_enabled', 'Permitir embeddings opcionales de OpenAI', $o ); self::check( 'knowledge_semantic_rerank', 'Reordenar conocimiento con similitud semántica', $o ); self::input( 'knowledge_embeddings_model', 'Modelo de embeddings', $o ); self::input( 'knowledge_results', 'Resultados de conocimiento por consulta', $o, 'number' ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); self::providers( $o ); self::profiles( $o ); self::input( 'image_size', 'Tamaño predeterminado de imagen', $o ); self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' );
 		submit_button( 'Guardar configuración de red', 'primary', 'digitalisimo_ai_network_save' ); echo '</form></div>';
 	}
@@ -150,7 +150,7 @@ class Digitalisimo_AI {
 
 	public static function assets() { if ( ! self::get( 'chat_enabled' ) ) return; wp_register_script( 'digitalisimo-chatbot', DIGITALISIMO_CHATBOT_URL . 'assets/chat.js', array(), DIGITALISIMO_CHATBOT_VERSION, true ); wp_localize_script( 'digitalisimo-chatbot', 'digitalisimoChatbot', array( 'url' => rest_url( 'digitalisimo-ai/v1/chat' ) ) ); }
 	public static function shortcode() { wp_enqueue_script( 'digitalisimo-chatbot' ); return '<div class="digitalisimo-chatbot"><div class="digitalisimo-chatbot-log" aria-live="polite"></div><form><input required maxlength="1200" placeholder="Escribe tu pregunta"><button>Enviar</button></form></div>'; }
-	public static function content_metabox() { foreach ( get_post_types( array( 'public' => true ), 'names' ) as $type ) add_meta_box( 'digitalisimo-ai-assistant', 'Digitalisimo AI', array( __CLASS__, 'metabox_html' ), $type, 'side', 'default' ); }
+	public static function content_metabox() { foreach ( get_post_types( array( 'public' => true ), 'names' ) as $type ) add_meta_box( 'digitalisimo-ai-assistant', 'Digitalisimo IA Tools', array( __CLASS__, 'metabox_html' ), $type, 'side', 'default' ); }
 	public static function metabox_html() {
 		$endpoint = esc_url_raw( rest_url( 'digitalisimo-ai/v1/complete' ) ); $nonce = wp_create_nonce( 'wp_rest' );
 		echo '<p>Asistente editorial bajo demanda. Revisa y aplica cualquier resultado manualmente.</p><p><select id="digitalisimo-ai-profile"><option value="content">Contenido</option><option value="seo">SEO</option><option value="ecommerce">Ecommerce</option><option value="automation">Automatización</option></select></p><p><textarea id="digitalisimo-ai-prompt" class="widefat" rows="4" maxlength="2000" placeholder="Ej. Propón una introducción clara para este contenido."></textarea></p><p><button type="button" class="button" id="digitalisimo-ai-complete">Generar propuesta</button></p><div id="digitalisimo-ai-answer" class="notice inline" style="display:none;padding:8px"></div>';

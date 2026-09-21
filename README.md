@@ -7,7 +7,7 @@ Suite modular de plugins WordPress. Cada módulo puede instalarse de forma indep
 - **Digitalisimo SEO**: SEO técnico, contenido, schema, sitemap, SEO AI e importación desde Yoast y Rank Math.
 - **Digitalisimo Ecommerce**: funciones e integraciones WooCommerce.
 - **Digitalisimo Geolocalización**: ubicación administrativa, IPInfo y señales locales.
-- **Digitalisimo AI y Chatbot**: proveedores IA, chatbot, conocimiento RAG y generación de imágenes.
+- **Digitalisimo IA Tools**: proveedores IA, chatbot, conocimiento RAG, asistentes para contenido, SEO y ecommerce, y generación de imágenes.
 - **Digitalisimo Hosting**: dominios, Namecheap y flujos de hosting.
 
 Cada módulo incluye verificación de actualizaciones desde las [Releases del repositorio](https://github.com/danbutanda/digitalisimo-plugin/releases). Las versiones instalables se generan con `scripts/build-packages.sh` y se publican como assets de una Release.

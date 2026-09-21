@@ -7,7 +7,7 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 | Núcleo compartido y menú único | ✓ | Cada módulo aporta el mismo core protegido contra clases duplicadas. |
 | Entrega y actualización | ~ | Cada módulo consulta Releases de GitHub por su ZIP y el repositorio incluye CI para lint PHP, construcción y validación previa a publicar. La caché del índice dura una hora y cada módulo añade un enlace «Buscar actualizaciones» que la invalida junto con el transient `update_plugins`, porque «Volver a comprobar» de WordPress no la toca. Falta comprobar una actualización desde WordPress activo. |
 | Seguridad de endpoints | ~ | Chatbot y búsqueda de dominios usan límites efímeros por visitante y no guardan IPs, prompts ni respuestas. Falta validación de carga en WordPress público. |
-| Interfaz compartida | ~ | SEO Front muestra miniaturas de imágenes propias o externas, puntaje global y por sección, recomendaciones técnicas y, cuando AI y Chatbot está activo, una propuesta bajo demanda del perfil SEO. Se organiza como Resumen, Encabezados, Imágenes, Enlaces, Social y Herramientas con el detalle público equivalente a un inspector SEO. |
+| Interfaz compartida | ~ | SEO Front muestra miniaturas de imágenes propias o externas, puntaje global y por sección, recomendaciones técnicas y, cuando Digitalisimo IA Tools está activo, una propuesta bajo demanda del perfil SEO. Se organiza como Resumen, Encabezados, Imágenes, Enlaces, Social y Herramientas con el detalle público equivalente a un inspector SEO. |
 | Multisite con herencia | ~ | SEO, AI, Ecommerce, Geolocalización y Hosting resuelven valores dinámicamente desde sitio/red y muestran su origen en el módulo. Falta validación runtime en una red real. |
 | Acceso oculto al escritorio | ~ | Ruta privada configurable en SEO → General y en Red → Digitalisimo → SEO → General, con herencia sitio/red: sirve wp-login.php desde el slug elegido y deja sin respuesta wp-login.php, /wp-admin, /admin y /dashboard para visitas sin sesión; con sesión iniciada /wp-admin no cambia. Cada sitio resuelve la ruta sobre su propio `home_url()`, por lo que un valor de red sirve para subdominios y subdirectorios. Salida de emergencia por constante `DIGITALISIMO_HIDE_LOGIN_DISABLE`. Falta validación runtime en WordPress individual y en una red real, en particular el intercambio de cookies entre dominios de un Multisite por subdominios. |
 | SEO tradicional | ✓ | Canonical, robots/noindex, sitemap, schema, keywords, clusters e importación Yoast/Rank Math mediante una única emisión pública SEO; conserva metadatos ya migrados. |
@@ -22,7 +22,7 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 | Referencias IA | ~ | Registro sin IP/prompts, resumen, retención 30/90/180/365, borrado, evolución diaria, landings y fuentes configurables disponibles. Falta validación funcional con tráfico real y consentimientos/analítica del sitio cuando aplique. |
 | SEO AI por contenido | ~ | Estado efectivo y controles por contenido disponibles; las reglas Allow/Disallow se aplican por URL y User-Agent en el mismo robots.txt, sin confundirlas con noindex. Falta validación runtime de sintaxis robots con un sitio público. |
 | Base de conocimiento IA | ~ | Índice local, reconstrucción, recuperación contextual RAG, panel de fuentes, embeddings OpenAI manuales/opt-in y reordenamiento semántico opcional con caché de consulta disponibles. Falta validación runtime contra una cuenta OpenAI y un sitio configurado. |
-| Chatbot y perfiles IA | ✓ | Perfiles por proveedor y fallback; contenido sólo bajo demanda. |
+| Digitalisimo IA Tools | ✓ | Perfiles por proveedor y fallback; chatbot, contenido, SEO, ecommerce, conocimiento e imágenes bajo demanda. |
 | Generación de imágenes | ✓ | Flujo revisable hacia Biblioteca de Medios. |
 
 ## Orden de ejecución pendiente
@@ -36,4 +36,4 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 
 ## Validación de paquetes
 
-Última validación estructural: los ZIP de SEO 1.0.61, Ecommerce 1.0.13, Geolocalización 1.0.11, AI/Chatbot 1.0.18 y Hosting 1.0.7 contienen su archivo principal, declaran la versión esperada y superan `unzip -t`.
+Última validación estructural: los ZIP de SEO 1.0.61, Ecommerce 1.0.13, Geolocalización 1.0.11, IA Tools 1.0.19 y Hosting 1.0.7 contienen su archivo principal, declaran la versión esperada y superan `unzip -t`.

@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.61.zip', version: '1.0.61' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.13.zip', version: '1.0.13' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.11.zip', version: '1.0.11' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-chatbot-1.0.18.zip', version: '1.0.18' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-chatbot-1.0.19.zip', version: '1.0.19' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.7.zip', version: '1.0.7' },
 ];
 const phpFiles = [];
@@ -74,10 +74,10 @@ if (!seoEditorial.includes('data-content-panel') || !seoEditorial.includes('data
 if (!seoEditorial.includes("add_submenu_page( null, 'Contenido', 'Contenido'")) throw new Error('Contenido debe abrirse dentro de la navegación SEO, no como submenú lateral');
 if (!seoSuite.includes("'digitalisimo-content' => array( 'Contenido', 'content_page' )")) throw new Error('La pantalla Contenido no está registrada por el módulo SEO activo');
 if (!seoSettings.includes('add_submenu_page( null,')) throw new Error('Los ajustes SEO heredados deben ocultarse del menú lateral');
-if (!seoAi.includes("class_exists( 'Digitalisimo_AI' ) ) add_submenu_page( 'digitalisimo', 'SEO AI'")) throw new Error('SEO AI debe ser un submenú independiente condicionado por AI y Chatbot');
-if (!seoBootstrap.includes("if ( class_exists( 'Digitalisimo_AI' ) ) {")) throw new Error('SEO AI debe inicializarse sólo con AI y Chatbot activo');
-if (chatbotAi.includes("add_action( 'admin_menu', array( __CLASS__, 'menu' )")) throw new Error('AI y Chatbot no debe registrar un segundo submenú');
-if (!chatbotImages.includes("add_submenu_page( null, 'IA · Imágenes'")) throw new Error('El generador de imágenes debe abrirse desde la pestaña AI y Chatbot');
+if (!seoAi.includes("class_exists( 'Digitalisimo_AI' ) ) add_submenu_page( 'digitalisimo', 'SEO AI'")) throw new Error('SEO AI debe ser un submenú independiente condicionado por IA Tools');
+if (!seoBootstrap.includes("if ( class_exists( 'Digitalisimo_AI' ) ) {")) throw new Error('SEO AI debe inicializarse sólo con IA Tools activo');
+if (chatbotAi.includes("add_action( 'admin_menu', array( __CLASS__, 'menu' )")) throw new Error('IA Tools no debe registrar un segundo submenú');
+if (!chatbotImages.includes("add_submenu_page( null, 'IA · Imágenes'")) throw new Error('El generador de imágenes debe abrirse desde la pestaña IA Tools');
 if (seoAiTools.some((source) => source.includes("add_submenu_page( 'digitalisimo'"))) throw new Error('Una herramienta SEO AI sigue expuesta como submenú lateral');
 if (coreFiles.some((source) => !source.includes("remove_submenu_page( 'digitalisimo', 'digitalisimo' )"))) throw new Error('El submenú automático Digitalisimo no se oculta en todos los módulos');
 
