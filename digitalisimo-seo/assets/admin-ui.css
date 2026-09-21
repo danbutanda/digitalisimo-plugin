@@ -37,6 +37,8 @@
 .digitalisimo-admin .digitalisimo-front-missing { color: #8a4562; }
 .digitalisimo-admin .digitalisimo-front-warnings { display: grid; grid-template-columns: 1fr; }
 .digitalisimo-admin .digitalisimo-front-head { max-height: 420px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.digitalisimo-admin .digitalisimo-front-tabs { margin-top: 24px; }
+.digitalisimo-admin .digitalisimo-front-body [data-front-panel] + [data-front-panel] { margin-top: 24px; }
 .digitalisimo-admin .wrap .notice, .digitalisimo-admin .digitalisimo-admin-shell .notice { margin: 18px 0; border: 0; border-left: 4px solid #5264f2; border-radius: 10px; box-shadow: 0 5px 15px rgba(40,50,110,.06); }
 /* Listas de resumen en rejilla; se excluyen las listas internas de wp-admin para no romper menús ni selectores. */
 .digitalisimo-admin .wrap > ul, .digitalisimo-admin .wrap .inside > ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; padding: 0; }
