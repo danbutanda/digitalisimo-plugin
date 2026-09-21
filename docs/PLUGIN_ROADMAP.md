@@ -36,4 +36,4 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 
 ## Validación de paquetes
 
-Última validación estructural: los ZIP de SEO 1.0.61, Ecommerce 1.0.13, Geolocalización 1.0.11, IA Tools 1.0.19 y Hosting 1.0.7 contienen su archivo principal, declaran la versión esperada y superan `unzip -t`.
+Última validación estructural: los ZIP de SEO 1.0.61, Ecommerce 1.0.13, Geolocalización 1.0.11, IA Tools 1.0.20 y Hosting 1.0.7 contienen su archivo principal, declaran la versión esperada y superan `unzip -t`.
