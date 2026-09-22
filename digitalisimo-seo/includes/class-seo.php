@@ -46,7 +46,7 @@ class Digitalisimo_Integrations_SEO {
 			array( '[contenido_pilar]', 'Contenido pilar relacionado', 'Muestra un enlace al pilar asignado a esta entrada.' ),
 			array( '[contenido_secundario]', 'Contenidos secundarios', 'En una entrada pilar, muestra enlaces a sus contenidos publicados relacionados.' ),
 			array( '[descripcion_sitio]', 'Descripción del sitio', 'Muestra la descripción configurada en WordPress → Ajustes → Generales.' ),
-			array( '[digitalisimo_breadcrumbs]', 'Migas de pan', 'Muestra la ruta de navegación cuando Breadcrumbs está activo en SEO.' ),
+			array( '[digitalisimo_breadcrumbs]', 'Migas de pan', 'Muestra la ruta de navegación cuando Breadcrumbs está activo en SEO.' ), array( '[ubicacion_seo]', 'Ubicación completa', 'Muestra país, estado, ciudad y zona disponibles de la ubicación seleccionada.' ), array( '[pais_seo]', 'País', 'Muestra el país del catálogo.' ), array( '[estado_seo]', 'Estado', 'Muestra el estado del catálogo.' ), array( '[ciudad_seo]', 'Ciudad', 'Muestra la ciudad del catálogo.' ), array( '[zona_seo]', 'Zona', 'Muestra la zona del catálogo.' ),
 		);
 		echo '<h3>Shortcodes SEO</h3><p>Inserta estos códigos en el editor para mostrar datos que se actualizan automáticamente. No los uses en title SEO, meta description ni URL.</p><table class="widefat striped"><thead><tr><th>Shortcode</th><th>Inserta</th><th>Uso</th></tr></thead><tbody>';
 		foreach ( $rows as $row ) echo '<tr><td><code>' . esc_html( $row[0] ) . '</code></td><td>' . esc_html( $row[1] ) . '</td><td>' . esc_html( $row[2] ) . '</td></tr>';
