@@ -1,13 +1,13 @@
 # MCP de Digitalisimo para WordPress
 
-Este servidor MCP usa los endpoints de **Digitalisimo IA Tools** para listar clusters SEO y generar artículos como borradores. Nunca publica contenido.
+Este servidor MCP usa los endpoints de **Digitalisimo IA Tools** para listar clusters SEO y guardar como borradores los artículos redactados por Codex en esta sesión. Nunca publica contenido.
 
 ## Requisitos
 
 - WordPress con Digitalisimo IA Tools 1.0.22 o superior y Digitalisimo SEO activos.
 - Un usuario de WordPress con permiso para editar entradas.
 - Una Application Password creada para ese usuario en **Usuarios → Perfil → Contraseñas de aplicación**.
-- Un proveedor y perfil `content` configurados en Digitalisimo IA Tools.
+- No requiere API key ni proveedor IA: Codex redacta el contenido antes de enviarlo.
 - Node.js 20 o superior en el equipo que ejecuta Codex.
 
 ## Instalación
@@ -49,7 +49,8 @@ Añade este servidor a la configuración MCP de Codex, usando rutas absolutas y 
 
 1. Ejecuta `listar_clusters_seo`.
 2. Elige el `pillar_id` si el artículo debe reforzar un cluster existente.
-3. Ejecuta `generar_borrador_seo` con `primary_keyword`, secundarias y pilar opcional.
-4. Abre `edit_url`, revisa el borrador y publícalo manualmente cuando esté listo.
+3. Pide a Codex redactar el artículo usando el contexto del cluster, con title, description y contenido HTML.
+4. Ejecuta `crear_borrador_seo` con ese contenido, `primary_keyword`, secundarias y pilar opcional.
+5. Abre `edit_url`, revisa el borrador y publícalo manualmente cuando esté listo.
 
 El borrador guarda título y descripción SEO, keyword principal primero, secundarias y la relación con el pilar elegido.
