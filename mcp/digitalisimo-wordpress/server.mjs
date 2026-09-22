@@ -24,4 +24,12 @@ server.tool('crear_borrador_seo', 'Guarda en WordPress el artículo redactado po
   pillar_id: z.number().int().positive().optional().describe('ID del contenido pilar existente.'),
   post_type: z.enum(['post', 'page']).optional().describe('Tipo de borrador; post por defecto.')
 }, async (input) => ({ content: [{ type: 'text', text: JSON.stringify(await request('create-draft', { method: 'POST', body: JSON.stringify(input) }), null, 2) }] }));
+server.tool('subir_imagen_destacada', 'Sube una imagen creada por Codex y la asigna al borrador. Requiere activar la opción MCP de imágenes en IA Tools.', {
+  post_id: z.number().int().positive(), image_path: z.string().min(1), image_title: z.string().min(3), image_alt: z.string().min(3)
+}, async ({ post_id, image_path, image_title, image_alt }) => {
+  const file = await import('node:fs').then(({ readFileSync }) => new Blob([readFileSync(image_path)]));
+  const form = new FormData(); form.append('post_id', String(post_id)); form.append('image_title', image_title); form.append('image_alt', image_alt); form.append('file', file, image_title.toLowerCase().replace(/[^a-z0-9]+/gi, '-') + '.png');
+  const response = await fetch(`${site}/wp-json/digitalisimo/v1/import-image`, { method: 'POST', headers: { Authorization: authorization }, body: form }); const data = await response.json(); if (!response.ok) throw new Error(data.message || `WordPress respondió HTTP ${response.status}`); return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+});
+
 await server.connect(new StdioServerTransport());
