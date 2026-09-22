@@ -8,6 +8,9 @@ class Digitalisimo_Integrations_Editorial {
 		// Variables editoriales dinámicas para plantillas de contenido.
 		add_shortcode( 'palabra_clave', array( __CLASS__, 'shortcode_primary_keyword' ) );
 		add_shortcode( 'palabras_clave_secundarias', array( __CLASS__, 'shortcode_secondary_keywords' ) );
+		add_shortcode( 'contenido_pilar', array( __CLASS__, 'shortcode_pillar' ) );
+		add_shortcode( 'contenido_secundario', array( __CLASS__, 'shortcode_secondary' ) );
+		add_shortcode( 'descripcion_sitio', array( __CLASS__, 'shortcode_site_description' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_filter( 'manage_post_posts_columns', array( __CLASS__, 'columns' ) ); add_filter( 'manage_page_posts_columns', array( __CLASS__, 'columns' ) ); add_action( 'manage_post_posts_custom_column', array( __CLASS__, 'column_value' ), 10, 2 ); add_action( 'manage_page_posts_custom_column', array( __CLASS__, 'column_value' ), 10, 2 );
 		add_filter( 'manage_edit-post_sortable_columns', array( __CLASS__, 'sortable' ) ); add_filter( 'manage_edit-page_sortable_columns', array( __CLASS__, 'sortable' ) ); add_action( 'restrict_manage_posts', array( __CLASS__, 'filters' ) ); add_action( 'pre_get_posts', array( __CLASS__, 'query' ) );
@@ -28,6 +31,18 @@ class Digitalisimo_Integrations_Editorial {
 		array_shift( $keywords );
 		return $keywords ? '<ul><li>' . implode( '</li><li>', array_map( 'esc_html', $keywords ) ) . '</li></ul>' : '';
 	}
+	public static function shortcode_pillar() {
+		$pillar = get_post( absint( get_post_meta( get_the_ID(), '_related_pillar', true ) ) );
+		return $pillar ? '<a href="' . esc_url( get_permalink( $pillar ) ) . '">' . esc_html( $pillar->post_title ) . '</a>' : '';
+	}
+	public static function shortcode_secondary() {
+		$posts = get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => 'publish', 'posts_per_page' => -1, 'meta_key' => '_related_pillar', 'meta_value' => get_the_ID() ) );
+		if ( ! $posts ) return '';
+		$html = '<ul>';
+		foreach ( $posts as $post ) $html .= '<li><a href="' . esc_url( get_permalink( $post ) ) . '">' . esc_html( $post->post_title ) . '</a></li>';
+		return $html . '</ul>';
+	}
+	public static function shortcode_site_description() { return esc_html( get_bloginfo( 'description' ) ); }
 	public static function assets( $hook ) { if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return; wp_enqueue_style( 'digitalisimo-keyword-manager', DIGITALISIMO_INTEGRATIONS_URL . 'assets/keyword-manager.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION ); wp_enqueue_script( 'digitalisimo-keyword-manager', DIGITALISIMO_INTEGRATIONS_URL . 'assets/keyword-manager.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true ); }
 	public static function locations_cpt() { register_post_type( 'digitalisimo_location', array( 'labels' => array( 'name' => 'Ubicaciones', 'singular_name' => 'Ubicación', 'add_new_item' => 'Añadir ubicación' ), 'public' => false, 'show_ui' => true, 'show_in_menu' => 'digitalisimo', 'supports' => array( 'title', 'editor' ), 'capability_type' => 'post' ) ); }
 	private static function types() { return get_post_types( array( 'public' => true, 'show_ui' => true ), 'names' ); }
