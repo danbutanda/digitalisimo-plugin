@@ -37,6 +37,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 			'blog_id'       => get_current_blog_id(),
 			'is_multisite'  => is_multisite(),
 			'seo_enabled'   => (bool) Digitalisimo_Integrations_Settings::get( 'enable_seo' ),
+			'article_chat_supported' => true,
 			'allowed_types' => array_values( array_filter( array( 'post', 'page' ), function( $type ) {
 				$object = get_post_type_object( $type );
 				return $object && post_type_supports( $type, 'editor' ) && current_user_can( $object->cap->edit_posts );
@@ -63,8 +64,8 @@ class Digitalisimo_Integrations_Content_Publisher {
 	 * The stored value is a JSON STRING, matching the editorial metabox.
 	 */
 	private static function sanitize_article_chat( $raw ) {
-		$data = is_string( $raw ) ? json_decode( $raw, true ) : null;
-		if ( ! is_array( $data ) || json_last_error() !== JSON_ERROR_NONE ||
+		$data = is_array( $raw ) ? $raw : ( is_string( $raw ) ? json_decode( $raw, true ) : null );
+		if ( ! is_array( $data ) || ( is_string( $raw ) && json_last_error() !== JSON_ERROR_NONE ) ||
 			! isset( $data['speakers'], $data['messages'] ) ||
 			! is_array( $data['speakers'] ) || ! is_array( $data['messages'] ) ||
 			! $data['speakers'] || ! $data['messages'] ) {
