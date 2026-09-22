@@ -5,10 +5,28 @@ defined( 'ABSPATH' ) || exit;
 class Digitalisimo_Integrations_Editorial {
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'locations_cpt' ) ); add_action( 'add_meta_boxes', array( __CLASS__, 'metaboxes' ) ); add_action( 'save_post', array( __CLASS__, 'save' ), 30 );
+		// Variables editoriales dinámicas para plantillas de contenido.
+		add_shortcode( 'palabra_clave', array( __CLASS__, 'shortcode_primary_keyword' ) );
+		add_shortcode( 'palabras_clave_secundarias', array( __CLASS__, 'shortcode_secondary_keywords' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_filter( 'manage_post_posts_columns', array( __CLASS__, 'columns' ) ); add_filter( 'manage_page_posts_columns', array( __CLASS__, 'columns' ) ); add_action( 'manage_post_posts_custom_column', array( __CLASS__, 'column_value' ), 10, 2 ); add_action( 'manage_page_posts_custom_column', array( __CLASS__, 'column_value' ), 10, 2 );
 		add_filter( 'manage_edit-post_sortable_columns', array( __CLASS__, 'sortable' ) ); add_filter( 'manage_edit-page_sortable_columns', array( __CLASS__, 'sortable' ) ); add_action( 'restrict_manage_posts', array( __CLASS__, 'filters' ) ); add_action( 'pre_get_posts', array( __CLASS__, 'query' ) );
 		add_action( 'bulk_edit_custom_box', array( __CLASS__, 'bulk_fields' ), 10, 2 ); add_action( 'admin_action_editpost', array( __CLASS__, 'bulk_save' ) );
+	}
+	private static function post_keywords( $post_id = 0 ) {
+		$post_id = $post_id ?: get_the_ID();
+		return array_values( array_filter( array_map( 'trim', explode( ',', (string) get_post_meta( $post_id, 'digitalisimo_seo_keywords', true ) ) ) ) );
+	}
+	/** Inserta la keyword principal configurada para que una plantilla se actualice al editarla. */
+	public static function shortcode_primary_keyword() {
+		$keywords = self::post_keywords();
+		return esc_html( $keywords[0] ?? '' );
+	}
+	/** Inserta las keywords secundarias configuradas como una lista semántica. */
+	public static function shortcode_secondary_keywords() {
+		$keywords = self::post_keywords();
+		array_shift( $keywords );
+		return $keywords ? '<ul><li>' . implode( '</li><li>', array_map( 'esc_html', $keywords ) ) . '</li></ul>' : '';
 	}
 	public static function assets( $hook ) { if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return; wp_enqueue_style( 'digitalisimo-keyword-manager', DIGITALISIMO_INTEGRATIONS_URL . 'assets/keyword-manager.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION ); wp_enqueue_script( 'digitalisimo-keyword-manager', DIGITALISIMO_INTEGRATIONS_URL . 'assets/keyword-manager.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true ); }
 	public static function locations_cpt() { register_post_type( 'digitalisimo_location', array( 'labels' => array( 'name' => 'Ubicaciones', 'singular_name' => 'Ubicación', 'add_new_item' => 'Añadir ubicación' ), 'public' => false, 'show_ui' => true, 'show_in_menu' => 'digitalisimo', 'supports' => array( 'title', 'editor' ), 'capability_type' => 'post' ) ); }
