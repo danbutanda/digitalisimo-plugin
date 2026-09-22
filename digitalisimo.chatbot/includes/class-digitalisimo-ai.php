@@ -17,7 +17,7 @@ class Digitalisimo_AI {
 		return array(
 			'inherit_network' => 0, 'chat_enabled' => 0, 'chat_profile' => 'chatbot', 'context_posts' => 5,
 			'knowledge_enabled' => 0, 'knowledge_auto_index' => 1, 'knowledge_results' => 4, 'knowledge_embeddings_enabled' => 0, 'knowledge_embeddings_model' => 'text-embedding-3-small', 'knowledge_semantic_rerank' => 0,
-			'image_size' => '1536x1024', 'image_style' => 'natural', 'mcp_featured_image_enabled' => 0, 'log_retention' => 30,
+			'image_size' => '1536x1024', 'image_style' => 'natural', 'image_quality' => 'medium', 'mcp_featured_image_enabled' => 0, 'log_retention' => 30,
 			'editorial_voice' => '', 'editorial_context' => '', 'editorial_cta' => '', 'editorial_method' => '',
 			'providers' => array(),
 			'profiles' => array(
@@ -64,7 +64,7 @@ class Digitalisimo_AI {
 		elseif ( 'writing' === $tab ) { echo '<h3>Redacción editorial</h3><p>Este método guía la creación interna, el publisher y los clientes MCP. SEO conserva las señales técnicas; IA Tools administra la voz, el CTA, el chat editorial y los borradores.</p>'; Digitalisimo_AI_Content_Playbook::fields(); }
 		elseif ( 'chat' === $tab ) { self::check( 'chat_enabled', 'Activar chatbot público', $o ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); echo '<p><code>[digitalisimo_chatbot]</code> añade el chat donde tú lo decidas. No registra prompts ni direcciones IP.</p>'; }
 		elseif ( 'knowledge' === $tab ) { self::knowledge_fields( $o ); }
-		elseif ( 'images' === $tab ) { echo '<h3>Imágenes de artículos</h3><p>El generador usa el contexto del artículo, crea la imagen con OpenAI y entrega siempre un archivo horizontal de 1536 × 864 px (16:9), optimizado para imagen destacada y SEO social.</p>'; self::input( 'image_style', 'Estilo visual predeterminado', $o ); echo '<p>Las imágenes se guardan en la Biblioteca de Medios para revisión manual y no se publican automáticamente.</p><p><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai-images' ) ) . '">Abrir imágenes de artículos</a></p>'; }
+			elseif ( 'images' === $tab ) { self::image_fields( $o ); }
 		else { self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' ); echo '<p>Los registros contienen fecha, perfil, proveedor y resultado. No se guardan claves, prompts, respuestas, IPs ni conversaciones.</p>'; }
 		submit_button( 'Guardar configuración' ); echo '</form></div>';
 	}
@@ -74,7 +74,7 @@ class Digitalisimo_AI {
 		if ( isset( $_POST['digitalisimo_ai_network_save'] ) && check_admin_referer( 'digitalisimo_ai_network_save' ) ) self::save_network();
 		$o = wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() );
 		echo '<div class="wrap"><h1>Digitalisimo · IA Tools de red</h1><p>Estos valores son dinámicos: todos los sitios que elijan heredarlos reflejarán los cambios sin copiar credenciales.</p>'; if ( isset( $_POST['digitalisimo_ai_network_save'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Configuración de red guardada.</p></div>'; echo '<form method="post">'; wp_nonce_field( 'digitalisimo_ai_network_save' );
-		self::check( 'chat_enabled', 'Activar motor IA por defecto', $o ); self::check( 'mcp_featured_image_enabled', 'Permitir imágenes destacadas por MCP', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento por defecto', $o ); self::check( 'knowledge_embeddings_enabled', 'Permitir embeddings opcionales de OpenAI', $o ); self::check( 'knowledge_semantic_rerank', 'Reordenar conocimiento con similitud semántica', $o ); self::input( 'knowledge_embeddings_model', 'Modelo de embeddings', $o ); self::input( 'knowledge_results', 'Resultados de conocimiento por consulta', $o, 'number' ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); echo '<h2>Redacción editorial</h2>'; Digitalisimo_AI_Content_Playbook::fields( true ); self::providers( $o ); self::profiles( $o ); self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' );
+			self::check( 'chat_enabled', 'Activar motor IA por defecto', $o ); self::check( 'mcp_featured_image_enabled', 'Permitir imágenes destacadas por MCP', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento por defecto', $o ); self::check( 'knowledge_embeddings_enabled', 'Permitir embeddings opcionales de OpenAI', $o ); self::check( 'knowledge_semantic_rerank', 'Reordenar conocimiento con similitud semántica', $o ); self::input( 'knowledge_embeddings_model', 'Modelo de embeddings', $o ); self::input( 'knowledge_results', 'Resultados de conocimiento por consulta', $o, 'number' ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); echo '<h2>Imágenes</h2>'; self::image_fields( $o ); echo '<h2>Redacción editorial</h2>'; Digitalisimo_AI_Content_Playbook::fields( true ); self::providers( $o ); self::profiles( $o ); self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' );
 		submit_button( 'Guardar configuración de red', 'primary', 'digitalisimo_ai_network_save' ); echo '</form></div>';
 	}
 
@@ -97,6 +97,20 @@ class Digitalisimo_AI {
 		foreach ( array_slice( $sources, 0, 100 ) as $source ) echo '<tr><td>' . esc_html( $source['title'] ?? '' ) . '</td><td>' . esc_html( $source['type'] ?? '' ) . '</td><td>' . esc_html( ! empty( $source['modified'] ) ? mysql2date( 'Y-m-d H:i', $source['modified'] ) : '' ) . '</td><td><a href="' . esc_url( $source['url'] ?? '' ) . '" target="_blank" rel="noopener">Ver contenido</a></td></tr>';
 		echo '</tbody></table>';
 	}
+	/** Configuración visible de imagen: el perfil también permanece disponible en Perfiles de uso. */
+	private static function image_fields( $o ) {
+		$profile = (array) ( $o['profiles']['images'] ?? array() );
+		$model = $profile['model'] ?? 'gpt-image-1';
+		$quality = $o['image_quality'] ?? 'medium';
+		echo '<h3>Imágenes de artículos</h3><p>El modelo se configura aquí para no tener que buscarlo entre los perfiles. La imagen se genera a 1536 × 1024 y se entrega como WebP horizontal 16:9 de 1536 × 864 px.</p>';
+		echo '<p><label><strong>Modelo de generación</strong><br><input type="hidden" name="profiles[images][provider]" value="openai"><input type="hidden" name="profiles[images][fallback]" value="' . esc_attr( $profile['fallback'] ?? '' ) . '"><select name="profiles[images][model]">';
+		foreach ( array( 'gpt-image-1.5' => 'GPT Image 1.5 · mejor seguimiento de instrucciones', 'gpt-image-1' => 'GPT Image 1 · calidad estable', 'gpt-image-1-mini' => 'GPT Image 1 Mini · menor costo', 'gpt-image-2' => 'GPT Image 2', 'gpt-image-2.5-flare' => 'GPT Image 2.5 Flare · rápida', 'gpt-image-2.5-sunburst' => 'GPT Image 2.5 Sunburst · máxima precisión' ) as $id => $label ) echo '<option value="' . esc_attr( $id ) . '" ' . selected( $model, $id, false ) . '>' . esc_html( $label ) . '</option>';
+		echo '</select></label></p><p><label><strong>Calidad de generación</strong><br><select name="ai[image_quality]">';
+		foreach ( array( 'low' => 'Baja · menor costo', 'medium' => 'Media · recomendada', 'high' => 'Alta', 'xhigh' => 'Muy alta · sólo modelos 2.5', 'max' => 'Máxima · sólo modelos 2.5' ) as $id => $label ) echo '<option value="' . esc_attr( $id ) . '" ' . selected( $quality, $id, false ) . '>' . esc_html( $label ) . '</option>';
+		echo '</select></label></p>';
+		self::input( 'image_style', 'Estilo visual predeterminado', $o );
+		echo '<p>Se registra el modelo, calidad, tamaño y costo estimado en USD de cada imagen nueva. El historial conserva miniatura, artículo relacionado y total acumulado.</p><p><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai-images' ) ) . '">Abrir imágenes y costos</a></p>';
+	}
 	private static function providers( $o ) {
 		$names = array( 'openai' => 'OpenAI / GPT', 'anthropic' => 'Anthropic / Claude', 'google' => 'Google / Gemini', 'deepseek' => 'DeepSeek', 'xai' => 'xAI / Grok' );
 		foreach ( $names as $id => $name ) { $p = $o['providers'][ $id ] ?? array(); $has_key = ! empty( $p['key'] ); echo '<fieldset style="margin:18px 0;padding:16px;border:1px solid #ccd6e5"><legend><strong>' . esc_html( $name ) . '</strong></legend><label><input type="hidden" name="providers[' . esc_attr( $id ) . '][enabled]" value="0"><input type="checkbox" name="providers[' . esc_attr( $id ) . '][enabled]" value="1" ' . checked( ! empty( $p['enabled'] ), true, false ) . '> Activar</label><p><input class="regular-text" type="password" name="providers[' . esc_attr( $id ) . '][key]" autocomplete="new-password" placeholder="' . esc_attr( $has_key ? '••••••••••••' : 'API Key' ) . '"> <span class="digitalisimo-secret ' . ( $has_key ? 'is-set' : 'is-empty' ) . '">' . esc_html( $has_key ? 'Guardada · escribe una nueva sólo si quieres reemplazarla' : 'Sin clave configurada' ) . '</span></p><p><label>URL compatible <input class="regular-text" type="url" name="providers[' . esc_attr( $id ) . '][url]" value="' . esc_attr( $p['url'] ?? '' ) . '" placeholder="Opcional"></label></p></fieldset>'; }
@@ -107,6 +121,7 @@ class Digitalisimo_AI {
 		$in = (array) wp_unslash( $_POST['ai'] ?? array() );
 		$o = array_merge( $base, array_map( 'sanitize_text_field', $in ) );
 		foreach ( array( 'chat_enabled', 'inherit_network', 'knowledge_enabled', 'knowledge_auto_index', 'knowledge_embeddings_enabled', 'knowledge_semantic_rerank', 'mcp_featured_image_enabled' ) as $key ) if ( array_key_exists( $key, $in ) ) $o[ $key ] = empty( $in[ $key ] ) ? 0 : 1;
+		if ( isset( $in['image_quality'] ) ) $o['image_quality'] = in_array( $in['image_quality'], array( 'low', 'medium', 'high', 'xhigh', 'max' ), true ) ? $in['image_quality'] : 'medium';
 		if ( isset( $_POST['providers'] ) ) { $o['providers'] = $base['providers'] ?? array(); foreach ( (array) $_POST['providers'] as $id => $p ) { $id = sanitize_key( $id ); $o['providers'][ $id ]['enabled'] = ! empty( $p['enabled'] ); $o['providers'][ $id ]['url'] = esc_url_raw( $p['url'] ?? '' ); if ( ! empty( $p['key'] ) ) $o['providers'][ $id ]['key'] = sanitize_text_field( $p['key'] ); } }
 		if ( isset( $_POST['profiles'] ) ) { $o['profiles'] = $base['profiles'] ?? self::defaults()['profiles']; foreach ( (array) $_POST['profiles'] as $id => $p ) $o['profiles'][ sanitize_key( $id ) ] = array( 'provider' => sanitize_key( $p['provider'] ?? 'openai' ), 'model' => sanitize_text_field( $p['model'] ?? '' ), 'fallback' => sanitize_key( $p['fallback'] ?? '' ) ); }
 		return $o;

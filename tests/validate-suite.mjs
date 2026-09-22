@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.84.zip', version: '1.0.84' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.16.zip', version: '1.0.16' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.14.zip', version: '1.0.14' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.36.zip', version: '1.0.36' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.37.zip', version: '1.0.37' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.10.zip', version: '1.0.10' },
 ];
 const phpFiles = [];
@@ -132,6 +132,10 @@ if (!seoAi.includes("class_exists( 'Digitalisimo_AI' ) ) add_submenu_page( 'digi
 if (!seoBootstrap.includes("if ( class_exists( 'Digitalisimo_AI' ) ) {")) throw new Error('SEO AI debe inicializarse sólo con IA Tools activo');
 if (chatbotAi.includes("add_action( 'admin_menu', array( __CLASS__, 'menu' )")) throw new Error('IA Tools no debe registrar un segundo submenú');
 if (!chatbotImages.includes("add_submenu_page( null, 'IA · Imágenes de artículos'")) throw new Error('El generador de imágenes debe abrirse desde la pestaña IA Tools');
+if (!chatbotImages.includes('META_COST') || !chatbotImages.includes('estimate_cost') || !chatbotImages.includes('Historial y costo estimado'))
+  throw new Error('Las imágenes IA deben guardar modelo, calidad, costo estimado y mostrar historial con miniaturas.');
+if (!chatbotAi.includes("'image_quality' => 'medium'") || !chatbotAi.includes('Modelo de generación'))
+  throw new Error('IA Tools debe permitir configurar el modelo y la calidad de generación de imágenes.');
 if (!chatbotImages.includes("const OUTPUT_WIDTH = 1536") || !chatbotImages.includes("const OUTPUT_HEIGHT = 864") || !chatbotImages.includes('optimize_to_webp')) throw new Error('Las imágenes de artículos deben terminar en formato 16:9');
 if (!chatbotImages.includes("get_post_meta( $post->ID, 'digitalisimo_seo_keywords'") || !chatbotImages.includes("set_post_thumbnail( $post_id, $attachment )")) throw new Error('El generador debe usar el contexto SEO y asignar la imagen destacada');
 if (!chatbotImages.includes("'image/webp'") || !chatbotImages.includes('WEBP_QUALITY = 82') || !chatbotImages.includes('optimize_to_webp')) throw new Error('Las imágenes de artículos deben convertirse a WebP optimizado.');
