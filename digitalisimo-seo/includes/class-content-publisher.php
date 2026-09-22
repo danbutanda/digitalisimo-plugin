@@ -70,7 +70,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 		$description = sanitize_textarea_field( (string) $request->get_param( 'meta_description' ) );
 		$primary     = sanitize_text_field( (string) $request->get_param( 'primary_keyword' ) );
 		$content     = (string) $request->get_param( 'content' );
-		$content     = preg_replace( '#^\\s*<h1\\b[^>]*>.*?</h1>\\s*#is', '', $content, 1 );
+		$content     = preg_replace( '#^\s*<h1\b[^>]*>.*?</h1>\s*#is', '', $content, 1 );
 		$content     = wp_kses_post( $content );
 		if ( '' === $title || '' === $primary || '' === $description || '' === trim( wp_strip_all_tags( $content ) ) ) {
 			return new WP_Error( 'digitalisimo_missing_content', 'Indica título, contenido, palabra clave principal y metadescripción.', array( 'status' => 400 ) );
@@ -110,7 +110,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 		if ( is_wp_error( $post_id ) ) return $post_id;
 
 		$secondary = $request->get_param( 'secondary_keywords' );
-		$secondary = is_array( $secondary ) ? $secondary : preg_split( '/[,\\r\\n]+/', (string) $secondary );
+		$secondary = is_array( $secondary ) ? $secondary : preg_split( '/[,\r\n]+/', (string) $secondary );
 		$keywords  = array_unique( array_filter( array_map( 'sanitize_text_field', array_merge( array( $primary ), array_map( 'trim', $secondary ) ) ) ) );
 		$limit     = max( 1, absint( Digitalisimo_Integrations_Settings::get( 'keyword_max_count', 5 ) ) );
 		$keywords  = array_slice( array_values( $keywords ), 0, $limit );
