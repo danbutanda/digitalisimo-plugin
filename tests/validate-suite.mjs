@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.83.zip', version: '1.0.83' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.84.zip', version: '1.0.84' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.16.zip', version: '1.0.16' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.14.zip', version: '1.0.14' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.36.zip', version: '1.0.36' },
@@ -47,6 +47,9 @@ for (const [name, records] of declarations) {
 
 const seoSuite = readFileSync('digitalisimo-seo/includes/class-seo-suite.php', 'utf8');
 const seoEditorial = readFileSync('digitalisimo-seo/includes/class-seo.php', 'utf8');
+const seoEditorialTools = readFileSync('digitalisimo-seo/includes/class-editorial.php', 'utf8');
+const seoSnippetCss = readFileSync('digitalisimo-seo/assets/snippet-editor.css', 'utf8');
+const seoSnippetJs = readFileSync('digitalisimo-seo/assets/snippet-editor.js', 'utf8');
 const seoBootstrap = readFileSync('digitalisimo-seo/digitalisimo-integrations.php', 'utf8');
 const seoSettings = readFileSync('digitalisimo-seo/includes/class-settings.php', 'utf8');
 const seoAi = readFileSync('digitalisimo-seo/includes/class-seo-ai.php', 'utf8');
@@ -108,6 +111,12 @@ const seoAiTools = [
   'class-seo-ai-entities-tools.php',
 ].map((file) => readFileSync(join('digitalisimo-seo/includes', file), 'utf8'));
 if (!seoSuite.includes("add_submenu_page( 'digitalisimo', 'SEO', 'SEO'")) throw new Error('Falta el acceso unificado SEO');
+if (!seoSuite.includes("digitalisimo-seo-snippet-editor") || !seoSuite.includes('Vista previa en Google') || !seoSuite.includes('digitalisimo_native_slug'))
+  throw new Error('SEO debe ofrecer editor de snippet con vista previa, título, descripción y permalink.');
+if (!seoSnippetCss.includes('.digitalisimo-snippet-preview') || !seoSnippetJs.includes('data-snippet-preview'))
+  throw new Error('El editor de snippet debe conservar la UI Digitalisimo y actualizar la vista previa en el navegador.');
+if (seoEditorialTools.includes("update_post_meta( $id, 'digitalisimo_article_chat'"))
+  throw new Error('SEO no debe sobrescribir el chat editorial, que pertenece exclusivamente a IA Tools.');
 if (!seoSuite.includes('Digitalisimo_Integrations_SEO_Front_Inspector::render()')) throw new Error('Diagnóstico debe incluir el inspector del front');
 if (!seoSuite.includes("'diagnostic' => 'SEO Front'")) throw new Error('SEO Front debe ser la última pestaña de SEO');
 if (!seoSuite.includes("$title = $title ?: get_the_title( $id )")) throw new Error('SEO Front debe tener título de respaldo en contenido singular');
