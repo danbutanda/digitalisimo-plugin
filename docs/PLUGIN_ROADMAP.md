@@ -5,7 +5,7 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 | Área | Estado | Alcance actual / siguiente avance |
 |---|---:|---|
 | Núcleo compartido y menú único | ✓ | Cada módulo aporta el mismo core protegido contra clases duplicadas. |
-| Entrega y actualización | ~ | Cada módulo consulta Releases de GitHub por su ZIP y el repositorio incluye CI para lint PHP, construcción y validación previa a publicar. La caché del índice dura una hora y cada módulo añade un enlace «Buscar actualizaciones» que la invalida junto con el transient `update_plugins`, porque «Volver a comprobar» de WordPress no la toca. Falta comprobar una actualización desde WordPress activo. |
+| Entrega y actualización | ~ | Cada módulo consulta Releases de GitHub por su ZIP y el repositorio incluye CI para lint PHP, construcción y validación previa a publicar. El actualizador usa las capacidades y URLs de administración de red en Multisite, informa explícitamente `response` y `no_update`, y al buscar o terminar una instalación elimina las cachés propias y `update_plugins`. Falta comprobar la instalación desde la pantalla de Red del WordPress activo. |
 | Seguridad de endpoints | ~ | Chatbot y búsqueda de dominios usan límites efímeros por visitante y no guardan IPs, prompts ni respuestas. Falta validación de carga en WordPress público. |
 | Interfaz compartida | ~ | SEO Front muestra miniaturas de imágenes propias o externas, puntaje global y por sección, recomendaciones técnicas y, cuando Digitalisimo IA Tools está activo, una propuesta bajo demanda del perfil SEO. Se organiza como Resumen, Encabezados, Imágenes, Enlaces, Social y Herramientas con el detalle público equivalente a un inspector SEO. |
 | Multisite con herencia | ~ | SEO, AI, Ecommerce, Geolocalización y Hosting resuelven valores dinámicamente desde sitio/red y muestran su origen en el módulo. Falta validación runtime en una red real. |
@@ -36,4 +36,4 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 
 ## Validación de paquetes
 
-Última validación estructural: los ZIP de SEO 1.0.82, Ecommerce 1.0.15, Geolocalización 1.0.13, IA Tools 1.0.34 y Hosting 1.0.9 contienen su archivo principal, declaran la versión esperada y superan `unzip -t` y `tests/validate-suite.mjs`.
+Última validación estructural: los ZIP de SEO 1.0.83, Ecommerce 1.0.16, Geolocalización 1.0.14, IA Tools 1.0.35 y Hosting 1.0.10 contienen su archivo principal, declaran la versión esperada y superan `unzip -t` y `tests/validate-suite.mjs`.

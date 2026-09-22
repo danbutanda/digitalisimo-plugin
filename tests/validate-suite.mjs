@@ -5,11 +5,11 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.82.zip', version: '1.0.82' },
-  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.15.zip', version: '1.0.15' },
-  { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.13.zip', version: '1.0.13' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.34.zip', version: '1.0.34' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.9.zip', version: '1.0.9' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.83.zip', version: '1.0.83' },
+  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.16.zip', version: '1.0.16' },
+  { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.14.zip', version: '1.0.14' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.35.zip', version: '1.0.35' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.10.zip', version: '1.0.10' },
 ];
 const phpFiles = [];
 function walk(dir) {
@@ -55,6 +55,13 @@ const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitali
 const chatbotDialogueCss = readFileSync('digitalisimo.chatbot/assets/article-dialogue.css', 'utf8');
 const chatbotMcpArticles = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-mcp-articles.php', 'utf8');
 const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
+const updaterFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-updater.php'), 'utf8'));
+if (new Set(updaterFiles).size !== 1 || updaterFiles.some((source) =>
+  !source.includes("current_user_can( 'manage_network_plugins' )") ||
+  !source.includes("network_admin_url( 'admin-post.php' )") ||
+  !source.includes('$transient->no_update[ $file ]') ||
+  !source.includes("delete_site_transient( 'update_plugins' )")
+)) throw new Error('Los módulos deben distribuir el mismo actualizador compatible con Multisite y caché de WordPress.');
 const articleChatPublisher = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-publisher.php','utf8');
 const articleChatEditor = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-article-chat.php','utf8');
 const contentPlaybook = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-playbook.php','utf8');

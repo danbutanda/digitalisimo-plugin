@@ -56,10 +56,16 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 
 		/** Enlace «Buscar actualizaciones» en la fila del plugin. */
 		public static function action_link( $links ) {
-			if ( ! current_user_can( 'update_plugins' ) ) return $links;
-			$url = wp_nonce_url( admin_url( 'admin-post.php?action=' . self::ACTION ), self::ACTION );
+			if ( ! self::can_update() ) return $links;
+			$base = is_multisite() && is_network_admin() ? network_admin_url( 'admin-post.php' ) : admin_url( 'admin-post.php' );
+			$url = wp_nonce_url( add_query_arg( 'action', self::ACTION, $base ), self::ACTION );
 			$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Buscar actualizaciones', 'digitalisimo' ) . '</a>';
 			return $links;
+		}
+
+		/** En red, la actualización de plugins depende de la capacidad de red. */
+		private static function can_update() {
+			return is_multisite() ? current_user_can( 'manage_network_plugins' ) : current_user_can( 'update_plugins' );
 		}
 
 		/**
@@ -67,7 +73,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		 * porque «Volver a comprobar» de WordPress no la invalida.
 		 */
 		public static function force_check() {
-			if ( ! current_user_can( 'update_plugins' ) ) wp_die( esc_html__( 'No autorizado.', 'digitalisimo' ) );
+			if ( ! self::can_update() ) wp_die( esc_html__( 'No autorizado.', 'digitalisimo' ) );
 			check_admin_referer( self::ACTION );
 			delete_site_transient( self::CACHE_KEY );
 			delete_transient( self::CACHE_KEY );
@@ -75,13 +81,14 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			delete_transient( 'update_plugins' );
 			wp_update_plugins();
 			$back = wp_get_referer();
-			wp_safe_redirect( add_query_arg( 'digitalisimo-checked', '1', $back ? $back : admin_url( 'plugins.php' ) ) );
+			$default = is_multisite() ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
+			wp_safe_redirect( add_query_arg( 'digitalisimo-checked', '1', $back ? $back : $default ) );
 			exit;
 		}
 
 		/** Resultado de la comprobación manual. */
 		public static function notice() {
-			if ( empty( $_GET['digitalisimo-checked'] ) || ! current_user_can( 'update_plugins' ) ) return;
+			if ( empty( $_GET['digitalisimo-checked'] ) || ! self::can_update() ) return;
 			$pending = array();
 			foreach ( self::$modules as $file => $module ) {
 				$release = self::pending( $file );
@@ -146,19 +153,30 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			foreach ( self::$modules as $file => $module ) {
 				if ( ! isset( $transient->checked[ $file ] ) ) $transient->checked[ $file ] = $module['version'];
 				$release = self::pending( $file );
-				if ( ! $release ) continue;
-				$transient->response[ $file ] = (object) array(
-					'slug'         => $module['slug'],
-					'plugin'       => $file,
-					'new_version'  => $release['version'],
-					'url'          => $release['url'],
-					'package'      => $release['package'],
-					'tested'       => get_bloginfo( 'version' ),
-					'requires'     => '6.0',
-					'requires_php' => '7.4',
-				);
+				if ( ! $release ) {
+					unset( $transient->response[ $file ] );
+					$transient->no_update[ $file ] = self::update_item( $file, $module, array( 'version' => $module['version'] ) );
+					continue;
+				}
+				unset( $transient->no_update[ $file ] );
+				$transient->response[ $file ] = self::update_item( $file, $module, $release );
 			}
 			return $transient;
+		}
+
+		/** Forma que WordPress espera tanto en response como en no_update. */
+		private static function update_item( $file, $module, $release ) {
+			return (object) array(
+				'id'           => 'https://github.com/' . self::REPOSITORY,
+				'slug'         => $module['slug'],
+				'plugin'       => $file,
+				'new_version'  => $release['version'],
+				'url'          => $release['url'] ?? 'https://github.com/' . self::REPOSITORY . '/releases',
+				'package'      => $release['package'] ?? '',
+				'tested'       => get_bloginfo( 'version' ),
+				'requires'     => '6.0',
+				'requires_php' => '7.4',
+			);
 		}
 
 		/**
@@ -196,6 +214,9 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		public static function clear( $upgrader, $options ) {
 			if ( 'update' !== ( $options['action'] ?? '' ) || 'plugin' !== ( $options['type'] ?? '' ) ) return;
 			delete_site_transient( self::CACHE_KEY );
+			delete_transient( self::CACHE_KEY );
+			delete_site_transient( 'update_plugins' );
+			delete_transient( 'update_plugins' );
 		}
 	}
 }
