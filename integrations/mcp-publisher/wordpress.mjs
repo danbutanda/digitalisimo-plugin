@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { readFileSync } from 'node:fs';
 
 const ALLOWED_MIME = new Map([
   ['image/png', 'png'],
@@ -8,8 +9,8 @@ const ALLOWED_MIME = new Map([
 ]);
 const MAX_BYTES = 8 * 1024 * 1024;
 
-export function readSites(source = process.env.DIGITALISIMO_SITES_JSON) {
-  if (!source) throw new Error('Configura DIGITALISIMO_SITES_JSON antes de iniciar.');
+export function readSites(source = process.env.DIGITALISIMO_SITES_JSON || (process.env.DIGITALISIMO_SITES_FILE ? readFileSync(process.env.DIGITALISIMO_SITES_FILE, 'utf8') : '')) {
+  if (!source) throw new Error('Configura DIGITALISIMO_SITES_FILE o DIGITALISIMO_SITES_JSON antes de iniciar.');
   let raw;
   try { raw = JSON.parse(source); } catch { throw new Error('DIGITALISIMO_SITES_JSON no es JSON válido.'); }
   if (!Array.isArray(raw) || !raw.length) throw new Error('Configura al menos un sitio WordPress.');
