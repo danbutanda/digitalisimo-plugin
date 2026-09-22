@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.77.zip', version: '1.0.77' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.78.zip', version: '1.0.78' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.14.zip', version: '1.0.14' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.12.zip', version: '1.0.12' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.25.zip', version: '1.0.25' },
@@ -57,7 +57,7 @@ const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'include
 const articleChatPublisher = readFileSync('digitalisimo-seo/includes/class-content-publisher.php','utf8');
 const articleChatEditor = readFileSync('digitalisimo-seo/includes/class-editorial.php','utf8');
 if (!articleChatEditor.includes("add_shortcode( 'digitalisimo_article_chat'") ||
-    !articleChatEditor.includes("get_post_meta( get_the_ID(), 'digitalisimo_article_chat', true )"))
+    !articleChatEditor.includes("get_post_meta( self::current_content_id(), 'digitalisimo_article_chat', true )"))
   throw new Error('Falta shortcode del chat conectado al metadato del artículo.');
 if (!articleChatPublisher.includes("'article_chat_supported' => true") ||
     !articleChatPublisher.includes("self::sanitize_article_chat( $request->get_param( 'digitalisimo_article_chat' ) )") ||

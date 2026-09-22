@@ -18,8 +18,9 @@ class Digitalisimo_Integrations_Editorial {
 		add_filter( 'manage_edit-post_sortable_columns', array( __CLASS__, 'sortable' ) ); add_filter( 'manage_edit-page_sortable_columns', array( __CLASS__, 'sortable' ) ); add_action( 'restrict_manage_posts', array( __CLASS__, 'filters' ) ); add_action( 'pre_get_posts', array( __CLASS__, 'query' ) );
 		add_action( 'bulk_edit_custom_box', array( __CLASS__, 'bulk_fields' ), 10, 2 ); add_action( 'admin_action_editpost', array( __CLASS__, 'bulk_save' ) );
 	}
+	private static function current_content_id() { $id = absint( get_queried_object_id() ); if ( $id && in_array( get_post_type( $id ), self::types(), true ) ) return $id; return absint( get_the_ID() ); }
 	private static function post_keywords( $post_id = 0 ) {
-		$post_id = $post_id ?: get_the_ID();
+		$post_id = $post_id ?: self::current_content_id();
 		return array_values( array_filter( array_map( 'trim', explode( ',', (string) get_post_meta( $post_id, 'digitalisimo_seo_keywords', true ) ) ) ) );
 	}
 	/** Inserta la keyword principal configurada para que una plantilla se actualice al editarla. */
@@ -45,7 +46,7 @@ class Digitalisimo_Integrations_Editorial {
 		return $html . '</ul>';
 	}
 	public static function shortcode_site_description() { return esc_html( get_bloginfo( 'description' ) ); }
-	public static function shortcode_article_chat() { $data = json_decode( (string) get_post_meta( get_the_ID(), 'digitalisimo_article_chat', true ), true ); if ( empty( $data['speakers'] ) || empty( $data['messages'] ) ) return ''; $speakers = array(); foreach ( (array) $data['speakers'] as $speaker ) if ( ! empty( $speaker['id'] ) && ! empty( $speaker['name'] ) ) $speakers[ sanitize_key( $speaker['id'] ) ] = $speaker; if ( ! $speakers ) return ''; $html = '<div class="digitalisimo-dialogue digitalisimo-article-chat" aria-label="Conversación">'; foreach ( (array) $data['messages'] as $message ) { $id = sanitize_key( $message['speaker'] ?? '' ); if ( empty( $speakers[ $id ] ) || empty( $message['text'] ) ) continue; $speaker = $speakers[ $id ]; $align = in_array( $speaker['align'] ?? '', array( 'start', 'center', 'end' ), true ) ? $speaker['align'] : 'start'; $avatar = ! empty( $speaker['image_id'] ) ? wp_get_attachment_image( absint( $speaker['image_id'] ), 'thumbnail', false, array( 'class' => 'digitalisimo-chat-avatar' ) ) : '<span class="digitalisimo-chat-icon" aria-hidden="true">' . esc_html( $speaker['icon'] ?? '💬' ) . '</span>'; $html .= '<p class="digitalisimo-dialogue-' . esc_attr( $align ) . '">' . $avatar . '<strong>' . esc_html( $speaker['name'] ) . '</strong>' . esc_html( $message['text'] ) . '</p>'; } return $html . '</div>'; }
+	public static function shortcode_article_chat() { $data = json_decode( (string) get_post_meta( self::current_content_id(), 'digitalisimo_article_chat', true ), true ); if ( empty( $data['speakers'] ) || empty( $data['messages'] ) ) return ''; $speakers = array(); foreach ( (array) $data['speakers'] as $speaker ) if ( ! empty( $speaker['id'] ) && ! empty( $speaker['name'] ) ) $speakers[ sanitize_key( $speaker['id'] ) ] = $speaker; if ( ! $speakers ) return ''; $html = '<div class="digitalisimo-dialogue digitalisimo-article-chat" aria-label="Conversación">'; foreach ( (array) $data['messages'] as $message ) { $id = sanitize_key( $message['speaker'] ?? '' ); if ( empty( $speakers[ $id ] ) || empty( $message['text'] ) ) continue; $speaker = $speakers[ $id ]; $align = in_array( $speaker['align'] ?? '', array( 'start', 'center', 'end' ), true ) ? $speaker['align'] : 'start'; $avatar = ! empty( $speaker['image_id'] ) ? wp_get_attachment_image( absint( $speaker['image_id'] ), 'thumbnail', false, array( 'class' => 'digitalisimo-chat-avatar' ) ) : '<span class="digitalisimo-chat-icon" aria-hidden="true">' . esc_html( $speaker['icon'] ?? '💬' ) . '</span>'; $html .= '<p class="digitalisimo-dialogue-' . esc_attr( $align ) . '">' . $avatar . '<strong>' . esc_html( $speaker['name'] ) . '</strong>' . esc_html( $message['text'] ) . '</p>'; } return $html . '</div>'; }
 
 	/** Carga el estilo de diálogo sólo si el contenido publicado usa ese bloque. */
 	public static function public_dialogue_assets() {
@@ -60,7 +61,7 @@ class Digitalisimo_Integrations_Editorial {
 	private static function location_level( $id ) { $level = get_post_meta( $id, '_digitalisimo_location_level', true ); return array_key_exists( $level, self::location_levels() ) ? $level : ''; }
 	private static function location_parts( $id = 0 ) { $parts = array_fill_keys( array_keys( self::location_levels() ), '' ); while ( $id && ( $location = get_post( $id ) ) && 'digitalisimo_location' === $location->post_type ) { $level = self::location_level( $id ); if ( $level && ! $parts[ $level ] ) $parts[ $level ] = $location->post_title; $id = (int) $location->post_parent; } return $parts; }
 	private static function location_label( $id ) { $parts = array_filter( self::location_parts( $id ) ); return $parts ? implode( ' · ', $parts ) : get_the_title( $id ); }
-	private static function current_location_parts() { return self::location_parts( absint( get_post_meta( get_the_ID(), '_related_location_id', true ) ) ); }
+	private static function current_location_parts() { return self::location_parts( absint( get_post_meta( self::current_content_id(), '_related_location_id', true ) ) ); }
 	public static function shortcode_location() { return esc_html( implode( ', ', array_filter( self::current_location_parts() ) ) ); }
 	public static function shortcode_country() { $p = self::current_location_parts(); return esc_html( $p['country'] ); }
 	public static function shortcode_state() { $p = self::current_location_parts(); return esc_html( $p['state'] ); }
