@@ -18,6 +18,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 			'permission_callback' => array( __CLASS__, 'can_create' ),
 			'callback'            => array( __CLASS__, 'site' ),
 		) );
+		register_rest_route( self::API_NAMESPACE, '/generate', array( 'methods' => WP_REST_Server::CREATABLE, 'permission_callback' => array( __CLASS__, 'can_create' ), 'callback' => array( __CLASS__, 'generate' ) ) );
 		register_rest_route( self::API_NAMESPACE, '/articles', array(
 			'methods'             => WP_REST_Server::CREATABLE,
 			'permission_callback' => array( __CLASS__, 'can_create' ),
@@ -42,7 +43,18 @@ class Digitalisimo_Integrations_Content_Publisher {
 			} ) ),
 			'media_upload_url' => rest_url( 'wp/v2/media' ),
 			'article_url'      => rest_url( self::API_NAMESPACE . '/articles' ),
+			'generate_url'     => rest_url( self::API_NAMESPACE . '/generate' ),
+			'editorial_playbook' => Digitalisimo_Integrations_Content_Playbook::profile(),
 		) );
+	}
+
+	/** Genera una propuesta estructurada con el perfil content de IA Tools; nunca publica. */
+	public static function generate( WP_REST_Request $request ) {
+		$primary = sanitize_text_field( (string) $request->get_param( 'primary_keyword' ) );
+		if ( ! $primary ) return new WP_Error( 'digitalisimo_primary_keyword', 'Indica una keyword principal.', array( 'status' => 400 ) );
+		$secondary = (array) $request->get_param( 'secondary_keywords' );
+		$result = Digitalisimo_Integrations_Content_Playbook::generate( $primary, $secondary, sanitize_text_field( (string) $request->get_param( 'title' ) ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
 	/** Fase 1: solo borradores; nunca publica por accidente. */

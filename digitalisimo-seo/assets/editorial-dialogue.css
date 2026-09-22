@@ -45,3 +45,5 @@
 	.digitalisimo-dialogue .digitalisimo-dialogue-user,
 	.digitalisimo-dialogue .digitalisimo-dialogue-daniel { max-width: 100%; margin-left: 0; margin-right: 0; }
 }
+
+.digitalisimo-article-chat .digitalisimo-dialogue-start{justify-self:start;background:#edf7ff;border-color:#cfe3f2}.digitalisimo-article-chat .digitalisimo-dialogue-center{justify-self:center;background:#fff2f8;border-color:#f2cddd}.digitalisimo-article-chat .digitalisimo-dialogue-end{justify-self:end;background:#fff8df;border-color:#f1dda1}.digitalisimo-chat-icon{float:left;margin-right:8px;font-size:1.25em}.digitalisimo-chat-avatar{float:left;width:34px;height:34px;border-radius:50%;object-fit:cover;margin-right:8px}

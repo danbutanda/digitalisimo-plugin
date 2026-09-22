@@ -104,6 +104,10 @@ class Digitalisimo_Integrations_Settings {
 			'seo_social_profiles'    => array(),
 			'seo_local_phone_cc'     => '',
 			'seo_local_schedule'     => array(),
+			'content_editorial_voice' => 'Tono amigable, cercano y experto en tecnología. Explica con claridad, usa español de México y evita promesas de posicionamiento garantizado.',
+			'content_editorial_context' => 'Digitalisimo es una agencia digital mexicana. Combina SEO, marketing, desarrollo web, automatización e inteligencia digital para ayudar a empresas a crecer.',
+			'content_editorial_cta' => 'Cierra con una invitación útil a solicitar una asesoría con Digitalisimo, relacionada de forma natural con el tema del artículo.',
+			'content_editorial_method' => 'Responde la intención de búsqueda al inicio. No repitas el H1 en el cuerpo. Usa una keyword principal de forma natural y secundarias sólo cuando aporten contexto. Organiza con H2 y H3, ejemplos, preguntas frecuentes y enlaces internos reales. Puedes abrir con un diálogo breve entre 🧑 Empresario, 🤖 MaryIA y 👨‍💼 Daniel; MaryIA habla con precisión robótica y Daniel aterriza decisiones. El diálogo aparece una sola vez al inicio.',
 		);
 	}
 
@@ -140,7 +144,7 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( array( 'openai_model', 'namecheap_api_user', 'namecheap_username', 'namecheap_client_ip', 'seo_site_name', 'seo_separator', 'seo_organization_type', 'seo_organization_name', 'seo_organization_url', 'seo_organization_email', 'seo_twitter_card', 'seo_twitter_user', 'seo_local_type', 'seo_local_name', 'seo_local_city', 'seo_local_region', 'seo_local_postal', 'seo_local_country', 'seo_local_latitude', 'seo_local_longitude', 'seo_local_price_range' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
 		}
-		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ipinfo_tokens', 'sitemap_post_types', 'sitemap_exclude_ids', 'keyword_post_types', 'noindex_page_slugs', 'noindex_page_ids', 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_local_address', 'seo_local_hours', 'seo_taxonomies', 'seo_sitemap_taxonomies' ) as $key ) {
+		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ipinfo_tokens', 'sitemap_post_types', 'sitemap_exclude_ids', 'keyword_post_types', 'noindex_page_slugs', 'noindex_page_ids', 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_local_address', 'seo_local_hours', 'seo_taxonomies', 'seo_sitemap_taxonomies', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_textarea_field( $input[ $key ] );
 		}
 		if ( isset( $input['ipinfo_cache_minutes'] ) ) $output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ) );
