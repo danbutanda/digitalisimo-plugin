@@ -1,0 +1,46 @@
+name: Publicar SEO con chat editorial nativo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-trigger/article-chat-1.0.75.txt'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: digitalisimo-seo-chat-hotfix-release
+  cancel-in-progress: false
+
+jobs:
+  release-seo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Validar sintaxis del módulo SEO
+        run: find digitalisimo-seo -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Construir paquetes oficiales
+        run: bash scripts/build-packages.sh dist
+      - name: Validar paquete SEO
+        run: |
+          unzip -t dist/digitalisimo-seo-1.0.75.zip
+          DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
+      - name: Publicar nueva versión para actualizador WordPress
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.80
+          target_commitish: ${{ github.sha }}
+          name: v1.0.80 · SEO 1.0.75 con API de chat editorial
+          body: |
+            Incluye Digitalisimo SEO 1.0.75 con soporte de publicación de digitalisimo_article_chat,
+            shortcode [digitalisimo_article_chat] y carga del CSS en el frontend.
+          files: dist/digitalisimo-seo-1.0.75.zip
+          fail_on_unmatched_files: true
