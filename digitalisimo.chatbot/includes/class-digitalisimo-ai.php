@@ -17,7 +17,7 @@ class Digitalisimo_AI {
 		return array(
 			'inherit_network' => 0, 'chat_enabled' => 0, 'chat_profile' => 'chatbot', 'context_posts' => 5,
 			'knowledge_enabled' => 0, 'knowledge_auto_index' => 1, 'knowledge_results' => 4, 'knowledge_embeddings_enabled' => 0, 'knowledge_embeddings_model' => 'text-embedding-3-small', 'knowledge_semantic_rerank' => 0,
-			'image_size' => '1024x1024', 'image_style' => 'natural', 'mcp_featured_image_enabled' => 0, 'log_retention' => 30,
+			'image_size' => '1536x1024', 'image_style' => 'natural', 'mcp_featured_image_enabled' => 0, 'log_retention' => 30,
 			'providers' => array(),
 			'profiles' => array(
 				'chatbot' => array( 'provider' => 'openai', 'model' => 'gpt-4o-mini', 'fallback' => '' ),
@@ -62,7 +62,7 @@ class Digitalisimo_AI {
 		elseif ( 'profiles' === $tab ) self::profiles( $o );
 		elseif ( 'chat' === $tab ) { self::check( 'chat_enabled', 'Activar chatbot público', $o ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); echo '<p><code>[digitalisimo_chatbot]</code> añade el chat donde tú lo decidas. No registra prompts ni direcciones IP.</p>'; }
 		elseif ( 'knowledge' === $tab ) { self::knowledge_fields( $o ); }
-		elseif ( 'images' === $tab ) { self::input( 'image_size', 'Tamaño predeterminado', $o ); self::input( 'image_style', 'Estilo predeterminado', $o ); echo '<p>Las imágenes se guardan en la Biblioteca de Medios para revisión manual.</p><p><a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai-images' ) ) . '">Abrir generador de imágenes</a></p>'; }
+		elseif ( 'images' === $tab ) { echo '<h3>Imágenes de artículos</h3><p>El generador usa el contexto del artículo, crea la imagen con OpenAI y entrega siempre un archivo horizontal de 1536 × 864 px (16:9), optimizado para imagen destacada y SEO social.</p>'; self::input( 'image_style', 'Estilo visual predeterminado', $o ); echo '<p>Las imágenes se guardan en la Biblioteca de Medios para revisión manual y no se publican automáticamente.</p><p><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-ai-images' ) ) . '">Abrir imágenes de artículos</a></p>'; }
 		else { self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' ); echo '<p>Los registros contienen fecha, perfil, proveedor y resultado. No se guardan claves, prompts, respuestas, IPs ni conversaciones.</p>'; }
 		submit_button( 'Guardar configuración' ); echo '</form></div>';
 	}
@@ -72,7 +72,7 @@ class Digitalisimo_AI {
 		if ( isset( $_POST['digitalisimo_ai_network_save'] ) && check_admin_referer( 'digitalisimo_ai_network_save' ) ) self::save_network();
 		$o = wp_parse_args( (array) get_site_option( self::OPTION, array() ), self::defaults() );
 		echo '<div class="wrap"><h1>Digitalisimo · IA Tools de red</h1><p>Estos valores son dinámicos: todos los sitios que elijan heredarlos reflejarán los cambios sin copiar credenciales.</p>'; if ( isset( $_POST['digitalisimo_ai_network_save'] ) ) echo '<div class="notice notice-success is-dismissible"><p>Configuración de red guardada.</p></div>'; echo '<form method="post">'; wp_nonce_field( 'digitalisimo_ai_network_save' );
-		self::check( 'chat_enabled', 'Activar motor IA por defecto', $o ); self::check( 'mcp_featured_image_enabled', 'Permitir imágenes destacadas por MCP', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento por defecto', $o ); self::check( 'knowledge_embeddings_enabled', 'Permitir embeddings opcionales de OpenAI', $o ); self::check( 'knowledge_semantic_rerank', 'Reordenar conocimiento con similitud semántica', $o ); self::input( 'knowledge_embeddings_model', 'Modelo de embeddings', $o ); self::input( 'knowledge_results', 'Resultados de conocimiento por consulta', $o, 'number' ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); self::providers( $o ); self::profiles( $o ); self::input( 'image_size', 'Tamaño predeterminado de imagen', $o ); self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' );
+		self::check( 'chat_enabled', 'Activar motor IA por defecto', $o ); self::check( 'mcp_featured_image_enabled', 'Permitir imágenes destacadas por MCP', $o ); self::check( 'knowledge_enabled', 'Activar base de conocimiento por defecto', $o ); self::check( 'knowledge_embeddings_enabled', 'Permitir embeddings opcionales de OpenAI', $o ); self::check( 'knowledge_semantic_rerank', 'Reordenar conocimiento con similitud semántica', $o ); self::input( 'knowledge_embeddings_model', 'Modelo de embeddings', $o ); self::input( 'knowledge_results', 'Resultados de conocimiento por consulta', $o, 'number' ); self::input( 'context_posts', 'Entradas públicas como contexto', $o, 'number' ); self::providers( $o ); self::profiles( $o ); self::input( 'log_retention', 'Retención de métricas (días)', $o, 'number' );
 		submit_button( 'Guardar configuración de red', 'primary', 'digitalisimo_ai_network_save' ); echo '</form></div>';
 	}
 
