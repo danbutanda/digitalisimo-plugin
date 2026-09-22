@@ -53,4 +53,4 @@ Añade este servidor a la configuración MCP de Codex, usando rutas absolutas y 
 4. Ejecuta `crear_borrador_seo` con ese contenido, `primary_keyword`, secundarias y pilar opcional.
 5. Abre `edit_url`, revisa el borrador y publícalo manualmente cuando esté listo.
 
-El borrador guarda título y descripción SEO, keyword principal primero, secundarias y la relación con el pilar elegido.
+El borrador guarda título y descripción SEO, keyword principal primero, secundarias, la relación con el pilar elegido y una conversación editorial obligatoria en `digitalisimo_article_chat`. La conversación debe tener varias intervenciones contextualizadas de Empresario, MaryIA y Daniel; no uses tres frases genéricas.

@@ -39,7 +39,7 @@ No inventar URL de un medio, ID de categoría ni ID de pilar: deben corresponder
 
 El artículo muestra el chat cuando el cuerpo incluye el shortcode **literal** `[digitalisimo_article_chat]`. Los mensajes **no** se insertan como HTML dentro de `content`: se guardan separados en el metadato WordPress `digitalisimo_article_chat` como cadena JSON válida. El editor nativo del plugin puede modificarlos después.
 
-El endpoint `POST /wp-json/digitalisimo-publisher/v1/articles` admite opcionalmente la propiedad `digitalisimo_article_chat` como objeto JSON (o cadena JSON válida) y devuelve `article_chat_saved: true` cuando la guardó. Su respuesta de `GET /site` anuncia `article_chat_supported: true`; el puente debe comprobarla **antes de crear un borrador con chat**, para no enviar chats a una versión del plugin que todavía no los admita. Sin chat, el flujo anterior sigue funcionando.
+El endpoint `POST /wp-json/digitalisimo-publisher/v1/articles` recibe la propiedad `digitalisimo_article_chat` como objeto JSON (o cadena JSON válida) y devuelve `article_chat_saved: true` cuando la guardó. IA Tools garantiza que todo borrador tenga una conversación: si un cliente antiguo no la envía, crea una conversación contextual de respaldo usando título y keyword. Los clientes actuales deben enviarla explícitamente siguiendo el patrón editorial de `digitalisimo-publisher`; no uses tres frases genéricas. Su respuesta de `GET /site` anuncia `article_chat_supported: true`.
 
 Ejemplo parcial del nuevo cuerpo REST:
 

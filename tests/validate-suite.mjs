@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.82.zip', version: '1.0.82' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.13.zip', version: '1.0.13' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.31.zip', version: '1.0.31' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.32.zip', version: '1.0.32' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.9.zip', version: '1.0.9' },
 ];
 const phpFiles = [];
@@ -74,6 +74,11 @@ if (!contentPlaybook.includes('resources/editorial-profile.json') || !articleCha
 	throw new Error('El publisher debe usar el perfil editorial propio de IA Tools.');
 if (!articleChatPublisher.includes('default_article_chat') || !articleChatPublisher.includes("'article_chat_saved' => true"))
 	throw new Error('Todo borrador editorial debe guardar un chat de artículo.');
+if (!articleChatPublisher.includes("'speaker' => 'empresario'") || !articleChatPublisher.includes('Mi pequeño radar de palabras repetidas') || !articleChatPublisher.includes("'align' => 'start'"))
+	throw new Error('El chat de respaldo debe seguir el patrón narrativo de publisher.');
+const mcpWordPress = readFileSync('mcp/digitalisimo-wordpress/server.mjs', 'utf8');
+if (!mcpWordPress.includes('digitalisimo_article_chat: articleChat') || !mcpWordPress.includes('digitalisimo-publisher/v1/articles'))
+	throw new Error('El MCP de WordPress debe enviar el chat editorial obligatorio al publisher de IA Tools.');
 const chatbotBootstrap = readFileSync('digitalisimo.chatbot/digitalisimo-chatbot.php', 'utf8');
 if (!chatbotBootstrap.includes('Digitalisimo_AI_Article_Chat::init') || !chatbotBootstrap.includes('Digitalisimo_AI_Content_Publisher::init'))
 	throw new Error('IA Tools debe inicializar el chat y el publisher editorial.');

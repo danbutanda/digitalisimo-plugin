@@ -112,14 +112,26 @@ class Digitalisimo_AI_Content_Publisher {
 		$title   = sanitize_text_field( $title );
 		return wp_json_encode( array(
 			'speakers' => array(
-				array( 'id' => 'user', 'name' => 'Empresario', 'icon' => '🧑', 'image_id' => 0, 'align' => 'end' ),
+				array( 'id' => 'empresario', 'name' => 'Empresario', 'icon' => '🧑', 'image_id' => 0, 'align' => 'start' ),
 				array( 'id' => 'maryia', 'name' => 'MaryIA', 'icon' => '🤖', 'image_id' => 0, 'align' => 'center' ),
-				array( 'id' => 'daniel', 'name' => 'Daniel', 'icon' => '👨‍💼', 'image_id' => 0, 'align' => 'start' ),
+				array( 'id' => 'daniel', 'name' => 'Daniel', 'icon' => '👨‍💼', 'image_id' => 0, 'align' => 'end' ),
 			),
 			'messages' => array(
-				array( 'speaker' => 'user', 'text' => 'Quiero entender cómo puede ayudarme este tema: ' . $title . '.' ),
-				array( 'speaker' => 'maryia', 'text' => 'Consulta recibida. Analizaré la keyword «' . $primary . '» y sus oportunidades de búsqueda.' ),
-				array( 'speaker' => 'daniel', 'text' => 'Lo aterrizamos a una decisión clara para tu negocio y medimos el siguiente paso.' ),
+				array( 'speaker' => 'empresario', 'text' => 'Quiero entender qué decisión debo tomar sobre ' . $title . ' para no invertir a ciegas.' ),
+				array( 'speaker' => 'daniel', 'text' => 'Antes de cambiar algo, aclaremos qué quieres conseguir y qué parte del negocio está frenando la decisión. MaryIA, revisa la intención detrás de la búsqueda.' ),
+				array( 'speaker' => 'maryia', 'text' => 'Análisis inicial: la consulta «' . $primary . '» expresa una necesidad concreta, pero todavía debemos separar información, comparación y contacto comercial.' ),
+				array( 'speaker' => 'daniel', 'text' => 'Eso nos marca la primera tarea: ordenamos la respuesta para que el lector entienda la solución antes de pedirle que contacte.' ),
+				array( 'speaker' => 'empresario', 'text' => '¿Entonces basta con repetir la keyword varias veces?' ),
+				array( 'speaker' => 'maryia', 'text' => 'No. Mi pequeño radar de palabras repetidas detecta ruido cuando la frase aparece sin explicar una decisión, un problema o un siguiente paso.' ),
+				array( 'speaker' => 'daniel', 'text' => 'Exacto. Usamos la keyword donde ayuda a ubicar el tema y desarrollamos ejemplos que respondan la duda real del empresario.' ),
+				array( 'speaker' => 'empresario', 'text' => 'También me preocupa que el contenido atraiga visitas, pero no conversaciones útiles.' ),
+				array( 'speaker' => 'maryia', 'text' => 'La señal que debemos observar es el recorrido: búsqueda, página que responde, servicio relacionado y forma de contacto. Una visita aislada no explica la intención completa.' ),
+				array( 'speaker' => 'daniel', 'text' => 'Por eso conectamos la explicación con una página o acción concreta de tu negocio, sin prometer resultados que todavía no hemos medido.' ),
+				array( 'speaker' => 'empresario', 'text' => '¿Y cómo sabremos qué mejorar primero?' ),
+				array( 'speaker' => 'maryia', 'text' => 'Priorizamos la respuesta principal, los encabezados, los enlaces pertinentes y el contacto. Después comparamos qué parte todavía deja preguntas abiertas.' ),
+				array( 'speaker' => 'daniel', 'text' => 'Con esa información, revisamos la página prioritaria, ajustamos el contenido y volvemos a medir antes de ampliar el trabajo.' ),
+				array( 'speaker' => 'empresario', 'text' => 'Ahora sí entiendo qué debe resolver el artículo y qué no debo exigirle.' ),
+				array( 'speaker' => 'daniel', 'text' => 'Esa es la idea: convertimos la búsqueda en una respuesta útil y en una siguiente acción clara para tu negocio.' ),
 			),
 		), JSON_UNESCAPED_UNICODE );
 	}

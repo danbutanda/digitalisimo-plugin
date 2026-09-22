@@ -15,15 +15,20 @@ async function request(path, init = {}) {
 }
 const server = new McpServer({ name: 'digitalisimo-wordpress', version: '1.0.0' });
 server.tool('listar_clusters_seo', 'Lista contenidos pilar y sus artículos relacionados antes de crear un nuevo artículo.', {}, async () => ({ content: [{ type: 'text', text: JSON.stringify(await request('clusters'), null, 2) }] }));
-server.tool('crear_borrador_seo', 'Guarda en WordPress el artículo redactado por Codex en esta sesión. Nunca publica contenido ni llama a una API de IA.', {
+const articleChat = z.object({
+  speakers: z.array(z.object({ id: z.string().min(1), name: z.string().min(1), icon: z.string().min(1), image_id: z.number().int().nonnegative(), align: z.enum(['start', 'center', 'end']) })).min(3),
+  messages: z.array(z.object({ speaker: z.string().min(1), text: z.string().min(1) })).min(6)
+}).describe('Conversación narrativa contextual de Empresario, MaryIA y Daniel. Debe aparecer una sola vez en la plantilla del artículo.');
+server.tool('crear_borrador_seo', 'Guarda en WordPress el artículo redactado por Codex en esta sesión. El chat editorial es obligatorio; nunca publica contenido ni llama a una API de IA.', {
   primary_keyword: z.string().min(2).describe('Keyword principal del artículo.'),
   title: z.string().min(5).describe('Título SEO redactado por Codex.'),
   description: z.string().min(30).describe('Meta description redactada por Codex.'),
   content: z.string().min(100).describe('Artículo HTML redactado por Codex en esta sesión, sin H1 porque WordPress muestra el título de la entrada.'),
   secondary_keywords: z.array(z.string()).max(4).optional().describe('Keywords secundarias relevantes.'),
+  digitalisimo_article_chat: articleChat,
   pillar_id: z.number().int().positive().optional().describe('ID del contenido pilar existente.'),
   post_type: z.enum(['post', 'page']).optional().describe('Tipo de borrador; post por defecto.')
-}, async (input) => ({ content: [{ type: 'text', text: JSON.stringify(await request('create-draft', { method: 'POST', body: JSON.stringify(input) }), null, 2) }] }));
+}, async (input) => { const article = { ...input, meta_description: input.description }; delete article.description; return { content: [{ type: 'text', text: JSON.stringify(await request('digitalisimo-publisher/v1/articles', { method: 'POST', body: JSON.stringify(article) }), null, 2) }] }; });
 server.tool('subir_imagen_destacada', 'Sube una imagen creada por Codex y la asigna al borrador. Requiere activar la opción MCP de imágenes en IA Tools.', {
   post_id: z.number().int().positive(), image_path: z.string().min(1), image_title: z.string().min(3), image_alt: z.string().min(3)
 }, async ({ post_id, image_path, image_title, image_alt }) => {
