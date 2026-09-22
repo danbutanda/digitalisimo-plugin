@@ -1,0 +1,9 @@
+{
+  "name": "digitalisimo-wordpress-mcp",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.6.5"
+  }
+}

@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.65.zip', version: '1.0.65' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.14.zip', version: '1.0.14' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.12.zip', version: '1.0.12' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.21.zip', version: '1.0.21' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.22.zip', version: '1.0.22' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.8.zip', version: '1.0.8' },
 ];
 const phpFiles = [];
@@ -52,6 +52,7 @@ const seoSettings = readFileSync('digitalisimo-seo/includes/class-settings.php',
 const seoAi = readFileSync('digitalisimo-seo/includes/class-seo-ai.php', 'utf8');
 const chatbotAi = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai.php', 'utf8');
 const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-images.php', 'utf8');
+const chatbotMcpArticles = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-mcp-articles.php', 'utf8');
 const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
 const seoAiTools = [
   'class-seo-ai-crawler-tools.php',
@@ -78,6 +79,8 @@ if (!seoAi.includes("class_exists( 'Digitalisimo_AI' ) ) add_submenu_page( 'digi
 if (!seoBootstrap.includes("if ( class_exists( 'Digitalisimo_AI' ) ) {")) throw new Error('SEO AI debe inicializarse sólo con IA Tools activo');
 if (chatbotAi.includes("add_action( 'admin_menu', array( __CLASS__, 'menu' )")) throw new Error('IA Tools no debe registrar un segundo submenú');
 if (!chatbotImages.includes("add_submenu_page( null, 'IA · Imágenes'")) throw new Error('El generador de imágenes debe abrirse desde la pestaña IA Tools');
+if (!chatbotMcpArticles.includes("register_rest_route( 'digitalisimo-mcp/v1', '/generate-article'")) throw new Error('Falta el endpoint MCP para generar borradores SEO');
+if (!chatbotMcpArticles.includes("'post_status' => 'draft'")) throw new Error('El MCP debe crear sólo borradores');
 if (seoAiTools.some((source) => source.includes("add_submenu_page( 'digitalisimo'"))) throw new Error('Una herramienta SEO AI sigue expuesta como submenú lateral');
 if (coreFiles.some((source) => !source.includes("remove_submenu_page( 'digitalisimo', 'digitalisimo' )"))) throw new Error('El submenú automático Digitalisimo no se oculta en todos los módulos');
 

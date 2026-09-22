@@ -1,0 +1,55 @@
+# MCP de Digitalisimo para WordPress
+
+Este servidor MCP usa los endpoints de **Digitalisimo IA Tools** para listar clusters SEO y generar artículos como borradores. Nunca publica contenido.
+
+## Requisitos
+
+- WordPress con Digitalisimo IA Tools 1.0.22 o superior y Digitalisimo SEO activos.
+- Un usuario de WordPress con permiso para editar entradas.
+- Una Application Password creada para ese usuario en **Usuarios → Perfil → Contraseñas de aplicación**.
+- Un proveedor y perfil `content` configurados en Digitalisimo IA Tools.
+- Node.js 20 o superior en el equipo que ejecuta Codex.
+
+## Instalación
+
+```bash
+cd /ruta/al/repositorio/mcp/digitalisimo-wordpress
+npm install
+```
+
+Configura estas variables sólo en el entorno local de Codex. No se guardan en WordPress ni en el repositorio:
+
+```bash
+export DIGITALISIMO_WP_URL="https://tu-sitio.com"
+export DIGITALISIMO_WP_USERNAME="usuario-editorial"
+export DIGITALISIMO_WP_APP_PASSWORD="xxxx xxxx xxxx xxxx xxxx xxxx"
+```
+
+## Configuración MCP
+
+Añade este servidor a la configuración MCP de Codex, usando rutas absolutas y las mismas variables de entorno:
+
+```json
+{
+  "mcpServers": {
+    "digitalisimo-wordpress": {
+      "command": "node",
+      "args": ["/ruta/al/repositorio/mcp/digitalisimo-wordpress/server.mjs"],
+      "env": {
+        "DIGITALISIMO_WP_URL": "https://tu-sitio.com",
+        "DIGITALISIMO_WP_USERNAME": "usuario-editorial",
+        "DIGITALISIMO_WP_APP_PASSWORD": "tu-application-password"
+      }
+    }
+  }
+}
+```
+
+## Flujo editorial
+
+1. Ejecuta `listar_clusters_seo`.
+2. Elige el `pillar_id` si el artículo debe reforzar un cluster existente.
+3. Ejecuta `generar_borrador_seo` con `primary_keyword`, secundarias y pilar opcional.
+4. Abre `edit_url`, revisa el borrador y publícalo manualmente cuando esté listo.
+
+El borrador guarda título y descripción SEO, keyword principal primero, secundarias y la relación con el pilar elegido.

@@ -22,7 +22,7 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 | Referencias IA | ~ | Registro sin IP/prompts, resumen, retención 30/90/180/365, borrado, evolución diaria, landings y fuentes configurables disponibles. Falta validación funcional con tráfico real y consentimientos/analítica del sitio cuando aplique. |
 | SEO AI por contenido | ~ | Estado efectivo y controles por contenido disponibles; las reglas Allow/Disallow se aplican por URL y User-Agent en el mismo robots.txt, sin confundirlas con noindex. Falta validación runtime de sintaxis robots con un sitio público. |
 | Base de conocimiento IA | ~ | Índice local, reconstrucción, recuperación contextual RAG, panel de fuentes, embeddings OpenAI manuales/opt-in y reordenamiento semántico opcional con caché de consulta disponibles. Falta validación runtime contra una cuenta OpenAI y un sitio configurado. |
-| Digitalisimo IA Tools | ✓ | Perfiles por proveedor y fallback; chatbot, contenido, SEO, ecommerce, conocimiento e imágenes bajo demanda. |
+| Digitalisimo IA Tools | ✓ | Perfiles por proveedor y fallback; chatbot, contenido, SEO, ecommerce, conocimiento e imágenes bajo demanda. Incluye endpoints protegidos para que un MCP cree borradores SEO desde una keyword y el cluster elegido, sin publicar automáticamente. |
 | Generación de imágenes | ✓ | Flujo revisable hacia Biblioteca de Medios. |
 
 ## Orden de ejecución pendiente
@@ -36,4 +36,4 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 
 ## Validación de paquetes
 
-Última validación estructural: los ZIP de SEO 1.0.65, Ecommerce 1.0.14, Geolocalización 1.0.12, IA Tools 1.0.21 y Hosting 1.0.8 contienen su archivo principal, declaran la versión esperada y superan `unzip -t`.
+Última validación estructural: los ZIP de SEO 1.0.65, Ecommerce 1.0.14, Geolocalización 1.0.12, IA Tools 1.0.22 y Hosting 1.0.8 contienen su archivo principal, declaran la versión esperada y superan `unzip -t`.
