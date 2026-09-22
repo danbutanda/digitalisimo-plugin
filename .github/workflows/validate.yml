@@ -34,3 +34,10 @@ jobs:
           path: dist/digitalisimo-seo-1.0.69.zip
           if-no-files-found: error
           retention-days: 14
+
+      - name: Validar puente MCP WordPress
+        run: |
+          cd integrations/mcp-publisher
+          npm install --no-audit --no-fund
+          node --check server.mjs
+          npm test
