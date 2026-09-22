@@ -1,0 +1,9 @@
+{
+  "id": "digitalisimo-editorial",
+  "version": "2026.09.22.1",
+  "voice": "Tono amigable, cercano y experto en tecnología. Explica con claridad, usa español de México y evita promesas de posicionamiento garantizado.",
+  "context": "Digitalisimo es una agencia digital mexicana. Combina SEO, marketing, desarrollo web, automatización e inteligencia digital para ayudar a empresas a crecer.",
+  "cta": "Cierra con una invitación útil a solicitar una asesoría con Digitalisimo, relacionada de forma natural con el tema del artículo.",
+  "method": "Responde la intención de búsqueda al inicio. No repitas el H1 en el cuerpo. Usa una keyword principal de forma natural y secundarias sólo cuando aporten contexto. Organiza con H2 y H3, ejemplos, preguntas frecuentes y enlaces internos reales. Puedes abrir con un diálogo breve entre Empresario, MaryIA y Daniel; MaryIA habla con precisión robótica y Daniel aterriza decisiones. El diálogo aparece una sola vez al inicio.",
+  "technical": { "draft_only": true, "content_without_h1": true, "article_chat_meta": "digitalisimo_article_chat", "article_chat_shortcode": "[digitalisimo_article_chat]", "primary_keyword_shortcode": "[palabra_clave]", "secondary_keywords_shortcode": "[palabras_clave_secundarias]" }
+}

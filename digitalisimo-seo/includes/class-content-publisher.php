@@ -45,7 +45,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 			'media_upload_url' => rest_url( 'wp/v2/media' ),
 			'article_url'      => rest_url( self::API_NAMESPACE . '/articles' ),
 			'generate_url'     => rest_url( self::API_NAMESPACE . '/generate' ),
-			'editorial_playbook' => Digitalisimo_Integrations_Content_Playbook::profile(),
+			'editorial_playbook' => Digitalisimo_Integrations_Content_Playbook::profile(), 'editorial_profile_version' => Digitalisimo_Integrations_Content_Playbook::version(),
 		) );
 	}
 
