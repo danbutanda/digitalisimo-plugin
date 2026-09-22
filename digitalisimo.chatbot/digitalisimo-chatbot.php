@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo IA Tools
  * Description: Herramientas de IA para chatbot, contenido, SEO, ecommerce, conocimiento e imágenes.
- * Version: 1.0.37
+ * Version: 1.0.38
  * Requires at least: 6.0
  * Requires PHP: 7.4
  */

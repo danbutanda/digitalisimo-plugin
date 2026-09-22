@@ -5,10 +5,10 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.84.zip', version: '1.0.84' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.85.zip', version: '1.0.85' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.16.zip', version: '1.0.16' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.14.zip', version: '1.0.14' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.37.zip', version: '1.0.37' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.38.zip', version: '1.0.38' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.10.zip', version: '1.0.10' },
 ];
 const phpFiles = [];
@@ -113,7 +113,7 @@ const seoAiTools = [
 if (!seoSuite.includes("add_submenu_page( 'digitalisimo', 'SEO', 'SEO'")) throw new Error('Falta el acceso unificado SEO');
 if (!seoSuite.includes("digitalisimo-seo-snippet-editor") || !seoSuite.includes('Vista previa en Google') || !seoSuite.includes('digitalisimo_native_slug'))
   throw new Error('SEO debe ofrecer editor de snippet con vista previa, título, descripción y permalink.');
-if (!seoSnippetCss.includes('.digitalisimo-snippet-preview') || !seoSnippetJs.includes('data-snippet-preview'))
+if (!seoSnippetCss.includes('.digitalisimo-snippet-preview') || !seoSnippetJs.includes('data-snippet-preview') || !seoSuite.includes("'hidden_meta_boxes'"))
   throw new Error('El editor de snippet debe conservar la UI Digitalisimo y actualizar la vista previa en el navegador.');
 if (seoEditorialTools.includes("update_post_meta( $id, 'digitalisimo_article_chat'"))
   throw new Error('SEO no debe sobrescribir el chat editorial, que pertenece exclusivamente a IA Tools.');
@@ -139,7 +139,7 @@ if (!chatbotAi.includes("'image_quality' => 'medium'") || !chatbotAi.includes('M
 if (!chatbotImages.includes("const OUTPUT_WIDTH = 1536") || !chatbotImages.includes("const OUTPUT_HEIGHT = 864") || !chatbotImages.includes('optimize_to_webp')) throw new Error('Las imágenes de artículos deben terminar en formato 16:9');
 if (!chatbotImages.includes("get_post_meta( $post->ID, 'digitalisimo_seo_keywords'") || !chatbotImages.includes("set_post_thumbnail( $post_id, $attachment )")) throw new Error('El generador debe usar el contexto SEO y asignar la imagen destacada');
 if (!chatbotImages.includes("'image/webp'") || !chatbotImages.includes('WEBP_QUALITY = 82') || !chatbotImages.includes('optimize_to_webp')) throw new Error('Las imágenes de artículos deben convertirse a WebP optimizado.');
-if (!chatbotImages.includes('#postimagediv .inside') || !chatbotImages.includes('get_post_thumbnail_id( $post_id )')) throw new Error('El generador debe vivir en Imagen destacada y confirmar su asignación.');
+if (!chatbotImages.includes('#postimagediv .inside') || !chatbotImages.includes('MutationObserver') || !chatbotImages.includes('digitalisimo-ai-article-image-button') || !chatbotImages.includes('get_post_thumbnail_id( $post_id )')) throw new Error('El generador debe vivir en Imagen destacada y confirmar su asignación.');
 if (!chatbotMcpArticles.includes("register_rest_route( 'digitalisimo-mcp/v1', '/create-draft'")) throw new Error('Falta el endpoint MCP para crear borradores SEO');
 if (chatbotMcpArticles.includes("Digitalisimo_AI::complete( 'content'")) throw new Error('El MCP editorial debe usar el contenido de Codex, no una API de IA');
 if (!chatbotMcpArticles.includes("preg_replace( '#<h1\\b[^>]*>.*?</h1>\\s*#is'")) throw new Error('El MCP editorial debe quitar el H1 duplicado del contenido');

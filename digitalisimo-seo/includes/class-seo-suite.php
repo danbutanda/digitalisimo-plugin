@@ -9,6 +9,9 @@ class Digitalisimo_Integrations_SEO_Suite {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 25 );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'metaboxes' ) ); add_action( 'save_post', array( __CLASS__, 'save_post' ), 15 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'editor_assets' ) );
+		// El editor de snippet es el panel principal de SEO: nunca debe quedar
+		// perdido por una preferencia heredada del usuario en Gutenberg.
+		add_filter( 'hidden_meta_boxes', array( __CLASS__, 'keep_snippet_visible' ), 10, 2 );
 		add_action( 'init', array( __CLASS__, 'taxonomies' ) ); add_action( 'created_term', array( __CLASS__, 'save_term' ), 10, 3 ); add_action( 'edited_term', array( __CLASS__, 'save_term' ), 10, 3 );
 		remove_action( 'wp_head', 'rel_canonical' ); add_filter( 'pre_get_document_title', array( __CLASS__, 'title' ), 20 ); add_action( 'wp_head', array( __CLASS__, 'head' ), 1 ); add_filter( 'wp_robots', array( __CLASS__, 'robots' ) );
 		add_filter( 'wp_sitemaps_enabled', array( __CLASS__, 'sitemap_enabled' ) ); add_filter( 'wp_sitemaps_post_types', array( __CLASS__, 'sitemap_posts' ) ); add_filter( 'wp_sitemaps_taxonomies', array( __CLASS__, 'sitemap_terms' ) ); add_filter( 'wp_sitemaps_posts_query_args', array( __CLASS__, 'sitemap_query' ), 10, 2 );
@@ -80,6 +83,11 @@ class Digitalisimo_Integrations_SEO_Suite {
 		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return;
 		wp_enqueue_style( 'digitalisimo-seo-snippet-editor', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-editor.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION );
 		wp_enqueue_script( 'digitalisimo-seo-snippet-editor', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-editor.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true );
+	}
+	/** Mantiene visible el único editor SEO del módulo en entradas y páginas. */
+	public static function keep_snippet_visible( $hidden, $screen ) {
+		if ( ! is_object( $screen ) || ! in_array( $screen->base ?? '', array( 'post', 'post-new' ), true ) ) return $hidden;
+		return array_values( array_diff( (array) $hidden, array( 'digitalisimo_native_seo' ) ) );
 	}
 	public static function metabox( $post ) {
 		wp_nonce_field( 'digitalisimo_native_seo', 'digitalisimo_native_seo_nonce' );
