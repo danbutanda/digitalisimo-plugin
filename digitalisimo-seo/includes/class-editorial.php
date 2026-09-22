@@ -18,7 +18,13 @@ class Digitalisimo_Integrations_Editorial {
 		add_filter( 'manage_edit-post_sortable_columns', array( __CLASS__, 'sortable' ) ); add_filter( 'manage_edit-page_sortable_columns', array( __CLASS__, 'sortable' ) ); add_action( 'restrict_manage_posts', array( __CLASS__, 'filters' ) ); add_action( 'pre_get_posts', array( __CLASS__, 'query' ) );
 		add_action( 'bulk_edit_custom_box', array( __CLASS__, 'bulk_fields' ), 10, 2 ); add_action( 'admin_action_editpost', array( __CLASS__, 'bulk_save' ) );
 	}
-	private static function current_content_id() { $id = absint( get_queried_object_id() ); if ( $id && in_array( get_post_type( $id ), self::types(), true ) ) return $id; return absint( get_the_ID() ); }
+	/** Obtiene la entrada principal incluso cuando Elementor cambia el post global para otro widget. */
+	private static function current_content_id() {
+		global $wp_query, $post;
+		$candidates = array( get_queried_object_id(), $wp_query instanceof WP_Query ? $wp_query->get_queried_object_id() : 0, $wp_query instanceof WP_Query && ! empty( $wp_query->post->ID ) ? $wp_query->post->ID : 0, ! empty( $post->ID ) ? $post->ID : 0, get_the_ID() );
+		foreach ( $candidates as $candidate ) { $id = absint( $candidate ); if ( $id && in_array( get_post_type( $id ), self::types(), true ) ) return $id; }
+		return 0;
+	}
 	private static function post_keywords( $post_id = 0 ) {
 		$post_id = $post_id ?: self::current_content_id();
 		return array_values( array_filter( array_map( 'trim', explode( ',', (string) get_post_meta( $post_id, 'digitalisimo_seo_keywords', true ) ) ) ) );
@@ -46,19 +52,10 @@ class Digitalisimo_Integrations_Editorial {
 		return $html . '</ul>';
 	}
 	public static function shortcode_site_description() { return esc_html( get_bloginfo( 'description' ) ); }
-	public static function shortcode_article_chat() { $data = json_decode( (string) get_post_meta( self::current_content_id(), 'digitalisimo_article_chat', true ), true ); if ( empty( $data['speakers'] ) || empty( $data['messages'] ) ) return ''; $speakers = array(); foreach ( (array) $data['speakers'] as $speaker ) if ( ! empty( $speaker['id'] ) && ! empty( $speaker['name'] ) ) $speakers[ sanitize_key( $speaker['id'] ) ] = $speaker; if ( ! $speakers ) return ''; $html = '<div class="digitalisimo-dialogue digitalisimo-article-chat" aria-label="Conversación">'; foreach ( (array) $data['messages'] as $message ) { $id = sanitize_key( $message['speaker'] ?? '' ); if ( empty( $speakers[ $id ] ) || empty( $message['text'] ) ) continue; $speaker = $speakers[ $id ]; $align = in_array( $speaker['align'] ?? '', array( 'start', 'center', 'end' ), true ) ? $speaker['align'] : 'start'; $avatar = ! empty( $speaker['image_id'] ) ? wp_get_attachment_image( absint( $speaker['image_id'] ), 'thumbnail', false, array( 'class' => 'digitalisimo-chat-avatar' ) ) : '<span class="digitalisimo-chat-icon" aria-hidden="true">' . esc_html( $speaker['icon'] ?? '💬' ) . '</span>'; $html .= '<p class="digitalisimo-dialogue-' . esc_attr( $align ) . '">' . $avatar . '<strong>' . esc_html( $speaker['name'] ) . '</strong>' . esc_html( $message['text'] ) . '</p>'; } return $html . '</div>'; }
+	public static function shortcode_article_chat() { $post_id = self::current_content_id(); $data = json_decode( (string) get_post_meta( $post_id, 'digitalisimo_article_chat', true ), true ); if ( empty( $data['speakers'] ) || empty( $data['messages'] ) ) return ''; $speakers = array(); foreach ( (array) $data['speakers'] as $speaker ) if ( ! empty( $speaker['id'] ) && ! empty( $speaker['name'] ) ) $speakers[ sanitize_key( $speaker['id'] ) ] = $speaker; if ( ! $speakers ) return ''; $html = '<div class="digitalisimo-dialogue digitalisimo-article-chat" aria-label="Conversación">'; $rendered = 0; foreach ( (array) $data['messages'] as $message ) { $id = sanitize_key( $message['speaker'] ?? '' ); if ( empty( $speakers[ $id ] ) || empty( $message['text'] ) ) continue; $speaker = $speakers[ $id ]; $align = in_array( $speaker['align'] ?? '', array( 'start', 'center', 'end' ), true ) ? $speaker['align'] : 'start'; $avatar = ! empty( $speaker['image_id'] ) ? wp_get_attachment_image( absint( $speaker['image_id'] ), 'thumbnail', false, array( 'class' => 'digitalisimo-chat-avatar' ) ) : '<span class="digitalisimo-chat-icon" aria-hidden="true">' . esc_html( $speaker['icon'] ?? '💬' ) . '</span>'; $html .= '<p class="digitalisimo-dialogue-' . esc_attr( $align ) . '">' . $avatar . '<strong>' . esc_html( $speaker['name'] ) . '</strong>' . esc_html( $message['text'] ) . '</p>'; $rendered++; } return $rendered ? $html . '</div>' : ''; }
 
 	/** Carga el estilo de diálogo sólo si el contenido publicado usa ese bloque. */
-	public static function public_dialogue_assets() {
-		if ( ! is_singular() ) return;
-		$post = get_post();
-		if ( ! $post ) return;
-		// El shortcode puede vivir en una plantilla de Elementor, fuera de post_content.
-		$has_native_chat = (bool) get_post_meta( self::current_content_id(), 'digitalisimo_article_chat', true );
-		$has_dialogue = false !== strpos( (string) $post->post_content, 'digitalisimo-dialogue' ) || false !== strpos( (string) $post->post_content, '[digitalisimo_article_chat]' );
-		if ( ! $has_native_chat && ! $has_dialogue ) return;
-		wp_enqueue_style( 'digitalisimo-editorial-dialogue', DIGITALISIMO_INTEGRATIONS_URL . 'assets/editorial-dialogue.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION );
-	}
+	public static function public_dialogue_assets() { if ( is_singular() ) wp_enqueue_style( 'digitalisimo-editorial-dialogue', DIGITALISIMO_INTEGRATIONS_URL . 'assets/editorial-dialogue.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION ); }
 	public static function assets( $hook ) { if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return; wp_enqueue_style( 'digitalisimo-keyword-manager', DIGITALISIMO_INTEGRATIONS_URL . 'assets/keyword-manager.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION ); wp_enqueue_script( 'digitalisimo-keyword-manager', DIGITALISIMO_INTEGRATIONS_URL . 'assets/keyword-manager.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true ); wp_enqueue_media(); wp_enqueue_style( 'digitalisimo-article-chat', DIGITALISIMO_INTEGRATIONS_URL . 'assets/article-chat.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION ); wp_enqueue_script( 'digitalisimo-article-chat', DIGITALISIMO_INTEGRATIONS_URL . 'assets/article-chat.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true ); }
 	public static function locations_cpt() { register_post_type( 'digitalisimo_location', array( 'labels' => array( 'name' => 'Ubicaciones SEO', 'singular_name' => 'Ubicación SEO', 'add_new_item' => 'Añadir ubicación' ), 'public' => false, 'show_ui' => true, 'show_in_menu' => 'digitalisimo', 'hierarchical' => true, 'supports' => array( 'title', 'page-attributes' ), 'capability_type' => 'post' ) ); }
 	private static function location_levels() { return array( 'country' => 'País', 'state' => 'Estado', 'city' => 'Ciudad', 'zone' => 'Zona' ); }

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.80.zip', version: '1.0.80' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.81.zip', version: '1.0.81' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.13.zip', version: '1.0.13' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.29.zip', version: '1.0.29' },
@@ -57,7 +57,7 @@ const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'include
 const articleChatPublisher = readFileSync('digitalisimo-seo/includes/class-content-publisher.php','utf8');
 const articleChatEditor = readFileSync('digitalisimo-seo/includes/class-editorial.php','utf8');
 if (!articleChatEditor.includes("add_shortcode( 'digitalisimo_article_chat'") ||
-    !articleChatEditor.includes("get_post_meta( self::current_content_id(), 'digitalisimo_article_chat', true )"))
+    !articleChatEditor.includes("get_post_meta( $post_id, 'digitalisimo_article_chat', true )"))
   throw new Error('Falta shortcode del chat conectado al metadato del artículo.');
 if (!articleChatPublisher.includes("'article_chat_supported' => true") ||
     !articleChatPublisher.includes("self::sanitize_article_chat( $request->get_param( 'digitalisimo_article_chat' ) )") ||
@@ -65,8 +65,8 @@ if (!articleChatPublisher.includes("'article_chat_supported' => true") ||
   throw new Error('El publisher debe validar y guardar el JSON del chat antes de confirmar el borrador.');
 if (articleChatPublisher.includes('digitalisimo_chat_shortcode_missing'))
   throw new Error('El publisher no debe exigir el shortcode en el cuerpo: Elementor puede colocarlo en la plantilla.');
-if (!articleChatEditor.includes('$has_native_chat') || !articleChatEditor.includes('El shortcode puede vivir en una plantilla de Elementor'))
-  throw new Error('El chat en plantilla debe cargar sus estilos desde el metadato del artículo.');
+if (!articleChatEditor.includes('$wp_query instanceof WP_Query') || !articleChatEditor.includes('if ( is_singular() ) wp_enqueue_style'))
+  throw new Error('El chat debe resolver la entrada principal y cargar estilos sin depender del orden de Elementor.');
 
 const seoAiTools = [
   'class-seo-ai-crawler-tools.php',
