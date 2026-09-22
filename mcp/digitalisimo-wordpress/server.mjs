@@ -19,7 +19,7 @@ server.tool('crear_borrador_seo', 'Guarda en WordPress el artículo redactado po
   primary_keyword: z.string().min(2).describe('Keyword principal del artículo.'),
   title: z.string().min(5).describe('Título SEO redactado por Codex.'),
   description: z.string().min(30).describe('Meta description redactada por Codex.'),
-  content: z.string().min(100).describe('Artículo HTML redactado por Codex en esta sesión.'),
+  content: z.string().min(100).describe('Artículo HTML redactado por Codex en esta sesión, sin H1 porque WordPress muestra el título de la entrada.'),
   secondary_keywords: z.array(z.string()).max(4).optional().describe('Keywords secundarias relevantes.'),
   pillar_id: z.number().int().positive().optional().describe('ID del contenido pilar existente.'),
   post_type: z.enum(['post', 'page']).optional().describe('Tipo de borrador; post por defecto.')

@@ -28,7 +28,7 @@ class Digitalisimo_MCP_Articles {
 		$post_type = sanitize_key( $request->get_param( 'post_type' ) ?: 'post' );
 		$title = sanitize_text_field( $request->get_param( 'title' ) );
 		$description = sanitize_text_field( $request->get_param( 'description' ) );
-		$content = (string) $request->get_param( 'content' );
+		$content = preg_replace( '#<h1\b[^>]*>.*?</h1>\s*#is', '', (string) $request->get_param( 'content' ), 1 );
 		if ( ! $primary || ! $title || ! $description || ! trim( wp_strip_all_tags( $content ) ) ) return new WP_Error( 'digitalisimo_mcp_content', 'Indica keyword principal, título, descripción y contenido.', array( 'status' => 400 ) );
 		$post_type_object = get_post_type_object( $post_type );
 		if ( ! $post_type_object || ! post_type_supports( $post_type, 'editor' ) || ! current_user_can( $post_type_object->cap->edit_posts ) ) return new WP_Error( 'digitalisimo_mcp_type', 'El tipo de contenido no permite crear artículos.', array( 'status' => 400 ) );

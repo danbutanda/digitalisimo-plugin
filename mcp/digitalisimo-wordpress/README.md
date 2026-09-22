@@ -49,7 +49,7 @@ Añade este servidor a la configuración MCP de Codex, usando rutas absolutas y 
 
 1. Ejecuta `listar_clusters_seo`.
 2. Elige el `pillar_id` si el artículo debe reforzar un cluster existente.
-3. Pide a Codex redactar el artículo usando el contexto del cluster, con title, description y contenido HTML.
+3. Pide a Codex redactar el artículo usando el contexto del cluster, con title, description y contenido HTML sin H1: WordPress ya muestra el título de la entrada.
 4. Ejecuta `crear_borrador_seo` con ese contenido, `primary_keyword`, secundarias y pilar opcional.
 5. Abre `edit_url`, revisa el borrador y publícalo manualmente cuando esté listo.
 
