@@ -51,7 +51,7 @@ class Digitalisimo_Integrations_Editorial {
 	public static function public_dialogue_assets() {
 		if ( ! is_singular() ) return;
 		$post = get_post();
-		if ( ! $post || false === strpos( (string) $post->post_content, 'digitalisimo-dialogue' ) ) return;
+		if ( ! $post || ( false === strpos( (string) $post->post_content, 'digitalisimo-dialogue' ) && false === strpos( (string) $post->post_content, '[digitalisimo_article_chat]' ) ) ) return;
 		wp_enqueue_style( 'digitalisimo-editorial-dialogue', DIGITALISIMO_INTEGRATIONS_URL . 'assets/editorial-dialogue.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION );
 	}
 	public static function assets( $hook ) { if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return; wp_enqueue_style( 'digitalisimo-keyword-manager', DIGITALISIMO_INTEGRATIONS_URL . 'assets/keyword-manager.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION ); wp_enqueue_script( 'digitalisimo-keyword-manager', DIGITALISIMO_INTEGRATIONS_URL . 'assets/keyword-manager.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true ); wp_enqueue_media(); wp_enqueue_style( 'digitalisimo-article-chat', DIGITALISIMO_INTEGRATIONS_URL . 'assets/article-chat.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION ); wp_enqueue_script( 'digitalisimo-article-chat', DIGITALISIMO_INTEGRATIONS_URL . 'assets/article-chat.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true ); }
