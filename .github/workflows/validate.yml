@@ -30,8 +30,8 @@ jobs:
       - name: Guardar ZIP SEO para pruebas y reversión
         uses: actions/upload-artifact@v4
         with:
-          name: digitalisimo-seo-1.0.69-${{ github.sha }}
-          path: dist/digitalisimo-seo-1.0.69.zip
+          name: digitalisimo-seo-1.0.72-${{ github.sha }}
+          path: dist/digitalisimo-seo-1.0.72.zip
           if-no-files-found: error
           retention-days: 14
 
