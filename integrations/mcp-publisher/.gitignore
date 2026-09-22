@@ -1,0 +1,5 @@
+node_modules/
+.env
+sites.json
+sites.private.json
+*.private.json
