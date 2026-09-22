@@ -1,0 +1,16 @@
+[
+  {
+    "id": "digitalisimo",
+    "label": "DIGITALÍSIMO",
+    "url": "https://digitalisimo.mx",
+    "username": "TU_USUARIO",
+    "applicationPassword": "REEMPLAZAR_SOLO_EN_ARCHIVO_PRIVADO"
+  },
+  {
+    "id": "cliente",
+    "label": "Cliente WP independiente",
+    "url": "https://cliente.example",
+    "username": "USUARIO_EDITOR",
+    "applicationPassword": "REEMPLAZAR_SOLO_EN_ARCHIVO_PRIVADO"
+  }
+]
