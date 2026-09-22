@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.68
+ * Version: 1.0.69
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Digitalísimo
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.68' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.69' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -38,6 +38,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-local-business.php'
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-media-field.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-admin-ui.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-editorial.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-content-publisher.php';
 
 // Debe decidirse antes de `plugins_loaded`: para entonces la ruta ya está resuelta.
 Digitalisimo_Integrations_Hide_Login::boot();
@@ -57,6 +58,7 @@ function digitalisimo_integrations_boot() {
 		Digitalisimo_Integrations_SEO_AI_Entities_Tools::init();
 	}
 	Digitalisimo_Integrations_Editorial::init();
+	Digitalisimo_Integrations_Content_Publisher::init();
 	Digitalisimo_Updater::register( DIGITALISIMO_INTEGRATIONS_FILE, DIGITALISIMO_INTEGRATIONS_VERSION, 'digitalisimo-seo' );
 	Digitalisimo_Media_Field::boot( DIGITALISIMO_INTEGRATIONS_URL, DIGITALISIMO_INTEGRATIONS_VERSION );
 	Digitalisimo_Admin_UI::init();
