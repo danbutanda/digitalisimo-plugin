@@ -39,7 +39,13 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			add_filter( 'network_admin_plugin_action_links_' . $basename, array( __CLASS__, 'action_link' ) );
 			if ( self::$hooked ) return;
 			self::$hooked = true;
+			// WordPress Multisite guarda esta información como site transient; WordPress
+			// individual puede usar el transient normal. Se cubren lectura y escritura
+			// para que una caché creada antes de cargar los módulos no oculte actualizaciones.
 			add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject' ) );
+			add_filter( 'pre_set_transient_update_plugins', array( __CLASS__, 'inject' ) );
+			add_filter( 'site_transient_update_plugins', array( __CLASS__, 'inject' ) );
+			add_filter( 'transient_update_plugins', array( __CLASS__, 'inject' ) );
 			add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
 			add_filter( 'plugins_api', array( __CLASS__, 'info' ), 20, 3 );
 			add_action( 'upgrader_process_complete', array( __CLASS__, 'clear' ), 10, 2 );
@@ -64,7 +70,9 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			if ( ! current_user_can( 'update_plugins' ) ) wp_die( esc_html__( 'No autorizado.', 'digitalisimo' ) );
 			check_admin_referer( self::ACTION );
 			delete_site_transient( self::CACHE_KEY );
+			delete_transient( self::CACHE_KEY );
 			delete_site_transient( 'update_plugins' );
+			delete_transient( 'update_plugins' );
 			wp_update_plugins();
 			$back = wp_get_referer();
 			wp_safe_redirect( add_query_arg( 'digitalisimo-checked', '1', $back ? $back : admin_url( 'plugins.php' ) ) );
@@ -96,7 +104,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			);
 			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
 				// Reintento corto ante fallos de red: un error puntual no debe bloquear la comprobación.
-				set_site_transient( self::CACHE_KEY, array(), HOUR_IN_SECONDS );
+				set_site_transient( self::CACHE_KEY, array(), 5 * MINUTE_IN_SECONDS );
 				return array();
 			}
 
@@ -129,9 +137,14 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		}
 
 		public static function inject( $transient ) {
-			if ( empty( $transient->checked ) ) return $transient;
+			// La primera lectura de WordPress puede no traer "checked" todavía.
+			// No se debe perder la actualización publicada por esa condición.
+			if ( ! is_object( $transient ) ) $transient = new stdClass();
+			if ( ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) $transient->checked = array();
+			if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) $transient->response = array();
+			if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) $transient->no_update = array();
 			foreach ( self::$modules as $file => $module ) {
-				if ( ! isset( $transient->checked[ $file ] ) ) continue;
+				if ( ! isset( $transient->checked[ $file ] ) ) $transient->checked[ $file ] = $module['version'];
 				$release = self::pending( $file );
 				if ( ! $release ) continue;
 				$transient->response[ $file ] = (object) array(
