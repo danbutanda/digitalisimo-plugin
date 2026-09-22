@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.83.zip', version: '1.0.83' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.16.zip', version: '1.0.16' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.14.zip', version: '1.0.14' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.35.zip', version: '1.0.35' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.36.zip', version: '1.0.36' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.10.zip', version: '1.0.10' },
 ];
 const phpFiles = [];
@@ -76,8 +76,9 @@ if (articleChatPublisher.includes('digitalisimo_chat_shortcode_missing'))
   throw new Error('El publisher no debe exigir el shortcode en el cuerpo: Elementor puede colocarlo en la plantilla.');
 if (!articleChatEditor.includes('$wp_query instanceof WP_Query') || !articleChatEditor.includes('if ( is_singular() ) wp_enqueue_style'))
 	throw new Error('El chat debe resolver la entrada principal y cargar estilos sin depender del orden de Elementor.');
-if (!articleChatEditor.includes("! isset( $_POST['digitalisimo_article_chat_speakers'] ) && ! isset( $_POST['digitalisimo_article_chat_messages'] )"))
-	throw new Error('Guardar una imagen destacada no debe vaciar el chat si sus campos no llegaron en la petición.');
+if (!articleChatEditor.includes("isset( $_POST['digitalisimo_article_chat_speakers'], $_POST['digitalisimo_article_chat_messages'] )") ||
+    !articleChatEditor.includes('if ( ! $speakers || ! $messages ) return;'))
+	throw new Error('Guardar una publicación sólo puede sobrescribir el chat con personajes y mensajes válidos.');
 if (!chatbotAi.includes("'writing' => 'Redacción'") || !chatbotAi.includes('Digitalisimo_AI_Content_Playbook::fields'))
 	throw new Error('IA Tools debe administrar el método editorial en su propia pestaña.');
 if (!contentPlaybook.includes('resources/editorial-profile.json') || !articleChatPublisher.includes('Digitalisimo_AI_Content_Playbook::generate'))
