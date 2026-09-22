@@ -1,0 +1,1 @@
+Publicar la versión oficial Digitalisimo SEO 1.0.75 con API para digitalisimo_article_chat, shortcode y CSS. GitHub Release v1.0.80. No crear versiones duplicadas.
