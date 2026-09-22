@@ -67,7 +67,7 @@ test('crea únicamente borradores SEO en el sitio elegido', async () => {
   assert.equal(body.status, 'draft');
   assert.equal(body.featured_media, 24);
   assert.equal(article.id, 1591);
-  await assert.rejects(wp.createDraft('root', { status: 'publish' }), /borradores/);
+  assert.throws(() => wp.createDraft('root', { status: 'publish' }), /borradores/);
 });
 test('rechaza redirecciones y errores WordPress sin revelar la contraseña', async () => {
   const sites = readSites(secrets);
