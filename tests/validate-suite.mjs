@@ -63,6 +63,10 @@ if (!articleChatPublisher.includes("'article_chat_supported' => true") ||
     !articleChatPublisher.includes("self::sanitize_article_chat( $request->get_param( 'digitalisimo_article_chat' ) )") ||
     !articleChatPublisher.includes("update_post_meta( $post_id, 'digitalisimo_article_chat', $article_chat )"))
   throw new Error('El publisher debe validar y guardar el JSON del chat antes de confirmar el borrador.');
+if (articleChatPublisher.includes('digitalisimo_chat_shortcode_missing'))
+  throw new Error('El publisher no debe exigir el shortcode en el cuerpo: Elementor puede colocarlo en la plantilla.');
+if (!articleChatEditor.includes('$has_native_chat') || !articleChatEditor.includes('El shortcode puede vivir en una plantilla de Elementor'))
+  throw new Error('El chat en plantilla debe cargar sus estilos desde el metadato del artículo.');
 
 const seoAiTools = [
   'class-seo-ai-crawler-tools.php',
