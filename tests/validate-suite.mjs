@@ -54,6 +54,16 @@ const chatbotAi = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo
 const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-images.php', 'utf8');
 const chatbotMcpArticles = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-mcp-articles.php', 'utf8');
 const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
+const articleChatPublisher = readFileSync('digitalisimo-seo/includes/class-content-publisher.php','utf8');
+const articleChatEditor = readFileSync('digitalisimo-seo/includes/class-editorial.php','utf8');
+if (!articleChatEditor.includes("add_shortcode( 'digitalisimo_article_chat'") ||
+    !articleChatEditor.includes("get_post_meta( get_the_ID(), 'digitalisimo_article_chat', true )"))
+  throw new Error('Falta shortcode del chat conectado al metadato del artículo.');
+if (!articleChatPublisher.includes("'article_chat_supported' => true") ||
+    !articleChatPublisher.includes("self::sanitize_article_chat( $request->get_param( 'digitalisimo_article_chat' ) )") ||
+    !articleChatPublisher.includes("update_post_meta( $post_id, 'digitalisimo_article_chat', $article_chat )"))
+  throw new Error('El publisher debe validar y guardar el JSON del chat antes de confirmar el borrador.');
+
 const seoAiTools = [
   'class-seo-ai-crawler-tools.php',
   'class-seo-ai-crawler-verifier.php',

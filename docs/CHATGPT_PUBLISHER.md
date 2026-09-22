@@ -35,6 +35,39 @@ Ejemplo de cuerpo para /articles:
 
 No inventar URL de un medio, ID de categoría ni ID de pilar: deben corresponder al sitio seleccionado.
 
+## Chat nativo del artículo (editor WordPress)
+
+El artículo muestra el chat cuando el cuerpo incluye el shortcode **literal** `[digitalisimo_article_chat]`. Los mensajes **no** se insertan como HTML dentro de `content`: se guardan separados en el metadato WordPress `digitalisimo_article_chat` como cadena JSON válida. El editor nativo del plugin puede modificarlos después.
+
+El endpoint `POST /wp-json/digitalisimo-publisher/v1/articles` admite opcionalmente la propiedad `digitalisimo_article_chat` como objeto JSON (o cadena JSON válida) y devuelve `article_chat_saved: true` cuando la guardó. Su respuesta de `GET /site` anuncia `article_chat_supported: true`; el puente debe comprobarla **antes de crear un borrador con chat**, para no enviar chats a una versión del plugin que todavía no los admita. Sin chat, el flujo anterior sigue funcionando.
+
+Ejemplo parcial del nuevo cuerpo REST:
+
+```json
+{
+  "title": "¿Cuándo rediseñar una web?",
+  "content": "<p>Texto introductorio.</p>\n[digitalisimo_article_chat]\n<h2>Señales de rediseño</h2>",
+  "digitalisimo_article_chat": {
+    "speakers": [
+      {"id":"empresario","name":"Empresario","icon":"🧑","image_id":0,"align":"end"},
+      {"id":"maryia","name":"MaryIA","icon":"🤖","image_id":0,"align":"center"},
+      {"id":"daniel","name":"Daniel","icon":"👨‍💼","image_id":0,"align":"start"}
+    ],
+    "messages": [
+      {"speaker":"empresario","text":"Mi página ya no explica bien lo que vendemos."},
+      {"speaker":"maryia","text":"Comparé el catálogo y el texto: hay servicios desactualizados."},
+      {"speaker":"daniel","text":"Conservamos lo que todavía atrae clientes y actualizamos lo que ya cambió."}
+    ]
+  }
+}
+```
+
+`align`: `start` izquierda, `center` centro, `end` derecha. Cada `messages[].speaker` debe apuntar a un `speakers[].id` único. `image_id: 0` usa el emoji; si hay foto, utilizar un ID real del mismo WordPress. El plugin valida los datos y almacena `wp_json_encode(..., JSON_UNESCAPED_UNICODE)` en el metadato.
+
+**Despliegue:** modificar el repositorio del plugin no actualiza automáticamente la instalación activa ni los ZIP de Releases. No crear borradores con chat hasta que el módulo SEO actualizado esté instalado y `GET /site` confirme `article_chat_supported: true`.
+
+
+
 ## Pendiente antes de instalar en producción
 
 1. Validar flujo end-to-end en un WordPress de pruebas y otro Multisite (login, media, permisos, campos, SEO renderizado).

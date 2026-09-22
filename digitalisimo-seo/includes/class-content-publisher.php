@@ -37,6 +37,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 			'blog_id'       => get_current_blog_id(),
 			'is_multisite'  => is_multisite(),
 			'seo_enabled'   => (bool) Digitalisimo_Integrations_Settings::get( 'enable_seo' ),
+			'article_chat_supported' => true,
 			'allowed_types' => array_values( array_filter( array( 'post', 'page' ), function( $type ) {
 				$object = get_post_type_object( $type );
 				return $object && post_type_supports( $type, 'editor' ) && current_user_can( $object->cap->edit_posts );
@@ -55,6 +56,52 @@ class Digitalisimo_Integrations_Content_Publisher {
 		$secondary = (array) $request->get_param( 'secondary_keywords' );
 		$result = Digitalisimo_Integrations_Content_Playbook::generate( $primary, $secondary, sanitize_text_field( (string) $request->get_param( 'title' ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
+
+	/**
+	 * Validate and normalize an article chat before creating the draft.
+	 * The stored value is a JSON STRING, matching the editorial metabox.
+	 */
+	private static function sanitize_article_chat( $raw ) {
+		$data = is_array( $raw ) ? $raw : ( is_string( $raw ) ? json_decode( $raw, true ) : null );
+		if ( ! is_array( $data ) || ( is_string( $raw ) && json_last_error() !== JSON_ERROR_NONE ) ||
+			! isset( $data['speakers'], $data['messages'] ) ||
+			! is_array( $data['speakers'] ) || ! is_array( $data['messages'] ) ||
+			! $data['speakers'] || ! $data['messages'] ) {
+			return new WP_Error( 'digitalisimo_invalid_article_chat', 'El chat debe ser un JSON válido con speakers y messages no vacíos.', array( 'status' => 400 ) );
+		}
+		$speakers = array();
+		$ids = array();
+		foreach ( $data['speakers'] as $row ) {
+			if ( ! is_array( $row ) ) return new WP_Error( 'digitalisimo_invalid_article_chat', 'Personaje inválido.', array( 'status' => 400 ) );
+			$id = sanitize_key( (string) ( $row['id'] ?? '' ) );
+			$name = sanitize_text_field( (string) ( $row['name'] ?? '' ) );
+			$align = (string) ( $row['align'] ?? '' );
+			$image_id = $row['image_id'] ?? 0;
+			if ( ! $id || ! $name || isset( $ids[ $id ] ) ||
+				! in_array( $align, array( 'start', 'center', 'end' ), true ) ||
+				! is_numeric( $image_id ) || (int) $image_id < 0 ) {
+				return new WP_Error( 'digitalisimo_invalid_article_chat', 'El chat incluye personajes duplicados o campos inválidos.', array( 'status' => 400 ) );
+			}
+			$ids[ $id ] = true;
+			$speakers[] = array(
+				'id' => $id, 'name' => $name,
+				'icon' => sanitize_text_field( (string) ( $row['icon'] ?? '💬' ) ),
+				'image_id' => absint( $image_id ), 'align' => $align,
+			);
+		}
+		$messages = array();
+		foreach ( $data['messages'] as $row ) {
+			if ( ! is_array( $row ) ) return new WP_Error( 'digitalisimo_invalid_article_chat', 'Mensaje inválido.', array( 'status' => 400 ) );
+			$speaker = sanitize_key( (string) ( $row['speaker'] ?? '' ) );
+			$text = sanitize_textarea_field( (string) ( $row['text'] ?? '' ) );
+			if ( ! isset( $ids[ $speaker ] ) || '' === $text ) {
+				return new WP_Error( 'digitalisimo_invalid_article_chat', 'Un mensaje está vacío o usa un personaje inexistente.', array( 'status' => 400 ) );
+			}
+			$messages[] = array( 'speaker' => $speaker, 'text' => $text );
+		}
+		return wp_json_encode( array( 'speakers' => $speakers, 'messages' => $messages ), JSON_UNESCAPED_UNICODE );
 	}
 
 	/** Fase 1: solo borradores; nunca publica por accidente. */
@@ -86,6 +133,15 @@ class Digitalisimo_Integrations_Content_Publisher {
 		$content     = wp_kses_post( $content );
 		if ( '' === $title || '' === $primary || '' === $description || '' === trim( wp_strip_all_tags( $content ) ) ) {
 			return new WP_Error( 'digitalisimo_missing_content', 'Indica título, contenido, palabra clave principal y metadescripción.', array( 'status' => 400 ) );
+		}
+
+		$article_chat = null;
+		if ( $request->has_param( 'digitalisimo_article_chat' ) ) {
+			if ( false === strpos( $content, '[digitalisimo_article_chat]' ) ) {
+				return new WP_Error( 'digitalisimo_chat_shortcode_missing', 'Incluye [digitalisimo_article_chat] en el contenido para mostrar el chat.', array( 'status' => 400 ) );
+			}
+			$article_chat = self::sanitize_article_chat( $request->get_param( 'digitalisimo_article_chat' ) );
+			if ( is_wp_error( $article_chat ) ) return $article_chat;
 		}
 
 		$attachment_id = absint( $request->get_param( 'featured_media' ) );
@@ -127,6 +183,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 		$limit     = max( 1, absint( Digitalisimo_Integrations_Settings::get( 'keyword_max_count', 5 ) ) );
 		$keywords  = array_slice( array_values( $keywords ), 0, $limit );
 
+		if ( null !== $article_chat ) update_post_meta( $post_id, 'digitalisimo_article_chat', $article_chat );
 		update_post_meta( $post_id, 'digitalisimo_seo_title', $seo_title ?: $title );
 		update_post_meta( $post_id, 'digitalisimo_seo_description', $description );
 		update_post_meta( $post_id, 'digitalisimo_seo_keywords', implode( ', ', $keywords ) );
@@ -147,6 +204,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 			'preview_url'    => get_preview_post_link( $post_id ),
 			'featured_media' => $attachment_id,
 			'keywords'       => $keywords,
+			'article_chat_saved' => null !== $article_chat,
 			'site_url'       => home_url( '/' ),
 		) );
 	}
