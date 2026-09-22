@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.82.zip', version: '1.0.82' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.13.zip', version: '1.0.13' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.32.zip', version: '1.0.32' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.33.zip', version: '1.0.33' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.9.zip', version: '1.0.9' },
 ];
 const phpFiles = [];
@@ -52,6 +52,7 @@ const seoSettings = readFileSync('digitalisimo-seo/includes/class-settings.php',
 const seoAi = readFileSync('digitalisimo-seo/includes/class-seo-ai.php', 'utf8');
 const chatbotAi = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai.php', 'utf8');
 const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-images.php', 'utf8');
+const chatbotDialogueCss = readFileSync('digitalisimo.chatbot/assets/article-dialogue.css', 'utf8');
 const chatbotMcpArticles = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-mcp-articles.php', 'utf8');
 const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
 const articleChatPublisher = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-publisher.php','utf8');
@@ -76,6 +77,8 @@ if (!articleChatPublisher.includes('default_article_chat') || !articleChatPublis
 	throw new Error('Todo borrador editorial debe guardar un chat de artículo.');
 if (!articleChatPublisher.includes("'speaker' => 'empresario'") || !articleChatPublisher.includes('Mi pequeño radar de palabras repetidas') || !articleChatPublisher.includes("'align' => 'start'"))
 	throw new Error('El chat de respaldo debe seguir el patrón narrativo de publisher.');
+if (!chatbotDialogueCss.includes('start{justify-self:start;background:#fff8df') || !chatbotDialogueCss.includes('center{justify-self:center;background:#fff2f8') || !chatbotDialogueCss.includes('end{justify-self:end;background:#edf7ff'))
+	throw new Error('La paleta del chat debe ser amarillo Empresario, rosa MaryIA y azul Daniel.');
 const mcpWordPress = readFileSync('mcp/digitalisimo-wordpress/server.mjs', 'utf8');
 if (!mcpWordPress.includes('digitalisimo_article_chat: articleChat') || !mcpWordPress.includes('digitalisimo-publisher/v1/articles'))
 	throw new Error('El MCP de WordPress debe enviar el chat editorial obligatorio al publisher de IA Tools.');
