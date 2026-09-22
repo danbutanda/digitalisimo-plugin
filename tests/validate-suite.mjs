@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.82.zip', version: '1.0.82' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.13.zip', version: '1.0.13' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.30.zip', version: '1.0.30' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.31.zip', version: '1.0.31' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.9.zip', version: '1.0.9' },
 ];
 const phpFiles = [];
@@ -72,6 +72,8 @@ if (!chatbotAi.includes("'writing' => 'Redacción'") || !chatbotAi.includes('Dig
 	throw new Error('IA Tools debe administrar el método editorial en su propia pestaña.');
 if (!contentPlaybook.includes('resources/editorial-profile.json') || !articleChatPublisher.includes('Digitalisimo_AI_Content_Playbook::generate'))
 	throw new Error('El publisher debe usar el perfil editorial propio de IA Tools.');
+if (!articleChatPublisher.includes('default_article_chat') || !articleChatPublisher.includes("'article_chat_saved' => true"))
+	throw new Error('Todo borrador editorial debe guardar un chat de artículo.');
 const chatbotBootstrap = readFileSync('digitalisimo.chatbot/digitalisimo-chatbot.php', 'utf8');
 if (!chatbotBootstrap.includes('Digitalisimo_AI_Article_Chat::init') || !chatbotBootstrap.includes('Digitalisimo_AI_Content_Publisher::init'))
 	throw new Error('IA Tools debe inicializar el chat y el publisher editorial.');

@@ -106,6 +106,24 @@ class Digitalisimo_AI_Content_Publisher {
 		return wp_json_encode( array( 'speakers' => $speakers, 'messages' => $messages ), JSON_UNESCAPED_UNICODE );
 	}
 
+	/** Todo borrador editorial debe tener una conversación lista para Elementor. */
+	private static function default_article_chat( $primary, $title ) {
+		$primary = sanitize_text_field( $primary );
+		$title   = sanitize_text_field( $title );
+		return wp_json_encode( array(
+			'speakers' => array(
+				array( 'id' => 'user', 'name' => 'Empresario', 'icon' => '🧑', 'image_id' => 0, 'align' => 'end' ),
+				array( 'id' => 'maryia', 'name' => 'MaryIA', 'icon' => '🤖', 'image_id' => 0, 'align' => 'center' ),
+				array( 'id' => 'daniel', 'name' => 'Daniel', 'icon' => '👨‍💼', 'image_id' => 0, 'align' => 'start' ),
+			),
+			'messages' => array(
+				array( 'speaker' => 'user', 'text' => 'Quiero entender cómo puede ayudarme este tema: ' . $title . '.' ),
+				array( 'speaker' => 'maryia', 'text' => 'Consulta recibida. Analizaré la keyword «' . $primary . '» y sus oportunidades de búsqueda.' ),
+				array( 'speaker' => 'daniel', 'text' => 'Lo aterrizamos a una decisión clara para tu negocio y medimos el siguiente paso.' ),
+			),
+		), JSON_UNESCAPED_UNICODE );
+	}
+
 	/** Fase 1: solo borradores; nunca publica por accidente. */
 	public static function create_article( WP_REST_Request $request ) {
 		$status = $request->get_param( 'status' );
@@ -140,6 +158,7 @@ class Digitalisimo_AI_Content_Publisher {
 			$article_chat = self::sanitize_article_chat( $request->get_param( 'digitalisimo_article_chat' ) );
 			if ( is_wp_error( $article_chat ) ) return $article_chat;
 		}
+		if ( null === $article_chat ) $article_chat = self::default_article_chat( $primary, $title );
 
 		$attachment_id = absint( $request->get_param( 'featured_media' ) );
 		if ( $attachment_id && ( ! current_user_can( 'upload_files' ) || ! current_user_can( 'edit_post', $attachment_id ) || ! wp_attachment_is_image( $attachment_id ) ) ) {
@@ -180,7 +199,7 @@ class Digitalisimo_AI_Content_Publisher {
 		$limit     = self::keyword_limit();
 		$keywords  = array_slice( array_values( $keywords ), 0, $limit );
 
-		if ( null !== $article_chat ) update_post_meta( $post_id, 'digitalisimo_article_chat', $article_chat );
+		update_post_meta( $post_id, 'digitalisimo_article_chat', $article_chat );
 		update_post_meta( $post_id, 'digitalisimo_seo_title', $seo_title ?: $title );
 		update_post_meta( $post_id, 'digitalisimo_seo_description', $description );
 		update_post_meta( $post_id, 'digitalisimo_seo_keywords', implode( ', ', $keywords ) );
@@ -201,7 +220,7 @@ class Digitalisimo_AI_Content_Publisher {
 			'preview_url'    => get_preview_post_link( $post_id ),
 			'featured_media' => $attachment_id,
 			'keywords'       => $keywords,
-			'article_chat_saved' => null !== $article_chat,
+			'article_chat_saved' => true,
 			'site_url'       => home_url( '/' ),
 		) );
 	}
