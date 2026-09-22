@@ -137,9 +137,8 @@ class Digitalisimo_Integrations_Content_Publisher {
 
 		$article_chat = null;
 		if ( $request->has_param( 'digitalisimo_article_chat' ) ) {
-			if ( false === strpos( $content, '[digitalisimo_article_chat]' ) ) {
-				return new WP_Error( 'digitalisimo_chat_shortcode_missing', 'Incluye [digitalisimo_article_chat] en el contenido para mostrar el chat.', array( 'status' => 400 ) );
-			}
+			// El chat puede insertarse en el cuerpo o en una plantilla individual de Elementor.
+			// Guardar los datos no debe depender de dónde se coloque el shortcode.
 			$article_chat = self::sanitize_article_chat( $request->get_param( 'digitalisimo_article_chat' ) );
 			if ( is_wp_error( $article_chat ) ) return $article_chat;
 		}
