@@ -5,8 +5,10 @@ defined( 'ABSPATH' ) || exit;
  * API editorial nativa: recibe contenido ya generado, sin llamadas a modelos.
  * Cada sitio WordPress (individual o de una red) expone su propio endpoint.
  */
-class Digitalisimo_Integrations_Content_Publisher {
+class Digitalisimo_AI_Content_Publisher {
 	const API_NAMESPACE = 'digitalisimo-publisher/v1';
+	private static function seo_enabled() { return class_exists( 'Digitalisimo_Integrations_Settings' ) ? (bool) Digitalisimo_Integrations_Settings::get( 'enable_seo' ) : false; }
+	private static function keyword_limit() { return class_exists( 'Digitalisimo_Integrations_Settings' ) ? max( 1, absint( Digitalisimo_Integrations_Settings::get( 'keyword_max_count', 5 ) ) ) : 5; }
 
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
@@ -36,7 +38,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 			'url'           => home_url( '/' ),
 			'blog_id'       => get_current_blog_id(),
 			'is_multisite'  => is_multisite(),
-			'seo_enabled'   => (bool) Digitalisimo_Integrations_Settings::get( 'enable_seo' ),
+			'seo_enabled'   => self::seo_enabled(),
 			'article_chat_supported' => true,
 			'allowed_types' => array_values( array_filter( array( 'post', 'page' ), function( $type ) {
 				$object = get_post_type_object( $type );
@@ -45,7 +47,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 			'media_upload_url' => rest_url( 'wp/v2/media' ),
 			'article_url'      => rest_url( self::API_NAMESPACE . '/articles' ),
 			'generate_url'     => rest_url( self::API_NAMESPACE . '/generate' ),
-			'editorial_playbook' => Digitalisimo_Integrations_Content_Playbook::profile(), 'editorial_profile_version' => Digitalisimo_Integrations_Content_Playbook::version(),
+			'editorial_playbook' => Digitalisimo_AI_Content_Playbook::profile(), 'editorial_profile_version' => Digitalisimo_AI_Content_Playbook::version(),
 		) );
 	}
 
@@ -54,7 +56,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 		$primary = sanitize_text_field( (string) $request->get_param( 'primary_keyword' ) );
 		if ( ! $primary ) return new WP_Error( 'digitalisimo_primary_keyword', 'Indica una keyword principal.', array( 'status' => 400 ) );
 		$secondary = (array) $request->get_param( 'secondary_keywords' );
-		$result = Digitalisimo_Integrations_Content_Playbook::generate( $primary, $secondary, sanitize_text_field( (string) $request->get_param( 'title' ) ) );
+		$result = Digitalisimo_AI_Content_Playbook::generate( $primary, $secondary, sanitize_text_field( (string) $request->get_param( 'title' ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
@@ -106,10 +108,6 @@ class Digitalisimo_Integrations_Content_Publisher {
 
 	/** Fase 1: solo borradores; nunca publica por accidente. */
 	public static function create_article( WP_REST_Request $request ) {
-		if ( ! Digitalisimo_Integrations_Settings::get( 'enable_seo' ) ) {
-			return new WP_Error( 'digitalisimo_seo_inactive', 'Activa Digitalisimo SEO antes de crear contenido.', array( 'status' => 409 ) );
-		}
-
 		$status = $request->get_param( 'status' );
 		if ( null !== $status && 'draft' !== $status ) {
 			return new WP_Error( 'digitalisimo_draft_only', 'Esta primera versión solo crea borradores.', array( 'status' => 400 ) );
@@ -179,7 +177,7 @@ class Digitalisimo_Integrations_Content_Publisher {
 		$secondary = $request->get_param( 'secondary_keywords' );
 		$secondary = is_array( $secondary ) ? $secondary : preg_split( '/[,\r\n]+/', (string) $secondary );
 		$keywords  = array_unique( array_filter( array_map( 'sanitize_text_field', array_merge( array( $primary ), array_map( 'trim', $secondary ) ) ) ) );
-		$limit     = max( 1, absint( Digitalisimo_Integrations_Settings::get( 'keyword_max_count', 5 ) ) );
+		$limit     = self::keyword_limit();
 		$keywords  = array_slice( array_values( $keywords ), 0, $limit );
 
 		if ( null !== $article_chat ) update_post_meta( $post_id, 'digitalisimo_article_chat', $article_chat );

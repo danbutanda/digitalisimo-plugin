@@ -5,10 +5,10 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.81.zip', version: '1.0.81' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.82.zip', version: '1.0.82' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.13.zip', version: '1.0.13' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.29.zip', version: '1.0.29' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.30.zip', version: '1.0.30' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.9.zip', version: '1.0.9' },
 ];
 const phpFiles = [];
@@ -54,10 +54,11 @@ const chatbotAi = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo
 const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-images.php', 'utf8');
 const chatbotMcpArticles = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-mcp-articles.php', 'utf8');
 const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
-const articleChatPublisher = readFileSync('digitalisimo-seo/includes/class-content-publisher.php','utf8');
-const articleChatEditor = readFileSync('digitalisimo-seo/includes/class-editorial.php','utf8');
+const articleChatPublisher = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-publisher.php','utf8');
+const articleChatEditor = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-article-chat.php','utf8');
+const contentPlaybook = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-playbook.php','utf8');
 if (!articleChatEditor.includes("add_shortcode( 'digitalisimo_article_chat'") ||
-    !articleChatEditor.includes("get_post_meta( $post_id, 'digitalisimo_article_chat', true )"))
+    !articleChatEditor.includes("get_post_meta( self::current_content_id(), self::META_KEY, true )"))
   throw new Error('Falta shortcode del chat conectado al metadato del artículo.');
 if (!articleChatPublisher.includes("'article_chat_supported' => true") ||
     !articleChatPublisher.includes("self::sanitize_article_chat( $request->get_param( 'digitalisimo_article_chat' ) )") ||
@@ -66,7 +67,16 @@ if (!articleChatPublisher.includes("'article_chat_supported' => true") ||
 if (articleChatPublisher.includes('digitalisimo_chat_shortcode_missing'))
   throw new Error('El publisher no debe exigir el shortcode en el cuerpo: Elementor puede colocarlo en la plantilla.');
 if (!articleChatEditor.includes('$wp_query instanceof WP_Query') || !articleChatEditor.includes('if ( is_singular() ) wp_enqueue_style'))
-  throw new Error('El chat debe resolver la entrada principal y cargar estilos sin depender del orden de Elementor.');
+	throw new Error('El chat debe resolver la entrada principal y cargar estilos sin depender del orden de Elementor.');
+if (!chatbotAi.includes("'writing' => 'Redacción'") || !chatbotAi.includes('Digitalisimo_AI_Content_Playbook::fields'))
+	throw new Error('IA Tools debe administrar el método editorial en su propia pestaña.');
+if (!contentPlaybook.includes('resources/editorial-profile.json') || !articleChatPublisher.includes('Digitalisimo_AI_Content_Playbook::generate'))
+	throw new Error('El publisher debe usar el perfil editorial propio de IA Tools.');
+const chatbotBootstrap = readFileSync('digitalisimo.chatbot/digitalisimo-chatbot.php', 'utf8');
+if (!chatbotBootstrap.includes('Digitalisimo_AI_Article_Chat::init') || !chatbotBootstrap.includes('Digitalisimo_AI_Content_Publisher::init'))
+	throw new Error('IA Tools debe inicializar el chat y el publisher editorial.');
+if (seoBootstrap.includes('class-content-publisher.php') || seoBootstrap.includes('Digitalisimo_Integrations_Content_Publisher::init'))
+	throw new Error('SEO no debe cargar el publisher editorial de IA Tools.');
 
 const seoAiTools = [
   'class-seo-ai-crawler-tools.php',
