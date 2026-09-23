@@ -17,7 +17,9 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 	final class Digitalisimo_Updater {
 		const REPOSITORY = 'danbutanda/digitalisimo-plugin';
 		const CACHE_KEY  = 'digitalisimo_releases_index';
-		const CACHE_TTL  = 3600;
+		// Durante el desarrollo se consulta GitHub cada minuto. Al estabilizar
+		// releases, este valor vuelve a HOUR_IN_SECONDS.
+		const CACHE_TTL  = MINUTE_IN_SECONDS;
 		const ACTION     = 'digitalisimo_check_updates';
 
 		/** Módulos registrados, indexados por su archivo principal relativo. */
@@ -130,7 +132,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 					);
 				}
 			}
-			set_site_transient( self::CACHE_KEY, $index, $index ? self::CACHE_TTL : HOUR_IN_SECONDS );
+			set_site_transient( self::CACHE_KEY, $index, self::CACHE_TTL );
 			return $index;
 		}
 

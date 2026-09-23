@@ -5,11 +5,11 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.85.zip', version: '1.0.85' },
-  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.16.zip', version: '1.0.16' },
-  { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.14.zip', version: '1.0.14' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.38.zip', version: '1.0.38' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.10.zip', version: '1.0.10' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.86.zip', version: '1.0.86' },
+  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
+  { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.39.zip', version: '1.0.39' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.11.zip', version: '1.0.11' },
 ];
 const phpFiles = [];
 function walk(dir) {
@@ -110,6 +110,15 @@ const seoAiTools = [
   'class-seo-ai-referral-tools.php',
   'class-seo-ai-entities-tools.php',
 ].map((file) => readFileSync(join('digitalisimo-seo/includes', file), 'utf8'));
+const updaters = [
+  'digitalisimo-seo/includes/class-digitalisimo-updater.php',
+  'digitalisimo-ecommerce/includes/class-digitalisimo-updater.php',
+  'digitalisimo-geolocalizacion/includes/class-digitalisimo-updater.php',
+  'digitalisimo.chatbot/includes/class-digitalisimo-updater.php',
+  'digitalisimo-hosting/includes/class-digitalisimo-updater.php',
+].map((file) => readFileSync(file, 'utf8'));
+if (updaters.some((source) => !source.includes('const CACHE_TTL  = MINUTE_IN_SECONDS') || !source.includes('set_site_transient( self::CACHE_KEY, $index, self::CACHE_TTL )')))
+  throw new Error('Durante desarrollo todos los módulos deben consultar Releases cada minuto, incluso tras un fallo temporal.');
 if (!seoSuite.includes("add_submenu_page( 'digitalisimo', 'SEO', 'SEO'")) throw new Error('Falta el acceso unificado SEO');
 if (!seoSuite.includes("digitalisimo-seo-snippet-editor") || !seoSuite.includes('Vista previa en Google') || !seoSuite.includes('digitalisimo_native_slug'))
   throw new Error('SEO debe ofrecer editor de snippet con vista previa, título, descripción y permalink.');
