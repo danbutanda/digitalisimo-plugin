@@ -6,6 +6,28 @@ document.addEventListener('click', (event) => {
   const editor = expand ? expand.closest('.digitalisimo-snippet-editor') : document.querySelector('.digitalisimo-snippet-editor.is-expanded');
   if (!editor) return;
   const isOpen = Boolean(expand) && !editor.classList.contains('is-expanded');
+  if (isOpen) {
+    const placeholder = document.createComment('digitalisimo-snippet-origin');
+    editor.parentNode.insertBefore(placeholder, editor);
+    editor.dataset.digitalisimoSnippetOrigin = 'open';
+    editor.__digitalisimoSnippetPlaceholder = placeholder;
+    const form = editor.closest('form') || document.getElementById('post');
+    if (form && form.id) editor.querySelectorAll('input, select, textarea').forEach((field) => {
+      field.dataset.digitalisimoOriginalForm = field.getAttribute('form') || '';
+      field.setAttribute('form', form.id);
+    });
+    document.body.appendChild(editor);
+  } else if (editor.__digitalisimoSnippetPlaceholder) {
+    editor.__digitalisimoSnippetPlaceholder.parentNode.insertBefore(editor, editor.__digitalisimoSnippetPlaceholder);
+    editor.__digitalisimoSnippetPlaceholder.remove();
+    editor.querySelectorAll('input, select, textarea').forEach((field) => {
+      const original = field.dataset.digitalisimoOriginalForm || '';
+      if (original) field.setAttribute('form', original); else field.removeAttribute('form');
+      delete field.dataset.digitalisimoOriginalForm;
+    });
+    delete editor.__digitalisimoSnippetPlaceholder;
+    delete editor.dataset.digitalisimoSnippetOrigin;
+  }
   editor.classList.toggle('is-expanded', isOpen);
   document.body.classList.toggle('digitalisimo-snippet-modal-open', isOpen);
   let backdrop = document.querySelector('.digitalisimo-snippet-modal-backdrop');
