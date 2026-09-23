@@ -83,6 +83,9 @@ class Digitalisimo_Integrations_SEO_Suite {
 	public static function metaboxes() { foreach ( self::editable_types() as $type ) add_meta_box( 'digitalisimo_native_seo', 'SEO de Digitalisimo', array( __CLASS__, 'metabox' ), $type, 'normal', 'high' ); }
 	public static function editor_assets( $hook ) {
 		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return;
+		// Esta base visual también cubre los metaboxes de otros módulos activos y
+		// cualquier panel futuro cuyo ID comience con digitalisimo- o digitalisimo_.
+		wp_enqueue_style( 'digitalisimo-editor-ui', DIGITALISIMO_INTEGRATIONS_URL . 'assets/editor-ui.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION );
 		wp_enqueue_style( 'digitalisimo-seo-snippet-editor', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-editor.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION );
 		wp_enqueue_script( 'digitalisimo-seo-snippet-editor', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-editor.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true );
 	}

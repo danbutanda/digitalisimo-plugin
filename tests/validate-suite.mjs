@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.98.zip', version: '1.0.98' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.99.zip', version: '1.0.99' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.40.zip', version: '1.0.40' },
@@ -49,6 +49,7 @@ const seoSuite = readFileSync('digitalisimo-seo/includes/class-seo-suite.php', '
 const seoEditorial = readFileSync('digitalisimo-seo/includes/class-seo.php', 'utf8');
 const seoEditorialTools = readFileSync('digitalisimo-seo/includes/class-editorial.php', 'utf8');
 const seoSnippetCss = readFileSync('digitalisimo-seo/assets/snippet-editor.css', 'utf8');
+const seoEditorUiCss = readFileSync('digitalisimo-seo/assets/editor-ui.css', 'utf8');
 const seoSnippetJs = readFileSync('digitalisimo-seo/assets/snippet-editor.js', 'utf8');
 const seoAdminUiCss = readFileSync('digitalisimo-seo/assets/admin-ui.css', 'utf8');
 const seoBootstrap = readFileSync('digitalisimo-seo/digitalisimo-integrations.php', 'utf8');
@@ -125,6 +126,8 @@ if (!seoSuite.includes("digitalisimo-seo-snippet-editor") || !seoSuite.includes(
   throw new Error('SEO debe ofrecer editor de snippet con vista previa, título, descripción y permalink.');
 if (!seoSnippetCss.includes('.digitalisimo-snippet-preview') || !seoSnippetJs.includes('data-snippet-preview') || !seoSuite.includes("'hidden_meta_boxes'"))
   throw new Error('El editor de snippet debe conservar la UI Digitalisimo y actualizar la vista previa en el navegador.');
+if (!seoSuite.includes("digitalisimo-editor-ui") || !seoEditorUiCss.includes('[id^="digitalisimo-"]') || !seoEditorUiCss.includes('.digitalisimo-editorial-panels'))
+  throw new Error('Los paneles de Digitalisimo dentro del editor deben compartir la UI de la marca.');
 if (seoEditorialTools.includes("update_post_meta( $id, 'digitalisimo_article_chat'"))
   throw new Error('SEO no debe sobrescribir el chat editorial, que pertenece exclusivamente a IA Tools.');
 if (!seoSuite.includes('Digitalisimo_Integrations_SEO_Front_Inspector::render()')) throw new Error('Diagnóstico debe incluir el inspector del front');

@@ -1,0 +1,83 @@
+/* UI compartida para todos los paneles Digitalisimo dentro del editor WP. */
+#poststuff [id^="digitalisimo-"] .inside,
+#poststuff [id^="digitalisimo_"] .inside {
+	margin: 0;
+	padding: 18px;
+	border: 1px solid #dfe5ff;
+	border-radius: 0 0 14px 14px;
+	background: linear-gradient(135deg, #ffffff 0%, #f7f8ff 100%);
+	color: #253454;
+}
+
+#poststuff [id^="digitalisimo-"] .inside > :first-child,
+#poststuff [id^="digitalisimo_"] .inside > :first-child { margin-top: 0; }
+#poststuff [id^="digitalisimo-"] .inside > :last-child,
+#poststuff [id^="digitalisimo_"] .inside > :last-child { margin-bottom: 0; }
+
+#poststuff [id^="digitalisimo-"] h2,
+#poststuff [id^="digitalisimo-"] h3,
+#poststuff [id^="digitalisimo_"] h2,
+#poststuff [id^="digitalisimo_"] h3 { color: #18233e; }
+
+#poststuff [id^="digitalisimo-"] label,
+#poststuff [id^="digitalisimo_"] label { color: #344563; font-weight: 600; }
+
+#poststuff [id^="digitalisimo-"] input:not([type="checkbox"]):not([type="radio"]),
+#poststuff [id^="digitalisimo-"] select,
+#poststuff [id^="digitalisimo-"] textarea,
+#poststuff [id^="digitalisimo_"] input:not([type="checkbox"]):not([type="radio"]),
+#poststuff [id^="digitalisimo_"] select,
+#poststuff [id^="digitalisimo_"] textarea {
+	box-sizing: border-box;
+	min-height: 38px;
+	border: 1px solid #ccd7f5;
+	border-radius: 8px;
+	background: #fff;
+	box-shadow: none;
+	color: #1e293b;
+}
+
+#poststuff [id^="digitalisimo-"] select,
+#poststuff [id^="digitalisimo_"] select { min-width: 0; max-width: 100%; padding-right: 30px; }
+#poststuff [id^="digitalisimo-"] textarea,
+#poststuff [id^="digitalisimo_"] textarea { min-height: 88px; }
+#poststuff [id^="digitalisimo-"] input:focus,
+#poststuff [id^="digitalisimo-"] select:focus,
+#poststuff [id^="digitalisimo-"] textarea:focus,
+#poststuff [id^="digitalisimo_"] input:focus,
+#poststuff [id^="digitalisimo_"] select:focus,
+#poststuff [id^="digitalisimo_"] textarea:focus { border-color: #6265f2; box-shadow: 0 0 0 2px rgba(92, 99, 242, .16); }
+
+#poststuff [id^="digitalisimo-"] .button-primary,
+#poststuff [id^="digitalisimo_"] .button-primary {
+	border: 0;
+	border-radius: 8px;
+	background: linear-gradient(100deg, #4359ee, #a84ed3);
+	box-shadow: 0 7px 16px rgba(91, 80, 221, .22);
+	color: #fff;
+	text-shadow: none;
+}
+#poststuff [id^="digitalisimo-"] .button-secondary,
+#poststuff [id^="digitalisimo_"] .button-secondary { border-color: #cbd5f5; border-radius: 8px; color: #4352bf; background: #fff; }
+
+#poststuff .digitalisimo-editorial-panels {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: 14px;
+	margin-top: 18px;
+	padding-top: 18px;
+	border-top: 1px solid #e1e6f7;
+}
+#poststuff .digitalisimo-editorial-panel { padding: 15px; border: 1px solid #e0e5f6; border-radius: 12px; background: #fff; }
+#poststuff .digitalisimo-editorial-panel h3 { margin: 0 0 10px; font-size: 14px; }
+
+/* Gutenberg conserva los IDs de los metaboxes al convertirlos a panel lateral. */
+.edit-post-sidebar [id^="digitalisimo-"] .components-panel__body,
+.edit-post-sidebar [id^="digitalisimo_"] .components-panel__body {
+	border-color: #dde4fb;
+	background: linear-gradient(135deg, #fff 0%, #f7f8ff 100%);
+}
+.edit-post-sidebar [id^="digitalisimo-"] .components-panel__body-title,
+.edit-post-sidebar [id^="digitalisimo_"] .components-panel__body-title { color: #202d4c; }
+.edit-post-sidebar [id^="digitalisimo-"] .components-button.is-primary,
+.edit-post-sidebar [id^="digitalisimo_"] .components-button.is-primary { border-radius: 8px; background: linear-gradient(100deg, #4359ee, #a84ed3); }
