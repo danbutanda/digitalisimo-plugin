@@ -59,7 +59,8 @@ class Digitalisimo_Integrations_Editorial {
 	private static function location_parts( $id = 0 ) { $parts = array_fill_keys( array_keys( self::location_levels() ), '' ); while ( $id && ( $location = get_term( $id, 'digitalisimo_seo_location' ) ) && ! is_wp_error( $location ) ) { $level = self::location_level( $id ); if ( $level && ! $parts[ $level ] ) $parts[ $level ] = $location->name; $id = (int) $location->parent; } return $parts; }
 	private static function location_label( $id ) { $parts = array_filter( self::location_parts( $id ) ); $term = get_term( $id, 'digitalisimo_seo_location' ); return $parts ? implode( ' · ', $parts ) : ( $term && ! is_wp_error( $term ) ? $term->name : '' ); }
 	private static function current_location_parts() { return self::location_parts( absint( get_post_meta( self::current_content_id(), '_related_location_id', true ) ) ); }
-	public static function shortcode_location() { return esc_html( implode( ', ', array_filter( self::current_location_parts() ) ) ); }
+	/** La ubicación editorial empieza en el punto más específico: zona → país. */
+	public static function shortcode_location() { return esc_html( implode( ', ', array_filter( array_reverse( self::current_location_parts(), true ) ) ) ); }
 	public static function shortcode_country() { $p = self::current_location_parts(); return esc_html( $p['country'] ); }
 	public static function shortcode_state() { $p = self::current_location_parts(); return esc_html( $p['state'] ); }
 	public static function shortcode_city() { $p = self::current_location_parts(); return esc_html( $p['city'] ); }
