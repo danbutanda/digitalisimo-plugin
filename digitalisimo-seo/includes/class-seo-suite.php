@@ -92,6 +92,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		// cualquier panel futuro cuyo ID comience con digitalisimo- o digitalisimo_.
 		wp_enqueue_style( 'digitalisimo-editor-ui', DIGITALISIMO_INTEGRATIONS_URL . 'assets/editor-ui.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION );
 		wp_enqueue_style( 'digitalisimo-seo-snippet-editor', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-editor.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION );
+		wp_enqueue_style( 'digitalisimo-seo-snippet-modal', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-modal.css', array( 'digitalisimo-seo-snippet-editor' ), DIGITALISIMO_INTEGRATIONS_VERSION );
 		wp_enqueue_script( 'digitalisimo-seo-snippet-editor', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-editor.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true );
 	}
 	/** Mantiene visible el único editor SEO del módulo en entradas y páginas. */
@@ -109,7 +110,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		$path = wp_parse_url( $permalink, PHP_URL_PATH ) ?: '/';
 		$keywords = array_filter( array_map( 'trim', explode( ',', (string) get_post_meta( $post->ID, self::P . 'keywords', true ) ) ) );
 		echo '<div class="digitalisimo-snippet-editor" data-site-url="' . esc_attr( home_url( '/' ) ) . '" data-default-title="' . esc_attr( $fallback_title ) . '" data-default-description="' . esc_attr( $fallback_description ) . '">';
-		echo '<div class="digitalisimo-snippet-tabs" role="tablist"><button type="button" class="is-active" data-snippet-tab="general">Snippet SEO</button><button type="button" data-snippet-tab="social">Social</button><button type="button" data-snippet-tab="advanced">Avanzado</button></div>';
+		echo '<div class="digitalisimo-snippet-tabs" role="tablist"><button type="button" class="is-active" data-snippet-tab="general">Snippet SEO</button><button type="button" data-snippet-tab="social">Social</button><button type="button" data-snippet-tab="advanced">Avanzado</button><button type="button" class="digitalisimo-snippet-expand" data-snippet-expand aria-label="Abrir editor de snippet en ventana amplia" title="Abrir ventana amplia"><span aria-hidden="true">⤢</span><span class="screen-reader-text">Abrir ventana amplia</span></button></div>';
 		echo '<section class="digitalisimo-snippet-preview"><div class="digitalisimo-snippet-preview-label">Vista previa en Google</div><div class="digitalisimo-snippet-url" data-snippet-preview="url">' . esc_html( home_url( $path ) ) . '</div><div class="digitalisimo-snippet-title" data-snippet-preview="title">' . esc_html( $v( 'title' ) ?: $fallback_title ) . '</div><p data-snippet-preview="description">' . esc_html( $v( 'description' ) ?: $fallback_description ) . '</p></section>';
 		echo '<section class="digitalisimo-snippet-panel is-active" data-snippet-panel="general"><div class="digitalisimo-snippet-grid">';
 		echo '<label>Título SEO <span class="digitalisimo-snippet-count" data-snippet-count="title"></span><input type="text" name="digitalisimo_native_title" data-snippet-input="title" value="' . esc_attr( $v( 'title' ) ) . '" placeholder="' . esc_attr( $fallback_title ) . '"><small>Ideal: 50–60 caracteres. Vacío usa la plantilla global.</small></label>';

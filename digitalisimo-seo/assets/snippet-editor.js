@@ -1,19 +1,21 @@
-const digitalisimoOpenSeoEditor = () => {
-  const panel = document.getElementById('digitalisimo_native_seo');
-  if (!panel) return;
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const title = panel.querySelector('input[name="digitalisimo_native_title"]');
-  if (title) window.setTimeout(() => title.focus(), 450);
-};
-
-// Gutenberg monta los metaboxes después de que el documento ya está listo.
-// La delegación conserva el acceso aun cuando el panel lateral se vuelva a renderizar.
 document.addEventListener('click', (event) => {
-  const button = event.target.closest('[data-digitalisimo-open-seo-editor]');
-  if (!button) return;
+  const expand = event.target.closest('[data-snippet-expand]');
+  const close = event.target.closest('[data-snippet-modal-close], .digitalisimo-snippet-modal-backdrop');
+  if (!expand && !close) return;
   event.preventDefault();
-  digitalisimoOpenSeoEditor();
+  const editor = expand ? expand.closest('.digitalisimo-snippet-editor') : document.querySelector('.digitalisimo-snippet-editor.is-expanded');
+  if (!editor) return;
+  const isOpen = Boolean(expand) && !editor.classList.contains('is-expanded');
+  editor.classList.toggle('is-expanded', isOpen);
+  document.body.classList.toggle('digitalisimo-snippet-modal-open', isOpen);
+  let backdrop = document.querySelector('.digitalisimo-snippet-modal-backdrop');
+  if (isOpen && !backdrop) { backdrop = document.createElement('div'); backdrop.className = 'digitalisimo-snippet-modal-backdrop'; backdrop.setAttribute('aria-hidden', 'true'); document.body.appendChild(backdrop); }
+  if (!isOpen && backdrop) backdrop.remove();
+  if (isOpen) { expand.dataset.snippetModalClose = '1'; expand.setAttribute('aria-label', 'Cerrar ventana amplia'); expand.setAttribute('title', 'Cerrar ventana amplia'); expand.querySelector('[aria-hidden]').textContent = '×'; }
+  else { const button = editor.querySelector('[data-snippet-expand]'); if (button) { button.dataset.snippetModalClose = ''; button.setAttribute('aria-label', 'Abrir editor de snippet en ventana amplia'); button.setAttribute('title', 'Abrir ventana amplia'); button.querySelector('[aria-hidden]').textContent = '⤢'; } }
 });
+
+document.addEventListener('keydown', (event) => { if ('Escape' === event.key && document.querySelector('.digitalisimo-snippet-editor.is-expanded')) document.querySelector('.digitalisimo-snippet-modal-backdrop')?.click(); });
 
 const digitalisimoInitSnippetEditors = () => {
   document.querySelectorAll('.digitalisimo-snippet-editor').forEach((editor) => {
