@@ -23,15 +23,18 @@ jobs:
       - name: Validar sintaxis PHP
         run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo-geolocalizacion digitalisimo.chatbot digitalisimo-hosting -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Construir paquetes limpios
-        run: bash scripts/build-packages.sh dist
+        run: |
+          mkdir -p dist
+          find dist -maxdepth 1 -type f -name '*.zip' -delete
+          bash scripts/build-packages.sh dist
       - name: Validar suite y paquetes
         run: DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
 
       - name: Guardar ZIP SEO para pruebas y reversión
         uses: actions/upload-artifact@v4
         with:
-          name: digitalisimo-seo-1.0.78-${{ github.sha }}
-          path: dist/digitalisimo-seo-1.0.78.zip
+          name: digitalisimo-seo-${{ github.sha }}
+          path: dist/digitalisimo-seo-*.zip
           if-no-files-found: error
           retention-days: 14
 

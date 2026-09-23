@@ -22,8 +22,11 @@ jobs:
           php-version: '8.2'
       - name: Validar sintaxis PHP
         run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo-geolocalizacion digitalisimo.chatbot digitalisimo-hosting -name '*.php' -print0 | xargs -0 -n1 php -l
-      - name: Crear paquetes instalables
-        run: bash scripts/build-packages.sh dist
+      - name: Preparar paquetes instalables limpios
+        run: |
+          mkdir -p dist
+          find dist -maxdepth 1 -type f -name '*.zip' -delete
+          bash scripts/build-packages.sh dist
       - name: Validar paquetes
         run: DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
       - name: Publicar Release y assets
