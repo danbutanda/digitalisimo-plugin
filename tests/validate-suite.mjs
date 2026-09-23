@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.104.zip', version: '1.0.104' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.105.zip', version: '1.0.105' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.41.zip', version: '1.0.41' },
@@ -127,7 +127,7 @@ if (!seoSuite.includes("digitalisimo-seo-snippet-editor") || !seoSuite.includes(
   throw new Error('SEO debe ofrecer editor de snippet con vista previa, título, descripción y permalink.');
 if (!seoSnippetCss.includes('.digitalisimo-snippet-preview') || !seoSnippetJs.includes('data-snippet-preview') || !seoSuite.includes("'hidden_meta_boxes'"))
   throw new Error('El editor de snippet debe conservar la UI Digitalisimo y actualizar la vista previa en el navegador.');
-if (!seoSuite.includes('digitalisimo-seo-snippet-modal') || !seoSnippetModalCss.includes('.is-expanded') || !seoSnippetJs.includes('data-snippet-expand') || !seoSnippetJs.includes('digitalisimoSnippetPlaceholder'))
+if (!seoSuite.includes('digitalisimo-seo-snippet-modal') || !seoSnippetModalCss.includes('.is-expanded') || !seoSnippetJs.includes('data-snippet-expand') || !seoSnippetJs.includes('digitalisimoSnippetPlaceholder') || !seoSuite.includes('digitalisimo-snippet-launch'))
   throw new Error('El editor de snippet debe poder abrirse en una ventana amplia sin duplicar sus campos.');
 if (!seoSuite.includes("digitalisimo-editor-ui") || !seoEditorUiCss.includes('[id^="digitalisimo-"]') || !seoEditorUiCss.includes('.digitalisimo-editorial-panels'))
   throw new Error('Los paneles de Digitalisimo dentro del editor deben compartir la UI de la marca.');

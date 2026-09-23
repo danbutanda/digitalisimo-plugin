@@ -1,5 +1,11 @@
 .digitalisimo-snippet-modal-backdrop{position:fixed;z-index:100000;inset:0;background:rgba(18,28,54,.46);backdrop-filter:blur(3px)}
+#digitalisimo_native_seo .digitalisimo-snippet-editor{display:none}
+#digitalisimo_native_seo .digitalisimo-snippet-editor.is-expanded{display:block}
+#digitalisimo_native_seo .digitalisimo-snippet-launch{padding:18px;border:1px solid #dfe5ff;border-radius:0 0 14px 14px;background:linear-gradient(135deg,#fff,#f7f8ff)}
+#digitalisimo_native_seo .digitalisimo-snippet-launch strong{display:block;color:#202d4c;font-size:16px}
+#digitalisimo_native_seo .digitalisimo-snippet-launch p{margin:8px 0 14px;color:#5c6a86;line-height:1.45}
 .digitalisimo-snippet-editor.is-expanded{position:fixed!important;z-index:100001!important;top:7vh!important;left:50%!important;width:min(940px,calc(100vw - 48px))!important;max-height:86vh!important;overflow:auto!important;transform:translateX(-50%);border:1px solid #d9e1ff;border-radius:18px;box-shadow:0 24px 70px rgba(18,28,54,.3);background:#f8f9ff}
+.digitalisimo-snippet-editor.is-expanded input,.digitalisimo-snippet-editor.is-expanded textarea,.digitalisimo-snippet-editor.is-expanded select{font-weight:400!important}
 .edit-post-sidebar .digitalisimo-snippet-tabs,#digitalisimo_native_seo .digitalisimo-snippet-tabs{gap:6px;padding:10px;overflow:visible}
 .edit-post-sidebar .digitalisimo-snippet-tabs [data-snippet-tab],#digitalisimo_native_seo .digitalisimo-snippet-tabs [data-snippet-tab]{flex:1 1 0;min-width:0;padding:8px 5px;font-size:12px;line-height:1.2;white-space:normal}
 .edit-post-sidebar .digitalisimo-snippet-tabs .digitalisimo-snippet-expand,#digitalisimo_native_seo .digitalisimo-snippet-tabs .digitalisimo-snippet-expand{flex:0 0 36px;margin-left:0!important}

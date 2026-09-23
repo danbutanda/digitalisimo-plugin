@@ -3,7 +3,7 @@ document.addEventListener('click', (event) => {
   const close = event.target.closest('[data-snippet-modal-close], .digitalisimo-snippet-modal-backdrop');
   if (!expand && !close) return;
   event.preventDefault();
-  const editor = expand ? expand.closest('.digitalisimo-snippet-editor') : document.querySelector('.digitalisimo-snippet-editor.is-expanded');
+  const editor = expand ? (expand.closest('.digitalisimo-snippet-editor') || document.getElementById(expand.dataset.snippetTarget || '')) : document.querySelector('.digitalisimo-snippet-editor.is-expanded');
   if (!editor) return;
   const isOpen = Boolean(expand) && !editor.classList.contains('is-expanded');
   if (isOpen) {
