@@ -23,7 +23,7 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 | SEO AI por contenido | ~ | Estado efectivo y controles por contenido disponibles; las reglas Allow/Disallow se aplican por URL y User-Agent en el mismo robots.txt, sin confundirlas con noindex. Falta validación runtime de sintaxis robots con un sitio público. |
 | Base de conocimiento IA | ~ | Índice local, reconstrucción, recuperación contextual RAG, panel de fuentes, embeddings OpenAI manuales/opt-in y reordenamiento semántico opcional con caché de consulta disponibles. Falta validación runtime contra una cuenta OpenAI y un sitio configurado. |
 | Digitalisimo IA Tools | ✓ | Perfiles por proveedor y fallback; chatbot, redacción editorial, borradores, chat de artículo, contenido, conocimiento e imágenes bajo demanda. El chat sólo se sobrescribe cuando el editor envía personajes y mensajes válidos, por lo que los guardados de imagen destacada, Elementor, revisiones y actualizaciones parciales preservan la conversación. Incluye endpoints protegidos para que Codex guarde borradores desde una keyword y el cluster elegido, sin publicar automáticamente. |
-| Generación de imágenes | ✓ | Flujo revisable hacia Biblioteca de Medios. El perfil Imágenes permite elegir modelo y calidad, y cada nueva imagen registra miniatura, modelo, calidad, tamaño y costo estimado en USD; en el editor, el control se inserta de forma persistente dentro de Imagen destacada. Las imágenes anteriores se conservan con costo no disponible porque no guardaban uso de API. |
+| Generación de imágenes | ✓ | Flujo revisable hacia Biblioteca de Medios. El perfil Imágenes permite elegir modelo y calidad, y cada nueva imagen registra miniatura, modelo, calidad, tamaño y costo estimado en USD; en el editor clásico y Gutenberg, el control se inserta de forma persistente dentro de Imagen destacada. Las imágenes anteriores se conservan con costo no disponible porque no guardaban uso de API. |
 
 ## Orden de ejecución pendiente
 
@@ -36,4 +36,4 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 
 ## Validación de paquetes
 
-Última validación estructural: los ZIP de SEO 1.0.86, Ecommerce 1.0.17, Geolocalización 1.0.15, IA Tools 1.0.39 y Hosting 1.0.11 contienen su archivo principal, declaran la versión esperada y superan `unzip -t` y `tests/validate-suite.mjs`. Durante desarrollo, el verificador de Releases consulta GitHub cada minuto; al estabilizarse se regresará a una hora.
+Última validación estructural: los ZIP de SEO 1.0.86, Ecommerce 1.0.17, Geolocalización 1.0.15, IA Tools 1.0.40 y Hosting 1.0.11 contienen su archivo principal, declaran la versión esperada y superan `unzip -t` y `tests/validate-suite.mjs`. Durante desarrollo, el verificador de Releases consulta GitHub cada minuto; al estabilizarse se regresará a una hora.
