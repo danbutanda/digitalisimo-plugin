@@ -67,7 +67,7 @@ class Digitalisimo_Integrations_Editorial {
 	public static function content_types() {
 		$excluded = array( 'attachment', 'elementor_library', 'elementor-hf', 'wp_template', 'wp_template_part', 'wp_global_styles', 'wp_navigation', 'wp_block' );
 		$types = get_post_types( array( 'public' => true, 'show_ui' => true ), 'objects' );
-		return array_values( array_keys( array_filter( $types, function( $type, $slug ) use ( $excluded ) { return ! in_array( $slug, $excluded, true ) && ! empty( $type->publicly_queryable ); }, ARRAY_FILTER_USE_BOTH ) ) );
+		return array_values( array_keys( array_filter( $types, function( $type, $slug ) use ( $excluded ) { return ! in_array( $slug, $excluded, true ); }, ARRAY_FILTER_USE_BOTH ) ) );
 	}
 	private static function types() { return self::content_types(); }
 	/** El catálogo no usa flujo editorial: muestra cada ubicación guardada sin depender de su estado. */

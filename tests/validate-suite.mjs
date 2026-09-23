@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.90.zip', version: '1.0.90' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.91.zip', version: '1.0.91' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.40.zip', version: '1.0.40' },
@@ -50,6 +50,7 @@ const seoEditorial = readFileSync('digitalisimo-seo/includes/class-seo.php', 'ut
 const seoEditorialTools = readFileSync('digitalisimo-seo/includes/class-editorial.php', 'utf8');
 const seoSnippetCss = readFileSync('digitalisimo-seo/assets/snippet-editor.css', 'utf8');
 const seoSnippetJs = readFileSync('digitalisimo-seo/assets/snippet-editor.js', 'utf8');
+const seoAdminUiCss = readFileSync('digitalisimo-seo/assets/admin-ui.css', 'utf8');
 const seoBootstrap = readFileSync('digitalisimo-seo/digitalisimo-integrations.php', 'utf8');
 const seoSettings = readFileSync('digitalisimo-seo/includes/class-settings.php', 'utf8');
 const seoAi = readFileSync('digitalisimo-seo/includes/class-seo-ai.php', 'utf8');
@@ -137,6 +138,7 @@ if (!seoEditorial.includes('data-content-panel') || !seoEditorial.includes('data
 if (!seoEditorial.includes("'locations' => 'Ubicaciones'") || !seoEditorial.includes('digitalisimo_create_location') || !seoEditorial.includes("post_type' => self::content_types()")) throw new Error('Ubicaciones y clusters deben admitir todo tipo de contenido público.');
 if (!seoEditorial.includes("'post_status' => array( 'publish', 'private', 'draft', 'pending' )") || !seoEditorialTools.includes("'post_author' => get_current_user_id()") || !seoEditorialTools.includes('$created = ! is_wp_error')) throw new Error('El catálogo debe confirmar y mostrar las ubicaciones creadas.');
 if (!seoEditorialTools.includes('cluster_candidates') || !seoEditorialTools.includes("update_post_meta( $parent, 'digitalisimo_seo_pillar', 'on' )") || !seoEditorialTools.includes("'elementor_library'")) throw new Error('Todo contenido público debe poder ser pilar de un cluster, sin plantillas privadas.');
+if (seoEditorialTools.includes('! empty( $type->publicly_queryable )') || !seoAdminUiCss.includes('.widefat:not(select)') || !seoAdminUiCss.includes('width: min(100%, 460px)')) throw new Error('Los selectores de cluster deben incluir contenido público y conservar una UI compacta.');
 if (!seoEditorial.includes("'defaults' => 'Configuración'") || !seoEditorial.includes('defaults_content') || !seoEditorialTools.includes('apply_default_cluster') || !seoSettings.includes("'default_cluster_pillar' => 0") || !seoSuite.includes('network_cluster_field')) throw new Error('Falta el pilar predeterminado global para contenido nuevo con paridad de red.');
 if (!seoEditorial.includes("add_submenu_page( null, 'Contenido', 'Contenido'")) throw new Error('Contenido debe abrirse dentro de la navegación SEO, no como submenú lateral');
 if (!seoSuite.includes("'digitalisimo-content' => array( 'Contenido', 'content_page' )")) throw new Error('La pantalla Contenido no está registrada por el módulo SEO activo');
