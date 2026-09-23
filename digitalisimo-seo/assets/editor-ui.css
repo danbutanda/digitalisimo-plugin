@@ -70,6 +70,9 @@
 }
 #poststuff .digitalisimo-editorial-panel { padding: 15px; border: 1px solid #e0e5f6; border-radius: 12px; background: #fff; }
 #poststuff .digitalisimo-editorial-panel h3 { margin: 0 0 10px; font-size: 14px; }
+#poststuff .digitalisimo-seo-editor-access { padding: 2px; }
+#poststuff .digitalisimo-seo-editor-access strong { display: block; color: #202d4c; font-size: 15px; }
+#poststuff .digitalisimo-seo-editor-access p { margin: 8px 0 14px; color: #53627f; line-height: 1.45; }
 
 /* Gutenberg conserva los IDs de los metaboxes al convertirlos a panel lateral. */
 .edit-post-sidebar [id^="digitalisimo-"] .components-panel__body,

@@ -1,4 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
+	const openEditor = () => {
+	  const panel = document.getElementById('digitalisimo_native_seo');
+	  if (!panel) return;
+	  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	  const title = panel.querySelector('input[name="digitalisimo_native_title"]');
+	  if (title) window.setTimeout(() => title.focus(), 450);
+	};
+	 document.querySelectorAll('[data-digitalisimo-open-seo-editor]').forEach((button) => button.addEventListener('click', openEditor));
   document.querySelectorAll('.digitalisimo-snippet-editor').forEach((editor) => {
     const tabs = editor.querySelectorAll('[data-snippet-tab]');
     const panels = editor.querySelectorAll('[data-snippet-panel]');

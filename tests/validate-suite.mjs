@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.99.zip', version: '1.0.99' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.100.zip', version: '1.0.100' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.40.zip', version: '1.0.40' },
@@ -128,6 +128,8 @@ if (!seoSnippetCss.includes('.digitalisimo-snippet-preview') || !seoSnippetJs.in
   throw new Error('El editor de snippet debe conservar la UI Digitalisimo y actualizar la vista previa en el navegador.');
 if (!seoSuite.includes("digitalisimo-editor-ui") || !seoEditorUiCss.includes('[id^="digitalisimo-"]') || !seoEditorUiCss.includes('.digitalisimo-editorial-panels'))
   throw new Error('Los paneles de Digitalisimo dentro del editor deben compartir la UI de la marca.');
+if (!seoSuite.includes("digitalisimo_seo_editor_access") || !seoSuite.includes('editor_access_box') || !seoSnippetJs.includes('data-digitalisimo-open-seo-editor'))
+  throw new Error('El editor debe tener un acceso lateral visible al snippet SEO completo.');
 if (seoEditorialTools.includes("update_post_meta( $id, 'digitalisimo_article_chat'"))
   throw new Error('SEO no debe sobrescribir el chat editorial, que pertenece exclusivamente a IA Tools.');
 if (!seoSuite.includes('Digitalisimo_Integrations_SEO_Front_Inspector::render()')) throw new Error('Diagnóstico debe incluir el inspector del front');
