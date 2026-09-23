@@ -44,7 +44,7 @@ class Digitalisimo_Integrations_Editorial {
 		return $pillar ? '<a href="' . esc_url( get_permalink( $pillar ) ) . '">' . esc_html( $pillar->post_title ) . '</a>' : '';
 	}
 	public static function shortcode_secondary() {
-		$posts = get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => 'publish', 'posts_per_page' => -1, 'meta_key' => '_related_pillar', 'meta_value' => get_the_ID() ) );
+		$posts = get_posts( array( 'post_type' => self::types(), 'post_status' => 'publish', 'posts_per_page' => -1, 'meta_key' => '_related_pillar', 'meta_value' => get_the_ID() ) );
 		if ( ! $posts ) return '';
 		$html = '<ul>';
 		foreach ( $posts as $post ) $html .= '<li><a href="' . esc_url( get_permalink( $post ) ) . '">' . esc_html( $post->post_title ) . '</a></li>';
@@ -63,7 +63,7 @@ class Digitalisimo_Integrations_Editorial {
 	public static function shortcode_state() { $p = self::current_location_parts(); return esc_html( $p['state'] ); }
 	public static function shortcode_city() { $p = self::current_location_parts(); return esc_html( $p['city'] ); }
 	public static function shortcode_zone() { $p = self::current_location_parts(); return esc_html( $p['zone'] ); }
-	private static function types() { return get_post_types( array( 'public' => true, 'show_ui' => true ), 'names' ); }
+	private static function types() { return array_values( array_diff( get_post_types( array( 'public' => true, 'show_ui' => true ), 'names' ), array( 'attachment' ) ) ); }
 	private static function locations() { return get_posts( array( 'post_type' => 'digitalisimo_location', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC' ) ); }
 	private static function pillars() { return get_posts( array( 'post_type' => self::types(), 'posts_per_page' => -1, 'meta_key' => 'digitalisimo_seo_pillar', 'meta_value' => 'on' ) ); }
 	public static function metaboxes() { add_meta_box( 'digitalisimo_location_details', 'Catálogo de ubicación SEO', array( __CLASS__, 'location_details_box' ), 'digitalisimo_location', 'normal', 'high' ); foreach ( self::types() as $type ) { add_meta_box( 'digitalisimo_keywords_editor', 'Palabras clave', array( __CLASS__, 'keywords_box' ), $type, 'side', 'high' ); add_meta_box( 'digitalisimo_cluster_method', 'Cluster de contenido', array( __CLASS__, 'cluster_box' ), $type, 'side', 'high' ); add_meta_box( 'digitalisimo_location', 'Ubicación', array( __CLASS__, 'location_box' ), $type, 'side' ); } }
