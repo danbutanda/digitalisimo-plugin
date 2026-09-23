@@ -1,13 +1,24 @@
-document.addEventListener('DOMContentLoaded', () => {
-	const openEditor = () => {
-	  const panel = document.getElementById('digitalisimo_native_seo');
-	  if (!panel) return;
-	  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	  const title = panel.querySelector('input[name="digitalisimo_native_title"]');
-	  if (title) window.setTimeout(() => title.focus(), 450);
-	};
-	 document.querySelectorAll('[data-digitalisimo-open-seo-editor]').forEach((button) => button.addEventListener('click', openEditor));
+const digitalisimoOpenSeoEditor = () => {
+  const panel = document.getElementById('digitalisimo_native_seo');
+  if (!panel) return;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const title = panel.querySelector('input[name="digitalisimo_native_title"]');
+  if (title) window.setTimeout(() => title.focus(), 450);
+};
+
+// Gutenberg monta los metaboxes después de que el documento ya está listo.
+// La delegación conserva el acceso aun cuando el panel lateral se vuelva a renderizar.
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-digitalisimo-open-seo-editor]');
+  if (!button) return;
+  event.preventDefault();
+  digitalisimoOpenSeoEditor();
+});
+
+const digitalisimoInitSnippetEditors = () => {
   document.querySelectorAll('.digitalisimo-snippet-editor').forEach((editor) => {
+	if (editor.dataset.digitalisimoSnippetReady) return;
+	editor.dataset.digitalisimoSnippetReady = '1';
     const tabs = editor.querySelectorAll('[data-snippet-tab]');
     const panels = editor.querySelectorAll('[data-snippet-panel]');
     const preview = (name) => editor.querySelector(`[data-snippet-preview="${name}"]`);
@@ -54,4 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     refresh();
   });
-});
+};
+
+if ('loading' === document.readyState) document.addEventListener('DOMContentLoaded', digitalisimoInitSnippetEditors);
+else digitalisimoInitSnippetEditors();
