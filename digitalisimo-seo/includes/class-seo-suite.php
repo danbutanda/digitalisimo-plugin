@@ -82,11 +82,8 @@ class Digitalisimo_Integrations_SEO_Suite {
 	private static function tools() { echo '<h2>SEO · Avanzado</h2><p>Estas opciones son técnicas. La configuración habitual se realiza desde Identidad y visibilidad, Estrategia de contenido y el editor de cada contenido.</p><p><a class="button button-secondary" href="' . esc_url( home_url( '/wp-sitemap.xml' ) ) . '" target="_blank" rel="noopener">Ver sitemap XML</a> <a class="button button-secondary" href="' . esc_url( home_url( '/robots.txt' ) ) . '" target="_blank" rel="noopener">Ver robots.txt</a></p><details><summary><strong>Configuración técnica avanzada</strong></summary><p><a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-titles' ) ) . '">Títulos y metadatos</a> · <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-schema' ) ) . '">Schema</a> · <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-social' ) ) . '">Social</a> · <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-sitemap' ) ) . '">Sitemap</a> · <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-indexing' ) ) . '">Indexación</a></p></details>'; }
 	public static function metaboxes() {
 		foreach ( self::editable_types() as $type ) {
-			// El editor completo conserva el ancho necesario para la vista previa y los campos de snippet.
-			add_meta_box( 'digitalisimo_native_seo', 'SEO de Digitalisimo', array( __CLASS__, 'metabox' ), $type, 'normal', 'high' );
-			// Gutenberg deja los metaboxes normales debajo del lienzo. Este acceso visible en la barra lateral
-			// evita que el editor SEO quede oculto entre los bloques de WordPress.
-			add_meta_box( 'digitalisimo_seo_editor_access', 'SEO de Digitalisimo', array( __CLASS__, 'editor_access_box' ), $type, 'side', 'high' );
+			// Se muestra completo en la barra lateral: Gutenberg mantiene ese panel siempre accesible.
+			add_meta_box( 'digitalisimo_native_seo', 'SEO de Digitalisimo', array( __CLASS__, 'metabox' ), $type, 'side', 'high' );
 		}
 	}
 	public static function editor_assets( $hook ) {
@@ -100,11 +97,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 	/** Mantiene visible el único editor SEO del módulo en entradas y páginas. */
 	public static function keep_snippet_visible( $hidden, $screen ) {
 		if ( ! is_object( $screen ) || ! in_array( $screen->base ?? '', array( 'post', 'post-new' ), true ) ) return $hidden;
-		return array_values( array_diff( (array) $hidden, array( 'digitalisimo_native_seo', 'digitalisimo_seo_editor_access' ) ) );
-	}
-	/** Acceso lateral al editor ancho que Gutenberg renderiza debajo del contenido. */
-	public static function editor_access_box() {
-		echo '<div class="digitalisimo-seo-editor-access"><strong>Edita el snippet SEO</strong><p>Título, enlace permanente, meta descripción, Social y Schema se editan en el panel completo SEO de Digitalisimo.</p><button type="button" class="button button-primary" data-digitalisimo-open-seo-editor>Abrir editor de snippet</button></div>';
+		return array_values( array_diff( (array) $hidden, array( 'digitalisimo_native_seo' ) ) );
 	}
 	public static function metabox( $post ) {
 		wp_nonce_field( 'digitalisimo_native_seo', 'digitalisimo_native_seo_nonce' );
