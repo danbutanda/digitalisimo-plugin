@@ -65,6 +65,8 @@ class Digitalisimo_Integrations_Editorial {
 	public static function shortcode_state() { $p = self::current_location_parts(); return esc_html( $p['state'] ); }
 	public static function shortcode_city() { $p = self::current_location_parts(); return esc_html( $p['city'] ); }
 	public static function shortcode_zone() { $p = self::current_location_parts(); return esc_html( $p['zone'] ); }
+	/** Área administrativa estructurada para el JSON-LD del contenido seleccionado. */
+	public static function location_schema( $post_id ) { $id = absint( get_post_meta( $post_id, '_related_location_id', true ) ); $term = $id ? get_term( $id, 'digitalisimo_seo_location' ) : null; if ( ! $term || is_wp_error( $term ) ) return array(); $types = array( 'country' => 'Country', 'state' => 'AdministrativeArea', 'city' => 'City', 'zone' => 'AdministrativeArea' ); $place = array(); while ( $term && ! is_wp_error( $term ) ) { $level = self::location_level( $term->term_id ); if ( $level ) { $node = array( '@type' => $types[ $level ], 'name' => $term->name ); if ( $place ) $node['containedInPlace'] = $place; $place = $node; } $term = $term->parent ? get_term( $term->parent, 'digitalisimo_seo_location' ) : null; } return $place; }
 	/** Tipos realmente públicos: nunca plantillas, bloques internos ni biblioteca de Elementor. */
 	public static function content_types() {
 		$excluded = array( 'attachment', 'elementor_library', 'elementor-hf', 'wp_template', 'wp_template_part', 'wp_global_styles', 'wp_navigation', 'wp_block' );

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.95.zip', version: '1.0.95' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.96.zip', version: '1.0.96' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.40.zip', version: '1.0.40' },
@@ -139,6 +139,7 @@ if (!seoEditorial.includes("'locations' => 'Ubicaciones'") || !seoEditorial.incl
 if (!seoEditorial.includes('Digitalisimo_Integrations_Editorial::locations()') || !seoEditorialTools.includes("register_taxonomy( 'digitalisimo_seo_location'") || !seoEditorialTools.includes("wp_insert_term( $name, 'digitalisimo_seo_location'")) throw new Error('El catálogo de ubicaciones debe usar un registro jerárquico independiente del contenido editorial.');
 if (!seoEditorial.includes('location_edit') || !seoEditorial.includes('digitalisimo_delete_location') || !seoEditorialTools.includes('wp_update_term') || !seoEditorialTools.includes('wp_delete_term')) throw new Error('Las ubicaciones deben poder editarse y eliminarse sin dejar asignaciones rotas.');
 if (!seoEditorialTools.includes("array_reverse( self::current_location_parts(), true )")) throw new Error('El shortcode de ubicación debe iniciar en el nivel más específico.');
+if (!seoEditorialTools.includes('location_schema') || !seoSuite.includes('content_location_schema') || !seoSuite.includes("'spatialCoverage' => $area") || !seoSuite.includes("'areaServed' => $area")) throw new Error('La ubicación elegida debe emitirse como cobertura geográfica en Schema.');
 if (!seoEditorialTools.includes('cluster_candidates') || !seoEditorialTools.includes("update_post_meta( $parent, 'digitalisimo_seo_pillar', 'on' )") || !seoEditorialTools.includes("'elementor_library'")) throw new Error('Todo contenido público debe poder ser pilar de un cluster, sin plantillas privadas.');
 if (seoEditorialTools.includes('! empty( $type->publicly_queryable )') || !seoAdminUiCss.includes('.widefat:not(select)') || !seoAdminUiCss.includes('width: min(100%, 460px)')) throw new Error('Los selectores de cluster deben incluir contenido público y conservar una UI compacta.');
 if (!seoEditorial.includes("'defaults' => 'Configuración'") || !seoEditorial.includes('defaults_content') || !seoEditorialTools.includes('apply_default_cluster') || !seoSettings.includes("'default_cluster_pillar' => 0") || !seoSuite.includes('network_cluster_field')) throw new Error('Falta el pilar predeterminado global para contenido nuevo con paridad de red.');
