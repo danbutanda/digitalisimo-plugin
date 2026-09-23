@@ -1,4 +1,14 @@
 document.addEventListener('click', (event) => {
+	const save = event.target.closest('[data-snippet-save]');
+	if (save) {
+	  event.preventDefault();
+	  save.disabled = true;
+	  save.textContent = 'Guardando…';
+	  if (window.wp && window.wp.data && window.wp.data.dispatch) window.wp.data.dispatch('core/editor').savePost();
+	  else { const form = document.getElementById('post'); if (form) form.requestSubmit(); }
+	  window.setTimeout(() => { save.disabled = false; save.textContent = 'Guardar cambios'; }, 1200);
+	  return;
+	}
   const expand = event.target.closest('[data-snippet-expand]');
   const close = event.target.closest('[data-snippet-modal-close], .digitalisimo-snippet-modal-backdrop');
   if (!expand && !close) return;

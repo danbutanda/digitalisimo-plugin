@@ -16,5 +16,11 @@
 .digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-panel{padding:0 26px 26px}
 .digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-keyword{margin:0 26px 26px}
 .digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-grid{gap:20px}
+.digitalisimo-snippet-editor.is-expanded .digitalisimo-editorial-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:0;padding:26px;border-top:1px solid #dfe5f7;background:#fff}
+.digitalisimo-snippet-editor.is-expanded .digitalisimo-editorial-panel{min-width:0;padding:18px;border:1px solid #dfe5f7;border-radius:14px;background:linear-gradient(135deg,#fff,#f8f9ff)}
+.digitalisimo-snippet-editor.is-expanded .digitalisimo-editorial-panel h3{margin:0 0 12px;color:#202d4c;font-size:17px}
+.digitalisimo-snippet-editor.is-expanded .digitalisimo-editorial-panel input,.digitalisimo-snippet-editor.is-expanded .digitalisimo-editorial-panel select,.digitalisimo-snippet-editor.is-expanded .digitalisimo-editorial-panel textarea{max-width:100%;box-sizing:border-box}
+.digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-actions{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 26px;border-top:1px solid #d9e1f7;background:rgba(248,249,255,.96);box-shadow:0 -8px 20px rgba(35,51,91,.06)}
+.digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-actions span{color:#596883;font-size:13px}
 body.digitalisimo-snippet-modal-open{overflow:hidden}
-@media(max-width:782px){.digitalisimo-snippet-editor.is-expanded{top:3vh!important;width:calc(100vw - 22px)!important;max-height:94vh!important}.digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-preview{margin:16px}.digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-panel{padding:0 16px 18px}.digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-keyword{margin:0 16px 18px}}
+@media(max-width:782px){.digitalisimo-snippet-editor.is-expanded{top:3vh!important;width:calc(100vw - 22px)!important;max-height:94vh!important}.digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-preview{margin:16px}.digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-panel{padding:0 16px 18px}.digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-keyword{margin:0 16px 18px}.digitalisimo-snippet-editor.is-expanded .digitalisimo-editorial-panels{grid-template-columns:1fr;padding:16px}.digitalisimo-snippet-editor.is-expanded .digitalisimo-snippet-actions{padding:14px 16px}}
