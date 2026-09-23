@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.87.zip', version: '1.0.87' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.88.zip', version: '1.0.88' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.40.zip', version: '1.0.40' },
@@ -134,7 +134,8 @@ if (!seoBootstrap.includes('class-seo-front-inspector.php')) throw new Error('SE
 if (!seoBootstrap.includes("includes/class-seo-front-inspector.php")) throw new Error('Falta cargar el inspector del front');
 if (!seoEditorial.includes("'Rank Math' => get_post_meta") || !seoEditorial.includes("'Yoast SEO' => get_post_meta")) throw new Error('El inventario de keywords debe reunir Digitalisimo, Rank Math y Yoast SEO');
 if (!seoEditorial.includes('data-content-panel') || !seoEditorial.includes('data-content-tab')) throw new Error('Contenido debe cambiar sus secciones dentro de la misma pantalla');
-if (!seoEditorial.includes("'locations' => 'Ubicaciones'") || !seoEditorial.includes("post_type' => self::content_types()")) throw new Error('Ubicaciones y clusters deben admitir todo tipo de contenido público.');
+if (!seoEditorial.includes("'locations' => 'Ubicaciones'") || !seoEditorial.includes('digitalisimo_create_location') || !seoEditorial.includes("post_type' => self::content_types()")) throw new Error('Ubicaciones y clusters deben admitir todo tipo de contenido público.');
+if (!seoEditorialTools.includes('cluster_candidates') || !seoEditorialTools.includes("update_post_meta( $parent, 'digitalisimo_seo_pillar', 'on' )")) throw new Error('Todo contenido público debe poder ser pilar de un cluster.');
 if (!seoEditorial.includes("add_submenu_page( null, 'Contenido', 'Contenido'")) throw new Error('Contenido debe abrirse dentro de la navegación SEO, no como submenú lateral');
 if (!seoSuite.includes("'digitalisimo-content' => array( 'Contenido', 'content_page' )")) throw new Error('La pantalla Contenido no está registrada por el módulo SEO activo');
 if (!seoSettings.includes('add_submenu_page( null,')) throw new Error('Los ajustes SEO heredados deben ocultarse del menú lateral');

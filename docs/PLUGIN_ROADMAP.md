@@ -36,4 +36,4 @@ Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La pri
 
 ## Validación de paquetes
 
-Última validación estructural: los ZIP de SEO 1.0.87, Ecommerce 1.0.17, Geolocalización 1.0.15, IA Tools 1.0.40 y Hosting 1.0.11 contienen su archivo principal, declaran la versión esperada y superan `unzip -t` y `tests/validate-suite.mjs`. El catálogo de ubicaciones y los clusters abarcan todos los tipos de contenido públicos. Durante desarrollo, el verificador de Releases consulta GitHub cada minuto; al estabilizarse se regresará a una hora.
+Última validación estructural: los ZIP de SEO 1.0.88, Ecommerce 1.0.17, Geolocalización 1.0.15, IA Tools 1.0.40 y Hosting 1.0.11 contienen su archivo principal, declaran la versión esperada y superan `unzip -t` y `tests/validate-suite.mjs`. El catálogo de ubicaciones se administra dentro de SEO y cualquier contenido público puede ser pilar o secundario de un cluster. Durante desarrollo, el verificador de Releases consulta GitHub cada minuto; al estabilizarse se regresará a una hora.
