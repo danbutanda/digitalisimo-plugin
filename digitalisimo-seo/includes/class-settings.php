@@ -109,6 +109,7 @@ class Digitalisimo_Integrations_Settings {
 			'content_editorial_cta' => 'Cierra con una invitación útil a solicitar una asesoría con Digitalisimo, relacionada de forma natural con el tema del artículo.',
 			'content_editorial_method' => 'Responde la intención de búsqueda al inicio. No repitas el H1 en el cuerpo. Usa una keyword principal de forma natural y secundarias sólo cuando aporten contexto. Organiza con H2 y H3, ejemplos, preguntas frecuentes y enlaces internos reales. Puedes abrir con un diálogo breve entre 🧑 Empresario, 🤖 MaryIA y 👨‍💼 Daniel; MaryIA habla con precisión robótica y Daniel aterriza decisiones. El diálogo aparece una sola vez al inicio.',
 			'default_cluster_pillar' => 0,
+			'default_content_location' => 0,
 		);
 	}
 
@@ -151,6 +152,7 @@ class Digitalisimo_Integrations_Settings {
 		if ( isset( $input['ipinfo_cache_minutes'] ) ) $output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ) );
 		if ( isset( $input['keyword_max_count'] ) ) $output['keyword_max_count'] = min( 20, max( 1, absint( $input['keyword_max_count'] ) ) );
 		if ( isset( $input['default_cluster_pillar'] ) ) $output['default_cluster_pillar'] = Digitalisimo_Integrations_Editorial::is_cluster_candidate( absint( $input['default_cluster_pillar'] ) ) ? absint( $input['default_cluster_pillar'] ) : 0;
+		if ( isset( $input['default_content_location'] ) ) $output['default_content_location'] = term_exists( absint( $input['default_content_location'] ), 'digitalisimo_seo_location' ) ? absint( $input['default_content_location'] ) : 0;
 		// Las claves sólo se escriben si llega un valor nuevo; vacío conserva la almacenada.
 		foreach ( array( 'openai_api_key', 'namecheap_api_key' ) as $key ) {
 			if ( ! empty( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
