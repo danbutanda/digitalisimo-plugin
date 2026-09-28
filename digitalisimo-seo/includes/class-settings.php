@@ -236,17 +236,19 @@ class Digitalisimo_Integrations_Settings {
 
 	private static function field( $key, $label, $type = 'text', $help = '', $choices = array() ) {
 		$value = self::get( $key );
+		$site_only = class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && in_array( $key, Digitalisimo_Integrations_SEO_Resolver::site_only_keys(), true );
 		$inherit = is_multisite() && class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && Digitalisimo_Integrations_SEO_Resolver::inherits_network( $key );
 		$disabled = $inherit ? ' disabled' : '';
+		$field_class = 'digitalisimo-site-field' . ( $inherit ? ' digitalisimo-inherited-value' : '' );
 		echo '<tr><th scope="row"><label for="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th><td>';
 		if ( 'checkbox' === $type ) {
-			echo '<input type="hidden" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="0"><label><input class="digitalisimo-site-field" type="checkbox" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="1" ' . checked( $value, 1, false ) . $disabled . '> ' . esc_html__( 'Activar', 'digitalisimo-integrations' ) . '</label>';
+			echo '<input type="hidden" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="0"><label><input class="' . esc_attr( $field_class ) . '" type="checkbox" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="1" ' . checked( $value, 1, false ) . $disabled . '> ' . esc_html__( 'Activar', 'digitalisimo-integrations' ) . '</label>';
 		} elseif ( 'textarea' === $type ) {
-			echo '<textarea class="large-text code digitalisimo-site-field" rows="4" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']"' . $disabled . '>' . esc_textarea( $value ) . '</textarea>';
+			echo '<textarea class="large-text code ' . esc_attr( $field_class ) . '" rows="4" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']"' . $disabled . '>' . esc_textarea( $value ) . '</textarea>';
 		} elseif ( 'media' === $type ) {
-			Digitalisimo_Media_Field::render( $key, self::OPTION . '[' . $key . ']', $value, (bool) $inherit, 'digitalisimo-site-field' );
+			Digitalisimo_Media_Field::render( $key, self::OPTION . '[' . $key . ']', $value, (bool) $inherit, $field_class );
 		} elseif ( 'select' === $type ) {
-			echo '<select class="digitalisimo-site-field" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']"' . $disabled . '>';
+			echo '<select class="' . esc_attr( $field_class ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']"' . $disabled . '>';
 			foreach ( (array) $choices as $choice => $label_choice ) echo '<option value="' . esc_attr( $choice ) . '" ' . selected( (string) $value, (string) $choice, false ) . '>' . esc_html( $label_choice ) . '</option>';
 			echo '</select>';
 		} else {
@@ -256,11 +258,11 @@ class Digitalisimo_Integrations_Settings {
 			// El valor nunca viaja al navegador: la máscara sólo va en el placeholder,
 			// así el campo sigue llegando vacío y la clave almacenada se conserva.
 			$placeholder  = ( $secret && ! empty( $value ) ) ? ' placeholder="' . esc_attr( self::MASK ) . '" autocomplete="new-password"' : '';
-			echo '<input class="regular-text digitalisimo-site-field" type="' . esc_attr( $actual_type ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="' . esc_attr( $actual_value ) . '"' . $placeholder . $disabled . '>';
+			echo '<input class="regular-text ' . esc_attr( $field_class ) . '" type="' . esc_attr( $actual_type ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="' . esc_attr( $actual_value ) . '"' . $placeholder . $disabled . '>';
 			if ( $secret ) echo ' <span class="digitalisimo-secret ' . ( empty( $value ) ? 'is-empty' : 'is-set' ) . '">' . esc_html( empty( $value ) ? __( 'Sin configurar', 'digitalisimo-integrations' ) : __( 'Guardada · escribe una nueva sólo si quieres reemplazarla', 'digitalisimo-integrations' ) ) . '</span>';
 		}
 		if ( $help ) echo '<p class="description">' . esc_html( $help ) . '</p>';
-		if ( is_multisite() && class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) ) { $origin = Digitalisimo_Integrations_SEO_Resolver::option_with_origin( $key ); echo '<p><input type="hidden" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="0"><label><input class="digitalisimo-network-inherit" data-field="' . esc_attr( $key ) . '" type="checkbox" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="1" ' . checked( $inherit, true, false ) . '> Heredar de la red</label><br><span class="description">Valor efectivo: <strong>' . esc_html( is_scalar( $origin['value'] ) ? (string) $origin['value'] : '' ) . '</strong> · Origen: ' . esc_html( $origin['label'] ) . '</span></p>'; }
+		if ( is_multisite() && class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && ! $site_only ) { $origin = Digitalisimo_Integrations_SEO_Resolver::option_with_origin( $key ); echo '<p class="digitalisimo-inheritance"><input type="hidden" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="0"><label><input class="digitalisimo-network-inherit" data-field="' . esc_attr( $key ) . '" type="checkbox" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="1" ' . checked( $inherit, true, false ) . '> Heredar de la red</label><br><span class="description">Valor efectivo: <strong>' . esc_html( is_scalar( $origin['value'] ) ? (string) $origin['value'] : '' ) . '</strong> · Origen: ' . esc_html( $origin['label'] ) . '</span></p>'; }
 		echo '</td></tr>';
 	}
 

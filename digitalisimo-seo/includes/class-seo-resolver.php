@@ -3,6 +3,8 @@ defined( 'ABSPATH' ) || exit;
 
 /** Resuelve valores SEO: contenido/termino → sitio → red Multisite → fallback. */
 class Digitalisimo_Integrations_SEO_Resolver {
+	/** Identidad e imágenes que pertenecen exclusivamente a cada sitio de la red. */
+	public static function site_only_keys() { return array( 'seo_site_name', 'seo_default_image', 'seo_default_image_alt' ); }
 	public static function option( $key, $fallback = null ) {
 		$site = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 		if ( is_multisite() && self::inherits_network( $key ) ) {
@@ -17,6 +19,7 @@ class Digitalisimo_Integrations_SEO_Resolver {
 	/** Los sitios nuevos heredan dinámicamente; sólo una sobrescritura explícita rompe la herencia. */
 	public static function inherits_network( $key ) {
 		if ( ! is_multisite() ) return false;
+		if ( in_array( $key, self::site_only_keys(), true ) ) return false;
 		$module_keys = array( 'enable_woocommerce', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'namecheap_api_user', 'namecheap_username', 'namecheap_api_key', 'namecheap_client_ip', 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'enable_ipinfo', 'ipinfo_tokens', 'ipinfo_cache_minutes' );
 		if ( in_array( $key, $module_keys, true ) ) { $module_inherit = (array) get_option( 'digitalisimo_module_network_inherit', array() ); return ! array_key_exists( $key, $module_inherit ) || ! empty( $module_inherit[ $key ] ); }
 		$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
