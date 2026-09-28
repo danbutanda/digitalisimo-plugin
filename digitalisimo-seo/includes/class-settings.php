@@ -114,6 +114,8 @@ class Digitalisimo_Integrations_Settings {
 			'default_content_location' => 0,
 		);
 	}
+	/** Plantillas donde un valor vacío significa restaurar el comportamiento inicial. */
+	public static function template_default_keys() { return array( 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive' ); }
 
 	public static function init() {
 		// En Multisite el plugin puede activarse para toda la red, pero cada sitio
@@ -125,7 +127,7 @@ class Digitalisimo_Integrations_Settings {
 
 	/** Rellena una vez las plantillas que versiones previas dejaron vacías. */
 	public static function migrate_template_defaults() {
-		$keys = array( 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive' ); $defaults = self::defaults();
+		$keys = self::template_default_keys(); $defaults = self::defaults();
 		if ( ! get_option( self::TEMPLATE_DEFAULTS_MIGRATION ) ) { $site = (array) get_option( self::OPTION, array() ); foreach ( $keys as $key ) if ( ! array_key_exists( $key, $site ) || '' === trim( (string) $site[ $key ] ) ) $site[ $key ] = $defaults[ $key ]; update_option( self::OPTION, $site, false ); update_option( self::TEMPLATE_DEFAULTS_MIGRATION, 1, false ); }
 		if ( is_multisite() && is_network_admin() && ! get_site_option( self::TEMPLATE_DEFAULTS_MIGRATION ) ) { $network = (array) get_site_option( self::OPTION, array() ); foreach ( $keys as $key ) if ( ! array_key_exists( $key, $network ) || '' === trim( (string) $network[ $key ] ) ) $network[ $key ] = $defaults[ $key ]; update_site_option( self::OPTION, $network ); update_site_option( self::TEMPLATE_DEFAULTS_MIGRATION, 1 ); }
 	}
@@ -159,6 +161,7 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ipinfo_tokens', 'sitemap_post_types', 'sitemap_exclude_ids', 'keyword_post_types', 'noindex_page_slugs', 'noindex_page_ids', 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_local_address', 'seo_local_hours', 'seo_taxonomies', 'seo_sitemap_taxonomies', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_textarea_field( $input[ $key ] );
 		}
+		foreach ( self::template_default_keys() as $key ) if ( isset( $input[ $key ] ) && '' === trim( (string) $input[ $key ] ) ) $output[ $key ] = self::defaults()[ $key ];
 		if ( isset( $input['ipinfo_cache_minutes'] ) ) $output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ) );
 		if ( isset( $input['keyword_max_count'] ) ) $output['keyword_max_count'] = min( 20, max( 1, absint( $input['keyword_max_count'] ) ) );
 		if ( isset( $input['default_cluster_pillar'] ) ) $output['default_cluster_pillar'] = Digitalisimo_Integrations_Editorial::is_cluster_candidate( absint( $input['default_cluster_pillar'] ) ) ? absint( $input['default_cluster_pillar'] ) : 0;
