@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.119.zip', version: '1.0.119' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.120.zip', version: '1.0.120' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.41.zip', version: '1.0.41' },
@@ -57,6 +57,7 @@ const seoBootstrap = readFileSync('digitalisimo-seo/digitalisimo-integrations.ph
 const seoSettings = readFileSync('digitalisimo-seo/includes/class-settings.php', 'utf8');
 const seoResolver = readFileSync('digitalisimo-seo/includes/class-seo-resolver.php', 'utf8');
 const seoAi = readFileSync('digitalisimo-seo/includes/class-seo-ai.php', 'utf8');
+if (!seoSettings.includes("'seo_title_post'         => '%title% %sep% %sitename%'") || !seoSettings.includes("'seo_description_post'   => '%excerpt%'") || !seoSettings.includes("'seo_title_page'         => '%title%'") || !seoSettings.includes("'seo_description_page'   => '%excerpt%'") || !seoSettings.includes("'seo_title_archive'      => '%title%'") || !seoSettings.includes("'seo_description_archive'=> '%excerpt%'") ) throw new Error('Los valores iniciales de títulos y descripciones SEO no coinciden con la configuración predeterminada.');
 const chatbotAi = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai.php', 'utf8');
 const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-images.php', 'utf8');
 const chatbotDialogueCss = readFileSync('digitalisimo.chatbot/assets/article-dialogue.css', 'utf8');
