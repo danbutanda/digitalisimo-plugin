@@ -239,7 +239,8 @@ class Digitalisimo_Integrations_Settings {
 		$site_only = class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && in_array( $key, Digitalisimo_Integrations_SEO_Resolver::site_only_keys(), true );
 		$inherit = is_multisite() && class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && Digitalisimo_Integrations_SEO_Resolver::inherits_network( $key );
 		$disabled = $inherit ? ' disabled' : '';
-		$field_class = 'digitalisimo-site-field' . ( $inherit ? ' digitalisimo-inherited-value' : '' );
+		$defaults = self::defaults(); $is_default = ! $inherit && array_key_exists( $key, $defaults ) && $value == $defaults[ $key ];
+		$field_class = 'digitalisimo-site-field' . ( $inherit ? ' digitalisimo-inherited-value' : ( $is_default ? ' digitalisimo-default-value' : '' ) );
 		echo '<tr><th scope="row"><label for="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th><td>';
 		if ( 'checkbox' === $type ) {
 			echo '<input type="hidden" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="0"><label><input class="' . esc_attr( $field_class ) . '" type="checkbox" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="1" ' . checked( $value, 1, false ) . $disabled . '> ' . esc_html__( 'Activar', 'digitalisimo-integrations' ) . '</label>';
@@ -262,6 +263,7 @@ class Digitalisimo_Integrations_Settings {
 			if ( $secret ) echo ' <span class="digitalisimo-secret ' . ( empty( $value ) ? 'is-empty' : 'is-set' ) . '">' . esc_html( empty( $value ) ? __( 'Sin configurar', 'digitalisimo-integrations' ) : __( 'Guardada · escribe una nueva sólo si quieres reemplazarla', 'digitalisimo-integrations' ) ) . '</span>';
 		}
 		if ( $help ) echo '<p class="description">' . esc_html( $help ) . '</p>';
+		if ( $is_default ) echo '<p class="description digitalisimo-default-note">Valor predeterminado del plugin.</p>';
 		if ( is_multisite() && class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && ! $site_only ) { $origin = Digitalisimo_Integrations_SEO_Resolver::option_with_origin( $key ); echo '<p class="digitalisimo-inheritance"><input type="hidden" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="0"><label><input class="digitalisimo-network-inherit" data-field="' . esc_attr( $key ) . '" type="checkbox" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="1" ' . checked( $inherit, true, false ) . '> Heredar de la red</label><br><span class="description">Valor efectivo: <strong>' . esc_html( is_scalar( $origin['value'] ) ? (string) $origin['value'] : '' ) . '</strong> · Origen: ' . esc_html( $origin['label'] ) . '</span></p>'; }
 		echo '</td></tr>';
 	}

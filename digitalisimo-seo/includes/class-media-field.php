@@ -79,7 +79,7 @@ if ( ! class_exists( 'Digitalisimo_Media_Field' ) ) {
 				? __( 'Arrastra un archivo aquí o elígelo de la biblioteca de medios.', 'digitalisimo' )
 				: __( 'Elige un archivo de la biblioteca de medios.', 'digitalisimo' );
 
-			echo '<div class="digitalisimo-media' . ( $disabled ? ' is-locked' : '' ) . '">';
+			echo '<div class="digitalisimo-media ' . esc_attr( $classes ) . ( $disabled ? ' is-locked' : '' ) . '">';
 			echo '<div class="digitalisimo-media__drop">';
 			echo '<img class="digitalisimo-media__preview" alt="" hidden>';
 			echo '<div class="digitalisimo-media__body">';
