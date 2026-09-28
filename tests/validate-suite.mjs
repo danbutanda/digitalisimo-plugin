@@ -10,7 +10,7 @@ const modules = [
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.41.zip', version: '1.0.41' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.11.zip', version: '1.0.11' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.0.zip', version: '1.0.0' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.1.zip', version: '1.0.1' },
 ];
 const phpFiles = [];
 function walk(dir) {
@@ -73,7 +73,7 @@ if (new Set(updaterFiles).size !== 1 || updaterFiles.some((source) =>
   !source.includes("delete_site_transient( 'update_plugins' )")
 )) throw new Error('Los módulos deben distribuir el mismo actualizador compatible con Multisite y caché de WordPress.');
 const backups = readFileSync('digitalisimo-backups/includes/class-backups.php', 'utf8');
-if (!backups.includes('database.sql') || !backups.includes('manifest.json') || !backups.includes('ssh2_connect') || !backups.includes('oauth2.googleapis.com') || !backups.includes('graph.microsoft.com') || !backups.includes('resumable_upload'))
+if (!backups.includes('create_network') || !backups.includes('create_site') || !backups.includes('MIGRAR-A-WORDPRESS-UNICO.txt') || !backups.includes('database.sql') || !backups.includes('manifest.json') || !backups.includes('ssh2_connect') || !backups.includes('oauth2.googleapis.com') || !backups.includes('graph.microsoft.com') || !backups.includes('resumable_upload'))
   throw new Error('Backups debe incluir archivos y base de datos, con destinos local, SFTP, Google Drive y OneDrive.');
 const articleChatPublisher = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-publisher.php','utf8');
 const articleChatEditor = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-article-chat.php','utf8');
