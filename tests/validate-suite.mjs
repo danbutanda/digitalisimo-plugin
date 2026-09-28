@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.109.zip', version: '1.0.109' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.110.zip', version: '1.0.110' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.41.zip', version: '1.0.41' },
@@ -142,6 +142,8 @@ if (!chatbotImages.includes('creative_direction') || !chatbotImages.includes('ad
 if (seoEditorialTools.includes("update_post_meta( $id, 'digitalisimo_article_chat'"))
   throw new Error('SEO no debe sobrescribir el chat editorial, que pertenece exclusivamente a IA Tools.');
 if (!seoSuite.includes('Digitalisimo_Integrations_SEO_Front_Inspector::render()')) throw new Error('Diagnóstico debe incluir el inspector del front');
+const seoFrontInspector = readFileSync('digitalisimo-seo/includes/class-seo-front-inspector.php', 'utf8');
+if (!seoFrontInspector.includes('slug_matches_keyword') || !seoFrontInspector.includes("'' === $path") || !seoFrontInspector.includes('array_intersect( $terms')) throw new Error('SEO Front debe comparar la URL real sin recomendar cambios en portada ni exigir un slug literal.');
 if (!seoSuite.includes("'diagnostic' => 'SEO Front'")) throw new Error('SEO Front debe ser la última pestaña de SEO');
 if (!seoSuite.includes("$title = $title ?: get_the_title( $id )")) throw new Error('SEO Front debe tener título de respaldo en contenido singular');
 if (!seoSuite.includes("'Organization', 'LocalBusiness', 'Person'")) throw new Error('El tipo Organization debe validarse antes de emitir Schema');
