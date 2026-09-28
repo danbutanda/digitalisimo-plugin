@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.112.zip', version: '1.0.112' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.113.zip', version: '1.0.113' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.41.zip', version: '1.0.41' },
@@ -146,6 +146,7 @@ const seoFrontInspector = readFileSync('digitalisimo-seo/includes/class-seo-fron
 if (!seoFrontInspector.includes('slug_matches_keyword') || !seoFrontInspector.includes("'' === $path") || !seoFrontInspector.includes('array_intersect( $terms')) throw new Error('SEO Front debe comparar la URL real sin recomendar cambios en portada ni exigir un slug literal.');
 if (!seoSettings.includes("'seo_default_image_alt'  => ''") || !seoSuite.includes('attachment_alt') || !seoSuite.includes('network_image_alt_field') || !seoSuite.includes('wp_get_attachment_image_attributes')) throw new Error('El alt predeterminado debe aplicarse sólo como respaldo y funcionar en sitio y red.');
 if (!seoEditorialTools.includes("'digitalisimo-seo/v1', '/editorial-suggestions'") || !seoEditorialTools.includes("Digitalisimo_AI::complete( 'seo'") || !seoEditorialTools.includes('meta_description') || !seoEditorialTools.includes('excerpt') || !readFileSync('digitalisimo-seo/assets/keyword-manager.js', 'utf8').includes('digitalisimo-keyword-ai-generate')) throw new Error('Keywords debe permitir sugerencias IA seleccionables y propuestas de meta descripción y descripción corta.');
+if (!seoEditorialTools.includes('La ficha verde es la keyword principal') || !readFileSync('digitalisimo-seo/assets/keyword-manager.js', 'utf8').includes('is-primary') || !readFileSync('digitalisimo-seo/assets/keyword-manager.css', 'utf8').includes('digitalisimo-keyword-primary-badge')) throw new Error('La keyword principal debe destacarse y el orden de las fichas debe poder cambiarse por arrastre.');
 if (!seoSuite.includes("'diagnostic' => 'SEO Front'")) throw new Error('SEO Front debe ser la última pestaña de SEO');
 if (!seoSuite.includes("$title = $title ?: get_the_title( $id )")) throw new Error('SEO Front debe tener título de respaldo en contenido singular');
 if (!seoSuite.includes("'Organization', 'LocalBusiness', 'Person'")) throw new Error('El tipo Organization debe validarse antes de emitir Schema');

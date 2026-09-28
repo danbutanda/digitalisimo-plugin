@@ -10,14 +10,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const render = () => {
       chips.innerHTML = '';
       words.forEach((word, index) => {
-        const chip = document.createElement('div'); chip.className = 'digitalisimo-keyword-chip'; chip.draggable = true; chip.dataset.index = index;
+        const chip = document.createElement('div'); chip.className = `digitalisimo-keyword-chip${index === 0 ? ' is-primary' : ''}`; chip.draggable = true; chip.dataset.index = index; chip.title = index === 0 ? 'Keyword principal. Arrastra otra ficha aquí para cambiarla.' : 'Arrastra esta ficha al inicio para convertirla en la keyword principal.';
         const label = document.createElement('button'); label.type = 'button'; label.className = 'digitalisimo-keyword-label'; label.textContent = word; label.title = 'Editar palabra clave';
         label.addEventListener('click', () => { const next = window.prompt('Editar palabra clave', words[index]); if (next && next.trim()) { words[index] = next.trim(); sync(); render(); } });
         const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'digitalisimo-keyword-remove'; remove.textContent = '×'; remove.title = 'Eliminar palabra clave'; remove.addEventListener('click', () => { words.splice(index, 1); sync(); render(); });
+        if (index === 0) { const badge = document.createElement('span'); badge.className = 'digitalisimo-keyword-primary-badge'; badge.textContent = 'Principal'; chip.append(badge); }
         chip.append(label, remove); chips.appendChild(chip);
-        chip.addEventListener('dragstart', (event) => event.dataTransfer.setData('text/plain', String(index)));
+        chip.addEventListener('dragstart', (event) => { chip.classList.add('is-dragging'); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(index)); });
+        chip.addEventListener('dragend', () => chip.classList.remove('is-dragging'));
         chip.addEventListener('dragover', (event) => event.preventDefault());
-        chip.addEventListener('drop', (event) => { event.preventDefault(); const from = Number(event.dataTransfer.getData('text/plain')); const moved = words.splice(from, 1)[0]; words.splice(index, 0, moved); sync(); render(); });
+        chip.addEventListener('drop', (event) => { event.preventDefault(); const from = Number(event.dataTransfer.getData('text/plain')); if (!Number.isInteger(from) || from === index) return; const moved = words.splice(from, 1)[0]; words.splice(index, 0, moved); sync(); render(); });
       });
     };
     const addWord = () => { const next = input.value.trim(); if (!next) return; if (words.length >= limit) { window.alert(`Máximo ${limit} palabras clave.`); return; } if (!words.includes(next)) words.push(next); input.value = ''; sync(); render(); };
