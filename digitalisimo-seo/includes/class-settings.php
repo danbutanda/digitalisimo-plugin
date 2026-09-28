@@ -3,6 +3,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Digitalisimo_Integrations_Settings {
 	const OPTION = 'digitalisimo_integrations_options';
+	const TEMPLATE_DEFAULTS_MIGRATION = 'digitalisimo_seo_template_defaults_1_0_122';
 
 	/** Máscara mostrada en lugar de un secreto ya guardado. */
 	const MASK = '••••••••••••';
@@ -119,6 +120,14 @@ class Digitalisimo_Integrations_Settings {
 		// conserva sus propios ajustes mediante get_option()/update_option().
 		add_action( 'admin_menu', array( __CLASS__, 'admin_menu' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'admin_init', array( __CLASS__, 'migrate_template_defaults' ), 1 );
+	}
+
+	/** Rellena una vez las plantillas que versiones previas dejaron vacías. */
+	public static function migrate_template_defaults() {
+		$keys = array( 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive' ); $defaults = self::defaults();
+		if ( ! get_option( self::TEMPLATE_DEFAULTS_MIGRATION ) ) { $site = (array) get_option( self::OPTION, array() ); foreach ( $keys as $key ) if ( ! array_key_exists( $key, $site ) || '' === trim( (string) $site[ $key ] ) ) $site[ $key ] = $defaults[ $key ]; update_option( self::OPTION, $site, false ); update_option( self::TEMPLATE_DEFAULTS_MIGRATION, 1, false ); }
+		if ( is_multisite() && is_network_admin() && ! get_site_option( self::TEMPLATE_DEFAULTS_MIGRATION ) ) { $network = (array) get_site_option( self::OPTION, array() ); foreach ( $keys as $key ) if ( ! array_key_exists( $key, $network ) || '' === trim( (string) $network[ $key ] ) ) $network[ $key ] = $defaults[ $key ]; update_site_option( self::OPTION, $network ); update_site_option( self::TEMPLATE_DEFAULTS_MIGRATION, 1 ); }
 	}
 
 	public static function get( $key = null, $default = null ) {
