@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.108.zip', version: '1.0.108' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.109.zip', version: '1.0.109' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.41.zip', version: '1.0.41' },
@@ -131,8 +131,8 @@ if (!seoSuite.includes('digitalisimo-seo-snippet-modal') || !seoSnippetModalCss.
   throw new Error('El editor de snippet debe poder abrirse en una ventana amplia sin duplicar sus campos.');
 if (!seoSuite.includes('data-snippet-save') || !seoSnippetJs.includes("savePost()") || !seoSnippetModalCss.includes('digitalisimo-snippet-actions'))
   throw new Error('La ventana de snippet debe conservar espaciado y permitir guardar la entrada.');
-if (seoSuite.includes('Digitalisimo_Integrations_Editorial::editor_panels( $post )') || !seoEditorialTools.includes("'digitalisimo_editorial', 'Contenido SEO · Digitalisimo'"))
-  throw new Error('Keywords, cluster y ubicación deben vivir en su bloque editorial, fuera del popup de snippet.');
+if (!seoSuite.includes('Digitalisimo_Integrations_Editorial::editor_panels( $post )') || seoEditorialTools.includes("'digitalisimo_editorial', 'Contenido SEO · Digitalisimo'"))
+	throw new Error('Keywords, cluster y ubicación deben vivir en el bloque SEO lateral, fuera del popup de snippet.');
 if (!seoSuite.includes("digitalisimo-editor-ui") || !seoEditorUiCss.includes('[id^="digitalisimo-"]') || !seoEditorUiCss.includes('.digitalisimo-editorial-panels'))
   throw new Error('Los paneles de Digitalisimo dentro del editor deben compartir la UI de la marca.');
 if (!seoSuite.includes("'side', 'high'") || !seoSuite.includes("digitalisimo_native_seo"))
