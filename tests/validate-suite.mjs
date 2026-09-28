@@ -10,6 +10,7 @@ const modules = [
   { dir: 'digitalisimo-geolocalizacion', file: 'digitalisimo-geolocalizacion.php', zip: 'digitalisimo-geolocalizacion-1.0.15.zip', version: '1.0.15' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.41.zip', version: '1.0.41' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.11.zip', version: '1.0.11' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.0.zip', version: '1.0.0' },
 ];
 const phpFiles = [];
 function walk(dir) {
@@ -63,13 +64,17 @@ const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitali
 const chatbotDialogueCss = readFileSync('digitalisimo.chatbot/assets/article-dialogue.css', 'utf8');
 const chatbotMcpArticles = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-mcp-articles.php', 'utf8');
 const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
-const updaterFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-updater.php'), 'utf8'));
+const sharedModules = modules.filter((module) => module.dir !== 'digitalisimo-backups');
+const updaterFiles = sharedModules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-updater.php'), 'utf8'));
 if (new Set(updaterFiles).size !== 1 || updaterFiles.some((source) =>
   !source.includes("current_user_can( 'manage_network_plugins' )") ||
   !source.includes("network_admin_url( 'admin-post.php' )") ||
   !source.includes('$transient->no_update[ $file ]') ||
   !source.includes("delete_site_transient( 'update_plugins' )")
 )) throw new Error('Los módulos deben distribuir el mismo actualizador compatible con Multisite y caché de WordPress.');
+const backups = readFileSync('digitalisimo-backups/includes/class-backups.php', 'utf8');
+if (!backups.includes('database.sql') || !backups.includes('manifest.json') || !backups.includes('ssh2_connect') || !backups.includes('oauth2.googleapis.com') || !backups.includes('graph.microsoft.com') || !backups.includes('resumable_upload'))
+  throw new Error('Backups debe incluir archivos y base de datos, con destinos local, SFTP, Google Drive y OneDrive.');
 const articleChatPublisher = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-publisher.php','utf8');
 const articleChatEditor = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-article-chat.php','utf8');
 const contentPlaybook = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-playbook.php','utf8');
