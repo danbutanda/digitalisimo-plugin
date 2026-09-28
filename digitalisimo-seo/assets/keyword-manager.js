@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addWord = () => { const next = input.value.trim(); if (!next) return; if (words.length >= limit) { window.alert(`Máximo ${limit} palabras clave.`); return; } if (!words.includes(next)) words.push(next); input.value = ''; sync(); render(); };
     add.addEventListener('click', addWord); input.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addWord(); } }); render();
 
-    const generator = manager.querySelector('.digitalisimo-keyword-ai-generate');
+    const generators = manager.querySelectorAll('.digitalisimo-keyword-ai-generate');
     const result = manager.querySelector('.digitalisimo-keyword-ai-result');
     const editorContent = () => (window.wp?.data?.select('core/editor')?.getEditedPostContent?.() || '');
     const editorTitle = () => (window.wp?.data?.select('core/editor')?.getEditedPostAttribute?.('title') || document.querySelector('#title')?.value || '');
@@ -39,30 +39,33 @@ document.addEventListener('DOMContentLoaded', () => {
       field.value = text; field.dispatchEvent(new Event('input', { bubbles: true })); field.dispatchEvent(new Event('change', { bubbles: true }));
     };
     const button = (label, className, handler) => { const b = document.createElement('button'); b.type = 'button'; b.className = className; b.textContent = label; b.addEventListener('click', handler); return b; };
-    const renderAi = (data) => {
+    const applyDescription = (text) => { applyExcerpt(text); applyMeta(text); };
+    const renderKeywords = (data) => {
       result.innerHTML = '';
       const keywordTitle = document.createElement('strong'); keywordTitle.textContent = 'Keywords alternativas'; result.append(keywordTitle);
       const keywordList = document.createElement('div'); keywordList.className = 'digitalisimo-keyword-ai-chips';
       (data.keywords || []).forEach((word) => keywordList.append(button(`+ ${word}`, 'digitalisimo-keyword-ai-chip', () => { if (words.length >= limit) return window.alert(`Máximo ${limit} palabras clave.`); if (!words.includes(word)) { words.push(word); sync(); render(); } })));
       result.append(keywordList);
-      [['Meta descripción', data.meta_description, applyMeta], ['Descripción corta', data.excerpt, applyExcerpt]].forEach(([label, text, apply]) => {
-        if (!text) return;
-        const card = document.createElement('div'); card.className = 'digitalisimo-keyword-ai-copy';
-        const heading = document.createElement('strong'); heading.textContent = label;
-        const paragraph = document.createElement('p'); paragraph.textContent = text;
-        card.append(heading, paragraph, button(`Usar ${label.toLowerCase()}`, 'button button-secondary', () => apply(text))); result.append(card);
-      });
     };
-    if (generator) generator.addEventListener('click', async () => {
+    const renderDescription = (data) => {
+      result.innerHTML = '';
+      if (!data.description) { result.textContent = 'La IA no devolvió una descripción válida.'; return; }
+      const card = document.createElement('div'); card.className = 'digitalisimo-keyword-ai-copy';
+      const heading = document.createElement('strong'); heading.textContent = 'Descripción del post';
+      const paragraph = document.createElement('p'); paragraph.textContent = data.description;
+      card.append(heading, paragraph, button('Usar en extracto y meta descripción', 'button button-secondary', () => applyDescription(data.description))); result.append(card);
+    };
+    generators.forEach((generator) => generator.addEventListener('click', async () => {
       const keyword = words[0] || input.value.trim();
       if (!keyword) { window.alert('Define primero la keyword principal.'); return; }
       if (!window.digitalisimoSeoAi?.url) { result.textContent = 'No se pudo iniciar la herramienta IA.'; return; }
-      generator.disabled = true; generator.textContent = 'Generando…'; result.textContent = 'Analizando el contenido actual…';
+      const task = generator.dataset.aiTask;
+      const originalLabel = generator.textContent; generators.forEach((button) => { button.disabled = true; }); generator.textContent = 'Generando…'; result.textContent = 'Analizando el contenido actual…';
       try {
-        const response = await fetch(window.digitalisimoSeoAi.url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.digitalisimoSeoAi.nonce }, body: JSON.stringify({ post_id: Number(manager.dataset.postId), keyword, title: editorTitle(), content: editorContent() }) });
-        const data = await response.json(); if (!response.ok) throw new Error(data.message || 'No fue posible generar sugerencias.'); renderAi(data);
+        const response = await fetch(window.digitalisimoSeoAi.url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.digitalisimoSeoAi.nonce }, body: JSON.stringify({ post_id: Number(manager.dataset.postId), task, keyword, title: editorTitle(), content: editorContent() }) });
+        const data = await response.json(); if (!response.ok) throw new Error(data.message || 'No fue posible generar sugerencias.'); if ('keywords' === task) renderKeywords(data); else renderDescription(data);
       } catch (error) { result.textContent = error.message || 'No fue posible generar sugerencias.'; }
-      finally { generator.disabled = false; generator.textContent = 'Generar sugerencias con IA'; }
-    });
+      finally { generators.forEach((button) => { button.disabled = false; }); generator.textContent = originalLabel; }
+    }));
   });
 });
