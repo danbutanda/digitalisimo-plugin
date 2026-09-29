@@ -42,10 +42,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const applyDescription = (text) => { applyExcerpt(text); applyMeta(text); };
     const renderKeywords = (data) => {
       result.innerHTML = '';
-      const keywordTitle = document.createElement('strong'); keywordTitle.textContent = 'Keywords alternativas'; result.append(keywordTitle);
+      const keywordTitle = document.createElement('strong'); keywordTitle.textContent = 'Keywords secundarias sugeridas'; result.append(keywordTitle);
+      const note = document.createElement('p'); note.className = 'description'; note.textContent = 'Sólo se muestran opciones que pueden trabajarse con la misma intención dentro de esta página.'; result.append(note);
       const keywordList = document.createElement('div'); keywordList.className = 'digitalisimo-keyword-ai-chips';
-      (data.keywords || []).forEach((word) => keywordList.append(button(`+ ${word}`, 'digitalisimo-keyword-ai-chip', () => { if (words.length >= limit) return window.alert(`Máximo ${limit} palabras clave.`); if (!words.includes(word)) { words.push(word); sync(); render(); } })));
-      result.append(keywordList);
+      (data.secondary_keywords || data.keywords || []).forEach((word) => keywordList.append(button(`+ ${word}`, 'digitalisimo-keyword-ai-chip', () => { if (words.length >= limit) return window.alert(`Máximo ${limit} keywords objetivo: una principal y hasta cuatro secundarias.`); if (!words.includes(word)) { words.push(word); sync(); render(); } })));
+      if (keywordList.children.length) result.append(keywordList);
+      else { const empty = document.createElement('p'); empty.className = 'description'; empty.textContent = 'No se detectaron secundarias adecuadas para esta misma página.'; result.append(empty); }
+
+      const suggestionLabels = { semantic_term: 'Término semántico', content_opportunity: 'Oportunidad de contenido', faq: 'Pregunta frecuente', new_page: 'Oportunidad para nueva página' };
+      const suggestions = data.seo_suggestions || [];
+      if (suggestions.length) {
+        const heading = document.createElement('strong'); heading.className = 'digitalisimo-keyword-suggestions-title'; heading.textContent = 'Sugerencias SEO adicionales'; result.append(heading);
+        const hint = document.createElement('p'); hint.className = 'description'; hint.textContent = 'No cuentan dentro de las cinco keywords objetivo ni se agregan a esta página automáticamente.'; result.append(hint);
+        const list = document.createElement('ul'); list.className = 'digitalisimo-keyword-suggestions';
+        suggestions.forEach((suggestion) => {
+          const item = document.createElement('li');
+          const type = document.createElement('span'); type.className = 'digitalisimo-keyword-suggestion-type'; type.textContent = suggestionLabels[suggestion.type] || 'Sugerencia SEO';
+          const text = document.createElement('strong'); text.textContent = suggestion.text || '';
+          item.append(type, text);
+          if (suggestion.reason) { const reason = document.createElement('span'); reason.className = 'digitalisimo-keyword-suggestion-reason'; reason.textContent = ` — ${suggestion.reason}`; item.append(reason); }
+          list.append(item);
+        });
+        result.append(list);
+      }
     };
     const renderDescription = (data) => {
       result.innerHTML = '';

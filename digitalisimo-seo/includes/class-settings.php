@@ -163,7 +163,7 @@ class Digitalisimo_Integrations_Settings {
 		}
 		foreach ( self::template_default_keys() as $key ) if ( isset( $input[ $key ] ) && '' === trim( (string) $input[ $key ] ) ) $output[ $key ] = self::defaults()[ $key ];
 		if ( isset( $input['ipinfo_cache_minutes'] ) ) $output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ) );
-		if ( isset( $input['keyword_max_count'] ) ) $output['keyword_max_count'] = min( 20, max( 1, absint( $input['keyword_max_count'] ) ) );
+		if ( isset( $input['keyword_max_count'] ) ) $output['keyword_max_count'] = min( 5, max( 1, absint( $input['keyword_max_count'] ) ) );
 		if ( isset( $input['default_cluster_pillar'] ) ) $output['default_cluster_pillar'] = Digitalisimo_Integrations_Editorial::is_cluster_candidate( absint( $input['default_cluster_pillar'] ) ) ? absint( $input['default_cluster_pillar'] ) : 0;
 		if ( isset( $input['default_content_location'] ) ) $output['default_content_location'] = term_exists( absint( $input['default_content_location'] ), 'digitalisimo_seo_location' ) ? absint( $input['default_content_location'] ) : 0;
 		// Las claves sólo se escriben si llega un valor nuevo; vacío conserva la almacenada.
@@ -320,7 +320,7 @@ class Digitalisimo_Integrations_Settings {
 			self::field( 'openai_api_key', 'Clave API de OpenAI', 'secret', 'Se usa solo para detectar intención de búsqueda.' );
 			self::field( 'openai_model', 'Modelo OpenAI', 'text', 'Por ejemplo: gpt-4o-mini.' );
 			self::field( 'keyword_post_types', 'Tipos de contenido con keywords', 'textarea', 'Usa all para mostrarlo en todos los tipos editables, o separa por comas: post,page,product.' );
-			self::field( 'keyword_max_count', 'Máximo de keywords por contenido', 'number', 'Entre 1 y 20.' );
+			self::field( 'keyword_max_count', 'Máximo de keywords objetivo por contenido', 'number', 'Máximo 5: una principal y hasta cuatro secundarias de la misma intención.' );
 			self::field( 'keyword_auto_from_title', 'Usar título como keyword inicial', 'checkbox', 'Si no se asigna una keyword al guardar, se usa el título del contenido.' );
 			echo '<tr><th scope="row">Palabras clave</th><td><p>Las keywords se configuran por entrada o página, en el metabox <strong>SEO de Digitalisimo</strong>.</p><p><a class="button" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-keywords' ) ) . '">Gestionar keywords</a></p></td></tr>';
 		} elseif ( 'ai' === $tab ) {
