@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.130
+ * Version: 1.0.131
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Digitalísimo
@@ -11,12 +11,13 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.130' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.131' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
 
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-settings.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-keyword-match.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-digitalisimo-core.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-resolver.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-hide-login.php';

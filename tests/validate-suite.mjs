@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.130.zip', version: '1.0.130' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.131.zip', version: '1.0.131' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.41.zip', version: '1.0.41' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.11.zip', version: '1.0.11' },
@@ -148,7 +148,9 @@ if (seoEditorialTools.includes("update_post_meta( $id, 'digitalisimo_article_cha
   throw new Error('SEO no debe sobrescribir el chat editorial, que pertenece exclusivamente a IA Tools.');
 if (!seoSuite.includes('Digitalisimo_Integrations_SEO_Front_Inspector::render()')) throw new Error('Diagnóstico debe incluir el inspector del front');
 const seoFrontInspector = readFileSync('digitalisimo-seo/includes/class-seo-front-inspector.php', 'utf8');
-if (!seoFrontInspector.includes('slug_matches_keyword') || !seoFrontInspector.includes("'' === $path") || !seoFrontInspector.includes('array_intersect( $terms')) throw new Error('SEO Front debe comparar la URL real sin recomendar cambios en portada ni exigir un slug literal.');
+const seoKeywordMatch = readFileSync('digitalisimo-seo/includes/class-keyword-match.php', 'utf8');
+if (!seoFrontInspector.includes('Keyword_Match::slug_matches') || !seoKeywordMatch.includes("'' === $path") || !seoKeywordMatch.includes('array_intersect( $terms')) throw new Error('SEO Front debe comparar la URL real sin recomendar cambios en portada ni exigir un slug literal.');
+if (!seoKeywordMatch.includes('Normalizer::FORM_KD') || !seoKeywordMatch.includes('remove_accents') || !seoKeywordMatch.includes("preg_replace( '/\\\\s+/u', ' '") || !seoKeywordMatch.includes('public static function contains') || !seoKeywordMatch.includes('public static function slug_matches') || !seoBootstrap.includes('class-keyword-match.php')) throw new Error('Las keywords deben normalizar Unicode, acentos, mayúsculas y espacios antes de compararse.');
 if (!seoFrontInspector.includes('missing_secondary_keywords') || !seoSuite.includes("<meta name=\"author\"") || !seoSuite.includes("<meta name=\"publisher\"") || !seoSuite.includes("'publisher' => array( '@id' => home_url( '/#organization' ) )") || !seoSuite.includes('ensure_post_author')) throw new Error('SEO Front debe agrupar keywords secundarias y el front debe emitir autor y publisher reales.');
 if (!seoSettings.includes("'seo_default_image_alt'  => ''") || !seoSuite.includes('attachment_alt') || !seoSuite.includes('image_alt_variables_help') || !seoSuite.includes('%site_description%') || !seoSuite.includes('%image_caption%') || !seoSuite.includes('wp_get_attachment_image_attributes')) throw new Error('El alt predeterminado debe aplicar variables de sitio, contenido e imagen como respaldo local.');
 if (!seoResolver.includes('site_only_keys') || !seoResolver.includes("'seo_site_name', 'seo_default_image', 'seo_default_image_alt'") || !seoSuite.includes('navigation_tabs( $tab, true )') || !seoSuite.includes('network_site_fields') || !seoSuite.includes('%sep%') || !readFileSync('digitalisimo-seo/assets/admin-ui.css', 'utf8').includes('digitalisimo-inherited-value')) throw new Error('La identidad e imágenes locales no deben heredarse y la red debe usar la navegación del sitio y mostrar valores heredados.');
