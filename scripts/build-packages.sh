@@ -22,3 +22,4 @@ build_package digitalisimo-ecommerce digitalisimo-ecommerce.php digitalisimo-eco
 build_package digitalisimo.chatbot digitalisimo-chatbot.php digitalisimo-ia-tools
 build_package digitalisimo-hosting digitalisimo-hosting.php digitalisimo-hosting
 build_package digitalisimo-backups digitalisimo-backups.php digitalisimo-backups
+build_package digitalisimo-tools digitalisimo-tools.php digitalisimo-tools
