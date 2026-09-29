@@ -6,7 +6,7 @@ Suite modular de plugins WordPress. Cada módulo puede instalarse de forma indep
 
 - **Digitalisimo SEO**: SEO técnico, contenido, schema, sitemap, SEO AI e importación desde Yoast y Rank Math.
 - **Digitalisimo Ecommerce**: funciones e integraciones WooCommerce.
-- **Digitalisimo Geolocalización**: ubicación administrativa, IPInfo y señales locales.
+- **Digitalisimo SEO**: ubicación administrativa, SEO local, schema y señales geográficas.
 - **Digitalisimo IA Tools**: proveedores IA, chatbot, conocimiento RAG, asistentes para contenido, SEO y ecommerce, y generación de imágenes.
 - **Digitalisimo Hosting**: dominios, Namecheap y flujos de hosting.
 

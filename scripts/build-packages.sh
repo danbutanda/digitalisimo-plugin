@@ -19,7 +19,6 @@ build_package() {
 
 build_package digitalisimo-seo digitalisimo-integrations.php digitalisimo-seo
 build_package digitalisimo-ecommerce digitalisimo-ecommerce.php digitalisimo-ecommerce
-build_package digitalisimo-geolocalizacion digitalisimo-geolocalizacion.php digitalisimo-geolocalizacion
 build_package digitalisimo.chatbot digitalisimo-chatbot.php digitalisimo-ia-tools
 build_package digitalisimo-hosting digitalisimo-hosting.php digitalisimo-hosting
 build_package digitalisimo-backups digitalisimo-backups.php digitalisimo-backups
