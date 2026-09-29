@@ -1,8 +1,9 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_Plugin_Catalog {
+	private static $initialized = false;
 	const ACTION = 'digitalisimo_install_catalog_plugin';
-	public static function init() { add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'install' ) ); add_action( 'admin_menu', array( __CLASS__, 'menu' ), 99 ); add_action( 'admin_menu', array( __CLASS__, 'normalize_menu' ), 999 ); if ( is_multisite() ) { add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ), 99 ); add_action( 'network_admin_menu', array( __CLASS__, 'normalize_network_menu' ), 999 ); } }
+	public static function init() { if ( self::$initialized ) return; self::$initialized = true; add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'install' ) ); add_action( 'admin_menu', array( __CLASS__, 'menu' ), 99 ); add_action( 'admin_menu', array( __CLASS__, 'normalize_menu' ), 999 ); if ( is_multisite() ) { add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ), 99 ); add_action( 'network_admin_menu', array( __CLASS__, 'normalize_network_menu' ), 999 ); } }
 	public static function menu() { add_submenu_page( 'digitalisimo', 'Plugins · Digitalisimo', 'Plugins', 'manage_options', 'digitalisimo-plugins', array( __CLASS__, 'page' ) ); }
 	public static function network_menu() { add_submenu_page( 'digitalisimo-network', 'Plugins · Digitalisimo', 'Plugins', 'manage_network_options', 'digitalisimo-plugins', array( __CLASS__, 'page' ) ); add_submenu_page( 'digitalisimo-network-seo', 'Plugins · Digitalisimo', 'Plugins', 'manage_network_options', 'digitalisimo-plugins', array( __CLASS__, 'page' ) ); }
 	public static function normalize_menu() { self::sort_menu( 'digitalisimo' ); }
