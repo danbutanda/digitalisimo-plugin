@@ -36,6 +36,9 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		public static function register( $file, $version, $slug ) {
 			$basename = plugin_basename( $file );
 			self::$modules[ $basename ] = array( 'version' => $version, 'slug' => $slug );
+			// Recupera instalaciones antiguas de Tools que aún no incluían actualizador propio.
+			$tools_file = WP_PLUGIN_DIR . '/digitalisimo-tools/digitalisimo-tools.php';
+			if ( file_exists( $tools_file ) ) { $header = get_file_data( $tools_file, array( 'Version' => 'Version' ) ); if ( ! empty( $header['Version'] ) ) self::$modules['digitalisimo-tools/digitalisimo-tools.php'] = array( 'version' => $header['Version'], 'slug' => 'digitalisimo-tools' ); }
 			// El enlace se registra por módulo; el resto de hooks es compartido.
 			add_filter( 'plugin_action_links_' . $basename, array( __CLASS__, 'action_link' ) );
 			add_filter( 'network_admin_plugin_action_links_' . $basename, array( __CLASS__, 'action_link' ) );
