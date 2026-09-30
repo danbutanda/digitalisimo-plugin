@@ -5,13 +5,13 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.139.zip', version: '1.0.139' },
-  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.19.zip', version: '1.0.19' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.43.zip', version: '1.0.43' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.13.zip', version: '1.0.13' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.25.zip', version: '1.0.25' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.140.zip', version: '1.0.140' },
+  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.20.zip', version: '1.0.20' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.44.zip', version: '1.0.44' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.14.zip', version: '1.0.14' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.26.zip', version: '1.0.26' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.4.zip', version: '1.0.4' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.6.zip', version: '1.0.6' };
 const phpFiles = [];
 function walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -40,7 +40,7 @@ for (const module of modules) {
   if (!source.includes(`Version: ${toolsModule.version}`)) throw new Error(`Versión incorrecta en ${main}`);
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
   if (!listing.includes(`${toolsModule.dir}/${toolsModule.file}`) || listing.includes('.DS_Store')) throw new Error('El paquete de DIGITALÍSIMO Tools no tiene una estructura válida');
-  for (const required of ['class-plugin-catalog.php', 'class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
+  for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
 }
 
 const declarations = new Map();
@@ -136,7 +136,7 @@ const updaters = [
   'digitalisimo.chatbot/includes/class-digitalisimo-updater.php',
   'digitalisimo-hosting/includes/class-digitalisimo-updater.php',
 ].map((file) => readFileSync(file, 'utf8'));
-if (updaters.some((source) => !source.includes('const CACHE_TTL  = MINUTE_IN_SECONDS') || !source.includes('set_site_transient( self::CACHE_KEY, $index, self::CACHE_TTL )')))
+if (updaters.some((source) => !source.includes('const CACHE_TTL  = HOUR_IN_SECONDS') || !source.includes('set_site_transient( self::CACHE_KEY, $index, self::CACHE_TTL )')))
   throw new Error('Durante desarrollo todos los módulos deben consultar Releases cada minuto, incluso tras un fallo temporal.');
 if (!seoSuite.includes("add_submenu_page( 'digitalisimo', 'SEO', 'SEO'")) throw new Error('Falta el acceso unificado SEO');
 if (!seoSuite.includes("digitalisimo-seo-snippet-editor") || !seoSuite.includes('Vista previa en Google') || !seoSuite.includes('digitalisimo_native_slug'))

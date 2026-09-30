@@ -10,7 +10,7 @@ final class Digitalisimo_Backups_Updater {
 		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPO . '/releases?per_page=20', array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-WordPress-Updater' ) ) );
 		$found = array();
 		if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) foreach ( (array) json_decode( wp_remote_retrieve_body( $response ), true ) as $release ) foreach ( (array) ( $release['assets'] ?? array() ) as $asset ) if ( preg_match( '/^digitalisimo-backups-([0-9.]+)\\.zip$/', (string) ( $asset['name'] ?? '' ), $match ) && ( empty( $found['version'] ) || version_compare( $match[1], $found['version'], '>' ) ) ) $found = array( 'version' => $match[1], 'package' => esc_url_raw( $asset['browser_download_url'] ?? '' ), 'url' => esc_url_raw( $release['html_url'] ?? '' ) );
-		set_site_transient( self::KEY, $found, MINUTE_IN_SECONDS ); return $found;
+		set_site_transient( self::KEY, $found, HOUR_IN_SECONDS ); return $found;
 	}
 	public static function inject( $transient ) {
 		if ( ! is_object( $transient ) ) return $transient; $file = plugin_basename( DIGITALISIMO_BACKUPS_FILE ); $release = self::release();

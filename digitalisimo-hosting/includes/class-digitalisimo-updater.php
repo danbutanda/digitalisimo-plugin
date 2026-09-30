@@ -19,7 +19,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		const CACHE_KEY  = 'digitalisimo_releases_index';
 		// Durante el desarrollo se consulta GitHub cada minuto. Al estabilizar
 		// releases, este valor vuelve a HOUR_IN_SECONDS.
-		const CACHE_TTL  = MINUTE_IN_SECONDS;
+		const CACHE_TTL  = HOUR_IN_SECONDS;
 		const ACTION     = 'digitalisimo_check_updates';
 
 		/** Módulos registrados, indexados por su archivo principal relativo. */
