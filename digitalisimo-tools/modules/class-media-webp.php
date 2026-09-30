@@ -7,7 +7,35 @@ final class Media_WebP {
 	const META_DONE = '_digitalisimo_tools_webp';
 	const META_ERROR = '_digitalisimo_tools_webp_error';
 
-	public static function init() { add_action( 'wp_ajax_' . self::ACTION, array( __CLASS__, 'process_next' ) ); }
+	public static function init() {
+		add_action( 'wp_ajax_' . self::ACTION, array( __CLASS__, 'process_next' ) );
+		add_filter( 'display_media_states', array( __CLASS__, 'media_states' ), 10, 2 );
+		add_filter( 'wp_prepare_attachment_for_js', array( __CLASS__, 'attachment_data' ), 10, 2 );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'library_assets' ) );
+	}
+
+	private static function is_optimized( $attachment_id ) {
+		$file = get_attached_file( $attachment_id );
+		$optimized_file = get_post_meta( $attachment_id, self::META_DONE, true );
+		return 'image/webp' === get_post_mime_type( $attachment_id ) && $file && $optimized_file && 'webp' === strtolower( pathinfo( $file, PATHINFO_EXTENSION ) ) && wp_normalize_path( $file ) === wp_normalize_path( $optimized_file );
+	}
+
+	public static function media_states( $states, $attachment ) {
+		if ( self::is_optimized( $attachment->ID ) ) $states['digitalisimo_tools_webp'] = 'Optimizada · WebP';
+		return $states;
+	}
+
+	public static function attachment_data( $response, $attachment ) {
+		$response['digitalisimoOptimized'] = self::is_optimized( $attachment->ID );
+		return $response;
+	}
+
+	public static function library_assets( $hook ) {
+		if ( 'upload.php' !== $hook ) return;
+		$base = plugin_dir_url( DIGITALISIMO_TOOLS_FILE );
+		wp_enqueue_script( 'digitalisimo-tools-media-badges', $base . 'assets/media-badges.js', array( 'media-views' ), DIGITALISIMO_TOOLS_VERSION, true );
+		wp_enqueue_style( 'digitalisimo-tools-media-badges', $base . 'assets/media-badges.css', array(), DIGITALISIMO_TOOLS_VERSION );
+	}
 
 	public static function page() {
 		$network = is_multisite() && is_network_admin();

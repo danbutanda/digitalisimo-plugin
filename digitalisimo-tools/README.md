@@ -25,6 +25,8 @@ El plugin no hace consultas, JavaScript, REST, iframes, shortcodes ni solicitude
 
 La herramienta recorre adjuntos JPG y PNG del sitio actual; desde la administración de red, recorre todos los sitios. Los adjuntos que ya son WebP no se procesan. Cada conversión guarda un WebP a calidad 75, cambia el archivo principal y el tipo del adjunto, regenera los tamaños y comprueba que WordPress haya guardado los metadatos nuevos. Los JPG/PNG que una versión anterior marcó como optimizados vuelven a ser elegibles. Los errores se muestran y pueden reintentarse en otra pasada. Los archivos antiguos permanecen en el servidor para conservar enlaces directos que ya existan; las URL fijas insertadas en contenido o plantillas no cambian automáticamente.
 
+En la Biblioteca de Medios, cada adjunto convertido por Tools muestra **Optimizada · WebP** como estado en la vista de lista y como insignia en la cuadrícula. Un WebP subido ya optimizado no lleva la marca de Tools.
+
 ## Compatibilidad y pruebas pendientes
 
 El módulo de plantillas no ejecuta sincronizaciones si no está activo Elementor y sólo aparece en Multisite; la pantalla WebP sí está disponible en WordPress individual. La sincronización de plantillas debe validarse en una red de pruebas con la versión real de Elementor antes de activarla automáticamente: plantilla simple, datos responsive, medios, widget Template, Tabs/Nested Tabs, dependencias anidadas, borrado de una copia, cambio de título, exclusiones, bloqueo y regeneración de CSS. La conversión WebP requiere una prueba funcional en WordPress con GD o Imagick y una biblioteca de medios real.
