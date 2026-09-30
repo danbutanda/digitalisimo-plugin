@@ -21,14 +21,16 @@ jobs:
         with:
           node-version: '20'
       - name: Validar sintaxis PHP
-        run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo-geolocalizacion digitalisimo.chatbot digitalisimo-hosting -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: Construir paquetes limpios
         run: |
           mkdir -p dist
           find dist -maxdepth 1 -type f -name '*.zip' -delete
           bash scripts/build-packages.sh dist
       - name: Validar suite y paquetes
-        run: DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
+        run: |
+          DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
+          DIGITALISIMO_PACKAGE_DIR=dist node scripts/verify-release.mjs
 
       - name: Guardar ZIP SEO para pruebas y reversión
         uses: actions/upload-artifact@v4

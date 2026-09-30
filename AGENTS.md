@@ -4,7 +4,7 @@ Este repositorio entrega módulos WordPress independientes que comparten un núc
 
 ## Reglas de trabajo
 
-- Repositorio oficial de código y Releases: `danbutanda/digitalisimo-plugin`. Los cinco actualizadores nativos consultan este repositorio. Todo cambio que modifique un plugin se considera incompleto hasta crear los ZIPs de todos los módulos, validarlos, subir el commit y publicar todos como assets en una misma GitHub Release; no se entrega código sin actualizaciones instalables desde WordPress para cada módulo.
+- Repositorio oficial de código y Releases: `danbutanda/digitalisimo-plugin`. Los seis actualizadores nativos consultan este repositorio. Todo cambio que modifique un plugin se considera incompleto hasta incrementar la versión de los seis módulos, crear sus ZIPs, validarlos, subir el commit y publicar todos como assets en una misma GitHub Release; no se entrega código sin actualizaciones instalables desde WordPress para cada módulo. El workflow `release.yml` publica automáticamente los cambios de plugins que llegan a `main`; hay que comprobar que terminó con éxito y que la Release contiene exactamente los seis assets. Ver `docs/RELEASE_PROCESS.md`.
 
 - Cada módulo se instala solo o junto a los demás; nunca debe requerir que otro módulo esté activo salvo para una mejora opcional.
 - WordPress Multisite: la red define defaults y cada sitio puede heredar o personalizar. La resolución es `contenido → sitio → red → default`.
