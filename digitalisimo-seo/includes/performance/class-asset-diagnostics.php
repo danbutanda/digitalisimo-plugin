@@ -48,6 +48,14 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		}
 		echo '<p>' . ( ! empty( $result['swiper_required'] ) ? 'Swiper está declarado por un widget de esta página: conservarlo.' : 'No se encontró una dependencia declarada de Swiper en los widgets capturados. Sólo es una recomendación de revisión; no se descarga automáticamente.' ) . '</p>';
 		echo '<h3>WooCommerce</h3><p>' . ( ! empty( $result['woocommerce_required'] ) ? 'Esta URL usa un contexto o widget WooCommerce: conservar assets de carrito, formularios y fragmentos.' : 'No se detectó contexto WooCommerce en esta URL. El minicart global y los shortcodes requieren revisión antes de cualquier descarga.' ) . '</p>';
+		echo '<h3>Fuentes locales</h3><p>Familias, pesos y formatos encontrados en hojas CSS locales encoladas. El uso above-the-fold requiere inspección visual o medición de navegador; aquí no se infiere.</p>';
+		$fonts = (array) ( $result['fonts'] ?? array() );
+		if ( ! $fonts ) echo '<p>No se localizaron reglas @font-face en las hojas locales inspeccionadas.</p>';
+		else {
+			echo '<table class="widefat striped"><thead><tr><th>Familia</th><th>Pesos</th><th>Formato</th><th>font-display</th><th>CSS</th><th>Peso CSS</th></tr></thead><tbody>';
+			foreach ( $fonts as $font ) echo '<tr><td>' . esc_html( $font['family'] ?? '' ) . '</td><td>' . esc_html( implode( ', ', (array) ( $font['weights'] ?? array() ) ) ) . '</td><td>' . esc_html( implode( ', ', (array) ( $font['formats'] ?? array() ) ) ) . '</td><td>' . esc_html( implode( ', ', (array) ( $font['display'] ?? array() ) ) ) . '</td><td><code>' . esc_html( $font['css'] ?? '' ) . '</code></td><td>' . esc_html( size_format( (int) ( $font['bytes'] ?? 0 ) ) ) . '</td></tr>';
+			echo '</tbody></table>';
+		}
 	}
 
 	public static function run() {
@@ -66,7 +74,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			elseif ( 200 !== wp_remote_retrieve_response_code( $response ) ) $result = array( 'error' => 'La URL respondió HTTP ' . wp_remote_retrieve_response_code( $response ) . '.' );
 			else {
 				$data = json_decode( wp_remote_retrieve_body( $response ), true );
-				$result = is_array( $data ) && ! empty( $data['digitalisimo_performance'] ) ? array( 'url' => $url, 'resources' => (array) ( $data['resources'] ?? array() ), 'widgets' => (array) ( $data['widgets'] ?? array() ), 'swiper_required' => ! empty( $data['swiper_required'] ), 'woocommerce_required' => ! empty( $data['woocommerce_required'] ) ) : array( 'error' => 'El sitio no devolvió la captura de assets. Comprueba la URL, caché de página o acceso HTTP interno.' );
+				$result = is_array( $data ) && ! empty( $data['digitalisimo_performance'] ) ? array( 'url' => $url, 'resources' => (array) ( $data['resources'] ?? array() ), 'widgets' => (array) ( $data['widgets'] ?? array() ), 'fonts' => (array) ( $data['fonts'] ?? array() ), 'swiper_required' => ! empty( $data['swiper_required'] ), 'woocommerce_required' => ! empty( $data['woocommerce_required'] ) ) : array( 'error' => 'El sitio no devolvió la captura de assets. Comprueba la URL, caché de página o acceso HTTP interno.' );
 			}
 			delete_site_transient( 'digitalisimo_perf_probe_' . $token );
 		}
@@ -76,14 +84,15 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		exit;
 	}
 
-	private static function site_for_url( $url, $network ) {
+	public static function site_for_url( $url, $network ) {
 		$parts = wp_parse_url( $url );
 		if ( ! is_array( $parts ) || ! in_array( $parts['scheme'] ?? '', array( 'http', 'https' ), true ) || empty( $parts['host'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) || isset( $parts['fragment'] ) ) return 0;
 		$site_id = get_current_blog_id();
-		if ( $network ) {
+		if ( is_multisite() ) {
 			$site = get_site_by_path( $parts['host'], $parts['path'] ?? '/' );
 			if ( ! $site ) return 0;
-			$site_id = (int) $site->blog_id;
+			if ( ! $network && (int) $site->blog_id !== $site_id ) return 0;
+			if ( $network ) $site_id = (int) $site->blog_id;
 		}
 		$home = wp_parse_url( get_home_url( $site_id, '/' ) );
 		if ( ! is_array( $home ) || strtolower( $parts['host'] ) !== strtolower( $home['host'] ?? '' ) || ( $parts['scheme'] ?? '' ) !== ( $home['scheme'] ?? '' ) || (int) ( $parts['port'] ?? 0 ) !== (int) ( $home['port'] ?? 0 ) ) return 0;
@@ -167,6 +176,48 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		return 'Desconocido';
 	}
 
+	/** Sólo inspecciona CSS local dentro de uploads o wp-content, nunca URLs arbitrarias. */
+	private static function local_css_path( $url ) {
+		$parsed = wp_parse_url( $url );
+		if ( ! is_array( $parsed ) || empty( $parsed['path'] ) || strtolower( pathinfo( $parsed['path'], PATHINFO_EXTENSION ) ) !== 'css' ) return '';
+		if ( isset( $parsed['host'] ) && strtolower( $parsed['host'] ) !== strtolower( wp_parse_url( home_url( '/' ), PHP_URL_HOST ) ) ) return '';
+		$uploads = wp_upload_dir();
+		$roots = array( array( $uploads['baseurl'] ?? '', $uploads['basedir'] ?? '' ), array( content_url(), WP_CONTENT_DIR ) );
+		foreach ( $roots as $root ) {
+			$base = wp_parse_url( $root[0], PHP_URL_PATH );
+			if ( ! $base || 0 !== strpos( $parsed['path'], trailingslashit( $base ) ) ) continue;
+			$relative = rawurldecode( substr( $parsed['path'], strlen( trailingslashit( $base ) ) ) );
+			$directory = realpath( $root[1] );
+			$path = realpath( trailingslashit( $root[1] ) . $relative );
+			if ( $directory && $path && 0 === strpos( $path, trailingslashit( $directory ) ) && is_file( $path ) && is_readable( $path ) && filesize( $path ) <= 512 * KB_IN_BYTES ) return $path;
+		}
+		return '';
+	}
+
+	private static function inspect_fonts() {
+		$fonts = array();
+		foreach ( self::$resources as $row ) {
+			if ( 'CSS' !== $row['type'] ) continue;
+			$path = self::local_css_path( $row['src'] );
+			if ( ! $path ) continue;
+			$css = file_get_contents( $path );
+			if ( false === $css || ! preg_match_all( '/@font-face\s*\{([^}]*)\}/i', $css, $faces ) ) continue;
+			foreach ( array_slice( $faces[1], 0, 300 ) as $face ) {
+				if ( ! preg_match( '/font-family\s*:\s*([^;]+)/i', $face, $family_match ) ) continue;
+				$family = trim( $family_match[1], " \t\n\r\0\x0B'\"" );
+				$key = md5( $row['src'] . '|' . $family );
+				if ( ! isset( $fonts[ $key ] ) ) $fonts[ $key ] = array( 'family' => $family, 'weights' => array(), 'formats' => array(), 'display' => array(), 'css' => $row['src'], 'bytes' => filesize( $path ) );
+				foreach ( array( 'font-weight' => 'weights', 'format' => 'formats', 'font-display' => 'display' ) as $property => $field ) {
+				$pattern = 'format' === $property ? '/format\(\s*[\'\"]?([^\'\")]+)/i' : '/' . $property . '\s*:\s*([^;]+)/i';
+				if ( preg_match( $pattern, $face, $match ) ) $fonts[ $key ][ $field ][ trim( $match[1] ) ] = true;
+				elseif ( 'font-display' === $property ) $fonts[ $key ][ $field ]['No declarado'] = true;
+				}
+			}
+		}
+		foreach ( $fonts as &$font ) foreach ( array( 'weights', 'formats', 'display' ) as $field ) $font[ $field ] = array_keys( $font[ $field ] );
+		return array_values( $fonts );
+	}
+
 	public static function finish_probe() {
 		if ( ! self::$collecting ) return;
 		self::capture();
@@ -181,6 +232,6 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		if ( class_exists( 'WooCommerce' ) ) {
 			foreach ( array( 'is_woocommerce', 'is_cart', 'is_checkout', 'is_account_page' ) as $function ) if ( function_exists( $function ) && call_user_func( $function ) ) $woocommerce_required = true;
 		}
-		echo wp_json_encode( array( 'digitalisimo_performance' => true, 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required ) );
+		echo wp_json_encode( array( 'digitalisimo_performance' => true, 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'fonts' => self::inspect_fonts(), 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required ) );
 	}
 }

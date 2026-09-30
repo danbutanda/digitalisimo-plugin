@@ -39,7 +39,7 @@ for (const module of modules) {
 	const zipListing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
 	if (!zipListing.includes(`${module.dir}/${module.file}`)) throw new Error(`El ZIP ${zip} no conserva su archivo principal`);
 	if (zipListing.includes('.DS_Store')) throw new Error(`El ZIP ${zip} contiene archivos de sistema`);
-  if (module.dir === 'digitalisimo-seo' && (!zipListing.includes('includes/performance/class-performance-manager.php') || !zipListing.includes('includes/performance/class-asset-diagnostics.php'))) throw new Error('El ZIP SEO no contiene el módulo de rendimiento.');
+  if (module.dir === 'digitalisimo-seo' && ['class-performance-manager.php', 'class-asset-diagnostics.php', 'class-performance-measurements.php'].some((file) => !zipListing.includes(`includes/performance/${file}`))) throw new Error('El ZIP SEO no contiene el módulo de rendimiento.');
   walk(module.dir);
 }
 {

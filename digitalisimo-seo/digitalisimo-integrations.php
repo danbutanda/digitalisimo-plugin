@@ -44,6 +44,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-admin-ui.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-editorial.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-manager.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-asset-diagnostics.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-measurements.php';
 
 // Debe decidirse antes de `plugins_loaded`: para entonces la ruta ya está resuelta.
 Digitalisimo_Integrations_Hide_Login::boot();
@@ -52,6 +53,7 @@ function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Settings::init();
 	Digitalisimo_Integrations_Performance_Manager::init();
 	Digitalisimo_Integrations_Asset_Diagnostics::init();
+	Digitalisimo_Integrations_Performance_Measurements::init();
 	Digitalisimo_Integrations_SEO_Suite::init();
 	// SEO AI usa el motor y los proveedores del módulo AI y Chatbot.
 	if ( class_exists( 'Digitalisimo_AI' ) ) {

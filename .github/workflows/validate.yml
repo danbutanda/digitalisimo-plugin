@@ -23,7 +23,9 @@ jobs:
       - name: Validar sintaxis PHP
         run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar protecciones de rendimiento
-        run: php tests/performance-runtime.php
+        run: |
+          php tests/performance-runtime.php
+          php tests/performance-diagnostics.php
       - name: Construir paquetes limpios
         run: |
           mkdir -p dist
