@@ -3,6 +3,7 @@
 define( 'ABSPATH', __DIR__ );
 define( 'WP_CONTENT_DIR', __DIR__ . '/fixtures/wp-content' );
 define( 'KB_IN_BYTES', 1024 );
+define( 'MB_IN_BYTES', 1024 * 1024 );
 function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
 function home_url() { return 'https://example.test/'; }
 function wp_upload_dir() { return array( 'baseurl' => 'https://example.test/wp-content/uploads', 'basedir' => WP_CONTENT_DIR . '/uploads' ); }
@@ -31,6 +32,14 @@ $resources = $class->getProperty( 'resources' );
 $resources->setValue( null, array( 'CSS:fonts' => array( 'type' => 'CSS', 'src' => 'https://example.test/wp-content/fonts.css' ) ) );
 $fonts = $class->getMethod( 'inspect_fonts' )->invoke( null );
 if ( 1 !== count( $fonts ) || 'Inter' !== $fonts[0]['family'] || array( '400', '700' ) !== array_map( 'strval', $fonts[0]['weights'] ) || array( 'woff2' ) !== $fonts[0]['formats'] || array( 'No declarado' ) !== $fonts[0]['display'] ) throw new RuntimeException( 'Debe agrupar fuentes, pesos, formato y ausencia de font-display: ' . json_encode( $fonts ) );
+$resources->setValue( null, array() );
+$class->getMethod( 'inspect_html_resources' )->invoke( null, '<script src="https://www.googletagmanager.com/gtag/js?id=G-1"></script><link rel="preload" as="font" href="https://example.test/wp-content/inter.woff2">' );
+$detected = $resources->getValue();
+if ( 2 !== count( $detected ) || ! in_array( 'Script externo', array_column( $detected, 'type' ), true ) || ! in_array( 'Fuente', array_column( $detected, 'type' ), true ) ) throw new RuntimeException( 'Debe registrar scripts externos y fuentes preloaded presentes en HTML.' );
+$images = $class->getMethod( 'inspect_html_images' )->invoke( null, '<img src="https://example.test/a.jpg" width="1024" height="640" srcset="a-640.jpg 640w" sizes="100vw"><img src="https://example.test/b.png">' );
+if ( 2 !== count( $images ) || 'Mantener; comprobar tamaño visual en navegador' !== $images[0]['recommendation'] || 'Revisar dimensiones reales del adjunto' !== $images[1]['recommendation'] ) throw new RuntimeException( 'Debe diagnosticar atributos de imagen sin inventar dimensiones.' );
+$registry = (object) array( 'registered' => array( 'carousel-handler' => (object) array( 'deps' => array( 'swiper' ) ), 'swiper' => (object) array( 'deps' => array() ), 'unrelated' => (object) array( 'deps' => array() ) ) );
+if ( ! $class->getMethod( 'swiper_dependency' )->invoke( null, 'carousel-handler', $registry ) || $class->getMethod( 'swiper_dependency' )->invoke( null, 'unrelated', $registry ) ) throw new RuntimeException( 'Swiper debe detectarse por dependencias transitivas, sin falsos positivos para handles ajenos.' );
 $metrics = Digitalisimo_Integrations_Performance_Measurements::sanitize_metrics( array( 'before' => array( 'score' => '61', 'lcp' => '7.4' ), 'after' => array( 'score' => '72' ) ) );
 if ( 61.0 !== $metrics['before']['score'] || 7.4 !== $metrics['before']['lcp'] || 72.0 !== $metrics['after']['score'] ) throw new RuntimeException( 'La comparativa debe preservar antes y después.' );
 try { Digitalisimo_Integrations_Performance_Measurements::sanitize_metrics( array( 'after' => array( 'score' => '101' ) ) ); throw new RuntimeException( 'Debe rechazar una puntuación mayor que 100.' ); } catch ( InvalidArgumentException $expected ) {}

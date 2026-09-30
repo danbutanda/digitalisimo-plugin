@@ -56,6 +56,14 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			foreach ( $fonts as $font ) echo '<tr><td>' . esc_html( $font['family'] ?? '' ) . '</td><td>' . esc_html( implode( ', ', (array) ( $font['weights'] ?? array() ) ) ) . '</td><td>' . esc_html( implode( ', ', (array) ( $font['formats'] ?? array() ) ) ) . '</td><td>' . esc_html( implode( ', ', (array) ( $font['display'] ?? array() ) ) ) . '</td><td><code>' . esc_html( $font['css'] ?? '' ) . '</code></td><td>' . esc_html( size_format( (int) ( $font['bytes'] ?? 0 ) ) ) . '</td></tr>';
 			echo '</tbody></table>';
 		}
+		echo '<h3>Imágenes</h3><p>Revisión de atributos publicados, sin modificar archivos. El tamaño visual real y el ahorro potencial requieren medición de navegador.</p>';
+		$images = (array) ( $result['images'] ?? array() );
+		if ( ! $images ) echo '<p>No se encontraron imágenes HTML en esta URL.</p>';
+		else {
+			echo '<table class="widefat striped"><thead><tr><th>Imagen</th><th>width × height</th><th>srcset</th><th>sizes</th><th>Recomendación</th></tr></thead><tbody>';
+			foreach ( $images as $image ) echo '<tr><td><code>' . esc_html( $image['src'] ?? '' ) . '</code></td><td>' . esc_html( $image['width'] ?? '—' ) . ' × ' . esc_html( $image['height'] ?? '—' ) . '</td><td>' . ( ! empty( $image['srcset'] ) ? 'Sí' : 'No' ) . '</td><td>' . ( ! empty( $image['sizes'] ) ? 'Sí' : 'No' ) . '</td><td>' . esc_html( $image['recommendation'] ?? '' ) . '</td></tr>';
+			echo '</tbody></table>';
+		}
 	}
 
 	public static function run() {
@@ -74,7 +82,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			elseif ( 200 !== wp_remote_retrieve_response_code( $response ) ) $result = array( 'error' => 'La URL respondió HTTP ' . wp_remote_retrieve_response_code( $response ) . '.' );
 			else {
 				$data = json_decode( wp_remote_retrieve_body( $response ), true );
-				$result = is_array( $data ) && ! empty( $data['digitalisimo_performance'] ) ? array( 'url' => $url, 'resources' => (array) ( $data['resources'] ?? array() ), 'widgets' => (array) ( $data['widgets'] ?? array() ), 'fonts' => (array) ( $data['fonts'] ?? array() ), 'swiper_required' => ! empty( $data['swiper_required'] ), 'woocommerce_required' => ! empty( $data['woocommerce_required'] ) ) : array( 'error' => 'El sitio no devolvió la captura de assets. Comprueba la URL, caché de página o acceso HTTP interno.' );
+				$result = is_array( $data ) && ! empty( $data['digitalisimo_performance'] ) ? array( 'url' => $url, 'resources' => (array) ( $data['resources'] ?? array() ), 'widgets' => (array) ( $data['widgets'] ?? array() ), 'fonts' => (array) ( $data['fonts'] ?? array() ), 'images' => (array) ( $data['images'] ?? array() ), 'swiper_required' => ! empty( $data['swiper_required'] ), 'woocommerce_required' => ! empty( $data['woocommerce_required'] ) ) : array( 'error' => 'El sitio no devolvió la captura de assets. Comprueba la URL, caché de página o acceso HTTP interno.' );
 			}
 			delete_site_transient( 'digitalisimo_perf_probe_' . $token );
 		}
@@ -218,20 +226,71 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		return array_values( $fonts );
 	}
 
+	/** Complementa la cola con recursos externos o preloads escritos directamente en HTML. */
+	private static function inspect_html_resources( $html ) {
+		if ( ! is_string( $html ) || strlen( $html ) > 2 * MB_IN_BYTES ) return;
+		if ( preg_match_all( '/<script\b[^>]*\bsrc\s*=\s*[\'\"]([^\'\"]+)[\'\"][^>]*>/i', $html, $scripts ) ) {
+			foreach ( $scripts[1] as $src ) {
+				$src = html_entity_decode( $src, ENT_QUOTES, 'UTF-8' );
+				if ( 'Externo' !== self::origin( $src ) ) continue;
+				$known = false;
+				foreach ( self::$resources as $resource ) if ( $resource['src'] === $src ) { $known = true; break; }
+				if ( $known ) continue;
+				$key = 'external:' . md5( $src );
+				self::$resources[ $key ] = array( 'handle' => 'Sin handle', 'type' => 'Script externo', 'src' => $src, 'origin' => 'Externo', 'deps' => array(), 'position' => 'HTML', 'version' => '', 'status' => 'Revisar' );
+			}
+		}
+		if ( preg_match_all( '/<link\b[^>]*>/i', $html, $links ) ) {
+			foreach ( $links[0] as $tag ) {
+				if ( ! preg_match( '/\bas\s*=\s*[\'\"]font[\'\"]/i', $tag ) || ! preg_match( '/\bhref\s*=\s*[\'\"]([^\'\"]+)[\'\"]/i', $tag, $href ) ) continue;
+				$src = html_entity_decode( $href[1], ENT_QUOTES, 'UTF-8' );
+				self::$resources[ 'font:' . md5( $src ) ] = array( 'handle' => 'Preload', 'type' => 'Fuente', 'src' => $src, 'origin' => self::origin( $src ), 'deps' => array(), 'position' => 'Header', 'version' => '', 'status' => 'Mantener' );
+			}
+		}
+	}
+
+	/** Sólo lee atributos que el HTML ya publica; no toca adjuntos ni metadatos. */
+	private static function inspect_html_images( $html ) {
+		$images = array();
+		if ( ! is_string( $html ) || strlen( $html ) > 2 * MB_IN_BYTES || ! preg_match_all( '/<img\b[^>]*>/i', $html, $tags ) ) return $images;
+		foreach ( array_slice( $tags[0], 0, 100 ) as $tag ) {
+			$attributes = array();
+			foreach ( array( 'src', 'width', 'height', 'srcset', 'sizes' ) as $name ) if ( preg_match( '/\b' . $name . '\s*=\s*[\'\"]([^\'\"]*)[\'\"]/i', $tag, $match ) ) $attributes[ $name ] = html_entity_decode( $match[1], ENT_QUOTES, 'UTF-8' );
+			if ( empty( $attributes['src'] ) ) continue;
+			$recommendation = empty( $attributes['width'] ) || empty( $attributes['height'] ) ? 'Revisar dimensiones reales del adjunto' : ( empty( $attributes['srcset'] ) || empty( $attributes['sizes'] ) ? 'Revisar entrega responsiva' : 'Mantener; comprobar tamaño visual en navegador' );
+			$images[] = array( 'src' => $attributes['src'], 'width' => $attributes['width'] ?? '', 'height' => $attributes['height'] ?? '', 'srcset' => ! empty( $attributes['srcset'] ), 'sizes' => ! empty( $attributes['sizes'] ), 'recommendation' => $recommendation );
+		}
+		return $images;
+	}
+
+	private static function swiper_dependency( $handle, $registry, $seen = array() ) {
+		if ( false !== strpos( $handle, 'swiper' ) ) return true;
+		if ( isset( $seen[ $handle ] ) || ! isset( $registry->registered[ $handle ] ) ) return false;
+		$seen[ $handle ] = true;
+		foreach ( (array) $registry->registered[ $handle ]->deps as $dependency ) if ( self::swiper_dependency( $dependency, $registry, $seen ) ) return true;
+		return false;
+	}
+
 	public static function finish_probe() {
 		if ( ! self::$collecting ) return;
 		self::capture();
+		$html = ob_get_contents();
+		self::inspect_html_resources( $html );
+		$images = self::inspect_html_images( $html );
 		while ( ob_get_level() > self::$buffer_level ) ob_end_clean();
 		if ( ! headers_sent() ) header( 'Content-Type: application/json; charset=' . get_option( 'blog_charset', 'UTF-8' ) );
 		$swiper_required = false;
 		$woocommerce_required = false;
 		foreach ( self::$widgets as $widget ) {
-			foreach ( array_merge( $widget['scripts'], $widget['styles'] ) as $handle ) if ( false !== strpos( $handle, 'swiper' ) ) $swiper_required = true;
+			if ( preg_match( '/carousel|slider|slides|testimonial/i', $widget['name'] ) ) $swiper_required = true;
+			foreach ( $widget['scripts'] as $handle ) if ( self::swiper_dependency( $handle, wp_scripts() ) ) $swiper_required = true;
+			foreach ( $widget['styles'] as $handle ) if ( self::swiper_dependency( $handle, wp_styles() ) ) $swiper_required = true;
 			if ( false !== strpos( $widget['name'], 'woocommerce' ) || false !== strpos( $widget['name'], 'cart' ) ) $woocommerce_required = true;
 		}
+		if ( is_string( $html ) && preg_match( '/class\s*=\s*[\'\"][^\'\"]*\bswiper\b/i', $html ) ) $swiper_required = true;
 		if ( class_exists( 'WooCommerce' ) ) {
 			foreach ( array( 'is_woocommerce', 'is_cart', 'is_checkout', 'is_account_page' ) as $function ) if ( function_exists( $function ) && call_user_func( $function ) ) $woocommerce_required = true;
 		}
-		echo wp_json_encode( array( 'digitalisimo_performance' => true, 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'fonts' => self::inspect_fonts(), 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required ) );
+		echo wp_json_encode( array( 'digitalisimo_performance' => true, 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'fonts' => self::inspect_fonts(), 'images' => $images, 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required ) );
 	}
 }
