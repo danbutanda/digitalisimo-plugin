@@ -26,6 +26,7 @@ jobs:
         run: |
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
+          php tests/performance-cache.php
       - name: Construir paquetes limpios
         run: |
           mkdir -p dist

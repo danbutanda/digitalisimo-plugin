@@ -56,7 +56,7 @@ class Digitalisimo_Integrations_Performance_Measurements {
 			$records[ md5( $url ) ] = $value;
 			update_option( self::OPTION, array_slice( $records, -25, null, true ), false );
 		} finally { if ( $switched ) restore_current_blog(); }
-		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-seo&tab=performance' ) : admin_url( 'admin.php?page=digitalisimo-seo-performance' );
+		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=status' ) : admin_url( 'admin.php?page=digitalisimo-performance&section=status' );
 		wp_safe_redirect( add_query_arg( 'measurement_url', $url, $target ) );
 		exit;
 	}

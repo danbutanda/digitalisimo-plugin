@@ -104,7 +104,7 @@ class Digitalisimo_Integrations_Performance_Manager {
 		if ( ! current_user_can( 'manage_options' ) ) wp_die( 'No autorizado.' );
 		check_admin_referer( 'digitalisimo_performance_clear_log' );
 		delete_option( self::LOG_OPTION );
-		wp_safe_redirect( admin_url( 'admin.php?page=digitalisimo-seo-performance' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=digitalisimo-performance&section=debug' ) );
 		exit;
 	}
 

@@ -43,6 +43,7 @@ jobs:
         run: |
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
+          php tests/performance-cache.php
       - name: Seleccionar plugins modificados
         id: modules
         env:

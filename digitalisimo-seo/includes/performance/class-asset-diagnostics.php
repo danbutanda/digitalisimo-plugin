@@ -87,7 +87,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			delete_site_transient( 'digitalisimo_perf_probe_' . $token );
 		}
 		set_transient( 'digitalisimo_perf_result_' . get_current_user_id(), $result, 10 * MINUTE_IN_SECONDS );
-		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-seo&tab=performance' ) : admin_url( 'admin.php?page=digitalisimo-seo-performance' );
+		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=status' ) : admin_url( 'admin.php?page=digitalisimo-performance&section=status' );
 		wp_safe_redirect( $target );
 		exit;
 	}

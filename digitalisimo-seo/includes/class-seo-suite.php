@@ -41,7 +41,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		foreach ( $editorial as $slug => $page ) add_submenu_page( null, $page[0], $page[0], 'manage_options', $slug, array( 'Digitalisimo_Integrations_SEO', $page[1] ) );
 	}
 	/** Una navegación persistente para los ajustes y la estrategia editorial de SEO. */
-	private static function navigation_items() { return array( 'dashboard' => 'Resumen', 'general' => 'Identidad', 'titles' => 'Títulos', 'schema' => 'Schema', 'social' => 'Social', 'local' => 'Local', 'indexing' => 'Indexación', 'sitemap' => 'Sitemap', 'breadcrumbs' => 'Breadcrumbs', 'performance' => 'Rendimiento', 'tools' => 'Avanzado', 'content' => 'Contenido', 'diagnostic' => 'SEO Front' ); }
+	private static function navigation_items() { return array( 'dashboard' => 'Resumen', 'general' => 'Identidad', 'titles' => 'Títulos', 'schema' => 'Schema', 'social' => 'Social', 'local' => 'Local', 'indexing' => 'Indexación', 'sitemap' => 'Sitemap', 'breadcrumbs' => 'Breadcrumbs', 'tools' => 'Avanzado', 'content' => 'Contenido', 'diagnostic' => 'SEO Front' ); }
 	/** Mismo componente de navegación para sitio y red; sólo cambia el destino de los enlaces. */
 	public static function navigation_tabs( $active = 'dashboard', $network = false ) {
 		echo '<h2 class="nav-tab-wrapper digitalisimo-tabs">'; foreach ( self::navigation_items() as $tab => $label ) { $target = 'dashboard' === $tab ? 'digitalisimo-seo' : ( 'content' === $tab ? 'digitalisimo-content' : 'digitalisimo-seo-' . $tab ); $url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-seo&tab=' . $tab ) : admin_url( 'admin.php?page=' . $target ); echo '<a class="nav-tab ' . ( $active === $tab ? 'nav-tab-active' : '' ) . '"' . ( $network ? ' data-tab="' . esc_attr( $tab ) . '"' : '' ) . ' href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>'; } echo '</h2>';
@@ -98,7 +98,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		$tab = sanitize_key( $_GET['tab'] ?? 'dashboard' ); $tabs = self::navigation_items(); if ( ! isset( $tabs[ $tab ] ) ) $tab = 'dashboard';
 		echo '<div class="wrap digitalisimo-admin-shell"><h1>SEO · Digitalisimo · Red</h1><p>Estas reglas comunes se heredan en los sitios que no tengan una personalización propia. La identidad SEO e imágenes predeterminadas se configuran siempre dentro de cada sitio.</p>';
 		self::navigation_tabs( $tab, true ); echo '<form method="post" action="' . esc_url( network_admin_url( 'edit.php?action=digitalisimo_save_network_seo' ) ) . '">'; wp_nonce_field( 'digitalisimo_network_seo' ); echo '<input type="hidden" class="digitalisimo-active-tab" name="digitalisimo_active_tab" value="' . esc_attr( $tab ) . '">';
-		foreach ( $tabs as $slug => $name ) { echo '<div class="digitalisimo-panel" data-tab="' . esc_attr( $slug ) . '"' . ( $slug === $tab ? '' : ' hidden' ) . '><table class="form-table" role="presentation">'; self::network_site_fields( $slug ); echo '</table></div>'; } submit_button( 'Guardar configuración de red' ); echo '</form><div class="digitalisimo-panel" data-tab="performance"' . ( 'performance' === $tab ? '' : ' hidden' ) . '>'; Digitalisimo_Integrations_Asset_Diagnostics::render( true ); Digitalisimo_Integrations_Performance_Measurements::render( true ); echo '</div></div>';
+		foreach ( $tabs as $slug => $name ) { echo '<div class="digitalisimo-panel" data-tab="' . esc_attr( $slug ) . '"' . ( $slug === $tab ? '' : ' hidden' ) . '><table class="form-table" role="presentation">'; self::network_site_fields( $slug ); echo '</table></div>'; } submit_button( 'Guardar configuración de red' ); echo '</form></div>';
 	}
 	/** Claves y credenciales de la red: nunca se devuelven al formulario en claro. */
 	private static function secret_keys() { return array( 'openai_api_key', 'namecheap_api_key', 'ipinfo_tokens' ); }
@@ -137,7 +137,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 			if ( Digitalisimo_Integrations_Local_Business::SCHEDULE === $key ) { $current[ $key ] = Digitalisimo_Integrations_Local_Business::sanitize_schedule( $value ); continue; }
 			if ( Digitalisimo_Integrations_Local_Business::PHONE_CC === $key ) { $current[ $key ] = Digitalisimo_Integrations_Local_Business::sanitize_code( $value ); continue; }
 			if ( Digitalisimo_Integrations_Local_Business::PHONE === $key ) { $current[ $key ] = Digitalisimo_Integrations_Local_Business::sanitize_phone( $value ); continue; }
-			$current[ $key ] = sanitize_textarea_field( $value ); } update_site_option( Digitalisimo_Integrations_Settings::OPTION, $current ); wp_safe_redirect( network_admin_url( 'admin.php?page=digitalisimo-network-seo&updated=1&tab=' . sanitize_key( $_POST['digitalisimo_active_tab'] ?? 'general' ) ) ); exit; }
+			$current[ $key ] = sanitize_textarea_field( $value ); } update_site_option( Digitalisimo_Integrations_Settings::OPTION, $current ); wp_safe_redirect( 'performance' === sanitize_key( $_POST['digitalisimo_return'] ?? '' ) ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=css&updated=1' ) : network_admin_url( 'admin.php?page=digitalisimo-network-seo&updated=1&tab=' . sanitize_key( $_POST['digitalisimo_active_tab'] ?? 'general' ) ) ); exit; }
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) return; $slug = sanitize_key( $_GET['page'] ?? 'digitalisimo-seo' ); $map = array( 'digitalisimo-seo' => 'dashboard', 'digitalisimo-seo-general' => 'general', 'digitalisimo-seo-titles' => 'titles', 'digitalisimo-seo-appearance' => 'appearance', 'digitalisimo-seo-schema' => 'schema', 'digitalisimo-seo-local' => 'local', 'digitalisimo-seo-social' => 'social', 'digitalisimo-seo-sitemap' => 'sitemap', 'digitalisimo-seo-indexing' => 'indexing', 'digitalisimo-seo-breadcrumbs' => 'breadcrumbs', 'digitalisimo-seo-performance' => 'performance', 'digitalisimo-seo-tools' => 'tools', 'digitalisimo-seo-diagnostic' => 'diagnostic' ); $section = $map[ $slug ] ?? 'dashboard';
 		echo '<div class="wrap digitalisimo-admin-shell"><h1>SEO · Digitalisimo</h1><p>Configura las señales SEO del sitio desde un solo lugar.</p>'; self::navigation_tabs( $section );
@@ -162,7 +162,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		if ( is_multisite() && ! $site_only ) { $origin = Digitalisimo_Integrations_SEO_Resolver::option_with_origin( $key ); echo '<p class="digitalisimo-inheritance"><input type="hidden" name="' . esc_attr( Digitalisimo_Integrations_Settings::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="0"><label><input class="digitalisimo-network-inherit" data-field="' . esc_attr( $key ) . '" type="checkbox" name="' . esc_attr( Digitalisimo_Integrations_Settings::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="1" ' . checked( $inherit, true, false ) . '> Heredar de la red</label><br><span class="description">Valor efectivo: <strong>' . esc_html( is_scalar( $origin['value'] ) ? (string) $origin['value'] : '' ) . '</strong> · Origen: ' . esc_html( $origin['label'] ) . '</span></p>'; }
 		echo '</td></tr>';
 	}
-	private static function performance_site_fields() {
+	public static function performance_site_fields() {
 		echo '<tr><th colspan="2"><h2>Modo seguro</h2><p>Las opciones siguientes actúan sólo en el frontend público. Editor, administración y vistas previas se excluyen.</p></th></tr>';
 		self::f( 'perf_safe_mode', 'Modo seguro', 'checkbox', 'Protege Elementor, Elementor Pro, Swiper, formularios, menús y WooCommerce. Las futuras reglas avanzadas no actuarán mientras esté encendido.' );
 		echo '<tr><th colspan="2"><h2>WordPress</h2></th></tr>';
@@ -174,7 +174,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		self::f( 'perf_font_swap', 'font-display: swap en fuentes de Elementor', 'checkbox', 'Se aplica a fuentes Google locales y personalizadas de Elementor Pro. Tras activarlo, borra la caché de fuentes y regenera CSS desde Elementor → Herramientas. No altera fuentes ajenas.' );
 		echo '<tr><th colspan="2"><h2>Elementor y WooCommerce</h2><p>Los recursos de Elementor, Swiper y WooCommerce se conservan. El diagnóstico contextual se desarrollará antes de habilitar reglas de descarga.</p></th></tr>';
 	}
-	private static function performance_network_fields() {
+	public static function performance_network_fields() {
 		echo '<tr><th colspan="2"><h2>Rendimiento · valores de red</h2><p>Cada sitio hereda estos valores hasta que desactiva «Heredar de la red» en su pestaña Rendimiento.</p></th></tr>';
 		self::nf( 'perf_safe_mode', 'Modo seguro', 'checkbox' );
 		self::nf( 'perf_gutenberg', 'Desactivar CSS de Gutenberg fuera del blog', 'checkbox', 'Sólo páginas Elementor confirmadas, sin bloques ni dependientes.' );
