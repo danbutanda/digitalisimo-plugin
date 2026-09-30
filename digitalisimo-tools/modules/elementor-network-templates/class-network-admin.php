@@ -4,7 +4,7 @@ defined( 'ABSPATH' ) || exit;
 final class Network_Admin {
 	const PAGE = 'digitalisimo-tools-elementor-templates';
 	public static function init() { add_action( 'network_admin_menu', array( __CLASS__, 'menu' ) ); add_action( 'admin_post_digitalisimo_tools_save_template', array( __CLASS__, 'save_template' ) ); add_action( 'admin_post_digitalisimo_tools_sync_template', array( __CLASS__, 'sync_template' ) ); add_action( 'admin_post_digitalisimo_tools_toggle_template', array( __CLASS__, 'toggle_template' ) ); add_action( 'admin_post_digitalisimo_tools_save_settings', array( __CLASS__, 'save_settings' ) ); }
-	public static function menu() { if ( is_multisite() ) add_menu_page( 'DIGITALÍSIMO Tools', 'DIGITALÍSIMO Tools', 'manage_network_options', self::PAGE, array( __CLASS__, 'page' ), 'dashicons-admin-tools', 58 ); }
+	public static function menu() { if ( is_multisite() ) add_submenu_page( 'digitalisimo-network', 'DIGITALÍSIMO Tools', 'DIGITALÍSIMO Tools', 'manage_network_options', self::PAGE, array( __CLASS__, 'page' ) ); }
 	private static function url( $args = array() ) { return add_query_arg( $args, network_admin_url( 'admin.php?page=' . self::PAGE ) ); }
 	private static function guard( $action ) { if ( ! current_user_can( 'manage_network_options' ) ) wp_die( esc_html__( 'No tienes permiso para administrar la red.', 'digitalisimo-tools' ) ); check_admin_referer( $action ); }
 	public static function save_settings() { self::guard( 'digitalisimo_tools_settings' ); Registry::settings(); update_site_option( Registry::SETTINGS, array( 'master_blog_id' => absint( $_POST['master_blog_id'] ?? 0 ), 'log_limit' => min( 1000, max( 10, absint( $_POST['log_limit'] ?? 200 ) ) ) ) ); wp_safe_redirect( self::url( array( 'message' => 'settings' ) ) ); exit; }

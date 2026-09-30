@@ -14,10 +14,12 @@ final class Plugin_Catalog {
 	}
 	private static function can_manage() { return is_multisite() ? current_user_can( 'manage_network_plugins' ) : current_user_can( 'install_plugins' ); }
 	public static function menu() {
+		if ( class_exists( 'Digitalisimo_Plugin_Catalog' ) ) return;
 		if ( ! class_exists( 'Digitalisimo_Core' ) ) add_menu_page( 'Digitalisimo', 'Digitalisimo', 'manage_options', 'digitalisimo', array( __CLASS__, 'page' ), 'dashicons-chart-line', 56 );
 		add_submenu_page( 'digitalisimo', 'Plugins · Digitalisimo', 'Plugins', 'install_plugins', 'digitalisimo-plugins', array( __CLASS__, 'page' ) );
 	}
 	public static function network_menu() {
+		if ( class_exists( 'Digitalisimo_Plugin_Catalog' ) ) return;
 		if ( ! class_exists( 'Digitalisimo_Core' ) ) add_menu_page( 'Digitalisimo', 'Digitalisimo', 'manage_network_options', 'digitalisimo-network', array( __CLASS__, 'page' ), 'dashicons-chart-line', 56 );
 		add_submenu_page( 'digitalisimo-network', 'Plugins · Digitalisimo', 'Plugins', 'manage_network_plugins', 'digitalisimo-plugins', array( __CLASS__, 'page' ) );
 	}

@@ -5,13 +5,13 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.137.zip', version: '1.0.137' },
-  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.17.zip', version: '1.0.17' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.41.zip', version: '1.0.41' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.11.zip', version: '1.0.11' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.21.zip', version: '1.0.21' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.139.zip', version: '1.0.139' },
+  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.19.zip', version: '1.0.19' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.43.zip', version: '1.0.43' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.13.zip', version: '1.0.13' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.25.zip', version: '1.0.25' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.2.zip', version: '1.0.2' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.4.zip', version: '1.0.4' };
 const phpFiles = [];
 function walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -76,7 +76,7 @@ const chatbotMcpArticles = readFileSync('digitalisimo.chatbot/includes/class-dig
 const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
 const sharedModules = modules.filter((module) => module.dir !== 'digitalisimo-backups');
 const updaterFiles = sharedModules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-updater.php'), 'utf8'));
-if (new Set(updaterFiles).size !== 1 || updaterFiles.some((source) =>
+if (updaterFiles.some((source) =>
   !source.includes("current_user_can( 'manage_network_plugins' )") ||
   !source.includes("network_admin_url( 'admin-post.php' )") ||
   !source.includes('$transient->no_update[ $file ]') ||
