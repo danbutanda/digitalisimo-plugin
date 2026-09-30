@@ -46,4 +46,8 @@ SEO 1.0.150 ya tiene ajustes heredables en una pestaña de SEO, modo seguro, dia
 - Las claves incluyen blog ID y generación de sitio/red. Guardar ajustes de sitio, herencia o defaults de red invalida selectivamente el espacio correspondiente. Las entradas viejas no conocidas expiran como máximo a los 60 minutos. El frontend todavía no usa este cache para cálculos de fuentes/Kit hasta que esas funciones estén probadas.
 - Ninguna optimización nueva de frontend se activa en esta fase. Es reversible volviendo a SEO 1.0.150. Faltan pruebas de interfaz real y regresión antes de marcar la fase completa.
 
+## Inspección pública previa a CSS diferido
+
+En la portada principal publicada aparecen encolados los cuatro candidatos propuestos: handles `widget-form`, `widget-divider`, `widget-social-icons` y `widget-blockquote`. `widget-form` y `widget-blockquote` vienen de Elementor Pro; los otros dos de Elementor. La simple presencia de esos archivos no demuestra que sus widgets estén fuera del primer pantallazo: el formulario de la portada exige comprobar ubicación y estilos antes de diferirlos. No se cambió su carga en SEO 1.0.151.
+
 Referencias API: [WordPress Object Cache](https://developer.wordpress.org/reference/classes/wp_object_cache/), [detección de caché externa](https://developer.wordpress.org/reference/functions/wp_using_ext_object_cache/), [filtro de etiquetas CSS](https://developer.wordpress.org/reference/hooks/style_loader_tag/) y [tipografía global Elementor](https://developers.elementor.com/docs/editor-controls/global-style/).
