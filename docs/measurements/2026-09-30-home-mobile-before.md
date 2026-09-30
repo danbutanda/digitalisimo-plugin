@@ -19,3 +19,5 @@ CHROME_PATH=/opt/digitalisimo/playwright-browsers/chromium-1243/chrome-linux64/c
 ```
 
 Esta corrida difiere de la referencia PageSpeed proporcionada por el propietario (Performance 61, FCP 3.1 s, LCP 7.4 s, TBT 220 ms, CLS 0). La diferencia puede deberse al momento, contenido, caché, red y entorno de laboratorio; se necesita una corrida comparable después de instalar la nueva versión. No se atribuye ninguna mejora al módulo todavía.
+
+Prueba de navegador previa (Chromium headless, 390×844 y 1440×900): el H1 fue «Agencia de Marketing Digital en México para empresas que quieren trascender»; se encontraron nueve contenedores `.swiper` y los nueve tenían instancia activa, una forma, fuentes cargadas, cero errores JavaScript y cero respuestas 404. El ancho del documento coincidió con el viewport en ambos tamaños. La portada actual no expone elementos `.elementor-menu-toggle` ni `.elementor-nav-menu`, así que esta prueba no verifica el menú; requiere otra página o un sitio de pruebas.
