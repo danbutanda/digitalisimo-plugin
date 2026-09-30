@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-El objetivo activo de rendimiento conservador de DIGITALÍSIMO SEO, sus fases y las pruebas pendientes están en [PERFORMANCE_OBJECTIVE.md](PERFORMANCE_OBJECTIVE.md). SEO 1.0.149 amplía el diagnóstico a scripts externos, imágenes y dependencias transitivas de Swiper; no se atribuye ninguna mejora de PageSpeed hasta medirla en el sitio real.
+El objetivo activo de rendimiento conservador de DIGITALÍSIMO SEO, sus fases y las pruebas pendientes están en [PERFORMANCE_OBJECTIVE.md](PERFORMANCE_OBJECTIVE.md). SEO 1.0.150 amplía el diagnóstico de WooCommerce y muestra el origen de plugins terceros; no se atribuye ninguna mejora de PageSpeed hasta medirla en el sitio real.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

@@ -172,7 +172,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		if ( false !== strpos( $src, '/plugins/digitalisimo-' ) ) return 'DIGITALÍSIMO';
 		if ( false !== strpos( $src, '/themes/' ) ) return 'Tema';
 		if ( false !== strpos( $src, '/wp-includes/' ) || false !== strpos( $src, '/wp-admin/' ) ) return 'WordPress';
-		if ( false !== strpos( $src, '/plugins/' ) ) return 'Plugin';
+		if ( preg_match( '#/plugins/([^/]+)/#', $src, $plugin ) ) return 'Plugin: ' . sanitize_key( $plugin[1] );
 		return 'Desconocido';
 	}
 
@@ -271,6 +271,12 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		return false;
 	}
 
+	/** Las plantillas pueden incluir un minicart o bloques WooCommerce fuera del contenido principal. */
+	private static function woocommerce_markup( $html ) {
+		if ( ! is_string( $html ) ) return false;
+		return (bool) preg_match( '/\b(?:wc-block-[a-z0-9-]+|woocommerce-(?:cart|checkout|account|products?|mini-cart|menu-cart)|widget_shopping_cart|add_to_cart_button|single_add_to_cart_button)\b/i', $html );
+	}
+
 	public static function finish_probe() {
 		if ( ! self::$collecting ) return;
 		self::capture();
@@ -288,6 +294,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			if ( false !== strpos( $widget['name'], 'woocommerce' ) || false !== strpos( $widget['name'], 'cart' ) ) $woocommerce_required = true;
 		}
 		if ( is_string( $html ) && preg_match( '/class\s*=\s*[\'\"][^\'\"]*\bswiper\b/i', $html ) ) $swiper_required = true;
+		if ( self::woocommerce_markup( $html ) ) $woocommerce_required = true;
 		if ( class_exists( 'WooCommerce' ) ) {
 			foreach ( array( 'is_woocommerce', 'is_cart', 'is_checkout', 'is_account_page' ) as $function ) if ( function_exists( $function ) && call_user_func( $function ) ) $woocommerce_required = true;
 		}

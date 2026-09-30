@@ -38,6 +38,7 @@ Por fase se comprueba HOME desktop/móvil, menú responsive, sliders, carruseles
 - 2026-09-30: el diagnóstico complementa los handles de WordPress con scripts externos declarados directamente en HTML y preloads de fuentes. No pretende representar scripts que terceros inyecten dinámicamente después de cargar la página; éstos requieren inspección de red en navegador.
 - 2026-09-30: el diagnóstico revisa también hasta 100 etiquetas `<img>` publicadas, mostrando dimensiones HTML, `srcset`, `sizes` y recomendaciones cuando falta información. No calcula tamaño visual ni modifica imágenes originales o metadatos.
 - 2026-09-30: la detección de Swiper se reforzó con dependencias transitivas declaradas, nombres de widgets tipo carrusel y markup público. Es conservadora: prefiere indicar «conservar» ante incertidumbre. SEO 1.0.149 publica estas mejoras de diagnóstico sin cambiar las descargas automáticas de la fase 1.
+- 2026-09-30: SEO 1.0.150 reconoce la presencia de bloques de carrito, minicart, botones de compra y widgets WooCommerce en el HTML final, incluso si viven en una plantilla fuera del contenido principal. El diagnóstico identifica el slug de plugins terceros en sus assets. Esta detección no retira CSS ni JS; ante presencia de WooCommerce recomienda conservarlos.
 
 ### Riesgo y reversión de fase 1
 

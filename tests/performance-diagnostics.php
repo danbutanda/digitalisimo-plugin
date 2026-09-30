@@ -9,6 +9,7 @@ function home_url() { return 'https://example.test/'; }
 function wp_upload_dir() { return array( 'baseurl' => 'https://example.test/wp-content/uploads', 'basedir' => WP_CONTENT_DIR . '/uploads' ); }
 function content_url() { return 'https://example.test/wp-content'; }
 function trailingslashit( $value ) { return rtrim( $value, '/' ) . '/'; }
+function sanitize_key( $value ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/i', '', $value ) ); }
 function get_current_blog_id() { return 1; }
 function get_home_url( $site_id ) { return 2 === $site_id ? 'https://example.test/subsite/' : 'https://example.test/'; }
 function is_multisite() { return true; }
@@ -27,6 +28,11 @@ if ( 1 !== Digitalisimo_Integrations_Asset_Diagnostics::site_for_url( 'https://e
 if ( 0 !== Digitalisimo_Integrations_Asset_Diagnostics::site_for_url( 'https://example.test/subsite/page/', false ) ) throw new RuntimeException( 'Un administrador de sitio no puede analizar otro sitio de la red.' );
 if ( 2 !== Digitalisimo_Integrations_Asset_Diagnostics::site_for_url( 'https://example.test/subsite/page/', true ) ) throw new RuntimeException( 'La administración de red puede seleccionar un subsitio.' );
 if ( 0 !== Digitalisimo_Integrations_Asset_Diagnostics::site_for_url( 'https://other.test/page/', true ) ) throw new RuntimeException( 'Debe rechazar dominios ajenos.' );
+if ( 'Plugin: example-plugin' !== $class->getMethod( 'origin' )->invoke( null, 'https://example.test/wp-content/plugins/example-plugin/app.js' ) ) throw new RuntimeException( 'El diagnóstico debe identificar el plugin propietario del asset.' );
+foreach ( array( '<div class="wc-block-cart"></div>', '<div class="widget_shopping_cart"></div>', '<a class="add_to_cart_button"></a>' ) as $markup ) {
+	if ( ! $class->getMethod( 'woocommerce_markup' )->invoke( null, $markup ) ) throw new RuntimeException( 'Debe detectar WooCommerce en bloques, widgets o botones de plantillas.' );
+}
+if ( $class->getMethod( 'woocommerce_markup' )->invoke( null, '<div class="elementor-widget-heading"></div>' ) ) throw new RuntimeException( 'No debe detectar WooCommerce en HTML ajeno.' );
 
 $resources = $class->getProperty( 'resources' );
 $resources->setValue( null, array( 'CSS:fonts' => array( 'type' => 'CSS', 'src' => 'https://example.test/wp-content/fonts.css' ) ) );
