@@ -5,13 +5,13 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.142.zip', version: '1.0.142' },
-  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.22.zip', version: '1.0.22' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.46.zip', version: '1.0.46' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.16.zip', version: '1.0.16' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.30.zip', version: '1.0.30' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.143.zip', version: '1.0.143' },
+  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.23.zip', version: '1.0.23' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.47.zip', version: '1.0.47' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.17.zip', version: '1.0.17' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.31.zip', version: '1.0.31' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.10.zip', version: '1.0.10' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.11.zip', version: '1.0.11' };
 const phpFiles = [];
 function walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -27,6 +27,7 @@ for (const module of modules) {
   if (!existsSync(main) || !existsSync(zip)) throw new Error(`Falta ${main} o ${zip}`);
   const source = readFileSync(main, 'utf8');
   if (!source.includes(`Version: ${module.version}`)) throw new Error(`Versión incorrecta en ${main}`);
+  if (!source.includes(`Update URI: https://github.com/danbutanda/digitalisimo-plugin/${module.zip.replace(/-[0-9.]+\.zip$/, '')}`)) throw new Error(`Falta Update URI en ${main}`);
 	const zipListing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
 	if (!zipListing.includes(`${module.dir}/${module.file}`)) throw new Error(`El ZIP ${zip} no conserva su archivo principal`);
 	if (zipListing.includes('.DS_Store')) throw new Error(`El ZIP ${zip} contiene archivos de sistema`);
@@ -38,6 +39,7 @@ for (const module of modules) {
   if (!existsSync(main) || !existsSync(zip)) throw new Error(`Falta ${main} o ${zip}`);
   const source = readFileSync(main, 'utf8');
   if (!source.includes(`Version: ${toolsModule.version}`)) throw new Error(`Versión incorrecta en ${main}`);
+  if (!source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-tools')) throw new Error('Falta Update URI en DIGITALÍSIMO Tools');
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
   if (!listing.includes(`${toolsModule.dir}/${toolsModule.file}`) || listing.includes('.DS_Store')) throw new Error('El paquete de DIGITALÍSIMO Tools no tiene una estructura válida');
   for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
@@ -76,6 +78,8 @@ const chatbotMcpArticles = readFileSync('digitalisimo.chatbot/includes/class-dig
 const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
 const sharedModules = modules.filter((module) => module.dir !== 'digitalisimo-backups');
 const updaterFiles = sharedModules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-updater.php'), 'utf8'));
+if (updaterFiles.some((source) => !source.includes("'update_plugins_github.com'") || !source.includes('function uri_update('))) throw new Error('Los módulos deben usar el mecanismo Update URI de WordPress.');
+if (!readFileSync('digitalisimo-backups/includes/class-digitalisimo-updater.php', 'utf8').includes("'update_plugins_github.com'") || !readFileSync('digitalisimo-tools/includes/class-updater.php', 'utf8').includes("'update_plugins_github.com'")) throw new Error('Backups y Tools deben usar Update URI de forma independiente.');
 if (updaterFiles.some((source) =>
   !source.includes("current_user_can( 'manage_network_plugins' )") ||
 	!source.includes("$base = admin_url( 'admin-post.php' );") ||

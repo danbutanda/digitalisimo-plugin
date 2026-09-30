@@ -51,6 +51,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			add_filter( 'pre_set_transient_update_plugins', array( __CLASS__, 'inject' ) );
 			add_filter( 'site_transient_update_plugins', array( __CLASS__, 'inject' ) );
 			add_filter( 'transient_update_plugins', array( __CLASS__, 'inject' ) );
+			add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 10, 4 );
 			add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
 			add_filter( 'plugins_api', array( __CLASS__, 'info' ), 20, 3 );
 			add_action( 'upgrader_process_complete', array( __CLASS__, 'clear' ), 10, 2 );
@@ -146,6 +147,20 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			$release = self::releases()[ $module['slug'] ] ?? array();
 			if ( empty( $release['version'] ) || empty( $release['package'] ) ) return array();
 			return version_compare( $release['version'], $module['version'], '>' ) ? $release : array();
+		}
+
+		public static function uri_update( $update, $plugin_data, $plugin_file, $locales ) {
+			if ( ! isset( self::$modules[ $plugin_file ] ) ) return $update;
+			$module = self::$modules[ $plugin_file ];
+			$release = self::pending( $plugin_file );
+			if ( ! $release ) return false;
+			return array(
+				'slug' => $module['slug'],
+				'version' => $release['version'],
+				'package' => $release['package'],
+				'url' => $release['url'],
+				'requires_php' => '7.4',
+			);
 		}
 
 		public static function inject( $transient ) {

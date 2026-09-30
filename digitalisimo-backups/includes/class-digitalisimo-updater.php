@@ -4,7 +4,9 @@ defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_Backups_Updater {
 	const REPO = 'danbutanda/digitalisimo-plugin';
 	const KEY = 'digitalisimo_backups_release';
-	public static function register() { add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject' ) ); add_filter( 'pre_set_transient_update_plugins', array( __CLASS__, 'inject' ) ); add_filter( 'site_transient_update_plugins', array( __CLASS__, 'inject' ) ); add_filter( 'transient_update_plugins', array( __CLASS__, 'inject' ) ); }
+	public static function register() { add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'inject' ) ); add_filter( 'pre_set_transient_update_plugins', array( __CLASS__, 'inject' ) ); add_filter( 'site_transient_update_plugins', array( __CLASS__, 'inject' ) ); add_filter( 'transient_update_plugins', array( __CLASS__, 'inject' ) ); add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 10, 4 ); add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 ); }
+	public static function uri_update( $update, $plugin_data, $plugin_file, $locales ) { if ( plugin_basename( DIGITALISIMO_BACKUPS_FILE ) !== $plugin_file ) return $update; $release = self::release(); if ( empty( $release['version'] ) || version_compare( $release['version'], DIGITALISIMO_BACKUPS_VERSION, '<=' ) ) return false; return array( 'slug' => 'digitalisimo-backups', 'version' => $release['version'], 'package' => $release['package'], 'url' => $release['url'], 'requires_php' => '7.4' ); }
+	public static function auto_update( $update, $item ) { return isset( $item->plugin ) && plugin_basename( DIGITALISIMO_BACKUPS_FILE ) === $item->plugin ? true : $update; }
 	private static function release() {
 		$cached = get_site_transient( self::KEY ); if ( false !== $cached ) return $cached;
 		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPO . '/releases?per_page=20', array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-WordPress-Updater' ) ) );
