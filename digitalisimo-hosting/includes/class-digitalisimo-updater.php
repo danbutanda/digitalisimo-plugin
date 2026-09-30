@@ -60,7 +60,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		/** Enlace «Buscar actualizaciones» en la fila del plugin. */
 		public static function action_link( $links ) {
 			if ( ! self::can_update() ) return $links;
-			$base = is_multisite() && is_network_admin() ? network_admin_url( 'admin-post.php' ) : admin_url( 'admin-post.php' );
+			$base = admin_url( 'admin-post.php' );
 			$url = wp_nonce_url( add_query_arg( 'action', self::ACTION, $base ), self::ACTION );
 			$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Buscar actualizaciones', 'digitalisimo' ) . '</a>';
 			return $links;

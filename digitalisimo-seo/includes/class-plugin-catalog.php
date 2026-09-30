@@ -69,7 +69,7 @@ final class Digitalisimo_Plugin_Catalog {
 		return (string) ( $data['Version'] ?? '' );
 	}
 	private static function can_manage() { return is_multisite() ? current_user_can( 'manage_network_plugins' ) : current_user_can( 'install_plugins' ); }
-	private static function action_url( $action, $slug ) { $base = is_multisite() ? network_admin_url( 'admin-post.php' ) : admin_url( 'admin-post.php' ); return wp_nonce_url( add_query_arg( array( 'action' => $action, 'slug' => $slug ), $base ), $action . '_' . $slug ); }
+	private static function action_url( $action, $slug ) { $base = admin_url( 'admin-post.php' ); return wp_nonce_url( add_query_arg( array( 'action' => $action, 'slug' => $slug ), $base ), $action . '_' . $slug ); }
 
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'manage_network_options' ) ) return;
