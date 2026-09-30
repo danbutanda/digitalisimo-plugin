@@ -1,9 +1,99 @@
 <?php
 namespace Digitalisimo\Tools;
 defined( 'ABSPATH' ) || exit;
+
 final class Media_WebP {
 	const ACTION = 'digitalisimo_tools_webp_batch';
-	public static function init() { add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'run' ) ); }
-	public static function page() { if ( ! current_user_can( 'manage_network_options' ) ) return; echo '<h2>Optimizar imágenes WebP</h2><p>Convierte 20 JPEG o PNG por lote a WebP con calidad 75. Conserva el original y registra el resultado para una reversión segura.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '"><button class="button button-primary">Procesar lote</button></form>'; }
-	public static function run() { if ( ! current_user_can( 'manage_network_options' ) ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION ); $done = 0; foreach ( get_sites( array( 'number' => 0 ) ) as $site ) { switch_to_blog( $site->blog_id ); try { $ids = get_posts( array( 'post_type' => 'attachment', 'post_mime_type' => array( 'image/jpeg', 'image/png' ), 'posts_per_page' => 20 - $done, 'fields' => 'ids', 'meta_query' => array( array( 'key' => '_digitalisimo_tools_webp', 'compare' => 'NOT EXISTS' ) ) ) ); foreach ( $ids as $id ) { $file = get_attached_file( $id ); $editor = $file ? wp_get_image_editor( $file ) : new \WP_Error( 'missing' ); if ( is_wp_error( $editor ) ) continue; $editor->set_quality( 75 ); $saved = $editor->save( preg_replace( '/\.[^.]+$/', '.webp', $file ), 'image/webp' ); if ( ! is_wp_error( $saved ) ) update_post_meta( $id, '_digitalisimo_tools_webp', $saved['path'] ); if ( ++$done >= 20 ) break; } } finally { restore_current_blog(); } if ( $done >= 20 ) break; } wp_safe_redirect( network_admin_url( 'admin.php?page=digitalisimo-tools-elementor-templates&tab=webp&done=' . $done ) ); exit; }
+	const META_DONE = '_digitalisimo_tools_webp';
+	const META_ERROR = '_digitalisimo_tools_webp_error';
+
+	public static function init() { add_action( 'wp_ajax_' . self::ACTION, array( __CLASS__, 'process_next' ) ); }
+
+	public static function page() {
+		if ( ! current_user_can( 'manage_network_options' ) ) return;
+		$stats = self::stats();
+		$nonce = wp_create_nonce( self::ACTION );
+		echo '<h2>Optimizar imágenes WebP</h2><p>Procesa una imagen por solicitud con calidad 75. El original se conserva y cada resultado queda registrado.</p>';
+		echo '<p id="digitalisimo-webp-summary">' . esc_html( self::summary( $stats ) ) . '</p><p><button id="digitalisimo-webp-start" class="button button-primary"' . disabled( 0 === $stats['pending'], true, false ) . '>Iniciar optimización</button></p><div id="digitalisimo-webp-progress" style="display:none;max-width:640px"><div style="height:18px;background:#dcdcde;border-radius:3px;overflow:hidden"><div id="digitalisimo-webp-bar" style="height:100%;width:0;background:#2271b1;transition:width .2s"></div></div><p id="digitalisimo-webp-status" aria-live="polite"></p></div>';
+		echo '<script>document.addEventListener("DOMContentLoaded",function(){var button=document.getElementById("digitalisimo-webp-start"),box=document.getElementById("digitalisimo-webp-progress"),bar=document.getElementById("digitalisimo-webp-bar"),status=document.getElementById("digitalisimo-webp-status"),summary=document.getElementById("digitalisimo-webp-summary"),running=false;function step(){if(!running)return;var data=new URLSearchParams({action:"' . esc_js( self::ACTION ) . '",nonce:"' . esc_js( $nonce ) . '"});fetch(ajaxurl,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"},body:data.toString()}).then(function(r){return r.json()}).then(function(r){if(!r.success)throw new Error((r.data&&r.data.message)||"No se pudo procesar la imagen.");var d=r.data,total=Math.max(1,Number(d.total)),percent=Math.min(100,Math.round((Number(d.processed)/total)*100));bar.style.width=percent+"%";summary.textContent=d.summary;status.textContent=d.message;if(d.complete){running=false;button.disabled=false;button.textContent="Optimización terminada";return}step()}).catch(function(error){running=false;button.disabled=false;button.textContent="Reintentar";status.textContent=error.message})}button.addEventListener("click",function(){if(running)return;running=true;button.disabled=true;button.textContent="Procesando…";box.style.display="block";step()})});</script>';
+	}
+
+	public static function process_next() {
+		if ( ! current_user_can( 'manage_network_options' ) ) wp_send_json_error( array( 'message' => 'No autorizado.' ), 403 );
+		check_ajax_referer( self::ACTION, 'nonce' );
+		$item = self::next_item();
+		if ( ! $item ) {
+			$stats = self::stats();
+			wp_send_json_success( array( 'complete' => true, 'processed' => $stats['done'] + $stats['failed'], 'total' => $stats['total'], 'summary' => self::summary( $stats ), 'message' => 'No quedan imágenes pendientes.' ) );
+		}
+
+		$site_id = $item['site_id'];
+		switch_to_blog( $site_id );
+		try {
+			$file = get_attached_file( $item['attachment_id'] );
+			$result = self::convert( $item['attachment_id'], $file );
+		} finally {
+			restore_current_blog();
+		}
+		$stats = self::stats();
+		wp_send_json_success( array( 'complete' => 0 === $stats['pending'], 'processed' => $stats['done'] + $stats['failed'], 'total' => $stats['total'], 'summary' => self::summary( $stats ), 'message' => $result['message'] ) );
+	}
+
+	private static function next_item() {
+		foreach ( get_sites( array( 'number' => 0, 'orderby' => 'blog_id' ) ) as $site ) {
+			switch_to_blog( (int) $site->blog_id );
+			try {
+				$ids = get_posts( array( 'post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => array( 'image/jpeg', 'image/png' ), 'posts_per_page' => 1, 'fields' => 'ids', 'meta_query' => array( 'relation' => 'AND', array( 'key' => self::META_DONE, 'compare' => 'NOT EXISTS' ), array( 'key' => self::META_ERROR, 'compare' => 'NOT EXISTS' ) ) ) );
+				if ( $ids ) return array( 'site_id' => (int) $site->blog_id, 'attachment_id' => (int) $ids[0] );
+			} finally {
+				restore_current_blog();
+			}
+		}
+		return null;
+	}
+
+	private static function convert( $attachment_id, $file ) {
+		$name = $file ? wp_basename( $file ) : 'archivo no disponible';
+		if ( ! $file || ! file_exists( $file ) ) {
+			update_post_meta( $attachment_id, self::META_ERROR, 'No se encontró el archivo original.' );
+			return array( 'message' => $name . ': no se encontró el archivo original.' );
+		}
+		$editor = wp_get_image_editor( $file );
+		if ( is_wp_error( $editor ) ) {
+			$message = $editor->get_error_message();
+			update_post_meta( $attachment_id, self::META_ERROR, $message );
+			return array( 'message' => $name . ': ' . $message );
+		}
+		$editor->set_quality( 75 );
+		$output = dirname( $file ) . '/' . pathinfo( $file, PATHINFO_FILENAME ) . '.webp';
+		$saved = $editor->save( $output, 'image/webp' );
+		if ( is_wp_error( $saved ) ) {
+			$message = $saved->get_error_message();
+			update_post_meta( $attachment_id, self::META_ERROR, $message );
+			return array( 'message' => $name . ': ' . $message );
+		}
+		update_post_meta( $attachment_id, self::META_DONE, $saved['path'] );
+		delete_post_meta( $attachment_id, self::META_ERROR );
+		return array( 'message' => $name . ' optimizada correctamente.' );
+	}
+
+	private static function stats() {
+		$stats = array( 'pending' => 0, 'done' => 0, 'failed' => 0 );
+		foreach ( get_sites( array( 'number' => 0 ) ) as $site ) {
+			switch_to_blog( (int) $site->blog_id );
+			try {
+				$base = array( 'post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => array( 'image/jpeg', 'image/png' ), 'posts_per_page' => 1, 'fields' => 'ids', 'no_found_rows' => false );
+				$pending = new \WP_Query( $base + array( 'meta_query' => array( 'relation' => 'AND', array( 'key' => self::META_DONE, 'compare' => 'NOT EXISTS' ), array( 'key' => self::META_ERROR, 'compare' => 'NOT EXISTS' ) ) ) );
+				$done = new \WP_Query( $base + array( 'meta_key' => self::META_DONE, 'meta_compare' => 'EXISTS' ) );
+				$failed = new \WP_Query( $base + array( 'meta_key' => self::META_ERROR, 'meta_compare' => 'EXISTS' ) );
+				$stats['pending'] += (int) $pending->found_posts; $stats['done'] += (int) $done->found_posts; $stats['failed'] += (int) $failed->found_posts;
+			} finally {
+				restore_current_blog();
+			}
+		}
+		$stats['total'] = $stats['pending'] + $stats['done'] + $stats['failed'];
+		return $stats;
+	}
+
+	private static function summary( $stats ) { return sprintf( 'Total: %d · Optimizadas: %d · Pendientes: %d · Con error: %d', $stats['total'], $stats['done'], $stats['pending'], $stats['failed'] ); }
 }
