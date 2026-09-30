@@ -5,13 +5,19 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.144.zip', version: '1.0.144' },
-  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.24.zip', version: '1.0.24' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.48.zip', version: '1.0.48' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.18.zip', version: '1.0.18' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.32.zip', version: '1.0.32' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.145.zip', version: '1.0.145' },
+  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.25.zip', version: '1.0.25' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.49.zip', version: '1.0.49' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.19.zip', version: '1.0.19' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.33.zip', version: '1.0.33' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.12.zip', version: '1.0.12' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.13.zip', version: '1.0.13' };
+const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
+const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
+const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
+if (!webpModule.includes('type="button" id="digitalisimo-webp-start"') || !webpModule.includes("admin_url( 'admin-ajax.php' )") || !webpModule.includes('self::site_ids( $network, $site_id )') || !webpModule.includes('$site_id !== get_current_blog_id()')) throw new Error('WebP debe conservar la pantalla y limitar el trabajo al sitio seleccionado.');
+if (!toolsMenu.includes('self::network_context() ? network_admin_url') || !toolsMenu.includes('self::context_field()') || !toolsBootstrap.includes('Network_Admin::init(); if ( ! is_multisite() ) return;')) throw new Error('Tools debe conservar el contexto y ofrecer WebP en WordPress individual.');
+for (const directory of ['digitalisimo-seo', 'digitalisimo-ecommerce', 'digitalisimo.chatbot', 'digitalisimo-hosting']) if (!readFileSync(join(directory, 'includes/class-digitalisimo-updater.php'), 'utf8').includes('digitalisimo_context')) throw new Error(`El actualizador de ${directory} debe conservar el contexto de origen.`);
 const phpFiles = [];
 function walk(dir) {
   for (const entry of readdirSync(dir)) {

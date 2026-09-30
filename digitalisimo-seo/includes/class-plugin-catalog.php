@@ -69,7 +69,7 @@ final class Digitalisimo_Plugin_Catalog {
 		return (string) ( $data['Version'] ?? '' );
 	}
 	private static function can_manage() { return is_multisite() ? current_user_can( 'manage_network_plugins' ) : current_user_can( 'install_plugins' ); }
-	private static function action_url( $action, $slug ) { $base = admin_url( 'admin-post.php' ); return wp_nonce_url( add_query_arg( array( 'action' => $action, 'slug' => $slug ), $base ), $action . '_' . $slug ); }
+	private static function action_url( $action, $slug ) { $base = admin_url( 'admin-post.php' ); return wp_nonce_url( add_query_arg( array( 'action' => $action, 'slug' => $slug, 'digitalisimo_context' => is_network_admin() ? 'network' : 'site' ), $base ), $action . '_' . $slug ); }
 
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'manage_network_options' ) ) return;
@@ -101,5 +101,5 @@ final class Digitalisimo_Plugin_Catalog {
 		if ( ! self::installed_version( $plugin[1] ) ) wp_die( 'El plugin no está instalado.' ); require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php'; require_once ABSPATH . 'wp-admin/includes/file.php';
 		$result = ( new Plugin_Upgrader( new Automatic_Upgrader_Skin() ) )->install( $release['package'], array( 'overwrite_package' => true ) ); if ( is_wp_error( $result ) || ! $result ) wp_die( 'No se pudo actualizar el plugin.' ); delete_site_transient( 'update_plugins' ); self::redirect();
 	}
-	private static function redirect() { wp_safe_redirect( is_multisite() ? network_admin_url( 'admin.php?page=digitalisimo-plugins' ) : admin_url( 'admin.php?page=digitalisimo-plugins' ) ); exit; }
+	private static function redirect() { wp_safe_redirect( is_multisite() && 'network' === sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) ) ? network_admin_url( 'admin.php?page=digitalisimo-plugins' ) : admin_url( 'admin.php?page=digitalisimo-plugins' ) ); exit; }
 }

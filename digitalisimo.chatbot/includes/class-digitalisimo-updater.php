@@ -62,7 +62,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		public static function action_link( $links ) {
 			if ( ! self::can_update() ) return $links;
 			$base = admin_url( 'admin-post.php' );
-			$url = wp_nonce_url( add_query_arg( 'action', self::ACTION, $base ), self::ACTION );
+			$url = wp_nonce_url( add_query_arg( array( 'action' => self::ACTION, 'digitalisimo_context' => is_network_admin() ? 'network' : 'site' ), $base ), self::ACTION );
 			$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Buscar actualizaciones', 'digitalisimo' ) . '</a>';
 			return $links;
 		}
@@ -85,7 +85,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			delete_transient( 'update_plugins' );
 			wp_update_plugins();
 			$back = wp_get_referer();
-			$default = is_multisite() ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
+			$default = is_multisite() && 'network' === sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) ) ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
 			wp_safe_redirect( add_query_arg( 'digitalisimo-checked', '1', $back ? $back : $default ) );
 			exit;
 		}
