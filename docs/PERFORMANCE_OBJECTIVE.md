@@ -34,6 +34,7 @@ Por fase se comprueba HOME desktop/móvil, menú responsive, sliders, carruseles
 - 2026-09-30: el diagnóstico registra `elementor/frontend/widget/before_render`, obtiene `get_script_depends()`/`get_style_depends()` de los widgets efectivamente renderizados y señala si alguno declara Swiper. También identifica los contextos WooCommerce básicos y widgets de carrito; la ausencia de detección se comunica como recomendación de revisión, nunca como autorización para descargar.
 - 2026-09-30: el diagnóstico inspecciona únicamente hojas CSS locales encoladas bajo `wp-content`/uploads, con límite de 512 KiB por archivo y comprobación de ruta real. Agrupa reglas `@font-face` por familia, pesos, formato y declaración `font-display`, sin inventar uso above-the-fold. La prueba automatizada verifica que no pueda leer CSS fuera de `wp-content` por traversal.
 - 2026-09-30: se agregó una comparativa manual por URL con Performance, FCP, LCP, TBT y CLS antes/después. La red identifica el sitio por URL y guarda los datos en la opción de ese blog mediante `switch_to_blog()`/`restore_current_blog()`; se conservan como máximo 25 URLs por sitio. No se consulta PageSpeed API.
+- 2026-09-30: se midió la portada pública con Lighthouse local antes de instalar SEO 1.0.148: Performance 73, FCP 1.6 s, LCP 2.1 s, TBT 960 ms y CLS 0.005. [Detalle y captura](measurements/2026-09-30-home-mobile-before.md). La API PageSpeed respondió HTTP 429; la medición local es la referencia reproducible para la comparación posterior.
 
 ### Riesgo y reversión de fase 1
 
