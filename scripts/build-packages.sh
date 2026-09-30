@@ -17,9 +17,19 @@ build_package() {
   echo "$output_dir/$prefix-$version.zip"
 }
 
-build_package digitalisimo-seo digitalisimo-integrations.php digitalisimo-seo
-build_package digitalisimo-ecommerce digitalisimo-ecommerce.php digitalisimo-ecommerce
-build_package digitalisimo.chatbot digitalisimo-chatbot.php digitalisimo-ia-tools
-build_package digitalisimo-hosting digitalisimo-hosting.php digitalisimo-hosting
-build_package digitalisimo-backups digitalisimo-backups.php digitalisimo-backups
-build_package digitalisimo-tools digitalisimo-tools.php digitalisimo-tools
+packages=("${@:2}")
+if (( ${#packages[@]} == 0 )); then
+  packages=(digitalisimo-seo digitalisimo-ecommerce digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools)
+fi
+
+for package in "${packages[@]}"; do
+  case "$package" in
+    digitalisimo-seo) build_package digitalisimo-seo digitalisimo-integrations.php "$package" ;;
+    digitalisimo-ecommerce) build_package digitalisimo-ecommerce digitalisimo-ecommerce.php "$package" ;;
+    digitalisimo-ia-tools) build_package digitalisimo.chatbot digitalisimo-chatbot.php "$package" ;;
+    digitalisimo-hosting) build_package digitalisimo-hosting digitalisimo-hosting.php "$package" ;;
+    digitalisimo-backups) build_package digitalisimo-backups digitalisimo-backups.php "$package" ;;
+    digitalisimo-tools) build_package digitalisimo-tools digitalisimo-tools.php "$package" ;;
+    *) echo "Módulo desconocido: $package" >&2; exit 1 ;;
+  esac
+done

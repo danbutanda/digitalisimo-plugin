@@ -17,10 +17,13 @@ for (const [directory, mainFile, slug] of modules) {
   if (!version) throw new Error(`Falta versión numérica en ${directory}/${mainFile}`);
   expected.set(slug, version);
 }
+const selected = process.argv.filter((argument) => argument.startsWith('digitalisimo-'));
+for (const slug of selected) if (!expected.has(slug)) throw new Error(`Módulo desconocido: ${slug}`);
+const selectedVersions = selected.length ? [...new Set(selected)].map((slug) => [slug, expected.get(slug)]) : [...expected];
 const actual = readdirSync(packageDir).filter((file) => file.endsWith('.zip')).sort();
-const wanted = [...expected].map(([slug, version]) => `${slug}-${version}.zip`).sort();
+const wanted = selectedVersions.map(([slug, version]) => `${slug}-${version}.zip`).sort();
 if (actual.length !== wanted.length || actual.some((file, index) => file !== wanted[index])) {
-  throw new Error(`La Release exige exactamente estos seis ZIPs: ${wanted.join(', ')}. Encontrados: ${actual.join(', ')}`);
+  throw new Error(`La entrega exige exactamente estos ZIPs: ${wanted.join(', ')}. Encontrados: ${actual.join(', ')}`);
 }
 console.log(`Paquetes completos: ${wanted.join(', ')}`);
 
@@ -47,13 +50,13 @@ if (process.argv.includes('--remote')) {
     if (releases.length < 100) break;
     if (page === 20) throw new Error('Hay más de 2000 Releases; amplía la paginación antes de publicar');
   }
-  for (const [slug, version] of expected) {
+  for (const [slug, version] of selectedVersions) {
     const previous = latest.get(slug);
     if (previous && compareVersions(version, previous) <= 0) {
       throw new Error(`${slug} ${version} debe superar la última versión publicada ${previous}`);
     }
   }
-  console.log('Las seis versiones superan las publicadas en GitHub.');
+  console.log('Las versiones seleccionadas superan las publicadas en GitHub.');
 }
 
 function compareVersions(left, right) {

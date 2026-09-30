@@ -11,6 +11,11 @@ on:
       - 'digitalisimo-backups/**'
       - 'digitalisimo-tools/**'
   workflow_dispatch:
+    inputs:
+      modules:
+        description: 'Slugs de los plugins a publicar, separados por espacios'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -24,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -32,15 +39,37 @@ jobs:
           php-version: '8.2'
       - name: Validar sintaxis PHP
         run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools -name '*.php' -print0 | xargs -0 -r -n1 php -l
-      - name: Preparar paquetes instalables limpios
-        run: bash scripts/build-packages.sh "$RUNNER_TEMP/digitalisimo-packages"
-      - name: Validar suite, assets y versiones publicadas
+      - name: Seleccionar plugins modificados
+        id: modules
         env:
-          DIGITALISIMO_PACKAGE_DIR: ${{ runner.temp }}/digitalisimo-packages
+          INPUT_MODULES: ${{ inputs.modules }}
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            read -r -a modules <<< "$INPUT_MODULES"
+          else
+            changed="$(bash scripts/changed-modules.sh "$BEFORE_SHA" "$HEAD_SHA")"
+            test -n "$changed"
+            mapfile -t modules <<< "$changed"
+          fi
+          test "${#modules[@]}" -gt 0
+          echo "names=${modules[*]}" >> "$GITHUB_OUTPUT"
+      - name: Preparar paquetes para validar toda la suite
+        run: bash scripts/build-packages.sh "$RUNNER_TEMP/digitalisimo-suite"
+      - name: Validar suite
+        env:
+          DIGITALISIMO_PACKAGE_DIR: ${{ runner.temp }}/digitalisimo-suite
+        run: node tests/validate-suite.mjs
+      - name: Preparar y validar sólo los plugins modificados
+        env:
+          MODULES: ${{ steps.modules.outputs.names }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node tests/validate-suite.mjs
-          node scripts/verify-release.mjs --remote
+          read -r -a modules <<< "$MODULES"
+          bash scripts/build-packages.sh "$RUNNER_TEMP/digitalisimo-packages" "${modules[@]}"
+          DIGITALISIMO_PACKAGE_DIR="$RUNNER_TEMP/digitalisimo-packages" node scripts/verify-release.mjs --remote "${modules[@]}"
       - name: Preparar etiqueta numerada
         id: tag
         run: echo "name=v$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
