@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+El objetivo activo de rendimiento conservador de DIGITALÍSIMO SEO, sus fases y las pruebas pendientes están en [PERFORMANCE_OBJECTIVE.md](PERFORMANCE_OBJECTIVE.md). SEO 1.0.148 inicia la fase 1 con controles contextuales y diagnóstico; no se atribuye ninguna mejora de PageSpeed hasta medirla en el sitio real.
+
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 
 | Área | Estado | Alcance actual / siguiente avance |

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.147
+ * Version: 1.0.148
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.147' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.148' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -42,12 +42,16 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-local-business.php'
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-media-field.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-admin-ui.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-editorial.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-manager.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-asset-diagnostics.php';
 
 // Debe decidirse antes de `plugins_loaded`: para entonces la ruta ya está resuelta.
 Digitalisimo_Integrations_Hide_Login::boot();
 
 function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Settings::init();
+	Digitalisimo_Integrations_Performance_Manager::init();
+	Digitalisimo_Integrations_Asset_Diagnostics::init();
 	Digitalisimo_Integrations_SEO_Suite::init();
 	// SEO AI usa el motor y los proveedores del módulo AI y Chatbot.
 	if ( class_exists( 'Digitalisimo_AI' ) ) {
