@@ -10,6 +10,7 @@ SEO 1.0.157 prepara blindaje optativo para CSS local de fuentes Elementor: crea 
 SEO 1.0.158 valida en WordPress Playground con Elementor gratuito y Hello Elementor el inventario, guardado, generación de CSS y fallback del blindaje; corrige la descripción de la pantalla Fuentes. No sustituye las pruebas pendientes con Multisite, Pro y Redis.
 SEO 1.0.159 impide que un preload manual solicite una variante excluida por el blindaje y comprueba con pruebas aisladas la herencia independiente de dos sitios. El intento de Multisite en Playground quedó limitado por la exigencia de un puerto estándar.
 SEO 1.0.160 incorpora Debug administrativo por sitio con estados de fuentes, precargas, CSS, tracking y caché tomados de inventarios y capturas existentes. No altera el frontend ni presume que una configuración equivalga a una solicitud de red observada.
+SEO 1.0.161 distingue en Debug una política de fuentes pendiente de una copia CSS realmente vigente; sólo evalúa posibles duplicados de tracking si Digitalísimo está activo y tiene IDs. Las fuentes externas se señalan para investigar su origen, sin atribuirlas a un plugin concreto.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

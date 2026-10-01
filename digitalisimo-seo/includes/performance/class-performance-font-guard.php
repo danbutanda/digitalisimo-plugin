@@ -78,6 +78,17 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		return $urls;
 	}
 
+	/** Estado administrativo: una política sin copia vigente no bloquea el CSS original. */
+	public static function ready_for_face( $face, $report ) {
+		list( $mode, , $fingerprint ) = self::policy();
+		if ( 'off' === $mode || Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) || empty( $face['css'] ) || empty( $report['uploads_baseurl'] ) ) return false;
+		$manifest = get_option( self::OPTION, array() );
+		if ( $fingerprint !== ( $manifest['fingerprint'] ?? '' ) ) return false;
+		$key = $report['uploads_baseurl'] . 'elementor/google-fonts/css/' . basename( $face['css'] );
+		$row = $manifest['rows'][ $key ] ?? array();
+		return $row && is_file( $row['original'] ?? '' ) && is_file( $row['generated'] ?? '' ) && filemtime( $row['original'] ) === ( $row['mtime'] ?? null );
+	}
+
 	private static function face_matches( $face, $rules, $mode ) {
 		$family = (string) ( $face['family'] ?? '' );
 		if ( self::icon_family( $family ) ) return true;

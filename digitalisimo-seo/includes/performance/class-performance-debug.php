@@ -6,7 +6,8 @@ class Digitalisimo_Integrations_Performance_Debug {
 	public static function font_label( $face, $report ) {
 		$family = (string) ( $face['family'] ?? '' );
 		if ( Digitalisimo_Integrations_Performance_Font_Guard::icon_family( $family ) ) return 'ICON FONT';
-		return Digitalisimo_Integrations_Performance_Font_Guard::allows_face( $face, $report ) ? 'PERMITIDO' : 'BLOQUEADO';
+		if ( Digitalisimo_Integrations_Performance_Font_Guard::allows_face( $face, $report ) ) return 'PERMITIDO';
+		return Digitalisimo_Integrations_Performance_Font_Guard::ready_for_face( $face, $report ) ? 'BLOQUEADO' : 'POLÍTICA PENDIENTE';
 	}
 
 	public static function css_label( $row, $defer, $safe, $handles ) {
@@ -53,9 +54,10 @@ class Digitalisimo_Integrations_Performance_Debug {
 				echo '</tbody></table>';
 			}
 			$ids = array_filter( array( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gt_id' ), Digitalisimo_Integrations_SEO_Resolver::option( 'perf_ga4_id' ), Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gtm_id' ) ) );
-			$conflict = Digitalisimo_Integrations_Performance_Migration::tracking_conflict( $ids );
-			echo '<h3>Tracking</h3><p>DIGITALÍSIMO: ' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_tracking_enabled' ) ? 'configurado' : 'apagado' ) . ' · SITE KIT: ' . ( Digitalisimo_Integrations_Performance_Migration::site_kit_active() ? 'activo' : 'no detectado' ) . ' · ELEMENTOR: ' . ( ! empty( $custom['scanned_at'] ) ? 'inventariado' : 'sin inventario' ) . ' · DUPLICADO: ' . esc_html( $conflict ?: 'no detectado por estas comprobaciones' ) . '.</p>';
-			if ( ! empty( $captured['resources'] ) ) foreach ( (array) $captured['resources'] as $row ) if ( preg_match( '#(?:googletagmanager\.com|google-analytics\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)#i', $row['src'] ?? '' ) ) echo '<p>' . ( false !== strpos( $row['src'], 'fonts.google' ) ? 'GOOGLE REMOTO' : 'TEMA / PLUGIN · revisar tracking' ) . ': <code>' . esc_html( $row['src'] ) . '</code></p>';
+			$tracking_enabled = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_tracking_enabled' );
+			$conflict = $tracking_enabled && $ids ? Digitalisimo_Integrations_Performance_Migration::tracking_conflict( $ids ) : '';
+			echo '<h3>Tracking</h3><p>DIGITALÍSIMO: ' . ( $tracking_enabled ? 'configurado' : 'apagado' ) . ' · SITE KIT: ' . ( Digitalisimo_Integrations_Performance_Migration::site_kit_active() ? 'activo' : 'no detectado' ) . ' · ELEMENTOR: ' . ( ! empty( $custom['scanned_at'] ) ? 'inventariado' : 'sin inventario' ) . ' · DUPLICADO: ' . esc_html( $tracking_enabled && $ids ? ( $conflict ?: 'no detectado por estas comprobaciones' ) : 'sin evaluar (Digitalísimo apagado o sin IDs)' ) . '.</p>';
+			if ( ! empty( $captured['resources'] ) ) foreach ( (array) $captured['resources'] as $row ) if ( preg_match( '#(?:googletagmanager\.com|google-analytics\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)#i', $row['src'] ?? '' ) ) echo '<p>' . ( false !== strpos( $row['src'], 'fonts.google' ) ? 'GOOGLE REMOTO' : 'SCRIPT EXTERNO · revisar origen' ) . ': <code>' . esc_html( $row['src'] ) . '</code></p>';
 			$status = Digitalisimo_Integrations_Performance_Cache::status();
 			$found = false;
 			Digitalisimo_Integrations_Performance_Cache::get( 'fonts', $found );

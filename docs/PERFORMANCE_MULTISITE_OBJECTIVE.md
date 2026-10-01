@@ -104,3 +104,8 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 
 - Debug muestra por sitio familias ELEMENTOR LOCAL e ICON FONT, política PERMITIDO/BLOQUEADO, preloads configurados, CSS CRÍTICO/DIFERIDO CONFIGURADO/NORMAL, estado DIGITALÍSIMO/SITE KIT/ELEMENTOR, indicios de GOOGLE REMOTO y resultado HIT/MISS del grupo de caché propio. La tabla de red enlaza al Debug del sitio. Se usan inventarios ya guardados y la última captura pública, sin sondeos nuevos en cada visita.
 - Las etiquetas «configurado» y «no detectado» expresan límites del diagnóstico: no sustituyen Network del navegador ni detectan por completo scripts inline crudos de un tema. Sólo administradores con la capacidad pertinente pueden abrirlo. El objetivo global aún requiere validación en Multisite, Elementor Pro, Redis y Lighthouse.
+
+## Precisión de Debug · SEO 1.0.161
+
+- El estado «BLOQUEADO» para una variante local exige que la copia CSS generada exista, coincida con la política vigente y el original no haya cambiado. Si la regla la excluye pero aún no hay copia válida, Debug muestra «POLÍTICA PENDIENTE»: el frontend conserva el CSS original.
+- La señal de posible duplicado de tracking se evalúa sólo cuando el tracking de Digitalísimo está habilitado y contiene un ID. Los scripts externos detectados se presentan sin atribuirlos a un tema o plugin sin evidencia. Se probó la lógica de etiquetas y fallback; las pruebas reales de navegador, Multisite, Pro, Redis y Lighthouse siguen abiertas.
