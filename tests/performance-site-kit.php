@@ -7,7 +7,10 @@ $site_options = array(
 	2 => array( 'googlesitekit_analytics-4_settings' => array( 'measurementID' => 'G-SUBSITIO', 'trackingDisabled' => array( 'loggedinUsers', 'unknown' ) ), 'googlesitekit_tagmanager_settings' => array( 'containerID' => 'GTM-SUBSITIO', 'useSnippet' => false ), 'googlesitekit_search-console_settings' => array( 'propertyID' => 'https://sub.example.test/' ) ),
 );
 class Digitalisimo_Integrations_Performance_Migration { public static function site_kit_active() { return true; } }
+class Digitalisimo_Integrations_Settings { const OPTION = 'digitalisimo_integrations_options'; }
+class Digitalisimo_Integrations_SEO_Resolver { public static function option() { return ''; } }
 function get_option( $key, $default = false ) { global $site_options, $blog_id; return $site_options[ $blog_id ][ $key ] ?? $default; }
+function get_site_option( $key, $default = false ) { return $key === Digitalisimo_Integrations_Settings::OPTION ? array( 'perf_gt_id' => 'GT-PRINCIPAL' ) : $default; }
 function get_current_blog_id() { global $blog_id; return $blog_id; }
 function get_site( $id ) { return in_array( (int) $id, array( 1, 2 ), true ) ? (object) array( 'blog_id' => $id ) : null; }
 function switch_to_blog( $id ) { global $blog_id; $blog_id = (int) $id; }
@@ -20,8 +23,8 @@ require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-t
 $class = Digitalisimo_Integrations_Performance_Tracking::class;
 if ( $class::site_kit_ids() !== array( 'perf_gt_id' => 'GT-PRINCIPAL', 'perf_ga4_id' => 'G-PRINCIPAL', 'perf_gtm_id' => '' ) ) throw new RuntimeException( 'Los IDs del sitio principal deben asignarse a los campos correctos.' );
 ob_start(); $class::render_site_kit( false ); $site = ob_get_clean();
-if ( false === strpos( $site, 'G-PRINCIPAL' ) || false !== strpos( $site, 'G-SUBSITIO' ) || false !== strpos( $site, 'NO-MOSTRAR' ) ) throw new RuntimeException( 'El inventario del sitio filtró valores ajenos o sensibles.' );
+if ( false === strpos( $site, 'detectado en los campos superiores' ) || false !== strpos( $site, 'G-SUBSITIO' ) || false !== strpos( $site, 'NO-MOSTRAR' ) || false !== strpos( $site, 'GT-PRINCIPAL' ) || false === strpos( $site, '<details>' ) ) throw new RuntimeException( 'El resumen del sitio no debe repetir IDs ni mostrar valores ajenos o sensibles.' );
 $_GET['site_id'] = 2;
 ob_start(); $class::render_site_kit( true ); $network = ob_get_clean();
-if ( false === strpos( $network, 'G-SUBSITIO' ) || false === strpos( $network, 'GTM-SUBSITIO' ) || false === strpos( $network, 'https://sub.example.test/' ) || false !== strpos( $network, 'G-PRINCIPAL' ) || false !== strpos( $network, 'unknown' ) || 1 !== get_current_blog_id() ) throw new RuntimeException( 'La red debe mostrar y restaurar sólo el sitio seleccionado.' );
+if ( false === strpos( $network, 'G-SUBSITIO' ) || false === strpos( $network, 'GTM-SUBSITIO' ) || false === strpos( $network, 'https://sub.example.test/' ) || false !== strpos( $network, 'GT-PRINCIPAL' ) || false !== strpos( $network, 'unknown' ) || 1 !== get_current_blog_id() ) throw new RuntimeException( 'La red debe mostrar y restaurar sólo el sitio seleccionado.' );
 echo "Site Kit: valores permitidos, aislamiento por sitio y restauración de contexto.\n";

@@ -57,19 +57,32 @@ class Digitalisimo_Integrations_Performance_Tracking {
 		try {
 			$active = Digitalisimo_Integrations_Performance_Migration::site_kit_active();
 			$inventory = self::site_kit_inventory();
-			echo '<h2>Valores detectados de Google Site Kit</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code> · Plugin: ' . ( $active ? 'activo' : 'inactivo' ) . '. Los IDs válidos llenan los campos vacíos de este sitio al activar y guardar Google Tracking. Los defaults de red no reciben IDs de un subsitio.</p>';
 			$ids = self::site_kit_ids();
-			if ( array_filter( $ids ) ) {
-				echo '<table class="form-table"><tbody>';
-				foreach ( array( 'perf_gt_id' => 'Google Tag ID', 'perf_ga4_id' => 'GA4 ID', 'perf_gtm_id' => 'GTM ID' ) as $key => $label ) {
-					echo '<tr><th scope="row">' . esc_html( $label ) . ' de este sitio</th><td><input class="regular-text" type="text" readonly value="' . esc_attr( $ids[ $key ] ) . '"></td></tr>';
-				}
-				echo '</tbody></table>';
-			}
+			echo '<h2>Google Site Kit · ' . ( $active ? 'activo' : 'inactivo' ) . '</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code>. ' . ( $active ? 'Digitalísimo evita emitir etiquetas adicionales mientras Site Kit esté activo.' : 'Se conservan los valores detectados para este sitio.' ) . '</p>';
 			if ( ! $inventory ) { echo '<p>No hay valores de Site Kit guardados para este sitio.</p>'; return; }
-			echo '<table class="widefat striped"><thead><tr><th>Módulo</th><th>Valor</th><th>Detectado</th></tr></thead><tbody>';
-			foreach ( $inventory as $module => $values ) foreach ( $values as $label => $value ) echo '<tr><td>' . esc_html( $module ) . '</td><td>' . esc_html( $label ) . '</td><td><code>' . esc_html( $value ) . '</code></td></tr>';
-			echo '</tbody></table><p>Site Kit puede cargar etiquetas según la configuración de cada módulo. Mientras esté activo, Digitalísimo bloquea su propia salida de tracking para evitar duplicados.</p>';
+			$labels = array( 'perf_gt_id' => 'Google Tag', 'perf_ga4_id' => 'GA4', 'perf_gtm_id' => 'GTM' );
+			$network_values = $network ? (array) get_site_option( Digitalisimo_Integrations_Settings::OPTION, array() ) : array();
+			$summary = array();
+			foreach ( $ids as $key => $id ) {
+				if ( ! $id ) continue;
+				if ( $network && $id === ( $network_values[ $key ] ?? '' ) ) $summary[] = $labels[ $key ] . ': coincide con el valor de red';
+				elseif ( $network && ! empty( $network_values[ $key ] ) ) $summary[] = $labels[ $key ] . ': ' . $id . ' (tiene prioridad el valor de red)';
+				elseif ( $network ) $summary[] = $labels[ $key ] . ': ' . $id;
+				elseif ( Digitalisimo_Integrations_SEO_Resolver::option( $key ) === $id ) $summary[] = $labels[ $key ] . ': ya configurado';
+				elseif ( Digitalisimo_Integrations_SEO_Resolver::option( $key ) ) $summary[] = $labels[ $key ] . ': detectado; hay otro valor configurado';
+				else $summary[] = $labels[ $key ] . ': detectado en los campos superiores';
+			}
+			if ( $summary ) echo '<p><strong>IDs del sitio:</strong> ' . esc_html( implode( ' · ', $summary ) ) . '.</p>';
+			$details = array();
+			foreach ( $inventory as $module => $values ) foreach ( $values as $label => $value ) {
+				if ( ( 'Analytics 4' === $module && in_array( $label, array( 'ID de medición GA4', 'Google Tag ID' ), true ) ) || ( 'Tag Manager' === $module && 'Contenedor web' === $label ) ) continue;
+				$details[] = array( $module, $label, $value );
+			}
+			if ( $details ) {
+				echo '<details><summary>Ver detalles técnicos de Site Kit</summary><table class="widefat striped"><thead><tr><th>Módulo</th><th>Valor</th><th>Detectado</th></tr></thead><tbody>';
+				foreach ( $details as $row ) echo '<tr><td>' . esc_html( $row[0] ) . '</td><td>' . esc_html( $row[1] ) . '</td><td><code>' . esc_html( $row[2] ) . '</code></td></tr>';
+				echo '</tbody></table></details>';
+			}
 		} finally { if ( $switched ) restore_current_blog(); }
 	}
 

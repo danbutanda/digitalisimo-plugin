@@ -173,10 +173,10 @@ class Digitalisimo_Integrations_Performance_Migration {
 			if ( ! in_array( $section, array( 'css', 'tracking', 'preloads' ), true ) ) $section = 'tracking';
 			echo '<form method="post" action="' . esc_url( $action ) . '"><input type="hidden" name="action" value="digitalisimo_performance_scan_custom_code"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '"><input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '"><input type="hidden" name="section" value="' . esc_attr( $section ) . '">';
 			wp_nonce_field( 'digitalisimo_performance_scan_custom_code_' . $site_id );
-			submit_button( 'Analizar Custom Code y Site Kit', 'secondary', 'submit', false );
+			submit_button( 'Analizar Custom Code', 'secondary', 'submit', false );
 			echo '</form>';
 			if ( ! is_array( $report ) || empty( $report['scanned_at'] ) ) return;
-			echo '<p>Último análisis: ' . esc_html( $report['scanned_at'] ) . ' · Site Kit: ' . ( ! empty( $report['site_kit'] ) ? 'activo' : 'no detectado' ) . '</p>';
+			echo '<p>Último análisis: ' . esc_html( $report['scanned_at'] ) . '</p>';
 			$fonts = get_option( Digitalisimo_Integrations_Performance_Fonts::OPTION, array() );
 			$proposal = self::proposal( $report, $fonts );
 			if ( $proposal ) {
@@ -186,7 +186,7 @@ class Digitalisimo_Integrations_Performance_Migration {
 				submit_button( 'Preparar valores en SEO sin activarlos', 'secondary', 'submit', false );
 				echo '</form>';
 			}
-			if ( ! empty( $report['site_kit'] ) ) echo '<div class="notice notice-warning inline"><p>Site Kit está activo. Revisa sus IDs antes de habilitar Google Tracking en Digitalísimo; no se desactiva automáticamente.</p></div>';
+			if ( empty( $report['rows'] ) ) { echo '<p>No se detectaron fragmentos relevantes de Elementor Custom Code.</p>'; return; }
 			echo '<table class="widefat striped"><thead><tr><th>Custom Code</th><th>Estado</th><th>Ubicación</th><th>Google IDs</th><th>Preloads</th><th>CSS técnico</th></tr></thead><tbody>';
 			foreach ( (array) ( $report['rows'] ?? array() ) as $row ) {
 				$edit = get_edit_post_link( $row['id'] );
