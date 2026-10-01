@@ -91,6 +91,10 @@ class Digitalisimo_Integrations_Settings {
 			'perf_embeds'          => 0,
 			'perf_dashicons'       => 0,
 			'perf_font_swap'       => 0,
+			'perf_css_defer'       => 0,
+			'perf_css_defer_handles' => "widget-blockquote\nwidget-form\nwidget-divider\nwidget-social-icons",
+			'perf_caption_normal'  => 0,
+			'perf_custom_css'      => '',
 			'seo_taxonomies'         => 'category,post_tag',
 			'seo_sitemap_taxonomies' => 'category',
 			'seo_sitemap_images'     => 1,
@@ -157,7 +161,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function sanitize( $input ) {
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
-		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap' ) as $key ) {
+		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_caption_normal' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
@@ -168,6 +172,8 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ipinfo_tokens', 'sitemap_post_types', 'sitemap_exclude_ids', 'keyword_post_types', 'noindex_page_slugs', 'noindex_page_ids', 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_local_address', 'seo_local_hours', 'seo_taxonomies', 'seo_sitemap_taxonomies', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_textarea_field( $input[ $key ] );
 		}
+		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
+		if ( isset( $input['perf_custom_css'] ) ) $output['perf_custom_css'] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $input['perf_custom_css'] );
 		foreach ( self::template_default_keys() as $key ) if ( isset( $input[ $key ] ) && '' === trim( (string) $input[ $key ] ) ) $output[ $key ] = self::defaults()[ $key ];
 		if ( isset( $input['ipinfo_cache_minutes'] ) ) $output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ) );
 		if ( isset( $input['keyword_max_count'] ) ) $output['keyword_max_count'] = min( 5, max( 1, absint( $input['keyword_max_count'] ) ) );

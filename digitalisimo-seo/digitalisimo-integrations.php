@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.151
+ * Version: 1.0.152
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.151' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.152' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -43,6 +43,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-media-field.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-admin-ui.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-editorial.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-manager.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-css.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-cache.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-console.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-asset-diagnostics.php';
@@ -54,6 +55,7 @@ Digitalisimo_Integrations_Hide_Login::boot();
 function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Settings::init();
 	Digitalisimo_Integrations_Performance_Manager::init();
+	Digitalisimo_Integrations_Performance_CSS::init();
 	Digitalisimo_Integrations_Performance_Cache::init();
 	Digitalisimo_Integrations_Performance_Console::init();
 	Digitalisimo_Integrations_Asset_Diagnostics::init();

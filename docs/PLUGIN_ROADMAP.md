@@ -1,6 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
 Los objetivos activos de rendimiento de DIGITALÍSIMO SEO están en [PERFORMANCE_OBJECTIVE.md](PERFORMANCE_OBJECTIVE.md) y [PERFORMANCE_MULTISITE_OBJECTIVE.md](PERFORMANCE_MULTISITE_OBJECTIVE.md). SEO 1.0.150 amplía el diagnóstico de WooCommerce y muestra el origen de plugins terceros. El objetivo nuevo agrega un panel independiente y controles Multisite; la validación anterior todavía no está cerrada.
+SEO 1.0.152 incorpora CSS diferido y técnico opt-in en sitio/red; ninguno se activa por defecto ni se considera validado visualmente sin un sitio de pruebas representativo.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 
