@@ -45,6 +45,7 @@ jobs:
           php tests/performance-diagnostics.php
           php tests/performance-cache.php
           php tests/performance-inheritance.php
+          php tests/performance-debug.php
           php tests/performance-css.php
           php tests/performance-fonts.php
           php tests/performance-font-guard.php

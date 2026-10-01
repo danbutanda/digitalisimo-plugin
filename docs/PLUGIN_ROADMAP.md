@@ -9,6 +9,7 @@ SEO 1.0.156 agrega una preparación de migración desde Elementor Custom Code qu
 SEO 1.0.157 prepara blindaje optativo para CSS local de fuentes Elementor: crea copias por sitio al solicitarlo en administración, protege icon fonts y conserva el CSS original cuando la política o el archivo cambian. Sin validación visual real permanece apagado.
 SEO 1.0.158 valida en WordPress Playground con Elementor gratuito y Hello Elementor el inventario, guardado, generación de CSS y fallback del blindaje; corrige la descripción de la pantalla Fuentes. No sustituye las pruebas pendientes con Multisite, Pro y Redis.
 SEO 1.0.159 impide que un preload manual solicite una variante excluida por el blindaje y comprueba con pruebas aisladas la herencia independiente de dos sitios. El intento de Multisite en Playground quedó limitado por la exigencia de un puerto estándar.
+SEO 1.0.160 incorpora Debug administrativo por sitio con estados de fuentes, precargas, CSS, tracking y caché tomados de inventarios y capturas existentes. No altera el frontend ni presume que una configuración equivalga a una solicitud de red observada.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

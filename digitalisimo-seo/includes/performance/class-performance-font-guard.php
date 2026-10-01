@@ -58,7 +58,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		return $rules;
 	}
 
-	private static function icon_family( $family ) {
+	public static function icon_family( $family ) {
 		return (bool) preg_match( '/(?:^|[\s_-])(?:eicons|font[\s_-]?awesome|[a-z0-9_-]*icons?)(?:$|[\s_-])/i', $family );
 	}
 

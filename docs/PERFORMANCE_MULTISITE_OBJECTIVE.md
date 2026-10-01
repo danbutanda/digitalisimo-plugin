@@ -99,3 +99,8 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 
 - Una precarga no debe descargar un WOFF2 excluido del CSS protegido. Antes de elegir las fuentes críticas, la política efectiva de blindaje filtra las variantes inventariadas; los icon fonts permanecen permitidos. La política se calcula una vez por petición para mantener bajo el costo del frontend.
 - La herencia red → sitio → default y el aislamiento de dos sitios se probaron con funciones WordPress simuladas. Se intentó crear una red local en Playground; la herramienta rechazó `127.0.0.1:9400` porque Multisite no acepta puertos personalizados. Los puertos estándar de la máquina estaban ocupados y un espacio de red aislado no tuvo salida para descargar las dependencias de Playground. Esto no cuenta como validación real de Multisite.
+
+## Debug administrativo · SEO 1.0.160
+
+- Debug muestra por sitio familias ELEMENTOR LOCAL e ICON FONT, política PERMITIDO/BLOQUEADO, preloads configurados, CSS CRÍTICO/DIFERIDO CONFIGURADO/NORMAL, estado DIGITALÍSIMO/SITE KIT/ELEMENTOR, indicios de GOOGLE REMOTO y resultado HIT/MISS del grupo de caché propio. La tabla de red enlaza al Debug del sitio. Se usan inventarios ya guardados y la última captura pública, sin sondeos nuevos en cada visita.
+- Las etiquetas «configurado» y «no detectado» expresan límites del diagnóstico: no sustituyen Network del navegador ni detectan por completo scripts inline crudos de un tema. Sólo administradores con la capacidad pertinente pueden abrirlo. El objetivo global aún requiere validación en Multisite, Elementor Pro, Redis y Lighthouse.

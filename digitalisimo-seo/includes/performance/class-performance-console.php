@@ -56,10 +56,7 @@ class Digitalisimo_Integrations_Performance_Console {
 		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'cache' === $section ) self::cache_section( $network );
-		else {
-			echo '<p>El registro de descargas sólo se activa mediante <code>DIGITALISIMO_PERFORMANCE_DEBUG</code> o el filtro del mismo módulo.</p>';
-			if ( ! $network ) Digitalisimo_Integrations_Performance_Manager::render_log();
-		}
+		else Digitalisimo_Integrations_Performance_Debug::render( $network );
 		if ( in_array( $section, array( 'status', 'css', 'fonts' ), true ) ) { Digitalisimo_Integrations_Asset_Diagnostics::render( $network ); Digitalisimo_Integrations_Performance_Measurements::render( $network ); }
 		echo '</div>';
 	}
@@ -114,7 +111,7 @@ class Digitalisimo_Integrations_Performance_Console {
 				$font = 'off' === $font ? ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_swap' ) ? 'Swap' : 'Original' ) : 'Blindaje ' . $font;
 				$safe = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Modo seguro' : 'Modo avanzado';
 				$preload = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' );
-				echo '<tr><td>' . esc_html( home_url( '/' ) ) . '</td><td>' . esc_html( $css ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'fonts' ) ) ) . '">' . esc_html( $font ) . '</a></td><td>' . esc_html( $preload ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'tracking' ) ) ) . '">Auditar</a></td><td>' . ( $cache['external'] ? 'Activo' : 'Inactivo' ) . '</td><td>' . esc_html( $safe ) . '</td></tr>';
+				echo '<tr><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'debug' ) ) ) . '">' . esc_html( home_url( '/' ) ) . '</a></td><td>' . esc_html( $css ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'fonts' ) ) ) . '">' . esc_html( $font ) . '</a></td><td>' . esc_html( $preload ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'tracking' ) ) ) . '">Auditar</a></td><td>' . ( $cache['external'] ? 'Activo' : 'Inactivo' ) . '</td><td>' . esc_html( $safe ) . '</td></tr>';
 			} finally { restore_current_blog(); }
 		}
 		echo '</tbody></table>';
