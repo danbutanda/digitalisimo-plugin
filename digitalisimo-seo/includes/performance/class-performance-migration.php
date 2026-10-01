@@ -7,6 +7,18 @@ class Digitalisimo_Integrations_Performance_Migration {
 
 	public static function init() {
 		add_action( 'admin_post_digitalisimo_performance_scan_custom_code', array( __CLASS__, 'scan_action' ) );
+		add_action( 'save_post_elementor_snippet', array( __CLASS__, 'invalidate' ) );
+		add_action( 'trashed_post', array( __CLASS__, 'invalidate_post' ) );
+		add_action( 'untrashed_post', array( __CLASS__, 'invalidate_post' ) );
+	}
+
+	public static function invalidate_post( $id ) {
+		if ( 'elementor_snippet' === get_post_type( $id ) ) self::invalidate();
+	}
+
+	public static function invalidate() {
+		delete_option( self::OPTION );
+		Digitalisimo_Integrations_Performance_Cache::delete( 'custom-code' );
 	}
 
 	public static function classify( $code ) {
@@ -41,9 +53,23 @@ class Digitalisimo_Integrations_Performance_Migration {
 		return $report;
 	}
 
-	private static function site_kit_active() {
-		if ( ! function_exists( 'is_plugin_active' ) ) require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		return is_plugin_active( 'google-site-kit/google-site-kit.php' ) || ( is_multisite() && is_plugin_active_for_network( 'google-site-kit/google-site-kit.php' ) );
+	public static function site_kit_active() {
+		$slug = 'google-site-kit/google-site-kit.php';
+		$site = (array) get_option( 'active_plugins', array() );
+		$network = is_multisite() ? (array) get_site_option( 'active_sitewide_plugins', array() ) : array();
+		return in_array( $slug, $site, true ) || isset( $network[ $slug ] );
+	}
+
+	/** El inventario debe existir y no contener una implementación publicada equivalente. */
+	public static function tracking_conflict( $ids ) {
+		if ( self::site_kit_active() ) return 'Site Kit activo';
+		$report = get_option( self::OPTION, array() );
+		if ( empty( $report['scanned_at'] ) ) return 'Falta analizar Custom Code';
+		foreach ( (array) ( $report['rows'] ?? array() ) as $row ) {
+			if ( 'publish' !== ( $row['status'] ?? '' ) ) continue;
+			if ( array_intersect( $ids, (array) ( $row['tracking_ids'] ?? array() ) ) ) return 'ID publicado en Elementor Custom Code';
+		}
+		return '';
 	}
 
 	public static function scan_action() {

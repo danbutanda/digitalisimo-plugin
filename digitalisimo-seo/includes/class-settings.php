@@ -95,6 +95,13 @@ class Digitalisimo_Integrations_Settings {
 			'perf_css_defer_handles' => "widget-blockquote\nwidget-form\nwidget-divider\nwidget-social-icons",
 			'perf_caption_normal'  => 0,
 			'perf_custom_css'      => '',
+			'perf_tracking_enabled' => 0,
+			'perf_gt_id'           => '',
+			'perf_ga4_id'          => '',
+			'perf_gtm_id'          => '',
+			'perf_tracking_mode'   => 'normal',
+			'perf_tracking_delay'  => 12,
+			'perf_tracking_fallback' => 12,
 			'seo_taxonomies'         => 'category,post_tag',
 			'seo_sitemap_taxonomies' => 'category',
 			'seo_sitemap_images'     => 1,
@@ -161,7 +168,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function sanitize( $input ) {
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
-		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_caption_normal' ) as $key ) {
+		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_caption_normal', 'perf_tracking_enabled' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
@@ -174,6 +181,9 @@ class Digitalisimo_Integrations_Settings {
 		}
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
 		if ( isset( $input['perf_custom_css'] ) ) $output['perf_custom_css'] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $input['perf_custom_css'] );
+		foreach ( array( 'perf_gt_id' => 'gt', 'perf_ga4_id' => 'ga4', 'perf_gtm_id' => 'gtm' ) as $key => $kind ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_id( $input[ $key ], $kind );
+		if ( isset( $input['perf_tracking_mode'] ) ) $output['perf_tracking_mode'] = Digitalisimo_Integrations_Performance_Tracking::sanitize_mode( $input['perf_tracking_mode'] );
+		foreach ( array( 'perf_tracking_delay', 'perf_tracking_fallback' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_seconds( $input[ $key ] );
 		foreach ( self::template_default_keys() as $key ) if ( isset( $input[ $key ] ) && '' === trim( (string) $input[ $key ] ) ) $output[ $key ] = self::defaults()[ $key ];
 		if ( isset( $input['ipinfo_cache_minutes'] ) ) $output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ) );
 		if ( isset( $input['keyword_max_count'] ) ) $output['keyword_max_count'] = min( 5, max( 1, absint( $input['keyword_max_count'] ) ) );
