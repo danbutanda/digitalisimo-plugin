@@ -22,6 +22,7 @@ SEO 1.0.169 identifica las pestañas como «Diagnóstico de assets» y «PageSpe
 SEO 1.0.170 conserva azul el checkbox heredado cuando el valor efectivo está activo y muestra «Activo»/«Inactivo» en lugar de 1/0; el control sigue bloqueado mientras se hereda de la red.
 SEO 1.0.171 evita que el estilo gris de «Valor predeterminado del plugin» oculte los checkboxes activos en la red y en los sitios; el estado marcado vuelve a verse azul sin cambiar el valor ni la capacidad de edición.
 SEO 1.0.172 simplifica Fuentes con un botón por sitio que inventaría Kit y documentos Elementor publicados, activa el modo automático de ese sitio y prepara copias filtradas del CSS local. Con inventario parcial conserva familias no identificadas; los iconos y originales se preservan. El detalle manual queda plegado y cambios posteriores de Elementor invalidan las copias.
+SEO 1.0.173 agrega en Google Tracking un inventario de lectura de Analytics 4, Tag Manager, Google Ads, AdSense y Search Console guardados por Site Kit. En red consulta únicamente el sitio seleccionado y restaura el contexto al terminar; no copia IDs a defaults ni muestra credenciales. PHP lint, pruebas de rendimiento y suite de seis módulos superadas; paquete `digitalisimo-seo-1.0.173.zip` validado con `unzip -t` y la versión anterior conservada en `rollback/`.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

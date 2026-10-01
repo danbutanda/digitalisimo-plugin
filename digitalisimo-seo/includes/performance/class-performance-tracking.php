@@ -4,6 +4,54 @@ defined( 'ABSPATH' ) || exit;
 /** Google Tag, GA4 y GTM opt-in, con preflight de duplicados por sitio. */
 class Digitalisimo_Integrations_Performance_Tracking {
 	private static $gtm_printed = '';
+	/** Claves públicas de configuración; nunca se muestran tokens ni opciones completas de Site Kit. */
+	private static function site_kit_fields() {
+		return array(
+			'googlesitekit_analytics-4_settings' => array( 'title' => 'Analytics 4', 'fields' => array( 'accountID' => 'Cuenta', 'propertyID' => 'Propiedad', 'webDataStreamID' => 'Flujo web', 'measurementID' => 'ID de medición GA4', 'googleTagID' => 'Google Tag ID', 'googleTagAccountID' => 'Cuenta de Google Tag', 'googleTagContainerID' => 'Contenedor de Google Tag', 'adsConversionID' => 'Conversión de Ads (anterior)', 'useSnippet' => 'Fragmento de Analytics', 'trackingDisabled' => 'Tracking desactivado para' ) ),
+			'googlesitekit_tagmanager_settings' => array( 'title' => 'Tag Manager', 'fields' => array( 'accountID' => 'Cuenta', 'containerID' => 'Contenedor web', 'ampContainerID' => 'Contenedor AMP', 'internalContainerID' => 'Contenedor interno', 'internalAMPContainerID' => 'Contenedor AMP interno', 'useSnippet' => 'Fragmento de Tag Manager' ) ),
+			'googlesitekit_ads_settings' => array( 'title' => 'Google Ads', 'fields' => array( 'conversionID' => 'ID de conversión', 'paxConversionID' => 'ID de conversión PAX', 'customerID' => 'Cliente', 'extCustomerID' => 'Cliente externo' ) ),
+			'googlesitekit_adsense_settings' => array( 'title' => 'AdSense', 'fields' => array( 'accountID' => 'Cuenta', 'clientID' => 'Cliente', 'useSnippet' => 'Fragmento de AdSense' ) ),
+			'googlesitekit_search-console_settings' => array( 'title' => 'Search Console', 'fields' => array( 'propertyID' => 'Propiedad verificada' ) ),
+		);
+	}
+
+	/** Lee únicamente opciones del sitio actual y campos conocidos que no contienen credenciales. */
+	public static function site_kit_inventory() {
+		$result = array();
+		foreach ( self::site_kit_fields() as $option => $module ) {
+			$settings = get_option( $option, array() );
+			if ( ! is_array( $settings ) || ! $settings ) continue;
+			$values = array();
+			foreach ( $module['fields'] as $key => $label ) {
+				if ( ! array_key_exists( $key, $settings ) ) continue;
+				$value = $settings[ $key ];
+				if ( 'useSnippet' === $key ) $value = $value ? 'Sí' : 'No';
+				elseif ( 'trackingDisabled' === $key ) $value = is_array( $value ) ? implode( ', ', array_intersect( $value, array( 'loggedinUsers' ) ) ) : '';
+				elseif ( ! is_scalar( $value ) ) continue;
+				else $value = trim( (string) $value );
+				if ( '' !== $value ) $values[ $label ] = $value;
+			}
+			if ( $values ) $result[ $module['title'] ] = $values;
+		}
+		return $result;
+	}
+
+	/** El selector de sitio de la consola de red sólo determina el inventario visible. */
+	public static function render_site_kit( $network = false ) {
+		$site_id = $network ? absint( $_GET['site_id'] ?? get_current_blog_id() ) : get_current_blog_id();
+		if ( $network && ! get_site( $site_id ) ) $site_id = get_current_blog_id();
+		$switched = $site_id !== get_current_blog_id();
+		if ( $switched ) switch_to_blog( $site_id );
+		try {
+			$active = Digitalisimo_Integrations_Performance_Migration::site_kit_active();
+			$inventory = self::site_kit_inventory();
+			echo '<h2>Valores detectados de Google Site Kit</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code> · Plugin: ' . ( $active ? 'activo' : 'inactivo' ) . '. Lectura de la configuración de este sitio; no modifica los valores de Digitalísimo ni los defaults de red.</p>';
+			if ( ! $inventory ) { echo '<p>No hay valores de Site Kit guardados para este sitio.</p>'; return; }
+			echo '<table class="widefat striped"><thead><tr><th>Módulo</th><th>Valor</th><th>Detectado</th></tr></thead><tbody>';
+			foreach ( $inventory as $module => $values ) foreach ( $values as $label => $value ) echo '<tr><td>' . esc_html( $module ) . '</td><td>' . esc_html( $label ) . '</td><td><code>' . esc_html( $value ) . '</code></td></tr>';
+			echo '</tbody></table><p>Site Kit puede cargar etiquetas según la configuración de cada módulo. Mientras esté activo, Digitalísimo bloquea su propia salida de tracking para evitar duplicados.</p>';
+		} finally { if ( $switched ) restore_current_blog(); }
+	}
 
 	public static function init() {
 		add_action( 'wp_head', array( __CLASS__, 'head' ), 6 );
