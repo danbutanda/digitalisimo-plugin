@@ -132,6 +132,9 @@ class Digitalisimo_Integrations_SEO_Suite {
 			if ( 'seo_default_image_alt' === $key ) { $current[ $key ] = sanitize_text_field( $value ); continue; }
 			if ( 'perf_css_defer_handles' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $value ); continue; }
 			if ( 'perf_custom_css' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $value ); continue; }
+			if ( 'perf_preload_mode' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Preloads::sanitize_mode( $value ); continue; }
+			if ( 'perf_preload_paths' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Preloads::sanitize_paths( $value ); continue; }
+			if ( 'perf_preload_limit' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Preloads::sanitize_limit( $value ); continue; }
 			if ( in_array( $key, array( 'perf_gt_id', 'perf_ga4_id', 'perf_gtm_id' ), true ) ) { $kind = array( 'perf_gt_id' => 'gt', 'perf_ga4_id' => 'ga4', 'perf_gtm_id' => 'gtm' ); $current[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_id( $value, $kind[ $key ] ); continue; }
 			if ( 'perf_tracking_mode' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_mode( $value ); continue; }
 			if ( in_array( $key, array( 'perf_tracking_delay', 'perf_tracking_fallback' ), true ) ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_seconds( $value ); continue; }
@@ -142,7 +145,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 			if ( Digitalisimo_Integrations_Local_Business::SCHEDULE === $key ) { $current[ $key ] = Digitalisimo_Integrations_Local_Business::sanitize_schedule( $value ); continue; }
 			if ( Digitalisimo_Integrations_Local_Business::PHONE_CC === $key ) { $current[ $key ] = Digitalisimo_Integrations_Local_Business::sanitize_code( $value ); continue; }
 			if ( Digitalisimo_Integrations_Local_Business::PHONE === $key ) { $current[ $key ] = Digitalisimo_Integrations_Local_Business::sanitize_phone( $value ); continue; }
-			$current[ $key ] = sanitize_textarea_field( $value ); } update_site_option( Digitalisimo_Integrations_Settings::OPTION, $current ); $return = sanitize_key( $_POST['digitalisimo_return'] ?? '' ); wp_safe_redirect( in_array( $return, array( 'css', 'tracking' ), true ) ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $return . '&updated=1' ) : network_admin_url( 'admin.php?page=digitalisimo-network-seo&updated=1&tab=' . sanitize_key( $_POST['digitalisimo_active_tab'] ?? 'general' ) ) ); exit; }
+			$current[ $key ] = sanitize_textarea_field( $value ); } update_site_option( Digitalisimo_Integrations_Settings::OPTION, $current ); $return = sanitize_key( $_POST['digitalisimo_return'] ?? '' ); wp_safe_redirect( in_array( $return, array( 'css', 'tracking', 'preloads' ), true ) ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $return . '&updated=1' ) : network_admin_url( 'admin.php?page=digitalisimo-network-seo&updated=1&tab=' . sanitize_key( $_POST['digitalisimo_active_tab'] ?? 'general' ) ) ); exit; }
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) return; $slug = sanitize_key( $_GET['page'] ?? 'digitalisimo-seo' ); $map = array( 'digitalisimo-seo' => 'dashboard', 'digitalisimo-seo-general' => 'general', 'digitalisimo-seo-titles' => 'titles', 'digitalisimo-seo-appearance' => 'appearance', 'digitalisimo-seo-schema' => 'schema', 'digitalisimo-seo-local' => 'local', 'digitalisimo-seo-social' => 'social', 'digitalisimo-seo-sitemap' => 'sitemap', 'digitalisimo-seo-indexing' => 'indexing', 'digitalisimo-seo-breadcrumbs' => 'breadcrumbs', 'digitalisimo-seo-performance' => 'performance', 'digitalisimo-seo-tools' => 'tools', 'digitalisimo-seo-diagnostic' => 'diagnostic' ); $section = $map[ $slug ] ?? 'dashboard';
 		echo '<div class="wrap digitalisimo-admin-shell"><h1>SEO · Digitalisimo</h1><p>Configura las señales SEO del sitio desde un solo lugar.</p>'; self::navigation_tabs( $section );
@@ -206,6 +209,18 @@ class Digitalisimo_Integrations_SEO_Suite {
 		self::f( 'perf_tracking_mode', 'Modo de carga', 'select', 'DataLayer y gtag() se crean inmediatamente. Interacción usa scroll, touchstart, keydown o click; nunca mousemove.', array( 'normal' => 'Normal', 'domcontentloaded' => 'Después de DOMContentLoaded', 'load' => 'Después de window.load', 'interaction' => 'Después de interacción', 'delay' => 'Delay tras window.load' ) );
 		self::f( 'perf_tracking_delay', 'Delay personalizado (segundos)', 'number', 'Sólo para el modo Delay; 1–120 segundos.' );
 		self::f( 'perf_tracking_fallback', 'Fallback interacción (segundos)', 'number', 'Tras window.load; por defecto 12 segundos.' );
+	}
+	public static function performance_preload_site_fields() {
+		echo '<tr><th colspan="2"><h2>Preloads críticos WOFF2</h2><p>Primero analiza Fuentes y Custom Code. Sólo se imprimen fuentes locales del inventario cuyo CSS esté encolado en la página. Si Elementor ya publica el mismo preload, se omite. Apagado por defecto.</p></th></tr>';
+		self::f( 'perf_preload_mode', 'Modo', 'select', 'Automático elige variantes normales de peso 400 declaradas en el Kit; Manual usa las rutas indicadas abajo.', array( 'off' => 'Apagado', 'auto' => 'Automático', 'manual' => 'Manual' ) );
+		self::f( 'perf_preload_limit', 'Máximo de fuentes', 'number', 'Entre 1 y 2 por página.' );
+		self::f( 'perf_preload_paths', 'Rutas WOFF2 manuales', 'textarea', 'Una ruta relativa a uploads por línea, por ejemplo elementor/google-fonts/fonts/archivo.woff2. Usa las rutas del inventario de este sitio.' );
+	}
+	public static function performance_preload_network_fields() {
+		echo '<tr><th colspan="2"><h2>Preloads críticos · defaults de red</h2><p>Las rutas son relativas a uploads; cada sitio sólo usa sus propias fuentes inventariadas.</p></th></tr>';
+		self::nf( 'perf_preload_mode', 'Modo', 'text', 'off, auto o manual.' );
+		self::nf( 'perf_preload_limit', 'Máximo de fuentes', 'number', 'Entre 1 y 2 por página.' );
+		self::nf( 'perf_preload_paths', 'Rutas WOFF2 manuales', 'textarea', 'Rutas relativas a uploads, una por línea.' );
 	}
 	public static function performance_tracking_network_fields() {
 		echo '<tr><th colspan="2"><h2>Google Tracking · defaults de red</h2><p>Los sitios pueden heredar o sobrescribir cada valor. Site Kit y Custom Code publicados bloquean la salida duplicada por sitio.</p></th></tr>';

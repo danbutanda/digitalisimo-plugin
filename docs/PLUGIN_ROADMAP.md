@@ -4,6 +4,7 @@ Los objetivos activos de rendimiento de DIGITALÍSIMO SEO están en [PERFORMANCE
 SEO 1.0.152 incorpora CSS diferido y técnico opt-in en sitio/red; ninguno se activa por defecto ni se considera validado visualmente sin un sitio de pruebas representativo.
 SEO 1.0.153 añade inventario administrativo de Kit, CSS de fuentes locales y Custom Code de Elementor por sitio, sin bloqueo de fuentes ni cambios de tracking.
 SEO 1.0.154 prepara GT/GA4/GTM opt-in con preflight de duplicados y modos de carga reversibles; la producción actual con Site Kit y Custom Code mantiene la salida de Digitalísimo bloqueada.
+SEO 1.0.155 añade preloads WOFF2 locales opt-in por sitio/red, con inventario administrativo, CSS encolado obligatorio y protección frente a duplicados de WordPress y Custom Code. Sigue pendiente la prueba de red y fuentes en navegador.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

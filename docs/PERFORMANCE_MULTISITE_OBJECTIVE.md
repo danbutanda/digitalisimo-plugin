@@ -70,3 +70,10 @@ En la portada principal publicada aparecen encolados los cuatro candidatos propu
 - El módulo no desactiva Site Kit ni elimina Custom Code. En el sitio principal, con Site Kit y un Google Tag publicado, la salida de Digitalísimo queda bloqueada aunque alguien active el interruptor. La migración efectiva sólo puede verificarse después de decidir cuál implementación conservar y comprobar consentimiento/medición en un sitio real.
 
 Referencias API: [WordPress Object Cache](https://developer.wordpress.org/reference/classes/wp_object_cache/), [detección de caché externa](https://developer.wordpress.org/reference/functions/wp_using_ext_object_cache/), [filtro de etiquetas CSS](https://developer.wordpress.org/reference/hooks/style_loader_tag/) y [tipografía global Elementor](https://developers.elementor.com/docs/editor-controls/global-style/).
+
+## Preloads locales opt-in · SEO 1.0.155
+
+- El análisis administrativo de fuentes guarda la URL de cada WOFF2 local validado dentro de los uploads del sitio y muestra su ruta relativa para configuración manual. No se buscan archivos durante visitas públicas.
+- La pestaña Preloads ofrece modos apagado, automático y manual, con límite de uno o dos archivos. El modo automático considera sólo familias declaradas por el Kit, variantes normales de peso 400 y CSS local efectivamente encolado en la página; el manual usa rutas relativas a uploads para que los defaults de red no incorporen el dominio de otro sitio. Ningún modo presume que la fuente sea crítica: un administrador debe comparar su efecto visual y Lighthouse antes de habilitarlo.
+- La salida omite un WOFF2 cuando no existe un inventario de fuentes y Custom Code, su CSS no está encolado, WordPress ya lo precarga o un Custom Code publicado tiene la misma URL. Mantiene el límite y elimina duplicados internos. La compatibilidad con preloads directos emitidos por un tema después de `wp_head` prioridad 7 queda pendiente de verificación real.
+- Se requiere comprobar en un sitio de pruebas las solicitudes de red y la ausencia de preloads duplicados antes de activar la función en producción. La fase de fuentes y la validación global siguen abiertas.

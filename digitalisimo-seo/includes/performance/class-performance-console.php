@@ -53,7 +53,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			if ( $network ) self::network_sites();
 		} elseif ( 'css' === $section ) self::settings( $network, 'css' );
 		elseif ( 'fonts' === $section ) Digitalisimo_Integrations_Performance_Fonts::render( $network );
-		elseif ( 'preloads' === $section ) echo '<p>Los preloads se diagnostican; no se agregan automáticamente todavía.</p>';
+		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'cache' === $section ) self::cache_section( $network );
 		else {
@@ -70,12 +70,14 @@ class Digitalisimo_Integrations_Performance_Console {
 			wp_nonce_field( 'digitalisimo_network_seo' );
 			echo '<input type="hidden" name="digitalisimo_active_tab" value="performance"><input type="hidden" name="digitalisimo_return" value="' . esc_attr( $section ) . '"><table class="form-table">';
 			if ( 'tracking' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_tracking_network_fields();
+			elseif ( 'preloads' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_preload_network_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_network_fields();
 		} else {
 			echo '<form method="post" action="options.php">';
 			settings_fields( 'digitalisimo_integrations' );
 			echo '<table class="form-table">';
 			if ( 'tracking' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_tracking_site_fields();
+			elseif ( 'preloads' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_preload_site_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_site_fields();
 		}
 		echo '</table>';
@@ -108,7 +110,8 @@ class Digitalisimo_Integrations_Performance_Console {
 				$css = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Gutenberg contextual' : 'Sin limpieza';
 				$font = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_swap' ) ? 'Swap' : 'Original';
 				$safe = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Modo seguro' : 'Modo avanzado';
-				echo '<tr><td>' . esc_html( home_url( '/' ) ) . '</td><td>' . esc_html( $css ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'fonts' ) ) ) . '">' . esc_html( $font ) . '</a></td><td>Sin configurar</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'tracking' ) ) ) . '">Auditar</a></td><td>' . ( $cache['external'] ? 'Activo' : 'Inactivo' ) . '</td><td>' . esc_html( $safe ) . '</td></tr>';
+				$preload = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' );
+				echo '<tr><td>' . esc_html( home_url( '/' ) ) . '</td><td>' . esc_html( $css ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'fonts' ) ) ) . '">' . esc_html( $font ) . '</a></td><td>' . esc_html( $preload ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'tracking' ) ) ) . '">Auditar</a></td><td>' . ( $cache['external'] ? 'Activo' : 'Inactivo' ) . '</td><td>' . esc_html( $safe ) . '</td></tr>';
 			} finally { restore_current_blog(); }
 		}
 		echo '</tbody></table>';

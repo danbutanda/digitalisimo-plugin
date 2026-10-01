@@ -95,6 +95,9 @@ class Digitalisimo_Integrations_Settings {
 			'perf_css_defer_handles' => "widget-blockquote\nwidget-form\nwidget-divider\nwidget-social-icons",
 			'perf_caption_normal'  => 0,
 			'perf_custom_css'      => '',
+			'perf_preload_mode'    => 'off',
+			'perf_preload_paths'   => '',
+			'perf_preload_limit'   => 2,
 			'perf_tracking_enabled' => 0,
 			'perf_gt_id'           => '',
 			'perf_ga4_id'          => '',
@@ -181,6 +184,9 @@ class Digitalisimo_Integrations_Settings {
 		}
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
 		if ( isset( $input['perf_custom_css'] ) ) $output['perf_custom_css'] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $input['perf_custom_css'] );
+		if ( isset( $input['perf_preload_mode'] ) ) $output['perf_preload_mode'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_mode( $input['perf_preload_mode'] );
+		if ( isset( $input['perf_preload_paths'] ) ) $output['perf_preload_paths'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_paths( $input['perf_preload_paths'] );
+		if ( isset( $input['perf_preload_limit'] ) ) $output['perf_preload_limit'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_limit( $input['perf_preload_limit'] );
 		foreach ( array( 'perf_gt_id' => 'gt', 'perf_ga4_id' => 'ga4', 'perf_gtm_id' => 'gtm' ) as $key => $kind ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_id( $input[ $key ], $kind );
 		if ( isset( $input['perf_tracking_mode'] ) ) $output['perf_tracking_mode'] = Digitalisimo_Integrations_Performance_Tracking::sanitize_mode( $input['perf_tracking_mode'] );
 		foreach ( array( 'perf_tracking_delay', 'perf_tracking_fallback' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_seconds( $input[ $key ] );

@@ -60,9 +60,13 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			if ( ! is_string( $css ) || ! preg_match_all( '/@font-face\s*\{([^}]*)\}/i', $css, $blocks ) ) continue;
 			foreach ( array_slice( $blocks[1], 0, 300 ) as $block ) {
 				if ( ! preg_match( '/font-family\s*:\s*([^;]+)/i', $block, $family ) ) continue;
-				$row = array( 'family' => trim( $family[1], " \t\n\r\0\x0B'\"" ), 'weight' => '', 'style' => '', 'format' => '', 'css' => basename( $real ) );
+				$row = array( 'family' => trim( $family[1], " \t\n\r\0\x0B'\"" ), 'weight' => '', 'style' => '', 'format' => '', 'css' => basename( $real ), 'url' => '' );
 				foreach ( array( 'font-weight' => 'weight', 'font-style' => 'style' ) as $property => $field ) if ( preg_match( '/' . $property . '\s*:\s*([^;]+)/i', $block, $match ) ) $row[ $field ] = trim( $match[1] );
 				if ( preg_match( '/format\(\s*[\'\"]?([^\'\")]+)/i', $block, $format ) ) $row['format'] = trim( $format[1] );
+				if ( preg_match( '/url\(\s*[\'\"]?([^\'\")]+\.woff2)(?:\?[^\'\")]+)?[\'\"]?\s*\)/i', $block, $source ) ) {
+					$font_path = realpath( dirname( $real ) . '/' . $source[1] );
+					if ( $font_path && 0 === strpos( $font_path, trailingslashit( $root ) ) && is_file( $font_path ) ) $row['url'] = trailingslashit( $uploads['baseurl'] ) . str_replace( DIRECTORY_SEPARATOR, '/', substr( $font_path, strlen( trailingslashit( $root ) ) ) );
+				}
 				$faces[] = $row;
 				if ( count( $faces ) >= 500 ) break 2;
 			}
@@ -72,7 +76,8 @@ class Digitalisimo_Integrations_Performance_Fonts {
 
 	public static function scan() {
 		list( $kit_id, $settings ) = self::kit_settings();
-		$report = array( 'kit_id' => $kit_id, 'families' => self::families_from_settings( $settings ), 'faces' => self::local_faces(), 'scanned_at' => current_time( 'mysql' ) );
+		$uploads = wp_upload_dir();
+		$report = array( 'kit_id' => $kit_id, 'families' => self::families_from_settings( $settings ), 'faces' => self::local_faces(), 'uploads_baseurl' => trailingslashit( $uploads['baseurl'] ?? '' ), 'scanned_at' => current_time( 'mysql' ) );
 		update_option( self::OPTION, $report, false );
 		Digitalisimo_Integrations_Performance_Cache::set( 'fonts', $report, 3600 );
 		return $report;
@@ -120,6 +125,10 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			echo '<table class="widefat striped"><thead><tr><th>Familia</th><th>Pesos</th><th>Estilos</th><th>Formato</th><th>CSS</th></tr></thead><tbody>';
 			foreach ( $grouped as $row ) echo '<tr><td>' . esc_html( $row['family'] ) . '</td><td>' . esc_html( implode( ', ', array_keys( $row['weights'] ) ) ) . '</td><td>' . esc_html( implode( ', ', array_keys( $row['styles'] ) ) ) . '</td><td>' . esc_html( implode( ', ', array_keys( $row['formats'] ) ) ) . '</td><td>' . esc_html( $row['css'] ) . '</td></tr>';
 			echo '</tbody></table>';
+			echo '<h3>WOFF2 disponibles para precarga manual</h3><p>Copia la ruta relativa a uploads en la sección Preloads. Un archivo en esta lista no demuestra que sea crítico para todas las páginas.</p><ul>';
+			$base = trailingslashit( wp_upload_dir()['baseurl'] ?? '' );
+			foreach ( (array) ( $report['faces'] ?? array() ) as $face ) if ( ! empty( $face['url'] ) && 0 === strpos( $face['url'], $base ) ) echo '<li><code>' . esc_html( substr( $face['url'], strlen( $base ) ) ) . '</code> — ' . esc_html( $face['family'] ?? '' ) . ' ' . esc_html( $face['weight'] ?? '' ) . ' ' . esc_html( $face['style'] ?? '' ) . '</li>';
+			echo '</ul>';
 		} finally { if ( $switched ) restore_current_blog(); }
 	}
 }

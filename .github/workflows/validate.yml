@@ -29,6 +29,7 @@ jobs:
           php tests/performance-cache.php
           php tests/performance-css.php
           php tests/performance-fonts.php
+          php tests/performance-preloads.php
           php tests/performance-migration.php
           php tests/performance-tracking.php
       - name: Construir paquetes limpios
