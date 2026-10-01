@@ -11,6 +11,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		if ( function_exists( 'wp_preload_resources' ) && version_compare( get_bloginfo( 'version' ), '6.6', '>=' ) ) add_filter( 'wp_preload_resources', array( __CLASS__, 'inject_resources' ), 999 );
 		else add_action( 'wp_head', array( __CLASS__, 'print_links' ), 0 );
 		add_action( 'admin_init', array( __CLASS__, 'bootstrap' ), 30 );
+		add_action( 'init', array( __CLASS__, 'schedule_missing' ), 30 );
 		add_action( self::CRON, array( __CLASS__, 'rebuild' ) );
 		add_action( 'save_post_elementor_library', array( __CLASS__, 'schedule' ) );
 		add_action( 'elementor/core/files/clear_cache', array( __CLASS__, 'schedule' ) );
@@ -83,7 +84,17 @@ class Digitalisimo_Integrations_Performance_Preloads {
 	}
 
 	public static function bootstrap() {
-		if ( current_user_can( 'manage_options' ) && false === get_option( self::OPTION, false ) ) self::rebuild();
+		if ( ! current_user_can( 'manage_options' ) ) return;
+		$manifest = get_option( self::OPTION, array() );
+		if ( 2 !== ( $manifest['schema'] ?? 0 ) && 'off' !== self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) ) ) self::rebuild();
+	}
+
+	/** Una actualización automática no ejecuta admin_init: sólo agenda el trabajo, nunca escanea en frontend. */
+	public static function schedule_missing() {
+		$mode = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
+		if ( 'off' === $mode ) return;
+		$manifest = get_option( self::OPTION, array() );
+		if ( 2 !== ( $manifest['schema'] ?? 0 ) || $mode !== ( $manifest['mode'] ?? '' ) ) self::schedule();
 	}
 
 	/** Se calcula en administración o cron; un MISS de Redis no afecta el HTML. */
@@ -93,7 +104,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		$mode = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
 		$base = (string) ( $report['uploads_baseurl'] ?? '' );
 		$families = array();
-		foreach ( (array) ( $report['kit_families'] ?? $report['families'] ?? array() ) as $family ) $families[ strtolower( (string) ( $family['family'] ?? '' ) ) ] = true;
+		foreach ( (array) ( $report['families'] ?? array() ) as $family ) $families[ strtolower( (string) ( $family['family'] ?? '' ) ) ] = true;
 		$manual = array_fill_keys( explode( "\n", self::sanitize_paths( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_paths' ) ) ), true );
 		$permitted = Digitalisimo_Integrations_Performance_Font_Guard::permitted_urls( $report );
 		$selected = array();
@@ -116,7 +127,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 			$rows[] = $row;
 			if ( count( $rows ) >= self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) ) ) break;
 		}
-		$manifest = array( 'mode' => $mode, 'rows' => $rows, 'generated_at' => current_time( 'mysql' ) );
+		$manifest = array( 'schema' => 2, 'mode' => $mode, 'rows' => $rows, 'generated_at' => current_time( 'mysql' ) );
 		update_option( self::OPTION, $manifest, false );
 		return $manifest;
 	}

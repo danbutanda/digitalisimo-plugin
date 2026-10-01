@@ -7,6 +7,8 @@ function wp_upload_dir() { return array( 'baseurl' => 'https://site.test/wp-cont
 function current_time() { return '2026-10-01 12:00:00'; }
 function update_option( $key, $value ) { $GLOBALS['stored_options'][ $key ] = $value; }
 function get_option( $key, $default = false ) { return $GLOBALS['stored_options'][ $key ] ?? $default; }
+function wp_next_scheduled( $hook ) { return $GLOBALS['scheduled'][ $hook ] ?? false; }
+function wp_schedule_single_event( $when, $hook ) { $GLOBALS['scheduled'][ $hook ] = $when; }
 function esc_url( $url ) { return $url; }
 class Digitalisimo_Integrations_Performance_Manager { public static function frontend_safe() { return true; } }
 class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key ) { return $GLOBALS['settings'][ $key ] ?? ''; } }
@@ -33,13 +35,17 @@ $blocked = $class::candidates( $report, 'manual', 'elementor/google-fonts/fonts/
 if ( $blocked ) throw new RuntimeException( 'No se debe precargar una variante bloqueada por la política de fuentes.' );
 $base = 'https://site.test/wp-content/uploads/elementor/google-fonts/fonts/';
 $GLOBALS['settings'] = array( 'perf_preload_mode' => 'auto', 'perf_preload_limit' => 2, 'perf_preload_paths' => '' );
-$GLOBALS['scan_report'] = array( 'scanned_at' => 'now', 'uploads_baseurl' => 'https://site.test/wp-content/uploads/', 'kit_families' => array( array( 'family' => 'Source Serif 4' ), array( 'family' => 'Inter' ) ), 'faces' => array(
+$GLOBALS['scan_report'] = array( 'scanned_at' => 'now', 'uploads_baseurl' => 'https://site.test/wp-content/uploads/', 'kit_families' => array(), 'families' => array( array( 'family' => 'Source Serif 4' ), array( 'family' => 'Inter' ) ), 'faces' => array(
 	array( 'family' => 'Source Serif 4', 'weight' => '400', 'style' => 'normal', 'unicode_range' => 'U+0100-024F', 'css' => 'sourceserif4.css', 'url' => $base . 'serif-other.woff2' ),
 	array( 'family' => 'Source Serif 4', 'weight' => '400', 'style' => 'normal', 'unicode_range' => 'U+0000-00FF', 'css' => 'sourceserif4.css', 'url' => $base . 'serif-latin.woff2' ),
 	array( 'family' => 'Inter', 'weight' => '400', 'style' => 'normal', 'unicode_range' => 'U+0000-00FF', 'css' => 'inter.css', 'url' => $base . 'inter-latin.woff2' ),
 ) );
 $manifest = $class::rebuild();
 if ( array( $base . 'serif-latin.woff2', $base . 'inter-latin.woff2' ) !== array_column( $manifest['rows'], 'url' ) ) throw new RuntimeException( 'El manifest debe elegir las dos fuentes latinas del Kit, no el primer subconjunto.' );
+unset( $GLOBALS['stored_options'][ $class::OPTION ] );
+$class::schedule_missing();
+if ( empty( $GLOBALS['scheduled'][ $class::CRON ] ) ) throw new RuntimeException( 'Una actualización automática debe programar el manifest faltante sin escanear en frontend.' );
+$GLOBALS['stored_options'][ $class::OPTION ] = $manifest;
 $resources = $class::inject_resources( array( array( 'href' => $base . 'serif-latin.woff2', 'as' => 'font' ) ) );
 if ( 2 !== count( $resources ) || $base . 'inter-latin.woff2' !== $resources[1]['href'] || 'high' !== $resources[1]['fetchpriority'] ) throw new RuntimeException( 'El filtro de WordPress debe evitar duplicados y priorizar la fuente restante.' );
 ob_start(); $class::print_links(); $printed = ob_get_clean();
