@@ -6,8 +6,9 @@ function get_current_blog_id() { return $GLOBALS['test_blog_id']; }
 function absint( $value ) { return abs( (int) $value ); }
 function get_site( $id ) { return in_array( (int) $id, array( 1, 2 ), true ) ? (object) array( 'blog_id' => (int) $id ) : false; }
 function get_home_url( $id, $path = '/' ) { return 2 === (int) $id ? 'https://example.test/subsite/' : 'https://example.test/'; }
-function get_site_option( $key, $default = false ) { return $default; }
+function get_site_option( $key, $default = false ) { return $GLOBALS['test_network'][ $key ] ?? $default; }
 function get_option( $key, $default = false ) { return $default; }
+function is_multisite() { return true; }
 function get_transient( $key ) { return $GLOBALS['test_result'] ?? false; }
 function get_current_user_id() { return 1; }
 function current_user_can( $capability ) { return true; }
@@ -34,6 +35,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 	public static function capture_belongs_to_site( $result, $site_id ) { return is_array( $result ) && ! empty( $result['url'] ) && self::site_for_url( $result['url'], true ) === $site_id; }
 }
 require __DIR__ . '/../digitalisimo-seo/includes/class-settings.php';
+require __DIR__ . '/../digitalisimo-seo/includes/class-seo-resolver.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-suite.php';
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-measurements.php';
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-console.php';
@@ -45,6 +47,12 @@ $network_html = ob_get_clean();
 foreach ( array( 'perf_font_guard_mode', 'perf_preload_mode', 'perf_tracking_mode' ) as $key ) {
 	if ( ! preg_match( '/<select[^>]+id="network_' . $key . '"[^>]*>/', $network_html ) ) throw new RuntimeException( 'El modo ' . $key . ' debe ser un selector en red.' );
 }
+$GLOBALS['test_network'][ Digitalisimo_Integrations_Settings::OPTION ] = array( 'perf_safe_mode' => 1 );
+$field = new ReflectionMethod( Digitalisimo_Integrations_SEO_Suite::class, 'f' );
+ob_start();
+$field->invoke( null, 'perf_safe_mode', 'Modo seguro', 'checkbox' );
+$inherited_html = ob_get_clean();
+if ( ! preg_match( '/id="perf_safe_mode"[^>]*checked="checked"[^>]*disabled/', $inherited_html ) || false === strpos( $inherited_html, 'digitalisimo-effective-state is-active' ) || false === strpos( $inherited_html, '>Activo</span>' ) ) throw new RuntimeException( 'Un valor heredado activo debe seguir marcado y mostrar «Activo».' );
 $_GET = array( 'site_id' => '2', 'performance_url' => 'https://example.test/subsite/page/' );
 ob_start();
 Digitalisimo_Integrations_Performance_Measurements::render( true );

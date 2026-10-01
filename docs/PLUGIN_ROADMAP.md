@@ -19,6 +19,7 @@ SEO 1.0.166 ejecuta el diagnóstico de assets mediante una visita temporal del n
 SEO 1.0.167 presenta los modos de Fuentes, Preloads y Google Tracking como selectores tanto en sitio como en red. La comparación manual de PageSpeed reutiliza la URL analizada, explica que sus métricas son opcionales y queda plegada para no confundirse con el diagnóstico de assets.
 SEO 1.0.168 separa el diagnóstico de assets en Estado y la comparación manual en Mediciones, conserva sitio y URL entre ambas y devuelve el guardado a Mediciones. Sólo se publica SEO.
 SEO 1.0.169 identifica las pestañas como «Diagnóstico de assets» y «PageSpeed manual», y redirige la ruta histórica de Rendimiento en SEO a la consola única antes de generar HTML para evitar dos interfaces distintas con la misma versión.
+SEO 1.0.170 conserva azul el checkbox heredado cuando el valor efectivo está activo y muestra «Activo»/«Inactivo» en lugar de 1/0; el control sigue bloqueado mientras se hereda de la red.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

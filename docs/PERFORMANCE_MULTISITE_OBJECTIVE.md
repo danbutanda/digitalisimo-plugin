@@ -154,3 +154,7 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 ## Una sola entrada de Rendimiento · SEO 1.0.169
 
 - Las pestañas distinguen explícitamente el inventario de assets de la carga manual de resultados PageSpeed/Lighthouse. Los enlaces históricos del sitio y de la red redirigen a la consola actual antes de generar HTML y conservan sitio/URL válidos.
+
+## Estado visible de opciones heredadas · SEO 1.0.170
+
+- Los checkboxes activos heredados conservan el color de activación aunque sigan deshabilitados para edición local. La leyenda de valor efectivo usa «Activo»/«Inactivo» y mantiene visible el origen. La herencia y el guardado no cambian.

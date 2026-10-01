@@ -26,6 +26,11 @@
 .digitalisimo-admin .wrap input:focus, .digitalisimo-admin .wrap select:focus, .digitalisimo-admin .wrap textarea:focus, .digitalisimo-admin .digitalisimo-admin-shell input:focus, .digitalisimo-admin .digitalisimo-admin-shell select:focus, .digitalisimo-admin .digitalisimo-admin-shell textarea:focus { border-color: #5365f5; box-shadow: 0 0 0 3px rgba(83,101,245,.15); outline: 2px solid transparent; }
 .digitalisimo-admin .digitalisimo-inherited-value:disabled, .digitalisimo-admin .digitalisimo-inherited-value input:disabled { color: #7b8498 !important; background: #eef1f6 !important; border-color: #d9dee8 !important; opacity: 1; cursor: not-allowed; }
 .digitalisimo-admin .digitalisimo-inheritable:disabled, .digitalisimo-admin .digitalisimo-site-field:disabled, .digitalisimo-admin .digitalisimo-media.is-locked { color: #7b8498 !important; background: #eef1f6 !important; border-color: #d9dee8 !important; opacity: 1; }
+.digitalisimo-admin input[type=checkbox].digitalisimo-inheritable:disabled:checked { color: #fff !important; background: #4058e8 !important; border-color: #4058e8 !important; opacity: 1 !important; }
+.digitalisimo-admin input[type=checkbox].digitalisimo-inheritable:disabled:checked:before { color: #fff !important; opacity: 1 !important; }
+.digitalisimo-admin .digitalisimo-effective-state { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.digitalisimo-admin .digitalisimo-effective-state.is-active { color: #135c39; background: #e2f5e9; }
+.digitalisimo-admin .digitalisimo-effective-state.is-inactive { color: #6b7280; background: #eef1f5; }
 .digitalisimo-admin .digitalisimo-default-value { color: #697388 !important; background: #f1f3f7 !important; border-color: #d9dee8 !important; }
 .digitalisimo-admin .digitalisimo-media.digitalisimo-default-value { padding: 10px; }
 .digitalisimo-admin .digitalisimo-default-note { display: inline-block; margin: 8px 0 0; padding: 3px 9px; color: #687386; background: #eef1f5; border-radius: 999px; font-size: 12px; line-height: 1.5; }
