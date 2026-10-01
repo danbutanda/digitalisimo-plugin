@@ -140,3 +140,8 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 
 - El servidor de WordPress reportó `cURL error 60` al solicitar su propio dominio para capturar assets, mientras la conexión HTTPS externa presentó un certificado válido. El diagnóstico ahora hace que el navegador visite temporalmente la URL pública seleccionada y regrese al panel de origen. El servidor conserva la captura bajo un token de corta duración y sólo la entrega al administrador que inició la prueba, con el sitio/red originales.
 - No se desactiva `sslverify` ni se usa HTTP. La captura respeta el renderizado público y evita que una resolución DNS o un vhost interno con certificado distinto impida analizar la página. Queda por confirmar en la instalación real el retorno de una URL de un subsitio con dominio mapeado y una caché de página/CDN que pudiera interceptar parámetros únicos.
+
+## Controles de Rendimiento y comparativa · SEO 1.0.167
+
+- Los modos de Fuentes, Preloads y Google Tracking usan las mismas opciones desplegables en sitio y red; el guardado de red sigue aplicando su sanitización específica y la herencia no cambia.
+- El diagnóstico de assets conserva la URL elegida al volver al panel. La comparativa usa esa misma URL sin pedirla otra vez, se presenta plegada como registro opcional y explica cada métrica. «Analizar URL» inventaría recursos; no ejecuta Lighthouse ni obtiene automáticamente FCP, LCP, TBT, CLS o puntuación. El administrador puede introducir sólo los valores de un informe externo que realmente tenga.

@@ -53,6 +53,7 @@ jobs:
           php tests/performance-migration.php
           php tests/performance-tracking.php
           php tests/seo-release-check.php
+          php tests/performance-form-ui.php
       - name: Seleccionar plugins modificados
         id: modules
         env:

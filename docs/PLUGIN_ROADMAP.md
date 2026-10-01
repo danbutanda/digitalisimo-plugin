@@ -16,6 +16,7 @@ SEO 1.0.163 conserva el sitio seleccionado también después de guardar ajustes 
 SEO 1.0.164 prepara CSS aislado y seguro de Elementor Custom Code dentro de SEO, con la copia en pausa hasta que el administrador la revise y habilite. El CSS existente conserva su comportamiento; la pausa se configura e hereda en sitio y red. No altera ni desactiva los fragmentos originales de Elementor.
 SEO 1.0.165 consulta sus Releases con caché propia de cinco minutos y programa una actualización del aviso de WordPress cada cinco minutos mediante WP-Cron. Así la detección no depende de pulsar «Buscar actualizaciones» ni de la caché horaria de la clase compartida cargada por otro módulo. Sólo SEO cambia de versión; las comprobaciones cron no consultan WordPress.org.
 SEO 1.0.166 ejecuta el diagnóstico de assets mediante una visita temporal del navegador a la URL pública elegida. Regresa al mismo panel y sitio con una captura ligada al usuario, sin depender de la resolución DNS/TLS interna del servidor ni desactivar la verificación SSL.
+SEO 1.0.167 presenta los modos de Fuentes, Preloads y Google Tracking como selectores tanto en sitio como en red. La comparación manual de PageSpeed reutiliza la URL analizada, explica que sus métricas son opcionales y queda plegada para no confundirse con el diagnóstico de assets.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

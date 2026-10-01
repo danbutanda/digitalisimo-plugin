@@ -36,6 +36,7 @@ jobs:
           php tests/performance-migration.php
           php tests/performance-tracking.php
           php tests/seo-release-check.php
+          php tests/performance-form-ui.php
       - name: Construir paquetes limpios
         run: |
           mkdir -p dist

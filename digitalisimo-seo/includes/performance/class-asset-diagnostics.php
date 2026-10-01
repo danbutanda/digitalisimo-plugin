@@ -32,7 +32,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'digitalisimo_performance_diagnostic' );
 		echo '<input type="hidden" name="action" value="digitalisimo_performance_diagnostic"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '">';
-		echo '<label for="digitalisimo_performance_url">URL del sitio</label> <input class="regular-text" type="url" id="digitalisimo_performance_url" name="url" value="' . esc_attr( $url ) . '" required> ';
+		echo '<label for="digitalisimo_performance_url">URL pública a analizar</label> <input class="regular-text" type="url" id="digitalisimo_performance_url" name="url" value="' . esc_attr( $url ) . '" required> ';
 		submit_button( 'Analizar URL', 'secondary', 'submit', false );
 		echo '</form>';
 		if ( ! is_array( $result ) ) return;
@@ -92,13 +92,14 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			exit;
 		}
 		set_transient( 'digitalisimo_perf_result_' . get_current_user_id(), $result, 10 * MINUTE_IN_SECONDS );
-		wp_safe_redirect( self::return_url( $network, $site_id ) );
+		wp_safe_redirect( self::return_url( $network, $site_id, $site_id ? $url : '' ) );
 		exit;
 	}
 
-	private static function return_url( $network, $site_id ) {
+	private static function return_url( $network, $site_id, $url = '' ) {
 		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=status' ) : admin_url( 'admin.php?page=digitalisimo-performance&section=status' );
-		return $network && $site_id ? add_query_arg( 'site_id', $site_id, $target ) : $target;
+		if ( $network && $site_id ) $target = add_query_arg( 'site_id', $site_id, $target );
+		return $url ? add_query_arg( 'performance_url', $url, $target ) : $target;
 	}
 
 	/** Recibe sólo capturas asociadas al usuario y al sitio que iniciaron la solicitud. */
@@ -113,7 +114,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		set_transient( 'digitalisimo_perf_result_' . get_current_user_id(), $stored['result'], 10 * MINUTE_IN_SECONDS );
 		delete_site_transient( 'digitalisimo_perf_browser_result_' . $token );
 		delete_site_transient( 'digitalisimo_perf_probe_' . $token );
-		wp_safe_redirect( self::return_url( $network, $site_id ) );
+		wp_safe_redirect( self::return_url( $network, $site_id, (string) ( $stored['result']['url'] ?? '' ) ) );
 		exit;
 	}
 
