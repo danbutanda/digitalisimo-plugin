@@ -7,6 +7,7 @@ class Digitalisimo_Integrations_Performance_Migration {
 
 	public static function init() {
 		add_action( 'admin_post_digitalisimo_performance_scan_custom_code', array( __CLASS__, 'scan_action' ) );
+		add_action( 'admin_post_digitalisimo_performance_prepare_migration', array( __CLASS__, 'prepare_action' ) );
 		add_action( 'save_post_elementor_snippet', array( __CLASS__, 'invalidate' ) );
 		add_action( 'trashed_post', array( __CLASS__, 'invalidate_post' ) );
 		add_action( 'untrashed_post', array( __CLASS__, 'invalidate_post' ) );
@@ -72,6 +73,61 @@ class Digitalisimo_Integrations_Performance_Migration {
 		return '';
 	}
 
+	/** Prepara sólo valores inequívocos del sitio; la activación queda bajo revisión humana. */
+	public static function proposal( $custom, $fonts ) {
+		$ids = array( 'gt' => array(), 'ga4' => array(), 'gtm' => array() );
+		$paths = array();
+		$base = (string) ( $fonts['uploads_baseurl'] ?? '' );
+		$known = array();
+		foreach ( (array) ( $fonts['faces'] ?? array() ) as $face ) if ( ! empty( $face['url'] ) ) $known[ $face['url'] ] = true;
+		foreach ( (array) ( $custom['rows'] ?? array() ) as $row ) {
+			if ( 'publish' !== ( $row['status'] ?? '' ) ) continue;
+			foreach ( (array) ( $row['tracking_ids'] ?? array() ) as $id ) {
+				$kind = 0 === strpos( $id, 'GTM-' ) ? 'gtm' : ( 0 === strpos( $id, 'GT-' ) ? 'gt' : 'ga4' );
+				if ( Digitalisimo_Integrations_Performance_Tracking::sanitize_id( $id, $kind ) ) $ids[ $kind ][ $id ] = true;
+			}
+			foreach ( (array) ( $row['preloads'] ?? array() ) as $url ) if ( $base && 0 === strpos( $url, $base ) && isset( $known[ $url ] ) ) $paths[ substr( $url, strlen( $base ) ) ] = true;
+		}
+		$proposal = array();
+		foreach ( array( 'gt' => 'perf_gt_id', 'ga4' => 'perf_ga4_id', 'gtm' => 'perf_gtm_id' ) as $kind => $key ) if ( 1 === count( $ids[ $kind ] ) ) $proposal[ $key ] = array_key_first( $ids[ $kind ] );
+		if ( $paths ) $proposal['perf_preload_paths'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_paths( implode( "\n", array_keys( $paths ) ) );
+		return $proposal;
+	}
+
+	public static function prepare_action() {
+		$network = ! empty( $_POST['network_context'] );
+		if ( $network ? ! is_multisite() || ! current_user_can( 'manage_network_options' ) : ! current_user_can( 'manage_options' ) ) wp_die( 'No autorizado.' );
+		$site_id = absint( $_POST['site_id'] ?? 0 );
+		if ( ! $site_id || ( $network ? ! get_site( $site_id ) : $site_id !== get_current_blog_id() ) ) wp_die( 'Sitio inválido.' );
+		check_admin_referer( 'digitalisimo_performance_prepare_migration_' . $site_id );
+		$section = sanitize_key( $_POST['section'] ?? 'tracking' );
+		if ( ! in_array( $section, array( 'tracking', 'preloads' ), true ) ) $section = 'tracking';
+		$switched = $site_id !== get_current_blog_id();
+		if ( $switched ) switch_to_blog( $site_id );
+		try {
+			$custom = get_option( self::OPTION, array() );
+			$fonts = get_option( Digitalisimo_Integrations_Performance_Fonts::OPTION, array() );
+			if ( empty( $custom['scanned_at'] ) || empty( $fonts['scanned_at'] ) ) wp_die( 'Analiza primero Custom Code y fuentes del sitio.' );
+			$proposal = self::proposal( $custom, $fonts );
+			$options = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+			$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
+			$applied = array();
+			foreach ( $proposal as $key => $value ) {
+				if ( isset( $options[ $key ] ) && '' !== (string) $options[ $key ] && 0 !== $options[ $key ] ) continue;
+				$options[ $key ] = $value;
+				$inherit[ $key ] = 0;
+				$applied[] = $key;
+			}
+			if ( array_intersect( $applied, array( 'perf_gt_id', 'perf_ga4_id', 'perf_gtm_id' ) ) ) { $options['perf_tracking_enabled'] = 0; $inherit['perf_tracking_enabled'] = 0; }
+			if ( in_array( 'perf_preload_paths', $applied, true ) ) { $options['perf_preload_mode'] = 'off'; $inherit['perf_preload_mode'] = 0; }
+			update_option( Digitalisimo_Integrations_Settings::OPTION, $options );
+			if ( is_multisite() ) update_option( 'digitalisimo_seo_network_inherit', $inherit );
+		} finally { if ( $switched ) restore_current_blog(); }
+		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $section . '&site_id=' . $site_id . '&prepared=1' ) : admin_url( 'admin.php?page=digitalisimo-performance&section=' . $section . '&prepared=1' );
+		wp_safe_redirect( $target );
+		exit;
+	}
+
 	public static function scan_action() {
 		$network = ! empty( $_POST['network_context'] );
 		if ( $network ? ! is_multisite() || ! current_user_can( 'manage_network_options' ) : ! current_user_can( 'manage_options' ) ) wp_die( 'No autorizado.' );
@@ -102,6 +158,19 @@ class Digitalisimo_Integrations_Performance_Migration {
 			echo '</form>';
 			if ( ! is_array( $report ) || empty( $report['scanned_at'] ) ) return;
 			echo '<p>Último análisis: ' . esc_html( $report['scanned_at'] ) . ' · Site Kit: ' . ( ! empty( $report['site_kit'] ) ? 'activo' : 'no detectado' ) . '</p>';
+			$fonts = get_option( Digitalisimo_Integrations_Performance_Fonts::OPTION, array() );
+			if ( ! empty( $fonts['scanned_at'] ) ) {
+				$proposal = self::proposal( $report, $fonts );
+				if ( $proposal ) {
+					echo '<p>Valores detectados para preparar: <code>' . esc_html( implode( ', ', array_keys( $proposal ) ) ) . '</code>. Sólo llena campos vacíos del sitio; tracking y preloads quedan apagados. Revisa los IDs, Site Kit y el consentimiento antes de activarlos. Los fragmentos originales permanecen publicados hasta que los desactives manualmente.</p>';
+				$section = sanitize_key( $_GET['section'] ?? 'tracking' );
+				if ( ! in_array( $section, array( 'tracking', 'preloads' ), true ) ) $section = 'tracking';
+				echo '<form method="post" action="' . esc_url( $action ) . '"><input type="hidden" name="action" value="digitalisimo_performance_prepare_migration"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '"><input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '"><input type="hidden" name="section" value="' . esc_attr( $section ) . '">';
+				wp_nonce_field( 'digitalisimo_performance_prepare_migration_' . $site_id );
+				submit_button( 'Preparar valores en SEO sin activarlos', 'secondary', 'submit', false );
+				echo '</form>';
+			}
+			} else echo '<p>Analiza también Fuentes para importar sólo WOFF2 locales reconocidos.</p>';
 			if ( ! empty( $report['site_kit'] ) ) echo '<div class="notice notice-warning inline"><p>Site Kit está activo. Revisa sus IDs antes de habilitar Google Tracking en Digitalísimo; no se desactiva automáticamente.</p></div>';
 			echo '<table class="widefat striped"><thead><tr><th>Custom Code</th><th>Estado</th><th>Ubicación</th><th>Google IDs</th><th>Preloads</th><th>CSS técnico</th></tr></thead><tbody>';
 			foreach ( (array) ( $report['rows'] ?? array() ) as $row ) {
