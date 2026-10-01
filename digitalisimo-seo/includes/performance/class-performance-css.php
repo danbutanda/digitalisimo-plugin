@@ -56,7 +56,7 @@ class Digitalisimo_Integrations_Performance_CSS {
 	}
 
 	public static function custom_css() {
-		if ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) return;
+		if ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() || Digitalisimo_Integrations_SEO_Resolver::option( 'perf_custom_css_paused' ) ) return;
 		$css = self::sanitize_custom_css( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_custom_css' ) );
 		if ( $css ) echo '<style id="digitalisimo-performance-custom">' . $css . '</style>' . "\n";
 	}

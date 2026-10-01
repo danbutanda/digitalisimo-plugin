@@ -13,6 +13,7 @@ SEO 1.0.160 incorpora Debug administrativo por sitio con estados de fuentes, pre
 SEO 1.0.161 distingue en Debug una política de fuentes pendiente de una copia CSS realmente vigente; sólo evalúa posibles duplicados de tracking si Digitalísimo está activo y tiene IDs. Las fuentes externas se señalan para investigar su origen, sin atribuirlas a un plugin concreto.
 SEO 1.0.162 asocia las capturas de assets al ID de sitio en Multisite, conserva el sitio seleccionado al navegar por Rendimiento de red y dirige la limpieza del caché propio al sitio elegido.
 SEO 1.0.163 conserva el sitio seleccionado también después de guardar ajustes desde Rendimiento de red. Se probó en una red local de dos sitios con Elementor gratuito y Hello Elementor: navegación, inventarios separados, limpieza por contexto y herencia red/sitio. Elementor Pro, Redis externo y validación visual de optimizaciones siguen pendientes.
+SEO 1.0.164 prepara CSS aislado y seguro de Elementor Custom Code dentro de SEO, con la copia en pausa hasta que el administrador la revise y habilite. El CSS existente conserva su comportamiento; la pausa se configura e hereda en sitio y red. No altera ni desactiva los fragmentos originales de Elementor.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

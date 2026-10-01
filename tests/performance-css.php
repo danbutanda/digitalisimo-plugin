@@ -35,6 +35,10 @@ foreach ( array( '</style><script>alert(1)</script>', '@import url(https://examp
 $options['perf_custom_css'] = 'a > b { color: red; }';
 ob_start(); $class::custom_css(); $custom = ob_get_clean();
 if ( false === strpos( $custom, $options['perf_custom_css'] ) ) throw new RuntimeException( 'El CSS técnico configurado debe aparecer en frontend seguro.' );
+$options['perf_custom_css_paused'] = 1;
+ob_start(); $class::custom_css(); $paused = ob_get_clean();
+if ( '' !== $paused ) throw new RuntimeException( 'El CSS técnico preparado debe permanecer en pausa hasta aprobación manual.' );
+$options['perf_custom_css_paused'] = 0;
 $advanced = false;
 ob_start(); $class::custom_css(); $admin = ob_get_clean();
 if ( '' !== $admin ) throw new RuntimeException( 'El CSS técnico no debe aparecer en admin o preview.' );

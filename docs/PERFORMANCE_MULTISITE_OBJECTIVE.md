@@ -129,3 +129,9 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 - La prueba encontró que guardar ajustes de Rendimiento de red perdía el sitio seleccionado. SEO 1.0.163 agrega `digitalisimo_site_id` al formulario y al redirect tras validar que el sitio existe. Se comprobó con un guardado real: volvió a `section=fonts&site_id=2`.
 - Después del cambio, las siete secciones (Estado, CSS, Fuentes, Preloads, Google Tracking, Redis/Object Cache y Debug) respondieron HTTP 200 sin errores fatales tanto en Red con `site_id=2` como en la administración del sitio 2.
 - Quedan pendientes pruebas con Elementor Pro, Redis Object Cache real, Site Kit, páginas con contenido representativo, editor, imágenes, formularios, sliders, CSS diferido y Network del navegador con las optimizaciones activadas. Esta prueba no cierra el objetivo global.
+
+## Preparación conservadora de CSS de Elementor · SEO 1.0.164
+
+- El inventario de Custom Code reconoce un fragmento publicado que contenga únicamente un bloque `<style>` con CSS aceptado por el sanitizador existente. Los fragmentos mixtos, con recursos externos o con dos candidatos CSS distintos quedan para revisión manual.
+- «Preparar valores en SEO» copia ese CSS sólo si el campo del sitio está vacío y marca una pausa específica del sitio: el CSS copiado no se imprime durante la comparación. No cambia ni desactiva el fragmento de Elementor. La pausa también está disponible como ajuste de red heredable; su valor predeterminado es desactivado para conservar el comportamiento del CSS que ya estuviera configurado.
+- El análisis y la preparación regresan a la sección de origen (CSS, Tracking o Preloads) y conservan el sitio seleccionado en la administración de red. Se comprobaron clasificación, propuesta, salida en pausa y herencia red/sitio mediante pruebas PHP aisladas. Falta validar la migración con Elementor Pro y revisar visualmente el resultado antes de desactivar Custom Code en producción.
