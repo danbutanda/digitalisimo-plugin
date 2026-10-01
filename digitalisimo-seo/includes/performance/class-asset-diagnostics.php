@@ -8,9 +8,12 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 	private static $buffer_level = 0;
 	private static $resources = array();
 	private static $widgets = array();
+	private static $probe_context = array();
+	private static $probe_token = '';
 
 	public static function init() {
 		add_action( 'admin_post_digitalisimo_performance_diagnostic', array( __CLASS__, 'run' ) );
+		add_action( 'admin_post_digitalisimo_performance_diagnostic_complete', array( __CLASS__, 'complete' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'begin_probe' ), 0 );
 		add_action( 'wp_print_styles', array( __CLASS__, 'capture' ), 25 );
 		add_action( 'wp_print_footer_scripts', array( __CLASS__, 'capture' ), 25 );
@@ -25,7 +28,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		$default = get_home_url( $site_id, '/' );
 		$url = (string) ( $_GET['performance_url'] ?? $default );
 		$result = get_transient( 'digitalisimo_perf_result_' . get_current_user_id() );
-		echo '<h2>Diagnóstico de assets</h2><p>Consulta una URL pública de este sitio o, en la red, de un sitio de la red. Se capturan los handles encolados por WordPress; no se retira ningún recurso durante el diagnóstico.</p>';
+		echo '<h2>Diagnóstico de assets</h2><p>Abre temporalmente una URL pública de este sitio o, en la red, de un sitio de la red, captura los handles encolados por WordPress y vuelve aquí. No se retira ningún recurso durante el diagnóstico.</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'digitalisimo_performance_diagnostic' );
 		echo '<input type="hidden" name="action" value="digitalisimo_performance_diagnostic"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '">';
@@ -77,21 +80,40 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		$result = array( 'error' => 'La URL debe pertenecer a este sitio o a un sitio de la red.' );
 		if ( $site_id ) {
 			$token = strtolower( wp_generate_password( 32, false, false ) );
-			set_site_transient( 'digitalisimo_perf_probe_' . $token, array( 'site_id' => $site_id ), 2 * MINUTE_IN_SECONDS );
+			set_site_transient( 'digitalisimo_perf_probe_' . $token, array(
+				'site_id' => $site_id, 'user_id' => get_current_user_id(), 'network' => $network,
+				'url' => $url,
+				'complete_url' => add_query_arg( array( 'action' => 'digitalisimo_performance_diagnostic_complete', 'token' => $token ), admin_url( 'admin-post.php' ) ),
+			), 2 * MINUTE_IN_SECONDS );
 			$probe_url = add_query_arg( self::QUERY, $token, $url );
-			$response = wp_safe_remote_get( $probe_url, array( 'timeout' => 20, 'redirection' => 0, 'limit_response_size' => 2 * MB_IN_BYTES, 'headers' => array( 'Cache-Control' => 'no-cache' ) ) );
-			if ( is_wp_error( $response ) ) $result = array( 'error' => $response->get_error_message() );
-			elseif ( 200 !== wp_remote_retrieve_response_code( $response ) ) $result = array( 'error' => 'La URL respondió HTTP ' . wp_remote_retrieve_response_code( $response ) . '.' );
-			else {
-				$data = json_decode( wp_remote_retrieve_body( $response ), true );
-				$result = is_array( $data ) && ! empty( $data['digitalisimo_performance'] ) ? array( 'site_id' => $site_id, 'url' => $url, 'resources' => (array) ( $data['resources'] ?? array() ), 'widgets' => (array) ( $data['widgets'] ?? array() ), 'fonts' => (array) ( $data['fonts'] ?? array() ), 'images' => (array) ( $data['images'] ?? array() ), 'swiper_required' => ! empty( $data['swiper_required'] ), 'woocommerce_required' => ! empty( $data['woocommerce_required'] ) ) : array( 'error' => 'El sitio no devolvió la captura de assets. Comprueba la URL, caché de página o acceso HTTP interno.' );
-			}
-			delete_site_transient( 'digitalisimo_perf_probe_' . $token );
+			// La URL ya fue validada contra el sitio seleccionado. El navegador conserva
+			// la verificación TLS y evita la resolución interna errónea del servidor.
+			wp_redirect( $probe_url );
+			exit;
 		}
 		set_transient( 'digitalisimo_perf_result_' . get_current_user_id(), $result, 10 * MINUTE_IN_SECONDS );
+		wp_safe_redirect( self::return_url( $network, $site_id ) );
+		exit;
+	}
+
+	private static function return_url( $network, $site_id ) {
 		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=status' ) : admin_url( 'admin.php?page=digitalisimo-performance&section=status' );
-		if ( $network && $site_id ) $target = add_query_arg( 'site_id', $site_id, $target );
-		wp_safe_redirect( $target );
+		return $network && $site_id ? add_query_arg( 'site_id', $site_id, $target ) : $target;
+	}
+
+	/** Recibe sólo capturas asociadas al usuario y al sitio que iniciaron la solicitud. */
+	public static function complete() {
+		$token = sanitize_key( $_GET['token'] ?? '' );
+		$stored = $token ? get_site_transient( 'digitalisimo_perf_browser_result_' . $token ) : false;
+		if ( ! is_array( $stored ) || (int) ( $stored['user_id'] ?? 0 ) !== get_current_user_id() ) wp_die( 'La captura caducó o pertenece a otro usuario.' );
+		$network = ! empty( $stored['network'] );
+		if ( $network ? ! is_multisite() || ! current_user_can( 'manage_network_options' ) : ! current_user_can( 'manage_options' ) ) wp_die( 'No autorizado.' );
+		$site_id = (int) ( $stored['site_id'] ?? 0 );
+		if ( ! $site_id || ( $network ? ! get_site( $site_id ) : $site_id !== get_current_blog_id() ) ) wp_die( 'Sitio inválido.' );
+		set_transient( 'digitalisimo_perf_result_' . get_current_user_id(), $stored['result'], 10 * MINUTE_IN_SECONDS );
+		delete_site_transient( 'digitalisimo_perf_browser_result_' . $token );
+		delete_site_transient( 'digitalisimo_perf_probe_' . $token );
+		wp_safe_redirect( self::return_url( $network, $site_id ) );
 		exit;
 	}
 
@@ -127,6 +149,12 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		if ( ! $token || is_admin() || is_feed() || is_preview() ) return;
 		$probe = get_site_transient( 'digitalisimo_perf_probe_' . $token );
 		if ( ! is_array( $probe ) || (int) ( $probe['site_id'] ?? 0 ) !== get_current_blog_id() ) return;
+		self::$probe_context = $probe;
+		self::$probe_token = $token;
+		if ( ! headers_sent() ) {
+			nocache_headers();
+			header( 'Referrer-Policy: no-referrer' );
+		}
 		self::$collecting = true;
 		self::$buffer_level = ob_get_level();
 		ob_start();
@@ -294,7 +322,6 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		self::inspect_html_resources( $html );
 		$images = self::inspect_html_images( $html );
 		while ( ob_get_level() > self::$buffer_level ) ob_end_clean();
-		if ( ! headers_sent() ) header( 'Content-Type: application/json; charset=' . get_option( 'blog_charset', 'UTF-8' ) );
 		$swiper_required = false;
 		$woocommerce_required = false;
 		foreach ( self::$widgets as $widget ) {
@@ -308,6 +335,12 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		if ( class_exists( 'WooCommerce' ) ) {
 			foreach ( array( 'is_woocommerce', 'is_cart', 'is_checkout', 'is_account_page' ) as $function ) if ( function_exists( $function ) && call_user_func( $function ) ) $woocommerce_required = true;
 		}
-		echo wp_json_encode( array( 'digitalisimo_performance' => true, 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'fonts' => self::inspect_fonts(), 'images' => $images, 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required ) );
+		$data = array( 'site_id' => (int) self::$probe_context['site_id'], 'url' => self::$probe_context['url'], 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'fonts' => self::inspect_fonts(), 'images' => $images, 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required );
+		set_site_transient( 'digitalisimo_perf_browser_result_' . self::$probe_token, array( 'user_id' => (int) self::$probe_context['user_id'], 'network' => ! empty( self::$probe_context['network'] ), 'site_id' => $data['site_id'], 'result' => $data ), 2 * MINUTE_IN_SECONDS );
+		if ( ! headers_sent() ) {
+			wp_redirect( self::$probe_context['complete_url'] );
+			return;
+		}
+		echo '<a href="' . esc_url( self::$probe_context['complete_url'] ) . '">Volver al diagnóstico</a>';
 	}
 }

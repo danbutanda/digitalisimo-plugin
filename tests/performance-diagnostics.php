@@ -4,6 +4,7 @@ define( 'ABSPATH', __DIR__ );
 define( 'WP_CONTENT_DIR', __DIR__ . '/fixtures/wp-content' );
 define( 'KB_IN_BYTES', 1024 );
 define( 'MB_IN_BYTES', 1024 * 1024 );
+define( 'MINUTE_IN_SECONDS', 60 );
 function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
 function home_url() { return 'https://example.test/'; }
 function wp_upload_dir() { return array( 'baseurl' => 'https://example.test/wp-content/uploads', 'basedir' => WP_CONTENT_DIR . '/uploads' ); }
@@ -14,6 +15,10 @@ function get_current_blog_id() { return 1; }
 function get_home_url( $site_id ) { return 2 === $site_id ? 'https://example.test/subsite/' : 'https://example.test/'; }
 function is_multisite() { return true; }
 function get_site_by_path( $host, $path ) { if ( 'example.test' !== $host ) return false; return (object) array( 'blog_id' => 0 === strpos( $path, '/subsite/' ) ? 2 : 1 ); }
+function wp_scripts() { return (object) array( 'queue' => array(), 'registered' => array() ); }
+function wp_styles() { return (object) array( 'queue' => array(), 'registered' => array() ); }
+function set_site_transient( $key, $value, $ttl = 0 ) { $GLOBALS['site_transients'][ $key ] = $value; return true; }
+function wp_redirect( $url ) { $GLOBALS['redirected_to'] = $url; return true; }
 
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-asset-diagnostics.php';
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-measurements.php';
@@ -53,4 +58,13 @@ if ( ! $class->getMethod( 'swiper_dependency' )->invoke( null, 'carousel-handler
 $metrics = Digitalisimo_Integrations_Performance_Measurements::sanitize_metrics( array( 'before' => array( 'score' => '61', 'lcp' => '7.4' ), 'after' => array( 'score' => '72' ) ) );
 if ( 61.0 !== $metrics['before']['score'] || 7.4 !== $metrics['before']['lcp'] || 72.0 !== $metrics['after']['score'] ) throw new RuntimeException( 'La comparativa debe preservar antes y después.' );
 try { Digitalisimo_Integrations_Performance_Measurements::sanitize_metrics( array( 'after' => array( 'score' => '101' ) ) ); throw new RuntimeException( 'Debe rechazar una puntuación mayor que 100.' ); } catch ( InvalidArgumentException $expected ) {}
+$class->getProperty( 'probe_context' )->setValue( null, array( 'site_id' => 2, 'user_id' => 7, 'url' => 'https://example.test/subsite/page/', 'network' => true, 'complete_url' => 'https://example.test/wp-admin/admin-post.php?action=complete' ) );
+$class->getProperty( 'probe_token' )->setValue( null, 'probe123' );
+$class->getProperty( 'collecting' )->setValue( null, true );
+$class->getProperty( 'buffer_level' )->setValue( null, ob_get_level() );
+ob_start();
+echo '<img src="https://example.test/image.jpg" width="200" height="100">';
+Digitalisimo_Integrations_Asset_Diagnostics::finish_probe();
+$browser_result = $GLOBALS['site_transients']['digitalisimo_perf_browser_result_probe123'] ?? array();
+if ( 7 !== ( $browser_result['user_id'] ?? 0 ) || 2 !== ( $browser_result['site_id'] ?? 0 ) || 'https://example.test/wp-admin/admin-post.php?action=complete' !== ( $GLOBALS['redirected_to'] ?? '' ) || 1 !== count( $browser_result['result']['images'] ?? array() ) ) throw new RuntimeException( 'La captura del navegador debe volver al administrador original y conservar usuario y sitio.' );
 echo "Diagnóstico: CSS local y fuentes verificados.\n";
