@@ -12,6 +12,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		else add_action( 'wp_head', array( __CLASS__, 'print_links' ), 0 );
 		add_action( 'admin_init', array( __CLASS__, 'bootstrap' ), 30 );
 		add_action( 'init', array( __CLASS__, 'schedule_missing' ), 30 );
+		add_action( 'rest_api_init', array( __CLASS__, 'register_status_route' ) );
 		add_action( self::CRON, array( __CLASS__, 'rebuild' ) );
 		add_action( 'save_post_elementor_library', array( __CLASS__, 'schedule' ) );
 		add_action( 'elementor/core/files/clear_cache', array( __CLASS__, 'schedule' ) );
@@ -95,6 +96,34 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		if ( 'off' === $mode ) return;
 		$manifest = get_option( self::OPTION, array() );
 		if ( 2 !== ( $manifest['schema'] ?? 0 ) || $mode !== ( $manifest['mode'] ?? '' ) ) self::schedule();
+	}
+
+	/** Estado de sólo lectura para diagnosticar instalaciones automáticas sin publicar opciones en HTML. */
+	public static function register_status_route() {
+		register_rest_route( 'digitalisimo-seo/v1', '/performance/preloads', array(
+			'methods' => 'GET',
+			'callback' => array( __CLASS__, 'status_response' ),
+			'permission_callback' => function() { return current_user_can( 'manage_options' ); },
+	) );
+	}
+
+	public static function status_response() {
+		$manifest = get_option( self::OPTION, array() );
+		$inventory = get_option( Digitalisimo_Integrations_Performance_Fonts::OPTION, array() );
+		return array(
+			'site_id' => get_current_blog_id(),
+			'mode' => self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) ),
+			'limit' => self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) ),
+			'manifest_schema' => (int) ( $manifest['schema'] ?? 0 ),
+			'manifest_mode' => (string) ( $manifest['mode'] ?? '' ),
+			'manifest_generated_at' => (string) ( $manifest['generated_at'] ?? '' ),
+			'rows' => (array) ( $manifest['rows'] ?? array() ),
+			'inventory_scanned_at' => (string) ( $inventory['scanned_at'] ?? '' ),
+			'kit_id' => (int) ( $inventory['kit_id'] ?? 0 ),
+			'families' => array_values( array_filter( array_map( function( $row ) { return (string) ( $row['family'] ?? '' ); }, (array) ( $inventory['families'] ?? array() ) ) ) ),
+			'faces_count' => count( (array) ( $inventory['faces'] ?? array() ) ),
+			'next_rebuild' => wp_next_scheduled( self::CRON ) ?: 0,
+		);
 	}
 
 	/** Se calcula en administración o cron; un MISS de Redis no afecta el HTML. */

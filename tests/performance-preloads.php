@@ -4,6 +4,9 @@ define( 'ABSPATH', __DIR__ );
 function absint( $value ) { return abs( (int) $value ); }
 function trailingslashit( $value ) { return rtrim( $value, '/' ) . '/'; }
 function wp_upload_dir() { return array( 'baseurl' => 'https://site.test/wp-content/uploads' ); }
+function get_current_blog_id() { return 1; }
+function current_user_can( $cap ) { return ! empty( $GLOBALS['is_admin'] ) && 'manage_options' === $cap; }
+function register_rest_route( $namespace, $route, $args ) { $GLOBALS['rest_route'] = array( $namespace, $route, $args ); }
 function current_time() { return '2026-10-01 12:00:00'; }
 function update_option( $key, $value ) { $GLOBALS['stored_options'][ $key ] = $value; }
 function get_option( $key, $default = false ) { return $GLOBALS['stored_options'][ $key ] ?? $default; }
@@ -12,7 +15,7 @@ function wp_schedule_single_event( $when, $hook ) { $GLOBALS['scheduled'][ $hook
 function esc_url( $url ) { return $url; }
 class Digitalisimo_Integrations_Performance_Manager { public static function frontend_safe() { return true; } }
 class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key ) { return $GLOBALS['settings'][ $key ] ?? ''; } }
-class Digitalisimo_Integrations_Performance_Fonts { public static function scan() { return $GLOBALS['scan_report']; } }
+class Digitalisimo_Integrations_Performance_Fonts { const OPTION = 'font_inventory'; public static function scan() { return $GLOBALS['scan_report']; } }
 class Digitalisimo_Integrations_Performance_Font_Guard { public static function permitted_urls( $report ) { return array_fill_keys( array_column( $report['faces'], 'url' ), true ); } }
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-preloads.php';
 $class = Digitalisimo_Integrations_Performance_Preloads::class;
@@ -46,6 +49,13 @@ unset( $GLOBALS['stored_options'][ $class::OPTION ] );
 $class::schedule_missing();
 if ( empty( $GLOBALS['scheduled'][ $class::CRON ] ) ) throw new RuntimeException( 'Una actualización automática debe programar el manifest faltante sin escanear en frontend.' );
 $GLOBALS['stored_options'][ $class::OPTION ] = $manifest;
+$status = $class::status_response();
+if ( 1 !== $status['site_id'] || 'auto' !== $status['mode'] || 2 !== $status['manifest_schema'] || 2 !== count( $status['rows'] ) ) throw new RuntimeException( 'El diagnóstico autorizado debe reflejar el manifest persistente del sitio.' );
+$class::register_status_route();
+$permission = $GLOBALS['rest_route'][2]['permission_callback'];
+if ( $permission() ) throw new RuntimeException( 'El estado de preloads debe denegarse a usuarios no administradores.' );
+$GLOBALS['is_admin'] = true;
+if ( ! $permission() ) throw new RuntimeException( 'El administrador debe poder consultar el estado de preloads.' );
 $resources = $class::inject_resources( array( array( 'href' => $base . 'serif-latin.woff2', 'as' => 'font' ) ) );
 if ( 2 !== count( $resources ) || $base . 'inter-latin.woff2' !== $resources[1]['href'] || 'high' !== $resources[1]['fetchpriority'] ) throw new RuntimeException( 'El filtro de WordPress debe evitar duplicados y priorizar la fuente restante.' );
 ob_start(); $class::print_links(); $printed = ob_get_clean();
