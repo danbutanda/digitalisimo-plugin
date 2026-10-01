@@ -11,6 +11,7 @@ SEO 1.0.158 valida en WordPress Playground con Elementor gratuito y Hello Elemen
 SEO 1.0.159 impide que un preload manual solicite una variante excluida por el blindaje y comprueba con pruebas aisladas la herencia independiente de dos sitios. El intento de Multisite en Playground quedó limitado por la exigencia de un puerto estándar.
 SEO 1.0.160 incorpora Debug administrativo por sitio con estados de fuentes, precargas, CSS, tracking y caché tomados de inventarios y capturas existentes. No altera el frontend ni presume que una configuración equivalga a una solicitud de red observada.
 SEO 1.0.161 distingue en Debug una política de fuentes pendiente de una copia CSS realmente vigente; sólo evalúa posibles duplicados de tracking si Digitalísimo está activo y tiene IDs. Las fuentes externas se señalan para investigar su origen, sin atribuirlas a un plugin concreto.
+SEO 1.0.162 asocia las capturas de assets al ID de sitio en Multisite, conserva el sitio seleccionado al navegar por Rendimiento de red y dirige la limpieza del caché propio al sitio elegido.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

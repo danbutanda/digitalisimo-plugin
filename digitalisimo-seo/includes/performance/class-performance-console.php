@@ -22,7 +22,9 @@ class Digitalisimo_Integrations_Performance_Console {
 	}
 
 	private static function page_url( $network, $section ) {
-		return $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $section ) : admin_url( 'admin.php?page=digitalisimo-performance&section=' . $section );
+		$url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $section ) : admin_url( 'admin.php?page=digitalisimo-performance&section=' . $section );
+		$site_id = $network ? absint( $_GET['site_id'] ?? 0 ) : 0;
+		return $site_id && get_site( $site_id ) ? add_query_arg( 'site_id', $site_id, $url ) : $url;
 	}
 
 	private static function navigation( $network, $active ) {
@@ -86,10 +88,12 @@ class Digitalisimo_Integrations_Performance_Console {
 	}
 
 	private static function cache_section( $network ) {
+		$site_id = $network ? absint( $_GET['site_id'] ?? get_current_blog_id() ) : get_current_blog_id();
+		if ( $network && ! get_site( $site_id ) ) $site_id = get_current_blog_id();
 		$status = Digitalisimo_Integrations_Performance_Cache::status();
-		echo '<h2>Object Cache</h2><table class="widefat striped"><tbody><tr><th>Caché externa</th><td>' . ( $status['external'] ? 'Activa' : 'Inactiva' ) . '</td></tr><tr><th>Drop-in object-cache.php</th><td>' . ( $status['dropin'] ? 'Presente' : 'Ausente' ) . '</td></tr><tr><th>Redis</th><td>' . ( $status['redis'] ? 'Detectado en el drop-in' : 'No detectado' ) . '</td></tr></tbody></table>';
+		echo '<h2>Object Cache</h2><p>Sitio seleccionado: ' . esc_html( get_home_url( $site_id, '/' ) ) . '</p><table class="widefat striped"><tbody><tr><th>Caché externa</th><td>' . ( $status['external'] ? 'Activa' : 'Inactiva' ) . '</td></tr><tr><th>Drop-in object-cache.php</th><td>' . ( $status['dropin'] ? 'Presente' : 'Ausente' ) . '</td></tr><tr><th>Redis</th><td>' . ( $status['redis'] ? 'Detectado en el drop-in' : 'No detectado' ) . '</td></tr></tbody></table>';
 		echo '<p>Digitalísimo usa sólo su grupo <code>digitalisimo_performance</code>. Esta acción no ejecuta <code>wp_cache_flush()</code> ni modifica Redis.</p>';
-		self::clear_form( $network, get_current_blog_id() );
+		self::clear_form( $network, $site_id );
 	}
 
 	private static function clear_form( $network, $site_id ) {
@@ -130,7 +134,9 @@ class Digitalisimo_Integrations_Performance_Console {
 		if ( $switched ) switch_to_blog( $site_id );
 		try { Digitalisimo_Integrations_Performance_Cache::invalidate(); }
 		finally { if ( $switched ) restore_current_blog(); }
-		wp_safe_redirect( add_query_arg( 'cache_cleared', '1', self::page_url( $network, 'cache' ) ) );
+		$target = self::page_url( $network, 'cache' );
+		if ( $network ) $target = add_query_arg( 'site_id', $site_id, $target );
+		wp_safe_redirect( add_query_arg( 'cache_cleared', '1', $target ) );
 		exit;
 	}
 }

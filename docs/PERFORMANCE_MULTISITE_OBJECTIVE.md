@@ -109,3 +109,8 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 
 - El estado «BLOQUEADO» para una variante local exige que la copia CSS generada exista, coincida con la política vigente y el original no haya cambiado. Si la regla la excluye pero aún no hay copia válida, Debug muestra «POLÍTICA PENDIENTE»: el frontend conserva el CSS original.
 - La señal de posible duplicado de tracking se evalúa sólo cuando el tracking de Digitalísimo está habilitado y contiene un ID. Los scripts externos detectados se presentan sin atribuirlos a un tema o plugin sin evidencia. Se probó la lógica de etiquetas y fallback; las pruebas reales de navegador, Multisite, Pro, Redis y Lighthouse siguen abiertas.
+
+## Aislamiento de diagnósticos de red · SEO 1.0.162
+
+- Cada nueva captura de assets guarda el ID del sitio de origen. Debug comprueba el ID y la URL del sitio seleccionado antes de mostrar recursos; las capturas anteriores sin ID se validan por dominio y ruta, también en redes de subdirectorios.
+- La navegación de Rendimiento de red conserva `site_id`, el formulario de análisis inicia con la URL del sitio elegido y el botón de limpieza del caché propio actúa sobre ese sitio y vuelve a su pantalla. Se añadieron casos de prueba para dos subsitios bajo el mismo dominio. Falta corroborarlo en una instalación Multisite real con Redis.

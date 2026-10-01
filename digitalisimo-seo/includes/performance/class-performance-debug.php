@@ -29,8 +29,7 @@ class Digitalisimo_Integrations_Performance_Debug {
 		try {
 			$fonts = get_option( Digitalisimo_Integrations_Performance_Fonts::OPTION, array() );
 			$custom = get_option( Digitalisimo_Integrations_Performance_Migration::OPTION, array() );
-			$home_host = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
-			if ( ! is_array( $captured ) || wp_parse_url( $captured['url'] ?? '', PHP_URL_HOST ) !== $home_host ) $captured = array();
+			if ( ! Digitalisimo_Integrations_Asset_Diagnostics::capture_belongs_to_site( $captured, $site_id ) ) $captured = array();
 			echo '<h2>Diagnóstico de ' . esc_html( home_url( '/' ) ) . '</h2><p>Datos guardados del análisis administrativo y de la última URL analizada. No mide solicitudes reales de red ni ejecuta cambios. Para actualizar la captura, usa «Analizar URL» en Estado.</p>';
 			echo '<h3>Fuentes</h3>';
 			if ( empty( $fonts['scanned_at'] ) ) echo '<p>MISS · sin inventario de fuentes. Analiza el Kit y CSS local.</p>';

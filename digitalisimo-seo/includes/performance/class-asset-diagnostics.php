@@ -20,7 +20,9 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 
 	public static function render( $network = false ) {
 		if ( $network ? ! current_user_can( 'manage_network_options' ) : ! current_user_can( 'manage_options' ) ) return;
-		$default = $network ? network_home_url( '/' ) : home_url( '/' );
+		$site_id = $network ? absint( $_GET['site_id'] ?? get_current_blog_id() ) : get_current_blog_id();
+		if ( $network && ! get_site( $site_id ) ) $site_id = get_current_blog_id();
+		$default = get_home_url( $site_id, '/' );
 		$url = (string) ( $_GET['performance_url'] ?? $default );
 		$result = get_transient( 'digitalisimo_perf_result_' . get_current_user_id() );
 		echo '<h2>Diagnóstico de assets</h2><p>Consulta una URL pública de este sitio o, en la red, de un sitio de la red. Se capturan los handles encolados por WordPress; no se retira ningún recurso durante el diagnóstico.</p>';
@@ -82,14 +84,22 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			elseif ( 200 !== wp_remote_retrieve_response_code( $response ) ) $result = array( 'error' => 'La URL respondió HTTP ' . wp_remote_retrieve_response_code( $response ) . '.' );
 			else {
 				$data = json_decode( wp_remote_retrieve_body( $response ), true );
-				$result = is_array( $data ) && ! empty( $data['digitalisimo_performance'] ) ? array( 'url' => $url, 'resources' => (array) ( $data['resources'] ?? array() ), 'widgets' => (array) ( $data['widgets'] ?? array() ), 'fonts' => (array) ( $data['fonts'] ?? array() ), 'images' => (array) ( $data['images'] ?? array() ), 'swiper_required' => ! empty( $data['swiper_required'] ), 'woocommerce_required' => ! empty( $data['woocommerce_required'] ) ) : array( 'error' => 'El sitio no devolvió la captura de assets. Comprueba la URL, caché de página o acceso HTTP interno.' );
+				$result = is_array( $data ) && ! empty( $data['digitalisimo_performance'] ) ? array( 'site_id' => $site_id, 'url' => $url, 'resources' => (array) ( $data['resources'] ?? array() ), 'widgets' => (array) ( $data['widgets'] ?? array() ), 'fonts' => (array) ( $data['fonts'] ?? array() ), 'images' => (array) ( $data['images'] ?? array() ), 'swiper_required' => ! empty( $data['swiper_required'] ), 'woocommerce_required' => ! empty( $data['woocommerce_required'] ) ) : array( 'error' => 'El sitio no devolvió la captura de assets. Comprueba la URL, caché de página o acceso HTTP interno.' );
 			}
 			delete_site_transient( 'digitalisimo_perf_probe_' . $token );
 		}
 		set_transient( 'digitalisimo_perf_result_' . get_current_user_id(), $result, 10 * MINUTE_IN_SECONDS );
 		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=status' ) : admin_url( 'admin.php?page=digitalisimo-performance&section=status' );
+		if ( $network && $site_id ) $target = add_query_arg( 'site_id', $site_id, $target );
 		wp_safe_redirect( $target );
 		exit;
+	}
+
+	/** Una captura de la red nunca se muestra como si perteneciera a otro subsitio. */
+	public static function capture_belongs_to_site( $result, $site_id ) {
+		if ( ! is_array( $result ) || empty( $result['url'] ) ) return false;
+		$resolved = self::site_for_url( $result['url'], is_multisite() );
+		return $resolved === (int) $site_id && ( ! isset( $result['site_id'] ) || (int) $result['site_id'] === (int) $site_id );
 	}
 
 	public static function site_for_url( $url, $network ) {
