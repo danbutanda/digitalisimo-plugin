@@ -87,7 +87,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 	public static function bootstrap() {
 		if ( ! current_user_can( 'manage_options' ) ) return;
 		$manifest = get_option( self::OPTION, array() );
-		if ( 2 !== ( $manifest['schema'] ?? 0 ) && 'off' !== self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) ) ) self::rebuild();
+		if ( 3 !== ( $manifest['schema'] ?? 0 ) && 'off' !== self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) ) ) self::rebuild();
 	}
 
 	/** Una actualización automática no ejecuta admin_init: sólo agenda el trabajo, nunca escanea en frontend. */
@@ -95,7 +95,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		$mode = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
 		if ( 'off' === $mode ) return;
 		$manifest = get_option( self::OPTION, array() );
-		if ( 2 !== ( $manifest['schema'] ?? 0 ) || $mode !== ( $manifest['mode'] ?? '' ) ) self::schedule();
+		if ( 3 !== ( $manifest['schema'] ?? 0 ) || $mode !== ( $manifest['mode'] ?? '' ) ) self::schedule();
 	}
 
 	/** Estado de sólo lectura para diagnosticar instalaciones automáticas sin publicar opciones en HTML. */
@@ -179,7 +179,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 			$rows[] = $row;
 			if ( count( $rows ) >= self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) ) ) break;
 		}
-		$manifest = array( 'schema' => 2, 'mode' => $mode, 'rows' => $rows, 'generated_at' => current_time( 'mysql' ) );
+		$manifest = array( 'schema' => 3, 'mode' => $mode, 'rows' => $rows, 'generated_at' => current_time( 'mysql' ) );
 		update_option( self::OPTION, $manifest, false );
 		return $manifest;
 	}

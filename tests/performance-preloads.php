@@ -55,7 +55,7 @@ $class::schedule_missing();
 if ( empty( $GLOBALS['scheduled'][ $class::CRON ] ) ) throw new RuntimeException( 'Una actualización automática debe programar el manifest faltante sin escanear en frontend.' );
 $GLOBALS['stored_options'][ $class::OPTION ] = $manifest;
 $status = $class::status_response();
-if ( 1 !== $status['site_id'] || 'auto' !== $status['mode'] || 2 !== $status['manifest_schema'] || 2 !== count( $status['rows'] ) ) throw new RuntimeException( 'El diagnóstico autorizado debe reflejar el manifest persistente del sitio.' );
+if ( 1 !== $status['site_id'] || 'auto' !== $status['mode'] || 3 !== $status['manifest_schema'] || 2 !== count( $status['rows'] ) ) throw new RuntimeException( 'El diagnóstico autorizado debe reflejar el manifest persistente del sitio.' );
 $class::register_status_route();
 $permission = $GLOBALS['rest_route'][2]['permission_callback'];
 if ( $permission() ) throw new RuntimeException( 'El estado de preloads debe denegarse a usuarios no administradores.' );

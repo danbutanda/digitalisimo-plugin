@@ -1,2 +1,4 @@
 @font-face{font-family:'Inter';font-style:normal;font-weight:400;src:url('../fonts/inter-regular.woff2') format('woff2')}
 @font-face{font-family:'Inter';font-style:italic;font-weight:700;src:url('../fonts/inter-italic.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400;src:url('https://example.test/wp-content/uploads/elementor/google-fonts/fonts/inter-regular.woff2') format('woff2');unicode-range:U+0000-00FF}
+@font-face{font-family:'Other';font-style:normal;font-weight:400;src:url('https://other.test/wp-content/uploads/elementor/google-fonts/fonts/inter-regular.woff2') format('woff2')}

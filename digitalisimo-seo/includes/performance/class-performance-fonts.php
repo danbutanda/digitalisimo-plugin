@@ -116,7 +116,12 @@ class Digitalisimo_Integrations_Performance_Fonts {
 				if ( preg_match( '/unicode-range\s*:\s*([^;]+)/i', $block, $range ) ) $row['unicode_range'] = trim( $range[1] );
 				if ( preg_match( '/format\(\s*[\'\"]?([^\'\")]+)/i', $block, $format ) ) $row['format'] = trim( $format[1] );
 				if ( preg_match( '/url\(\s*[\'\"]?([^\'\")]+\.woff2)(?:\?[^\'\")]+)?[\'\"]?\s*\)/i', $block, $source ) ) {
-					$font_path = realpath( dirname( $real ) . '/' . $source[1] );
+					$font_source = $source[1];
+					$base_url = trailingslashit( $uploads['baseurl'] ?? '' );
+					if ( preg_match( '~^https?://~i', $font_source ) ) {
+						$relative = 0 === strpos( $font_source, $base_url ) ? substr( $font_source, strlen( $base_url ) ) : '';
+						$font_path = $relative && false === strpos( $relative, '..' ) && preg_match( '~^elementor/google-fonts/fonts/[a-zA-Z0-9._/-]+\.woff2$~', $relative ) ? realpath( trailingslashit( $root ) . $relative ) : false;
+					} else $font_path = realpath( dirname( $real ) . '/' . $font_source );
 					if ( $font_path && 0 === strpos( $font_path, trailingslashit( $root ) ) && is_file( $font_path ) ) $row['url'] = trailingslashit( $uploads['baseurl'] ) . str_replace( DIRECTORY_SEPARATOR, '/', substr( $font_path, strlen( trailingslashit( $root ) ) ) );
 				}
 				$faces[] = $row;

@@ -30,6 +30,7 @@ SEO 1.0.177 estabiliza los preloads WOFF2 con un manifest persistente por sitio,
 SEO 1.0.178 completa el arranque tras una actualización automática: si falta el manifest de preloads, agenda su construcción sin escanear en la visita pública. La selección usa las familias fusionadas del Kit y del contenido Elementor, con esquema persistente para reconstruir manifest antiguos. Validación móvil en producción pendiente tras la instalación automática.
 SEO 1.0.179 añade un estado REST de sólo lectura de preloads, limitado a administradores, para diagnosticar el modo efectivo, el inventario y el trabajo agendado en instalaciones automáticas sin publicar configuraciones en el frontend.
 SEO 1.0.180 permite activar el modo automático para el sitio autenticado desde una acción REST específica, protegida por capacidad y nonce. No modifica los defaults de red; reconstruye el manifest de inmediato y devuelve el estado para verificar la entrega.
+SEO 1.0.181 corrige la lectura de URLs absolutas WOFF2 dentro de los CSS locales de Elementor. Resuelve exclusivamente archivos bajo uploads del sitio, rechaza URLs externas y sube el esquema del manifest para forzar su reconstrucción después de actualizar. Se valida que Source Serif 4 e Inter produzcan preloads antes del CSS en digitalisimo.mx.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 
