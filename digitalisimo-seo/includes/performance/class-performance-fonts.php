@@ -53,6 +53,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 		$files = glob( $directory . '/*.css' );
 		if ( ! is_array( $files ) ) return array();
 		$faces = array();
+		$files = array_values( array_filter( $files, function( $path ) { return 0 !== strpos( basename( $path ), 'digitalisimo-' ); } ) );
 		foreach ( array_slice( $files, 0, 50 ) as $path ) {
 			$real = realpath( $path );
 			if ( ! $real || 0 !== strpos( $real, trailingslashit( $directory ) ) || ! is_file( $real ) || ! is_readable( $real ) || filesize( $real ) > 512 * KB_IN_BYTES ) continue;
@@ -129,6 +130,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			$base = trailingslashit( wp_upload_dir()['baseurl'] ?? '' );
 			foreach ( (array) ( $report['faces'] ?? array() ) as $face ) if ( ! empty( $face['url'] ) && 0 === strpos( $face['url'], $base ) ) echo '<li><code>' . esc_html( substr( $face['url'], strlen( $base ) ) ) . '</code> — ' . esc_html( $face['family'] ?? '' ) . ' ' . esc_html( $face['weight'] ?? '' ) . ' ' . esc_html( $face['style'] ?? '' ) . '</li>';
 			echo '</ul>';
+			Digitalisimo_Integrations_Performance_Font_Guard::render_build( $network, $site_id );
 		} finally { if ( $switched ) restore_current_blog(); }
 	}
 }

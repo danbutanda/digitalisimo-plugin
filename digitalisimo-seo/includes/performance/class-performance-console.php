@@ -52,7 +52,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			echo '<table class="widefat striped"><tbody><tr><th>Modo seguro efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Activo' : 'Desactivado' ) . '</td></tr><tr><th>CSS Gutenberg efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Activado sólo en páginas Elementor elegibles' : 'Desactivado' ) . '</td></tr></tbody></table>';
 			if ( $network ) self::network_sites();
 		} elseif ( 'css' === $section ) self::settings( $network, 'css' );
-		elseif ( 'fonts' === $section ) Digitalisimo_Integrations_Performance_Fonts::render( $network );
+		elseif ( 'fonts' === $section ) { self::settings( $network, 'fonts' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); }
 		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'cache' === $section ) self::cache_section( $network );
@@ -70,6 +70,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			wp_nonce_field( 'digitalisimo_network_seo' );
 			echo '<input type="hidden" name="digitalisimo_active_tab" value="performance"><input type="hidden" name="digitalisimo_return" value="' . esc_attr( $section ) . '"><table class="form-table">';
 			if ( 'tracking' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_tracking_network_fields();
+			elseif ( 'fonts' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_font_network_fields();
 			elseif ( 'preloads' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_preload_network_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_network_fields();
 		} else {
@@ -77,6 +78,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			settings_fields( 'digitalisimo_integrations' );
 			echo '<table class="form-table">';
 			if ( 'tracking' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_tracking_site_fields();
+			elseif ( 'fonts' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_font_site_fields();
 			elseif ( 'preloads' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_preload_site_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_site_fields();
 		}
@@ -108,7 +110,8 @@ class Digitalisimo_Integrations_Performance_Console {
 			switch_to_blog( (int) $site->blog_id );
 			try {
 				$css = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Gutenberg contextual' : 'Sin limpieza';
-				$font = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_swap' ) ? 'Swap' : 'Original';
+				$font = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_guard_mode' );
+				$font = 'off' === $font ? ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_swap' ) ? 'Swap' : 'Original' ) : 'Blindaje ' . $font;
 				$safe = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Modo seguro' : 'Modo avanzado';
 				$preload = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' );
 				echo '<tr><td>' . esc_html( home_url( '/' ) ) . '</td><td>' . esc_html( $css ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'fonts' ) ) ) . '">' . esc_html( $font ) . '</a></td><td>' . esc_html( $preload ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'tracking' ) ) ) . '">Auditar</a></td><td>' . ( $cache['external'] ? 'Activo' : 'Inactivo' ) . '</td><td>' . esc_html( $safe ) . '</td></tr>';

@@ -91,6 +91,8 @@ class Digitalisimo_Integrations_Settings {
 			'perf_embeds'          => 0,
 			'perf_dashicons'       => 0,
 			'perf_font_swap'       => 0,
+			'perf_font_guard_mode' => 'off',
+			'perf_font_guard_allowlist' => '',
 			'perf_css_defer'       => 0,
 			'perf_css_defer_handles' => "widget-blockquote\nwidget-form\nwidget-divider\nwidget-social-icons",
 			'perf_caption_normal'  => 0,
@@ -184,6 +186,8 @@ class Digitalisimo_Integrations_Settings {
 		}
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
 		if ( isset( $input['perf_custom_css'] ) ) $output['perf_custom_css'] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $input['perf_custom_css'] );
+		if ( isset( $input['perf_font_guard_mode'] ) ) $output['perf_font_guard_mode'] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_mode( $input['perf_font_guard_mode'] );
+		if ( isset( $input['perf_font_guard_allowlist'] ) ) $output['perf_font_guard_allowlist'] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_allowlist( $input['perf_font_guard_allowlist'] );
 		if ( isset( $input['perf_preload_mode'] ) ) $output['perf_preload_mode'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_mode( $input['perf_preload_mode'] );
 		if ( isset( $input['perf_preload_paths'] ) ) $output['perf_preload_paths'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_paths( $input['perf_preload_paths'] );
 		if ( isset( $input['perf_preload_limit'] ) ) $output['perf_preload_limit'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_limit( $input['perf_preload_limit'] );
