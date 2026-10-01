@@ -114,3 +114,8 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 
 - Cada nueva captura de assets guarda el ID del sitio de origen. Debug comprueba el ID y la URL del sitio seleccionado antes de mostrar recursos; las capturas anteriores sin ID se validan por dominio y ruta, también en redes de subdirectorios.
 - La navegación de Rendimiento de red conserva `site_id`, el formulario de análisis inicia con la URL del sitio elegido y el botón de limpieza del caché propio actúa sobre ese sitio y vuelve a su pantalla. Se añadieron casos de prueba para dos subsitios bajo el mismo dominio. Falta corroborarlo en una instalación Multisite real con Redis.
+
+## Referencia Lighthouse pública · 2026-09-30
+
+- Se registraron tres corridas móviles y una de escritorio de la portada pública con SEO 1.0.160 instalado. Las puntuaciones móviles oscilaron entre 57 y 89; la mediana fue 61. Las cuatro hojas de widgets candidatas estaban presentes. [Datos, límites y comando reproducible](measurements/2026-09-30-home-public-snapshot.md).
+- Esta referencia no valida SEO 1.0.162 ni sustituye la comparación controlada antes/después en Multisite y páginas representativas. El objetivo permanece abierto.
