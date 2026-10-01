@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.164
+ * Version: 1.0.165
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.164' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.165' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -37,6 +37,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-referral-too
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-entities-tools.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-client.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-digitalisimo-updater.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-release-check.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-social-profiles.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-local-business.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-media-field.php';
@@ -85,6 +86,7 @@ function digitalisimo_integrations_boot() {
 	}
 	Digitalisimo_Integrations_Editorial::init();
 	Digitalisimo_Updater::register( DIGITALISIMO_INTEGRATIONS_FILE, DIGITALISIMO_INTEGRATIONS_VERSION, 'digitalisimo-seo' );
+	Digitalisimo_SEO_Release_Check::init();
 	Digitalisimo_Media_Field::boot( DIGITALISIMO_INTEGRATIONS_URL, DIGITALISIMO_INTEGRATIONS_VERSION );
 	Digitalisimo_Admin_UI::init();
 	Digitalisimo_Core::boot( 'seo', 'SEO', null, array( 'Digitalisimo_Integrations_SEO_Suite', 'network_page' ) );
