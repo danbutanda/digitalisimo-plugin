@@ -21,6 +21,7 @@ SEO 1.0.168 separa el diagnóstico de assets en Estado y la comparación manual 
 SEO 1.0.169 identifica las pestañas como «Diagnóstico de assets» y «PageSpeed manual», y redirige la ruta histórica de Rendimiento en SEO a la consola única antes de generar HTML para evitar dos interfaces distintas con la misma versión.
 SEO 1.0.170 conserva azul el checkbox heredado cuando el valor efectivo está activo y muestra «Activo»/«Inactivo» en lugar de 1/0; el control sigue bloqueado mientras se hereda de la red.
 SEO 1.0.171 evita que el estilo gris de «Valor predeterminado del plugin» oculte los checkboxes activos en la red y en los sitios; el estado marcado vuelve a verse azul sin cambiar el valor ni la capacidad de edición.
+SEO 1.0.172 simplifica Fuentes con un botón por sitio que inventaría Kit y documentos Elementor publicados, activa el modo automático de ese sitio y prepara copias filtradas del CSS local. Con inventario parcial conserva familias no identificadas; los iconos y originales se preservan. El detalle manual queda plegado y cambios posteriores de Elementor invalidan las copias.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

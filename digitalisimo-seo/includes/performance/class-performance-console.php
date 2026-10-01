@@ -74,7 +74,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			if ( $network ) self::network_sites();
 		} elseif ( 'measurements' === $section ) Digitalisimo_Integrations_Performance_Measurements::render( $network );
 		elseif ( 'css' === $section ) { self::settings( $network, 'css' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
-		elseif ( 'fonts' === $section ) { self::settings( $network, 'fonts' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); }
+		elseif ( 'fonts' === $section ) { self::settings( $network, 'fonts' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); echo '<script>(function(){var mode=document.getElementById("perf_font_guard_mode")||document.getElementById("network_perf_font_guard_mode"),row=document.querySelector(".digitalisimo-font-manual-row");if(!mode||!row)return;function toggle(){row.hidden=mode.value!=="manual";}mode.addEventListener("change",toggle);toggle();})();</script>'; }
 		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'cache' === $section ) self::cache_section( $network );

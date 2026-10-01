@@ -32,6 +32,7 @@ jobs:
           php tests/performance-css.php
           php tests/performance-fonts.php
           php tests/performance-font-guard.php
+          php tests/performance-font-optimizer.php
           php tests/performance-preloads.php
           php tests/performance-migration.php
           php tests/performance-tracking.php

@@ -36,6 +36,7 @@
 .digitalisimo-admin input[type=checkbox].digitalisimo-default-value:checked:before { color: #fff !important; }
 .digitalisimo-admin .digitalisimo-media.digitalisimo-default-value { padding: 10px; }
 .digitalisimo-admin .digitalisimo-default-note { display: inline-block; margin: 8px 0 0; padding: 3px 9px; color: #687386; background: #eef1f5; border-radius: 999px; font-size: 12px; line-height: 1.5; }
+.digitalisimo-admin .digitalisimo-font-manual-row[hidden] { display: none !important; }
 .digitalisimo-admin .digitalisimo-inheritance .description { color: #747f94; }
 .digitalisimo-admin .wrap .button, .digitalisimo-admin .wrap .button-secondary, .digitalisimo-admin .digitalisimo-admin-shell .button, .digitalisimo-admin .digitalisimo-admin-shell .button-secondary { min-height: 36px; border: 1px solid #d2d9ef; border-radius: 9px; color: #34415e; background: #fff; box-shadow: none; }
 .digitalisimo-admin .wrap .button:hover, .digitalisimo-admin .wrap .button-secondary:hover, .digitalisimo-admin .digitalisimo-admin-shell .button:hover, .digitalisimo-admin .digitalisimo-admin-shell .button-secondary:hover { border-color: #8a9aff; color: #2f55e8; }

@@ -162,3 +162,9 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 ## Checkboxes activos con valor predeterminado · SEO 1.0.171
 
 - La indicación «Valor predeterminado del plugin» conserva su etiqueta informativa, pero deja de pintar de gris el checkbox. Un valor predeterminado activo se ve marcado en azul tanto en red como en sitio y sigue siendo editable.
+
+## Optimización asistida de fuentes locales · SEO 1.0.172
+
+- «Detectar y optimizar fuentes» analiza bajo demanda el Kit y hasta 500 documentos Elementor publicados del sitio seleccionado, une familias y variantes y genera copias CSS locales. En red, la acción sólo modifica la configuración y los archivos del sitio elegido; en WordPress individual actúa sobre ese sitio.
+- Si el inventario es parcial, conserva las familias no reconocidas. Si el inventario es completo, puede excluir reglas `@font-face` de familias no detectadas; los icon fonts y bloques de peso ambiguo permanecen. Los originales nunca se borran y un cambio posterior de datos Elementor invalida el manifiesto para volver al CSS original.
+- Las copias activadas explícitamente por el botón pueden operar con Modo seguro sin habilitar las demás optimizaciones avanzadas. La herramienta no analiza uso visual de cada página ni elimina archivos o fuentes remotas del tema; la verificación de solicitudes y apariencia en navegador sigue pendiente para cerrar la fase de fuentes.

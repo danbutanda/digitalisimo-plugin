@@ -11,11 +11,14 @@ list( $filtered, $removed ) = $guard::filter_css( $css, $manual, 'manual' );
 if ( 2 !== $removed || false === strpos( $filtered, 'a.woff2' ) || false !== strpos( $filtered, 'b.woff2' ) || false === strpos( $filtered, 'icons.woff2' ) || false !== strpos( $filtered, 'c.woff2' ) ) throw new RuntimeException( 'Debe retirar variantes excluidas y conservar icon fonts.' );
 list( $filtered, $removed ) = $guard::filter_css( $css, $manual, 'auto' );
 if ( 1 !== $removed || false === strpos( $filtered, 'c.woff2' ) ) throw new RuntimeException( 'Auto conserva familias desconocidas del Kit.' );
+list( $filtered, $removed ) = $guard::filter_css( $css, $manual, 'auto-prune' );
+if ( 2 !== $removed || false !== strpos( $filtered, 'c.woff2' ) || false === strpos( $filtered, 'icons.woff2' ) ) throw new RuntimeException( 'Un inventario completo debe excluir familias no usadas sin retirar iconos.' );
 $variable = "@font-face{font-family:'Inter';font-weight:100 900;src:url('../fonts/variable.woff2')}";
 if ( 0 !== $guard::filter_css( $variable, $manual, 'manual' )[1] ) throw new RuntimeException( 'Las variantes ambiguas deben conservarse.' );
-class Digitalisimo_Integrations_Performance_Manager { public static function advanced_allowed() { return true; } }
+class Digitalisimo_Integrations_Performance_Manager { public static function advanced_allowed() { return empty( $GLOBALS['safe_mode'] ); } public static function frontend_safe() { return true; } }
 class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key ) { return $GLOBALS['settings'][ $key ] ?? ''; } }
 function get_option() { return $GLOBALS['manifest']; }
+function delete_option( $key ) { $GLOBALS['deleted_manifest'] = $key; }
 $original = tempnam( sys_get_temp_dir(), 'font-src-' );
 $generated = tempnam( sys_get_temp_dir(), 'font-new-' );
 file_put_contents( $original, $css );
@@ -39,5 +42,15 @@ if ( ! $guard::ready_for_face( $status_face, $status_report ) ) throw new Runtim
 $GLOBALS['manifest']['fingerprint'] = 'stale';
 if ( $url !== $guard::style_src( $url, 'elementor-font' ) ) throw new RuntimeException( 'Una política cambiada debe conservar el CSS original.' );
 if ( $guard::ready_for_face( $status_face, $status_report ) ) throw new RuntimeException( 'Una copia vencida no debe anunciar bloqueo efectivo.' );
+$GLOBALS['manifest']['fingerprint'] = hash( 'sha256', "manual\n" . $allow );
+$GLOBALS['manifest']['approved'] = true;
+$GLOBALS['safe_mode'] = true;
+$GLOBALS['settings']['perf_safe_mode'] = 1;
+if ( 'https://site.test/generated.css' !== $guard::style_src( $url, 'elementor-font' ) ) throw new RuntimeException( 'Una copia aprobada debe funcionar en modo seguro sin habilitar otras optimizaciones.' );
+$GLOBALS['deleted_manifest'] = '';
+$guard::invalidate_on_meta( 1, 5, '_otro_campo', '' );
+if ( $GLOBALS['deleted_manifest'] ) throw new RuntimeException( 'Los cambios ajenos a Elementor no deben invalidar el blindaje.' );
+$guard::invalidate_on_meta( 1, 5, '_elementor_data', '' );
+if ( $guard::OPTION !== $GLOBALS['deleted_manifest'] ) throw new RuntimeException( 'Un cambio en Elementor debe invalidar las copias preparadas.' );
 unlink( $original ); unlink( $generated );
 echo "Blindaje de fuentes: política, variantes, iconos y modo seguro correctos.\n";

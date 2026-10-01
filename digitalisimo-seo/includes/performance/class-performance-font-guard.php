@@ -7,8 +7,18 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 
 	public static function init() {
 		add_action( 'admin_post_digitalisimo_performance_build_fonts', array( __CLASS__, 'build_action' ) );
+		add_action( 'admin_post_digitalisimo_performance_optimize_fonts', array( __CLASS__, 'optimize_action' ) );
+		foreach ( array( 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ) as $hook ) add_action( $hook, array( __CLASS__, 'invalidate_on_meta' ), 10, 4 );
+		add_action( 'save_post_elementor_library', array( __CLASS__, 'invalidate_on_library_save' ) );
 		add_filter( 'style_loader_src', array( __CLASS__, 'style_src' ), 20, 2 );
 	}
+
+	/** Una edición posterior de Elementor obliga a rehacer el inventario antes de filtrar. */
+	public static function invalidate_on_meta( $meta_id, $post_id, $key, $value ) {
+		if ( in_array( $key, array( '_elementor_data', '_elementor_page_settings', '_elementor_edit_mode' ), true ) ) delete_option( self::OPTION );
+	}
+
+	public static function invalidate_on_library_save() { delete_option( self::OPTION ); }
 
 	public static function sanitize_mode( $value ) {
 		return in_array( $value, array( 'off', 'auto', 'manual' ), true ) ? $value : 'off';
@@ -65,23 +75,24 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 	/** La precarga debe respetar la misma política que los @font-face filtrados. */
 	public static function allows_face( $face, $report ) {
 		list( $mode, $allowlist ) = self::policy();
-		if ( 'off' === $mode || Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ) return true;
-		return self::face_matches( $face, self::rules( $mode, $allowlist, $report ), $mode );
+		if ( 'off' === $mode || ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) && ! self::approved() ) ) return true;
+		return self::face_matches( $face, self::rules( $mode, $allowlist, $report ), 'auto' === $mode && ! empty( $report['complete'] ) ? 'auto-prune' : $mode );
 	}
 
 	public static function permitted_urls( $report ) {
 		list( $mode, $allowlist ) = self::policy();
 		$safe = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' );
-		$rules = 'off' === $mode || $safe ? array() : self::rules( $mode, $allowlist, $report );
+		$inactive = 'off' === $mode || ( $safe && ! self::approved() );
+		$rules = $inactive ? array() : self::rules( $mode, $allowlist, $report );
 		$urls = array();
-		foreach ( (array) ( $report['faces'] ?? array() ) as $face ) if ( ! empty( $face['url'] ) && ( 'off' === $mode || $safe || self::face_matches( $face, $rules, $mode ) ) ) $urls[ $face['url'] ] = true;
+		foreach ( (array) ( $report['faces'] ?? array() ) as $face ) if ( ! empty( $face['url'] ) && ( $inactive || self::face_matches( $face, $rules, 'auto' === $mode && ! empty( $report['complete'] ) ? 'auto-prune' : $mode ) ) ) $urls[ $face['url'] ] = true;
 		return $urls;
 	}
 
 	/** Estado administrativo: una política sin copia vigente no bloquea el CSS original. */
 	public static function ready_for_face( $face, $report ) {
 		list( $mode, , $fingerprint ) = self::policy();
-		if ( 'off' === $mode || Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) || empty( $face['css'] ) || empty( $report['uploads_baseurl'] ) ) return false;
+		if ( 'off' === $mode || ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) && ! self::approved() ) || empty( $face['css'] ) || empty( $report['uploads_baseurl'] ) ) return false;
 		$manifest = get_option( self::OPTION, array() );
 		if ( $fingerprint !== ( $manifest['fingerprint'] ?? '' ) ) return false;
 		$key = $report['uploads_baseurl'] . 'elementor/google-fonts/css/' . basename( $face['css'] );
@@ -101,6 +112,12 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		if ( ! preg_match( '/^[1-9]00$/', $weight ) || ! in_array( $style, array( 'normal', 'italic', 'oblique' ), true ) ) return true;
 		$rule = $rules[ $key ];
 		return ( empty( $rule['weights'] ) || in_array( $weight, $rule['weights'], true ) ) && ( empty( $rule['styles'] ) || in_array( $style, $rule['styles'], true ) );
+	}
+
+	private static function approved() {
+		$manifest = get_option( self::OPTION, array() );
+		list( , , $fingerprint ) = self::policy();
+		return ! empty( $manifest['approved'] ) && $fingerprint === ( $manifest['fingerprint'] ?? '' );
 	}
 
 	/** Devuelve CSS original si un bloque no se puede interpretar con seguridad. */
@@ -130,7 +147,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 	}
 
 	/** Se ejecuta sólo en administración y escribe junto al CSS de Elementor para preservar URLs relativas. */
-	public static function build() {
+	public static function build( $approved = false ) {
 		list( $mode, $allowlist, $fingerprint ) = self::policy();
 		if ( 'off' === $mode ) { delete_option( self::OPTION ); return array( 'built' => 0, 'removed' => 0 ); }
 		$report = get_option( Digitalisimo_Integrations_Performance_Fonts::OPTION, array() );
@@ -141,8 +158,9 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		$root = realpath( $uploads['basedir'] ?? '' );
 		$directory = realpath( trailingslashit( $uploads['basedir'] ?? '' ) . 'elementor/google-fonts/css' );
 		if ( ! $root || ! $directory || 0 !== strpos( $directory, trailingslashit( $root ) ) || ! is_writable( $directory ) ) return array( 'error' => 'No se puede escribir en el CSS local de este sitio.' );
-		$manifest = array( 'fingerprint' => $fingerprint, 'rows' => array() );
+		$manifest = array( 'fingerprint' => $fingerprint, 'approved' => (bool) $approved, 'rows' => array() );
 		$removed = 0;
+		$filter_mode = 'auto' === $mode && ! empty( $report['complete'] ) ? 'auto-prune' : $mode;
 		$files = glob( $directory . '/*.css' );
 		$files = is_array( $files ) ? array_values( array_filter( $files, function( $path ) { return 0 !== strpos( basename( $path ), 'digitalisimo-' ); } ) ) : array();
 		foreach ( array_slice( $files, 0, 50 ) as $path ) {
@@ -150,29 +168,72 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 			if ( ! $real || 0 !== strpos( $real, trailingslashit( $directory ) ) || ! is_readable( $real ) || filesize( $real ) > 512 * KB_IN_BYTES ) continue;
 			$css = file_get_contents( $real );
 			if ( ! is_string( $css ) || false === stripos( $css, '@font-face' ) ) continue;
-			list( $filtered, $count ) = self::filter_css( $css, $rules, $mode );
+			list( $filtered, $count ) = self::filter_css( $css, $rules, $filter_mode );
 			if ( ! $count ) continue;
 			$name = 'digitalisimo-' . substr( hash( 'sha256', $fingerprint . $css ), 0, 16 ) . '-' . basename( $real );
 			$target = $directory . '/' . $name;
 			if ( false === file_put_contents( $target, $filtered, LOCK_EX ) ) continue;
 			$source_url = trailingslashit( $uploads['baseurl'] ) . 'elementor/google-fonts/css/' . basename( $real );
-			$manifest['rows'][ $source_url ] = array( 'original' => $real, 'mtime' => filemtime( $real ), 'generated' => $target, 'url' => trailingslashit( $uploads['baseurl'] ) . 'elementor/google-fonts/css/' . $name );
+			$manifest['rows'][ $source_url ] = array( 'original' => $real, 'mtime' => filemtime( $real ), 'generated' => $target, 'url' => trailingslashit( $uploads['baseurl'] ) . 'elementor/google-fonts/css/' . $name, 'removed' => $count );
 			$removed += $count;
 		}
+		$manifest['removed'] = $removed;
+		$manifest['complete'] = ! empty( $report['complete'] );
 		update_option( self::OPTION, $manifest, false );
-		return array( 'built' => count( $manifest['rows'] ), 'removed' => $removed );
+		return array( 'built' => count( $manifest['rows'] ), 'removed' => $removed, 'complete' => ! empty( $report['complete'] ), 'families' => count( (array) ( $report['families'] ?? array() ) ) );
+	}
+
+	public static function status() {
+		list( $mode, , $fingerprint ) = self::policy();
+		$manifest = (array) get_option( self::OPTION, array() );
+		$valid = 0; $removed = 0;
+		$allowed = ! Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) || ! empty( $manifest['approved'] );
+		if ( 'off' !== $mode && $allowed && $fingerprint === ( $manifest['fingerprint'] ?? '' ) ) foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {
+			if ( is_file( $row['original'] ?? '' ) && is_file( $row['generated'] ?? '' ) && filemtime( $row['original'] ) === ( $row['mtime'] ?? null ) ) { ++$valid; $removed += (int) ( $row['removed'] ?? 0 ); }
+		}
+		return array( 'copies' => $valid, 'removed' => $removed, 'complete' => ! empty( $manifest['complete'] ) );
 	}
 
 	public static function style_src( $src, $handle ) {
-		if ( ! Digitalisimo_Integrations_Performance_Manager::advanced_allowed() ) return $src;
+		$manifest = get_option( self::OPTION, array() );
+		if ( ! Digitalisimo_Integrations_Performance_Manager::advanced_allowed() && ( empty( $manifest['approved'] ) || ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) ) return $src;
 		list( $mode, , $fingerprint ) = self::policy();
 		if ( 'off' === $mode ) return $src;
-		$manifest = get_option( self::OPTION, array() );
 		if ( $fingerprint !== ( $manifest['fingerprint'] ?? '' ) ) return $src;
 		$key = strtok( (string) $src, '?#' );
 		$row = $manifest['rows'][ $key ] ?? array();
 		if ( ! $row || ! is_file( $row['original'] ?? '' ) || ! is_file( $row['generated'] ?? '' ) || filemtime( $row['original'] ) !== ( $row['mtime'] ?? null ) ) return $src;
 		return $row['url'];
+	}
+
+	/** Un clic: inventaría el sitio elegido, activa sólo su política de fuentes y prepara copias reversibles. */
+	public static function optimize_action() {
+		$network = ! empty( $_POST['network_context'] );
+		if ( $network ? ! is_multisite() || ! current_user_can( 'manage_network_options' ) : ! current_user_can( 'manage_options' ) ) wp_die( 'No autorizado.' );
+		$site_id = absint( $_POST['site_id'] ?? 0 );
+		if ( ! $site_id || ( $network ? ! get_site( $site_id ) : $site_id !== get_current_blog_id() ) ) wp_die( 'Sitio inválido.' );
+		check_admin_referer( 'digitalisimo_performance_optimize_fonts_' . $site_id );
+		$switched = $site_id !== get_current_blog_id();
+		if ( $switched ) switch_to_blog( $site_id );
+		try {
+			$report = Digitalisimo_Integrations_Performance_Fonts::scan();
+			if ( empty( $report['families'] ) ) $result = array( 'error' => 'No se detectaron familias Elementor. No se modificó la política.' );
+			else {
+				delete_option( self::OPTION );
+				$settings = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+				$settings['perf_font_guard_mode'] = 'auto';
+				update_option( Digitalisimo_Integrations_Settings::OPTION, $settings, false );
+				if ( is_multisite() ) {
+					$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
+					$inherit['perf_font_guard_mode'] = 0;
+					update_option( 'digitalisimo_seo_network_inherit', $inherit, false );
+				}
+				$result = self::build( true );
+			}
+		} finally { if ( $switched ) restore_current_blog(); }
+		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=fonts&site_id=' . $site_id ) : admin_url( 'admin.php?page=digitalisimo-performance&section=fonts' );
+		wp_safe_redirect( add_query_arg( isset( $result['error'] ) ? 'font_guard_error' : 'font_guard_optimized', isset( $result['error'] ) ? $result['error'] : $result['removed'], $target ) );
+		exit;
 	}
 
 	public static function build_action() {
