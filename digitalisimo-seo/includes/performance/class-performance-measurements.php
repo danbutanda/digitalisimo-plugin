@@ -26,7 +26,7 @@ class Digitalisimo_Integrations_Performance_Measurements {
 			finally { if ( $switched ) restore_current_blog(); }
 		}
 		$current = $records[ md5( $url ) ] ?? array();
-		echo '<h2>Mediciones externas · antes y después</h2><p>Esta pestaña registra resultados de PageSpeed o Lighthouse que obtuviste por separado. El diagnóstico de recursos está en «Estado» y no calcula estas métricas. La comparación es opcional.</p>';
+		echo '<h2>PageSpeed manual · antes y después</h2><p>Esta pestaña registra resultados de PageSpeed o Lighthouse que obtuviste por separado. «Diagnóstico de assets» inventaría los recursos de WordPress y no calcula estas métricas. La comparación es opcional.</p>';
 		if ( ! $site_id ) { echo '<p class="notice notice-error">Elige arriba una URL de este sitio o de esta red para registrar una comparación.</p>'; return; }
 		echo '<p><strong>URL de esta comparación:</strong> <code>' . esc_html( $url ) . '</code></p>';
 		if ( $current ) echo '<p>Última actualización: ' . esc_html( $current['updated'] ?? '' ) . '. Estos valores fueron ingresados manualmente.</p>';

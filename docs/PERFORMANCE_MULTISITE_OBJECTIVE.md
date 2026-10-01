@@ -150,3 +150,7 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 
 - Estado muestra el diagnóstico de recursos y un enlace directo a Mediciones para la misma URL. La pestaña Mediciones registra únicamente resultados externos de PageSpeed/Lighthouse; al guardar, permanece en ella.
 - El sitio y la URL seleccionados se conservan en la navegación, y la última captura válida del mismo sitio se recupera si se abre Mediciones sin URL explícita. No se muestran capturas de otro sitio como resultados del actual.
+
+## Una sola entrada de Rendimiento · SEO 1.0.169
+
+- Las pestañas distinguen explícitamente el inventario de assets de la carga manual de resultados PageSpeed/Lighthouse. Los enlaces históricos del sitio y de la red redirigen a la consola actual antes de generar HTML y conservan sitio/URL válidos.

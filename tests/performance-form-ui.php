@@ -51,7 +51,7 @@ Digitalisimo_Integrations_Performance_Measurements::render( true );
 $measurement_html = ob_get_clean();
 if ( false === strpos( $measurement_html, '<input type="hidden" name="url" value="https://example.test/subsite/page/">' ) || false !== strpos( $measurement_html, 'type="url" name="url"' ) || false === strpos( $measurement_html, '<details>' ) || false === strpos( $measurement_html, 'Puedes llenar sólo las métricas que tengas' ) ) throw new RuntimeException( 'La comparación debe usar la URL analizada y explicar que las métricas son opcionales.' );
 $sections = new ReflectionMethod( Digitalisimo_Integrations_Performance_Console::class, 'sections' );
-if ( ( $sections->invoke( null )['measurements'] ?? '' ) !== 'Mediciones' ) throw new RuntimeException( 'Las mediciones deben tener una pestaña propia.' );
+if ( ( $sections->invoke( null )['status'] ?? '' ) !== 'Diagnóstico de assets' || ( $sections->invoke( null )['measurements'] ?? '' ) !== 'PageSpeed manual' ) throw new RuntimeException( 'El diagnóstico y las mediciones manuales deben tener pestañas inequívocas.' );
 $page_url = new ReflectionMethod( Digitalisimo_Integrations_Performance_Console::class, 'page_url' );
 if ( false === strpos( $page_url->invoke( null, true, 'measurements' ), 'performance_url=https%3A%2F%2Fexample.test%2Fsubsite%2Fpage%2F' ) ) throw new RuntimeException( 'La navegación debe conservar la URL analizada.' );
 unset( $_GET['performance_url'] );

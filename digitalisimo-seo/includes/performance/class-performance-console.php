@@ -5,6 +5,7 @@ defined( 'ABSPATH' ) || exit;
 class Digitalisimo_Integrations_Performance_Console {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'site_menu' ), 30 );
+		add_action( 'admin_init', array( __CLASS__, 'legacy_redirect' ) );
 		if ( is_multisite() ) add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ), 30 );
 		add_action( 'admin_post_digitalisimo_performance_clear_cache', array( __CLASS__, 'clear_cache' ) );
 	}
@@ -17,8 +18,20 @@ class Digitalisimo_Integrations_Performance_Console {
 		add_submenu_page( 'digitalisimo-network', 'Rendimiento de red', 'Rendimiento', 'manage_network_options', 'digitalisimo-network-performance', array( __CLASS__, 'network_page' ) );
 	}
 
+	/** Enlaza marcadores de SEO con la única consola de Rendimiento antes de enviar HTML. */
+	public static function legacy_redirect() {
+		$page = sanitize_key( $_GET['page'] ?? '' );
+		$network = is_network_admin();
+		$legacy_site = ! $network && 'digitalisimo-seo-performance' === $page;
+		$legacy_network = $network && 'digitalisimo-network-seo' === $page && 'performance' === sanitize_key( $_GET['tab'] ?? '' );
+		if ( ! $legacy_site && ! $legacy_network ) return;
+		if ( ! current_user_can( $network ? 'manage_network_options' : 'manage_options' ) ) return;
+		wp_safe_redirect( self::page_url( $network, 'status' ) );
+		exit;
+	}
+
 	private static function sections() {
-		return array( 'status' => 'Estado', 'measurements' => 'Mediciones', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
+		return array( 'status' => 'Diagnóstico de assets', 'measurements' => 'PageSpeed manual', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
 	}
 
 	private static function page_url( $network, $section ) {

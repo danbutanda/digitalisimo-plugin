@@ -18,6 +18,7 @@ SEO 1.0.165 consulta sus Releases con caché propia de cinco minutos y programa 
 SEO 1.0.166 ejecuta el diagnóstico de assets mediante una visita temporal del navegador a la URL pública elegida. Regresa al mismo panel y sitio con una captura ligada al usuario, sin depender de la resolución DNS/TLS interna del servidor ni desactivar la verificación SSL.
 SEO 1.0.167 presenta los modos de Fuentes, Preloads y Google Tracking como selectores tanto en sitio como en red. La comparación manual de PageSpeed reutiliza la URL analizada, explica que sus métricas son opcionales y queda plegada para no confundirse con el diagnóstico de assets.
 SEO 1.0.168 separa el diagnóstico de assets en Estado y la comparación manual en Mediciones, conserva sitio y URL entre ambas y devuelve el guardado a Mediciones. Sólo se publica SEO.
+SEO 1.0.169 identifica las pestañas como «Diagnóstico de assets» y «PageSpeed manual», y redirige la ruta histórica de Rendimiento en SEO a la consola única antes de generar HTML para evitar dos interfaces distintas con la misma versión.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 
