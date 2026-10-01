@@ -145,3 +145,8 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 
 - Los modos de Fuentes, Preloads y Google Tracking usan las mismas opciones desplegables en sitio y red; el guardado de red sigue aplicando su sanitización específica y la herencia no cambia.
 - El diagnóstico de assets conserva la URL elegida al volver al panel. La comparativa usa esa misma URL sin pedirla otra vez, se presenta plegada como registro opcional y explica cada métrica. «Analizar URL» inventaría recursos; no ejecuta Lighthouse ni obtiene automáticamente FCP, LCP, TBT, CLS o puntuación. El administrador puede introducir sólo los valores de un informe externo que realmente tenga.
+
+## Separación del diagnóstico y las mediciones · SEO 1.0.168
+
+- Estado muestra el diagnóstico de recursos y un enlace directo a Mediciones para la misma URL. La pestaña Mediciones registra únicamente resultados externos de PageSpeed/Lighthouse; al guardar, permanece en ella.
+- El sitio y la URL seleccionados se conservan en la navegación, y la última captura válida del mismo sitio se recupera si se abre Mediciones sin URL explícita. No se muestran capturas de otro sitio como resultados del actual.

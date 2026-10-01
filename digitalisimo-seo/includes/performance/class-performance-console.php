@@ -18,13 +18,19 @@ class Digitalisimo_Integrations_Performance_Console {
 	}
 
 	private static function sections() {
-		return array( 'status' => 'Estado', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
+		return array( 'status' => 'Estado', 'measurements' => 'Mediciones', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
 	}
 
 	private static function page_url( $network, $section ) {
 		$url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $section ) : admin_url( 'admin.php?page=digitalisimo-performance&section=' . $section );
 		$site_id = $network ? absint( $_GET['site_id'] ?? 0 ) : 0;
-		return $site_id && get_site( $site_id ) ? add_query_arg( 'site_id', $site_id, $url ) : $url;
+		if ( $site_id && get_site( $site_id ) ) $url = add_query_arg( 'site_id', $site_id, $url );
+		if ( in_array( $section, array( 'status', 'measurements' ), true ) && ! empty( $_GET['performance_url'] ) ) {
+			$selected_url = esc_url_raw( (string) wp_unslash( $_GET['performance_url'] ) );
+			$resolved_site = Digitalisimo_Integrations_Asset_Diagnostics::site_for_url( $selected_url, $network );
+			if ( $resolved_site && ( ! $network || ! $site_id || $resolved_site === $site_id ) ) $url = add_query_arg( 'performance_url', $selected_url, $url );
+		}
+		return $url;
 	}
 
 	private static function navigation( $network, $active ) {
@@ -53,13 +59,14 @@ class Digitalisimo_Integrations_Performance_Console {
 			echo '<p>Las optimizaciones nuevas permanecen desactivadas hasta validar el sitio. El modo seguro conserva recursos centrales de Elementor, Pro y WooCommerce.</p>';
 			echo '<table class="widefat striped"><tbody><tr><th>Modo seguro efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Activo' : 'Desactivado' ) . '</td></tr><tr><th>CSS Gutenberg efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Activado sólo en páginas Elementor elegibles' : 'Desactivado' ) . '</td></tr></tbody></table>';
 			if ( $network ) self::network_sites();
-		} elseif ( 'css' === $section ) { self::settings( $network, 'css' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
+		} elseif ( 'measurements' === $section ) Digitalisimo_Integrations_Performance_Measurements::render( $network );
+		elseif ( 'css' === $section ) { self::settings( $network, 'css' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'fonts' === $section ) { self::settings( $network, 'fonts' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); }
 		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'cache' === $section ) self::cache_section( $network );
 		else Digitalisimo_Integrations_Performance_Debug::render( $network );
-		if ( in_array( $section, array( 'status', 'css', 'fonts' ), true ) ) { Digitalisimo_Integrations_Asset_Diagnostics::render( $network ); Digitalisimo_Integrations_Performance_Measurements::render( $network ); }
+		if ( 'status' === $section ) Digitalisimo_Integrations_Asset_Diagnostics::render( $network );
 		echo '</div>';
 	}
 

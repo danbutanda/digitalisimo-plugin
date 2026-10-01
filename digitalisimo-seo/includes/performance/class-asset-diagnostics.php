@@ -37,7 +37,12 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		echo '</form>';
 		if ( ! is_array( $result ) ) return;
 		if ( ! empty( $result['error'] ) ) { echo '<div class="notice notice-error"><p>' . esc_html( $result['error'] ) . '</p></div>'; return; }
+		if ( ! self::capture_belongs_to_site( $result, $site_id ) || (string) ( $result['url'] ?? '' ) !== $url ) return;
 		echo '<p><strong>Resultado:</strong> ' . esc_html( $result['url'] ?? '' ) . ' · ' . count( $result['resources'] ?? array() ) . ' recursos encolados</p>';
+		$measurements_url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=measurements' ) : admin_url( 'admin.php?page=digitalisimo-performance&section=measurements' );
+		$args = array( 'performance_url' => $url );
+		if ( $network ) $args['site_id'] = $site_id;
+		echo '<p><a class="button" href="' . esc_url( add_query_arg( $args, $measurements_url ) ) . '">Ver mediciones de esta URL</a></p>';
 		echo '<div class="table-responsive"><table class="widefat striped"><thead><tr><th>Recurso</th><th>Handle</th><th>Tipo</th><th>Origen</th><th>Dependencias</th><th>Posición</th><th>Versión</th><th>Estado</th></tr></thead><tbody>';
 		foreach ( (array) ( $result['resources'] ?? array() ) as $row ) {
 			echo '<tr><td><code>' . esc_html( $row['src'] ?? '' ) . '</code></td><td>' . esc_html( $row['handle'] ?? '' ) . '</td><td>' . esc_html( $row['type'] ?? '' ) . '</td><td>' . esc_html( $row['origin'] ?? '' ) . '</td><td>' . esc_html( implode( ', ', (array) ( $row['deps'] ?? array() ) ) ) . '</td><td>' . esc_html( $row['position'] ?? '' ) . '</td><td>' . esc_html( (string) ( $row['version'] ?? '' ) ) . '</td><td>' . esc_html( $row['status'] ?? '' ) . '</td></tr>';

@@ -8,6 +8,8 @@ function get_site( $id ) { return in_array( (int) $id, array( 1, 2 ), true ) ? (
 function get_home_url( $id, $path = '/' ) { return 2 === (int) $id ? 'https://example.test/subsite/' : 'https://example.test/'; }
 function get_site_option( $key, $default = false ) { return $default; }
 function get_option( $key, $default = false ) { return $default; }
+function get_transient( $key ) { return $GLOBALS['test_result'] ?? false; }
+function get_current_user_id() { return 1; }
 function current_user_can( $capability ) { return true; }
 function wp_unslash( $value ) { return $value; }
 function esc_url_raw( $value ) { return $value; }
@@ -18,14 +20,23 @@ function esc_textarea( $value ) { return esc_html( $value ); }
 function selected( $actual, $expected, $echo = true ) { return (string) $actual === (string) $expected ? 'selected="selected"' : ''; }
 function checked( $actual, $expected, $echo = true ) { return (string) $actual === (string) $expected ? 'checked="checked"' : ''; }
 function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . $path; }
+function network_admin_url( $path = '' ) { return 'https://example.test/wp-admin/network/' . $path; }
+function add_query_arg( $key, $value, $url = '' ) {
+	if ( is_array( $key ) ) { $url = $value; $args = $key; } else $args = array( $key => $value );
+	return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $args );
+}
 function wp_nonce_field( $action ) {}
 function submit_button( $label, $type = 'primary' ) { echo '<button>' . esc_html( $label ) . '</button>'; }
 function switch_to_blog( $id ) { $GLOBALS['test_blog_id'] = (int) $id; }
 function restore_current_blog() { $GLOBALS['test_blog_id'] = 1; }
-class Digitalisimo_Integrations_Asset_Diagnostics { public static function site_for_url( $url, $network ) { return 0 === strpos( $url, 'https://example.test/subsite/' ) ? 2 : 1; } }
+class Digitalisimo_Integrations_Asset_Diagnostics {
+	public static function site_for_url( $url, $network ) { return 0 === strpos( $url, 'https://example.test/subsite/' ) ? 2 : 1; }
+	public static function capture_belongs_to_site( $result, $site_id ) { return is_array( $result ) && ! empty( $result['url'] ) && self::site_for_url( $result['url'], true ) === $site_id; }
+}
 require __DIR__ . '/../digitalisimo-seo/includes/class-settings.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-suite.php';
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-measurements.php';
+require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-console.php';
 ob_start();
 Digitalisimo_Integrations_SEO_Suite::performance_font_network_fields();
 Digitalisimo_Integrations_SEO_Suite::performance_preload_network_fields();
@@ -39,4 +50,14 @@ ob_start();
 Digitalisimo_Integrations_Performance_Measurements::render( true );
 $measurement_html = ob_get_clean();
 if ( false === strpos( $measurement_html, '<input type="hidden" name="url" value="https://example.test/subsite/page/">' ) || false !== strpos( $measurement_html, 'type="url" name="url"' ) || false === strpos( $measurement_html, '<details>' ) || false === strpos( $measurement_html, 'Puedes llenar sólo las métricas que tengas' ) ) throw new RuntimeException( 'La comparación debe usar la URL analizada y explicar que las métricas son opcionales.' );
-echo "Interfaz de rendimiento: selectores en red y URL compartida correctos.\n";
+$sections = new ReflectionMethod( Digitalisimo_Integrations_Performance_Console::class, 'sections' );
+if ( ( $sections->invoke( null )['measurements'] ?? '' ) !== 'Mediciones' ) throw new RuntimeException( 'Las mediciones deben tener una pestaña propia.' );
+$page_url = new ReflectionMethod( Digitalisimo_Integrations_Performance_Console::class, 'page_url' );
+if ( false === strpos( $page_url->invoke( null, true, 'measurements' ), 'performance_url=https%3A%2F%2Fexample.test%2Fsubsite%2Fpage%2F' ) ) throw new RuntimeException( 'La navegación debe conservar la URL analizada.' );
+unset( $_GET['performance_url'] );
+$GLOBALS['test_result'] = array( 'url' => 'https://example.test/subsite/page/' );
+ob_start();
+Digitalisimo_Integrations_Performance_Measurements::render( true );
+$measurement_html = ob_get_clean();
+if ( false === strpos( $measurement_html, '<input type="hidden" name="url" value="https://example.test/subsite/page/">' ) ) throw new RuntimeException( 'La pestaña debe recuperar la última URL analizada.' );
+echo "Interfaz de rendimiento: pestañas, selectores y URL compartida correctos.\n";
