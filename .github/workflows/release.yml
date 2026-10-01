@@ -45,6 +45,8 @@ jobs:
           php tests/performance-diagnostics.php
           php tests/performance-cache.php
           php tests/performance-css.php
+          php tests/performance-fonts.php
+          php tests/performance-migration.php
       - name: Seleccionar plugins modificados
         id: modules
         env:

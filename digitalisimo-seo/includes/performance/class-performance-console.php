@@ -52,9 +52,9 @@ class Digitalisimo_Integrations_Performance_Console {
 			echo '<table class="widefat striped"><tbody><tr><th>Modo seguro efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Activo' : 'Desactivado' ) . '</td></tr><tr><th>CSS Gutenberg efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Activado sólo en páginas Elementor elegibles' : 'Desactivado' ) . '</td></tr></tbody></table>';
 			if ( $network ) self::network_sites();
 		} elseif ( 'css' === $section ) self::settings( $network );
-		elseif ( 'fonts' === $section ) echo '<p>El diagnóstico actual muestra fuentes y variantes locales sin bloquearlas. El blindaje de fuentes se habilitará después de verificar Kit, plantillas e icon fonts por sitio.</p>';
+		elseif ( 'fonts' === $section ) Digitalisimo_Integrations_Performance_Fonts::render( $network );
 		elseif ( 'preloads' === $section ) echo '<p>Los preloads se diagnostican; no se agregan automáticamente todavía.</p>';
-		elseif ( 'tracking' === $section ) echo '<p>Google Tag, GA4 y GTM no se modifican mientras se inventarían los códigos actuales y posibles duplicados.</p>';
+		elseif ( 'tracking' === $section ) Digitalisimo_Integrations_Performance_Migration::render( $network );
 		elseif ( 'cache' === $section ) self::cache_section( $network );
 		else {
 			echo '<p>El registro de descargas sólo se activa mediante <code>DIGITALISIMO_PERFORMANCE_DEBUG</code> o el filtro del mismo módulo.</p>';
@@ -106,7 +106,7 @@ class Digitalisimo_Integrations_Performance_Console {
 				$css = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Gutenberg contextual' : 'Sin limpieza';
 				$font = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_swap' ) ? 'Swap' : 'Original';
 				$safe = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Modo seguro' : 'Modo avanzado';
-				echo '<tr><td>' . esc_html( home_url( '/' ) ) . '</td><td>' . esc_html( $css ) . '</td><td>' . esc_html( $font ) . '</td><td>Sin configurar</td><td>Sin configurar</td><td>' . ( $cache['external'] ? 'Activo' : 'Inactivo' ) . '</td><td>' . esc_html( $safe ) . '</td></tr>';
+				echo '<tr><td>' . esc_html( home_url( '/' ) ) . '</td><td>' . esc_html( $css ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'fonts' ) ) ) . '">' . esc_html( $font ) . '</a></td><td>Sin configurar</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'tracking' ) ) ) . '">Auditar</a></td><td>' . ( $cache['external'] ? 'Activo' : 'Inactivo' ) . '</td><td>' . esc_html( $safe ) . '</td></tr>';
 			} finally { restore_current_blog(); }
 		}
 		echo '</tbody></table>';
