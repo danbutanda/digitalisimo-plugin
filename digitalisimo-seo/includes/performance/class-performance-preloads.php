@@ -3,11 +3,22 @@ defined( 'ABSPATH' ) || exit;
 
 /** Precargas WOFF2 locales, opt-in y limitadas al CSS usado por la página. */
 class Digitalisimo_Integrations_Performance_Preloads {
+	const OPTION = 'digitalisimo_performance_preload_manifest';
+	const CRON = 'digitalisimo_performance_rebuild_preloads';
 	private static $core_urls = array();
 
 	public static function init() {
-		add_filter( 'wp_preload_resources', array( __CLASS__, 'remember_core' ), 999 );
-		add_action( 'wp_head', array( __CLASS__, 'print_links' ), 7 );
+		if ( function_exists( 'wp_preload_resources' ) && version_compare( get_bloginfo( 'version' ), '6.6', '>=' ) ) add_filter( 'wp_preload_resources', array( __CLASS__, 'inject_resources' ), 999 );
+		else add_action( 'wp_head', array( __CLASS__, 'print_links' ), 0 );
+		add_action( 'admin_init', array( __CLASS__, 'bootstrap' ), 30 );
+		add_action( self::CRON, array( __CLASS__, 'rebuild' ) );
+		add_action( 'save_post_elementor_library', array( __CLASS__, 'schedule' ) );
+		add_action( 'elementor/core/files/clear_cache', array( __CLASS__, 'schedule' ) );
+		foreach ( array( 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ) as $hook ) add_action( $hook, array( __CLASS__, 'schedule_for_meta' ), 20, 4 );
+		add_action( 'update_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'schedule' ) );
+		add_action( 'update_option_digitalisimo_seo_network_inherit', array( __CLASS__, 'schedule' ) );
+		add_action( 'update_option_' . Digitalisimo_Integrations_Performance_Cache::GENERATION, array( __CLASS__, 'schedule' ) );
+		if ( is_multisite() ) add_action( 'update_site_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'schedule_network' ) );
 	}
 
 	public static function sanitize_mode( $value ) {
@@ -34,8 +45,80 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		return $resources;
 	}
 
+	/** El core imprime este filtro al comienzo de wp_head y evita URLs repetidas. */
+	public static function inject_resources( $resources ) {
+		if ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) return $resources;
+		$mode = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
+		$manifest = get_option( self::OPTION, array() );
+		if ( 'off' === $mode || $mode !== ( $manifest['mode'] ?? '' ) ) return $resources;
+		self::remember_core( $resources );
+		$seen = array_fill_keys( self::$core_urls, true );
+		foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {
+			$url = (string) ( $row['url'] ?? '' );
+			$key = self::url_key( $url );
+			if ( ! $url || isset( $seen[ $key ] ) ) continue;
+			$seen[ $key ] = true;
+			$resources[] = array( 'href' => $url, 'as' => 'font', 'type' => 'font/woff2', 'crossorigin' => 'anonymous', 'fetchpriority' => 'high' );
+		}
+		return $resources;
+	}
+
 	private static function url_key( $url ) {
 		return strtok( html_entity_decode( (string) $url, ENT_QUOTES, 'UTF-8' ), '?#' );
+	}
+
+	public static function schedule_for_meta( $meta_id, $post_id, $key, $value ) {
+		if ( in_array( $key, array( '_elementor_data', '_elementor_page_settings', '_elementor_edit_mode' ), true ) ) self::schedule();
+	}
+
+	public static function schedule() {
+		if ( ! wp_next_scheduled( self::CRON ) ) wp_schedule_single_event( time() + 10, self::CRON );
+	}
+
+	public static function schedule_network() {
+		foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
+			switch_to_blog( (int) $site_id );
+			try { self::schedule(); } finally { restore_current_blog(); }
+		}
+	}
+
+	public static function bootstrap() {
+		if ( current_user_can( 'manage_options' ) && false === get_option( self::OPTION, false ) ) self::rebuild();
+	}
+
+	/** Se calcula en administración o cron; un MISS de Redis no afecta el HTML. */
+	public static function rebuild() {
+		$report = Digitalisimo_Integrations_Performance_Fonts::scan();
+		if ( ! is_array( $report ) || empty( $report['scanned_at'] ) ) return false;
+		$mode = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
+		$base = (string) ( $report['uploads_baseurl'] ?? '' );
+		$families = array();
+		foreach ( (array) ( $report['kit_families'] ?? $report['families'] ?? array() ) as $family ) $families[ strtolower( (string) ( $family['family'] ?? '' ) ) ] = true;
+		$manual = array_fill_keys( explode( "\n", self::sanitize_paths( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_paths' ) ) ), true );
+		$permitted = Digitalisimo_Integrations_Performance_Font_Guard::permitted_urls( $report );
+		$selected = array();
+		foreach ( (array) ( $report['faces'] ?? array() ) as $face ) {
+			$url = (string) ( $face['url'] ?? '' );
+			if ( 'off' === $mode || ! $base || 0 !== strpos( $url, $base ) || ! preg_match( '~^elementor/google-fonts/fonts/[a-zA-Z0-9._/-]+\.woff2$~', substr( $url, strlen( $base ) ) ) || empty( $permitted[ $url ] ) ) continue;
+			$family = strtolower( (string) ( $face['family'] ?? '' ) );
+			if ( 'auto' === $mode && ( empty( $families[ $family ] ) || ! in_array( strtolower( (string) ( $face['weight'] ?? '' ) ), array( '400', 'normal' ), true ) || 'italic' === strtolower( (string) ( $face['style'] ?? '' ) ) ) ) continue;
+			if ( 'manual' === $mode && empty( $manual[ substr( $url, strlen( $base ) ) ] ) ) continue;
+			$range = strtoupper( (string) ( $face['unicode_range'] ?? '' ) );
+			$score = false !== strpos( $range, 'U+0000-00FF' ) ? 2 : ( '' === $range ? 1 : 0 );
+			$key = 'auto' === $mode ? $family : $url;
+			if ( ! isset( $selected[ $key ] ) || $score > $selected[ $key ]['score'] ) $selected[ $key ] = array( 'url' => $url, 'family' => $face['family'] ?? '', 'variant' => trim( (string) ( $face['weight'] ?? '' ) . ' ' . (string) ( $face['style'] ?? '' ) ), 'source' => 'auto' === $mode ? 'Kit Elementor + CSS local' : 'Ruta manual + CSS local', 'css' => $face['css'] ?? '', 'score' => $score );
+		}
+		$rows = array(); $seen = array();
+		foreach ( $selected as $row ) {
+			if ( isset( $seen[ $row['url'] ] ) ) continue;
+			$seen[ $row['url'] ] = true;
+			unset( $row['score'] );
+			$rows[] = $row;
+			if ( count( $rows ) >= self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) ) ) break;
+		}
+		$manifest = array( 'mode' => $mode, 'rows' => $rows, 'generated_at' => current_time( 'mysql' ) );
+		update_option( self::OPTION, $manifest, false );
+		return $manifest;
 	}
 
 	private static function enqueued_css() {
@@ -76,13 +159,15 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		if ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) return;
 		$mode = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
 		if ( 'off' === $mode ) return;
-		$fonts = get_option( Digitalisimo_Integrations_Performance_Fonts::OPTION, array() );
-		$custom = get_option( Digitalisimo_Integrations_Performance_Migration::OPTION, array() );
-		if ( empty( $fonts['scanned_at'] ) || empty( $custom['scanned_at'] ) ) return;
-		$already = self::$core_urls;
-		foreach ( (array) ( $custom['rows'] ?? array() ) as $row ) if ( 'publish' === ( $row['status'] ?? '' ) ) foreach ( (array) ( $row['preloads'] ?? array() ) as $url ) $already[] = self::url_key( $url );
-		$permitted = Digitalisimo_Integrations_Performance_Font_Guard::permitted_urls( $fonts );
-		$urls = self::candidates( $fonts, $mode, Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_paths' ), self::enqueued_css(), self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) ), $already, $permitted );
-		foreach ( $urls as $url ) echo '<link rel="preload" href="' . esc_url( $url ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
+		$manifest = get_option( self::OPTION, array() );
+		if ( $mode !== ( $manifest['mode'] ?? '' ) ) return;
+		$already = array_fill_keys( self::$core_urls, true );
+		foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {
+			$url = (string) ( $row['url'] ?? '' );
+			$key = self::url_key( $url );
+			if ( ! $url || isset( $already[ $key ] ) ) continue;
+			$already[ $key ] = true;
+			echo '<link rel="preload" href="' . esc_url( $url ) . '" as="font" type="font/woff2" crossorigin fetchpriority="high">' . "\n";
+		}
 	}
 }

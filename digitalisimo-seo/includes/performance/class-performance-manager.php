@@ -40,7 +40,7 @@ class Digitalisimo_Integrations_Performance_Manager {
 		if ( defined( 'WP_CLI' ) && WP_CLI ) return false;
 		if ( function_exists( 'is_customize_preview' ) && is_customize_preview() ) return false;
 		if ( isset( $_GET['elementor-preview'] ) || isset( $_GET['preview'] ) || isset( $_GET['customize_changeset_uuid'] ) ) return false;
-		if ( current_user_can( 'manage_options' ) ) return false;
+		if ( current_user_can( 'manage_options' ) && ! ( class_exists( 'Digitalisimo_Integrations_Asset_Diagnostics' ) && Digitalisimo_Integrations_Asset_Diagnostics::is_collecting() ) ) return false;
 		return (bool) apply_filters( 'digitalisimo_performance_frontend_safe', true );
 	}
 

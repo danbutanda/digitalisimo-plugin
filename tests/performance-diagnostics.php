@@ -19,9 +19,20 @@ function wp_scripts() { return (object) array( 'queue' => array(), 'registered' 
 function wp_styles() { return (object) array( 'queue' => array(), 'registered' => array() ); }
 function set_site_transient( $key, $value, $ttl = 0 ) { $GLOBALS['site_transients'][ $key ] = $value; return true; }
 function wp_redirect( $url ) { $GLOBALS['redirected_to'] = $url; return true; }
+function get_option( $key, $default = false ) { return $default; }
+class Digitalisimo_Integrations_Performance_Preloads { const OPTION = 'preload_manifest'; }
+class Digitalisimo_Integrations_Performance_CSS { public static function configured( $handle, $href ) { return 'elementor-pro-widget-form' === $handle; } }
 
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-asset-diagnostics.php';
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-measurements.php';
+$delivery = Digitalisimo_Integrations_Asset_Diagnostics::inspect_delivery(
+	'<head><link rel="preload" href="https://example.test/inter.woff2" as="font"><link rel="stylesheet" id="elementor-pro-widget-form-css" href="https://example.test/widget-form.css" media="print" onload="this.media=\'all\'"><link rel="stylesheet" href="https://example.test/wp-content/plugins/elementor/assets/css/frontend.css"></head>',
+	array( array( 'type' => 'CSS', 'handle' => 'elementor-pro-widget-form', 'src' => 'https://example.test/widget-form.css' ) ),
+	array( 'rows' => array( array( 'url' => 'https://example.test/inter.woff2' ) ) )
+);
+if ( 'OK' !== $delivery['preloads'][0]['status'] || 'DIFERIDO' !== $delivery['css'][0]['status'] ) throw new RuntimeException( 'La verificación debe reconocer preload temprano y CSS realmente diferido.' );
+$normal = Digitalisimo_Integrations_Asset_Diagnostics::inspect_delivery( '<head><link rel="stylesheet" id="elementor-pro-widget-form-css" href="https://example.test/widget-form.css" media="all"></head>', array( array( 'type' => 'CSS', 'handle' => 'elementor-pro-widget-form', 'src' => 'https://example.test/widget-form.css' ) ), array() );
+if ( 'ERROR: OPTIMIZACIÓN NO APLICADA' !== $normal['css'][0]['status'] ) throw new RuntimeException( 'Un CSS aún bloqueante debe marcarse como error.' );
 function wp_die( $message ) { throw new InvalidArgumentException( $message ); }
 $class = new ReflectionClass( Digitalisimo_Integrations_Asset_Diagnostics::class );
 $path = $class->getMethod( 'local_css_path' );

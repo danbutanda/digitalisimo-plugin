@@ -10,6 +10,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 	private static $widgets = array();
 	private static $probe_context = array();
 	private static $probe_token = '';
+	public static function is_collecting() { return self::$collecting; }
 
 	public static function init() {
 		add_action( 'admin_post_digitalisimo_performance_diagnostic', array( __CLASS__, 'run' ) );
@@ -321,6 +322,35 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		return (bool) preg_match( '/\b(?:wc-block-[a-z0-9-]+|woocommerce-(?:cart|checkout|account|products?|mini-cart|menu-cart)|widget_shopping_cart|add_to_cart_button|single_add_to_cart_button)\b/i', $html );
 	}
 
+	/** Comprueba la entrega real en el HTML final, no sólo la cola de WordPress. */
+	public static function inspect_delivery( $html, $resources, $manifest ) {
+		$head = preg_split( '~</head\s*>~i', (string) $html, 2 )[0];
+		$links = array();
+		if ( preg_match_all( '/<link\b[^>]*>/i', $head, $matches, PREG_OFFSET_CAPTURE ) ) foreach ( $matches[0] as $match ) {
+			$attrs = array();
+			if ( preg_match_all( '/([a-z][a-z0-9_-]*)\s*=\s*([\'\"])(.*?)\2/i', $match[0], $parts, PREG_SET_ORDER ) ) foreach ( $parts as $part ) $attrs[ strtolower( $part[1] ) ] = html_entity_decode( $part[3], ENT_QUOTES, 'UTF-8' );
+			$links[] = array( 'offset' => $match[1], 'attrs' => $attrs, 'tag' => $match[0] );
+		}
+		$first_elementor = strlen( $head );
+		foreach ( $links as $link ) if ( 'stylesheet' === ( $link['attrs']['rel'] ?? '' ) && preg_match( '~/(?:plugins/elementor(?:-pro)?/|uploads/elementor/)~', $link['attrs']['href'] ?? '' ) ) { $first_elementor = $link['offset']; break; }
+		$preloads = array();
+		foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {
+			$matches = array_filter( $links, function( $link ) use ( $row ) { return ( $link['attrs']['href'] ?? '' ) === ( $row['url'] ?? '' ) && 'preload' === ( $link['attrs']['rel'] ?? '' ); } );
+			$link = $matches ? reset( $matches ) : null;
+			$preloads[] = array_merge( $row, array( 'position' => $link ? ( $link['offset'] < $first_elementor ? 'ANTES de Elementor' : 'DESPUÉS de Elementor' ) : 'AUSENTE', 'status' => $link && $link['offset'] < $first_elementor ? 'OK' : 'ERROR: OPTIMIZACIÓN NO APLICADA' ) );
+		}
+		$css = array();
+		foreach ( (array) $resources as $resource ) {
+			if ( 'CSS' !== ( $resource['type'] ?? '' ) || ! Digitalisimo_Integrations_Performance_CSS::configured( $resource['handle'] ?? '', $resource['src'] ?? '' ) ) continue;
+			$handle = (string) $resource['handle'];
+			$link = null;
+			foreach ( $links as $candidate ) if ( ( $candidate['attrs']['id'] ?? '' ) === $handle . '-css' ) { $link = $candidate; break; }
+			$status = ! $link ? 'NO ENCONTRADO' : ( 'print' === ( $link['attrs']['media'] ?? '' ) && false !== strpos( $link['tag'], 'onload=' ) ? 'DIFERIDO' : 'ERROR: OPTIMIZACIÓN NO APLICADA' );
+			$css[] = array( 'handle' => $handle, 'url' => $link['attrs']['href'] ?? ( $resource['src'] ?? '' ), 'status' => $status );
+		}
+		return array( 'preloads' => $preloads, 'css' => $css );
+	}
+
 	public static function finish_probe() {
 		if ( ! self::$collecting ) return;
 		self::capture();
@@ -341,7 +371,8 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		if ( class_exists( 'WooCommerce' ) ) {
 			foreach ( array( 'is_woocommerce', 'is_cart', 'is_checkout', 'is_account_page' ) as $function ) if ( function_exists( $function ) && call_user_func( $function ) ) $woocommerce_required = true;
 		}
-		$data = array( 'site_id' => (int) self::$probe_context['site_id'], 'url' => self::$probe_context['url'], 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'fonts' => self::inspect_fonts(), 'images' => $images, 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required );
+		$delivery = self::inspect_delivery( $html, array_values( self::$resources ), get_option( Digitalisimo_Integrations_Performance_Preloads::OPTION, array() ) );
+		$data = array( 'site_id' => (int) self::$probe_context['site_id'], 'url' => self::$probe_context['url'], 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'fonts' => self::inspect_fonts(), 'images' => $images, 'preload_delivery' => $delivery['preloads'], 'css_delivery' => $delivery['css'], 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required );
 		set_site_transient( 'digitalisimo_perf_browser_result_' . self::$probe_token, array( 'user_id' => (int) self::$probe_context['user_id'], 'network' => ! empty( self::$probe_context['network'] ), 'site_id' => $data['site_id'], 'result' => $data ), 2 * MINUTE_IN_SECONDS );
 		if ( ! headers_sent() ) {
 			wp_redirect( self::$probe_context['complete_url'] );

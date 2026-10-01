@@ -11,7 +11,7 @@ class Digitalisimo_Integrations_SEO_Resolver { public static function option( $k
 function sanitize_key( $key ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/i', '', $key ) ); }
 function wp_parse_url( $url, $part ) { return parse_url( $url, $part ); }
 function wp_styles() { global $styles; return $styles; }
-$styles = (object) array( 'registered' => array( 'widget-form' => (object) array( 'extra' => array() ), 'widget-divider' => (object) array( 'extra' => array() ), 'widget-heading' => (object) array( 'extra' => array() ) ) );
+$styles = (object) array( 'registered' => array( 'widget-form' => (object) array( 'extra' => array() ), 'elementor-pro-widget-form' => (object) array( 'extra' => array() ), 'widget-divider' => (object) array( 'extra' => array() ), 'widget-heading' => (object) array( 'extra' => array() ) ) );
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-css.php';
 $class = Digitalisimo_Integrations_Performance_CSS::class;
 $tag = "<link rel='stylesheet' id='widget-form-css' href='https://example.test/wp-content/plugins/elementor-pro/assets/css/widget-form.min.css' media='all' />";
@@ -20,6 +20,9 @@ if ( $tag !== $class::defer_widget_css( $tag, 'widget-form', $href, 'all' ) ) th
 $advanced = true;
 $result = $class::defer_widget_css( $tag, 'widget-form', $href, 'all' );
 if ( false === strpos( $result, 'media="print"' ) || false === strpos( $result, '<noscript>' . $tag . '</noscript>' ) ) throw new RuntimeException( 'Debe diferir únicamente el CSS elegido y conservar fallback.' );
+$prefixed = "<link rel='stylesheet' id='elementor-pro-widget-form-css' href='$href' />";
+$prefixed_result = $class::defer_widget_css( $prefixed, 'elementor-pro-widget-form', $href, 'all' );
+if ( false === strpos( $prefixed_result, 'media="print"' ) || false === strpos( $prefixed_result, '<noscript>' . $prefixed . '</noscript>' ) ) throw new RuntimeException( 'Debe diferir handles prefijados aunque el tag original no declare media.' );
 if ( $tag !== $class::defer_widget_css( $tag, 'widget-heading', str_replace( 'widget-form', 'widget-heading', $href ), 'all' ) ) throw new RuntimeException( 'Un widget crítico no puede diferirse aunque aparezca en la lista.' );
 if ( $tag !== $class::defer_widget_css( $tag, 'widget-form', 'https://example.test/wp-content/plugins/otro/assets/css/widget-form.min.css', 'all' ) ) throw new RuntimeException( 'Un plugin ajeno no puede pasar por Elementor.' );
 $styles->registered['widget-form']->extra['after'] = array( '.x{}' );

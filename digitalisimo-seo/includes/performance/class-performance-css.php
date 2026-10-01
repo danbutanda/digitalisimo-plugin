@@ -4,7 +4,7 @@ defined( 'ABSPATH' ) || exit;
 /** Optimizaciones CSS explícitas y reversibles; nunca descarga CSS de Elementor. */
 class Digitalisimo_Integrations_Performance_CSS {
 	public static function init() {
-		add_filter( 'style_loader_tag', array( __CLASS__, 'defer_widget_css' ), 10, 4 );
+		add_filter( 'style_loader_tag', array( __CLASS__, 'defer_widget_css' ), 9999, 4 );
 		add_action( 'wp_head', array( __CLASS__, 'caption_rule' ), 20 );
 		add_action( 'wp_head', array( __CLASS__, 'custom_css' ), 21 );
 	}
@@ -27,25 +27,35 @@ class Digitalisimo_Integrations_Performance_CSS {
 		return implode( "\n", array_slice( array_keys( $allowed ), 0, 20 ) );
 	}
 
+	public static function canonical_handle( $handle ) {
+		return preg_replace( '/^(?:elementor-pro-|elementor-)/', '', (string) $handle );
+	}
+
 	private static function selected( $handle ) {
 		$raw = (string) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer_handles' );
-		return in_array( $handle, explode( "\n", self::sanitize_handles( $raw ) ), true );
+		return in_array( self::canonical_handle( $handle ), explode( "\n", self::sanitize_handles( $raw ) ), true );
 	}
 
 	private static function elementor_widget_source( $handle, $href ) {
-		if ( ! preg_match( '/^widget-[a-z0-9-]+$/', $handle ) ) return false;
+		$widget = self::canonical_handle( $handle );
+		if ( ! preg_match( '/^widget-[a-z0-9-]+$/', $widget ) ) return false;
 		$path = wp_parse_url( $href, PHP_URL_PATH );
-		return is_string( $path ) && (bool) preg_match( '#/plugins/elementor(?:-pro)?/assets/css/widget-[a-z0-9-]+(?:\.min)?\.css$#i', $path );
+		return is_string( $path ) && (bool) preg_match( '#/plugins/elementor(?:-pro)?/assets/css/' . preg_quote( $widget, '#' ) . '(?:\.min)?\.css$#i', $path );
+	}
+
+	public static function configured( $handle, $href ) {
+		return (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer' ) && self::selected( $handle ) && self::elementor_widget_source( $handle, $href );
 	}
 
 	public static function defer_widget_css( $html, $handle, $href, $media ) {
-		if ( ! Digitalisimo_Integrations_Performance_Manager::advanced_allowed() || ! Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer' ) || ! self::selected( $handle ) || ! self::elementor_widget_source( $handle, $href ) ) return $html;
-		if ( ! in_array( strtolower( (string) $media ), array( 'all', 'screen' ), true ) || false === stripos( $html, 'rel=' ) || false !== stripos( $html, 'onload=' ) ) return $html;
+		if ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() || ! self::configured( $handle, $href ) ) return $html;
+		if ( ! in_array( strtolower( (string) $media ), array( '', 'all', 'screen' ), true ) || ! preg_match( '/\brel\s*=\s*[\'\"]stylesheet[\'\"]/i', $html ) || false !== stripos( $html, 'onload=' ) ) return $html;
 		$styles = wp_styles();
 		$asset = $styles->registered[ $handle ] ?? null;
 		if ( ! $asset || ! empty( $asset->extra['after'] ) ) return $html;
 		// Conserva el enlace original íntegro para navegadores sin JavaScript.
-		$deferred = preg_replace( '/\smedia\s*=\s*([\'\"])(?:all|screen)\1/i', ' media="print" onload="this.onload=null;this.media=\'all\'"', $html, 1, $count );
+		$deferred = preg_replace( '/\smedia\s*=\s*([\'\"])(?:all|screen)\1/i', '', $html, 1 );
+		$deferred = preg_replace( '/\s*\/?>(?!.*<)/s', ' media="print" onload="this.onload=null;this.media=\'all\'" />', $deferred, 1, $count );
 		if ( ! $count || ! is_string( $deferred ) ) return $html;
 		return $deferred . '<noscript>' . $html . '</noscript>';
 	}

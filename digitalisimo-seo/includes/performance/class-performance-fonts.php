@@ -111,8 +111,9 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			if ( ! is_string( $css ) || ! preg_match_all( '/@font-face\s*\{([^}]*)\}/i', $css, $blocks ) ) continue;
 			foreach ( array_slice( $blocks[1], 0, 300 ) as $block ) {
 				if ( ! preg_match( '/font-family\s*:\s*([^;]+)/i', $block, $family ) ) continue;
-				$row = array( 'family' => trim( $family[1], " \t\n\r\0\x0B'\"" ), 'weight' => '', 'style' => '', 'format' => '', 'css' => basename( $real ), 'url' => '' );
+				$row = array( 'family' => trim( $family[1], " \t\n\r\0\x0B'\"" ), 'weight' => '', 'style' => '', 'format' => '', 'unicode_range' => '', 'css' => basename( $real ), 'url' => '' );
 				foreach ( array( 'font-weight' => 'weight', 'font-style' => 'style' ) as $property => $field ) if ( preg_match( '/' . $property . '\s*:\s*([^;]+)/i', $block, $match ) ) $row[ $field ] = trim( $match[1] );
+				if ( preg_match( '/unicode-range\s*:\s*([^;]+)/i', $block, $range ) ) $row['unicode_range'] = trim( $range[1] );
 				if ( preg_match( '/format\(\s*[\'\"]?([^\'\")]+)/i', $block, $format ) ) $row['format'] = trim( $format[1] );
 				if ( preg_match( '/url\(\s*[\'\"]?([^\'\")]+\.woff2)(?:\?[^\'\")]+)?[\'\"]?\s*\)/i', $block, $source ) ) {
 					$font_path = realpath( dirname( $real ) . '/' . $source[1] );
@@ -151,7 +152,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 		check_admin_referer( 'digitalisimo_performance_scan_fonts_' . $site_id );
 		$switched = $site_id !== get_current_blog_id();
 		if ( $switched ) switch_to_blog( $site_id );
-		try { self::scan(); }
+		try { Digitalisimo_Integrations_Performance_Preloads::rebuild(); }
 		finally { if ( $switched ) restore_current_blog(); }
 		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=fonts&site_id=' . $site_id ) : admin_url( 'admin.php?page=digitalisimo-performance&section=fonts' );
 		wp_safe_redirect( $target );

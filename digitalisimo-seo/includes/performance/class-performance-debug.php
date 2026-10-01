@@ -39,17 +39,28 @@ class Digitalisimo_Integrations_Performance_Debug {
 				echo '</tbody></table>';
 			}
 			$preload_mode = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' );
-			echo '<h3>Preloads</h3><p>Modo efectivo: <strong>' . esc_html( $preload_mode ) . '</strong>. PRELOAD significa configurado, no necesariamente impreso en toda URL. Cada página requiere CSS encolado y preflight de duplicados.</p>';
+			$manifest = get_option( Digitalisimo_Integrations_Performance_Preloads::OPTION, array() );
+			echo '<h3>Preloads</h3><p>Modo efectivo: <strong>' . esc_html( $preload_mode ) . '</strong> · Manifest persistente: ' . esc_html( $manifest['generated_at'] ?? 'pendiente' ) . '. La posición corresponde al HTML de la última URL analizada.</p>';
+			echo '<table class="widefat striped"><thead><tr><th>PRELOAD URL</th><th>Posición en HEAD</th><th>Familia</th><th>Variante</th><th>Origen de detección</th><th>Estado</th></tr></thead><tbody>';
+			$delivery = (array) ( $captured['preload_delivery'] ?? array() );
+			foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {
+				$actual = array();
+				foreach ( $delivery as $item ) if ( ( $item['url'] ?? '' ) === ( $row['url'] ?? '' ) ) { $actual = $item; break; }
+				echo '<tr><td><code>' . esc_html( $row['url'] ?? '' ) . '</code></td><td>' . esc_html( $actual['position'] ?? 'Sin captura' ) . '</td><td>' . esc_html( $row['family'] ?? '' ) . '</td><td>' . esc_html( $row['variant'] ?? '' ) . '</td><td>' . esc_html( $row['source'] ?? '' ) . '</td><td>' . esc_html( $actual['status'] ?? 'Sin captura' ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
 			$paths = (string) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_paths' );
 			if ( $paths ) echo '<pre>' . esc_html( $paths ) . '</pre>';
-			$defer = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer' );
-			$safe = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' );
-			$handles = explode( "\n", Digitalisimo_Integrations_Performance_CSS::sanitize_handles( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer_handles' ) ) );
-			echo '<h3>CSS</h3>';
+			echo '<h3>CSS</h3><p>CSS configurado como diferido frente al HTML realmente entregado:</p>';
+			if ( ! empty( $captured['css_delivery'] ) ) {
+				echo '<table class="widefat striped"><thead><tr><th>HANDLE</th><th>URL</th><th>Estado</th></tr></thead><tbody>';
+				foreach ( $captured['css_delivery'] as $row ) echo '<tr><td>' . esc_html( $row['handle'] ?? '' ) . '</td><td><code>' . esc_html( $row['url'] ?? '' ) . '</code></td><td>' . esc_html( $row['status'] ?? '' ) . '</td></tr>';
+				echo '</tbody></table>';
+			}
 			if ( empty( $captured['resources'] ) ) echo '<p>Sin captura pública reciente de este sitio.</p>';
 			else {
 				echo '<table class="widefat striped"><thead><tr><th>Estado</th><th>Handle</th><th>Origen</th><th>Archivo</th></tr></thead><tbody>';
-				foreach ( (array) $captured['resources'] as $row ) if ( 'CSS' === ( $row['type'] ?? '' ) ) echo '<tr><td>' . esc_html( self::css_label( $row, $defer, $safe, $handles ) ) . '</td><td>' . esc_html( $row['handle'] ?? '' ) . '</td><td>' . esc_html( $row['origin'] ?? '' ) . '</td><td><code>' . esc_html( $row['src'] ?? '' ) . '</code></td></tr>';
+				foreach ( (array) $captured['resources'] as $row ) if ( 'CSS' === ( $row['type'] ?? '' ) ) echo '<tr><td>' . esc_html( $row['status'] ?? '' ) . '</td><td>' . esc_html( $row['handle'] ?? '' ) . '</td><td>' . esc_html( $row['origin'] ?? '' ) . '</td><td><code>' . esc_html( $row['src'] ?? '' ) . '</code></td></tr>';
 				echo '</tbody></table>';
 			}
 			$ids = array_filter( array( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gt_id' ), Digitalisimo_Integrations_SEO_Resolver::option( 'perf_ga4_id' ), Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gtm_id' ) ) );
