@@ -107,7 +107,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 		if ( $switched ) switch_to_blog( $site_id );
 		try {
 			$report = get_option( self::OPTION, array() );
-			echo '<h2>Inventario de fuentes</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code>. El inventario se calcula sólo al solicitarlo en administración. No bloquea familias ni variantes todavía.</p>';
+			echo '<h2>Inventario de fuentes</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code>. El inventario se calcula sólo al solicitarlo en administración. El blindaje opcional actúa después de guardar su política y generar copias CSS.</p>';
 			echo '<form method="post" action="' . esc_url( $action ) . '"><input type="hidden" name="action" value="digitalisimo_performance_scan_fonts"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '"><input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
 			wp_nonce_field( 'digitalisimo_performance_scan_fonts_' . $site_id );
 			submit_button( 'Analizar Kit y fuentes locales', 'secondary', 'submit', false );

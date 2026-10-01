@@ -7,6 +7,7 @@ SEO 1.0.154 prepara GT/GA4/GTM opt-in con preflight de duplicados y modos de car
 SEO 1.0.155 añade preloads WOFF2 locales opt-in por sitio/red, con inventario administrativo, CSS encolado obligatorio y protección frente a duplicados de WordPress y Custom Code. Sigue pendiente la prueba de red y fuentes en navegador.
 SEO 1.0.156 agrega una preparación de migración desde Elementor Custom Code que sólo llena IDs y WOFF2 locales inequívocos en ajustes vacíos del sitio; mantiene las funciones apagadas y deja los fragmentos de Elementor intactos.
 SEO 1.0.157 prepara blindaje optativo para CSS local de fuentes Elementor: crea copias por sitio al solicitarlo en administración, protege icon fonts y conserva el CSS original cuando la política o el archivo cambian. Sin validación visual real permanece apagado.
+SEO 1.0.158 valida en WordPress Playground con Elementor gratuito y Hello Elementor el inventario, guardado, generación de CSS y fallback del blindaje; corrige la descripción de la pantalla Fuentes. No sustituye las pruebas pendientes con Multisite, Pro y Redis.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 
