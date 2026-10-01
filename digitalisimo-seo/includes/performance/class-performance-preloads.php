@@ -105,6 +105,28 @@ class Digitalisimo_Integrations_Performance_Preloads {
 			'callback' => array( __CLASS__, 'status_response' ),
 			'permission_callback' => function() { return current_user_can( 'manage_options' ); },
 	) );
+		register_rest_route( 'digitalisimo-seo/v1', '/performance/preloads/activate', array(
+			'methods' => 'POST',
+			'callback' => array( __CLASS__, 'activate_auto' ),
+			'permission_callback' => function() { return current_user_can( 'manage_options' ); },
+	) );
+	}
+
+	/** Activa el modo automático sólo en el sitio autenticado; no modifica defaults de red. */
+	public static function activate_auto( $request ) {
+		if ( ! current_user_can( 'manage_options' ) || ! wp_verify_nonce( (string) $request->get_param( 'nonce' ), 'digitalisimo_performance_activate_preloads' ) ) return new WP_Error( 'digitalisimo_preload_forbidden', 'No autorizado.', array( 'status' => 403 ) );
+		$settings = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+		$settings['perf_preload_mode'] = self::sanitize_mode( 'auto' );
+		$settings['perf_preload_limit'] = self::sanitize_limit( 2 );
+		update_option( Digitalisimo_Integrations_Settings::OPTION, $settings, false );
+		if ( is_multisite() ) {
+			$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
+			$inherit['perf_preload_mode'] = 0;
+			$inherit['perf_preload_limit'] = 0;
+			update_option( 'digitalisimo_seo_network_inherit', $inherit, false );
+		}
+		self::rebuild();
+		return self::status_response();
 	}
 
 	public static function status_response() {
@@ -112,6 +134,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		$inventory = get_option( Digitalisimo_Integrations_Performance_Fonts::OPTION, array() );
 		return array(
 			'site_id' => get_current_blog_id(),
+			'activation_nonce' => wp_create_nonce( 'digitalisimo_performance_activate_preloads' ),
 			'mode' => self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) ),
 			'limit' => self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) ),
 			'manifest_schema' => (int) ( $manifest['schema'] ?? 0 ),

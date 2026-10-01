@@ -29,6 +29,7 @@ SEO 1.0.176 completa los campos vacíos de Google Tracking en la red con los IDs
 SEO 1.0.177 estabiliza los preloads WOFF2 con un manifest persistente por sitio, generado fuera del frontend y emitido por `wp_preload_resources` antes de Elementor. Selecciona la variante latina normal del Kit, reprograma el análisis al cambiar Elementor, ajustes o caché, y compara la entrega final en Debug. El diferido de CSS reconoce handles prefijados de Elementor y verifica `media="print"` en el HTML. Pendiente de validación móvil en producción tras instalar la actualización.
 SEO 1.0.178 completa el arranque tras una actualización automática: si falta el manifest de preloads, agenda su construcción sin escanear en la visita pública. La selección usa las familias fusionadas del Kit y del contenido Elementor, con esquema persistente para reconstruir manifest antiguos. Validación móvil en producción pendiente tras la instalación automática.
 SEO 1.0.179 añade un estado REST de sólo lectura de preloads, limitado a administradores, para diagnosticar el modo efectivo, el inventario y el trabajo agendado en instalaciones automáticas sin publicar configuraciones en el frontend.
+SEO 1.0.180 permite activar el modo automático para el sitio autenticado desde una acción REST específica, protegida por capacidad y nonce. No modifica los defaults de red; reconstruye el manifest de inmediato y devuelve el estado para verificar la entrega.
 
 Leyenda: `✓` implementado, `~` parcial/en validación, `□` pendiente. La prioridad se ejecuta por lotes para mantener paquetes instalables.
 

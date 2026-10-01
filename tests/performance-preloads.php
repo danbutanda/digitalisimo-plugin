@@ -5,7 +5,12 @@ function absint( $value ) { return abs( (int) $value ); }
 function trailingslashit( $value ) { return rtrim( $value, '/' ) . '/'; }
 function wp_upload_dir() { return array( 'baseurl' => 'https://site.test/wp-content/uploads' ); }
 function get_current_blog_id() { return 1; }
+function is_multisite() { return true; }
 function current_user_can( $cap ) { return ! empty( $GLOBALS['is_admin'] ) && 'manage_options' === $cap; }
+function wp_create_nonce( $action ) { return 'test-nonce'; }
+function wp_verify_nonce( $nonce, $action ) { return 'test-nonce' === $nonce && 'digitalisimo_performance_activate_preloads' === $action; }
+class WP_Error { public function __construct( $code, $message, $data ) {} }
+class Digitalisimo_Integrations_Settings { const OPTION = 'digitalisimo_integrations'; }
 function register_rest_route( $namespace, $route, $args ) { $GLOBALS['rest_route'] = array( $namespace, $route, $args ); }
 function current_time() { return '2026-10-01 12:00:00'; }
 function update_option( $key, $value ) { $GLOBALS['stored_options'][ $key ] = $value; }
@@ -56,6 +61,11 @@ $permission = $GLOBALS['rest_route'][2]['permission_callback'];
 if ( $permission() ) throw new RuntimeException( 'El estado de preloads debe denegarse a usuarios no administradores.' );
 $GLOBALS['is_admin'] = true;
 if ( ! $permission() ) throw new RuntimeException( 'El administrador debe poder consultar el estado de preloads.' );
+$bad = $class::activate_auto( new class { public function get_param( $key ) { return 'invalid'; } } );
+if ( ! $bad instanceof WP_Error ) throw new RuntimeException( 'La activación sin nonce válido debe rechazarse.' );
+$GLOBALS['settings']['perf_preload_mode'] = 'auto';
+$activated = $class::activate_auto( new class { public function get_param( $key ) { return 'test-nonce'; } } );
+if ( 'auto' !== $GLOBALS['stored_options'][ Digitalisimo_Integrations_Settings::OPTION ]['perf_preload_mode'] || 0 !== $GLOBALS['stored_options']['digitalisimo_seo_network_inherit']['perf_preload_mode'] || 2 !== count( $activated['rows'] ) ) throw new RuntimeException( 'La activación debe sobrescribir sólo el sitio y preparar sus dos fuentes.' );
 $resources = $class::inject_resources( array( array( 'href' => $base . 'serif-latin.woff2', 'as' => 'font' ) ) );
 if ( 2 !== count( $resources ) || $base . 'inter-latin.woff2' !== $resources[1]['href'] || 'high' !== $resources[1]['fetchpriority'] ) throw new RuntimeException( 'El filtro de WordPress debe evitar duplicados y priorizar la fuente restante.' );
 ob_start(); $class::print_links(); $printed = ob_get_clean();
