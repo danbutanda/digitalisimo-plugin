@@ -74,7 +74,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			if ( $network ) self::network_sites();
 		} elseif ( 'measurements' === $section ) Digitalisimo_Integrations_Performance_Measurements::render( $network );
 		elseif ( 'css' === $section ) { self::settings( $network, 'css' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
-		elseif ( 'fonts' === $section ) { self::settings( $network, 'fonts' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); echo '<script>(function(){var mode=document.getElementById("perf_font_guard_mode")||document.getElementById("network_perf_font_guard_mode"),row=document.querySelector(".digitalisimo-font-manual-row");if(!mode||!row)return;function toggle(){row.hidden=mode.value!=="manual";}mode.addEventListener("change",toggle);toggle();})();</script>'; }
+		elseif ( 'fonts' === $section ) { self::settings( $network, 'fonts' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); echo '<script>(function(){var mode=document.getElementById("perf_font_guard_mode")||document.getElementById("network_perf_font_guard_mode"),row=document.querySelector(".digitalisimo-font-manual-row");if(!mode||!row)return;function toggle(){row.hidden=mode.value==="off";}mode.addEventListener("change",toggle);toggle();})();</script>'; }
 		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Tracking::render_site_kit( $network ); echo '<details><summary>Revisar Custom Code de Elementor</summary>'; Digitalisimo_Integrations_Performance_Migration::render( $network ); echo '</details>'; }
 		elseif ( 'cache' === $section ) self::cache_section( $network );
@@ -135,7 +135,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			try {
 				$css = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Gutenberg contextual' : 'Sin limpieza';
 				$font = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_guard_mode' );
-				$font = 'off' === $font ? ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_swap' ) ? 'Swap' : 'Original' ) : 'Blindaje ' . $font;
+				$font = 'off' === $font ? ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_swap' ) ? 'Swap' : 'Original' ) : 'Blindaje ' . ( array( 'auto' => 'seguro', 'strict' => 'estricto', 'manual' => 'manual' )[ $font ] ?? $font );
 				$safe = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Modo seguro' : 'Modo avanzado';
 				$preload = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' );
 				echo '<tr><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'debug' ) ) ) . '">' . esc_html( home_url( '/' ) ) . '</a></td><td>' . esc_html( $css ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'fonts' ) ) ) . '">' . esc_html( $font ) . '</a></td><td>' . esc_html( $preload ) . '</td><td><a href="' . esc_url( add_query_arg( 'site_id', (int) $site->blog_id, self::page_url( true, 'tracking' ) ) ) . '">Auditar</a></td><td>' . ( $cache['external'] ? 'Activo' : 'Inactivo' ) . '</td><td>' . esc_html( $safe ) . '</td></tr>';

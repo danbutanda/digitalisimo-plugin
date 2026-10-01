@@ -46,6 +46,37 @@ class Digitalisimo_Integrations_Performance_Fonts {
 		return array_values( $families );
 	}
 
+	/**
+	 * Variantes que pinta el primer render: cuerpo y H1 del Kit, y las tipografías
+	 * globales «text» y «primary» que Elementor usa cuando no hay una explícita.
+	 * Un cuerpo sin peso declarado usa el 400 del CSS; un H1 sin peso no se
+	 * adivina, porque su peso real depende del tema.
+	 */
+	public static function critical_from_settings( $settings ) {
+		$settings = (array) $settings;
+		$critical = array();
+		$add = function( $family, $weight, $style, $role, $body ) use ( &$critical ) {
+			$family = trim( (string) $family );
+			if ( '' === $family ) return;
+			$weight = strtolower( trim( (string) $weight ) );
+			if ( '' === $weight || 'normal' === $weight ) $weight = $body ? '400' : '';
+			if ( 'bold' === $weight ) $weight = '700';
+			if ( ! preg_match( '/^[1-9]00$/', $weight ) ) return;
+			$style = strtolower( trim( (string) $style ) );
+			if ( '' === $style ) $style = 'normal';
+			if ( ! in_array( $style, array( 'normal', 'italic', 'oblique' ), true ) ) return;
+			$key = strtolower( $family ) . '|' . $weight . '|' . $style;
+			if ( ! isset( $critical[ $key ] ) ) $critical[ $key ] = array( 'family' => $family, 'weight' => $weight, 'style' => $style, 'role' => $role );
+		};
+		$system = array();
+		foreach ( (array) ( $settings['system_typography'] ?? array() ) as $item ) if ( is_array( $item ) && ! empty( $item['_id'] ) ) $system[ $item['_id'] ] = $item;
+		$add( $settings['body_typography_font_family'] ?? '', $settings['body_typography_font_weight'] ?? '', $settings['body_typography_font_style'] ?? '', 'Cuerpo', true );
+		if ( isset( $system['text'] ) ) $add( $system['text']['typography_font_family'] ?? '', $system['text']['typography_font_weight'] ?? '', $system['text']['typography_font_style'] ?? '', 'Texto global', true );
+		$add( $settings['h1_typography_font_family'] ?? '', $settings['h1_typography_font_weight'] ?? '', $settings['h1_typography_font_style'] ?? '', 'H1', false );
+		if ( isset( $system['primary'] ) ) $add( $system['primary']['typography_font_family'] ?? '', $system['primary']['typography_font_weight'] ?? '', $system['primary']['typography_font_style'] ?? '', 'Principal global', false );
+		return array_values( $critical );
+	}
+
 	/** Une el Kit con las tipografías configuradas en contenido Elementor publicado. */
 	public static function merge_families( $groups ) {
 		$merged = array();
@@ -143,7 +174,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 		$css_files = glob( trailingslashit( $uploads['basedir'] ?? '' ) . 'elementor/google-fonts/css/*.css' );
 		if ( is_array( $css_files ) ) $css_files = array_filter( $css_files, function( $path ) { return 0 !== strpos( basename( $path ), 'digitalisimo-' ); } );
 		if ( ( is_array( $css_files ) && count( $css_files ) > 50 ) || count( $faces ) >= 500 ) $complete = false;
-		$report = array( 'kit_id' => $kit_id, 'kit_families' => $kit_families, 'families' => self::merge_families( array( $kit_families, $content_families ) ), 'documents' => $documents, 'complete' => $complete && $kit_id > 0 && $documents > 0, 'faces' => $faces, 'uploads_baseurl' => trailingslashit( $uploads['baseurl'] ?? '' ), 'scanned_at' => current_time( 'mysql' ) );
+		$report = array( 'kit_id' => $kit_id, 'kit_families' => $kit_families, 'critical' => self::critical_from_settings( $settings ), 'families' => self::merge_families( array( $kit_families, $content_families ) ), 'documents' => $documents, 'complete' => $complete && $kit_id > 0 && $documents > 0, 'faces' => $faces, 'uploads_baseurl' => trailingslashit( $uploads['baseurl'] ?? '' ), 'scanned_at' => current_time( 'mysql' ) );
 		update_option( self::OPTION, $report, false );
 		Digitalisimo_Integrations_Performance_Cache::set( 'fonts', $report, 3600 );
 		return $report;
@@ -157,7 +188,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 		check_admin_referer( 'digitalisimo_performance_scan_fonts_' . $site_id );
 		$switched = $site_id !== get_current_blog_id();
 		if ( $switched ) switch_to_blog( $site_id );
-		try { Digitalisimo_Integrations_Performance_Preloads::rebuild(); }
+		try { Digitalisimo_Integrations_Performance_Font_Guard::recalculate(); }
 		finally { if ( $switched ) restore_current_blog(); }
 		$target = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=fonts&site_id=' . $site_id ) : admin_url( 'admin.php?page=digitalisimo-performance&section=fonts' );
 		wp_safe_redirect( $target );
@@ -172,45 +203,49 @@ class Digitalisimo_Integrations_Performance_Fonts {
 		if ( $switched ) switch_to_blog( $site_id );
 		try {
 			$report = get_option( self::OPTION, array() );
-			echo '<h2>Fuentes detectadas</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code>. Analiza el Kit y el contenido Elementor publicado, prepara copias optimizadas del CSS local y conserva los archivos originales. Las fuentes del tema o de servicios externos quedan fuera de esta herramienta.</p>';
+			$guard  = Digitalisimo_Integrations_Performance_Font_Guard::class;
+			$status = $guard::status();
+			$modes  = array( 'off' => 'Apagado', 'auto' => 'Seguro', 'strict' => 'Estricto', 'manual' => 'Manual' );
+			echo '<h2>Fuentes de este sitio</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code>. Cada sitio detecta sus propias familias, estilos y pesos en el Kit y en el contenido Elementor publicado, y genera su CSS sólo con las variantes autorizadas. Los originales no se modifican y los icon fonts nunca se filtran.</p>';
 			if ( isset( $_GET['font_guard_error'] ) ) echo '<div class="notice notice-error"><p>' . esc_html( wp_unslash( $_GET['font_guard_error'] ) ) . '</p></div>';
-			if ( isset( $_GET['font_guard_optimized'] ) ) echo '<div class="notice notice-success"><p>Copias preparadas para este sitio. Reglas de fuente omitidas: ' . esc_html( absint( $_GET['font_guard_optimized'] ) ) . '.</p></div>';
-			echo '<form method="post" action="' . esc_url( $action ) . '"><input type="hidden" name="action" value="digitalisimo_performance_optimize_fonts"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '"><input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
+			if ( isset( $_GET['font_guard_optimized'] ) ) echo '<div class="notice notice-success"><p>Modo seguro activado para este sitio. Reglas @font-face omitidas: ' . esc_html( absint( $_GET['font_guard_optimized'] ) ) . '.</p></div>';
+			if ( isset( $_GET['font_guard_recalculated'] ) ) echo '<div class="notice notice-success"><p>Fuentes recalculadas con el modo vigente. Reglas @font-face omitidas: ' . esc_html( absint( $_GET['font_guard_recalculated'] ) ) . '.</p></div>';
+
+			echo '<form method="post" action="' . esc_url( $action ) . '" style="display:inline-block;margin-right:8px"><input type="hidden" name="action" value="digitalisimo_performance_optimize_fonts"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '"><input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
 			wp_nonce_field( 'digitalisimo_performance_optimize_fonts_' . $site_id );
-			submit_button( 'Detectar y optimizar fuentes', 'primary', 'submit', false );
+			submit_button( 'Detectar y optimizar (modo seguro)', 'primary', 'submit', false );
 			echo '</form>';
+			$guard::render_recalculate( $network, $site_id );
+			echo '<p class="description">«Detectar y optimizar» activa el modo Seguro en este sitio. «Recalcular fuentes» vuelve a detectar y regenera el CSS y los preloads con el modo que tenga configurado. El recálculo también ocurre solo al editar en Elementor, cambiar la política o limpiar la caché de rendimiento.</p>';
+
 			if ( is_array( $report ) && ! empty( $report['scanned_at'] ) ) {
 				$names = array();
 				foreach ( (array) ( $report['families'] ?? array() ) as $row ) if ( ! empty( $row['family'] ) ) $names[] = $row['family'];
-				echo '<p><strong>Familias detectadas:</strong> ' . esc_html( $names ? implode( ', ', $names ) : 'Ninguna' ) . ' · Documentos Elementor analizados: ' . esc_html( (int) ( $report['documents'] ?? 0 ) ) . '. ' . ( ! empty( $report['complete'] ) ? 'Inventario completo de documentos publicados.' : 'Inventario parcial: se conservan familias no identificadas.' ) . '</p>';
-				$status = Digitalisimo_Integrations_Performance_Font_Guard::status();
-				echo '<p><strong>Optimización vigente:</strong> ' . ( $status['copies'] ? esc_html( $status['copies'] . ' copias CSS; ' . $status['removed'] . ' reglas omitidas.' ) : 'Sin copias CSS activas para este sitio.' ) . '</p>';
+				echo '<table class="widefat striped" style="max-width:900px"><tbody>';
+				echo '<tr><th>Modo efectivo</th><td>' . esc_html( $modes[ $status['mode'] ] ?? $status['mode'] ) . '</td></tr>';
+				echo '<tr><th>Familias detectadas</th><td>' . esc_html( $names ? implode( ', ', $names ) : 'Ninguna' ) . '</td></tr>';
+				echo '<tr><th>Inventario</th><td>' . esc_html( (int) ( $report['documents'] ?? 0 ) . ' documentos Elementor · ' . ( ! empty( $report['complete'] ) ? 'completo' : 'parcial' ) . ' · ' . $report['scanned_at'] ) . '</td></tr>';
+				echo '<tr><th>CSS generado</th><td>' . esc_html( $status['copies'] ? $status['copies'] . ' copias activas · ' . $status['removed'] . ' reglas omitidas' : 'Sin copias activas: se sirve el CSS original.' ) . '</td></tr>';
+				if ( $status['undetected'] ) echo '<tr><th>Conservadas sin detectar</th><td>' . esc_html( implode( ', ', $status['undetected'] ) ) . ' <span class="description">— el modo Seguro las mantiene y las registra aquí.</span></td></tr>';
+				echo '</tbody></table>';
+				if ( 'strict' === $status['mode'] && empty( $report['complete'] ) ) echo '<div class="notice notice-warning inline"><p>Modo Estricto con inventario parcial: las familias que la detección no alcanzó a ver se eliminan del CSS. Revisa el sitio o agrega excepciones manuales.</p></div>';
+				if ( $status['stale'] ) echo '<div class="notice notice-info inline"><p>La política cambió y el CSS aún no se regeneró. Mientras tanto se sirve el original; pulsa «Recalcular fuentes» o espera al recálculo programado.</p></div>';
+				if ( $status['error'] ) echo '<div class="notice notice-error inline"><p>Última generación: ' . esc_html( $status['error'] ) . '</p></div>';
+				if ( $status['invalid'] ) echo '<div class="notice notice-error inline"><p>' . esc_html( $status['invalid'] ) . ' copia(s) no superaron la validación y no se sirven. Consulta el detalle en Debug.</p></div>';
 			}
-			echo '<details><summary>Ver inventario y opciones avanzadas</summary>';
-			echo '<form method="post" action="' . esc_url( $action ) . '"><input type="hidden" name="action" value="digitalisimo_performance_scan_fonts"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '"><input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
-			wp_nonce_field( 'digitalisimo_performance_scan_fonts_' . $site_id );
-			submit_button( 'Analizar Kit y fuentes locales', 'secondary', 'submit', false );
-			echo '</form>';
-			if ( ! is_array( $report ) || empty( $report['scanned_at'] ) ) { echo '</details>'; return; }
-			echo '<p>Kit activo: ' . esc_html( (string) ( $report['kit_id'] ?? 0 ) ) . ' · Último análisis: ' . esc_html( $report['scanned_at'] ) . '</p>';
+
+			echo '<details><summary>Ver inventario detallado</summary>';
+			if ( ! is_array( $report ) || empty( $report['scanned_at'] ) ) { echo '<p>Sin inventario todavía. Pulsa «Recalcular fuentes».</p></details>'; return; }
+			echo '<p>Kit activo: ' . esc_html( (string) ( $report['kit_id'] ?? 0 ) ) . '</p>';
 			echo '<table class="widefat striped"><thead><tr><th>Familia declarada en Kit o contenido</th><th>Pesos</th><th>Estilos</th></tr></thead><tbody>';
-			foreach ( (array) ( $report['families'] ?? array() ) as $row ) echo '<tr><td>' . esc_html( $row['family'] ?? '' ) . '</td><td>' . esc_html( implode( ', ', (array) ( $row['weights'] ?? array() ) ) ) . '</td><td>' . esc_html( implode( ', ', (array) ( $row['styles'] ?? array() ) ) ) . '</td></tr>';
-			echo '</tbody></table><h3>Variantes en CSS local de Elementor</h3><p>Esta tabla muestra los archivos originales antes de optimizar. El botón principal prepara copias con las reglas seleccionadas automáticamente.</p>';
-			$grouped = array();
-			foreach ( (array) ( $report['faces'] ?? array() ) as $row ) {
-				$key = strtolower( $row['family'] ?? '' ) . '|' . ( $row['css'] ?? '' );
-				if ( ! isset( $grouped[ $key ] ) ) $grouped[ $key ] = array( 'family' => $row['family'], 'weights' => array(), 'styles' => array(), 'formats' => array(), 'css' => $row['css'] );
-				foreach ( array( 'weight' => 'weights', 'style' => 'styles', 'format' => 'formats' ) as $field => $target ) if ( ! empty( $row[ $field ] ) ) $grouped[ $key ][ $target ][ $row[ $field ] ] = true;
-			}
-			echo '<table class="widefat striped"><thead><tr><th>Familia</th><th>Pesos</th><th>Estilos</th><th>Formato</th><th>CSS</th></tr></thead><tbody>';
-			foreach ( $grouped as $row ) echo '<tr><td>' . esc_html( $row['family'] ) . '</td><td>' . esc_html( implode( ', ', array_keys( $row['weights'] ) ) ) . '</td><td>' . esc_html( implode( ', ', array_keys( $row['styles'] ) ) ) . '</td><td>' . esc_html( implode( ', ', array_keys( $row['formats'] ) ) ) . '</td><td>' . esc_html( $row['css'] ) . '</td></tr>';
+			foreach ( (array) ( $report['families'] ?? array() ) as $row ) echo '<tr><td>' . esc_html( $row['family'] ?? '' ) . '</td><td>' . esc_html( implode( ', ', (array) ( $row['weights'] ?? array() ) ) ?: 'Todos' ) . '</td><td>' . esc_html( implode( ', ', (array) ( $row['styles'] ?? array() ) ) ?: 'Todos' ) . '</td></tr>';
 			echo '</tbody></table>';
-			echo '<h3>WOFF2 disponibles para precarga manual</h3><p>Copia la ruta relativa a uploads en la sección Preloads. Un archivo en esta lista no demuestra que sea crítico para todas las páginas.</p><ul>';
-			$base = trailingslashit( wp_upload_dir()['baseurl'] ?? '' );
-			foreach ( (array) ( $report['faces'] ?? array() ) as $face ) if ( ! empty( $face['url'] ) && 0 === strpos( $face['url'], $base ) ) echo '<li><code>' . esc_html( substr( $face['url'], strlen( $base ) ) ) . '</code> — ' . esc_html( $face['family'] ?? '' ) . ' ' . esc_html( $face['weight'] ?? '' ) . ' ' . esc_html( $face['style'] ?? '' ) . '</li>';
-			echo '</ul>';
-			Digitalisimo_Integrations_Performance_Font_Guard::render_build( $network, $site_id );
-			echo '</details>';
+			if ( ! empty( $report['critical'] ) ) {
+				echo '<h3>Variantes críticas</h3><p>Las que pinta el primer render según el Kit. Son las candidatas a preload automático.</p><table class="widefat striped"><thead><tr><th>Uso</th><th>Familia</th><th>Peso</th><th>Estilo</th></tr></thead><tbody>';
+				foreach ( (array) $report['critical'] as $row ) echo '<tr><td>' . esc_html( $row['role'] ?? '' ) . '</td><td>' . esc_html( $row['family'] ?? '' ) . '</td><td>' . esc_html( $row['weight'] ?? '' ) . '</td><td>' . esc_html( $row['style'] ?? '' ) . '</td></tr>';
+				echo '</tbody></table>';
+			}
+			echo '<p>El estado de cada variante (permitida, bloqueada, crítica, preload) está en la sección Debug.</p></details>';
 		} finally { if ( $switched ) restore_current_blog(); }
 	}
 }

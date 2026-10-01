@@ -51,8 +51,9 @@ class Digitalisimo_Integrations_Performance_Preloads {
 	public static function inject_resources( $resources ) {
 		if ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) return $resources;
 		$mode = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
-		$manifest = get_option( self::OPTION, array() );
-		if ( 'off' === $mode || $mode !== ( $manifest['mode'] ?? '' ) ) return $resources;
+		if ( 'off' === $mode ) return $resources;
+		$manifest = self::manifest();
+		if ( $mode !== ( $manifest['mode'] ?? '' ) ) return $resources;
 		self::remember_core( $resources );
 		$seen = array_fill_keys( self::$core_urls, true );
 		foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {
@@ -149,38 +150,131 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		);
 	}
 
+	/**
+	 * Variantes a precargar en modo automático, en orden de prioridad.
+	 *
+	 * Salen de la tipografía crítica que declara el Kit de cada sitio. Si el Kit
+	 * no declara ninguna, cada familia detectada en su variante regular, que es
+	 * el valor por defecto de CSS: nunca se presupone una familia concreta.
+	 */
+	private static function auto_targets( $report ) {
+		$targets = array();
+		foreach ( (array) ( $report['critical'] ?? array() ) as $row ) {
+			$family = strtolower( trim( (string) ( $row['family'] ?? '' ) ) );
+			$weight = self::weight( $row['weight'] ?? '' );
+			$style  = self::style( $row['style'] ?? '' );
+			if ( '' === $family || null === $weight || null === $style ) continue;
+			$targets[ $family . '|' . $weight . '|' . $style ] = array( 'family' => $family, 'weight' => $weight, 'style' => $style, 'role' => (string) ( $row['role'] ?? 'Kit' ) );
+		}
+		if ( $targets ) return array_values( $targets );
+		foreach ( (array) ( $report['families'] ?? array() ) as $row ) {
+			$family = strtolower( trim( (string) ( $row['family'] ?? '' ) ) );
+			if ( '' !== $family ) $targets[ $family ] = array( 'family' => $family, 'weight' => '400', 'style' => 'normal', 'role' => 'Familia detectada' );
+		}
+		return array_values( $targets );
+	}
+
+	private static function weight( $value ) {
+		$value = strtolower( trim( (string) $value ) );
+		if ( '' === $value || 'normal' === $value ) return '400';
+		if ( 'bold' === $value ) return '700';
+		return preg_match( '/^[1-9]00$/', $value ) ? $value : null;
+	}
+
+	private static function style( $value ) {
+		$value = strtolower( trim( (string) $value ) );
+		if ( '' === $value ) return 'normal';
+		return in_array( $value, array( 'normal', 'italic', 'oblique' ), true ) ? $value : null;
+	}
+
+	/** Un subconjunto latino cubre el texto inicial de casi cualquier sitio en español. */
+	private static function range_score( $face ) {
+		$range = strtoupper( (string) ( $face['unicode_range'] ?? '' ) );
+		return false !== strpos( $range, 'U+0000-00FF' ) ? 2 : ( '' === $range ? 1 : 0 );
+	}
+
+	private static function matches_target( $face, $target ) {
+		return strtolower( (string) ( $face['family'] ?? '' ) ) === $target['family']
+			&& self::weight( $face['weight'] ?? '' ) === $target['weight']
+			&& self::style( $face['style'] ?? '' ) === $target['style'];
+	}
+
 	/** Se calcula en administración o cron; un MISS de Redis no afecta el HTML. */
-	public static function rebuild() {
-		$report = Digitalisimo_Integrations_Performance_Fonts::scan();
+	public static function rebuild( $report = null ) {
+		if ( null === $report ) {
+			// Sin inventario recibido, recalcular todo para no dejar las copias de fuentes desfasadas.
+			if ( method_exists( 'Digitalisimo_Integrations_Performance_Font_Guard', 'recalculate' ) ) {
+				$result = Digitalisimo_Integrations_Performance_Font_Guard::recalculate();
+				return $result['preloads'] ?? false;
+			}
+			$report = Digitalisimo_Integrations_Performance_Fonts::scan();
+		}
 		if ( ! is_array( $report ) || empty( $report['scanned_at'] ) ) return false;
-		$mode = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
-		$base = (string) ( $report['uploads_baseurl'] ?? '' );
-		$families = array();
-		foreach ( (array) ( $report['families'] ?? array() ) as $family ) $families[ strtolower( (string) ( $family['family'] ?? '' ) ) ] = true;
-		$manual = array_fill_keys( explode( "\n", self::sanitize_paths( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_paths' ) ) ), true );
+		$mode      = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
+		$limit     = self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) );
+		$base      = (string) ( $report['uploads_baseurl'] ?? '' );
+		$manual    = array_fill_keys( explode( "\n", self::sanitize_paths( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_paths' ) ) ), true );
 		$permitted = Digitalisimo_Integrations_Performance_Font_Guard::permitted_urls( $report );
-		$selected = array();
-		foreach ( (array) ( $report['faces'] ?? array() ) as $face ) {
+		$eligible  = function( $face ) use ( $base, $permitted ) {
 			$url = (string) ( $face['url'] ?? '' );
-			if ( 'off' === $mode || ! $base || 0 !== strpos( $url, $base ) || ! preg_match( '~^elementor/google-fonts/fonts/[a-zA-Z0-9._/-]+\.woff2$~', substr( $url, strlen( $base ) ) ) || empty( $permitted[ $url ] ) ) continue;
-			$family = strtolower( (string) ( $face['family'] ?? '' ) );
-			if ( 'auto' === $mode && ( empty( $families[ $family ] ) || ! in_array( strtolower( (string) ( $face['weight'] ?? '' ) ), array( '400', 'normal' ), true ) || 'italic' === strtolower( (string) ( $face['style'] ?? '' ) ) ) ) continue;
-			if ( 'manual' === $mode && empty( $manual[ substr( $url, strlen( $base ) ) ] ) ) continue;
-			$range = strtoupper( (string) ( $face['unicode_range'] ?? '' ) );
-			$score = false !== strpos( $range, 'U+0000-00FF' ) ? 2 : ( '' === $range ? 1 : 0 );
-			$key = 'auto' === $mode ? $family : $url;
-			if ( ! isset( $selected[ $key ] ) || $score > $selected[ $key ]['score'] ) $selected[ $key ] = array( 'url' => $url, 'family' => $face['family'] ?? '', 'variant' => trim( (string) ( $face['weight'] ?? '' ) . ' ' . (string) ( $face['style'] ?? '' ) ), 'source' => 'auto' === $mode ? 'Kit Elementor + CSS local' : 'Ruta manual + CSS local', 'css' => $face['css'] ?? '', 'score' => $score );
+			return $base && 0 === strpos( $url, $base ) && preg_match( '~^elementor/google-fonts/fonts/[a-zA-Z0-9._/-]+\.woff2$~', substr( $url, strlen( $base ) ) ) && ! empty( $permitted[ $url ] );
+		};
+		$rows = array();
+		$seen = array();
+		if ( 'auto' === $mode ) {
+			foreach ( self::auto_targets( $report ) as $target ) {
+				$best = null;
+				foreach ( (array) ( $report['faces'] ?? array() ) as $face ) {
+					if ( ! $eligible( $face ) || ! self::matches_target( $face, $target ) ) continue;
+					if ( ! $best || self::range_score( $face ) > self::range_score( $best ) ) $best = $face;
+				}
+				if ( ! $best || isset( $seen[ $best['url'] ] ) ) continue;
+				$seen[ $best['url'] ] = true;
+				$rows[] = array( 'url' => $best['url'], 'family' => $best['family'] ?? '', 'variant' => trim( (string) ( $best['weight'] ?? '' ) . ' ' . (string) ( $best['style'] ?? '' ) ), 'source' => 'Crítico · ' . $target['role'], 'css' => $best['css'] ?? '' );
+				if ( count( $rows ) >= $limit ) break;
+			}
+		} elseif ( 'manual' === $mode ) {
+			foreach ( (array) ( $report['faces'] ?? array() ) as $face ) {
+				$url = (string) ( $face['url'] ?? '' );
+				if ( ! $eligible( $face ) || empty( $manual[ substr( $url, strlen( $base ) ) ] ) || isset( $seen[ $url ] ) ) continue;
+				$seen[ $url ] = true;
+				$rows[] = array( 'url' => $url, 'family' => $face['family'] ?? '', 'variant' => trim( (string) ( $face['weight'] ?? '' ) . ' ' . (string) ( $face['style'] ?? '' ) ), 'source' => 'Ruta manual + CSS local', 'css' => $face['css'] ?? '' );
+				if ( count( $rows ) >= $limit ) break;
+			}
 		}
-		$rows = array(); $seen = array();
-		foreach ( $selected as $row ) {
-			if ( isset( $seen[ $row['url'] ] ) ) continue;
-			$seen[ $row['url'] ] = true;
-			unset( $row['score'] );
-			$rows[] = $row;
-			if ( count( $rows ) >= self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) ) ) break;
-		}
-		$manifest = array( 'schema' => 3, 'mode' => $mode, 'rows' => $rows, 'generated_at' => current_time( 'mysql' ) );
+		list( $rows, $errors ) = self::validate_rows( $rows, $permitted );
+		$manifest = array( 'schema' => 3, 'mode' => $mode, 'rows' => $rows, 'validation' => $errors, 'generated_at' => current_time( 'mysql' ) );
 		update_option( self::OPTION, $manifest, false );
+		if ( class_exists( 'Digitalisimo_Integrations_Performance_Cache' ) ) Digitalisimo_Integrations_Performance_Cache::set( 'preloads', $manifest, 3600 );
+		return $manifest;
+	}
+
+	/** Cada preload debe ser una variante autorizada y aparecer una sola vez. */
+	public static function validate_rows( $rows, $permitted ) {
+		$valid  = array();
+		$errors = array();
+		$urls   = array();
+		foreach ( (array) $rows as $row ) {
+			$url = (string) ( $row['url'] ?? '' );
+			$key = self::url_key( $url );
+			if ( '' === $url || empty( $permitted[ $url ] ) ) { $errors[] = 'Preload de una variante no autorizada: ' . $url; continue; }
+			if ( isset( $urls[ $key ] ) ) { $errors[] = 'Preload duplicado: ' . $url; continue; }
+			$urls[ $key ] = true;
+			$valid[] = $row;
+		}
+		return array( $valid, $errors );
+	}
+
+	/** Manifest persistente; la caché sólo ahorra lecturas y un MISS no cambia el HTML. */
+	private static function manifest() {
+		if ( class_exists( 'Digitalisimo_Integrations_Performance_Cache' ) ) {
+			$found  = false;
+			$cached = Digitalisimo_Integrations_Performance_Cache::get( 'preloads', $found );
+			if ( $found && is_array( $cached ) ) return $cached;
+		}
+		$manifest = get_option( self::OPTION, array() );
+		$manifest = is_array( $manifest ) ? $manifest : array();
+		if ( class_exists( 'Digitalisimo_Integrations_Performance_Cache' ) ) Digitalisimo_Integrations_Performance_Cache::set( 'preloads', $manifest, 3600 );
 		return $manifest;
 	}
 
@@ -197,22 +291,33 @@ class Digitalisimo_Integrations_Performance_Preloads {
 
 	/** Sólo datos precalculados; no consulta Elementor ni el filesystem en frontend. */
 	public static function candidates( $report, $mode, $paths, $queued, $limit, $already, $permitted = null ) {
-		$families = array();
-		foreach ( (array) ( $report['families'] ?? array() ) as $family ) $families[ strtolower( (string) ( $family['family'] ?? '' ) ) ] = true;
 		$manual = array_fill_keys( preg_split( '/\r\n|\r|\n/', trim( (string) $paths ) ), true );
 		$base = (string) ( $report['uploads_baseurl'] ?? '' );
 		if ( ! $base ) return array();
-		$result = array();
-		foreach ( (array) ( $report['faces'] ?? array() ) as $face ) {
+		$usable = function( $face ) use ( $base, $queued, $permitted, &$already ) {
 			$url = (string) ( $face['url'] ?? '' );
-			if ( null !== $permitted && empty( $permitted[ $url ] ) ) continue;
-			if ( ! $url || 0 !== strpos( $url, $base ) || ! preg_match( '~^elementor/google-fonts/fonts/[a-zA-Z0-9._/-]+\.woff2$~', substr( $url, strlen( $base ) ) ) ) continue;
-			if ( empty( $queued[ $face['css'] ?? '' ] ) || in_array( self::url_key( $url ), $already, true ) ) continue;
-			$path = substr( $url, strlen( $base ) );
-			if ( 'manual' === $mode && empty( $manual[ $path ] ) ) continue;
-			if ( 'auto' === $mode && ( empty( $families[ strtolower( (string) ( $face['family'] ?? '' ) ) ] ) || ! in_array( (string) ( $face['weight'] ?? '' ), array( '400', 'normal' ), true ) || 'italic' === ( $face['style'] ?? '' ) ) ) continue;
-			$result[] = $url;
-			$already[] = self::url_key( $url );
+			if ( ! $url || ( null !== $permitted && empty( $permitted[ $url ] ) ) ) return false;
+			if ( 0 !== strpos( $url, $base ) || ! preg_match( '~^elementor/google-fonts/fonts/[a-zA-Z0-9._/-]+\.woff2$~', substr( $url, strlen( $base ) ) ) ) return false;
+			return ! empty( $queued[ $face['css'] ?? '' ] ) && ! in_array( self::url_key( $url ), $already, true );
+		};
+		$result = array();
+		if ( 'manual' === $mode ) {
+			foreach ( (array) ( $report['faces'] ?? array() ) as $face ) {
+				if ( ! $usable( $face ) || empty( $manual[ substr( (string) $face['url'], strlen( $base ) ) ] ) ) continue;
+				$result[] = $face['url'];
+				$already[] = self::url_key( $face['url'] );
+				if ( count( $result ) >= $limit ) break;
+			}
+			return $result;
+		}
+		if ( 'auto' !== $mode ) return $result;
+		foreach ( self::auto_targets( $report ) as $target ) {
+			foreach ( (array) ( $report['faces'] ?? array() ) as $face ) {
+				if ( ! self::matches_target( $face, $target ) || ! $usable( $face ) ) continue;
+				$result[] = $face['url'];
+				$already[] = self::url_key( $face['url'] );
+				break;
+			}
 			if ( count( $result ) >= $limit ) break;
 		}
 		return $result;
@@ -222,7 +327,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		if ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) return;
 		$mode = self::sanitize_mode( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' ) );
 		if ( 'off' === $mode ) return;
-		$manifest = get_option( self::OPTION, array() );
+		$manifest = self::manifest();
 		if ( $mode !== ( $manifest['mode'] ?? '' ) ) return;
 		$already = array_fill_keys( self::$core_urls, true );
 		foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {

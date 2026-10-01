@@ -135,6 +135,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 			if ( 'perf_custom_css' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $value ); continue; }
 			if ( 'perf_font_guard_mode' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_mode( $value ); continue; }
 			if ( 'perf_font_guard_allowlist' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_allowlist( $value ); continue; }
+			if ( 'perf_font_icon_families' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_icon_families( $value ); continue; }
 			if ( 'perf_preload_mode' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Preloads::sanitize_mode( $value ); continue; }
 			if ( 'perf_preload_paths' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Preloads::sanitize_paths( $value ); continue; }
 			if ( 'perf_preload_limit' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Preloads::sanitize_limit( $value ); continue; }
@@ -193,7 +194,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 	}
 	private static function performance_mode_choices( $key ) {
 		$choices = array(
-			'perf_font_guard_mode' => array( 'off' => 'Apagado', 'auto' => 'Automático (fuentes detectadas)', 'manual' => 'Manual' ),
+			'perf_font_guard_mode' => array( 'off' => 'Apagado', 'auto' => 'Seguro · detectar, permitir y registrar', 'strict' => 'Estricto · sólo variantes autorizadas', 'manual' => 'Manual · sólo la lista' ),
 			'perf_preload_mode' => array( 'off' => 'Apagado', 'auto' => 'Automático', 'manual' => 'Manual' ),
 			'perf_tracking_mode' => array( 'normal' => 'Normal', 'domcontentloaded' => 'Después de DOMContentLoaded', 'load' => 'Después de window.load', 'interaction' => 'Después de interacción', 'delay' => 'Retraso tras window.load' ),
 		);
@@ -244,19 +245,21 @@ class Digitalisimo_Integrations_SEO_Suite {
 	}
 	public static function performance_preload_site_fields() {
 		echo '<tr><th colspan="2"><h2>Preloads críticos WOFF2</h2><p>Primero analiza Fuentes y Custom Code. Sólo se imprimen fuentes locales del inventario cuyo CSS esté encolado en la página. Si Elementor ya publica el mismo preload, se omite. Apagado por defecto.</p></th></tr>';
-		self::f( 'perf_preload_mode', 'Modo', 'select', 'Automático elige variantes normales de peso 400 declaradas en el Kit; Manual usa las rutas indicadas abajo.', self::performance_mode_choices( 'perf_preload_mode' ) );
+		self::f( 'perf_preload_mode', 'Modo', 'select', 'Automático precarga las variantes críticas que declara el Kit de este sitio (cuerpo, texto global, H1), siempre que estén autorizadas. Manual usa las rutas indicadas abajo.', self::performance_mode_choices( 'perf_preload_mode' ) );
 		self::f( 'perf_preload_limit', 'Máximo de fuentes', 'number', 'Entre 1 y 2 por página.' );
 		self::f( 'perf_preload_paths', 'Rutas WOFF2 manuales', 'textarea', 'Una ruta relativa a uploads por línea, por ejemplo elementor/google-fonts/fonts/archivo.woff2. Usa las rutas del inventario de este sitio.' );
 	}
 	public static function performance_font_site_fields() {
-		echo '<tr><th colspan="2"><h2>Fuentes locales de Elementor</h2><p>Usa «Detectar y optimizar fuentes» abajo para analizar el Kit y el contenido publicado de este sitio, crear copias CSS y activarlas sin modificar los originales. El modo Manual es avanzado; los iconos se conservan siempre.</p></th></tr>';
-		self::f( 'perf_font_guard_mode', 'Modo', 'select', 'La opción manual requiere una línea por familia permitida.', self::performance_mode_choices( 'perf_font_guard_mode' ) );
-		self::f( 'perf_font_guard_allowlist', 'Lista manual avanzada', 'textarea', 'Sólo para modo Manual: Inter|400,700|normal,italic. En modo Automático se detectan las familias al pulsar «Detectar y optimizar fuentes».' );
+		echo '<tr><th colspan="2"><h2>Fuentes locales de Elementor</h2><p>Cada sitio detecta sus familias, estilos y pesos en el Kit y en el contenido publicado, y genera su CSS sólo con las variantes autorizadas. Los originales no se modifican y los icon fonts nunca se filtran.</p></th></tr>';
+		self::f( 'perf_font_guard_mode', 'Modo', 'select', 'Seguro recorta las variantes que no usan las familias detectadas y conserva —registrándolas— las que no detectó. Estricto elimina cualquier @font-face no autorizado. Manual usa sólo la lista.', self::performance_mode_choices( 'perf_font_guard_mode' ) );
+		self::f( 'perf_font_guard_allowlist', 'Excepciones manuales', 'textarea', 'Una familia por línea: Familia|pesos|estilos, por ejemplo Mi Fuente|400,700|normal,italic. En Seguro y Estricto se suman a lo detectado; en Manual son la lista completa.' );
+		self::f( 'perf_font_icon_families', 'Icon fonts adicionales', 'textarea', 'Una familia por línea. Se suman a los icon fonts reconocidos (eicons, Font Awesome, Material Icons/Symbols, Dashicons…) y nunca se filtran ni se precargan.' );
 	}
 	public static function performance_font_network_fields() {
-		echo '<tr><th colspan="2"><h2>Fuentes locales · red</h2><p>Elige el modo predeterminado. Cada sitio detecta sus fuentes y genera sus propias copias con «Detectar y optimizar fuentes»; el modo seguro no bloquea esas copias aprobadas.</p></th></tr>';
+		echo '<tr><th colspan="2"><h2>Fuentes locales · red</h2><p>Valores predeterminados de la red. Cada sitio detecta sus propias fuentes y genera su propio CSS; nunca se copia la whitelist de un sitio a otro.</p></th></tr>';
 		self::nf( 'perf_font_guard_mode', 'Modo', 'select', 'Elige el valor predeterminado para los sitios de la red.', self::performance_mode_choices( 'perf_font_guard_mode' ) );
-		self::nf( 'perf_font_guard_allowlist', 'Lista manual avanzada', 'textarea', 'Sólo para modo Manual: Inter|400,700|normal,italic. Cada sitio detecta sus propias fuentes al pulsar «Detectar y optimizar fuentes».' );
+		self::nf( 'perf_font_guard_allowlist', 'Excepciones manuales', 'textarea', 'Familia|pesos|estilos por línea. Se suman a lo que detecta cada sitio; en modo Manual son la lista completa.' );
+		self::nf( 'perf_font_icon_families', 'Icon fonts adicionales', 'textarea', 'Una familia por línea. Nunca se filtran ni se precargan en ningún sitio que herede este valor.' );
 	}
 	public static function performance_preload_network_fields() {
 		echo '<tr><th colspan="2"><h2>Preloads críticos · defaults de red</h2><p>Las rutas son relativas a uploads; cada sitio sólo usa sus propias fuentes inventariadas.</p></th></tr>';

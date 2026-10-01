@@ -34,7 +34,7 @@ class Digitalisimo_Integrations_Performance_Cache {
 	/** Cambia sólo el espacio de claves de este sitio. Las entradas viejas expiran por TTL. */
 	public static function invalidate() {
 		$generation = max( 1, (int) get_option( self::GENERATION, 1 ) );
-		foreach ( array( 'kit', 'fonts', 'whitelist', 'resources', 'woff2', 'settings' ) as $name ) self::delete( $name );
+		foreach ( array( 'kit', 'fonts', 'whitelist', 'resources', 'woff2', 'settings', 'font_guard', 'preloads' ) as $name ) self::delete( $name );
 		update_option( self::GENERATION, $generation + 1, false );
 		return $generation + 1;
 	}

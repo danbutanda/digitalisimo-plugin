@@ -10,6 +10,20 @@ class Digitalisimo_Integrations_Performance_Debug {
 		return Digitalisimo_Integrations_Performance_Font_Guard::ready_for_face( $face, $report ) ? 'BLOQUEADO' : 'POLÍTICA PENDIENTE';
 	}
 
+	/**
+	 * Estados combinables de una variante: el principal (PERMITIDO, BLOQUEADO,
+	 * POLÍTICA PENDIENTE o ICON FONT) más EXCEPCIÓN MANUAL, CRÍTICO y PRELOAD.
+	 */
+	public static function font_states( $face, $report, $preloaded ) {
+		$states = array( self::font_label( $face, $report ) );
+		if ( 'ICON FONT' !== $states[0] ) {
+			if ( Digitalisimo_Integrations_Performance_Font_Guard::is_exception( $face, $report ) ) $states[] = 'EXCEPCIÓN MANUAL';
+			if ( Digitalisimo_Integrations_Performance_Font_Guard::is_critical( $face, $report ) ) $states[] = 'CRÍTICO';
+		}
+		if ( ! empty( $face['url'] ) && ! empty( $preloaded[ $face['url'] ] ) ) $states[] = 'PRELOAD';
+		return $states;
+	}
+
 	public static function css_label( $row, $defer, $safe, $handles ) {
 		$handle = (string) ( $row['handle'] ?? '' );
 		$src = (string) ( $row['src'] ?? '' );
@@ -32,14 +46,31 @@ class Digitalisimo_Integrations_Performance_Debug {
 			if ( ! Digitalisimo_Integrations_Asset_Diagnostics::capture_belongs_to_site( $captured, $site_id ) ) $captured = array();
 			echo '<h2>Diagnóstico de ' . esc_html( home_url( '/' ) ) . '</h2><p>Datos guardados del análisis administrativo y de la última URL analizada. No mide solicitudes reales de red ni ejecuta cambios. Para actualizar la captura, usa «Analizar URL» en Estado.</p>';
 			echo '<h3>Fuentes</h3>';
-			if ( empty( $fonts['scanned_at'] ) ) echo '<p>MISS · sin inventario de fuentes. Analiza el Kit y CSS local.</p>';
+			$manifest = get_option( Digitalisimo_Integrations_Performance_Preloads::OPTION, array() );
+			if ( empty( $fonts['scanned_at'] ) ) echo '<p>MISS · sin inventario de fuentes. Pulsa «Recalcular fuentes» en la sección Fuentes.</p>';
 			else {
-				echo '<p>ELEMENTOR LOCAL · último inventario: ' . esc_html( $fonts['scanned_at'] ) . '</p><table class="widefat striped"><thead><tr><th>Estado</th><th>Familia</th><th>Peso</th><th>Estilo</th><th>CSS</th></tr></thead><tbody>';
-				foreach ( array_slice( (array) ( $fonts['faces'] ?? array() ), 0, 100 ) as $face ) echo '<tr><td>' . esc_html( self::font_label( $face, $fonts ) ) . '</td><td>' . esc_html( $face['family'] ?? '' ) . '</td><td>' . esc_html( $face['weight'] ?? '' ) . '</td><td>' . esc_html( $face['style'] ?? '' ) . '</td><td>' . esc_html( $face['css'] ?? '' ) . '</td></tr>';
+				$preloaded = array();
+				foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) if ( ! empty( $row['url'] ) ) $preloaded[ $row['url'] ] = true;
+				$guard = Digitalisimo_Integrations_Performance_Font_Guard::status();
+				echo '<p>Último inventario: ' . esc_html( $fonts['scanned_at'] ) . ' · Copias CSS activas: ' . esc_html( $guard['copies'] ) . ( $guard['built_at'] ? ' · Generadas: ' . esc_html( $guard['built_at'] ) : '' ) . '</p>';
+				echo '<table class="widefat striped"><thead><tr><th>Familia</th><th>Estilo</th><th>Peso</th><th>Estado</th><th>Archivo</th><th>Origen</th><th>Preload</th></tr></thead><tbody>';
+				foreach ( array_slice( (array) ( $fonts['faces'] ?? array() ), 0, 150 ) as $face ) {
+					$file = ! empty( $face['url'] ) ? basename( (string) wp_parse_url( $face['url'], PHP_URL_PATH ) ) : '';
+					if ( '' === $file ) $file = ( $face['css'] ?? '' ) . ' · sin WOFF2 local';
+					if ( ! empty( $face['unicode_range'] ) ) $file .= ' · ' . $face['unicode_range'];
+					echo '<tr><td>' . esc_html( $face['family'] ?? '' ) . '</td><td>' . esc_html( ( $face['style'] ?? '' ) ?: 'normal' ) . '</td><td>' . esc_html( ( $face['weight'] ?? '' ) ?: '400' ) . '</td><td>' . esc_html( implode( ' · ', self::font_states( $face, $fonts, $preloaded ) ) ) . '</td><td><code>' . esc_html( $file ) . '</code></td><td>' . esc_html( Digitalisimo_Integrations_Performance_Font_Guard::origin( $face, $fonts ) ) . '</td><td>' . ( ! empty( $face['url'] ) && ! empty( $preloaded[ $face['url'] ] ) ? 'Sí' : '—' ) . '</td></tr>';
+				}
 				echo '</tbody></table>';
+				// Validación posterior a la generación: copias rechazadas y preloads descartados.
+				$copies = get_option( Digitalisimo_Integrations_Performance_Font_Guard::OPTION, array() );
+				$errors = array();
+				foreach ( (array) ( $copies['rows'] ?? array() ) as $source => $row ) foreach ( (array) ( $row['errors'] ?? array() ) as $error ) $errors[] = basename( (string) $source ) . ': ' . $error;
+				foreach ( (array) ( $manifest['validation'] ?? array() ) as $error ) $errors[] = 'Preloads: ' . $error;
+				echo '<h4>Validación</h4>';
+				if ( ! $errors ) echo '<p>Sin errores: cada CSS generado contiene exactamente las variantes autorizadas presentes en su original, sin duplicados, y cada preload pertenece a una variante autorizada.</p>';
+				else { echo '<ul>'; foreach ( $errors as $error ) echo '<li>ERROR · ' . esc_html( $error ) . '</li>'; echo '</ul><p>Las copias con error no se sirven: el sitio recibe el CSS original.</p>'; }
 			}
 			$preload_mode = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_mode' );
-			$manifest = get_option( Digitalisimo_Integrations_Performance_Preloads::OPTION, array() );
 			echo '<h3>Preloads</h3><p>Modo efectivo: <strong>' . esc_html( $preload_mode ) . '</strong> · Manifest persistente: ' . esc_html( $manifest['generated_at'] ?? 'pendiente' ) . '. La posición corresponde al HTML de la última URL analizada.</p>';
 			echo '<table class="widefat striped"><thead><tr><th>PRELOAD URL</th><th>Posición en HEAD</th><th>Familia</th><th>Variante</th><th>Origen de detección</th><th>Estado</th></tr></thead><tbody>';
 			$delivery = (array) ( $captured['preload_delivery'] ?? array() );

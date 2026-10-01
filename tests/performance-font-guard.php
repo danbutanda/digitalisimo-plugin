@@ -12,12 +12,13 @@ if ( 2 !== $removed || false === strpos( $filtered, 'a.woff2' ) || false !== str
 list( $filtered, $removed ) = $guard::filter_css( $css, $manual, 'auto' );
 if ( 1 !== $removed || false === strpos( $filtered, 'c.woff2' ) ) throw new RuntimeException( 'Auto conserva familias desconocidas del Kit.' );
 list( $filtered, $removed ) = $guard::filter_css( $css, $manual, 'auto-prune' );
-if ( 2 !== $removed || false !== strpos( $filtered, 'c.woff2' ) || false === strpos( $filtered, 'icons.woff2' ) ) throw new RuntimeException( 'Un inventario completo debe excluir familias no usadas sin retirar iconos.' );
+if ( 2 !== $removed || false !== strpos( $filtered, 'c.woff2' ) || false === strpos( $filtered, 'icons.woff2' ) ) throw new RuntimeException( 'El alias histórico auto-prune equivale a estricto: excluye familias no usadas sin retirar iconos.' );
 $variable = "@font-face{font-family:'Inter';font-weight:100 900;src:url('../fonts/variable.woff2')}";
 if ( 0 !== $guard::filter_css( $variable, $manual, 'manual' )[1] ) throw new RuntimeException( 'Las variantes ambiguas deben conservarse.' );
 class Digitalisimo_Integrations_Performance_Manager { public static function advanced_allowed() { return empty( $GLOBALS['safe_mode'] ); } public static function frontend_safe() { return true; } }
 class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key ) { return $GLOBALS['settings'][ $key ] ?? ''; } }
-function get_option() { return $GLOBALS['manifest']; }
+function get_option( $key, $default = array() ) { return 'digitalisimo_performance_font_guard_manifest' === $key ? $GLOBALS['manifest'] : ( $GLOBALS['options'][ $key ] ?? $default ); }
+function update_option( $key, $value ) { $GLOBALS['options'][ $key ] = $value; }
 function delete_option( $key ) { $GLOBALS['deleted_manifest'] = $key; }
 $original = tempnam( sys_get_temp_dir(), 'font-src-' );
 $generated = tempnam( sys_get_temp_dir(), 'font-new-' );
@@ -34,7 +35,7 @@ $permitted = $guard::permitted_urls( $faces );
 if ( ! isset( $permitted['https://site.test/a.woff2'], $permitted['https://site.test/icons.woff2'] ) || isset( $permitted['https://site.test/b.woff2'] ) ) throw new RuntimeException( 'La precarga debe omitir variantes excluidas y conservar iconos.' );
 $GLOBALS['settings']['perf_font_guard_allowlist'] = $allow;
 $url = 'https://site.test/wp-content/uploads/elementor/google-fonts/css/inter.css';
-$GLOBALS['manifest'] = array( 'fingerprint' => hash( 'sha256', "manual\n" . $allow ), 'rows' => array( $url => array( 'original' => $original, 'mtime' => filemtime( $original ), 'generated' => $generated, 'url' => 'https://site.test/generated.css' ) ) );
+$GLOBALS['manifest'] = array( 'fingerprint' => $guard::fingerprint( 'manual', $allow ), 'rows' => array( $url => array( 'original' => $original, 'mtime' => filemtime( $original ), 'generated' => $generated, 'url' => 'https://site.test/generated.css' ) ) );
 if ( 'https://site.test/generated.css' !== $guard::style_src( $url . '?ver=1', 'elementor-font' ) ) throw new RuntimeException( 'Debe sustituir sólo CSS local precompilado.' );
 $status_report = array( 'uploads_baseurl' => 'https://site.test/wp-content/uploads/', 'faces' => array() );
 $status_face = array( 'css' => 'inter.css' );
@@ -42,7 +43,7 @@ if ( ! $guard::ready_for_face( $status_face, $status_report ) ) throw new Runtim
 $GLOBALS['manifest']['fingerprint'] = 'stale';
 if ( $url !== $guard::style_src( $url, 'elementor-font' ) ) throw new RuntimeException( 'Una política cambiada debe conservar el CSS original.' );
 if ( $guard::ready_for_face( $status_face, $status_report ) ) throw new RuntimeException( 'Una copia vencida no debe anunciar bloqueo efectivo.' );
-$GLOBALS['manifest']['fingerprint'] = hash( 'sha256', "manual\n" . $allow );
+$GLOBALS['manifest']['fingerprint'] = $guard::fingerprint( 'manual', $allow );
 $GLOBALS['manifest']['approved'] = true;
 $GLOBALS['safe_mode'] = true;
 $GLOBALS['settings']['perf_safe_mode'] = 1;
