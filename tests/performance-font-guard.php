@@ -21,6 +21,15 @@ $generated = tempnam( sys_get_temp_dir(), 'font-new-' );
 file_put_contents( $original, $css );
 file_put_contents( $generated, $filtered );
 $GLOBALS['settings'] = array( 'perf_font_guard_mode' => 'manual', 'perf_font_guard_allowlist' => $allow );
+$GLOBALS['settings']['perf_font_guard_allowlist'] = 'Inter|400|normal';
+$faces = array( 'faces' => array(
+	array( 'family' => 'Inter', 'weight' => '400', 'style' => 'normal', 'url' => 'https://site.test/a.woff2' ),
+	array( 'family' => 'Inter', 'weight' => '700', 'style' => 'italic', 'url' => 'https://site.test/b.woff2' ),
+	array( 'family' => 'Font Awesome 5 Free', 'weight' => '900', 'style' => 'normal', 'url' => 'https://site.test/icons.woff2' ),
+) );
+$permitted = $guard::permitted_urls( $faces );
+if ( ! isset( $permitted['https://site.test/a.woff2'], $permitted['https://site.test/icons.woff2'] ) || isset( $permitted['https://site.test/b.woff2'] ) ) throw new RuntimeException( 'La precarga debe omitir variantes excluidas y conservar iconos.' );
+$GLOBALS['settings']['perf_font_guard_allowlist'] = $allow;
 $url = 'https://site.test/wp-content/uploads/elementor/google-fonts/css/inter.css';
 $GLOBALS['manifest'] = array( 'fingerprint' => hash( 'sha256', "manual\n" . $allow ), 'rows' => array( $url => array( 'original' => $original, 'mtime' => filemtime( $original ), 'generated' => $generated, 'url' => 'https://site.test/generated.css' ) ) );
 if ( 'https://site.test/generated.css' !== $guard::style_src( $url . '?ver=1', 'elementor-font' ) ) throw new RuntimeException( 'Debe sustituir sólo CSS local precompilado.' );

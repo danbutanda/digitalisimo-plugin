@@ -50,7 +50,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 	}
 
 	/** Sólo datos precalculados; no consulta Elementor ni el filesystem en frontend. */
-	public static function candidates( $report, $mode, $paths, $queued, $limit, $already ) {
+	public static function candidates( $report, $mode, $paths, $queued, $limit, $already, $permitted = null ) {
 		$families = array();
 		foreach ( (array) ( $report['families'] ?? array() ) as $family ) $families[ strtolower( (string) ( $family['family'] ?? '' ) ) ] = true;
 		$manual = array_fill_keys( preg_split( '/\r\n|\r|\n/', trim( (string) $paths ) ), true );
@@ -59,6 +59,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		$result = array();
 		foreach ( (array) ( $report['faces'] ?? array() ) as $face ) {
 			$url = (string) ( $face['url'] ?? '' );
+			if ( null !== $permitted && empty( $permitted[ $url ] ) ) continue;
 			if ( ! $url || 0 !== strpos( $url, $base ) || ! preg_match( '~^elementor/google-fonts/fonts/[a-zA-Z0-9._/-]+\.woff2$~', substr( $url, strlen( $base ) ) ) ) continue;
 			if ( empty( $queued[ $face['css'] ?? '' ] ) || in_array( self::url_key( $url ), $already, true ) ) continue;
 			$path = substr( $url, strlen( $base ) );
@@ -80,7 +81,8 @@ class Digitalisimo_Integrations_Performance_Preloads {
 		if ( empty( $fonts['scanned_at'] ) || empty( $custom['scanned_at'] ) ) return;
 		$already = self::$core_urls;
 		foreach ( (array) ( $custom['rows'] ?? array() ) as $row ) if ( 'publish' === ( $row['status'] ?? '' ) ) foreach ( (array) ( $row['preloads'] ?? array() ) as $url ) $already[] = self::url_key( $url );
-		$urls = self::candidates( $fonts, $mode, Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_paths' ), self::enqueued_css(), self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) ), $already );
+		$permitted = Digitalisimo_Integrations_Performance_Font_Guard::permitted_urls( $fonts );
+		$urls = self::candidates( $fonts, $mode, Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_paths' ), self::enqueued_css(), self::sanitize_limit( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_preload_limit' ) ), $already, $permitted );
 		foreach ( $urls as $url ) echo '<link rel="preload" href="' . esc_url( $url ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
 	}
 }

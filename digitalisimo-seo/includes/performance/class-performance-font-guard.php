@@ -62,6 +62,36 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		return (bool) preg_match( '/(?:^|[\s_-])(?:eicons|font[\s_-]?awesome|[a-z0-9_-]*icons?)(?:$|[\s_-])/i', $family );
 	}
 
+	/** La precarga debe respetar la misma política que los @font-face filtrados. */
+	public static function allows_face( $face, $report ) {
+		list( $mode, $allowlist ) = self::policy();
+		if ( 'off' === $mode || Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ) return true;
+		return self::face_matches( $face, self::rules( $mode, $allowlist, $report ), $mode );
+	}
+
+	public static function permitted_urls( $report ) {
+		list( $mode, $allowlist ) = self::policy();
+		$safe = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' );
+		$rules = 'off' === $mode || $safe ? array() : self::rules( $mode, $allowlist, $report );
+		$urls = array();
+		foreach ( (array) ( $report['faces'] ?? array() ) as $face ) if ( ! empty( $face['url'] ) && ( 'off' === $mode || $safe || self::face_matches( $face, $rules, $mode ) ) ) $urls[ $face['url'] ] = true;
+		return $urls;
+	}
+
+	private static function face_matches( $face, $rules, $mode ) {
+		$family = (string) ( $face['family'] ?? '' );
+		if ( self::icon_family( $family ) ) return true;
+		$key = strtolower( $family );
+		if ( ! isset( $rules[ $key ] ) ) return 'auto' === $mode;
+		$weight = strtolower( trim( (string) ( $face['weight'] ?? '400' ) ) );
+		$style = strtolower( trim( (string) ( $face['style'] ?? 'normal' ) ) );
+		if ( 'normal' === $weight ) $weight = '400';
+		if ( 'bold' === $weight ) $weight = '700';
+		if ( ! preg_match( '/^[1-9]00$/', $weight ) || ! in_array( $style, array( 'normal', 'italic', 'oblique' ), true ) ) return true;
+		$rule = $rules[ $key ];
+		return ( empty( $rule['weights'] ) || in_array( $weight, $rule['weights'], true ) ) && ( empty( $rule['styles'] ) || in_array( $style, $rule['styles'], true ) );
+	}
+
 	/** Devuelve CSS original si un bloque no se puede interpretar con seguridad. */
 	public static function filter_css( $css, $rules, $mode ) {
 		$removed = 0;

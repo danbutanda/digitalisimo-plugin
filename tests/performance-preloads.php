@@ -21,4 +21,6 @@ $manual = $class::candidates( $report, 'manual', "elementor/google-fonts/fonts/b
 if ( array( 'https://site.test/wp-content/uploads/elementor/google-fonts/fonts/b.woff2' ) !== $manual ) throw new RuntimeException( 'Manual debe exigir CSS encolado.' );
 $blocked = $class::candidates( $report, 'manual', 'elementor/google-fonts/fonts/b.woff2', $queued, 2, $manual );
 if ( $blocked ) throw new RuntimeException( 'No se debe duplicar un preload publicado.' );
+$blocked = $class::candidates( $report, 'manual', 'elementor/google-fonts/fonts/b.woff2', $queued, 2, array(), array( 'https://site.test/wp-content/uploads/elementor/google-fonts/fonts/a.woff2' => true ) );
+if ( $blocked ) throw new RuntimeException( 'No se debe precargar una variante bloqueada por la política de fuentes.' );
 echo "Preloads: rutas, contexto, límite y duplicados correctos.\n";
