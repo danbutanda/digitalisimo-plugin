@@ -31,7 +31,9 @@
 .digitalisimo-admin .digitalisimo-effective-state { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
 .digitalisimo-admin .digitalisimo-effective-state.is-active { color: #135c39; background: #e2f5e9; }
 .digitalisimo-admin .digitalisimo-effective-state.is-inactive { color: #6b7280; background: #eef1f5; }
-.digitalisimo-admin .digitalisimo-default-value { color: #697388 !important; background: #f1f3f7 !important; border-color: #d9dee8 !important; }
+.digitalisimo-admin .digitalisimo-default-value:not([type=checkbox]) { color: #697388 !important; background: #f1f3f7 !important; border-color: #d9dee8 !important; }
+.digitalisimo-admin input[type=checkbox].digitalisimo-default-value:checked { color: #fff !important; background: #4058e8 !important; border-color: #4058e8 !important; }
+.digitalisimo-admin input[type=checkbox].digitalisimo-default-value:checked:before { color: #fff !important; }
 .digitalisimo-admin .digitalisimo-media.digitalisimo-default-value { padding: 10px; }
 .digitalisimo-admin .digitalisimo-default-note { display: inline-block; margin: 8px 0 0; padding: 3px 9px; color: #687386; background: #eef1f5; border-radius: 999px; font-size: 12px; line-height: 1.5; }
 .digitalisimo-admin .digitalisimo-inheritance .description { color: #747f94; }

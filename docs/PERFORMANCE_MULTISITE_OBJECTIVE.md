@@ -158,3 +158,7 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 ## Estado visible de opciones heredadas · SEO 1.0.170
 
 - Los checkboxes activos heredados conservan el color de activación aunque sigan deshabilitados para edición local. La leyenda de valor efectivo usa «Activo»/«Inactivo» y mantiene visible el origen. La herencia y el guardado no cambian.
+
+## Checkboxes activos con valor predeterminado · SEO 1.0.171
+
+- La indicación «Valor predeterminado del plugin» conserva su etiqueta informativa, pero deja de pintar de gris el checkbox. Un valor predeterminado activo se ve marcado en azul tanto en red como en sitio y sigue siendo editable.

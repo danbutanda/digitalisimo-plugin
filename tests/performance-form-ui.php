@@ -48,6 +48,11 @@ foreach ( array( 'perf_font_guard_mode', 'perf_preload_mode', 'perf_tracking_mod
 	if ( ! preg_match( '/<select[^>]+id="network_' . $key . '"[^>]*>/', $network_html ) ) throw new RuntimeException( 'El modo ' . $key . ' debe ser un selector en red.' );
 }
 $GLOBALS['test_network'][ Digitalisimo_Integrations_Settings::OPTION ] = array( 'perf_safe_mode' => 1 );
+$network_field = new ReflectionMethod( Digitalisimo_Integrations_SEO_Suite::class, 'nf' );
+ob_start();
+$network_field->invoke( null, 'seo_schema_enabled', 'Schema JSON-LD', 'checkbox' );
+$network_default_html = ob_get_clean();
+if ( ! preg_match( '/class="digitalisimo-default-value"[^>]*type="checkbox"[^>]*checked="checked"/', $network_default_html ) || false !== strpos( $network_default_html, 'id="network_seo_schema_enabled" name="digitalisimo_network[seo_schema_enabled]" value="1" checked="checked" disabled' ) ) throw new RuntimeException( 'Un checkbox activo predeterminado de red debe seguir marcado y editable.' );
 $field = new ReflectionMethod( Digitalisimo_Integrations_SEO_Suite::class, 'f' );
 ob_start();
 $field->invoke( null, 'perf_safe_mode', 'Modo seguro', 'checkbox' );
