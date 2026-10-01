@@ -15,8 +15,10 @@ function restore_current_blog() { global $blog_id; $blog_id = 1; }
 function home_url( $path ) { global $blog_id; return 'https://site' . $blog_id . '.example.test' . $path; }
 function absint( $value ) { return abs( (int) $value ); }
 function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES ); }
+function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES ); }
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-tracking.php';
 $class = Digitalisimo_Integrations_Performance_Tracking::class;
+if ( $class::site_kit_ids() !== array( 'perf_gt_id' => 'GT-PRINCIPAL', 'perf_ga4_id' => 'G-PRINCIPAL', 'perf_gtm_id' => '' ) ) throw new RuntimeException( 'Los IDs del sitio principal deben asignarse a los campos correctos.' );
 ob_start(); $class::render_site_kit( false ); $site = ob_get_clean();
 if ( false === strpos( $site, 'G-PRINCIPAL' ) || false !== strpos( $site, 'G-SUBSITIO' ) || false !== strpos( $site, 'NO-MOSTRAR' ) ) throw new RuntimeException( 'El inventario del sitio filtró valores ajenos o sensibles.' );
 $_GET['site_id'] = 2;

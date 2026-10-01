@@ -166,6 +166,11 @@ class Digitalisimo_Integrations_SEO_Suite {
 	}
 	private static function f( $key, $label, $type = 'text', $help = '' ) {
 		$value = self::o( $key ); $name = Digitalisimo_Integrations_Settings::OPTION . '[' . $key . ']';
+		$site_kit_detected = false;
+		if ( in_array( $key, array( 'perf_gt_id', 'perf_ga4_id', 'perf_gtm_id' ), true ) && '' === (string) $value ) {
+			$detected = Digitalisimo_Integrations_Performance_Tracking::site_kit_ids();
+			if ( ! empty( $detected[ $key ] ) ) { $value = $detected[ $key ]; $site_kit_detected = true; }
+		}
 		$site_only = in_array( $key, Digitalisimo_Integrations_SEO_Resolver::site_only_keys(), true );
 		$inherit = is_multisite() && Digitalisimo_Integrations_SEO_Resolver::inherits_network( $key ); $disabled = $inherit ? ' disabled' : '';
 		$defaults = Digitalisimo_Integrations_Settings::defaults(); $is_default = ! $inherit && array_key_exists( $key, $defaults ) && $value == $defaults[ $key ];
@@ -177,6 +182,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		elseif ( 'select' === $type ) { $choices = func_get_arg( 4 ); echo '<select class="' . esc_attr( $class ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( $name ) . '"' . $disabled . '>'; foreach ( (array) $choices as $v => $l ) echo '<option value="' . esc_attr( $v ) . '" ' . selected( $value, $v, false ) . '>' . esc_html( $l ) . '</option>'; echo '</select>'; }
 		else echo '<input class="regular-text ' . esc_attr( $class ) . '" type="' . esc_attr( $type ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . $disabled . '>';
 		if ( $help ) echo '<p class="description">' . esc_html( $help ) . '</p>';
+		if ( $site_kit_detected ) echo '<p class="description">ID detectado automáticamente de Site Kit para este sitio.</p>';
 		if ( $is_default ) echo '<p class="description digitalisimo-default-note">Valor predeterminado del plugin.</p>';
 		if ( is_multisite() && ! $site_only ) { $origin = Digitalisimo_Integrations_SEO_Resolver::option_with_origin( $key ); $effective = is_scalar( $origin['value'] ) ? (string) $origin['value'] : '';
 			if ( 'checkbox' === $type ) $effective = '<span class="digitalisimo-effective-state ' . ( ! empty( $origin['value'] ) ? 'is-active' : 'is-inactive' ) . '">' . ( ! empty( $origin['value'] ) ? 'Activo' : 'Inactivo' ) . '</span>';

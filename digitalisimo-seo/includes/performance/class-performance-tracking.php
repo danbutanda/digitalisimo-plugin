@@ -36,6 +36,18 @@ class Digitalisimo_Integrations_Performance_Tracking {
 		return $result;
 	}
 
+	/** IDs del sitio actual admitidos por Google Tracking; nunca mezcla datos de otros sitios. */
+	public static function site_kit_ids() {
+		$analytics = (array) get_option( 'googlesitekit_analytics-4_settings', array() );
+		$manager = (array) get_option( 'googlesitekit_tagmanager_settings', array() );
+		$google_tag = trim( (string) ( $analytics['googleTagID'] ?? '' ) );
+		return array(
+			'perf_gt_id' => self::sanitize_id( $google_tag, 'gt' ),
+			'perf_ga4_id' => self::sanitize_id( $analytics['measurementID'] ?? '', 'ga4' ) ?: self::sanitize_id( $google_tag, 'ga4' ),
+			'perf_gtm_id' => self::sanitize_id( $manager['containerID'] ?? '', 'gtm' ),
+		);
+	}
+
 	/** El selector de sitio de la consola de red sólo determina el inventario visible. */
 	public static function render_site_kit( $network = false ) {
 		$site_id = $network ? absint( $_GET['site_id'] ?? get_current_blog_id() ) : get_current_blog_id();
@@ -45,7 +57,15 @@ class Digitalisimo_Integrations_Performance_Tracking {
 		try {
 			$active = Digitalisimo_Integrations_Performance_Migration::site_kit_active();
 			$inventory = self::site_kit_inventory();
-			echo '<h2>Valores detectados de Google Site Kit</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code> · Plugin: ' . ( $active ? 'activo' : 'inactivo' ) . '. Lectura de la configuración de este sitio; no modifica los valores de Digitalísimo ni los defaults de red.</p>';
+			echo '<h2>Valores detectados de Google Site Kit</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code> · Plugin: ' . ( $active ? 'activo' : 'inactivo' ) . '. Los IDs válidos llenan los campos vacíos de este sitio al activar y guardar Google Tracking. Los defaults de red no reciben IDs de un subsitio.</p>';
+			$ids = self::site_kit_ids();
+			if ( array_filter( $ids ) ) {
+				echo '<table class="form-table"><tbody>';
+				foreach ( array( 'perf_gt_id' => 'Google Tag ID', 'perf_ga4_id' => 'GA4 ID', 'perf_gtm_id' => 'GTM ID' ) as $key => $label ) {
+					echo '<tr><th scope="row">' . esc_html( $label ) . ' de este sitio</th><td><input class="regular-text" type="text" readonly value="' . esc_attr( $ids[ $key ] ) . '"></td></tr>';
+				}
+				echo '</tbody></table>';
+			}
 			if ( ! $inventory ) { echo '<p>No hay valores de Site Kit guardados para este sitio.</p>'; return; }
 			echo '<table class="widefat striped"><thead><tr><th>Módulo</th><th>Valor</th><th>Detectado</th></tr></thead><tbody>';
 			foreach ( $inventory as $module => $values ) foreach ( $values as $label => $value ) echo '<tr><td>' . esc_html( $module ) . '</td><td>' . esc_html( $label ) . '</td><td><code>' . esc_html( $value ) . '</code></td></tr>';
@@ -74,8 +94,12 @@ class Digitalisimo_Integrations_Performance_Tracking {
 
 	private static function config() {
 		$option = array( 'gt' => 'perf_gt_id', 'ga4' => 'perf_ga4_id', 'gtm' => 'perf_gtm_id' );
+		$detected = self::site_kit_ids();
 		$ids = array();
-		foreach ( $option as $kind => $key ) $ids[ $kind ] = self::sanitize_id( Digitalisimo_Integrations_SEO_Resolver::option( $key ), $kind );
+		foreach ( $option as $kind => $key ) {
+			$ids[ $kind ] = self::sanitize_id( Digitalisimo_Integrations_SEO_Resolver::option( $key ), $kind );
+			if ( ! $ids[ $kind ] ) $ids[ $kind ] = $detected[ $key ];
+		}
 		return $ids;
 	}
 

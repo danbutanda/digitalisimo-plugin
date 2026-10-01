@@ -193,6 +193,11 @@ class Digitalisimo_Integrations_Settings {
 		if ( isset( $input['perf_preload_paths'] ) ) $output['perf_preload_paths'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_paths( $input['perf_preload_paths'] );
 		if ( isset( $input['perf_preload_limit'] ) ) $output['perf_preload_limit'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_limit( $input['perf_preload_limit'] );
 		foreach ( array( 'perf_gt_id' => 'gt', 'perf_ga4_id' => 'ga4', 'perf_gtm_id' => 'gtm' ) as $key => $kind ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_id( $input[ $key ], $kind );
+		if ( ! empty( $input['perf_tracking_enabled'] ) ) {
+			foreach ( Digitalisimo_Integrations_Performance_Tracking::site_kit_ids() as $key => $detected ) {
+				if ( $detected && empty( $output[ $key ] ) ) $output[ $key ] = $detected;
+			}
+		}
 		if ( isset( $input['perf_tracking_mode'] ) ) $output['perf_tracking_mode'] = Digitalisimo_Integrations_Performance_Tracking::sanitize_mode( $input['perf_tracking_mode'] );
 		foreach ( array( 'perf_tracking_delay', 'perf_tracking_fallback' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_seconds( $input[ $key ] );
 		foreach ( self::template_default_keys() as $key ) if ( isset( $input[ $key ] ) && '' === trim( (string) $input[ $key ] ) ) $output[ $key ] = self::defaults()[ $key ];
