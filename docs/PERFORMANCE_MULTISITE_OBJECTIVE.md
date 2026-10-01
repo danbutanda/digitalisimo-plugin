@@ -119,3 +119,12 @@ Referencias API: [WordPress Object Cache](https://developer.wordpress.org/refere
 
 - Se registraron tres corridas móviles y una de escritorio de la portada pública con SEO 1.0.160 instalado. Las puntuaciones móviles oscilaron entre 57 y 89; la mediana fue 61. Las cuatro hojas de widgets candidatas estaban presentes. [Datos, límites y comando reproducible](measurements/2026-09-30-home-public-snapshot.md).
 - Esta referencia no valida SEO 1.0.162 ni sustituye la comparación controlada antes/después en Multisite y páginas representativas. El objetivo permanece abierto.
+
+## Prueba aislada Multisite y retorno de red · SEO 1.0.163
+
+- Se creó una red local WordPress 7.1.2/PHP 8.3 en WordPress Playground, con dos sitios en subdirectorios, SEO activado para la red, Elementor gratuito 4.3.3 y Hello Elementor 3.5.1 en el segundo sitio. Es una instalación desechable, sin datos de producción ni Elementor Pro.
+- `Rendimiento de red → Debug` mostró el segundo sitio al elegir `site_id=2`; `Rendimiento → Fuentes` abrió desde su administración y analizó su Kit. El análisis de red del sitio principal volvió a Red y mantuvo `site_id=1`. Los inventarios quedaron separados por sitio.
+- El botón de limpieza del caché propio desde Red para el sitio 2 volvió a Red conservando `site_id=2`; desde el sitio 2 volvió a su administración. Una solicitud del sitio 2 que intentó limpiar el sitio principal fue rechazada. No había drop-in Redis: esto verifica rutas, permisos y aislamiento, no el funcionamiento de Redis externo.
+- Se guardó en la red el modo de fuentes `auto` con el modo seguro intacto. Los dos sitios mostraron `auto` heredado y origen «Configuración de red». El sitio 2 guardó una sobrescritura `off` y cambió su origen a «Este sitio»; el sitio principal mantuvo `auto` heredado. No se activó el filtrado de fuentes en frontend.
+- La prueba encontró que guardar ajustes de Rendimiento de red perdía el sitio seleccionado. SEO 1.0.163 agrega `digitalisimo_site_id` al formulario y al redirect tras validar que el sitio existe. Se comprobó con un guardado real: volvió a `section=fonts&site_id=2`.
+- Quedan pendientes pruebas con Elementor Pro, Redis Object Cache real, Site Kit, páginas con contenido representativo, editor, imágenes, formularios, sliders, CSS diferido y Network del navegador con las optimizaciones activadas. Esta prueba no cierra el objetivo global.

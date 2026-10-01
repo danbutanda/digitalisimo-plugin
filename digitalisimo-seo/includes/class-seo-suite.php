@@ -147,7 +147,16 @@ class Digitalisimo_Integrations_SEO_Suite {
 			if ( Digitalisimo_Integrations_Local_Business::SCHEDULE === $key ) { $current[ $key ] = Digitalisimo_Integrations_Local_Business::sanitize_schedule( $value ); continue; }
 			if ( Digitalisimo_Integrations_Local_Business::PHONE_CC === $key ) { $current[ $key ] = Digitalisimo_Integrations_Local_Business::sanitize_code( $value ); continue; }
 			if ( Digitalisimo_Integrations_Local_Business::PHONE === $key ) { $current[ $key ] = Digitalisimo_Integrations_Local_Business::sanitize_phone( $value ); continue; }
-			$current[ $key ] = sanitize_textarea_field( $value ); } update_site_option( Digitalisimo_Integrations_Settings::OPTION, $current ); $return = sanitize_key( $_POST['digitalisimo_return'] ?? '' ); wp_safe_redirect( in_array( $return, array( 'css', 'fonts', 'tracking', 'preloads' ), true ) ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $return . '&updated=1' ) : network_admin_url( 'admin.php?page=digitalisimo-network-seo&updated=1&tab=' . sanitize_key( $_POST['digitalisimo_active_tab'] ?? 'general' ) ) ); exit; }
+			$current[ $key ] = sanitize_textarea_field( $value ); }
+		update_site_option( Digitalisimo_Integrations_Settings::OPTION, $current );
+		$return = sanitize_key( $_POST['digitalisimo_return'] ?? '' );
+		$performance = in_array( $return, array( 'css', 'fonts', 'tracking', 'preloads' ), true );
+		$target = $performance ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $return . '&updated=1' ) : network_admin_url( 'admin.php?page=digitalisimo-network-seo&updated=1&tab=' . sanitize_key( $_POST['digitalisimo_active_tab'] ?? 'general' ) );
+		$site_id = $performance ? absint( $_POST['digitalisimo_site_id'] ?? 0 ) : 0;
+		if ( $site_id && get_site( $site_id ) ) $target = add_query_arg( 'site_id', $site_id, $target );
+		wp_safe_redirect( $target );
+		exit;
+	}
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) return; $slug = sanitize_key( $_GET['page'] ?? 'digitalisimo-seo' ); $map = array( 'digitalisimo-seo' => 'dashboard', 'digitalisimo-seo-general' => 'general', 'digitalisimo-seo-titles' => 'titles', 'digitalisimo-seo-appearance' => 'appearance', 'digitalisimo-seo-schema' => 'schema', 'digitalisimo-seo-local' => 'local', 'digitalisimo-seo-social' => 'social', 'digitalisimo-seo-sitemap' => 'sitemap', 'digitalisimo-seo-indexing' => 'indexing', 'digitalisimo-seo-breadcrumbs' => 'breadcrumbs', 'digitalisimo-seo-performance' => 'performance', 'digitalisimo-seo-tools' => 'tools', 'digitalisimo-seo-diagnostic' => 'diagnostic' ); $section = $map[ $slug ] ?? 'dashboard';
 		echo '<div class="wrap digitalisimo-admin-shell"><h1>SEO · Digitalisimo</h1><p>Configura las señales SEO del sitio desde un solo lugar.</p>'; self::navigation_tabs( $section );

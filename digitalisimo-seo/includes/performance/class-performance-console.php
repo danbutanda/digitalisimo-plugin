@@ -67,7 +67,10 @@ class Digitalisimo_Integrations_Performance_Console {
 		if ( $network ) {
 			echo '<form method="post" action="' . esc_url( network_admin_url( 'edit.php?action=digitalisimo_save_network_seo' ) ) . '">';
 			wp_nonce_field( 'digitalisimo_network_seo' );
-			echo '<input type="hidden" name="digitalisimo_active_tab" value="performance"><input type="hidden" name="digitalisimo_return" value="' . esc_attr( $section ) . '"><table class="form-table">';
+			$site_id = absint( $_GET['site_id'] ?? 0 );
+			echo '<input type="hidden" name="digitalisimo_active_tab" value="performance"><input type="hidden" name="digitalisimo_return" value="' . esc_attr( $section ) . '">';
+			if ( $site_id && get_site( $site_id ) ) echo '<input type="hidden" name="digitalisimo_site_id" value="' . esc_attr( $site_id ) . '">';
+			echo '<table class="form-table">';
 			if ( 'tracking' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_tracking_network_fields();
 			elseif ( 'fonts' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_font_network_fields();
 			elseif ( 'preloads' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_preload_network_fields();
