@@ -34,6 +34,9 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 	public static function site_for_url( $url, $network ) { return 0 === strpos( $url, 'https://example.test/subsite/' ) ? 2 : 1; }
 	public static function capture_belongs_to_site( $result, $site_id ) { return is_array( $result ) && ! empty( $result['url'] ) && self::site_for_url( $result['url'], true ) === $site_id; }
 }
+class Digitalisimo_Integrations_Performance_Tracking {
+	public static function site_kit_ids_for_site( $site_id ) { return 2 === (int) $site_id ? array( 'perf_gt_id' => 'GT-SUBSITE', 'perf_ga4_id' => 'G-SUBSITE', 'perf_gtm_id' => '' ) : array(); }
+}
 require __DIR__ . '/../digitalisimo-seo/includes/class-settings.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-resolver.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-suite.php';
@@ -47,6 +50,11 @@ $network_html = ob_get_clean();
 foreach ( array( 'perf_font_guard_mode', 'perf_preload_mode', 'perf_tracking_mode' ) as $key ) {
 	if ( ! preg_match( '/<select[^>]+id="network_' . $key . '"[^>]*>/', $network_html ) ) throw new RuntimeException( 'El modo ' . $key . ' debe ser un selector en red.' );
 }
+$GLOBALS['test_network'][ Digitalisimo_Integrations_Settings::OPTION ] = array( 'perf_gt_id' => 'GT-EXISTING' );
+$_GET['site_id'] = '2';
+ob_start(); Digitalisimo_Integrations_SEO_Suite::performance_tracking_network_fields(); $prefilled_html = ob_get_clean();
+if ( false === strpos( $prefilled_html, 'id="network_perf_ga4_id"' ) || false === strpos( $prefilled_html, 'value="G-SUBSITE"' ) || false === strpos( $prefilled_html, 'value="GT-EXISTING"' ) || false !== strpos( $prefilled_html, 'value="GT-SUBSITE"' ) || false === strpos( $prefilled_html, 'https://example.test/subsite/' ) ) throw new RuntimeException( 'La red debe completar sólo IDs vacíos desde el sitio seleccionado, conservando los existentes.' );
+unset( $_GET['site_id'] );
 $GLOBALS['test_network'][ Digitalisimo_Integrations_Settings::OPTION ] = array( 'perf_safe_mode' => 1 );
 $network_field = new ReflectionMethod( Digitalisimo_Integrations_SEO_Suite::class, 'nf' );
 ob_start();

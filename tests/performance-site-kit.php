@@ -22,9 +22,10 @@ function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOT
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-tracking.php';
 $class = Digitalisimo_Integrations_Performance_Tracking::class;
 if ( $class::site_kit_ids() !== array( 'perf_gt_id' => 'GT-PRINCIPAL', 'perf_ga4_id' => 'G-PRINCIPAL', 'perf_gtm_id' => '' ) ) throw new RuntimeException( 'Los IDs del sitio principal deben asignarse a los campos correctos.' );
+if ( $class::site_kit_ids_for_site( 2 ) !== array( 'perf_gt_id' => '', 'perf_ga4_id' => 'G-SUBSITIO', 'perf_gtm_id' => 'GTM-SUBSITIO' ) || 1 !== get_current_blog_id() ) throw new RuntimeException( 'La detección en red debe consultar y restaurar el sitio seleccionado.' );
 ob_start(); $class::render_site_kit( false ); $site = ob_get_clean();
-if ( false === strpos( $site, 'detectado en los campos superiores' ) || false !== strpos( $site, 'G-SUBSITIO' ) || false !== strpos( $site, 'NO-MOSTRAR' ) || false !== strpos( $site, 'GT-PRINCIPAL' ) || false === strpos( $site, '<details>' ) ) throw new RuntimeException( 'El resumen del sitio no debe repetir IDs ni mostrar valores ajenos o sensibles.' );
+if ( false === strpos( $site, 'aparecen en los campos de Google Tracking' ) || false !== strpos( $site, 'G-SUBSITIO' ) || false !== strpos( $site, 'NO-MOSTRAR' ) || false !== strpos( $site, 'GT-PRINCIPAL' ) || false === strpos( $site, '<details>' ) ) throw new RuntimeException( 'El resumen del sitio no debe repetir IDs ni mostrar valores ajenos o sensibles.' );
 $_GET['site_id'] = 2;
 ob_start(); $class::render_site_kit( true ); $network = ob_get_clean();
-if ( false === strpos( $network, 'G-SUBSITIO' ) || false === strpos( $network, 'GTM-SUBSITIO' ) || false === strpos( $network, 'https://sub.example.test/' ) || false !== strpos( $network, 'GT-PRINCIPAL' ) || false !== strpos( $network, 'unknown' ) || 1 !== get_current_blog_id() ) throw new RuntimeException( 'La red debe mostrar y restaurar sólo el sitio seleccionado.' );
+if ( false === strpos( $network, 'https://sub.example.test/' ) || false !== strpos( $network, 'G-SUBSITIO' ) || false !== strpos( $network, 'GTM-SUBSITIO' ) || false !== strpos( $network, 'GT-PRINCIPAL' ) || false !== strpos( $network, 'unknown' ) || 1 !== get_current_blog_id() ) throw new RuntimeException( 'La red debe mostrar y restaurar sólo el sitio seleccionado sin repetir IDs.' );
 echo "Site Kit: valores permitidos, aislamiento por sitio y restauración de contexto.\n";
