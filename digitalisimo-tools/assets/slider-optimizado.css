@@ -1,3 +1,5 @@
+.elementor-widget-digitalisimo-slider-optimizado{width:var(--container-widget-width,100%);min-width:0}
+.elementor-widget-digitalisimo-slider-optimizado.elementor-invisible:not([data-settings]){visibility:visible!important}
 .digi-slider{--digi-visible:10;--digi-gap:16px;--digi-duration:30s;--digi-max-width:10000px;--digi-height:auto;width:100%;max-width:100%;min-width:0}
 .digi-slider__viewport{width:100%;overflow:hidden;container-type:inline-size}
 .digi-slider__track{display:flex;width:max-content;max-width:none;align-items:stretch;animation:none}
