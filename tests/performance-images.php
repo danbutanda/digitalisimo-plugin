@@ -68,6 +68,9 @@ $report = $img::probe_report( array() );
 // Un tamaño intermedio se vincula a su original y usa sus propias dimensiones.
 $out = $img::process( page( '<img src="https://site1.test/wp-content/uploads/2026/01/hero-1024x576.jpg">' ) );
 check( false !== strpos( $out, 'width="1024" height="576"' ), 'Un tamaño intermedio usa sus dimensiones, no las del original.' );
+$mid = $img::attributes( preg_match( '/<img[^>]*>/', $out, $m ) ? $m[0] : '' );
+check( 3 === count( explode( ',', $mid['srcset'] ) ) && false === strpos( $mid['srcset'], '1536w' ) && false === strpos( $mid['srcset'], '1920w' ), 'Con un tamaño elegido de 1024 px el srcset no ofrece archivos mayores.' );
+check( '' === $img::cap_srcset( 'a.jpg 300w, b.jpg 768w', 300 ) && '' === $img::cap_srcset( 'a.jpg 1x, b.jpg 2x', 2000 ), 'Con menos de dos candidatos, o descriptores que no son de ancho, no hay srcset.' );
 
 // Lo que ya está completo no se toca.
 $done = "<img src=\"$hero\" srcset=\"$hero 1920w\" sizes=\"50vw\" width=\"1920\" height=\"1080\" loading=\"lazy\">";

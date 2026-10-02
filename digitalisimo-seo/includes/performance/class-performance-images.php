@@ -419,7 +419,7 @@ class Digitalisimo_Integrations_Performance_Images {
 	 */
 	private static function attachment_data( $id, $src ) {
 		$relative = self::uploads_path( $src );
-		$name     = 'img_' . $id . '_' . self::generation() . '_' . md5( $relative );
+		$name     = 'img2_' . $id . '_' . self::generation() . '_' . md5( $relative );
 		$found    = false;
 		$cached   = class_exists( 'Digitalisimo_Integrations_Performance_Cache' ) ? Digitalisimo_Integrations_Performance_Cache::get( $name, $found ) : null;
 		if ( $found && is_array( $cached ) ) return $cached ?: null;
@@ -440,17 +440,32 @@ class Digitalisimo_Integrations_Performance_Images {
 				if ( ! empty( $variant['file'] ) && $relative === $dir . $variant['file'] ) { $size = array( (int) $variant['width'], (int) $variant['height'] ); break; }
 			}
 			$url    = trailingslashit( wp_upload_dir( null, false )['baseurl'] ?? '' ) . $relative;
-			$srcset = wp_calculate_image_srcset( $size, $url, $meta, $id );
+			$srcset = self::cap_srcset( wp_calculate_image_srcset( $size, $url, $meta, $id ), $size[0] );
 			$data = array(
 				'width'  => $size[0],
 				'height' => $size[1],
 				'full'   => array( (int) $meta['width'], (int) $meta['height'] ),
-				'srcset' => is_string( $srcset ) && substr_count( $srcset, ',' ) >= 1 ? $srcset : '',
+				'srcset' => $srcset,
 				'sizes'  => (string) wp_calculate_image_sizes( $size, $url, $meta, $id ),
 			);
 		}
 		if ( class_exists( 'Digitalisimo_Integrations_Performance_Cache' ) ) Digitalisimo_Integrations_Performance_Cache::set( $name, $data ?: array(), 3600 );
 		return $data;
+	}
+
+	/**
+	 * WordPress ofrece también tamaños mayores que el elegido. Si el diseñador
+	 * eligió 768 px, un teléfono de DPR 3 descargaría 1536: más peso que hoy.
+	 * Nunca se ofrece un archivo mayor que el del src; con «Full» no cambia nada.
+	 */
+	public static function cap_srcset( $srcset, $width ) {
+		if ( ! is_string( $srcset ) || '' === $srcset ) return '';
+		$kept = array();
+		foreach ( array_map( 'trim', explode( ',', $srcset ) ) as $candidate ) {
+			if ( ! preg_match( '/\s(\d+)w$/', $candidate, $m ) ) return ''; // Un descriptor que no es de ancho no se puede acotar.
+			if ( (int) $m[1] <= (int) $width ) $kept[] = $candidate;
+		}
+		return count( $kept ) >= 2 ? implode( ', ', $kept ) : '';
 	}
 
 	/* ------------------------------------------------------------------ *

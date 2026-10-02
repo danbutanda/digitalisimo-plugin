@@ -227,3 +227,7 @@ Fuente: objetivo del propietario del 2026-10-02 («Optimización responsive glob
 Pruebas: `tests/performance-images.php`, con mutaciones que confirman que falla si se permite más de un `fetchpriority`, si se acepta una URL de otro dominio con la misma ruta o si se procesan `<img>` dentro de `<script>`, `<noscript>` o `<picture>`.
 
 Pendiente de validar en un sitio real: el efecto visual con temas que no declaren `img{height:auto}` (el `height` añadido podría deformar), la interacción con plugins de caché de página que abran su buffer después de este, y la medición Lighthouse antes/después en móvil.
+
+### Tope del srcset en el tamaño elegido · SEO 1.0.185
+
+La primera captura real de digitalisimo.mx mostró carruseles con el tamaño `768×480` elegido por el diseñador, no «Full». WordPress incluye en el srcset también los tamaños mayores (1024, 1536…), así que un teléfono de DPR 3 habría pasado a descargar 1536 px en lugar de 768: más peso que antes. El srcset ahora nunca ofrece un archivo mayor que el del `src`. Con «Full» no cambia nada; con un tamaño menor, el móvil sólo puede bajar a variantes iguales o más pequeñas.
