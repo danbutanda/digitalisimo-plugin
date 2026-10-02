@@ -53,6 +53,10 @@ $expected = "# Agencia Uno\n\n> Agencia que integra marketing, tecnología e IA.
 check( $expected === $text, "Estructura esperada:\n" . $text );
 check( false === strpos( $text, 'Servicios' ) && false === strpos( $text, 'Guía' ), 'Sin selección no se listan páginas ni entradas: ningún enlace se inventa.' );
 check( false === strpos( $text, '[gallery' ) && false === strpos( $text, '<b>' ), 'Sin shortcodes ni HTML.' );
+$GLOBALS['sites'][1]['front_meta'] = '';
+$text = $l::automatic();
+check( false !== strpos( $text, "> Ofrecemos marketing, software y sitios web.\n" ) && false === strpos( $text, "> Marketing & SEO en México\n" ), 'Sin meta SEO propia, el extracto escrito debe alimentar el resumen de llms.txt.' );
+$GLOBALS['sites'][1]['front_meta'] = 'Agencia que integra marketing, tecnología e IA. [gallery ids="1"]';
 check( $l::validate( $text )['valid'] && 1 === $l::sections( $text ), 'La salida automática es válida y tiene una sección.' );
 
 // Un extracto que repite la descripción no se publica como párrafo (caso real de producción).

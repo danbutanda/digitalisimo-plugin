@@ -97,6 +97,12 @@ const digitalisimoInitSnippetEditors = () => {
       const field = input(name);
       if (field) field.addEventListener('input', refresh);
     });
+    editor.querySelector('[data-snippet-use-excerpt]')?.addEventListener('click', () => {
+      const field = input('description');
+      if (!field || !editor.dataset.writtenExcerpt) return;
+      field.value = editor.dataset.writtenExcerpt;
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     refresh();
   });
 };

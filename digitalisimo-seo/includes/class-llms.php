@@ -185,15 +185,15 @@ class Digitalisimo_Integrations_LLMS {
 	}
 
 	/**
-	 * Descripción del sitio, por prioridad: meta descripción SEO de la portada,
-	 * descripción de WordPress. Si no hay ninguna no se inventa texto.
+	 * Descripción del sitio, por prioridad: meta SEO, extracto escrito de la
+	 * portada y descripción de WordPress. Si no hay ninguna no se inventa texto.
 	 */
 	public static function descriptions() {
 		$front   = 'page' === get_option( 'show_on_front' ) ? (int) get_option( 'page_on_front' ) : 0;
 		$meta    = $front ? self::text( get_post_meta( $front, 'digitalisimo_seo_description', true ) ) : '';
 		$tagline = self::text( get_bloginfo( 'description' ) );
 		$excerpt = $front ? self::text( get_post_field( 'post_excerpt', $front ) ) : '';
-		$summary = '' !== $meta ? $meta : $tagline;
+		$summary = '' !== $meta ? $meta : ( '' !== $excerpt ? $excerpt : $tagline );
 		// Párrafo opcional: el extracto escrito para la portada, si dice algo distinto.
 		$about = '' !== $excerpt && ! self::similar( $excerpt, $summary ) && ! self::similar( $excerpt, $tagline ) ? $excerpt : '';
 		return array( 'summary' => $summary, 'about' => $about, 'tagline' => $tagline );
