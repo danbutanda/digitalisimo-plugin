@@ -118,6 +118,8 @@ class Digitalisimo_Integrations_Settings {
 			'perf_img_mode'        => 'safe',
 			'perf_img_exclusions'  => '',
 			'perf_js_jquery_mode'  => 'off',
+			'perf_touch_guard'     => 0,
+			'perf_touch_selectors' => ".elementor-social-icon\n.swiper-pagination-bullet",
 			'seo_taxonomies'         => 'category,post_tag',
 			'seo_sitemap_taxonomies' => 'category',
 			'seo_sitemap_images'     => 1,
@@ -184,7 +186,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function sanitize( $input ) {
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
-		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds' ) as $key ) {
+		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
@@ -201,6 +203,10 @@ class Digitalisimo_Integrations_Settings {
 		if ( isset( $input['perf_font_guard_allowlist'] ) ) $output['perf_font_guard_allowlist'] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_allowlist( $input['perf_font_guard_allowlist'] );
 		if ( isset( $input['perf_js_jquery_mode'] ) ) $output['perf_js_jquery_mode'] = Digitalisimo_Integrations_Performance_JavaScript::sanitize_mode( $input['perf_js_jquery_mode'] );
 		if ( isset( $input['perf_img_mode'] ) ) $output['perf_img_mode'] = Digitalisimo_Integrations_Performance_Images::sanitize_mode( $input['perf_img_mode'] );
+		if ( isset( $input['perf_touch_selectors'] ) ) $output['perf_touch_selectors'] = Digitalisimo_Integrations_Quality_Audit::sanitize_selectors( $input['perf_touch_selectors'] );
+		if ( isset( $input['seo_ai_llms_mode'] ) ) $output['seo_ai_llms_mode'] = Digitalisimo_Integrations_LLMS::sanitize_mode( $input['seo_ai_llms_mode'] );
+		if ( isset( $input['seo_ai_llms_urls'] ) ) $output['seo_ai_llms_urls'] = Digitalisimo_Integrations_LLMS::sanitize_urls( $input['seo_ai_llms_urls'] );
+		if ( isset( $input['seo_ai_llms_manual'] ) ) $output['seo_ai_llms_manual'] = sanitize_textarea_field( $input['seo_ai_llms_manual'] );
 		if ( isset( $input['perf_img_exclusions'] ) ) $output['perf_img_exclusions'] = Digitalisimo_Integrations_Performance_Images::sanitize_exclusions( $input['perf_img_exclusions'] );
 		if ( isset( $input['perf_font_icon_families'] ) ) $output['perf_font_icon_families'] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_icon_families( $input['perf_font_icon_families'] );
 		if ( isset( $input['perf_preload_mode'] ) ) $output['perf_preload_mode'] = Digitalisimo_Integrations_Performance_Preloads::sanitize_mode( $input['perf_preload_mode'] );

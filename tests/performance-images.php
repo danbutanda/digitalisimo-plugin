@@ -100,7 +100,10 @@ $out = $img::process( page( $swiper ) );
 $tag = $img::attributes( preg_match( '/<img[^>]*>/', $out, $m ) ? $m[0] : '' );
 check( ! isset( $tag['src'] ) && 'https://site1.test/wp-content/uploads/2026/01/hero-1024x576.jpg' === $tag['data-src'] && 'swiper-slide-image swiper-lazy' === $tag['class'], 'El mecanismo de Swiper (data-src, clases) no se toca.' );
 check( 3 === count( explode( ',', $tag['data-srcset'] ) ) && false === strpos( $tag['data-srcset'], '1536w' ) && '(max-width: 1024px) 100vw, 50vw' === $tag['data-sizes'], 'Swiper recibe data-srcset acotado al tamaño elegido y data-sizes del layout.' );
-check( ! isset( $tag['srcset'], $tag['width'], $tag['loading'], $tag['fetchpriority'], $tag['data-digitalisimo-sizes'] ), 'Sin srcset, dimensiones ni prioridad: Swiper decide cuándo cargar.' );
+check( ! isset( $tag['srcset'] ) && ! isset( $tag['loading'] ) && ! isset( $tag['fetchpriority'] ) && ! isset( $tag['data-digitalisimo-sizes'] ), 'Sin srcset ni prioridad: Swiper decide cuándo cargar.' );
+check( '1024' === $tag['width'] && '576' === $tag['height'], 'El slide reserva su espacio con las dimensiones del archivo que cargará.' );
+$sized = '<img class="swiper-slide-image swiper-lazy" data-src="https://site1.test/wp-content/uploads/2026/01/hero-1024x576.jpg" width="600">';
+check( 1 === substr_count( $img::process( page( $sized ) ), 'width=' ) && false === strpos( $img::process( page( $sized ) ), 'height=' ), 'Un slide con dimensiones propias no se toca.' );
 $report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
 check( 'RESPONSIVE' === $report[0]['status'] && in_array( 'LAZY', $report[0]['states'], true ) && '' !== $report[0]['srcset'], 'El informe muestra el slide como responsive y diferido.' );
 $lazysizes = '<img class="lazyload" data-src="' . $hero . '" data-sizes="auto">';
@@ -211,5 +214,41 @@ $audit = $img::audit( array(
 ) );
 check( array( 'total' => 3, 'srcset' => 1, 'no_srcset' => 2, 'no_dimensions' => 2, 'lazy' => 2, 'eager' => 1, 'high' => 1, 'oversized' => 2 ) === $audit, 'La auditoría cuenta cada criterio.' );
 check( 390 === $img::estimate( '(max-width: 1024px) 100vw, (max-width: 1140px) 50vw, 570px', 390 ) && 570 === $img::estimate( '(max-width: 1024px) 100vw, (max-width: 1140px) 50vw, 570px', 1440 ) && 1920 === $img::estimate( '(max-width: 1920px) 100vw, 1920px', 1920 ), 'La estimación sigue el orden de las condiciones de sizes.' );
+
+// sizes genérico: se corrige sólo con el layout real de Elementor; sin él se informa.
+$GLOBALS['blog'] = 1;
+on();
+$generic = '<img src="' . $hero . '" srcset="' . $hero . ' 1920w" sizes="100vw" width="1920" height="1080"';
+$out = $img::process( page( $generic . ' data-digitalisimo-sizes="(max-width: 767px) 100vw, 50vw">' ) );
+check( false !== strpos( $out, 'sizes="(max-width: 767px) 100vw, 50vw"' ) && 1 === substr_count( $out, ' sizes=' ), 'Un sizes «100vw» se sustituye por el del layout.' );
+$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+check( 'RESPONSIVE' === $report[0]['status'] && in_array( 'SIZES CORREGIDO', $report[0]['states'], true ), 'El informe indica la corrección.' );
+$out = $img::process( page( $generic . '>' ) );
+$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+check( false !== strpos( $out, 'sizes="100vw"' ) && in_array( 'SIZES GENÉRICO', $report[0]['states'], true ) && 'OPTIMIZADA' === $report[0]['status'], 'Sin layout conocido el sizes se conserva y se marca genérico.' );
+$out = $img::process( page( $generic . ' data-digitalisimo-sizes="100vw">' ) );
+$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+check( false !== strpos( $out, 'sizes="100vw"' ) && ! in_array( 'SIZES CORREGIDO', $report[0]['states'], true ), 'Si el layout también es de ancho completo, nada cambia ni se informa como corrección.' );
+check( $img::generic_sizes( ' 100VW ' ) && ! $img::generic_sizes( 'auto, 100vw' ) && ! $img::generic_sizes( '(max-width: 767px) 100vw, 50vw' ), 'Sólo «100vw» a secas es genérico.' );
+on( array( 'perf_img_dimensions' => 0 ) );
+$img::process( page( '<img src="' . $hero . '">' ) );
+$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+check( in_array( 'SIN DIMENSIONES', $report[0]['states'], true ), 'Una imagen sin width/height se marca.' );
+
+// Clasificación decorativa: alt="" para el adjunto marcado, también con la optimización apagada.
+class Digitalisimo_Integrations_Quality_Audit { public static function role( $id ) { return 10 === $id ? 'decorative' : ''; } }
+( new ReflectionProperty( $img, 'has_roles' ) )->setValue( null, true );
+on();
+$out = $img::process( page( '<img class="wp-image-10" src="' . $hero . '" alt="Héroe">' ) );
+check( false !== strpos( $out, 'alt=""' ) && false === strpos( $out, 'Héroe' ) && false !== strpos( $out, 'srcset=' ), 'Una decorativa se publica con alt="" y sigue optimizándose.' );
+$out = $img::process( page( '<img class="swiper-slide-image swiper-lazy" data-src="' . $hero . '" alt="Slide">' ) );
+check( false !== strpos( $out, 'alt=""' ), 'También en los slides de Swiper.' );
+( new ReflectionProperty( $img, 'roles_only' ) )->setValue( null, true );
+$out = $img::process( page( '<img class="wp-image-10" src="' . $hero . '" alt="Héroe">' ) );
+check( page( '<img class="wp-image-10" src="' . $hero . '" alt="">' ) === $out, 'Con la optimización apagada sólo se cambia el alt.' );
+$other = '<img src="https://site1.test/wp-content/uploads/otra.jpg" alt="Otra">';
+check( page( $other ) === $img::process( page( $other ) ), 'Las imágenes no clasificadas quedan intactas.' );
+( new ReflectionProperty( $img, 'roles_only' ) )->setValue( null, false );
+( new ReflectionProperty( $img, 'has_roles' ) )->setValue( null, false );
 
 echo "Imágenes: srcset, sizes, dimensiones, prioridad, exclusiones, fondos y aislamiento por sitio correctos.\n";

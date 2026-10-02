@@ -11,11 +11,11 @@ class Digitalisimo_Integrations_Performance_Console {
 	}
 
 	public static function site_menu() {
-		add_submenu_page( 'digitalisimo', 'Rendimiento', 'Rendimiento', 'manage_options', 'digitalisimo-performance', array( __CLASS__, 'site_page' ) );
+		add_submenu_page( 'digitalisimo', 'Rendimiento y calidad', 'Rendimiento', 'manage_options', 'digitalisimo-performance', array( __CLASS__, 'site_page' ) );
 	}
 
 	public static function network_menu() {
-		add_submenu_page( 'digitalisimo-network', 'Rendimiento de red', 'Rendimiento', 'manage_network_options', 'digitalisimo-network-performance', array( __CLASS__, 'network_page' ) );
+		add_submenu_page( 'digitalisimo-network', 'Rendimiento y calidad de red', 'Rendimiento', 'manage_network_options', 'digitalisimo-network-performance', array( __CLASS__, 'network_page' ) );
 	}
 
 	/** Enlaza marcadores de SEO con la única consola de Rendimiento antes de enviar HTML. */
@@ -31,14 +31,14 @@ class Digitalisimo_Integrations_Performance_Console {
 	}
 
 	private static function sections() {
-		return array( 'status' => 'Diagnóstico de assets', 'measurements' => 'PageSpeed manual', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'images' => 'Imágenes', 'javascript' => 'JavaScript', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
+		return array( 'audit' => 'Auditoría', 'images' => 'Imágenes', 'a11y' => 'Accesibilidad', 'seo' => 'SEO técnico', 'agents' => 'Agentes IA', 'javascript' => 'JavaScript', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'status' => 'Diagnóstico de assets', 'measurements' => 'PageSpeed manual', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
 	}
 
 	private static function page_url( $network, $section ) {
 		$url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $section ) : admin_url( 'admin.php?page=digitalisimo-performance&section=' . $section );
 		$site_id = $network ? absint( $_GET['site_id'] ?? 0 ) : 0;
 		if ( $site_id && get_site( $site_id ) ) $url = add_query_arg( 'site_id', $site_id, $url );
-		if ( in_array( $section, array( 'status', 'measurements' ), true ) && ! empty( $_GET['performance_url'] ) ) {
+		if ( in_array( $section, array( 'status', 'measurements', 'audit', 'images', 'a11y', 'seo', 'agents', 'css' ), true ) && ! empty( $_GET['performance_url'] ) ) {
 			$selected_url = esc_url_raw( (string) wp_unslash( $_GET['performance_url'] ) );
 			$resolved_site = Digitalisimo_Integrations_Asset_Diagnostics::site_for_url( $selected_url, $network );
 			if ( $resolved_site && ( ! $network || ! $site_id || $resolved_site === $site_id ) ) $url = add_query_arg( 'performance_url', $selected_url, $url );
@@ -63,21 +63,25 @@ class Digitalisimo_Integrations_Performance_Console {
 	}
 
 	private static function render( $network ) {
-		$section = sanitize_key( $_GET['section'] ?? 'status' );
+		$section = sanitize_key( $_GET['section'] ?? 'audit' );
 		$sections = self::sections();
-		if ( ! isset( $sections[ $section ] ) ) $section = 'status';
-		echo '<div class="wrap digitalisimo-admin-shell"><h1>Rendimiento · Digitalísimo' . ( $network ? ' · Red' : '' ) . '</h1>';
+		if ( ! isset( $sections[ $section ] ) ) $section = 'audit';
+		echo '<div class="wrap digitalisimo-admin-shell"><h1>Rendimiento y calidad · Digitalísimo' . ( $network ? ' · Red' : '' ) . '</h1>';
 		self::navigation( $network, $section );
 		if ( 'status' === $section ) {
 			echo '<p>Las optimizaciones nuevas permanecen desactivadas hasta validar el sitio. El modo seguro conserva recursos centrales de Elementor, Pro y WooCommerce.</p>';
 			echo '<table class="widefat striped"><tbody><tr><th>Modo seguro efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Activo' : 'Desactivado' ) . '</td></tr><tr><th>CSS Gutenberg efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Activado sólo en páginas Elementor elegibles' : 'Desactivado' ) . '</td></tr></tbody></table>';
 			if ( $network ) self::network_sites();
 		} elseif ( 'measurements' === $section ) Digitalisimo_Integrations_Performance_Measurements::render( $network );
-		elseif ( 'css' === $section ) { self::settings( $network, 'css' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
+		elseif ( 'audit' === $section ) Digitalisimo_Integrations_Quality_Audit::render_audit( $network );
+		elseif ( 'a11y' === $section ) { self::settings( $network, 'a11y' ); Digitalisimo_Integrations_Quality_Audit::render_a11y( $network ); }
+		elseif ( 'seo' === $section ) Digitalisimo_Integrations_Quality_Audit::render_seo( $network );
+		elseif ( 'agents' === $section ) { self::settings( $network, 'agents' ); Digitalisimo_Integrations_Quality_Audit::render_agents( $network ); }
+		elseif ( 'css' === $section ) { self::settings( $network, 'css' ); Digitalisimo_Integrations_Quality_Audit::render_css( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'fonts' === $section ) { self::settings( $network, 'fonts' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); echo '<script>(function(){var mode=document.getElementById("perf_font_guard_mode")||document.getElementById("network_perf_font_guard_mode"),row=document.querySelector(".digitalisimo-font-manual-row");if(!mode||!row)return;function toggle(){row.hidden=mode.value==="off";}mode.addEventListener("change",toggle);toggle();})();</script>'; }
 		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'javascript' === $section ) { self::settings( $network, 'javascript' ); Digitalisimo_Integrations_Performance_JavaScript::render( $network ); }
-		elseif ( 'images' === $section ) { self::settings( $network, 'images' ); Digitalisimo_Integrations_Performance_Images::render( $network ); }
+		elseif ( 'images' === $section ) { self::settings( $network, 'images' ); Digitalisimo_Integrations_Quality_Audit::render_images( $network ); Digitalisimo_Integrations_Performance_Images::render( $network ); }
 		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Tracking::render_site_kit( $network ); echo '<details><summary>Revisar Custom Code de Elementor</summary>'; Digitalisimo_Integrations_Performance_Migration::render( $network ); echo '</details>'; }
 		elseif ( 'cache' === $section ) self::cache_section( $network );
 		else Digitalisimo_Integrations_Performance_Debug::render( $network );
@@ -98,6 +102,8 @@ class Digitalisimo_Integrations_Performance_Console {
 			elseif ( 'preloads' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_preload_network_fields();
 			elseif ( 'images' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_image_network_fields();
 			elseif ( 'javascript' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_js_network_fields();
+			elseif ( 'a11y' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_a11y_network_fields();
+			elseif ( 'agents' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_agents_network_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_network_fields();
 		} else {
 			echo '<form method="post" action="options.php">';
@@ -108,6 +114,8 @@ class Digitalisimo_Integrations_Performance_Console {
 			elseif ( 'preloads' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_preload_site_fields();
 			elseif ( 'images' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_image_site_fields();
 			elseif ( 'javascript' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_js_site_fields();
+			elseif ( 'a11y' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_a11y_site_fields();
+			elseif ( 'agents' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_agents_site_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_site_fields();
 		}
 		echo '</table>';

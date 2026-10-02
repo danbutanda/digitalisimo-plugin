@@ -43,6 +43,12 @@ class Digitalisimo_Integrations_Performance_CSS {
 		return is_string( $path ) && (bool) preg_match( '#/plugins/elementor(?:-pro)?/assets/css/' . preg_quote( $widget, '#' ) . '(?:\.min)?\.css$#i', $path );
 	}
 
+	/** Hoja de un widget de Elementor que la lista diferible aceptaría. */
+	public static function eligible( $handle, $href ) {
+		$widget = self::canonical_handle( $handle );
+		return '' !== self::sanitize_handles( $widget ) && self::elementor_widget_source( $handle, $href );
+	}
+
 	public static function configured( $handle, $href ) {
 		return (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer' ) && self::selected( $handle ) && self::elementor_widget_source( $handle, $href );
 	}

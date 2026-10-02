@@ -31,6 +31,9 @@ class Digitalisimo_Integrations_Performance_Images {
 	private static $map      = null;
 	private static $map_dirty = false;
 	private static $resolved = array();
+	/** Sólo se aplica la clasificación decorativa: la optimización está apagada. */
+	private static $roles_only = false;
+	private static $has_roles  = false;
 
 	public static function init() {
 		add_action( 'template_redirect', array( __CLASS__, 'start' ), 1 );
@@ -85,9 +88,13 @@ class Digitalisimo_Integrations_Performance_Images {
 
 	/** Sólo páginas HTML públicas; nunca administración, editor, vistas previas, REST, feeds ni AJAX. */
 	public static function start() {
-		if ( ! self::option( 'perf_img_enabled' ) || ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) return;
+		$optimize = (bool) self::option( 'perf_img_enabled' );
+		$roles    = class_exists( 'Digitalisimo_Integrations_Quality_Audit' ) && Digitalisimo_Integrations_Quality_Audit::has_decorative();
+		if ( ( ! $optimize && ! $roles ) || ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) return;
 		if ( is_feed() || is_embed() || is_robots() || is_trackback() || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) ) return;
-		self::$active = true;
+		self::$active     = true;
+		self::$has_roles  = $roles;
+		self::$roles_only = ! $optimize;
 		ob_start( array( __CLASS__, 'buffer' ) );
 	}
 
@@ -184,6 +191,30 @@ class Digitalisimo_Integrations_Performance_Images {
 		return self::add_attribute( self::remove_attribute( $tag, $name ), $name, $value );
 	}
 
+	/** «100vw» a secas: el navegador supone que la imagen ocupa todo el viewport. */
+	public static function generic_sizes( $sizes ) {
+		return '100vw' === preg_replace( '/\s+/', '', strtolower( trim( (string) $sizes ) ) );
+	}
+
+	private static function role_of( $id ) {
+		return $id && self::$has_roles ? Digitalisimo_Integrations_Quality_Audit::role( $id ) : '';
+	}
+
+	/** alt="" para una imagen que el administrador clasificó como decorativa. */
+	private static function decorative( $tag, &$attrs, $id ) {
+		if ( 'decorative' !== self::role_of( $id ) || ( isset( $attrs['alt'] ) && '' === $attrs['alt'] ) ) return $tag;
+		$attrs['alt'] = '';
+		return self::replace_attribute( $tag, 'alt', '' );
+	}
+
+	/** Estados que se leen del resultado final, sea cual sea el camino. */
+	private static function final_states( $attrs, &$entry ) {
+		$srcset = (string) ( $attrs['srcset'] ?? ( $attrs['data-srcset'] ?? '' ) );
+		$sizes  = (string) ( $attrs['sizes'] ?? ( $attrs['data-sizes'] ?? '' ) );
+		if ( '' !== $srcset && self::generic_sizes( $sizes ) ) $entry['states'][] = 'SIZES GENÉRICO';
+		if ( '' === trim( (string) ( $attrs['width'] ?? '' ) ) || '' === trim( (string) ( $attrs['height'] ?? '' ) ) ) $entry['states'][] = 'SIN DIMENSIONES';
+	}
+
 	/**
 	 * @param string $tag   Etiqueta original.
 	 * @param array  $state Estado de la página: orden, LCP y fetchpriority usados.
@@ -195,17 +226,26 @@ class Digitalisimo_Integrations_Performance_Images {
 		$clean  = '' !== $marker ? self::remove_attribute( $tag, self::MARKER ) : $tag;
 		$entry  = array( 'src' => $src, 'attachment_id' => 0, 'states' => array(), 'reason' => '' );
 
+		if ( self::$roles_only ) {
+			$source = self::deferred_source( $attrs );
+			return self::decorative( $clean, $attrs, self::resolve_attachment( '' !== $source ? array( 'src' => $source, 'class' => (string) ( $attrs['class'] ?? '' ) ) : $attrs ) );
+		}
+
 		// Swiper y lazysizes cargan desde data-src y también aplican data-srcset y
 		// data-sizes: se completan sin tocar su mecanismo.
 		$deferred = self::deferred_source( $attrs );
 		if ( '' !== $deferred ) return self::process_deferred( $clean, $attrs, $deferred, $marker, $entry, $state );
 
 		$exclusion = self::excluded( $attrs, $state['exclusions'] );
-		if ( $exclusion ) return self::finish( $clean, $attrs, $entry, 'EXCLUIDA', $exclusion );
+		if ( $exclusion ) {
+			if ( self::$has_roles ) $clean = self::decorative( $clean, $attrs, self::resolve_attachment( $attrs ) );
+			return self::finish( $clean, $attrs, $entry, 'EXCLUIDA', $exclusion );
+		}
 
 		$id = self::resolve_attachment( $attrs );
 		if ( ! $id ) return self::finish( $clean, $attrs, $entry, 'SIN ATTACHMENT', 'No se vinculó con un adjunto de la Biblioteca de Medios de este sitio: se conserva sin cambios.' );
 		$entry['attachment_id'] = $id;
+		$clean = self::decorative( $clean, $attrs, $id );
 		if ( in_array( 'id:' . $id, array_map( 'strtolower', $state['exclusions'] ), true ) ) return self::finish( $clean, $attrs, $entry, 'EXCLUIDA', 'Exclusión manual: id:' . $id );
 
 		$data = self::attachment_data( $id, $src );
@@ -225,9 +265,17 @@ class Digitalisimo_Integrations_Performance_Images {
 			else $entry['states'][] = 'SIN VARIANTES';
 		}
 		// sizes: se conserva el existente; si no, layout de Elementor y, en su defecto, el de WordPress.
-		if ( '' !== $srcset && empty( $attrs['sizes'] ) && self::enabled( 'perf_img_sizes' ) ) {
-			$sizes = '' !== $marker ? $marker : $data['sizes'];
-			if ( $sizes ) { $out = self::add_attribute( $out, 'sizes', $sizes ); $attrs['sizes'] = $sizes; $changed = $responsive = true; }
+		// Un «100vw» genérico se sustituye sólo por el layout real de Elementor, nunca por una suposición.
+		if ( '' !== $srcset && self::enabled( 'perf_img_sizes' ) ) {
+			if ( empty( $attrs['sizes'] ) ) {
+				$sizes = '' !== $marker ? $marker : $data['sizes'];
+				if ( $sizes ) { $out = self::add_attribute( $out, 'sizes', $sizes ); $attrs['sizes'] = $sizes; $changed = $responsive = true; }
+			} elseif ( self::generic_sizes( $attrs['sizes'] ) && '' !== $marker && ! self::generic_sizes( $marker ) ) {
+				$out = self::replace_attribute( $out, 'sizes', $marker );
+				$attrs['sizes'] = $marker;
+				$changed = $responsive = true;
+				$entry['states'][] = 'SIZES CORREGIDO';
+			}
 		}
 		// width/height reservan el espacio; nunca se tocan estilos.
 		if ( self::enabled( 'perf_img_dimensions' ) ) {
@@ -249,10 +297,12 @@ class Digitalisimo_Integrations_Performance_Images {
 
 		if ( self::enabled( 'perf_img_lazy' ) ) $out = self::prioritize( $out, $attrs, $data, $state, $entry );
 		// Añadir sólo width/height o lazy no hace responsive a una imagen sin variantes.
-		$primary = $responsive ? 'RESPONSIVE' : ( in_array( 'SIN VARIANTES', $entry['states'], true ) ? 'SIN VARIANTES' : 'YA OPTIMIZADA' );
+		$primary = $responsive ? 'RESPONSIVE' : ( in_array( 'SIN VARIANTES', $entry['states'], true ) ? 'SIN VARIANTES' : 'OPTIMIZADA' );
 		if ( $changed && ! $responsive ) $entry['reason'] = 'Se añadieron width/height para reservar espacio.';
 		$entry['states'] = array_values( array_diff( $entry['states'], array( $primary ) ) );
-		return self::finish( $out, self::attributes( $out ), $entry, $primary, '' );
+		$final = self::attributes( $out );
+		self::final_states( $final, $entry );
+		return self::finish( $out, $final, $entry, $primary, '' );
 	}
 
 	/** URL diferida de una imagen de Swiper (swiper-lazy) o lazysizes (lazyload). */
@@ -278,6 +328,7 @@ class Digitalisimo_Integrations_Performance_Images {
 		$id = self::resolve_attachment( $probe );
 		if ( ! $id ) return self::finish( $tag, $attrs, $entry, 'SIN ATTACHMENT', 'Carga diferida de Swiper/lazysizes sin adjunto de este sitio: se conserva sin cambios.' );
 		$entry['attachment_id'] = $id;
+		$tag = self::decorative( $tag, $attrs, $id );
 		if ( in_array( 'id:' . $id, array_map( 'strtolower', $state['exclusions'] ), true ) ) return self::finish( $tag, $attrs, $entry, 'EXCLUIDA', 'Exclusión manual: id:' . $id );
 		$data = self::attachment_data( $id, $source );
 		if ( ! $data ) return self::finish( $tag, $attrs, $entry, 'ERROR', 'El archivo no coincide con los tamaños registrados del adjunto.' );
@@ -285,9 +336,16 @@ class Digitalisimo_Integrations_Performance_Images {
 		$entry['file']     = array( $data['width'], $data['height'] );
 		$entry['states'][] = 'LAZY';
 		$entry['reason']   = 'Carga diferida de Swiper/lazysizes: se completan data-srcset y data-sizes.';
-		if ( ! self::enabled( 'perf_img_srcset' ) ) return self::finish( $tag, $attrs, $entry, 'YA OPTIMIZADA', '' );
-		if ( ! $data['srcset'] ) return self::finish( $tag, $attrs, $entry, 'SIN VARIANTES', '' );
-		$out = self::add_attribute( $tag, 'data-srcset', $data['srcset'] );
+		// width/height reservan el hueco del slide mientras carga; son las del archivo
+		// que Swiper pondrá en src, así que el tamaño pintado no cambia.
+		$out = $tag;
+		if ( self::enabled( 'perf_img_dimensions' ) && '' === trim( (string) ( $attrs['width'] ?? '' ) ) && '' === trim( (string) ( $attrs['height'] ?? '' ) ) ) {
+			$out = self::add_attribute( self::add_attribute( $out, 'width', $data['width'] ), 'height', $data['height'] );
+			$entry['reason'] .= ' Se añadieron width/height del archivo para reservar su espacio.';
+		}
+		if ( ! self::enabled( 'perf_img_srcset' ) ) return self::finish( $out, self::attributes( $out ), $entry, 'OPTIMIZADA', '' );
+		if ( ! $data['srcset'] ) return self::finish( $out, self::attributes( $out ), $entry, 'SIN VARIANTES', '' );
+		$out = self::add_attribute( $out, 'data-srcset', $data['srcset'] );
 		$sizes = '';
 		if ( self::enabled( 'perf_img_sizes' ) && empty( $attrs['data-sizes'] ) ) {
 			$sizes = '' !== $marker ? $marker : $data['sizes'];
@@ -297,6 +355,7 @@ class Digitalisimo_Integrations_Performance_Images {
 		$report['srcset']  = $report['data-srcset'] ?? '';
 		$report['sizes']   = $report['data-sizes'] ?? '';
 		$report['loading'] = 'lazy';
+		self::final_states( $report, $entry );
 		return self::finish( $out, $report, $entry, 'RESPONSIVE', '' );
 	}
 
@@ -835,8 +894,8 @@ class Digitalisimo_Integrations_Performance_Images {
 		foreach ( $labels as $key => $label ) echo '<tr><th>' . esc_html( $label ) . '</th><td>' . esc_html( $audit[ $key ] ) . '</td></tr>';
 		echo '</tbody></table>';
 		if ( $audit['high'] > 1 ) echo '<div class="notice notice-warning inline"><p>Hay más de una imagen con fetchpriority alto: compiten entre sí y con fuentes y CSS críticos.</p></div>';
-		echo '<h3>Detalle por imagen</h3><p class="description">«Renderizado estimado» se calcula con el sizes publicado para un móvil de 390 px y un escritorio de 1440 px; el navegador multiplica por su DPR al elegir del srcset.</p>';
-		echo '<div style="overflow-x:auto"><table class="widefat striped"><thead><tr><th>Estado</th><th>Adjunto</th><th>URL</th><th>Original</th><th>Renderizado estimado</th><th>srcset</th><th>sizes</th><th>width × height</th><th>loading</th><th>fetchpriority</th></tr></thead><tbody>';
+		echo '<h3>Detalle por imagen</h3><p class="description">«Renderizado estimado» se calcula con el sizes publicado para un móvil de 390 px y un escritorio de 1440 px; el navegador multiplica por su DPR al elegir del srcset. Estados: RESPONSIVE (srcset y sizes completos), OPTIMIZADA (ya lo estaba), SIZES CORREGIDO («100vw» sustituido por el layout real), SIZES GENÉRICO («100vw» sin layout conocido: puede descargar de más), SIN DIMENSIONES, SIN ATTACHMENT y EXCLUIDA.</p>';
+		echo '<div style="overflow-x:auto"><table class="widefat striped"><thead><tr><th>Estado</th><th>Adjunto</th><th>URL</th><th>Original</th><th>Renderizado estimado</th><th>srcset</th><th>sizes</th><th>width × height</th><th>loading</th><th>fetchpriority</th><th>decoding</th></tr></thead><tbody>';
 		foreach ( $report as $row ) {
 			$states   = implode( ' · ', (array) ( $row['states'] ?? array( $row['status'] ?? '' ) ) );
 			$original = ! empty( $row['original'] ) ? (int) $row['original'][0] . ' × ' . (int) $row['original'][1] : '—';
@@ -845,7 +904,7 @@ class Digitalisimo_Integrations_Performance_Images {
 			$estimate = '' === (string) ( $row['sizes'] ?? '' ) ? '—' : ( null === $mobile ? '?' : $mobile . ' px' ) . ' / ' . ( null === $desktop ? '?' : $desktop . ' px' );
 			$srcset   = '' === (string) ( $row['srcset'] ?? '' ) ? '—' : ( count( explode( ',', $row['srcset'] ) ) . ' variantes' );
 			if ( self::oversized( $row ) ) $states .= ' · SOBREDIMENSIONADA';
-			echo '<tr><td>' . esc_html( $states ) . ( ! empty( $row['reason'] ) ? '<br><span class="description">' . esc_html( $row['reason'] ) . '</span>' : '' ) . '</td><td>' . esc_html( ! empty( $row['attachment_id'] ) ? '#' . (int) $row['attachment_id'] : '—' ) . '</td><td><code style="word-break:break-all">' . esc_html( $row['src'] ?? '' ) . '</code></td><td>' . esc_html( $original ) . '</td><td>' . esc_html( $estimate ) . '</td><td title="' . esc_attr( $row['srcset'] ?? '' ) . '">' . esc_html( $srcset ) . '</td><td><code>' . esc_html( ( $row['sizes'] ?? '' ) ?: '—' ) . '</code></td><td>' . esc_html( ( ( $row['width'] ?? '' ) ?: '—' ) . ' × ' . ( ( $row['height'] ?? '' ) ?: '—' ) ) . '</td><td>' . esc_html( ( $row['loading'] ?? '' ) ?: '—' ) . '</td><td>' . esc_html( ( $row['fetchpriority'] ?? '' ) ?: '—' ) . '</td></tr>';
+			echo '<tr><td>' . esc_html( $states ) . ( ! empty( $row['reason'] ) ? '<br><span class="description">' . esc_html( $row['reason'] ) . '</span>' : '' ) . '</td><td>' . esc_html( ! empty( $row['attachment_id'] ) ? '#' . (int) $row['attachment_id'] : '—' ) . '</td><td><code style="word-break:break-all">' . esc_html( $row['src'] ?? '' ) . '</code></td><td>' . esc_html( $original ) . '</td><td>' . esc_html( $estimate ) . '</td><td title="' . esc_attr( $row['srcset'] ?? '' ) . '">' . esc_html( $srcset ) . '</td><td><code>' . esc_html( ( $row['sizes'] ?? '' ) ?: '—' ) . '</code></td><td>' . esc_html( ( ( $row['width'] ?? '' ) ?: '—' ) . ' × ' . ( ( $row['height'] ?? '' ) ?: '—' ) ) . '</td><td>' . esc_html( ( $row['loading'] ?? '' ) ?: '—' ) . '</td><td>' . esc_html( ( $row['fetchpriority'] ?? '' ) ?: '—' ) . '</td><td>' . esc_html( ( $row['decoding'] ?? '' ) ?: '—' ) . '</td></tr>';
 		}
 		echo '</tbody></table></div>';
 	}

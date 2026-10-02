@@ -267,3 +267,43 @@ La primera prueba del experimento jQuery en digitalisimo.mx volvió a carga norm
 Capturada como visitante, la portada de digitalisimo.mx volvía a carga normal por una sola línea que añade WordPress antes de jQuery UI: `jQuery.uiBackCompat = true;` (`jquery-ui-core-js-before`). WordPress no considera los inline «before» al decidir si un script puede diferirse, pero éste necesita jQuery y, impreso tal cual, se ejecutaría antes que jQuery diferido.
 
 Los inline «before» que WordPress adjunta a un script diferido de la cadena se convierten en un script diferido con `src="data:text/javascript;base64,…"` en la misma posición. Los scripts diferidos se ejecutan en orden de documento: corre después de jQuery y justo antes de su script, igual que antes. Sólo se hace si la CSP del sitio (cabecera o `<meta>`; `script-src-elem`, `script-src` o `default-src`) admite `data:`; si no, la página vuelve a carga normal. Si cualquier otra causa obliga a volver a carga normal, el inline se restaura tal como estaba. El código inline suelto, que no está adjunto a un script de la cadena, sigue provocando fallback.
+
+## Auditoría y calidad frontend · SEO 1.0.190
+
+Fuente: solicitud del propietario del 2026-10-01, objetivo «AUDITORÍA Y OPTIMIZACIÓN GLOBAL DE CALIDAD FRONTEND». La consola pasa a llamarse **Rendimiento y calidad** y abre en **Auditoría**. Pestañas: Auditoría, Imágenes, Accesibilidad, SEO técnico, Agentes IA, JavaScript, CSS, Fuentes, Preloads, Diagnóstico de assets, PageSpeed manual, Google Tracking, Redis/Object Cache y Debug.
+
+- **Cómo mide.** Un administrador lanza la auditoría de una URL pública del sitio (o, en la red, de un subsitio). La página se abre en su navegador como visitante sin sesión (`digitalisimo_quality_probe`, token de un solo uso de 10 minutos), con el HTML final ya procesado por imágenes y JavaScript. `assets/quality-audit.js` la recorre para cargar lo diferido, mide escritorio, abre la misma URL en un iframe del mismo origen a 390 px para la vista móvil y envía los hechos a `admin-ajax.php` del sitio auditado. Si el sitio prohíbe iframes (X-Frame-Options DENY o CSP), la vista móvil queda como «no medida» y los objetivos táctiles se miden en escritorio.
+- **Quién decide.** El navegador sólo recoge hechos; `Digitalisimo_Integrations_Quality_Rules` (sin WordPress, probado en `tests/quality-rules.php`) asigna OK, ADVERTENCIA, ERROR o NO APLICABLE. Ninguna regla nombra URLs, colores, IDs de Elementor ni páginas.
+- **Qué revisa.**
+  - Enlaces: sin href, vacío, `#`, `javascript:`, variables sin resolver, `mailto:`/`tel:` sin dato, anclas sin destino. Se distinguen iconos sociales y botones; las acciones `#elementor-action` no se reportan.
+  - Nombre accesible: enlaces sin nombre, iconos sin aria-label, textos genéricos, mismo destino con nombres incompatibles y mismo nombre hacia destinos distintos.
+  - Encabezados visibles en escritorio y móvil: sin H1, varios H1, saltos de nivel, encabezados vacíos, de sólo números o símbolos, o con longitud de párrafo. Se dibuja el árbol.
+  - Alt: faltante, igual al caption o al texto del enlace, con forma de nombre de archivo, oculto pero descriptivo, y vacío en una imagen grande.
+  - Objetivos táctiles: WCAG 2.5.8, 24 × 24 px o separación equivalente; los enlaces en una frase están exentos.
+  - Contraste: AA con colores computados y opacidad. Los textos sobre imagen, degradado o vídeo se cuentan como «revisión visual».
+  - Imágenes: tamaño descargado frente a pintado × DPR (DPR 3 en móvil). Sólo se advierte si existe una variante menor suficiente o falta srcset.
+  - CSS por página: handle, archivo, widget, presencia y primer viewport en ambas vistas.
+- **Qué corrige (sólo lo determinista y pedido).**
+  - Imágenes que el administrador clasifica como decorativas: se publican con `alt=""` sin borrar el alt guardado, incluso con la optimización de imágenes apagada.
+  - Protección táctil opcional (`perf_touch_guard`, apagada): un `::after` centrado con especificidad cero en los selectores enumerados.
+  - Un handle mostrado como seguro puede añadirse a la lista diferible de ese sitio con un botón; la lista global nunca se amplía sola.
+  - Colores, encabezados, textos de enlace, destinos y jerarquía nunca se cambian.
+- **Imágenes.**
+  - Estados OPTIMIZADA, SIZES CORREGIDO, SIZES GENÉRICO y SIN DIMENSIONES.
+  - Un `sizes="100vw"` existente se sustituye sólo por el layout real de Elementor, nunca por una suposición.
+  - Los slides de Swiper reciben width/height del archivo que cargarán.
+  - El debug muestra decoding.
+- **llms.txt.** `Digitalisimo_Integrations_LLMS` ya no depende del módulo AI.
+  - Se sirve en `home_url('/llms.txt')` de cada sitio, también en subdirectorios.
+  - Modos: Automático, con nombre, descripción, portada, páginas publicadas e indexables, contenido reciente y sitemap; Manual; Híbrido; y Desactivado.
+  - La salida se valida (un solo H1 al inicio, al menos un enlace http(s), sin HTML, ≤ 100 KB). Un manual inválido nunca se publica: se sirve el automático y la pestaña Agentes IA muestra los errores.
+  - Un archivo físico `llms.txt` en la raíz del servidor tiene prioridad sobre WordPress.
+- **Multisite y caché.**
+  - Cada auditoría vive en una opción del sitio auditado (`digitalisimo_quality_audit_{md5(url)}`, índice de las 10 últimas) y guarda `blog_id`, URL y la versión de configuración con la que se midió. Si la configuración cambia, la pantalla pide repetirla.
+  - Las lecturas usan `Digitalisimo_Integrations_Performance_Cache` (grupo `digitalisimo_performance`, claves por sitio), sin `wp_cache_flush()`.
+  - Los roles de imagen (`digitalisimo_image_roles`) también son por sitio.
+- **Validación pendiente en el sitio real.**
+  - Auditar portada, una entrada y una página con formulario.
+  - Confirmar que la vista móvil carga.
+  - Revisar visualmente los carruseles tras añadir width/height a los slides.
+  - Comprobar que una imagen marcada como decorativa publica `alt=""` (purgar caché de página).
