@@ -16,11 +16,12 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$c = '\\Elementor\\Controls_Manager';
 		$this->start_controls_section( 'content', array( 'label' => 'Contenido' ) );
 		$this->add_control( 'mode', array( 'label' => 'Modo', 'type' => $c::SELECT, 'default' => 'multiple', 'options' => array( 'multiple' => 'Logos / imágenes múltiples', 'repeat' => 'Imagen repetida / banner' ) ) );
+		$this->add_control( 'gallery_images', array( 'label' => 'Seleccionar varias imágenes', 'type' => $c::GALLERY, 'default' => array(), 'description' => 'Elige todas las imágenes de una vez. Se mostrarán primero y usarán el ALT guardado en la Biblioteca de Medios.', 'condition' => array( 'mode' => 'multiple' ) ) );
 		$repeater = new \Elementor\Repeater();
 		$repeater->add_control( 'image', array( 'label' => 'Imagen', 'type' => $c::MEDIA, 'default' => array( 'url' => \Elementor\Utils::get_placeholder_image_src() ) ) );
 		$repeater->add_control( 'alt', array( 'label' => 'Texto alternativo', 'type' => $c::TEXT, 'label_block' => true ) );
 		$repeater->add_control( 'link', array( 'label' => 'Enlace opcional', 'type' => $c::URL, 'options' => array( 'url', 'is_external', 'nofollow' ), 'label_block' => true ) );
-		$this->add_control( 'images', array( 'label' => 'Imágenes', 'type' => $c::REPEATER, 'fields' => $repeater->get_controls(), 'title_field' => '{{{ alt || "Imagen" }}}', 'condition' => array( 'mode' => 'multiple' ) ) );
+		$this->add_control( 'images', array( 'label' => 'Imágenes individuales con ALT o enlace', 'type' => $c::REPEATER, 'fields' => $repeater->get_controls(), 'title_field' => '{{{ alt || "Imagen" }}}', 'description' => 'Opcional. Estos elementos se agregan después de las imágenes seleccionadas arriba; los sliders existentes se conservan.', 'condition' => array( 'mode' => 'multiple' ) ) );
 		$this->add_control( 'repeat_image', array( 'label' => 'Imagen / banner', 'type' => $c::MEDIA, 'condition' => array( 'mode' => 'repeat' ) ) );
 		$this->add_control( 'repeat_alt', array( 'label' => 'Texto alternativo', 'type' => $c::TEXT, 'condition' => array( 'mode' => 'repeat' ) ) );
 		$this->add_control( 'repeat_count', array( 'label' => 'Repeticiones', 'type' => $c::NUMBER, 'min' => 1, 'max' => 100, 'default' => 10, 'condition' => array( 'mode' => 'repeat' ) ) );
@@ -100,6 +101,9 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 				$items = array_fill( 0, $count, array( 'image' => $s['repeat_image'], 'alt' => $s['repeat_alt'] ?? '' ) );
 			}
 		} else {
+			foreach ( (array) ( $s['gallery_images'] ?? array() ) as $image ) {
+				if ( is_array( $image ) && absint( $image['id'] ?? 0 ) ) $items[] = array( 'image' => $image );
+			}
 			foreach ( (array) ( $s['images'] ?? array() ) as $item ) if ( absint( $item['image']['id'] ?? 0 ) ) $items[] = $item;
 		}
 		if ( ! $items ) return;
