@@ -21,6 +21,7 @@ function is_post_type_viewable( $type ) { return ! empty( $type->public ); }
 function get_posts( $args ) { return in_array( 'oculta', $args['post_name__in'], true ) ? array( 55 ) : array(); }
 function wc_get_page_id( $type ) { return array( 'cart' => 30, 'checkout' => 31, 'myaccount' => 32 )[ $type ]; }
 function add_filter( $hook, $callback, $priority = 10, $args = 1 ) { global $filters; $filters[ $hook ] = $callback; }
+function add_action( $hook, $callback, $priority = 10, $args = 1 ) { global $actions; $actions[ $hook ] = $callback; }
 require __DIR__ . '/../digitalisimo-seo/includes/class-settings.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-resolver.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-suite.php';
@@ -53,5 +54,5 @@ $site_options[3]['sitemap_enabled'] = 0;
 if ( $seo::sitemap_enabled( true ) ) throw new RuntimeException( 'El interruptor del sitemap debe desactivarlo.' );
 $site_options[3]['enable_seo'] = 0;
 $seo::init();
-foreach ( array( 'wp_sitemaps_enabled', 'wp_sitemaps_add_provider', 'wp_sitemaps_post_types', 'wp_sitemaps_posts_query_args' ) as $hook ) if ( ! isset( $filters[ $hook ] ) ) throw new RuntimeException( 'Los filtros de sitemap deben seguir activos aunque SEO esté desactivado: ' . $hook );
+if ( ! isset( $filters['wp_sitemaps_enabled'] ) ) throw new RuntimeException( 'El sitemap nativo debe permanecer desactivado aunque SEO esté apagado.' );
 echo "Sitemap: páginas, noindex, herencia y sitios independientes correctos.\n";

@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Digitalisimo_Integrations_LLMS {
 	const MODES     = array( 'automatic', 'manual', 'hybrid' );
-	const CACHE     = 'llms';
+	const CACHE     = 'llms_sitemap_v2';
 	const MAX_BYTES = 102400;
 	const MAX_URLS  = 50;
 
@@ -222,7 +222,7 @@ class Digitalisimo_Integrations_LLMS {
 			$seen[ self::key( $url ) ] = true;
 			$lines[] = self::link( get_the_title( $id ), $url );
 		}
-		if ( Digitalisimo_Integrations_Settings::get( 'sitemap_enabled' ) ) $lines = array_merge( $lines, array( '', '## Optional', '', self::link( 'Sitemap XML', home_url( '/wp-sitemap.xml' ) ) . ': Índice de todas las URLs públicas.' ) );
+		if ( Digitalisimo_Integrations_Settings::get( 'sitemap_enabled' ) ) $lines = array_merge( $lines, array( '', '## Optional', '', self::link( 'Sitemap XML', home_url( '/sitemap.xml' ) ) . ': Mapa de las URLs públicas indexables.' ) );
 		return implode( "\n", $lines ) . "\n";
 	}
 

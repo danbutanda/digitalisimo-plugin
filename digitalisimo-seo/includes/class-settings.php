@@ -394,7 +394,7 @@ class Digitalisimo_Integrations_Settings {
 		} elseif ( 'ai' === $tab ) {
 			self::ai_fields();
 		} elseif ( 'sitemap' === $tab ) {
-			self::field( 'sitemap_enabled', 'Activar sitemap XML', 'checkbox', 'Usa el sitemap nativo de WordPress: /wp-sitemap.xml.' );
+			self::field( 'sitemap_enabled', 'Activar sitemap XML', 'checkbox', 'Disponible en /sitemap.xml: un archivo por sitio de la red o un índice por tipo en WordPress individual.' );
 			self::field( 'sitemap_post_types', 'Tipos de contenido incluidos', 'textarea', 'Auto incluye entradas, páginas, productos y otros tipos públicos indexables. Para limitar, escribe los slugs separados por comas; las páginas públicas siempre se incluyen.' );
 			self::field( 'sitemap_exclude_ids', 'IDs excluidos del sitemap', 'textarea', 'Separados por comas. Los contenidos marcados noindex siempre se excluyen.' );
 		} elseif ( 'indexing' === $tab ) {
