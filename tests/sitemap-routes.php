@@ -32,6 +32,8 @@ class Digitalisimo_Integrations_SEO_Resolver { public static function option( $k
 class Digitalisimo_Integrations_SEO_Suite { public static function sitemap_posts( $types ) { return $types; } public static function sitemap_query( $args, $type ) { $args['post__not_in'] = array( 11 ); return $args; } }
 require __DIR__ . '/../digitalisimo-seo/includes/class-sitemap.php';
 $sitemap = Digitalisimo_Integrations_Sitemap::class;
+$robots = $sitemap::robots( "User-agent: *\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\nSitemap: https://ejemplo.test/subsitio/wp-sitemap.xml\n", true );
+if ( 1 !== substr_count( $robots, 'Sitemap:' ) || false === strpos( $robots, 'Sitemap: https://ejemplo.test/subsitio/sitemap.xml' ) || false !== strpos( $robots, 'wp-sitemap.xml' ) ) throw new RuntimeException( 'Robots debe anunciar un único sitemap del sitio actual.' );
 $_SERVER['REQUEST_URI'] = '/subsitio/sitemap.xml';
 if ( 'main' !== $sitemap::requested()['type'] ) throw new RuntimeException( 'El sitemap de un subsitio debe respetar su prefijo.' );
 $_SERVER['REQUEST_URI'] = '/sitemap.xml';
@@ -42,6 +44,8 @@ ob_start(); $sitemap::urls_xml( array_keys( $sitemap::filenames() ) ); $xml = ob
 foreach ( array( '/subsitio/', '/subsitio/servicios/', '/subsitio/blog/mi-articulo-personalizado/', '/subsitio/tienda/camisa-azul/' ) as $url ) if ( false === strpos( $xml, $url ) ) throw new RuntimeException( 'Falta un permalink propio del sitio: ' . $url );
 if ( false !== strpos( $xml, 'privada' ) || false !== strpos( $xml, '<sitemapindex' ) || false !== strpos( $xml, 'wp-sitemap' ) ) throw new RuntimeException( 'Multisite incluyó una URL excluida o un índice técnico.' );
 $multisite = false; $site = 'https://individual.test/';
+$robots = $sitemap::robots( "User-agent: *\nDisallow: /wp-admin/\n", true );
+if ( false === strpos( $robots, 'Sitemap: https://individual.test/sitemap.xml' ) || 1 !== substr_count( $robots, 'Sitemap:' ) ) throw new RuntimeException( 'WordPress individual debe anunciar su sitemap único.' );
 $_SERVER['REQUEST_URI'] = '/articulos.xml';
 if ( 'post' !== $sitemap::requested()['type'] ) throw new RuntimeException( 'Debe existir el archivo amigable de artículos.' );
 $_SERVER['REQUEST_URI'] = '/post-1.xml';

@@ -25,25 +25,30 @@ class Digitalisimo_Integrations_SEO_Resolver {
 	public static function option_with_origin( $key, $default = null ) { return array( 'value' => self::option( $key, $default ), 'label' => 'Prueba' ); }
 }
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-ai.php';
-$base = "User-agent: *\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n\nUser-agent: *\nDisallow: /privado/\n";
+foreach ( Digitalisimo_Integrations_SEO_AI::crawlers() as $id => $crawler ) if ( 'allow' !== Digitalisimo_Integrations_SEO_AI::crawler_rule( $id, $crawler ) ) throw new RuntimeException( 'Todos los rastreadores deben estar permitidos por defecto: ' . $id );
+$base = "User-agent: *\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n";
 $render = Digitalisimo_Integrations_SEO_AI::robots( $base, true );
-foreach ( array( 'GPTBot', 'ClaudeBot' ) as $ua ) if ( false === strpos( $render, "User-agent: $ua\nDisallow: /" ) ) throw new RuntimeException( "$ua debe bloquear entrenamiento." );
-foreach ( array( 'Googlebot', 'bingbot', 'OAI-SearchBot', 'Claude-SearchBot', 'Claude-User', 'ChatGPT-User', 'PerplexityBot', 'Google-Extended' ) as $ua ) if ( false !== strpos( $render, "User-agent: $ua\n" ) ) throw new RuntimeException( "$ua debe heredar el grupo general." );
-if ( false !== strpos( $render, "User-agent: GPTBot\nDisallow: /\nAllow: /wp-admin/admin-ajax.php" ) ) throw new RuntimeException( 'El bloqueo total no debe reabrir admin-ajax.' );
+if ( $base !== $render || 1 !== substr_count( $render, 'User-agent:' ) ) throw new RuntimeException( 'Por defecto sólo debe existir el grupo general de WordPress.' );
+$GLOBALS['site_options'][1]['seo_ai_crawler_rules'] = '{"gptbot":"disallow"}';
+$blocked = Digitalisimo_Integrations_SEO_AI::robots( $base, true );
+if ( false === strpos( $blocked, "User-agent: GPTBot\nDisallow: /" ) || false !== strpos( $blocked, 'User-agent: ClaudeBot' ) ) throw new RuntimeException( 'Sólo los bloqueos configurados expresamente deben crear grupos.' );
+if ( false !== strpos( $blocked, "User-agent: GPTBot\nDisallow: /\nAllow: /wp-admin/admin-ajax.php" ) ) throw new RuntimeException( 'El bloqueo total no debe reabrir admin-ajax.' );
 $manual = $base . "\nUser-agent: GPTBot\nDisallow: /manual/\n";
 $manual_render = Digitalisimo_Integrations_SEO_AI::robots( $manual, true );
 if ( 1 !== substr_count( $manual_render, 'User-agent: GPTBot' ) ) throw new RuntimeException( 'Una excepción manual no debe duplicarse.' );
+$GLOBALS['site_options'][1]['seo_ai_crawler_rules'] = '';
 $GLOBALS['site_options'][1]['seo_ai_google_extended_policy'] = 'disallow';
 $render = Digitalisimo_Integrations_SEO_AI::robots( $base, true );
 if ( false === strpos( $render, "User-agent: Google-Extended\nDisallow: /" ) ) throw new RuntimeException( 'Google-Extended debe bloquearse sólo por su opción independiente.' );
 $GLOBALS['site_options'][1]['seo_ai_google_extended_policy'] = 'allow';
 $GLOBALS['content_paths'][1]['digitalisimo_seo_ai_search']['restrict'] = array( 17 );
 $GLOBALS['transients'] = array();
-$render = Digitalisimo_Integrations_SEO_AI::robots( $base, true );
+$with_custom_general = $base . "\nUser-agent: *\nDisallow: /privado/\n";
+$render = Digitalisimo_Integrations_SEO_AI::robots( $with_custom_general, true );
 if ( false === strpos( $render, "User-agent: OAI-SearchBot\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\nDisallow: /privado/\nDisallow: /pagina-17/" ) ) throw new RuntimeException( 'La excepción de búsqueda debe conservar todas las reglas generales.' );
 $GLOBALS['site_options'][2]['seo_ai_google_extended_policy'] = 'disallow';
 $GLOBALS['blog_id'] = 2;
 $render = Digitalisimo_Integrations_SEO_AI::robots( $base, true );
 if ( false !== strpos( $render, '/pagina-17/' ) || false === strpos( $render, "User-agent: Google-Extended\nDisallow: /" ) ) throw new RuntimeException( 'La política y las URLs deben aislarse por sitio.' );
 if ( $base !== Digitalisimo_Integrations_SEO_AI::robots( $base, false ) ) throw new RuntimeException( 'Un sitio privado no debe emitir grupos IA.' );
-echo "SEO AI robots: grupos mínimos, excepciones, Google-Extended y aislamiento correctos.\n";
+echo "SEO AI robots: acceso general predeterminado, excepciones explícitas y aislamiento correctos.\n";

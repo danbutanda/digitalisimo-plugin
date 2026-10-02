@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.211
+ * Version: 1.0.212
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.211' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.212' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -96,10 +96,10 @@ function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Robots::init();
 	// La política robots pertenece a SEO y funciona aunque AI y Chatbot no esté instalado.
 	add_filter( 'robots_txt', array( 'Digitalisimo_Integrations_SEO_AI', 'robots' ), 70, 2 );
+	Digitalisimo_Integrations_SEO_AI_Crawler_Tools::init();
 	// SEO AI usa el motor y los proveedores del módulo AI y Chatbot.
 	if ( class_exists( 'Digitalisimo_AI' ) ) {
 		Digitalisimo_Integrations_SEO_AI::init();
-		Digitalisimo_Integrations_SEO_AI_Crawler_Tools::init();
 		Digitalisimo_Integrations_SEO_AI_Crawler_Verifier::init();
 		Digitalisimo_Integrations_SEO_AI_Audit_Tools::init();
 		Digitalisimo_Integrations_SEO_AI_LLMS_Tools::init();

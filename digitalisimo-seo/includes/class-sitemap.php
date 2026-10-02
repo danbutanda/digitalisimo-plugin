@@ -84,8 +84,9 @@ class Digitalisimo_Integrations_Sitemap {
 
 	public static function robots( $output, $public ) {
 		if ( ! $public || ! self::enabled() ) return $output;
-		$url = self::endpoint();
-		return false !== strpos( $output, 'Sitemap: ' . $url ) ? $output : rtrim( $output ) . "\nSitemap: " . $url . "\n";
+		// Un solo sitemap del sitio actual, aunque otro filtro haya añadido el índice nativo.
+		$output = preg_replace( '/^[ \t]*Sitemap[ \t]*:[^\r\n]*(?:\r?\n|$)/im', '', (string) $output );
+		return rtrim( $output ) . "\nSitemap: " . self::endpoint() . "\n";
 	}
 
 	private static function args( $type, $page, $limit = self::BATCH ) {

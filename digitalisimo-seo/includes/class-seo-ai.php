@@ -13,20 +13,21 @@ class Digitalisimo_Integrations_SEO_AI {
 	}
 	private static function get( $key, $default = '' ) { return Digitalisimo_Integrations_Settings::get( $key, $default ); }
 	/** Catálogo extensible por proveedor y propósito; añadir un bot no obliga a crear un grupo robots. */
-	public static function crawlers() {
+	public static function crawlers( $network = false ) {
 		$all = array(
 			'googlebot' => array( 'name' => 'Googlebot', 'ua' => 'Googlebot', 'provider' => 'Google', 'category' => 'General Search', 'purpose' => 'Búsqueda e indexación', 'default' => 'allow', 'doc' => 'https://developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers' ),
 			'bing' => array( 'name' => 'bingbot', 'ua' => 'bingbot', 'provider' => 'Microsoft', 'category' => 'General Search', 'purpose' => 'Búsqueda e indexación', 'default' => 'allow', 'doc' => 'https://www.bing.com/webmasters/help/which-crawlers-does-bing-use-8c184ec0' ),
 			'oai_search' => array( 'name' => 'OAI-SearchBot', 'ua' => 'OAI-SearchBot', 'provider' => 'OpenAI', 'category' => 'Search / Citation', 'purpose' => 'Búsqueda IA', 'default' => 'allow', 'doc' => 'https://developers.openai.com/api/docs/bots' ),
 			'chatgpt_user' => array( 'name' => 'ChatGPT-User', 'ua' => 'ChatGPT-User', 'provider' => 'OpenAI', 'category' => 'User-triggered Fetcher', 'purpose' => 'Recuperación solicitada por usuario', 'default' => 'allow', 'doc' => 'https://developers.openai.com/api/docs/bots' ),
-			'gptbot' => array( 'name' => 'GPTBot', 'ua' => 'GPTBot', 'provider' => 'OpenAI', 'category' => 'Training', 'purpose' => 'Entrenamiento', 'default' => 'disallow', 'doc' => 'https://developers.openai.com/api/docs/bots' ),
+			'gptbot' => array( 'name' => 'GPTBot', 'ua' => 'GPTBot', 'provider' => 'OpenAI', 'category' => 'Training', 'purpose' => 'Entrenamiento', 'default' => 'allow', 'doc' => 'https://developers.openai.com/api/docs/bots' ),
 			'claude_search' => array( 'name' => 'Claude-SearchBot', 'ua' => 'Claude-SearchBot', 'provider' => 'Anthropic', 'category' => 'Search / Citation', 'purpose' => 'Búsqueda IA', 'default' => 'allow', 'doc' => 'https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler' ),
 			'claude_user' => array( 'name' => 'Claude-User', 'ua' => 'Claude-User', 'provider' => 'Anthropic', 'category' => 'User-triggered Fetcher', 'purpose' => 'Recuperación solicitada por usuario', 'default' => 'allow', 'doc' => 'https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler' ),
-			'claudebot' => array( 'name' => 'ClaudeBot', 'ua' => 'ClaudeBot', 'provider' => 'Anthropic', 'category' => 'Training', 'purpose' => 'Entrenamiento', 'default' => 'disallow', 'doc' => 'https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler' ),
+			'claudebot' => array( 'name' => 'ClaudeBot', 'ua' => 'ClaudeBot', 'provider' => 'Anthropic', 'category' => 'Training', 'purpose' => 'Entrenamiento', 'default' => 'allow', 'doc' => 'https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler' ),
 			'perplexity' => array( 'name' => 'PerplexityBot', 'ua' => 'PerplexityBot', 'provider' => 'Perplexity', 'category' => 'Search / Citation', 'purpose' => 'Búsqueda y citación', 'default' => 'allow', 'doc' => 'https://docs.perplexity.ai/' ),
 			'google_extended' => array( 'name' => 'Google-Extended', 'ua' => 'Google-Extended', 'provider' => 'Google', 'category' => 'AI Product Control', 'purpose' => 'Entrenamiento y grounding de Gemini', 'default' => 'allow', 'doc' => 'https://developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers' ),
 		);
-		$custom = json_decode( (string) self::get( 'seo_ai_crawlers' ), true );
+		$network_options = $network ? (array) get_site_option( self::OPTION, array() ) : array();
+		$custom = json_decode( (string) ( $network ? ( $network_options['seo_ai_crawlers'] ?? '' ) : self::get( 'seo_ai_crawlers' ) ), true );
 		if ( is_array( $custom ) ) foreach ( $custom as $id => $crawler ) {
 			if ( ! is_array( $crawler ) || empty( $crawler['ua'] ) || ! preg_match( '/^[A-Za-z0-9_.-]{1,100}$/', $crawler['ua'] ) ) continue;
 			if ( isset( $all[ sanitize_key( $id ) ] ) ) continue;

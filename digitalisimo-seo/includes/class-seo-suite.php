@@ -126,8 +126,13 @@ class Digitalisimo_Integrations_SEO_Suite {
 		$url = $network ? get_home_url( get_main_site_id(), '/robots.txt' ) : home_url( '/robots.txt' );
 		echo '<tr><th scope="row">robots.txt público</th><td><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $url ) . '</a> <a class="button button-secondary" href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">Ver robots.txt</a>';
 		if ( $network ) echo '<p class="description">La red define reglas predeterminadas. Cada sitio puede heredarlas o personalizarlas; este enlace abre el sitio principal.</p>';
-		if ( $network && class_exists( 'Digitalisimo_AI' ) ) echo '<p class="description">Las reglas automáticas de bots se cambian en <a href="' . esc_url( network_admin_url( 'admin.php?page=digitalisimo-network-seo-ai&tab=crawlers' ) ) . '">SEO AI → Rastreadores</a>.</p>';
-		if ( ! $network && class_exists( 'Digitalisimo_AI' ) ) echo '<p class="description">Las reglas automáticas de bots se cambian en <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-ai-crawlers' ) ) . '">SEO AI → Rastreadores</a>.</p>';
+		if ( $network ) echo '<p class="description">Las reglas automáticas de bots se cambian en <a href="' . esc_url( network_admin_url( 'admin.php?page=digitalisimo-network-seo-ai-crawlers' ) ) . '">SEO AI → Rastreadores</a>.</p>';
+		else echo '<p class="description">Las reglas automáticas de bots se cambian en <a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-ai-crawlers' ) ) . '">SEO AI → Rastreadores</a>.</p>';
+		if ( ! $network ) {
+			$blocked = array();
+			foreach ( Digitalisimo_Integrations_SEO_AI::crawlers() as $id => $crawler ) if ( 'disallow' === Digitalisimo_Integrations_SEO_AI::crawler_rule( $id, $crawler ) ) $blocked[] = $crawler['name'];
+			if ( $blocked ) echo '<p class="notice notice-warning inline"><strong>Bloqueos específicos guardados:</strong> ' . esc_html( implode( ', ', $blocked ) ) . '. Para retirarlos, aplica «Máxima visibilidad» en SEO AI → Rastreadores. Si este sitio hereda de la red, desmarca la herencia para personalizarlo. Google-Extended se controla abajo.</p>';
+		}
 		if ( file_exists( ABSPATH . 'robots.txt' ) ) echo '<p class="notice notice-warning inline"><strong>Hay un robots.txt físico.</strong> Puede prevalecer sobre las reglas dinámicas; este editor no modifica ese archivo.</p>';
 		if ( ! $network && '/' !== wp_parse_url( home_url( '/' ), PHP_URL_PATH ) ) echo '<p class="notice notice-warning inline">Los buscadores consultan robots.txt en la raíz del dominio. En un sitio bajo subdirectorio, configura las reglas del dominio en el sitio principal.</p>';
 		echo '</td></tr>';
