@@ -16,13 +16,13 @@ class Digitalisimo_Integrations_Performance_CSS {
 		return $css;
 	}
 
-	/** Acepta sólo handles de widgets; la fuente se verifica de nuevo al imprimir. */
+	/** Compatibilidad con la lista heredada de widgets; ya no autoriza diferir sin medición. */
 	public static function sanitize_handles( $raw ) {
 		$items = preg_split( '/[\s,]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY );
 		$allowed = array();
 		foreach ( $items as $item ) {
 			$item = sanitize_key( $item );
-			if ( preg_match( '/^widget-[a-z0-9-]+$/', $item ) && ! in_array( $item, array( 'widget-heading', 'widget-image-carousel', 'widget-nav-menu', 'widget-nested-tabs', 'widget-slides', 'widget-counter', 'widget-call-to-action' ), true ) ) $allowed[ $item ] = true;
+			if ( preg_match( '/^widget-[a-z0-9-]+$/', $item ) ) $allowed[ $item ] = true;
 		}
 		return implode( "\n", array_slice( array_keys( $allowed ), 0, 20 ) );
 	}
@@ -31,9 +31,14 @@ class Digitalisimo_Integrations_Performance_CSS {
 		return preg_replace( '/^(?:elementor-pro-|elementor-)/', '', (string) $handle );
 	}
 
-	private static function selected( $handle ) {
-		$raw = (string) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer_handles' );
-		return in_array( self::canonical_handle( $handle ), explode( "\n", self::sanitize_handles( $raw ) ), true );
+	/** Exclusiones por handle de WordPress, heredables en Multisite. */
+	public static function sanitize_exclusions( $raw ) {
+		$items = preg_split( '/[\s,]+/', (string) $raw, -1, PREG_SPLIT_NO_EMPTY );
+		$allowed = array();
+		foreach ( $items as $item ) {
+			if ( preg_match( '/^[a-z0-9][a-z0-9_-]{0,99}$/i', $item ) ) $allowed[ sanitize_key( $item ) ] = true;
+		}
+		return implode( "\n", array_slice( array_keys( $allowed ), 0, 100 ) );
 	}
 
 	private static function elementor_widget_source( $handle, $href ) {
@@ -50,18 +55,28 @@ class Digitalisimo_Integrations_Performance_CSS {
 	}
 
 	public static function configured( $handle, $href ) {
-		return (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer' ) && self::selected( $handle ) && self::elementor_widget_source( $handle, $href );
+		return (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer' ) && Digitalisimo_Integrations_Performance_CSS_Audit::allowed( $handle, $href );
+	}
+
+	private static function candidate( $handle, $href, $media, $html ) {
+		if ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() || ! doing_action( 'wp_head' ) || ! Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer' ) || ! Digitalisimo_Integrations_Performance_CSS_Audit::page() ) return false;
+		if ( ! in_array( strtolower( (string) $media ), array( '', 'all', 'screen' ), true ) || ! preg_match( '/\brel\s*=\s*[\'\"]stylesheet[\'\"]/i', $html ) || false !== stripos( $html, 'onload=' ) ) return false;
+		if ( ! preg_match( '/^\s*<link\b[^>]*\/?>(?:\s*)$/is', $html ) ) return false;
+		if ( in_array( $handle, explode( "\n", self::sanitize_exclusions( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer_exclusions' ) ) ), true ) ) return false;
+		$styles = wp_styles();
+		$asset = $styles->registered[ $handle ] ?? null;
+		if ( ! $asset || ! empty( $asset->extra['before'] ) || ! empty( $asset->extra['after'] ) || ! empty( $asset->extra['conditional'] ) || Digitalisimo_Integrations_Performance_Manager::has_queued_dependent( $styles, $handle ) ) return false;
+		$host = wp_parse_url( $href, PHP_URL_HOST );
+		return $host && $host === wp_parse_url( home_url(), PHP_URL_HOST );
 	}
 
 	public static function defer_widget_css( $html, $handle, $href, $media ) {
-		if ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() || ! self::configured( $handle, $href ) ) return $html;
-		if ( ! in_array( strtolower( (string) $media ), array( '', 'all', 'screen' ), true ) || ! preg_match( '/\brel\s*=\s*[\'\"]stylesheet[\'\"]/i', $html ) || false !== stripos( $html, 'onload=' ) ) return $html;
-		$styles = wp_styles();
-		$asset = $styles->registered[ $handle ] ?? null;
-		if ( ! $asset || ! empty( $asset->extra['after'] ) ) return $html;
+		if ( ! self::candidate( $handle, $href, $media, $html ) ) return $html;
+		$tag = preg_replace( '/<link\b/i', '<link data-digitalisimo-css-handle="' . esc_attr( $handle ) . '"', $html, 1 );
+		if ( ! Digitalisimo_Integrations_Performance_CSS_Audit::allowed( $handle, $href ) ) return $tag;
 		// Conserva el enlace original íntegro para navegadores sin JavaScript.
-		$deferred = preg_replace( '/\smedia\s*=\s*([\'\"])(?:all|screen)\1/i', '', $html, 1 );
-		$deferred = preg_replace( '/\s*\/?>(?!.*<)/s', ' media="print" onload="this.onload=null;this.media=\'all\'" />', $deferred, 1, $count );
+		$deferred = preg_replace( '/\smedia\s*=\s*([\'\"])(?:all|screen)\1/i', '', $tag, 1 );
+		$deferred = preg_replace( '/\s*\/?>(?!.*<)/s', ' data-digitalisimo-css-deferred="1" media="print" onload="this.onload=null;this.media=\'all\'" />', $deferred, 1, $count );
 		if ( ! $count || ! is_string( $deferred ) ) return $html;
 		return $deferred . '<noscript>' . $html . '</noscript>';
 	}

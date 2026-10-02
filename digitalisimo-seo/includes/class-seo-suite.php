@@ -129,6 +129,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 			if ( 'seo_default_image_alt' === $key ) { $current[ $key ] = sanitize_text_field( $value ); continue; }
 			if ( 'seo_alt_keyword_mode' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Image_Alt::sanitize_mode( $value ); continue; }
 			if ( 'perf_css_defer_handles' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $value ); continue; }
+			if ( 'perf_css_defer_exclusions' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_CSS::sanitize_exclusions( $value ); continue; }
 			if ( 'perf_custom_css' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $value ); continue; }
 			if ( 'perf_font_guard_mode' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_mode( $value ); continue; }
 			if ( 'perf_font_guard_allowlist' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_allowlist( $value ); continue; }
@@ -214,10 +215,10 @@ class Digitalisimo_Integrations_SEO_Suite {
 		self::f( 'perf_dashicons', 'No cargar Dashicons para invitados', 'checkbox', 'Sólo sin barra de administración ni dependientes encolados.' );
 		echo '<tr><th colspan="2"><h2>Fuentes</h2></th></tr>';
 		self::f( 'perf_font_swap', 'font-display: swap en fuentes de Elementor', 'checkbox', 'Se aplica a fuentes Google locales y personalizadas de Elementor Pro. Tras activarlo, borra la caché de fuentes y regenera CSS desde Elementor → Herramientas. No altera fuentes ajenas.' );
-		echo '<tr><th colspan="2"><h2>CSS Elementor opt-in</h2><p>Para diferir widgets, apaga el modo seguro y valida visualmente cada página. Form, iconos y captions pueden afectar el primer pantallazo.</p></th></tr>';
-		self::f( 'perf_css_defer', 'Diferir CSS de widgets seleccionados', 'checkbox', 'Desactivado por defecto. Usa media=print, onload y respaldo noscript sólo para archivos de widgets Elementor/Pro confirmados.' );
+		echo '<tr><th colspan="2"><h2>CSS no crítico</h2><p>Las primeras dos visitas miden las reglas CSS y el primer viewport sin diferir nada. Sólo las hojas verificadas podrán diferirse en visitas posteriores con la misma URL y tamaño; cualquier duda conserva el CSS normal.</p></th></tr>';
+		self::f( 'perf_css_defer', 'Detectar y diferir CSS no crítico', 'checkbox', 'Desactivado por defecto. Respeta dependencias de WordPress y conserva <noscript>.' );
 		self::f( 'perf_hero_critical', 'CSS crítico del Hero', 'checkbox', 'Activo sólo si se identifica con seguridad el primer H1 y su contenedor en una página Elementor. Se calcula en segundo plano y se imprime antes de los estilos normales; no difiere CSS de Elementor.' );
-		self::f( 'perf_css_defer_handles', 'Handles de widgets para diferir', 'textarea', 'Uno por línea. Se aceptan sólo handles widget-* no críticos y se comprueba que el archivo pertenezca a Elementor/Pro.' );
+		self::f( 'perf_css_defer_exclusions', 'Excluir hojas del diferimiento', 'textarea', 'Handles de WordPress, uno por línea. Esta lista tiene prioridad sobre la detección automática.' );
 		self::f( 'perf_caption_normal', 'Normalizar captions de carruseles Elementor', 'checkbox', 'Aplica font-style: normal a los captions. No bloquea fuentes por sí solo.' );
 		self::f( 'perf_custom_css', 'CSS técnico personalizado', 'textarea', 'Se hereda de la red o se reemplaza por sitio. Máximo 20 KiB. No admite HTML, @import ni url().' );
 		self::f( 'perf_custom_css_paused', 'Pausar CSS técnico personalizado', 'checkbox', 'Úsalo durante la migración desde Elementor. El CSS guardado no se imprime hasta desactivar esta pausa después de revisar el resultado.' );
@@ -231,9 +232,9 @@ class Digitalisimo_Integrations_SEO_Suite {
 		self::nf( 'perf_embeds', 'Desactivar wp-embed cuando no se usa', 'checkbox' );
 		self::nf( 'perf_dashicons', 'No cargar Dashicons para invitados', 'checkbox' );
 		self::nf( 'perf_font_swap', 'font-display: swap en fuentes Elementor', 'checkbox', 'Requiere regenerar CSS y caché de fuentes de Elementor para archivos ya creados.' );
-		self::nf( 'perf_css_defer', 'Diferir CSS de widgets seleccionados', 'checkbox', 'Avanzado: sólo con modo seguro desactivado y después de probar las páginas.' );
+		self::nf( 'perf_css_defer', 'Detectar y diferir CSS no crítico', 'checkbox', 'Las primeras dos visitas analizan sin diferir. Sólo se diferirá con evidencia por sitio, URL y viewport.' );
 		self::nf( 'perf_hero_critical', 'CSS crítico del Hero', 'checkbox', 'Predeterminado de red. Cada sitio sólo imprime el CSS si su propia página Elementor supera la detección segura.' );
-		self::nf( 'perf_css_defer_handles', 'Handles de widgets para diferir', 'textarea', 'Sólo widget-* de Elementor/Pro, uno por línea.' );
+		self::nf( 'perf_css_defer_exclusions', 'Excluir hojas del diferimiento', 'textarea', 'Handles de WordPress, uno por línea. Cada sitio puede personalizar esta lista.' );
 		self::nf( 'perf_caption_normal', 'Normalizar captions de carruseles Elementor', 'checkbox' );
 		self::nf( 'perf_custom_css', 'CSS técnico de red', 'textarea', 'Los sitios pueden heredarlo o reemplazarlo. Sin HTML, @import ni url().' );
 		self::nf( 'perf_custom_css_paused', 'Pausar CSS técnico personalizado', 'checkbox', 'Los sitios pueden heredar esta pausa o definirla individualmente.' );

@@ -380,19 +380,17 @@ class Digitalisimo_Integrations_Quality_Audit {
 	}
 
 	private static function css_rows( $server, $desktop, $mobile ) {
-		$selected = array_filter( explode( "\n", Digitalisimo_Integrations_Performance_CSS::sanitize_handles( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer_handles' ) ) ) );
 		$enabled  = (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer' );
 		$rows = array();
 		foreach ( (array) ( $server['styles'] ?? array() ) as $handle => $src ) {
 			$widget    = self::style_widget( (string) $handle, $server['widgets'] ?? array() );
-			$canonical = Digitalisimo_Integrations_Performance_CSS::canonical_handle( $handle );
 			$d = '' !== $widget && isset( $desktop['css'][ $widget ] ) ? $desktop['css'][ $widget ] : null;
 			$m = '' !== $widget && isset( $mobile['css'][ $widget ] ) ? $mobile['css'][ $widget ] : null;
 			$row = array(
 				'handle' => (string) $handle, 'src' => (string) $src, 'widget' => $widget,
 				'present' => ( $d && $d['present'] ) || ( $m && $m['present'] ),
 				'above_desktop' => $d ? $d['above'] : null, 'above_mobile' => $m ? $m['above'] : null,
-				'eligible' => Digitalisimo_Integrations_Performance_CSS::eligible( $handle, $src ), 'selected' => in_array( $canonical, $selected, true ), 'enabled' => $enabled,
+				'eligible' => Digitalisimo_Integrations_Performance_CSS::eligible( $handle, $src ), 'selected' => false, 'enabled' => $enabled,
 			);
 			$rows[] = $row + Digitalisimo_Integrations_Quality_Rules::css_verdict( $row );
 		}
@@ -486,24 +484,11 @@ class Digitalisimo_Integrations_Quality_Audit {
 		return array( $network, $site_id, esc_url_raw( (string) wp_unslash( $_POST['url'] ?? '' ) ) );
 	}
 
-	/** Añade un handle a la lista diferible de ESTE sitio; la lista de red no cambia. */
+	/** Compatibilidad con formularios antiguos: una lista manual ya no puede autorizar diferimiento. */
 	public static function css_add() {
 		list( $network, $site_id, $url ) = self::action_context();
 		check_admin_referer( 'digitalisimo_quality_css_' . $site_id );
-		$handle = Digitalisimo_Integrations_Performance_CSS::canonical_handle( sanitize_key( $_POST['handle'] ?? '' ) );
-		self::in_site( $site_id, function() use ( $handle ) {
-			$next = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_css_defer_handles' ) . "\n" . $handle );
-			if ( ! in_array( $handle, explode( "\n", $next ), true ) ) { self::notice( 'El handle ' . $handle . ' no es apto para diferir o la lista ya tiene 20 entradas.' ); return; }
-			$site = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
-			$site['perf_css_defer_handles'] = $next;
-			update_option( Digitalisimo_Integrations_Settings::OPTION, $site );
-			if ( is_multisite() ) {
-				$inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() );
-				$inherit['perf_css_defer_handles'] = 0;
-				update_option( 'digitalisimo_seo_network_inherit', $inherit, false );
-			}
-			self::notice( $handle . ' se añadió a la lista diferible de este sitio. Se aplica cuando «Diferir CSS de widgets» está activo; vuelve a auditar para comprobarlo.' );
-		} );
+		self::notice( 'La lista manual anterior ya no activa el diferimiento. La medición del navegador y las exclusiones se administran en Rendimiento.' );
 		wp_safe_redirect( self::section_url( $network, 'css', $site_id, $url ) );
 		exit;
 	}
@@ -732,7 +717,7 @@ class Digitalisimo_Integrations_Quality_Audit {
 	/** Bajo CSS: hojas de la página, su widget y si diferirlas es seguro. */
 	public static function render_css( $network ) {
 		$ctx = self::context( $network );
-		echo '<h2>CSS por página</h2><p>La lista diferible global no se amplía sola. Desde aquí puedes añadir a la lista de este sitio un handle que la auditoría mostró seguro: el widget aparece sólo debajo del primer viewport en escritorio y en móvil.</p>';
+		echo '<h2>CSS por página</h2><p>Este diagnóstico orienta, pero no habilita el diferimiento. La opción de Rendimiento mide las reglas CSS reales en el navegador durante dos visitas con el CSS normal. Sólo una hoja aprobada para la misma URL y viewport podrá diferirse después. Las exclusiones manuales se configuran por sitio en Rendimiento.</p>';
 		if ( ! $ctx['record'] ) { echo '<p>Ejecuta una <a href="' . esc_url( self::section_url( $network, 'audit', $ctx['site_id'], $ctx['url'] ) ) . '">Auditoría</a> para ver las hojas de esta página.</p>'; return; }
 		echo '<p>Auditoría de <a href="' . esc_url( $ctx['record']['url'] ) . '" target="_blank" rel="noopener">' . esc_html( $ctx['record']['url'] ) . '</a>.</p>';
 		$rows = (array) ( $ctx['record']['findings']['css'] ?? array() );
@@ -740,12 +725,7 @@ class Digitalisimo_Integrations_Quality_Audit {
 		echo '<div style="overflow-x:auto"><table class="widefat striped"><thead><tr><th>Estado</th><th>Handle</th><th>Archivo</th><th>Widget</th><th>En la página</th><th>Primer viewport</th><th>Estado actual</th><th>Diferir</th></tr></thead><tbody>';
 		foreach ( $rows as $row ) {
 			$fold = null === $row['above_desktop'] && null === $row['above_mobile'] ? '—' : 'Escritorio: ' . ( $row['above_desktop'] ? 'sí' : 'no' ) . ' · Móvil: ' . ( null === $row['above_mobile'] ? '—' : ( $row['above_mobile'] ? 'sí' : 'no' ) );
-			echo '<tr><td>' . self::badge( $row['status'] ) . '</td><td><code>' . esc_html( $row['handle'] ) . '</code></td><td><code style="word-break:break-all">' . esc_html( $row['src'] ) . '</code></td><td>' . esc_html( $row['widget'] ?: '—' ) . '</td><td>' . esc_html( '' === $row['widget'] ? '—' : ( $row['present'] ? 'Sí' : 'No' ) ) . '</td><td>' . esc_html( $fold ) . '</td><td>' . esc_html( $row['state'] ) . '</td><td>' . esc_html( ( $row['safe'] ? 'Seguro · ' : 'No seguro · ' ) . $row['reason'] );
-			if ( $row['safe'] && ! $row['selected'] ) {
-				echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:4px">';
-				wp_nonce_field( 'digitalisimo_quality_css_' . $ctx['site_id'] );
-				echo '<input type="hidden" name="action" value="digitalisimo_quality_css_add"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '"><input type="hidden" name="site_id" value="' . (int) $ctx['site_id'] . '"><input type="hidden" name="url" value="' . esc_attr( $ctx['url'] ) . '"><input type="hidden" name="handle" value="' . esc_attr( $row['handle'] ) . '"><button class="button button-small">Añadir a la lista de este sitio</button></form>';
-			}
+			echo '<tr><td>' . self::badge( $row['status'] ) . '</td><td><code>' . esc_html( $row['handle'] ) . '</code></td><td><code style="word-break:break-all">' . esc_html( $row['src'] ) . '</code></td><td>' . esc_html( $row['widget'] ?: '—' ) . '</td><td>' . esc_html( '' === $row['widget'] ? '—' : ( $row['present'] ? 'Sí' : 'No' ) ) . '</td><td>' . esc_html( $fold ) . '</td><td>' . esc_html( ! empty( $row['enabled'] ) ? 'Medición automática' : 'Desactivado' ) . '</td><td>' . esc_html( ( $row['safe'] ? 'Candidato · ' : 'Conservar bloqueante · ' ) . $row['reason'] );
 			echo '</td></tr>';
 		}
 		echo '</tbody></table></div>';

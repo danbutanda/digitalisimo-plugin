@@ -98,7 +98,7 @@ check( 1 === count( $f['contrast'] ) && 'claro' === $f['contrast'][0]['text'], '
 check( 'ADVERTENCIA' === $f['images'][0]['status'] && 1024 === $f['images'][0]['candidate'] && 'Escritorio' === $f['images'][0]['viewport'], 'Imagen de 1920 px pintada a 400 px × DPR 2: bastaría la de 1024.' );
 check( 'ADVERTENCIA' === $f['images'][1]['status'] && false !== strpos( $f['images'][1]['issue'], 'width/height' ), 'Una imagen sin width/height se advierte.' );
 $by_handle = array_column( $f['css'], null, 'handle' );
-check( $by_handle['widget-form']['eligible'] && $by_handle['widget-form']['selected'] && 'DIFERIDO' === $by_handle['widget-form']['state'] && $by_handle['widget-form']['present'], 'La hoja del widget se marca como diferida y presente.' );
+check( $by_handle['widget-form']['eligible'] && ! $by_handle['widget-form']['selected'] && 'NORMAL' === $by_handle['widget-form']['state'] && $by_handle['widget-form']['present'], 'La lista manual heredada no debe afirmar que la hoja está diferida.' );
 check( ! $by_handle['hello-theme']['eligible'] && 'NO APLICABLE' === $by_handle['hello-theme']['status'], 'Una hoja del tema no es apta para diferir.' );
 check( ! $record['mobile']['ok'] && 'iframe bloqueado' === $record['mobile']['error'] && 1 === $record['blog_id'], 'El registro guarda el sitio y el estado móvil.' );
 check( array( 'H1 Inicio' ) === $record['tree']['desktop'], 'El árbol de encabezados se guarda.' );

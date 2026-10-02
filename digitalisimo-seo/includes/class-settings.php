@@ -98,8 +98,9 @@ class Digitalisimo_Integrations_Settings {
 			'perf_font_guard_allowlist' => '',
 			'perf_font_icon_families' => '',
 			'perf_css_defer'       => 0,
+			'perf_css_defer_exclusions' => '',
 			'perf_hero_critical'   => 1,
-			'perf_css_defer_handles' => "widget-blockquote\nwidget-form\nwidget-divider\nwidget-social-icons",
+			'perf_css_defer_handles' => '',
 			'perf_caption_normal'  => 0,
 			'perf_custom_css'      => '',
 			'perf_custom_css_paused' => 0,
@@ -202,6 +203,7 @@ class Digitalisimo_Integrations_Settings {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_textarea_field( $input[ $key ] );
 		}
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
+		if ( isset( $input['perf_css_defer_exclusions'] ) ) $output['perf_css_defer_exclusions'] = Digitalisimo_Integrations_Performance_CSS::sanitize_exclusions( $input['perf_css_defer_exclusions'] );
 		if ( isset( $input['perf_custom_css'] ) ) $output['perf_custom_css'] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $input['perf_custom_css'] );
 		if ( isset( $input['perf_font_guard_mode'] ) ) $output['perf_font_guard_mode'] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_mode( $input['perf_font_guard_mode'] );
 		if ( isset( $input['perf_font_guard_allowlist'] ) ) $output['perf_font_guard_allowlist'] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_allowlist( $input['perf_font_guard_allowlist'] );

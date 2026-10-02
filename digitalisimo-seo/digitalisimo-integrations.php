@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.203
+ * Version: 1.0.204
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.203' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.204' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -46,6 +46,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-admin-ui.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-editorial.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-manager.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-css.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-css-audit.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-hero.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-fonts.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-font-guard.php';
@@ -72,6 +73,7 @@ function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Settings::init();
 	Digitalisimo_Integrations_Performance_Manager::init();
 	Digitalisimo_Integrations_Performance_CSS::init();
+	Digitalisimo_Integrations_Performance_CSS_Audit::init();
 	Digitalisimo_Integrations_Performance_Hero::init();
 	Digitalisimo_Integrations_Performance_Fonts::init();
 	Digitalisimo_Integrations_Performance_Font_Guard::init();
