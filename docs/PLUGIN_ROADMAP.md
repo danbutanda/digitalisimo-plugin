@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| Digitalisimo SEO · política robots por propósito | ✓ 1.0.211 | Los bots de búsqueda y recuperación heredan `User-agent: *`; sólo se crean grupos para entrenamiento u otras excepciones reales. Google-Extended tiene opción independiente en sitio/red, permitida por defecto para favorecer Gemini. El catálogo por proveedor/propósito es ampliable y las reglas por contenido copian la base técnica al crear grupos permitidos. Pasaron 31 pruebas PHP, sintaxis SEO, suite de seis módulos y validación del ZIP; publicación pendiente de verificación. |
+
 Los objetivos activos de rendimiento de DIGITALÍSIMO SEO están en [PERFORMANCE_OBJECTIVE.md](PERFORMANCE_OBJECTIVE.md) y [PERFORMANCE_MULTISITE_OBJECTIVE.md](PERFORMANCE_MULTISITE_OBJECTIVE.md). SEO 1.0.150 amplía el diagnóstico de WooCommerce y muestra el origen de plugins terceros. El objetivo nuevo agrega un panel independiente y controles Multisite; la validación anterior todavía no está cerrada.
 SEO 1.0.152 incorpora CSS diferido y técnico opt-in en sitio/red; ninguno se activa por defecto ni se considera validado visualmente sin un sitio de pruebas representativo.
 SEO 1.0.153 añade inventario administrativo de Kit, CSS de fuentes locales y Custom Code de Elementor por sitio, sin bloqueo de fuentes ni cambios de tracking.

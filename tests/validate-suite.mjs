@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.210.zip', version: '1.0.210' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.211.zip', version: '1.0.211' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.27.zip', version: '1.0.27' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.51.zip', version: '1.0.51' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.21.zip', version: '1.0.21' },
@@ -81,6 +81,7 @@ const seoBootstrap = readFileSync('digitalisimo-seo/digitalisimo-integrations.ph
 const seoSettings = readFileSync('digitalisimo-seo/includes/class-settings.php', 'utf8');
 const seoResolver = readFileSync('digitalisimo-seo/includes/class-seo-resolver.php', 'utf8');
 const seoAi = readFileSync('digitalisimo-seo/includes/class-seo-ai.php', 'utf8');
+if (!seoSettings.includes("'seo_ai_google_extended_policy' => 'allow'") || !seoSettings.includes("Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy") || !seoSuite.includes("self::nf( 'seo_ai_google_extended_policy'") || !seoSuite.includes("self::f( 'seo_ai_google_extended_policy'") || !seoSuite.includes("$current[ $key ] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy")) throw new Error('Google-Extended necesita opción independiente con paridad de sitio y red.');
 if (!seoSettings.includes("'seo_title_post'         => '%title% %sep% %sitename%'") || !seoSettings.includes("'seo_description_post'   => '%excerpt%'") || !seoSettings.includes("'seo_title_page'         => '%title%'") || !seoSettings.includes("'seo_description_page'   => '%excerpt%'") || !seoSettings.includes("'seo_title_archive'      => '%title%'") || !seoSettings.includes("'seo_description_archive'=> '%excerpt%'") ) throw new Error('Los valores iniciales de títulos y descripciones SEO no coinciden con la configuración predeterminada.');
 const chatbotAi = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai.php', 'utf8');
 const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-images.php', 'utf8');

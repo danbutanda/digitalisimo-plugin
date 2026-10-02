@@ -71,6 +71,7 @@ jobs:
           php tests/sitemap.php
           php tests/sitemap-routes.php
           php tests/robots.php
+          php tests/seo-ai-robots.php
       - name: Seleccionar plugins modificados
         id: modules
         env:

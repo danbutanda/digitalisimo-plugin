@@ -132,6 +132,7 @@ class Digitalisimo_Integrations_Settings {
 			'seo_ai_enabled'         => 1,
 			'seo_ai_search_default'  => 'allow',
 			'seo_ai_training_default'=> 'disallow',
+			'seo_ai_google_extended_policy' => 'allow',
 			'seo_ai_crawler_rules'  => '',
 			'seo_ai_crawler_preset' => 'custom',
 			'seo_ai_crawlers'        => '',
@@ -205,6 +206,7 @@ class Digitalisimo_Integrations_Settings {
 		}
 		foreach ( array( 'sitemap_post_types', 'seo_sitemap_taxonomies' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_sitemap_list( $input[ $key ] );
 		if ( isset( $input['seo_robots_rules'] ) ) $output['seo_robots_rules'] = Digitalisimo_Integrations_Robots::sanitize( $input['seo_robots_rules'] );
+		if ( isset( $input['seo_ai_google_extended_policy'] ) ) $output['seo_ai_google_extended_policy'] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy( $input['seo_ai_google_extended_policy'] );
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
 		if ( isset( $input['perf_css_defer_exclusions'] ) ) $output['perf_css_defer_exclusions'] = Digitalisimo_Integrations_Performance_CSS::sanitize_exclusions( $input['perf_css_defer_exclusions'] );
 		if ( isset( $input['perf_custom_css'] ) ) $output['perf_custom_css'] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $input['perf_custom_css'] );
@@ -402,6 +404,7 @@ class Digitalisimo_Integrations_Settings {
 			self::field( 'sitemap_exclude_ids', 'IDs excluidos del sitemap', 'textarea', 'Separados por comas. Los contenidos marcados noindex siempre se excluyen.' );
 		} elseif ( 'robots' === $tab ) {
 			Digitalisimo_Integrations_SEO_Suite::robots_info_row();
+			self::field( 'seo_ai_google_extended_policy', 'Google-Extended', 'select', 'Permitir favorece la presencia en Gemini; bloquear limita entrenamiento y grounding en Gemini, pero no afecta Google Search.', array( 'allow' => 'Permitir (máxima visibilidad en Gemini)', 'disallow' => 'Bloquear uso por Gemini' ) );
 			self::field( 'seo_robots_rules', 'Reglas adicionales', 'textarea', 'Admite User-agent, Allow y Disallow. El sitemap y las reglas automáticas se conservan.' );
 		} elseif ( 'indexing' === $tab ) {
 			self::field( 'noindex_search', 'Resultados de búsqueda internos', 'checkbox' );
