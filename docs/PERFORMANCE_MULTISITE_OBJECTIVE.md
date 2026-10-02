@@ -343,7 +343,7 @@ Fuente: solicitud del propietario del 2026-10-02, «CORREGIR EL LLMS.TXT EXISTEN
   - `> {descripción}`: meta descripción SEO de la portada, en su defecto `get_bloginfo('description')`; si no hay ninguna, no se escribe nada.
   - Párrafo opcional con el extracto de la portada, si dice algo distinto.
   - `## Páginas principales` con `- [Inicio](home_url('/')): {tagline o «Página principal del sitio.»}`.
-  - `## Opcional` con el sitemap si está activo.
+  - `## Optional` (sección estándar de llmstxt.org) con el sitemap si está activo.
   - Ya no se listan páginas ni entradas automáticamente. Sólo se añaden las URLs elegidas que pertenecen al sitio, existen, están publicadas, son indexables y no tienen ancla. Se retiró `SEO_AI_LLMS_Tools::automatic_resources()`, que ya no estaba conectada y listaba 30 contenidos.
   - Shortcodes, HTML y entidades se eliminan.
 - **Diagnóstico real.**

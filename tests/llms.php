@@ -67,7 +67,7 @@ $GLOBALS['settings'][1] = array( 'seo_ai_llms_urls' => "https://uno.test/p11/\nh
 $text = $l::automatic();
 check( false !== strpos( $text, "- [Inicio](https://uno.test/): Marketing & SEO en México\n- [Contacto](https://uno.test/p11/)\n" ) && 1 === substr_count( $text, 'p11' ), 'Una página publicada elegida se lista una vez.' );
 foreach ( array( 'p12' => 'noindex', 'p14' => 'borrador', 'otro.test' => 'otro dominio', '#x' => 'ancla', 'no-existe' => 'inexistente' ) as $needle => $why ) check( false === strpos( $text, $needle ), 'No se lista una página ' . $why . '.' );
-check( false !== strpos( $text, "## Opcional\n\n- [Sitemap XML](https://uno.test/wp-sitemap.xml)" ) && 2 === $l::sections( $text ), 'El sitemap se enlaza si está activo.' );
+check( false !== strpos( $text, "## Optional\n\n- [Sitemap XML](https://uno.test/wp-sitemap.xml)" ) && 2 === $l::sections( $text ), 'El sitemap se enlaza si está activo.' );
 check( "https://uno.test/p11/" === $l::sanitize_urls( "https://uno.test/p11/\njavascript:alert(1)\nftp://x.test/\nhttps://uno.test/p11/" ), 'Sólo URLs http(s) únicas.' );
 
 // Sin descripción no se inventa texto; cada sitio usa sus datos y su home_url (subdirectorio).
