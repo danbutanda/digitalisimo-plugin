@@ -230,7 +230,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 				}
 				if ( ! $best || isset( $seen[ $best['url'] ] ) ) continue;
 				$seen[ $best['url'] ] = true;
-				$rows[] = array( 'url' => $best['url'], 'family' => $best['family'] ?? '', 'variant' => trim( (string) ( $best['weight'] ?? '' ) . ' ' . (string) ( $best['style'] ?? '' ) ), 'source' => 'Crítico · ' . $target['role'], 'css' => $best['css'] ?? '' );
+				$rows[] = array( 'url' => $best['url'], 'family' => $best['family'] ?? '', 'weight' => $target['weight'], 'style' => $target['style'], 'variant' => $target['weight'] . ' ' . $target['style'], 'source' => 'Crítico · ' . $target['role'], 'css' => $best['css'] ?? '' );
 				if ( count( $rows ) >= $limit ) break;
 			}
 		} elseif ( 'manual' === $mode ) {
@@ -238,7 +238,7 @@ class Digitalisimo_Integrations_Performance_Preloads {
 				$url = (string) ( $face['url'] ?? '' );
 				if ( ! $eligible( $face ) || empty( $manual[ substr( $url, strlen( $base ) ) ] ) || isset( $seen[ $url ] ) ) continue;
 				$seen[ $url ] = true;
-				$rows[] = array( 'url' => $url, 'family' => $face['family'] ?? '', 'variant' => trim( (string) ( $face['weight'] ?? '' ) . ' ' . (string) ( $face['style'] ?? '' ) ), 'source' => 'Ruta manual + CSS local', 'css' => $face['css'] ?? '' );
+				$rows[] = array( 'url' => $url, 'family' => $face['family'] ?? '', 'weight' => (string) self::weight( $face['weight'] ?? '' ), 'style' => (string) self::style( $face['style'] ?? '' ), 'variant' => trim( (string) ( $face['weight'] ?? '' ) . ' ' . (string) ( $face['style'] ?? '' ) ), 'source' => 'Ruta manual + CSS local', 'css' => $face['css'] ?? '' );
 				if ( count( $rows ) >= $limit ) break;
 			}
 		}

@@ -27,7 +27,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 	const OPTION   = 'digitalisimo_performance_font_guard_manifest';
 	const APPROVAL = 'digitalisimo_performance_font_guard_approval';
 	/** Versión de la semántica de filtrado: cambiarla invalida las copias anteriores. */
-	const SCHEMA = 2;
+	const SCHEMA = 3;
 
 	/** Icon fonts reconocidos sin configuración. Una coincidencia sólo protege: nunca filtra. */
 	const ICON_PATTERN = '/(?:^|[\s_-])(?:eicons|font[\s_-]?awesome|line[\s_-]?awesome|dashicons|material[\s_-]?(?:icons|symbols)|icomoon|fontello|themify|ionicons|bootstrap[\s_-]?icons|remixicon|boxicons|[a-z0-9_-]*icons?)(?:$|[\s_-])/i';
@@ -39,6 +39,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 	public static function init() {
 		add_action( 'admin_post_digitalisimo_performance_optimize_fonts', array( __CLASS__, 'optimize_action' ) );
 		add_action( 'admin_post_digitalisimo_performance_recalculate_fonts', array( __CLASS__, 'recalculate_action' ) );
+		add_action( 'admin_post_digitalisimo_performance_recalculate_network_fonts', array( __CLASS__, 'recalculate_network_action' ) );
 		foreach ( array( 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ) as $hook ) add_action( $hook, array( __CLASS__, 'invalidate_on_meta' ), 10, 4 );
 		add_action( 'save_post_elementor_library', array( __CLASS__, 'invalidate_on_library_save' ) );
 		add_action( 'init', array( __CLASS__, 'schedule_missing' ), 31 );
@@ -225,6 +226,35 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		return $ok ? 'allow' : 'block';
 	}
 
+	/** Archivo WOFF/WOFF2 de un bloque CSS o de una fila del inventario. */
+	private static function file_key( $face ) {
+		$source = (string) ( $face['url'] ?? '' );
+		if ( '' === $source && preg_match( '/url\(\s*[\'"]?([^\'")]+)/i', (string) ( $face['src'] ?? '' ), $m ) ) $source = $m[1];
+		$source = strtok( $source, '?#' );
+		return false === $source || '' === $source ? '' : strtolower( basename( $source ) );
+	}
+
+	/**
+	 * Archivos que el navegador descargará de todos modos porque una variante
+	 * permitida los usa. En una fuente variable todos los pesos de un estilo
+	 * apuntan al mismo archivo: retirar sus otras reglas no ahorra bytes y sólo
+	 * provoca negritas sintéticas, así que esas reglas se conservan.
+	 */
+	private static function kept_files( $faces, $rules, $mode, $icons ) {
+		$files = array();
+		foreach ( (array) $faces as $face ) {
+			$file = self::file_key( $face );
+			if ( '' !== $file && 'block' !== self::verdict( (string) ( $face['family'] ?? '' ), (string) ( $face['weight'] ?? '' ), (string) ( $face['style'] ?? '' ), $rules, $mode, $icons ) ) $files[ $file ] = true;
+		}
+		return $files;
+	}
+
+	/** Veredicto final: una variante bloqueada cuyo archivo ya se descarga pasa a «shared». */
+	private static function decide( $face, $rules, $mode, $icons, $kept_files ) {
+		$verdict = self::verdict( (string) ( $face['family'] ?? '' ), (string) ( $face['weight'] ?? '' ), (string) ( $face['style'] ?? '' ), $rules, $mode, $icons );
+		return 'block' === $verdict && isset( $kept_files[ self::file_key( $face ) ] ) ? 'shared' : $verdict;
+	}
+
 	/** Bloques @font-face con sus descriptores; el texto original se conserva aparte. */
 	public static function faces_in( $css ) {
 		$faces = array();
@@ -262,10 +292,11 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		$removed    = 0;
 		$undetected = array();
 		$seen       = array();
-		$filtered   = preg_replace_callback( '/@font-face\s*\{([^{}]*)\}/i', function( $match ) use ( $rules, $mode, $icons, &$removed, &$undetected, &$seen ) {
+		$kept_files = self::kept_files( self::faces_in( $css ), $rules, $mode, $icons );
+		$filtered   = preg_replace_callback( '/@font-face\s*\{([^{}]*)\}/i', function( $match ) use ( $rules, $mode, $icons, $kept_files, &$removed, &$undetected, &$seen ) {
 			$face = self::faces_in( $match[0] )[0] ?? null;
 			if ( ! $face || '' === $face['family'] ) return $match[0];
-			$verdict = self::verdict( $face['family'], $face['weight'], $face['style'], $rules, $mode, $icons );
+			$verdict = self::decide( $face, $rules, $mode, $icons, $kept_files );
 			if ( 'block' === $verdict ) { ++$removed; return ''; }
 			// Dos declaraciones idénticas sólo duplican trabajo del navegador.
 			$text = preg_replace( '/\s+/', '', $match[0] );
@@ -287,25 +318,123 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 	public static function validate_css( $original, $generated, $rules, $mode, $icons = null ) {
 		$mode   = self::normalize_mode( $mode );
 		$icons  = null === $icons ? self::configured_icons() : (string) $icons;
-		$errors = array();
-		$kept   = array();
-		$source = array();
+		$errors     = array();
+		$kept       = array();
+		$source     = array();
+		$kept_files = self::kept_files( self::faces_in( $original ), $rules, $mode, $icons );
 		foreach ( self::faces_in( $generated ) as $face ) {
 			if ( '' === $face['family'] ) continue;
 			$signature = self::signature( $face );
 			$kept[ $signature ] = ( $kept[ $signature ] ?? 0 ) + 1;
-			if ( 'block' === self::verdict( $face['family'], $face['weight'], $face['style'], $rules, $mode, $icons ) ) $errors[] = 'Variante no autorizada en el CSS generado: ' . self::describe( $face );
+			if ( 'block' === self::decide( $face, $rules, $mode, $icons, $kept_files ) ) $errors[] = 'Variante no autorizada en el CSS generado: ' . self::describe( $face );
 		}
 		foreach ( self::faces_in( $original ) as $face ) {
 			if ( '' === $face['family'] ) continue;
 			$signature = self::signature( $face );
 			$source[ $signature ] = ( $source[ $signature ] ?? 0 ) + 1;
-			if ( 'block' !== self::verdict( $face['family'], $face['weight'], $face['style'], $rules, $mode, $icons ) && empty( $kept[ $signature ] ) ) $errors[] = 'Falta una variante autorizada: ' . self::describe( $face );
+			if ( 'block' !== self::decide( $face, $rules, $mode, $icons, $kept_files ) && empty( $kept[ $signature ] ) ) $errors[] = 'Falta una variante autorizada: ' . self::describe( $face );
 		}
 		foreach ( $kept as $signature => $count ) {
 			if ( $count > 1 && $count > ( $source[ $signature ] ?? 0 ) ) $errors[] = 'Regla @font-face duplicada: ' . $signature;
 		}
 		return array_values( array_unique( $errors ) );
+	}
+
+	/* ------------------------------------------------------------------ *
+	 * Google Fonts remoto
+	 * ------------------------------------------------------------------ */
+
+	/** Whitelist compacta: la guarda el manifest para no leer el inventario en cada visita. */
+	private static function compact_rules( $rules ) {
+		$compact = array();
+		foreach ( $rules as $key => $rule ) $compact[ $key ] = array( 'weights' => array_values( (array) ( $rule['weights'] ?? array() ) ), 'styles' => array_values( (array) ( $rule['styles'] ?? array() ) ) );
+		return $compact;
+	}
+
+	/** Variante de la API v1: 400, 700italic, regular, italic, b, bi… null si no se reconoce. */
+	private static function google_v1_variant( $token ) {
+		$token = strtolower( trim( $token ) );
+		$named = array( 'regular' => array( '400', 'normal' ), 'italic' => array( '400', 'italic' ), 'i' => array( '400', 'italic' ), 'bold' => array( '700', 'normal' ), 'b' => array( '700', 'normal' ), 'bolditalic' => array( '700', 'italic' ), 'bi' => array( '700', 'italic' ) );
+		if ( isset( $named[ $token ] ) ) return $named[ $token ];
+		return preg_match( '/^([1-9]00)(italic|i)?$/', $token, $m ) ? array( $m[1], empty( $m[2] ) ? 'normal' : 'italic' ) : null;
+	}
+
+	/**
+	 * Reescribe una hoja de fonts.googleapis.com para pedir sólo las variantes
+	 * autorizadas por la whitelist del sitio. Cubre la API v1 (la que usa
+	 * Elementor cuando no carga las fuentes en local) y css2.
+	 *
+	 * Lo que no se puede interpretar con seguridad se deja tal cual: un token
+	 * desconocido, un rango variable («100..900») o un eje distinto de ital/wght.
+	 * Devuelve false si no queda ninguna familia: la hoja no se imprime.
+	 */
+	public static function google_fonts_url( $url, $rules, $mode, $icons ) {
+		$parts = parse_url( (string) $url );
+		if ( ! is_array( $parts ) || 'fonts.googleapis.com' !== strtolower( (string) ( $parts['host'] ?? '' ) ) ) return $url;
+		$path = rtrim( (string) ( $parts['path'] ?? '' ), '/' );
+		if ( '/css' !== $path && '/css2' !== $path ) return $url;
+
+		$families = array();
+		$others   = array();
+		foreach ( explode( '&', (string) ( $parts['query'] ?? '' ) ) as $pair ) {
+			if ( '' === $pair ) continue;
+			list( $key, $value ) = array_pad( explode( '=', $pair, 2 ), 2, '' );
+			if ( 'family' === strtolower( $key ) ) $families[] = urldecode( $value );
+			else $others[] = $pair;
+		}
+		if ( ! $families ) return $url;
+
+		$kept = array();
+		$keep = function( $name, $weight, $style ) use ( $rules, $mode, $icons ) {
+			return 'block' !== self::verdict( $name, $weight, $style, $rules, $mode, $icons );
+		};
+		if ( '/css' === $path ) {
+			foreach ( $families as $value ) {
+				foreach ( explode( '|', $value ) as $spec ) {
+					$segments = explode( ':', $spec, 3 );
+					$name     = trim( $segments[0] );
+					if ( '' === $name ) continue;
+					if ( self::icon_family( $name, $icons ) || ! isset( $segments[1] ) || '' === trim( $segments[1] ) ) { $kept[] = $spec; continue; }
+					$tokens = array();
+					foreach ( explode( ',', $segments[1] ) as $token ) {
+						$variant = self::google_v1_variant( $token );
+						if ( null === $variant || $keep( $name, $variant[0], $variant[1] ) ) $tokens[] = trim( $token );
+					}
+					if ( $tokens ) $kept[] = $name . ':' . implode( ',', $tokens ) . ( isset( $segments[2] ) ? ':' . $segments[2] : '' );
+				}
+			}
+			if ( ! $kept ) return false;
+			$query = 'family=' . implode( '%7C', array_map( function( $spec ) { return str_replace( array( ' ', '|' ), array( '+', '%7C' ), $spec ); }, $kept ) );
+		} else {
+			foreach ( $families as $value ) {
+				if ( ! preg_match( '/^([^:]+)(?::([a-z,]+)@(.+))?$/i', $value, $m ) ) { $kept[] = $value; continue; }
+				$name = trim( $m[1] );
+				if ( self::icon_family( $name, $icons ) || empty( $m[2] ) ) { $kept[] = $value; continue; }
+				$axes = explode( ',', strtolower( $m[2] ) );
+				if ( array_diff( $axes, array( 'ital', 'wght' ) ) ) { $kept[] = $value; continue; }
+				$tuples = array();
+				foreach ( explode( ';', $m[3] ) as $tuple ) {
+					$values = explode( ',', $tuple );
+					if ( count( $values ) !== count( $axes ) || false !== strpos( $tuple, '..' ) ) { $tuples[] = $tuple; continue; }
+					$axis   = array_combine( $axes, $values );
+					$style  = '1' === trim( $axis['ital'] ?? '0' ) ? 'italic' : 'normal';
+					if ( $keep( $name, trim( $axis['wght'] ?? '400' ), $style ) ) $tuples[] = $tuple;
+				}
+				if ( $tuples ) $kept[] = $name . ':' . $m[2] . '@' . implode( ';', $tuples );
+			}
+			if ( ! $kept ) return false;
+			$query = implode( '&', array_map( function( $spec ) { return 'family=' . str_replace( ' ', '+', $spec ); }, $kept ) );
+		}
+		if ( $others ) $query .= '&' . implode( '&', $others );
+		return ( $parts['scheme'] ?? 'https' ) . '://fonts.googleapis.com' . $path . '?' . $query;
+	}
+
+	/** Vista previa para el debug: la URL que recibiría un visitante con la política vigente. */
+	public static function preview_google_url( $url ) {
+		list( $mode, , $fingerprint, $icons ) = self::policy();
+		$manifest = self::manifest();
+		if ( 'off' === $mode || $fingerprint !== ( $manifest['fingerprint'] ?? '' ) || ! isset( $manifest['whitelist'] ) ) return null;
+		return self::google_fonts_url( $url, $manifest['whitelist'], $mode, $icons );
 	}
 
 	/* ------------------------------------------------------------------ *
@@ -376,7 +505,20 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 	public static function allows_face( $face, $report ) {
 		if ( self::inactive() ) return true;
 		list( $mode, $allowlist, , $icons ) = self::policy();
-		return 'block' !== self::verdict( (string) ( $face['family'] ?? '' ), (string) ( $face['weight'] ?? '' ), (string) ( $face['style'] ?? '' ), self::rules( $mode, $allowlist, $report ), $mode, $icons );
+		$rules = self::rules( $mode, $allowlist, $report );
+		return 'block' !== self::decide( $face, $rules, $mode, $icons, self::kept_files( (array) ( $report['faces'] ?? array() ), $rules, $mode, $icons ) );
+	}
+
+	/** La variante comparte archivo con otros pesos: es una fuente variable. */
+	public static function is_variable( $face, $report ) {
+		if ( false !== strpos( trim( (string) ( $face['weight'] ?? '' ) ), ' ' ) ) return true;
+		$file = self::file_key( $face );
+		if ( '' === $file ) return false;
+		$weights = array();
+		foreach ( (array) ( $report['faces'] ?? array() ) as $other ) {
+			if ( self::file_key( $other ) === $file ) $weights[ strtolower( trim( (string) ( $other['weight'] ?? '' ) ) ) ] = true;
+		}
+		return count( $weights ) > 1;
 	}
 
 	public static function permitted_urls( $report ) {
@@ -469,12 +611,23 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		$rules = self::rules( $mode, $allowlist, $report );
 		if ( ! $rules ) return $fail( 'manual' === $mode ? 'Escribe al menos una familia válida en la lista manual.' : 'No se detectaron familias en el Kit ni en el contenido Elementor de este sitio.' );
 
+		$manifest = array( 'schema' => self::SCHEMA, 'fingerprint' => $fingerprint, 'mode' => $mode, 'whitelist' => self::compact_rules( $rules ), 'rows' => array(), 'undetected' => array(), 'invalid' => 0, 'built_at' => $now );
 		$uploads   = wp_upload_dir();
 		$root      = realpath( $uploads['basedir'] ?? '' );
 		$directory = realpath( trailingslashit( $uploads['basedir'] ?? '' ) . 'elementor/google-fonts/css' );
-		if ( ! $root || ! $directory || 0 !== strpos( $directory, trailingslashit( $root ) ) || ! is_writable( $directory ) ) return $fail( 'No se puede escribir en el CSS local de este sitio.' );
+		// Sin CSS local, el sitio carga Google Fonts en remoto: basta la whitelist
+		// para reescribir la URL de fonts.googleapis.com.
+		if ( ! $root || ! $directory ) {
+			$manifest['remote_only'] = true;
+			self::save_manifest( $manifest );
+			return array( 'built' => 0, 'removed' => 0, 'invalid' => 0, 'remote_only' => true, 'complete' => ! empty( $report['complete'] ), 'families' => count( (array) ( $report['families'] ?? array() ) ) );
+		}
+		if ( 0 !== strpos( $directory, trailingslashit( $root ) ) || ! is_writable( $directory ) ) {
+			$manifest['error'] = 'No se puede escribir en el CSS local de este sitio.';
+			self::save_manifest( $manifest );
+			return array( 'error' => $manifest['error'] );
+		}
 
-		$manifest = array( 'schema' => self::SCHEMA, 'fingerprint' => $fingerprint, 'mode' => $mode, 'rows' => array(), 'undetected' => array(), 'invalid' => 0, 'built_at' => $now );
 		$removed  = 0;
 		$files    = glob( $directory . '/*.css' );
 		$files    = is_array( $files ) ? array_values( array_filter( $files, function( $path ) { return 0 !== strpos( basename( $path ), 'digitalisimo-' ); } ) ) : array();
@@ -552,6 +705,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 			'error'      => (string) ( $manifest['error'] ?? '' ),
 			'built_at'   => (string) ( $manifest['built_at'] ?? '' ),
 			'stale'      => 'off' !== $mode && $fingerprint !== ( $manifest['fingerprint'] ?? '' ),
+			'remote'     => ! empty( $manifest['remote_only'] ) && $fingerprint === ( $manifest['fingerprint'] ?? '' ),
 		);
 	}
 
@@ -565,6 +719,11 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		if ( ! Digitalisimo_Integrations_Performance_Manager::advanced_allowed() && ( ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() || ! self::approved() ) ) return $src;
 		$manifest = self::manifest();
 		if ( $fingerprint !== ( $manifest['fingerprint'] ?? '' ) ) return $src;
+		if ( false !== stripos( (string) $src, 'fonts.googleapis.com/css' ) ) {
+			if ( ! isset( $manifest['whitelist'] ) ) return $src;
+			list( , , , $icons ) = self::policy();
+			return self::google_fonts_url( $src, $manifest['whitelist'], $mode, $icons );
+		}
 		$row = $manifest['rows'][ strtok( (string) $src, '?#' ) ] ?? array();
 		return self::row_usable( $row ) ? $row['url'] : $src;
 	}
@@ -650,6 +809,39 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		} );
 		wp_safe_redirect( add_query_arg( isset( $result['error'] ) ? 'font_guard_error' : 'font_guard_recalculated', isset( $result['error'] ) ? $result['error'] : (int) ( $result['removed'] ?? 0 ), $target ) );
 		exit;
+	}
+
+	/**
+	 * Toda la red de una vez: cada sitio se recalcula con su propio modo efectivo
+	 * y sus propias fuentes, en su propio cron. Los sitios con el blindaje
+	 * apagado se omiten; nunca se copia la whitelist de un sitio a otro.
+	 */
+	public static function recalculate_network_action() {
+		if ( ! is_multisite() || ! current_user_can( 'manage_network_options' ) ) wp_die( 'No autorizado.' );
+		check_admin_referer( 'digitalisimo_performance_recalculate_network_fonts' );
+		$scheduled = 0;
+		$skipped   = 0;
+		foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
+			switch_to_blog( (int) $site_id );
+			try {
+				list( $mode ) = self::policy();
+				if ( 'off' === $mode ) { ++$skipped; continue; }
+				// La acción del superadministrador es la aprobación explícita de cada sitio.
+				self::approve( $mode );
+				self::schedule();
+				++$scheduled;
+			} finally { restore_current_blog(); }
+		}
+		wp_safe_redirect( add_query_arg( array( 'font_network_scheduled' => $scheduled, 'font_network_skipped' => $skipped ), network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=fonts' ) ) );
+		exit;
+	}
+
+	public static function render_network_recalculate() {
+		if ( isset( $_GET['font_network_scheduled'] ) ) echo '<div class="notice notice-success"><p>Recálculo programado en ' . esc_html( absint( $_GET['font_network_scheduled'] ) ) . ' sitios, cada uno con sus propias fuentes. Sitios omitidos por tener el blindaje apagado: ' . esc_html( absint( $_GET['font_network_skipped'] ?? 0 ) ) . '. Cada sitio se procesa en su próximo cron.</p></div>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin:12px 0 18px"><input type="hidden" name="action" value="digitalisimo_performance_recalculate_network_fonts">';
+		wp_nonce_field( 'digitalisimo_performance_recalculate_network_fonts' );
+		submit_button( 'Recalcular fuentes en todos los sitios', 'primary', 'submit', false );
+		echo '<p class="description">Cada sitio detecta sus propias familias, estilos y pesos y genera su CSS y sus preloads con su modo efectivo (el suyo o el heredado de la red). Los sitios con el blindaje apagado se omiten.</p></form>';
 	}
 
 	public static function render_recalculate( $network, $site_id, $label = 'Recalcular fuentes', $type = 'secondary' ) {

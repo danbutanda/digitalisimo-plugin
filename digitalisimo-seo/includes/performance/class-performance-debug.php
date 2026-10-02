@@ -10,18 +10,58 @@ class Digitalisimo_Integrations_Performance_Debug {
 		return Digitalisimo_Integrations_Performance_Font_Guard::ready_for_face( $face, $report ) ? 'BLOQUEADO' : 'POLÍTICA PENDIENTE';
 	}
 
+	/** Clave de variante: familia, peso y estilo normalizados. */
+	public static function variant_key( $family, $weight, $style ) {
+		$weight = strtolower( trim( (string) $weight ) );
+		if ( '' === $weight || 'normal' === $weight ) $weight = '400';
+		if ( 'bold' === $weight ) $weight = '700';
+		$style = strtolower( trim( (string) $style ) );
+		return strtolower( trim( (string) $family ) ) . '|' . $weight . '|' . ( '' === $style ? 'normal' : $style );
+	}
+
+	/** Variantes elegidas para preload. Un manifest anterior sólo traía «400 normal». */
+	public static function preloaded_variants( $manifest ) {
+		$variants = array();
+		foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {
+			$weight = $row['weight'] ?? '';
+			$style  = $row['style'] ?? '';
+			if ( '' === $weight && preg_match( '/^(\S+)\s*(\S*)$/', trim( (string) ( $row['variant'] ?? '' ) ), $m ) ) { $weight = $m[1]; $style = $m[2]; }
+			$variants[ self::variant_key( $row['family'] ?? '', $weight, $style ) ] = true;
+		}
+		return $variants;
+	}
+
 	/**
 	 * Estados combinables de una variante: el principal (PERMITIDO, BLOQUEADO,
-	 * POLÍTICA PENDIENTE o ICON FONT) más EXCEPCIÓN MANUAL, CRÍTICO y PRELOAD.
+	 * POLÍTICA PENDIENTE o ICON FONT) más FUENTE VARIABLE, EXCEPCIÓN MANUAL,
+	 * CRÍTICO y PRELOAD. PRELOAD se marca por variante elegida, no por archivo:
+	 * en una fuente variable todos los pesos comparten el mismo WOFF2.
 	 */
 	public static function font_states( $face, $report, $preloaded ) {
 		$states = array( self::font_label( $face, $report ) );
 		if ( 'ICON FONT' !== $states[0] ) {
+			if ( Digitalisimo_Integrations_Performance_Font_Guard::is_variable( $face, $report ) ) $states[] = 'FUENTE VARIABLE';
 			if ( Digitalisimo_Integrations_Performance_Font_Guard::is_exception( $face, $report ) ) $states[] = 'EXCEPCIÓN MANUAL';
 			if ( Digitalisimo_Integrations_Performance_Font_Guard::is_critical( $face, $report ) ) $states[] = 'CRÍTICO';
 		}
-		if ( ! empty( $face['url'] ) && ! empty( $preloaded[ $face['url'] ] ) ) $states[] = 'PRELOAD';
+		if ( ! empty( $preloaded[ self::variant_key( $face['family'] ?? '', $face['weight'] ?? '', $face['style'] ?? '' ) ] ) ) $states[] = 'PRELOAD';
 		return $states;
+	}
+
+	/**
+	 * Una fila por variante: los subsets de unicode-range de una misma variante
+	 * comparten estado, así que se agrupan. Se toma como representante el subset
+	 * latino, que es el que se precarga.
+	 */
+	public static function group_faces( $faces ) {
+		$groups = array();
+		foreach ( (array) $faces as $face ) {
+			$key = self::variant_key( $face['family'] ?? '', $face['weight'] ?? '', $face['style'] ?? '' );
+			if ( ! isset( $groups[ $key ] ) ) $groups[ $key ] = array( 'face' => $face, 'subsets' => 0 );
+			++$groups[ $key ]['subsets'];
+			if ( false !== stripos( (string) ( $face['unicode_range'] ?? '' ), 'U+0000-00FF' ) ) $groups[ $key ]['face'] = $face;
+		}
+		return array_values( $groups );
 	}
 
 	public static function css_label( $row, $defer, $safe, $handles ) {
@@ -49,16 +89,17 @@ class Digitalisimo_Integrations_Performance_Debug {
 			$manifest = get_option( Digitalisimo_Integrations_Performance_Preloads::OPTION, array() );
 			if ( empty( $fonts['scanned_at'] ) ) echo '<p>MISS · sin inventario de fuentes. Pulsa «Recalcular fuentes» en la sección Fuentes.</p>';
 			else {
-				$preloaded = array();
-				foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) if ( ! empty( $row['url'] ) ) $preloaded[ $row['url'] ] = true;
+				$preloaded = self::preloaded_variants( $manifest );
 				$guard = Digitalisimo_Integrations_Performance_Font_Guard::status();
 				echo '<p>Último inventario: ' . esc_html( $fonts['scanned_at'] ) . ' · Copias CSS activas: ' . esc_html( $guard['copies'] ) . ( $guard['built_at'] ? ' · Generadas: ' . esc_html( $guard['built_at'] ) : '' ) . '</p>';
+				echo '<p class="description">FUENTE VARIABLE: todos los pesos usan el mismo archivo. Esas reglas se conservan aunque el peso no se haya detectado, porque retirarlas no evita ninguna descarga y sí produce negritas sintéticas.</p>';
 				echo '<table class="widefat striped"><thead><tr><th>Familia</th><th>Estilo</th><th>Peso</th><th>Estado</th><th>Archivo</th><th>Origen</th><th>Preload</th></tr></thead><tbody>';
-				foreach ( array_slice( (array) ( $fonts['faces'] ?? array() ), 0, 150 ) as $face ) {
-					$file = ! empty( $face['url'] ) ? basename( (string) wp_parse_url( $face['url'], PHP_URL_PATH ) ) : '';
-					if ( '' === $file ) $file = ( $face['css'] ?? '' ) . ' · sin WOFF2 local';
-					if ( ! empty( $face['unicode_range'] ) ) $file .= ' · ' . $face['unicode_range'];
-					echo '<tr><td>' . esc_html( $face['family'] ?? '' ) . '</td><td>' . esc_html( ( $face['style'] ?? '' ) ?: 'normal' ) . '</td><td>' . esc_html( ( $face['weight'] ?? '' ) ?: '400' ) . '</td><td>' . esc_html( implode( ' · ', self::font_states( $face, $fonts, $preloaded ) ) ) . '</td><td><code>' . esc_html( $file ) . '</code></td><td>' . esc_html( Digitalisimo_Integrations_Performance_Font_Guard::origin( $face, $fonts ) ) . '</td><td>' . ( ! empty( $face['url'] ) && ! empty( $preloaded[ $face['url'] ] ) ? 'Sí' : '—' ) . '</td></tr>';
+				foreach ( self::group_faces( $fonts['faces'] ?? array() ) as $group ) {
+					$face   = $group['face'];
+					$states = self::font_states( $face, $fonts, $preloaded );
+					$file   = ! empty( $face['url'] ) ? basename( (string) wp_parse_url( $face['url'], PHP_URL_PATH ) ) : ( ( $face['css'] ?? '' ) . ' · sin WOFF2 local' );
+					if ( $group['subsets'] > 1 ) $file .= ' + ' . ( $group['subsets'] - 1 ) . ' subsets';
+					echo '<tr><td>' . esc_html( $face['family'] ?? '' ) . '</td><td>' . esc_html( ( $face['style'] ?? '' ) ?: 'normal' ) . '</td><td>' . esc_html( ( $face['weight'] ?? '' ) ?: '400' ) . '</td><td>' . esc_html( implode( ' · ', $states ) ) . '</td><td><code>' . esc_html( $file ) . '</code></td><td>' . esc_html( Digitalisimo_Integrations_Performance_Font_Guard::origin( $face, $fonts ) ) . '</td><td>' . ( in_array( 'PRELOAD', $states, true ) ? 'Sí' : '—' ) . '</td></tr>';
 				}
 				echo '</tbody></table>';
 				// Validación posterior a la generación: copias rechazadas y preloads descartados.
@@ -98,7 +139,16 @@ class Digitalisimo_Integrations_Performance_Debug {
 			$tracking_enabled = Digitalisimo_Integrations_SEO_Resolver::option( 'perf_tracking_enabled' );
 			$conflict = $tracking_enabled && $ids ? Digitalisimo_Integrations_Performance_Migration::tracking_conflict( $ids ) : '';
 			echo '<h3>Tracking</h3><p>DIGITALÍSIMO: ' . ( $tracking_enabled ? 'configurado' : 'apagado' ) . ' · SITE KIT: ' . ( Digitalisimo_Integrations_Performance_Migration::site_kit_active() ? 'activo' : 'no detectado' ) . ' · ELEMENTOR: ' . ( ! empty( $custom['scanned_at'] ) ? 'inventariado' : 'sin inventario' ) . ' · DUPLICADO: ' . esc_html( $tracking_enabled && $ids ? ( $conflict ?: 'no detectado por estas comprobaciones' ) : 'sin evaluar (Digitalísimo apagado o sin IDs)' ) . '.</p>';
-			if ( ! empty( $captured['resources'] ) ) foreach ( (array) $captured['resources'] as $row ) if ( preg_match( '#(?:googletagmanager\.com|google-analytics\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)#i', $row['src'] ?? '' ) ) echo '<p>' . ( false !== strpos( $row['src'], 'fonts.google' ) ? 'GOOGLE REMOTO' : 'SCRIPT EXTERNO · revisar origen' ) . ': <code>' . esc_html( $row['src'] ) . '</code></p>';
+			if ( ! empty( $captured['resources'] ) ) foreach ( (array) $captured['resources'] as $row ) if ( preg_match( '#(?:googletagmanager\.com|google-analytics\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)#i', $row['src'] ?? '' ) ) {
+				echo '<p>' . ( false !== strpos( $row['src'], 'fonts.google' ) ? 'GOOGLE REMOTO' : 'SCRIPT EXTERNO · revisar origen' ) . ': <code>' . esc_html( $row['src'] ) . '</code>';
+				if ( false !== stripos( $row['src'], 'fonts.googleapis.com/css' ) ) {
+					$rewritten = Digitalisimo_Integrations_Performance_Font_Guard::preview_google_url( html_entity_decode( $row['src'], ENT_QUOTES, 'UTF-8' ) );
+					if ( null === $rewritten ) echo '<br>Con la política vigente: sin whitelist generada todavía; se pide la URL original.';
+					elseif ( false === $rewritten ) echo '<br>Con la política vigente: no queda ninguna familia autorizada; la hoja no se carga.';
+					else echo '<br>Con la política vigente: <code>' . esc_html( $rewritten ) . '</code>';
+				}
+				echo '</p>';
+			}
 			$status = Digitalisimo_Integrations_Performance_Cache::status();
 			$found = false;
 			Digitalisimo_Integrations_Performance_Cache::get( 'fonts', $found );

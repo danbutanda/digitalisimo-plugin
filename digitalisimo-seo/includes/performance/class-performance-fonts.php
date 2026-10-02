@@ -66,7 +66,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			if ( '' === $style ) $style = 'normal';
 			if ( ! in_array( $style, array( 'normal', 'italic', 'oblique' ), true ) ) return;
 			$key = strtolower( $family ) . '|' . $weight . '|' . $style;
-			if ( ! isset( $critical[ $key ] ) ) $critical[ $key ] = array( 'family' => $family, 'weight' => $weight, 'style' => $style, 'role' => $role );
+			if ( ! isset( $critical[ $key ] ) ) $critical[ $key ] = array( 'family' => $family, 'weight' => $weight, 'style' => $style, 'role' => $role, 'body' => (bool) $body );
 		};
 		$system = array();
 		foreach ( (array) ( $settings['system_typography'] ?? array() ) as $item ) if ( is_array( $item ) && ! empty( $item['_id'] ) ) $system[ $item['_id'] ] = $item;
@@ -75,6 +75,49 @@ class Digitalisimo_Integrations_Performance_Fonts {
 		$add( $settings['h1_typography_font_family'] ?? '', $settings['h1_typography_font_weight'] ?? '', $settings['h1_typography_font_style'] ?? '', 'H1', false );
 		if ( isset( $system['primary'] ) ) $add( $system['primary']['typography_font_family'] ?? '', $system['primary']['typography_font_weight'] ?? '', $system['primary']['typography_font_style'] ?? '', 'Principal global', false );
 		return array_values( $critical );
+	}
+
+	/** Negritas y cursivas escritas en el contenido: el navegador las pinta en 700 e italic. */
+	public static function inline_formatting( $text ) {
+		$text = (string) $text;
+		return array(
+			'bold'   => (bool) preg_match( '/(?:<|\\\\u003c)(?:strong|b)(?:[\s>\/]|\\\\u003e)/i', $text ),
+			'italic' => (bool) preg_match( '/(?:<|\\\\u003c)(?:em|i)(?:[\s>\/]|\\\\u003e)/i', $text ),
+		);
+	}
+
+	/** Contenido publicado fuera de Elementor (entradas de bloques o clásicas). */
+	private static function posts_inline_formatting() {
+		global $wpdb;
+		$found = array( 'bold' => false, 'italic' => false );
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_var' ) || ! function_exists( 'get_post_types' ) ) return $found;
+		$types = array_values( get_post_types( array( 'public' => true ), 'names' ) );
+		if ( ! $types ) return $found;
+		$in = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		$patterns = array( 'bold' => array( '%<strong%', '%<b>%', '%<b %' ), 'italic' => array( '%<em>%', '%<em %', '%<i>%', '%<i %' ) );
+		foreach ( $patterns as $key => $likes ) {
+			$where = implode( ' OR ', array_fill( 0, count( $likes ), 'post_content LIKE %s' ) );
+			// LIMIT 1: basta un caso para saber que la variante se usa.
+			$found[ $key ] = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type IN ($in) AND ( $where ) LIMIT 1", array_merge( $types, $likes ) ) );
+		}
+		return $found;
+	}
+
+	/**
+	 * Un <strong> en un párrafo usa la familia del cuerpo en 700, y un <em> la
+	 * usa en italic: son variantes realmente usadas aunque el Kit no las declare.
+	 */
+	public static function inline_families( $critical, $inline ) {
+		$rows = array();
+		foreach ( (array) $critical as $row ) {
+			if ( empty( $row['body'] ) ) continue;
+			$weights = array( (string) $row['weight'] );
+			$styles  = array( (string) $row['style'] );
+			if ( ! empty( $inline['bold'] ) ) $weights[] = '700';
+			if ( ! empty( $inline['italic'] ) ) $styles[] = 'italic';
+			if ( count( $weights ) > 1 || count( $styles ) > 1 ) $rows[] = array( 'family' => $row['family'], 'weights' => array_values( array_unique( $weights ) ), 'styles' => array_values( array_unique( $styles ) ) );
+		}
+		return $rows;
 	}
 
 	/** Une el Kit con las tipografías configuradas en contenido Elementor publicado. */
@@ -102,9 +145,9 @@ class Digitalisimo_Integrations_Performance_Fonts {
 
 	/** Escaneo acotado a 500 documentos; un inventario parcial nunca autoriza excluir familias desconocidas. */
 	public static function content_families() {
-		if ( ! function_exists( 'get_posts' ) || ! function_exists( 'get_post_types' ) ) return array( array(), 0, false );
+		if ( ! function_exists( 'get_posts' ) || ! function_exists( 'get_post_types' ) ) return array( array(), 0, false, array( 'bold' => false, 'italic' => false ) );
 		$types = array_values( array_unique( array_merge( array_values( get_post_types( array( 'public' => true ), 'names' ) ), array( 'elementor_library' ) ) ) );
-		$groups = array(); $count = 0; $complete = true;
+		$groups = array(); $count = 0; $complete = true; $inline = array( 'bold' => false, 'italic' => false );
 		for ( $page = 0; $page < 5; ++$page ) {
 			$ids = get_posts( array( 'post_type' => $types, 'post_status' => 'publish', 'meta_key' => '_elementor_edit_mode', 'meta_value' => 'builder', 'fields' => 'ids', 'posts_per_page' => 100, 'offset' => $page * 100, 'orderby' => 'ID', 'order' => 'ASC', 'no_found_rows' => true, 'suppress_filters' => false ) );
 			if ( ! is_array( $ids ) ) { $complete = false; break; }
@@ -113,6 +156,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 				$data = get_post_meta( (int) $id, '_elementor_data', true );
 				if ( ! is_string( $data ) || strlen( $data ) > 1024 * 1024 ) { $complete = false; continue; }
 				if ( false !== stripos( $data, 'font-family' ) ) $complete = false; // CSS libre no se puede clasificar como una tipografía Elementor.
+				foreach ( self::inline_formatting( $data ) as $kind => $used ) if ( $used ) $inline[ $kind ] = true;
 				$decoded = json_decode( $data, true );
 				if ( ! is_array( $decoded ) ) { $complete = false; continue; }
 				$groups[] = self::families_from_settings( $decoded );
@@ -122,7 +166,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			if ( count( $ids ) < 100 ) break;
 			if ( 4 === $page ) $complete = false;
 		}
-		return array( self::merge_families( $groups ), $count, $complete );
+		return array( self::merge_families( $groups ), $count, $complete, $inline );
 	}
 
 	/** Sólo lee CSS generado dentro de uploads del sitio actual, con límites estrictos. */
@@ -164,7 +208,8 @@ class Digitalisimo_Integrations_Performance_Fonts {
 
 	public static function scan() {
 		list( $kit_id, $settings ) = self::kit_settings();
-		list( $content_families, $documents, $complete ) = self::content_families();
+		list( $content_families, $documents, $complete, $inline ) = self::content_families();
+		foreach ( self::posts_inline_formatting() as $kind => $used ) if ( $used ) $inline[ $kind ] = true;
 		$kit_families = self::families_from_settings( $settings );
 		if ( false !== stripos( (string) json_encode( $settings ), 'font-family' ) ) $complete = false;
 		if ( function_exists( 'wp_get_custom_css' ) && false !== stripos( (string) wp_get_custom_css(), 'font-family' ) ) $complete = false;
@@ -174,7 +219,8 @@ class Digitalisimo_Integrations_Performance_Fonts {
 		$css_files = glob( trailingslashit( $uploads['basedir'] ?? '' ) . 'elementor/google-fonts/css/*.css' );
 		if ( is_array( $css_files ) ) $css_files = array_filter( $css_files, function( $path ) { return 0 !== strpos( basename( $path ), 'digitalisimo-' ); } );
 		if ( ( is_array( $css_files ) && count( $css_files ) > 50 ) || count( $faces ) >= 500 ) $complete = false;
-		$report = array( 'kit_id' => $kit_id, 'kit_families' => $kit_families, 'critical' => self::critical_from_settings( $settings ), 'families' => self::merge_families( array( $kit_families, $content_families ) ), 'documents' => $documents, 'complete' => $complete && $kit_id > 0 && $documents > 0, 'faces' => $faces, 'uploads_baseurl' => trailingslashit( $uploads['baseurl'] ?? '' ), 'scanned_at' => current_time( 'mysql' ) );
+		$critical = self::critical_from_settings( $settings );
+		$report = array( 'kit_id' => $kit_id, 'kit_families' => $kit_families, 'critical' => $critical, 'inline' => $inline, 'families' => self::merge_families( array( $kit_families, $content_families, self::inline_families( $critical, $inline ) ) ), 'documents' => $documents, 'complete' => $complete && $kit_id > 0 && $documents > 0, 'faces' => $faces, 'uploads_baseurl' => trailingslashit( $uploads['baseurl'] ?? '' ), 'scanned_at' => current_time( 'mysql' ) );
 		update_option( self::OPTION, $report, false );
 		Digitalisimo_Integrations_Performance_Cache::set( 'fonts', $report, 3600 );
 		return $report;
@@ -206,6 +252,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			$guard  = Digitalisimo_Integrations_Performance_Font_Guard::class;
 			$status = $guard::status();
 			$modes  = array( 'off' => 'Apagado', 'auto' => 'Seguro', 'strict' => 'Estricto', 'manual' => 'Manual' );
+			if ( $network ) { echo '<h2>Todos los sitios</h2>'; $guard::render_network_recalculate(); }
 			echo '<h2>Fuentes de este sitio</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code>. Cada sitio detecta sus propias familias, estilos y pesos en el Kit y en el contenido Elementor publicado, y genera su CSS sólo con las variantes autorizadas. Los originales no se modifican y los icon fonts nunca se filtran.</p>';
 			if ( isset( $_GET['font_guard_error'] ) ) echo '<div class="notice notice-error"><p>' . esc_html( wp_unslash( $_GET['font_guard_error'] ) ) . '</p></div>';
 			if ( isset( $_GET['font_guard_optimized'] ) ) echo '<div class="notice notice-success"><p>Modo seguro activado para este sitio. Reglas @font-face omitidas: ' . esc_html( absint( $_GET['font_guard_optimized'] ) ) . '.</p></div>';
@@ -224,8 +271,11 @@ class Digitalisimo_Integrations_Performance_Fonts {
 				echo '<table class="widefat striped" style="max-width:900px"><tbody>';
 				echo '<tr><th>Modo efectivo</th><td>' . esc_html( $modes[ $status['mode'] ] ?? $status['mode'] ) . '</td></tr>';
 				echo '<tr><th>Familias detectadas</th><td>' . esc_html( $names ? implode( ', ', $names ) : 'Ninguna' ) . '</td></tr>';
+				$inline = (array) ( $report['inline'] ?? array() );
+				$formats = array_keys( array_filter( array( 'negritas (700)' => ! empty( $inline['bold'] ), 'cursivas (italic)' => ! empty( $inline['italic'] ) ) ) );
+				echo '<tr><th>Formato en el contenido</th><td>' . esc_html( $formats ? 'Se encontraron ' . implode( ' y ', $formats ) . ': se autorizan para la familia del texto.' : 'Sin negritas ni cursivas detectadas.' ) . '</td></tr>';
 				echo '<tr><th>Inventario</th><td>' . esc_html( (int) ( $report['documents'] ?? 0 ) . ' documentos Elementor · ' . ( ! empty( $report['complete'] ) ? 'completo' : 'parcial' ) . ' · ' . $report['scanned_at'] ) . '</td></tr>';
-				echo '<tr><th>CSS generado</th><td>' . esc_html( $status['copies'] ? $status['copies'] . ' copias activas · ' . $status['removed'] . ' reglas omitidas' : 'Sin copias activas: se sirve el CSS original.' ) . '</td></tr>';
+				echo '<tr><th>CSS generado</th><td>' . esc_html( $status['remote'] ? 'Google Fonts remoto: la URL de fonts.googleapis.com se reescribe con las variantes autorizadas.' : ( $status['copies'] ? $status['copies'] . ' copias activas · ' . $status['removed'] . ' reglas omitidas' : 'Sin copias activas: se sirve el CSS original.' ) ) . '</td></tr>';
 				if ( $status['undetected'] ) echo '<tr><th>Conservadas sin detectar</th><td>' . esc_html( implode( ', ', $status['undetected'] ) ) . ' <span class="description">— el modo Seguro las mantiene y las registra aquí.</span></td></tr>';
 				echo '</tbody></table>';
 				if ( 'strict' === $status['mode'] && empty( $report['complete'] ) ) echo '<div class="notice notice-warning inline"><p>Modo Estricto con inventario parcial: las familias que la detección no alcanzó a ver se eliminan del CSS. Revisa el sitio o agrega excepciones manuales.</p></div>';

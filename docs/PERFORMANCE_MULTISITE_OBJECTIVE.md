@@ -187,3 +187,23 @@ Fuente: solicitud del propietario del 2026-10-01 («Ajuste general del blindaje 
 Pruebas: `tests/performance-font-policy.php` construye tres sitios con familias distintas (Roboto, Montserrat, Playfair Display, una fuente local) y comprueba variantes exactas, subsets, iconos, excepciones, aislamiento entre sitios, validación, preloads críticos y estados de debug. Se verificó con mutaciones que el test falla si el modo estricto se comporta como seguro, si la validación ignora faltantes o si Material Symbols deja de reconocerse.
 
 Límites que siguen abiertos: el filtrado actúa sobre el CSS local de Google Fonts que genera Elementor (`uploads/elementor/google-fonts/css`). Las fuentes personalizadas de Elementor Pro, las del tema y las remotas (`fonts.googleapis.com`) se detectan como familias pero no se recortan. La detección lee la configuración de Elementor, no el render: CSS libre con `font-family` deja el inventario como parcial. Falta la validación real en Multisite con Elementor Pro, Redis y Network del navegador.
+
+## Fuentes variables y formato del contenido · SEO 1.0.183
+
+El primer Debug real de digitalisimo.mx con 1.0.182 mostró que Inter y Source Serif 4 son fuentes variables: todos los pesos de un estilo apuntan al mismo WOFF2 en cada subset. Retirar sus reglas de 100, 700 o 900 no evitaba ninguna descarga —el archivo se baja igual para el 400— y sí provocaba negritas sintéticas o caídas al 600 en textos en 700.
+
+- Una regla `@font-face` bloqueada se conserva si su archivo ya lo usa una variante permitida. La validación aplica el mismo criterio. Sólo se retiran reglas cuyos archivos no usa ninguna variante permitida, que es donde realmente se ahorra.
+- La versión de esquema del blindaje sube a 3: las copias generadas con 1.0.182 quedan invalidadas, el sitio sirve el CSS original y el recálculo programado genera las nuevas.
+- La detección incluye el formato del contenido: `<strong>`/`<b>` y `<em>`/`<i>` en documentos Elementor (también escapados en su JSON) y en el contenido publicado fuera de Elementor añaden 700 e italic a la familia del texto corrido, nunca a la de los títulos.
+- Debug agrupa los subsets: una fila por familia, estilo y peso, sin el corte de 150 filas que ocultaba Source Serif 4 normal. Marca FUENTE VARIABLE y sólo pone PRELOAD en la variante elegida, no en cada peso que comparte el archivo.
+
+Un navegador sólo descarga una fuente si algún texto de la página la necesita. Retirar declaraciones que nadie usa ahorra poco; el valor del blindaje está en impedir que una variante no prevista —una cursiva en un pie de foto, por ejemplo— dispare la descarga de un archivo propio.
+
+### Cobertura por sitio: Google Fonts remoto y recálculo de red · SEO 1.0.183
+
+Requisito del propietario: el blindaje debe aplicar a las fuentes de cada sitio, sean cuales sean, y no sólo a los sitios que cargan Google Fonts en local.
+
+- **Google Fonts remoto.** Un sitio con «Cargar Google Fonts localmente» apagado recibía de Elementor `fonts.googleapis.com/css?family=…:100,100italic,…,900italic` y quedaba sin optimizar: ni siquiera generaba su whitelist porque no existía la carpeta local. Ahora la whitelist se guarda en el manifest aunque no haya CSS local, y `style_loader_src` reescribe esa URL para pedir sólo las variantes autorizadas de cada familia. Cubre la API v1 (la de Elementor, con alias `regular`, `italic`, `b`, `bi`…) y css2 (`ital,wght@…`). Un token desconocido, un rango variable (`100..900`), un eje distinto de `ital`/`wght` y los icon fonts se conservan sin tocar. Si no queda ninguna familia autorizada, la hoja no se imprime. Debug muestra, junto a cada hoja remota capturada, la URL que recibiría un visitante.
+- **Recalcular toda la red.** Red → Rendimiento → Fuentes ofrece «Recalcular fuentes en todos los sitios». Recorre la red, aprueba cada sitio con su propio modo efectivo y agenda el recálculo en el cron de ese sitio, que detecta sus propias familias. Los sitios con el blindaje apagado se omiten y nunca se copia la whitelist de un sitio a otro.
+
+Siguen fuera del recorte las fuentes personalizadas de Elementor Pro (se escriben dentro del CSS de cada documento) y las que un tema imprime sin `wp_enqueue_style`.
