@@ -135,6 +135,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 			if ( 'perf_custom_css' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $value ); continue; }
 			if ( 'perf_font_guard_mode' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_mode( $value ); continue; }
 			if ( 'perf_font_guard_allowlist' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_allowlist( $value ); continue; }
+			if ( 'perf_js_jquery_mode' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_JavaScript::sanitize_mode( $value ); continue; }
 			if ( 'perf_img_mode' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Images::sanitize_mode( $value ); continue; }
 			if ( 'perf_img_exclusions' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Images::sanitize_exclusions( $value ); continue; }
 			if ( 'perf_font_icon_families' === $key ) { $current[ $key ] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_icon_families( $value ); continue; }
@@ -154,7 +155,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 			$current[ $key ] = sanitize_textarea_field( $value ); }
 		update_site_option( Digitalisimo_Integrations_Settings::OPTION, $current );
 		$return = sanitize_key( $_POST['digitalisimo_return'] ?? '' );
-		$performance = in_array( $return, array( 'css', 'fonts', 'tracking', 'preloads', 'images' ), true );
+		$performance = in_array( $return, array( 'css', 'fonts', 'tracking', 'preloads', 'images', 'javascript' ), true );
 		$target = $performance ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $return . '&updated=1' ) : network_admin_url( 'admin.php?page=digitalisimo-network-seo&updated=1&tab=' . sanitize_key( $_POST['digitalisimo_active_tab'] ?? 'general' ) );
 		$site_id = $performance ? absint( $_POST['digitalisimo_site_id'] ?? 0 ) : 0;
 		if ( $site_id && get_site( $site_id ) ) $target = add_query_arg( 'site_id', $site_id, $target );
@@ -266,6 +267,14 @@ class Digitalisimo_Integrations_SEO_Suite {
 		self::nf( 'perf_img_backgrounds', 'Fondos de Elementor', 'checkbox' );
 		self::nf( 'perf_img_mode', 'Modo', 'select', '', array( 'safe' => 'Seguro', 'strict' => 'Estricto' ) );
 		self::nf( 'perf_img_exclusions', 'Exclusiones', 'textarea', 'Una por línea: .clase, #id, [atributo], id:123 o un fragmento de URL.' );
+	}
+	public static function performance_js_site_fields() {
+		echo '<tr><th colspan="2"><h2>JavaScript · experimento</h2><p>Difiere jQuery y todo lo que depende de él con la estrategia nativa de WordPress, conservando el orden. No elimina jQuery ni usa async. Si una página tiene código que necesitaría jQuery antes de tiempo, esa página carga normal; si un visitante registra «jQuery is not defined», el sitio vuelve a la carga normal hasta que lo reactives.</p></th></tr>';
+		self::f( 'perf_js_jquery_mode', 'Optimización jQuery', 'select', 'Desactivada por defecto. Pruébala primero en un sitio de pruebas.', array( 'off' => 'Desactivada', 'defer' => 'Defer seguro experimental' ) );
+	}
+	public static function performance_js_network_fields() {
+		echo '<tr><th colspan="2"><h2>JavaScript · defaults de red</h2><p>Experimental. Déjalo desactivado en la red y actívalo sólo en el sitio que estés probando.</p></th></tr>';
+		self::nf( 'perf_js_jquery_mode', 'Optimización jQuery', 'select', '', array( 'off' => 'Desactivada', 'defer' => 'Defer seguro experimental' ) );
 	}
 	public static function performance_preload_site_fields() {
 		echo '<tr><th colspan="2"><h2>Preloads críticos WOFF2</h2><p>Primero analiza Fuentes y Custom Code. Sólo se imprimen fuentes locales del inventario cuyo CSS esté encolado en la página. Si Elementor ya publica el mismo preload, se omite. Apagado por defecto.</p></th></tr>';

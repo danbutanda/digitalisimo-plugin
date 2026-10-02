@@ -117,6 +117,7 @@ class Digitalisimo_Integrations_Settings {
 			'perf_img_backgrounds' => 0,
 			'perf_img_mode'        => 'safe',
 			'perf_img_exclusions'  => '',
+			'perf_js_jquery_mode'  => 'off',
 			'seo_taxonomies'         => 'category,post_tag',
 			'seo_sitemap_taxonomies' => 'category',
 			'seo_sitemap_images'     => 1,
@@ -198,6 +199,7 @@ class Digitalisimo_Integrations_Settings {
 		if ( isset( $input['perf_custom_css'] ) ) $output['perf_custom_css'] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $input['perf_custom_css'] );
 		if ( isset( $input['perf_font_guard_mode'] ) ) $output['perf_font_guard_mode'] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_mode( $input['perf_font_guard_mode'] );
 		if ( isset( $input['perf_font_guard_allowlist'] ) ) $output['perf_font_guard_allowlist'] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_allowlist( $input['perf_font_guard_allowlist'] );
+		if ( isset( $input['perf_js_jquery_mode'] ) ) $output['perf_js_jquery_mode'] = Digitalisimo_Integrations_Performance_JavaScript::sanitize_mode( $input['perf_js_jquery_mode'] );
 		if ( isset( $input['perf_img_mode'] ) ) $output['perf_img_mode'] = Digitalisimo_Integrations_Performance_Images::sanitize_mode( $input['perf_img_mode'] );
 		if ( isset( $input['perf_img_exclusions'] ) ) $output['perf_img_exclusions'] = Digitalisimo_Integrations_Performance_Images::sanitize_exclusions( $input['perf_img_exclusions'] );
 		if ( isset( $input['perf_font_icon_families'] ) ) $output['perf_font_icon_families'] = Digitalisimo_Integrations_Performance_Font_Guard::sanitize_icon_families( $input['perf_font_icon_families'] );

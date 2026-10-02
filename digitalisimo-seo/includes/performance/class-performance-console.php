@@ -31,7 +31,7 @@ class Digitalisimo_Integrations_Performance_Console {
 	}
 
 	private static function sections() {
-		return array( 'status' => 'Diagnóstico de assets', 'measurements' => 'PageSpeed manual', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'images' => 'Imágenes', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
+		return array( 'status' => 'Diagnóstico de assets', 'measurements' => 'PageSpeed manual', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'images' => 'Imágenes', 'javascript' => 'JavaScript', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
 	}
 
 	private static function page_url( $network, $section ) {
@@ -76,6 +76,7 @@ class Digitalisimo_Integrations_Performance_Console {
 		elseif ( 'css' === $section ) { self::settings( $network, 'css' ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'fonts' === $section ) { self::settings( $network, 'fonts' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); echo '<script>(function(){var mode=document.getElementById("perf_font_guard_mode")||document.getElementById("network_perf_font_guard_mode"),row=document.querySelector(".digitalisimo-font-manual-row");if(!mode||!row)return;function toggle(){row.hidden=mode.value==="off";}mode.addEventListener("change",toggle);toggle();})();</script>'; }
 		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
+		elseif ( 'javascript' === $section ) { self::settings( $network, 'javascript' ); Digitalisimo_Integrations_Performance_JavaScript::render( $network ); }
 		elseif ( 'images' === $section ) { self::settings( $network, 'images' ); Digitalisimo_Integrations_Performance_Images::render( $network ); }
 		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Tracking::render_site_kit( $network ); echo '<details><summary>Revisar Custom Code de Elementor</summary>'; Digitalisimo_Integrations_Performance_Migration::render( $network ); echo '</details>'; }
 		elseif ( 'cache' === $section ) self::cache_section( $network );
@@ -96,6 +97,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			elseif ( 'fonts' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_font_network_fields();
 			elseif ( 'preloads' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_preload_network_fields();
 			elseif ( 'images' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_image_network_fields();
+			elseif ( 'javascript' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_js_network_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_network_fields();
 		} else {
 			echo '<form method="post" action="options.php">';
@@ -105,6 +107,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			elseif ( 'fonts' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_font_site_fields();
 			elseif ( 'preloads' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_preload_site_fields();
 			elseif ( 'images' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_image_site_fields();
+			elseif ( 'javascript' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_js_site_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_site_fields();
 		}
 		echo '</table>';

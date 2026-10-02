@@ -243,3 +243,17 @@ La auditoría de la portada de digitalisimo.mx (108 imágenes) mostró cinco pro
 - **`sizes` redundante.** A ancho completo dentro de una caja se publica `(max-width: 1300px) 100vw, 1300px`, sin repetir la cláusula de tablet.
 
 Además, la tabla de imágenes de «Diagnóstico de assets» leía `data-src` como `src` (la expresión `\bsrc` coincide tras «data-»), lo que hacía parecer que los slides tenían `src`. Ya no.
+
+## Experimento: defer seguro de jQuery · SEO 1.0.187
+
+Fuente: solicitud del propietario del 2026-10-02 («Defer seguro de jQuery y dependencias»). Objetivo: medir sólo el efecto de diferir la cadena jQuery/Elementor conservando toda la funcionalidad. Desactivado por defecto, heredable sitio → red → plugin.
+
+- **Lo que no hace.** No elimina, desregistra ni reemplaza jQuery, no usa async, no toca archivos de WordPress ni Elementor, no se combina con eliminar Migrate, retrasos por interacción o segundos, ni cambios de Swiper.
+- **Estrategia nativa.** Construye el árbol real de scripts encolados (cola + dependencias, con `jquery` como alias de `jquery-core` y `jquery-migrate`) y pide `strategy => defer` para cada script que depende de jQuery, una vez en `wp_enqueue_scripts` y otra antes de imprimir el pie, porque Elementor encola scripts de widgets mientras pinta el contenido. Un script que ya trae su estrategia no se toca. WordPress (6.3+) sólo concede el defer si toda la cadena puede diferirse y deja bloqueante lo que tenga código inline «after»: el orden de ejecución entre jQuery, Migrate, Elementor, Pro, tema y plugins se mantiene porque los scripts diferidos se ejecutan en orden de documento.
+- **Revisión del HTML final.** WordPress no ve el código inline impreso por temas, plugins o un widget HTML, ni los `<script>` escritos a mano. Antes de enviar la página se revisa lo que va después del primer script diferido de la cadena: un inline que use `jQuery` o `$` (salvo datos de `wp_localize_script` y traducciones), un script bloqueante sin registrar o un dependiente de jQuery que WordPress dejó bloqueante hacen que esa página vuelva a la carga normal, quitando sólo el defer que pidió el experimento. JSON-LD, plantillas, módulos y scripts async no cuentan.
+- **Red de seguridad en el navegador.** Un script mínimo impreso antes que cualquier otro escucha «jQuery is not defined», «Can't find variable: jQuery» o «$ is not a function». Si aparece, avisa con `sendBeacon` y el sitio vuelve a la carga normal hasta que un administrador lo reactive desde Rendimiento → JavaScript. El endpoint es público pero sólo puede apagar el experimento una vez y con un mensaje de dependencia válido. Una caché de página puede seguir sirviendo HTML diferido hasta purgarse.
+- **Rendimiento → JavaScript.** Selector Desactivada / Defer seguro experimental, estado efectivo y, desde la última captura de «Diagnóstico de assets», la estrategia solicitada y efectiva de jquery-core, jquery-migrate y cada dependiente, con SEGURO PARA DEFER o NO DIFERIDO y su motivo.
+
+Pruebas: `tests/performance-javascript.php`, con el árbol real de la portada de digitalisimo.mx. Las mutaciones confirman que el test falla si no se revisa el inline, si se pisa una estrategia existente, si cualquier error apaga el experimento o si se ignora un dependiente bloqueante.
+
+Validación pendiente en un sitio de pruebas: consola sin errores, menú móvil, sticky, formularios, pestañas, acordeones, contadores, carruseles, lightbox, Call To Action y WooCommerce; varias corridas de Lighthouse móvil antes y después comparando FCP, LCP, Element render delay y TBT.
