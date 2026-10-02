@@ -375,6 +375,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		$images = self::inspect_html_images( $html );
 		$image_report = apply_filters( 'digitalisimo_performance_probe_image_report', array() );
 		$js_report = apply_filters( 'digitalisimo_performance_probe_js_report', array() );
+		$alt_report = apply_filters( 'digitalisimo_performance_probe_alt_report', array() );
 		while ( ob_get_level() > self::$buffer_level ) ob_end_clean();
 		$swiper_required = false;
 		$woocommerce_required = false;
@@ -390,7 +391,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			foreach ( array( 'is_woocommerce', 'is_cart', 'is_checkout', 'is_account_page' ) as $function ) if ( function_exists( $function ) && call_user_func( $function ) ) $woocommerce_required = true;
 		}
 		$delivery = self::inspect_delivery( $html, array_values( self::$resources ), get_option( Digitalisimo_Integrations_Performance_Preloads::OPTION, array() ) );
-		$data = array( 'site_id' => (int) self::$probe_context['site_id'], 'url' => self::$probe_context['url'], 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'fonts' => self::inspect_fonts(), 'images' => $images, 'image_report' => $image_report, 'js_report' => $js_report, 'preload_delivery' => $delivery['preloads'], 'css_delivery' => $delivery['css'], 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required );
+		$data = array( 'site_id' => (int) self::$probe_context['site_id'], 'url' => self::$probe_context['url'], 'resources' => array_values( self::$resources ), 'widgets' => array_values( self::$widgets ), 'fonts' => self::inspect_fonts(), 'images' => $images, 'image_report' => $image_report, 'alt_report' => $alt_report, 'js_report' => $js_report, 'preload_delivery' => $delivery['preloads'], 'css_delivery' => $delivery['css'], 'swiper_required' => $swiper_required, 'woocommerce_required' => $woocommerce_required );
 		set_site_transient( 'digitalisimo_perf_browser_result_' . self::$probe_token, array( 'user_id' => (int) self::$probe_context['user_id'], 'network' => ! empty( self::$probe_context['network'] ), 'site_id' => $data['site_id'], 'result' => $data ), 2 * MINUTE_IN_SECONDS );
 		if ( ! headers_sent() ) {
 			wp_redirect( self::$probe_context['complete_url'] );

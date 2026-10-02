@@ -251,4 +251,36 @@ check( page( $other ) === $img::process( page( $other ) ), 'Las imágenes no cla
 ( new ReflectionProperty( $img, 'roles_only' ) )->setValue( null, false );
 ( new ReflectionProperty( $img, 'has_roles' ) )->setValue( null, false );
 
+// ALT en la salida: contexto del HTML, caption, palabra clave una sola vez y Biblioteca intacta.
+function wp_strip_all_tags( $v ) { return strip_tags( (string) $v ); }
+function get_post_meta( $id, $key ) { return 'digitalisimo_seo_keywords' === $key ? 'mercado digital, otra' : ( 10 === $id ? $GLOBALS['meta_alt'] : '' ); }
+function get_post_field( $field, $id ) { return 10 === $id ? 'hero' : ''; }
+function get_queried_object_id() { return 99; }
+function is_singular() { return true; }
+function get_the_title( $id ) { return 'Servicios'; }
+function get_bloginfo( $key ) { return 'name' === $key ? 'DIGITALÍSIMO' : 'Agencia digital'; }
+function get_theme_mod( $key ) { return 0; }
+require_once __DIR__ . '/../digitalisimo-seo/includes/performance/class-image-alt.php';
+$GLOBALS['meta_alt'] = '';
+on( array( 'seo_alt_optimize' => 1, 'seo_alt_keyword_mode' => 'contextual', 'seo_alt_keyword' => '' ) );
+( new ReflectionProperty( $img, 'alt_on' ) )->setValue( null, true );
+$body = '<h2>Análisis del mercado</h2><img class="wp-image-10" src="' . $hero . '" alt="">'
+	. '<figure><img src="https://site1.test/wp-content/uploads/2026/01/Equipo-Oficina.jpg"><figcaption>Equipo oficina</figcaption></figure>'
+	. '<div class="elementor-widget-image-box"><img src="https://site1.test/wp-content/uploads/IMG_77.jpg" alt=""><h3 class="elementor-image-box-title">Diseño web</h3></div>'
+	. '<img src="https://site1.test/wp-content/uploads/Mercado-Local.jpg"><img src="https://site1.test/wp-content/uploads/foto.jpg" alt="Foto propia">';
+$out = $img::process( page( $body ) );
+preg_match_all( '/<img[^>]*>/', $out, $tags );
+$alts = array_map( function( $tag ) use ( $img ) { $a = $img::attributes( $tag ); return $a['alt'] ?? null; }, $tags[0] );
+check( 'Análisis del mercado digital' === $alts[0], 'Título y archivo sin significado: el H2 cercano, completado con la keyword (' . $alts[0] . ').' );
+check( '' === $alts[1], 'Lo generado repetiría el caption visible: alt="".' );
+check( '' === $alts[2], 'Una imagen ajena a la Biblioteca con alt="" se respeta.' );
+check( 'Mercado local' === $alts[3], 'La keyword ya se usó en esta página: no se repite (' . $alts[3] . ').' );
+check( 'Foto propia' === $alts[4], 'El ALT manual se conserva.' );
+$report = ( new ReflectionProperty( $img, 'alt_report' ) )->getValue();
+check( array( 'GENERADO', 'VACÍO CORRECTO', 'VACÍO CORRECTO', 'GENERADO', 'MANUAL' ) === array_column( $report, 'state' ), 'Estados del informe: ' . implode( ', ', array_column( $report, 'state' ) ) );
+$GLOBALS['meta_alt'] = 'ALT desde Medios';
+check( false !== strpos( $img::process( page( '<img class="wp-image-10" src="' . $hero . '" alt="">' ) ), 'alt="ALT desde Medios"' ), 'El ALT guardado en la Biblioteca gana a cualquier generado.' );
+$GLOBALS['meta_alt'] = '';
+( new ReflectionProperty( $img, 'alt_on' ) )->setValue( null, false );
+
 echo "Imágenes: srcset, sizes, dimensiones, prioridad, exclusiones, fondos y aislamiento por sitio correctos.\n";

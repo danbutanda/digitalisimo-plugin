@@ -56,6 +56,7 @@ jobs:
           php tests/quality-rules.php
           php tests/quality-audit.php
           php tests/llms.php
+          php tests/image-alt.php
           php tests/performance-preloads.php
           php tests/performance-migration.php
           php tests/performance-tracking.php

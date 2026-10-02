@@ -307,3 +307,26 @@ Fuente: solicitud del propietario del 2026-10-01, objetivo «AUDITORÍA Y OPTIMI
   - Confirmar que la vista móvil carga.
   - Revisar visualmente los carruseles tras añadir width/height a los slides.
   - Comprobar que una imagen marcada como decorativa publica `alt=""` (purgar caché de página).
+
+## ALT contextual y palabra clave de apoyo · SEO 1.0.191
+
+Fuente: solicitud del propietario del 2026-10-02, «CAMBIAR FUNCIÓN ALT PREDETERMINADO». La plantilla «Alt predeterminado de Biblioteca» se aplicaba a toda imagen sin ALT, así que una plantilla con la keyword repetía la misma palabra en todas. Se sustituye por `Digitalisimo_Integrations_Image_Alt`, que trabaja sólo en la salida, dentro del buffer de imágenes.
+
+- **Orden de decisión.**
+  1. ALT manual en el HTML o en la Biblioteca: se publica tal cual.
+  2. Imagen clasificada como decorativa: `alt=""`.
+  3. ALT igual al figcaption visible de su figura: `alt=""` en la página, sin tocar Medios.
+  4. Icono o píxel: `alt=""`.
+  5. Imagen ajena a la Biblioteca que ya trae `alt=""`: se respeta.
+  6. Sin ALT: se genera con, por prioridad, el título útil del adjunto, el nombre limpio del archivo (sin tamaño, «-scaled», prefijos de cámara ni hashes, y con tildes frecuentes recuperadas), el título del widget (Image Box, CTA, Flip Box, testimonio), el H2/H3 anterior y el título del contenido. Una fuente ya usada en la página se salta para no repetir.
+- **Logos.** El logo principal (custom-logo, widget Site Logo o `custom_logo`) usa «Nombre del sitio - descripción». Un logo de cliente usa sólo la marca («Logo-Kimball» → «Kimball»).
+- **Personas.** «Nombre-Apellido» se reconoce sólo si empieza por un nombre de pila frecuente. En modo Contextual se añade «de {sitio}».
+- **Palabra clave de apoyo para ALT** (`seo_alt_keyword_mode`: Desactivado, Sólo fallback o Contextual, que es el predeterminado).
+  - En Contextual se añade como mucho a una imagen por página y sólo si comparte vocabulario con su ALT (completa las palabras que faltan) o con su widget o encabezado (« – keyword»).
+  - En Sólo fallback se usa una vez, únicamente cuando no hay ningún otro contexto.
+  - La palabra clave (`seo_alt_keyword`) es exclusiva de cada sitio. Si está vacía, se usa el texto fijo de la antigua plantilla y, en su defecto, la keyword principal del contenido.
+  - `seo_alt_optimize` apaga todo el motor. El modo y el interruptor se heredan de la red.
+- **Auditoría.**
+  - La captura guarda por imagen el ALT publicado, su origen y su estado: MANUAL, GENERADO, REPETIDO, IGUAL A CAPTION, DECORATIVO, VACÍO CORRECTO, POSIBLEMENTE GENÉRICO o SIN ALT. Se muestra en Rendimiento y calidad → Imágenes → Auditoría de ALT.
+  - La auditoría del navegador añade ALT repetido entre imágenes visibles y ALT genérico.
+- **Límites.** Las frases descriptivas que no salen del archivo ni del contexto (por ejemplo, «análisis del» en «Gráfico de análisis del mercado digital») requieren un ALT manual o un asistente de IA. El motor nunca inventa contenido que la página no tiene.

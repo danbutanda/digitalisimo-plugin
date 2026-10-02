@@ -31,9 +31,11 @@ class Digitalisimo_Integrations_Performance_Images {
 	private static $map      = null;
 	private static $map_dirty = false;
 	private static $resolved = array();
-	/** Sólo se aplica la clasificación decorativa: la optimización está apagada. */
+	/** La optimización está apagada: sólo se aplican ALT y clasificación decorativa. */
 	private static $roles_only = false;
 	private static $has_roles  = false;
+	private static $alt_on     = false;
+	private static $alt_report = array();
 
 	public static function init() {
 		add_action( 'template_redirect', array( __CLASS__, 'start' ), 1 );
@@ -43,6 +45,7 @@ class Digitalisimo_Integrations_Performance_Images {
 		add_action( 'elementor/element/parse_css', array( __CLASS__, 'background_css' ), 20, 2 );
 		add_filter( 'digitalisimo_performance_probe_html', array( __CLASS__, 'probe_html' ) );
 		add_filter( 'digitalisimo_performance_probe_image_report', array( __CLASS__, 'probe_report' ) );
+		add_filter( 'digitalisimo_performance_probe_alt_report', array( __CLASS__, 'probe_alt_report' ) );
 		add_action( 'shutdown', array( __CLASS__, 'save_map' ), 20 );
 		foreach ( array( 'delete_attachment', 'edit_attachment', 'wp_update_attachment_metadata' ) as $hook ) add_action( $hook, array( __CLASS__, 'invalidate' ) );
 		add_action( 'update_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'settings_changed' ), 10, 2 );
@@ -90,11 +93,13 @@ class Digitalisimo_Integrations_Performance_Images {
 	public static function start() {
 		$optimize = (bool) self::option( 'perf_img_enabled' );
 		$roles    = class_exists( 'Digitalisimo_Integrations_Quality_Audit' ) && Digitalisimo_Integrations_Quality_Audit::has_decorative();
-		if ( ( ! $optimize && ! $roles ) || ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) return;
+		$alt      = class_exists( 'Digitalisimo_Integrations_Image_Alt' ) && Digitalisimo_Integrations_Image_Alt::enabled();
+		if ( ( ! $optimize && ! $roles && ! $alt ) || ! Digitalisimo_Integrations_Performance_Manager::frontend_safe() ) return;
 		if ( is_feed() || is_embed() || is_robots() || is_trackback() || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) ) return;
 		self::$active     = true;
 		self::$has_roles  = $roles;
 		self::$roles_only = ! $optimize;
+		self::$alt_on     = $alt;
 		ob_start( array( __CLASS__, 'buffer' ) );
 	}
 
@@ -127,6 +132,10 @@ class Digitalisimo_Integrations_Performance_Images {
 		return self::$active ? self::$report : $report;
 	}
 
+	public static function probe_alt_report( $report ) {
+		return self::$active ? self::$alt_report : $report;
+	}
+
 	/* ------------------------------------------------------------------ *
 	 * Procesado del HTML
 	 * ------------------------------------------------------------------ */
@@ -138,7 +147,8 @@ class Digitalisimo_Integrations_Performance_Images {
 	 * restauran intactos después.
 	 */
 	public static function process( $html ) {
-		self::$report = array();
+		self::$report     = array();
+		self::$alt_report = array();
 		$masked = array();
 		$html   = preg_replace_callback( '~<(script|style|noscript|template|textarea|svg|picture)\b.*?</\1\s*>~is', function( $match ) use ( &$masked ) {
 			$token = '<!--digitalisimo-mask-' . count( $masked ) . '-->';
@@ -153,10 +163,27 @@ class Digitalisimo_Integrations_Performance_Images {
 			'lcp_done'    => false,
 			'exclusions'  => self::exclusion_rules(),
 			'mode'        => self::sanitize_mode( self::option( 'perf_img_mode' ) ),
+			'alt'         => self::$alt_on ? self::alt_page() : null,
+			'last_id'     => 0,
+			'exclusion'   => '',
 		);
-		$processed = preg_replace_callback( '/<img\b[^>]*>/i', function( $match ) use ( &$state ) {
-			return self::process_tag( $match[0], $state );
-		}, $html );
+		// Los H2/H3 se recorren en el mismo orden que las imágenes: son el contexto del ALT.
+		$processed = preg_replace_callback( '~<h([23])\b[^>]*>|<img\b[^>]*>~i', function( $match ) use ( &$state, $html ) {
+			$tag    = $match[0][0];
+			$offset = $match[0][1];
+			if ( 0 !== stripos( $tag, '<img' ) ) {
+				if ( null !== $state['alt'] ) {
+					$end  = stripos( $html, '</h', $offset );
+					$text = false === $end ? '' : Digitalisimo_Integrations_Image_Alt::plain( substr( $html, $offset, $end - $offset ) );
+					if ( '' !== $text ) $state['alt']['heading'] = $text;
+				}
+				return $tag;
+			}
+			$state['last_id']   = 0;
+			$state['exclusion'] = '';
+			$out = self::process_tag( $tag, $state );
+			return null !== $state['alt'] ? self::alt( $out, $tag, $offset, $html, $state ) : $out;
+		}, $html, -1, $count, PREG_OFFSET_CAPTURE );
 		if ( ! is_string( $processed ) ) $processed = $html;
 		return $masked ? strtr( $processed, $masked ) : $processed;
 	}
@@ -207,6 +234,45 @@ class Digitalisimo_Integrations_Performance_Images {
 		return self::replace_attribute( $tag, 'alt', '' );
 	}
 
+	/** Estado del ALT para esta página: nombre, descripción, palabra clave y modo del sitio en curso. */
+	private static function alt_page() {
+		$keyword = trim( (string) self::option( 'seo_alt_keyword' ) );
+		// La antigua plantilla «Alt predeterminado» aporta su texto fijo, nunca sus variables.
+		if ( '' === $keyword ) $keyword = Digitalisimo_Integrations_Image_Alt::legacy_keyword( self::option( 'seo_default_image_alt' ) );
+		$id      = function_exists( 'get_queried_object_id' ) ? (int) get_queried_object_id() : 0;
+		// Sin palabra clave de apoyo configurada se usa la keyword principal del contenido.
+		if ( '' === $keyword && $id ) $keyword = trim( (string) strtok( (string) get_post_meta( $id, 'digitalisimo_seo_keywords', true ), ',' ) );
+		$site = trim( (string) self::option( 'seo_site_name' ) );
+		if ( '' === $site ) $site = (string) get_bloginfo( 'name' );
+		$title = $id && function_exists( 'is_singular' ) && is_singular() ? (string) get_the_title( $id ) : '';
+		$page = Digitalisimo_Integrations_Image_Alt::page( Digitalisimo_Integrations_Image_Alt::plain( $site ), Digitalisimo_Integrations_Image_Alt::plain( get_bloginfo( 'description' ), 120 ), $keyword, self::option( 'seo_alt_keyword_mode' ), $title );
+		$page['logo_id'] = (int) get_theme_mod( 'custom_logo' );
+		return $page;
+	}
+
+	/** ALT publicado de la etiqueta ya procesada; nunca toca la Biblioteca de Medios. */
+	private static function alt( $out, $original, $offset, $html, &$state ) {
+		$attrs  = self::attributes( $out );
+		$id     = (int) $state['last_id'];
+		$source = (string) ( $attrs['src'] ?? '' );
+		if ( '' === $source ) $source = (string) ( $attrs['data-src'] ?? '' );
+		$ctx = array(
+			'attachment'   => $id,
+			'meta_alt'     => $id ? (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) : '',
+			'role'         => self::role_of( $id ),
+			'caption'      => Digitalisimo_Integrations_Image_Alt::caption( $html, $offset, strlen( $original ) ),
+			'skip_empty'   => (bool) preg_match( '/Píxel|Icono|CAPTCHA|emoji|wp-smiley|SVG/u', (string) $state['exclusion'] ),
+			'title'        => $id ? (string) get_post_field( 'post_title', $id ) : '',
+			'file'         => (string) wp_parse_url( $source, PHP_URL_PATH ),
+			'widget_title' => Digitalisimo_Integrations_Image_Alt::widget_title( $html, $offset, strlen( $original ) ),
+			'main_logo'    => Digitalisimo_Integrations_Image_Alt::main_logo( $html, $offset, $attrs, $state['alt']['logo_id'] ?? 0, $id ),
+		);
+		$result = Digitalisimo_Integrations_Image_Alt::apply( $attrs, $ctx, $state['alt'] );
+		if ( null !== $result['alt'] ) $out = self::replace_attribute( $out, 'alt', $result['alt'] );
+		if ( count( self::$alt_report ) < 300 ) self::$alt_report[] = array( 'src' => $source, 'attachment_id' => $id, 'original' => array_key_exists( 'alt', $before = self::attributes( $original ) ) ? (string) $before['alt'] : null, 'alt' => $result['final'], 'state' => $result['state'], 'source' => $result['source'] );
+		return $out;
+	}
+
 	/** Estados que se leen del resultado final, sea cual sea el camino. */
 	private static function final_states( $attrs, &$entry ) {
 		$srcset = (string) ( $attrs['srcset'] ?? ( $attrs['data-srcset'] ?? '' ) );
@@ -228,7 +294,9 @@ class Digitalisimo_Integrations_Performance_Images {
 
 		if ( self::$roles_only ) {
 			$source = self::deferred_source( $attrs );
-			return self::decorative( $clean, $attrs, self::resolve_attachment( '' !== $source ? array( 'src' => $source, 'class' => (string) ( $attrs['class'] ?? '' ) ) : $attrs ) );
+			$state['last_id'] = self::resolve_attachment( '' !== $source ? array( 'src' => $source, 'class' => (string) ( $attrs['class'] ?? '' ) ) : $attrs );
+			$state['exclusion'] = '' === $source ? self::excluded( $attrs, array() ) : '';
+			return self::decorative( $clean, $attrs, $state['last_id'] );
 		}
 
 		// Swiper y lazysizes cargan desde data-src y también aplican data-srcset y
@@ -238,13 +306,16 @@ class Digitalisimo_Integrations_Performance_Images {
 
 		$exclusion = self::excluded( $attrs, $state['exclusions'] );
 		if ( $exclusion ) {
-			if ( self::$has_roles ) $clean = self::decorative( $clean, $attrs, self::resolve_attachment( $attrs ) );
+			$state['exclusion'] = $exclusion;
+			if ( self::$has_roles || self::$alt_on ) $state['last_id'] = self::resolve_attachment( $attrs );
+			if ( self::$has_roles ) $clean = self::decorative( $clean, $attrs, $state['last_id'] );
 			return self::finish( $clean, $attrs, $entry, 'EXCLUIDA', $exclusion );
 		}
 
 		$id = self::resolve_attachment( $attrs );
 		if ( ! $id ) return self::finish( $clean, $attrs, $entry, 'SIN ATTACHMENT', 'No se vinculó con un adjunto de la Biblioteca de Medios de este sitio: se conserva sin cambios.' );
 		$entry['attachment_id'] = $id;
+		$state['last_id'] = $id;
 		$clean = self::decorative( $clean, $attrs, $id );
 		if ( in_array( 'id:' . $id, array_map( 'strtolower', $state['exclusions'] ), true ) ) return self::finish( $clean, $attrs, $entry, 'EXCLUIDA', 'Exclusión manual: id:' . $id );
 
@@ -328,6 +399,7 @@ class Digitalisimo_Integrations_Performance_Images {
 		$id = self::resolve_attachment( $probe );
 		if ( ! $id ) return self::finish( $tag, $attrs, $entry, 'SIN ATTACHMENT', 'Carga diferida de Swiper/lazysizes sin adjunto de este sitio: se conserva sin cambios.' );
 		$entry['attachment_id'] = $id;
+		$state['last_id'] = $id;
 		$tag = self::decorative( $tag, $attrs, $id );
 		if ( in_array( 'id:' . $id, array_map( 'strtolower', $state['exclusions'] ), true ) ) return self::finish( $tag, $attrs, $entry, 'EXCLUIDA', 'Exclusión manual: id:' . $id );
 		$data = self::attachment_data( $id, $source );

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.190
+ * Version: 1.0.191
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.190' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.191' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -50,6 +50,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-perform
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-preloads.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-images.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-javascript.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-image-alt.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-quality-rules.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-quality-audit.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-llms.php';

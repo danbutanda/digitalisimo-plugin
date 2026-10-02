@@ -91,7 +91,7 @@ class Digitalisimo_Integrations_Quality_Audit {
 	/** Versión de la configuración que afecta lo medido: cambia si cambia cualquiera de estos valores. */
 	public static function config_version() {
 		$values = array();
-		foreach ( array( 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_mode', 'perf_img_exclusions', 'perf_css_defer', 'perf_css_defer_handles', 'perf_js_jquery_mode', 'perf_touch_guard', 'perf_touch_selectors', 'perf_font_guard_mode', 'seo_ai_llms_enabled', 'seo_ai_llms_mode' ) as $key ) $values[ $key ] = Digitalisimo_Integrations_SEO_Resolver::option( $key );
+		foreach ( array( 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_mode', 'perf_img_exclusions', 'perf_css_defer', 'perf_css_defer_handles', 'perf_js_jquery_mode', 'perf_touch_guard', 'perf_touch_selectors', 'perf_font_guard_mode', 'seo_ai_llms_enabled', 'seo_ai_llms_mode', 'seo_alt_optimize', 'seo_alt_keyword_mode', 'seo_alt_keyword' ) as $key ) $values[ $key ] = Digitalisimo_Integrations_SEO_Resolver::option( $key );
 		$values['roles'] = self::roles();
 		return substr( md5( DIGITALISIMO_INTEGRATIONS_VERSION . '|' . wp_json_encode( $values ) ), 0, 12 );
 	}
@@ -254,6 +254,7 @@ class Digitalisimo_Integrations_Quality_Audit {
 				set_site_transient( 'digitalisimo_quality_server_' . self::$token, array(
 					'styles' => self::$styles, 'widgets' => self::$widgets,
 					'image_report' => apply_filters( 'digitalisimo_performance_probe_image_report', array() ),
+					'alt_report' => apply_filters( 'digitalisimo_performance_probe_alt_report', array() ),
 				), self::TTL );
 			}
 			$config = array(
@@ -436,6 +437,7 @@ class Digitalisimo_Integrations_Quality_Audit {
 			'tree' => array( 'desktop' => Digitalisimo_Integrations_Quality_Rules::heading_tree( $desktop['headings'] ?? array() ), 'mobile' => $has_mobile ? Digitalisimo_Integrations_Quality_Rules::heading_tree( $mobile['headings'] ) : array() ),
 			'totals' => array( 'links' => count( $desktop['links'] ?? array() ), 'headings' => count( $desktop['headings'] ?? array() ), 'images' => count( $desktop['images'] ?? array() ), 'targets' => count( $has_mobile ? $mobile['targets'] : ( $desktop['targets'] ?? array() ) ), 'contrast_checked' => $contrast['checked'], 'contrast_unknown' => $contrast['unknown'] ),
 			'image_report' => array_slice( (array) ( $server['image_report'] ?? array() ), 0, 300 ),
+			'alt_report' => array_slice( (array) ( $server['alt_report'] ?? array() ), 0, 300 ),
 		);
 	}
 
@@ -714,6 +716,25 @@ class Digitalisimo_Integrations_Quality_Audit {
 		$show = isset( $_GET['all_images'] ) ? $rows : self::filter( $rows );
 		if ( count( $show ) !== count( $rows ) ) echo '<p><a href="' . esc_url( add_query_arg( 'all_images', 1 ) ) . '">Ver las ' . count( $rows ) . ' imágenes medidas</a></p>';
 		self::table( array( 'status' => 'Estado', 'viewport' => 'Vista', 'issue' => 'Detalle', 'src' => 'Archivo', 'natural' => 'Descargado', 'rect' => 'Pintado', 'dpr' => 'DPR', 'needed' => 'Necesario', 'candidate' => 'Variante suficiente', 'sizes' => 'sizes', 'srcset' => 'srcset', 'width' => 'width', 'height' => 'height', 'loading' => 'loading', 'fetchpriority' => 'fetchpriority', 'decoding' => 'decoding' ), $show, 'Ninguna imagen visible descarga más de lo que necesita.' );
+	}
+
+	/** Bajo Imágenes: qué ALT publicó cada imagen y de dónde salió. */
+	public static function render_alt( $network ) {
+		$ctx = self::context( $network );
+		echo '<h2>Auditoría de ALT</h2><p>ALT publicado por cada imagen en la última auditoría. Un ALT manual nunca se sobrescribe y la Biblioteca de Medios no se modifica: los generados existen sólo en la página.</p>';
+		$rows = (array) ( $ctx['record']['alt_report'] ?? array() );
+		if ( ! $ctx['record'] ) { echo '<p>Ejecuta una <a href="' . esc_url( self::section_url( $network, 'audit', $ctx['site_id'], $ctx['url'] ) ) . '">Auditoría</a> para ver el ALT de cada imagen.</p>'; return; }
+		if ( ! $rows ) { echo '<p>Sin datos de ALT en esta auditoría: activa «Optimizar ALT en la salida» (SEO → Schema) y vuelve a auditar.</p>'; return; }
+		$counts = array_count_values( array_map( function( $row ) { return (string) ( $row['state'] ?? '' ); }, $rows ) );
+		$order  = array( 'MANUAL', 'GENERADO', 'REPETIDO', 'IGUAL A CAPTION', 'DECORATIVO', 'VACÍO CORRECTO', 'POSIBLEMENTE GENÉRICO', 'SIN ALT' );
+		echo '<p>' . implode( ' · ', array_map( function( $state ) use ( $counts ) { return '<strong>' . esc_html( $state ) . '</strong>: ' . (int) ( $counts[ $state ] ?? 0 ); }, $order ) ) . '</p>';
+		echo '<div style="overflow-x:auto"><table class="widefat striped"><thead><tr><th>Estado</th><th>ALT publicado</th><th>Origen</th><th>ALT en el HTML original</th><th>Adjunto</th><th>Archivo</th></tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			$final    = $row['alt'] ?? null;
+			$original = $row['original'] ?? null;
+			echo '<tr><td>' . esc_html( $row['state'] ?? '' ) . '</td><td>' . esc_html( null === $final ? '(sin atributo)' : ( '' === $final ? 'alt=""' : $final ) ) . '</td><td>' . esc_html( $row['source'] ?? '' ) . '</td><td>' . esc_html( null === $original ? '(sin atributo)' : ( '' === $original ? 'alt=""' : $original ) ) . '</td><td>' . ( ! empty( $row['attachment_id'] ) ? '#' . (int) $row['attachment_id'] : '—' ) . '</td><td><code style="word-break:break-all">' . esc_html( $row['src'] ?? '' ) . '</code></td></tr>';
+		}
+		echo '</tbody></table></div>';
 	}
 
 	/** Bajo CSS: hojas de la página, su widget y si diferirlas es seguro. */

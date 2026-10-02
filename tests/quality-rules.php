@@ -68,6 +68,9 @@ check( false !== strpos( $r::alt_issues( array( $img( array( 'alt' => 'IMG_2034.
 check( 'ADVERTENCIA' === $r::alt_issues( array( $img( array( 'alt' => 'Logo', 'aria_hidden' => true ) ) ) )[0]['status'], 'Oculta con aria-hidden pero con alt descriptivo.' );
 check( ! $r::alt_issues( array( $img( array( 'alt' => null, 'rect' => array( 1, 1 ) ) ), $img( array( 'alt' => null, 'visible' => false ) ), $img( array( 'alt' => 'Fachada de la oficina' ) ) ) ), 'Píxeles, imágenes ocultas y alts correctos no se reportan.' );
 
+$rows = $r::alt_issues( array( $img( array( 'alt' => 'Servicio SEO' ) ), $img( array( 'alt' => 'servicio seo' ) ), $img( array( 'alt' => 'Imagen' ) ), $img( array( 'alt' => 'Servicio SEO', 'visible' => false ) ) ) );
+check( 3 === count( $rows ) && false !== strpos( $rows[0]['issue'], 'repetido en 2' ) && false !== strpos( $rows[2]['issue'], 'genérico' ), 'ALT repetido entre imágenes visibles y ALT genérico.' );
+
 // Objetivos táctiles (WCAG 2.5.8).
 $t = function( $x, $y, $w, $h, $extra = array() ) { return $extra + array( 'x' => $x, 'y' => $y, 'w' => $w, 'h' => $h, 'name' => 'c', 'selector' => 's' ); };
 check( ! $r::touch_issues( array( $t( 0, 0, 44, 44 ), $t( 50, 0, 24, 24 ) ) ), 'Controles de 24 px o más cumplen.' );

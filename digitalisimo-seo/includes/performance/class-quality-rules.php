@@ -18,6 +18,7 @@ class Digitalisimo_Integrations_Quality_Rules {
 	const TARGET_MIN = 24;
 
 	/** Textos que no describen el destino (los que también señala Lighthouse en español e inglés). */
+	const GENERIC_ALTS = array( 'imagen', 'image', 'foto', 'fotografia', 'photo', 'picture', 'img', 'logo', 'banner', 'icono', 'icon', 'grafico', 'sin titulo', 'untitled', 'default', 'placeholder', 'captura', 'slide', 'hero', 'fondo' );
 	const GENERIC_NAMES = array( 'aqui', 'click aqui', 'clic aqui', 'haz clic aqui', 'haga clic aqui', 'da clic aqui', 'mas', 'ver mas', 'leer mas', 'saber mas', 'mas informacion', 'mas info', 'informacion', 'continuar', 'ir', 'enlace', 'link', 'click here', 'click', 'here', 'more', 'read more', 'learn more', 'more info', 'continue', 'go' );
 
 	/* ------------------------------------------------------------------ *
@@ -238,6 +239,11 @@ class Digitalisimo_Integrations_Quality_Rules {
 	 */
 	public static function alt_issues( $images ) {
 		$rows = array();
+		$seen = array();
+		foreach ( (array) $images as $image ) {
+			$key = self::normalize( (string) ( $image['alt'] ?? '' ) );
+			if ( ! empty( $image['visible'] ) && '' !== $key ) $seen[ $key ] = ( $seen[ $key ] ?? 0 ) + 1;
+		}
 		foreach ( (array) $images as $image ) {
 			if ( empty( $image['visible'] ) ) continue;
 			$rect = (array) ( $image['rect'] ?? array( 0, 0 ) );
@@ -261,6 +267,8 @@ class Digitalisimo_Integrations_Quality_Rules {
 			if ( '' !== self::normalize( $image['caption'] ?? '' ) && self::normalize( $image['caption'] ) === $key ) $rows[] = $base + array( 'status' => self::WARNING, 'issue' => 'Alt idéntico al caption inmediato: se lee dos veces.' );
 			elseif ( '' !== self::normalize( $image['link_text'] ?? '' ) && self::normalize( $image['link_text'] ) === $key ) $rows[] = $base + array( 'status' => self::WARNING, 'issue' => 'Alt idéntico al texto del enlace: se lee dos veces.' );
 			elseif ( self::filename_like( $alt ) ) $rows[] = $base + array( 'status' => self::WARNING, 'issue' => 'El alt parece un nombre de archivo.' );
+			elseif ( in_array( $key, self::GENERIC_ALTS, true ) ) $rows[] = $base + array( 'status' => self::WARNING, 'issue' => 'ALT posiblemente genérico: no describe esta imagen.' );
+			elseif ( ( $seen[ $key ] ?? 0 ) > 1 ) $rows[] = $base + array( 'status' => self::WARNING, 'issue' => 'ALT repetido en ' . $seen[ $key ] . ' imágenes de esta página.' );
 			elseif ( self::length( $alt ) > 150 ) $rows[] = $base + array( 'status' => self::WARNING, 'issue' => 'Alt muy largo: conviene una descripción breve y el detalle en el texto.' );
 		}
 		return $rows;
