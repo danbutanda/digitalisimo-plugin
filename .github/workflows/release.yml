@@ -67,6 +67,7 @@ jobs:
           php tests/performance-site-kit.php
           php tests/seo-release-check.php
           php tests/performance-form-ui.php
+          php tests/sitemap.php
       - name: Seleccionar plugins modificados
         id: modules
         env:
