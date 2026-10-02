@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.202.zip', version: '1.0.202' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.203.zip', version: '1.0.203' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.27.zip', version: '1.0.27' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.51.zip', version: '1.0.51' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.21.zip', version: '1.0.21' },
@@ -39,7 +39,7 @@ for (const module of modules) {
 	const zipListing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
 	if (!zipListing.includes(`${module.dir}/${module.file}`)) throw new Error(`El ZIP ${zip} no conserva su archivo principal`);
 	if (zipListing.includes('.DS_Store')) throw new Error(`El ZIP ${zip} contiene archivos de sistema`);
-  if (module.dir === 'digitalisimo-seo' && ['class-performance-manager.php', 'class-performance-hero.php', 'class-asset-diagnostics.php', 'class-performance-measurements.php'].some((file) => !zipListing.includes(`includes/performance/${file}`))) throw new Error('El ZIP SEO no contiene el módulo de rendimiento.');
+  if (module.dir === 'digitalisimo-seo' && ['class-performance-manager.php', 'class-performance-hero.php', 'class-performance-font-inline.php', 'class-asset-diagnostics.php', 'class-performance-measurements.php'].some((file) => !zipListing.includes(`includes/performance/${file}`))) throw new Error('El ZIP SEO no contiene el módulo de rendimiento.');
   if (module.dir === 'digitalisimo-seo' && !zipListing.includes('includes/class-tools-update-bridge.php')) throw new Error('El ZIP SEO no contiene el puente de actualización de Tools.');
   walk(module.dir);
 }

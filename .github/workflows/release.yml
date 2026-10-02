@@ -51,6 +51,7 @@ jobs:
           php tests/performance-debug.php
           php tests/performance-css.php
           php tests/performance-fonts.php
+          php tests/performance-font-inline.php
           php tests/performance-font-guard.php
           php tests/performance-font-optimizer.php
           php tests/performance-font-policy.php

@@ -681,6 +681,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		$report   = Digitalisimo_Integrations_Performance_Fonts::scan();
 		$guard    = self::build( $approve, $report );
 		$preloads = class_exists( 'Digitalisimo_Integrations_Performance_Preloads' ) ? Digitalisimo_Integrations_Performance_Preloads::rebuild( $report ) : false;
+		if ( class_exists( 'Digitalisimo_Integrations_Performance_Font_Inline' ) ) Digitalisimo_Integrations_Performance_Font_Inline::rebuild();
 		return array( 'report' => $report, 'guard' => $guard, 'preloads' => $preloads );
 	}
 
@@ -795,6 +796,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 			}
 			$result = self::build( true, $report );
 			if ( class_exists( 'Digitalisimo_Integrations_Performance_Preloads' ) ) Digitalisimo_Integrations_Performance_Preloads::rebuild( $report );
+			if ( class_exists( 'Digitalisimo_Integrations_Performance_Font_Inline' ) ) Digitalisimo_Integrations_Performance_Font_Inline::rebuild();
 			return $result;
 		} );
 		wp_safe_redirect( add_query_arg( isset( $result['error'] ) ? 'font_guard_error' : 'font_guard_optimized', isset( $result['error'] ) ? $result['error'] : $result['removed'], $target ) );
