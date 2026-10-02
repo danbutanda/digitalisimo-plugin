@@ -25,6 +25,7 @@ class Digitalisimo_Integrations_Performance_JavaScript {
 	private static $requested = array();
 	private static $active    = false;
 	private static $report    = array();
+	private static $snippet   = '';
 
 	public static function init() {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'request_defer' ), PHP_INT_MAX );
@@ -190,6 +191,7 @@ class Digitalisimo_Integrations_Performance_JavaScript {
 			if ( ! $script['external'] ) {
 				// wp_localize_script y traducciones sólo declaran datos.
 				if ( preg_match( '/-js-(?:extra|translations)$/', $script['id'] ) || 'digitalisimo-js-guard' === $script['id'] ) continue;
+				if ( self::inline_uses_jquery( $script['content'] ) ) self::$snippet = trim( substr( preg_replace( '/\s+/', ' ', $script['content'] ), 0, 400 ) );
 				if ( self::inline_uses_jquery( $script['content'] ) ) return 'Código inline que usa jQuery' . ( '' !== $script['id'] ? ' (' . $script['id'] . ')' : '' ) . ' se ejecutaría antes que jQuery.';
 				continue;
 			}
@@ -218,6 +220,7 @@ class Digitalisimo_Integrations_Performance_JavaScript {
 
 	public static function process( $html, $registry, $requested ) {
 		$scripts = self::scripts_in( $html );
+		self::$snippet = '';
 		$reason  = self::unsafe_reason( $scripts, $registry, $requested );
 		if ( '' !== $reason ) {
 			$html    = self::strip_defer( $html, $scripts, $requested );
@@ -254,7 +257,7 @@ class Digitalisimo_Integrations_Performance_JavaScript {
 			}
 			$rows[] = array( 'handle' => $handle, 'dependency' => $jquery ? implode( ', ', $jquery ) : '—', 'requested' => $own, 'effective' => $effective, 'status' => 'defer' === $effective ? 'SEGURO PARA DEFER' : ( isset( $requested[ $handle ] ) ? 'NO DIFERIDO' : 'SIN CAMBIOS' ), 'reason' => $reason );
 		}
-		return array( 'page' => '' === $page_reason ? 'Cadena diferida' : 'Carga normal en esta página', 'reason' => $page_reason, 'rows' => $rows );
+		return array( 'page' => '' === $page_reason ? 'Cadena diferida' : 'Carga normal en esta página', 'reason' => $page_reason, 'snippet' => '' !== $page_reason ? self::$snippet : '', 'rows' => $rows );
 	}
 
 	private static function all_dependencies( $registry, $handle, $seen = array() ) {
@@ -348,6 +351,7 @@ class Digitalisimo_Integrations_Performance_JavaScript {
 			echo '<p>Sin captura con el experimento activo. Actívalo, guarda y analiza una URL en «Diagnóstico de assets»: aquí aparecerá la estrategia efectiva de cada script.</p>';
 		} else {
 			echo '<p>Página: <a href="' . esc_url( $captured['url'] ) . '" target="_blank" rel="noopener">' . esc_html( $captured['url'] ) . '</a> · <strong>' . esc_html( $report['page'] ) . '</strong>' . ( ! empty( $report['reason'] ) ? ' — ' . esc_html( $report['reason'] ) : '' ) . '</p>';
+			if ( ! empty( $report['snippet'] ) ) echo '<p>Código que lo impide (primeros 400 caracteres):</p><pre style="white-space:pre-wrap;max-width:900px">' . esc_html( $report['snippet'] ) . '</pre>';
 			echo '<table class="widefat striped"><thead><tr><th>Handle</th><th>Dependencia jQuery</th><th>Estrategia solicitada</th><th>Estrategia efectiva</th><th>Estado</th></tr></thead><tbody>';
 			foreach ( $report['rows'] as $row ) echo '<tr><td><code>' . esc_html( $row['handle'] ) . '</code></td><td>' . esc_html( $row['dependency'] ) . '</td><td>' . esc_html( $row['requested'] ) . '</td><td>' . esc_html( $row['effective'] ) . '</td><td>' . esc_html( $row['status'] ) . ( $row['reason'] ? '<br><span class="description">' . esc_html( $row['reason'] ) . '</span>' : '' ) . '</td></tr>';
 			echo '</tbody></table>';

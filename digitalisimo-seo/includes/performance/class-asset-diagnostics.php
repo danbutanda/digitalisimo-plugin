@@ -29,7 +29,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		$default = get_home_url( $site_id, '/' );
 		$url = (string) ( $_GET['performance_url'] ?? $default );
 		$result = get_transient( 'digitalisimo_perf_result_' . get_current_user_id() );
-		echo '<h2>Diagnóstico de assets</h2><p>Abre temporalmente una URL pública de este sitio o, en la red, de un sitio de la red, captura los handles encolados por WordPress y vuelve aquí. No se retira ningún recurso durante el diagnóstico.</p>';
+		echo '<h2>Diagnóstico de assets</h2><p>Abre temporalmente una URL pública de este sitio o, en la red, de un sitio de la red, captura los handles encolados por WordPress tal como los recibe un visitante sin sesión y vuelve aquí. No se retira ningún recurso durante el diagnóstico.</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'digitalisimo_performance_diagnostic' );
 		echo '<input type="hidden" name="action" value="digitalisimo_performance_diagnostic"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '">';
@@ -163,8 +163,22 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			header( 'Referrer-Policy: no-referrer' );
 		}
 		self::$collecting = true;
+		// La página se pinta como la ve un visitante: sin barra de administración
+		// ni los scripts de edición de Elementor que sólo carga un administrador.
+		if ( function_exists( 'wp_set_current_user' ) ) wp_set_current_user( 0 );
+		add_filter( 'show_admin_bar', '__return_false', PHP_INT_MAX );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'drop_admin_bar' ), PHP_INT_MAX );
 		self::$buffer_level = ob_get_level();
 		ob_start();
+	}
+
+	/** La barra ya se inicializó antes de la captura: se retiran sus recursos. */
+	public static function drop_admin_bar() {
+		if ( ! self::$collecting ) return;
+		wp_dequeue_script( 'admin-bar' );
+		wp_dequeue_style( 'admin-bar' );
+		remove_action( 'wp_body_open', 'wp_admin_bar_render', 0 );
+		remove_action( 'wp_footer', 'wp_admin_bar_render', 1000 );
 	}
 
 	public static function capture() {

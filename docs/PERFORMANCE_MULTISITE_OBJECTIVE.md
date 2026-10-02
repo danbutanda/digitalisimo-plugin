@@ -257,3 +257,7 @@ Fuente: solicitud del propietario del 2026-10-02 («Defer seguro de jQuery y dep
 Pruebas: `tests/performance-javascript.php`, con el árbol real de la portada de digitalisimo.mx. Las mutaciones confirman que el test falla si no se revisa el inline, si se pisa una estrategia existente, si cualquier error apaga el experimento o si se ignora un dependiente bloqueante.
 
 Validación pendiente en un sitio de pruebas: consola sin errores, menú móvil, sticky, formularios, pestañas, acordeones, contadores, carruseles, lightbox, Call To Action y WooCommerce; varias corridas de Lighthouse móvil antes y después comparando FCP, LCP, Element render delay y TBT.
+
+### Captura como visitante · SEO 1.0.188
+
+La primera prueba del experimento jQuery en digitalisimo.mx volvió a carga normal por un inline `jquery-ui-core-js-before`. La captura se había pintado con la sesión del administrador: incluía `elementor-common`, `elementor-pro-notes`, Backbone y jQuery UI draggable, que un visitante no carga. «Analizar URL» ahora pinta la página sin usuario (`wp_set_current_user( 0 )`), sin barra de administración y sin sus recursos, de modo que fuentes, imágenes, CSS y JavaScript se diagnostican como los recibe un visitante. Cuando una página vuelve a carga normal por código inline, Rendimiento → JavaScript muestra sus primeros 400 caracteres para decidir con el contenido real.

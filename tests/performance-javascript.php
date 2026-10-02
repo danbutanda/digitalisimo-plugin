@@ -87,6 +87,7 @@ $out   = $js::process( $risky, $s, $requested );
 check( false === strpos( $out, 'id="jquery-core-js" defer' ) && false === strpos( $out, 'id="smartmenus-js" defer' ) && false === strpos( $out, 'data-wp-strategy' ), 'Se retira el defer de toda la cadena.' );
 check( false !== strpos( $out, 'id="otro-js" defer' ), 'Un defer que no pidió este experimento se conserva.' );
 $report = ( new ReflectionProperty( $js, 'report' ) )->getValue();
+check( false !== strpos( $report['snippet'], 'addClass' ), 'El debug muestra el código que impide diferir.' );
 check( 'Carga normal en esta página' === $report['page'] && false !== strpos( $report['reason'], 'inline' ) && 'NO DIFERIDO' === array_column( $report['rows'], null, 'handle' )['jquery-core']['status'], 'El debug explica el fallback.' );
 
 // Lo que va antes del primer script diferido ya se ejecutaba sin jQuery: no cuenta.
