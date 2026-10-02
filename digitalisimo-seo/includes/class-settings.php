@@ -14,7 +14,7 @@ class Digitalisimo_Integrations_Settings {
 			'enable_woocommerce'     => 1,
 			'enable_ipinfo'          => 0,
 			'sitemap_enabled'        => 1,
-			'sitemap_post_types'     => 'post,page',
+			'sitemap_post_types'     => 'auto',
 			'sitemap_exclude_ids'    => '',
 			'keyword_post_types'     => 'all',
 			'keyword_max_count'      => 5,
@@ -395,7 +395,7 @@ class Digitalisimo_Integrations_Settings {
 			self::ai_fields();
 		} elseif ( 'sitemap' === $tab ) {
 			self::field( 'sitemap_enabled', 'Activar sitemap XML', 'checkbox', 'Usa el sitemap nativo de WordPress: /wp-sitemap.xml.' );
-			self::field( 'sitemap_post_types', 'Tipos de contenido incluidos', 'textarea', 'Comas o saltos de línea. Las páginas públicas siempre se incluyen; vacío o auto permite todos los tipos públicos.' );
+			self::field( 'sitemap_post_types', 'Tipos de contenido incluidos', 'textarea', 'Auto incluye entradas, páginas, productos y otros tipos públicos indexables. Para limitar, escribe los slugs separados por comas; las páginas públicas siempre se incluyen.' );
 			self::field( 'sitemap_exclude_ids', 'IDs excluidos del sitemap', 'textarea', 'Separados por comas. Los contenidos marcados noindex siempre se excluyen.' );
 		} elseif ( 'indexing' === $tab ) {
 			self::field( 'noindex_search', 'Resultados de búsqueda internos', 'checkbox' );
