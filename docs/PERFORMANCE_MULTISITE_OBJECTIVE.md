@@ -261,3 +261,9 @@ Validación pendiente en un sitio de pruebas: consola sin errores, menú móvil,
 ### Captura como visitante · SEO 1.0.188
 
 La primera prueba del experimento jQuery en digitalisimo.mx volvió a carga normal por un inline `jquery-ui-core-js-before`. La captura se había pintado con la sesión del administrador: incluía `elementor-common`, `elementor-pro-notes`, Backbone y jQuery UI draggable, que un visitante no carga. «Analizar URL» ahora pinta la página sin usuario (`wp_set_current_user( 0 )`), sin barra de administración y sin sus recursos, de modo que fuentes, imágenes, CSS y JavaScript se diagnostican como los recibe un visitante. Cuando una página vuelve a carga normal por código inline, Rendimiento → JavaScript muestra sus primeros 400 caracteres para decidir con el contenido real.
+
+### Inline «before» de la cadena · SEO 1.0.189
+
+Capturada como visitante, la portada de digitalisimo.mx volvía a carga normal por una sola línea que añade WordPress antes de jQuery UI: `jQuery.uiBackCompat = true;` (`jquery-ui-core-js-before`). WordPress no considera los inline «before» al decidir si un script puede diferirse, pero éste necesita jQuery y, impreso tal cual, se ejecutaría antes que jQuery diferido.
+
+Los inline «before» que WordPress adjunta a un script diferido de la cadena se convierten en un script diferido con `src="data:text/javascript;base64,…"` en la misma posición. Los scripts diferidos se ejecutan en orden de documento: corre después de jQuery y justo antes de su script, igual que antes. Sólo se hace si la CSP del sitio (cabecera o `<meta>`; `script-src-elem`, `script-src` o `default-src`) admite `data:`; si no, la página vuelve a carga normal. Si cualquier otra causa obliga a volver a carga normal, el inline se restaura tal como estaba. El código inline suelto, que no está adjunto a un script de la cadena, sigue provocando fallback.

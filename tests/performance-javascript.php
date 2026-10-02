@@ -26,6 +26,7 @@ function sanitize_text_field( $v ) { return trim( strip_tags( (string) $v ) ); }
 function wp_unslash( $v ) { return $v; }
 function esc_url_raw( $v ) { return $v; }
 function current_time() { return '2026-10-02 12:00:00'; }
+function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 class Died extends Exception {}
 function wp_die() { throw new Died(); }
 
@@ -106,6 +107,26 @@ $s->add_data( 'jquery-numerator', 'after', array( 'x' ) );
 $blocking = $head . tag( 'jquery-numerator', false ) . $foot;
 check( false === strpos( $js::process( $blocking, $s, $requested ), 'id="jquery-core-js" defer' ), 'Un dependiente bloqueante después de jQuery provoca fallback.' );
 check( false !== strpos( ( new ReflectionProperty( $js, 'report' ) )->getValue()['reason'], 'jquery-numerator' ), 'El motivo nombra el dependiente.' );
+
+// El inline «before» que WordPress añade a jQuery UI (caso real de digitalisimo.mx).
+$before_tag = '<script id="jquery-ui-core-js-before">' . "\njQuery.uiBackCompat = true;\n//# sourceURL=jquery-ui-core-js-before\n" . '</script>';
+$ui = $head . '<p>x</p>' . str_replace( tag( 'jquery-ui-core' ), $before_tag . tag( 'jquery-ui-core' ), $foot );
+$out = $js::process( $ui, $s, $requested );
+$report = ( new ReflectionProperty( $js, 'report' ) )->getValue();
+check( 'Cadena diferida' === $report['page'] && array( 'jquery-ui-core-js-before' ) === $report['converted'], 'El inline «before» de la cadena ya no impide diferir.' );
+check( false !== strpos( $out, 'id="jquery-core-js" defer' ) && false === strpos( $out, 'jQuery.uiBackCompat = true;' . "\n//" ), 'jQuery sigue diferido y el inline ya no se ejecuta al leerse.' );
+preg_match( '/<script id="jquery-ui-core-js-before" src="data:text\/javascript;base64,([^"]+)" defer><\/script>(<script[^>]*id="jquery-ui-core-js")/', $out, $m );
+check( ! empty( $m ) && "\njQuery.uiBackCompat = true;\n//# sourceURL=jquery-ui-core-js-before\n" === base64_decode( $m[1] ), 'Se ejecuta diferido, con el mismo código, justo antes de jQuery UI.' );
+check( strpos( $out, 'id="jquery-core-js"' ) < strpos( $out, 'id="jquery-ui-core-js-before"' ), 'Y después de jQuery en el orden de documento.' );
+// Con una CSP que no admite data:, no se convierte: carga normal, inline intacto.
+$csp = str_replace( '<head>', '<head><meta http-equiv="Content-Security-Policy" content="script-src \'self\' https://www.googletagmanager.com">', $ui );
+$out = $js::process( $csp, $s, $requested );
+check( false !== strpos( $out, $before_tag ) && false === strpos( $out, 'id="jquery-core-js" defer' ), 'Sin data: en la CSP, la página vuelve a carga normal con el inline original.' );
+check( $js::csp_allows_data_scripts( '', array( "Content-Security-Policy: default-src 'self'; script-src 'self' data:" ) ) && ! $js::csp_allows_data_scripts( '', array( "Content-Security-Policy: default-src 'self'" ) ) && $js::csp_allows_data_scripts( '', array( "Content-Security-Policy: img-src 'self'", "Content-Security-Policy-Report-Only: script-src 'self'" ) ), 'La CSP se interpreta por script-src, luego default-src; el modo informe no bloquea.' );
+// Si otra cosa obliga a volver a carga normal, el inline vuelve a ser inline.
+$mixed = str_replace( '<p>x</p>', '<p>x</p><script>jQuery(".a").hide();</script>', $ui );
+$out = $js::process( $mixed, $s, $requested );
+check( false !== strpos( $out, $before_tag ) && false === strpos( $out, 'base64' ) && false === strpos( $out, 'id="jquery-core-js" defer' ), 'En el fallback se restaura el inline original.' );
 
 // Detección de uso de jQuery en código inline.
 foreach ( array( 'jQuery(document)' => true, '$.ajax({})' => true, '$( ".a" )' => true, 'var t = `${x}`;' => false, 'foo$(1)' => false, 'a.$b()' => false, 'var p = "$ 10";' => false ) as $code => $expected ) check( $expected === $js::inline_uses_jquery( $code ), 'Detección de jQuery en: ' . $code );

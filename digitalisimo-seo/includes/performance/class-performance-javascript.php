@@ -207,6 +207,16 @@ class Digitalisimo_Integrations_Performance_JavaScript {
 		return '' !== $path ? basename( $path ) : (string) $src;
 	}
 
+	/** Deshace la conversión de inline «before» cuando la página vuelve a carga normal. */
+	private static function restore_inline( $html, $scripts, $converted ) {
+		foreach ( $scripts as $script ) {
+			if ( ! in_array( $script['id'], $converted, true ) || 0 !== strpos( (string) ( $script['attrs']['src'] ?? '' ), 'data:text/javascript;base64,' ) ) continue;
+			$code = base64_decode( substr( $script['attrs']['src'], strlen( 'data:text/javascript;base64,' ) ), true );
+			if ( false !== $code ) $html = str_replace( $script['tag'], '<script id="' . esc_attr( $script['id'] ) . '">' . $code . '</script>', $html );
+		}
+		return $html;
+	}
+
 	/** Vuelve a la carga normal sólo en lo que pidió este experimento. */
 	public static function strip_defer( $html, $scripts, $requested ) {
 		foreach ( $scripts as $script ) {
@@ -218,15 +228,70 @@ class Digitalisimo_Integrations_Performance_JavaScript {
 		return $html;
 	}
 
+	/**
+	 * ¿La política de seguridad del sitio admite scripts con src data:? Sin CSP,
+	 * o con una CSP que no restringe scripts, sí. Se miran la cabecera y la
+	 * etiqueta <meta>; una política sólo de informe no bloquea.
+	 */
+	public static function csp_allows_data_scripts( $html, $headers = null ) {
+		$policies = array();
+		foreach ( null === $headers ? ( function_exists( 'headers_list' ) ? headers_list() : array() ) : $headers as $header ) {
+			if ( preg_match( '/^content-security-policy\s*:\s*(.+)$/i', (string) $header, $m ) ) $policies[] = $m[1];
+		}
+		if ( preg_match_all( '/<meta[^>]+http-equiv\s*=\s*["\']content-security-policy["\'][^>]*content\s*=\s*["\']([^"\']*)["\']/i', (string) $html, $found ) ) $policies = array_merge( $policies, $found[1] );
+		foreach ( $policies as $policy ) {
+			$directives = array();
+			foreach ( explode( ';', html_entity_decode( $policy, ENT_QUOTES, 'UTF-8' ) ) as $directive ) {
+				$parts = preg_split( '/\s+/', trim( $directive ) );
+				if ( $parts && '' !== $parts[0] ) $directives[ strtolower( array_shift( $parts ) ) ] = array_map( 'strtolower', $parts );
+			}
+			foreach ( array( 'script-src-elem', 'script-src', 'default-src' ) as $name ) {
+				if ( ! isset( $directives[ $name ] ) ) continue;
+				if ( ! in_array( 'data:', $directives[ $name ], true ) ) return false;
+				break;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Un inline «before» que WordPress adjunta a un script diferido de la
+	 * cadena se ejecutaría al leerse, antes que jQuery. Se convierte en un
+	 * script diferido en la misma posición: los diferidos corren en orden de
+	 * documento, así que se ejecuta después de jQuery y justo antes de su script,
+	 * como hasta ahora. Sólo si la CSP del sitio admite src data:.
+	 *
+	 * @return array{0:string,1:array} HTML y lista de inline convertidos.
+	 */
+	public static function defer_before_inline( $html, $scripts, $requested ) {
+		$converted = array();
+		if ( ! self::csp_allows_data_scripts( $html ) ) return array( $html, $converted );
+		$deferred = array();
+		foreach ( $scripts as $script ) if ( $script['external'] && isset( $requested[ $script['handle'] ] ) && isset( $script['attrs']['defer'] ) ) $deferred[ $script['handle'] ] = true;
+		foreach ( $scripts as $script ) {
+			if ( $script['external'] || ! $script['executable'] || ! preg_match( '/^(.+)-js-before$/', $script['id'], $m ) || empty( $deferred[ $m[1] ] ) ) continue;
+			$replacement = '<script id="' . esc_attr( $script['id'] ) . '" src="data:text/javascript;base64,' . base64_encode( $script['content'] ) . '" defer></script>';
+			$position    = strpos( $html, $script['tag'] );
+			if ( false === $position ) continue;
+			$html        = substr_replace( $html, $replacement, $position, strlen( $script['tag'] ) );
+			$converted[] = $script['id'];
+		}
+		return array( $html, $converted );
+	}
+
 	public static function process( $html, $registry, $requested ) {
 		$scripts = self::scripts_in( $html );
 		self::$snippet = '';
+		list( $html, $converted ) = self::defer_before_inline( $html, $scripts, $requested );
+		if ( $converted ) $scripts = self::scripts_in( $html );
 		$reason  = self::unsafe_reason( $scripts, $registry, $requested );
 		if ( '' !== $reason ) {
-			$html    = self::strip_defer( $html, $scripts, $requested );
+			$html    = self::strip_defer( self::restore_inline( $html, $scripts, $converted ), $scripts, $requested );
 			$scripts = self::scripts_in( $html );
+			$converted = array();
 		}
 		self::$report = self::report( $scripts, $registry, $requested, $reason );
+		self::$report['converted'] = $converted;
 		return $html;
 	}
 
@@ -351,6 +416,7 @@ class Digitalisimo_Integrations_Performance_JavaScript {
 			echo '<p>Sin captura con el experimento activo. Actívalo, guarda y analiza una URL en «Diagnóstico de assets»: aquí aparecerá la estrategia efectiva de cada script.</p>';
 		} else {
 			echo '<p>Página: <a href="' . esc_url( $captured['url'] ) . '" target="_blank" rel="noopener">' . esc_html( $captured['url'] ) . '</a> · <strong>' . esc_html( $report['page'] ) . '</strong>' . ( ! empty( $report['reason'] ) ? ' — ' . esc_html( $report['reason'] ) : '' ) . '</p>';
+			if ( ! empty( $report['converted'] ) ) echo '<p>Inline «before» de WordPress ejecutado en su orden con defer: <code>' . esc_html( implode( ', ', $report['converted'] ) ) . '</code>.</p>';
 			if ( ! empty( $report['snippet'] ) ) echo '<p>Código que lo impide (primeros 400 caracteres):</p><pre style="white-space:pre-wrap;max-width:900px">' . esc_html( $report['snippet'] ) . '</pre>';
 			echo '<table class="widefat striped"><thead><tr><th>Handle</th><th>Dependencia jQuery</th><th>Estrategia solicitada</th><th>Estrategia efectiva</th><th>Estado</th></tr></thead><tbody>';
 			foreach ( $report['rows'] as $row ) echo '<tr><td><code>' . esc_html( $row['handle'] ) . '</code></td><td>' . esc_html( $row['dependency'] ) . '</td><td>' . esc_html( $row['requested'] ) . '</td><td>' . esc_html( $row['effective'] ) . '</td><td>' . esc_html( $row['status'] ) . ( $row['reason'] ? '<br><span class="description">' . esc_html( $row['reason'] ) . '</span>' : '' ) . '</td></tr>';
