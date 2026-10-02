@@ -172,6 +172,18 @@ class Digitalisimo_Integrations_LLMS {
 		return $post && 'publish' === $post->post_status && self::indexable( $post ) ? (int) $id : 0;
 	}
 
+	/** ¿Dos textos dicen prácticamente lo mismo? Comparten al menos el 60 % de sus palabras. */
+	public static function similar( $a, $b ) {
+		$words = function( $text ) {
+			$text = strtr( function_exists( 'mb_strtolower' ) ? mb_strtolower( (string) $text, 'UTF-8' ) : strtolower( (string) $text ), array( 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n' ) );
+			return array_unique( array_filter( preg_split( '/[^\p{L}\p{N}]+/u', $text ), function( $w ) { return strlen( $w ) > 2; } ) );
+		};
+		$x = $words( $a );
+		$y = $words( $b );
+		if ( ! $x || ! $y ) return false;
+		return count( array_intersect( $x, $y ) ) / count( array_unique( array_merge( $x, $y ) ) ) >= 0.6;
+	}
+
 	/**
 	 * Descripción del sitio, por prioridad: meta descripción SEO de la portada,
 	 * descripción de WordPress. Si no hay ninguna no se inventa texto.
@@ -183,7 +195,7 @@ class Digitalisimo_Integrations_LLMS {
 		$excerpt = $front ? self::text( get_post_field( 'post_excerpt', $front ) ) : '';
 		$summary = '' !== $meta ? $meta : $tagline;
 		// Párrafo opcional: el extracto escrito para la portada, si dice algo distinto.
-		$about = '' !== $excerpt && ! in_array( self::key( $excerpt ), array( self::key( $summary ), self::key( $tagline ) ), true ) ? $excerpt : '';
+		$about = '' !== $excerpt && ! self::similar( $excerpt, $summary ) && ! self::similar( $excerpt, $tagline ) ? $excerpt : '';
 		return array( 'summary' => $summary, 'about' => $about, 'tagline' => $tagline );
 	}
 

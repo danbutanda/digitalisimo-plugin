@@ -55,6 +55,13 @@ check( false === strpos( $text, 'Servicios' ) && false === strpos( $text, 'Guía
 check( false === strpos( $text, '[gallery' ) && false === strpos( $text, '<b>' ), 'Sin shortcodes ni HTML.' );
 check( $l::validate( $text )['valid'] && 1 === $l::sections( $text ), 'La salida automática es válida y tiene una sección.' );
 
+// Un extracto que repite la descripción no se publica como párrafo (caso real de producción).
+check( $l::similar( 'Agencia Digital en México que integra marketing, tecnología e inteligencia artificial para impulsar el crecimiento de tu negocio.', 'Agencia de marketing digital en México que integra marketing, tecnología e inteligencia artificial para impulsar el crecimiento de tu negocio.' ), 'Casi idénticos.' );
+check( ! $l::similar( 'Agencia que integra marketing, tecnología e IA.', 'Ofrecemos marketing, software y sitios web.' ) && ! $l::similar( '', 'x' ), 'Textos distintos o vacíos no son similares.' );
+$GLOBALS['sites'][1]['front_excerpt'] = 'Agencia que integra marketing, tecnología e IA!';
+check( false === strpos( $l::automatic(), "\n\nAgencia que integra marketing, tecnología e IA!\n" ), 'El párrafo repetido se omite.' );
+$GLOBALS['sites'][1]['front_excerpt'] = 'Ofrecemos <b>marketing</b>, software y sitios web.';
+
 // Páginas elegidas: sólo publicadas, indexables, de este sitio y sin ancla.
 $GLOBALS['settings'][1] = array( 'seo_ai_llms_urls' => "https://uno.test/p11/\nhttps://uno.test/p12/\nhttps://uno.test/p14/\nhttps://otro.test/p10/\nhttps://uno.test/p10/#x\nhttps://uno.test/no-existe/\nhttps://uno.test/p11/", 'sitemap_enabled' => 1 );
 $text = $l::automatic();
