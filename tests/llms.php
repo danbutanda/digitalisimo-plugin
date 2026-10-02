@@ -94,6 +94,8 @@ check( 'VACÍO' === $l::diagnose( 200, 'text/plain', "  \n" )['state'], 'Vacío.
 check( 'FALTA H1' === $l::diagnose( 200, 'text/plain', "Sitio\n- [Inicio](https://uno.test/)" )['state'] && 'FALTA H1' === $l::diagnose( 200, 'text/plain', "# A\n# B\n- [x](https://uno.test/)" )['state'], 'Sin H1 o con dos H1.' );
 check( 'SIN ENLACES' === $l::diagnose( 200, 'text/plain', "# Sitio\n\nTexto." )['state'], 'Sin enlaces.' );
 
+check( $l::certificate_error( "cURL error 60: SSL: no alternative certificate subject name matches target host name 'digitalisimo.mx'" ) && $l::certificate_error( 'cURL error 60: SSL certificate problem: self-signed certificate' ) && ! $l::certificate_error( 'cURL error 28: Operation timed out' ) && ! $l::certificate_error( 'cURL error 6: Could not resolve host' ), 'Sólo los errores de certificado permiten repetir sin verificarlo.' );
+
 // Modos: manual válido, manual inválido con respaldo, híbrido y filtro inválido ignorado.
 $GLOBALS['settings'][1] = array( 'seo_ai_llms_mode' => 'manual', 'seo_ai_llms_manual' => "# Propio\n\n- [Blog](https://uno.test/blog/)" );
 $result = $l::result();

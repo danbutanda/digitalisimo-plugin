@@ -274,11 +274,30 @@ class Digitalisimo_Integrations_LLMS {
 		return array( 'state' => 'CORRECTO', 'detail' => $check['valid'] ? '' : implode( ' ', $check['errors'] ) ) + $report;
 	}
 
-	/** Pide /llms.txt al propio sitio como lo haría un agente: sin seguir redirecciones. */
+	/** Error de certificado en la conexión del servidor consigo mismo (cURL 51/60, OpenSSL). */
+	public static function certificate_error( $message ) {
+		return (bool) preg_match( '/cURL error (?:51|60)\b|SSL certificate|certificate subject name|unable to get local issuer|self[- ]signed/i', (string) $message );
+	}
+
+	/**
+	 * Pide /llms.txt al propio sitio como lo haría un agente: sin seguir
+	 * redirecciones. Muchos servidores resuelven su propio dominio hacia un
+	 * proxy interno con otro certificado; en ese caso se repite sin verificar
+	 * el certificado (sólo se lee el archivo público de este sitio, no se envía
+	 * nada) y se informa en «note».
+	 */
 	public static function check_endpoint() {
-		$response = wp_remote_get( self::endpoint(), array( 'timeout' => 8, 'redirection' => 0, 'user-agent' => 'Digitalisimo llms.txt Check/1.1' ) );
-		if ( is_wp_error( $response ) ) return self::diagnose( 0, '', '', $response->get_error_message() );
-		return self::diagnose( wp_remote_retrieve_response_code( $response ), (string) wp_remote_retrieve_header( $response, 'content-type' ), wp_remote_retrieve_body( $response ) );
+		$args     = array( 'timeout' => 8, 'redirection' => 0, 'user-agent' => 'Digitalisimo llms.txt Check/1.2' );
+		$response = wp_remote_get( self::endpoint(), $args );
+		$note     = '';
+		if ( is_wp_error( $response ) && self::certificate_error( $response->get_error_message() ) ) {
+			$note     = 'El servidor se conecta consigo mismo a través de un proxy interno con otro certificado (' . $response->get_error_message() . '). Se comprobó sin verificar el certificado de esa conexión interna; desde fuera, los visitantes y los agentes usan el certificado público del sitio.';
+			$response = wp_remote_get( self::endpoint(), $args + array( 'sslverify' => false ) );
+		}
+		$result = is_wp_error( $response )
+			? self::diagnose( 0, '', '', $response->get_error_message() )
+			: self::diagnose( wp_remote_retrieve_response_code( $response ), (string) wp_remote_retrieve_header( $response, 'content-type' ), wp_remote_retrieve_body( $response ) );
+		return $result + array( 'note' => $note );
 	}
 
 	/** Pestaña llms.txt de SEO AI del sitio (o de la red con el sitio elegido). */
@@ -306,6 +325,7 @@ class Digitalisimo_Integrations_LLMS {
 		$http = self::check_endpoint();
 		echo '<h3>Respuesta real de /llms.txt</h3><p class="description">Petición GET al propio sitio al abrir esta pantalla, sin seguir redirecciones. Un CDN, WAF o caché de página puede responder distinto desde fuera.</p><table class="widefat striped" style="max-width:900px"><tbody>';
 		echo '<tr><th>Resultado</th><td>' . self::badge( 'CORRECTO' === $http['state'] ? 'OK' : 'ERROR', $http['state'] ) . ( $http['detail'] ? ' ' . esc_html( $http['detail'] ) : '' ) . '</td></tr>';
+		if ( ! empty( $http['note'] ) ) echo '<tr><th>Nota</th><td>' . esc_html( $http['note'] ) . '</td></tr>';
 		echo '<tr><th>HTTP</th><td>' . esc_html( $http['code'] ?: '—' ) . '</td></tr><tr><th>Content-Type</th><td><code>' . esc_html( $http['type'] ?: '—' ) . '</code></td></tr><tr><th>H1</th><td>' . esc_html( $http['h1'] ? 'Encontrado: ' . $http['title'] : 'No encontrado' ) . '</td></tr><tr><th>Enlaces</th><td>' . (int) $http['links'] . '</td></tr><tr><th>Secciones ##</th><td>' . (int) $http['sections'] . '</td></tr><tr><th>Longitud</th><td>' . (int) $http['bytes'] . ' bytes</td></tr></tbody></table>';
 		if ( ! $status['enabled'] ) echo '<p>Para publicar el archivo, marca «Activar llms.txt» y guarda.</p>';
 		echo '<h3>Vista previa</h3><pre style="background:#fff;border:1px solid #dcdcde;padding:12px;max-height:420px;overflow:auto;white-space:pre-wrap">' . esc_html( substr( (string) $status['content'], 0, 8000 ) ) . '</pre>';
