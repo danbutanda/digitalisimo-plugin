@@ -155,7 +155,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 			$current[ $key ] = sanitize_textarea_field( $value ); }
 		update_site_option( Digitalisimo_Integrations_Settings::OPTION, $current );
 		$return = sanitize_key( $_POST['digitalisimo_return'] ?? '' );
-		$performance = in_array( $return, array( 'css', 'fonts', 'tracking', 'preloads', 'images', 'javascript', 'a11y', 'agents' ), true );
+		$performance = in_array( $return, array( 'css', 'fonts', 'tracking', 'preloads', 'images', 'javascript', 'a11y' ), true );
 		$target = $performance ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $return . '&updated=1' ) : network_admin_url( 'admin.php?page=digitalisimo-network-seo&updated=1&tab=' . sanitize_key( $_POST['digitalisimo_active_tab'] ?? 'general' ) );
 		$site_id = $performance ? absint( $_POST['digitalisimo_site_id'] ?? 0 ) : 0;
 		if ( $site_id && get_site( $site_id ) ) $target = add_query_arg( 'site_id', $site_id, $target );
@@ -285,20 +285,6 @@ class Digitalisimo_Integrations_SEO_Suite {
 		echo '<tr><th colspan="2"><h2>Objetivos táctiles · defaults de red</h2></th></tr>';
 		self::nf( 'perf_touch_guard', 'Protección mínima de objetivos táctiles', 'checkbox' );
 		self::nf( 'perf_touch_selectors', 'Componentes', 'textarea', 'Un selector por línea.' );
-	}
-	public static function performance_agents_site_fields() {
-		echo '<tr><th colspan="2"><h2>llms.txt</h2><p>Desactivado por defecto. Automático genera «# Nombre del sitio», la meta descripción de la portada (o la descripción de WordPress) y «## Páginas principales» con Inicio y sólo las páginas que elijas abajo, si están publicadas y son indexables. Manual publica tu Markdown si es válido (un H1 y al menos un enlace); Híbrido añade el tuyo al automático.</p></th></tr>';
-		self::f( 'seo_ai_llms_enabled', 'Publicar llms.txt', 'checkbox' );
-		self::f( 'seo_ai_llms_mode', 'Modo', 'select', '', array( 'automatic' => 'Automático', 'manual' => 'Manual', 'hybrid' => 'Híbrido' ) );
-		self::f( 'seo_ai_llms_urls', 'Recursos elegidos', 'textarea', 'Una URL de este sitio por línea. Sólo se listan las publicadas, indexables y sin ancla; las demás se ignoran. Vacío: sólo Inicio.' );
-		self::f( 'seo_ai_llms_manual', 'Markdown manual', 'textarea', 'Para los modos Manual e Híbrido.' );
-	}
-	public static function performance_agents_network_fields() {
-		echo '<tr><th colspan="2"><h2>llms.txt · defaults de red</h2><p>Cada sitio genera el suyo con sus propios datos; aquí sólo se definen los valores que heredan.</p></th></tr>';
-		self::nf( 'seo_ai_llms_enabled', 'Publicar llms.txt', 'checkbox' );
-		self::nf( 'seo_ai_llms_mode', 'Modo', 'select', '', array( 'automatic' => 'Automático', 'manual' => 'Manual', 'hybrid' => 'Híbrido' ) );
-		self::nf( 'seo_ai_llms_urls', 'Recursos elegidos', 'textarea', 'Una URL por línea; normalmente se deja vacío en la red.' );
-		self::nf( 'seo_ai_llms_manual', 'Markdown manual', 'textarea' );
 	}
 	public static function performance_preload_site_fields() {
 		echo '<tr><th colspan="2"><h2>Preloads críticos WOFF2</h2><p>Primero analiza Fuentes y Custom Code. Sólo se imprimen fuentes locales del inventario cuyo CSS esté encolado en la página. Si Elementor ya publica el mismo preload, se omite. Apagado por defecto.</p></th></tr>';

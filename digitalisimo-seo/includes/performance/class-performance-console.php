@@ -31,14 +31,14 @@ class Digitalisimo_Integrations_Performance_Console {
 	}
 
 	private static function sections() {
-		return array( 'audit' => 'Auditoría', 'images' => 'Imágenes', 'a11y' => 'Accesibilidad', 'seo' => 'SEO técnico', 'agents' => 'Agentes IA', 'javascript' => 'JavaScript', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'status' => 'Diagnóstico de assets', 'measurements' => 'PageSpeed manual', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
+		return array( 'audit' => 'Auditoría', 'images' => 'Imágenes', 'a11y' => 'Accesibilidad', 'seo' => 'SEO técnico', 'javascript' => 'JavaScript', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'status' => 'Diagnóstico de assets', 'measurements' => 'PageSpeed manual', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
 	}
 
 	private static function page_url( $network, $section ) {
 		$url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-performance&section=' . $section ) : admin_url( 'admin.php?page=digitalisimo-performance&section=' . $section );
 		$site_id = $network ? absint( $_GET['site_id'] ?? 0 ) : 0;
 		if ( $site_id && get_site( $site_id ) ) $url = add_query_arg( 'site_id', $site_id, $url );
-		if ( in_array( $section, array( 'status', 'measurements', 'audit', 'images', 'a11y', 'seo', 'agents', 'css' ), true ) && ! empty( $_GET['performance_url'] ) ) {
+		if ( in_array( $section, array( 'status', 'measurements', 'audit', 'images', 'a11y', 'seo', 'css' ), true ) && ! empty( $_GET['performance_url'] ) ) {
 			$selected_url = esc_url_raw( (string) wp_unslash( $_GET['performance_url'] ) );
 			$resolved_site = Digitalisimo_Integrations_Asset_Diagnostics::site_for_url( $selected_url, $network );
 			if ( $resolved_site && ( ! $network || ! $site_id || $resolved_site === $site_id ) ) $url = add_query_arg( 'performance_url', $selected_url, $url );
@@ -76,7 +76,6 @@ class Digitalisimo_Integrations_Performance_Console {
 		elseif ( 'audit' === $section ) Digitalisimo_Integrations_Quality_Audit::render_audit( $network );
 		elseif ( 'a11y' === $section ) { self::settings( $network, 'a11y' ); Digitalisimo_Integrations_Quality_Audit::render_a11y( $network ); }
 		elseif ( 'seo' === $section ) Digitalisimo_Integrations_Quality_Audit::render_seo( $network );
-		elseif ( 'agents' === $section ) { self::settings( $network, 'agents' ); Digitalisimo_Integrations_Quality_Audit::render_agents( $network ); }
 		elseif ( 'css' === $section ) { self::settings( $network, 'css' ); Digitalisimo_Integrations_Quality_Audit::render_css( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'fonts' === $section ) { self::settings( $network, 'fonts' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); echo '<script>(function(){var mode=document.getElementById("perf_font_guard_mode")||document.getElementById("network_perf_font_guard_mode"),row=document.querySelector(".digitalisimo-font-manual-row");if(!mode||!row)return;function toggle(){row.hidden=mode.value==="off";}mode.addEventListener("change",toggle);toggle();})();</script>'; }
 		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
@@ -103,7 +102,6 @@ class Digitalisimo_Integrations_Performance_Console {
 			elseif ( 'images' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_image_network_fields();
 			elseif ( 'javascript' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_js_network_fields();
 			elseif ( 'a11y' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_a11y_network_fields();
-			elseif ( 'agents' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_agents_network_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_network_fields();
 		} else {
 			echo '<form method="post" action="options.php">';
@@ -115,7 +113,6 @@ class Digitalisimo_Integrations_Performance_Console {
 			elseif ( 'images' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_image_site_fields();
 			elseif ( 'javascript' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_js_site_fields();
 			elseif ( 'a11y' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_a11y_site_fields();
-			elseif ( 'agents' === $section ) Digitalisimo_Integrations_SEO_Suite::performance_agents_site_fields();
 			else Digitalisimo_Integrations_SEO_Suite::performance_site_fields();
 		}
 		echo '</table>';

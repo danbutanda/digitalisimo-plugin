@@ -352,3 +352,14 @@ Fuente: solicitud del propietario del 2026-10-02, «CORREGIR EL LLMS.TXT EXISTEN
   - Se muestra en Agentes IA y en SEO AI → llms.txt.
 - **Caché.** Además de los ajustes del plugin y del guardado de contenidos, se invalida al cambiar `blogname`, `blogdescription`, `home`, `siteurl`, `page_on_front` y `show_on_front`.
 - **Pendiente de verificación en producción.** Activar «Publicar llms.txt» en el sitio, purgar la caché de página o CDN (puede conservar el 301 anterior) y comprobar `GET /llms.txt`.
+
+### llms.txt vuelve a SEO AI · SEO 1.0.193
+
+Por decisión del propietario, llms.txt se configura en **SEO AI → llms.txt**, su pestaña original, y no en Rendimiento. Se retiró la pestaña «Agentes IA» de Rendimiento y calidad, junto con sus campos duplicados (`performance_agents_*_fields`).
+
+- **Pestaña de SEO AI.** Conserva su formulario y su guardado (sitio y red, con herencia `ai_inherit`).
+  - El modo pasa de texto libre a selector.
+  - El guardado valida el modo con `LLMS::sanitize_mode()` y las URLs con `LLMS::sanitize_urls()`.
+  - Debajo del formulario, `LLMS::render_status()` muestra el estado, la respuesta real de `/llms.txt` y la vista previa. En la red sólo se explica que cada sitio ve su propio diagnóstico.
+- **Auditoría.** El resumen enlaza la fila llms.txt a esa pestaña.
+- **Límite.** SEO AI sólo existe con el módulo AI y Chatbot activo. Sin él, `/llms.txt` sigue funcionando con los valores guardados, pero no hay pantalla para cambiarlos.

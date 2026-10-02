@@ -629,9 +629,9 @@ class Digitalisimo_Integrations_Quality_Audit {
 		$findings['measured'] = ! empty( $record['measured'] );
 		$llms    = self::in_site( $ctx['site_id'], array( 'Digitalisimo_Integrations_LLMS', 'status' ) );
 		$summary = Digitalisimo_Integrations_Quality_Rules::summarize( $findings, $llms );
-		$targets = array( 'performance' => 'images', 'a11y' => 'a11y', 'seo' => 'seo', 'images' => 'images', 'llms' => 'agents', 'links' => 'seo', 'headings' => 'seo' );
+		$targets = array( 'performance' => 'images', 'a11y' => 'a11y', 'seo' => 'seo', 'images' => 'images', 'llms' => 'llms', 'links' => 'seo', 'headings' => 'seo' );
 		echo '<h3>Resumen del sitio</h3><p class="description">Problemas verificables que detecta el plugin; no reproduce la puntuación de Lighthouse.</p><table class="widefat striped" style="max-width:900px"><thead><tr><th>Área</th><th>Estado</th><th>Errores</th><th>Advertencias</th><th>Qué revisa</th></tr></thead><tbody>';
-		foreach ( $summary as $key => $row ) echo '<tr><td><a href="' . esc_url( self::section_url( $network, $targets[ $key ], $ctx['site_id'], $ctx['url'] ) ) . '">' . esc_html( $row['label'] ) . '</a></td><td>' . self::badge( $row['status'] ) . '</td><td>' . (int) $row['errors'] . '</td><td>' . (int) $row['warnings'] . '</td><td>' . esc_html( $row['note'] ) . '</td></tr>';
+		foreach ( $summary as $key => $row ) echo '<tr><td>' . ( 'llms' === $targets[ $key ] && ! class_exists( 'Digitalisimo_AI' ) ? esc_html( $row['label'] ) . '<br><small>Se configura en SEO AI, que requiere el módulo AI y Chatbot.</small>' : '<a href="' . esc_url( 'llms' === $targets[ $key ] ? Digitalisimo_Integrations_LLMS::admin_url( $network, $ctx['site_id'] ) : self::section_url( $network, $targets[ $key ], $ctx['site_id'], $ctx['url'] ) ) . '">' . esc_html( $row['label'] ) . '</a>' ) . '</td><td>' . self::badge( $row['status'] ) . '</td><td>' . (int) $row['errors'] . '</td><td>' . (int) $row['warnings'] . '</td><td>' . esc_html( $row['note'] ) . '</td></tr>';
 		echo '</tbody></table>';
 		$totals = (array) ( $record['totals'] ?? array() );
 		echo '<p class="description">Analizados: ' . (int) ( $totals['links'] ?? 0 ) . ' enlaces, ' . (int) ( $totals['headings'] ?? 0 ) . ' encabezados, ' . (int) ( $totals['images'] ?? 0 ) . ' imágenes, ' . (int) ( $totals['targets'] ?? 0 ) . ' controles y ' . (int) ( $totals['contrast_checked'] ?? 0 ) . ' combinaciones de color.</p>';
@@ -691,25 +691,6 @@ class Digitalisimo_Integrations_Quality_Audit {
 			self::table( array( 'status' => 'Estado', 'issue' => 'Problema', 'text' => 'Texto', 'selector' => 'Selector', 'widget' => 'Widget' ), $f['headings_mobile'] ?? array(), 'Jerarquía correcta.' );
 			echo '<pre style="background:#fff;border:1px solid #dcdcde;padding:12px;max-height:420px;overflow:auto">' . esc_html( implode( "\n", $mobile ) ) . '</pre>';
 		}
-	}
-
-	/** Rendimiento y calidad → Agentes IA: estado y validación de llms.txt. */
-	public static function render_agents( $network ) {
-		$ctx    = self::context( $network );
-		$status = self::in_site( $ctx['site_id'], array( 'Digitalisimo_Integrations_LLMS', 'status' ) );
-		$url    = self::in_site( $ctx['site_id'], array( 'Digitalisimo_Integrations_LLMS', 'endpoint' ) );
-		$state  = ! $status['enabled'] ? 'NO APLICABLE' : ( ! $status['valid'] ? 'ERROR' : ( $status['fallback'] ? 'ADVERTENCIA' : 'OK' ) );
-		$modes  = array( 'automatic' => 'Automático', 'manual' => 'Manual', 'hybrid' => 'Híbrido' );
-		echo '<h2>llms.txt</h2><p>Markdown opcional que resume el sitio para agentes de IA. Se genera con el nombre del sitio, la meta descripción de la portada o la descripción de WordPress, home_url() y las páginas que elijas, si están publicadas y son indexables; nunca se inventan enlaces. La salida se valida antes de servirse. No es requisito SEO ni garantiza visibilidad o citación.</p>';
-		echo '<table class="widefat striped" style="max-width:900px"><tbody><tr><th>Estado</th><td>' . self::badge( $state ) . ' ' . esc_html( $status['enabled'] ? '' : 'Desactivado en este sitio.' ) . '</td></tr><tr><th>URL</th><td><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $url ) . '</a></td></tr><tr><th>Modo</th><td>' . esc_html( $modes[ $status['mode'] ] ?? $status['mode'] ) . '</td></tr><tr><th>Enlaces válidos</th><td>' . (int) $status['links'] . '</td></tr>';
-		if ( $status['errors'] ) echo '<tr><th>' . ( $status['fallback'] ? 'Contenido manual rechazado' : 'Errores' ) . '</th><td><ul style="margin:0">' . implode( '', array_map( function( $e ) { return '<li>' . esc_html( $e ) . '</li>'; }, $status['errors'] ) ) . '</ul>' . ( $status['fallback'] ? '<p>Se sirve el contenido automático hasta que el manual sea válido.</p>' : '' ) . '</td></tr>';
-		echo '</tbody></table>';
-		$http = self::in_site( $ctx['site_id'], array( 'Digitalisimo_Integrations_LLMS', 'check_endpoint' ) );
-		echo '<h3>Respuesta real de /llms.txt</h3><p class="description">Petición GET al propio sitio al abrir esta pantalla, sin seguir redirecciones. Un CDN, WAF o caché de página puede responder distinto desde fuera.</p><table class="widefat striped" style="max-width:900px"><tbody>';
-		echo '<tr><th>Resultado</th><td>' . self::badge( 'CORRECTO' === $http['state'] ? 'OK' : 'ERROR', $http['state'] ) . ( $http['detail'] ? ' ' . esc_html( $http['detail'] ) : '' ) . '</td></tr>';
-		echo '<tr><th>HTTP</th><td>' . esc_html( $http['code'] ?: '—' ) . '</td></tr><tr><th>Content-Type</th><td><code>' . esc_html( $http['type'] ?: '—' ) . '</code></td></tr><tr><th>H1</th><td>' . esc_html( $http['h1'] ? 'Encontrado: ' . $http['title'] : 'No encontrado' ) . '</td></tr><tr><th>Enlaces</th><td>' . (int) $http['links'] . '</td></tr><tr><th>Secciones ##</th><td>' . (int) $http['sections'] . '</td></tr><tr><th>Longitud</th><td>' . (int) $http['bytes'] . ' bytes</td></tr></tbody></table>';
-		if ( ! $status['enabled'] ) echo '<p>Activa «Publicar llms.txt» arriba y guarda: mientras esté desactivado, /llms.txt responde 404.</p>';
-		echo '<h3>Vista previa</h3><pre style="background:#fff;border:1px solid #dcdcde;padding:12px;max-height:420px;overflow:auto;white-space:pre-wrap">' . esc_html( substr( (string) $status['content'], 0, 8000 ) ) . '</pre>';
 	}
 
 	/** Bajo Imágenes: lo que el navegador descargó frente a lo que pintó. */
