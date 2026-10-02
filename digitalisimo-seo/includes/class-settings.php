@@ -16,6 +16,7 @@ class Digitalisimo_Integrations_Settings {
 			'sitemap_enabled'        => 1,
 			'sitemap_post_types'     => 'auto',
 			'sitemap_exclude_ids'    => '',
+			'seo_robots_rules'       => '',
 			'keyword_post_types'     => 'all',
 			'keyword_max_count'      => 5,
 			'keyword_auto_from_title'=> 0,
@@ -203,6 +204,7 @@ class Digitalisimo_Integrations_Settings {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_textarea_field( $input[ $key ] );
 		}
 		foreach ( array( 'sitemap_post_types', 'seo_sitemap_taxonomies' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_sitemap_list( $input[ $key ] );
+		if ( isset( $input['seo_robots_rules'] ) ) $output['seo_robots_rules'] = Digitalisimo_Integrations_Robots::sanitize( $input['seo_robots_rules'] );
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
 		if ( isset( $input['perf_css_defer_exclusions'] ) ) $output['perf_css_defer_exclusions'] = Digitalisimo_Integrations_Performance_CSS::sanitize_exclusions( $input['perf_css_defer_exclusions'] );
 		if ( isset( $input['perf_custom_css'] ) ) $output['perf_custom_css'] = Digitalisimo_Integrations_Performance_CSS::sanitize_custom_css( $input['perf_custom_css'] );
@@ -325,7 +327,7 @@ class Digitalisimo_Integrations_Settings {
 		if ( 'checkbox' === $type ) {
 			echo '<input type="hidden" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="0"><label><input class="' . esc_attr( $field_class ) . '" type="checkbox" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']" value="1" ' . checked( $value, 1, false ) . $disabled . '> ' . esc_html__( 'Activar', 'digitalisimo-integrations' ) . '</label>';
 		} elseif ( 'textarea' === $type ) {
-			echo '<textarea class="large-text code ' . esc_attr( $field_class ) . '" rows="4" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']"' . $disabled . '>' . esc_textarea( $value ) . '</textarea>';
+			echo '<textarea class="large-text code ' . esc_attr( $field_class ) . '" rows="' . ( 'seo_robots_rules' === $key ? '12' : '4' ) . '" id="' . esc_attr( $key ) . '" name="' . esc_attr( self::OPTION ) . '[' . esc_attr( $key ) . ']"' . $disabled . '>' . esc_textarea( $value ) . '</textarea>';
 		} elseif ( 'media' === $type ) {
 			Digitalisimo_Media_Field::render( $key, self::OPTION . '[' . $key . ']', $value, (bool) $inherit, $field_class );
 		} elseif ( 'select' === $type ) {
@@ -344,14 +346,14 @@ class Digitalisimo_Integrations_Settings {
 		}
 		if ( $help ) echo '<p class="description">' . esc_html( $help ) . '</p>';
 		if ( $is_default ) echo '<p class="description digitalisimo-default-note">Valor predeterminado del plugin.</p>';
-		if ( is_multisite() && class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && ! $site_only ) { $origin = Digitalisimo_Integrations_SEO_Resolver::option_with_origin( $key ); echo '<p class="digitalisimo-inheritance"><input type="hidden" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="0"><label><input class="digitalisimo-network-inherit" data-field="' . esc_attr( $key ) . '" type="checkbox" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="1" ' . checked( $inherit, true, false ) . '> Heredar de la red</label><br><span class="description">Valor efectivo: <strong>' . esc_html( is_scalar( $origin['value'] ) ? (string) $origin['value'] : '' ) . '</strong> · Origen: ' . esc_html( $origin['label'] ) . '</span></p>'; }
+		if ( is_multisite() && class_exists( 'Digitalisimo_Integrations_SEO_Resolver' ) && ! $site_only ) { $origin = Digitalisimo_Integrations_SEO_Resolver::option_with_origin( $key ); $effective = 'seo_robots_rules' === $key ? ( empty( $origin['value'] ) ? 'Sin reglas adicionales' : 'Reglas disponibles' ) : ( is_scalar( $origin['value'] ) ? (string) $origin['value'] : '' ); echo '<p class="digitalisimo-inheritance"><input type="hidden" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="0"><label><input class="digitalisimo-network-inherit" data-field="' . esc_attr( $key ) . '" type="checkbox" name="' . esc_attr( self::OPTION ) . '[network_inherit][' . esc_attr( $key ) . ']" value="1" ' . checked( $inherit, true, false ) . '> Heredar de la red</label><br><span class="description">Valor efectivo: <strong>' . esc_html( $effective ) . '</strong> · Origen: ' . esc_html( $origin['label'] ) . '</span></p>'; }
 		echo '</td></tr>';
 	}
 
 	public static function settings_page( $fixed_tab = null ) {
 		if ( ! current_user_can( 'manage_options' ) ) return;
 		$tab  = $fixed_tab ? $fixed_tab : sanitize_key( $_GET['tab'] ?? 'general' );
-		$tabs = array( 'general' => 'General', 'seo' => 'Contenido', 'ai' => 'Proveedores IA', 'sitemap' => 'Avanzado: Sitemap', 'indexing' => 'Avanzado: Indexación' );
+		$tabs = array( 'general' => 'General', 'seo' => 'Contenido', 'ai' => 'Proveedores IA', 'sitemap' => 'Avanzado: Sitemap', 'robots' => 'Robots', 'indexing' => 'Avanzado: Indexación' );
 		if ( ! isset( $tabs[ $tab ] ) ) $tab = 'general';
 
 		echo '<div class="wrap digitalisimo-admin-shell"><h1>' . esc_html__( 'Digitalisimo · SEO', 'digitalisimo-integrations' ) . '</h1>';
@@ -398,6 +400,9 @@ class Digitalisimo_Integrations_Settings {
 			self::field( 'sitemap_enabled', 'Activar sitemap XML', 'checkbox', 'Disponible en /sitemap.xml: un archivo por sitio de la red o un índice por tipo en WordPress individual.' );
 			self::field( 'sitemap_post_types', 'Tipos de contenido incluidos', 'textarea', 'Auto incluye entradas, páginas, productos y otros tipos públicos indexables. Para limitar, escribe los slugs separados por comas; las páginas públicas siempre se incluyen.' );
 			self::field( 'sitemap_exclude_ids', 'IDs excluidos del sitemap', 'textarea', 'Separados por comas. Los contenidos marcados noindex siempre se excluyen.' );
+		} elseif ( 'robots' === $tab ) {
+			Digitalisimo_Integrations_SEO_Suite::robots_info_row();
+			self::field( 'seo_robots_rules', 'Reglas adicionales', 'textarea', 'Admite User-agent, Allow y Disallow. El sitemap y las reglas automáticas se conservan.' );
 		} elseif ( 'indexing' === $tab ) {
 			self::field( 'noindex_search', 'Resultados de búsqueda internos', 'checkbox' );
 			self::field( 'noindex_authors', 'Archivos de autor', 'checkbox', 'Útil cuando las páginas de autor no aportan contenido único.' );

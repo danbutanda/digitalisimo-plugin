@@ -70,6 +70,7 @@ jobs:
           php tests/performance-form-ui.php
           php tests/sitemap.php
           php tests/sitemap-routes.php
+          php tests/robots.php
       - name: Seleccionar plugins modificados
         id: modules
         env:
