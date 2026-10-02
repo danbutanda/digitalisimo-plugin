@@ -351,7 +351,7 @@ Fuente: solicitud del propietario del 2026-10-02, «CORREGIR EL LLMS.TXT EXISTEN
   - `LLMS::diagnose()` informa HTTP, Content-Type, H1, enlaces, secciones y bytes, con el estado CORRECTO, FALTA H1, SIN ENLACES, VACÍO o ERROR HTTP. Un HTML con 200 o una redirección cuentan como ERROR HTTP.
   - Se muestra en Agentes IA y en SEO AI → llms.txt.
 - **Caché.** Además de los ajustes del plugin y del guardado de contenidos, se invalida al cambiar `blogname`, `blogdescription`, `home`, `siteurl`, `page_on_front` y `show_on_front`.
-- **Pendiente de verificación en producción.** Activar «Publicar llms.txt» en el sitio, purgar la caché de página o CDN (puede conservar el 301 anterior) y comprobar `GET /llms.txt`.
+- **Pendiente de verificación en producción.** Activar «Activar llms.txt» en SEO AI, purgar la caché de página o CDN (puede conservar el 301 anterior) y comprobar `GET /llms.txt`.
 
 ### llms.txt vuelve a SEO AI · SEO 1.0.193
 
