@@ -19,6 +19,8 @@ class Digitalisimo_Integrations_LLMS {
 	public static function init() {
 		add_action( 'parse_request', array( __CLASS__, 'maybe_serve' ), 0 );
 		foreach ( array( 'save_post', 'deleted_post', 'trashed_post' ) as $hook ) add_action( $hook, array( __CLASS__, 'forget' ) );
+		// Nombre, descripción, URL y portada cambian el contenido: la caché del sitio se descarta.
+		foreach ( array( 'blogname', 'blogdescription', 'home', 'siteurl', 'page_on_front', 'show_on_front' ) as $option ) add_action( 'update_option_' . $option, array( __CLASS__, 'forget' ) );
 	}
 
 	public static function sanitize_mode( $value ) {
@@ -49,20 +51,43 @@ class Digitalisimo_Integrations_LLMS {
 		return home_url( '/llms.txt' );
 	}
 
-	/** /llms.txt del sitio en curso: funciona en subdominios y subdirectorios sin reglas de reescritura. */
+	/**
+	 * /llms.txt del sitio en curso: funciona en subdominios y subdirectorios sin
+	 * reglas de reescritura. Devuelve 'exact', 'slash' (con barra final) o ''.
+	 */
 	public static function requested() {
-		$path   = (string) wp_parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), PHP_URL_PATH );
+		$path   = rawurldecode( (string) wp_parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), PHP_URL_PATH ) );
 		$target = (string) wp_parse_url( self::endpoint(), PHP_URL_PATH );
-		return '' !== $path && rawurldecode( $path ) === $target;
+		if ( '' === $path ) return '';
+		if ( $path === $target ) return 'exact';
+		return $path === $target . '/' ? 'slash' : '';
 	}
 
+	/**
+	 * Se resuelve antes que el enrutado de WordPress: si no, la redirección
+	 * canónica añade una barra (/llms.txt/) y se sirve una página HTML con 200.
+	 */
 	public static function maybe_serve() {
-		if ( self::requested() && self::enabled() ) self::serve();
+		$requested = self::requested();
+		if ( '' === $requested ) return;
+		if ( ! self::enabled() ) self::not_found();
+		if ( 'slash' === $requested ) { wp_redirect( self::endpoint(), 301 ); exit; }
+		self::serve();
+	}
+
+	/** Desactivado o inválido: 404 en texto, nunca una página HTML del sitio. */
+	private static function not_found() {
+		status_header( 404 );
+		nocache_headers();
+		header( 'Content-Type: text/plain; charset=utf-8' );
+		header( 'X-Robots-Tag: noindex' );
+		echo "llms.txt no está disponible en este sitio.\n";
+		exit;
 	}
 
 	public static function serve() {
 		$result = self::result();
-		if ( empty( $result['valid'] ) ) return; // Nunca se publica un archivo inválido: WordPress responde 404.
+		if ( empty( $result['valid'] ) ) self::not_found(); // Nunca se publica un archivo inválido.
 		status_header( 200 );
 		header( 'Content-Type: text/plain; charset=utf-8' );
 		header( 'X-Robots-Tag: noindex' );
@@ -131,54 +156,61 @@ class Digitalisimo_Integrations_LLMS {
 		return ! in_array( 'noindex', $robots, true );
 	}
 
-	private static function title_for( $url ) {
-		$id = url_to_postid( $url );
-		if ( $id ) {
-			$title = self::plain( get_the_title( $id ) );
-			if ( '' !== $title ) return $title;
-		}
-		$path = trim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' );
-		$last = '' === $path ? (string) wp_parse_url( $url, PHP_URL_HOST ) : basename( $path );
-		return ucfirst( str_replace( array( '-', '_' ), ' ', rawurldecode( $last ) ) );
+	/** Texto de WordPress sin HTML, shortcodes ni entidades. */
+	private static function text( $value ) {
+		$value = (string) $value;
+		if ( function_exists( 'strip_shortcodes' ) ) $value = strip_shortcodes( $value );
+		return self::plain( preg_replace( '/\[[^\]]*\]/', ' ', $value ) );
 	}
 
-	/** Recursos: URLs elegidas o, sin selección, páginas publicadas e indexables y contenido reciente. */
+	/** Sólo contenido publicado, público, indexable y de este sitio. */
+	private static function publishable( $url ) {
+		$host = strtolower( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) );
+		if ( strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) ) !== $host || false !== strpos( $url, '#' ) ) return 0;
+		$id   = url_to_postid( $url );
+		$post = $id ? get_post( $id ) : null;
+		return $post && 'publish' === $post->post_status && self::indexable( $post ) ? (int) $id : 0;
+	}
+
+	/**
+	 * Descripción del sitio, por prioridad: meta descripción SEO de la portada,
+	 * descripción de WordPress. Si no hay ninguna no se inventa texto.
+	 */
+	public static function descriptions() {
+		$front   = 'page' === get_option( 'show_on_front' ) ? (int) get_option( 'page_on_front' ) : 0;
+		$meta    = $front ? self::text( get_post_meta( $front, 'digitalisimo_seo_description', true ) ) : '';
+		$tagline = self::text( get_bloginfo( 'description' ) );
+		$excerpt = $front ? self::text( get_post_field( 'post_excerpt', $front ) ) : '';
+		$summary = '' !== $meta ? $meta : $tagline;
+		// Párrafo opcional: el extracto escrito para la portada, si dice algo distinto.
+		$about = '' !== $excerpt && ! in_array( self::key( $excerpt ), array( self::key( $summary ), self::key( $tagline ) ), true ) ? $excerpt : '';
+		return array( 'summary' => $summary, 'about' => $about, 'tagline' => $tagline );
+	}
+
+	/**
+	 * Estructura: H1 con el nombre real, cita con la descripción, párrafo
+	 * opcional y «## Páginas principales» con Inicio y las páginas elegidas
+	 * que existen, están publicadas y son indexables. No se listan páginas
+	 * automáticamente: ningún enlace se inventa.
+	 */
 	public static function automatic() {
-		$name = self::plain( Digitalisimo_Integrations_Settings::get( 'seo_site_name' ) );
-		if ( '' === $name ) $name = self::plain( get_bloginfo( 'name' ) );
+		$name = self::plain( get_bloginfo( 'name' ) );
+		if ( '' === $name ) $name = self::plain( Digitalisimo_Integrations_Settings::get( 'seo_site_name' ) );
 		if ( '' === $name ) $name = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
-		$description = self::plain( get_bloginfo( 'description' ) );
+		$text  = self::descriptions();
 		$home  = home_url( '/' );
 		$seen  = array( self::key( $home ) => true );
 		$lines = array( '# ' . str_replace( array( "\r", "\n" ), ' ', $name ), '' );
-		if ( '' !== $description ) array_push( $lines, '> ' . $description, '' );
-		array_push( $lines, '## Recursos', '', self::link( 'Inicio', $home ) );
-
-		$selected = array_filter( explode( "\n", self::sanitize_urls( Digitalisimo_Integrations_Settings::get( 'seo_ai_llms_urls' ) ) ) );
-		foreach ( $selected as $url ) {
-			if ( isset( $seen[ self::key( $url ) ] ) ) continue;
+		if ( '' !== $text['summary'] ) array_push( $lines, '> ' . $text['summary'], '' );
+		if ( '' !== $text['about'] ) array_push( $lines, $text['about'], '' );
+		array_push( $lines, '## Páginas principales', '', self::link( 'Inicio', $home ) . ': ' . ( '' !== $text['tagline'] ? $text['tagline'] : 'Página principal del sitio.' ) );
+		foreach ( array_filter( explode( "\n", self::sanitize_urls( Digitalisimo_Integrations_Settings::get( 'seo_ai_llms_urls' ) ) ) ) as $url ) {
+			$id = self::publishable( $url );
+			if ( ! $id || isset( $seen[ self::key( $url ) ] ) ) continue;
 			$seen[ self::key( $url ) ] = true;
-			$lines[] = self::link( self::title_for( $url ), $url );
+			$lines[] = self::link( get_the_title( $id ), $url );
 		}
-		if ( ! $selected ) {
-			$skip  = array_map( 'intval', array( get_option( 'page_on_front' ), get_option( 'page_for_posts' ) ) );
-			$pages = get_posts( array( 'post_type' => 'page', 'post_status' => 'publish', 'posts_per_page' => 30, 'orderby' => array( 'menu_order' => 'ASC', 'title' => 'ASC' ), 'has_password' => false, 'no_found_rows' => true ) );
-			foreach ( $pages as $page ) {
-				$url = get_permalink( $page );
-				if ( in_array( (int) $page->ID, $skip, true ) || ! $url || isset( $seen[ self::key( $url ) ] ) || ! self::indexable( $page ) ) continue;
-				$seen[ self::key( $url ) ] = true;
-				$lines[] = self::link( get_the_title( $page ), $url );
-			}
-			$recent = array();
-			foreach ( get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => 10, 'has_password' => false, 'no_found_rows' => true ) ) as $post ) {
-				$url = get_permalink( $post );
-				if ( ! $url || isset( $seen[ self::key( $url ) ] ) || ! self::indexable( $post ) ) continue;
-				$seen[ self::key( $url ) ] = true;
-				$recent[] = self::link( get_the_title( $post ), $url );
-			}
-			if ( $recent ) $lines = array_merge( $lines, array( '', '## Contenido reciente', '' ), $recent );
-		}
-		if ( Digitalisimo_Integrations_Settings::get( 'sitemap_enabled' ) ) $lines = array_merge( $lines, array( '', '## Opcional', '', self::link( 'Sitemap XML', home_url( '/wp-sitemap.xml' ) ) ) );
+		if ( Digitalisimo_Integrations_Settings::get( 'sitemap_enabled' ) ) $lines = array_merge( $lines, array( '', '## Opcional', '', self::link( 'Sitemap XML', home_url( '/wp-sitemap.xml' ) ) . ': Índice de todas las URLs públicas.' ) );
 		return implode( "\n", $lines ) . "\n";
 	}
 
@@ -205,6 +237,36 @@ class Digitalisimo_Integrations_LLMS {
 		}
 		if ( class_exists( 'Digitalisimo_Integrations_Performance_Cache' ) ) Digitalisimo_Integrations_Performance_Cache::set( self::CACHE, $result, 3600 );
 		return $result;
+	}
+
+	/** Secciones «## » de un Markdown. */
+	public static function sections( $text ) {
+		return preg_match_all( '/^##\s+\S/m', (string) $text );
+	}
+
+	/**
+	 * Diagnóstico de una respuesta real de /llms.txt.
+	 *
+	 * @return array state (CORRECTO, ERROR HTTP, VACÍO, FALTA H1, SIN ENLACES), detail, code, type, h1, links, sections, bytes.
+	 */
+	public static function diagnose( $code, $type, $body, $error = '' ) {
+		$body   = (string) $body;
+		$check  = self::validate( $body );
+		$h1     = (bool) preg_match( '/^#\s+\S/m', $body ) && ! preg_grep( '/H1/', $check['errors'] );
+		$report = array( 'code' => (int) $code, 'type' => (string) $type, 'h1' => $h1, 'title' => $check['title'], 'links' => $check['links'], 'sections' => self::sections( $body ), 'bytes' => strlen( $body ), 'detail' => '' );
+		if ( '' !== $error || 200 !== (int) $code ) return array( 'state' => 'ERROR HTTP', 'detail' => '' !== $error ? $error : 'HTTP ' . (int) $code . ': se esperaba 200.' ) + $report;
+		if ( 0 !== stripos( trim( (string) $type ), 'text/plain' ) ) return array( 'state' => 'ERROR HTTP', 'detail' => 'Content-Type «' . $type . '»: se esperaba text/plain; charset=utf-8. Otra regla del servidor o una caché está sirviendo HTML.' ) + $report;
+		if ( '' === trim( $body ) ) return array( 'state' => 'VACÍO' ) + $report;
+		if ( ! $h1 ) return array( 'state' => 'FALTA H1', 'detail' => implode( ' ', $check['errors'] ) ) + $report;
+		if ( ! $check['links'] ) return array( 'state' => 'SIN ENLACES' ) + $report;
+		return array( 'state' => 'CORRECTO', 'detail' => $check['valid'] ? '' : implode( ' ', $check['errors'] ) ) + $report;
+	}
+
+	/** Pide /llms.txt al propio sitio como lo haría un agente: sin seguir redirecciones. */
+	public static function check_endpoint() {
+		$response = wp_remote_get( self::endpoint(), array( 'timeout' => 8, 'redirection' => 0, 'user-agent' => 'Digitalisimo llms.txt Check/1.1' ) );
+		if ( is_wp_error( $response ) ) return self::diagnose( 0, '', '', $response->get_error_message() );
+		return self::diagnose( wp_remote_retrieve_response_code( $response ), (string) wp_remote_retrieve_header( $response, 'content-type' ), wp_remote_retrieve_body( $response ) );
 	}
 
 	/** Estado para el resumen de la auditoría y la pestaña Agentes IA. */

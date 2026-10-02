@@ -563,9 +563,9 @@ class Digitalisimo_Integrations_Quality_Audit {
 		return array( 'network' => $network, 'site_id' => $site_id, 'url' => $url, 'index' => $index, 'record' => $record, 'stale' => $stale );
 	}
 
-	public static function badge( $status ) {
+	public static function badge( $status, $label = null ) {
 		$colors = array( 'OK' => '#00a32a', 'ADVERTENCIA' => '#dba617', 'ERROR' => '#d63638', 'NO APLICABLE' => '#787c82' );
-		return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;background:' . esc_attr( $colors[ $status ] ?? '#787c82' ) . '">' . esc_html( $status ) . '</span>';
+		return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;background:' . esc_attr( $colors[ $status ] ?? '#787c82' ) . '">' . esc_html( null === $label ? $status : $label ) . '</span>';
 	}
 
 	private static function header( $ctx, $title, $description ) {
@@ -700,10 +700,16 @@ class Digitalisimo_Integrations_Quality_Audit {
 		$url    = self::in_site( $ctx['site_id'], array( 'Digitalisimo_Integrations_LLMS', 'endpoint' ) );
 		$state  = ! $status['enabled'] ? 'NO APLICABLE' : ( ! $status['valid'] ? 'ERROR' : ( $status['fallback'] ? 'ADVERTENCIA' : 'OK' ) );
 		$modes  = array( 'automatic' => 'Automático', 'manual' => 'Manual', 'hybrid' => 'Híbrido' );
-		echo '<h2>llms.txt</h2><p>Markdown opcional que resume el sitio para agentes de IA. Se genera con el nombre, la descripción, home_url() y las páginas públicas e indexables de cada sitio, y se valida antes de servirse. No es requisito SEO ni garantiza visibilidad o citación.</p>';
+		echo '<h2>llms.txt</h2><p>Markdown opcional que resume el sitio para agentes de IA. Se genera con el nombre del sitio, la meta descripción de la portada o la descripción de WordPress, home_url() y las páginas que elijas, si están publicadas y son indexables; nunca se inventan enlaces. La salida se valida antes de servirse. No es requisito SEO ni garantiza visibilidad o citación.</p>';
 		echo '<table class="widefat striped" style="max-width:900px"><tbody><tr><th>Estado</th><td>' . self::badge( $state ) . ' ' . esc_html( $status['enabled'] ? '' : 'Desactivado en este sitio.' ) . '</td></tr><tr><th>URL</th><td><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $url ) . '</a></td></tr><tr><th>Modo</th><td>' . esc_html( $modes[ $status['mode'] ] ?? $status['mode'] ) . '</td></tr><tr><th>Enlaces válidos</th><td>' . (int) $status['links'] . '</td></tr>';
 		if ( $status['errors'] ) echo '<tr><th>' . ( $status['fallback'] ? 'Contenido manual rechazado' : 'Errores' ) . '</th><td><ul style="margin:0">' . implode( '', array_map( function( $e ) { return '<li>' . esc_html( $e ) . '</li>'; }, $status['errors'] ) ) . '</ul>' . ( $status['fallback'] ? '<p>Se sirve el contenido automático hasta que el manual sea válido.</p>' : '' ) . '</td></tr>';
-		echo '</tbody></table><h3>Vista previa</h3><pre style="background:#fff;border:1px solid #dcdcde;padding:12px;max-height:420px;overflow:auto;white-space:pre-wrap">' . esc_html( substr( (string) $status['content'], 0, 8000 ) ) . '</pre>';
+		echo '</tbody></table>';
+		$http = self::in_site( $ctx['site_id'], array( 'Digitalisimo_Integrations_LLMS', 'check_endpoint' ) );
+		echo '<h3>Respuesta real de /llms.txt</h3><p class="description">Petición GET al propio sitio al abrir esta pantalla, sin seguir redirecciones. Un CDN, WAF o caché de página puede responder distinto desde fuera.</p><table class="widefat striped" style="max-width:900px"><tbody>';
+		echo '<tr><th>Resultado</th><td>' . self::badge( 'CORRECTO' === $http['state'] ? 'OK' : 'ERROR', $http['state'] ) . ( $http['detail'] ? ' ' . esc_html( $http['detail'] ) : '' ) . '</td></tr>';
+		echo '<tr><th>HTTP</th><td>' . esc_html( $http['code'] ?: '—' ) . '</td></tr><tr><th>Content-Type</th><td><code>' . esc_html( $http['type'] ?: '—' ) . '</code></td></tr><tr><th>H1</th><td>' . esc_html( $http['h1'] ? 'Encontrado: ' . $http['title'] : 'No encontrado' ) . '</td></tr><tr><th>Enlaces</th><td>' . (int) $http['links'] . '</td></tr><tr><th>Secciones ##</th><td>' . (int) $http['sections'] . '</td></tr><tr><th>Longitud</th><td>' . (int) $http['bytes'] . ' bytes</td></tr></tbody></table>';
+		if ( ! $status['enabled'] ) echo '<p>Activa «Publicar llms.txt» arriba y guarda: mientras esté desactivado, /llms.txt responde 404.</p>';
+		echo '<h3>Vista previa</h3><pre style="background:#fff;border:1px solid #dcdcde;padding:12px;max-height:420px;overflow:auto;white-space:pre-wrap">' . esc_html( substr( (string) $status['content'], 0, 8000 ) ) . '</pre>';
 	}
 
 	/** Bajo Imágenes: lo que el navegador descargó frente a lo que pintó. */

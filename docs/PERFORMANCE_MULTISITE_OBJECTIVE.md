@@ -330,3 +330,25 @@ Fuente: solicitud del propietario del 2026-10-02, «CAMBIAR FUNCIÓN ALT PREDETE
   - La captura guarda por imagen el ALT publicado, su origen y su estado: MANUAL, GENERADO, REPETIDO, IGUAL A CAPTION, DECORATIVO, VACÍO CORRECTO, POSIBLEMENTE GENÉRICO o SIN ALT. Se muestra en Rendimiento y calidad → Imágenes → Auditoría de ALT.
   - La auditoría del navegador añade ALT repetido entre imágenes visibles y ALT genérico.
 - **Límites.** Las frases descriptivas que no salen del archivo ni del contexto (por ejemplo, «análisis del» en «Gráfico de análisis del mercado digital») requieren un ALT manual o un asistente de IA. El motor nunca inventa contenido que la página no tiene.
+
+## llms.txt corregido sobre la implementación existente · SEO 1.0.192
+
+Fuente: solicitud del propietario del 2026-10-02, «CORREGIR EL LLMS.TXT EXISTENTE». Se corrigió `Digitalisimo_Integrations_LLMS` (`includes/class-llms.php`) en su lugar. Se conservan la ruta `/llms.txt`, sus ajustes (`seo_ai_llms_*`), la caché del grupo `digitalisimo_performance` y las pantallas existentes (Rendimiento y calidad → Agentes IA, y SEO AI → llms.txt). No hay ruta, módulo ni pantalla nuevos.
+
+- **Fallo observado en producción.** `GET https://digitalisimo.mx/llms.txt` respondía 301 a `/llms.txt/` y luego HTML con 200: con el módulo desactivado, la ruta caía en el enrutado de WordPress y la redirección canónica añadía la barra.
+  - Ahora, desactivado (o con salida inválida), responde 404 en `text/plain`.
+  - Activado, `/llms.txt/` redirige 301 a `/llms.txt`.
+- **Estructura automática.**
+  - `# {get_bloginfo('name')}`.
+  - `> {descripción}`: meta descripción SEO de la portada, en su defecto `get_bloginfo('description')`; si no hay ninguna, no se escribe nada.
+  - Párrafo opcional con el extracto de la portada, si dice algo distinto.
+  - `## Páginas principales` con `- [Inicio](home_url('/')): {tagline o «Página principal del sitio.»}`.
+  - `## Opcional` con el sitemap si está activo.
+  - Ya no se listan páginas ni entradas automáticamente. Sólo se añaden las URLs elegidas que pertenecen al sitio, existen, están publicadas, son indexables y no tienen ancla. Se retiró `SEO_AI_LLMS_Tools::automatic_resources()`, que ya no estaba conectada y listaba 30 contenidos.
+  - Shortcodes, HTML y entidades se eliminan.
+- **Diagnóstico real.**
+  - `LLMS::check_endpoint()` pide `/llms.txt` al propio sitio sin seguir redirecciones.
+  - `LLMS::diagnose()` informa HTTP, Content-Type, H1, enlaces, secciones y bytes, con el estado CORRECTO, FALTA H1, SIN ENLACES, VACÍO o ERROR HTTP. Un HTML con 200 o una redirección cuentan como ERROR HTTP.
+  - Se muestra en Agentes IA y en SEO AI → llms.txt.
+- **Caché.** Además de los ajustes del plugin y del guardado de contenidos, se invalida al cambiar `blogname`, `blogdescription`, `home`, `siteurl`, `page_on_front` y `show_on_front`.
+- **Pendiente de verificación en producción.** Activar «Publicar llms.txt» en el sitio, purgar la caché de página o CDN (puede conservar el 301 anterior) y comprobar `GET /llms.txt`.

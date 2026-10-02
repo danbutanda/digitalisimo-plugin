@@ -287,10 +287,10 @@ class Digitalisimo_Integrations_SEO_Suite {
 		self::nf( 'perf_touch_selectors', 'Componentes', 'textarea', 'Un selector por línea.' );
 	}
 	public static function performance_agents_site_fields() {
-		echo '<tr><th colspan="2"><h2>llms.txt</h2><p>Desactivado por defecto. Automático usa el nombre, la descripción y las páginas públicas e indexables de este sitio; Manual publica tu Markdown sólo si es válido (H1 y al menos un enlace); Híbrido añade el tuyo al automático.</p></th></tr>';
+		echo '<tr><th colspan="2"><h2>llms.txt</h2><p>Desactivado por defecto. Automático genera «# Nombre del sitio», la meta descripción de la portada (o la descripción de WordPress) y «## Páginas principales» con Inicio y sólo las páginas que elijas abajo, si están publicadas y son indexables. Manual publica tu Markdown si es válido (un H1 y al menos un enlace); Híbrido añade el tuyo al automático.</p></th></tr>';
 		self::f( 'seo_ai_llms_enabled', 'Publicar llms.txt', 'checkbox' );
 		self::f( 'seo_ai_llms_mode', 'Modo', 'select', '', array( 'automatic' => 'Automático', 'manual' => 'Manual', 'hybrid' => 'Híbrido' ) );
-		self::f( 'seo_ai_llms_urls', 'Recursos elegidos', 'textarea', 'Una URL por línea. Vacío: se listan las páginas publicadas e indexables y el contenido reciente.' );
+		self::f( 'seo_ai_llms_urls', 'Recursos elegidos', 'textarea', 'Una URL de este sitio por línea. Sólo se listan las publicadas, indexables y sin ancla; las demás se ignoran. Vacío: sólo Inicio.' );
 		self::f( 'seo_ai_llms_manual', 'Markdown manual', 'textarea', 'Para los modos Manual e Híbrido.' );
 	}
 	public static function performance_agents_network_fields() {
