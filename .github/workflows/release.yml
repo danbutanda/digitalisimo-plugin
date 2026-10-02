@@ -42,6 +42,7 @@ jobs:
       - name: Probar protecciones de rendimiento
         run: |
           php tests/tools-slider.php
+          php tests/performance-hero.php
           php tests/tools-updater.php
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php

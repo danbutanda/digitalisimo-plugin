@@ -98,6 +98,7 @@ class Digitalisimo_Integrations_Settings {
 			'perf_font_guard_allowlist' => '',
 			'perf_font_icon_families' => '',
 			'perf_css_defer'       => 0,
+			'perf_hero_critical'   => 1,
 			'perf_css_defer_handles' => "widget-blockquote\nwidget-form\nwidget-divider\nwidget-social-icons",
 			'perf_caption_normal'  => 0,
 			'perf_custom_css'      => '',
@@ -189,7 +190,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function sanitize( $input ) {
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
-		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
+		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
