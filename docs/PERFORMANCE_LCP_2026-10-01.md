@@ -43,3 +43,29 @@ Cinco nuevas auditorías móviles equivalentes encontraron SEO 1.0.181 instalado
 | Critical path latency | 1203 ms | 1547 ms | 1342 ms |
 
 El H1 es un widget Heading de Elementor en la primera sección (`elementor-element-41420ebb`) sin atributo de animación en su HTML. La demora restante no está explicada por el tiempo de descarga de las fuentes; se necesita inspeccionar la pintura/composición y el CSS efectivo en las ejecuciones lentas antes de atribuirle otra causa. Los JSON de Lighthouse están en `/tmp/digitalisimo-lcp-after-181/` en el entorno de validación.
+
+## Nueva serie con la versión instalada SEO 1.0.200 · 2026-10-02
+
+Se repitieron cinco auditorías móviles equivalentes sobre `digitalisimo.mx` con SEO 1.0.200 instalado. En esta serie **no reapareció el salto a ~5 s**: LCP quedó entre 2.88 y 3.12 s y la demora de pintado del H1 entre 489 y 560 ms. Cumple el criterio de dispersión de cinco ejecuciones solicitado, aunque una serie de laboratorio no garantiza que no reaparezca en otras condiciones. No se puede atribuir la mejora a un cambio aislado entre 1.0.181 y 1.0.200 sin pruebas A/B.
+
+| Métrica | Mínimo | Máximo | Mediana |
+|---|---:|---:|---:|
+| FCP | 1352 ms | 1399 ms | 1380 ms |
+| LCP | 2880 ms | 3124 ms | 3077 ms |
+| TBT | 268 ms | 403 ms | 398 ms |
+| CLS | 0.000 | 0.072 | 0.000 |
+| H1 render delay | 489 ms | 560 ms | 519 ms |
+| TTFB | 513 ms | 705 ms | 635 ms |
+| Source Serif completion | 889 ms | 1066 ms | 988 ms |
+| Inter completion | 861 ms | 1070 ms | 985 ms |
+| Critical path latency | 954 ms | 1179 ms | 1125 ms |
+
+| Ejecución | FCP | LCP | TBT | CLS | H1 render delay | TTFB | Source Serif completion | Inter completion | Critical path latency |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1399 | 3124 | 403 | 0.000 | 526 | 513 | 889 | 861 | 1011 |
+| 2 | 1380 | 2880 | 400 | 0.000 | 489 | 651 | 988 | 985 | 1125 |
+| 3 | 1352 | 3077 | 340 | 0.000 | 560 | 543 | 950 | 951 | 954 |
+| 4 | 1390 | 3115 | 398 | 0.000 | 503 | 705 | 1066 | 1070 | 1179 |
+| 5 | 1352 | 2927 | 268 | 0.072 | 519 | 635 | 1059 | 988 | 1136 |
+
+Los JSON de esta serie están en `/tmp/digitalisimo-lcp-after-200/` en el entorno de validación.
