@@ -36,10 +36,13 @@ namespace {
 	function sanitize_key( $value ) { return strtolower( preg_replace( '/[^a-z0-9_-]/i', '', $value ) ); }
 	function get_intermediate_image_sizes() { return array( 'thumbnail', 'medium', 'large' ); }
 	function get_post_meta( $id, $key ) { return 'ALT guardado'; }
+	function wp_get_attachment_image_src( $id, $size ) { return in_array( $id, array( 12, 99 ), true ) ? false : array( '/media/' . $id . '.webp', 800, 400 ); }
+	function get_attached_file( $id ) { return 99 === $id ? '' : __FILE__; }
+	function wp_getimagesize( $file ) { global $image_size_reads; ++$image_size_reads; return array( 1711, 304 ); }
 	function esc_url( $value ) { return filter_var( $value, FILTER_VALIDATE_URL ) ? htmlspecialchars( $value, ENT_QUOTES ) : ''; }
 	function esc_attr( $value ) { return htmlspecialchars( $value, ENT_QUOTES ); }
 	function wp_get_attachment_image( $id, $size, $icon, $attrs ) {
-		$tag = '<img src="/media/' . $id . '.webp" width="800" height="400"';
+		$tag = '<img src="/media/' . $id . '.webp"';
 		foreach ( $attrs as $key => $value ) $tag .= ' ' . $key . '="' . esc_attr( $value ) . '"';
 		return $tag . '>';
 	}
@@ -63,6 +66,7 @@ namespace {
 	$assert = function ( $condition, $message ) { if ( ! $condition ) throw new \RuntimeException( $message ); };
 	$assert( 20 === substr_count( $html, 'aria-hidden="true"' ), 'Debe ocultarse la copia y todas las repeticiones decorativas.' );
 	$assert( 20 === substr_count( $html, '<img ' ), 'La serie impar con espejo debe cubrir la vista y duplicarse una vez.' );
+	$assert( 20 === substr_count( $html, 'width="1711" height="304"' ) && 1 === $image_size_reads, 'Todas las copias deben conservar las dimensiones reales sin leer el archivo repetidamente.' );
 	$assert( 1 === substr_count( $html, 'alt="Onda"' ) && 19 === substr_count( $html, 'alt=""' ), 'Las imágenes decorativas deben tener ALT vacío.' );
 	$assert( 1 === substr_count( $html, 'fetchpriority="high"' ) && 1 === substr_count( $html, 'loading="eager"' ), 'Sólo la primera imagen prioritaria debe ser eager y de prioridad alta.' );
 	$assert( false !== strpos( $html, 'sizes="(max-width: 767px) 20vw, (max-width: 1024px) 20vw, 20vw"' ), 'Los tamaños responsive deben seguir la cantidad configurada.' );
@@ -91,6 +95,11 @@ namespace {
 	$positions = array_map( function ( $id ) use ( $html ) { return strpos( $html, '/media/' . $id . '.webp' ); }, array( 21, 22, 23, 13 ) );
 	$assert( ! in_array( false, $positions, true ) && $positions[0] < $positions[1] && $positions[1] < $positions[2] && $positions[2] < $positions[3], 'La galería debe respetar el orden y conservar el elemento individual al final.' );
 	$assert( 3 === substr_count( $html, 'alt="ALT guardado"' ) && 1 === substr_count( $html, 'alt="Cliente"' ) && 1 === substr_count( $html, 'href="https://example.com"' ), 'La galería debe usar el ALT de cada adjunto sin duplicar el enlace individual.' );
+	$previous_settings = $widget->test_settings;
+	$widget->test_settings = array( 'mode' => 'multiple', 'gallery_images' => array( array( 'id' => 99 ) ), 'images' => array(), 'animation' => 'off', 'loading' => 'lazy' );
+	ob_start(); $method->invoke( $widget ); $unknown = ob_get_clean();
+	$assert( false !== strpos( $unknown, 'loading="eager"' ), 'Sin dimensiones disponibles, la imagen no debe reservar un placeholder lazy de altura arbitraria.' );
+	$widget->test_settings = $previous_settings;
 	$widget->test_settings['images'] = array();
 	$widget->test_settings['animation'] = 'continuous';
 	$widget->test_settings['infinite'] = 'yes';

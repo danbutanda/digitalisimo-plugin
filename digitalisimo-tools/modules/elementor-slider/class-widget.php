@@ -64,6 +64,24 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		return $sizes;
 	}
 
+	/** Evita el espacio provisional de las imágenes lazy cuando falta metadata del adjunto. */
+	private function image_dimensions( $id, $size ) {
+		static $cache = array();
+		$key = $id . ':' . $size;
+		if ( isset( $cache[ $key ] ) ) return $cache[ $key ];
+		$dimensions = array();
+		$source = wp_get_attachment_image_src( $id, $size );
+		if ( is_array( $source ) && ! empty( $source[1] ) && ! empty( $source[2] ) ) $dimensions = array( absint( $source[1] ), absint( $source[2] ) );
+		if ( ! $dimensions ) {
+			$file = get_attached_file( $id );
+			if ( $file && is_readable( $file ) ) {
+				$actual = wp_getimagesize( $file );
+				if ( is_array( $actual ) && ! empty( $actual[0] ) && ! empty( $actual[1] ) ) $dimensions = array( absint( $actual[0] ), absint( $actual[1] ) );
+			}
+		}
+		return $cache[ $key ] = $dimensions;
+	}
+
 	private function image( $item, $settings, $decorative, $index ) {
 		$id = absint( $item['image']['id'] ?? 0 );
 		if ( ! $id ) return '';
@@ -72,10 +90,14 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$size = sanitize_key( $settings['image_size'] ?? 'large' );
 		if ( ! in_array( $size, get_intermediate_image_sizes(), true ) && 'full' !== $size ) $size = 'large';
 		$attrs = array( 'alt' => $alt, 'decoding' => 'async' );
+		$dimensions = $this->image_dimensions( $id, $size );
+		if ( $dimensions ) { $attrs['width'] = $dimensions[0]; $attrs['height'] = $dimensions[1]; }
 		$loading = $settings['loading'] ?? 'auto';
 		$priority = $settings['priority'] ?? 'auto';
 		if ( 'high' === $priority && ! $decorative && 0 === $index ) $loading = 'eager';
-		if ( in_array( $loading, array( 'lazy', 'eager' ), true ) ) $attrs['loading'] = $decorative && 'eager' === $loading ? 'lazy' : $loading;
+		// Sin dimensiones no se debe crear un placeholder lazy de altura arbitraria.
+		if ( ! $dimensions ) $loading = 'eager';
+		if ( in_array( $loading, array( 'lazy', 'eager' ), true ) ) $attrs['loading'] = $decorative && $dimensions && 'eager' === $loading ? 'lazy' : $loading;
 		if ( ! $decorative && ( 'low' === $priority || ( 'high' === $priority && 0 === $index ) ) ) $attrs['fetchpriority'] = $priority;
 		$desktop = max( 1, absint( $settings['visible'] ?? 9 ) );
 		$tablet = max( 1, absint( $settings['visible_tablet'] ?? 6 ) );
