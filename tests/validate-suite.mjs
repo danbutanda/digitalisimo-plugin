@@ -11,7 +11,7 @@ const modules = [
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.21.zip', version: '1.0.21' },
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.35.zip', version: '1.0.35' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.15.zip', version: '1.0.15' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.16.zip', version: '1.0.16' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -51,7 +51,7 @@ for (const module of modules) {
   if (!source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-tools')) throw new Error('Falta Update URI en DIGITALÍSIMO Tools');
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
   if (!listing.includes(`${toolsModule.dir}/${toolsModule.file}`) || listing.includes('.DS_Store')) throw new Error('El paquete de DIGITALÍSIMO Tools no tiene una estructura válida');
-  for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php', 'assets/media-badges.js', 'assets/media-badges.css']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
+  for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php', 'assets/media-badges.js', 'assets/media-badges.css', 'assets/slider-optimizado.css', 'modules/elementor-slider/class-widget.php']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
 }
 
 const declarations = new Map();

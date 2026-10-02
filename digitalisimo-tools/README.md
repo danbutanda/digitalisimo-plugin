@@ -1,6 +1,6 @@
 # DIGITALÍSIMO Tools
 
-`DIGITALÍSIMO Tools` es un plugin independiente para herramientas internas de WordPress. Incluye **Plantillas Elementor de Red** en Multisite y **Optimizar imágenes WebP** tanto en red como en sitios individuales o instalaciones sin Multisite.
+`DIGITALÍSIMO Tools` es un plugin independiente para herramientas internas de WordPress. Incluye **Plantillas Elementor de Red** en Multisite, **Optimizar imágenes WebP** y el widget **Slider Optimizado** en sitios individuales o instalaciones sin Multisite.
 
 ## Uso
 
@@ -19,7 +19,13 @@ La edición sucede siempre en el sitio maestro. Una copia bloqueada muestra un a
 - `Sync` resuelve primero las dependencias, protege contra ciclos y reentradas, y usa `switch_to_blog()` con `try/finally` para restaurar siempre el contexto.
 - `Elementor_Adapter` exporta sólo los metadatos de documento necesarios, remapea IDs internos al destino, limpia caché y llama a la API pública disponible de Elementor para limpiar CSS.
 
-El plugin no hace consultas, JavaScript, REST, iframes, shortcodes ni solicitudes entre sitios durante el frontend. Los medios se preservan por URL; la duplicación de medios queda fuera de esta versión.
+El módulo de plantillas no hace consultas, JavaScript, REST, iframes, shortcodes ni solicitudes entre sitios durante el frontend. Los medios se preservan por URL; la duplicación de medios queda fuera de esta versión.
+
+## Slider Optimizado
+
+En Elementor, abre la categoría **DIGITALÍSIMO** y arrastra **Slider Optimizado**. Admite imágenes múltiples con ALT y enlace, o una imagen repetida con espejo alternado. Los controles permiten animación continua o desactivada, dirección, duración, pausa, loop, cantidad visible por dispositivo, separación, altura, tamaño y carga de imágenes. Con movimiento reducido, el contenido queda visible sin animación.
+
+El modo continuo usa únicamente CSS; el widget no declara scripts ni Swiper. Su CSS se registra como dependencia del widget y Elementor lo carga sólo donde se usa. No modifica el carrusel nativo ni páginas existentes.
 
 ## Imágenes WebP
 
