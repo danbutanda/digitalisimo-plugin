@@ -31,7 +31,7 @@ class Digitalisimo_Integrations_Performance_Console {
 	}
 
 	private static function sections() {
-		return array( 'audit' => 'Auditoría', 'images' => 'Imágenes', 'a11y' => 'Accesibilidad', 'seo' => 'SEO técnico', 'javascript' => 'JavaScript', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'status' => 'Diagnóstico de assets', 'measurements' => 'PageSpeed manual', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
+		return array( 'audit' => 'Auditoría', 'tips' => 'Recomendaciones', 'images' => 'Imágenes', 'a11y' => 'Accesibilidad', 'seo' => 'SEO técnico', 'javascript' => 'JavaScript', 'css' => 'CSS', 'fonts' => 'Fuentes', 'preloads' => 'Preloads', 'status' => 'Diagnóstico de assets', 'measurements' => 'PageSpeed manual', 'tracking' => 'Google Tracking', 'cache' => 'Redis/Object Cache', 'debug' => 'Debug' );
 	}
 
 	private static function page_url( $network, $section ) {
@@ -74,6 +74,7 @@ class Digitalisimo_Integrations_Performance_Console {
 			if ( $network ) self::network_sites();
 		} elseif ( 'measurements' === $section ) Digitalisimo_Integrations_Performance_Measurements::render( $network );
 		elseif ( 'audit' === $section ) Digitalisimo_Integrations_Quality_Audit::render_audit( $network );
+		elseif ( 'tips' === $section ) self::recommendations();
 		elseif ( 'a11y' === $section ) { self::settings( $network, 'a11y' ); Digitalisimo_Integrations_Quality_Audit::render_a11y( $network ); }
 		elseif ( 'seo' === $section ) Digitalisimo_Integrations_Quality_Audit::render_seo( $network );
 		elseif ( 'css' === $section ) { self::settings( $network, 'css' ); Digitalisimo_Integrations_Quality_Audit::render_css( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
@@ -86,6 +87,48 @@ class Digitalisimo_Integrations_Performance_Console {
 		else Digitalisimo_Integrations_Performance_Debug::render( $network );
 		if ( 'status' === $section ) Digitalisimo_Integrations_Asset_Diagnostics::render( $network );
 		echo '</div>';
+	}
+
+	/** Buenas y malas prácticas al construir con WordPress y Elementor. Sólo informa. */
+	private static function recommendations() {
+		$groups = array(
+			'Contenido y widgets' => array(
+				array( true, 'Elimina los widgets que ya no se usan.' ),
+				array( false, 'Ocultar elementos pesados en escritorio, tablet o móvil cuando ya no se necesitan: elimínalos.' ),
+				array( false, 'Duplicar secciones completas sólo para mostrarlas en distintos dispositivos.' ),
+				array( false, 'Widgets de Elementor innecesarios.' ),
+				array( false, 'Enlaces con href="#" como destino final.' ),
+			),
+			'Carruseles y movimiento' => array(
+				array( false, 'Demasiados carruseles o Swiper en una misma página.' ),
+				array( true, 'Reduce los sliders con muchas imágenes.' ),
+				array( false, 'Autoplay innecesario.' ),
+				array( false, 'Demasiadas animaciones y efectos de movimiento.' ),
+			),
+			'Imágenes' => array(
+				array( true, 'Usa imágenes WebP o AVIF cuando sea posible.' ),
+				array( false, 'Subir imágenes mucho más grandes que su tamaño visible.' ),
+				array( true, 'Define width y height en las imágenes.' ),
+				array( true, 'Usa lazy load sólo en imágenes fuera de pantalla.' ),
+				array( false, 'Aplicar lazy load a la imagen principal (hero o posible LCP).' ),
+			),
+			'Scripts, estilos y fuentes' => array(
+				array( false, 'Plugins que cargan JS o CSS en páginas donde no se usan.' ),
+				array( false, 'Duplicar scripts de Analytics, GTM o fuentes.' ),
+				array( true, 'Mantén pocas fuentes y pocos pesos tipográficos.' ),
+				array( false, 'CSS o JS personalizado innecesario.' ),
+			),
+			'Comprobación' => array(
+				array( true, 'Revisa PageSpeed o Lighthouse después de cada cambio importante.' ),
+				array( true, 'Prueba siempre en móvil, además de escritorio.' ),
+			),
+		);
+		echo '<h2>Recomendaciones</h2><p>Buenas prácticas para construir páginas rápidas y claras con WordPress y Elementor. Esta pestaña sólo informa: no cambia nada del sitio.</p>';
+		foreach ( $groups as $title => $items ) {
+			echo '<h3>' . esc_html( $title ) . '</h3><ul style="list-style:none;margin-left:0">';
+			foreach ( $items as $item ) echo '<li style="margin:6px 0"><span style="display:inline-block;min-width:118px;font-weight:600;color:' . ( $item[0] ? '#00a32a' : '#b26200' ) . '">' . ( $item[0] ? '✓ Recomendado' : '⚠ Evitar' ) . '</span> ' . esc_html( $item[1] ) . '</li>';
+			echo '</ul>';
+		}
 	}
 
 	private static function settings( $network, $section ) {
