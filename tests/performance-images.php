@@ -82,7 +82,7 @@ $untouched = array(
 	'<img src="https://otro.test/wp-content/uploads/2026/01/hero.jpg">',
 	'<img src="https://site1.test/wp-content/uploads/logo.svg">',
 	'<img src="data:image/png;base64,AAAA">',
-	'<img src="https://site1.test/wp-content/uploads/2026/01/hero.jpg" width="1" height="1">',
+	'<img src="https://tracker.test/pixel.png" width="1" height="1">',
 	'<img class="otra-libreria" data-src="' . $hero . '">',
 	'<img src="' . $hero . '" data-no-optimize="1">',
 	'<img class="emoji" src="' . $hero . '">',
@@ -215,6 +215,22 @@ $audit = $img::audit( array(
 check( array( 'total' => 3, 'srcset' => 1, 'no_srcset' => 2, 'no_dimensions' => 2, 'lazy' => 2, 'eager' => 1, 'high' => 1, 'oversized' => 2 ) === $audit, 'La auditoría cuenta cada criterio.' );
 check( 390 === $img::estimate( '(max-width: 1024px) 100vw, (max-width: 1140px) 50vw, 570px', 390 ) && 570 === $img::estimate( '(max-width: 1024px) 100vw, (max-width: 1140px) 50vw, 570px', 1440 ) && 1920 === $img::estimate( '(max-width: 1920px) 100vw, 1920px', 1920 ), 'La estimación sigue el orden de las condiciones de sizes.' );
 
+// Una imagen de la Biblioteca con width/height 1 (metadata dañada) no es un píxel de seguimiento.
+$out = $img::process( page( '<img src="' . $hero . '" width="1" height="1">' ) );
+check( false !== strpos( $out, 'srcset=' ), 'Imagen propia con 1×1 se sigue tratando.' );
+
+// Ancho fijo del widget (Call to Action, Image): sizes exacto en lugar del de WordPress.
+check( '75px' === $img::fixed_sizes( 'call-to-action', array( 'graphic_element' => 'image', 'graphic_image_width' => array( 'unit' => 'px', 'size' => 75 ) ), array( 'mobile' => 767, 'tablet' => 1024 ) ), 'CTA con 75 px.' );
+check( '(max-width: 767px) 60px, 75px' === $img::fixed_sizes( 'call-to-action', array( 'graphic_element' => 'image', 'graphic_image_width' => array( 'unit' => 'px', 'size' => 75 ), 'graphic_image_width_mobile' => array( 'unit' => 'px', 'size' => 60 ) ), array( 'mobile' => 767, 'tablet' => 1024 ) ), 'Con ancho móvil propio.' );
+check( '' === $img::fixed_sizes( 'call-to-action', array( 'graphic_element' => 'icon', 'graphic_image_width' => array( 'unit' => 'px', 'size' => 75 ) ) ) && '' === $img::fixed_sizes( 'image', array( 'width' => array( 'unit' => '%', 'size' => 50 ) ) ) && '' === $img::fixed_sizes( 'heading', array() ), 'Porcentajes, iconos y otros widgets no son deterministas.' );
+check( 150 === $img::default_width( '(max-width: 150px) 100vw, 150px' ) && null === $img::default_width( '(max-width: 767px) 100vw, 50vw' ), 'sizes por defecto de WordPress reconocido.' );
+on();
+$cta = '<img width="150" height="150" src="https://site1.test/wp-content/uploads/2026/01/hero-300x169.jpg" srcset="a 150w, b 300w" sizes="(max-width: 300px) 100vw, 300px" data-digitalisimo-fixed="75px">';
+$out = $img::process( page( $cta ) );
+check( false !== strpos( $out, 'sizes="75px"' ) && false === strpos( $out, 'data-digitalisimo-fixed' ), 'El sizes de WordPress se sustituye por el ancho fijo del widget: ' . $out );
+$own = '<img src="' . $hero . '" srcset="' . $hero . ' 1920w" sizes="(max-width: 767px) 100vw, 50vw" width="1920" height="1080" data-digitalisimo-fixed="75px">';
+check( false !== strpos( $img::process( page( $own ) ), 'sizes="(max-width: 767px) 100vw, 50vw"' ), 'Un sizes propio (no el de WordPress) se respeta.' );
+
 // sizes genérico: se corrige sólo con el layout real de Elementor; sin él se informa.
 $GLOBALS['blog'] = 1;
 on();
@@ -274,7 +290,7 @@ $alts = array_map( function( $tag ) use ( $img ) { $a = $img::attributes( $tag )
 check( 'Análisis del mercado digital' === $alts[0], 'Título y archivo sin significado: el H2 cercano, completado con la keyword (' . $alts[0] . ').' );
 check( '' === $alts[1], 'Lo generado repetiría el caption visible: alt="".' );
 check( '' === $alts[2], 'Una imagen ajena a la Biblioteca con alt="" se respeta.' );
-check( 'Mercado local' === $alts[3], 'La keyword ya se usó en esta página: no se repite (' . $alts[3] . ').' );
+check( 'Mercado Local' === $alts[3], 'La keyword ya se usó en esta página: no se repite (' . $alts[3] . ').' );
 check( 'Foto propia' === $alts[4], 'El ALT manual se conserva.' );
 $report = ( new ReflectionProperty( $img, 'alt_report' ) )->getValue();
 check( array( 'GENERADO', 'VACÍO CORRECTO', 'VACÍO CORRECTO', 'GENERADO', 'MANUAL' ) === array_column( $report, 'state' ), 'Estados del informe: ' . implode( ', ', array_column( $report, 'state' ) ) );

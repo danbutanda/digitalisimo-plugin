@@ -363,3 +363,22 @@ Por decisión del propietario, llms.txt se configura en **SEO AI → llms.txt**,
   - Debajo del formulario, `LLMS::render_status()` muestra el estado, la respuesta real de `/llms.txt` y la vista previa. En la red sólo se explica que cada sitio ve su propio diagnóstico.
 - **Auditoría.** El resumen enlaza la fila llms.txt a esa pestaña.
 - **Límite.** SEO AI sólo existe con el módulo AI y Chatbot activo. Sin él, `/llms.txt` sigue funcionando con los valores guardados, pero no hay pantalla para cambiarlos.
+
+### Correcciones con la primera auditoría de ALT e imágenes · SEO 1.0.199
+
+Los datos reales de digitalisimo.mx mostraron estos ajustes.
+
+- **ALT del logo.** El logo usa `get_bloginfo('name')` y omite la descripción si el nombre ya la contiene. Un archivo «logo» sin marca, compuesto sólo por variantes como «Logo-solo-blanco», es el logo del sitio.
+- **Fondos y adornos.** Un nombre con fondo, background, bg, pattern, shape, divider u overlay recibe `alt=""` en vez de un ALT generado.
+- **Imágenes repetidas.** La misma imagen repetida en la página repite su ALT, sea manual o generado, en lugar de tomar otra fuente.
+- **Limpieza de nombres.**
+  - Se conservan los números que forman parte del nombre («Coahuila 1000»).
+  - Se conservan «web», «pantalla», «sin» y las conjunciones de una letra.
+  - Los nombres con Mayúsculas Iniciales mantienen sus mayúsculas.
+  - Se recuperan siglas (SEO, AI) y tildes frecuentes.
+  - Se retiran sufijos como «webp-comprimida».
+- **Palabra clave.** Sólo completa el ALT si faltan una o dos palabras significativas, para no producir fragmentos como «agencia de en mexico». Si no encaja, no se fuerza.
+- **ALT igual al nombre del archivo.** Un ALT manual idéntico al nombre del archivo («fondo-olas-1») se informa como POSIBLEMENTE GENÉRICO, sin cambiarlo.
+- **Metadata dañada.** Una imagen de la Biblioteca con `width="1" height="1"` ya no se trata como píxel de seguimiento. Para el ALT, su clase `wp-image-N` la identifica aunque su metadata no permita vincularla.
+- **`sizes` de ancho fijo.** Call to Action con imagen y el widget Image con ancho en px publican un `sizes` exacto, con sus valores de tablet y móvil, en lugar del «(max-width: Npx) 100vw, Npx» de WordPress. Los iconos de 75 px con DPR 2 descargan la variante de 150 px, no la de 300.
+- **Imágenes → Auditoría de imágenes.** Usa la última auditoría de calidad cuando no hay captura del diagnóstico de assets.

@@ -12,7 +12,7 @@ function page( $mode = 'contextual', $keyword = 'mercado digital' ) { return Dig
 
 // Limpieza de nombres.
 check( 'Daniel Butanda' === $a::clean( 'Daniel-Butanda.webp' )['text'] && $a::clean( 'Daniel-Butanda.webp' )['person'], 'Nombre y apellido se reconocen como persona.' );
-check( 'Gráfico mercado' === $a::clean( 'https://x.test/wp-content/uploads/2026/01/Grafico-Mercado-1024x576.webp' )['text'], 'Sin tamaño ni extensión, con tilde recuperada.' );
+check( 'Gráfico Mercado' === $a::clean( 'https://x.test/wp-content/uploads/2026/01/Grafico-Mercado-1024x576.webp' )['text'] && 'Gráfico mercado' === $a::clean( 'grafico-mercado.webp' )['text'], 'Sin tamaño ni extensión, con tilde recuperada; Mayúsculas Iniciales se conservan.' );
 check( 'Kimball' === $a::clean( 'Logo-Kimball.webp' )['text'] && $a::clean( 'Logo-Kimball.webp' )['logo'], 'La palabra logo se retira y se marca.' );
 foreach ( array( 'IMG_2034.jpg', 'WhatsApp-Image-2024-05-01-at-10.32.11.jpeg', 'a8f3c9e1b2d4.png', 'hero-scaled.jpg', 'DSC0001.JPG' ) as $junk ) check( '' === $a::clean( $junk )['text'], 'Nombre sin significado: ' . $junk );
 check( 'SEO local México' === $a::clean( 'SEO-local-Mexico-1.webp' )['text'] && 'Marketing digital' === $a::clean( 'MARKETING-DIGITAL.png' )['text'], 'Siglas cortas se conservan; mayúsculas largas se normalizan.' );
@@ -22,7 +22,7 @@ check( $a::clean( 'Maria-Lopez-Garcia.jpg' )['person'], 'Nombre con dos apellido
 // Ejemplos del objetivo, modo contextual.
 $p = page();
 check( 'Daniel Butanda de DIGITALÍSIMO' === $a::generate( array( 'file' => 'Daniel-Butanda.webp' ), $p )['alt'], 'Persona + nombre del sitio.' );
-check( 'Gráfico mercado digital' === $a::generate( array( 'file' => 'Grafico-Mercado.webp' ), $p )['alt'] && 1 === $p['keyword_used'], 'La palabra clave completa el ALT sin repetir palabras.' );
+check( 'Gráfico Mercado digital' === $a::generate( array( 'file' => 'Grafico-Mercado.webp' ), $p )['alt'] && 1 === $p['keyword_used'], 'La palabra clave completa el ALT sin repetir palabras.' );
 check( 'Kimball' === $a::generate( array( 'file' => 'Logo-Kimball.webp' ), $p )['alt'], 'Un logo de cliente lleva sólo la marca.' );
 check( 'DIGITALÍSIMO - Agencia de marketing digital en México' === $a::generate( array( 'main_logo' => true, 'file' => 'logo.png' ), $p )['alt'], 'Logo principal: nombre y descripción del sitio.' );
 check( 'Mercado regional' === $a::generate( array( 'file' => 'mercado-regional.jpg' ), $p )['alt'], 'La palabra clave se añade como mucho una vez por página.' );
@@ -33,9 +33,9 @@ check( 'Equipo oficina – mercado digital' === $a::generate( array( 'file' => '
 
 // Modos.
 $p = page( 'off' );
-check( 'Gráfico mercado' === $a::generate( array( 'file' => 'Grafico-Mercado.webp' ), $p )['alt'] && 'Daniel Butanda' === $a::generate( array( 'file' => 'Daniel-Butanda.webp' ), $p )['alt'], 'Desactivado: sin palabra clave ni marca.' );
+check( 'Gráfico Mercado' === $a::generate( array( 'file' => 'Grafico-Mercado.webp' ), $p )['alt'] && 'Daniel Butanda' === $a::generate( array( 'file' => 'Daniel-Butanda.webp' ), $p )['alt'], 'Desactivado: sin palabra clave ni marca.' );
 $p = page( 'fallback' );
-check( 'Gráfico mercado' === $a::generate( array( 'file' => 'Grafico-Mercado.webp' ), $p )['alt'], 'Sólo fallback: con contexto no se añade.' );
+check( 'Gráfico Mercado' === $a::generate( array( 'file' => 'Grafico-Mercado.webp' ), $p )['alt'], 'Sólo fallback: con contexto no se añade.' );
 $p = Digitalisimo_Integrations_Image_Alt::page( 'Sitio', '', 'mercado digital', 'fallback', '' );
 check( 'mercado digital' === $a::generate( array( 'file' => 'IMG_1.jpg' ), $p )['alt'] && '' === $a::generate( array( 'file' => 'IMG_2.jpg' ), $p )['alt'], 'Sólo fallback: sin ningún contexto se usa una vez, nunca en todas.' );
 $p = Digitalisimo_Integrations_Image_Alt::page( 'Sitio', '', 'mercado digital', 'off', '' );
@@ -80,7 +80,7 @@ check( null === $r['alt'] && 'VACÍO CORRECTO' === $r['state'], 'Si lo generado 
 $r = $a::apply( array( 'alt' => '' ), array( 'attachment' => 0, 'file' => 'Algo-Bonito.jpg' ), $p );
 check( null === $r['alt'] && 'VACÍO CORRECTO' === $r['state'], 'alt="" en una imagen ajena a la Biblioteca se respeta.' );
 $r = $a::apply( array(), array( 'attachment' => 0, 'file' => 'Algo-Bonito.jpg' ), $p );
-check( 'Algo bonito' === $r['alt'], 'Sin atributo alt también se genera en imágenes ajenas.' );
+check( 'Algo Bonito' === $r['alt'], 'Sin atributo alt también se genera en imágenes ajenas.' );
 $r = $a::apply( array(), array( 'skip_empty' => true, 'file' => 'pixel.gif' ), $p );
 check( '' === $r['alt'] && 'VACÍO CORRECTO' === $r['state'], 'Iconos y píxeles reciben alt="".' );
 $p = Digitalisimo_Integrations_Image_Alt::page( 'S', '', '', 'off', '' );
@@ -102,6 +102,27 @@ $box = '<div class="elementor-widget-image-box"><img src="a.jpg"><div class="ele
 check( 'Diseño web' === $a::widget_title( $box, strpos( $box, '<img' ), 16 ), 'Título del Image Box.' );
 $logo = '<div class="elementor-element elementor-widget elementor-widget-theme-site-logo"><div class="elementor-widget-container"><a href="/"><img src="l.png"></a>';
 check( $a::main_logo( $logo, strpos( $logo, '<img' ), array(), 0, 0 ) && $a::main_logo( '<img class="custom-logo">', 0, array( 'class' => 'custom-logo' ), 0, 0 ) && $a::main_logo( '', 0, array(), 44, 44 ) && ! $a::main_logo( '<div class="elementor-widget-image"><img>', 34, array(), 0, 0 ), 'Logo principal por widget, clase o custom_logo.' );
+
+// Casos reales de la primera auditoría de producción.
+check( 'Coahuila 1000' === $a::clean( 'Coahuila-1000-150x150.webp' )['text'] && 'Diseño web' === $a::clean( 'diseno-web-1-150x150.webp' )['text'], 'Números que forman parte del nombre y «web» se conservan.' );
+check( 'Alan Saldaña Sin Sombrero' === $a::clean( 'Alan-Saldana-Sin-Sombrero-150x150.webp' )['text'] && 'Pantalla Tecnología' === $a::clean( 'Pantalla-Tecnologia.webp' )['text'], '«Sin» y «Pantalla» no se borran.' );
+check( 'Red ESR Laguna' === $a::clean( 'Red ESR Laguna' )['text'] && 'Hotel Las Palmas' === $a::clean( 'Logo-Hotel-Las-Palmas-1-150x150.webp' )['text'], 'Nombres propios conservan sus mayúsculas.' );
+check( 'SEO SEO AI' === $a::clean( 'seo-seo-ai-1-150x150.webp' )['text'], 'Siglas recuperadas.' );
+check( 'Icono de diseño con pincel y documento' === $a::clean( 'Icono-de-diseno-con-pincel-y-documento-webp-comprimida.png' )['text'], 'Sufijos de compresión fuera.' );
+check( $a::clean( 'fondo-olas-1.webp' )['decorative'] && $a::clean( 'Logo-solo-blanco-1-300x52.webp' )['site_logo'] && ! $a::clean( 'Logo-Kimball.webp' )['site_logo'], 'Fondos y variantes del logo propio se reconocen.' );
+$p = Digitalisimo_Integrations_Image_Alt::page( 'DIGITALÍSIMO', 'Agencia de Marketing Digital en México', 'Agencia de Marketing Digital en México', 'contextual', 'Inicio' );
+check( 'DIGITALÍSIMO - Agencia de Marketing Digital en México' === $a::generate( array( 'file' => 'Logo-solo-blanco-1-300x52.webp' ), $p )['alt'], 'El logo blanco del pie es el logo del sitio.' );
+check( 'DIGITALISIMO Agencia Digital en México' === $a::site_alt( Digitalisimo_Integrations_Image_Alt::page( 'DIGITALISIMO Agencia Digital en México', 'Agencia de Marketing Digital en México', '', 'off', '' ) ), 'Si el nombre ya dice la descripción, no se repite.' );
+$r = $a::apply( array( 'alt' => '' ), array( 'attachment' => 2022, 'file' => 'fondo-olas-1.webp' ), $p );
+check( null === $r['alt'] && 'VACÍO CORRECTO' === $r['state'] && false !== strpos( $r['source'], 'Fondo' ), 'Un fondo decorativo conserva alt="".' );
+check( 'VACÍO CORRECTO' === $a::apply( array(), array( 'attachment' => 2022, 'file' => 'fondo-olas-1.webp' ), $p )['state'], 'Sus otras apariciones también.' );
+$r = $a::apply( array( 'alt' => '' ), array( 'attachment' => 452, 'file' => 'marketing-digital-1-150x150.webp' ), $p );
+check( 'Marketing digital' === $r['alt'], 'La palabra clave no se pega en fragmentos: «' . $r['alt'] . '».' );
+$q = page( 'off' );
+$a::apply( array( 'alt' => 'Coahuila 1000' ), array( 'attachment' => 476 ), $q );
+$r = $a::apply( array( 'alt' => '' ), array( 'attachment' => 476, 'file' => 'Coahuila-1000-150x150.webp' ), $q );
+check( 'Coahuila 1000' === $r['alt'] && 'Misma imagen en esta página' === $r['source'], 'La misma imagen repite su ALT, no inventa otro.' );
+check( 'POSIBLEMENTE GENÉRICO' === $a::apply( array( 'alt' => 'fondo-olas-1' ), array( 'attachment' => 9, 'file' => 'fondo-olas-1.webp' ), $q )['state'], 'Un ALT manual igual al nombre del archivo se informa (sin cambiarlo).' );
 
 // Ajustes.
 check( 'contextual' === $a::sanitize_mode( 'otro' ) && 'fallback' === $a::sanitize_mode( 'fallback' ), 'Modo desconocido vuelve a Contextual.' );

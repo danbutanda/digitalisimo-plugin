@@ -20,6 +20,8 @@ class Digitalisimo_Integrations_Performance_Images {
 	const GENERATION = 'digitalisimo_performance_image_generation';
 	const URL_MAP    = 'digitalisimo_performance_image_map';
 	const MARKER     = 'data-digitalisimo-sizes';
+	/** sizes de un widget con ancho fijo en píxeles: sustituye al de WordPress. */
+	const FIXED      = 'data-digitalisimo-fixed';
 	/** Las primeras imágenes vinculadas de la página no se difieren: suelen estar en el primer viewport. */
 	const ABOVE_FOLD = 3;
 	/** Ancho mínimo para considerar una imagen candidata a LCP. */
@@ -218,6 +220,38 @@ class Digitalisimo_Integrations_Performance_Images {
 		return self::add_attribute( self::remove_attribute( $tag, $name ), $name, $value );
 	}
 
+	/** Ancho del sizes que WordPress genera por defecto, «(max-width: Npx) 100vw, Npx»; null si es otro. */
+	public static function default_width( $sizes ) {
+		return preg_match( '/^\(max-width:\s*(\d+)px\)\s*100vw,\s*(\d+)px$/i', trim( (string) $sizes ), $m ) && $m[1] === $m[2] ? (int) $m[1] : null;
+	}
+
+	/**
+	 * sizes de un widget de Elementor cuyo ancho de imagen está fijado en px
+	 * (Call to Action, Image), con sus valores de tablet y móvil. Un ancho en %
+	 * o sin definir no es determinista: devuelve ''.
+	 */
+	public static function fixed_sizes( $name, $settings, $breakpoints = null ) {
+		$settings = (array) $settings;
+		$key = array( 'call-to-action' => 'graphic_image_width', 'image' => 'width' )[ $name ] ?? '';
+		if ( '' === $key || ( 'call-to-action' === $name && 'image' !== ( $settings['graphic_element'] ?? '' ) ) ) return '';
+		$values = array();
+		foreach ( array( '' => 'desktop', '_tablet' => 'tablet', '_mobile' => 'mobile' ) as $suffix => $device ) {
+			list( $size, $unit ) = self::size_value( $settings[ $key . $suffix ] ?? null );
+			if ( $size <= 0 ) continue;
+			if ( 'px' !== $unit ) return '';
+			$values[ $device ] = (int) ceil( $size );
+		}
+		if ( empty( $values['desktop'] ) ) return '';
+		$breakpoints = $breakpoints ?: self::breakpoints();
+		$tablet = $values['tablet'] ?? $values['desktop'];
+		$mobile = $values['mobile'] ?? $tablet;
+		$parts  = array();
+		if ( $mobile !== $tablet ) $parts[] = '(max-width: ' . (int) $breakpoints['mobile'] . 'px) ' . $mobile . 'px';
+		if ( $tablet !== $values['desktop'] ) $parts[] = '(max-width: ' . (int) $breakpoints['tablet'] . 'px) ' . $tablet . 'px';
+		$parts[] = $values['desktop'] . 'px';
+		return implode( ', ', $parts );
+	}
+
 	/** «100vw» a secas: el navegador supone que la imagen ocupa todo el viewport. */
 	public static function generic_sizes( $sizes ) {
 		return '100vw' === preg_replace( '/\s+/', '', strtolower( trim( (string) $sizes ) ) );
@@ -242,8 +276,8 @@ class Digitalisimo_Integrations_Performance_Images {
 		$id      = function_exists( 'get_queried_object_id' ) ? (int) get_queried_object_id() : 0;
 		// Sin palabra clave de apoyo configurada se usa la keyword principal del contenido.
 		if ( '' === $keyword && $id ) $keyword = trim( (string) strtok( (string) get_post_meta( $id, 'digitalisimo_seo_keywords', true ), ',' ) );
-		$site = trim( (string) self::option( 'seo_site_name' ) );
-		if ( '' === $site ) $site = (string) get_bloginfo( 'name' );
+		$site = trim( (string) get_bloginfo( 'name' ) );
+		if ( '' === $site ) $site = trim( (string) self::option( 'seo_site_name' ) );
 		$title = $id && function_exists( 'is_singular' ) && is_singular() ? (string) get_the_title( $id ) : '';
 		$page = Digitalisimo_Integrations_Image_Alt::page( Digitalisimo_Integrations_Image_Alt::plain( $site ), Digitalisimo_Integrations_Image_Alt::plain( get_bloginfo( 'description' ), 120 ), $keyword, self::option( 'seo_alt_keyword_mode' ), $title );
 		$page['logo_id'] = (int) get_theme_mod( 'custom_logo' );
@@ -254,6 +288,8 @@ class Digitalisimo_Integrations_Performance_Images {
 	private static function alt( $out, $original, $offset, $html, &$state ) {
 		$attrs  = self::attributes( $out );
 		$id     = (int) $state['last_id'];
+		// Un adjunto con metadata dañada no se vincula para optimizar, pero su clase wp-image-N sigue identificándolo para el ALT.
+		if ( ! $id && preg_match( '/\bwp-image-(\d+)\b/', (string) ( $attrs['class'] ?? '' ), $m ) ) $id = (int) $m[1];
 		$source = (string) ( $attrs['src'] ?? '' );
 		if ( '' === $source ) $source = (string) ( $attrs['data-src'] ?? '' );
 		$ctx = array(
@@ -289,7 +325,9 @@ class Digitalisimo_Integrations_Performance_Images {
 		$attrs  = self::attributes( $tag );
 		$src    = (string) ( $attrs['src'] ?? '' );
 		$marker = $attrs[ self::MARKER ] ?? '';
+		$fixed  = trim( (string) ( $attrs[ self::FIXED ] ?? '' ) );
 		$clean  = '' !== $marker ? self::remove_attribute( $tag, self::MARKER ) : $tag;
+		if ( isset( $attrs[ self::FIXED ] ) ) $clean = self::remove_attribute( $clean, self::FIXED );
 		$entry  = array( 'src' => $src, 'attachment_id' => 0, 'states' => array(), 'reason' => '' );
 
 		if ( self::$roles_only ) {
@@ -339,8 +377,14 @@ class Digitalisimo_Integrations_Performance_Images {
 		// Un «100vw» genérico se sustituye sólo por el layout real de Elementor, nunca por una suposición.
 		if ( '' !== $srcset && self::enabled( 'perf_img_sizes' ) ) {
 			if ( empty( $attrs['sizes'] ) ) {
-				$sizes = '' !== $marker ? $marker : $data['sizes'];
+				$sizes = '' !== $fixed ? $fixed : ( '' !== $marker ? $marker : $data['sizes'] );
 				if ( $sizes ) { $out = self::add_attribute( $out, 'sizes', $sizes ); $attrs['sizes'] = $sizes; $changed = $responsive = true; }
+			} elseif ( '' !== $fixed && $fixed !== $attrs['sizes'] && ( self::generic_sizes( $attrs['sizes'] ) || null !== self::default_width( $attrs['sizes'] ) ) ) {
+				// El widget fija el ancho en píxeles: el sizes de WordPress («hasta el ancho del archivo») descargaría de más.
+				$out = self::replace_attribute( $out, 'sizes', $fixed );
+				$attrs['sizes'] = $fixed;
+				$changed = $responsive = true;
+				$entry['states'][] = 'SIZES CORREGIDO';
 			} elseif ( self::generic_sizes( $attrs['sizes'] ) && '' !== $marker && ! self::generic_sizes( $marker ) ) {
 				$out = self::replace_attribute( $out, 'sizes', $marker );
 				$attrs['sizes'] = $marker;
@@ -513,7 +557,8 @@ class Digitalisimo_Integrations_Performance_Images {
 		if ( preg_match( '/(?:^|[\s_-])icons?(?:$|[\s_-])/i', trim( $class ) ) ) return 'Icono.';
 		$width  = (string) ( $attrs['width'] ?? '' );
 		$height = (string) ( $attrs['height'] ?? '' );
-		if ( ( self::digits( $width ) && (int) $width <= 2 ) || ( self::digits( $height ) && (int) $height <= 2 ) ) return 'Píxel de seguimiento.';
+		// width/height de 1 px en una imagen de la Biblioteca indica metadata dañada, no un píxel de seguimiento.
+		if ( ( ( self::digits( $width ) && (int) $width <= 2 ) || ( self::digits( $height ) && (int) $height <= 2 ) ) && ( '' === self::uploads_path( $src ) || preg_match( '~\.gif(?:[?#]|$)~i', $src ) ) ) return 'Píxel de seguimiento.';
 		return self::manual_exclusion( $attrs, $rules );
 	}
 
@@ -829,7 +874,15 @@ class Digitalisimo_Integrations_Performance_Images {
 
 	/** Marca los <img> del widget con el sizes de su layout; el pase final lo aplica. */
 	public static function annotate_widget( $content, $widget ) {
-		if ( ! self::$active || ! self::option( 'perf_img_sizes' ) || ! is_string( $content ) || false === stripos( $content, '<img' ) ) return $content;
+		if ( ! self::$active || self::$roles_only || ! self::option( 'perf_img_sizes' ) || ! is_string( $content ) || false === stripos( $content, '<img' ) ) return $content;
+		// Un ancho fijo en px vale aunque el layout de alrededor sea desconocido.
+		$fixed = is_object( $widget ) && method_exists( $widget, 'get_name' ) && method_exists( $widget, 'get_settings_for_display' ) ? self::fixed_sizes( (string) $widget->get_name(), (array) $widget->get_settings_for_display() ) : '';
+		if ( '' !== $fixed ) {
+			$annotated = preg_replace_callback( '/<img\b[^>]*>/i', function( $match ) use ( $fixed ) {
+				return isset( self::attributes( $match[0] )[ self::FIXED ] ) ? $match[0] : self::add_attribute( $match[0], self::FIXED, $fixed );
+			}, $content );
+			if ( is_string( $annotated ) ) $content = $annotated;
+		}
 		foreach ( self::$stack as $entry ) if ( ! empty( $entry['unknown'] ) ) return $content;
 		$sizes = self::sizes_from_stack( self::$stack, self::sanitize_mode( self::option( 'perf_img_mode' ) ) );
 		if ( '' === $sizes ) return $content;
@@ -955,6 +1008,11 @@ class Digitalisimo_Integrations_Performance_Images {
 		if ( $network && ! get_site( $site_id ) ) $site_id = get_current_blog_id();
 		$captured = get_transient( 'digitalisimo_perf_result_' . get_current_user_id() );
 		if ( ! Digitalisimo_Integrations_Asset_Diagnostics::capture_belongs_to_site( $captured, $site_id ) ) $captured = array();
+		// Sin captura del diagnóstico de assets se usa la última auditoría de calidad del sitio.
+		if ( empty( $captured['url'] ) && class_exists( 'Digitalisimo_Integrations_Quality_Audit' ) ) {
+			$record = Digitalisimo_Integrations_Quality_Audit::current_record( $network );
+			if ( $record ) $captured = array( 'url' => $record['url'], 'image_report' => (array) ( $record['image_report'] ?? array() ) );
+		}
 		$report = (array) ( $captured['image_report'] ?? array() );
 		echo '<h2>Auditoría de imágenes</h2>';
 		if ( empty( $captured['url'] ) ) { echo '<p>Sin captura de este sitio. Analiza una URL en «Diagnóstico de assets» y vuelve aquí: la auditoría muestra el HTML que recibe un visitante.</p>'; return; }

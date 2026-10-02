@@ -563,6 +563,11 @@ class Digitalisimo_Integrations_Quality_Audit {
 		return array( 'network' => $network, 'site_id' => $site_id, 'url' => $url, 'index' => $index, 'record' => $record, 'stale' => $stale );
 	}
 
+	/** Registro de la URL elegida (o la última auditada) del sitio en pantalla. */
+	public static function current_record( $network ) {
+		return self::context( $network )['record'];
+	}
+
 	public static function badge( $status, $label = null ) {
 		$colors = array( 'OK' => '#00a32a', 'ADVERTENCIA' => '#dba617', 'ERROR' => '#d63638', 'NO APLICABLE' => '#787c82' );
 		return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;background:' . esc_attr( $colors[ $status ] ?? '#787c82' ) . '">' . esc_html( null === $label ? $status : $label ) . '</span>';

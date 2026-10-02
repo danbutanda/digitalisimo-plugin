@@ -32,16 +32,22 @@ class Digitalisimo_Integrations_Image_Alt {
 	const MISSING   = 'SIN ALT';
 
 	/** Partes de un nombre de archivo que no describen nada. */
-	const NOISE = array( 'img', 'image', 'imagen', 'imagenes', 'dsc', 'dscn', 'dscf', 'pxl', 'photo', 'screenshot', 'captura', 'pantalla', 'whatsapp', 'copia', 'copy', 'final', 'web', 'min', 'scaled', 'edited', 'editada', 'nuevo', 'nueva', 'new', 'hd', 'fhd', 'uhd', 'jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'svg', 'at', 'mobile', 'desktop', 'movil', 'version', 'rotated', 'cropped', 'resized', 'unnamed', 'untitled', 'sin', 'titulo', 'default', 'placeholder', 'hero', 'slide', 'slider', 'bg', 'background', 'fondo', 'banner', 'header', 'cover', 'thumbnail', 'thumb' );
+	const NOISE = array( 'img', 'image', 'imagen', 'imagenes', 'dsc', 'dscn', 'dscf', 'pxl', 'photo', 'screenshot', 'captura', 'whatsapp', 'copia', 'copy', 'final', 'min', 'scaled', 'edited', 'editada', 'nuevo', 'nueva', 'new', 'hd', 'fhd', 'uhd', 'jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'svg', 'at', 'mobile', 'desktop', 'movil', 'version', 'rotated', 'cropped', 'resized', 'unnamed', 'default', 'placeholder', 'hero', 'slide', 'slider', 'banner', 'header', 'cover', 'thumbnail', 'thumb', 'comprimida', 'comprimido', 'optimizada', 'optimizado', 'optimized', 'compressed' );
+	/** Nombres de archivo de fondos y adornos: su ALT correcto es vacío. */
+	const DECOR = array( 'fondo', 'fondos', 'background', 'bg', 'pattern', 'patron', 'shape', 'divider', 'separador', 'overlay', 'textura', 'texture', 'decoracion', 'decorativo', 'decorativa', 'ornamento' );
+	/** Variantes de un logo propio: «Logo-solo-blanco» es el logo del sitio. */
+	const VARIANTS = array( 'solo', 'blanco', 'blanca', 'negro', 'negra', 'white', 'black', 'color', 'colores', 'horizontal', 'vertical', 'mini', 'small', 'footer', 'header', 'principal', 'main', 'oficial', 'alt', 'transparente', 'transparent', 'dark', 'light', 'claro', 'oscuro', 'icono', 'icon', 'isotipo', 'sitio', 'site', 'web' );
+	/** Siglas que un nombre de archivo en minúsculas pierde. */
+	const ACRONYMS = array( 'seo', 'sem', 'ai', 'ia', 'ux', 'ui', 'crm', 'erp', 'api', 'pdf', 'pos', 'b2b', 'b2c', 'cta', 'kpi', 'roi', 'url', 'html', 'css', 'php', 'sms', 'qr', 'gps', 'tv', 'pyme', 'pymes' );
 	const LOGO_WORDS = array( 'logo', 'logos', 'logotipo', 'logotype', 'isotipo', 'imagotipo', 'brand' );
 	/** Palabras que en un nombre de archivo indican objeto, no persona. */
 	const THINGS = array( 'grafico', 'grafica', 'banner', 'fondo', 'icono', 'mapa', 'equipo', 'oficina', 'producto', 'servicio', 'servicios', 'portada', 'hero', 'slide', 'mockup', 'infografia', 'diagrama', 'mercado', 'marketing', 'diseno', 'web', 'tienda', 'cliente', 'clientes', 'proyecto', 'evento', 'curso', 'blog', 'post', 'galeria', 'foto', 'video' );
 	/** Nombres de pila frecuentes: «Nombre-Apellido» sólo es una persona si empieza por uno. */
-	const FIRST_NAMES = array( 'adriana', 'adrian', 'alberto', 'alejandra', 'alejandro', 'alfredo', 'alicia', 'ana', 'andrea', 'andres', 'angel', 'angelica', 'antonio', 'armando', 'arturo', 'beatriz', 'carla', 'carlos', 'carmen', 'carolina', 'cesar', 'claudia', 'cristina', 'daniel', 'daniela', 'david', 'diana', 'diego', 'eduardo', 'elena', 'emilio', 'enrique', 'erika', 'ernesto', 'eva', 'fernanda', 'fernando', 'francisco', 'gabriel', 'gabriela', 'gerardo', 'guadalupe', 'guillermo', 'gustavo', 'hector', 'hugo', 'ignacio', 'isabel', 'ivan', 'jaime', 'javier', 'jesus', 'jorge', 'jose', 'josefina', 'juan', 'julia', 'julio', 'karen', 'karla', 'laura', 'leticia', 'lorena', 'lucia', 'luis', 'luisa', 'manuel', 'marco', 'marcos', 'margarita', 'maria', 'mariana', 'mario', 'marta', 'martin', 'martha', 'miguel', 'monica', 'natalia', 'norma', 'oscar', 'pablo', 'patricia', 'paola', 'pedro', 'rafael', 'raul', 'ricardo', 'roberto', 'rocio', 'rodrigo', 'rosa', 'ruben', 'samuel', 'sandra', 'santiago', 'sara', 'sergio', 'silvia', 'sofia', 'susana', 'teresa', 'valeria', 'veronica', 'victor', 'ximena', 'yolanda', 'john', 'james', 'michael', 'robert', 'william', 'mary', 'jennifer', 'linda', 'sarah', 'emily', 'anna', 'peter', 'paul', 'mark', 'thomas', 'richard', 'joseph', 'charles', 'chris', 'laura', 'lisa', 'kevin', 'brian' );
+	const FIRST_NAMES = array( 'adriana', 'adrian', 'alberto', 'alejandra', 'alejandro', 'alfredo', 'alicia', 'ana', 'andrea', 'andres', 'angel', 'angelica', 'antonio', 'armando', 'arturo', 'beatriz', 'carla', 'carlos', 'carmen', 'carolina', 'cesar', 'claudia', 'cristina', 'daniel', 'daniela', 'david', 'diana', 'diego', 'eduardo', 'elena', 'emilio', 'enrique', 'erika', 'ernesto', 'eva', 'fernanda', 'fernando', 'francisco', 'gabriel', 'gabriela', 'gerardo', 'guadalupe', 'guillermo', 'gustavo', 'hector', 'hugo', 'ignacio', 'isabel', 'ivan', 'jaime', 'javier', 'jesus', 'jorge', 'jose', 'josefina', 'juan', 'julia', 'julio', 'karen', 'karla', 'laura', 'leticia', 'lorena', 'lucia', 'luis', 'luisa', 'manuel', 'marco', 'marcos', 'margarita', 'maria', 'mariana', 'mario', 'marta', 'martin', 'martha', 'miguel', 'monica', 'natalia', 'norma', 'oscar', 'pablo', 'patricia', 'paola', 'pedro', 'rafael', 'raul', 'ricardo', 'roberto', 'rocio', 'rodrigo', 'rosa', 'ruben', 'samuel', 'sandra', 'santiago', 'sara', 'sergio', 'silvia', 'sofia', 'susana', 'teresa', 'valeria', 'veronica', 'victor', 'ximena', 'yolanda', 'alan', 'saul', 'raul', 'adan', 'ruth', 'gloria', 'irma', 'alma', 'olga', 'ana', 'abril', 'regina', 'renata', 'emiliano', 'mateo', 'leonardo', 'sebastian', 'nicolas', 'joel', 'omar', 'felipe', 'hugo', 'john', 'james', 'michael', 'robert', 'william', 'mary', 'jennifer', 'linda', 'sarah', 'emily', 'anna', 'peter', 'paul', 'mark', 'thomas', 'richard', 'joseph', 'charles', 'chris', 'laura', 'lisa', 'kevin', 'brian' );
 	const STOPWORDS = array( 'para', 'como', 'desde', 'hasta', 'entre', 'sobre', 'with', 'from', 'that', 'this', 'your', 'nuestro', 'nuestra', 'mejor', 'mejores', 'the', 'and', 'los', 'las', 'del', 'una', 'uno', 'por', 'con', 'sin', 'que' );
 	const GENERIC_ALTS = array( 'imagen', 'image', 'foto', 'fotografia', 'photo', 'picture', 'img', 'logo', 'banner', 'icono', 'icon', 'grafico', 'sin titulo', 'untitled', 'default', 'placeholder', 'captura', 'slide', 'hero', 'fondo' );
 	/** Tildes frecuentes que un nombre de archivo pierde. */
-	const ACCENTS = array( 'grafico' => 'gráfico', 'graficos' => 'gráficos', 'grafica' => 'gráfica', 'graficas' => 'gráficas', 'analisis' => 'análisis', 'mexico' => 'México', 'diseno' => 'diseño', 'disenos' => 'diseños', 'pagina' => 'página', 'paginas' => 'páginas', 'tecnologia' => 'tecnología', 'informacion' => 'información', 'comunicacion' => 'comunicación', 'publicacion' => 'publicación', 'optimizacion' => 'optimización', 'educacion' => 'educación', 'administracion' => 'administración', 'ubicacion' => 'ubicación', 'camara' => 'cámara', 'telefono' => 'teléfono', 'musica' => 'música', 'economia' => 'economía', 'logistica' => 'logística', 'credito' => 'crédito', 'estadistica' => 'estadística', 'estadisticas' => 'estadísticas', 'metrica' => 'métrica', 'metricas' => 'métricas', 'publico' => 'público', 'tecnico' => 'técnico', 'numero' => 'número', 'catalogo' => 'catálogo', 'articulo' => 'artículo', 'campana' => 'campaña', 'nino' => 'niño', 'ninos' => 'niños', 'menu' => 'menú', 'electronico' => 'electrónico', 'fotografia' => 'fotografía', 'estrategico' => 'estratégico', 'automatizacion' => 'automatización', 'creacion' => 'creación', 'inversion' => 'inversión', 'promocion' => 'promoción', 'solucion' => 'solución', 'soluciones' => 'soluciones', 'atencion' => 'atención', 'cafe' => 'café', 'dia' => 'día', 'guia' => 'guía', 'galeria' => 'galería', 'infografia' => 'infografía' );
+	const ACCENTS = array( 'grafico' => 'gráfico', 'graficos' => 'gráficos', 'grafica' => 'gráfica', 'graficas' => 'gráficas', 'analisis' => 'análisis', 'mexico' => 'México', 'vinculacion' => 'vinculación', 'torreon' => 'Torreón', 'nucleo' => 'núcleo', 'tecnologico' => 'tecnológico', 'basico' => 'básico', 'dias' => 'días', 'pagina' => 'página', 'saldana' => 'Saldaña', 'penoles' => 'Peñoles', 'espanol' => 'español', 'diseno' => 'diseño', 'disenos' => 'diseños', 'pagina' => 'página', 'paginas' => 'páginas', 'tecnologia' => 'tecnología', 'informacion' => 'información', 'comunicacion' => 'comunicación', 'publicacion' => 'publicación', 'optimizacion' => 'optimización', 'educacion' => 'educación', 'administracion' => 'administración', 'ubicacion' => 'ubicación', 'camara' => 'cámara', 'telefono' => 'teléfono', 'musica' => 'música', 'economia' => 'economía', 'logistica' => 'logística', 'credito' => 'crédito', 'estadistica' => 'estadística', 'estadisticas' => 'estadísticas', 'metrica' => 'métrica', 'metricas' => 'métricas', 'publico' => 'público', 'tecnico' => 'técnico', 'numero' => 'número', 'catalogo' => 'catálogo', 'articulo' => 'artículo', 'campana' => 'campaña', 'nino' => 'niño', 'ninos' => 'niños', 'menu' => 'menú', 'electronico' => 'electrónico', 'fotografia' => 'fotografía', 'estrategico' => 'estratégico', 'automatizacion' => 'automatización', 'creacion' => 'creación', 'inversion' => 'inversión', 'promocion' => 'promoción', 'solucion' => 'solución', 'soluciones' => 'soluciones', 'atencion' => 'atención', 'cafe' => 'café', 'dia' => 'día', 'guia' => 'guía', 'galeria' => 'galería', 'infografia' => 'infografía' );
 
 	public static function sanitize_mode( $value ) {
 		return in_array( $value, self::MODES, true ) ? $value : 'contextual';
@@ -117,38 +123,66 @@ class Digitalisimo_Integrations_Image_Alt {
 	 * Nombre de archivo o título de adjunto en texto legible: sin extensión,
 	 * tamaño, sufijos de WordPress, prefijos de cámara ni hashes.
 	 *
-	 * @return array text, logo (el nombre dice «logo»), person (Nombre Apellido).
+	 * Un nombre escrito con Mayúsculas Iniciales («Red-ESR-Laguna») conserva
+	 * sus mayúsculas: suelen ser nombres propios. Uno en minúsculas se escribe
+	 * como frase, con sus tildes y siglas recuperadas.
+	 *
+	 * @return array text, logo (dice «logo»), site_logo (logo sin marca: el del
+	 *               sitio), person (Nombre Apellido), decorative (fondo o adorno).
 	 */
 	public static function clean( $name ) {
 		$raw = (string) preg_replace( '/[?#].*$/', '', basename( str_replace( '\\', '/', (string) $name ) ) );
 		$raw = rawurldecode( preg_replace( '/\.(?:jpe?g|png|gif|webp|avif|svg|bmp|tiff?|heic)$/i', '', $raw ) );
 		$raw = preg_replace( '/(?:-\d+x\d+|-scaled|-rotated|-e\d{10,}|@\dx)+$/i', '', $raw );
+		$empty  = array( 'text' => '', 'logo' => false, 'site_logo' => false, 'person' => false, 'decorative' => false );
+		if ( in_array( self::normalize( $raw ), array( 'sin titulo', 'untitled', 'sin nombre' ), true ) ) return $empty;
 		$tokens = array_values( array_filter( preg_split( '/[\s_\-.+,()]+/u', $raw ), 'strlen' ) );
-		$logo   = false;
-		$kept   = array();
+		$logo = false;
+		$decorative = false;
+		$kept = array();
 		foreach ( $tokens as $token ) {
 			$key = self::normalize( $token );
 			if ( in_array( $key, self::LOGO_WORDS, true ) ) { $logo = true; continue; }
-			if ( in_array( $key, self::NOISE, true ) || preg_match( '/^\d+$/', $key ) || preg_match( '/^v\d+$/', $key ) || ( preg_match( '/\d/', $key ) && preg_match( '/^[a-z0-9]{6,}$/', $key ) ) || self::length( $key ) < 2 ) continue;
+			if ( in_array( $key, self::DECOR, true ) ) $decorative = true;
+			if ( preg_match( '/^\d+$/', $key ) ) {
+				// «1000» forma parte del nombre; «1», «2024» o «20240501» no.
+				if ( strlen( $key ) >= 3 && strlen( $key ) <= 5 && ! preg_match( '/^(?:19|20)\d\d$/', $key ) ) $kept[] = $token;
+				continue;
+			}
+			if ( in_array( $key, self::NOISE, true ) || preg_match( '/^v\d+$/', $key ) || ( preg_match( '/\d/', $key ) && preg_match( '/^[a-z0-9]{6,}$/', $key ) && ! preg_match( '/^[a-z]+\d{1,2}$/', $key ) ) || ( self::length( $key ) < 2 && ! in_array( $key, array( 'y', 'e', 'o', 'u', 'a' ), true ) ) ) continue;
 			$kept[] = $token;
 		}
-		$meaningful = array_filter( $kept, function( $token ) { return (bool) preg_match( '/\p{L}{3,}/u', $token ); } );
-		if ( ! $meaningful ) return array( 'text' => '', 'logo' => $logo, 'person' => false );
-		$person = ! $logo && count( $kept ) >= 2 && count( $kept ) <= 3 && count( $kept ) === count( $tokens ) && in_array( self::normalize( $kept[0] ), self::FIRST_NAMES, true );
-		$words  = array();
-		foreach ( $kept as $token ) {
-			$upper = (bool) preg_match( '/^\p{Lu}/u', $token );
-			if ( ! $upper || ! preg_match( '/^\p{Lu}\p{Ll}{2,}$/u', $token ) || in_array( self::normalize( $token ), self::THINGS, true ) ) $person = false;
+		$meaningful = array_values( array_filter( $kept, function( $token ) { return (bool) preg_match( '/\p{L}{2,}/u', $token ); } ) );
+		$variants   = array_filter( $meaningful, function( $token ) { return ! in_array( self::normalize( $token ), self::VARIANTS, true ); } );
+		$site_logo  = $logo && ! $variants;
+		if ( ! $meaningful || ! preg_grep( '/\p{L}{3,}/u', $meaningful ) ) return array( 'logo' => $logo, 'site_logo' => $site_logo, 'decorative' => $decorative ) + $empty;
+		$letters = array_values( array_filter( $kept, function( $token ) { return (bool) preg_match( '/^\p{L}/u', $token ); } ) );
+		$titled  = $letters && count( $letters ) === count( preg_grep( '/^\p{Lu}/u', $letters ) );
+		$shout   = $letters && count( $letters ) === count( preg_grep( '/^[\p{Lu}\d]+$/u', $letters ) );
+		$person  = ! $logo && ! $shout && count( $kept ) >= 2 && count( $kept ) <= 4 && count( $kept ) === count( $tokens ) && in_array( self::normalize( $kept[0] ), self::FIRST_NAMES, true ) && $titled;
+		$words = array();
+		foreach ( $kept as $i => $token ) {
 			$key = self::normalize( $token );
-			if ( isset( self::ACCENTS[ $key ] ) ) $token = self::ACCENTS[ $key ];
-			elseif ( ! $upper || ( self::length( $token ) > 4 && preg_match( '/^\p{Lu}+$/u', $token ) ) ) $token = self::lower( $token ); // «MERCADO» → «mercado»; siglas cortas como «SEO» se conservan.
-			if ( $upper && ! preg_match( '/^\p{Lu}/u', $token ) && $person ) $token = self::ucfirst( $token );
+			if ( isset( self::ACCENTS[ $key ] ) ) {
+				$word = self::ACCENTS[ $key ];
+				$token = $titled && ! $shout ? self::ucfirst( $word ) : $word;
+			} elseif ( in_array( $key, self::ACRONYMS, true ) ) {
+				$token = strtoupper( $key );
+			} elseif ( ! $titled || $shout ) {
+				$token = self::lower( $token );
+			}
 			$words[] = $token;
 		}
-		$text = implode( ' ', $words );
-		// Fuera de nombres propios, sólo la primera letra en mayúscula.
-		if ( ! $person ) $text = implode( ' ', array_map( function( $word, $i ) { return 0 === $i ? $word : ( preg_match( '/^\p{Lu}\p{Ll}+$/u', $word ) && ! isset( self::ACCENTS[ self::normalize( $word ) ] ) ? self::lower( $word ) : $word ); }, $words, array_keys( $words ) ) );
-		return array( 'text' => self::plain( self::ucfirst( $text ), 100 ), 'logo' => $logo, 'person' => $person );
+		return array( 'text' => self::plain( self::ucfirst( implode( ' ', $words ) ), 100 ), 'logo' => $logo, 'site_logo' => $site_logo, 'person' => $person, 'decorative' => $decorative );
+	}
+
+	/** ¿El texto ya dice casi todo lo que dice la descripción? (mitad o más de sus palabras). */
+	public static function covers( $text, $description ) {
+		$words = self::words( $description );
+		if ( ! $words ) return true;
+		$have = array_map( array( __CLASS__, 'stem' ), self::words( $text ) );
+		$hits = count( array_filter( $words, function( $word ) use ( $have ) { return in_array( self::stem( $word ), $have, true ); } ) );
+		return $hits / count( $words ) >= 0.5;
 	}
 
 	/** ALT que no describe la imagen concreta. */
@@ -167,11 +201,25 @@ class Digitalisimo_Integrations_Image_Alt {
 
 	/** Estado inicial de una página. */
 	public static function page( $site, $description, $keyword, $mode, $title ) {
-		return array( 'site' => (string) $site, 'description' => (string) $description, 'keyword' => self::sanitize_keyword( $keyword ), 'mode' => self::sanitize_mode( $mode ), 'title' => self::plain( $title, 100 ), 'heading' => '', 'used' => array(), 'keyword_used' => 0 );
+		return array( 'site' => (string) $site, 'description' => (string) $description, 'keyword' => self::sanitize_keyword( $keyword ), 'mode' => self::sanitize_mode( $mode ), 'title' => self::plain( $title, 100 ), 'heading' => '', 'used' => array(), 'by_id' => array(), 'keyword_used' => 0 );
 	}
 
 	private static function used( $alt, $page ) {
 		return isset( $page['used'][ self::normalize( $alt ) ] );
+	}
+
+	/** «Nombre del sitio - descripción», sin repetir lo que el nombre ya dice. */
+	public static function site_alt( $page ) {
+		$description = trim( (string) $page['description'] );
+		return self::plain( $page['site'] . ( '' !== $description && ! self::covers( $page['site'], $description ) ? ' - ' . $description : '' ), 125 );
+	}
+
+	/** Palabras de la palabra clave que el ALT aún no contiene. */
+	private static function missing_words( $keyword, $alt ) {
+		return array_values( array_filter( preg_split( '/\s+/u', $keyword ), function( $word ) use ( $alt ) {
+			$key = self::normalize( $word );
+			return '' !== $key && false === strpos( ' ' . self::normalize( $alt ) . ' ', ' ' . $key . ' ' );
+		} ) );
 	}
 
 	/**
@@ -179,15 +227,14 @@ class Digitalisimo_Integrations_Image_Alt {
 	 *
 	 * @param array $ctx  title (del adjunto), file, widget_title, main_logo.
 	 * @param array $page Estado de la página (se actualiza el uso de la palabra clave).
-	 * @return array alt, source.
+	 * @return array alt, source. Un alt vacío con source es una decisión: alt="".
 	 */
 	public static function generate( $ctx, &$page ) {
-		if ( ! empty( $ctx['main_logo'] ) && '' !== $page['site'] ) {
-			$alt = $page['site'] . ( '' !== trim( $page['description'] ) ? ' - ' . $page['description'] : '' );
-			return array( 'alt' => self::plain( $alt, 125 ), 'source' => 'Logo del sitio' );
-		}
 		$title = self::clean( $ctx['title'] ?? '' );
 		$file  = self::clean( $ctx['file'] ?? '' );
+		if ( ( ! empty( $ctx['main_logo'] ) || $title['site_logo'] || $file['site_logo'] ) && '' !== $page['site'] ) return array( 'alt' => self::site_alt( $page ), 'source' => 'Logo del sitio' );
+		// Fondos y adornos: alt="" es lo correcto para un lector de pantalla.
+		if ( $file['decorative'] || $title['decorative'] ) return array( 'alt' => '', 'source' => 'Fondo o adorno (por su nombre)' );
 		// Un título que repite el nombre del archivo no aporta nada nuevo.
 		if ( '' !== $title['text'] && self::normalize( $title['text'] ) === self::normalize( $file['text'] ) ) $title['text'] = '';
 		$candidates = array(
@@ -214,21 +261,26 @@ class Digitalisimo_Integrations_Image_Alt {
 			if ( ! empty( $info['person'] ) && '' !== $page['site'] && false === stripos( self::normalize( $alt ), self::normalize( $page['site'] ) ) ) {
 				$alt .= ' de ' . $page['site'];
 			} elseif ( '' !== $keyword && ! $page['keyword_used'] ) {
-				$missing = array_values( array_filter( preg_split( '/\s+/u', $keyword ), function( $word ) use ( $alt ) {
-					$key = self::normalize( $word );
-					return '' !== $key && false === strpos( ' ' . self::normalize( $alt ) . ' ', ' ' . $key . ' ' );
-				} ) );
-				if ( $missing && self::relevant( $keyword, $alt ) ) {
-					// Comparte palabras con la imagen: se completa sin repetirlas.
+				$missing = self::missing_words( $keyword, $alt );
+				$clean   = $missing && count( $missing ) <= 2 && count( $missing ) === count( array_filter( $missing, function( $word ) { return self::length( $word ) >= 4 && ! in_array( self::normalize( $word ), self::STOPWORDS, true ); } ) );
+				if ( $clean && self::relevant( $keyword, $alt ) ) {
+					// Comparte palabras con la imagen y sólo faltan una o dos: se completa sin repetir.
 					$alt .= ' ' . self::lower( implode( ' ', $missing ) );
 					++$page['keyword_used'];
-				} elseif ( $missing && self::relevant( $keyword, ( $ctx['widget_title'] ?? '' ) . ' ' . ( $page['heading'] ?? '' ) ) ) {
+				} elseif ( $missing && ! self::relevant( $keyword, $alt ) && count( preg_split( '/\s+/u', $keyword ) ) <= 4 && self::relevant( $keyword, ( $ctx['widget_title'] ?? '' ) . ' ' . ( $page['heading'] ?? '' ) ) ) {
 					$alt .= ' – ' . $keyword;
 					++$page['keyword_used'];
 				}
+				// En cualquier otro caso la palabra clave no encaja con esta imagen: no se fuerza.
 			}
 		}
 		return array( 'alt' => self::plain( $alt, 125 ), 'source' => $chosen[0] );
+	}
+
+	/** El ALT manual es el nombre del archivo tal cual («fondo-olas-1»). */
+	private static function is_filename( $alt, $file ) {
+		$stem = preg_replace( '/(?:-\d+x\d+|-scaled)+$/i', '', preg_replace( '/\.[a-z0-9]+$/i', '', basename( (string) $file ) ) );
+		return '' !== $stem && self::normalize( $stem ) === self::normalize( $alt ) && (bool) preg_match( '/[-_]/', $alt );
 	}
 
 	/**
@@ -250,19 +302,31 @@ class Digitalisimo_Integrations_Image_Alt {
 		$manual = '' !== $alt ? $alt : ( $id ? trim( (string) ( $ctx['meta_alt'] ?? '' ) ) : '' );
 		if ( '' !== $manual ) {
 			if ( '' !== $caption && self::normalize( $manual ) === $caption ) return array( 'alt' => '', 'final' => '', 'state' => self::CAPTION, 'source' => 'El caption visible ya lo describe' );
-			$state = self::generic( $manual, $page ) ? self::GENERIC : ( self::used( $manual, $page ) ? self::REPEATED : self::MANUAL );
+			$state = self::generic( $manual, $page ) || self::is_filename( $manual, $ctx['file'] ?? '' ) ? self::GENERIC : ( self::used( $manual, $page ) ? self::REPEATED : self::MANUAL );
 			$page['used'][ self::normalize( $manual ) ] = true;
+			if ( $id && ! isset( $page['by_id'][ $id ] ) ) $page['by_id'][ $id ] = $manual;
 			return array( 'alt' => $manual === $alt ? null : $manual, 'final' => $manual, 'state' => $state, 'source' => 'Manual' );
 		}
 		if ( ! empty( $ctx['skip_empty'] ) ) return array( 'alt' => $has ? null : '', 'final' => '', 'state' => self::EMPTY_OK, 'source' => 'Icono o píxel' );
 		// alt="" en una imagen ajena a la Biblioteca es una decisión de quien la puso.
 		if ( ! $id && $has ) return array( 'alt' => null, 'final' => '', 'state' => self::EMPTY_OK, 'source' => 'Vacío en origen' );
+		// La misma imagen repetida en la página dice lo mismo en todas sus apariciones.
+		if ( $id && isset( $page['by_id'][ $id ] ) ) {
+			$same = $page['by_id'][ $id ];
+			if ( '' !== $caption && self::normalize( $same ) === $caption ) return array( 'alt' => $has ? null : '', 'final' => '', 'state' => self::EMPTY_OK, 'source' => 'El caption visible ya lo describe' );
+			return array( 'alt' => $same === $alt ? null : $same, 'final' => $same, 'state' => '' === $same ? self::EMPTY_OK : self::REPEATED, 'source' => 'Misma imagen en esta página' );
+		}
 
 		$generated = self::generate( $ctx, $page );
-		if ( '' === $generated['alt'] ) return array( 'alt' => null, 'final' => $has ? '' : null, 'state' => self::MISSING, 'source' => '' );
+		if ( '' === $generated['alt'] ) {
+			if ( '' === $generated['source'] ) return array( 'alt' => null, 'final' => $has ? '' : null, 'state' => self::MISSING, 'source' => '' );
+			if ( $id ) $page['by_id'][ $id ] = '';
+			return array( 'alt' => $has ? null : '', 'final' => '', 'state' => self::EMPTY_OK, 'source' => $generated['source'] );
+		}
 		if ( '' !== $caption && self::normalize( $generated['alt'] ) === $caption ) return array( 'alt' => $has ? null : '', 'final' => '', 'state' => self::EMPTY_OK, 'source' => 'El caption visible ya lo describe' );
 		$state = self::used( $generated['alt'], $page ) ? self::REPEATED : self::GENERATED;
 		$page['used'][ self::normalize( $generated['alt'] ) ] = true;
+		if ( $id ) $page['by_id'][ $id ] = $generated['alt'];
 		return array( 'alt' => $generated['alt'], 'final' => $generated['alt'], 'state' => $state, 'source' => $generated['source'] );
 	}
 
