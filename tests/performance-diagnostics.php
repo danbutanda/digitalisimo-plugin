@@ -5,6 +5,7 @@ define( 'WP_CONTENT_DIR', __DIR__ . '/fixtures/wp-content' );
 define( 'KB_IN_BYTES', 1024 );
 define( 'MB_IN_BYTES', 1024 * 1024 );
 define( 'MINUTE_IN_SECONDS', 60 );
+function apply_filters( $hook, $value ) { return $value; }
 function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
 function home_url() { return 'https://example.test/'; }
 function wp_upload_dir() { return array( 'baseurl' => 'https://example.test/wp-content/uploads', 'basedir' => WP_CONTENT_DIR . '/uploads' ); }
