@@ -48,6 +48,8 @@ namespace {
 	$controls = new \ReflectionMethod( $widget, 'register_controls' );
 	$controls->invoke( $widget );
 	if ( 'gallery' !== ( $widget->test_controls['gallery_images']['type'] ?? '' ) || 'repeater' !== ( $widget->test_controls['images']['type'] ?? '' ) ) throw new \RuntimeException( 'El editor debe ofrecer selección múltiple y conservar los elementos individuales.' );
+	$visible = $widget->test_controls['visible'];
+	if ( 'number' !== $visible['type'] || 1 !== $visible['min'] || 9 !== $visible['max'] || 1 !== $visible['step'] || 9 !== $visible['default'] || 6 !== $visible['tablet_default'] || 3 !== $visible['mobile_default'] ) throw new \RuntimeException( 'El editor debe permitir 1–9 elementos visibles por dispositivo.' );
 	$widget->test_settings = array(
 		'mode' => 'repeat', 'repeat_image' => array( 'id' => 12 ), 'repeat_alt' => 'Onda',
 		'repeat_count' => 3, 'mirror' => 'yes', 'animation' => 'continuous', 'infinite' => 'yes',
@@ -63,6 +65,7 @@ namespace {
 	$assert( 20 === substr_count( $html, '<img ' ), 'La serie impar con espejo debe cubrir la vista y duplicarse una vez.' );
 	$assert( 1 === substr_count( $html, 'alt="Onda"' ) && 19 === substr_count( $html, 'alt=""' ), 'Las imágenes decorativas deben tener ALT vacío.' );
 	$assert( 1 === substr_count( $html, 'fetchpriority="high"' ) && 1 === substr_count( $html, 'loading="eager"' ), 'Sólo la primera imagen prioritaria debe ser eager y de prioridad alta.' );
+	$assert( false !== strpos( $html, 'sizes="(max-width: 767px) 20vw, (max-width: 1024px) 20vw, 20vw"' ), 'Los tamaños responsive deben seguir la cantidad configurada.' );
 	$assert( 19 === substr_count( $html, 'loading="lazy"' ), 'Las demás imágenes, incluida la copia decorativa, deben cargarse lazy.' );
 	$assert( 10 === substr_count( $html, 'digi-slider__item--mirror' ), 'El espejo debe alternarse en ambas series.' );
 	$widget->test_settings = array(

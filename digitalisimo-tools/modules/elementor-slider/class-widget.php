@@ -38,7 +38,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 
 		$this->start_controls_section( 'style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
-		$this->add_responsive_control( 'visible', array( 'label' => 'Elementos visibles', 'type' => $c::NUMBER, 'min' => 1, 'max' => 30, 'default' => 10, 'tablet_default' => 8, 'mobile_default' => 5, 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-visible: {{VALUE}};' ) ) );
+		$this->add_responsive_control( 'visible', array( 'label' => 'Elementos visibles', 'type' => $c::NUMBER, 'min' => 1, 'max' => 9, 'step' => 1, 'default' => 9, 'tablet_default' => 6, 'mobile_default' => 3, 'description' => 'Elige entre 1 y 9. Usa los iconos de escritorio, tableta y móvil para definir cada vista.', 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-visible: {{VALUE}};' ) ) );
 		$this->add_responsive_control( 'gap', array( 'label' => 'Separación', 'type' => $c::SLIDER, 'size_units' => array( 'px', 'em', 'rem' ), 'range' => array( 'px' => array( 'min' => 0, 'max' => 100 ) ), 'default' => array( 'size' => 16, 'unit' => 'px' ), 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-gap: {{SIZE}}{{UNIT}};' ) ) );
 		$this->add_responsive_control( 'max_width', array( 'label' => 'Ancho máximo por elemento', 'type' => $c::SLIDER, 'size_units' => array( 'px', 'em', 'rem' ), 'range' => array( 'px' => array( 'min' => 20, 'max' => 1000 ) ), 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-max-width: {{SIZE}}{{UNIT}};' ) ) );
 		$this->add_responsive_control( 'width', array( 'label' => 'Ancho del slider', 'type' => $c::SLIDER, 'size_units' => array( '%', 'px', 'vw' ), 'range' => array( '%' => array( 'min' => 1, 'max' => 100 ), 'px' => array( 'min' => 50, 'max' => 2000 ) ), 'selectors' => array( '{{WRAPPER}} .digi-slider' => 'width: {{SIZE}}{{UNIT}};' ) ) );
@@ -77,7 +77,10 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		if ( 'high' === $priority && ! $decorative && 0 === $index ) $loading = 'eager';
 		if ( in_array( $loading, array( 'lazy', 'eager' ), true ) ) $attrs['loading'] = $decorative && 'eager' === $loading ? 'lazy' : $loading;
 		if ( ! $decorative && ( 'low' === $priority || ( 'high' === $priority && 0 === $index ) ) ) $attrs['fetchpriority'] = $priority;
-		$attrs['sizes'] = '(max-width: 767px) 20vw, (max-width: 1024px) 13vw, 10vw';
+		$desktop = max( 1, absint( $settings['visible'] ?? 9 ) );
+		$tablet = max( 1, absint( $settings['visible_tablet'] ?? 6 ) );
+		$mobile = max( 1, absint( $settings['visible_mobile'] ?? 3 ) );
+		$attrs['sizes'] = '(max-width: 767px) ' . ceil( 100 / $mobile ) . 'vw, (max-width: 1024px) ' . ceil( 100 / $tablet ) . 'vw, ' . ceil( 100 / $desktop ) . 'vw';
 		$html = wp_get_attachment_image( $id, $size, false, $attrs );
 		if ( ! $html ) return '';
 		$link = $item['link'] ?? array();
@@ -113,7 +116,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$mirror = 'yes' === ( $s['mirror'] ?? '' );
 		// Una serie par conserva la alternancia de espejos en la unión del loop.
 		if ( $infinite ) {
-			$minimum = min( 30, max( 10, absint( $s['visible'] ?? 10 ), absint( $s['visible_tablet'] ?? 8 ), absint( $s['visible_mobile'] ?? 5 ) ) );
+			$minimum = min( 30, max( 10, absint( $s['visible'] ?? 9 ), absint( $s['visible_tablet'] ?? 6 ), absint( $s['visible_mobile'] ?? 3 ) ) );
 			$source = $items;
 			while ( count( $items ) < $minimum || ( $mirror && count( $items ) % 2 ) ) $items[] = $source[ count( $items ) % count( $source ) ];
 		}

@@ -1,11 +1,11 @@
 .elementor-widget-digitalisimo-slider-optimizado{width:var(--container-widget-width,100%);min-width:0}
 .elementor-widget-digitalisimo-slider-optimizado.elementor-invisible:not([data-settings]){visibility:visible!important}
-.digi-slider{--digi-visible:10;--digi-gap:16px;--digi-duration:30s;--digi-max-width:10000px;--digi-height:auto;width:100%;max-width:100%;min-width:0}
+.digi-slider{--digi-visible:9;--digi-gap:16px;--digi-duration:30s;--digi-max-width:10000px;--digi-height:auto;width:100%;max-width:100%;min-width:0}
 .digi-slider__viewport{width:100%;overflow:hidden;container-type:inline-size}
 .digi-slider__track{display:flex;width:max-content;max-width:none;align-items:stretch;animation:none}
 .digi-slider__group{display:flex;flex:0 0 auto;align-items:center;gap:var(--digi-gap);padding-inline-end:var(--digi-gap)}
-.digi-slider__item{flex:0 0 min(var(--digi-max-width),max(1px,calc((100cqw - (var(--digi-visible) - 1)*var(--digi-gap))/var(--digi-visible))));min-width:0;max-width:none}
-.digi-slider__item img{display:block;max-width:100%;width:100%;height:auto;object-fit:contain}
+.digi-slider__item{flex:0 0 max(1px,calc((100cqw - (var(--digi-visible) - 1)*var(--digi-gap))/var(--digi-visible)));min-width:0;max-width:none}
+.digi-slider__item img{display:block;max-width:min(100%,var(--digi-max-width));width:100%;height:auto;margin-inline:auto;object-fit:contain}
 .digi-slider__item a{display:block}
 .digi-slider__item--mirror img{transform:scaleX(-1)}
 .digi-slider--fixed .digi-slider__item img{height:var(--digi-height)}
@@ -20,6 +20,6 @@
 @keyframes digi-slider-right{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(0,0,0)}}
 @keyframes digi-slider-once-left{to{transform:translate3d(min(0px,calc(100cqw - 100%)),0,0)}}
 @keyframes digi-slider-once-right{from{transform:translate3d(min(0px,calc(100cqw - 100%)),0,0)}to{transform:translate3d(0,0,0)}}
-@media(max-width:1024px){.digi-slider{--digi-visible:8}}
-@media(max-width:767px){.digi-slider{--digi-visible:5}}
+@media(max-width:1024px){.digi-slider{--digi-visible:6}}
+@media(max-width:767px){.digi-slider{--digi-visible:3}}
 @media(prefers-reduced-motion:reduce){.digi-slider__track{animation:none!important;transform:none!important}.digi-slider__viewport{overflow-x:auto}.digi-slider__group[aria-hidden="true"]{display:none}}
