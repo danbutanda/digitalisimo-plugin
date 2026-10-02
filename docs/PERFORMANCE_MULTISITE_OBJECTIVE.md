@@ -231,3 +231,15 @@ Pendiente de validar en un sitio real: el efecto visual con temas que no declare
 ### Tope del srcset en el tamaño elegido · SEO 1.0.185
 
 La primera captura real de digitalisimo.mx mostró carruseles con el tamaño `768×480` elegido por el diseñador, no «Full». WordPress incluye en el srcset también los tamaños mayores (1024, 1536…), así que un teléfono de DPR 3 habría pasado a descargar 1536 px en lugar de 768: más peso que antes. El srcset ahora nunca ofrece un archivo mayor que el del `src`. Con «Full» no cambia nada; con un tamaño menor, el móvil sólo puede bajar a variantes iguales o más pequeñas.
+
+### Correcciones con la primera auditoría real · SEO 1.0.186
+
+La auditoría de la portada de digitalisimo.mx (108 imágenes) mostró cinco problemas:
+
+- **Carruseles con carga diferida de Swiper.** Unos 50 slides no tienen `src`, sino `data-src` + `swiper-lazy`, y quedaban excluidos. Swiper (y lazysizes con `lazyload`) también aplica `data-srcset` y `data-sizes`, así que ahora se completan esos dos atributos, con el mismo tope del tamaño elegido y el `sizes` del layout. No se añaden `src`, dimensiones ni prioridad: la librería decide cuándo cargar. Otros sistemas con `data-src` siguen excluidos.
+- **Logos de clientes como críticos.** «logo» en el nombre del archivo o en el alt sólo identifica el logo del sitio al principio de la página; en la clase o el id, en cualquier parte. Los logos de clientes y el del pie se difieren como cualquier imagen.
+- **Imágenes con prioridad propia ocupando el puesto de LCP.** Una imagen que ya declara `fetchpriority` (las olas decorativas traen `low`) no es candidata; la siguiente imagen grande sí.
+- **Estado engañoso.** Añadir sólo `width`/`height` a una imagen sin variantes menores ya no la marca como RESPONSIVE: figura SIN VARIANTES, con el motivo.
+- **`sizes` redundante.** A ancho completo dentro de una caja se publica `(max-width: 1300px) 100vw, 1300px`, sin repetir la cláusula de tablet.
+
+Además, la tabla de imágenes de «Diagnóstico de assets» leía `data-src` como `src` (la expresión `\bsrc` coincide tras «data-»), lo que hacía parecer que los slides tenían `src`. Ya no.

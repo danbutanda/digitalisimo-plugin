@@ -300,7 +300,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		if ( ! is_string( $html ) || strlen( $html ) > 2 * MB_IN_BYTES || ! preg_match_all( '/<img\b[^>]*>/i', $html, $tags ) ) return $images;
 		foreach ( array_slice( $tags[0], 0, 100 ) as $tag ) {
 			$attributes = array();
-			foreach ( array( 'src', 'width', 'height', 'srcset', 'sizes' ) as $name ) if ( preg_match( '/\b' . $name . '\s*=\s*[\'\"]([^\'\"]*)[\'\"]/i', $tag, $match ) ) $attributes[ $name ] = html_entity_decode( $match[1], ENT_QUOTES, 'UTF-8' );
+			foreach ( array( 'src', 'width', 'height', 'srcset', 'sizes' ) as $name ) if ( preg_match( '/(?<![\w-])' . $name . '\s*=\s*[\'\"]([^\'\"]*)[\'\"]/i', $tag, $match ) ) $attributes[ $name ] = html_entity_decode( $match[1], ENT_QUOTES, 'UTF-8' );
 			if ( empty( $attributes['src'] ) ) continue;
 			$recommendation = empty( $attributes['width'] ) || empty( $attributes['height'] ) ? 'Revisar dimensiones reales del adjunto' : ( empty( $attributes['srcset'] ) || empty( $attributes['sizes'] ) ? 'Revisar entrega responsiva' : 'Mantener; comprobar tamaño visual en navegador' );
 			$images[] = array( 'src' => $attributes['src'], 'width' => $attributes['width'] ?? '', 'height' => $attributes['height'] ?? '', 'srcset' => ! empty( $attributes['srcset'] ), 'sizes' => ! empty( $attributes['sizes'] ), 'recommendation' => $recommendation );

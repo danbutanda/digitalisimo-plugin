@@ -83,7 +83,7 @@ $untouched = array(
 	'<img src="https://site1.test/wp-content/uploads/logo.svg">',
 	'<img src="data:image/png;base64,AAAA">',
 	'<img src="https://site1.test/wp-content/uploads/2026/01/hero.jpg" width="1" height="1">',
-	'<img class="swiper-lazy" data-src="' . $hero . '" src="' . $hero . '">',
+	'<img class="otra-libreria" data-src="' . $hero . '">',
 	'<img src="' . $hero . '" data-no-optimize="1">',
 	'<img class="emoji" src="' . $hero . '">',
 	'<img src="https://site1.test/wp-content/uploads/2026/01/desconocida.jpg">',
@@ -93,6 +93,18 @@ foreach ( $untouched as $html ) check( page( $html ) === $img::process( page( $h
 // Dentro de script, noscript, template o picture, un <img> no es una imagen a optimizar.
 $blocks = "<script>var t='<img src=\"$hero\">';</script><noscript><img src=\"$hero\"></noscript><picture><source srcset=\"a.webp\"><img src=\"$hero\"></picture>";
 check( page( $blocks ) === $img::process( page( $blocks ) ), 'Los bloques especiales se restauran intactos.' );
+
+// Carrusel de Elementor con carga diferida de Swiper: sin src, con data-src.
+$swiper = '<img class="swiper-slide-image swiper-lazy" data-src="https://site1.test/wp-content/uploads/2026/01/hero-1024x576.jpg" alt="Slide" data-digitalisimo-sizes="(max-width: 1024px) 100vw, 50vw">';
+$out = $img::process( page( $swiper ) );
+$tag = $img::attributes( preg_match( '/<img[^>]*>/', $out, $m ) ? $m[0] : '' );
+check( ! isset( $tag['src'] ) && 'https://site1.test/wp-content/uploads/2026/01/hero-1024x576.jpg' === $tag['data-src'] && 'swiper-slide-image swiper-lazy' === $tag['class'], 'El mecanismo de Swiper (data-src, clases) no se toca.' );
+check( 3 === count( explode( ',', $tag['data-srcset'] ) ) && false === strpos( $tag['data-srcset'], '1536w' ) && '(max-width: 1024px) 100vw, 50vw' === $tag['data-sizes'], 'Swiper recibe data-srcset acotado al tamaño elegido y data-sizes del layout.' );
+check( ! isset( $tag['srcset'], $tag['width'], $tag['loading'], $tag['fetchpriority'], $tag['data-digitalisimo-sizes'] ), 'Sin srcset, dimensiones ni prioridad: Swiper decide cuándo cargar.' );
+$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+check( 'RESPONSIVE' === $report[0]['status'] && in_array( 'LAZY', $report[0]['states'], true ) && '' !== $report[0]['srcset'], 'El informe muestra el slide como responsive y diferido.' );
+$lazysizes = '<img class="lazyload" data-src="' . $hero . '" data-sizes="auto">';
+check( false !== strpos( $img::process( page( $lazysizes ) ), 'data-sizes="auto"' ) && 1 === substr_count( $img::process( page( $lazysizes ) ), 'data-sizes=' ), 'Un data-sizes existente de lazysizes se respeta.' );
 
 // Exclusiones manuales: clase, id de elemento, adjunto y URL.
 foreach ( array( '.no-tocar' => '<img class="x no-tocar" src="' . $hero . '">', '#portada' => '<img id="portada" src="' . $hero . '">', 'id:10' => '<img src="' . $hero . '">', '2026/01/hero' => '<img src="' . $hero . '">' ) as $rule => $html ) {
@@ -124,6 +136,19 @@ $strict = $img::process( $lazy_hero );
 check( false !== strpos( $strict, 'loading="eager"' ) && false !== strpos( $strict, 'fetchpriority="high"' ), 'Modo estricto quita el lazy de la candidata a LCP.' );
 on();
 
+// Logos de clientes y del pie: el nombre «logo» sólo es crítico al principio.
+$out = $img::process( page( str_repeat( '<img src="' . $hero . '">', 3 ) . '<img src="' . $hero . '" alt="Logo cliente">' ) );
+preg_match_all( '/<img[^>]*>/', $out, $tags );
+check( 'lazy' === ( $img::attributes( $tags[0][3] )['loading'] ?? '' ), 'Un logo de cliente más abajo se difiere como cualquier imagen.' );
+// Una imagen que ya declara su prioridad no ocupa el puesto de LCP.
+$out = $img::process( page( '<img src="' . $hero . '" fetchpriority="low"><img src="' . $hero . '">' ) );
+preg_match_all( '/<img[^>]*>/', $out, $tags );
+check( 'low' === $img::attributes( $tags[0][0] )['fetchpriority'] && 'high' === ( $img::attributes( $tags[0][1] )['fetchpriority'] ?? '' ), 'La siguiente imagen grande es la candidata a LCP.' );
+// Sin variantes menores: añadir dimensiones no la vuelve «responsive».
+$img::process( page( '<img src="https://site1.test/wp-content/uploads/2026/01/hero-300x169.jpg">' ) );
+$report = ( new ReflectionProperty( $img, 'report' ) )->getValue();
+check( 'SIN VARIANTES' === $report[0]['status'] && '300' === $report[0]['width'], 'Una imagen sin variantes menores figura SIN VARIANTES aunque reciba width/height.' );
+
 // Interruptores independientes.
 on( array( 'perf_img_srcset' => 0 ) );
 check( false === strpos( $img::process( page( '<img src="' . $hero . '">' ) ), 'srcset=' ), 'Sin la opción srcset no se añade.' );
@@ -137,6 +162,7 @@ $half = $img::layout_entry( 'column', array( '_column_size' => 50 ) );
 $bp   = array( 'mobile' => 767, 'tablet' => 1024 );
 check( '(max-width: 1024px) 100vw, (max-width: 1140px) 50vw, 570px' === $img::sizes_from_stack( array( $box, $half ), 'safe', $bp ), 'Columna de 50 % en caja de 1140 px.' );
 check( '(max-width: 767px) 100vw, (max-width: 1140px) 50vw, 570px' === $img::sizes_from_stack( array( $box, $half ), 'strict', $bp ), 'Estricto sólo declara 100vw en móvil.' );
+check( '(max-width: 1300px) 100vw, 1300px' === $img::sizes_from_stack( array( $img::layout_entry( 'container', array( 'content_width' => 'boxed', 'boxed_width' => array( 'size' => 1300, 'unit' => 'px' ) ) ) ), 'safe', $bp ), 'A ancho completo en una caja de 1300 px no se repiten cláusulas.' );
 check( '(max-width: 1024px) 100vw, 50vw' === $img::sizes_from_stack( array( $img::layout_entry( 'section', array( 'layout' => 'full_width' ) ), $half ), 'safe', $bp ), 'Columna de 50 % a ancho completo.' );
 check( '' === $img::sizes_from_stack( array( $img::layout_entry( 'section', array( 'layout' => 'full_width' ) ), $img::layout_entry( 'column', array( '_column_size' => 100 ) ) ), 'safe', $bp ), 'Ancho completo: se usa el sizes de WordPress.' );
 $container = $img::layout_entry( 'container', array( 'content_width' => 'boxed', 'boxed_width' => array( 'size' => 1200, 'unit' => 'px' ), 'flex_direction' => 'row' ) );
