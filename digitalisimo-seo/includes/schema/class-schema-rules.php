@@ -23,7 +23,8 @@ class Digitalisimo_Integrations_Schema_Rules {
 	 * resultado enriquecido propio.
 	 */
 	const GOOGLE = array(
-		'FAQPage'             => array( 'feature' => 'Preguntas frecuentes', 'rich' => true, 'required' => array( 'mainEntity' ), 'recommended' => array(), 'note' => 'Google sólo muestra este resultado enriquecido en sitios gubernamentales o de salud reconocidos; en los demás el marcado sigue siendo válido y ayuda a entender la página.' ),
+		'FAQPage'             => array( 'feature' => 'Preguntas frecuentes', 'rich' => false, 'required' => array( 'mainEntity' ), 'recommended' => array(), 'note' => 'Google retiró el resultado enriquecido FAQ; este marcado sólo aporta contexto semántico.' ),
+		'ProfilePage'         => array( 'feature' => 'Página de perfil', 'rich' => true, 'required' => array( 'mainEntity' ), 'recommended' => array() ),
 		'BreadcrumbList'      => array( 'feature' => 'Ruta de navegación', 'rich' => true, 'required' => array( 'itemListElement' ), 'recommended' => array() ),
 		'Article'             => array( 'feature' => 'Artículo', 'rich' => true, 'required' => array(), 'recommended' => array( 'headline', 'image', 'datePublished', 'dateModified', 'author' ) ),
 		'Product'             => array( 'feature' => 'Fragmento de producto', 'rich' => true, 'required' => array( 'name' ), 'one_of' => array( 'offers', 'review', 'aggregateRating' ), 'recommended' => array( 'image', 'description', 'brand' ) ),
@@ -42,7 +43,7 @@ class Digitalisimo_Integrations_Schema_Rules {
 		'Person'              => array( 'feature' => 'Persona', 'rich' => false, 'required' => array( 'name' ), 'recommended' => array() ),
 	);
 	/** Propiedades que deben ser URL absolutas cuando son texto. */
-	const URL_PROPS  = array( 'url', 'item', 'logo', 'image', 'sameAs', 'thumbnailUrl', 'contentUrl', 'embedUrl', 'mainEntityOfPage' );
+	const URL_PROPS  = array( 'url', 'item', 'logo', 'image', 'sameAs', 'thumbnailUrl', 'contentUrl', 'embedUrl', 'hasMap', 'mainEntityOfPage' );
 	const DATE_PROPS = array( 'datePublished', 'dateModified', 'dateCreated', 'uploadDate', 'startDate', 'endDate', 'datePosted', 'validThrough', 'priceValidUntil' );
 
 	/* ------------------------------------------------------------------ *
@@ -166,16 +167,17 @@ class Digitalisimo_Integrations_Schema_Rules {
 		$rich = array();
 		foreach ( $nodes as $entry ) {
 			$rule = self::rule( self::types( $entry['node'] ) );
-			if ( ! $rule ) continue;
 			$label  = self::label( $entry['node'] );
 			$errors = 0;
 			foreach ( $issues as $issue ) if ( self::ERROR === $issue['status'] && 0 === strpos( $issue['where'], $label ) ) $errors++;
+			if ( ! $rule ) { $rich[] = array( 'type' => implode( ' + ', self::types( $entry['node'] ) ), 'feature' => 'Entidad semántica', 'status' => $errors ? self::ERROR : self::NA, 'detail' => $errors ? $errors . ' error(es) de marcado.' : 'Tipo de Schema.org sin resultado enriquecido propio de Google.', 'category' => 'Semántico' ); continue; }
 			$rich[] = array(
 				'type'    => implode( ' + ', self::types( $entry['node'] ) ),
 				'feature' => $rule['feature'],
+				'category' => $rule['rich'] ? 'Resultado enriquecido potencial' : 'Semántico',
 				// Con restricciones de Google (FAQ) el marcado es válido pero no se promete el resultado.
 				'status'  => $errors ? self::ERROR : ( $rule['rich'] && empty( $rule['note'] ) ? self::OK : self::NA ),
-				'detail'  => $errors ? $errors . ' error(es) que impiden usarlo.' : ( $rule['rich'] ? ( $rule['note'] ?? 'Cumple los requisitos de Google.' ) : 'Válido. Google lo usa para entender la entidad; no tiene resultado enriquecido propio.' ),
+				'detail'  => $errors ? $errors . ' error(es) que impiden usarlo.' : ( $rule['rich'] ? ( $rule['note'] ?? 'Cumple los requisitos de marcado conocidos; Google no garantiza mostrarlo.' ) : ( $rule['note'] ?? 'Marcado semántico; no tiene resultado enriquecido propio.' ) ),
 			);
 		}
 
@@ -284,9 +286,9 @@ class Digitalisimo_Integrations_Schema_Rules {
 			$name = self::text( $q['name'] ?? '' );
 			if ( '' === $name ) $add( self::ERROR, $where, 'La pregunta ' . ( $i + 1 ) . ' no tiene «name».' );
 			if ( '' === self::text( $q['acceptedAnswer']['text'] ?? '' ) ) $add( self::ERROR, $where, 'La pregunta ' . ( $i + 1 ) . ' no tiene «acceptedAnswer» con «text».' );
-			if ( null !== $visible && '' !== $name && ! self::visible( $name, $visible ) ) $hidden[] = $name;
+			if ( null !== $visible && '' !== $name && ( ! self::visible( $name, $visible ) || ! self::visible( $q['acceptedAnswer']['text'] ?? '', $visible ) ) ) $hidden[] = $name;
 		}
-		if ( $hidden ) $add( self::ERROR, $where, count( $hidden ) . ' pregunta(s) no aparecen en el contenido visible: «' . implode( '», «', array_slice( $hidden, 0, 3 ) ) . '»' . ( count( $hidden ) > 3 ? '…' : '' ) . '. Google exige que el marcado coincida con lo que ve el visitante.' );
+		if ( $hidden ) $add( self::ERROR, $where, count( $hidden ) . ' pregunta(s) o respuestas no aparecen en el contenido visible: «' . implode( '», «', array_slice( $hidden, 0, 3 ) ) . '»' . ( count( $hidden ) > 3 ? '…' : '' ) . '. El marcado debe coincidir con lo que ve el visitante.' );
 	}
 
 	/** El mismo @id definido varias veces: separado, con tipos o valores distintos. */

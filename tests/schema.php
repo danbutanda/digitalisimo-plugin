@@ -110,6 +110,57 @@ $woo = array( '@context' => 'https://schema.org/', '@type' => 'Product', 'name' 
 list( $merged ) = $G::merge( $G::build( $site, $product_page ), array( $woo ), $product_page );
 check( 'Product' === $merged[3]['@type'] && array( '@id' => $home . 'producto/taza/#product' ) === $merged[2]['mainEntity'] && array( '@id' => $home . 'producto/taza/#webpage' ) === $merged[3]['mainEntityOfPage'], 'producto integrado como entidad principal' );
 
+// --- Detección contextual y elegibilidad ---
+$profile_page = array( 'kind' => 'author', 'home' => false, 'url' => $home . 'author/ana/', 'title' => 'Ana', 'description' => 'Autora.', 'breadcrumbs' => array(), 'entity' => null, 'profile' => array( 'name' => 'Ana', 'slug' => 'ana', 'url' => $home . 'author/ana/' ) );
+$profile_graph = $G::build( $site_plain, $profile_page );
+check( array( 'Organization', 'WebSite', 'ProfilePage', 'Person' ) === types_in( $profile_graph ), 'archivo de autor: ProfilePage y Person, sin Article inventado' );
+check( $profile_graph[2]['mainEntity']['@id'] === $profile_graph[3]['@id'], 'perfil enlaza a la persona con @id estable' );
+$profile_report = $R::analyze_graph( array( '@context' => 'https://schema.org', '@graph' => $profile_graph ), array( 'url' => $profile_page['url'], 'expected' => $G::expected( $site_plain, $profile_page ) ) );
+check( ! $profile_report['missing'] && ! has_issue( $profile_report, 'ERROR', '' ), 'perfil validado y esperado por el auditor' );
+$video_page = array( 'video' => array( 'name' => 'Demostración', 'thumbnailUrl' => $home . 'poster.jpg', 'uploadDate' => '2026-01-02T10:00:00-06:00', 'contentUrl' => $home . 'video.mp4' ) ) + $post;
+$video_graph = $G::build( $site_plain, $video_page );
+check( in_array( 'VideoObject', types_in( $video_graph ), true ) && $video_graph[2]['video']['@id'] === $post['url'] . '#video', 'video real enlazado a WebPage' );
+$video_html = '<html><head>' . $G::script( $video_graph ) . '</head><body><video controls src="' . $home . 'video.mp4" poster="' . $home . 'poster.jpg"></video></body></html>';
+check( $video_html === $G::unify( $video_html, $video_page )[0], 'video presente permanece en el grafo final' );
+$video_missing = '<html><head>' . $G::script( $video_graph ) . '</head><body><p>Sin video</p></body></html>';
+$video_clean = $G::unify( $video_missing, $video_page )[0];
+check( false === strpos( $video_clean, 'VideoObject' ) && false === strpos( $video_clean, '"video":' ), 'video no renderizado se retira del JSON-LD final' );
+$video_incomplete = array( 'video' => array( 'name' => 'Demostración' ) ) + $post;
+check( ! in_array( 'VideoObject', types_in( $G::build( $site_plain, $video_incomplete ) ), true ), 'video incompleto se omite' );
+$service_no_offer = array( 'entity' => array( 'type' => 'Service' ), 'spatial' => array() ) + $post;
+$service_graph = $G::build( $site_plain, $service_no_offer );
+check( ! isset( $service_graph[4]['offers'] ) && ! isset( $service_graph[4]['areaServed'] ), 'servicio no inventa precio ni zona' );
+$service_with_offer = array( 'entity' => array( 'type' => 'Service', 'offers' => array( 'price' => '500', 'priceCurrency' => 'MXN' ) ) ) + $service_no_offer;
+check( 'MXN' === $G::build( $site_plain, $service_with_offer )[4]['offers']['priceCurrency'], 'servicio con oferta explícita' );
+$product_page = array( 'entity' => array( 'type' => 'Product', 'sku' => 'SKU-1', 'offers' => array( 'price' => '0', 'priceCurrency' => 'MXN', 'availability' => 'https://schema.org/InStock' ) ) ) + $post;
+$product_graph = $G::build( $site_plain, $product_page );
+check( '0' === $product_graph[4]['offers']['price'] && 'SKU-1' === $product_graph[4]['sku'] && ! isset( $product_graph[4]['brand'] ), 'producto usa precio real cero y no inventa marca' );
+$faq_report = $R::analyze( '<script type="application/ld+json">' . $G::json( array( '@context' => 'https://schema.org', '@type' => 'FAQPage', 'mainEntity' => array( array( '@type' => 'Question', 'name' => '¿Cuánto cuesta?', 'acceptedAnswer' => array( '@type' => 'Answer', 'text' => 'Depende del proyecto.' ) ) ) ) ) . '</script><p>¿Cuánto cuesta?</p><p>Depende del proyecto.</p>' );
+check( 'Semántico' === $faq_report['rich'][0]['category'] && 'NO APLICABLE' === $faq_report['rich'][0]['status'], 'FAQ válido es semántico, no rich result de Google' );
+$own_faq_graph = $G::build( $site_plain, $page );
+$own_faq_graph[2]['@type'] = array( 'WebPage', 'FAQPage' );
+$own_faq_graph[2]['mainEntity'] = array( array( '@type' => 'Question', 'name' => '¿Cuánto cuesta?', 'acceptedAnswer' => array( '@type' => 'Answer', 'text' => 'No publicada.' ) ) );
+$own_faq_html = '<html><head>' . $G::script( $own_faq_graph ) . '</head><body><p>¿Cuánto cuesta?</p></body></html>';
+$own_faq_clean = $G::sanitize_own_faq( $own_faq_html, $page );
+check( false === strpos( $own_faq_clean, 'FAQPage' ) && false === strpos( $own_faq_clean, 'No publicada.' ), 'FAQ propia se filtra aun sin unificación externa' );
+$hidden_answer = $R::analyze( '<script type="application/ld+json">' . $G::json( array( '@context' => 'https://schema.org', '@type' => 'FAQPage', 'mainEntity' => array( array( '@type' => 'Question', 'name' => '¿Cuánto cuesta?', 'acceptedAnswer' => array( '@type' => 'Answer', 'text' => 'Respuesta oculta.' ) ) ) ) ) . '</script><p>¿Cuánto cuesta?</p>' );
+check( has_issue( $hidden_answer, 'ERROR', 'respuestas no aparecen'), 'auditor detecta respuesta FAQ oculta' );
+
+$shop_markup = array( '@type' => 'Product', '@id' => $product_page['url'] . '#product', 'name' => 'Producto real', 'offers' => array( '@type' => 'Offer', 'price' => '125', 'priceCurrency' => 'MXN', 'url' => $product_page['url'] ) );
+list( $merged_product ) = $G::merge( $product_graph, array( $shop_markup ), $product_page );
+check( '125' === $merged_product[4]['offers']['price'] && 1 === count( array_filter( types_in( $merged_product ), function( $type ) { return 'Product' === $type; } ) ), 'WooCommerce aporta su oferta sin duplicar Product' );
+$faq_hidden_answer = array( '@type' => 'FAQPage', 'mainEntity' => array( array( '@type' => 'Question', 'name' => '¿Cuánto cuesta?', 'acceptedAnswer' => array( '@type' => 'Answer', 'text' => 'No publicada.' ) ) ) );
+list( $faq_filtered ) = $G::merge( $G::build( $site_plain, $page ), array( $faq_hidden_answer ), $page, '¿Cuánto cuesta?' );
+check( ! in_array( 'FAQPage', types_in( $faq_filtered ), true ), 'FAQ sin respuesta visible no se publica' );
+$site_other = $site_plain; $site_other['home'] = 'https://otro.ejemplo/';
+$other_graph = $G::build( $site_other, array( 'url' => 'https://otro.ejemplo/guia/' ) + $post );
+check( 0 === strpos( $other_graph[0]['@id'], $site_other['home'] ) && 0 === strpos( $other_graph[2]['@id'], $site_other['home'] ), 'los @id se aíslan por sitio de Multisite' );
+$local_with_map = $site; $local_with_map['email'] = 'hola@agencia.test'; $local_with_map['local']['geo'] = array( 'latitude' => 25.5, 'longitude' => -103.4 );
+$local_graph = $G::build( $local_with_map, $page );
+check( isset( $local_graph[0]['hasMap'], $local_graph[0]['contactPoint'] ) && '25.5' === $local_graph[0]['geo']['latitude'], 'mapa y contacto salen de datos reales' );
+$local_report = $R::analyze_graph( array( '@context' => 'https://schema.org', '@graph' => $local_graph ) );
+check( ! has_issue( $local_report, 'ADVERTENCIA', 'hasMap' ) && ! has_issue( $local_report, 'ADVERTENCIA', 'contactPoint' ), 'mapa y contacto son propiedades válidas para negocio local' );
+
 // --- Utilidades ---
 check( '25.5597304' === $G::coordinate( 25.55973041976771042982 ) && '-103.4334658' === $G::coordinate( '-103.433465771164' ) && '25' === $G::coordinate( 25.0 ), 'coordenadas con 7 decimales' );
 $geo = $site; $geo['local']['geo'] = array( 'latitude' => 25.55973041976771, 'longitude' => -103.43346577116407 );

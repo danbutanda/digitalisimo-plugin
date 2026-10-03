@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| Digitalisimo SEO · detección contextual de Schema | ✓ 1.0.219 | Reconoce entradas, servicios, productos WooCommerce, perfiles y videos locales con datos reales; enlaza identidades mediante `@id`, evita duplicar Product y filtra FAQ sin respuestas en el HTML. El auditor separa marcado semántico y resultados enriquecidos potenciales. | Pruebas PHP, suite de seis módulos y Release pendientes de verificar. |
+
 | Digitalisimo SEO · tipo de entidad con selector | ✓ 1.0.218 | El tipo de entidad se elige entre Organización, Negocio local y Persona en sitio y red. Ambos guardados validan el valor frente a la lista; un valor inválido vuelve a Organization. | Suite de seis módulos, workflow de PHP y Release `v2026.10.03.224` correctos; contiene sólo `digitalisimo-seo-1.0.218.zip` y sus 74 archivos coinciden con el paquete local. |
 
 | DIGITALÍSIMO Tools · ajustes del sitio | ✓ 1.0.22 | Nueva pestaña «Ajustes del sitio» (sitio y red, con «Heredar de la red» sólo en cada sitio): ruta privada de acceso, redirección de adjuntos y bloqueo del desplazamiento horizontal en móvil, importados una vez desde SEO conservando la herencia de cada sitio. `wp-login.php` ahora responde 404 con la ruta privada activa (antes seguía mostrando el formulario). | `tests/tools-site-options.php` y prueba en WordPress Playground con y sin Tools; Release `v2026.10.03.223`. |

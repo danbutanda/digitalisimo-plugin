@@ -78,9 +78,12 @@ class Digitalisimo_Integrations_Schema_Graph {
 		if ( 'LocalBusiness' === $type ) $type = 'Organization';
 
 		$identity = array( '@type' => $is_person ? 'Person' : ( $local ? $local['type'] : $type ), '@id' => $ids['identity'], 'name' => $site['org_name'], 'url' => $site['org_url'] ?: $site['home'] );
+		if ( ! $is_person && ! empty( $site['name'] ) && $site['name'] !== $site['org_name'] ) $identity['alternateName'] = $site['name'];
 		if ( $site['logo'] ) $identity[ $is_person ? 'image' : 'logo' ] = array( '@type' => 'ImageObject', 'url' => $site['logo'] );
+		if ( ! $is_person && ! empty( $site['image'] ) && $site['image'] !== $site['logo'] ) $identity['image'] = $site['image'];
 		if ( ! empty( $site['same_as'] ) ) $identity['sameAs'] = array_values( $site['same_as'] );
 		if ( ! empty( $site['email'] ) ) $identity['email'] = $site['email'];
+		if ( ! $is_person && ! empty( $site['local']['telephone'] ) ) $identity['telephone'] = $site['local']['telephone'];
 		$business = null;
 		if ( $local ) {
 			$business = array_filter( array(
@@ -93,9 +96,14 @@ class Digitalisimo_Integrations_Schema_Graph {
 				'openingHoursSpecification' => $local['hours'] ?? array(),
 			) );
 			if ( isset( $business['address']['addressCountry'] ) ) $business['address']['addressCountry'] = self::country( $business['address']['addressCountry'] );
-			if ( isset( $business['geo'] ) ) $business['geo'] = array( '@type' => 'GeoCoordinates', 'latitude' => self::coordinate( $business['geo']['latitude'] ), 'longitude' => self::coordinate( $business['geo']['longitude'] ) );
+			if ( isset( $business['geo'] ) ) {
+				$lat = self::coordinate( $business['geo']['latitude'] ); $lng = self::coordinate( $business['geo']['longitude'] );
+				$business['geo'] = array( '@type' => 'GeoCoordinates', 'latitude' => $lat, 'longitude' => $lng );
+				$business['hasMap'] = 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( $lat . ',' . $lng );
+			}
 		}
 		if ( $business && ! $is_person ) $identity += $business;
+		if ( ! $is_person && ! empty( $identity['telephone'] ) && ! empty( $identity['email'] ) ) $identity['contactPoint'] = array( '@type' => 'ContactPoint', 'telephone' => $identity['telephone'], 'email' => $identity['email'] );
 		$graph[] = $identity;
 		// Una persona con negocio: el negocio es una entidad propia fundada por ella.
 		if ( $business && $is_person ) $graph[] = array( '@type' => $local['type'], '@id' => $ids['local'], 'name' => $local['name'], 'url' => $site['home'], 'founder' => array( '@id' => $ids['identity'] ) ) + $business;
@@ -105,7 +113,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 		$graph[] = $website;
 
 		$kind     = $page['kind'];
-		$web_type = 'search' === $kind ? 'SearchResultsPage' : ( in_array( $kind, array( 'archive', 'term' ), true ) ? 'CollectionPage' : 'WebPage' );
+		$web_type = in_array( $kind, array( 'author', 'profile' ), true ) && ! empty( $page['profile']['name'] ) ? 'ProfilePage' : ( 'search' === $kind ? 'SearchResultsPage' : ( in_array( $kind, array( 'archive', 'term' ), true ) ? 'CollectionPage' : 'WebPage' ) );
 		$webpage  = array_filter( array(
 			'@type'         => $web_type,
 			'@id'           => $ids['webpage'],
@@ -120,6 +128,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 		if ( ! empty( $page['image'] ) ) $webpage['primaryImageOfPage'] = array( '@type' => 'ImageObject', '@id' => $ids['image'], 'url' => $page['image'] );
 		if ( 'home' === $kind || ! empty( $page['about_identity'] ) ) $webpage['about'] = array( '@id' => $ids['identity'] );
 		if ( ! empty( $page['spatial'] ) ) $webpage['spatialCoverage'] = $page['spatial'];
+		$profile = null;
+		if ( 'ProfilePage' === $web_type ) {
+			$profile = self::person_node( $site, $page['profile'] );
+			$webpage['mainEntity'] = array( '@id' => $profile['@id'] );
+		}
 
 		// Breadcrumbs sólo en páginas internas con al menos dos niveles.
 		$crumbs = (array) ( $page['breadcrumbs'] ?? array() );
@@ -141,21 +154,48 @@ class Digitalisimo_Integrations_Schema_Graph {
 				$entity = $base + array_filter( array( 'headline' => self::cut( $page['headline'] ?? $page['title'], 110 ), 'description' => $page['description'], 'datePublished' => $page['published'] ?? '', 'dateModified' => $page['modified'] ?? '', 'inLanguage' => $site['language'] ?? '', 'publisher' => array( '@id' => $ids['identity'] ) ) );
 				if ( ! empty( $page['image'] ) ) $entity['image'] = array( '@id' => $ids['image'] );
 				if ( ! empty( $page['author']['name'] ) ) {
-					$author = array_filter( array( '@type' => 'Person', '@id' => $site['home'] . '#/schema/person/' . $page['author']['slug'], 'name' => $page['author']['name'], 'url' => $page['author']['url'] ?? '', 'sameAs' => $page['author']['same_as'] ?? array() ) );
+					$author = self::person_node( $site, $page['author'] );
 					$entity['author'] = array( '@id' => $author['@id'] );
 				}
 			} elseif ( 'Service' === $e['type'] ) {
 				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'provider' => array( '@id' => $ids['identity'] ), 'areaServed' => $page['spatial'] ?? array(), 'image' => $page['image'] ?? '' ) );
+				if ( isset( $e['offers']['price'], $e['offers']['priceCurrency'] ) && is_numeric( $e['offers']['price'] ) && preg_match( '/^[A-Z]{3}$/', $e['offers']['priceCurrency'] ) ) $entity['offers'] = array( '@type' => 'Offer', 'price' => $e['offers']['price'], 'priceCurrency' => $e['offers']['priceCurrency'], 'url' => $page['url'], 'seller' => array( '@id' => $ids['identity'] ) );
+			} elseif ( 'Product' === $e['type'] ) {
+				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'image' => $page['image'] ?? '', 'sku' => $e['sku'] ?? '' ) );
+				if ( isset( $e['offers']['priceCurrency'], $e['offers']['price'] ) && is_numeric( $e['offers']['price'] ) && preg_match( '/^[A-Z]{3}$/', $e['offers']['priceCurrency'] ) ) {
+					$entity['offers'] = array( '@type' => 'Offer', 'price' => $e['offers']['price'], 'priceCurrency' => $e['offers']['priceCurrency'], 'url' => $page['url'], 'seller' => array( '@id' => $ids['identity'] ) );
+					if ( ! empty( $e['offers']['availability'] ) ) $entity['offers']['availability'] = $e['offers']['availability'];
+				}
 			} else {
-				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'image' => $page['image'] ?? '', 'brand' => 'Product' === $e['type'] && ! $is_person ? array( '@id' => $ids['identity'] ) : array() ) );
+				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'image' => $page['image'] ?? '' ) );
 			}
 			$webpage['mainEntity'] = array( '@id' => $id );
 		}
+		$webpage_index = count( $graph );
 		$graph[] = $webpage;
 		if ( $breadcrumb ) $graph[] = $breadcrumb;
 		if ( $entity ) $graph[] = $entity;
 		if ( $author ) $graph[] = $author;
+		if ( $profile && $profile['@id'] !== $ids['identity'] ) $graph[] = $profile;
+		if ( ! empty( $page['video'] ) ) {
+			$video = self::video_node( $page );
+			if ( $video ) { $graph[] = $video; $graph[ $webpage_index ]['video'] = array( '@id' => $video['@id'] ); }
+		}
 		return $graph;
+	}
+
+	/** La identidad del autor usa el mismo @id en artículos y en su archivo. */
+	private static function person_node( $site, $person ) {
+		$slug = trim( (string) ( $person['slug'] ?? '' ) );
+		$id = $site['home'] . '#/schema/person/' . rawurlencode( $slug );
+		return array_filter( array( '@type' => 'Person', '@id' => $id, 'name' => $person['name'], 'url' => $person['url'] ?? '', 'sameAs' => $person['same_as'] ?? array() ) );
+	}
+
+	/** Sólo un video con miniatura, fecha propia y URL de reproducción reales. */
+	private static function video_node( $page ) {
+		$v = $page['video'];
+		if ( empty( $v['name'] ) || empty( $v['thumbnailUrl'] ) || empty( $v['uploadDate'] ) || empty( $v['contentUrl'] ) ) return null;
+		return array_filter( array( '@type' => 'VideoObject', '@id' => $page['url'] . '#video', 'name' => $v['name'], 'description' => $v['description'] ?? '', 'thumbnailUrl' => $v['thumbnailUrl'], 'uploadDate' => $v['uploadDate'], 'contentUrl' => $v['contentUrl'], 'isPartOf' => array( '@id' => $page['url'] . '#webpage' ) ) );
 	}
 
 	/**
@@ -242,7 +282,10 @@ class Digitalisimo_Integrations_Schema_Graph {
 				continue;
 			}
 			if ( count( $valid ) < count( $types ) ) { $node['@type'] = 1 === count( $valid ) ? $valid[0] : $valid; $log[] = 'Se quitaron de «' . $label . '» los tipos que no existen en Schema.org.'; }
-			if ( $id && null !== ( $i = self::index_of( $graph, $id ) ) ) { $graph[ $i ] = self::fill( $graph[ $i ], $node ); $log[] = 'Fusionado «' . $label . '» con la entidad del mismo @id.'; continue; }
+			if ( $id && null !== ( $i = self::index_of( $graph, $id ) ) ) {
+				if ( Digitalisimo_Integrations_Schema_Vocabulary::is_a( $types, 'Product' ) && ! empty( $node['offers'] ) ) $graph[ $i ]['offers'] = $node['offers'];
+				$graph[ $i ] = self::fill( $graph[ $i ], $node ); $log[] = 'Fusionado «' . $label . '» con la entidad del mismo @id.'; continue;
+			}
 			$is = function( $family ) use ( $valid ) { return Digitalisimo_Integrations_Schema_Vocabulary::is_a( $valid, $family ); };
 			$node_url = rtrim( (string) ( is_string( $node['url'] ?? null ) ? $node['url'] : '' ), '/' );
 			if ( $is( 'WebSite' ) && null !== $website ) { if ( $id ) $map[ $id ] = $graph[ $website ]['@id']; $log[] = 'Retirado «' . $label . '»: el sitio ya está declarado.'; continue; }
@@ -260,6 +303,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 				$log[] = 'Integrado «' . $label . '».';
 				continue;
 			}
+			if ( $is( 'FAQPage' ) && null !== $webpage && ! empty( $graph[ $webpage ]['mainEntity'] ) && ( '' === $node_url || $node_url === $url ) ) { $log[] = 'Retirado «' . $label . '»: la página ya tiene una entidad principal distinta de FAQ.'; continue; }
 			if ( $is( 'FAQPage' ) && null !== $webpage && empty( $graph[ $webpage ]['mainEntity'] ) && ( '' === $node_url || $node_url === $url ) ) {
 				$graph[ $webpage ] = self::add_type( $graph[ $webpage ], 'FAQPage' );
 				$graph[ $webpage ]['mainEntity'] = $node['mainEntity'] ?? array();
@@ -280,6 +324,8 @@ class Digitalisimo_Integrations_Schema_Graph {
 			foreach ( self::MAIN_TYPES as $type ) if ( $is( $type ) ) $main = true;
 			if ( $main ) foreach ( $graph as $i => $own ) if ( array_intersect( $valid, Digitalisimo_Integrations_Schema_Rules::types( $own ) ) ) { $same = $i; break; }
 			if ( null !== $same ) {
+				// WooCommerce conoce ofertas, variantes e impuestos mejor que el nodo mínimo propio.
+				if ( $is( 'Product' ) && ! empty( $node['offers'] ) ) $graph[ $same ]['offers'] = $node['offers'];
 				$graph[ $same ] = self::fill( $graph[ $same ], $node );
 				if ( $id ) $map[ $id ] = $graph[ $same ]['@id'];
 				$log[] = 'Fusionado «' . $label . '» con la entidad del mismo tipo.';
@@ -305,15 +351,32 @@ class Digitalisimo_Integrations_Schema_Graph {
 			$questions = $node['mainEntity'] ?? array();
 			$questions = Digitalisimo_Integrations_Schema_Rules::is_list( $questions ) ? $questions : array( $questions );
 			$kept = array();
-			foreach ( $questions as $q ) if ( is_array( $q ) && Digitalisimo_Integrations_Schema_Rules::visible( $q['name'] ?? '', $visible ) ) $kept[] = $q;
+			foreach ( $questions as $q ) if ( is_array( $q ) && Digitalisimo_Integrations_Schema_Rules::visible( $q['name'] ?? '', $visible ) && Digitalisimo_Integrations_Schema_Rules::visible( $q['acceptedAnswer']['text'] ?? '', $visible ) ) $kept[] = $q;
 			if ( count( $kept ) === count( $questions ) ) continue;
-			$log[] = ( count( $questions ) - count( $kept ) ) . ' pregunta(s) de FAQPage retiradas: no aparecen en el contenido visible.';
+			$log[] = ( count( $questions ) - count( $kept ) ) . ' pregunta(s) de FAQPage retiradas: la pregunta o su respuesta no aparecen en el contenido visible.';
 			if ( $kept ) { $graph[ $i ]['mainEntity'] = $kept; continue; }
 			$types = array_values( array_diff( Digitalisimo_Integrations_Schema_Rules::types( $node ), array( 'FAQPage' ) ) );
 			if ( ! $types ) { unset( $graph[ $i ] ); continue; }
 			$graph[ $i ]['@type'] = 1 === count( $types ) ? $types[0] : $types;
 			unset( $graph[ $i ]['mainEntity'] );
 		}
+		return array( array_values( $graph ), $log );
+	}
+
+	/** Un VideoObject sólo sale si el video realmente se renderizó en la página. */
+	private static function visible_video( $graph, $html, $log, $page ) {
+		$body = preg_match( '#<body\\b[^>]*>(.*)</body>#is', $html, $match ) ? $match[1] : $html;
+		$sources = array();
+		if ( preg_match_all( '#<(?:video|source)\\b[^>]*\\b(?:src|data-src)\\s*=\\s*(["\\\'])(.*?)\\1#is', $body, $matches ) ) foreach ( $matches[2] as $src ) $sources[] = html_entity_decode( $src, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$removed = array();
+		foreach ( $graph as $i => $node ) {
+			if ( ! Digitalisimo_Integrations_Schema_Vocabulary::is_a( Digitalisimo_Integrations_Schema_Rules::types( $node ), 'VideoObject' ) || ( $node['@id'] ?? '' ) !== $page['url'] . '#video' ) continue;
+			if ( in_array( $node['contentUrl'] ?? '', $sources, true ) ) continue;
+			$removed[] = $node['@id'] ?? '';
+			unset( $graph[ $i ] );
+			$log[] = 'Retirado VideoObject: el archivo no aparece en un elemento video del HTML final.';
+		}
+		if ( $removed ) foreach ( $graph as &$node ) if ( in_array( $node['video']['@id'] ?? '', $removed, true ) ) unset( $node['video'] );
 		return array( array_values( $graph ), $log );
 	}
 
@@ -346,10 +409,23 @@ class Digitalisimo_Integrations_Schema_Graph {
 		}
 		$graph = $blocks[ $own ]['data']['@graph'] ?? array();
 		list( $graph, $log ) = self::merge( $graph, $foreign, $page, Digitalisimo_Integrations_Schema_Rules::visible_text( $html ) );
+		list( $graph, $log ) = self::visible_video( $graph, $html, $log, $page );
 		if ( ! $foreign && ! $log ) return array( $html, array() );
 		$html = str_replace( $blocks[ $own ]['tag'], self::script( $graph ), $html );
 		foreach ( array_unique( $remove ) as $tag ) $html = str_replace( $tag, '', $html );
 		return array( $html, $log );
+	}
+
+	/** Filtra sólo las FAQ propias cuando la unificación de otros plugins está apagada. */
+	public static function sanitize_own_faq( $html, $page ) {
+		foreach ( Digitalisimo_Integrations_Schema_Rules::blocks( $html ) as $block ) {
+			if ( false === strpos( $block['attrs'], self::CLASS_NAME ) || ! is_array( $block['data'] ) ) continue;
+			$graph = $block['data']['@graph'] ?? array();
+			list( $clean, $log ) = self::visible_faq( $graph, Digitalisimo_Integrations_Schema_Rules::visible_text( $html ), array() );
+			list( $clean, $log ) = self::visible_video( $clean, $html, $log, $page );
+			return $log ? str_replace( $block['tag'], self::script( $clean ), $html ) : $html;
+		}
+		return $html;
 	}
 
 	/* ------------------------------------------------------------------ *
@@ -389,15 +465,67 @@ class Digitalisimo_Integrations_Schema_Graph {
 		);
 	}
 
+	/** Valores antiguos fueron guardados en minúsculas por sanitize_key(). */
+	public static function chosen_type( $post_id ) {
+		$raw = strtolower( (string) get_post_meta( $post_id, Digitalisimo_Integrations_SEO_Suite::P . 'schema_type', true ) );
+		$types = array( 'article' => 'Article', 'webpage' => 'WebPage', 'faqpage' => 'FAQPage', 'service' => 'Service', 'product' => 'Product', 'localbusiness' => 'LocalBusiness', 'person' => 'Person' );
+		return $types[ $raw ] ?? '';
+	}
+
 	/** Tipo de entidad del contenido según el editor y el tipo de publicación. */
 	public static function entity_type( $post ) {
-		$chosen = (string) get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'schema_type', true );
-		$woo    = 'product' === $post->post_type && class_exists( 'WooCommerce' );
+		$chosen = self::chosen_type( $post->ID );
+		$woo    = 'product' === $post->post_type && function_exists( 'wc_get_product' );
+		// El tipo real de WooCommerce prevalece sobre una selección antigua del editor.
+		if ( 'product' === $post->post_type ) return $woo && self::o( 'seo_schema_unify', 1 ) ? 'Product' : '';
 		if ( in_array( $chosen, array( 'Article', 'Service' ), true ) ) return $chosen;
-		// WooCommerce ya publica Product con precio y existencias: se integra, no se duplica.
-		if ( 'Product' === $chosen || 'product' === $post->post_type ) return $woo ? '' : 'Product';
 		if ( '' === $chosen && 'post' === $post->post_type ) return 'BlogPosting';
+		if ( '' === $chosen && preg_match( '/^(?:services?|servicios?)$/i', $post->post_type ) ) return 'Service';
 		return '';
+	}
+
+	/** Encuentra un único video local relevante en bloques o en un widget Elementor. */
+	private static function video_from_post( $post ) {
+		$candidates = array();
+		if ( function_exists( 'parse_blocks' ) ) {
+			$walk = function( $blocks ) use ( &$walk, &$candidates ) {
+				foreach ( (array) $blocks as $block ) {
+					if ( 'core/video' === ( $block['blockName'] ?? '' ) ) {
+						$a = $block['attrs'] ?? array();
+						$candidates[] = array( 'id' => $a['id'] ?? 0, 'url' => $a['src'] ?? '', 'poster' => $a['poster'] ?? '' );
+					}
+					if ( ! empty( $block['innerBlocks'] ) ) $walk( $block['innerBlocks'] );
+				}
+			};
+			$walk( parse_blocks( $post->post_content ) );
+		}
+		$elementor = get_post_meta( $post->ID, '_elementor_data', true );
+		if ( is_string( $elementor ) ) $elementor = json_decode( $elementor, true );
+		if ( is_array( $elementor ) ) {
+			$walk = function( $elements ) use ( &$walk, &$candidates ) {
+				foreach ( (array) $elements as $element ) {
+					if ( ! is_array( $element ) ) continue;
+					if ( 'video' === ( $element['widgetType'] ?? '' ) ) {
+						$a = $element['settings'] ?? array();
+						$hosted = isset( $a['hosted_url'] ) && is_array( $a['hosted_url'] ) ? $a['hosted_url'] : array();
+						$overlay = isset( $a['image_overlay'] ) && is_array( $a['image_overlay'] ) ? $a['image_overlay'] : array();
+						if ( 'hosted' === ( $a['video_type'] ?? '' ) && 'yes' === ( $a['show_image_overlay'] ?? '' ) ) $candidates[] = array( 'id' => $hosted['id'] ?? 0, 'url' => $hosted['url'] ?? '', 'poster' => $overlay['url'] ?? '' );
+					}
+					if ( ! empty( $element['elements'] ) ) $walk( $element['elements'] );
+				}
+			};
+			$walk( $elementor );
+		}
+		if ( 1 !== count( $candidates ) ) return null;
+		$v = $candidates[0];
+		$id = absint( $v['id'] ?: ( $v['url'] && function_exists( 'attachment_url_to_postid' ) ? attachment_url_to_postid( $v['url'] ) : 0 ) );
+		if ( ! $id || 0 !== strpos( (string) get_post_mime_type( $id ), 'video/' ) ) return null;
+		$url = wp_get_attachment_url( $id );
+		$poster = is_string( $v['poster'] ) ? esc_url_raw( $v['poster'] ) : '';
+		$date = get_post_time( DATE_W3C, false, $id );
+		$name = trim( wp_strip_all_tags( get_the_title( $id ) ) );
+		if ( ! $url || ! $poster || ! $date || ! $name || ! preg_match( '#^https?://#i', $url ) || ! preg_match( '#^https?://#i', $poster ) ) return null;
+		return array( 'name' => $name, 'thumbnailUrl' => $poster, 'uploadDate' => $date, 'contentUrl' => $url );
 	}
 
 	/** Contexto de un contenido concreto (vista previa del editor o auditoría). */
@@ -414,9 +542,23 @@ class Digitalisimo_Integrations_Schema_Graph {
 		$type   = $home ? '' : self::entity_type( $post );
 		$author = get_userdata( $post->post_author );
 		$image  = get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'social_image', true ) ?: get_the_post_thumbnail_url( $post, 'full' );
-		$chosen = (string) get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'schema_type', true );
+		$chosen = self::chosen_type( $post->ID );
+		$entity = $type ? array( 'type' => $type ) : null;
+		if ( 'Service' === $type ) {
+			// Una integración puede aportar una oferta real; nunca se infiere del texto.
+			$offer = apply_filters( 'digitalisimo_seo_service_offer', array(), $post );
+			if ( is_array( $offer ) && isset( $offer['price'], $offer['priceCurrency'] ) ) $entity['offers'] = $offer;
+		}
+		$profile = ! $home && 'Person' === $chosen && 'product' !== $post->post_type ? array( 'name' => wp_strip_all_tags( get_the_title( $post ) ), 'slug' => $post->post_name ?: (string) $post->ID, 'url' => $url ) : array();
+		if ( 'Product' === $type && function_exists( 'wc_get_product' ) && ( $product = wc_get_product( $post->ID ) ) ) {
+			$entity['sku'] = $product->get_sku();
+			$price = function_exists( 'wc_get_price_to_display' ) ? wc_get_price_to_display( $product ) : $product->get_price();
+			if ( ! $product->is_type( 'variable' ) && is_numeric( $price ) && function_exists( 'get_woocommerce_currency' ) ) {
+				$entity['offers'] = array( 'price' => $price, 'priceCurrency' => get_woocommerce_currency(), 'availability' => $product->is_in_stock() ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' );
+			}
+		}
 		return array(
-			'kind'           => $home ? 'home' : 'singular',
+			'kind'           => $home ? 'home' : ( $profile ? 'profile' : 'singular' ),
 			'home'           => $home,
 			'url'            => $url,
 			'title'          => wp_strip_all_tags( (string) $title ),
@@ -426,11 +568,13 @@ class Digitalisimo_Integrations_Schema_Graph {
 			'modified'       => get_the_modified_date( DATE_W3C, $post ),
 			'image'          => $image ?: '',
 			'breadcrumbs'    => $home || ! self::o( 'seo_breadcrumbs' ) ? array() : Digitalisimo_Integrations_SEO_Suite::breadcrumbs_for( $post ),
-			'entity'         => $type ? array( 'type' => $type ) : null,
+			'entity'         => $entity,
+			'profile'        => $profile,
 			'author'         => $author ? array( 'name' => $author->display_name, 'slug' => $author->user_nicename, 'url' => get_author_posts_url( $author->ID ), 'same_as' => $author->user_url ? array( $author->user_url ) : array() ) : array(),
 			'about_identity' => 'LocalBusiness' === $chosen,
 			'chosen'         => $chosen,
-			'woo_product'    => 'product' === $post->post_type && class_exists( 'WooCommerce' ),
+			'woo_product'    => 'product' === $post->post_type && function_exists( 'wc_get_product' ),
+			'video'          => self::video_from_post( $post ),
 			'spatial'        => Digitalisimo_Integrations_Editorial::location_schema( $post->ID ),
 		);
 	}
@@ -442,10 +586,13 @@ class Digitalisimo_Integrations_Schema_Graph {
 		$url  = ! empty( $c['canonical'] ) && ! is_wp_error( $c['canonical'] ) ? $c['canonical'] : home_url( '/' );
 		$home = is_front_page();
 		if ( is_singular() && ( $post = get_queried_object() ) instanceof WP_Post ) return self::singular_page( $post, $home, $url, $c['title'] ?? '', $c['description'] ?? '' );
-		$kind = $home ? 'home' : ( is_search() ? 'search' : ( is_tax() || is_category() || is_tag() ? 'term' : 'archive' ) );
+		$author_archive = ! $home && is_author() && ! self::o( 'noindex_authors' );
+		$kind = $home ? 'home' : ( $author_archive ? 'author' : ( is_search() ? 'search' : ( is_tax() || is_category() || is_tag() ? 'term' : 'archive' ) ) );
+		$profile = array();
+		if ( $author_archive && ( $user = get_queried_object() ) instanceof WP_User && $user->display_name ) { $url = get_author_posts_url( $user->ID ); $profile = array( 'name' => $user->display_name, 'slug' => $user->user_nicename, 'url' => $url, 'same_as' => $user->user_url ? array( $user->user_url ) : array() ); }
 		$crumbs = array();
 		if ( 'term' === $kind && self::o( 'seo_breadcrumbs' ) && ( $term = get_queried_object() ) ) $crumbs = array( array( 'name' => 'Inicio', 'url' => home_url( '/' ) ), array( 'name' => $term->name, 'url' => $url ) );
-		return array( 'kind' => $kind, 'home' => $home, 'url' => $home ? home_url( '/' ) : $url, 'title' => wp_strip_all_tags( (string) ( $c['title'] ?? '' ) ), 'description' => wp_strip_all_tags( (string) ( $c['description'] ?? '' ) ), 'breadcrumbs' => $crumbs, 'entity' => null );
+		return array( 'kind' => $kind, 'home' => $home, 'url' => $home ? home_url( '/' ) : $url, 'title' => wp_strip_all_tags( (string) ( $c['title'] ?? '' ) ), 'description' => wp_strip_all_tags( (string) ( $c['description'] ?? '' ) ), 'breadcrumbs' => $crumbs, 'entity' => null, 'profile' => $profile );
 	}
 
 	/** Nodos del JSON-LD adicional escrito en el editor, si su tipo es oficial. */
@@ -474,6 +621,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 			array( 'type' => 'WebPage', 'why' => 'Cada URL se declara como página.', 'base' => true ),
 		);
 		if ( $local ) $out[] = array( 'type' => 'LocalBusiness', 'why' => 'SEO local está activo con dirección y contacto.' );
+		if ( in_array( $page['kind'], array( 'author', 'profile' ), true ) && ! empty( $page['profile']['name'] ) ) {
+			$out[] = array( 'type' => 'ProfilePage', 'why' => 'Página pública dedicada a una persona real.' );
+			$out[] = array( 'type' => 'Person', 'why' => 'Persona descrita por el perfil.' );
+		}
+		if ( ! empty( $page['video'] ) ) $out[] = array( 'type' => 'VideoObject', 'why' => 'Video local único con miniatura y fecha reales.' );
 		if ( 'home' !== $page['kind'] && count( (array) ( $page['breadcrumbs'] ?? array() ) ) >= 2 ) $out[] = array( 'type' => 'BreadcrumbList', 'why' => 'Página interna con ruta de navegación.' );
 		if ( ! empty( $page['entity']['type'] ) ) $out[] = array( 'type' => $page['entity']['type'], 'why' => 'Tipo de contenido de esta URL.' );
 		if ( ! empty( $page['woo_product'] ) ) $out[] = array( 'type' => 'Product', 'why' => 'Producto de WooCommerce.' );
@@ -501,13 +653,15 @@ class Digitalisimo_Integrations_Schema_Graph {
 
 	public static function start_buffer() {
 		if ( is_admin() || is_feed() || is_robots() || wp_doing_ajax() || 'GET' !== ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) ) return;
-		if ( ! self::o( 'enable_seo' ) || ! self::o( 'seo_schema_enabled' ) || ! self::o( 'seo_schema_unify', 1 ) ) return;
+		if ( ! self::o( 'enable_seo' ) || ! self::o( 'seo_schema_enabled' ) ) return;
 		if ( self::raw_requested() ) { nocache_headers(); return; }
 		$page = self::current_page();
 		if ( ! $page ) return;
-		ob_start( function( $html ) use ( $page ) {
+		$unify = (bool) self::o( 'seo_schema_unify', 1 );
+		ob_start( function( $html ) use ( $page, $unify ) {
 			if ( false === stripos( $html, 'application/ld+json' ) ) return $html;
-			list( $html ) = self::unify( $html, $page );
+			if ( $unify ) list( $html ) = self::unify( $html, $page );
+			else $html = self::sanitize_own_faq( $html, $page );
 			return $html;
 		} );
 	}

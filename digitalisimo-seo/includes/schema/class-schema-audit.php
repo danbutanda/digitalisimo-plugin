@@ -123,8 +123,8 @@ class Digitalisimo_Integrations_Schema_Audit {
 		if ( ! $report['entities'] ) $html .= '<tr><td colspan="3">No se encontró ningún JSON-LD.</td></tr>';
 		$html .= '</tbody></table>';
 		if ( $report['rich'] ) {
-			$html .= '<h4>Resultados enriquecidos de Google</h4><table class="widefat striped"><thead><tr><th>Tipo</th><th>Función</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>';
-			foreach ( $report['rich'] as $r ) $html .= '<tr><td><code>' . esc_html( $r['type'] ) . '</code></td><td>' . esc_html( $r['feature'] ) . '</td><td>' . self::badge( $r['status'], Digitalisimo_Integrations_Schema_Rules::OK === $r['status'] ? 'APTO' : ( Digitalisimo_Integrations_Schema_Rules::NA === $r['status'] ? 'VÁLIDO' : 'NO APTO' ) ) . '</td><td>' . esc_html( $r['detail'] ) . '</td></tr>';
+			$html .= '<h4>Función de los schemas publicados</h4><p class="description">«Potencial» indica que el marcado cumple las reglas conocidas; Google decide si muestra un resultado enriquecido.</p><table class="widefat striped"><thead><tr><th>Tipo</th><th>Clase</th><th>Función</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>';
+			foreach ( $report['rich'] as $r ) $html .= '<tr><td><code>' . esc_html( $r['type'] ) . '</code></td><td>' . esc_html( $r['category'] ?? 'Semántico' ) . '</td><td>' . esc_html( $r['feature'] ) . '</td><td>' . self::badge( $r['status'], Digitalisimo_Integrations_Schema_Rules::OK === $r['status'] ? 'POTENCIAL' : ( Digitalisimo_Integrations_Schema_Rules::NA === $r['status'] ? 'VÁLIDO' : 'NO APTO' ) ) . '</td><td>' . esc_html( $r['detail'] ) . '</td></tr>';
 			$html .= '</tbody></table>';
 		}
 		if ( $report['missing'] ) {
