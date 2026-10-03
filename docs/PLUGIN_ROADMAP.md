@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| Digitalisimo SEO · tipo de entidad con selector | ✓ 1.0.218 | El tipo de entidad se elige entre Organización, Negocio local y Persona en sitio y red. Ambos guardados validan el valor frente a la lista; un valor inválido vuelve a Organization. | Validación y publicación pendientes. |
+
 | DIGITALÍSIMO Tools · ajustes del sitio | ✓ 1.0.22 | Nueva pestaña «Ajustes del sitio» (sitio y red, con «Heredar de la red» sólo en cada sitio): ruta privada de acceso, redirección de adjuntos y bloqueo del desplazamiento horizontal en móvil, importados una vez desde SEO conservando la herencia de cada sitio. `wp-login.php` ahora responde 404 con la ruta privada activa (antes seguía mostrando el formulario). | `tests/tools-site-options.php` y prueba en WordPress Playground con y sin Tools; Release `v2026.10.03.223`. |
 
 | Digitalisimo SEO · pestaña Auditoría | ✓ 1.0.217 | «Avanzado» y «SEO Front» se sustituyen por «Auditoría», que reúne Schema, SEO Front, llms.txt, las pruebas de Rendimiento y calidad, archivos públicos y SEO AI. El favicon pasa a Identidad. Las tres opciones que no son SEO pasan a Tools; sin Tools activo, SEO las sigue aplicando y avisa. El auditor de Schema exige `priceRange` como Google y las coordenadas se publican con 7 decimales. | 34 pruebas PHP, validador de la suite y prueba en WordPress Playground; Release `v2026.10.03.223` con `digitalisimo-seo-1.0.217.zip` y `digitalisimo-tools-1.0.22.zip`. |
