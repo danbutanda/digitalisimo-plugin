@@ -382,3 +382,17 @@ Los datos reales de digitalisimo.mx mostraron estos ajustes.
 - **Metadata dañada.** Una imagen de la Biblioteca con `width="1" height="1"` ya no se trata como píxel de seguimiento. Para el ALT, su clase `wp-image-N` la identifica aunque su metadata no permita vincularla.
 - **`sizes` de ancho fijo.** Call to Action con imagen y el widget Image con ancho en px publican un `sizes` exacto, con sus valores de tablet y móvil, en lugar del «(max-width: Npx) 100vw, Npx» de WordPress. Los iconos de 75 px con DPR 2 descargan la variante de 150 px, no la de 300.
 - **Imágenes → Auditoría de imágenes.** Usa la última auditoría de calidad cuando no hay captura del diagnóstico de assets.
+
+## Favicon generado · SEO 1.0.213
+
+En SEO → Avanzado, «Generar favicon» (`seo_favicon_source`) recibe un único PNG cuadrado de 512 px o más mediante el campo de Biblioteca y arrastre. La clave es propia de cada sitio (`site_only_keys`), como el nombre del sitio: no se hereda de la red.
+
+- **Generación.** `Digitalisimo_Integrations_Favicon` usa `wp_get_image_editor()` para generar `favicon-48x48.png`, `favicon-96x96.png`, `favicon-192x192.png`, `favicon-512x512.png` y `apple-touch-icon.png` (180 px).
+  - `favicon.ico` es un contenedor ICO con los PNG de 16, 32 y 48 px, porque WordPress no escribe ICO. Se comprobó con `file` y Pillow.
+- **Ubicación y versión.** Los archivos van a `uploads/digitalisimo-favicon/` del sitio en curso (`uploads/sites/N/` en Multisite), con nombres fijos. La versión `?v=` es el hash del PNG maestro.
+- **Regeneración.** Se regenera al guardar sólo si cambia la URL o el contenido del PNG. Existe además un botón «Regenerar ahora».
+- **Head.** Con favicon activo se retira `wp_site_icon` de `wp_head`, `login_head` y `admin_head`, y se imprimen seis etiquetas: el ICO, los cuatro PNG y apple-touch-icon.
+  - El ajuste «Icono del sitio» de WordPress (el que usa Elementor) no se modifica.
+  - `/favicon.ico` se sirve desde `do_faviconico`.
+  - Al quitar el PNG se borran los archivos generados y vuelve el icono anterior.
+- **Diagnóstico.** La pantalla lee la portada y avisa si siguen publicándose otros iconos, escritos por el tema, un plugin o una caché.

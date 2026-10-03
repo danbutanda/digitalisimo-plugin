@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.212
+ * Version: 1.0.213
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.212' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.213' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -60,6 +60,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-image-a
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-quality-rules.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-quality-audit.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-llms.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-favicon.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-migration.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-tracking.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-cache.php';
@@ -85,6 +86,7 @@ function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Performance_JavaScript::init();
 	Digitalisimo_Integrations_Quality_Audit::init();
 	Digitalisimo_Integrations_LLMS::init();
+	Digitalisimo_Integrations_Favicon::init();
 	Digitalisimo_Integrations_Performance_Migration::init();
 	Digitalisimo_Integrations_Performance_Tracking::init();
 	Digitalisimo_Integrations_Performance_Cache::init();

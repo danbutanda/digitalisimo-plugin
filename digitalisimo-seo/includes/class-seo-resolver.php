@@ -4,7 +4,7 @@ defined( 'ABSPATH' ) || exit;
 /** Resuelve valores SEO: contenido/termino → sitio → red Multisite → fallback. */
 class Digitalisimo_Integrations_SEO_Resolver {
 	/** Identidad e imágenes que pertenecen exclusivamente a cada sitio de la red. */
-	public static function site_only_keys() { return array( 'seo_site_name', 'seo_default_image', 'seo_default_image_alt', 'seo_alt_keyword' ); }
+	public static function site_only_keys() { return array( 'seo_site_name', 'seo_default_image', 'seo_default_image_alt', 'seo_alt_keyword', 'seo_favicon_source' ); }
 	public static function option( $key, $fallback = null ) {
 		$site = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 		if ( is_multisite() && self::inherits_network( $key ) ) {

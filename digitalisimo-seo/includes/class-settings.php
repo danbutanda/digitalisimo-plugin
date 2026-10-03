@@ -56,6 +56,7 @@ class Digitalisimo_Integrations_Settings {
 			'seo_logo'               => '',
 			'seo_default_image'      => '',
 			'seo_default_image_alt'  => '',
+			'seo_favicon_source'     => '',
 			'seo_alt_optimize'       => 1,
 			'seo_alt_keyword_mode'   => 'contextual',
 			'seo_alt_keyword'        => '',
