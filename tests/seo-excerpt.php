@@ -8,6 +8,7 @@ class Digitalisimo_Integrations_Settings {
 }
 class Digitalisimo_Media_Field { public static function render( $id, $name, $value ) {} }
 class Digitalisimo_Integrations_Editorial { public static function editor_panels( $post ) {} }
+class Digitalisimo_Integrations_Schema_Audit { public static function editor_button( $post ) {} }
 function wp_nonce_field( $action, $name ) {}
 function get_post_meta( $id, $key, $single = true ) { global $meta; return $meta[ $key ] ?? ''; }
 function get_post( $id ) { global $post; return $post; }
