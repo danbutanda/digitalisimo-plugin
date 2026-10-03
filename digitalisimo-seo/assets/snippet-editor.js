@@ -2,11 +2,39 @@ document.addEventListener('click', (event) => {
 	const save = event.target.closest('[data-snippet-save]');
 	if (save) {
 	  event.preventDefault();
+	  if (save.disabled) return;
+	  const label = 'Guardar cambios';
+	  const finish = (text) => { save.disabled = false; save.textContent = text; window.setTimeout(() => { save.textContent = label; }, 2000); };
 	  save.disabled = true;
 	  save.textContent = 'Guardando…';
-	  if (window.wp && window.wp.data && window.wp.data.dispatch) window.wp.data.dispatch('core/editor').savePost();
-	  else { const form = document.getElementById('post'); if (form) form.requestSubmit(); }
-	  window.setTimeout(() => { save.disabled = false; save.textContent = 'Guardar cambios'; }, 1200);
+	  const data = window.wp && window.wp.data;
+	  const editor = data && data.select && data.select('core/editor');
+	  if (!editor || !editor.getCurrentPostId || !editor.getCurrentPostId()) { const form = document.getElementById('post'); if (form) form.requestSubmit(); return; }
+	  // El slug se envía también al editor de bloques: así queda guardado en el
+	  // mismo clic y su panel «Enlace» no conserva el valor anterior.
+	  const slug = document.querySelector('[data-snippet-input="slug"]');
+	  if (slug && slug.value.trim() && slug.value.trim() !== editor.getEditedPostAttribute('slug')) data.dispatch('core/editor').editPost({ slug: slug.value.trim() });
+	  const editPost = data.select('core/edit-post');
+	  const busy = () => editor.isSavingPost() || Boolean(editPost && editPost.isSavingMetaBoxes && editPost.isSavingMetaBoxes());
+	  let started = false;
+	  let stop = null;
+	  const timer = window.setTimeout(() => { if (stop) stop(); finish(label); }, 30000);
+	  let settle = 0;
+	  // Los metaboxes se envían justo después de la entrada: se espera un
+	  // instante sin actividad antes de anunciar que todo quedó guardado.
+	  stop = data.subscribe(() => {
+	    window.clearTimeout(settle);
+	    if (busy()) { started = true; return; }
+	    if (!started) return;
+	    settle = window.setTimeout(() => {
+	      if (busy()) return;
+	      stop(); window.clearTimeout(timer);
+	      finish(editor.didPostSaveRequestFail && editor.didPostSaveRequestFail() ? 'No se pudo guardar' : 'Guardado ✓');
+	    }, 400);
+	  });
+	  data.dispatch('core/editor').savePost();
+	  // savePost() no hace nada si el editor aún no admite guardar (entrada vacía).
+	  window.setTimeout(() => { if (!started && !busy()) { stop(); window.clearTimeout(timer); finish(label); } }, 3000);
 	  return;
 	}
   const expand = event.target.closest('[data-snippet-expand]');
@@ -21,7 +49,11 @@ document.addEventListener('click', (event) => {
     editor.parentNode.insertBefore(placeholder, editor);
     editor.dataset.digitalisimoSnippetOrigin = 'open';
     editor.__digitalisimoSnippetPlaceholder = placeholder;
+    // Los metaboxes del editor de bloques viven en un <form> sin id. Sin uno,
+    // los campos movidos a la ventana amplia quedan fuera del envío y el
+    // primer «Guardar» no los incluye.
     const form = editor.closest('form') || document.getElementById('post');
+    if (form && !form.id) form.id = 'digitalisimo-snippet-form';
     if (form && form.id) editor.querySelectorAll('input, select, textarea').forEach((field) => {
       field.dataset.digitalisimoOriginalForm = field.getAttribute('form') || '';
       field.setAttribute('form', form.id);
