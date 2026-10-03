@@ -12,7 +12,7 @@ const modules = [
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.35.zip', version: '1.0.35' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.23.zip', version: '1.0.23' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.1.zip', version: '4.3.0.1' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.2.zip', version: '4.3.0.2' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -65,7 +65,7 @@ const declarations = new Map();
   const source = readFileSync(main, 'utf8');
   if (!source.includes(`Version: ${elementsModule.version}`) || !source.includes('Requires Plugins: elementor') || !source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements')) throw new Error('La versión derivada debe exigir Elementor y tener su actualizador propio.');
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
-  for (const required of ['pro-elements.php', 'plugin.php', 'license.txt', 'COPYING', 'DIGITALISIMO_CHANGES.md', 'digitalisimo-updater.php', 'digitalisimo-compat.php', 'digitalisimo-brand.php', 'assets/digitalisimo/logo-negro.webp', 'assets/digitalisimo/logo-blanco.webp', 'assets/digitalisimo/icono.png']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
+  for (const required of ['pro-elements.php', 'plugin.php', 'license.txt', 'COPYING', 'DIGITALISIMO_CHANGES.md', 'digitalisimo-updater.php', 'digitalisimo-compat.php', 'digitalisimo-brand.php', 'vendor/autoload.php', 'vendor/composer/ClassLoader.php', 'vendor/composer/autoload_real.php', 'assets/digitalisimo/logo-negro.webp', 'assets/digitalisimo/logo-blanco.webp', 'assets/digitalisimo/icono.png']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
   if (listing.includes('.DS_Store')) throw new Error('El paquete Elements contiene archivos de sistema.');
   if (!readFileSync(join(elementsModule.dir, 'license.txt'), 'utf8').includes('PRO Elements team') || !readFileSync(join(elementsModule.dir, 'plugin.php'), 'utf8').includes('DIGITALÍSIMO: este derivado se actualiza únicamente desde su propio asset.')) throw new Error('Se perdieron créditos o sigue activo el actualizador original de Elements.');
 }

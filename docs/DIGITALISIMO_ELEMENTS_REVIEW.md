@@ -17,4 +17,4 @@ Base examinada: asset oficial `pro-elements.zip` de [PRO Elements 4.3.0](https:/
 
 ## Instalación y comprobación
 
-El ZIP `digitalisimo-elements-4.3.0.1.zip` se instala como plugin independiente. Los catálogos de SEO y Tools lo muestran cuando está publicado. No requiere que ninguno de esos dos módulos esté activo. No activar junto a Elementor Pro ni otra copia de PRO Elements. La instalación o activación en el sitio real queda fuera de esta entrega hasta hacer una prueba de compatibilidad y respaldo.
+El ZIP `digitalisimo-elements-4.3.0.2.zip` se instala como plugin independiente. Los catálogos de SEO y Tools lo muestran cuando está publicado. No requiere que ninguno de esos dos módulos esté activo. La primera Release 4.3.0.1 omitió los archivos `vendor/` por una regla de Git y no debe instalarse. No activar junto a Elementor Pro ni otra copia de PRO Elements. La instalación o activación en el sitio real queda fuera de esta entrega hasta hacer una prueba de compatibilidad y respaldo.
