@@ -5,13 +5,14 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.219.zip', version: '1.0.219' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.220.zip', version: '1.0.220' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.27.zip', version: '1.0.27' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.51.zip', version: '1.0.51' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.21.zip', version: '1.0.21' },
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.35.zip', version: '1.0.35' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.22.zip', version: '1.0.22' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.23.zip', version: '1.0.23' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.1.zip', version: '4.3.0.1' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -57,6 +58,17 @@ for (const module of modules) {
 }
 
 const declarations = new Map();
+{
+  const main = join(elementsModule.dir, elementsModule.file);
+  const zip = join(packageDir, elementsModule.zip);
+  if (!existsSync(main) || !existsSync(zip)) throw new Error(`Falta ${main} o ${zip}`);
+  const source = readFileSync(main, 'utf8');
+  if (!source.includes(`Version: ${elementsModule.version}`) || !source.includes('Requires Plugins: elementor') || !source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements')) throw new Error('La versión derivada debe exigir Elementor y tener su actualizador propio.');
+  const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
+  for (const required of ['pro-elements.php', 'plugin.php', 'license.txt', 'COPYING', 'DIGITALISIMO_CHANGES.md', 'digitalisimo-updater.php', 'digitalisimo-compat.php', 'digitalisimo-brand.php', 'assets/digitalisimo/logo-negro.webp', 'assets/digitalisimo/logo-blanco.webp', 'assets/digitalisimo/icono.png']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
+  if (listing.includes('.DS_Store')) throw new Error('El paquete Elements contiene archivos de sistema.');
+  if (!readFileSync(join(elementsModule.dir, 'license.txt'), 'utf8').includes('PRO Elements team') || !readFileSync(join(elementsModule.dir, 'plugin.php'), 'utf8').includes('DIGITALÍSIMO: este derivado se actualiza únicamente desde su propio asset.')) throw new Error('Se perdieron créditos o sigue activo el actualizador original de Elements.');
+}
 for (const file of phpFiles) {
   const source = readFileSync(file, 'utf8');
   for (const match of source.matchAll(/(?:final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)/g)) {
@@ -237,4 +249,4 @@ if (!chatbotMcpArticles.includes("'post_status' => 'draft'")) throw new Error('E
 if (seoAiTools.some((source) => source.includes("add_submenu_page( 'digitalisimo'"))) throw new Error('Una herramienta SEO AI sigue expuesta como submenú lateral');
 if (coreFiles.some((source) => !source.includes("remove_submenu_page( 'digitalisimo', 'digitalisimo' )"))) throw new Error('El submenú automático Digitalisimo no se oculta en todos los módulos');
 
-console.log(`Suite validada: ${modules.length + 1} módulos, ${phpFiles.length} archivos PHP, sin clases duplicadas no protegidas.`);
+console.log(`Suite validada: ${modules.length + 2} módulos, ${phpFiles.length} archivos PHP base, sin clases duplicadas no protegidas.`);

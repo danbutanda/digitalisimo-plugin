@@ -42,6 +42,7 @@ final class Digitalisimo_Plugin_Catalog {
 			'digitalisimo-ia-tools' => array( 'Digitalisimo IA Tools', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'Chatbot, proveedores IA, RAG y generación de imágenes.' ),
 			'digitalisimo-seo' => array( 'Digitalisimo SEO', 'digitalisimo-seo/digitalisimo-integrations.php', 'SEO técnico, schema, contenido y SEO AI.' ),
 			'digitalisimo-tools' => array( 'DIGITALÍSIMO Tools', 'digitalisimo-tools/digitalisimo-tools.php', 'Herramientas internas y plantillas Elementor de red.' ),
+			'digitalisimo-elements' => array( 'DIGITALÍSIMO Elements', 'digitalisimo-elements/pro-elements.php', 'Funciones GPL avanzadas para Elementor gratuito.' ),
 		);
 	}
 

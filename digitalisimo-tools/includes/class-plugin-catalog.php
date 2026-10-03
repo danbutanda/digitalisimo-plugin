@@ -30,6 +30,7 @@ final class Plugin_Catalog {
 		'digitalisimo-hosting' => array( 'name' => 'Digitalisimo Hosting', 'file' => 'digitalisimo-hosting/digitalisimo-hosting.php', 'description' => 'Dominios, Namecheap y hosting.' ),
 		'digitalisimo-backups' => array( 'name' => 'Digitalisimo Backups', 'file' => 'digitalisimo-backups/digitalisimo-backups.php', 'description' => 'Respaldos de sitio y red.' ),
 		'digitalisimo-tools' => array( 'name' => 'DIGITALÍSIMO Tools', 'file' => 'digitalisimo-tools/digitalisimo-tools.php', 'description' => 'Herramientas internas y plantillas Elementor de red.' ),
+		'digitalisimo-elements' => array( 'name' => 'DIGITALÍSIMO Elements', 'file' => 'digitalisimo-elements/pro-elements.php', 'description' => 'Funciones GPL avanzadas para Elementor gratuito, con identidad DIGITALÍSIMO.' ),
 	); }
 	private static function releases() {
 		$cached = get_site_transient( self::CACHE ); if ( false !== $cached ) return (array) $cached;

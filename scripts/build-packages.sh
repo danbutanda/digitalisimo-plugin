@@ -19,7 +19,7 @@ build_package() {
 
 packages=("${@:2}")
 if (( ${#packages[@]} == 0 )); then
-  packages=(digitalisimo-seo digitalisimo-ecommerce digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools)
+  packages=(digitalisimo-seo digitalisimo-ecommerce digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements)
 fi
 
 for package in "${packages[@]}"; do
@@ -30,6 +30,7 @@ for package in "${packages[@]}"; do
     digitalisimo-hosting) build_package digitalisimo-hosting digitalisimo-hosting.php "$package" ;;
     digitalisimo-backups) build_package digitalisimo-backups digitalisimo-backups.php "$package" ;;
     digitalisimo-tools) build_package digitalisimo-tools digitalisimo-tools.php "$package" ;;
+    digitalisimo-elements) build_package digitalisimo-elements pro-elements.php "$package" ;;
     *) echo "Módulo desconocido: $package" >&2; exit 1 ;;
   esac
 done

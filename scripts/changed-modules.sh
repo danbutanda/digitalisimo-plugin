@@ -15,5 +15,6 @@ git diff --name-only -z "$base" "$head" | while IFS= read -r -d '' path; do
     digitalisimo-hosting/*) echo digitalisimo-hosting ;;
     digitalisimo-backups/*) echo digitalisimo-backups ;;
     digitalisimo-tools/*) echo digitalisimo-tools ;;
+    digitalisimo-elements/*) echo digitalisimo-elements ;;
   esac
 done | sort -u
