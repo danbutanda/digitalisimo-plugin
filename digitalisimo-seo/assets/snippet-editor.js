@@ -37,6 +37,20 @@ document.addEventListener('click', (event) => {
 	  window.setTimeout(() => { if (!started && !busy()) { stop(); window.clearTimeout(timer); finish(label); } }, 3000);
 	  return;
 	}
+  const probe = event.target.closest('[data-schema-preview]');
+  if (probe) {
+    event.preventDefault();
+    const result = probe.parentNode.querySelector('[data-schema-preview-result]');
+    const body = new URLSearchParams({ action: 'digitalisimo_schema_preview', post_id: probe.dataset.schemaPreview, nonce: probe.dataset.nonce });
+    probe.disabled = true;
+    probe.textContent = 'Probando…';
+    fetch(probe.dataset.ajax, { method: 'POST', credentials: 'same-origin', body })
+      .then((response) => response.json())
+      .then((json) => { result.innerHTML = json && json.success ? json.data : '<p>No se pudo probar el schema.</p>'; })
+      .catch(() => { result.innerHTML = '<p>No se pudo probar el schema.</p>'; })
+      .finally(() => { probe.disabled = false; probe.textContent = 'Probar schema'; });
+    return;
+  }
   const expand = event.target.closest('[data-snippet-expand]');
   const close = event.target.closest('[data-snippet-modal-close], .digitalisimo-snippet-modal-backdrop');
   if (!expand && !close) return;

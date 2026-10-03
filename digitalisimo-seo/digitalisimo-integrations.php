@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.215
+ * Version: 1.0.216
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.215' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.216' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -26,6 +26,10 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-resolver.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-hide-login.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-suite.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/schema/class-schema-vocabulary.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/schema/class-schema-rules.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/schema/class-schema-graph.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/schema/class-schema-audit.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-sitemap.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-robots.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai.php';
@@ -94,6 +98,8 @@ function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Asset_Diagnostics::init();
 	Digitalisimo_Integrations_Performance_Measurements::init();
 	Digitalisimo_Integrations_SEO_Suite::init();
+	Digitalisimo_Integrations_Schema_Graph::init();
+	Digitalisimo_Integrations_Schema_Audit::init();
 	Digitalisimo_Integrations_Sitemap::init();
 	Digitalisimo_Integrations_Robots::init();
 	// La política robots pertenece a SEO y funciona aunque AI y Chatbot no esté instalado.
