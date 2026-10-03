@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| Digitalisimo SEO · snippet guardado en un clic | ✓ 1.0.215 | «Guardar cambios» del snippet guarda la entrada y sus campos SEO en un solo clic aun con la ventana amplia abierta: el `<form>` sin id de los metaboxes del editor de bloques recibe uno para que los campos movidos sigan en el envío; el slug se pasa también a `core/editor` y el botón espera el fin del guardado de entrada y metaboxes antes de anunciar «Guardado ✓». | Validador de la suite y pruebas PHP. |
+| Digitalisimo SEO · snippet guardado en un clic | ✓ 1.0.215 | «Guardar cambios» del snippet guarda la entrada y sus campos SEO en un solo clic aun con la ventana amplia abierta: el `<form>` sin id de los metaboxes del editor de bloques recibe uno para que los campos movidos sigan en el envío; el slug se pasa también a `core/editor` y el botón espera el fin del guardado de entrada y metaboxes antes de anunciar «Guardado ✓». | Validador de la suite y pruebas PHP; Release `v2026.10.03.220` sólo con `digitalisimo-seo-1.0.215.zip`. |
 
 | Digitalisimo SEO · favicon como única fuente | ✓ 1.0.214 | Con favicon generado activo, `get_site_icon_url` y `site_icon_meta_tags` devuelven sólo el de Digitalísimo (core, tema, Elementor, REST, feeds y plugins); el `<head>` se limpia de iconos ajenos y se publican `/site.webmanifest` y `/apple-touch-icon(-precomposed).png`. Un manifiesto PWA ajeno se respeta. Pasaron las pruebas PHP y la suite de seis módulos. Falta comprobar la salida pública después de actualizar WordPress. |
 
