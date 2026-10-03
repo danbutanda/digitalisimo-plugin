@@ -27,7 +27,11 @@ class Digitalisimo_Integrations_Favicon {
 		add_action( 'update_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'settings_changed' ), 10, 2 );
 		add_action( 'add_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'added' ) );
 		add_action( 'admin_post_digitalisimo_favicon_regenerate', array( __CLASS__, 'regenerate_action' ) );
-		add_action( 'init', array( __CLASS__, 'takeover' ) );
+		// Todo lo que pide el icono del sitio (core, tema, Elementor, REST, feeds, plugins) recibe éste.
+		add_filter( 'get_site_icon_url', array( __CLASS__, 'site_icon_url' ), PHP_INT_MAX, 3 );
+		add_filter( 'site_icon_meta_tags', array( __CLASS__, 'meta_tags' ), PHP_INT_MAX );
+		add_action( 'template_redirect', array( __CLASS__, 'start_buffer' ), 3 );
+		add_action( 'parse_request', array( __CLASS__, 'serve_root' ), 0 );
 		add_action( 'do_faviconico', array( __CLASS__, 'serve_ico' ), 0 );
 	}
 
@@ -186,13 +190,27 @@ class Digitalisimo_Integrations_Favicon {
 	 * Salida
 	 * ------------------------------------------------------------------ */
 
-	/** Un solo juego de etiquetas: el icono del sitio de WordPress deja de imprimirse. */
-	public static function takeover() {
-		if ( ! self::active() ) return;
-		foreach ( array( 'wp_head' => 99, 'login_head' => 99, 'admin_head' => 10 ) as $hook => $priority ) {
-			remove_action( $hook, 'wp_site_icon', $priority );
-			add_action( $hook, array( __CLASS__, 'print_tags' ), $priority );
-		}
+	/** Archivo generado más cercano por arriba al tamaño pedido (32 → 48, 270 → 512). */
+	public static function file_for( $size ) {
+		$best = 'favicon-512x512.png';
+		$sizes = array( 'favicon-48x48.png' => 48, 'favicon-96x96.png' => 96, 'apple-touch-icon.png' => 180, 'favicon-192x192.png' => 192, 'favicon-512x512.png' => 512 );
+		foreach ( $sizes as $file => $side ) if ( $side >= (int) $size ) { $best = $file; break; }
+		return $best;
+	}
+
+	/** get_site_icon_url: el sitio en curso responde con su favicon generado. */
+	public static function site_icon_url( $url, $size = 512, $blog_id = 0 ) {
+		if ( $blog_id && function_exists( 'get_current_blog_id' ) && (int) $blog_id !== get_current_blog_id() ) return $url;
+		return self::active() ? self::url( self::file_for( $size ) ) : $url;
+	}
+
+	/** site_icon_meta_tags: cualquier llamada a wp_site_icon() imprime este juego y sólo éste. */
+	public static function meta_tags( $tags ) {
+		return self::active() ? self::tags() : $tags;
+	}
+
+	public static function manifest_url() {
+		return home_url( '/site.webmanifest' );
 	}
 
 	public static function tags() {
@@ -202,11 +220,98 @@ class Digitalisimo_Integrations_Favicon {
 			$tags[] = '<link rel="icon" type="image/png" sizes="' . $size . 'x' . $size . '" href="' . esc_url( self::url( $file ) ) . '">';
 		}
 		$tags[] = '<link rel="apple-touch-icon" sizes="180x180" href="' . esc_url( self::url( 'apple-touch-icon.png' ) ) . '">';
+		$tags[] = '<link rel="manifest" href="' . esc_url( self::manifest_url() ) . '">';
+		$tags[] = '<meta name="msapplication-TileImage" content="' . esc_url( self::url( 'favicon-512x512.png' ) ) . '">';
 		return $tags;
 	}
 
-	public static function print_tags() {
-		echo implode( "\n", self::tags() ) . "\n";
+	/** Manifiesto web con los iconos para Android, Chrome y herramientas que lo leen. */
+	public static function manifest( $name, $home ) {
+		$name = trim( (string) $name );
+		// Nombre corto: la primera palabra si cabe en 12 caracteres; si no, los 12 primeros. Por caracteres, no bytes.
+		$first = preg_split( '/\s+/u', $name )[0] ?? $name;
+		$short = preg_match( '/^.{1,12}$/u', $first ) ? $first : ( preg_match( '/^.{0,12}/u', $name, $m ) ? trim( $m[0] ) : $name );
+		return json_encode( array(
+			'name' => $name, 'short_name' => $short, 'start_url' => $home, 'display' => 'browser',
+			'icons' => array(
+				array( 'src' => self::url( 'favicon-192x192.png' ), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any' ),
+				array( 'src' => self::url( 'favicon-512x512.png' ), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any' ),
+			),
+		), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
+	}
+
+	/**
+	 * <head> con un solo juego de iconos: se retiran los que escribe a mano un
+	 * tema, un kit o un plugin; si alguien quitó wp_site_icon(), se inserta el
+	 * nuestro. Si otro plugin ya publica un manifiesto, se respeta el suyo.
+	 */
+	public static function clean_head( $html, $tags ) {
+		if ( ! is_string( $html ) ) return $html;
+		$end = stripos( $html, '</head>' );
+		if ( false === $end ) return $html;
+		$head = substr( $html, 0, $end );
+		$ours = '/' . self::DIR . '/';
+		$foreign_manifest = false;
+		$head = preg_replace_callback( '/<link\b[^>]*>/i', function( $match ) use ( $ours, &$foreign_manifest ) {
+			$tag = $match[0];
+			if ( ! preg_match( '/\brel\s*=\s*["\']?([^"\'>]+)/i', $tag, $rel ) ) return $tag;
+			$rel = strtolower( trim( $rel[1] ) );
+			if ( 'manifest' === $rel ) {
+				if ( false === strpos( $tag, 'site.webmanifest' ) ) $foreign_manifest = true;
+				return $tag;
+			}
+			if ( ! preg_match( '/(?:^|\s)(?:shortcut\s+icon|icon|apple-touch-icon(?:-precomposed)?|mask-icon|fluid-icon)(?:\s|$)/', $rel ) ) return $tag;
+			return false !== strpos( $tag, $ours ) ? $tag : '';
+		}, $head );
+		$head = preg_replace_callback( '/<meta\b[^>]*\bname\s*=\s*["\']?msapplication-TileImage["\']?[^>]*>/i', function( $match ) use ( $ours ) {
+			return false !== strpos( $match[0], $ours ) ? $match[0] : '';
+		}, $head );
+		if ( $foreign_manifest ) $head = preg_replace( '/<link\b[^>]*\brel\s*=\s*["\']?manifest["\']?[^>]*site\.webmanifest[^>]*>\s*/i', '', $head );
+		if ( false === strpos( $head, $ours . 'favicon.ico' ) ) {
+			$insert = $tags;
+			if ( $foreign_manifest ) $insert = array_values( array_filter( $insert, function( $tag ) { return false === strpos( $tag, 'rel="manifest"' ); } ) );
+			$head .= implode( "\n", $insert ) . "\n";
+		}
+		return $head . substr( $html, $end );
+	}
+
+	public static function start_buffer() {
+		if ( ! self::active() || is_admin() || is_feed() || is_embed() || is_robots() || ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) ) return;
+		ob_start( array( __CLASS__, 'buffer' ) );
+	}
+
+	public static function buffer( $html, $phase = 0 ) {
+		try { return self::clean_head( $html, self::tags() ); }
+		catch ( Throwable $error ) { return $html; }
+	}
+
+	/** Ruta pública del sitio en curso, también en subdirectorios. */
+	private static function path_is( $request, $file ) {
+		return rawurldecode( (string) wp_parse_url( $request, PHP_URL_PATH ) ) === (string) wp_parse_url( home_url( '/' . $file ), PHP_URL_PATH );
+	}
+
+	/** /site.webmanifest y /apple-touch-icon*.png, que muchas herramientas piden sin leer el HTML. */
+	public static function serve_root() {
+		if ( ! self::active() ) return;
+		$request = (string) ( $_SERVER['REQUEST_URI'] ?? '' );
+		if ( self::path_is( $request, 'site.webmanifest' ) ) {
+			status_header( 200 );
+			header( 'Content-Type: application/manifest+json; charset=utf-8' );
+			header( 'Cache-Control: public, max-age=86400' );
+			echo self::manifest( wp_strip_all_tags( get_bloginfo( 'name' ) ), home_url( '/' ) );
+			exit;
+		}
+		foreach ( array( 'apple-touch-icon.png', 'apple-touch-icon-precomposed.png' ) as $file ) {
+			if ( ! self::path_is( $request, $file ) ) continue;
+			$path = self::dir()[0] . '/apple-touch-icon.png';
+			if ( ! is_readable( $path ) ) return;
+			status_header( 200 );
+			header( 'Content-Type: image/png' );
+			header( 'Cache-Control: public, max-age=604800' );
+			header( 'Content-Length: ' . filesize( $path ) );
+			readfile( $path );
+			exit;
+		}
 	}
 
 	/** /favicon.ico del sitio (lo piden navegadores y buscadores aunque no lo declare el HTML). */
@@ -246,7 +351,7 @@ class Digitalisimo_Integrations_Favicon {
 	public static function render() {
 		$state  = self::state();
 		$source = self::source();
-		echo '<h3>Generar favicon</h3><p>Sube un único PNG cuadrado de ' . self::MIN . ' × ' . self::MIN . ' px o mayor. Se generan favicon.ico (16, 32 y 48 px), PNG de 48, 96, 192 y 512 px y apple-touch-icon de 180 px, y se declaran en el &lt;head&gt;. Sólo se regenera cuando cambias la imagen. Mientras esté activo, sustituye al icono del sitio de WordPress y Elementor sin modificar su ajuste; al quitar la imagen vuelve el anterior.</p>';
+		echo '<h3>Generar favicon</h3><p>Sube un único PNG cuadrado de ' . self::MIN . ' × ' . self::MIN . ' px o mayor. Se generan favicon.ico (16, 32 y 48 px), PNG de 48, 96, 192 y 512 px y apple-touch-icon de 180 px, y se declaran en el &lt;head&gt;. Sólo se regenera cuando cambias la imagen. Mientras esté activo es el único icono del sitio: lo reciben WordPress, el tema, Elementor, la API, los feeds y los plugins, se retiran otros iconos del &lt;head&gt; y se publican /site.webmanifest y /apple-touch-icon.png. El ajuste «Icono del sitio» no se modifica; al quitar la imagen vuelve el anterior.</p>';
 		if ( isset( $_GET['favicon'] ) ) echo '<div class="notice notice-success inline"><p>Favicon regenerado.</p></div>';
 		echo '<form method="post" action="options.php">';
 		settings_fields( 'digitalisimo_integrations' );
@@ -266,6 +371,9 @@ class Digitalisimo_Integrations_Favicon {
 			if ( $foreign ) echo '<div class="notice notice-warning inline"><p>La portada todavía publica otros iconos, probablemente escritos por el tema, un plugin o una caché de página: ' . esc_html( implode( ' · ', $foreign ) ) . '. Purga la caché; si siguen, quítalos de su origen.</p></div>';
 			else echo '<p>' . ( class_exists( 'Digitalisimo_Integrations_Quality_Audit' ) ? Digitalisimo_Integrations_Quality_Audit::badge( 'OK' ) : '✓' ) . ' La portada publica sólo el favicon de Digitalísimo.</p>';
 		}
+		$root = wp_remote_get( home_url( '/favicon.ico' ), array( 'timeout' => 8, 'redirection' => 2, 'sslverify' => false ) );
+		$ico  = self::dir()[0] . '/favicon.ico';
+		if ( ! is_wp_error( $root ) && 200 === (int) wp_remote_retrieve_response_code( $root ) && is_readable( $ico ) && md5( (string) wp_remote_retrieve_body( $root ) ) !== md5_file( $ico ) ) echo '<div class="notice notice-warning inline"><p>/favicon.ico no es el generado: probablemente hay un archivo favicon.ico físico en la raíz del servidor, que se sirve antes que WordPress. Bórralo para que buscadores y navegadores reciban éste.</p></div>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="digitalisimo_favicon_regenerate">';
 		wp_nonce_field( 'digitalisimo_favicon_regenerate' );
 		submit_button( 'Regenerar ahora', 'secondary', 'submit', false );

@@ -396,3 +396,16 @@ En SEO → Avanzado, «Generar favicon» (`seo_favicon_source`) recibe un único
   - `/favicon.ico` se sirve desde `do_faviconico`.
   - Al quitar el PNG se borran los archivos generados y vuelve el icono anterior.
 - **Diagnóstico.** La pantalla lee la portada y avisa si siguen publicándose otros iconos, escritos por el tema, un plugin o una caché.
+
+### Favicon como única fuente del sitio · SEO 1.0.214
+
+Con un favicon generado activo, éste es el único icono del sitio.
+
+- **Icono del sitio.** `get_site_icon_url` devuelve el archivo generado más cercano al tamaño pedido (32 → 48, 270 → 512). Lo reciben core, tema, Elementor, REST, feeds y plugins. Una consulta por otro blog de la red no se toca.
+- **Etiquetas.** `site_icon_meta_tags` sustituye cualquier salida de `wp_site_icon()`.
+- **Limpieza del `<head>`.** Un buffer frontal retira los `<link rel="icon|shortcut icon|apple-touch-icon|mask-icon">` y `msapplication-TileImage` ajenos. Si un tema quitó `wp_site_icon()`, inserta las etiquetas.
+- **Para herramientas.**
+  - Se publican `/site.webmanifest`, con iconos 192/512 y `application/manifest+json`, y `/apple-touch-icon.png` y `/apple-touch-icon-precomposed.png` en la raíz.
+  - Un manifiesto de otro plugin (PWA) se respeta y no se duplica.
+- **Diagnóstico.** La pantalla avisa si `/favicon.ico` no es el generado, señal de un archivo físico en la raíz del servidor.
+- **Corrección.** El nombre corto del manifiesto se corta por caracteres sin depender de `mbstring`.

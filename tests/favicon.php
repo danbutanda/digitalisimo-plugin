@@ -23,6 +23,8 @@ function trailingslashit( $v ) { return rtrim( $v, '/' ) . '/'; }
 function wp_upload_dir() { return array( 'basedir' => $GLOBALS['tmp'] . '/sites/' . $GLOBALS['blog'], 'baseurl' => 'https://site' . $GLOBALS['blog'] . '.test/wp-content/uploads' ); }
 function wp_mkdir_p( $dir ) { return is_dir( $dir ) || mkdir( $dir, 0777, true ); }
 function esc_url( $v ) { return $v; }
+function home_url( $path = '' ) { return 'https://site' . $GLOBALS['blog'] . '.test' . $path; }
+function get_current_blog_id() { return $GLOBALS['blog']; }
 function attachment_url_to_postid( $url ) { return isset( $GLOBALS['masters'][ $url ] ) ? 7 : 0; }
 function get_attached_file( $id ) { return $GLOBALS['master_path']; }
 function wp_getimagesize( $path ) { return $GLOBALS['master_info']; }
@@ -86,7 +88,24 @@ $tags = implode( "\n", $f::tags() );
 $version = $f::state()['version'];
 check( false !== strpos( $tags, 'href="https://site1.test/wp-content/uploads/digitalisimo-favicon/favicon.ico?v=' . $version . '" sizes="16x16 32x32 48x48"' ), 'favicon.ico declarado con sus tamaños.' );
 foreach ( array( 48, 96, 192, 512 ) as $size ) check( false !== strpos( $tags, 'type="image/png" sizes="' . $size . 'x' . $size . '" href="https://site1.test/wp-content/uploads/digitalisimo-favicon/favicon-' . $size . 'x' . $size . '.png?v=' ), 'PNG de ' . $size . ' declarado.' );
-check( false !== strpos( $tags, '<link rel="apple-touch-icon" sizes="180x180" href="https://site1.test/wp-content/uploads/digitalisimo-favicon/apple-touch-icon.png?v=' ) && 6 === count( $f::tags() ), 'apple-touch-icon y seis etiquetas en total.' );
+check( false !== strpos( $tags, '<link rel="apple-touch-icon" sizes="180x180" href="https://site1.test/wp-content/uploads/digitalisimo-favicon/apple-touch-icon.png?v=' ) && 8 === count( $f::tags() ), 'apple-touch-icon, manifiesto y msapplication: ocho etiquetas.' );
+
+// Supremo: todo lo que pide el icono del sitio recibe éste, en el tamaño adecuado.
+check( 'favicon-48x48.png' === $f::file_for( 32 ) && 'favicon-48x48.png' === $f::file_for( 48 ) && 'apple-touch-icon.png' === $f::file_for( 180 ) && 'favicon-192x192.png' === $f::file_for( 192 ) && 'favicon-512x512.png' === $f::file_for( 270 ) && 'favicon-512x512.png' === $f::file_for( 512 ), 'Archivo más cercano por arriba al tamaño pedido.' );
+check( 0 === strpos( $f::site_icon_url( 'https://site1.test/wp-content/uploads/viejo.png', 32, 1 ), 'https://site1.test/wp-content/uploads/digitalisimo-favicon/favicon-48x48.png?v=' ), 'get_site_icon_url devuelve el favicon generado.' );
+check( 'otro' === $f::site_icon_url( 'otro', 32, 2 ), 'Una consulta por otro sitio de la red no se toca.' );
+check( $f::tags() === $f::meta_tags( array( '<link rel="icon" href="viejo.png" sizes="32x32">' ) ), 'wp_site_icon() imprime sólo este juego.' );
+$head = "<html><head><title>x</title>\n<link rel=\"shortcut icon\" href=\"/tema/favicon.ico\">\n<link rel='apple-touch-icon' href=\"/kit/apple.png\">\n<link rel=\"stylesheet\" href=\"a.css\">\n<meta name=\"msapplication-TileImage\" content=\"/viejo.png\">\n" . implode( "\n", $f::tags() ) . "\n</head><body><a rel=\"icon\" href=\"/body.png\">x</a></body></html>";
+$clean = $f::clean_head( $head, $f::tags() );
+check( false === strpos( $clean, '/tema/favicon.ico' ) && false === strpos( $clean, '/kit/apple.png' ) && false === strpos( $clean, '/viejo.png' ), 'Los iconos del tema, kit o plugins se retiran del head.' );
+check( 1 === substr_count( $clean, 'favicon.ico?v=' ) && false !== strpos( $clean, 'a.css' ) && false !== strpos( $clean, '/body.png' ), 'Se conserva el nuestro, el resto del head y el body intactos.' );
+$bare = $f::clean_head( '<html><head><link rel="icon" href="/tema.png"></head><body></body></html>', $f::tags() );
+check( 1 === substr_count( $bare, 'digitalisimo-favicon/favicon.ico' ) && false === strpos( $bare, '/tema.png' ) && false !== strpos( $bare, 'rel="manifest"' ), 'Si un tema quitó wp_site_icon(), se insertan las etiquetas.' );
+$pwa = $f::clean_head( '<html><head><link rel="manifest" href="/pwa/manifest.json">' . implode( '', $f::tags() ) . '</head><body></body></html>', $f::tags() );
+check( false !== strpos( $pwa, '/pwa/manifest.json' ) && false === strpos( $pwa, 'site.webmanifest' ), 'Un manifiesto de otro plugin (PWA) se respeta y no se duplica.' );
+check( '<p>sin head</p>' === $f::clean_head( '<p>sin head</p>', $f::tags() ), 'Sin </head> no se toca.' );
+$manifest = json_decode( $f::manifest( 'DIGITALÍSIMO Agencia', 'https://site1.test/' ), true );
+check( 'DIGITALÍSIMO Agencia' === $manifest['name'] && 'DIGITALÍSIMO' === $manifest['short_name'] && 2 === count( $manifest['icons'] ) && '512x512' === $manifest['icons'][1]['sizes'] && 0 === strpos( $manifest['icons'][0]['src'], 'https://site1.test/wp-content/uploads/digitalisimo-favicon/favicon-192x192.png' ), 'Manifiesto con nombre e iconos 192/512.' );
 
 // Regenerar sólo cuando cambia la imagen.
 check( ! sync_with_fake() && 7 === $GLOBALS['editor_calls'], 'Mismo PNG: no se regenera.' );
