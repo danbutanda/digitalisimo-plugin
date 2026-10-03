@@ -188,6 +188,20 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( $pages as $slug => $page ) add_submenu_page( null, __( $page[0], 'digitalisimo-integrations' ), __( $page[0], 'digitalisimo-integrations' ), 'manage_options', $slug, array( __CLASS__, $page[1] ) );
 	}
 
+	/**
+	 * La ruta privada de acceso, la redirección de adjuntos y el bloqueo del
+	 * desplazamiento móvil pasaron a DIGITALÍSIMO Tools. Mientras Tools no esté
+	 * activo, SEO las sigue aplicando con los valores guardados para no abrir
+	 * wp-login.php ni cambiar el sitio al actualizar.
+	 */
+	public static function tools_handles_site_options() {
+		static $handled = null;
+		if ( null !== $handled ) return $handled;
+		$file   = 'digitalisimo-tools/digitalisimo-tools.php';
+		$active = in_array( $file, (array) get_option( 'active_plugins', array() ), true ) || ( is_multisite() && isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $file ] ) );
+		return $handled = $active && file_exists( WP_PLUGIN_DIR . '/digitalisimo-tools/modules/site-options/class-site-options.php' );
+	}
+
 	public static function register_settings() {
 		register_setting( 'digitalisimo_integrations', self::OPTION, array( __CLASS__, 'sanitize' ) );
 	}
@@ -391,7 +405,6 @@ class Digitalisimo_Integrations_Settings {
 	private static function tab_fields( $tab ) {
 		if ( 'general' === $tab ) {
 			self::field( 'enable_seo', 'Módulo SEO propio', 'checkbox', 'Añade metadatos SEO, clusters, shortcodes, breadcrumbs, schema y sitemap nativos.' );
-			self::hide_login_field();
 		} elseif ( 'seo' === $tab ) {
 			self::field( 'openai_api_key', 'Clave API de OpenAI', 'secret', 'Se usa solo para detectar intención de búsqueda.' );
 			self::field( 'openai_model', 'Modelo OpenAI', 'text', 'Por ejemplo: gpt-4o-mini.' );
@@ -423,15 +436,6 @@ class Digitalisimo_Integrations_Settings {
 		}
 	}
 
-	/** Ruta privada de acceso: sustituye a wp-login.php y a /wp-admin para las visitas sin sesión. */
-	private static function hide_login_field() {
-		$slug = Digitalisimo_Integrations_Hide_Login::slug();
-		$help = $slug
-			? 'Acceso activo en ' . Digitalisimo_Integrations_Hide_Login::login_url() . ' · Guarda esta URL: wp-login.php, /wp-admin, /admin y /dashboard ya no responden sin sesión.'
-			: 'Escribe una sola palabra o guiones (ejemplo: acceso-digitalisimo). Déjalo vacío para conservar el acceso estándar de WordPress.';
-		self::field( 'seo_hide_login_slug', 'Ruta privada de acceso', 'text', $help );
-		echo '<tr><th scope="row"></th><td><p class="description">Con la sesión iniciada, /wp-admin funciona igual que siempre. Si pierdes la ruta, añade <code>define( \'DIGITALISIMO_HIDE_LOGIN_DISABLE\', true );</code> a wp-config.php o desactiva el plugin para recuperar el acceso.</p></td></tr>';
-	}
 
 	public static function keyword_settings_page() { self::settings_page( 'seo' ); }
 	public static function sitemap_settings_page() { self::settings_page( 'sitemap' ); }

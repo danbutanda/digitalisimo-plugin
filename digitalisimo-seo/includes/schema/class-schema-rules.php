@@ -34,7 +34,7 @@ class Digitalisimo_Integrations_Schema_Rules {
 		'JobPosting'          => array( 'feature' => 'Oferta de empleo', 'rich' => true, 'required' => array( 'title', 'description', 'datePosted', 'hiringOrganization', 'jobLocation' ), 'recommended' => array( 'validThrough', 'employmentType', 'baseSalary' ) ),
 		'Course'              => array( 'feature' => 'Curso', 'rich' => true, 'required' => array( 'name', 'description' ), 'recommended' => array( 'provider' ) ),
 		'Review'              => array( 'feature' => 'Reseña', 'rich' => true, 'required' => array( 'itemReviewed', 'author', 'reviewRating' ), 'recommended' => array() ),
-		'LocalBusiness'       => array( 'feature' => 'Negocio local', 'rich' => true, 'required' => array( 'name', 'address' ), 'recommended' => array( 'telephone', 'url', 'geo', 'openingHoursSpecification', 'image' ) ),
+		'LocalBusiness'       => array( 'feature' => 'Negocio local', 'rich' => true, 'required' => array( 'name', 'address' ), 'recommended' => array( 'telephone', 'url', 'geo', 'openingHoursSpecification', 'image', 'priceRange' ) ),
 		'Organization'        => array( 'feature' => 'Organización (logo y datos)', 'rich' => false, 'required' => array( 'name' ), 'recommended' => array( 'url', 'logo', 'sameAs' ) ),
 		'WebSite'             => array( 'feature' => 'Nombre del sitio', 'rich' => false, 'required' => array( 'name', 'url' ), 'recommended' => array() ),
 		'WebPage'             => array( 'feature' => 'Página', 'rich' => false, 'required' => array( 'url' ), 'recommended' => array( 'name', 'isPartOf' ) ),

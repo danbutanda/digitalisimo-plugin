@@ -19,11 +19,14 @@ final class Network_Admin {
 	public static function page() {
 		if ( ! current_user_can( self::network_context() ? 'manage_network_options' : 'manage_options' ) ) return;
 		$can_templates = is_multisite() && current_user_can( 'manage_network_options' );
-		$tab = $can_templates ? sanitize_key( $_GET['tab'] ?? 'elementor' ) : 'webp';
+		$tab = sanitize_key( $_GET['tab'] ?? ( $can_templates ? 'elementor' : 'webp' ) );
+		if ( 'elementor' === $tab && ! $can_templates ) $tab = 'webp';
 		echo '<div class="wrap"><h1>DIGITALÍSIMO Tools</h1><p>';
 		if ( $can_templates ) echo '<a class="button' . ( 'elementor' === $tab ? ' button-primary' : '' ) . '" href="' . esc_url( self::url() ) . '">Plantillas Elementor</a> ';
-		echo '<a class="button' . ( 'webp' === $tab ? ' button-primary' : '' ) . '" href="' . esc_url( self::url( array( 'tab' => 'webp' ) ) ) . '">Optimizar imágenes WebP</a></p>';
+		echo '<a class="button' . ( 'webp' === $tab ? ' button-primary' : '' ) . '" href="' . esc_url( self::url( array( 'tab' => 'webp' ) ) ) . '">Optimizar imágenes WebP</a> ';
+		echo '<a class="button' . ( 'site' === $tab ? ' button-primary' : '' ) . '" href="' . esc_url( self::url( array( 'tab' => 'site' ) ) ) . '">Ajustes del sitio</a></p>';
 		if ( 'webp' === $tab ) { \Digitalisimo\Tools\Media_WebP::page(); echo '</div>'; return; }
+		if ( 'site' === $tab ) { \Digitalisimo\Tools\Site_Options::page( self::network_context() ); echo '</div>'; return; }
 		$settings = Registry::settings(); $templates = array(); if ( Elementor_Adapter::available() ) { switch_to_blog( Registry::master_blog_id() ); try { $templates = Elementor_Adapter::template_posts(); } finally { restore_current_blog(); } }
 		$sites = get_sites( array( 'number' => 0, 'orderby' => 'blog_id' ) ); $editing = Registry::get( sanitize_key( $_GET['edit'] ?? '' ) );
 		if ( ! Elementor_Adapter::available() ) echo '<div class="notice notice-warning"><p>Elementor debe estar activo en el sitio maestro para sincronizar plantillas.</p></div>';

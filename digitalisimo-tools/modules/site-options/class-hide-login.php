@@ -1,4 +1,5 @@
 <?php
+namespace Digitalisimo\Tools;
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -12,8 +13,8 @@ defined( 'ABSPATH' ) || exit;
  * Salida de emergencia: definir `DIGITALISIMO_HIDE_LOGIN_DISABLE` como true en
  * wp-config.php restaura el acceso estándar sin tocar la base de datos.
  */
-class Digitalisimo_Integrations_Hide_Login {
-	const KEY = 'seo_hide_login_slug';
+final class Hide_Login {
+	private static $booted = false;
 
 	/** Rutas que no pueden usarse porque son las que se quiere ocultar o las reserva WordPress. */
 	private static $reserved = array( 'wp-admin', 'wp-login', 'wp-login-php', 'admin', 'dashboard', 'login', 'wp-content', 'wp-includes', 'wp-json', 'wp-signup', 'wp-activate', 'feed', 'robots-txt', 'sitemap', 'wp-sitemap-xml' );
@@ -26,6 +27,8 @@ class Digitalisimo_Integrations_Hide_Login {
 
 	/** Se engancha al cargar el archivo principal: `plugins_loaded` es demasiado tarde para decidir la ruta. */
 	public static function boot() {
+		if ( self::$booted ) return;
+		self::$booted = true;
 		add_action( 'plugins_loaded', array( __CLASS__, 'prepare' ), 1 );
 		add_action( 'wp_loaded', array( __CLASS__, 'serve' ), 1 );
 	}
@@ -33,9 +36,7 @@ class Digitalisimo_Integrations_Hide_Login {
 	/** Ruta privada activa, o cadena vacía cuando la función está desactivada. */
 	public static function slug() {
 		if ( defined( 'DIGITALISIMO_HIDE_LOGIN_DISABLE' ) && DIGITALISIMO_HIDE_LOGIN_DISABLE ) return '';
-		$value = class_exists( 'Digitalisimo_Integrations_SEO_Resolver' )
-			? Digitalisimo_Integrations_SEO_Resolver::option( self::KEY, '' )
-			: ( ( (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() ) )[ self::KEY ] ?? '' );
+		$value = Site_Options::get( 'login_slug' );
 		return is_string( $value ) ? self::sanitize_slug( $value ) : '';
 	}
 
@@ -47,21 +48,15 @@ class Digitalisimo_Integrations_Hide_Login {
 
 	/**
 	 * Valida el campo del formulario. Vacío desactiva la función; una ruta
-	 * inválida u ocupada conserva la anterior y avisa en pantalla.
+	 * inválida u ocupada conserva la anterior. Devuelve array( valor, error ).
 	 */
 	public static function sanitize_option( $input, $current ) {
 		$current = (string) $current;
-		if ( '' === trim( (string) $input ) ) return '';
+		if ( '' === trim( (string) $input ) ) return array( '', '' );
 		$slug = self::sanitize_slug( $input );
-		if ( '' === $slug ) {
-			add_settings_error( 'digitalisimo_integrations', 'digitalisimo_hide_login', __( 'La ruta privada de acceso no es válida o está reservada por WordPress. Se conservó la configuración anterior.', 'digitalisimo-integrations' ), 'error' );
-			return $current;
-		}
-		if ( $slug !== $current && self::slug_taken( $slug ) ) {
-			add_settings_error( 'digitalisimo_integrations', 'digitalisimo_hide_login', __( 'Ya existe contenido publicado en esa ruta. Elige otra para no dejarla inaccesible.', 'digitalisimo-integrations' ), 'error' );
-			return $current;
-		}
-		return $slug;
+		if ( '' === $slug ) return array( $current, 'La ruta privada de acceso no es válida o está reservada por WordPress. Se conservó la configuración anterior.' );
+		if ( $slug !== $current && self::slug_taken( $slug ) ) return array( $current, 'Ya existe contenido publicado en esa ruta. Elige otra para no dejarla inaccesible.' );
+		return array( $slug, '' );
 	}
 
 	/** Evita chocar con una entrada, página o término que ya use ese slug. */

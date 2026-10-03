@@ -36,7 +36,7 @@ Este repositorio entrega módulos WordPress independientes que comparten un núc
 
 ### Digitalisimo SEO
 
-Responsable de las señales SEO públicas: title, description, canonical, robots/noindex, sitemap, schema, keywords, clusters, SEO local, social, importación Yoast/Rank Math y SEO AI.
+Responsable de las señales SEO públicas: title, description, canonical, robots/noindex, sitemap, schema, keywords, clusters, SEO local, social, importación Yoast/Rank Math y SEO AI. Todas las auditorías, pruebas y análisis del plugin se reúnen en SEO → Auditoría (`Digitalisimo_Integrations_SEO_Audit_Hub`).
 
 SEO AI pertenece aquí porque regula descubrimiento, rastreo, interpretación y citabilidad externa. Incluye crawlers, robots.txt, llms.txt, IndexNow, entidades, diagnóstico, auditoría y referencias de tráfico IA.
 
@@ -57,6 +57,10 @@ Responsable de ubicación, IPInfo, ubicación administrativa y señales locales 
 ### Digitalisimo Hosting
 
 Responsable de búsqueda de dominios, configuración Namecheap, shortcodes/formularios, precios y el flujo de compra de dominio. Se integra con Ecommerce cuando este existe.
+
+### DIGITALÍSIMO Tools
+
+Responsable de herramientas de administración que no son SEO: plantillas Elementor de red, WebP y **Ajustes del sitio** (ruta privada de acceso, redirección de adjuntos y bloqueo del desplazamiento horizontal en móvil). Esos ajustes viven en `digitalisimo_tools_site_options` (sitio) y `digitalisimo_tools_site_defaults` (red), se importan una vez desde las claves que tenía SEO y, mientras Tools no esté activo, SEO los sigue aplicando (`Digitalisimo_Integrations_Settings::tools_handles_site_options()`) para no abrir `wp-login.php` al actualizar; nunca se ejecutan en los dos plugins a la vez.
 
 ## Estado y prioridad
 

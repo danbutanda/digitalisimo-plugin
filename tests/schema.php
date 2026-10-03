@@ -111,6 +111,10 @@ list( $merged ) = $G::merge( $G::build( $site, $product_page ), array( $woo ), $
 check( 'Product' === $merged[3]['@type'] && array( '@id' => $home . 'producto/taza/#product' ) === $merged[2]['mainEntity'] && array( '@id' => $home . 'producto/taza/#webpage' ) === $merged[3]['mainEntityOfPage'], 'producto integrado como entidad principal' );
 
 // --- Utilidades ---
+check( '25.5597304' === $G::coordinate( 25.55973041976771042982 ) && '-103.4334658' === $G::coordinate( '-103.433465771164' ) && '25' === $G::coordinate( 25.0 ), 'coordenadas con 7 decimales' );
+$geo = $site; $geo['local']['geo'] = array( 'latitude' => 25.55973041976771, 'longitude' => -103.43346577116407 );
+check( false === strpos( $G::json( $G::build( $geo, $page ) ), '0429' ) && false !== strpos( $G::json( $G::build( $geo, $page ) ), '"latitude":"25.5597304"' ), 'geo sin cifras de más' );
+check( has_issue( $R::analyze_graph( array( '@context' => 'https://schema.org', '@graph' => $G::build( $site, $page ) ) ), 'ADVERTENCIA', 'priceRange' ), 'priceRange recomendado como en Google' );
 check( 'MX' === $G::country( 'México' ) && 'MX' === $G::country( 'mx' ) && 'Narnia' === $G::country( 'Narnia' ), 'código de país' );
 check( false === strpos( $G::json( array( 'x' => '</script><b>' ) ), '</script>' ), 'el JSON no cierra la etiqueta' );
 check( 'Organization' === $R::rule( array( 'Organization' ) )['type'] && 'LocalBusiness' === $R::rule( array( 'ProfessionalService' ) )['type'] && 'Article' === $R::rule( array( 'BlogPosting' ) )['type'], 'reglas de Google por herencia' );

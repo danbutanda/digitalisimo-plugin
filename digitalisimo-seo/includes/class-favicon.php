@@ -182,7 +182,7 @@ class Digitalisimo_Integrations_Favicon {
 		if ( ! current_user_can( 'manage_options' ) ) wp_die( 'No autorizado.' );
 		check_admin_referer( 'digitalisimo_favicon_regenerate' );
 		self::sync( true );
-		wp_safe_redirect( admin_url( 'admin.php?page=digitalisimo-seo-tools&favicon=1' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=digitalisimo-seo-general&favicon=1' ) );
 		exit;
 	}
 
@@ -326,7 +326,7 @@ class Digitalisimo_Integrations_Favicon {
 	}
 
 	/* ------------------------------------------------------------------ *
-	 * Administración: SEO → Avanzado
+	 * Administración: SEO → Identidad
 	 * ------------------------------------------------------------------ */
 
 	/** Etiquetas de icono en un HTML que no pertenecen a Digitalísimo. */

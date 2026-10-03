@@ -5,13 +5,13 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.216.zip', version: '1.0.216' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.217.zip', version: '1.0.217' },
   { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.27.zip', version: '1.0.27' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.51.zip', version: '1.0.51' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.21.zip', version: '1.0.21' },
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.35.zip', version: '1.0.35' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.21.zip', version: '1.0.21' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.22.zip', version: '1.0.22' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -173,7 +173,7 @@ if (!chatbotImages.includes('creative_direction') || !chatbotImages.includes('ad
 	throw new Error('La imagen generada debe variar su dirección creativa y asignarse siempre como destacada.');
 if (seoEditorialTools.includes("update_post_meta( $id, 'digitalisimo_article_chat'"))
   throw new Error('SEO no debe sobrescribir el chat editorial, que pertenece exclusivamente a IA Tools.');
-if (!seoSuite.includes('Digitalisimo_Integrations_SEO_Front_Inspector::render()')) throw new Error('Diagnóstico debe incluir el inspector del front');
+if (!readFileSync('digitalisimo-seo/includes/class-seo-audit-hub.php', 'utf8').includes('Digitalisimo_Integrations_SEO_Front_Inspector::render()')) throw new Error('Auditoría debe incluir el inspector del front');
 const seoFrontInspector = readFileSync('digitalisimo-seo/includes/class-seo-front-inspector.php', 'utf8');
 const seoKeywordMatch = readFileSync('digitalisimo-seo/includes/class-keyword-match.php', 'utf8');
 if (!seoFrontInspector.includes('Keyword_Match::slug_matches') || !seoKeywordMatch.includes("'' === $path") || !seoKeywordMatch.includes('array_intersect( $terms')) throw new Error('SEO Front debe comparar la URL real sin recomendar cambios en portada ni exigir un slug literal.');
@@ -188,7 +188,12 @@ const crawlerVerifier = readFileSync('digitalisimo-seo/includes/class-seo-ai-cra
 if (!crawlerVerifier.includes('observe_public_request') || !crawlerVerifier.includes('PROCESS_HOOK') || !crawlerVerifier.includes('wp_schedule_single_event') || !crawlerVerifier.includes('Bloquear IP') || !crawlerVerifier.includes('block_fake_bot')) throw new Error('Los bots falsos deben detectarse en cola y ofrecer bloqueo manual.');
 if (!seoEditorialTools.includes("'digitalisimo-seo/v1', '/editorial-suggestions'") || !seoEditorialTools.includes("Digitalisimo_AI::complete( 'seo'") || !seoEditorialTools.includes("array( 'keywords', 'description' )") || !seoEditorialTools.includes('delete_post_meta( $id, \'digitalisimo_seo_search_intent\' )') || !readFileSync('digitalisimo-seo/assets/keyword-manager.js', 'utf8').includes('applyDescription')) throw new Error('Keywords y descripción deben generarse con acciones independientes; la descripción se aplica a extracto y meta sin intención manual.');
 if (!seoEditorialTools.includes('La ficha verde es la keyword principal') || !readFileSync('digitalisimo-seo/assets/keyword-manager.js', 'utf8').includes('is-primary') || !readFileSync('digitalisimo-seo/assets/keyword-manager.css', 'utf8').includes('digitalisimo-keyword-primary-badge')) throw new Error('La keyword principal debe destacarse y el orden de las fichas debe poder cambiarse por arrastre.');
-if (!seoSuite.includes("'diagnostic' => 'SEO Front'")) throw new Error('SEO Front debe ser la última pestaña de SEO');
+if (!seoSuite.includes("'content' => 'Contenido', 'audit' => 'Auditoría' );") || seoSuite.includes("'tools' => 'Avanzado'")) throw new Error('Auditoría debe ser la última pestaña de SEO y reemplazar a Avanzado y SEO Front');
+const seoAuditHub = readFileSync('digitalisimo-seo/includes/class-seo-audit-hub.php', 'utf8');
+if (!seoAuditHub.includes('Schema_Audit::render()') || !seoAuditHub.includes('SEO_Front_Inspector::render()') || !seoAuditHub.includes('LLMS::render_status') || !seoAuditHub.includes('digitalisimo-performance&section=')) throw new Error('Auditoría debe reunir Schema, SEO Front, llms.txt y las pruebas de Rendimiento');
+const toolsSiteOptions = readFileSync('digitalisimo-tools/modules/site-options/class-site-options.php', 'utf8');
+if (!toolsSiteOptions.includes("'login_slug' => 'seo_hide_login_slug'") || !readFileSync('digitalisimo-tools/digitalisimo-tools.php', 'utf8').includes('Site_Options::boot()') || !seoBootstrap.includes('tools_handles_site_options() ) Digitalisimo_Integrations_Hide_Login::boot()')) throw new Error('Ruta privada, adjuntos y desplazamiento móvil deben vivir en Tools sin ejecutarse dos veces');
+if (seoSuite.includes("'seo_hide_login_slug', 'Ruta privada") || seoSuite.includes("'seo_redirect_attachments', 'Redirigir")) throw new Error('SEO ya no debe mostrar las opciones que pasaron a Tools');
 if (!seoSuite.includes("$title = $title ?: get_the_title( $id )")) throw new Error('SEO Front debe tener título de respaldo en contenido singular');
 if (!readFileSync('digitalisimo-seo/includes/schema/class-schema-graph.php', 'utf8').includes("array( 'Organization', 'LocalBusiness', 'Person' )")) throw new Error('El tipo Organization debe validarse antes de emitir Schema');
 if (!seoBootstrap.includes('class-seo-front-inspector.php')) throw new Error('SEO Front debe estar disponible');

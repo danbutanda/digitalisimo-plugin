@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Digitalisimo SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.216
+ * Version: 1.0.217
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.216' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.217' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -37,6 +37,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-crawler-tool
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-crawler-verifier.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-audit-tools.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-front-inspector.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-audit-hub.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-llms-tools.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-indexnow-tools.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-referral-tools.php';
@@ -74,7 +75,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-asset-d
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/performance/class-performance-measurements.php';
 
 // Debe decidirse antes de `plugins_loaded`: para entonces la ruta ya está resuelta.
-Digitalisimo_Integrations_Hide_Login::boot();
+if ( ! Digitalisimo_Integrations_Settings::tools_handles_site_options() ) Digitalisimo_Integrations_Hide_Login::boot();
 
 function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Settings::init();

@@ -2,7 +2,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Auditor de Schema en SEO → Avanzado. Descarga el HTML final de una URL del
+ * Auditor de Schema en SEO → Auditoría. Descarga el HTML final de una URL del
  * sitio, lee todos sus JSON-LD y los pasa por las mismas reglas que usan
  * Schema.org Validator y la prueba de resultados enriquecidos de Google. Pide
  * además la versión sin unificar para mostrar qué publicaban el tema y los
@@ -92,7 +92,7 @@ class Digitalisimo_Integrations_Schema_Audit {
 			$all[ $url ] = self::audit( $url );
 			update_option( self::OPTION, array_slice( $all, -self::KEEP, null, true ), false );
 		}
-		wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-seo-tools', 'schema_url' => rawurlencode( $url ), 'schema_status' => $status ), admin_url( 'admin.php' ) ) . '#' . self::ANCHOR );
+		wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-seo-audit', 'schema_url' => rawurlencode( $url ), 'schema_status' => $status ), admin_url( 'admin.php' ) ) . '#' . self::ANCHOR );
 		exit;
 	}
 
@@ -158,7 +158,7 @@ class Digitalisimo_Integrations_Schema_Audit {
 		echo '<table class="widefat striped"><thead><tr><th>URL</th><th>Estado</th><th>Bloques</th><th>Errores</th><th>Advertencias</th><th>Revisada</th></tr></thead><tbody>';
 		foreach ( array_reverse( $all, true ) as $url => $record ) {
 			$report = $record['report'] ?? null;
-			$link   = add_query_arg( array( 'page' => 'digitalisimo-seo-tools', 'schema_url' => rawurlencode( $url ) ), admin_url( 'admin.php' ) ) . '#' . self::ANCHOR;
+			$link   = add_query_arg( array( 'page' => 'digitalisimo-seo-audit', 'schema_url' => rawurlencode( $url ) ), admin_url( 'admin.php' ) ) . '#' . self::ANCHOR;
 			$errors = $report ? count( wp_list_filter( array_merge( $report['issues'], $report['missing'] ), array( 'status' => Digitalisimo_Integrations_Schema_Rules::ERROR ) ) ) : 0;
 			$warns  = $report ? count( wp_list_filter( array_merge( $report['issues'], $report['missing'] ), array( 'status' => Digitalisimo_Integrations_Schema_Rules::WARNING ) ) ) : 0;
 			echo '<tr><td><a href="' . esc_url( $link ) . '">' . esc_html( $url ) . '</a></td><td>' . ( $report ? self::badge( $report['status'] ) : self::badge( Digitalisimo_Integrations_Schema_Rules::ERROR, 'HTTP ' . (int) $record['code'] ) ) . '</td><td>' . ( $report ? (int) $report['blocks'] : '—' ) . '</td><td>' . (int) $errors . '</td><td>' . (int) $warns . '</td><td>' . esc_html( wp_date( 'Y-m-d H:i', $record['time'] ) ) . '</td></tr>';
@@ -194,7 +194,7 @@ class Digitalisimo_Integrations_Schema_Audit {
 		list( $graph, $log ) = Digitalisimo_Integrations_Schema_Graph::graph_for( $site, $page, $id, $visible );
 		$doc    = array( '@context' => 'https://schema.org', '@graph' => $graph );
 		$report = Digitalisimo_Integrations_Schema_Rules::analyze_graph( $doc, array( 'url' => $page['url'], 'home' => ! empty( $page['home'] ), 'expected' => Digitalisimo_Integrations_Schema_Graph::expected( $site, $page ) ), $visible );
-		$html   = '<p>' . self::badge( $report['status'] ) . ' Grafo de Digitalísimo para este contenido. Las FAQ u otros schemas que añadan el tema o los plugins se integran al publicarse; revísalos después con el auditor de SEO → Avanzado.</p>';
+		$html   = '<p>' . self::badge( $report['status'] ) . ' Grafo de Digitalísimo para este contenido. Las FAQ u otros schemas que añadan el tema o los plugins se integran al publicarse; revísalos después en SEO → Auditoría.</p>';
 		if ( $log ) { $html .= '<ul style="list-style:disc;padding-left:20px">'; foreach ( $log as $line ) $html .= '<li>' . esc_html( $line ) . '</li>'; $html .= '</ul>'; }
 		$html .= self::report_html( $report );
 		$html .= '<p><strong>JSON-LD</strong> · cópialo en Schema.org Validator o en Rich Results («Código») para probarlo antes de publicar.</p><textarea readonly rows="10" class="large-text code" onclick="this.select()">' . esc_textarea( Digitalisimo_Integrations_Schema_Graph::json( $doc, true ) ) . '</textarea>';

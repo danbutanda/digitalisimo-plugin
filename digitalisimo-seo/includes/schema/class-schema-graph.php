@@ -93,7 +93,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 				'openingHoursSpecification' => $local['hours'] ?? array(),
 			) );
 			if ( isset( $business['address']['addressCountry'] ) ) $business['address']['addressCountry'] = self::country( $business['address']['addressCountry'] );
-			if ( isset( $business['geo'] ) ) $business['geo'] = array( '@type' => 'GeoCoordinates', 'latitude' => $business['geo']['latitude'], 'longitude' => $business['geo']['longitude'] );
+			if ( isset( $business['geo'] ) ) $business['geo'] = array( '@type' => 'GeoCoordinates', 'latitude' => self::coordinate( $business['geo']['latitude'] ), 'longitude' => self::coordinate( $business['geo']['longitude'] ) );
 		}
 		if ( $business && ! $is_person ) $identity += $business;
 		$graph[] = $identity;
@@ -156,6 +156,15 @@ class Digitalisimo_Integrations_Schema_Graph {
 		if ( $entity ) $graph[] = $entity;
 		if ( $author ) $graph[] = $author;
 		return $graph;
+	}
+
+	/**
+	 * Coordenada con 7 decimales (precisión de ~1 cm). Se publica como texto:
+	 * un float pasa por serialize_precision y algunos servidores lo imprimen
+	 * con 50 cifras.
+	 */
+	public static function coordinate( $value ) {
+		return rtrim( rtrim( number_format( (float) $value, 7, '.', '' ), '0' ), '.' );
 	}
 
 	private static function cut( $text, $max ) {

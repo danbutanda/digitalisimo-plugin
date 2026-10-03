@@ -42,6 +42,7 @@ jobs:
           php tests/image-alt.php
           php tests/favicon.php
           php tests/schema.php
+          php tests/tools-site-options.php
           php tests/performance-preloads.php
           php tests/performance-migration.php
           php tests/performance-tracking.php
