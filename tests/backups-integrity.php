@@ -72,6 +72,19 @@ try {
 	if ( false === strpos( $e->getMessage(), 'paquete parcial' ) ) throw $e;
 }
 unlink( $partial );
+$site_export = $root . '/site-export.zip';
+$zip = new ZipArchive();
+$zip->open( $site_export, ZipArchive::CREATE );
+$add_string->invoke( null, $zip, 'database.sql', $sql );
+$add_string->invoke( null, $zip, 'migration.json', '{"scope":"site","type":"full"}' );
+$zip->close();
+try {
+	$restore->invoke( null, $site_export );
+	throw new RuntimeException( 'Una exportación de subsitio fue aceptada para restauración completa.' );
+} catch ( Exception $e ) {
+	if ( false === strpos( $e->getMessage(), 'exportación anterior de subsitio' ) ) throw $e;
+}
+unlink( $site_export );
 $unsafe = $root . '/unsafe.zip';
 $zip = new ZipArchive();
 $zip->open( $unsafe, ZipArchive::CREATE );
