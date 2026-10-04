@@ -93,7 +93,7 @@ final class Digitalisimo_Elements_Updater {
 		if ( self::FILE !== $plugin_file ) return $update;
 		$release = self::release();
 		if ( empty( $release['version'] ) || empty( $release['package'] ) || ! version_compare( $release['version'], DIGITALISIMO_ELEMENTS_VERSION, '>' ) ) return false;
-		return array( 'slug' => 'digitalisimo-elements', 'version' => $release['version'], 'package' => $release['package'], 'url' => $release['url'], 'requires_php' => '7.4' );
+		return array( 'slug' => 'digitalisimo-elements', 'version' => $release['version'], 'package' => $release['package'], 'url' => $release['url'], 'requires_php' => '7.4', 'autoupdate' => true );
 	}
 
 	public static function auto_update( $update, $item ) { return isset( $item->plugin ) && self::FILE === $item->plugin ? true : $update; }
@@ -107,7 +107,7 @@ final class Digitalisimo_Elements_Updater {
 		$release = self::release();
 		if ( empty( $release['version'] ) || empty( $release['package'] ) ) return $transient;
 		$pending = version_compare( $release['version'], DIGITALISIMO_ELEMENTS_VERSION, '>' );
-		$item = (object) array( 'id' => 'https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements', 'slug' => 'digitalisimo-elements', 'plugin' => self::FILE, 'new_version' => $pending ? $release['version'] : DIGITALISIMO_ELEMENTS_VERSION, 'url' => $release['url'], 'package' => $pending ? $release['package'] : '', 'tested' => get_bloginfo( 'version' ), 'requires' => '6.8', 'requires_php' => '7.4' );
+		$item = (object) array( 'id' => 'https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements', 'slug' => 'digitalisimo-elements', 'plugin' => self::FILE, 'new_version' => $pending ? $release['version'] : DIGITALISIMO_ELEMENTS_VERSION, 'url' => $release['url'], 'package' => $pending ? $release['package'] : '', 'tested' => get_bloginfo( 'version' ), 'requires' => '6.8', 'requires_php' => '7.4', 'autoupdate' => true );
 		if ( $pending ) { unset( $transient->no_update[ self::FILE ] ); $transient->response[ self::FILE ] = $item; }
 		else { unset( $transient->response[ self::FILE ] ); $transient->no_update[ self::FILE ] = $item; }
 		return $transient;
