@@ -36,7 +36,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Pri
 ## VALIDADO
 
 - Se inspeccionó la estructura de código de 1.0.35 y se identificaron rutas concretas con riesgo de éxito falso, pérdida de datos y transporte FTP sin cifrar.
-- `tests/backups-sftp.php` simula una copia correcta y otra alterada, y comprueba que sólo la primera se publica. Sintaxis PHP y paquete ZIP 1.0.36 se comprueban antes de la Release. Aún falta una prueba en servidor SFTP real.
+- `tests/backups-sftp.php` simula una copia correcta y otra alterada, y comprueba que sólo la primera se publica. El workflow `37185250540` pasó sintaxis PHP y suite; la Release `v2026.10.04.231` contiene sólo `digitalisimo-backups-1.0.36.zip`. La descarga pública pasó `unzip -t` y su SHA-256 es `bfed121ae97e1221b8152f60ccdcd21d174afc03710333ef019ba1e777cb6dcf`. Aún falta una prueba en servidor SFTP real.
 - Aún **no** se ha validado ningún respaldo completo y restaurable de esta versión, ni seguridad de destinos ni operación en Multisite real.
 
 ## Siguiente bloque
