@@ -1,6 +1,6 @@
 # Estado de DIGITALÍSIMO Backups
 
-Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Primer cambio: 1.0.36. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
+Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36; segunda entrega preparada: 1.0.37. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
 
 ## IMPLEMENTADO
 
@@ -12,7 +12,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Pri
 ## EN PROGRESO
 
 - Auditoría exhaustiva, documentación del objetivo y separación de los riesgos de integridad antes de modificar el motor.
-- Corrección de los caminos donde un ZIP o SQL incompleto puede considerarse válido.
+- En 1.0.37, los errores de lectura de tablas, adición de archivos, cierre del ZIP o lectura/CRC del contenido rechazan el respaldo; se elimina el ZIP fallido. El cambio de blog se revierte aunque falle la exportación. La restauración rechaza un archivo corrupto o parcial antes de importar SQL.
 - La subida etiquetada SFTP usa ahora SSH2 y una ruta temporal; compara SHA-256 del archivo remoto antes de publicarlo. Una copia truncada o alterada se rechaza. Aún faltan fijación/verificación de clave del host y prueba contra un servidor SFTP real.
 
 ## PENDIENTE
@@ -37,6 +37,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Pri
 
 - Se inspeccionó la estructura de código de 1.0.35 y se identificaron rutas concretas con riesgo de éxito falso, pérdida de datos y transporte FTP sin cifrar.
 - `tests/backups-sftp.php` simula una copia correcta y otra alterada, y comprueba que sólo la primera se publica. El workflow `37185250540` pasó sintaxis PHP y suite; la Release `v2026.10.04.231` contiene sólo `digitalisimo-backups-1.0.36.zip`. La descarga pública pasó `unzip -t` y su SHA-256 es `bfed121ae97e1221b8152f60ccdcd21d174afc03710333ef019ba1e777cb6dcf`. Aún falta una prueba en servidor SFTP real.
+- `tests/backups-integrity.php` comprueba fallos de exportación SQL, creación ZIP sin metadata, archivos fuente ausentes, rechazo de un incremental durante restauración y rutas transversales. Pendiente validar 1.0.37 en el workflow y el sitio real.
 - Aún **no** se ha validado ningún respaldo completo y restaurable de esta versión, ni seguridad de destinos ni operación en Multisite real.
 
 ## Siguiente bloque

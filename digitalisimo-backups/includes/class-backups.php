@@ -154,16 +154,145 @@ final class Digitalisimo_Backups {
 			$s = self::settings(); $available = self::manual_destinations( $s ); $destination = sanitize_key( $_POST['digitalisimo_backup_destination'] ?? $s['destination'] ); if ( ! isset( $available[ $destination ] ) ) self::redirect( false, 'El destino seleccionado no está conectado o no es válido.', $network ); $s['destination'] = $destination;
 			try { $file = $network ? self::create_network() : self::create_site( $site_id ?: get_current_blog_id() ); $remote = 'local' === $s['destination'] ? array() : self::transfer( $file, $s ); self::remember( $file, $s['destination'], $network ? 'network' : 'site', array( 'id' => 'manual', 'type' => 'full' ), $remote ); self::prune( dirname( $file ), (int) $s['retention'] ); self::redirect( true, ( $network ? 'Respaldo completo de la red creado: ' : 'Respaldo individual creado: ' ) . wp_basename( $file ) . ' en ' . self::destination_label( $destination ) . '.', $network ); } catch ( Exception $e ) { self::redirect( false, $e->getMessage(), $network ); }
 		}
-		private static function create_network() {
-		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' ); $s = self::settings(); $dir = self::local_directory(); if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de Digitalisimo Backups.' ); self::protect( $dir );
-		$name = 'digitalisimo-backup-' . sanitize_title( wp_parse_url( home_url(), PHP_URL_HOST ) ) . '-' . gmdate( 'Ymd-His' ) . '.zip'; $file = trailingslashit( $dir ) . $name; $zip = new ZipArchive(); if ( true !== $zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) throw new Exception( 'No se pudo crear el archivo ZIP.' );
-			$sql = self::database_sql(); $zip->addFromString( 'database.sql', $sql ); $zip->addFromString( 'manifest.json', wp_json_encode( array( 'scope' => 'network', 'created_at' => gmdate( 'c' ), 'site' => home_url(), 'wordpress' => get_bloginfo( 'version' ), 'multisite' => is_multisite(), 'database' => DB_NAME ), JSON_PRETTY_PRINT ) ); self::add_directory( $zip, ABSPATH, $dir ); $zip->close(); if ( ! file_exists( $file ) || ! filesize( $file ) ) throw new Exception( 'El ZIP se creó vacío.' ); return $file;
+	private static function create_network() {
+		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' );
+		$dir = self::local_directory();
+		if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de Digitalisimo Backups.' );
+		self::protect( $dir );
+		$name = 'digitalisimo-backup-' . sanitize_title( wp_parse_url( home_url(), PHP_URL_HOST ) ) . '-' . gmdate( 'Ymd-His' ) . '.zip';
+		$file = trailingslashit( $dir ) . $name;
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) throw new Exception( 'No se pudo crear el archivo ZIP.' );
+		try {
+			self::zip_add_string( $zip, 'database.sql', self::database_sql() );
+			self::zip_add_string( $zip, 'manifest.json', wp_json_encode( array( 'scope' => 'network', 'created_at' => gmdate( 'c' ), 'site' => home_url(), 'wordpress' => get_bloginfo( 'version' ), 'multisite' => is_multisite(), 'database' => DB_NAME ), JSON_PRETTY_PRINT ) );
+			self::add_directory( $zip, ABSPATH, $dir );
+			self::finish_zip( $zip, $file );
+			return $file;
+		} catch ( Throwable $e ) {
+			@$zip->close();
+			@unlink( $file );
+			throw $e;
 		}
-	private static function create_site( $site_id, $type = 'full' ) { if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' ); $s = self::settings(); $dir = self::local_directory(); if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de Digitalisimo Backups.' ); self::protect( $dir ); $site = get_site( $site_id ); $name = 'digitalisimo-site-' . $site_id . '-' . sanitize_title( $site->domain ) . '-' . ( 'database' === $type ? 'db-' : 'full-' ) . gmdate( 'Ymd-His' ) . '.zip'; $file = trailingslashit( $dir ) . $name; $zip = new ZipArchive(); if ( true !== $zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) throw new Exception( 'No se pudo crear el archivo ZIP.' ); switch_to_blog( $site_id ); global $wpdb; $prefix = $wpdb->prefix; $upload = wp_upload_dir(); $source_url = home_url(); $zip->addFromString( 'database.sql', self::database_sql( self::site_tables( $prefix ), $prefix, 'wp_' ) ); $zip->addFromString( 'migration.json', wp_json_encode( array( 'scope' => 'site', 'type' => $type, 'source_url' => $source_url, 'target_table_prefix' => 'wp_', 'upload_directory' => $upload['basedir'], 'created_at' => gmdate( 'c' ) ), JSON_PRETTY_PRINT ) ); if ( 'full' === $type ) { $zip->addFromString( 'MIGRAR-A-WORDPRESS-UNICO.txt', "1. Instala WordPress limpio.\n2. Copia wordpress/ sobre la instalación, excepto wp-config.php.\n3. Importa database.sql en la base de datos destino (usa prefijo wp_).\n4. Sustituye " . $source_url . " por la URL nueva en la base de datos con WP-CLI search-replace o una herramienta que preserve datos serializados.\n5. Revisa Ajustes > Enlaces permanentes y guarda una vez.\n" ); self::add_directory( $zip, ABSPATH, $dir, true ); self::add_upload_directory( $zip, $upload['basedir'] ); } restore_current_blog(); $zip->close(); if ( ! file_exists( $file ) || ! filesize( $file ) ) throw new Exception( 'El ZIP individual se creó vacío.' ); return $file; }
-		private static function add_directory( $zip, $root, $backup_dir, $exclude_uploads = false ) { $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY ); $backup_dir = trailingslashit( wp_normalize_path( $backup_dir ) ); foreach ( $iterator as $file ) { if ( ! $file->isFile() || $file->isLink() ) continue; $path = wp_normalize_path( $file->getPathname() ); if ( 0 === strpos( $path, $backup_dir ) || false !== strpos( $path, '/.git/' ) || false !== strpos( $path, '/node_modules/' ) || false !== strpos( $path, '/cache/' ) || ( $exclude_uploads && 0 === strpos( $path, trailingslashit( wp_normalize_path( WP_CONTENT_DIR . '/uploads' ) ) ) ) ) continue; $relative = ltrim( substr( $path, strlen( wp_normalize_path( ABSPATH ) ) ), '/' ); if ( $exclude_uploads && 'wp-config.php' === $relative ) continue; $zip->addFile( $path, 'wordpress/' . $relative ); } }
-		private static function add_upload_directory( $zip, $directory ) { if ( ! is_dir( $directory ) ) return; $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $directory, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY ); foreach ( $iterator as $file ) if ( $file->isFile() && ! $file->isLink() ) { $path = wp_normalize_path( $file->getPathname() ); $relative = ltrim( substr( $path, strlen( wp_normalize_path( $directory ) ) ), '/' ); $zip->addFile( $path, 'wordpress/wp-content/uploads/' . $relative ); } }
-		private static function site_tables( $prefix ) { global $wpdb; $like = $wpdb->esc_like( $prefix ) . '%'; $tables = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ); foreach ( array( $wpdb->base_prefix . 'users', $wpdb->base_prefix . 'usermeta' ) as $table ) if ( ! in_array( $table, $tables, true ) ) $tables[] = $table; return $tables; }
-		private static function database_sql( $tables = null, $source_prefix = '', $target_prefix = '' ) { global $wpdb; $sql = "-- Digitalisimo WordPress backup\n-- " . gmdate( 'c' ) . "\nSET NAMES utf8mb4;\nSET foreign_key_checks = 0;\n\n"; foreach ( $tables ?: (array) $wpdb->get_col( 'SHOW TABLES' ) as $table ) { $output = $target_prefix && 0 === strpos( $table, $source_prefix ) ? $target_prefix . substr( $table, strlen( $source_prefix ) ) : $table; $create = $wpdb->get_row( "SHOW CREATE TABLE `" . str_replace( '`', '``', $table ) . "`", ARRAY_N ); if ( empty( $create[1] ) ) continue; $definition = str_replace( '`' . $table . '`', '`' . $output . '`', $create[1] ); $sql .= "DROP TABLE IF EXISTS `" . str_replace( '`', '``', $output ) . "`;\n" . $definition . ";\n"; $rows = $wpdb->get_results( "SELECT * FROM `" . str_replace( '`', '``', $table ) . "`", ARRAY_A ); foreach ( (array) $rows as $row ) { $columns = array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, array_keys( $row ) ); $values = array_map( array( __CLASS__, 'sql_value' ), array_values( $row ) ); $sql .= 'INSERT INTO `' . str_replace( '`', '``', $output ) . '` (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n"; } $sql .= "\n"; } return $sql . "SET foreign_key_checks = 1;\n"; }
+	}
+
+	private static function create_site( $site_id, $type = 'full' ) {
+		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' );
+		$dir = self::local_directory();
+		if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de Digitalisimo Backups.' );
+		self::protect( $dir );
+		$site = get_site( $site_id );
+		if ( ! $site ) throw new Exception( 'El sitio elegido ya no existe.' );
+		$name = 'digitalisimo-site-' . $site_id . '-' . sanitize_title( $site->domain ) . '-' . ( 'database' === $type ? 'db-' : 'full-' ) . gmdate( 'Ymd-His' ) . '.zip';
+		$file = trailingslashit( $dir ) . $name;
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) throw new Exception( 'No se pudo crear el archivo ZIP.' );
+		try {
+			switch_to_blog( $site_id );
+			try {
+				global $wpdb;
+				$prefix = $wpdb->prefix;
+				$upload = wp_upload_dir();
+				$source_url = home_url();
+				self::zip_add_string( $zip, 'database.sql', self::database_sql( self::site_tables( $prefix ), $prefix, 'wp_' ) );
+				self::zip_add_string( $zip, 'migration.json', wp_json_encode( array( 'scope' => 'site', 'type' => $type, 'source_url' => $source_url, 'target_table_prefix' => 'wp_', 'upload_directory' => $upload['basedir'], 'created_at' => gmdate( 'c' ) ), JSON_PRETTY_PRINT ) );
+				if ( 'full' === $type ) {
+					$instructions = "1. Instala WordPress limpio.\n2. Copia wordpress/ sobre la instalación, excepto wp-config.php.\n3. Importa database.sql en la base de datos destino (usa prefijo wp_).\n4. Sustituye " . $source_url . " por la URL nueva en la base de datos con WP-CLI search-replace o una herramienta que preserve datos serializados.\n5. Revisa Ajustes > Enlaces permanentes y guarda una vez.\n";
+					self::zip_add_string( $zip, 'MIGRAR-A-WORDPRESS-UNICO.txt', $instructions );
+					self::add_directory( $zip, ABSPATH, $dir, true );
+					self::add_upload_directory( $zip, $upload['basedir'] );
+				}
+			} finally {
+				restore_current_blog();
+			}
+			self::finish_zip( $zip, $file );
+			return $file;
+		} catch ( Throwable $e ) {
+			@$zip->close();
+			@unlink( $file );
+			throw $e;
+		}
+	}
+
+		private static function add_directory( $zip, $root, $backup_dir, $exclude_uploads = false ) { $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY ); $backup_dir = trailingslashit( wp_normalize_path( $backup_dir ) ); foreach ( $iterator as $file ) { if ( ! $file->isFile() || $file->isLink() ) continue; $path = wp_normalize_path( $file->getPathname() ); if ( 0 === strpos( $path, $backup_dir ) || false !== strpos( $path, '/.git/' ) || false !== strpos( $path, '/node_modules/' ) || false !== strpos( $path, '/cache/' ) || ( $exclude_uploads && 0 === strpos( $path, trailingslashit( wp_normalize_path( WP_CONTENT_DIR . '/uploads' ) ) ) ) ) continue; $relative = ltrim( substr( $path, strlen( wp_normalize_path( ABSPATH ) ) ), '/' ); if ( $exclude_uploads && 'wp-config.php' === $relative ) continue; self::zip_add_file( $zip, $path, 'wordpress/' . $relative ); } }
+		private static function add_upload_directory( $zip, $directory ) { if ( ! is_dir( $directory ) ) return; $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $directory, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY ); foreach ( $iterator as $file ) if ( $file->isFile() && ! $file->isLink() ) { $path = wp_normalize_path( $file->getPathname() ); $relative = ltrim( substr( $path, strlen( wp_normalize_path( $directory ) ) ), '/' ); self::zip_add_file( $zip, $path, 'wordpress/wp-content/uploads/' . $relative ); } }
+	private static function zip_add_string( $zip, $name, $content ) {
+		if ( ! is_string( $content ) || '' === $content || ! $zip->addFromString( $name, $content ) ) throw new Exception( 'No se pudo agregar ' . $name . ' al respaldo.' );
+	}
+	private static function zip_add_file( $zip, $path, $name ) {
+		if ( ! is_file( $path ) || ! is_readable( $path ) || ! $zip->addFile( $path, $name ) ) throw new Exception( 'No se pudo agregar el archivo ' . $name . ' al respaldo.' );
+	}
+	/** Reabre y lee cada entrada antes de aceptar el ZIP como candidato a respaldo. */
+	private static function finish_zip( $zip, $file ) {
+		if ( ! $zip->close() || ! is_file( $file ) || ! filesize( $file ) ) {
+			@unlink( $file );
+			throw new Exception( 'El ZIP no se pudo cerrar correctamente.' );
+		}
+		$check = new ZipArchive();
+		if ( true !== $check->open( $file, ZipArchive::CHECKCONS ) ) {
+			@unlink( $file );
+			throw new Exception( 'El ZIP generado no supera la comprobación estructural.' );
+		}
+		try {
+			self::verify_zip_contents( $check );
+		} catch ( Exception $e ) {
+			$check->close();
+			@unlink( $file );
+			throw $e;
+		}
+		$check->close();
+	}
+	/** Comprueba presencia, lectura completa y CRC de todos los miembros del archivo. */
+	private static function verify_zip_contents( $zip ) {
+		$names = array();
+		for ( $i = 0; $i < $zip->numFiles; $i++ ) {
+			$stat = $zip->statIndex( $i );
+			if ( ! $stat || ! isset( $stat['name'], $stat['size'], $stat['crc'] ) ) throw new Exception( 'Una entrada ZIP no tiene metadatos completos.' );
+			$name = $stat['name'];
+			if ( isset( $names[ $name ] ) ) throw new Exception( 'El ZIP contiene nombres de archivo duplicados.' );
+			$names[ $name ] = true;
+			if ( '/' === substr( $name, -1 ) ) continue;
+			$stream = $zip->getStream( $name );
+			if ( ! $stream ) throw new Exception( 'No se pudo leer ' . $name . ' del ZIP.' );
+			$bytes = 0;
+			$crc = hash_init( 'crc32b' );
+			while ( ! feof( $stream ) ) {
+				$chunk = fread( $stream, 1048576 );
+				if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) { fclose( $stream ); throw new Exception( 'La entrada ' . $name . ' está truncada.' ); }
+				$bytes += strlen( $chunk );
+				hash_update( $crc, $chunk );
+			}
+			fclose( $stream );
+			if ( $bytes !== (int) $stat['size'] || hash_final( $crc ) !== sprintf( '%08x', $stat['crc'] ) ) throw new Exception( 'Falló la integridad de ' . $name . ' dentro del ZIP.' );
+		}
+		if ( ! isset( $names['database.sql'] ) || ( ! isset( $names['manifest.json'] ) && ! isset( $names['migration.json'] ) ) ) throw new Exception( 'Falta SQL o metadata obligatoria en el ZIP.' );
+	}
+
+	private static function site_tables( $prefix ) { global $wpdb; $like = $wpdb->esc_like( $prefix ) . '%'; $tables = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ); foreach ( array( $wpdb->base_prefix . 'users', $wpdb->base_prefix . 'usermeta' ) as $table ) if ( ! in_array( $table, $tables, true ) ) $tables[] = $table; return $tables; }
+	private static function database_sql( $tables = null, $source_prefix = '', $target_prefix = '' ) {
+		global $wpdb;
+		if ( null === $tables ) $tables = $wpdb->get_col( 'SHOW TABLES' );
+		if ( ! is_array( $tables ) || ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
+		$sql = "-- Digitalisimo WordPress backup\n-- " . gmdate( 'c' ) . "\nSET NAMES utf8mb4;\nSET foreign_key_checks = 0;\n\n";
+		foreach ( $tables as $table ) {
+			$output = $target_prefix && 0 === strpos( $table, $source_prefix ) ? $target_prefix . substr( $table, strlen( $source_prefix ) ) : $table;
+			$escaped = str_replace( '`', '``', $table );
+			$create = $wpdb->get_row( "SHOW CREATE TABLE `" . $escaped . "`", ARRAY_N );
+			if ( ! is_array( $create ) || empty( $create[1] ) ) throw new Exception( 'No se pudo exportar la definición de la tabla ' . $table . '.' );
+			$definition = str_replace( '`' . $table . '`', '`' . $output . '`', $create[1] );
+			$sql .= "DROP TABLE IF EXISTS `" . str_replace( '`', '``', $output ) . "`;\n" . $definition . ";\n";
+			$rows = $wpdb->get_results( "SELECT * FROM `" . $escaped . "`", ARRAY_A );
+			if ( ! is_array( $rows ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudieron exportar los datos de la tabla ' . $table . '.' );
+			foreach ( $rows as $row ) {
+				$columns = array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, array_keys( $row ) );
+				$values = array_map( array( __CLASS__, 'sql_value' ), array_values( $row ) );
+				$sql .= 'INSERT INTO `' . str_replace( '`', '``', $output ) . '` (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n";
+			}
+			$sql .= "\n";
+		}
+		return $sql . "SET foreign_key_checks = 1;\n";
+	}
+
 	private static function sql_value( $value ) { if ( null === $value ) return 'NULL'; return "'" . str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'" ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'" ), (string) $value ) . "'"; }
 	private static function protect( $dir ) { if ( ! file_exists( trailingslashit( $dir ) . 'index.php' ) ) file_put_contents( trailingslashit( $dir ) . 'index.php', "<?php // Silence is golden.\n" ); if ( ! file_exists( trailingslashit( $dir ) . '.htaccess' ) ) file_put_contents( trailingslashit( $dir ) . '.htaccess', "Deny from all\n" ); }
 	private static function transfer( $file, $s ) { if ( 'sftp' === $s['destination'] ) return self::sftp( $file, $s ); if ( 'google' === $s['destination'] ) return self::google( $file, $s ); if ( 'onedrive' === $s['destination'] ) return self::onedrive( $file, $s ); }
@@ -222,13 +351,72 @@ final class Digitalisimo_Backups {
 	private static function create_for_policy( $policy, $site_id ) { if ( 'incremental' === $policy['type'] && ! self::latest_full_backup( $site_id ) ) return self::create_site( $site_id, 'full' ); return 'incremental' === $policy['type'] ? self::create_incremental_site( $site_id, $policy ) : self::create_site( $site_id, 'database' === $policy['type'] ? 'database' : 'full' ); }
 	private static function latest_full_backup( $site_id ) { foreach ( (array) get_option( self::HISTORY, array() ) as $item ) if ( (int) ( $item['site_id'] ?? 0 ) === (int) $site_id && 'full' === ( $item['backup_type'] ?? '' ) && file_exists( trailingslashit( self::local_directory() ) . ( $item['file'] ?? '' ) ) ) return $item; return array(); }
 	/** Delta restaurable: base de datos completa y sólo archivos modificados desde el último completo. */
-	private static function create_incremental_site( $site_id, $policy ) { if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' ); $site = get_site( $site_id ); if ( ! $site ) throw new Exception( 'El sitio de la política ya no existe.' ); $dir = self::local_directory(); if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de Digitalisimo Backups.' ); self::protect( $dir ); $base = self::latest_full_backup( $site_id ); $since = $base ? (int) @filemtime( trailingslashit( $dir ) . $base['file'] ) : 0; $file = trailingslashit( $dir ) . 'digitalisimo-site-' . $site_id . '-' . sanitize_title( $site->domain ) . '-incremental-' . gmdate( 'Ymd-His' ) . '.zip'; $zip = new ZipArchive(); if ( true !== $zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) throw new Exception( 'No se pudo crear el ZIP incremental.' ); switch_to_blog( $site_id ); global $wpdb; $prefix = $wpdb->prefix; $upload = wp_upload_dir(); $zip->addFromString( 'database.sql', self::database_sql( self::site_tables( $prefix ), $prefix, 'wp_' ) ); self::add_changed_directory( $zip, ABSPATH, $dir, $since, true ); self::add_changed_directory( $zip, $upload['basedir'], $dir, $since, false, 'wordpress/wp-content/uploads/' ); $zip->addFromString( 'manifest.json', wp_json_encode( array( 'format' => 'digitalisimo-backup/v2', 'scope' => 'site', 'type' => 'incremental', 'policy' => $policy['id'], 'base' => $base['file'] ?? '', 'requires_full_backup' => empty( $base ), 'since' => $since, 'created_at' => gmdate( 'c' ) ), JSON_PRETTY_PRINT ) ); restore_current_blog(); $zip->close(); if ( ! file_exists( $file ) || ! filesize( $file ) ) throw new Exception( 'El ZIP incremental se creó vacío.' ); return $file; }
-	private static function add_changed_directory( $zip, $root, $backup_dir, $since, $exclude_uploads = false, $zip_prefix = 'wordpress/' ) { if ( ! is_dir( $root ) ) return; $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY ); $root = trailingslashit( wp_normalize_path( $root ) ); $backup_dir = trailingslashit( wp_normalize_path( $backup_dir ) ); foreach ( $iterator as $entry ) { if ( ! $entry->isFile() || $entry->isLink() || ( $since && $entry->getMTime() <= $since ) ) continue; $path = wp_normalize_path( $entry->getPathname() ); $relative = ltrim( substr( $path, strlen( $root ) ), '/' ); if ( 0 === strpos( $path, $backup_dir ) || false !== strpos( $path, '/.git/' ) || false !== strpos( $path, '/node_modules/' ) || false !== strpos( $path, '/cache/' ) || ( $exclude_uploads && 0 === strpos( $path, trailingslashit( wp_normalize_path( WP_CONTENT_DIR . '/uploads' ) ) ) ) || ( $exclude_uploads && 'wp-config.php' === $relative ) ) continue; $zip->addFile( $path, $zip_prefix . $relative ); } }
+	private static function create_incremental_site( $site_id, $policy ) {
+		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' );
+		$site = get_site( $site_id );
+		if ( ! $site ) throw new Exception( 'El sitio de la política ya no existe.' );
+		$dir = self::local_directory();
+		if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de Digitalisimo Backups.' );
+		self::protect( $dir );
+		$base = self::latest_full_backup( $site_id );
+		$since = $base ? (int) @filemtime( trailingslashit( $dir ) . $base['file'] ) : 0;
+		$file = trailingslashit( $dir ) . 'digitalisimo-site-' . $site_id . '-' . sanitize_title( $site->domain ) . '-incremental-' . gmdate( 'Ymd-His' ) . '.zip';
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) throw new Exception( 'No se pudo crear el ZIP incremental.' );
+		try {
+			switch_to_blog( $site_id );
+			try {
+				global $wpdb;
+				$prefix = $wpdb->prefix;
+				$upload = wp_upload_dir();
+				self::zip_add_string( $zip, 'database.sql', self::database_sql( self::site_tables( $prefix ), $prefix, 'wp_' ) );
+				self::add_changed_directory( $zip, ABSPATH, $dir, $since, true );
+				self::add_changed_directory( $zip, $upload['basedir'], $dir, $since, false, 'wordpress/wp-content/uploads/' );
+				self::zip_add_string( $zip, 'manifest.json', wp_json_encode( array( 'format' => 'digitalisimo-backup/v2', 'scope' => 'site', 'type' => 'incremental', 'policy' => $policy['id'], 'base' => $base['file'] ?? '', 'requires_full_backup' => empty( $base ), 'since' => $since, 'created_at' => gmdate( 'c' ) ), JSON_PRETTY_PRINT ) );
+			} finally {
+				restore_current_blog();
+			}
+			self::finish_zip( $zip, $file );
+			return $file;
+		} catch ( Throwable $e ) {
+			@$zip->close();
+			@unlink( $file );
+			throw $e;
+		}
+	}
+
+	private static function add_changed_directory( $zip, $root, $backup_dir, $since, $exclude_uploads = false, $zip_prefix = 'wordpress/' ) { if ( ! is_dir( $root ) ) return; $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY ); $root = trailingslashit( wp_normalize_path( $root ) ); $backup_dir = trailingslashit( wp_normalize_path( $backup_dir ) ); foreach ( $iterator as $entry ) { if ( ! $entry->isFile() || $entry->isLink() || ( $since && $entry->getMTime() <= $since ) ) continue; $path = wp_normalize_path( $entry->getPathname() ); $relative = ltrim( substr( $path, strlen( $root ) ), '/' ); if ( 0 === strpos( $path, $backup_dir ) || false !== strpos( $path, '/.git/' ) || false !== strpos( $path, '/node_modules/' ) || false !== strpos( $path, '/cache/' ) || ( $exclude_uploads && 0 === strpos( $path, trailingslashit( wp_normalize_path( WP_CONTENT_DIR . '/uploads' ) ) ) ) || ( $exclude_uploads && 'wp-config.php' === $relative ) ) continue; self::zip_add_file( $zip, $path, $zip_prefix . $relative ); } }
 	private static function restore_panel( $history ) { $local = array_filter( (array) $history, function( $item ) { return 'local' === ( $item['destination'] ?? 'local' ) && is_file( trailingslashit( self::local_directory() ) . ( $item['file'] ?? '' ) ); } ); echo '<section class="digitalisimo-backups-card"><h2>Restaurar respaldo local</h2><p>Antes de continuar crea una copia actual. La restauración reemplaza la base de datos y los archivos incluidos. Escribe <code>RESTAURAR</code> para habilitarla.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_RESTORE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><p><select name="backup_file"><option value="">Elige un respaldo de Digitalisimo</option>'; foreach ( $local as $item ) echo '<option value="' . esc_attr( $item['file'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] ) . '</option>'; echo '</select></p><p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form></section>'; }
 	public static function restore_request() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_RESTORE ); @set_time_limit( 0 ); if ( 'RESTAURAR' !== strtoupper( trim( (string) ( $_POST['confirmation'] ?? '' ) ) ) ) self::redirect( false, 'Escribe RESTAURAR para confirmar una operación destructiva.' ); try { if ( ! empty( $_POST['updraft'] ) ) self::restore_updraft_set( sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) ) ); else { $file = sanitize_file_name( wp_unslash( $_POST['backup_file'] ?? '' ) ); $path = self::local_path( $file ); if ( ! $path ) throw new Exception( 'El respaldo local solicitado no está disponible.' ); self::restore_digitalisimo_zip( $path ); } self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' ); } catch ( Exception $e ) { self::redirect( false, 'La restauración se detuvo: ' . $e->getMessage() ); } }
 	private static function local_path( $file ) { $file = sanitize_file_name( $file ); $root = realpath( self::local_directory() ); $path = $root ? realpath( trailingslashit( $root ) . $file ) : false; return $path && 0 === strpos( wp_normalize_path( $path ), trailingslashit( wp_normalize_path( $root ) ) ) && is_file( $path ) ? $path : ''; }
-	private static function restore_digitalisimo_zip( $path ) { if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor no tiene ZipArchive.' ); $zip = new ZipArchive(); if ( true !== $zip->open( $path ) ) throw new Exception( 'No se puede abrir el ZIP.' ); $manifest = $zip->getFromName( 'manifest.json' ); $migration = $zip->getFromName( 'migration.json' ); if ( false === $manifest && false === $migration ) { $zip->close(); throw new Exception( 'No es un respaldo creado por Digitalisimo.' ); } $sql = $zip->getFromName( 'database.sql' ); if ( false === $sql || '' === $sql ) { $zip->close(); throw new Exception( 'El ZIP no contiene una base de datos válida.' ); } self::validate_zip_entries( $zip ); self::import_sql( $sql ); self::extract_digitalisimo_files( $zip ); $zip->close(); }
-	private static function validate_zip_entries( $zip ) { for ( $i = 0; $i < $zip->numFiles; $i++ ) { $name = str_replace( '\\', '/', (string) $zip->getNameIndex( $i ) ); if ( '' === $name || 0 === strpos( $name, '/' ) || false !== strpos( $name, '../' ) || false !== strpos( $name, "\0" ) ) throw new Exception( 'El ZIP contiene una ruta no permitida.' ); } }
+	private static function restore_digitalisimo_zip( $path ) {
+		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor no tiene ZipArchive.' );
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $path, ZipArchive::CHECKCONS ) ) throw new Exception( 'No se puede abrir el ZIP.' );
+		try {
+			self::validate_zip_entries( $zip );
+			self::verify_zip_contents( $zip );
+			$manifest = $zip->getFromName( 'manifest.json' );
+			$migration = $zip->getFromName( 'migration.json' );
+			$metadata = false !== $manifest ? $manifest : $migration;
+			$data = json_decode( $metadata, true );
+			if ( ! is_array( $data ) || JSON_ERROR_NONE !== json_last_error() ) throw new Exception( 'La metadata del respaldo no es válida.' );
+			if ( in_array( $data['type'] ?? '', array( 'incremental', 'database' ), true ) ) throw new Exception( 'Este paquete parcial no admite restauración completa sin su cadena de respaldo.' );
+			$sql = $zip->getFromName( 'database.sql' );
+			if ( false === $sql || '' === $sql ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
+			self::import_sql( $sql );
+			self::extract_digitalisimo_files( $zip );
+		} finally {
+			$zip->close();
+		}
+	}
+
+	private static function validate_zip_entries( $zip ) {
+		for ( $i = 0; $i < $zip->numFiles; $i++ ) {
+			$name = str_replace( '\\', '/', (string) $zip->getNameIndex( $i ) );
+			if ( '' === $name || '/' === substr( $name, 0, 1 ) || preg_match( '#(^|/)\.\.?(/|$)#', $name ) || preg_match( '/^[a-zA-Z]:/', $name ) || false !== strpos( $name, "\0" ) ) throw new Exception( 'El ZIP contiene una ruta no permitida.' );
+		}
+	}
 	private static function extract_digitalisimo_files( $zip ) { for ( $i = 0; $i < $zip->numFiles; $i++ ) { $name = str_replace( '\\', '/', (string) $zip->getNameIndex( $i ) ); if ( 0 !== strpos( $name, 'wordpress/' ) || 'wordpress/wp-config.php' === $name || substr( $name, -1 ) === '/' ) continue; $relative = substr( $name, strlen( 'wordpress/' ) ); if ( ! $relative || 0 === strpos( $relative, '.git/' ) ) continue; $destination = trailingslashit( ABSPATH ) . $relative; if ( ! wp_mkdir_p( dirname( $destination ) ) ) throw new Exception( 'No se pudo crear una carpeta de destino.' ); $input = $zip->getStream( $name ); $output = @fopen( $destination, 'wb' ); if ( ! $input || ! $output ) throw new Exception( 'No se pudo restaurar un archivo.' ); stream_copy_to_stream( $input, $output ); fclose( $input ); fclose( $output ); } }
 	private static function import_sql( $sql ) { global $wpdb; $statements = self::sql_statements( $sql ); if ( ! $statements ) throw new Exception( 'La base de datos del respaldo está vacía.' ); foreach ( $statements as $statement ) if ( false === $wpdb->query( $statement ) ) throw new Exception( 'Falló una sentencia SQL: ' . $wpdb->last_error ); }
 	private static function sql_statements( $sql ) { $out = array(); $current = ''; $quote = ''; $escaped = false; $length = strlen( $sql ); for ( $i = 0; $i < $length; $i++ ) { $char = $sql[ $i ]; if ( $quote ) { $current .= $char; if ( $escaped ) { $escaped = false; continue; } if ( '\\' === $char ) { $escaped = true; continue; } if ( $char === $quote ) $quote = ''; continue; } if ( "'" === $char || '"' === $char || '`' === $char ) { $quote = $char; $current .= $char; continue; } if ( ';' === $char ) { $statement = trim( $current ); if ( $statement && 0 !== strpos( $statement, '--' ) ) $out[] = $statement; $current = ''; continue; } $current .= $char; } $statement = trim( $current ); if ( $statement ) $out[] = $statement; return $out; }
