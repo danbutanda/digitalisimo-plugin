@@ -67,6 +67,7 @@ jobs:
           php tests/schema.php
           php tests/schema-detection.php
           php tests/elements.php
+          php tests/elements-load-order.php
           php tests/tools-site-options.php
           php tests/performance-preloads.php
           php tests/performance-migration.php

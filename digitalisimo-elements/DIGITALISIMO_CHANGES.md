@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.2
+# DIGITALÍSIMO Elements 4.3.0.3
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -9,5 +9,6 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - Actualizador propio de GitHub Releases; se desactiva el actualizador de PRO Elements para evitar que sobrescriba esta versión.
 - Logos extraídos del sitio `https://digitalisimo.mx/` el 3 de octubre de 2026. Son marcas de DIGITALÍSIMO y no se conceden derechos sobre marcas de Elementor o PRO Elements.
 - 4.3.0.2: incluye los archivos `vendor/` del ZIP original en la Release. La primera publicación 4.3.0.1 los omitió y no debe instalarse.
+- 4.3.0.3: espera a `plugins_loaded` para comprobar `elementor/loaded`. Corrige el falso aviso «Activa Elementor» cuando Elementor gratuito está activo para la red Multisite.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.

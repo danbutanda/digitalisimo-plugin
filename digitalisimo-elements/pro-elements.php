@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Funciones avanzadas para Elementor gratuito. Versión derivada de PRO Elements 4.3.0.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.2
+ * Version: 4.3.0.3
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.2' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.3' );
 require_once __DIR__ . '/digitalisimo-compat.php';
 require_once __DIR__ . '/digitalisimo-updater.php';
 require_once __DIR__ . '/digitalisimo-brand.php';
@@ -63,7 +63,7 @@ define( 'ELEMENTOR_PRO_URL', plugins_url( '/', ELEMENTOR_PRO__FILE__ ) );
 define( 'ELEMENTOR_PRO_ASSETS_URL', ELEMENTOR_PRO_URL . 'assets/' );
 define( 'ELEMENTOR_PRO_MODULES_URL', ELEMENTOR_PRO_URL . 'modules/' );
 	define( 'IS_PRO_ELEMENTS', 'true' );
-	add_action( 'plugins_loaded', 'pro_elements_load_plugin_func' );
+	pro_elements_load_plugin_func();
 }
 
 
@@ -103,7 +103,9 @@ function pro_elements_compare_major_version( $left, $right, $operator ) {
 	return version_compare( $left, $right, $operator );
 }
 
-pro_elements_plugin_load_plugin();
+// En Multisite este archivo puede cargarse antes que Elementor aunque ambos estén activos.
+// Esperar a que WordPress termine de cargar todos los plugins evita un aviso falso.
+add_action( 'plugins_loaded', 'pro_elements_plugin_load_plugin', 10 );
 
 function digitalisimo_elements_conflict_notice() {
 	if ( ! current_user_can( 'activate_plugins' ) ) return;

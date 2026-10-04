@@ -1,7 +1,7 @@
 <?php
 /** Actualizador y marca del derivado, sin WordPress cargado. */
 define( 'ABSPATH', __DIR__ );
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.2' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.3' );
 define( 'MINUTE_IN_SECONDS', 60 );
 $cache = array();
 $hooks = array();
@@ -21,7 +21,7 @@ function get_site_transient( $key ) { return $GLOBALS['cache'][ $key ] ?? false;
 function set_site_transient( $key, $value, $ttl = 0 ) { $GLOBALS['cache'][ $key ] = $value; }
 function delete_site_transient( $key ) { unset( $GLOBALS['cache'][ $key ] ); }
 function delete_transient() {}
-function wp_remote_get() { return array( 'code' => 200, 'body' => json_encode( array( array( 'assets' => array( array( 'name' => 'digitalisimo-elements-4.3.0.3.zip', 'browser_download_url' => 'https://github.com/example/digitalisimo-elements-4.3.0.3.zip' ) ), 'html_url' => 'https://github.com/example/release' ) ) ) ); }
+function wp_remote_get() { return array( 'code' => 200, 'body' => json_encode( array( array( 'assets' => array( array( 'name' => 'digitalisimo-elements-4.3.0.4.zip', 'browser_download_url' => 'https://github.com/example/digitalisimo-elements-4.3.0.4.zip' ) ), 'html_url' => 'https://github.com/example/release' ) ) ) ); }
 function is_wp_error() { return false; }
 function wp_remote_retrieve_response_code( $response ) { return $response['code']; }
 function wp_remote_retrieve_body( $response ) { return $response['body']; }
@@ -51,9 +51,9 @@ Digitalisimo_Elements_Updater::init();
 $transient = Digitalisimo_Elements_Updater::check( (object) array() );
 $file = Digitalisimo_Elements_Updater::FILE;
 $assert( 'digitalisimo-elements/pro-elements.php' === $file, 'El actualizador debe identificar el archivo real.' );
-$assert( '4.3.0.3' === $transient->response[ $file ]->new_version, 'Debe detectar una versión superior propia.' );
+$assert( '4.3.0.4' === $transient->response[ $file ]->new_version, 'Debe detectar una versión superior propia.' );
 $assert( false !== strpos( Digitalisimo_Elements_Updater::action_link( array() )[0], 'digitalisimo_context=site' ), 'La acción debe conservar el contexto del sitio.' );
-$assert( '4.3.0.3' === Digitalisimo_Elements_Updater::uri_update( false, array(), $file, array() )['version'], 'Update URI debe entregar el paquete propio.' );
+$assert( '4.3.0.4' === Digitalisimo_Elements_Updater::uri_update( false, array(), $file, array() )['version'], 'Update URI debe entregar el paquete propio.' );
 $assert( false === Digitalisimo_Elements_Updater::uri_update( false, array(), 'otro/plugin.php', array() ), 'No debe modificar otros plugins.' );
 ob_start(); Digitalisimo_Elements_Brand::page(); $html = ob_get_clean();
 $assert( false !== strpos( $html, 'logo-blanco.webp' ) && false !== strpos( $html, 'icono.png' ) && false !== strpos( $html, 'PRO Elements 4.3.0' ), 'La página debe mostrar ambos logos y atribución.' );
