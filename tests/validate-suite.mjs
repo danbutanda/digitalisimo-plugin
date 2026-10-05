@@ -6,9 +6,8 @@ const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.220.zip', version: '1.0.220' },
-  { dir: 'digitalisimo-ecommerce', file: 'digitalisimo-ecommerce.php', zip: 'digitalisimo-ecommerce-1.0.27.zip', version: '1.0.27' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.51.zip', version: '1.0.51' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.21.zip', version: '1.0.21' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.22.zip', version: '1.0.22' },
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.48.zip', version: '1.0.48' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.24.zip', version: '1.0.24' };
@@ -20,7 +19,7 @@ if (!webpModule.includes('type="button" id="digitalisimo-webp-start"') || !webpM
 if (!webpModule.includes("wp_update_post( $change, true )") || !webpModule.includes('update_attached_file( $attachment_id, $saved[\'path\'] )') || !webpModule.includes('wp_generate_attachment_metadata( $attachment_id, $saved[\'path\'] )') || !webpModule.includes('wp_update_attachment_metadata( $attachment_id, $metadata )') || !webpModule.includes('wp_unique_filename') || !webpModule.includes('self::clear_errors( $network, $site_id )') || webpModule.includes("array( 'key' => self::META_DONE, 'compare' => 'NOT EXISTS' )")) throw new Error('WebP debe actualizar el adjunto real y volver a procesar los JPG/PNG marcados por versiones anteriores.');
 if (!webpModule.includes("add_filter( 'display_media_states'") || !webpModule.includes("add_filter( 'wp_prepare_attachment_for_js'") || !webpModule.includes('self::META_DONE, true') || !webpModule.includes('wp_normalize_path( $file ) === wp_normalize_path( $optimized_file )') || !webpModule.includes("'image/webp' === get_post_mime_type")) throw new Error('La etiqueta de optimización debe identificar sólo adjuntos WebP convertidos por Tools.');
 if (!toolsMenu.includes('self::network_context() ? network_admin_url') || !toolsMenu.includes('self::context_field()') || !toolsBootstrap.includes('Network_Admin::init(); if ( ! is_multisite() ) return;')) throw new Error('Tools debe conservar el contexto y ofrecer WebP en WordPress individual.');
-for (const directory of ['digitalisimo-seo', 'digitalisimo-ecommerce', 'digitalisimo.chatbot', 'digitalisimo-hosting']) if (!readFileSync(join(directory, 'includes/class-digitalisimo-updater.php'), 'utf8').includes('digitalisimo_context')) throw new Error(`El actualizador de ${directory} debe conservar el contexto de origen.`);
+for (const directory of ['digitalisimo-seo', 'digitalisimo.chatbot', 'digitalisimo-hosting']) if (!readFileSync(join(directory, 'includes/class-digitalisimo-updater.php'), 'utf8').includes('digitalisimo_context')) throw new Error(`El actualizador de ${directory} debe conservar el contexto de origen.`);
 const phpFiles = [];
 function walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -87,6 +86,9 @@ for (const [name, records] of declarations) {
   if (records.length > 1 && !records.every((record) => record.guarded)) throw new Error(`Clase duplicada no protegida: ${name} en ${records.map((record) => record.file).join(', ')}`);
 }
 
+const hosting = readFileSync('digitalisimo-hosting/includes/class-hosting.php', 'utf8');
+if (!hosting.includes('migrate_legacy_options') || !hosting.includes('digitalisimo_integrations_options') || !hosting.includes('hosting_product_ids') || !hosting.includes('require_domain_hosting') || !hosting.includes("add_shortcode( 'digitalisimo_domain_search'" ) || !hosting.includes("'digitalisimo/v1'")) throw new Error('Hosting debe migrar las opciones de Ecommerce y conservar sus reglas, shortcode y ruta pública.');
+if (!hosting.includes("array( 'digitalisimo-hosting/v1', 'digitalisimo/v1' )") || !hosting.includes('replace_hosting') || !hosting.includes('simplify_checkout')) throw new Error('Hosting debe conservar la compatibilidad de checkout y API de Ecommerce.');
 const seoSuite = readFileSync('digitalisimo-seo/includes/class-seo-suite.php', 'utf8');
 const seoEditorial = readFileSync('digitalisimo-seo/includes/class-seo.php', 'utf8');
 const seoEditorialTools = readFileSync('digitalisimo-seo/includes/class-editorial.php', 'utf8');
@@ -166,7 +168,6 @@ const seoAiTools = [
 ].map((file) => readFileSync(join('digitalisimo-seo/includes', file), 'utf8'));
 const updaters = [
   'digitalisimo-seo/includes/class-digitalisimo-updater.php',
-  'digitalisimo-ecommerce/includes/class-digitalisimo-updater.php',
   'digitalisimo.chatbot/includes/class-digitalisimo-updater.php',
   'digitalisimo-hosting/includes/class-digitalisimo-updater.php',
 ].map((file) => readFileSync(file, 'utf8'));

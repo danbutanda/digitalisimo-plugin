@@ -19,13 +19,12 @@ build_package() {
 
 packages=("${@:2}")
 if (( ${#packages[@]} == 0 )); then
-  packages=(digitalisimo-seo digitalisimo-ecommerce digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements)
+  packages=(digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements)
 fi
 
 for package in "${packages[@]}"; do
   case "$package" in
     digitalisimo-seo) build_package digitalisimo-seo digitalisimo-integrations.php "$package" ;;
-    digitalisimo-ecommerce) build_package digitalisimo-ecommerce digitalisimo-ecommerce.php "$package" ;;
     digitalisimo-ia-tools) build_package digitalisimo.chatbot digitalisimo-chatbot.php "$package" ;;
     digitalisimo-hosting) build_package digitalisimo-hosting digitalisimo-hosting.php "$package" ;;
     digitalisimo-backups) build_package digitalisimo-backups digitalisimo-backups.php "$package" ;;

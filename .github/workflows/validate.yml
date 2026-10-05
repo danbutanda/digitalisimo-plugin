@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '20'
       - name: Validar sintaxis PHP
-        run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools -name '*.php' -print0 | xargs -0 -r -n1 php -l
+        run: find digitalisimo-seo digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar protecciones de rendimiento
         run: |
           php tests/performance-runtime.php
@@ -43,6 +43,7 @@ jobs:
           php tests/favicon.php
           php tests/schema.php
           php tests/tools-site-options.php
+          php tests/hosting-migration.php
           php tests/performance-preloads.php
           php tests/performance-migration.php
           php tests/performance-tracking.php

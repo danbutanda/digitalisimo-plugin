@@ -25,9 +25,8 @@ final class Plugin_Catalog {
 	}
 	private static function catalog() { return array(
 		'digitalisimo-seo' => array( 'name' => 'Digitalisimo SEO', 'file' => 'digitalisimo-seo/digitalisimo-integrations.php', 'description' => 'SEO técnico, schema, contenido y SEO AI.' ),
-		'digitalisimo-ecommerce' => array( 'name' => 'Digitalisimo Ecommerce', 'file' => 'digitalisimo-ecommerce/digitalisimo-ecommerce.php', 'description' => 'WooCommerce, productos y automatización.' ),
 		'digitalisimo-ia-tools' => array( 'name' => 'Digitalisimo IA Tools', 'file' => 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'description' => 'Chatbot, proveedores IA, RAG y generación de imágenes.' ),
-		'digitalisimo-hosting' => array( 'name' => 'Digitalisimo Hosting', 'file' => 'digitalisimo-hosting/digitalisimo-hosting.php', 'description' => 'Dominios, Namecheap y hosting.' ),
+		'digitalisimo-hosting' => array( 'name' => 'Digitalisimo Hosting', 'file' => 'digitalisimo-hosting/digitalisimo-hosting.php', 'description' => 'Dominios, Namecheap, WooCommerce y hosting.' ),
 		'digitalisimo-backups' => array( 'name' => 'Digitalisimo Backups', 'file' => 'digitalisimo-backups/digitalisimo-backups.php', 'description' => 'Respaldos de sitio y red.' ),
 		'digitalisimo-tools' => array( 'name' => 'DIGITALÍSIMO Tools', 'file' => 'digitalisimo-tools/digitalisimo-tools.php', 'description' => 'Herramientas internas y plantillas Elementor de red.' ),
 		'digitalisimo-elements' => array( 'name' => 'DIGITALÍSIMO Elements', 'file' => 'digitalisimo-elements/pro-elements.php', 'description' => 'Funciones GPL avanzadas para Elementor gratuito, con identidad DIGITALÍSIMO.' ),

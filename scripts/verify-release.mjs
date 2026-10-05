@@ -3,7 +3,6 @@ import { join } from 'node:path';
 
 const modules = [
   ['digitalisimo-seo', 'digitalisimo-integrations.php', 'digitalisimo-seo'],
-  ['digitalisimo-ecommerce', 'digitalisimo-ecommerce.php', 'digitalisimo-ecommerce'],
   ['digitalisimo.chatbot', 'digitalisimo-chatbot.php', 'digitalisimo-ia-tools'],
   ['digitalisimo-hosting', 'digitalisimo-hosting.php', 'digitalisimo-hosting'],
   ['digitalisimo-backups', 'digitalisimo-backups.php', 'digitalisimo-backups'],

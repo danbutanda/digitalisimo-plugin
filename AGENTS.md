@@ -46,17 +46,13 @@ Responsable de la IA interna: proveedores (OpenAI, Anthropic, Google, DeepSeek y
 
 La base de conocimiento es RAG, no entrenamiento de modelos: sólo indexa contenido público permitido y lo usa como contexto. No afecta la indexación externa ni transfiere contenido a un proveedor hasta que una función IA configurada por el administrador realiza una consulta.
 
-### Digitalisimo Ecommerce
+### Digitalisimo Hosting
 
-Responsable de integraciones WooCommerce, productos, carrito, automatizaciones e IA ecommerce. Puede consumir la API interna de conocimiento si AI está activo, sin crear otro índice.
+Responsable de dominios, Namecheap, shortcodes/formularios, precios y el flujo de compra de dominio y hosting en WooCommerce. Incluye productos, carrito y checkout de hosting; conserva una migración única desde las opciones históricas de Ecommerce sin borrar ese respaldo.
 
 ### Digitalisimo Geolocalización
 
 Responsable de ubicación, IPInfo, ubicación administrativa y señales locales reutilizables por SEO Local.
-
-### Digitalisimo Hosting
-
-Responsable de búsqueda de dominios, configuración Namecheap, shortcodes/formularios, precios y el flujo de compra de dominio. Se integra con Ecommerce cuando este existe.
 
 ### DIGITALÍSIMO Tools
 

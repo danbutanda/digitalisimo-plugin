@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - 'digitalisimo-seo/**'
-      - 'digitalisimo-ecommerce/**'
       - 'digitalisimo.chatbot/**'
       - 'digitalisimo-hosting/**'
       - 'digitalisimo-backups/**'
@@ -39,7 +38,7 @@ jobs:
         with:
           php-version: '8.2'
       - name: Validar sintaxis PHP
-        run: find digitalisimo-seo digitalisimo-ecommerce digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements -name '*.php' -print0 | xargs -0 -r -n1 php -l
+        run: find digitalisimo-seo digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar protecciones de rendimiento
         run: |
           php tests/tools-slider.php
@@ -68,6 +67,7 @@ jobs:
           php tests/schema-detection.php
           php tests/elements.php
           php tests/elements-load-order.php
+          php tests/hosting-migration.php
           php tests/backups-sftp.php
           php tests/backups-integrity.php
           php tests/backups-manifest.php
