@@ -1,6 +1,6 @@
 # Estado de DIGITALÍSIMO Backups
 
-Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38, 1.0.39, 1.0.40 1.0.41 y 1.0.42; 1.0.43 en preparación. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
+Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38, 1.0.39, 1.0.40 1.0.41, 1.0.42 y 1.0.43. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
 
 ## IMPLEMENTADO
 
@@ -49,6 +49,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cam
 - Para 1.0.40, `tests/backups-manifest.php` simula un fallo SQL recuperable y uno persistente; verifica el mensaje y la conservación de cada ZIP previo. El workflow `37256124029` pasó y la Release `v2026.10.05.235` contiene sólo `digitalisimo-backups-1.0.40.zip`; la descarga pública pasó `unzip -t` y su SHA-256 es `47e84c3e94343aa813176ea9c55ddb0661079e71a5c1d0d1033e8b24faaca51d`.
 - Para 1.0.41, `tests/backups-streaming.php` prueba paginación ordenada, lectura de tabla sin clave primaria, snapshot InnoDB, bloqueo MyISAM, fallo de un lote e importación de una sentencia que cruza el límite de lectura. La suite de siete módulos y cinco pruebas de Backups pasó. Los workflows de validación `37257125557` y publicación `37257125579` terminaron correctamente; la Release `v2026.10.05.236` contiene sólo `digitalisimo-backups-1.0.41.zip`. La descarga pública pasó `unzip -t` y su SHA-256 es `9d725ab8681a343afe6d0c836782ff6921ccc64403b2f7ca582b515d2a27b36a`.
 - Para 1.0.42, `tests/backups-sftp.php` comprueba que una huella faltante o distinta se rechace antes de autenticar. Las cinco pruebas de Backups y la suite de siete módulos pasaron. Los workflows `37258377714` y `37258377676` terminaron correctamente; la Release `v2026.10.05.237` contiene sólo `digitalisimo-backups-1.0.42.zip`. La descarga pública pasó `unzip -t` y su SHA-256 es `7ed8eddbfc26b675ade83f3832c624a2864d187a097eb91c79649cb64963d2d6`.
+- Para 1.0.43, `tests/backups-manifest.php` crea un ZIP válido que añade un archivo y luego provoca un fallo de escritura; comprueba que la reversión retire el archivo nuevo. Las cinco pruebas de Backups y la suite de siete módulos pasaron. Los workflows `37258856298` y `37258856277` terminaron correctamente; la Release `v2026.10.05.238` contiene sólo `digitalisimo-backups-1.0.43.zip`. La descarga pública pasó `unzip -t` y su SHA-256 es `6a1825dae86e8fd8856c639770b27443abe509b0a44809ee4d2f5063297a473c`.
 - Aún **no** se ha validado ningún respaldo completo y restaurable de esta versión, ni seguridad de destinos ni operación en Multisite real.
 
 ## Siguiente bloque
