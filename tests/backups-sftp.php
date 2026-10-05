@@ -5,10 +5,15 @@ $root = sys_get_temp_dir() . '/digitalisimo-sftp-test-' . bin2hex( random_bytes(
 mkdir( $root . '/backups', 0700, true );
 $GLOBALS['sftp_test_root'] = $root;
 $GLOBALS['sftp_test_corrupt_reads'] = false;
+$GLOBALS['sftp_test_fingerprint'] = str_repeat( 'A', 40 );
+$GLOBALS['sftp_test_auth_attempts'] = 0;
+define( 'SSH2_FINGERPRINT_SHA1', 1 );
+define( 'SSH2_FINGERPRINT_HEX', 2 );
 
 function wp_basename( $path ) { return basename( $path ); }
 function ssh2_connect( $host, $port ) { return fopen( 'php://memory', 'r+' ); }
-function ssh2_auth_password( $connection, $user, $password ) { return true; }
+function ssh2_fingerprint( $connection, $flags ) { return $GLOBALS['sftp_test_fingerprint']; }
+function ssh2_auth_password( $connection, $user, $password ) { ++$GLOBALS['sftp_test_auth_attempts']; return true; }
 function ssh2_sftp( $connection ) { return fopen( 'php://memory', 'r+' ); }
 function ssh2_sftp_rename( $sftp, $from, $to ) { return rename( $GLOBALS['sftp_test_root'] . $from, $GLOBALS['sftp_test_root'] . $to ); }
 function ssh2_sftp_unlink( $sftp, $path ) { return unlink( $GLOBALS['sftp_test_root'] . $path ); }
@@ -44,11 +49,36 @@ require __DIR__ . '/../digitalisimo-backups/includes/class-backups.php';
 
 $file = $root . '/original.zip';
 file_put_contents( $file, 'ZIP de prueba para verificar que la copia no cambia.' );
-$settings = array( 'sftp_host' => 'example.test', 'sftp_port' => 22, 'sftp_user' => 'test', 'sftp_password' => 'secret', 'sftp_path' => '/backups' );
+$settings = array( 'sftp_host' => 'example.test', 'sftp_port' => 22, 'sftp_user' => 'test', 'sftp_password' => 'secret', 'sftp_path' => '/backups', 'sftp_fingerprint' => str_repeat( 'A', 40 ) );
 $method = new ReflectionMethod( 'Digitalisimo_Backups', 'sftp' );
 if ( PHP_VERSION_ID < 80100 ) $method->setAccessible( true );
 $result = $method->invoke( null, $file, $settings );
 if ( 'sftp' !== $result['provider'] || $result['sha256'] !== hash_file( 'sha256', $file ) || file_get_contents( $root . $result['path'] ) !== file_get_contents( $file ) ) throw new RuntimeException( 'SFTP debe publicar sólo una copia verificada.' );
+
+$attempts = $GLOBALS['sftp_test_auth_attempts'];
+$wrong = $settings;
+$wrong['sftp_fingerprint'] = str_repeat( 'B', 40 );
+try {
+	$method->invoke( null, $file, $wrong );
+	throw new RuntimeException( 'Una huella SSH diferente no fue rechazada.' );
+} catch ( ReflectionException $e ) {
+	throw $e;
+} catch ( Exception $e ) {
+	if ( 'La huella de la clave SSH del servidor SFTP no coincide con la configurada.' !== $e->getMessage() ) throw $e;
+}
+if ( $GLOBALS['sftp_test_auth_attempts'] !== $attempts ) throw new RuntimeException( 'El plugin intentó autenticarse antes de verificar la clave SSH.' );
+
+$missing = $settings;
+$missing['sftp_fingerprint'] = '';
+try {
+	$method->invoke( null, $file, $missing );
+	throw new RuntimeException( 'SFTP aceptó una conexión sin huella de host.' );
+} catch ( ReflectionException $e ) {
+	throw $e;
+} catch ( Exception $e ) {
+	if ( 'Configura y verifica la huella SHA-1 de la clave SSH del servidor antes de usar SFTP.' !== $e->getMessage() ) throw $e;
+}
+if ( $GLOBALS['sftp_test_auth_attempts'] !== $attempts ) throw new RuntimeException( 'El plugin intentó autenticarse sin huella de host.' );
 
 unlink( $root . $result['path'] );
 $GLOBALS['sftp_test_corrupt_reads'] = true;

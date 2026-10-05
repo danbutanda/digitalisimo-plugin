@@ -8,7 +8,7 @@ define( 'ABSPATH', $root . '/' );
 define( 'WP_CONTENT_DIR', $root . '/wp-content' );
 define( 'WP_PLUGIN_DIR', $root . '/wp-content/plugins' );
 define( 'DB_NAME', 'wordpress_test' );
-define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.41' );
+define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.42' );
 define( 'ARRAY_N', 'ARRAY_N' );
 define( 'ARRAY_A', 'ARRAY_A' );
 foreach ( array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php', 'wp-content/plugins/example.php' ) as $name ) file_put_contents( $root . '/' . $name, 'Contenido de ' . $name );
