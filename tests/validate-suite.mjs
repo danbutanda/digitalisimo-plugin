@@ -11,7 +11,7 @@ const modules = [
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.21.zip', version: '1.0.21' },
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.48.zip', version: '1.0.48' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.23.zip', version: '1.0.23' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.24.zip', version: '1.0.24' };
 const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.5.zip', version: '4.3.0.5' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
@@ -54,6 +54,7 @@ for (const module of modules) {
   if (!source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-tools')) throw new Error('Falta Update URI en DIGITALÍSIMO Tools');
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
   if (!listing.includes(`${toolsModule.dir}/${toolsModule.file}`) || listing.includes('.DS_Store')) throw new Error('El paquete de DIGITALÍSIMO Tools no tiene una estructura válida');
+  if (!readFileSync(join(toolsModule.dir, 'modules/elementor-network-templates/class-network-admin.php'), 'utf8').includes("'Herramientas', $capability, self::PAGE")) throw new Error('El submenú de DIGITALÍSIMO Tools debe mostrarse como Herramientas.');
   for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php', 'assets/media-badges.js', 'assets/media-badges.css', 'assets/slider-optimizado.css', 'modules/elementor-slider/class-widget.php']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
 }
 
