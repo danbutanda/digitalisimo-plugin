@@ -76,6 +76,7 @@ jobs:
           php tests/backups-storage.php
           php tests/backups-operation-lock.php
           php tests/backups-cloud-verification.php
+          php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/performance-preloads.php
           php tests/performance-migration.php
