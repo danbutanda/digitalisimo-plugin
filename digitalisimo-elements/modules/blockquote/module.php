@@ -47,7 +47,7 @@ class Module extends Module_Base {
 			'widget-blockquote',
 			$this->get_css_assets_url( 'widget-blockquote', null, true, true ),
 			[ 'elementor-frontend' ],
-			ELEMENTOR_PRO_VERSION
+			defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : ELEMENTOR_PRO_VERSION
 		);
 	}
 }
