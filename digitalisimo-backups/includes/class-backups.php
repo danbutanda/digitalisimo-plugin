@@ -6,6 +6,7 @@ final class Digitalisimo_Backups {
 	const OPTION = 'digitalisimo_backups_settings';
 	const STORAGE = 'digitalisimo_backups_private_storage';
 	const HISTORY = 'digitalisimo_backups_history';
+	const OPERATION_LOCK = '.operation.lock';
 	const POLICIES = 'digitalisimo_backups_policies';
 	const SERVERS = 'digitalisimo_backups_servers';
 	const ACTION_SAVE = 'digitalisimo_backups_save';
@@ -66,6 +67,23 @@ final class Digitalisimo_Backups {
 		$path = wp_normalize_path( $path );
 		$root = rtrim( wp_normalize_path( $root ), '/' );
 		return $path === $root || 0 === strpos( $path, $root . '/' );
+	}
+	/** Un lock del sistema de archivos cubre toda la instalación, incluidos los subsitios. */
+	private static function acquire_operation_lock() {
+		$path = trailingslashit( self::local_directory() ) . self::OPERATION_LOCK;
+		$handle = @fopen( $path, 'c' );
+		if ( ! $handle ) throw new Exception( 'No se pudo abrir el bloqueo de operaciones de Backups.' );
+		if ( ! @flock( $handle, LOCK_EX | LOCK_NB ) ) {
+			fclose( $handle );
+			throw new Exception( 'Ya hay un respaldo o una restauración en curso. Espera a que termine antes de iniciar otra operación.' );
+		}
+		return $handle;
+	}
+	private static function release_operation_lock( $handle ) {
+		if ( is_resource( $handle ) ) {
+			flock( $handle, LOCK_UN );
+			fclose( $handle );
+		}
 	}
 	/** Traslada los respaldos anteriores; nunca deja un ZIP parcialmente copiado como válido. */
 	private static function migrate_legacy_storage( $private ) {
@@ -133,13 +151,16 @@ final class Digitalisimo_Backups {
 		$site_id = $site_id ?: get_current_blog_id();
 		if ( is_multisite() && ( (int) $site_id !== (int) get_main_site_id() || (int) get_current_blog_id() !== (int) get_main_site_id() ) ) return new WP_Error( 'digitalisimo_backup_scope', 'La política completa de Multisite debe ejecutarse desde el sitio principal de la red.' );
 		try {
-			$file = self::create_network();
-			$settings = self::settings();
-			$settings['destination'] = $policy['destination'];
-			$remote = 'local' === $policy['destination'] ? array() : self::transfer( $file, $settings );
-			self::remember( $file, $policy['destination'], is_multisite() ? 'network' : 'installation', $policy, $remote, $site_id );
-			self::prune_policy( $policy );
-			return $file;
+			$operation_lock = self::acquire_operation_lock();
+			try {
+				$file = self::create_network();
+				$settings = self::settings();
+				$settings['destination'] = $policy['destination'];
+				$remote = 'local' === $policy['destination'] ? array() : self::transfer( $file, $settings );
+				self::remember( $file, $policy['destination'], is_multisite() ? 'network' : 'installation', $policy, $remote, $site_id );
+				self::prune_policy( $policy );
+				return $file;
+			} finally { self::release_operation_lock( $operation_lock ); }
 		} catch ( Exception $e ) {
 			return new WP_Error( 'digitalisimo_backup_policy_failed', $e->getMessage() );
 		}
@@ -171,11 +192,14 @@ final class Digitalisimo_Backups {
 			return;
 		}
 		try {
-			$file = self::create_network();
-			$settings = self::settings();
-			$remote = 'local' === $settings['destination'] ? array() : self::transfer( $file, $settings );
-			self::remember( $file, $settings['destination'], is_multisite() ? 'network' : 'installation', array( 'id' => 'legacy-full', 'type' => 'full' ), $remote );
-			self::prune( dirname( $file ), (int) $settings['retention'] );
+			$operation_lock = self::acquire_operation_lock();
+			try {
+				$file = self::create_network();
+				$settings = self::settings();
+				$remote = 'local' === $settings['destination'] ? array() : self::transfer( $file, $settings );
+				self::remember( $file, $settings['destination'], is_multisite() ? 'network' : 'installation', array( 'id' => 'legacy-full', 'type' => 'full' ), $remote );
+				self::prune( dirname( $file ), (int) $settings['retention'] );
+			} finally { self::release_operation_lock( $operation_lock ); }
 		} catch ( Exception $e ) {
 			error_log( 'Digitalisimo Backups: ' . $e->getMessage() );
 		}
@@ -307,11 +331,15 @@ final class Digitalisimo_Backups {
 		if ( ! isset( $available[ $destination ] ) ) self::redirect( false, 'El destino seleccionado no está conectado o no es válido.', $context );
 		$settings['destination'] = $destination;
 		try {
-			$file = self::create_network();
-			$remote = 'local' === $destination ? array() : self::transfer( $file, $settings );
-			self::remember( $file, $destination, is_multisite() ? 'network' : 'installation', array( 'id' => 'manual', 'type' => 'full' ), $remote );
-			self::prune( dirname( $file ), (int) $settings['retention'] );
-			self::redirect( true, 'Respaldo completo creado: ' . wp_basename( $file ) . ' en ' . self::destination_label( $destination ) . '.', $context );
+			$operation_lock = self::acquire_operation_lock();
+			try {
+				$file = self::create_network();
+				$remote = 'local' === $destination ? array() : self::transfer( $file, $settings );
+				self::remember( $file, $destination, is_multisite() ? 'network' : 'installation', array( 'id' => 'manual', 'type' => 'full' ), $remote );
+				self::prune( dirname( $file ), (int) $settings['retention'] );
+				$message = 'Respaldo completo creado: ' . wp_basename( $file ) . ' en ' . self::destination_label( $destination ) . '.';
+			} finally { self::release_operation_lock( $operation_lock ); }
+			self::redirect( true, $message, $context );
 		} catch ( Exception $e ) {
 			self::redirect( false, $e->getMessage(), $context );
 		}
@@ -767,7 +795,25 @@ final class Digitalisimo_Backups {
 
 	private static function add_changed_directory( $zip, $root, $backup_dir, $since, $exclude_uploads = false, $zip_prefix = 'wordpress/' ) { if ( ! is_dir( $root ) ) return; $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY ); $root = trailingslashit( wp_normalize_path( $root ) ); $backup_dir = trailingslashit( wp_normalize_path( $backup_dir ) ); foreach ( $iterator as $entry ) { if ( ! $entry->isFile() || $entry->isLink() || ( $since && $entry->getMTime() <= $since ) ) continue; $path = wp_normalize_path( $entry->getPathname() ); $relative = ltrim( substr( $path, strlen( $root ) ), '/' ); if ( 0 === strpos( $path, $backup_dir ) || false !== strpos( $path, '/.git/' ) || false !== strpos( $path, '/node_modules/' ) || false !== strpos( $path, '/cache/' ) || ( $exclude_uploads && 0 === strpos( $path, trailingslashit( wp_normalize_path( WP_CONTENT_DIR . '/uploads' ) ) ) ) || ( $exclude_uploads && 'wp-config.php' === $relative ) ) continue; self::zip_add_file( $zip, $path, $zip_prefix . $relative ); } }
 	private static function restore_panel( $history ) { $local = array_filter( (array) $history, function( $item ) { return 'local' === ( $item['destination'] ?? 'local' ) && in_array( $item['scope'] ?? '', array( 'network', 'installation' ), true ) && 'full' === ( $item['backup_type'] ?? 'full' ) && is_file( trailingslashit( self::local_directory() ) . ( $item['file'] ?? '' ) ); } ); echo '<section class="digitalisimo-backups-card"><h2>Restaurar respaldo local</h2><p>Antes de reemplazar la instalación, se creará y bloqueará un respaldo de seguridad actual. La restauración reemplaza la base de datos y los archivos incluidos. Escribe <code>RESTAURAR</code> para habilitarla.</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">'; wp_nonce_field( self::ACTION_RESTORE ); echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION_RESTORE ) . '"><p><select name="backup_file"><option value="">Elige un respaldo de Digitalisimo</option>'; foreach ( $local as $item ) echo '<option value="' . esc_attr( $item['file'] ) . '">' . esc_html( $item['date'] . ' · ' . $item['file'] ) . '</option>'; echo '</select></p><p><label>Confirmación <input type="text" name="confirmation" placeholder="RESTAURAR" autocomplete="off"></label></p><p><button class="button button-primary">Restaurar respaldo seleccionado</button></p></form></section>'; }
-	public static function restore_request() { if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::ACTION_RESTORE ); @set_time_limit( 0 ); if ( 'RESTAURAR' !== strtoupper( trim( (string) ( $_POST['confirmation'] ?? '' ) ) ) ) self::redirect( false, 'Escribe RESTAURAR para confirmar una operación destructiva.' ); try { if ( ! empty( $_POST['updraft'] ) ) self::restore_updraft_set( sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) ) ); else { $file = sanitize_file_name( wp_unslash( $_POST['backup_file'] ?? '' ) ); $path = self::local_path( $file ); if ( ! $path ) throw new Exception( 'El respaldo local solicitado no está disponible.' ); self::restore_digitalisimo_zip( $path ); } self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' ); } catch ( Exception $e ) { self::redirect( false, 'La restauración se detuvo: ' . $e->getMessage() ); } }
+	public static function restore_request() {
+		if ( ! self::can_manage() ) wp_die( 'No autorizado.' );
+		check_admin_referer( self::ACTION_RESTORE );
+		@set_time_limit( 0 );
+		if ( 'RESTAURAR' !== strtoupper( trim( (string) ( $_POST['confirmation'] ?? '' ) ) ) ) self::redirect( false, 'Escribe RESTAURAR para confirmar una operación destructiva.' );
+		try {
+			$operation_lock = self::acquire_operation_lock();
+			try {
+				if ( ! empty( $_POST['updraft'] ) ) self::restore_updraft_set( sanitize_text_field( wp_unslash( $_POST['updraft_set'] ?? '' ) ) );
+				else {
+					$file = sanitize_file_name( wp_unslash( $_POST['backup_file'] ?? '' ) );
+					$path = self::local_path( $file );
+					if ( ! $path ) throw new Exception( 'El respaldo local solicitado no está disponible.' );
+					self::restore_digitalisimo_zip( $path );
+				}
+			} finally { self::release_operation_lock( $operation_lock ); }
+			self::redirect( true, 'Restauración terminada. Entra de nuevo y revisa enlaces permanentes.' );
+		} catch ( Exception $e ) { self::redirect( false, 'La restauración se detuvo: ' . $e->getMessage() ); }
+	}
 	private static function local_path( $file ) { $file = sanitize_file_name( $file ); $root = realpath( self::local_directory() ); $path = $root ? realpath( trailingslashit( $root ) . $file ) : false; return $path && 0 === strpos( wp_normalize_path( $path ), trailingslashit( wp_normalize_path( $root ) ) ) && is_file( $path ) ? $path : ''; }
 	private static function restore_digitalisimo_zip( $path ) {
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor no tiene ZipArchive.' );
