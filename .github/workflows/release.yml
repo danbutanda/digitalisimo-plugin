@@ -72,6 +72,7 @@ jobs:
           php tests/backups-integrity.php
           php tests/backups-manifest.php
           php tests/backups-policies.php
+          php tests/backups-streaming.php
           php tests/tools-site-options.php
           php tests/performance-preloads.php
           php tests/performance-migration.php

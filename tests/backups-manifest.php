@@ -8,7 +8,7 @@ define( 'ABSPATH', $root . '/' );
 define( 'WP_CONTENT_DIR', $root . '/wp-content' );
 define( 'WP_PLUGIN_DIR', $root . '/wp-content/plugins' );
 define( 'DB_NAME', 'wordpress_test' );
-define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.40' );
+define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.41' );
 define( 'ARRAY_N', 'ARRAY_N' );
 define( 'ARRAY_A', 'ARRAY_A' );
 foreach ( array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php', 'wp-content/plugins/example.php' ) as $name ) file_put_contents( $root . '/' . $name, 'Contenido de ' . $name );
@@ -20,10 +20,11 @@ class Digitalisimo_Full_Test_DB {
 	public $fail_import = false;
 	public $fail_next_import = false;
 	public function get_col( $query ) { return array( 'wp_options' ); }
-	public function get_row( $query, $format ) { return array( 'wp_options', 'CREATE TABLE `wp_options` (`id` bigint)' ); }
-	public function get_results( $query, $format ) { $this->last_error = ''; return array( array( 'id' => 1 ) ); }
+	public function prepare( $query, $value ) { return str_replace( '%s', "'" . $value . "'", $query ); }
+	public function get_row( $query, $format ) { $this->last_error = ''; return false !== strpos( $query, 'SHOW TABLE STATUS' ) ? array( 'Engine' => 'InnoDB' ) : array( 'wp_options', 'CREATE TABLE `wp_options` (`id` bigint)' ); }
+	public function get_results( $query, $format ) { $this->last_error = ''; return false !== strpos( $query, 'SHOW INDEX' ) ? array( array( 'Key_name' => 'PRIMARY', 'Column_name' => 'id', 'Non_unique' => 0, 'Seq_in_index' => 1 ) ) : array( array( 'id' => 1 ) ); }
 	public function db_version() { return '8.0'; }
-	public function query( $sql ) { $this->queries[] = $sql; if ( $this->fail_import || $this->fail_next_import ) { $this->fail_next_import = false; $this->last_error = 'Fallo simulado'; return false; } $this->last_error = ''; return 1; }
+	public function query( $sql ) { $this->queries[] = $sql; if ( ( $this->fail_import || $this->fail_next_import ) && false !== strpos( $sql, 'foreign_key_checks' ) ) { $this->fail_next_import = false; $this->last_error = 'Fallo simulado'; return false; } $this->last_error = ''; return 1; }
 }
 $GLOBALS['wpdb'] = new Digitalisimo_Full_Test_DB();
 $GLOBALS['backup_options'] = array();
@@ -52,7 +53,7 @@ $file = $create->invoke( null );
 $zip = new ZipArchive();
 if ( true !== $zip->open( $file ) ) throw new RuntimeException( 'No se pudo abrir el ZIP completo.' );
 $manifest = json_decode( $zip->getFromName( 'manifest.json' ), true );
-if ( 'digitalisimo-backup/v3' !== $manifest['format'] || 'installation' !== $manifest['scope'] || 6 !== $manifest['file_count'] || ! isset( $manifest['entries']['database.sql']['sha256'] ) ) throw new RuntimeException( 'El manifiesto no inventaría todos los archivos de prueba.' );
+if ( 'digitalisimo-backup/v3' !== $manifest['format'] || 'installation' !== $manifest['scope'] || 6 !== $manifest['file_count'] || 'transaction' !== $manifest['database_consistency'] || ! isset( $manifest['entries']['database.sql']['sha256'] ) ) throw new RuntimeException( 'El manifiesto no inventaría todos los archivos de prueba ni la consistencia SQL.' );
 $verify->invoke( null, $zip );
 $zip->close();
 

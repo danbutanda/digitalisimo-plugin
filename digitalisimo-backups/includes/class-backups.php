@@ -237,13 +237,19 @@ final class Digitalisimo_Backups {
 		$file = trailingslashit( $dir ) . $name;
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $file, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) throw new Exception( 'No se pudo crear el archivo ZIP.' );
+		$sql_file = '';
 		try {
 			global $wpdb;
 			$created_at = gmdate( 'c' );
 			$tables = $wpdb->get_col( 'SHOW TABLES' );
-			$sql = self::database_sql( $tables );
-			self::zip_add_string( $zip, 'database.sql', $sql );
-			$entries = array( 'database.sql' => array( 'size' => strlen( $sql ), 'sha256' => hash( 'sha256', $sql ) ) );
+			$sql_file = tempnam( sys_get_temp_dir(), 'digitalisimo-sql-' );
+			if ( false === $sql_file ) throw new Exception( 'No se pudo preparar un archivo temporal para la base de datos.' );
+			$snapshot_mode = self::database_sql_to_file( $tables, $sql_file );
+			self::zip_add_file( $zip, $sql_file, 'database.sql' );
+			$sql_size = @filesize( $sql_file );
+			$sql_hash = @hash_file( 'sha256', $sql_file );
+			if ( false === $sql_size || false === $sql_hash ) throw new Exception( 'No se pudo verificar el SQL temporal.' );
+			$entries = array( 'database.sql' => array( 'size' => $sql_size, 'sha256' => $sql_hash ) );
 			self::add_full_files( $zip, $dir, $entries );
 			$manifest = array(
 				'format' => 'digitalisimo-backup/v3',
@@ -259,6 +265,8 @@ final class Digitalisimo_Backups {
 				'php_version' => PHP_VERSION,
 				'database_version' => method_exists( $wpdb, 'db_version' ) ? $wpdb->db_version() : '',
 				'database_name' => DB_NAME,
+				'database_size' => $entries['database.sql']['size'],
+				'database_consistency' => $snapshot_mode,
 				'table_prefix' => $wpdb->base_prefix,
 				'database_tables' => $tables,
 				'multisite' => is_multisite(),
@@ -275,6 +283,8 @@ final class Digitalisimo_Backups {
 			@$zip->close();
 			@unlink( $file );
 			throw $e;
+		} finally {
+			if ( $sql_file ) @unlink( $sql_file );
 		}
 	}
 	/** Inventario estricto de la instalación, sin omitir archivos sin avisar. */
@@ -441,6 +451,112 @@ final class Digitalisimo_Backups {
 		}
 		return $sql . "SET foreign_key_checks = 1;\n";
 	}
+	/** Exporta el SQL por filas sin construir toda la base de datos en memoria. */
+	private static function database_sql_to_file( $tables, $path ) {
+		global $wpdb;
+		if ( ! is_array( $tables ) || ! $tables ) throw new Exception( 'No se pudo obtener la lista de tablas de la base de datos.' );
+		$output = @fopen( $path, 'wb' );
+		if ( ! $output ) throw new Exception( 'No se pudo abrir el archivo SQL temporal.' );
+		$snapshot = '';
+		$complete = false;
+		try {
+			$snapshot = self::begin_database_snapshot( $tables );
+			self::write_sql( $output, "SET NAMES utf8mb4;\nSET foreign_key_checks = 0;\n\n" );
+			foreach ( $tables as $table ) {
+				$escaped = str_replace( '`', '``', $table );
+				$create = $wpdb->get_row( "SHOW CREATE TABLE `" . $escaped . "`", ARRAY_N );
+				if ( ! is_array( $create ) || empty( $create[1] ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudo exportar la definición de la tabla ' . $table . '.' );
+				self::write_sql( $output, "DROP TABLE IF EXISTS `" . $escaped . "`;\n" . $create[1] . ";\n" );
+				$query = "SELECT * FROM `" . $escaped . "`";
+				if ( class_exists( 'mysqli' ) && isset( $wpdb->dbh ) && $wpdb->dbh instanceof mysqli ) {
+					$result = @mysqli_query( $wpdb->dbh, $query, MYSQLI_USE_RESULT );
+					if ( false === $result ) throw new Exception( 'No se pudo leer la tabla ' . $table . ' en modo streaming.' );
+					try {
+						while ( $row = mysqli_fetch_assoc( $result ) ) self::write_sql_row( $output, $table, $row );
+						if ( mysqli_errno( $wpdb->dbh ) ) throw new Exception( 'Se interrumpió la lectura de la tabla ' . $table . '.' );
+					} finally {
+						mysqli_free_result( $result );
+					}
+				} else {
+					$order = self::unique_order_columns( $table );
+					if ( ! $order ) {
+						$rows = $wpdb->get_results( $query, ARRAY_A );
+						if ( ! is_array( $rows ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudieron exportar los datos de la tabla ' . $table . '.' );
+						foreach ( $rows as $row ) self::write_sql_row( $output, $table, $row );
+						self::write_sql( $output, "\n" );
+						continue;
+					}
+					$offset = 0;
+					$batch = 500;
+					do {
+						$rows = $wpdb->get_results( $query . ' ORDER BY ' . implode( ', ', $order ) . ' LIMIT ' . $offset . ', ' . $batch, ARRAY_A );
+						if ( ! is_array( $rows ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudieron exportar los datos de la tabla ' . $table . '.' );
+						foreach ( $rows as $row ) self::write_sql_row( $output, $table, $row );
+						$offset += count( $rows );
+					} while ( count( $rows ) === $batch );
+				}
+				self::write_sql( $output, "\n" );
+			}
+			self::write_sql( $output, "SET foreign_key_checks = 1;\n" );
+			if ( ! fflush( $output ) ) throw new Exception( 'No se pudo completar el SQL temporal.' );
+			$complete = true;
+			return $snapshot;
+		} finally {
+			try {
+				if ( $snapshot ) self::end_database_snapshot( $snapshot, $complete );
+			} finally {
+				fclose( $output );
+			}
+		}
+	}
+	/** InnoDB usa snapshot; tablas no transaccionales requieren bloqueo de lectura. */
+	private static function begin_database_snapshot( $tables ) {
+		global $wpdb;
+		$transactional = true;
+		foreach ( $tables as $table ) {
+			$status = $wpdb->get_row( $wpdb->prepare( 'SHOW TABLE STATUS WHERE Name = %s', $table ), ARRAY_A );
+			if ( ! is_array( $status ) || empty( $status['Engine'] ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudo determinar el motor de la tabla ' . $table . '; no se creará un respaldo sin consistencia.' );
+			if ( 'innodb' !== strtolower( $status['Engine'] ) ) $transactional = false;
+		}
+		if ( $transactional ) {
+			if ( false === $wpdb->query( 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ' ) || false === $wpdb->query( 'START TRANSACTION WITH CONSISTENT SNAPSHOT' ) ) throw new Exception( 'No se pudo iniciar una instantánea consistente de la base de datos.' );
+			return 'transaction';
+		}
+		$locks = array_map( function( $table ) { return '`' . str_replace( '`', '``', $table ) . '` READ'; }, $tables );
+		if ( false === $wpdb->query( 'LOCK TABLES ' . implode( ', ', $locks ) ) ) throw new Exception( 'No se pudieron bloquear las tablas no transaccionales durante el respaldo.' );
+		return 'lock';
+	}
+	private static function end_database_snapshot( $mode, $complete ) {
+		global $wpdb;
+		$command = 'lock' === $mode ? 'UNLOCK TABLES' : ( $complete ? 'COMMIT' : 'ROLLBACK' );
+		if ( false === $wpdb->query( $command ) ) throw new Exception( 'No se pudo cerrar la instantánea consistente de la base de datos.' );
+	}
+	/** Orden estable para paginar en un DB drop-in que no expone mysqli. */
+	private static function unique_order_columns( $table ) {
+		global $wpdb;
+		$escaped = str_replace( '`', '``', $table );
+		$indexes = $wpdb->get_results( 'SHOW INDEX FROM `' . $escaped . '`', ARRAY_A );
+		if ( ! is_array( $indexes ) || ! empty( $wpdb->last_error ) ) throw new Exception( 'No se pudieron analizar los índices de la tabla ' . $table . '.' );
+		$primary = array();
+		foreach ( $indexes as $index ) if ( 'PRIMARY' === ( $index['Key_name'] ?? '' ) && isset( $index['Column_name'] ) ) $primary[ (int) ( $index['Seq_in_index'] ?? 1 ) ] = '`' . str_replace( '`', '``', $index['Column_name'] ) . '`';
+		if ( ! $primary ) return array();
+		ksort( $primary );
+		return array_values( $primary );
+	}
+	private static function write_sql_row( $handle, $table, $row ) {
+		$columns = array_map( function( $column ) { return '`' . str_replace( '`', '``', $column ) . '`'; }, array_keys( $row ) );
+		$values = array_map( array( __CLASS__, 'sql_value' ), array_values( $row ) );
+		self::write_sql( $handle, 'INSERT INTO `' . str_replace( '`', '``', $table ) . '` (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n" );
+	}
+	private static function write_sql( $handle, $sql ) {
+		$length = strlen( $sql );
+		$offset = 0;
+		while ( $offset < $length ) {
+			$written = fwrite( $handle, substr( $sql, $offset ) );
+			if ( false === $written || 0 === $written ) throw new Exception( 'No se pudo escribir el SQL temporal completo.' );
+			$offset += $written;
+		}
+	}
 
 	private static function sql_value( $value ) { if ( null === $value ) return 'NULL'; return "'" . str_replace( array( '\\', "\0", "\n", "\r", "\x1a", "'" ), array( '\\\\', '\\0', '\\n', '\\r', '\\Z', "\\'" ), (string) $value ) . "'"; }
 	private static function protect( $dir ) { if ( ! file_exists( trailingslashit( $dir ) . 'index.php' ) ) file_put_contents( trailingslashit( $dir ) . 'index.php', "<?php // Silence is golden.\n" ); if ( ! file_exists( trailingslashit( $dir ) . '.htaccess' ) ) file_put_contents( trailingslashit( $dir ) . '.htaccess', "Deny from all\n" ); }
@@ -556,8 +672,8 @@ final class Digitalisimo_Backups {
 			if ( isset( $data['multisite'] ) && (bool) $data['multisite'] !== is_multisite() ) throw new Exception( 'No se puede restaurar directamente entre WordPress individual y Multisite.' );
 			if ( is_multisite() && (int) get_current_blog_id() !== (int) get_main_site_id() ) throw new Exception( 'La red completa sólo puede restaurarse desde su sitio principal.' );
 			if ( isset( $data['table_prefix'] ) && $data['table_prefix'] !== $GLOBALS['wpdb']->base_prefix ) throw new Exception( 'El prefijo de tablas difiere; la migración de prefijo necesita su propio proceso seguro.' );
-			$sql = $zip->getFromName( 'database.sql' );
-			if ( false === $sql || '' === $sql ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
+			$sql_stat = $zip->statName( 'database.sql' );
+			if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'El ZIP no contiene una base de datos válida.' );
 			$item = self::history_item( wp_basename( $path ) );
 			if ( ! empty( $item['sha256'] ) ) {
 				$checksum = @hash_file( 'sha256', $path );
@@ -570,7 +686,7 @@ final class Digitalisimo_Backups {
 			$policy = array( 'id' => 'pre-restore', 'type' => 'full' );
 			self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
 			try {
-				self::import_sql( $sql );
+				self::import_zip_sql( $zip );
 				self::extract_digitalisimo_files( $zip );
 			} catch ( Throwable $failure ) {
 				try {
@@ -595,9 +711,9 @@ final class Digitalisimo_Backups {
 		try {
 			self::validate_zip_entries( $zip );
 			self::verify_zip_contents( $zip );
-			$sql = $zip->getFromName( 'database.sql' );
-			if ( false === $sql || '' === $sql ) throw new Exception( 'La copia previa no contiene SQL.' );
-			self::import_sql( $sql );
+			$sql_stat = $zip->statName( 'database.sql' );
+			if ( ! $sql_stat || empty( $sql_stat['size'] ) ) throw new Exception( 'La copia previa no contiene SQL.' );
+			self::import_zip_sql( $zip );
 			self::extract_digitalisimo_files( $zip );
 		} finally {
 			$zip->close();
@@ -645,6 +761,50 @@ final class Digitalisimo_Backups {
 	}
 
 	private static function import_sql( $sql ) { global $wpdb; $statements = self::sql_statements( $sql ); if ( ! $statements ) throw new Exception( 'La base de datos del respaldo está vacía.' ); foreach ( $statements as $statement ) if ( false === $wpdb->query( $statement ) ) throw new Exception( 'Falló una sentencia SQL: ' . $wpdb->last_error ); }
+	/** Lee el SQL del ZIP por fragmentos y ejecuta una sentencia a la vez. */
+	private static function import_zip_sql( $zip ) {
+		global $wpdb;
+		$stream = $zip->getStream( 'database.sql' );
+		if ( ! $stream ) throw new Exception( 'No se pudo leer la base de datos del ZIP.' );
+		$current = '';
+		$quote = '';
+		$escaped = false;
+		$count = 0;
+		try {
+			while ( ! feof( $stream ) ) {
+				$chunk = fread( $stream, 65536 );
+				if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) throw new Exception( 'La base de datos del ZIP está truncada.' );
+				$length = strlen( $chunk );
+				for ( $i = 0; $i < $length; $i++ ) {
+					$char = $chunk[ $i ];
+					if ( $quote ) {
+						$current .= $char;
+						if ( $escaped ) { $escaped = false; continue; }
+						if ( '\\' === $char ) { $escaped = true; continue; }
+						if ( $char === $quote ) $quote = '';
+						continue;
+					}
+					if ( "'" === $char || '"' === $char || '`' === $char ) { $quote = $char; $current .= $char; continue; }
+					if ( ';' === $char ) {
+						$statement = trim( $current );
+						if ( $statement && 0 !== strpos( $statement, '--' ) ) {
+							if ( false === $wpdb->query( $statement ) ) throw new Exception( 'Falló una sentencia SQL: ' . $wpdb->last_error );
+							$count++;
+						}
+						$current = '';
+						continue;
+					}
+					$current .= $char;
+				}
+			}
+			if ( $quote ) throw new Exception( 'La base de datos del ZIP termina con una cadena SQL incompleta.' );
+			$statement = trim( $current );
+			if ( $statement && 0 !== strpos( $statement, '--' ) ) { if ( false === $wpdb->query( $statement ) ) throw new Exception( 'Falló una sentencia SQL: ' . $wpdb->last_error ); $count++; }
+			if ( ! $count ) throw new Exception( 'La base de datos del respaldo está vacía.' );
+		} finally {
+			fclose( $stream );
+		}
+	}
 	private static function sql_statements( $sql ) { $out = array(); $current = ''; $quote = ''; $escaped = false; $length = strlen( $sql ); for ( $i = 0; $i < $length; $i++ ) { $char = $sql[ $i ]; if ( $quote ) { $current .= $char; if ( $escaped ) { $escaped = false; continue; } if ( '\\' === $char ) { $escaped = true; continue; } if ( $char === $quote ) $quote = ''; continue; } if ( "'" === $char || '"' === $char || '`' === $char ) { $quote = $char; $current .= $char; continue; } if ( ';' === $char ) { $statement = trim( $current ); if ( $statement && 0 !== strpos( $statement, '--' ) ) $out[] = $statement; $current = ''; continue; } $current .= $char; } $statement = trim( $current ); if ( $statement ) $out[] = $statement; return $out; }
 	private static function restore_updraft_set( $id ) { $sets = self::detect_updraft_sets(); if ( empty( $sets[ $id ] ) || true !== self::validate_backup_set( $sets[ $id ] ) ) throw new Exception( 'El conjunto UpdraftPlus no está completo, es cifrado o no se puede leer.' ); $set = $sets[ $id ]; $database = $set['files']['db'][0]['path']; $sql = 'gz' === strtolower( pathinfo( $database, PATHINFO_EXTENSION ) ) ? @gzdecode( (string) file_get_contents( $database ) ) : @file_get_contents( $database ); if ( ! $sql ) throw new Exception( 'No se pudo descomprimir la base de datos de UpdraftPlus.' ); self::import_sql( $sql ); foreach ( array( 'plugins' => WP_PLUGIN_DIR, 'themes' => get_theme_root(), 'uploads' => wp_upload_dir()['basedir'], 'others' => WP_CONTENT_DIR ) as $component => $root ) foreach ( (array) ( $set['files'][ $component ] ?? array() ) as $part ) self::extract_updraft_zip( $part['path'], $root, $component ); }
 	private static function extract_updraft_zip( $path, $root, $component ) { if ( 'zip' !== strtolower( pathinfo( $path, PATHINFO_EXTENSION ) ) ) throw new Exception( 'El archivo UpdraftPlus de ' . $component . ' no es ZIP.' ); $zip = new ZipArchive(); if ( true !== $zip->open( $path ) ) throw new Exception( 'No se pudo abrir una pieza UpdraftPlus.' ); self::validate_zip_entries( $zip ); for ( $i = 0; $i < $zip->numFiles; $i++ ) { $name = str_replace( '\\', '/', (string) $zip->getNameIndex( $i ) ); if ( substr( $name, -1 ) === '/' ) continue; $relative = preg_replace( '#^(wp-content/)?' . preg_quote( $component, '#' ) . '/#', '', $name ); if ( ! $relative || 0 === strpos( $relative, 'wp-config.php' ) ) continue; $destination = trailingslashit( $root ) . $relative; if ( ! wp_mkdir_p( dirname( $destination ) ) ) { $zip->close(); throw new Exception( 'No se pudo crear una carpeta para UpdraftPlus.' ); } $input = $zip->getStream( $name ); $output = @fopen( $destination, 'wb' ); if ( ! $input || ! $output ) { $zip->close(); throw new Exception( 'No se pudo restaurar un archivo UpdraftPlus.' ); } stream_copy_to_stream( $input, $output ); fclose( $input ); fclose( $output ); } $zip->close(); }
