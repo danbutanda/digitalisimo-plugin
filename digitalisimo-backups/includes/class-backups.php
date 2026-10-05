@@ -572,10 +572,33 @@ final class Digitalisimo_Backups {
 			try {
 				self::import_sql( $sql );
 				self::extract_digitalisimo_files( $zip );
+			} catch ( Throwable $failure ) {
+				try {
+					self::rollback_from_safety( $safety );
+					throw new Exception( 'La restauración falló. Se recuperaron la base de datos y los archivos existentes desde ' . wp_basename( $safety ) . '; revisa si quedaron archivos adicionales: ' . $failure->getMessage(), 0, $failure );
+				} catch ( Throwable $rollback_error ) {
+					if ( $rollback_error->getPrevious() === $failure ) throw $rollback_error;
+					throw new Exception( 'La restauración falló y la reversión también falló. Conserva ' . wp_basename( $safety ) . ' para recuperación manual: ' . $rollback_error->getMessage(), 0, $failure );
+				}
 			} finally {
 				// El SQL restaurado puede reemplazar el historial que acabamos de escribir.
 				self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
 			}
+		} finally {
+			$zip->close();
+		}
+	}
+	/** Reintenta la instalación anterior sin crear otra copia ni entrar en recursión. */
+	private static function rollback_from_safety( $path ) {
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $path, ZipArchive::CHECKCONS ) ) throw new Exception( 'No se pudo abrir la copia de seguridad previa.' );
+		try {
+			self::validate_zip_entries( $zip );
+			self::verify_zip_contents( $zip );
+			$sql = $zip->getFromName( 'database.sql' );
+			if ( false === $sql || '' === $sql ) throw new Exception( 'La copia previa no contiene SQL.' );
+			self::import_sql( $sql );
+			self::extract_digitalisimo_files( $zip );
 		} finally {
 			$zip->close();
 		}

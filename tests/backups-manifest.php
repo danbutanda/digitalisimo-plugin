@@ -8,7 +8,7 @@ define( 'ABSPATH', $root . '/' );
 define( 'WP_CONTENT_DIR', $root . '/wp-content' );
 define( 'WP_PLUGIN_DIR', $root . '/wp-content/plugins' );
 define( 'DB_NAME', 'wordpress_test' );
-define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.39' );
+define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.40' );
 define( 'ARRAY_N', 'ARRAY_N' );
 define( 'ARRAY_A', 'ARRAY_A' );
 foreach ( array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php', 'wp-content/plugins/example.php' ) as $name ) file_put_contents( $root . '/' . $name, 'Contenido de ' . $name );
@@ -18,11 +18,12 @@ class Digitalisimo_Full_Test_DB {
 	public $last_error = '';
 	public $queries = array();
 	public $fail_import = false;
+	public $fail_next_import = false;
 	public function get_col( $query ) { return array( 'wp_options' ); }
 	public function get_row( $query, $format ) { return array( 'wp_options', 'CREATE TABLE `wp_options` (`id` bigint)' ); }
-	public function get_results( $query, $format ) { return array( array( 'id' => 1 ) ); }
+	public function get_results( $query, $format ) { $this->last_error = ''; return array( array( 'id' => 1 ) ); }
 	public function db_version() { return '8.0'; }
-	public function query( $sql ) { $this->queries[] = $sql; if ( $this->fail_import ) { $this->last_error = 'Fallo simulado'; return false; } return 1; }
+	public function query( $sql ) { $this->queries[] = $sql; if ( $this->fail_import || $this->fail_next_import ) { $this->fail_next_import = false; $this->last_error = 'Fallo simulado'; return false; } $this->last_error = ''; return 1; }
 }
 $GLOBALS['wpdb'] = new Digitalisimo_Full_Test_DB();
 $GLOBALS['backup_options'] = array();
@@ -61,16 +62,25 @@ $restore->invoke( null, $file );
 $history = $GLOBALS['backup_options'][ Digitalisimo_Backups::HISTORY ] ?? array();
 if ( 1 !== count( $history ) || empty( $history[0]['locked'] ) || 'pre-restore' !== $history[0]['policy'] || empty( $history[0]['sha256'] ) || ! is_file( dirname( $file ) . '/' . $history[0]['file'] ) ) throw new RuntimeException( 'La restauración no dejó un respaldo de seguridad bloqueado.' );
 if ( ! $GLOBALS['wpdb']->queries ) throw new RuntimeException( 'La restauración válida no importó SQL.' );
+$GLOBALS['wpdb']->fail_next_import = true;
+try {
+	$restore->invoke( null, $file );
+	throw new RuntimeException( 'Se aceptó una importación SQL fallida.' );
+} catch ( Exception $e ) {
+	if ( false === strpos( $e->getMessage(), 'Se recuperaron la base de datos' ) ) throw $e;
+}
+$history = $GLOBALS['backup_options'][ Digitalisimo_Backups::HISTORY ] ?? array();
+if ( 2 !== count( $history ) || empty( $history[0]['locked'] ) ) throw new RuntimeException( 'La reversión no conservó el respaldo previo.' );
 $GLOBALS['wpdb']->fail_import = true;
 try {
 	$restore->invoke( null, $file );
 	throw new RuntimeException( 'Se aceptó una importación SQL fallida.' );
 } catch ( Exception $e ) {
-	if ( false === strpos( $e->getMessage(), 'Falló una sentencia SQL' ) ) throw $e;
+	if ( false === strpos( $e->getMessage(), 'reversión también falló' ) ) throw $e;
 }
 $GLOBALS['wpdb']->fail_import = false;
 $history = $GLOBALS['backup_options'][ Digitalisimo_Backups::HISTORY ] ?? array();
-if ( 2 !== count( $history ) || empty( $history[0]['locked'] ) || ! is_file( dirname( $file ) . '/' . $history[0]['file'] ) ) throw new RuntimeException( 'El fallo SQL perdió el respaldo previo.' );
+if ( 3 !== count( $history ) || empty( $history[0]['locked'] ) || ! is_file( dirname( $file ) . '/' . $history[0]['file'] ) ) throw new RuntimeException( 'El fallo SQL perdió el respaldo previo.' );
 
 $incomplete = dirname( $file ) . '/incomplete-v3.zip';
 copy( $file, $incomplete );
