@@ -1,6 +1,6 @@
 # Estado de DIGITALÍSIMO Backups
 
-Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38, 1.0.39, 1.0.40 1.0.41, 1.0.42 y 1.0.43. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
+Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38, 1.0.39, 1.0.40 1.0.41, 1.0.42 y 1.0.43; 1.0.44 en preparación. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
 
 ## IMPLEMENTADO
 
@@ -20,6 +20,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cam
 - En 1.0.41, el SQL de los respaldos integrales se escribe por filas en un temporal y se importa desde el ZIP por sentencias, reduciendo el pico de memoria. Las tablas InnoDB se leen en una instantánea transaccional; si aparece una tabla no transaccional se bloquean las tablas durante la exportación SQL. Un DB drop-in sin acceso `mysqli` pagina por clave primaria y lee de una vez las tablas sin ella para no omitir filas. Todavía faltan consistencia entre archivos y base de datos, BLOBs/objetos especiales y pruebas con bases grandes reales.
 - En 1.0.42, SFTP exige una huella SHA-1 de la clave SSH configurada y la compara antes de enviar credenciales o respaldos. Las conexiones anteriores sin huella quedan inhabilitadas hasta configurarla. Todavía falta la prueba contra un servidor SFTP real.
 - En 1.0.43, la restauración registra los archivos nuevos que escribió. Si falla y el respaldo previo se recupera, retira sólo esos archivos, comprobando su hash antes de borrarlos. Aún no hay atomicidad frente a interrupciones del proceso, ni staging completo.
+- En 1.0.44, los ZIP nuevos usan una carpeta privada fuera de `ABSPATH` y de la raíz pública del servidor. Los archivos del almacén anterior se migran con bloqueo y verificación SHA-256; si no se puede demostrar una ruta privada, la creación falla de forma explícita. WordPress CLI necesita una ruta ya registrada por la interfaz o la constante `DIGITALISIMO_BACKUPS_STORAGE_DIR`. Aún falta prueba con servidores web y migración de archivos grandes reales.
 
 ## PENDIENTE
 
@@ -54,4 +55,4 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cam
 
 ## Siguiente bloque
 
-Cerrar las brechas de seguridad y restauración: sacar el almacén local de una ruta potencialmente pública, probar la clave SSH contra un servidor SFTP real y preparar una restauración transaccional que retire también los archivos añadidos si falla. Después abordar rutas externas y destinos remotos según `backups-objective.md`.
+Cerrar las brechas de seguridad y restauración: probar la migración del almacén local y la clave SSH contra un servidor SFTP real y preparar una restauración transaccional que retire también los archivos añadidos si falla. Después abordar rutas externas y destinos remotos según `backups-objective.md`.

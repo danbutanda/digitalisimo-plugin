@@ -7,8 +7,11 @@ mkdir( $root . '/wp-content/plugins', 0700, true );
 define( 'ABSPATH', $root . '/' );
 define( 'WP_CONTENT_DIR', $root . '/wp-content' );
 define( 'WP_PLUGIN_DIR', $root . '/wp-content/plugins' );
+$_SERVER['DOCUMENT_ROOT'] = $root;
+mkdir( WP_PLUGIN_DIR . '/digitalisimo-backups-storage', 0700 );
+file_put_contents( WP_PLUGIN_DIR . '/digitalisimo-backups-storage/old-backup.zip', 'Respaldo histórico de prueba' );
 define( 'DB_NAME', 'wordpress_test' );
-define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.43' );
+define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.44' );
 define( 'ARRAY_N', 'ARRAY_N' );
 define( 'ARRAY_A', 'ARRAY_A' );
 foreach ( array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php', 'wp-content/plugins/example.php' ) as $name ) file_put_contents( $root . '/' . $name, 'Contenido de ' . $name );
@@ -50,6 +53,7 @@ $create = new ReflectionMethod( 'Digitalisimo_Backups', 'create_network' );
 $verify = new ReflectionMethod( 'Digitalisimo_Backups', 'verify_zip_contents' );
 if ( PHP_VERSION_ID < 80100 ) { $create->setAccessible( true ); $verify->setAccessible( true ); }
 $file = $create->invoke( null );
+if ( 0 === strpos( realpath( dirname( $file ) ) . '/', realpath( $root ) . '/' ) || ! is_file( dirname( $file ) . '/old-backup.zip' ) || file_exists( WP_PLUGIN_DIR . '/digitalisimo-backups-storage/old-backup.zip' ) ) throw new RuntimeException( 'El respaldo nuevo o el histórico permaneció en una carpeta pública.' );
 $zip = new ZipArchive();
 if ( true !== $zip->open( $file ) ) throw new RuntimeException( 'No se pudo abrir el ZIP completo.' );
 $manifest = json_decode( $zip->getFromName( 'manifest.json' ), true );
@@ -163,6 +167,8 @@ try {
 }
 
 unlink( $file );
+unlink( dirname( $file ) . '/old-backup.zip' );
+unlink( dirname( $file ) . '/.migration.lock' );
 unlink( $incomplete );
 unlink( $linked );
 unlink( $failed_restore );
@@ -170,6 +176,7 @@ foreach ( $history as $record ) unlink( dirname( $file ) . '/' . $record['file']
 unlink( dirname( $file ) . '/index.php' );
 unlink( dirname( $file ) . '/.htaccess' );
 rmdir( dirname( $file ) );
+rmdir( WP_PLUGIN_DIR . '/digitalisimo-backups-storage' );
 foreach ( array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php', 'wp-content/plugins/example.php' ) as $name ) unlink( $root . '/' . $name );
 rmdir( $root . '/wp-admin' );
 rmdir( $root . '/wp-includes' );

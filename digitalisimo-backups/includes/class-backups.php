@@ -4,6 +4,7 @@ defined( 'ABSPATH' ) || exit;
 /** Respaldo manual completo: base de datos, archivos y copia opcional remota. */
 final class Digitalisimo_Backups {
 	const OPTION = 'digitalisimo_backups_settings';
+	const STORAGE = 'digitalisimo_backups_private_storage';
 	const HISTORY = 'digitalisimo_backups_history';
 	const POLICIES = 'digitalisimo_backups_policies';
 	const SERVERS = 'digitalisimo_backups_servers';
@@ -21,7 +22,90 @@ final class Digitalisimo_Backups {
 	const ACTION_DELETE_AUTOMATION = 'digitalisimo_backups_delete_automation';
 	public static function init() { self::activate_default_policies(); add_action( 'admin_post_' . self::ACTION_SAVE, array( __CLASS__, 'save' ) ); add_action( 'admin_post_' . self::ACTION_RUN, array( __CLASS__, 'run' ) ); add_action( 'admin_post_' . self::ACTION_OAUTH, array( __CLASS__, 'oauth_callback' ) ); add_action( 'admin_post_' . self::ACTION_LOCK, array( __CLASS__, 'toggle_lock' ) ); add_action( 'admin_post_' . self::ACTION_DOWNLOAD, array( __CLASS__, 'download' ) ); add_action( 'admin_post_' . self::ACTION_DELETE, array( __CLASS__, 'delete_backup' ) ); add_action( 'admin_post_' . self::ACTION_SAVE_POLICIES, array( __CLASS__, 'save_policies' ) ); add_action( 'admin_post_' . self::ACTION_RUN_POLICY, array( __CLASS__, 'run_policy_request' ) ); add_action( 'admin_post_' . self::ACTION_CREATE_AUTOMATION, array( __CLASS__, 'create_automation' ) ); add_action( 'admin_post_' . self::ACTION_UPDATE_AUTOMATION, array( __CLASS__, 'update_automation' ) ); add_action( 'admin_post_' . self::ACTION_DELETE_AUTOMATION, array( __CLASS__, 'delete_automation' ) ); add_action( 'admin_post_' . self::ACTION_RESTORE, array( __CLASS__, 'restore_request' ) ); add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) ); add_action( 'digitalisimo_backups_full', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_db', array( __CLASS__, 'scheduled_backup' ), 10, 1 ); add_action( 'digitalisimo_backups_policy', array( __CLASS__, 'scheduled_policy' ), 10, 2 ); }
 	private static function defaults() { return array( 'destination' => 'local', 'sftp_name' => 'SFTP', 'google_name' => 'Google Drive', 'onedrive_name' => 'OneDrive', 'sftp_host' => '', 'sftp_port' => '22', 'sftp_user' => '', 'sftp_path' => '/', 'sftp_password' => '', 'sftp_fingerprint' => '', 'google_client_id' => '', 'google_client_secret' => '', 'google_refresh_token' => '', 'google_folder_id' => '', 'onedrive_client_id' => '', 'onedrive_client_secret' => '', 'onedrive_refresh_token' => '', 'onedrive_folder' => 'Digitalisimo Backups', 'retention' => '5', 'full_schedule' => 'disabled', 'database_schedule' => 'disabled' ); }
-	private static function local_directory() { return WP_PLUGIN_DIR . '/digitalisimo-backups-storage'; }
+	/** Los ZIP no deben quedar bajo una ruta servida por Apache, Nginx o el CDN. */
+	private static function local_directory() {
+		static $directory = null;
+		if ( null !== $directory ) return $directory;
+		$wp_root = realpath( ABSPATH );
+		if ( false === $wp_root ) throw new Exception( 'No se pudo resolver la raíz de WordPress para ubicar los respaldos.' );
+		$document_root = ! empty( $_SERVER['DOCUMENT_ROOT'] ) ? realpath( (string) $_SERVER['DOCUMENT_ROOT'] ) : false;
+		$explicit = defined( 'DIGITALISIMO_BACKUPS_STORAGE_DIR' );
+		$saved = is_multisite() ? get_site_option( self::STORAGE, array() ) : get_option( self::STORAGE, array() );
+		if ( $explicit ) {
+			$path = (string) DIGITALISIMO_BACKUPS_STORAGE_DIR;
+		} elseif ( is_array( $saved ) && wp_normalize_path( $wp_root ) === ( $saved['wordpress_root'] ?? '' ) && ! empty( $saved['directory'] ) ) {
+			$path = (string) $saved['directory'];
+		} else {
+			if ( false === $document_root ) throw new Exception( 'No se conoce la raíz pública del servidor. Define DIGITALISIMO_BACKUPS_STORAGE_DIR en wp-config.php con una carpeta privada fuera del sitio.' );
+			$path = dirname( $document_root ) . '/.digitalisimo-backups-' . substr( hash( 'sha256', wp_normalize_path( $wp_root ) ), 0, 16 );
+		}
+		if ( ! preg_match( '#^(?:/|[a-zA-Z]:[/\\\\])#', $path ) || is_link( $path ) ) throw new Exception( 'La carpeta de respaldos debe ser una ruta absoluta y no un enlace simbólico.' );
+		if ( ! wp_mkdir_p( $path ) ) throw new Exception( 'No se pudo crear la carpeta privada de respaldos. Define DIGITALISIMO_BACKUPS_STORAGE_DIR con una ruta escribible fuera de la raíz pública.' );
+		$real = realpath( $path );
+		if ( false === $real ) throw new Exception( 'No se pudo resolver la carpeta privada de respaldos.' );
+		foreach ( array_filter( array( $wp_root, realpath( WP_CONTENT_DIR ), realpath( WP_PLUGIN_DIR ), $document_root ) ) as $public_root ) {
+			if ( self::path_within( $real, $public_root ) ) throw new Exception( 'La carpeta de respaldos está dentro de una ruta pública. Elige una ruta privada fuera del sitio.' );
+		}
+		if ( ! is_writable( $real ) ) throw new Exception( 'La carpeta privada de respaldos no permite escritura.' );
+		if ( DIRECTORY_SEPARATOR === '/' ) {
+			@chmod( $real, 0700 );
+			clearstatcache( true, $real );
+			$permissions = @fileperms( $real );
+			if ( false === $permissions || ( $permissions & 0077 ) !== 0 ) throw new Exception( 'La carpeta privada de respaldos permite acceso a otros usuarios del servidor.' );
+		}
+		if ( ! $explicit && ( ! is_array( $saved ) || ( $saved['directory'] ?? '' ) !== $real || ( $saved['wordpress_root'] ?? '' ) !== wp_normalize_path( $wp_root ) ) ) {
+			$record = array( 'wordpress_root' => wp_normalize_path( $wp_root ), 'directory' => $real );
+			if ( is_multisite() ) update_site_option( self::STORAGE, $record );
+			else update_option( self::STORAGE, $record, false );
+		}
+		self::migrate_legacy_storage( $real );
+		$directory = $real;
+		return $directory;
+	}
+	private static function path_within( $path, $root ) {
+		$path = wp_normalize_path( $path );
+		$root = rtrim( wp_normalize_path( $root ), '/' );
+		return $path === $root || 0 === strpos( $path, $root . '/' );
+	}
+	/** Traslada los respaldos anteriores; nunca deja un ZIP parcialmente copiado como válido. */
+	private static function migrate_legacy_storage( $private ) {
+		$legacy = WP_PLUGIN_DIR . '/digitalisimo-backups-storage';
+		if ( ! file_exists( $legacy ) ) return;
+		if ( is_link( $legacy ) || ! is_dir( $legacy ) ) throw new Exception( 'La carpeta de respaldos anterior no es una carpeta segura.' );
+		$lock = @fopen( $private . '/.migration.lock', 'c' );
+		if ( ! $lock || ! flock( $lock, LOCK_EX ) ) { if ( $lock ) fclose( $lock ); throw new Exception( 'No se pudo bloquear la migración de respaldos anteriores.' ); }
+		try {
+			$names = @scandir( $legacy );
+			if ( false === $names ) throw new Exception( 'No se pudo leer la carpeta anterior de respaldos.' );
+			foreach ( $names as $name ) {
+				if ( in_array( $name, array( '.', '..', 'index.php', '.htaccess' ), true ) ) continue;
+				$source = $legacy . '/' . $name;
+				if ( is_link( $source ) || ! is_file( $source ) ) throw new Exception( 'Hay un elemento no migrable en la carpeta anterior de respaldos: ' . $name );
+				$target = $private . '/' . $name;
+				$source_hash = @hash_file( 'sha256', $source );
+				if ( false === $source_hash ) throw new Exception( 'No se pudo verificar el respaldo anterior ' . $name . '.' );
+				if ( file_exists( $target ) ) {
+					$target_hash = is_file( $target ) && ! is_link( $target ) ? @hash_file( 'sha256', $target ) : false;
+					if ( false === $target_hash || ! hash_equals( $source_hash, $target_hash ) ) throw new Exception( 'Dos respaldos con el mismo nombre tienen distinto contenido: ' . $name );
+				} elseif ( ! @rename( $source, $target ) ) {
+					$temp = $target . '.migrating';
+					$input = @fopen( $source, 'rb' );
+					$output = @fopen( $temp, 'wb' );
+					if ( ! $input || ! $output ) { if ( $input ) fclose( $input ); if ( $output ) fclose( $output ); @unlink( $temp ); throw new Exception( 'No se pudo copiar el respaldo anterior ' . $name . ' a la carpeta privada.' ); }
+					$copied = stream_copy_to_stream( $input, $output );
+					$flushed = fflush( $output );
+					fclose( $input );
+					fclose( $output );
+					$temp_hash = @hash_file( 'sha256', $temp );
+					if ( false === $copied || ! $flushed || $copied !== @filesize( $source ) || false === $temp_hash || ! hash_equals( $source_hash, $temp_hash ) || ! @rename( $temp, $target ) ) { @unlink( $temp ); throw new Exception( 'La copia del respaldo anterior ' . $name . ' no superó la verificación.' ); }
+				}
+				if ( file_exists( $source ) && ! @unlink( $source ) ) throw new Exception( 'Se copió ' . $name . ' a la carpeta privada, pero no se pudo retirar de la carpeta pública.' );
+			}
+		} finally {
+			flock( $lock, LOCK_UN );
+			fclose( $lock );
+		}
+	}
 	/** Políticas independientes: cada una conserva su propia cadena y retención. */
 	public static function default_policies() { return array( array( 'id' => 'monthly-full', 'label' => 'Completo mensual', 'type' => 'full', 'schedule' => 'monthly', 'retain' => 4, 'destination' => 'local', 'enabled' => true ) ); }
 	public static function policies() { $saved = (array) get_option( self::POLICIES, self::default_policies() ); $defaults = array(); foreach ( self::default_policies() as $policy ) $defaults[ $policy['id'] ] = $policy; foreach ( $saved as &$policy ) { $base = $defaults[ $policy['id'] ?? '' ] ?? array( 'enabled' => true ); $policy = wp_parse_args( (array) $policy, $base ); if ( 'full' !== ( $policy['type'] ?? '' ) ) { $policy['enabled'] = false; $policy['schedule'] = 'disabled'; } } unset( $policy ); return $saved; }
@@ -108,6 +192,8 @@ final class Digitalisimo_Backups {
 	private static function manual_destinations( $settings ) { $destinations = array( 'local' => self::destination_label( 'local' ) ); if ( ! empty( $settings['sftp_host'] ) && ! empty( $settings['sftp_user'] ) && ! empty( $settings['sftp_password'] ) && ! empty( $settings['sftp_fingerprint'] ) ) $destinations['sftp'] = $settings['sftp_name'] ?: self::destination_label( 'sftp' ); if ( ! empty( $settings['google_refresh_token'] ) ) $destinations['google'] = $settings['google_name'] ?: self::destination_label( 'google' ); if ( ! empty( $settings['onedrive_refresh_token'] ) ) $destinations['onedrive'] = $settings['onedrive_name'] ?: self::destination_label( 'onedrive' ); return $destinations; }
 	private static function manual_destination_select( $settings ) { $html = '<label>Destino<br><select name="digitalisimo_backup_destination">'; foreach ( self::manual_destinations( $settings ) as $value => $label ) $html .= '<option value="' . esc_attr( $value ) . '"' . selected( $settings['destination'], $value, false ) . '>' . esc_html( $label ) . '</option>'; return $html . '</select></label>'; }
 	private static function render( $network ) {
+		try { self::local_directory(); }
+		catch ( Throwable $e ) { echo '<div class="wrap digitalisimo-backups"><h1>Backups · Digitalisimo</h1><div class="notice notice-error"><p>' . esc_html( $e->getMessage() ) . '</p></div></div>'; return; }
 		$s = self::settings(); $history = array_slice( (array) get_option( self::HISTORY, array() ), 0, 10 );
 		echo '<div class="wrap digitalisimo-backups"><h1>Backups · Digitalisimo</h1><p>Genera un ZIP integral: archivos de WordPress, plugins, temas, medios y base de datos. El respaldo se crea primero en el hosting y después se copia al destino elegido.</p>';
 		if ( isset( $_GET['backup'] ) ) echo '<div class="notice notice-' . ( 'ok' === $_GET['backup'] ? 'success' : 'error' ) . '"><p>' . esc_html( sanitize_text_field( wp_unslash( $_GET['message'] ?? '' ) ) ) . '</p></div>';
