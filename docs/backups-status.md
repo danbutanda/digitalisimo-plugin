@@ -1,6 +1,6 @@
 # Estado de DIGITALÍSIMO Backups
 
-Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38, 1.0.39, 1.0.40 1.0.41 y 1.0.42. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
+Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38, 1.0.39, 1.0.40 1.0.41 y 1.0.42; 1.0.43 en preparación. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
 
 ## IMPLEMENTADO
 
@@ -19,6 +19,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cam
 - En 1.0.40, un fallo durante la importación o extracción desencadena un intento de recuperación desde la copia previa. Si también falla, el ZIP de seguridad sigue disponible y el error indica que requiere intervención manual. La recuperación actual repone base de datos y archivos existentes, pero todavía no elimina archivos nuevos que hayan quedado tras el intento; no se considera atomicidad completa.
 - En 1.0.41, el SQL de los respaldos integrales se escribe por filas en un temporal y se importa desde el ZIP por sentencias, reduciendo el pico de memoria. Las tablas InnoDB se leen en una instantánea transaccional; si aparece una tabla no transaccional se bloquean las tablas durante la exportación SQL. Un DB drop-in sin acceso `mysqli` pagina por clave primaria y lee de una vez las tablas sin ella para no omitir filas. Todavía faltan consistencia entre archivos y base de datos, BLOBs/objetos especiales y pruebas con bases grandes reales.
 - En 1.0.42, SFTP exige una huella SHA-1 de la clave SSH configurada y la compara antes de enviar credenciales o respaldos. Las conexiones anteriores sin huella quedan inhabilitadas hasta configurarla. Todavía falta la prueba contra un servidor SFTP real.
+- En 1.0.43, la restauración registra los archivos nuevos que escribió. Si falla y el respaldo previo se recupera, retira sólo esos archivos, comprobando su hash antes de borrarlos. Aún no hay atomicidad frente a interrupciones del proceso, ni staging completo.
 
 ## PENDIENTE
 

@@ -8,7 +8,7 @@ define( 'ABSPATH', $root . '/' );
 define( 'WP_CONTENT_DIR', $root . '/wp-content' );
 define( 'WP_PLUGIN_DIR', $root . '/wp-content/plugins' );
 define( 'DB_NAME', 'wordpress_test' );
-define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.42' );
+define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.43' );
 define( 'ARRAY_N', 'ARRAY_N' );
 define( 'ARRAY_A', 'ARRAY_A' );
 foreach ( array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php', 'wp-content/plugins/example.php' ) as $name ) file_put_contents( $root . '/' . $name, 'Contenido de ' . $name );
@@ -28,7 +28,7 @@ class Digitalisimo_Full_Test_DB {
 }
 $GLOBALS['wpdb'] = new Digitalisimo_Full_Test_DB();
 $GLOBALS['backup_options'] = array();
-function wp_mkdir_p( $path ) { return is_dir( $path ) || mkdir( $path, 0700, true ); }
+function wp_mkdir_p( $path ) { return is_dir( $path ) || @mkdir( $path, 0700, true ); }
 function wp_normalize_path( $path ) { return str_replace( '\\', '/', $path ); }
 function trailingslashit( $path ) { return rtrim( $path, '/' ) . '/'; }
 function home_url() { return 'https://example.test/'; }
@@ -124,6 +124,31 @@ if ( file_exists( $outside . '/escape.php' ) ) throw new RuntimeException( 'La r
 unlink( $root . '/wp-content/linked' );
 rmdir( $outside );
 
+$failed_restore = dirname( $file ) . '/restore-with-new-file.zip';
+copy( $file, $failed_restore );
+$zip->open( $failed_restore );
+$failed_manifest = json_decode( $zip->getFromName( 'manifest.json' ), true );
+$new_entries = array(
+	'wordpress/wp-content/new-from-restore.txt' => 'Este archivo no existía antes.',
+	'wordpress/wp-load.php/impossible.php' => 'Esta ruta debe fallar después del archivo nuevo.',
+);
+foreach ( $new_entries as $name => $content ) {
+	$zip->addFromString( $name, $content );
+	$failed_manifest['entries'][ $name ] = array( 'size' => strlen( $content ), 'sha256' => hash( 'sha256', $content ) );
+	$failed_manifest['file_count']++;
+	$failed_manifest['uncompressed_size'] += strlen( $content );
+}
+$zip->addFromString( 'manifest.json', wp_json_encode( $failed_manifest ) );
+$zip->close();
+try {
+	$restore->invoke( null, $failed_restore );
+	throw new RuntimeException( 'La restauración con una ruta imposible no falló.' );
+} catch ( Exception $e ) {
+	if ( false === strpos( $e->getMessage(), 'se retiraron los archivos nuevos' ) ) throw $e;
+}
+if ( file_exists( $root . '/wp-content/new-from-restore.txt' ) ) throw new RuntimeException( 'La reversión dejó un archivo creado por la restauración fallida.' );
+$history = $GLOBALS['backup_options'][ Digitalisimo_Backups::HISTORY ] ?? array();
+
 $zip->open( $file );
 $zip->addFromString( 'wordpress/wp-load.php', str_repeat( 'X', strlen( 'Contenido de wp-load.php' ) ) );
 $zip->close();
@@ -140,6 +165,7 @@ try {
 unlink( $file );
 unlink( $incomplete );
 unlink( $linked );
+unlink( $failed_restore );
 foreach ( $history as $record ) unlink( dirname( $file ) . '/' . $record['file'] );
 unlink( dirname( $file ) . '/index.php' );
 unlink( dirname( $file ) . '/.htaccess' );

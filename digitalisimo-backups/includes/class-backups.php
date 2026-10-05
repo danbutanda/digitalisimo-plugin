@@ -688,13 +688,15 @@ final class Digitalisimo_Backups {
 			$safety = $protected;
 			$policy = array( 'id' => 'pre-restore', 'type' => 'full' );
 			self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
+			$created_files = array();
 			try {
 				self::import_zip_sql( $zip );
-				self::extract_digitalisimo_files( $zip );
+				self::extract_digitalisimo_files( $zip, $created_files );
 			} catch ( Throwable $failure ) {
 				try {
 					self::rollback_from_safety( $safety );
-					throw new Exception( 'La restauración falló. Se recuperaron la base de datos y los archivos existentes desde ' . wp_basename( $safety ) . '; revisa si quedaron archivos adicionales: ' . $failure->getMessage(), 0, $failure );
+					self::remove_new_restore_files( $created_files );
+					throw new Exception( 'La restauración falló. Se recuperaron la base de datos y los archivos anteriores desde ' . wp_basename( $safety ) . ' y se retiraron los archivos nuevos: ' . $failure->getMessage(), 0, $failure );
 				} catch ( Throwable $rollback_error ) {
 					if ( $rollback_error->getPrevious() === $failure ) throw $rollback_error;
 					throw new Exception( 'La restauración falló y la reversión también falló. Conserva ' . wp_basename( $safety ) . ' para recuperación manual: ' . $rollback_error->getMessage(), 0, $failure );
@@ -705,6 +707,20 @@ final class Digitalisimo_Backups {
 			}
 		} finally {
 			$zip->close();
+		}
+	}
+	/** Sólo borra archivos creados por este intento y que no cambiaron desde que se escribieron. */
+	private static function remove_new_restore_files( $created_files ) {
+		$real_root = realpath( ABSPATH );
+		if ( false === $real_root ) throw new Exception( 'No se puede comprobar la ruta de los archivos nuevos.' );
+		$root = trailingslashit( wp_normalize_path( $real_root ) );
+		foreach ( $created_files as $path => $expected_hash ) {
+			$normalized = wp_normalize_path( $path );
+			if ( 0 !== strpos( $normalized, $root ) || is_link( $path ) ) throw new Exception( 'Un archivo nuevo quedó fuera de la ruta segura de restauración.' );
+			if ( ! file_exists( $path ) ) continue;
+			$actual_hash = is_file( $path ) ? @hash_file( 'sha256', $path ) : false;
+			if ( false === $actual_hash || ! hash_equals( $expected_hash, $actual_hash ) ) throw new Exception( 'Un archivo nuevo cambió durante la reversión y requiere revisión manual: ' . $path );
+			if ( ! @unlink( $path ) ) throw new Exception( 'No se pudo retirar un archivo nuevo durante la reversión: ' . $path );
 		}
 	}
 	/** Reintenta la instalación anterior sin crear otra copia ni entrar en recursión. */
@@ -729,7 +745,7 @@ final class Digitalisimo_Backups {
 			if ( '' === $name || '/' === substr( $name, 0, 1 ) || preg_match( '#(^|/)\.\.?(/|$)#', $name ) || preg_match( '/^[a-zA-Z]:/', $name ) || false !== strpos( $name, "\0" ) ) throw new Exception( 'El ZIP contiene una ruta no permitida.' );
 		}
 	}
-	private static function extract_digitalisimo_files( $zip ) {
+	private static function extract_digitalisimo_files( $zip, &$created_files = null ) {
 		$real_root = realpath( ABSPATH );
 		if ( false === $real_root ) throw new Exception( 'No se pudo resolver la instalación de destino.' );
 		$root = trailingslashit( wp_normalize_path( $real_root ) );
@@ -746,6 +762,7 @@ final class Digitalisimo_Backups {
 				if ( is_link( $current ) ) throw new Exception( 'Una carpeta de restauración es un enlace simbólico: ' . $relative );
 			}
 			if ( is_link( $destination ) ) throw new Exception( 'Un archivo de restauración es un enlace simbólico: ' . $relative );
+			$was_present = file_exists( $destination );
 			if ( ! wp_mkdir_p( dirname( $destination ) ) ) throw new Exception( 'No se pudo preparar una carpeta de destino segura.' );
 			$real_parent = realpath( dirname( $destination ) );
 			if ( false === $real_parent || 0 !== strpos( trailingslashit( wp_normalize_path( $real_parent ) ), $root ) ) throw new Exception( 'La carpeta de destino sale de WordPress.' );
@@ -759,7 +776,10 @@ final class Digitalisimo_Backups {
 			fclose( $input );
 			$crc = @hash_file( 'crc32b', $temp );
 			if ( false === $written || ! $closed || $written !== (int) $stat['size'] || false === $crc || $crc !== sprintf( '%08x', $stat['crc'] ) ) { @unlink( $temp ); throw new Exception( 'El archivo restaurado ' . $relative . ' quedó incompleto.' ); }
+			$created_hash = ! $was_present && is_array( $created_files ) ? @hash_file( 'sha256', $temp ) : null;
+			if ( false === $created_hash ) { @unlink( $temp ); throw new Exception( 'No se pudo verificar el archivo nuevo ' . $relative . '.' ); }
 			if ( ! @rename( $temp, $destination ) ) { @unlink( $temp ); throw new Exception( 'No se pudo reemplazar el archivo ' . $relative . ' durante la restauración.' ); }
+			if ( ! $was_present && is_array( $created_files ) ) $created_files[ $destination ] = $created_hash;
 		}
 	}
 
