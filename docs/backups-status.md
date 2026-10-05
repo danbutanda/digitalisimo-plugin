@@ -1,6 +1,6 @@
 # Estado de DIGITALÍSIMO Backups
 
-Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38 y 1.0.39; 1.0.40 en preparación. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
+Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38, 1.0.39 y 1.0.40. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
 
 ## IMPLEMENTADO
 
@@ -43,7 +43,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cam
 - `tests/backups-integrity.php` comprueba fallos de exportación SQL, creación ZIP sin metadata, archivos fuente ausentes, rechazo de un incremental durante restauración y rutas transversales. El workflow `37185919837` pasó y la Release `v2026.10.04.232` contiene sólo `digitalisimo-backups-1.0.37.zip`; descarga pública íntegra con SHA-256 `4bd91b99cdce367df7dc28881f4eb67d28f04830d600999eda7efd19d356bc9d`. Pendiente validar la actualización y un respaldo real en WordPress.
 - `tests/backups-manifest.php` crea un WordPress sintético y rechaza un archivo alterado con CRC recalculado; `tests/backups-policies.php` comprueba la desactivación persistente de tareas parciales. El workflow `37187410172` pasó y la Release `v2026.10.04.233` contiene sólo `digitalisimo-backups-1.0.38.zip`; la descarga pública pasó `unzip -t` y su SHA-256 es `53c4cd8ce71c00ac229fe32e6cb5fd0b78e017f6124df7e4a86dcace023fe0f8`. Pendiente realizar una copia real.
 - Para 1.0.39, `tests/backups-manifest.php` también comprueba copia previa al restaurar, conservación de la copia ante fallo SQL, ausencia de un archivo obligatorio y rechazo de enlaces simbólicos; `tests/backups-integrity.php` rechaza una exportación anterior de subsitio como restauración total. El workflow `37188303810` pasó y la Release `v2026.10.04.234` contiene sólo `digitalisimo-backups-1.0.39.zip`; la descarga pública pasó `unzip -t` y su SHA-256 es `c6bcfac121de6b7934bc9293a5f7694d04a7b5c068bd36947842a4a887394e9c`.
-- Para 1.0.40, `tests/backups-manifest.php` simula un fallo SQL recuperable y uno persistente; verifica el mensaje y la conservación de cada ZIP previo.
+- Para 1.0.40, `tests/backups-manifest.php` simula un fallo SQL recuperable y uno persistente; verifica el mensaje y la conservación de cada ZIP previo. El workflow `37256124029` pasó y la Release `v2026.10.05.235` contiene sólo `digitalisimo-backups-1.0.40.zip`; la descarga pública pasó `unzip -t` y su SHA-256 es `47e84c3e94343aa813176ea9c55ddb0661079e71a5c1d0d1033e8b24faaca51d`.
 - Aún **no** se ha validado ningún respaldo completo y restaurable de esta versión, ni seguridad de destinos ni operación en Multisite real.
 
 ## Siguiente bloque
