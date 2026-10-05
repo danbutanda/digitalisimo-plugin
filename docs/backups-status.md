@@ -1,6 +1,6 @@
 # Estado de DIGITALÍSIMO Backups
 
-Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38, 1.0.39, 1.0.40 1.0.41, 1.0.42, 1.0.43 y 1.0.44. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
+Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36, 1.0.37, 1.0.38, 1.0.39, 1.0.40 1.0.41, 1.0.42, 1.0.43 y 1.0.44; 1.0.45 en preparación. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
 
 ## IMPLEMENTADO
 
@@ -21,6 +21,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cam
 - En 1.0.42, SFTP exige una huella SHA-1 de la clave SSH configurada y la compara antes de enviar credenciales o respaldos. Las conexiones anteriores sin huella quedan inhabilitadas hasta configurarla. Todavía falta la prueba contra un servidor SFTP real.
 - En 1.0.43, la restauración registra los archivos nuevos que escribió. Si falla y el respaldo previo se recupera, retira sólo esos archivos, comprobando su hash antes de borrarlos. Aún no hay atomicidad frente a interrupciones del proceso, ni staging completo.
 - En 1.0.44, los ZIP nuevos usan una carpeta privada fuera de `ABSPATH` y de la raíz pública del servidor. Los archivos del almacén anterior se migran con bloqueo y verificación SHA-256; si no se puede demostrar una ruta privada, la creación falla de forma explícita. WordPress CLI necesita una ruta ya registrada por la interfaz o la constante `DIGITALISIMO_BACKUPS_STORAGE_DIR`. Aún falta prueba con servidores web y migración de archivos grandes reales.
+- En 1.0.45, el drop-in oficial `WP_SQLite_DB` usa `START TRANSACTION`; el archivo SQLite activo y sus journals se excluyen de la copia de archivos y de la extracción, porque la base se conserva en `database.sql`. Tras importar SQL, se limpia la caché de opciones y se reconstruye el historial de respaldos locales. El ensayo con WordPress Playground 7.1.2 y SQLite produjo un ZIP de 37 MB, 3792 archivos más SQL, y completó la restauración: una opción cambiada después de copiar volvió a su valor anterior; el ZIP original y la copia previa permanecieron visibles. Playground no sustituye ensayos en MySQL, Multisite, otro servidor ni destinos remotos.
 
 ## PENDIENTE
 
@@ -56,4 +57,4 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cam
 
 ## Siguiente bloque
 
-Cerrar las brechas de seguridad y restauración: probar la migración del almacén local y la clave SSH contra un servidor SFTP real y preparar una restauración transaccional que retire también los archivos añadidos si falla. Después abordar rutas externas y destinos remotos según `backups-objective.md`.
+Cerrar las brechas de seguridad y restauración: probar MySQL, Multisite, la migración del almacén local en hosting real y la clave SSH contra un servidor SFTP real y preparar una restauración transaccional que retire también los archivos añadidos si falla. Después abordar rutas externas y destinos remotos según `backups-objective.md`.

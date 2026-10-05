@@ -386,10 +386,12 @@ final class Digitalisimo_Backups {
 		if ( 0 !== strpos( trailingslashit( $content ), $root ) ) throw new Exception( 'wp-content está fuera de ABSPATH; se necesita incluirlo explícitamente antes de crear un respaldo completo.' );
 		if ( ! is_file( $root . 'wp-config.php' ) ) throw new Exception( 'wp-config.php está fuera de ABSPATH o no se puede leer; no se creará un respaldo incompleto.' );
 		$backup_dir = trailingslashit( wp_normalize_path( realpath( $backup_dir ) ) );
+		$active_database_files = self::active_sqlite_database_files();
 		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY );
 		foreach ( $iterator as $entry ) {
 			$path = wp_normalize_path( $entry->getPathname() );
 			if ( 0 === strpos( $path, $backup_dir ) ) continue;
+			if ( isset( $active_database_files[ $path ] ) ) continue; // database.sql es la copia lógica consistente.
 			if ( $entry->isLink() ) throw new Exception( 'El respaldo completo no puede omitir el enlace simbólico ' . $path . '.' );
 			if ( ! $entry->isFile() ) continue;
 			$relative = substr( $path, strlen( $root ) );
@@ -403,6 +405,26 @@ final class Digitalisimo_Backups {
 		foreach ( array( 'wordpress/wp-config.php', 'wordpress/wp-load.php', 'wordpress/wp-settings.php', 'wordpress/wp-admin/index.php', 'wordpress/wp-includes/version.php' ) as $required ) {
 			if ( ! isset( $entries[ $required ] ) ) throw new Exception( 'Falta el archivo obligatorio ' . $required . ' en el respaldo.' );
 		}
+	}
+	/** El archivo SQLite en uso no puede copiarse ni reemplazarse mientras la conexión está abierta. */
+	private static function active_sqlite_database_files() {
+		global $wpdb;
+		if ( ! defined( 'DB_ENGINE' ) || 'sqlite' !== strtolower( (string) DB_ENGINE ) || 'WP_SQLite_DB' !== get_class( $wpdb ) ) return array();
+		if ( ! isset( $wpdb->dbh ) || ! is_object( $wpdb->dbh ) || ! method_exists( $wpdb->dbh, 'get_connection' ) ) throw new Exception( 'No se pudo identificar el archivo SQLite activo.' );
+		$connection = $wpdb->dbh->get_connection();
+		if ( ! is_object( $connection ) || ! method_exists( $connection, 'query' ) ) throw new Exception( 'No se pudo consultar la ruta de la base de datos SQLite.' );
+		$statement = $connection->query( 'PRAGMA database_list' );
+		$rows = is_object( $statement ) && method_exists( $statement, 'fetchAll' ) ? $statement->fetchAll( PDO::FETCH_ASSOC ) : false;
+		$files = array();
+		foreach ( (array) $rows as $row ) {
+			if ( 'main' !== ( $row['name'] ?? '' ) || empty( $row['file'] ) ) continue;
+			$path = realpath( $row['file'] );
+			if ( false === $path ) throw new Exception( 'No se pudo resolver el archivo SQLite activo.' );
+			$path = wp_normalize_path( $path );
+			foreach ( array( '', '-wal', '-shm', '-journal' ) as $suffix ) $files[ $path . $suffix ] = true;
+		}
+		if ( ! $files ) throw new Exception( 'SQLite no informó la ruta de su base de datos activa.' );
+		return $files;
 	}
 
 	private static function create_site( $site_id, $type = 'full' ) {
@@ -601,6 +623,10 @@ final class Digitalisimo_Backups {
 	/** InnoDB usa snapshot; tablas no transaccionales requieren bloqueo de lectura. */
 	private static function begin_database_snapshot( $tables ) {
 		global $wpdb;
+		if ( defined( 'DB_ENGINE' ) && 'sqlite' === strtolower( (string) DB_ENGINE ) && 'WP_SQLite_DB' === get_class( $wpdb ) ) {
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) throw new Exception( 'No se pudo iniciar una transacción consistente de SQLite.' );
+			return 'transaction';
+		}
 		$transactional = true;
 		foreach ( $tables as $table ) {
 			$status = $wpdb->get_row( $wpdb->prepare( 'SHOW TABLE STATUS WHERE Name = %s', $table ), ARRAY_A );
@@ -773,6 +799,7 @@ final class Digitalisimo_Backups {
 			if ( ! @rename( $safety, $protected ) ) throw new Exception( 'No se pudo proteger el respaldo previo a la restauración.' );
 			$safety = $protected;
 			$policy = array( 'id' => 'pre-restore', 'type' => 'full' );
+			$history_before = (array) get_option( self::HISTORY, array() );
 			self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
 			$created_files = array();
 			try {
@@ -788,7 +815,9 @@ final class Digitalisimo_Backups {
 					throw new Exception( 'La restauración falló y la reversión también falló. Conserva ' . wp_basename( $safety ) . ' para recuperación manual: ' . $rollback_error->getMessage(), 0, $failure );
 				}
 			} finally {
-				// El SQL restaurado puede reemplazar el historial que acabamos de escribir.
+				// El SQL reemplaza wp_options; el historial local y su caché deben reconstruirse.
+				wp_cache_flush();
+				update_option( self::HISTORY, $history_before, false );
 				self::remember( $safety, 'local', is_multisite() ? 'network' : 'installation', $policy, array(), 0, true );
 			}
 		} finally {
@@ -835,12 +864,14 @@ final class Digitalisimo_Backups {
 		$real_root = realpath( ABSPATH );
 		if ( false === $real_root ) throw new Exception( 'No se pudo resolver la instalación de destino.' );
 		$root = trailingslashit( wp_normalize_path( $real_root ) );
+		$active_database_files = self::active_sqlite_database_files();
 		for ( $i = 0; $i < $zip->numFiles; $i++ ) {
 			$name = str_replace( '\\', '/', (string) $zip->getNameIndex( $i ) );
 			if ( 0 !== strpos( $name, 'wordpress/' ) || 'wordpress/wp-config.php' === $name || '/' === substr( $name, -1 ) ) continue;
 			$relative = substr( $name, strlen( 'wordpress/' ) );
 			if ( ! $relative || 0 === strpos( $relative, '.git/' ) ) continue;
 			$destination = $root . $relative;
+			if ( isset( $active_database_files[ $destination ] ) ) continue;
 			$current = rtrim( $root, '/' );
 			foreach ( explode( '/', dirname( $relative ) ) as $part ) {
 				if ( '.' === $part || '' === $part ) continue;

@@ -60,6 +60,11 @@ $GLOBALS['wpdb']->queries = array();
 $import->invoke( null, $zip );
 if ( 2 !== count( $GLOBALS['wpdb']->queries ) || false === strpos( $GLOBALS['wpdb']->queries[1], ';suffix' ) ) throw new RuntimeException( 'La importación dividió una cadena SQL al cruzar el límite de lectura.' );
 $zip->close();
+define( 'DB_ENGINE', 'sqlite' );
+class WP_SQLite_DB extends Digitalisimo_Streaming_DB {}
+$GLOBALS['wpdb'] = new WP_SQLite_DB();
+$export->invoke( null, array( 'wp_posts' ), $path );
+if ( ! in_array( 'START TRANSACTION', $GLOBALS['wpdb']->queries, true ) || in_array( 'START TRANSACTION WITH CONSISTENT SNAPSHOT', $GLOBALS['wpdb']->queries, true ) || ! in_array( 'COMMIT', $GLOBALS['wpdb']->queries, true ) ) throw new RuntimeException( 'El drop-in SQLite no usó su transacción compatible.' );
 unlink( $zip_path );
 unlink( $path );
 echo "DIGITALÍSIMO Backups: SQL exportado e importado por streaming.\n";

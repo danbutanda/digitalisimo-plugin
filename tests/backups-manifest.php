@@ -11,7 +11,7 @@ $_SERVER['DOCUMENT_ROOT'] = $root;
 mkdir( WP_PLUGIN_DIR . '/digitalisimo-backups-storage', 0700 );
 file_put_contents( WP_PLUGIN_DIR . '/digitalisimo-backups-storage/old-backup.zip', 'Respaldo histórico de prueba' );
 define( 'DB_NAME', 'wordpress_test' );
-define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.44' );
+define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.45' );
 define( 'ARRAY_N', 'ARRAY_N' );
 define( 'ARRAY_A', 'ARRAY_A' );
 foreach ( array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-admin/index.php', 'wp-includes/version.php', 'wp-content/plugins/example.php' ) as $name ) file_put_contents( $root . '/' . $name, 'Contenido de ' . $name );
@@ -27,7 +27,7 @@ class Digitalisimo_Full_Test_DB {
 	public function get_row( $query, $format ) { $this->last_error = ''; return false !== strpos( $query, 'SHOW TABLE STATUS' ) ? array( 'Engine' => 'InnoDB' ) : array( 'wp_options', 'CREATE TABLE `wp_options` (`id` bigint)' ); }
 	public function get_results( $query, $format ) { $this->last_error = ''; return false !== strpos( $query, 'SHOW INDEX' ) ? array( array( 'Key_name' => 'PRIMARY', 'Column_name' => 'id', 'Non_unique' => 0, 'Seq_in_index' => 1 ) ) : array( array( 'id' => 1 ) ); }
 	public function db_version() { return '8.0'; }
-	public function query( $sql ) { $this->queries[] = $sql; if ( ( $this->fail_import || $this->fail_next_import ) && false !== strpos( $sql, 'foreign_key_checks' ) ) { $this->fail_next_import = false; $this->last_error = 'Fallo simulado'; return false; } $this->last_error = ''; return 1; }
+	public function query( $sql ) { $this->queries[] = $sql; if ( ( $this->fail_import || $this->fail_next_import ) && false !== strpos( $sql, 'foreign_key_checks' ) ) { $this->fail_next_import = false; $this->last_error = 'Fallo simulado'; return false; } if ( false !== strpos( $sql, 'DROP TABLE IF EXISTS `wp_options`' ) ) unset( $GLOBALS['backup_options'][ Digitalisimo_Backups::HISTORY ] ); $this->last_error = ''; return 1; }
 }
 $GLOBALS['wpdb'] = new Digitalisimo_Full_Test_DB();
 $GLOBALS['backup_options'] = array();
@@ -42,6 +42,7 @@ function wp_generate_uuid4() { static $n = 0; return sprintf( '%08x-bbbb-4ccc-8d
 function wp_json_encode( $value, $flags = 0 ) { return json_encode( $value, $flags ); }
 function get_option( $key, $default = false ) { return $GLOBALS['backup_options'][ $key ] ?? $default; }
 function update_option( $key, $value, $autoload = null ) { $GLOBALS['backup_options'][ $key ] = $value; return true; }
+function wp_cache_flush() { return true; }
 function get_current_blog_id() { return 1; }
 function current_time( $format ) { return gmdate( 'Y-m-d H:i:s' ); }
 function wp_basename( $path ) { return basename( $path ); }
