@@ -1,6 +1,6 @@
 # Estado de DIGITALÍSIMO Backups
 
-Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36 a 1.0.46. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
+Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36 a 1.0.46; 1.0.47 en preparación. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
 
 ## IMPLEMENTADO
 
@@ -23,6 +23,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cam
 - En 1.0.44, los ZIP nuevos usan una carpeta privada fuera de `ABSPATH` y de la raíz pública del servidor. Los archivos del almacén anterior se migran con bloqueo y verificación SHA-256; si no se puede demostrar una ruta privada, la creación falla de forma explícita. WordPress CLI necesita una ruta ya registrada por la interfaz o la constante `DIGITALISIMO_BACKUPS_STORAGE_DIR`. Aún falta prueba con servidores web y migración de archivos grandes reales.
 - En 1.0.45, el drop-in oficial `WP_SQLite_DB` usa `START TRANSACTION`; el archivo SQLite activo y sus journals se excluyen de la copia de archivos y de la extracción, porque la base se conserva en `database.sql`. Tras importar SQL, se limpia la caché de opciones y se reconstruye el historial de respaldos locales. El ensayo con WordPress Playground 7.1.2 y SQLite produjo un ZIP de 37 MB, 3792 archivos más SQL, y completó la restauración: una opción cambiada después de copiar volvió a su valor anterior; el ZIP original y la copia previa permanecieron visibles. Playground no sustituye ensayos en MySQL, Multisite, otro servidor ni destinos remotos.
 - En 1.0.46, el respaldo manual, los cron de copia, las políticas y las restauraciones toman un bloqueo exclusivo del almacén privado durante toda la operación. Se rechaza una segunda operación concurrente y el bloqueo se libera al terminar o fallar. El bloqueo del sistema de archivos tampoco sustituye una cola persistente ni permite reanudar un proceso interrumpido.
+- En 1.0.47, Google Drive y OneDrive vuelven a descargar por streaming el archivo recién subido a un temporal privado y comparan tamaño y SHA-256 con el ZIP local. Una copia ilegible o distinta no entra en el historial como respaldo válido. La verificación consume tráfico de descarga y espacio temporal equivalente al ZIP; aún faltan pruebas contra cuentas reales y recuperación de sesiones interrumpidas.
 
 ## PENDIENTE
 
