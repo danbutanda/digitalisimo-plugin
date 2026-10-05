@@ -1,6 +1,6 @@
 # Estado de DIGITALÍSIMO Backups
 
-Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36 a 1.0.45; 1.0.46 en preparación. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
+Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cambios publicados: 1.0.36 a 1.0.46. **Objetivo abierto.** La presencia de una función no implica que cumpla los criterios de integridad o de restauración.
 
 ## IMPLEMENTADO
 
@@ -55,6 +55,7 @@ Fecha de auditoría inicial: 2026-10-04. Versión inicial analizada: 1.0.35. Cam
 - Para 1.0.43, `tests/backups-manifest.php` crea un ZIP válido que añade un archivo y luego provoca un fallo de escritura; comprueba que la reversión retire el archivo nuevo. Las cinco pruebas de Backups y la suite de siete módulos pasaron. Los workflows `37258856298` y `37258856277` terminaron correctamente; la Release `v2026.10.05.238` contiene sólo `digitalisimo-backups-1.0.43.zip`. La descarga pública pasó `unzip -t` y su SHA-256 es `6a1825dae86e8fd8856c639770b27443abe509b0a44809ee4d2f5063297a473c`.
 - Para 1.0.44, `tests/backups-manifest.php` verifica la migración de un ZIP anterior a una ruta fuera de la raíz web y `tests/backups-storage.php` rechaza una ruta pública configurada. Las seis pruebas de Backups y la suite de siete módulos pasaron. Los workflows `37259558073` y `37259558081` terminaron correctamente; la Release `v2026.10.05.239` contiene sólo `digitalisimo-backups-1.0.44.zip`. La descarga pública pasó `unzip -t` y su SHA-256 es `a990ca992444bd730e9a25b4e12b99815f4e164d78ece9b852cff7b97ed1cc1a`.
 - Para 1.0.45, WordPress Playground 7.1.2 con un solo trabajador creó y restauró un ZIP de 37 MB. El manifiesto v3 registró 3792 archivos y `database.sql` sin incluir el archivo SQLite abierto. Después de cambiar una opción tras el respaldo, la restauración la devolvió a su valor previo y conservó en el historial el ZIP original y la copia de seguridad. Las seis pruebas de Backups y la suite de siete módulos pasaron. Los workflows `37261530486` y `37261530490` terminaron correctamente; la Release `v2026.10.05.240` contiene sólo `digitalisimo-backups-1.0.45.zip`. La descarga pública pasó `unzip -t` y su SHA-256 es `d14162ecca740fa2e7b978ccb0766e479ec5de13b35c5fea2379be86be8d5ff5`.
+- Para 1.0.46, `tests/backups-operation-lock.php` comprueba rechazo de una operación simultánea y recuperación del bloqueo después de liberarlo. Las siete pruebas de Backups y la suite de siete módulos pasaron. Los workflows `37262123474` y `37262123482` terminaron correctamente; la Release `v2026.10.05.241` contiene sólo `digitalisimo-backups-1.0.46.zip`. La descarga pública superó la prueba de integridad ZIP y su SHA-256 es `5137a7c3fbebdcce9c4b0fcc2140d2e2c610b4cfce40d8b834693cf7bfbd7e47`.
 - Ya se validó un respaldo y una restauración completos en WordPress Playground con SQLite. Aún faltan ensayos equivalentes en MySQL y Multisite reales, migración a otro servidor y verificación de destinos remotos.
 
 ## Siguiente bloque
