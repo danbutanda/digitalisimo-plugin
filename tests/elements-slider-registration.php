@@ -7,7 +7,7 @@ namespace Elementor {
 
 namespace {
 	define( 'ABSPATH', __DIR__ );
-	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.6' );
+	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.7' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	$GLOBALS['slider_styles'] = array();
 	$GLOBALS['wp_styles'] = (object) array( 'registered' => array() );

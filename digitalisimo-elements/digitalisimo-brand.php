@@ -9,6 +9,7 @@ final class Digitalisimo_Elements_Brand {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ), 99 );
 		add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ), 99 );
+		add_action( 'admin_head', array( __CLASS__, 'menu_icon_css' ) );
 		add_filter( 'plugin_action_links_' . self::FILE, array( __CLASS__, 'action_link' ) );
 		add_filter( 'network_admin_plugin_action_links_' . self::FILE, array( __CLASS__, 'action_link' ) );
 	}
@@ -17,6 +18,10 @@ final class Digitalisimo_Elements_Brand {
 		global $menu;
 		foreach ( (array) $menu as $item ) if ( isset( $item[2] ) && $slug === $item[2] ) return true;
 		return false;
+	}
+
+	public static function menu_icon_css() {
+		echo '<style id="digitalisimo-elements-menu-icon">#adminmenu .toplevel_page_digitalisimo-elements-about .wp-menu-image img{display:block;width:20px;height:20px;max-width:20px;max-height:20px;object-fit:contain;margin:0 auto;padding:7px 0 0}</style>';
 	}
 
 	public static function menu() {
