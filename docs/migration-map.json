@@ -1,5 +1,5 @@
 {
-  "status": "four widgets implemented; first has conditional legacy read adapter; remaining widgets pending",
+  "status": "five widgets implemented; first has conditional legacy read adapter; remaining widgets pending",
   "entries": {
     "bdt-accordion": {
       "target": null,
@@ -1553,14 +1553,20 @@
       "status": "pending"
     },
     "bdt-logo-carousel": {
-      "target": null,
+      "target": "digitalisimo-logo-carousel",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "logo_items": "logo_items",
+        "columns": "columns",
+        "item_gap": "item_gap",
+        "height": "height",
+        "navigation": "navigation"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new independent widget on shared native carousel engine; legacy adapter and visual comparison pending"
     },
     "bdt-logo-grid": {
       "target": null,

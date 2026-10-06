@@ -28,3 +28,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Cuarto componente reconstruido: Brand Carousel
 
 `class-brand-carousel.php`, `class-carousel-engine.php`, `brand-carousel.css`, `carousel-engine.css` y `carousel-engine.js` son implementación propia de la función principal del módulo `modules/brand-carousel/widgets/brand-carousel.php` de Element Pack Pro 9.9.1 (GPLv3). No se copia la clase, los estilos, las bibliotecas UIkit/Swiper, los iconos ni las imágenes de la referencia. La mención del módulo original identifica la procedencia funcional; la equivalencia completa permanece pendiente.
+
+## Quinto componente reconstruido: Logo Carousel
+
+`class-logo-carousel.php` y `logo-carousel.css` son implementación propia de selección y presentación de logotipos inspirada en `modules/logo-carousel/widgets/logo-carousel.php` de Element Pack Pro 9.9.1 (GPLv3). Reutilizan sólo el motor propio descrito arriba. No se incluyen los SVG de ejemplo, UIkit, Swiper, Tippy ni archivos de la referencia.

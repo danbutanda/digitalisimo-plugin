@@ -17,7 +17,7 @@ namespace Elementor {
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
-	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.16' );
+	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.17' );
 	define( 'BDTEP_VER', '9.9.1' ); // Element Pack activo: no registrar un ID legacy duplicado.
 	define( 'DIGITALISIMO_ELEMENTS_FILE', __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	function add_action( $name, $callback, $priority = 10 ) { $GLOBALS['animated_hooks'][ $name ][ $priority ][] = $callback; }
@@ -42,8 +42,8 @@ namespace {
 	\Digitalisimo\Elements\Widget_Registry::category( $manager );
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
-	check_animated( 4 === count( $manager->widgets ), 'Cada widget debe registrarse una sola vez.' );
-	check_animated( 5 === count( $GLOBALS['animated_styles'] ), 'Deben registrarse los estilos propios y el motor compartido sin encolarlos.' );
+	check_animated( 5 === count( $manager->widgets ), 'Cada widget debe registrarse una sola vez.' );
+	check_animated( 6 === count( $GLOBALS['animated_styles'] ), 'Deben registrarse los estilos propios y el motor compartido sin encolarlos.' );
 	check_animated( 1 === count( $GLOBALS['animated_scripts'] ) && isset( $GLOBALS['animated_scripts']['digitalisimo-carousel-engine'] ), 'Sólo se registra el controlador compartido del carrusel.' );
 	$style = $GLOBALS['animated_styles']['digitalisimo-animated-link'];
 	check_animated( 'https://example.test/plugins/digitalisimo-elements/assets/css/animated-link.css' === $style['url'], 'El CSS debe pertenecer a Elements.' );

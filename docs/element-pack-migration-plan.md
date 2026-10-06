@@ -45,3 +45,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Cuarto piloto: Carrusel de marcas
 
 `digitalisimo-brand-carousel` usa un motor de desplazamiento nativo con CSS scroll snap y un pequeño controlador de navegación compartible. Los controles permiten repetir logos, nombres y enlaces; las columnas y separaciones son responsivas. Los recursos se cargan únicamente cuando Elementor utiliza este widget. La vista previa reproduce la estructura del frontend. Se conserva el Slider Optimizado existente. El ID `bdt-brand-carousel` permanece libre porque todavía faltan los controles avanzados, la equivalencia visual y las pruebas reales en Elementor, sitio individual y Multisite.
+
+## Quinto piloto: Carrusel de logotipos
+
+`digitalisimo-logo-carousel` reutiliza el motor anterior y añade selección múltiple de la biblioteca o un repetidor con enlaces individuales. Toma el ALT del adjunto y admite un nombre accesible; un enlace sin nombre accesible se presenta como imagen sin enlace. El CSS propio es pequeño y condicional. No registra `bdt-logo-carousel`, cuyo autoplay, tooltips, máscaras y estilos avanzados requieren evaluación separada antes de una migración compatible.

@@ -26,6 +26,11 @@ final class Widget_Registry {
 			'class' => Brand_Carousel_Widget::class,
 			'css'   => 'assets/css/brand-carousel.css',
 		),
+		'digitalisimo-logo-carousel' => array(
+			'file'  => 'class-logo-carousel.php',
+			'class' => Logo_Carousel_Widget::class,
+			'css'   => 'assets/css/logo-carousel.css',
+		),
 	);
 
 	public static function init() {

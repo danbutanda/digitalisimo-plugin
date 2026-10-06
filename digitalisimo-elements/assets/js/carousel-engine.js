@@ -54,6 +54,7 @@
   function registerEditor() {
     if (window.elementorFrontend && elementorFrontend.hooks) {
       elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-brand-carousel.default', function (element) { scan(element[0]); });
+      elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-logo-carousel.default', function (element) { scan(element[0]); });
     }
   }
   if (window.elementorFrontend && elementorFrontend.hooks) registerEditor();

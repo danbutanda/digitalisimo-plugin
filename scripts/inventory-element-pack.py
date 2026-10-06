@@ -70,6 +70,11 @@ PILOT_MIGRATIONS = {
         'status': 'new widget on shared native carousel engine; legacy adapter and visual comparison pending',
         'same_name_controls': [ 'brand_items', 'image_size', 'columns', 'navigation', 'item_match_height', 'show_brand_name', 'brand_html_tag', 'show_website_link' ],
     },
+    'bdt-logo-carousel': {
+        'target': 'digitalisimo-logo-carousel',
+        'status': 'new independent widget on shared native carousel engine; legacy adapter and visual comparison pending',
+        'same_name_controls': [ 'logo_items', 'columns', 'item_gap', 'height', 'navigation' ],
+    },
 }
 
 SECURITY_MARKERS = {
@@ -226,7 +231,7 @@ def main():
     (OUTPUT / 'element-pack-inventory.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 
     migration_map = {
-        'status': 'four widgets implemented; first has conditional legacy read adapter; remaining widgets pending',
+        'status': 'five widgets implemented; first has conditional legacy read adapter; remaining widgets pending',
         'entries': {
             widget['legacy_widget_id']: {
                 'target': PILOT_MIGRATIONS.get(widget['legacy_widget_id'], {}).get('target'),
