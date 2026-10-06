@@ -41,3 +41,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Tercer piloto: Visor de documentos
 
 `digitalisimo-document-viewer` usa un iframe con carga diferida, un enlace alternativo y una hoja CSS pequeña. Acepta sólo URL HTTP(S), comprueba el host exacto antes de aplicar el modo de vista previa de Google Docs y evita enviar direcciones locales o privadas a Google: en ese caso utiliza el visor nativo del navegador. El uso de Google Docs para archivos públicos exige una elección explícita. No carga JavaScript ni UIkit. `bdt-document-viewer` no se registra hasta comprobar el comportamiento y aspecto en WordPress real.
+
+## Cuarto piloto: Carrusel de marcas
+
+`digitalisimo-brand-carousel` usa un motor de desplazamiento nativo con CSS scroll snap y un pequeño controlador de navegación compartible. Los controles permiten repetir logos, nombres y enlaces; las columnas y separaciones son responsivas. Los recursos se cargan únicamente cuando Elementor utiliza este widget. La vista previa reproduce la estructura del frontend. Se conserva el Slider Optimizado existente. El ID `bdt-brand-carousel` permanece libre porque todavía faltan los controles avanzados, la equivalencia visual y las pruebas reales en Elementor, sitio individual y Multisite.

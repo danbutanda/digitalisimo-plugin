@@ -1,5 +1,9 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+En validación: motor compartido de carrusel con desplazamiento nativo y controles accesibles; primer consumidor `digitalisimo-brand-carousel`. La implementación no sustituye el ID `bdt-brand-carousel`.
+
+| DIGITALÍSIMO Elements · cuarto widget reconstruido | En validación · 4.3.0.16 | `digitalisimo-brand-carousel` ofrece logos, nombres, enlaces, columnas responsivas y controles accesibles sobre un motor nativo compartido. Sus CSS y JS se solicitan sólo cuando se usa el widget. | Pruebas aisladas PHP/JS y paquete ZIP por verificar en publicación. Pendiente probar editor, frontend, sitio/red y equivalencia visual con Element Pack; no registrar `bdt-brand-carousel` ni convertir páginas antiguas. Quedan 259 widgets por reconstruir. |
+
 En validación: tercer widget independiente `digitalisimo-document-viewer`, con URL validada, iframe diferido y CSS condicional. El ID `bdt-document-viewer` permanece reservado hasta verificar visualmente el reemplazo.
 
 | DIGITALÍSIMO Elements · tercer widget reconstruido | En validación · 4.3.0.15 | `digitalisimo-document-viewer` integra documentos HTTP(S) con iframe diferido, enlace alternativo y altura responsiva. Google Docs es una elección explícita; las direcciones locales o privadas no se envían a ese servicio. No carga JavaScript ni UIkit. | Pruebas PHP, suite de seis ZIP y workflows `37541394342`/`37541394294` correctos. Release `v2026.10.06.258` contiene sólo Elements 4.3.0.15; sus 1,731 archivos coinciden con el ZIP local. Falta prueba real de frontend/editor y equivalencia visual. Quedan 260 widgets sin reconstruir. |

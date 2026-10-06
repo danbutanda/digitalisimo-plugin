@@ -21,12 +21,19 @@ final class Widget_Registry {
 			'class' => Document_Viewer_Widget::class,
 			'css'   => 'assets/css/document-viewer.css',
 		),
+		'digitalisimo-brand-carousel' => array(
+			'file'  => 'class-brand-carousel.php',
+			'class' => Brand_Carousel_Widget::class,
+			'css'   => 'assets/css/brand-carousel.css',
+		),
 	);
 
 	public static function init() {
 		add_action( 'elementor/elements/categories_registered', array( __CLASS__, 'category' ), 20 );
 		add_action( 'elementor/frontend/after_register_styles', array( __CLASS__, 'styles' ) );
+		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'scripts' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'styles' ) );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'scripts' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), 20 );
 	}
 
@@ -38,10 +45,19 @@ final class Widget_Registry {
 	}
 
 	public static function styles() {
+		if ( ! wp_style_is( 'digitalisimo-carousel-engine', 'registered' ) ) {
+			wp_register_style( 'digitalisimo-carousel-engine', plugins_url( 'assets/css/carousel-engine.css', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
+		}
 		foreach ( self::WIDGETS as $handle => $widget ) {
 			if ( ! wp_style_is( $handle, 'registered' ) ) {
 				wp_register_style( $handle, plugins_url( $widget['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
 			}
+		}
+	}
+
+	public static function scripts() {
+		if ( ! wp_script_is( 'digitalisimo-carousel-engine', 'registered' ) ) {
+			wp_register_script( 'digitalisimo-carousel-engine', plugins_url( 'assets/js/carousel-engine.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}
 	}
 
@@ -50,6 +66,7 @@ final class Widget_Registry {
 			return;
 		}
 		self::styles();
+		self::scripts();
 		foreach ( self::WIDGETS as $id => $widget ) {
 			if ( method_exists( $manager, 'get_widget_types' ) && $manager->get_widget_types( $id ) ) {
 				continue;

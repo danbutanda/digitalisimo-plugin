@@ -2086,7 +2086,7 @@
       "classification": "B - ENGINE DERIVATIVE",
       "proposed_engine": "carousel",
       "existing_elements_widget_candidate": null,
-      "implementation_status": "pending",
+      "implementation_status": "new widget on shared native carousel engine; legacy adapter and visual comparison pending",
       "dependency_decisions": {
         "ElementPack Base": "REIMPLEMENT",
         "UIkit": "REMOVE / REIMPLEMENT",

@@ -15,12 +15,14 @@ namespace Elementor {
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
-	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.15' );
+	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.16' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	function add_action( $name, $callback, $priority = 10 ) {}
 	function plugins_url( $path, $file ) { return 'https://example.test/' . $path; }
 	function wp_style_is( $handle, $state ) { return isset( $GLOBALS['styles'][ $handle ] ); }
 	function wp_register_style( $handle, $url, $deps, $version ) { $GLOBALS['styles'][ $handle ] = $url; }
+	function wp_script_is( $handle, $state ) { return isset( $GLOBALS['scripts'][ $handle ] ); }
+	function wp_register_script( $handle, $url, $deps, $version, $footer ) { $GLOBALS['scripts'][ $handle ] = $url; }
 	function esc_html( $value ) { return htmlspecialchars( $value, ENT_QUOTES, 'UTF-8' ); }
 	function check_legacy( $ok, $message ) { if ( ! $ok ) throw new \RuntimeException( $message ); }
 	class Legacy_Manager {
@@ -32,7 +34,7 @@ namespace {
 	$manager = new Legacy_Manager();
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
-	check_legacy( 4 === count( $manager->widgets ), 'Sin Element Pack deben existir tres widgets nuevos y el ID legacy, una sola vez.' );
+	check_legacy( 5 === count( $manager->widgets ), 'Sin Element Pack deben existir cuatro widgets nuevos y el ID legacy, una sola vez.' );
 	check_legacy( $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Legacy_Animated_Link_Widget, 'El ID legacy debe usar nuestra implementación.' );
 	$widget = $manager->widgets['bdt-animated-link'];
 	$widget->settings = array( 'link_style' => 'leda', 'link_text' => 'Ejemplo', 'link_url' => array( 'url' => 'https://example.test/' ) );
