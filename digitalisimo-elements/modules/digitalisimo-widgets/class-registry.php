@@ -11,6 +11,11 @@ final class Widget_Registry {
 			'class' => Animated_Link_Widget::class,
 			'css'   => 'assets/css/animated-link.css',
 		),
+		'digitalisimo-fancy-list' => array(
+			'file'  => 'class-fancy-list.php',
+			'class' => Fancy_List_Widget::class,
+			'css'   => 'assets/css/fancy-list.css',
+		),
 	);
 
 	public static function init() {

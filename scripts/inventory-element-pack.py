@@ -52,6 +52,14 @@ PILOT_MIGRATIONS = {
             'link_padding', 'link_typography',
         ],
     },
+    'bdt-fancy-list': {
+        'target': 'digitalisimo-fancy-list',
+        'status': 'new widget implemented; legacy adapter, full style controls and visual comparison pending',
+        'same_name_controls': [
+            'layout_style', 'icon_list', 'columns', 'list_item_space_between',
+            'show_number_icon', 'title_tags', 'content_position',
+        ],
+    },
 }
 
 SECURITY_MARKERS = {
@@ -208,7 +216,7 @@ def main():
     (OUTPUT / 'element-pack-inventory.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 
     migration_map = {
-        'status': 'first widget implemented with conditional legacy read adapter; remaining widgets pending',
+        'status': 'two widgets implemented; first has conditional legacy read adapter; remaining widgets pending',
         'entries': {
             widget['legacy_widget_id']: {
                 'target': PILOT_MIGRATIONS.get(widget['legacy_widget_id'], {}).get('target'),

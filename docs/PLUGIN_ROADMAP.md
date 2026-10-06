@@ -1,5 +1,9 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+En validación: `digitalisimo-fancy-list` reconstruye el contenido de `bdt-fancy-list` con repetidor, CSS condicional y sin dependencia del runtime Element Pack. El ID anterior no se registra hasta validar controles y salida visual.
+
+| DIGITALÍSIMO Elements · segundo widget reconstruido | En validación · 4.3.0.13 | `digitalisimo-fancy-list` ofrece lista semántica, texto, imágenes, iconos y enlaces; tres presentaciones y columnas responsivas. Carga sólo 553 B gzip de CSS propio cuando se usa y no declara JS ni UIkit. | Pruebas PHP de salida segura y suite de seis ZIP correctas. Falta comprobar el editor, frontend y equivalencia visual en WordPress real. No se registra `bdt-fancy-list` todavía. Quedan 261 widgets sin reconstruir. |
+
 | DIGITALÍSIMO Elements · primer widget reconstruido | En validación · 4.3.0.12 | `digitalisimo-animated-link` ofrece 15 variantes con CSS específico y sin UIkit ni JS propio. El adaptador `bdt-animated-link` conserva lectura de páginas antiguas sólo cuando Element Pack no está activo. | Pruebas PHP, suite de seis ZIP y workflows `37505788671`/`37505788563` correctos. Release `v2026.10.06.255` contiene sólo Elements 4.3.0.12; los 1,727 archivos del ZIP público coinciden con el paquete local. Faltan pruebas visuales y funcionales en WordPress real antes de convertir `_elementor_data`. Los otros 262 widgets permanecen pendientes. |
 
 | DIGITALÍSIMO Elements · reconstrucción de referencia Element Pack | En curso | El ZIP excluye la copia local y falla ante filtraciones. Inventario estático reproducible de 263 IDs, dos archivos auxiliares, nueve familias provisionales, grafo de dependencias, mapa de migración y 14 posibles duplicados con Elements. | `REFERENCE LEAK CHECK: PASS`, ZIP Elements válido y suite de seis paquetes correcta. La reconstrucción comenzó con Enlace animado; los demás widgets continúan pendientes. |

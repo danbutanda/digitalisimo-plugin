@@ -33,3 +33,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Primer piloto: Enlace animado
 
 `digitalisimo-animated-link` está implementado con controles de Elementor y un único CSS de 15 variantes. No carga JS propio ni UIkit. Los nombres de nueve controles coinciden con los del widget de referencia. `bdt-animated-link` se registra como alias de lectura solamente cuando Element Pack no está activo y nadie más registró ese ID. Conserva los selectores antiguos de la página. La conversión permanente de `_elementor_data` requiere una prueba visual en Elementor antes de habilitarse. `migration-map.json` documenta el destino y mantiene ese estado pendiente de verificación.
+
+## Segundo piloto: Lista destacada
+
+`digitalisimo-fancy-list` reconstruye el contenido principal de Fancy List mediante un repetidor de Elementor con texto, imagen, icono y enlace. Las tres presentaciones usan una sola hoja específica, sin JavaScript ni UIkit. Las columnas y la separación son responsivas. Los controles de estilo avanzados del original y su equivalencia visual aún no están completos; por eso **no** se registra `bdt-fancy-list` ni se convierten documentos existentes. La prueba automática cubre escape de texto, etiqueta segura, ALT de imagen, carga diferida, elementos vacíos y numeración.

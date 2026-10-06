@@ -1,5 +1,5 @@
 {
-  "status": "first widget implemented with conditional legacy read adapter; remaining widgets pending",
+  "status": "two widgets implemented; first has conditional legacy read adapter; remaining widgets pending",
   "entries": {
     "bdt-accordion": {
       "target": null,
@@ -1072,14 +1072,22 @@
       "status": "pending"
     },
     "bdt-fancy-list": {
-      "target": null,
+      "target": "digitalisimo-fancy-list",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "layout_style": "layout_style",
+        "icon_list": "icon_list",
+        "columns": "columns",
+        "list_item_space_between": "list_item_space_between",
+        "show_number_icon": "show_number_icon",
+        "title_tags": "title_tags",
+        "content_position": "content_position"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new widget implemented; legacy adapter, full style controls and visual comparison pending"
     },
     "bdt-fancy-slider": {
       "target": null,
