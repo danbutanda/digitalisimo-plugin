@@ -8,7 +8,7 @@ defined( 'ABSPATH' ) || exit;
  * Referencia funcional: Element Pack Pro 9.9.1, modules/animated-link (GPLv3).
  * No hereda clases, controles ni recursos globales del plugin original.
  */
-final class Animated_Link_Widget extends \Elementor\Widget_Base {
+class Animated_Link_Widget extends \Elementor\Widget_Base {
 	private const STYLES = array( 'carpo', 'carme', 'dia', 'eirene', 'elara', 'ersa', 'helike', 'herse', 'io', 'iocaste', 'kale', 'leda', 'metis', 'mneme', 'thebe' );
 	private const SPAN_STYLES = array( 'leda', 'elara', 'ersa', 'eirene', 'helike', 'iocaste', 'herse', 'carme' );
 
@@ -19,6 +19,7 @@ final class Animated_Link_Widget extends \Elementor\Widget_Base {
 	public function get_keywords() { return array( 'digitalisimo', 'enlace', 'animado', 'link' ); }
 	public function get_style_depends() { return array( 'digitalisimo-animated-link' ); }
 	public function get_script_depends() { return array(); }
+	protected function is_legacy_widget() { return false; }
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';
@@ -58,7 +59,13 @@ final class Animated_Link_Widget extends \Elementor\Widget_Base {
 		}
 		$url = isset( $settings['link_url'] ) && is_array( $settings['link_url'] ) ? $settings['link_url'] : array();
 		$tag = ! empty( $url['url'] ) ? 'a' : 'span';
-		$this->add_render_attribute( 'link', 'class', array( 'digi-animated-link', 'digi-animated-link--' . $style ) );
+		$classes = array( 'digi-animated-link', 'digi-animated-link--' . $style );
+		if ( $this->is_legacy_widget() ) {
+			// Conserva los selectores generados por Elementor para páginas bdt-* existentes.
+			$classes[] = 'bdt-ep-animated-link';
+			$classes[] = 'bdt-ep-animated-link--' . $style;
+		}
+		$this->add_render_attribute( 'link', 'class', $classes );
 		if ( 'leda' === $style ) {
 			$this->add_render_attribute( 'link', 'data-text', $text );
 		}
@@ -96,6 +103,9 @@ final class Animated_Link_Widget extends \Elementor\Widget_Base {
 		var url = settings.link_url && settings.link_url.url ? settings.link_url.url : '';
 		var tag = url ? 'a' : 'span';
 		var classes = 'digi-animated-link digi-animated-link--' + style;
+		<?php if ( $this->is_legacy_widget() ) : ?>
+		classes += ' bdt-ep-animated-link bdt-ep-animated-link--' + style;
+		<?php endif; ?>
 		#>
 		<# if ( text ) { #>
 		<{{{ tag }}} class="{{{ classes }}}" <# if ( url ) { #>href="{{ url }}"<# } #> <# if ( style === 'leda' ) { #>data-text="{{ text }}"<# } #>>
@@ -107,4 +117,11 @@ final class Animated_Link_Widget extends \Elementor\Widget_Base {
 		<# } #>
 		<?php
 	}
+}
+
+/** Alias de lectura para documentos Elementor que todavía guardan bdt-animated-link. */
+final class Legacy_Animated_Link_Widget extends Animated_Link_Widget {
+	public function get_name() { return 'bdt-animated-link'; }
+	public function get_title() { return 'Enlace animado (compatibilidad)'; }
+	protected function is_legacy_widget() { return true; }
 }

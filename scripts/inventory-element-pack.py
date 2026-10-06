@@ -45,7 +45,7 @@ ENGINE_RULES = [
 PILOT_MIGRATIONS = {
     'bdt-animated-link': {
         'target': 'digitalisimo-animated-link',
-        'status': 'implemented; editor and visual comparison pending',
+        'status': 'implemented with conditional legacy read adapter; permanent conversion and visual comparison pending',
         'same_name_controls': [
             'link_style', 'link_text', 'link_url', 'link_alignment',
             'link_text_color', 'link_hover_text_color', 'link_style_color',
@@ -208,7 +208,7 @@ def main():
     (OUTPUT / 'element-pack-inventory.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 
     migration_map = {
-        'status': 'planning only; no widgets or settings have been migrated',
+        'status': 'first widget implemented with conditional legacy read adapter; remaining widgets pending',
         'entries': {
             widget['legacy_widget_id']: {
                 'target': PILOT_MIGRATIONS.get(widget['legacy_widget_id'], {}).get('target'),

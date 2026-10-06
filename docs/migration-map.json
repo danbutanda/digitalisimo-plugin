@@ -1,5 +1,5 @@
 {
-  "status": "planning only; no widgets or settings have been migrated",
+  "status": "first widget implemented with conditional legacy read adapter; remaining widgets pending",
   "entries": {
     "bdt-accordion": {
       "target": null,
@@ -209,7 +209,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "implemented; editor and visual comparison pending"
+      "status": "implemented with conditional legacy read adapter; permanent conversion and visual comparison pending"
     },
     "bdt-audio-player": {
       "target": null,

@@ -1348,7 +1348,7 @@
       "classification": "A - CORE CANDIDATE",
       "proposed_engine": "content-and-layout",
       "existing_elements_widget_candidate": null,
-      "implementation_status": "implemented; editor and visual comparison pending",
+      "implementation_status": "implemented with conditional legacy read adapter; permanent conversion and visual comparison pending",
       "dependency_decisions": {
         "ElementPack Base": "REIMPLEMENT",
         "UIkit": "REMOVE / REIMPLEMENT",

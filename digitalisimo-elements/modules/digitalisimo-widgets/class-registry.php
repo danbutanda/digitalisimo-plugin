@@ -47,5 +47,14 @@ final class Widget_Registry {
 			require_once __DIR__ . '/' . $widget['file'];
 			$manager->register( new $widget['class']() );
 		}
+		// Element Pack conserva sus IDs mientras esté activo; nunca lo reemplazamos.
+		if ( defined( 'BDTEP_VER' ) || class_exists( '\\ElementPack\\Element_Pack_Loader', false ) ) {
+			return;
+		}
+		if ( method_exists( $manager, 'get_widget_types' ) && $manager->get_widget_types( 'bdt-animated-link' ) ) {
+			return;
+		}
+		require_once __DIR__ . '/class-animated-link.php';
+		$manager->register( new Legacy_Animated_Link_Widget() );
 	}
 }

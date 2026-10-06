@@ -1,6 +1,6 @@
 # Primer piloto de Enlace animado
 
-Comparación estática de los archivos de la copia de referencia Element Pack Pro 9.9.1 frente a DIGITALÍSIMO Elements 4.3.0.11. Las cifras son tamaños de archivo locales, no una medición de transferencia o render en un sitio publicado.
+Comparación estática de los archivos de la copia de referencia Element Pack Pro 9.9.1 frente a DIGITALÍSIMO Elements 4.3.0.11; la versión 4.3.0.12 añade un adaptador de lectura sin cambiar el CSS. Las cifras son tamaños de archivo locales, no una medición de transferencia o render en un sitio publicado.
 
 | Recurso | Referencia | DIGITALÍSIMO |
 | --- | ---: | ---: |
@@ -12,4 +12,4 @@ Comparación estática de los archivos de la copia de referencia Element Pack Pr
 
 El CSS propio aumenta 211 B comprimidos para añadir prefijos aislados, foco visible y soporte para movimiento reducido. El widget nuevo declara solamente su hoja mediante `get_style_depends()`; el registro de estilos no la encola globalmente. Esto confirma la arquitectura a nivel de código, pero faltan una prueba de red en WordPress/Elementor y comparación visual de las 15 variantes en escritorio, tableta y móvil. No se atribuye una mejora de Core Web Vitals sin esas pruebas.
 
-Las pruebas PHP verificaron registro único, escape del texto, salida con y sin URL, SVG decorativo y las 15 clases CSS. La compatibilidad de páginas que ya contienen el ID `bdt-animated-link` permanece pendiente; ese ID no se registra en este piloto.
+Las pruebas PHP verificaron registro único, escape del texto, salida con y sin URL, SVG decorativo y las 15 clases CSS. Desde 4.3.0.12, las páginas con el ID `bdt-animated-link` pueden usar un adaptador de lectura si el plugin original no está activo; se comprueba que no suplanta otro registro. Sigue pendiente verificar visualmente esas páginas en WordPress real y habilitar una conversión permanente reversible.
