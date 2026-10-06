@@ -34,8 +34,12 @@ final class Digitalisimo_SEO_Release_Check {
 		$release = self::release();
 		if ( ! $release && is_array( $previous ) && ! empty( $previous['version'] ) ) set_site_transient( self::CACHE_KEY, $previous, MINUTE_IN_SECONDS );
 		$updates = get_site_transient( 'update_plugins' );
+		if ( ! is_object( $updates ) || ! isset( $updates->checked ) || ! is_array( $updates->checked ) ) {
+			wp_update_plugins();
+			$updates = get_site_transient( 'update_plugins' );
+		}
 		$updates = self::inject( $updates );
-		if ( is_object( $updates ) ) set_site_transient( 'update_plugins', $updates );
+		if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) set_site_transient( 'update_plugins', $updates );
 	}
 
 	private static function release() {
@@ -77,13 +81,12 @@ final class Digitalisimo_SEO_Release_Check {
 	}
 
 	public static function inject( $transient ) {
+		if ( ! is_object( $transient ) || ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) return $transient;
 		$release = self::pending();
 		if ( ! $release ) return $transient;
-		if ( ! is_object( $transient ) ) $transient = new stdClass();
 		$file = plugin_basename( DIGITALISIMO_INTEGRATIONS_FILE );
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) $transient->response = array();
 		if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) $transient->no_update = array();
-		if ( ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) $transient->checked = array();
 		$transient->checked[ $file ] = DIGITALISIMO_INTEGRATIONS_VERSION;
 		unset( $transient->no_update[ $file ] );
 		$transient->response[ $file ] = (object) array(

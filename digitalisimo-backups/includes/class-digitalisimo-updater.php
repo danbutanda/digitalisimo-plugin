@@ -38,8 +38,7 @@ final class Digitalisimo_Backups_Updater {
 	public static function force_check() {
 		if ( ! self::can_update() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION );
-		self::clear();
-		wp_update_plugins();
+		self::refresh();
 		$context = sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) );
 		$default = is_multisite() && 'network' === $context ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
 		$back = wp_get_referer();
@@ -57,11 +56,17 @@ final class Digitalisimo_Backups_Updater {
 
 	public static function clear() {
 		delete_site_transient( self::CACHE_KEY );
-		delete_site_transient( 'update_plugins' );
-		delete_transient( 'update_plugins' );
 	}
 
-	public static function refresh() { self::clear(); wp_update_plugins(); }
+	public static function refresh() {
+		self::clear();
+		$updates = get_site_transient( 'update_plugins' );
+		if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) {
+			set_site_transient( 'update_plugins', self::check( $updates ) );
+		} else {
+			wp_update_plugins();
+		}
+	}
 
 	public static function clear_after_upgrade( $upgrader, $options ) {
 		if ( 'update' === ( $options['action'] ?? '' ) && 'plugin' === ( $options['type'] ?? '' ) && in_array( self::FILE, (array) ( $options['plugins'] ?? array() ), true ) ) self::clear();
@@ -99,8 +104,8 @@ final class Digitalisimo_Backups_Updater {
 	public static function auto_update( $update, $item ) { return isset( $item->plugin ) && self::FILE === $item->plugin ? true : $update; }
 
 	public static function check( $transient ) {
-		if ( ! is_object( $transient ) ) $transient = new stdClass();
-		if ( ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) $transient->checked = array();
+		// Una caché ausente o aún incompleta debe quedar en manos de WordPress.
+		if ( ! is_object( $transient ) || ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) return $transient;
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) $transient->response = array();
 		if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) $transient->no_update = array();
 		$transient->checked[ self::FILE ] = DIGITALISIMO_BACKUPS_VERSION;

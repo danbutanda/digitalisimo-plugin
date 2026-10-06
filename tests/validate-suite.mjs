@@ -5,13 +5,13 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.220.zip', version: '1.0.220' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.51.zip', version: '1.0.51' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.22.zip', version: '1.0.22' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.49.zip', version: '1.0.49' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.221.zip', version: '1.0.221' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.52.zip', version: '1.0.52' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.23.zip', version: '1.0.23' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.50.zip', version: '1.0.50' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.25.zip', version: '1.0.25' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.7.zip', version: '4.3.0.7' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.26.zip', version: '1.0.26' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.8.zip', version: '4.3.0.8' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -118,7 +118,8 @@ if (updaterFiles.some((source) =>
   !source.includes("current_user_can( 'manage_network_plugins' )") ||
 	!source.includes("$base = admin_url( 'admin-post.php' );") ||
   !source.includes('$transient->no_update[ $file ]') ||
-  !source.includes("delete_site_transient( 'update_plugins' )")
+  source.includes("delete_site_transient( 'update_plugins' )") ||
+  !source.includes('! is_object( $transient ) || ! isset( $transient->checked )')
 )) throw new Error('Los módulos deben distribuir el mismo actualizador compatible con Multisite y caché de WordPress.');
 const backups = readFileSync('digitalisimo-backups/includes/class-backups.php', 'utf8');
 if (!backups.includes("'wp_ajax_' . self::ACTION_MANUAL_START") || !backups.includes('function manual_status()') || !backups.includes('function wordpress_config_file()') || !readFileSync('digitalisimo-backups/assets/manual-progress.js', 'utf8').includes('digitalisimo_backups_manual_status')) throw new Error('Backups debe incluir avance consultable y validar wp-config.php antes del trabajo largo.');

@@ -16,6 +16,7 @@ function plugin_basename( $file ) { return 'digitalisimo-seo/digitalisimo-integr
 function get_site_transient( $key ) { return $GLOBALS['transients'][ $key ] ?? false; }
 function set_site_transient( $key, $value, $ttl = 0 ) { $GLOBALS['transients'][ $key ] = $value; return true; }
 function delete_site_transient( $key ) { unset( $GLOBALS['transients'][ $key ] ); return true; }
+function wp_update_plugins() { $GLOBALS['transients']['update_plugins'] = (object) array( 'checked' => array( 'tercero/plugin.php' => '1.0.0' ), 'response' => array( 'tercero/plugin.php' => (object) array( 'new_version' => '2.0.0' ) ), 'no_update' => array() ); }
 function wp_remote_get( $url, $args ) {
 	$GLOBALS['requests']++;
 	return array( 'code' => $GLOBALS['response_code'] ?? 200, 'body' => json_encode( array( array( 'draft' => false, 'prerelease' => false, 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest', 'assets' => array( array( 'name' => 'digitalisimo-seo-' . $GLOBALS['release_version'] . '.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/latest/digitalisimo-seo-' . $GLOBALS['release_version'] . '.zip' ) ) ) ) ) );
@@ -27,6 +28,7 @@ function esc_url_raw( $url ) { return $url; }
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-release-check.php';
 $class = Digitalisimo_SEO_Release_Check::class;
 $class::init();
+if ( false !== $class::inject( false ) ) throw new RuntimeException( 'SEO no debe reemplazar una caché inexistente de WordPress.' );
 if ( empty( $GLOBALS['scheduled'][ $class::HOOK ] ) ) throw new RuntimeException( 'Debe programar la comprobación automática.' );
 $file = 'digitalisimo-seo/digitalisimo-integrations.php';
 $stale = (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array( $file => (object) array( 'new_version' => '1.0.165' ) ) );
@@ -37,6 +39,7 @@ if ( 1 !== $GLOBALS['requests'] ) throw new RuntimeException( 'La consulta debe 
 $GLOBALS['release_version'] = '1.0.167';
 $class::refresh();
 if ( '1.0.167' !== $GLOBALS['transients']['update_plugins']->response[ $file ]->new_version || 2 !== $GLOBALS['requests'] ) throw new RuntimeException( 'El cron debe descubrir una Release nueva y renovar el aviso sin WordPress.org.' );
+if ( '2.0.0' !== $GLOBALS['transients']['update_plugins']->response['tercero/plugin.php']->new_version ) throw new RuntimeException( 'El cron no debe borrar actualizaciones de terceros.' );
 $GLOBALS['response_code'] = 503;
 $class::refresh();
 if ( '1.0.167' !== $GLOBALS['transients']['update_plugins']->response[ $file ]->new_version ) throw new RuntimeException( 'Un fallo temporal de GitHub no debe borrar una actualización ya detectada.' );

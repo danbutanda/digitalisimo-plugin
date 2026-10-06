@@ -38,9 +38,9 @@ final class Digitalisimo_Tools_Update_Bridge {
 		delete_site_transient( self::CACHE );
 		delete_site_transient( 'digitalisimo_tools_release' );
 		delete_site_transient( 'digitalisimo_releases_index' );
-		delete_site_transient( 'update_plugins' );
-		delete_transient( 'update_plugins' );
-		wp_update_plugins();
+		$updates = get_site_transient( 'update_plugins' );
+		if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) set_site_transient( 'update_plugins', self::inject( $updates ) );
+		else wp_update_plugins();
 		$context = sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) );
 		$default = is_multisite() && 'network' === $context ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
 		$back = wp_get_referer();
@@ -82,10 +82,9 @@ final class Digitalisimo_Tools_Update_Bridge {
 	}
 
 	public static function inject( $transient ) {
+		if ( ! is_object( $transient ) || ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) return $transient;
 		$release = self::release();
 		if ( empty( $release['version'] ) || empty( $release['package'] ) || ! version_compare( $release['version'], self::$installed_version, '>' ) ) return $transient;
-		if ( ! is_object( $transient ) ) $transient = new stdClass();
-		if ( ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) $transient->checked = array();
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) $transient->response = array();
 		if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) $transient->no_update = array();
 		$transient->checked[ self::FILE ] = self::$installed_version;

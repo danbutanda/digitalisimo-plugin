@@ -81,9 +81,9 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			check_admin_referer( self::ACTION );
 			delete_site_transient( self::CACHE_KEY );
 			delete_transient( self::CACHE_KEY );
-			delete_site_transient( 'update_plugins' );
-			delete_transient( 'update_plugins' );
-			wp_update_plugins();
+			$updates = get_site_transient( 'update_plugins' );
+			if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) set_site_transient( 'update_plugins', self::inject( $updates ) );
+			else wp_update_plugins();
 			$back = wp_get_referer();
 			$default = is_multisite() && 'network' === sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) ) ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' );
 			wp_safe_redirect( add_query_arg( 'digitalisimo-checked', '1', $back ? $back : $default ) );
@@ -162,10 +162,8 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		}
 
 		public static function inject( $transient ) {
-			// La primera lectura de WordPress puede no traer "checked" todavía.
-			// No se debe perder la actualización publicada por esa condición.
-			if ( ! is_object( $transient ) ) $transient = new stdClass();
-			if ( ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) $transient->checked = array();
+			// WordPress debe construir primero el inventario completo de plugins.
+			if ( ! is_object( $transient ) || ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) return $transient;
 			if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) $transient->response = array();
 			if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) $transient->no_update = array();
 			foreach ( self::$modules as $file => $module ) {
@@ -228,13 +226,11 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			return $result;
 		}
 
-		/** Fuerza una comprobación nueva tras instalar cualquier actualización. */
+		/** Limpia sólo la caché de Digitalisimo tras actualizar uno de sus módulos. */
 		public static function clear( $upgrader, $options ) {
-			if ( 'update' !== ( $options['action'] ?? '' ) || 'plugin' !== ( $options['type'] ?? '' ) ) return;
+			if ( 'update' !== ( $options['action'] ?? '' ) || 'plugin' !== ( $options['type'] ?? '' ) || ! array_intersect( (array) ( $options['plugins'] ?? array() ), array_keys( self::$modules ) ) ) return;
 			delete_site_transient( self::CACHE_KEY );
 			delete_transient( self::CACHE_KEY );
-			delete_site_transient( 'update_plugins' );
-			delete_transient( 'update_plugins' );
 		}
 	}
 }

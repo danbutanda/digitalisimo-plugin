@@ -45,6 +45,9 @@ jobs:
           php tests/elements-slider-registration.php
           php tests/performance-hero.php
           php tests/tools-updater.php
+          php tests/updater-isolation.php seo
+          php tests/updater-isolation.php hosting
+          php tests/updater-isolation.php ia
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
           php tests/performance-cache.php

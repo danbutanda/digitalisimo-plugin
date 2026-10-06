@@ -25,7 +25,7 @@ function wp_nonce_url( $url, $action ) { return $url . '&_wpnonce=test'; }
 function esc_url( $url ) { return $url; }
 function esc_url_raw( $url ) { return $url; }
 function get_site_transient( $key ) { return $GLOBALS['updater_cache'][ $key ] ?? false; }
-function set_site_transient( $key, $value, $ttl ) { $GLOBALS['updater_cache'][ $key ] = $value; }
+function set_site_transient( $key, $value, $ttl = 0 ) { $GLOBALS['updater_cache'][ $key ] = $value; }
 function delete_site_transient( $key ) { unset( $GLOBALS['updater_cache'][ $key ] ); }
 function delete_transient( $key ) { unset( $GLOBALS['updater_cache'][ $key ] ); }
 function wp_update_plugins() { $GLOBALS['updater_checks']++; }
@@ -51,9 +51,17 @@ $GLOBALS['updater_network'] = false;
 $GLOBALS['updater_network_admin'] = false;
 $site = Digitalisimo_Backups_Updater::action_link( array() );
 if ( false === strpos( $site[0], 'digitalisimo_context=site' ) ) throw new RuntimeException( 'Falta el enlace del sitio.' );
-$checked = Digitalisimo_Backups_Updater::check( new stdClass() );
+if ( false !== Digitalisimo_Backups_Updater::check( false ) ) throw new RuntimeException( 'Una caché inexistente debe seguir vacía.' );
+$partial = (object) array( 'last_checked' => time() );
+if ( $partial !== Digitalisimo_Backups_Updater::check( $partial ) || isset( $partial->response ) ) throw new RuntimeException( 'No debe completar una caché parcial.' );
+$external = (object) array( 'new_version' => '2.0.0' );
+$checked = Digitalisimo_Backups_Updater::check( (object) array( 'checked' => array( 'tercero/plugin.php' => '1.0.0' ), 'response' => array( 'tercero/plugin.php' => $external ) ) );
+if ( $external !== $checked->response['tercero/plugin.php'] ) throw new RuntimeException( 'Backups debe conservar las actualizaciones de terceros.' );
 if ( ( $checked->response[ $file ]->new_version ?? '' ) !== '1.0.48' || ( $checked->response[ $file ]->package ?? '' ) !== 'https://github.test/backups.zip' ) throw new RuntimeException( 'La actualización estable no quedó disponible.' );
 if ( ! Digitalisimo_Backups_Updater::auto_update( false, (object) array( 'plugin' => $file ) ) ) throw new RuntimeException( 'La actualización automática no está activa.' );
 Digitalisimo_Backups_Updater::refresh();
 if ( 1 !== $GLOBALS['updater_checks'] || isset( $GLOBALS['updater_cache']['digitalisimo_backups_release'] ) ) throw new RuntimeException( 'La comprobación no limpió la caché.' );
+$GLOBALS['updater_cache']['update_plugins'] = $checked;
+Digitalisimo_Backups_Updater::refresh();
+if ( $external !== $GLOBALS['updater_cache']['update_plugins']->response['tercero/plugin.php'] || 1 !== $GLOBALS['updater_checks'] ) throw new RuntimeException( 'La consulta periódica debe conservar avisos ajenos sin forzar otra consulta global.' );
 echo "DIGITALÍSIMO Backups: enlace, detección y actualización automática verificados.\n";
