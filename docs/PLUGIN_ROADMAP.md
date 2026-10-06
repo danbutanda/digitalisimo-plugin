@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · icono del menú | ✓ 4.3.0.7 | El icono del menú de Elements queda limitado a 20 × 20 px en administración de sitio y red, sin alterar el PNG original de la página Acerca de. | Sintaxis PHP, pruebas de Elements, suite de seis módulos y ZIP validados; pendiente confirmar workflow y asset público. |
+| DIGITALÍSIMO Elements · icono del menú | ✓ 4.3.0.7 | El icono del menú de Elements queda limitado a 20 × 20 px en administración de sitio y red, sin alterar el PNG original de la página Acerca de. | Sintaxis PHP, pruebas de Elements y suite de seis módulos correctas; workflows `37415757131` y `37415757142` exitosos. Release `v2026.10.06.250` contiene sólo `digitalisimo-elements-4.3.0.7.zip`; sus 1328 archivos coinciden con el paquete local. |
 
 | DIGITALÍSIMO Elements · migración Slider Optimizado | ✓ 4.3.0.6 / Tools 1.0.25 | El widget y su CSS viven en Elements con el mismo identificador, controles y salida; Tools deja de registrarlo. Elements reemplaza el widget y el estilo de una versión antigua de Tools para evitar duplicados durante la transición. | Pasaron 49 pruebas PHP, sintaxis de Tools y Elements, suite de seis módulos y `unzip -t` de ambos ZIP. Workflow `37414633977` y suite `37414633956` correctos. Release `v2026.10.06.249` contiene sólo los ZIP de Elements 4.3.0.6 y Tools 1.0.25; sus 1328 y 19 archivos coinciden respectivamente con los paquetes locales. |
 
