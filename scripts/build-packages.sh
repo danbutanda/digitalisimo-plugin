@@ -12,9 +12,26 @@ build_package() {
   local version
   version="$(sed -n 's/^ \* Version: \(.*\)$/\1/p' "$root_dir/$directory/$main_file" | head -1 | tr -d '[:space:]')"
   test -n "$version"
-  ( cd "$root_dir" && zip -FSrq "$output_dir/$prefix-$version.zip" "$directory" -x '*/.DS_Store' )
-  unzip -t "$output_dir/$prefix-$version.zip" >/dev/null
-  echo "$output_dir/$prefix-$version.zip"
+  local archive="$output_dir/$prefix-$version.zip"
+  local exclude=('*/.DS_Store')
+  if [[ "$directory" == 'digitalisimo-elements' ]]; then
+    # The local Element Pack copy is research material, never plugin runtime code.
+    exclude+=( 'digitalisimo-elements/bdthemes-element-pack' 'digitalisimo-elements/bdthemes-element-pack/*' )
+  fi
+  ( cd "$root_dir" && zip -FSrq "$archive" "$directory" -x "${exclude[@]}" )
+  unzip -t "$archive" >/dev/null
+  if [[ "$directory" == 'digitalisimo-elements' ]]; then
+    local leaked
+    leaked="$(unzip -Z1 "$archive" | LC_ALL=C grep -Ei '(^|/)(bdthemes-element-pack|element-pack-pro)(/|$)|bdthemes' || true)"
+    if [[ -n "$leaked" ]]; then
+      echo "BUILD ABORTED: Element Pack reference leaked into $archive" >&2
+      echo "$leaked" >&2
+      rm -f "$archive"
+      return 1
+    fi
+    echo 'REFERENCE LEAK CHECK: PASS' >&2
+  fi
+  echo "$archive"
 }
 
 packages=("${@:2}")

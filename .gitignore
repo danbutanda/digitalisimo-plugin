@@ -9,6 +9,9 @@ rollback/
 node_modules/
 vendor/
 
+# Copia local sólo para investigación; nunca se versiona ni se distribuye.
+digitalisimo-elements/bdthemes-element-pack/
+
 # Archivos duplicados obsoletos (superados por sus versiones activas).
 functions 2.php
 */includes/* 2.php

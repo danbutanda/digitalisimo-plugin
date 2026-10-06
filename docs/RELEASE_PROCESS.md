@@ -1,5 +1,7 @@
 # Publicación de los plugins Digitalisimo
 
+La carpeta local `digitalisimo-elements/bdthemes-element-pack/` es una referencia de investigación. Está ignorada por Git y excluida expresamente del ZIP de Elements. `scripts/build-packages.sh` inspecciona el ZIP final y aborta si detecta rutas de Element Pack o BdThemes; una copia local nunca debe publicarse como código de runtime.
+
 Los seis plugins se actualizan de forma independiente desde WordPress. Cada entrega de código debe incrementar la versión en el encabezado PHP y en `tests/validate-suite.mjs` **sólo de los módulos modificados**. Cada versión nueva debe superar la ya publicada para ese módulo.
 
 Los actualizadores sólo pueden cambiar su propia entrada dentro del transitorio `update_plugins`. Si WordPress devuelve `false` o un objeto sin `checked`, deben devolverlo intacto para que WordPress complete el inventario. Una comprobación manual o programada no debe eliminar el transitorio global: debe actualizar únicamente el aviso propio sobre una copia válida y conservar `response`, `no_update`, `checked` y `translations` de terceros.

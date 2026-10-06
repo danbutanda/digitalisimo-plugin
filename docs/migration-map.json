@@ -1,0 +1,2645 @@
+{
+  "status": "planning only; no widgets or settings have been migrated",
+  "entries": {
+    "bdt-accordion": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-acf-accordion": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-acf-gallery": {
+      "target": null,
+      "engine": "media",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-acf-list": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-acf-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-acf-tabs": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-advanced-button": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-advanced-calculator": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-advanced-counter": {
+      "target": null,
+      "engine": "data-visualization",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-advanced-divider": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-advanced-gmap": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-advanced-heading": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-advanced-icon-box": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-advanced-image-gallery": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-advanced-progress-bar": {
+      "target": null,
+      "engine": "data-visualization",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-age-gate": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-air-pollution": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-animated-card": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-animated-heading": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-animated-link": {
+      "target": "digitalisimo-animated-link",
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {
+        "link_style": "link_style",
+        "link_text": "link_text",
+        "link_url": "link_url",
+        "link_alignment": "link_alignment",
+        "link_text_color": "link_text_color",
+        "link_hover_text_color": "link_hover_text_color",
+        "link_style_color": "link_style_color",
+        "link_padding": "link_padding",
+        "link_typography": "link_typography"
+      },
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "implemented; editor and visual comparison pending"
+    },
+    "bdt-audio-player": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-barcode": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-forum-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-forum-index": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-reply-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-single-forum": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-single-reply": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-single-tag": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-single-topic": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-single-view": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-stats": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-topic-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-topic-index": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-bbpress-topic-tags": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-brand-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-brand-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-breadcrumbs": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/theme-elements/widgets/breadcrumbs.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-buddypress-friends": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-buddypress-group": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-buddypress-member": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-business-hours": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-calendly": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-call-out": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-changelog": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-charitable-campaigns": {
+      "target": null,
+      "engine": "query",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-charitable-donation-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-charitable-donations": {
+      "target": null,
+      "engine": "query",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-charitable-donors": {
+      "target": null,
+      "engine": "query",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-charitable-login": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-charitable-profile": {
+      "target": null,
+      "engine": "query",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-charitable-registration": {
+      "target": null,
+      "engine": "query",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-charitable-stat": {
+      "target": null,
+      "engine": "query",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-chart": {
+      "target": null,
+      "engine": "data-visualization",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-circle-info": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-circle-menu": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-comment": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-comparison-list": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-contact-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-contact-form-7": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-content-switcher": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-cookie-consent": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-countdown": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/countdown/widgets/countdown.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-coupon-code": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-creative-button": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-crypto-currency-card": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-crypto-currency-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-crypto-currency-chart": {
+      "target": null,
+      "engine": "data-visualization",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-crypto-currency-chart-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-crypto-currency-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-crypto-currency-list": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-crypto-currency-table": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-crypto-currency-ticker": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-custom-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-custom-gallery": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-dark-mode": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-device-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-document-viewer": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-download-monitor": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-dropbar": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-dual-button": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-dynamic-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-dynamic-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-cart": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-category-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-category-grid": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-checkout": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-easy-digital-download-history": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-login": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-mini-cart": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-product": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-product-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-product-review-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-product-reviews": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-easy-digital-profile-editor": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-easy-digital-purchase-history": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-register": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-edd-tabs": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-event-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-event-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-event-list": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-everest-forms": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-facebook-feed": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-facebook-feed-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-fancy-card": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-fancy-icons": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-fancy-list": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-fancy-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-fancy-tabs": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-faq": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-featured-box": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-flip-box": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/flip-box/widgets/flip-box.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-floating-knowledgebase": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-fluent-forms": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "fooevents-calendar": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-fooevents-calendar-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-fooevents-calendar-events": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-formidable-forms": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-forminator-forms": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-donation-history": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-donor-wall": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-form-grid": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-goal": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-login": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-profile-editor": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-receipt": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-register": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-give-totals": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-google-reviews": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-gravity-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-helpdesk": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-honeycombs": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-horizontal-scroller": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-hover-box": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-hover-video": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-icon-mobile-menu": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-iconnav": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-iframe": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-image-accordion": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-image-compare": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-image-expand": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-image-magnifier": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-image-stack": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-instagram": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-instagram-feed": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-interactive-card": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-interactive-tabs": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-layer-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-learnpress-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-learnpress-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "lightbox": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-logo-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-logo-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-lottie-icon-box": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-lottie-image": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-mailchimp": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-mailchimp-for-wp": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-marker": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-marquee": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-mega-menu": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/mega-menu/widgets/mega-menu.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-member": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-modal": {
+      "target": null,
+      "engine": "interaction",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-navbar": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-news-ticker": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-ninja-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-notification": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-offcanvas": {
+      "target": null,
+      "engine": "interaction",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-open-street-map": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-panel-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-portfolio-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-portfolio-gallery": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-portfolio-list": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-block": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-block-modern": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-card": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-comments": {
+      "target": null,
+      "engine": "query",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/theme-elements/widgets/post-comments.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-content": {
+      "target": null,
+      "engine": "query",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-featured-image": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-gallery": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-grid-tab": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-info": {
+      "target": null,
+      "engine": "query",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/theme-elements/widgets/post-info.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-list": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-post-title": {
+      "target": null,
+      "engine": "query",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-price-list": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/pricing/widgets/price-list.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-price-table": {
+      "target": null,
+      "engine": "query",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/pricing/widgets/price-table.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-product-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-product-grid": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-profile-card": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-progress-pie": {
+      "target": null,
+      "engine": "data-visualization",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-protected-content": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-qrcode": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-quform": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-reading-progress": {
+      "target": null,
+      "engine": "data-visualization",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-reading-timer": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-remote-arrows": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-remote-fraction": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-remote-pagination": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-remote-thumbs": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-review-card": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-review-card-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-review-card-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-revolution-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-scroll-button": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-scroll-image": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-scrollnav": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-search": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/search/widgets/search.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-single-post": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-slideshow": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-slinky-vertical-menu": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-social-proof": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-social-share": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-source-code": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-stacker": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-static-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-static-grid-tab": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-step-flow": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-sub-menu": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-svg-blob": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-svg-image": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-svg-maps": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-switcher": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-table": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-table-of-content": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-tablepress": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-tabs": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-tags-cloud": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-testimonial-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/carousel/widgets/testimonial-carousel.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-testimonial-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-testimonial-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-the-newsletter": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-threesixty-product-viewer": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-thumb-gallery": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-time-zone": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-timeline": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-toggle": {
+      "target": null,
+      "engine": "interaction",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-total-count": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-trailer-box": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-tutor-lms-course-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-tutor-lms-course-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-twitter-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-twitter-grid": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-twitter-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "B - ENGINE DERIVATIVE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-user-login": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-user-register": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-vertical-menu": {
+      "target": null,
+      "engine": "navigation",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-video-gallery": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-video-player": {
+      "target": null,
+      "engine": "media",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-wc-add-to-cart": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/woocommerce/widgets/add-to-cart.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-wc-carousel": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-wc-categories": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/woocommerce/widgets/categories.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-wc-elements": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/woocommerce/widgets/elements.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-wc-mini-cart": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-wc-products": {
+      "target": null,
+      "engine": "commerce",
+      "classification": "E - REVIEW FOR DUPLICATION",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/woocommerce/widgets/products-deprecated.php",
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-wc-slider": {
+      "target": null,
+      "engine": "carousel",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-we-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "C - INTEGRATION",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-weather": {
+      "target": null,
+      "engine": "content-and-layout",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-webhook-form": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-wp-forms": {
+      "target": null,
+      "engine": "forms",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    },
+    "bdt-wpdatatable": {
+      "target": null,
+      "engine": "query",
+      "classification": "A - CORE CANDIDATE",
+      "existing_elements_widget_candidate": null,
+      "setting_mappings": {},
+      "responsive_conversions": {},
+      "skin_conversions": {},
+      "status": "pending"
+    }
+  }
+}
