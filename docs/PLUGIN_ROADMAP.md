@@ -2,7 +2,7 @@
 
 En validación: tercer widget independiente `digitalisimo-document-viewer`, con URL validada, iframe diferido y CSS condicional. El ID `bdt-document-viewer` permanece reservado hasta verificar visualmente el reemplazo.
 
-| DIGITALÍSIMO Elements · tercer widget reconstruido | En validación · 4.3.0.15 | `digitalisimo-document-viewer` integra documentos HTTP(S) con iframe diferido, enlace alternativo y altura responsiva. Google Docs es una elección explícita; las direcciones locales o privadas no se envían a ese servicio. No carga JavaScript ni UIkit. | Pruebas PHP cubren esquemas inseguros, credenciales en URL, Google Docs, fallback privado y accesibilidad. Falta prueba real de frontend/editor y equivalencia visual. Quedan 260 widgets sin reconstruir. |
+| DIGITALÍSIMO Elements · tercer widget reconstruido | En validación · 4.3.0.15 | `digitalisimo-document-viewer` integra documentos HTTP(S) con iframe diferido, enlace alternativo y altura responsiva. Google Docs es una elección explícita; las direcciones locales o privadas no se envían a ese servicio. No carga JavaScript ni UIkit. | Pruebas PHP, suite de seis ZIP y workflows `37541394342`/`37541394294` correctos. Release `v2026.10.06.258` contiene sólo Elements 4.3.0.15; sus 1,731 archivos coinciden con el ZIP local. Falta prueba real de frontend/editor y equivalencia visual. Quedan 260 widgets sin reconstruir. |
 
 En validación: `digitalisimo-fancy-list` reconstruye el contenido de `bdt-fancy-list` con repetidor, CSS condicional y sin dependencia del runtime Element Pack. El ID anterior no se registra hasta validar controles y salida visual.
 
