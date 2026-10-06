@@ -20,3 +20,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Segundo componente reconstruido: Fancy List
 
 `digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-list.php` y `digitalisimo-elements/assets/css/fancy-list.css` se escribieron para reproducir la función básica del módulo `modules/fancy-list/widgets/fancy-list.php` de Element Pack Pro 9.9.1 (GPLv3), sin copiar su clase, trait de controles ni CSS, y sin incluir imágenes, iconos o librerías de la referencia. Los nombres de varios controles se conservan para facilitar una futura conversión explícita de documentos; aún no se registra el identificador antiguo.
+
+## Tercer componente reconstruido: Document Viewer
+
+`digitalisimo-elements/modules/digitalisimo-widgets/class-document-viewer.php` y `digitalisimo-elements/assets/css/document-viewer.css` se escribieron como reconstrucción funcional del módulo `modules/document-viewer/widgets/document-viewer.php` de Element Pack Pro 9.9.1 (GPLv3). No se incluyen sus clases, recursos gráficos ni librerías. El modo opcional de Google Docs carga un servicio externo elegido por el administrador; no incorpora su código al paquete.

@@ -48,6 +48,7 @@ jobs:
           php tests/elements-animated-link.php
           php tests/elements-animated-link-legacy.php
           php tests/elements-fancy-list.php
+          php tests/elements-document-viewer.php
           php tests/performance-hero.php
           php tests/tools-updater.php
           php tests/updater-isolation.php seo

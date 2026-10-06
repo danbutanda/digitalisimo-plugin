@@ -1,5 +1,9 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+En validación: tercer widget independiente `digitalisimo-document-viewer`, con URL validada, iframe diferido y CSS condicional. El ID `bdt-document-viewer` permanece reservado hasta verificar visualmente el reemplazo.
+
+| DIGITALÍSIMO Elements · tercer widget reconstruido | En validación · 4.3.0.15 | `digitalisimo-document-viewer` integra documentos HTTP(S) con iframe diferido, enlace alternativo y altura responsiva. Google Docs es una elección explícita; las direcciones locales o privadas no se envían a ese servicio. No carga JavaScript ni UIkit. | Pruebas PHP cubren esquemas inseguros, credenciales en URL, Google Docs, fallback privado y accesibilidad. Falta prueba real de frontend/editor y equivalencia visual. Quedan 260 widgets sin reconstruir. |
+
 En validación: `digitalisimo-fancy-list` reconstruye el contenido de `bdt-fancy-list` con repetidor, CSS condicional y sin dependencia del runtime Element Pack. El ID anterior no se registra hasta validar controles y salida visual.
 
 | DIGITALÍSIMO Elements · segundo widget reconstruido | En validación · 4.3.0.14 | `digitalisimo-fancy-list` ofrece lista semántica, texto, imágenes, iconos y enlaces; tres presentaciones, columnas responsivas, controles de estilo nativos y vista previa del editor. Su hoja específica mide 553 B gzip y sólo se solicita cuando se usa; no declara JS ni UIkit. | Pruebas PHP, suite de seis ZIP y workflows `37540110979`/`37540110950` correctos. Release `v2026.10.06.257` contiene sólo Elements 4.3.0.14; sus 1,729 archivos coinciden con el ZIP local. Falta comprobar editor, frontend y equivalencia visual en WordPress real. No se registra `bdt-fancy-list` todavía. Quedan 261 widgets sin reconstruir. |

@@ -1,5 +1,5 @@
 {
-  "status": "two widgets implemented; first has conditional legacy read adapter; remaining widgets pending",
+  "status": "three widgets implemented; first has conditional legacy read adapter; remaining widgets pending",
   "entries": {
     "bdt-accordion": {
       "target": null,
@@ -782,14 +782,18 @@
       "status": "pending"
     },
     "bdt-document-viewer": {
-      "target": null,
+      "target": "digitalisimo-document-viewer",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "file_source": "file_source",
+        "document_height": "document_height",
+        "viewer_type": "viewer_type"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new independent widget implemented; legacy adapter and visual comparison pending"
     },
     "bdt-download-monitor": {
       "target": null,

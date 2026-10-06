@@ -37,3 +37,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Segundo piloto: Lista destacada
 
 `digitalisimo-fancy-list` reconstruye el contenido principal de Fancy List mediante un repetidor de Elementor con texto, imagen, icono y enlace. Las tres presentaciones usan una sola hoja específica, sin JavaScript ni UIkit. Las columnas, la separación y varios estilos de tarjeta, texto e imagen tienen controles responsivos o nativos; la vista previa del editor refleja el HTML del frontend. Todavía faltan controles avanzados del original y equivalencia visual verificada; por eso **no** se registra `bdt-fancy-list` ni se convierten documentos existentes. La prueba automática cubre escape de texto, etiqueta segura, ALT de imagen, carga diferida, elementos vacíos, numeración y registro de controles.
+
+## Tercer piloto: Visor de documentos
+
+`digitalisimo-document-viewer` usa un iframe con carga diferida, un enlace alternativo y una hoja CSS pequeña. Acepta sólo URL HTTP(S), comprueba el host exacto antes de aplicar el modo de vista previa de Google Docs y evita enviar direcciones locales o privadas a Google: en ese caso utiliza el visor nativo del navegador. El uso de Google Docs para archivos públicos exige una elección explícita. No carga JavaScript ni UIkit. `bdt-document-viewer` no se registra hasta comprobar el comportamiento y aspecto en WordPress real.

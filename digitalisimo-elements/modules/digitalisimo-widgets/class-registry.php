@@ -16,6 +16,11 @@ final class Widget_Registry {
 			'class' => Fancy_List_Widget::class,
 			'css'   => 'assets/css/fancy-list.css',
 		),
+		'digitalisimo-document-viewer' => array(
+			'file'  => 'class-document-viewer.php',
+			'class' => Document_Viewer_Widget::class,
+			'css'   => 'assets/css/document-viewer.css',
+		),
 	);
 
 	public static function init() {

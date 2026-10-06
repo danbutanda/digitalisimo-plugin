@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.14
+# DIGITALÍSIMO Elements 4.3.0.15
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -19,5 +19,6 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - 4.3.0.12: añade un adaptador de lectura para documentos que todavía contienen `bdt-animated-link`. Conserva los selectores CSS originales de la página y nunca toma el ID cuando Element Pack está activo o ya lo registró. No convierte ni sobrescribe `_elementor_data`.
 - 4.3.0.13: incorpora Lista destacada como segundo widget propio, con repetidor para texto, imagen, icono y enlace; tres presentaciones, columnas responsivas y CSS condicional. No carga UIkit ni JS. El ID `bdt-fancy-list` no se registra hasta verificar equivalencia visual en Elementor.
 - 4.3.0.14: completa la vista previa de Lista destacada en Elementor y añade controles nativos de color, tipografía, relleno, radio e imagen. Corrige la estructura HTML del título y conserva la imagen mediante URL si falta el adjunto de WordPress.
+- 4.3.0.15: incorpora Visor de documentos como widget propio, con iframe diferido, enlace alternativo, altura responsiva y URL validada. El visor de Google Docs es opcional; las direcciones privadas permanecen en el navegador. No carga JavaScript ni UIkit y no reemplaza documentos con `bdt-document-viewer`.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.

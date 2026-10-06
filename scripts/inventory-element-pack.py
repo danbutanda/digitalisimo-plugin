@@ -60,6 +60,11 @@ PILOT_MIGRATIONS = {
             'show_number_icon', 'title_tags', 'content_position',
         ],
     },
+    'bdt-document-viewer': {
+        'target': 'digitalisimo-document-viewer',
+        'status': 'new independent widget implemented; legacy adapter and visual comparison pending',
+        'same_name_controls': [ 'file_source', 'document_height', 'viewer_type' ],
+    },
 }
 
 SECURITY_MARKERS = {
@@ -216,7 +221,7 @@ def main():
     (OUTPUT / 'element-pack-inventory.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 
     migration_map = {
-        'status': 'two widgets implemented; first has conditional legacy read adapter; remaining widgets pending',
+        'status': 'three widgets implemented; first has conditional legacy read adapter; remaining widgets pending',
         'entries': {
             widget['legacy_widget_id']: {
                 'target': PILOT_MIGRATIONS.get(widget['legacy_widget_id'], {}).get('target'),
