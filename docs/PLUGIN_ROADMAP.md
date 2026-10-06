@@ -2,7 +2,7 @@
 
 En validación: motor compartido de carrusel con desplazamiento nativo y controles accesibles; primer consumidor `digitalisimo-brand-carousel`. La implementación no sustituye el ID `bdt-brand-carousel`.
 
-| DIGITALÍSIMO Elements · cuarto widget reconstruido | En validación · 4.3.0.16 | `digitalisimo-brand-carousel` ofrece logos, nombres, enlaces, columnas responsivas y controles accesibles sobre un motor nativo compartido. Sus CSS y JS se solicitan sólo cuando se usa el widget. | Pruebas aisladas PHP/JS y paquete ZIP por verificar en publicación. Pendiente probar editor, frontend, sitio/red y equivalencia visual con Element Pack; no registrar `bdt-brand-carousel` ni convertir páginas antiguas. Quedan 259 widgets por reconstruir. |
+| DIGITALÍSIMO Elements · cuarto widget reconstruido | En validación · 4.3.0.16 | `digitalisimo-brand-carousel` ofrece logos, nombres, enlaces, columnas responsivas y controles accesibles sobre un motor nativo compartido. Sus CSS y JS se solicitan sólo cuando se usa el widget. | Pruebas PHP/JS, suite de seis ZIP y workflows `37543686410`/`37543686445` correctos. Release `v2026.10.06.259` contiene sólo Elements 4.3.0.16; sus 1,341 archivos coinciden con el ZIP local. Pendiente probar editor, frontend, sitio/red y equivalencia visual con Element Pack; no registrar `bdt-brand-carousel` ni convertir páginas antiguas. Quedan 259 widgets por reconstruir. |
 
 En validación: tercer widget independiente `digitalisimo-document-viewer`, con URL validada, iframe diferido y CSS condicional. El ID `bdt-document-viewer` permanece reservado hasta verificar visualmente el reemplazo.
 
