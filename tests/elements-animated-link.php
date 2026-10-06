@@ -17,7 +17,7 @@ namespace Elementor {
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
-	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.13' );
+	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.14' );
 	define( 'BDTEP_VER', '9.9.1' ); // Element Pack activo: no registrar un ID legacy duplicado.
 	define( 'DIGITALISIMO_ELEMENTS_FILE', __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	function add_action( $name, $callback, $priority = 10 ) { $GLOBALS['animated_hooks'][ $name ][ $priority ][] = $callback; }
