@@ -25,6 +25,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		/** Módulos registrados, indexados por su archivo principal relativo. */
 		private static $modules = array();
 		private static $hooked  = false;
+		private static $script_file;
 
 		/**
 		 * Registra un módulo para su actualización automática.
@@ -43,6 +44,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			add_filter( 'plugin_action_links_' . $basename, array( __CLASS__, 'action_link' ) );
 			add_filter( 'network_admin_plugin_action_links_' . $basename, array( __CLASS__, 'action_link' ) );
 			if ( self::$hooked ) return;
+			self::$script_file = $file;
 			self::$hooked = true;
 			// WordPress Multisite guarda esta información como site transient; WordPress
 			// individual puede usar el transient normal. Se cubren lectura y escritura
@@ -58,6 +60,13 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'force_check' ) );
 			add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 			add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
+			add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_inline_update' ) );
+		}
+
+		/** Usa la misma actualización AJAX de WordPress sin abandonar Plugins. */
+		public static function enqueue_inline_update( $hook ) {
+			if ( 'plugins.php' !== $hook || ! self::can_update() ) return;
+			wp_enqueue_script( 'digitalisimo-inline-plugin-update', plugins_url( 'assets/js/update-in-place.js', self::$script_file ), array( 'updates' ), self::$modules[ plugin_basename( self::$script_file ) ]['version'], true );
 		}
 
 		/** Enlace «Buscar actualizaciones» en la fila del plugin. */

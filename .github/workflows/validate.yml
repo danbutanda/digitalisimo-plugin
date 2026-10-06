@@ -56,6 +56,7 @@ jobs:
           bash scripts/build-packages.sh dist
       - name: Validar suite y paquetes
         run: |
+          node tests/update-in-place.mjs
           DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
           DIGITALISIMO_PACKAGE_DIR=dist node scripts/verify-release.mjs
 

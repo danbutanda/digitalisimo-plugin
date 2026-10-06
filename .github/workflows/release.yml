@@ -41,6 +41,7 @@ jobs:
         run: find digitalisimo-seo digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar protecciones de rendimiento
         run: |
+          node tests/update-in-place.mjs
           php tests/tools-slider.php
           php tests/elements-slider-registration.php
           php tests/performance-hero.php

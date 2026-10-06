@@ -17,6 +17,7 @@ final class Digitalisimo_Elements_Updater {
 		add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 		add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'clear_after_upgrade' ), 10, 2 );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_inline_update' ) );
 		add_filter( 'cron_schedules', array( __CLASS__, 'schedule_interval' ) );
 		add_action( 'digitalisimo_elements_refresh_updates', array( __CLASS__, 'refresh' ) );
 		if ( ( ! is_multisite() || is_main_site() ) && ! wp_next_scheduled( 'digitalisimo_elements_refresh_updates' ) ) wp_schedule_event( time() + 5 * MINUTE_IN_SECONDS, 'digitalisimo_elements_five_minutes', 'digitalisimo_elements_refresh_updates' );
@@ -25,6 +26,12 @@ final class Digitalisimo_Elements_Updater {
 	public static function schedule_interval( $schedules ) {
 		$schedules['digitalisimo_elements_five_minutes'] = array( 'interval' => 5 * MINUTE_IN_SECONDS, 'display' => 'Cada cinco minutos · DIGITALÍSIMO Elements' );
 		return $schedules;
+	}
+
+	/** Usa la actualización AJAX de WordPress dentro de la lista de Plugins. */
+	public static function enqueue_inline_update( $hook ) {
+		if ( 'plugins.php' !== $hook || ! self::can_update() ) return;
+		wp_enqueue_script( 'digitalisimo-inline-plugin-update', plugins_url( 'assets/js/update-in-place.js', WP_PLUGIN_DIR . '/' . self::FILE ), array( 'updates' ), DIGITALISIMO_ELEMENTS_VERSION, true );
 	}
 
 	private static function can_update() { return is_multisite() ? current_user_can( 'manage_network_plugins' ) : current_user_can( 'update_plugins' ); }
