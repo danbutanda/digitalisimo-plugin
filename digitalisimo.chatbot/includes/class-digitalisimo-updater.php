@@ -65,6 +65,9 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		public static function enqueue_inline_update( $hook ) {
 			if ( 'plugins.php' !== $hook || ! self::can_update() ) return;
 			wp_enqueue_script( 'digitalisimo-inline-plugin-update', plugins_url( 'assets/js/update-in-place.js', self::$script_file ), array( 'updates' ), self::$modules[ plugin_basename( self::$script_file ) ]['version'], true );
+			foreach ( array_keys( self::$modules ) as $file ) {
+				wp_add_inline_script( 'digitalisimo-inline-plugin-update', 'window.digitalisimoPluginUpdateFiles=window.digitalisimoPluginUpdateFiles||{};window.digitalisimoPluginUpdateFiles[' . wp_json_encode( $file ) . ']=true;', 'before' );
+			}
 		}
 
 		/** Enlace «Buscar actualizaciones» en la fila del plugin. */

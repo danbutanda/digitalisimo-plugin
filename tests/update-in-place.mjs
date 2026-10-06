@@ -12,6 +12,14 @@ const listeners = [];
 const updates = [];
 let credentials = 0;
 let currentFile = 'digitalisimo-elements/pro-elements.php';
+const registered = Object.fromEntries([
+  'digitalisimo-backups/digitalisimo-backups.php',
+  'digitalisimo-elements/pro-elements.php',
+  'digitalisimo-hosting/digitalisimo-hosting.php',
+  'digitalisimo.chatbot/digitalisimo-chatbot.php',
+  'digitalisimo-seo/digitalisimo-integrations.php',
+  'digitalisimo-tools/digitalisimo-tools.php'
+].map(file => [file, true]));
 const row = {
   getAttribute: name => name === 'data-plugin' ? currentFile : currentFile.split('/')[0]
 };
@@ -28,7 +36,7 @@ const event = {
   stopImmediatePropagation() { this.stopped = true; }
 };
 const context = {
-  window: { wp: { updates: { updatePlugin: args => updates.push(args), maybeRequestFilesystemCredentials: () => credentials++ } } },
+  window: { digitalisimoPluginUpdateFiles: registered, wp: { updates: { updatePlugin: args => updates.push(args), maybeRequestFilesystemCredentials: () => credentials++ } } },
   document: { addEventListener: (...args) => listeners.push(args) }
 };
 context.wp = context.window.wp;
@@ -54,6 +62,12 @@ for (const file of [
   assert.equal(updates.at(-1).plugin, file);
 }
 assert.equal(updates.length, 6);
+
+delete registered[currentFile];
+const unregistered = { ...event, prevented: false, stopped: false };
+listeners[0][1](unregistered);
+assert.equal(unregistered.prevented, false, 'el controlador sólo debe atender módulos registrados por PHP');
+registered[currentFile] = true;
 
 const foreign = { ...event, prevented: false, stopped: false, target: { closest: () => ({ ...link, closest: () => ({ getAttribute: () => 'otro/otro.php' }) }) } };
 listeners[0][1](foreign);

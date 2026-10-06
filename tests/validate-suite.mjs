@@ -5,13 +5,13 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.222.zip', version: '1.0.222' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.53.zip', version: '1.0.53' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.24.zip', version: '1.0.24' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.51.zip', version: '1.0.51' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.223.zip', version: '1.0.223' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.54.zip', version: '1.0.54' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.25.zip', version: '1.0.25' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.52.zip', version: '1.0.52' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.27.zip', version: '1.0.27' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.9.zip', version: '4.3.0.9' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.28.zip', version: '1.0.28' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.10.zip', version: '4.3.0.10' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -76,8 +76,18 @@ const declarations = new Map();
   if (!readFileSync(join(elementsModule.dir, 'modules/blockquote/module.php'), 'utf8').includes('DIGITALISIMO_ELEMENTS_VERSION')) throw new Error('El CSS del blockquote debe cambiar de versión con DIGITALÍSIMO Elements.');
   if (!readFileSync(join(elementsModule.dir, 'license.txt'), 'utf8').includes('PRO Elements team') || !readFileSync(join(elementsModule.dir, 'plugin.php'), 'utf8').includes('DIGITALÍSIMO: este derivado se actualiza únicamente desde su propio asset.')) throw new Error('Se perdieron créditos o sigue activo el actualizador original de Elements.');
 }
+// Cada módulo debe llevar el mismo controlador probado; así una Release parcial
+// no puede perder la actualización en la propia pantalla Plugins.
+const inlineUpdater = readFileSync('digitalisimo-elements/assets/js/update-in-place.js', 'utf8');
+for (const module of [...modules, toolsModule, elementsModule]) {
+  const zip = join(packageDir, module.zip);
+  const asset = `${module.dir}/assets/js/update-in-place.js`;
+  const packaged = execFileSync('unzip', ['-p', zip, asset], { encoding: 'utf8' });
+  if (packaged !== inlineUpdater || readFileSync(asset, 'utf8') !== inlineUpdater) throw new Error(`Controlador de actualizaciones ausente o distinto en ${zip}`);
+}
 for (const file of phpFiles) {
   const source = readFileSync(file, 'utf8');
+  if (/delete_(?:site_)?transient\s*\(\s*['"]update_plugins['"]/.test(source)) throw new Error(`${file} borra el inventario global de actualizaciones`);
   for (const match of source.matchAll(/(?:final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)/g)) {
     const name = match[1];
     if (!declarations.has(name)) declarations.set(name, []);

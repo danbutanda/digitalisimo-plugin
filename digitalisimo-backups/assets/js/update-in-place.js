@@ -4,22 +4,13 @@
 	if (window.digitalisimoInlinePluginUpdate) return;
 	window.digitalisimoInlinePluginUpdate = true;
 
-	var plugins = {
-		'digitalisimo-backups/digitalisimo-backups.php': true,
-		'digitalisimo-elements/pro-elements.php': true,
-		'digitalisimo-hosting/digitalisimo-hosting.php': true,
-		'digitalisimo.chatbot/digitalisimo-chatbot.php': true,
-		'digitalisimo-seo/digitalisimo-integrations.php': true,
-		'digitalisimo-tools/digitalisimo-tools.php': true
-	};
-
 	document.addEventListener('click', function (event) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		var link = event.target.closest && event.target.closest('#bulk-action-form tr[data-plugin] a.update-link');
 		if (!link) return;
 		var row = link.closest('tr[data-plugin]');
 		var file = row && row.getAttribute('data-plugin');
-		if (!plugins[file] || !window.wp || !wp.updates || typeof wp.updates.updatePlugin !== 'function') return;
+		if (!window.digitalisimoPluginUpdateFiles || !window.digitalisimoPluginUpdateFiles[file] || !window.wp || !wp.updates || typeof wp.updates.updatePlugin !== 'function') return;
 
 		event.preventDefault();
 		event.stopImmediatePropagation();

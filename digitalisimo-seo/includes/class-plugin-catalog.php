@@ -99,7 +99,7 @@ final class Digitalisimo_Plugin_Catalog {
 	public static function update() {
 		if ( ! self::can_manage() ) wp_die( 'No autorizado.' ); check_admin_referer( self::UPDATE_ACTION . '_' . sanitize_key( $_GET['slug'] ?? '' ) ); list( $plugin, $release ) = self::request_plugin();
 		if ( ! self::installed_version( $plugin[1] ) ) wp_die( 'El plugin no está instalado.' ); require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php'; require_once ABSPATH . 'wp-admin/includes/file.php';
-		$result = ( new Plugin_Upgrader( new Automatic_Upgrader_Skin() ) )->install( $release['package'], array( 'overwrite_package' => true ) ); if ( is_wp_error( $result ) || ! $result ) wp_die( 'No se pudo actualizar el plugin.' ); delete_site_transient( 'update_plugins' ); self::redirect();
+		$result = ( new Plugin_Upgrader( new Automatic_Upgrader_Skin() ) )->install( $release['package'], array( 'overwrite_package' => true ) ); if ( is_wp_error( $result ) || ! $result ) wp_die( 'No se pudo actualizar el plugin.' ); self::redirect();
 	}
 	private static function redirect() { wp_safe_redirect( is_multisite() && 'network' === sanitize_key( wp_unslash( $_GET['digitalisimo_context'] ?? '' ) ) ? network_admin_url( 'admin.php?page=digitalisimo-plugins' ) : admin_url( 'admin.php?page=digitalisimo-plugins' ) ); exit; }
 }

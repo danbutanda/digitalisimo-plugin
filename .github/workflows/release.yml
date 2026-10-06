@@ -42,6 +42,7 @@ jobs:
       - name: Probar protecciones de rendimiento
         run: |
           node tests/update-in-place.mjs
+          for module in seo ia hosting backups tools elements; do php tests/update-enqueue.php "$module"; done
           php tests/tools-slider.php
           php tests/elements-slider-registration.php
           php tests/performance-hero.php

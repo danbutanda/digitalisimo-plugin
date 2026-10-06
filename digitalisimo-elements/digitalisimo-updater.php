@@ -32,6 +32,7 @@ final class Digitalisimo_Elements_Updater {
 	public static function enqueue_inline_update( $hook ) {
 		if ( 'plugins.php' !== $hook || ! self::can_update() ) return;
 		wp_enqueue_script( 'digitalisimo-inline-plugin-update', plugins_url( 'assets/js/update-in-place.js', WP_PLUGIN_DIR . '/' . self::FILE ), array( 'updates' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+		wp_add_inline_script( 'digitalisimo-inline-plugin-update', 'window.digitalisimoPluginUpdateFiles=window.digitalisimoPluginUpdateFiles||{};window.digitalisimoPluginUpdateFiles[' . wp_json_encode( self::FILE ) . ']=true;', 'before' );
 	}
 
 	private static function can_update() { return is_multisite() ? current_user_can( 'manage_network_plugins' ) : current_user_can( 'update_plugins' ); }
