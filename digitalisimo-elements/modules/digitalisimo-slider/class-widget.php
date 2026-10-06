@@ -1,5 +1,5 @@
 <?php
-namespace Digitalisimo\Tools;
+namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
 

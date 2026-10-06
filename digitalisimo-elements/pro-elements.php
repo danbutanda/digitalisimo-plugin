@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Funciones avanzadas para Elementor gratuito. Versión derivada de PRO Elements 4.3.0.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.5
+ * Version: 4.3.0.6
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -18,7 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.5' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.6' );
+define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 require_once __DIR__ . '/digitalisimo-compat.php';
 require_once __DIR__ . '/digitalisimo-updater.php';
 require_once __DIR__ . '/digitalisimo-brand.php';
@@ -91,6 +92,8 @@ function pro_elements_load_plugin_func() {
 	}
 
 	require ELEMENTOR_PRO_PATH . 'plugin.php';
+	require_once __DIR__ . '/modules/digitalisimo-slider/class-module.php';
+	\Digitalisimo\Elements\Elementor_Slider::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

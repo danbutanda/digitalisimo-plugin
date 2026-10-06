@@ -1,6 +1,6 @@
 # DIGITALÍSIMO Tools
 
-`DIGITALÍSIMO Tools` es un plugin independiente para herramientas internas de WordPress. Incluye **Plantillas Elementor de Red** en Multisite, **Optimizar imágenes WebP** y el widget **Slider Optimizado** en sitios individuales o instalaciones sin Multisite.
+`DIGITALÍSIMO Tools` es un plugin independiente para herramientas internas de WordPress. Incluye **Plantillas Elementor de Red** en Multisite y **Optimizar imágenes WebP** en sitios individuales o instalaciones sin Multisite. El widget **Slider Optimizado** pasó a **DIGITALÍSIMO Elements** en la versión 4.3.0.6.
 
 ## Uso
 
@@ -23,15 +23,7 @@ El módulo de plantillas no hace consultas, JavaScript, REST, iframes, shortcode
 
 ## Slider Optimizado
 
-En Elementor, abre la categoría **DIGITALÍSIMO** y arrastra **Slider Optimizado**. Admite imágenes múltiples con ALT y enlace, o una imagen repetida con espejo alternado. Los controles permiten animación continua o desactivada, dirección, duración, pausa, loop, cantidad visible por dispositivo, separación, altura, tamaño y carga de imágenes. Con movimiento reducido, el contenido queda visible sin animación.
-
-En altura **Automática**, el widget usa las dimensiones reales del archivo para reservar la proporción correcta, incluso si faltan metadatos del adjunto. Si no puede determinar sus dimensiones, carga esa imagen sin diferirla para evitar un espacio provisional excesivo.
-
-En **Estilo → Elementos visibles**, selecciona entre 1 y 9 para escritorio, tableta y móvil mediante los iconos responsive del control. Los valores iniciales son 9, 6 y 3; cada vista se puede cambiar por separado. Los sliders ya guardados conservan su configuración hasta que la edites.
-
-En el modo de imágenes múltiples, **Seleccionar varias imágenes** abre la biblioteca para elegirlas y ordenarlas de una vez. Se usa el ALT guardado en cada adjunto. Los elementos individuales siguen disponibles para imágenes que necesiten un ALT o enlace propio; aparecen después de la selección múltiple. Los sliders guardados con elementos individuales no requieren migración.
-
-El modo continuo usa únicamente CSS; el widget no declara scripts ni Swiper. Su CSS se registra como dependencia del widget y Elementor lo carga sólo donde se usa. No modifica el carrusel nativo ni páginas existentes.
+El widget ahora pertenece a DIGITALÍSIMO Elements. Instala o actualiza Elements antes de actualizar Tools para mantener visibles los sliders existentes durante el cambio. El identificador guardado por Elementor no cambia.
 
 ## Imágenes WebP
 

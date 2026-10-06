@@ -10,8 +10,8 @@ const modules = [
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.22.zip', version: '1.0.22' },
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.49.zip', version: '1.0.49' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.24.zip', version: '1.0.24' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.5.zip', version: '4.3.0.5' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.25.zip', version: '1.0.25' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.6.zip', version: '4.3.0.6' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -54,7 +54,8 @@ for (const module of modules) {
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
   if (!listing.includes(`${toolsModule.dir}/${toolsModule.file}`) || listing.includes('.DS_Store')) throw new Error('El paquete de DIGITALÍSIMO Tools no tiene una estructura válida');
   if (!readFileSync(join(toolsModule.dir, 'modules/elementor-network-templates/class-network-admin.php'), 'utf8').includes("'Herramientas', $capability, self::PAGE")) throw new Error('El submenú de DIGITALÍSIMO Tools debe mostrarse como Herramientas.');
-  for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php', 'assets/media-badges.js', 'assets/media-badges.css', 'assets/slider-optimizado.css', 'modules/elementor-slider/class-widget.php']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
+  for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php', 'assets/media-badges.js', 'assets/media-badges.css']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
+  if (listing.includes('modules/elementor-slider/') || listing.includes('assets/slider-optimizado.css') || source.includes('modules/elementor-slider/class-module.php')) throw new Error('El slider ya no debe formar parte de DIGITALÍSIMO Tools.');
 }
 
 const declarations = new Map();
@@ -65,7 +66,8 @@ const declarations = new Map();
   const source = readFileSync(main, 'utf8');
   if (!source.includes(`Version: ${elementsModule.version}`) || !source.includes('Requires Plugins: elementor') || !source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements')) throw new Error('La versión derivada debe exigir Elementor y tener su actualizador propio.');
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
-  for (const required of ['pro-elements.php', 'plugin.php', 'license.txt', 'COPYING', 'DIGITALISIMO_CHANGES.md', 'digitalisimo-updater.php', 'digitalisimo-compat.php', 'digitalisimo-brand.php', 'vendor/autoload.php', 'vendor/composer/ClassLoader.php', 'vendor/composer/autoload_real.php', 'assets/digitalisimo/logo-negro.webp', 'assets/digitalisimo/logo-blanco.webp', 'assets/digitalisimo/icono.png']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
+  for (const required of ['pro-elements.php', 'plugin.php', 'license.txt', 'COPYING', 'DIGITALISIMO_CHANGES.md', 'digitalisimo-updater.php', 'digitalisimo-compat.php', 'digitalisimo-brand.php', 'vendor/autoload.php', 'vendor/composer/ClassLoader.php', 'vendor/composer/autoload_real.php', 'assets/digitalisimo/logo-negro.webp', 'assets/digitalisimo/logo-blanco.webp', 'assets/digitalisimo/icono.png', 'modules/digitalisimo-slider/class-module.php', 'modules/digitalisimo-slider/class-widget.php', 'assets/css/slider-optimizado.css']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
+  if (!source.includes('\\Digitalisimo\\Elements\\Elementor_Slider::init()') || !readFileSync(join(elementsModule.dir, 'modules/digitalisimo-slider/class-widget.php'), 'utf8').includes("return 'digitalisimo-slider-optimizado'")) throw new Error('Elements debe registrar el slider con el identificador que usan las páginas existentes.');
   if (listing.includes('.DS_Store')) throw new Error('El paquete Elements contiene archivos de sistema.');
   for (const quoteSheet of ['widget-blockquote.min.css', 'widget-blockquote-rtl.min.css', 'widget-blockquote-rtl-rtl.min.css']) {
     const css = readFileSync(join(elementsModule.dir, 'assets/css', quoteSheet), 'utf8');

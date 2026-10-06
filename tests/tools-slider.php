@@ -46,8 +46,8 @@ namespace {
 		foreach ( $attrs as $key => $value ) $tag .= ' ' . $key . '="' . esc_attr( $value ) . '"';
 		return $tag . '>';
 	}
-	require __DIR__ . '/../digitalisimo-tools/modules/elementor-slider/class-widget.php';
-	$widget = new \Digitalisimo\Tools\Elementor_Slider_Widget();
+	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-slider/class-widget.php';
+	$widget = new \Digitalisimo\Elements\Elementor_Slider_Widget();
 	$controls = new \ReflectionMethod( $widget, 'register_controls' );
 	$controls->invoke( $widget );
 	if ( 'gallery' !== ( $widget->test_controls['gallery_images']['type'] ?? '' ) || 'repeater' !== ( $widget->test_controls['images']['type'] ?? '' ) ) throw new \RuntimeException( 'El editor debe ofrecer selección múltiple y conservar los elementos individuales.' );
