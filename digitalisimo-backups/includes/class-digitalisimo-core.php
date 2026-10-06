@@ -10,5 +10,12 @@ final class Digitalisimo_Backups_Core {
 	public static function menu() { if ( ! class_exists( 'Digitalisimo_Core' ) ) add_menu_page( 'Digitalisimo', 'Digitalisimo', 'manage_options', 'digitalisimo', array( __CLASS__, 'dashboard' ), 'dashicons-chart-line', 56 ); add_submenu_page( 'digitalisimo', 'Backups', 'Backups', 'manage_options', 'digitalisimo-backups', array( 'Digitalisimo_Backups', 'page' ) ); remove_submenu_page( 'digitalisimo', 'digitalisimo' ); }
 	public static function network_menu() { if ( ! class_exists( 'Digitalisimo_Core' ) ) add_menu_page( 'Digitalisimo', 'Digitalisimo', 'manage_network_options', 'digitalisimo-network', array( __CLASS__, 'dashboard' ), 'dashicons-chart-line', 56 ); add_submenu_page( 'digitalisimo-network', 'Backups', 'Backups', 'manage_network_options', 'digitalisimo-network-backups', array( 'Digitalisimo_Backups', 'network_page' ) ); }
 	public static function dashboard() { echo '<div class="wrap"><h1>Digitalisimo</h1><p>Activa el módulo Backups desde este menú para crear un respaldo completo.</p></div>'; }
-	public static function assets() { $page = sanitize_key( $_GET['page'] ?? '' ); if ( false !== strpos( $page, 'digitalisimo' ) ) wp_enqueue_style( 'digitalisimo-backups-ui', plugins_url( '../assets/admin-ui.css', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION ); }
+	public static function assets() {
+		$page = sanitize_key( $_GET['page'] ?? '' );
+		if ( false === strpos( $page, 'digitalisimo' ) ) return;
+		wp_enqueue_style( 'digitalisimo-backups-ui', plugins_url( '../assets/admin-ui.css', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION );
+		if ( ! in_array( $page, array( 'digitalisimo-backups', 'digitalisimo-network-backups' ), true ) ) return;
+		wp_enqueue_script( 'digitalisimo-backups-manual', plugins_url( '../assets/manual-progress.js', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION, true );
+		wp_add_inline_script( 'digitalisimo-backups-manual', 'window.digitalisimoBackupsManual=' . wp_json_encode( array( 'url' => admin_url( 'admin-ajax.php' ), 'nonce' => wp_create_nonce( 'digitalisimo_backups_manual' ), 'context' => is_network_admin() ? 'network' : 'site' ) ) . ';', 'before' );
+	}
 }

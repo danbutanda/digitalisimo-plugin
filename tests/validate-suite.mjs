@@ -8,7 +8,7 @@ const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.220.zip', version: '1.0.220' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.51.zip', version: '1.0.51' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.22.zip', version: '1.0.22' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.48.zip', version: '1.0.48' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.49.zip', version: '1.0.49' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.24.zip', version: '1.0.24' };
 const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.5.zip', version: '4.3.0.5' };
@@ -119,6 +119,7 @@ if (updaterFiles.some((source) =>
   !source.includes("delete_site_transient( 'update_plugins' )")
 )) throw new Error('Los módulos deben distribuir el mismo actualizador compatible con Multisite y caché de WordPress.');
 const backups = readFileSync('digitalisimo-backups/includes/class-backups.php', 'utf8');
+if (!backups.includes("'wp_ajax_' . self::ACTION_MANUAL_START") || !backups.includes('function manual_status()') || !backups.includes('function wordpress_config_file()') || !readFileSync('digitalisimo-backups/assets/manual-progress.js', 'utf8').includes('digitalisimo_backups_manual_status')) throw new Error('Backups debe incluir avance consultable y validar wp-config.php antes del trabajo largo.');
 if (!backups.includes('create_network') || !backups.includes('create_site') || !backups.includes('create_incremental_site') || !backups.includes('network_context') || !backups.includes('servers_panel') || !backups.includes('manual_destinations') || !backups.includes('digitalisimo_backup_destination') || !backups.includes('incremental_destination') || !backups.includes('remove_history') || !backups.includes('restore_digitalisimo_zip') || !backups.includes('restore_updraft_set') || !backups.includes('download_remote') || !backups.includes('delete_remote') || !backups.includes('digitalisimo_backups_policy') || !backups.includes('create_automation') || !backups.includes('update_automation') || !backups.includes('delete_automation') || !backups.includes('automation_fields') || !backups.includes('MIGRAR-A-WORDPRESS-UNICO.txt') || !backups.includes('database.sql') || !backups.includes('manifest.json') || !backups.includes('ssh2_connect') || !backups.includes('oauth2.googleapis.com') || !backups.includes('graph.microsoft.com') || !backups.includes('resumable_upload'))
   throw new Error('Backups debe incluir archivos y base de datos, con destinos local, SFTP, Google Drive y OneDrive.');
 const articleChatPublisher = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-publisher.php','utf8');
