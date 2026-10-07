@@ -57,3 +57,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Séptimo piloto: Cuadrícula de marcas
 
 `digitalisimo-brand-grid` reutiliza el modelo de datos del carrusel de marcas para una lista CSS grid. Permite mostrar detalles siempre, al apuntar/enfocar o al abrir una divulgación HTML nativa. Los enlaces reciben texto accesible si el campo está vacío y los logos conservan ALT del adjunto cuando aporta información. El widget no carga JavaScript ni UIkit. Los controles visuales avanzados del original y la equivalencia visual aún no están probados; por eso no se registra `bdt-brand-grid` ni se modifican documentos existentes.
+
+## Octavo piloto: Cuadrícula de logotipos
+
+`digitalisimo-logo-grid` comparte el modelo de selección múltiple y elementos individuales del Carrusel de logotipos, pero sólo presenta una cuadrícula CSS. Ofrece diseños de tarjetas, bordes y separadores, columnas responsivas y leyendas opcionales mediante HTML y CSS. No solicita Tippy, Popper, UIkit ni JavaScript. Todavía faltan máscaras, animaciones, posiciones avanzadas de la leyenda y equivalencia visual con el widget original; no se registra `bdt-logo-grid` ni se convierten documentos antiguos.

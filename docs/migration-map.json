@@ -1589,14 +1589,22 @@
       "status": "new independent widget on shared native carousel engine; legacy adapter and visual comparison pending"
     },
     "bdt-logo-grid": {
-      "target": null,
+      "target": "digitalisimo-logo-grid",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "logo_list": "logo_list",
+        "thumbnail_size": "thumbnail_size",
+        "layout": "layout",
+        "columns": "columns",
+        "column_gap": "column_gap",
+        "height": "height",
+        "logo_size_cover": "logo_size_cover"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new independent CSS grid widget implemented; legacy adapter and visual comparison pending"
     },
     "bdt-lottie-icon-box": {
       "target": null,

@@ -40,3 +40,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Séptimo componente reconstruido: Brand Grid
 
 `class-brand-grid.php` y `brand-grid.css` son implementación propia de la función principal de `modules/brand-grid/widgets/brand-grid.php` de Element Pack Pro 9.9.1 (GPLv3). No se copian su clase, traits, CSS, iconos ni recursos. La cuadrícula utiliza elementos semánticos y CSS nativo; el ID anterior continúa sin registrarse.
+
+## Octavo componente reconstruido: Logo Grid
+
+`class-logo-grid.php` y `logo-grid.css` son implementación propia inspirada en `modules/logo-grid/widgets/logo-grid.php` de Element Pack Pro 9.9.1 (GPLv3). No se incluyen su clase, traits, estilos, máscaras, Tippy, Popper ni recursos gráficos. El ID anterior permanece sin registrar mientras se comprueba la equivalencia funcional y visual.

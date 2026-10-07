@@ -41,6 +41,11 @@ final class Widget_Registry {
 			'class' => Brand_Grid_Widget::class,
 			'css'   => 'assets/css/brand-grid.css',
 		),
+		'digitalisimo-logo-grid' => array(
+			'file'  => 'class-logo-grid.php',
+			'class' => Logo_Grid_Widget::class,
+			'css'   => 'assets/css/logo-grid.css',
+		),
 	);
 
 	public static function init() {
