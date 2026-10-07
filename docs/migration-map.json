@@ -112,14 +112,24 @@
       "status": "pending"
     },
     "bdt-advanced-heading": {
-      "target": null,
+      "target": "digitalisimo-advanced-heading",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "sub_heading": "sub_heading",
+        "main_heading": "main_heading",
+        "split_main_heading": "split_main_heading",
+        "split_text": "split_text",
+        "link": "link",
+        "header_size": "header_size",
+        "align": "align",
+        "advanced_heading_visibility": "advanced_heading_visibility",
+        "advanced_heading": "advanced_heading"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new semantic widget implemented; advanced effects, legacy adapter and visual comparison pending"
     },
     "bdt-advanced-icon-box": {
       "target": null,

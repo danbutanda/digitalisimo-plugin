@@ -75,6 +75,11 @@ PILOT_MIGRATIONS = {
         'status': 'new independent widget on shared native carousel engine; legacy adapter and visual comparison pending',
         'same_name_controls': [ 'logo_items', 'columns', 'item_gap', 'height', 'navigation' ],
     },
+    'bdt-advanced-heading': {
+        'target': 'digitalisimo-advanced-heading',
+        'status': 'new semantic widget implemented; advanced effects, legacy adapter and visual comparison pending',
+        'same_name_controls': [ 'sub_heading', 'main_heading', 'split_main_heading', 'split_text', 'link', 'header_size', 'align', 'advanced_heading_visibility', 'advanced_heading' ],
+    },
 }
 
 SECURITY_MARKERS = {

@@ -49,3 +49,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Quinto piloto: Carrusel de logotipos
 
 `digitalisimo-logo-carousel` reutiliza el motor anterior y añade selección múltiple de la biblioteca o un repetidor con enlaces individuales. Toma el ALT del adjunto y admite un nombre accesible; un enlace sin nombre accesible se presenta como imagen sin enlace. El CSS propio es pequeño y condicional. No registra `bdt-logo-carousel`, cuyo autoplay, tooltips, máscaras y estilos avanzados requieren evaluación separada antes de una migración compatible.
+
+## Sexto piloto: Encabezado avanzado
+
+`digitalisimo-advanced-heading` ofrece un título con etiqueta validada, antetítulo, fragmento destacado, enlace y texto ornamental opcional. El texto decorativo queda marcado `aria-hidden` y no añade un segundo encabezado. Usa sólo CSS condicional, sin UIkit ni JavaScript. El widget de referencia tiene más controles visuales, iconos y efectos todavía no reproducidos; por ello no se registra `bdt-advanced-heading` ni se convierten documentos antiguos. Quedan pendientes las pruebas visuales y de edición en Elementor.

@@ -51,6 +51,7 @@ jobs:
           php tests/elements-document-viewer.php
           php tests/elements-brand-carousel.php
           php tests/elements-logo-carousel.php
+          php tests/elements-advanced-heading.php
           node tests/elements-carousel-engine.mjs
           php tests/performance-hero.php
           php tests/tools-updater.php

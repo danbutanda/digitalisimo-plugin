@@ -31,6 +31,11 @@ final class Widget_Registry {
 			'class' => Logo_Carousel_Widget::class,
 			'css'   => 'assets/css/logo-carousel.css',
 		),
+		'digitalisimo-advanced-heading' => array(
+			'file'  => 'class-advanced-heading.php',
+			'class' => Advanced_Heading_Widget::class,
+			'css'   => 'assets/css/advanced-heading.css',
+		),
 	);
 
 	public static function init() {
