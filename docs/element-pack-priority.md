@@ -66,7 +66,7 @@ Funciones y extensiones del mismo bloque prioritario:
 59. Realistic Image Shadow
 60. Visibility Controls
 61. Wrapper Link
-62. Duplicator
+62. Duplicator — base editorial propia para posts, páginas, CPT públicos y plantillas Elementor; pendiente de prueba real en Multisite
 63. SVG Support
 
 Las bases propias señaladas usan IDs `digitalisimo-*`, pero **ninguna se considera migración completa** hasta verificar los controles, casos de error, edición, Multisite y equivalencia funcional/visual. El Slider Optimizado también existe, pero no se declara compatible con `bdt-slider` sin esa comparación. Los IDs antiguos permanecen libres mientras falte paridad. Las extensiones 54–63 se auditan por sus efectos sobre Elementor y WordPress; no se cuentan como widgets ni se cargan globalmente por defecto.

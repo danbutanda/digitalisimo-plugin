@@ -16,6 +16,8 @@ La fuente de verdad es el código y las pruebas, no una etiqueta de «migrado» 
 
 Estas bases no significan paridad completa. El [mapa de migración](migration-map.json) registra controles, destinos y pendientes por ID; la [prioridad](element-pack-priority.md) indica qué componentes van primero; el [plan técnico](element-pack-migration-plan.md) explica los pilotos; el [grafo de dependencias](element-pack-dependency-graph.md) y su JSON permiten identificar motores y recursos compartidos. Regenerar el inventario con `python3 scripts/inventory-element-pack.py` sólo cuando cambie la referencia o el método de análisis, y revisar el diff antes de aceptarlo.
 
+La extensión prioritaria **Duplicator** tiene una base propia en `digitalisimo-duplicator.php`: aparece en las filas de entradas, páginas, CPT públicos y plantillas Elementor del sitio actual, crea un borrador y conserva datos editoriales y de Elementor. Excluye productos, medios y tipos transaccionales; omite bloqueos y cachés. No depende del loader de Element Pack. Su validación automática no sustituye una prueba real con WordPress Multisite y plugins de metadatos.
+
 ## Arquitectura obligatoria
 
 1. Registrar cada widget nuevo con ID `digitalisimo-*` en el registro propio. Separar modelo de datos, salida y dependencias. Declarar handles concretos; registrar los recursos de forma reutilizable y cargarlos sólo cuando Elementor use el widget. No cargar UIkit, Swiper, CSS o JS de Element Pack de forma global. Un motor compartido debe atender widgets con la misma necesidad sin acoplar sus controles.

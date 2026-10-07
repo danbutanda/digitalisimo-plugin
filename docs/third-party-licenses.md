@@ -60,3 +60,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Duodécimo componente reconstruido: Advanced Divider
 
 `class-advanced-divider.php` y `advanced-divider.css` implementan formas decorativas propias tras estudiar `modules/advanced-divider/widgets/advanced-divider.php` de Element Pack Pro 9.9.1 (GPLv3). No distribuyen sus SVG, hoja CSS, JavaScript, UIkit ni infraestructura. La imagen opcional se toma de la biblioteca de Medios del sitio. El ID antiguo permanece libre y la equivalencia completa está pendiente.
+
+## Extensión editorial reconstruida: Duplicator
+
+`digitalisimo-elements/digitalisimo-duplicator.php` es implementación propia de la función editorial observada en `includes/class-duplicator.php` de Element Pack Pro 9.9.1 (GPLv3). No copia su clase, consultas SQL, loader, ajustes ni otros archivos. Usa las APIs de WordPress, restringe tipos y permisos, y no incorpora recursos externos. Conserva datos de Elementor sin copiar sus cachés temporales.

@@ -7,6 +7,7 @@ $elementor_loaded = false;
 function add_action( $name, $callback, $priority = 10, $args = 1 ) { $GLOBALS['hooks'][ $name ][] = $callback; }
 function add_filter( $name, $callback, $priority = 10, $args = 1 ) { add_action( $name, $callback, $priority, $args ); }
 function is_multisite() { return true; }
+function is_admin() { return true; }
 function is_main_site() { return true; }
 function wp_next_scheduled() { return true; }
 function get_option( $name, $default = false ) { return 'active_plugins' === $name ? array( 'digitalisimo-elements/pro-elements.php' ) : $default; }
