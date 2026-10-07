@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · encabezado avanzado | En validación · 4.3.0.20 | Sexto widget reconstruido: título semántico, antetítulo, fragmento destacado, enlace y decoración accesible con CSS condicional y sin JavaScript. | Prueba PHP aislada y WordPress Playground: frontend y editor muestran el widget, CSS condicional, sin errores JS ni desbordamiento. Se corrigió el espacio semántico entre fragmentos. Falta equivalencia de estilos avanzados; `bdt-advanced-heading` no se registra. Quedan 257 widgets por reconstruir. |
+| DIGITALÍSIMO Elements · encabezado avanzado | En validación · 4.3.0.20 | Sexto widget reconstruido: título semántico, antetítulo, fragmento destacado, enlace y decoración accesible con CSS condicional y sin JavaScript. | Prueba PHP aislada y WordPress Playground: frontend y editor muestran el widget, CSS condicional, sin errores JS ni desbordamiento. Workflows `37571487115`/`37571487108` correctos. Release `v2026.10.07.263` contiene sólo Elements 4.3.0.20; sus 1,345 archivos coinciden con el ZIP local. Falta equivalencia de estilos avanzados; `bdt-advanced-heading` no se registra. Quedan 257 widgets por reconstruir. |
 
 En validación: motor compartido de carrusel con desplazamiento nativo y controles accesibles; consumidores `digitalisimo-brand-carousel` y `digitalisimo-logo-carousel`. 4.3.0.18 corrige el ancho cuando hay menos elementos que columnas. La implementación no sustituye IDs legacy.
 
