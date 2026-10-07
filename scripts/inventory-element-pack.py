@@ -48,6 +48,11 @@ PILOT_MIGRATIONS = {
         'status': 'native details widget with published Elementor and optional Anywhere templates plus item and state icons; advanced controls, legacy adapter, visual comparison and multisite runtime pending',
         'same_name_controls': [ 'tabs', 'source', 'tab_title', 'tab_content', 'template_id', 'anywhere_id', 'repeater_icon', 'active_item', 'multiple', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon' ],
     },
+    'bdt-advanced-button': {
+        'target': 'digitalisimo-advanced-button',
+        'status': 'new CSS-only button with safe link, icon, badge and nine lightweight effects; legacy adapter, full style parity and multisite runtime pending',
+        'same_name_controls': [ 'text', 'link', 'button_size', 'align', 'button_icon', 'icon_align', 'icon_indent', 'show_button_badge', 'badge_text', 'badge_align', 'button_css_id', 'button_effect', 'advanced_button_text_color', 'advanced_button_hover_text_color', 'advanced_button_padding', 'advanced_button_radius' ],
+    },
     'bdt-animated-link': {
         'target': 'digitalisimo-animated-link',
         'status': 'implemented with conditional legacy read adapter; permanent conversion and visual comparison pending',

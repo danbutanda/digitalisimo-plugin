@@ -15,7 +15,7 @@ namespace Elementor {
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
-	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.25' );
+	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.26' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	function add_action( $name, $callback, $priority = 10 ) {}
 	function plugins_url( $path, $file ) { return 'https://example.test/' . $path; }
@@ -34,7 +34,7 @@ namespace {
 	$manager = new Legacy_Manager();
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
-	check_legacy( 11 === count( $manager->widgets ), 'Sin Element Pack deben existir diez widgets nuevos y el ID legacy, una sola vez.' );
+	check_legacy( 12 === count( $manager->widgets ), 'Sin Element Pack deben existir once widgets nuevos y el ID legacy, una sola vez.' );
 	check_legacy( $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Legacy_Animated_Link_Widget, 'El ID legacy debe usar nuestra implementación.' );
 	$widget = $manager->widgets['bdt-animated-link'];
 	$widget->settings = array( 'link_style' => 'leda', 'link_text' => 'Ejemplo', 'link_url' => array( 'url' => 'https://example.test/' ) );

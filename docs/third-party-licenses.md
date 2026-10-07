@@ -52,3 +52,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Décimo componente reconstruido: Accordion
 
 `class-accordion.php` y `accordion.css` son implementación propia inspirada en `modules/accordion/widgets/accordion.php` de Element Pack Pro 9.9.1 (GPLv3). Utilizan elementos HTML de divulgación nativos; no incorporan clases, traits, estilos, scripts ni UIkit del original. El ID antiguo continúa libre mientras se verifica la paridad.
+
+## Undécimo componente reconstruido: Advanced Button
+
+`class-advanced-button.php` y `advanced-button.css` son implementación propia de un botón con icono y distintivo inspirada en `modules/advanced-button/widgets/advanced-button.php` de Element Pack Pro 9.9.1 (GPLv3). Sus nueve efectos se expresan mediante CSS nuevo y ligero. No se copia la clase, su hoja CSS, UIkit ni otros recursos de la referencia. El ID antiguo permanece libre hasta comprobar paridad funcional y visual.

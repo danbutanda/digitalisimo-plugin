@@ -56,6 +56,7 @@ jobs:
           php tests/elements-logo-grid.php
           php tests/elements-scroll-button.php
           php tests/elements-accordion.php
+          php tests/elements-advanced-button.php
           node tests/elements-carousel-engine.mjs
           php tests/performance-hero.php
           php tests/tools-updater.php

@@ -1,5 +1,5 @@
 {
-  "status": "10 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "11 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -88,16 +88,33 @@
       "status": "pending"
     },
     "bdt-advanced-button": {
-      "target": null,
+      "target": "digitalisimo-advanced-button",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 2,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "text": "text",
+        "link": "link",
+        "button_size": "button_size",
+        "align": "align",
+        "button_icon": "button_icon",
+        "icon_align": "icon_align",
+        "icon_indent": "icon_indent",
+        "show_button_badge": "show_button_badge",
+        "badge_text": "badge_text",
+        "badge_align": "badge_align",
+        "button_css_id": "button_css_id",
+        "button_effect": "button_effect",
+        "advanced_button_text_color": "advanced_button_text_color",
+        "advanced_button_hover_text_color": "advanced_button_hover_text_color",
+        "advanced_button_padding": "advanced_button_padding",
+        "advanced_button_radius": "advanced_button_radius"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new CSS-only button with safe link, icon, badge and nine lightweight effects; legacy adapter, full style parity and multisite runtime pending"
     },
     "bdt-advanced-calculator": {
       "target": null,
