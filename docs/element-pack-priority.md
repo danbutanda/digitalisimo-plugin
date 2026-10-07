@@ -10,7 +10,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 6. Animated Heading — base propia con rotación progresiva y primer texto visible; variantes avanzadas, paridad visual y Multisite pendientes
 7. Brand Grid — base propia; paridad pendiente
 8. Brand Carousel — base propia; paridad pendiente
-9. Breadcrumbs
+9. Breadcrumbs — base propia con jerarquía de WordPress sin depender de Yoast; paridad visual y Multisite pendientes
 10. Dual Button
 11. Call Out
 12. Comparison List

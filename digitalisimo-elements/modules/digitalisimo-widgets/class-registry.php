@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-breadcrumbs' => array(
+			'file'  => 'class-breadcrumbs.php',
+			'class' => Breadcrumbs_Widget::class,
+			'css'   => 'assets/css/breadcrumbs.css',
+		),
 		'digitalisimo-animated-heading' => array(
 			'file'  => 'class-animated-heading.php',
 			'class' => Animated_Heading_Widget::class,

@@ -1,5 +1,5 @@
 {
-  "status": "14 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "15 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -519,16 +519,20 @@
       "status": "new semantic CSS grid widget implemented; legacy adapter and visual comparison pending"
     },
     "bdt-breadcrumbs": {
-      "target": null,
+      "target": "digitalisimo-breadcrumbs",
       "engine": "navigation",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 1,
       "user_priority_order": 9,
       "existing_elements_widget_candidate": "digitalisimo-elements/modules/theme-elements/widgets/breadcrumbs.php",
-      "setting_mappings": {},
+      "setting_mappings": {
+        "breadcrumbs_align": "align",
+        "breadcrumbs_separator": "separator (fixed safe choices)",
+        "home_page_text": "home_text"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own WordPress-native navigation for current site, hierarchy, CPT and taxonomy; existing PRO widget depends on Yoast; no JSON-LD; visual parity, legacy adapter and multisite runtime pending"
     },
     "bdt-buddypress-friends": {
       "target": null,

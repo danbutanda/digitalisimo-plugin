@@ -72,3 +72,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Decimocuarto componente reconstruido: Animated Heading
 
 `class-animated-heading.php`, `animated-heading.css` y `animated-heading.js` son una implementación propia de rotación progresiva tras estudiar `modules/animated-heading/widgets/animated-heading.php` de Element Pack Pro 9.9.1 (GPLv3). No se copiaron su clase, CSS, JavaScript, UIkit, Typed.js, Morphext ni GSAP. El ID antiguo sigue libre y la paridad de sus modos avanzados está pendiente.
+
+## Decimoquinto componente reconstruido: Breadcrumbs
+
+`class-breadcrumbs.php` y `breadcrumbs.css` son una implementación propia tras estudiar `modules/breadcrumbs/widgets/breadcrumbs.php` de Element Pack Pro 9.9.1 (GPLv3). No se copió su clase, CSS, UIkit ni otros recursos. El widget Breadcrumbs ya incluido en la base derivada de PRO Elements depende de Yoast; esta variante propia usa las APIs de WordPress y no reemplaza ese widget ni el ID de Element Pack.
