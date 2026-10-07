@@ -80,6 +80,11 @@ PILOT_MIGRATIONS = {
         'status': 'new semantic widget implemented; advanced effects, legacy adapter and visual comparison pending',
         'same_name_controls': [ 'sub_heading', 'main_heading', 'split_main_heading', 'split_text', 'link', 'header_size', 'align', 'advanced_heading_visibility', 'advanced_heading' ],
     },
+    'bdt-brand-grid': {
+        'target': 'digitalisimo-brand-grid',
+        'status': 'new semantic CSS grid widget implemented; legacy adapter and visual comparison pending',
+        'same_name_controls': [ 'brand_items', 'image_size', 'columns', 'column_gap', 'row_gap', 'brand_event', 'show_brand_name', 'brand_html_tag', 'show_website_link' ],
+    },
 }
 
 SECURITY_MARKERS = {

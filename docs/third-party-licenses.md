@@ -36,3 +36,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Sexto componente reconstruido: Advanced Heading
 
 `class-advanced-heading.php` y `advanced-heading.css` son una implementación propia de la función básica de `modules/advanced-heading/widgets/advanced-heading.php` de Element Pack Pro 9.9.1 (GPLv3). Sólo se conserva el nombre de controles funcionales que facilitaría una conversión posterior; no se copian su clase, CSS, iconos ni efectos avanzados. El ID antiguo no se registra y la equivalencia visual está pendiente.
+
+## Séptimo componente reconstruido: Brand Grid
+
+`class-brand-grid.php` y `brand-grid.css` son implementación propia de la función principal de `modules/brand-grid/widgets/brand-grid.php` de Element Pack Pro 9.9.1 (GPLv3). No se copian su clase, traits, CSS, iconos ni recursos. La cuadrícula utiliza elementos semánticos y CSS nativo; el ID anterior continúa sin registrarse.

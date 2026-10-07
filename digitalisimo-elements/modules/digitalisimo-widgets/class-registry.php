@@ -36,6 +36,11 @@ final class Widget_Registry {
 			'class' => Advanced_Heading_Widget::class,
 			'css'   => 'assets/css/advanced-heading.css',
 		),
+		'digitalisimo-brand-grid' => array(
+			'file'  => 'class-brand-grid.php',
+			'class' => Brand_Grid_Widget::class,
+			'css'   => 'assets/css/brand-grid.css',
+		),
 	);
 
 	public static function init() {

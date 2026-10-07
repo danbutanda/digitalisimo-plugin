@@ -381,14 +381,24 @@
       "status": "new widget on shared native carousel engine; legacy adapter and visual comparison pending"
     },
     "bdt-brand-grid": {
-      "target": null,
+      "target": "digitalisimo-brand-grid",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "brand_items": "brand_items",
+        "image_size": "image_size",
+        "columns": "columns",
+        "column_gap": "column_gap",
+        "row_gap": "row_gap",
+        "brand_event": "brand_event",
+        "show_brand_name": "show_brand_name",
+        "brand_html_tag": "brand_html_tag",
+        "show_website_link": "show_website_link"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new semantic CSS grid widget implemented; legacy adapter and visual comparison pending"
     },
     "bdt-breadcrumbs": {
       "target": null,

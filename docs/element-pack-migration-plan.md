@@ -53,3 +53,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Sexto piloto: Encabezado avanzado
 
 `digitalisimo-advanced-heading` ofrece un título con etiqueta validada, antetítulo, fragmento destacado, enlace y texto ornamental opcional. El texto decorativo queda marcado `aria-hidden` y no añade un segundo encabezado. Usa sólo CSS condicional, sin UIkit ni JavaScript. El widget de referencia tiene más controles visuales, iconos y efectos todavía no reproducidos; por ello no se registra `bdt-advanced-heading` ni se convierten documentos antiguos. Quedan pendientes las pruebas visuales y de edición en Elementor.
+
+## Séptimo piloto: Cuadrícula de marcas
+
+`digitalisimo-brand-grid` reutiliza el modelo de datos del carrusel de marcas para una lista CSS grid. Permite mostrar detalles siempre, al apuntar/enfocar o al abrir una divulgación HTML nativa. Los enlaces reciben texto accesible si el campo está vacío y los logos conservan ALT del adjunto cuando aporta información. El widget no carga JavaScript ni UIkit. Los controles visuales avanzados del original y la equivalencia visual aún no están probados; por eso no se registra `bdt-brand-grid` ni se modifican documentos existentes.
