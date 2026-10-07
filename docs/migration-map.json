@@ -1,17 +1,22 @@
 {
-  "status": "9 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "10 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
-      "target": null,
+      "target": "digitalisimo-accordion",
       "engine": "navigation",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 1,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "tabs": "tabs",
+        "active_item": "active_item",
+        "multiple": "multiple",
+        "title_html_tag": "title_html_tag"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new native details widget implemented; templates, advanced controls, legacy adapter and visual comparison pending"
     },
     "bdt-acf-accordion": {
       "target": null,

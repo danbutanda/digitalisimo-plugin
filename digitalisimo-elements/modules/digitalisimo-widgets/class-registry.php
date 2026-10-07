@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-accordion' => array(
+			'file'  => 'class-accordion.php',
+			'class' => Accordion_Widget::class,
+			'css'   => 'assets/css/accordion.css',
+		),
 		'digitalisimo-animated-link' => array(
 			'file'  => 'class-animated-link.php',
 			'class' => Animated_Link_Widget::class,

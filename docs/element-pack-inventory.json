@@ -393,7 +393,7 @@
       "classification": "A - CORE CANDIDATE",
       "proposed_engine": "navigation",
       "existing_elements_widget_candidate": null,
-      "implementation_status": "pending",
+      "implementation_status": "new native details widget implemented; templates, advanced controls, legacy adapter and visual comparison pending",
       "dependency_decisions": {
         "ElementPack Base": "REIMPLEMENT",
         "UIkit": "REMOVE / REIMPLEMENT",

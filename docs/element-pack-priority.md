@@ -2,7 +2,7 @@
 
 El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden. Se terminan y validan antes de continuar con los demás componentes del inventario. Los primeros 53 son widgets Elementor; los últimos 10 son funciones o extensiones sin identificador de widget. `scripts/inventory-element-pack.py` comprueba que todos existan en la referencia local y graba `user_priority_tier` y `user_priority_order` en `element-pack-inventory.json`. El orden técnico dentro de un lote puede agrupar widgets que comparten motor, pero ninguno del segundo bloque desplaza a uno de esta lista.
 
-1. Accordion
+1. Accordion — base propia; paridad pendiente
 2. Advanced Button
 3. Advanced Divider
 4. Advanced Heading — base propia; paridad pendiente
@@ -69,6 +69,6 @@ Funciones y extensiones del mismo bloque prioritario:
 62. Duplicator
 63. SVG Support
 
-Las cinco bases propias señaladas ya están publicadas con IDs `digitalisimo-*`, pero **ninguna se considera migración completa** hasta verificar los controles, casos de error, edición, Multisite y equivalencia funcional/visual. El Slider Optimizado también existe, pero no se declara compatible con `bdt-slider` sin esa comparación. Los IDs antiguos permanecen libres mientras falte paridad. Las extensiones 54–63 se auditan por sus efectos sobre Elementor y WordPress; no se cuentan como widgets ni se cargan globalmente por defecto.
+Las bases propias señaladas usan IDs `digitalisimo-*`, pero **ninguna se considera migración completa** hasta verificar los controles, casos de error, edición, Multisite y equivalencia funcional/visual. El Slider Optimizado también existe, pero no se declara compatible con `bdt-slider` sin esa comparación. Los IDs antiguos permanecen libres mientras falte paridad. Las extensiones 54–63 se auditan por sus efectos sobre Elementor y WordPress; no se cuentan como widgets ni se cargan globalmente por defecto.
 
 Después de terminar este bloque se retoman los otros 210 widgets del inventario de 263 IDs. La carpeta `bdthemes-element-pack/` sigue siendo únicamente fuente de investigación: no se ejecuta ni entra en los ZIP publicados.

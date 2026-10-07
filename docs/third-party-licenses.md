@@ -48,3 +48,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Noveno componente reconstruido: Scroll Button
 
 `class-scroll-button.php`, `scroll-button.css` y `scroll-button.js` son implementación propia de la función principal de `modules/scroll-button/widgets/scroll-button.php` de Element Pack Pro 9.9.1 (GPLv3). No se incluyen su clase, traits, CSS, JavaScript ni efectos; el nuevo widget usa un enlace nativo y no registra el ID anterior.
+
+## Décimo componente reconstruido: Accordion
+
+`class-accordion.php` y `accordion.css` son implementación propia inspirada en `modules/accordion/widgets/accordion.php` de Element Pack Pro 9.9.1 (GPLv3). Utilizan elementos HTML de divulgación nativos; no incorporan clases, traits, estilos, scripts ni UIkit del original. El ID antiguo continúa libre mientras se verifica la paridad.

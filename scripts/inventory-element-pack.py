@@ -43,6 +43,11 @@ ENGINE_RULES = [
 ]
 
 PILOT_MIGRATIONS = {
+    'bdt-accordion': {
+        'target': 'digitalisimo-accordion',
+        'status': 'new native details widget implemented; templates, advanced controls, legacy adapter and visual comparison pending',
+        'same_name_controls': [ 'tabs', 'active_item', 'multiple', 'title_html_tag' ],
+    },
     'bdt-animated-link': {
         'target': 'digitalisimo-animated-link',
         'status': 'implemented with conditional legacy read adapter; permanent conversion and visual comparison pending',

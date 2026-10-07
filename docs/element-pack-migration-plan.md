@@ -67,3 +67,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Noveno piloto: Botón de desplazamiento
 
 `digitalisimo-scroll-button` usa un enlace de ancla nativo que funciona incluso si JavaScript falla. Un script pequeño, cargado sólo al usar el widget, aplica duración y desplazamiento configurados; respeta `prefers-reduced-motion` y devuelve el foco a la sección. No carga UIkit ni el script global de Element Pack. Por ahora no reproduce animaciones, posiciones avanzadas ni el ocultamiento antes de desplazar; el ID `bdt-scroll-button` permanece libre hasta probar equivalencia visual y de controles.
+
+## Décimo piloto: Accordion prioritario
+
+`digitalisimo-accordion` usa `<details>` y `<summary>` nativos, con un repetidor para título y contenido, apertura inicial, varios paneles opcionales y CSS condicional. El contenido editorial pasa por sanitización y el widget no produce schema FAQ paralelo ni solicita JavaScript/UIkit. Permanecen pendientes la selección de plantillas Elementor, iconos configurables, opciones de URL/hash y equivalencia visual; no se registra `bdt-accordion` ni se convierten documentos antiguos.
