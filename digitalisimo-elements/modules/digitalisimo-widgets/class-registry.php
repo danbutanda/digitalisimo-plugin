@@ -46,6 +46,11 @@ final class Widget_Registry {
 			'class' => Logo_Grid_Widget::class,
 			'css'   => 'assets/css/logo-grid.css',
 		),
+		'digitalisimo-scroll-button' => array(
+			'file'  => 'class-scroll-button.php',
+			'class' => Scroll_Button_Widget::class,
+			'css'   => 'assets/css/scroll-button.css',
+		),
 	);
 
 	public static function init() {
@@ -78,6 +83,9 @@ final class Widget_Registry {
 	public static function scripts() {
 		if ( ! wp_script_is( 'digitalisimo-carousel-engine', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-carousel-engine', plugins_url( 'assets/js/carousel-engine.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+		}
+		if ( ! wp_script_is( 'digitalisimo-scroll-button', 'registered' ) ) {
+			wp_register_script( 'digitalisimo-scroll-button', plugins_url( 'assets/js/scroll-button.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}
 	}
 

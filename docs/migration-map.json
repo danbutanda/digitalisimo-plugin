@@ -2117,14 +2117,23 @@
       "status": "pending"
     },
     "bdt-scroll-button": {
-      "target": null,
+      "target": "digitalisimo-scroll-button",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "duration": "duration",
+        "offset": "offset",
+        "scroll_button_text": "scroll_button_text",
+        "section_id": "section_id",
+        "scroll_button_position": "scroll_button_position",
+        "scroll_button_align": "scroll_button_align",
+        "button_icon": "button_icon",
+        "icon_align": "icon_align"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new accessible local-anchor widget implemented; advanced effects, legacy adapter and visual comparison pending"
     },
     "bdt-scroll-image": {
       "target": null,

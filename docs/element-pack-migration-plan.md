@@ -61,3 +61,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Octavo piloto: Cuadrícula de logotipos
 
 `digitalisimo-logo-grid` comparte el modelo de selección múltiple y elementos individuales del Carrusel de logotipos, pero sólo presenta una cuadrícula CSS. Ofrece diseños de tarjetas, bordes y separadores, columnas responsivas y leyendas opcionales mediante HTML y CSS. No solicita Tippy, Popper, UIkit ni JavaScript. Todavía faltan máscaras, animaciones, posiciones avanzadas de la leyenda y equivalencia visual con el widget original; no se registra `bdt-logo-grid` ni se convierten documentos antiguos.
+
+## Noveno piloto: Botón de desplazamiento
+
+`digitalisimo-scroll-button` usa un enlace de ancla nativo que funciona incluso si JavaScript falla. Un script pequeño, cargado sólo al usar el widget, aplica duración y desplazamiento configurados; respeta `prefers-reduced-motion` y devuelve el foco a la sección. No carga UIkit ni el script global de Element Pack. Por ahora no reproduce animaciones, posiciones avanzadas ni el ocultamiento antes de desplazar; el ID `bdt-scroll-button` permanece libre hasta probar equivalencia visual y de controles.

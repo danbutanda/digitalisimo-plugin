@@ -11,7 +11,7 @@ const modules = [
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.52.zip', version: '1.0.52' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.28.zip', version: '1.0.28' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.22.zip', version: '4.3.0.22' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.23.zip', version: '4.3.0.23' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -70,6 +70,7 @@ const declarations = new Map();
   for (const required of ['modules/digitalisimo-widgets/class-advanced-heading.php', 'assets/css/advanced-heading.css']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
   for (const required of ['modules/digitalisimo-widgets/class-brand-grid.php', 'assets/css/brand-grid.css']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
   for (const required of ['modules/digitalisimo-widgets/class-logo-grid.php', 'assets/css/logo-grid.css']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
+  for (const required of ['modules/digitalisimo-widgets/class-scroll-button.php', 'assets/css/scroll-button.css', 'assets/js/scroll-button.js']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
   if (listing.split('\n').some((entry) => /(^|\/)(bdthemes-element-pack|element-pack-pro)(\/|$)|bdthemes/i.test(entry))) throw new Error('REFERENCE LEAK CHECK: el ZIP de Elements contiene la copia de Element Pack.');
   if (!source.includes('\\Digitalisimo\\Elements\\Elementor_Slider::init()') || !readFileSync(join(elementsModule.dir, 'modules/digitalisimo-slider/class-widget.php'), 'utf8').includes("return 'digitalisimo-slider-optimizado'")) throw new Error('Elements debe registrar el slider con el identificador que usan las páginas existentes.');
   if (listing.includes('.DS_Store')) throw new Error('El paquete Elements contiene archivos de sistema.');

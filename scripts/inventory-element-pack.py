@@ -90,6 +90,11 @@ PILOT_MIGRATIONS = {
         'status': 'new independent CSS grid widget implemented; legacy adapter and visual comparison pending',
         'same_name_controls': [ 'logo_list', 'thumbnail_size', 'layout', 'columns', 'column_gap', 'height', 'logo_size_cover' ],
     },
+    'bdt-scroll-button': {
+        'target': 'digitalisimo-scroll-button',
+        'status': 'new accessible local-anchor widget implemented; advanced effects, legacy adapter and visual comparison pending',
+        'same_name_controls': [ 'duration', 'offset', 'scroll_button_text', 'section_id', 'scroll_button_position', 'scroll_button_align', 'button_icon', 'icon_align' ],
+    },
 }
 
 SECURITY_MARKERS = {

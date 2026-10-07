@@ -44,3 +44,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Octavo componente reconstruido: Logo Grid
 
 `class-logo-grid.php` y `logo-grid.css` son implementación propia inspirada en `modules/logo-grid/widgets/logo-grid.php` de Element Pack Pro 9.9.1 (GPLv3). No se incluyen su clase, traits, estilos, máscaras, Tippy, Popper ni recursos gráficos. El ID anterior permanece sin registrar mientras se comprueba la equivalencia funcional y visual.
+
+## Noveno componente reconstruido: Scroll Button
+
+`class-scroll-button.php`, `scroll-button.css` y `scroll-button.js` son implementación propia de la función principal de `modules/scroll-button/widgets/scroll-button.php` de Element Pack Pro 9.9.1 (GPLv3). No se incluyen su clase, traits, CSS, JavaScript ni efectos; el nuevo widget usa un enlace nativo y no registra el ID anterior.
