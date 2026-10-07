@@ -1,0 +1,74 @@
+# Prioridad de la migración de Element Pack
+
+El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden. Se terminan y validan antes de continuar con los demás componentes del inventario. Los primeros 53 son widgets Elementor; los últimos 10 son funciones o extensiones sin identificador de widget. `scripts/inventory-element-pack.py` comprueba que todos existan en la referencia local y graba `user_priority_tier` y `user_priority_order` en `element-pack-inventory.json`. El orden técnico dentro de un lote puede agrupar widgets que comparten motor, pero ninguno del segundo bloque desplaza a uno de esta lista.
+
+1. Accordion
+2. Advanced Button
+3. Advanced Divider
+4. Advanced Heading — base propia; paridad pendiente
+5. Advanced Icon Box
+6. Animated Heading
+7. Brand Grid — base propia; paridad pendiente
+8. Brand Carousel — base propia; paridad pendiente
+9. Breadcrumbs
+10. Dual Button
+11. Call Out
+12. Comparison List
+13. Content Switcher
+14. Custom Gallery
+15. Creative Button
+16. Device Slider
+17. Fancy Card
+18. Fancy List — base propia; paridad pendiente
+19. Fancy Icons
+20. Fancy Slider
+21. Fancy Tabs
+22. Featured Box
+23. Google Reviews
+24. Icon Mobile Menu
+25. Icon Nav
+26. Lottie Image
+27. Logo Grid — base propia; paridad pendiente
+28. Navbar
+29. Notification
+30. Offcanvas
+31. Price List
+32. Price Table
+33. Product Grid
+34. Post Grid
+35. Post List
+36. Profile Card
+37. QR Code
+38. Slider — aprovechar el Slider Optimizado existente tras comparar controles y salida
+39. Slinky Vertical Menu
+40. Search
+41. Single Post
+42. Social Share
+43. Sub Menu
+44. Switcher
+45. Tabs
+46. Table
+47. Table Of Content
+48. Tags Cloud
+49. Total Count
+50. User Login
+51. User Register
+52. Vertical Menu
+53. Video Player
+
+Funciones y extensiones del mismo bloque prioritario:
+
+54. Backdrop Filter
+55. Floating Effects
+56. Notation
+57. Shape Builder
+58. Text Gradient Background
+59. Realistic Image Shadow
+60. Visibility Controls
+61. Wrapper Link
+62. Duplicator
+63. SVG Support
+
+Las cinco bases propias señaladas ya están publicadas con IDs `digitalisimo-*`, pero **ninguna se considera migración completa** hasta verificar los controles, casos de error, edición, Multisite y equivalencia funcional/visual. El Slider Optimizado también existe, pero no se declara compatible con `bdt-slider` sin esa comparación. Los IDs antiguos permanecen libres mientras falte paridad. Las extensiones 54–63 se auditan por sus efectos sobre Elementor y WordPress; no se cuentan como widgets ni se cargan globalmente por defecto.
+
+Después de terminar este bloque se retoman los otros 210 widgets del inventario de 263 IDs. La carpeta `bdthemes-element-pack/` sigue siendo únicamente fuente de investigación: no se ejecuta ni entra en los ZIP publicados.

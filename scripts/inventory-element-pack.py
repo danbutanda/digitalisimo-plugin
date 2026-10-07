@@ -97,6 +97,40 @@ PILOT_MIGRATIONS = {
     },
 }
 
+# Orden indicado por el usuario: estos 53 widgets se completan antes del resto.
+# Las 10 funciones adicionales no tienen get_name() y se registran aparte.
+USER_PRIORITY_WIDGET_IDS = (
+    'bdt-accordion', 'bdt-advanced-button', 'bdt-advanced-divider',
+    'bdt-advanced-heading', 'bdt-advanced-icon-box', 'bdt-animated-heading',
+    'bdt-brand-grid', 'bdt-brand-carousel', 'bdt-breadcrumbs', 'bdt-dual-button',
+    'bdt-call-out', 'bdt-comparison-list', 'bdt-content-switcher',
+    'bdt-custom-gallery', 'bdt-creative-button', 'bdt-device-slider',
+    'bdt-fancy-card', 'bdt-fancy-list', 'bdt-fancy-icons', 'bdt-fancy-slider',
+    'bdt-fancy-tabs', 'bdt-featured-box', 'bdt-google-reviews',
+    'bdt-icon-mobile-menu', 'bdt-iconnav', 'bdt-lottie-image', 'bdt-logo-grid',
+    'bdt-navbar', 'bdt-notification', 'bdt-offcanvas', 'bdt-price-list',
+    'bdt-price-table', 'bdt-product-grid', 'bdt-post-grid', 'bdt-post-list',
+    'bdt-profile-card', 'bdt-qrcode', 'bdt-slider',
+    'bdt-slinky-vertical-menu', 'bdt-search', 'bdt-single-post',
+    'bdt-social-share', 'bdt-sub-menu', 'bdt-switcher', 'bdt-tabs',
+    'bdt-table', 'bdt-table-of-content', 'bdt-tags-cloud', 'bdt-total-count',
+    'bdt-user-login', 'bdt-user-register', 'bdt-vertical-menu',
+    'bdt-video-player',
+)
+USER_PRIORITY_ORDER = {widget_id: index for index, widget_id in enumerate(USER_PRIORITY_WIDGET_IDS, 1)}
+USER_PRIORITY_EXTENSIONS = (
+    ('Backdrop Filter', 'modules/backdrop-filter'),
+    ('Floating Effects', 'modules/floating-effects'),
+    ('Notation', 'modules/notation'),
+    ('Shape Builder', 'modules/shape-builder'),
+    ('Text Gradient Background', 'modules/text-gradient-background'),
+    ('Realistic Image Shadow', 'modules/realistic-image-shadow'),
+    ('Visibility Controls', 'modules/visibility-controls'),
+    ('Wrapper Link', 'modules/wrapper-link'),
+    ('Duplicator', 'includes/class-duplicator.php'),
+    ('SVG Support', 'includes/class-svg-support.php'),
+)
+
 SECURITY_MARKERS = {
     'ajax': r'wp_ajax|admin-ajax|\bajax\b',
     'rest': r'register_rest_route|/wp-json/|\bREST_API\b',
@@ -226,6 +260,8 @@ def main():
             'security_considerations': security,
             'migration_complexity': complexity,
             'priority': priority,
+            'user_priority_tier': 1 if widget_id in USER_PRIORITY_ORDER else 2,
+            'user_priority_order': USER_PRIORITY_ORDER.get(widget_id),
             'classification': classification,
             'proposed_engine': engine,
             'existing_elements_widget_candidate': overlap,
@@ -237,6 +273,12 @@ def main():
     ids = [widget['legacy_widget_id'] for widget in widgets]
     if len(ids) != len(set(ids)):
         raise SystemExit('Duplicate legacy Elementor widget IDs found')
+    missing_priority = set(USER_PRIORITY_WIDGET_IDS) - set(ids)
+    if missing_priority:
+        raise SystemExit('Missing user-priority widgets: ' + ', '.join(sorted(missing_priority)))
+    for _, relative_path in USER_PRIORITY_EXTENSIONS:
+        if not (REFERENCE / relative_path).exists():
+            raise SystemExit('Missing user-priority extension: ' + relative_path)
     groups = defaultdict(list)
     for widget in widgets:
         groups[widget['proposed_engine']].append(widget['legacy_widget_id'])
@@ -244,6 +286,11 @@ def main():
         'source': str(REFERENCE.relative_to(ROOT)),
         'method': 'static source inspection; the reference PHP was not executed',
         'widget_count': len(widgets),
+        'user_priority_widget_count': len(USER_PRIORITY_WIDGET_IDS),
+        'user_priority_extensions': [
+            {'name': name, 'source': str((REFERENCE / path).relative_to(ROOT)), 'user_priority_order': len(USER_PRIORITY_WIDGET_IDS) + index}
+            for index, (name, path) in enumerate(USER_PRIORITY_EXTENSIONS, 1)
+        ],
         'unclassified_widget_files': unclassified,
         'engine_groups': dict(sorted(groups.items())),
         'widgets': widgets,
@@ -251,12 +298,14 @@ def main():
     (OUTPUT / 'element-pack-inventory.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 
     migration_map = {
-        'status': 'five widgets implemented; first has conditional legacy read adapter; remaining widgets pending',
+        'status': f'{len(PILOT_MIGRATIONS)} independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending',
         'entries': {
             widget['legacy_widget_id']: {
                 'target': PILOT_MIGRATIONS.get(widget['legacy_widget_id'], {}).get('target'),
                 'engine': widget['proposed_engine'],
                 'classification': widget['classification'],
+                'user_priority_tier': widget['user_priority_tier'],
+                'user_priority_order': widget['user_priority_order'],
                 'existing_elements_widget_candidate': widget['existing_elements_widget_candidate'],
                 'setting_mappings': {name: name for name in PILOT_MIGRATIONS.get(widget['legacy_widget_id'], {}).get('same_name_controls', [])},
                 'responsive_conversions': {},

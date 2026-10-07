@@ -2,6 +2,8 @@
 
 El inventario se genera con `python3 scripts/inventory-element-pack.py` desde una copia local de referencia. Se identificaron 263 IDs Elementor y dos archivos auxiliares sin `get_name()`. La inspección estática no ejecuta ni instala Element Pack. Sus resultados viven en `element-pack-inventory.json`, `element-pack-framework-inventory.json`, `element-pack-dependency-graph.json` y `migration-map.json`. Las categorías y prioridades son hipótesis que requieren revisión funcional.
 
+La prioridad solicitada por el usuario está en `element-pack-priority.md`: 53 widgets y 10 extensiones se completan primero; luego se retoma el resto del inventario. Sus campos `user_priority_*` prevalecen sobre la antigua puntuación técnica `priority` del inventario. Las implementaciones parciales no cuentan como migradas hasta superar el criterio de aceptación descrito abajo.
+
 ## Decisión arquitectónica
 
 `Widget → Module Registry → Dependencies → Asset Manager`. El registro debe ser propio de DIGITALÍSIMO Elements, con clases y controles propios, y ningún `require` o autoload del directorio de referencia. Cada widget declara los handles concretos que utiliza. Los recursos se registran de forma reutilizable, pero sólo se encolan cuando Elementor renderiza el widget. Las dependencias propias del editor pueden diferir de las del frontend. UIkit no se carga globalmente; una función concreta de UIkit sólo se reemplaza tras identificar su uso real.
