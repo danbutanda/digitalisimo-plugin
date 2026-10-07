@@ -1,0 +1,7 @@
+# Carga del Slider Optimizado
+
+La portada pública de `digitalisimo.mx` aún servía Elements 4.3.0.25 durante el diagnóstico. En móvil, el slider de ondas avanzaba hacia la derecha desde el segundo grupo del bucle: su primera imagen con prioridad de carga estaba unos 3,800 px fuera de la pantalla, mientras las imágenes visibles tenían `loading="lazy"`. La pista ya se movía aunque algunas imágenes visibles no se habían decodificado. El slider de logos también cargaba imágenes a medida que entraban.
+
+La corrección 4.3.0.27 mantiene la pista pausada hasta decodificar las imágenes visibles, prepara además las que están próximas a entrar y deja las restantes en carga diferida. Para la dirección derecha, el HTML inicial carga con prioridad la unión entre el final del grupo original y el principio de su copia. No cambia el tipo de widget, sus controles, los adjuntos ni el tamaño calculado de las imágenes.
+
+Prueba de navegador local en móvil (390 px) y escritorio (1280 px) sobre la misma portada, sustituyendo sólo el HTML de estado y los recursos del slider por los nuevos, con una demora simulada de dos segundos en `fondo-olas-ia.webp`: al inicio la onda estaba pausada y la imagen visible aún no terminaba; seguía pausada mientras se completaba; después ondas y logos quedaron en ejecución con las imágenes visibles decodificadas. No se registraron errores JavaScript. La prueba PHP verificó el orden de carga del bucle derecho, dimensiones reservadas y el modo sin animación. Falta comprobar la versión instalada en el WordPress real tras su actualización.

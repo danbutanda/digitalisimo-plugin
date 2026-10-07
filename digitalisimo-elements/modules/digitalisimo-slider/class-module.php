@@ -9,7 +9,9 @@ final class Elementor_Slider {
 		// Tools anterior registraba el mismo widget y estilo con prioridad 10.
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widget' ), 20 );
 		add_action( 'elementor/frontend/after_register_styles', array( __CLASS__, 'style' ), 20 );
+		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'script' ), 20 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'style' ), 20 );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'script' ), 20 );
 	}
 
 	public static function category( $manager ) {
@@ -31,10 +33,23 @@ final class Elementor_Slider {
 		wp_register_style( $handle, $url, array(), DIGITALISIMO_ELEMENTS_VERSION );
 	}
 
+	public static function script() {
+		$handle = 'digitalisimo-slider-optimizado';
+		$url = plugins_url( 'assets/js/slider-optimizado.js', DIGITALISIMO_ELEMENTS_FILE );
+		if ( wp_script_is( $handle, 'registered' ) ) {
+			global $wp_scripts;
+			$current = isset( $wp_scripts->registered[ $handle ] ) ? $wp_scripts->registered[ $handle ] : null;
+			if ( $current && $current->src === $url && $current->ver === DIGITALISIMO_ELEMENTS_VERSION ) return;
+			wp_deregister_script( $handle );
+		}
+		wp_register_script( $handle, $url, array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+	}
+
 	public static function widget( $manager ) {
 		if ( ! class_exists( '\\Elementor\\Widget_Base' ) ) return;
 		require_once __DIR__ . '/class-widget.php';
 		self::style();
+		self::script();
 		if ( method_exists( $manager, 'get_widget_types' ) && $manager->get_widget_types( 'digitalisimo-slider-optimizado' ) && method_exists( $manager, 'unregister' ) ) {
 			$manager->unregister( 'digitalisimo-slider-optimizado' );
 		}

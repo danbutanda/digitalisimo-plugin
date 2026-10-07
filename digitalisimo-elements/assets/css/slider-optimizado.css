@@ -16,6 +16,7 @@
 .digi-slider--once .digi-slider__track{animation:digi-slider-once-left var(--digi-duration) linear 1 forwards}
 .digi-slider--once.digi-slider--right .digi-slider__track{animation-name:digi-slider-once-right}
 .digi-slider--pause:hover .digi-slider__track{animation-play-state:paused}
+.digi-slider--preparing .digi-slider__track{animation-play-state:paused}
 @keyframes digi-slider-left{to{transform:translate3d(-50%,0,0)}}
 @keyframes digi-slider-right{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(0,0,0)}}
 @keyframes digi-slider-once-left{to{transform:translate3d(min(0px,calc(100cqw - 100%)),0,0)}}

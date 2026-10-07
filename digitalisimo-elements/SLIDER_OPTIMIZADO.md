@@ -8,6 +8,6 @@ En **Estilo → Elementos visibles**, selecciona entre 1 y 9 para escritorio, ta
 
 En el modo de imágenes múltiples, **Seleccionar varias imágenes** abre la biblioteca para elegirlas y ordenarlas de una vez. Se usa el ALT guardado en cada adjunto. Los elementos individuales siguen disponibles para imágenes que necesiten un ALT o enlace propio; aparecen después de la selección múltiple. Los sliders guardados con elementos individuales no requieren migración.
 
-El modo continuo usa únicamente CSS; el widget no declara scripts ni Swiper. Su CSS se registra como dependencia del widget y Elementor lo carga sólo donde se usa. No modifica el carrusel nativo ni páginas existentes.
+El movimiento usa CSS y un script pequeño que espera a que se decodifiquen las imágenes visibles antes de iniciarlo. En particular, cuando se mueve hacia la derecha prepara la unión entre el final del primer grupo y el comienzo de su copia; el resto de las imágenes conserva carga diferida. El CSS y el script son dependencias del widget y Elementor los carga sólo donde se usa. No se utiliza Swiper ni se modifica el carrusel nativo o los contenidos guardados.
 
 La migración conserva el tipo `digitalisimo-slider-optimizado` y todos los nombres de controles; no reescribe contenidos guardados en Elementor. Actualiza Elements antes de Tools para mantener el widget disponible durante el cambio.

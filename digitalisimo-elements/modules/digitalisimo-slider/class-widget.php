@@ -10,7 +10,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'digitalisimo', 'slider', 'logos', 'banner', 'marquee' ); }
 	public function get_style_depends() { return array( 'digitalisimo-slider-optimizado' ); }
-	public function get_script_depends() { return array(); }
+	public function get_script_depends() { return array( 'digitalisimo-slider-optimizado' ); }
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';
@@ -53,7 +53,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 
 		$this->start_controls_section( 'images_style', array( 'label' => 'Carga de imágenes', 'tab' => $c::TAB_STYLE ) );
 		$this->add_control( 'image_size', array( 'label' => 'Tamaño registrado', 'type' => $c::SELECT, 'default' => 'large', 'options' => $this->image_sizes() ) );
-		$this->add_control( 'loading', array( 'label' => 'Carga', 'type' => $c::SELECT, 'default' => 'auto', 'options' => array( 'auto' => 'Automática', 'lazy' => 'Lazy', 'eager' => 'Eager' ) ) );
+		$this->add_control( 'loading', array( 'label' => 'Carga', 'type' => $c::SELECT, 'default' => 'auto', 'options' => array( 'auto' => 'Automática', 'lazy' => 'Lazy', 'eager' => 'Eager' ), 'description' => 'Las imágenes visibles al iniciar se cargan de inmediato para evitar espacios durante el movimiento.' ) );
 		$this->add_control( 'priority', array( 'label' => 'Prioridad', 'type' => $c::SELECT, 'default' => 'auto', 'options' => array( 'auto' => 'Automática', 'high' => 'Alta', 'low' => 'Baja' ) ) );
 		$this->end_controls_section();
 	}
@@ -82,7 +82,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		return $cache[ $key ] = $dimensions;
 	}
 
-	private function image( $item, $settings, $decorative, $index ) {
+	private function image( $item, $settings, $decorative, $initial, $primary ) {
 		$id = absint( $item['image']['id'] ?? 0 );
 		if ( ! $id ) return '';
 		$alt = $decorative ? '' : trim( (string) ( $item['alt'] ?? '' ) );
@@ -94,11 +94,13 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		if ( $dimensions ) { $attrs['width'] = $dimensions[0]; $attrs['height'] = $dimensions[1]; }
 		$loading = $settings['loading'] ?? 'auto';
 		$priority = $settings['priority'] ?? 'auto';
-		if ( 'high' === $priority && ! $decorative && 0 === $index ) $loading = 'eager';
+		if ( $initial ) $loading = 'eager';
+		elseif ( 'auto' === $loading ) $loading = 'lazy';
 		// Sin dimensiones no se debe crear un placeholder lazy de altura arbitraria.
 		if ( ! $dimensions ) $loading = 'eager';
-		if ( in_array( $loading, array( 'lazy', 'eager' ), true ) ) $attrs['loading'] = $decorative && $dimensions && 'eager' === $loading ? 'lazy' : $loading;
-		if ( ! $decorative && ( 'low' === $priority || ( 'high' === $priority && 0 === $index ) ) ) $attrs['fetchpriority'] = $priority;
+		if ( in_array( $loading, array( 'lazy', 'eager' ), true ) ) $attrs['loading'] = $decorative && ! $initial && $dimensions && 'eager' === $loading ? 'lazy' : $loading;
+		if ( 'high' === $priority && $primary ) $attrs['fetchpriority'] = 'high';
+		elseif ( 'low' === $priority && ! $decorative ) $attrs['fetchpriority'] = 'low';
 		$desktop = max( 1, absint( $settings['visible'] ?? 9 ) );
 		$tablet = max( 1, absint( $settings['visible_tablet'] ?? 6 ) );
 		$mobile = max( 1, absint( $settings['visible_mobile'] ?? 3 ) );
@@ -143,7 +145,11 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 			while ( count( $items ) < $minimum || ( $mirror && count( $items ) % 2 ) ) $items[] = $source[ count( $items ) % count( $source ) ];
 		}
 		$classes = array( 'digi-slider' );
-		if ( $animate ) $classes[] = $infinite ? 'digi-slider--infinite' : 'digi-slider--once';
+		if ( $animate ) {
+			$classes[] = $infinite ? 'digi-slider--infinite' : 'digi-slider--once';
+			// El carrusel comienza inmóvil hasta que se decodifiquen las imágenes visibles.
+			$classes[] = 'digi-slider--preparing';
+		}
 		if ( 'right' === ( $s['direction'] ?? 'left' ) ) $classes[] = 'digi-slider--right';
 		if ( 'yes' === ( $s['pause'] ?? '' ) ) $classes[] = 'digi-slider--pause';
 		if ( 'yes' === ( $s['natural_width'] ?? '' ) && 'repeat' === ( $s['mode'] ?? '' ) ) $classes[] = 'digi-slider--natural';
@@ -157,9 +163,16 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 
 	private function group( $items, $settings, $mirror, $decorative, $accessible_count ) {
 		echo '<div class="digi-slider__group"' . ( $decorative ? ' aria-hidden="true"' : '' ) . '>';
+		$count = count( $items );
+		$visible = min( $count, max( 1, absint( $settings['visible'] ?? 9 ), absint( $settings['visible_tablet'] ?? 6 ), absint( $settings['visible_mobile'] ?? 3 ) ) );
+		$warm = min( $count, $visible + 1 );
+		$right = 'right' === ( $settings['direction'] ?? 'left' ) && 'continuous' === ( $settings['animation'] ?? 'continuous' );
+		$infinite = $right && 'yes' === ( $settings['infinite'] ?? 'yes' );
 		foreach ( $items as $index => $item ) {
 			$item_decorative = $decorative || $index >= $accessible_count;
-			$html = $this->image( $item, $settings, $item_decorative, $index );
+			$initial = $right ? ( $decorative ? $index < $warm : $index >= $count - $warm ) : ( ! $decorative && $index < $warm );
+			$primary = $right ? ( $decorative ? 0 === $index : ( ! $infinite && $index === $count - $visible ) ) : ( ! $decorative && 0 === $index );
+			$html = $this->image( $item, $settings, $item_decorative, $initial, $primary );
 			if ( ! $html ) continue;
 			echo '<div class="digi-slider__item' . ( $mirror && $index % 2 ? ' digi-slider__item--mirror' : '' ) . '"' . ( $item_decorative ? ' aria-hidden="true"' : '' ) . '>' . $html . '</div>';
 		}

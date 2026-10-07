@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.26
+# DIGITALÍSIMO Elements 4.3.0.27
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -31,5 +31,6 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - 4.3.0.24: inicia el bloque de widgets prioritarios con Acordeón, basado en divulgación HTML nativa, contenido saneado, controles Elementor y CSS condicional. No carga UIkit ni JavaScript y no ocupa `bdt-accordion` hasta completar la equivalencia.
 - 4.3.0.25: Acordeón admite iconos de título y estado y contenido de plantillas Elementor publicadas; la integración con Anywhere Elementor aparece sólo cuando existe su tipo de contenido. Los selectores se limitan al sitio actual y sus consultas se comparten por petición. No muestra plantillas privadas ni cambia el ID de los documentos existentes.
 - 4.3.0.26: añade Botón avanzado independiente con enlace validado, icono, distintivo, tamaños y nueve efectos CSS sin JavaScript. El CSS sólo se carga donde aparece el widget. Conserva el ID `bdt-advanced-button` disponible hasta completar su equivalencia visual y funcional.
+- 4.3.0.27: corrige el inicio del Slider Optimizado: el movimiento espera a las imágenes visibles y prioriza la unión del bucle cuando avanza hacia la derecha. Mantiene carga diferida para el resto, conserva las dimensiones y controles existentes y añade un script pequeño sólo en páginas que usan el widget.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.
