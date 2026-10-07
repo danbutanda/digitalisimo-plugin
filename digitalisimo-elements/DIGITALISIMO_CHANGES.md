@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.29
+# DIGITALÍSIMO Elements 4.3.0.30
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -34,5 +34,6 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - 4.3.0.27: corrige el inicio del Slider Optimizado: el movimiento espera a las imágenes visibles y prioriza la unión del bucle cuando avanza hacia la derecha. Mantiene carga diferida para el resto, conserva las dimensiones y controles existentes y añade un script pequeño sólo en páginas que usan el widget.
 - 4.3.0.28: estabiliza la onda repetida con espejo. Las dos series cargan y decodifican todas sus copias antes de animar; sus bordes se unen sin separación, incluso cuando el slider tenía un gap configurado. El resto de modos conserva su carga y separación.
 - 4.3.0.29: permite cualquier cantidad de Slider Optimizado en una misma página. Las instancias próximas al viewport esperan sus imágenes y arrancan juntas en el mismo fotograma; las lejanas se preparan al entrar en vista sin retrasar a las visibles. Conserva los modos estático, continuo, espejo, dirección, pausa y movimiento reducido.
+- 4.3.0.30: reconstruye el bucle infinito de una imagen repetida con espejo con sólo dos mitades y una copia de cierre. Reduce el ancho de la pista, usa la imagen a ancho completo en cada dispositivo, elimina configuraciones que cortarían su unión y conserva la velocidad equivalente a la versión anterior. Los modos sin espejo, de imágenes múltiples y sin bucle conservan su salida.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.

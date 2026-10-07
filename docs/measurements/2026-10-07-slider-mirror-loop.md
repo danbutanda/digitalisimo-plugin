@@ -1,0 +1,9 @@
+# Bucle espejo del Slider Optimizado
+
+La implementación anterior pintaba diez imágenes por grupo y duplicaba el grupo. En la home de `digitalisimo.mx`, el slider de `fondo-olas-ia.webp` desplazaba una pista de 28,500 px en escritorio. En tableta la configuración heredada de seis elementos visibles comprimía cada tramo de la onda a una sexta parte del viewport. Una pista así aumenta el área que debe componer el navegador y hace frágil la continuidad de una imagen pensada para ocupar todo el ancho.
+
+La versión 4.3.0.30 renderiza una pareja normal/reflejada y su copia de cierre: cuatro imágenes y una pista de 5,700 px en el viewport de 1,425 px observado. La duración efectiva se ajusta para conservar la velocidad lineal de la configuración anterior. La imagen ocupa el viewport y conserva su relación de aspecto aunque estuvieran configurados seis elementos visibles, separación, ancho máximo, ancho natural, altura fija o radio; esas opciones siguen disponibles para los demás modos.
+
+Se aplicó el CSS nuevo sobre el HTML público en Chromium y se redujo el DOM de la onda a las cuatro imágenes que genera el PHP. A 1440, 768 y 390 px se verificaron nueve fases de la animación, de 0 % a 100 %, en ambas direcciones: la vista estuvo cubierta en todas, sin huecos entre mitades y con grupos de igual ancho. La captura del slider al 0 % y al 100 % produjo el mismo SHA-256, por lo que el reinicio no introduce un salto visual. La prueba adversa con separación de 40 px, ancho máximo de 500 px, altura fija de 50 px, radio de 30 px y ancho natural siguió mostrando imagen de ancho completo, proporción intacta y radio cero en los tres tamaños.
+
+Las pruebas PHP verifican cuatro imágenes en el bucle, carga inicial, ALT, dimensiones, velocidad, conteos extremos y preservación de las repeticiones literales cuando el bucle infinito está apagado. Falta probar la versión publicada en el WordPress real tras actualizar.

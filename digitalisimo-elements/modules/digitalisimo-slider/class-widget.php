@@ -24,8 +24,8 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'images', array( 'label' => 'Imágenes individuales con ALT o enlace', 'type' => $c::REPEATER, 'fields' => $repeater->get_controls(), 'title_field' => '{{{ alt || "Imagen" }}}', 'description' => 'Opcional. Estos elementos se agregan después de las imágenes seleccionadas arriba; los sliders existentes se conservan.', 'condition' => array( 'mode' => 'multiple' ) ) );
 		$this->add_control( 'repeat_image', array( 'label' => 'Imagen / banner', 'type' => $c::MEDIA, 'condition' => array( 'mode' => 'repeat' ) ) );
 		$this->add_control( 'repeat_alt', array( 'label' => 'Texto alternativo', 'type' => $c::TEXT, 'condition' => array( 'mode' => 'repeat' ) ) );
-		$this->add_control( 'repeat_count', array( 'label' => 'Repeticiones', 'type' => $c::NUMBER, 'min' => 1, 'max' => 100, 'default' => 10, 'condition' => array( 'mode' => 'repeat' ) ) );
-		$this->add_control( 'mirror', array( 'label' => 'Reflejar elementos alternados', 'type' => $c::SWITCHER, 'return_value' => 'yes', 'default' => '', 'description' => 'En una imagen repetida une los bordes sin separación para formar una onda continua.' ) );
+		$this->add_control( 'repeat_count', array( 'label' => 'Repeticiones', 'type' => $c::NUMBER, 'min' => 1, 'max' => 100, 'default' => 10, 'description' => 'En bucle continuo con espejo regula la velocidad equivalente de la onda.', 'condition' => array( 'mode' => 'repeat' ) ) );
+		$this->add_control( 'mirror', array( 'label' => 'Reflejar elementos alternados', 'type' => $c::SWITCHER, 'return_value' => 'yes', 'default' => '', 'description' => 'En el bucle de una imagen repetida ocupa el ancho completo y conserva su proporción: no aplica separación, ancho máximo, altura fija ni radio que cortarían la unión.' ) );
 		$this->add_control( 'label', array( 'label' => 'Nombre accesible del componente', 'type' => $c::TEXT, 'placeholder' => 'Logotipos de clientes' ) );
 		$this->end_controls_section();
 
@@ -104,7 +104,8 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$desktop = max( 1, absint( $settings['visible'] ?? 9 ) );
 		$tablet = max( 1, absint( $settings['visible_tablet'] ?? 6 ) );
 		$mobile = max( 1, absint( $settings['visible_mobile'] ?? 3 ) );
-		$attrs['sizes'] = '(max-width: 767px) ' . ceil( 100 / $mobile ) . 'vw, (max-width: 1024px) ' . ceil( 100 / $tablet ) . 'vw, ' . ceil( 100 / $desktop ) . 'vw';
+		$mirror_loop = 'repeat' === ( $settings['mode'] ?? 'multiple' ) && 'yes' === ( $settings['mirror'] ?? '' ) && 'continuous' === ( $settings['animation'] ?? 'continuous' ) && 'yes' === ( $settings['infinite'] ?? 'yes' );
+		$attrs['sizes'] = $mirror_loop ? '100vw' : '(max-width: 767px) ' . ceil( 100 / $mobile ) . 'vw, (max-width: 1024px) ' . ceil( 100 / $tablet ) . 'vw, ' . ceil( 100 / $desktop ) . 'vw';
 		$html = wp_get_attachment_image( $id, $size, false, $attrs );
 		if ( ! $html ) return '';
 		$link = $item['link'] ?? array();
@@ -139,8 +140,18 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$infinite = $animate && 'yes' === ( $s['infinite'] ?? 'yes' );
 		$mirror = 'yes' === ( $s['mirror'] ?? '' );
 		$mirror_repeat = $mirror && 'repeat' === ( $s['mode'] ?? 'multiple' );
+		$mirror_loop = $mirror_repeat && $infinite;
+		$loop_duration = 0;
 		// Una serie par conserva la alternancia de espejos en la unión del loop.
-		if ( $infinite ) {
+		if ( $mirror_loop ) {
+			$minimum = min( 30, max( 10, absint( $s['visible'] ?? 9 ), absint( $s['visible_tablet'] ?? 6 ), absint( $s['visible_mobile'] ?? 3 ) ) );
+			$previous_count = max( $minimum, count( $items ) );
+			if ( $previous_count % 2 ) ++$previous_count;
+			$speed = is_numeric( $s['speed'] ?? null ) ? (float) $s['speed'] : 30.0;
+			$loop_duration = max( 2.0, min( 600.0, $speed ) * 2 / $previous_count );
+			// Dos mitades forman el ciclo completo; el segundo grupo repite ese ciclo.
+			$items = array( $items[0], $items[0] );
+		} elseif ( $infinite ) {
 			$minimum = min( 30, max( 10, absint( $s['visible'] ?? 9 ), absint( $s['visible_tablet'] ?? 6 ), absint( $s['visible_mobile'] ?? 3 ) ) );
 			$source = $items;
 			while ( count( $items ) < $minimum || ( $mirror && count( $items ) % 2 ) ) $items[] = $source[ count( $items ) % count( $source ) ];
@@ -155,9 +166,10 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		if ( 'yes' === ( $s['pause'] ?? '' ) ) $classes[] = 'digi-slider--pause';
 		if ( 'yes' === ( $s['natural_width'] ?? '' ) && 'repeat' === ( $s['mode'] ?? '' ) ) $classes[] = 'digi-slider--natural';
 		if ( $mirror_repeat ) $classes[] = 'digi-slider--mirror-repeat';
+		if ( $mirror_loop ) $classes[] = 'digi-slider--mirror-loop';
 		if ( 'fixed' === ( $s['height_mode'] ?? 'auto' ) ) $classes[] = 'digi-slider--fixed';
 		$label = trim( (string) ( $s['label'] ?? '' ) );
-		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . ( $label ? ' role="group" aria-label="' . esc_attr( $label ) . '"' : '' ) . '><div class="digi-slider__viewport"><div class="digi-slider__track">';
+		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . ( $mirror_loop ? ' style="--digi-loop-duration:' . esc_attr( round( $loop_duration, 3 ) . 's' ) . '"' : '' ) . ( $label ? ' role="group" aria-label="' . esc_attr( $label ) . '"' : '' ) . '><div class="digi-slider__viewport"><div class="digi-slider__track">';
 		$this->group( $items, $s, $mirror, false, $accessible_count );
 		if ( $infinite ) $this->group( $items, $s, $mirror, true, 0 );
 		echo '</div></div></div>';
