@@ -2,7 +2,7 @@
 
 El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden. Se terminan y validan antes de continuar con los demás componentes del inventario. Los primeros 53 son widgets Elementor; los últimos 10 son funciones o extensiones sin identificador de widget. `scripts/inventory-element-pack.py` comprueba que todos existan en la referencia local y graba `user_priority_tier` y `user_priority_order` en `element-pack-inventory.json`. El orden técnico dentro de un lote puede agrupar widgets que comparten motor, pero ninguno del segundo bloque desplaza a uno de esta lista.
 
-1. Accordion — base propia; paridad pendiente
+1. Accordion — base propia con plantillas e iconos; paridad visual y Multisite pendientes
 2. Advanced Button
 3. Advanced Divider
 4. Advanced Heading — base propia; paridad pendiente

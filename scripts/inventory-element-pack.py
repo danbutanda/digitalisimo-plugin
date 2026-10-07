@@ -45,8 +45,8 @@ ENGINE_RULES = [
 PILOT_MIGRATIONS = {
     'bdt-accordion': {
         'target': 'digitalisimo-accordion',
-        'status': 'new native details widget implemented; templates, advanced controls, legacy adapter and visual comparison pending',
-        'same_name_controls': [ 'tabs', 'active_item', 'multiple', 'title_html_tag' ],
+        'status': 'native details widget with published Elementor and optional Anywhere templates plus item and state icons; advanced controls, legacy adapter, visual comparison and multisite runtime pending',
+        'same_name_controls': [ 'tabs', 'source', 'tab_title', 'tab_content', 'template_id', 'anywhere_id', 'repeater_icon', 'active_item', 'multiple', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon' ],
     },
     'bdt-animated-link': {
         'target': 'digitalisimo-animated-link',

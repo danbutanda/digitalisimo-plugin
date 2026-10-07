@@ -393,7 +393,7 @@
       "classification": "A - CORE CANDIDATE",
       "proposed_engine": "navigation",
       "existing_elements_widget_candidate": null,
-      "implementation_status": "new native details widget implemented; templates, advanced controls, legacy adapter and visual comparison pending",
+      "implementation_status": "native details widget with published Elementor and optional Anywhere templates plus item and state icons; advanced controls, legacy adapter, visual comparison and multisite runtime pending",
       "dependency_decisions": {
         "ElementPack Base": "REIMPLEMENT",
         "UIkit": "REMOVE / REIMPLEMENT",

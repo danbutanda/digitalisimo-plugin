@@ -15,7 +15,7 @@ namespace Elementor {
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
-	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.24' );
+	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.25' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	function add_action( $name, $callback, $priority = 10 ) {}
 	function plugins_url( $path, $file ) { return 'https://example.test/' . $path; }

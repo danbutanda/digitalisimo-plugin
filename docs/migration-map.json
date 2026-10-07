@@ -10,13 +10,22 @@
       "existing_elements_widget_candidate": null,
       "setting_mappings": {
         "tabs": "tabs",
+        "source": "source",
+        "tab_title": "tab_title",
+        "tab_content": "tab_content",
+        "template_id": "template_id",
+        "anywhere_id": "anywhere_id",
+        "repeater_icon": "repeater_icon",
         "active_item": "active_item",
         "multiple": "multiple",
-        "title_html_tag": "title_html_tag"
+        "title_html_tag": "title_html_tag",
+        "show_custom_icon": "show_custom_icon",
+        "accordion_icon": "accordion_icon",
+        "accordion_active_icon": "accordion_active_icon"
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new native details widget implemented; templates, advanced controls, legacy adapter and visual comparison pending"
+      "status": "native details widget with published Elementor and optional Anywhere templates plus item and state icons; advanced controls, legacy adapter, visual comparison and multisite runtime pending"
     },
     "bdt-acf-accordion": {
       "target": null,
