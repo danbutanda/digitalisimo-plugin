@@ -56,7 +56,7 @@ final class Advanced_Heading_Widget extends \Elementor\Widget_Base {
 			echo '<' . $tag . ' class="digi-advanced-heading__title">';
 			if ( ! empty( $link['url'] ) ) { $this->add_link_attributes( 'heading_link', $link ); echo '<a ' . $this->get_render_attribute_string( 'heading_link' ) . '>'; }
 			if ( '' !== $title ) { echo '<span class="digi-advanced-heading__main">' . esc_html( $title ) . '</span>'; }
-			if ( '' !== $split ) { echo '<span class="digi-advanced-heading__split">' . esc_html( $split ) . '</span>'; }
+			if ( '' !== $split ) { echo ' <span class="digi-advanced-heading__split">' . esc_html( $split ) . '</span>'; }
 			if ( ! empty( $link['url'] ) ) { echo '</a>'; }
 			echo '</' . $tag . '>';
 		}
@@ -76,7 +76,7 @@ final class Advanced_Heading_Widget extends \Elementor\Widget_Base {
 		<# if ( settings.main_heading || split ) { #><{{{ tag }}} class="digi-advanced-heading__title">
 		<# if ( href ) { #><a href="{{ href }}" <# if ( settings.link.is_external ) { #>target="_blank"<# } #> <# if ( rel ) { #>rel="{{ rel }}"<# } #>><# } #>
 		<# if ( settings.main_heading ) { #><span class="digi-advanced-heading__main">{{ settings.main_heading }}</span><# } #>
-		<# if ( split ) { #><span class="digi-advanced-heading__split">{{ split }}</span><# } #>
+		<# if ( split ) { #> <span class="digi-advanced-heading__split">{{ split }}</span><# } #>
 		<# if ( href ) { #></a><# } #></{{{ tag }}}><# } #>
 		</div><# } #>
 		<?php

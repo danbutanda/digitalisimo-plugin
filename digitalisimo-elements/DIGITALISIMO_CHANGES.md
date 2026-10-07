@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.19
+# DIGITALÍSIMO Elements 4.3.0.20
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -24,5 +24,6 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - 4.3.0.17: incorpora Carrusel de logotipos como segundo consumidor del motor compartido. Permite elegir varias imágenes de Medios en una acción y agregar elementos con enlaces individuales, ALT y altura responsiva; conserva los carruseles anteriores y no ocupa el ID `bdt-logo-carousel`.
 - 4.3.0.18: corrige el ancho de las tarjetas cuando hay menos imágenes que columnas configuradas. El ajuste se realiza con CSS desde el número de elementos renderizados, sin esperar a JavaScript; se comprobó en WordPress Playground con Elementor en escritorio, tableta y móvil.
 - 4.3.0.19: incorpora Encabezado avanzado como widget independiente. El título usa una sola etiqueta HTML validada, el texto decorativo queda fuera de la lectura accesible y el CSS se solicita sólo al usar el widget. No registra `bdt-advanced-heading` ni altera páginas existentes de Element Pack.
+- 4.3.0.20: conserva el espacio de lectura entre el título y el fragmento destacado. Se comprobó el widget en frontend y editor de WordPress Playground con Elementor gratuito, sin errores JavaScript.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.

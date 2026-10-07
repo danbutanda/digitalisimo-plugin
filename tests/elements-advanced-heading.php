@@ -28,6 +28,7 @@ namespace {
 	$widget->settings = array( 'sub_heading' => 'Antes', 'main_heading' => 'Agencia <script>x</script>', 'split_main_heading' => 'yes', 'split_text' => 'México', 'header_size' => 'h1', 'advanced_heading_visibility' => 'yes', 'advanced_heading' => 'Marca', 'link' => array( 'url' => 'https://example.test/' ) );
 	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
 	check_heading( 1 === substr_count( $html, '<h1 ' ) && 1 === substr_count( $html, '</h1>' ) && str_contains( $html, 'aria-hidden="true"' ), 'El título debe ser único y la decoración inaccesible.' );
+	check_heading( str_contains( $html, '</span> <span class="digi-advanced-heading__split">' ), 'El fragmento destacado debe conservar un espacio legible.' );
 	check_heading( ! str_contains( $html, '<script>' ) && str_contains( $html, '&lt;script&gt;' ) && str_contains( $html, 'href="https://example.test/"' ), 'Contenido y enlace deben escaparse.' );
 	$widget->settings['header_size'] = 'script';
 	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
