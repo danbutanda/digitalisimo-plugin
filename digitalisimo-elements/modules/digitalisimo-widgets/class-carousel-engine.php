@@ -5,8 +5,8 @@ defined( 'ABSPATH' ) || exit;
 
 /** Estructura común para carruseles de contenido; el widget proporciona las tarjetas. */
 final class Carousel_Engine {
-	public static function open( $label ) {
-		echo '<section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="' . esc_attr( $label ) . '">';
+	public static function open( $label, $count ) {
+		echo '<section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="' . esc_attr( $label ) . '" style="--digi-carousel-count:' . max( 1, absint( $count ) ) . '">';
 		echo '<div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides">';
 	}
 

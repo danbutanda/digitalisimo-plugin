@@ -47,7 +47,7 @@ final class Logo_Carousel_Widget extends \Elementor\Widget_Base {
 		if ( ! $items ) { return; }
 		$size = in_array( $settings['image_size'] ?? '', array( 'thumbnail', 'medium', 'large', 'full' ), true ) ? $settings['image_size'] : 'medium';
 		echo '<div class="digi-logo-carousel">';
-		Carousel_Engine::open( 'Carrusel de logotipos' );
+		Carousel_Engine::open( 'Carrusel de logotipos', count( $items ) );
 		foreach ( $items as $index => $item ) {
 			$image = $item['image'];
 			$id = absint( $image['id'] ?? 0 );
@@ -76,7 +76,7 @@ final class Logo_Carousel_Widget extends \Elementor\Widget_Base {
 		?>
 		<# var images = _.map( settings.gallery_images || [], function( image ) { return { image: image }; } ).concat( settings.logo_items || [] ); #>
 		<# if ( images.length ) { #>
-		<div class="digi-logo-carousel"><section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="Carrusel de logotipos"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides">
+		<div class="digi-logo-carousel"><section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="Carrusel de logotipos" style="--digi-carousel-count:{{ images.length }}"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides">
 		<# _.each( images, function( item ) { if ( ! item.image || ! item.image.url ) return; var alt = item.name || item.image.alt || ''; var href = alt && item.link && item.link.url ? item.link.url : ''; #>
 		<li class="digi-carousel__slide digi-logo-carousel__slide"><# if ( href ) { #><a class="digi-logo-carousel__card" href="{{ href }}" <# if ( item.link.is_external ) { #>target="_blank" rel="noopener noreferrer"<# } #>><# } else { #><div class="digi-logo-carousel__card"><# } #><img class="digi-logo-carousel__image" src="{{ item.image.url }}" alt="{{ alt }}" loading="lazy"><# if ( href ) { #></a><# } else { #></div><# } #></li>
 		<# } ); #>

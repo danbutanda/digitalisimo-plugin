@@ -44,7 +44,7 @@ namespace {
 	);
 	$render = new \ReflectionMethod( $widget, 'render' );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
-	check_brand( 2 === substr_count( $html, '<li class="digi-carousel__slide' ) && str_contains( $html, 'data-digi-carousel-track' ) && str_contains( $html, 'data-digi-carousel-next' ), 'El motor debe renderizar dos tarjetas y controles.' );
+	check_brand( 2 === substr_count( $html, '<li class="digi-carousel__slide' ) && str_contains( $html, 'style="--digi-carousel-count:2"' ) && str_contains( $html, 'data-digi-carousel-track' ) && str_contains( $html, 'data-digi-carousel-next' ), 'El motor debe renderizar dos tarjetas, ancho efectivo y controles.' );
 	check_brand( str_contains( $html, '&lt;script&gt;' ) && ! str_contains( $html, '<script>' ) && str_contains( $html, '<h3 class="digi-brand-carousel__name">' ), 'Texto y etiqueta deben ser seguros.' );
 	check_brand( str_contains( $html, 'alt="Logo real"' ) && str_contains( $html, 'href="https://example.test/"' ) && str_contains( $html, 'aria-roledescription="carrusel"' ), 'ALT, enlace y región accesible deben conservarse.' );
 	$template = new \ReflectionMethod( $widget, 'content_template' );

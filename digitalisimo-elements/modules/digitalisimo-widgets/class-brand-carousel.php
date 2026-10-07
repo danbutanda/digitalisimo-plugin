@@ -59,7 +59,7 @@ final class Brand_Carousel_Widget extends \Elementor\Widget_Base {
 		if ( ! $cards ) { return; }
 		$navigation = 'none' !== ( $settings['navigation'] ?? 'arrows' ) && count( $cards ) > 1;
 		echo '<div class="digi-brand-carousel">';
-		Carousel_Engine::open( 'Carrusel de marcas' );
+		Carousel_Engine::open( 'Carrusel de marcas', count( $cards ) );
 		foreach ( $cards as $index => $item ) {
 			$name = trim( (string) ( $item['brand_name'] ?? '' ) );
 			$image = isset( $item['image'] ) && is_array( $item['image'] ) ? $item['image'] : array();
@@ -99,7 +99,7 @@ final class Brand_Carousel_Widget extends \Elementor\Widget_Base {
 		var cards = _.filter( settings.brand_items || [], function( item ) { return item && ( item.brand_name || ( item.image && item.image.url ) ); } );
 		#>
 		<# if ( cards.length ) { #>
-		<div class="digi-brand-carousel"><section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="Carrusel de marcas">
+		<div class="digi-brand-carousel"><section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="Carrusel de marcas" style="--digi-carousel-count:{{ cards.length }}">
 		<div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides">
 		<# _.each( cards, function( item ) {
 			var href = item.link && item.link.url ? item.link.url : '';
