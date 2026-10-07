@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.33
+# DIGITALÍSIMO Elements 4.3.0.34
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -38,5 +38,6 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - 4.3.0.31: añade Separador avanzado como widget propio, con línea, guiones, puntos, doble línea, círculo, onda SVG y una imagen decorativa de la biblioteca. Su CSS se carga sólo cuando se usa; no solicita JavaScript, UIkit ni archivos de Element Pack. No ocupa `bdt-advanced-divider` ni modifica páginas existentes. Las pruebas de registro incluyen el nuevo widget y su estilo condicional.
 - 4.3.0.32: incorpora Duplicador editorial propio. Añade «Duplicar» a entradas, páginas, tipos públicos con interfaz y plantillas Elementor; crea un borrador del sitio actual con contenido, términos y metadatos, omitiendo bloqueos, cachés y la URL canónica de la entrada original. Exige permiso de edición, creación y nonce ligado al sitio; excluye productos y datos transaccionales. No carga código, opciones ni recursos de Element Pack.
 - 4.3.0.33: incorpora Caja de icono avanzada como widget propio con icono o imagen, título semántico, subtítulo, descripción, enlaces y distintivo. El CSS se carga sólo en las páginas que usan el widget; no solicita JavaScript, UIkit ni recursos de Element Pack. Conserva `bdt-advanced-icon-box` libre mientras falta verificar paridad visual y controles avanzados.
+- 4.3.0.34: incorpora Encabezado animado como widget propio. El primer término se publica visible en HTML; la rotación sólo inicia cuando todas las frases caben en el espacio reservado, tras cargar las fuentes, y se detiene con movimiento reducido. CSS y JavaScript se solicitan sólo en las páginas que usan el widget. No ocupa `bdt-animated-heading`; sus modos typed, split y GSAP siguen pendientes.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.

@@ -1,5 +1,5 @@
 {
-  "status": "11 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "14 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -268,16 +268,22 @@
       "status": "pending"
     },
     "bdt-animated-heading": {
-      "target": null,
+      "target": "digitalisimo-animated-heading",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 6,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "pre_heading": "before_text",
+        "animated_heading": "animated_text (one phrase per line)",
+        "post_heading": "after_text",
+        "header_size": "heading_tag",
+        "link": "heading_link"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support and conditional assets; typed/split/GSAP variants, legacy adapter, visual comparison and multisite runtime pending"
     },
     "bdt-animated-link": {
       "target": "digitalisimo-animated-link",

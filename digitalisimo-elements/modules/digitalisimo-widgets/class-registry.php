@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-animated-heading' => array(
+			'file'  => 'class-animated-heading.php',
+			'class' => Animated_Heading_Widget::class,
+			'css'   => 'assets/css/animated-heading.css',
+		),
 		'digitalisimo-advanced-icon-box' => array(
 			'file'  => 'class-advanced-icon-box.php',
 			'class' => Advanced_Icon_Box_Widget::class,
@@ -101,6 +106,9 @@ final class Widget_Registry {
 	}
 
 	public static function scripts() {
+		if ( ! wp_script_is( 'digitalisimo-animated-heading', 'registered' ) ) {
+			wp_register_script( 'digitalisimo-animated-heading', plugins_url( 'assets/js/animated-heading.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+		}
 		if ( ! wp_script_is( 'digitalisimo-carousel-engine', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-carousel-engine', plugins_url( 'assets/js/carousel-engine.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}

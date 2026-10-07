@@ -61,6 +61,7 @@ jobs:
           php tests/elements-advanced-button.php
           php tests/elements-advanced-divider.php
           php tests/elements-advanced-icon-box.php
+          php tests/elements-animated-heading.php
           php tests/elements-duplicator.php
           node tests/elements-carousel-engine.mjs
           php tests/performance-hero.php

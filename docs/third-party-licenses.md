@@ -68,3 +68,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Decimotercer componente reconstruido: Advanced Icon Box
 
 `class-advanced-icon-box.php` y `advanced-icon-box.css` son una implementación propia de la función principal de `modules/advanced-icon-box/widgets/advanced-icon-box.php` de Element Pack Pro 9.9.1 (GPLv3). No se copiaron la clase, los efectos, CSS ni JavaScript de referencia. El widget nuevo no registra el ID anterior y mantiene pendientes los controles avanzados y la equivalencia visual.
+
+## Decimocuarto componente reconstruido: Animated Heading
+
+`class-animated-heading.php`, `animated-heading.css` y `animated-heading.js` son una implementación propia de rotación progresiva tras estudiar `modules/animated-heading/widgets/animated-heading.php` de Element Pack Pro 9.9.1 (GPLv3). No se copiaron su clase, CSS, JavaScript, UIkit, Typed.js, Morphext ni GSAP. El ID antiguo sigue libre y la paridad de sus modos avanzados está pendiente.
