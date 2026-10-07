@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Breadcrumbs | Implementado · 4.3.0.35 · publicación pendiente | Ruta de navegación propia basada en la jerarquía, archivos y permalinks del sitio actual. No depende de Yoast ni publica JSON-LD. | Pruebas locales y ZIP pendientes. No ocupa `bdt-breadcrumbs`; faltan paridad visual y prueba real en Multisite. |
+| DIGITALÍSIMO Elements · Breadcrumbs | Publicado · 4.3.0.35 · `v2026.10.07.280` | Ruta de navegación propia basada en la jerarquía, archivos y permalinks del sitio actual. No depende de Yoast ni publica JSON-LD. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#573` y publicación `#280` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.35.zip`. No ocupa `bdt-breadcrumbs`; faltan paridad visual y prueba real en Multisite. |
 
 | DIGITALÍSIMO Elements · Animated Heading | Publicado · 4.3.0.34 · `v2026.10.07.279` | Encabezado propio con primer término visible en HTML, rotación condicional sin cambio de caja, respeto a movimiento reducido y assets sólo cuando se usa el widget. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#571` y publicación `#279` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.34.zip`. No ocupa `bdt-animated-heading`; faltan variantes typed/split/GSAP, paridad visual y prueba real en Multisite. |
 
