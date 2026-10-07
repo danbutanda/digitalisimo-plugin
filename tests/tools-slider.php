@@ -33,6 +33,8 @@ namespace Elementor {
 namespace {
 	define( 'ABSPATH', __DIR__ );
 	function absint( $value ) { return abs( (int) $value ); }
+	$test_blog_id = 1;
+	function get_current_blog_id() { global $test_blog_id; return $test_blog_id; }
 	function sanitize_key( $value ) { return strtolower( preg_replace( '/[^a-z0-9_-]/i', '', $value ) ); }
 	function get_intermediate_image_sizes() { return array( 'thumbnail', 'medium', 'large' ); }
 	function get_post_meta( $id, $key ) { return 'ALT guardado'; }
@@ -72,6 +74,10 @@ namespace {
 	$assert( false !== strpos( $html, 'sizes="(max-width: 767px) 20vw, (max-width: 1024px) 20vw, 20vw"' ), 'Los tamaños responsive deben seguir la cantidad configurada.' );
 	$assert( 0 === substr_count( $html, 'loading="lazy"' ), 'La onda reflejada no debe dejar copias lazy que aparezcan vacías durante el recorrido.' );
 	$assert( 10 === substr_count( $html, 'digi-slider__item--mirror' ), 'El espejo debe alternarse en ambas series.' );
+	$test_blog_id = 2;
+	ob_start(); $method->invoke( $widget ); ob_end_clean();
+	$assert( 2 === $image_size_reads, 'La metadata del adjunto debe resolverse de nuevo al cambiar de sitio en Multisite.' );
+	$test_blog_id = 1;
 	$widget->test_settings = array(
 		'mode' => 'multiple', 'images' => array( array( 'image' => array( 'id' => 13 ), 'alt' => 'Cliente', 'link' => array( 'url' => 'https://example.com', 'is_external' => true ) ) ),
 		'animation' => 'off', 'image_size' => 'large',

@@ -67,7 +67,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 	/** Evita el espacio provisional de las imágenes lazy cuando falta metadata del adjunto. */
 	private function image_dimensions( $id, $size ) {
 		static $cache = array();
-		$key = $id . ':' . $size;
+		$key = ( function_exists( 'get_current_blog_id' ) ? get_current_blog_id() : 0 ) . ':' . $id . ':' . $size;
 		if ( isset( $cache[ $key ] ) ) return $cache[ $key ];
 		$dimensions = array();
 		$source = wp_get_attachment_image_src( $id, $size );

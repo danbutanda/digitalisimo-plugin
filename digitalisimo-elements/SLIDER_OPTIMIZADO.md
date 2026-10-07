@@ -12,4 +12,6 @@ El movimiento usa CSS y un script pequeño que espera a que se decodifiquen las 
 
 Con **Imagen repetida / banner** y **Reflejar elementos alternados**, todas las copias de la misma imagen se preparan antes de iniciar el movimiento, y el espacio entre mitades se reduce a cero para unir sus bordes. La imagen alterna normal/reflejada en ambas series, también en el punto donde reinicia el bucle. Los sliders de logos e imágenes múltiples conservan su separación y carga progresiva.
 
+Una página puede contener varias instancias. Las que están a la vista o cerca de ella se agrupan para comenzar su animación en el mismo fotograma una vez listas sus imágenes; las instancias más abajo se preparan cuando el usuario se acerca, sin bloquear las primeras. Cada instancia conserva sus propios controles, dimensiones y contenido.
+
 La migración conserva el tipo `digitalisimo-slider-optimizado` y todos los nombres de controles; no reescribe contenidos guardados en Elementor. Actualiza Elements antes de Tools para mantener el widget disponible durante el cambio.

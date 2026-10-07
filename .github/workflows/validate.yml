@@ -24,6 +24,7 @@ jobs:
         run: find digitalisimo-seo digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar protecciones de rendimiento
         run: |
+          node tests/elements-slider-multiple.mjs
           for module in seo ia hosting backups tools elements; do php tests/update-enqueue.php "$module"; done
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php

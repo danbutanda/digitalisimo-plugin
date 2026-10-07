@@ -46,6 +46,7 @@ jobs:
           php tests/tools-slider.php
           php tests/elements-slider-registration.php
           php tests/elements-slider-loading.php
+          node tests/elements-slider-multiple.mjs
           php tests/elements-animated-link.php
           php tests/elements-animated-link-legacy.php
           php tests/elements-fancy-list.php
