@@ -6,7 +6,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 2. Advanced Button — base propia con enlace, icono, distintivo y efectos CSS; paridad visual y Multisite pendientes
 3. Advanced Divider — base propia con variantes nativas e imagen de Medios; paridad visual y Multisite pendientes
 4. Advanced Heading — base propia; paridad pendiente
-5. Advanced Icon Box
+5. Advanced Icon Box — base propia con icono o imagen, título, descripción, enlaces y distintivo; paridad visual y Multisite pendientes
 6. Animated Heading
 7. Brand Grid — base propia; paridad pendiente
 8. Brand Carousel — base propia; paridad pendiente

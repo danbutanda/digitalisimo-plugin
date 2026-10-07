@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-advanced-icon-box' => array(
+			'file'  => 'class-advanced-icon-box.php',
+			'class' => Advanced_Icon_Box_Widget::class,
+			'css'   => 'assets/css/advanced-icon-box.css',
+		),
 		'digitalisimo-advanced-divider' => array(
 			'file'  => 'class-advanced-divider.php',
 			'class' => Advanced_Divider_Widget::class,

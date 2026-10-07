@@ -196,7 +196,7 @@
       "status": "new semantic widget implemented; advanced effects, legacy adapter and visual comparison pending"
     },
     "bdt-advanced-icon-box": {
-      "target": null,
+      "target": "digitalisimo-advanced-icon-box",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
@@ -205,7 +205,7 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "new semantic widget implemented; legacy control parity, effects and visual comparison pending"
     },
     "bdt-advanced-image-gallery": {
       "target": null,

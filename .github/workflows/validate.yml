@@ -25,6 +25,7 @@ jobs:
       - name: Probar protecciones de rendimiento
         run: |
           php tests/elements-duplicator.php
+          php tests/elements-advanced-icon-box.php
           node tests/elements-slider-multiple.mjs
           for module in seo ia hosting backups tools elements; do php tests/update-enqueue.php "$module"; done
           php tests/performance-runtime.php

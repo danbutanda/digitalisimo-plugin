@@ -64,3 +64,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Extensión editorial reconstruida: Duplicator
 
 `digitalisimo-elements/digitalisimo-duplicator.php` es implementación propia de la función editorial observada en `includes/class-duplicator.php` de Element Pack Pro 9.9.1 (GPLv3). No copia su clase, consultas SQL, loader, ajustes ni otros archivos. Usa las APIs de WordPress, restringe tipos y permisos, y no incorpora recursos externos. Conserva datos de Elementor sin copiar sus cachés temporales.
+
+## Decimotercer componente reconstruido: Advanced Icon Box
+
+`class-advanced-icon-box.php` y `advanced-icon-box.css` son una implementación propia de la función principal de `modules/advanced-icon-box/widgets/advanced-icon-box.php` de Element Pack Pro 9.9.1 (GPLv3). No se copiaron la clase, los efectos, CSS ni JavaScript de referencia. El widget nuevo no registra el ID anterior y mantiene pendientes los controles avanzados y la equivalencia visual.
