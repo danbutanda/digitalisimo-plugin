@@ -4,6 +4,7 @@
 .digi-slider__viewport{width:100%;overflow:hidden;container-type:inline-size}
 .digi-slider__track{display:flex;width:max-content;max-width:none;align-items:stretch;animation:none}
 .digi-slider__group{display:flex;flex:0 0 auto;align-items:center;gap:var(--digi-gap);padding-inline-end:var(--digi-gap)}
+.digi-slider--mirror-repeat{--digi-gap:0px!important}
 .digi-slider__item{flex:0 0 max(1px,calc((100cqw - (var(--digi-visible) - 1)*var(--digi-gap))/var(--digi-visible)));min-width:0;max-width:none}
 .digi-slider__item img{display:block;max-width:min(100%,var(--digi-max-width));width:100%;height:auto;margin-inline:auto;object-fit:contain}
 .digi-slider__item a{display:block}

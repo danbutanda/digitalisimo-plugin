@@ -10,4 +10,6 @@ En el modo de imágenes múltiples, **Seleccionar varias imágenes** abre la bib
 
 El movimiento usa CSS y un script pequeño que espera a que se decodifiquen las imágenes visibles antes de iniciarlo. La primera vista y un elemento adicional se solicitan de inmediato; en dirección derecha se prepara la unión entre el final del primer grupo y el comienzo de su copia. El resto conserva carga diferida. El CSS y el script son dependencias del widget y Elementor los carga sólo donde se usa. No se utiliza Swiper ni se modifica el carrusel nativo o los contenidos guardados.
 
+Con **Imagen repetida / banner** y **Reflejar elementos alternados**, todas las copias de la misma imagen se preparan antes de iniciar el movimiento, y el espacio entre mitades se reduce a cero para unir sus bordes. La imagen alterna normal/reflejada en ambas series, también en el punto donde reinicia el bucle. Los sliders de logos e imágenes múltiples conservan su separación y carga progresiva.
+
 La migración conserva el tipo `digitalisimo-slider-optimizado` y todos los nombres de controles; no reescribe contenidos guardados en Elementor. Actualiza Elements antes de Tools para mantener el widget disponible durante el cambio.

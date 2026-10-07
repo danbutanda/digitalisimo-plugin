@@ -25,7 +25,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'repeat_image', array( 'label' => 'Imagen / banner', 'type' => $c::MEDIA, 'condition' => array( 'mode' => 'repeat' ) ) );
 		$this->add_control( 'repeat_alt', array( 'label' => 'Texto alternativo', 'type' => $c::TEXT, 'condition' => array( 'mode' => 'repeat' ) ) );
 		$this->add_control( 'repeat_count', array( 'label' => 'Repeticiones', 'type' => $c::NUMBER, 'min' => 1, 'max' => 100, 'default' => 10, 'condition' => array( 'mode' => 'repeat' ) ) );
-		$this->add_control( 'mirror', array( 'label' => 'Reflejar elementos alternados', 'type' => $c::SWITCHER, 'return_value' => 'yes', 'default' => '', 'description' => 'Útil para unir ondas sin cortes.' ) );
+		$this->add_control( 'mirror', array( 'label' => 'Reflejar elementos alternados', 'type' => $c::SWITCHER, 'return_value' => 'yes', 'default' => '', 'description' => 'En una imagen repetida une los bordes sin separación para formar una onda continua.' ) );
 		$this->add_control( 'label', array( 'label' => 'Nombre accesible del componente', 'type' => $c::TEXT, 'placeholder' => 'Logotipos de clientes' ) );
 		$this->end_controls_section();
 
@@ -39,7 +39,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 
 		$this->start_controls_section( 'style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
 		$this->add_responsive_control( 'visible', array( 'label' => 'Elementos visibles', 'type' => $c::NUMBER, 'min' => 1, 'max' => 9, 'step' => 1, 'default' => 9, 'tablet_default' => 6, 'mobile_default' => 3, 'description' => 'Elige entre 1 y 9. Usa los iconos de escritorio, tableta y móvil para definir cada vista.', 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-visible: {{VALUE}};' ) ) );
-		$this->add_responsive_control( 'gap', array( 'label' => 'Separación', 'type' => $c::SLIDER, 'size_units' => array( 'px', 'em', 'rem' ), 'range' => array( 'px' => array( 'min' => 0, 'max' => 100 ) ), 'default' => array( 'size' => 16, 'unit' => 'px' ), 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-gap: {{SIZE}}{{UNIT}};' ) ) );
+		$this->add_responsive_control( 'gap', array( 'label' => 'Separación', 'type' => $c::SLIDER, 'size_units' => array( 'px', 'em', 'rem' ), 'range' => array( 'px' => array( 'min' => 0, 'max' => 100 ) ), 'default' => array( 'size' => 16, 'unit' => 'px' ), 'description' => 'Con imagen repetida y espejo, las mitades se unen sin separación.', 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-gap: {{SIZE}}{{UNIT}};' ) ) );
 		$this->add_responsive_control( 'max_width', array( 'label' => 'Ancho máximo por elemento', 'type' => $c::SLIDER, 'size_units' => array( 'px', 'em', 'rem' ), 'range' => array( 'px' => array( 'min' => 20, 'max' => 1000 ) ), 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-max-width: {{SIZE}}{{UNIT}};' ) ) );
 		$this->add_responsive_control( 'width', array( 'label' => 'Ancho del slider', 'type' => $c::SLIDER, 'size_units' => array( '%', 'px', 'vw' ), 'range' => array( '%' => array( 'min' => 1, 'max' => 100 ), 'px' => array( 'min' => 50, 'max' => 2000 ) ), 'selectors' => array( '{{WRAPPER}} .digi-slider' => 'width: {{SIZE}}{{UNIT}};' ) ) );
 		$this->add_responsive_control( 'padding', array( 'label' => 'Relleno', 'type' => $c::DIMENSIONS, 'size_units' => array( 'px', 'em', 'rem' ), 'selectors' => array( '{{WRAPPER}} .digi-slider' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ) ) );
@@ -138,6 +138,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$animate = 'continuous' === ( $s['animation'] ?? 'continuous' );
 		$infinite = $animate && 'yes' === ( $s['infinite'] ?? 'yes' );
 		$mirror = 'yes' === ( $s['mirror'] ?? '' );
+		$mirror_repeat = $mirror && 'repeat' === ( $s['mode'] ?? 'multiple' );
 		// Una serie par conserva la alternancia de espejos en la unión del loop.
 		if ( $infinite ) {
 			$minimum = min( 30, max( 10, absint( $s['visible'] ?? 9 ), absint( $s['visible_tablet'] ?? 6 ), absint( $s['visible_mobile'] ?? 3 ) ) );
@@ -153,6 +154,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		if ( 'right' === ( $s['direction'] ?? 'left' ) ) $classes[] = 'digi-slider--right';
 		if ( 'yes' === ( $s['pause'] ?? '' ) ) $classes[] = 'digi-slider--pause';
 		if ( 'yes' === ( $s['natural_width'] ?? '' ) && 'repeat' === ( $s['mode'] ?? '' ) ) $classes[] = 'digi-slider--natural';
+		if ( $mirror_repeat ) $classes[] = 'digi-slider--mirror-repeat';
 		if ( 'fixed' === ( $s['height_mode'] ?? 'auto' ) ) $classes[] = 'digi-slider--fixed';
 		$label = trim( (string) ( $s['label'] ?? '' ) );
 		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . ( $label ? ' role="group" aria-label="' . esc_attr( $label ) . '"' : '' ) . '><div class="digi-slider__viewport"><div class="digi-slider__track">';
@@ -170,7 +172,11 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$infinite = $right && 'yes' === ( $settings['infinite'] ?? 'yes' );
 		foreach ( $items as $index => $item ) {
 			$item_decorative = $decorative || $index >= $accessible_count;
-			$initial = $right ? ( $decorative ? $index < $warm : $index >= $count - $warm ) : ( ! $decorative && $index < $warm );
+			// Todas las copias de una onda reflejada usan el mismo archivo: cargarlas
+			// evita que una mitad aparezca vacía al entrar en el viewport.
+			$initial = $mirror && 'repeat' === ( $settings['mode'] ?? 'multiple' )
+				? true
+				: ( $right ? ( $decorative ? $index < $warm : $index >= $count - $warm ) : ( ! $decorative && $index < $warm ) );
 			$primary = $right ? ( $decorative ? 0 === $index : ( ! $infinite && $index === $count - $visible ) ) : ( ! $decorative && 0 === $index );
 			$html = $this->image( $item, $settings, $item_decorative, $initial, $primary );
 			if ( ! $html ) continue;

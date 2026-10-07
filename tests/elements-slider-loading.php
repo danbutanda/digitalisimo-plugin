@@ -30,6 +30,16 @@ namespace {
 	check_slider_load( str_contains( $images[0], 'loading="lazy"' ) && ! str_contains( $images[0], 'fetchpriority="high"' ), 'La primera imagen fuera de pantalla no debe competir por prioridad.' );
 	check_slider_load( str_contains( $images[9], 'loading="eager"' ) && str_contains( $images[10], 'loading="eager"' ) && str_contains( $images[10], 'fetchpriority="high"' ), 'La unión visible del bucle derecho debe cargarse antes del movimiento.' );
 	check_slider_load( str_contains( $images[10], 'width="100"' ) && str_contains( $images[10], 'height="20"' ), 'Las dimensiones deben reservar espacio sin saltos.' );
+	$widget->settings['mirror'] = 'yes';
+	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $mirror = ob_get_clean();
+	check_slider_load( str_contains( $mirror, 'digi-slider--mirror-repeat' ), 'La imagen repetida con espejo debe identificar su modo sin alterar otros sliders.' );
+	check_slider_load( 20 === substr_count( $mirror, 'loading="eager"' ) && ! str_contains( $mirror, 'loading="lazy"' ), 'Todas las mitades de la onda deben estar listas antes de animar.' );
+	check_slider_load( 10 === substr_count( $mirror, 'digi-slider__item--mirror' ), 'El espejo debe alternar en ambas series y conservar la unión del bucle.' );
+	$groups = explode( '<div class="digi-slider__group"', $mirror );
+	check_slider_load( 3 === count( $groups ) && str_contains( $groups[2], 'aria-hidden="true"' ), 'El bucle reflejado debe conservar sólo una copia decorativa.' );
+	check_slider_load( str_contains( file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/slider-optimizado.css' ), '.digi-slider--mirror-repeat{--digi-gap:0px!important}' ), 'Las mitades reflejadas no deben separarse por el gap configurado para otros modos.' );
+	check_slider_load( str_contains( file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/js/slider-optimizado.js' ), "slider.classList.contains('digi-slider--mirror-repeat')" ), 'El arranque debe esperar también a las copias alejadas de la onda.' );
+	$widget->settings['mirror'] = '';
 	$widget->settings['animation'] = 'off';
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $static = ob_get_clean();
 	check_slider_load( ! str_contains( $static, 'digi-slider--preparing' ) && 2 === substr_count( $static, '<img' ), 'El modo estático debe conservar sus imágenes sin esperar JavaScript.' );

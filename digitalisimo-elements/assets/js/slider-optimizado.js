@@ -16,7 +16,9 @@
     var viewport = slider.querySelector('.digi-slider__viewport');
     var bounds = viewport ? viewport.getBoundingClientRect() : slider.getBoundingClientRect();
     var margin = Math.max(bounds.width, 320);
-    var images = Array.prototype.filter.call(slider.querySelectorAll('.digi-slider__item img'), function (image) {
+    var allImages = slider.querySelectorAll('.digi-slider__item img');
+    var images = Array.prototype.filter.call(allImages, function (image) {
+      if (slider.classList.contains('digi-slider--mirror-repeat')) return true;
       var rect = image.getBoundingClientRect();
       return rect.width > 0 && rect.right > bounds.left - margin && rect.left < bounds.right + margin;
     });

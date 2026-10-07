@@ -68,9 +68,9 @@ namespace {
 	$assert( 20 === substr_count( $html, '<img ' ), 'La serie impar con espejo debe cubrir la vista y duplicarse una vez.' );
 	$assert( 20 === substr_count( $html, 'width="1711" height="304"' ) && 1 === $image_size_reads, 'Todas las copias deben conservar las dimensiones reales sin leer el archivo repetidamente.' );
 	$assert( 1 === substr_count( $html, 'alt="Onda"' ) && 19 === substr_count( $html, 'alt=""' ), 'Las imágenes decorativas deben tener ALT vacío.' );
-	$assert( 1 === substr_count( $html, 'fetchpriority="high"' ) && 6 === substr_count( $html, 'loading="eager"' ), 'Sólo la primera imagen debe tener prioridad alta; los seis elementos iniciales deben cargarse antes del movimiento.' );
+	$assert( 1 === substr_count( $html, 'fetchpriority="high"' ) && 20 === substr_count( $html, 'loading="eager"' ), 'Sólo la primera imagen debe tener prioridad alta; todas las copias de la onda reflejada deben cargarse antes del movimiento.' );
 	$assert( false !== strpos( $html, 'sizes="(max-width: 767px) 20vw, (max-width: 1024px) 20vw, 20vw"' ), 'Los tamaños responsive deben seguir la cantidad configurada.' );
-	$assert( 14 === substr_count( $html, 'loading="lazy"' ), 'Las demás imágenes, incluida la copia decorativa, deben cargarse lazy.' );
+	$assert( 0 === substr_count( $html, 'loading="lazy"' ), 'La onda reflejada no debe dejar copias lazy que aparezcan vacías durante el recorrido.' );
 	$assert( 10 === substr_count( $html, 'digi-slider__item--mirror' ), 'El espejo debe alternarse en ambas series.' );
 	$widget->test_settings = array(
 		'mode' => 'multiple', 'images' => array( array( 'image' => array( 'id' => 13 ), 'alt' => 'Cliente', 'link' => array( 'url' => 'https://example.com', 'is_external' => true ) ) ),
