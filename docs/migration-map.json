@@ -141,16 +141,25 @@
       "status": "pending"
     },
     "bdt-advanced-divider": {
-      "target": null,
+      "target": "digitalisimo-advanced-divider",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 3,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "advanced_divider_select": "divider_type (solo variantes básicas; sin conversión automática)",
+        "advanced_divider_choose": "divider_image (adjunto de Medios)",
+        "divider_align": "divider_align",
+        "max_width": "divider_width",
+        "divider_gap_top": "divider_gap_top",
+        "divider_gap_bottom": "divider_gap_bottom",
+        "divider_svg_stroke_width": "divider_stroke",
+        "divider_svg_stroke_color": "divider_color"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "independent decorative widget; legacy shape parity, SVG animation, editor/browser comparison and multisite runtime pending"
     },
     "bdt-advanced-gmap": {
       "target": null,

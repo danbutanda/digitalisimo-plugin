@@ -56,3 +56,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Undécimo componente reconstruido: Advanced Button
 
 `class-advanced-button.php` y `advanced-button.css` son implementación propia de un botón con icono y distintivo inspirada en `modules/advanced-button/widgets/advanced-button.php` de Element Pack Pro 9.9.1 (GPLv3). Sus nueve efectos se expresan mediante CSS nuevo y ligero. No se copia la clase, su hoja CSS, UIkit ni otros recursos de la referencia. El ID antiguo permanece libre hasta comprobar paridad funcional y visual.
+
+## Duodécimo componente reconstruido: Advanced Divider
+
+`class-advanced-divider.php` y `advanced-divider.css` implementan formas decorativas propias tras estudiar `modules/advanced-divider/widgets/advanced-divider.php` de Element Pack Pro 9.9.1 (GPLv3). No distribuyen sus SVG, hoja CSS, JavaScript, UIkit ni infraestructura. La imagen opcional se toma de la biblioteca de Medios del sitio. El ID antiguo permanece libre y la equivalencia completa está pendiente.

@@ -1,5 +1,7 @@
 # Reconstrucción funcional de widgets de Element Pack
 
+El [objetivo de continuidad](ELEMENT_PACK_MIGRATION_OBJECTIVE.md) reúne alcance, estado real, reglas de implementación y criterio de cierre para agentes que retomen este trabajo.
+
 El inventario se genera con `python3 scripts/inventory-element-pack.py` desde una copia local de referencia. Se identificaron 263 IDs Elementor y dos archivos auxiliares sin `get_name()`. La inspección estática no ejecuta ni instala Element Pack. Sus resultados viven en `element-pack-inventory.json`, `element-pack-framework-inventory.json`, `element-pack-dependency-graph.json` y `migration-map.json`. Las categorías y prioridades son hipótesis que requieren revisión funcional.
 
 La prioridad solicitada por el usuario está en `element-pack-priority.md`: 53 widgets y 10 extensiones se completan primero; luego se retoma el resto del inventario. Sus campos `user_priority_*` prevalecen sobre la antigua puntuación técnica `priority` del inventario. Las implementaciones parciales no cuentan como migradas hasta superar el criterio de aceptación descrito abajo.
@@ -71,3 +73,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 ## Décimo piloto: Accordion prioritario
 
 `digitalisimo-accordion` usa `<details>` y `<summary>` nativos, con un repetidor para título y contenido, apertura inicial, varios paneles opcionales y CSS condicional. El contenido editorial pasa por sanitización y el widget no produce schema FAQ paralelo ni solicita JavaScript/UIkit. Permanecen pendientes la selección de plantillas Elementor, iconos configurables, opciones de URL/hash y equivalencia visual; no se registra `bdt-accordion` ni se convierten documentos antiguos.
+
+## Undécimo piloto: Separador avanzado prioritario
+
+`digitalisimo-advanced-divider` presenta variantes de línea, círculo y onda mediante HTML/CSS/SVG propios, o una imagen decorativa de Medios. Declara sólo un CSS condicional y no usa los SVG, UIkit ni el script de la referencia. Se mantiene `bdt-advanced-divider` libre: faltan sus numerosas formas originales, animación de trazo, equivalencia visual y prueba real de editor/Multisite. No convierte documentos antiguos.

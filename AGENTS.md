@@ -61,3 +61,5 @@ Responsable de herramientas de administración que no son SEO: plantillas Elemen
 ## Estado y prioridad
 
 La matriz operativa está en `docs/PLUGIN_ROADMAP.md`. Antes de empezar un lote, actualizar su estado; al terminar, registrar versión, validación y paquete generado.
+
+La migración de widgets de Element Pack Pro hacia DIGITALÍSIMO Elements se continúa desde `docs/ELEMENT_PACK_MIGRATION_OBJECTIVE.md`; consultar allí el alcance, la lista prioritaria, el estado real y el criterio de aceptación antes de editar widgets.
