@@ -2375,11 +2375,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 34,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/posts/widgets/posts.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "share existing posts widget for new content; nine Element Pack skins and legacy document conversion pending"
     },
     "bdt-post-grid-tab": {
       "target": null,
@@ -2411,11 +2411,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 35,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/posts/widgets/posts.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "posts widget can show one-column feed for new content; independent Post List layouts, terms, and legacy conversion pending"
     },
     "bdt-post-slider": {
       "target": null,
@@ -2509,11 +2509,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 36,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/theme-elements/widgets/author-box.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "author-box covers author/custom basics; user menu, social card, follow actions, skins and legacy conversion pending"
     },
     "bdt-progress-pie": {
       "target": null,
