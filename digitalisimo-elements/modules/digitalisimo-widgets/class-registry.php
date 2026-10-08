@@ -203,6 +203,8 @@ final class Widget_Registry {
 		Backdrop_Filter_Extension::init();
 		require_once __DIR__ . '/class-floating-effects.php';
 		Floating_Effects_Extension::init();
+		require_once __DIR__ . '/class-notation.php';
+		Notation_Extension::init();
 		add_action( 'elementor/elements/categories_registered', array( __CLASS__, 'category' ), 20 );
 		add_action( 'elementor/frontend/after_register_styles', array( __CLASS__, 'styles' ) );
 		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'scripts' ) );

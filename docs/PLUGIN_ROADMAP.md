@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Floating Effects | En validación · 4.3.0.58 | Movimiento flotante vertical opcional por widget o contenedor, con API nativa del navegador y script condicional. | Pendientes validación de paquete, publicación, paridad visual y runtime real en WordPress individual y Multisite. |
+| DIGITALÍSIMO Elements · Notation | En validación · 4.3.0.59 | Notación de línea optativa en títulos Heading clásicos, con CSS nativo y sin JavaScript. | Pendientes validación de paquete, publicación, paridad de marcas/repetidores y runtime real en WordPress individual y Multisite. |
+
+| DIGITALÍSIMO Elements · Floating Effects | Publicado · 4.3.0.58 · `v2026.10.08.303` | Movimiento flotante vertical opcional por widget o contenedor, con API nativa del navegador y script condicional. | Pasaron pruebas PHP de Elements, dos instancias JavaScript, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#614` y publicación `#303` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.58.zip` (3,685,950 bytes). Faltan paridad visual y runtime real en WordPress individual y Multisite. |
 
 | DIGITALÍSIMO Elements · Backdrop Filter | Publicado · 4.3.0.57 · `v2026.10.08.302` | Controles Elementor opcionales para widgets y contenedores con blur, brillo y saturación mediante CSS generado; sin JS ni hoja global. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#613` y publicación `#302` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.57.zip` (3,683,365 bytes). Faltan efecto líquido, paridad visual y runtime real. |
 
