@@ -96,3 +96,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Vigesimocuarto componente reconstruido: Fancy Icons
 
 `class-fancy-icons.php` y `fancy-icons.css` son implementación propia tras revisar el módulo homónimo de Element Pack Pro 9.9.1 (GPLv3). Se conservaron los conceptos de repetidor, icono/texto, enlace y columnas; no se copiaron sus clases, estilos, fondos de video, UIkit ni iconos. `bdt-fancy-icons` sigue libre hasta validar la paridad.
+
+## Vigesimoquinto componente reconstruido: Fancy Slider
+
+`class-fancy-slider.php` y `fancy-slider.css` son implementación propia tras revisar el módulo homónimo de Element Pack Pro 9.9.1 (GPLv3). Reutiliza el `Carousel_Engine` propio; no copia transiciones, estilos, imágenes, UIkit ni scripts de la referencia. `bdt-fancy-slider` permanece libre mientras falten paridad visual y pruebas de runtime.

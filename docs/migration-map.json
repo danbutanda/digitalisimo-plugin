@@ -1428,16 +1428,24 @@
       "status": "new widget implemented; legacy adapter, full style controls and visual comparison pending"
     },
     "bdt-fancy-slider": {
-      "target": null,
+      "target": "digitalisimo-fancy-slider",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 1,
       "user_priority_order": 20,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "slides": "slides",
+        "show_subtitle": "show_subtitle",
+        "show_title": "show_title",
+        "show_description": "show_description",
+        "show_button": "show_button",
+        "show_slide_image": "show_slide_image",
+        "title_tags": "title_tags"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own editorial slider on shared carousel engine; advanced transitions, visual parity and multisite runtime pending"
     },
     "bdt-fancy-tabs": {
       "target": null,

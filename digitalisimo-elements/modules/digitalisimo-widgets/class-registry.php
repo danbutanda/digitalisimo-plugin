@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-fancy-slider' => array(
+			'file'  => 'class-fancy-slider.php',
+			'class' => Fancy_Slider_Widget::class,
+			'css'   => 'assets/css/fancy-slider.css',
+		),
 		'digitalisimo-fancy-icons' => array(
 			'file'  => 'class-fancy-icons.php',
 			'class' => Fancy_Icons_Widget::class,

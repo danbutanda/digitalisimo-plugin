@@ -21,7 +21,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 17. Fancy Card — base propia con imagen o icono y CTA; skins y Multisite pendientes
 18. Fancy List — base propia; paridad pendiente
 19. Fancy Icons — base propia con enlaces accesibles y CSS condicional; fondos avanzados, paridad visual y Multisite pendientes
-20. Fancy Slider
+20. Fancy Slider — base propia editorial con motor compartido; transiciones avanzadas, paridad visual y Multisite pendientes
 21. Fancy Tabs
 22. Featured Box
 23. Google Reviews
