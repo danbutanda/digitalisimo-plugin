@@ -808,6 +808,12 @@ class Login extends Base_Widget {
 
 	}
 
+	private static function registration_enabled(): bool {
+		return is_multisite()
+			? in_array( get_site_option( 'registration' ), [ 'all', 'user' ], true )
+			: (bool) get_option( 'users_can_register' );
+	}
+
 	private function form_fields_render_attributes() {
 		$settings = $this->get_settings_for_display();
 
@@ -943,8 +949,8 @@ class Login extends Base_Widget {
 
 				<?php if ( 'yes' === $settings['show_remember_me'] ) : ?>
 					<div class="elementor-field-type-checkbox elementor-field-group elementor-column elementor-col-100 elementor-remember-me">
-						<label for="elementor-login-remember-me">
-							<input type="checkbox" id="elementor-login-remember-me" name="rememberme" value="forever">
+						<label for="elementor-login-remember-me-<?php echo esc_attr( $this->get_id() ); ?>">
+							<input type="checkbox" id="elementor-login-remember-me-<?php echo esc_attr( $this->get_id() ); ?>" name="rememberme" value="forever">
 							<?php echo esc_html__( 'Remember Me', 'elementor-pro' ); ?>
 						</label>
 					</div>
@@ -960,7 +966,7 @@ class Login extends Base_Widget {
 
 				<?php
 				$show_lost_password = 'yes' === $settings['show_lost_password'];
-				$show_register = get_option( 'users_can_register' ) && 'yes' === $settings['show_register'];
+				$show_register = self::registration_enabled() && 'yes' === $settings['show_register'];
 
 				if ( $show_lost_password || $show_register ) : ?>
 					<div class="elementor-field-group elementor-column elementor-col-100">
@@ -1066,8 +1072,8 @@ class Login extends Base_Widget {
 
 				<# if ( settings.show_remember_me ) { #>
 					<div class="elementor-field-type-checkbox elementor-field-group elementor-column elementor-col-100 elementor-remember-me">
-						<label for="elementor-login-remember-me">
-							<input type="checkbox" id="elementor-login-remember-me" name="rememberme" value="forever">
+						<label for="elementor-login-remember-me-<?php echo esc_attr( $this->get_id() ); ?>">
+							<input type="checkbox" id="elementor-login-remember-me-<?php echo esc_attr( $this->get_id() ); ?>" name="rememberme" value="forever">
 							<?php // PHPCS - `esc_html__` is safe. ?>
 							<?php echo esc_html__( 'Remember Me', 'elementor-pro' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 						</label>
@@ -1091,7 +1097,7 @@ class Login extends Base_Widget {
 							</a>
 						<# } #>
 
-						<?php if ( get_option( 'users_can_register' ) ) { ?>
+						<?php if ( self::registration_enabled() ) { ?>
 							<# if ( settings.show_register ) { #>
 								<# if ( settings.show_lost_password ) { #>
 									<span class="elementor-login-separator"> | </span>
