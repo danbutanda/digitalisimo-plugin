@@ -3204,11 +3204,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 50,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "login",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "existing-widget-for-new-content; no legacy conversion"
     },
     "bdt-user-register": {
       "target": null,
@@ -3228,11 +3228,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 52,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "nav-menu",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "existing-widget-for-new-content; no legacy conversion"
     },
     "bdt-video-gallery": {
       "target": null,
