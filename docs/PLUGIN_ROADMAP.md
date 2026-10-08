@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Fancy Slider | Implementado · 4.3.0.41 · publicación pendiente | Slider editorial con imagen y contenido por diapositiva, carrusel compartido y recursos condicionales. | Faltan validación completa y paquete, transiciones avanzadas, paridad visual y prueba real en Multisite. No ocupa `bdt-fancy-slider`. |
+| DIGITALÍSIMO Elements · Fancy Slider | Publicado · 4.3.0.41 · `v2026.10.08.286` | Slider editorial con imagen y contenido por diapositiva, carrusel compartido y recursos condicionales. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#585` y publicación `#286` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.41.zip`. Faltan transiciones avanzadas, paridad visual y prueba real en Multisite. No ocupa `bdt-fancy-slider`. |
 
 | DIGITALÍSIMO Elements · Fancy Icons | Publicado · 4.3.0.40 · `v2026.10.08.285` | Iconos o texto con enlaces accesibles y cuadrícula responsiva; CSS condicional sin JavaScript. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#583` y publicación `#285` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.40.zip`. Faltan fondos avanzados, paridad visual y prueba real en Multisite. No ocupa `bdt-fancy-icons`. |
 
