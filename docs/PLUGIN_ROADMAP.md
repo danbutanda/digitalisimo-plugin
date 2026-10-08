@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Fancy Icons | Implementado · 4.3.0.40 · publicación pendiente | Iconos o texto con enlaces accesibles y cuadrícula responsiva; CSS condicional sin JavaScript. | Faltan validación del paquete, fondos avanzados, paridad visual y prueba real en Multisite. No ocupa `bdt-fancy-icons`. |
+| DIGITALÍSIMO Elements · Fancy Icons | Publicado · 4.3.0.40 · `v2026.10.08.285` | Iconos o texto con enlaces accesibles y cuadrícula responsiva; CSS condicional sin JavaScript. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#583` y publicación `#285` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.40.zip`. Faltan fondos avanzados, paridad visual y prueba real en Multisite. No ocupa `bdt-fancy-icons`. |
 
 | DIGITALÍSIMO Elements · Device Slider y Fancy Card | Publicado · 4.3.0.39 · `v2026.10.08.284` | Slider de capturas con marco responsivo y motor compartido; tarjeta semántica con imagen/icono y CTA. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#581` y publicación `#284` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.39.zip`. No ocupan los IDs `bdt-*`; faltan marcos y skins avanzados, paridad visual y prueba real en Multisite. |
 
