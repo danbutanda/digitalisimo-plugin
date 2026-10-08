@@ -112,3 +112,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Vigesimoctavo componente reconstruido: Google Reviews
 
 `class-google-reviews.php`, `class-google-reviews-service.php`, `google-reviews.css` y `google-reviews.js` son implementación propia tras analizar el widget de Element Pack Pro 9.9.1 (GPLv3). No se reutilizan clases, assets ni servicios del original. Los datos de reseñas proceden de Google Places API (New), se consultan con una clave aportada por el administrador y se muestran con atribución a Google Maps conforme a sus [políticas](https://developers.google.com/maps/documentation/places/web-service/policies). No se redistribuyen ni almacenan reseñas. `bdt-google-reviews` permanece libre mientras falten paridad y pruebas de runtime.
+
+## Vigesimonoveno componente reconstruido: Icon Mobile Menu
+
+`class-icon-mobile-menu.php` y `icon-mobile-menu.css` son implementación propia tras analizar el widget de Element Pack Pro 9.9.1 (GPLv3). No se reutilizan CSS, JavaScript, iconos ni Popper/Tippy del original. El ID `bdt-icon-mobile-menu` permanece libre mientras falten paridad y pruebas de runtime.
