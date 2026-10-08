@@ -23,7 +23,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 19. Fancy Icons — base propia con enlaces accesibles y CSS condicional; fondos avanzados, paridad visual y Multisite pendientes
 20. Fancy Slider — base propia editorial con motor compartido; transiciones avanzadas, paridad visual y Multisite pendientes
 21. Fancy Tabs — base propia accesible con icono/imagen y script compartido; skins, paridad visual y Multisite pendientes
-22. Featured Box
+22. Featured Box — base propia con diseños sobre imagen/dividido y contenido semántico; skins, paridad visual y Multisite pendientes
 23. Google Reviews
 24. Icon Mobile Menu
 25. Icon Nav

@@ -34,7 +34,7 @@ namespace {
 	$manager = new Legacy_Manager();
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
-	check_legacy( 27 === count( $manager->widgets ), 'Sin Element Pack deben existir veintiséis widgets nuevos y el ID legacy, una sola vez.' );
+	check_legacy( 28 === count( $manager->widgets ), 'Sin Element Pack deben existir veintisiete widgets nuevos y el ID legacy, una sola vez.' );
 	check_legacy( $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Legacy_Animated_Link_Widget, 'El ID legacy debe usar nuestra implementación.' );
 	$widget = $manager->widgets['bdt-animated-link'];
 	$widget->settings = array( 'link_style' => 'leda', 'link_text' => 'Ejemplo', 'link_url' => array( 'url' => 'https://example.test/' ) );

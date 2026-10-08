@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Featured Box | Implementado · 4.3.0.43 · publicación pendiente | Caja con imagen, diseños sobre imagen/dividido y CTA opcional; recursos condicionales. | Faltan suite y ZIP, skins de referencia, paridad visual y prueba real en Multisite. No ocupa `bdt-featured-box`. |
+
 | DIGITALÍSIMO Elements · Fancy Tabs | Publicado · 4.3.0.42 · `v2026.10.08.287` | Pestañas accesibles con imagen/icono, contenido y CTA; script compartido y CSS condicional. | Pasaron pruebas PHP de Elements, comprobación sintáctica JavaScript, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#587` y publicación `#287` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.42.zip`. Faltan paridad visual y prueba real en Multisite. No ocupa `bdt-fancy-tabs`. |
 
 | DIGITALÍSIMO Elements · Fancy Slider | Publicado · 4.3.0.41 · `v2026.10.08.286` | Slider editorial con imagen y contenido por diapositiva, carrusel compartido y recursos condicionales. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#585` y publicación `#286` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.41.zip`. Faltan transiciones avanzadas, paridad visual y prueba real en Multisite. No ocupa `bdt-fancy-slider`. |

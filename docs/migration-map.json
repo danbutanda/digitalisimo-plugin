@@ -1475,16 +1475,26 @@
       "status": "pending"
     },
     "bdt-featured-box": {
-      "target": null,
+      "target": "digitalisimo-featured-box",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 22,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "image": "image",
+        "title_text": "title_text",
+        "title_size": "title_size",
+        "title_link_url": "title_link_url",
+        "sub_title_text": "sub_title_text",
+        "description_text": "description_text",
+        "badge_text": "badge_text",
+        "readmore_text": "readmore_text",
+        "readmore_link": "readmore_link"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own overlay and split editorial box with Media image and optional links; advanced skins, visual parity and multisite runtime pending"
     },
     "bdt-flip-box": {
       "target": null,
