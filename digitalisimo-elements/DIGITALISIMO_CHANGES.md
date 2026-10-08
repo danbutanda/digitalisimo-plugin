@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.50
+# DIGITALÍSIMO Elements 4.3.0.51
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -62,5 +62,7 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - 4.3.0.49: incorpora Código QR como widget propio con contenido o URL pública de la página actual, generador local y recursos condicionales. Usa jquery-qrcode 0.17.0 bajo MIT con su aviso de licencia, sin enviar datos a terceros. El contenido conserva enlace o texto accesible cuando no se genera el canvas. No ocupa `bdt-qrcode`; faltan etiquetas internas e imagen central de la referencia.
 
 - 4.3.0.50: incorpora Tabla de datos como widget propio para CSV estático. Genera encabezados de columna y fila, título opcional, desplazamiento horizontal accesible y CSS condicional sin JavaScript de frontend. Limita filas, columnas y tamaño de entrada; no consulta Google Sheets ni DataTables. No ocupa `bdt-table`; fuentes CSV externas, ACF y skins de referencia siguen pendientes.
+
+- 4.3.0.51: incorpora Nube de etiquetas como widget propio. Consulta términos públicos del sitio actual con límite y orden configurables, enlaces semánticos y CSS condicional sin JavaScript. Evita términos vacíos, taxonomías privadas y schema adicional. No ocupa `bdt-tags-cloud`; paridad visual y runtime real en Multisite siguen pendientes.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.

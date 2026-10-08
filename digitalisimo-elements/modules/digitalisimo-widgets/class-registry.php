@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-tags-cloud' => array(
+			'file'  => 'class-tags-cloud.php',
+			'class' => Tags_Cloud_Widget::class,
+			'css'   => 'assets/css/tags-cloud.css',
+		),
 		'digitalisimo-table' => array(
 			'file'  => 'class-table.php',
 			'class' => Table_Widget::class,

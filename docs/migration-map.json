@@ -1,5 +1,5 @@
 {
-  "status": "34 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "35 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -2990,16 +2990,21 @@
       "status": "own fancy-tabs provides accessible tab panels for new content; sources, skins and legacy conversion pending"
     },
     "bdt-tags-cloud": {
-      "target": null,
+      "target": "digitalisimo-tags-cloud",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 48,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "taxonomy": "taxonomy",
+        "limit": "limit",
+        "orderby": "orderby",
+        "show_count": "show_count"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own public term cloud with per-site queries and conditional CSS; visual parity and multisite runtime pending"
     },
     "bdt-testimonial-carousel": {
       "target": null,

@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Table | En validación · 4.3.0.50 | Widget propio para tabla CSV estática con encabezados semánticos, filas limitadas y CSS condicional. | Pendientes pruebas PHP, regresión, suite de paquetes, publicación, fuentes externas, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-table`. |
+| DIGITALÍSIMO Elements · Tags Cloud | En validación · 4.3.0.51 | Widget propio de términos públicos por sitio, con límite, orden, enlaces semánticos y CSS condicional. | Pendientes pruebas PHP, regresión, suite de paquetes, publicación, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-tags-cloud`. |
+
+| DIGITALÍSIMO Elements · Table | Publicado · 4.3.0.50 · `v2026.10.08.295` | Widget propio para tabla CSV estática con encabezados semánticos, filas limitadas y CSS condicional. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#605` y publicación `#295` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.50.zip` (3,672,846 bytes). Faltan fuentes externas, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-table`. |
 
 | DIGITALÍSIMO Elements · candidatos de navegación y contenido | Evaluados para contenido nuevo; legacy pendiente | `nav-menu`, `posts`, `share-buttons`, `table-of-contents` y Content Switcher propio cubren funciones base de Slinky Vertical Menu, Single Post, Social Share, Sub Menu, Table Of Content y Switcher. | Se revisaron controles y dependencias de la referencia. Ningún ID `bdt-*` se ocupa; faltan transiciones, skins, contadores, plantillas, paridad real y conversión segura. No requiere versión ni ZIP nuevos. |
 
