@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-google-reviews' => array(
+			'file'  => 'class-google-reviews.php',
+			'class' => Google_Reviews_Widget::class,
+			'css'   => 'assets/css/google-reviews.css',
+		),
 		'digitalisimo-featured-box' => array(
 			'file'  => 'class-featured-box.php',
 			'class' => Featured_Box_Widget::class,
@@ -171,6 +176,9 @@ final class Widget_Registry {
 	}
 
 	public static function scripts() {
+		if ( ! wp_script_is( 'digitalisimo-google-reviews', 'registered' ) ) {
+			wp_register_script( 'digitalisimo-google-reviews', plugins_url( 'assets/js/google-reviews.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+		}
 		if ( ! wp_script_is( 'digitalisimo-content-switcher', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-content-switcher', plugins_url( 'assets/js/content-switcher.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}

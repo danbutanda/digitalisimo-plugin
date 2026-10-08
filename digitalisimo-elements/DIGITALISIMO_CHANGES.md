@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.43
+# DIGITALÍSIMO Elements 4.3.0.44
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -48,5 +48,7 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - 4.3.0.41: añade Slider destacado con imagen, título, subtítulo, descripción y CTA por diapositiva. Reutiliza el motor de carrusel propio, solicita sólo los assets utilizados, mantiene la primera imagen sin carga diferida y sanea el contenido. No ocupa `bdt-fancy-slider`.
 - 4.3.0.42: añade Pestañas destacadas con icono o imagen, contenido y CTA por pestaña, navegación accesible reutilizada del Alternador de contenido y fallback sin JavaScript. Registra CSS sólo cuando se utiliza y no ocupa `bdt-fancy-tabs`.
 - 4.3.0.43: añade Caja destacada con imagen de Medios, diseño sobre imagen o dividido, título, subtítulo, distintivo y botón opcional. Conserva ALT/srcset, no emite enlaces vacíos ni JavaScript, y sólo solicita su CSS al usarse. No ocupa `bdt-featured-box`.
+
+- 4.3.0.44: incorpora Reseñas de Google como widget propio. Consulta Places API (New) desde PHP cuando el bloque entra en pantalla, con clave secreta por sitio o heredada de red, firma aislada por blog, enlace individual a cada reseña y atribución visible. No almacena reseñas, no carga recursos donde no se usa ni ocupa `bdt-google-reviews`. Requiere una clave Places configurada por el administrador.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.

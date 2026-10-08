@@ -1,5 +1,5 @@
 {
-  "status": "23 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "28 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -1713,16 +1713,20 @@
       "status": "pending"
     },
     "bdt-google-reviews": {
-      "target": null,
+      "target": "digitalisimo-google-reviews",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 23,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "place_id": "google_place_id",
+        "limit": "max_reviews",
+        "title": "heading"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own Places API (New) widget with site/network key and deferred fetch; visual parity and multisite runtime pending"
     },
     "bdt-gravity-form": {
       "target": null,

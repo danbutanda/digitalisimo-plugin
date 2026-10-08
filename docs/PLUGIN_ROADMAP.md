@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Google Reviews | En validación · 4.3.0.44 | Widget propio de Places API (New) con consulta diferida, clave secreta por sitio/red y atribución de Google Maps; sin caché de reseñas. | Pendientes validación automatizada, publicación, paridad visual y prueba real en WordPress individual y Multisite. No ocupa `bdt-google-reviews`. |
+
 | DIGITALÍSIMO Elements · Featured Box | Publicado · 4.3.0.43 · `v2026.10.08.288` | Caja con imagen, diseños sobre imagen/dividido y CTA opcional; recursos condicionales. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#589` y publicación `#288` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.43.zip`. Faltan skins de referencia, paridad visual y prueba real en Multisite. No ocupa `bdt-featured-box`. |
 
 | DIGITALÍSIMO Elements · Fancy Tabs | Publicado · 4.3.0.42 · `v2026.10.08.287` | Pestañas accesibles con imagen/icono, contenido y CTA; script compartido y CSS condicional. | Pasaron pruebas PHP de Elements, comprobación sintáctica JavaScript, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#587` y publicación `#287` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.42.zip`. Faltan paridad visual y prueba real en Multisite. No ocupa `bdt-fancy-tabs`. |

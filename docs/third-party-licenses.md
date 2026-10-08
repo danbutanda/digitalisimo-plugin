@@ -108,3 +108,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Vigesimoséptimo componente reconstruido: Featured Box
 
 `class-featured-box.php` y `featured-box.css` son implementación propia tras estudiar el módulo homónimo de Element Pack Pro 9.9.1 (GPLv3). Ofrece diseños sobre imagen y dividido sin copiar los skins, máscaras, efectos, CSS, iconos ni scripts de la referencia. `bdt-featured-box` permanece libre mientras falten paridad visual y pruebas de runtime.
+
+## Vigesimoctavo componente reconstruido: Google Reviews
+
+`class-google-reviews.php`, `class-google-reviews-service.php`, `google-reviews.css` y `google-reviews.js` son implementación propia tras analizar el widget de Element Pack Pro 9.9.1 (GPLv3). No se reutilizan clases, assets ni servicios del original. Los datos de reseñas proceden de Google Places API (New), se consultan con una clave aportada por el administrador y se muestran con atribución a Google Maps conforme a sus [políticas](https://developers.google.com/maps/documentation/places/web-service/policies). No se redistribuyen ni almacenan reseñas. `bdt-google-reviews` permanece libre mientras falten paridad y pruebas de runtime.

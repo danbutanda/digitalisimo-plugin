@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Funciones avanzadas para Elementor gratuito. Versión derivada de PRO Elements 4.3.0.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.43
+ * Version: 4.3.0.44
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -18,15 +18,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.43' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.44' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 require_once __DIR__ . '/digitalisimo-compat.php';
 require_once __DIR__ . '/digitalisimo-updater.php';
 require_once __DIR__ . '/digitalisimo-brand.php';
 require_once __DIR__ . '/digitalisimo-duplicator.php';
+require_once __DIR__ . '/modules/digitalisimo-widgets/class-google-reviews-service.php';
 Digitalisimo_Elements_Updater::init();
 Digitalisimo_Elements_Brand::init();
 Digitalisimo_Elements_Duplicator::init();
+\Digitalisimo\Elements\Google_Reviews_Service::init();
 
 
 function pro_elements_plugin_load_plugin() {
