@@ -80,3 +80,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Decimosexto y decimoséptimo componentes reconstruidos: Dual Button y Call Out
 
 `class-dual-button.php`, `dual-button.css`, `class-call-out.php` y `call-out.css` son implementaciones propias tras estudiar `modules/dual-button/widgets/dual-button.php` y `modules/call-out/widgets/call-out.php` de Element Pack Pro 9.9.1 (GPLv3). No se copiaron sus clases, CSS, JavaScript, iconos, UIkit ni recursos gráficos. Los IDs antiguos siguen libres hasta verificar la paridad.
+
+## Decimoctavo y decimonoveno componentes reconstruidos: Comparison List y Content Switcher
+
+`class-comparison-list.php`, `comparison-list.css`, `class-content-switcher.php`, `content-switcher.css` y `content-switcher.js` son implementaciones propias tras estudiar los módulos homónimos de Element Pack Pro 9.9.1 (GPLv3). No se copiaron sus clases, CSS, JavaScript, UIkit ni recursos gráficos. Los IDs antiguos siguen libres hasta verificar la paridad.

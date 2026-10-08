@@ -13,8 +13,8 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 9. Breadcrumbs — base propia con jerarquía de WordPress sin depender de Yoast; paridad visual y Multisite pendientes
 10. Dual Button — base propia con dos acciones, iconos y separador; paridad visual y Multisite pendientes
 11. Call Out — base propia con título, descripción y botón; paridad visual y Multisite pendientes
-12. Comparison List
-13. Content Switcher
+12. Comparison List — base propia en tabla semántica; variantes y Multisite pendientes
+13. Content Switcher — base propia en pestañas accesibles; contenidos avanzados y Multisite pendientes
 14. Custom Gallery
 15. Creative Button
 16. Device Slider

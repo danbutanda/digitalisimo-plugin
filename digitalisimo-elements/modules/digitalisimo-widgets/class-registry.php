@@ -6,6 +6,16 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-comparison-list' => array(
+			'file'  => 'class-comparison-list.php',
+			'class' => Comparison_List_Widget::class,
+			'css'   => 'assets/css/comparison-list.css',
+		),
+		'digitalisimo-content-switcher' => array(
+			'file'  => 'class-content-switcher.php',
+			'class' => Content_Switcher_Widget::class,
+			'css'   => 'assets/css/content-switcher.css',
+		),
 		'digitalisimo-dual-button' => array(
 			'file'  => 'class-dual-button.php',
 			'class' => Dual_Button_Widget::class,
@@ -121,6 +131,9 @@ final class Widget_Registry {
 	}
 
 	public static function scripts() {
+		if ( ! wp_script_is( 'digitalisimo-content-switcher', 'registered' ) ) {
+			wp_register_script( 'digitalisimo-content-switcher', plugins_url( 'assets/js/content-switcher.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+		}
 		if ( ! wp_script_is( 'digitalisimo-animated-heading', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-animated-heading', plugins_url( 'assets/js/animated-heading.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}

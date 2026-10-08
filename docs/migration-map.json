@@ -1,5 +1,5 @@
 {
-  "status": "17 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "19 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -781,16 +781,21 @@
       "status": "pending"
     },
     "bdt-comparison-list": {
-      "target": null,
+      "target": "digitalisimo-comparison-list",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 12,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "comparison_list_title": "comparison_list_title",
+        "comparison_header_list": "comparison_header_list",
+        "comparison_list": "comparison_list",
+        "feature_ability": "feature_ability (pipe-separated values)"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own semantic comparison table with horizontal overflow, scoped headers and conditional CSS; accordion skins, legacy adapter, visual comparison and multisite runtime pending"
     },
     "bdt-contact-form": {
       "target": null,
@@ -817,16 +822,18 @@
       "status": "pending"
     },
     "bdt-content-switcher": {
-      "target": null,
+      "target": "digitalisimo-content-switcher",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 13,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "switcher_items": "switcher_items (text content and icons)"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own accessible tab switcher with keyboard navigation and instance isolation; template, linked sections, price cards, legacy adapter, visual comparison and multisite runtime pending"
     },
     "bdt-cookie-consent": {
       "target": null,
