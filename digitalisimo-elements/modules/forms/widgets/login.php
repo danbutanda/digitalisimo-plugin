@@ -231,7 +231,7 @@ class Login extends Base_Widget {
 			]
 		);
 
-		if ( get_option( 'users_can_register' ) ) {
+		if ( self::registration_enabled() ) {
 			$this->add_control(
 				'show_register',
 				[
@@ -966,7 +966,7 @@ class Login extends Base_Widget {
 
 				<?php
 				$show_lost_password = 'yes' === $settings['show_lost_password'];
-				$show_register = self::registration_enabled() && 'yes' === $settings['show_register'];
+				$show_register = self::registration_enabled() && 'yes' === ( $settings['show_register'] ?? '' );
 
 				if ( $show_lost_password || $show_register ) : ?>
 					<div class="elementor-field-group elementor-column elementor-col-100">

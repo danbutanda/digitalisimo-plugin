@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Login por instancia y red | En validación · 4.3.0.53 | Corrige IDs duplicados de «Recordarme» y consulta la política de registro de la red para mostrar el enlace en Multisite. | Pendientes pruebas completas, ZIP y publicación. User Login sigue sin skins ni conversión legacy. |
+| DIGITALÍSIMO Elements · control de registro en Login | En validación · 4.3.0.54 | El control del editor consulta la política efectiva de la red o del sitio y tolera documentos antiguos sin la clave `show_register`. | Pendientes pruebas completas, ZIP y publicación. |
+
+| DIGITALÍSIMO Elements · Login por instancia y red | Publicado · 4.3.0.53 · `v2026.10.08.298` | Corrige IDs duplicados de «Recordarme» y consulta la política de registro de la red para mostrar el enlace en Multisite. | Pasaron pruebas PHP de Elements, política de registro en sitio/red, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#609` y publicación `#298` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.53.zip` (3,677,742 bytes). El control del editor se completa en 4.3.0.54. User Login sigue sin skins ni conversión legacy. |
 
 | DIGITALÍSIMO Elements · Total Count y rutas de assets | Publicado · 4.3.0.52 · `v2026.10.08.297` | Contador propio de publicaciones, comentarios aprobados y usuarios del sitio actual; corregidas las rutas de CSS de Product Grid, QR Code, Table y Tags Cloud, y el JS local de QR Code. | Pasaron pruebas PHP de Elements, prueba de existencia de todos los assets registrados, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#607` y publicación `#297` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.52.zip` (3,677,553 bytes). Faltan paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-total-count`. |
 

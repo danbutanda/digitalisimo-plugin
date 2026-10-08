@@ -1,8 +1,10 @@
-# DIGITALÍSIMO Elements 4.3.0.53
+# DIGITALÍSIMO Elements 4.3.0.54
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
 Cambios de DIGITALÍSIMO respecto del ZIP original:
+
+- 4.3.0.54: completa la política de registro en el control del editor de Login y evita avisos si un documento anterior no guardó `show_register`.
 
 - 4.3.0.53: el widget Login asigna a «Recordarme» un ID único por instancia en frontend y editor. En Multisite, el enlace de registro sigue la política de altas de la red (`user`/`all`); en WordPress individual sigue `users_can_register`.
 
