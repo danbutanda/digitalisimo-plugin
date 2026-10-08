@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Icon Nav | En validación · 4.3.0.46 | Barra lateral propia con enlaces accesibles, marca y menú WordPress del sitio actual en panel nativo. | Pendientes pruebas, publicación, efectos de referencia, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-iconnav`. |
+
 | DIGITALÍSIMO Elements · Icon Mobile Menu | Publicado · 4.3.0.45 · `v2026.10.08.290` | Widget propio con cuatro diseños, enlaces accesibles, CSS condicional y nombres emergentes sin Popper/Tippy. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#593` y publicación `#290` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.45.zip` (3,643,230 bytes). Faltan paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-icon-mobile-menu`. |
 
 | DIGITALÍSIMO Elements · Google Reviews | Publicado · 4.3.0.44 · `v2026.10.08.289` | Widget propio de Places API (New) con consulta diferida, clave secreta por sitio/red y atribución de Google Maps; sin caché de reseñas. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, sintaxis JS, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#591` y publicación `#289` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.44.zip` (3,639,800 bytes). Faltan paridad visual y prueba real en WordPress individual y Multisite. No ocupa `bdt-google-reviews`. |

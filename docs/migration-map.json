@@ -1,5 +1,5 @@
 {
-  "status": "29 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "30 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -1820,16 +1820,27 @@
       "status": "own four-style icon navigation with CSS tooltip; full settings parity and multisite runtime pending"
     },
     "bdt-iconnav": {
-      "target": null,
+      "target": "digitalisimo-icon-nav",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 25,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "iconnavs": "iconnavs",
+        "iconnav_icon": "iconnav_icon",
+        "iconnav_title": "iconnav_title",
+        "iconnav_link": "iconnav_link",
+        "menu_text": "menu_text",
+        "iconnav_position": "iconnav_position",
+        "navbar": "navbar",
+        "navbar_level": "navbar_level",
+        "show_branding": "show_branding",
+        "branding_image": "branding_image"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own vertical icon navigation and native WordPress menu panel; offcanvas effects, visual parity and multisite runtime pending"
     },
     "bdt-iframe": {
       "target": null,

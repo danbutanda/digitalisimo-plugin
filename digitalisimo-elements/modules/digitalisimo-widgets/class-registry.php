@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-icon-nav' => array(
+			'file'  => 'class-icon-nav.php',
+			'class' => Icon_Nav_Widget::class,
+			'css'   => 'assets/css/icon-nav.css',
+		),
 		'digitalisimo-icon-mobile-menu' => array(
 			'file'  => 'class-icon-mobile-menu.php',
 			'class' => Icon_Mobile_Menu_Widget::class,

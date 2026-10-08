@@ -26,7 +26,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 22. Featured Box — base propia con diseños sobre imagen/dividido y contenido semántico; skins, paridad visual y Multisite pendientes
 23. Google Reviews — base propia con Places API (New), clave sitio/red y carga diferida; paridad visual y pruebas reales en Multisite pendientes
 24. Icon Mobile Menu — base propia con cuatro estilos y tooltips CSS; paridad visual y Multisite pendientes
-25. Icon Nav
+25. Icon Nav — base propia con enlaces verticales y menú del sitio opcional; skins, paridad visual y Multisite pendientes
 26. Lottie Image
 27. Logo Grid — base propia; paridad pendiente
 28. Navbar
