@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-table' => array(
+			'file'  => 'class-table.php',
+			'class' => Table_Widget::class,
+			'css'   => 'assets/css/table.css',
+		),
 		'digitalisimo-qr-code' => array(
 			'file'  => 'class-qr-code.php',
 			'class' => QR_Code_Widget::class,

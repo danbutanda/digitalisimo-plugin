@@ -1,5 +1,5 @@
 {
-  "status": "33 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "34 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -2739,11 +2739,11 @@
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 1,
       "user_priority_order": 40,
-      "existing_elements_widget_candidate": "digitalisimo-elements/modules/search/widgets/search.php",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/theme-elements/widgets/search-form.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "use existing search-form widget for new content; post-type filtering and Element Pack skins require parity review before legacy conversion"
     },
     "bdt-single-post": {
       "target": null,
@@ -2751,11 +2751,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 41,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/posts/widgets/posts.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "posts query can select a single public post for new content; exact metadata layout and legacy conversion pending"
     },
     "bdt-slider": {
       "target": null,
@@ -2763,11 +2763,11 @@
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 1,
       "user_priority_order": 38,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/slides/widgets/slides.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "use existing slides widget for new editorial slides; template source, skins, animations and legacy conversion pending; optimized media slider remains separate"
     },
     "bdt-slideshow": {
       "target": null,
@@ -2787,11 +2787,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 39,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/nav-menu/widgets/nav-menu.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "nav-menu provides hierarchical WordPress menus for new content; sliding transitions, manual hierarchy and legacy conversion pending"
     },
     "bdt-social-proof": {
       "target": null,
@@ -2811,11 +2811,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 42,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/share-buttons/widgets/share-buttons.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "share-buttons covers native social sharing for new content; counters, network list and legacy conversion pending"
     },
     "bdt-source-code": {
       "target": null,
@@ -2883,11 +2883,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 43,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/nav-menu/widgets/nav-menu.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "nav-menu covers WordPress submenus for new content; static repeater, badges and legacy conversion pending"
     },
     "bdt-svg-blob": {
       "target": null,
@@ -2931,23 +2931,27 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 44,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/digitalisimo-widgets/class-content-switcher.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own content-switcher covers two-panel switching for new content; templates, icons and legacy conversion pending"
     },
     "bdt-table": {
-      "target": null,
+      "target": "digitalisimo-table",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 46,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "content": "content",
+        "source": "CSV estático",
+        "caption": "caption"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own accessible static CSV table with conditional CSS; external CSV, Sheets, ACF, DataTables skins and multisite runtime pending"
     },
     "bdt-table-of-content": {
       "target": null,
@@ -2955,11 +2959,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 47,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/table-of-contents/widgets/table-of-contents.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "existing table-of-contents covers heading navigation for new content; control parity and legacy conversion pending"
     },
     "bdt-tablepress": {
       "target": null,
@@ -2979,11 +2983,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 45,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own fancy-tabs provides accessible tab panels for new content; sources, skins and legacy conversion pending"
     },
     "bdt-tags-cloud": {
       "target": null,

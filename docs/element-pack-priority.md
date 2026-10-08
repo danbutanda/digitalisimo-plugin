@@ -39,16 +39,16 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 35. Post List — `posts` en una columna sirve de base; layouts, términos y conversión legacy pendientes
 36. Profile Card — `author-box` cubre autor y perfil básico; tarjeta social, menú y conversión legacy pendientes
 37. QR Code — base propia con generación local y fallback legible; etiquetas internas, paridad visual y Multisite pendientes
-38. Slider — aprovechar el Slider Optimizado existente tras comparar controles y salida
-39. Slinky Vertical Menu
-40. Search
-41. Single Post
-42. Social Share
-43. Sub Menu
-44. Switcher
-45. Tabs
-46. Table
-47. Table Of Content
+38. Slider — para diapositivas editoriales usar `slides` ya incluido; Slider Optimizado sigue separado y la conversión legacy pendiente
+39. Slinky Vertical Menu — `nav-menu` cubre jerarquía básica; transición deslizante y conversión legacy pendientes
+40. Search — `search-form` ya incluido cubre búsquedas nuevas; filtros por tipo y conversión legacy pendientes
+41. Single Post — `posts` puede consultar una sola entrada; diseño de metadatos y conversión legacy pendientes
+42. Social Share — `share-buttons` ya incluido cubre botones nuevos; contadores y conversión legacy pendientes
+43. Sub Menu — `nav-menu` ya incluido cubre submenús WordPress; repetidor estático y conversión legacy pendientes
+44. Switcher — Content Switcher propio sirve de base; plantillas y conversión legacy pendientes
+45. Tabs — Fancy Tabs propio sirve de base accesible; fuentes, skins y conversión legacy pendientes
+46. Table — base propia de CSV estático accesible; fuentes externas, skins y Multisite pendientes
+47. Table Of Content — `table-of-contents` ya incluido; paridad de controles y conversión legacy pendientes
 48. Tags Cloud
 49. Total Count
 50. User Login
