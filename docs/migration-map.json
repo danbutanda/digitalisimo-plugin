@@ -1393,16 +1393,19 @@
       "status": "own always-visible semantic card with image or icon, badge and optional CTA; advanced skins, visual parity and multisite runtime pending"
     },
     "bdt-fancy-icons": {
-      "target": null,
+      "target": "digitalisimo-fancy-icons",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 19,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "share_items": "share_items",
+        "columns": "columns"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own accessible icon/text links with responsive grid and conditional CSS; video backgrounds, advanced skins, visual parity and multisite runtime pending"
     },
     "bdt-fancy-list": {
       "target": "digitalisimo-fancy-list",

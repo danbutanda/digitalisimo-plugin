@@ -92,3 +92,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Vigesimosegundo y vigesimotercer componentes reconstruidos: Device Slider y Fancy Card
 
 `class-device-slider.php`, `device-slider.css`, `class-fancy-card.php` y `fancy-card.css` son implementaciones propias tras estudiar los módulos homónimos de Element Pack Pro 9.9.1 (GPLv3). No se copiaron sus clases, estilos, dispositivos gráficos, UIkit, imágenes ni iconos. Device Slider utiliza únicamente `Carousel_Engine` propio; los IDs antiguos siguen libres hasta verificar la paridad.
+
+## Vigesimocuarto componente reconstruido: Fancy Icons
+
+`class-fancy-icons.php` y `fancy-icons.css` son implementación propia tras revisar el módulo homónimo de Element Pack Pro 9.9.1 (GPLv3). Se conservaron los conceptos de repetidor, icono/texto, enlace y columnas; no se copiaron sus clases, estilos, fondos de video, UIkit ni iconos. `bdt-fancy-icons` sigue libre hasta validar la paridad.

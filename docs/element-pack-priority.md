@@ -20,7 +20,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 16. Device Slider — base propia sobre motor de carrusel compartido; marcos avanzados y Multisite pendientes
 17. Fancy Card — base propia con imagen o icono y CTA; skins y Multisite pendientes
 18. Fancy List — base propia; paridad pendiente
-19. Fancy Icons
+19. Fancy Icons — base propia con enlaces accesibles y CSS condicional; fondos avanzados, paridad visual y Multisite pendientes
 20. Fancy Slider
 21. Fancy Tabs
 22. Featured Box
