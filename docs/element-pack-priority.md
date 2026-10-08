@@ -38,7 +38,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 34. Post Grid — para contenido nuevo usar `posts` ya incluido; nueve skins y conversión legacy pendientes
 35. Post List — `posts` en una columna sirve de base; layouts, términos y conversión legacy pendientes
 36. Profile Card — `author-box` cubre autor y perfil básico; tarjeta social, menú y conversión legacy pendientes
-37. QR Code
+37. QR Code — base propia con generación local y fallback legible; etiquetas internas, paridad visual y Multisite pendientes
 38. Slider — aprovechar el Slider Optimizado existente tras comparar controles y salida
 39. Slinky Vertical Menu
 40. Search

@@ -124,3 +124,9 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Trigésimo primer componente reconstruido: Notification
 
 `class-notification.php`, `notification.css` y `notification.js` son implementación propia tras analizar el widget de Element Pack Pro 9.9.1 (GPLv3). No se reutilizan clases, CSS, JavaScript ni UIkit del original. `bdt-notification` permanece libre mientras falten paridad y pruebas de runtime.
+
+## Product Grid y QR Code
+
+`class-product-grid.php` y `product-grid.css` son implementación propia de fichas manuales tras revisar `modules/product-grid/widgets/product-grid.php` de Element Pack Pro 9.9.1. No se copian su clase, traits, CSS ni JavaScript. `bdt-product-grid` permanece libre.
+
+`class-qr-code.php`, `qr-code.css` y `qr-code.js` son implementación propia tras revisar `modules/qrcode/widgets/qrcode.php`. El archivo `modules/digitalisimo-widgets/assets/js/third-party/jquery-qrcode.min.js` procede de `assets/vendor/js/jquery-qrcode.min.js` de la referencia y corresponde a [jquery-qrcode 0.17.0 de Lars Jung](https://github.com/lrsjng/jquery-qrcode), bajo licencia MIT. Se distribuye sin modificaciones; el aviso completo está en `modules/digitalisimo-widgets/assets/js/third-party/jquery-qrcode.LICENSE`. La biblioteca deriva a su vez de QR Code Generator, también MIT según su proyecto de origen. Sólo se carga cuando aparece el widget, junto con el inicializador propio. `bdt-qrcode` permanece libre mientras falten paridad y pruebas de runtime.

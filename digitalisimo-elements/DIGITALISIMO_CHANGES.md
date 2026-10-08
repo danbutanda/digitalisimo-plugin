@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.48
+# DIGITALÍSIMO Elements 4.3.0.49
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -58,5 +58,7 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - 4.3.0.47: incorpora Notificación como widget propio. Admite tarjeta o barra fija, activación por carga, demora, clic o cursor, cierre accesible, contenido saneado y tiempos limitados; CSS/JS se cargan sólo al usarlo. No ocupa `bdt-notification`. Plantillas, skins y reglas avanzadas de la referencia siguen pendientes.
 
 - 4.3.0.48: incorpora Cuadrícula de productos como widget manual con fichas repetibles, imágenes responsivas de Medios, enlaces explícitos, columnas adaptables y CSS condicional sin JavaScript. Las calificaciones ingresadas por el editor se muestran sólo como texto, sin schema inventado. No consulta WooCommerce ni ocupa `bdt-product-grid`; faltan skins, controles avanzados y paridad visual de la referencia.
+
+- 4.3.0.49: incorpora Código QR como widget propio con contenido o URL pública de la página actual, generador local y recursos condicionales. Usa jquery-qrcode 0.17.0 bajo MIT con su aviso de licencia, sin enviar datos a terceros. El contenido conserva enlace o texto accesible cuando no se genera el canvas. No ocupa `bdt-qrcode`; faltan etiquetas internas e imagen central de la referencia.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.

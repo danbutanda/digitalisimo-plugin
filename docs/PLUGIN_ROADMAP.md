@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · QR Code | En validación · 4.3.0.49 | Widget propio con contenido/URL del sitio actual, generación local y fallback accesible. | Pasaron prueba PHP y sintaxis JavaScript; pendientes regresión, suite de paquetes, publicación, paridad visual y runtime real. La biblioteca jquery-qrcode 0.17.0 se distribuye bajo MIT con aviso; sólo carga si se usa el widget. No ocupa `bdt-qrcode`. |
+
 | DIGITALÍSIMO Elements · Post List y Profile Card | Candidatos existentes; paridad pendiente | `posts` puede mostrar un feed de una columna; `author-box` muestra autor o perfil personalizado. | Se revisaron controles y salidas de la referencia frente a los widgets incluidos. No se ocupan `bdt-post-list` ni `bdt-profile-card`: faltan layouts, menú de usuario, tarjeta social, skins y conversión segura de documentos. No requiere versión ni ZIP nuevos. |
 
 | DIGITALÍSIMO Elements · Post Grid | Cubierto para nuevos contenidos; migración legacy pendiente | El widget `posts` ya incluido permite consultas de entradas y CPT, paginación y tres skins. | Se revisó `bdt-post-grid` frente a `modules/posts/widgets/posts.php`. No se añade un segundo motor ni se ocupa `bdt-post-grid`; faltan sus nueve skins, equivalencia de controles y conversión segura de documentos antiguos. No requiere versión ni ZIP nuevos. |

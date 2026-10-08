@@ -1,5 +1,5 @@
 {
-  "status": "32 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "33 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -2540,16 +2540,21 @@
       "status": "pending"
     },
     "bdt-qrcode": {
-      "target": null,
+      "target": "digitalisimo-qr-code",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 37,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "site_link": "site_link",
+        "text": "text",
+        "label": "label",
+        "size": "size"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own local QR with accessible fallback and conditional assets; internal labels, image mode, visual parity and multisite runtime pending"
     },
     "bdt-quform": {
       "target": null,
