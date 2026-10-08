@@ -2162,11 +2162,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 28,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/nav-menu/widgets/nav-menu.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "share existing ElementorPro nav-menu for new content; auto-hide effects, visual parity and legacy conversion pending"
     },
     "bdt-news-ticker": {
       "target": null,
