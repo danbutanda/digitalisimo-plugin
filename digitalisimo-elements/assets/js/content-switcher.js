@@ -28,5 +28,9 @@
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { init(document); }); else init(document);
-  if (window.elementorFrontend && window.elementorFrontend.hooks) window.elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-content-switcher.default', function ($scope) { init($scope[0] || document); });
+  if (window.elementorFrontend && window.elementorFrontend.hooks) {
+    ['digitalisimo-content-switcher', 'digitalisimo-fancy-tabs'].forEach(function (name) {
+      window.elementorFrontend.hooks.addAction('frontend/element_ready/' + name + '.default', function ($scope) { init($scope[0] || document); });
+    });
+  }
 })();

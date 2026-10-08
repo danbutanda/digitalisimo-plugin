@@ -1448,16 +1448,19 @@
       "status": "own editorial slider on shared carousel engine; advanced transitions, visual parity and multisite runtime pending"
     },
     "bdt-fancy-tabs": {
-      "target": null,
+      "target": "digitalisimo-fancy-tabs",
       "engine": "navigation",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 21,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "tabs": "tabs",
+        "columns": "columns"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own accessible tabs with shared navigation script and conditional CSS; advanced skins, visual parity and multisite runtime pending"
     },
     "bdt-faq": {
       "target": null,

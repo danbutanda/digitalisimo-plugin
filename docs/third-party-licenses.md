@@ -100,3 +100,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Vigesimoquinto componente reconstruido: Fancy Slider
 
 `class-fancy-slider.php` y `fancy-slider.css` son implementación propia tras revisar el módulo homónimo de Element Pack Pro 9.9.1 (GPLv3). Reutiliza el `Carousel_Engine` propio; no copia transiciones, estilos, imágenes, UIkit ni scripts de la referencia. `bdt-fancy-slider` permanece libre mientras falten paridad visual y pruebas de runtime.
+
+## Vigesimosexto componente reconstruido: Fancy Tabs
+
+`class-fancy-tabs.php` y `fancy-tabs.css` son implementación propia tras revisar el módulo homónimo de Element Pack Pro 9.9.1 (GPLv3). Reutiliza el script propio de `Content_Switcher_Widget`; no copia la interfaz, los estilos, UIkit ni JavaScript de la referencia. `bdt-fancy-tabs` permanece libre mientras falten skins y pruebas de paridad.
