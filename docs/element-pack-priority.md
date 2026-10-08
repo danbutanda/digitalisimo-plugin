@@ -11,8 +11,8 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 7. Brand Grid — base propia; paridad pendiente
 8. Brand Carousel — base propia; paridad pendiente
 9. Breadcrumbs — base propia con jerarquía de WordPress sin depender de Yoast; paridad visual y Multisite pendientes
-10. Dual Button
-11. Call Out
+10. Dual Button — base propia con dos acciones, iconos y separador; paridad visual y Multisite pendientes
+11. Call Out — base propia con título, descripción y botón; paridad visual y Multisite pendientes
 12. Comparison List
 13. Content Switcher
 14. Custom Gallery

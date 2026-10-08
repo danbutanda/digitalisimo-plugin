@@ -76,3 +76,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Decimoquinto componente reconstruido: Breadcrumbs
 
 `class-breadcrumbs.php` y `breadcrumbs.css` son una implementación propia tras estudiar `modules/breadcrumbs/widgets/breadcrumbs.php` de Element Pack Pro 9.9.1 (GPLv3). No se copió su clase, CSS, UIkit ni otros recursos. El widget Breadcrumbs ya incluido en la base derivada de PRO Elements depende de Yoast; esta variante propia usa las APIs de WordPress y no reemplaza ese widget ni el ID de Element Pack.
+
+## Decimosexto y decimoséptimo componentes reconstruidos: Dual Button y Call Out
+
+`class-dual-button.php`, `dual-button.css`, `class-call-out.php` y `call-out.css` son implementaciones propias tras estudiar `modules/dual-button/widgets/dual-button.php` y `modules/call-out/widgets/call-out.php` de Element Pack Pro 9.9.1 (GPLv3). No se copiaron sus clases, CSS, JavaScript, iconos, UIkit ni recursos gráficos. Los IDs antiguos siguen libres hasta verificar la paridad.

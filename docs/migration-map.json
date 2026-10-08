@@ -1,5 +1,5 @@
 {
-  "status": "15 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "17 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -595,16 +595,22 @@
       "status": "pending"
     },
     "bdt-call-out": {
-      "target": null,
+      "target": "digitalisimo-call-out",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 11,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "title": "title",
+        "description": "description",
+        "title_size": "title_size",
+        "button_text": "button_text",
+        "link": "link"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own semantic CTA with optional icon and link; legacy skins, animations, parity and multisite runtime pending"
     },
     "bdt-carousel": {
       "target": null,
@@ -1055,16 +1061,23 @@
       "status": "pending"
     },
     "bdt-dual-button": {
-      "target": null,
+      "target": "digitalisimo-dual-button",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 10,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "button_a_text": "button_a_text",
+        "button_a_link": "button_a_link",
+        "button_b_text": "button_b_text",
+        "button_b_link": "button_b_link",
+        "show_middle_text": "show_middle_text",
+        "middle_text": "middle_text"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own two-link widget with optional icons and separator; onclick effects, parity and multisite runtime pending"
     },
     "bdt-dynamic-carousel": {
       "target": null,

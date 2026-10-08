@@ -6,6 +6,16 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-dual-button' => array(
+			'file'  => 'class-dual-button.php',
+			'class' => Dual_Button_Widget::class,
+			'css'   => 'assets/css/dual-button.css',
+		),
+		'digitalisimo-call-out' => array(
+			'file'  => 'class-call-out.php',
+			'class' => Call_Out_Widget::class,
+			'css'   => 'assets/css/call-out.css',
+		),
 		'digitalisimo-breadcrumbs' => array(
 			'file'  => 'class-breadcrumbs.php',
 			'class' => Breadcrumbs_Widget::class,

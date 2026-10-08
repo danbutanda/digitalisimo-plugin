@@ -42,8 +42,8 @@ namespace {
 	\Digitalisimo\Elements\Widget_Registry::category( $manager );
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
-	check_animated( 15 === count( $manager->widgets ), 'Cada widget debe registrarse una sola vez.' );
-	check_animated( 16 === count( $GLOBALS['animated_styles'] ) && isset( $GLOBALS['animated_styles']['digitalisimo-advanced-divider'], $GLOBALS['animated_styles']['digitalisimo-advanced-icon-box'], $GLOBALS['animated_styles']['digitalisimo-animated-heading'], $GLOBALS['animated_styles']['digitalisimo-breadcrumbs'] ), 'Deben registrarse los estilos propios y el motor compartido sin encolarlos.' );
+	check_animated( 17 === count( $manager->widgets ), 'Cada widget debe registrarse una sola vez.' );
+	check_animated( 18 === count( $GLOBALS['animated_styles'] ) && isset( $GLOBALS['animated_styles']['digitalisimo-advanced-divider'], $GLOBALS['animated_styles']['digitalisimo-advanced-icon-box'], $GLOBALS['animated_styles']['digitalisimo-animated-heading'], $GLOBALS['animated_styles']['digitalisimo-breadcrumbs'], $GLOBALS['animated_styles']['digitalisimo-dual-button'], $GLOBALS['animated_styles']['digitalisimo-call-out'] ), 'Deben registrarse los estilos propios y el motor compartido sin encolarlos.' );
 	check_animated( 3 === count( $GLOBALS['animated_scripts'] ) && isset( $GLOBALS['animated_scripts']['digitalisimo-carousel-engine'], $GLOBALS['animated_scripts']['digitalisimo-scroll-button'], $GLOBALS['animated_scripts']['digitalisimo-animated-heading'] ), 'Sólo se registran los scripts condicionales propios.' );
 	$style = $GLOBALS['animated_styles']['digitalisimo-animated-link'];
 	check_animated( 'https://example.test/plugins/digitalisimo-elements/assets/css/animated-link.css' === $style['url'], 'El CSS debe pertenecer a Elements.' );

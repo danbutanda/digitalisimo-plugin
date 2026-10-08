@@ -28,6 +28,7 @@ jobs:
           php tests/elements-advanced-icon-box.php
           php tests/elements-animated-heading.php
           php tests/elements-breadcrumbs.php
+          php tests/elements-actions.php
           node tests/elements-slider-multiple.mjs
           for module in seo ia hosting backups tools elements; do php tests/update-enqueue.php "$module"; done
           php tests/performance-runtime.php
