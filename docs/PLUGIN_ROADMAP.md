@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · control de registro en Login | En validación · 4.3.0.54 | El control del editor consulta la política efectiva de la red o del sitio y tolera documentos antiguos sin la clave `show_register`. | Pendientes pruebas completas, ZIP y publicación. |
+| DIGITALÍSIMO Elements · User Register | En validación · 4.3.0.55 | Widget propio que enlaza al registro nativo cuando la política sitio/red permite crear cuentas; CSS condicional, sin JS ni procesador de usuarios paralelo. | Pendientes pruebas completas, ZIP, publicación, formulario embebido, skins, conversión legacy y runtime real en WordPress individual y Multisite. No ocupa `bdt-user-register`. |
+
+| DIGITALÍSIMO Elements · control de registro en Login | Publicado · 4.3.0.54 · `v2026.10.08.299` | El control del editor consulta la política efectiva de la red o del sitio y tolera documentos antiguos sin la clave `show_register`. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#610` y publicación `#299` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.54.zip` (3,677,799 bytes). |
 
 | DIGITALÍSIMO Elements · Login por instancia y red | Publicado · 4.3.0.53 · `v2026.10.08.298` | Corrige IDs duplicados de «Recordarme» y consulta la política de registro de la red para mostrar el enlace en Multisite. | Pasaron pruebas PHP de Elements, política de registro en sitio/red, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#609` y publicación `#298` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.53.zip` (3,677,742 bytes). El control del editor se completa en 4.3.0.54. User Login sigue sin skins ni conversión legacy. |
 

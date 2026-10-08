@@ -52,7 +52,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 48. Tags Cloud — base propia de términos públicos por sitio; paridad visual y Multisite pendientes
 49. Total Count — base propia con conteos públicos por sitio, sin animación ni JS; paridad visual y legacy pendientes
 50. User Login — `login` ya incluido cubre el formulario básico; skins, sociales y conversión legacy pendientes
-51. User Register — pendiente; debe respetar la configuración de altas de WordPress y de Multisite
+51. User Register — base propia con enlace al registro nativo y política sitio/red; formulario embebido, skins y legacy pendientes
 52. Vertical Menu — `nav-menu` cubre menú WordPress básico; diseños verticales y conversión legacy pendientes
 53. Video Player
 

@@ -3211,7 +3211,7 @@
       "status": "existing-widget-for-new-content; no legacy conversion"
     },
     "bdt-user-register": {
-      "target": null,
+      "target": "digitalisimo-user-register",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
@@ -3220,7 +3220,7 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "native-registration-link-base; embedded form and legacy conversion pending"
     },
     "bdt-vertical-menu": {
       "target": null,
