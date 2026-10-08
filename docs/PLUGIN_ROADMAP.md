@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Comparison List y Content Switcher | Implementado · 4.3.0.37 · publicación pendiente | Tabla comparativa semántica y alternador de contenido accesible, con assets condicionales y sin UIkit. | Pruebas locales y ZIP pendientes. No ocupan los IDs `bdt-*`; faltan skins, fuentes avanzadas, paridad visual y prueba real en Multisite. |
+| DIGITALÍSIMO Elements · Comparison List y Content Switcher | Publicado · 4.3.0.37 · `v2026.10.08.282` | Tabla comparativa semántica y alternador de contenido accesible, con assets condicionales y sin UIkit. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#577` y publicación `#282` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.37.zip`. No ocupan los IDs `bdt-*`; faltan skins, fuentes avanzadas, paridad visual y prueba real en Multisite. |
 
 | DIGITALÍSIMO Elements · Dual Button y Call Out | Publicado · 4.3.0.36 · `v2026.10.08.281` | Dos widgets propios con acciones semánticas, controles responsivos y CSS condicional; sin JavaScript ni UIkit. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#575` y publicación `#281` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.36.zip`. No ocupan los IDs `bdt-*`; faltan efectos, paridad visual y prueba real en Multisite. |
 
