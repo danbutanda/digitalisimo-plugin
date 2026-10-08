@@ -2066,11 +2066,11 @@
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 26,
-      "existing_elements_widget_candidate": null,
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/lottie/widgets/lottie.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "share existing ElementorPro Lottie widget for new content; legacy control conversion and parity pending; no duplicate player"
     },
     "bdt-mailchimp": {
       "target": null,
