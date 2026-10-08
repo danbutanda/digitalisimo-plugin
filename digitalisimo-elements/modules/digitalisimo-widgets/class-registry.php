@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-video-player' => array(
+			'file'  => 'class-video-player.php',
+			'class' => Video_Player_Widget::class,
+			'css'   => 'modules/digitalisimo-widgets/assets/css/video-player.css',
+		),
 		'digitalisimo-user-register' => array(
 			'file'  => 'class-user-register.php',
 			'class' => User_Register_Widget::class,

@@ -3247,7 +3247,7 @@
       "status": "pending"
     },
     "bdt-video-player": {
-      "target": null,
+      "target": "digitalisimo-video-player",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
@@ -3256,7 +3256,7 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "native-video-widget-base; jPlayer skins and legacy conversion pending"
     },
     "bdt-wc-add-to-cart": {
       "target": null,

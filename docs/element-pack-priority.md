@@ -54,7 +54,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 50. User Login — `login` ya incluido cubre el formulario básico; skins, sociales y conversión legacy pendientes
 51. User Register — base propia con enlace al registro nativo y política sitio/red; formulario embebido, skins y legacy pendientes
 52. Vertical Menu — `nav-menu` cubre menú WordPress básico; diseños verticales y conversión legacy pendientes
-53. Video Player
+53. Video Player — base propia con video HTML nativo y carga bajo demanda; skins y legacy pendientes
 
 Funciones y extensiones del mismo bloque prioritario:
 
