@@ -1,5 +1,5 @@
 {
-  "status": "30 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "31 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -2193,16 +2193,25 @@
       "status": "pending"
     },
     "bdt-notification": {
-      "target": null,
+      "target": "digitalisimo-notification",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 29,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "notification_type": "notification_type",
+        "notification_event": "notification_event",
+        "notification_selector": "notification_selector",
+        "notification_in_delay": "notification_in_delay",
+        "notification_timeout": "notification_timeout",
+        "notification_position": "notification_position",
+        "notification_pos_fixed": "notification_pos_fixed",
+        "notification_content": "notification_content"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own popup and fixed notice with conditional assets; Elementor templates, visual parity and multisite runtime pending"
     },
     "bdt-offcanvas": {
       "target": null,

@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-notification' => array(
+			'file'  => 'class-notification.php',
+			'class' => Notification_Widget::class,
+			'css'   => 'assets/css/notification.css',
+		),
 		'digitalisimo-icon-nav' => array(
 			'file'  => 'class-icon-nav.php',
 			'class' => Icon_Nav_Widget::class,
@@ -186,6 +191,9 @@ final class Widget_Registry {
 	}
 
 	public static function scripts() {
+		if ( ! wp_script_is( 'digitalisimo-notification', 'registered' ) ) {
+			wp_register_script( 'digitalisimo-notification', plugins_url( 'assets/js/notification.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+		}
 		if ( ! wp_script_is( 'digitalisimo-google-reviews', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-google-reviews', plugins_url( 'assets/js/google-reviews.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}

@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Notification | En validación · 4.3.0.47 | Widget propio de aviso flotante o barra fija, con activadores acotados, cierre accesible y recursos condicionales. | Pendientes pruebas, publicación, plantillas Elementor, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-notification`. |
+
 | DIGITALÍSIMO Elements · Navbar | Cubierto para nuevos contenidos; migración legacy pendiente | El derivado ya incluye el widget `nav-menu` de Elementor Pro para menús WordPress y submenús. | Se revisaron `bdt-navbar` y el widget existente. No se añade un segundo motor de menú ni se ocupa `bdt-navbar`; faltan autoocultación, skins de referencia y conversión segura de documentos antiguos. No requiere versión ni ZIP nuevos. |
 
 | DIGITALÍSIMO Elements · Lottie Image | Cubierto para nuevos contenidos; migración legacy pendiente | El derivado ya registra el widget `lottie` de Elementor Pro con JSON de Medios o URL, enlace, leyenda, reproducción y recursos condicionales. | Se revisó `bdt-lottie-image` y el widget existente. No se añade un segundo reproductor ni se ocupa `bdt-lottie-image`; faltan mapa de controles, paridad visual y conversión segura de documentos antiguos. No requiere versión ni ZIP nuevos. |

@@ -30,7 +30,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 26. Lottie Image — para contenido nuevo usar el widget `lottie` ya incluido en Elements; conversión de documentos `bdt-lottie-image` pendiente
 27. Logo Grid — base propia; paridad pendiente
 28. Navbar — para contenido nuevo usar el widget `nav-menu` ya incluido en Elements; autoocultación, skins y conversión legacy pendientes
-29. Notification
+29. Notification — base propia con avisos flotantes o fijos y activación configurable; plantillas, skins y Multisite pendientes
 30. Offcanvas
 31. Price List
 32. Price Table

@@ -120,3 +120,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Trigésimo componente reconstruido: Icon Nav
 
 `class-icon-nav.php` y `icon-nav.css` son implementación propia tras analizar el widget de Element Pack Pro 9.9.1 (GPLv3). No se reutilizan clases, CSS, JavaScript, iconos ni el walker del original. El panel del menú usa HTML nativo y funciones WordPress del sitio actual. `bdt-iconnav` permanece libre mientras falten paridad y pruebas de runtime.
+
+## Trigésimo primer componente reconstruido: Notification
+
+`class-notification.php`, `notification.css` y `notification.js` son implementación propia tras analizar el widget de Element Pack Pro 9.9.1 (GPLv3). No se reutilizan clases, CSS, JavaScript ni UIkit del original. `bdt-notification` permanece libre mientras falten paridad y pruebas de runtime.
