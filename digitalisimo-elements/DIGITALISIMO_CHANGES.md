@@ -1,8 +1,10 @@
-# DIGITALÍSIMO Elements 4.3.0.56
+# DIGITALÍSIMO Elements 4.3.0.57
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
 Cambios de DIGITALÍSIMO respecto del ZIP original:
+
+- 4.3.0.57: incorpora Backdrop Filter opcional en widgets y contenedores Elementor, con desenfoque, brillo y saturación generados por controles CSS. Apagado por defecto y sin recursos globales de frontend.
 
 - 4.3.0.56: añade Video Player con `<video>` nativo, portada, proporción estable, controles accesibles y `preload="none"`, sin jPlayer ni JavaScript propio. Rechaza adjuntos que no son video y URLs con esquemas no HTTP(S).
 
