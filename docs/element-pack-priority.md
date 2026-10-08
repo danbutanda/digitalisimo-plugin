@@ -34,7 +34,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 30. Offcanvas — para contenido nuevo usar el widget `off-canvas` ya incluido en Elements; conversión de documentos `bdt-offcanvas` pendiente
 31. Price List — para contenido nuevo usar el widget `price-list` ya incluido en Elements; distintivos, precio anterior y conversión legacy pendientes
 32. Price Table — para contenido nuevo usar el widget `price-table` ya incluido en Elements; nueve layouts, integraciones y conversión legacy pendientes
-33. Product Grid
+33. Product Grid — base propia de fichas manuales; skins, paridad visual y Multisite pendientes
 34. Post Grid
 35. Post List
 36. Profile Card

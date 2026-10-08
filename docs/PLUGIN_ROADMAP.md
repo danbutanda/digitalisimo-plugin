@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Product Grid | En validación · 4.3.0.48 | Widget propio de fichas manuales con imágenes de Medios, columnas responsivas, enlace explícito y CSS condicional. | Pruebas de render, registro y enlace legacy correctas. Pendientes suite de paquetes, publicación, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-product-grid` ni consulta WooCommerce. |
+
 | DIGITALÍSIMO Elements · Price List y Price Table | Cubiertos para nuevos contenidos; migración legacy pendiente | El derivado ya incluye `price-list` y `price-table` de Elementor Pro con recursos de estilo condicionales. | Se revisaron los módulos homónimos de Element Pack y los dos widgets existentes. No se publican duplicados ni se ocupan IDs `bdt-*`; faltan precio anterior/distintivos, layouts especiales, integraciones y conversión segura de documentos antiguos. No requiere versión ni ZIP nuevos. |
 
 | DIGITALÍSIMO Elements · Offcanvas | Cubierto para nuevos contenidos; migración legacy pendiente | El derivado ya incluye el widget `off-canvas` de Elementor Pro, con panel anidado, contenido editable y estilo condicional. | Se revisaron `bdt-offcanvas` y el widget existente. No se añade un segundo motor ni se ocupa `bdt-offcanvas`; faltan equivalencia de fuentes externas, mapa de controles y conversión segura de documentos antiguos. No requiere versión ni ZIP nuevos. |

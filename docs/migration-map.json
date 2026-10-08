@@ -1,5 +1,5 @@
 {
-  "status": "31 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "32 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -2478,16 +2478,30 @@
       "status": "pending"
     },
     "bdt-product-grid": {
-      "target": null,
+      "target": "digitalisimo-product-grid",
       "engine": "commerce",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 33,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "product_items": "product_items",
+        "image": "image",
+        "title": "title",
+        "price": "price",
+        "text": "text",
+        "readmore_link": "readmore_link",
+        "rating_number": "rating_number",
+        "rating_count": "rating_count",
+        "time": "time",
+        "badge_text": "badge_text",
+        "columns": "columns",
+        "column_gap": "column_gap",
+        "row_gap": "row_gap"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own manual product cards with conditional CSS; reference skins, advanced controls, visual parity and multisite runtime pending"
     },
     "bdt-profile-card": {
       "target": null,

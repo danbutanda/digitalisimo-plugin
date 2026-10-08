@@ -6,6 +6,11 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-product-grid' => array(
+			'file'  => 'class-product-grid.php',
+			'class' => Product_Grid_Widget::class,
+			'css'   => 'assets/css/product-grid.css',
+		),
 		'digitalisimo-notification' => array(
 			'file'  => 'class-notification.php',
 			'class' => Notification_Widget::class,
