@@ -50,7 +50,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 46. Table — base propia de CSV estático accesible; fuentes externas, skins y Multisite pendientes
 47. Table Of Content — `table-of-contents` ya incluido; paridad de controles y conversión legacy pendientes
 48. Tags Cloud — base propia de términos públicos por sitio; paridad visual y Multisite pendientes
-49. Total Count
+49. Total Count — base propia con conteos públicos por sitio, sin animación ni JS; paridad visual y legacy pendientes
 50. User Login
 51. User Register
 52. Vertical Menu

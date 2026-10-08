@@ -1,8 +1,10 @@
-# DIGITALÍSIMO Elements 4.3.0.51
+# DIGITALÍSIMO Elements 4.3.0.52
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
 Cambios de DIGITALÍSIMO respecto del ZIP original:
+
+- 4.3.0.52: añade Total Count con conteos públicos limitados al sitio actual y sin animación ni JavaScript. Corrige la ruta de CSS de Product Grid, QR Code, Table y Tags Cloud y la ruta de los scripts QR locales; añade una prueba que comprueba que todos los assets registrados existen.
 
 - Nombre, avisos visibles y página «Acerca de» con logos de DIGITALÍSIMO; los identificadores internos `ElementorPro`, `elementor-pro` y `ELEMENTOR_PRO_*` se conservan por compatibilidad.
 - Aviso explícito cuando Elementor Pro u otro derivado ya se cargó.

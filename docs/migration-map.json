@@ -3115,7 +3115,7 @@
       "status": "pending"
     },
     "bdt-total-count": {
-      "target": null,
+      "target": "digitalisimo-total-count",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
@@ -3124,7 +3124,7 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own-widget-base; no legacy conversion"
     },
     "bdt-trailer-box": {
       "target": null,

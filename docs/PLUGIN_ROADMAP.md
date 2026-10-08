@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Tags Cloud | En validación · 4.3.0.51 | Widget propio de términos públicos por sitio, con límite, orden, enlaces semánticos y CSS condicional. | Pendientes pruebas PHP, regresión, suite de paquetes, publicación, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-tags-cloud`. |
+| DIGITALÍSIMO Elements · Total Count y rutas de assets | En validación · 4.3.0.52 | Contador propio de publicaciones, comentarios aprobados y usuarios del sitio actual; corregidas las rutas de CSS de Product Grid, QR Code, Table y Tags Cloud, y el JS local de QR Code. | Pendientes suite completa, ZIP, publicación, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-total-count`. |
+
+| DIGITALÍSIMO Elements · Tags Cloud | Publicado · 4.3.0.51 · `v2026.10.08.296` | Widget propio de términos públicos por sitio, con límite, orden, enlaces semánticos y CSS condicional. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#606` y publicación `#296` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.51.zip` (3,675,318 bytes). La ruta CSS se corrige en 4.3.0.52. Faltan paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-tags-cloud`. |
 
 | DIGITALÍSIMO Elements · Table | Publicado · 4.3.0.50 · `v2026.10.08.295` | Widget propio para tabla CSV estática con encabezados semánticos, filas limitadas y CSS condicional. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#605` y publicación `#295` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.50.zip` (3,672,846 bytes). Faltan fuentes externas, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-table`. |
 

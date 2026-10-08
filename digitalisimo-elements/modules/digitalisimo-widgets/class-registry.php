@@ -6,25 +6,30 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-total-count' => array(
+			'file'  => 'class-total-count.php',
+			'class' => Total_Count_Widget::class,
+			'css'   => 'modules/digitalisimo-widgets/assets/css/total-count.css',
+		),
 		'digitalisimo-tags-cloud' => array(
 			'file'  => 'class-tags-cloud.php',
 			'class' => Tags_Cloud_Widget::class,
-			'css'   => 'assets/css/tags-cloud.css',
+			'css'   => 'modules/digitalisimo-widgets/assets/css/tags-cloud.css',
 		),
 		'digitalisimo-table' => array(
 			'file'  => 'class-table.php',
 			'class' => Table_Widget::class,
-			'css'   => 'assets/css/table.css',
+			'css'   => 'modules/digitalisimo-widgets/assets/css/table.css',
 		),
 		'digitalisimo-qr-code' => array(
 			'file'  => 'class-qr-code.php',
 			'class' => QR_Code_Widget::class,
-			'css'   => 'assets/css/qr-code.css',
+			'css'   => 'modules/digitalisimo-widgets/assets/css/qr-code.css',
 		),
 		'digitalisimo-product-grid' => array(
 			'file'  => 'class-product-grid.php',
 			'class' => Product_Grid_Widget::class,
-			'css'   => 'assets/css/product-grid.css',
+			'css'   => 'modules/digitalisimo-widgets/assets/css/product-grid.css',
 		),
 		'digitalisimo-notification' => array(
 			'file'  => 'class-notification.php',
@@ -212,10 +217,10 @@ final class Widget_Registry {
 
 	public static function scripts() {
 		if ( ! wp_script_is( 'digitalisimo-qr-vendor', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-qr-vendor', plugins_url( 'assets/js/third-party/jquery-qrcode.min.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'jquery' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-qr-vendor', plugins_url( 'modules/digitalisimo-widgets/assets/js/third-party/jquery-qrcode.min.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'jquery' ), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}
 		if ( ! wp_script_is( 'digitalisimo-qr-code', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-qr-code', plugins_url( 'assets/js/qr-code.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'digitalisimo-qr-vendor' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-qr-code', plugins_url( 'modules/digitalisimo-widgets/assets/js/qr-code.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'digitalisimo-qr-vendor' ), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}
 		if ( ! wp_script_is( 'digitalisimo-notification', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-notification', plugins_url( 'assets/js/notification.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
