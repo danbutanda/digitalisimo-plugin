@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Icon Nav | En validación · 4.3.0.46 | Barra lateral propia con enlaces accesibles, marca y menú WordPress del sitio actual en panel nativo. | Pendientes pruebas, publicación, efectos de referencia, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-iconnav`. |
+| DIGITALÍSIMO Elements · Icon Nav | Publicado · 4.3.0.46 · `v2026.10.08.291` | Barra lateral propia con enlaces accesibles, marca y menú WordPress del sitio actual en panel nativo. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#595` y publicación `#291` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.46.zip` (3,647,262 bytes). Faltan efectos de referencia, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-iconnav`. |
 
 | DIGITALÍSIMO Elements · Icon Mobile Menu | Publicado · 4.3.0.45 · `v2026.10.08.290` | Widget propio con cuatro diseños, enlaces accesibles, CSS condicional y nombres emergentes sin Popper/Tippy. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#593` y publicación `#290` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.45.zip` (3,643,230 bytes). Faltan paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-icon-mobile-menu`. |
 
