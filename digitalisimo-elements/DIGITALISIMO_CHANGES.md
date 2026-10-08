@@ -1,4 +1,4 @@
-# DIGITALÍSIMO Elements 4.3.0.38
+# DIGITALÍSIMO Elements 4.3.0.39
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
@@ -43,5 +43,6 @@ Cambios de DIGITALÍSIMO respecto del ZIP original:
 - 4.3.0.36: añade Botón doble y Llamada a la acción como widgets propios. Ambos usan enlaces semánticos, textos saneados, controles de estilo responsivo y CSS condicional sin JavaScript. No registran los IDs antiguos de Element Pack mientras su equivalencia visual y efectos siguen pendientes.
 - 4.3.0.37: añade Lista comparativa como tabla semántica con desplazamiento horizontal, y Alternador de contenido con pestañas, navegación por teclado e instancias aisladas. Los recursos se solicitan sólo al usar cada widget. No ocupa los IDs antiguos de Element Pack; sus skins y fuentes de contenido avanzadas siguen pendientes.
 - 4.3.0.38: añade Galería personalizada con selección múltiple de Medios, ALT/srcset y enlaces individuales, y Botón creativo con cinco efectos CSS, foco visible y movimiento reducido. Cada widget sólo solicita su CSS al usarse; no registra IDs antiguos de Element Pack.
+- 4.3.0.39: añade Slider de dispositivos usando el motor de carrusel compartido y Tarjeta destacada con imagen/icono, título, descripción y CTA semánticos. Ambos cargan sólo sus estilos y el slider reutiliza un único script. Refuerza además los valores predeterminados de los nuevos widgets cuando Elementor aún no entrega un control. No registra IDs antiguos de Element Pack.
 
 Requisitos de esta base: WordPress 6.8+, PHP 7.4+, Elementor gratuito 4.0+ (recomendado 4.3+). Elementor Pro u otra copia de PRO Elements no deben estar activos al mismo tiempo. Funciones como bibliotecas o servicios alojados por Elementor pueden requerir cuenta, conexión o permisos independientes; la licencia GPL del código no concede acceso a dichos servicios.

@@ -1,5 +1,5 @@
 {
-  "status": "21 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "23 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -1024,16 +1024,19 @@
       "status": "pending"
     },
     "bdt-device-slider": {
-      "target": null,
+      "target": "digitalisimo-device-slider",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 1,
       "user_priority_order": 16,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "device_type": "device_type (desktop, tablet, mobile, browser)",
+        "slides": "slides (image, title, link)"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own device frame on shared native carousel engine; additional device skins, visual parity and multisite runtime pending"
     },
     "bdt-document-viewer": {
       "target": "digitalisimo-document-viewer",
@@ -1371,16 +1374,23 @@
       "status": "pending"
     },
     "bdt-fancy-card": {
-      "target": null,
+      "target": "digitalisimo-fancy-card",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 17,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "icon_type": "icon_type",
+        "selected_icon": "selected_icon",
+        "image": "image",
+        "title_text": "title_text",
+        "description_text": "description_text",
+        "link": "link"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own always-visible semantic card with image or icon, badge and optional CTA; advanced skins, visual parity and multisite runtime pending"
     },
     "bdt-fancy-icons": {
       "target": null,

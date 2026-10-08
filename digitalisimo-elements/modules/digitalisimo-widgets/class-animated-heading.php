@@ -49,7 +49,7 @@ final class Animated_Heading_Widget extends \Elementor\Widget_Base {
 		$after = trim( wp_strip_all_tags( (string) ( $s['after_text'] ?? '' ) ) );
 		$phrases = self::phrases( $s['animated_text'] ?? '' );
 		if ( '' === $before && '' === $after && ! $phrases ) { return; }
-		$tag = in_array( $s['heading_tag'] ?? 'h2', array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div' ), true ) ? $s['heading_tag'] : 'h2';
+		$tag = in_array( $s['heading_tag'] ?? 'h2', array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div' ), true ) ? ( $s['heading_tag'] ?? 'h2' ) : 'h2';
 		$link = is_array( $s['heading_link'] ?? null ) ? $s['heading_link'] : array();
 		$interval = min( 15000, max( 1500, absint( $s['interval'] ?? 3000 ) ) );
 		$rotates = 'yes' === ( $s['rotate'] ?? 'yes' ) && count( $phrases ) > 1;

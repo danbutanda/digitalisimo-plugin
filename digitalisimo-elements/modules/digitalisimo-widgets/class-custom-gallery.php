@@ -48,7 +48,7 @@ final class Custom_Gallery_Widget extends \Elementor\Widget_Base {
 		$s = $this->get_settings_for_display();
 		$items = self::items( $s );
 		if ( ! $items ) { return; }
-		$size = in_array( $s['image_size'] ?? 'large', array( 'medium', 'large', 'full' ), true ) ? $s['image_size'] : 'large';
+		$size = in_array( $s['image_size'] ?? 'large', array( 'medium', 'large', 'full' ), true ) ? ( $s['image_size'] ?? 'large' ) : 'large';
 		echo '<div class="digi-custom-gallery"><ul class="digi-custom-gallery__list">';
 		foreach ( $items as $index => $item ) {
 			$image = $item['image'];

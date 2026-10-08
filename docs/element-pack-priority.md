@@ -17,8 +17,8 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 13. Content Switcher — base propia en pestañas accesibles; contenidos avanzados y Multisite pendientes
 14. Custom Gallery — base propia con selección múltiple y datos individuales; lightbox y Multisite pendientes
 15. Creative Button — base propia con cinco efectos CSS; skins de referencia y Multisite pendientes
-16. Device Slider
-17. Fancy Card
+16. Device Slider — base propia sobre motor de carrusel compartido; marcos avanzados y Multisite pendientes
+17. Fancy Card — base propia con imagen o icono y CTA; skins y Multisite pendientes
 18. Fancy List — base propia; paridad pendiente
 19. Fancy Icons
 20. Fancy Slider

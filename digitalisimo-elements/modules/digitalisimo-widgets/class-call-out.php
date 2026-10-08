@@ -39,7 +39,7 @@ final class Call_Out_Widget extends \Elementor\Widget_Base {
 		$button = trim( wp_strip_all_tags( (string) ( $s['button_text'] ?? '' ) ) );
 		$link = is_array( $s['link'] ?? null ) ? $s['link'] : array();
 		if ( '' === $title && '' === $description && ( '' === $button || empty( $link['url'] ) ) ) { return; }
-		$tag = in_array( $s['title_size'] ?? 'h3', array( 'h2', 'h3', 'h4', 'h5', 'h6', 'div' ), true ) ? $s['title_size'] : 'h3';
+		$tag = in_array( $s['title_size'] ?? 'h3', array( 'h2', 'h3', 'h4', 'h5', 'h6', 'div' ), true ) ? ( $s['title_size'] ?? 'h3' ) : 'h3';
 		echo '<div class="digi-call-out"><div class="digi-call-out__content">';
 		if ( $title ) { echo '<' . esc_attr( $tag ) . ' class="digi-call-out__title">' . esc_html( $title ) . '</' . esc_attr( $tag ) . '>'; }
 		if ( $description ) { echo '<p class="digi-call-out__description">' . nl2br( esc_html( $description ) ) . '</p>'; }

@@ -88,3 +88,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Vigésimo y vigesimoprimer componentes reconstruidos: Custom Gallery y Creative Button
 
 `class-custom-gallery.php`, `custom-gallery.css`, `class-creative-button.php` y `creative-button.css` son implementaciones propias tras estudiar los módulos homónimos de Element Pack Pro 9.9.1 (GPLv3). No se copiaron sus clases, estilos, Tilt.js, UIkit, imágenes ni iconos. Los IDs antiguos siguen libres hasta verificar la paridad.
+
+## Vigesimosegundo y vigesimotercer componentes reconstruidos: Device Slider y Fancy Card
+
+`class-device-slider.php`, `device-slider.css`, `class-fancy-card.php` y `fancy-card.css` son implementaciones propias tras estudiar los módulos homónimos de Element Pack Pro 9.9.1 (GPLv3). No se copiaron sus clases, estilos, dispositivos gráficos, UIkit, imágenes ni iconos. Device Slider utiliza únicamente `Carousel_Engine` propio; los IDs antiguos siguen libres hasta verificar la paridad.

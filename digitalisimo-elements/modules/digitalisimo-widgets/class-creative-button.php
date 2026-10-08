@@ -33,7 +33,7 @@ final class Creative_Button_Widget extends \Elementor\Widget_Base {
 		$s = $this->get_settings_for_display();
 		$text = trim( wp_strip_all_tags( (string) ( $s['text'] ?? '' ) ) );
 		if ( '' === $text ) { return; }
-		$effect = in_array( $s['effect'] ?? 'fill', array( 'fill', 'outline', 'lift', 'underline', 'glow' ), true ) ? $s['effect'] : 'fill';
+		$effect = in_array( $s['effect'] ?? 'fill', array( 'fill', 'outline', 'lift', 'underline', 'glow' ), true ) ? ( $s['effect'] ?? 'fill' ) : 'fill';
 		$link = is_array( $s['link'] ?? null ) ? $s['link'] : array();
 		$has_link = ! empty( $link['url'] );
 		echo '<div class="digi-creative-button__wrap">';

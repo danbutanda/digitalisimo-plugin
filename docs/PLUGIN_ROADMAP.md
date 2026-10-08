@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Device Slider y Fancy Card | Implementado · 4.3.0.39 · publicación pendiente | Slider de capturas con marco responsivo y motor compartido; tarjeta semántica con imagen/icono y CTA. | Pruebas locales y ZIP pendientes. No ocupan los IDs `bdt-*`; faltan marcos y skins avanzados, paridad visual y prueba real en Multisite. |
+
 | DIGITALÍSIMO Elements · Custom Gallery y Creative Button | Publicado · 4.3.0.38 · `v2026.10.08.283` | Galería de Medios con ALT/srcset y enlaces individuales; botón con cinco efectos CSS, sin JavaScript ni UIkit. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#579` y publicación `#283` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.38.zip`. No ocupan los IDs `bdt-*`; faltan lightbox, skins, paridad visual y prueba real en Multisite. |
 
 | DIGITALÍSIMO Elements · Comparison List y Content Switcher | Publicado · 4.3.0.37 · `v2026.10.08.282` | Tabla comparativa semántica y alternador de contenido accesible, con assets condicionales y sin UIkit. | Pasaron pruebas PHP de Elements, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#577` y publicación `#282` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.37.zip`. No ocupan los IDs `bdt-*`; faltan skins, fuentes avanzadas, paridad visual y prueba real en Multisite. |

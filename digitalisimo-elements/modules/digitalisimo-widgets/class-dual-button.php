@@ -56,7 +56,7 @@ final class Dual_Button_Widget extends \Elementor\Widget_Base {
 		$first = $this->button( $s, 'a' );
 		$second = $this->button( $s, 'b' );
 		if ( ! $first && ! $second ) { return; }
-		$size = in_array( $s['size'] ?? 'medium', array( 'small', 'medium', 'large' ), true ) ? $s['size'] : 'medium';
+		$size = in_array( $s['size'] ?? 'medium', array( 'small', 'medium', 'large' ), true ) ? ( $s['size'] ?? 'medium' ) : 'medium';
 		echo '<div class="digi-dual-button digi-dual-button--' . esc_attr( $size ) . '">' . $first;
 		if ( $first && $second && 'yes' === ( $s['show_middle_text'] ?? '' ) && ! empty( $s['middle_text'] ) ) { echo '<span class="digi-dual-button__middle">' . esc_html( wp_strip_all_tags( $s['middle_text'] ) ) . '</span>'; }
 		echo $second . '</div>';
