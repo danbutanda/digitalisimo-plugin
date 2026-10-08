@@ -32,8 +32,8 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 28. Navbar — para contenido nuevo usar el widget `nav-menu` ya incluido en Elements; autoocultación, skins y conversión legacy pendientes
 29. Notification — base propia con avisos flotantes o fijos y activación configurable; plantillas, skins y Multisite pendientes
 30. Offcanvas — para contenido nuevo usar el widget `off-canvas` ya incluido en Elements; conversión de documentos `bdt-offcanvas` pendiente
-31. Price List
-32. Price Table
+31. Price List — para contenido nuevo usar el widget `price-list` ya incluido en Elements; distintivos, precio anterior y conversión legacy pendientes
+32. Price Table — para contenido nuevo usar el widget `price-table` ya incluido en Elements; nueve layouts, integraciones y conversión legacy pendientes
 33. Product Grid
 34. Post Grid
 35. Post List
