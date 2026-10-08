@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Notification | En validación · 4.3.0.47 | Widget propio de aviso flotante o barra fija, con activadores acotados, cierre accesible y recursos condicionales. | Pendientes pruebas, publicación, plantillas Elementor, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-notification`. |
+| DIGITALÍSIMO Elements · Offcanvas | Cubierto para nuevos contenidos; migración legacy pendiente | El derivado ya incluye el widget `off-canvas` de Elementor Pro, con panel anidado, contenido editable y estilo condicional. | Se revisaron `bdt-offcanvas` y el widget existente. No se añade un segundo motor ni se ocupa `bdt-offcanvas`; faltan equivalencia de fuentes externas, mapa de controles y conversión segura de documentos antiguos. No requiere versión ni ZIP nuevos. |
+
+| DIGITALÍSIMO Elements · Notification | Publicado · 4.3.0.47 · `v2026.10.08.292` | Widget propio de aviso flotante o barra fija, con activadores acotados, cierre accesible y recursos condicionales. | Pasaron pruebas PHP de Elements, sintaxis JS, regresión del Slider Optimizado, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#599` y publicación `#292` terminaron correctamente; la Release incluye sólo `digitalisimo-elements-4.3.0.47.zip` (3,651,111 bytes). Faltan plantillas Elementor, paridad visual y runtime real en WordPress individual y Multisite. No ocupa `bdt-notification`. |
 
 | DIGITALÍSIMO Elements · Navbar | Cubierto para nuevos contenidos; migración legacy pendiente | El derivado ya incluye el widget `nav-menu` de Elementor Pro para menús WordPress y submenús. | Se revisaron `bdt-navbar` y el widget existente. No se añade un segundo motor de menú ni se ocupa `bdt-navbar`; faltan autoocultación, skins de referencia y conversión segura de documentos antiguos. No requiere versión ni ZIP nuevos. |
 
