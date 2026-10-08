@@ -6,6 +6,16 @@ defined( 'ABSPATH' ) || exit;
 /** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
 final class Widget_Registry {
 	private const WIDGETS = array(
+		'digitalisimo-custom-gallery' => array(
+			'file'  => 'class-custom-gallery.php',
+			'class' => Custom_Gallery_Widget::class,
+			'css'   => 'assets/css/custom-gallery.css',
+		),
+		'digitalisimo-creative-button' => array(
+			'file'  => 'class-creative-button.php',
+			'class' => Creative_Button_Widget::class,
+			'css'   => 'assets/css/creative-button.css',
+		),
 		'digitalisimo-comparison-list' => array(
 			'file'  => 'class-comparison-list.php',
 			'class' => Comparison_List_Widget::class,

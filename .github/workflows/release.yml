@@ -65,6 +65,7 @@ jobs:
           php tests/elements-breadcrumbs.php
           php tests/elements-actions.php
           php tests/elements-comparison-switcher.php
+          php tests/elements-gallery-creative.php
           php tests/elements-duplicator.php
           node tests/elements-carousel-engine.mjs
           php tests/performance-hero.php

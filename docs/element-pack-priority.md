@@ -15,8 +15,8 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 11. Call Out — base propia con título, descripción y botón; paridad visual y Multisite pendientes
 12. Comparison List — base propia en tabla semántica; variantes y Multisite pendientes
 13. Content Switcher — base propia en pestañas accesibles; contenidos avanzados y Multisite pendientes
-14. Custom Gallery
-15. Creative Button
+14. Custom Gallery — base propia con selección múltiple y datos individuales; lightbox y Multisite pendientes
+15. Creative Button — base propia con cinco efectos CSS; skins de referencia y Multisite pendientes
 16. Device Slider
 17. Fancy Card
 18. Fancy List — base propia; paridad pendiente

@@ -30,6 +30,7 @@ jobs:
           php tests/elements-breadcrumbs.php
           php tests/elements-actions.php
           php tests/elements-comparison-switcher.php
+          php tests/elements-gallery-creative.php
           node tests/elements-slider-multiple.mjs
           for module in seo ia hosting backups tools elements; do php tests/update-enqueue.php "$module"; done
           php tests/performance-runtime.php

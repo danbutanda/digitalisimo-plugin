@@ -84,3 +84,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 ## Decimoctavo y decimonoveno componentes reconstruidos: Comparison List y Content Switcher
 
 `class-comparison-list.php`, `comparison-list.css`, `class-content-switcher.php`, `content-switcher.css` y `content-switcher.js` son implementaciones propias tras estudiar los módulos homónimos de Element Pack Pro 9.9.1 (GPLv3). No se copiaron sus clases, CSS, JavaScript, UIkit ni recursos gráficos. Los IDs antiguos siguen libres hasta verificar la paridad.
+
+## Vigésimo y vigesimoprimer componentes reconstruidos: Custom Gallery y Creative Button
+
+`class-custom-gallery.php`, `custom-gallery.css`, `class-creative-button.php` y `creative-button.css` son implementaciones propias tras estudiar los módulos homónimos de Element Pack Pro 9.9.1 (GPLv3). No se copiaron sus clases, estilos, Tilt.js, UIkit, imágenes ni iconos. Los IDs antiguos siguen libres hasta verificar la paridad.

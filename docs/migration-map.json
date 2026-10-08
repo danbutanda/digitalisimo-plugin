@@ -1,5 +1,5 @@
 {
-  "status": "19 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "21 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
@@ -872,16 +872,19 @@
       "status": "pending"
     },
     "bdt-creative-button": {
-      "target": null,
+      "target": "digitalisimo-creative-button",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 15,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "text": "text",
+        "link": "link"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own CSS-only creative button with five safe effects; 27 legacy effect skins, visual parity and multisite runtime pending"
     },
     "bdt-crypto-currency-card": {
       "target": null,
@@ -992,16 +995,21 @@
       "status": "pending"
     },
     "bdt-custom-gallery": {
-      "target": null,
+      "target": "digitalisimo-custom-gallery",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 14,
       "existing_elements_widget_candidate": null,
-      "setting_mappings": {},
+      "setting_mappings": {
+        "gallery_image": "gallery_items.gallery_image",
+        "image_title": "gallery_items.image_title",
+        "image_text": "gallery_items.image_text",
+        "image_link": "gallery_items.image_link"
+      },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "own Media gallery and individual linked images with ALT/srcset and conditional CSS; lightbox, media skins, visual parity and multisite runtime pending"
     },
     "bdt-dark-mode": {
       "target": null,
