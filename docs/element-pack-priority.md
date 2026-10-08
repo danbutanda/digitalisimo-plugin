@@ -59,7 +59,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 Funciones y extensiones del mismo bloque prioritario:
 
 54. Backdrop Filter — base CSS opcional con desenfoque, brillo y saturación; efecto líquido y paridad visual pendientes
-55. Floating Effects
+55. Floating Effects — base propia opcional y condicional; paridad visual y Multisite real pendientes
 56. Notation
 57. Shape Builder
 58. Text Gradient Background

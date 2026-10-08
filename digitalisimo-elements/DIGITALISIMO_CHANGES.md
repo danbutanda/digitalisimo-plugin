@@ -1,8 +1,10 @@
-# DIGITALÍSIMO Elements 4.3.0.57
+# DIGITALÍSIMO Elements 4.3.0.58
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
 Cambios de DIGITALÍSIMO respecto del ZIP original:
+
+- 4.3.0.58: incorpora Floating Effects opcional para widgets y contenedores Elementor. La animación usa la API nativa del navegador, se carga sólo donde se activa, se pausa fuera de pantalla y respeta la preferencia de movimiento reducido. No ocupa controles ni recursos de Element Pack.
 
 - 4.3.0.57: incorpora Backdrop Filter opcional en widgets y contenedores Elementor, con desenfoque, brillo y saturación generados por controles CSS. Apagado por defecto y sin recursos globales de frontend.
 

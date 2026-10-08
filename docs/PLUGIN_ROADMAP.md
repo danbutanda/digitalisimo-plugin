@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Backdrop Filter | En validación · 4.3.0.57 | Controles Elementor opcionales para widgets y contenedores con blur, brillo y saturación mediante CSS generado; sin JS ni hoja global. | Pendientes pruebas completas, ZIP, publicación, efecto líquido, paridad visual y runtime real. |
+| DIGITALÍSIMO Elements · Floating Effects | En validación · 4.3.0.58 | Movimiento flotante vertical opcional por widget o contenedor, con API nativa del navegador y script condicional. | Pendientes validación de paquete, publicación, paridad visual y runtime real en WordPress individual y Multisite. |
+
+| DIGITALÍSIMO Elements · Backdrop Filter | Publicado · 4.3.0.57 · `v2026.10.08.302` | Controles Elementor opcionales para widgets y contenedores con blur, brillo y saturación mediante CSS generado; sin JS ni hoja global. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#613` y publicación `#302` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.57.zip` (3,683,365 bytes). Faltan efecto líquido, paridad visual y runtime real. |
 
 | DIGITALÍSIMO Elements · Video Player | Publicado · 4.3.0.56 · `v2026.10.08.301` | Widget propio de video HTML nativo con portada, proporción estable, controles y carga bajo demanda; sin jPlayer ni JS propio. | Pasaron pruebas PHP de Elements, fuente/URL seguras, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#612` y publicación `#301` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.56.zip` (3,682,226 bytes). Faltan skins de referencia, conversión legacy y runtime real en WordPress individual y Multisite. No ocupa `bdt-video-player`. |
 
