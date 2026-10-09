@@ -11,6 +11,8 @@ use ElementorPro\Modules\QueryControl\Module as Query;
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/class-visitor.php';
+
 /**
  * Base de las condiciones propias. Las opciones sólo se construyen en el editor;
  * el frontend ejecuta `check()` con los valores ya guardados y nunca hace peticiones remotas.
@@ -155,48 +157,6 @@ abstract class Base extends Condition_Base {
 		}
 		$actual = DateTime::createFromFormat( '!Y-m-d', $actual->format( 'Y-m-d' ) );
 		return Checker::check_date_time( isset( $args['comparator'] ) ? (string) $args['comparator'] : '', $actual, $day );
-	}
-}
-
-/** Datos de la petición en curso, con filtros para servidores, proxies y pruebas. */
-final class Visitor {
-	public static function user_agent() {
-		return isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
-	}
-
-	public static function referer_host() {
-		$referer = wp_get_raw_referer();
-		$host    = $referer ? wp_parse_url( $referer, PHP_URL_HOST ) : '';
-		return is_string( $host ) ? strtolower( $host ) : '';
-	}
-
-	public static function request_uri() {
-		return isset( $_SERVER['REQUEST_URI'] ) ? rawurldecode( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) : '';
-	}
-
-	/**
-	 * País ISO alfa-2 que entrega el CDN o el servidor. No consulta servicios remotos durante
-	 * el render; un sitio puede aportar su propia fuente con `digitalisimo_elements_visitor_country`.
-	 * Las cabeceras pueden falsificarse si no las reescribe un proxy: no sirve para control de acceso.
-	 */
-	public static function country() {
-		$country = apply_filters( 'digitalisimo_elements_visitor_country', null );
-		if ( null === $country ) {
-			$country = '';
-			foreach ( array( 'HTTP_CF_IPCOUNTRY', 'HTTP_CLOUDFRONT_VIEWER_COUNTRY', 'HTTP_X_VERCEL_IP_COUNTRY', 'HTTP_X_APPENGINE_COUNTRY', 'GEOIP_COUNTRY_CODE', 'HTTP_X_COUNTRY_CODE' ) as $key ) {
-				if ( ! empty( $_SERVER[ $key ] ) ) {
-					$country = sanitize_text_field( wp_unslash( $_SERVER[ $key ] ) );
-					break;
-				}
-			}
-		}
-		$country = strtoupper( trim( (string) $country ) );
-		return preg_match( '/^[A-Z]{2}$/', $country ) && ! in_array( $country, array( 'XX', 'T1', 'ZZ' ), true ) ? $country : '';
-	}
-
-	public static function browser_language() {
-		$header = isset( $_SERVER['HTTP_ACCEPT_LANGUAGE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_ACCEPT_LANGUAGE'] ) ) : '';
-		return preg_match( '/^\s*([a-z]{2,3})\b/i', $header, $match ) ? strtolower( $match[1] ) : '';
 	}
 }
 

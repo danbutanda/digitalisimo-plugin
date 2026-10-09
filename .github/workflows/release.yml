@@ -72,6 +72,7 @@ jobs:
           php tests/elements-device-card.php
           php tests/elements-duplicator.php
           php tests/elements-display-conditions.php
+          php tests/elements-legacy-visibility.php
           node tests/elements-carousel-engine.mjs
           php tests/performance-hero.php
           php tests/tools-updater.php

@@ -3428,7 +3428,7 @@
         "url_string": "digitalisimo_url_path",
         "search_engine_url": "digitalisimo_search_engine",
         "language": "digitalisimo_language",
-        "country": "digitalisimo_country (CDN/server headers or digitalisimo_elements_visitor_country filter; no remote lookup during render)",
+        "country": "digitalisimo_country (site filter, CDN/server headers, browser timezone cookie, then cached IP lookup compatible with element_pack_visibility_* filters)",
         "shortcode": "digitalisimo_shortcode",
         "products_in_cart": "digitalisimo_cart_products",
         "categories_in_cart": "digitalisimo_cart_categories",
@@ -3454,10 +3454,11 @@
         "acf_boolean": "dynamic_tags (native, ACF dynamic tags)",
         "acf_choice": "dynamic_tags (native, ACF dynamic tags)",
         "acf_text": "dynamic_tags (native, ACF dynamic tags)",
-        "visit_count": "DESCARTAR: reference sets cookies after output started and per-visitor counters are unreliable behind page caches",
-        "session_count": "DESCARTAR: reference starts PHP sessions on public pages, which disables page caching"
+        "visit_count": "legacy adapter only: reads and, when headers are still open, updates the bdt-visit-count-{element} cookie like Element Pack; no native condition",
+        "session_count": "legacy adapter only: reads the stored session counter without starting PHP sessions or incrementing it; no native condition"
       },
-      "status": "28 conditions registered in the native engine in 4.3.0.81 (16 only with WooCommerce); Playground multisite render and editor config verified; legacy ep_display_conditions documents are not read or converted yet"
+      "status": "28 native conditions since 4.3.0.81 (16 only with WooCommerce); since 4.3.0.82 existing Element Pack documents keep identical visibility without the plugin (multisite A/B with Element Pack 9.9.1 matched in every scenario, also after an editor save); optional conversion to native Display Conditions pending",
+      "legacy_adapter": "modules/digitalisimo-conditions/class-legacy-visibility.php + class-legacy-rules.php: reads ep_display_conditions_enable/_to/_relation and the ep_display_conditions repeater with Element Pack 9.9.1 semantics for all 46 rule keys; same control names and defaults; inactive while Element Pack is loaded; honours element_pack_elementor_extend[visibility-controls]; no _elementor_data rewrite"
     }
   }
 }

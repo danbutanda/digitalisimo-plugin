@@ -40,6 +40,7 @@ namespace {
 	}
 	$GLOBALS['digi'] = array( 'hooks' => array(), 'filters' => array(), 'user' => 0, 'singular' => false, 'type' => '', 'queried' => null, 'flags' => array() );
 	function add_action( $hook, $callback ) { $GLOBALS['digi']['hooks'][ $hook ] = $callback; }
+	function add_filter( $hook, $callback ) { $GLOBALS['digi']['hooks'][ $hook ] = $callback; }
 	function apply_filters( $hook, $value ) { return array_key_exists( $hook, $GLOBALS['digi']['filters'] ) ? $GLOBALS['digi']['filters'][ $hook ] : $value; }
 	function esc_html__( $text ) { return $text; }
 	function absint( $value ) { return abs( (int) $value ); }

@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.81
+# DIGITALÍSIMO Elements 4.3.0.82
+
+- 4.3.0.82: Las páginas con Visibility Controls de Element Pack siguen mostrando y ocultando lo mismo al retirar ese plugin. Elements lee los mismos ajustes `ep_display_conditions_*` con su misma lógica, sin reescribir documentos, y registra sus controles para que el editor los conserve y permita cambiarlos. Respeta si la extensión estaba encendida en Element Pack, no interviene mientras Element Pack siga activo y marca esos elementos como dinámicos para la caché de Elementor. El país usa la misma cadena que Element Pack (filtros, zona horaria del navegador y consulta por IP con caché), ahora también para la condición País de Display Conditions.
 
 - 4.3.0.81: Display Conditions incorpora las reglas de Visibility Controls de Element Pack como condiciones del mismo motor: usuario específico, sistema operativo, navegador, idioma, país, parámetro y ruta de URL, buscador de origen, tipo de contenido, contenido específico, páginas especiales y resultado de un shortcode; con WooCommerce añade carrito, compras del cliente y estado, tipo, categoría, precio y existencias del producto. Sin JavaScript ni CSS nuevos en el frontend y sin consultas remotas durante el render.
 

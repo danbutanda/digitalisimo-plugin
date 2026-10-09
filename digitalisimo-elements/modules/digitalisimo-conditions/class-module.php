@@ -17,6 +17,9 @@ final class Display_Conditions {
 	public static function init() {
 		add_action( 'elementor/display_conditions/register_groups', array( __CLASS__, 'register_groups' ) );
 		add_action( 'elementor/display_conditions/register', array( __CLASS__, 'register_conditions' ) );
+		add_action( 'wp_footer', array( Conditions\Visitor::class, 'print_timezone_script' ) );
+		require_once __DIR__ . '/class-legacy-visibility.php';
+		Legacy_Visibility::init();
 	}
 
 	public static function register_groups( $manager ) {
