@@ -24,7 +24,10 @@ namespace {
 	$widget = new \Digitalisimo\Elements\Advanced_Heading_Widget();
 	check_heading( array( 'digitalisimo-advanced-heading' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'El componente debe cargar sólo su CSS.' );
 	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
-	foreach ( array( 'sub_heading', 'main_heading', 'split_main_heading', 'split_text', 'link', 'header_size', 'align', 'advanced_heading_visibility', 'advanced_heading' ) as $control ) { check_heading( isset( $widget->controls[ $control ] ), 'Falta el control ' . $control ); }
+	foreach ( array( 'sub_heading', 'main_heading', 'split_main_heading', 'split_text', 'link', 'header_size', 'align', 'advanced_heading_visibility', 'advanced_heading', 'decoration_size', 'decoration_offset_x', 'decoration_offset_y' ) as $control ) { check_heading( isset( $widget->controls[ $control ] ), 'Falta el control ' . $control ); }
+	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/advanced-heading.css' );
+	check_heading( str_contains( $css, '--digi-heading-decoration-x:0px' ) && str_contains( $css, '--digi-heading-decoration-y:0px' ) && str_contains( $css, 'top:calc(50% + var(--digi-heading-decoration-y))' ), 'Los desplazamientos deben conservar el diseño original por defecto.' );
+	check_heading( str_contains( $widget->controls['decoration_offset_x']['selectors']['{{WRAPPER}} .digi-advanced-heading'], '--digi-heading-decoration-x:' ), 'El editor debe generar el desplazamiento horizontal sólo para este widget.' );
 	$widget->settings = array( 'sub_heading' => 'Antes', 'main_heading' => 'Agencia <script>x</script>', 'split_main_heading' => 'yes', 'split_text' => 'México', 'header_size' => 'h1', 'advanced_heading_visibility' => 'yes', 'advanced_heading' => 'Marca', 'link' => array( 'url' => 'https://example.test/' ) );
 	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
 	check_heading( 1 === substr_count( $html, '<h1 ' ) && 1 === substr_count( $html, '</h1>' ) && str_contains( $html, 'aria-hidden="true"' ), 'El título debe ser único y la decoración inaccesible.' );
