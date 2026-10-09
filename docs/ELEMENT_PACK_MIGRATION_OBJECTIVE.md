@@ -49,6 +49,8 @@ En 4.3.0.75 Brand Carousel adopta el mismo criterio: no fuerza `loading="lazy"` 
 
 En 4.3.0.76 Breadcrumbs incluye la jerarquía de CPT cuando WordPress declara ese tipo como jerárquico, conservando URLs de padre y de archivo del sitio actual. La prueba instalada se hizo con un CPT temporal en el sitio principal y un subsitio Multisite. No se añadió schema paralelo; la paridad visual y los casos especializados de taxonomías siguen pendientes.
 
+En 4.3.0.77 Botón doble alinea la vista previa con el frontend: muestra los iconos, la estructura del texto y los atributos de los enlaces; el frontend protege las pestañas externas con `noopener noreferrer`. Su HTML se comprobó en ambos sitios de la red de pruebas. Siguen pendientes skins, paridad visual y adaptación de documentos `bdt-dual-button`.
+
 En 4.3.0.70 el Acordeón añade apertura inicial de todos los paneles cuando se permite apertura múltiple, omite plantillas inexistentes o privadas antes de crear paneles vacíos y cuenta sólo paneles visibles para elegir el inicial. La prueba automatizada comprueba que los selectores de plantillas se separan por `blog_id`; aún falta la prueba instalada en Multisite y la comparación visual con la referencia.
 
 En 4.3.0.71 el Botón avanzado incorpora controles de borde, ancho responsivo, tipografía y sombra con CSS generado por Elementor. Son optativos y preservan el estilo anterior si no se configuran. Siguen pendientes la comparación visual, los efectos restantes y la prueba instalada en Multisite.

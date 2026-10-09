@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.76
+# DIGITALÍSIMO Elements 4.3.0.77
+
+- 4.3.0.77: Botón doble muestra iconos y atributos de los dos enlaces en el editor, y añade `noopener noreferrer` a enlaces externos del frontend. Comprobado en el sitio principal y un subsitio Multisite, sin añadir scripts.
 
 - 4.3.0.76: Breadcrumbs incluye la cadena de padres de un CPT jerárquico usando los permalinks del sitio actual, después del archivo cuando existe. Comprobado con páginas Elementor en el sitio principal y un subsitio Multisite; sin JSON-LD duplicado.
 

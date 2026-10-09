@@ -41,6 +41,7 @@ final class Dual_Button_Widget extends \Elementor\Widget_Base {
 		$attrs = '';
 		if ( ! empty( $link['url'] ) ) {
 			$this->add_link_attributes( 'dual_button_' . $key, $link );
+			if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( 'dual_button_' . $key, 'rel', array( 'noopener', 'noreferrer' ) ); }
 			$attrs = ' ' . $this->get_render_attribute_string( 'dual_button_' . $key );
 		}
 		ob_start();
@@ -64,11 +65,17 @@ final class Dual_Button_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<# var size = _.contains( ['small','medium','large'], settings.size ) ? settings.size : 'medium'; #>
+		<# var size = _.contains( ['small','medium','large'], settings.size ) ? settings.size : 'medium';
+		var iconA = elementor.helpers.renderIcon( view, settings.button_a_icon, { 'aria-hidden': true }, 'i', 'object' );
+		var iconB = elementor.helpers.renderIcon( view, settings.button_b_icon, { 'aria-hidden': true }, 'i', 'object' );
+		var urlA = settings.button_a_link && settings.button_a_link.url ? settings.button_a_link.url : '';
+		var urlB = settings.button_b_link && settings.button_b_link.url ? settings.button_b_link.url : '';
+		var linkRel = function( link ) { return [ link && link.is_external ? 'noopener noreferrer' : '', link && link.nofollow ? 'nofollow' : '' ].filter( Boolean ).join( ' ' ); };
+		var relA = linkRel( settings.button_a_link ), relB = linkRel( settings.button_b_link ); #>
 		<div class="digi-dual-button digi-dual-button--{{ size }}">
-		<# if ( settings.button_a_text ) { #><# if ( settings.button_a_link && settings.button_a_link.url ) { #><a class="digi-dual-button__action digi-dual-button__action--a" href="{{ settings.button_a_link.url }}">{{ settings.button_a_text }}</a><# } else { #><span class="digi-dual-button__action digi-dual-button__action--a">{{ settings.button_a_text }}</span><# } #><# } #>
+		<# if ( settings.button_a_text ) { #><# if ( urlA ) { #><a class="digi-dual-button__action digi-dual-button__action--a" href="{{ urlA }}"<# if ( settings.button_a_link.is_external ) { #> target="_blank"<# } #><# if ( relA ) { #> rel="{{ relA }}"<# } #>><# } else { #><span class="digi-dual-button__action digi-dual-button__action--a"><# } #><# if ( iconA && iconA.rendered ) { #>{{{ iconA.value }}}<# } #><span>{{ settings.button_a_text }}</span><# if ( urlA ) { #></a><# } else { #></span><# } #><# } #>
 		<# if ( settings.show_middle_text === 'yes' && settings.button_a_text && settings.button_b_text ) { #><span class="digi-dual-button__middle">{{ settings.middle_text }}</span><# } #>
-		<# if ( settings.button_b_text ) { #><# if ( settings.button_b_link && settings.button_b_link.url ) { #><a class="digi-dual-button__action digi-dual-button__action--b" href="{{ settings.button_b_link.url }}">{{ settings.button_b_text }}</a><# } else { #><span class="digi-dual-button__action digi-dual-button__action--b">{{ settings.button_b_text }}</span><# } #><# } #>
+		<# if ( settings.button_b_text ) { #><# if ( urlB ) { #><a class="digi-dual-button__action digi-dual-button__action--b" href="{{ urlB }}"<# if ( settings.button_b_link.is_external ) { #> target="_blank"<# } #><# if ( relB ) { #> rel="{{ relB }}"<# } #>><# } else { #><span class="digi-dual-button__action digi-dual-button__action--b"><# } #><# if ( iconB && iconB.rendered ) { #>{{{ iconB.value }}}<# } #><span>{{ settings.button_b_text }}</span><# if ( urlB ) { #></a><# } else { #></span><# } #><# } #>
 		</div>
 		<?php
 	}

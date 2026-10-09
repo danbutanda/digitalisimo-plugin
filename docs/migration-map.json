@@ -1095,7 +1095,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own two-link widget with optional icons and separator; onclick effects, parity and multisite runtime pending"
+      "status": "own two-link widget with optional icons and separator; editor link/icon parity, safe external links and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.77; onclick effects, visual parity and legacy adapter pending"
     },
     "bdt-dynamic-carousel": {
       "target": null,
