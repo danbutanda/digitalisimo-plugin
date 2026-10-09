@@ -63,7 +63,7 @@ Funciones y extensiones del mismo bloque prioritario:
 56. Notation — base CSS para Heading clásico; marcas SVG, repetidores y paridad pendientes
 57. Shape Builder — base decorativa para Heading clásico; repetidores, figuras avanzadas y paridad pendientes
 58. Text Gradient Background — base CSS optativa para Heading clásico; otros widgets y paridad pendientes
-59. Realistic Image Shadow
+59. Realistic Image Shadow — base CSS optativa para Imagen clásico; hover y paridad pendientes
 60. Visibility Controls
 61. Wrapper Link
 62. Duplicator — base editorial propia para posts, páginas, CPT públicos y plantillas Elementor; pendiente de prueba real en Multisite

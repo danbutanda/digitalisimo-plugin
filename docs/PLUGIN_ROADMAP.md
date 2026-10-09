@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Text Gradient Background | En validación · 4.3.0.61 | Degradado de texto optativo en títulos Heading clásicos, con CSS generado por Elementor y sin JavaScript. | Pendientes validación de paquete, publicación, selectores personalizados, paridad visual y runtime real en WordPress individual y Multisite. |
+| DIGITALÍSIMO Elements · Realistic Image Shadow | En validación · 4.3.0.62 | Sombra de silueta optativa en el widget Imagen clásico con `drop-shadow()` y CSS generado por Elementor; sin JavaScript. | Pendientes validación de paquete, publicación, hover, paridad visual y runtime real en WordPress individual y Multisite. |
+
+| DIGITALÍSIMO Elements · Text Gradient Background | Publicado · 4.3.0.61 · `v2026.10.09.306` | Degradado de texto optativo en títulos Heading clásicos, con CSS generado por Elementor y sin JavaScript. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#617` y publicación `#306` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.61.zip` (3,689,765 bytes). Faltan selectores personalizados, paridad visual y runtime real. |
 
 | DIGITALÍSIMO Elements · Shape Builder | Publicado · 4.3.0.60 · `v2026.10.09.305` | Figura decorativa optativa al final de títulos Heading clásicos, sin alterar el posicionamiento del widget ni cargar GSAP o SVG externos. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#616` y publicación `#305` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.60.zip` (3,688,665 bytes). Faltan repetidores, paridad visual y runtime real en WordPress individual y Multisite. |
 
