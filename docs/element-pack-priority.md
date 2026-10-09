@@ -62,7 +62,7 @@ Funciones y extensiones del mismo bloque prioritario:
 55. Floating Effects — base propia opcional y condicional; paridad visual y Multisite real pendientes
 56. Notation — base CSS para Heading clásico; marcas SVG, repetidores y paridad pendientes
 57. Shape Builder — base decorativa para Heading clásico; repetidores, figuras avanzadas y paridad pendientes
-58. Text Gradient Background
+58. Text Gradient Background — base CSS optativa para Heading clásico; otros widgets y paridad pendientes
 59. Realistic Image Shadow
 60. Visibility Controls
 61. Wrapper Link

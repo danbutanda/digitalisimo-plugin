@@ -1,8 +1,10 @@
-# DIGITALÍSIMO Elements 4.3.0.60
+# DIGITALÍSIMO Elements 4.3.0.61
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
 Cambios de DIGITALÍSIMO respecto del ZIP original:
+
+- 4.3.0.61: añade Text Gradient Background opcional al título Heading clásico. Elementor genera CSS nativo de degradado con colores y ángulo configurables; no cambia el HTML, no agrega scripts y permanece apagado por defecto. No ocupa la extensión de Element Pack; faltan selectores personalizados, widgets adicionales y paridad visual.
 
 - 4.3.0.60: incorpora una base segura de Shape Builder para títulos Heading clásicos. Añade al final una figura decorativa de tamaño estable, forma y color configurables; no reemplaza el contenido, no altera el posicionamiento del widget y no carga GSAP ni SVG externos. No ocupa la extensión de Element Pack; faltan repetidores, otras figuras, animaciones y paridad visual.
 
