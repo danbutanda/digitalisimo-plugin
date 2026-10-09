@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Caja de icono avanzada | En validación · 4.3.0.68 | La vista previa valida URLs y replica `target`, `rel` y visibilidad accesible de la imagen según el título; no altera el marcado público. | Pendientes suite completa, ZIP, publicación, comparación visual y pruebas reales en WordPress individual y Multisite. |
+| DIGITALÍSIMO Elements · Encabezado animado | En validación · 4.3.0.69 | Comparte los listeners de tamaño y movimiento reducido entre todas las instancias, limpia temporizadores y admite reinserción por Elementor. | Pendientes suite completa, ZIP, publicación, comparación visual y pruebas reales en WordPress individual y Multisite. |
+
+| DIGITALÍSIMO Elements · Caja de icono avanzada | Publicado · 4.3.0.68 · `v2026.10.09.313` | La vista previa valida URLs y replica `target`, `rel` y visibilidad accesible de la imagen según el título; no altera el marcado público. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#627` y publicación `#313` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.68.zip` (3,692,243 bytes). Faltan comparación visual, pruebas reales y conversión legacy. |
 
 | DIGITALÍSIMO Elements · Encabezado avanzado | Publicado · 4.3.0.67 · `v2026.10.09.312` | Añade controles responsivos para tamaño y desplazamiento del texto decorativo mediante CSS generado por Elementor; mantiene el diseño anterior por defecto. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#626` y publicación `#312` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.67.zip` (3,691,917 bytes). Faltan comparación visual, pruebas reales y conversión legacy. |
 

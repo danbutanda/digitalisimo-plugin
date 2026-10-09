@@ -7,7 +7,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 3. Advanced Divider — base propia con variantes nativas e imagen de Medios; círculo responsivo y carga de imágenes delegada a WordPress desde 4.3.0.66; paridad visual y Multisite pendientes
 4. Advanced Heading — base propia con tamaño y posición responsivos del texto decorativo desde 4.3.0.67; paridad visual y Multisite pendientes
 5. Advanced Icon Box — base propia con icono o imagen, título, descripción, enlaces y distintivo; enlaces y accesibilidad de la vista previa alineados desde 4.3.0.68; paridad visual y Multisite pendientes
-6. Animated Heading — base propia con rotación progresiva y primer texto visible; variantes avanzadas, paridad visual y Multisite pendientes
+6. Animated Heading — base propia con rotación progresiva y primer texto visible; listeners globales compartidos y reinserción segura desde 4.3.0.69; variantes avanzadas, paridad visual y Multisite pendientes
 7. Brand Grid — base propia; paridad pendiente
 8. Brand Carousel — base propia; paridad pendiente
 9. Breadcrumbs — base propia con jerarquía de WordPress sin depender de Yoast; paridad visual y Multisite pendientes

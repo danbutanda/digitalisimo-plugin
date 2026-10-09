@@ -283,7 +283,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support and conditional assets; typed/split/GSAP variants, legacy adapter, visual comparison and multisite runtime pending"
+      "status": "own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support, conditional assets and shared global listeners since 4.3.0.69; typed/split/GSAP variants, legacy adapter, visual comparison and multisite runtime pending"
     },
     "bdt-animated-link": {
       "target": "digitalisimo-animated-link",

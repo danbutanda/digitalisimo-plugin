@@ -1,11 +1,26 @@
 (function () {
   'use strict';
-  var initialized = new WeakSet();
+  var initialized = new WeakMap();
+  var active = new Set();
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  function refresh() {
+    active.forEach(function (instance) {
+      if (!instance.heading.isConnected) {
+        instance.stop();
+        active.delete(instance);
+      } else {
+        instance.schedule();
+      }
+    });
+  }
   function init(root) {
     (root || document).querySelectorAll('.digi-animated-heading[data-digi-phrases]').forEach(function (heading) {
-      if (initialized.has(heading)) return;
-      initialized.add(heading);
+      var previous = initialized.get(heading);
+      if (previous) {
+        active.add(previous);
+        previous.schedule();
+        return;
+      }
       var phrase = heading.querySelector('.digi-animated-heading__phrase');
       var slot = heading.querySelector('.digi-animated-heading__slot');
       if (!phrase || !slot) return;
@@ -15,6 +30,7 @@
       var delay = Math.max(1500, Math.min(15000, Number(heading.dataset.digiInterval) || 3000));
       var index = 0;
       var timer;
+      var instance;
       function fits() {
         if (reduced && reduced.matches) return false;
         if (!heading.isConnected || slot.clientWidth === 0) return false;
@@ -28,12 +44,16 @@
       }
       function schedule() {
         clearTimeout(timer);
+        if (!heading.isConnected) {
+          active.delete(instance);
+          return;
+        }
         if (!fits()) return;
         timer = setTimeout(function () {
           if (!fits()) return;
           phrase.classList.add('is-changing');
           setTimeout(function () {
-            if (!heading.isConnected || (reduced && reduced.matches)) { phrase.classList.remove('is-changing'); return; }
+            if (!heading.isConnected || (reduced && reduced.matches)) { phrase.classList.remove('is-changing'); if (!heading.isConnected) active.delete(instance); return; }
             index = (index + 1) % words.length;
             phrase.textContent = words[index];
             phrase.classList.remove('is-changing');
@@ -41,11 +61,14 @@
           }, 180);
         }, delay);
       }
+      instance = { heading: heading, schedule: schedule, stop: function () { clearTimeout(timer); } };
+      initialized.set(heading, instance);
+      active.add(instance);
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule); else schedule();
-      if (reduced && reduced.addEventListener) reduced.addEventListener('change', schedule);
-      window.addEventListener('resize', schedule, { passive: true });
     });
   }
+  if (reduced && reduced.addEventListener) reduced.addEventListener('change', refresh);
+  window.addEventListener('resize', refresh, { passive: true });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { init(document); }); else init(document);
   if (window.elementorFrontend && window.elementorFrontend.hooks) {
     window.elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-animated-heading.default', function ($scope) { init($scope[0] || document); });
