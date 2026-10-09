@@ -9,7 +9,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 5. Advanced Icon Box — base propia con icono o imagen, título, descripción, enlaces y distintivo; enlaces y accesibilidad de la vista previa alineados desde 4.3.0.68 y tipografía/sombra optativas desde 4.3.0.74; renderizado Multisite comprobado, skins y efectos pendientes
 6. Animated Heading — base propia con rotación progresiva y primer texto visible; listeners globales compartidos desde 4.3.0.69 y enlace externo seguro desde 4.3.0.74; renderizado Multisite comprobado, variantes avanzadas y paridad visual pendientes
 7. Brand Grid — base propia de logos y enlaces; desde 4.3.0.74 no fuerza la carga inmediata del primer logo y deja esa decisión a WordPress; paridad visual pendiente
-8. Brand Carousel — base propia; paridad pendiente
+8. Brand Carousel — base propia sobre motor nativo compartido; desde 4.3.0.75 no fuerza `loading` de los logos por índice y su renderizado Multisite está comprobado; paridad visual pendiente
 9. Breadcrumbs — base propia con jerarquía de WordPress sin depender de Yoast; paridad visual y Multisite pendientes
 10. Dual Button — base propia con dos acciones, iconos y separador; paridad visual y Multisite pendientes
 11. Call Out — base propia con título, descripción y botón; paridad visual y Multisite pendientes

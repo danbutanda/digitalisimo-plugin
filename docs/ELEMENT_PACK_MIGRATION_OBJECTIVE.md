@@ -45,6 +45,8 @@ En 4.3.0.74 la Caja de icono avanzada añade tipografía separada para título, 
 
 Brand Grid deja de asumir que su primer logo está en el primer viewport: WordPress decide el atributo de carga de cada adjunto según la página real. No se inyecta una prioridad artificial en el editor ni en URLs de respaldo. Faltan la comparación visual y la prueba instalada de este widget.
 
+En 4.3.0.75 Brand Carousel adopta el mismo criterio: no fuerza `loading="lazy"` por índice. Sus dos marcas y sus recursos condicionales se comprobaron en el sitio principal y un subsitio Multisite. Antes de considerarlo equivalente a `bdt-brand-carousel` faltan controles de referencia, comparación visual, interacción del editor y conversión legacy.
+
 En 4.3.0.70 el Acordeón añade apertura inicial de todos los paneles cuando se permite apertura múltiple, omite plantillas inexistentes o privadas antes de crear paneles vacíos y cuenta sólo paneles visibles para elegir el inicial. La prueba automatizada comprueba que los selectores de plantillas se separan por `blog_id`; aún falta la prueba instalada en Multisite y la comparación visual con la referencia.
 
 En 4.3.0.71 el Botón avanzado incorpora controles de borde, ancho responsivo, tipografía y sombra con CSS generado por Elementor. Son optativos y preservan el estilo anterior si no se configuran. Siguen pendientes la comparación visual, los efectos restantes y la prueba instalada en Multisite.

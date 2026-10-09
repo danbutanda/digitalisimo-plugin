@@ -494,7 +494,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new widget on shared native carousel engine; legacy adapter and visual comparison pending"
+      "status": "new widget on shared native carousel engine; image loading delegated to WordPress and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.75; legacy adapter and visual comparison pending"
     },
     "bdt-brand-grid": {
       "target": "digitalisimo-brand-grid",

@@ -77,10 +77,9 @@ final class Brand_Carousel_Widget extends \Elementor\Widget_Base {
 				$alt = $image_id ? get_post_meta( $image_id, '_wp_attachment_image_alt', true ) : '';
 				$alt = $alt ? $alt : $name;
 				$attrs = array( 'class' => 'digi-brand-carousel__image', 'alt' => $alt );
-				if ( $index > 0 ) { $attrs['loading'] = 'lazy'; }
 				$image_html = $image_id ? wp_get_attachment_image( $image_id, $size, false, $attrs ) : '';
 				if ( $image_html ) { echo $image_html; }
-				else { echo '<img class="digi-brand-carousel__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '"' . ( $index > 0 ? ' loading="lazy"' : '' ) . '>'; }
+				else { echo '<img class="digi-brand-carousel__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '">'; }
 			}
 			if ( 'yes' === ( $settings['show_brand_name'] ?? 'yes' ) && '' !== $name ) { echo '<' . $tag . ' class="digi-brand-carousel__name">' . esc_html( $name ) . '</' . $tag . '>'; }
 			$website = trim( (string) ( $item['website_link_text'] ?? '' ) );
@@ -108,7 +107,7 @@ final class Brand_Carousel_Widget extends \Elementor\Widget_Base {
 		#>
 		<li class="digi-carousel__slide digi-brand-carousel__slide">
 		<# if ( href ) { #><a class="digi-brand-carousel__card{{ match }}" href="{{ href }}" <# if ( item.link.is_external ) { #>target="_blank"<# } #> <# if ( rel ) { #>rel="{{ rel }}"<# } #>><# } else { #><div class="digi-brand-carousel__card{{ match }}"><# } #>
-		<# if ( item.image && item.image.url ) { #><img class="digi-brand-carousel__image" src="{{ item.image.url }}" alt="{{ item.brand_name || '' }}" loading="lazy"><# } #>
+		<# if ( item.image && item.image.url ) { #><img class="digi-brand-carousel__image" src="{{ item.image.url }}" alt="{{ item.brand_name || '' }}"><# } #>
 		<# if ( settings.show_brand_name !== '' && item.brand_name ) { #><{{{ titleTag }}} class="digi-brand-carousel__name">{{ item.brand_name }}</{{{ titleTag }}}><# } #>
 		<# if ( href && settings.show_website_link !== '' && item.website_link_text ) { #><span class="digi-brand-carousel__website">{{ item.website_link_text }}</span><# } #>
 		<# if ( href ) { #></a><# } else { #></div><# } #>

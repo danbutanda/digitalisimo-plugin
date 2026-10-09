@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.74
+# DIGITALÍSIMO Elements 4.3.0.75
+
+- 4.3.0.75: Brand Carousel deja de asignar carga diferida por el orden de sus logos; WordPress determina el atributo de cada adjunto según la ubicación real del widget. La salida se comprobó en el sitio principal y en un subsitio Multisite, conservando el motor de carrusel compartido.
 
 - 4.3.0.74: añade tipografía independiente y sombra opcional a la Caja de icono avanzada; el Encabezado animado conserva los atributos del enlace en el editor y añade `noopener noreferrer` a enlaces externos en frontend. Brand Grid deja que WordPress decida la carga de imágenes según la posición real en la página. Sin cambios de diseño por defecto ni nuevos scripts.
 
