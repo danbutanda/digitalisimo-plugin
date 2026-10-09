@@ -28,6 +28,11 @@ namespace {
 	check_advanced_button( str_contains( $html, 'href="https://example.com/"' ) && str_contains( $html, 'target="_blank"' ) && str_contains( $html, 'rel="noopener noreferrer nofollow"' ), 'El enlace externo debe conservar URL y atributos seguros.' );
 	check_advanced_button( str_contains( $html, 'digi-advanced-button--effect-c' ) && str_contains( $html, 'data-icon="star"' ) && str_contains( $html, 'Oferta' ), 'Deben mostrarse efecto, icono y distintivo.' );
 	check_advanced_button( ! str_contains( $html, '<ahora>' ) && ! str_contains( $html, 'onclick=' ) && str_contains( $html, 'Comprar &lt;ahora&gt;' ), 'El contenido y el ID deben escaparse.' );
+	$widget->settings['icon_align'] = 'bottom';
+	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $bottom = ob_get_clean();
+	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/advanced-button.css' );
+	check_advanced_button( strpos( $bottom, 'digi-advanced-button__text' ) < strpos( $bottom, 'digi-advanced-button__icon' ) && str_contains( $css, '.digi-advanced-button--icon-bottom .digi-advanced-button__content{flex-direction:column}' ) && ! str_contains( $css, '.digi-advanced-button--icon-bottom .digi-advanced-button__content{flex-direction:column-reverse}' ), 'El icono inferior debe verse debajo del texto.' );
+	$widget->settings['icon_align'] = 'left';
 	$widget->settings['link']['url'] = 'https://example.com/?a=1&b=2';
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $query = ob_get_clean();
 	check_advanced_button( str_contains( $query, 'href="https://example.com/?a=1&amp;b=2"' ) && ! str_contains( $query, '&amp;amp;' ), 'La URL no debe escaparse dos veces.' );
