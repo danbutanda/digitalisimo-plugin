@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Separador avanzado | En validación · 4.3.0.66 | Añade diámetro y separación responsivos al círculo; el editor exige imagen de Medios y WordPress decide los atributos de carga sin `lazy` forzado. | Pendientes suite completa, ZIP, publicación, comparación visual y pruebas reales en WordPress individual y Multisite. |
+
 | DIGITALÍSIMO Elements · encabezados válidos del Acordeón | Publicado · 4.3.0.65 · `v2026.10.09.310` | Los H2–H6 del Acordeón son hijos directos de `<summary>` en frontend y editor, sin envolverlos en un `<span>` inválido. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#622` y publicación `#310` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.65.zip` (3,691,450 bytes). Faltan comparación visual, pruebas reales en WordPress individual y Multisite y conversión legacy. |
 
 | DIGITALÍSIMO Elements · icono inferior de Botón avanzado | Publicado · 4.3.0.64 · `v2026.10.09.309` | Corrige el orden vertical del icono para que aparezca debajo del texto y comprueba CSS y marcado juntos. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#620` y publicación `#309` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.64.zip` (3,691,348 bytes). Faltan paridad visual, pruebas reales y conversión legacy. |

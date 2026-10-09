@@ -159,7 +159,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "independent decorative widget; legacy shape parity, SVG animation, editor/browser comparison and multisite runtime pending"
+      "status": "independent decorative widget with responsive circle sizing and WordPress-managed image loading since 4.3.0.66; legacy shape parity, SVG animation, editor/browser comparison and multisite runtime pending"
     },
     "bdt-advanced-gmap": {
       "target": null,

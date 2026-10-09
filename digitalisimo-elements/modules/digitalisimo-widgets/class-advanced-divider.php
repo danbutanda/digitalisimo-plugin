@@ -27,6 +27,8 @@ final class Advanced_Divider_Widget extends \Elementor\Widget_Base {
 		$this->start_controls_section( 'section_divider_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
 		$this->add_control( 'divider_color', array( 'label' => 'Color', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-divider' => 'color:{{VALUE}};' ) ) );
 		$this->add_responsive_control( 'divider_stroke', array( 'label' => 'Grosor', 'type' => $c::SLIDER, 'range' => array( 'px' => array( 'min' => 1, 'max' => 10 ) ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-divider' => '--digi-divider-stroke:{{SIZE}}px;' ) ) );
+		$this->add_responsive_control( 'divider_circle_size', array( 'label' => 'Diámetro del círculo', 'type' => $c::SLIDER, 'range' => array( 'px' => array( 'min' => 6, 'max' => 80 ) ), 'condition' => array( 'divider_type' => 'circle' ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-divider' => '--digi-divider-circle-size:{{SIZE}}px;' ) ) );
+		$this->add_responsive_control( 'divider_circle_gap', array( 'label' => 'Separación del círculo', 'type' => $c::SLIDER, 'range' => array( 'px' => array( 'min' => 0, 'max' => 80 ) ), 'condition' => array( 'divider_type' => 'circle' ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-divider' => '--digi-divider-circle-gap:{{SIZE}}px;' ) ) );
 		$this->add_responsive_control( 'divider_wave_height', array( 'label' => 'Altura de onda', 'type' => $c::SLIDER, 'range' => array( 'px' => array( 'min' => 8, 'max' => 120 ) ), 'condition' => array( 'divider_type' => 'wave' ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-divider__wave' => 'height:{{SIZE}}px;' ) ) );
 		$this->end_controls_section();
 	}
@@ -40,7 +42,7 @@ final class Advanced_Divider_Widget extends \Elementor\Widget_Base {
 		$type = self::safe_type( $s['divider_type'] ?? 'line' );
 		$image = '';
 		if ( 'image' === $type && ! empty( $s['divider_image']['id'] ) && function_exists( 'wp_get_attachment_image' ) ) {
-			$image = wp_get_attachment_image( absint( $s['divider_image']['id'] ), 'full', false, array( 'alt' => '', 'loading' => 'lazy', 'decoding' => 'async', 'aria-hidden' => 'true' ) );
+			$image = wp_get_attachment_image( absint( $s['divider_image']['id'] ), 'full', false, array( 'alt' => '', 'aria-hidden' => 'true' ) );
 		}
 		if ( 'image' === $type && ! $image ) { $type = 'line'; }
 		echo '<div class="digi-advanced-divider digi-advanced-divider--' . esc_attr( $type ) . '" role="presentation" aria-hidden="true">';
@@ -60,7 +62,7 @@ final class Advanced_Divider_Widget extends \Elementor\Widget_Base {
 		?>
 		<# var allowed = ['line','dashed','dotted','double','circle','wave','image'];
 		var type = _.contains( allowed, settings.divider_type ) ? settings.divider_type : 'line';
-		if ( type === 'image' && !( settings.divider_image && settings.divider_image.url ) ) type = 'line'; #>
+		if ( type === 'image' && !( settings.divider_image && Number( settings.divider_image.id ) > 0 && settings.divider_image.url ) ) type = 'line'; #>
 		<div class="digi-advanced-divider digi-advanced-divider--{{ type }}" role="presentation" aria-hidden="true">
 		<# if ( type === 'image' ) { #><span class="digi-advanced-divider__image"><img src="{{ settings.divider_image.url }}" alt="" /></span>
 		<# } else if ( type === 'circle' ) { #><span class="digi-advanced-divider__circle"><span></span><i></i><span></span></span>
