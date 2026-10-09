@@ -38,6 +38,6 @@ namespace {
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $empty = ob_get_clean();
 	check_advanced_button( '' === $empty, 'No debe pintarse un botón sin nombre accesible.' );
 	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $editor = ob_get_clean();
-	check_advanced_button( str_contains( $editor, 'digi-advanced-button__content' ) && str_contains( $editor, 'settings.button_icon' ), 'La vista previa debe mostrar texto e icono.' );
+	check_advanced_button( str_contains( $editor, 'digi-advanced-button__content' ) && str_contains( $editor, 'settings.button_icon' ) && str_contains( $editor, 'target="_blank"' ) && str_contains( $editor, 'rel="{{ rel }}"' ) && str_contains( $editor, 'id="{{ buttonId }}"' ), 'La vista previa debe conservar texto, icono y atributos del enlace.' );
 	echo "DIGITALÍSIMO Elements: Botón avanzado validado.\n";
 }

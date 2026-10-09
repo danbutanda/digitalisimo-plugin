@@ -7,6 +7,7 @@ defined( 'ABSPATH' ) || exit;
 final class Accordion_Widget extends \Elementor\Widget_Base {
 	private static $rendering_templates = array();
 	private static $template_options = array();
+	private static $instance_count = 0;
 	public function get_name() { return 'digitalisimo-accordion'; }
 	public function get_title() { return 'Acordeón'; }
 	public function get_icon() { return 'eicon-accordion'; }
@@ -88,7 +89,8 @@ final class Accordion_Widget extends \Elementor\Widget_Base {
 		$custom_icons = 'yes' === ( $settings['show_custom_icon'] ?? '' );
 		$toggle_icons = ! empty( $settings['accordion_icon']['value'] ) && ! empty( $settings['accordion_active_icon']['value'] );
 		$left_icon = 'left' === ( $settings['icon_align'] ?? '' );
-		$group = 'digi-accordion-' . esc_attr( $this->get_id() );
+		$group_prefix = 'digi-accordion-' . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $this->get_id() ) . '-';
+		$group = function_exists( 'wp_unique_id' ) ? wp_unique_id( $group_prefix ) : $group_prefix . ++self::$instance_count;
 		$printed = false;
 		foreach ( $items as $index => $item ) {
 			if ( ! is_array( $item ) ) { continue; }
@@ -99,7 +101,7 @@ final class Accordion_Widget extends \Elementor\Widget_Base {
 			if ( ! $printed ) { echo '<div class="digi-accordion' . ( $left_icon ? ' digi-accordion--icon-left' : '' ) . '">'; $printed = true; }
 			if ( '' === $title ) { $title = 'Elemento ' . ( $index + 1 ); }
 			echo '<details class="digi-accordion__item"';
-			if ( $exclusive ) { echo ' name="' . $group . '"'; }
+			if ( $exclusive ) { echo ' name="' . esc_attr( $group ) . '"'; }
 			if ( $active === $index + 1 ) { echo ' open'; }
 			echo '><summary class="digi-accordion__summary"><span class="digi-accordion__label">';
 			if ( $custom_icons && ! empty( $item['repeater_icon']['value'] ) ) { echo '<span class="digi-accordion__custom-icon" aria-hidden="true">'; self::print_icon( $item['repeater_icon'] ); echo '</span>'; }
@@ -126,7 +128,7 @@ final class Accordion_Widget extends \Elementor\Widget_Base {
 		<# var items = _.isArray( settings.tabs ) ? settings.tabs : [];
 		var tag = _.contains( ['span','h2','h3','h4','h5','h6'], settings.title_html_tag ) ? settings.title_html_tag : 'span';
 		var active = settings.active_item === undefined ? 1 : Math.max( 0, parseInt( settings.active_item, 10 ) || 0 );
-		var group = 'digi-accordion-' + view.getID();
+		var group = 'digi-accordion-' + view.getID() + '-' + ( view.cid || '' );
 		var valid = _.some( items, function( item ) { return item && ( item.source === 'elementor' || item.source === 'anywhere' || String( item.tab_title || '' ).trim() || String( item.tab_content || '' ).trim() ); } );
 		var closed = settings.accordion_icon && settings.accordion_icon.value ? elementor.helpers.renderIcon( view, settings.accordion_icon, { 'aria-hidden': true }, 'i', 'object' ) : null;
 		var opened = settings.accordion_active_icon && settings.accordion_active_icon.value ? elementor.helpers.renderIcon( view, settings.accordion_active_icon, { 'aria-hidden': true }, 'i', 'object' ) : null;

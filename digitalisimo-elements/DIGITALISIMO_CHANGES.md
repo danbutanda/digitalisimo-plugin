@@ -1,8 +1,10 @@
-# DIGITALÍSIMO Elements 4.3.0.62
+# DIGITALÍSIMO Elements 4.3.0.63
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
 Cambios de DIGITALÍSIMO respecto del ZIP original:
+
+- 4.3.0.63: da un nombre de grupo único a cada renderizado del Acordeón para que una plantilla repetida no cierre instancias ajenas. La vista previa del Botón avanzado conserva ID, destino externo y `rel` como el frontend. No cambia controles ni IDs de widgets.
 
 - 4.3.0.62: añade Realistic Image Shadow como opción del widget Imagen clásico con `drop-shadow()` nativo, desplazamiento, desenfoque y color. Respeta la silueta alfa, no cambia el marcado ni carga JavaScript y permanece apagado por defecto. No ocupa la extensión de Element Pack; faltan selector personalizado, modo hover y paridad visual.
 

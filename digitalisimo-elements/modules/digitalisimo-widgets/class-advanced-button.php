@@ -86,8 +86,11 @@ final class Advanced_Button_Widget extends \Elementor\Widget_Base {
 		var icon = settings.button_icon && settings.button_icon.value ? elementor.helpers.renderIcon( view, settings.button_icon, { 'aria-hidden': true }, 'i', 'object' ) : null;
 		var url = settings.link && settings.link.url ? String( settings.link.url ) : '';
 		var hasUrl = /^(https?:\/\/|\/|#|mailto:|tel:)/i.test( url );
-		var tag = hasUrl ? 'a' : 'span'; #>
-		<# if ( text ) { #><div class="digi-advanced-button__wrap"><{{ tag }} class="digi-advanced-button digi-advanced-button--{{ size }} digi-advanced-button--effect-{{ effect }} digi-advanced-button--icon-{{ position }}" <# if ( hasUrl ) { #>href="{{ url }}"<# } #>><span class="digi-advanced-button__content">
+		var tag = hasUrl ? 'a' : 'span';
+		var buttonId = String( settings.button_css_id || '' ).replace( /[^A-Za-z0-9_-]/g, '' );
+		var external = hasUrl && settings.link && settings.link.is_external;
+		var rel = hasUrl ? [ external ? 'noopener noreferrer' : '', settings.link && settings.link.nofollow ? 'nofollow' : '' ].filter( Boolean ).join( ' ' ) : ''; #>
+		<# if ( text ) { #><div class="digi-advanced-button__wrap"><{{ tag }} class="digi-advanced-button digi-advanced-button--{{ size }} digi-advanced-button--effect-{{ effect }} digi-advanced-button--icon-{{ position }}"<# if ( buttonId ) { #> id="{{ buttonId }}"<# } #><# if ( hasUrl ) { #> href="{{ url }}"<# } #><# if ( external ) { #> target="_blank"<# } #><# if ( rel ) { #> rel="{{ rel }}"<# } #>><span class="digi-advanced-button__content">
 		<# if ( badge && settings.badge_align === 'left' ) { #><span class="digi-advanced-button__badge">{{ badge }}</span><# } #>
 		<# if ( icon && icon.rendered && ( position === 'left' || position === 'top' ) ) { #><span class="digi-advanced-button__icon" aria-hidden="true">{{{ icon.value }}}</span><# } #>
 		<span class="digi-advanced-button__text">{{ text }}</span>

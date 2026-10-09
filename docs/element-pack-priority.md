@@ -2,8 +2,8 @@
 
 El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden. Se terminan y validan antes de continuar con los demás componentes del inventario. Los primeros 53 son widgets Elementor; los últimos 10 son funciones o extensiones sin identificador de widget. `scripts/inventory-element-pack.py` comprueba que todos existan en la referencia local y graba `user_priority_tier` y `user_priority_order` en `element-pack-inventory.json`. El orden técnico dentro de un lote puede agrupar widgets que comparten motor, pero ninguno del segundo bloque desplaza a uno de esta lista.
 
-1. Accordion — base propia con plantillas e iconos; paridad visual y Multisite pendientes
-2. Advanced Button — base propia con enlace, icono, distintivo y efectos CSS; paridad visual y Multisite pendientes
+1. Accordion — base propia con plantillas e iconos; grupos únicos por renderizado desde 4.3.0.63; paridad visual y Multisite pendientes
+2. Advanced Button — base propia con enlace, icono, distintivo y efectos CSS; vista previa de atributos mejorada en 4.3.0.63; paridad visual y Multisite pendientes
 3. Advanced Divider — base propia con variantes nativas e imagen de Medios; paridad visual y Multisite pendientes
 4. Advanced Heading — base propia; paridad pendiente
 5. Advanced Icon Box — base propia con icono o imagen, título, descripción, enlaces y distintivo; paridad visual y Multisite pendientes
@@ -64,10 +64,10 @@ Funciones y extensiones del mismo bloque prioritario:
 57. Shape Builder — base decorativa para Heading clásico; repetidores, figuras avanzadas y paridad pendientes
 58. Text Gradient Background — base CSS optativa para Heading clásico; otros widgets y paridad pendientes
 59. Realistic Image Shadow — base CSS optativa para Imagen clásico; hover y paridad pendientes
-60. Visibility Controls
-61. Wrapper Link
+60. Visibility Controls — para contenido nuevo usar Display Conditions incluido en Elements; condiciones especializadas y conversión legacy pendientes
+61. Wrapper Link — para contenedores nuevos usar el enlace nativo de Elementor; widgets/secciones y conversión legacy pendientes
 62. Duplicator — base editorial propia para posts, páginas, CPT públicos y plantillas Elementor; pendiente de prueba real en Multisite
-63. SVG Support
+63. SVG Support — usar la carga y el saneamiento SVG nativos de Elementor; habilitación global de la biblioteca no se duplica
 
 Las bases propias señaladas usan IDs `digitalisimo-*`, pero **ninguna se considera migración completa** hasta verificar los controles, casos de error, edición, Multisite y equivalencia funcional/visual. El Slider Optimizado también existe, pero no se declara compatible con `bdt-slider` sin esa comparación. Los IDs antiguos permanecen libres mientras falte paridad. Las extensiones 54–63 se auditan por sus efectos sobre Elementor y WordPress; no se cuentan como widgets ni se cargan globalmente por defecto.
 

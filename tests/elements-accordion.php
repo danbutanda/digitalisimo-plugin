@@ -42,7 +42,9 @@ namespace {
 	check_accordion( 2 === $GLOBALS['accordion_template_queries'], 'Las consultas de plantillas deben compartirse entre instancias en cada sitio.' );
 	$widget->settings = array( 'tabs' => array( array( 'tab_title' => 'Pregunta <script>', 'tab_content' => '<p>Respuesta <strong>válida</strong></p><script>alert(1)</script>' ), array( 'tab_title' => 'Segunda', 'tab_content' => '<p>Otra</p>' ), array( 'tab_title' => '', 'tab_content' => '' ) ), 'active_item' => 1, 'multiple' => '', 'title_html_tag' => 'script' );
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $html = ob_get_clean();
-	check_accordion( 2 === substr_count( $html, '<details ' ) && 2 === substr_count( $html, 'name="digi-accordion-test123"' ) && 1 === substr_count( $html, ' open' ), 'Deben renderizarse dos elementos con grupo exclusivo y apertura inicial.' );
+	check_accordion( 2 === substr_count( $html, '<details ' ) && 2 === preg_match_all( '/name="digi-accordion-test123-1"/', $html ) && 1 === substr_count( $html, ' open' ), 'Deben renderizarse dos elementos con grupo exclusivo y apertura inicial.' );
+	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $second_instance = ob_get_clean();
+	check_accordion( str_contains( $second_instance, 'name="digi-accordion-test123-2"' ) && ! str_contains( $second_instance, 'name="digi-accordion-test123-1"' ), 'Dos instancias del mismo widget no deben compartir grupo.' );
 	check_accordion( str_contains( $html, '&lt;script&gt;' ) && ! str_contains( $html, '<script>' ) && str_contains( $html, '<strong>válida</strong>' ), 'El título y contenido deben pasar por escape y sanitización.' );
 	check_accordion( str_contains( $html, '<span class="digi-accordion__title">' ), 'La etiqueta inválida debe usar span.' );
 	$widget->settings['multiple'] = 'yes';
