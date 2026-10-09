@@ -1,5 +1,5 @@
 {
-  "status": "35 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
+  "status": "38 independent widgets implemented; first has conditional legacy read adapter; functional and visual parity pending",
   "entries": {
     "bdt-accordion": {
       "target": "digitalisimo-accordion",
