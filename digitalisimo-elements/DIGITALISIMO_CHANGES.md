@@ -1,8 +1,10 @@
-# DIGITALÍSIMO Elements 4.3.0.69
+# DIGITALÍSIMO Elements 4.3.0.70
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
 Cambios de DIGITALÍSIMO respecto del ZIP original:
+
+- 4.3.0.70: el Acordeón puede abrir inicialmente todos sus paneles cuando se permite apertura múltiple; omite plantillas inexistentes o privadas y cuenta sólo paneles visibles para elegir el inicial. Mantiene el HTML nativo y los recursos condicionales, sin JavaScript adicional.
 
 - 4.3.0.69: el Encabezado animado comparte un solo listener global de tamaño y de movimiento reducido entre todas sus instancias. Libera temporizadores al retirarlas del DOM y permite reinicializarlas si Elementor las inserta de nuevo, sin alterar la primera frase visible ni la rotación.
 
