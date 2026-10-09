@@ -61,7 +61,7 @@ Funciones y extensiones del mismo bloque prioritario:
 54. Backdrop Filter — base CSS opcional con desenfoque, brillo y saturación; efecto líquido y paridad visual pendientes
 55. Floating Effects — base propia opcional y condicional; paridad visual y Multisite real pendientes
 56. Notation — base CSS para Heading clásico; marcas SVG, repetidores y paridad pendientes
-57. Shape Builder
+57. Shape Builder — base decorativa para Heading clásico; repetidores, figuras avanzadas y paridad pendientes
 58. Text Gradient Background
 59. Realistic Image Shadow
 60. Visibility Controls

@@ -1,8 +1,10 @@
-# DIGITALÍSIMO Elements 4.3.0.59
+# DIGITALÍSIMO Elements 4.3.0.60
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
 Cambios de DIGITALÍSIMO respecto del ZIP original:
+
+- 4.3.0.60: incorpora una base segura de Shape Builder para títulos Heading clásicos. Añade al final una figura decorativa de tamaño estable, forma y color configurables; no reemplaza el contenido, no altera el posicionamiento del widget y no carga GSAP ni SVG externos. No ocupa la extensión de Element Pack; faltan repetidores, otras figuras, animaciones y paridad visual.
 
 - 4.3.0.59: añade una base de Notation para el título del widget Heading clásico: subrayado, línea superior o tachado con color y grosor opcionales. Utiliza CSS nativo y no carga scripts. No altera títulos sin configuración ni ocupa la extensión `bdt-notation`; faltan marcas SVG, repetidores y compatibilidad con otros widgets.
 

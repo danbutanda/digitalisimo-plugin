@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Notation | En validación · 4.3.0.59 | Notación de línea optativa en títulos Heading clásicos, con CSS nativo y sin JavaScript. | Pendientes validación de paquete, publicación, paridad de marcas/repetidores y runtime real en WordPress individual y Multisite. |
+| DIGITALÍSIMO Elements · Shape Builder | En validación · 4.3.0.60 | Figura decorativa optativa al final de títulos Heading clásicos, sin alterar el posicionamiento del widget ni cargar GSAP o SVG externos. | Pendientes validación de paquete, publicación, repetidores, paridad visual y runtime real en WordPress individual y Multisite. |
+
+| DIGITALÍSIMO Elements · Notation | Publicado · 4.3.0.59 · `v2026.10.08.304` | Notación de línea optativa en títulos Heading clásicos, con CSS nativo y sin JavaScript. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#615` y publicación `#304` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.59.zip` (3,687,008 bytes). Faltan marcas/repetidores, paridad visual y runtime real. |
 
 | DIGITALÍSIMO Elements · Floating Effects | Publicado · 4.3.0.58 · `v2026.10.08.303` | Movimiento flotante vertical opcional por widget o contenedor, con API nativa del navegador y script condicional. | Pasaron pruebas PHP de Elements, dos instancias JavaScript, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#614` y publicación `#303` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.58.zip` (3,685,950 bytes). Faltan paridad visual y runtime real en WordPress individual y Multisite. |
 
