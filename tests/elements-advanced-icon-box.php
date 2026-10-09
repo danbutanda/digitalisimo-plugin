@@ -8,6 +8,7 @@ namespace Elementor {
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
 		public function add_responsive_control( $name, $args ) { $this->controls[ $name ] = $args; }
+		public function add_group_control( $type, $args ) { $this->controls[ $args['name'] ] = array( 'type' => $type ) + $args; }
 	}
 	class Controls_Manager {
 		const SELECT = 'select', ICONS = 'icons', MEDIA = 'media', TEXT = 'text', SWITCHER = 'switcher', WYSIWYG = 'wysiwyg', URL = 'url', TAB_STYLE = 'style', CHOOSE = 'choose', SLIDER = 'slider', COLOR = 'color';
@@ -15,6 +16,8 @@ namespace Elementor {
 	class Icons_Manager {
 		public static function render_icon( $icon, $attributes ) { echo '<i class="test-star" aria-hidden="true"></i>'; }
 	}
+	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
+	class Group_Control_Box_Shadow { public static function get_type() { return 'box-shadow'; } }
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
@@ -30,9 +33,10 @@ namespace {
 	$widget = new \Digitalisimo\Elements\Advanced_Icon_Box_Widget();
 	check_icon_box( 'digitalisimo-advanced-icon-box' === $widget->get_name() && array( 'digitalisimo-advanced-icon-box' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'El widget debe usar sólo su CSS condicional.' );
 	( new \ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
-	foreach ( array( 'icon_type', 'selected_icon', 'image', 'title_text', 'description_text', 'position', 'global_link', 'global_link_url', 'readmore_link', 'badge_text', 'text_align', 'icon_size' ) as $name ) {
+	foreach ( array( 'icon_type', 'selected_icon', 'image', 'title_text', 'description_text', 'position', 'global_link', 'global_link_url', 'readmore_link', 'badge_text', 'text_align', 'icon_size', 'title_typography', 'subtitle_typography', 'description_typography', 'box_shadow' ) as $name ) {
 		check_icon_box( isset( $widget->controls[ $name ] ), 'Falta control ' . $name );
 	}
+	check_icon_box( '{{WRAPPER}} .digi-advanced-icon-box__title' === $widget->controls['title_typography']['selector'] && '{{WRAPPER}} .digi-advanced-icon-box' === $widget->controls['box_shadow']['selector'], 'Los estilos opcionales deben afectar sólo a la instancia actual.' );
 	$render = new \ReflectionMethod( $widget, 'render' );
 	$widget->settings = array( 'icon_type' => 'icon', 'selected_icon' => array( 'value' => 'fas fa-star' ), 'title_text' => '<script>X</script>', 'title_size' => 'script', 'description_text' => '<p>Texto <strong>útil</strong></p><script>X</script>', 'readmore' => 'yes', 'readmore_text' => 'Más', 'readmore_link' => array( 'url' => 'https://example.test/detalle', 'is_external' => true ) );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();

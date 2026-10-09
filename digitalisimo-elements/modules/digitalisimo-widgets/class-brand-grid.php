@@ -74,10 +74,10 @@ final class Brand_Grid_Widget extends \Elementor\Widget_Base {
 			if ( 'click' === $mode ) { echo '<details class="digi-brand-grid__details"><summary class="digi-brand-grid__summary" aria-label="' . esc_attr( '' !== $name ? $name : 'Mostrar marca' ) . '">'; }
 			echo '<div class="digi-brand-grid__image">';
 			if ( ! empty( $image['url'] ) ) {
-				$attrs = array( 'alt' => $alt, 'class' => 'digi-brand-grid__logo', 'decoding' => 'async', 'loading' => 0 === $index ? 'eager' : 'lazy' );
+				$attrs = array( 'alt' => $alt, 'class' => 'digi-brand-grid__logo', 'decoding' => 'async' );
 				$html = ! empty( $image['id'] ) ? wp_get_attachment_image( absint( $image['id'] ), $size, false, $attrs ) : '';
 				if ( $html ) { echo $html; }
-				else { echo '<img class="digi-brand-grid__logo" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async" loading="' . ( 0 === $index ? 'eager' : 'lazy' ) . '">'; }
+				else { echo '<img class="digi-brand-grid__logo" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async">'; }
 			}
 			echo '</div>';
 			if ( 'click' === $mode ) { echo '</summary>'; }
@@ -103,9 +103,9 @@ final class Brand_Grid_Widget extends \Elementor\Widget_Base {
 		var tag = _.contains( ['h2','h3','h4','h5','h6','div','span'], settings.brand_html_tag ) ? settings.brand_html_tag : 'h3';
 		var items = _.filter( settings.brand_items || [], function( item ) { return item && ( item.brand_name || ( item.image && item.image.url ) ); } ); #>
 		<# if ( items.length ) { #><div class="digi-brand-grid digi-brand-grid--{{ mode }}"><ul class="digi-brand-grid__list">
-		<# _.each( items, function( item, index ) { var name = item.brand_name || ''; var showName = settings.show_brand_name !== '' && name; var link = item.link && item.link.url && settings.show_website_link !== '' ? item.link : null; var linkText = item.website_link_text || ( name ? 'Visitar ' + name : 'Visitar sitio' ); var rel = link ? [link.is_external ? 'noopener noreferrer' : '', link.nofollow ? 'nofollow' : ''].join(' ').trim() : ''; #>
+		<# _.each( items, function( item ) { var name = item.brand_name || ''; var showName = settings.show_brand_name !== '' && name; var link = item.link && item.link.url && settings.show_website_link !== '' ? item.link : null; var linkText = item.website_link_text || ( name ? 'Visitar ' + name : 'Visitar sitio' ); var rel = link ? [link.is_external ? 'noopener noreferrer' : '', link.nofollow ? 'nofollow' : ''].join(' ').trim() : ''; #>
 		<li class="digi-brand-grid__item"><# if ( mode === 'click' ) { #><details class="digi-brand-grid__details"><summary class="digi-brand-grid__summary" aria-label="{{ name || 'Mostrar marca' }}"><# } #>
-		<div class="digi-brand-grid__image"><# if ( item.image && item.image.url ) { #><img class="digi-brand-grid__logo" src="{{ item.image.url }}" alt="{{ showName && mode !== 'click' ? '' : name }}" decoding="async" loading="{{ index === 0 ? 'eager' : 'lazy' }}"><# } #></div>
+		<div class="digi-brand-grid__image"><# if ( item.image && item.image.url ) { #><img class="digi-brand-grid__logo" src="{{ item.image.url }}" alt="{{ showName && mode !== 'click' ? '' : name }}" decoding="async"><# } #></div>
 		<# if ( mode === 'click' ) { #></summary><# } #><div class="digi-brand-grid__content">
 		<# if ( showName ) { #><{{{ tag }}} class="digi-brand-grid__name">{{ name }}</{{{ tag }}}><# } #>
 		<# if ( link ) { #><a class="digi-brand-grid__link" href="{{ link.url }}" <# if ( link.is_external ) { #>target="_blank"<# } #> <# if ( rel ) { #>rel="{{ rel }}"<# } #>>{{ linkText }}</a><# } #>

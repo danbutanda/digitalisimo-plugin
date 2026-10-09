@@ -59,7 +59,11 @@ final class Animated_Heading_Widget extends \Elementor\Widget_Base {
 		echo '<' . esc_attr( $tag ) . ' class="digi-animated-heading"';
 		if ( $rotates ) { echo ' data-digi-phrases="' . esc_attr( wp_json_encode( $phrases ) ) . '" data-digi-interval="' . esc_attr( (string) $interval ) . '"'; }
 		echo '>';
-		if ( ! empty( $link['url'] ) ) { $this->add_link_attributes( 'animated_heading_link', $link ); echo '<a ' . $this->get_render_attribute_string( 'animated_heading_link' ) . '>'; }
+		if ( ! empty( $link['url'] ) ) {
+			$this->add_link_attributes( 'animated_heading_link', $link );
+			if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( 'animated_heading_link', 'rel', array( 'noopener', 'noreferrer' ) ); }
+			echo '<a ' . $this->get_render_attribute_string( 'animated_heading_link' ) . '>';
+		}
 		if ( $before ) { echo '<span class="digi-animated-heading__before">' . esc_html( $before ) . '</span> '; }
 		if ( $phrases ) {
 			echo '<span class="digi-animated-heading__slot" style="--digi-phrase-ch:' . esc_attr( (string) min( $length + 2, 100 ) ) . 'ch"><span class="digi-animated-heading__phrase">' . esc_html( $phrases[0] ) . '</span></span>';
@@ -74,10 +78,11 @@ final class Animated_Heading_Widget extends \Elementor\Widget_Base {
 		<# var tag = _.contains( ['h1','h2','h3','h4','h5','h6','div'], settings.heading_tag ) ? settings.heading_tag : 'h2';
 		var phrases = ( settings.animated_text || '' ).split(/\r?\n/).map(function(item){ return item.trim(); }).filter(Boolean);
 		var maxLength = Math.min(100, Math.max.apply(null, [0].concat(phrases.map(function(item){ return item.length + 2; }))));
-		var href = settings.heading_link && settings.heading_link.url ? settings.heading_link.url : ''; #>
+		var href = settings.heading_link && settings.heading_link.url ? settings.heading_link.url : '';
+		var rel = settings.heading_link ? [ settings.heading_link.is_external ? 'noopener noreferrer' : '', settings.heading_link.nofollow ? 'nofollow' : '' ].filter(Boolean).join(' ') : ''; #>
 		<# if ( settings.before_text || settings.after_text || phrases.length ) { #>
 		<{{{ tag }}} class="digi-animated-heading">
-		<# if ( href ) { #><a href="{{ href }}"><# } #>
+		<# if ( href ) { #><a href="{{ href }}"<# if ( settings.heading_link.is_external ) { #> target="_blank"<# } #><# if ( rel ) { #> rel="{{ rel }}"<# } #>><# } #>
 		<# if ( settings.before_text ) { #><span class="digi-animated-heading__before">{{ settings.before_text }}</span> <# } #>
 		<# if ( phrases.length ) { #><span class="digi-animated-heading__slot" style="--digi-phrase-ch:{{ maxLength }}ch"><span class="digi-animated-heading__phrase">{{ phrases[0] }}</span></span><# } #>
 		<# if ( settings.after_text ) { #> <span class="digi-animated-heading__after">{{ settings.after_text }}</span><# } #>

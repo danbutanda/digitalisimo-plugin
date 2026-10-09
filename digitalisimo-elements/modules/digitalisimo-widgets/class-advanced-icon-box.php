@@ -52,6 +52,10 @@ final class Advanced_Icon_Box_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'icon_color', array( 'label' => 'Color del icono', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box__visual' => 'color:{{VALUE}};' ) ) );
 		$this->add_control( 'title_color', array( 'label' => 'Color del título', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box__title' => 'color:{{VALUE}};' ) ) );
 		$this->add_control( 'description_color', array( 'label' => 'Color de la descripción', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box__description' => 'color:{{VALUE}};' ) ) );
+		$this->add_group_control( \Elementor\Group_Control_Typography::get_type(), array( 'name' => 'title_typography', 'label' => 'Tipografía del título', 'selector' => '{{WRAPPER}} .digi-advanced-icon-box__title' ) );
+		$this->add_group_control( \Elementor\Group_Control_Typography::get_type(), array( 'name' => 'subtitle_typography', 'label' => 'Tipografía del subtítulo', 'selector' => '{{WRAPPER}} .digi-advanced-icon-box__subtitle', 'condition' => array( 'show_sub_title' => 'yes' ) ) );
+		$this->add_group_control( \Elementor\Group_Control_Typography::get_type(), array( 'name' => 'description_typography', 'label' => 'Tipografía de la descripción', 'selector' => '{{WRAPPER}} .digi-advanced-icon-box__description' ) );
+		$this->add_group_control( \Elementor\Group_Control_Box_Shadow::get_type(), array( 'name' => 'box_shadow', 'label' => 'Sombra de la tarjeta', 'selector' => '{{WRAPPER}} .digi-advanced-icon-box' ) );
 		$this->end_controls_section();
 	}
 

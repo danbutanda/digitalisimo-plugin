@@ -6,9 +6,9 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 2. Advanced Button — base propia con enlace, icono, distintivo y efectos CSS; vista previa de atributos mejorada en 4.3.0.63, icono inferior corregido en 4.3.0.64 y borde, ancho, tipografía y sombra configurables desde 4.3.0.71; renderizado instalado Multisite comprobado, paridad visual pendiente
 3. Advanced Divider — base propia con variantes nativas e imagen de Medios; círculo responsivo desde 4.3.0.66 y cruz y estrella propias desde 4.3.0.72; renderizado instalado Multisite comprobado, paridad visual restante pendiente
 4. Advanced Heading — base propia con tamaño y posición responsivos del texto decorativo desde 4.3.0.67 y tipografía opcional por parte desde 4.3.0.73; renderizado instalado Multisite comprobado, paridad visual pendiente
-5. Advanced Icon Box — base propia con icono o imagen, título, descripción, enlaces y distintivo; enlaces y accesibilidad de la vista previa alineados desde 4.3.0.68; paridad visual y Multisite pendientes
-6. Animated Heading — base propia con rotación progresiva y primer texto visible; listeners globales compartidos y reinserción segura desde 4.3.0.69; variantes avanzadas, paridad visual y Multisite pendientes
-7. Brand Grid — base propia; paridad pendiente
+5. Advanced Icon Box — base propia con icono o imagen, título, descripción, enlaces y distintivo; enlaces y accesibilidad de la vista previa alineados desde 4.3.0.68 y tipografía/sombra optativas desde 4.3.0.74; renderizado Multisite comprobado, skins y efectos pendientes
+6. Animated Heading — base propia con rotación progresiva y primer texto visible; listeners globales compartidos desde 4.3.0.69 y enlace externo seguro desde 4.3.0.74; renderizado Multisite comprobado, variantes avanzadas y paridad visual pendientes
+7. Brand Grid — base propia de logos y enlaces; desde 4.3.0.74 no fuerza la carga inmediata del primer logo y deja esa decisión a WordPress; paridad visual pendiente
 8. Brand Carousel — base propia; paridad pendiente
 9. Breadcrumbs — base propia con jerarquía de WordPress sin depender de Yoast; paridad visual y Multisite pendientes
 10. Dual Button — base propia con dos acciones, iconos y separador; paridad visual y Multisite pendientes

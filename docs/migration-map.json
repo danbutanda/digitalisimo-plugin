@@ -205,7 +205,7 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new semantic widget with editor link and informative-image accessibility parity since 4.3.0.68; legacy control parity, effects, visual comparison and multisite runtime pending"
+      "status": "new semantic widget with editor link and informative-image accessibility parity, optional per-part typography and card shadow since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; legacy control parity, effects and visual comparison pending"
     },
     "bdt-advanced-image-gallery": {
       "target": null,
@@ -283,7 +283,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support, conditional assets and shared global listeners since 4.3.0.69; typed/split/GSAP variants, legacy adapter, visual comparison and multisite runtime pending"
+      "status": "own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support, conditional assets and shared global listeners; safe external link and editor link parity since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; typed/split/GSAP variants, legacy adapter and visual comparison pending"
     },
     "bdt-animated-link": {
       "target": "digitalisimo-animated-link",
@@ -516,7 +516,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new semantic CSS grid widget implemented; legacy adapter and visual comparison pending"
+      "status": "new semantic CSS grid widget implemented; image loading delegated to WordPress instead of assuming first logo is critical since 4.3.0.74; legacy adapter, installed runtime and visual comparison pending"
     },
     "bdt-breadcrumbs": {
       "target": "digitalisimo-breadcrumbs",

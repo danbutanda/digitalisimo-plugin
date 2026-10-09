@@ -41,6 +41,10 @@ En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG pr
 
 En 4.3.0.73 el Encabezado avanzado incorpora tipografía opcional e independiente para título, antetítulo, texto destacado y decoración mediante controles nativos de Elementor. No añade CSS por defecto ni JavaScript. Su salida se comprobó en el sitio principal y un subsitio Multisite; sigue pendiente la comparación visual y de controles con la referencia.
 
+En 4.3.0.74 la Caja de icono avanzada añade tipografía separada para título, subtítulo y descripción, además de sombra optativa; el Encabezado animado protege los enlaces externos en frontend con `noopener noreferrer` y replica sus atributos en el editor. Ambos renderizaron en el sitio principal y en un subsitio Multisite. Quedan skins, efectos, comparación visual y conversión de documentos legacy.
+
+Brand Grid deja de asumir que su primer logo está en el primer viewport: WordPress decide el atributo de carga de cada adjunto según la página real. No se inyecta una prioridad artificial en el editor ni en URLs de respaldo. Faltan la comparación visual y la prueba instalada de este widget.
+
 En 4.3.0.70 el Acordeón añade apertura inicial de todos los paneles cuando se permite apertura múltiple, omite plantillas inexistentes o privadas antes de crear paneles vacíos y cuenta sólo paneles visibles para elegir el inicial. La prueba automatizada comprueba que los selectores de plantillas se separan por `blog_id`; aún falta la prueba instalada en Multisite y la comparación visual con la referencia.
 
 En 4.3.0.71 el Botón avanzado incorpora controles de borde, ancho responsivo, tipografía y sombra con CSS generado por Elementor. Son optativos y preservan el estilo anterior si no se configuran. Siguen pendientes la comparación visual, los efectos restantes y la prueba instalada en Multisite.

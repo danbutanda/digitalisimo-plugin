@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.73
+# DIGITALÍSIMO Elements 4.3.0.74
+
+- 4.3.0.74: añade tipografía independiente y sombra opcional a la Caja de icono avanzada; el Encabezado animado conserva los atributos del enlace en el editor y añade `noopener noreferrer` a enlaces externos en frontend. Brand Grid deja que WordPress decida la carga de imágenes según la posición real en la página. Sin cambios de diseño por defecto ni nuevos scripts.
 
 - 4.3.0.73: permite configurar con controles nativos de Elementor la tipografía del título, antetítulo, fragmento destacado y texto decorativo del Encabezado avanzado por separado. Cada control afecta sólo a la instancia donde se usa; sin ajustes nuevos, se conserva el diseño existente.
 
