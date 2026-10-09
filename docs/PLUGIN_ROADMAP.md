@@ -1,6 +1,6 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · icono inferior de Botón avanzado | En validación · 4.3.0.64 | Corrige el orden vertical del icono para que aparezca debajo del texto y comprueba CSS y marcado juntos. | Pendientes suite completa, ZIP, publicación, paridad visual, pruebas reales en sitio individual y Multisite y conversión legacy. |
+| DIGITALÍSIMO Elements · icono inferior de Botón avanzado | Publicado · 4.3.0.64 · `v2026.10.09.309` | Corrige el orden vertical del icono para que aparezca debajo del texto y comprueba CSS y marcado juntos. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#620` y publicación `#309` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.64.zip` (3,691,348 bytes). Faltan paridad visual, pruebas reales y conversión legacy. |
 
 | DIGITALÍSIMO Elements · Acordeón y Botón avanzado | Publicado · 4.3.0.63 · `v2026.10.09.308` | El Acordeón asigna grupos únicos a plantillas repetidas; la vista previa del Botón avanzado conserva ID, destino externo y `rel`. | Pasaron pruebas PHP de Elements, regresiones del Slider Optimizado y carrusel, suite de seis módulos y ZIP íntegro. GitHub Actions validación `#619` y publicación `#308` terminaron correctamente; la Release contiene sólo `digitalisimo-elements-4.3.0.63.zip` (3,691,291 bytes). Faltan paridad visual, pruebas reales y conversión legacy. |
 
