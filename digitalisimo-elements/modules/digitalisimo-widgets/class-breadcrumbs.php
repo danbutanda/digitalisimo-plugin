@@ -67,6 +67,9 @@ final class Breadcrumbs_Widget extends \Elementor\Widget_Base {
 			} else {
 				$type_object = get_post_type_object( $type );
 				if ( $type_object && $type_object->has_archive ) { self::add( $crumbs, $type_object->labels->name, get_post_type_archive_link( $type ) ); }
+				if ( $type_object && ! empty( $type_object->hierarchical ) ) {
+					foreach ( array_reverse( get_post_ancestors( $post ) ) as $parent_id ) { self::add( $crumbs, get_the_title( $parent_id ), get_permalink( $parent_id ) ); }
+				}
 			}
 			self::add( $crumbs, get_the_title( $post->ID ) );
 			return $crumbs;

@@ -532,7 +532,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own WordPress-native navigation for current site, hierarchy, CPT and taxonomy; existing PRO widget depends on Yoast; no JSON-LD; visual parity, legacy adapter and multisite runtime pending"
+      "status": "own WordPress-native navigation for current site, pages, hierarchical CPT parents and taxonomy; existing PRO widget depends on Yoast; no JSON-LD; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.76; visual parity and legacy adapter pending"
     },
     "bdt-buddypress-friends": {
       "target": null,

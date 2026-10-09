@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.75
+# DIGITALÍSIMO Elements 4.3.0.76
+
+- 4.3.0.76: Breadcrumbs incluye la cadena de padres de un CPT jerárquico usando los permalinks del sitio actual, después del archivo cuando existe. Comprobado con páginas Elementor en el sitio principal y un subsitio Multisite; sin JSON-LD duplicado.
 
 - 4.3.0.75: Brand Carousel deja de asignar carga diferida por el orden de sus logos; WordPress determina el atributo de cada adjunto según la ubicación real del widget. La salida se comprobó en el sitio principal y en un subsitio Multisite, conservando el motor de carrusel compartido.
 

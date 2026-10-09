@@ -21,7 +21,7 @@ namespace {
 	function home_url( $path ) { return 'https://site.example.test/subsite' . $path; }
 	function is_front_page() { return 'front' === $GLOBALS['digi_context']; }
 	function is_home() { return 'blog' === $GLOBALS['digi_context']; }
-	function is_singular() { return in_array( $GLOBALS['digi_context'], array( 'page', 'post', 'product' ), true ); }
+	function is_singular() { return in_array( $GLOBALS['digi_context'], array( 'page', 'post', 'product', 'resource' ), true ); }
 	function is_category() { return 'category' === $GLOBALS['digi_context']; }
 	function is_tag() { return false; }
 	function is_tax() { return false; }
@@ -39,7 +39,7 @@ namespace {
 	function get_the_terms( $post, $taxonomy ) { return array( (object) array( 'term_id' => 3, 'taxonomy' => 'category', 'name' => 'Noticias' ) ); }
 	function get_the_title( $id ) { return 2 === $id ? 'Acerca de' : 'Página <script>x</script>'; }
 	function get_permalink( $id ) { return 'https://site.example.test/subsite/acerca/'; }
-	function get_post_type_object( $type ) { return (object) array( 'has_archive' => true, 'labels' => (object) array( 'name' => 'Productos' ) ); }
+	function get_post_type_object( $type ) { return (object) array( 'has_archive' => true, 'hierarchical' => 'resource' === $type, 'labels' => (object) array( 'name' => 'resource' === $type ? 'Recursos' : 'Productos' ) ); }
 	function get_post_type_archive_link( $type ) { return 'https://site.example.test/subsite/productos/'; }
 	function check_breadcrumbs( $condition, $message ) { if ( ! $condition ) { throw new \RuntimeException( $message ); } }
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-breadcrumbs.php';
@@ -58,6 +58,9 @@ namespace {
 	$GLOBALS['digi_context'] = 'product';
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_breadcrumbs( str_contains( $html, '/productos/' ) && str_contains( $html, 'Productos' ), 'El CPT debe usar su archivo y permalink propios.' );
+	$GLOBALS['digi_context'] = 'resource';
+	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
+	check_breadcrumbs( str_contains( $html, 'Recursos' ) && str_contains( $html, 'Acerca de' ) && str_contains( $html, 'href="https://site.example.test/subsite/acerca/"' ), 'Un CPT jerárquico debe conservar sus padres y URLs configuradas.' );
 	$GLOBALS['digi_context'] = 'category';
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_breadcrumbs( str_contains( $html, 'Categoría padre' ) && str_contains( $html, 'Noticias' ), 'La taxonomía debe mostrar su jerarquía.' );
