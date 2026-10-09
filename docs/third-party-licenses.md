@@ -134,3 +134,7 @@ El inventario estático no sustituye la revisión de licencias archivo por archi
 `class-table.php` y `table.css` son implementación propia de tabla CSV estática tras estudiar `modules/table/widgets/table.php` de Element Pack Pro 9.9.1. No se reutiliza su clase, CSS, DataTables, conector de Google Sheets, ACF ni otros assets. `bdt-table` permanece libre hasta comprobar paridad.
 
 `class-tags-cloud.php` y `tags-cloud.css` son implementación propia tras revisar el módulo Tags Cloud de Element Pack Pro 9.9.1. No reutilizan clase, CSS, JavaScript ni assets externos; consultan taxonomías públicas con APIs de WordPress. `bdt-tags-cloud` permanece libre.
+
+## Extensión reconstruida: Visibility Controls
+
+`digitalisimo-elements/modules/digitalisimo-conditions/` es implementación propia de las reglas observadas en `modules/visibility-controls/` de Element Pack Pro 9.9.1 (GPLv3). No copia sus clases, su repetidor, su script de zona horaria ni su consulta de geolocalización: registra condiciones en el motor Display Conditions del derivado de PRO Elements (GPLv3) usando sus clases base y comparadores. Las listas de países (ISO 3166-1) e idiomas se generaron con `Intl.DisplayNames` de Node.js, que usa datos CLDR de Unicode (licencia Unicode, compatible), y se incluyen como nombres en español.

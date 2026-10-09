@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.79
+# DIGITALÍSIMO Elements 4.3.0.81
+
+- 4.3.0.81: Display Conditions incorpora las reglas de Visibility Controls de Element Pack como condiciones del mismo motor: usuario específico, sistema operativo, navegador, idioma, país, parámetro y ruta de URL, buscador de origen, tipo de contenido, contenido específico, páginas especiales y resultado de un shortcode; con WooCommerce añade carrito, compras del cliente y estado, tipo, categoría, precio y existencias del producto. Sin JavaScript ni CSS nuevos en el frontend y sin consultas remotas durante el render.
 
 - 4.3.0.79: Comparison List muestra en el editor los CTA de los planes y sus atributos, respeta el máximo de ocho columnas y protege enlaces externos en el frontend.
 
