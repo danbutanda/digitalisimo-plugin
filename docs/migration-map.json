@@ -159,7 +159,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "independent decorative widget with responsive circle sizing and WordPress-managed image loading since 4.3.0.66; legacy shape parity, SVG animation, editor/browser comparison and multisite runtime pending"
+      "status": "independent decorative widget with responsive circle, cross and star symbols and WordPress-managed image loading; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.72; remaining legacy shape parity, SVG animation and editor/browser comparison pending"
     },
     "bdt-advanced-gmap": {
       "target": null,

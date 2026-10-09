@@ -37,6 +37,8 @@ Para cada lote, actualizar [PLUGIN_ROADMAP.md](PLUGIN_ROADMAP.md), `migration-ma
 
 ## Siguiente tramo recomendado
 
+En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.
+
 En 4.3.0.70 el Acordeón añade apertura inicial de todos los paneles cuando se permite apertura múltiple, omite plantillas inexistentes o privadas antes de crear paneles vacíos y cuenta sólo paneles visibles para elegir el inicial. La prueba automatizada comprueba que los selectores de plantillas se separan por `blog_id`; aún falta la prueba instalada en Multisite y la comparación visual con la referencia.
 
 En 4.3.0.71 el Botón avanzado incorpora controles de borde, ancho responsivo, tipografía y sombra con CSS generado por Elementor. Son optativos y preservan el estilo anterior si no se configuran. Siguen pendientes la comparación visual, los efectos restantes y la prueba instalada en Multisite.

@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.71
+# DIGITALÍSIMO Elements 4.3.0.72
+
+- 4.3.0.72: añade al Separador avanzado las variantes propias de cruz y estrella centrales, con tamaño y separación responsivos, SVG decorativo sin JavaScript y vista previa equivalente. La prueba instalada con Elementor comprobó su salida en el sitio principal y un subsitio Multisite con activación de red.
 
 Derivado de [PRO Elements 4.3.0](https://github.com/proelements/proelements/releases/tag/v4.3.0), que incorpora código de Elementor Pro. Se conserva el `license.txt` original con los derechos de Elementor Ltd. y del equipo PRO Elements. El código derivado se distribuye bajo GPLv3 o posterior; `COPYING` contiene la licencia completa. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo PRO Elements.
 
