@@ -5,7 +5,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 1. Accordion — base propia con plantillas e iconos; grupos únicos por renderizado desde 4.3.0.63, encabezados válidos desde 4.3.0.65 y apertura múltiple inicial, filtrado de plantillas inválidas y prueba de aislamiento por sitio desde 4.3.0.70; renderizado instalado Multisite comprobado, paridad visual pendiente
 2. Advanced Button — base propia con enlace, icono, distintivo y efectos CSS; vista previa de atributos mejorada en 4.3.0.63, icono inferior corregido en 4.3.0.64 y borde, ancho, tipografía y sombra configurables desde 4.3.0.71; renderizado instalado Multisite comprobado, paridad visual pendiente
 3. Advanced Divider — base propia con variantes nativas e imagen de Medios; círculo responsivo desde 4.3.0.66 y cruz y estrella propias desde 4.3.0.72; renderizado instalado Multisite comprobado, paridad visual restante pendiente
-4. Advanced Heading — base propia con tamaño y posición responsivos del texto decorativo desde 4.3.0.67; paridad visual y Multisite pendientes
+4. Advanced Heading — base propia con tamaño y posición responsivos del texto decorativo desde 4.3.0.67 y tipografía opcional por parte desde 4.3.0.73; renderizado instalado Multisite comprobado, paridad visual pendiente
 5. Advanced Icon Box — base propia con icono o imagen, título, descripción, enlaces y distintivo; enlaces y accesibilidad de la vista previa alineados desde 4.3.0.68; paridad visual y Multisite pendientes
 6. Animated Heading — base propia con rotación progresiva y primer texto visible; listeners globales compartidos y reinserción segura desde 4.3.0.69; variantes avanzadas, paridad visual y Multisite pendientes
 7. Brand Grid — base propia; paridad pendiente

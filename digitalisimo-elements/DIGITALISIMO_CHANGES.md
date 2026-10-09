@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.72
+# DIGITALÍSIMO Elements 4.3.0.73
+
+- 4.3.0.73: permite configurar con controles nativos de Elementor la tipografía del título, antetítulo, fragmento destacado y texto decorativo del Encabezado avanzado por separado. Cada control afecta sólo a la instancia donde se usa; sin ajustes nuevos, se conserva el diseño existente.
 
 - 4.3.0.72: añade al Separador avanzado las variantes propias de cruz y estrella centrales, con tamaño y separación responsivos, SVG decorativo sin JavaScript y vista previa equivalente. La prueba instalada con Elementor comprobó su salida en el sitio principal y un subsitio Multisite con activación de red.
 

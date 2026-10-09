@@ -9,12 +9,14 @@ namespace Elementor {
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
 		public function add_responsive_control( $name, $args ) { $this->controls[ $name ] = $args; }
+		public function add_group_control( $type, $args ) { $this->controls[ $args['name'] ] = array( 'type' => $type ) + $args; }
 		public function add_link_attributes( $name, $link ) { $this->links[ $name ] = $link['url']; }
 		public function get_render_attribute_string( $name ) { return 'href="' . htmlspecialchars( $this->links[ $name ], ENT_QUOTES, 'UTF-8' ) . '"'; }
 	}
 	class Controls_Manager {
 		const TEXT = 'text'; const TEXTAREA = 'textarea'; const SWITCHER = 'switcher'; const URL = 'url'; const SELECT = 'select'; const CHOOSE = 'choose'; const COLOR = 'color'; const SLIDER = 'slider'; const TAB_STYLE = 'style';
 	}
+	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
@@ -24,7 +26,8 @@ namespace {
 	$widget = new \Digitalisimo\Elements\Advanced_Heading_Widget();
 	check_heading( array( 'digitalisimo-advanced-heading' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'El componente debe cargar sólo su CSS.' );
 	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
-	foreach ( array( 'sub_heading', 'main_heading', 'split_main_heading', 'split_text', 'link', 'header_size', 'align', 'advanced_heading_visibility', 'advanced_heading', 'decoration_size', 'decoration_offset_x', 'decoration_offset_y' ) as $control ) { check_heading( isset( $widget->controls[ $control ] ), 'Falta el control ' . $control ); }
+	foreach ( array( 'sub_heading', 'main_heading', 'split_main_heading', 'split_text', 'link', 'header_size', 'align', 'advanced_heading_visibility', 'advanced_heading', 'decoration_size', 'decoration_offset_x', 'decoration_offset_y', 'title_typography', 'sub_typography', 'split_typography', 'decoration_typography' ) as $control ) { check_heading( isset( $widget->controls[ $control ] ), 'Falta el control ' . $control ); }
+	check_heading( '{{WRAPPER}} .digi-advanced-heading__title' === $widget->controls['title_typography']['selector'] && '{{WRAPPER}} .digi-advanced-heading__decoration' === $widget->controls['decoration_typography']['selector'], 'La tipografía debe limitarse a cada instancia del widget.' );
 	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/advanced-heading.css' );
 	check_heading( str_contains( $css, '--digi-heading-decoration-x:0px' ) && str_contains( $css, '--digi-heading-decoration-y:0px' ) && str_contains( $css, 'top:calc(50% + var(--digi-heading-decoration-y))' ), 'Los desplazamientos deben conservar el diseño original por defecto.' );
 	check_heading( str_contains( $widget->controls['decoration_offset_x']['selectors']['{{WRAPPER}} .digi-advanced-heading'], '--digi-heading-decoration-x:' ), 'El editor debe generar el desplazamiento horizontal sólo para este widget.' );

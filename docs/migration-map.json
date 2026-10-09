@@ -193,7 +193,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new semantic widget with responsive decoration sizing and offsets since 4.3.0.67; advanced effects, legacy adapter, visual comparison and multisite runtime pending"
+      "status": "new semantic widget with responsive decoration sizing and offsets and optional Elementor typography per part since 4.3.0.73; main-site and subsite frontend render checked in Multisite; advanced effects, legacy adapter, editor and visual comparison pending"
     },
     "bdt-advanced-icon-box": {
       "target": "digitalisimo-advanced-icon-box",
