@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Botón avanzado | Listo para publicar · 4.3.0.71 | Borde, ancho responsivo, tipografía y sombra configurables sin cambiar el diseño inicial ni añadir scripts. | Pruebas de controles y salida, regresiones del Slider Optimizado y suite de paquetes pendientes de cierre del lote. |
+
 | DIGITALÍSIMO Elements · Acordeón | Publicado · 4.3.0.70 · `v2026.10.09.316` | Apertura inicial de todos los paneles en modo múltiple; omite plantillas privadas o inexistentes y cuenta sólo paneles visibles. | Pasaron pruebas PHP de HTML, editor y aislamiento de plantillas por sitio, regresiones del Slider Optimizado y suite de seis módulos. GitHub Actions validación `#632` y publicación `#316` correctos; la Release incluye sólo `digitalisimo-elements-4.3.0.70.zip` y sus 1,427 archivos coinciden con el código local. Faltan comparación visual y prueba instalada en Multisite. |
 
 | Digitalisimo SEO · auditoría y ajustes de sitio/red | Publicado · 1.0.224 · `v2026.10.09.315` | Cada auditoría abre su propia vista; llms.txt se anuncia en el head sin enlaces repetidos; el separador de títulos es un selector validado en sitio y red; se conserva la selección de Schema para perfiles de persona. | Pasaron pruebas de llms.txt, Schema, actualizador, sintaxis PHP y suite de seis módulos; GitHub Actions validación `#630` y publicación `#315` correctos. La Release contiene sólo `digitalisimo-seo-1.0.224.zip`; sus 75 archivos coinciden con el código local. |

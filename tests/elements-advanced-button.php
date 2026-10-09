@@ -3,13 +3,17 @@ namespace Elementor {
 	class Widget_Base {
 		public $settings = array();
 		public $controls = array();
+		public $groups = array();
 		public function get_settings_for_display() { return $this->settings; }
 		public function start_controls_section( $name, $args ) {}
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
 		public function add_responsive_control( $name, $args ) { $this->controls[ $name ] = $args; }
+		public function add_group_control( $type, $args ) { $this->groups[ $args['name'] ] = array( 'type' => $type, 'args' => $args ); }
 	}
 	class Controls_Manager { const TEXT = 'text'; const URL = 'url'; const SELECT = 'select'; const ICONS = 'icons'; const SWITCHER = 'switcher'; const SLIDER = 'slider'; const COLOR = 'color'; const DIMENSIONS = 'dimensions'; const TAB_STYLE = 'style'; }
+	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
+	class Group_Control_Box_Shadow { public static function get_type() { return 'box-shadow'; } }
 	class Icons_Manager { public static function render_icon( $icon, $attrs ) { echo '<svg data-icon="' . htmlspecialchars( $icon['value'], ENT_QUOTES, 'UTF-8' ) . '"></svg>'; } }
 }
 namespace {
@@ -23,6 +27,8 @@ namespace {
 	check_advanced_button( 'digitalisimo-advanced-button' === $widget->get_name() && array( 'digitalisimo-advanced-button' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'El botón sólo debe cargar su CSS.' );
 	( new \ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
 	check_advanced_button( isset( $widget->controls['text'], $widget->controls['link'], $widget->controls['button_icon'], $widget->controls['badge_text'], $widget->controls['button_effect'] ), 'Faltan controles de botón, icono o distintivo.' );
+	check_advanced_button( isset( $widget->controls['button_border_style'], $widget->controls['button_border_width'], $widget->controls['button_border_color'], $widget->controls['button_width'], $widget->groups['advanced_button_typography'], $widget->groups['advanced_button_shadow'] ), 'Faltan controles visuales del botón.' );
+	check_advanced_button( '' === $widget->controls['button_border_style']['default'] && str_contains( $widget->controls['button_border_width']['selectors']['{{WRAPPER}} .digi-advanced-button'], 'border-width:') && 'typography' === $widget->groups['advanced_button_typography']['type'], 'Los estilos nuevos deben conservar el diseño anterior hasta configurarse y generar CSS por widget.' );
 	$widget->settings = array( 'text' => 'Comprar <ahora>', 'link' => array( 'url' => 'https://example.com/', 'is_external' => 'on', 'nofollow' => 'on' ), 'button_size' => 'lg', 'button_effect' => 'c', 'button_icon' => array( 'value' => 'star' ), 'icon_align' => 'left', 'show_button_badge' => 'yes', 'badge_text' => 'Oferta', 'badge_align' => 'right', 'button_css_id' => 'cta" onclick="x' );
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $html = ob_get_clean();
 	check_advanced_button( str_contains( $html, 'href="https://example.com/"' ) && str_contains( $html, 'target="_blank"' ) && str_contains( $html, 'rel="noopener noreferrer nofollow"' ), 'El enlace externo debe conservar URL y atributos seguros.' );

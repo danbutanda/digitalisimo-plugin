@@ -114,7 +114,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new CSS-only button with safe link, icon, badge and nine lightweight effects; legacy adapter, full style parity and multisite runtime pending"
+      "status": "new CSS-only button with safe link, icon, badge and nine lightweight effects; responsive border and max-width, typography and shadow controls since 4.3.0.71; legacy adapter, full style parity and installed multisite runtime pending"
     },
     "bdt-advanced-calculator": {
       "target": null,
