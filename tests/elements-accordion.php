@@ -46,7 +46,11 @@ namespace {
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $second_instance = ob_get_clean();
 	check_accordion( str_contains( $second_instance, 'name="digi-accordion-test123-2"' ) && ! str_contains( $second_instance, 'name="digi-accordion-test123-1"' ), 'Dos instancias del mismo widget no deben compartir grupo.' );
 	check_accordion( str_contains( $html, '&lt;script&gt;' ) && ! str_contains( $html, '<script>' ) && str_contains( $html, '<strong>válida</strong>' ), 'El título y contenido deben pasar por escape y sanitización.' );
-	check_accordion( str_contains( $html, '<span class="digi-accordion__title">' ), 'La etiqueta inválida debe usar span.' );
+	check_accordion( str_contains( $html, '<span class="digi-accordion__label digi-accordion__title">' ), 'La etiqueta inválida debe usar span.' );
+	$widget->settings['title_html_tag'] = 'h3';
+	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $headings = ob_get_clean();
+	check_accordion( str_contains( $headings, '<summary class="digi-accordion__summary"><h3 class="digi-accordion__label digi-accordion__title">' ) && ! str_contains( $headings, '<span class="digi-accordion__label"><h3' ), 'Los encabezados deben ser hijos directos de summary, no de un span.' );
+	$widget->settings['title_html_tag'] = 'span';
 	$widget->settings['multiple'] = 'yes';
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $multi = ob_get_clean();
 	check_accordion( ! str_contains( $multi, ' name=' ), 'El modo múltiple no debe agrupar details.' );
@@ -59,6 +63,6 @@ namespace {
 	check_accordion( str_contains( $templates, 'Plantilla 42' ) && str_contains( $templates, 'Plantilla 44' ) && ! str_contains( $templates, 'Plantilla 43' ), 'Sólo se pueden mostrar plantillas publicadas del tipo correcto.' );
 	check_accordion( str_contains( $templates, 'digi-accordion--icon-left' ) && str_contains( $templates, 'data-icon="star"' ) && str_contains( $templates, 'data-icon="plus"' ) && str_contains( $templates, 'data-icon="minus"' ), 'Deben conservarse los iconos nativos de Elementor.' );
 	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $editor = ob_get_clean();
-	check_accordion( str_contains( $editor, 'digi-accordion__summary' ) && str_contains( $editor, 'tab_content' ), 'La plantilla de Elementor debe conservar elementos y contenido.' );
+	check_accordion( str_contains( $editor, 'digi-accordion__summary' ) && str_contains( $editor, 'tab_content' ) && str_contains( $editor, '<{{ tag }} class="digi-accordion__label digi-accordion__title">' ), 'La plantilla de Elementor debe conservar elementos, encabezados válidos y contenido.' );
 	echo "DIGITALÍSIMO Elements: Acordeón nativo validado.\n";
 }

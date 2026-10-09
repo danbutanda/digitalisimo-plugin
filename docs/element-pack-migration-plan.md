@@ -72,7 +72,7 @@ El plugin SEO puede aplicar optimizaciones adicionales al frontend, pero cada wi
 
 ## Décimo piloto: Accordion prioritario
 
-`digitalisimo-accordion` usa `<details>` y `<summary>` nativos, con un repetidor para título y contenido, apertura inicial, varios paneles opcionales y CSS condicional. El contenido editorial pasa por sanitización y el widget no produce schema FAQ paralelo ni solicita JavaScript/UIkit. Permanecen pendientes la selección de plantillas Elementor, iconos configurables, opciones de URL/hash y equivalencia visual; no se registra `bdt-accordion` ni se convierten documentos antiguos.
+`digitalisimo-accordion` usa `<details>` y `<summary>` nativos, con un repetidor para título y contenido, apertura inicial, varios paneles opcionales y CSS condicional. Admite plantillas Elementor publicadas y, cuando está disponible, Anywhere Elementor; incorpora iconos por elemento y de estado. El contenido editorial pasa por sanitización y el widget no produce schema FAQ paralelo ni solicita JavaScript/UIkit. Los encabezados opcionales H2–H6 son hijos directos de `<summary>`. Permanecen pendientes opciones de URL/hash, equivalencia visual y pruebas reales de editor y Multisite; no se registra `bdt-accordion` ni se convierten documentos antiguos.
 
 ## Undécimo piloto: Separador avanzado prioritario
 

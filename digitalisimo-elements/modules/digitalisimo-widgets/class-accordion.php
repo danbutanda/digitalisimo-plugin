@@ -103,9 +103,9 @@ final class Accordion_Widget extends \Elementor\Widget_Base {
 			echo '<details class="digi-accordion__item"';
 			if ( $exclusive ) { echo ' name="' . esc_attr( $group ) . '"'; }
 			if ( $active === $index + 1 ) { echo ' open'; }
-			echo '><summary class="digi-accordion__summary"><span class="digi-accordion__label">';
+		echo '><summary class="digi-accordion__summary"><' . $tag . ' class="digi-accordion__label digi-accordion__title">';
 			if ( $custom_icons && ! empty( $item['repeater_icon']['value'] ) ) { echo '<span class="digi-accordion__custom-icon" aria-hidden="true">'; self::print_icon( $item['repeater_icon'] ); echo '</span>'; }
-			echo '<' . $tag . ' class="digi-accordion__title">' . esc_html( $title ) . '</' . $tag . '></span><span class="digi-accordion__marker' . ( $toggle_icons ? ' digi-accordion__marker--custom' : '' ) . '" aria-hidden="true">';
+			echo esc_html( $title ) . '</' . $tag . '><span class="digi-accordion__marker' . ( $toggle_icons ? ' digi-accordion__marker--custom' : '' ) . '" aria-hidden="true">';
 			if ( $toggle_icons ) {
 				echo '<span class="digi-accordion__icon-closed">'; self::print_icon( $settings['accordion_icon'] ?? null ); echo '</span>';
 				echo '<span class="digi-accordion__icon-open">'; self::print_icon( $settings['accordion_active_icon'] ?? null ); echo '</span>';
@@ -135,7 +135,7 @@ final class Accordion_Widget extends \Elementor\Widget_Base {
 		var customIcons = closed && closed.rendered && opened && opened.rendered; #>
 		<# if ( valid ) { #><div class="digi-accordion<# if ( settings.icon_align === 'left' ) { #> digi-accordion--icon-left<# } #>"><# _.each( items, function( item, index ) { if ( ! item || !( item.source === 'elementor' || item.source === 'anywhere' || String( item.tab_title || '' ).trim() || String( item.tab_content || '' ).trim() ) ) return; var title = String( item.tab_title || '' ).trim() || 'Elemento ' + ( index + 1 ); var itemIcon = settings.show_custom_icon === 'yes' && item.repeater_icon && item.repeater_icon.value ? elementor.helpers.renderIcon( view, item.repeater_icon, { 'aria-hidden': true }, 'i', 'object' ) : null; #>
 		<details class="digi-accordion__item" <# if ( settings.multiple !== 'yes' ) { #>name="{{ group }}"<# } #> <# if ( active === index + 1 ) { #>open<# } #>>
-		<summary class="digi-accordion__summary"><span class="digi-accordion__label"><# if ( itemIcon && itemIcon.rendered ) { #><span class="digi-accordion__custom-icon" aria-hidden="true">{{{ itemIcon.value }}}</span><# } #><{{ tag }} class="digi-accordion__title">{{ title }}</{{ tag }}></span><span class="digi-accordion__marker<# if ( customIcons ) { #> digi-accordion__marker--custom<# } #>" aria-hidden="true"><# if ( customIcons ) { #><span class="digi-accordion__icon-closed"><# if ( closed && closed.rendered ) { #>{{{ closed.value }}}<# } #></span><span class="digi-accordion__icon-open"><# if ( opened && opened.rendered ) { #>{{{ opened.value }}}<# } #></span><# } #></span></summary>
+		<summary class="digi-accordion__summary"><{{ tag }} class="digi-accordion__label digi-accordion__title"><# if ( itemIcon && itemIcon.rendered ) { #><span class="digi-accordion__custom-icon" aria-hidden="true">{{{ itemIcon.value }}}</span><# } #>{{ title }}</{{ tag }}><span class="digi-accordion__marker<# if ( customIcons ) { #> digi-accordion__marker--custom<# } #>" aria-hidden="true"><# if ( customIcons ) { #><span class="digi-accordion__icon-closed"><# if ( closed && closed.rendered ) { #>{{{ closed.value }}}<# } #></span><span class="digi-accordion__icon-open"><# if ( opened && opened.rendered ) { #>{{{ opened.value }}}<# } #></span><# } #></span></summary>
 		<div class="digi-accordion__content"><# if ( item.source === 'elementor' || item.source === 'anywhere' ) { #><p>Plantilla #{{ item.source === 'anywhere' ? item.anywhere_id : item.template_id }}</p><# } else { #>{{{ item.tab_content || '' }}}<# } #></div></details><# } ); #></div><# } #>
 		<?php
 	}
