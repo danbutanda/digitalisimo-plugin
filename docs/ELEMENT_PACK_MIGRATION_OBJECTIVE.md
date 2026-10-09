@@ -51,7 +51,7 @@ En 4.3.0.76 Breadcrumbs incluye la jerarquía de CPT cuando WordPress declara es
 
 En 4.3.0.77 Botón doble alinea la vista previa con el frontend: muestra los iconos, la estructura del texto y los atributos de los enlaces; el frontend protege las pestañas externas con `noopener noreferrer`. Su HTML se comprobó en ambos sitios de la red de pruebas. Siguen pendientes skins, paridad visual y adaptación de documentos `bdt-dual-button`.
 
-En 4.3.0.78 Call Out alinea la vista previa con el frontend: muestra el icono y los atributos del enlace, mientras que el frontend protege pestañas externas con `noopener noreferrer`. Siguen pendientes skins, animaciones, paridad visual y adaptación de documentos `bdt-call-out`.
+En 4.3.0.78 Call Out alinea la vista previa con el frontend: muestra el icono y los atributos del enlace, mientras que el frontend protege pestañas externas con `noopener noreferrer`. Su HTML se comprobó en el sitio principal y un subsitio Multisite. Siguen pendientes skins, animaciones, paridad visual y adaptación de documentos `bdt-call-out`.
 
 En 4.3.0.70 el Acordeón añade apertura inicial de todos los paneles cuando se permite apertura múltiple, omite plantillas inexistentes o privadas antes de crear paneles vacíos y cuenta sólo paneles visibles para elegir el inicial. La prueba automatizada comprueba que los selectores de plantillas se separan por `blog_id`; aún falta la prueba instalada en Multisite y la comparación visual con la referencia.
 

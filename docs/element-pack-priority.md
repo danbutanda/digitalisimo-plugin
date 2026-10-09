@@ -12,7 +12,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 8. Brand Carousel — base propia sobre motor nativo compartido; desde 4.3.0.75 no fuerza `loading` de los logos por índice y su renderizado Multisite está comprobado; paridad visual pendiente
 9. Breadcrumbs — base propia con jerarquía de WordPress sin depender de Yoast; desde 4.3.0.76 incluye padres de CPT jerárquicos y está probado en sitio principal y subsitio Multisite; paridad visual pendiente
 10. Dual Button — base propia con dos acciones, iconos y separador; editor y enlaces externos alineados desde 4.3.0.77, renderizado Multisite comprobado; paridad visual pendiente
-11. Call Out — base propia con título, descripción y botón; editor y enlaces externos alineados desde 4.3.0.78; paridad visual y Multisite pendientes
+11. Call Out — base propia con título, descripción y botón; editor y enlaces externos alineados desde 4.3.0.78, renderizado Multisite comprobado; paridad visual pendiente
 12. Comparison List — base propia en tabla semántica; variantes y Multisite pendientes
 13. Content Switcher — base propia en pestañas accesibles; contenidos avanzados y Multisite pendientes
 14. Custom Gallery — base propia con selección múltiple y datos individuales; lightbox y Multisite pendientes

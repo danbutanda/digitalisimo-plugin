@@ -610,7 +610,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own semantic CTA with optional icon and link; editor preview and external links aligned in 4.3.0.78; legacy skins, animations, visual parity and multisite runtime pending"
+      "status": "own semantic CTA with optional icon and link; editor preview and external links aligned in 4.3.0.78; multisite runtime verified; legacy skins, animations and visual parity pending"
     },
     "bdt-carousel": {
       "target": null,

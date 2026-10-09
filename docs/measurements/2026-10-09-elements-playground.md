@@ -15,3 +15,5 @@ También se creó una página con Brand Carousel y dos logos en el sitio princip
 Para Breadcrumbs se registró temporalmente un CPT público y jerárquico con archivo, padre e hijo en los dos sitios. Tras regenerar las reglas de enlace de ese entorno de prueba, la página hija imprimió el padre con el permalink correcto para el blog principal (`/blog/`) y para el subsitio (`/sub/`). El widget no añadió JSON-LD propio. La ruta del CPT temporal no existe en producción.
 
 Botón doble se renderizó con dos enlaces en páginas Elementor del sitio principal y el subsitio. El primer enlace externo conservó `target="_blank"` y `rel="nofollow noopener noreferrer"`; el texto intermedio y la segunda acción siguieron visibles. La prueba PHP comprueba también que el editor incluye los iconos y atributos de los dos enlaces.
+
+Call Out 4.3.0.78 se registró y se renderizó con Elementor instalado en el blog principal y un subsitio Multisite. Ambos imprimieron su título y enlace externo con `noopener noreferrer`; la prueba PHP verifica el icono decorativo, `nofollow` y la vista previa del editor. La comprobación no mide paridad visual ni rendimiento.
