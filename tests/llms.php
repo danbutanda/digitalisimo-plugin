@@ -118,4 +118,24 @@ $GLOBALS['filter'] = 'roto';
 check( 0 === strpos( $l::result()['content'], '# Agencia Uno' ), 'Un filtro que rompe el formato se ignora.' );
 check( 'automatic' === $l::sanitize_mode( 'otro' ) && 'hybrid' === $l::sanitize_mode( 'hybrid' ), 'Modo desconocido vuelve a automático.' );
 
+// <link rel="describedby">: sólo con llms.txt activo y válido, con la URL de cada sitio y sin duplicados.
+$GLOBALS['filter'] = null;
+function esc_url( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES ); }
+function is_admin() { return false; }
+function is_feed() { return false; }
+$GLOBALS['blog'] = 1; $GLOBALS['settings'][1] = array();
+check( ! $l::available(), 'Desactivado: no se anuncia.' );
+ob_start(); $l::head_link(); check( '' === ob_get_clean(), 'Desactivado: el head no lleva el enlace.' );
+$GLOBALS['settings'][1] = array( 'seo_ai_llms_enabled' => 1 );
+check( $l::available(), 'Activado y válido: se anuncia.' );
+ob_start(); $l::head_link(); $l::head_link(); $out = ob_get_clean();
+check( '<link rel="describedby" href="https://uno.test/llms.txt" type="text/plain">' . "\n" === $out, 'Una sola vez y con la URL del sitio: ' . $out );
+$GLOBALS['blog'] = 2; $GLOBALS['settings'][2] = array( 'seo_ai_llms_enabled' => 1 );
+check( '<link rel="describedby" href="https://red.test/dos/llms.txt" type="text/plain">' === $l::link_tag(), 'Multisite en subdirectorio usa su propia URL.' );
+$GLOBALS['blog'] = 1;
+$page = '<html><head><link rel="describedby" href="https://uno.test/llms.txt" type="text/plain">' . "\n" . '<link rel=\'describedby\' href=\'https://uno.test/llms.txt\'><link rel="describedby" href="https://uno.test/otro.xml"></head><body><link rel="describedby" href="https://uno.test/llms.txt"></body></html>';
+$clean = $l::dedupe( $page );
+check( 1 === substr_count( substr( $clean, 0, strpos( $clean, '</head>' ) ), 'llms.txt' ) && false !== strpos( $clean, 'otro.xml' ) && false !== strpos( $clean, '<body><link rel="describedby"' ), 'Dedupe deja uno en el head y no toca otros enlaces ni el body.' );
+check( 'sin head' === $l::dedupe( 'sin head' ), 'Sin </head> no se modifica.' );
+
 echo "llms.txt: validación, generación por sitio, modos y respaldo correctos.\n";

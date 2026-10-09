@@ -3,15 +3,30 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * SEO → Auditoría: un solo lugar para todas las auditorías, pruebas y
- * análisis del plugin. Las que analizan el HTML publicado se ejecutan aquí
- * mismo (Schema, SEO Front, llms.txt); las de Rendimiento y calidad, que miden
- * la página en el navegador, se abren en su consola.
+ * análisis del plugin, cada una en su propia vista (`&audit=`) para no
+ * mezclarlas. Las que analizan el HTML publicado se ejecutan aquí mismo
+ * (Schema, SEO Front, llms.txt); las de Rendimiento y calidad, que miden la
+ * página en el navegador, se abren en su consola.
  */
 class Digitalisimo_Integrations_SEO_Audit_Hub {
 	const PAGE = 'digitalisimo-seo-audit';
 
-	public static function url( $anchor = '' ) {
-		return admin_url( 'admin.php?page=' . self::PAGE ) . ( $anchor ? '#' . $anchor : '' );
+	public static function url( $audit = '' ) {
+		return admin_url( 'admin.php?page=' . self::PAGE ) . ( $audit ? '&audit=' . rawurlencode( $audit ) : '' );
+	}
+
+	/** Auditorías disponibles; cada una se muestra sola en su propia vista. */
+	private static function sections() {
+		$sections = array( 'schema' => 'Schema', 'front' => 'SEO Front', 'llms' => 'llms.txt', 'quality' => 'Rendimiento y calidad', 'files' => 'Archivos públicos' );
+		if ( class_exists( 'Digitalisimo_AI' ) ) $sections['ai'] = 'SEO AI';
+		return $sections;
+	}
+
+	/** Auditoría pedida; los slugs históricos de SEO Front siguen abriendo SEO Front. */
+	private static function current( $sections ) {
+		$audit = sanitize_key( wp_unslash( $_GET['audit'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo elige la vista.
+		if ( isset( $sections[ $audit ] ) ) return $audit;
+		return in_array( sanitize_key( wp_unslash( $_GET['page'] ?? '' ) ), array( 'digitalisimo-seo-diagnostic', 'digitalisimo-seo-tools' ), true ) ? 'front' : 'schema'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	}
 
 	/** Pruebas de Rendimiento y calidad que se abren en su consola. */
@@ -31,37 +46,41 @@ class Digitalisimo_Integrations_SEO_Audit_Hub {
 	}
 
 	public static function render() {
-		$sections = array( 'schema' => 'Schema', 'front' => 'SEO Front', 'llms' => 'llms.txt', 'quality' => 'Rendimiento y calidad', 'files' => 'Archivos públicos' );
-		if ( class_exists( 'Digitalisimo_AI' ) ) $sections['ai'] = 'SEO AI';
-		echo '<h2>Auditoría</h2><p>Todas las auditorías, pruebas y análisis del plugin. Sólo informan: ninguna modifica contenido ni configuración.</p><p>';
-		$links = array();
-		foreach ( $sections as $id => $label ) $links[] = '<a href="#digitalisimo-audit-' . esc_attr( $id ) . '">' . esc_html( $label ) . '</a>';
-		echo implode( ' · ', $links ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- enlaces escapados arriba.
+		$sections = self::sections(); $current = self::current( $sections );
+		echo '<h2>Auditoría</h2><p>Elige una auditoría; cada una se muestra por separado. Sólo informan: ninguna modifica contenido ni configuración.</p><ul class="subsubsub digitalisimo-audit-nav" style="float:none;margin:0 0 12px">';
+		$items = array();
+		foreach ( $sections as $id => $label ) $items[] = '<li><a href="' . esc_url( self::url( $id ) ) . '"' . ( $id === $current ? ' class="current" aria-current="page"' : '' ) . '>' . esc_html( $label ) . '</a>';
+		echo implode( ' | </li>', $items ) . '</li></ul><hr id="digitalisimo-audit-' . esc_attr( $current ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- enlaces escapados arriba.
 
-		echo '<hr id="digitalisimo-audit-schema">';
-		Digitalisimo_Integrations_Schema_Audit::render();
-
-		echo '<hr id="digitalisimo-audit-front">';
-		Digitalisimo_Integrations_SEO_Front_Inspector::render();
-
-		echo '<hr id="digitalisimo-audit-llms">';
-		if ( Digitalisimo_Integrations_LLMS::status()['enabled'] ) Digitalisimo_Integrations_LLMS::render_status( false );
-		else echo '<h2>Estado de llms.txt</h2><p>' . Digitalisimo_Integrations_Quality_Audit::badge( 'NO APLICABLE', 'SIN ACTIVAR' ) . ' El sitio no publica /llms.txt. ' . ( class_exists( 'Digitalisimo_AI' ) ? 'Se activa en <a href="' . esc_url( Digitalisimo_Integrations_LLMS::admin_url() ) . '">SEO AI → llms.txt</a>.' : 'Se configura en SEO AI, que requiere el módulo AI y Chatbot.' ) . '</p>';
-
-		echo '<hr id="digitalisimo-audit-quality"><h2>Rendimiento y calidad</h2><p>Estas pruebas abren la página en el navegador para medirla como la ve un visitante; se ejecutan en la consola de Rendimiento.</p><table class="widefat striped" style="max-width:900px"><tbody>';
-		$record = Digitalisimo_Integrations_Quality_Audit::current_record( false );
-		foreach ( self::performance_audits() as $section => $item ) {
-			$detail = $item[1];
-			if ( 'audit' === $section && $record ) $detail .= ' Última: ' . wp_parse_url( $record['url'], PHP_URL_PATH ) . ' · ' . date_i18n( 'Y-m-d H:i', (int) $record['time'] ) . '.';
-			echo '<tr><th><a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-performance&section=' . $section ) ) . '">' . esc_html( $item[0] ) . '</a></th><td>' . esc_html( $detail ) . '</td></tr>';
+		switch ( $current ) {
+			case 'front':
+				Digitalisimo_Integrations_SEO_Front_Inspector::render();
+				break;
+			case 'llms':
+				if ( Digitalisimo_Integrations_LLMS::status()['enabled'] ) Digitalisimo_Integrations_LLMS::render_status( false );
+				else echo '<h2>Estado de llms.txt</h2><p>' . Digitalisimo_Integrations_Quality_Audit::badge( 'NO APLICABLE', 'SIN ACTIVAR' ) . ' El sitio no publica /llms.txt. ' . ( class_exists( 'Digitalisimo_AI' ) ? 'Se activa en <a href="' . esc_url( Digitalisimo_Integrations_LLMS::admin_url() ) . '">SEO AI → llms.txt</a>.' : 'Se configura en SEO AI, que requiere el módulo AI y Chatbot.' ) . '</p>';
+				break;
+			case 'quality':
+				echo '<h2>Rendimiento y calidad</h2><p>Estas pruebas abren la página en el navegador para medirla como la ve un visitante; se ejecutan en la consola de Rendimiento.</p><table class="widefat striped" style="max-width:900px"><tbody>';
+				$record = Digitalisimo_Integrations_Quality_Audit::current_record( false );
+				foreach ( self::performance_audits() as $section => $item ) {
+					$detail = $item[1];
+					if ( 'audit' === $section && $record ) $detail .= ' Última: ' . wp_parse_url( $record['url'], PHP_URL_PATH ) . ' · ' . date_i18n( 'Y-m-d H:i', (int) $record['time'] ) . '.';
+					echo '<tr><th><a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-performance&section=' . $section ) ) . '">' . esc_html( $item[0] ) . '</a></th><td>' . esc_html( $detail ) . '</td></tr>';
+				}
+				echo '</tbody></table>';
+				break;
+			case 'files':
+				echo '<h2>Archivos públicos</h2><p>Lo que leen buscadores y agentes en este sitio.</p><p>';
+				foreach ( array( '/sitemap.xml' => 'Ver sitemap XML', '/robots.txt' => 'Ver robots.txt', '/llms.txt' => 'Ver llms.txt' ) as $path => $label ) echo '<a class="button button-secondary" href="' . esc_url( home_url( $path ) ) . '" target="_blank" rel="noopener">' . esc_html( $label ) . '</a> ';
+				echo '</p>';
+				break;
+			case 'ai':
+				echo '<h2>SEO AI</h2><p>Accesibilidad de las URL para buscadores y agentes de IA: HTTP, robots, noindex, canonical y entidades. <a class="button" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-ai-audit' ) ) . '">Abrir auditoría SEO AI</a></p>';
+				break;
+			default:
+				Digitalisimo_Integrations_Schema_Audit::render();
 		}
-		echo '</tbody></table>';
-
-		echo '<hr id="digitalisimo-audit-files"><h2>Archivos públicos</h2><p>Lo que leen buscadores y agentes en este sitio.</p><p>';
-		foreach ( array( '/sitemap.xml' => 'Ver sitemap XML', '/robots.txt' => 'Ver robots.txt', '/llms.txt' => 'Ver llms.txt' ) as $path => $label ) echo '<a class="button button-secondary" href="' . esc_url( home_url( $path ) ) . '" target="_blank" rel="noopener">' . esc_html( $label ) . '</a> ';
-		echo '</p>';
-
-		if ( isset( $sections['ai'] ) ) echo '<hr id="digitalisimo-audit-ai"><h2>SEO AI</h2><p>Accesibilidad de las URL para buscadores y agentes de IA: HTTP, robots, noindex, canonical y entidades. <a class="button" href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-ai-audit' ) ) . '">Abrir auditoría SEO AI</a></p>';
 	}
 
 	/** En la red: cada auditoría analiza un sitio, así que se abre desde él. */

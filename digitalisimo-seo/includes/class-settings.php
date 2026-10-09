@@ -222,6 +222,7 @@ class Digitalisimo_Integrations_Settings {
 		}
 		foreach ( array( 'sitemap_post_types', 'seo_sitemap_taxonomies' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_sitemap_list( $input[ $key ] );
 		if ( isset( $input['seo_organization_type'] ) && ! array_key_exists( $output['seo_organization_type'], Digitalisimo_Integrations_SEO_Suite::entity_type_choices() ) ) $output['seo_organization_type'] = 'Organization';
+		if ( isset( $input['seo_separator'] ) && ! array_key_exists( $output['seo_separator'], Digitalisimo_Integrations_SEO_Suite::separator_choices() ) ) $output['seo_separator'] = '|';
 		// Sólo tipos oficiales de Schema.org: un texto libre publicaría un @type inventado.
 		if ( isset( $input['seo_local_type'] ) ) $output['seo_local_type'] = Digitalisimo_Integrations_Schema_Vocabulary::local_type( sanitize_text_field( $input['seo_local_type'] ) );
 		if ( isset( $input['seo_robots_rules'] ) ) $output['seo_robots_rules'] = Digitalisimo_Integrations_Robots::sanitize( $input['seo_robots_rules'] );

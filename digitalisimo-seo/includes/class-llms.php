@@ -18,6 +18,8 @@ class Digitalisimo_Integrations_LLMS {
 
 	public static function init() {
 		add_action( 'parse_request', array( __CLASS__, 'maybe_serve' ), 0 );
+		add_action( 'wp_head', array( __CLASS__, 'head_link' ), 2 );
+		add_action( 'template_redirect', array( __CLASS__, 'start_buffer' ), 5 );
 		foreach ( array( 'save_post', 'deleted_post', 'trashed_post' ) as $hook ) add_action( $hook, array( __CLASS__, 'forget' ) );
 		// Nombre, descripción, URL y portada cambian el contenido: la caché del sitio se descarta.
 		foreach ( array( 'blogname', 'blogdescription', 'home', 'siteurl', 'page_on_front', 'show_on_front' ) as $option ) add_action( 'update_option_' . $option, array( __CLASS__, 'forget' ) );
@@ -49,6 +51,45 @@ class Digitalisimo_Integrations_LLMS {
 
 	public static function endpoint() {
 		return home_url( '/llms.txt' );
+	}
+
+	/** El sitio publica un /llms.txt válido: activado y con contenido que supera la validación. */
+	public static function available() {
+		return self::enabled() && ! empty( self::result()['valid'] );
+	}
+
+	/** <link> que anuncia el llms.txt del sitio en curso; la URL sale de home_url(). */
+	public static function link_tag() {
+		return '<link rel="describedby" href="' . esc_url( self::endpoint() ) . '" type="text/plain">';
+	}
+
+	/** Lo imprime una sola vez y sólo cuando el archivo existe. */
+	public static function head_link() {
+		static $printed = false;
+		if ( $printed || is_admin() || is_feed() || ! self::available() ) return;
+		$printed = true;
+		echo self::link_tag() . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- link_tag() escapa la URL.
+	}
+
+	/** Si el tema u otro plugin también lo anuncian, sólo queda el primero. */
+	public static function start_buffer() {
+		if ( is_admin() || is_feed() || is_robots() || wp_doing_ajax() || ! self::available() ) return;
+		ob_start( array( __CLASS__, 'dedupe' ) );
+	}
+
+	/** Deja un solo <link rel="describedby"> hacia llms.txt dentro de <head>. */
+	public static function dedupe( $html ) {
+		$end = stripos( (string) $html, '</head>' );
+		if ( false === $end ) return $html;
+		$head = substr( $html, 0, $end );
+		$seen = false;
+		$head = preg_replace_callback( '#<link\b[^>]*>\s*#i', function( $m ) use ( &$seen ) {
+			if ( ! preg_match( '#\brel\s*=\s*["\']?[^"\'>]*\bdescribedby\b#i', $m[0] ) || ! preg_match( '#\bhref\s*=\s*["\']?[^"\'\s>]*/llms\.txt\b#i', $m[0] ) ) return $m[0];
+			if ( $seen ) return '';
+			$seen = true;
+			return $m[0];
+		}, $head );
+		return $head . substr( $html, $end );
 	}
 
 	/**

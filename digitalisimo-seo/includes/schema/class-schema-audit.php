@@ -92,7 +92,7 @@ class Digitalisimo_Integrations_Schema_Audit {
 			$all[ $url ] = self::audit( $url );
 			update_option( self::OPTION, array_slice( $all, -self::KEEP, null, true ), false );
 		}
-		wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-seo-audit', 'schema_url' => rawurlencode( $url ), 'schema_status' => $status ), admin_url( 'admin.php' ) ) . '#' . self::ANCHOR );
+		wp_safe_redirect( add_query_arg( array( 'page' => 'digitalisimo-seo-audit', 'audit' => 'schema', 'schema_url' => rawurlencode( $url ), 'schema_status' => $status ), admin_url( 'admin.php' ) ) . '#' . self::ANCHOR );
 		exit;
 	}
 
@@ -158,7 +158,7 @@ class Digitalisimo_Integrations_Schema_Audit {
 		echo '<table class="widefat striped"><thead><tr><th>URL</th><th>Estado</th><th>Bloques</th><th>Errores</th><th>Advertencias</th><th>Revisada</th></tr></thead><tbody>';
 		foreach ( array_reverse( $all, true ) as $url => $record ) {
 			$report = $record['report'] ?? null;
-			$link   = add_query_arg( array( 'page' => 'digitalisimo-seo-audit', 'schema_url' => rawurlencode( $url ) ), admin_url( 'admin.php' ) ) . '#' . self::ANCHOR;
+			$link   = add_query_arg( array( 'page' => 'digitalisimo-seo-audit', 'audit' => 'schema', 'schema_url' => rawurlencode( $url ) ), admin_url( 'admin.php' ) ) . '#' . self::ANCHOR;
 			$errors = $report ? count( wp_list_filter( array_merge( $report['issues'], $report['missing'] ), array( 'status' => Digitalisimo_Integrations_Schema_Rules::ERROR ) ) ) : 0;
 			$warns  = $report ? count( wp_list_filter( array_merge( $report['issues'], $report['missing'] ), array( 'status' => Digitalisimo_Integrations_Schema_Rules::WARNING ) ) ) : 0;
 			echo '<tr><td><a href="' . esc_url( $link ) . '">' . esc_html( $url ) . '</a></td><td>' . ( $report ? self::badge( $report['status'] ) : self::badge( Digitalisimo_Integrations_Schema_Rules::ERROR, 'HTTP ' . (int) $record['code'] ) ) . '</td><td>' . ( $report ? (int) $report['blocks'] : '—' ) . '</td><td>' . (int) $errors . '</td><td>' . (int) $warns . '</td><td>' . esc_html( wp_date( 'Y-m-d H:i', $record['time'] ) ) . '</td></tr>';

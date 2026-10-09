@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.223.zip', version: '1.0.223' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.224.zip', version: '1.0.224' },
   { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.54.zip', version: '1.0.54' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.25.zip', version: '1.0.25' },
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.52.zip', version: '1.0.52' },
@@ -231,6 +231,7 @@ if (!seoEditorialTools.includes('La ficha verde es la keyword principal') || !re
 if (!seoSuite.includes("'content' => 'Contenido', 'audit' => 'Auditoría' );") || seoSuite.includes("'tools' => 'Avanzado'")) throw new Error('Auditoría debe ser la última pestaña de SEO y reemplazar a Avanzado y SEO Front');
 const seoAuditHub = readFileSync('digitalisimo-seo/includes/class-seo-audit-hub.php', 'utf8');
 if (!seoAuditHub.includes('Schema_Audit::render()') || !seoAuditHub.includes('SEO_Front_Inspector::render()') || !seoAuditHub.includes('LLMS::render_status') || !seoAuditHub.includes('digitalisimo-performance&section=')) throw new Error('Auditoría debe reunir Schema, SEO Front, llms.txt y las pruebas de Rendimiento');
+if (!seoAuditHub.includes("$_GET['audit']") || !seoAuditHub.includes('switch ( $current )') || seoAuditHub.includes('href="#digitalisimo-audit-') || !readFileSync('digitalisimo-seo/includes/schema/class-schema-audit.php', 'utf8').includes("'audit' => 'schema'")) throw new Error('Cada auditoría debe mostrarse sola en su propia vista, no todas juntas');
 const toolsSiteOptions = readFileSync('digitalisimo-tools/modules/site-options/class-site-options.php', 'utf8');
 if (!toolsSiteOptions.includes("'login_slug' => 'seo_hide_login_slug'") || !readFileSync('digitalisimo-tools/digitalisimo-tools.php', 'utf8').includes('Site_Options::boot()') || !seoBootstrap.includes('tools_handles_site_options() ) Digitalisimo_Integrations_Hide_Login::boot()')) throw new Error('Ruta privada, adjuntos y desplazamiento móvil deben vivir en Tools sin ejecutarse dos veces');
 if (seoSuite.includes("'seo_hide_login_slug', 'Ruta privada") || seoSuite.includes("'seo_redirect_attachments', 'Redirigir")) throw new Error('SEO ya no debe mostrar las opciones que pasaron a Tools');
