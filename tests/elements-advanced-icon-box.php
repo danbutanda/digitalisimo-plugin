@@ -47,6 +47,8 @@ namespace {
 	ob_start(); $render->invoke( $widget ); $empty = ob_get_clean();
 	check_icon_box( '' === $empty, 'Una tarjeta vacía no debe añadir nodos.' );
 	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $editor = ob_get_clean();
-	check_icon_box( str_contains( $editor, 'settings.global_link_url.url' ) && str_contains( $editor, 'elementor.helpers.renderIcon' ), 'El editor debe previsualizar icono y enlace.' );
+	check_icon_box( str_contains( $editor, 'safeUrl( settings.global_link_url )' ) && str_contains( $editor, 'elementor.helpers.renderIcon' ), 'El editor debe previsualizar icono y enlace seguros.' );
+	check_icon_box( str_contains( $editor, 'linkRel( settings.global_link_url )' ) && str_contains( $editor, 'linkRel( settings.title_link_url )' ) && str_contains( $editor, 'linkRel( settings.readmore_link )' ), 'Los tres enlaces del editor deben conservar la política de destino y rel del frontend.' );
+	check_icon_box( str_contains( $editor, 'aria-hidden="{{ settings.icon_type === \'image\' && !String( settings.title_text || \'\' ).trim() ? \'false\' : \'true\' }}"' ), 'Una imagen informativa sin título no debe ocultarse al lector de pantalla en la vista previa.' );
 	echo "DIGITALÍSIMO Elements: Caja de icono avanzada validada.\n";
 }

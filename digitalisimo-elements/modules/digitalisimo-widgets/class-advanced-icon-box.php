@@ -130,21 +130,26 @@ final class Advanced_Icon_Box_Widget extends \Elementor\Widget_Base {
 		var inline = settings.icon_inline === 'yes' && ( position === 'left' || position === 'right' );
 		var icon = elementor.helpers.renderIcon( view, settings.selected_icon, { 'aria-hidden': true }, 'i', 'object' );
 		var visual = settings.icon_type === 'image' ? ( settings.image && settings.image.url ? '<img src="' + _.escape( settings.image.url ) + '" alt="' + _.escape( settings.title_text ? '' : ( settings.image_alt || '' ) ) + '">' : '' ) : ( icon && icon.rendered ? icon.value : '' );
-		var global = settings.global_link === 'yes' && settings.global_link_url && settings.global_link_url.url;
+		var safeUrl = function( link ) { var url = link && link.url ? String( link.url ) : ''; return /^(https?:\/\/|\/|#|mailto:|tel:)/i.test( url ) ? url : ''; };
+		var linkRel = function( link ) { return [ link && link.is_external ? 'noopener noreferrer' : '', link && link.nofollow ? 'nofollow' : '' ].filter( Boolean ).join( ' ' ); };
+		var globalUrl = settings.global_link === 'yes' ? safeUrl( settings.global_link_url ) : '';
+		var global = !!globalUrl;
+		var titleUrl = !global && settings.title_link === 'yes' ? safeUrl( settings.title_link_url ) : '';
+		var moreUrl = !global ? safeUrl( settings.readmore_link ) : '';
 		var subtitle = settings.show_sub_title === 'yes' ? settings.sub_title_text : '';
 		var badge = settings.badge === 'yes' ? settings.badge_text : '';
 		var more = settings.readmore === 'yes' && ! global ? settings.readmore_text : ''; #>
 		<# if ( settings.title_text || subtitle || settings.description_text || visual || badge || more ) { #>
 		<div class="digi-advanced-icon-box digi-advanced-icon-box--{{ position }} <# if ( inline ) { #>digi-advanced-icon-box--inline<# } #>">
-		<# if ( global ) { #><a class="digi-advanced-icon-box__overlay" href="{{ settings.global_link_url.url }}" aria-label="{{ settings.title_text || subtitle || settings.image_alt || badge || 'Abrir tarjeta' }}"></a><# } #>
+		<# if ( global ) { #><a class="digi-advanced-icon-box__overlay" href="{{ globalUrl }}"<# if ( settings.global_link_url.is_external ) { #> target="_blank"<# } #><# if ( linkRel( settings.global_link_url ) ) { #> rel="{{ linkRel( settings.global_link_url ) }}"<# } #> aria-label="{{ settings.title_text || subtitle || settings.image_alt || badge || 'Abrir tarjeta' }}"></a><# } #>
 		<# if ( badge ) { #><span class="digi-advanced-icon-box__badge">{{ badge }}</span><# } #>
-		<# if ( visual ) { #><div class="digi-advanced-icon-box__visual" aria-hidden="true">{{{ visual }}}</div><# } #>
+		<# if ( visual ) { #><div class="digi-advanced-icon-box__visual" aria-hidden="{{ settings.icon_type === 'image' && !String( settings.title_text || '' ).trim() ? 'false' : 'true' }}">{{{ visual }}}</div><# } #>
 		<div class="digi-advanced-icon-box__content">
-		<# if ( settings.title_text ) { #><{{{ tag }}} class="digi-advanced-icon-box__title"><# if ( ! global && settings.title_link === 'yes' && settings.title_link_url && settings.title_link_url.url ) { #><a href="{{ settings.title_link_url.url }}"><# } #>{{ settings.title_text }}<# if ( ! global && settings.title_link === 'yes' && settings.title_link_url && settings.title_link_url.url ) { #></a><# } #></{{{ tag }}}><# } #>
+		<# if ( settings.title_text ) { #><{{{ tag }}} class="digi-advanced-icon-box__title"><# if ( titleUrl ) { #><a href="{{ titleUrl }}"<# if ( settings.title_link_url.is_external ) { #> target="_blank"<# } #><# if ( linkRel( settings.title_link_url ) ) { #> rel="{{ linkRel( settings.title_link_url ) }}"<# } #>><# } #>{{ settings.title_text }}<# if ( titleUrl ) { #></a><# } #></{{{ tag }}}><# } #>
 		<# if ( subtitle ) { #><div class="digi-advanced-icon-box__subtitle">{{ subtitle }}</div><# } #>
 		<# if ( settings.show_separator === 'yes' ) { #><span class="digi-advanced-icon-box__separator" aria-hidden="true"></span><# } #>
 		<# if ( settings.description_text ) { #><div class="digi-advanced-icon-box__description">{{{ settings.description_text }}}</div><# } #>
-		<# if ( more ) { #><# if ( settings.readmore_link && settings.readmore_link.url ) { #><a class="digi-advanced-icon-box__more" href="{{ settings.readmore_link.url }}">{{ more }}</a><# } else { #><span class="digi-advanced-icon-box__more">{{ more }}</span><# } #><# } #>
+		<# if ( more ) { #><# if ( moreUrl ) { #><a class="digi-advanced-icon-box__more" href="{{ moreUrl }}"<# if ( settings.readmore_link.is_external ) { #> target="_blank"<# } #><# if ( linkRel( settings.readmore_link ) ) { #> rel="{{ linkRel( settings.readmore_link ) }}"<# } #>>{{ more }}</a><# } else { #><span class="digi-advanced-icon-box__more">{{ more }}</span><# } #><# } #>
 		</div></div><# } #>
 		<?php
 	}

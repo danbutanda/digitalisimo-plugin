@@ -205,7 +205,7 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new semantic widget implemented; legacy control parity, effects and visual comparison pending"
+      "status": "new semantic widget with editor link and informative-image accessibility parity since 4.3.0.68; legacy control parity, effects, visual comparison and multisite runtime pending"
     },
     "bdt-advanced-image-gallery": {
       "target": null,
