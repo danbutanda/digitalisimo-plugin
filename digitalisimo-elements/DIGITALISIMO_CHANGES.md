@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.77
+# DIGITALÍSIMO Elements 4.3.0.78
+
+- 4.3.0.78: Call Out muestra el icono y los atributos del enlace en el editor como en el frontend y añade `noopener noreferrer` a enlaces externos. Sin JavaScript nuevo.
 
 - 4.3.0.77: Botón doble muestra iconos y atributos de los dos enlaces en el editor, y añade `noopener noreferrer` a enlaces externos del frontend. Comprobado en el sitio principal y un subsitio Multisite, sin añadir scripts.
 

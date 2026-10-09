@@ -46,6 +46,9 @@ final class Call_Out_Widget extends \Elementor\Widget_Base {
 		echo '</div>';
 		if ( $button && ! empty( $link['url'] ) ) {
 			$this->add_link_attributes( 'call_out_link', $link );
+			if ( ! empty( $link['is_external'] ) ) {
+				$this->add_render_attribute( 'call_out_link', 'rel', array( 'noopener', 'noreferrer' ) );
+			}
 			echo '<a class="digi-call-out__button" ' . $this->get_render_attribute_string( 'call_out_link' ) . '>';
 			$icon = is_array( $s['button_icon'] ?? null ) ? $s['button_icon'] : array();
 			if ( ! empty( $icon['value'] ) ) { \Elementor\Icons_Manager::render_icon( $icon, array( 'aria-hidden' => 'true' ) ); }
@@ -57,11 +60,13 @@ final class Call_Out_Widget extends \Elementor\Widget_Base {
 	protected function content_template() {
 		?>
 		<# var tag = _.contains( ['h2','h3','h4','h5','h6','div'], settings.title_size ) ? settings.title_size : 'h3'; #>
+		<# var icon = elementor.helpers.renderIcon( view, settings.button_icon, { 'aria-hidden': true }, 'i', 'object' );
+		var rel = [ settings.link && settings.link.nofollow ? 'nofollow' : '', settings.link && settings.link.is_external ? 'noopener noreferrer' : '' ].filter( Boolean ).join( ' ' ); #>
 		<# if ( settings.title || settings.description || ( settings.button_text && settings.link && settings.link.url ) ) { #>
 		<div class="digi-call-out"><div class="digi-call-out__content">
 		<# if ( settings.title ) { #><{{{ tag }}} class="digi-call-out__title">{{ settings.title }}</{{{ tag }}}><# } #>
 		<# if ( settings.description ) { #><p class="digi-call-out__description">{{ settings.description }}</p><# } #>
-		</div><# if ( settings.button_text && settings.link && settings.link.url ) { #><a class="digi-call-out__button" href="{{ settings.link.url }}"><span>{{ settings.button_text }}</span></a><# } #></div><# } #>
+		</div><# if ( settings.button_text && settings.link && settings.link.url ) { #><a class="digi-call-out__button" href="{{ settings.link.url }}"<# if ( settings.link.is_external ) { #> target="_blank"<# } #><# if ( rel ) { #> rel="{{ rel }}"<# } #>><# if ( icon && icon.rendered ) { #>{{{ icon.value }}}<# } #><span>{{ settings.button_text }}</span></a><# } #></div><# } #>
 		<?php
 	}
 }

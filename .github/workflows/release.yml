@@ -65,6 +65,7 @@ jobs:
           node tests/elements-animated-heading-instances.mjs
           php tests/elements-breadcrumbs.php
           php tests/elements-dual-button.php
+          php tests/elements-call-out.php
           php tests/elements-actions.php
           php tests/elements-comparison-switcher.php
           php tests/elements-gallery-creative.php
