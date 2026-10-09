@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.78
+# DIGITALÍSIMO Elements 4.3.0.79
+
+- 4.3.0.79: Comparison List muestra en el editor los CTA de los planes y sus atributos, respeta el máximo de ocho columnas y protege enlaces externos en el frontend.
 
 - 4.3.0.78: Call Out muestra el icono y los atributos del enlace en el editor como en el frontend y añade `noopener noreferrer` a enlaces externos. Sin JavaScript nuevo.
 

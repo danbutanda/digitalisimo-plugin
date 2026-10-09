@@ -53,6 +53,8 @@ En 4.3.0.77 Botón doble alinea la vista previa con el frontend: muestra los ico
 
 En 4.3.0.78 Call Out alinea la vista previa con el frontend: muestra el icono y los atributos del enlace, mientras que el frontend protege pestañas externas con `noopener noreferrer`. Su HTML se comprobó en el sitio principal y un subsitio Multisite. Siguen pendientes skins, animaciones, paridad visual y adaptación de documentos `bdt-call-out`.
 
+En 4.3.0.79 Comparison List alinea la vista previa de la tabla con el frontend: imprime los CTA y sus atributos, omite columnas vacías y aplica el límite de ocho planes. El frontend protege pestañas externas con `noopener noreferrer`. Siguen pendientes variantes, paridad visual y adaptación de documentos `bdt-comparison-list`.
+
 En 4.3.0.70 el Acordeón añade apertura inicial de todos los paneles cuando se permite apertura múltiple, omite plantillas inexistentes o privadas antes de crear paneles vacíos y cuenta sólo paneles visibles para elegir el inicial. La prueba automatizada comprueba que los selectores de plantillas se separan por `blog_id`; aún falta la prueba instalada en Multisite y la comparación visual con la referencia.
 
 En 4.3.0.71 el Botón avanzado incorpora controles de borde, ancho responsivo, tipografía y sombra con CSS generado por Elementor. Son optativos y preservan el estilo anterior si no se configuran. Siguen pendientes la comparación visual, los efectos restantes y la prueba instalada en Multisite.

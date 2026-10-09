@@ -795,7 +795,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own semantic comparison table with horizontal overflow, scoped headers and conditional CSS; accordion skins, legacy adapter, visual comparison and multisite runtime pending"
+      "status": "own semantic comparison table with horizontal overflow, scoped headers and conditional CSS; editor CTAs and external links aligned in 4.3.0.79; accordion skins, legacy adapter, visual comparison and multisite runtime pending"
     },
     "bdt-contact-form": {
       "target": null,

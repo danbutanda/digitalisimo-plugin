@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Comparison List | En validación · 4.3.0.79 | El editor muestra los CTA y atributos de los planes y coincide con las ocho columnas máximas del frontend; enlaces externos seguros. | Prueba PHP correcta; faltan paquete, prueba instalada, publicación y comparación visual. |
+
 | DIGITALÍSIMO Elements · Call Out | Publicado · 4.3.0.78 · `v2026.10.09.324` | El editor muestra el icono y los atributos del enlace como el frontend, que protege pestañas externas. | Prueba PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#643` y publicación `#324` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.78.zip`. Falta comparación visual. |
 
 | DIGITALÍSIMO Elements · Botón doble | Publicado · 4.3.0.77 · `v2026.10.09.323` | Editor y frontend muestran iconos, texto y enlaces externos de forma consistente y segura. | Prueba PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#641` y publicación `#323` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.77.zip`. Falta comparación visual. |

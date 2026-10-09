@@ -52,6 +52,9 @@ final class Comparison_List_Widget extends \Elementor\Widget_Base {
 			if ( ! empty( $link['url'] ) && ! empty( $plan['header_button_text'] ) ) {
 				$key = 'comparison_link_' . $index;
 				$this->add_link_attributes( $key, $link );
+				if ( ! empty( $link['is_external'] ) ) {
+					$this->add_render_attribute( $key, 'rel', array( 'noopener', 'noreferrer' ) );
+				}
 				echo '<a ' . $this->get_render_attribute_string( $key ) . '>' . esc_html( $plan['header_button_text'] ) . '</a>';
 			}
 			echo '</th>';
@@ -79,10 +82,12 @@ final class Comparison_List_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<# var plans = settings.comparison_header_list || []; var rows = settings.comparison_list || []; #>
+		<# var plans = (settings.comparison_header_list || []).filter( function(plan){ return plan && String(plan.header_title || '').trim(); } ).slice( 0, 8 );
+		var rows = (settings.comparison_list || []).filter( function(row){ return row && String(row.title || '').trim(); } );
+		var linkRel = function(link){ return [ link && link.nofollow ? 'nofollow' : '', link && link.is_external ? 'noopener noreferrer' : '' ].filter( Boolean ).join( ' ' ); }; #>
 		<# if ( plans.length && rows.length ) { #>
 		<div class="digi-comparison-list" role="region" aria-label="Comparación de planes" tabindex="0"><table><thead><tr><th scope="col">{{ settings.comparison_list_title || 'Características' }}</th>
-		<# _.each( plans, function(plan){ #><th scope="col" class="digi-comparison-list__plan <# if ( plan.header_active === 'yes' ) { #>digi-comparison-list__featured<# } #>">{{ plan.header_title }}<# if ( plan.header_sub_title ) { #><small>{{ plan.header_sub_title }}</small><# } #></th><# }); #>
+		<# _.each( plans, function(plan){ var link = plan.header_link || {}; var rel = linkRel( link ); #><th scope="col" class="digi-comparison-list__plan <# if ( plan.header_active === 'yes' ) { #>digi-comparison-list__featured<# } #>"><span>{{ plan.header_title }}</span><# if ( plan.header_sub_title ) { #><small>{{ plan.header_sub_title }}</small><# } #><# if ( link.url && plan.header_button_text ) { #><a href="{{ link.url }}"<# if ( link.is_external ) { #> target="_blank"<# } #><# if ( rel ) { #> rel="{{ rel }}"<# } #>>{{ plan.header_button_text }}</a><# } #></th><# }); #>
 		</tr></thead><tbody><# _.each( rows, function(row){ var values = (row.feature_ability || '').split('|'); #><tr><th scope="row">{{ row.title }}<# if ( row.description ) { #><small>{{ row.description }}</small><# } #></th><# _.each( plans, function(plan,index){ #><td <# if ( plan.header_active === 'yes' ) { #>class="digi-comparison-list__featured"<# } #>>{{ values[index] === '1' ? '✓' : (values[index] === '0' ? '—' : (values[index] || '—')) }}</td><# }); #></tr><# }); #></tbody></table></div><# } #>
 		<?php
 	}
