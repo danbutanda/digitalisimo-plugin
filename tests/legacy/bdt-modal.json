@@ -1,0 +1,19 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "El botón propio es un <button> y no un enlace «#»"
+    }
+  },
+  "splash": {
+    "layout": "splash",
+    "source": "elementor",
+    "template_id": "__TEMPLATE__",
+    "_expect_html": [
+      "&quot;auto&quot;:5",
+      "Contenido de plantilla"
+    ],
+    "_known": {
+      "links": "El botón propio es un <button> y no un enlace «#»"
+    }
+  }
+}

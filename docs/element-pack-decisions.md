@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 181, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 15.
 
-Documentos heredados: adaptador publicado 135, no se reproduce 66, pendiente: adaptador 62.
+Documentos heredados: adaptador publicado 138, no se reproduce 66, pendiente: adaptador 59.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -92,7 +92,7 @@ Documentos heredados: adaptador publicado 135, no se reproduce 66, pendiente: ad
 | `bdt-device-slider` | ADAPTAR | `digitalisimo-device-slider` | adaptador publicado | own device frame on shared native carousel engine; editor titles, links, ALT and navigation aligned in 4.3.0.85; multisite runtime verified; additional device skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool |
 | `bdt-document-viewer` | ADAPTAR | `digitalisimo-document-viewer` | adaptador publicado | new independent widget implemented; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool |
 | `bdt-download-monitor` | ADAPTAR | `shortcode` | adaptador publicado | Botón de descarga de Download Monitor; el shortcode [download id] del plugin muestra el mismo enlace. |
-| `bdt-dropbar` | ADAPTAR | `digitalisimo-offcanvas` | pendiente: adaptador | Botón que despliega contenido o plantilla; el Panel lateral propio cubre plantilla y texto. |
+| `bdt-dropbar` | ADAPTAR | `digitalisimo-offcanvas` | adaptador publicado | Botón que despliega contenido o plantilla; el Panel lateral propio cubre plantilla y texto. |
 | `bdt-dual-button` | ADAPTAR | `digitalisimo-dual-button` | adaptador publicado | own two-link widget with optional icons and separator; editor link/icon parity, safe external links and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.77; onclick effects, visual parity and legacy adapter pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool |
 | `bdt-dynamic-carousel` | ADAPTAR | `loop-carousel` | pendiente: adaptador | Carrusel con plantilla de bucle; el carrusel de bucle de PRO Elements usa plantillas equivalentes. |
 | `bdt-dynamic-grid` | ADAPTAR | `loop-grid` | pendiente: adaptador | Rejilla con plantilla de bucle; la rejilla de bucle de PRO Elements la cubre. |
@@ -173,7 +173,7 @@ Documentos heredados: adaptador publicado 135, no se reproduce 66, pendiente: ad
 | `bdt-marquee` | RECONSTRUIR | `digitalisimo-marquee` | pendiente: adaptador | Texto o imágenes en movimiento continuo; se reconstruye con CSS y pausa accesible. |
 | `bdt-mega-menu` | COMPARTIR | `mega-menu` | no se reproduce | Mega menú con plantillas por elemento de menú; el Mega Menu de PRO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento. |
 | `bdt-member` | ADAPTAR | `digitalisimo-fancy-card` | pendiente: adaptador | Miembro de equipo con foto, nombre, cargo y redes; la Fancy Card propia cubre el contenido. |
-| `bdt-modal` | ADAPTAR | `digitalisimo-offcanvas` | pendiente: adaptador | Ventana modal con botón y contenido o plantilla; el Panel lateral propio puede presentarse centrado. |
+| `bdt-modal` | ADAPTAR | `digitalisimo-offcanvas` | adaptador publicado | Ventana modal con botón y contenido o plantilla; el Panel lateral propio puede presentarse centrado. |
 | `bdt-navbar` | ADAPTAR | `nav-menu` | adaptador publicado | share existing ElementorPro nav-menu for new content; auto-hide effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool |
 | `bdt-news-ticker` | RECONSTRUIR | `digitalisimo-marquee` | pendiente: adaptador | Titulares de entradas en movimiento; se reconstruye junto a Marquee con consulta de entradas. |
 | `bdt-ninja-form` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
@@ -275,4 +275,4 @@ Documentos heredados: adaptador publicado 135, no se reproduce 66, pendiente: ad
 | `bdt-wp-forms` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-wpdatatable` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `fooevents-calendar` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
-| `lightbox` | ADAPTAR | `digitalisimo-offcanvas` | pendiente: adaptador | Botón que abre imagen, vídeo o contenido en lightbox; el Panel lateral propio centrado o el lightbox de Elementor. |
+| `lightbox` | ADAPTAR | `digitalisimo-offcanvas` | adaptador publicado | Botón que abre imagen, vídeo o contenido en lightbox; el Panel lateral propio centrado o el lightbox de Elementor. |

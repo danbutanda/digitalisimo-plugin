@@ -99,4 +99,8 @@ t.panel.dispatch('click', ev(t.backdrop));
 assert.equal(t.panel.hidden, true);
 assert.equal(globalThis.__active, t.outside);
 
+// Apertura automática.
+t = run({ selector: '', overlay: true, escape: true, auto: 0, limit: 1, id: 'p1' });
+assert.equal(t.panel.hidden, false, 'se abre sola al cargar');
+
 console.log('DIGITALÍSIMO Elements: interacción del panel lateral validada.');

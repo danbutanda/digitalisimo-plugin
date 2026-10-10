@@ -23,7 +23,7 @@ register_shutdown_function( static function () use ( $phase ) {
 } );
 $out_dir  = '/wordpress/wp-content/digi-ab';
 $fixtures = array();
-foreach ( array_merge( glob( '/wordpress/wp-content/digi-legacy-fixtures/bdt-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/fooevents-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/ext-*.json' ) ) as $file ) {
+foreach ( array_merge( glob( '/wordpress/wp-content/digi-legacy-fixtures/bdt-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/fooevents-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/lightbox.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/ext-*.json' ) ) as $file ) {
 	$only = getenv( 'DIGI_ONLY' );
 	$id   = basename( $file, '.json' );
 	if ( $only && ! in_array( $id, explode( ',', $only ), true ) ) {

@@ -46,6 +46,7 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'trigger', array( 'label' => 'Se abre con', 'type' => $c::SELECT, 'default' => 'button', 'options' => array( 'button' => 'Su propio botón', 'selector' => 'Otros elementos de la página' ) ) );
 		$this->add_control( 'trigger_selector', array( 'label' => 'Selector de los elementos', 'type' => $c::TEXT, 'placeholder' => '#abrir-panel', 'description' => 'Selector CSS, por ejemplo #menu-movil o .abrir-panel. Cada elemento que coincida abre el panel.', 'condition' => array( 'trigger' => 'selector' ) ) );
 		$this->add_control( 'button_text', array( 'label' => 'Texto del botón', 'type' => $c::TEXT, 'default' => 'Menú', 'dynamic' => array( 'active' => true ), 'condition' => array( 'trigger' => 'button' ) ) );
+		$this->add_control( 'trigger_image', array( 'label' => 'Imagen como botón', 'type' => $c::MEDIA, 'description' => 'Opcional: la imagen sustituye al icono; el texto queda como nombre accesible.', 'condition' => array( 'trigger' => 'button' ) ) );
 		$this->add_control( 'button_icon', array( 'label' => 'Icono', 'type' => $c::ICONS, 'default' => array( 'value' => 'fas fa-bars', 'library' => 'fa-solid' ), 'condition' => array( 'trigger' => 'button' ) ) );
 		$this->add_control( 'button_icon_align', array( 'label' => 'Posición del icono', 'type' => $c::SELECT, 'default' => 'left', 'options' => array( 'left' => 'Antes', 'right' => 'Después' ), 'condition' => array( 'trigger' => 'button' ) ) );
 		$this->add_control( 'button_size', array( 'label' => 'Tamaño', 'type' => $c::SELECT, 'default' => 'sm', 'options' => array( 'xs' => 'Muy pequeño', 'sm' => 'Pequeño', 'md' => 'Mediano', 'lg' => 'Grande', 'xl' => 'Muy grande' ), 'condition' => array( 'trigger' => 'button' ) ) );
@@ -53,7 +54,9 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 
 		$this->start_controls_section( 'section_content', array( 'label' => 'Contenido del panel' ) );
-		$this->add_control( 'source', array( 'label' => 'Origen', 'type' => $c::SELECT, 'default' => 'template', 'options' => array( 'template' => 'Plantilla publicada', 'sidebar' => 'Barra lateral de widgets', 'text' => 'Sólo texto' ) ) );
+		$this->add_control( 'source', array( 'label' => 'Origen', 'type' => $c::SELECT, 'default' => 'template', 'options' => array( 'template' => 'Plantilla publicada', 'sidebar' => 'Barra lateral de widgets', 'media' => 'Imagen, vídeo o contenido insertado', 'text' => 'Sólo texto' ) ) );
+		$this->add_control( 'media_type', array( 'label' => 'Tipo', 'type' => $c::SELECT, 'default' => 'image', 'options' => array( 'image' => 'Imagen', 'video' => 'Vídeo (archivo)', 'embed' => 'YouTube, Vimeo o mapa' ), 'condition' => array( 'source' => 'media' ) ) );
+		$this->add_control( 'media_url', array( 'label' => 'Dirección', 'type' => $c::URL, 'dynamic' => array( 'active' => true ), 'condition' => array( 'source' => 'media' ) ) );
 		$this->add_control( 'template_id', array( 'label' => 'Plantilla', 'type' => $c::SELECT2, 'options' => self::template_options(), 'condition' => array( 'source' => 'template' ) ) );
 		$this->add_control( 'sidebar', array( 'label' => 'Barra lateral', 'type' => $c::SELECT, 'default' => '', 'options' => self::sidebar_options(), 'condition' => array( 'source' => 'sidebar' ) ) );
 		$this->add_control( 'content_before', array( 'label' => 'Texto antes', 'type' => $c::WYSIWYG, 'default' => '' ) );
@@ -62,7 +65,9 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 
 		$this->start_controls_section( 'section_behavior', array( 'label' => 'Comportamiento' ) );
-		$this->add_control( 'side', array( 'label' => 'Lado', 'type' => $c::SELECT, 'default' => 'left', 'options' => array( 'left' => 'Izquierda', 'right' => 'Derecha' ) ) );
+		$this->add_control( 'side', array( 'label' => 'Posición', 'type' => $c::SELECT, 'default' => 'left', 'options' => array( 'left' => 'Izquierda', 'right' => 'Derecha', 'center' => 'Centrado (ventana modal)' ) ) );
+		$this->add_control( 'auto_open', array( 'label' => 'Abrir solo tras (segundos)', 'type' => $c::NUMBER, 'min' => 0, 'default' => '', 'description' => 'Vacío: sólo se abre al pulsar.' ) );
+		$this->add_control( 'auto_open_limit', array( 'label' => 'Veces por visitante', 'type' => $c::NUMBER, 'min' => 0, 'default' => 1, 'description' => '0: sin límite.', 'condition' => array( 'auto_open!' => '' ) ) );
 		$this->add_control( 'animation', array( 'label' => 'Animación', 'type' => $c::SELECT, 'default' => 'slide', 'options' => array( 'slide' => 'Deslizar', 'none' => 'Sin animación' ) ) );
 		$this->add_control( 'overlay', array( 'label' => 'Oscurecer el fondo', 'type' => $c::SWITCHER, 'default' => 'yes' ) );
 		$this->add_control( 'close_button', array( 'label' => 'Botón de cerrar', 'type' => $c::SWITCHER, 'default' => 'yes' ) );
@@ -89,6 +94,21 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 		finally { unset( self::$rendering[ $id ] ); }
 	}
 
+	/** Imagen, vídeo o iframe desde una URL; YouTube y Vimeo pasan a su reproductor sin cookies. */
+	public static function media_content( $type, $url, $label ) {
+		$url = (string) $url;
+		if ( '' === $url ) { return ''; }
+		if ( 'image' === $type ) { return '<img class="digi-offcanvas__media" src="' . esc_url( $url ) . '" alt="' . esc_attr( $label ) . '">'; }
+		if ( 'video' === $type ) { return '<video class="digi-offcanvas__media" src="' . esc_url( $url ) . '" controls playsinline></video>'; }
+		if ( preg_match( '~(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)([\w-]{11})~', $url, $m ) ) {
+			$url = 'https://www.youtube-nocookie.com/embed/' . $m[1];
+		} elseif ( preg_match( '~vimeo\.com/(?:video/)?(\d+)~', $url, $m ) ) {
+			$url = 'https://player.vimeo.com/video/' . $m[1];
+		}
+		$url = esc_url( $url, array( 'https' ) );
+		return '' === $url ? '' : '<iframe class="digi-offcanvas__media digi-offcanvas__media--embed" src="' . $url . '" title="' . esc_attr( $label ) . '" loading="lazy" allowfullscreen></iframe>';
+	}
+
 	private static function sidebar_content( $sidebar ) {
 		if ( '' === $sidebar || ! function_exists( 'is_active_sidebar' ) || ! is_active_sidebar( $sidebar ) ) { return ''; }
 		ob_start();
@@ -108,7 +128,13 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 		$text     = trim( wp_strip_all_tags( (string) ( $s['button_text'] ?? '' ) ) );
 		$label    = trim( wp_strip_all_tags( (string) ( $s['panel_label'] ?? '' ) ) );
 		$label    = '' !== $label ? $label : ( '' !== $text ? $text : 'Panel' );
+		if ( 'media' === $source ) {
+			$body = self::media_content( (string) ( $s['media_type'] ?? 'image' ), (string) ( $s['media_url']['url'] ?? '' ), $label );
+		}
 		$config   = array(
+			'id'       => $id,
+			'auto'     => '' !== (string) ( $s['auto_open'] ?? '' ) ? max( 0, (float) $s['auto_open'] ) : null,
+			'limit'    => max( 0, (int) ( $s['auto_open_limit'] ?? 1 ) ),
 			'selector' => 'selector' === $trigger ? $selector : '',
 			'overlay'  => 'yes' === ( $s['close_on_overlay'] ?? 'yes' ),
 			'escape'   => 'yes' === ( $s['close_on_escape'] ?? 'yes' ),
@@ -122,10 +148,13 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 				\Elementor\Icons_Manager::render_icon( $s['button_icon'], array( 'aria-hidden' => 'true' ) );
 				$icon = '<span class="digi-offcanvas__icon">' . (string) ob_get_clean() . '</span>';
 			}
+			if ( ! empty( $s['trigger_image']['url'] ) ) {
+				$icon = '<img class="digi-offcanvas__image" src="' . esc_url( $s['trigger_image']['url'] ) . '" alt="">';
+			}
 			$inner = 'right' === ( $s['button_icon_align'] ?? 'left' ) ? '<span class="digi-offcanvas__text">' . esc_html( $text ) . '</span>' . $icon : $icon . '<span class="digi-offcanvas__text">' . esc_html( $text ) . '</span>';
 			echo '<div class="digi-offcanvas__trigger"><button type="button" class="elementor-button elementor-size-' . esc_attr( $size ) . ' digi-offcanvas__button" aria-controls="' . esc_attr( $id ) . '" aria-expanded="false"' . ( '' === $text ? ' aria-label="' . esc_attr( $label ) . '"' : '' ) . ' data-digi-offcanvas-open>' . $inner . '</button></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono de Elementor y texto escapado.
 		}
-		$side = 'right' === ( $s['side'] ?? 'left' ) ? 'right' : 'left';
+		$side = in_array( $s['side'] ?? 'left', array( 'right', 'center' ), true ) ? $s['side'] : 'left';
 		echo '<div class="digi-offcanvas__panel digi-offcanvas__panel--' . esc_attr( $side ) . ( 'none' === ( $s['animation'] ?? 'slide' ) ? ' digi-offcanvas__panel--static' : '' ) . '" id="' . esc_attr( $id ) . '" role="dialog" aria-modal="true" aria-label="' . esc_attr( $label ) . '" hidden>';
 		echo '<div class="digi-offcanvas__overlay' . ( 'yes' === ( $s['overlay'] ?? 'yes' ) ? '' : ' digi-offcanvas__overlay--clear' ) . '" data-digi-offcanvas-backdrop></div>';
 		echo '<div class="digi-offcanvas__bar" tabindex="-1">';

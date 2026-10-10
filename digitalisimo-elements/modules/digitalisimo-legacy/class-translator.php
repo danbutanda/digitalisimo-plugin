@@ -15,8 +15,8 @@ final class Translator {
 	const MARKER  = '_digitalisimo_legacy';
 	const DEVICES = array( '', '_widescreen', '_laptop', '_tablet_extra', '_tablet', '_mobile_extra', '_mobile' );
 
-	/** IDs de Element Pack: todos con prefijo `bdt-` salvo el calendario de FooEvents. */
-	const ID_PATTERN = '/^(bdt-[a-z0-9-]+|fooevents-calendar)$/';
+	/** IDs de Element Pack: todos con prefijo `bdt-` salvo el calendario de FooEvents y Lightbox. */
+	const ID_PATTERN = '/^(bdt-[a-z0-9-]+|fooevents-calendar|lightbox)$/';
 
 	private static $maps = array();
 

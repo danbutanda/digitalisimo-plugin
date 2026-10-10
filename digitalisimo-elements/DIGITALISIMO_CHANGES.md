@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.112
+# DIGITALÍSIMO Elements 4.3.0.113
+
+- 4.3.0.113: Panel lateral gana presentación centrada (ventana modal), apertura automática con límite por visitante, imagen como botón y el origen «Imagen, vídeo o contenido insertado» (YouTube y Vimeo sin cookies). Adaptadores de Element Pack Modal, Dropbar y Lightbox sobre él; el traductor reconoce el ID sin prefijo `lightbox`.
 
 - 4.3.0.112: adaptadores de Element Pack para Post Block, Post Block Modern, Post Card, Post Gallery, Post Grid Tab, Post Slider, Carousel y Portfolio Gallery, Carousel y List sobre `posts` con la piel propia de los adaptadores; la traducción de rejillas de entradas queda en `Translator::posts_classic()` y `scripts/legacy-posts-maps.py`.
 

@@ -153,6 +153,9 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-modal' => Bdt_Modal::class,
+		'bdt-dropbar' => Bdt_Dropbar::class,
+		'lightbox' => Legacy_Lightbox::class,
 		'bdt-carousel' => Bdt_Carousel::class,
 		'bdt-portfolio-carousel' => Bdt_PortfolioCarousel::class,
 		'bdt-portfolio-gallery' => Bdt_PortfolioGallery::class,
@@ -473,6 +476,9 @@ if ( class_exists( '\\ElementorPro\\Modules\\Posts\\Widgets\\Posts' ) && class_e
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Offcanvas_Widget' ) ) {
 	final class Bdt_Offcanvas extends \Digitalisimo\Elements\Offcanvas_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-offcanvas'; }
+	final class Bdt_Modal extends \Digitalisimo\Elements\Offcanvas_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-modal'; }
+	final class Bdt_Dropbar extends \Digitalisimo\Elements\Offcanvas_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-dropbar'; }
+	final class Legacy_Lightbox extends \Digitalisimo\Elements\Offcanvas_Widget { use Legacy_Adapter; const LEGACY_ID = 'lightbox'; }
 }
 // Widgets que sólo imprimían el shortcode de otro plugin: el widget Shortcode de Elementor lo muestra igual.
 if ( class_exists( '\\Elementor\\Widget_Shortcode' ) ) {

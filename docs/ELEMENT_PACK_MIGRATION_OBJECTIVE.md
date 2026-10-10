@@ -82,6 +82,8 @@ Lotes 16-17 (4.3.0.111): los 210 IDs no prioritarios quedan con decisión verifi
 
 Lote 18 (4.3.0.112): diez widgets de entradas y portafolio se ADAPTAN a `posts`. Diferencias declaradas: la piel clásica muestra los mismos campos en cada entrada (sin destacada ni pestañas), los carruseles y sliders se presentan como rejilla, no hay imagen de muestra ni avatares, comentarios como «1 Comment»; Portfolio se validó con pruebas unitarias porque requiere el plugin BdThemes Portfolio.
 
+Lote 19 (4.3.0.113): Modal, Dropbar y Lightbox se ADAPTAN al Panel lateral centrado. Diferencias declaradas: los botones son `<button>`; Dropbar pasa de desplegable junto al botón a ventana centrada; las aperturas al salir, al desplazar o por inactividad del Modal quedan como apertura desde otro elemento; la leyenda del Lightbox se muestra como texto.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

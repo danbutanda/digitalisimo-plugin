@@ -1,0 +1,7 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "El botón propio es un <button> y no un enlace «#»"
+    }
+  }
+}

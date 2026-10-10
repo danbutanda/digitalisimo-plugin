@@ -237,6 +237,11 @@ namespace {
 	$pb = Translator::translate( 'bdt-post-block', array() );
 	check_adapter( 5 === $pb['classic_posts_per_page'] && array( 'date' ) === $pb['classic_meta_data'] && array( 'category', 'post_tag' ) === $pb['digitalisimo_post_terms'], 'Post Block usa los campos de su entrada destacada.' );
 
+	$md = Translator::translate( 'bdt-modal', array( 'layout' => 'splash', 'splash_after' => array( 'size' => 8 ), 'display_times' => '2', 'header' => 'Hola', 'content' => '<p>Texto</p>' ) );
+	check_adapter( 'selector' === $md['trigger'] && '8' === $md['auto_open'] && 2 === $md['auto_open_limit'] && 'center' === $md['side'] && false !== strpos( $md['content_before'], 'Hola' ) && false !== strpos( $md['content_before'], '<p>Texto</p>' ) && ! isset( $md['layout'] ), 'El modal de bienvenida se abre solo, centrado, con encabezado y contenido.' );
+	$lb = Translator::translate( 'lightbox', array( 'lightbox_content' => 'vimeo', 'content_vimeo' => array( 'url' => 'https://vimeo.com/123' ), 'lightbox_toggler' => 'button', 'button_text' => 'Ver' ) );
+	check_adapter( 'media' === $lb['source'] && 'embed' === $lb['media_type'] && 'https://vimeo.com/123' === $lb['media_url']['url'] && 'Ver' === $lb['button_text'] && Translator::is_legacy_id( 'lightbox' ), 'Lightbox abre el vídeo en una ventana centrada.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

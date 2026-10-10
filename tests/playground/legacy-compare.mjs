@@ -34,7 +34,7 @@ for (const [widget, cases] of Object.entries(a.widgets)) {
       if (entryB && entryB.wrapper_ok === false) problems.push('el envoltorio no se presenta como el widget de destino');
       if (entryB?.html_missing?.length) problems.push(`HTML sin: ${JSON.stringify(entryB.html_missing)}`);
       if (entryB?.css_missing?.length) problems.push(`CSS regenerado sin: ${JSON.stringify(entryB.css_missing)}`);
-      if ((widget.startsWith('bdt-') || widget === 'fooevents-calendar') && entryB && entryB.editor_settings && !entryB.editor_settings.includes('_digitalisimo_legacy')) problems.push('el editor no recibe los ajustes traducidos');
+      if ((widget.startsWith('bdt-') || widget === 'fooevents-calendar' || widget === 'lightbox') && entryB && entryB.editor_settings && !entryB.editor_settings.includes('_digitalisimo_legacy')) problems.push('el editor no recibe los ajustes traducidos');
       const status = problems.length ? 'DIFERENCIAS' : 'IGUAL';
       if (problems.length) failed++;
       console.log(`${status.padEnd(11)} ${widget} · ${name} · sitio ${blog}`);

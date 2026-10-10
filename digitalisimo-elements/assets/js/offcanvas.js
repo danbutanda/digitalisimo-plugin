@@ -39,6 +39,18 @@
         if (last && typeof last.focus === 'function') last.focus();
       }
       own.forEach(function (button) { button.addEventListener('click', function () { open(button); }); });
+      // Apertura automática, con un máximo de veces por visitante guardado en el navegador.
+      if (typeof config.auto === 'number') {
+        var key = 'digi-offcanvas-' + (config.id || '');
+        var seen = 0;
+        try { seen = parseInt(window.localStorage.getItem(key) || '0', 10) || 0; } catch (e) { seen = 0; }
+        if (!config.limit || seen < config.limit) {
+          setTimeout(function () {
+            try { window.localStorage.setItem(key, String(seen + 1)); } catch (e) { /* sin almacenamiento */ }
+            open(null);
+          }, config.auto * 1000);
+        }
+      }
       // Elementos externos indicados por selector (la presentación «custom» de Element Pack).
       if (config.selector) {
         document.addEventListener('click', function (event) {

@@ -1,0 +1,20 @@
+{
+  "youtube": {
+    "lightbox_content": "youtube",
+    "content_youtube": {
+      "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "lightbox_toggler": "button",
+    "button_text": "Ver vídeo",
+    "_expect_html": [
+      "youtube-nocookie.com/embed/dQw4w9WgXcQ"
+    ],
+    "_known": {
+      "links": "El botón propio es un <button>; Element Pack enlazaba el vídeo",
+      "text": "La leyenda se muestra como texto en el panel; Element Pack la pasaba por atributo al lightbox al abrirlo"
+    }
+  }
+}
