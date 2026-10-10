@@ -87,3 +87,5 @@ Adaptadores 4.3.0.112: el A/B renderizó Post Block, Post Block Modern, Post Car
 Adaptadores 4.3.0.113: el A/B cubrió Modal por defecto y de bienvenida con plantilla (apertura automática comprobada en el marcado), Dropbar por defecto y Lightbox de YouTube (reproductor sin cookies comprobado en la fase B), en el sitio principal y el subsitio.
 
 Adaptadores 4.3.0.114: el A/B cubrió cada widget por defecto y con contenido propio (imagen sin adjunto, enlace externo con leyenda, código JavaScript con entidades, animación externa con título, paso con distintivo) en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.
+
+Adaptadores 4.3.0.115: el A/B cubrió las cuatro tarjetas por defecto y con contenido propio en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.

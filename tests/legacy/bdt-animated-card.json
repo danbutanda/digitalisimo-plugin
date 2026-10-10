@@ -1,0 +1,21 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor"
+    }
+  },
+  "custom": {
+    "title_text": "Servicio",
+    "sub_title_text": "Nuevo",
+    "description_text": "Descripción",
+    "readmore_link": {
+      "url": "https://example.test/s/",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "_known": {
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor"
+    }
+  }
+}

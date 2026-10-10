@@ -249,6 +249,10 @@ namespace {
 	$hv = Translator::translate( 'bdt-hover-video', array( 'hover_video_list' => array( array( 'source_type' => 'remote_url', 'remote_url' => array( 'url' => 'https://s.test/v.mp4' ), 'hover_video_title' => 'Uno' ) ) ) );
 	check_adapter( 'url' === $hv['source'] && 'https://s.test/v.mp4' === $hv['video_url']['url'] && 'Uno' === $hv['title'], 'Hover Video muestra su primer vídeo.' );
 
+	$mb = Translator::translate( 'bdt-member', array( 'name' => 'Ana', 'role' => 'Directora' ) );
+	check_adapter( 'Ana' === $mb['title_text'] && 'Directora' === $mb['badge_text'] && 'image' === $mb['icon_type'] && ! isset( $mb['social_link_list'] ), 'Member pasa nombre y cargo a la tarjeta.' );
+	check_adapter( '' === Translator::translate( 'bdt-trailer-box', array() )['button_text'] && 'Ver' === Translator::translate( 'bdt-trailer-box', array( 'link_type' => 'button', 'button_text' => 'Ver' ) )['button_text'], 'Trailer Box sólo muestra botón si lo tenía.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

@@ -1,0 +1,16 @@
+{
+  "defaults": {},
+  "custom": {
+    "title": "Tráiler",
+    "pre_title": "Estreno",
+    "content": "Texto",
+    "button": {
+      "url": "https://example.test/t/",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "button_text": "Ver",
+    "link_type": "button"
+  }
+}

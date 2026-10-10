@@ -153,6 +153,10 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-animated-card' => Bdt_AnimatedCard::class,
+		'bdt-interactive-card' => Bdt_InteractiveCard::class,
+		'bdt-member' => Bdt_Member::class,
+		'bdt-trailer-box' => Bdt_TrailerBox::class,
 		'bdt-image-magnifier' => Bdt_ImageMagnifier::class,
 		'bdt-scroll-image' => Bdt_ScrollImage::class,
 		'bdt-svg-image' => Bdt_SvgImage::class,
@@ -606,4 +610,10 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Advanced_Icon_Box_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Video_Player_Widget' ) ) {
 	final class Bdt_HoverVideo extends \Digitalisimo\Elements\Video_Player_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-hover-video'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Card_Widget' ) ) {
+	final class Bdt_AnimatedCard extends \Digitalisimo\Elements\Fancy_Card_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-animated-card'; }
+	final class Bdt_InteractiveCard extends \Digitalisimo\Elements\Fancy_Card_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-interactive-card'; }
+	final class Bdt_Member extends \Digitalisimo\Elements\Fancy_Card_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-member'; }
+	final class Bdt_TrailerBox extends \Digitalisimo\Elements\Fancy_Card_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-trailer-box'; }
 }

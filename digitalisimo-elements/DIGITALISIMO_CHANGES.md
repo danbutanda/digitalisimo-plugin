@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.114
+# DIGITALÍSIMO Elements 4.3.0.115
+
+- 4.3.0.115: adaptadores de Element Pack para Animated Card, Interactive Card, Member y Trailer Box sobre la Fancy Card propia (subtítulo, cargo o antetítulo como distintivo), con estilos heredados y migración reversible.
 
 - 4.3.0.114: adaptadores de Element Pack para Image Magnifier, Scroll Image y SVG Image (widget Imagen), Source Code (Code Highlight), Lottie Icon Box (Lottie), Step Flow (Caja de icono avanzada propia) y Hover Video (Reproductor de vídeo propio), con estilos heredados y migración reversible.
 

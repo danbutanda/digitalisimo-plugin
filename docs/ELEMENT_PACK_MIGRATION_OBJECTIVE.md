@@ -86,6 +86,8 @@ Lote 19 (4.3.0.113): Modal, Dropbar y Lightbox se ADAPTAN al Panel lateral centr
 
 Lote 20 (4.3.0.114): siete widgets se ADAPTAN. Diferencias declaradas: no se trasladan la lupa, el desplazamiento de la imagen ni la animación de trazo SVG; Lottie Icon Box pierde descripción y botón (el título pasa a la leyenda); Hover Video muestra sólo el primer vídeo; las imágenes de ejemplo de Element Pack pasan a la de Elementor.
 
+Lote 21 (4.3.0.115): Animated Card, Interactive Card, Member y Trailer Box se ADAPTAN a Fancy Card. Diferencias declaradas: animaciones, ondas y giro no se trasladan; los enlaces sociales de Member no se trasladan; el enlace de toda la caja de Trailer Box no se conserva; las imágenes de ejemplo de Element Pack pasan a la de Elementor.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

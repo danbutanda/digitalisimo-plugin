@@ -2,9 +2,9 @@
 
 Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.json`; `tests/elements-legacy-decisions.mjs` exige una decisión válida en cada uno de los 263 IDs del inventario.
 
-Decisiones: ADAPTAR 181, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 15.
+Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 145, no se reproduce 66, pendiente: adaptador 52.
+Documentos heredados: adaptador publicado 149, no se reproduce 66, pendiente: adaptador 48.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -30,7 +30,7 @@ Documentos heredados: adaptador publicado 145, no se reproduce 66, pendiente: ad
 | `bdt-advanced-progress-bar` | RECONSTRUIR | `digitalisimo-progress-bars` | pendiente: adaptador | Varias barras en un mismo widget; la barra de Elementor es individual. Se reconstruye como lista de barras accesible. |
 | `bdt-age-gate` | DESCARTAR | — | no se reproduce | Verificación de edad por ventana bloqueante con cookie; afecta a toda la página y su cumplimiento legal depende del sitio. Se recomienda un plugin dedicado o Display Conditions. |
 | `bdt-air-pollution` | DESCARTAR | — | no se reproduce | Depende de una API externa con clave propia de Element Pack (calidad del aire); sin servicio no hay datos que mostrar. |
-| `bdt-animated-card` | RECONSTRUIR | `digitalisimo-fancy-card` | pendiente: adaptador | Tarjeta con imagen, título, texto y botón con animación al pasar el cursor: la Fancy Card propia cubre el contenido. |
+| `bdt-animated-card` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Tarjeta con imagen, título, texto y botón con animación al pasar el cursor: la Fancy Card propia cubre el contenido. |
 | `bdt-animated-heading` | ADAPTAR | `digitalisimo-animated-heading` | adaptador publicado | own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support, conditional assets and shared global listeners; safe external link and editor link parity since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; typed/split/GSAP variants, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
 | `bdt-animated-link` | ADAPTAR | `digitalisimo-animated-link` | adaptador publicado | Ya resuelto desde 4.3.0.x con el adaptador de lectura del Enlace animado propio. |
 | `bdt-audio-player` | RECONSTRUIR | `digitalisimo-audio-player` | pendiente: adaptador | Reproductor de audio con skins de jPlayer; se reconstruye con <audio> nativo como el reproductor de vídeo propio. |
@@ -158,7 +158,7 @@ Documentos heredados: adaptador publicado 145, no se reproduce 66, pendiente: ad
 | `bdt-image-stack` | ADAPTAR | `image-gallery` | pendiente: adaptador | Imágenes apiladas; se conservan en la galería básica. |
 | `bdt-instagram` | DESCARTAR | — | no se reproduce | Lee la API de Instagram con token propio; la API Basic Display fue retirada. Usar Instagram Feed (adaptado por shortcode). |
 | `bdt-instagram-feed` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
-| `bdt-interactive-card` | ADAPTAR | `digitalisimo-fancy-card` | pendiente: adaptador | Tarjeta con imagen, título, texto y botón; la Fancy Card propia cubre el contenido. |
+| `bdt-interactive-card` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Tarjeta con imagen, título, texto y botón; la Fancy Card propia cubre el contenido. |
 | `bdt-interactive-tabs` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Pestañas con imagen de fondo; las pestañas propias cubren el contenido. |
 | `bdt-layer-slider` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-learnpress-carousel` | DESCARTAR | — | no se reproduce | Carrusel de cursos de LearnPress con consulta propia; usar los bloques o shortcodes de LearnPress. |
@@ -172,7 +172,7 @@ Documentos heredados: adaptador publicado 145, no se reproduce 66, pendiente: ad
 | `bdt-marker` | DESCARTAR | — | no se reproduce | Marcadores sobre una imagen con tooltips; PRO Elements incluye Hotspot para contenido nuevo. |
 | `bdt-marquee` | RECONSTRUIR | `digitalisimo-marquee` | pendiente: adaptador | Texto o imágenes en movimiento continuo; se reconstruye con CSS y pausa accesible. |
 | `bdt-mega-menu` | COMPARTIR | `mega-menu` | no se reproduce | Mega menú con plantillas por elemento de menú; el Mega Menu de PRO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento. |
-| `bdt-member` | ADAPTAR | `digitalisimo-fancy-card` | pendiente: adaptador | Miembro de equipo con foto, nombre, cargo y redes; la Fancy Card propia cubre el contenido. |
+| `bdt-member` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Miembro de equipo con foto, nombre, cargo y redes; la Fancy Card propia cubre el contenido. |
 | `bdt-modal` | ADAPTAR | `digitalisimo-offcanvas` | adaptador publicado | Ventana modal con botón y contenido o plantilla; el Panel lateral propio puede presentarse centrado. |
 | `bdt-navbar` | ADAPTAR | `nav-menu` | adaptador publicado | share existing ElementorPro nav-menu for new content; auto-hide effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool |
 | `bdt-news-ticker` | RECONSTRUIR | `digitalisimo-marquee` | pendiente: adaptador | Titulares de entradas en movimiento; se reconstruye junto a Marquee con consulta de entradas. |
@@ -251,7 +251,7 @@ Documentos heredados: adaptador publicado 145, no se reproduce 66, pendiente: ad
 | `bdt-timeline` | RECONSTRUIR | `digitalisimo-timeline` | pendiente: adaptador | Línea de tiempo de elementos escritos o entradas; se reconstruye como lista ordenada accesible. |
 | `bdt-toggle` | ADAPTAR | `digitalisimo-accordion` | pendiente: adaptador | Contenido que se despliega con «Mostrar más»; Acordeón propio de un elemento. |
 | `bdt-total-count` | ADAPTAR | `digitalisimo-total-count` | adaptador publicado | own-widget-base; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool |
-| `bdt-trailer-box` | ADAPTAR | `digitalisimo-fancy-card` | pendiente: adaptador | Caja con imagen de fondo, título, texto y botón; la Fancy Card propia la cubre. |
+| `bdt-trailer-box` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Caja con imagen de fondo, título, texto y botón; la Fancy Card propia la cubre. |
 | `bdt-tutor-lms-course-carousel` | DESCARTAR | — | no se reproduce | Carrusel de cursos de Tutor LMS con consulta propia; usar los bloques o shortcodes de Tutor LMS. |
 | `bdt-tutor-lms-course-grid` | COMPARTIR | `shortcode` | no se reproduce | Rejilla propia sobre cursos de Tutor LMS; el shortcode [tutor_course] del plugin los muestra con su plantilla para contenido nuevo. |
 | `bdt-twitter-carousel` | DESCARTAR | — | no se reproduce | Lee la API de X/Twitter con credenciales; la API gratuita ya no lo permite. |

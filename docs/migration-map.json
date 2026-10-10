@@ -318,7 +318,7 @@
       "decision_reason": "Depende de una API externa con clave propia de Element Pack (calidad del aire); sin servicio no hay datos que mostrar."
     },
     "bdt-animated-card": {
-      "target": null,
+      "target": "digitalisimo-fancy-card",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -327,11 +327,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
-      "decision": "RECONSTRUIR",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.115 adapter and the per-site reversible migration tool",
+      "decision": "ADAPTAR",
       "decision_target": "digitalisimo-fancy-card",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Tarjeta con imagen, título, texto y botón con animación al pasar el cursor: la Fancy Card propia cubre el contenido."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Tarjeta con imagen, título, texto y botón con animación al pasar el cursor: la Fancy Card propia cubre el contenido.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-animated-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
     },
     "bdt-animated-heading": {
       "target": "digitalisimo-animated-heading",
@@ -2460,7 +2461,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-interactive-card": {
-      "target": null,
+      "target": "digitalisimo-fancy-card",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2469,11 +2470,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.115 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-fancy-card",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Tarjeta con imagen, título, texto y botón; la Fancy Card propia cubre el contenido."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Tarjeta con imagen, título, texto y botón; la Fancy Card propia cubre el contenido.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-interactive-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
     },
     "bdt-interactive-tabs": {
       "target": null,
@@ -2711,7 +2713,7 @@
       "decision_reason": "Mega menú con plantillas por elemento de menú; el Mega Menu de PRO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento."
     },
     "bdt-member": {
-      "target": null,
+      "target": "digitalisimo-fancy-card",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2720,11 +2722,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.115 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-fancy-card",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Miembro de equipo con foto, nombre, cargo y redes; la Fancy Card propia cubre el contenido."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Miembro de equipo con foto, nombre, cargo y redes; la Fancy Card propia cubre el contenido.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-member.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
     },
     "bdt-modal": {
       "target": "digitalisimo-offcanvas",
@@ -4002,7 +4005,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-trailer-box": {
-      "target": null,
+      "target": "digitalisimo-fancy-card",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -4011,11 +4014,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.115 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-fancy-card",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Caja con imagen de fondo, título, texto y botón; la Fancy Card propia la cubre."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Caja con imagen de fondo, título, texto y botón; la Fancy Card propia la cubre.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-trailer-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
     },
     "bdt-tutor-lms-course-carousel": {
       "target": null,

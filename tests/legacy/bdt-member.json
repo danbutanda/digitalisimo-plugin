@@ -1,0 +1,16 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor",
+      "links": "Los enlaces sociales del miembro no se trasladan"
+    }
+  },
+  "custom": {
+    "name": "Ana",
+    "role": "Directora",
+    "_known": {
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor",
+      "links": "Los enlaces sociales del miembro no se trasladan"
+    }
+  }
+}
