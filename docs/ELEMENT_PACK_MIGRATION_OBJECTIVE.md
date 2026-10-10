@@ -70,6 +70,8 @@ Lote 10 (4.3.0.105): Post Grid, Post List y Single Post pasan a `posts` con piel
 
 Lote 11 (4.3.0.106): Offcanvas se RECONSTRUYE como widget propio `digitalisimo-offcanvas`. Diferencias declaradas: el botón es un `<button>` y no un enlace «#»; las animaciones «push» y «reveal» se presentan como deslizamiento; las plantillas de AnyWhere Elementor no se muestran; el desplazamiento y la rotación del botón no se trasladan.
 
+Lote 12 (4.3.0.107): Shape Builder pasa de DESCARTAR a ADAPTAR tras comprobar que Element Pack guarda y pinta las figuras en el servidor. Diferencias declaradas: Esquina, Mancha, Óvalo e Insignia usan trazados propios equivalentes, no idénticos; las animaciones al pasar el cursor y las repeticiones no se reproducen; las figuras no reciben clics (`pointer-events:none`).
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

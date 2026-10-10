@@ -229,6 +229,8 @@ final class Widget_Registry {
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), 20 );
 		require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-extensions.php';
 		Legacy\Extensions::init();
+		require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-shapes.php';
+		Legacy\Shapes::init();
 		if ( function_exists( 'is_admin' ) && is_admin() ) {
 			require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-migration.php';
 			Legacy\Migration::init();

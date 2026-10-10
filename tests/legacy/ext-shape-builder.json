@@ -1,0 +1,63 @@
+{
+  "heading": {
+    "_widget": "heading",
+    "title": "Título con figuras",
+    "bdt_shape_builder_enable": "yes",
+    "bdt_shape_builder_list": [
+      {
+        "_id": "s1",
+        "shape_type": "circle",
+        "shape_color_popover": "yes",
+        "shape_color": "#ff0000",
+        "shape_gap": {
+          "unit": "px",
+          "row": 120,
+          "column": 150
+        },
+        "shape_position_popover": "yes",
+        "shape_position_horizontal": "end",
+        "shape_position_horizontal_offset_end": {
+          "unit": "px",
+          "size": 30
+        }
+      },
+      {
+        "_id": "s2",
+        "shape_type": "epblob",
+        "shape_color_popover": "yes",
+        "shape_fill_type": "gradient",
+        "shape_offset_popover": "yes",
+        "shape_rotate": {
+          "unit": "deg",
+          "size": 45
+        }
+      }
+    ],
+    "_expect_html": [
+      "digi-legacy-shape elementor-repeater-item-s1",
+      "digi-legacy-shape elementor-repeater-item-s2",
+      "url(#digi-shape-s2)"
+    ],
+    "_expect_css": [
+      "width:150px;height:120px",
+      "--shape-rotate:45deg",
+      "inset-inline-end:30px"
+    ]
+  },
+  "section": {
+    "_widget": "heading",
+    "title": "Sección con figura",
+    "_section": {
+      "bdt_shape_builder_enable": "yes",
+      "bdt_shape_builder_list": [
+        {
+          "_id": "s3",
+          "shape_type": "verify-badge"
+        }
+      ]
+    },
+    "_expect_html": [
+      "digi-legacy-shape elementor-repeater-item-s3"
+    ]
+  }
+}

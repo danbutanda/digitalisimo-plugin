@@ -3550,9 +3550,10 @@
       "status": "Saved notation type and colour become CSS marks (underline, strike, highlight, box, circle, bracket) on the heading or paragraph text; animated hand-drawn marks are not reproduced."
     },
     "shape-builder": {
-      "decision": "DESCARTAR",
+      "decision": "ADAPTAR",
       "user_priority_order": 57,
-      "status": "Decorative shapes drawn by Element Pack scripts are not migrated; new content can use the own Shape Builder base for classic headings."
+      "legacy_adapter": "modules/digitalisimo-legacy/class-shapes.php + assets/legacy-shapes.css/js; A/B multisite with Element Pack 9.9.1 in 4.3.0.107",
+      "status": "Element Pack renders saved shapes server-side as SVG; the same controls are registered so Elementor regenerates size, position, rotation and filter CSS, and own equivalent paths draw the seven shapes; uploaded SVGs use Elementor's sanitized inline SVG; on-load entrance animations run with CSS, hover animations are not reproduced."
     },
     "duplicator": {
       "decision": "RECONSTRUIR",

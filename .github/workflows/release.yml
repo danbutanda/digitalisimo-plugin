@@ -85,6 +85,7 @@ jobs:
           php tests/elements-legacy-visibility.php
           php tests/elements-legacy-adapters.php
           php tests/elements-legacy-extensions.php
+          php tests/elements-legacy-shapes.php
           node tests/elements-carousel-engine.mjs
           php tests/performance-hero.php
           php tests/tools-updater.php

@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.106
+# DIGITALÍSIMO Elements 4.3.0.107
+
+- 4.3.0.107: las figuras del Shape Builder de Element Pack guardadas en widgets, secciones y contenedores siguen mostrándose sin Element Pack: se registran sus mismos ajustes (Elementor regenera tamaño, posición, giro y filtros), las siete figuras se dibujan con trazados propios equivalentes, el SVG subido usa el SVG saneado de Elementor y la animación de entrada se hace con CSS. El arnés A/B admite `_expect_html` y ajustes de sección (`_section`).
 
 - 4.3.0.106: nuevo widget Panel lateral (`digitalisimo-offcanvas`): se abre con su botón o con cualquier elemento indicado por selector, muestra una plantilla publicada, una barra lateral de widgets o texto, y es un diálogo con foco atrapado, cierre con Escape, con el fondo o con su botón, y retorno del foco. Adaptador de Element Pack Offcanvas sobre él, con estilos heredados y migración reversible.
 

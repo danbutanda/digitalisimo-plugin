@@ -63,10 +63,12 @@ foreach ( array( 1, 2 ) as $blog ) {
 	$registered = \Elementor\Plugin::$instance->widgets_manager->get_widget_types();
 	foreach ( $fixtures as $widget => $cases ) {
 		foreach ( $cases as $case => $settings ) {
-			$expect_css = (array) ( $settings['_expect_css'] ?? array() );
+			$expect_css  = (array) ( $settings['_expect_css'] ?? array() );
+			$expect_html = (array) ( $settings['_expect_html'] ?? array() );
+			$section     = (array) ( $settings['_section'] ?? array() );
 			$known      = (array) ( $settings['_known'] ?? array() );
 			$type       = (string) ( $settings['_widget'] ?? $widget );
-			unset( $settings['_expect_css'], $settings['_known'], $settings['_widget'] );
+			unset( $settings['_expect_css'], $settings['_expect_html'], $settings['_known'], $settings['_widget'], $settings['_section'] );
 			$template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
 			$sample   = get_page_by_path( 'digi-ab-post-1', OBJECT, 'post' );
 			array_walk_recursive( $settings, static function ( &$value ) use ( $template, $sample ) {
@@ -80,7 +82,7 @@ foreach ( array( 1, 2 ) as $blog ) {
 			$page = get_page_by_path( $slug );
 			$id   = $page ? $page->ID : wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
 			if ( 'A' === $phase ) {
-				$data = array( array( 'id' => 's' . substr( md5( $slug ), 0, 6 ), 'elType' => 'section', 'settings' => array(), 'elements' => array( array( 'id' => 'c' . substr( md5( $slug ), 0, 6 ), 'elType' => 'column', 'settings' => array( '_column_size' => 100 ), 'elements' => array(
+				$data = array( array( 'id' => 's' . substr( md5( $slug ), 0, 6 ), 'elType' => 'section', 'settings' => (object) $section, 'elements' => array( array( 'id' => 'c' . substr( md5( $slug ), 0, 6 ), 'elType' => 'column', 'settings' => array( '_column_size' => 100 ), 'elements' => array(
 					array( 'id' => 'w' . substr( md5( $slug ), 0, 6 ), 'elType' => 'widget', 'widgetType' => $type, 'settings' => (object) $settings, 'elements' => array() ),
 				) ) ) ) );
 				update_post_meta( $id, '_elementor_edit_mode', 'builder' );
@@ -115,6 +117,11 @@ foreach ( array( 1, 2 ) as $blog ) {
 				// Sin contenido Elementor no pinta el envoltorio: no hay nada que comprobar.
 				if ( '' !== $target && 'B' === $phase && false !== strpos( $html, 'elementor-element-w' . substr( md5( $slug ), 0, 6 ) ) ) {
 					$entry['wrapper_ok'] = false !== strpos( $html, 'data-widget_type="' . $target . '.' ) && false !== strpos( $html, 'elementor-widget-' . $target );
+				}
+				if ( $expect_html ) {
+					$entry['html_missing'] = array_values( array_filter( $expect_html, static function ( $fragment ) use ( $html ) {
+						return false === strpos( $html, $fragment );
+					} ) );
 				}
 				if ( $expect_css ) {
 					$css = \Elementor\Core\Files\CSS\Post::create( $id );
