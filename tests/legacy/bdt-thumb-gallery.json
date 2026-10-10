@@ -1,0 +1,11 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Sin imagen destacada Element Pack mostraba una imagen de muestra",
+      "links": "Element Pack enlazaba también la imagen de cada entrada"
+    },
+    "_expect_html": [
+      "Entrada A/B 3"
+    ]
+  }
+}

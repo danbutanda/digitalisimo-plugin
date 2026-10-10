@@ -98,6 +98,8 @@ Lote 25 (4.3.0.119): Marquee y News Ticker se RECONSTRUYEN en Marquesina y Timel
 
 Lote 26 (4.3.0.120): Chart y Open Street Map se RECONSTRUYEN. Diferencias declaradas: el gráfico es SVG estático (sin animación ni tooltips) y radar o burbujas se presentan como líneas o barras; el mapa muestra el primer marcador en el visor y todas las ubicaciones en una lista enlazada, sin marcadores personalizados.
 
+Lote 27 (4.3.0.121): ocho widgets de diapositivas y galerías se ADAPTAN. Diferencias declaradas: las flechas del deslizador son botones; Video Gallery pasa al carrusel de medios sin títulos ni descripciones; las diapositivas de plantilla de Custom Carousel y los iconos, enlaces y globos de Image Stack no se trasladan; las imágenes de ejemplo de Element Pack pasan a la de Elementor o a ninguna.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

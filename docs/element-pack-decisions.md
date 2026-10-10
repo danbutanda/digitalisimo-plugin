@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 168, no se reproduce 66, pendiente: adaptador 29.
+Documentos heredados: adaptador publicado 176, no se reproduce 66, pendiente: adaptador 21.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -26,7 +26,7 @@ Documentos heredados: adaptador publicado 168, no se reproduce 66, pendiente: ad
 | `bdt-advanced-gmap` | COMPARTIR | `google_maps` | pendiente: adaptador | Mapa de Google con marcadores y estilos; Elementor ofrece el mapa por dirección. Adaptador previsto para el primer marcador. |
 | `bdt-advanced-heading` | ADAPTAR | `digitalisimo-advanced-heading` | adaptador publicado | new semantic widget with responsive decoration sizing and offsets and optional Elementor typography per part since 4.3.0.73; main-site and subsite frontend render checked in Multisite; advanced effects, legacy adapter, editor and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
 | `bdt-advanced-icon-box` | ADAPTAR | `digitalisimo-advanced-icon-box` | adaptador publicado | new semantic widget with editor link and informative-image accessibility parity, optional per-part typography and card shadow since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; legacy control parity, effects and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
-| `bdt-advanced-image-gallery` | ADAPTAR | `gallery` | pendiente: adaptador | Galería de imágenes con lightbox: la galería de PRO Elements cubre rejilla, justificada y masonry. |
+| `bdt-advanced-image-gallery` | ADAPTAR | `image-gallery` | adaptador publicado | Galería de imágenes con lightbox: la galería de PRO Elements cubre rejilla, justificada y masonry. |
 | `bdt-advanced-progress-bar` | RECONSTRUIR | `digitalisimo-progress-bars` | adaptador publicado | Varias barras en un mismo widget; la barra de Elementor es individual. Se reconstruye como lista de barras accesible. |
 | `bdt-age-gate` | DESCARTAR | — | no se reproduce | Verificación de edad por ventana bloqueante con cookie; afecta a toda la página y su cumplimiento legal depende del sitio. Se recomienda un plugin dedicado o Display Conditions. |
 | `bdt-air-pollution` | DESCARTAR | — | no se reproduce | Depende de una API externa con clave propia de Element Pack (calidad del aire); sin servicio no hay datos que mostrar. |
@@ -86,7 +86,7 @@ Documentos heredados: adaptador publicado 168, no se reproduce 66, pendiente: ad
 | `bdt-crypto-currency-list` | DESCARTAR | — | no se reproduce | Igual que Crypto Currency Card: depende del servicio externo de Element Pack. |
 | `bdt-crypto-currency-table` | DESCARTAR | — | no se reproduce | Igual que Crypto Currency Card: depende del servicio externo de Element Pack. |
 | `bdt-crypto-currency-ticker` | DESCARTAR | — | no se reproduce | Igual que Crypto Currency Card: depende del servicio externo de Element Pack. |
-| `bdt-custom-carousel` | ADAPTAR | `media-carousel` | pendiente: adaptador | Carrusel de elementos propios (imagen, título, texto, enlace); el carrusel de medios o el motor de carruseles propio cubren las diapositivas. |
+| `bdt-custom-carousel` | ADAPTAR | `media-carousel` | adaptador publicado | Carrusel de elementos propios (imagen, título, texto, enlace); el carrusel de medios o el motor de carruseles propio cubren las diapositivas. |
 | `bdt-custom-gallery` | ADAPTAR | `digitalisimo-custom-gallery` | adaptador publicado | own Media gallery and individual linked images with ALT/srcset and conditional CSS; editor ALT and links aligned in 4.3.0.84; multisite runtime verified; lightbox, media skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool |
 | `bdt-dark-mode` | DESCARTAR | — | no se reproduce | Interruptor de modo oscuro que invierte colores con una librería; afecta a toda la página y al tema. |
 | `bdt-device-slider` | ADAPTAR | `digitalisimo-device-slider` | adaptador publicado | own device frame on shared native carousel engine; editor titles, links, ALT and navigation aligned in 4.3.0.85; multisite runtime verified; additional device skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool |
@@ -155,7 +155,7 @@ Documentos heredados: adaptador publicado 168, no se reproduce 66, pendiente: ad
 | `bdt-image-compare` | RECONSTRUIR | `digitalisimo-image-compare` | adaptador publicado | Comparador antes/después; se reconstruye accesible con un control deslizante nativo. |
 | `bdt-image-expand` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Imágenes que se expanden al pasar el cursor; el contenido pasa a pestañas propias. |
 | `bdt-image-magnifier` | ADAPTAR | `image` | adaptador publicado | Lupa sobre una imagen; se conserva la imagen en el widget Imagen. |
-| `bdt-image-stack` | ADAPTAR | `image-gallery` | pendiente: adaptador | Imágenes apiladas; se conservan en la galería básica. |
+| `bdt-image-stack` | ADAPTAR | `image-gallery` | adaptador publicado | Imágenes apiladas; se conservan en la galería básica. |
 | `bdt-instagram` | DESCARTAR | — | no se reproduce | Lee la API de Instagram con token propio; la API Basic Display fue retirada. Usar Instagram Feed (adaptado por shortcode). |
 | `bdt-instagram-feed` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-interactive-card` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Tarjeta con imagen, título, texto y botón; la Fancy Card propia cubre el contenido. |
@@ -180,7 +180,7 @@ Documentos heredados: adaptador publicado 168, no se reproduce 66, pendiente: ad
 | `bdt-notification` | ADAPTAR | `digitalisimo-notification` | adaptador publicado | own popup and fixed notice with conditional assets; trigger behavior and keyboard focus fixed in 4.3.0.91, multisite rendering verified; Elementor templates, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-offcanvas` | RECONSTRUIR | `digitalisimo-offcanvas` | adaptador publicado | share existing ElementorPro off-canvas for new content; external content sources and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.106 adapter and the per-site reversible migration tool |
 | `bdt-open-street-map` | RECONSTRUIR | `digitalisimo-map` | adaptador publicado | Mapa de OpenStreetMap con Leaflet; requiere widget de mapa propio sin dependencia de Google. |
-| `bdt-panel-slider` | ADAPTAR | `slides` | pendiente: adaptador | Paneles deslizantes con imagen y texto; las diapositivas de PRO Elements cubren el contenido. |
+| `bdt-panel-slider` | ADAPTAR | `digitalisimo-fancy-slider` | adaptador publicado | Paneles deslizantes con imagen y texto; las diapositivas de PRO Elements cubren el contenido. |
 | `bdt-portfolio-carousel` | ADAPTAR | `posts` | adaptador publicado | Carrusel del tipo de contenido de BdThemes Portfolio; el bucle de entradas lo consulta si el plugin sigue activo. |
 | `bdt-portfolio-gallery` | ADAPTAR | `posts` | adaptador publicado | Galería del tipo de contenido de BdThemes Portfolio. |
 | `bdt-portfolio-list` | ADAPTAR | `posts` | adaptador publicado | Lista del tipo de contenido de BdThemes Portfolio. |
@@ -222,13 +222,13 @@ Documentos heredados: adaptador publicado 168, no se reproduce 66, pendiente: ad
 | `bdt-search` | ADAPTAR | — | adaptador publicado | use existing search-form widget for new content; post-type filtering and Element Pack skins require parity review before legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-single-post` | ADAPTAR | `posts` | adaptador publicado | posts query can select a single public post for new content; exact metadata layout and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool |
 | `bdt-slider` | ADAPTAR | `slides` | adaptador publicado | use existing slides widget for new editorial slides; template source, skins, animations and legacy conversion pending; optimized media slider remains separate; legacy documents keep rendering without Element Pack through the 4.3.0.104 adapter and the per-site reversible migration tool |
-| `bdt-slideshow` | ADAPTAR | `slides` | pendiente: adaptador | Presentación de diapositivas con imagen y texto hacia Slides. |
+| `bdt-slideshow` | ADAPTAR | `digitalisimo-fancy-slider` | adaptador publicado | Presentación de diapositivas con imagen y texto hacia Slides. |
 | `bdt-slinky-vertical-menu` | ADAPTAR | `digitalisimo-vertical-menu` | adaptador publicado | nav-menu provides hierarchical WordPress menus for new content; sliding transitions, manual hierarchy and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool |
 | `bdt-social-proof` | DESCARTAR | — | no se reproduce | Notificaciones de prueba social con datos inventados o de WooCommerce; riesgo de mensajes engañosos. |
 | `bdt-social-share` | ADAPTAR | — | adaptador publicado | share-buttons covers native social sharing for new content; counters, network list and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-source-code` | ADAPTAR | `code-highlight` | adaptador publicado | Código con resaltado; Code Highlight de PRO Elements. |
 | `bdt-stacker` | DESCARTAR | — | no se reproduce | Apilado de secciones al desplazar con su script; cambia el comportamiento de la página. |
-| `bdt-static-carousel` | ADAPTAR | `media-carousel` | pendiente: adaptador | Carrusel de elementos escritos hacia el carrusel de medios. |
+| `bdt-static-carousel` | ADAPTAR | `digitalisimo-fancy-slider` | adaptador publicado | Carrusel de elementos escritos hacia el carrusel de medios. |
 | `bdt-static-grid-tab` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Rejilla de elementos escritos con pestañas. |
 | `bdt-step-flow` | ADAPTAR | `digitalisimo-advanced-icon-box` | adaptador publicado | Paso con icono, título y texto; la Caja de icono avanzada propia lo cubre. |
 | `bdt-sub-menu` | ADAPTAR | `digitalisimo-vertical-menu` | adaptador publicado | nav-menu covers WordPress submenus for new content; static repeater, badges and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool |
@@ -246,7 +246,7 @@ Documentos heredados: adaptador publicado 168, no se reproduce 66, pendiente: ad
 | `bdt-testimonial-slider` | ADAPTAR | `testimonial-carousel` | pendiente: adaptador | Igual que Testimonial Carousel. |
 | `bdt-the-newsletter` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-threesixty-product-viewer` | DESCARTAR | — | no se reproduce | Visor 360° con secuencia de imágenes y su script; uso marginal. |
-| `bdt-thumb-gallery` | ADAPTAR | `media-carousel` | pendiente: adaptador | Galería con miniaturas hacia el carrusel de medios con miniaturas. |
+| `bdt-thumb-gallery` | ADAPTAR | `posts` | adaptador publicado | Galería con miniaturas hacia el carrusel de medios con miniaturas. |
 | `bdt-time-zone` | DESCARTAR | — | no se reproduce | Reloj por zona horaria calculado en el navegador; uso marginal. |
 | `bdt-timeline` | RECONSTRUIR | `digitalisimo-timeline` | adaptador publicado | Línea de tiempo de elementos escritos o entradas; se reconstruye como lista ordenada accesible. |
 | `bdt-toggle` | ADAPTAR | `digitalisimo-accordion` | adaptador publicado | Contenido que se despliega con «Mostrar más»; Acordeón propio de un elemento. |
@@ -260,7 +260,7 @@ Documentos heredados: adaptador publicado 168, no se reproduce 66, pendiente: ad
 | `bdt-user-login` | ADAPTAR | — | adaptador publicado | existing-widget-for-new-content; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-user-register` | ADAPTAR | `digitalisimo-user-register` | adaptador publicado | native-registration-link-base; embedded form and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool |
 | `bdt-vertical-menu` | RECONSTRUIR | `digitalisimo-vertical-menu` | adaptador publicado | existing-widget-for-new-content; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool |
-| `bdt-video-gallery` | ADAPTAR | `media-carousel` | pendiente: adaptador | Lista de vídeos con reproductor; el carrusel de medios admite vídeos. |
+| `bdt-video-gallery` | ADAPTAR | `media-carousel` | adaptador publicado | Lista de vídeos con reproductor; el carrusel de medios admite vídeos. |
 | `bdt-video-player` | ADAPTAR | `digitalisimo-video-player` | adaptador publicado | native-video-widget-base; jPlayer skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool |
 | `bdt-wc-add-to-cart` | ADAPTAR | `wc-add-to-cart` | pendiente: adaptador | Botón de añadir al carrito de un producto; el widget de PRO Elements. |
 | `bdt-wc-carousel` | ADAPTAR | `woocommerce-products` | pendiente: adaptador | Carrusel de productos hacia Products de PRO Elements. |

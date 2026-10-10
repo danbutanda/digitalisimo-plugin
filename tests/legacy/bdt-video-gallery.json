@@ -1,0 +1,9 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El carrusel de medios muestra cada vídeo con su botón de reproducción, sin título ni descripción",
+      "links": "Los vídeos se abren en el lightbox del carrusel en lugar de enlazar su URL",
+      "images": "Los pósteres de ejemplo eran recursos de Element Pack"
+    }
+  }
+}

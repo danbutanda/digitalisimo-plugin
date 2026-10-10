@@ -153,6 +153,14 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-custom-carousel' => Bdt_CustomCarousel::class,
+		'bdt-video-gallery' => Bdt_VideoGallery::class,
+		'bdt-static-carousel' => Bdt_StaticCarousel::class,
+		'bdt-panel-slider' => Bdt_PanelSlider::class,
+		'bdt-slideshow' => Bdt_Slideshow::class,
+		'bdt-thumb-gallery' => Bdt_ThumbGallery::class,
+		'bdt-advanced-image-gallery' => Bdt_AdvancedImageGallery::class,
+		'bdt-image-stack' => Bdt_ImageStack::class,
 		'bdt-chart' => Bdt_Chart::class,
 		'bdt-open-street-map' => Bdt_OpenStreetMap::class,
 		'bdt-marquee' => Bdt_Marquee::class,
@@ -493,6 +501,7 @@ if ( class_exists( '\\ElementorPro\\Modules\\Posts\\Widgets\\Posts' ) && class_e
 	final class Bdt_PostGrid extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-grid'; }
 	final class Bdt_PostList extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-list'; }
 	final class Bdt_SinglePost extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-single-post'; }
+	final class Bdt_ThumbGallery extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-thumb-gallery'; }
 	final class Bdt_Carousel extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-carousel'; }
 	final class Bdt_PortfolioCarousel extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-portfolio-carousel'; }
 	final class Bdt_PortfolioGallery extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-portfolio-gallery'; }
@@ -682,4 +691,25 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Chart_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Map_Widget' ) ) {
 	final class Bdt_OpenStreetMap extends \Digitalisimo\Elements\Map_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-open-street-map'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Carousel\\Widgets\\Media_Carousel' ) ) {
+	final class Bdt_CustomCarousel extends \ElementorPro\Modules\Carousel\Widgets\Media_Carousel { use Legacy_Adapter; const LEGACY_ID = 'bdt-custom-carousel'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Carousel\\Widgets\\Media_Carousel' ) ) {
+	final class Bdt_VideoGallery extends \ElementorPro\Modules\Carousel\Widgets\Media_Carousel { use Legacy_Adapter; const LEGACY_ID = 'bdt-video-gallery'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Slider_Widget' ) ) {
+	final class Bdt_StaticCarousel extends \Digitalisimo\Elements\Fancy_Slider_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-static-carousel'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Slider_Widget' ) ) {
+	final class Bdt_PanelSlider extends \Digitalisimo\Elements\Fancy_Slider_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-panel-slider'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Slider_Widget' ) ) {
+	final class Bdt_Slideshow extends \Digitalisimo\Elements\Fancy_Slider_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-slideshow'; }
+}
+if ( class_exists( '\\Elementor\\Widget_Image_Gallery' ) ) {
+	final class Bdt_AdvancedImageGallery extends \Elementor\Widget_Image_Gallery { use Legacy_Adapter; const LEGACY_ID = 'bdt-advanced-image-gallery'; }
+}
+if ( class_exists( '\\Elementor\\Widget_Image_Gallery' ) ) {
+	final class Bdt_ImageStack extends \Elementor\Widget_Image_Gallery { use Legacy_Adapter; const LEGACY_ID = 'bdt-image-stack'; }
 }

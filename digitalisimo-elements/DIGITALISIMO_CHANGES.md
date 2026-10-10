@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.120
+# DIGITALÍSIMO Elements 4.3.0.121
+
+- 4.3.0.121: adaptadores de Element Pack para Static Carousel, Panel Slider y Slideshow (deslizador propio), Thumb Gallery (`posts`), Custom Carousel y Video Gallery (carrusel de medios de PRO Elements) y Advanced Image Gallery e Image Stack (galería de Elementor), con estilos heredados y migración reversible.
 
 - 4.3.0.120: nuevos widgets Gráfico (barras, líneas o sectores dibujados en el servidor como SVG, con leyenda y tabla de datos para lectores de pantalla, sin librerías) y Mapa (visor oficial de OpenStreetMap con marcador y lista de ubicaciones, sin clave ni librerías). Adaptadores de Element Pack Chart y Open Street Map sobre ellos.
 

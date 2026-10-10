@@ -274,6 +274,13 @@ namespace {
 	check_adapter( 15 === $mq['duration'] && 'right' === $mq['direction'] && 'Uno' === $mq['items'][0]['text'], 'Marquee convierte velocidad en duración.' );
 	check_adapter( 'posts' === Translator::translate( 'bdt-news-ticker', array() )['source'] && 'LATEST NEWS' === Translator::translate( 'bdt-news-ticker', array() )['label'], 'News Ticker muestra las últimas entradas con su rótulo.' );
 
+	$ss = Translator::translate( 'bdt-slideshow', array() );
+	check_adapter( 'Slide Pre Title' === $ss['slides'][0]['sub_title'] && 'Slide Item 1' === $ss['slides'][0]['title'] && 'Read More' === $ss['slides'][0]['slide_button'], 'Slideshow pasa sus diapositivas al deslizador propio.' );
+	$cc = Translator::translate( 'bdt-custom-carousel', array( 'slides' => array( array( 'type' => 'image', 'image' => array( 'url' => 'https://s.test/a.jpg' ) ) ) ) );
+	check_adapter( 'carousel' === $cc['skin'] && 'image' === $cc['slides'][0]['type'], 'Custom Carousel conserva sus diapositivas en el carrusel de medios.' );
+	$tg2 = Translator::translate( 'bdt-thumb-gallery', array() );
+	check_adapter( 5 === $tg2['classic_posts_per_page'] && 25 === $tg2['classic_excerpt_length'], 'Thumb Gallery consulta entradas con su extracto.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );
