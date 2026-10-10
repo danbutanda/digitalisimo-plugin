@@ -1,0 +1,14 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El formulario de PRO Elements incluye el texto oculto «Search» para lectores de pantalla"
+    }
+  },
+  "custom": {
+    "placeholder": "Buscar productos…",
+    "skin": "default",
+    "_known": {
+      "text": "El formulario de PRO Elements incluye el texto oculto «Search» para lectores de pantalla"
+    }
+  }
+}

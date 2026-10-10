@@ -11,6 +11,12 @@ require_once ABSPATH . 'wp-admin/includes/user.php';
 require_once WP_PLUGIN_DIR . '/digitalisimo-elements/modules/digitalisimo-legacy/class-migration.php';
 
 $phase    = getenv( 'DIGI_PHASE' ) ?: 'A';
+register_shutdown_function( static function () use ( $phase ) {
+	$error = error_get_last();
+	if ( $error && in_array( $error['type'], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ), true ) ) {
+		file_put_contents( '/wordpress/wp-content/digi-ab/fatal-' . $phase . '.txt', print_r( $error, true ) );
+	}
+} );
 $out_dir  = '/wordpress/wp-content/digi-ab';
 $fixtures = array();
 foreach ( array_merge( glob( '/wordpress/wp-content/digi-legacy-fixtures/bdt-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/ext-*.json' ) ) as $file ) {

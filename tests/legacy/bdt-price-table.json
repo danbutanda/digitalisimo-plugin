@@ -1,0 +1,23 @@
+{
+  "defaults": {},
+  "custom": {
+    "heading": "Pro",
+    "sub_heading": "Para empresas",
+    "price": "299",
+    "period": "al mes",
+    "features_list": [
+      {
+        "_id": "f1",
+        "item_text": "SSL"
+      },
+      {
+        "_id": "f2",
+        "item_text": "Correo"
+      }
+    ],
+    "button_text": "Contratar",
+    "link": {
+      "url": "https://example.com/pro"
+    }
+  }
+}

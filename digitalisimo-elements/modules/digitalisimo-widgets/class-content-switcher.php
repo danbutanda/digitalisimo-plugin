@@ -81,7 +81,7 @@ class Content_Switcher_Widget extends \Elementor\Widget_Base {
 			$target = self::target( $item );
 			echo '<div class="digi-content-switcher__panel" id="' . esc_attr( $id . '-panel-' . $index ) . '" role="tabpanel" aria-labelledby="' . esc_attr( $id . '-tab-' . $index ) . '" tabindex="0"' . ( '' !== $target ? ' data-digi-target="' . esc_attr( $target ) . '"' : '' ) . ( $selected !== $index ? ' hidden' : '' ) . '>';
 			if ( 'template' === $type ) { echo self::template_content( $item['template_id'] ?? 0 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Elementor renderiza la plantilla publicada.
-			} elseif ( 'link_section' !== $type ) { echo wp_kses_post( $item['content'] ?? '' ); }
+			} elseif ( 'link_section' !== $type ) { echo wp_kses_post( $this->parse_text_editor( (string) ( $item['content'] ?? '' ) ) ); }
 			echo '</div>';
 		}
 		echo '</div>';

@@ -1,0 +1,23 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "Element Pack abría el elemento con onclick=window.open; PRO Elements usa enlaces reales al mismo destino"
+    }
+  },
+  "custom": {
+    "price_list": [
+      {
+        "_id": "p1",
+        "title": "Corte",
+        "price": "$150",
+        "item_description": "Incluye lavado",
+        "link": {
+          "url": "https://example.com/corte"
+        }
+      }
+    ],
+    "_known": {
+      "links": "Element Pack abría el elemento con onclick=window.open; PRO Elements usa enlaces reales al mismo destino"
+    }
+  }
+}

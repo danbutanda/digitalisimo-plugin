@@ -3,6 +3,7 @@ namespace Elementor {
 	class Widget_Base {
 		public $settings = array(); public $controls = array(); private $links = array(); private $attributes = array();
 		public function get_settings_for_display() { return $this->settings; }
+		public function parse_text_editor( $content ) { return $content; }
 		public function get_id() { return 'test-01'; }
 		public function start_controls_section( $name, $args ) {}
 		public function end_controls_section() {}

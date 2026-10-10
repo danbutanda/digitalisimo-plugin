@@ -1,0 +1,14 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "PRO Elements usa su texto fijo «Lost your password?» y no el «Lost password?» de Element Pack"
+    }
+  },
+  "custom": {
+    "button_text": "Entrar",
+    "show_register": "",
+    "_known": {
+      "text": "PRO Elements usa su texto fijo «Lost your password?» y no el «Lost password?» de Element Pack"
+    }
+  }
+}

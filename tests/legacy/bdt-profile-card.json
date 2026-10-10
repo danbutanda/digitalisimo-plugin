@@ -1,0 +1,22 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Las estadísticas, el distintivo, el usuario y el menú de la tarjeta de Element Pack no tienen equivalente en el cuadro de autor",
+      "links": "Las redes sociales y el menú de la tarjeta no tienen equivalente en el cuadro de autor",
+      "images": "La imagen de ejemplo de Element Pack pasa a la de Elementor; el ALT describe la foto del autor"
+    }
+  },
+  "custom": {
+    "profile_name": "Ana López",
+    "profile_content": "Diseñadora web.",
+    "profile_button_text": "Contactar",
+    "follow_link": {
+      "url": "https://example.com/ana"
+    },
+    "_known": {
+      "text": "Las estadísticas, el distintivo, el usuario y el menú de la tarjeta de Element Pack no tienen equivalente en el cuadro de autor",
+      "links": "Las redes sociales y el menú de la tarjeta no tienen equivalente en el cuadro de autor",
+      "images": "La imagen de ejemplo de Element Pack pasa a la de Elementor; el ALT describe la foto del autor"
+    }
+  }
+}

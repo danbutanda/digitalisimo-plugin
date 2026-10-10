@@ -1,0 +1,17 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "La animación de ejemplo de Element Pack viene de su carpeta y desaparece con el plugin"
+    }
+  },
+  "custom": {
+    "lottie_json_path": "https://example.com/anim.json",
+    "caption_source": "custom_caption",
+    "caption": "Animación del equipo",
+    "link_to": "custom",
+    "link": {
+      "url": "https://example.com/equipo"
+    },
+    "play_action": "hover"
+  }
+}

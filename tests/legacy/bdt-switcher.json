@@ -1,0 +1,17 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "Los selectores de Element Pack eran enlaces #; los propios son botones de pestaña"
+    }
+  },
+  "custom": {
+    "switch_a_title": "Mensual",
+    "switch_a_content": "<p>Pago mes a mes.</p>",
+    "switch_b_title": "Anual",
+    "switch_b_content": "<p>Ahorra 20%.</p>",
+    "default_active": "b",
+    "_known": {
+      "links": "Los selectores de Element Pack eran enlaces #; los propios son botones de pestaña"
+    }
+  }
+}

@@ -45,10 +45,17 @@ def php(v, indent):
 def main(legacy_id, write):
     inventory = {w['legacy_widget_id']: w for w in json.loads((ROOT / 'docs/element-pack-inventory.json').read_text())['widgets']}
     mm = json.loads((ROOT / 'docs/migration-map.json').read_text())['entries']
-    target = mm[legacy_id]['target']
+    target = TARGET or mm[legacy_id]['target']
     reg = (ROOT / 'digitalisimo-elements/modules/digitalisimo-widgets/class-registry.php').read_text()
     files = dict(re.findall(r"'(digitalisimo-[a-z-]+)' => array\(\s*'file'\s*=> '([^']+)'", reg))
-    own = {c['name'] for c in detail(ROOT / 'digitalisimo-elements/modules/digitalisimo-widgets' / files[target])} if target in files else set()
+    candidate = mm[legacy_id].get('existing_elements_widget_candidate') or ''
+    if target in files:
+        own_file = ROOT / 'digitalisimo-elements/modules/digitalisimo-widgets' / files[target]
+    elif candidate.endswith('.php'):
+        own_file = ROOT / candidate
+    else:
+        own_file = None
+    own = {c['name'] for c in detail(own_file)} if own_file and own_file.exists() else set()
     controls = detail(ROOT / inventory[legacy_id]['source_file'])
     top, unparsed, missing, repeaters, fields = {}, [], [], {}, {}
     for c in controls:
@@ -113,5 +120,10 @@ def main(legacy_id, write):
     print(text)
 
 
+TARGET = None
+
 if __name__ == '__main__':
+    for arg in sys.argv:
+        if arg.startswith('--target='):
+            TARGET = arg.split('=', 1)[1]
     main(sys.argv[1], '--write' in sys.argv)

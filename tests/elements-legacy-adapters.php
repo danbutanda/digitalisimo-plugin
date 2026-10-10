@@ -15,12 +15,12 @@ namespace {
 	use Digitalisimo\Elements\Legacy\Translator;
 	use Digitalisimo\Elements\Legacy\Migration;
 
-	// Todos los mapas cargan, apuntan a un widget propio y sus estilos ya no nombran clases de Element Pack.
+	// Todos los mapas cargan, apuntan a un widget propio o de Elementor Pro y sus estilos ya no nombran clases de Element Pack.
 	$ids = Translator::ids();
 	check_adapter( in_array( 'bdt-accordion', $ids, true ) && ! preg_grep( '/\.styles$/', $ids ), 'Los mapas deben listarse sin los archivos de estilos.' );
 	foreach ( $ids as $id ) {
 		$map = Translator::map( $id );
-		check_adapter( is_array( $map ) && 0 === strpos( (string) $map['target'], 'digitalisimo-' ), 'Mapa inválido: ' . $id );
+		check_adapter( is_array( $map ) && preg_match( '/^[a-z][a-z0-9-]*$/', (string) $map['target'] ) && 0 !== strpos( (string) $map['target'], 'bdt-' ), 'Mapa inválido: ' . $id );
 		foreach ( Translator::styles( $id ) as $control ) {
 			$css = wp_json_encode_stub( $control );
 			check_adapter( ! empty( $control['name'] ) && false === strpos( $css, '.bdt-' ), 'Estilo con clase de Element Pack en ' . $id . ': ' . $control['name'] );
@@ -128,6 +128,21 @@ namespace {
 	check_adapter( 'comment' === $count['source'] && 'page' === $count['post_type'] && 50 === $count['extra_count'] && 'Total Count' === $count['label'], 'Total Count conserva tipo, etiqueta y cantidad añadida.' );
 	$video = Translator::translate( 'bdt-video-player', array( 'source' => 'https://a.test/v.mp4', 'title_hide' => 'yes' ) );
 	check_adapter( 'url' === $video['source'] && 'https://a.test/v.mp4' === $video['video_url'] && '' === $video['title'], 'Video Player usa la dirección guardada como URL externa.' );
+
+	$switcher = Translator::translate( 'bdt-switcher', array( 'source_b' => 'elementor', 'template_id_b' => '12', 'default_active' => 'b' ) );
+	check_adapter( 'Switch A' === $switcher['switcher_items'][0]['title'] && 'Switch Content A' === $switcher['switcher_items'][0]['content'] && 'template' === $switcher['switcher_items'][1]['content_type'] && '12' === $switcher['switcher_items'][1]['template_id'] && 'yes' === $switcher['switcher_items'][1]['switcher_active'], 'Switcher pasa sus dos opciones al alternador.' );
+	$tabs2 = Translator::translate( 'bdt-tabs', array( 'active_item' => 2, 'tabs' => array( array( 'tab_title' => 'A' ), array( 'tab_title' => 'B', 'source' => 'link_section', 'source_link_section' => 'precios' ) ) ) );
+	check_adapter( 'link_section' === $tabs2['switcher_items'][1]['content_type'] && 'precios' === $tabs2['switcher_items'][1]['link_target'] && 'yes' === $tabs2['switcher_items'][1]['switcher_active'] && 'Tab Content' === $tabs2['switcher_items'][0]['content'], 'Tabs conserva secciones enlazadas y pestaña activa.' );
+	$lottie = Translator::translate( 'bdt-lottie-image', array( 'lottie_json_path' => 'https://a.test/a.json', 'play_action' => 'click', 'caption_source' => 'custom_caption', 'caption' => 'C' ) );
+	check_adapter( 'external_url' === $lottie['source'] && 'https://a.test/a.json' === $lottie['source_external_url']['url'] && 'on_click' === $lottie['trigger'] && 'custom' === $lottie['caption_source'], 'Lottie Image usa el widget Lottie con la misma animación.' );
+	$share = Translator::translate( 'bdt-social-share', array() );
+	check_adapter( 'x-twitter' === $share['share_buttons'][2]['button'] && 'flat' === $share['skin'] && 'official' === $share['color_source'], 'Social Share conserva redes, estilo y colores.' );
+	$table = Translator::translate( 'bdt-price-table', array() );
+	check_adapter( 'fas fa-check' === $table['features_list'][0]['selected_item_icon']['value'] && 'Service Name' === $table['heading'] && ! isset( $table['layout'] ), 'Price Table traduce sus características.' );
+	$toc = Translator::translate( 'bdt-table-of-content', array( 'selectors' => array( 'h2', 'h3', 'div' ) ) );
+	check_adapter( array( 'h2', 'h3' ) === $toc['headings_by_tags'] && ! isset( $toc['layout'] ), 'La tabla de contenidos conserva los niveles de encabezado.' );
+	$card = Translator::translate( 'bdt-profile-card', array( 'profile_name' => 'Ana' ) );
+	check_adapter( 'custom' === $card['source'] && 'Ana' === $card['author_name'] && 'Follow' === $card['link_text'] && ! isset( $card['profile_posts'] ), 'Profile Card pasa a un cuadro de autor propio.' );
 
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );

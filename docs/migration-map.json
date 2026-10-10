@@ -2096,7 +2096,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "share existing ElementorPro Lottie widget for new content; legacy control conversion and parity pending; no duplicate player"
+      "status": "share existing ElementorPro Lottie widget for new content; legacy control conversion and parity pending; no duplicate player; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-lottie-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-mailchimp": {
       "target": null,
@@ -2478,7 +2479,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "share existing ElementorPro price-list for new content; old price, badge and legacy conversion pending"
+      "status": "share existing ElementorPro price-list for new content; old price, badge and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-price-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-price-table": {
       "target": null,
@@ -2490,7 +2492,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "share existing ElementorPro price-table for new content; nine layouts, commerce integrations and legacy conversion pending"
+      "status": "share existing ElementorPro price-table for new content; nine layouts, commerce integrations and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-price-table.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-product-carousel": {
       "target": null,
@@ -2541,7 +2544,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "author-box covers author/custom basics; user menu, social card, follow actions, skins and legacy conversion pending"
+      "status": "author-box covers author/custom basics; user menu, social card, follow actions, skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-profile-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-progress-pie": {
       "target": null,
@@ -2772,7 +2776,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "use existing search-form widget for new content; post-type filtering and Element Pack skins require parity review before legacy conversion"
+      "status": "use existing search-form widget for new content; post-type filtering and Element Pack skins require parity review before legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-search.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-single-post": {
       "target": null,
@@ -2844,7 +2849,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "share-buttons covers native social sharing for new content; counters, network list and legacy conversion pending"
+      "status": "share-buttons covers native social sharing for new content; counters, network list and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-social-share.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-source-code": {
       "target": null,
@@ -2964,7 +2970,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own content-switcher covers two-panel switching for new content; templates, icons and legacy conversion pending"
+      "status": "own content-switcher covers two-panel switching for new content; templates, icons and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-switcher.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-table": {
       "target": "digitalisimo-table",
@@ -2993,7 +3000,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "existing table-of-contents covers heading navigation for new content; control parity and legacy conversion pending"
+      "status": "existing table-of-contents covers heading navigation for new content; control parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-table-of-content.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-tablepress": {
       "target": null,
@@ -3017,7 +3025,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own fancy-tabs provides accessible tab panels for new content; sources, skins and legacy conversion pending"
+      "status": "own fancy-tabs provides accessible tab panels for new content; sources, skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-tags-cloud": {
       "target": "digitalisimo-tags-cloud",
@@ -3240,7 +3249,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "existing-widget-for-new-content; no legacy conversion"
+      "status": "existing-widget-for-new-content; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-user-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-user-register": {
       "target": "digitalisimo-user-register",

@@ -1,0 +1,25 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "Las pestañas de Element Pack eran enlaces #; las propias son botones de pestaña"
+    }
+  },
+  "custom": {
+    "tabs": [
+      {
+        "_id": "t1",
+        "tab_title": "Hosting",
+        "tab_content": "<p>Planes de hosting.</p>"
+      },
+      {
+        "_id": "t2",
+        "tab_title": "Dominios",
+        "tab_content": "<p>Registra tu dominio.</p>"
+      }
+    ],
+    "active_item": 2,
+    "_known": {
+      "links": "Las pestañas de Element Pack eran enlaces #; las propias son botones de pestaña"
+    }
+  }
+}

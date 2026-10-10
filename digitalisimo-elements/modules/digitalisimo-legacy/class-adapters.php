@@ -20,15 +20,15 @@ trait Legacy_Adapter {
 		}
 	}
 
-	public function get_name() {
+	public function get_name(): string {
 		return static::LEGACY_ID;
 	}
 
-	public function get_title() {
+	public function get_title(): string {
 		return parent::get_title() . ' (Element Pack)';
 	}
 
-	public function show_in_panel() {
+	public function show_in_panel(): bool {
 		return false;
 	}
 
@@ -37,7 +37,7 @@ trait Legacy_Adapter {
 	 * nombres y plantillas CSS: Elementor vuelve a generar los colores, tipografías y espacios que
 	 * el usuario ya había elegido, ahora sobre el marcado propio.
 	 */
-	protected function register_controls() {
+	protected function register_controls(): void {
 		parent::register_controls();
 		$styles = Translator::styles( static::LEGACY_ID );
 		if ( ! $styles ) {
@@ -123,6 +123,16 @@ final class Adapters {
 		'bdt-total-count' => Bdt_TotalCount::class,
 		'bdt-user-register' => Bdt_UserRegister::class,
 		'bdt-video-player' => Bdt_VideoPlayer::class,
+		'bdt-switcher' => Bdt_Switcher::class,
+		'bdt-tabs' => Bdt_Tabs::class,
+		'bdt-lottie-image' => Bdt_LottieImage::class,
+		'bdt-price-list' => Bdt_PriceList::class,
+		'bdt-price-table' => Bdt_PriceTable::class,
+		'bdt-search' => Bdt_Search::class,
+		'bdt-social-share' => Bdt_SocialShare::class,
+		'bdt-table-of-content' => Bdt_TableOfContent::class,
+		'bdt-user-login' => Bdt_UserLogin::class,
+		'bdt-profile-card' => Bdt_ProfileCard::class,
 	);
 
 	public static function element_pack_active() {
@@ -135,6 +145,10 @@ final class Adapters {
 		}
 		foreach ( self::CLASSES as $id => $class ) {
 			if ( ! Translator::map( $id ) || ! class_exists( $class ) ) {
+				continue;
+			}
+			// Un widget de PRO Elements puede estar desactivado en este sitio: sin destino no hay adaptador.
+			if ( method_exists( $manager, 'get_widget_types' ) && ! $manager->get_widget_types( Translator::target( $id ) ) ) {
 				continue;
 			}
 			if ( method_exists( $manager, 'get_widget_types' ) && $manager->get_widget_types( $id ) ) {
@@ -246,4 +260,34 @@ if ( class_exists( '\\Digitalisimo\\Elements\\User_Register_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Video_Player_Widget' ) ) {
 	final class Bdt_VideoPlayer extends \Digitalisimo\Elements\Video_Player_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-video-player'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Content_Switcher_Widget' ) ) {
+	final class Bdt_Switcher extends \Digitalisimo\Elements\Content_Switcher_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-switcher'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Content_Switcher_Widget' ) ) {
+	final class Bdt_Tabs extends \Digitalisimo\Elements\Content_Switcher_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-tabs'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Lottie\\Widgets\\Lottie' ) ) {
+	final class Bdt_LottieImage extends \ElementorPro\Modules\Lottie\Widgets\Lottie { use Legacy_Adapter; const LEGACY_ID = 'bdt-lottie-image'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Pricing\\Widgets\\Price_List' ) ) {
+	final class Bdt_PriceList extends \ElementorPro\Modules\Pricing\Widgets\Price_List { use Legacy_Adapter; const LEGACY_ID = 'bdt-price-list'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Pricing\\Widgets\\Price_Table' ) ) {
+	final class Bdt_PriceTable extends \ElementorPro\Modules\Pricing\Widgets\Price_Table { use Legacy_Adapter; const LEGACY_ID = 'bdt-price-table'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\ThemeElements\\Widgets\\Search_Form' ) ) {
+	final class Bdt_Search extends \ElementorPro\Modules\ThemeElements\Widgets\Search_Form { use Legacy_Adapter; const LEGACY_ID = 'bdt-search'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\ShareButtons\\Widgets\\Share_Buttons' ) ) {
+	final class Bdt_SocialShare extends \ElementorPro\Modules\ShareButtons\Widgets\Share_Buttons { use Legacy_Adapter; const LEGACY_ID = 'bdt-social-share'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\TableOfContents\\Widgets\\Table_Of_Contents' ) ) {
+	final class Bdt_TableOfContent extends \ElementorPro\Modules\TableOfContents\Widgets\Table_Of_Contents { use Legacy_Adapter; const LEGACY_ID = 'bdt-table-of-content'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Forms\\Widgets\\Login' ) ) {
+	final class Bdt_UserLogin extends \ElementorPro\Modules\Forms\Widgets\Login { use Legacy_Adapter; const LEGACY_ID = 'bdt-user-login'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\ThemeElements\\Widgets\\Author_Box' ) ) {
+	final class Bdt_ProfileCard extends \ElementorPro\Modules\ThemeElements\Widgets\Author_Box { use Legacy_Adapter; const LEGACY_ID = 'bdt-profile-card'; }
 }

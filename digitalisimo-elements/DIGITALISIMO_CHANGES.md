@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.101
+# DIGITALÍSIMO Elements 4.3.0.102
+
+- 4.3.0.102: adaptadores de Element Pack para Switcher y Tabs (sobre Content Switcher propio), Lottie Image, Price List, Price Table, Search, Social Share, Table Of Content, User Login y Profile Card (sobre los widgets de PRO Elements incluidos en Elements), con estilos heredados y migración reversible. Content Switcher pasa su contenido por el filtro de texto del editor.
 
 - 4.3.0.101: Los efectos guardados con las extensiones de Element Pack siguen aplicándose sin ese plugin: Wrapper Link cubre el elemento con un enlace igual al de Element Pack; Backdrop Filter conserva sus controles y variables con una hoja propia; Text Gradient, Realistic Image Shadow, Floating Effects y Notation se aproximan con CSS. La sección sólo aparece en elementos que ya los usaban y su hoja se carga únicamente cuando un elemento la necesita.
 

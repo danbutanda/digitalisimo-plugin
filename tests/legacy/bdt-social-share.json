@@ -1,0 +1,23 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "PRO Elements rotula la red como «LinkedIn», con la capitalización de la marca"
+    }
+  },
+  "custom": {
+    "share_buttons": [
+      {
+        "_id": "s1",
+        "button": "facebook"
+      },
+      {
+        "_id": "s2",
+        "button": "whatsapp"
+      }
+    ],
+    "view": "icon",
+    "_known": {
+      "text": "PRO Elements rotula la red como «LinkedIn», con la capitalización de la marca"
+    }
+  }
+}
