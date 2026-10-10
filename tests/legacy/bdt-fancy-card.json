@@ -1,0 +1,25 @@
+{
+  "defaults": {},
+  "custom": {
+    "title_text": "Soporte 24/7",
+    "description_text": "Siempre disponibles.",
+    "readmore_text": "Contactar",
+    "readmore_link": {
+      "url": "https://example.com/soporte"
+    },
+    "badge": "yes",
+    "badge_text": "NUEVO",
+    "selected_icon": {
+      "value": "fas fa-headset",
+      "library": "fa-solid"
+    }
+  },
+  "global": {
+    "title_text": "Toda la tarjeta",
+    "readmore": "",
+    "global_link": "yes",
+    "global_link_url": {
+      "url": "https://example.com/tarjeta"
+    }
+  }
+}

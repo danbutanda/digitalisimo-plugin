@@ -1,0 +1,21 @@
+{
+  "defaults": {},
+  "custom": {
+    "icon_list": [
+      {
+        "_id": "l1",
+        "text": "Dominio gratis",
+        "text_details": "El primer año",
+        "link": {
+          "url": "https://example.com/dominios"
+        }
+      },
+      {
+        "_id": "l2",
+        "text": "SSL incluido"
+      }
+    ],
+    "layout_style": "style-2",
+    "show_number_icon": "yes"
+  }
+}

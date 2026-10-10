@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-carousel-engine.php';
 
 /** Diapositivas editoriales con imagen, texto y enlaces, usando el carrusel compartido. */
-final class Fancy_Slider_Widget extends \Elementor\Widget_Base {
+class Fancy_Slider_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-fancy-slider'; }
 	public function get_title() { return 'Slider destacado'; }
 	public function get_icon() { return 'eicon-slides'; }

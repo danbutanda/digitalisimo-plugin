@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Cuadrícula de enlaces con icono o texto, sin scripts ni enlaces vacíos. */
-final class Fancy_Icons_Widget extends \Elementor\Widget_Base {
+class Fancy_Icons_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-fancy-icons'; }
 	public function get_title() { return 'Iconos destacados'; }
 	public function get_icon() { return 'eicon-social-icons'; }
@@ -28,6 +28,8 @@ final class Fancy_Icons_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 		$this->start_controls_section( 'section_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
 		$this->add_responsive_control( 'gap', array( 'label' => 'Separación', 'type' => $c::SLIDER, 'range' => array( 'px' => array( 'min' => 0, 'max' => 80 ) ), 'selectors' => array( '{{WRAPPER}} .digi-fancy-icons' => 'gap:{{SIZE}}{{UNIT}};' ) ) );
+		$this->add_control( 'background_image', array( 'label' => 'Imagen de fondo', 'type' => $c::MEDIA, 'selectors' => array( '{{WRAPPER}} .digi-fancy-icons' => 'background-image:url("{{URL}}");background-size:cover;background-position:center;' ) ) );
+		$this->add_control( 'background_attachment', array( 'label' => 'Fondo fijo', 'type' => $c::SELECT, 'default' => '', 'options' => array( '' => 'Predeterminado', 'scroll' => 'Se desplaza', 'fixed' => 'Fijo' ), 'condition' => array( 'background_image[url]!' => '' ), 'selectors' => array( '{{WRAPPER}} .digi-fancy-icons' => 'background-attachment:{{VALUE}};' ) ) );
 		$this->add_responsive_control( 'min_height', array( 'label' => 'Altura mínima', 'type' => $c::SLIDER, 'range' => array( 'px' => array( 'min' => 30, 'max' => 400 ) ), 'selectors' => array( '{{WRAPPER}} .digi-fancy-icons__item' => 'min-height:{{SIZE}}{{UNIT}};' ) ) );
 		$this->add_responsive_control( 'padding', array( 'label' => 'Relleno', 'type' => $c::DIMENSIONS, 'size_units' => array( 'px', 'em', 'rem' ), 'selectors' => array( '{{WRAPPER}} .digi-fancy-icons__item' => 'padding:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ) ) );
 		$this->add_control( 'text_color', array( 'label' => 'Color general', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-fancy-icons__content' => 'color:{{VALUE}};' ) ) );

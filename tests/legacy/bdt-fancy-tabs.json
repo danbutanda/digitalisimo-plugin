@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "Las pestañas de Element Pack eran enlaces javascript:void(0); las propias son botones accesibles"
+    }
+  },
+  "custom": {
+    "tabs": [
+      {
+        "_id": "t1",
+        "tab_title": "Diseño",
+        "tab_sub_title": "Web",
+        "tab_content": "Sitios a medida.",
+        "tabs_button": "Cotizar",
+        "button_link": {
+          "url": "https://example.com/diseno"
+        }
+      },
+      {
+        "_id": "t2",
+        "tab_title": "SEO",
+        "tab_content": "Posicionamiento."
+      }
+    ],
+    "show_sub_title": "",
+    "_known": {
+      "links": "Las pestañas de Element Pack eran enlaces javascript:void(0); las propias son botones accesibles"
+    }
+  }
+}

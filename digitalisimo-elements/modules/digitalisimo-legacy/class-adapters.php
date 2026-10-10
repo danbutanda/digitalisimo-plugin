@@ -105,6 +105,12 @@ final class Adapters {
 		'bdt-custom-gallery' => Bdt_CustomGallery::class,
 		'bdt-creative-button' => Bdt_CreativeButton::class,
 		'bdt-device-slider' => Bdt_DeviceSlider::class,
+		'bdt-fancy-card' => Bdt_FancyCard::class,
+		'bdt-fancy-list' => Bdt_FancyList::class,
+		'bdt-fancy-icons' => Bdt_FancyIcons::class,
+		'bdt-fancy-slider' => Bdt_FancySlider::class,
+		'bdt-fancy-tabs' => Bdt_FancyTabs::class,
+		'bdt-featured-box' => Bdt_FeaturedBox::class,
 	);
 
 	public static function element_pack_active() {
@@ -174,4 +180,22 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Creative_Button_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Device_Slider_Widget' ) ) {
 	final class Bdt_DeviceSlider extends \Digitalisimo\Elements\Device_Slider_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-device-slider'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Card_Widget' ) ) {
+	final class Bdt_FancyCard extends \Digitalisimo\Elements\Fancy_Card_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-fancy-card'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_List_Widget' ) ) {
+	final class Bdt_FancyList extends \Digitalisimo\Elements\Fancy_List_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-fancy-list'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Icons_Widget' ) ) {
+	final class Bdt_FancyIcons extends \Digitalisimo\Elements\Fancy_Icons_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-fancy-icons'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Slider_Widget' ) ) {
+	final class Bdt_FancySlider extends \Digitalisimo\Elements\Fancy_Slider_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-fancy-slider'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Tabs_Widget' ) ) {
+	final class Bdt_FancyTabs extends \Digitalisimo\Elements\Fancy_Tabs_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-fancy-tabs'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Featured_Box_Widget' ) ) {
+	final class Bdt_FeaturedBox extends \Digitalisimo\Elements\Featured_Box_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-featured-box'; }
 }

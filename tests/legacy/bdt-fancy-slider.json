@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "El widget propio deja vacío el ALT de una imagen que acompaña a un título visible; Element Pack repetía el título; las imágenes de ejemplo de la carpeta de Element Pack pasan a la de Elementor",
+      "text": "Las flechas propias son botones con los caracteres ‹ y ›"
+    }
+  },
+  "custom": {
+    "slides": [
+      {
+        "_id": "s1",
+        "sub_title": "Nuevo",
+        "title": "Hosting NVMe",
+        "description": "Más rápido que nunca.",
+        "slide_button": "Ver planes",
+        "button_link": {
+          "url": "https://example.com/planes"
+        },
+        "slide_image": {
+          "url": "https://example.com/img/nvme.jpg"
+        }
+      }
+    ],
+    "show_description": "",
+    "_known": {
+      "images": "El widget propio deja vacío el ALT de una imagen que acompaña a un título visible; Element Pack repetía el título; las imágenes de ejemplo de la carpeta de Element Pack pasan a la de Elementor",
+      "text": "Las flechas propias son botones con los caracteres ‹ y ›"
+    }
+  }
+}

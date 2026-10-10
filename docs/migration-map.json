@@ -1406,7 +1406,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own always-visible semantic card with image or icon, badge and optional CTA; editor icon, ALT and links aligned in 4.3.0.86; multisite runtime verified; advanced skins and visual parity pending"
+      "status": "own always-visible semantic card with image or icon, badge and optional CTA; editor icon, ALT and links aligned in 4.3.0.86; multisite runtime verified; advanced skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98"
     },
     "bdt-fancy-icons": {
       "target": "digitalisimo-fancy-icons",
@@ -1421,7 +1422,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own accessible icon/text links with responsive grid and conditional CSS; external links secured in 4.3.0.87; multisite runtime verified; video backgrounds, advanced skins and visual parity pending"
+      "status": "own accessible icon/text links with responsive grid and conditional CSS; external links secured in 4.3.0.87; multisite runtime verified; video backgrounds, advanced skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-icons.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98"
     },
     "bdt-fancy-list": {
       "target": "digitalisimo-fancy-list",
@@ -1441,7 +1443,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own list widget with links secured and image loading delegated to WordPress in 4.3.0.86; multisite runtime verified; legacy adapter, full style controls and visual comparison pending"
+      "status": "own list widget with links secured and image loading delegated to WordPress in 4.3.0.86; multisite runtime verified; legacy adapter, full style controls and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98"
     },
     "bdt-fancy-slider": {
       "target": "digitalisimo-fancy-slider",
@@ -1461,7 +1464,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own editorial slider on shared carousel engine; editor links, ALT and navigation aligned in 4.3.0.87; multisite runtime verified; advanced transitions and visual parity pending"
+      "status": "own editorial slider on shared carousel engine; editor links, ALT and navigation aligned in 4.3.0.87; multisite runtime verified; advanced transitions and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98"
     },
     "bdt-fancy-tabs": {
       "target": "digitalisimo-fancy-tabs",
@@ -1476,7 +1480,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own accessible tabs with shared navigation script and conditional CSS; all editor panels, icons and links aligned in 4.3.0.88; multisite runtime verified; advanced skins and visual parity pending"
+      "status": "own accessible tabs with shared navigation script and conditional CSS; all editor panels, icons and links aligned in 4.3.0.88; multisite runtime verified; advanced skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98"
     },
     "bdt-faq": {
       "target": null,
@@ -1510,7 +1515,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own overlay and split editorial box with Media image and optional links; editor ALT, links and icon aligned in 4.3.0.88; multisite runtime verified; advanced skins and visual parity pending"
+      "status": "own overlay and split editorial box with Media image and optional links; editor ALT, links and icon aligned in 4.3.0.88; multisite runtime verified; advanced skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-featured-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98"
     },
     "bdt-flip-box": {
       "target": null,

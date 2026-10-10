@@ -12,7 +12,7 @@ namespace Elementor {
 		public function get_render_attribute_string( $name ) { $out = array(); foreach ( $this->attributes[ $name ] as $key => $value ) { $out[] = $key . '="' . htmlspecialchars( implode( ' ', (array) $value ), ENT_QUOTES, 'UTF-8' ) . '"'; } return implode( ' ', $out ); }
 	}
 	class Repeater { private $controls = array(); public function add_control( $name, $args ) { $this->controls[ $name ] = $args; } public function get_controls() { return $this->controls; } }
-	class Controls_Manager { const SELECT = 'select'; const TEXT = 'text'; const URL = 'url'; const REPEATER = 'repeater'; const SLIDER = 'slider'; const COLOR = 'color'; const ICONS = 'icons'; const DIMENSIONS = 'dimensions'; const TAB_STYLE = 'style'; }
+	class Controls_Manager { const SELECT = 'select'; const TEXT = 'text'; const URL = 'url'; const REPEATER = 'repeater'; const SLIDER = 'slider'; const COLOR = 'color'; const ICONS = 'icons'; const DIMENSIONS = 'dimensions'; const TAB_STYLE = 'style'; const MEDIA = 'media'; }
 	class Icons_Manager { public static function render_icon( $icon, $attrs ) { echo '<i aria-hidden="true"></i>'; } }
 }
 namespace {
@@ -35,5 +35,6 @@ namespace {
 	check_fancy_icons( 2 === substr_count( $html, '<li ' ) && str_contains( $html, 'aria-label="Facebook"' ) && str_contains( $html, 'href="https://example.com/red"' ), 'Debe renderizar sólo enlaces con contenido y nombre accesible.' );
 	check_fancy_icons( str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'target="_blank"' ), 'El icono externo debe proteger la pestaña.' );
 	check_fancy_icons( str_contains( $html, '<span class="digi-fancy-icons__content"><span>Contacto</span></span>' ) && ! str_contains( $html, 'elementor-repeater-item-c3' ), 'No debe producir enlaces vacíos ni iconos sin nombre.' );
+	if ( false === strpos( (string) ( $widget->controls['background_image']['selectors']['{{WRAPPER}} .digi-fancy-icons'] ?? '' ), 'background-image:url("{{URL}}")' ) ) { throw new RuntimeException( 'El fondo debe aplicarse con CSS de Elementor, sin JavaScript.' ); }
 	echo "DIGITALÍSIMO Elements: Iconos destacados validados.\n";
 }

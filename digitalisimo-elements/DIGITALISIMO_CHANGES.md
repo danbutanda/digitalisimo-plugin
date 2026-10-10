@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.97
+# DIGITALÍSIMO Elements 4.3.0.98
+
+- 4.3.0.98: Fancy Card, Fancy List, Fancy Icons, Fancy Slider, Fancy Tabs y Featured Box de Element Pack siguen mostrándose sin ese plugin mediante adaptadores, con sus interruptores de partes visibles, enlaces y diseños traducidos. Fancy Icons admite una imagen de fondo con CSS de Elementor. El analizador distingue repetidores que comparten variable y un generador crea el esqueleto de cada mapa con todos los defaults de Element Pack.
 
 - 4.3.0.97: Comparison List, Content Switcher, Custom Gallery, Creative Button y Device Slider de Element Pack siguen mostrándose sin ese plugin mediante adaptadores. Content Switcher incorpora plantillas de Elementor, la opción de mostrar otra sección o widget de la página por su ID y la opción activa al cargar; las tarjetas de precio de Element Pack se traducen a HTML con los mismos datos. Custom Gallery convierte cada destino (imagen, sitio, video, YouTube, Vimeo o mapa) en el enlace de la imagen.
 

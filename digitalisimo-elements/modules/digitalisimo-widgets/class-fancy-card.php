@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Tarjeta visual con enlace explícito y contenido siempre visible. */
-final class Fancy_Card_Widget extends \Elementor\Widget_Base {
+class Fancy_Card_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-fancy-card'; }
 	public function get_title() { return 'Tarjeta destacada'; }
 	public function get_icon() { return 'eicon-icon-box'; }

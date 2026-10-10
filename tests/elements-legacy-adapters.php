@@ -95,6 +95,18 @@ namespace {
 	$comparison = Translator::translate( 'bdt-comparison-list', array() );
 	check_adapter( 'Feature list' === $comparison['comparison_list_title'] && 'Pro' === $comparison['comparison_header_list'][1]['header_title'] && '1|1' === $comparison['comparison_list'][2]['feature_ability'], 'Comparison List usa las filas por defecto de Element Pack.' );
 
+	$card = Translator::translate( 'bdt-fancy-card', array( 'readmore' => '', 'global_link' => 'yes', 'global_link_url' => array( 'url' => 'https://a.test/' ), 'badge_text' => 'X' ) );
+	check_adapter( '' === $card['button_text'] && 'https://a.test/' === $card['link']['url'] && '' === $card['badge_text'] && 'Laugh' === $card['title_text'] && ! isset( $card['readmore_link'] ), 'Fancy Card usa el enlace global sin botón y oculta el distintivo apagado.' );
+	$icons = Translator::translate( 'bdt-fancy-icons', array() );
+	$own   = Translator::translate( 'bdt-fancy-icons', array( 'background_image' => array( 'url' => 'https://a.test/fondo.jpg' ), 'background_attachment' => 'inherit' ) );
+	check_adapter( ! isset( $icons['background_image'] ) && 'https://a.test/fondo.jpg' === $own['background_image']['url'] && '' === $own['background_attachment'], 'Fancy Icons conserva sólo un fondo elegido por el usuario.' );
+	$slider = Translator::translate( 'bdt-fancy-slider', array( 'show_description' => '', 'slides' => array( array( 'title' => 'A', 'description' => 'B' ) ) ) );
+	check_adapter( ! isset( $slider['slides'][0]['description'] ) && 'A' === $slider['slides'][0]['title'] && 'full' === $slider['image_size'], 'Fancy Slider respeta los interruptores de cada parte.' );
+	$tabs = Translator::translate( 'bdt-fancy-tabs', array( 'show_button' => '' ) );
+	check_adapter( '' === $tabs['tabs'][0]['tabs_button'] && 'Fancy Tabs Item One' === $tabs['tabs'][0]['tab_title'] && ! isset( $tabs['show_button'] ), 'Fancy Tabs usa sus filas por defecto y oculta botones apagados.' );
+	$box = Translator::translate( 'bdt-featured-box', array( '_skin' => 'split' ) );
+	check_adapter( 'split' === $box['layout'] && 'Featured Box Title' === $box['title_text'] && 'overlay' === Translator::translate( 'bdt-featured-box', array() )['layout'], 'Featured Box traduce su diseño.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

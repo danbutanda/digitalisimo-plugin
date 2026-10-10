@@ -174,7 +174,7 @@ def top_value(args, key):
     return None
 
 
-TOK = re.compile(r"start_controls_section\(\s*'([^']+)'(.*?)\)\s*;|(\$\w+)->(add_control|add_responsive_control|add_group_control)\(\s*|\$this->(\w+)\((?:[^;()]|\([^;()]*\))*\)\s*;", re.S)
+TOK = re.compile(r"(\$\w+)\s*=\s*new\s+(?:\\?Elementor\\)?Repeater\(|start_controls_section\(\s*'([^']+)'(.*?)\)\s*;|(\$\w+)->(add_control|add_responsive_control|add_group_control)\(\s*|\$this->(\w+)\((?:[^;()]|\([^;()]*\))*\)\s*;", re.S)
 KEYS = ('type', 'default', 'desktop_default', 'tablet_default', 'mobile_default', 'options', 'selectors', 'selectors_dictionary', 'condition', 'conditions', 'size_units', 'fields', 'prefix_class')
 
 
@@ -188,19 +188,23 @@ def _walk(body, own, out, state, seen, env=None):
     body, env = resolve(body, env or {}, own)
     for m in TOK.finditer(body):
         if m.group(1):
-            state['section'] = m.group(1)
-            head = m.group(2)[:500]
+            state['repeaters'][m.group(1)] = state['repeaters'].get(m.group(1), 0) + 1
+            continue
+        if m.group(2):
+            state['section'] = m.group(2)
+            head = m.group(3)[:500]
             state['tab'] = 'style' if 'TAB_STYLE' in head else ('advanced' if 'TAB_ADVANCED' in head else 'content')
-        elif m.group(3):
+        elif m.group(4):
             rest = body[m.end():]
-            if m.group(4) == 'add_group_control':
+            var = m.group(4)
+            if m.group(5) == 'add_group_control':
                 gm = re.match(r"([^,]+?)::get_type\(\)\s*,\s*", rest)
                 if not gm:
                     continue
                 args = _args_after(rest, gm.end())
                 inner = args[5:] if args.startswith('array') else args
                 name = top_value(inner, 'name') or ''
-                out.append({'var': m.group(3), 'kind': 'group', 'group': gm.group(1).split('\\')[-1].strip(), 'name': name.strip('\'"'),
+                out.append({'var': var, 'kind': 'group', 'gen': state['repeaters'].get(var, 0), 'group': gm.group(1).split('\\')[-1].strip(), 'name': name.strip('\'"'),
                             'tab': state['tab'], 'section': state['section'], 'selector': top_value(inner, 'selector'),
                             'types': top_value(inner, 'types'), 'exclude': top_value(inner, 'exclude'), 'raw_default': top_value(inner, 'default')})
                 continue
@@ -209,16 +213,19 @@ def _walk(body, own, out, state, seen, env=None):
                 continue
             args = _args_after(rest, nm.end())
             inner = args[5:] if args.startswith('array') else args
-            entry = {'var': m.group(3), 'kind': 'responsive' if m.group(4) == 'add_responsive_control' else 'control', 'name': nm.group(1),
+            entry = {'var': var, 'gen': state['repeaters'].get(var, 0), 'kind': 'responsive' if m.group(5) == 'add_responsive_control' else 'control', 'name': nm.group(1),
                      'tab': state['tab'], 'section': state['section']}
             for key in KEYS:
                 entry['raw_' + key] = top_value(inner, key)
             entry['type'] = (entry['raw_type'] or '').replace('Controls_Manager::', '')
             entry['selectors'] = entry['raw_selectors']
             entry['default'] = entry['raw_default']
+            if entry['raw_fields']:
+                fvar = entry['raw_fields'].split('->')[0].strip()
+                entry['fields_gen'] = (fvar, state['repeaters'].get(fvar, 0))
             out.append(entry)
-        elif m.group(5):
-            name = m.group(5)
+        elif m.group(6):
+            name = m.group(6)
             if name in seen:
                 continue
             src = own.get(name) or trait_methods().get(name)
@@ -240,5 +247,5 @@ def detail(path):
     own = methods(src)
     body = own.get('register_controls') or own.get('_register_controls') or src
     out = []
-    _walk(body, own, out, {'tab': 'content', 'section': ''}, frozenset({'register_controls'}))
+    _walk(body, own, out, {'tab': 'content', 'section': '', 'repeaters': {}}, frozenset({'register_controls'}))
     return out

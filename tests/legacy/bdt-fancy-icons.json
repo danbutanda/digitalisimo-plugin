@@ -1,0 +1,31 @@
+{
+  "defaults": {},
+  "custom": {
+    "share_items": [
+      {
+        "_id": "i1",
+        "social_icon": {
+          "value": "fab fa-whatsapp",
+          "library": "fa-brands"
+        },
+        "social_link": {
+          "url": "https://wa.me/5215555555555"
+        }
+      },
+      {
+        "_id": "i2",
+        "social_type": "text",
+        "social_name": "Correo",
+        "social_link": {
+          "url": "mailto:hola@example.com"
+        }
+      }
+    ],
+    "background_image": {
+      "url": "https://example.com/img/fondo.jpg"
+    },
+    "_expect_css": [
+      "fondo.jpg"
+    ]
+  }
+}

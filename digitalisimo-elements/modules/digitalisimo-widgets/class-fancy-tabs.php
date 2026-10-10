@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Pestañas de contenido con navegación por teclado y panel inicial visible. */
-final class Fancy_Tabs_Widget extends \Elementor\Widget_Base {
+class Fancy_Tabs_Widget extends \Elementor\Widget_Base {
 	private static $fallback_printed = false;
 	public function get_name() { return 'digitalisimo-fancy-tabs'; }
 	public function get_title() { return 'Pestañas destacadas'; }

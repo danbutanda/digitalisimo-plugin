@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Caja editorial con imagen y contenido visible, sin efectos ni scripts globales. */
-final class Featured_Box_Widget extends \Elementor\Widget_Base {
+class Featured_Box_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-featured-box'; }
 	public function get_title() { return 'Caja destacada'; }
 	public function get_icon() { return 'eicon-featured-image'; }

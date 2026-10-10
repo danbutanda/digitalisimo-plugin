@@ -1,0 +1,23 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "El widget propio deja vacío el ALT de una imagen que acompaña a un título visible; Element Pack repetía el título"
+    }
+  },
+  "custom": {
+    "image": {
+      "url": "https://example.com/img/caja.jpg"
+    },
+    "title_text": "Migraciones",
+    "sub_title_text": "Gratis",
+    "description_text": "Movemos tu sitio sin perder nada.",
+    "readmore_text": "Solicitar",
+    "readmore_link": {
+      "url": "https://example.com/migrar"
+    },
+    "_skin": "split",
+    "_known": {
+      "images": "El widget propio deja vacío el ALT de una imagen que acompaña a un título visible; Element Pack repetía el título"
+    }
+  }
+}
