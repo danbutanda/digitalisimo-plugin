@@ -3493,6 +3493,57 @@
       },
       "status": "28 native conditions since 4.3.0.81 (16 only with WooCommerce); since 4.3.0.82 existing Element Pack documents keep identical visibility without the plugin (multisite A/B with Element Pack 9.9.1 matched in every scenario, also after an editor save); optional conversion to native Display Conditions pending",
       "legacy_adapter": "modules/digitalisimo-conditions/class-legacy-visibility.php + class-legacy-rules.php: reads ep_display_conditions_enable/_to/_relation and the ep_display_conditions repeater with Element Pack 9.9.1 semantics for all 46 rule keys; same control names and defaults; inactive while Element Pack is loaded; honours element_pack_elementor_extend[visibility-controls]; no _elementor_data rewrite"
+    },
+    "wrapper-link": {
+      "decision": "RECONSTRUIR",
+      "user_priority_order": 61,
+      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "status": "element_pack_wrapper_link keeps covering the element with a server-side overlay anchor (same href, target and rel); verified by multisite A/B. New content uses the native container link."
+    },
+    "backdrop-filter": {
+      "decision": "ADAPTAR",
+      "user_priority_order": 54,
+      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "status": "Same controls, prefix classes and CSS variables as Element Pack; an own stylesheet applies backdrop-filter from those variables. Liquid glass uses blur only (no SVG distortion). CSS verified by multisite A/B."
+    },
+    "text-gradient-background": {
+      "decision": "ADAPTAR",
+      "user_priority_order": 58,
+      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "status": "Saved background group is clipped to the heading or paragraph text; a custom partial-text selector is not reproduced. CSS verified by multisite A/B."
+    },
+    "realistic-image-shadow": {
+      "decision": "ADAPTAR",
+      "user_priority_order": 59,
+      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "status": "Saved offsets, blur and opacity become a CSS drop-shadow on the element images instead of a blurred image clone; hover mode is not reproduced."
+    },
+    "floating-effects": {
+      "decision": "ADAPTAR",
+      "user_priority_order": 55,
+      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "status": "Enabled elements get a gentle CSS vertical float that respects reduced motion; per-axis translate, rotate and scale values are not reproduced."
+    },
+    "notation": {
+      "decision": "ADAPTAR",
+      "user_priority_order": 56,
+      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "status": "Saved notation type and colour become CSS marks (underline, strike, highlight, box, circle, bracket) on the heading or paragraph text; animated hand-drawn marks are not reproduced."
+    },
+    "shape-builder": {
+      "decision": "DESCARTAR",
+      "user_priority_order": 57,
+      "status": "Decorative shapes drawn by Element Pack scripts are not migrated; new content can use the own Shape Builder base for classic headings."
+    },
+    "duplicator": {
+      "decision": "RECONSTRUIR",
+      "user_priority_order": 62,
+      "status": "Editorial action without data inside documents; own implementation in digitalisimo-duplicator.php needs no migration."
+    },
+    "svg-support": {
+      "decision": "COMPARTIR",
+      "user_priority_order": 63,
+      "status": "SVG uploads use Elementor sanitized SVG support; documents keep their media references and need no migration."
     }
   }
 }

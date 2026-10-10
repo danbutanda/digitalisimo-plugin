@@ -1,0 +1,19 @@
+{
+  "heading": {
+    "_widget": "heading",
+    "title": "Cristal",
+    "element_pack_backdrop_filter": "yes",
+    "element_pack_bf_blur": {
+      "unit": "px",
+      "size": 10
+    },
+    "element_pack_bf_saturate": {
+      "unit": "px",
+      "size": 1.5
+    },
+    "_expect_css": [
+      "--ep-backdrop-filter-blur:10px",
+      "--ep-backdrop-filter-saturate:1.5"
+    ]
+  }
+}

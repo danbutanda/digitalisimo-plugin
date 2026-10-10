@@ -1,0 +1,10 @@
+{
+  "heading": {
+    "_widget": "heading",
+    "title": "Sección enlazada",
+    "element_pack_wrapper_link": {
+      "url": "https://example.com/destino",
+      "is_external": "on"
+    }
+  }
+}

@@ -217,6 +217,8 @@ final class Widget_Registry {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'styles' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'scripts' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), 20 );
+		require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-extensions.php';
+		Legacy\Extensions::init();
 		if ( function_exists( 'is_admin' ) && is_admin() ) {
 			require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-migration.php';
 			Legacy\Migration::init();

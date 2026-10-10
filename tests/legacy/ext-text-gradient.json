@@ -1,0 +1,14 @@
+{
+  "heading": {
+    "_widget": "heading",
+    "title": "Degradado",
+    "element_pack_tgb_enable": "yes",
+    "element_pack_tgb_background_background": "gradient",
+    "element_pack_tgb_background_color": "#ff0066",
+    "element_pack_tgb_background_color_b": "#0066ff",
+    "_expect_css": [
+      ".elementor-heading-title",
+      "linear-gradient"
+    ]
+  }
+}

@@ -13,7 +13,7 @@ require_once WP_PLUGIN_DIR . '/digitalisimo-elements/modules/digitalisimo-legacy
 $phase    = getenv( 'DIGI_PHASE' ) ?: 'A';
 $out_dir  = '/wordpress/wp-content/digi-ab';
 $fixtures = array();
-foreach ( glob( '/wordpress/wp-content/digi-legacy-fixtures/bdt-*.json' ) as $file ) {
+foreach ( array_merge( glob( '/wordpress/wp-content/digi-legacy-fixtures/bdt-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/ext-*.json' ) ) as $file ) {
 	$only = getenv( 'DIGI_ONLY' );
 	$id   = basename( $file, '.json' );
 	if ( $only && ! in_array( $id, explode( ',', $only ), true ) ) {
@@ -57,13 +57,14 @@ foreach ( array( 1, 2 ) as $blog ) {
 		foreach ( $cases as $case => $settings ) {
 			$expect_css = (array) ( $settings['_expect_css'] ?? array() );
 			$known      = (array) ( $settings['_known'] ?? array() );
-			unset( $settings['_expect_css'], $settings['_known'] );
+			$type       = (string) ( $settings['_widget'] ?? $widget );
+			unset( $settings['_expect_css'], $settings['_known'], $settings['_widget'] );
 			$slug = 'digi-ab-' . $widget . '-' . $case;
 			$page = get_page_by_path( $slug );
 			$id   = $page ? $page->ID : wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
 			if ( 'A' === $phase ) {
 				$data = array( array( 'id' => 's' . substr( md5( $slug ), 0, 6 ), 'elType' => 'section', 'settings' => array(), 'elements' => array( array( 'id' => 'c' . substr( md5( $slug ), 0, 6 ), 'elType' => 'column', 'settings' => array( '_column_size' => 100 ), 'elements' => array(
-					array( 'id' => 'w' . substr( md5( $slug ), 0, 6 ), 'elType' => 'widget', 'widgetType' => $widget, 'settings' => (object) $settings, 'elements' => array() ),
+					array( 'id' => 'w' . substr( md5( $slug ), 0, 6 ), 'elType' => 'widget', 'widgetType' => $type, 'settings' => (object) $settings, 'elements' => array() ),
 				) ) ) ) );
 				update_post_meta( $id, '_elementor_edit_mode', 'builder' );
 				update_post_meta( $id, '_elementor_template_type', 'wp-page' );
@@ -87,7 +88,7 @@ foreach ( array( 1, 2 ) as $blog ) {
 			setup_postdata( $GLOBALS['post'] );
 			delete_post_meta( $id, '_elementor_element_cache' );
 			$html  = \Elementor\Plugin::$instance->frontend->get_builder_content( $id, false );
-			$entry = array( 'registered' => isset( $registered[ $widget ] ), 'signature' => digi_ab_signature( $html ), 'bytes' => strlen( $html ), 'known' => $known ) + $entry_extra;
+			$entry = array( 'registered' => isset( $registered[ $type ] ), 'signature' => digi_ab_signature( $html ), 'bytes' => strlen( $html ), 'known' => $known ) + $entry_extra;
 			if ( in_array( $phase, array( 'B', 'C' ), true ) ) {
 				$raw = \Elementor\Plugin::$instance->documents->get( $id, false )->get_elements_raw_data( null, true );
 				$entry['editor_settings'] = array_keys( (array) ( $raw[0]['elements'][0]['elements'][0]['settings'] ?? array() ) );

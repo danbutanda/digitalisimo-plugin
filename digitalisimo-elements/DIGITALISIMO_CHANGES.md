@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.100
+# DIGITALÍSIMO Elements 4.3.0.101
+
+- 4.3.0.101: Los efectos guardados con las extensiones de Element Pack siguen aplicándose sin ese plugin: Wrapper Link cubre el elemento con un enlace igual al de Element Pack; Backdrop Filter conserva sus controles y variables con una hoja propia; Text Gradient, Realistic Image Shadow, Floating Effects y Notation se aproximan con CSS. La sección sólo aparece en elementos que ya los usaban y su hoja se carga únicamente cuando un elemento la necesita.
 
 - 4.3.0.100: Table, Tags Cloud, Total Count, User Register y Video Player de Element Pack siguen mostrándose sin ese plugin mediante adaptadores. Las tablas HTML y las filas escritas en Element Pack se convierten a CSV y un CSV del sitio pasa a ser el adjunto de Medios. Tags Cloud admite etiquetas escritas en el widget con enlace y peso; Total Count admite una cantidad que se suma al conteo real.
 

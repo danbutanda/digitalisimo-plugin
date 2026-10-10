@@ -59,3 +59,5 @@ Adaptadores 4.3.0.98: el A/B cubrió Fancy Card (botón y enlace global), Fancy 
 Adaptadores 4.3.0.99: el A/B cubrió Google Reviews (sin ID y con ID sin clave), Icon Mobile Menu, Icon Nav con marca por iniciales, Logo Grid, Notification fija con fondo, Product Grid e QR Code. Todas las combinaciones coincidieron con las diferencias deliberadas declaradas; el CSS regenerado incluyó el fondo del aviso configurado con el grupo de Element Pack.
 
 Adaptadores 4.3.0.100: el A/B cubrió Table (HTML por defecto y filas escritas), Tags Cloud con etiquetas escritas, Total Count con cantidad añadida, User Register con registro desactivado y Video Player con URL y póster propios. Todas las combinaciones coincidieron con las diferencias deliberadas declaradas.
+
+Extensiones 4.3.0.101: el A/B (archivos `tests/legacy/ext-*.json`, con el widget de destino en `_widget`) renderizó encabezados con Wrapper Link, Backdrop Filter y Text Gradient en el sitio principal y un subsitio. El enlace superpuesto conservó destino y destino externo, y el CSS regenerado incluyó las variables de desenfoque y saturación y el degradado sobre el título.

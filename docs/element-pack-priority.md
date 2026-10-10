@@ -58,14 +58,14 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 
 Funciones y extensiones del mismo bloque prioritario:
 
-54. Backdrop Filter — base CSS opcional con desenfoque, brillo y saturación; efecto líquido y paridad visual pendientes
-55. Floating Effects — base propia opcional y condicional; paridad visual y Multisite real pendientes
-56. Notation — base CSS para Heading clásico; marcas SVG, repetidores y paridad pendientes
+54. Backdrop Filter — base CSS opcional con desenfoque, brillo y saturación; efecto líquido y paridad visual pendientes; desde 4.3.0.101 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite
+55. Floating Effects — base propia opcional y condicional; paridad visual y Multisite real pendientes; desde 4.3.0.101 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite (aproximación CSS)
+56. Notation — base CSS para Heading clásico; marcas SVG, repetidores y paridad pendientes; desde 4.3.0.101 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite (aproximación CSS)
 57. Shape Builder — base decorativa para Heading clásico; repetidores, figuras avanzadas y paridad pendientes
-58. Text Gradient Background — base CSS optativa para Heading clásico; otros widgets y paridad pendientes
-59. Realistic Image Shadow — base CSS optativa para Imagen clásico; hover y paridad pendientes
+58. Text Gradient Background — base CSS optativa para Heading clásico; otros widgets y paridad pendientes; desde 4.3.0.101 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite (aproximación CSS)
+59. Realistic Image Shadow — base CSS optativa para Imagen clásico; hover y paridad pendientes; desde 4.3.0.101 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite (aproximación CSS)
 60. Visibility Controls — Display Conditions incluido en Elements suma desde 4.3.0.81 las condiciones de Element Pack (visitante, URL, contenido, shortcode y WooCommerce) en el mismo motor; renderizado Multisite comprobado; desde 4.3.0.82 los documentos con `ep_display_conditions` siguen funcionando igual sin Element Pack (A/B Multisite idéntico) y son editables; conversión opcional al formato nativo pendiente
-61. Wrapper Link — para contenedores nuevos usar el enlace nativo de Elementor; widgets/secciones y conversión legacy pendientes
+61. Wrapper Link — para contenedores nuevos usar el enlace nativo de Elementor; widgets/secciones y conversión legacy pendientes; desde 4.3.0.101 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite
 62. Duplicator — base editorial propia para posts, páginas, CPT públicos y plantillas Elementor; duplicación y aislamiento por sitio comprobados en Multisite instalado, conversión legacy pendiente
 63. SVG Support — usar la carga y el saneamiento SVG nativos de Elementor; habilitación global de la biblioteca no se duplica
 

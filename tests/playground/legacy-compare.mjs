@@ -28,9 +28,11 @@ for (const [widget, cases] of Object.entries(a.widgets)) {
         }
         notes.push(`migración: ${JSON.stringify(entryC.migration)} → editor ${entryC.editor_widget}`);
       }
-      if (entryD && (!entryD.reverted || entryD.data_md5 !== entryA.data_md5)) problems.push('restaurar no devolvió el documento original');
+      const migrated = entryC && ((entryC.migration?.native ?? 0) + (entryC.migration?.adapter ?? 0)) > 0;
+      if (entryD && migrated && (!entryD.reverted || entryD.data_md5 !== entryA.data_md5)) problems.push('restaurar no devolvió el documento original');
+      if (entryD && !migrated && entryD.data_md5 !== entryA.data_md5) problems.push('el documento cambió sin migración');
       if (entryB?.css_missing?.length) problems.push(`CSS regenerado sin: ${JSON.stringify(entryB.css_missing)}`);
-      if (entryB && entryB.editor_settings && !entryB.editor_settings.includes('_digitalisimo_legacy')) problems.push('el editor no recibe los ajustes traducidos');
+      if (widget.startsWith('bdt-') && entryB && entryB.editor_settings && !entryB.editor_settings.includes('_digitalisimo_legacy')) problems.push('el editor no recibe los ajustes traducidos');
       const status = problems.length ? 'DIFERENCIAS' : 'IGUAL';
       if (problems.length) failed++;
       console.log(`${status.padEnd(11)} ${widget} · ${name} · sitio ${blog}`);

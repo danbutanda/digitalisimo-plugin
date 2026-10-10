@@ -1,0 +1,33 @@
+/* Efectos de documentos creados con extensiones de Element Pack; se carga sólo cuando un elemento los usa. */
+[data-digi-legacy-link]{position:relative}
+.digi-legacy-element-link:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+
+/* Backdrop Filter: lee las variables que Elementor genera desde los ajustes guardados. */
+.elementor-widget.bdt-backdrop-filter-yes:not(.bdt-filter-liquid_glass)>.elementor-widget-container,
+.e-con.bdt-backdrop-filter-yes:not(.bdt-filter-liquid_glass),
+.elementor-section.bdt-backdrop-filter-yes:not(.bdt-filter-liquid_glass),
+.elementor-column.bdt-backdrop-filter-yes:not(.bdt-filter-liquid_glass)>.elementor-element-populated{
+	-webkit-backdrop-filter:blur(var(--ep-backdrop-filter-blur,0px)) brightness(var(--ep-backdrop-filter-brightness,100%)) contrast(var(--ep-backdrop-filter-contrast,1)) grayscale(var(--ep-backdrop-filter-grayscale,0)) invert(var(--ep-backdrop-filter-invert,0)) opacity(var(--ep-backdrop-filter-opacity,1)) sepia(var(--ep-backdrop-filter-sepia,0)) saturate(var(--ep-backdrop-filter-saturate,1)) hue-rotate(var(--ep-backdrop-filter-hue-rotate,0deg));
+	backdrop-filter:blur(var(--ep-backdrop-filter-blur,0px)) brightness(var(--ep-backdrop-filter-brightness,100%)) contrast(var(--ep-backdrop-filter-contrast,1)) grayscale(var(--ep-backdrop-filter-grayscale,0)) invert(var(--ep-backdrop-filter-invert,0)) opacity(var(--ep-backdrop-filter-opacity,1)) sepia(var(--ep-backdrop-filter-sepia,0)) saturate(var(--ep-backdrop-filter-saturate,1)) hue-rotate(var(--ep-backdrop-filter-hue-rotate,0deg));
+}
+.bdt-backdrop-filter-yes.bdt-filter-liquid_glass{overflow:hidden;-webkit-backdrop-filter:blur(var(--ep-liquid-glass-effects-blur,1px));backdrop-filter:blur(var(--ep-liquid-glass-effects-blur,1px))}
+
+/* Text Gradient Background: el fondo elegido se recorta al texto del título. */
+.digi-legacy-tgb-yes .elementor-heading-title,
+.digi-legacy-tgb-yes .elementor-widget-container>:is(h1,h2,h3,h4,h5,h6,p){-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+
+/* Floating Effects: flotación vertical suave; sin movimiento si el sistema lo pide. */
+@keyframes digi-legacy-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.digi-legacy-float-yes{animation:digi-legacy-float 3s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.digi-legacy-float-yes{animation:none}}
+
+/* Notation: marcas sobre el texto del título o del texto del widget. */
+.digi-legacy-notation-yes :is(.elementor-heading-title,.elementor-widget-container>p){--digi-legacy-notation-color:inherit}
+.digi-legacy-notation-type-underline :is(.elementor-heading-title,.elementor-widget-container>p){text-decoration:underline;text-decoration-color:var(--digi-legacy-notation-color,currentColor);text-decoration-thickness:.12em;text-underline-offset:.18em}
+.digi-legacy-notation-type-strike-through :is(.elementor-heading-title,.elementor-widget-container>p),
+.digi-legacy-notation-type-crossed-off :is(.elementor-heading-title,.elementor-widget-container>p){text-decoration:line-through;text-decoration-color:var(--digi-legacy-notation-color,currentColor);text-decoration-thickness:.1em}
+.digi-legacy-notation-type-highlight :is(.elementor-heading-title,.elementor-widget-container>p){background:linear-gradient(transparent 55%,var(--digi-legacy-notation-color,#ffe066) 55%)}
+.digi-legacy-notation-type-box :is(.elementor-heading-title,.elementor-widget-container>p),
+.digi-legacy-notation-type-circle :is(.elementor-heading-title,.elementor-widget-container>p){display:inline-block;box-shadow:0 0 0 .12em var(--digi-legacy-notation-color,currentColor);padding:0 .2em}
+.digi-legacy-notation-type-circle :is(.elementor-heading-title,.elementor-widget-container>p){border-radius:50%}
+.digi-legacy-notation-type-bracket :is(.elementor-heading-title,.elementor-widget-container>p){display:inline-block;border-inline:.12em solid var(--digi-legacy-notation-color,currentColor);padding:0 .25em}
