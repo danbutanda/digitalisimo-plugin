@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.111
+# DIGITALÍSIMO Elements 4.3.0.112
+
+- 4.3.0.112: adaptadores de Element Pack para Post Block, Post Block Modern, Post Card, Post Gallery, Post Grid Tab, Post Slider, Carousel y Portfolio Gallery, Carousel y List sobre `posts` con la piel propia de los adaptadores; la traducción de rejillas de entradas queda en `Translator::posts_classic()` y `scripts/legacy-posts-maps.py`.
 
 - 4.3.0.111: decisión verificable para los 263 IDs de Element Pack (`docs/element-pack-decisions.md`, generado desde `docs/migration-map.json` y exigido por `tests/elements-legacy-decisions.mjs`). Nuevos adaptadores: Download Monitor, carrito y pago de Easy Digital Downloads y páginas de WooCommerce (WC Elements) por sus shortcodes oficiales, y Calendly e Iframe sobre el widget HTML de Elementor con el mismo marcado.
 

@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 181, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 15.
 
-Documentos heredados: adaptador publicado 125, no se reproduce 66, pendiente: adaptador 72.
+Documentos heredados: adaptador publicado 135, no se reproduce 66, pendiente: adaptador 62.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -56,7 +56,7 @@ Documentos heredados: adaptador publicado 125, no se reproduce 66, pendiente: ad
 | `bdt-business-hours` | RECONSTRUIR | `digitalisimo-business-hours` | pendiente: adaptador | Horario por día; se reconstruye reutilizando el horario estructurado de SEO Local cuando exista. |
 | `bdt-calendly` | ADAPTAR | `html` | adaptador publicado | Inserta el widget de Calendly con su URL; se adapta al widget HTML con el mismo iframe. |
 | `bdt-call-out` | ADAPTAR | `digitalisimo-call-out` | adaptador publicado | own semantic CTA with optional icon and link; editor preview and external links aligned in 4.3.0.78; multisite runtime verified; legacy skins, animations and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool |
-| `bdt-carousel` | ADAPTAR | `posts` | pendiente: adaptador | Carrusel de entradas: el bucle de entradas de PRO Elements cubre la consulta; el carrusel se presenta como rejilla o con el motor de carruseles propio. |
+| `bdt-carousel` | ADAPTAR | `posts` | adaptador publicado | Carrusel de entradas: el bucle de entradas de PRO Elements cubre la consulta; el carrusel se presenta como rejilla o con el motor de carruseles propio. |
 | `bdt-changelog` | DESCARTAR | — | no se reproduce | Registro de cambios con formato propio de Element Pack; contenido de texto que puede vivir en el Acordeón propio. |
 | `bdt-charitable-campaigns` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-charitable-donation-form` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
@@ -181,21 +181,21 @@ Documentos heredados: adaptador publicado 125, no se reproduce 66, pendiente: ad
 | `bdt-offcanvas` | RECONSTRUIR | `digitalisimo-offcanvas` | adaptador publicado | share existing ElementorPro off-canvas for new content; external content sources and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.106 adapter and the per-site reversible migration tool |
 | `bdt-open-street-map` | RECONSTRUIR | `digitalisimo-map` | pendiente: adaptador | Mapa de OpenStreetMap con Leaflet; requiere widget de mapa propio sin dependencia de Google. |
 | `bdt-panel-slider` | ADAPTAR | `slides` | pendiente: adaptador | Paneles deslizantes con imagen y texto; las diapositivas de PRO Elements cubren el contenido. |
-| `bdt-portfolio-carousel` | ADAPTAR | `posts` | pendiente: adaptador | Carrusel del tipo de contenido de BdThemes Portfolio; el bucle de entradas lo consulta si el plugin sigue activo. |
-| `bdt-portfolio-gallery` | ADAPTAR | `posts` | pendiente: adaptador | Galería del tipo de contenido de BdThemes Portfolio. |
-| `bdt-portfolio-list` | ADAPTAR | `posts` | pendiente: adaptador | Lista del tipo de contenido de BdThemes Portfolio. |
-| `bdt-post-block` | ADAPTAR | `posts` | pendiente: adaptador | Bloque de entradas destacadas; la consulta y las tarjetas pasan a posts como Post Grid. |
-| `bdt-post-block-modern` | ADAPTAR | `posts` | pendiente: adaptador | Igual que Post Block. |
-| `bdt-post-card` | ADAPTAR | `posts` | pendiente: adaptador | Tarjetas de entradas; piel de tarjetas de posts. |
+| `bdt-portfolio-carousel` | ADAPTAR | `posts` | adaptador publicado | Carrusel del tipo de contenido de BdThemes Portfolio; el bucle de entradas lo consulta si el plugin sigue activo. |
+| `bdt-portfolio-gallery` | ADAPTAR | `posts` | adaptador publicado | Galería del tipo de contenido de BdThemes Portfolio. |
+| `bdt-portfolio-list` | ADAPTAR | `posts` | adaptador publicado | Lista del tipo de contenido de BdThemes Portfolio. |
+| `bdt-post-block` | ADAPTAR | `posts` | adaptador publicado | Bloque de entradas destacadas; la consulta y las tarjetas pasan a posts como Post Grid. |
+| `bdt-post-block-modern` | ADAPTAR | `posts` | adaptador publicado | Igual que Post Block. |
+| `bdt-post-card` | ADAPTAR | `posts` | adaptador publicado | Tarjetas de entradas; piel de tarjetas de posts. |
 | `bdt-post-comments` | ADAPTAR | `post-comments` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool |
 | `bdt-post-content` | ADAPTAR | `theme-post-excerpt` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool |
 | `bdt-post-featured-image` | ADAPTAR | `theme-post-featured-image` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool |
-| `bdt-post-gallery` | ADAPTAR | `posts` | pendiente: adaptador | Galería de entradas con imagen destacada. |
+| `bdt-post-gallery` | ADAPTAR | `posts` | adaptador publicado | Galería de entradas con imagen destacada. |
 | `bdt-post-grid` | ADAPTAR | `posts` | adaptador publicado | share existing posts widget for new content; nine Element Pack skins and legacy document conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool |
-| `bdt-post-grid-tab` | ADAPTAR | `posts` | pendiente: adaptador | Rejilla con pestañas de entradas; la rejilla se conserva sin pestañas. |
+| `bdt-post-grid-tab` | ADAPTAR | `posts` | adaptador publicado | Rejilla con pestañas de entradas; la rejilla se conserva sin pestañas. |
 | `bdt-post-info` | ADAPTAR | `post-info` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool |
 | `bdt-post-list` | ADAPTAR | `posts` | adaptador publicado | posts widget can show one-column feed for new content; independent Post List layouts, terms, and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool |
-| `bdt-post-slider` | ADAPTAR | `posts` | pendiente: adaptador | Slider de entradas; se conserva la consulta como rejilla. |
+| `bdt-post-slider` | ADAPTAR | `posts` | adaptador publicado | Slider de entradas; se conserva la consulta como rejilla. |
 | `bdt-post-title` | ADAPTAR | `theme-post-title` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool |
 | `bdt-price-list` | ADAPTAR | — | adaptador publicado | share existing ElementorPro price-list for new content; old price, badge and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-price-table` | ADAPTAR | — | adaptador publicado | share existing ElementorPro price-table for new content; nine layouts, commerce integrations and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |

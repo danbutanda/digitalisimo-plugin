@@ -763,7 +763,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-carousel": {
-      "target": null,
+      "target": "posts",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 2,
@@ -772,11 +772,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Carrusel de entradas: el bucle de entradas de PRO Elements cubre la consulta; el carrusel se presenta como rejilla o con el motor de carruseles propio."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Carrusel de entradas: el bucle de entradas de PRO Elements cubre la consulta; el carrusel se presenta como rejilla o con el motor de carruseles propio.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-changelog": {
       "target": null,
@@ -2854,7 +2855,7 @@
       "decision_reason": "Paneles deslizantes con imagen y texto; las diapositivas de PRO Elements cubren el contenido."
     },
     "bdt-portfolio-carousel": {
-      "target": null,
+      "target": "posts",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 2,
@@ -2863,14 +2864,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Carrusel del tipo de contenido de BdThemes Portfolio; el bucle de entradas lo consulta si el plugin sigue activo."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Carrusel del tipo de contenido de BdThemes Portfolio; el bucle de entradas lo consulta si el plugin sigue activo.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-portfolio-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-portfolio-gallery": {
-      "target": null,
+      "target": "posts",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2879,14 +2881,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Galería del tipo de contenido de BdThemes Portfolio."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Galería del tipo de contenido de BdThemes Portfolio.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-portfolio-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-portfolio-list": {
-      "target": null,
+      "target": "posts",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2895,14 +2898,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Lista del tipo de contenido de BdThemes Portfolio."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Lista del tipo de contenido de BdThemes Portfolio.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-portfolio-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-block": {
-      "target": null,
+      "target": "posts",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2911,14 +2915,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Bloque de entradas destacadas; la consulta y las tarjetas pasan a posts como Post Grid."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Bloque de entradas destacadas; la consulta y las tarjetas pasan a posts como Post Grid.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-block.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-block-modern": {
-      "target": null,
+      "target": "posts",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2927,14 +2932,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Igual que Post Block."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Igual que Post Block.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-block-modern.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-card": {
-      "target": null,
+      "target": "posts",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2943,11 +2949,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Tarjetas de entradas; piel de tarjetas de posts."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Tarjetas de entradas; piel de tarjetas de posts.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-comments": {
       "target": "post-comments",
@@ -2995,7 +3002,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-post-gallery": {
-      "target": null,
+      "target": "posts",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3004,11 +3011,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Galería de entradas con imagen destacada."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Galería de entradas con imagen destacada.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-grid": {
       "target": "posts",
@@ -3026,7 +3034,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-post-grid-tab": {
-      "target": null,
+      "target": "posts",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3035,11 +3043,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Rejilla con pestañas de entradas; la rejilla se conserva sin pestañas."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Rejilla con pestañas de entradas; la rejilla se conserva sin pestañas.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-grid-tab.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-info": {
       "target": "post-info",
@@ -3072,7 +3081,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-post-slider": {
-      "target": null,
+      "target": "posts",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 2,
@@ -3081,11 +3090,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.112 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "posts",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Slider de entradas; se conserva la consulta como rejilla."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Slider de entradas; se conserva la consulta como rejilla.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-title": {
       "target": "theme-post-title",

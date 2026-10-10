@@ -153,6 +153,16 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-carousel' => Bdt_Carousel::class,
+		'bdt-portfolio-carousel' => Bdt_PortfolioCarousel::class,
+		'bdt-portfolio-gallery' => Bdt_PortfolioGallery::class,
+		'bdt-portfolio-list' => Bdt_PortfolioList::class,
+		'bdt-post-block' => Bdt_PostBlock::class,
+		'bdt-post-block-modern' => Bdt_PostBlockModern::class,
+		'bdt-post-card' => Bdt_PostCard::class,
+		'bdt-post-gallery' => Bdt_PostGallery::class,
+		'bdt-post-grid-tab' => Bdt_PostGridTab::class,
+		'bdt-post-slider' => Bdt_PostSlider::class,
 		'bdt-download-monitor' => Bdt_DownloadMonitor::class,
 		'bdt-edd-cart' => Bdt_EddCart::class,
 		'bdt-edd-checkout' => Bdt_EddCheckout::class,
@@ -450,6 +460,16 @@ if ( class_exists( '\\ElementorPro\\Modules\\Posts\\Widgets\\Posts' ) && class_e
 	final class Bdt_PostGrid extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-grid'; }
 	final class Bdt_PostList extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-list'; }
 	final class Bdt_SinglePost extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-single-post'; }
+	final class Bdt_Carousel extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-carousel'; }
+	final class Bdt_PortfolioCarousel extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-portfolio-carousel'; }
+	final class Bdt_PortfolioGallery extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-portfolio-gallery'; }
+	final class Bdt_PortfolioList extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-portfolio-list'; }
+	final class Bdt_PostBlock extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-block'; }
+	final class Bdt_PostBlockModern extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-block-modern'; }
+	final class Bdt_PostCard extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-card'; }
+	final class Bdt_PostGallery extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-gallery'; }
+	final class Bdt_PostGridTab extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-grid-tab'; }
+	final class Bdt_PostSlider extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-slider'; }
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Offcanvas_Widget' ) ) {
 	final class Bdt_Offcanvas extends \Digitalisimo\Elements\Offcanvas_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-offcanvas'; }

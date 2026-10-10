@@ -1,0 +1,15 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "La piel clásica muestra los mismos campos en cada entrada (Element Pack variaba según la entrada destacada o la piel), los comentarios como «1 Comment» y el autor sin enlace",
+      "links": "La piel clásica enlaza título y términos de cada entrada; Element Pack enlazaba además autor, imagen de muestra o botones «#» según la piel",
+      "images": "Sin imagen destacada Element Pack mostraba una imagen de muestra y avatares; la piel clásica no"
+    },
+    "_expect_html": [
+      "Hello world!",
+      "Entrada A/B 3",
+      "Entrada A/B 2",
+      "/2026/01/03/digi-ab-post-3/"
+    ]
+  }
+}

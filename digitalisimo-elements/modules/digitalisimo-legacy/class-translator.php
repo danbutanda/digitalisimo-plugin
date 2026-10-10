@@ -132,6 +132,47 @@ final class Translator {
 	}
 
 	/**
+	 * Presentación de una rejilla de entradas de Element Pack en la piel «classic» de `posts`.
+	 * `$spec` nombra los ajustes de cada widget: per_page, columns, title, title_tag, author, date,
+	 * comments, category, tags, excerpt, excerpt_length, read_more, read_more_text, image, pagination;
+	 * cada uno es [clave, valor por defecto] o un valor fijo.
+	 */
+	public static function posts_classic( array $out, array $spec, array $content_keys ) {
+		$get = static function ( $name, $fallback = '' ) use ( $out, $spec ) {
+			if ( ! isset( $spec[ $name ] ) ) {
+				return $fallback;
+			}
+			$rule = $spec[ $name ];
+			return is_array( $rule ) ? ( $out[ $rule[0] ] ?? $rule[1] ) : $rule;
+		};
+		$on    = static function ( $name ) use ( $get ) {
+			return 'yes' === $get( $name ) ? 'yes' : '';
+		};
+		$limit = $get( 'per_page', 6 );
+		$set   = array(
+			'_skin'                   => 'classic',
+			'classic_posts_per_page'  => max( 1, (int) ( is_array( $limit ) ? ( $limit['size'] ?? 6 ) : $limit ) ),
+			'classic_columns'         => (string) $get( 'columns', '3' ),
+			'classic_thumbnail'       => 'yes' === $get( 'image', 'yes' ) ? 'top' : 'none',
+			'classic_masonry'         => '',
+			'classic_show_title'      => $on( 'title' ),
+			'classic_title_tag'       => (string) $get( 'title_tag', 'h3' ),
+			'classic_meta_data'       => array_keys( array_filter( array( 'author' => $on( 'author' ), 'date' => $on( 'date' ), 'comments' => $on( 'comments' ) ) ) ),
+			'classic_meta_separator'  => '|',
+			'classic_show_excerpt'    => $on( 'excerpt' ),
+			'classic_excerpt_length'  => (int) $get( 'excerpt_length', 15 ),
+			'classic_show_read_more'  => $on( 'read_more' ),
+			'classic_read_more_text'  => (string) $get( 'read_more_text', 'Read More' ),
+			'digitalisimo_post_terms' => array_keys( array_filter( array( 'category' => $on( 'category' ), 'post_tag' => $on( 'tags' ) ) ) ),
+			'pagination_type'         => 'yes' === $get( 'pagination' ) ? 'numbers' : '',
+		);
+		foreach ( $content_keys as $key ) {
+			unset( $out[ $key ] );
+		}
+		return $set + self::posts_query( $out );
+	}
+
+	/**
 	 * `[tag clave="valor"]` como lo armaba Element Pack con los atributos de render de Elementor:
 	 * valores escapados, listas separadas por espacios y lógicos como «1» o vacío.
 	 */

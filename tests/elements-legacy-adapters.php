@@ -232,6 +232,11 @@ namespace {
 	check_adapter( false !== strpos( $pt['__dynamic__']['title'], 'name="post-title"' ) && false !== strpos( $pt['__dynamic__']['link'], 'name="post-url"' ) && 'h2' === $pt['header_size'], 'El título de entrada fija sus etiquetas dinámicas.' );
 	check_adapter( false !== strpos( Translator::translate( 'bdt-post-content', array( 'limit' => array( 'size' => 25 ) ) )['__dynamic__']['excerpt'], rawurlencode( '{"max_length":25}' ) ), 'El extracto conserva su número de palabras.' );
 
+	$pf = Translator::translate( 'bdt-portfolio-gallery', array( 'columns' => '4', 'show_excerpt' => 'yes' ) );
+	check_adapter( 'portfolio' === $pf['posts_post_type'] && 9 === $pf['classic_posts_per_page'] && '4' === $pf['classic_columns'] && 'yes' === $pf['classic_show_excerpt'] && 10 === $pf['classic_excerpt_length'] && ! isset( $pf['columns'] ), 'Portfolio consulta su tipo de contenido con la piel clásica.' );
+	$pb = Translator::translate( 'bdt-post-block', array() );
+	check_adapter( 5 === $pb['classic_posts_per_page'] && array( 'date' ) === $pb['classic_meta_data'] && array( 'category', 'post_tag' ) === $pb['digitalisimo_post_terms'], 'Post Block usa los campos de su entrada destacada.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );
