@@ -1,0 +1,41 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Las flechas propias son botones «‹ ›»; las de Element Pack eran enlaces vacíos",
+      "links": "Las flechas propias son botones; las de Element Pack eran enlaces vacíos",
+      "images": "Element Pack usaba sus recursos de ejemplo para imágenes sin adjunto y unía nombre y descripción en el alt; el propio muestra la imagen indicada con el nombre como alt"
+    }
+  },
+  "custom": {
+    "columns": "3",
+    "logo_list": [
+      {
+        "_id": "l1",
+        "image": {
+          "url": "https://s.w.org/images/core/emoji/14.0.0/72x72/2b50.png",
+          "id": ""
+        },
+        "name": "Estrella",
+        "link": {
+          "url": "https://example.test/estrella/",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      },
+      {
+        "_id": "l2",
+        "image": {
+          "url": "https://s.w.org/images/core/emoji/14.0.0/72x72/2764.png",
+          "id": ""
+        },
+        "name": "Corazón"
+      }
+    ],
+    "_known": {
+      "text": "Las flechas propias son botones «‹ ›»; las de Element Pack eran enlaces vacíos",
+      "links": "Las flechas propias son botones; las de Element Pack eran enlaces vacíos",
+      "images": "Element Pack usaba sus recursos de ejemplo para imágenes sin adjunto y unía nombre y descripción en el alt; el propio muestra la imagen indicada con el nombre como alt"
+    }
+  }
+}

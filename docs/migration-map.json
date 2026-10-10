@@ -1109,7 +1109,9 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new independent widget implemented; legacy adapter and visual comparison pending"
+      "status": "new independent widget implemented; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-document-viewer.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.109",
+      "decision": "ADAPTAR"
     },
     "bdt-download-monitor": {
       "target": null,
@@ -2139,7 +2141,9 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new independent widget on shared native carousel engine; legacy adapter and visual comparison pending"
+      "status": "new independent widget on shared native carousel engine; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-logo-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.109",
+      "decision": "ADAPTAR"
     },
     "bdt-logo-grid": {
       "target": "digitalisimo-logo-grid",
@@ -2840,7 +2844,9 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new accessible local-anchor widget implemented; advanced effects, legacy adapter and visual comparison pending"
+      "status": "new accessible local-anchor widget implemented; advanced effects, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-scroll-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.109",
+      "decision": "ADAPTAR"
     },
     "bdt-scroll-image": {
       "target": null,

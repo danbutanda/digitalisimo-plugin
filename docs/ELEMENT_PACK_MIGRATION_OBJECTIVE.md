@@ -74,6 +74,8 @@ Lote 12 (4.3.0.107): Shape Builder pasa de DESCARTAR a ADAPTAR tras comprobar qu
 
 Lote 13 (4.3.0.108): primer tramo de los 210 IDs no prioritarios. 54 widgets de integración se ADAPTAN al widget Shortcode de Elementor reproduciendo su `get_shortcode()`. Diferencias declaradas: sin el ajuste obligatorio no se muestra el aviso de Element Pack; las opciones de estilo propias de Element Pack que no son CSS (casillas personalizadas, ocultar campos de The Newsletter, migas opcionales de bbPress) no se trasladan; bbPress usa sus propias plantillas (fecha y repeticiones). WooCommerce categorías y wpDataTables se validaron sólo con pruebas unitarias.
 
+Lote 14 (4.3.0.109): Document Viewer, Scroll Button y Logo Carousel se ADAPTAN a los widgets propios. Diferencias declaradas: el visor añade un enlace para abrir el documento; el botón de desplazamiento es un enlace real a la sección y no reproduce la animación decorativa ni el ocultado inicial; las flechas del carrusel son botones y el texto alternativo usa sólo el nombre.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

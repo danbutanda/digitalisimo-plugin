@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.108
+# DIGITALÍSIMO Elements 4.3.0.109
+
+- 4.3.0.109: adaptadores de Element Pack para Document Viewer, Scroll Button y Logo Carousel sobre los widgets propios equivalentes, con estilos heredados y migración reversible. El arnés A/B vuelve a funcionar sin `EXTRA_PLUGINS`.
 
 - 4.3.0.108: 54 adaptadores de Element Pack para widgets de integración que sólo mostraban el shortcode de otro plugin (Contact Form 7, WPForms, Gravity Forms, Fluent Forms, Ninja Forms, Formidable, Forminator, Everest Forms, weForms, Quform, Give, Charitable, Easy Digital Downloads, Mailchimp for WP, The Newsletter, TablePress, wpDataTables, LayerSlider, Slider Revolution, Instagram Feed, FooEvents, categorías de WooCommerce y los doce de bbPress): el widget Shortcode de Elementor muestra el mismo shortcode que armaba Element Pack, con el mismo escape y con los ajustes que Elementor anula por condición; sus estilos heredados se conservan. El traductor reconoce el ID sin prefijo `fooevents-calendar` y el análisis descarta selectores que afectarían a toda la página.
 

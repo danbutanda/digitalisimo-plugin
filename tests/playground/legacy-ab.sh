@@ -12,7 +12,8 @@ rm -f "$OUT"/phase*.json
 BLUEPRINT="$OUT/blueprint.json"
 # EXTRA_PLUGINS=bbpress,otro instala plugins reales de wordpress.org y los activa en la red.
 EXTRA_STEPS=""
-for slug in ${EXTRA_PLUGINS//,/ }; do
+EXTRA="${EXTRA_PLUGINS:-}"
+for slug in ${EXTRA//,/ }; do
   EXTRA_STEPS="$EXTRA_STEPS{\"step\":\"installPlugin\",\"pluginData\":{\"resource\":\"wordpress.org/plugins\",\"slug\":\"$slug\"},\"options\":{\"activate\":false}},"
 done
 cat > "$BLUEPRINT" <<JSON

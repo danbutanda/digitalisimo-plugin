@@ -1,0 +1,15 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "El botón propio es un enlace a la sección y funciona sin JavaScript; el de Element Pack no tenía destino"
+    }
+  },
+  "custom": {
+    "scroll_button_text": "Subir",
+    "section_id": "inicio",
+    "show_fancy_animation": "yes",
+    "_known": {
+      "links": "El botón propio es un enlace a la sección y funciona sin JavaScript; el de Element Pack no tenía destino"
+    }
+  }
+}

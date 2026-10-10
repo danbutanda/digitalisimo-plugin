@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-carousel-engine.php';
 
 /** Logos en carrusel: selección múltiple o elementos con enlace individual. */
-final class Logo_Carousel_Widget extends \Elementor\Widget_Base {
+class Logo_Carousel_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-logo-carousel'; }
 	public function get_title() { return 'Carrusel de logotipos'; }
 	public function get_icon() { return 'eicon-logo'; }

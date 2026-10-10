@@ -153,6 +153,9 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-document-viewer' => Bdt_DocumentViewer::class,
+		'bdt-scroll-button' => Bdt_ScrollButton::class,
+		'bdt-logo-carousel' => Bdt_LogoCarousel::class,
 		'bdt-charitable-campaigns' => Bdt_CharitableCampaigns::class,
 		'bdt-charitable-donation-form' => Bdt_CharitableDonationForm::class,
 		'bdt-charitable-donations' => Bdt_CharitableDonations::class,
@@ -493,4 +496,13 @@ if ( class_exists( '\\Elementor\\Widget_Shortcode' ) ) {
 	final class Bdt_BbpressTopicForm extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-bbpress-topic-form'; }
 	final class Bdt_BbpressTopicIndex extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-bbpress-topic-index'; }
 	final class Bdt_BbpressTopicTags extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-bbpress-topic-tags'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Document_Viewer_Widget' ) ) {
+	final class Bdt_DocumentViewer extends \Digitalisimo\Elements\Document_Viewer_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-document-viewer'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Scroll_Button_Widget' ) ) {
+	final class Bdt_ScrollButton extends \Digitalisimo\Elements\Scroll_Button_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-scroll-button'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Logo_Carousel_Widget' ) ) {
+	final class Bdt_LogoCarousel extends \Digitalisimo\Elements\Logo_Carousel_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-logo-carousel'; }
 }

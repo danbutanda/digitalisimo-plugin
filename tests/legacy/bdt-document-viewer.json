@@ -1,0 +1,14 @@
+{
+  "pdf": {
+    "file_source": {
+      "url": "https://example.test/wp-content/uploads/catalogo.pdf",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "_known": {
+      "text": "El visor propio añade el enlace «Abrir documento» y no muestra el aviso de Element Pack sobre URLs locales",
+      "links": "El visor propio enlaza el documento para abrirlo fuera del marco"
+    }
+  }
+}

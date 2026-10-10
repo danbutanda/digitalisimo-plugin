@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Enlace a una sección de la página con desplazamiento opcional. */
-final class Scroll_Button_Widget extends \Elementor\Widget_Base {
+class Scroll_Button_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-scroll-button'; }
 	public function get_title() { return 'Botón de desplazamiento'; }
 	public function get_icon() { return 'eicon-arrow-up'; }
