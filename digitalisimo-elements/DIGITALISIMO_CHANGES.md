@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.118
+# DIGITALÍSIMO Elements 4.3.0.119
+
+- 4.3.0.119: nuevos widgets Marquesina (textos, imágenes o últimas entradas en movimiento continuo, con botón de pausa, pausa al enfocar y sin movimiento con «reducir movimiento») y Línea de tiempo (lista ordenada de hitos escritos o entradas). Adaptadores de Element Pack Marquee, News Ticker y Timeline sobre ellos.
 
 - 4.3.0.118: nuevos widgets Reproductor de audio (`<audio>` nativo, una pista o lista con portada), Comparador de imágenes (control deslizante nativo accesible) y Horario (lista de descripción, resalta el día de hoy en el navegador). Adaptadores de Element Pack Audio Player, Image Compare y Business Hours sobre ellos.
 

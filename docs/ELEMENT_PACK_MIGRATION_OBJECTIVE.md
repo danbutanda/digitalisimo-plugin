@@ -94,6 +94,8 @@ Lote 23 (4.3.0.117): Advanced Progress Bar y Progress Pie se RECONSTRUYEN en Bar
 
 Lote 24 (4.3.0.118): Audio Player, Image Compare y Business Hours se RECONSTRUYEN. Diferencias declaradas: controles nativos del navegador en el audio, etiquetas del comparador visibles desde el inicio, horario en una celda por día y sin el aviso «abierto ahora»; los audios e imágenes de ejemplo de Element Pack no se trasladan.
 
+Lote 25 (4.3.0.119): Marquee y News Ticker se RECONSTRUYEN en Marquesina y Timeline en Línea de tiempo. Diferencias declaradas: la marquesina añade el botón «Pausar» (WCAG 2.2.2) y desplaza en continuo en vez de mostrar titulares de uno en uno; la línea de tiempo usa el formato de fecha del sitio, no muestra categorías y no reproduce el carrusel vertical.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

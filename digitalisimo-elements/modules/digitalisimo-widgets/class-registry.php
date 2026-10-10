@@ -51,6 +51,16 @@ final class Widget_Registry {
 			'class' => Icon_Nav_Widget::class,
 			'css'   => 'assets/css/icon-nav.css',
 		),
+		'digitalisimo-marquee' => array(
+			'file'  => 'class-marquee.php',
+			'class' => Marquee_Widget::class,
+			'css'   => 'assets/css/marquee.css',
+		),
+		'digitalisimo-timeline' => array(
+			'file'  => 'class-timeline.php',
+			'class' => Timeline_Widget::class,
+			'css'   => 'assets/css/timeline.css',
+		),
 		'digitalisimo-audio-player' => array(
 			'file'  => 'class-audio-player.php',
 			'class' => Audio_Player_Widget::class,
@@ -302,7 +312,7 @@ final class Widget_Registry {
 		if ( ! wp_script_is( 'digitalisimo-google-reviews', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-google-reviews', plugins_url( 'assets/js/google-reviews.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}
-		foreach ( array( 'image-compare', 'business-hours' ) as $script ) {
+		foreach ( array( 'image-compare', 'business-hours', 'marquee' ) as $script ) {
 			if ( ! wp_script_is( 'digitalisimo-' . $script, 'registered' ) ) {
 				wp_register_script( 'digitalisimo-' . $script, plugins_url( 'assets/js/' . $script . '.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
 			}

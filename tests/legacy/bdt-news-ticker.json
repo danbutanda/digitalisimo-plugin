@@ -1,0 +1,15 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "La marquesina muestra el rótulo, el botón «Pausar» y las entradas dos veces (la copia está oculta para lectores); Element Pack las mostraba de una en una",
+      "links": "La marquesina repite los enlaces en su copia oculta para el desplazamiento continuo"
+    }
+  },
+  "custom": {
+    "news_ticker_custom_content": "custom",
+    "_known": {
+      "text": "La marquesina muestra el rótulo, el botón «Pausar» y los elementos dos veces (copia oculta para lectores)",
+      "links": "La marquesina repite los enlaces en su copia oculta para el desplazamiento continuo"
+    }
+  }
+}

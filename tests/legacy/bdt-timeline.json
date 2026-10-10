@@ -1,0 +1,17 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "La línea de tiempo usa el formato de fecha del sitio, no muestra categorías y da a cada enlace un nombre propio oculto («: título»)",
+      "links": "Element Pack enlazaba además categorías y repetía enlaces en sus atributos",
+      "images": "Las imágenes de los hitos son decorativas (texto alternativo vacío)"
+    }
+  },
+  "custom": {
+    "timeline_source": "custom",
+    "_known": {
+      "text": "La línea de tiempo usa el formato de fecha del sitio, no muestra categorías y da a cada enlace un nombre propio oculto («: título»)",
+      "links": "Element Pack enlazaba además categorías y repetía enlaces en sus atributos",
+      "images": "Las imágenes de los hitos son decorativas (texto alternativo vacío)"
+    }
+  }
+}

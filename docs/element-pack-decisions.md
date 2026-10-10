@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 163, no se reproduce 66, pendiente: adaptador 34.
+Documentos heredados: adaptador publicado 166, no se reproduce 66, pendiente: adaptador 31.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -170,12 +170,12 @@ Documentos heredados: adaptador publicado 163, no se reproduce 66, pendiente: ad
 | `bdt-mailchimp` | DESCARTAR | — | no se reproduce | Suscripción con la API de Mailchimp guardada en ajustes de Element Pack; usar Mailchimp for WP (adaptado por shortcode) o el formulario de PRO Elements con su integración. |
 | `bdt-mailchimp-for-wp` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-marker` | DESCARTAR | — | no se reproduce | Marcadores sobre una imagen con tooltips; PRO Elements incluye Hotspot para contenido nuevo. |
-| `bdt-marquee` | RECONSTRUIR | `digitalisimo-marquee` | pendiente: adaptador | Texto o imágenes en movimiento continuo; se reconstruye con CSS y pausa accesible. |
+| `bdt-marquee` | RECONSTRUIR | `digitalisimo-marquee` | adaptador publicado | Texto o imágenes en movimiento continuo; se reconstruye con CSS y pausa accesible. |
 | `bdt-mega-menu` | COMPARTIR | `mega-menu` | no se reproduce | Mega menú con plantillas por elemento de menú; el Mega Menu de PRO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento. |
 | `bdt-member` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Miembro de equipo con foto, nombre, cargo y redes; la Fancy Card propia cubre el contenido. |
 | `bdt-modal` | ADAPTAR | `digitalisimo-offcanvas` | adaptador publicado | Ventana modal con botón y contenido o plantilla; el Panel lateral propio puede presentarse centrado. |
 | `bdt-navbar` | ADAPTAR | `nav-menu` | adaptador publicado | share existing ElementorPro nav-menu for new content; auto-hide effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool |
-| `bdt-news-ticker` | RECONSTRUIR | `digitalisimo-marquee` | pendiente: adaptador | Titulares de entradas en movimiento; se reconstruye junto a Marquee con consulta de entradas. |
+| `bdt-news-ticker` | RECONSTRUIR | `digitalisimo-marquee` | adaptador publicado | Titulares de entradas en movimiento; se reconstruye junto a Marquee con consulta de entradas. |
 | `bdt-ninja-form` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-notification` | ADAPTAR | `digitalisimo-notification` | adaptador publicado | own popup and fixed notice with conditional assets; trigger behavior and keyboard focus fixed in 4.3.0.91, multisite rendering verified; Elementor templates, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-offcanvas` | RECONSTRUIR | `digitalisimo-offcanvas` | adaptador publicado | share existing ElementorPro off-canvas for new content; external content sources and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.106 adapter and the per-site reversible migration tool |
@@ -248,7 +248,7 @@ Documentos heredados: adaptador publicado 163, no se reproduce 66, pendiente: ad
 | `bdt-threesixty-product-viewer` | DESCARTAR | — | no se reproduce | Visor 360° con secuencia de imágenes y su script; uso marginal. |
 | `bdt-thumb-gallery` | ADAPTAR | `media-carousel` | pendiente: adaptador | Galería con miniaturas hacia el carrusel de medios con miniaturas. |
 | `bdt-time-zone` | DESCARTAR | — | no se reproduce | Reloj por zona horaria calculado en el navegador; uso marginal. |
-| `bdt-timeline` | RECONSTRUIR | `digitalisimo-timeline` | pendiente: adaptador | Línea de tiempo de elementos escritos o entradas; se reconstruye como lista ordenada accesible. |
+| `bdt-timeline` | RECONSTRUIR | `digitalisimo-timeline` | adaptador publicado | Línea de tiempo de elementos escritos o entradas; se reconstruye como lista ordenada accesible. |
 | `bdt-toggle` | ADAPTAR | `digitalisimo-accordion` | adaptador publicado | Contenido que se despliega con «Mostrar más»; Acordeón propio de un elemento. |
 | `bdt-total-count` | ADAPTAR | `digitalisimo-total-count` | adaptador publicado | own-widget-base; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool |
 | `bdt-trailer-box` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Caja con imagen de fondo, título, texto y botón; la Fancy Card propia la cubre. |

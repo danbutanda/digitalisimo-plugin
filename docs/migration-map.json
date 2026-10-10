@@ -2690,7 +2690,7 @@
       "decision_reason": "Marcadores sobre una imagen con tooltips; PRO Elements incluye Hotspot para contenido nuevo."
     },
     "bdt-marquee": {
-      "target": null,
+      "target": "digitalisimo-marquee",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2699,11 +2699,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.119 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-marquee",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Texto o imágenes en movimiento continuo; se reconstruye con CSS y pausa accesible."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Texto o imágenes en movimiento continuo; se reconstruye con CSS y pausa accesible.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-marquee.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
     },
     "bdt-mega-menu": {
       "target": null,
@@ -2771,7 +2772,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-news-ticker": {
-      "target": null,
+      "target": "digitalisimo-marquee",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2780,11 +2781,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.119 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-marquee",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Titulares de entradas en movimiento; se reconstruye junto a Marquee con consulta de entradas."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Titulares de entradas en movimiento; se reconstruye junto a Marquee con consulta de entradas.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-news-ticker.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
     },
     "bdt-ninja-form": {
       "target": "shortcode",
@@ -3971,7 +3973,7 @@
       "decision_reason": "Reloj por zona horaria calculado en el navegador; uso marginal."
     },
     "bdt-timeline": {
-      "target": null,
+      "target": "digitalisimo-timeline",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3980,11 +3982,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.119 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-timeline",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Línea de tiempo de elementos escritos o entradas; se reconstruye como lista ordenada accesible."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Línea de tiempo de elementos escritos o entradas; se reconstruye como lista ordenada accesible.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-timeline.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
     },
     "bdt-toggle": {
       "target": "digitalisimo-accordion",

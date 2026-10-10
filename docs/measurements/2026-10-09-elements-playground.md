@@ -95,3 +95,5 @@ Adaptadores 4.3.0.116: el A/B cubrió Hover Box, Image Expand, Interactive Tabs,
 Adaptadores 4.3.0.117: el A/B cubrió las barras de ejemplo, el círculo por defecto y con texto propio, la barra de lectura y el tiempo de lectura en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.
 
 Adaptadores 4.3.0.118: el A/B cubrió un audio remoto con título y artista, el comparador con dos imágenes y el horario estático y dinámico en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas y la fase B contuvo el audio y la posición inicial del comparador.
+
+Adaptadores 4.3.0.119: el A/B cubrió Marquee por defecto, News Ticker con entradas y con lista propia, y Timeline con entradas y con hitos escritos en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.

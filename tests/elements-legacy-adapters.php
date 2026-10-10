@@ -270,6 +270,10 @@ namespace {
 	$ap = Translator::translate( 'bdt-audio-player', array( 'source_type' => 'remote_url', 'remote_url' => array( 'url' => 'https://s.test/a.mp3' ), 'title' => 'Uno' ) );
 	check_adapter( 'https://s.test/a.mp3' === $ap['tracks'][0]['audio_url']['url'] && 'Uno' === $ap['tracks'][0]['title'], 'Audio Player conserva su pista.' );
 
+	$mq = Translator::translate( 'bdt-marquee', array( 'marquee_speed' => '100', 'marquee_direction' => 'right', 'marquee_type_text' => array( array( 'marquee_content' => 'Uno' ) ) ) );
+	check_adapter( 15 === $mq['duration'] && 'right' === $mq['direction'] && 'Uno' === $mq['items'][0]['text'], 'Marquee convierte velocidad en duración.' );
+	check_adapter( 'posts' === Translator::translate( 'bdt-news-ticker', array() )['source'] && 'LATEST NEWS' === Translator::translate( 'bdt-news-ticker', array() )['label'], 'News Ticker muestra las últimas entradas con su rótulo.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

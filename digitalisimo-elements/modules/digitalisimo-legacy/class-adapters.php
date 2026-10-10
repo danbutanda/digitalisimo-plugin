@@ -153,6 +153,9 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-marquee' => Bdt_Marquee::class,
+		'bdt-news-ticker' => Bdt_NewsTicker::class,
+		'bdt-timeline' => Bdt_Timeline::class,
 		'bdt-audio-player' => Bdt_AudioPlayer::class,
 		'bdt-image-compare' => Bdt_ImageCompare::class,
 		'bdt-business-hours' => Bdt_BusinessHours::class,
@@ -662,4 +665,13 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Image_Compare_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Business_Hours_Widget' ) ) {
 	final class Bdt_BusinessHours extends \Digitalisimo\Elements\Business_Hours_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-business-hours'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Marquee_Widget' ) ) {
+	final class Bdt_Marquee extends \Digitalisimo\Elements\Marquee_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-marquee'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Marquee_Widget' ) ) {
+	final class Bdt_NewsTicker extends \Digitalisimo\Elements\Marquee_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-news-ticker'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Timeline_Widget' ) ) {
+	final class Bdt_Timeline extends \Digitalisimo\Elements\Timeline_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-timeline'; }
 }
