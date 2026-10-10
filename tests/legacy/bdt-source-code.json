@@ -1,0 +1,7 @@
+{
+  "defaults": {},
+  "js": {
+    "source_code_language_selector": "language-javascript",
+    "source_code_content": "const a = 1 &lt; 2;"
+  }
+}

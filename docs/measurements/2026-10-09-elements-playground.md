@@ -85,3 +85,5 @@ Lotes 4.3.0.111: `tests/elements-legacy-decisions.mjs` comprobó las 263 decisio
 Adaptadores 4.3.0.112: el A/B renderizó Post Block, Post Block Modern, Post Card, Post Gallery, Post Grid Tab, Post Slider y Carousel con las entradas de prueba en el sitio principal y el subsitio; las fases B y C contuvieron las mismas entradas con sus enlaces y la restauración devolvió el documento original.
 
 Adaptadores 4.3.0.113: el A/B cubrió Modal por defecto y de bienvenida con plantilla (apertura automática comprobada en el marcado), Dropbar por defecto y Lightbox de YouTube (reproductor sin cookies comprobado en la fase B), en el sitio principal y el subsitio.
+
+Adaptadores 4.3.0.114: el A/B cubrió cada widget por defecto y con contenido propio (imagen sin adjunto, enlace externo con leyenda, código JavaScript con entidades, animación externa con título, paso con distintivo) en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.

@@ -1,0 +1,20 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Element Pack no mostraba la imagen de muestra como <img>; el widget Imagen sí"
+    }
+  },
+  "external": {
+    "link_to": "external",
+    "external_link": {
+      "url": "https://example.test/ver/",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "caption": "Captura",
+    "_known": {
+      "images": "Element Pack no mostraba la imagen de muestra como <img>; el widget Imagen sí"
+    }
+  }
+}

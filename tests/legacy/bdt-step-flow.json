@@ -1,0 +1,15 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "La flecha de dirección era un recurso de Element Pack y no se traslada"
+    }
+  },
+  "custom": {
+    "title_text": "Paso uno",
+    "description_text": "Primero esto",
+    "badge_text": "Paso 01",
+    "_known": {
+      "images": "La flecha de dirección era un recurso de Element Pack y no se traslada"
+    }
+  }
+}

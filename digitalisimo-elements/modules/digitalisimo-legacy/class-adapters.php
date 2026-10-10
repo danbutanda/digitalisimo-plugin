@@ -153,6 +153,13 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-image-magnifier' => Bdt_ImageMagnifier::class,
+		'bdt-scroll-image' => Bdt_ScrollImage::class,
+		'bdt-svg-image' => Bdt_SvgImage::class,
+		'bdt-source-code' => Bdt_SourceCode::class,
+		'bdt-lottie-icon-box' => Bdt_LottieIconBox::class,
+		'bdt-step-flow' => Bdt_StepFlow::class,
+		'bdt-hover-video' => Bdt_HoverVideo::class,
 		'bdt-modal' => Bdt_Modal::class,
 		'bdt-dropbar' => Bdt_Dropbar::class,
 		'lightbox' => Legacy_Lightbox::class,
@@ -578,4 +585,25 @@ if ( class_exists( '\\ElementorPro\\Modules\\ThemeElements\\Widgets\\Post_Commen
 if ( class_exists( '\\Elementor\\Widget_Html' ) ) {
 	final class Bdt_Calendly extends \Elementor\Widget_Html { use Legacy_Adapter; const LEGACY_ID = 'bdt-calendly'; }
 	final class Bdt_Iframe extends \Elementor\Widget_Html { use Legacy_Adapter; const LEGACY_ID = 'bdt-iframe'; }
+}
+if ( class_exists( '\\Elementor\\Widget_Image' ) ) {
+	final class Bdt_ImageMagnifier extends \Elementor\Widget_Image { use Legacy_Adapter; const LEGACY_ID = 'bdt-image-magnifier'; }
+}
+if ( class_exists( '\\Elementor\\Widget_Image' ) ) {
+	final class Bdt_ScrollImage extends \Elementor\Widget_Image { use Legacy_Adapter; const LEGACY_ID = 'bdt-scroll-image'; }
+}
+if ( class_exists( '\\Elementor\\Widget_Image' ) ) {
+	final class Bdt_SvgImage extends \Elementor\Widget_Image { use Legacy_Adapter; const LEGACY_ID = 'bdt-svg-image'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\CodeHighlight\\Widgets\\Code_Highlight' ) ) {
+	final class Bdt_SourceCode extends \ElementorPro\Modules\CodeHighlight\Widgets\Code_Highlight { use Legacy_Adapter; const LEGACY_ID = 'bdt-source-code'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Lottie\\Widgets\\Lottie' ) ) {
+	final class Bdt_LottieIconBox extends \ElementorPro\Modules\Lottie\Widgets\Lottie { use Legacy_Adapter; const LEGACY_ID = 'bdt-lottie-icon-box'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Advanced_Icon_Box_Widget' ) ) {
+	final class Bdt_StepFlow extends \Digitalisimo\Elements\Advanced_Icon_Box_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-step-flow'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Video_Player_Widget' ) ) {
+	final class Bdt_HoverVideo extends \Digitalisimo\Elements\Video_Player_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-hover-video'; }
 }

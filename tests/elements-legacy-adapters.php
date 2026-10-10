@@ -242,6 +242,13 @@ namespace {
 	$lb = Translator::translate( 'lightbox', array( 'lightbox_content' => 'vimeo', 'content_vimeo' => array( 'url' => 'https://vimeo.com/123' ), 'lightbox_toggler' => 'button', 'button_text' => 'Ver' ) );
 	check_adapter( 'media' === $lb['source'] && 'embed' === $lb['media_type'] && 'https://vimeo.com/123' === $lb['media_url']['url'] && 'Ver' === $lb['button_text'] && Translator::is_legacy_id( 'lightbox' ), 'Lightbox abre el vídeo en una ventana centrada.' );
 
+	$code = Translator::translate( 'bdt-source-code', array( 'source_code_content' => 'a &lt; b', 'source_code_language_selector' => 'language-php', 'line_numbers' => 'yes' ) );
+	check_adapter( 'a &lt; b' === $code['code'] && 'php' === $code['language'] && 'line-numbers' === $code['line_numbers'] && 'yes' === $code['copy_to_clipboard'], 'Source Code conserva el código guardado y su lenguaje.' );
+	$si = Translator::translate( 'bdt-scroll-image', array( 'link_to' => 'external', 'external_link' => array( 'url' => 'https://s.test/x' ) ) );
+	check_adapter( 'custom' === $si['link_to'] && 'on' === $si['link']['is_external'] && 'no' === $si['open_lightbox'], 'Scroll Image abre su enlace externo en otra pestaña.' );
+	$hv = Translator::translate( 'bdt-hover-video', array( 'hover_video_list' => array( array( 'source_type' => 'remote_url', 'remote_url' => array( 'url' => 'https://s.test/v.mp4' ), 'hover_video_title' => 'Uno' ) ) ) );
+	check_adapter( 'url' === $hv['source'] && 'https://s.test/v.mp4' === $hv['video_url']['url'] && 'Uno' === $hv['title'], 'Hover Video muestra su primer vídeo.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

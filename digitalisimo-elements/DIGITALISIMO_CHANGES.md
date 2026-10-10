@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.113
+# DIGITALÍSIMO Elements 4.3.0.114
+
+- 4.3.0.114: adaptadores de Element Pack para Image Magnifier, Scroll Image y SVG Image (widget Imagen), Source Code (Code Highlight), Lottie Icon Box (Lottie), Step Flow (Caja de icono avanzada propia) y Hover Video (Reproductor de vídeo propio), con estilos heredados y migración reversible.
 
 - 4.3.0.113: Panel lateral gana presentación centrada (ventana modal), apertura automática con límite por visitante, imagen como botón y el origen «Imagen, vídeo o contenido insertado» (YouTube y Vimeo sin cookies). Adaptadores de Element Pack Modal, Dropbar y Lightbox sobre él; el traductor reconoce el ID sin prefijo `lightbox`.
 

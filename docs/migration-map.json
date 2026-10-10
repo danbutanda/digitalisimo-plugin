@@ -2266,7 +2266,7 @@
       "decision_reason": "Cajas que cambian el fondo al pasar el cursor; las pestañas propias conservan el contenido."
     },
     "bdt-hover-video": {
-      "target": null,
+      "target": "digitalisimo-video-player",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2275,11 +2275,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.114 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-video-player",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Vídeo que se reproduce al pasar el cursor; el reproductor propio conserva el vídeo."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Vídeo que se reproduce al pasar el cursor; el reproductor propio conserva el vídeo.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-hover-video.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-icon-mobile-menu": {
       "target": "digitalisimo-icon-mobile-menu",
@@ -2395,7 +2396,7 @@
       "decision_reason": "Imágenes que se expanden al pasar el cursor; el contenido pasa a pestañas propias."
     },
     "bdt-image-magnifier": {
-      "target": null,
+      "target": "image",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2404,11 +2405,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.114 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "image",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Lupa sobre una imagen; se conserva la imagen en el widget Imagen."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Lupa sobre una imagen; se conserva la imagen en el widget Imagen.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-magnifier.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-image-stack": {
       "target": null,
@@ -2598,7 +2600,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-lottie-icon-box": {
-      "target": null,
+      "target": "lottie",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2607,11 +2609,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.114 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "lottie",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Caja con animación Lottie, título y texto; la animación pasa al widget Lottie."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Caja con animación Lottie, título y texto; la animación pasa al widget Lottie.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-lottie-icon-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-lottie-image": {
       "target": null,
@@ -3456,7 +3459,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-scroll-image": {
-      "target": null,
+      "target": "image",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3465,11 +3468,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.114 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "image",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Imagen larga que se desplaza al pasar el cursor; se conserva la imagen."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Imagen larga que se desplaza al pasar el cursor; se conserva la imagen.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-scroll-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-scrollnav": {
       "target": null,
@@ -3595,7 +3599,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-source-code": {
-      "target": null,
+      "target": "code-highlight",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3604,11 +3608,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.114 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "code-highlight",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Código con resaltado; Code Highlight de PRO Elements."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Código con resaltado; Code Highlight de PRO Elements.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-source-code.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-stacker": {
       "target": null,
@@ -3659,7 +3664,7 @@
       "decision_reason": "Rejilla de elementos escritos con pestañas."
     },
     "bdt-step-flow": {
-      "target": null,
+      "target": "digitalisimo-advanced-icon-box",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3668,11 +3673,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.114 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-advanced-icon-box",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Paso con icono, título y texto; la Caja de icono avanzada propia lo cubre."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Paso con icono, título y texto; la Caja de icono avanzada propia lo cubre.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-step-flow.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-sub-menu": {
       "target": "digitalisimo-vertical-menu",
@@ -3706,7 +3712,7 @@
       "decision_reason": "Forma SVG animada decorativa; las figuras del título propio cubren usos sencillos."
     },
     "bdt-svg-image": {
-      "target": null,
+      "target": "image",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3715,11 +3721,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.114 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "image",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Imagen SVG con animación de trazo; se conserva la imagen."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Imagen SVG con animación de trazo; se conserva la imagen.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-svg-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-svg-maps": {
       "target": null,

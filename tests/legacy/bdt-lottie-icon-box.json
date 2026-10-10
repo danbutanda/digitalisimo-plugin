@@ -1,0 +1,15 @@
+{
+  "custom": {
+    "lottie_json_path": {
+      "url": "https://example.test/anim.json",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "title_text": "Animado",
+    "_known": {
+      "text": "La descripción y el botón de la caja no se trasladan; el título pasa a la leyenda de la animación",
+      "links": "El botón «Read More» de la caja no se traslada"
+    }
+  }
+}

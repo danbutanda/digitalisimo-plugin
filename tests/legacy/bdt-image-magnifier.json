@@ -1,0 +1,12 @@
+{
+  "chosen": {
+    "image": {
+      "url": "https://s.w.org/images/core/emoji/14.0.0/72x72/2b50.png",
+      "id": ""
+    },
+    "_known": {
+      "text": "Element Pack exigía una imagen de la biblioteca para la lupa y mostraba un aviso; la imagen se muestra igual",
+      "images": "Element Pack no mostraba imágenes sin adjunto; el widget Imagen sí"
+    }
+  }
+}

@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 181, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 15.
 
-Documentos heredados: adaptador publicado 138, no se reproduce 66, pendiente: adaptador 59.
+Documentos heredados: adaptador publicado 145, no se reproduce 66, pendiente: adaptador 52.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -147,14 +147,14 @@ Documentos heredados: adaptador publicado 138, no se reproduce 66, pendiente: ad
 | `bdt-honeycombs` | DESCARTAR | — | no se reproduce | Rejilla hexagonal decorativa con su script; uso marginal. |
 | `bdt-horizontal-scroller` | DESCARTAR | — | no se reproduce | Desplazamiento horizontal de secciones con su script; cambia el comportamiento de la página. |
 | `bdt-hover-box` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Cajas que cambian el fondo al pasar el cursor; las pestañas propias conservan el contenido. |
-| `bdt-hover-video` | ADAPTAR | `digitalisimo-video-player` | pendiente: adaptador | Vídeo que se reproduce al pasar el cursor; el reproductor propio conserva el vídeo. |
+| `bdt-hover-video` | ADAPTAR | `digitalisimo-video-player` | adaptador publicado | Vídeo que se reproduce al pasar el cursor; el reproductor propio conserva el vídeo. |
 | `bdt-icon-mobile-menu` | ADAPTAR | `digitalisimo-icon-mobile-menu` | adaptador publicado | own four-style icon navigation with CSS tooltip; editor links and tooltips aligned in 4.3.0.89; multisite runtime verified; visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-iconnav` | ADAPTAR | `digitalisimo-icon-nav` | adaptador publicado | own vertical icon navigation and native WordPress menu panel; editor branding and links aligned in 4.3.0.89; multisite runtime verified; offcanvas effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-iframe` | ADAPTAR | `html` | adaptador publicado | Iframe con URL; se adapta al widget HTML con el mismo iframe y carga diferida. |
 | `bdt-image-accordion` | ADAPTAR | `digitalisimo-accordion` | pendiente: adaptador | Acordeón de imágenes con título y texto; el contenido pasa al Acordeón propio. |
 | `bdt-image-compare` | RECONSTRUIR | `digitalisimo-image-compare` | pendiente: adaptador | Comparador antes/después; se reconstruye accesible con un control deslizante nativo. |
 | `bdt-image-expand` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Imágenes que se expanden al pasar el cursor; el contenido pasa a pestañas propias. |
-| `bdt-image-magnifier` | ADAPTAR | `image` | pendiente: adaptador | Lupa sobre una imagen; se conserva la imagen en el widget Imagen. |
+| `bdt-image-magnifier` | ADAPTAR | `image` | adaptador publicado | Lupa sobre una imagen; se conserva la imagen en el widget Imagen. |
 | `bdt-image-stack` | ADAPTAR | `image-gallery` | pendiente: adaptador | Imágenes apiladas; se conservan en la galería básica. |
 | `bdt-instagram` | DESCARTAR | — | no se reproduce | Lee la API de Instagram con token propio; la API Basic Display fue retirada. Usar Instagram Feed (adaptado por shortcode). |
 | `bdt-instagram-feed` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
@@ -165,7 +165,7 @@ Documentos heredados: adaptador publicado 138, no se reproduce 66, pendiente: ad
 | `bdt-learnpress-grid` | DESCARTAR | — | no se reproduce | Rejilla de cursos de LearnPress con consulta propia; usar los bloques de LearnPress. |
 | `bdt-logo-carousel` | ADAPTAR | `digitalisimo-logo-carousel` | adaptador publicado | new independent widget on shared native carousel engine; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool |
 | `bdt-logo-grid` | ADAPTAR | `digitalisimo-logo-grid` | adaptador publicado | independent CSS grid widget; WordPress controls image loading and external links are protected since 4.3.0.90; installed multisite rendering verified; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
-| `bdt-lottie-icon-box` | ADAPTAR | `lottie` | pendiente: adaptador | Caja con animación Lottie, título y texto; la animación pasa al widget Lottie. |
+| `bdt-lottie-icon-box` | ADAPTAR | `lottie` | adaptador publicado | Caja con animación Lottie, título y texto; la animación pasa al widget Lottie. |
 | `bdt-lottie-image` | ADAPTAR | — | adaptador publicado | share existing ElementorPro Lottie widget for new content; legacy control conversion and parity pending; no duplicate player; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-mailchimp` | DESCARTAR | — | no se reproduce | Suscripción con la API de Mailchimp guardada en ajustes de Element Pack; usar Mailchimp for WP (adaptado por shortcode) o el formulario de PRO Elements con su integración. |
 | `bdt-mailchimp-for-wp` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
@@ -217,7 +217,7 @@ Documentos heredados: adaptador publicado 138, no se reproduce 66, pendiente: ad
 | `bdt-review-card-grid` | ADAPTAR | `reviews` | pendiente: adaptador | Rejilla de reseñas hacia Reviews de PRO Elements. |
 | `bdt-revolution-slider` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-scroll-button` | ADAPTAR | `digitalisimo-scroll-button` | adaptador publicado | new accessible local-anchor widget implemented; advanced effects, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool |
-| `bdt-scroll-image` | ADAPTAR | `image` | pendiente: adaptador | Imagen larga que se desplaza al pasar el cursor; se conserva la imagen. |
+| `bdt-scroll-image` | ADAPTAR | `image` | adaptador publicado | Imagen larga que se desplaza al pasar el cursor; se conserva la imagen. |
 | `bdt-scrollnav` | ADAPTAR | `digitalisimo-icon-nav` | pendiente: adaptador | Navegación a secciones de la página; Icon Nav propio con enlaces internos. |
 | `bdt-search` | ADAPTAR | — | adaptador publicado | use existing search-form widget for new content; post-type filtering and Element Pack skins require parity review before legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-single-post` | ADAPTAR | `posts` | adaptador publicado | posts query can select a single public post for new content; exact metadata layout and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool |
@@ -226,14 +226,14 @@ Documentos heredados: adaptador publicado 138, no se reproduce 66, pendiente: ad
 | `bdt-slinky-vertical-menu` | ADAPTAR | `digitalisimo-vertical-menu` | adaptador publicado | nav-menu provides hierarchical WordPress menus for new content; sliding transitions, manual hierarchy and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool |
 | `bdt-social-proof` | DESCARTAR | — | no se reproduce | Notificaciones de prueba social con datos inventados o de WooCommerce; riesgo de mensajes engañosos. |
 | `bdt-social-share` | ADAPTAR | — | adaptador publicado | share-buttons covers native social sharing for new content; counters, network list and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
-| `bdt-source-code` | ADAPTAR | `code-highlight` | pendiente: adaptador | Código con resaltado; Code Highlight de PRO Elements. |
+| `bdt-source-code` | ADAPTAR | `code-highlight` | adaptador publicado | Código con resaltado; Code Highlight de PRO Elements. |
 | `bdt-stacker` | DESCARTAR | — | no se reproduce | Apilado de secciones al desplazar con su script; cambia el comportamiento de la página. |
 | `bdt-static-carousel` | ADAPTAR | `media-carousel` | pendiente: adaptador | Carrusel de elementos escritos hacia el carrusel de medios. |
 | `bdt-static-grid-tab` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Rejilla de elementos escritos con pestañas. |
-| `bdt-step-flow` | ADAPTAR | `digitalisimo-advanced-icon-box` | pendiente: adaptador | Paso con icono, título y texto; la Caja de icono avanzada propia lo cubre. |
+| `bdt-step-flow` | ADAPTAR | `digitalisimo-advanced-icon-box` | adaptador publicado | Paso con icono, título y texto; la Caja de icono avanzada propia lo cubre. |
 | `bdt-sub-menu` | ADAPTAR | `digitalisimo-vertical-menu` | adaptador publicado | nav-menu covers WordPress submenus for new content; static repeater, badges and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool |
 | `bdt-svg-blob` | DESCARTAR | — | no se reproduce | Forma SVG animada decorativa; las figuras del título propio cubren usos sencillos. |
-| `bdt-svg-image` | ADAPTAR | `image` | pendiente: adaptador | Imagen SVG con animación de trazo; se conserva la imagen. |
+| `bdt-svg-image` | ADAPTAR | `image` | adaptador publicado | Imagen SVG con animación de trazo; se conserva la imagen. |
 | `bdt-svg-maps` | DESCARTAR | — | no se reproduce | Mapas SVG interactivos por región con datos propios de Element Pack. |
 | `bdt-switcher` | ADAPTAR | — | adaptador publicado | own content-switcher covers two-panel switching for new content; templates, icons and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-table` | ADAPTAR | `digitalisimo-table` | adaptador publicado | own accessible CSV table accepts manual text or a current-site Media attachment with bounded local read and cache; installed multisite rendering verified in 4.3.0.95; Sheets, ACF, DataTables skins, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool |

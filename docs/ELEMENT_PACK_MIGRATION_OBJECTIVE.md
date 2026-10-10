@@ -84,6 +84,8 @@ Lote 18 (4.3.0.112): diez widgets de entradas y portafolio se ADAPTAN a `posts`.
 
 Lote 19 (4.3.0.113): Modal, Dropbar y Lightbox se ADAPTAN al Panel lateral centrado. Diferencias declaradas: los botones son `<button>`; Dropbar pasa de desplegable junto al botón a ventana centrada; las aperturas al salir, al desplazar o por inactividad del Modal quedan como apertura desde otro elemento; la leyenda del Lightbox se muestra como texto.
 
+Lote 20 (4.3.0.114): siete widgets se ADAPTAN. Diferencias declaradas: no se trasladan la lupa, el desplazamiento de la imagen ni la animación de trazo SVG; Lottie Icon Box pierde descripción y botón (el título pasa a la leyenda); Hover Video muestra sólo el primer vídeo; las imágenes de ejemplo de Element Pack pasan a la de Elementor.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.
