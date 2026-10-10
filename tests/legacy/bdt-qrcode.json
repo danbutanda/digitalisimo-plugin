@@ -1,0 +1,21 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El código QR propio incluye el texto y el enlace como respaldo accesible; Element Pack sólo dibujaba el código con JavaScript",
+      "links": "Enlace de respaldo al contenido del código QR"
+    }
+  },
+  "custom": {
+    "text": "https://example.com/menu",
+    "label": "Menú",
+    "fill": "#0a7cff",
+    "size": {
+      "unit": "px",
+      "size": 240
+    },
+    "_known": {
+      "text": "El código QR propio incluye el texto y el enlace como respaldo accesible; Element Pack sólo dibujaba el código con JavaScript",
+      "links": "Enlace de respaldo al contenido del código QR"
+    }
+  }
+}

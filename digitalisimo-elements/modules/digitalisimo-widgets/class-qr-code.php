@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Código QR local con contenido visible y sin API externa. */
-final class QR_Code_Widget extends \Elementor\Widget_Base {
+class QR_Code_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-qr-code'; }
 	public function get_title() { return 'Código QR'; }
 	public function get_icon() { return 'eicon-barcode'; }

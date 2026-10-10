@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Navegación compacta con iconos y títulos legibles sin librería de tooltips. */
-final class Icon_Mobile_Menu_Widget extends \Elementor\Widget_Base {
+class Icon_Mobile_Menu_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-icon-mobile-menu'; }
 	public function get_title() { return 'Menú móvil con iconos'; }
 	public function get_icon() { return 'eicon-menu-bar'; }

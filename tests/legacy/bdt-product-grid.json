@@ -1,0 +1,31 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "La valoración se muestra como «4.5 / 5 · 10678» en una sola cadena",
+      "images": "El widget propio deja vacío el ALT de una imagen que acompaña a un título visible"
+    }
+  },
+  "custom": {
+    "product_items": [
+      {
+        "_id": "p1",
+        "title": "Plan Pro",
+        "price": "$299",
+        "text": "Todo incluido.",
+        "readmore_link": {
+          "url": "https://example.com/pro"
+        },
+        "image": {
+          "url": "https://example.com/img/pro.png"
+        }
+      }
+    ],
+    "readmore_text": "Comprar",
+    "show_time": "",
+    "show_rating": "",
+    "_known": {
+      "text": "La valoración se muestra como «4.5 / 5 · 10678» en una sola cadena",
+      "images": "El widget propio deja vacío el ALT de una imagen que acompaña a un título visible"
+    }
+  }
+}

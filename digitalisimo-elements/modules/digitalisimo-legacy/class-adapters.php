@@ -111,6 +111,13 @@ final class Adapters {
 		'bdt-fancy-slider' => Bdt_FancySlider::class,
 		'bdt-fancy-tabs' => Bdt_FancyTabs::class,
 		'bdt-featured-box' => Bdt_FeaturedBox::class,
+		'bdt-google-reviews' => Bdt_GoogleReviews::class,
+		'bdt-icon-mobile-menu' => Bdt_IconMobileMenu::class,
+		'bdt-iconnav' => Bdt_Iconnav::class,
+		'bdt-logo-grid' => Bdt_LogoGrid::class,
+		'bdt-notification' => Bdt_Notification::class,
+		'bdt-product-grid' => Bdt_ProductGrid::class,
+		'bdt-qrcode' => Bdt_Qrcode::class,
 	);
 
 	public static function element_pack_active() {
@@ -198,4 +205,25 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Tabs_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Featured_Box_Widget' ) ) {
 	final class Bdt_FeaturedBox extends \Digitalisimo\Elements\Featured_Box_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-featured-box'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Google_Reviews_Widget' ) ) {
+	final class Bdt_GoogleReviews extends \Digitalisimo\Elements\Google_Reviews_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-google-reviews'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Icon_Mobile_Menu_Widget' ) ) {
+	final class Bdt_IconMobileMenu extends \Digitalisimo\Elements\Icon_Mobile_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-icon-mobile-menu'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Icon_Nav_Widget' ) ) {
+	final class Bdt_Iconnav extends \Digitalisimo\Elements\Icon_Nav_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-iconnav'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Logo_Grid_Widget' ) ) {
+	final class Bdt_LogoGrid extends \Digitalisimo\Elements\Logo_Grid_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-logo-grid'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Notification_Widget' ) ) {
+	final class Bdt_Notification extends \Digitalisimo\Elements\Notification_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-notification'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Product_Grid_Widget' ) ) {
+	final class Bdt_ProductGrid extends \Digitalisimo\Elements\Product_Grid_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-product-grid'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\QR_Code_Widget' ) ) {
+	final class Bdt_Qrcode extends \Digitalisimo\Elements\QR_Code_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-qrcode'; }
 }

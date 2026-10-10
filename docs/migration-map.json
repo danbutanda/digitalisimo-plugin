@@ -1748,7 +1748,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own Places API (New) widget with site/network key and deferred fetch; installed multisite rendering verified with test key in 4.3.0.90; real Places response, visual parity and legacy conversion pending"
+      "status": "own Places API (New) widget with site/network key and deferred fetch; installed multisite rendering verified with test key in 4.3.0.90; real Places response, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-google-reviews.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-gravity-form": {
       "target": null,
@@ -1839,7 +1840,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own four-style icon navigation with CSS tooltip; editor links and tooltips aligned in 4.3.0.89; multisite runtime verified; visual parity and legacy conversion pending"
+      "status": "own four-style icon navigation with CSS tooltip; editor links and tooltips aligned in 4.3.0.89; multisite runtime verified; visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-icon-mobile-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-iconnav": {
       "target": "digitalisimo-icon-nav",
@@ -1862,7 +1864,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own vertical icon navigation and native WordPress menu panel; editor branding and links aligned in 4.3.0.89; multisite runtime verified; offcanvas effects, visual parity and legacy conversion pending"
+      "status": "own vertical icon navigation and native WordPress menu panel; editor branding and links aligned in 4.3.0.89; multisite runtime verified; offcanvas effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-iconnav.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-iframe": {
       "target": null,
@@ -2068,7 +2071,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "independent CSS grid widget; WordPress controls image loading and external links are protected since 4.3.0.90; installed multisite rendering verified; legacy adapter and visual comparison pending"
+      "status": "independent CSS grid widget; WordPress controls image loading and external links are protected since 4.3.0.90; installed multisite rendering verified; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-logo-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-lottie-icon-box": {
       "target": null,
@@ -2233,7 +2237,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own popup and fixed notice with conditional assets; trigger behavior and keyboard focus fixed in 4.3.0.91, multisite rendering verified; Elementor templates, visual parity and legacy conversion pending"
+      "status": "own popup and fixed notice with conditional assets; trigger behavior and keyboard focus fixed in 4.3.0.91, multisite rendering verified; Elementor templates, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-notification.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-offcanvas": {
       "target": null,
@@ -2523,7 +2528,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own manual product cards with conditional CSS; image loading, ALT, links and editor aligned in 4.3.0.92, installed multisite rendering verified; WooCommerce queries, reference skins, visual parity and legacy conversion pending"
+      "status": "own manual product cards with conditional CSS; image loading, ALT, links and editor aligned in 4.3.0.92, installed multisite rendering verified; WooCommerce queries, reference skins, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-product-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-profile-card": {
       "target": null,
@@ -2576,7 +2582,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own local QR with accessible fallback and conditional assets; current queried URL fixed and installed multisite rendering verified in 4.3.0.93; internal labels, image mode, visual parity and legacy conversion pending"
+      "status": "own local QR with accessible fallback and conditional assets; current queried URL fixed and installed multisite rendering verified in 4.3.0.93; internal labels, image mode, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-qrcode.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-quform": {
       "target": null,

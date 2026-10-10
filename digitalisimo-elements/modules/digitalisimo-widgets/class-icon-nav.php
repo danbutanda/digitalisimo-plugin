@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Barra lateral de enlaces con iconos y menú WordPress opcional. */
-final class Icon_Nav_Widget extends \Elementor\Widget_Base {
+class Icon_Nav_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-icon-nav'; }
 	public function get_title() { return 'Navegación con iconos'; }
 	public function get_icon() { return 'eicon-nav-menu'; }
@@ -58,7 +58,7 @@ final class Icon_Nav_Widget extends \Elementor\Widget_Base {
 			$image = is_array( $s['branding_image'] ?? null ) ? $s['branding_image'] : array();
 			echo '<a class="digi-icon-nav__brand" href="' . esc_url( home_url( '/' ) ) . '" aria-label="' . esc_attr( $site_name ) . '">';
 			if ( ! empty( $image['id'] ) ) { echo wp_get_attachment_image( absint( $image['id'] ), 'thumbnail', false, array( 'alt' => $site_name ) ); }
-			else { echo '<span>' . esc_html( function_exists( 'mb_substr' ) ? mb_substr( $site_name, 0, 1 ) : substr( $site_name, 0, 1 ) ) . '</span>'; }
+			else { $initials = ''; foreach ( preg_split( '/\s+/u', trim( (string) $site_name ), -1, PREG_SPLIT_NO_EMPTY ) as $word ) { $initials .= function_exists( 'mb_substr' ) ? mb_substr( $word, 0, 1 ) : substr( $word, 0, 1 ); } echo '<span>' . esc_html( $initials ) . '</span>'; }
 			echo '</a>';
 		}
 		if ( $menu ) {

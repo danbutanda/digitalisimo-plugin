@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.98
+# DIGITALÍSIMO Elements 4.3.0.99
+
+- 4.3.0.99: Google Reviews, Icon Mobile Menu, Icon Nav, Logo Grid, Notification, Product Grid y QR Code de Element Pack siguen mostrándose sin ese plugin mediante adaptadores. Icon Nav usa las iniciales de todas las palabras del nombre del sitio como marca, igual que Element Pack. El intérprete de valores por defecto conserva las URL que antes confundía con comentarios.
 
 - 4.3.0.98: Fancy Card, Fancy List, Fancy Icons, Fancy Slider, Fancy Tabs y Featured Box de Element Pack siguen mostrándose sin ese plugin mediante adaptadores, con sus interruptores de partes visibles, enlaces y diseños traducidos. Fancy Icons admite una imagen de fondo con CSS de Elementor. El analizador distingue repetidores que comparten variable y un generador crea el esqueleto de cada mapa con todos los defaults de Element Pack.
 

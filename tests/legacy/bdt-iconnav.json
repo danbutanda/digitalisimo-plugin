@@ -1,0 +1,19 @@
+{
+  "defaults": {},
+  "custom": {
+    "iconnavs": [
+      {
+        "_id": "n1",
+        "iconnav_title": "Blog",
+        "iconnav_icon": {
+          "value": "fas fa-pen",
+          "library": "fa-solid"
+        },
+        "iconnav_link": {
+          "url": "https://example.com/blog"
+        }
+      }
+    ],
+    "menu_text": "show_as_tooltip"
+  }
+}

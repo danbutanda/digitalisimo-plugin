@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Reseñas reales de Places, consultadas después de que el widget entra en pantalla. */
-final class Google_Reviews_Widget extends \Elementor\Widget_Base {
+class Google_Reviews_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-google-reviews'; }
 	public function get_title() { return 'Reseñas de Google'; }
 	public function get_icon() { return 'eicon-review'; }

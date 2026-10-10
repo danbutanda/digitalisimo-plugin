@@ -1,0 +1,29 @@
+{
+  "defaults": {},
+  "custom": {
+    "menu_items": [
+      {
+        "_id": "m1",
+        "menu_text": "Inicio",
+        "menu_icon": {
+          "value": "fas fa-home",
+          "library": "fa-solid"
+        },
+        "link": {
+          "url": "https://example.com/"
+        }
+      },
+      {
+        "_id": "m2",
+        "menu_text": "Contacto",
+        "menu_icon": {
+          "value": "fas fa-envelope",
+          "library": "fa-solid"
+        },
+        "link": {
+          "url": "https://example.com/contacto"
+        }
+      }
+    ]
+  }
+}

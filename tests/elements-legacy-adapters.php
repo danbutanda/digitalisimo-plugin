@@ -107,6 +107,16 @@ namespace {
 	$box = Translator::translate( 'bdt-featured-box', array( '_skin' => 'split' ) );
 	check_adapter( 'split' === $box['layout'] && 'Featured Box Title' === $box['title_text'] && 'overlay' === Translator::translate( 'bdt-featured-box', array() )['layout'], 'Featured Box traduce su diseño.' );
 
+	$notice = Translator::translate( 'bdt-notification', array( 'notification_timeout' => array( 'size' => 8000 ), 'notification_position' => 'top-center', 'ex_system' => 'yes' ) );
+	check_adapter( 8000 === $notice['notification_timeout'] && 'top-right' === $notice['notification_position'] && ! isset( $notice['ex_system'] ), 'Notification convierte tiempos y posiciones.' );
+	$qr = Translator::translate( 'bdt-qrcode', array( 'label_type' => 'none', 'size' => array( 'size' => 320 ), 'fill' => '#123456' ) );
+	check_adapter( 'http://bdthemes.com' === $qr['text'] && '' === $qr['site_link'] && '' === $qr['label'] && 320 === $qr['size'] && '#123456' === $qr['foreground'], 'QR Code conserva el texto codificado, tamaño y color.' );
+	$grid = Translator::translate( 'bdt-product-grid', array( 'show_price' => '', 'readmore_text' => 'Comprar' ) );
+	check_adapter( ! isset( $grid['product_items'][0]['price'] ) && 'Comprar' === $grid['product_items'][0]['button_text'] && 10678 === $grid['product_items'][0]['rating_count'] && 'Pizza' === $grid['product_items'][0]['title'], 'Product Grid aplica los interruptores y la valoración.' );
+	$logos = Translator::translate( 'bdt-logo-grid', array() );
+	check_adapter( 8 === count( $logos['logo_list'] ) && 'Brand Name' === $logos['logo_list'][0]['name'], 'Logo Grid repite sus ocho logotipos de ejemplo.' );
+	check_adapter( '' === Translator::translate( 'bdt-google-reviews', array() )['heading'], 'Google Reviews no añade un encabezado que Element Pack no mostraba.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

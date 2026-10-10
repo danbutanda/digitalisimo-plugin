@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Aviso accesible con activación puntual, sin infraestructura global de ventanas. */
-final class Notification_Widget extends \Elementor\Widget_Base {
+class Notification_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-notification'; }
 	public function get_title() { return 'Notificación'; }
 	public function get_icon() { return 'eicon-alert'; }

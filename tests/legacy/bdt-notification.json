@@ -1,0 +1,20 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Element Pack inserta el aviso emergente con JavaScript; el propio lo incluye oculto en el HTML con su botón de cierre"
+    }
+  },
+  "custom": {
+    "notification_type": "fixed",
+    "notification_content": "<p>Envío gratis este fin de semana.</p>",
+    "notification_pos_fixed": "top",
+    "_expect_css": [
+      ".digi-notification__panel{background-color:#0a7cff"
+    ],
+    "_known": {
+      "text": "Element Pack inserta el aviso emergente con JavaScript; el propio lo incluye oculto en el HTML con su botón de cierre"
+    },
+    "notification_background_color_background": "classic",
+    "notification_background_color_color": "#0a7cff"
+  }
+}

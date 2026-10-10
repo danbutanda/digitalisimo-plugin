@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Fichas de productos manuales, sin consultas ni datos estructurados inventados. */
-final class Product_Grid_Widget extends \Elementor\Widget_Base {
+class Product_Grid_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-product-grid'; }
 	public function get_title() { return 'Cuadrícula de productos'; }
 	public function get_icon() { return 'eicon-products'; }

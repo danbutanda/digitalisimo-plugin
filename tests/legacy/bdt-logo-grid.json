@@ -1,0 +1,32 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Element Pack incluye la descripción en el ALT del logotipo; el propio usa el nombre"
+    }
+  },
+  "custom": {
+    "logo_list": [
+      {
+        "_id": "g1",
+        "image": {
+          "url": "https://example.com/logos/a.png"
+        },
+        "name": "Alfa",
+        "link": {
+          "url": "https://alfa.example/"
+        }
+      },
+      {
+        "_id": "g2",
+        "image": {
+          "url": "https://example.com/logos/b.png"
+        },
+        "name": "Beta"
+      }
+    ],
+    "columns": "2",
+    "_known": {
+      "images": "Element Pack sólo muestra adjuntos de Medios (el caso usa URLs externas) e incluye la descripción en el ALT; el propio usa el nombre"
+    }
+  }
+}

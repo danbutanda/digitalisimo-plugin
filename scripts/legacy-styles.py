@@ -34,12 +34,11 @@ class Unparsable(Exception):
 class PhpLiteral:
     """Intérprete mínimo de literales PHP: cadenas, números, arrays y llamadas __()/esc_html__()."""
 
-    TOKEN = re.compile(r"""\s*(?:(?P<str>'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|(?P<num>-?\d+(?:\.\d+)?)|(?P<arrow>=>)|(?P<punct>[\[\](),.])|(?P<id>[A-Za-z_\\][\w\\]*(?:::\w+)?))""", re.S)
+    TOKEN = re.compile(r"""\s*(?:(?P<comment>//[^\n]*|/\*.*?\*/)|(?P<str>'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|(?P<num>-?\d+(?:\.\d+)?)|(?P<arrow>=>)|(?P<punct>[\[\](),.])|(?P<id>[A-Za-z_\\][\w\\]*(?:::\w+)?))""", re.S)
 
     def __init__(self, text):
         self.tokens = []
         pos = 0
-        text = re.sub(r'//[^\n]*|/\*.*?\*/', '', text, flags=re.S)
         while pos < len(text):
             m = self.TOKEN.match(text, pos)
             if not m or m.end() == pos:
@@ -47,7 +46,8 @@ class PhpLiteral:
                     break
                 raise Unparsable(text[pos:pos + 40])
             kind = m.lastgroup
-            self.tokens.append((kind, m.group(kind)))
+            if kind != 'comment':
+                self.tokens.append((kind, m.group(kind)))
             pos = m.end()
         self.i = 0
 
