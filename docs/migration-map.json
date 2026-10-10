@@ -2980,7 +2980,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own accessible CSV table accepts manual text or a current-site Media attachment with bounded local read and cache; installed multisite rendering verified in 4.3.0.95; Sheets, ACF, DataTables skins, visual parity and legacy conversion pending"
+      "status": "own accessible CSV table accepts manual text or a current-site Media attachment with bounded local read and cache; installed multisite rendering verified in 4.3.0.95; Sheets, ACF, DataTables skins, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-table.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100"
     },
     "bdt-table-of-content": {
       "target": null,
@@ -3033,7 +3034,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own public term cloud with per-site queries and conditional CSS; visual parity and multisite runtime pending"
+      "status": "own public term cloud with per-site queries and conditional CSS; visual parity and multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-tags-cloud.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100"
     },
     "bdt-testimonial-carousel": {
       "target": null,
@@ -3153,7 +3155,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own-widget-base; no legacy conversion"
+      "status": "own-widget-base; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-total-count.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100"
     },
     "bdt-trailer-box": {
       "target": null,
@@ -3249,7 +3252,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "native-registration-link-base; embedded form and legacy conversion pending"
+      "status": "native-registration-link-base; embedded form and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-user-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100"
     },
     "bdt-vertical-menu": {
       "target": null,
@@ -3285,7 +3289,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "native-video-widget-base; jPlayer skins and legacy conversion pending"
+      "status": "native-video-widget-base; jPlayer skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-video-player.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100"
     },
     "bdt-wc-add-to-cart": {
       "target": null,

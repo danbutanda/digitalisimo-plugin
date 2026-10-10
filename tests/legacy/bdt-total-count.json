@@ -1,0 +1,12 @@
+{
+  "defaults": {},
+  "custom": {
+    "count_type": "post",
+    "custom_post_type": "page",
+    "content_text": "Páginas",
+    "fake_count": 100,
+    "_known": {
+      "text": "El conteo es en vivo: el arnés crea páginas durante la fase A, así que el total de páginas crece entre fases"
+    }
+  }
+}

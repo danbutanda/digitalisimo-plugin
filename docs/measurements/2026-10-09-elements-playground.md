@@ -57,3 +57,5 @@ Adaptadores 4.3.0.97: el A/B cubrió Comparison List, Content Switcher (texto y 
 Adaptadores 4.3.0.98: el A/B cubrió Fancy Card (botón y enlace global), Fancy List, Fancy Icons con fondo propio, Fancy Slider, Fancy Tabs y Featured Box dividido. Todas las combinaciones coincidieron en contenido con las diferencias deliberadas declaradas; el CSS regenerado de Fancy Icons incluyó la imagen de fondo y la migración no cambió el contenido visible.
 
 Adaptadores 4.3.0.99: el A/B cubrió Google Reviews (sin ID y con ID sin clave), Icon Mobile Menu, Icon Nav con marca por iniciales, Logo Grid, Notification fija con fondo, Product Grid e QR Code. Todas las combinaciones coincidieron con las diferencias deliberadas declaradas; el CSS regenerado incluyó el fondo del aviso configurado con el grupo de Element Pack.
+
+Adaptadores 4.3.0.100: el A/B cubrió Table (HTML por defecto y filas escritas), Tags Cloud con etiquetas escritas, Total Count con cantidad añadida, User Register con registro desactivado y Video Player con URL y póster propios. Todas las combinaciones coincidieron con las diferencias deliberadas declaradas.

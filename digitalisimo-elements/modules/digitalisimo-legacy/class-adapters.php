@@ -118,6 +118,11 @@ final class Adapters {
 		'bdt-notification' => Bdt_Notification::class,
 		'bdt-product-grid' => Bdt_ProductGrid::class,
 		'bdt-qrcode' => Bdt_Qrcode::class,
+		'bdt-table' => Bdt_Table::class,
+		'bdt-tags-cloud' => Bdt_TagsCloud::class,
+		'bdt-total-count' => Bdt_TotalCount::class,
+		'bdt-user-register' => Bdt_UserRegister::class,
+		'bdt-video-player' => Bdt_VideoPlayer::class,
 	);
 
 	public static function element_pack_active() {
@@ -226,4 +231,19 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Product_Grid_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\QR_Code_Widget' ) ) {
 	final class Bdt_Qrcode extends \Digitalisimo\Elements\QR_Code_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-qrcode'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Table_Widget' ) ) {
+	final class Bdt_Table extends \Digitalisimo\Elements\Table_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-table'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Tags_Cloud_Widget' ) ) {
+	final class Bdt_TagsCloud extends \Digitalisimo\Elements\Tags_Cloud_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-tags-cloud'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Total_Count_Widget' ) ) {
+	final class Bdt_TotalCount extends \Digitalisimo\Elements\Total_Count_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-total-count'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\User_Register_Widget' ) ) {
+	final class Bdt_UserRegister extends \Digitalisimo\Elements\User_Register_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-user-register'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Video_Player_Widget' ) ) {
+	final class Bdt_VideoPlayer extends \Digitalisimo\Elements\Video_Player_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-video-player'; }
 }

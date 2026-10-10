@@ -1,0 +1,40 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Element Pack añade con DataTables el buscador, la paginación y el resumen de filas; el widget propio muestra la tabla estática accesible"
+    }
+  },
+  "static": {
+    "source": "static",
+    "static_columns_data": [
+      {
+        "_id": "c1",
+        "static_column_name": "Plan"
+      },
+      {
+        "_id": "c2",
+        "static_column_name": "Precio"
+      }
+    ],
+    "static_rows_data": [
+      {
+        "_id": "r1",
+        "static_row_column_type": "row"
+      },
+      {
+        "_id": "r2",
+        "static_row_column_type": "column",
+        "static_cell_name": "Básico"
+      },
+      {
+        "_id": "r3",
+        "static_row_column_type": "column",
+        "static_cell_name": "$99"
+      }
+    ],
+    "use_data_table": "",
+    "_known": {
+      "text": "Sin DataTables las tablas coinciden; se declaran por si Element Pack añade controles"
+    }
+  }
+}

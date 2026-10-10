@@ -56,6 +56,8 @@ Lote 4 en 4.3.0.98: Fancy Card, Fancy List, Fancy Icons, Fancy Slider, Fancy Tab
 
 Lote 5 en 4.3.0.99: Google Reviews, Icon Mobile Menu, Icon Nav, Logo Grid, Notification, Product Grid y QR Code. Los selectores de Notification sin `{{WRAPPER}}` (el aviso de Element Pack se monta fuera del widget) se reescriben hacia el panel propio. Diferencias deliberadas: el aviso para administradores de Google Reviews sin ID de lugar no se muestra a visitantes y, sin clave de API, se enlaza la ficha de Google Maps; Notification y QR Code incluyen su contenido o un respaldo en el HTML en lugar de crearlo sólo con JavaScript; Logo Grid usa el nombre como ALT sin la descripción.
 
+Lote 6 en 4.3.0.100: Table, Tags Cloud, Total Count, User Register y Video Player. Con él, los 34 widgets prioritarios que tienen base propia leen sus documentos `bdt-*` sin Element Pack. Diferencias deliberadas: Table pierde el buscador y la paginación de DataTables y no lee Google Sheets ni ACF; User Register enlaza al registro nativo en lugar de embeber el formulario; Video Player usa los controles nativos del navegador.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

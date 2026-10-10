@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Contadores públicos del sitio actual, sin animación ni recursos JavaScript. */
-final class Total_Count_Widget extends \Elementor\Widget_Base {
+class Total_Count_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-total-count'; }
 	public function get_title() { return 'Contador total'; }
 	public function get_icon() { return 'eicon-counter'; }
@@ -23,6 +23,7 @@ final class Total_Count_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'source', array( 'label' => 'Contar', 'type' => $c::SELECT, 'default' => 'post', 'options' => array( 'post' => 'Contenido publicado', 'comment' => 'Comentarios aprobados', 'user' => 'Usuarios de este sitio' ) ) );
 		$this->add_control( 'post_type', array( 'label' => 'Tipo de contenido', 'type' => $c::SELECT, 'default' => 'post', 'options' => $types, 'condition' => array( 'source' => 'post' ) ) );
 		$this->add_control( 'label', array( 'label' => 'Etiqueta visible', 'type' => $c::TEXT, 'default' => 'Publicaciones', 'dynamic' => array( 'active' => true ) ) );
+		$this->add_control( 'extra_count', array( 'label' => 'Sumar a la cifra', 'type' => $c::NUMBER, 'default' => 0, 'min' => 0, 'description' => 'Cantidad que se añade al conteo real, por ejemplo clientes atendidos fuera del sitio.' ) );
 		$this->end_controls_section();
 		$this->start_controls_section( 'section_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
 		$this->add_control( 'number_color', array( 'label' => 'Color del número', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-total-count__number' => 'color:{{VALUE}};' ) ) );
@@ -56,7 +57,7 @@ final class Total_Count_Widget extends \Elementor\Widget_Base {
 		$settings = $this->get_settings_for_display();
 		$label = trim( wp_strip_all_tags( (string) ( $settings['label'] ?? '' ) ) );
 		if ( '' === $label ) { $label = 'Total'; }
-		$total = self::count( $settings );
+		$total = self::count( $settings ) + max( 0, (int) ( $settings['extra_count'] ?? 0 ) );
 		echo '<div class="digi-total-count"><span class="digi-total-count__number">' . esc_html( number_format_i18n( $total ) ) . '</span><span class="digi-total-count__label">' . esc_html( $label ) . '</span></div>';
 	}
 

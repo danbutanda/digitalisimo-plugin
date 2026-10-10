@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.99
+# DIGITALÍSIMO Elements 4.3.0.100
+
+- 4.3.0.100: Table, Tags Cloud, Total Count, User Register y Video Player de Element Pack siguen mostrándose sin ese plugin mediante adaptadores. Las tablas HTML y las filas escritas en Element Pack se convierten a CSV y un CSV del sitio pasa a ser el adjunto de Medios. Tags Cloud admite etiquetas escritas en el widget con enlace y peso; Total Count admite una cantidad que se suma al conteo real.
 
 - 4.3.0.99: Google Reviews, Icon Mobile Menu, Icon Nav, Logo Grid, Notification, Product Grid y QR Code de Element Pack siguen mostrándose sin ese plugin mediante adaptadores. Icon Nav usa las iniciales de todas las palabras del nombre del sitio como marca, igual que Element Pack. El intérprete de valores por defecto conserva las URL que antes confundía con comentarios.
 

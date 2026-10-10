@@ -1,0 +1,8 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Element Pack mostraba a visitantes un aviso de configuración cuando el registro está desactivado; el propio no muestra nada",
+      "links": "Enlace al registro nativo en lugar del formulario"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Element Pack dibujaba controles propios con texto de tiempo; el widget propio usa los controles nativos del navegador",
+      "links": "Los controles de Element Pack eran enlaces javascript:void(0); los nativos son botones del reproductor"
+    }
+  },
+  "custom": {
+    "title": "Presentación",
+    "source": "https://example.com/videos/demo.mp4",
+    "poster": {
+      "url": "https://example.com/videos/demo.jpg"
+    },
+    "_known": {
+      "text": "Element Pack dibujaba controles propios con texto de tiempo; el widget propio usa los controles nativos del navegador",
+      "links": "Los controles de Element Pack eran enlaces javascript:void(0); los nativos son botones del reproductor"
+    }
+  }
+}

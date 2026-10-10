@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Reproductor HTML nativo; no solicita el vídeo hasta que el visitante lo usa. */
-final class Video_Player_Widget extends \Elementor\Widget_Base {
+class Video_Player_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-video-player'; }
 	public function get_title() { return 'Reproductor de video'; }
 	public function get_icon() { return 'eicon-video-camera'; }

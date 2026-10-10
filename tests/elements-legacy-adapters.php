@@ -117,6 +117,18 @@ namespace {
 	check_adapter( 8 === count( $logos['logo_list'] ) && 'Brand Name' === $logos['logo_list'][0]['name'], 'Logo Grid repite sus ocho logotipos de ejemplo.' );
 	check_adapter( '' === Translator::translate( 'bdt-google-reviews', array() )['heading'], 'Google Reviews no añade un encabezado que Element Pack no mostraba.' );
 
+	$html = Translator::translate( 'bdt-table', array() );
+	check_adapter( 'manual' === $html['source'] && 0 === strpos( $html['content'], "Name,Age,Phone\nTom,5,010281065" ) && 'comma' === $html['delimiter'], 'La tabla HTML por defecto pasa a CSV.' );
+	$static = Translator::translate( 'bdt-table', array( 'source' => 'static', 'static_columns_data' => array( array( 'static_column_name' => 'Plan' ), array( 'static_column_name' => 'Precio, IVA' ) ), 'static_rows_data' => array( array( 'static_row_column_type' => 'row' ), array( 'static_row_column_type' => 'column', 'static_cell_name' => 'Pro' ), array( 'static_row_column_type' => 'column', 'static_cell_name' => '99' ) ) ) );
+	check_adapter( "Plan,\"Precio, IVA\"\nPro,99" === $static['content'] && ! isset( $static['static_rows_data'] ), 'Las filas escritas en Element Pack pasan a CSV con comillas cuando hace falta.' );
+	$cloud = Translator::translate( 'bdt-tags-cloud', array( 'data_source' => 'static', 'static_open_new_window' => 'yes' ) );
+	check_adapter( 'static' === $cloud['source'] && 'Design' === $cloud['static_tags'][0]['tag_text'] && 8 === $cloud['static_tags'][0]['tag_weight'] && 'on' === $cloud['static_tags'][0]['tag_link']['is_external'], 'Tags Cloud conserva sus etiquetas escritas, pesos y ventana nueva.' );
+	check_adapter( 'post_tag' === Translator::translate( 'bdt-tags-cloud', array() )['taxonomy'], 'Las etiquetas dinámicas usan la taxonomía de etiquetas.' );
+	$count = Translator::translate( 'bdt-total-count', array( 'fake_count' => 50, 'custom_post_type' => 'page' ) );
+	check_adapter( 'comment' === $count['source'] && 'page' === $count['post_type'] && 50 === $count['extra_count'] && 'Total Count' === $count['label'], 'Total Count conserva tipo, etiqueta y cantidad añadida.' );
+	$video = Translator::translate( 'bdt-video-player', array( 'source' => 'https://a.test/v.mp4', 'title_hide' => 'yes' ) );
+	check_adapter( 'url' === $video['source'] && 'https://a.test/v.mp4' === $video['video_url'] && '' === $video['title'], 'Video Player usa la dirección guardada como URL externa.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

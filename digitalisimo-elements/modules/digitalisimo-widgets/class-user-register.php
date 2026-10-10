@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Acceso al registro nativo; WordPress conserva validación, correo y plugins de seguridad. */
-final class User_Register_Widget extends \Elementor\Widget_Base {
+class User_Register_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-user-register'; }
 	public function get_title() { return 'Registro de usuarios'; }
 	public function get_icon() { return 'eicon-user-circle-o'; }

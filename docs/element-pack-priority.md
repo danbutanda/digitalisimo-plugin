@@ -47,14 +47,14 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 43. Sub Menu — `nav-menu` ya incluido cubre submenús WordPress; repetidor estático y conversión legacy pendientes
 44. Switcher — Content Switcher propio sirve de base; plantillas y conversión legacy pendientes
 45. Tabs — Fancy Tabs propio sirve de base accesible; fuentes, skins y conversión legacy pendientes
-46. Table — CSV manual o adjunto local de Medios, con lectura limitada, caché y renderizado Multisite comprobado desde 4.3.0.95; Google Sheets, ACF, skins y conversión legacy pendientes
+46. Table — CSV manual o adjunto local de Medios, con lectura limitada, caché y renderizado Multisite comprobado desde 4.3.0.95; Google Sheets, ACF, skins y conversión legacy pendientes; desde 4.3.0.100 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite
 47. Table Of Content — `table-of-contents` ya incluido; paridad de controles y conversión legacy pendientes
-48. Tags Cloud — base propia de términos públicos por sitio; paridad visual y Multisite pendientes
-49. Total Count — base propia con conteos públicos por sitio, sin animación ni JS; paridad visual y legacy pendientes
+48. Tags Cloud — base propia de términos públicos por sitio; paridad visual y Multisite pendientes; desde 4.3.0.100 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite; etiquetas estáticas con enlace y peso
+49. Total Count — base propia con conteos públicos por sitio, sin animación ni JS; paridad visual y legacy pendientes; desde 4.3.0.100 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite; cantidad adicional al conteo
 50. User Login — `login` ya incluido cubre el formulario básico; skins, sociales y conversión legacy pendientes
-51. User Register — base propia con enlace al registro nativo y política sitio/red; formulario embebido, skins y legacy pendientes
+51. User Register — base propia con enlace al registro nativo y política sitio/red; formulario embebido, skins y legacy pendientes; desde 4.3.0.100 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite
 52. Vertical Menu — `nav-menu` cubre menú WordPress básico; diseños verticales y conversión legacy pendientes
-53. Video Player — base propia con video HTML nativo y carga bajo demanda; skins y legacy pendientes
+53. Video Player — base propia con video HTML nativo y carga bajo demanda; skins y legacy pendientes; desde 4.3.0.100 sus documentos `bdt-*` siguen funcionando sin Element Pack mediante adaptador con estilos heredados y migración reversible, verificado por A/B Multisite
 
 Funciones y extensiones del mismo bloque prioritario:
 

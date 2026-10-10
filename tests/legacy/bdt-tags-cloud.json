@@ -1,0 +1,23 @@
+{
+  "static": {
+    "data_source": "static",
+    "static_tags": [
+      {
+        "_id": "t1",
+        "tag_text": "Hosting",
+        "tag_link": {
+          "url": "https://example.com/hosting"
+        },
+        "tag_weight": 5
+      },
+      {
+        "_id": "t2",
+        "tag_text": "Dominios",
+        "tag_link": {
+          "url": "https://example.com/dominios"
+        },
+        "tag_weight": 2
+      }
+    ]
+  }
+}

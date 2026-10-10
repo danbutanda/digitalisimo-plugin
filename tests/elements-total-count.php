@@ -8,7 +8,7 @@ namespace Elementor {
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
 	}
-	class Controls_Manager { const SELECT = 'select'; const TEXT = 'text'; const COLOR = 'color'; const TAB_STYLE = 'style'; }
+	class Controls_Manager { const SELECT = 'select'; const TEXT = 'text'; const NUMBER = 'number'; const COLOR = 'color'; const TAB_STYLE = 'style'; }
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
@@ -48,5 +48,8 @@ namespace {
 	$GLOBALS['blog_id'] = 2;
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_total( str_contains( $html, '>20</span>' ) && count( $GLOBALS['user_queries'] ) === 2 && array( 'time', 2 ) === $GLOBALS['user_queries'][1], 'Aislar conteos y caché por sitio.' );
+	$widget->settings['extra_count'] = '5';
+	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
+	check_total( str_contains( $html, '>25</span>' ), 'La cantidad adicional se suma al conteo real.' );
 	echo "DIGITALÍSIMO Elements: Total Count validado.\n";
 }

@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Tabla de datos estáticos con encabezados reales y sin dependencias de navegador. */
-final class Table_Widget extends \Elementor\Widget_Base {
+class Table_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-table'; }
 	public function get_title() { return 'Tabla de datos'; }
 	public function get_icon() { return 'eicon-table'; }
