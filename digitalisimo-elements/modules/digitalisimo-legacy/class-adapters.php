@@ -153,6 +153,12 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-download-monitor' => Bdt_DownloadMonitor::class,
+		'bdt-edd-cart' => Bdt_EddCart::class,
+		'bdt-edd-checkout' => Bdt_EddCheckout::class,
+		'bdt-wc-elements' => Bdt_WcElements::class,
+		'bdt-calendly' => Bdt_Calendly::class,
+		'bdt-iframe' => Bdt_Iframe::class,
 		'bdt-countdown' => Bdt_Countdown::class,
 		'bdt-flip-box' => Bdt_FlipBox::class,
 		'bdt-advanced-counter' => Bdt_AdvancedCounter::class,
@@ -492,6 +498,10 @@ if ( class_exists( '\\Elementor\\Widget_Shortcode' ) ) {
 	final class Bdt_WpForms extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-wp-forms'; }
 	final class Bdt_Wpdatatable extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-wpdatatable'; }
 	final class Legacy_FooeventsCalendar extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'fooevents-calendar'; }
+	final class Bdt_DownloadMonitor extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-download-monitor'; }
+	final class Bdt_EddCart extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-edd-cart'; }
+	final class Bdt_EddCheckout extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-edd-checkout'; }
+	final class Bdt_WcElements extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-wc-elements'; }
 	final class Bdt_BbpressForumForm extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-bbpress-forum-form'; }
 	final class Bdt_BbpressForumIndex extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-bbpress-forum-index'; }
 	final class Bdt_BbpressReplyForm extends \Elementor\Widget_Shortcode { use Legacy_Adapter; const LEGACY_ID = 'bdt-bbpress-reply-form'; }
@@ -537,4 +547,9 @@ if ( class_exists( '\\ElementorPro\\Modules\\ThemeElements\\Widgets\\Post_Info' 
 }
 if ( class_exists( '\\ElementorPro\\Modules\\ThemeElements\\Widgets\\Post_Comments' ) ) {
 	final class Bdt_PostComments extends \ElementorPro\Modules\ThemeElements\Widgets\Post_Comments { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-comments'; }
+}
+// Widgets que imprimían un iframe o un marcado de terceros: el widget HTML de Elementor lo muestra igual.
+if ( class_exists( '\\Elementor\\Widget_Html' ) ) {
+	final class Bdt_Calendly extends \Elementor\Widget_Html { use Legacy_Adapter; const LEGACY_ID = 'bdt-calendly'; }
+	final class Bdt_Iframe extends \Elementor\Widget_Html { use Legacy_Adapter; const LEGACY_ID = 'bdt-iframe'; }
 }

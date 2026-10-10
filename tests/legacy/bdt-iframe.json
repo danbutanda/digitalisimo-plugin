@@ -1,0 +1,20 @@
+{
+  "defaults": {
+    "_expect_html": [
+      "class=\"digi-legacy-iframe\""
+    ]
+  },
+  "ratio": {
+    "source": {
+      "url": "https://example.test/mapa/",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "show_responsive_ratio": "yes",
+    "_expect_html": [
+      "src=\"https://example.test/mapa/\"",
+      "aspect-ratio:1280/720"
+    ]
+  }
+}

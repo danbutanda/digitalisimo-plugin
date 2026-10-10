@@ -79,3 +79,5 @@ Integraciones 4.3.0.108: con `FAKE_PLUGINS=1` el A/B montó plugins de prueba en
 Adaptadores 4.3.0.109: el A/B cubrió Document Viewer con un PDF, Scroll Button por defecto y con texto y sección propios, y Logo Carousel con filas de ejemplo y logotipos propios con enlace. Todas las combinaciones coincidieron con las diferencias declaradas en el sitio principal y el subsitio.
 
 Adaptadores 4.3.0.110: el A/B cubrió Countdown con fecha y mensaje final, Flip Box por defecto y con caras, botón y efecto propios, Advanced Counter por defecto y con sufijo y agrupación, Post Title con y sin enlace, y los widgets de imagen destacada, extracto, información y comentarios de la página. Todas las combinaciones coincidieron con las diferencias declaradas en el sitio principal y el subsitio.
+
+Lotes 4.3.0.111: `tests/elements-legacy-decisions.mjs` comprobó las 263 decisiones. El A/B de Calendly e Iframe coincidió en el sitio principal y el subsitio y la fase B contuvo el contenedor y script oficiales de Calendly y el iframe con su URL y proporción; Download Monitor, EDD y WC Elements se validaron con pruebas unitarias porque requieren esos plugins reales.

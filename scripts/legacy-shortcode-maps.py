@@ -82,6 +82,9 @@ SPEC = {
     'bdt-bbpress-topic-form': ('bbp-topic-form', None, "( '' !== (string) %s ? array( 'forum_id' => %s ) : array() )" % (v('bbpress_forum_id'), v('bbpress_forum_id')), None),
     'bdt-bbpress-topic-index': ('bbp-topic-index', 'raw', None, None),
     'bdt-bbpress-topic-tags': ('bbp-topic-tags', 'raw', None, None),
+    'bdt-download-monitor': ('download', None, "array( 'id' => %s )" % v('file_id'), 'file_id'),
+    'bdt-edd-cart': ('download_cart', 'raw', None, None),
+    'bdt-edd-checkout': ('download_checkout', 'raw', None, None),
     'bdt-easy-digital-download-history': ('download_history', 'raw', None, None),
     'bdt-easy-digital-profile-editor': ('edd_profile_editor', 'raw', None, None),
     'bdt-easy-digital-purchase-history': ('purchase_history', 'raw', None, None),
@@ -125,7 +128,17 @@ FOOEVENTS = r"""		$parts = array();
 		$shortcode = '[fooevents_calendar' . ( $parts ? ' ' . implode( ' ', $parts ) : '' ) . ']';
 """
 
-EXTRA = {'bdt-we-form': WE_FORM, 'fooevents-calendar': FOOEVENTS}
+# Páginas de WooCommerce por su shortcode; la ficha de producto exige un ID (el contexto actual no se resuelve aquí).
+WC_ELEMENTS = r"""		$element   = (string) ( $s['element'] ?? '' );
+		$shortcode = '';
+		if ( in_array( $element, array( 'woocommerce_cart', 'woocommerce_checkout', 'woocommerce_order_tracking' ), true ) ) {
+			$shortcode = '[' . $element . ' ]';
+		} elseif ( 'product_page' === $element && absint( $s['product_id'] ?? 0 ) ) {
+			$shortcode = Digitalisimo\Elements\Legacy\Translator::shortcode( 'product_page', array( 'id' => absint( $s['product_id'] ) ) );
+		}
+"""
+
+EXTRA = {'bdt-we-form': WE_FORM, 'fooevents-calendar': FOOEVENTS, 'bdt-wc-elements': WC_ELEMENTS}
 
 
 _STYLES = None

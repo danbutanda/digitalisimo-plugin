@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.110
+# DIGITALÍSIMO Elements 4.3.0.111
+
+- 4.3.0.111: decisión verificable para los 263 IDs de Element Pack (`docs/element-pack-decisions.md`, generado desde `docs/migration-map.json` y exigido por `tests/elements-legacy-decisions.mjs`). Nuevos adaptadores: Download Monitor, carrito y pago de Easy Digital Downloads y páginas de WooCommerce (WC Elements) por sus shortcodes oficiales, y Calendly e Iframe sobre el widget HTML de Elementor con el mismo marcado.
 
 - 4.3.0.110: adaptadores de Element Pack para Countdown, Flip Box, Advanced Counter, Post Title, Post Featured Image, Post Content (extracto), Post Info y Post Comments sobre sus equivalentes de PRO Elements y Elementor, con estilos heredados y migración reversible; los widgets de tema reciben explícitas sus etiquetas dinámicas.
 

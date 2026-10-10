@@ -210,6 +210,12 @@ namespace {
 
 	check_adapter( '[bbp-single-topic id="15"]' === $sc( 'bdt-bbpress-single-topic', array( 'bbpress_topic_id' => '15' ) ) && '[bbp-topic-form forum_id="4"]' === $sc( 'bdt-bbpress-topic-form', array( 'bbpress_forum_id' => '4' ) ) && '[bbp-topic-form ]' === $sc( 'bdt-bbpress-topic-form', array() ) && '[bbp-stats]' === $sc( 'bdt-bbpress-stats', array() ), 'bbPress usa sus propios shortcodes.' );
 
+	check_adapter( '[download id="5"]' === $sc( 'bdt-download-monitor', array( 'file_id' => '5' ) ) && '[download_cart]' === $sc( 'bdt-edd-cart', array() ) && '[woocommerce_cart ]' === $sc( 'bdt-wc-elements', array( 'element' => 'woocommerce_cart' ) ) && '[product_page id="9"]' === $sc( 'bdt-wc-elements', array( 'element' => 'product_page', 'product_id' => '9' ) ) && '' === $sc( 'bdt-wc-elements', array( 'element' => 'product_page' ) ), 'Descargas, EDD y páginas de WooCommerce usan sus shortcodes.' );
+	$cal = Translator::translate( 'bdt-calendly', array( 'calendly_username' => 'https://calendly.com/equipo/', 'calendly_time' => '30min', 'text_color' => '#AbC', 'event_type_details' => 'yes' ) );
+	check_adapter( false !== strpos( $cal['html'], 'data-url="https://calendly.com/equipo/30min?hide_event_type_details=1&#038;text_color=aabbcc"' ) || false !== strpos( $cal['html'], 'https://calendly.com/equipo/30min?hide_event_type_details=1' ), 'Calendly arma la misma URL que Element Pack.' );
+	$ifr = Translator::translate( 'bdt-iframe', array( 'source' => array( 'url' => 'https://s.test/x' ), 'show_responsive_ratio' => 'yes', 'responsive_ratio_size' => array( 'width' => 4, 'height' => 3 ) ) );
+	check_adapter( false !== strpos( $ifr['html'], 'src="https://s.test/x"' ) && false !== strpos( $ifr['html'], 'aspect-ratio:4/3' ) && false !== strpos( $ifr['html'], 'loading="lazy"' ) && ! isset( $ifr['source'] ), 'El iframe conserva URL, proporción y carga diferida.' );
+
 	// Condiciones como Elementor: comparación estricta, listas, negación y subclaves.
 	$act = Translator::active( array( 'a' => 'x', 'b' => '1', 'c' => '2', 'd' => array( 'url' => '' ), 'e' => '3' ), array( 'b' => array( 'a' => 'x' ), 'c' => array( 'a!' => 'x' ), 'd' => array( 'a' => array( 'y', 'x' ) ), 'e' => array( 'd[url]!' => '' ) ) );
 	check_adapter( '1' === $act['b'] && null === $act['c'] && array( 'url' => '' ) === $act['d'] && null === $act['e'], 'Las condiciones deben evaluarse como en Elementor.' );

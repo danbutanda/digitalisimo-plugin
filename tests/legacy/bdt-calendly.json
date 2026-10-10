@@ -1,0 +1,11 @@
+{
+  "chosen": {
+    "calendly_username": "digitalisimo",
+    "calendly_time": "30min",
+    "text_color": "#333333",
+    "_expect_html": [
+      "class=\"calendly-inline-widget\" data-url=\"https://calendly.com/digitalisimo/30min?text_color=333333\"",
+      "assets.calendly.com/assets/external/widget.js"
+    ]
+  }
+}
