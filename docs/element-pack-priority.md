@@ -24,11 +24,11 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 20. Fancy Slider — base propia editorial con motor compartido; enlaces, ALT y navegación del editor alineados desde 4.3.0.87, renderizado Multisite comprobado; transiciones avanzadas pendientes
 21. Fancy Tabs — base propia accesible con icono/imagen y script compartido; editor con todos los paneles y enlaces desde 4.3.0.88, renderizado Multisite comprobado; skins pendientes
 22. Featured Box — base propia con diseños sobre imagen/dividido y contenido semántico; editor con ALT, enlaces e icono desde 4.3.0.88, renderizado Multisite comprobado; skins pendientes
-23. Google Reviews — base propia con Places API (New), clave sitio/red y carga diferida; paridad visual y pruebas reales en Multisite pendientes
+23. Google Reviews — base propia con Places API (New), clave sitio/red y carga diferida; renderizado instalado Multisite comprobado con clave de prueba, respuesta real de Places y paridad visual pendientes
 24. Icon Mobile Menu — base propia con cuatro estilos y tooltips CSS; vista previa y enlaces externos alineados desde 4.3.0.89, renderizado Multisite comprobado; paridad visual pendiente
 25. Icon Nav — base propia con enlaces verticales y menú del sitio opcional; vista previa de marca y enlaces alineada desde 4.3.0.89, renderizado Multisite comprobado; skins y paridad visual pendientes
 26. Lottie Image — para contenido nuevo usar el widget `lottie` ya incluido en Elements; conversión de documentos `bdt-lottie-image` pendiente
-27. Logo Grid — base propia; paridad pendiente
+27. Logo Grid — base propia; desde 4.3.0.90 no fuerza prioridad de carga por índice y protege enlaces externos, renderizado Multisite comprobado; paridad visual pendiente
 28. Navbar — para contenido nuevo usar el widget `nav-menu` ya incluido en Elements; autoocultación, skins y conversión legacy pendientes
 29. Notification — base propia con avisos flotantes o fijos y activación configurable; plantillas, skins y Multisite pendientes
 30. Offcanvas — para contenido nuevo usar el widget `off-canvas` ya incluido en Elements; conversión de documentos `bdt-offcanvas` pendiente

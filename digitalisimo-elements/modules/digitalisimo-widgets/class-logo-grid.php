@@ -71,12 +71,12 @@ final class Logo_Grid_Widget extends \Elementor\Widget_Base {
 			if ( '' === $alt ) { $alt = $item['name']; }
 			if ( '' === $alt && ! empty( $image['alt'] ) ) { $alt = trim( (string) $image['alt'] ); }
 			if ( '' === $alt && $id ) { $alt = trim( (string) get_the_title( $id ) ); }
-			$attrs = array( 'class' => 'digi-logo-grid__image', 'alt' => $alt, 'decoding' => 'async', 'loading' => 0 === $index ? 'eager' : 'lazy' );
+			$attrs = array( 'class' => 'digi-logo-grid__image', 'alt' => $alt, 'decoding' => 'async' );
 			$html = $id ? wp_get_attachment_image( $id, $size, false, $attrs ) : '';
 			if ( ! $html ) {
 				$dimensions = '';
 				if ( ! empty( $image['width'] ) && ! empty( $image['height'] ) ) { $dimensions = ' width="' . absint( $image['width'] ) . '" height="' . absint( $image['height'] ) . '"'; }
-				$html = '<img class="digi-logo-grid__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async" loading="' . ( 0 === $index ? 'eager' : 'lazy' ) . '"' . $dimensions . '>';
+				$html = '<img class="digi-logo-grid__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async"' . $dimensions . '>';
 			}
 			$link = $item['link'];
 			$linked = ! empty( $link['url'] );
@@ -85,6 +85,7 @@ final class Logo_Grid_Widget extends \Elementor\Widget_Base {
 			if ( $linked ) {
 				$key = 'logo_grid_link_' . (int) $index;
 				$this->add_link_attributes( $key, $link );
+				if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( $key, 'rel', array( 'noopener', 'noreferrer' ) ); }
 				echo '<a class="digi-logo-grid__card" ' . $this->get_render_attribute_string( $key );
 				if ( '' === $alt ) { echo ' aria-label="Visitar marca"'; }
 				echo '>';
@@ -108,10 +109,10 @@ final class Logo_Grid_Widget extends \Elementor\Widget_Base {
 		items = _.filter( items, function( item ) { return item && item.image && item.image.url; } );
 		var layout = _.contains( ['box','border','tictactoe'], settings.layout ) ? settings.layout : 'box'; #>
 		<# if ( items.length ) { #><div class="digi-logo-grid digi-logo-grid--{{ layout }}<# if ( settings.logo_size_cover === 'yes' ) { #> digi-logo-grid--cover<# } #>"><ul class="digi-logo-grid__list">
-		<# _.each( items, function( item, index ) { var image = item.image; var name = item.name || ''; var alt = name || image.alt || ''; var link = item.link && item.link.url ? item.link : null; var caption = item.logo_tooltip === 'yes' && ( name || item.description ); var rel = link ? [link.is_external ? 'noopener noreferrer' : '',link.nofollow ? 'nofollow' : ''].join(' ').trim() : ''; #>
+		<# _.each( items, function( item ) { var image = item.image; var name = item.name || ''; var alt = name || image.alt || ''; var link = item.link && item.link.url ? item.link : null; var caption = item.logo_tooltip === 'yes' && ( name || item.description ); var rel = link ? [link.nofollow ? 'nofollow' : '',link.is_external ? 'noopener noreferrer' : ''].join(' ').trim() : ''; #>
 		<li class="digi-logo-grid__item"><figure class="digi-logo-grid__figure">
 		<# if ( link ) { #><a class="digi-logo-grid__card" href="{{ link.url }}" <# if ( link.is_external ) { #>target="_blank"<# } #> <# if ( rel ) { #>rel="{{ rel }}"<# } #> <# if ( ! alt ) { #>aria-label="Visitar marca"<# } #>><# } else { #><div class="digi-logo-grid__card"><# } #>
-		<img class="digi-logo-grid__image" src="{{ image.url }}" alt="{{ alt }}" decoding="async" loading="{{ index === 0 ? 'eager' : 'lazy' }}" <# if ( image.width && image.height ) { #>width="{{ image.width }}" height="{{ image.height }}"<# } #>>
+		<img class="digi-logo-grid__image" src="{{ image.url }}" alt="{{ alt }}" decoding="async" <# if ( image.width && image.height ) { #>width="{{ image.width }}" height="{{ image.height }}"<# } #>>
 		<# if ( link ) { #></a><# } else { #></div><# } #>
 		<# if ( caption ) { #><figcaption class="digi-logo-grid__caption<# if ( link ) { #> digi-logo-grid__caption--tooltip<# } #>"><# if ( name ) { #><strong>{{ name }}</strong><# } #><# if ( item.description ) { #><span>{{ item.description }}</span><# } #></figcaption><# } #>
 		</figure></li><# } ); #></ul></div><# } #>

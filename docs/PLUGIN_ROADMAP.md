@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Logo Grid y validación Google Reviews | En validación · 4.3.0.90 | Logo Grid no fuerza `loading` por índice y protege enlaces externos; Google Reviews se renderizó con clave de prueba en los dos sitios de la red. | Pruebas PHP, suite de seis módulos, ZIP íntegro y renderizado Elementor Multisite correctos. Faltan publicación, API real de Places, interacción del editor y comparación visual. |
+
 | DIGITALÍSIMO Elements · Icon Mobile Menu e Icon Nav | Publicado · 4.3.0.89 · `v2026.10.10.334` | Enlaces externos seguros y vista previa con tooltips, atributos de enlace e imagen de marca. | Prueba PHP, suite de seis módulos, ZIP íntegro y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#657` y publicación `#334` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.89.zip`. Siguen pendientes comparación visual e interacción del editor. |
 
 | DIGITALÍSIMO Elements · Fancy Tabs y Featured Box | Publicado · 4.3.0.88 · `v2026.10.10.333` | Vista previa completa con paneles, iconos, ALT y enlaces; enlaces externos seguros. | Pruebas PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#655` y publicación `#333` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.88.zip`. Faltan prueba interactiva del editor y comparación visual. |

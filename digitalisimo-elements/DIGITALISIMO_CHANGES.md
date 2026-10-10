@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.89
+# DIGITALÍSIMO Elements 4.3.0.90
+
+- 4.3.0.90: Logo Grid deja a WordPress decidir la carga de imágenes según la página y protege enlaces externos. Google Reviews se validó con Elementor instalado en el sitio principal y un subsitio Multisite, sin exponer la clave; no se consultó la API real.
 
 - 4.3.0.89: Icon Mobile Menu e Icon Nav protegen los enlaces externos y alinean en el editor los tooltips, atributos de enlaces e imagen de marca con el frontend.
 

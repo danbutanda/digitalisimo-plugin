@@ -1726,7 +1726,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own Places API (New) widget with site/network key and deferred fetch; visual parity and multisite runtime pending"
+      "status": "own Places API (New) widget with site/network key and deferred fetch; installed multisite rendering verified with test key in 4.3.0.90; real Places response, visual parity and legacy conversion pending"
     },
     "bdt-gravity-form": {
       "target": null,
@@ -2046,7 +2046,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new independent CSS grid widget implemented; legacy adapter and visual comparison pending"
+      "status": "independent CSS grid widget; WordPress controls image loading and external links are protected since 4.3.0.90; installed multisite rendering verified; legacy adapter and visual comparison pending"
     },
     "bdt-lottie-icon-box": {
       "target": null,
