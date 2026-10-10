@@ -68,6 +68,8 @@ Lote 9 (4.3.0.104): Slider pasa a `slides` de PRO Elements; las diapositivas de 
 
 Lote 10 (4.3.0.105): Post Grid, Post List y Single Post pasan a `posts` con piel propia (categorías y etiquetas incluidas) y Sub Menu al Menú vertical. Diferencias declaradas: comentarios como «1 Comment», autor sin enlace y paginación con la URL de la página; sin imagen destacada no hay imagen de muestra; Single Post sin entrada no muestra el aviso; las nueve pieles de Post Grid se presentan como rejilla clásica. Corrección transversal: el envoltorio de cada adaptador se presenta como el widget de destino, y el analizador ya no toma defaults comentados.
 
+Lote 11 (4.3.0.106): Offcanvas se RECONSTRUYE como widget propio `digitalisimo-offcanvas`. Diferencias declaradas: el botón es un `<button>` y no un enlace «#»; las animaciones «push» y «reveal» se presentan como deslizamiento; las plantillas de AnyWhere Elementor no se muestran; el desplazamiento y la rotación del botón no se trasladan.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

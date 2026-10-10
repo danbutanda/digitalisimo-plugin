@@ -1,0 +1,32 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "El botón de Element Pack era un enlace «#»; el propio es un botón que abre el diálogo"
+    }
+  },
+  "template": {
+    "source": "elementor",
+    "template_id": "__TEMPLATE__",
+    "custom_content_before_switcher": "yes",
+    "custom_content_before": "<p>Antes del contenido</p>",
+    "offcanvas_flip": "right",
+    "offcanvas_close_button_text": "Cerrar",
+    "button_text": "Abrir panel",
+    "offcanvas_width": {
+      "unit": "px",
+      "size": 420
+    },
+    "_known": {
+      "links": "El botón de Element Pack era un enlace «#»; el propio es un botón que abre el diálogo"
+    },
+    "_expect_css": [
+      "width:420px"
+    ]
+  },
+  "selector": {
+    "layout": "custom",
+    "offcanvas_custom_id": "#abrir-panel",
+    "source": "elementor",
+    "template_id": "__TEMPLATE__"
+  }
+}

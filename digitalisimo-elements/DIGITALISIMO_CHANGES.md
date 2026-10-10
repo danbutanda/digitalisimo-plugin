@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.105
+# DIGITALÍSIMO Elements 4.3.0.106
+
+- 4.3.0.106: nuevo widget Panel lateral (`digitalisimo-offcanvas`): se abre con su botón o con cualquier elemento indicado por selector, muestra una plantilla publicada, una barra lateral de widgets o texto, y es un diálogo con foco atrapado, cierre con Escape, con el fondo o con su botón, y retorno del foco. Adaptador de Element Pack Offcanvas sobre él, con estilos heredados y migración reversible.
 
 - 4.3.0.105: adaptadores de Element Pack para Post Grid, Post List y Single Post sobre `posts` (consulta traducida a sus campos `posts_*`, términos por `term_taxonomy_id`, piel «classic» propia que además muestra categorías y etiquetas) y para Sub Menu sobre el Menú vertical, que gana descripción y distintivo por elemento, encabezado visible, columnas y niveles a mostrar. Todos los adaptadores presentan su envoltorio como el widget de destino (`elementor-widget-{destino}` y `data-widget_type`), de modo que la hoja y los scripts de PRO Elements (Swiper de Slides, SmartMenus, índice, Lottie, cargar más) se aplican. El análisis de la referencia ignora los defaults comentados: se corrigen Google Reviews y Table Of Content y aparecen controles de estilo antes omitidos en Accordion y Content Switcher.
 

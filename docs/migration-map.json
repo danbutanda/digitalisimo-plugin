@@ -2243,16 +2243,17 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-notification.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-offcanvas": {
-      "target": null,
+      "target": "digitalisimo-offcanvas",
       "engine": "interaction",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 30,
-      "existing_elements_widget_candidate": "digitalisimo-elements/modules/off-canvas/widgets/off-canvas.php",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/digitalisimo-widgets/class-offcanvas.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "share existing ElementorPro off-canvas for new content; external content sources and legacy conversion pending"
+      "status": "share existing ElementorPro off-canvas for new content; external content sources and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.106 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-offcanvas.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.106"
     },
     "bdt-open-street-map": {
       "target": null,

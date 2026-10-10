@@ -181,6 +181,12 @@ namespace {
 	$single = Translator::translate( 'bdt-single-post', array( 'post_list' => '42' ) );
 	check_adapter( 'by_id' === $single['posts_post_type'] && array( '42' ) === $single['posts_posts_ids'] && 1 === $single['classic_posts_per_page'] && array( '0' ) === Translator::translate( 'bdt-single-post', array() )['posts_posts_ids'], 'Single Post consulta sólo la entrada elegida, o ninguna.' );
 
+	// Offcanvas: botón o selector externo, plantilla o barra lateral y comportamiento del panel.
+	$oc = Translator::translate( 'bdt-offcanvas', array( 'layout' => 'custom', 'offcanvas_custom_id' => '.abrir', 'source' => 'elementor', 'template_id' => '8', 'offcanvas_flip' => 'right', 'offcanvas_bg_close' => '', 'offcanvas_width' => array( 'unit' => 'px', 'size' => 400 ), 'button_align' => 'center' ) );
+	check_adapter( 'selector' === $oc['trigger'] && '.abrir' === $oc['trigger_selector'] && 'template' === $oc['source'] && '8' === $oc['template_id'] && 'right' === $oc['side'] && '' === $oc['close_on_overlay'] && 'yes' === $oc['close_on_escape'] && 400 === $oc['panel_width']['size'] && 'center' === $oc['button_align'] && ! isset( $oc['offcanvas_width'], $oc['layout'] ), 'Offcanvas debe traducir apertura, contenido, lado, cierre y ancho.' );
+	$oc = Translator::translate( 'bdt-offcanvas', array() );
+	check_adapter( 'button' === $oc['trigger'] && 'sidebar' === $oc['source'] && '' === $oc['sidebar'] && '' === $oc['overlay'] && '' === $oc['content_before'] && 'Offcanvas' === $oc['button_text'] && 'fas fa-bars' === $oc['button_icon']['value'] && 'flex-start' === $oc['button_align'], 'Los defaults de Offcanvas muestran su botón sin oscurecer el fondo.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

@@ -152,6 +152,7 @@ final class Adapters {
 		'bdt-vertical-menu' => Bdt_VerticalMenu::class,
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
+		'bdt-offcanvas' => Bdt_Offcanvas::class,
 		'bdt-slider' => Bdt_Slider::class,
 		'bdt-post-grid' => Bdt_PostGrid::class,
 		'bdt-post-list' => Bdt_PostList::class,
@@ -378,4 +379,7 @@ if ( class_exists( '\\ElementorPro\\Modules\\Posts\\Widgets\\Posts' ) && class_e
 	final class Bdt_PostGrid extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-grid'; }
 	final class Bdt_PostList extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-list'; }
 	final class Bdt_SinglePost extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-single-post'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Offcanvas_Widget' ) ) {
+	final class Bdt_Offcanvas extends \Digitalisimo\Elements\Offcanvas_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-offcanvas'; }
 }
