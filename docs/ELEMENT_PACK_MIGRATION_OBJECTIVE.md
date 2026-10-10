@@ -62,6 +62,8 @@ Extensiones en 4.3.0.101: `class-extensions.php` registra en widgets, secciones,
 
 Lote 7 (4.3.0.102): Switcher y Tabs pasan a Content Switcher (contenido, plantilla o sección enlazada); Lottie Image, Price List, Price Table, Search, Social Share, Table Of Content, User Login y Profile Card pasan a los widgets de PRO Elements incluidos en Elements. Diferencias declaradas: las pestañas son botones y no enlaces `#`, el formulario de acceso usa el texto «Lost your password?» de PRO Elements y LinkedIn conserva la capitalización del widget de destino.
 
+Lote 8 (4.3.0.103): Vertical Menu se RECONSTRUYE como widget propio `digitalisimo-vertical-menu`, que también recibe Slinky Vertical Menu en modo paneles; Navbar pasa a `nav-menu`. Diferencias declaradas: un padre con destino «#» pasa a botón que abre su submenú; Navbar sin menú elegido ya no muestra el aviso de Element Pack; PRO Elements repite el menú en su versión desplegable oculta; la autoocultación al desplazar y el modo fijo (sticky) no se trasladan.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

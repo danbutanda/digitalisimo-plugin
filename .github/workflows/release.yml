@@ -62,6 +62,7 @@ jobs:
           php tests/elements-product-grid.php
           php tests/elements-qr-code.php
           php tests/elements-table.php
+          php tests/elements-vertical-menu.php
           php tests/elements-scroll-button.php
           php tests/elements-accordion.php
           php tests/elements-advanced-button.php

@@ -1,0 +1,35 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Sin menú elegido Element Pack mostraba un aviso para elegirlo; el menú de PRO Elements no muestra nada sin menús válidos o el primero con elementos",
+      "links": "Sin menú elegido Element Pack mostraba un aviso para elegirlo; el menú de PRO Elements no muestra nada sin menús válidos o el primero con elementos"
+    }
+  },
+  "menu": {
+    "navbar": "principal",
+    "align": "center",
+    "menu_parent_arrow": "yes",
+    "_known": {
+      "text": "PRO Elements repite el menú en su versión desplegable para móviles, oculta en escritorio",
+      "links": "PRO Elements repite el menú en su versión desplegable para móviles, oculta en escritorio"
+    }
+  },
+  "individual": {
+    "navbar": "principal",
+    "individuL_menu_style": "yes",
+    "repeater_field": [
+      {
+        "_id": "r1",
+        "menu_number": 2,
+        "menu_color": "#ff0000"
+      }
+    ],
+    "_expect_css": [
+      "li:nth-child(2) > .elementor-item{color:#ff0000;}"
+    ],
+    "_known": {
+      "text": "PRO Elements repite el menú en su versión desplegable para móviles, oculta en escritorio",
+      "links": "PRO Elements repite el menú en su versión desplegable para móviles, oculta en escritorio"
+    }
+  }
+}

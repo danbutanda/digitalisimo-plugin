@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.102
+# DIGITALÍSIMO Elements 4.3.0.103
+
+- 4.3.0.103: nuevo widget Menú vertical (`digitalisimo-vertical-menu`): menú de WordPress o elementos escritos con niveles, submenús plegables o en paneles con «Atrás», botones con `aria-expanded`, rama actual abierta y todo visible sin JavaScript. Adaptadores de Element Pack para Vertical Menu y Slinky Vertical Menu (sobre el widget nuevo) y Navbar (sobre `nav-menu`, con los colores por posición pasados al CSS del elemento), con estilos heredados y migración reversible.
 
 - 4.3.0.102: adaptadores de Element Pack para Switcher y Tabs (sobre Content Switcher propio), Lottie Image, Price List, Price Table, Search, Social Share, Table Of Content, User Login y Profile Card (sobre los widgets de PRO Elements incluidos en Elements), con estilos heredados y migración reversible. Content Switcher pasa su contenido por el filtro de texto del editor.
 

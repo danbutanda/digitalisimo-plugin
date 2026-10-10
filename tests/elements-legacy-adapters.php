@@ -144,6 +144,19 @@ namespace {
 	$card = Translator::translate( 'bdt-profile-card', array( 'profile_name' => 'Ana' ) );
 	check_adapter( 'custom' === $card['source'] && 'Ana' === $card['author_name'] && 'Follow' === $card['link_text'] && ! isset( $card['profile_posts'] ), 'Profile Card pasa a un cuadro de autor propio.' );
 
+	// Menús: «child_start/child_end» pasan a niveles y Navbar conserva alineación y colores por posición.
+	$vm = Translator::translate( 'bdt-vertical-menu', array() );
+	check_adapter( 'static' === $vm['source'] && 'yes' === $vm['parent_toggles'] && 'collapse' === $vm['mode'] && array( '0', '0', '1', '1', '2', '2', '2', '1', '0' ) === array_column( $vm['items'], 'item_level' ) && array( 'url' => '#' ) === $vm['items'][0]['item_link'], 'Las filas de ejemplo de Vertical Menu deben anidarse por nivel con su enlace «#».' );
+	$vm = Translator::translate( 'bdt-vertical-menu', array( 'dynamic_menu' => 'yes', 'navbar' => 'principal', 'submenu_type' => 'inner' ) );
+	check_adapter( 'menu' === $vm['source'] && 'principal' === $vm['menu'] && '' === $vm['parent_toggles'] && ! isset( $vm['navbar'], $vm['menus'] ), 'El menú de WordPress y el padre con enlace deben conservarse.' );
+	$slinky = Translator::translate( 'bdt-slinky-vertical-menu', array() );
+	check_adapter( 'drill' === $slinky['mode'] && '' === $slinky['parent_toggles'], 'Slinky abre cada submenú en su panel y conserva el enlace del padre.' );
+	$nav = Translator::translate( 'bdt-navbar', array( 'navbar' => 'principal', 'align' => 'center', 'align_mobile' => 'flex-end', 'individuL_menu_style' => 'yes', 'custom_css' => 'selector{gap:0}', 'repeater_field' => array( array( 'menu_number' => 2, 'menu_color' => '#ff0000', 'menu_hover_background' => 'red;}body{x' ) ) ) );
+	check_adapter( 'principal' === $nav['menu'] && 'center' === $nav['align_items'] && 'end' === $nav['align_items_mobile'] && 'none' === $nav['dropdown'] && 'none' === $nav['pointer'] && '' === $nav['submenu_icon']['value'], 'Navbar debe pasar a un menú horizontal sin hamburguesa ni flecha.' );
+	check_adapter( "selector{gap:0}\nselector .elementor-nav-menu--main > .elementor-nav-menu > li:nth-child(2) > .elementor-item{color:#ff0000;}" === $nav['custom_css'] && ! isset( $nav['repeater_field'] ), 'Los colores por posición pasan al CSS del elemento y sólo con valores de color válidos.' );
+	$plain = Translator::translate( 'bdt-navbar', array( 'menu_parent_arrow' => 'yes' ) );
+	check_adapter( '' === $plain['menu'] && ! isset( $plain['custom_css'], $plain['submenu_icon'] ), 'Sin estilo individual no se añade CSS y la flecha queda la del menú.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

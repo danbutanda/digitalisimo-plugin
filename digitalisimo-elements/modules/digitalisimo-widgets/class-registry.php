@@ -51,6 +51,11 @@ final class Widget_Registry {
 			'class' => Icon_Nav_Widget::class,
 			'css'   => 'assets/css/icon-nav.css',
 		),
+		'digitalisimo-vertical-menu' => array(
+			'file'  => 'class-vertical-menu.php',
+			'class' => Vertical_Menu_Widget::class,
+			'css'   => 'assets/css/vertical-menu.css',
+		),
 		'digitalisimo-icon-mobile-menu' => array(
 			'file'  => 'class-icon-mobile-menu.php',
 			'class' => Icon_Mobile_Menu_Widget::class,
@@ -259,6 +264,9 @@ final class Widget_Registry {
 		}
 		if ( ! wp_script_is( 'digitalisimo-google-reviews', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-google-reviews', plugins_url( 'assets/js/google-reviews.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+		}
+		if ( ! wp_script_is( 'digitalisimo-vertical-menu', 'registered' ) ) {
+			wp_register_script( 'digitalisimo-vertical-menu', plugins_url( 'assets/js/vertical-menu.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}
 		if ( ! wp_script_is( 'digitalisimo-content-switcher', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-content-switcher', plugins_url( 'assets/js/content-switcher.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );

@@ -133,6 +133,9 @@ final class Adapters {
 		'bdt-table-of-content' => Bdt_TableOfContent::class,
 		'bdt-user-login' => Bdt_UserLogin::class,
 		'bdt-profile-card' => Bdt_ProfileCard::class,
+		'bdt-navbar' => Bdt_Navbar::class,
+		'bdt-vertical-menu' => Bdt_VerticalMenu::class,
+		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 	);
 
 	public static function element_pack_active() {
@@ -290,4 +293,11 @@ if ( class_exists( '\\ElementorPro\\Modules\\Forms\\Widgets\\Login' ) ) {
 }
 if ( class_exists( '\\ElementorPro\\Modules\\ThemeElements\\Widgets\\Author_Box' ) ) {
 	final class Bdt_ProfileCard extends \ElementorPro\Modules\ThemeElements\Widgets\Author_Box { use Legacy_Adapter; const LEGACY_ID = 'bdt-profile-card'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\NavMenu\\Widgets\\Nav_Menu' ) ) {
+	final class Bdt_Navbar extends \ElementorPro\Modules\NavMenu\Widgets\Nav_Menu { use Legacy_Adapter; const LEGACY_ID = 'bdt-navbar'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Vertical_Menu_Widget' ) ) {
+	final class Bdt_VerticalMenu extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-vertical-menu'; }
+	final class Bdt_SlinkyVerticalMenu extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-slinky-vertical-menu'; }
 }

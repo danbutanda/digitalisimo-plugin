@@ -1,0 +1,20 @@
+.digi-vertical-menu{width:100%}
+.digi-vertical-menu__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.digi-vertical-menu__row{display:flex;align-items:stretch;color:inherit}
+.digi-vertical-menu__link{flex:1 1 auto;display:flex;align-items:center;gap:.5em;min-height:44px;padding:.6em 1em;color:inherit;text-decoration:none;background:none;border:0;font:inherit;text-align:start;cursor:pointer}
+a.digi-vertical-menu__link:focus-visible,.digi-vertical-menu button:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
+.digi-vertical-menu__icon{display:inline-flex;line-height:1}
+.digi-vertical-menu__icon svg{width:1em;height:1em;fill:currentColor}
+.digi-vertical-menu__toggle{flex:0 0 44px;min-height:44px;display:flex;align-items:center;justify-content:center;padding:0;background:none;border:0;color:inherit;cursor:pointer}
+.digi-vertical-menu__arrow{display:inline-block;width:.5em;height:.5em;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .2s ease}
+.digi-vertical-menu__link .digi-vertical-menu__arrow{margin-inline-start:auto}
+[aria-expanded="true"] .digi-vertical-menu__arrow,[aria-expanded="true"].digi-vertical-menu__toggle .digi-vertical-menu__arrow{transform:rotate(-135deg)}
+.digi-vertical-menu--collapse .digi-vertical-menu__sub{padding-inline-start:1em}
+/* Sin JavaScript todo queda visible; al iniciar, los submenús cerrados se ocultan. */
+.digi-vertical-menu.is-ready .digi-vertical-menu__item.has-children:not(.is-open)>.digi-vertical-menu__sub{display:none}
+.digi-vertical-menu--drill.is-ready .digi-vertical-menu__arrow{transform:rotate(-45deg)}
+.digi-vertical-menu--drill.is-ready .is-drilled>.digi-vertical-menu__item:not(.is-open),.digi-vertical-menu--drill.is-ready .is-drilled>.digi-vertical-menu__item.is-open>.digi-vertical-menu__row,.digi-vertical-menu--drill.is-ready .is-drilled>.digi-vertical-menu__back{display:none}
+.digi-vertical-menu--drill:not(.is-ready) .digi-vertical-menu__back{display:none}
+.digi-vertical-menu__back-button{display:flex;align-items:center;gap:.5em;width:100%;min-height:44px;padding:.6em 1em;background:none;border:0;color:inherit;font:inherit;font-weight:600;text-align:start;cursor:pointer}
+.digi-vertical-menu__back-button::before{content:"";width:.5em;height:.5em;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg)}
+@media (prefers-reduced-motion:reduce){.digi-vertical-menu__arrow{transition:none}}

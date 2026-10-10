@@ -1,0 +1,15 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Los paneles propios añaden un botón «Atrás» con el nombre del padre en cada submenú",
+      "links": "Un padre con destino «#» pasa a botón que abre su panel, como hacía Slinky al pulsarlo"
+    }
+  },
+  "dynamic": {
+    "dynamic_menu": "yes",
+    "navbar": "principal",
+    "_known": {
+      "text": "Los paneles propios añaden un botón «Atrás» con el nombre del padre en cada submenú"
+    }
+  }
+}

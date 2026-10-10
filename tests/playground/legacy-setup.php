@@ -18,5 +18,17 @@ foreach ( array( 1, 2 ) as $blog ) {
 	foreach ( array( 'element_pack_active_modules', 'element_pack_elementor_extend', 'element_pack_third_party_widget' ) as $option ) {
 		update_option( $option, $modules );
 	}
+	// Menú de WordPress con un submenú para los widgets de navegación.
+	if ( ! wp_get_nav_menu_object( 'principal' ) ) {
+		$menu = wp_create_nav_menu( 'Principal' );
+		$add  = static function ( $title, $path, $parent = 0 ) use ( $menu ) {
+			return wp_update_nav_menu_item( $menu, 0, array( 'menu-item-title' => $title, 'menu-item-url' => home_url( $path ), 'menu-item-status' => 'publish', 'menu-item-type' => 'custom', 'menu-item-parent-id' => $parent ) );
+		};
+		$add( 'Inicio', '/' );
+		$services = $add( 'Servicios', '/servicios/' );
+		$add( 'Diseño web', '/servicios/web/', $services );
+		$add( 'SEO', '/servicios/seo/', $services );
+		$add( 'Contacto', '/contacto/' );
+	}
 	restore_current_blog();
 }

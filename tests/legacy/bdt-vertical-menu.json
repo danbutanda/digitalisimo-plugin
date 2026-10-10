@@ -1,0 +1,69 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "Un padre con destino «#» pasa a botón que abre su submenú, como hacía metisMenu al pulsarlo"
+    }
+  },
+  "custom": {
+    "submenu_type": "inner",
+    "menus": [
+      {
+        "_id": "a",
+        "menu_title": "Inicio",
+        "menu_type": "item",
+        "menu_link": {
+          "url": "https://example.test/inicio/",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      },
+      {
+        "_id": "b",
+        "menu_title": "Servicios",
+        "menu_type": "child_start",
+        "menu_link": {
+          "url": "https://example.test/servicios/",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      },
+      {
+        "_id": "c",
+        "menu_title": "Web",
+        "menu_type": "item",
+        "menu_link": {
+          "url": "https://example.test/web/",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      },
+      {
+        "_id": "d",
+        "menu_type": "child_end"
+      },
+      {
+        "_id": "e",
+        "menu_title": "Contacto",
+        "menu_type": "item",
+        "menu_link": {
+          "url": "https://example.test/contacto/",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      }
+    ],
+    "menu_link_color": "#112233",
+    "_expect_css": [
+      "color:#112233"
+    ]
+  },
+  "dynamic": {
+    "dynamic_menu": "yes",
+    "navbar": "principal",
+    "submenu_type": "inner"
+  }
+}

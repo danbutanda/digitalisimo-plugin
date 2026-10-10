@@ -2184,7 +2184,7 @@
       "status": "pending"
     },
     "bdt-navbar": {
-      "target": null,
+      "target": "nav-menu",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
@@ -2193,7 +2193,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "share existing ElementorPro nav-menu for new content; auto-hide effects, visual parity and legacy conversion pending"
+      "status": "share existing ElementorPro nav-menu for new content; auto-hide effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-navbar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.103"
     },
     "bdt-news-ticker": {
       "target": null,
@@ -2816,16 +2817,17 @@
       "status": "pending"
     },
     "bdt-slinky-vertical-menu": {
-      "target": null,
+      "target": "digitalisimo-vertical-menu",
       "engine": "navigation",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 39,
-      "existing_elements_widget_candidate": "digitalisimo-elements/modules/nav-menu/widgets/nav-menu.php",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/digitalisimo-widgets/class-vertical-menu.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "nav-menu provides hierarchical WordPress menus for new content; sliding transitions, manual hierarchy and legacy conversion pending"
+      "status": "nav-menu provides hierarchical WordPress menus for new content; sliding transitions, manual hierarchy and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-slinky-vertical-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.103"
     },
     "bdt-social-proof": {
       "target": null,
@@ -3266,16 +3268,17 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-user-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100"
     },
     "bdt-vertical-menu": {
-      "target": null,
+      "target": "digitalisimo-vertical-menu",
       "engine": "navigation",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
       "user_priority_order": 52,
-      "existing_elements_widget_candidate": "nav-menu",
+      "existing_elements_widget_candidate": "digitalisimo-elements/modules/digitalisimo-widgets/class-vertical-menu.php",
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "existing-widget-for-new-content; no legacy conversion"
+      "status": "existing-widget-for-new-content; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-vertical-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.103"
     },
     "bdt-video-gallery": {
       "target": null,
