@@ -1,0 +1,23 @@
+{
+  "defaults": {},
+  "custom": {
+    "button_a_text": "Planes",
+    "button_a_link": {
+      "url": "https://example.com/planes"
+    },
+    "button_b_text": "Soporte",
+    "button_b_link": {
+      "url": "https://example.com/soporte",
+      "is_external": "on"
+    },
+    "show_middle_text": "yes",
+    "middle_text": "o",
+    "button_a_select_icon": {
+      "value": "fas fa-check",
+      "library": "fa-solid"
+    },
+    "dual_button_size": "lg",
+    "button_a_onclick": "yes",
+    "button_a_onclick_event": "alert(1)"
+  }
+}

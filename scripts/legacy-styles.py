@@ -219,7 +219,7 @@ def generate(legacy_id):
             if not new_selectors:
                 raise Unparsable('selector')
             entry = {'name': control['name'], 'type': ctype.lower(), 'responsive': control['kind'] == 'responsive', 'selectors': new_selectors}
-            for key in ('default', 'selectors_dictionary', 'condition', 'size_units', 'options'):
+            for key in ('default', 'desktop_default', 'tablet_default', 'mobile_default', 'selectors_dictionary', 'condition', 'size_units', 'options'):
                 raw = control.get('raw_' + key)
                 if raw:
                     entry[key] = literal(raw)

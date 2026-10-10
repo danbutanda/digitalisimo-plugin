@@ -2,6 +2,7 @@
 namespace {
 	define( 'ABSPATH', __DIR__ );
 	function wp_strip_all_tags( $text ) { return strip_tags( (string) $text ); }
+	function get_bloginfo( $what ) { return 'Mi sitio'; }
 	function check_adapter( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
 	$base = __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-legacy/';
@@ -62,6 +63,18 @@ namespace {
 	$asset = Translator::translate( 'bdt-advanced-divider', array( 'advanced_divider_type' => 'choose', 'advanced_divider_choose' => array( 'url' => 'https://s.test/wp-content/plugins/bdthemes-element-pack/assets/images/divider/heart.svg' ) ) );
 	$media = Translator::translate( 'bdt-advanced-divider', array( 'advanced_divider_type' => 'choose', 'advanced_divider_choose' => array( 'id' => 9, 'url' => 'https://s.test/wp-content/uploads/linea.svg' ) ) );
 	check_adapter( 'line' === $asset['divider_type'] && 'image' === $media['divider_type'] && 9 === $media['divider_image']['id'], 'Sólo se conservan imágenes propias del sitio, no recursos de Element Pack.' );
+
+	// Defaults de valor múltiple: las partes no guardadas toman el default, como en Elementor.
+	$grid = Translator::translate( 'bdt-brand-grid', array( 'show_website_link' => 'yes', 'brand_items' => array( array( 'link' => array( 'url' => 'https://a.test/' ) ) ) ) );
+	check_adapter( 'https://a.test/' === $grid['brand_items'][0]['link']['url'] && true === $grid['brand_items'][0]['link']['is_external'] && 'hover-item' === $grid['brand_event'] && 'medium' === $grid['image_size'], 'Los enlaces conservan externo y nofollow de Element Pack.' );
+	$hidden = Translator::translate( 'bdt-brand-carousel', array( 'show_website_link' => '', 'navigation' => 'dots', 'brand_items' => array( array( 'link' => array( 'url' => 'https://a.test/' ) ) ) ) );
+	check_adapter( ! isset( $hidden['brand_items'][0]['link'] ) && 'arrows' === $hidden['navigation'], 'Sin enlace visible en Element Pack, la marca no se enlaza; la navegación pasa a flechas.' );
+	$crumbs = Translator::translate( 'bdt-breadcrumbs', array( 'breadcrumbs_separator' => '»' ) );
+	check_adapter( 'custom' === $crumbs['separator'] && '»' === $crumbs['separator_custom'] && 'Mi sitio' === $crumbs['home_text'] && false !== strpos( $crumbs['__dynamic__']['home_text'], 'site-title' ) && 'yes' === $crumbs['show_home_only'], 'Breadcrumbs conserva separador libre y nombre dinámico del sitio.' );
+	$dual = Translator::translate( 'bdt-dual-button', array( 'dual_button_size' => 'xl', 'button_a_onclick' => 'yes', 'button_a_onclick_event' => 'alert(1)', 'button_b_select_icon' => array( 'value' => 'fas fa-x' ) ) );
+	check_adapter( 'large' === $dual['size'] && ! isset( $dual['button_a_onclick_event'] ) && 'fas fa-x' === $dual['button_b_icon']['value'] && 'Click Me' === $dual['button_a_text'], 'Dual Button traduce tamaño e iconos y descarta JavaScript libre.' );
+	$button = Translator::translate( 'bdt-advanced-button', array() );
+	check_adapter( 'solid' === $button['button_border_style'] && '#666' === $button['button_border_color'] && 'left' === $button['align'], 'Advanced Button repite el borde por defecto de Element Pack.' );
 
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );

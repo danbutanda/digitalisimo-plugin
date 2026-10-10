@@ -1,10 +1,30 @@
 {
-  "defaults": {},
+  "defaults": {
+    "_expect_css": [
+      "border-style:solid",
+      "border-color:#666"
+    ]
+  },
   "custom": {
-    "text": "Contrata ahora", "link": { "url": "https://example.com/contratar", "is_external": "on", "nofollow": "" },
-    "button_icon": { "value": "fas fa-arrow-right", "library": "fa-solid" }, "icon_align": "left",
-    "show_button_badge": "yes", "badge_text": "Nuevo", "button_effect": "c", "align": "center",
-    "button_text_color": "#ffffff", "background_color": "#0a7cff",
-    "_expect_css": [".digi-advanced-button"]
+    "text": "Contrata ahora",
+    "link": {
+      "url": "https://example.com/contratar",
+      "is_external": "on",
+      "nofollow": ""
+    },
+    "button_icon": {
+      "value": "fas fa-arrow-right",
+      "library": "fa-solid"
+    },
+    "icon_align": "left",
+    "show_button_badge": "yes",
+    "badge_text": "Nuevo",
+    "button_effect": "c",
+    "align": "center",
+    "button_text_color": "#ffffff",
+    "background_color": "#0a7cff",
+    "_expect_css": [
+      ".digi-advanced-button"
+    ]
   }
 }

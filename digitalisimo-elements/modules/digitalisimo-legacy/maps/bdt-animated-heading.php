@@ -17,6 +17,7 @@ return array(
 	),
 	'strip'    => array( 'before_text', 'after_text' ),
 	'defaults' => array(
+		'align'                       => 'center',
 		'heading_layout'          => 'animated',
 		'pre_heading'             => 'Hello I am',
 		'animated_heading'        => 'Animated,Morphing,Awesome',

@@ -1,0 +1,37 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Las flechas propias son botones con los caracteres ‹ y ›; Element Pack usaba iconos"
+    }
+  },
+  "custom": {
+    "brand_items": [
+      {
+        "_id": "c1",
+        "image": {
+          "url": "https://example.com/logos/uno.png"
+        },
+        "brand_name": "Uno",
+        "link": {
+          "url": "https://uno.example/"
+        }
+      },
+      {
+        "_id": "c2",
+        "image": {
+          "url": "https://example.com/logos/dos.png"
+        },
+        "brand_name": "Dos",
+        "link": {
+          "url": "https://dos.example/"
+        }
+      }
+    ],
+    "navigation": "dots",
+    "show_website_link": "",
+    "columns": "4",
+    "_known": {
+      "text": "Las flechas propias son botones con los caracteres ‹ y ›; Element Pack usaba iconos"
+    }
+  }
+}

@@ -500,7 +500,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new widget on shared native carousel engine; image loading delegated to WordPress and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.75; legacy adapter and visual comparison pending"
+      "status": "new widget on shared native carousel engine; image loading delegated to WordPress and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.75; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-brand-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96"
     },
     "bdt-brand-grid": {
       "target": "digitalisimo-brand-grid",
@@ -522,7 +523,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new semantic CSS grid widget implemented; image loading delegated to WordPress instead of assuming first logo is critical since 4.3.0.74; legacy adapter, installed runtime and visual comparison pending"
+      "status": "new semantic CSS grid widget implemented; image loading delegated to WordPress instead of assuming first logo is critical since 4.3.0.74; legacy adapter, installed runtime and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-brand-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96"
     },
     "bdt-breadcrumbs": {
       "target": "digitalisimo-breadcrumbs",
@@ -538,7 +540,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own WordPress-native navigation for current site, pages, hierarchical CPT parents and taxonomy; existing PRO widget depends on Yoast; no JSON-LD; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.76; visual parity and legacy adapter pending"
+      "status": "own WordPress-native navigation for current site, pages, hierarchical CPT parents and taxonomy; existing PRO widget depends on Yoast; no JSON-LD; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.76; visual parity and legacy adapter pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-breadcrumbs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96"
     },
     "bdt-buddypress-friends": {
       "target": null,
@@ -616,7 +619,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own semantic CTA with optional icon and link; editor preview and external links aligned in 4.3.0.78; multisite runtime verified; legacy skins, animations and visual parity pending"
+      "status": "own semantic CTA with optional icon and link; editor preview and external links aligned in 4.3.0.78; multisite runtime verified; legacy skins, animations and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-call-out.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96"
     },
     "bdt-carousel": {
       "target": null,
@@ -1101,7 +1105,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own two-link widget with optional icons and separator; editor link/icon parity, safe external links and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.77; onclick effects, visual parity and legacy adapter pending"
+      "status": "own two-link widget with optional icons and separator; editor link/icon parity, safe external links and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.77; onclick effects, visual parity and legacy adapter pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-dual-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96"
     },
     "bdt-dynamic-carousel": {
       "target": null,

@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.95
+# DIGITALÍSIMO Elements 4.3.0.96
+
+- 4.3.0.96: Brand Grid, Brand Carousel, Breadcrumbs, Dual Button y Call Out de Element Pack siguen mostrándose sin ese plugin mediante adaptadores. Breadcrumbs admite un separador personalizado y conserva el nombre del sitio como enlace inicial; los enlaces de marca conservan sus atributos externos y sólo se enlazan cuando Element Pack mostraba el enlace; Dual Button no traslada eventos onclick con JavaScript libre. Los adaptadores ya existentes completan los valores por defecto de controles con el mismo nombre (por ejemplo, el borde de Advanced Button) y fusionan los defaults de enlaces, imágenes e iconos como Elementor.
 
 - 4.3.0.95: Table permite usar un archivo CSV o TSV de Medios del sitio activo además del contenido escrito en el widget. Valida que el archivo pertenezca a los uploads del sitio, limita su tamaño y filas, cachea el análisis y mantiene el renderizado semántico sin dependencias de navegador.
 

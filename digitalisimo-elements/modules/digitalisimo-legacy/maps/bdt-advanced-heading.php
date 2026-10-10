@@ -17,6 +17,7 @@ return array(
 	),
 	'strip'    => array( 'sub_heading', 'main_heading', 'split_text', 'advanced_heading' ),
 	'defaults' => array(
+		'align'                       => 'center',
 		'sub_heading'                 => 'SUB HEADING HERE',
 		'main_heading'                => 'I am Advanced Heading',
 		'split_text'                  => 'Split Text',

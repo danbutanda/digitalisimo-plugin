@@ -35,7 +35,10 @@ def main(legacy_id):
     controls = detail(ROOT / inventory[legacy_id]['source_file'])
     top, repeaters, fields = {}, {}, {}
     for c in controls:
-        if c['kind'] == 'group' or c.get('raw_selectors'):
+        if c['kind'] == 'group':
+            # Image_Size guarda el tamaño elegido en {name}_size.
+            if c['group'] == 'Group_Control_Image_Size' and c.get('raw_default') and c['var'] == '$this':
+                top[c['name'] + '_size'] = value(c['raw_default'])
             continue
         if c['type'].split('::')[-1].strip() in ('HEADING', 'RAW_HTML', 'DIVIDER', 'NOTICE', 'ALERT', 'DEPRECATED_NOTICE', 'BUTTON', 'POPOVER_TOGGLE'):
             continue
@@ -48,8 +51,11 @@ def main(legacy_id):
             var = c['raw_fields'].split('->')[0].strip()
             repeaters[c['name']] = (var, value(c.get('raw_default')))
             continue
-        if c.get('raw_default') is not None and c['tab'] == 'content':
+        if c.get('raw_default') is not None:
             top[c['name']] = value(c['raw_default'])
+        for device in ('desktop', 'tablet', 'mobile'):
+            if c.get('raw_%s_default' % device) is not None:
+                top[c['name'] + ('' if device == 'desktop' else '_' + device)] = value(c['raw_%s_default' % device])
     print("\t'defaults'  => " + styles.php(top, 1) + ',')
     if repeaters:
         print("\t'repeaters' => array(")

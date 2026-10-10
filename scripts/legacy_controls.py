@@ -14,6 +14,7 @@ _TRAITS = None
 
 def methods(src):
     out = {}
+    PARAMS.update(signatures(src))
     for m in re.finditer(r'function\s+(\w+)\s*\([^)]*\)\s*(?::\s*\??\w+\s*)?\{', src):
         i, depth = m.end(), 1
         while i < len(src) and depth:
@@ -24,6 +25,67 @@ def methods(src):
             i += 1
         out.setdefault(m.group(1), src[m.end():i - 1])
     return out
+
+
+PARAMS = {}
+
+
+def signatures(src):
+    """Nombres de parámetros de cada función, para ligar argumentos literales."""
+    found = {}
+    for m in re.finditer(r'function\s+(\w+)\s*\(([^)]*)\)', src):
+        names = re.findall(r'\$(\w+)', m.group(2))
+        defaults = {}
+        for name, default in re.findall(r"\$(\w+)\s*=\s*('(?:[^'\\]|\\.)*')", m.group(2)):
+            defaults[name] = default[1:-1]
+        found.setdefault(m.group(1), (names, defaults))
+    return found
+
+
+STR = r"'(?:[^'\\]|\\.)*'"
+
+
+def concat(expr, env, own=None):
+    """Evalúa cadenas, variables conocidas y llamadas $this->helper(...) concatenadas; None si no es literal."""
+    parts = re.split(r"\s*\.\s*(?=(?:[^']*'[^']*')*[^']*$)(?![^(]*\))", expr.strip())
+    out = ''
+    for part in parts:
+        part = part.strip()
+        call = re.fullmatch(r'\$this->(\w+)\(([^()]*)\)', part)
+        if re.fullmatch(STR, part):
+            out += part[1:-1].replace("\\'", "'")
+        elif re.fullmatch(r'\$\w+', part) and part[1:] in env:
+            out += env[part[1:]]
+        elif call:
+            helper = (own or {}).get(call.group(1)) or trait_methods().get(call.group(1))
+            params, defaults = PARAMS.get(call.group(1), ([], {}))
+            local = dict(defaults)
+            args = [a.strip() for a in re.split(r",(?=(?:[^']*'[^']*')*[^']*$)", call.group(2))] if call.group(2).strip() else []
+            for i, a in enumerate(args):
+                value = concat(a, env, own)
+                if value is not None and i < len(params):
+                    local[params[i]] = value
+            ret = re.search(r'return\s+([^;]+);', helper or '')
+            value = concat(ret.group(1), local, own) if ret else None
+            if value is None:
+                return None
+            out += value
+        else:
+            return None
+    return out
+
+
+def resolve(body, env, own):
+    """Añade al entorno las asignaciones simples del cuerpo y sustituye las variables conocidas."""
+    env = dict(env)
+    for m in re.finditer(r'\$(\w+)\s*=\s*([^;]+);', body):
+        value = concat(m.group(2).strip(), env, own)
+        if value is not None:
+            env[m.group(1)] = value
+    def sub(m):
+        name = m.group(1)
+        return "'" + env[name].replace("'", "\\'") + "'" if name in env else m.group(0)
+    return re.sub(r'\$(\w+)\b(?!\s*(?:=[^=>]|\[|->))', sub, body), env
 
 
 def trait_methods():
@@ -112,8 +174,8 @@ def top_value(args, key):
     return None
 
 
-TOK = re.compile(r"start_controls_section\(\s*'([^']+)'(.*?)\)\s*;|(\$\w+)->(add_control|add_responsive_control|add_group_control)\(\s*|\$this->(\w+)\(\s*\)\s*;", re.S)
-KEYS = ('type', 'default', 'options', 'selectors', 'selectors_dictionary', 'condition', 'conditions', 'size_units', 'fields', 'prefix_class')
+TOK = re.compile(r"start_controls_section\(\s*'([^']+)'(.*?)\)\s*;|(\$\w+)->(add_control|add_responsive_control|add_group_control)\(\s*|\$this->(\w+)\((?:[^;()]|\([^;()]*\))*\)\s*;", re.S)
+KEYS = ('type', 'default', 'desktop_default', 'tablet_default', 'mobile_default', 'options', 'selectors', 'selectors_dictionary', 'condition', 'conditions', 'size_units', 'fields', 'prefix_class')
 
 
 def _args_after(rest, i):
@@ -122,7 +184,8 @@ def _args_after(rest, i):
     return bracket(rest, i) if i < len(rest) and rest[i] in '[(' else ''
 
 
-def _walk(body, own, out, state, seen):
+def _walk(body, own, out, state, seen, env=None):
+    body, env = resolve(body, env or {}, own)
     for m in TOK.finditer(body):
         if m.group(1):
             state['section'] = m.group(1)
@@ -139,7 +202,7 @@ def _walk(body, own, out, state, seen):
                 name = top_value(inner, 'name') or ''
                 out.append({'var': m.group(3), 'kind': 'group', 'group': gm.group(1).split('\\')[-1].strip(), 'name': name.strip('\'"'),
                             'tab': state['tab'], 'section': state['section'], 'selector': top_value(inner, 'selector'),
-                            'types': top_value(inner, 'types'), 'exclude': top_value(inner, 'exclude')})
+                            'types': top_value(inner, 'types'), 'exclude': top_value(inner, 'exclude'), 'raw_default': top_value(inner, 'default')})
                 continue
             nm = re.match(r"'([^']+)'\s*,\s*", rest)
             if not nm:
@@ -160,7 +223,16 @@ def _walk(body, own, out, state, seen):
                 continue
             src = own.get(name) or trait_methods().get(name)
             if src and ('add_control' in src or 'start_controls_section' in src or '$this->' in src):
-                _walk(src, own, out, state, seen | {name})
+                call = body[m.start():m.end()]
+                inner = call[call.index('(') + 1:call.rindex(')')]
+                params, defaults = PARAMS.get(name, ([], {}))
+                local = dict(defaults)
+                args = [a.strip() for a in re.split(r",(?=(?:[^']*'[^']*')*[^']*$)", inner)] if inner.strip() else []
+                for i, a in enumerate(args):
+                    value = concat(a, env, own)
+                    if value is not None and i < len(params):
+                        local[params[i]] = value
+                _walk(src, own, out, state, seen | {name}, local)
 
 
 def detail(path):

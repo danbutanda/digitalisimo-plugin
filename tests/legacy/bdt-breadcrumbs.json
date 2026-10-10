@@ -1,0 +1,15 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El separador propio es un elemento oculto a lectores de pantalla; Element Pack lo dibujaba con CSS ::before"
+    }
+  },
+  "custom": {
+    "breadcrumbs_separator": "»",
+    "change_text": "yes",
+    "home_page_text": "Portada",
+    "_known": {
+      "text": "El separador propio es un elemento oculto a lectores de pantalla; Element Pack lo dibujaba con CSS ::before"
+    }
+  }
+}

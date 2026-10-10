@@ -120,6 +120,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 		'condition' => array(
 			'divider_offset_popover' => 'yes',
 		),
@@ -133,6 +139,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 		'condition' => array(
 			'divider_offset_popover' => 'yes',
 		),
@@ -144,6 +156,12 @@ return array( array(
 			'{{WRAPPER}}' => '--ep-advanced-divider-rotate: {{SIZE}}deg;',
 		),
 		'default' => array(
+			'size' => 0,
+		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
 			'size' => 0,
 		),
 	) );

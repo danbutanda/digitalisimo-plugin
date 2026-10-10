@@ -85,6 +85,10 @@ final class Translator {
 		foreach ( $spec['defaults'] ?? array() as $key => $value ) {
 			if ( ! array_key_exists( $key, $settings ) ) {
 				$settings[ $key ] = $value;
+			} elseif ( is_array( $value ) && is_array( $settings[ $key ] ) && $value && array_keys( $value ) !== range( 0, count( $value ) - 1 ) ) {
+				// Como Elementor en los controles de valor múltiple (URL, imagen, icono, medidas):
+				// las partes no guardadas toman el default.
+				$settings[ $key ] = array_merge( $value, $settings[ $key ] );
 			}
 		}
 		$out = $settings;

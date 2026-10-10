@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Bloque de llamada a la acción con contenido y enlace semánticos. */
-final class Call_Out_Widget extends \Elementor\Widget_Base {
+class Call_Out_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-call-out'; }
 	public function get_title() { return 'Llamada a la acción'; }
 	public function get_icon() { return 'eicon-call-to-action'; }

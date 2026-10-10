@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Cuadrícula de marcas: datos repetibles, imágenes responsivas y presentación sin JS. */
-final class Brand_Grid_Widget extends \Elementor\Widget_Base {
+class Brand_Grid_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-brand-grid'; }
 	public function get_title() { return 'Cuadrícula de marcas'; }
 	public function get_icon() { return 'eicon-gallery-grid'; }

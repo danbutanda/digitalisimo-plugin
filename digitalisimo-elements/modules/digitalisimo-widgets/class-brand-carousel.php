@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-carousel-engine.php';
 
 /** Carrusel de marcas con motor nativo compartido; referencia funcional Element Pack Pro 9.9.1. */
-final class Brand_Carousel_Widget extends \Elementor\Widget_Base {
+class Brand_Carousel_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-brand-carousel'; }
 	public function get_title() { return 'Carrusel de marcas'; }
 	public function get_icon() { return 'eicon-logo'; }

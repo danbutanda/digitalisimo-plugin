@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Dos acciones independientes, sin handlers globales ni JavaScript. */
-final class Dual_Button_Widget extends \Elementor\Widget_Base {
+class Dual_Button_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-dual-button'; }
 	public function get_title() { return 'Botón doble'; }
 	public function get_icon() { return 'eicon-button'; }

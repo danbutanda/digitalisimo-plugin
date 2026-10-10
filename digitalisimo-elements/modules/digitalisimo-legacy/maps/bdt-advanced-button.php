@@ -30,6 +30,10 @@ return array(
 		'badge_indent'  => array( 'size' => 8 ),
 		'button_effect' => 'a',
 		'align'         => '',
+		'button_css_id' => '',
+		'button_border_style' => 'solid',
+		'button_border_width' => array( 'top' => 3, 'right' => 3, 'bottom' => 3, 'left' => 3 ),
+		'button_border_color' => '#666',
 	),
 	// Sin alineación Element Pack dejaba el botón a la izquierda.
 	'values'   => array( 'align' => array( '' => 'left' ) ),

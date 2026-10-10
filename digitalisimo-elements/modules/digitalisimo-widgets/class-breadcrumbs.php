@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Ruta de navegación del sitio actual. El schema lo publica el motor SEO, si existe. */
-final class Breadcrumbs_Widget extends \Elementor\Widget_Base {
+class Breadcrumbs_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-breadcrumbs'; }
 	public function get_title() { return 'Ruta de navegación'; }
 	public function get_icon() { return 'eicon-breadcrumbs'; }
@@ -18,7 +18,8 @@ final class Breadcrumbs_Widget extends \Elementor\Widget_Base {
 		$this->start_controls_section( 'section_breadcrumbs', array( 'label' => 'Contenido' ) );
 		$this->add_control( 'home_text', array( 'label' => 'Nombre de inicio', 'type' => $c::TEXT, 'default' => 'Inicio', 'dynamic' => array( 'active' => true ) ) );
 		$this->add_control( 'show_home_only', array( 'label' => 'Mostrar también en portada', 'type' => $c::SWITCHER, 'return_value' => 'yes' ) );
-		$this->add_control( 'separator', array( 'label' => 'Separador', 'type' => $c::SELECT, 'default' => 'slash', 'options' => array( 'slash' => '/', 'chevron' => '›', 'dot' => '·', 'dash' => '–' ) ) );
+		$this->add_control( 'separator', array( 'label' => 'Separador', 'type' => $c::SELECT, 'default' => 'slash', 'options' => array( 'slash' => '/', 'chevron' => '›', 'dot' => '·', 'dash' => '–', 'custom' => 'Personalizado' ) ) );
+		$this->add_control( 'separator_custom', array( 'label' => 'Separador personalizado', 'type' => $c::TEXT, 'default' => '/', 'condition' => array( 'separator' => 'custom' ) ) );
 		$this->end_controls_section();
 		$this->start_controls_section( 'section_breadcrumbs_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
 		$this->add_responsive_control( 'align', array( 'label' => 'Alineación', 'type' => $c::CHOOSE, 'options' => array( 'flex-start' => array( 'title' => 'Izquierda', 'icon' => 'eicon-text-align-left' ), 'center' => array( 'title' => 'Centro', 'icon' => 'eicon-text-align-center' ), 'flex-end' => array( 'title' => 'Derecha', 'icon' => 'eicon-text-align-right' ) ), 'selectors' => array( '{{WRAPPER}} .digi-breadcrumbs__list' => 'justify-content:{{VALUE}};' ) ) );
@@ -95,7 +96,8 @@ final class Breadcrumbs_Widget extends \Elementor\Widget_Base {
 		$crumbs = self::crumbs( $s['home_text'] ?? 'Inicio' );
 		if ( ! $crumbs || ( is_front_page() && 'yes' !== ( $s['show_home_only'] ?? '' ) ) ) { return; }
 		$separators = array( 'slash' => '/', 'chevron' => '›', 'dot' => '·', 'dash' => '–' );
-		$separator = $separators[ $s['separator'] ?? 'slash' ] ?? '/';
+		$separator = 'custom' === ( $s['separator'] ?? '' ) ? mb_substr( trim( wp_strip_all_tags( (string) ( $s['separator_custom'] ?? '' ) ) ), 0, 8 ) : ( $separators[ $s['separator'] ?? 'slash' ] ?? '/' );
+		if ( '' === $separator ) { $separator = '/'; }
 		echo '<nav class="digi-breadcrumbs" aria-label="Ruta de navegación"><ol class="digi-breadcrumbs__list">';
 		foreach ( $crumbs as $index => $crumb ) {
 			$last = count( $crumbs ) - 1 === $index;
@@ -110,7 +112,7 @@ final class Breadcrumbs_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<nav class="digi-breadcrumbs" aria-label="Ruta de navegación"><ol class="digi-breadcrumbs__list"><li class="digi-breadcrumbs__item"><span>{{ settings.home_text || 'Inicio' }}</span></li><li class="digi-breadcrumbs__item"><span class="digi-breadcrumbs__separator" aria-hidden="true">/</span><span aria-current="page">Vista previa</span></li></ol></nav>
+		<nav class="digi-breadcrumbs" aria-label="Ruta de navegación"><ol class="digi-breadcrumbs__list"><li class="digi-breadcrumbs__item"><span>{{ settings.home_text || 'Inicio' }}</span></li><li class="digi-breadcrumbs__item"><span class="digi-breadcrumbs__separator" aria-hidden="true">{{ ( { slash: '/', chevron: '›', dot: '·', dash: '–' } )[ settings.separator ] || ( settings.separator === 'custom' && settings.separator_custom ) || '/' }}</span><span aria-current="page">Vista previa</span></li></ol></nav>
 		<?php
 	}
 }

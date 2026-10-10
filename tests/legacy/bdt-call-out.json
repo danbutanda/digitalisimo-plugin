@@ -1,0 +1,16 @@
+{
+  "defaults": {},
+  "custom": {
+    "title": "¿Listo para empezar?",
+    "description": "Te ayudamos a migrar tu sitio sin costo.",
+    "button_text": "Hablar con ventas",
+    "link": {
+      "url": "https://example.com/contacto"
+    },
+    "callout_icon": {
+      "value": "fas fa-phone",
+      "library": "fa-solid"
+    },
+    "title_size": "h2"
+  }
+}

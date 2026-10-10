@@ -58,6 +58,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 	), array(
 		'name' => 'advanced_heading_y_position',
 		'type' => 'slider',
@@ -68,6 +74,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 	), array(
 		'name' => 'advanced_heading_rotate',
 		'type' => 'slider',
@@ -76,6 +88,12 @@ return array( array(
 			'{{WRAPPER}}' => '--ep-advanced-heading-rotate: {{SIZE}}deg;',
 		),
 		'default' => array(
+			'size' => 0,
+		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
 			'size' => 0,
 		),
 	), array(

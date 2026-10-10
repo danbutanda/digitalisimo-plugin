@@ -48,6 +48,8 @@ Procedimiento por widget: `python3 scripts/legacy-defaults.py bdt-x` para obtene
 
 Lote 1 en 4.3.0.94: Accordion, Advanced Button, Advanced Divider, Advanced Heading, Advanced Icon Box y Animated Heading. Diferencias deliberadas: las formas SVG de Advanced Divider sin equivalente pasan a la forma propia más cercana; Advanced Icon Box usa un enlace real donde Element Pack abría el título con `onclick`; Animated Heading imprime la primera palabra en lugar de la lista completa; el HTML del título de Advanced Heading se muestra como texto plano.
 
+Lote 2 en 4.3.0.96: Brand Grid, Brand Carousel, Breadcrumbs, Dual Button y Call Out. El analizador sigue métodos de traits con argumentos y resuelve los selectores que Element Pack construye con variables. Los defaults incluyen controles de estilo con el mismo nombre que los propios y se fusionan en controles de valor múltiple. Diferencias deliberadas: las flechas del carrusel son caracteres y no iconos; el separador de Breadcrumbs es un elemento oculto a lectores de pantalla; Brand Grid deja vacío el ALT cuando el nombre se muestra junto al logo; Dual Button no traslada `onclick` con JavaScript libre.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

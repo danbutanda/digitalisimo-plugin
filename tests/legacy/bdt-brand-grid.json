@@ -1,0 +1,42 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Con el nombre visible junto al logo, el widget propio deja el ALT vacío para no anunciar dos veces la marca"
+    }
+  },
+  "custom": {
+    "brand_items": [
+      {
+        "_id": "b1",
+        "image": {
+          "url": "https://example.com/logos/acme.png"
+        },
+        "brand_name": "Acme",
+        "link": {
+          "url": "https://acme.example/"
+        },
+        "website_link_text": "acme.example"
+      },
+      {
+        "_id": "b2",
+        "image": {
+          "url": "https://example.com/logos/zeta.png"
+        },
+        "brand_name": "Zeta",
+        "link": {
+          "url": ""
+        },
+        "website_link_text": ""
+      }
+    ],
+    "columns": "2",
+    "brand_event": "click",
+    "brand_html_tag": "h4",
+    "item_background_background": "classic",
+    "item_background_color": "#fafafa",
+    "_expect_css": [
+      ".digi-brand-grid__item{background-color:#fafafa",
+      "grid-template-columns:repeat(2"
+    ]
+  }
+}

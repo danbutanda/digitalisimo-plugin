@@ -54,6 +54,12 @@ return array( array(
 		'default' => array(
 			'size' => -50,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 		'condition' => array(
 			'readmore_on_hover' => 'yes',
 		),
@@ -65,6 +71,12 @@ return array( array(
 			'{{WRAPPER}}' => '--ep-advanced-icon-box-readmore-v-offset: {{SIZE}}px;',
 		),
 		'default' => array(
+			'size' => 0,
+		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
 			'size' => 0,
 		),
 		'condition' => array(
@@ -80,6 +92,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 	), array(
 		'name' => 'badge_vertical_offset',
 		'type' => 'slider',
@@ -90,6 +108,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 	), array(
 		'name' => 'badge_rotate',
 		'type' => 'slider',
@@ -98,6 +122,12 @@ return array( array(
 			'{{WRAPPER}}' => '--ep-advanced-icon-box-badge-rotate: {{SIZE}}deg;',
 		),
 		'default' => array(
+			'size' => 0,
+		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
 			'size' => 0,
 		),
 	), array(
@@ -259,6 +289,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 		'condition' => array(
 			'position' => 'top',
 			'icon_offset_toggle' => 'yes',
@@ -271,6 +307,12 @@ return array( array(
 			'{{WRAPPER}}' => '--ep-advanced-icon-box-icon-top-h-offset: {{SIZE}}px;',
 		),
 		'default' => array(
+			'size' => 0,
+		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
 			'size' => 0,
 		),
 		'condition' => array(
@@ -287,6 +329,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 		'condition' => array(
 			'position' => 'bottom',
 			'icon_offset_toggle' => 'yes',
@@ -299,6 +347,12 @@ return array( array(
 			'{{WRAPPER}}' => '--ep-advanced-icon-box-icon-bottom-h-offset: {{SIZE}}px;',
 		),
 		'default' => array(
+			'size' => 0,
+		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
 			'size' => 0,
 		),
 		'condition' => array(
@@ -315,6 +369,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 		'condition' => array(
 			'position' => array( 'left', 'right' ),
 			'icon_offset_toggle' => 'yes',
@@ -327,6 +387,12 @@ return array( array(
 			'{{WRAPPER}}' => '--ep-advanced-icon-box-icon-left-v-offset: {{SIZE}}px;',
 		),
 		'default' => array(
+			'size' => 0,
+		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
 			'size' => 0,
 		),
 		'condition' => array(
@@ -803,6 +869,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 		'condition' => array(
 			'indicator_offset_toggle' => 'yes',
 		),
@@ -816,6 +888,12 @@ return array( array(
 		'default' => array(
 			'size' => 0,
 		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
+			'size' => 0,
+		),
 		'condition' => array(
 			'indicator_offset_toggle' => 'yes',
 		),
@@ -827,6 +905,12 @@ return array( array(
 			'{{WRAPPER}}' => '--ep-advanced-icon-box-indicator-rotate: {{SIZE}}deg;',
 		),
 		'default' => array(
+			'size' => 0,
+		),
+		'tablet_default' => array(
+			'size' => 0,
+		),
+		'mobile_default' => array(
 			'size' => 0,
 		),
 		'condition' => array(

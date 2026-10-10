@@ -50,11 +50,12 @@ trait Legacy_Adapter {
 		) );
 		foreach ( $styles as $control ) {
 			$name = (string) ( $control['name'] ?? '' );
-			if ( '' === $name || in_array( $name, $existing, true ) ) {
+			if ( '' === $name || ( ! isset( $control['group'] ) && in_array( $name, $existing, true ) ) ) {
 				continue;
 			}
 			$label = ucfirst( str_replace( '_', ' ', $name ) );
 			if ( isset( $control['group'] ) ) {
+				// Un grupo sólo choca con controles que comparten su prefijo, no con uno de igual nombre.
 				foreach ( $existing as $key ) {
 					if ( 0 === strpos( $key, $name . '_' ) ) {
 						continue 2;
@@ -70,7 +71,7 @@ trait Legacy_Adapter {
 				continue;
 			}
 			$args = array( 'label' => $label, 'type' => $control['type'], 'selectors' => $control['selectors'] );
-			foreach ( array( 'default', 'selectors_dictionary', 'condition', 'size_units', 'options' ) as $key ) {
+			foreach ( array( 'default', 'desktop_default', 'tablet_default', 'mobile_default', 'selectors_dictionary', 'condition', 'size_units', 'options' ) as $key ) {
 				if ( isset( $control[ $key ] ) ) {
 					$args[ $key ] = $control[ $key ];
 				}
@@ -94,6 +95,11 @@ final class Adapters {
 		'bdt-advanced-heading' => Bdt_AdvancedHeading::class,
 		'bdt-advanced-icon-box' => Bdt_AdvancedIconBox::class,
 		'bdt-animated-heading' => Bdt_AnimatedHeading::class,
+		'bdt-brand-grid' => Bdt_BrandGrid::class,
+		'bdt-brand-carousel' => Bdt_BrandCarousel::class,
+		'bdt-breadcrumbs' => Bdt_Breadcrumbs::class,
+		'bdt-dual-button' => Bdt_DualButton::class,
+		'bdt-call-out' => Bdt_CallOut::class,
 	);
 
 	public static function element_pack_active() {
@@ -133,4 +139,19 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Advanced_Icon_Box_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Animated_Heading_Widget' ) ) {
 	final class Bdt_AnimatedHeading extends \Digitalisimo\Elements\Animated_Heading_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-animated-heading'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Brand_Grid_Widget' ) ) {
+	final class Bdt_BrandGrid extends \Digitalisimo\Elements\Brand_Grid_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-brand-grid'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Brand_Carousel_Widget' ) ) {
+	final class Bdt_BrandCarousel extends \Digitalisimo\Elements\Brand_Carousel_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-brand-carousel'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Breadcrumbs_Widget' ) ) {
+	final class Bdt_Breadcrumbs extends \Digitalisimo\Elements\Breadcrumbs_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-breadcrumbs'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Dual_Button_Widget' ) ) {
+	final class Bdt_DualButton extends \Digitalisimo\Elements\Dual_Button_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-dual-button'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Call_Out_Widget' ) ) {
+	final class Bdt_CallOut extends \Digitalisimo\Elements\Call_Out_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-call-out'; }
 }
