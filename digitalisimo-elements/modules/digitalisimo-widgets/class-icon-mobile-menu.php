@@ -53,6 +53,7 @@ final class Icon_Mobile_Menu_Widget extends \Elementor\Widget_Base {
 			if ( $linked ) {
 				$key = 'icon_mobile_menu_' . (int) $index;
 				$this->add_link_attributes( $key, $link );
+				if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( $key, 'rel', array( 'noopener', 'noreferrer' ) ); }
 				$out .= '<a class="digi-icon-mobile-menu__item" ' . $this->get_render_attribute_string( $key ) . ( $compact ? ' aria-label="' . esc_attr( $name ) . '"' : '' ) . ( $tooltip ? ' data-tooltip="' . esc_attr( $name ) . '"' : '' ) . '>';
 			} else {
 				$out .= '<span class="digi-icon-mobile-menu__item"' . ( $compact ? ' role="img" aria-label="' . esc_attr( $name ) . '"' : '' ) . '>';
@@ -71,10 +72,10 @@ final class Icon_Mobile_Menu_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<# var style = ['style-1','style-2','style-3','style-4'].indexOf(settings.menu_style) >= 0 ? settings.menu_style : 'style-1'; var compact = style === 'style-3' || style === 'style-4'; #>
+		<# var style = ['style-1','style-2','style-3','style-4'].indexOf(settings.menu_style) >= 0 ? settings.menu_style : 'style-1'; var compact = style === 'style-3' || style === 'style-4'; var tooltip = compact && settings.menu_tooltip !== ''; #>
 		<nav class="digi-icon-mobile-menu digi-icon-mobile-menu--{{ style }}" aria-label="Menú de iconos"><ul class="digi-icon-mobile-menu__list">
 		<# _.each(settings.menu_items || [], function(item) { if (!item || !item.menu_text || (compact && !(item.menu_icon && item.menu_icon.value))) return; var href = item.link && item.link.url ? item.link.url : ''; var icon = item.menu_icon && item.menu_icon.value ? elementor.helpers.renderIcon(view,item.menu_icon,{'aria-hidden':true},'i','object') : null; #>
-		<li class="digi-icon-mobile-menu__entry elementor-repeater-item-{{ item._id }}"><# if (href) { #><a class="digi-icon-mobile-menu__item" href="{{ href }}" <# if (compact) { #>aria-label="{{ item.menu_text }}"<# } #>><# } else { #><span class="digi-icon-mobile-menu__item" <# if (compact) { #>role="img" aria-label="{{ item.menu_text }}"<# } #>><# } #><# if (icon && icon.rendered) { #><span class="digi-icon-mobile-menu__icon">{{{ icon.value }}}</span><# } #><span class="digi-icon-mobile-menu__text">{{ item.menu_text }}</span><# if (href) { #></a><# } else { #></span><# } #></li>
+		<li class="digi-icon-mobile-menu__entry elementor-repeater-item-{{ item._id }}"><# if (href) { var rel = []; if (item.link.nofollow) rel.push('nofollow'); if (item.link.is_external) rel.push('noopener noreferrer'); #><a class="digi-icon-mobile-menu__item" href="{{ href }}" <# if (item.link.is_external) { #>target="_blank"<# } #> <# if (rel.length) { #>rel="{{ rel.join(' ') }}"<# } #> <# if (compact) { #>aria-label="{{ item.menu_text }}"<# } #> <# if (tooltip) { #>data-tooltip="{{ item.menu_text }}"<# } #>><# } else { #><span class="digi-icon-mobile-menu__item" <# if (compact) { #>role="img" aria-label="{{ item.menu_text }}"<# } #>><# } #><# if (icon && icon.rendered) { #><span class="digi-icon-mobile-menu__icon">{{{ icon.value }}}</span><# } #><span class="digi-icon-mobile-menu__text">{{ item.menu_text }}</span><# if (href) { #></a><# } else { #></span><# } #></li>
 		<# }); #></ul></nav>
 		<?php
 	}

@@ -25,8 +25,8 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 21. Fancy Tabs — base propia accesible con icono/imagen y script compartido; editor con todos los paneles y enlaces desde 4.3.0.88, renderizado Multisite comprobado; skins pendientes
 22. Featured Box — base propia con diseños sobre imagen/dividido y contenido semántico; editor con ALT, enlaces e icono desde 4.3.0.88, renderizado Multisite comprobado; skins pendientes
 23. Google Reviews — base propia con Places API (New), clave sitio/red y carga diferida; paridad visual y pruebas reales en Multisite pendientes
-24. Icon Mobile Menu — base propia con cuatro estilos y tooltips CSS; paridad visual y Multisite pendientes
-25. Icon Nav — base propia con enlaces verticales y menú del sitio opcional; skins, paridad visual y Multisite pendientes
+24. Icon Mobile Menu — base propia con cuatro estilos y tooltips CSS; vista previa y enlaces externos alineados desde 4.3.0.89, renderizado Multisite comprobado; paridad visual pendiente
+25. Icon Nav — base propia con enlaces verticales y menú del sitio opcional; vista previa de marca y enlaces alineada desde 4.3.0.89, renderizado Multisite comprobado; skins y paridad visual pendientes
 26. Lottie Image — para contenido nuevo usar el widget `lottie` ya incluido en Elements; conversión de documentos `bdt-lottie-image` pendiente
 27. Logo Grid — base propia; paridad pendiente
 28. Navbar — para contenido nuevo usar el widget `nav-menu` ya incluido en Elements; autoocultación, skins y conversión legacy pendientes

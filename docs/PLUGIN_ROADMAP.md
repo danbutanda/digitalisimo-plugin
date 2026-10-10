@@ -1,5 +1,7 @@
 # Roadmap de funcionalidades · Digitalisimo
 
+| DIGITALÍSIMO Elements · Icon Mobile Menu e Icon Nav | En validación · 4.3.0.89 | Enlaces externos seguros y vista previa con tooltips, atributos de enlace e imagen de marca. | Prueba PHP, suite de seis módulos, ZIP íntegro y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. Falta verificar GitHub Actions y la Release; siguen pendientes comparación visual e interacción del editor. |
+
 | DIGITALÍSIMO Elements · Fancy Tabs y Featured Box | Publicado · 4.3.0.88 · `v2026.10.10.333` | Vista previa completa con paneles, iconos, ALT y enlaces; enlaces externos seguros. | Pruebas PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#655` y publicación `#333` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.88.zip`. Faltan prueba interactiva del editor y comparación visual. |
 
 | DIGITALÍSIMO Elements · Fancy Icons y Fancy Slider | Publicado · 4.3.0.87 · `v2026.10.10.332` | Enlaces externos seguros y vista previa del slider con enlaces, ALT y navegación. | Pruebas PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#654` y publicación `#332` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.87.zip`. Falta comparación visual. |

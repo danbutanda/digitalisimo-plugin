@@ -70,6 +70,7 @@ jobs:
           php tests/elements-comparison-switcher.php
           php tests/elements-gallery-creative.php
           php tests/elements-device-card.php
+          php tests/elements-icon-navigation.php
           php tests/elements-duplicator.php
           php tests/elements-display-conditions.php
           php tests/elements-legacy-visibility.php

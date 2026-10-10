@@ -1817,7 +1817,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own four-style icon navigation with CSS tooltip; full settings parity and multisite runtime pending"
+      "status": "own four-style icon navigation with CSS tooltip; editor links and tooltips aligned in 4.3.0.89; multisite runtime verified; visual parity and legacy conversion pending"
     },
     "bdt-iconnav": {
       "target": "digitalisimo-icon-nav",
@@ -1840,7 +1840,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own vertical icon navigation and native WordPress menu panel; offcanvas effects, visual parity and multisite runtime pending"
+      "status": "own vertical icon navigation and native WordPress menu panel; editor branding and links aligned in 4.3.0.89; multisite runtime verified; offcanvas effects, visual parity and legacy conversion pending"
     },
     "bdt-iframe": {
       "target": null,

@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.88
+# DIGITALÍSIMO Elements 4.3.0.89
+
+- 4.3.0.89: Icon Mobile Menu e Icon Nav protegen los enlaces externos y alinean en el editor los tooltips, atributos de enlaces e imagen de marca con el frontend.
 
 - 4.3.0.88: Fancy Tabs muestra todos sus paneles, iconos y CTA en el editor y deja que WordPress decida la carga de sus iconos de imagen. Featured Box alinea ALT, enlaces e icono del botón en el editor. Ambos protegen enlaces externos.
 
