@@ -43,7 +43,7 @@ function digi_ab_signature( $html ) {
 	}
 	foreach ( $xpath->query( '//img' ) as $img ) {
 		$src = $img->getAttribute( 'src' ) ?: $img->getAttribute( 'data-src' );
-		$sig['images'][] = basename( (string) wp_parse_url( $src, PHP_URL_PATH ) ) . ' | alt=' . $img->getAttribute( 'alt' );
+		$sig['images'][] = basename( (string) wp_parse_url( $src, PHP_URL_PATH ) ) . ' | alt=' . trim( $img->getAttribute( 'alt' ) );
 	}
 	return $sig;
 }

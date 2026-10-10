@@ -13,8 +13,15 @@
           tab.setAttribute('aria-selected', i === index ? 'true' : 'false');
           tab.tabIndex = i === index ? 0 : -1;
           panels[i].hidden = i !== index;
+          // Una opción puede mostrar otro elemento de la página por su ID.
+          var target = panels[i].getAttribute('data-digi-target');
+          var element = target ? document.getElementById(target) : null;
+          if (element) element.hidden = i !== index;
         });
         if (focus) tabs[index].focus();
+      }
+      if (panels.some(function (panel) { return panel.hasAttribute('data-digi-target'); })) {
+        select(Math.min(tabs.length - 1, parseInt(widget.getAttribute('data-digi-selected') || '0', 10) || 0), false);
       }
       tabs.forEach(function (tab, index) {
         tab.addEventListener('click', function () { select(index, false); });

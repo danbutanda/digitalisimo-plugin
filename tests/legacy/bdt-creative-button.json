@@ -1,0 +1,12 @@
+{
+  "defaults": {},
+  "custom": {
+    "button_style": "telesto",
+    "text": "Ver demo",
+    "link": {
+      "url": "https://example.com/demo",
+      "is_external": "on"
+    },
+    "alignment": "center"
+  }
+}

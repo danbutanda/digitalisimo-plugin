@@ -100,6 +100,11 @@ final class Adapters {
 		'bdt-breadcrumbs' => Bdt_Breadcrumbs::class,
 		'bdt-dual-button' => Bdt_DualButton::class,
 		'bdt-call-out' => Bdt_CallOut::class,
+		'bdt-comparison-list' => Bdt_ComparisonList::class,
+		'bdt-content-switcher' => Bdt_ContentSwitcher::class,
+		'bdt-custom-gallery' => Bdt_CustomGallery::class,
+		'bdt-creative-button' => Bdt_CreativeButton::class,
+		'bdt-device-slider' => Bdt_DeviceSlider::class,
 	);
 
 	public static function element_pack_active() {
@@ -154,4 +159,19 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Dual_Button_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Call_Out_Widget' ) ) {
 	final class Bdt_CallOut extends \Digitalisimo\Elements\Call_Out_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-call-out'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Comparison_List_Widget' ) ) {
+	final class Bdt_ComparisonList extends \Digitalisimo\Elements\Comparison_List_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-comparison-list'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Content_Switcher_Widget' ) ) {
+	final class Bdt_ContentSwitcher extends \Digitalisimo\Elements\Content_Switcher_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-content-switcher'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Custom_Gallery_Widget' ) ) {
+	final class Bdt_CustomGallery extends \Digitalisimo\Elements\Custom_Gallery_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-custom-gallery'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Creative_Button_Widget' ) ) {
+	final class Bdt_CreativeButton extends \Digitalisimo\Elements\Creative_Button_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-creative-button'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Device_Slider_Widget' ) ) {
+	final class Bdt_DeviceSlider extends \Digitalisimo\Elements\Device_Slider_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-device-slider'; }
 }

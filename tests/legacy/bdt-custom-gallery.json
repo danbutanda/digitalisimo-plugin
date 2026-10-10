@@ -1,0 +1,37 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Las imágenes de ejemplo vienen de la carpeta de Element Pack y desaparecen al retirarlo; se usa la imagen de ejemplo de Elementor",
+      "links": "El enlace de ampliación de Element Pack se convierte en el enlace de cada imagen"
+    }
+  },
+  "custom": {
+    "gallery": [
+      {
+        "_id": "g1",
+        "image_title": "Oficina",
+        "image_text": "Nuestro equipo",
+        "gallery_image": {
+          "url": "https://example.com/fotos/oficina.jpg"
+        }
+      },
+      {
+        "_id": "g2",
+        "image_title": "Evento",
+        "image_text": "",
+        "gallery_image": {
+          "url": "https://example.com/fotos/evento.jpg"
+        },
+        "image_link_type": "website",
+        "image_link_website": {
+          "url": "https://example.com/eventos"
+        }
+      }
+    ],
+    "show_lightbox": "",
+    "direct_link": "yes",
+    "_known": {
+      "links": "Element Pack sólo enlazaba con su icono de ampliación; el widget propio enlaza la imagen al mismo destino"
+    }
+  }
+}

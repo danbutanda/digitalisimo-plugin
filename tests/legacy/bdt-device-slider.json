@@ -1,0 +1,29 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Las diapositivas de color de Element Pack no tienen equivalente propio y no se muestran",
+      "links": "Los botones decorativos y flechas de Element Pack eran enlaces #; el propio usa botones",
+      "images": "Element Pack dibujaba el marco del dispositivo con un SVG de su carpeta; el propio lo dibuja con CSS"
+    }
+  },
+  "custom": {
+    "device_type": "iphonex",
+    "slides": [
+      {
+        "_id": "d1",
+        "title": "App móvil",
+        "background": "image",
+        "image": {
+          "url": "https://example.com/capturas/app.png"
+        },
+        "title_link": {
+          "url": "https://example.com/app"
+        }
+      }
+    ],
+    "_known": {
+      "links": "Los botones decorativos y flechas de Element Pack eran enlaces #; el propio usa botones",
+      "images": "Element Pack dibujaba el marco del dispositivo con un SVG de su carpeta; el propio lo dibuja con CSS"
+    }
+  }
+}

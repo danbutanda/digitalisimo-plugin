@@ -22,7 +22,7 @@ namespace Elementor {
 		}
 	}
 	class Repeater { private $controls = array(); public function add_control( $name, $args ) { $this->controls[ $name ] = $args; } public function get_controls() { return $this->controls; } }
-	class Controls_Manager { const TEXT = 'text'; const TEXTAREA = 'textarea'; const WYSIWYG = 'wysiwyg'; const URL = 'url'; const SWITCHER = 'switcher'; const REPEATER = 'repeater'; const COLOR = 'color'; const ICONS = 'icons'; const TAB_STYLE = 'style'; }
+	class Controls_Manager { const TEXT = 'text'; const TEXTAREA = 'textarea'; const WYSIWYG = 'wysiwyg'; const URL = 'url'; const SWITCHER = 'switcher'; const REPEATER = 'repeater'; const COLOR = 'color'; const ICONS = 'icons'; const SELECT = 'select'; const SELECT2 = 'select2'; const TAB_STYLE = 'style'; }
 	class Icons_Manager { public static function render_icon( $icon, $attrs ) { echo '<i aria-hidden="true"></i>'; } }
 }
 namespace {
@@ -55,7 +55,12 @@ namespace {
 	check_compare( ! str_contains( $second, '<noscript>' ), 'El fallback CSS no debe duplicarse por instancia.' );
 	ob_start(); (new \ReflectionMethod( $switcher, 'content_template' ))->invoke( $switcher ); $editor = ob_get_clean();
 	check_compare( str_contains( $editor, 'data-digi-content-switcher' ) && str_contains( $editor, 'aria-controls=' ) && str_contains( $editor, 'aria-labelledby=' ) && str_contains( $editor, 'elementor.helpers.renderIcon' ) && str_contains( $editor, 'item.content' ), 'El editor debe mostrar todos los paneles, iconos y relaciones accesibles.' );
+	$switcher->settings = array( 'switcher_items' => array( array( 'title' => 'Mensual', 'content_type' => 'link_section', 'link_target' => '#precios-mes' ), array( 'title' => 'Anual', 'content_type' => 'link_section', 'link_target' => 'precios-año', 'switcher_active' => 'yes' ) ) );
+	ob_start(); $render->invoke( $switcher ); $linked = ob_get_clean();
+	check_compare( str_contains( $linked, 'data-digi-target="precios-mes"' ) && str_contains( $linked, 'data-digi-selected="1"' ) && str_contains( $linked, 'id="digi-switcher-test-01-tab-1" role="tab" aria-controls="digi-switcher-test-01-panel-1" aria-selected="true"' ), 'Las opciones enlazadas a secciones y la activa inicial deben respetarse.' );
+	check_compare( isset( $switcher->controls['switcher_items'] ), 'El repetidor debe existir.' );
 	$js = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/js/content-switcher.js' );
+	check_compare( str_contains( $js, 'data-digi-target' ) && str_contains( $js, 'data-digi-selected' ), 'El script debe alternar los elementos enlazados.' );
 	check_compare( str_contains( $js, 'WeakSet' ) && str_contains( $js, 'ArrowRight' ) && str_contains( $js, 'ArrowLeft' ), 'El script debe aislar instancias y permitir navegación por teclado.' );
 	echo "DIGITALÍSIMO Elements: Tabla comparativa y alternador accesible validados.\n";
 }

@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Comparación de características mediante tabla HTML nativa. */
-final class Comparison_List_Widget extends \Elementor\Widget_Base {
+class Comparison_List_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-comparison-list'; }
 	public function get_title() { return 'Lista comparativa'; }
 	public function get_icon() { return 'eicon-table'; }

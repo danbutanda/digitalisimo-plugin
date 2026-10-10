@@ -3,6 +3,10 @@ namespace {
 	define( 'ABSPATH', __DIR__ );
 	function wp_strip_all_tags( $text ) { return strip_tags( (string) $text ); }
 	function get_bloginfo( $what ) { return 'Mi sitio'; }
+	function esc_html( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
+	function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
+	function esc_url( $v ) { return (string) $v; }
+	function wp_kses_post( $v ) { return strip_tags( (string) $v, '<p><a><strong><em>' ); }
 	function check_adapter( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
 	$base = __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-legacy/';
@@ -75,6 +79,21 @@ namespace {
 	check_adapter( 'large' === $dual['size'] && ! isset( $dual['button_a_onclick_event'] ) && 'fas fa-x' === $dual['button_b_icon']['value'] && 'Click Me' === $dual['button_a_text'], 'Dual Button traduce tamaño e iconos y descarta JavaScript libre.' );
 	$button = Translator::translate( 'bdt-advanced-button', array() );
 	check_adapter( 'solid' === $button['button_border_style'] && '#666' === $button['button_border_color'] && 'left' === $button['align'], 'Advanced Button repite el borde por defecto de Element Pack.' );
+
+	$switch = Translator::translate( 'bdt-content-switcher', array( 'switcher_items' => array(
+		array( 'title' => 'Mes', 'content_type' => 'price_card', 'price' => '99', 'period' => 'al mes', 'button_text' => 'Comprar', 'link' => array( 'url' => 'https://a.test/' ) ),
+		array( 'title' => 'Año', 'content_type' => 'template', 'saved_templates' => '42' ),
+		array( 'title' => 'Otro', 'content_type' => 'content' ),
+	) ) );
+	check_adapter( 2 === count( $switch['switcher_items'] ) && false !== strpos( $switch['switcher_items'][0]['content'], '<strong>$99</strong>' ) && false !== strpos( $switch['switcher_items'][0]['content'], 'href="https://a.test/"' ) && '42' === $switch['switcher_items'][1]['template_id'], 'Content Switcher traduce precio y plantilla y respeta las dos opciones del interruptor.' );
+	$gallery = Translator::translate( 'bdt-custom-gallery', array( 'gallery' => array( array( 'gallery_image' => array( 'url' => 'https://a.test/f.jpg' ), 'image_link_type' => 'youtube', 'image_link_youtube' => array( 'url' => 'https://youtu.be/x' ) ) ) ) );
+	check_adapter( isset( $gallery['gallery_items'][0] ) && ! isset( $gallery['gallery'] ) && 'https://youtu.be/x' === $gallery['gallery_items'][0]['image_link']['url'] && ! isset( $gallery['gallery_items'][0]['image_link_type'] ), 'La galería usa el repetidor propio y el destino elegido como enlace.' );
+	$creative = Translator::translate( 'bdt-creative-button', array( 'button_style' => 'aura', 'alignment' => 'right' ) );
+	check_adapter( 'glow' === $creative['effect'] && 'right' === $creative['align'] && 'Read More' === $creative['text'], 'Creative Button usa el efecto propio más parecido.' );
+	$device = Translator::translate( 'bdt-device-slider', array( 'device_type' => 'macbookpro', 'slides' => array( array( 'title' => 'A', 'background' => 'image', 'image' => array( 'url' => 'x.png' ), 'title_link' => array( 'url' => 'https://a.test/' ) ), array( 'title' => 'B' ) ) ) );
+	check_adapter( 'desktop' === $device['device_type'] && 'https://a.test/' === $device['slides'][0]['link']['url'] && ! isset( $device['slides'][1]['image'] ), 'Device Slider traduce marco, enlace y sólo diapositivas con imagen.' );
+	$comparison = Translator::translate( 'bdt-comparison-list', array() );
+	check_adapter( 'Feature list' === $comparison['comparison_list_title'] && 'Pro' === $comparison['comparison_header_list'][1]['header_title'] && '1|1' === $comparison['comparison_list'][2]['feature_ability'], 'Comparison List usa las filas por defecto de Element Pack.' );
 
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );

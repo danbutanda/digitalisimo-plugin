@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-carousel-engine.php';
 
 /** Capturas en marco de dispositivo con el motor nativo compartido. */
-final class Device_Slider_Widget extends \Elementor\Widget_Base {
+class Device_Slider_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-device-slider'; }
 	public function get_title() { return 'Slider de dispositivos'; }
 	public function get_icon() { return 'eicon-slider-device'; }

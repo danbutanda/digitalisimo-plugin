@@ -805,7 +805,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own semantic comparison table with horizontal overflow, scoped headers and conditional CSS; editor CTAs and external links aligned in 4.3.0.79; multisite runtime verified; accordion skins, legacy adapter and visual comparison pending"
+      "status": "own semantic comparison table with horizontal overflow, scoped headers and conditional CSS; editor CTAs and external links aligned in 4.3.0.79; multisite runtime verified; accordion skins, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-comparison-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97"
     },
     "bdt-contact-form": {
       "target": null,
@@ -843,7 +844,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own accessible tab switcher with keyboard navigation and instance isolation; all editor panels and icons aligned in 4.3.0.83; multisite runtime verified; template, linked sections, price cards, legacy adapter and visual comparison pending"
+      "status": "own accessible tab switcher with keyboard navigation and instance isolation; all editor panels and icons aligned in 4.3.0.83; multisite runtime verified; template, linked sections, price cards, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-content-switcher.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97"
     },
     "bdt-cookie-consent": {
       "target": null,
@@ -894,7 +896,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own CSS-only creative button with five safe effects; editor icon and links aligned in 4.3.0.85; multisite runtime verified; 27 legacy effect skins and visual parity pending"
+      "status": "own CSS-only creative button with five safe effects; editor icon and links aligned in 4.3.0.85; multisite runtime verified; 27 legacy effect skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-creative-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97"
     },
     "bdt-crypto-currency-card": {
       "target": null,
@@ -1019,7 +1022,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own Media gallery and individual linked images with ALT/srcset and conditional CSS; editor ALT and links aligned in 4.3.0.84; multisite runtime verified; lightbox, media skins and visual parity pending"
+      "status": "own Media gallery and individual linked images with ALT/srcset and conditional CSS; editor ALT and links aligned in 4.3.0.84; multisite runtime verified; lightbox, media skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-custom-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97"
     },
     "bdt-dark-mode": {
       "target": null,
@@ -1046,7 +1050,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own device frame on shared native carousel engine; editor titles, links, ALT and navigation aligned in 4.3.0.85; multisite runtime verified; additional device skins and visual parity pending"
+      "status": "own device frame on shared native carousel engine; editor titles, links, ALT and navigation aligned in 4.3.0.85; multisite runtime verified; additional device skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-device-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97"
     },
     "bdt-document-viewer": {
       "target": "digitalisimo-document-viewer",

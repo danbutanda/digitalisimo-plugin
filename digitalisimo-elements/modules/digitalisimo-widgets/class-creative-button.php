@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Botón con efectos visuales CSS y enlace nativo. */
-final class Creative_Button_Widget extends \Elementor\Widget_Base {
+class Creative_Button_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-creative-button'; }
 	public function get_title() { return 'Botón creativo'; }
 	public function get_icon() { return 'eicon-button'; }

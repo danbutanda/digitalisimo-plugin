@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Galería de imágenes de Medios con URLs y ALT del sitio actual. */
-final class Custom_Gallery_Widget extends \Elementor\Widget_Base {
+class Custom_Gallery_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-custom-gallery'; }
 	public function get_title() { return 'Galería personalizada'; }
 	public function get_icon() { return 'eicon-gallery-grid'; }

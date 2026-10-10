@@ -1,0 +1,46 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El widget propio indica incluido/no incluido con ✓ y — como texto accesible; Element Pack usaba iconos"
+    }
+  },
+  "custom": {
+    "comparison_list_title": "Incluye",
+    "comparison_header_list": [
+      {
+        "_id": "h1",
+        "header_title": "Básico",
+        "header_sub_title": "Para empezar",
+        "header_button_text": "Elegir",
+        "header_link": {
+          "url": "https://example.com/basico"
+        }
+      },
+      {
+        "_id": "h2",
+        "header_title": "Pro",
+        "header_active": "yes",
+        "header_button_text": "Elegir Pro",
+        "header_link": {
+          "url": "https://example.com/pro"
+        }
+      }
+    ],
+    "comparison_list": [
+      {
+        "_id": "f1",
+        "title": "SSL",
+        "feature_ability": "1|1"
+      },
+      {
+        "_id": "f2",
+        "title": "Correos",
+        "description": "Cuentas incluidas",
+        "feature_ability": "5|20"
+      }
+    ],
+    "_known": {
+      "text": "El widget propio indica incluido/no incluido con ✓ y — como texto accesible; Element Pack usaba iconos"
+    }
+  }
+}

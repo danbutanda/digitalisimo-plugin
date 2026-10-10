@@ -1,0 +1,31 @@
+{
+  "defaults": {},
+  "price": {
+    "switcher_items": [
+      {
+        "_id": "p1",
+        "title": "Mensual",
+        "content_type": "price_card",
+        "price": "99",
+        "period": "al mes",
+        "button_text": "Contratar",
+        "link": {
+          "url": "https://example.com/mensual"
+        }
+      },
+      {
+        "_id": "p2",
+        "title": "Anual",
+        "content_type": "price_card",
+        "price": "990",
+        "period": "al año",
+        "sale": "yes",
+        "original_price": "1188",
+        "switcher_active": "yes"
+      }
+    ],
+    "_known": {
+      "text": "El precio se imprime como una sola cadena; Element Pack separaba moneda, entero y decimales en nodos"
+    }
+  }
+}
