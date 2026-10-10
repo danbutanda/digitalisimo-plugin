@@ -270,7 +270,7 @@
       "decision_reason": "Galería de imágenes con lightbox: la galería de PRO Elements cubre rejilla, justificada y masonry."
     },
     "bdt-advanced-progress-bar": {
-      "target": null,
+      "target": "digitalisimo-progress-bars",
       "engine": "data-visualization",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -279,11 +279,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.117 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-progress-bars",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Varias barras en un mismo widget; la barra de Elementor es individual. Se reconstruye como lista de barras accesible."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Varias barras en un mismo widget; la barra de Elementor es individual. Se reconstruye como lista de barras accesible.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-progress-bar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
     },
     "bdt-age-gate": {
       "target": null,
@@ -3217,7 +3218,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-progress-pie": {
-      "target": null,
+      "target": "digitalisimo-progress-bars",
       "engine": "data-visualization",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3226,11 +3227,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.117 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-progress-bars",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Indicador circular de porcentaje; se reconstruye junto a las barras de progreso."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Indicador circular de porcentaje; se reconstruye junto a las barras de progreso.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-progress-pie.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
     },
     "bdt-protected-content": {
       "target": null,
@@ -3284,7 +3286,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-reading-progress": {
-      "target": null,
+      "target": "digitalisimo-reading-progress",
       "engine": "data-visualization",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3293,14 +3295,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.117 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-reading-progress",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Barra de progreso de lectura; script ligero propio."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Barra de progreso de lectura; script ligero propio.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-reading-progress.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
     },
     "bdt-reading-timer": {
-      "target": null,
+      "target": "digitalisimo-reading-time",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3309,11 +3312,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.117 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-reading-time",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Tiempo de lectura estimado; se calcula en el servidor."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Tiempo de lectura estimado; se calcula en el servidor.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-reading-timer.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
     },
     "bdt-remote-arrows": {
       "target": null,

@@ -91,3 +91,5 @@ Adaptadores 4.3.0.114: el A/B cubrió cada widget por defecto y con contenido pr
 Adaptadores 4.3.0.115: el A/B cubrió las cuatro tarjetas por defecto y con contenido propio en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.
 
 Adaptadores 4.3.0.116: el A/B cubrió Hover Box, Image Expand, Interactive Tabs, Static Grid Tab e Image Accordion por defecto, y Toggle cerrado y abierto, en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas. EDD Tabs se validó con pruebas unitarias porque requiere Easy Digital Downloads.
+
+Adaptadores 4.3.0.117: el A/B cubrió las barras de ejemplo, el círculo por defecto y con texto propio, la barra de lectura y el tiempo de lectura en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.

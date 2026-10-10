@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.116
+# DIGITALÍSIMO Elements 4.3.0.117
+
+- 4.3.0.117: nuevos widgets Barras de progreso (barras o circular, `role="progressbar"`, sin JavaScript), Tiempo de lectura (calculado en el servidor) y Progreso de lectura (barra fija con un script ligero). Adaptadores de Element Pack Advanced Progress Bar, Progress Pie, Reading Progress y Reading Timer sobre ellos.
 
 - 4.3.0.116: adaptadores de Element Pack para Hover Box, Image Expand, Interactive Tabs y Static Grid Tab sobre las pestañas propias, y para EDD Tabs, Image Accordion y Toggle sobre el Acordeón propio, con estilos heredados por clase y migración reversible.
 

@@ -90,6 +90,8 @@ Lote 21 (4.3.0.115): Animated Card, Interactive Card, Member y Trailer Box se AD
 
 Lote 22 (4.3.0.116): cuatro widgets pasan a pestañas y tres al acordeón (ADAPTAR). Diferencias declaradas: los efectos al pasar el cursor y de expansión no se trasladan; Toggle no cambia su título a «Collapse» al abrirse; las imágenes de ejemplo de Element Pack pasan a la de Elementor o a ninguna.
 
+Lote 23 (4.3.0.117): Advanced Progress Bar y Progress Pie se RECONSTRUYEN en Barras de progreso; Reading Progress y Reading Timer en Progreso y Tiempo de lectura. Diferencias declaradas: el porcentaje del círculo y el tiempo de lectura se pintan en el servidor (Element Pack los escribía con JavaScript); el indicador circular de lectura pasa a barra; los estilos decorativos de las barras no se trasladan.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

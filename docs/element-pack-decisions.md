@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 156, no se reproduce 66, pendiente: adaptador 41.
+Documentos heredados: adaptador publicado 160, no se reproduce 66, pendiente: adaptador 37.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -27,7 +27,7 @@ Documentos heredados: adaptador publicado 156, no se reproduce 66, pendiente: ad
 | `bdt-advanced-heading` | ADAPTAR | `digitalisimo-advanced-heading` | adaptador publicado | new semantic widget with responsive decoration sizing and offsets and optional Elementor typography per part since 4.3.0.73; main-site and subsite frontend render checked in Multisite; advanced effects, legacy adapter, editor and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
 | `bdt-advanced-icon-box` | ADAPTAR | `digitalisimo-advanced-icon-box` | adaptador publicado | new semantic widget with editor link and informative-image accessibility parity, optional per-part typography and card shadow since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; legacy control parity, effects and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
 | `bdt-advanced-image-gallery` | ADAPTAR | `gallery` | pendiente: adaptador | Galería de imágenes con lightbox: la galería de PRO Elements cubre rejilla, justificada y masonry. |
-| `bdt-advanced-progress-bar` | RECONSTRUIR | `digitalisimo-progress-bars` | pendiente: adaptador | Varias barras en un mismo widget; la barra de Elementor es individual. Se reconstruye como lista de barras accesible. |
+| `bdt-advanced-progress-bar` | RECONSTRUIR | `digitalisimo-progress-bars` | adaptador publicado | Varias barras en un mismo widget; la barra de Elementor es individual. Se reconstruye como lista de barras accesible. |
 | `bdt-age-gate` | DESCARTAR | — | no se reproduce | Verificación de edad por ventana bloqueante con cookie; afecta a toda la página y su cumplimiento legal depende del sitio. Se recomienda un plugin dedicado o Display Conditions. |
 | `bdt-air-pollution` | DESCARTAR | — | no se reproduce | Depende de una API externa con clave propia de Element Pack (calidad del aire); sin servicio no hay datos que mostrar. |
 | `bdt-animated-card` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Tarjeta con imagen, título, texto y botón con animación al pasar el cursor: la Fancy Card propia cubre el contenido. |
@@ -202,12 +202,12 @@ Documentos heredados: adaptador publicado 156, no se reproduce 66, pendiente: ad
 | `bdt-product-carousel` | ADAPTAR | `woocommerce-products` | pendiente: adaptador | Carrusel de productos WooCommerce; productos de PRO Elements con la misma consulta. |
 | `bdt-product-grid` | ADAPTAR | `digitalisimo-product-grid` | adaptador publicado | own manual product cards with conditional CSS; image loading, ALT, links and editor aligned in 4.3.0.92, installed multisite rendering verified; WooCommerce queries, reference skins, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-profile-card` | ADAPTAR | — | adaptador publicado | author-box covers author/custom basics; user menu, social card, follow actions, skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
-| `bdt-progress-pie` | RECONSTRUIR | `digitalisimo-progress-bars` | pendiente: adaptador | Indicador circular de porcentaje; se reconstruye junto a las barras de progreso. |
+| `bdt-progress-pie` | RECONSTRUIR | `digitalisimo-progress-bars` | adaptador publicado | Indicador circular de porcentaje; se reconstruye junto a las barras de progreso. |
 | `bdt-protected-content` | DESCARTAR | — | no se reproduce | Contenido protegido por contraseña o rol en el cliente; la protección real es la de WordPress o Display Conditions por rol. |
 | `bdt-qrcode` | ADAPTAR | `digitalisimo-qr-code` | adaptador publicado | own local QR with accessible fallback and conditional assets; current queried URL fixed and installed multisite rendering verified in 4.3.0.93; internal labels, image mode, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-quform` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
-| `bdt-reading-progress` | RECONSTRUIR | `digitalisimo-reading-progress` | pendiente: adaptador | Barra de progreso de lectura; script ligero propio. |
-| `bdt-reading-timer` | RECONSTRUIR | `digitalisimo-reading-time` | pendiente: adaptador | Tiempo de lectura estimado; se calcula en el servidor. |
+| `bdt-reading-progress` | RECONSTRUIR | `digitalisimo-reading-progress` | adaptador publicado | Barra de progreso de lectura; script ligero propio. |
+| `bdt-reading-timer` | RECONSTRUIR | `digitalisimo-reading-time` | adaptador publicado | Tiempo de lectura estimado; se calcula en el servidor. |
 | `bdt-remote-arrows` | DESCARTAR | — | no se reproduce | Controla carruseles de Element Pack desde otro widget; sin esos carruseles no tiene función. |
 | `bdt-remote-fraction` | DESCARTAR | — | no se reproduce | Igual que Remote Arrows. |
 | `bdt-remote-pagination` | DESCARTAR | — | no se reproduce | Igual que Remote Arrows. |

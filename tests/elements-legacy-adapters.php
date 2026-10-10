@@ -260,6 +260,11 @@ namespace {
 	$hb = Translator::translate( 'bdt-hover-box', array( 'hover_box' => array( array( 'hover_box_title' => 'A', 'hover_box_content' => 'B', 'selected_icon' => array( 'value' => 'fas fa-star' ) ) ) ) );
 	check_adapter( 'A' === $hb['tabs'][0]['tab_title'] && 'B' === $hb['tabs'][0]['tab_content'] && 'icon' === $hb['tabs'][0]['icon_type'] && ! isset( $hb['hover_box'] ), 'Hover Box pasa sus cajas a pestañas.' );
 
+	$apb = Translator::translate( 'bdt-advanced-progress-bar', array() );
+	check_adapter( 5 === count( $apb['items'] ) && 'Design' === $apb['items'][0]['label'] && 97.0 === $apb['items'][0]['value'] && ' %' === $apb['suffix'] && 'bar' === $apb['layout'], 'Advanced Progress Bar conserva sus barras y valores.' );
+	$pie = Translator::translate( 'bdt-progress-pie', array( 'percent' => '60', 'title' => 'Avance' ) );
+	check_adapter( 'circle' === $pie['layout'] && 60.0 === $pie['items'][0]['value'] && 'Avance' === $pie['items'][0]['label'], 'Progress Pie pasa a un círculo.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

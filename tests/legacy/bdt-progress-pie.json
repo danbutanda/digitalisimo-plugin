@@ -1,0 +1,15 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El porcentaje se pinta en el servidor; Element Pack lo dibujaba con JavaScript"
+    }
+  },
+  "text": {
+    "percent": "60",
+    "title": "Avance",
+    "text": "Seis de diez",
+    "_known": {
+      "text": "El porcentaje se pinta en el servidor; Element Pack lo dibujaba con JavaScript"
+    }
+  }
+}

@@ -153,6 +153,10 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-advanced-progress-bar' => Bdt_AdvancedProgressBar::class,
+		'bdt-progress-pie' => Bdt_ProgressPie::class,
+		'bdt-reading-progress' => Bdt_ReadingProgress::class,
+		'bdt-reading-timer' => Bdt_ReadingTimer::class,
 		'bdt-hover-box' => Bdt_HoverBox::class,
 		'bdt-image-expand' => Bdt_ImageExpand::class,
 		'bdt-interactive-tabs' => Bdt_InteractiveTabs::class,
@@ -634,4 +638,16 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Accordion_Widget' ) ) {
 	final class Bdt_EddTabs extends \Digitalisimo\Elements\Accordion_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-edd-tabs'; }
 	final class Bdt_ImageAccordion extends \Digitalisimo\Elements\Accordion_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-image-accordion'; }
 	final class Bdt_Toggle extends \Digitalisimo\Elements\Accordion_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-toggle'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Progress_Bars_Widget' ) ) {
+	final class Bdt_AdvancedProgressBar extends \Digitalisimo\Elements\Progress_Bars_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-advanced-progress-bar'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Progress_Bars_Widget' ) ) {
+	final class Bdt_ProgressPie extends \Digitalisimo\Elements\Progress_Bars_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-progress-pie'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Reading_Progress_Widget' ) ) {
+	final class Bdt_ReadingProgress extends \Digitalisimo\Elements\Reading_Progress_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-reading-progress'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Reading_Time_Widget' ) ) {
+	final class Bdt_ReadingTimer extends \Digitalisimo\Elements\Reading_Time_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-reading-timer'; }
 }

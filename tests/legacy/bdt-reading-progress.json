@@ -1,0 +1,7 @@
+{
+  "defaults": {
+    "_expect_html": [
+      "digi-reading-progress"
+    ]
+  }
+}
