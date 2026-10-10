@@ -42,6 +42,7 @@ jobs:
           node tests/elements-notification-events.mjs
           php tests/elements-product-grid.php
           php tests/elements-qr-code.php
+          php tests/elements-table.php
           node tests/elements-slider-multiple.mjs
           for module in seo ia hosting backups tools elements; do php tests/update-enqueue.php "$module"; done
           php tests/performance-runtime.php

@@ -47,7 +47,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 43. Sub Menu — `nav-menu` ya incluido cubre submenús WordPress; repetidor estático y conversión legacy pendientes
 44. Switcher — Content Switcher propio sirve de base; plantillas y conversión legacy pendientes
 45. Tabs — Fancy Tabs propio sirve de base accesible; fuentes, skins y conversión legacy pendientes
-46. Table — base propia de CSV estático accesible; fuentes externas, skins y Multisite pendientes
+46. Table — CSV manual o adjunto local de Medios, con lectura limitada, caché y renderizado Multisite comprobado desde 4.3.0.95; Google Sheets, ACF, skins y conversión legacy pendientes
 47. Table Of Content — `table-of-contents` ya incluido; paridad de controles y conversión legacy pendientes
 48. Tags Cloud — base propia de términos públicos por sitio; paridad visual y Multisite pendientes
 49. Total Count — base propia con conteos públicos por sitio, sin animación ni JS; paridad visual y legacy pendientes

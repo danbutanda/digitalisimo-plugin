@@ -2957,7 +2957,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own accessible static CSV table with conditional CSS; external CSV, Sheets, ACF, DataTables skins and multisite runtime pending"
+      "status": "own accessible CSV table accepts manual text or a current-site Media attachment with bounded local read and cache; installed multisite rendering verified in 4.3.0.95; Sheets, ACF, DataTables skins, visual parity and legacy conversion pending"
     },
     "bdt-table-of-content": {
       "target": null,
