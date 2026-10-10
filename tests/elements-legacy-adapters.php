@@ -253,6 +253,13 @@ namespace {
 	check_adapter( 'Ana' === $mb['title_text'] && 'Directora' === $mb['badge_text'] && 'image' === $mb['icon_type'] && ! isset( $mb['social_link_list'] ), 'Member pasa nombre y cargo a la tarjeta.' );
 	check_adapter( '' === Translator::translate( 'bdt-trailer-box', array() )['button_text'] && 'Ver' === Translator::translate( 'bdt-trailer-box', array( 'link_type' => 'button', 'button_text' => 'Ver' ) )['button_text'], 'Trailer Box sólo muestra botón si lo tenía.' );
 
+	$et = Translator::translate( 'bdt-edd-tabs', array( 'tabs' => array( array( 'tab_title' => 'Compras', 'tab_content' => 'purchase_history' ) ) ) );
+	check_adapter( '[purchase_history]' === $et['tabs'][0]['tab_content'] && 'custom' === $et['tabs'][0]['source'], 'EDD Tabs muestra el shortcode de cada pestaña en el acordeón.' );
+	$tg = Translator::translate( 'bdt-toggle', array( 'toggle_title' => 'Más', 'toggle_content' => 'Oculto', 'toggle_initially_open' => 'yes' ) );
+	check_adapter( 1 === count( $tg['tabs'] ) && 'Más' === $tg['tabs'][0]['tab_title'] && 'Oculto' === $tg['tabs'][0]['tab_content'] && 1 === $tg['active_item'] && ! isset( $tg['toggle_title'] ), 'Toggle es un acordeón de un elemento abierto si lo estaba.' );
+	$hb = Translator::translate( 'bdt-hover-box', array( 'hover_box' => array( array( 'hover_box_title' => 'A', 'hover_box_content' => 'B', 'selected_icon' => array( 'value' => 'fas fa-star' ) ) ) ) );
+	check_adapter( 'A' === $hb['tabs'][0]['tab_title'] && 'B' === $hb['tabs'][0]['tab_content'] && 'icon' === $hb['tabs'][0]['icon_type'] && ! isset( $hb['hover_box'] ), 'Hover Box pasa sus cajas a pestañas.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

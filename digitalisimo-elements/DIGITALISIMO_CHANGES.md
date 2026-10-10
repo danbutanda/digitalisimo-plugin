@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.115
+# DIGITALÍSIMO Elements 4.3.0.116
+
+- 4.3.0.116: adaptadores de Element Pack para Hover Box, Image Expand, Interactive Tabs y Static Grid Tab sobre las pestañas propias, y para EDD Tabs, Image Accordion y Toggle sobre el Acordeón propio, con estilos heredados por clase y migración reversible.
 
 - 4.3.0.115: adaptadores de Element Pack para Animated Card, Interactive Card, Member y Trailer Box sobre la Fancy Card propia (subtítulo, cargo o antetítulo como distintivo), con estilos heredados y migración reversible.
 

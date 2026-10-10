@@ -153,6 +153,13 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-hover-box' => Bdt_HoverBox::class,
+		'bdt-image-expand' => Bdt_ImageExpand::class,
+		'bdt-interactive-tabs' => Bdt_InteractiveTabs::class,
+		'bdt-static-grid-tab' => Bdt_StaticGridTab::class,
+		'bdt-edd-tabs' => Bdt_EddTabs::class,
+		'bdt-image-accordion' => Bdt_ImageAccordion::class,
+		'bdt-toggle' => Bdt_Toggle::class,
 		'bdt-animated-card' => Bdt_AnimatedCard::class,
 		'bdt-interactive-card' => Bdt_InteractiveCard::class,
 		'bdt-member' => Bdt_Member::class,
@@ -616,4 +623,15 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Card_Widget' ) ) {
 	final class Bdt_InteractiveCard extends \Digitalisimo\Elements\Fancy_Card_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-interactive-card'; }
 	final class Bdt_Member extends \Digitalisimo\Elements\Fancy_Card_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-member'; }
 	final class Bdt_TrailerBox extends \Digitalisimo\Elements\Fancy_Card_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-trailer-box'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Tabs_Widget' ) ) {
+	final class Bdt_HoverBox extends \Digitalisimo\Elements\Fancy_Tabs_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-hover-box'; }
+	final class Bdt_ImageExpand extends \Digitalisimo\Elements\Fancy_Tabs_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-image-expand'; }
+	final class Bdt_InteractiveTabs extends \Digitalisimo\Elements\Fancy_Tabs_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-interactive-tabs'; }
+	final class Bdt_StaticGridTab extends \Digitalisimo\Elements\Fancy_Tabs_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-static-grid-tab'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Accordion_Widget' ) ) {
+	final class Bdt_EddTabs extends \Digitalisimo\Elements\Accordion_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-edd-tabs'; }
+	final class Bdt_ImageAccordion extends \Digitalisimo\Elements\Accordion_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-image-accordion'; }
+	final class Bdt_Toggle extends \Digitalisimo\Elements\Accordion_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-toggle'; }
 }

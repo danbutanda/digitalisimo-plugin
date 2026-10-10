@@ -1,0 +1,8 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Las pestañas propias muestran el texto de cada panel",
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor o ninguna"
+    }
+  }
+}

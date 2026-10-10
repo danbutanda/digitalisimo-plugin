@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 149, no se reproduce 66, pendiente: adaptador 48.
+Documentos heredados: adaptador publicado 156, no se reproduce 66, pendiente: adaptador 41.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -110,7 +110,7 @@ Documentos heredados: adaptador publicado 149, no se reproduce 66, pendiente: ad
 | `bdt-edd-product-review-carousel` | DESCARTAR | — | no se reproduce | Carrusel de reseñas de la extensión de reseñas de EDD; dependencia de pago poco común. |
 | `bdt-edd-product-reviews` | DESCARTAR | — | no se reproduce | Reseñas de la extensión de pago de EDD; usar el shortcode de esa extensión. |
 | `bdt-edd-register` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
-| `bdt-edd-tabs` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Pestañas cuyo contenido es un shortcode de EDD; las pestañas propias pueden mostrar el shortcode como texto. |
+| `bdt-edd-tabs` | ADAPTAR | `digitalisimo-accordion` | adaptador publicado | Pestañas cuyo contenido es un shortcode de EDD; las pestañas propias pueden mostrar el shortcode como texto. |
 | `bdt-event-carousel` | DESCARTAR | — | no se reproduce | Carrusel de The Events Calendar con consulta propia; usar los bloques o vistas del plugin. |
 | `bdt-event-grid` | DESCARTAR | — | no se reproduce | Rejilla de The Events Calendar con consulta propia; usar las vistas del plugin. |
 | `bdt-event-list` | DESCARTAR | — | no se reproduce | Lista de The Events Calendar con consulta propia; usar las vistas del plugin. |
@@ -146,20 +146,20 @@ Documentos heredados: adaptador publicado 149, no se reproduce 66, pendiente: ad
 | `bdt-helpdesk` | DESCARTAR | — | no se reproduce | Botones flotantes de contacto (WhatsApp, Messenger, etc.); PRO Elements incluye botones flotantes para contenido nuevo. |
 | `bdt-honeycombs` | DESCARTAR | — | no se reproduce | Rejilla hexagonal decorativa con su script; uso marginal. |
 | `bdt-horizontal-scroller` | DESCARTAR | — | no se reproduce | Desplazamiento horizontal de secciones con su script; cambia el comportamiento de la página. |
-| `bdt-hover-box` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Cajas que cambian el fondo al pasar el cursor; las pestañas propias conservan el contenido. |
+| `bdt-hover-box` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Cajas que cambian el fondo al pasar el cursor; las pestañas propias conservan el contenido. |
 | `bdt-hover-video` | ADAPTAR | `digitalisimo-video-player` | adaptador publicado | Vídeo que se reproduce al pasar el cursor; el reproductor propio conserva el vídeo. |
 | `bdt-icon-mobile-menu` | ADAPTAR | `digitalisimo-icon-mobile-menu` | adaptador publicado | own four-style icon navigation with CSS tooltip; editor links and tooltips aligned in 4.3.0.89; multisite runtime verified; visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-iconnav` | ADAPTAR | `digitalisimo-icon-nav` | adaptador publicado | own vertical icon navigation and native WordPress menu panel; editor branding and links aligned in 4.3.0.89; multisite runtime verified; offcanvas effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-iframe` | ADAPTAR | `html` | adaptador publicado | Iframe con URL; se adapta al widget HTML con el mismo iframe y carga diferida. |
-| `bdt-image-accordion` | ADAPTAR | `digitalisimo-accordion` | pendiente: adaptador | Acordeón de imágenes con título y texto; el contenido pasa al Acordeón propio. |
+| `bdt-image-accordion` | ADAPTAR | `digitalisimo-accordion` | adaptador publicado | Acordeón de imágenes con título y texto; el contenido pasa al Acordeón propio. |
 | `bdt-image-compare` | RECONSTRUIR | `digitalisimo-image-compare` | pendiente: adaptador | Comparador antes/después; se reconstruye accesible con un control deslizante nativo. |
-| `bdt-image-expand` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Imágenes que se expanden al pasar el cursor; el contenido pasa a pestañas propias. |
+| `bdt-image-expand` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Imágenes que se expanden al pasar el cursor; el contenido pasa a pestañas propias. |
 | `bdt-image-magnifier` | ADAPTAR | `image` | adaptador publicado | Lupa sobre una imagen; se conserva la imagen en el widget Imagen. |
 | `bdt-image-stack` | ADAPTAR | `image-gallery` | pendiente: adaptador | Imágenes apiladas; se conservan en la galería básica. |
 | `bdt-instagram` | DESCARTAR | — | no se reproduce | Lee la API de Instagram con token propio; la API Basic Display fue retirada. Usar Instagram Feed (adaptado por shortcode). |
 | `bdt-instagram-feed` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-interactive-card` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Tarjeta con imagen, título, texto y botón; la Fancy Card propia cubre el contenido. |
-| `bdt-interactive-tabs` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Pestañas con imagen de fondo; las pestañas propias cubren el contenido. |
+| `bdt-interactive-tabs` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Pestañas con imagen de fondo; las pestañas propias cubren el contenido. |
 | `bdt-layer-slider` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-learnpress-carousel` | DESCARTAR | — | no se reproduce | Carrusel de cursos de LearnPress con consulta propia; usar los bloques o shortcodes de LearnPress. |
 | `bdt-learnpress-grid` | DESCARTAR | — | no se reproduce | Rejilla de cursos de LearnPress con consulta propia; usar los bloques de LearnPress. |
@@ -229,7 +229,7 @@ Documentos heredados: adaptador publicado 149, no se reproduce 66, pendiente: ad
 | `bdt-source-code` | ADAPTAR | `code-highlight` | adaptador publicado | Código con resaltado; Code Highlight de PRO Elements. |
 | `bdt-stacker` | DESCARTAR | — | no se reproduce | Apilado de secciones al desplazar con su script; cambia el comportamiento de la página. |
 | `bdt-static-carousel` | ADAPTAR | `media-carousel` | pendiente: adaptador | Carrusel de elementos escritos hacia el carrusel de medios. |
-| `bdt-static-grid-tab` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Rejilla de elementos escritos con pestañas. |
+| `bdt-static-grid-tab` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Rejilla de elementos escritos con pestañas. |
 | `bdt-step-flow` | ADAPTAR | `digitalisimo-advanced-icon-box` | adaptador publicado | Paso con icono, título y texto; la Caja de icono avanzada propia lo cubre. |
 | `bdt-sub-menu` | ADAPTAR | `digitalisimo-vertical-menu` | adaptador publicado | nav-menu covers WordPress submenus for new content; static repeater, badges and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool |
 | `bdt-svg-blob` | DESCARTAR | — | no se reproduce | Forma SVG animada decorativa; las figuras del título propio cubren usos sencillos. |
@@ -249,7 +249,7 @@ Documentos heredados: adaptador publicado 149, no se reproduce 66, pendiente: ad
 | `bdt-thumb-gallery` | ADAPTAR | `media-carousel` | pendiente: adaptador | Galería con miniaturas hacia el carrusel de medios con miniaturas. |
 | `bdt-time-zone` | DESCARTAR | — | no se reproduce | Reloj por zona horaria calculado en el navegador; uso marginal. |
 | `bdt-timeline` | RECONSTRUIR | `digitalisimo-timeline` | pendiente: adaptador | Línea de tiempo de elementos escritos o entradas; se reconstruye como lista ordenada accesible. |
-| `bdt-toggle` | ADAPTAR | `digitalisimo-accordion` | pendiente: adaptador | Contenido que se despliega con «Mostrar más»; Acordeón propio de un elemento. |
+| `bdt-toggle` | ADAPTAR | `digitalisimo-accordion` | adaptador publicado | Contenido que se despliega con «Mostrar más»; Acordeón propio de un elemento. |
 | `bdt-total-count` | ADAPTAR | `digitalisimo-total-count` | adaptador publicado | own-widget-base; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool |
 | `bdt-trailer-box` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Caja con imagen de fondo, título, texto y botón; la Fancy Card propia la cubre. |
 | `bdt-tutor-lms-course-carousel` | DESCARTAR | — | no se reproduce | Carrusel de cursos de Tutor LMS con consulta propia; usar los bloques o shortcodes de Tutor LMS. |

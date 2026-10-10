@@ -1640,7 +1640,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-edd-tabs": {
-      "target": null,
+      "target": "digitalisimo-accordion",
       "engine": "navigation",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1649,11 +1649,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.116 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
-      "decision_target": "digitalisimo-fancy-tabs",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Pestañas cuyo contenido es un shortcode de EDD; las pestañas propias pueden mostrar el shortcode como texto."
+      "decision_target": "digitalisimo-accordion",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Pestañas cuyo contenido es un shortcode de EDD; las pestañas propias pueden mostrar el shortcode como texto.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-edd-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-event-carousel": {
       "target": null,
@@ -2251,7 +2252,7 @@
       "decision_reason": "Desplazamiento horizontal de secciones con su script; cambia el comportamiento de la página."
     },
     "bdt-hover-box": {
-      "target": null,
+      "target": "digitalisimo-fancy-tabs",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2260,11 +2261,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.116 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-fancy-tabs",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Cajas que cambian el fondo al pasar el cursor; las pestañas propias conservan el contenido."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Cajas que cambian el fondo al pasar el cursor; las pestañas propias conservan el contenido.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-hover-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-hover-video": {
       "target": "digitalisimo-video-player",
@@ -2349,7 +2351,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-iframe.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
     },
     "bdt-image-accordion": {
-      "target": null,
+      "target": "digitalisimo-accordion",
       "engine": "navigation",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2358,11 +2360,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.116 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-accordion",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Acordeón de imágenes con título y texto; el contenido pasa al Acordeón propio."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Acordeón de imágenes con título y texto; el contenido pasa al Acordeón propio.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-image-compare": {
       "target": null,
@@ -2381,7 +2384,7 @@
       "decision_reason": "Comparador antes/después; se reconstruye accesible con un control deslizante nativo."
     },
     "bdt-image-expand": {
-      "target": null,
+      "target": "digitalisimo-fancy-tabs",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2390,11 +2393,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.116 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-fancy-tabs",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Imágenes que se expanden al pasar el cursor; el contenido pasa a pestañas propias."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Imágenes que se expanden al pasar el cursor; el contenido pasa a pestañas propias.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-expand.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-image-magnifier": {
       "target": "image",
@@ -2478,7 +2482,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-interactive-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
     },
     "bdt-interactive-tabs": {
-      "target": null,
+      "target": "digitalisimo-fancy-tabs",
       "engine": "navigation",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2487,11 +2491,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.116 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-fancy-tabs",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Pestañas con imagen de fondo; las pestañas propias cubren el contenido."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Pestañas con imagen de fondo; las pestañas propias cubren el contenido.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-interactive-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-layer-slider": {
       "target": "shortcode",
@@ -3651,7 +3656,7 @@
       "decision_reason": "Carrusel de elementos escritos hacia el carrusel de medios."
     },
     "bdt-static-grid-tab": {
-      "target": null,
+      "target": "digitalisimo-fancy-tabs",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3660,11 +3665,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.116 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-fancy-tabs",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Rejilla de elementos escritos con pestañas."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Rejilla de elementos escritos con pestañas.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-static-grid-tab.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-step-flow": {
       "target": "digitalisimo-advanced-icon-box",
@@ -3974,7 +3980,7 @@
       "decision_reason": "Línea de tiempo de elementos escritos o entradas; se reconstruye como lista ordenada accesible."
     },
     "bdt-toggle": {
-      "target": null,
+      "target": "digitalisimo-accordion",
       "engine": "interaction",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3983,11 +3989,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.116 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-accordion",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Contenido que se despliega con «Mostrar más»; Acordeón propio de un elemento."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Contenido que se despliega con «Mostrar más»; Acordeón propio de un elemento.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-toggle.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-total-count": {
       "target": "digitalisimo-total-count",

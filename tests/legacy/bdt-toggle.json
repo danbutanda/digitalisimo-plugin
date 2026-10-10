@@ -1,0 +1,17 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El título no cambia a «Collapse» al abrirse",
+      "links": "El acordeón usa <details>; Element Pack usaba un enlace javascript:void(0)"
+    }
+  },
+  "open": {
+    "toggle_title": "Ver más",
+    "toggle_content": "<p>Oculto</p>",
+    "toggle_initially_open": "yes",
+    "_known": {
+      "text": "El título no cambia a «Collapse» al abrirse",
+      "links": "El acordeón usa <details>; Element Pack usaba un enlace javascript:void(0)"
+    }
+  }
+}

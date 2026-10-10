@@ -1,0 +1,8 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Las pestañas propias muestran el contenido y el botón del panel activo; Element Pack los mostraba al pasar el cursor",
+      "links": "Los botones de ejemplo enlazan «#»; Element Pack usaba javascript:void(0)"
+    }
+  }
+}

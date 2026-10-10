@@ -88,6 +88,8 @@ Lote 20 (4.3.0.114): siete widgets se ADAPTAN. Diferencias declaradas: no se tra
 
 Lote 21 (4.3.0.115): Animated Card, Interactive Card, Member y Trailer Box se ADAPTAN a Fancy Card. Diferencias declaradas: animaciones, ondas y giro no se trasladan; los enlaces sociales de Member no se trasladan; el enlace de toda la caja de Trailer Box no se conserva; las imágenes de ejemplo de Element Pack pasan a la de Elementor.
 
+Lote 22 (4.3.0.116): cuatro widgets pasan a pestañas y tres al acordeón (ADAPTAR). Diferencias declaradas: los efectos al pasar el cursor y de expansión no se trasladan; Toggle no cambia su título a «Collapse» al abrirse; las imágenes de ejemplo de Element Pack pasan a la de Elementor o a ninguna.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.
