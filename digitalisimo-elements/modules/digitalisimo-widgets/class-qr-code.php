@@ -29,7 +29,12 @@ final class QR_Code_Widget extends \Elementor\Widget_Base {
 
 	protected function render() {
 		$s = $this->get_settings_for_display();
-		$content = 'yes' === ( $s['site_link'] ?? '' ) ? get_permalink() : trim( (string) ( $s['text'] ?? '' ) );
+		if ( 'yes' === ( $s['site_link'] ?? '' ) ) {
+			$queried_id = is_singular() ? get_queried_object_id() : 0;
+			$content = $queried_id ? get_permalink( $queried_id ) : get_pagenum_link( max( 1, absint( get_query_var( 'paged' ) ) ) );
+		} else {
+			$content = trim( (string) ( $s['text'] ?? '' ) );
+		}
 		if ( ! is_string( $content ) || '' === $content ) { return; }
 		$content = substr( $content, 0, 1000 );
 		$label = trim( wp_strip_all_tags( (string) ( $s['label'] ?? '' ) ) );

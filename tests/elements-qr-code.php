@@ -12,7 +12,11 @@ namespace Elementor {
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
-	function get_permalink() { return 'https://sitio.test/pagina/'; }
+	function is_singular() { return $GLOBALS['qr_singular'] ?? true; }
+	function get_queried_object_id() { return $GLOBALS['qr_queried_id'] ?? 42; }
+	function get_permalink( $id = 0 ) { $GLOBALS['qr_permalink_id'] = $id; return 42 === $id ? 'https://sitio.test/pagina/' : 'https://sitio.test/plantilla/'; }
+	function get_query_var( $key ) { return $GLOBALS['qr_paged'] ?? 1; }
+	function get_pagenum_link( $page ) { return 'https://sitio.test/articulos/page/' . $page . '/'; }
 	function wp_strip_all_tags( $v ) { return strip_tags( $v ); }
 	function absint( $v ) { return abs( (int) $v ); }
 	function sanitize_hex_color( $v ) { return preg_match( '/^#[0-9a-f]{6}$/i', $v ) ? $v : null; }
@@ -29,7 +33,11 @@ namespace {
 	$widget->settings = array( 'site_link' => 'yes', 'size' => 999, 'foreground' => 'red', 'label' => '<script>x</script>Escanear' );
 	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
 	check_qr( str_contains( $html, 'data-text="https://sitio.test/pagina/"' ) && str_contains( $html, 'data-size="512"' ) && str_contains( $html, 'data-fill="#111111"' ), 'Debe usar el permalink del sitio y acotar tamaño/color.' );
+	check_qr( 42 === $GLOBALS['qr_permalink_id'], 'Una plantilla debe usar el objeto consultado y no su post global.' );
 	check_qr( str_contains( $html, 'href="https://sitio.test/pagina/"' ) && ! str_contains( $html, '<script>' ), 'Debe conservar un enlace accesible y sanear el rótulo.' );
+	$GLOBALS['qr_singular'] = false; $GLOBALS['qr_paged'] = 3;
+	ob_start(); (new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $archive = ob_get_clean();
+	check_qr( str_contains( $archive, 'data-text="https://sitio.test/articulos/page/3/"' ), 'En archivos debe enlazar la página de resultados actual.' );
 	$widget->settings = array( 'site_link' => '', 'text' => 'Contacto & ayuda', 'size' => 32 );
 	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $text = ob_get_clean();
 	check_qr( str_contains( $text, 'data-size="64"' ) && str_contains( $text, 'Contacto &amp; ayuda' ) && ! str_contains( $text, 'href=' ), 'El texto plano debe mantenerse legible sin enlace falso.' );

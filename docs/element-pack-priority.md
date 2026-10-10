@@ -38,7 +38,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 34. Post Grid — para contenido nuevo usar `posts` ya incluido; nueve skins y conversión legacy pendientes
 35. Post List — `posts` en una columna sirve de base; layouts, términos y conversión legacy pendientes
 36. Profile Card — `author-box` cubre autor y perfil básico; tarjeta social, menú y conversión legacy pendientes
-37. QR Code — base propia con generación local y fallback legible; etiquetas internas, paridad visual y Multisite pendientes
+37. QR Code — base propia con generación local y fallback legible; desde 4.3.0.93 usa la URL consultada aunque Elementor tenga otro post global, renderizado Multisite comprobado; etiquetas internas y paridad visual pendientes
 38. Slider — para diapositivas editoriales usar `slides` ya incluido; Slider Optimizado sigue separado y la conversión legacy pendiente
 39. Slinky Vertical Menu — `nav-menu` cubre jerarquía básica; transición deslizante y conversión legacy pendientes
 40. Search — `search-form` ya incluido cubre búsquedas nuevas; filtros por tipo y conversión legacy pendientes

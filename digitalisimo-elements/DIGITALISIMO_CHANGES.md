@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.92
+# DIGITALÍSIMO Elements 4.3.0.93
+
+- 4.3.0.93: QR Code usa el objeto realmente consultado en páginas individuales y la URL actual en archivos, evitando generar el enlace de una plantilla de Elementor o de otro post global.
 
 - 4.3.0.92: Product Grid deja que WordPress decida la carga de imágenes, conserva el ALT de imágenes externas sin título, protege enlaces externos y alinea la vista previa con el conteo de reseñas y los atributos del enlace.
 
