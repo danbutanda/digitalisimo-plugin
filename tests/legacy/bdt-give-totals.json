@@ -1,0 +1,17 @@
+{
+  "chosen": {
+    "forms": [
+      "1",
+      "2"
+    ],
+    "total_goal": "5000",
+    "message": "Meta",
+    "link": {
+      "url": "https://example.test/donar/",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "link_text": "Donar"
+  }
+}

@@ -15,7 +15,14 @@ final class Translator {
 	const MARKER  = '_digitalisimo_legacy';
 	const DEVICES = array( '', '_widescreen', '_laptop', '_tablet_extra', '_tablet', '_mobile_extra', '_mobile' );
 
+	/** IDs de Element Pack: todos con prefijo `bdt-` salvo el calendario de FooEvents. */
+	const ID_PATTERN = '/^(bdt-[a-z0-9-]+|fooevents-calendar)$/';
+
 	private static $maps = array();
+
+	public static function is_legacy_id( $id ) {
+		return 1 === preg_match( self::ID_PATTERN, (string) $id );
+	}
 
 	/** Element Pack conserva sus IDs mientras esté cargado; ni adaptadores ni migración compiten con él. */
 	public static function element_pack_active() {
@@ -25,8 +32,8 @@ final class Translator {
 	/** @return string[] IDs heredados con mapa disponible. */
 	public static function ids() {
 		$ids = array();
-		foreach ( glob( __DIR__ . '/maps/bdt-*.php' ) ?: array() as $file ) {
-			if ( false === strpos( basename( $file ), '.styles.' ) ) {
+		foreach ( glob( __DIR__ . '/maps/*.php' ) ?: array() as $file ) {
+			if ( false === strpos( basename( $file ), '.styles.' ) && self::is_legacy_id( basename( $file, '.php' ) ) ) {
 				$ids[] = basename( $file, '.php' );
 			}
 		}
@@ -37,7 +44,7 @@ final class Translator {
 	public static function map( $legacy_id ) {
 		if ( ! array_key_exists( $legacy_id, self::$maps ) ) {
 			$file                     = __DIR__ . '/maps/' . basename( (string) $legacy_id ) . '.php';
-			self::$maps[ $legacy_id ] = preg_match( '/^bdt-[a-z0-9-]+$/', (string) $legacy_id ) && is_file( $file ) ? require $file : null;
+			self::$maps[ $legacy_id ] = self::is_legacy_id( $legacy_id ) && is_file( $file ) ? require $file : null;
 		}
 		return self::$maps[ $legacy_id ];
 	}
@@ -45,7 +52,7 @@ final class Translator {
 	/** Controles de estilo de Element Pack con selectores ya reescritos al marcado propio. */
 	public static function styles( $legacy_id ) {
 		$file = __DIR__ . '/maps/' . basename( (string) $legacy_id ) . '.styles.php';
-		return preg_match( '/^bdt-[a-z0-9-]+$/', (string) $legacy_id ) && is_file( $file ) ? (array) require $file : array();
+		return self::is_legacy_id( $legacy_id ) && is_file( $file ) ? (array) require $file : array();
 	}
 
 	public static function target( $legacy_id ) {
@@ -72,6 +79,9 @@ final class Translator {
 				}
 			}
 			$out[ $spec['target'] ?? $key ] = $items;
+		}
+		if ( ! empty( $map['conditions'] ) ) {
+			$out = self::active( $out, $map['conditions'] );
 		}
 		if ( isset( $map['filter'] ) && is_callable( $map['filter'] ) ) {
 			$out = (array) call_user_func( $map['filter'], $out, $settings );
@@ -119,6 +129,77 @@ final class Translator {
 		$out['posts_order']     = 'asc' === strtolower( (string) ( $out['posts_order'] ?? 'desc' ) ) ? 'asc' : 'desc';
 		unset( $out['posts_source'], $out['posts_only_with_featured_image'], $out['posts_source_description'], $out['posts_divider'] );
 		return $out;
+	}
+
+	/**
+	 * `[tag clave="valor"]` como lo armaba Element Pack con los atributos de render de Elementor:
+	 * valores escapados, listas separadas por espacios y lógicos como «1» o vacío.
+	 */
+	public static function shortcode( $tag, array $attributes ) {
+		$parts = array();
+		foreach ( $attributes as $key => $value ) {
+			if ( is_array( $value ) ) {
+				$value = implode( ' ', array_map( 'strval', $value ) );
+			} elseif ( is_bool( $value ) ) {
+				$value = $value ? '1' : '';
+			}
+			$parts[] = $key . '="' . esc_attr( (string) $value ) . '"';
+		}
+		return '[' . $tag . ' ' . implode( ' ', $parts ) . ']';
+	}
+
+	/**
+	 * Un widget de Element Pack que sólo imprimía el shortcode de otro plugin pasa al widget
+	 * Shortcode de Elementor: se quitan sus ajustes de contenido y se guarda el shortcode armado.
+	 */
+	public static function as_shortcode( array $out, $shortcode, array $content_keys ) {
+		foreach ( $content_keys as $key ) {
+			unset( $out[ $key ] );
+		}
+		$out['shortcode'] = (string) $shortcode;
+		return $out;
+	}
+
+	/**
+	 * Como `get_settings_for_display()`: un ajuste cuyo control no cumple su condición vale null.
+	 * Se evalúa sobre los valores originales, con la comparación estricta de Elementor.
+	 */
+	public static function active( array $settings, array $conditions ) {
+		$out = $settings;
+		foreach ( $conditions as $key => $condition ) {
+			if ( array_key_exists( $key, $settings ) && ! self::visible( $settings, (array) $condition ) ) {
+				$out[ $key ] = null;
+			}
+		}
+		return $out;
+	}
+
+	private static function visible( array $values, array $condition ) {
+		foreach ( $condition as $condition_key => $condition_value ) {
+			preg_match( '/([a-z_\-0-9]+)(?:\[([a-z_]+)])?(!?)$/i', (string) $condition_key, $parts );
+			$key = $parts[1] ?? '';
+			if ( ! isset( $values[ $key ] ) ) {
+				return false;
+			}
+			$value = $values[ $key ];
+			if ( ! empty( $parts[2] ) && is_array( $value ) ) {
+				if ( ! isset( $value[ $parts[2] ] ) ) {
+					return false;
+				}
+				$value = $value[ $parts[2] ];
+			}
+			if ( is_array( $condition_value ) && $condition_value ) {
+				$contains = in_array( $value, $condition_value, true );
+			} elseif ( is_array( $value ) && $value ) {
+				$contains = in_array( $condition_value, $value, true );
+			} else {
+				$contains = $value === $condition_value;
+			}
+			if ( ! empty( $parts[3] ) === $contains ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/** Defaults, renombres, valores y fijos de un nivel (widget o fila de repetidor). */

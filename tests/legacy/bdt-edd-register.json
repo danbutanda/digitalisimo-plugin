@@ -1,0 +1,10 @@
+{
+  "custom": {
+    "form_register_redirect_url": {
+      "url": "https://example.test/gracias/",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    }
+  }
+}

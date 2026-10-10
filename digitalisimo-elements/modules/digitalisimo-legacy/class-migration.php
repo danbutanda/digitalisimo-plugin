@@ -32,11 +32,11 @@ final class Migration {
 	/** IDs de documentos del sitio que contienen widgets de Element Pack. */
 	public static function documents( $limit = 0 ) {
 		global $wpdb;
-		$sql = "SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_elementor_data' AND meta_value LIKE %s ORDER BY post_id";
+		$sql = "SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_elementor_data' AND ( meta_value LIKE %s OR meta_value LIKE %s ) ORDER BY post_id";
 		if ( $limit ) {
 			$sql .= ' LIMIT ' . absint( $limit );
 		}
-		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $sql, '%' . $wpdb->esc_like( '"widgetType":"bdt-' ) . '%' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $sql, '%' . $wpdb->esc_like( '"widgetType":"bdt-' ) . '%', '%' . $wpdb->esc_like( '"widgetType":"fooevents-calendar"' ) . '%' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	public static function backups() {
@@ -52,7 +52,7 @@ final class Migration {
 			$seen = array();
 			self::walk( $data, static function ( $element ) use ( &$rows, &$seen, $post_id ) {
 				$type = (string) ( $element['widgetType'] ?? '' );
-				if ( 0 !== strpos( $type, 'bdt-' ) ) {
+				if ( ! Translator::is_legacy_id( $type ) ) {
 					return $element;
 				}
 				$rows[ $type ] = $rows[ $type ] ?? array( 'elements' => 0, 'documents' => 0, 'map' => (bool) Translator::map( $type ) );
@@ -139,7 +139,7 @@ final class Migration {
 		}
 		$stats = array( 'native' => 0, 'adapter' => 0, 'skip' => 0 );
 		$data  = self::walk( self::data( $post_id ), static function ( $element ) use ( &$stats ) {
-			if ( 0 !== strpos( (string) ( $element['widgetType'] ?? '' ), 'bdt-' ) || isset( $element['settings'][ Translator::MARKER ] ) ) {
+			if ( ! Translator::is_legacy_id( $element['widgetType'] ?? '' ) || isset( $element['settings'][ Translator::MARKER ] ) ) {
 				return $element;
 			}
 			list( $element, $state ) = self::convert_element( $element );
@@ -183,7 +183,7 @@ final class Migration {
 			$found = false;
 			self::walk( self::data( $post_id ), static function ( $element ) use ( &$found ) {
 				$type = (string) ( $element['widgetType'] ?? '' );
-				if ( 0 === strpos( $type, 'bdt-' ) && Translator::map( $type ) && ! isset( $element['settings'][ Translator::MARKER ] ) ) {
+				if ( Translator::is_legacy_id( $type ) && Translator::map( $type ) && ! isset( $element['settings'][ Translator::MARKER ] ) ) {
 					$found = true;
 				}
 				return $element;

@@ -1,0 +1,10 @@
+{
+  "custom": {
+    "login_url": {
+      "url": "https://example.test/cuenta/",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    }
+  }
+}

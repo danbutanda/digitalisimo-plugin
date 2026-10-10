@@ -5,8 +5,8 @@ namespace {
 	function absint( $v ) { return abs( (int) $v ); }
 	function wp_strip_all_tags( $text ) { return strip_tags( (string) $text ); }
 	function get_bloginfo( $what ) { return 'Mi sitio'; }
-	function esc_html( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
-	function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
+	function esc_html( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8', false ); }
+	function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8', false ); }
 	function esc_url( $v ) { return (string) $v; }
 	function wp_kses_post( $v ) { return strip_tags( (string) $v, '<p><a><strong><em>' ); }
 	function check_adapter( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
@@ -30,6 +30,13 @@ namespace {
 		}
 	}
 	function wp_json_encode_stub( $value ) { return json_encode( $value ); }
+	// Cada mapa tiene su clase adaptadora en Adapters::CLASSES y cada clase su mapa.
+	$adapters = file_get_contents( $base . 'class-adapters.php' );
+	preg_match_all( "/^\t\t'([a-z0-9-]+)' => (\w+)::class,$/m", $adapters, $registered );
+	check_adapter( array() === array_diff( $ids, $registered[1] ) && array() === array_diff( $registered[1], $ids, array( 'bdt-animated-link' ) ), 'Mapas y clases adaptadoras deben coincidir: ' . implode( ', ', array_merge( array_diff( $ids, $registered[1] ), array_diff( $registered[1], $ids ) ) ) );
+	foreach ( $registered[2] as $class ) {
+		check_adapter( 1 === preg_match( '/final class ' . $class . ' extends /', $adapters ), 'Falta declarar ' . $class );
+	}
 	check_adapter( null === Translator::map( '../class-translator' ) && null === Translator::map( 'bdt-no-existe' ), 'Sólo se cargan mapas por ID válido.' );
 
 	// Defaults de Element Pack: Elementor no guarda lo que coincide con ellos.
@@ -186,6 +193,26 @@ namespace {
 	check_adapter( 'selector' === $oc['trigger'] && '.abrir' === $oc['trigger_selector'] && 'template' === $oc['source'] && '8' === $oc['template_id'] && 'right' === $oc['side'] && '' === $oc['close_on_overlay'] && 'yes' === $oc['close_on_escape'] && 400 === $oc['panel_width']['size'] && 'center' === $oc['button_align'] && ! isset( $oc['offcanvas_width'], $oc['layout'] ), 'Offcanvas debe traducir apertura, contenido, lado, cierre y ancho.' );
 	$oc = Translator::translate( 'bdt-offcanvas', array() );
 	check_adapter( 'button' === $oc['trigger'] && 'sidebar' === $oc['source'] && '' === $oc['sidebar'] && '' === $oc['overlay'] && '' === $oc['content_before'] && 'Offcanvas' === $oc['button_text'] && 'fas fa-bars' === $oc['button_icon']['value'] && 'flex-start' === $oc['button_align'], 'Los defaults de Offcanvas muestran su botón sin oscurecer el fondo.' );
+
+	// Widgets de integración: el mismo shortcode que armaba Element Pack, en el widget Shortcode de Elementor.
+	$sc = static function ( $id, $settings ) { return Translator::translate( $id, $settings )['shortcode']; };
+	check_adapter( '[contact-form-7 id="12"]' === $sc( 'bdt-contact-form-7', array( 'contact_form' => '12' ) ) && '' === $sc( 'bdt-contact-form-7', array() ), 'Contact Form 7 usa su id y sin formulario no muestra nada.' );
+	check_adapter( '[wpforms id="3"]' === $sc( 'bdt-wp-forms', array( 'contact_form' => '3' ) ) && '[fluentform id="4"]' === $sc( 'bdt-fluent-forms', array( 'fluent_form' => '4' ) ) && '[ninja_form id="5"]' === $sc( 'bdt-ninja-form', array( 'ninja_form' => '5' ) ), 'Los formularios de terceros usan su etiqueta.' );
+	check_adapter( '[give_totals ids="1 2" total_goal="100" message="Meta &amp; más" link="https://s.test/d" link_text="Donar" progress_bar="yes"]' === $sc( 'bdt-give-totals', array( 'forms' => array( '1', '2' ), 'total_goal' => '100', 'message' => 'Meta & más', 'link' => array( 'url' => 'https://s.test/d' ), 'link_text' => 'Donar', 'show_progress' => 'yes' ) ), 'Las listas se separan con espacios y los textos se escapan como en Element Pack.' );
+	check_adapter( 0 === strpos( $sc( 'bdt-give-donor-wall', array( 'all_forms' => 'yes', 'show_comments' => 'yes' ) ), '[give_donor_wall form_id=""' ) && false !== strpos( $sc( 'bdt-give-donor-wall', array( 'all_forms' => 'yes', 'show_comments' => 'yes' ) ), 'show_comments="1" only_comments=""' ), 'Los lógicos pasan como «1» o vacío.' );
+	check_adapter( '[campaigns orderby="post_date" order="DESC" number="10" button="donate"]' === $sc( 'bdt-charitable-campaigns', array( 'campaigns' => array( 'all' ), 'orderby' => 'post_date', 'order' => 'DESC', 'number' => '10', 'button' => 'donate' ) ) && false !== strpos( $sc( 'bdt-charitable-campaigns', array( 'campaigns' => array( '7', '9' ) ) ), 'id="7,9"' ), 'Charitable sólo filtra campañas si no se eligieron todas.' );
+	check_adapter( '[download_history]' === $sc( 'bdt-easy-digital-download-history', array() ) && '[edd_register redirect="https://s.test/ok"]' === $sc( 'bdt-edd-register', array( 'form_register_redirect_url' => array( 'url' => 'https://s.test/ok' ) ) ), 'EDD usa sus shortcodes fijos o con redirección.' );
+	check_adapter( '[weforms id="2" data-x="1"]' === $sc( 'bdt-we-form', array( 'we_form' => '2', 'custom_attributes' => "data-x|1\nonclick|x\nstyle|y\n9bad|z" ) ), 'weForms descarta atributos de evento, estilo y clase.' );
+	check_adapter( '[gravityform id="8" title="true" description="false" ajax="true" tabindex="0"]' === $sc( 'bdt-gravity-form', array( 'gravity_form' => '8', 'title_hide' => 'yes', 'description_hide' => '', 'form_ajax' => 'yes' ) ), 'Gravity Forms usa los mismos argumentos que gravity_form().' );
+	$foo = Translator::translate( 'fooevents-calendar', array( 'fooevents_calendar_list' => 'month', 'fooevents_calendar_startday' => '1', 'fooevents_calendar_num' => '5' ) );
+	check_adapter( Translator::is_legacy_id( 'fooevents-calendar' ) && ! Translator::is_legacy_id( 'shortcode' ) && 0 === strpos( $foo['shortcode'], '[fooevents_calendar defaultView="month" firstDay="1" num="5"' ) && ! isset( $foo['fooevents_calendar_list'] ), 'El calendario de FooEvents también se traduce aunque su ID no lleve prefijo.' );
+
+	check_adapter( '[bbp-single-topic id="15"]' === $sc( 'bdt-bbpress-single-topic', array( 'bbpress_topic_id' => '15' ) ) && '[bbp-topic-form forum_id="4"]' === $sc( 'bdt-bbpress-topic-form', array( 'bbpress_forum_id' => '4' ) ) && '[bbp-topic-form ]' === $sc( 'bdt-bbpress-topic-form', array() ) && '[bbp-stats]' === $sc( 'bdt-bbpress-stats', array() ), 'bbPress usa sus propios shortcodes.' );
+
+	// Condiciones como Elementor: comparación estricta, listas, negación y subclaves.
+	$act = Translator::active( array( 'a' => 'x', 'b' => '1', 'c' => '2', 'd' => array( 'url' => '' ), 'e' => '3' ), array( 'b' => array( 'a' => 'x' ), 'c' => array( 'a!' => 'x' ), 'd' => array( 'a' => array( 'y', 'x' ) ), 'e' => array( 'd[url]!' => '' ) ) );
+	check_adapter( '1' === $act['b'] && null === $act['c'] && array( 'url' => '' ) === $act['d'] && null === $act['e'], 'Las condiciones deben evaluarse como en Elementor.' );
+	check_adapter( false !== strpos( $sc( 'bdt-charitable-stat', array( 'campaign' => array( '3' ), 'display' => 'donors' ) ), 'goal=""' ) && false !== strpos( $sc( 'bdt-charitable-stat', array( 'campaign' => array( '3' ), 'display' => 'progress' ) ), 'goal="1000"' ), 'Un ajuste oculto por su condición llega vacío al shortcode, como en Element Pack.' );
 
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );

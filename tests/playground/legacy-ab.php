@@ -8,6 +8,8 @@
  */
 // Todas las combinaciones se renderizan en un solo proceso: con Element Pack activo no bastan 256 MB.
 ini_set( 'memory_limit', '2048M' );
+// Como index.php en una visita real: algunos plugins (bbPress) sólo cargan sus plantillas con temas activos.
+define( 'WP_USE_THEMES', true );
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/user.php';
 require_once WP_PLUGIN_DIR . '/digitalisimo-elements/modules/digitalisimo-legacy/class-migration.php';
@@ -21,7 +23,7 @@ register_shutdown_function( static function () use ( $phase ) {
 } );
 $out_dir  = '/wordpress/wp-content/digi-ab';
 $fixtures = array();
-foreach ( array_merge( glob( '/wordpress/wp-content/digi-legacy-fixtures/bdt-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/ext-*.json' ) ) as $file ) {
+foreach ( array_merge( glob( '/wordpress/wp-content/digi-legacy-fixtures/bdt-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/fooevents-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/ext-*.json' ) ) as $file ) {
 	$only = getenv( 'DIGI_ONLY' );
 	$id   = basename( $file, '.json' );
 	if ( $only && ! in_array( $id, explode( ',', $only ), true ) ) {
@@ -42,6 +44,8 @@ function digi_ab_signature( $html ) {
 	$xpath = new DOMXPath( $doc );
 	foreach ( $xpath->query( '//text()[not(ancestor::script) and not(ancestor::style) and not(ancestor::svg) and not(ancestor::noscript) and not(ancestor::template)]' ) as $node ) {
 		$text = trim( preg_replace( '/\s+/u', ' ', $node->nodeValue ) );
+		// Los tiempos relativos («5 seconds ago») cambian entre fases sin que cambie el contenido.
+		$text = preg_replace( '/\b\d+ (second|minute)s? ago\b/', 'N ago', $text );
 		if ( '' !== $text ) {
 			$sig['text'][] = $text;
 		}
@@ -69,13 +73,13 @@ foreach ( array( 1, 2 ) as $blog ) {
 			$known      = (array) ( $settings['_known'] ?? array() );
 			$type       = (string) ( $settings['_widget'] ?? $widget );
 			unset( $settings['_expect_css'], $settings['_expect_html'], $settings['_known'], $settings['_widget'], $settings['_section'] );
+			// Marcadores «__X__»: IDs del contenido de prueba de este sitio.
 			$template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
 			$sample   = get_page_by_path( 'digi-ab-post-1', OBJECT, 'post' );
-			array_walk_recursive( $settings, static function ( &$value ) use ( $template, $sample ) {
-				if ( '__TEMPLATE__' === $value ) {
-					$value = $template ? (string) $template->ID : '';
-				} elseif ( '__POST__' === $value ) {
-					$value = $sample ? (string) $sample->ID : '';
+			$markers  = array( '__TEMPLATE__' => $template ? (string) $template->ID : '', '__POST__' => $sample ? (string) $sample->ID : '' ) + (array) get_option( 'digi_ab_markers', array() );
+			array_walk_recursive( $settings, static function ( &$value ) use ( $markers ) {
+				if ( is_string( $value ) && isset( $markers[ $value ] ) ) {
+					$value = $markers[ $value ];
 				}
 			} );
 			$slug = 'digi-ab-' . $widget . '-' . $case;
@@ -113,7 +117,7 @@ foreach ( array( 1, 2 ) as $blog ) {
 				$entry['editor_settings'] = array_keys( (array) ( $raw[0]['elements'][0]['elements'][0]['settings'] ?? array() ) );
 				$entry['editor_widget']   = $raw[0]['elements'][0]['elements'][0]['widgetType'] ?? '';
 				// El envoltorio se presenta como el widget de destino para su CSS y sus scripts.
-				$target = 0 === strpos( $type, 'bdt-' ) ? \Digitalisimo\Elements\Legacy\Translator::target( $type ) : '';
+				$target = \Digitalisimo\Elements\Legacy\Translator::is_legacy_id( $type ) ? \Digitalisimo\Elements\Legacy\Translator::target( $type ) : '';
 				// Sin contenido Elementor no pinta el envoltorio: no hay nada que comprobar.
 				if ( '' !== $target && 'B' === $phase && false !== strpos( $html, 'elementor-element-w' . substr( md5( $slug ), 0, 6 ) ) ) {
 					$entry['wrapper_ok'] = false !== strpos( $html, 'data-widget_type="' . $target . '.' ) && false !== strpos( $html, 'elementor-widget-' . $target );

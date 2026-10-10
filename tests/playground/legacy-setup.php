@@ -5,6 +5,19 @@ require_once ABSPATH . 'wp-admin/includes/plugin.php';
 foreach ( array( 'elementor/elementor.php', 'digitalisimo-elements/pro-elements.php', 'bdthemes-element-pack/bdthemes-element-pack.php' ) as $plugin ) {
 	activate_plugin( $plugin, '', true );
 }
+// Plugins reales instalados con EXTRA_PLUGINS.
+foreach ( array_filter( explode( ',', (string) getenv( 'DIGI_EXTRA' ) ) ) as $slug ) {
+	foreach ( array_keys( get_plugins( '/' . $slug ) ) as $file ) {
+		activate_plugin( $slug . '/' . $file, '', true );
+		break;
+	}
+}
+// Plugins de prueba montados con FAKE_PLUGINS=1 (sólo registran shortcodes).
+foreach ( get_plugins() as $file => $plugin ) {
+	if ( 0 === strpos( (string) $plugin['Name'], 'Digitalisimo A/B fake' ) ) {
+		activate_plugin( $file, '', true );
+	}
+}
 if ( ! get_site( 2 ) ) {
 	wpmu_create_blog( DOMAIN_CURRENT_SITE, PATH_CURRENT_SITE . 'sub/', 'Subsitio', 1 );
 }

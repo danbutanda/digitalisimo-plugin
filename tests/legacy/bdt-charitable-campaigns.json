@@ -1,0 +1,15 @@
+{
+  "all": {
+    "campaigns": [
+      "all"
+    ],
+    "number": "4"
+  },
+  "some": {
+    "campaigns": [
+      "7",
+      "9"
+    ],
+    "orderby": "popular"
+  }
+}

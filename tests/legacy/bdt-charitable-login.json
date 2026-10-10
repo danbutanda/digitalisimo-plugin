@@ -1,0 +1,11 @@
+{
+  "custom": {
+    "logged_in_message": "Ya entraste",
+    "redirect": {
+      "url": "https://example.test/panel/",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    }
+  }
+}

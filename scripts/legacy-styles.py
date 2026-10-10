@@ -143,7 +143,8 @@ def literal(text):
 def rewrite(selector, classes):
     for old, new in sorted(classes.items(), key=lambda item: -len(item[0])):
         selector = selector.replace(old, new)
-    return None if re.search(r'\.bdt-|bdt-[a-z]', selector) else selector
+    # Un selector sin {{WRAPPER}} ni {{ID}} afectaría a toda la página: no se reproduce.
+    return None if re.search(r'\.bdt-|bdt-[a-z]', selector) or ('{{WRAPPER}}' not in selector and '{{ID}}' not in selector) else selector
 
 
 def php(value, indent=1):
@@ -175,7 +176,8 @@ def classes_for(legacy_id):
         tmp = Path('/tmp/digi-legacy-classes.php')
         tmp.write_text("<?php define('ABSPATH',1); " + code)
         out = subprocess.run(cli + [str(tmp)], capture_output=True, text=True, check=True).stdout
-    return json.loads(out or '{}')
+    classes = json.loads(out or '{}')
+    return classes if isinstance(classes, dict) else {}  # PHP codifica un array vacío como lista
 
 
 def generate(legacy_id):

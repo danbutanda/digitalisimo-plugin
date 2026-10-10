@@ -10,25 +10,6 @@ return array( array(
 		'group' => 'background',
 		'selector' => '{{WRAPPER}} .digi-icon-mobile-menu__entry',
 	), array(
-		'name' => 'item_border_type',
-		'type' => 'select',
-		'responsive' => false,
-		'selectors' => array(
-			'{{SELECTOR}} .digi-icon-mobile-menu__entry' => 'border-style: {{VALUE}};',
-		),
-		'condition' => array(
-			'menu_style' => 'style-2',
-		),
-		'options' => array(
-			'' => 'Default',
-			'none' => 'None',
-			'solid' => 'Solid',
-			'double' => 'Double',
-			'dotted' => 'Dotted',
-			'dashed' => 'Dashed',
-			'groove' => 'Groove',
-		),
-	), array(
 		'name' => 'item_border_width',
 		'type' => 'slider',
 		'responsive' => true,

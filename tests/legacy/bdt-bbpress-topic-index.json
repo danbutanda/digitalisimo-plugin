@@ -1,0 +1,8 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Las plantillas de bbPress repiten paginación y avatar y titulan la etiqueta con su nombre; Element Pack los mostraba una vez",
+      "images": "Las plantillas de bbPress repiten el avatar del autor"
+    }
+  }
+}

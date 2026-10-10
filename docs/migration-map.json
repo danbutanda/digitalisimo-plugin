@@ -338,7 +338,7 @@
       "status": "pending"
     },
     "bdt-bbpress-forum-form": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -347,10 +347,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-forum-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-forum-index": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -359,10 +361,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-forum-index.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-reply-form": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -371,10 +375,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-reply-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-single-forum": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -383,10 +389,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-forum.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-single-reply": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -395,10 +403,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-reply.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-single-tag": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -407,10 +417,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-tag.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-single-topic": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -419,10 +431,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-topic.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-single-view": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -431,10 +445,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-view.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-stats": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -443,10 +459,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-stats.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-topic-form": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -455,10 +473,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-topic-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-topic-index": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -467,10 +487,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-topic-index.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-bbpress-topic-tags": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -479,7 +501,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-topic-tags.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-brand-carousel": {
       "target": "digitalisimo-brand-carousel",
@@ -647,7 +671,7 @@
       "status": "pending"
     },
     "bdt-charitable-campaigns": {
-      "target": null,
+      "target": "shortcode",
       "engine": "query",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -656,10 +680,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-campaigns.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-charitable-donation-form": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -668,10 +694,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-donation-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-charitable-donations": {
-      "target": null,
+      "target": "shortcode",
       "engine": "query",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -680,10 +708,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-donations.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-charitable-donors": {
-      "target": null,
+      "target": "shortcode",
       "engine": "query",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -692,10 +722,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-donors.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-charitable-login": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -704,10 +736,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-charitable-profile": {
-      "target": null,
+      "target": "shortcode",
       "engine": "query",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -716,10 +750,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-profile.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-charitable-registration": {
-      "target": null,
+      "target": "shortcode",
       "engine": "query",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -728,10 +764,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-registration.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-charitable-stat": {
-      "target": null,
+      "target": "shortcode",
       "engine": "query",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -740,7 +778,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-stat.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-chart": {
       "target": null,
@@ -821,7 +861,7 @@
       "status": "pending"
     },
     "bdt-contact-form-7": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -830,7 +870,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-contact-form-7.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-content-switcher": {
       "target": "digitalisimo-content-switcher",
@@ -1186,7 +1228,7 @@
       "status": "pending"
     },
     "bdt-easy-digital-download-history": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1195,10 +1237,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-easy-digital-download-history.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-edd-login": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1207,7 +1251,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-edd-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-edd-mini-cart": {
       "target": null,
@@ -1270,7 +1316,7 @@
       "status": "pending"
     },
     "bdt-easy-digital-profile-editor": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1279,10 +1325,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-easy-digital-profile-editor.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-easy-digital-purchase-history": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1291,10 +1339,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-easy-digital-purchase-history.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-edd-register": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1303,7 +1353,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-edd-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-edd-tabs": {
       "target": null,
@@ -1354,7 +1406,7 @@
       "status": "pending"
     },
     "bdt-everest-forms": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -1363,7 +1415,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-everest-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-facebook-feed": {
       "target": null,
@@ -1543,7 +1597,7 @@
       "status": "pending"
     },
     "bdt-fluent-forms": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -1552,10 +1606,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fluent-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "fooevents-calendar": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1564,7 +1620,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/fooevents-calendar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-fooevents-calendar-carousel": {
       "target": null,
@@ -1591,7 +1649,7 @@
       "status": "pending"
     },
     "bdt-formidable-forms": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -1600,10 +1658,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-formidable-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-forminator-forms": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -1612,10 +1672,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-forminator-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-donation-history": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1624,10 +1686,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-donation-history.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-donor-wall": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1636,10 +1700,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-donor-wall.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-form": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1648,10 +1714,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-form-grid": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1660,10 +1728,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-form-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-goal": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1672,10 +1742,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-goal.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-login": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1684,10 +1756,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-profile-editor": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1696,10 +1770,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-profile-editor.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-receipt": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1708,10 +1784,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-receipt.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-register": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1720,10 +1798,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-give-totals": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1732,7 +1812,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-totals.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-google-reviews": {
       "target": "digitalisimo-google-reviews",
@@ -1752,7 +1834,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-google-reviews.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-gravity-form": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -1761,7 +1843,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-gravity-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-helpdesk": {
       "target": null,
@@ -1952,7 +2036,7 @@
       "status": "pending"
     },
     "bdt-instagram-feed": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -1961,7 +2045,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-instagram-feed.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-interactive-card": {
       "target": null,
@@ -1988,7 +2074,7 @@
       "status": "pending"
     },
     "bdt-layer-slider": {
-      "target": null,
+      "target": "shortcode",
       "engine": "carousel",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -1997,7 +2083,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-layer-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-learnpress-carousel": {
       "target": null,
@@ -2112,7 +2200,7 @@
       "status": "pending"
     },
     "bdt-mailchimp-for-wp": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -2121,7 +2209,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-mailchimp-for-wp.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-marker": {
       "target": null,
@@ -2209,7 +2299,7 @@
       "status": "pending"
     },
     "bdt-ninja-form": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2218,7 +2308,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-ninja-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-notification": {
       "target": "digitalisimo-notification",
@@ -2594,7 +2686,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-qrcode.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99"
     },
     "bdt-quform": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2603,7 +2695,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-quform.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-reading-progress": {
       "target": null,
@@ -2714,7 +2808,7 @@
       "status": "pending"
     },
     "bdt-revolution-slider": {
-      "target": null,
+      "target": "shortcode",
       "engine": "carousel",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -2723,7 +2817,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-revolution-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-scroll-button": {
       "target": "digitalisimo-scroll-button",
@@ -3012,7 +3108,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-table-of-content.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-tablepress": {
-      "target": null,
+      "target": "shortcode",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3021,7 +3117,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-tablepress.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-tabs": {
       "target": null,
@@ -3091,7 +3189,7 @@
       "status": "pending"
     },
     "bdt-the-newsletter": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3100,7 +3198,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-the-newsletter.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-threesixty-product-viewer": {
       "target": null,
@@ -3336,7 +3436,7 @@
       "status": "pending"
     },
     "bdt-wc-categories": {
-      "target": null,
+      "target": "shortcode",
       "engine": "content-and-layout",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -3345,7 +3445,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-categories.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-wc-elements": {
       "target": null,
@@ -3396,7 +3498,7 @@
       "status": "pending"
     },
     "bdt-we-form": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -3405,7 +3507,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-we-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-weather": {
       "target": null,
@@ -3432,7 +3536,7 @@
       "status": "pending"
     },
     "bdt-wp-forms": {
-      "target": null,
+      "target": "shortcode",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3441,10 +3545,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wp-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     },
     "bdt-wpdatatable": {
-      "target": null,
+      "target": "shortcode",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3453,7 +3559,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wpdatatable.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "decision": "ADAPTAR"
     }
   },
   "extensions": {

@@ -1,0 +1,10 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Sin formulario elegido Element Pack mostraba un aviso; el widget Shortcode no muestra nada"
+    }
+  },
+  "chosen": {
+    "contact_form": "21"
+  }
+}
