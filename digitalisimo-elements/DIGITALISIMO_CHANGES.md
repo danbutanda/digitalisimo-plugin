@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.119
+# DIGITALÍSIMO Elements 4.3.0.120
+
+- 4.3.0.120: nuevos widgets Gráfico (barras, líneas o sectores dibujados en el servidor como SVG, con leyenda y tabla de datos para lectores de pantalla, sin librerías) y Mapa (visor oficial de OpenStreetMap con marcador y lista de ubicaciones, sin clave ni librerías). Adaptadores de Element Pack Chart y Open Street Map sobre ellos.
 
 - 4.3.0.119: nuevos widgets Marquesina (textos, imágenes o últimas entradas en movimiento continuo, con botón de pausa, pausa al enfocar y sin movimiento con «reducir movimiento») y Línea de tiempo (lista ordenada de hitos escritos o entradas). Adaptadores de Element Pack Marquee, News Ticker y Timeline sobre ellos.
 

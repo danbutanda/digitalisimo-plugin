@@ -1,0 +1,11 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El gráfico se dibuja en el servidor con etiquetas de eje, leyenda y una tabla de datos para lectores; Element Pack lo dibujaba en un canvas con JavaScript"
+    },
+    "_expect_html": [
+      "<rect ",
+      "Dataset Label #1"
+    ]
+  }
+}

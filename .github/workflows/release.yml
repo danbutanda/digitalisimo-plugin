@@ -67,6 +67,7 @@ jobs:
           php tests/elements-progress-reading.php
           php tests/elements-media-hours.php
           php tests/elements-marquee-timeline.php
+          php tests/elements-chart-map.php
           node tests/elements-offcanvas.mjs
           php tests/elements-scroll-button.php
           php tests/elements-accordion.php

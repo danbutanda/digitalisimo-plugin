@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 166, no se reproduce 66, pendiente: adaptador 31.
+Documentos heredados: adaptador publicado 168, no se reproduce 66, pendiente: adaptador 29.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -66,7 +66,7 @@ Documentos heredados: adaptador publicado 166, no se reproduce 66, pendiente: ad
 | `bdt-charitable-profile` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-charitable-registration` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-charitable-stat` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
-| `bdt-chart` | RECONSTRUIR | `digitalisimo-chart` | pendiente: adaptador | Gráficos con Chart.js; requiere motor de gráficos propio con datos accesibles en tabla. |
+| `bdt-chart` | RECONSTRUIR | `digitalisimo-chart` | adaptador publicado | Gráficos con Chart.js; requiere motor de gráficos propio con datos accesibles en tabla. |
 | `bdt-circle-info` | DESCARTAR | — | no se reproduce | Infografía circular animada dependiente de su script; el contenido puede pasar a pestañas propias. |
 | `bdt-circle-menu` | DESCARTAR | — | no se reproduce | Menú circular desplegable con su script; poco accesible. Usar el Menú vertical o Icon Nav propios. |
 | `bdt-comment` | DESCARTAR | — | no se reproduce | Comentarios de Facebook o Disqus mediante SDK externo; requiere identificadores de terceros y consentimiento. |
@@ -179,7 +179,7 @@ Documentos heredados: adaptador publicado 166, no se reproduce 66, pendiente: ad
 | `bdt-ninja-form` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-notification` | ADAPTAR | `digitalisimo-notification` | adaptador publicado | own popup and fixed notice with conditional assets; trigger behavior and keyboard focus fixed in 4.3.0.91, multisite rendering verified; Elementor templates, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-offcanvas` | RECONSTRUIR | `digitalisimo-offcanvas` | adaptador publicado | share existing ElementorPro off-canvas for new content; external content sources and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.106 adapter and the per-site reversible migration tool |
-| `bdt-open-street-map` | RECONSTRUIR | `digitalisimo-map` | pendiente: adaptador | Mapa de OpenStreetMap con Leaflet; requiere widget de mapa propio sin dependencia de Google. |
+| `bdt-open-street-map` | RECONSTRUIR | `digitalisimo-map` | adaptador publicado | Mapa de OpenStreetMap con Leaflet; requiere widget de mapa propio sin dependencia de Google. |
 | `bdt-panel-slider` | ADAPTAR | `slides` | pendiente: adaptador | Paneles deslizantes con imagen y texto; las diapositivas de PRO Elements cubren el contenido. |
 | `bdt-portfolio-carousel` | ADAPTAR | `posts` | adaptador publicado | Carrusel del tipo de contenido de BdThemes Portfolio; el bucle de entradas lo consulta si el plugin sigue activo. |
 | `bdt-portfolio-gallery` | ADAPTAR | `posts` | adaptador publicado | Galería del tipo de contenido de BdThemes Portfolio. |

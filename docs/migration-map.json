@@ -920,7 +920,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-chart": {
-      "target": null,
+      "target": "digitalisimo-chart",
       "engine": "data-visualization",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -929,11 +929,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.120 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-chart",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Gráficos con Chart.js; requiere motor de gráficos propio con datos accesibles en tabla."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Gráficos con Chart.js; requiere motor de gráficos propio con datos accesibles en tabla.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-chart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.120"
     },
     "bdt-circle-info": {
       "target": null,
@@ -2843,7 +2844,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-open-street-map": {
-      "target": null,
+      "target": "digitalisimo-map",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2852,11 +2853,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.120 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-map",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Mapa de OpenStreetMap con Leaflet; requiere widget de mapa propio sin dependencia de Google."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Mapa de OpenStreetMap con Leaflet; requiere widget de mapa propio sin dependencia de Google.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-open-street-map.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.120"
     },
     "bdt-panel-slider": {
       "target": null,

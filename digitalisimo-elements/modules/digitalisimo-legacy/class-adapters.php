@@ -153,6 +153,8 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-chart' => Bdt_Chart::class,
+		'bdt-open-street-map' => Bdt_OpenStreetMap::class,
 		'bdt-marquee' => Bdt_Marquee::class,
 		'bdt-news-ticker' => Bdt_NewsTicker::class,
 		'bdt-timeline' => Bdt_Timeline::class,
@@ -674,4 +676,10 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Marquee_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Timeline_Widget' ) ) {
 	final class Bdt_Timeline extends \Digitalisimo\Elements\Timeline_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-timeline'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Chart_Widget' ) ) {
+	final class Bdt_Chart extends \Digitalisimo\Elements\Chart_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-chart'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Map_Widget' ) ) {
+	final class Bdt_OpenStreetMap extends \Digitalisimo\Elements\Map_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-open-street-map'; }
 }

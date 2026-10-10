@@ -1,0 +1,12 @@
+{
+  "defaults": {
+    "_expect_html": [
+      "openstreetmap.org/export/embed.html",
+      "marker=24.823910%2C89.384140"
+    ],
+    "_known": {
+      "text": "El mapa propio muestra la lista de ubicaciones con su enlace; Element Pack mostraba el contenido en la ventana del marcador",
+      "links": "Cada ubicación enlaza a OpenStreetMap"
+    }
+  }
+}

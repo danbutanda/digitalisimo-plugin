@@ -51,6 +51,16 @@ final class Widget_Registry {
 			'class' => Icon_Nav_Widget::class,
 			'css'   => 'assets/css/icon-nav.css',
 		),
+		'digitalisimo-chart' => array(
+			'file'  => 'class-chart.php',
+			'class' => Chart_Widget::class,
+			'css'   => 'assets/css/chart.css',
+		),
+		'digitalisimo-map' => array(
+			'file'  => 'class-map.php',
+			'class' => Map_Widget::class,
+			'css'   => 'assets/css/map.css',
+		),
 		'digitalisimo-marquee' => array(
 			'file'  => 'class-marquee.php',
 			'class' => Marquee_Widget::class,

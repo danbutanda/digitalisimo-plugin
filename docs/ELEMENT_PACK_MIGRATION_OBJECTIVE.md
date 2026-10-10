@@ -96,6 +96,8 @@ Lote 24 (4.3.0.118): Audio Player, Image Compare y Business Hours se RECONSTRUYE
 
 Lote 25 (4.3.0.119): Marquee y News Ticker se RECONSTRUYEN en Marquesina y Timeline en Línea de tiempo. Diferencias declaradas: la marquesina añade el botón «Pausar» (WCAG 2.2.2) y desplaza en continuo en vez de mostrar titulares de uno en uno; la línea de tiempo usa el formato de fecha del sitio, no muestra categorías y no reproduce el carrusel vertical.
 
+Lote 26 (4.3.0.120): Chart y Open Street Map se RECONSTRUYEN. Diferencias declaradas: el gráfico es SVG estático (sin animación ni tooltips) y radar o burbujas se presentan como líneas o barras; el mapa muestra el primer marcador en el visor y todas las ubicaciones en una lista enlazada, sin marcadores personalizados.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.
