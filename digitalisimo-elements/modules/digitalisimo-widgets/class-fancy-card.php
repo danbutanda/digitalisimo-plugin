@@ -58,14 +58,21 @@ final class Fancy_Card_Widget extends \Elementor\Widget_Base {
 		if ( $badge ) { echo '<span class="digi-fancy-card__badge">' . esc_html( $badge ) . '</span>'; }
 		if ( $title ) { echo '<' . esc_attr( $tag ) . ' class="digi-fancy-card__title">' . esc_html( $title ) . '</' . esc_attr( $tag ) . '>'; }
 		if ( $description ) { echo '<p class="digi-fancy-card__description">' . nl2br( esc_html( $description ) ) . '</p>'; }
-		if ( $button && ! empty( $link['url'] ) ) { $this->add_link_attributes( 'fancy_card_link', $link ); echo '<a class="digi-fancy-card__link" ' . $this->get_render_attribute_string( 'fancy_card_link' ) . '>' . esc_html( $button ) . '</a>'; }
+		if ( $button && ! empty( $link['url'] ) ) {
+			$this->add_link_attributes( 'fancy_card_link', $link );
+			if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( 'fancy_card_link', 'rel', array( 'noopener', 'noreferrer' ) ); }
+			echo '<a class="digi-fancy-card__link" ' . $this->get_render_attribute_string( 'fancy_card_link' ) . '>' . esc_html( $button ) . '</a>';
+		}
 		echo '</article>';
 	}
 
 	protected function content_template() {
 		?>
-		<# var tag = _.contains(['h2','h3','h4','h5','h6','div'],settings.title_size) ? settings.title_size : 'h3'; #>
-		<article class="digi-fancy-card"><# if (settings.icon_type === 'image' && settings.image && settings.image.url) { #><div class="digi-fancy-card__visual"><img class="digi-fancy-card__image" src="{{ settings.image.url }}" alt="{{ settings.title_text || '' }}"></div><# } #><# if(settings.badge_text){ #><span class="digi-fancy-card__badge">{{ settings.badge_text }}</span><# } #><# if(settings.title_text){ #><{{{ tag }}} class="digi-fancy-card__title">{{ settings.title_text }}</{{{ tag }}}><# } #><# if(settings.description_text){ #><p class="digi-fancy-card__description">{{ settings.description_text }}</p><# } #><# if(settings.link && settings.link.url && settings.button_text){ #><a class="digi-fancy-card__link" href="{{ settings.link.url }}">{{ settings.button_text }}</a><# } #></article>
+		<# var tag = _.contains(['h2','h3','h4','h5','h6','div'],settings.title_size) ? settings.title_size : 'h3';
+		var link = settings.link || {}; var rel = [ link.nofollow ? 'nofollow' : '', link.is_external ? 'noopener noreferrer' : '' ].filter(Boolean).join(' ');
+		var icon = elementor.helpers.renderIcon( view, settings.selected_icon, { 'aria-hidden': true }, 'i', 'object' );
+		var alt = settings.image && settings.image.alt ? settings.image.alt : ( settings.title_text ? '' : ( settings.description_text || '' ) ); #>
+		<article class="digi-fancy-card"><# if (settings.icon_type === 'image' && settings.image && settings.image.url) { #><div class="digi-fancy-card__visual"><img class="digi-fancy-card__image" src="{{ settings.image.url }}" alt="{{ alt }}"></div><# } else if (settings.icon_type === 'icon' && icon && icon.rendered) { #><div class="digi-fancy-card__visual">{{{ icon.value }}}</div><# } #><# if(settings.badge_text){ #><span class="digi-fancy-card__badge">{{ settings.badge_text }}</span><# } #><# if(settings.title_text){ #><{{{ tag }}} class="digi-fancy-card__title">{{ settings.title_text }}</{{{ tag }}}><# } #><# if(settings.description_text){ #><p class="digi-fancy-card__description">{{ settings.description_text }}</p><# } #><# if(link.url && settings.button_text){ #><a class="digi-fancy-card__link" href="{{ link.url }}"<# if (link.is_external) { #> target="_blank"<# } #><# if (rel) { #> rel="{{ rel }}"<# } #>>{{ settings.button_text }}</a><# } #></article>
 		<?php
 	}
 }

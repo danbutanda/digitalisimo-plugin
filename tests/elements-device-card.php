@@ -50,9 +50,12 @@ namespace {
 	$slider->settings['slides'] = array();
 	ob_start(); (new \ReflectionMethod( $slider, 'render' ))->invoke( $slider ); $one = ob_get_clean();
 	check_device( ! str_contains( $one, 'data-digi-carousel-next' ), 'Una captura no debe mostrar flechas.' );
-	$card->settings = array( 'icon_type' => 'image', 'image' => array( 'id' => 10, 'url' => 'https://site.test/captura.webp' ), 'title_text' => 'Tarjeta <script>x</script>', 'description_text' => 'Texto', 'title_size' => 'script', 'button_text' => 'Leer', 'link' => array( 'url' => 'https://site.test/leer' ) );
+	$card->settings = array( 'icon_type' => 'image', 'image' => array( 'id' => 10, 'url' => 'https://site.test/captura.webp' ), 'title_text' => 'Tarjeta <script>x</script>', 'description_text' => 'Texto', 'title_size' => 'script', 'button_text' => 'Leer', 'link' => array( 'url' => 'https://site.test/leer', 'is_external' => true, 'nofollow' => true ) );
 	ob_start(); (new \ReflectionMethod( $card, 'render' ))->invoke( $card ); $html = ob_get_clean();
 	check_device( str_contains( $html, '<article class="digi-fancy-card">' ) && str_contains( $html, '<h3 ' ) && str_contains( $html, 'href="https://site.test/leer"' ) && ! str_contains( $html, '<script' ), 'La tarjeta debe tener estructura semántica y salida saneada.' );
+	check_device( str_contains( $html, 'target="_blank"' ) && str_contains( $html, 'rel="nofollow noopener noreferrer"' ), 'La tarjeta debe proteger enlaces externos.' );
+	ob_start(); (new \ReflectionMethod( $card, 'content_template' ))->invoke( $card ); $editor = ob_get_clean();
+	check_device( str_contains( $editor, 'elementor.helpers.renderIcon' ) && str_contains( $editor, 'settings.image.alt' ) && str_contains( $editor, 'link.is_external' ), 'El editor debe mostrar icono, ALT y atributos de enlace.' );
 	$card->settings['link']['url'] = '';
 	ob_start(); (new \ReflectionMethod( $card, 'render' ))->invoke( $card ); $html = ob_get_clean();
 	check_device( ! str_contains( $html, '<a ' ), 'Sin URL no debe existir enlace vacío.' );

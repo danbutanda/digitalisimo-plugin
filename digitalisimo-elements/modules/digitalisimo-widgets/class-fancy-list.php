@@ -81,6 +81,7 @@ final class Fancy_List_Widget extends \Elementor\Widget_Base {
 			if ( $linked ) {
 				$key = 'fancy_link_' . (int) $index;
 				$this->add_link_attributes( $key, $link );
+				if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( $key, 'rel', array( 'noopener', 'noreferrer' ) ); }
 				echo '<a class="digi-fancy-list__card" ' . $this->get_render_attribute_string( $key ) . '>';
 			} else { echo '<div class="digi-fancy-list__card">'; }
 			if ( 'yes' === ( $settings['show_number_icon'] ?? '' ) ) { echo '<span class="digi-fancy-list__number" aria-hidden="true">' . (int) $number . '</span>'; }
@@ -88,10 +89,10 @@ final class Fancy_List_Widget extends \Elementor\Widget_Base {
 				$image_id = absint( $img['id'] ?? 0 );
 				if ( $image_id ) {
 					$alt = get_post_meta( $image_id, '_wp_attachment_image_alt', true );
-					$image_html = wp_get_attachment_image( $image_id, 'medium', false, array( 'class' => 'digi-fancy-list__image', 'alt' => $alt ? $alt : $title, 'loading' => 'lazy' ) );
+					$image_html = wp_get_attachment_image( $image_id, 'medium', false, array( 'class' => 'digi-fancy-list__image', 'alt' => $alt ? $alt : $title ) );
 					if ( $image_html ) { echo $image_html; }
-					else { echo '<img class="digi-fancy-list__image" src="' . esc_url( $img['url'] ) . '" alt="' . esc_attr( $title ) . '" loading="lazy">'; }
-				} else { echo '<img class="digi-fancy-list__image" src="' . esc_url( $img['url'] ) . '" alt="' . esc_attr( $title ) . '" loading="lazy">'; }
+					else { echo '<img class="digi-fancy-list__image" src="' . esc_url( $img['url'] ) . '" alt="' . esc_attr( $title ) . '">'; }
+				} else { echo '<img class="digi-fancy-list__image" src="' . esc_url( $img['url'] ) . '" alt="' . esc_attr( $title ) . '">'; }
 			}
 			if ( '' !== $title || '' !== $details ) {
 				echo '<div class="digi-fancy-list__content">';
@@ -129,7 +130,7 @@ final class Fancy_List_Widget extends \Elementor\Widget_Base {
 		<li class="digi-fancy-list__item">
 		<# if ( href ) { #><a class="digi-fancy-list__card" href="{{ href }}" <# if ( item.link.is_external ) { #>target="_blank"<# } #> <# if ( rel ) { #>rel="{{ rel }}"<# } #>><# } else { #><div class="digi-fancy-list__card"><# } #>
 		<# if ( settings.show_number_icon === 'yes' ) { #><span class="digi-fancy-list__number" aria-hidden="true">{{ number }}</span><# } #>
-		<# if ( img ) { #><img class="digi-fancy-list__image" src="{{ img }}" alt="{{ title }}" loading="lazy"><# } #>
+		<# if ( img ) { #><img class="digi-fancy-list__image" src="{{ img }}" alt="{{ item.img.alt || title }}"><# } #>
 		<# if ( title || details ) { #><div class="digi-fancy-list__content"><# if ( title ) { #><{{{ tag }}} class="digi-fancy-list__title">{{ title }}</{{{ tag }}}><# } #><# if ( details ) { #><span class="digi-fancy-list__details">{{ details }}</span><# } #></div><# } #>
 		<# if ( icon ) { var renderedIcon = elementor.helpers.renderIcon( view, item.list_icon, { 'aria-hidden': true }, 'i', 'object' ); if ( renderedIcon && renderedIcon.rendered ) { #><span class="digi-fancy-list__icon" aria-hidden="true">{{{ renderedIcon.value }}}</span><# } } #>
 		<# if ( href ) { #></a><# } else { #></div><# } #>

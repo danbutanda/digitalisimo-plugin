@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Creative Button y Device Slider | En validación · 4.3.0.85 | Vista previa con iconos, títulos, enlaces y controles; motor de carrusel activo al insertar Device Slider y Fancy Slider en el editor. | Pruebas PHP/JS, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. Faltan publicación y comparación visual. |
+| DIGITALÍSIMO Elements · Fancy Card y Fancy List | En validación · 4.3.0.86 | Vista previa completa de la tarjeta; enlaces externos seguros y carga de imágenes de la lista delegada a WordPress. | Pruebas PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. Faltan publicación y comparación visual. |
+
+| DIGITALÍSIMO Elements · Creative Button y Device Slider | Publicado · 4.3.0.85 · `v2026.10.10.330` | Vista previa con iconos, títulos, enlaces y controles; motor de carrusel activo al insertar Device Slider y Fancy Slider en el editor. | Pruebas PHP/JS, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#652` y publicación `#330` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.85.zip`. Falta comparación visual. |
 
 | DIGITALÍSIMO Elements · Custom Gallery | Publicado · 4.3.0.84 · `v2026.10.10.329` | El editor aprovecha el ALT de la imagen y muestra los atributos de cada enlace; enlaces externos protegidos en frontend. | Prueba PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#651` y publicación `#329` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.84.zip`. Falta comparación visual. |
 

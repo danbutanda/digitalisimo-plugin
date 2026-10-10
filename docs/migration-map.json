@@ -1390,7 +1390,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own always-visible semantic card with image or icon, badge and optional CTA; advanced skins, visual parity and multisite runtime pending"
+      "status": "own always-visible semantic card with image or icon, badge and optional CTA; editor icon, ALT and links aligned in 4.3.0.86; multisite runtime verified; advanced skins and visual parity pending"
     },
     "bdt-fancy-icons": {
       "target": "digitalisimo-fancy-icons",
@@ -1425,7 +1425,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new widget implemented; legacy adapter, full style controls and visual comparison pending"
+      "status": "own list widget with links secured and image loading delegated to WordPress in 4.3.0.86; multisite runtime verified; legacy adapter, full style controls and visual comparison pending"
     },
     "bdt-fancy-slider": {
       "target": "digitalisimo-fancy-slider",

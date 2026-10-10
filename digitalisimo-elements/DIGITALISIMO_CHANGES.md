@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.85
+# DIGITALÍSIMO Elements 4.3.0.86
+
+- 4.3.0.86: Fancy Card muestra el icono, ALT y enlaces en el editor; Fancy List protege enlaces externos y deja que WordPress decida la prioridad de carga de las imágenes.
 
 - 4.3.0.85: Creative Button muestra icono y atributos del enlace en el editor y protege enlaces externos; Device Slider muestra títulos, ALT, enlaces y flechas en el editor y reactiva el motor compartido allí junto con Fancy Slider.
 

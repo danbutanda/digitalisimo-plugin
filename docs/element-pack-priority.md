@@ -16,10 +16,10 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 12. Comparison List — base propia en tabla semántica; editor y enlaces externos alineados desde 4.3.0.79, renderizado Multisite comprobado; variantes y paridad visual pendientes
 13. Content Switcher — base propia en pestañas accesibles; editor con todos los paneles e iconos desde 4.3.0.83, renderizado Multisite comprobado; contenidos avanzados y paridad visual pendientes
 14. Custom Gallery — base propia con selección múltiple y datos individuales; ALT y enlaces del editor alineados desde 4.3.0.84, renderizado Multisite comprobado; lightbox y paridad visual pendientes
-15. Creative Button — base propia con cinco efectos CSS; icono y enlaces del editor alineados desde 4.3.0.85; skins de referencia y Multisite pendientes
-16. Device Slider — base propia sobre motor de carrusel compartido; editor con títulos, ALT, enlaces y flechas desde 4.3.0.85; marcos avanzados y Multisite pendientes
-17. Fancy Card — base propia con imagen o icono y CTA; skins y Multisite pendientes
-18. Fancy List — base propia; paridad pendiente
+15. Creative Button — base propia con cinco efectos CSS; icono y enlaces del editor alineados desde 4.3.0.85, renderizado Multisite comprobado; skins de referencia pendientes
+16. Device Slider — base propia sobre motor de carrusel compartido; editor con títulos, ALT, enlaces y flechas desde 4.3.0.85, renderizado Multisite comprobado; marcos avanzados pendientes
+17. Fancy Card — base propia con imagen o icono y CTA; editor con icono, ALT y enlaces desde 4.3.0.86; skins y Multisite pendientes
+18. Fancy List — base propia; enlaces externos seguros y carga de imágenes delegada a WordPress desde 4.3.0.86; paridad visual y Multisite pendientes
 19. Fancy Icons — base propia con enlaces accesibles y CSS condicional; fondos avanzados, paridad visual y Multisite pendientes
 20. Fancy Slider — base propia editorial con motor compartido; transiciones avanzadas, paridad visual y Multisite pendientes
 21. Fancy Tabs — base propia accesible con icono/imagen y script compartido; skins, paridad visual y Multisite pendientes
