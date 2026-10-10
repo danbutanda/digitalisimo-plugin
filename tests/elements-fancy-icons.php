@@ -1,14 +1,15 @@
 <?php
 namespace Elementor {
 	class Widget_Base {
-		public $settings = array(); public $controls = array(); private $links = array();
+		public $settings = array(); public $controls = array(); private $links = array(); private $attributes = array();
 		public function get_settings_for_display() { return $this->settings; }
 		public function start_controls_section( $name, $args ) {}
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
 		public function add_responsive_control( $name, $args ) { $this->controls[ $name ] = $args; }
-		public function add_link_attributes( $name, $link ) { $this->links[ $name ] = $link['url']; }
-		public function get_render_attribute_string( $name ) { return 'href="' . htmlspecialchars( $this->links[ $name ], ENT_QUOTES, 'UTF-8' ) . '"'; }
+		public function add_link_attributes( $name, $link ) { $this->links[ $name ] = $link['url']; $this->attributes[ $name ] = array( 'href' => $link['url'] ); if ( ! empty( $link['is_external'] ) ) { $this->attributes[ $name ]['target'] = '_blank'; } if ( ! empty( $link['nofollow'] ) ) { $this->attributes[ $name ]['rel'] = array( 'nofollow' ); } }
+		public function add_render_attribute( $name, $key, $value ) { $this->attributes[ $name ][ $key ] = array_merge( (array) ( $this->attributes[ $name ][ $key ] ?? array() ), (array) $value ); }
+		public function get_render_attribute_string( $name ) { $out = array(); foreach ( $this->attributes[ $name ] as $key => $value ) { $out[] = $key . '="' . htmlspecialchars( implode( ' ', (array) $value ), ENT_QUOTES, 'UTF-8' ) . '"'; } return implode( ' ', $out ); }
 	}
 	class Repeater { private $controls = array(); public function add_control( $name, $args ) { $this->controls[ $name ] = $args; } public function get_controls() { return $this->controls; } }
 	class Controls_Manager { const SELECT = 'select'; const TEXT = 'text'; const URL = 'url'; const REPEATER = 'repeater'; const SLIDER = 'slider'; const COLOR = 'color'; const ICONS = 'icons'; const DIMENSIONS = 'dimensions'; const TAB_STYLE = 'style'; }
@@ -26,12 +27,13 @@ namespace {
 	(new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget );
 	check_fancy_icons( isset( $widget->controls['share_items'] ) && array() === $widget->get_script_depends(), 'Debe registrar el repetidor y no depender de scripts.' );
 	$widget->settings = array( 'share_items' => array(
-		array( '_id' => 'a1', 'social_type' => 'icon', 'social_name' => 'Facebook', 'social_icon' => array( 'value' => 'fab fa-facebook' ), 'social_link' => array( 'url' => 'https://example.com/red' ) ),
+		array( '_id' => 'a1', 'social_type' => 'icon', 'social_name' => 'Facebook', 'social_icon' => array( 'value' => 'fab fa-facebook' ), 'social_link' => array( 'url' => 'https://example.com/red', 'is_external' => true, 'nofollow' => true ) ),
 		array( '_id' => 'b2', 'social_type' => 'text', 'social_name' => 'Contacto', 'social_link' => array( 'url' => '' ) ),
 		array( '_id' => 'c3', 'social_type' => 'icon', 'social_name' => '', 'social_icon' => array( 'value' => 'fas fa-star' ) ),
 	) );
 	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
 	check_fancy_icons( 2 === substr_count( $html, '<li ' ) && str_contains( $html, 'aria-label="Facebook"' ) && str_contains( $html, 'href="https://example.com/red"' ), 'Debe renderizar sólo enlaces con contenido y nombre accesible.' );
+	check_fancy_icons( str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'target="_blank"' ), 'El icono externo debe proteger la pestaña.' );
 	check_fancy_icons( str_contains( $html, '<span class="digi-fancy-icons__content"><span>Contacto</span></span>' ) && ! str_contains( $html, 'elementor-repeater-item-c3' ), 'No debe producir enlaces vacíos ni iconos sin nombre.' );
 	echo "DIGITALÍSIMO Elements: Iconos destacados validados.\n";
 }

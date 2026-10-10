@@ -18,10 +18,10 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 14. Custom Gallery — base propia con selección múltiple y datos individuales; ALT y enlaces del editor alineados desde 4.3.0.84, renderizado Multisite comprobado; lightbox y paridad visual pendientes
 15. Creative Button — base propia con cinco efectos CSS; icono y enlaces del editor alineados desde 4.3.0.85, renderizado Multisite comprobado; skins de referencia pendientes
 16. Device Slider — base propia sobre motor de carrusel compartido; editor con títulos, ALT, enlaces y flechas desde 4.3.0.85, renderizado Multisite comprobado; marcos avanzados pendientes
-17. Fancy Card — base propia con imagen o icono y CTA; editor con icono, ALT y enlaces desde 4.3.0.86; skins y Multisite pendientes
-18. Fancy List — base propia; enlaces externos seguros y carga de imágenes delegada a WordPress desde 4.3.0.86; paridad visual y Multisite pendientes
-19. Fancy Icons — base propia con enlaces accesibles y CSS condicional; fondos avanzados, paridad visual y Multisite pendientes
-20. Fancy Slider — base propia editorial con motor compartido; transiciones avanzadas, paridad visual y Multisite pendientes
+17. Fancy Card — base propia con imagen o icono y CTA; editor con icono, ALT y enlaces desde 4.3.0.86, renderizado Multisite comprobado; skins pendientes
+18. Fancy List — base propia; enlaces externos seguros y carga de imágenes delegada a WordPress desde 4.3.0.86, renderizado Multisite comprobado; paridad visual pendiente
+19. Fancy Icons — base propia con enlaces accesibles y CSS condicional; enlaces externos seguros desde 4.3.0.87; fondos avanzados, paridad visual y Multisite pendientes
+20. Fancy Slider — base propia editorial con motor compartido; enlaces, ALT y navegación del editor alineados desde 4.3.0.87; transiciones avanzadas, paridad visual y Multisite pendientes
 21. Fancy Tabs — base propia accesible con icono/imagen y script compartido; skins, paridad visual y Multisite pendientes
 22. Featured Box — base propia con diseños sobre imagen/dividido y contenido semántico; skins, paridad visual y Multisite pendientes
 23. Google Reviews — base propia con Places API (New), clave sitio/red y carga diferida; paridad visual y pruebas reales en Multisite pendientes

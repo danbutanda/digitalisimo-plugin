@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.86
+# DIGITALÍSIMO Elements 4.3.0.87
+
+- 4.3.0.87: Fancy Icons protege enlaces externos; Fancy Slider alinea enlaces de títulos y botones, ALT y controles de navegación entre frontend y editor.
 
 - 4.3.0.86: Fancy Card muestra el icono, ALT y enlaces en el editor; Fancy List protege enlaces externos y deja que WordPress decida la prioridad de carga de las imágenes.
 

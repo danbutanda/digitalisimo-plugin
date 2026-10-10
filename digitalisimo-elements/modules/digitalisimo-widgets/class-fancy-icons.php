@@ -53,6 +53,7 @@ final class Fancy_Icons_Widget extends \Elementor\Widget_Base {
 			if ( $linked ) {
 				$key = 'fancy_icon_link_' . (int) $index;
 				$this->add_link_attributes( $key, $link );
+				if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( $key, 'rel', array( 'noopener', 'noreferrer' ) ); }
 				$out .= '<a class="digi-fancy-icons__content" ' . $this->get_render_attribute_string( $key );
 				if ( 'icon' === $type && '' !== $name ) { $out .= ' aria-label="' . esc_attr( $name ) . '"'; }
 				$out .= '>';

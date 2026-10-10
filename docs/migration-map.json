@@ -1405,7 +1405,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own accessible icon/text links with responsive grid and conditional CSS; video backgrounds, advanced skins, visual parity and multisite runtime pending"
+      "status": "own accessible icon/text links with responsive grid and conditional CSS; external links secured in 4.3.0.87; multisite runtime verified; video backgrounds, advanced skins and visual parity pending"
     },
     "bdt-fancy-list": {
       "target": "digitalisimo-fancy-list",
@@ -1445,7 +1445,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own editorial slider on shared carousel engine; advanced transitions, visual parity and multisite runtime pending"
+      "status": "own editorial slider on shared carousel engine; editor links, ALT and navigation aligned in 4.3.0.87; multisite runtime verified; advanced transitions and visual parity pending"
     },
     "bdt-fancy-tabs": {
       "target": "digitalisimo-fancy-tabs",
