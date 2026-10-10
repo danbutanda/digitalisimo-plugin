@@ -57,6 +57,8 @@ jobs:
           php tests/elements-brand-grid.php
           php tests/elements-logo-grid.php
           php tests/elements-google-reviews.php
+          php tests/elements-notification.php
+          node tests/elements-notification-events.mjs
           php tests/elements-scroll-button.php
           php tests/elements-accordion.php
           php tests/elements-advanced-button.php

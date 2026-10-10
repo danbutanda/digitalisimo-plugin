@@ -20,10 +20,18 @@
       var event = panel.dataset.event || 'onload';
       var selector = panel.dataset.selector || '';
       var trigger = selector && /^[#.][A-Za-z][A-Za-z0-9_-]{0,80}$/.test(selector) ? document.querySelector(selector) : null;
-      if (event === 'click' && trigger) trigger.addEventListener('click', show);
-      else if (event === 'mouseover' && trigger) trigger.addEventListener('mouseenter', show);
-      else if (event === 'inDelay') setTimeout(show, Math.max(0, Math.min(30000, Number(panel.dataset.delay) || 0)));
-      else show();
+      if (event === 'click') {
+        if (trigger) trigger.addEventListener('click', show);
+      } else if (event === 'mouseover') {
+        if (trigger) {
+          trigger.addEventListener('mouseenter', show);
+          trigger.addEventListener('focusin', show);
+        }
+      } else if (event === 'inDelay') {
+        setTimeout(show, Math.max(0, Math.min(30000, Number(panel.dataset.delay) || 0)));
+      } else {
+        show();
+      }
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { init(document); }); else init(document);

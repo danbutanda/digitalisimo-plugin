@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.90
+# DIGITALÍSIMO Elements 4.3.0.91
+
+- 4.3.0.91: Notification espera correctamente al activador de clic o cursor y no aparece sola cuando éste falta. El modo cursor también responde al enfoque del teclado.
 
 - 4.3.0.90: Logo Grid deja a WordPress decidir la carga de imágenes según la página y protege enlaces externos. Google Reviews se validó con Elementor instalado en el sitio principal y un subsitio Multisite, sin exponer la clave; no se consultó la API real.
 

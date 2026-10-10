@@ -2211,7 +2211,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own popup and fixed notice with conditional assets; Elementor templates, visual parity and multisite runtime pending"
+      "status": "own popup and fixed notice with conditional assets; trigger behavior and keyboard focus fixed in 4.3.0.91, multisite rendering verified; Elementor templates, visual parity and legacy conversion pending"
     },
     "bdt-offcanvas": {
       "target": null,

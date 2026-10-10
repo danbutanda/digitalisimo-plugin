@@ -30,7 +30,7 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 26. Lottie Image — para contenido nuevo usar el widget `lottie` ya incluido en Elements; conversión de documentos `bdt-lottie-image` pendiente
 27. Logo Grid — base propia; desde 4.3.0.90 no fuerza prioridad de carga por índice y protege enlaces externos, renderizado Multisite comprobado; paridad visual pendiente
 28. Navbar — para contenido nuevo usar el widget `nav-menu` ya incluido en Elements; autoocultación, skins y conversión legacy pendientes
-29. Notification — base propia con avisos flotantes o fijos y activación configurable; plantillas, skins y Multisite pendientes
+29. Notification — base propia con avisos flotantes o fijos; desde 4.3.0.91 espera al activador configurado y admite foco de teclado, renderizado Multisite comprobado; plantillas y skins pendientes
 30. Offcanvas — para contenido nuevo usar el widget `off-canvas` ya incluido en Elements; conversión de documentos `bdt-offcanvas` pendiente
 31. Price List — para contenido nuevo usar el widget `price-list` ya incluido en Elements; distintivos, precio anterior y conversión legacy pendientes
 32. Price Table — para contenido nuevo usar el widget `price-table` ya incluido en Elements; nueve layouts, integraciones y conversión legacy pendientes

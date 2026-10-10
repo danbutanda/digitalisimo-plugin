@@ -38,6 +38,8 @@ jobs:
           php tests/elements-icon-navigation.php
           php tests/elements-logo-grid.php
           php tests/elements-google-reviews.php
+          php tests/elements-notification.php
+          node tests/elements-notification-events.mjs
           node tests/elements-slider-multiple.mjs
           for module in seo ia hosting backups tools elements; do php tests/update-enqueue.php "$module"; done
           php tests/performance-runtime.php
