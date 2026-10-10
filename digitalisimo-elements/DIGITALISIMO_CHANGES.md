@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.117
+# DIGITALÍSIMO Elements 4.3.0.118
+
+- 4.3.0.118: nuevos widgets Reproductor de audio (`<audio>` nativo, una pista o lista con portada), Comparador de imágenes (control deslizante nativo accesible) y Horario (lista de descripción, resalta el día de hoy en el navegador). Adaptadores de Element Pack Audio Player, Image Compare y Business Hours sobre ellos.
 
 - 4.3.0.117: nuevos widgets Barras de progreso (barras o circular, `role="progressbar"`, sin JavaScript), Tiempo de lectura (calculado en el servidor) y Progreso de lectura (barra fija con un script ligero). Adaptadores de Element Pack Advanced Progress Bar, Progress Pie, Reading Progress y Reading Timer sobre ellos.
 

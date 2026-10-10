@@ -1,0 +1,19 @@
+{
+  "chosen": {
+    "before_image": {
+      "url": "https://s.w.org/images/core/emoji/14.0.0/72x72/2b50.png",
+      "id": ""
+    },
+    "after_image": {
+      "url": "https://s.w.org/images/core/emoji/14.0.0/72x72/2764.png",
+      "id": ""
+    },
+    "_expect_html": [
+      "--digi-compare-pos:70%"
+    ],
+    "_known": {
+      "text": "Las etiquetas se muestran sobre las imágenes desde el inicio; Element Pack las añadía con JavaScript",
+      "images": "Las imágenes llevan su etiqueta como texto alternativo"
+    }
+  }
+}

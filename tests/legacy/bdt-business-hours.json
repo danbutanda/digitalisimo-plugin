@@ -1,0 +1,13 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "Cada horario se muestra en una sola celda; el aviso «abierto/cerrado ahora» calculado por zona horaria no se traslada"
+    }
+  },
+  "dynamic": {
+    "business_hour_style": "dynamic",
+    "_known": {
+      "text": "Cada horario se muestra en una sola celda; el aviso «abierto/cerrado ahora» calculado por zona horaria no se traslada"
+    }
+  }
+}

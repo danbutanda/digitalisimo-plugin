@@ -51,6 +51,21 @@ final class Widget_Registry {
 			'class' => Icon_Nav_Widget::class,
 			'css'   => 'assets/css/icon-nav.css',
 		),
+		'digitalisimo-audio-player' => array(
+			'file'  => 'class-audio-player.php',
+			'class' => Audio_Player_Widget::class,
+			'css'   => 'assets/css/audio-player.css',
+		),
+		'digitalisimo-image-compare' => array(
+			'file'  => 'class-image-compare.php',
+			'class' => Image_Compare_Widget::class,
+			'css'   => 'assets/css/image-compare.css',
+		),
+		'digitalisimo-business-hours' => array(
+			'file'  => 'class-business-hours.php',
+			'class' => Business_Hours_Widget::class,
+			'css'   => 'assets/css/business-hours.css',
+		),
 		'digitalisimo-progress-bars' => array(
 			'file'  => 'class-progress-bars.php',
 			'class' => Progress_Bars_Widget::class,
@@ -286,6 +301,11 @@ final class Widget_Registry {
 		}
 		if ( ! wp_script_is( 'digitalisimo-google-reviews', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-google-reviews', plugins_url( 'assets/js/google-reviews.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+		}
+		foreach ( array( 'image-compare', 'business-hours' ) as $script ) {
+			if ( ! wp_script_is( 'digitalisimo-' . $script, 'registered' ) ) {
+				wp_register_script( 'digitalisimo-' . $script, plugins_url( 'assets/js/' . $script . '.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			}
 		}
 		if ( ! wp_script_is( 'digitalisimo-reading-progress', 'registered' ) ) {
 			wp_register_script( 'digitalisimo-reading-progress', plugins_url( 'assets/js/reading-progress.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );

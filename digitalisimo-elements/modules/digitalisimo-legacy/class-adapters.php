@@ -153,6 +153,9 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-audio-player' => Bdt_AudioPlayer::class,
+		'bdt-image-compare' => Bdt_ImageCompare::class,
+		'bdt-business-hours' => Bdt_BusinessHours::class,
 		'bdt-advanced-progress-bar' => Bdt_AdvancedProgressBar::class,
 		'bdt-progress-pie' => Bdt_ProgressPie::class,
 		'bdt-reading-progress' => Bdt_ReadingProgress::class,
@@ -650,4 +653,13 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Reading_Progress_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Reading_Time_Widget' ) ) {
 	final class Bdt_ReadingTimer extends \Digitalisimo\Elements\Reading_Time_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-reading-timer'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Audio_Player_Widget' ) ) {
+	final class Bdt_AudioPlayer extends \Digitalisimo\Elements\Audio_Player_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-audio-player'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Image_Compare_Widget' ) ) {
+	final class Bdt_ImageCompare extends \Digitalisimo\Elements\Image_Compare_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-image-compare'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Business_Hours_Widget' ) ) {
+	final class Bdt_BusinessHours extends \Digitalisimo\Elements\Business_Hours_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-business-hours'; }
 }

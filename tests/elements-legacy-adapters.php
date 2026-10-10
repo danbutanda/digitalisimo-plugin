@@ -265,6 +265,11 @@ namespace {
 	$pie = Translator::translate( 'bdt-progress-pie', array( 'percent' => '60', 'title' => 'Avance' ) );
 	check_adapter( 'circle' === $pie['layout'] && 60.0 === $pie['items'][0]['value'] && 'Avance' === $pie['items'][0]['label'], 'Progress Pie pasa a un círculo.' );
 
+	$bh = Translator::translate( 'bdt-business-hours', array( 'business_hour_style' => 'dynamic' ) );
+	check_adapter( 7 === count( $bh['rows'] ) && '09:00 AM - 05:00 PM' === $bh['rows'][0]['hours'] && 'Closed' === $bh['rows'][6]['hours'], 'Business Hours une apertura y cierre o muestra el cierre.' );
+	$ap = Translator::translate( 'bdt-audio-player', array( 'source_type' => 'remote_url', 'remote_url' => array( 'url' => 'https://s.test/a.mp3' ), 'title' => 'Uno' ) );
+	check_adapter( 'https://s.test/a.mp3' === $ap['tracks'][0]['audio_url']['url'] && 'Uno' === $ap['tracks'][0]['title'], 'Audio Player conserva su pista.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

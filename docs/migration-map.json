@@ -383,7 +383,7 @@
       "decision_reason": "Ya resuelto desde 4.3.0.x con el adaptador de lectura del Enlace animado propio."
     },
     "bdt-audio-player": {
-      "target": null,
+      "target": "digitalisimo-audio-player",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -392,11 +392,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.118 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-audio-player",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Reproductor de audio con skins de jPlayer; se reconstruye con <audio> nativo como el reproductor de vídeo propio."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Reproductor de audio con skins de jPlayer; se reconstruye con <audio> nativo como el reproductor de vídeo propio.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-audio-player.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.118"
     },
     "bdt-barcode": {
       "target": null,
@@ -711,7 +712,7 @@
       "decision_reason": "Bucle propio sobre miembros de BuddyPress sin shortcode equivalente; usar los bloques de BuddyPress."
     },
     "bdt-business-hours": {
-      "target": null,
+      "target": "digitalisimo-business-hours",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -720,11 +721,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.118 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-business-hours",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Horario por día; se reconstruye reutilizando el horario estructurado de SEO Local cuando exista."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Horario por día; se reconstruye reutilizando el horario estructurado de SEO Local cuando exista.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-business-hours.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.118"
     },
     "bdt-calendly": {
       "target": "html",
@@ -2369,7 +2371,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-image-compare": {
-      "target": null,
+      "target": "digitalisimo-image-compare",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2378,11 +2380,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.118 adapter and the per-site reversible migration tool",
       "decision": "RECONSTRUIR",
       "decision_target": "digitalisimo-image-compare",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Comparador antes/después; se reconstruye accesible con un control deslizante nativo."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Comparador antes/después; se reconstruye accesible con un control deslizante nativo.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-compare.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.118"
     },
     "bdt-image-expand": {
       "target": "digitalisimo-fancy-tabs",

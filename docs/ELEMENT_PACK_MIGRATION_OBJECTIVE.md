@@ -92,6 +92,8 @@ Lote 22 (4.3.0.116): cuatro widgets pasan a pestañas y tres al acordeón (ADAPT
 
 Lote 23 (4.3.0.117): Advanced Progress Bar y Progress Pie se RECONSTRUYEN en Barras de progreso; Reading Progress y Reading Timer en Progreso y Tiempo de lectura. Diferencias declaradas: el porcentaje del círculo y el tiempo de lectura se pintan en el servidor (Element Pack los escribía con JavaScript); el indicador circular de lectura pasa a barra; los estilos decorativos de las barras no se trasladan.
 
+Lote 24 (4.3.0.118): Audio Player, Image Compare y Business Hours se RECONSTRUYEN. Diferencias declaradas: controles nativos del navegador en el audio, etiquetas del comparador visibles desde el inicio, horario en una celda por día y sin el aviso «abierto ahora»; los audios e imágenes de ejemplo de Element Pack no se trasladan.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

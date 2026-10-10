@@ -1,0 +1,20 @@
+{
+  "remote": {
+    "source_type": "remote_url",
+    "remote_url": {
+      "url": "https://example.test/a.mp3",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "title": "Episodio 1",
+    "author_name": "Ana",
+    "_expect_html": [
+      "src=\"https://example.test/a.mp3\""
+    ],
+    "_known": {
+      "text": "El reproductor propio muestra título y artista como texto; Element Pack los mostraba en un globo",
+      "links": "Los controles son los nativos de <audio>; Element Pack usaba enlaces javascript:void(0)"
+    }
+  }
+}

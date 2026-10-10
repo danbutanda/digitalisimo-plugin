@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 160, no se reproduce 66, pendiente: adaptador 37.
+Documentos heredados: adaptador publicado 163, no se reproduce 66, pendiente: adaptador 34.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -33,7 +33,7 @@ Documentos heredados: adaptador publicado 160, no se reproduce 66, pendiente: ad
 | `bdt-animated-card` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Tarjeta con imagen, título, texto y botón con animación al pasar el cursor: la Fancy Card propia cubre el contenido. |
 | `bdt-animated-heading` | ADAPTAR | `digitalisimo-animated-heading` | adaptador publicado | own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support, conditional assets and shared global listeners; safe external link and editor link parity since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; typed/split/GSAP variants, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
 | `bdt-animated-link` | ADAPTAR | `digitalisimo-animated-link` | adaptador publicado | Ya resuelto desde 4.3.0.x con el adaptador de lectura del Enlace animado propio. |
-| `bdt-audio-player` | RECONSTRUIR | `digitalisimo-audio-player` | pendiente: adaptador | Reproductor de audio con skins de jPlayer; se reconstruye con <audio> nativo como el reproductor de vídeo propio. |
+| `bdt-audio-player` | RECONSTRUIR | `digitalisimo-audio-player` | adaptador publicado | Reproductor de audio con skins de jPlayer; se reconstruye con <audio> nativo como el reproductor de vídeo propio. |
 | `bdt-barcode` | DESCARTAR | — | no se reproduce | Código de barras generado por una librería de Element Pack; uso marginal. Para QR existe el widget propio. |
 | `bdt-bbpress-forum-form` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-bbpress-forum-index` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
@@ -53,7 +53,7 @@ Documentos heredados: adaptador publicado 160, no se reproduce 66, pendiente: ad
 | `bdt-buddypress-friends` | DESCARTAR | — | no se reproduce | Bucle propio sobre funciones de BuddyPress sin shortcode equivalente; BuddyPress ofrece bloques propios para listas de amigos. |
 | `bdt-buddypress-group` | DESCARTAR | — | no se reproduce | Bucle propio sobre grupos de BuddyPress sin shortcode equivalente; usar los bloques de BuddyPress. |
 | `bdt-buddypress-member` | DESCARTAR | — | no se reproduce | Bucle propio sobre miembros de BuddyPress sin shortcode equivalente; usar los bloques de BuddyPress. |
-| `bdt-business-hours` | RECONSTRUIR | `digitalisimo-business-hours` | pendiente: adaptador | Horario por día; se reconstruye reutilizando el horario estructurado de SEO Local cuando exista. |
+| `bdt-business-hours` | RECONSTRUIR | `digitalisimo-business-hours` | adaptador publicado | Horario por día; se reconstruye reutilizando el horario estructurado de SEO Local cuando exista. |
 | `bdt-calendly` | ADAPTAR | `html` | adaptador publicado | Inserta el widget de Calendly con su URL; se adapta al widget HTML con el mismo iframe. |
 | `bdt-call-out` | ADAPTAR | `digitalisimo-call-out` | adaptador publicado | own semantic CTA with optional icon and link; editor preview and external links aligned in 4.3.0.78; multisite runtime verified; legacy skins, animations and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool |
 | `bdt-carousel` | ADAPTAR | `posts` | adaptador publicado | Carrusel de entradas: el bucle de entradas de PRO Elements cubre la consulta; el carrusel se presenta como rejilla o con el motor de carruseles propio. |
@@ -152,7 +152,7 @@ Documentos heredados: adaptador publicado 160, no se reproduce 66, pendiente: ad
 | `bdt-iconnav` | ADAPTAR | `digitalisimo-icon-nav` | adaptador publicado | own vertical icon navigation and native WordPress menu panel; editor branding and links aligned in 4.3.0.89; multisite runtime verified; offcanvas effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-iframe` | ADAPTAR | `html` | adaptador publicado | Iframe con URL; se adapta al widget HTML con el mismo iframe y carga diferida. |
 | `bdt-image-accordion` | ADAPTAR | `digitalisimo-accordion` | adaptador publicado | Acordeón de imágenes con título y texto; el contenido pasa al Acordeón propio. |
-| `bdt-image-compare` | RECONSTRUIR | `digitalisimo-image-compare` | pendiente: adaptador | Comparador antes/después; se reconstruye accesible con un control deslizante nativo. |
+| `bdt-image-compare` | RECONSTRUIR | `digitalisimo-image-compare` | adaptador publicado | Comparador antes/después; se reconstruye accesible con un control deslizante nativo. |
 | `bdt-image-expand` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Imágenes que se expanden al pasar el cursor; el contenido pasa a pestañas propias. |
 | `bdt-image-magnifier` | ADAPTAR | `image` | adaptador publicado | Lupa sobre una imagen; se conserva la imagen en el widget Imagen. |
 | `bdt-image-stack` | ADAPTAR | `image-gallery` | pendiente: adaptador | Imágenes apiladas; se conservan en la galería básica. |

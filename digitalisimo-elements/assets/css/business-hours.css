@@ -1,0 +1,8 @@
+.digi-hours{--digi-hours-accent:#3f51ef}
+.digi-hours__heading{margin:0 0 .5rem;font-weight:600}
+.digi-hours__list{margin:0}
+.digi-hours__row{display:flex;justify-content:space-between;gap:1rem;padding:.5rem 0;border-bottom:1px solid rgba(0,0,0,.08)}
+.digi-hours__row dt{font-weight:500}
+.digi-hours__row dd{margin:0;text-align:end}
+.digi-hours--striped .digi-hours__row:nth-child(odd){background:rgba(0,0,0,.03)}
+.digi-hours__row.is-highlighted,.digi-hours__row.is-today{color:var(--digi-hours-accent);font-weight:600}
