@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.84
+# DIGITALÍSIMO Elements 4.3.0.85
+
+- 4.3.0.85: Creative Button muestra icono y atributos del enlace en el editor y protege enlaces externos; Device Slider muestra títulos, ALT, enlaces y flechas en el editor y reactiva el motor compartido allí junto con Fancy Slider.
 
 - 4.3.0.84: Custom Gallery alinea la vista previa del editor con el ALT de Medios y los atributos de cada enlace; los enlaces externos del frontend usan `noopener noreferrer`.
 

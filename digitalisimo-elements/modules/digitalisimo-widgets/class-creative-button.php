@@ -37,7 +37,13 @@ final class Creative_Button_Widget extends \Elementor\Widget_Base {
 		$link = is_array( $s['link'] ?? null ) ? $s['link'] : array();
 		$has_link = ! empty( $link['url'] );
 		echo '<div class="digi-creative-button__wrap">';
-		if ( $has_link ) { $this->add_link_attributes( 'creative_button_link', $link ); echo '<a class="digi-creative-button digi-creative-button--' . esc_attr( $effect ) . '" ' . $this->get_render_attribute_string( 'creative_button_link' ) . '>'; }
+		if ( $has_link ) {
+			$this->add_link_attributes( 'creative_button_link', $link );
+			if ( ! empty( $link['is_external'] ) ) {
+				$this->add_render_attribute( 'creative_button_link', 'rel', array( 'noopener', 'noreferrer' ) );
+			}
+			echo '<a class="digi-creative-button digi-creative-button--' . esc_attr( $effect ) . '" ' . $this->get_render_attribute_string( 'creative_button_link' ) . '>';
+		}
 		else { echo '<span class="digi-creative-button digi-creative-button--' . esc_attr( $effect ) . '">'; }
 		$icon = is_array( $s['icon'] ?? null ) ? $s['icon'] : array();
 		if ( ! empty( $icon['value'] ) ) { \Elementor\Icons_Manager::render_icon( $icon, array( 'aria-hidden' => 'true' ) ); }
@@ -48,8 +54,11 @@ final class Creative_Button_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<# var effect = _.contains( ['fill','outline','lift','underline','glow'], settings.effect ) ? settings.effect : 'fill'; var href = settings.link && settings.link.url ? settings.link.url : ''; #>
-		<# if ( settings.text ) { #><div class="digi-creative-button__wrap"><# if ( href ) { #><a class="digi-creative-button digi-creative-button--{{ effect }}" href="{{ href }}"><# } else { #><span class="digi-creative-button digi-creative-button--{{ effect }}"><# } #><span>{{ settings.text }}</span><# if ( href ) { #></a><# } else { #></span><# } #></div><# } #>
+		<# var effect = _.contains( ['fill','outline','lift','underline','glow'], settings.effect ) ? settings.effect : 'fill';
+		var link = settings.link || {}; var href = link.url || '';
+		var rel = [ link.nofollow ? 'nofollow' : '', link.is_external ? 'noopener noreferrer' : '' ].filter(Boolean).join(' ');
+		var icon = elementor.helpers.renderIcon( view, settings.icon, { 'aria-hidden': true }, 'i', 'object' ); #>
+		<# if ( settings.text ) { #><div class="digi-creative-button__wrap"><# if ( href ) { #><a class="digi-creative-button digi-creative-button--{{ effect }}" href="{{ href }}"<# if ( link.is_external ) { #> target="_blank"<# } #><# if ( rel ) { #> rel="{{ rel }}"<# } #>><# } else { #><span class="digi-creative-button digi-creative-button--{{ effect }}"><# } #><# if ( icon && icon.rendered ) { #>{{{ icon.value }}}<# } #><span>{{ settings.text }}</span><# if ( href ) { #></a><# } else { #></span><# } #></div><# } #>
 		<?php
 	}
 }

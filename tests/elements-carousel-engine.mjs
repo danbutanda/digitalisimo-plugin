@@ -35,6 +35,15 @@ assert.equal(previous.disabled, false);
 previous.click();
 assert.equal(track.position, 0);
 assert.equal(previous.disabled, true);
+const hooks = new Map();
+context.elementorFrontend = { hooks: { addAction(name, callback) { hooks.set(name, callback); } } };
+context.window.elementorFrontend = context.elementorFrontend;
 vm.runInNewContext(readFileSync(new URL('../digitalisimo-elements/assets/js/carousel-engine.js', import.meta.url), 'utf8'), context);
 assert.equal(next.disabled, false);
+for (const name of ['digitalisimo-brand-carousel', 'digitalisimo-logo-carousel', 'digitalisimo-device-slider', 'digitalisimo-fancy-slider']) {
+  assert.equal(typeof hooks.get('frontend/element_ready/' + name + '.default'), 'function', name + ' debe reactivar el motor en el editor');
+}
+const editorRoot = { ...root, dataset: {} };
+hooks.get('frontend/element_ready/digitalisimo-device-slider.default')([{ querySelectorAll() { return [editorRoot]; } }]);
+assert.equal(editorRoot.dataset.digiCarouselReady, '1');
 console.log('DIGITALÍSIMO Elements: navegación, límites e inicio único del carrusel validados.');

@@ -60,7 +60,12 @@ final class Device_Slider_Widget extends \Elementor\Widget_Base {
 			if ( ! $markup ) { continue; }
 			echo '<li class="digi-carousel__slide digi-device-slider__slide">';
 			$link = is_array( $item['link'] ?? null ) ? $item['link'] : array();
-			if ( ! empty( $link['url'] ) ) { $key = 'device_link_' . $index; $this->add_link_attributes( $key, $link ); echo '<a ' . $this->get_render_attribute_string( $key ) . '>' . $markup . '</a>'; }
+			if ( ! empty( $link['url'] ) ) {
+				$key = 'device_link_' . $index;
+				$this->add_link_attributes( $key, $link );
+				if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( $key, 'rel', array( 'noopener', 'noreferrer' ) ); }
+				echo '<a ' . $this->get_render_attribute_string( $key ) . '>' . $markup . '</a>';
+			}
 			else { echo $markup; }
 			if ( $title ) { echo '<span class="digi-device-slider__title">' . esc_html( $title ) . '</span>'; }
 			echo '</li>';
@@ -71,8 +76,10 @@ final class Device_Slider_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<# var type = _.contains(['desktop','tablet','mobile','browser'], settings.device_type) ? settings.device_type : 'desktop'; var images = (settings.gallery_images || []).concat((settings.slides || []).map(function(item){ return item.image; })).filter(function(image){ return image && image.url; }); #>
-		<# if ( images.length ) { #><div class="digi-device-slider digi-device-slider--{{ type }}"><div class="digi-device-slider__frame"><section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="Capturas de dispositivo" style="--digi-carousel-count:{{ images.length }};--digi-carousel-visible:1"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides"><# _.each(images,function(image){ #><li class="digi-carousel__slide digi-device-slider__slide"><img class="digi-device-slider__image" src="{{ image.url }}" alt=""></li><# }); #></ul></div></section></div></div><# } #>
+		<# var type = _.contains(['desktop','tablet','mobile','browser'], settings.device_type) ? settings.device_type : 'desktop';
+		var items = (settings.gallery_images || []).map(function(image){ return { image:image }; }).concat(settings.slides || []).filter(function(item){ return item && item.image && item.image.url; });
+		var linkRel = function(link){ return [ link && link.nofollow ? 'nofollow' : '', link && link.is_external ? 'noopener noreferrer' : '' ].filter(Boolean).join(' '); }; #>
+		<# if ( items.length ) { #><div class="digi-device-slider digi-device-slider--{{ type }}"><div class="digi-device-slider__frame"><section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="Capturas de dispositivo" style="--digi-carousel-count:{{ items.length }}"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides"><# _.each(items,function(item){ var link = item.link || {}; var rel = linkRel(link); #><li class="digi-carousel__slide digi-device-slider__slide"><# if (link.url) { #><a href="{{ link.url }}"<# if (link.is_external) { #> target="_blank"<# } #><# if (rel) { #> rel="{{ rel }}"<# } #>><# } #><img class="digi-device-slider__image" src="{{ item.image.url }}" alt="{{ item.image.alt || item.title || '' }}"><# if (link.url) { #></a><# } #><# if (item.title) { #><span class="digi-device-slider__title">{{ item.title }}</span><# } #></li><# }); #></ul></div><# if (items.length > 1 && settings.navigation !== 'none') { #><div class="digi-carousel__controls"><button class="digi-carousel__button" type="button" data-digi-carousel-prev aria-label="Anterior" disabled aria-disabled="true">&#x2039;</button><button class="digi-carousel__button" type="button" data-digi-carousel-next aria-label="Siguiente">&#x203a;</button></div><# } #></section></div></div><# } #>
 		<?php
 	}
 }

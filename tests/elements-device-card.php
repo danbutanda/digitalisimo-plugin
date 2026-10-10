@@ -1,14 +1,24 @@
 <?php
 namespace Elementor {
 	class Widget_Base {
-		public $settings = array(); public $controls = array(); private $links = array();
+		public $settings = array(); public $controls = array(); private $links = array(); private $attributes = array();
 		public function get_settings_for_display() { return $this->settings; }
 		public function start_controls_section( $name, $args ) {}
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
 		public function add_responsive_control( $name, $args ) { $this->controls[ $name ] = $args; }
-		public function add_link_attributes( $name, $link ) { $this->links[ $name ] = $link['url']; }
-		public function get_render_attribute_string( $name ) { return 'href="' . htmlspecialchars( $this->links[ $name ], ENT_QUOTES, 'UTF-8' ) . '"'; }
+		public function add_link_attributes( $name, $link ) {
+			$this->links[ $name ] = $link['url'];
+			$this->attributes[ $name ] = array( 'href' => $link['url'] );
+			if ( ! empty( $link['is_external'] ) ) { $this->attributes[ $name ]['target'] = '_blank'; }
+			if ( ! empty( $link['nofollow'] ) ) { $this->attributes[ $name ]['rel'] = array( 'nofollow' ); }
+		}
+		public function add_render_attribute( $name, $key, $value ) { $this->attributes[ $name ][ $key ] = array_merge( (array) ( $this->attributes[ $name ][ $key ] ?? array() ), (array) $value ); }
+		public function get_render_attribute_string( $name ) {
+			$out = array();
+			foreach ( $this->attributes[ $name ] as $key => $value ) { $out[] = $key . '="' . htmlspecialchars( implode( ' ', (array) $value ), ENT_QUOTES, 'UTF-8' ) . '"'; }
+			return implode( ' ', $out );
+		}
 	}
 	class Repeater { private $controls = array(); public function add_control( $name, $args ) { $this->controls[ $name ] = $args; } public function get_controls() { return $this->controls; } }
 	class Controls_Manager { const SELECT = 'select'; const GALLERY = 'gallery'; const MEDIA = 'media'; const TEXT = 'text'; const TEXTAREA = 'textarea'; const URL = 'url'; const REPEATER = 'repeater'; const SLIDER = 'slider'; const COLOR = 'color'; const ICONS = 'icons'; const DIMENSIONS = 'dimensions'; const TAB_STYLE = 'style'; }
@@ -30,10 +40,13 @@ namespace {
 	$card = new \Digitalisimo\Elements\Fancy_Card_Widget();
 	foreach ( array( $slider, $card ) as $widget ) { (new \ReflectionMethod( $widget, 'register_controls' ))->invoke( $widget ); }
 	check_device( array( 'digitalisimo-carousel-engine' ) === $slider->get_script_depends() && array() === $card->get_script_depends(), 'Sólo el slider debe usar el motor compartido.' );
-	$slider->settings = array( 'device_type' => 'mobile', 'gallery_images' => array( array( 'id' => 10, 'url' => 'https://site.test/captura.webp' ) ), 'slides' => array( array( 'image' => array( 'url' => 'https://site.test/otra.webp' ), 'title' => 'Otra', 'link' => array( 'url' => 'https://site.test/otra' ) ) ) );
+	$slider->settings = array( 'device_type' => 'mobile', 'gallery_images' => array( array( 'id' => 10, 'url' => 'https://site.test/captura.webp' ) ), 'slides' => array( array( 'image' => array( 'url' => 'https://site.test/otra.webp' ), 'title' => 'Otra', 'link' => array( 'url' => 'https://site.test/otra', 'is_external' => true, 'nofollow' => true ) ) ) );
 	ob_start(); (new \ReflectionMethod( $slider, 'render' ))->invoke( $slider ); $html = ob_get_clean();
 	check_device( str_contains( $html, 'digi-device-slider--mobile' ) && 2 === substr_count( $html, '<li class="digi-carousel__slide ' ) && str_contains( $html, 'srcset=' ) && str_contains( $html, 'alt="Captura móvil"' ), 'El slider debe mostrar dos capturas y conservar ALT/srcset.' );
 	check_device( str_contains( $html, 'data-digi-carousel-next' ) && str_contains( $html, 'href="https://site.test/otra"' ), 'Debe usar controles del motor y enlace individual.' );
+	check_device( str_contains( $html, 'target="_blank"' ) && str_contains( $html, 'rel="nofollow noopener noreferrer"' ), 'El enlace externo debe proteger la pestaña.' );
+	ob_start(); (new \ReflectionMethod( $slider, 'content_template' ))->invoke( $slider ); $editor = ob_get_clean();
+	check_device( str_contains( $editor, 'item.title' ) && str_contains( $editor, 'data-digi-carousel-next' ) && str_contains( $editor, 'link.is_external' ), 'El editor debe mostrar títulos, enlaces y flechas del carrusel.' );
 	$slider->settings['slides'] = array();
 	ob_start(); (new \ReflectionMethod( $slider, 'render' ))->invoke( $slider ); $one = ob_get_clean();
 	check_device( ! str_contains( $one, 'data-digi-carousel-next' ), 'Una captura no debe mostrar flechas.' );

@@ -15,9 +15,9 @@ El usuario fijó el siguiente **primer bloque de 63 componentes**, en este orden
 11. Call Out — base propia con título, descripción y botón; editor y enlaces externos alineados desde 4.3.0.78, renderizado Multisite comprobado; paridad visual pendiente
 12. Comparison List — base propia en tabla semántica; editor y enlaces externos alineados desde 4.3.0.79, renderizado Multisite comprobado; variantes y paridad visual pendientes
 13. Content Switcher — base propia en pestañas accesibles; editor con todos los paneles e iconos desde 4.3.0.83, renderizado Multisite comprobado; contenidos avanzados y paridad visual pendientes
-14. Custom Gallery — base propia con selección múltiple y datos individuales; ALT y enlaces del editor alineados desde 4.3.0.84; lightbox y Multisite pendientes
-15. Creative Button — base propia con cinco efectos CSS; skins de referencia y Multisite pendientes
-16. Device Slider — base propia sobre motor de carrusel compartido; marcos avanzados y Multisite pendientes
+14. Custom Gallery — base propia con selección múltiple y datos individuales; ALT y enlaces del editor alineados desde 4.3.0.84, renderizado Multisite comprobado; lightbox y paridad visual pendientes
+15. Creative Button — base propia con cinco efectos CSS; icono y enlaces del editor alineados desde 4.3.0.85; skins de referencia y Multisite pendientes
+16. Device Slider — base propia sobre motor de carrusel compartido; editor con títulos, ALT, enlaces y flechas desde 4.3.0.85; marcos avanzados y Multisite pendientes
 17. Fancy Card — base propia con imagen o icono y CTA; skins y Multisite pendientes
 18. Fancy List — base propia; paridad pendiente
 19. Fancy Icons — base propia con enlaces accesibles y CSS condicional; fondos avanzados, paridad visual y Multisite pendientes
