@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.91
+# DIGITALÍSIMO Elements 4.3.0.92
+
+- 4.3.0.92: Product Grid deja que WordPress decida la carga de imágenes, conserva el ALT de imágenes externas sin título, protege enlaces externos y alinea la vista previa con el conteo de reseñas y los atributos del enlace.
 
 - 4.3.0.91: Notification espera correctamente al activador de clic o cursor y no aparece sola cuando éste falta. El modo cursor también responde al enfoque del teclado.
 

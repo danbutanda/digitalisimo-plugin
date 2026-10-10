@@ -2501,7 +2501,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own manual product cards with conditional CSS; reference skins, advanced controls, visual parity and multisite runtime pending"
+      "status": "own manual product cards with conditional CSS; image loading, ALT, links and editor aligned in 4.3.0.92, installed multisite rendering verified; WooCommerce queries, reference skins, visual parity and legacy conversion pending"
     },
     "bdt-profile-card": {
       "target": null,

@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Notification | En validación · 4.3.0.91 | Un activador de clic/cursor ausente ya no muestra el aviso; el modo cursor responde al teclado. | Pruebas PHP/JS y renderizado Elementor Multisite correctos; faltan suite, ZIP y publicación. Siguen pendientes plantillas, skins y comparación visual. |
+| DIGITALÍSIMO Elements · Product Grid | En validación · 4.3.0.92 | Carga de imágenes según contexto, ALT sin título, enlaces externos seguros y vista previa con reseñas y atributos de enlace. | Pruebas PHP y renderizado Elementor en el sitio principal y un subsitio correctos; faltan suite, ZIP y publicación. Continúan pendientes consulta WooCommerce, skins y comparación visual. |
+
+| DIGITALÍSIMO Elements · Notification | Publicado · 4.3.0.91 · `v2026.10.10.336` | Un activador de clic/cursor ausente ya no muestra el aviso; el modo cursor responde al teclado. | Pruebas PHP/JS, suite de seis módulos, ZIP íntegro y renderizado Elementor Multisite correctos. GitHub Actions validación `#660` y publicación `#336` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.91.zip`. Siguen pendientes plantillas, skins y comparación visual. |
 
 | DIGITALÍSIMO Elements · Logo Grid y validación Google Reviews | Publicado · 4.3.0.90 · `v2026.10.10.335` | Logo Grid no fuerza `loading` por índice y protege enlaces externos; Google Reviews se renderizó con clave de prueba en los dos sitios de la red. | Pruebas PHP, suite de seis módulos, ZIP íntegro y renderizado Elementor Multisite correctos. GitHub Actions validación `#659` y publicación `#335` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.90.zip`. Faltan API real de Places, interacción del editor y comparación visual. |
 

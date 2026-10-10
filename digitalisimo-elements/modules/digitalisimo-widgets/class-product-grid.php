@@ -61,10 +61,11 @@ final class Product_Grid_Widget extends \Elementor\Widget_Base {
 			$link = is_array( $item['readmore_link'] ?? null ) ? $item['readmore_link'] : array();
 			$id = absint( $image['id'] ?? 0 );
 			$alt = $id ? (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) : '';
+			if ( '' === $alt && '' === $title ) { $alt = trim( (string) ( $image['alt'] ?? '' ) ); }
 			if ( '' === $alt && '' === $title ) { $alt = 'Producto'; }
 			if ( '' !== $title ) { $alt = ''; }
-			$image_html = $id ? wp_get_attachment_image( $id, $size, false, array( 'class' => 'digi-product-grid__image', 'alt' => $alt, 'decoding' => 'async', 'loading' => $index ? 'lazy' : 'eager' ) ) : '';
-			if ( ! $image_html && ! empty( $image['url'] ) ) { $image_html = '<img class="digi-product-grid__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async" loading="' . ( $index ? 'lazy' : 'eager' ) . '">'; }
+			$image_html = $id ? wp_get_attachment_image( $id, $size, false, array( 'class' => 'digi-product-grid__image', 'alt' => $alt, 'decoding' => 'async' ) ) : '';
+			if ( ! $image_html && ! empty( $image['url'] ) ) { $image_html = '<img class="digi-product-grid__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async">'; }
 			$out .= '<li class="digi-product-grid__item">';
 			if ( $image_html ) { $out .= '<div class="digi-product-grid__visual">' . $image_html . '</div>'; }
 			$out .= '<div class="digi-product-grid__body">';
@@ -82,6 +83,7 @@ final class Product_Grid_Widget extends \Elementor\Widget_Base {
 				if ( '' === $button ) { $button = '' !== $title ? 'Ver ' . $title : 'Ver producto'; }
 				$key = 'product_grid_link_' . (int) $index;
 				$this->add_link_attributes( $key, $link );
+				if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( $key, 'rel', array( 'noopener', 'noreferrer' ) ); }
 				$out .= '<a class="digi-product-grid__link" ' . $this->get_render_attribute_string( $key ) . '>' . esc_html( $button ) . '</a>';
 			}
 			$out .= '</div></li>';
@@ -92,7 +94,7 @@ final class Product_Grid_Widget extends \Elementor\Widget_Base {
 	protected function content_template() {
 		?>
 		<# var tag = _.contains(['h2','h3','h4','h5','h6','div'], settings.title_tag) ? settings.title_tag : 'h3'; #>
-		<div class="digi-product-grid"><ul class="digi-product-grid__list"><# _.each(settings.product_items || [], function(item) { if (!item || (!item.title && !(item.image && item.image.url))) return; var rating = Math.min(5, Math.max(0, parseFloat(item.rating_number && (item.rating_number.size || item.rating_number)) || 0)); #><li class="digi-product-grid__item"><# if(item.image && item.image.url) { #><div class="digi-product-grid__visual"><img class="digi-product-grid__image" src="{{ item.image.url }}" alt="{{ item.title ? '' : 'Producto' }}"></div><# } #><div class="digi-product-grid__body"><# if(item.badge_text) { #><span class="digi-product-grid__badge">{{ item.badge_text }}</span><# } #><# if(item.title) { #><{{{ tag }}} class="digi-product-grid__title">{{ item.title }}</{{{ tag }}}><# } #><# if(item.price) { #><p class="digi-product-grid__price">{{ item.price }}</p><# } #><# if(item.text) { #><p class="digi-product-grid__text">{{ item.text }}</p><# } #><# if(rating) { #><p class="digi-product-grid__rating">{{ rating }} / 5</p><# } #><# if(item.time) { #><p class="digi-product-grid__note">{{ item.time }}</p><# } #><# if(item.readmore_link && item.readmore_link.url) { #><a class="digi-product-grid__link" href="{{ item.readmore_link.url }}">{{ item.button_text || 'Ver producto' }}</a><# } #></div></li><# }); #></ul></div>
+		<div class="digi-product-grid"><ul class="digi-product-grid__list"><# _.each(settings.product_items || [], function(item) { if (!item || (!item.title && !(item.image && item.image.url))) return; var rating = Math.min(5, Math.max(0, parseFloat(item.rating_number && (item.rating_number.size || item.rating_number)) || 0)); var count = Math.max(0, parseInt(item.rating_count, 10) || 0); var link = item.readmore_link && item.readmore_link.url ? item.readmore_link : null; var rel = []; if (link && link.nofollow) rel.push('nofollow'); if (link && link.is_external) rel.push('noopener noreferrer'); #><li class="digi-product-grid__item"><# if(item.image && item.image.url) { #><div class="digi-product-grid__visual"><img class="digi-product-grid__image" src="{{ item.image.url }}" alt="{{ item.title ? '' : (item.image.alt || 'Producto') }}"></div><# } #><div class="digi-product-grid__body"><# if(item.badge_text) { #><span class="digi-product-grid__badge">{{ item.badge_text }}</span><# } #><# if(item.title) { #><{{{ tag }}} class="digi-product-grid__title">{{ item.title }}</{{{ tag }}}><# } #><# if(item.price) { #><p class="digi-product-grid__price">{{ item.price }}</p><# } #><# if(item.text) { #><p class="digi-product-grid__text">{{ item.text }}</p><# } #><# if(rating) { #><p class="digi-product-grid__rating" aria-label="Calificación: {{ rating }} de 5">{{ rating }} / 5<# if(count) { #> · {{ count }}<# } #></p><# } #><# if(item.time) { #><p class="digi-product-grid__note">{{ item.time }}</p><# } #><# if(link) { var button = (item.button_text || '').trim() || (item.title ? 'Ver ' + item.title : 'Ver producto'); #><a class="digi-product-grid__link" href="{{ link.url }}" <# if(link.is_external) { #>target="_blank"<# } #> <# if(rel.length) { #>rel="{{ rel.join(' ') }}"<# } #>>{{ button }}</a><# } #></div></li><# }); #></ul></div>
 		<?php
 	}
 }
