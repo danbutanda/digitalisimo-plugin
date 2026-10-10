@@ -4,7 +4,10 @@
 
 | DIGITALÍSIMO Elements · Condiciones de visualización (Visibility Controls) | Publicado · 4.3.0.81 · `v2026.10.09.326` | 28 condiciones de Element Pack registradas en Display Conditions del derivado (16 sólo con WooCommerce), con sus grupos Y/O, interfaz y caché nativos. | Prueba PHP aislada, suite de seis módulos y Playground Multisite (WordPress, Elementor, WooCommerce 11.2.1: registro, configuración del editor y renderizado condicionado en el sitio principal y un subsitio) correctos. GitHub Actions validación `#646` y publicación `#326` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.81.zip`. Faltan lectura o conversión de documentos con `ep_display_conditions` y prueba en el editor visual. |
 
-| DIGITALÍSIMO Elements · Comparison List | En validación · 4.3.0.79 | El editor muestra los CTA y atributos de los planes y coincide con las ocho columnas máximas del frontend; enlaces externos seguros. | Prueba PHP correcta; faltan paquete, prueba instalada, publicación y comparación visual. |
+| DIGITALÍSIMO Elements · Content Switcher | En validación · 4.3.0.83 | El editor muestra todos los paneles e iconos y conserva las relaciones accesibles de las pestañas. | Prueba PHP, suite de seis módulos y renderizado Elementor con dos pestañas en el sitio principal y un subsitio Multisite correctos. Faltan publicación, prueba interactiva del editor y comparación visual. |
+
+| DIGITALÍSIMO Elements · Comparison List | Publicado · 4.3.0.79 · `v2026.10.09.325` | El editor muestra los CTA y atributos de los planes y coincide con las ocho columnas máximas del frontend; enlaces externos seguros. | Prueba PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#645` y publicación `#325` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.79.zip`. Falta comparación visual. |
+
 
 | DIGITALÍSIMO Elements · Call Out | Publicado · 4.3.0.78 · `v2026.10.09.324` | El editor muestra el icono y los atributos del enlace como el frontend, que protege pestañas externas. | Prueba PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#643` y publicación `#324` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.78.zip`. Falta comparación visual. |
 

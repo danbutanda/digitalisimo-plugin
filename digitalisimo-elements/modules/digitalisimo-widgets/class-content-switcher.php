@@ -53,8 +53,9 @@ final class Content_Switcher_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<# var items = settings.switcher_items || []; #><# if ( items.length ) { #>
-		<div class="digi-content-switcher"><div class="digi-content-switcher__tabs" role="tablist" aria-label="Alternar contenido"><# _.each( items, function(item,index){ #><button type="button" class="digi-content-switcher__tab" role="tab" aria-selected="{{ index === 0 ? 'true' : 'false' }}"><span>{{ item.title }}</span></button><# }); #></div><div class="digi-content-switcher__panel" role="tabpanel">{{{ items[0].content || '' }}}</div></div><# } #>
+		<# var items = (settings.switcher_items || []).filter( function(item){ return item && (item.title || item.content); } ).slice( 0, 12 );
+		var id = 'digi-switcher-' + view.model.id; #><# if ( items.length ) { #>
+		<div class="digi-content-switcher" data-digi-content-switcher><div class="digi-content-switcher__tabs" role="tablist" aria-label="Alternar contenido"><# _.each( items, function(item,index){ var icon = elementor.helpers.renderIcon( view, item.switcher_icon, { 'aria-hidden': true }, 'i', 'object' ); #><button type="button" class="digi-content-switcher__tab" id="{{ id }}-tab-{{ index }}" role="tab" aria-controls="{{ id }}-panel-{{ index }}" aria-selected="{{ index === 0 ? 'true' : 'false' }}" tabindex="{{ index === 0 ? '0' : '-1' }}"><# if ( icon && icon.rendered ) { #>{{{ icon.value }}}<# } #><span>{{ item.title || 'Opción ' + ( index + 1 ) }}</span></button><# }); #></div><# _.each( items, function(item,index){ #><div class="digi-content-switcher__panel" id="{{ id }}-panel-{{ index }}" role="tabpanel" aria-labelledby="{{ id }}-tab-{{ index }}" tabindex="0"<# if ( index ) { #> hidden<# } #>>{{{ item.content || '' }}}</div><# }); #></div><# } #>
 		<?php
 	}
 }

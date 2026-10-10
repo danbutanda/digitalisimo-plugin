@@ -53,6 +53,8 @@ namespace {
 	check_compare( str_contains( $html, 'hidden' ) && ! str_contains( $html, '<script' ) && str_contains( $html, '<noscript>' ), 'El panel inicial debe ser visible y existir fallback sin JS.' );
 	ob_start(); $render->invoke( $switcher ); $second = ob_get_clean();
 	check_compare( ! str_contains( $second, '<noscript>' ), 'El fallback CSS no debe duplicarse por instancia.' );
+	ob_start(); (new \ReflectionMethod( $switcher, 'content_template' ))->invoke( $switcher ); $editor = ob_get_clean();
+	check_compare( str_contains( $editor, 'data-digi-content-switcher' ) && str_contains( $editor, 'aria-controls=' ) && str_contains( $editor, 'aria-labelledby=' ) && str_contains( $editor, 'elementor.helpers.renderIcon' ) && str_contains( $editor, 'item.content' ), 'El editor debe mostrar todos los paneles, iconos y relaciones accesibles.' );
 	$js = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/js/content-switcher.js' );
 	check_compare( str_contains( $js, 'WeakSet' ) && str_contains( $js, 'ArrowRight' ) && str_contains( $js, 'ArrowLeft' ), 'El script debe aislar instancias y permitir navegación por teclado.' );
 	echo "DIGITALÍSIMO Elements: Tabla comparativa y alternador accesible validados.\n";

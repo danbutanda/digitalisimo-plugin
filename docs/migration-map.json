@@ -795,7 +795,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own semantic comparison table with horizontal overflow, scoped headers and conditional CSS; editor CTAs and external links aligned in 4.3.0.79; accordion skins, legacy adapter, visual comparison and multisite runtime pending"
+      "status": "own semantic comparison table with horizontal overflow, scoped headers and conditional CSS; editor CTAs and external links aligned in 4.3.0.79; multisite runtime verified; accordion skins, legacy adapter and visual comparison pending"
     },
     "bdt-contact-form": {
       "target": null,
@@ -833,7 +833,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own accessible tab switcher with keyboard navigation and instance isolation; template, linked sections, price cards, legacy adapter, visual comparison and multisite runtime pending"
+      "status": "own accessible tab switcher with keyboard navigation and instance isolation; all editor panels and icons aligned in 4.3.0.83; template, linked sections, price cards, legacy adapter, visual comparison and multisite runtime pending"
     },
     "bdt-cookie-consent": {
       "target": null,
