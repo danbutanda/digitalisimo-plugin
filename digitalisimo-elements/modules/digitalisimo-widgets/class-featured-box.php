@@ -67,7 +67,7 @@ final class Featured_Box_Widget extends \Elementor\Widget_Base {
 		if ( $title ) {
 			echo '<' . $tag . ' class="digi-featured-box__title">';
 			$link = is_array( $s['title_link_url'] ?? null ) ? $s['title_link_url'] : array();
-			if ( ! empty( $link['url'] ) ) { $this->add_link_attributes( 'featured_title_link', $link ); echo '<a ' . $this->get_render_attribute_string( 'featured_title_link' ) . '>' . esc_html( $title ) . '</a>'; }
+			if ( ! empty( $link['url'] ) ) { $this->add_link_attributes( 'featured_title_link', $link ); if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( 'featured_title_link', 'rel', array( 'noopener', 'noreferrer' ) ); } echo '<a ' . $this->get_render_attribute_string( 'featured_title_link' ) . '>' . esc_html( $title ) . '</a>'; }
 			else { echo esc_html( $title ); }
 			echo '</' . $tag . '>';
 		}
@@ -76,6 +76,7 @@ final class Featured_Box_Widget extends \Elementor\Widget_Base {
 		$link = is_array( $s['readmore_link'] ?? null ) ? $s['readmore_link'] : array();
 		if ( 'yes' === ( $s['readmore'] ?? '' ) && $button && ! empty( $link['url'] ) ) {
 			$this->add_link_attributes( 'featured_button_link', $link );
+			if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( 'featured_button_link', 'rel', array( 'noopener', 'noreferrer' ) ); }
 			echo '<a class="digi-featured-box__button" ' . $this->get_render_attribute_string( 'featured_button_link' ) . '>' . esc_html( $button );
 			$icon = is_array( $s['advanced_readmore_icon'] ?? null ) ? $s['advanced_readmore_icon'] : array();
 			if ( ! empty( $icon['value'] ) ) { echo '<span aria-hidden="true">'; \Elementor\Icons_Manager::render_icon( $icon, array( 'aria-hidden' => 'true' ) ); echo '</span>'; }
@@ -86,8 +87,13 @@ final class Featured_Box_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<# var layout = settings.layout === 'split' ? 'split' : 'overlay'; var side = layout === 'split' ? (settings.skin_content_position === 'right' ? 'right' : 'left') : (settings.content_position || 'bottom-left'); var tag = _.contains(['h2','h3','h4','div'],settings.title_size) ? settings.title_size : 'h3'; var image = settings.image && settings.image.url ? settings.image.url : ''; #>
-		<article class="digi-featured-box digi-featured-box--{{ layout }} digi-featured-box--{{ side }}"><# if(image){ #><figure class="digi-featured-box__media"><img class="digi-featured-box__image" src="{{ image }}" alt=""></figure><# } #><# if(settings.badge === 'yes' && settings.badge_text){ #><span class="digi-featured-box__badge">{{ settings.badge_text }}</span><# } #><div class="digi-featured-box__content"><# if(settings.show_sub_title === 'yes' && settings.sub_title_text){ #><span class="digi-featured-box__subtitle">{{ settings.sub_title_text }}</span><# } #><# if(settings.title_text){ #><{{{ tag }}} class="digi-featured-box__title">{{ settings.title_text }}</{{{ tag }}}><# } #><# if(settings.description_text){ #><p class="digi-featured-box__description">{{ settings.description_text }}</p><# } #><# if(settings.readmore === 'yes' && settings.readmore_text && settings.readmore_link && settings.readmore_link.url){ #><a class="digi-featured-box__button" href="{{ settings.readmore_link.url }}">{{ settings.readmore_text }}</a><# } #></div></article>
+		<# var layout = settings.layout === 'split' ? 'split' : 'overlay'; var side = layout === 'split' ? (settings.skin_content_position === 'right' ? 'right' : 'left') : (settings.content_position || 'bottom-left');
+		var tag = _.contains(['h2','h3','h4','div'],settings.title_size) ? settings.title_size : 'h3'; var image = settings.image && settings.image.url ? settings.image.url : '';
+		var titleLink = settings.title_link_url || {}; var buttonLink = settings.readmore_link || {};
+		var linkRel = function(link){ return [ link && link.nofollow ? 'nofollow' : '', link && link.is_external ? 'noopener noreferrer' : '' ].filter(Boolean).join(' '); };
+		var titleRel = linkRel(titleLink), buttonRel = linkRel(buttonLink);
+		var icon = elementor.helpers.renderIcon( view, settings.advanced_readmore_icon, { 'aria-hidden': true }, 'i', 'object' ); #>
+		<article class="digi-featured-box digi-featured-box--{{ layout }} digi-featured-box--{{ side }}"><# if(image){ #><figure class="digi-featured-box__media"><img class="digi-featured-box__image" src="{{ image }}" alt="{{ settings.image.alt || '' }}"></figure><# } #><# if(settings.badge === 'yes' && settings.badge_text){ #><span class="digi-featured-box__badge">{{ settings.badge_text }}</span><# } #><div class="digi-featured-box__content"><# if(settings.show_sub_title === 'yes' && settings.sub_title_text){ #><span class="digi-featured-box__subtitle">{{ settings.sub_title_text }}</span><# } #><# if(settings.title_text){ #><{{{ tag }}} class="digi-featured-box__title"><# if(titleLink.url){ #><a href="{{ titleLink.url }}"<# if(titleLink.is_external){ #> target="_blank"<# } #><# if(titleRel){ #> rel="{{ titleRel }}"<# } #>><# } #>{{ settings.title_text }}<# if(titleLink.url){ #></a><# } #></{{{ tag }}}><# } #><# if(settings.description_text){ #><p class="digi-featured-box__description">{{ settings.description_text }}</p><# } #><# if(settings.readmore === 'yes' && settings.readmore_text && buttonLink.url){ #><a class="digi-featured-box__button" href="{{ buttonLink.url }}"<# if(buttonLink.is_external){ #> target="_blank"<# } #><# if(buttonRel){ #> rel="{{ buttonRel }}"<# } #>>{{ settings.readmore_text }}<# if(icon && icon.rendered){ #><span aria-hidden="true">{{{ icon.value }}}</span><# } #></a><# } #></div></article>
 		<?php
 	}
 }

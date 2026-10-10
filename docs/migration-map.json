@@ -1460,7 +1460,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own accessible tabs with shared navigation script and conditional CSS; advanced skins, visual parity and multisite runtime pending"
+      "status": "own accessible tabs with shared navigation script and conditional CSS; all editor panels, icons and links aligned in 4.3.0.88; multisite runtime verified; advanced skins and visual parity pending"
     },
     "bdt-faq": {
       "target": null,
@@ -1494,7 +1494,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own overlay and split editorial box with Media image and optional links; advanced skins, visual parity and multisite runtime pending"
+      "status": "own overlay and split editorial box with Media image and optional links; editor ALT, links and icon aligned in 4.3.0.88; multisite runtime verified; advanced skins and visual parity pending"
     },
     "bdt-flip-box": {
       "target": null,

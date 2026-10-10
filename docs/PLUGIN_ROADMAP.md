@@ -1,6 +1,8 @@
 # Roadmap de funcionalidades · Digitalisimo
 
-| DIGITALÍSIMO Elements · Fancy Icons y Fancy Slider | En validación · 4.3.0.87 | Enlaces externos seguros y vista previa del slider con enlaces, ALT y navegación. | Pruebas PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. Faltan publicación y comparación visual. |
+| DIGITALÍSIMO Elements · Fancy Tabs y Featured Box | En validación · 4.3.0.88 | Vista previa completa con paneles, iconos, ALT y enlaces; enlaces externos seguros. | Pruebas PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. Faltan publicación y comparación visual. |
+
+| DIGITALÍSIMO Elements · Fancy Icons y Fancy Slider | Publicado · 4.3.0.87 · `v2026.10.10.332` | Enlaces externos seguros y vista previa del slider con enlaces, ALT y navegación. | Pruebas PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#654` y publicación `#332` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.87.zip`. Falta comparación visual. |
 
 | DIGITALÍSIMO Elements · Fancy Card y Fancy List | Publicado · 4.3.0.86 · `v2026.10.10.331` | Vista previa completa de la tarjeta; enlaces externos seguros y carga de imágenes de la lista delegada a WordPress. | Pruebas PHP, suite de seis módulos y renderizado Elementor en el sitio principal y un subsitio Multisite correctos. GitHub Actions validación `#653` y publicación `#331` terminaron bien; la Release contiene sólo `digitalisimo-elements-4.3.0.86.zip`. Falta comparación visual. |
 

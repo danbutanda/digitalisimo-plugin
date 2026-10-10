@@ -49,8 +49,8 @@ final class Fancy_Tabs_Widget extends \Elementor\Widget_Base {
 			if ( 'icon' === $type && ! empty( $item['selected_icon']['value'] ) ) { echo '<span class="digi-fancy-tabs__icon" aria-hidden="true">'; \Elementor\Icons_Manager::render_icon( $item['selected_icon'], array( 'aria-hidden' => 'true' ) ); echo '</span>'; }
 			elseif ( 'image' === $type && ! empty( $item['image']['url'] ) ) {
 				$image = $item['image']; $image_id = absint( $image['id'] ?? 0 );
-				$markup = $image_id ? wp_get_attachment_image( $image_id, 'thumbnail', false, array( 'class' => 'digi-fancy-tabs__icon', 'alt' => '', 'loading' => 'lazy' ) ) : '';
-				if ( ! $markup ) { $markup = '<img class="digi-fancy-tabs__icon" src="' . esc_url( $image['url'] ) . '" alt="" loading="lazy">'; }
+				$markup = $image_id ? wp_get_attachment_image( $image_id, 'thumbnail', false, array( 'class' => 'digi-fancy-tabs__icon', 'alt' => '' ) ) : '';
+				if ( ! $markup ) { $markup = '<img class="digi-fancy-tabs__icon" src="' . esc_url( $image['url'] ) . '" alt="">'; }
 				echo $markup;
 			}
 			echo '<span class="digi-fancy-tabs__label"><strong>' . esc_html( wp_strip_all_tags( $item['tab_title'] ) ) . '</strong>';
@@ -64,7 +64,7 @@ final class Fancy_Tabs_Widget extends \Elementor\Widget_Base {
 			if ( ! empty( $item['tab_content'] ) ) { echo wp_kses_post( $item['tab_content'] ); }
 			$button = trim( wp_strip_all_tags( (string) ( $item['tabs_button'] ?? '' ) ) );
 			$link = is_array( $item['button_link'] ?? null ) ? $item['button_link'] : array();
-			if ( $button && ! empty( $link['url'] ) ) { $key = 'fancy_tab_button_' . $index; $this->add_link_attributes( $key, $link ); echo '<a class="digi-fancy-tabs__button" ' . $this->get_render_attribute_string( $key ) . '>' . esc_html( $button ) . '</a>'; }
+			if ( $button && ! empty( $link['url'] ) ) { $key = 'fancy_tab_button_' . $index; $this->add_link_attributes( $key, $link ); if ( ! empty( $link['is_external'] ) ) { $this->add_render_attribute( $key, 'rel', array( 'noopener', 'noreferrer' ) ); } echo '<a class="digi-fancy-tabs__button" ' . $this->get_render_attribute_string( $key ) . '>' . esc_html( $button ) . '</a>'; }
 			echo '</div>';
 		}
 		echo '</div></div>';
@@ -73,8 +73,10 @@ final class Fancy_Tabs_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<# var tabs = (settings.tabs || []).filter(function(item){ return item && item.tab_title; }); #>
-		<# if ( tabs.length ) { #><div class="digi-fancy-tabs" data-digi-content-switcher><div class="digi-fancy-tabs__tabs" role="tablist" aria-label="Pestañas destacadas"><# _.each(tabs,function(item,index){ #><button class="digi-fancy-tabs__tab" type="button" role="tab" aria-selected="{{ index === 0 ? 'true' : 'false' }}"><span class="digi-fancy-tabs__label"><strong>{{ item.tab_title }}</strong><# if(item.tab_sub_title){ #><span>{{ item.tab_sub_title }}</span><# } #></span></button><# }); #></div><div class="digi-fancy-tabs__panels"><div class="digi-fancy-tabs__panel" role="tabpanel">{{{ tabs[0].tab_content || '' }}}</div></div></div><# } #>
+		<# var tabs = (settings.tabs || []).filter(function(item){ return item && String(item.tab_title || '').trim(); }).slice(0,12);
+		var id = 'digi-fancy-tabs-' + view.model.id;
+		var linkRel = function(link){ return [ link && link.nofollow ? 'nofollow' : '', link && link.is_external ? 'noopener noreferrer' : '' ].filter(Boolean).join(' '); }; #>
+		<# if ( tabs.length ) { #><div class="digi-fancy-tabs" data-digi-content-switcher><div class="digi-fancy-tabs__tabs" role="tablist" aria-label="Pestañas destacadas"><# _.each(tabs,function(item,index){ var icon = elementor.helpers.renderIcon( view, item.selected_icon, { 'aria-hidden': true }, 'i', 'object' ); #><button class="digi-fancy-tabs__tab" type="button" id="{{ id }}-tab-{{ index }}" role="tab" aria-controls="{{ id }}-panel-{{ index }}" aria-selected="{{ index === 0 ? 'true' : 'false' }}" tabindex="{{ index === 0 ? '0' : '-1' }}"><# if (item.icon_type === 'icon' && icon && icon.rendered) { #><span class="digi-fancy-tabs__icon" aria-hidden="true">{{{ icon.value }}}</span><# } else if (item.icon_type === 'image' && item.image && item.image.url) { #><img class="digi-fancy-tabs__icon" src="{{ item.image.url }}" alt=""><# } #><span class="digi-fancy-tabs__label"><strong>{{ item.tab_title }}</strong><# if(item.tab_sub_title){ #><span>{{ item.tab_sub_title }}</span><# } #></span></button><# }); #></div><div class="digi-fancy-tabs__panels"><# _.each(tabs,function(item,index){ var link = item.button_link || {}; var rel = linkRel(link); #><div class="digi-fancy-tabs__panel" id="{{ id }}-panel-{{ index }}" role="tabpanel" aria-labelledby="{{ id }}-tab-{{ index }}" tabindex="0"<# if(index){ #> hidden<# } #>>{{{ item.tab_content || '' }}}<# if(item.tabs_button && link.url){ #><a class="digi-fancy-tabs__button" href="{{ link.url }}"<# if(link.is_external){ #> target="_blank"<# } #><# if(rel){ #> rel="{{ rel }}"<# } #>>{{ item.tabs_button }}</a><# } #></div><# }); #></div></div><# } #>
 		<?php
 	}
 }

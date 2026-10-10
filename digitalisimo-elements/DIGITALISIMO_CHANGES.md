@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.87
+# DIGITALÍSIMO Elements 4.3.0.88
+
+- 4.3.0.88: Fancy Tabs muestra todos sus paneles, iconos y CTA en el editor y deja que WordPress decida la carga de sus iconos de imagen. Featured Box alinea ALT, enlaces e icono del botón en el editor. Ambos protegen enlaces externos.
 
 - 4.3.0.87: Fancy Icons protege enlaces externos; Fancy Slider alinea enlaces de títulos y botones, ALT y controles de navegación entre frontend y editor.
 
