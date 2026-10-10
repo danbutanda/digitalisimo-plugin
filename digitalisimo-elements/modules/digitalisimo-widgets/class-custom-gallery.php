@@ -64,6 +64,9 @@ final class Custom_Gallery_Widget extends \Elementor\Widget_Base {
 			if ( ! empty( $link['url'] ) ) {
 				$key = 'gallery_link_' . $index;
 				$this->add_link_attributes( $key, $link );
+				if ( ! empty( $link['is_external'] ) ) {
+					$this->add_render_attribute( $key, 'rel', array( 'noopener', 'noreferrer' ) );
+				}
 				echo '<a ' . $this->get_render_attribute_string( $key ) . ( $title ? ' aria-label="' . esc_attr( $title ) . '"' : '' ) . '>' . $markup . '</a>';
 			} else { echo $markup; }
 			$description = trim( wp_strip_all_tags( (string) $item['description'] ) );
@@ -76,8 +79,10 @@ final class Custom_Gallery_Widget extends \Elementor\Widget_Base {
 
 	protected function content_template() {
 		?>
-		<# var items = (settings.gallery_images || []).map(function(image){ return { image:image }; }).concat((settings.gallery_items || []).map(function(item){ return {image:item.gallery_image,title:item.image_title,description:item.image_text,link:item.image_link}; })); #>
-		<# if ( items.length ) { #><div class="digi-custom-gallery"><ul class="digi-custom-gallery__list"><# _.each(items,function(item){ if (!item.image || !item.image.url) return; #><li class="digi-custom-gallery__item"><figure><# if (item.link && item.link.url) { #><a href="{{ item.link.url }}"><# } #><img class="digi-custom-gallery__image" src="{{ item.image.url }}" alt="{{ item.title || '' }}"><# if (item.link && item.link.url) { #></a><# } #><# if (item.title || item.description) { #><figcaption><# if (item.title) { #><strong>{{ item.title }}</strong><# } #><# if (item.description) { #><span>{{ item.description }}</span><# } #></figcaption><# } #></figure></li><# }); #></ul></div><# } #>
+		<# var items = (settings.gallery_images || []).map(function(image){ return { image:image }; }).concat((settings.gallery_items || []).map(function(item){ return {image:item.gallery_image,title:item.image_title,description:item.image_text,link:item.image_link}; }));
+		items = items.filter(function(item){ return item && item.image && item.image.url; });
+		var linkRel = function(link){ return [ link && link.nofollow ? 'nofollow' : '', link && link.is_external ? 'noopener noreferrer' : '' ].filter(Boolean).join(' '); }; #>
+		<# if ( items.length ) { #><div class="digi-custom-gallery"><ul class="digi-custom-gallery__list"><# _.each(items,function(item){ var link = item.link || {}; var rel = linkRel(link); var alt = item.image.alt || item.title || ''; #><li class="digi-custom-gallery__item"><figure><# if (link.url) { #><a href="{{ link.url }}"<# if (link.is_external) { #> target="_blank"<# } #><# if (rel) { #> rel="{{ rel }}"<# } #><# if (item.title) { #> aria-label="{{ item.title }}"<# } #>><# } #><img class="digi-custom-gallery__image" src="{{ item.image.url }}" alt="{{ alt }}"><# if (link.url) { #></a><# } #><# if (item.title || item.description) { #><figcaption><# if (item.title) { #><strong>{{ item.title }}</strong><# } #><# if (item.description) { #><span>{{ item.description }}</span><# } #></figcaption><# } #></figure></li><# }); #></ul></div><# } #>
 		<?php
 	}
 }

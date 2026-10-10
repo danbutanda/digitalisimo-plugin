@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.83
+# DIGITALÍSIMO Elements 4.3.0.84
+
+- 4.3.0.84: Custom Gallery alinea la vista previa del editor con el ALT de Medios y los atributos de cada enlace; los enlaces externos del frontend usan `noopener noreferrer`.
 
 - 4.3.0.83: Content Switcher muestra todos los paneles e iconos en el editor, con IDs y relaciones accesibles consistentes con el frontend.
 

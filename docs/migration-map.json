@@ -833,7 +833,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own accessible tab switcher with keyboard navigation and instance isolation; all editor panels and icons aligned in 4.3.0.83; template, linked sections, price cards, legacy adapter, visual comparison and multisite runtime pending"
+      "status": "own accessible tab switcher with keyboard navigation and instance isolation; all editor panels and icons aligned in 4.3.0.83; multisite runtime verified; template, linked sections, price cards, legacy adapter and visual comparison pending"
     },
     "bdt-cookie-consent": {
       "target": null,
@@ -1009,7 +1009,7 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own Media gallery and individual linked images with ALT/srcset and conditional CSS; lightbox, media skins, visual parity and multisite runtime pending"
+      "status": "own Media gallery and individual linked images with ALT/srcset and conditional CSS; editor ALT and links aligned in 4.3.0.84; lightbox, media skins, visual parity and multisite runtime pending"
     },
     "bdt-dark-mode": {
       "target": null,
