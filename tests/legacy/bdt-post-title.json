@@ -1,0 +1,7 @@
+{
+  "defaults": {},
+  "link": {
+    "bdt_post_link": "yes",
+    "bdt_title_tag": "h1"
+  }
+}

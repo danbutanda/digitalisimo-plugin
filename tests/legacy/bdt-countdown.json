@@ -1,0 +1,7 @@
+{
+  "date": {
+    "due_date": "2030-01-01 10:00",
+    "end_action_type": "message",
+    "end_message": "Terminó"
+  }
+}

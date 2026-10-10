@@ -1,0 +1,17 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El contador de Elementor pinta el número inicial y lo anima hasta el final con JavaScript; Element Pack pintaba el número final y el sufijo junto a él"
+    }
+  },
+  "custom": {
+    "count_start": "10",
+    "content_number": "5000",
+    "counter_suffix": "+",
+    "content_text": "Clientes",
+    "use_grouping": "yes",
+    "_known": {
+      "text": "El contador de Elementor pinta el número inicial y lo anima hasta el final con JavaScript; Element Pack pintaba el número final y el sufijo junto a él"
+    }
+  }
+}

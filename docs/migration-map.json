@@ -131,7 +131,7 @@
       "status": "pending"
     },
     "bdt-advanced-counter": {
-      "target": null,
+      "target": "counter",
       "engine": "data-visualization",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -140,7 +140,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-counter.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "decision": "ADAPTAR"
     },
     "bdt-advanced-divider": {
       "target": "digitalisimo-advanced-divider",
@@ -902,7 +904,7 @@
       "status": "pending"
     },
     "bdt-countdown": {
-      "target": null,
+      "target": "countdown",
       "engine": "content-and-layout",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -911,7 +913,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-countdown.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "decision": "ADAPTAR"
     },
     "bdt-coupon-code": {
       "target": null,
@@ -1575,7 +1579,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-featured-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98"
     },
     "bdt-flip-box": {
-      "target": null,
+      "target": "flip-box",
       "engine": "content-and-layout",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -1584,7 +1588,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-flip-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "decision": "ADAPTAR"
     },
     "bdt-floating-knowledgebase": {
       "target": null,
@@ -2448,7 +2454,7 @@
       "status": "pending"
     },
     "bdt-post-comments": {
-      "target": null,
+      "target": "post-comments",
       "engine": "query",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -2457,10 +2463,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-comments.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "decision": "ADAPTAR"
     },
     "bdt-post-content": {
-      "target": null,
+      "target": "theme-post-excerpt",
       "engine": "query",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -2469,10 +2477,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-content.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "decision": "ADAPTAR"
     },
     "bdt-post-featured-image": {
-      "target": null,
+      "target": "theme-post-featured-image",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2481,7 +2491,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-featured-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "decision": "ADAPTAR"
     },
     "bdt-post-gallery": {
       "target": null,
@@ -2521,7 +2533,7 @@
       "status": "pending"
     },
     "bdt-post-info": {
-      "target": null,
+      "target": "post-info",
       "engine": "query",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -2530,7 +2542,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-info.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "decision": "ADAPTAR"
     },
     "bdt-post-list": {
       "target": "posts",
@@ -2558,7 +2572,7 @@
       "status": "pending"
     },
     "bdt-post-title": {
-      "target": null,
+      "target": "theme-post-title",
       "engine": "query",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -2567,7 +2581,9 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending"
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-title.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "decision": "ADAPTAR"
     },
     "bdt-price-list": {
       "target": null,

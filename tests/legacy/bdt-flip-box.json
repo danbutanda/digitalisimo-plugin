@@ -1,0 +1,16 @@
+{
+  "defaults": {},
+  "custom": {
+    "front_title_text": "Frente",
+    "back_title_text": "Detrás",
+    "back_description_text": "Más detalles",
+    "button_text": "Ver",
+    "link": {
+      "url": "https://example.test/ver/",
+      "is_external": "",
+      "nofollow": "",
+      "custom_attributes": ""
+    },
+    "flip_effect": "slide"
+  }
+}

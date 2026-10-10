@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.109
+# DIGITALÍSIMO Elements 4.3.0.110
+
+- 4.3.0.110: adaptadores de Element Pack para Countdown, Flip Box, Advanced Counter, Post Title, Post Featured Image, Post Content (extracto), Post Info y Post Comments sobre sus equivalentes de PRO Elements y Elementor, con estilos heredados y migración reversible; los widgets de tema reciben explícitas sus etiquetas dinámicas.
 
 - 4.3.0.109: adaptadores de Element Pack para Document Viewer, Scroll Button y Logo Carousel sobre los widgets propios equivalentes, con estilos heredados y migración reversible. El arnés A/B vuelve a funcionar sin `EXTRA_PLUGINS`.
 

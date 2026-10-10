@@ -1,6 +1,7 @@
 <?php
 namespace {
 	define( 'ABSPATH', __DIR__ );
+	function wp_json_encode( $v ) { return json_encode( $v ); }
 	function get_term( $id ) { return (object) array( 'term_id' => $id, 'term_taxonomy_id' => $id * 11 ); }
 	function absint( $v ) { return abs( (int) $v ); }
 	function wp_strip_all_tags( $text ) { return strip_tags( (string) $text ); }
@@ -213,6 +214,17 @@ namespace {
 	$act = Translator::active( array( 'a' => 'x', 'b' => '1', 'c' => '2', 'd' => array( 'url' => '' ), 'e' => '3' ), array( 'b' => array( 'a' => 'x' ), 'c' => array( 'a!' => 'x' ), 'd' => array( 'a' => array( 'y', 'x' ) ), 'e' => array( 'd[url]!' => '' ) ) );
 	check_adapter( '1' === $act['b'] && null === $act['c'] && array( 'url' => '' ) === $act['d'] && null === $act['e'], 'Las condiciones deben evaluarse como en Elementor.' );
 	check_adapter( false !== strpos( $sc( 'bdt-charitable-stat', array( 'campaign' => array( '3' ), 'display' => 'donors' ) ), 'goal=""' ) && false !== strpos( $sc( 'bdt-charitable-stat', array( 'campaign' => array( '3' ), 'display' => 'progress' ) ), 'goal="1000"' ), 'Un ajuste oculto por su condición llega vacío al shortcode, como en Element Pack.' );
+
+	// Equivalentes de PRO Elements y Elementor.
+	$cd = Translator::translate( 'bdt-countdown', array( 'loop_time' => 'yes', 'loop_hours' => '5', 'end_action_type' => 'url', 'end_redirect_link' => array( 'url' => 'https://s.test/fin' ) ) );
+	check_adapter( 'evergreen' === $cd['countdown_type'] && 5 === $cd['evergreen_counter_hours'] && array( 'redirect' ) === $cd['expire_actions'] && 'https://s.test/fin' === $cd['expire_redirect_url']['url'] && ! isset( $cd['loop_time'] ), 'Countdown traduce bucle y acción final.' );
+	$fb = Translator::translate( 'bdt-flip-box', array( 'front_title_text' => 'A', 'back_title_text' => 'B', 'flip_effect' => 'zoom-up' ) );
+	check_adapter( 'A' === $fb['title_text_a'] && 'B' === $fb['title_text_b'] && 'zoom-in' === $fb['flip_effect'] && 'yes' === $fb['flip_3d'] && 'fas fa-star' !== '' , 'Flip Box renombra caras y efectos.' );
+	$ct = Translator::translate( 'bdt-advanced-counter', array( 'content_number' => '5000', 'duration' => '1.5', 'use_grouping' => 'yes', 'counter_separator' => '.' ) );
+	check_adapter( 5000.0 === $ct['ending_number'] && 1500 === $ct['duration'] && 'yes' === $ct['thousand_separator'] && '.' === $ct['thousand_separator_char'] && 'Cool Number' === $ct['title'], 'El contador usa milisegundos y el separador de miles.' );
+	$pt = Translator::translate( 'bdt-post-title', array( 'bdt_post_link' => 'yes' ) );
+	check_adapter( false !== strpos( $pt['__dynamic__']['title'], 'name="post-title"' ) && false !== strpos( $pt['__dynamic__']['link'], 'name="post-url"' ) && 'h2' === $pt['header_size'], 'El título de entrada fija sus etiquetas dinámicas.' );
+	check_adapter( false !== strpos( Translator::translate( 'bdt-post-content', array( 'limit' => array( 'size' => 25 ) ) )['__dynamic__']['excerpt'], rawurlencode( '{"max_length":25}' ) ), 'El extracto conserva su número de palabras.' );
 
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );

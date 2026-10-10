@@ -153,6 +153,14 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-countdown' => Bdt_Countdown::class,
+		'bdt-flip-box' => Bdt_FlipBox::class,
+		'bdt-advanced-counter' => Bdt_AdvancedCounter::class,
+		'bdt-post-title' => Bdt_PostTitle::class,
+		'bdt-post-featured-image' => Bdt_PostFeaturedImage::class,
+		'bdt-post-content' => Bdt_PostContent::class,
+		'bdt-post-info' => Bdt_PostInfo::class,
+		'bdt-post-comments' => Bdt_PostComments::class,
 		'bdt-document-viewer' => Bdt_DocumentViewer::class,
 		'bdt-scroll-button' => Bdt_ScrollButton::class,
 		'bdt-logo-carousel' => Bdt_LogoCarousel::class,
@@ -505,4 +513,28 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Scroll_Button_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Logo_Carousel_Widget' ) ) {
 	final class Bdt_LogoCarousel extends \Digitalisimo\Elements\Logo_Carousel_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-logo-carousel'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Countdown\\Widgets\\Countdown' ) ) {
+	final class Bdt_Countdown extends \ElementorPro\Modules\Countdown\Widgets\Countdown { use Legacy_Adapter; const LEGACY_ID = 'bdt-countdown'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\FlipBox\\Widgets\\Flip_Box' ) ) {
+	final class Bdt_FlipBox extends \ElementorPro\Modules\FlipBox\Widgets\Flip_Box { use Legacy_Adapter; const LEGACY_ID = 'bdt-flip-box'; }
+}
+if ( class_exists( '\\Elementor\\Widget_Counter' ) ) {
+	final class Bdt_AdvancedCounter extends \Elementor\Widget_Counter { use Legacy_Adapter; const LEGACY_ID = 'bdt-advanced-counter'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\ThemeBuilder\\Widgets\\Post_Title' ) ) {
+	final class Bdt_PostTitle extends \ElementorPro\Modules\ThemeBuilder\Widgets\Post_Title { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-title'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\ThemeBuilder\\Widgets\\Post_Featured_Image' ) ) {
+	final class Bdt_PostFeaturedImage extends \ElementorPro\Modules\ThemeBuilder\Widgets\Post_Featured_Image { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-featured-image'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\ThemeBuilder\\Widgets\\Post_Excerpt' ) ) {
+	final class Bdt_PostContent extends \ElementorPro\Modules\ThemeBuilder\Widgets\Post_Excerpt { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-content'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\ThemeElements\\Widgets\\Post_Info' ) ) {
+	final class Bdt_PostInfo extends \ElementorPro\Modules\ThemeElements\Widgets\Post_Info { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-info'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\ThemeElements\\Widgets\\Post_Comments' ) ) {
+	final class Bdt_PostComments extends \ElementorPro\Modules\ThemeElements\Widgets\Post_Comments { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-comments'; }
 }

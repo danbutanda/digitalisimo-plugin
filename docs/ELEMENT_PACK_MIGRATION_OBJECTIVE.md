@@ -76,6 +76,8 @@ Lote 13 (4.3.0.108): primer tramo de los 210 IDs no prioritarios. 54 widgets de 
 
 Lote 14 (4.3.0.109): Document Viewer, Scroll Button y Logo Carousel se ADAPTAN a los widgets propios. Diferencias declaradas: el visor añade un enlace para abrir el documento; el botón de desplazamiento es un enlace real a la sección y no reproduce la animación decorativa ni el ocultado inicial; las flechas del carrusel son botones y el texto alternativo usa sólo el nombre.
 
+Lote 15 (4.3.0.110): Countdown, Flip Box, Advanced Counter, Post Title, Post Featured Image, Post Content, Post Info y Post Comments se ADAPTAN a PRO Elements/Elementor. Diferencias declaradas: el contador anima desde el número inicial y no muestra icono ni decimales; la cuenta en bucle pasa a evergreen; Flip Box no gira al clic; Post Content en modo «contenido» se muestra como extracto; las acciones de cupón y disparador de Countdown no se trasladan.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.
