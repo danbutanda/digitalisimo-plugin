@@ -16,7 +16,7 @@ La fuente de verdad es el código y las pruebas, no una etiqueta de «migrado» 
 
 Estas bases no significan paridad completa. El [mapa de migración](migration-map.json) registra controles, destinos y pendientes por ID; la [prioridad](element-pack-priority.md) indica qué componentes van primero; el [plan técnico](element-pack-migration-plan.md) explica los pilotos; el [grafo de dependencias](element-pack-dependency-graph.md) y su JSON permiten identificar motores y recursos compartidos. Regenerar el inventario con `python3 scripts/inventory-element-pack.py` sólo cuando cambie la referencia o el método de análisis, y revisar el diff antes de aceptarlo.
 
-La extensión prioritaria **Duplicator** tiene una base propia en `digitalisimo-duplicator.php`: aparece en las filas de entradas, páginas, CPT públicos y plantillas Elementor del sitio actual, crea un borrador y conserva datos editoriales y de Elementor. Excluye productos, medios y tipos transaccionales; omite bloqueos y cachés. No depende del loader de Element Pack. Su validación automática no sustituye una prueba real con WordPress Multisite y plugins de metadatos.
+La extensión prioritaria **Duplicator** tiene una base propia en `digitalisimo-duplicator.php`: aparece en las filas de entradas, páginas, CPT públicos y plantillas Elementor del sitio actual, crea un borrador y conserva datos editoriales y de Elementor. Excluye productos, medios y tipos transaccionales; omite bloqueos y cachés. No depende del loader de Element Pack. Una prueba instalada en WordPress Multisite confirmó copia aislada en el blog principal y un subsitio, incluido `_elementor_data` y omisión de la canonical; falta comparar con plugins adicionales de metadatos y convertir acciones legacy.
 
 ## Arquitectura obligatoria
 

@@ -66,7 +66,7 @@ Funciones y extensiones del mismo bloque prioritario:
 59. Realistic Image Shadow — base CSS optativa para Imagen clásico; hover y paridad pendientes
 60. Visibility Controls — Display Conditions incluido en Elements suma desde 4.3.0.81 las condiciones de Element Pack (visitante, URL, contenido, shortcode y WooCommerce) en el mismo motor; renderizado Multisite comprobado; desde 4.3.0.82 los documentos con `ep_display_conditions` siguen funcionando igual sin Element Pack (A/B Multisite idéntico) y son editables; conversión opcional al formato nativo pendiente
 61. Wrapper Link — para contenedores nuevos usar el enlace nativo de Elementor; widgets/secciones y conversión legacy pendientes
-62. Duplicator — base editorial propia para posts, páginas, CPT públicos y plantillas Elementor; pendiente de prueba real en Multisite
+62. Duplicator — base editorial propia para posts, páginas, CPT públicos y plantillas Elementor; duplicación y aislamiento por sitio comprobados en Multisite instalado, conversión legacy pendiente
 63. SVG Support — usar la carga y el saneamiento SVG nativos de Elementor; habilitación global de la biblioteca no se duplica
 
 Las bases propias señaladas usan IDs `digitalisimo-*`, pero **ninguna se considera migración completa** hasta verificar los controles, casos de error, edición, Multisite y equivalencia funcional/visual. El Slider Optimizado también existe, pero no se declara compatible con `bdt-slider` sin esa comparación. Los IDs antiguos permanecen libres mientras falte paridad. Las extensiones 54–63 se auditan por sus efectos sobre Elementor y WordPress; no se cuentan como widgets ni se cargan globalmente por defecto.
