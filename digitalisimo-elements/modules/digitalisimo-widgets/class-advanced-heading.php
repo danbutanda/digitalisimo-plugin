@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Encabezado semántico con una sola etiqueta de título y decoración opcional. */
-final class Advanced_Heading_Widget extends \Elementor\Widget_Base {
+class Advanced_Heading_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-advanced-heading'; }
 	public function get_title() { return 'Encabezado avanzado'; }
 	public function get_icon() { return 'eicon-t-letter'; }

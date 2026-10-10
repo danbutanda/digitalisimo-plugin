@@ -1,0 +1,54 @@
+{
+  "defaults": {},
+  "custom": {
+    "tabs": [
+      {
+        "_id": "a1",
+        "tab_title": "¿Qué incluye el plan?",
+        "tab_content": "<p>Dominio, <a href=\"https://example.com/plan\">correo</a> y SSL.</p>"
+      },
+      {
+        "_id": "a2",
+        "tab_title": "¿Cómo pago?",
+        "tab_content": "<p>Tarjeta o transferencia.</p>",
+        "repeater_icon": {
+          "value": "fas fa-star",
+          "library": "fa-solid"
+        }
+      }
+    ],
+    "title_html_tag": "h3",
+    "show_custom_icon": "yes",
+    "active_item": "2",
+    "multiple": "yes"
+  },
+  "styled": {
+    "tabs": [
+      {
+        "_id": "s1",
+        "tab_title": "Estilo",
+        "tab_content": "<p>Con colores propios.</p>"
+      }
+    ],
+    "accordion_item_background_background": "classic",
+    "accordion_item_background_color": "#112233",
+    "item_spacing": {
+      "unit": "px",
+      "size": 12
+    },
+    "title_typography_typography": "custom",
+    "title_typography_font_size": {
+      "unit": "px",
+      "size": 21
+    },
+    "content_color": "#445566",
+    "active_title_color": "#778899",
+    "_expect_css": [
+      ".digi-accordion__item{background-color:#112233",
+      ".digi-accordion__item+.digi-accordion__item{margin-top:12px",
+      ".digi-accordion__summary{font-size:21px",
+      "[open]",
+      "#778899"
+    ]
+  }
+}

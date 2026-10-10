@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.93
+# DIGITALÍSIMO Elements 4.3.0.94
+
+- 4.3.0.94: Las páginas guardadas con Accordion, Advanced Button, Advanced Divider, Advanced Heading, Advanced Icon Box y Animated Heading de Element Pack se siguen mostrando sin ese plugin: sus IDs `bdt-*` se registran como adaptadores de los widgets propios, traducen los ajustes guardados (completando los valores por defecto de Element Pack) y registran sus controles de estilo con selectores del marcado propio para que Elementor regenere los colores, tipografías y espacios configurados. Herramientas → Migrar Element Pack y `wp digitalisimo-elements ep-migrate` muestran qué widgets usa cada sitio y traducen los documentos por lotes con copia del original y reversión. Los adaptadores no se activan mientras Element Pack siga cargado.
 
 - 4.3.0.93: QR Code usa el objeto realmente consultado en páginas individuales y la URL actual en archivos, evitando generar el enlace de una plantilla de Elementor o de otro post global.
 

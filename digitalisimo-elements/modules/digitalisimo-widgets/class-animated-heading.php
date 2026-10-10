@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Encabezado legible desde el HTML inicial con rotación progresiva y opcional. */
-final class Animated_Heading_Widget extends \Elementor\Widget_Base {
+class Animated_Heading_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-animated-heading'; }
 	public function get_title() { return 'Encabezado animado'; }
 	public function get_icon() { return 'eicon-animation-text'; }

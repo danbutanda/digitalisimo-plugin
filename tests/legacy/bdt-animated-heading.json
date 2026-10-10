@@ -1,0 +1,5 @@
+{
+  "defaults": { "_known": { "text": "Element Pack imprime todas las palabras y su script las alterna; el widget propio imprime la primera y alterna las demás" } },
+  "split": { "heading_layout": "split_text", "pre_heading": "Somos", "animated_heading": "expertos en hosting", "post_heading": "en México", "link": { "url": "https://example.com/nosotros" } },
+  "typed": { "heading_layout": "typed", "pre_heading": "Ofrecemos", "animated_heading": "dominios,hosting,correo", "post_heading": "", "_known": { "text": "Element Pack escribe las palabras sólo con JavaScript; el widget propio muestra la primera sin depender del script" } }
+}

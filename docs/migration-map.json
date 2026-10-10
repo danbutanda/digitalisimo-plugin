@@ -25,7 +25,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "native details widget with published Elementor and optional Anywhere templates plus item and state icons; valid H2-H6 summary headings since 4.3.0.65; initial all-open mode, rejection of invalid templates and blog_id selector isolation tested since 4.3.0.70; advanced controls, legacy adapter, visual comparison and installed multisite runtime pending"
+      "status": "native details widget with published Elementor and optional Anywhere templates plus item and state icons; valid H2-H6 summary headings since 4.3.0.65; initial all-open mode, rejection of invalid templates and blog_id selector isolation tested since 4.3.0.70; advanced controls, legacy adapter, visual comparison and installed multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94"
     },
     "bdt-acf-accordion": {
       "target": null,
@@ -114,7 +115,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new CSS-only button with safe link, icon, badge and nine lightweight effects; responsive border and max-width, typography and shadow controls since 4.3.0.71; legacy adapter, full style parity and installed multisite runtime pending"
+      "status": "new CSS-only button with safe link, icon, badge and nine lightweight effects; responsive border and max-width, typography and shadow controls since 4.3.0.71; legacy adapter, full style parity and installed multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94"
     },
     "bdt-advanced-calculator": {
       "target": null,
@@ -159,7 +161,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "independent decorative widget with responsive circle, cross and star symbols and WordPress-managed image loading; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.72; remaining legacy shape parity, SVG animation and editor/browser comparison pending"
+      "status": "independent decorative widget with responsive circle, cross and star symbols and WordPress-managed image loading; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.72; remaining legacy shape parity, SVG animation and editor/browser comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-divider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94"
     },
     "bdt-advanced-gmap": {
       "target": null,
@@ -193,7 +196,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new semantic widget with responsive decoration sizing and offsets and optional Elementor typography per part since 4.3.0.73; main-site and subsite frontend render checked in Multisite; advanced effects, legacy adapter, editor and visual comparison pending"
+      "status": "new semantic widget with responsive decoration sizing and offsets and optional Elementor typography per part since 4.3.0.73; main-site and subsite frontend render checked in Multisite; advanced effects, legacy adapter, editor and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-heading.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94"
     },
     "bdt-advanced-icon-box": {
       "target": "digitalisimo-advanced-icon-box",
@@ -205,7 +209,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "new semantic widget with editor link and informative-image accessibility parity, optional per-part typography and card shadow since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; legacy control parity, effects and visual comparison pending"
+      "status": "new semantic widget with editor link and informative-image accessibility parity, optional per-part typography and card shadow since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; legacy control parity, effects and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-icon-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94"
     },
     "bdt-advanced-image-gallery": {
       "target": null,
@@ -283,7 +288,8 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support, conditional assets and shared global listeners; safe external link and editor link parity since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; typed/split/GSAP variants, legacy adapter and visual comparison pending"
+      "status": "own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support, conditional assets and shared global listeners; safe external link and editor link parity since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; typed/split/GSAP variants, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-animated-heading.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94"
     },
     "bdt-animated-link": {
       "target": "digitalisimo-animated-link",

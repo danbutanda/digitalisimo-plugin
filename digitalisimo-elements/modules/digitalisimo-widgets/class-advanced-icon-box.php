@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Tarjeta informativa con icono o imagen; no requiere JavaScript. */
-final class Advanced_Icon_Box_Widget extends \Elementor\Widget_Base {
+class Advanced_Icon_Box_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-advanced-icon-box'; }
 	public function get_title() { return 'Caja de icono avanzada'; }
 	public function get_icon() { return 'eicon-icon-box'; }

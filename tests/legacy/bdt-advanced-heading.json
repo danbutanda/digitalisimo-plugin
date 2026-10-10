@@ -1,0 +1,8 @@
+{
+  "defaults": {},
+  "custom": {
+    "sub_heading": "Servicios", "main_heading": "Hosting <b>rápido</b>", "split_main_heading": "yes", "split_text": "y seguro",
+    "link": { "url": "https://example.com/hosting" }, "header_size": "h3", "advanced_heading_visibility": "", "align": "left",
+    "_known": { "text": "Element Pack aceptaba HTML en el título y lo partía en nodos; el widget propio muestra el mismo texto sin etiquetas" }
+  }
+}

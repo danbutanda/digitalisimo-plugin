@@ -1,0 +1,172 @@
+"""Extrae por análisis estático los controles Elementor de un widget de Element Pack.
+
+Sigue las llamadas `$this->metodo()` dentro de `register_controls()`, incluidos los traits de la
+referencia, y devuelve por control su pestaña, tipo y el texto PHP literal de sus argumentos.
+No ejecuta código de la referencia.
+"""
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+EP = ROOT / 'digitalisimo-elements' / 'bdthemes-element-pack'
+_TRAITS = None
+
+
+def methods(src):
+    out = {}
+    for m in re.finditer(r'function\s+(\w+)\s*\([^)]*\)\s*(?::\s*\??\w+\s*)?\{', src):
+        i, depth = m.end(), 1
+        while i < len(src) and depth:
+            if src[i] == '{':
+                depth += 1
+            elif src[i] == '}':
+                depth -= 1
+            i += 1
+        out.setdefault(m.group(1), src[m.end():i - 1])
+    return out
+
+
+def trait_methods():
+    global _TRAITS
+    if _TRAITS is None:
+        _TRAITS = {}
+        for f in sorted(list((EP / 'traits').rglob('*.php')) + list((EP / 'includes').rglob('*trait*.php'))):
+            for k, v in methods(f.read_text(errors='ignore')).items():
+                _TRAITS.setdefault(k, v)
+    return _TRAITS
+
+
+def bracket(src, i):
+    depth, j = 0, i
+    in_str = None
+    while j < len(src):
+        c = src[j]
+        if in_str:
+            if c == '\\':
+                j += 2
+                continue
+            if c == in_str:
+                in_str = None
+        elif c in '\'"':
+            in_str = c
+        elif c in '[(':
+            depth += 1
+        elif c in '])':
+            depth -= 1
+            if depth == 0:
+                return src[i:j + 1]
+        j += 1
+    return src[i:]
+
+
+def top_value(args, key):
+    """Texto literal del valor de `'key' =>` en el primer nivel del array de argumentos."""
+    depth, in_str, j = 0, None, 0
+    pattern = re.compile(r"'%s'\s*=>\s*" % re.escape(key))
+    while j < len(args):
+        c = args[j]
+        if in_str:
+            if c == '\\':
+                j += 2
+                continue
+            if c == in_str:
+                in_str = None
+            j += 1
+            continue
+        if c in '\'"':
+            if depth == 1:
+                m = pattern.match(args, j)
+                if m:
+                    k = m.end()
+                    if args[k] == '[':
+                        return bracket(args, k)
+                    if args[k:k + 6] == 'array(':
+                        return 'array' + bracket(args, k + 5)
+                    end, d2, s2 = k, 0, None
+                    while end < len(args):
+                        ch = args[end]
+                        if s2:
+                            if ch == '\\':
+                                end += 2
+                                continue
+                            if ch == s2:
+                                s2 = None
+                        elif ch in '\'"':
+                            s2 = ch
+                        elif ch in '([':
+                            d2 += 1
+                        elif ch in ')]':
+                            if d2 == 0:
+                                break
+                            d2 -= 1
+                        elif ch == ',' and d2 == 0:
+                            break
+                        end += 1
+                    return args[k:end].strip()
+            in_str = c
+        elif c in '[(':
+            depth += 1
+        elif c in '])':
+            depth -= 1
+        j += 1
+    return None
+
+
+TOK = re.compile(r"start_controls_section\(\s*'([^']+)'(.*?)\)\s*;|(\$\w+)->(add_control|add_responsive_control|add_group_control)\(\s*|\$this->(\w+)\(\s*\)\s*;", re.S)
+KEYS = ('type', 'default', 'options', 'selectors', 'selectors_dictionary', 'condition', 'conditions', 'size_units', 'fields', 'prefix_class')
+
+
+def _args_after(rest, i):
+    if rest[i:i + 6] == 'array(':
+        return 'array' + bracket(rest, i + 5)
+    return bracket(rest, i) if i < len(rest) and rest[i] in '[(' else ''
+
+
+def _walk(body, own, out, state, seen):
+    for m in TOK.finditer(body):
+        if m.group(1):
+            state['section'] = m.group(1)
+            head = m.group(2)[:500]
+            state['tab'] = 'style' if 'TAB_STYLE' in head else ('advanced' if 'TAB_ADVANCED' in head else 'content')
+        elif m.group(3):
+            rest = body[m.end():]
+            if m.group(4) == 'add_group_control':
+                gm = re.match(r"([^,]+?)::get_type\(\)\s*,\s*", rest)
+                if not gm:
+                    continue
+                args = _args_after(rest, gm.end())
+                inner = args[5:] if args.startswith('array') else args
+                name = top_value(inner, 'name') or ''
+                out.append({'var': m.group(3), 'kind': 'group', 'group': gm.group(1).split('\\')[-1].strip(), 'name': name.strip('\'"'),
+                            'tab': state['tab'], 'section': state['section'], 'selector': top_value(inner, 'selector'),
+                            'types': top_value(inner, 'types'), 'exclude': top_value(inner, 'exclude')})
+                continue
+            nm = re.match(r"'([^']+)'\s*,\s*", rest)
+            if not nm:
+                continue
+            args = _args_after(rest, nm.end())
+            inner = args[5:] if args.startswith('array') else args
+            entry = {'var': m.group(3), 'kind': 'responsive' if m.group(4) == 'add_responsive_control' else 'control', 'name': nm.group(1),
+                     'tab': state['tab'], 'section': state['section']}
+            for key in KEYS:
+                entry['raw_' + key] = top_value(inner, key)
+            entry['type'] = (entry['raw_type'] or '').replace('Controls_Manager::', '')
+            entry['selectors'] = entry['raw_selectors']
+            entry['default'] = entry['raw_default']
+            out.append(entry)
+        elif m.group(5):
+            name = m.group(5)
+            if name in seen:
+                continue
+            src = own.get(name) or trait_methods().get(name)
+            if src and ('add_control' in src or 'start_controls_section' in src or '$this->' in src):
+                _walk(src, own, out, state, seen | {name})
+
+
+def detail(path):
+    src = Path(path).read_text(encoding='utf-8', errors='ignore')
+    own = methods(src)
+    body = own.get('register_controls') or own.get('_register_controls') or src
+    out = []
+    _walk(body, own, out, {'tab': 'content', 'section': ''}, frozenset({'register_controls'}))
+    return out

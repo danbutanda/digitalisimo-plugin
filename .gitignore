@@ -19,3 +19,6 @@ functions 2.php
 # Tema hijo Hello Elementor: no forma parte de la suite de plugins.
 functions.php
 style.css
+
+# Caché de Python de los scripts de análisis.
+__pycache__/

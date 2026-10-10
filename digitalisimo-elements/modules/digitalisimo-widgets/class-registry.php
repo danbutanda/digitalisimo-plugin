@@ -217,6 +217,14 @@ final class Widget_Registry {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'styles' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'scripts' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), 20 );
+		if ( function_exists( 'is_admin' ) && is_admin() ) {
+			require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-migration.php';
+			Legacy\Migration::init();
+		}
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-cli.php';
+			\WP_CLI::add_command( 'digitalisimo-elements ep-migrate', Legacy\Cli::class );
+		}
 	}
 
 	public static function category( $manager ) {
@@ -281,6 +289,8 @@ final class Widget_Registry {
 		if ( defined( 'BDTEP_VER' ) || class_exists( '\\ElementPack\\Element_Pack_Loader', false ) ) {
 			return;
 		}
+		require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-adapters.php';
+		Legacy\Adapters::register( $manager );
 		if ( method_exists( $manager, 'get_widget_types' ) && $manager->get_widget_types( 'bdt-animated-link' ) ) {
 			return;
 		}

@@ -1,0 +1,28 @@
+{
+  "defaults": {},
+  "custom": {
+    "selected_icon": {
+      "value": "fas fa-server",
+      "library": "fa-solid"
+    },
+    "title_text": "Servidores",
+    "title_link": "yes",
+    "title_link_url": {
+      "url": "https://example.com/servidores"
+    },
+    "show_sub_title": "yes",
+    "sub_title_text": "Dedicados",
+    "description_text": "<p>Potencia sin límites.</p>",
+    "readmore_text": "Ver planes",
+    "readmore_link": {
+      "url": "https://example.com/planes"
+    },
+    "badge": "yes",
+    "badge_text": "TOP",
+    "position": "left",
+    "title_size": "h4",
+    "_known": {
+      "links": "Element Pack abría el título con onclick=window.open, sin enlace real; el widget propio usa un enlace accesible al mismo destino"
+    }
+  }
+}

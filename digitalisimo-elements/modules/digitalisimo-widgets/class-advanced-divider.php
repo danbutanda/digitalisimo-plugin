@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Separador decorativo con CSS específico y sin runtime JavaScript. */
-final class Advanced_Divider_Widget extends \Elementor\Widget_Base {
+class Advanced_Divider_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-advanced-divider'; }
 	public function get_title() { return 'Separador avanzado'; }
 	public function get_icon() { return 'eicon-divider'; }

@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Botón con icono, distintivo y estilos de interacción sin JavaScript. */
-final class Advanced_Button_Widget extends \Elementor\Widget_Base {
+class Advanced_Button_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-advanced-button'; }
 	public function get_title() { return 'Botón avanzado'; }
 	public function get_icon() { return 'eicon-button'; }

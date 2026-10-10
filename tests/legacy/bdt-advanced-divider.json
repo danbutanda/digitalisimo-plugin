@@ -1,0 +1,5 @@
+{
+  "defaults": { "_known": { "images": "Element Pack dibujaba la línea con un SVG de su carpeta; el widget propio la dibuja con CSS" } },
+  "circle": { "advanced_divider_select": "line-circle", "divider_line_align": "left", "max_width": { "unit": "px", "size": 240 }, "_known": { "images": "SVG de la carpeta de Element Pack sustituido por la forma propia" } },
+  "heart": { "advanced_divider_select": "heart", "_known": { "images": "Forma sin equivalente exacto: se usa el círculo central propio" } }
+}

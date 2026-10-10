@@ -35,6 +35,19 @@ Antes de marcarlo completo, comprobar en editor y frontend: controles y variante
 
 Para cada lote, actualizar [PLUGIN_ROADMAP.md](PLUGIN_ROADMAP.md), `migration-map.json`, la prioridad cuando cambie un estado, las pruebas y la atribución. Ejecutar las pruebas específicas `tests/elements-*.php`/`.mjs` pertinentes y la suite de paquetes. Si se modifica el plugin, incrementar **sólo** la versión de Elements, preparar su ZIP, comprobar `unzip -t`, publicar por `main` y verificar que el workflow y la Release contienen únicamente su asset, según [RELEASE_PROCESS.md](RELEASE_PROCESS.md). Los cambios exclusivos de documentación no requieren versión ni ZIP.
 
+## Migración de páginas existentes (desde 4.3.0.94)
+
+El objetivo práctico es que un sitio pueda retirar Element Pack sin que cambie lo que ven sus visitantes. `modules/digitalisimo-legacy/` lo resuelve sin reescribir documentos de forma implícita:
+
+- `maps/bdt-*.php`: mapa explícito por widget. `defaults` repite los valores por defecto de Element Pack, porque Elementor no guarda los que coinciden con el default; `rename`, `values`, `repeaters`, `strip`, `drop` y `filter` traducen a los ajustes propios; `classes` asocia las clases de Element Pack con el marcado propio.
+- `maps/bdt-*.styles.php`: generado con `python3 scripts/legacy-styles.py bdt-x`. Repite los controles de Element Pack que generan CSS (estilo y contenido), con sus nombres y plantillas, pero con selectores del widget propio. No se edita a mano.
+- `class-adapters.php`: registra cada `bdt-*` como subclase oculta del widget propio cuando Element Pack no está cargado. Traduce los ajustes al construir el elemento; así el render, el CSS que regenera Elementor y el editor trabajan con nombres propios. Añade los controles de estilo heredados que el widget propio no tiene.
+- `class-migration.php` (Herramientas → Migrar Element Pack) y `class-cli.php` (`wp digitalisimo-elements ep-migrate [--convert|--revert] --url=…`): inventario por sitio y traducción por lotes con copia en `_digitalisimo_ep_backup`. Un elemento pasa al widget `digitalisimo-*` sólo si todos sus ajustes existen allí; si no, queda en el adaptador ya traducido.
+
+Procedimiento por widget: `python3 scripts/legacy-defaults.py bdt-x` para obtener los defaults; escribir el mapa revisando el render de ambos widgets; quitar `final` de la clase propia y añadir la subclase en `class-adapters.php`; generar los estilos; crear `tests/legacy/bdt-x.json` con casos por defecto y personalizados; ejecutar `bash tests/playground/legacy-ab.sh bdt-x` (ver `tests/playground/README.md`) hasta que todas las combinaciones coincidan o las diferencias queden documentadas en `_known`. La prueba `tests/elements-legacy-adapters.php` valida todos los mapas en CI.
+
+Lote 1 en 4.3.0.94: Accordion, Advanced Button, Advanced Divider, Advanced Heading, Advanced Icon Box y Animated Heading. Diferencias deliberadas: las formas SVG de Advanced Divider sin equivalente pasan a la forma propia más cercana; Advanced Icon Box usa un enlace real donde Element Pack abría el título con `onclick`; Animated Heading imprime la primera palabra en lugar de la lista completa; el HTML del título de Advanced Heading se muestra como texto plano.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

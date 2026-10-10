@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /** Acordeón de contenido editorial con divulgación nativa y sin JavaScript. */
-final class Accordion_Widget extends \Elementor\Widget_Base {
+class Accordion_Widget extends \Elementor\Widget_Base {
 	private static $rendering_templates = array();
 	private static $template_options = array();
 	private static $instance_count = 0;
