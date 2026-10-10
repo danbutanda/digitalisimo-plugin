@@ -1,6 +1,7 @@
 <?php
 namespace {
 	define( 'ABSPATH', __DIR__ );
+	function absint( $v ) { return abs( (int) $v ); }
 	function wp_strip_all_tags( $text ) { return strip_tags( (string) $text ); }
 	function get_bloginfo( $what ) { return 'Mi sitio'; }
 	function esc_html( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
@@ -156,6 +157,17 @@ namespace {
 	check_adapter( "selector{gap:0}\nselector .elementor-nav-menu--main > .elementor-nav-menu > li:nth-child(2) > .elementor-item{color:#ff0000;}" === $nav['custom_css'] && ! isset( $nav['repeater_field'] ), 'Los colores por posición pasan al CSS del elemento y sólo con valores de color válidos.' );
 	$plain = Translator::translate( 'bdt-navbar', array( 'menu_parent_arrow' => 'yes' ) );
 	check_adapter( '' === $plain['menu'] && ! isset( $plain['custom_css'], $plain['submenu_icon'] ), 'Sin estilo individual no se añade CSS y la flecha queda la del menú.' );
+
+	// Slider: filas a diapositivas de PRO Elements; una plantilla obliga a seguir en el adaptador.
+	$slider = Translator::translate( 'bdt-slider', array( 'origin' => 'bottom-left', 'align' => 'right', 'navigation' => 'arrows-fraction', 'show_button' => 'yes', 'button_text' => 'Ver <b>más</b>', 'tabs' => array(
+		array( '_id' => 'a', 'tab_title' => 'Uno', 'tab_link' => array( 'url' => 'https://s.test/uno' ) ),
+		array( '_id' => 'b', 'source' => 'elementor', 'template_id' => '12' ),
+	) ) );
+	check_adapter( 'bottom' === $slider['slides_vertical_position'] && 'left' === $slider['slides_horizontal_position'] && 'end' === $slider['slides_text_align'] && 'arrows' === $slider['navigation'] && 'yes' === $slider['infinite'], 'Posición, alineación, navegación y bucle deben traducirse.' );
+	check_adapter( 'Uno' === $slider['slides'][0]['heading'] && 'Ver &lt;b&gt;más&lt;/b&gt;' === $slider['slides'][0]['button_text'] && 'button' === $slider['slides'][0]['link_click'] && 'Slide Content' === $slider['slides'][0]['description'], 'Cada fila conserva título, contenido y botón global con su enlace.' );
+	check_adapter( 12 === $slider['slides'][1]['digitalisimo_template_id'] && 'yes' === $slider['digitalisimo_legacy_templates'] && ! isset( $slider['tabs'] ), 'Una diapositiva de plantilla queda marcada para el render del adaptador.' );
+	$plain = Translator::translate( 'bdt-slider', array( 'show_button' => '' ) );
+	check_adapter( 4 === count( $plain['slides'] ) && '' === $plain['slides'][0]['button_text'] && ! isset( $plain['digitalisimo_legacy_templates'] ) && 600 === $plain['slides_height']['size'], 'Sin botón no hay enlace visible y la altura de Element Pack se conserva.' );
 
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );

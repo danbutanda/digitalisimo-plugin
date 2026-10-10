@@ -30,5 +30,13 @@ foreach ( array( 1, 2 ) as $blog ) {
 		$add( 'SEO', '/servicios/seo/', $services );
 		$add( 'Contacto', '/contacto/' );
 	}
+	// Plantilla de Elementor para los casos que muestran una plantilla (marcador «__TEMPLATE__»).
+	if ( ! get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' ) ) {
+		$template = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'digi-ab-template', 'post_name' => 'digi-ab-template' ) );
+		$heading  = array( array( 'id' => 'tpl0001', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Contenido de plantilla' ), 'elements' => array() ) );
+		update_post_meta( $template, '_elementor_edit_mode', 'builder' );
+		update_post_meta( $template, '_elementor_template_type', 'section' );
+		update_post_meta( $template, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'tplsec1', 'elType' => 'container', 'settings' => array(), 'elements' => $heading ) ) ) ) );
+	}
 	restore_current_blog();
 }

@@ -64,6 +64,8 @@ Lote 7 (4.3.0.102): Switcher y Tabs pasan a Content Switcher (contenido, plantil
 
 Lote 8 (4.3.0.103): Vertical Menu se RECONSTRUYE como widget propio `digitalisimo-vertical-menu`, que también recibe Slinky Vertical Menu en modo paneles; Navbar pasa a `nav-menu`. Diferencias declaradas: un padre con destino «#» pasa a botón que abre su submenú; Navbar sin menú elegido ya no muestra el aviso de Element Pack; PRO Elements repite el menú en su versión desplegable oculta; la autoocultación al desplazar y el modo fijo (sticky) no se trasladan.
 
+Lote 9 (4.3.0.104): Slider pasa a `slides` de PRO Elements; las diapositivas de plantilla se pintan desde el adaptador y por eso esos documentos no se convierten al widget de destino. Diferencias declaradas: las flechas son botones y no enlaces vacíos; el icono del botón, la barra de progreso, la fracción, el desplazamiento a sección y los efectos 3D de transición no se trasladan (la transición queda en deslizar o fundido).
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.

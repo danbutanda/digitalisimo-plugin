@@ -65,6 +65,12 @@ foreach ( array( 1, 2 ) as $blog ) {
 			$known      = (array) ( $settings['_known'] ?? array() );
 			$type       = (string) ( $settings['_widget'] ?? $widget );
 			unset( $settings['_expect_css'], $settings['_known'], $settings['_widget'] );
+			$template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
+			array_walk_recursive( $settings, static function ( &$value ) use ( $template ) {
+				if ( '__TEMPLATE__' === $value ) {
+					$value = $template ? (string) $template->ID : '';
+				}
+			} );
 			$slug = 'digi-ab-' . $widget . '-' . $case;
 			$page = get_page_by_path( $slug );
 			$id   = $page ? $page->ID : wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );

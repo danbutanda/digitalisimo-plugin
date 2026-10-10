@@ -2793,7 +2793,7 @@
       "status": "posts query can select a single public post for new content; exact metadata layout and legacy conversion pending"
     },
     "bdt-slider": {
-      "target": null,
+      "target": "slides",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 1,
@@ -2802,7 +2802,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "use existing slides widget for new editorial slides; template source, skins, animations and legacy conversion pending; optimized media slider remains separate"
+      "status": "use existing slides widget for new editorial slides; template source, skins, animations and legacy conversion pending; optimized media slider remains separate; legacy documents keep rendering without Element Pack through the 4.3.0.104 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.104"
     },
     "bdt-slideshow": {
       "target": null,

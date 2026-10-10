@@ -1,0 +1,70 @@
+{
+  "defaults": {
+    "_known": {
+      "links": "Las flechas de Element Pack eran enlaces sin destino; las de PRO Elements son botones"
+    }
+  },
+  "custom": {
+    "origin": "bottom-left",
+    "align": "left",
+    "navigation": "both",
+    "button_text": "Ver más",
+    "tabs": [
+      {
+        "_id": "s1",
+        "source": "custom",
+        "tab_title": "Primera",
+        "tab_content": "<p>Texto <strong>uno</strong></p>",
+        "tab_link": {
+          "url": "https://example.test/uno/",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      },
+      {
+        "_id": "s2",
+        "source": "custom",
+        "tab_title": "Segunda",
+        "tab_content": "Texto dos",
+        "tab_link": {
+          "url": "",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      }
+    ],
+    "slider_background_color": "#123456",
+    "_expect_css": [
+      "background-color:#123456"
+    ],
+    "_known": {
+      "links": "Las flechas de Element Pack eran enlaces sin destino; las de PRO Elements son botones"
+    }
+  },
+  "template": {
+    "tabs": [
+      {
+        "_id": "t1",
+        "source": "elementor",
+        "template_id": "__TEMPLATE__"
+      },
+      {
+        "_id": "t2",
+        "source": "custom",
+        "tab_title": "Normal",
+        "tab_content": "Texto",
+        "tab_link": {
+          "url": "https://example.test/normal/",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      }
+    ],
+    "_known": {
+      "links": "Las flechas de Element Pack eran enlaces sin destino; las de PRO Elements son botones"
+    }
+  }
+}

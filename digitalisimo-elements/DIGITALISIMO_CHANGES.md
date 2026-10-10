@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.103
+# DIGITALÍSIMO Elements 4.3.0.104
+
+- 4.3.0.104: adaptador de Element Pack para Slider sobre `slides` de PRO Elements: título, contenido, botón global con el enlace de cada fila, imagen como fondo, posición y alineación, navegación, autoplay, bucle, transición y altura; las diapositivas que mostraban una plantilla de Elementor la siguen mostrando desde el adaptador. Estilos heredados y migración reversible.
 
 - 4.3.0.103: nuevo widget Menú vertical (`digitalisimo-vertical-menu`): menú de WordPress o elementos escritos con niveles, submenús plegables o en paneles con «Atrás», botones con `aria-expanded`, rama actual abierta y todo visible sin JavaScript. Adaptadores de Element Pack para Vertical Menu y Slinky Vertical Menu (sobre el widget nuevo) y Navbar (sobre `nav-menu`, con los colores por posición pasados al CSS del elemento), con estilos heredados y migración reversible.
 
