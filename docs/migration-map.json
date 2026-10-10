@@ -2399,7 +2399,7 @@
       "status": "pending"
     },
     "bdt-post-grid": {
-      "target": null,
+      "target": "posts",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
@@ -2408,7 +2408,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "share existing posts widget for new content; nine Element Pack skins and legacy document conversion pending"
+      "status": "share existing posts widget for new content; nine Element Pack skins and legacy document conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105"
     },
     "bdt-post-grid-tab": {
       "target": null,
@@ -2435,7 +2436,7 @@
       "status": "pending"
     },
     "bdt-post-list": {
-      "target": null,
+      "target": "posts",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
@@ -2444,7 +2445,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "posts widget can show one-column feed for new content; independent Post List layouts, terms, and legacy conversion pending"
+      "status": "posts widget can show one-column feed for new content; independent Post List layouts, terms, and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105"
     },
     "bdt-post-slider": {
       "target": null,
@@ -2781,7 +2783,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-search.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102"
     },
     "bdt-single-post": {
-      "target": null,
+      "target": "posts",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
@@ -2790,7 +2792,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "posts query can select a single public post for new content; exact metadata layout and legacy conversion pending"
+      "status": "posts query can select a single public post for new content; exact metadata layout and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-single-post.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105"
     },
     "bdt-slider": {
       "target": "slides",
@@ -2916,7 +2919,7 @@
       "status": "pending"
     },
     "bdt-sub-menu": {
-      "target": null,
+      "target": "digitalisimo-vertical-menu",
       "engine": "navigation",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 1,
@@ -2925,7 +2928,8 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "nav-menu covers WordPress submenus for new content; static repeater, badges and legacy conversion pending"
+      "status": "nav-menu covers WordPress submenus for new content; static repeater, badges and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-sub-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105"
     },
     "bdt-svg-blob": {
       "target": null,

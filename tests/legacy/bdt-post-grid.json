@@ -1,0 +1,35 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "PRO Elements escribe los comentarios como «1 Comment»/«No Comments» en lugar del número",
+      "links": "PRO Elements muestra el autor sin enlace y pagina con la URL de la página actual (…/2/) en lugar de /page/2/"
+    }
+  },
+  "custom": {
+    "default_item_limit": {
+      "size": 2
+    },
+    "show_excerpt": "yes",
+    "show_readmore": "yes",
+    "readmore_text": "Leer",
+    "show_tags": "",
+    "show_pagination": "yes",
+    "columns": "2",
+    "_known": {
+      "text": "PRO Elements escribe los comentarios como «1 Comment»/«No Comments» en lugar del número",
+      "links": "PRO Elements muestra el autor sin enlace y pagina con la URL de la página actual (…/2/) en lugar de /page/2/"
+    }
+  },
+  "carmie": {
+    "_skin": "bdt-carmie",
+    "carmie_item_limit": {
+      "size": 3
+    },
+    "show_author": "",
+    "show_comments": "",
+    "_known": {
+      "text": "PRO Elements escribe los comentarios como «1 Comment»/«No Comments» en lugar del número",
+      "links": "PRO Elements muestra el autor sin enlace y pagina con la URL de la página actual (…/2/) en lugar de /page/2/"
+    }
+  }
+}

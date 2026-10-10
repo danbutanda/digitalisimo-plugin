@@ -12,6 +12,37 @@ EP = ROOT / 'digitalisimo-elements' / 'bdthemes-element-pack'
 _TRAITS = None
 
 
+def strip_comments(src):
+    """Quita comentarios PHP (`//`, `#`, `/* */`) respetando las cadenas: un default comentado no existe."""
+    out, i, n, quote = [], 0, len(src), None
+    while i < n:
+        c = src[i]
+        if quote:
+            out.append(c)
+            if c == '\\' and i + 1 < n:
+                out.append(src[i + 1])
+                i += 2
+                continue
+            if c == quote:
+                quote = None
+            i += 1
+            continue
+        if c in '\'"':
+            quote = c
+            out.append(c)
+            i += 1
+        elif src.startswith('/*', i):
+            end = src.find('*/', i + 2)
+            i = n if end < 0 else end + 2
+        elif src.startswith('//', i) or (c == '#' and not src.startswith('#[', i)):
+            end = src.find('\n', i)
+            i = n if end < 0 else end
+        else:
+            out.append(c)
+            i += 1
+    return ''.join(out)
+
+
 def methods(src):
     out = {}
     PARAMS.update(signatures(src))
@@ -93,7 +124,7 @@ def trait_methods():
     if _TRAITS is None:
         _TRAITS = {}
         for f in sorted(list((EP / 'traits').rglob('*.php')) + list((EP / 'includes').rglob('*trait*.php'))):
-            for k, v in methods(f.read_text(errors='ignore')).items():
+            for k, v in methods(strip_comments(f.read_text(errors='ignore'))).items():
                 _TRAITS.setdefault(k, v)
     return _TRAITS
 
@@ -243,7 +274,7 @@ def _walk(body, own, out, state, seen, env=None):
 
 
 def detail(path):
-    src = Path(path).read_text(encoding='utf-8', errors='ignore')
+    src = strip_comments(Path(path).read_text(encoding='utf-8', errors='ignore'))
     own = methods(src)
     body = own.get('register_controls') or own.get('_register_controls') or src
     out = []

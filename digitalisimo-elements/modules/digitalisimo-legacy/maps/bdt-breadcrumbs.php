@@ -12,6 +12,7 @@ return array(
 		'.bdt-ep-breadcrumbs-wrapper'          => '.digi-breadcrumbs',
 		'.bdt-ep-breadcrumb'                   => '.digi-breadcrumbs__list',
 	),
+	// Element Pack no da default al separador: su hoja pinta «/».
 	'defaults' => array( 'breadcrumbs_separator' => '/', 'change_text' => '' ),
 	'filter'   => static function ( array $out ) {
 		$presets = array( '/' => 'slash', '›' => 'chevron', '·' => 'dot', '–' => 'dash' );

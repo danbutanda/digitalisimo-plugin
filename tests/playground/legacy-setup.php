@@ -30,6 +30,13 @@ foreach ( array( 1, 2 ) as $blog ) {
 		$add( 'SEO', '/servicios/seo/', $services );
 		$add( 'Contacto', '/contacto/' );
 	}
+	// Entradas con categoría y etiqueta para los widgets de entradas (marcador «__POST__»).
+	if ( ! get_page_by_path( 'digi-ab-post-1', OBJECT, 'post' ) ) {
+		$category = wp_create_category( 'Noticias' );
+		foreach ( array( 1, 2, 3 ) as $n ) {
+			wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'publish', 'post_title' => 'Entrada A/B ' . $n, 'post_name' => 'digi-ab-post-' . $n, 'post_content' => 'Contenido de la entrada ' . $n . ' para comparar.', 'post_category' => array( $category ), 'tags_input' => array( 'destacado' ), 'post_date' => '2026-01-0' . $n . ' 10:00:00' ) );
+		}
+	}
 	// Plantilla de Elementor para los casos que muestran una plantilla (marcador «__TEMPLATE__»).
 	if ( ! get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' ) ) {
 		$template = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'digi-ab-template', 'post_name' => 'digi-ab-template' ) );

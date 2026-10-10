@@ -89,7 +89,6 @@ return array(
 			'size' => 800,
 		),
 		'context' => '.elementor',
-		'extend_page' => 'yes',
 		'toc_sticky_offset' => array(
 			'size' => 0,
 		),

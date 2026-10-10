@@ -12,7 +12,6 @@ return array( array(
 		'selectors' => array(
 			'{{WRAPPER}} .digi-breadcrumbs__separator' => 'content: "{{VALUE}}";',
 		),
-		'default' => '/',
 	), array(
 		'name' => 'home_icon_color',
 		'type' => 'color',

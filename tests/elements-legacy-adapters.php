@@ -1,6 +1,7 @@
 <?php
 namespace {
 	define( 'ABSPATH', __DIR__ );
+	function get_term( $id ) { return (object) array( 'term_id' => $id, 'term_taxonomy_id' => $id * 11 ); }
 	function absint( $v ) { return abs( (int) $v ); }
 	function wp_strip_all_tags( $text ) { return strip_tags( (string) $text ); }
 	function get_bloginfo( $what ) { return 'Mi sitio'; }
@@ -168,6 +169,17 @@ namespace {
 	check_adapter( 12 === $slider['slides'][1]['digitalisimo_template_id'] && 'yes' === $slider['digitalisimo_legacy_templates'] && ! isset( $slider['tabs'] ), 'Una diapositiva de plantilla queda marcada para el render del adaptador.' );
 	$plain = Translator::translate( 'bdt-slider', array( 'show_button' => '' ) );
 	check_adapter( 4 === count( $plain['slides'] ) && '' === $plain['slides'][0]['button_text'] && ! isset( $plain['digitalisimo_legacy_templates'] ) && 600 === $plain['slides_height']['size'], 'Sin botón no hay enlace visible y la altura de Element Pack se conserva.' );
+
+	// Entradas: la consulta de Element Pack pasa a los campos `posts_*` y la presentación a la piel «classic».
+	$query = Translator::posts_query( array( 'posts_source' => 'manual_selection', 'posts_selected_ids' => array( '7' ), 'posts_include_by' => array( 'terms' ), 'posts_include_term_ids' => array( '5' ), 'posts_orderby' => 'title', 'posts_order' => 'ASC', 'query_id' => 'q', 'posts_only_with_featured_image' => 'yes' ) );
+	check_adapter( 'by_id' === $query['posts_post_type'] && array( '7' ) === $query['posts_posts_ids'] && array( 'terms' ) === $query['posts_include'] && array( '55' ) === $query['posts_include_term_ids'] && 'post_title' === $query['posts_orderby'] && 'asc' === $query['posts_order'] && 'q' === $query['posts_query_id'] && ! isset( $query['posts_source'], $query['posts_only_with_featured_image'] ), 'La consulta debe usar los nombres y valores de PRO Elements, con términos por term_taxonomy_id.' );
+	$grid = Translator::translate( 'bdt-post-grid', array( '_skin' => 'bdt-carmie', 'carmie_item_limit' => array( 'size' => 3 ), 'show_comments' => '', 'show_tags' => 'yes', 'show_pagination' => 'yes', 'columns_mobile' => '2' ) );
+	check_adapter( 'classic' === $grid['_skin'] && 3 === $grid['classic_posts_per_page'] && array( 'author', 'date' ) === $grid['classic_meta_data'] && array( 'category', 'post_tag' ) === $grid['digitalisimo_post_terms'] && 'Tags:' === $grid['digitalisimo_tags_label'] && 'numbers' === $grid['pagination_type'] && '2' === $grid['classic_columns_mobile'] && 'post' === $grid['posts_post_type'], 'Post Grid debe pasar límite de su piel, metadatos, términos, paginación y columnas.' );
+	check_adapter( ! isset( $grid['carmie_item_limit'], $grid['show_tags'], $grid['columns'] ) && array( 'category' ) === Translator::translate( 'bdt-post-grid', array() )['digitalisimo_post_terms'], 'Las etiquetas sólo se muestran si se activaron: su default estaba comentado en Element Pack.' );
+	$list = Translator::translate( 'bdt-post-list', array() );
+	check_adapter( '1' === $list['classic_columns'] && 'left' === $list['classic_thumbnail'] && array( 'date' ) === $list['classic_meta_data'] && 6 === $list['classic_posts_per_page'], 'Post List vertical pone la miniatura a un lado en una columna.' );
+	$single = Translator::translate( 'bdt-single-post', array( 'post_list' => '42' ) );
+	check_adapter( 'by_id' === $single['posts_post_type'] && array( '42' ) === $single['posts_posts_ids'] && 1 === $single['classic_posts_per_page'] && array( '0' ) === Translator::translate( 'bdt-single-post', array() )['posts_posts_ids'], 'Single Post consulta sólo la entrada elegida, o ninguna.' );
 
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );

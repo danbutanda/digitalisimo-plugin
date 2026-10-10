@@ -38,6 +38,8 @@ class Vertical_Menu_Widget extends \Elementor\Widget_Base {
 		$repeater->add_control( 'item_title', array( 'label' => 'Texto', 'type' => $c::TEXT, 'default' => 'Elemento', 'dynamic' => array( 'active' => true ) ) );
 		$repeater->add_control( 'item_link', array( 'label' => 'Enlace', 'type' => $c::URL, 'dynamic' => array( 'active' => true ) ) );
 		$repeater->add_control( 'item_icon', array( 'label' => 'Icono', 'type' => $c::ICONS ) );
+		$repeater->add_control( 'item_description', array( 'label' => 'Descripción', 'type' => $c::TEXT, 'dynamic' => array( 'active' => true ) ) );
+		$repeater->add_control( 'item_badge', array( 'label' => 'Distintivo', 'type' => $c::TEXT, 'description' => 'Texto breve junto al nombre, por ejemplo «Nuevo».' ) );
 		$repeater->add_control( 'item_level', array( 'label' => 'Nivel', 'type' => $c::SELECT, 'default' => '0', 'options' => array( '0' => 'Principal', '1' => 'Submenú', '2' => 'Tercer nivel', '3' => 'Cuarto nivel' ), 'description' => 'Un elemento de nivel mayor queda dentro del anterior de nivel menor.' ) );
 		$this->add_control( 'items', array(
 			'label'       => 'Elementos',
@@ -47,10 +49,14 @@ class Vertical_Menu_Widget extends \Elementor\Widget_Base {
 			'title_field' => '{{{ "—".repeat( parseInt( item_level || 0, 10 ) ) }}} {{{ item_title }}}',
 			'condition'   => array( 'source' => 'static' ),
 		) );
+		$this->add_control( 'max_depth', array( 'label' => 'Niveles a mostrar', 'type' => $c::SELECT, 'default' => '', 'options' => array( '' => 'Todos', '1' => 'Sólo el principal', '2' => 'Dos', '3' => 'Tres' ) ) );
 		$this->add_control( 'mode', array( 'label' => 'Submenús', 'type' => $c::SELECT, 'default' => 'collapse', 'options' => array( 'collapse' => 'Se despliegan debajo', 'drill' => 'Se abren en un panel con «Atrás»' ) ) );
 		$this->add_control( 'parent_toggles', array( 'label' => 'El elemento padre sólo abre su submenú', 'type' => $c::SWITCHER, 'description' => 'Sin activar, el padre conserva su enlace y el submenú se abre con la flecha.' ) );
 		$this->add_control( 'open_current', array( 'label' => 'Abrir la rama de la página actual', 'type' => $c::SWITCHER, 'default' => 'yes' ) );
 		$this->add_control( 'nav_label', array( 'label' => 'Nombre accesible', 'type' => $c::TEXT, 'default' => 'Menú' ) );
+		$this->add_control( 'heading', array( 'label' => 'Encabezado visible', 'type' => $c::TEXT, 'default' => '' ) );
+		$this->add_control( 'show_descriptions', array( 'label' => 'Mostrar descripciones', 'type' => $c::SWITCHER, 'default' => 'yes', 'description' => 'En un menú de WordPress se usa la descripción de cada elemento.' ) );
+		$this->add_responsive_control( 'columns', array( 'label' => 'Columnas', 'type' => $c::SELECT, 'default' => '1', 'options' => array( '1' => '1', '2' => '2', '3' => '3', '4' => '4' ), 'selectors' => array( '{{WRAPPER}} .digi-vertical-menu > .digi-vertical-menu__list' => 'display:grid;grid-template-columns:repeat({{VALUE}},minmax(0,1fr));' ) ) );
 		$this->end_controls_section();
 
 		$this->start_controls_section( 'section_style_items', array( 'label' => 'Elementos', 'tab' => $c::TAB_STYLE ) );
@@ -95,6 +101,8 @@ class Vertical_Menu_Widget extends \Elementor\Widget_Base {
 					'title'    => (string) $item->title,
 					'link'     => array( 'url' => (string) $item->url, 'is_external' => '_blank' === $item->target, 'nofollow' => false !== strpos( (string) $item->xfn, 'nofollow' ) ),
 					'icon'     => array(),
+					'description' => (string) ( $item->description ?? '' ),
+					'badge'    => '',
 					'current'  => ! empty( $item->current ),
 					'children' => $depth < self::MAX_LEVEL ? $build( (int) $item->ID, $depth + 1 ) : array(),
 				);
@@ -130,6 +138,8 @@ class Vertical_Menu_Widget extends \Elementor\Widget_Base {
 				'title'    => $title,
 				'link'     => $link,
 				'icon'     => is_array( $item['item_icon'] ?? null ) ? $item['item_icon'] : array(),
+				'description' => trim( (string) ( $item['item_description'] ?? '' ) ),
+				'badge'    => trim( (string) ( $item['item_badge'] ?? '' ) ),
 				'current'  => '' !== $current_url && '' !== $url && '#' !== $url && untrailingslashit( $url ) === untrailingslashit( $current_url ),
 				'children' => array(),
 				'_id'      => (string) ( $item['_id'] ?? '' ),
@@ -139,6 +149,14 @@ class Vertical_Menu_Widget extends \Elementor\Widget_Base {
 			unset( $list );
 		}
 		return $root;
+	}
+
+	/** Recorta el árbol a los niveles pedidos. */
+	public static function prune( array $nodes, $depth ) {
+		foreach ( $nodes as $index => $node ) {
+			$nodes[ $index ]['children'] = $depth > 1 ? self::prune( $node['children'], $depth - 1 ) : array();
+		}
+		return $nodes;
 	}
 
 	private static function has_current( array $node ) {
@@ -172,7 +190,10 @@ class Vertical_Menu_Widget extends \Elementor\Widget_Base {
 				\Elementor\Icons_Manager::render_icon( $node['icon'], array( 'aria-hidden' => 'true' ) );
 				$icon = '<span class="digi-vertical-menu__icon">' . (string) ob_get_clean() . '</span>';
 			}
-			$label  = $icon . '<span class="digi-vertical-menu__text">' . esc_html( wp_strip_all_tags( $node['title'] ) ) . '</span>';
+			$badge  = '' !== ( $node['badge'] ?? '' ) ? ' <span class="digi-vertical-menu__badge">' . esc_html( wp_strip_all_tags( $node['badge'] ) ) . '</span>' : '';
+			$text   = '<span class="digi-vertical-menu__text">' . esc_html( wp_strip_all_tags( $node['title'] ) ) . $badge . '</span>';
+			$about  = 'yes' === ( $s['show_descriptions'] ?? 'yes' ) ? trim( wp_strip_all_tags( (string) ( $node['description'] ?? '' ) ) ) : '';
+			$label  = $icon . ( '' !== $about ? '<span class="digi-vertical-menu__content">' . $text . '<span class="digi-vertical-menu__description">' . esc_html( $about ) . '</span></span>' : $text );
 			$toggle = 'aria-expanded="' . ( $open ? 'true' : 'false' ) . '" aria-controls="digi-vm-' . esc_attr( $id ) . '" data-digi-menu-toggle';
 			$out   .= '<li class="' . esc_attr( implode( ' ', $classes ) ) . '"><div class="digi-vertical-menu__row">';
 			$url    = (string) ( $node['link']['url'] ?? '' );
@@ -210,11 +231,17 @@ class Vertical_Menu_Widget extends \Elementor\Widget_Base {
 		} else {
 			$nodes = $this->menu_nodes( (string) ( $s['menu'] ?? '' ) );
 		}
+		if ( (int) ( $s['max_depth'] ?? 0 ) > 0 ) {
+			$nodes = self::prune( $nodes, (int) $s['max_depth'] );
+		}
 		if ( ! $nodes ) {
 			return;
 		}
-		$label = trim( wp_strip_all_tags( (string) ( $s['nav_label'] ?? '' ) ) );
-		echo '<nav class="digi-vertical-menu digi-vertical-menu--' . esc_attr( $s['mode'] ) . '" aria-label="' . esc_attr( '' !== $label ? $label : 'Menú' ) . '" data-digi-vertical-menu><ul class="digi-vertical-menu__list">'
+		$label   = trim( wp_strip_all_tags( (string) ( $s['nav_label'] ?? '' ) ) );
+		$heading = trim( wp_strip_all_tags( (string) ( $s['heading'] ?? '' ) ) );
+		echo '<nav class="digi-vertical-menu digi-vertical-menu--' . esc_attr( $s['mode'] ) . '" aria-label="' . esc_attr( '' !== $label ? $label : 'Menú' ) . '" data-digi-vertical-menu>'
+			. ( '' !== $heading ? '<p class="digi-vertical-menu__heading">' . esc_html( $heading ) . '</p>' : '' )
+			. '<ul class="digi-vertical-menu__list">'
 			. $this->nodes_html( $nodes, $s, '' ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cada parte se escapa al construirse.
 			. '</ul></nav>';
 	}

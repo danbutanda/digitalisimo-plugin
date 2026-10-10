@@ -80,6 +80,47 @@ final class Translator {
 		return $out;
 	}
 
+	/**
+	 * Consulta de entradas de Element Pack (copia del control de PRO Elements con otros nombres) a
+	 * los campos `posts_*` del widget `posts`. Element Pack filtra términos por `term_id` y PRO
+	 * Elements por `term_taxonomy_id`.
+	 */
+	public static function posts_query( array $out ) {
+		$sources = array( 'manual_selection' => 'by_id', '_related_post_type' => 'related' );
+		$source  = (string) ( $out['posts_source'] ?? 'post' );
+		$out['posts_post_type'] = $sources[ $source ] ?? ( '' !== $source ? $source : 'post' );
+		$renames = array(
+			'posts_selected_ids'       => 'posts_posts_ids',
+			'posts_include_by'         => 'posts_include',
+			'posts_include_author_ids' => 'posts_include_authors',
+			'posts_exclude_by'         => 'posts_exclude',
+			'posts_exclude_author_ids' => 'posts_exclude_authors',
+			'query_id'                 => 'posts_query_id',
+		);
+		foreach ( $renames as $from => $to ) {
+			if ( array_key_exists( $from, $out ) ) {
+				$out[ $to ] = $out[ $from ];
+				unset( $out[ $from ] );
+			}
+		}
+		foreach ( array( 'posts_include_term_ids', 'posts_exclude_term_ids' ) as $key ) {
+			if ( ! isset( $out[ $key ] ) ) {
+				continue;
+			}
+			$ids = array();
+			foreach ( (array) $out[ $key ] as $id ) {
+				$term  = function_exists( 'get_term' ) ? get_term( (int) $id ) : null;
+				$ids[] = is_object( $term ) && ! empty( $term->term_taxonomy_id ) ? (string) $term->term_taxonomy_id : (string) $id;
+			}
+			$out[ $key ] = $ids;
+		}
+		$orderby                = array( 'date' => 'post_date', 'title' => 'post_title', 'modified' => 'modified', 'comment_count' => 'comment_count', 'menu_order' => 'menu_order', 'rand' => 'rand' );
+		$out['posts_orderby']   = $orderby[ (string) ( $out['posts_orderby'] ?? 'date' ) ] ?? 'post_date';
+		$out['posts_order']     = 'asc' === strtolower( (string) ( $out['posts_order'] ?? 'desc' ) ) ? 'asc' : 'desc';
+		unset( $out['posts_source'], $out['posts_only_with_featured_image'], $out['posts_source_description'], $out['posts_divider'] );
+		return $out;
+	}
+
 	/** Defaults, renombres, valores y fijos de un nivel (widget o fila de repetidor). */
 	private static function apply( array $settings, array $spec ) {
 		foreach ( $spec['defaults'] ?? array() as $key => $value ) {

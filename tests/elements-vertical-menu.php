@@ -33,6 +33,7 @@ namespace {
 		array( 'item_title' => 'A' ), array( 'item_title' => 'B' ), array( 'item_title' => 'B1', 'item_level' => '1' ),
 		array( 'item_title' => 'B1a', 'item_level' => '3' ), array( 'item_title' => 'B2', 'item_level' => '1' ), array( 'item_title' => '' ), array( 'item_title' => 'C', 'item_level' => '0' ),
 	) );
+	check_menu( array() === \Digitalisimo\Elements\Vertical_Menu_Widget::prune( $tree, 1 )[1]['children'] && 2 === count( \Digitalisimo\Elements\Vertical_Menu_Widget::prune( $tree, 2 )[1]['children'] ) && array() === \Digitalisimo\Elements\Vertical_Menu_Widget::prune( $tree, 2 )[1]['children'][0]['children'], 'Los niveles a mostrar recortan el árbol.' );
 	check_menu( 3 === count( $tree ) && 'B' === $tree[1]['title'] && 2 === count( $tree[1]['children'] ) && 'B1a' === $tree[1]['children'][0]['children'][0]['title'], 'Los niveles deben anidarse bajo el elemento anterior.' );
 
 	$_SERVER['REQUEST_URI'] = '/servicios/web/';
@@ -50,6 +51,12 @@ namespace {
 	$widget->settings['parent_toggles'] = 'yes';
 	$drill = $render();
 	check_menu( str_contains( $drill, 'data-digi-menu-back>Servicios x</button>' ) && str_contains( $drill, '<button type="button" class="digi-vertical-menu__link" aria-expanded="false"' ) && ! str_contains( $drill, 'href="https://site.test/servicios/"' ), 'En paneles cada submenú tiene «Atrás» y el padre sólo abre su panel.' );
+
+	$widget->settings = array( 'source' => 'static', 'heading' => 'Servicios <i>x</i>', 'items' => array( array( 'item_title' => 'Web', 'item_description' => 'Sitios <b>rápidos</b>', 'item_badge' => 'Nuevo' ) ) );
+	$extra = $render();
+	check_menu( str_contains( $extra, '<p class="digi-vertical-menu__heading">Servicios x</p>' ) && str_contains( $extra, 'Web <span class="digi-vertical-menu__badge">Nuevo</span>' ) && str_contains( $extra, '<span class="digi-vertical-menu__description">Sitios rápidos</span>' ), 'Encabezado, distintivo y descripción deben verse saneados.' );
+	$widget->settings['show_descriptions'] = '';
+	check_menu( ! str_contains( $render(), 'digi-vertical-menu__description' ), 'Las descripciones pueden ocultarse.' );
 
 	$widget->settings = array( 'source' => 'menu', 'menu' => '' );
 	check_menu( '' === $render(), 'Sin menú elegido no se pinta nada.' );

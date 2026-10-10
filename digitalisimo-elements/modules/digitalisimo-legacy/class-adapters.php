@@ -33,6 +33,21 @@ trait Legacy_Adapter {
 	}
 
 	/**
+	 * En la página el elemento se presenta como el widget de destino: su hoja usa
+	 * `.elementor-widget-{nombre}` y sus scripts se enganchan por `data-widget_type`.
+	 */
+	protected function add_render_attributes() {
+		parent::add_render_attributes();
+		$target = Translator::target( static::LEGACY_ID );
+		if ( '' === $target || $target === $this->get_name() ) {
+			return;
+		}
+		$skin = (string) ( $this->get_settings( '_skin' ) ?: 'default' );
+		$this->add_render_attribute( '_wrapper', 'class', 'elementor-widget-' . $target );
+		$this->add_render_attribute( '_wrapper', 'data-widget_type', $target . '.' . $skin, true );
+	}
+
+	/**
 	 * Añade los controles de estilo de Element Pack que el widget propio no tiene, con sus mismos
 	 * nombres y plantillas CSS: Elementor vuelve a generar los colores, tipografías y espacios que
 	 * el usuario ya había elegido, ahora sobre el marcado propio.
@@ -136,7 +151,11 @@ final class Adapters {
 		'bdt-navbar' => Bdt_Navbar::class,
 		'bdt-vertical-menu' => Bdt_VerticalMenu::class,
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
+		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-slider' => Bdt_Slider::class,
+		'bdt-post-grid' => Bdt_PostGrid::class,
+		'bdt-post-list' => Bdt_PostList::class,
+		'bdt-single-post' => Bdt_SinglePost::class,
 	);
 
 	public static function element_pack_active() {
@@ -301,6 +320,7 @@ if ( class_exists( '\\ElementorPro\\Modules\\NavMenu\\Widgets\\Nav_Menu' ) ) {
 if ( class_exists( '\\Digitalisimo\\Elements\\Vertical_Menu_Widget' ) ) {
 	final class Bdt_VerticalMenu extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-vertical-menu'; }
 	final class Bdt_SlinkyVerticalMenu extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-slinky-vertical-menu'; }
+	final class Bdt_SubMenu extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-sub-menu'; }
 }
 if ( class_exists( '\\ElementorPro\\Modules\\Slides\\Widgets\\Slides' ) ) {
 	final class Bdt_Slider extends \ElementorPro\Modules\Slides\Widgets\Slides {
@@ -329,4 +349,33 @@ if ( class_exists( '\\ElementorPro\\Modules\\Slides\\Widgets\\Slides' ) ) {
 			parent::render();
 		}
 	}
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Posts\\Widgets\\Posts' ) && class_exists( '\\ElementorPro\\Modules\\Posts\\Skins\\Skin_Classic' ) ) {
+	require_once __DIR__ . '/class-posts-skin.php';
+
+	/** Base de los adaptadores de entradas: sólo la piel propia, con controles registrados a su nombre. */
+	abstract class Legacy_Posts extends \ElementorPro\Modules\Posts\Widgets\Posts {
+		protected function register_skins() {
+			$this->add_skin( new Posts_Skin( $this ) );
+		}
+
+		protected function register_controls() {
+			parent::register_controls();
+			Posts_Skin::register_term_controls( $this );
+		}
+
+		/** La consulta se nombra como en `posts` (`posts_*`), no con el ID heredado. */
+		public function get_query_name() {
+			return 'posts';
+		}
+
+		protected function register_query_section_controls() {
+			$this->start_controls_section( 'section_query', array( 'label' => esc_html__( 'Query', 'elementor-pro' ), 'tab' => \Elementor\Controls_Manager::TAB_CONTENT ) );
+			$this->add_group_control( \ElementorPro\Modules\QueryControl\Controls\Group_Control_Related::get_type(), array( 'name' => 'posts', 'presets' => array( 'full' ), 'exclude' => array( 'posts_per_page' ) ) );
+			$this->end_controls_section();
+		}
+	}
+	final class Bdt_PostGrid extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-grid'; }
+	final class Bdt_PostList extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-list'; }
+	final class Bdt_SinglePost extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-single-post'; }
 }

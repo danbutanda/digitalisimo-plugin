@@ -1,0 +1,16 @@
+{
+  "chosen": {
+    "post_list": "__POST__",
+    "show_excerpt": "yes",
+    "_known": {
+      "images": "Sin imagen destacada Element Pack mostraba una imagen de muestra enlazada; PRO Elements no muestra imagen",
+      "links": "Element Pack enlazaba también la imagen de muestra",
+      "text": "Element Pack mostraba la fecha con su propio formato («01 January 2026»)"
+    }
+  },
+  "empty": {
+    "_known": {
+      "text": "Sin entrada elegida Element Pack mostraba un aviso; el adaptador no muestra nada"
+    }
+  }
+}

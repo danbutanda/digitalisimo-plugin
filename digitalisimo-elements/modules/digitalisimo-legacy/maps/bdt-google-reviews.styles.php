@@ -85,7 +85,6 @@ return array( array(
 		'selectors' => array(
 			'{{WRAPPER}} .digi-google-reviews__item' => 'justify-content: {{VALUE}};',
 		),
-		'default' => 'center',
 		'condition' => array(
 			'flex_direction' => array( 'column', 'column-reverse' ),
 		),
@@ -122,7 +121,6 @@ return array( array(
 		'selectors' => array(
 			'{{WRAPPER}} .digi-google-reviews__item' => 'align-items: {{VALUE}};',
 		),
-		'default' => 'center',
 		'condition' => array(
 			'flex_direction' => array( 'row', 'row-reverse' ),
 		),

@@ -296,6 +296,30 @@ return array( array(
 		'group' => 'text-stroke',
 		'selector' => '{{WRAPPER}} .digi-content-switcher__tab[aria-selected="true"]',
 	), array(
+		'name' => 'switcher_width',
+		'type' => 'slider',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-content-switcher .button' => 'width: {{SIZE}}{{UNIT}};',
+		),
+		'size_units' => array( 'px', '%' ),
+	), array(
+		'name' => 'switcher_height',
+		'type' => 'slider',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-content-switcher .button' => 'height: {{SIZE}}{{UNIT}};',
+		),
+		'size_units' => array( 'px', '%' ),
+	), array(
+		'name' => 'switcher_knob_size',
+		'type' => 'slider',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}}' => '--ep-knob-size: {{SIZE}}px;',
+		),
+		'size_units' => array( 'px' ),
+	), array(
 		'name' => 'switcher_border_radius',
 		'type' => 'dimensions',
 		'responsive' => true,

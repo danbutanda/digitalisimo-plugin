@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.104
+# DIGITALÍSIMO Elements 4.3.0.105
+
+- 4.3.0.105: adaptadores de Element Pack para Post Grid, Post List y Single Post sobre `posts` (consulta traducida a sus campos `posts_*`, términos por `term_taxonomy_id`, piel «classic» propia que además muestra categorías y etiquetas) y para Sub Menu sobre el Menú vertical, que gana descripción y distintivo por elemento, encabezado visible, columnas y niveles a mostrar. Todos los adaptadores presentan su envoltorio como el widget de destino (`elementor-widget-{destino}` y `data-widget_type`), de modo que la hoja y los scripts de PRO Elements (Swiper de Slides, SmartMenus, índice, Lottie, cargar más) se aplican. El análisis de la referencia ignora los defaults comentados: se corrigen Google Reviews y Table Of Content y aparecen controles de estilo antes omitidos en Accordion y Content Switcher.
 
 - 4.3.0.104: adaptador de Element Pack para Slider sobre `slides` de PRO Elements: título, contenido, botón global con el enlace de cada fila, imagen como fondo, posición y alineación, navegación, autoplay, bucle, transición y altura; las diapositivas que mostraban una plantilla de Elementor la siguen mostrando desde el adaptador. Estilos heredados y migración reversible.
 

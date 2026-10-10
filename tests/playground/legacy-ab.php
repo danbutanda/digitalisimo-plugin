@@ -6,6 +6,8 @@
  * casos de tests/legacy/bdt-*.json en dos sitios de una red y guardan una firma de contenido:
  * textos visibles, enlaces e imágenes. Uso: ver tests/playground/README.md.
  */
+// Todas las combinaciones se renderizan en un solo proceso: con Element Pack activo no bastan 256 MB.
+ini_set( 'memory_limit', '2048M' );
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/user.php';
 require_once WP_PLUGIN_DIR . '/digitalisimo-elements/modules/digitalisimo-legacy/class-migration.php';
@@ -66,9 +68,12 @@ foreach ( array( 1, 2 ) as $blog ) {
 			$type       = (string) ( $settings['_widget'] ?? $widget );
 			unset( $settings['_expect_css'], $settings['_known'], $settings['_widget'] );
 			$template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
-			array_walk_recursive( $settings, static function ( &$value ) use ( $template ) {
+			$sample   = get_page_by_path( 'digi-ab-post-1', OBJECT, 'post' );
+			array_walk_recursive( $settings, static function ( &$value ) use ( $template, $sample ) {
 				if ( '__TEMPLATE__' === $value ) {
 					$value = $template ? (string) $template->ID : '';
+				} elseif ( '__POST__' === $value ) {
+					$value = $sample ? (string) $sample->ID : '';
 				}
 			} );
 			$slug = 'digi-ab-' . $widget . '-' . $case;
@@ -105,6 +110,12 @@ foreach ( array( 1, 2 ) as $blog ) {
 				$raw = \Elementor\Plugin::$instance->documents->get( $id, false )->get_elements_raw_data( null, true );
 				$entry['editor_settings'] = array_keys( (array) ( $raw[0]['elements'][0]['elements'][0]['settings'] ?? array() ) );
 				$entry['editor_widget']   = $raw[0]['elements'][0]['elements'][0]['widgetType'] ?? '';
+				// El envoltorio se presenta como el widget de destino para su CSS y sus scripts.
+				$target = 0 === strpos( $type, 'bdt-' ) ? \Digitalisimo\Elements\Legacy\Translator::target( $type ) : '';
+				// Sin contenido Elementor no pinta el envoltorio: no hay nada que comprobar.
+				if ( '' !== $target && 'B' === $phase && false !== strpos( $html, 'elementor-element-w' . substr( md5( $slug ), 0, 6 ) ) ) {
+					$entry['wrapper_ok'] = false !== strpos( $html, 'data-widget_type="' . $target . '.' ) && false !== strpos( $html, 'elementor-widget-' . $target );
+				}
 				if ( $expect_css ) {
 					$css = \Elementor\Core\Files\CSS\Post::create( $id );
 					$css->update();

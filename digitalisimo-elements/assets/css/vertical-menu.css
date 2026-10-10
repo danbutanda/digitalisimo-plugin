@@ -18,3 +18,7 @@ a.digi-vertical-menu__link:focus-visible,.digi-vertical-menu button:focus-visibl
 .digi-vertical-menu__back-button{display:flex;align-items:center;gap:.5em;width:100%;min-height:44px;padding:.6em 1em;background:none;border:0;color:inherit;font:inherit;font-weight:600;text-align:start;cursor:pointer}
 .digi-vertical-menu__back-button::before{content:"";width:.5em;height:.5em;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg)}
 @media (prefers-reduced-motion:reduce){.digi-vertical-menu__arrow{transition:none}}
+.digi-vertical-menu__heading{margin:0 0 .5em;font-weight:600}
+.digi-vertical-menu__content{display:flex;flex-direction:column;gap:.15em}
+.digi-vertical-menu__description{font-size:.85em;opacity:.8}
+.digi-vertical-menu__badge{display:inline-block;margin-inline-start:.4em;padding:.1em .45em;border-radius:3px;font-size:.75em;line-height:1.4;background:rgba(0,0,0,.08)}

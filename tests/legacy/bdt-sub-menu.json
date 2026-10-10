@@ -1,0 +1,36 @@
+{
+  "defaults": {},
+  "custom": {
+    "submenu_header_title": "Servicios",
+    "submenu_columns": "3",
+    "menus": [
+      {
+        "_id": "m1",
+        "menu_title": "Diseño web",
+        "menu_sub_title": "Sitios rápidos",
+        "menu_badge": "Nuevo",
+        "menu_link": {
+          "url": "https://example.test/web/",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      },
+      {
+        "_id": "m2",
+        "menu_title": "SEO",
+        "menu_sub_title": "Posicionamiento",
+        "menu_link": {
+          "url": "https://example.test/seo/",
+          "is_external": "",
+          "nofollow": "",
+          "custom_attributes": ""
+        }
+      }
+    ]
+  },
+  "dynamic": {
+    "dynamic_menu": "yes",
+    "navbar": "principal"
+  }
+}

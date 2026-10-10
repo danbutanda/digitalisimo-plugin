@@ -43,6 +43,32 @@ return array( array(
 			'{{WRAPPER}} .digi-accordion__item + .digi-accordion__item' => 'border-block-start: none;',
 		),
 	), array(
+		'name' => 'title_alignment',
+		'type' => 'choose',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-accordion__title' => 'justify-content: {{VALUE}};',
+		),
+		'default' => 'flex-start',
+		'options' => array(
+			'flex-start' => array(
+				'title' => 'Left',
+				'icon' => 'eicon-text-align-left',
+			),
+			'center' => array(
+				'title' => 'Center',
+				'icon' => 'eicon-text-align-center',
+			),
+			'flex-end' => array(
+				'title' => 'Right',
+				'icon' => 'eicon-text-align-right',
+			),
+			'justify' => array(
+				'title' => 'Justify',
+				'icon' => 'eicon-text-align-justify',
+			),
+		),
+	), array(
 		'name' => 'title_color',
 		'type' => 'color',
 		'responsive' => false,
