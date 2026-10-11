@@ -13,6 +13,8 @@ require_once __DIR__ . '/class-translator.php';
  * `_elementor_data` original y permite revertirlo. Un elemento pasa al widget `digitalisimo-*`
  * sólo si todos sus ajustes traducidos existen allí; si conserva estilos que sólo ofrece el
  * adaptador, se queda en él con los ajustes ya traducidos. Nunca toca otros sitios de la red.
+ * En Multisite, Red → Ajustes → Migrar Element Pack sólo informa del estado de cada sitio y
+ * enlaza a su herramienta: la traducción siempre se lanza desde el sitio.
  */
 final class Migration {
 	const PAGE   = 'digitalisimo-ep-migration';
@@ -22,11 +24,35 @@ final class Migration {
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
+		add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ) );
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'handle' ) );
 	}
 
 	public static function menu() {
 		add_management_page( 'Migrar Element Pack', 'Migrar Element Pack', 'manage_options', self::PAGE, array( __CLASS__, 'page' ) );
+	}
+
+	public static function network_menu() {
+		add_submenu_page( 'settings.php', 'Migrar Element Pack', 'Migrar Element Pack', 'manage_network_options', self::PAGE, array( __CLASS__, 'network_page' ) );
+	}
+
+	/** Motivo y alternativa de un widget de Element Pack sin adaptador (vacío si lo tiene). */
+	public static function reason( $type ) {
+		static $list = null;
+		if ( null === $list ) {
+			$file = __DIR__ . '/unsupported.php';
+			$list = is_file( $file ) ? (array) require $file : array();
+		}
+		return (string) ( $list[ $type ] ?? '' );
+	}
+
+	/** Estado legible de un widget del inventario. */
+	public static function status( $type, $has_map ) {
+		if ( $has_map ) {
+			return 'Compatible: se muestra con ' . Translator::target( $type );
+		}
+		$reason = self::reason( $type );
+		return 'Sin adaptador: no se mostrará sin Element Pack.' . ( '' !== $reason ? ' ' . $reason : '' );
 	}
 
 	/** IDs de documentos del sitio que contienen widgets de Element Pack. */
@@ -177,7 +203,7 @@ final class Migration {
 	}
 
 	/** Documentos con widgets de Element Pack aún sin traducir. */
-	private static function pending() {
+	public static function pending() {
 		$pending = array();
 		foreach ( self::documents() as $post_id ) {
 			$found = false;
@@ -246,8 +272,7 @@ final class Migration {
 			echo '<tr><td colspan="4">Este sitio no usa widgets de Element Pack.</td></tr>';
 		}
 		foreach ( $inventory as $type => $row ) {
-			$target = $row['map'] ? Translator::target( $type ) : '';
-			$status = $row['map'] ? 'Compatible: se muestra con ' . $target : 'Sin adaptador todavía: no se mostrará sin Element Pack';
+			$status = self::status( $type, $row['map'] );
 			echo '<tr><td><code>' . esc_html( $type ) . '</code></td><td>' . absint( $row['elements'] ) . '</td><td>' . absint( $row['documents'] ) . '</td><td>' . esc_html( $status ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
@@ -262,6 +287,40 @@ final class Migration {
 			submit_button( $button[0] . ' (' . min( self::BATCH, $button[1] ) . ')', $button[2], 'submit', false );
 			echo '</form>';
 		}
+		echo '</div>';
+	}
+
+	/** Resumen por sitio de la red: sólo lectura, con enlace a la herramienta de cada sitio. */
+	public static function network_page() {
+		if ( ! current_user_can( 'manage_network_options' ) ) {
+			return;
+		}
+		$sites = get_sites( array( 'number' => 500, 'fields' => 'ids' ) );
+		echo '<div class="wrap"><h1>Migrar Element Pack en la red</h1>';
+		echo '<p>Estado de los widgets de Element Pack en cada sitio. Esta pantalla sólo informa: la traducción de documentos se lanza desde la herramienta de cada sitio y nunca afecta a otro.</p>';
+		echo '<table class="widefat striped"><thead><tr><th>Sitio</th><th>Elementos compatibles</th><th>Sin adaptador</th><th>Documentos pendientes de traducir</th><th></th></tr></thead><tbody>';
+		$total_missing = 0;
+		foreach ( $sites as $site_id ) {
+			switch_to_blog( (int) $site_id );
+			$compatible = 0;
+			$missing    = array();
+			foreach ( self::inventory() as $type => $row ) {
+				if ( $row['map'] ) {
+					$compatible += $row['elements'];
+				} else {
+					$missing[] = $type . ' (' . $row['elements'] . ')';
+				}
+			}
+			$pending = count( self::pending() );
+			$name    = get_bloginfo( 'name' );
+			$url     = home_url( '/' );
+			$tool    = admin_url( 'tools.php?page=' . self::PAGE );
+			restore_current_blog();
+			$total_missing += count( $missing );
+			echo '<tr><td><strong>' . esc_html( $name ) . '</strong><br><code>' . esc_html( $url ) . '</code></td><td>' . absint( $compatible ) . '</td><td>' . ( $missing ? esc_html( implode( ', ', $missing ) ) : '—' ) . '</td><td>' . absint( $pending ) . '</td><td><a href="' . esc_url( $tool ) . '">Abrir la herramienta del sitio</a></td></tr>';
+		}
+		echo '</tbody></table>';
+		echo '<p>' . esc_html( $total_missing ? 'Hay widgets sin adaptador: la herramienta de cada sitio explica el motivo y la alternativa de cada uno.' : 'Ningún sitio usa widgets de Element Pack sin adaptador.' ) . '</p>';
 		echo '</div>';
 	}
 }

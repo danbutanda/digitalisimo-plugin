@@ -26,3 +26,12 @@ out = ['# Element Pack → DIGITALÍSIMO Elements · decisiones por ID', '',
        '| ID | Decisión | Destino | Documentos heredados | Motivo o estado |', '| --- | --- | --- | --- | --- |'] + rows
 (ROOT / 'docs/element-pack-decisions.md').write_text('\n'.join(out) + '\n', encoding='utf-8')
 print('\n'.join(out[4:7]))
+
+# Motivo y alternativa de cada ID sin adaptador, para la herramienta de migración del plugin.
+def php_str(text):
+    return "'" + text.replace('\\', '\\\\').replace("'", "\\'") + "'"
+unsupported = sorted((wid, e.get('decision_reason') or '') for wid, e in entries.items() if e.get('legacy_documents') == 'no se reproduce')
+php = ['<?php', '/** Generado por scripts/legacy-decisions-doc.py desde docs/migration-map.json: widgets de Element Pack sin adaptador y su motivo. */', "defined( 'ABSPATH' ) || exit;", '', 'return array(']
+php += ['\t%s => %s,' % (php_str(wid), php_str(reason)) for wid, reason in unsupported]
+php += [');', '']
+(ROOT / 'digitalisimo-elements/modules/digitalisimo-legacy/unsupported.php').write_text('\n'.join(php), encoding='utf-8')

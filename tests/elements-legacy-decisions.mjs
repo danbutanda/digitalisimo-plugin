@@ -19,4 +19,9 @@ for (const widget of inventory) {
   if (hasMap) assert.ok(entry.legacy_adapter || entry.legacy_documents === 'adaptador publicado', `${widget.legacy_widget_id} tiene mapa sin registrarlo`);
   if (entry.decision === 'DESCARTAR') assert.ok((entry.decision_reason || '').length > 20, `${widget.legacy_widget_id} se descarta sin motivo`);
 }
+// La herramienta de migración explica cada widget sin adaptador con el motivo generado del mapa.
+const unsupported = readFileSync(new URL('../digitalisimo-elements/modules/digitalisimo-legacy/unsupported.php', import.meta.url), 'utf8');
+const listed = new Set([...unsupported.matchAll(/^\t'(bdt-[a-z0-9-]+|[a-z-]+)' => /gm)].map((m) => m[1]));
+const expected = Object.entries(map).filter(([, e]) => e.legacy_documents === 'no se reproduce').map(([id]) => id);
+assert.deepEqual([...listed].sort(), expected.sort(), 'unsupported.php no coincide con el mapa: regenerar con scripts/legacy-decisions-doc.py');
 console.log(`DIGITALÍSIMO Elements: decisiones de los ${inventory.length} IDs de Element Pack validadas.`);

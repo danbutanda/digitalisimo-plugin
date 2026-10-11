@@ -32,3 +32,5 @@ Con `EXTRA_PLUGINS=slug,…`, `legacy-ab.sh` instala esos plugins reales de word
 ```bash
 EXTRA_PLUGINS=woocommerce bash tests/playground/legacy-ab.sh bdt-wc-products,bdt-wc-add-to-cart
 ```
+
+`migration-report.sh` comprueba en Playground Multisite la pantalla de red (Red → Ajustes → Migrar Element Pack), que sólo informa por sitio y enlaza a la herramienta de cada uno, y la del sitio, que explica el motivo de cada widget sin adaptador.

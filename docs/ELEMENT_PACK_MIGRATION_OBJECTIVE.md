@@ -108,6 +108,8 @@ Lote 30 (4.3.0.124): Dynamic Grid pasa a `loop-grid`, Dynamic Carousel a `loop-c
 
 Lote 31 (4.3.0.125): ACF Accordion pasa a `digitalisimo-accordion`, ACF Tabs a `digitalisimo-fancy-tabs`, ACF List a `icon-list`, ACF Slider a `digitalisimo-fancy-slider` y ACF Gallery a `image-gallery` (ADAPTAR). El trait `Legacy_Acf` convierte en cada render el valor de ACF (`Acf_Source`, que respeta las páginas de opciones como Element Pack) en los elementos del widget de destino; por eso la migración los deja siempre en su adaptador y los datos siguen viviendo en ACF. Diferencias declaradas: flechas y pestañas son botones, la galería abre el lightbox de Elementor desde el enlace al archivo y el texto alternativo de las imágenes es el de la biblioteca.
 
+Lote 32 (4.3.0.126): informe por sitio y de red. `unsupported.php` se genera con el mapa (`scripts/legacy-decisions-doc.py`) y la herramienta muestra el motivo de cada widget sin adaptador; la pantalla de red y `--network` sólo informan, la traducción se sigue lanzando sitio por sitio.
+
 ## Estado de cierre (4.3.0.125)
 
 - **Decisiones:** los 263 IDs del inventario tienen decisión en [element-pack-decisions.md](element-pack-decisions.md), validada por `tests/elements-legacy-decisions.mjs` en cada publicación: 197 con adaptador publicado y 66 que no se reproducen, cada uno con su motivo. Ninguno queda «pendiente: adaptador».

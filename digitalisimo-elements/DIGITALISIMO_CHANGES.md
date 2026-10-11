@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.125
+# DIGITALÍSIMO Elements 4.3.0.126
+
+- 4.3.0.126: la herramienta Migrar Element Pack explica el motivo y la alternativa de cada widget sin adaptador; Red → Ajustes → Migrar Element Pack resume por sitio los elementos compatibles, los widgets sin adaptador y los documentos pendientes, sin tocar ningún sitio; `wp digitalisimo-elements ep-migrate --network` muestra el inventario de toda la red.
 
 - 4.3.0.125: adaptadores de Element Pack para ACF Accordion (acordeón propio), ACF Tabs (pestañas propias), ACF List (lista de iconos), ACF Slider (deslizador propio) y ACF Gallery (galería de Elementor): leen el repetidor o la galería de ACF en cada render y guardan sólo las claves de los campos, editables en la sección «Origen ACF».
 

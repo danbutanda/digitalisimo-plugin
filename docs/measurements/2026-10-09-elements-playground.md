@@ -109,3 +109,5 @@ Adaptadores 4.3.0.123: A/B con WooCommerce real en el sitio principal y el subsi
 Adaptadores 4.3.0.124: A/B de Dynamic Grid y Dynamic Carousel con la plantilla de prueba en tres entradas, y de Advanced GMap sin clave y con clave de API (opción fijada sólo durante el caso), en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.
 
 Adaptadores 4.3.0.125: A/B con un grupo de campos real (repetidor con texto, imagen y enlace, y galería con dos adjuntos) guardado con `update_field()` en la página de cada caso, en el sitio principal y el subsitio; las cinco combinaciones coincidieron con las diferencias declaradas. El arnés añade `_acf` por caso y un plugin simulado en `advanced-custom-fields-pro/acf.php` que carga Secure Custom Fields, porque Element Pack exige esa ruta.
+
+Informe 4.3.0.126: `tests/playground/migration-report.sh` en Playground Multisite con `bdt-weather` y `bdt-accordion` en el subsitio: la red muestra «bdt-weather (1)» sólo en ese sitio y enlaza a `/sub/wp-admin/tools.php`, y el sitio explica el motivo del clima y marca el acordeón como compatible.
