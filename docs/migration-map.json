@@ -3169,7 +3169,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-product-carousel": {
-      "target": null,
+      "target": "digitalisimo-fancy-slider",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 2,
@@ -3178,11 +3178,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.123 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
-      "decision_target": "woocommerce-products",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Carrusel de productos WooCommerce; productos de PRO Elements con la misma consulta."
+      "decision_target": "digitalisimo-fancy-slider",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Es un carrusel estático de tarjetas (imagen, título, precio, texto, valoración y tiempo), no un widget de WooCommerce: cada tarjeta es una diapositiva del deslizador propio.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-product-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-product-grid": {
       "target": "digitalisimo-product-grid",
@@ -4212,7 +4213,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-wc-add-to-cart": {
-      "target": null,
+      "target": "wc-add-to-cart",
       "engine": "commerce",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -4221,14 +4222,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.123 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "wc-add-to-cart",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Botón de añadir al carrito de un producto; el widget de PRO Elements."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Botón de añadir al carrito de un producto; el widget de PRO Elements.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-add-to-cart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-wc-carousel": {
-      "target": null,
+      "target": "woocommerce-products",
       "engine": "carousel",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -4237,11 +4239,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.123 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "woocommerce-products",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Carrusel de productos hacia Products de PRO Elements."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Carrusel de productos hacia Products de PRO Elements.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-wc-categories": {
       "target": "shortcode",
@@ -4276,7 +4279,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-elements.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
     },
     "bdt-wc-mini-cart": {
-      "target": null,
+      "target": "woocommerce-menu-cart",
       "engine": "commerce",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -4285,14 +4288,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.123 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "woocommerce-menu-cart",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Mini carrito hacia Menu Cart de PRO Elements."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Mini carrito hacia Menu Cart de PRO Elements.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-mini-cart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-wc-products": {
-      "target": null,
+      "target": "woocommerce-products",
       "engine": "commerce",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -4301,14 +4305,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.123 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "woocommerce-products",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Rejilla de productos hacia Products de PRO Elements."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Rejilla de productos hacia Products de PRO Elements.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-products.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-wc-slider": {
-      "target": null,
+      "target": "woocommerce-products",
       "engine": "carousel",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -4317,11 +4322,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.123 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "woocommerce-products",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Slider de productos hacia Products de PRO Elements."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Slider de productos hacia Products de PRO Elements.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-we-form": {
       "target": "shortcode",

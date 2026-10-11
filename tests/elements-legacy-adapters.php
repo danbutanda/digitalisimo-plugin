@@ -288,6 +288,19 @@ namespace {
 	$sn = Translator::translate( 'bdt-scrollnav', array() );
 	check_adapter( 'static' === $sn['source'] && '#section-1' === $sn['items'][0]['item_link']['url'] && 5 === count( $sn['items'] ) && '4' === $sn['columns'], 'Scrollnav es un menú de secciones en columnas.' );
 
+	$pc = Translator::translate( 'bdt-product-carousel', array() );
+	check_adapter( 6 === count( $pc['slides'] ) && false !== strpos( $pc['slides'][0]['description'], '$204' ) && 'Read More' === $pc['slides'][0]['slide_button'] && 'top' === $pc['image_position'], 'Product Carousel es un deslizador propio con precio y botón.' );
+	$wp = Translator::translate( 'bdt-wc-products', array() );
+	check_adapter( 'product' === $wp['query_post_type'] && 8 === $wp['posts_per_page'] && 2 === $wp['rows'] && 'image,title,rating,price,cart,badge' === $wp['digitalisimo_wc_parts'] && ! isset( $wp['_skin'] ), 'WC Products es la rejilla de productos con su número exacto.' );
+	$wt = Translator::translate( 'bdt-wc-products', array( '_skin' => 'bdt-table', 'product_show_product_type' => 'featured', 'posts_orderby' => 'sales' ) );
+	check_adapter( 'featured' === $wt['query_post_type'] && 'popularity' === $wt['query_orderby'] && 'image,title,excerpt,rating,price,cart' === $wt['digitalisimo_wc_parts'], 'La tabla muestra el extracto y no la insignia.' );
+	$ws = Translator::translate( 'bdt-wc-slider', array( 'show_text' => 'yes' ) );
+	check_adapter( '1' === $ws['columns'] && 3 === $ws['posts_per_page'] && false !== strpos( $ws['digitalisimo_wc_parts'], 'summary' ) && false !== strpos( $ws['digitalisimo_wc_parts'], 'readmore' ), 'WC Slider muestra un producto por fila con resumen y «Read More».' );
+	$wa = Translator::translate( 'bdt-wc-add-to-cart', array( 'product_id' => array( '20' ) ) );
+	check_adapter( '20' === $wa['product_id'] && 'row-reverse' === $wa['icon_align'], 'Add to Cart recibe el ID del producto.' );
+	$wm = Translator::translate( 'bdt-wc-mini-cart', array( 'offcanvas_flip' => 'yes', 'show_cart_badge' => '' ) );
+	check_adapter( 'side-cart' === $wm['cart_type'] && 'end' === $wm['side_cart_alignment'] && 'none' === $wm['items_indicator'] && 'yes' === $wm['show_subtotal'], 'Mini Cart es el carrito lateral de PRO Elements.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

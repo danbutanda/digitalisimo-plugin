@@ -1,0 +1,19 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor o ninguna",
+      "text": "La valoración se escribe como «4.5 ★ (10,678)» y las flechas del deslizador propio son botones «‹ ›»",
+      "links": "Las flechas son botones; Element Pack usaba enlaces vacíos"
+    }
+  },
+  "titulo_e_insignia": {
+    "badge": "yes",
+    "readmore_link_to": "title",
+    "rating_type": "star",
+    "_known": {
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor o ninguna",
+      "text": "La valoración en estrellas se resume con el número de opiniones y las flechas del deslizador propio son botones «‹ ›»",
+      "links": "Las flechas son botones; Element Pack usaba enlaces vacíos"
+    }
+  }
+}

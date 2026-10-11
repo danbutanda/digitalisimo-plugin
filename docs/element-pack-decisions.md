@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 183, no se reproduce 66, pendiente: adaptador 14.
+Documentos heredados: adaptador publicado 189, no se reproduce 66, pendiente: adaptador 8.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -199,7 +199,7 @@ Documentos heredados: adaptador publicado 183, no se reproduce 66, pendiente: ad
 | `bdt-post-title` | ADAPTAR | `theme-post-title` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool |
 | `bdt-price-list` | ADAPTAR | — | adaptador publicado | share existing ElementorPro price-list for new content; old price, badge and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-price-table` | ADAPTAR | — | adaptador publicado | share existing ElementorPro price-table for new content; nine layouts, commerce integrations and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
-| `bdt-product-carousel` | ADAPTAR | `woocommerce-products` | pendiente: adaptador | Carrusel de productos WooCommerce; productos de PRO Elements con la misma consulta. |
+| `bdt-product-carousel` | ADAPTAR | `digitalisimo-fancy-slider` | adaptador publicado | Es un carrusel estático de tarjetas (imagen, título, precio, texto, valoración y tiempo), no un widget de WooCommerce: cada tarjeta es una diapositiva del deslizador propio. |
 | `bdt-product-grid` | ADAPTAR | `digitalisimo-product-grid` | adaptador publicado | own manual product cards with conditional CSS; image loading, ALT, links and editor aligned in 4.3.0.92, installed multisite rendering verified; WooCommerce queries, reference skins, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-profile-card` | ADAPTAR | — | adaptador publicado | author-box covers author/custom basics; user menu, social card, follow actions, skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-progress-pie` | RECONSTRUIR | `digitalisimo-progress-bars` | adaptador publicado | Indicador circular de porcentaje; se reconstruye junto a las barras de progreso. |
@@ -262,13 +262,13 @@ Documentos heredados: adaptador publicado 183, no se reproduce 66, pendiente: ad
 | `bdt-vertical-menu` | RECONSTRUIR | `digitalisimo-vertical-menu` | adaptador publicado | existing-widget-for-new-content; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool |
 | `bdt-video-gallery` | ADAPTAR | `media-carousel` | adaptador publicado | Lista de vídeos con reproductor; el carrusel de medios admite vídeos. |
 | `bdt-video-player` | ADAPTAR | `digitalisimo-video-player` | adaptador publicado | native-video-widget-base; jPlayer skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool |
-| `bdt-wc-add-to-cart` | ADAPTAR | `wc-add-to-cart` | pendiente: adaptador | Botón de añadir al carrito de un producto; el widget de PRO Elements. |
-| `bdt-wc-carousel` | ADAPTAR | `woocommerce-products` | pendiente: adaptador | Carrusel de productos hacia Products de PRO Elements. |
+| `bdt-wc-add-to-cart` | ADAPTAR | `wc-add-to-cart` | adaptador publicado | Botón de añadir al carrito de un producto; el widget de PRO Elements. |
+| `bdt-wc-carousel` | ADAPTAR | `woocommerce-products` | adaptador publicado | Carrusel de productos hacia Products de PRO Elements. |
 | `bdt-wc-categories` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-wc-elements` | ADAPTAR | `shortcode` | adaptador publicado | Páginas de WooCommerce (carrito, pago, cuenta, seguimiento) por sus shortcodes oficiales. |
-| `bdt-wc-mini-cart` | ADAPTAR | `woocommerce-menu-cart` | pendiente: adaptador | Mini carrito hacia Menu Cart de PRO Elements. |
-| `bdt-wc-products` | ADAPTAR | `woocommerce-products` | pendiente: adaptador | Rejilla de productos hacia Products de PRO Elements. |
-| `bdt-wc-slider` | ADAPTAR | `woocommerce-products` | pendiente: adaptador | Slider de productos hacia Products de PRO Elements. |
+| `bdt-wc-mini-cart` | ADAPTAR | `woocommerce-menu-cart` | adaptador publicado | Mini carrito hacia Menu Cart de PRO Elements. |
+| `bdt-wc-products` | ADAPTAR | `woocommerce-products` | adaptador publicado | Rejilla de productos hacia Products de PRO Elements. |
+| `bdt-wc-slider` | ADAPTAR | `woocommerce-products` | adaptador publicado | Slider de productos hacia Products de PRO Elements. |
 | `bdt-we-form` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-weather` | DESCARTAR | — | no se reproduce | Clima desde Weatherstack u OpenWeatherMap con clave guardada en Element Pack; sin servicio no hay datos. |
 | `bdt-webhook-form` | DESCARTAR | — | no se reproduce | Formulario que envía a un webhook con el endpoint de Element Pack; el formulario de PRO Elements tiene acción webhook. |

@@ -1,0 +1,15 @@
+{
+  "defaults": {
+    "_known": {
+      "text": "El carrito lateral de PRO Elements muestra el número de artículos y su etiqueta accesible «Cart»; el título «Shopping Cart» del panel de Element Pack no se traslada"
+    }
+  },
+  "derecha_sin_subtotal": {
+    "offcanvas_flip": "yes",
+    "show_price_amount": "",
+    "show_cart_badge": "",
+    "_known": {
+      "text": "El carrito lateral de PRO Elements conserva su etiqueta accesible «Cart»; el título «Shopping Cart» del panel de Element Pack no se traslada"
+    }
+  }
+}

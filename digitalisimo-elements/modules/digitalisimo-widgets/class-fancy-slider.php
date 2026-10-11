@@ -29,7 +29,7 @@ class Fancy_Slider_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 		$this->start_controls_section( 'section_options', array( 'label' => 'Presentación' ) );
 		$this->add_control( 'image_size', array( 'label' => 'Tamaño de imagen', 'type' => $c::SELECT, 'default' => 'large', 'options' => array( 'medium' => 'Mediano', 'large' => 'Grande', 'full' => 'Original' ) ) );
-		$this->add_control( 'image_position', array( 'label' => 'Posición de imagen', 'type' => $c::SELECT, 'default' => 'right', 'options' => array( 'left' => 'Izquierda', 'right' => 'Derecha' ) ) );
+		$this->add_control( 'image_position', array( 'label' => 'Posición de imagen', 'type' => $c::SELECT, 'default' => 'right', 'options' => array( 'left' => 'Izquierda', 'right' => 'Derecha', 'top' => 'Arriba' ) ) );
 		$this->add_control( 'title_tags', array( 'label' => 'Etiqueta de título', 'type' => $c::SELECT, 'default' => 'h2', 'options' => array( 'h2' => 'H2', 'h3' => 'H3', 'h4' => 'H4', 'div' => 'Div' ) ) );
 		$this->add_control( 'navigation', array( 'label' => 'Navegación', 'type' => $c::SELECT, 'default' => 'arrows', 'options' => array( 'arrows' => 'Flechas', 'none' => 'Desactivada' ) ) );
 		foreach ( array( 'show_subtitle' => 'Mostrar subtítulo', 'show_title' => 'Mostrar título', 'show_description' => 'Mostrar descripción', 'show_button' => 'Mostrar botón', 'show_slide_image' => 'Mostrar imagen' ) as $key => $label ) {
@@ -54,7 +54,7 @@ class Fancy_Slider_Widget extends \Elementor\Widget_Base {
 		if ( ! $slides ) { return; }
 		$size = in_array( $s['image_size'] ?? 'large', array( 'medium', 'large', 'full' ), true ) ? ( $s['image_size'] ?? 'large' ) : 'large';
 		$tag = in_array( $s['title_tags'] ?? 'h2', array( 'h2', 'h3', 'h4', 'div' ), true ) ? ( $s['title_tags'] ?? 'h2' ) : 'h2';
-		$position = 'left' === ( $s['image_position'] ?? 'right' ) ? 'left' : 'right';
+		$position = in_array( $s['image_position'] ?? 'right', array( 'left', 'top' ), true ) ? $s['image_position'] : 'right';
 		echo '<div class="digi-fancy-slider digi-fancy-slider--image-' . esc_attr( $position ) . '">';
 		Carousel_Engine::open( 'Contenido destacado', count( $slides ) );
 		foreach ( $slides as $index => $slide ) {
@@ -94,7 +94,7 @@ class Fancy_Slider_Widget extends \Elementor\Widget_Base {
 	protected function content_template() {
 		?>
 		<# var slides = (settings.slides || []).filter(function(item){ return item && (item.title || item.sub_title || item.description || (item.slide_image && item.slide_image.url)); });
-		var position = settings.image_position === 'left' ? 'left' : 'right'; var tag = _.contains(['h2','h3','h4','div'],settings.title_tags) ? settings.title_tags : 'h2';
+		var position = _.contains(['left','top'],settings.image_position) ? settings.image_position : 'right'; var tag = _.contains(['h2','h3','h4','div'],settings.title_tags) ? settings.title_tags : 'h2';
 		var linkRel = function(link){ return [ link && link.nofollow ? 'nofollow' : '', link && link.is_external ? 'noopener noreferrer' : '' ].filter(Boolean).join(' '); }; #>
 		<# if ( slides.length ) { #><div class="digi-fancy-slider digi-fancy-slider--image-{{ position }}"><section class="digi-carousel" role="region" aria-roledescription="carrusel" aria-label="Contenido destacado" style="--digi-carousel-count:{{ slides.length }}"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track><ul class="digi-carousel__slides"><# _.each(slides,function(item){ var titleLink = item.title_link || {}; var buttonLink = item.button_link || {}; var titleRel = linkRel(titleLink); var buttonRel = linkRel(buttonLink); #><li class="digi-carousel__slide digi-fancy-slider__slide"><div class="digi-fancy-slider__content"><# if ( settings.show_subtitle !== 'no' && item.sub_title ) { #><span class="digi-fancy-slider__subtitle">{{ item.sub_title }}</span><# } #><# if ( settings.show_title !== 'no' && item.title ) { #><{{{ tag }}} class="digi-fancy-slider__title"><# if (titleLink.url) { #><a href="{{ titleLink.url }}"<# if (titleLink.is_external) { #> target="_blank"<# } #><# if (titleRel) { #> rel="{{ titleRel }}"<# } #>><# } #>{{ item.title }}<# if (titleLink.url) { #></a><# } #></{{{ tag }}}><# } #><# if ( settings.show_description !== 'no' && item.description ) { #><div class="digi-fancy-slider__description">{{{ item.description }}}</div><# } #><# if ( settings.show_button !== 'no' && item.slide_button && buttonLink.url ) { #><a class="digi-fancy-slider__button" href="{{ buttonLink.url }}"<# if (buttonLink.is_external) { #> target="_blank"<# } #><# if (buttonRel) { #> rel="{{ buttonRel }}"<# } #>>{{ item.slide_button }}</a><# } #></div><# if ( settings.show_slide_image !== 'no' && item.slide_image && item.slide_image.url ) { #><div class="digi-fancy-slider__media"><img class="digi-fancy-slider__image" src="{{ item.slide_image.url }}" alt="{{ item.slide_image.alt || '' }}"></div><# } #></li><# }); #></ul></div><# if (slides.length > 1 && settings.navigation !== 'none') { #><div class="digi-carousel__controls"><button class="digi-carousel__button" type="button" data-digi-carousel-prev aria-label="Anterior" disabled aria-disabled="true">&#x2039;</button><button class="digi-carousel__button" type="button" data-digi-carousel-next aria-label="Siguiente">&#x203a;</button></div><# } #></section></div><# } #>
 		<?php

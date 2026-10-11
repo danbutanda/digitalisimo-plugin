@@ -1,0 +1,18 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Los productos de prueba no tienen imagen: Element Pack imprimía una imagen vacía y WooCommerce usa su marcador de posición",
+      "text": "El carrusel se presenta como rejilla de PRO Elements; sus flechas y puntos no se trasladan",
+      "links": "WooCommerce envuelve la imagen y el título del producto en un solo enlace; Element Pack enlazaba cada uno por separado; sus flechas eran enlaces vacíos"
+    }
+  },
+  "con_texto": {
+    "show_text": "yes",
+    "excerpt_length": 4,
+    "_known": {
+      "images": "Los productos de prueba no tienen imagen: Element Pack imprimía una imagen vacía y WooCommerce usa su marcador de posición",
+      "text": "El carrusel se presenta como rejilla de PRO Elements; sus flechas y puntos no se trasladan",
+      "links": "WooCommerce envuelve la imagen y el título del producto en un solo enlace; Element Pack enlazaba cada uno por separado; sus flechas eran enlaces vacíos"
+    }
+  }
+}

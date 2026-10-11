@@ -1,0 +1,17 @@
+{
+  "producto": {
+    "product_id": ["__WC_PRODUCT__"],
+    "_known": {
+      "links": "PRO Elements enlaza al alta en el carrito de WooCommerce (?add-to-cart=ID), que funciona sin JavaScript; Element Pack usaba «#»"
+    }
+  },
+  "con_cantidad": {
+    "product_id": ["__WC_PRODUCT__"],
+    "show_quantity": "yes",
+    "quantity": 2,
+    "text": "Comprar ahora",
+    "_known": {
+      "text": "Con cantidad, Element Pack no pintaba texto fuera de la ficha del producto; PRO Elements muestra el formulario de WooCommerce con su etiqueta accesible y el texto configurado"
+    }
+  }
+}

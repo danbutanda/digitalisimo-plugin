@@ -132,6 +132,83 @@ final class Translator {
 	}
 
 	/**
+	 * Consulta y presentación de una rejilla de productos de Element Pack en `woocommerce-products`.
+	 * `$spec` nombra los ajustes de cada widget: per_page, columns, title, title_tag, rating, price,
+	 * cart, badge, image, excerpt, excerpt_length, excerpt_style, category, readmore, readmore_text,
+	 * pagination; cada uno es [clave, valor por
+	 * defecto] o un valor fijo. Las partes visibles viajan en `digitalisimo_wc_parts` y el adaptador
+	 * las aplica con los hooks del bucle de WooCommerce.
+	 */
+	public static function wc_products( array $out, array $spec ) {
+		$get    = static function ( $name, $fallback = '' ) use ( $out, $spec ) {
+			if ( ! isset( $spec[ $name ] ) ) {
+				return $fallback;
+			}
+			$rule = $spec[ $name ];
+			return is_array( $rule ) ? ( $out[ $rule[0] ] ?? $rule[1] ) : $rule;
+		};
+		$source = (string) ( $out['posts_source'] ?? 'product' );
+		$types  = array( 'onsale' => 'sale', 'featured' => 'featured' );
+		$type   = array( 'manual_selection' => 'by_id', 'current_query' => 'current_query', '_related_post_type' => 'related_products' )[ $source ] ?? ( $types[ (string) ( $out['product_show_product_type'] ?? 'all' ) ] ?? 'product' );
+		$terms  = static function ( $ids ) {
+			$out = array();
+			foreach ( (array) $ids as $id ) {
+				$term  = function_exists( 'get_term' ) ? get_term( (int) $id ) : null;
+				$out[] = is_object( $term ) && ! empty( $term->term_taxonomy_id ) ? (string) $term->term_taxonomy_id : (string) $id;
+			}
+			return $out;
+		};
+		$set = array(
+			'query_post_type' => $type,
+			'query_posts_ids' => array_values( array_map( 'strval', (array) ( $out['posts_selected_ids'] ?? array() ) ) ),
+			'query_orderby'   => array( 'title' => 'title', 'price' => 'price', 'sales' => 'popularity', 'rand' => 'rand', 'menu_order' => 'menu_order' )[ (string) ( $out['posts_orderby'] ?? 'date' ) ] ?? 'date',
+			'query_order'     => 'asc' === strtolower( (string) ( $out['posts_order'] ?? 'desc' ) ) ? 'asc' : 'desc',
+		);
+		if ( in_array( 'terms', (array) ( $out['posts_include_by'] ?? array() ), true ) ) {
+			$set['query_include']          = array( 'terms' );
+			$set['query_include_term_ids'] = $terms( $out['posts_include_term_ids'] ?? array() );
+		}
+		$exclude = array_values( array_intersect( (array) ( $out['posts_exclude_by'] ?? array() ), array( 'current_post', 'manual_selection', 'terms' ) ) );
+		if ( $exclude ) {
+			$set['query_exclude']          = $exclude;
+			$set['query_exclude_ids']      = array_values( array_map( 'strval', (array) ( $out['posts_exclude_ids'] ?? array() ) ) );
+			$set['query_exclude_term_ids'] = $terms( $out['posts_exclude_term_ids'] ?? array() );
+		}
+		$limit   = $get( 'per_page', 8 );
+		$limit   = max( 1, (int) ( is_array( $limit ) ? ( $limit['size'] ?? 8 ) : $limit ) );
+		$columns = max( 1, (int) $get( 'columns', 4 ) );
+		$parts   = array();
+		foreach ( array( 'image', 'title', 'excerpt', 'category', 'rating', 'price', 'cart', 'readmore', 'badge' ) as $part ) {
+			if ( 'yes' === $get( $part, in_array( $part, array( 'excerpt', 'category', 'readmore' ), true ) ? '' : 'yes' ) ) {
+				// «summary»: el extracto manual si existe; si no, el contenido recortado con «…».
+				$parts[] = 'excerpt' === $part && 'summary' === $get( 'excerpt_style' ) ? 'summary' : $part;
+			}
+		}
+		$set += array(
+			'columns'                         => (string) $columns,
+			'rows'                            => (int) ceil( $limit / $columns ),
+			'posts_per_page'                  => $limit,
+			'paginate'                        => 'yes' === $get( 'pagination' ) ? 'yes' : '',
+			'show_onsale_flash'               => 'yes' === $get( 'badge', 'yes' ) ? 'yes' : '',
+			'digitalisimo_wc_parts'           => implode( ',', $parts ),
+			'digitalisimo_wc_excerpt_length'  => max( 1, (int) $get( 'excerpt_length', 10 ) ),
+			'digitalisimo_wc_title_tag'       => (string) $get( 'title_tag', 'h2' ),
+			'digitalisimo_wc_readmore_text'   => (string) $get( 'readmore_text', 'Read More' ),
+		);
+		foreach ( array_keys( $out ) as $key ) {
+			if ( 0 === strpos( $key, 'posts_' ) || 0 === strpos( $key, 'product_' ) || '_skin' === $key ) {
+				unset( $out[ $key ] );
+			}
+		}
+		foreach ( $spec as $rule ) {
+			if ( is_array( $rule ) ) {
+				unset( $out[ $rule[0] ] );
+			}
+		}
+		return $set + $out;
+	}
+
+	/**
 	 * Presentación de una rejilla de entradas de Element Pack en la piel «classic» de `posts`.
 	 * `$spec` nombra los ajustes de cada widget: per_page, columns, title, title_tag, author, date,
 	 * comments, category, tags, excerpt, excerpt_length, read_more, read_more_text, image, pagination;

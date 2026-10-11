@@ -1,0 +1,29 @@
+{
+  "defaults": {
+    "_known": {
+      "images": "Los productos de prueba no tienen imagen: Element Pack imprimía una imagen vacía y WooCommerce usa su marcador de posición",
+      "links": "WooCommerce envuelve la imagen y el título del producto en un solo enlace; Element Pack enlazaba cada uno por separado"
+    }
+  },
+  "destacados_sin_extracto": {
+    "product_show_product_type": "featured",
+    "show_excerpt": "",
+    "show_rating": "",
+    "posts_per_page": 2,
+    "columns": "2",
+    "_known": {
+      "images": "Los productos de prueba no tienen imagen: Element Pack imprimía una imagen vacía y WooCommerce usa su marcador de posición",
+      "links": "WooCommerce envuelve la imagen y el título del producto en un solo enlace; Element Pack enlazaba cada uno por separado"
+    }
+  },
+  "tabla_con_extracto": {
+    "_skin": "bdt-table",
+    "show_excerpt": "yes",
+    "excerpt_limit": 3,
+    "_known": {
+      "images": "Los productos de prueba no tienen imagen: Element Pack imprimía una imagen vacía y WooCommerce usa su marcador de posición",
+      "text": "La tabla de Element Pack se presenta como la rejilla de PRO Elements, sin encabezados, búsqueda ni selector de cantidad",
+      "links": "WooCommerce envuelve la imagen y el título del producto en un solo enlace; Element Pack enlazaba cada uno por separado"
+    }
+  }
+}

@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.122
+# DIGITALÍSIMO Elements 4.3.0.123
+
+- 4.3.0.123: adaptadores de Element Pack para WC Products, WC Carousel y WC Slider (rejilla de productos de PRO Elements con el número exacto de productos y las partes visibles del widget heredado), WC Add to Cart, WC Mini Cart (carrito lateral de PRO Elements) y Product Carousel (deslizador propio, que gana la imagen «Arriba»), con estilos heredados y migración reversible.
 
 - 4.3.0.122: adaptadores de Element Pack para Review Card, Review Card Carousel y Review Card Grid (Reviews de PRO Elements), Testimonial Carousel, Grid y Slider (`posts` sobre el tipo de contenido de BdThemes Testimonials) y Scrollnav (Menú vertical propio en columnas), con estilos heredados y migración reversible.
 

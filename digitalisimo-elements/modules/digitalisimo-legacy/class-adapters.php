@@ -163,6 +163,7 @@ final class Adapters {
 		'bdt-custom-carousel' => Bdt_CustomCarousel::class,
 		'bdt-video-gallery' => Bdt_VideoGallery::class,
 		'bdt-static-carousel' => Bdt_StaticCarousel::class,
+		'bdt-product-carousel' => Bdt_ProductCarousel::class,
 		'bdt-panel-slider' => Bdt_PanelSlider::class,
 		'bdt-slideshow' => Bdt_Slideshow::class,
 		'bdt-thumb-gallery' => Bdt_ThumbGallery::class,
@@ -286,6 +287,11 @@ final class Adapters {
 		'bdt-post-grid' => Bdt_PostGrid::class,
 		'bdt-post-list' => Bdt_PostList::class,
 		'bdt-single-post' => Bdt_SinglePost::class,
+		'bdt-wc-products' => Bdt_WcProducts::class,
+		'bdt-wc-carousel' => Bdt_WcCarousel::class,
+		'bdt-wc-slider' => Bdt_WcSlider::class,
+		'bdt-wc-add-to-cart' => Bdt_WcAddToCart::class,
+		'bdt-wc-mini-cart' => Bdt_WcMiniCart::class,
 	);
 
 	public static function element_pack_active() {
@@ -717,6 +723,7 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Slider_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Slider_Widget' ) ) {
 	final class Bdt_Slideshow extends \Digitalisimo\Elements\Fancy_Slider_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-slideshow'; }
+	final class Bdt_ProductCarousel extends \Digitalisimo\Elements\Fancy_Slider_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-product-carousel'; }
 }
 if ( class_exists( '\\Elementor\\Widget_Image_Gallery' ) ) {
 	final class Bdt_AdvancedImageGallery extends \Elementor\Widget_Image_Gallery { use Legacy_Adapter; const LEGACY_ID = 'bdt-advanced-image-gallery'; }
@@ -732,4 +739,94 @@ if ( class_exists( '\\ElementorPro\\Modules\\Carousel\\Widgets\\Reviews' ) ) {
 }
 if ( class_exists( '\\ElementorPro\\Modules\\Carousel\\Widgets\\Reviews' ) ) {
 	final class Bdt_ReviewCardGrid extends \ElementorPro\Modules\Carousel\Widgets\Reviews { use Legacy_Adapter; const LEGACY_ID = 'bdt-review-card-grid'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Woocommerce\\Widgets\\Products' ) ) {
+	/**
+	 * Base de las rejillas de productos de Element Pack: `woocommerce-products` con el número exacto de
+	 * productos y las partes que el widget heredado mostraba (imagen, título, extracto, categoría,
+	 * valoración, precio, botón), aplicadas con los hooks del bucle de WooCommerce sólo durante su render.
+	 */
+	abstract class Legacy_Products extends \ElementorPro\Modules\Woocommerce\Widgets\Products {
+		const PARTS = array(
+			'image'  => array( 'woocommerce_before_shop_loop_item_title', 'woocommerce_template_loop_product_thumbnail', 10 ),
+			'title'  => array( 'woocommerce_shop_loop_item_title', 'woocommerce_template_loop_product_title', 10 ),
+			'rating' => array( 'woocommerce_after_shop_loop_item_title', 'woocommerce_template_loop_rating', 5 ),
+			'price'  => array( 'woocommerce_after_shop_loop_item_title', 'woocommerce_template_loop_price', 10 ),
+			'cart'   => array( 'woocommerce_after_shop_loop_item', 'woocommerce_template_loop_add_to_cart', 10 ),
+			'badge'  => array( 'woocommerce_before_shop_loop_item_title', 'woocommerce_show_product_loop_sale_flash', 10 ),
+		);
+
+		protected function register_controls() {
+			parent::register_controls();
+			$hidden = array( 'type' => \Elementor\Controls_Manager::HIDDEN );
+			$this->add_control( 'posts_per_page', $hidden + array( 'default' => '' ) );
+			$this->add_control( 'digitalisimo_wc_parts', $hidden + array( 'default' => 'image,title,rating,price,cart,badge' ) );
+			$this->add_control( 'digitalisimo_wc_excerpt_length', $hidden + array( 'default' => 10 ) );
+			$this->add_control( 'digitalisimo_wc_title_tag', $hidden + array( 'default' => 'h2' ) );
+			$this->add_control( 'digitalisimo_wc_readmore_text', $hidden + array( 'default' => 'Read More' ) );
+		}
+
+		protected function render() {
+			$s       = $this->get_settings_for_display();
+			$parts   = array_filter( explode( ',', (string) ( $s['digitalisimo_wc_parts'] ?? '' ) ) );
+			$tag     = in_array( $s['digitalisimo_wc_title_tag'] ?? 'h2', array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'span', 'p' ), true ) ? $s['digitalisimo_wc_title_tag'] : 'h2';
+			$removed = array();
+			foreach ( self::PARTS as $part => $hook ) {
+				$custom_title = 'title' === $part && 'h2' !== $tag;
+				if ( ( ! in_array( $part, $parts, true ) || $custom_title ) && false !== has_action( $hook[0], $hook[1] ) ) {
+					remove_action( $hook[0], $hook[1], $hook[2] );
+					$removed[] = $hook;
+				}
+			}
+			$added = array();
+			if ( in_array( 'title', $parts, true ) && 'h2' !== $tag ) {
+				$added[] = array( 'woocommerce_shop_loop_item_title', static function () use ( $tag ) {
+					echo '<' . $tag . ' class="' . esc_attr( apply_filters( 'woocommerce_product_loop_title_classes', 'woocommerce-loop-product__title' ) ) . '">' . esc_html( get_the_title() ) . '</' . $tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etiqueta de una lista cerrada.
+				}, 10 );
+			}
+			if ( in_array( 'category', $parts, true ) ) {
+				$added[] = array( 'woocommerce_after_shop_loop_item_title', static function () {
+					$list = wc_get_product_category_list( get_the_ID(), ', ' );
+					echo $list ? '<div class="digi-legacy-product__categories">' . wp_kses_post( $list ) . '</div>' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_kses_post.
+				}, 4 );
+			}
+			// Como Element Pack: el contenido recortado, o en «summary» el extracto manual si existe.
+			$summary = in_array( 'summary', $parts, true );
+			if ( $summary || in_array( 'excerpt', $parts, true ) ) {
+				$words   = max( 1, (int) ( $s['digitalisimo_wc_excerpt_length'] ?? 10 ) );
+				$added[] = array( 'woocommerce_after_shop_loop_item_title', static function () use ( $words, $summary ) {
+					$text = $summary && has_excerpt() ? wp_strip_all_tags( (string) get_the_excerpt() ) : wp_trim_words( wp_strip_all_tags( strip_shortcodes( (string) get_the_content() ) ), $words, $summary ? '…' : '' );
+					echo '' !== trim( $text ) ? '<div class="digi-legacy-product__excerpt">' . esc_html( trim( $text ) ) . '</div>' : '';
+				}, 6 );
+			}
+			if ( in_array( 'readmore', $parts, true ) ) {
+				$label   = (string) ( $s['digitalisimo_wc_readmore_text'] ?? '' );
+				$added[] = array( 'woocommerce_after_shop_loop_item', static function () use ( $label ) {
+					echo '<a class="button digi-legacy-product__readmore" href="' . esc_url( get_permalink() ) . '">' . esc_html( '' !== $label ? $label : __( 'Read more', 'woocommerce' ) ) . '</a>';
+				}, 11 );
+			}
+			foreach ( $added as $hook ) {
+				add_action( $hook[0], $hook[1], $hook[2] );
+			}
+			try {
+				parent::render();
+			} finally {
+				foreach ( $added as $hook ) {
+					remove_action( $hook[0], $hook[1], $hook[2] );
+				}
+				foreach ( $removed as $hook ) {
+					add_action( $hook[0], $hook[1], $hook[2] );
+				}
+			}
+		}
+	}
+	final class Bdt_WcProducts extends Legacy_Products { use Legacy_Adapter; const LEGACY_ID = 'bdt-wc-products'; }
+	final class Bdt_WcCarousel extends Legacy_Products { use Legacy_Adapter; const LEGACY_ID = 'bdt-wc-carousel'; }
+	final class Bdt_WcSlider extends Legacy_Products { use Legacy_Adapter; const LEGACY_ID = 'bdt-wc-slider'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Woocommerce\\Widgets\\Add_To_Cart' ) ) {
+	final class Bdt_WcAddToCart extends \ElementorPro\Modules\Woocommerce\Widgets\Add_To_Cart { use Legacy_Adapter; const LEGACY_ID = 'bdt-wc-add-to-cart'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Woocommerce\\Widgets\\Menu_Cart' ) ) {
+	final class Bdt_WcMiniCart extends \ElementorPro\Modules\Woocommerce\Widgets\Menu_Cart { use Legacy_Adapter; const LEGACY_ID = 'bdt-wc-mini-cart'; }
 }
