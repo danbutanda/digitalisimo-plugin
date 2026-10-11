@@ -153,6 +153,13 @@ final class Adapters {
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
 		'bdt-offcanvas' => Bdt_Offcanvas::class,
+		'bdt-review-card' => Bdt_ReviewCard::class,
+		'bdt-review-card-carousel' => Bdt_ReviewCardCarousel::class,
+		'bdt-review-card-grid' => Bdt_ReviewCardGrid::class,
+		'bdt-scrollnav' => Bdt_Scrollnav::class,
+		'bdt-testimonial-carousel' => Bdt_TestimonialCarousel::class,
+		'bdt-testimonial-grid' => Bdt_TestimonialGrid::class,
+		'bdt-testimonial-slider' => Bdt_TestimonialSlider::class,
 		'bdt-custom-carousel' => Bdt_CustomCarousel::class,
 		'bdt-video-gallery' => Bdt_VideoGallery::class,
 		'bdt-static-carousel' => Bdt_StaticCarousel::class,
@@ -444,6 +451,7 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Vertical_Menu_Widget' ) ) {
 	final class Bdt_VerticalMenu extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-vertical-menu'; }
 	final class Bdt_SlinkyVerticalMenu extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-slinky-vertical-menu'; }
 	final class Bdt_SubMenu extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-sub-menu'; }
+	final class Bdt_Scrollnav extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-scrollnav'; }
 }
 if ( class_exists( '\\ElementorPro\\Modules\\Slides\\Widgets\\Slides' ) ) {
 	final class Bdt_Slider extends \ElementorPro\Modules\Slides\Widgets\Slides {
@@ -501,6 +509,9 @@ if ( class_exists( '\\ElementorPro\\Modules\\Posts\\Widgets\\Posts' ) && class_e
 	final class Bdt_PostGrid extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-grid'; }
 	final class Bdt_PostList extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-post-list'; }
 	final class Bdt_SinglePost extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-single-post'; }
+	final class Bdt_TestimonialCarousel extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-testimonial-carousel'; }
+	final class Bdt_TestimonialGrid extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-testimonial-grid'; }
+	final class Bdt_TestimonialSlider extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-testimonial-slider'; }
 	final class Bdt_ThumbGallery extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-thumb-gallery'; }
 	final class Bdt_Carousel extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-carousel'; }
 	final class Bdt_PortfolioCarousel extends Legacy_Posts { use Legacy_Adapter; const LEGACY_ID = 'bdt-portfolio-carousel'; }
@@ -712,4 +723,13 @@ if ( class_exists( '\\Elementor\\Widget_Image_Gallery' ) ) {
 }
 if ( class_exists( '\\Elementor\\Widget_Image_Gallery' ) ) {
 	final class Bdt_ImageStack extends \Elementor\Widget_Image_Gallery { use Legacy_Adapter; const LEGACY_ID = 'bdt-image-stack'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Carousel\\Widgets\\Reviews' ) ) {
+	final class Bdt_ReviewCard extends \ElementorPro\Modules\Carousel\Widgets\Reviews { use Legacy_Adapter; const LEGACY_ID = 'bdt-review-card'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Carousel\\Widgets\\Reviews' ) ) {
+	final class Bdt_ReviewCardCarousel extends \ElementorPro\Modules\Carousel\Widgets\Reviews { use Legacy_Adapter; const LEGACY_ID = 'bdt-review-card-carousel'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Carousel\\Widgets\\Reviews' ) ) {
+	final class Bdt_ReviewCardGrid extends \ElementorPro\Modules\Carousel\Widgets\Reviews { use Legacy_Adapter; const LEGACY_ID = 'bdt-review-card-grid'; }
 }

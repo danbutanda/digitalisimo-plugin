@@ -101,3 +101,5 @@ Adaptadores 4.3.0.119: el A/B cubrió Marquee por defecto, News Ticker con entra
 Adaptadores 4.3.0.120: el A/B cubrió el gráfico de ejemplo (barras y series en la fase B) y el mapa por defecto (visor de OpenStreetMap con su marcador en la fase B) en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.
 
 Adaptadores 4.3.0.121: el A/B cubrió los ocho widgets por defecto en el sitio principal y el subsitio (Thumb Gallery con las entradas de prueba exigidas en la fase B); todas las combinaciones coincidieron con las diferencias declaradas.
+
+Adaptadores 4.3.0.122: el A/B cubrió las tres reseñas y Scrollnav por defecto en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas. Los testimonios se validaron con pruebas unitarias porque requieren BdThemes Testimonials.

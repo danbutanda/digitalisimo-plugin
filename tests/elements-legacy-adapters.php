@@ -281,6 +281,13 @@ namespace {
 	$tg2 = Translator::translate( 'bdt-thumb-gallery', array() );
 	check_adapter( 5 === $tg2['classic_posts_per_page'] && 25 === $tg2['classic_excerpt_length'], 'Thumb Gallery consulta entradas con su extracto.' );
 
+	$rc = Translator::translate( 'bdt-review-card', array() );
+	check_adapter( 1 === count( $rc['slides'] ) && 'Adam Smith' === $rc['slides'][0]['name'] && '1' === $rc['slides_per_view'], 'Review Card es una reseña de PRO Elements.' );
+	$tc = Translator::translate( 'bdt-testimonial-carousel', array() );
+	check_adapter( 'bdthemes-testimonial' === $tc['posts_post_type'] && 4 === $tc['classic_posts_per_page'], 'Los testimonios consultan el tipo de contenido de BdThemes Testimonials.' );
+	$sn = Translator::translate( 'bdt-scrollnav', array() );
+	check_adapter( 'static' === $sn['source'] && '#section-1' === $sn['items'][0]['item_link']['url'] && 5 === count( $sn['items'] ) && '4' === $sn['columns'], 'Scrollnav es un menú de secciones en columnas.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

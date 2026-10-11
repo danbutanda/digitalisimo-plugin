@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 176, no se reproduce 66, pendiente: adaptador 21.
+Documentos heredados: adaptador publicado 183, no se reproduce 66, pendiente: adaptador 14.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -212,13 +212,13 @@ Documentos heredados: adaptador publicado 176, no se reproduce 66, pendiente: ad
 | `bdt-remote-fraction` | DESCARTAR | — | no se reproduce | Igual que Remote Arrows. |
 | `bdt-remote-pagination` | DESCARTAR | — | no se reproduce | Igual que Remote Arrows. |
 | `bdt-remote-thumbs` | DESCARTAR | — | no se reproduce | Igual que Remote Arrows. |
-| `bdt-review-card` | ADAPTAR | `reviews` | pendiente: adaptador | Tarjeta de reseña con nombre, texto y valoración; el widget Reviews de PRO Elements la cubre. |
-| `bdt-review-card-carousel` | ADAPTAR | `reviews` | pendiente: adaptador | Carrusel de reseñas hacia Reviews de PRO Elements. |
-| `bdt-review-card-grid` | ADAPTAR | `reviews` | pendiente: adaptador | Rejilla de reseñas hacia Reviews de PRO Elements. |
+| `bdt-review-card` | ADAPTAR | `reviews` | adaptador publicado | Tarjeta de reseña con nombre, texto y valoración; el widget Reviews de PRO Elements la cubre. |
+| `bdt-review-card-carousel` | ADAPTAR | `reviews` | adaptador publicado | Carrusel de reseñas hacia Reviews de PRO Elements. |
+| `bdt-review-card-grid` | ADAPTAR | `reviews` | adaptador publicado | Rejilla de reseñas hacia Reviews de PRO Elements. |
 | `bdt-revolution-slider` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-scroll-button` | ADAPTAR | `digitalisimo-scroll-button` | adaptador publicado | new accessible local-anchor widget implemented; advanced effects, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool |
 | `bdt-scroll-image` | ADAPTAR | `image` | adaptador publicado | Imagen larga que se desplaza al pasar el cursor; se conserva la imagen. |
-| `bdt-scrollnav` | ADAPTAR | `digitalisimo-icon-nav` | pendiente: adaptador | Navegación a secciones de la página; Icon Nav propio con enlaces internos. |
+| `bdt-scrollnav` | ADAPTAR | `digitalisimo-vertical-menu` | adaptador publicado | Navegación a secciones de la página; Icon Nav propio con enlaces internos. |
 | `bdt-search` | ADAPTAR | — | adaptador publicado | use existing search-form widget for new content; post-type filtering and Element Pack skins require parity review before legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-single-post` | ADAPTAR | `posts` | adaptador publicado | posts query can select a single public post for new content; exact metadata layout and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool |
 | `bdt-slider` | ADAPTAR | `slides` | adaptador publicado | use existing slides widget for new editorial slides; template source, skins, animations and legacy conversion pending; optimized media slider remains separate; legacy documents keep rendering without Element Pack through the 4.3.0.104 adapter and the per-site reversible migration tool |
@@ -241,9 +241,9 @@ Documentos heredados: adaptador publicado 176, no se reproduce 66, pendiente: ad
 | `bdt-tablepress` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-tabs` | ADAPTAR | — | adaptador publicado | own fancy-tabs provides accessible tab panels for new content; sources, skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
 | `bdt-tags-cloud` | ADAPTAR | `digitalisimo-tags-cloud` | adaptador publicado | own public term cloud with per-site queries and conditional CSS; visual parity and multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool |
-| `bdt-testimonial-carousel` | ADAPTAR | `testimonial-carousel` | pendiente: adaptador | Testimonios del tipo de contenido de BdThemes Testimonials en carrusel; Testimonial Carousel de PRO Elements con filas. |
-| `bdt-testimonial-grid` | ADAPTAR | `testimonial-carousel` | pendiente: adaptador | Igual que Testimonial Carousel. |
-| `bdt-testimonial-slider` | ADAPTAR | `testimonial-carousel` | pendiente: adaptador | Igual que Testimonial Carousel. |
+| `bdt-testimonial-carousel` | ADAPTAR | `posts` | adaptador publicado | Testimonios del tipo de contenido de BdThemes Testimonials en carrusel; Testimonial Carousel de PRO Elements con filas. |
+| `bdt-testimonial-grid` | ADAPTAR | `posts` | adaptador publicado | Igual que Testimonial Carousel. |
+| `bdt-testimonial-slider` | ADAPTAR | `posts` | adaptador publicado | Igual que Testimonial Carousel. |
 | `bdt-the-newsletter` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-threesixty-product-viewer` | DESCARTAR | — | no se reproduce | Visor 360° con secuencia de imágenes y su script; uso marginal. |
 | `bdt-thumb-gallery` | ADAPTAR | `posts` | adaptador publicado | Galería con miniaturas hacia el carrusel de medios con miniaturas. |

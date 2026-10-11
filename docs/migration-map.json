@@ -3395,7 +3395,7 @@
       "decision_reason": "Igual que Remote Arrows."
     },
     "bdt-review-card": {
-      "target": null,
+      "target": "reviews",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3404,14 +3404,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.122 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "reviews",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Tarjeta de reseña con nombre, texto y valoración; el widget Reviews de PRO Elements la cubre."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Tarjeta de reseña con nombre, texto y valoración; el widget Reviews de PRO Elements la cubre.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-review-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-review-card-carousel": {
-      "target": null,
+      "target": "reviews",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 2,
@@ -3420,14 +3421,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.122 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "reviews",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Carrusel de reseñas hacia Reviews de PRO Elements."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Carrusel de reseñas hacia Reviews de PRO Elements.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-review-card-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-review-card-grid": {
-      "target": null,
+      "target": "reviews",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3436,11 +3438,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.122 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "reviews",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Rejilla de reseñas hacia Reviews de PRO Elements."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Rejilla de reseñas hacia Reviews de PRO Elements.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-review-card-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-revolution-slider": {
       "target": "shortcode",
@@ -3499,7 +3502,7 @@
       "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-scroll-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-scrollnav": {
-      "target": null,
+      "target": "digitalisimo-vertical-menu",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3508,11 +3511,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.122 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
-      "decision_target": "digitalisimo-icon-nav",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Navegación a secciones de la página; Icon Nav propio con enlaces internos."
+      "decision_target": "digitalisimo-vertical-menu",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Navegación a secciones de la página; Icon Nav propio con enlaces internos.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-scrollnav.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-search": {
       "target": null,
@@ -3870,7 +3874,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-testimonial-carousel": {
-      "target": null,
+      "target": "posts",
       "engine": "carousel",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,
@@ -3879,14 +3883,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.122 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
-      "decision_target": "testimonial-carousel",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Testimonios del tipo de contenido de BdThemes Testimonials en carrusel; Testimonial Carousel de PRO Elements con filas."
+      "decision_target": "posts",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Testimonios del tipo de contenido de BdThemes Testimonials en carrusel; Testimonial Carousel de PRO Elements con filas.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-testimonial-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-testimonial-grid": {
-      "target": null,
+      "target": "posts",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -3895,14 +3900,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.122 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
-      "decision_target": "testimonial-carousel",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Igual que Testimonial Carousel."
+      "decision_target": "posts",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Igual que Testimonial Carousel.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-testimonial-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-testimonial-slider": {
-      "target": null,
+      "target": "posts",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 2,
@@ -3911,11 +3917,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.122 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
-      "decision_target": "testimonial-carousel",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Igual que Testimonial Carousel."
+      "decision_target": "posts",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Igual que Testimonial Carousel.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-testimonial-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-the-newsletter": {
       "target": "shortcode",

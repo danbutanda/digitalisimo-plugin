@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.121
+# DIGITALÍSIMO Elements 4.3.0.122
+
+- 4.3.0.122: adaptadores de Element Pack para Review Card, Review Card Carousel y Review Card Grid (Reviews de PRO Elements), Testimonial Carousel, Grid y Slider (`posts` sobre el tipo de contenido de BdThemes Testimonials) y Scrollnav (Menú vertical propio en columnas), con estilos heredados y migración reversible.
 
 - 4.3.0.121: adaptadores de Element Pack para Static Carousel, Panel Slider y Slideshow (deslizador propio), Thumb Gallery (`posts`), Custom Carousel y Video Gallery (carrusel de medios de PRO Elements) y Advanced Image Gallery e Image Stack (galería de Elementor), con estilos heredados y migración reversible.
 

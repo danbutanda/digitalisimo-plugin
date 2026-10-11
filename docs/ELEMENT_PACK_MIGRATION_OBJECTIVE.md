@@ -100,6 +100,8 @@ Lote 26 (4.3.0.120): Chart y Open Street Map se RECONSTRUYEN. Diferencias declar
 
 Lote 27 (4.3.0.121): ocho widgets de diapositivas y galerías se ADAPTAN. Diferencias declaradas: las flechas del deslizador son botones; Video Gallery pasa al carrusel de medios sin títulos ni descripciones; las diapositivas de plantilla de Custom Carousel y los iconos, enlaces y globos de Image Stack no se trasladan; las imágenes de ejemplo de Element Pack pasan a la de Elementor o a ninguna.
 
+Lote 28 (4.3.0.122): reseñas pasan a Reviews de PRO Elements, testimonios a `posts` y Scrollnav al Menú vertical (ADAPTAR). Diferencias declaradas: la valoración se dibuja con la fuente de iconos de PRO Elements; los testimonios se presentan como rejilla clásica sin campos de cargo o dirección; Scrollnav no se fija ni resalta la sección visible.
+
 ## Siguiente tramo recomendado
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.
