@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 192, no se reproduce 66, pendiente: adaptador 5.
+Documentos heredados: adaptador publicado 197, no se reproduce 66.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -14,11 +14,11 @@ Documentos heredados: adaptador publicado 192, no se reproduce 66, pendiente: ad
 | ID | Decisión | Destino | Documentos heredados | Motivo o estado |
 | --- | --- | --- | --- | --- |
 | `bdt-accordion` | ADAPTAR | `digitalisimo-accordion` | adaptador publicado | native details widget with published Elementor and optional Anywhere templates plus item and state icons; valid H2-H6 summary headings since 4.3.0.65; initial all-open mode, rejection of invalid templates and blog_id selector isolation tested since 4.3.0.70; advanced controls, legacy adapter, visual comparison and installed multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
-| `bdt-acf-accordion` | ADAPTAR | `digitalisimo-accordion` | pendiente: adaptador | Las filas salen de un repetidor ACF; el Acordeón propio puede recibirlas con la etiqueta dinámica ACF de PRO Elements. |
-| `bdt-acf-gallery` | ADAPTAR | `gallery` | pendiente: adaptador | Galería de un campo ACF: la galería de PRO Elements admite la etiqueta dinámica de galería ACF con la misma clave. |
-| `bdt-acf-list` | ADAPTAR | `icon-list` | pendiente: adaptador | Lista desde un repetidor ACF hacia la lista de iconos con etiqueta dinámica. |
-| `bdt-acf-slider` | ADAPTAR | `media-carousel` | pendiente: adaptador | Carrusel de un campo galería ACF hacia el carrusel de medios con etiqueta dinámica. |
-| `bdt-acf-tabs` | ADAPTAR | `digitalisimo-fancy-tabs` | pendiente: adaptador | Pestañas desde un repetidor ACF hacia las pestañas propias. |
+| `bdt-acf-accordion` | ADAPTAR | `digitalisimo-accordion` | adaptador publicado | Las filas salen de un repetidor ACF; el Acordeón propio puede recibirlas con la etiqueta dinámica ACF de PRO Elements. |
+| `bdt-acf-gallery` | ADAPTAR | `image-gallery` | adaptador publicado | Galería de un campo ACF: la galería de PRO Elements admite la etiqueta dinámica de galería ACF con la misma clave. |
+| `bdt-acf-list` | ADAPTAR | `icon-list` | adaptador publicado | Lista desde un repetidor ACF hacia la lista de iconos con etiqueta dinámica. |
+| `bdt-acf-slider` | ADAPTAR | `digitalisimo-fancy-slider` | adaptador publicado | Carrusel de un campo galería ACF hacia el carrusel de medios con etiqueta dinámica. |
+| `bdt-acf-tabs` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Pestañas desde un repetidor ACF hacia las pestañas propias. |
 | `bdt-advanced-button` | ADAPTAR | `digitalisimo-advanced-button` | adaptador publicado | new CSS-only button with safe link, icon, badge and nine lightweight effects; responsive border and max-width, typography and shadow controls since 4.3.0.71; legacy adapter, full style parity and installed multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
 | `bdt-advanced-calculator` | DESCARTAR | — | no se reproduce | Calculadora basada en fórmulas propias de Element Pack evaluadas con su script; no hay un motor equivalente seguro sin reimplementar el evaluador. Para contenido nuevo: formulario de PRO Elements con campos calculados o un plugin de calculadoras. |
 | `bdt-advanced-counter` | ADAPTAR | `counter` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool |

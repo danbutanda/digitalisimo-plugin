@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.124
+# DIGITALÍSIMO Elements 4.3.0.125
+
+- 4.3.0.125: adaptadores de Element Pack para ACF Accordion (acordeón propio), ACF Tabs (pestañas propias), ACF List (lista de iconos), ACF Slider (deslizador propio) y ACF Gallery (galería de Elementor): leen el repetidor o la galería de ACF en cada render y guardan sólo las claves de los campos, editables en la sección «Origen ACF».
 
 - 4.3.0.124: adaptadores de Element Pack para Dynamic Grid y Dynamic Carousel (Loop Grid y Loop Carousel de PRO Elements con una piel que imprime cualquier plantilla de Elementor por entrada) y Advanced GMap (mapa de Google de Elementor en el primer marcador), con estilos heredados y migración reversible.
 

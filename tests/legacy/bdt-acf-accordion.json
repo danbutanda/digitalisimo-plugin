@@ -1,0 +1,23 @@
+{
+  "repetidor": {
+    "field": "field_digi_ab_faq",
+    "title": "question",
+    "content": "answer",
+    "_acf": {
+      "field_digi_ab_faq": [
+        {
+          "field_digi_ab_q": "¿Qué es A/B?",
+          "field_digi_ab_a": "Una comparación entre dos fases.",
+          "field_digi_ab_img": "__ACF_IMAGE_1__",
+          "field_digi_ab_link": "https://example.com/uno"
+        },
+        {
+          "field_digi_ab_q": "¿Para qué sirve?",
+          "field_digi_ab_a": "Para migrar sin cambios visibles.",
+          "field_digi_ab_img": "__ACF_IMAGE_2__",
+          "field_digi_ab_link": "https://example.com/dos"
+        }
+      ]
+    }
+  }
+}

@@ -2,7 +2,7 @@
 /**
  * Contenido de prueba que depende de plugins reales instalados con EXTRA_PLUGINS, creado en una
  * petición posterior a su activación. Guarda en `digi_ab_markers` los IDs que los casos usan como
- * marcadores (`__BBP_FORUM__`, `__BBP_TOPIC__`, `__BBP_REPLY__`, `__BBP_TAG__`, `__WC_PRODUCT__`).
+ * marcadores (`__BBP_FORUM__`, `__BBP_TOPIC__`, `__BBP_REPLY__`, `__BBP_TAG__`, `__WC_PRODUCT__`, `__ACF_IMAGE_1__`, `__ACF_IMAGE_2__`).
  */
 require '/wordpress/wp-load.php';
 wp_set_current_user( 1 );
@@ -45,6 +45,27 @@ foreach ( array( 1, 2 ) as $blog ) {
 			if ( 0 === $i ) {
 				$markers['__WC_PRODUCT__'] = (string) $id;
 			}
+		}
+	}
+	if ( function_exists( 'acf_import_field_group' ) && empty( $markers['__ACF_IMAGE_1__'] ) ) {
+		// Grupo de prueba de los widgets ACF: un repetidor con texto, imagen y enlace, y una galería, en páginas.
+		acf_import_field_group( array(
+			'key'      => 'group_digi_ab',
+			'title'    => 'Digi A/B',
+			'fields'   => array(
+				array( 'key' => 'field_digi_ab_faq', 'label' => 'Preguntas', 'name' => 'digi_ab_faq', 'type' => 'repeater', 'sub_fields' => array(
+					array( 'key' => 'field_digi_ab_q', 'label' => 'Pregunta', 'name' => 'question', 'type' => 'text' ),
+					array( 'key' => 'field_digi_ab_a', 'label' => 'Respuesta', 'name' => 'answer', 'type' => 'textarea', 'new_lines' => '' ),
+					array( 'key' => 'field_digi_ab_img', 'label' => 'Foto', 'name' => 'photo', 'type' => 'image', 'return_format' => 'array' ),
+					array( 'key' => 'field_digi_ab_link', 'label' => 'Destino', 'name' => 'target', 'type' => 'url' ),
+				) ),
+				array( 'key' => 'field_digi_ab_gallery', 'label' => 'Galería', 'name' => 'digi_ab_gallery', 'type' => 'gallery', 'return_format' => 'array' ),
+			),
+			'location' => array( array( array( 'param' => 'post_type', 'operator' => '==', 'value' => 'page' ) ) ),
+		) );
+		foreach ( array( 1, 2 ) as $n ) {
+			$markers[ '__ACF_IMAGE_' . $n . '__' ] = (string) wp_insert_attachment( array( 'post_title' => 'Imagen ACF ' . $n, 'post_mime_type' => 'image/png', 'guid' => home_url( '/wp-content/uploads/digi-ab-acf-' . $n . '.png' ) ), 'digi-ab-acf-' . $n . '.png' );
+			update_post_meta( (int) $markers[ '__ACF_IMAGE_' . $n . '__' ], '_wp_attachment_image_alt', 'Imagen ACF ' . $n );
 		}
 	}
 	update_option( 'digi_ab_markers', $markers );

@@ -309,6 +309,17 @@ namespace {
 	$gm = Translator::translate( 'bdt-advanced-gmap', array( 'avd_google_map_height' => array( 'size' => 300, 'unit' => 'px' ) ) );
 	check_adapter( '24.8248746,89.3826299' === $gm['address'] && 15 === $gm['zoom']['size'] && 300 === $gm['height']['size'] && ! isset( $gm['marker'] ), 'Advanced GMap es el mapa de Elementor en el primer marcador.' );
 
+	require_once $base . 'class-acf.php';
+	$aa = Translator::translate( 'bdt-acf-accordion', array( 'field' => 'field_faq', 'title' => 'question', 'content' => 'answer' ) );
+	check_adapter( 'field_faq' === $aa['digitalisimo_acf_field'] && 'question' === $aa['digitalisimo_acf_title'] && 'answer' === $aa['digitalisimo_acf_content'] && ! isset( $aa['field'] ), 'ACF Accordion conserva las claves de sus campos.' );
+	$ag = Translator::translate( 'bdt-acf-gallery', array( 'field' => 'field_gallery', 'show_lightbox' => '' ) );
+	check_adapter( 'field_gallery' === $ag['digitalisimo_acf_field'] && 'none' === $ag['gallery_link'] && '4' === $ag['gallery_columns'], 'ACF Gallery es la galería de Elementor.' );
+	check_adapter( array( 'id' => 5, 'url' => 'a.png', 'alt' => 'A' ) === \Digitalisimo\Elements\Legacy\Acf_Source::image( array( 'ID' => 5, 'url' => 'a.png', 'alt' => 'A' ) ) && 'https://x.test' === \Digitalisimo\Elements\Legacy\Acf_Source::link( array( 'url' => 'https://x.test', 'target' => '_blank' ) )['url'] && '' === \Digitalisimo\Elements\Legacy\Acf_Source::text( array( 'a' => array( 1 ) ), 'a' ) && null === \Digitalisimo\Elements\Legacy\Acf_Source::value( 'field_x' ), 'ACF: imagen, enlace y texto se normalizan; sin ACF no hay valor.' );
+
+	// Un widget ACF nunca pasa al widget propio al migrar: sus elementos se leen de ACF en cada render.
+	list( , $acf_state ) = Migration::convert_element( array( 'widgetType' => 'bdt-acf-accordion', 'settings' => array( 'field' => 'field_faq' ) ), array( 'tabs' => array(), 'title_html_tag' => array() ) );
+	check_adapter( 'adapter' === $acf_state, 'Los widgets ACF siguen en su adaptador tras migrar.' );
+
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
 	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );

@@ -89,9 +89,17 @@ foreach ( array( 1, 2 ) as $blog ) {
 					$value = $markers[ $value ];
 				}
 			} );
+			$acf_values = (array) ( $settings['_acf'] ?? array() );
+			unset( $settings['_acf'] );
 			$slug = 'digi-ab-' . $widget . '-' . $case;
 			$page = get_page_by_path( $slug );
 			$id   = $page ? $page->ID : wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
+			// Valores de ACF de la página del caso (clave del campo => valor), con la API de ACF.
+			if ( 'A' === $phase && function_exists( 'update_field' ) ) {
+				foreach ( $acf_values as $field => $value ) {
+					update_field( $field, $value, $id );
+				}
+			}
 			if ( 'A' === $phase ) {
 				$data = array( array( 'id' => 's' . substr( md5( $slug ), 0, 6 ), 'elType' => 'section', 'settings' => (object) $section, 'elements' => array( array( 'id' => 'c' . substr( md5( $slug ), 0, 6 ), 'elType' => 'column', 'settings' => array( '_column_size' => 100 ), 'elements' => array(
 					array( 'id' => 'w' . substr( md5( $slug ), 0, 6 ), 'elType' => 'widget', 'widgetType' => $type, 'settings' => (object) $settings, 'elements' => array() ),

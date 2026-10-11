@@ -31,7 +31,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-acf-accordion": {
-      "target": null,
+      "target": "digitalisimo-accordion",
       "engine": "navigation",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -40,14 +40,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.125 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-accordion",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Las filas salen de un repetidor ACF; el Acordeón propio puede recibirlas con la etiqueta dinámica ACF de PRO Elements."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Las filas salen de un repetidor ACF; el Acordeón propio puede recibirlas con la etiqueta dinámica ACF de PRO Elements.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-acf-gallery": {
-      "target": null,
+      "target": "image-gallery",
       "engine": "media",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -56,14 +57,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.125 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
-      "decision_target": "gallery",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Galería de un campo ACF: la galería de PRO Elements admite la etiqueta dinámica de galería ACF con la misma clave."
+      "decision_target": "image-gallery",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Galería de un campo ACF: la galería de PRO Elements admite la etiqueta dinámica de galería ACF con la misma clave.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-acf-list": {
-      "target": null,
+      "target": "icon-list",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -72,14 +74,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.125 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "icon-list",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Lista desde un repetidor ACF hacia la lista de iconos con etiqueta dinámica."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Lista desde un repetidor ACF hacia la lista de iconos con etiqueta dinámica.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-acf-slider": {
-      "target": null,
+      "target": "digitalisimo-fancy-slider",
       "engine": "carousel",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -88,14 +91,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.125 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
-      "decision_target": "media-carousel",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Carrusel de un campo galería ACF hacia el carrusel de medios con etiqueta dinámica."
+      "decision_target": "digitalisimo-fancy-slider",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Carrusel de un campo galería ACF hacia el carrusel de medios con etiqueta dinámica.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-acf-tabs": {
-      "target": null,
+      "target": "digitalisimo-fancy-tabs",
       "engine": "navigation",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -104,11 +108,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.125 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-fancy-tabs",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Pestañas desde un repetidor ACF hacia las pestañas propias."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Pestañas desde un repetidor ACF hacia las pestañas propias.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-advanced-button": {
       "target": "digitalisimo-advanced-button",

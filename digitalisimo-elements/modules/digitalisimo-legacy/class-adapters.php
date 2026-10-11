@@ -4,6 +4,7 @@ namespace Digitalisimo\Elements\Legacy;
 defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/class-translator.php';
+require_once __DIR__ . '/class-acf.php';
 
 /**
  * Registra un ID `bdt-*` sobre el widget propio equivalente. Al construir cada elemento traduce sus
@@ -54,6 +55,9 @@ trait Legacy_Adapter {
 	 */
 	protected function register_controls(): void {
 		parent::register_controls();
+		if ( method_exists( $this, 'register_adapter_controls' ) ) {
+			$this->register_adapter_controls();
+		}
 		$styles = Translator::styles( static::LEGACY_ID );
 		if ( ! $styles ) {
 			return;
@@ -295,6 +299,11 @@ final class Adapters {
 		'bdt-dynamic-grid' => Bdt_DynamicGrid::class,
 		'bdt-dynamic-carousel' => Bdt_DynamicCarousel::class,
 		'bdt-advanced-gmap' => Bdt_AdvancedGmap::class,
+		'bdt-acf-accordion' => Bdt_AcfAccordion::class,
+		'bdt-acf-tabs' => Bdt_AcfTabs::class,
+		'bdt-acf-list' => Bdt_AcfList::class,
+		'bdt-acf-slider' => Bdt_AcfSlider::class,
+		'bdt-acf-gallery' => Bdt_AcfGallery::class,
 	);
 
 	public static function element_pack_active() {
@@ -873,4 +882,99 @@ if ( class_exists( '\\ElementorPro\\Modules\\LoopBuilder\\Skins\\Skin_Loop_Post'
 }
 if ( class_exists( '\\Elementor\\Widget_Google_Maps' ) ) {
 	final class Bdt_AdvancedGmap extends \Elementor\Widget_Google_Maps { use Legacy_Adapter; const LEGACY_ID = 'bdt-advanced-gmap'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Accordion_Widget' ) ) {
+	final class Bdt_AcfAccordion extends \Digitalisimo\Elements\Accordion_Widget {
+		use Legacy_Adapter, Legacy_Acf;
+		const LEGACY_ID  = 'bdt-acf-accordion';
+		const ACF_FIELDS = array( 'digitalisimo_acf_field' => 'Campo repetidor', 'digitalisimo_acf_title' => 'Subcampo del título', 'digitalisimo_acf_content' => 'Subcampo del contenido' );
+		protected function acf_settings( array $s ) {
+			$tabs = array();
+			foreach ( Acf_Source::rows( $s['digitalisimo_acf_field'] ?? '' ) as $i => $row ) {
+				$title   = Acf_Source::text( $row, $s['digitalisimo_acf_title'] ?? '' );
+				$content = Acf_Source::text( $row, $s['digitalisimo_acf_content'] ?? '' );
+				if ( '' !== $title || '' !== $content ) {
+					$tabs[] = array( '_id' => self::acf_item_id( $i ), 'tab_title' => $title, 'source' => 'custom', 'tab_content' => $content );
+				}
+			}
+			return array( 'tabs' => $tabs );
+		}
+	}
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Tabs_Widget' ) ) {
+	final class Bdt_AcfTabs extends \Digitalisimo\Elements\Fancy_Tabs_Widget {
+		use Legacy_Adapter, Legacy_Acf;
+		const LEGACY_ID  = 'bdt-acf-tabs';
+		const ACF_FIELDS = array( 'digitalisimo_acf_field' => 'Campo repetidor', 'digitalisimo_acf_title' => 'Subcampo del título', 'digitalisimo_acf_sub_title' => 'Subcampo del subtítulo', 'digitalisimo_acf_content' => 'Subcampo del contenido' );
+		protected function acf_settings( array $s ) {
+			$tabs = array();
+			foreach ( Acf_Source::rows( $s['digitalisimo_acf_field'] ?? '' ) as $i => $row ) {
+				$title = Acf_Source::text( $row, $s['digitalisimo_acf_title'] ?? '' );
+				if ( '' !== $title ) {
+					$tabs[] = array( '_id' => self::acf_item_id( $i ), 'icon_type' => 'none', 'tab_title' => $title, 'tab_sub_title' => Acf_Source::text( $row, $s['digitalisimo_acf_sub_title'] ?? '' ), 'tab_content' => Acf_Source::text( $row, $s['digitalisimo_acf_content'] ?? '' ) );
+				}
+			}
+			return array( 'tabs' => $tabs );
+		}
+	}
+}
+if ( class_exists( '\\Elementor\\Widget_Icon_List' ) ) {
+	final class Bdt_AcfList extends \Elementor\Widget_Icon_List {
+		use Legacy_Adapter, Legacy_Acf;
+		const LEGACY_ID  = 'bdt-acf-list';
+		const ACF_FIELDS = array( 'digitalisimo_acf_field' => 'Campo repetidor', 'digitalisimo_acf_title' => 'Subcampo del título', 'digitalisimo_acf_text' => 'Subcampo del texto', 'digitalisimo_acf_link' => 'Subcampo del enlace' );
+		protected function acf_settings( array $s ) {
+			$items = array();
+			foreach ( Acf_Source::rows( $s['digitalisimo_acf_field'] ?? '' ) as $i => $row ) {
+				// El título en negrita y el texto a continuación, como los dos elementos de Element Pack.
+				$title = trim( wp_strip_all_tags( Acf_Source::text( $row, $s['digitalisimo_acf_title'] ?? '' ) ) );
+				$body  = trim( wp_strip_all_tags( Acf_Source::text( $row, $s['digitalisimo_acf_text'] ?? '' ) ) );
+				$text  = trim( ( '' !== $title ? '<strong>' . esc_html( $title ) . '</strong> ' : '' ) . esc_html( $body ) );
+				if ( '' !== $text ) {
+					$link    = '' !== (string) ( $s['digitalisimo_acf_link'] ?? '' ) ? Acf_Source::link( $row[ $s['digitalisimo_acf_link'] ] ?? '' ) : array( 'url' => '' );
+					$items[] = array( '_id' => self::acf_item_id( $i ), 'text' => $text, 'selected_icon' => is_array( $s['list_icon'] ?? null ) ? $s['list_icon'] : array( 'value' => '', 'library' => '' ), 'link' => $link );
+				}
+			}
+			return array( 'icon_list' => $items );
+		}
+	}
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Slider_Widget' ) ) {
+	final class Bdt_AcfSlider extends \Digitalisimo\Elements\Fancy_Slider_Widget {
+		use Legacy_Adapter, Legacy_Acf;
+		const LEGACY_ID  = 'bdt-acf-slider';
+		const ACF_FIELDS = array( 'digitalisimo_acf_field' => 'Campo repetidor', 'digitalisimo_acf_title' => 'Subcampo del título', 'digitalisimo_acf_image' => 'Subcampo de la imagen', 'digitalisimo_acf_content' => 'Subcampo del contenido', 'digitalisimo_acf_link' => 'Subcampo del enlace' );
+		protected function acf_settings( array $s ) {
+			$slides = array();
+			foreach ( Acf_Source::rows( $s['digitalisimo_acf_field'] ?? '' ) as $i => $row ) {
+				$link     = '' !== (string) ( $s['digitalisimo_acf_link'] ?? '' ) ? Acf_Source::link( $row[ $s['digitalisimo_acf_link'] ] ?? '' ) : array( 'url' => '' );
+				$slides[] = array(
+					'_id'          => self::acf_item_id( $i ),
+					'title'        => trim( wp_strip_all_tags( Acf_Source::text( $row, $s['digitalisimo_acf_title'] ?? '' ) ) ),
+					'description'  => Acf_Source::text( $row, $s['digitalisimo_acf_content'] ?? '' ),
+					'slide_image'  => '' !== (string) ( $s['digitalisimo_acf_image'] ?? '' ) ? Acf_Source::image( $row[ $s['digitalisimo_acf_image'] ] ?? '' ) : array( 'url' => '' ),
+					'slide_button' => (string) ( $s['button_text'] ?? '' ),
+					'button_link'  => $link,
+				);
+			}
+			return array( 'slides' => $slides );
+		}
+	}
+}
+if ( class_exists( '\\Elementor\\Widget_Image_Gallery' ) ) {
+	final class Bdt_AcfGallery extends \Elementor\Widget_Image_Gallery {
+		use Legacy_Adapter, Legacy_Acf;
+		const LEGACY_ID  = 'bdt-acf-gallery';
+		const ACF_FIELDS = array( 'digitalisimo_acf_field' => 'Campo galería' );
+		protected function acf_settings( array $s ) {
+			$images = array();
+			foreach ( (array) Acf_Source::value( $s['digitalisimo_acf_field'] ?? '' ) as $value ) {
+				$image = Acf_Source::image( $value );
+				if ( $image['id'] || '' !== $image['url'] ) {
+					$images[] = array( 'id' => $image['id'], 'url' => $image['url'] );
+				}
+			}
+			return array( 'wp_gallery' => $images );
+		}
+	}
 }

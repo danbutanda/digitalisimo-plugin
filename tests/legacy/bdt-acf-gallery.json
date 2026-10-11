@@ -1,0 +1,14 @@
+{
+  "galeria": {
+    "field": "field_digi_ab_gallery",
+    "_acf": {
+      "field_digi_ab_gallery": [
+        "__ACF_IMAGE_1__",
+        "__ACF_IMAGE_2__"
+      ]
+    },
+    "_known": {
+      "links": "La galería de Elementor enlaza cada imagen a su archivo para abrir el lightbox; Element Pack lo abría desde un icono sin enlace"
+    }
+  }
+}
