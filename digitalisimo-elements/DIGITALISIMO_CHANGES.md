@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.126
+# DIGITALÍSIMO Elements 4.3.0.127
+
+- 4.3.0.127: adaptadores de Element Pack para Contact Form y Webhook Form sobre el formulario de PRO Elements: los mismos campos, el correo al destinatario configurado en Element Pack (o al administrador) con `Reply-To` del remitente, redirección y mensaje de éxito, y la acción webhook hacia la misma URL con los campos de seguridad del cuerpo como campos ocultos.
 
 - 4.3.0.126: la herramienta Migrar Element Pack explica el motivo y la alternativa de cada widget sin adaptador; Red → Ajustes → Migrar Element Pack resume por sitio los elementos compatibles, los widgets sin adaptador y los documentos pendientes, sin tocar ningún sitio; `wp digitalisimo-elements ep-migrate --network` muestra el inventario de toda la red.
 

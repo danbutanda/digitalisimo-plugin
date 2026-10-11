@@ -110,6 +110,8 @@ Lote 31 (4.3.0.125): ACF Accordion pasa a `digitalisimo-accordion`, ACF Tabs a `
 
 Lote 32 (4.3.0.126): informe por sitio y de red. `unsupported.php` se genera con el mapa (`scripts/legacy-decisions-doc.py`) y la herramienta muestra el motivo de cada widget sin adaptador; la pantalla de red y `--network` sólo informan, la traducción se sigue lanzando sitio por sitio.
 
+Lote 33 (4.3.0.127): Contact Form y Webhook Form pasan de DESCARTAR a ADAPTAR sobre `form`, porque el motor de formularios de PRO Elements ya trae las acciones de correo, redirección y webhook. Diferencias declaradas: el reCAPTCHA, Google Sheets y las cabeceras de seguridad del webhook no se trasladan; el asterisco de obligatorio lo pinta el CSS de PRO Elements.
+
 ## Estado de cierre (4.3.0.125)
 
 - **Decisiones:** los 263 IDs del inventario tienen decisión en [element-pack-decisions.md](element-pack-decisions.md), validada por `tests/elements-legacy-decisions.mjs` en cada publicación: 197 con adaptador publicado y 66 que no se reproducen, cada uno con su motivo. Ninguno queda «pendiente: adaptador».

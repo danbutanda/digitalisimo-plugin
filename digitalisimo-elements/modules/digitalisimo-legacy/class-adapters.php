@@ -304,6 +304,8 @@ final class Adapters {
 		'bdt-acf-list' => Bdt_AcfList::class,
 		'bdt-acf-slider' => Bdt_AcfSlider::class,
 		'bdt-acf-gallery' => Bdt_AcfGallery::class,
+		'bdt-contact-form' => Bdt_ContactForm::class,
+		'bdt-webhook-form' => Bdt_WebhookForm::class,
 	);
 
 	public static function element_pack_active() {
@@ -977,4 +979,8 @@ if ( class_exists( '\\Elementor\\Widget_Image_Gallery' ) ) {
 			return array( 'wp_gallery' => $images );
 		}
 	}
+}
+if ( class_exists( '\\ElementorPro\\Modules\\Forms\\Widgets\\Form' ) ) {
+	final class Bdt_ContactForm extends \ElementorPro\Modules\Forms\Widgets\Form { use Legacy_Adapter; const LEGACY_ID = 'bdt-contact-form'; }
+	final class Bdt_WebhookForm extends \ElementorPro\Modules\Forms\Widgets\Form { use Legacy_Adapter; const LEGACY_ID = 'bdt-webhook-form'; }
 }

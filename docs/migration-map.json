@@ -1012,7 +1012,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-contact-form": {
-      "target": null,
+      "target": "form",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -1021,11 +1021,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
-      "decision": "DESCARTAR",
-      "decision_target": "",
-      "legacy_documents": "no se reproduce",
-      "decision_reason": "Formulario simple con envío AJAX propio de Element Pack; para contenido nuevo usar el formulario de PRO Elements. El envío no puede reproducirse sin su endpoint."
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.127 adapter and the per-site reversible migration tool",
+      "decision": "ADAPTAR",
+      "decision_target": "form",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Formulario de PRO Elements con los mismos campos (name, email, contact, subject, message) y la acción de correo al destinatario configurado en Element Pack o al administrador; redirección y mensaje de éxito propios se conservan. El reCAPTCHA de Element Pack no se traslada.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-contact-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.127"
     },
     "bdt-contact-form-7": {
       "target": "shortcode",
@@ -4369,7 +4370,7 @@
       "decision_reason": "Clima desde Weatherstack u OpenWeatherMap con clave guardada en Element Pack; sin servicio no hay datos."
     },
     "bdt-webhook-form": {
-      "target": null,
+      "target": "form",
       "engine": "forms",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -4378,11 +4379,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
-      "decision": "DESCARTAR",
-      "decision_target": "",
-      "legacy_documents": "no se reproduce",
-      "decision_reason": "Formulario que envía a un webhook con el endpoint de Element Pack; el formulario de PRO Elements tiene acción webhook."
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.127 adapter and the per-site reversible migration tool",
+      "decision": "ADAPTAR",
+      "decision_target": "form",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Formulario de PRO Elements con la acción webhook hacia la misma URL (JSON opcional); los campos de seguridad del cuerpo viajan como campos ocultos. Google Sheets, las cabeceras de seguridad y el reCAPTCHA no se trasladan.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-webhook-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.127"
     },
     "bdt-wp-forms": {
       "target": "shortcode",

@@ -14,7 +14,6 @@ return array(
 	'bdt-circle-info' => 'Infografía circular animada dependiente de su script; el contenido puede pasar a pestañas propias.',
 	'bdt-circle-menu' => 'Menú circular desplegable con su script; poco accesible. Usar el Menú vertical o Icon Nav propios.',
 	'bdt-comment' => 'Comentarios de Facebook o Disqus mediante SDK externo; requiere identificadores de terceros y consentimiento.',
-	'bdt-contact-form' => 'Formulario simple con envío AJAX propio de Element Pack; para contenido nuevo usar el formulario de PRO Elements. El envío no puede reproducirse sin su endpoint.',
 	'bdt-cookie-consent' => 'Aviso de cookies por elemento; el consentimiento debe gestionarse a nivel de sitio con una herramienta dedicada.',
 	'bdt-coupon-code' => 'Cupón que se revela con su script; uso promocional puntual.',
 	'bdt-crypto-currency-card' => 'Precios de criptomonedas obtenidos por AJAX de Element Pack desde una API externa; sin servicio no hay datos.',
@@ -68,5 +67,4 @@ return array(
 	'bdt-twitter-grid' => 'Igual que Twitter Carousel.',
 	'bdt-twitter-slider' => 'Igual que Twitter Carousel.',
 	'bdt-weather' => 'Clima desde Weatherstack u OpenWeatherMap con clave guardada en Element Pack; sin servicio no hay datos.',
-	'bdt-webhook-form' => 'Formulario que envía a un webhook con el endpoint de Element Pack; el formulario de PRO Elements tiene acción webhook.',
 );

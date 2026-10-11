@@ -34,3 +34,5 @@ EXTRA_PLUGINS=woocommerce bash tests/playground/legacy-ab.sh bdt-wc-products,bdt
 ```
 
 `migration-report.sh` comprueba en Playground Multisite la pantalla de red (Red → Ajustes → Migrar Element Pack), que sólo informa por sitio y enlaza a la herramienta de cada uno, y la del sitio, que explica el motivo de cada widget sin adaptador.
+
+`form-submit.sh` envía en Playground Multisite (sin Element Pack) una página con `bdt-contact-form` y otra con `bdt-webhook-form` por el AJAX de PRO Elements en cada sitio, y comprueba el correo (destinatario, asunto, `Reply-To`, mensaje) y la petición al webhook (URL y campos).

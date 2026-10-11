@@ -1,0 +1,11 @@
+{
+  "defaults": {},
+  "completo": {
+    "contact_number": "yes",
+    "custom_text": "yes",
+    "user_name_label": "Nombre",
+    "message_label": "Mensaje",
+    "button_text": "Enviar",
+    "show_additional_message": "yes"
+  }
+}

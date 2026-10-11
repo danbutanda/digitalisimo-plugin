@@ -2,9 +2,9 @@
 
 Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.json`; `tests/elements-legacy-decisions.mjs` exige una decisión válida en cada uno de los 263 IDs del inventario.
 
-Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
+Decisiones: ADAPTAR 184, COMPARTIR 6, DESCARTAR 59, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 197, no se reproduce 66.
+Documentos heredados: adaptador publicado 199, no se reproduce 64.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -71,7 +71,7 @@ Documentos heredados: adaptador publicado 197, no se reproduce 66.
 | `bdt-circle-menu` | DESCARTAR | — | no se reproduce | Menú circular desplegable con su script; poco accesible. Usar el Menú vertical o Icon Nav propios. |
 | `bdt-comment` | DESCARTAR | — | no se reproduce | Comentarios de Facebook o Disqus mediante SDK externo; requiere identificadores de terceros y consentimiento. |
 | `bdt-comparison-list` | ADAPTAR | `digitalisimo-comparison-list` | adaptador publicado | own semantic comparison table with horizontal overflow, scoped headers and conditional CSS; editor CTAs and external links aligned in 4.3.0.79; multisite runtime verified; accordion skins, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool |
-| `bdt-contact-form` | DESCARTAR | — | no se reproduce | Formulario simple con envío AJAX propio de Element Pack; para contenido nuevo usar el formulario de PRO Elements. El envío no puede reproducirse sin su endpoint. |
+| `bdt-contact-form` | ADAPTAR | `form` | adaptador publicado | Formulario de PRO Elements con los mismos campos (name, email, contact, subject, message) y la acción de correo al destinatario configurado en Element Pack o al administrador; redirección y mensaje de éxito propios se conservan. El reCAPTCHA de Element Pack no se traslada. |
 | `bdt-contact-form-7` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-content-switcher` | ADAPTAR | `digitalisimo-content-switcher` | adaptador publicado | own accessible tab switcher with keyboard navigation and instance isolation; all editor panels and icons aligned in 4.3.0.83; multisite runtime verified; template, linked sections, price cards, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool |
 | `bdt-cookie-consent` | DESCARTAR | — | no se reproduce | Aviso de cookies por elemento; el consentimiento debe gestionarse a nivel de sitio con una herramienta dedicada. |
@@ -271,7 +271,7 @@ Documentos heredados: adaptador publicado 197, no se reproduce 66.
 | `bdt-wc-slider` | ADAPTAR | `woocommerce-products` | adaptador publicado | Slider de productos hacia Products de PRO Elements. |
 | `bdt-we-form` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-weather` | DESCARTAR | — | no se reproduce | Clima desde Weatherstack u OpenWeatherMap con clave guardada en Element Pack; sin servicio no hay datos. |
-| `bdt-webhook-form` | DESCARTAR | — | no se reproduce | Formulario que envía a un webhook con el endpoint de Element Pack; el formulario de PRO Elements tiene acción webhook. |
+| `bdt-webhook-form` | ADAPTAR | `form` | adaptador publicado | Formulario de PRO Elements con la acción webhook hacia la misma URL (JSON opcional); los campos de seguridad del cuerpo viajan como campos ocultos. Google Sheets, las cabeceras de seguridad y el reCAPTCHA no se trasladan. |
 | `bdt-wp-forms` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-wpdatatable` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `fooevents-calendar` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |

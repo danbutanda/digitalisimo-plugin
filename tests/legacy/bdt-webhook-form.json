@@ -1,0 +1,8 @@
+{
+  "defaults": {
+    "webhook_url": "https://example.com/hook",
+    "_known": {
+      "text": "PRO Elements marca los campos obligatorios con un asterisco por CSS; Element Pack lo escribía como texto"
+    }
+  }
+}

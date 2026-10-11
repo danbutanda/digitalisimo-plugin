@@ -10,6 +10,9 @@ namespace {
 	function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8', false ); }
 	function esc_url( $v ) { return (string) $v; }
 	function wp_kses_post( $v ) { return strip_tags( (string) $v, '<p><a><strong><em>' ); }
+	function sanitize_key( $v ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $v ) ); }
+	function get_option( $k, $d = false ) { return 'element_pack_api_settings' === $k ? array( 'contact_form_email' => 'ventas@example.com' ) : $d; }
+	function is_email( $v ) { return false !== strpos( (string) $v, '@' ); }
 	function check_adapter( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
 	$base = __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-legacy/';
@@ -319,6 +322,15 @@ namespace {
 	// Un widget ACF nunca pasa al widget propio al migrar: sus elementos se leen de ACF en cada render.
 	list( , $acf_state ) = Migration::convert_element( array( 'widgetType' => 'bdt-acf-accordion', 'settings' => array( 'field' => 'field_faq' ) ), array( 'tabs' => array(), 'title_html_tag' => array() ) );
 	check_adapter( 'adapter' === $acf_state, 'Los widgets ACF siguen en su adaptador tras migrar.' );
+
+	$cf = Translator::translate( 'bdt-contact-form', array( 'contact_number' => 'yes', 'custom_text' => 'yes', 'user_name_label' => 'Nombre', 'redirect_after_submit' => 'yes', 'redirect_url' => array( 'url' => 'https://x.test/gracias' ), 'custom_success_message' => 'yes', 'success_message' => 'Gracias [name], te respondemos pronto.' ) );
+	$cf_ids = array_column( $cf['form_fields'], 'custom_id' );
+	check_adapter( array( 'name', 'email', 'contact', 'subject', 'message' ) === $cf_ids && 'Nombre' === $cf['form_fields'][0]['field_label'] && 'tel' === $cf['form_fields'][2]['field_type'] && array( 'email', 'redirect' ) === $cf['submit_actions'] && 'ventas@example.com' === $cf['email_to'] && '[field id="subject"]' === $cf['email_subject'] && 'email' === $cf['email_reply_to'] && 'https://x.test/gracias' === $cf['redirect_to'] && 'Gracias , te respondemos pronto.' === $cf['success_message'] && ! isset( $cf['user_name_label'] ), 'Contact Form es el formulario de PRO Elements con correo y redirección.' );
+	$wf = Translator::translate( 'bdt-webhook-form', array( 'webhook_url' => 'https://example.com/hook', 'send_as_json' => 'yes' ) );
+	$wids = array_column( $wf['form_fields'], 'custom_id' );
+	check_adapter( array( 'full_name', 'email' ) === $wids && 'true' === $wf['form_fields'][0]['required'] && array( 'webhook' ) === $wf['submit_actions'] && 'https://example.com/hook' === $wf['webhooks'] && 'yes' === $wf['webhooks_advanced_data'] && 'yes' === $wf['mark_required'] && ! isset( $wf['secuirty_fields'] ), 'Webhook Form es el formulario de PRO Elements con la acción webhook.' );
+	$ws = Translator::translate( 'bdt-webhook-form', array( 'webhook_url' => 'https://example.com/hook', 'secuirty_fields' => array( array( 'security_field_name' => 'token', 'security_field_value' => 'abc', 'security_data_position' => 'body' ), array( 'security_field_name' => 'X-Auth', 'security_field_value' => '1', 'security_data_position' => 'header' ) ) ) );
+	check_adapter( 'hidden' === end( $ws['form_fields'] )['field_type'] && 'token' === end( $ws['form_fields'] )['custom_id'] && 3 === count( $ws['form_fields'] ), 'Los campos de seguridad del cuerpo viajan como campos ocultos; las cabeceras no.' );
 
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
