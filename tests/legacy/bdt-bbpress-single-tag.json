@@ -3,7 +3,8 @@
     "bbpress_topic_tag_id": "__BBP_TAG__",
     "_known": {
       "text": "Las plantillas de bbPress repiten paginación y avatar y titulan la etiqueta con su nombre; Element Pack los mostraba una vez",
-      "images": "Las plantillas de bbPress repiten el avatar del autor"
+      "images": "Las plantillas de bbPress repiten el avatar del autor",
+      "links": "Las plantillas de bbPress enlazan al autor desde el avatar y desde el nombre"
     }
   }
 }

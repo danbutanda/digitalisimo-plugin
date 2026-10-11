@@ -2,7 +2,7 @@
 
 Este documento es el punto de entrada para cualquier agente que continúe la migración. El objetivo es incorporar **los widgets útiles de Element Pack Pro** a `digitalisimo-elements` como componentes propios, funcionalmente completos y optimizados desde su arquitectura, sin romper Elementor, las páginas existentes ni el Slider Optimizado. DIGITALÍSIMO SEO puede optimizar después la salida pública, pero un widget de Elements debe ser correcto, accesible y eficiente por sí mismo.
 
-La petición del usuario es terminar primero el bloque prioritario de [63 componentes](element-pack-priority.md) (53 widgets y 10 extensiones), y después continuar con los restantes del [inventario de 263 IDs Elementor](element-pack-inventory.md). El orden interno puede agrupar componentes que comparten motor, pero no sustituir esta prioridad por una puntuación técnica. El trabajo **no está terminado**: existen bases propias de algunos widgets, pero la equivalencia completa, la migración de documentos legacy y la validación real en WordPress siguen pendientes.
+La petición del usuario es terminar primero el bloque prioritario de [63 componentes](element-pack-priority.md) (53 widgets y 10 extensiones), y después continuar con los restantes del [inventario de 263 IDs Elementor](element-pack-inventory.md). El orden interno puede agrupar componentes que comparten motor, pero no sustituir esta prioridad por una puntuación técnica. Desde 4.3.0.125 el **criterio de cierre está cumplido**: los 63 componentes prioritarios y los 210 restantes tienen decisión y validación verificables (véase «Estado de cierre» al final). Lo que sigue son mejoras de paridad sobre las diferencias declaradas, no adaptadores pendientes.
 
 ## Fuente, alcance y procedencia
 
@@ -108,7 +108,14 @@ Lote 30 (4.3.0.124): Dynamic Grid pasa a `loop-grid`, Dynamic Carousel a `loop-c
 
 Lote 31 (4.3.0.125): ACF Accordion pasa a `digitalisimo-accordion`, ACF Tabs a `digitalisimo-fancy-tabs`, ACF List a `icon-list`, ACF Slider a `digitalisimo-fancy-slider` y ACF Gallery a `image-gallery` (ADAPTAR). El trait `Legacy_Acf` convierte en cada render el valor de ACF (`Acf_Source`, que respeta las páginas de opciones como Element Pack) en los elementos del widget de destino; por eso la migración los deja siempre en su adaptador y los datos siguen viviendo en ACF. Diferencias declaradas: flechas y pestañas son botones, la galería abre el lightbox de Elementor desde el enlace al archivo y el texto alternativo de las imágenes es el de la biblioteca.
 
-## Siguiente tramo recomendado
+## Estado de cierre (4.3.0.125)
+
+- **Decisiones:** los 263 IDs del inventario tienen decisión en [element-pack-decisions.md](element-pack-decisions.md), validada por `tests/elements-legacy-decisions.mjs` en cada publicación: 197 con adaptador publicado y 66 que no se reproducen, cada uno con su motivo. Ninguno queda «pendiente: adaptador».
+- **Documentos existentes:** un documento con widgets `bdt-*` se sigue viendo sin Element Pack gracias a los adaptadores, y la migración por sitio (respaldo, previsualización y reversión) traduce sus ajustes. Los widgets ACF y los que necesitan controles propios siguen siempre en su adaptador.
+- **Validación de regresión (2026-10-11):** A/B Multisite completo con Element Pack 9.9.1 en las 187 fixtures de `tests/legacy/`, con `FAKE_PLUGINS=1 EXTRA_PLUGINS=woocommerce,secure-custom-fields`: las 526 combinaciones coincidieron con las diferencias declaradas. Los 12 widgets de bbPress se validaron aparte con `EXTRA_PLUGINS=bbpress`, y las listas una por una, porque bbPress conserva estado entre shortcodes del mismo proceso: 24 combinaciones coincidieron.
+- **Trabajo opcional posterior:** reducir las diferencias declaradas en cada lote (animaciones, carruseles presentados como rejilla, tablas de WooCommerce, marcadores múltiples del mapa…), comparar capturas en navegador y convertir las reglas de visibilidad heredadas al formato nativo de Display Conditions. Ninguna de esas tareas bloquea retirar Element Pack.
+
+## Historial de tramos anteriores
 
 En 4.3.0.72 el Separador avanzado incorpora cruz y estrella centrales con SVG propio y controles responsivos. La [prueba instalada en Playground](measurements/2026-10-09-elements-playground.md) confirmó registro en WordPress normal, activación por sitio y activación de red Multisite, y renderizado de Accordion, Advanced Button y Advanced Divider en el sitio principal y un subsitio. Esto cierra la incertidumbre de carga frontend básica de esos tres widgets; siguen pendientes editor, comparación visual, variantes restantes y conversión de documentos legacy.
 
