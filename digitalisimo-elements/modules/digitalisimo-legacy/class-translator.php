@@ -131,6 +131,19 @@ final class Translator {
 		return $out;
 	}
 
+	/** Consulta de Element Pack (`posts_*`) en los widgets Loop de PRO Elements (`post_query_*`). */
+	public static function loop_query( array $out ) {
+		$out = self::posts_query( $out );
+		foreach ( array_keys( $out ) as $key ) {
+			if ( 0 === strpos( $key, 'posts_' ) && 'posts_per_page' !== $key ) {
+				$out[ 'post_query_' . substr( $key, 6 ) ] = $out[ $key ];
+				unset( $out[ $key ] );
+			}
+		}
+		$out['_skin'] = 'post';
+		return $out;
+	}
+
 	/**
 	 * Consulta y presentación de una rejilla de productos de Element Pack en `woocommerce-products`.
 	 * `$spec` nombra los ajustes de cada widget: per_page, columns, title, title_tag, rating, price,

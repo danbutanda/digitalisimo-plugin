@@ -23,7 +23,7 @@ namespace {
 	check_adapter( in_array( 'bdt-accordion', $ids, true ) && ! preg_grep( '/\.styles$/', $ids ), 'Los mapas deben listarse sin los archivos de estilos.' );
 	foreach ( $ids as $id ) {
 		$map = Translator::map( $id );
-		check_adapter( is_array( $map ) && preg_match( '/^[a-z][a-z0-9-]*$/', (string) $map['target'] ) && 0 !== strpos( (string) $map['target'], 'bdt-' ), 'Mapa inválido: ' . $id );
+		check_adapter( is_array( $map ) && preg_match( '/^[a-z][a-z0-9_-]*$/', (string) $map['target'] ) && 0 !== strpos( (string) $map['target'], 'bdt-' ), 'Mapa inválido: ' . $id );
 		foreach ( Translator::styles( $id ) as $control ) {
 			$css = wp_json_encode_stub( $control );
 			check_adapter( ! empty( $control['name'] ) && false === strpos( $css, '.bdt-' ), 'Estilo con clase de Element Pack en ' . $id . ': ' . $control['name'] );
@@ -300,6 +300,14 @@ namespace {
 	check_adapter( '20' === $wa['product_id'] && 'row-reverse' === $wa['icon_align'], 'Add to Cart recibe el ID del producto.' );
 	$wm = Translator::translate( 'bdt-wc-mini-cart', array( 'offcanvas_flip' => 'yes', 'show_cart_badge' => '' ) );
 	check_adapter( 'side-cart' === $wm['cart_type'] && 'end' === $wm['side_cart_alignment'] && 'none' === $wm['items_indicator'] && 'yes' === $wm['show_subtotal'], 'Mini Cart es el carrito lateral de PRO Elements.' );
+
+	$dg = Translator::translate( 'bdt-dynamic-grid', array( 'template_id' => '7', 'posts_source' => 'page' ) );
+	check_adapter( 'post' === $dg['_skin'] && 'page' === $dg['post_query_post_type'] && 6 === $dg['posts_per_page'] && '7' === $dg['template_id'] && ! isset( $dg['posts_source'] ), 'Dynamic Grid consulta como el Loop Grid.' );
+	$dc = Translator::translate( 'bdt-dynamic-carousel', array( 'template_id' => '7', 'navigation' => 'both' ) );
+	check_adapter( '3' === $dc['slides_to_show'] && 'yes' === $dc['arrows'] && 'bullets' === $dc['pagination'] && 'yes' === $dc['autoplay'] && 'yes' === $dc['infinite'] && ! isset( $dc['navigation'] ), 'Dynamic Carousel usa el carrusel del Loop.' );
+
+	$gm = Translator::translate( 'bdt-advanced-gmap', array( 'avd_google_map_height' => array( 'size' => 300, 'unit' => 'px' ) ) );
+	check_adapter( '24.8248746,89.3826299' === $gm['address'] && 15 === $gm['zoom']['size'] && 300 === $gm['height']['size'] && ! isset( $gm['marker'] ), 'Advanced GMap es el mapa de Elementor en el primer marcador.' );
 
 	// Migración: al widget propio sólo si todos los ajustes existen allí.
 	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );

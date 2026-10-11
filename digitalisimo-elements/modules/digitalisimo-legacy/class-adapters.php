@@ -292,6 +292,9 @@ final class Adapters {
 		'bdt-wc-slider' => Bdt_WcSlider::class,
 		'bdt-wc-add-to-cart' => Bdt_WcAddToCart::class,
 		'bdt-wc-mini-cart' => Bdt_WcMiniCart::class,
+		'bdt-dynamic-grid' => Bdt_DynamicGrid::class,
+		'bdt-dynamic-carousel' => Bdt_DynamicCarousel::class,
+		'bdt-advanced-gmap' => Bdt_AdvancedGmap::class,
 	);
 
 	public static function element_pack_active() {
@@ -829,4 +832,45 @@ if ( class_exists( '\\ElementorPro\\Modules\\Woocommerce\\Widgets\\Add_To_Cart' 
 }
 if ( class_exists( '\\ElementorPro\\Modules\\Woocommerce\\Widgets\\Menu_Cart' ) ) {
 	final class Bdt_WcMiniCart extends \ElementorPro\Modules\Woocommerce\Widgets\Menu_Cart { use Legacy_Adapter; const LEGACY_ID = 'bdt-wc-mini-cart'; }
+}
+if ( class_exists( '\\ElementorPro\\Modules\\LoopBuilder\\Skins\\Skin_Loop_Post' ) ) {
+	/**
+	 * Piel «post» de los adaptadores dinámicos: Element Pack admitía cualquier plantilla de Elementor
+	 * (no sólo «Loop Item»), así que cada entrada imprime la plantilla elegida como lo hacía él, dentro
+	 * del elemento de bucle (y de la diapositiva en el carrusel) que esperan los estilos y scripts del Loop.
+	 */
+	class Loop_Template_Skin extends \ElementorPro\Modules\LoopBuilder\Skins\Skin_Loop_Post {
+		protected function render_post() {
+			$template = (int) $this->parent->get_settings_for_display( 'template_id' );
+			if ( ! $template || ! class_exists( '\\Elementor\\Plugin' ) ) {
+				return;
+			}
+			$slide = $this->parent instanceof \ElementorPro\Modules\LoopBuilder\Widgets\Loop_Carousel;
+			$class = 'e-loop-item e-loop-item-' . get_the_ID() . ' ' . implode( ' ', get_post_class() ) . ( $slide ? ' swiper-slide' : '' );
+			echo '<div class="' . esc_attr( $class ) . '"' . ( $slide ? ' role="group" aria-roledescription="slide"' : '' ) . '>';
+			echo \Elementor\Plugin::$instance->frontend->get_builder_content_for_display( $template, true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- contenido de Elementor.
+			echo '</div>';
+		}
+	}
+	if ( class_exists( '\\ElementorPro\\Modules\\LoopBuilder\\Widgets\\Loop_Grid' ) ) {
+		final class Bdt_DynamicGrid extends \ElementorPro\Modules\LoopBuilder\Widgets\Loop_Grid {
+			use Legacy_Adapter;
+			const LEGACY_ID = 'bdt-dynamic-grid';
+			protected function register_skins() {
+				$this->add_skin( new Loop_Template_Skin( $this ) );
+			}
+		}
+	}
+	if ( class_exists( '\\ElementorPro\\Modules\\LoopBuilder\\Widgets\\Loop_Carousel' ) ) {
+		final class Bdt_DynamicCarousel extends \ElementorPro\Modules\LoopBuilder\Widgets\Loop_Carousel {
+			use Legacy_Adapter;
+			const LEGACY_ID = 'bdt-dynamic-carousel';
+			protected function register_skins() {
+				$this->add_skin( new Loop_Template_Skin( $this ) );
+			}
+		}
+	}
+}
+if ( class_exists( '\\Elementor\\Widget_Google_Maps' ) ) {
+	final class Bdt_AdvancedGmap extends \Elementor\Widget_Google_Maps { use Legacy_Adapter; const LEGACY_ID = 'bdt-advanced-gmap'; }
 }

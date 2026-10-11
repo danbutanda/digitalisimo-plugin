@@ -1,0 +1,14 @@
+{
+  "sin_clave": {
+    "_expect_html": ["maps.google.com/maps?q=24.8248746%2C89.3826299"],
+    "_known": {
+      "text": "Sin clave de API, Element Pack sólo mostraba un aviso para configurarla; el mapa de Elementor no la necesita",
+      "links": "El aviso de Element Pack enlazaba a sus ajustes de API"
+    }
+  },
+  "con_clave": {
+    "_options": { "element_pack_api_settings": { "google_map_key": "digi-ab-key" } },
+    "avd_google_map_default_zoom": { "size": 9 },
+    "_expect_html": ["maps.google.com/maps?q=24.8248746%2C89.3826299", "z=9&"]
+  }
+}

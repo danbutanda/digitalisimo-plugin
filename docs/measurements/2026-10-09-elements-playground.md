@@ -105,3 +105,5 @@ Adaptadores 4.3.0.121: el A/B cubrió los ocho widgets por defecto en el sitio p
 Adaptadores 4.3.0.122: el A/B cubrió las tres reseñas y Scrollnav por defecto en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas. Los testimonios se validaron con pruebas unitarias porque requieren BdThemes Testimonials.
 
 Adaptadores 4.3.0.123: A/B con WooCommerce real en el sitio principal y el subsitio (4 productos, uno destacado y otro en oferta) para WC Products (rejilla, destacados y tabla con extracto), WC Carousel, WC Slider (con y sin texto), WC Add to Cart (con y sin cantidad), WC Mini Cart (izquierda y derecha) y Product Carousel; todas las combinaciones coincidieron con las diferencias declaradas.
+
+Adaptadores 4.3.0.124: A/B de Dynamic Grid y Dynamic Carousel con la plantilla de prueba en tres entradas, y de Advanced GMap sin clave y con clave de API (opción fijada sólo durante el caso), en el sitio principal y el subsitio; todas las combinaciones coincidieron con las diferencias declaradas.

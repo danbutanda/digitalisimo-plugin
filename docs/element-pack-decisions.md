@@ -4,7 +4,7 @@ Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.j
 
 Decisiones: ADAPTAR 182, COMPARTIR 6, DESCARTAR 61, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 189, no se reproduce 66, pendiente: adaptador 8.
+Documentos heredados: adaptador publicado 192, no se reproduce 66, pendiente: adaptador 5.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -23,7 +23,7 @@ Documentos heredados: adaptador publicado 189, no se reproduce 66, pendiente: ad
 | `bdt-advanced-calculator` | DESCARTAR | — | no se reproduce | Calculadora basada en fórmulas propias de Element Pack evaluadas con su script; no hay un motor equivalente seguro sin reimplementar el evaluador. Para contenido nuevo: formulario de PRO Elements con campos calculados o un plugin de calculadoras. |
 | `bdt-advanced-counter` | ADAPTAR | `counter` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool |
 | `bdt-advanced-divider` | ADAPTAR | `digitalisimo-advanced-divider` | adaptador publicado | independent decorative widget with responsive circle, cross and star symbols and WordPress-managed image loading; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.72; remaining legacy shape parity, SVG animation and editor/browser comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
-| `bdt-advanced-gmap` | COMPARTIR | `google_maps` | pendiente: adaptador | Mapa de Google con marcadores y estilos; Elementor ofrece el mapa por dirección. Adaptador previsto para el primer marcador. |
+| `bdt-advanced-gmap` | COMPARTIR | `google_maps` | adaptador publicado | Mapa de Google con marcadores y estilos; Elementor ofrece el mapa por dirección. Adaptador previsto para el primer marcador. |
 | `bdt-advanced-heading` | ADAPTAR | `digitalisimo-advanced-heading` | adaptador publicado | new semantic widget with responsive decoration sizing and offsets and optional Elementor typography per part since 4.3.0.73; main-site and subsite frontend render checked in Multisite; advanced effects, legacy adapter, editor and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
 | `bdt-advanced-icon-box` | ADAPTAR | `digitalisimo-advanced-icon-box` | adaptador publicado | new semantic widget with editor link and informative-image accessibility parity, optional per-part typography and card shadow since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; legacy control parity, effects and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
 | `bdt-advanced-image-gallery` | ADAPTAR | `image-gallery` | adaptador publicado | Galería de imágenes con lightbox: la galería de PRO Elements cubre rejilla, justificada y masonry. |
@@ -94,8 +94,8 @@ Documentos heredados: adaptador publicado 189, no se reproduce 66, pendiente: ad
 | `bdt-download-monitor` | ADAPTAR | `shortcode` | adaptador publicado | Botón de descarga de Download Monitor; el shortcode [download id] del plugin muestra el mismo enlace. |
 | `bdt-dropbar` | ADAPTAR | `digitalisimo-offcanvas` | adaptador publicado | Botón que despliega contenido o plantilla; el Panel lateral propio cubre plantilla y texto. |
 | `bdt-dual-button` | ADAPTAR | `digitalisimo-dual-button` | adaptador publicado | own two-link widget with optional icons and separator; editor link/icon parity, safe external links and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.77; onclick effects, visual parity and legacy adapter pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool |
-| `bdt-dynamic-carousel` | ADAPTAR | `loop-carousel` | pendiente: adaptador | Carrusel con plantilla de bucle; el carrusel de bucle de PRO Elements usa plantillas equivalentes. |
-| `bdt-dynamic-grid` | ADAPTAR | `loop-grid` | pendiente: adaptador | Rejilla con plantilla de bucle; la rejilla de bucle de PRO Elements la cubre. |
+| `bdt-dynamic-carousel` | ADAPTAR | `loop-carousel` | adaptador publicado | Carrusel con plantilla de bucle; el carrusel de bucle de PRO Elements usa plantillas equivalentes. |
+| `bdt-dynamic-grid` | ADAPTAR | `loop-grid` | adaptador publicado | Rejilla con plantilla de bucle; la rejilla de bucle de PRO Elements la cubre. |
 | `bdt-easy-digital-download-history` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-easy-digital-profile-editor` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-easy-digital-purchase-history` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |

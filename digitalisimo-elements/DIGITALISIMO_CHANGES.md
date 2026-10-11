@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.123
+# DIGITALÍSIMO Elements 4.3.0.124
+
+- 4.3.0.124: adaptadores de Element Pack para Dynamic Grid y Dynamic Carousel (Loop Grid y Loop Carousel de PRO Elements con una piel que imprime cualquier plantilla de Elementor por entrada) y Advanced GMap (mapa de Google de Elementor en el primer marcador), con estilos heredados y migración reversible.
 
 - 4.3.0.123: adaptadores de Element Pack para WC Products, WC Carousel y WC Slider (rejilla de productos de PRO Elements con el número exacto de productos y las partes visibles del widget heredado), WC Add to Cart, WC Mini Cart (carrito lateral de PRO Elements) y Product Carousel (deslizador propio, que gana la imagen «Arriba»), con estilos heredados y migración reversible.
 

@@ -72,7 +72,14 @@ foreach ( array( 1, 2 ) as $blog ) {
 			$section     = (array) ( $settings['_section'] ?? array() );
 			$known      = (array) ( $settings['_known'] ?? array() );
 			$type       = (string) ( $settings['_widget'] ?? $widget );
-			unset( $settings['_expect_css'], $settings['_expect_html'], $settings['_known'], $settings['_widget'], $settings['_section'] );
+			// Opciones del sitio sólo durante este caso (claves de API de Element Pack…).
+			$options    = (array) ( $settings['_options'] ?? array() );
+			$previous   = array();
+			foreach ( $options as $option => $value ) {
+				$previous[ $option ] = get_option( $option, null );
+				update_option( $option, $value );
+			}
+			unset( $settings['_expect_css'], $settings['_expect_html'], $settings['_known'], $settings['_widget'], $settings['_section'], $settings['_options'] );
 			// Marcadores «__X__»: IDs del contenido de prueba de este sitio.
 			$template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
 			$sample   = get_page_by_path( 'digi-ab-post-1', OBJECT, 'post' );
@@ -137,6 +144,9 @@ foreach ( array( 1, 2 ) as $blog ) {
 				}
 			}
 			$result['widgets'][ $widget ][ $case ][ $blog ] = $entry;
+			foreach ( $previous as $option => $value ) {
+				null === $value ? delete_option( $option ) : update_option( $option, $value );
+			}
 			wp_reset_postdata();
 		}
 	}

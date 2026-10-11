@@ -198,7 +198,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-advanced-gmap": {
-      "target": null,
+      "target": "google_maps",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -207,11 +207,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.124 adapter and the per-site reversible migration tool",
       "decision": "COMPARTIR",
       "decision_target": "google_maps",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Mapa de Google con marcadores y estilos; Elementor ofrece el mapa por dirección. Adaptador previsto para el primer marcador."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Mapa de Google con marcadores y estilos; Elementor ofrece el mapa por dirección. Adaptador previsto para el primer marcador.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-gmap.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.124"
     },
     "bdt-advanced-heading": {
       "target": "digitalisimo-advanced-heading",
@@ -1393,7 +1394,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-dynamic-carousel": {
-      "target": null,
+      "target": "loop-carousel",
       "engine": "carousel",
       "classification": "B - ENGINE DERIVATIVE",
       "user_priority_tier": 2,
@@ -1402,14 +1403,15 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.124 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "loop-carousel",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Carrusel con plantilla de bucle; el carrusel de bucle de PRO Elements usa plantillas equivalentes."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Carrusel con plantilla de bucle; el carrusel de bucle de PRO Elements usa plantillas equivalentes.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-dynamic-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.124"
     },
     "bdt-dynamic-grid": {
-      "target": null,
+      "target": "loop-grid",
       "engine": "query",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -1418,11 +1420,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.124 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "loop-grid",
-      "legacy_documents": "pendiente: adaptador",
-      "decision_reason": "Rejilla con plantilla de bucle; la rejilla de bucle de PRO Elements la cubre."
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Rejilla con plantilla de bucle; la rejilla de bucle de PRO Elements la cubre.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-dynamic-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.124"
     },
     "bdt-edd-cart": {
       "target": "shortcode",
