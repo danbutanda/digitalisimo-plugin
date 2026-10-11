@@ -2656,7 +2656,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-mailchimp": {
-      "target": null,
+      "target": "form",
       "engine": "content-and-layout",
       "classification": "C - INTEGRATION",
       "user_priority_tier": 2,
@@ -2665,11 +2665,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
-      "decision": "DESCARTAR",
-      "decision_target": "",
-      "legacy_documents": "no se reproduce",
-      "decision_reason": "Suscripción con la API de Mailchimp guardada en ajustes de Element Pack; usar Mailchimp for WP (adaptado por shortcode) o el formulario de PRO Elements con su integración."
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.128 adapter and the per-site reversible migration tool",
+      "decision": "ADAPTAR",
+      "decision_target": "form",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Formulario de PRO Elements con la acción Mailchimp: la clave de API y la audiencia que Element Pack guardaba en sus ajustes pasan a la acción como clave personalizada, y el correo y el nombre se asignan a EMAIL y FNAME. El icono previo y el texto de éxito propio no se trasladan.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-mailchimp.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.128"
     },
     "bdt-mailchimp-for-wp": {
       "target": "shortcode",
@@ -2687,7 +2688,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-marker": {
-      "target": null,
+      "target": "hotspot",
       "engine": "content-and-layout",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -2696,11 +2697,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
-      "decision": "DESCARTAR",
-      "decision_target": "",
-      "legacy_documents": "no se reproduce",
-      "decision_reason": "Marcadores sobre una imagen con tooltips; PRO Elements incluye Hotspot para contenido nuevo."
+      "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.128 adapter and the per-site reversible migration tool",
+      "decision": "ADAPTAR",
+      "decision_target": "hotspot",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "Hotspot de PRO Elements con cada marcador en la misma posición (% desde arriba y la izquierda), su icono o texto, su enlace y su tooltip (posición, clic o siempre visible). La leyenda de la imagen, el enlace al lightbox y los marcadores de imagen no se trasladan.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-marker.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.128"
     },
     "bdt-marquee": {
       "target": "digitalisimo-marquee",

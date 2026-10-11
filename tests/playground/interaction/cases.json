@@ -1,0 +1,38 @@
+{
+  "bdt-accordion": {},
+  "bdt-tabs": {},
+  "bdt-static-carousel": {},
+  "bdt-custom-carousel": {
+    "slides": [
+      {
+        "_id": "ix1",
+        "type": "image",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        }
+      },
+      {
+        "_id": "ix2",
+        "type": "image",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        }
+      },
+      {
+        "_id": "ix3",
+        "type": "image",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        }
+      },
+      {
+        "_id": "ix4",
+        "type": "image",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        }
+      }
+    ]
+  },
+  "bdt-offcanvas": {}
+}

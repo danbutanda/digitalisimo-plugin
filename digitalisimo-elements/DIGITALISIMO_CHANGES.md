@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.127
+# DIGITALÍSIMO Elements 4.3.0.128
+
+- 4.3.0.128: adaptadores de Element Pack para Mailchimp (formulario de PRO Elements con su acción Mailchimp, clave y audiencia tomadas de los ajustes de Element Pack) y Marker (Hotspot de PRO Elements con cada marcador en su posición); el panel lateral renombra su ajuste `animation` a `panel_animation` (Elementor trataba el anterior como animación de entrada y dejaba el widget oculto en el navegador) y corrige los documentos guardados al cargarlos; nueva prueba de interacción en Chrome (`tests/playground/interaction.sh`).
 
 - 4.3.0.127: adaptadores de Element Pack para Contact Form y Webhook Form sobre el formulario de PRO Elements: los mismos campos, el correo al destinatario configurado en Element Pack (o al administrador) con `Reply-To` del remitente, redirección y mensaje de éxito, y la acción webhook hacia la misma URL con los campos de seguridad del cuerpo como campos ocultos.
 

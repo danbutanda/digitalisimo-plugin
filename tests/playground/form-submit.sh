@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Envío de Contact Form y Webhook Form heredados por el AJAX de PRO Elements (Playground Multisite, sin Element Pack).
+# Envío de Contact Form, Webhook Form y Mailchimp heredados por el AJAX de PRO Elements (Playground Multisite, sin Element Pack).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="${OUT:-/tmp/digi-form-submit}"
@@ -21,6 +21,10 @@ for (const blog of ["1", "2"]) {
   if (!s["bdt-contact-form"]?.success || !s["bdt-webhook-form"]?.success) throw new Error("envío sin éxito en el sitio " + blog + ": " + JSON.stringify(s));
   if (!s.mail?.has_message || !/Consulta/.test(s.mail.subject) || !/ana@example.com/.test(s.mail.reply_to)) throw new Error("correo incompleto en el sitio " + blog + ": " + JSON.stringify(s.mail));
   if (s.webhook?.url !== "https://example.com/hook" || !JSON.stringify(s.webhook.body).includes("Ana")) throw new Error("webhook incompleto en el sitio " + blog + ": " + JSON.stringify(s.webhook));
+  if (!s["bdt-mailchimp"]?.success) throw new Error("Mailchimp sin éxito en el sitio " + blog + ": " + JSON.stringify(s["bdt-mailchimp"]));
+  const calls = s.mailchimp || [];
+  const put = calls.find((c) => /us1\.api\.mailchimp\.com\/3\.0\/lists\/L1\/members\//.test(c.url) && /PUT|POST|PATCH/.test(c.method));
+  if (!put || !JSON.stringify(put.body).includes("ana@example.com") || !JSON.stringify(put.body).includes("FNAME") || !JSON.stringify(put.body).includes("Ana")) throw new Error("Mailchimp incompleto en el sitio " + blog + ": " + JSON.stringify(calls));
 }
-console.log("Envío de Contact Form y Webhook Form heredados validado en los dos sitios.");
+console.log("Envío de Contact Form, Webhook Form y Mailchimp heredados validado en los dos sitios.");
 ' "$OUT/result.json"

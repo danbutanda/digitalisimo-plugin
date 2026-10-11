@@ -2,9 +2,9 @@
 
 Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.json`; `tests/elements-legacy-decisions.mjs` exige una decisión válida en cada uno de los 263 IDs del inventario.
 
-Decisiones: ADAPTAR 184, COMPARTIR 6, DESCARTAR 59, RECONSTRUIR 14.
+Decisiones: ADAPTAR 186, COMPARTIR 6, DESCARTAR 57, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 199, no se reproduce 64.
+Documentos heredados: adaptador publicado 201, no se reproduce 62.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -167,9 +167,9 @@ Documentos heredados: adaptador publicado 199, no se reproduce 64.
 | `bdt-logo-grid` | ADAPTAR | `digitalisimo-logo-grid` | adaptador publicado | independent CSS grid widget; WordPress controls image loading and external links are protected since 4.3.0.90; installed multisite rendering verified; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-lottie-icon-box` | ADAPTAR | `lottie` | adaptador publicado | Caja con animación Lottie, título y texto; la animación pasa al widget Lottie. |
 | `bdt-lottie-image` | ADAPTAR | — | adaptador publicado | share existing ElementorPro Lottie widget for new content; legacy control conversion and parity pending; no duplicate player; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool |
-| `bdt-mailchimp` | DESCARTAR | — | no se reproduce | Suscripción con la API de Mailchimp guardada en ajustes de Element Pack; usar Mailchimp for WP (adaptado por shortcode) o el formulario de PRO Elements con su integración. |
+| `bdt-mailchimp` | ADAPTAR | `form` | adaptador publicado | Formulario de PRO Elements con la acción Mailchimp: la clave de API y la audiencia que Element Pack guardaba en sus ajustes pasan a la acción como clave personalizada, y el correo y el nombre se asignan a EMAIL y FNAME. El icono previo y el texto de éxito propio no se trasladan. |
 | `bdt-mailchimp-for-wp` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
-| `bdt-marker` | DESCARTAR | — | no se reproduce | Marcadores sobre una imagen con tooltips; PRO Elements incluye Hotspot para contenido nuevo. |
+| `bdt-marker` | ADAPTAR | `hotspot` | adaptador publicado | Hotspot de PRO Elements con cada marcador en la misma posición (% desde arriba y la izquierda), su icono o texto, su enlace y su tooltip (posición, clic o siempre visible). La leyenda de la imagen, el enlace al lightbox y los marcadores de imagen no se trasladan. |
 | `bdt-marquee` | RECONSTRUIR | `digitalisimo-marquee` | adaptador publicado | Texto o imágenes en movimiento continuo; se reconstruye con CSS y pausa accesible. |
 | `bdt-mega-menu` | COMPARTIR | `mega-menu` | no se reproduce | Mega menú con plantillas por elemento de menú; el Mega Menu de PRO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento. |
 | `bdt-member` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Miembro de equipo con foto, nombre, cargo y redes; la Fancy Card propia cubre el contenido. |

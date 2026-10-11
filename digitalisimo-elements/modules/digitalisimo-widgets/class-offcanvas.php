@@ -12,6 +12,22 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 	private static $template_options = array();
 	private static $rendering        = array();
 
+	/**
+	 * El ajuste de la animación del panel se llama `panel_animation`: Elementor trata cualquier ajuste
+	 * `animation` como animación de entrada y oculta el widget hasta que ésta empiece. Los documentos
+	 * guardados con el nombre anterior se corrigen al cargarse.
+	 */
+	public function __construct( $data = array(), $args = null ) {
+		if ( is_array( $data ) && isset( $data['settings']['animation'] ) && ! isset( $data['settings']['panel_animation'] ) ) {
+			$data['settings']['panel_animation'] = $data['settings']['animation'];
+			unset( $data['settings']['animation'] );
+		}
+		// La clase base de esta clase (no la del adaptador que la extienda) puede no tener constructor en las pruebas.
+		if ( method_exists( (string) get_parent_class( __CLASS__ ), '__construct' ) ) {
+			parent::__construct( $data, $args );
+		}
+	}
+
 	public function get_name() { return 'digitalisimo-offcanvas'; }
 	public function get_title() { return 'Panel lateral'; }
 	public function get_icon() { return 'eicon-sidebar'; }
@@ -68,7 +84,7 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'side', array( 'label' => 'Posición', 'type' => $c::SELECT, 'default' => 'left', 'options' => array( 'left' => 'Izquierda', 'right' => 'Derecha', 'center' => 'Centrado (ventana modal)' ) ) );
 		$this->add_control( 'auto_open', array( 'label' => 'Abrir solo tras (segundos)', 'type' => $c::NUMBER, 'min' => 0, 'default' => '', 'description' => 'Vacío: sólo se abre al pulsar.' ) );
 		$this->add_control( 'auto_open_limit', array( 'label' => 'Veces por visitante', 'type' => $c::NUMBER, 'min' => 0, 'default' => 1, 'description' => '0: sin límite.', 'condition' => array( 'auto_open!' => '' ) ) );
-		$this->add_control( 'animation', array( 'label' => 'Animación', 'type' => $c::SELECT, 'default' => 'slide', 'options' => array( 'slide' => 'Deslizar', 'none' => 'Sin animación' ) ) );
+		$this->add_control( 'panel_animation', array( 'label' => 'Animación', 'type' => $c::SELECT, 'default' => 'slide', 'options' => array( 'slide' => 'Deslizar', 'none' => 'Sin animación' ) ) );
 		$this->add_control( 'overlay', array( 'label' => 'Oscurecer el fondo', 'type' => $c::SWITCHER, 'default' => 'yes' ) );
 		$this->add_control( 'close_button', array( 'label' => 'Botón de cerrar', 'type' => $c::SWITCHER, 'default' => 'yes' ) );
 		$this->add_control( 'close_text', array( 'label' => 'Texto del botón de cerrar', 'type' => $c::TEXT, 'default' => '', 'condition' => array( 'close_button' => 'yes' ) ) );
@@ -155,7 +171,7 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 			echo '<div class="digi-offcanvas__trigger"><button type="button" class="elementor-button elementor-size-' . esc_attr( $size ) . ' digi-offcanvas__button" aria-controls="' . esc_attr( $id ) . '" aria-expanded="false"' . ( '' === $text ? ' aria-label="' . esc_attr( $label ) . '"' : '' ) . ' data-digi-offcanvas-open>' . $inner . '</button></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono de Elementor y texto escapado.
 		}
 		$side = in_array( $s['side'] ?? 'left', array( 'right', 'center' ), true ) ? $s['side'] : 'left';
-		echo '<div class="digi-offcanvas__panel digi-offcanvas__panel--' . esc_attr( $side ) . ( 'none' === ( $s['animation'] ?? 'slide' ) ? ' digi-offcanvas__panel--static' : '' ) . '" id="' . esc_attr( $id ) . '" role="dialog" aria-modal="true" aria-label="' . esc_attr( $label ) . '" hidden>';
+		echo '<div class="digi-offcanvas__panel digi-offcanvas__panel--' . esc_attr( $side ) . ( 'none' === ( $s['panel_animation'] ?? $s['animation'] ?? 'slide' ) ? ' digi-offcanvas__panel--static' : '' ) . '" id="' . esc_attr( $id ) . '" role="dialog" aria-modal="true" aria-label="' . esc_attr( $label ) . '" hidden>';
 		echo '<div class="digi-offcanvas__overlay' . ( 'yes' === ( $s['overlay'] ?? 'yes' ) ? '' : ' digi-offcanvas__overlay--clear' ) . '" data-digi-offcanvas-backdrop></div>';
 		echo '<div class="digi-offcanvas__bar" tabindex="-1">';
 		if ( 'yes' === ( $s['close_button'] ?? 'yes' ) ) {

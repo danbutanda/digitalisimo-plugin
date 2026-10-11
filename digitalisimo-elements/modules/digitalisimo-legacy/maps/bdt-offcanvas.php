@@ -83,7 +83,7 @@ return array(
 			'content_before'   => 'yes' === $yes( 'custom_content_before_switcher' ) ? (string) ( $out['custom_content_before'] ?? '' ) : '',
 			'content_after'    => 'yes' === $yes( 'custom_content_after_switcher' ) ? (string) ( $out['custom_content_after'] ?? '' ) : '',
 			'side'             => 'right' === ( $out['offcanvas_flip'] ?? '' ) ? 'right' : 'left',
-			'animation'        => 'none' === ( $out['offcanvas_animations'] ?? 'slide' ) ? 'none' : 'slide',
+			'panel_animation'  => 'none' === ( $out['offcanvas_animations'] ?? 'slide' ) ? 'none' : 'slide',
 			'overlay'          => $yes( 'offcanvas_overlay' ),
 			'close_button'     => $yes( 'offcanvas_close_button' ),
 			'close_on_overlay' => $yes( 'offcanvas_bg_close' ),

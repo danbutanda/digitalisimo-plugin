@@ -1,0 +1,18 @@
+{
+  "defaults": {
+    "_options": { "element_pack_api_settings": { "mailchimp_api_key": "abc-us1", "mailchimp_list_id": "L1" } },
+    "_known": {
+      "text": "PRO Elements pinta etiquetas accesibles ocultas para cada campo; Element Pack sólo usaba placeholders"
+    }
+  },
+  "con_nombre": {
+    "_options": { "element_pack_api_settings": { "mailchimp_api_key": "abc-us1", "mailchimp_list_id": "L1" } },
+    "show_fname": "yes",
+    "flex_direction": "row",
+    "before_text": "Suscríbete al boletín",
+    "button_text": "Suscribirme",
+    "_known": {
+      "text": "PRO Elements pinta etiquetas accesibles ocultas para cada campo; Element Pack sólo usaba placeholders"
+    }
+  }
+}
