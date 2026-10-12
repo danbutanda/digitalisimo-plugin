@@ -22,8 +22,24 @@
     "excerpt_limit": 3,
     "_known": {
       "images": "Los productos de prueba no tienen imagen: Element Pack imprimía una imagen vacía y WooCommerce usa su marcador de posición",
-      "text": "La tabla de Element Pack se presenta como la rejilla de PRO Elements, sin encabezados, búsqueda ni selector de cantidad",
       "links": "WooCommerce envuelve la imagen y el título del producto en un solo enlace; Element Pack enlazaba cada uno por separado"
-    }
+    },
+    "_expect_html": [
+      "<div class=\"digi-table-wrap digi-products-table\" role=\"region\" aria-label=\"Productos\" tabindex=\"0\" data-digi-table data-search data-sort><table class=\"digi-table\"><thead><tr><th scope=\"col\" class=\"digi-products-table__image\">Image</th><th scope=\"col\" class=\"digi-products-table__title\">Title</th><th scope=\"col\" class=\"digi-products-table__excerpt\">Description</th>"
+    ]
+  },
+  "tabla_cantidad": {
+    "_skin": "bdt-table",
+    "show_quantity": "yes",
+    "show_pagination": "yes",
+    "show_info": "yes",
+    "_known": {
+      "images": "Los productos de prueba no tienen imagen: Element Pack imprimía una imagen vacía y WooCommerce usa su marcador de posición",
+      "links": "WooCommerce envuelve la imagen y el título del producto en un solo enlace; Element Pack enlazaba cada uno por separado"
+    },
+    "_expect_html": [
+      "class=\"digi-products-table__quantity\"><div class=\"quantity\">",
+      "data-paginate data-info data-page-size=\"10\""
+    ]
   }
 }

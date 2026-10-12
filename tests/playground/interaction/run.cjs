@@ -181,6 +181,25 @@ checks['bdt-wc-carousel'] = async (page) => {
   await page.waitForFunction(() => document.querySelector('.digi-products-carousel [data-digi-carousel-track]').scrollLeft > 0, { timeout: 3000 });
   return 'el carrusel de productos muestra 3 de 6 fichas en una fila y avanza con la flecha';
 };
+checks['bdt-wc-products'] = async (page) => {
+  const rows = () => page.$$eval('.digi-products-table tbody tr', (all) => all.filter((r) => !r.hidden).map((r) => r.querySelector('.digi-products-table__title').textContent.trim()));
+  if ((await rows()).length !== 6) throw new Error('la tabla debe listar los 6 productos');
+  await page.click('.digi-products-table thead th.digi-products-table__price .digi-table__sort');
+  const prices = await page.$$eval('.digi-products-table tbody tr .digi-products-table__price', (all) => all.map((td) => parseFloat(td.textContent.replace(/[^\d.]/g, ''))));
+  if (prices.some((v, i) => i && v < prices[i - 1])) throw new Error(`el precio debe ordenarse de menor a mayor: ${prices}`);
+  await page.type('.digi-table__search input', 'taza');
+  if ((await rows()).join() !== 'Taza IX') throw new Error(`la búsqueda debe dejar sólo la taza: ${await rows()}`);
+  const quantity = await page.evaluate(() => {
+    const row = [...document.querySelectorAll('.digi-products-table tbody tr')].find((r) => !r.hidden);
+    const input = row.querySelector('input.qty');
+    input.value = '3';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    const button = row.querySelector('.add_to_cart_button');
+    return { data: button.getAttribute('data-quantity'), href: button.getAttribute('href') };
+  });
+  if (quantity.data !== '3' || !quantity.href.includes('quantity=3')) throw new Error(`la cantidad debe viajar en el botón: ${JSON.stringify(quantity)}`);
+  return 'la tabla de productos ordena por precio, filtra y pasa la cantidad al botón de compra';
+};
 checks['bdt-logo-carousel'] = async (page) => (await checks['bdt-static-carousel'](page)).replace('deslizador propio', 'carrusel de logos');
 checks['bdt-slider'] = async (page) => (await checks['bdt-custom-carousel'](page)).replace('carrusel de medios', 'deslizador de diapositivas');
 (async () => {

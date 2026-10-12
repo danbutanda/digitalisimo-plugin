@@ -255,5 +255,10 @@
   "bdt-wc-carousel": {
     "posts_per_page": 6,
     "columns": "3"
+  },
+  "bdt-wc-products": {
+    "_skin": "bdt-table",
+    "show_quantity": "yes",
+    "posts_per_page": 6
   }
 }

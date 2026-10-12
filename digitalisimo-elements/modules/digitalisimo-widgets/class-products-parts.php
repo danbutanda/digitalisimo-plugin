@@ -14,7 +14,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * La presentación «Carrusel» envuelve la misma lista de productos en el motor de carruseles propio
  * (región, ventana desplazable con desplazamiento por ficha y flechas), con tantas fichas visibles como
- * columnas tenga el widget en cada dispositivo.
+ * columnas tenga el widget en cada dispositivo. La presentación «Tabla» (Products_Table) pinta esos mismos
+ * productos en una tabla con encabezados.
  */
 final class Products_Parts {
 	const PARTS_KEY = 'digitalisimo_wc_parts';
@@ -46,15 +47,17 @@ final class Products_Parts {
 			'type'      => $c::SELECT2,
 			'multiple'  => true,
 			'default'   => array( 'image', 'title', 'rating', 'price', 'cart', 'badge' ),
-			'options'   => array( 'image' => 'Imagen', 'title' => 'Título', 'excerpt' => 'Extracto del contenido', 'summary' => 'Resumen (extracto manual o contenido)', 'category' => 'Categorías', 'rating' => 'Valoración', 'price' => 'Precio', 'cart' => 'Botón de compra', 'readmore' => 'Leer más', 'badge' => 'Insignia de oferta' ),
+			'options'   => array( 'image' => 'Imagen', 'title' => 'Título', 'excerpt' => 'Extracto del contenido', 'summary' => 'Resumen (extracto manual o contenido)', 'category' => 'Categorías', 'rating' => 'Valoración', 'price' => 'Precio', 'cart' => 'Botón de compra', 'readmore' => 'Leer más', 'badge' => 'Insignia de oferta', 'sku' => 'Referencia (SKU, en tabla)', 'tags' => 'Etiquetas (en tabla)', 'quantity' => 'Selector de cantidad (en tabla)' ),
 			'condition' => array( 'digitalisimo_wc_custom' => 'yes' ),
 		) );
 		$widget->add_control( 'digitalisimo_wc_title_tag', array( 'label' => 'Etiqueta del título', 'type' => $c::SELECT, 'default' => 'h2', 'options' => array_combine( self::TITLE_TAGS, self::TITLE_TAGS ), 'condition' => array( 'digitalisimo_wc_custom' => 'yes' ) ) );
 		$widget->add_control( 'digitalisimo_wc_excerpt_length', array( 'label' => 'Palabras del extracto', 'type' => $c::NUMBER, 'default' => 10, 'min' => 1, 'condition' => array( 'digitalisimo_wc_custom' => 'yes' ) ) );
 		$widget->add_control( 'digitalisimo_wc_readmore_text', array( 'label' => 'Texto de «Leer más»', 'type' => $c::TEXT, 'default' => 'Read More', 'condition' => array( 'digitalisimo_wc_custom' => 'yes' ) ) );
 		$widget->add_control( 'digitalisimo_products_limit', array( 'label' => 'Número de productos', 'type' => $c::NUMBER, 'min' => 1, 'description' => 'Vacío: filas por columnas.' ) );
-		$widget->add_control( 'digitalisimo_wc_layout', array( 'label' => 'Presentación', 'type' => $c::SELECT, 'default' => 'grid', 'options' => array( 'grid' => 'Rejilla', 'carousel' => 'Carrusel' ), 'separator' => 'before', 'description' => 'En carrusel se ven tantas fichas como columnas en cada dispositivo.' ) );
+		$widget->add_control( 'digitalisimo_wc_layout', array( 'label' => 'Presentación', 'type' => $c::SELECT, 'default' => 'grid', 'options' => array( 'grid' => 'Rejilla', 'carousel' => 'Carrusel', 'table' => 'Tabla' ), 'separator' => 'before', 'description' => 'En carrusel se ven tantas fichas como columnas en cada dispositivo; en tabla, una fila por producto con las partes elegidas como columnas.' ) );
 		$widget->add_control( 'digitalisimo_wc_navigation', array( 'label' => 'Flechas', 'type' => $c::SWITCHER, 'default' => 'yes', 'condition' => array( 'digitalisimo_wc_layout' => 'carousel' ) ) );
+		require_once __DIR__ . '/class-products-table.php';
+		Products_Table::register_controls( $widget, $c );
 		$widget->end_controls_section();
 	}
 
@@ -155,6 +158,9 @@ final class Products_Parts {
 			return $content;
 		}
 		$s = (array) $widget->get_settings_for_display();
+		if ( 'table' === ( $s['digitalisimo_wc_layout'] ?? 'grid' ) ) {
+			return self::table( (string) $content, $s );
+		}
 		if ( 'carousel' !== ( $s['digitalisimo_wc_layout'] ?? 'grid' ) ) {
 			return $content;
 		}
@@ -171,6 +177,23 @@ final class Products_Parts {
 			wp_enqueue_script( 'digitalisimo-carousel-engine' );
 		}
 		return $carousel;
+	}
+
+	/** Sustituye la lista de productos por su tabla; sin productos reconocibles el contenido queda igual. */
+	private static function table( $content, array $s ) {
+		require_once __DIR__ . '/class-products-table.php';
+		$table = Products_Table::html( Products_Table::ids( $content ), $s );
+		if ( '' === $table ) {
+			return $content;
+		}
+		if ( function_exists( 'wp_enqueue_style' ) ) {
+			wp_enqueue_style( 'digitalisimo-table' );
+			if ( false !== strpos( $table, 'data-digi-table' ) || false !== strpos( $table, 'digi-products-table__quantity' ) ) {
+				wp_enqueue_script( 'digitalisimo-table' );
+			}
+		}
+		$pagination = preg_match( '#<nav class="woocommerce-pagination.*</nav>#s', $content, $m ) ? $m[0] : '';
+		return $table . $pagination;
 	}
 
 	public static function after_render( $element ) {

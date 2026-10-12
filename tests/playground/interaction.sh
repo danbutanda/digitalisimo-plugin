@@ -3,7 +3,8 @@
 # crea una página por widget heredado y comprueba con Chrome que el acordeón, las pestañas, el deslizador
 # propio, el carrusel de medios y el panel lateral responden al pulsar, que el horario recalcula su estado en vivo,
 # que la tabla pagina, ordena y filtra, que las listas de vídeos cambian de vídeo y que el carrusel de productos de
-# WooCommerce (instalado con seis productos de prueba) avanza en una sola fila, sin errores de JavaScript ni recursos 404.
+# WooCommerce (instalado con seis productos de prueba) avanza en una sola fila y que su tabla ordena, filtra y pasa la cantidad
+# al botón de compra, sin errores de JavaScript ni recursos 404.
 # Uso: bash tests/playground/interaction.sh   (PUPPETEER_PATH apunta al node_modules con puppeteer-core)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

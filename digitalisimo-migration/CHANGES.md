@@ -1,5 +1,7 @@
 # DIGITALÍSIMO Migración · historial
 
+- 1.0.5: la piel de tabla de WC Products pasa a la tabla propia de Productos con sus columnas, encabezados, SKU, selector de cantidad y las opciones de DataTables (buscador, orden, paginación, resumen y filas por página).
+
 - 1.0.4: Video Gallery pasa del Carrusel de medios al reproductor propio con su lista, títulos y descripciones (YouTube, Vimeo, Dailymotion, Wistia o archivo); WC Carousel y WC Slider pasan a la presentación en carrusel de Productos con todos sus productos, columnas por dispositivo y flechas; WC Mini Cart conserva el título de su panel.
 
 - 1.0.3: Profile Card conserva distintivo, nombre de usuario, cifras, redes y menú en el perfil ampliado de la Caja de autor, y el perfil «blog» muestra al usuario elegido (antes se traducía como autor de la entrada actual); Lottie Icon Box conserva su descripción y su botón «Leer más»; Marker conserva la leyenda de la imagen con su color, alineación y tipografía.

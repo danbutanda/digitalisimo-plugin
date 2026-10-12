@@ -108,9 +108,30 @@
     render();
   }
 
-  function init(scope) { (scope || document).querySelectorAll('[data-digi-table]').forEach(setup); }
+  // Tabla de productos: la cantidad elegida en una fila viaja en el botón de compra de esa misma fila.
+  function quantities(wrap) {
+    if (wrap.digiQuantity) return;
+    wrap.digiQuantity = true;
+    wrap.addEventListener('change', function (event) {
+      var input = event.target;
+      if (!input.matches || !input.matches('input.qty')) return;
+      var button = input.closest('tr') && input.closest('tr').querySelector('.add_to_cart_button');
+      if (!button) return;
+      button.setAttribute('data-quantity', input.value);
+      try {
+        var url = new URL(button.href, location.href);
+        if (url.searchParams.has('add-to-cart')) { url.searchParams.set('quantity', input.value); button.href = url.toString(); }
+      } catch (e) { /* enlace sin URL válida: basta data-quantity */ }
+    });
+  }
+
+  function init(scope) {
+    (scope || document).querySelectorAll('[data-digi-table]').forEach(setup);
+    (scope || document).querySelectorAll('.digi-products-table').forEach(quantities);
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { init(document); }); else init(document);
   if (window.elementorFrontend && window.elementorFrontend.hooks) {
     window.elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-table.default', function ($scope) { init($scope[0] || document); });
+    window.elementorFrontend.hooks.addAction('frontend/element_ready/woocommerce-products.default', function ($scope) { init($scope[0] || document); });
   }
 })();

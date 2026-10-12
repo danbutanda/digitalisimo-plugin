@@ -78,7 +78,40 @@ return array(
 		'show_badge' => array( '_skin' => '' ),
 	),
 	// Rejilla de productos de PRO Elements; la tabla, el filtro, la vista rápida y la carga por AJAX no se trasladan.
+	// La piel de tabla pasa a la presentación «Tabla» de Productos: mismas columnas y encabezados, SKU bajo el
+	// título, y buscador, orden, paginación y resumen donde DataTables los mostraba.
 	'filter'    => static function ( array $out ) {
-		return Digitalisimo\Elements\Legacy\Translator::wc_products( $out, array( 'per_page' => array( 'posts_per_page', 8 ), 'columns' => array( 'columns', '4' ), 'image' => array( 'show_thumb', 'yes' ), 'title' => array( 'show_title', 'yes' ), 'title_tag' => array( 'title_tags', 'h2' ), 'excerpt' => array( 'show_excerpt', '' ), 'excerpt_length' => array( 'excerpt_limit', 10 ), 'category' => array( 'show_categories', '' ), 'rating' => array( 'show_rating', 'yes' ), 'price' => array( 'show_price', 'yes' ), 'cart' => array( 'show_cart', 'yes' ), 'badge' => array( 'show_badge', '' ), 'pagination' => array( 'show_pagination', '' ) ) );
+		$table = 'bdt-table' === ( $out['_skin'] ?? '' );
+		$set   = Digitalisimo\Elements\Legacy\Translator::wc_products( $out, array( 'per_page' => array( 'posts_per_page', 8 ), 'columns' => array( 'columns', '4' ), 'image' => array( 'show_thumb', 'yes' ), 'title' => array( 'show_title', 'yes' ), 'title_tag' => array( 'title_tags', 'h2' ), 'excerpt' => array( 'show_excerpt', '' ), 'excerpt_length' => array( 'excerpt_limit', 10 ), 'category' => array( 'show_categories', '' ), 'rating' => array( 'show_rating', 'yes' ), 'price' => array( 'show_price', 'yes' ), 'cart' => array( 'show_cart', 'yes' ), 'badge' => array( 'show_badge', '' ), 'pagination' => array( 'show_pagination', '' ) ) );
+		if ( ! $table ) {
+			return $set;
+		}
+		$on      = static function ( $key, $fallback = '' ) use ( $out ) {
+			return 'yes' === ( $out[ $key ] ?? $fallback );
+		};
+		$columns = array( 'image' => array( 'show_thumb', 'yes', 'Image' ), 'title' => array( 'show_title', 'yes', 'Title' ), 'excerpt' => array( 'show_excerpt', 'yes', 'Description' ), 'category' => array( 'show_categories', '', 'Categories' ), 'tags' => array( 'show_tags', '', 'Tags' ), 'rating' => array( 'show_rating', 'yes', 'Rating' ), 'price' => array( 'show_price', 'yes', 'Price' ), 'quantity' => array( 'show_quantity', '', 'Quantity' ), 'cart' => array( 'show_cart', 'yes', 'Cart' ) );
+		$parts   = array();
+		foreach ( $columns as $part => $column ) {
+			if ( $on( $column[0], $column[1] ) ) {
+				$parts[] = $part;
+			}
+			$set[ 'digitalisimo_wc_th_' . $part ] = $column[2];
+		}
+		if ( in_array( 'title', $parts, true ) ) {
+			$parts[] = 'sku';
+		}
+		$set['digitalisimo_wc_parts']           = implode( ',', $parts );
+		$set['digitalisimo_wc_layout']          = 'table';
+		$set['digitalisimo_products_limit']     = $set['posts_per_page'];
+		$set['paginate']                        = '';
+		$set['digitalisimo_wc_table_search']    = $on( 'show_searching', 'yes' ) ? 'yes' : '';
+		$set['digitalisimo_wc_table_sort']      = $on( 'show_ordering', 'yes' ) ? 'yes' : '';
+		$set['digitalisimo_wc_table_paginate']  = $on( 'show_pagination' ) ? 'yes' : '';
+		$set['digitalisimo_wc_table_info']      = $on( 'show_pagination' ) && $on( 'show_info' ) ? 'yes' : '';
+		$set['digitalisimo_wc_table_page_size'] = max( 1, (int) ( $out['show_per_page'] ?? 10 ) );
+		foreach ( array( 'show_tags', 'show_quantity', 'show_searching', 'show_ordering', 'show_info', 'show_per_page', 'show_change_length', 'show_quick_view' ) as $key ) {
+			unset( $set[ $key ] );
+		}
+		return $set;
 	},
 );

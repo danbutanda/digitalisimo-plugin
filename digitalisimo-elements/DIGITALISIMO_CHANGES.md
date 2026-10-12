@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.135
+# DIGITALÍSIMO Elements 4.3.0.136
+
+- 4.3.0.136: Productos de WooCommerce gana la presentación «Tabla»: los mismos productos del widget (con su consulta, orden y límite) en una tabla con encabezados editables y una columna por parte elegida (imagen, producto con SKU opcional, descripción, categorías, etiquetas, valoración, precio, selector de cantidad y botón de compra), con buscador, orden por columna, paginación y resumen opcionales. La cantidad elegida viaja en el botón de compra de su fila.
 
 - 4.3.0.135: Reproductor de video acepta vídeos de YouTube, Vimeo, Dailymotion y Wistia (con el dominio sin rastreo cuando existe y carga diferida), también en su lista de vídeos, que gana descripción por vídeo y la opción de mostrar bajo el vídeo el título y la descripción del elegido; con lista, el vídeo va en su propio escenario con la proporción y la lista queda debajo. Productos de WooCommerce gana la presentación «Carrusel» sobre el motor de carruseles propio, con tantas fichas visibles como columnas en cada dispositivo, el hueco de su rejilla y flechas opcionales. Carrito de compras gana un título opcional en su panel.
 
