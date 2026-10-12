@@ -436,6 +436,7 @@ if ( class_exists( '\\Digitalisimo\\Elements\\User_Register_Widget' ) ) {
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Video_Player_Widget' ) ) {
 	final class Bdt_VideoPlayer extends \Digitalisimo\Elements\Video_Player_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-video-player'; }
+	final class Bdt_VideoGallery extends \Digitalisimo\Elements\Video_Player_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-video-gallery'; }
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Content_Switcher_Widget' ) ) {
 	final class Bdt_Switcher extends \Digitalisimo\Elements\Content_Switcher_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-switcher'; }
@@ -704,9 +705,6 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Map_Widget' ) ) {
 }
 if ( class_exists( '\\ElementorPro\\Modules\\Carousel\\Widgets\\Media_Carousel' ) ) {
 	final class Bdt_CustomCarousel extends \ElementorPro\Modules\Carousel\Widgets\Media_Carousel { use Legacy_Adapter; const LEGACY_ID = 'bdt-custom-carousel'; }
-}
-if ( class_exists( '\\ElementorPro\\Modules\\Carousel\\Widgets\\Media_Carousel' ) ) {
-	final class Bdt_VideoGallery extends \ElementorPro\Modules\Carousel\Widgets\Media_Carousel { use Legacy_Adapter; const LEGACY_ID = 'bdt-video-gallery'; }
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Fancy_Slider_Widget' ) ) {
 	final class Bdt_StaticCarousel extends \Digitalisimo\Elements\Fancy_Slider_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-static-carousel'; }

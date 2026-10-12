@@ -43,10 +43,25 @@ namespace {
 	) );
 	ob_start(); $render->invoke( $widget ); $list = ob_get_clean();
 	check_video( str_contains( $list, 'class="digi-video-player digi-video-player--playlist" data-digi-playlist="hover"' ) && str_contains( $list, 'aria-label="Primero" poster="https://cdn.test/a.jpg"><source src="https://cdn.test/a.mp4">' ), 'Con lista, el primer vídeo válido ocupa el reproductor.' );
-	check_video( 2 === substr_count( $list, '<button type="button" class="digi-video-player__item"' ) && str_contains( $list, 'aria-pressed="true" data-src="https://cdn.test/a.mp4" data-poster="https://cdn.test/a.jpg">Primero</button>' ) && str_contains( $list, 'aria-pressed="false" data-src="https://cdn.test/b.mp4" data-poster="">Video 2</button>' ) && ! str_contains( $list, 'javascript' ), 'La lista omite direcciones no válidas y numera los vídeos sin título.' );
+	check_video( 2 === substr_count( $list, '<button type="button" class="digi-video-player__item"' ) && str_contains( $list, 'aria-pressed="true" data-kind="video" data-src="https://cdn.test/a.mp4" data-poster="https://cdn.test/a.jpg" data-title="Primero"><span class="digi-video-player__item-title">Primero</span></button>' ) && str_contains( $list, 'aria-pressed="false" data-kind="video" data-src="https://cdn.test/b.mp4" data-poster="" data-title="Video 2"><span class="digi-video-player__item-title">Video 2</span></button>' ) && ! str_contains( $list, 'javascript' ), 'La lista omite direcciones no válidas y numera los vídeos sin título.' );
+	check_video( str_contains( $list, '<div class="digi-video-player__stage"><video ' ) && str_contains( $list, '</video></div><ul class="digi-video-player__playlist"' ), 'Con lista, el vídeo va en su escenario y la lista queda fuera de la proporción.' );
 	check_video( array( 'digitalisimo-video-player' ) === $widget->get_script_depends(), 'Con lista se carga el script que cambia de vídeo.' );
 	$widget->settings['playlist'] = array_slice( $widget->settings['playlist'], 0, 1 );
 	ob_start(); $render->invoke( $widget ); $single = ob_get_clean();
 	check_video( ! str_contains( $single, 'digi-video-player__playlist' ) && str_contains( $single, 'aria-label="Principal"' ) && array() === $widget->get_script_depends(), 'Con un solo vídeo en la lista se usa el video principal, sin script.' );
+	check_video( 'https://www.youtube-nocookie.com/embed/YE7VzlLtp-4?rel=0' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://www.youtube.com/watch?v=YE7VzlLtp-4' ) && 'https://player.vimeo.com/video/76979871?dnt=1' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://vimeo.com/76979871' ) && 'https://www.dailymotion.com/embed/video/x7tgad0' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://www.dailymotion.com/video/x7tgad0' ) && 'https://fast.wistia.net/embed/iframe/abc123' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://home.wistia.com/medias/abc123' ) && '' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://cdn.test/a.mp4' ), 'Los enlaces de los cuatro servicios se incrustan sin rastreo cuando es posible.' );
+	$widget->settings = array( 'source' => 'embed', 'embed_url' => 'https://youtu.be/YE7VzlLtp-4', 'title' => 'Tráiler' );
+	ob_start(); $render->invoke( $widget ); $embed = ob_get_clean();
+	check_video( '<div class="digi-video-player" data-ratio="16/9"><iframe class="digi-video-player__embed" src="https://www.youtube-nocookie.com/embed/YE7VzlLtp-4?rel=0" title="Tráiler" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>' === $embed, 'Un vídeo incrustado usa iframe con título y carga diferida.' );
+	$widget->settings = array( 'source' => 'url', 'video_url' => array( 'url' => 'https://vimeo.com/76979871' ) );
+	ob_start(); $render->invoke( $widget ); $vimeo = ob_get_clean();
+	check_video( str_contains( $vimeo, 'src="https://player.vimeo.com/video/76979871?dnt=1"' ) && ! str_contains( $vimeo, '<video' ), 'Un enlace de servicio escrito como URL externa también se incrusta.' );
+	$widget->settings = array( 'playlist' => array(
+		array( 'source' => 'embed', 'embed_url' => 'https://youtu.be/YE7VzlLtp-4', 'title' => 'YouTube', 'description' => 'Primer <b>clip</b>' ),
+		array( 'source' => 'url', 'video_url' => array( 'url' => 'https://cdn.test/a.mp4' ), 'title' => 'Archivo' ),
+		array( 'source' => 'embed', 'embed_url' => 'https://ejemplo.test/nada', 'title' => 'Inválido' ),
+	) );
+	ob_start(); $render->invoke( $widget ); $mixed = ob_get_clean();
+	check_video( str_contains( $mixed, '<div class="digi-video-player__stage"><iframe class="digi-video-player__embed"' ) && str_contains( $mixed, 'data-kind="embed"' ) && str_contains( $mixed, 'data-kind="video"' ) && str_contains( $mixed, '<span class="digi-video-player__item-description">Primer clip</span>' ) && ! str_contains( $mixed, 'Inválido' ), 'La lista mezcla vídeos incrustados y archivos, con descripción en texto plano.' );
 	echo "DIGITALÍSIMO Elements: reproductor nativo validado.\n";
 }

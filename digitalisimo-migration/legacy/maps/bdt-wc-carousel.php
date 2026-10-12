@@ -157,6 +157,6 @@ return array(
 	),
 	// Los productos del carrusel se muestran como rejilla de PRO Elements, sin desplazamiento.
 	'filter'    => static function ( array $out ) {
-		return Digitalisimo\Elements\Legacy\Translator::wc_products( $out, array( 'per_page' => array( 'posts_per_page', 8 ), 'columns' => array( 'columns', '3' ), 'image' => 'yes', 'title' => array( 'show_title', 'yes' ), 'title_tag' => array( 'title_tags', 'div' ), 'rating' => array( 'show_rating', 'yes' ), 'price' => array( 'show_price', 'yes' ), 'cart' => array( 'show_cart', 'yes' ), 'badge' => array( 'show_badge', 'yes' ) ) );
+		return Digitalisimo\Elements\Legacy\Translator::wc_products( $out, array( 'layout' => 'carousel', 'columns_tablet' => array( 'columns_tablet', '2' ), 'columns_mobile' => array( 'columns_mobile', '1' ), 'per_page' => array( 'posts_per_page', 8 ), 'columns' => array( 'columns', '3' ), 'image' => 'yes', 'title' => array( 'show_title', 'yes' ), 'title_tag' => array( 'title_tags', 'div' ), 'rating' => array( 'show_rating', 'yes' ), 'price' => array( 'show_price', 'yes' ), 'cart' => array( 'show_cart', 'yes' ), 'badge' => array( 'show_badge', 'yes' ) ) );
 	},
 );

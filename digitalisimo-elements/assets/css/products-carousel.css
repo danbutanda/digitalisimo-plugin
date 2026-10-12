@@ -1,0 +1,6 @@
+.digi-carousel.digi-products-carousel{--digi-carousel-visible:var(--digi-products-visible,4)}
+@media(max-width:1024px){.digi-carousel.digi-products-carousel{--digi-carousel-visible:var(--digi-products-visible-tablet,2)}}
+@media(max-width:767px){.digi-carousel.digi-products-carousel{--digi-carousel-visible:var(--digi-products-visible-mobile,1)}}
+.digi-products-carousel ul.products.digi-carousel__slides{--digi-carousel-gap:var(--grid-column-gap,16px);display:flex!important;gap:var(--digi-carousel-gap)!important;grid-template-columns:none!important;margin:0!important;padding:0!important}
+.digi-products-carousel ul.products.digi-carousel__slides::before,.digi-products-carousel ul.products.digi-carousel__slides::after{display:none!important}
+.digi-products-carousel ul.products.digi-carousel__slides>li.product{box-sizing:border-box;flex:0 0 calc((100% - (min(var(--digi-carousel-visible),var(--digi-carousel-count)) - 1)*var(--digi-carousel-gap))/min(var(--digi-carousel-visible),var(--digi-carousel-count)))!important;width:auto!important;min-width:0;margin:0!important;float:none!important;scroll-snap-align:start}

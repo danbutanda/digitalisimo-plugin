@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.134
+# DIGITALÍSIMO Elements 4.3.0.135
+
+- 4.3.0.135: Reproductor de video acepta vídeos de YouTube, Vimeo, Dailymotion y Wistia (con el dominio sin rastreo cuando existe y carga diferida), también en su lista de vídeos, que gana descripción por vídeo y la opción de mostrar bajo el vídeo el título y la descripción del elegido; con lista, el vídeo va en su propio escenario con la proporción y la lista queda debajo. Productos de WooCommerce gana la presentación «Carrusel» sobre el motor de carruseles propio, con tantas fichas visibles como columnas en cada dispositivo, el hueco de su rejilla y flechas opcionales. Carrito de compras gana un título opcional en su panel.
 
 - 4.3.0.134: Caja de autor gana «Perfil ampliado»: usuario del sitio elegido (su nombre, biografía, avatar y entradas, siempre al día), nombre de usuario, distintivo, cifras escritas a mano o calculadas (entradas del autor, comentarios del sitio), perfiles sociales con nombre accesible y un menú de enlaces que se abre con un botón. Lottie gana descripción y botón bajo la animación, y Hotspot gana leyenda con su propio estilo (alineación, color, tipografía y separación). Los tres se reconocen por su clase, también cuando se registran con otro nombre.
 

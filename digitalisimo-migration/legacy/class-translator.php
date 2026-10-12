@@ -208,6 +208,18 @@ final class Translator {
 			'digitalisimo_wc_title_tag'       => (string) $get( 'title_tag', 'h2' ),
 			'digitalisimo_wc_readmore_text'   => (string) $get( 'readmore_text', 'Read More' ),
 		);
+		// Carruseles: todos los productos en una fila del carrusel propio, con las columnas de cada dispositivo.
+		if ( 'carousel' === $get( 'layout' ) ) {
+			$set['digitalisimo_wc_layout']      = 'carousel';
+			$set['digitalisimo_wc_navigation']  = in_array( (string) ( $out['navigation'] ?? 'arrows' ), array( 'none', 'dots' ), true ) ? '' : 'yes';
+			$set['digitalisimo_products_limit'] = $limit;
+			foreach ( array( '_tablet', '_mobile' ) as $device ) {
+				$value = $get( 'columns' . $device );
+				if ( '' !== (string) $value ) {
+					$set[ 'columns' . $device ] = (string) max( 1, (int) $value );
+				}
+			}
+		}
 		foreach ( array_keys( $out ) as $key ) {
 			if ( 0 === strpos( $key, 'posts_' ) || 0 === strpos( $key, 'product_' ) || '_skin' === $key ) {
 				unset( $out[ $key ] );

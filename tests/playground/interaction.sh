@@ -2,7 +2,8 @@
 # Interacción en navegador real: arranca Playground en modo servidor (sitio simple, sin Element Pack),
 # crea una página por widget heredado y comprueba con Chrome que el acordeón, las pestañas, el deslizador
 # propio, el carrusel de medios y el panel lateral responden al pulsar, que el horario recalcula su estado en vivo,
-# que la tabla pagina, ordena y filtra y que la lista de vídeos cambia de vídeo, sin errores de JavaScript ni recursos 404.
+# que la tabla pagina, ordena y filtra, que las listas de vídeos cambian de vídeo y que el carrusel de productos de
+# WooCommerce (instalado con seis productos de prueba) avanza en una sola fila, sin errores de JavaScript ni recursos 404.
 # Uso: bash tests/playground/interaction.sh   (PUPPETEER_PATH apunta al node_modules con puppeteer-core)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -16,6 +17,7 @@ cp "$ROOT/tests/playground/interaction/cases.json" "$OUT/cases.json"
 cp "$ROOT/tests/playground/interaction/setup.php" "$OUT/setup.php"
 cat > "$OUT/blueprint.json" <<'JSON'
 {"steps":[{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":true}},
+{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"woocommerce"},"options":{"activate":true}},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}]}
 JSON
 # El servidor anterior puede seguir escuchando (el proceso hijo de npx sobrevive a su padre): se libera el puerto.

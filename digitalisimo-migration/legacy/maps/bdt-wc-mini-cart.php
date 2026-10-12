@@ -40,6 +40,7 @@ return array(
 			'alignment'               => (string) ( $out['mini_cart_align'] ?? 'left' ),
 			'close_cart_button_show'  => 'yes' === ( $out['offcanvas_close_button'] ?? 'yes' ) ? 'yes' : '',
 			'automatically_open_cart' => 'yes' === ( $out['trigger_on_cart_update'] ?? '' ) ? 'yes' : 'no',
+			'digitalisimo_cart_title' => trim( wp_strip_all_tags( (string) ( $out['custom_widget_cart_title'] ?? '' ) ) ),
 		);
 		foreach ( array_keys( $out ) as $key ) {
 			if ( preg_match( '/^(show_price_amount|show_cart_badge|mini_cart_align|offcanvas_.*|trigger_on_cart_update|custom_widget_cart_title|custom_content_.*)$/', $key ) ) {

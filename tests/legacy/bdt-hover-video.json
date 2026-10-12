@@ -26,7 +26,7 @@
     "_expect_html": [
       "data-digi-playlist=\"hover\"",
       "data-src=\"https://example.com/dos.mp4\"",
-      ">Instalación</button>"
+      "<span class=\"digi-video-player__item-title\">Instalación</span></button>"
     ],
     "_known": {
       "text": "El reproductor nativo incluye dentro de <video> un aviso con enlace al archivo, que sólo ven los navegadores sin vídeo HTML",

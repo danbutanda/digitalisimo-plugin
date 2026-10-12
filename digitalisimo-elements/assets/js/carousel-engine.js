@@ -57,6 +57,7 @@
       elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-logo-carousel.default', function (element) { scan(element[0]); });
       elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-device-slider.default', function (element) { scan(element[0]); });
       elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-fancy-slider.default', function (element) { scan(element[0]); });
+      elementorFrontend.hooks.addAction('frontend/element_ready/woocommerce-products.default', function (element) { scan(element[0]); });
     }
   }
   if (window.elementorFrontend && elementorFrontend.hooks) registerEditor();

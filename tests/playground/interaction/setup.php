@@ -10,6 +10,16 @@ activate_plugin( 'digitalisimo-elements/pro-elements.php' );
 activate_plugin( 'digitalisimo-migration/digitalisimo-migration.php' );
 update_option( 'elementor_element_cache_ttl', 'disable' );
 update_option( 'elementor_onboarded', true );
+// Productos de prueba para el carrusel de WooCommerce.
+if ( class_exists( 'WC_Product_Simple' ) && ! get_posts( array( 'post_type' => 'product', 'posts_per_page' => 1, 'fields' => 'ids' ) ) ) {
+	foreach ( array( 'Camisa', 'Gorra', 'Taza', 'Libro', 'Bolsa', 'Lámpara' ) as $i => $name ) {
+		$product = new WC_Product_Simple();
+		$product->set_name( $name . ' IX' );
+		$product->set_status( 'publish' );
+		$product->set_regular_price( (string) ( 10 + $i ) );
+		$product->save();
+	}
+}
 // Plantilla de Elementor para los casos que muestran una plantilla («__TEMPLATE__»).
 if ( ! get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' ) ) {
 	$template = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'digi-ab-template', 'post_name' => 'digi-ab-template' ) );

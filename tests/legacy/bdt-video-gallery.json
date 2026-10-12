@@ -1,9 +1,14 @@
 {
   "defaults": {
     "_known": {
-      "text": "El carrusel de medios muestra cada vídeo con su botón de reproducción, sin título ni descripción",
-      "links": "Los vídeos se abren en el lightbox del carrusel en lugar de enlazar su URL",
-      "images": "Los pósteres de ejemplo eran recursos de Element Pack"
-    }
+      "images": "La lista propia muestra título y descripción de cada vídeo; Element Pack añadía miniaturas de su carpeta",
+      "text": "Element Pack repetía el título y la descripción de cada vídeo en diapositivas ocultas; el propio los muestra en la lista y una vez para el vídeo elegido",
+      "links": "Los vídeos se eligen con botones que cambian el reproductor; Element Pack enlazaba cada uno a su dirección"
+    },
+    "_expect_html": [
+      "<div class=\"digi-video-player__stage\"><iframe class=\"digi-video-player__embed\" src=\"https://www.youtube-nocookie.com/embed/vN9DnFiRMX0?rel=0\"",
+      "data-kind=\"embed\" data-src=\"https://player.vimeo.com/video/258349022?dnt=1\"",
+      "<span class=\"digi-video-player__item-description\">Auto VR Concept</span>"
+    ]
   }
 }

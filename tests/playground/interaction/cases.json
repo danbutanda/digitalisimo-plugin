@@ -250,5 +250,10 @@
         "hover_video_title": "Instalación"
       }
     ]
+  },
+  "bdt-video-gallery": {},
+  "bdt-wc-carousel": {
+    "posts_per_page": 6,
+    "columns": "3"
   }
 }

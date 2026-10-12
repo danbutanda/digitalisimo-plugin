@@ -155,6 +155,32 @@ checks['bdt-hover-video'] = async (page) => {
   if (!(await page.$eval('.digi-video-player video', (v) => v.muted))) throw new Error('al pasar el cursor el vídeo debe ir silenciado');
   return 'la lista de vídeos cambia de vídeo al pasar el cursor por su título, silenciado';
 };
+checks['bdt-video-gallery'] = async (page) => {
+  const stage = () => page.$eval('.digi-video-player__stage', (s) => ({ tag: s.firstElementChild.tagName, src: s.firstElementChild.getAttribute('src'), now: (document.querySelector('.digi-video-player__now-title') || {}).textContent }));
+  const before = await stage();
+  if (before.tag !== 'IFRAME' || !before.src.includes('youtube-nocookie.com/embed/') || before.now !== 'Youtube Video') throw new Error(`al cargar debe verse el primer vídeo de YouTube: ${JSON.stringify(before)}`);
+  await page.click('li:nth-child(2) .digi-video-player__item');
+  await page.waitForFunction(() => document.querySelector('.digi-video-player__now-title').textContent === 'Vimeo Video', { timeout: 3000 });
+  const vimeo = await stage();
+  if (vimeo.tag !== 'IFRAME' || !vimeo.src.startsWith('https://player.vimeo.com/video/258349022?dnt=1')) throw new Error(`el segundo botón debe cargar Vimeo: ${JSON.stringify(vimeo)}`);
+  await page.click('li:nth-child(5) .digi-video-player__item');
+  await page.waitForFunction(() => document.querySelector('.digi-video-player__stage').firstElementChild.tagName === 'VIDEO', { timeout: 3000 });
+  const description = await page.$eval('.digi-video-player__now-description', (p) => p.textContent);
+  if (!description.includes('Intro')) throw new Error('la descripción debe cambiar con el vídeo');
+  return 'la galería cambia entre YouTube, Vimeo y un archivo MP4, y actualiza título y descripción';
+};
+checks['bdt-wc-carousel'] = async (page) => {
+  await page.waitForSelector('.digi-products-carousel [data-digi-carousel-next]', { timeout: 5000 });
+  const layout = await page.$eval('.digi-products-carousel', (root) => {
+    const items = [...root.querySelectorAll('ul.products > li.product')];
+    const viewport = root.querySelector('[data-digi-carousel-track]');
+    const cs = getComputedStyle(items[0]); return { count: items.length, rows: new Set(items.map((li) => Math.round(li.getBoundingClientRect().top))).size, visible: items.filter((li) => { const r = li.getBoundingClientRect(); const v = viewport.getBoundingClientRect(); return r.left >= v.left - 1 && r.right <= v.right + 1; }).length, scroll: viewport.scrollLeft, viewport: Math.round(viewport.getBoundingClientRect().width), lefts: items.map((li) => Math.round(li.getBoundingClientRect().left)), widths: items.map((li) => Math.round(li.getBoundingClientRect().width)), flex: cs.flex, pad: cs.padding, margin: cs.margin, gap: getComputedStyle(root.querySelector('ul.products')).gap, vis: getComputedStyle(root).getPropertyValue('--digi-carousel-visible'), ul: getComputedStyle(root.querySelector('ul.products')).display };
+  });
+  if (layout.count !== 6 || layout.rows !== 1 || layout.visible !== 3) throw new Error(`se esperaban 6 productos en una fila con 3 visibles: ${JSON.stringify(layout)}`);
+  await page.click('.digi-products-carousel [data-digi-carousel-next]');
+  await page.waitForFunction(() => document.querySelector('.digi-products-carousel [data-digi-carousel-track]').scrollLeft > 0, { timeout: 3000 });
+  return 'el carrusel de productos muestra 3 de 6 fichas en una fila y avanza con la flecha';
+};
 checks['bdt-logo-carousel'] = async (page) => (await checks['bdt-static-carousel'](page)).replace('deslizador propio', 'carrusel de logos');
 checks['bdt-slider'] = async (page) => (await checks['bdt-custom-carousel'](page)).replace('carrusel de medios', 'deslizador de diapositivas');
 (async () => {

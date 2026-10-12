@@ -1,5 +1,7 @@
 # DIGITALÍSIMO Migración · historial
 
+- 1.0.4: Video Gallery pasa del Carrusel de medios al reproductor propio con su lista, títulos y descripciones (YouTube, Vimeo, Dailymotion, Wistia o archivo); WC Carousel y WC Slider pasan a la presentación en carrusel de Productos con todos sus productos, columnas por dispositivo y flechas; WC Mini Cart conserva el título de su panel.
+
 - 1.0.3: Profile Card conserva distintivo, nombre de usuario, cifras, redes y menú en el perfil ampliado de la Caja de autor, y el perfil «blog» muestra al usuario elegido (antes se traducía como autor de la entrada actual); Lottie Icon Box conserva su descripción y su botón «Leer más»; Marker conserva la leyenda de la imagen con su color, alineación y tipografía.
 
 - 1.0.2: Table pasa DataTables (buscador, orden, paginación de 10 filas y resumen) a la interacción propia de la tabla; Device Slider conserva sus diapositivas de color, vídeo y YouTube con los valores por defecto de Element Pack; Hover Video pasa toda su lista de vídeos, que cambia al pasar el cursor; Step Flow conserva su flecha de dirección (trazo, dispositivos, color, ancho y, con su interruptor, desplazamiento y giro).

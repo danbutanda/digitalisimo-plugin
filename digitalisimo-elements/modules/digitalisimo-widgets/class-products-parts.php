@@ -11,6 +11,10 @@ defined( 'ABSPATH' ) || exit;
  * productos independiente de filas por columnas. Durante el render de ese widget ajusta los ganchos
  * del bucle de WooCommerce y los deja como estaban al terminar; un widget que no usa estas opciones
  * se pinta exactamente igual que antes.
+ *
+ * La presentación «Carrusel» envuelve la misma lista de productos en el motor de carruseles propio
+ * (región, ventana desplazable con desplazamiento por ficha y flechas), con tantas fichas visibles como
+ * columnas tenga el widget en cada dispositivo.
  */
 final class Products_Parts {
 	const PARTS_KEY = 'digitalisimo_wc_parts';
@@ -30,6 +34,7 @@ final class Products_Parts {
 		add_action( 'elementor/element/woocommerce-products/section_content/after_section_end', array( __CLASS__, 'register_controls' ) );
 		add_action( 'elementor/frontend/widget/before_render', array( __CLASS__, 'before_render' ) );
 		add_action( 'elementor/frontend/widget/after_render', array( __CLASS__, 'after_render' ) );
+		add_filter( 'elementor/widget/render_content', array( __CLASS__, 'render_content' ), 10, 2 );
 	}
 
 	public static function register_controls( $widget ) {
@@ -48,6 +53,8 @@ final class Products_Parts {
 		$widget->add_control( 'digitalisimo_wc_excerpt_length', array( 'label' => 'Palabras del extracto', 'type' => $c::NUMBER, 'default' => 10, 'min' => 1, 'condition' => array( 'digitalisimo_wc_custom' => 'yes' ) ) );
 		$widget->add_control( 'digitalisimo_wc_readmore_text', array( 'label' => 'Texto de «Leer más»', 'type' => $c::TEXT, 'default' => 'Read More', 'condition' => array( 'digitalisimo_wc_custom' => 'yes' ) ) );
 		$widget->add_control( 'digitalisimo_products_limit', array( 'label' => 'Número de productos', 'type' => $c::NUMBER, 'min' => 1, 'description' => 'Vacío: filas por columnas.' ) );
+		$widget->add_control( 'digitalisimo_wc_layout', array( 'label' => 'Presentación', 'type' => $c::SELECT, 'default' => 'grid', 'options' => array( 'grid' => 'Rejilla', 'carousel' => 'Carrusel' ), 'separator' => 'before', 'description' => 'En carrusel se ven tantas fichas como columnas en cada dispositivo.' ) );
+		$widget->add_control( 'digitalisimo_wc_navigation', array( 'label' => 'Flechas', 'type' => $c::SWITCHER, 'default' => 'yes', 'condition' => array( 'digitalisimo_wc_layout' => 'carousel' ) ) );
 		$widget->end_controls_section();
 	}
 
@@ -110,6 +117,60 @@ final class Products_Parts {
 			}
 		}
 		self::$state[ spl_object_id( $element ) ] = $state;
+	}
+
+	/** Envuelve la lista de productos en el motor de carruseles; null si el HTML no tiene la lista esperada. */
+	public static function carousel( $content, array $s ) {
+		if ( ! preg_match( '#<ul class="products\b[^"]*"#', $content, $start, PREG_OFFSET_CAPTURE ) ) {
+			return null;
+		}
+		$open = $start[0][1];
+		$stop = strpos( $content, '<nav class="woocommerce-pagination' );
+		$head = false === $stop ? $content : substr( $content, 0, $stop );
+		$end  = strrpos( $head, '</ul>' );
+		if ( false === $end || $end < $open ) {
+			return null;
+		}
+		$list  = substr( $content, $open, $end + 5 - $open );
+		$count = preg_match_all( '#<li\b[^>]*class="[^"]*\bproduct\b#', $list );
+		$list  = preg_replace( '#^<ul class="products\b#', '<ul class="products digi-carousel__slides', $list, 1 );
+		$vars  = '--digi-carousel-count:' . max( 1, $count );
+		foreach ( array( '' => '', '_tablet' => '-tablet', '_mobile' => '-mobile' ) as $suffix => $var ) {
+			$columns = absint( $s[ 'columns' . $suffix ] ?? 0 );
+			if ( $columns ) {
+				$vars .= ';--digi-products-visible' . $var . ':' . $columns;
+			}
+		}
+		$controls = 'yes' === ( $s['digitalisimo_wc_navigation'] ?? 'yes' ) && $count > 1
+			? '<div class="digi-carousel__controls"><button class="digi-carousel__button" type="button" data-digi-carousel-prev aria-label="Anterior" disabled aria-disabled="true">&#x2039;</button><button class="digi-carousel__button" type="button" data-digi-carousel-next aria-label="Siguiente">&#x203a;</button></div>'
+			: '';
+		return substr( $content, 0, $open )
+			. '<section class="digi-carousel digi-products-carousel" role="region" aria-roledescription="carrusel" aria-label="Productos" style="' . esc_attr( $vars ) . '"><div class="digi-carousel__viewport" tabindex="0" data-digi-carousel-track>'
+			. $list . '</div>' . $controls . '</section>'
+			. substr( $content, $end + 5 );
+	}
+
+	public static function render_content( $content, $widget ) {
+		if ( ! self::applies( $widget ) ) {
+			return $content;
+		}
+		$s = (array) $widget->get_settings_for_display();
+		if ( 'carousel' !== ( $s['digitalisimo_wc_layout'] ?? 'grid' ) ) {
+			return $content;
+		}
+		$carousel = self::carousel( (string) $content, $s );
+		if ( null === $carousel ) {
+			return $content;
+		}
+		if ( function_exists( 'wp_enqueue_style' ) ) {
+			if ( ! wp_style_is( 'digitalisimo-products-carousel', 'registered' ) ) {
+				wp_register_style( 'digitalisimo-products-carousel', plugins_url( 'assets/css/products-carousel.css', DIGITALISIMO_ELEMENTS_FILE ), array( 'digitalisimo-carousel-engine' ), DIGITALISIMO_ELEMENTS_VERSION );
+			}
+			wp_enqueue_style( 'digitalisimo-carousel-engine' );
+			wp_enqueue_style( 'digitalisimo-products-carousel' );
+			wp_enqueue_script( 'digitalisimo-carousel-engine' );
+		}
+		return $carousel;
 	}
 
 	public static function after_render( $element ) {

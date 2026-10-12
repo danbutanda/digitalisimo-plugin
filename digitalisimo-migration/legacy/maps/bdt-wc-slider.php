@@ -71,6 +71,6 @@ return array(
 	),
 	// Un producto por fila en la rejilla de PRO Elements; el pase automático y la navegación no se trasladan.
 	'filter'    => static function ( array $out ) {
-		return Digitalisimo\Elements\Legacy\Translator::wc_products( $out, array( 'per_page' => array( 'posts_per_page', 3 ), 'columns' => '1', 'image' => 'yes', 'title' => array( 'show_title', 'yes' ), 'title_tag' => array( 'title_tags', 'h2' ), 'excerpt' => array( 'show_text', '' ), 'excerpt_length' => array( 'excerpt_length', 25 ), 'excerpt_style' => 'summary', 'readmore' => array( 'show_readmore', 'yes' ), 'readmore_text' => array( 'readmore_text', 'Read More' ), 'rating' => array( 'show_rating', 'yes' ), 'price' => array( 'show_price', 'yes' ), 'cart' => array( 'show_cart', 'yes' ), 'badge' => array( 'show_badge', 'yes' ) ) );
+		return Digitalisimo\Elements\Legacy\Translator::wc_products( $out, array( 'layout' => 'carousel', 'columns_tablet' => '1', 'columns_mobile' => '1', 'per_page' => array( 'posts_per_page', 3 ), 'columns' => '1', 'image' => 'yes', 'title' => array( 'show_title', 'yes' ), 'title_tag' => array( 'title_tags', 'h2' ), 'excerpt' => array( 'show_text', '' ), 'excerpt_length' => array( 'excerpt_length', 25 ), 'excerpt_style' => 'summary', 'readmore' => array( 'show_readmore', 'yes' ), 'readmore_text' => array( 'readmore_text', 'Read More' ), 'rating' => array( 'show_rating', 'yes' ), 'price' => array( 'show_price', 'yes' ), 'cart' => array( 'show_cart', 'yes' ), 'badge' => array( 'show_badge', 'yes' ) ) );
 	},
 );

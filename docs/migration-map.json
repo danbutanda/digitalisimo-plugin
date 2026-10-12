@@ -4193,7 +4193,7 @@
       "legacy_documents": "adaptador publicado"
     },
     "bdt-video-gallery": {
-      "target": "media-carousel",
+      "target": "digitalisimo-video-player",
       "engine": "media",
       "classification": "A - CORE CANDIDATE",
       "user_priority_tier": 2,
@@ -4204,9 +4204,9 @@
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.121 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
-      "decision_target": "media-carousel",
+      "decision_target": "digitalisimo-video-player",
       "legacy_documents": "adaptador publicado",
-      "decision_reason": "Lista de vídeos con reproductor; el carrusel de medios admite vídeos.",
+      "decision_reason": "Lista de vídeos con reproductor; desde 4.3.0.135 el reproductor propio muestra la lista con título y descripción de cada vídeo (YouTube, Vimeo, Dailymotion, Wistia o archivo).",
       "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-video-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
     },
     "bdt-video-player": {
