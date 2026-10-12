@@ -5,7 +5,15 @@
  */
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
-activate_plugin( 'elementor/elementor.php' );
+// Con CORE=bundled el plugin Elementor no está instalado: DIGITALÍSIMO Elements trae su núcleo.
+if ( file_exists( WP_PLUGIN_DIR . '/elementor/elementor.php' ) ) {
+	activate_plugin( 'elementor/elementor.php' );
+}
+// Registro de errores fatales de cualquier petición (incluidas las AJAX del editor) en la carpeta de la prueba.
+if ( ! is_dir( WPMU_PLUGIN_DIR ) ) {
+	mkdir( WPMU_PLUGIN_DIR, 0777, true );
+}
+file_put_contents( WPMU_PLUGIN_DIR . '/digi-fatal-log.php', '<?php register_shutdown_function( static function () { $e = error_get_last(); if ( $e && in_array( $e["type"], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ), true ) ) { file_put_contents( "/wordpress/wp-content/probe/fatal.log", ( $_SERVER["REQUEST_URI"] ?? "" ) . " " . ( $_POST["action"] ?? "" ) . " " . substr( (string) ( $_POST["actions"] ?? "" ), 0, 300 ) . "\n" . $e["message"] . " @ " . $e["file"] . ":" . $e["line"] . "\n\n", FILE_APPEND ); } } );' );
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
 activate_plugin( 'digitalisimo-migration/digitalisimo-migration.php' );
 update_option( 'elementor_element_cache_ttl', 'disable' );
@@ -44,3 +52,10 @@ foreach ( $cases as $widget => $settings ) {
 	) ) ) ) ) ) ) );
 }
 update_option( 'digi_ix_ready', count( $cases ) );
+update_option( 'digi_ix_core', defined( 'DIGITALISIMO_ELEMENTS_CORE' ) ? 'bundled' : 'plugin' );
+// Sin estos dos plugins activos no hay nada que probar: se avisa en vez de fallar caso por caso.
+foreach ( array( 'digitalisimo-elements/pro-elements.php', 'digitalisimo-migration/digitalisimo-migration.php' ) as $required ) {
+	if ( ! is_plugin_active( $required ) ) {
+		file_put_contents( '/wordpress/wp-content/probe/setup-error.txt', $required . ' no quedó activo' . "\n", FILE_APPEND );
+	}
+}

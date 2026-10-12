@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.136
+# DIGITALÍSIMO Elements 4.3.0.137
+
+- 4.3.0.137: corrección urgente. Desde 4.3.0.133 la vista previa del editor de Elementor no cargaba: Tabla de datos y Reproductor de video leían sus ajustes para decidir si cargar su script también en la instancia de registro del widget, que no tiene ajustes, y Elementor terminaba con un error fatal al encolar los scripts de la vista previa. Esa instancia ahora carga el script sin leer ajustes.
 
 - 4.3.0.136: Productos de WooCommerce gana la presentación «Tabla»: los mismos productos del widget (con su consulta, orden y límite) en una tabla con encabezados editables y una columna por parte elegida (imagen, producto con SKU opcional, descripción, categorías, etiquetas, valoración, precio, selector de cantidad y botón de compra), con buscador, orden por columna, paginación y resumen opcionales. La cantidad elegida viaja en el botón de compra de su fila.
 

@@ -5,6 +5,8 @@ namespace Elementor {
 		public $controls = array();
 		public function get_settings_for_display() { return $this->settings; }
 		public function get_settings() { return $this->settings; }
+		public $type_instance = false;
+		public function is_type_instance() { return $this->type_instance; }
 		public function start_controls_section( $name, $args ) {}
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
@@ -67,5 +69,10 @@ namespace {
 	$widget->settings = array( 'content' => "Plan,Precio\nA,1" );
 	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $plain = ob_get_clean();
 	check_table( ! str_contains( $plain, 'data-digi-table' ) && array() === $widget->get_script_depends(), 'Sin interacción la tabla no carga JavaScript.' );
+	// La instancia de registro (la del editor) no tiene ajustes: no se leen y se devuelve el script.
+	$type = new \Digitalisimo\Elements\Table_Widget();
+	$type->type_instance = true;
+	$type->settings = null;
+	check_table( array( 'digitalisimo-table' ) === $type->get_script_depends(), 'La instancia de registro del editor carga el script sin leer ajustes.' );
 	echo "DIGITALÍSIMO Elements: Tabla CSV validada.\n";
 }

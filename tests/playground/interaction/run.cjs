@@ -236,6 +236,52 @@ checks['bdt-slider'] = async (page) => (await checks['bdt-custom-carousel'](page
     }
     await page.close();
   }
+  // El editor de Elementor carga como administrador, con su panel y la vista previa de la página, sin errores de
+  // JavaScript ni respuestas de error (con CORE=bundled, sus archivos vienen de la carpeta del plugin).
+  {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1440, height: 900 });
+    const errors = [];
+    const failedRequests = [];
+    page.on('pageerror', (e) => errors.push(String(e.message || e)));
+    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    const bodies = [];
+    page.on('response', (r) => {
+      if (r.status() >= 400 && r.url().startsWith(base)) {
+        failedRequests.push(`${r.status()} ${r.url()}`);
+        r.text().then((text) => bodies.push(`${r.url()} → ${text.replace(/\s+/g, ' ').slice(0, 400)}`)).catch(() => {});
+      }
+    });
+    try {
+      await page.goto(`${base}/wp-login.php`, { waitUntil: 'networkidle0', timeout: 90000 });
+      await page.type('#user_login', 'admin');
+      await page.type('#user_pass', 'password');
+      await Promise.all([page.waitForNavigation({ timeout: 90000 }), page.click('#wp-submit')]);
+      if (process.env.CORE === 'bundled') {
+        // Una dirección guardada con el plugin Elementor (ya no instalado) se redirige al núcleo incluido.
+        const old = await page.evaluate(async (url) => { const r = await fetch(url); return `${r.status} ${r.url}`; }, `${base}/wp-content/plugins/elementor/assets/images/placeholder.png`);
+        if (!old.startsWith('200 ') || !old.includes('/digitalisimo-elements/elementor/assets/images/placeholder.png')) throw new Error(`la ruta antigua de Elementor debe llevar al núcleo incluido: ${old}`);
+      }
+      const [entry] = await page.evaluate(async (url) => (await fetch(url)).json(), `${base}/wp-json/wp/v2/pages?slug=digi-ix-bdt-accordion`);
+      await page.goto(`${base}/wp-admin/post.php?post=${entry.id}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 180000 });
+      await page.waitForSelector('#elementor-panel', { timeout: 180000 });
+      const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
+      await frame.waitForSelector('.elementor-widget', { timeout: 180000 });
+      const core = await page.evaluate(() => (window.elementorCommon && window.elementorCommon.config && window.elementorCommon.config.version) || (window.ElementorConfig && window.ElementorConfig.version) || '');
+      if (failedRequests.length) throw new Error('recursos no encontrados: ' + failedRequests.join(' | '));
+      if (errors.length) throw new Error('errores de JavaScript: ' + errors.join(' | '));
+      results.editor = { ok: true, note: `el editor de Elementor ${core} carga con panel y vista previa` };
+      console.log(`OK     editor · ${results.editor.note}`);
+    } catch (e) {
+      failed++;
+      const preview = await page.$eval('#elementor-preview-iframe', (f) => f.src).catch(() => '');
+      const probe = preview ? await page.evaluate(async (url) => { const r = await fetch(url, { credentials: 'include' }); return `${r.status} ${(await r.text()).replace(/\s+/g, ' ').slice(0, 600)}`; }, preview).catch((err) => String(err)) : '';
+      results.editor = { ok: false, error: String(e.message || e), errors, failedRequests, bodies, preview, probe };
+      console.log(`FALLA  editor · ${e.message}`);
+      await page.screenshot({ path: `${process.env.OUT || '/tmp'}/editor.png` }).catch(() => {});
+    }
+    await page.close();
+  }
   await browser.close();
   require('fs').writeFileSync(`${process.env.OUT || '/tmp'}/interaction.json`, JSON.stringify(results, null, 2));
   process.exit(failed ? 1 : 0);

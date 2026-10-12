@@ -1,5 +1,7 @@
 # DIGITALÍSIMO Migración · historial
 
+- 1.0.6: corrección urgente del editor. Los adaptadores de productos de WooCommerce añadían ajustes ocultos fuera de toda sección y Elementor detenía la petición al construirlos (la ruta REST de clases globales respondía con error 500); ahora van dentro de la sección de contenido. Mientras haya adaptadores, las peticiones AJAX del editor de Elementor pueden usar hasta 512 MB, porque cargan los controles de unos 400 widgets.
+
 - 1.0.5: la piel de tabla de WC Products pasa a la tabla propia de Productos con sus columnas, encabezados, SKU, selector de cantidad y las opciones de DataTables (buscador, orden, paginación, resumen y filas por página).
 
 - 1.0.4: Video Gallery pasa del Carrusel de medios al reproductor propio con su lista, títulos y descripciones (YouTube, Vimeo, Dailymotion, Wistia o archivo); WC Carousel y WC Slider pasan a la presentación en carrusel de Productos con todos sus productos, columnas por dispositivo y flechas; WC Mini Cart conserva el título de su panel.

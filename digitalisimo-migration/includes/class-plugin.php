@@ -27,6 +27,7 @@ final class Plugin {
 		require_once $legacy . 'conditions/class-legacy-visibility.php';
 		\Digitalisimo\Elements\Legacy_Visibility::init();
 		self::bridge_visitor_filters();
+		add_filter( 'admin_memory_limit', array( __CLASS__, 'editor_memory' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'register_adapters' ), 30 );
 		if ( is_admin() ) {
 			require_once $legacy . 'class-migration.php';
@@ -36,6 +37,16 @@ final class Plugin {
 			require_once $legacy . 'class-cli.php';
 			\WP_CLI::add_command( 'digitalisimo-migration', \Digitalisimo\Elements\Legacy\Cli::class );
 		}
+	}
+
+	/**
+	 * Con los adaptadores el editor de Elementor carga los controles de unos 400 widgets (unos 165 MB, más con
+	 * WooCommerce): en sus peticiones AJAX el límite de memoria de administración sube a 512 MB mientras dure la
+	 * migración. Elementor ya pide ese límite con wp_raise_memory_limit( 'admin' ).
+	 */
+	public static function editor_memory( $limit ) {
+		$ajax = function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() && 'elementor_ajax' === ( $_REQUEST['action'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide el límite de memoria.
+		return $ajax && wp_convert_hr_to_bytes( (string) $limit ) < 536870912 ? '512M' : $limit;
 	}
 
 	/** Los adaptadores se registran después de los widgets propios, de los que heredan. */

@@ -17,8 +17,15 @@ class Table_Widget extends \Elementor\Widget_Base {
 	public function get_style_depends() { return array( 'digitalisimo-table' ); }
 	const FEATURES = array( 'search' => 'table_search', 'sort' => 'table_sort', 'paginate' => 'table_paginate', 'info' => 'table_info' );
 
-	/** El script sólo se carga si la tabla usa alguna función interactiva, o en la vista previa del editor. */
+	/**
+	 * El script sólo se carga si la tabla usa alguna función interactiva, o en la vista previa del editor. La
+	 * instancia de registro del widget (la que el editor usa para encolar recursos) no tiene ajustes: leerlos
+	 * provoca un error fatal en Elementor, así que entonces se devuelve el script sin mirarlos.
+	 */
 	public function get_script_depends() {
+		if ( $this->is_type_instance() ) {
+			return array( 'digitalisimo-table' );
+		}
 		$s = (array) $this->get_settings();
 		foreach ( self::FEATURES as $key ) {
 			if ( 'yes' === ( $s[ $key ] ?? '' ) ) {

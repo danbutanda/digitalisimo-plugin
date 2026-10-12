@@ -749,12 +749,16 @@ if ( class_exists( '\\ElementorPro\\Modules\\Woocommerce\\Widgets\\Products' ) )
 
 		protected function register_controls() {
 			parent::register_controls();
+			// Los ajustes ocultos van dentro de la sección de contenido del widget: Elementor detiene la petición
+			// (wp_die) si un control queda fuera de toda sección, por ejemplo al construir el editor.
+			$this->start_injection( array( 'at' => 'after', 'of' => 'paginate' ) );
 			$hidden = array( 'type' => \Elementor\Controls_Manager::HIDDEN );
 			$this->add_control( 'posts_per_page', $hidden + array( 'default' => '' ) );
 			$this->add_control( 'digitalisimo_wc_parts', $hidden + array( 'default' => 'image,title,rating,price,cart,badge' ) );
 			$this->add_control( 'digitalisimo_wc_excerpt_length', $hidden + array( 'default' => 10 ) );
 			$this->add_control( 'digitalisimo_wc_title_tag', $hidden + array( 'default' => 'h2' ) );
 			$this->add_control( 'digitalisimo_wc_readmore_text', $hidden + array( 'default' => 'Read More' ) );
+			$this->end_injection();
 		}
 
 		protected function render() {

@@ -19,8 +19,14 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'video', 'reproductor', 'mp4', 'webm', 'youtube', 'vimeo', 'lista' ); }
 	public function get_style_depends() { return array( 'digitalisimo-video-player' ); }
-	/** El script sólo hace falta para cambiar de vídeo en una lista, o en la vista previa del editor. */
+	/**
+	 * El script sólo hace falta para cambiar de vídeo en una lista, o en la vista previa del editor. La instancia
+	 * de registro del widget no tiene ajustes (leerlos provoca un error fatal en Elementor): devuelve el script.
+	 */
 	public function get_script_depends() {
+		if ( $this->is_type_instance() ) {
+			return array( 'digitalisimo-video-player' );
+		}
 		if ( count( self::playlist( (array) $this->get_settings() ) ) > 1 ) {
 			return array( 'digitalisimo-video-player' );
 		}

@@ -4,6 +4,8 @@ namespace Elementor {
 		public $settings = array();
 		public function get_settings_for_display() { return $this->settings; }
 		public function get_settings() { return $this->settings; }
+		public $type_instance = false;
+		public function is_type_instance() { return $this->type_instance; }
 		public function start_controls_section( $name, $args ) {}
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) {}
@@ -63,5 +65,10 @@ namespace {
 	) );
 	ob_start(); $render->invoke( $widget ); $mixed = ob_get_clean();
 	check_video( str_contains( $mixed, '<div class="digi-video-player__stage"><iframe class="digi-video-player__embed"' ) && str_contains( $mixed, 'data-kind="embed"' ) && str_contains( $mixed, 'data-kind="video"' ) && str_contains( $mixed, '<span class="digi-video-player__item-description">Primer clip</span>' ) && ! str_contains( $mixed, 'Inválido' ), 'La lista mezcla vídeos incrustados y archivos, con descripción en texto plano.' );
+	// La instancia de registro (la del editor) no tiene ajustes: no se leen y se devuelve el script.
+	$type = new \Digitalisimo\Elements\Video_Player_Widget();
+	$type->type_instance = true;
+	$type->settings = null;
+	check_video( array( 'digitalisimo-video-player' ) === $type->get_script_depends(), 'La instancia de registro del editor carga el script sin leer ajustes.' );
 	echo "DIGITALÍSIMO Elements: reproductor nativo validado.\n";
 }

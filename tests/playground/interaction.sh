@@ -6,6 +6,8 @@
 # WooCommerce (instalado con seis productos de prueba) avanza en una sola fila y que su tabla ordena, filtra y pasa la cantidad
 # al botón de compra, sin errores de JavaScript ni recursos 404.
 # Uso: bash tests/playground/interaction.sh   (PUPPETEER_PATH apunta al node_modules con puppeteer-core)
+# CORE=bundled no instala el plugin Elementor: todo corre sobre el núcleo incluido en DIGITALÍSIMO Elements, que se
+# activa con él, y además se abre el editor de Elementor como administrador (sin errores ni recursos 404).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="${OUT:-/tmp/digi-interaction}"
@@ -13,11 +15,13 @@ PORT="${PORT:-9431}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 PUPPETEER_PATH="${PUPPETEER_PATH:-$(ls -d "$HOME"/.npm/_npx/*/node_modules 2>/dev/null | while read -r d; do [ -d "$d/puppeteer-core" ] && echo "$d" && break; done)}"
 [ -n "$PUPPETEER_PATH" ] || { echo "No se encontró puppeteer-core: exportar PUPPETEER_PATH"; exit 1; }
-mkdir -p "$OUT" && rm -f "$OUT"/*.png "$OUT/interaction.json"
+mkdir -p "$OUT" && rm -f "$OUT"/*.png "$OUT/interaction.json" "$OUT/setup-error.txt" "$OUT/fatal.log"
 cp "$ROOT/tests/playground/interaction/cases.json" "$OUT/cases.json"
 cp "$ROOT/tests/playground/interaction/setup.php" "$OUT/setup.php"
-cat > "$OUT/blueprint.json" <<'JSON'
-{"steps":[{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":true}},
+ELEMENTOR_STEP='{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":true}},'
+[ "${CORE:-}" = "bundled" ] && ELEMENTOR_STEP=''
+cat > "$OUT/blueprint.json" <<JSON
+{"steps":[$ELEMENTOR_STEP
 {"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"woocommerce"},"options":{"activate":true}},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}]}
 JSON
@@ -37,4 +41,5 @@ for i in $(seq 1 200); do
   curl -s -m 20 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/digi-ix-bdt-accordion/" 2>/dev/null | grep -q '^200$' && break
 done
 curl -s -m 20 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/digi-ix-bdt-accordion/" | grep -q '^200$' || { echo 'El servidor no sirvió las páginas de prueba'; tail -20 "$OUT/server.log"; exit 1; }
-OUT="$OUT" NODE_PATH="$PUPPETEER_PATH" node "$ROOT/tests/playground/interaction/run.cjs" "http://127.0.0.1:$PORT"
+[ -f "$OUT/setup-error.txt" ] && { echo "Preparación incompleta:"; cat "$OUT/setup-error.txt"; exit 1; }
+OUT="$OUT" CORE="${CORE:-}" NODE_PATH="$PUPPETEER_PATH" node "$ROOT/tests/playground/interaction/run.cjs" "http://127.0.0.1:$PORT"
