@@ -18,6 +18,7 @@ namespace {
 	define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.27' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	function add_action( $name, $callback, $priority = 10 ) {}
+	function add_filter( $name, $callback, $priority = 10, $args = 1 ) {}
 	function plugins_url( $path, $file ) { return 'https://example.test/' . $path; }
 	function wp_style_is( $handle, $state ) { return isset( $GLOBALS['styles'][ $handle ] ); }
 	function wp_register_style( $handle, $url, $deps, $version ) { $GLOBALS['styles'][ $handle ] = $url; }

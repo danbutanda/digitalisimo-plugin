@@ -124,6 +124,8 @@ Lote 39 (4.3.0.132 y DIGITALÍSIMO Migración 1.0.1): primer tramo para reducir 
 
 Lote 40 (4.3.0.133 y DIGITALÍSIMO Migración 1.0.2): segundo tramo de diferencias declaradas, en los widgets propios restantes: DataTables de Table pasa a la interacción propia (buscador, orden, paginación y resumen), Device Slider recupera las diapositivas de color, vídeo y YouTube, Hover Video conserva toda su lista y Step Flow su flecha (SVG propio decorativo). Quedan los destinos nativos: Lottie Icon Box, Profile Card, Video Gallery, Marker, carruseles y tabla de WooCommerce y título del carrito.
 
+Lote 41 (4.3.0.134 y DIGITALÍSIMO Migración 1.0.3): tercer tramo, en destinos nativos, con rasgos propios del núcleo sobre la clase del widget (también cuando se registra con otro nombre): perfil ampliado de la Caja de autor para Profile Card, texto bajo Lottie para Lottie Icon Box y leyenda con estilo propio en Hotspot para Marker. Quedan Video Gallery, los carruseles y la tabla de WooCommerce y el título del carrito.
+
 ## Estado de cierre (4.3.0.125, separación en 4.3.0.131)
 
 Los pasos para desactivar y desinstalar Element Pack en una red real están en [ELEMENT_PACK_RETIREMENT.md](ELEMENT_PACK_RETIREMENT.md).

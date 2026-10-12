@@ -7,7 +7,7 @@ $placeholder_url = class_exists( '\Elementor\Utils' ) ? \Elementor\Utils::get_pl
 return array(
 	'target'    => 'hotspot',
 	// Clases de Element Pack más usadas en sus selectores: .bdt-marker-wrapper, .bdt-marker, .bdt-marker-item, .bdt-marker-animated
-	'classes'   => array(),
+	'classes'   => array( '.marker-caption-text' => '.digi-media-caption' ),
 	'defaults'  => array(
 		'image' => array(
 			'url' => $placeholder_url,
@@ -135,6 +135,15 @@ return array(
 			'tooltip_trigger'  => 'yes' === ( $out['marker_always_visible_tooltip'] ?? '' ) ? 'none' : ( 'yes' === ( $out['marker_tooltip_trigger'] ?? '' ) ? 'click' : 'mouseenter' ),
 			'hotspot_animation' => 'yes' === ( $out['marker_animation'] ?? 'yes' ) ? 'e-hotspot--soft-beat' : '',
 		);
+		// La leyenda de la imagen y su estilo pasan a la leyenda propia del Hotspot.
+		$out['digitalisimo_hotspot_caption'] = trim( wp_strip_all_tags( (string) ( $out['caption'] ?? '' ) ) );
+		foreach ( array_keys( $out ) as $key ) {
+			if ( preg_match( '/^(?:caption_align|text_color|caption_typography_.+)$/', $key ) ) {
+				$own         = 'text_color' === $key ? 'digitalisimo_hotspot_caption_color' : 'digitalisimo_hotspot_' . $key;
+				$out[ $own ] = $out[ $key ];
+				unset( $out[ $key ] );
+			}
+		}
 		foreach ( array_keys( $out ) as $key ) {
 			if ( preg_match( '/^(markers|caption|caption_align|marker_.*|space|opacity|tooltip_size|align)$/', $key ) ) {
 				unset( $out[ $key ] );

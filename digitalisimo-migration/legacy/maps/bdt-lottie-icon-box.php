@@ -233,7 +233,11 @@ return array(
 		foreach ( array( 'lottie_json_source', 'lottie_json_path', 'upload_json_file', 'lottie_json_code', 'play_action', 'view_type', 'speed', 'lottie_start_point', 'lottie_end_point', 'lottie_renderer', 'lottie_number_of_times', 'link' ) as $key ) {
 			unset( $out[ $key ] );
 		}
-		// El título pasa a la leyenda; la descripción y el botón de la caja no se trasladan.
+		// El título pasa a la leyenda; la descripción y el botón «Leer más» van al texto propio bajo la animación.
+		$out['digitalisimo_lottie_description'] = trim( (string) ( $out['description_text'] ?? '' ) );
+		$more                                   = 'yes' === ( $out['readmore'] ?? '' ) && '' !== trim( (string) ( $out['readmore_text'] ?? '' ) );
+		$out['digitalisimo_lottie_button_text'] = $more ? trim( wp_strip_all_tags( (string) $out['readmore_text'] ) ) : '';
+		$out['digitalisimo_lottie_button_link'] = $more && is_array( $out['readmore_link'] ?? null ) ? $out['readmore_link'] : array( 'url' => '' );
 		if ( '' !== trim( (string) ( $out['title_text'] ?? '' ) ) ) {
 			$out['caption_source'] = 'custom';
 			$out['caption']        = trim( wp_strip_all_tags( (string) $out['title_text'] ) );

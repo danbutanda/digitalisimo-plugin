@@ -7,9 +7,9 @@
       "custom_attributes": ""
     },
     "title_text": "Animado",
-    "_known": {
-      "text": "La descripción y el botón de la caja no se trasladan; el título pasa a la leyenda de la animación",
-      "links": "El botón «Read More» de la caja no se traslada"
-    }
+    "_expect_html": [
+      "<div class=\"digi-media-description\"><p>Click edit button to change this text.",
+      "<a class=\"digi-media-button elementor-button\" href=\"#\">Read More</a>"
+    ]
   }
 }

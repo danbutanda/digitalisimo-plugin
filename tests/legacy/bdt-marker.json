@@ -1,7 +1,7 @@
 {
   "defaults": {
     "_known": {
-      "text": "El contenido del tooltip forma parte del HTML del Hotspot; Element Pack lo llevaba en un atributo data-tippy-content, y la leyenda de la imagen no se traslada",
+      "text": "El contenido del tooltip forma parte del HTML del Hotspot; Element Pack lo llevaba en un atributo data-tippy-content",
       "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor o ninguna",
       "links": "Los puntos del Hotspot no son enlaces; Element Pack envolvía cada marcador en un enlace javascript:void(0)"
     }
@@ -9,9 +9,24 @@
   "clic_y_enlace": {
     "marker_tooltip_trigger": "yes",
     "_known": {
-      "text": "El contenido del tooltip forma parte del HTML del Hotspot; Element Pack lo llevaba en un atributo data-tippy-content, y la leyenda de la imagen no se traslada",
+      "text": "El contenido del tooltip forma parte del HTML del Hotspot; Element Pack lo llevaba en un atributo data-tippy-content",
       "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor o ninguna",
       "links": "Los puntos del Hotspot no son enlaces; Element Pack envolvía cada marcador en un enlace javascript:void(0)"
     }
+  },
+  "leyenda": {
+    "caption": "Plano de la oficina",
+    "_known": {
+      "text": "El contenido del tooltip forma parte del HTML del Hotspot; Element Pack lo llevaba en un atributo data-tippy-content",
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor o ninguna",
+      "links": "Los puntos del Hotspot no son enlaces; Element Pack envolvía cada marcador en un enlace javascript:void(0)"
+    },
+    "_expect_html": [
+      "<p class=\"digi-media-caption\">Plano de la oficina</p>"
+    ],
+    "_expect_css": [
+      ".digi-media-caption{color:#123456"
+    ],
+    "text_color": "#123456"
   }
 }

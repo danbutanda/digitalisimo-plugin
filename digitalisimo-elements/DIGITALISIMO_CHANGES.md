@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.133
+# DIGITALÍSIMO Elements 4.3.0.134
+
+- 4.3.0.134: Caja de autor gana «Perfil ampliado»: usuario del sitio elegido (su nombre, biografía, avatar y entradas, siempre al día), nombre de usuario, distintivo, cifras escritas a mano o calculadas (entradas del autor, comentarios del sitio), perfiles sociales con nombre accesible y un menú de enlaces que se abre con un botón. Lottie gana descripción y botón bajo la animación, y Hotspot gana leyenda con su propio estilo (alineación, color, tipografía y separación). Los tres se reconocen por su clase, también cuando se registran con otro nombre.
 
 - 4.3.0.133: Tabla de datos gana «Interacción»: buscador, orden al pulsar un encabezado (numérico cuando la columna lo es), paginación con filas por página y resumen de filas, añadidos en el navegador sobre la tabla completa; sin esas opciones no carga JavaScript. Slider de dispositivos acepta diapositivas de color, vídeo MP4 y YouTube (dominio sin cookies), con controles para pausar el vídeo. Reproductor de video gana una lista de vídeos que cambia de vídeo al pulsar su título o, si se elige, al pasar el cursor o enfocarlo. Caja de icono avanzada gana una flecha decorativa al siguiente paso (curva o recta, continua o punteada) con color, ancho, posición, giro y dispositivos donde ocultarla.
 

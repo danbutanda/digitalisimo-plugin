@@ -1,5 +1,7 @@
 # DIGITALÍSIMO Migración · historial
 
+- 1.0.3: Profile Card conserva distintivo, nombre de usuario, cifras, redes y menú en el perfil ampliado de la Caja de autor, y el perfil «blog» muestra al usuario elegido (antes se traducía como autor de la entrada actual); Lottie Icon Box conserva su descripción y su botón «Leer más»; Marker conserva la leyenda de la imagen con su color, alineación y tipografía.
+
 - 1.0.2: Table pasa DataTables (buscador, orden, paginación de 10 filas y resumen) a la interacción propia de la tabla; Device Slider conserva sus diapositivas de color, vídeo y YouTube con los valores por defecto de Element Pack; Hover Video pasa toda su lista de vídeos, que cambia al pasar el cursor; Step Flow conserva su flecha de dirección (trazo, dispositivos, color, ancho y, con su interruptor, desplazamiento y giro).
 
 - 1.0.1: Business Hours dinámico pasa al estado en vivo propio (horas en formato de 24 horas, día, zona horaria, mensajes de abierto y cerrado, hora y fecha de la cabecera) y respeta la etiqueta personalizada del día; sus estilos de cabecera, días, horas, separadores y aviso pasan al widget propio (28 controles en lugar de 6); Member conserva sus perfiles sociales con su título como nombre accesible; Toggle conserva el título que muestra al abrirse («Collapse»).

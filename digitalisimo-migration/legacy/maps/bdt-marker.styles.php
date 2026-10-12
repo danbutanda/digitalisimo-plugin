@@ -32,7 +32,7 @@ return array( array(
 		'type' => 'choose',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .marker-caption-text' => 'text-align: {{VALUE}};',
+			'{{WRAPPER}} .digi-media-caption' => 'text-align: {{VALUE}};',
 		),
 		'default' => '',
 		'options' => array(
@@ -58,12 +58,12 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .marker-caption-text' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-media-caption' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'caption_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .marker-caption-text',
+		'selector' => '{{WRAPPER}} .digi-media-caption',
 	), array(
 		'name' => 'marker_tooltip_arrow_color',
 		'type' => 'color',
