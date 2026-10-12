@@ -45,7 +45,7 @@ final class Extensions {
 
 	public static function register_style() {
 		if ( ! wp_style_is( self::STYLE, 'registered' ) ) {
-			wp_register_style( self::STYLE, plugins_url( 'modules/digitalisimo-legacy/assets/legacy-extensions.css', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
+			wp_register_style( self::STYLE, plugins_url( 'legacy/assets/legacy-extensions.css', DIGITALISIMO_MIGRATION_FILE ), array(), DIGITALISIMO_MIGRATION_VERSION );
 		}
 	}
 

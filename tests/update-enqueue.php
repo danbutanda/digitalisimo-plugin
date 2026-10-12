@@ -7,6 +7,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 define( 'DIGITALISIMO_BACKUPS_VERSION', '1.0.52' );
 define( 'DIGITALISIMO_TOOLS_VERSION', '1.0.28' );
 define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.10' );
+define( 'DIGITALISIMO_MIGRATION_VERSION', '1.0.0' );
 
 $cases = array(
 	'seo' => array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'digitalisimo-seo/digitalisimo-integrations.php', 'Digitalisimo_Updater', 'register', 'digitalisimo-seo' ),
@@ -15,6 +16,7 @@ $cases = array(
 	'backups' => array( 'digitalisimo-backups/includes/class-digitalisimo-updater.php', 'digitalisimo-backups/digitalisimo-backups.php', 'Digitalisimo_Backups_Updater', 'register', '' ),
 	'tools' => array( 'digitalisimo-tools/includes/class-updater.php', 'digitalisimo-tools/digitalisimo-tools.php', 'Digitalisimo\\Tools\\Updater', 'init', '' ),
 	'elements' => array( 'digitalisimo-elements/digitalisimo-updater.php', 'digitalisimo-elements/pro-elements.php', 'Digitalisimo_Elements_Updater', 'init', '' ),
+	'migration' => array( 'digitalisimo-migration/includes/class-updater.php', 'digitalisimo-migration/digitalisimo-migration.php', 'Digitalisimo\\Migration\\Updater', 'init', '' ),
 );
 $case = $cases[ $argv[1] ?? '' ] ?? null;
 if ( ! $case ) throw new RuntimeException( 'Indica un módulo.' );

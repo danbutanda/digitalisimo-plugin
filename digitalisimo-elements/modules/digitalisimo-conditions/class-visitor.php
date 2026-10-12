@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 
 /** Datos de la petición en curso, con filtros para servidores, proxies y pruebas. */
 final class Visitor {
-	const TIMEZONE_COOKIE = 'ep_visitor_tz';
+	const TIMEZONE_COOKIE = 'digi_visitor_tz';
 
 	private static $timezone_script = false;
 
@@ -31,20 +31,19 @@ final class Visitor {
 	/**
 	 * País ISO alfa-2 en mayúsculas, o '' si no se conoce. Orden: fuente propia del sitio,
 	 * cabecera del CDN o del servidor, zona horaria del navegador y, por último, la IP.
-	 * Respeta los filtros `element_pack_visibility_*` para que una configuración previa de
-	 * Element Pack siga funcionando igual. No sirve para control de acceso: las cabeceras,
-	 * la cookie y la IP reenviada pueden falsificarse.
+	 * Admite los filtros `digitalisimo_elements_visibility_*` para fijar o consultar el país.
+	 * No sirve para control de acceso: las cabeceras, la cookie y la IP reenviada pueden falsificarse.
 	 */
 	public static function country() {
 		self::$timezone_script = true;
 		$ip      = self::client_ip();
 		$country = apply_filters( 'digitalisimo_elements_visitor_country', null );
 		if ( null === $country ) {
-			$country = apply_filters( 'element_pack_visibility_country_pre', null, $ip );
+			$country = apply_filters( 'digitalisimo_elements_visibility_country_pre', null, $ip );
 		}
 		if ( null === $country ) {
 			$country = self::header_country();
-			if ( '' === $country && apply_filters( 'element_pack_visibility_country_use_timezone', true ) ) {
+			if ( '' === $country && apply_filters( 'digitalisimo_elements_visibility_country_use_timezone', true ) ) {
 				$country = self::timezone_country();
 			}
 			if ( '' === $country && '' !== $ip && apply_filters( 'digitalisimo_elements_country_remote_lookup', true ) ) {
@@ -90,41 +89,41 @@ final class Visitor {
 		if ( '' === $ip && ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
 			$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
 		}
-		$ip = apply_filters( 'element_pack_visibility_client_ip', $ip );
+		$ip = apply_filters( 'digitalisimo_elements_visibility_client_ip', $ip );
 		return filter_var( $ip, FILTER_VALIDATE_IP ) ? (string) $ip : '';
 	}
 
 	/**
-	 * Consulta por IP con la misma caché por IP que usaba Element Pack (aciertos 12 h, fallos 15 min),
-	 * de modo que un sitio migrado no repite consultas que ya tenía resueltas.
+	 * Consulta por IP con caché por IP (aciertos 12 h, fallos 15 min), para no repetir consultas
+	 * que ya están resueltas.
 	 */
 	private static function ip_country( $ip ) {
-		$cache_key = 'ep_geo_cc_' . md5( $ip );
+		$cache_key = 'digi_geo_cc_' . md5( $ip );
 		$cached    = get_transient( $cache_key );
 		if ( false !== $cached ) {
 			return (string) $cached;
 		}
-		$endpoint = apply_filters( 'element_pack_visibility_country_endpoint', 'https://ipwho.is/' . rawurlencode( $ip ), $ip );
+		$endpoint = apply_filters( 'digitalisimo_elements_visibility_country_endpoint', 'https://ipwho.is/' . rawurlencode( $ip ), $ip );
 		$response = wp_remote_get( $endpoint, array( 'timeout' => 3 ) );
 		$country  = '';
 		if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
 			$body    = json_decode( wp_remote_retrieve_body( $response ), true );
 			$country = apply_filters(
-				'element_pack_visibility_country_parse',
+				'digitalisimo_elements_visibility_country_parse',
 				is_array( $body ) && ! empty( $body['success'] ) && isset( $body['country_code'] ) ? (string) $body['country_code'] : '',
 				$body,
 				$ip
 			);
 		}
 		$country = strtolower( trim( (string) $country ) );
-		$ttl     = apply_filters( 'element_pack_visibility_country_cache_ttl', '' === $country ? 15 * MINUTE_IN_SECONDS : 12 * HOUR_IN_SECONDS, $country, $ip );
+		$ttl     = apply_filters( 'digitalisimo_elements_visibility_country_cache_ttl', '' === $country ? 15 * MINUTE_IN_SECONDS : 12 * HOUR_IN_SECONDS, $country, $ip );
 		set_transient( $cache_key, $country, $ttl );
 		return $country;
 	}
 
 	/** Sólo las páginas que evaluaron un país guardan la zona horaria para la petición siguiente. */
 	public static function print_timezone_script() {
-		if ( ! self::$timezone_script || is_admin() || ! apply_filters( 'element_pack_visibility_tz_cookie', true ) ) {
+		if ( ! self::$timezone_script || is_admin() || ! apply_filters( 'digitalisimo_elements_visibility_tz_cookie', true ) ) {
 			return;
 		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo detecta la vista previa del editor.

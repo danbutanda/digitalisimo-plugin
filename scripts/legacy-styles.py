@@ -17,8 +17,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ELEMENTS = ROOT / 'digitalisimo-elements'
-EP = ELEMENTS / 'bdthemes-element-pack'
-MAPS = ELEMENTS / 'modules' / 'digitalisimo-legacy' / 'maps'
+EP = ROOT / 'reference' / 'bdthemes-element-pack'
+MAPS = ROOT / 'digitalisimo-migration' / 'legacy' / 'maps'
 GROUPS = {
     'Group_Control_Typography': 'typography', 'Group_Control_Background': 'background', 'Group_Control_Border': 'border',
     'Group_Control_Box_Shadow': 'box-shadow', 'Group_Control_Text_Shadow': 'text-shadow', 'Group_Control_Text_Stroke': 'text-stroke',

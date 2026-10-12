@@ -15,7 +15,7 @@ namespace {
 	function is_email( $v ) { return false !== strpos( (string) $v, '@' ); }
 	function check_adapter( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
-	$base = __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-legacy/';
+	$base = __DIR__ . '/../digitalisimo-migration/legacy/';
 	require $base . 'class-translator.php';
 	require $base . 'class-migration.php';
 	use Digitalisimo\Elements\Legacy\Translator;
@@ -319,9 +319,6 @@ namespace {
 	check_adapter( 'field_gallery' === $ag['digitalisimo_acf_field'] && 'none' === $ag['gallery_link'] && '4' === $ag['gallery_columns'], 'ACF Gallery es la galería de Elementor.' );
 	check_adapter( array( 'id' => 5, 'url' => 'a.png', 'alt' => 'A' ) === \Digitalisimo\Elements\Legacy\Acf_Source::image( array( 'ID' => 5, 'url' => 'a.png', 'alt' => 'A' ) ) && 'https://x.test' === \Digitalisimo\Elements\Legacy\Acf_Source::link( array( 'url' => 'https://x.test', 'target' => '_blank' ) )['url'] && '' === \Digitalisimo\Elements\Legacy\Acf_Source::text( array( 'a' => array( 1 ) ), 'a' ) && null === \Digitalisimo\Elements\Legacy\Acf_Source::value( 'field_x' ), 'ACF: imagen, enlace y texto se normalizan; sin ACF no hay valor.' );
 
-	// Un widget ACF nunca pasa al widget propio al migrar: sus elementos se leen de ACF en cada render.
-	list( , $acf_state ) = Migration::convert_element( array( 'widgetType' => 'bdt-acf-accordion', 'settings' => array( 'field' => 'field_faq' ) ), array( 'tabs' => array(), 'title_html_tag' => array() ) );
-	check_adapter( 'adapter' === $acf_state, 'Los widgets ACF siguen en su adaptador tras migrar.' );
 
 	$cf = Translator::translate( 'bdt-contact-form', array( 'contact_number' => 'yes', 'custom_text' => 'yes', 'user_name_label' => 'Nombre', 'redirect_after_submit' => 'yes', 'redirect_url' => array( 'url' => 'https://x.test/gracias' ), 'custom_success_message' => 'yes', 'success_message' => 'Gracias [name], te respondemos pronto.' ) );
 	$cf_ids = array_column( $cf['form_fields'], 'custom_id' );
@@ -339,16 +336,40 @@ namespace {
 	$h = $mk['hotspot'][0];
 	check_adapter( 'Uno' === $h['hotspot_label'] && 20.0 === $h['hotspot_offset_x']['size'] && '%' === $h['hotspot_offset_x']['unit'] && 70.0 === $h['hotspot_offset_y']['size'] && 'https://x.test' === $h['hotspot_link']['url'] && 'bottom' === $h['hotspot_position'] && '<p>Hola</p>' === $h['hotspot_tooltip_content'] && 'bottom' === $mk['tooltip_position'] && 'none' === $mk['tooltip_trigger'] && ! isset( $mk['markers'] ) && ! isset( $mk['caption'] ), 'Marker es el Hotspot de PRO Elements en la misma posición.' );
 
-	// Migración: al widget propio sólo si todos los ajustes existen allí.
-	$element  = array( 'id' => 'e1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), '_padding' => array() ) );
-	$controls = array_fill_keys( array( 'tabs', 'active_item', 'multiple', 'open_all_initially', 'title_html_tag', 'show_custom_icon', 'accordion_icon', 'accordion_active_icon', 'icon_align' ), array() );
-	list( $native, $state ) = Migration::convert_element( $element, $controls );
-	check_adapter( 'native' === $state && 'digitalisimo-accordion' === $native['widgetType'] && ! isset( $native['settings'][ Translator::MARKER ] ), 'Sin estilos de Element Pack el elemento pasa al widget propio.' );
-	$element['settings']['accordion_item_background_color'] = '#000';
-	list( $kept, $state ) = Migration::convert_element( $element, $controls );
-	check_adapter( 'adapter' === $state && 'bdt-accordion' === $kept['widgetType'] && 'bdt-accordion' === $kept['settings'][ Translator::MARKER ], 'Con estilos que sólo tiene el adaptador, se queda en él ya traducido.' );
-	list( , $state ) = Migration::convert_element( array( 'widgetType' => 'bdt-sin-mapa', 'settings' => array() ), $controls );
-	check_adapter( 'skip' === $state, 'Un widget sin mapa no se toca.' );
+	// Conversión completa: widgets y ajustes de elemento pasan a los propios, sin identificadores heredados.
+	require_once $base . 'class-native.php';
+	$Native  = '\Digitalisimo\Elements\Legacy\Native';
+	$section = array(
+		'id'       => 's1',
+		'elType'   => 'section',
+		'settings' => array(
+			'ep_display_conditions_enable'   => 'yes',
+			'ep_display_conditions_to'       => 'hide',
+			'ep_display_conditions'          => array( array( '_id' => 'r1', 'ep_condition_key' => 'country', 'ep_condition_operator' => 'is', 'ep_condition_country_value' => array( 'spain', 'MX' ) ) ),
+			'bdt_shape_builder_enable'       => 'yes',
+			'bdt_shape_builder_list'         => array( array( '_id' => 'f1', 'shape_type' => 'epblob' ) ),
+			'element_pack_wrapper_link'      => array( 'url' => 'https://x.test/' ),
+			'ep_notation_active'             => 'yes',
+			'ep_notation_type'               => 'box',
+			'ep_parallax_effects_show'       => 'yes',
+		),
+		'elements' => array(
+			array( 'id' => 'w1', 'elType' => 'widget', 'widgetType' => 'bdt-accordion', 'settings' => array( 'tabs' => array( array( 'tab_title' => 'A' ) ), 'ep_display_conditions_enable' => 'yes', 'ep_display_conditions' => array() ), 'elements' => array() ),
+			array( 'id' => 'w2', 'elType' => 'widget', 'widgetType' => 'bdt-wc-products', 'settings' => array( 'posts_per_page' => 5, 'show_rating' => '' ), 'elements' => array() ),
+			array( 'id' => 'w3', 'elType' => 'widget', 'widgetType' => 'bdt-sin-mapa', 'settings' => array(), 'elements' => array() ),
+		),
+	);
+	list( $converted, $changes ) = $Native::element( $section, 1 );
+	$cs = $converted['settings'];
+	check_adapter( 3 === $changes && 'yes' === $cs['digitalisimo_visibility_enable'] && 'hide' === $cs['digitalisimo_visibility_to'] && 'country' === $cs['digitalisimo_visibility_rules'][0]['rule_key'] && array( 'es', 'mx' ) === $cs['digitalisimo_visibility_rules'][0]['rule_country_value'], 'La visibilidad pasa a los ajustes propios y los países a su código ISO.' );
+	check_adapter( 'yes' === $cs['digitalisimo_figures_enable'] && 'blob' === $cs['digitalisimo_figures'][0]['shape_type'] && 'https://x.test/' === $cs['digitalisimo_element_link']['url'] && false !== strpos( $cs['custom_css'], 'selector :is(' ) && false !== strpos( $cs['custom_css'], 'box-shadow' ), 'Figuras, enlace y anotación pasan a los rasgos propios y al CSS del elemento.' );
+	$accordion = $converted['elements'][0];
+	$products  = $converted['elements'][1];
+	check_adapter( 'digitalisimo-accordion' === $accordion['widgetType'] && ! isset( $accordion['settings'][ Translator::MARKER ] ) && 'yes' === $accordion['settings']['digitalisimo_visibility_enable'] && array() === $accordion['settings']['digitalisimo_visibility_rules'], 'El widget pasa a su destino y conserva sus reglas (activas sin condiciones ocultan el elemento).' );
+	check_adapter( 'woocommerce-products' === $products['widgetType'] && 'yes' === $products['settings']['digitalisimo_wc_custom'] && ! in_array( 'rating', $products['settings']['digitalisimo_wc_parts'], true ) && 5 === $products['settings']['digitalisimo_products_limit'] && ! isset( $products['settings']['posts_per_page'] ), 'Los productos usan las partes y el límite propios.' );
+	check_adapter( 'bdt-sin-mapa' === $converted['elements'][2]['widgetType'], 'Un widget sin mapa no se toca.' );
+	$json = wp_json_encode( array( $converted['settings'], $accordion, $products ) );
+	check_adapter( ! preg_match( '/"(ep_|element_pack_|bdt_|_digitalisimo_legacy)|"widgetType":"bdt-(accordion|wc)/', $json ) && ! $Native::is_legacy( $accordion ) && $Native::is_legacy( $converted['elements'][2] ), 'Tras convertir no queda ningún identificador heredado salvo el widget sin mapa.' );
 
 	echo 'DIGITALÍSIMO Elements: adaptadores de Element Pack (' . count( $ids ) . ") validados.\n";
 }

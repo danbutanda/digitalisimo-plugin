@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REFERENCE = ROOT / 'digitalisimo-elements/bdthemes-element-pack'
+REFERENCE = ROOT / 'reference/bdthemes-element-pack'
 MODULES = REFERENCE / 'modules'
 OUTPUT = ROOT / 'docs'
 

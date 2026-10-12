@@ -8,6 +8,8 @@ namespace {
 	define( 'ABSPATH', __DIR__ );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	define( 'DIGITALISIMO_ELEMENTS_VERSION', 'test' );
+	define( 'DIGITALISIMO_MIGRATION_FILE', __DIR__ . '/../digitalisimo-migration/digitalisimo-migration.php' );
+	define( 'DIGITALISIMO_MIGRATION_VERSION', 'test' );
 	$GLOBALS['digi'] = array( 'hooks' => array(), 'styles' => array(), 'edit' => false );
 	\Elementor\Plugin::$instance = new \Elementor\Plugin();
 	\Elementor\Plugin::$instance->editor = new class() { public function is_edit_mode() { return $GLOBALS['digi']['edit']; } };
@@ -28,7 +30,7 @@ namespace {
 		public function add_control( $id, $args ) { $this->controls[ $id ] = $args; }
 		public function add_group_control( $type, $args ) { $this->controls[ $args['name'] ] = $args + array( 'group' => $type ); }
 	}
-	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-legacy/class-extensions.php';
+	require __DIR__ . '/../digitalisimo-migration/legacy/class-extensions.php';
 	use Digitalisimo\Elements\Legacy\Extensions;
 
 	Extensions::init();

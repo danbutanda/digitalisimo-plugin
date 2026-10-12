@@ -2,7 +2,7 @@
 /** Prepara la red de Playground: plugins activos en red, subsitio y extensiones de Element Pack. */
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
-foreach ( array( 'elementor/elementor.php', 'digitalisimo-elements/pro-elements.php', 'bdthemes-element-pack/bdthemes-element-pack.php' ) as $plugin ) {
+foreach ( array( 'elementor/elementor.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-migration/digitalisimo-migration.php', 'bdthemes-element-pack/bdthemes-element-pack.php' ) as $plugin ) {
 	activate_plugin( $plugin, '', true );
 }
 // Plugins reales instalados con EXTRA_PLUGINS.

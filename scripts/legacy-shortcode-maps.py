@@ -213,7 +213,7 @@ def generate(legacy_id):
         ');',
         '',
     ])
-    (ROOT / 'digitalisimo-elements/modules/digitalisimo-legacy/maps' / (legacy_id + '.php')).write_text(text, encoding='utf-8')
+    (ROOT / 'digitalisimo-migration/legacy/maps' / (legacy_id + '.php')).write_text(text, encoding='utf-8')
     return legacy_id
 
 

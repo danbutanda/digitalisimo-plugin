@@ -1,6 +1,6 @@
 # Inventario estático de Element Pack
 
-Fuente local: `digitalisimo-elements/bdthemes-element-pack`. Se identificaron **263 IDs Elementor únicos** en 265 archivos `modules/*/widgets/*.php`.
+Fuente local: `reference/bdthemes-element-pack`. Se identificaron **263 IDs Elementor únicos** en 265 archivos `modules/*/widgets/*.php`.
 La carpeta es material de referencia, no una dependencia de ejecución ni un asset publicable. Este inventario se generó sin ejecutar PHP ajeno.
 
 Las clasificaciones, complejidades y motores son **hipótesis de triaje**, no una aprobación para migrar. `UIkit` aparece como dependencia indirecta del loader original; cada uso real se debe validar antes de reconstruir. La ausencia de un marcador estático no prueba ausencia de AJAX, REST, dependencias o riesgos.

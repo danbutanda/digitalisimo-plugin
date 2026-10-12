@@ -5,7 +5,7 @@ use DateTime;
 
 defined( 'ABSPATH' ) || exit;
 
-require_once __DIR__ . '/class-visitor.php';
+require_once dirname( DIGITALISIMO_ELEMENTS_FILE ) . '/modules/digitalisimo-conditions/class-visitor.php';
 
 /**
  * Evalúa las reglas `ep_display_conditions` con la misma semántica que Visibility Controls de

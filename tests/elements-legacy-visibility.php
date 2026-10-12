@@ -10,6 +10,7 @@ namespace Elementor {
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
+	define( 'DIGITALISIMO_ELEMENTS_FILE', __DIR__ . '/../digitalisimo-elements/pro-elements.php' );
 	define( 'HOUR_IN_SECONDS', 3600 );
 	define( 'MINUTE_IN_SECONDS', 60 );
 	$GLOBALS['digi'] = array( 'hooks' => array(), 'user' => 0, 'roles' => array(), 'flags' => array(), 'queried' => 0, 'type' => 'page', 'edit' => false );
@@ -91,7 +92,7 @@ namespace {
 
 	class WooCommerce {}
 	class ACF {}
-	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-conditions/class-legacy-visibility.php';
+	require __DIR__ . '/../digitalisimo-migration/legacy/conditions/class-legacy-visibility.php';
 	use Digitalisimo\Elements\Conditions\Legacy_Rules as Rules;
 	use Digitalisimo\Elements\Legacy_Visibility;
 

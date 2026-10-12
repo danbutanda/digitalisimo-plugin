@@ -104,7 +104,7 @@ def generate(wid):
         ');',
         '',
     ])
-    (ROOT / 'digitalisimo-elements/modules/digitalisimo-legacy/maps' / (wid + '.php')).write_text(text, encoding='utf-8')
+    (ROOT / 'digitalisimo-migration/legacy/maps' / (wid + '.php')).write_text(text, encoding='utf-8')
     return wid
 
 

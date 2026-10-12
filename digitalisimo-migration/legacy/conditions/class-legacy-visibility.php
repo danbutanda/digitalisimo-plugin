@@ -213,7 +213,7 @@ final class Legacy_Visibility {
 			'visit_count'       => array( 'label' => 'Hasta n visitas', 'type' => Controls_Manager::NUMBER, 'default' => '1' ),
 			'session_count'     => array( 'label' => 'Hasta n sesiones', 'type' => Controls_Manager::NUMBER, 'default' => '1' ),
 			'language'          => array( 'type' => Controls_Manager::SELECT2, 'default' => array(), 'multiple' => true, 'options' => $lean ? array() : self::languages() ),
-			'country'           => array( 'type' => Controls_Manager::SELECT2, 'default' => array(), 'multiple' => true, 'options' => $lean ? array() : array_change_key_case( require __DIR__ . '/countries.php', CASE_LOWER ) ),
+			'country'           => array( 'type' => Controls_Manager::SELECT2, 'default' => array(), 'multiple' => true, 'options' => $lean ? array() : array_change_key_case( require dirname( DIGITALISIMO_ELEMENTS_FILE ) . '/modules/digitalisimo-conditions/countries.php', CASE_LOWER ) ),
 			'shortcode'         => array( 'label' => 'Resultado esperado', 'type' => Controls_Manager::TEXTAREA, 'placeholder' => 'hola' ),
 			'products_in_cart'  => $products,
 			'categories_in_cart' => array( 'type' => Controls_Manager::SELECT2, 'default' => '', 'multiple' => true, 'options' => $lean ? array() : self::terms( 'product_cat' ) ),
@@ -264,7 +264,7 @@ final class Legacy_Visibility {
 	}
 
 	private static function languages() {
-		$languages = require __DIR__ . '/languages.php';
+		$languages = require dirname( DIGITALISIMO_ELEMENTS_FILE ) . '/modules/digitalisimo-conditions/languages.php';
 		foreach ( array( 'ga', 'lb_LU', 'ru_UA', get_locale() ) as $locale ) {
 			$languages += array( $locale => $locale );
 		}

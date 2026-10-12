@@ -4,7 +4,7 @@ Este repositorio entrega módulos WordPress independientes que comparten un núc
 
 ## Reglas de trabajo
 
-- Repositorio oficial de código y Releases: `danbutanda/digitalisimo-plugin`. Los seis actualizadores nativos consultan este repositorio de forma independiente. Incrementar la versión y generar ZIP **sólo de cada plugin modificado**; nunca incrementar versiones de plugins intactos para completar una entrega. El workflow `release.yml` publica automáticamente los plugins modificados que llegan a `main`; hay que comprobar que terminó con éxito y que la Release contiene exactamente sus assets. Ver `docs/RELEASE_PROCESS.md`.
+- Repositorio oficial de código y Releases: `danbutanda/digitalisimo-plugin`. Los siete actualizadores nativos consultan este repositorio de forma independiente. Incrementar la versión y generar ZIP **sólo de cada plugin modificado**; nunca incrementar versiones de plugins intactos para completar una entrega. El workflow `release.yml` publica automáticamente los plugins modificados que llegan a `main`; hay que comprobar que terminó con éxito y que la Release contiene exactamente sus assets. Ver `docs/RELEASE_PROCESS.md`.
 
 - Cada módulo se instala solo o junto a los demás; nunca debe requerir que otro módulo esté activo salvo para una mejora opcional.
 - Enlaces, formularios, AJAX y redirecciones deben conservar el contexto donde inició la acción: administración de red, administración del sitio actual en Multisite o WordPress individual. Usar `admin_url( 'admin-post.php' )`/`admin_url( 'admin-ajax.php' )` para procesar solicitudes y enviar el contexto explícitamente cuando el handler ya no pueda inferir la pantalla de origen. Una tarea iniciada en un sitio sólo puede modificar datos de ese sitio, salvo que su interfaz indique y autorice expresamente el alcance de red.
@@ -53,6 +53,10 @@ Responsable de dominios, Namecheap, shortcodes/formularios, precios y el flujo d
 ### Digitalisimo Geolocalización
 
 Responsable de ubicación, IPInfo, ubicación administrativa y señales locales reutilizables por SEO Local.
+
+### DIGITALÍSIMO Migración
+
+Responsable de la compatibilidad con documentos creados con Element Pack Pro: adaptadores que los mantienen visibles sin ese plugin, inventario por sitio y de red, y conversión reversible de cada documento al formato propio (widgets de DIGITALÍSIMO Elements o de PRO Elements, rasgos propios y CSS personalizado del elemento). Se instala sólo mientras dura la migración y se desinstala al terminarla. DIGITALÍSIMO Elements no contiene, nombra ni necesita nada de Element Pack: `scripts/build-packages.sh` aborta si su ZIP lo menciona. Los pasos de retirada están en `docs/ELEMENT_PACK_RETIREMENT.md`.
 
 ### DIGITALÍSIMO Tools
 

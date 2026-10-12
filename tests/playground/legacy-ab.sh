@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # A/B de adaptadores heredados: Element Pack activo frente a sólo DIGITALÍSIMO Elements.
-# Requiere la copia local de referencia en digitalisimo-elements/bdthemes-element-pack/ (no se versiona).
+# Requiere la copia local de referencia en reference/bdthemes-element-pack/ (no se versiona).
 # Uso: bash tests/playground/legacy-ab.sh [bdt-accordion,bdt-otro]   → resultados en $OUT (por defecto /tmp/digi-legacy-ab)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -26,6 +26,9 @@ $EXTRA_STEPS
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/digi-tests/legacy-deactivate.php';"},
 {"step":"runPHP","code":"<?php putenv('DIGI_PHASE=B'); putenv('DIGI_ONLY=$ONLY'); putenv('DIGI_BLOG=${BLOG:-}'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"},
 {"step":"runPHP","code":"<?php putenv('DIGI_PHASE=C'); putenv('DIGI_ONLY=$ONLY'); putenv('DIGI_BLOG=${BLOG:-}'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; deactivate_plugins( 'digitalisimo-migration/digitalisimo-migration.php', false, true );"},
+{"step":"runPHP","code":"<?php putenv('DIGI_PHASE=E'); putenv('DIGI_ONLY=$ONLY'); putenv('DIGI_BLOG=${BLOG:-}'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; activate_plugin( 'digitalisimo-migration/digitalisimo-migration.php', '', true );"},
 {"step":"runPHP","code":"<?php putenv('DIGI_PHASE=D'); putenv('DIGI_ONLY=$ONLY'); putenv('DIGI_BLOG=${BLOG:-}'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"}]}
 JSON
 # FAKE_PLUGINS=1 monta plugins de prueba en las rutas que Element Pack exige para sus widgets de integración.
@@ -37,8 +40,9 @@ if [ "${FAKE_PLUGINS:-}" = "1" ]; then
 fi
 $CLI run-blueprint --site-url=http://playground.test --blueprint="$BLUEPRINT" "${FAKE_MOUNTS[@]}" \
   --mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" \
-  --mount="$ROOT/digitalisimo-elements/bdthemes-element-pack:/wordpress/wp-content/plugins/bdthemes-element-pack" \
+  --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \
+  --mount="$ROOT/reference/bdthemes-element-pack:/wordpress/wp-content/plugins/bdthemes-element-pack" \
   --mount="$ROOT/tests/playground:/wordpress/wp-content/digi-tests" \
   --mount="$ROOT/tests/legacy:/wordpress/wp-content/digi-legacy-fixtures" \
   --mount="$OUT:/wordpress/wp-content/digi-ab" > "$OUT/playground.log" 2>&1 || { tail -20 "$OUT/playground.log"; exit 1; }
-node "$ROOT/tests/playground/legacy-compare.mjs" "$OUT/phaseA.json" "$OUT/phaseB.json" "$OUT/phaseC.json" "$OUT/phaseD.json"
+node "$ROOT/tests/playground/legacy-compare.mjs" "$OUT/phaseA.json" "$OUT/phaseB.json" "$OUT/phaseC.json" "$OUT/phaseD.json" "$OUT/phaseE.json"

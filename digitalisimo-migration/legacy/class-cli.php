@@ -6,33 +6,33 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-migration.php';
 
 /**
- * Migra documentos de Element Pack del sitio indicado con --url (uno por ejecución en Multisite).
+ * Inventario y conversión de documentos de Element Pack del sitio indicado con --url (uno por ejecución en Multisite).
  */
 final class Cli {
 	/**
-	 * Muestra el inventario o traduce/restaura los documentos del sitio.
+	 * Muestra el inventario o convierte/restaura los documentos del sitio.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--convert]
-	 * : Traduce todos los documentos pendientes, con copia del original.
+	 * : Convierte todos los documentos pendientes al formato propio, con copia del original (Element Pack desactivado).
 	 *
 	 * [--revert]
-	 * : Restaura los documentos traducidos a su versión original.
+	 * : Restaura los documentos convertidos a su versión original.
 	 *
 	 * [--network]
-	 * : En Multisite, sólo muestra el inventario de todos los sitios (no traduce ni restaura).
+	 * : En Multisite, sólo muestra el inventario de todos los sitios (no convierte ni restaura).
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp digitalisimo-elements ep-migrate --url=https://sitio.example/
-	 *     wp digitalisimo-elements ep-migrate --convert --url=https://sitio.example/
-	 *     wp digitalisimo-elements ep-migrate --network
+	 *     wp digitalisimo-migration --url=https://sitio.example/
+	 *     wp digitalisimo-migration --convert --url=https://sitio.example/
+	 *     wp digitalisimo-migration --network
 	 */
 	public function __invoke( $args, $assoc ) {
 		if ( ! empty( $assoc['network'] ) ) {
 			if ( ! empty( $assoc['convert'] ) || ! empty( $assoc['revert'] ) ) {
-				\WP_CLI::error( 'La traducción y la restauración se lanzan sitio por sitio con --url.' );
+				\WP_CLI::error( 'La conversión y la restauración se lanzan sitio por sitio con --url.' );
 			}
 			$rows = array();
 			foreach ( is_multisite() ? get_sites( array( 'number' => 0, 'fields' => 'ids' ) ) : array( get_current_blog_id() ) as $site_id ) {
@@ -57,16 +57,18 @@ final class Cli {
 		if ( empty( $assoc['convert'] ) ) {
 			return;
 		}
-		$totals = array( 'native' => 0, 'adapter' => 0, 'documents' => 0 );
-		foreach ( Migration::documents() as $post_id ) {
+		if ( Translator::element_pack_active() ) {
+			\WP_CLI::error( 'Desactiva Element Pack en este sitio antes de convertir: sus controles ocupan los mismos nombres.' );
+		}
+		$totals = array( 'native' => 0, 'documents' => 0 );
+		foreach ( Migration::pending() as $post_id ) {
 			$stats = Migration::convert_document( $post_id );
-			if ( ! empty( $stats['native'] ) || ! empty( $stats['adapter'] ) ) {
+			if ( ! empty( $stats['native'] ) ) {
 				$totals['documents']++;
-				$totals['native']  += $stats['native'];
-				$totals['adapter'] += $stats['adapter'];
+				$totals['native'] += $stats['native'];
 			}
 		}
-		\WP_CLI::success( sprintf( '%d documentos traducidos: %d elementos al widget propio y %d en su adaptador.', $totals['documents'], $totals['native'], $totals['adapter'] ) );
+		\WP_CLI::success( sprintf( '%d documentos convertidos (%d elementos): ya sólo usan widgets y ajustes propios.', $totals['documents'], $totals['native'] ) );
 	}
 
 	/** Inventario del sitio en curso; un widget sin adaptador muestra su motivo. */

@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Amplía Display Conditions con las reglas de Visibility Controls de Element Pack.
+ * Amplía Display Conditions con condiciones de visitante, URL, contenido y WooCommerce.
  *
  * No crea otro motor: las condiciones se registran en el gestor nativo, se guardan en
  * `e_display_conditions` y se combinan con sus grupos Y/O, su interfaz y su caché.
@@ -18,8 +18,8 @@ final class Display_Conditions {
 		add_action( 'elementor/display_conditions/register_groups', array( __CLASS__, 'register_groups' ) );
 		add_action( 'elementor/display_conditions/register', array( __CLASS__, 'register_conditions' ) );
 		add_action( 'wp_footer', array( Conditions\Visitor::class, 'print_timezone_script' ) );
-		require_once __DIR__ . '/class-legacy-visibility.php';
-		Legacy_Visibility::init();
+		require_once __DIR__ . '/class-visibility.php';
+		Visibility::init();
 	}
 
 	public static function register_groups( $manager ) {

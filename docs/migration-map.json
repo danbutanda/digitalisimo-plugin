@@ -26,7 +26,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "native details widget with published Elementor and optional Anywhere templates plus item and state icons; valid H2-H6 summary headings since 4.3.0.65; initial all-open mode, rejection of invalid templates and blog_id selector isolation tested since 4.3.0.70; advanced controls, legacy adapter, visual comparison and installed multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -45,7 +45,7 @@
       "decision_target": "digitalisimo-accordion",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Las filas salen de un repetidor ACF; el Acordeón propio puede recibirlas con la etiqueta dinámica ACF de PRO Elements.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-acf-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-acf-gallery": {
       "target": "image-gallery",
@@ -62,7 +62,7 @@
       "decision_target": "image-gallery",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Galería de un campo ACF: la galería de PRO Elements admite la etiqueta dinámica de galería ACF con la misma clave.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-acf-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-acf-list": {
       "target": "icon-list",
@@ -79,7 +79,7 @@
       "decision_target": "icon-list",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Lista desde un repetidor ACF hacia la lista de iconos con etiqueta dinámica.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-acf-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-acf-slider": {
       "target": "digitalisimo-fancy-slider",
@@ -96,7 +96,7 @@
       "decision_target": "digitalisimo-fancy-slider",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Carrusel de un campo galería ACF hacia el carrusel de medios con etiqueta dinámica.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-acf-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-acf-tabs": {
       "target": "digitalisimo-fancy-tabs",
@@ -113,7 +113,7 @@
       "decision_target": "digitalisimo-fancy-tabs",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Pestañas desde un repetidor ACF hacia las pestañas propias.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-acf-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-acf-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.125"
     },
     "bdt-advanced-button": {
       "target": "digitalisimo-advanced-button",
@@ -143,7 +143,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "new CSS-only button with safe link, icon, badge and nine lightweight effects; responsive border and max-width, typography and shadow controls since 4.3.0.71; legacy adapter, full style parity and installed multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-advanced-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -174,7 +174,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-counter.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-advanced-counter.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -198,7 +198,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "independent decorative widget with responsive circle, cross and star symbols and WordPress-managed image loading; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.72; remaining legacy shape parity, SVG animation and editor/browser comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-divider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-advanced-divider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -217,7 +217,7 @@
       "decision_target": "google_maps",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Mapa de Google con marcadores y estilos; Elementor ofrece el mapa por dirección. Adaptador previsto para el primer marcador.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-gmap.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.124"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-advanced-gmap.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.124"
     },
     "bdt-advanced-heading": {
       "target": "digitalisimo-advanced-heading",
@@ -240,7 +240,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "new semantic widget with responsive decoration sizing and offsets and optional Elementor typography per part since 4.3.0.73; main-site and subsite frontend render checked in Multisite; advanced effects, legacy adapter, editor and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-heading.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-advanced-heading.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -255,7 +255,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "new semantic widget with editor link and informative-image accessibility parity, optional per-part typography and card shadow since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; legacy control parity, effects and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-icon-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-advanced-icon-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -274,7 +274,7 @@
       "decision_target": "image-gallery",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Galería de imágenes con lightbox: la galería de PRO Elements cubre rejilla, justificada y masonry.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-image-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-advanced-image-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
     },
     "bdt-advanced-progress-bar": {
       "target": "digitalisimo-progress-bars",
@@ -291,7 +291,7 @@
       "decision_target": "digitalisimo-progress-bars",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Varias barras en un mismo widget; la barra de Elementor es individual. Se reconstruye como lista de barras accesible.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-advanced-progress-bar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-advanced-progress-bar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
     },
     "bdt-age-gate": {
       "target": null,
@@ -340,7 +340,7 @@
       "decision_target": "digitalisimo-fancy-card",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Tarjeta con imagen, título, texto y botón con animación al pasar el cursor: la Fancy Card propia cubre el contenido.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-animated-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-animated-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
     },
     "bdt-animated-heading": {
       "target": "digitalisimo-animated-heading",
@@ -359,7 +359,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own progressive rotation with visible first phrase, fixed reserved slot, reduced-motion support, conditional assets and shared global listeners; safe external link and editor link parity since 4.3.0.74; main-site and subsite Elementor frontend render checked in Multisite; typed/split/GSAP variants, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-animated-heading.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-animated-heading.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.94",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -388,7 +388,7 @@
       "decision_target": "digitalisimo-animated-link",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Ya resuelto desde 4.3.0.x con el adaptador de lectura del Enlace animado propio.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-animated-link.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.130"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-animated-link.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.130"
     },
     "bdt-audio-player": {
       "target": "digitalisimo-audio-player",
@@ -405,7 +405,7 @@
       "decision_target": "digitalisimo-audio-player",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Reproductor de audio con skins de jPlayer; se reconstruye con <audio> nativo como el reproductor de vídeo propio.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-audio-player.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.118"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-audio-player.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.118"
     },
     "bdt-barcode": {
       "target": null,
@@ -434,7 +434,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-forum-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-forum-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -449,7 +449,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-forum-index.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-forum-index.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -464,7 +464,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-reply-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-reply-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -479,7 +479,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-forum.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-single-forum.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -494,7 +494,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-reply.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-single-reply.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -509,7 +509,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-tag.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-single-tag.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -524,7 +524,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-topic.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-single-topic.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -539,7 +539,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-single-view.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-single-view.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -554,7 +554,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-stats.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-stats.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -569,7 +569,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-topic-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-topic-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -584,7 +584,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-topic-index.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-topic-index.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -599,7 +599,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-bbpress-topic-tags.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-bbpress-topic-tags.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -623,7 +623,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "new widget on shared native carousel engine; image loading delegated to WordPress and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.75; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-brand-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-brand-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -648,7 +648,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "new semantic CSS grid widget implemented; image loading delegated to WordPress instead of assuming first logo is critical since 4.3.0.74; legacy adapter, installed runtime and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-brand-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-brand-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -667,7 +667,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own WordPress-native navigation for current site, pages, hierarchical CPT parents and taxonomy; existing PRO widget depends on Yoast; no JSON-LD; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.76; visual parity and legacy adapter pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-breadcrumbs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-breadcrumbs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -734,7 +734,7 @@
       "decision_target": "digitalisimo-business-hours",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Horario por día; se reconstruye reutilizando el horario estructurado de SEO Local cuando exista.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-business-hours.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.118"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-business-hours.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.118"
     },
     "bdt-calendly": {
       "target": "html",
@@ -751,7 +751,7 @@
       "decision_target": "html",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Inserta el widget de Calendly con su URL; se adapta al widget HTML con el mismo iframe.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-calendly.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-calendly.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
     },
     "bdt-call-out": {
       "target": "digitalisimo-call-out",
@@ -770,7 +770,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own semantic CTA with optional icon and link; editor preview and external links aligned in 4.3.0.78; multisite runtime verified; legacy skins, animations and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-call-out.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-call-out.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -789,7 +789,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Carrusel de entradas: el bucle de entradas de PRO Elements cubre la consulta; el carrusel se presenta como rejilla o con el motor de carruseles propio.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-changelog": {
       "target": null,
@@ -818,7 +818,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-campaigns.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-charitable-campaigns.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -833,7 +833,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-donation-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-charitable-donation-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -848,7 +848,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-donations.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-charitable-donations.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -863,7 +863,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-donors.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-charitable-donors.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -878,7 +878,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-charitable-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -893,7 +893,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-profile.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-charitable-profile.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -908,7 +908,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-registration.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-charitable-registration.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -923,7 +923,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-charitable-stat.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-charitable-stat.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -942,7 +942,7 @@
       "decision_target": "digitalisimo-chart",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Gráficos con Chart.js; requiere motor de gráficos propio con datos accesibles en tabla.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-chart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.120"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-chart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.120"
     },
     "bdt-circle-info": {
       "target": null,
@@ -1008,7 +1008,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own semantic comparison table with horizontal overflow, scoped headers and conditional CSS; editor CTAs and external links aligned in 4.3.0.79; multisite runtime verified; accordion skins, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-comparison-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-comparison-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1027,7 +1027,7 @@
       "decision_target": "form",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Formulario de PRO Elements con los mismos campos (name, email, contact, subject, message) y la acción de correo al destinatario configurado en Element Pack o al administrador; redirección y mensaje de éxito propios se conservan. El reCAPTCHA de Element Pack no se traslada.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-contact-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.127"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-contact-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.127"
     },
     "bdt-contact-form-7": {
       "target": "shortcode",
@@ -1040,7 +1040,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-contact-form-7.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-contact-form-7.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1057,7 +1057,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own accessible tab switcher with keyboard navigation and instance isolation; all editor panels and icons aligned in 4.3.0.83; multisite runtime verified; template, linked sections, price cards, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-content-switcher.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-content-switcher.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1088,7 +1088,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-countdown.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-countdown.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1122,7 +1122,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own CSS-only creative button with five safe effects; editor icon and links aligned in 4.3.0.85; multisite runtime verified; 27 legacy effect skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-creative-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-creative-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1269,7 +1269,7 @@
       "decision_target": "media-carousel",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Carrusel de elementos propios (imagen, título, texto, enlace); el carrusel de medios o el motor de carruseles propio cubren las diapositivas.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-custom-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-custom-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
     },
     "bdt-custom-gallery": {
       "target": "digitalisimo-custom-gallery",
@@ -1287,7 +1287,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own Media gallery and individual linked images with ALT/srcset and conditional CSS; editor ALT and links aligned in 4.3.0.84; multisite runtime verified; lightbox, media skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-custom-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-custom-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1321,7 +1321,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own device frame on shared native carousel engine; editor titles, links, ALT and navigation aligned in 4.3.0.85; multisite runtime verified; additional device skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.97 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-device-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-device-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.97",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1340,7 +1340,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "new independent widget implemented; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-document-viewer.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.109",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-document-viewer.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.109",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1359,7 +1359,7 @@
       "decision_target": "shortcode",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Botón de descarga de Download Monitor; el shortcode [download id] del plugin muestra el mismo enlace.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-download-monitor.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-download-monitor.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
     },
     "bdt-dropbar": {
       "target": "digitalisimo-offcanvas",
@@ -1376,7 +1376,7 @@
       "decision_target": "digitalisimo-offcanvas",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Botón que despliega contenido o plantilla; el Panel lateral propio cubre plantilla y texto.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-dropbar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.113"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-dropbar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.113"
     },
     "bdt-dual-button": {
       "target": "digitalisimo-dual-button",
@@ -1396,7 +1396,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own two-link widget with optional icons and separator; editor link/icon parity, safe external links and main-site/subsite Elementor frontend render checked in Multisite since 4.3.0.77; onclick effects, visual parity and legacy adapter pending; legacy documents keep rendering without Element Pack through the 4.3.0.96 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-dual-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-dual-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.96",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1415,7 +1415,7 @@
       "decision_target": "loop-carousel",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Carrusel con plantilla de bucle; el carrusel de bucle de PRO Elements usa plantillas equivalentes.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-dynamic-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.124"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-dynamic-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.124"
     },
     "bdt-dynamic-grid": {
       "target": "loop-grid",
@@ -1432,7 +1432,7 @@
       "decision_target": "loop-grid",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Rejilla con plantilla de bucle; la rejilla de bucle de PRO Elements la cubre.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-dynamic-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.124"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-dynamic-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.124"
     },
     "bdt-edd-cart": {
       "target": "shortcode",
@@ -1449,7 +1449,7 @@
       "decision_target": "shortcode",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Carrito de Easy Digital Downloads: el shortcode [download_cart] del plugin.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-edd-cart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-edd-cart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
     },
     "bdt-edd-category-carousel": {
       "target": null,
@@ -1498,7 +1498,7 @@
       "decision_target": "shortcode",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Pago de Easy Digital Downloads: el shortcode [download_checkout] del plugin.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-edd-checkout.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-edd-checkout.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
     },
     "bdt-easy-digital-download-history": {
       "target": "shortcode",
@@ -1511,7 +1511,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-easy-digital-download-history.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-easy-digital-download-history.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1526,7 +1526,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-edd-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-edd-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1621,7 +1621,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-easy-digital-profile-editor.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-easy-digital-profile-editor.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1636,7 +1636,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-easy-digital-purchase-history.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-easy-digital-purchase-history.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1651,7 +1651,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-edd-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-edd-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1670,7 +1670,7 @@
       "decision_target": "digitalisimo-accordion",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Pestañas cuyo contenido es un shortcode de EDD; las pestañas propias pueden mostrar el shortcode como texto.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-edd-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-edd-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-event-carousel": {
       "target": null,
@@ -1731,7 +1731,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-everest-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-everest-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1785,7 +1785,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own always-visible semantic card with image or icon, badge and optional CTA; editor icon, ALT and links aligned in 4.3.0.86; multisite runtime verified; advanced skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-fancy-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1803,7 +1803,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own accessible icon/text links with responsive grid and conditional CSS; external links secured in 4.3.0.87; multisite runtime verified; video backgrounds, advanced skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-icons.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-fancy-icons.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1826,7 +1826,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own list widget with links secured and image loading delegated to WordPress in 4.3.0.86; multisite runtime verified; legacy adapter, full style controls and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-fancy-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1849,7 +1849,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own editorial slider on shared carousel engine; editor links, ALT and navigation aligned in 4.3.0.87; multisite runtime verified; advanced transitions and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-fancy-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1867,7 +1867,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own accessible tabs with shared navigation script and conditional CSS; all editor panels, icons and links aligned in 4.3.0.88; multisite runtime verified; advanced skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fancy-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-fancy-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1908,7 +1908,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own overlay and split editorial box with Media image and optional links; editor ALT, links and icon aligned in 4.3.0.88; multisite runtime verified; advanced skins and visual parity pending; legacy documents keep rendering without Element Pack through the 4.3.0.98 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-featured-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-featured-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.98",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1923,7 +1923,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-flip-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-flip-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1954,7 +1954,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-fluent-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-fluent-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -1969,7 +1969,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/fooevents-calendar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/fooevents-calendar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2016,7 +2016,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-formidable-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-formidable-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2031,7 +2031,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-forminator-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-forminator-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2046,7 +2046,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-donation-history.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-donation-history.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2061,7 +2061,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-donor-wall.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-donor-wall.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2076,7 +2076,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2091,7 +2091,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-form-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-form-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2106,7 +2106,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-goal.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-goal.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2121,7 +2121,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2136,7 +2136,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-profile-editor.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-profile-editor.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2151,7 +2151,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-receipt.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-receipt.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2166,7 +2166,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2181,7 +2181,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-give-totals.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-give-totals.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2200,7 +2200,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own Places API (New) widget with site/network key and deferred fetch; installed multisite rendering verified with test key in 4.3.0.90; real Places response, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-google-reviews.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-google-reviews.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2215,7 +2215,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-gravity-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-gravity-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2282,7 +2282,7 @@
       "decision_target": "digitalisimo-fancy-tabs",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Cajas que cambian el fondo al pasar el cursor; las pestañas propias conservan el contenido.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-hover-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-hover-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-hover-video": {
       "target": "digitalisimo-video-player",
@@ -2299,7 +2299,7 @@
       "decision_target": "digitalisimo-video-player",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Vídeo que se reproduce al pasar el cursor; el reproductor propio conserva el vídeo.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-hover-video.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-hover-video.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-icon-mobile-menu": {
       "target": "digitalisimo-icon-mobile-menu",
@@ -2319,7 +2319,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own four-style icon navigation with CSS tooltip; editor links and tooltips aligned in 4.3.0.89; multisite runtime verified; visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-icon-mobile-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-icon-mobile-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2345,7 +2345,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own vertical icon navigation and native WordPress menu panel; editor branding and links aligned in 4.3.0.89; multisite runtime verified; offcanvas effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-iconnav.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-iconnav.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2364,7 +2364,7 @@
       "decision_target": "html",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Iframe con URL; se adapta al widget HTML con el mismo iframe y carga diferida.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-iframe.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-iframe.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
     },
     "bdt-image-accordion": {
       "target": "digitalisimo-accordion",
@@ -2381,7 +2381,7 @@
       "decision_target": "digitalisimo-accordion",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Acordeón de imágenes con título y texto; el contenido pasa al Acordeón propio.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-image-accordion.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-image-compare": {
       "target": "digitalisimo-image-compare",
@@ -2398,7 +2398,7 @@
       "decision_target": "digitalisimo-image-compare",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Comparador antes/después; se reconstruye accesible con un control deslizante nativo.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-compare.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.118"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-image-compare.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.118"
     },
     "bdt-image-expand": {
       "target": "digitalisimo-fancy-tabs",
@@ -2415,7 +2415,7 @@
       "decision_target": "digitalisimo-fancy-tabs",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Imágenes que se expanden al pasar el cursor; el contenido pasa a pestañas propias.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-expand.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-image-expand.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-image-magnifier": {
       "target": "image",
@@ -2432,7 +2432,7 @@
       "decision_target": "image",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Lupa sobre una imagen; se conserva la imagen en el widget Imagen.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-magnifier.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-image-magnifier.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-image-stack": {
       "target": "image-gallery",
@@ -2449,7 +2449,7 @@
       "decision_target": "image-gallery",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Imágenes apiladas; se conservan en la galería básica.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-image-stack.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-image-stack.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
     },
     "bdt-instagram": {
       "target": null,
@@ -2478,7 +2478,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-instagram-feed.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-instagram-feed.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2497,7 +2497,7 @@
       "decision_target": "digitalisimo-fancy-card",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Tarjeta con imagen, título, texto y botón; la Fancy Card propia cubre el contenido.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-interactive-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-interactive-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
     },
     "bdt-interactive-tabs": {
       "target": "digitalisimo-fancy-tabs",
@@ -2514,7 +2514,7 @@
       "decision_target": "digitalisimo-fancy-tabs",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Pestañas con imagen de fondo; las pestañas propias cubren el contenido.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-interactive-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-interactive-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-layer-slider": {
       "target": "shortcode",
@@ -2527,7 +2527,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-layer-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-layer-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2578,7 +2578,7 @@
       "decision_target": "digitalisimo-offcanvas",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Botón que abre imagen, vídeo o contenido en lightbox; el Panel lateral propio centrado o el lightbox de Elementor.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/lightbox.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.113"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/lightbox.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.113"
     },
     "bdt-logo-carousel": {
       "target": "digitalisimo-logo-carousel",
@@ -2597,7 +2597,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "new independent widget on shared native carousel engine; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-logo-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.109",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-logo-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.109",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2620,7 +2620,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "independent CSS grid widget; WordPress controls image loading and external links are protected since 4.3.0.90; installed multisite rendering verified; legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-logo-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-logo-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2639,7 +2639,7 @@
       "decision_target": "lottie",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Caja con animación Lottie, título y texto; la animación pasa al widget Lottie.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-lottie-icon-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-lottie-icon-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-lottie-image": {
       "target": null,
@@ -2652,7 +2652,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "share existing ElementorPro Lottie widget for new content; legacy control conversion and parity pending; no duplicate player; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-lottie-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-lottie-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2671,7 +2671,7 @@
       "decision_target": "form",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Formulario de PRO Elements con la acción Mailchimp: la clave de API y la audiencia que Element Pack guardaba en sus ajustes pasan a la acción como clave personalizada, y el correo y el nombre se asignan a EMAIL y FNAME. El icono previo y el texto de éxito propio no se trasladan.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-mailchimp.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.128"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-mailchimp.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.128"
     },
     "bdt-mailchimp-for-wp": {
       "target": "shortcode",
@@ -2684,7 +2684,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-mailchimp-for-wp.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-mailchimp-for-wp.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2703,7 +2703,7 @@
       "decision_target": "hotspot",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Hotspot de PRO Elements con cada marcador en la misma posición (% desde arriba y la izquierda), su icono o texto, su enlace y su tooltip (posición, clic o siempre visible). La leyenda de la imagen, el enlace al lightbox y los marcadores de imagen no se trasladan.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-marker.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.128"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-marker.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.128"
     },
     "bdt-marquee": {
       "target": "digitalisimo-marquee",
@@ -2720,7 +2720,7 @@
       "decision_target": "digitalisimo-marquee",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Texto o imágenes en movimiento continuo; se reconstruye con CSS y pausa accesible.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-marquee.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-marquee.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
     },
     "bdt-mega-menu": {
       "target": null,
@@ -2753,7 +2753,7 @@
       "decision_target": "digitalisimo-fancy-card",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Miembro de equipo con foto, nombre, cargo y redes; la Fancy Card propia cubre el contenido.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-member.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-member.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
     },
     "bdt-modal": {
       "target": "digitalisimo-offcanvas",
@@ -2770,7 +2770,7 @@
       "decision_target": "digitalisimo-offcanvas",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Ventana modal con botón y contenido o plantilla; el Panel lateral propio puede presentarse centrado.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-modal.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.113"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-modal.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.113"
     },
     "bdt-navbar": {
       "target": "nav-menu",
@@ -2783,7 +2783,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "share existing ElementorPro nav-menu for new content; auto-hide effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-navbar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.103",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-navbar.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.103",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2802,7 +2802,7 @@
       "decision_target": "digitalisimo-marquee",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Titulares de entradas en movimiento; se reconstruye junto a Marquee con consulta de entradas.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-news-ticker.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-news-ticker.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
     },
     "bdt-ninja-form": {
       "target": "shortcode",
@@ -2815,7 +2815,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-ninja-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-ninja-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2839,7 +2839,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own popup and fixed notice with conditional assets; trigger behavior and keyboard focus fixed in 4.3.0.91, multisite rendering verified; Elementor templates, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-notification.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-notification.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2854,7 +2854,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "share existing ElementorPro off-canvas for new content; external content sources and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.106 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-offcanvas.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.106",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-offcanvas.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.106",
       "decision": "RECONSTRUIR",
       "legacy_documents": "adaptador publicado"
     },
@@ -2873,7 +2873,7 @@
       "decision_target": "digitalisimo-map",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Mapa de OpenStreetMap con Leaflet; requiere widget de mapa propio sin dependencia de Google.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-open-street-map.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.120"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-open-street-map.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.120"
     },
     "bdt-panel-slider": {
       "target": "digitalisimo-fancy-slider",
@@ -2890,7 +2890,7 @@
       "decision_target": "digitalisimo-fancy-slider",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Paneles deslizantes con imagen y texto; las diapositivas de PRO Elements cubren el contenido.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-panel-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-panel-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
     },
     "bdt-portfolio-carousel": {
       "target": "posts",
@@ -2907,7 +2907,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Carrusel del tipo de contenido de BdThemes Portfolio; el bucle de entradas lo consulta si el plugin sigue activo.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-portfolio-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-portfolio-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-portfolio-gallery": {
       "target": "posts",
@@ -2924,7 +2924,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Galería del tipo de contenido de BdThemes Portfolio.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-portfolio-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-portfolio-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-portfolio-list": {
       "target": "posts",
@@ -2941,7 +2941,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Lista del tipo de contenido de BdThemes Portfolio.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-portfolio-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-portfolio-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-block": {
       "target": "posts",
@@ -2958,7 +2958,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Bloque de entradas destacadas; la consulta y las tarjetas pasan a posts como Post Grid.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-block.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-block.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-block-modern": {
       "target": "posts",
@@ -2975,7 +2975,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Igual que Post Block.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-block-modern.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-block-modern.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-card": {
       "target": "posts",
@@ -2992,7 +2992,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Tarjetas de entradas; piel de tarjetas de posts.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-comments": {
       "target": "post-comments",
@@ -3005,7 +3005,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-comments.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-comments.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3020,7 +3020,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-content.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-content.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3035,7 +3035,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-featured-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-featured-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3054,7 +3054,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Galería de entradas con imagen destacada.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-grid": {
       "target": "posts",
@@ -3067,7 +3067,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "share existing posts widget for new content; nine Element Pack skins and legacy document conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3086,7 +3086,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Rejilla con pestañas de entradas; la rejilla se conserva sin pestañas.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-grid-tab.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-grid-tab.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-info": {
       "target": "post-info",
@@ -3099,7 +3099,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-info.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-info.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3114,7 +3114,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "posts widget can show one-column feed for new content; independent Post List layouts, terms, and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3133,7 +3133,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Slider de entradas; se conserva la consulta como rejilla.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.112"
     },
     "bdt-post-title": {
       "target": "theme-post-title",
@@ -3146,7 +3146,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-post-title.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-post-title.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.110",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3161,7 +3161,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "share existing ElementorPro price-list for new content; old price, badge and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-price-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-price-list.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3176,7 +3176,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "share existing ElementorPro price-table for new content; nine layouts, commerce integrations and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-price-table.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-price-table.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3195,7 +3195,7 @@
       "decision_target": "digitalisimo-fancy-slider",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Es un carrusel estático de tarjetas (imagen, título, precio, texto, valoración y tiempo), no un widget de WooCommerce: cada tarjeta es una diapositiva del deslizador propio.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-product-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-product-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-product-grid": {
       "target": "digitalisimo-product-grid",
@@ -3222,7 +3222,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own manual product cards with conditional CSS; image loading, ALT, links and editor aligned in 4.3.0.92, installed multisite rendering verified; WooCommerce queries, reference skins, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-product-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-product-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3237,7 +3237,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "author-box covers author/custom basics; user menu, social card, follow actions, skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-profile-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-profile-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3256,7 +3256,7 @@
       "decision_target": "digitalisimo-progress-bars",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Indicador circular de porcentaje; se reconstruye junto a las barras de progreso.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-progress-pie.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-progress-pie.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
     },
     "bdt-protected-content": {
       "target": null,
@@ -3290,7 +3290,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own local QR with accessible fallback and conditional assets; current queried URL fixed and installed multisite rendering verified in 4.3.0.93; internal labels, image mode, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-qrcode.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-qrcode.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.99",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3305,7 +3305,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-quform.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-quform.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3324,7 +3324,7 @@
       "decision_target": "digitalisimo-reading-progress",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Barra de progreso de lectura; script ligero propio.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-reading-progress.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-reading-progress.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
     },
     "bdt-reading-timer": {
       "target": "digitalisimo-reading-time",
@@ -3341,7 +3341,7 @@
       "decision_target": "digitalisimo-reading-time",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Tiempo de lectura estimado; se calcula en el servidor.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-reading-timer.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-reading-timer.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.117"
     },
     "bdt-remote-arrows": {
       "target": null,
@@ -3422,7 +3422,7 @@
       "decision_target": "reviews",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Tarjeta de reseña con nombre, texto y valoración; el widget Reviews de PRO Elements la cubre.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-review-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-review-card.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-review-card-carousel": {
       "target": "reviews",
@@ -3439,7 +3439,7 @@
       "decision_target": "reviews",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Carrusel de reseñas hacia Reviews de PRO Elements.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-review-card-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-review-card-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-review-card-grid": {
       "target": "reviews",
@@ -3456,7 +3456,7 @@
       "decision_target": "reviews",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Rejilla de reseñas hacia Reviews de PRO Elements.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-review-card-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-review-card-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-revolution-slider": {
       "target": "shortcode",
@@ -3469,7 +3469,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-revolution-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-revolution-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3493,7 +3493,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "new accessible local-anchor widget implemented; advanced effects, legacy adapter and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.109 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-scroll-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.109",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-scroll-button.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.109",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3512,7 +3512,7 @@
       "decision_target": "image",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Imagen larga que se desplaza al pasar el cursor; se conserva la imagen.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-scroll-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-scroll-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-scrollnav": {
       "target": "digitalisimo-vertical-menu",
@@ -3529,7 +3529,7 @@
       "decision_target": "digitalisimo-vertical-menu",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Navegación a secciones de la página; Icon Nav propio con enlaces internos.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-scrollnav.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-scrollnav.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-search": {
       "target": null,
@@ -3542,7 +3542,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "use existing search-form widget for new content; post-type filtering and Element Pack skins require parity review before legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-search.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-search.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3557,7 +3557,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "posts query can select a single public post for new content; exact metadata layout and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-single-post.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-single-post.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3572,7 +3572,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "use existing slides widget for new editorial slides; template source, skins, animations and legacy conversion pending; optimized media slider remains separate; legacy documents keep rendering without Element Pack through the 4.3.0.104 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.104",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.104",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3591,7 +3591,7 @@
       "decision_target": "digitalisimo-fancy-slider",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Presentación de diapositivas con imagen y texto hacia Slides.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-slideshow.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-slideshow.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
     },
     "bdt-slinky-vertical-menu": {
       "target": "digitalisimo-vertical-menu",
@@ -3604,7 +3604,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "nav-menu provides hierarchical WordPress menus for new content; sliding transitions, manual hierarchy and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-slinky-vertical-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.103",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-slinky-vertical-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.103",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3635,7 +3635,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "share-buttons covers native social sharing for new content; counters, network list and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-social-share.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-social-share.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3654,7 +3654,7 @@
       "decision_target": "code-highlight",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Código con resaltado; Code Highlight de PRO Elements.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-source-code.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-source-code.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-stacker": {
       "target": null,
@@ -3687,7 +3687,7 @@
       "decision_target": "digitalisimo-fancy-slider",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Carrusel de elementos escritos hacia el carrusel de medios.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-static-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-static-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
     },
     "bdt-static-grid-tab": {
       "target": "digitalisimo-fancy-tabs",
@@ -3704,7 +3704,7 @@
       "decision_target": "digitalisimo-fancy-tabs",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Rejilla de elementos escritos con pestañas.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-static-grid-tab.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-static-grid-tab.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-step-flow": {
       "target": "digitalisimo-advanced-icon-box",
@@ -3721,7 +3721,7 @@
       "decision_target": "digitalisimo-advanced-icon-box",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Paso con icono, título y texto; la Caja de icono avanzada propia lo cubre.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-step-flow.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-step-flow.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-sub-menu": {
       "target": "digitalisimo-vertical-menu",
@@ -3734,7 +3734,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "nav-menu covers WordPress submenus for new content; static repeater, badges and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.105 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-sub-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-sub-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.105",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3769,7 +3769,7 @@
       "decision_target": "image",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Imagen SVG con animación de trazo; se conserva la imagen.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-svg-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-svg-image.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.114"
     },
     "bdt-svg-maps": {
       "target": null,
@@ -3798,7 +3798,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own content-switcher covers two-panel switching for new content; templates, icons and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-switcher.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-switcher.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3817,7 +3817,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own accessible CSV table accepts manual text or a current-site Media attachment with bounded local read and cache; installed multisite rendering verified in 4.3.0.95; Sheets, ACF, DataTables skins, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-table.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-table.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3832,7 +3832,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "existing table-of-contents covers heading navigation for new content; control parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-table-of-content.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-table-of-content.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3847,7 +3847,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-tablepress.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-tablepress.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3862,7 +3862,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own fancy-tabs provides accessible tab panels for new content; sources, skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-tabs.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3882,7 +3882,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own public term cloud with per-site queries and conditional CSS; visual parity and multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-tags-cloud.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-tags-cloud.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3901,7 +3901,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Testimonios del tipo de contenido de BdThemes Testimonials en carrusel; Testimonial Carousel de PRO Elements con filas.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-testimonial-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-testimonial-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-testimonial-grid": {
       "target": "posts",
@@ -3918,7 +3918,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Igual que Testimonial Carousel.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-testimonial-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-testimonial-grid.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-testimonial-slider": {
       "target": "posts",
@@ -3935,7 +3935,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Igual que Testimonial Carousel.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-testimonial-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-testimonial-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.122"
     },
     "bdt-the-newsletter": {
       "target": "shortcode",
@@ -3948,7 +3948,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-the-newsletter.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-the-newsletter.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -3983,7 +3983,7 @@
       "decision_target": "posts",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Galería con miniaturas hacia el carrusel de medios con miniaturas.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-thumb-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-thumb-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
     },
     "bdt-time-zone": {
       "target": null,
@@ -4016,7 +4016,7 @@
       "decision_target": "digitalisimo-timeline",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Línea de tiempo de elementos escritos o entradas; se reconstruye como lista ordenada accesible.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-timeline.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-timeline.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
     },
     "bdt-toggle": {
       "target": "digitalisimo-accordion",
@@ -4033,7 +4033,7 @@
       "decision_target": "digitalisimo-accordion",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Contenido que se despliega con «Mostrar más»; Acordeón propio de un elemento.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-toggle.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-toggle.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.116"
     },
     "bdt-total-count": {
       "target": "digitalisimo-total-count",
@@ -4046,7 +4046,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "own-widget-base; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-total-count.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-total-count.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -4065,7 +4065,7 @@
       "decision_target": "digitalisimo-fancy-card",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Caja con imagen de fondo, título, texto y botón; la Fancy Card propia la cubre.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-trailer-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-trailer-box.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.115"
     },
     "bdt-tutor-lms-course-carousel": {
       "target": null,
@@ -4158,7 +4158,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "existing-widget-for-new-content; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.102 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-user-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-user-login.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.102",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -4173,7 +4173,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "native-registration-link-base; embedded form and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-user-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-user-register.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -4188,7 +4188,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "existing-widget-for-new-content; no legacy conversion; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-vertical-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.103",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-vertical-menu.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.103",
       "decision": "RECONSTRUIR",
       "legacy_documents": "adaptador publicado"
     },
@@ -4207,7 +4207,7 @@
       "decision_target": "media-carousel",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Lista de vídeos con reproductor; el carrusel de medios admite vídeos.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-video-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-video-gallery.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.121"
     },
     "bdt-video-player": {
       "target": "digitalisimo-video-player",
@@ -4220,7 +4220,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "native-video-widget-base; jPlayer skins and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.100 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-video-player.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-video-player.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.100",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -4239,7 +4239,7 @@
       "decision_target": "wc-add-to-cart",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Botón de añadir al carrito de un producto; el widget de PRO Elements.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-add-to-cart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-wc-add-to-cart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-wc-carousel": {
       "target": "woocommerce-products",
@@ -4256,7 +4256,7 @@
       "decision_target": "woocommerce-products",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Carrusel de productos hacia Products de PRO Elements.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-wc-carousel.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-wc-categories": {
       "target": "shortcode",
@@ -4269,7 +4269,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-categories.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-wc-categories.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -4288,7 +4288,7 @@
       "decision_target": "shortcode",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Páginas de WooCommerce (carrito, pago, cuenta, seguimiento) por sus shortcodes oficiales.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-elements.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-wc-elements.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.111"
     },
     "bdt-wc-mini-cart": {
       "target": "woocommerce-menu-cart",
@@ -4305,7 +4305,7 @@
       "decision_target": "woocommerce-menu-cart",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Mini carrito hacia Menu Cart de PRO Elements.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-mini-cart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-wc-mini-cart.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-wc-products": {
       "target": "woocommerce-products",
@@ -4322,7 +4322,7 @@
       "decision_target": "woocommerce-products",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Rejilla de productos hacia Products de PRO Elements.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-products.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-wc-products.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-wc-slider": {
       "target": "woocommerce-products",
@@ -4339,7 +4339,7 @@
       "decision_target": "woocommerce-products",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Slider de productos hacia Products de PRO Elements.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wc-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-wc-slider.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.123"
     },
     "bdt-we-form": {
       "target": "shortcode",
@@ -4352,7 +4352,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-we-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-we-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -4387,7 +4387,7 @@
       "decision_target": "form",
       "legacy_documents": "adaptador publicado",
       "decision_reason": "Formulario de PRO Elements con la acción webhook hacia la misma URL (JSON opcional); los campos de seguridad del cuerpo viajan como campos ocultos. Google Sheets, las cabeceras de seguridad y el reCAPTCHA no se trasladan.",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-webhook-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.127"
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-webhook-form.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.127"
     },
     "bdt-wp-forms": {
       "target": "shortcode",
@@ -4400,7 +4400,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wp-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-wp-forms.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     },
@@ -4415,7 +4415,7 @@
       "responsive_conversions": {},
       "skin_conversions": {},
       "status": "pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool",
-      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-wpdatatable.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-wpdatatable.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.108",
       "decision": "ADAPTAR",
       "legacy_documents": "adaptador publicado"
     }
@@ -4480,43 +4480,43 @@
     "wrapper-link": {
       "decision": "RECONSTRUIR",
       "user_priority_order": 61,
-      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "legacy_adapter": "digitalisimo-migration/legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
       "status": "element_pack_wrapper_link keeps covering the element with a server-side overlay anchor (same href, target and rel); verified by multisite A/B. New content uses the native container link."
     },
     "backdrop-filter": {
       "decision": "ADAPTAR",
       "user_priority_order": 54,
-      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "legacy_adapter": "digitalisimo-migration/legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
       "status": "Same controls, prefix classes and CSS variables as Element Pack; an own stylesheet applies backdrop-filter from those variables. Liquid glass uses blur only (no SVG distortion). CSS verified by multisite A/B."
     },
     "text-gradient-background": {
       "decision": "ADAPTAR",
       "user_priority_order": 58,
-      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "legacy_adapter": "digitalisimo-migration/legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
       "status": "Saved background group is clipped to the heading or paragraph text; a custom partial-text selector is not reproduced. CSS verified by multisite A/B."
     },
     "realistic-image-shadow": {
       "decision": "ADAPTAR",
       "user_priority_order": 59,
-      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "legacy_adapter": "digitalisimo-migration/legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
       "status": "Saved offsets, blur and opacity become a CSS drop-shadow on the element images instead of a blurred image clone; hover mode is not reproduced."
     },
     "floating-effects": {
       "decision": "ADAPTAR",
       "user_priority_order": 55,
-      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "legacy_adapter": "digitalisimo-migration/legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
       "status": "Enabled elements get a gentle CSS vertical float that respects reduced motion; per-axis translate, rotate and scale values are not reproduced."
     },
     "notation": {
       "decision": "ADAPTAR",
       "user_priority_order": 56,
-      "legacy_adapter": "modules/digitalisimo-legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
+      "legacy_adapter": "digitalisimo-migration/legacy/class-extensions.php (+ assets/legacy-extensions.css), inactive while Element Pack is loaded; 4.3.0.101",
       "status": "Saved notation type and colour become CSS marks (underline, strike, highlight, box, circle, bracket) on the heading or paragraph text; animated hand-drawn marks are not reproduced."
     },
     "shape-builder": {
       "decision": "ADAPTAR",
       "user_priority_order": 57,
-      "legacy_adapter": "modules/digitalisimo-legacy/class-shapes.php + assets/legacy-shapes.css/js; A/B multisite with Element Pack 9.9.1 in 4.3.0.107",
+      "legacy_adapter": "digitalisimo-migration/legacy/class-shapes.php + assets/legacy-shapes.css/js; A/B multisite with Element Pack 9.9.1 in 4.3.0.107",
       "status": "Element Pack renders saved shapes server-side as SVG; the same controls are registered so Elementor regenerates size, position, rotation and filter CSS, and own equivalent paths draw the seven shapes; uploaded SVGs use Elementor's sanitized inline SVG; on-load entrance animations run with CSS, hover animations are not reproduced."
     },
     "duplicator": {

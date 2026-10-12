@@ -1,6 +1,6 @@
 # Licencias de referencia para DIGITALÍSIMO Elements
 
-La copia local `digitalisimo-elements/bdthemes-element-pack/` se utiliza sólo para análisis. Su cabecera declara `GPL3` y contiene un archivo `LICENSE` GPLv3. La presencia de esos archivos permite estudiar el código, pero no autoriza asumir automáticamente la procedencia ni licencia individual de todos los iconos, imágenes, fuentes, plantillas y bibliotecas incluidas.
+La copia local `reference/bdthemes-element-pack/` se utiliza sólo para análisis. Su cabecera declara `GPL3` y contiene un archivo `LICENSE` GPLv3. La presencia de esos archivos permite estudiar el código, pero no autoriza asumir automáticamente la procedencia ni licencia individual de todos los iconos, imágenes, fuentes, plantillas y bibliotecas incluidas.
 
 | Componente | Estado | Acción antes de publicarlo |
 | --- | --- | --- |
@@ -143,4 +143,4 @@ La compatibilidad de 4.3.0.82 (`class-legacy-rules.php` y `class-legacy-visibili
 
 ## Adaptadores de documentos de Element Pack
 
-`modules/digitalisimo-legacy/` permite leer documentos ya guardados con widgets de Element Pack Pro 9.9.1 (GPLv3). Los mapas son implementación propia. Los archivos `maps/bdt-*.styles.php` se generan con `scripts/legacy-styles.py` a partir de la copia local de referencia y contienen datos necesarios para interpretar esos documentos: nombres de ajustes, valores por defecto y plantillas CSS de sus controles, con los selectores reescritos al marcado propio. No incluyen clases, plantillas HTML, JavaScript, CSS base, UIkit ni imágenes de Element Pack; el derivado se distribuye bajo GPL y conserva esta atribución.
+`digitalisimo-migration/legacy/` (plugin DIGITALÍSIMO Migración, desde 4.3.0.131 fuera de DIGITALÍSIMO Elements) permite leer y convertir documentos ya guardados con widgets de Element Pack Pro 9.9.1 (GPLv3). Los mapas son implementación propia. Los archivos `maps/bdt-*.styles.php` se generan con `scripts/legacy-styles.py` a partir de la copia local de referencia y contienen datos necesarios para interpretar esos documentos: nombres de ajustes, valores por defecto y plantillas CSS de sus controles, con los selectores reescritos al marcado propio. No incluyen clases, plantillas HTML, JavaScript, CSS base, UIkit ni imágenes de Element Pack; el derivado se distribuye bajo GPL y conserva esta atribución.

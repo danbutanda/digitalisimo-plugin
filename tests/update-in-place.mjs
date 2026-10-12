@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
-const modules = ['digitalisimo-seo', 'digitalisimo.chatbot', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements'];
+const modules = ['digitalisimo-seo', 'digitalisimo.chatbot', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements', 'digitalisimo-migration'];
 const script = readFileSync('digitalisimo-elements/assets/js/update-in-place.js', 'utf8');
 for (const module of modules) {
   assert.equal(readFileSync(`${module}/assets/js/update-in-place.js`, 'utf8'), script, `${module} debe incluir el mismo controlador`);
@@ -18,7 +18,8 @@ const registered = Object.fromEntries([
   'digitalisimo-hosting/digitalisimo-hosting.php',
   'digitalisimo.chatbot/digitalisimo-chatbot.php',
   'digitalisimo-seo/digitalisimo-integrations.php',
-  'digitalisimo-tools/digitalisimo-tools.php'
+  'digitalisimo-tools/digitalisimo-tools.php',
+  'digitalisimo-migration/digitalisimo-migration.php'
 ].map(file => [file, true]));
 const row = {
   getAttribute: name => name === 'data-plugin' ? currentFile : currentFile.split('/')[0]
@@ -55,13 +56,14 @@ for (const file of [
   'digitalisimo-hosting/digitalisimo-hosting.php',
   'digitalisimo.chatbot/digitalisimo-chatbot.php',
   'digitalisimo-seo/digitalisimo-integrations.php',
-  'digitalisimo-tools/digitalisimo-tools.php'
+  'digitalisimo-tools/digitalisimo-tools.php',
+  'digitalisimo-migration/digitalisimo-migration.php'
 ]) {
   currentFile = file;
   listeners[0][1]({ ...event, prevented: false, stopped: false });
   assert.equal(updates.at(-1).plugin, file);
 }
-assert.equal(updates.length, 6);
+assert.equal(updates.length, 7);
 
 delete registered[currentFile];
 const unregistered = { ...event, prevented: false, stopped: false };
@@ -72,7 +74,7 @@ registered[currentFile] = true;
 const foreign = { ...event, prevented: false, stopped: false, target: { closest: () => ({ ...link, closest: () => ({ getAttribute: () => 'otro/otro.php' }) }) } };
 listeners[0][1](foreign);
 assert.equal(foreign.prevented, false, 'los plugins de otros desarrolladores deben quedar bajo WordPress');
-assert.equal(updates.length, 6);
+assert.equal(updates.length, 7);
 
 const modified = { ...event, ctrlKey: true, prevented: false, stopped: false };
 listeners[0][1](modified);

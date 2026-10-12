@@ -30,13 +30,23 @@ build_package() {
       return 1
     fi
     echo 'REFERENCE LEAK CHECK: PASS' >&2
+    # El núcleo no nombra ni contiene nada de Element Pack: la compatibilidad vive en DIGITALÍSIMO Migración.
+    local mentions
+    mentions="$(unzip -p "$archive" | LC_ALL=C grep -aoiE 'bdthemes|element[ _-]?pack|elementpack|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]' | sort | uniq -c | head -20 || true)"
+    if [[ -n "$mentions" ]]; then
+      echo "BUILD ABORTED: $archive menciona Element Pack" >&2
+      echo "$mentions" >&2
+      rm -f "$archive"
+      return 1
+    fi
+    echo 'LEGACY MENTION CHECK: PASS' >&2
   fi
   echo "$archive"
 }
 
 packages=("${@:2}")
 if (( ${#packages[@]} == 0 )); then
-  packages=(digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements)
+  packages=(digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration)
 fi
 
 for package in "${packages[@]}"; do
@@ -47,6 +57,7 @@ for package in "${packages[@]}"; do
     digitalisimo-backups) build_package digitalisimo-backups digitalisimo-backups.php "$package" ;;
     digitalisimo-tools) build_package digitalisimo-tools digitalisimo-tools.php "$package" ;;
     digitalisimo-elements) build_package digitalisimo-elements pro-elements.php "$package" ;;
+    digitalisimo-migration) build_package digitalisimo-migration digitalisimo-migration.php "$package" ;;
     *) echo "Módulo desconocido: $package" >&2; exit 1 ;;
   esac
 done

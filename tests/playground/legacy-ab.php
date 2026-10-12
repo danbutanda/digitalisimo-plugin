@@ -10,9 +10,12 @@
 ini_set( 'memory_limit', '2048M' );
 // Como index.php en una visita real: algunos plugins (bbPress) sólo cargan sus plantillas con temas activos.
 define( 'WP_USE_THEMES', true );
+// Fase E: documentos ya convertidos, pintados con DIGITALÍSIMO Migración desactivado (paso previo del blueprint).
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/user.php';
-require_once WP_PLUGIN_DIR . '/digitalisimo-elements/modules/digitalisimo-legacy/class-migration.php';
+if ( in_array( getenv( 'DIGI_PHASE' ), array( 'C', 'D' ), true ) ) {
+	require_once WP_PLUGIN_DIR . '/digitalisimo-migration/legacy/class-migration.php';
+}
 
 $phase    = getenv( 'DIGI_PHASE' ) ?: 'A';
 register_shutdown_function( static function () use ( $phase ) {
@@ -71,6 +74,11 @@ foreach ( $blogs as $blog ) {
 		foreach ( $cases as $case => $settings ) {
 			$expect_css  = (array) ( $settings['_expect_css'] ?? array() );
 			$expect_html = (array) ( $settings['_expect_html'] ?? array() );
+			// Tras convertir, los nombres heredados pasan a los propios: la fixture puede declarar qué buscar entonces.
+			if ( 'E' === $phase ) {
+				$expect_css  = (array) ( $settings['_expect_css_converted'] ?? $expect_css );
+				$expect_html = (array) ( $settings['_expect_html_converted'] ?? $expect_html );
+			}
 			$section     = (array) ( $settings['_section'] ?? array() );
 			$known      = (array) ( $settings['_known'] ?? array() );
 			$type       = (string) ( $settings['_widget'] ?? $widget );
@@ -81,7 +89,7 @@ foreach ( $blogs as $blog ) {
 				$previous[ $option ] = get_option( $option, null );
 				update_option( $option, $value );
 			}
-			unset( $settings['_expect_css'], $settings['_expect_html'], $settings['_known'], $settings['_widget'], $settings['_section'], $settings['_options'] );
+			unset( $settings['_expect_css'], $settings['_expect_html'], $settings['_expect_css_converted'], $settings['_expect_html_converted'], $settings['_known'], $settings['_widget'], $settings['_section'], $settings['_options'] );
 			// Marcadores «__X__»: IDs del contenido de prueba de este sitio.
 			$template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
 			$sample   = get_page_by_path( 'digi-ab-post-1', OBJECT, 'post' );
@@ -113,7 +121,10 @@ foreach ( $blogs as $blog ) {
 			}
 			$entry_extra = array();
 			if ( 'C' === $phase ) {
+				\Digitalisimo\Elements\Legacy\Native::$errors = array();
 				$entry_extra['migration'] = \Digitalisimo\Elements\Legacy\Migration::convert_document( $id );
+				$entry_extra['native_errors'] = \Digitalisimo\Elements\Legacy\Native::$errors;
+				$entry_extra['converted'] = json_decode( (string) get_post_meta( $id, '_elementor_data', true ), true );
 			}
 			if ( 'D' === $phase ) {
 				$entry_extra['reverted'] = \Digitalisimo\Elements\Legacy\Migration::revert_document( $id );
@@ -122,6 +133,12 @@ foreach ( $blogs as $blog ) {
 			if ( 'A' === $phase ) {
 				$entry_extra['data_md5'] = md5( (string) get_post_meta( $id, '_elementor_data', true ) );
 			}
+			if ( 'E' === $phase ) {
+				// Tras convertir no debe quedar ningún identificador heredado en el documento.
+				$saved = (string) get_post_meta( $id, '_elementor_data', true );
+				preg_match_all( '/"widgetType":"(?:bdt-[a-z0-9-]+|fooevents-calendar|lightbox)"|"(?:ep_|element_pack_|bdt_|_digitalisimo_legacy)[a-z0-9_]*"/', $saved, $left );
+				$entry_extra['legacy_left'] = array_values( array_unique( $left[0] ) );
+			}
 			$GLOBALS['wp_query']     = new WP_Query( array( 'page_id' => $id ) );
 			$GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
 			$GLOBALS['post']         = get_post( $id );
@@ -129,12 +146,12 @@ foreach ( $blogs as $blog ) {
 			delete_post_meta( $id, '_elementor_element_cache' );
 			$html  = \Elementor\Plugin::$instance->frontend->get_builder_content( $id, false );
 			$entry = array( 'registered' => isset( $registered[ $type ] ), 'signature' => digi_ab_signature( $html ), 'bytes' => strlen( $html ), 'known' => $known ) + $entry_extra;
-			if ( in_array( $phase, array( 'B', 'C' ), true ) ) {
+			if ( in_array( $phase, array( 'B', 'C', 'E' ), true ) ) {
 				$raw = \Elementor\Plugin::$instance->documents->get( $id, false )->get_elements_raw_data( null, true );
 				$entry['editor_settings'] = array_keys( (array) ( $raw[0]['elements'][0]['elements'][0]['settings'] ?? array() ) );
 				$entry['editor_widget']   = $raw[0]['elements'][0]['elements'][0]['widgetType'] ?? '';
 				// El envoltorio se presenta como el widget de destino para su CSS y sus scripts.
-				$target = \Digitalisimo\Elements\Legacy\Translator::is_legacy_id( $type ) ? \Digitalisimo\Elements\Legacy\Translator::target( $type ) : '';
+				$target = class_exists( '\\Digitalisimo\\Elements\\Legacy\\Translator' ) && \Digitalisimo\Elements\Legacy\Translator::is_legacy_id( $type ) ? \Digitalisimo\Elements\Legacy\Translator::target( $type ) : '';
 				// Sin contenido Elementor no pinta el envoltorio: no hay nada que comprobar.
 				if ( '' !== $target && 'B' === $phase && false !== strpos( $html, 'elementor-element-w' . substr( md5( $slug ), 0, 6 ) ) ) {
 					$entry['wrapper_ok'] = false !== strpos( $html, 'data-widget_type="' . $target . '.' ) && false !== strpos( $html, 'elementor-widget-' . $target );

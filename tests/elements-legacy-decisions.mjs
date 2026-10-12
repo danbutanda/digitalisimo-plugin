@@ -5,7 +5,7 @@ import { readFileSync, existsSync } from 'node:fs';
 const map = JSON.parse(readFileSync(new URL('../docs/migration-map.json', import.meta.url), 'utf8')).entries;
 const inventory = JSON.parse(readFileSync(new URL('../docs/element-pack-inventory.json', import.meta.url), 'utf8')).widgets;
 const decisions = new Set(['ADAPTAR', 'COMPARTIR', 'DESCARTAR', 'RECONSTRUIR', 'MIGRAR']);
-const maps = new URL('../digitalisimo-elements/modules/digitalisimo-legacy/maps/', import.meta.url);
+const maps = new URL('../digitalisimo-migration/legacy/maps/', import.meta.url);
 
 assert.equal(inventory.length, Object.keys(map).length, 'el mapa debe cubrir todo el inventario');
 for (const widget of inventory) {
@@ -20,7 +20,7 @@ for (const widget of inventory) {
   if (entry.decision === 'DESCARTAR') assert.ok((entry.decision_reason || '').length > 20, `${widget.legacy_widget_id} se descarta sin motivo`);
 }
 // La herramienta de migración explica cada widget sin adaptador con el motivo generado del mapa.
-const unsupported = readFileSync(new URL('../digitalisimo-elements/modules/digitalisimo-legacy/unsupported.php', import.meta.url), 'utf8');
+const unsupported = readFileSync(new URL('../digitalisimo-migration/legacy/unsupported.php', import.meta.url), 'utf8');
 const listed = new Set([...unsupported.matchAll(/^\t'(bdt-[a-z0-9-]+|[a-z-]+)' => /gm)].map((m) => m[1]));
 const expected = Object.entries(map).filter(([, e]) => e.legacy_documents === 'no se reproduce').map(([id]) => id);
 assert.deepEqual([...listed].sort(), expected.sort(), 'unsupported.php no coincide con el mapa: regenerar con scripts/legacy-decisions-doc.py');

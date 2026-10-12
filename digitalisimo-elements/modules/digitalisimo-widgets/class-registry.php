@@ -271,24 +271,17 @@ final class Widget_Registry {
 		Text_Gradient_Extension::init();
 		require_once __DIR__ . '/class-image-shadow.php';
 		Image_Shadow_Extension::init();
+		// Rasgos propios sobre widgets nativos y sobre cualquier elemento.
+		foreach ( array( 'class-posts-terms.php' => Posts_Terms::class, 'class-products-parts.php' => Products_Parts::class, 'class-acf-source.php' => Acf_Source::class, 'class-slides-templates.php' => Slides_Templates::class, 'class-figures.php' => Figures::class, 'class-element-link.php' => Element_Link::class ) as $file => $class ) {
+			require_once __DIR__ . '/' . $file;
+			$class::init();
+		}
 		add_action( 'elementor/elements/categories_registered', array( __CLASS__, 'category' ), 20 );
 		add_action( 'elementor/frontend/after_register_styles', array( __CLASS__, 'styles' ) );
 		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'scripts' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'styles' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'scripts' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), 20 );
-		require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-extensions.php';
-		Legacy\Extensions::init();
-		require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-shapes.php';
-		Legacy\Shapes::init();
-		if ( function_exists( 'is_admin' ) && is_admin() ) {
-			require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-migration.php';
-			Legacy\Migration::init();
-		}
-		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-cli.php';
-			\WP_CLI::add_command( 'digitalisimo-elements ep-migrate', Legacy\Cli::class );
-		}
 	}
 
 	public static function category( $manager ) {
@@ -363,11 +356,5 @@ final class Widget_Registry {
 			require_once __DIR__ . '/' . $widget['file'];
 			$manager->register( new $widget['class']() );
 		}
-		// Element Pack conserva sus IDs mientras esté activo; nunca lo reemplazamos.
-		if ( defined( 'BDTEP_VER' ) || class_exists( '\\ElementPack\\Element_Pack_Loader', false ) ) {
-			return;
-		}
-		require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-adapters.php';
-		Legacy\Adapters::register( $manager );
 	}
 }

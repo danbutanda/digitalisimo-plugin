@@ -116,7 +116,7 @@ def main(legacy_id, write):
     out.append(');')
     text = '\n'.join(out) + '\n'
     if write:
-        (ROOT / 'digitalisimo-elements/modules/digitalisimo-legacy/maps' / (legacy_id + '.php')).write_text(text, encoding='utf-8')
+        (ROOT / 'digitalisimo-migration/legacy/maps' / (legacy_id + '.php')).write_text(text, encoding='utf-8')
     print(text)
 
 

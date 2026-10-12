@@ -10,6 +10,7 @@ on:
       - 'digitalisimo-backups/**'
       - 'digitalisimo-tools/**'
       - 'digitalisimo-elements/**'
+      - 'digitalisimo-migration/**'
   workflow_dispatch:
     inputs:
       modules:
@@ -38,11 +39,11 @@ jobs:
         with:
           php-version: '8.2'
       - name: Validar sintaxis PHP
-        run: find digitalisimo-seo digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements -name '*.php' -print0 | xargs -0 -r -n1 php -l
+        run: find digitalisimo-seo digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar protecciones de rendimiento
         run: |
           node tests/update-in-place.mjs
-          for module in seo ia hosting backups tools elements; do php tests/update-enqueue.php "$module"; done
+          for module in seo ia hosting backups tools elements migration; do php tests/update-enqueue.php "$module"; done
           php tests/tools-slider.php
           php tests/elements-slider-registration.php
           php tests/elements-slider-loading.php
@@ -88,6 +89,7 @@ jobs:
           php tests/elements-display-conditions.php
           php tests/elements-legacy-visibility.php
           php tests/elements-legacy-adapters.php
+          php tests/elements-native-features.php
           node tests/elements-legacy-decisions.mjs
           php tests/elements-legacy-extensions.php
           php tests/elements-legacy-shapes.php

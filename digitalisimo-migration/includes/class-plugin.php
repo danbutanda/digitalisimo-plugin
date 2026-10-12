@@ -1,0 +1,69 @@
+<?php
+namespace Digitalisimo\Migration;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Arranque de la compatibilidad heredada.
+ *
+ * Necesita DIGITALÍSIMO Elements: sus widgets son el destino de cada adaptador y de la conversión.
+ * Mientras Element Pack esté activo en un sitio, sus propios widgets se pintan con su código y aquí
+ * sólo funcionan el inventario y la conversión (que exige desactivarlo antes).
+ */
+final class Plugin {
+	public static function boot() {
+		Updater::init();
+		if ( ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ) {
+			add_action( 'admin_notices', array( __CLASS__, 'missing_elements' ) );
+			add_action( 'network_admin_notices', array( __CLASS__, 'missing_elements' ) );
+			return;
+		}
+		$legacy = DIGITALISIMO_MIGRATION_DIR . 'legacy/';
+		require_once $legacy . 'class-translator.php';
+		require_once $legacy . 'class-extensions.php';
+		\Digitalisimo\Elements\Legacy\Extensions::init();
+		require_once $legacy . 'class-shapes.php';
+		\Digitalisimo\Elements\Legacy\Shapes::init();
+		require_once $legacy . 'conditions/class-legacy-visibility.php';
+		\Digitalisimo\Elements\Legacy_Visibility::init();
+		self::bridge_visitor_filters();
+		add_action( 'elementor/widgets/register', array( __CLASS__, 'register_adapters' ), 30 );
+		if ( is_admin() ) {
+			require_once $legacy . 'class-migration.php';
+			\Digitalisimo\Elements\Legacy\Migration::init();
+		}
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			require_once $legacy . 'class-cli.php';
+			\WP_CLI::add_command( 'digitalisimo-migration', \Digitalisimo\Elements\Legacy\Cli::class );
+		}
+	}
+
+	/** Los adaptadores se registran después de los widgets propios, de los que heredan. */
+	public static function register_adapters( $manager ) {
+		if ( \Digitalisimo\Elements\Legacy\Translator::element_pack_active() ) {
+			return;
+		}
+		require_once DIGITALISIMO_MIGRATION_DIR . 'legacy/class-adapters.php';
+		\Digitalisimo\Elements\Legacy\Adapters::register( $manager );
+	}
+
+	/**
+	 * Un sitio que personalizó la detección del país con los filtros de Element Pack conserva ese
+	 * comportamiento: se encadenan a los filtros propios de DIGITALÍSIMO Elements.
+	 */
+	private static function bridge_visitor_filters() {
+		$filters = array( 'country_pre' => 2, 'country_use_timezone' => 1, 'client_ip' => 1, 'country_endpoint' => 2, 'country_parse' => 3, 'country_cache_ttl' => 3, 'tz_cookie' => 1 );
+		foreach ( $filters as $name => $args ) {
+			add_filter( 'digitalisimo_elements_visibility_' . $name, static function ( ...$values ) use ( $name ) {
+				return apply_filters( 'element_pack_visibility_' . $name, ...$values );
+			}, 5, $args );
+		}
+	}
+
+	public static function missing_elements() {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		echo '<div class="notice notice-warning"><p>' . esc_html( 'DIGITALÍSIMO Migración necesita DIGITALÍSIMO Elements activo: sus widgets son el destino de la migración.' ) . '</p></div>';
+	}
+}

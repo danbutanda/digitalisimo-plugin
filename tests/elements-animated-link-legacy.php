@@ -35,17 +35,24 @@ namespace {
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
 	$own = count( preg_grep( '/^digitalisimo-/', array_keys( $manager->widgets ) ) );
+	check_legacy( 50 === $own && count( $manager->widgets ) === $own, 'El núcleo registra sus cincuenta widgets propios y ningún ID heredado.' );
+	// Los IDs heredados los registra DIGITALÍSIMO Migración, después de los widgets propios.
+	define( 'DIGITALISIMO_MIGRATION_DIR', __DIR__ . '/../digitalisimo-migration/' );
+	require DIGITALISIMO_MIGRATION_DIR . 'legacy/class-translator.php';
+	require DIGITALISIMO_MIGRATION_DIR . 'includes/class-plugin.php';
+	\Digitalisimo\Migration\Plugin::register_adapters( $manager );
+	\Digitalisimo\Migration\Plugin::register_adapters( $manager );
 	$adapters = array_diff( array_keys( $manager->widgets ), preg_grep( '/^digitalisimo-/', array_keys( $manager->widgets ) ) );
-	check_legacy( 50 === $own && in_array( 'bdt-animated-link', $adapters, true ) && in_array( 'bdt-accordion', $adapters, true ), 'Sin Element Pack deben existir los cincuenta widgets nuevos y sus IDs legacy, una sola vez.' );
+	check_legacy( in_array( 'bdt-animated-link', $adapters, true ) && in_array( 'bdt-accordion', $adapters, true ) && 50 === count( preg_grep( '/^digitalisimo-/', array_keys( $manager->widgets ) ) ), 'DIGITALÍSIMO Migración añade los IDs heredados una sola vez.' );
 	check_legacy( $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Legacy\Bdt_AnimatedLink && $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Animated_Link_Widget, 'El ID legacy debe usar el adaptador sobre nuestra implementación.' );
 	$widget = $manager->widgets['bdt-animated-link'];
 	$widget->settings = array( 'link_style' => 'leda', 'link_text' => 'Ejemplo', 'link_url' => array( 'url' => 'https://example.test/' ) );
 	$render = new \ReflectionMethod( $widget, 'render' );
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_legacy( str_contains( $html, 'digi-animated-link--leda' ) && ! str_contains( $html, 'bdt-' ), 'El adaptador pinta sólo el marcado propio.' );
-	check_legacy( str_contains( $html, 'href="https://example.test/"' ) && str_contains( $html, 'data-text="Ejemplo"' ), 'El alias debe leer los controles legacy sin convertir la base de datos.' );
+	check_legacy( str_contains( $html, 'href="https://example.test/"' ) && str_contains( $html, 'data-text="Ejemplo"' ), 'El adaptador debe leer los controles legacy sin convertir la base de datos.' );
 	$manager->widgets['bdt-animated-link'] = new \Elementor\Widget_Base();
-	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
+	\Digitalisimo\Migration\Plugin::register_adapters( $manager );
 	check_legacy( $manager->widgets['bdt-animated-link'] instanceof \Elementor\Widget_Base && ! ( $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Legacy\Bdt_AnimatedLink ), 'Nunca reemplazar un ID ya registrado por otro plugin.' );
-	echo "DIGITALÍSIMO Elements: compatibilidad de Animated Link sin colisiones.\n";
+	echo "DIGITALÍSIMO Migración: compatibilidad de Animated Link sin colisiones.\n";
 }

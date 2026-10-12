@@ -8,11 +8,12 @@ mkdir -p "$OUT" && rm -f "$OUT/result.json"
 cp "$ROOT/tests/playground/form-submit/probe.php" "$OUT/probe.php"
 cat > "$OUT/blueprint.json" <<'JSON'
 {"steps":[{"step":"enableMultisite"},{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":false}},
-{"step":"runPHP","code":"<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; activate_plugin( 'elementor/elementor.php', '', true ); activate_plugin( 'digitalisimo-elements/pro-elements.php', '', true ); if ( ! get_site( 2 ) ) { wpmu_create_blog( DOMAIN_CURRENT_SITE, PATH_CURRENT_SITE . 'sub/', 'Subsitio', 1 ); }"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-load.php'; require_once ABSPATH . 'wp-admin/includes/plugin.php'; activate_plugin( 'elementor/elementor.php', '', true ); activate_plugin( 'digitalisimo-elements/pro-elements.php', '', true ); activate_plugin( 'digitalisimo-migration/digitalisimo-migration.php', '', true ); if ( ! get_site( 2 ) ) { wpmu_create_blog( DOMAIN_CURRENT_SITE, PATH_CURRENT_SITE . 'sub/', 'Subsitio', 1 ); }"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe.php';"}]}
 JSON
 $CLI run-blueprint --site-url=http://playground.test --blueprint="$OUT/blueprint.json" \
   --mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" \
+  --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \
   --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/playground.log" 2>&1 || { tail -20 "$OUT/playground.log"; exit 1; }
 node -e '
 const r = require(process.argv[1]);

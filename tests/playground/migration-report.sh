@@ -11,6 +11,7 @@ cat > "$OUT/blueprint.json" <<'JSON'
 JSON
 $CLI run-blueprint --site-url=http://playground.test --blueprint="$OUT/blueprint.json" \
   --mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" \
+  --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \
   --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/playground.log" 2>&1 || { tail -20 "$OUT/playground.log"; exit 1; }
 for expected in 'bdt-weather (1)' 'Sin adaptador: no se mostrará sin Element Pack. Clima' 'Compatible: se muestra con digitalisimo-accordion' 'http://playground.test/sub/wp-admin/tools.php?page=digitalisimo-ep-migration'; do
   grep -qF "$expected" "$OUT/result.txt" || { echo "Falta en el informe: $expected"; cat "$OUT/result.txt"; exit 1; }

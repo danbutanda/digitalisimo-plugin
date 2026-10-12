@@ -11,7 +11,8 @@ const modules = [
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.52.zip', version: '1.0.52' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.28.zip', version: '1.0.28' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.130.zip', version: '4.3.0.130' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.131.zip', version: '4.3.0.131' };
+const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.0.zip', version: '1.0.0' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -83,10 +84,21 @@ const declarations = new Map();
   if (!readFileSync(join(elementsModule.dir, 'modules/blockquote/module.php'), 'utf8').includes('DIGITALISIMO_ELEMENTS_VERSION')) throw new Error('El CSS del blockquote debe cambiar de versión con DIGITALÍSIMO Elements.');
   if (!readFileSync(join(elementsModule.dir, 'license.txt'), 'utf8').includes('PRO Elements team') || !readFileSync(join(elementsModule.dir, 'plugin.php'), 'utf8').includes('DIGITALÍSIMO: este derivado se actualiza únicamente desde su propio asset.')) throw new Error('Se perdieron créditos o sigue activo el actualizador original de Elements.');
 }
+{
+  // DIGITALÍSIMO Migración contiene toda la compatibilidad heredada; el núcleo no la necesita.
+  const main = join(migrationModule.dir, migrationModule.file);
+  const zip = join(packageDir, migrationModule.zip);
+  if (!existsSync(main) || !existsSync(zip)) throw new Error(`Falta ${main} o ${zip}`);
+  const source = readFileSync(main, 'utf8');
+  if (!source.includes(`Version: ${migrationModule.version}`) || !source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-migration') || !source.includes('Requires Plugins: elementor')) throw new Error('Cabecera incorrecta en DIGITALÍSIMO Migración');
+  const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
+  for (const required of ['digitalisimo-migration.php', 'includes/class-updater.php', 'includes/class-plugin.php', 'legacy/class-native.php', 'legacy/class-migration.php', 'legacy/class-adapters.php', 'legacy/unsupported.php', 'legacy/maps/bdt-accordion.php', 'legacy/conditions/class-legacy-rules.php']) if (!listing.includes(`${migrationModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Migración`);
+  if (listing.split('\n').some((entry) => /(^|\/)bdthemes-element-pack(\/|$)/i.test(entry)) || listing.includes('.DS_Store')) throw new Error('DIGITALÍSIMO Migración no debe contener la copia de referencia ni archivos de sistema.');
+}
 // Cada módulo debe llevar el mismo controlador probado; así una Release parcial
 // no puede perder la actualización en la propia pantalla Plugins.
 const inlineUpdater = readFileSync('digitalisimo-elements/assets/js/update-in-place.js', 'utf8');
-for (const module of [...modules, toolsModule, elementsModule]) {
+for (const module of [...modules, toolsModule, elementsModule, migrationModule]) {
   const zip = join(packageDir, module.zip);
   const asset = `${module.dir}/assets/js/update-in-place.js`;
   const packaged = execFileSync('unzip', ['-p', zip, asset], { encoding: 'utf8' });
@@ -278,4 +290,4 @@ if (!chatbotMcpArticles.includes("'post_status' => 'draft'")) throw new Error('E
 if (seoAiTools.some((source) => source.includes("add_submenu_page( 'digitalisimo'"))) throw new Error('Una herramienta SEO AI sigue expuesta como submenú lateral');
 if (coreFiles.some((source) => !source.includes("remove_submenu_page( 'digitalisimo', 'digitalisimo' )"))) throw new Error('El submenú automático Digitalisimo no se oculta en todos los módulos');
 
-console.log(`Suite validada: ${modules.length + 2} módulos, ${phpFiles.length} archivos PHP base, sin clases duplicadas no protegidas.`);
+console.log(`Suite validada: ${modules.length + 3} módulos, ${phpFiles.length} archivos PHP base, sin clases duplicadas no protegidas.`);

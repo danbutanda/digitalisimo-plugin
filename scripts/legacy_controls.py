@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-EP = ROOT / 'digitalisimo-elements' / 'bdthemes-element-pack'
+EP = ROOT / 'reference' / 'bdthemes-element-pack'
 _TRAITS = None
 
 

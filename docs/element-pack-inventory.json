@@ -1,63 +1,63 @@
 {
-  "source": "digitalisimo-elements/bdthemes-element-pack",
+  "source": "reference/bdthemes-element-pack",
   "method": "static source inspection; the reference PHP was not executed",
   "widget_count": 263,
   "user_priority_widget_count": 53,
   "user_priority_extensions": [
     {
       "name": "Backdrop Filter",
-      "source": "digitalisimo-elements/bdthemes-element-pack/modules/backdrop-filter",
+      "source": "reference/bdthemes-element-pack/modules/backdrop-filter",
       "user_priority_order": 54
     },
     {
       "name": "Floating Effects",
-      "source": "digitalisimo-elements/bdthemes-element-pack/modules/floating-effects",
+      "source": "reference/bdthemes-element-pack/modules/floating-effects",
       "user_priority_order": 55
     },
     {
       "name": "Notation",
-      "source": "digitalisimo-elements/bdthemes-element-pack/modules/notation",
+      "source": "reference/bdthemes-element-pack/modules/notation",
       "user_priority_order": 56
     },
     {
       "name": "Shape Builder",
-      "source": "digitalisimo-elements/bdthemes-element-pack/modules/shape-builder",
+      "source": "reference/bdthemes-element-pack/modules/shape-builder",
       "user_priority_order": 57
     },
     {
       "name": "Text Gradient Background",
-      "source": "digitalisimo-elements/bdthemes-element-pack/modules/text-gradient-background",
+      "source": "reference/bdthemes-element-pack/modules/text-gradient-background",
       "user_priority_order": 58
     },
     {
       "name": "Realistic Image Shadow",
-      "source": "digitalisimo-elements/bdthemes-element-pack/modules/realistic-image-shadow",
+      "source": "reference/bdthemes-element-pack/modules/realistic-image-shadow",
       "user_priority_order": 59
     },
     {
       "name": "Visibility Controls",
-      "source": "digitalisimo-elements/bdthemes-element-pack/modules/visibility-controls",
+      "source": "reference/bdthemes-element-pack/modules/visibility-controls",
       "user_priority_order": 60
     },
     {
       "name": "Wrapper Link",
-      "source": "digitalisimo-elements/bdthemes-element-pack/modules/wrapper-link",
+      "source": "reference/bdthemes-element-pack/modules/wrapper-link",
       "user_priority_order": 61
     },
     {
       "name": "Duplicator",
-      "source": "digitalisimo-elements/bdthemes-element-pack/includes/class-duplicator.php",
+      "source": "reference/bdthemes-element-pack/includes/class-duplicator.php",
       "user_priority_order": 62
     },
     {
       "name": "SVG Support",
-      "source": "digitalisimo-elements/bdthemes-element-pack/includes/class-svg-support.php",
+      "source": "reference/bdthemes-element-pack/includes/class-svg-support.php",
       "user_priority_order": 63
     }
   ],
   "unclassified_widget_files": [
-    "digitalisimo-elements/bdthemes-element-pack/modules/instagram/widgets/template-classic.php",
-    "digitalisimo-elements/bdthemes-element-pack/modules/instagram/widgets/template.php"
+    "reference/bdthemes-element-pack/modules/instagram/widgets/template-classic.php",
+    "reference/bdthemes-element-pack/modules/instagram/widgets/template.php"
   ],
   "engine_groups": {
     "carousel": [
@@ -346,8 +346,8 @@
     {
       "name": "Accordion",
       "legacy_widget_id": "bdt-accordion",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/accordion",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/accordion/widgets/accordion.php",
+      "directory": "reference/bdthemes-element-pack/modules/accordion",
+      "source_file": "reference/bdthemes-element-pack/modules/accordion/widgets/accordion.php",
       "original_class": "ElementPack\\Modules\\Accordion\\Widgets\\Accordion",
       "original_base_class": "Module_Base",
       "category": [
@@ -405,8 +405,8 @@
     {
       "name": "ACF Accordion",
       "legacy_widget_id": "bdt-acf-accordion",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/acf-accordion",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/acf-accordion/widgets/acf-accordion.php",
+      "directory": "reference/bdthemes-element-pack/modules/acf-accordion",
+      "source_file": "reference/bdthemes-element-pack/modules/acf-accordion/widgets/acf-accordion.php",
       "original_class": "ElementPack\\Modules\\AcfAccordion\\Widgets\\Acf_Accordion",
       "original_base_class": "Module_Base",
       "category": [
@@ -458,8 +458,8 @@
     {
       "name": "ACF Gallery",
       "legacy_widget_id": "bdt-acf-gallery",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/acf-gallery",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/acf-gallery/widgets/acf-gallery.php",
+      "directory": "reference/bdthemes-element-pack/modules/acf-gallery",
+      "source_file": "reference/bdthemes-element-pack/modules/acf-gallery/widgets/acf-gallery.php",
       "original_class": "ElementPack\\Modules\\AcfGallery\\Widgets\\Acf_Gallery",
       "original_base_class": "Module_Base",
       "category": [
@@ -519,8 +519,8 @@
     {
       "name": "ACF List",
       "legacy_widget_id": "bdt-acf-list",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/acf-list",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/acf-list/widgets/acf-list.php",
+      "directory": "reference/bdthemes-element-pack/modules/acf-list",
+      "source_file": "reference/bdthemes-element-pack/modules/acf-list/widgets/acf-list.php",
       "original_class": "ElementPack\\Modules\\AcfList\\Widgets\\Acf_List",
       "original_base_class": "Module_Base",
       "category": [
@@ -571,8 +571,8 @@
     {
       "name": "ACF Slider",
       "legacy_widget_id": "bdt-acf-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/acf-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/acf-slider/widgets/acf-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/acf-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/acf-slider/widgets/acf-slider.php",
       "original_class": "ElementPack\\Modules\\AcfSlider\\Widgets\\Acf_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -627,8 +627,8 @@
     {
       "name": "ACF Tabs",
       "legacy_widget_id": "bdt-acf-tabs",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/acf-tabs",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/acf-tabs/widgets/acf-tabs.php",
+      "directory": "reference/bdthemes-element-pack/modules/acf-tabs",
+      "source_file": "reference/bdthemes-element-pack/modules/acf-tabs/widgets/acf-tabs.php",
       "original_class": "ElementPack\\Modules\\AcfTabs\\Widgets\\Acf_Tabs",
       "original_base_class": "Module_Base",
       "category": [
@@ -682,8 +682,8 @@
     {
       "name": "Advanced Button",
       "legacy_widget_id": "bdt-advanced-button",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-button",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-button/widgets/advanced-button.php",
+      "directory": "reference/bdthemes-element-pack/modules/advanced-button",
+      "source_file": "reference/bdthemes-element-pack/modules/advanced-button/widgets/advanced-button.php",
       "original_class": "ElementPack\\Modules\\AdvancedButton\\Widgets\\Advanced_Button",
       "original_base_class": "Module_Base",
       "category": [
@@ -733,8 +733,8 @@
     {
       "name": "Advanced Calculator",
       "legacy_widget_id": "bdt-advanced-calculator",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-calculator",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-calculator/widgets/advanced-calculator.php",
+      "directory": "reference/bdthemes-element-pack/modules/advanced-calculator",
+      "source_file": "reference/bdthemes-element-pack/modules/advanced-calculator/widgets/advanced-calculator.php",
       "original_class": "ElementPack\\Modules\\AdvancedCalculator\\Widgets\\Advanced_Calculator",
       "original_base_class": "Module_Base",
       "category": [
@@ -789,8 +789,8 @@
     {
       "name": "Advanced Counter",
       "legacy_widget_id": "bdt-advanced-counter",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-counter",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-counter/widgets/advanced-counter.php",
+      "directory": "reference/bdthemes-element-pack/modules/advanced-counter",
+      "source_file": "reference/bdthemes-element-pack/modules/advanced-counter/widgets/advanced-counter.php",
       "original_class": "ElementPack\\Modules\\AdvancedCounter\\Widgets\\Advanced_Counter",
       "original_base_class": "Module_Base",
       "category": [
@@ -846,8 +846,8 @@
     {
       "name": "Advanced Divider",
       "legacy_widget_id": "bdt-advanced-divider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-divider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-divider/widgets/advanced-divider.php",
+      "directory": "reference/bdthemes-element-pack/modules/advanced-divider",
+      "source_file": "reference/bdthemes-element-pack/modules/advanced-divider/widgets/advanced-divider.php",
       "original_class": "ElementPack\\Modules\\AdvancedDivider\\Widgets\\Advanced_Divider",
       "original_base_class": "Module_Base",
       "category": [
@@ -900,8 +900,8 @@
     {
       "name": "Advanced Google Map",
       "legacy_widget_id": "bdt-advanced-gmap",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-gmap",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-gmap/widgets/advanced-gmap.php",
+      "directory": "reference/bdthemes-element-pack/modules/advanced-gmap",
+      "source_file": "reference/bdthemes-element-pack/modules/advanced-gmap/widgets/advanced-gmap.php",
       "original_class": "ElementPack\\Modules\\AdvancedGmap\\Widgets\\Advanced_Gmap",
       "original_base_class": "Module_Base",
       "category": [
@@ -957,8 +957,8 @@
     {
       "name": "Advanced Heading",
       "legacy_widget_id": "bdt-advanced-heading",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-heading",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-heading/widgets/advanced-heading.php",
+      "directory": "reference/bdthemes-element-pack/modules/advanced-heading",
+      "source_file": "reference/bdthemes-element-pack/modules/advanced-heading/widgets/advanced-heading.php",
       "original_class": "ElementPack\\Modules\\AdvancedHeading\\Widgets\\AdvancedHeading",
       "original_base_class": "Module_Base",
       "category": [
@@ -1011,8 +1011,8 @@
     {
       "name": "Advanced Icon Box",
       "legacy_widget_id": "bdt-advanced-icon-box",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-icon-box",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-icon-box/widgets/advanced-icon-box.php",
+      "directory": "reference/bdthemes-element-pack/modules/advanced-icon-box",
+      "source_file": "reference/bdthemes-element-pack/modules/advanced-icon-box/widgets/advanced-icon-box.php",
       "original_class": "ElementPack\\Modules\\AdvancedIconBox\\Widgets\\Advanced_Icon_Box",
       "original_base_class": "Module_Base",
       "category": [
@@ -1069,8 +1069,8 @@
     {
       "name": "Advanced Image Gallery",
       "legacy_widget_id": "bdt-advanced-image-gallery",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-image-gallery",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-image-gallery/widgets/advanced-image-gallery.php",
+      "directory": "reference/bdthemes-element-pack/modules/advanced-image-gallery",
+      "source_file": "reference/bdthemes-element-pack/modules/advanced-image-gallery/widgets/advanced-image-gallery.php",
       "original_class": "ElementPack\\Modules\\AdvancedImageGallery\\Widgets\\Advanced_Image_Gallery",
       "original_base_class": "Module_Base",
       "category": [
@@ -1133,8 +1133,8 @@
     {
       "name": "Advanced Progress Bar",
       "legacy_widget_id": "bdt-advanced-progress-bar",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-progress-bar",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/advanced-progress-bar/widgets/advanced-progress-bar.php",
+      "directory": "reference/bdthemes-element-pack/modules/advanced-progress-bar",
+      "source_file": "reference/bdthemes-element-pack/modules/advanced-progress-bar/widgets/advanced-progress-bar.php",
       "original_class": "ElementPack\\Modules\\AdvancedProgressBar\\Widgets\\Advanced_Progress_Bar",
       "original_base_class": "Module_Base",
       "category": [
@@ -1187,8 +1187,8 @@
     {
       "name": "Age Gate",
       "legacy_widget_id": "bdt-age-gate",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/age-gate",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/age-gate/widgets/age-gate.php",
+      "directory": "reference/bdthemes-element-pack/modules/age-gate",
+      "source_file": "reference/bdthemes-element-pack/modules/age-gate/widgets/age-gate.php",
       "original_class": "ElementPack\\Modules\\AgeGate\\Widgets\\Age_Gate",
       "original_base_class": "Module_Base",
       "category": [
@@ -1240,8 +1240,8 @@
     {
       "name": "Air Pollution",
       "legacy_widget_id": "bdt-air-pollution",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/air-pollution",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/air-pollution/widgets/air-pollution.php",
+      "directory": "reference/bdthemes-element-pack/modules/air-pollution",
+      "source_file": "reference/bdthemes-element-pack/modules/air-pollution/widgets/air-pollution.php",
       "original_class": "ElementPack\\Modules\\AirPollution\\Widgets\\Air_Pollution",
       "original_base_class": "Module_Base",
       "category": [
@@ -1291,8 +1291,8 @@
     {
       "name": "Animated Card",
       "legacy_widget_id": "bdt-animated-card",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/animated-card",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/animated-card/widgets/animated-card.php",
+      "directory": "reference/bdthemes-element-pack/modules/animated-card",
+      "source_file": "reference/bdthemes-element-pack/modules/animated-card/widgets/animated-card.php",
       "original_class": "ElementPack\\Modules\\AnimatedCard\\Widgets\\Animated_Card",
       "original_base_class": "Module_Base",
       "category": [
@@ -1344,8 +1344,8 @@
     {
       "name": "Animated Heading",
       "legacy_widget_id": "bdt-animated-heading",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/animated-heading",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/animated-heading/widgets/animated-heading.php",
+      "directory": "reference/bdthemes-element-pack/modules/animated-heading",
+      "source_file": "reference/bdthemes-element-pack/modules/animated-heading/widgets/animated-heading.php",
       "original_class": "ElementPack\\Modules\\AnimatedHeading\\Widgets\\AnimatedHeading",
       "original_base_class": "Module_Base",
       "category": [
@@ -1402,8 +1402,8 @@
     {
       "name": "Animated Link",
       "legacy_widget_id": "bdt-animated-link",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/animated-link",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/animated-link/widgets/animated-link.php",
+      "directory": "reference/bdthemes-element-pack/modules/animated-link",
+      "source_file": "reference/bdthemes-element-pack/modules/animated-link/widgets/animated-link.php",
       "original_class": "ElementPack\\Modules\\AnimatedLink\\Widgets\\AnimatedLink",
       "original_base_class": "Module_Base",
       "category": [
@@ -1453,8 +1453,8 @@
     {
       "name": "Audio Player",
       "legacy_widget_id": "bdt-audio-player",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/audio-player",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/audio-player/widgets/audio-player.php",
+      "directory": "reference/bdthemes-element-pack/modules/audio-player",
+      "source_file": "reference/bdthemes-element-pack/modules/audio-player/widgets/audio-player.php",
       "original_class": "ElementPack\\Modules\\AudioPlayer\\Widgets\\Audio_Player",
       "original_base_class": "Module_Base",
       "category": [
@@ -1515,8 +1515,8 @@
     {
       "name": "BarCode",
       "legacy_widget_id": "bdt-barcode",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/barcode",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/barcode/widgets/barcode.php",
+      "directory": "reference/bdthemes-element-pack/modules/barcode",
+      "source_file": "reference/bdthemes-element-pack/modules/barcode/widgets/barcode.php",
       "original_class": "ElementPack\\Modules\\Barcode\\Widgets\\Barcode",
       "original_base_class": "Module_Base",
       "category": [
@@ -1570,8 +1570,8 @@
     {
       "name": "bbPress Forum Form",
       "legacy_widget_id": "bdt-bbpress-forum-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-forum-form",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-forum-form/widgets/bbpress-forum-form.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-forum-form",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-forum-form/widgets/bbpress-forum-form.php",
       "original_class": "ElementPack\\Modules\\BbpressForumForm\\Widgets\\Bbpress_Forum_Form",
       "original_base_class": "Module_Base",
       "category": [
@@ -1619,8 +1619,8 @@
     {
       "name": "bbPress Forum Index",
       "legacy_widget_id": "bdt-bbpress-forum-index",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-forum-index",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-forum-index/widgets/bbpress-forum-index.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-forum-index",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-forum-index/widgets/bbpress-forum-index.php",
       "original_class": "ElementPack\\Modules\\BbpressForumIndex\\Widgets\\Bbpress_Forum_Index",
       "original_base_class": "Module_Base",
       "category": [
@@ -1668,8 +1668,8 @@
     {
       "name": "bbPress Reply Form",
       "legacy_widget_id": "bdt-bbpress-reply-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-reply-form",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-reply-form/widgets/bbpress-reply-form.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-reply-form",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-reply-form/widgets/bbpress-reply-form.php",
       "original_class": "ElementPack\\Modules\\BbpressReplyForm\\Widgets\\Bbpress_Reply_Form",
       "original_base_class": "Module_Base",
       "category": [
@@ -1717,8 +1717,8 @@
     {
       "name": "bbPress Single Forum",
       "legacy_widget_id": "bdt-bbpress-single-forum",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-forum",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-forum/widgets/bbpress-single-forum.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-single-forum",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-single-forum/widgets/bbpress-single-forum.php",
       "original_class": "ElementPack\\Modules\\BbpressSingleForum\\Widgets\\Bbpress_Single_Forum",
       "original_base_class": "Module_Base",
       "category": [
@@ -1767,8 +1767,8 @@
     {
       "name": "bbPress Single Reply",
       "legacy_widget_id": "bdt-bbpress-single-reply",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-reply",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-reply/widgets/bbpress-single-reply.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-single-reply",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-single-reply/widgets/bbpress-single-reply.php",
       "original_class": "ElementPack\\Modules\\BbpressSingleReply\\Widgets\\Bbpress_Single_Reply",
       "original_base_class": "Module_Base",
       "category": [
@@ -1817,8 +1817,8 @@
     {
       "name": "bbPress Single Tag",
       "legacy_widget_id": "bdt-bbpress-single-tag",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-tag",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-tag/widgets/bbpress-single-tag.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-single-tag",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-single-tag/widgets/bbpress-single-tag.php",
       "original_class": "ElementPack\\Modules\\BbpressSingleTag\\Widgets\\Bbpress_Single_Tag",
       "original_base_class": "Module_Base",
       "category": [
@@ -1867,8 +1867,8 @@
     {
       "name": "bbPress Single Topic",
       "legacy_widget_id": "bdt-bbpress-single-topic",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-topic",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-topic/widgets/bbpress-single-topic.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-single-topic",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-single-topic/widgets/bbpress-single-topic.php",
       "original_class": "ElementPack\\Modules\\BbpressSingleTopic\\Widgets\\Bbpress_Single_Topic",
       "original_base_class": "Module_Base",
       "category": [
@@ -1917,8 +1917,8 @@
     {
       "name": "bbPress Single View",
       "legacy_widget_id": "bdt-bbpress-single-view",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-view",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-single-view/widgets/bbpress-single-view.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-single-view",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-single-view/widgets/bbpress-single-view.php",
       "original_class": "ElementPack\\Modules\\BbpressSingleView\\Widgets\\Bbpress_Single_View",
       "original_base_class": "Module_Base",
       "category": [
@@ -1966,8 +1966,8 @@
     {
       "name": "bbPress Stats",
       "legacy_widget_id": "bdt-bbpress-stats",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-stats",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-stats/widgets/bbpress-stats.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-stats",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-stats/widgets/bbpress-stats.php",
       "original_class": "ElementPack\\Modules\\BbpressStats\\Widgets\\Bbpress_Stats",
       "original_base_class": "Module_Base",
       "category": [
@@ -2015,8 +2015,8 @@
     {
       "name": "bbPress Topic Form",
       "legacy_widget_id": "bdt-bbpress-topic-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-topic-form",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-topic-form/widgets/bbpress-topic-form.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-topic-form",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-topic-form/widgets/bbpress-topic-form.php",
       "original_class": "ElementPack\\Modules\\BbpressTopicForm\\Widgets\\Bbpress_Topic_Form",
       "original_base_class": "Module_Base",
       "category": [
@@ -2064,8 +2064,8 @@
     {
       "name": "bbPress Topic Index",
       "legacy_widget_id": "bdt-bbpress-topic-index",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-topic-index",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-topic-index/widgets/bbpress-topic-index.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-topic-index",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-topic-index/widgets/bbpress-topic-index.php",
       "original_class": "ElementPack\\Modules\\BbpressTopicIndex\\Widgets\\Bbpress_Topic_Index",
       "original_base_class": "Module_Base",
       "category": [
@@ -2113,8 +2113,8 @@
     {
       "name": "bbPress Topic Tags",
       "legacy_widget_id": "bdt-bbpress-topic-tags",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-topic-tags",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/bbpress-topic-tags/widgets/bbpress-topic-tags.php",
+      "directory": "reference/bdthemes-element-pack/modules/bbpress-topic-tags",
+      "source_file": "reference/bdthemes-element-pack/modules/bbpress-topic-tags/widgets/bbpress-topic-tags.php",
       "original_class": "ElementPack\\Modules\\BbpressTopicTags\\Widgets\\Bbpress_Topic_Tags",
       "original_base_class": "Module_Base",
       "category": [
@@ -2162,8 +2162,8 @@
     {
       "name": "Brand Carousel",
       "legacy_widget_id": "bdt-brand-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/brand-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/brand-carousel/widgets/brand-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/brand-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/brand-carousel/widgets/brand-carousel.php",
       "original_class": "ElementPack\\Modules\\BrandCarousel\\Widgets\\Brand_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -2221,8 +2221,8 @@
     {
       "name": "Brand Grid",
       "legacy_widget_id": "bdt-brand-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/brand-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/brand-grid/widgets/brand-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/brand-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/brand-grid/widgets/brand-grid.php",
       "original_class": "ElementPack\\Modules\\BrandGrid\\Widgets\\Brand_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -2275,8 +2275,8 @@
     {
       "name": "Breadcrumbs",
       "legacy_widget_id": "bdt-breadcrumbs",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/breadcrumbs",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/breadcrumbs/widgets/breadcrumbs.php",
+      "directory": "reference/bdthemes-element-pack/modules/breadcrumbs",
+      "source_file": "reference/bdthemes-element-pack/modules/breadcrumbs/widgets/breadcrumbs.php",
       "original_class": "ElementPack\\Modules\\Breadcrumbs\\Widgets\\Breadcrumbs",
       "original_base_class": "Module_Base",
       "category": [
@@ -2326,8 +2326,8 @@
     {
       "name": "BuddyPress Friends",
       "legacy_widget_id": "bdt-buddypress-friends",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/buddypress-friends",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/buddypress-friends/widgets/buddypress-friends.php",
+      "directory": "reference/bdthemes-element-pack/modules/buddypress-friends",
+      "source_file": "reference/bdthemes-element-pack/modules/buddypress-friends/widgets/buddypress-friends.php",
       "original_class": "ElementPack\\Modules\\BuddypressFriends\\Widgets\\Buddypress_Friends",
       "original_base_class": "Module_Base",
       "category": [
@@ -2375,8 +2375,8 @@
     {
       "name": "BuddyPress Group",
       "legacy_widget_id": "bdt-buddypress-group",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/buddypress-group",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/buddypress-group/widgets/buddypress-group.php",
+      "directory": "reference/bdthemes-element-pack/modules/buddypress-group",
+      "source_file": "reference/bdthemes-element-pack/modules/buddypress-group/widgets/buddypress-group.php",
       "original_class": "ElementPack\\Modules\\BuddypressGroup\\Widgets\\Buddypress_Group",
       "original_base_class": "Module_Base",
       "category": [
@@ -2424,8 +2424,8 @@
     {
       "name": "BuddyPress Member",
       "legacy_widget_id": "bdt-buddypress-member",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/buddypress-member",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/buddypress-member/widgets/buddypress-member.php",
+      "directory": "reference/bdthemes-element-pack/modules/buddypress-member",
+      "source_file": "reference/bdthemes-element-pack/modules/buddypress-member/widgets/buddypress-member.php",
       "original_class": "ElementPack\\Modules\\BuddypressMember\\Widgets\\Buddypress_Member",
       "original_base_class": "Module_Base",
       "category": [
@@ -2473,8 +2473,8 @@
     {
       "name": "Business Hours",
       "legacy_widget_id": "bdt-business-hours",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/business-hours",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/business-hours/widgets/business-hours.php",
+      "directory": "reference/bdthemes-element-pack/modules/business-hours",
+      "source_file": "reference/bdthemes-element-pack/modules/business-hours/widgets/business-hours.php",
       "original_class": "ElementPack\\Modules\\BusinessHours\\Widgets\\Business_Hours",
       "original_base_class": "Module_Base",
       "category": [
@@ -2530,8 +2530,8 @@
     {
       "name": "Calendly",
       "legacy_widget_id": "bdt-calendly",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/calendly",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/calendly/widgets/calendly.php",
+      "directory": "reference/bdthemes-element-pack/modules/calendly",
+      "source_file": "reference/bdthemes-element-pack/modules/calendly/widgets/calendly.php",
       "original_class": "ElementPack\\Modules\\Calendly\\Widgets\\Calendly",
       "original_base_class": "Module_Base",
       "category": [
@@ -2579,8 +2579,8 @@
     {
       "name": "Call Out",
       "legacy_widget_id": "bdt-call-out",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/call-out",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/call-out/widgets/call-out.php",
+      "directory": "reference/bdthemes-element-pack/modules/call-out",
+      "source_file": "reference/bdthemes-element-pack/modules/call-out/widgets/call-out.php",
       "original_class": "ElementPack\\Modules\\CallOut\\Widgets\\Call_Out",
       "original_base_class": "Module_Base",
       "category": [
@@ -2632,8 +2632,8 @@
     {
       "name": "Carousel",
       "legacy_widget_id": "bdt-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/carousel/widgets/carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/carousel/widgets/carousel.php",
       "original_class": "ElementPack\\Modules\\Carousel\\Widgets\\Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -2696,8 +2696,8 @@
     {
       "name": "Changelog",
       "legacy_widget_id": "bdt-changelog",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/changelog",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/changelog/widgets/changelog.php",
+      "directory": "reference/bdthemes-element-pack/modules/changelog",
+      "source_file": "reference/bdthemes-element-pack/modules/changelog/widgets/changelog.php",
       "original_class": "ElementPack\\Modules\\Changelog\\Widgets\\Changelog",
       "original_base_class": "Module_Base",
       "category": [
@@ -2751,8 +2751,8 @@
     {
       "name": "Charitable Campaigns",
       "legacy_widget_id": "bdt-charitable-campaigns",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-campaigns",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-campaigns/widgets/charitable-campaigns.php",
+      "directory": "reference/bdthemes-element-pack/modules/charitable-campaigns",
+      "source_file": "reference/bdthemes-element-pack/modules/charitable-campaigns/widgets/charitable-campaigns.php",
       "original_class": "ElementPack\\Modules\\CharitableCampaigns\\Widgets\\Charitable_Campaigns",
       "original_base_class": "Module_Base",
       "category": [
@@ -2806,8 +2806,8 @@
     {
       "name": "Charitable Donation Form",
       "legacy_widget_id": "bdt-charitable-donation-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-donation-form",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-donation-form/widgets/charitable-donation-form.php",
+      "directory": "reference/bdthemes-element-pack/modules/charitable-donation-form",
+      "source_file": "reference/bdthemes-element-pack/modules/charitable-donation-form/widgets/charitable-donation-form.php",
       "original_class": "ElementPack\\Modules\\CharitableDonationForm\\Widgets\\Charitable_Donation_Form",
       "original_base_class": "Module_Base",
       "category": [
@@ -2861,8 +2861,8 @@
     {
       "name": "Charitable Donations",
       "legacy_widget_id": "bdt-charitable-donations",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-donations",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-donations/widgets/charitable-donations.php",
+      "directory": "reference/bdthemes-element-pack/modules/charitable-donations",
+      "source_file": "reference/bdthemes-element-pack/modules/charitable-donations/widgets/charitable-donations.php",
       "original_class": "ElementPack\\Modules\\CharitableDonations\\Widgets\\Charitable_Donations",
       "original_base_class": "Module_Base",
       "category": [
@@ -2916,8 +2916,8 @@
     {
       "name": "Charitable Donors",
       "legacy_widget_id": "bdt-charitable-donors",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-donors",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-donors/widgets/charitable-donors.php",
+      "directory": "reference/bdthemes-element-pack/modules/charitable-donors",
+      "source_file": "reference/bdthemes-element-pack/modules/charitable-donors/widgets/charitable-donors.php",
       "original_class": "ElementPack\\Modules\\CharitableDonors\\Widgets\\Charitable_Donors",
       "original_base_class": "Module_Base",
       "category": [
@@ -2971,8 +2971,8 @@
     {
       "name": "Charitable Login",
       "legacy_widget_id": "bdt-charitable-login",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-login",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-login/widgets/charitable-login.php",
+      "directory": "reference/bdthemes-element-pack/modules/charitable-login",
+      "source_file": "reference/bdthemes-element-pack/modules/charitable-login/widgets/charitable-login.php",
       "original_class": "ElementPack\\Modules\\CharitableLogin\\Widgets\\Charitable_Login",
       "original_base_class": "Module_Base",
       "category": [
@@ -3026,8 +3026,8 @@
     {
       "name": "Charitable Profile",
       "legacy_widget_id": "bdt-charitable-profile",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-profile",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-profile/widgets/charitable-profile.php",
+      "directory": "reference/bdthemes-element-pack/modules/charitable-profile",
+      "source_file": "reference/bdthemes-element-pack/modules/charitable-profile/widgets/charitable-profile.php",
       "original_class": "ElementPack\\Modules\\CharitableProfile\\Widgets\\Charitable_Profile",
       "original_base_class": "Module_Base",
       "category": [
@@ -3081,8 +3081,8 @@
     {
       "name": "Charitable Registration",
       "legacy_widget_id": "bdt-charitable-registration",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-registration",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-registration/widgets/charitable-registration.php",
+      "directory": "reference/bdthemes-element-pack/modules/charitable-registration",
+      "source_file": "reference/bdthemes-element-pack/modules/charitable-registration/widgets/charitable-registration.php",
       "original_class": "ElementPack\\Modules\\CharitableRegistration\\Widgets\\Charitable_Registration",
       "original_base_class": "Module_Base",
       "category": [
@@ -3136,8 +3136,8 @@
     {
       "name": "Charitable Stat",
       "legacy_widget_id": "bdt-charitable-stat",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-stat",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/charitable-stat/widgets/charitable-stat.php",
+      "directory": "reference/bdthemes-element-pack/modules/charitable-stat",
+      "source_file": "reference/bdthemes-element-pack/modules/charitable-stat/widgets/charitable-stat.php",
       "original_class": "ElementPack\\Modules\\CharitableStat\\Widgets\\Charitable_Stat",
       "original_base_class": "Module_Base",
       "category": [
@@ -3191,8 +3191,8 @@
     {
       "name": "Chart",
       "legacy_widget_id": "bdt-chart",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/chart",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/chart/widgets/chart.php",
+      "directory": "reference/bdthemes-element-pack/modules/chart",
+      "source_file": "reference/bdthemes-element-pack/modules/chart/widgets/chart.php",
       "original_class": "ElementPack\\Modules\\Chart\\Widgets\\Chart",
       "original_base_class": "Module_Base",
       "category": [
@@ -3243,8 +3243,8 @@
     {
       "name": "Circle Info",
       "legacy_widget_id": "bdt-circle-info",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/circle-info",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/circle-info/widgets/circle-info.php",
+      "directory": "reference/bdthemes-element-pack/modules/circle-info",
+      "source_file": "reference/bdthemes-element-pack/modules/circle-info/widgets/circle-info.php",
       "original_class": "ElementPack\\Modules\\CircleInfo\\Widgets\\Circle_Info",
       "original_base_class": "Module_Base",
       "category": [
@@ -3297,8 +3297,8 @@
     {
       "name": "Circle Menu",
       "legacy_widget_id": "bdt-circle-menu",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/circle-menu",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/circle-menu/widgets/circle-menu.php",
+      "directory": "reference/bdthemes-element-pack/modules/circle-menu",
+      "source_file": "reference/bdthemes-element-pack/modules/circle-menu/widgets/circle-menu.php",
       "original_class": "ElementPack\\Modules\\CircleMenu\\Widgets\\Circle_Menu",
       "original_base_class": "Module_Base",
       "category": [
@@ -3356,8 +3356,8 @@
     {
       "name": "Comment",
       "legacy_widget_id": "bdt-comment",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/comment",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/comment/widgets/comment.php",
+      "directory": "reference/bdthemes-element-pack/modules/comment",
+      "source_file": "reference/bdthemes-element-pack/modules/comment/widgets/comment.php",
       "original_class": "ElementPack\\Modules\\Comment\\Widgets\\Comment",
       "original_base_class": "Module_Base",
       "category": [
@@ -3407,8 +3407,8 @@
     {
       "name": "Comparison List",
       "legacy_widget_id": "bdt-comparison-list",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/comparison-list",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/comparison-list/widgets/comparison-list.php",
+      "directory": "reference/bdthemes-element-pack/modules/comparison-list",
+      "source_file": "reference/bdthemes-element-pack/modules/comparison-list/widgets/comparison-list.php",
       "original_class": "ElementPack\\Modules\\ComparisonList\\Widgets\\Comparison_List",
       "original_base_class": "Module_Base",
       "category": [
@@ -3458,8 +3458,8 @@
     {
       "name": "Simple Contact Form",
       "legacy_widget_id": "bdt-contact-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/contact-form",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/contact-form/widgets/contact-form.php",
+      "directory": "reference/bdthemes-element-pack/modules/contact-form",
+      "source_file": "reference/bdthemes-element-pack/modules/contact-form/widgets/contact-form.php",
       "original_class": "ElementPack\\Modules\\ContactForm\\Widgets\\Contact_Form",
       "original_base_class": "Module_Base",
       "category": [
@@ -3520,8 +3520,8 @@
     {
       "name": "Contact Form 7",
       "legacy_widget_id": "bdt-contact-form-7",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/contact-form-7",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/contact-form-7/widgets/contact-form-7.php",
+      "directory": "reference/bdthemes-element-pack/modules/contact-form-7",
+      "source_file": "reference/bdthemes-element-pack/modules/contact-form-7/widgets/contact-form-7.php",
       "original_class": "ElementPack\\Modules\\ContactForm7\\Widgets\\Contact_Form_7",
       "original_base_class": "Module_Base",
       "category": [
@@ -3569,8 +3569,8 @@
     {
       "name": "Content Switcher",
       "legacy_widget_id": "bdt-content-switcher",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/content-switcher",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/content-switcher/widgets/content-switcher.php",
+      "directory": "reference/bdthemes-element-pack/modules/content-switcher",
+      "source_file": "reference/bdthemes-element-pack/modules/content-switcher/widgets/content-switcher.php",
       "original_class": "ElementPack\\Modules\\ContentSwitcher\\Widgets\\Content_Switcher",
       "original_base_class": "Module_Base",
       "category": [
@@ -3627,8 +3627,8 @@
     {
       "name": "Cookie Consent",
       "legacy_widget_id": "bdt-cookie-consent",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/cookie-consent",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/cookie-consent/widgets/cookie-consent.php",
+      "directory": "reference/bdthemes-element-pack/modules/cookie-consent",
+      "source_file": "reference/bdthemes-element-pack/modules/cookie-consent/widgets/cookie-consent.php",
       "original_class": "ElementPack\\Modules\\CookieConsent\\Widgets\\Cookie_Consent",
       "original_base_class": "Module_Base",
       "category": [
@@ -3682,8 +3682,8 @@
     {
       "name": "Countdown",
       "legacy_widget_id": "bdt-countdown",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/countdown",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/countdown/widgets/countdown.php",
+      "directory": "reference/bdthemes-element-pack/modules/countdown",
+      "source_file": "reference/bdthemes-element-pack/modules/countdown/widgets/countdown.php",
       "original_class": "ElementPack\\Modules\\Countdown\\Widgets\\Countdown",
       "original_base_class": "Module_Base",
       "category": [
@@ -3741,8 +3741,8 @@
     {
       "name": "Coupon Code",
       "legacy_widget_id": "bdt-coupon-code",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/coupon-code",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/coupon-code/widgets/coupon-code.php",
+      "directory": "reference/bdthemes-element-pack/modules/coupon-code",
+      "source_file": "reference/bdthemes-element-pack/modules/coupon-code/widgets/coupon-code.php",
       "original_class": "ElementPack\\Modules\\CouponCode\\Widgets\\Coupon_Code",
       "original_base_class": "Module_Base",
       "category": [
@@ -3798,8 +3798,8 @@
     {
       "name": "Creative Button",
       "legacy_widget_id": "bdt-creative-button",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/creative-button",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/creative-button/widgets/creative-button.php",
+      "directory": "reference/bdthemes-element-pack/modules/creative-button",
+      "source_file": "reference/bdthemes-element-pack/modules/creative-button/widgets/creative-button.php",
       "original_class": "ElementPack\\Modules\\CreativeButton\\Widgets\\Creative_Button",
       "original_base_class": "Module_Base",
       "category": [
@@ -3850,8 +3850,8 @@
     {
       "name": "Crypto Currency Card",
       "legacy_widget_id": "bdt-crypto-currency-card",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-card",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-card/widgets/crypto-currency-card.php",
+      "directory": "reference/bdthemes-element-pack/modules/crypto-currency-card",
+      "source_file": "reference/bdthemes-element-pack/modules/crypto-currency-card/widgets/crypto-currency-card.php",
       "original_class": "ElementPack\\Modules\\CryptoCurrencyCard\\Widgets\\Crypto_Currency_Card",
       "original_base_class": "Module_Base",
       "category": [
@@ -3907,8 +3907,8 @@
     {
       "name": "Crypto Currency Carousel",
       "legacy_widget_id": "bdt-crypto-currency-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-carousel/widgets/crypto-currency-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/crypto-currency-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/crypto-currency-carousel/widgets/crypto-currency-carousel.php",
       "original_class": "ElementPack\\Modules\\CryptoCurrencyCarousel\\Widgets\\Crypto_Currency_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -3969,8 +3969,8 @@
     {
       "name": "Crypto Currency Chart",
       "legacy_widget_id": "bdt-crypto-currency-chart",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-chart",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-chart/widgets/crypto-currency-chart.php",
+      "directory": "reference/bdthemes-element-pack/modules/crypto-currency-chart",
+      "source_file": "reference/bdthemes-element-pack/modules/crypto-currency-chart/widgets/crypto-currency-chart.php",
       "original_class": "ElementPack\\Modules\\CryptoCurrencyChart\\Widgets\\Crypto_Currency_Chart",
       "original_base_class": "Module_Base",
       "category": [
@@ -4029,8 +4029,8 @@
     {
       "name": "Crypto Currency Chart Carousel",
       "legacy_widget_id": "bdt-crypto-currency-chart-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-chart-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-chart-carousel/widgets/crypto-currency-chart-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/crypto-currency-chart-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/crypto-currency-chart-carousel/widgets/crypto-currency-chart-carousel.php",
       "original_class": "ElementPack\\Modules\\CryptoCurrencyChartCarousel\\Widgets\\Crypto_Currency_Chart_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -4091,8 +4091,8 @@
     {
       "name": "Crypto Currency Grid",
       "legacy_widget_id": "bdt-crypto-currency-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-grid/widgets/crypto-currency-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/crypto-currency-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/crypto-currency-grid/widgets/crypto-currency-grid.php",
       "original_class": "ElementPack\\Modules\\CryptoCurrencyGrid\\Widgets\\Crypto_Currency_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -4148,8 +4148,8 @@
     {
       "name": "Crypto Currency List",
       "legacy_widget_id": "bdt-crypto-currency-list",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-list",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-list/widgets/crypto-currency-list.php",
+      "directory": "reference/bdthemes-element-pack/modules/crypto-currency-list",
+      "source_file": "reference/bdthemes-element-pack/modules/crypto-currency-list/widgets/crypto-currency-list.php",
       "original_class": "ElementPack\\Modules\\CryptoCurrencyList\\Widgets\\Crypto_Currency_List",
       "original_base_class": "Module_Base",
       "category": [
@@ -4206,8 +4206,8 @@
     {
       "name": "Crypto Currency Table",
       "legacy_widget_id": "bdt-crypto-currency-table",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-table",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-table/widgets/crypto-currency-table.php",
+      "directory": "reference/bdthemes-element-pack/modules/crypto-currency-table",
+      "source_file": "reference/bdthemes-element-pack/modules/crypto-currency-table/widgets/crypto-currency-table.php",
       "original_class": "ElementPack\\Modules\\CryptoCurrencyTable\\Widgets\\Crypto_Currency_Table",
       "original_base_class": "Module_Base",
       "category": [
@@ -4267,8 +4267,8 @@
     {
       "name": "Crypto Currency Ticker",
       "legacy_widget_id": "bdt-crypto-currency-ticker",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-ticker",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/crypto-currency-ticker/widgets/crypto-currency-ticker.php",
+      "directory": "reference/bdthemes-element-pack/modules/crypto-currency-ticker",
+      "source_file": "reference/bdthemes-element-pack/modules/crypto-currency-ticker/widgets/crypto-currency-ticker.php",
       "original_class": "ElementPack\\Modules\\CryptoCurrencyTicker\\Widgets\\Crypto_Currency_Ticker",
       "original_base_class": "Module_Base",
       "category": [
@@ -4326,8 +4326,8 @@
     {
       "name": "Custom Carousel",
       "legacy_widget_id": "bdt-custom-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/custom-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/custom-carousel/widgets/custom-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/custom-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/custom-carousel/widgets/custom-carousel.php",
       "original_class": "ElementPack\\Modules\\CustomCarousel\\Widgets\\Custom_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -4391,8 +4391,8 @@
     {
       "name": "Custom Gallery",
       "legacy_widget_id": "bdt-custom-gallery",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/custom-gallery",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/custom-gallery/widgets/custom-gallery.php",
+      "directory": "reference/bdthemes-element-pack/modules/custom-gallery",
+      "source_file": "reference/bdthemes-element-pack/modules/custom-gallery/widgets/custom-gallery.php",
       "original_class": "ElementPack\\Modules\\CustomGallery\\Widgets\\Custom_Gallery",
       "original_base_class": "Module_Base",
       "category": [
@@ -4455,8 +4455,8 @@
     {
       "name": "Dark Mode",
       "legacy_widget_id": "bdt-dark-mode",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/dark-mode",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/dark-mode/widgets/dark-mode.php",
+      "directory": "reference/bdthemes-element-pack/modules/dark-mode",
+      "source_file": "reference/bdthemes-element-pack/modules/dark-mode/widgets/dark-mode.php",
       "original_class": "ElementPack\\Modules\\DarkMode\\Widgets\\Dark_Mode",
       "original_base_class": "Module_Base",
       "category": [
@@ -4512,8 +4512,8 @@
     {
       "name": "Device Slider",
       "legacy_widget_id": "bdt-device-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/device-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/device-slider/widgets/device-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/device-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/device-slider/widgets/device-slider.php",
       "original_class": "ElementPack\\Modules\\DeviceSlider\\Widgets\\Device_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -4569,8 +4569,8 @@
     {
       "name": "Document Viewer",
       "legacy_widget_id": "bdt-document-viewer",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/document-viewer",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/document-viewer/widgets/document-viewer.php",
+      "directory": "reference/bdthemes-element-pack/modules/document-viewer",
+      "source_file": "reference/bdthemes-element-pack/modules/document-viewer/widgets/document-viewer.php",
       "original_class": "ElementPack\\Modules\\DocumentViewer\\Widgets\\Document_Viewer",
       "original_base_class": "Module_Base",
       "category": [
@@ -4618,8 +4618,8 @@
     {
       "name": "Download Monitor",
       "legacy_widget_id": "bdt-download-monitor",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/download-monitor",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/download-monitor/widgets/download-monitor.php",
+      "directory": "reference/bdthemes-element-pack/modules/download-monitor",
+      "source_file": "reference/bdthemes-element-pack/modules/download-monitor/widgets/download-monitor.php",
       "original_class": "ElementPack\\Modules\\DownloadMonitor\\Widgets\\DownloadMonitor",
       "original_base_class": "Module_Base",
       "category": [
@@ -4671,8 +4671,8 @@
     {
       "name": "Dropbar",
       "legacy_widget_id": "bdt-dropbar",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/dropbar",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/dropbar/widgets/dropbar.php",
+      "directory": "reference/bdthemes-element-pack/modules/dropbar",
+      "source_file": "reference/bdthemes-element-pack/modules/dropbar/widgets/dropbar.php",
       "original_class": "ElementPack\\Modules\\Dropbar\\Widgets\\Dropbar",
       "original_base_class": "Module_Base",
       "category": [
@@ -4723,8 +4723,8 @@
     {
       "name": "Dual Button",
       "legacy_widget_id": "bdt-dual-button",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/dual-button",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/dual-button/widgets/dual-button.php",
+      "directory": "reference/bdthemes-element-pack/modules/dual-button",
+      "source_file": "reference/bdthemes-element-pack/modules/dual-button/widgets/dual-button.php",
       "original_class": "ElementPack\\Modules\\DualButton\\Widgets\\DualButton",
       "original_base_class": "Module_Base",
       "category": [
@@ -4779,8 +4779,8 @@
     {
       "name": "Dynamic Carousel",
       "legacy_widget_id": "bdt-dynamic-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/dynamic-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/dynamic-carousel/widgets/dynamic-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/dynamic-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/dynamic-carousel/widgets/dynamic-carousel.php",
       "original_class": "ElementPack\\Modules\\DynamicCarousel\\Widgets\\Dynamic_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -4842,8 +4842,8 @@
     {
       "name": "Dynamic Grid",
       "legacy_widget_id": "bdt-dynamic-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/dynamic-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/dynamic-grid/widgets/dynamic-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/dynamic-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/dynamic-grid/widgets/dynamic-grid.php",
       "original_class": "ElementPack\\Modules\\DynamicGrid\\Widgets\\Dynamic_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -4900,8 +4900,8 @@
     {
       "name": "EDD Cart",
       "legacy_widget_id": "bdt-edd-cart",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-cart",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-cart/widgets/edd-cart.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-cart",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-cart/widgets/edd-cart.php",
       "original_class": "ElementPack\\Modules\\EddCart\\Widgets\\EDD_Cart",
       "original_base_class": "Module_Base",
       "category": [
@@ -4954,8 +4954,8 @@
     {
       "name": "EDD Category Carousel",
       "legacy_widget_id": "bdt-edd-category-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-category-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-category-carousel/widgets/edd-category-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-category-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-category-carousel/widgets/edd-category-carousel.php",
       "original_class": "ElementPack\\Modules\\EddCategoryCarousel\\Widgets\\EDD_Category_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -5015,8 +5015,8 @@
     {
       "name": "EDD Category Grid",
       "legacy_widget_id": "bdt-edd-category-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-category-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-category-grid/widgets/edd-category-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-category-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-category-grid/widgets/edd-category-grid.php",
       "original_class": "ElementPack\\Modules\\EddCategoryGrid\\Widgets\\EDD_Category_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -5070,8 +5070,8 @@
     {
       "name": "EDD Checkout",
       "legacy_widget_id": "bdt-edd-checkout",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-checkout",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-checkout/widgets/edd-checkout.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-checkout",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-checkout/widgets/edd-checkout.php",
       "original_class": "ElementPack\\Modules\\EddCheckout\\Widgets\\EDD_Checkout",
       "original_base_class": "Module_Base",
       "category": [
@@ -5123,8 +5123,8 @@
     {
       "name": "EDD History",
       "legacy_widget_id": "bdt-easy-digital-download-history",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-download-history",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-download-history/widgets/edd-download-history.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-download-history",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-download-history/widgets/edd-download-history.php",
       "original_class": "ElementPack\\Modules\\EddDownloadHistory\\Widgets\\EDD_Download_History",
       "original_base_class": "Module_Base",
       "category": [
@@ -5174,8 +5174,8 @@
     {
       "name": "EDD Login",
       "legacy_widget_id": "bdt-edd-login",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-login",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-login/widgets/edd-login.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-login",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-login/widgets/edd-login.php",
       "original_class": "ElementPack\\Modules\\EddLogin\\Widgets\\EDD_Login",
       "original_base_class": "Module_Base",
       "category": [
@@ -5233,8 +5233,8 @@
     {
       "name": "EDD Mini Cart",
       "legacy_widget_id": "bdt-edd-mini-cart",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-mini-cart",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-mini-cart/widgets/edd-mini-cart.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-mini-cart",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-mini-cart/widgets/edd-mini-cart.php",
       "original_class": "ElementPack\\Modules\\EddMiniCart\\Widgets\\Edd_Mini_Cart",
       "original_base_class": "Module_Base",
       "category": [
@@ -5287,8 +5287,8 @@
     {
       "name": "EDD Product",
       "legacy_widget_id": "bdt-edd-product",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-product",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-product/widgets/edd-product.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-product",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-product/widgets/edd-product.php",
       "original_class": "ElementPack\\Modules\\EddProduct\\Widgets\\EDD_Product",
       "original_base_class": "Module_Base",
       "category": [
@@ -5349,8 +5349,8 @@
     {
       "name": "EDD Product Carousel",
       "legacy_widget_id": "bdt-edd-product-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-product-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-product-carousel/widgets/edd-product-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-product-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-product-carousel/widgets/edd-product-carousel.php",
       "original_class": "ElementPack\\Modules\\EddProductCarousel\\Widgets\\EDD_Product_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -5410,8 +5410,8 @@
     {
       "name": "EDD Product Review Carousel",
       "legacy_widget_id": "bdt-edd-product-review-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-product-review-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-product-review-carousel/widgets/edd-product-review-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-product-review-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-product-review-carousel/widgets/edd-product-review-carousel.php",
       "original_class": "ElementPack\\Modules\\EddProductReviewCarousel\\Widgets\\EDD_Product_Review_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -5469,8 +5469,8 @@
     {
       "name": "EDD Product Reviews",
       "legacy_widget_id": "bdt-edd-product-reviews",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-product-reviews",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-product-reviews/widgets/edd-product-reviews.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-product-reviews",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-product-reviews/widgets/edd-product-reviews.php",
       "original_class": "ElementPack\\Modules\\EddProductReviews\\Widgets\\EDD_Product_Reviews",
       "original_base_class": "Module_Base",
       "category": [
@@ -5522,8 +5522,8 @@
     {
       "name": "EDD Profile Editor",
       "legacy_widget_id": "bdt-easy-digital-profile-editor",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-profile-editor",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-profile-editor/widgets/edd-profile-editor.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-profile-editor",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-profile-editor/widgets/edd-profile-editor.php",
       "original_class": "ElementPack\\Modules\\EddProfileEditor\\Widgets\\EDD_Profile_Editor",
       "original_base_class": "Module_Base",
       "category": [
@@ -5573,8 +5573,8 @@
     {
       "name": "EDD Purchase History",
       "legacy_widget_id": "bdt-easy-digital-purchase-history",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-purchase-history",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-purchase-history/widgets/edd-purchase-history.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-purchase-history",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-purchase-history/widgets/edd-purchase-history.php",
       "original_class": "ElementPack\\Modules\\EddPurchaseHistory\\Widgets\\EDD_Purchase_History",
       "original_base_class": "Module_Base",
       "category": [
@@ -5624,8 +5624,8 @@
     {
       "name": "EDD Register",
       "legacy_widget_id": "bdt-edd-register",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-register",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-register/widgets/edd-register.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-register",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-register/widgets/edd-register.php",
       "original_class": "ElementPack\\Modules\\EddRegister\\Widgets\\EDD_Register",
       "original_base_class": "Module_Base",
       "category": [
@@ -5677,8 +5677,8 @@
     {
       "name": "EDD Tabs",
       "legacy_widget_id": "bdt-edd-tabs",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/edd-tabs",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/edd-tabs/widgets/edd-tabs.php",
+      "directory": "reference/bdthemes-element-pack/modules/edd-tabs",
+      "source_file": "reference/bdthemes-element-pack/modules/edd-tabs/widgets/edd-tabs.php",
       "original_class": "ElementPack\\Modules\\EddTabs\\Widgets\\EDD_Tabs",
       "original_base_class": "Module_Base",
       "category": [
@@ -5735,8 +5735,8 @@
     {
       "name": "Events Calendar Carousel",
       "legacy_widget_id": "bdt-event-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/events-calendar-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/events-calendar-carousel/widgets/events-calendar-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/events-calendar-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/events-calendar-carousel/widgets/events-calendar-carousel.php",
       "original_class": "ElementPack\\Modules\\EventsCalendarCarousel\\Widgets\\Events_Calendar_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -5797,8 +5797,8 @@
     {
       "name": "Events Calendar Grid",
       "legacy_widget_id": "bdt-event-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/events-calendar-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/events-calendar-grid/widgets/events-calendar-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/events-calendar-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/events-calendar-grid/widgets/events-calendar-grid.php",
       "original_class": "ElementPack\\Modules\\EventsCalendarGrid\\Widgets\\Events_Calendar_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -5854,8 +5854,8 @@
     {
       "name": "Events Calendar List",
       "legacy_widget_id": "bdt-event-list",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/events-calendar-list",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/events-calendar-list/widgets/events-calendar-list.php",
+      "directory": "reference/bdthemes-element-pack/modules/events-calendar-list",
+      "source_file": "reference/bdthemes-element-pack/modules/events-calendar-list/widgets/events-calendar-list.php",
       "original_class": "ElementPack\\Modules\\EventsCalendarList\\Widgets\\Events_Calendar_List",
       "original_base_class": "Module_Base",
       "category": [
@@ -5908,8 +5908,8 @@
     {
       "name": "Everest Forms",
       "legacy_widget_id": "bdt-everest-forms",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/everest-forms",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/everest-forms/widgets/everest-forms.php",
+      "directory": "reference/bdthemes-element-pack/modules/everest-forms",
+      "source_file": "reference/bdthemes-element-pack/modules/everest-forms/widgets/everest-forms.php",
       "original_class": "ElementPack\\Modules\\EverestForms\\Widgets\\Everest_Forms",
       "original_base_class": "Module_Base",
       "category": [
@@ -5964,8 +5964,8 @@
     {
       "name": "Facebook Feed",
       "legacy_widget_id": "bdt-facebook-feed",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/facebook-feed",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/facebook-feed/widgets/facebook-feed.php",
+      "directory": "reference/bdthemes-element-pack/modules/facebook-feed",
+      "source_file": "reference/bdthemes-element-pack/modules/facebook-feed/widgets/facebook-feed.php",
       "original_class": "ElementPack\\Modules\\FacebookFeed\\Widgets\\Facebook_Feed",
       "original_base_class": "Module_Base",
       "category": [
@@ -6020,8 +6020,8 @@
     {
       "name": "Facebook Feed Carousel",
       "legacy_widget_id": "bdt-facebook-feed-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/facebook-feed-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/facebook-feed-carousel/widgets/facebook-feed-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/facebook-feed-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/facebook-feed-carousel/widgets/facebook-feed-carousel.php",
       "original_class": "ElementPack\\Modules\\FacebookFeedCarousel\\Widgets\\Facebook_Feed_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -6079,8 +6079,8 @@
     {
       "name": "Fancy Card",
       "legacy_widget_id": "bdt-fancy-card",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-card",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-card/widgets/fancy-card.php",
+      "directory": "reference/bdthemes-element-pack/modules/fancy-card",
+      "source_file": "reference/bdthemes-element-pack/modules/fancy-card/widgets/fancy-card.php",
       "original_class": "ElementPack\\Modules\\FancyCard\\Widgets\\Fancy_Card",
       "original_base_class": "Module_Base",
       "category": [
@@ -6139,8 +6139,8 @@
     {
       "name": "Fancy Icons",
       "legacy_widget_id": "bdt-fancy-icons",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-icons",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-icons/widgets/fancy-icons.php",
+      "directory": "reference/bdthemes-element-pack/modules/fancy-icons",
+      "source_file": "reference/bdthemes-element-pack/modules/fancy-icons/widgets/fancy-icons.php",
       "original_class": "ElementPack\\Modules\\FancyIcons\\Widgets\\Fancy_Icons",
       "original_base_class": "Module_Base",
       "category": [
@@ -6193,8 +6193,8 @@
     {
       "name": "Fancy List",
       "legacy_widget_id": "bdt-fancy-list",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-list",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-list/widgets/fancy-list.php",
+      "directory": "reference/bdthemes-element-pack/modules/fancy-list",
+      "source_file": "reference/bdthemes-element-pack/modules/fancy-list/widgets/fancy-list.php",
       "original_class": "ElementPack\\Modules\\FancyList\\Widgets\\Fancy_List",
       "original_base_class": "Module_Base",
       "category": [
@@ -6246,8 +6246,8 @@
     {
       "name": "Fancy Slider",
       "legacy_widget_id": "bdt-fancy-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-slider/widgets/fancy-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/fancy-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/fancy-slider/widgets/fancy-slider.php",
       "original_class": "ElementPack\\Modules\\FancySlider\\Widgets\\Fancy_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -6305,8 +6305,8 @@
     {
       "name": "Fancy Tabs",
       "legacy_widget_id": "bdt-fancy-tabs",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-tabs",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/fancy-tabs/widgets/fancy-tabs.php",
+      "directory": "reference/bdthemes-element-pack/modules/fancy-tabs",
+      "source_file": "reference/bdthemes-element-pack/modules/fancy-tabs/widgets/fancy-tabs.php",
       "original_class": "ElementPack\\Modules\\FancyTabs\\Widgets\\Fancy_Tabs",
       "original_base_class": "Module_Base",
       "category": [
@@ -6361,8 +6361,8 @@
     {
       "name": "FAQ",
       "legacy_widget_id": "bdt-faq",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/faq",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/faq/widgets/faq.php",
+      "directory": "reference/bdthemes-element-pack/modules/faq",
+      "source_file": "reference/bdthemes-element-pack/modules/faq/widgets/faq.php",
       "original_class": "ElementPack\\Modules\\Faq\\Widgets\\FAQ",
       "original_base_class": "Module_Base",
       "category": [
@@ -6419,8 +6419,8 @@
     {
       "name": "Featured Box",
       "legacy_widget_id": "bdt-featured-box",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/featured-box",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/featured-box/widgets/featured-box.php",
+      "directory": "reference/bdthemes-element-pack/modules/featured-box",
+      "source_file": "reference/bdthemes-element-pack/modules/featured-box/widgets/featured-box.php",
       "original_class": "ElementPack\\Modules\\FeaturedBox\\Widgets\\Featured_Box",
       "original_base_class": "Module_Base",
       "category": [
@@ -6476,8 +6476,8 @@
     {
       "name": "Flip Box",
       "legacy_widget_id": "bdt-flip-box",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/flip-box",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/flip-box/widgets/flip-box.php",
+      "directory": "reference/bdthemes-element-pack/modules/flip-box",
+      "source_file": "reference/bdthemes-element-pack/modules/flip-box/widgets/flip-box.php",
       "original_class": "ElementPack\\Modules\\FlipBox\\Widgets\\Flip_Box",
       "original_base_class": "Module_Base",
       "category": [
@@ -6532,8 +6532,8 @@
     {
       "name": "Floating Knowledgebase",
       "legacy_widget_id": "bdt-floating-knowledgebase",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/floating-knowledgebase",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/floating-knowledgebase/widgets/floating-knowledgebase.php",
+      "directory": "reference/bdthemes-element-pack/modules/floating-knowledgebase",
+      "source_file": "reference/bdthemes-element-pack/modules/floating-knowledgebase/widgets/floating-knowledgebase.php",
       "original_class": "ElementPack\\Modules\\FloatingKnowledgebase\\Widgets\\Floating_Knowledgebase",
       "original_base_class": "Module_Base",
       "category": [
@@ -6590,8 +6590,8 @@
     {
       "name": "Fluent Forms",
       "legacy_widget_id": "bdt-fluent-forms",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/fluent-forms",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/fluent-forms/widgets/fluent-forms.php",
+      "directory": "reference/bdthemes-element-pack/modules/fluent-forms",
+      "source_file": "reference/bdthemes-element-pack/modules/fluent-forms/widgets/fluent-forms.php",
       "original_class": "ElementPack\\Modules\\FluentForms\\Widgets\\Fluent_Forms",
       "original_base_class": "Module_Base",
       "category": [
@@ -6643,8 +6643,8 @@
     {
       "name": "FooEvents Calendar",
       "legacy_widget_id": "fooevents-calendar",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/fooevents-calendar",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/fooevents-calendar/widgets/fooevents-calendar.php",
+      "directory": "reference/bdthemes-element-pack/modules/fooevents-calendar",
+      "source_file": "reference/bdthemes-element-pack/modules/fooevents-calendar/widgets/fooevents-calendar.php",
       "original_class": "ElementPack\\Modules\\FooeventsCalendar\\Widgets\\Fooevents_Calendar",
       "original_base_class": "Module_Base",
       "category": [
@@ -6699,8 +6699,8 @@
     {
       "name": "FooEvents Calendar Carousel",
       "legacy_widget_id": "bdt-fooevents-calendar-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/fooevents-calendar-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/fooevents-calendar-carousel/widgets/fooevents-calendar-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/fooevents-calendar-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/fooevents-calendar-carousel/widgets/fooevents-calendar-carousel.php",
       "original_class": "ElementPack\\Modules\\FooeventsCalendarCarousel\\Widgets\\Fooevents_Calendar_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -6757,8 +6757,8 @@
     {
       "name": "FooEvents Calendar Events",
       "legacy_widget_id": "bdt-fooevents-calendar-events",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/fooevents-calendar-events",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/fooevents-calendar-events/widgets/fooevents-calendar-events.php",
+      "directory": "reference/bdthemes-element-pack/modules/fooevents-calendar-events",
+      "source_file": "reference/bdthemes-element-pack/modules/fooevents-calendar-events/widgets/fooevents-calendar-events.php",
       "original_class": "ElementPack\\Modules\\FooeventsCalendarEvents\\Widgets\\Fooevents_Calendar_Events",
       "original_base_class": "Module_Base",
       "category": [
@@ -6811,8 +6811,8 @@
     {
       "name": "Formidable Forms",
       "legacy_widget_id": "bdt-formidable-forms",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/formidable-forms",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/formidable-forms/widgets/formidable-forms.php",
+      "directory": "reference/bdthemes-element-pack/modules/formidable-forms",
+      "source_file": "reference/bdthemes-element-pack/modules/formidable-forms/widgets/formidable-forms.php",
       "original_class": "ElementPack\\Modules\\FormidableForms\\Widgets\\Formidable_Forms",
       "original_base_class": "Module_Base",
       "category": [
@@ -6865,8 +6865,8 @@
     {
       "name": "Forminator Forms",
       "legacy_widget_id": "bdt-forminator-forms",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/forminator-forms",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/forminator-forms/widgets/forminator-forms.php",
+      "directory": "reference/bdthemes-element-pack/modules/forminator-forms",
+      "source_file": "reference/bdthemes-element-pack/modules/forminator-forms/widgets/forminator-forms.php",
       "original_class": "ElementPack\\Modules\\ForminatorForms\\Widgets\\Forminator_Forms",
       "original_base_class": "Module_Base",
       "category": [
@@ -6919,8 +6919,8 @@
     {
       "name": "Give Donation History",
       "legacy_widget_id": "bdt-give-donation-history",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-donation-history",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-donation-history/widgets/give-donation-history.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-donation-history",
+      "source_file": "reference/bdthemes-element-pack/modules/give-donation-history/widgets/give-donation-history.php",
       "original_class": "ElementPack\\Modules\\GiveDonationHistory\\Widgets\\Give_Donation_History",
       "original_base_class": "Module_Base",
       "category": [
@@ -6974,8 +6974,8 @@
     {
       "name": "Give Donor Wall",
       "legacy_widget_id": "bdt-give-donor-wall",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-donor-wall",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-donor-wall/widgets/give-donor-wall.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-donor-wall",
+      "source_file": "reference/bdthemes-element-pack/modules/give-donor-wall/widgets/give-donor-wall.php",
       "original_class": "ElementPack\\Modules\\GiveDonorWall\\Widgets\\Give_Donor_Wall",
       "original_base_class": "Module_Base",
       "category": [
@@ -7029,8 +7029,8 @@
     {
       "name": "Give Form",
       "legacy_widget_id": "bdt-give-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-form",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-form/widgets/give-form.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-form",
+      "source_file": "reference/bdthemes-element-pack/modules/give-form/widgets/give-form.php",
       "original_class": "ElementPack\\Modules\\GiveForm\\Widgets\\Give_Form",
       "original_base_class": "Module_Base",
       "category": [
@@ -7086,8 +7086,8 @@
     {
       "name": "Give Form Grid",
       "legacy_widget_id": "bdt-give-form-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-form-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-form-grid/widgets/give-form-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-form-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/give-form-grid/widgets/give-form-grid.php",
       "original_class": "ElementPack\\Modules\\GiveFormGrid\\Widgets\\Give_Form_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -7141,8 +7141,8 @@
     {
       "name": "Give Goal",
       "legacy_widget_id": "bdt-give-goal",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-goal",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-goal/widgets/give-goal.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-goal",
+      "source_file": "reference/bdthemes-element-pack/modules/give-goal/widgets/give-goal.php",
       "original_class": "ElementPack\\Modules\\GiveGoal\\Widgets\\Give_Goal",
       "original_base_class": "Module_Base",
       "category": [
@@ -7196,8 +7196,8 @@
     {
       "name": "Give Login",
       "legacy_widget_id": "bdt-give-login",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-login",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-login/widgets/give-login.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-login",
+      "source_file": "reference/bdthemes-element-pack/modules/give-login/widgets/give-login.php",
       "original_class": "ElementPack\\Modules\\GiveLogin\\Widgets\\Give_Login",
       "original_base_class": "Module_Base",
       "category": [
@@ -7251,8 +7251,8 @@
     {
       "name": "Give Profile Editor",
       "legacy_widget_id": "bdt-give-profile-editor",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-profile-editor",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-profile-editor/widgets/give-profile-editor.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-profile-editor",
+      "source_file": "reference/bdthemes-element-pack/modules/give-profile-editor/widgets/give-profile-editor.php",
       "original_class": "ElementPack\\Modules\\GiveProfileEditor\\Widgets\\Give_Profile_Editor",
       "original_base_class": "Module_Base",
       "category": [
@@ -7306,8 +7306,8 @@
     {
       "name": "Give Receipt",
       "legacy_widget_id": "bdt-give-receipt",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-receipt",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-receipt/widgets/give-receipt.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-receipt",
+      "source_file": "reference/bdthemes-element-pack/modules/give-receipt/widgets/give-receipt.php",
       "original_class": "ElementPack\\Modules\\GiveReceipt\\Widgets\\Give_Receipt",
       "original_base_class": "Module_Base",
       "category": [
@@ -7361,8 +7361,8 @@
     {
       "name": "Give Register",
       "legacy_widget_id": "bdt-give-register",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-register",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-register/widgets/give-register.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-register",
+      "source_file": "reference/bdthemes-element-pack/modules/give-register/widgets/give-register.php",
       "original_class": "ElementPack\\Modules\\GiveRegister\\Widgets\\Give_Register",
       "original_base_class": "Module_Base",
       "category": [
@@ -7416,8 +7416,8 @@
     {
       "name": "Give Totals",
       "legacy_widget_id": "bdt-give-totals",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/give-totals",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/give-totals/widgets/give-totals.php",
+      "directory": "reference/bdthemes-element-pack/modules/give-totals",
+      "source_file": "reference/bdthemes-element-pack/modules/give-totals/widgets/give-totals.php",
       "original_class": "ElementPack\\Modules\\GiveTotals\\Widgets\\Give_Totals",
       "original_base_class": "Module_Base",
       "category": [
@@ -7467,8 +7467,8 @@
     {
       "name": "Google Reviews",
       "legacy_widget_id": "bdt-google-reviews",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/google-reviews",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/google-reviews/widgets/google-reviews.php",
+      "directory": "reference/bdthemes-element-pack/modules/google-reviews",
+      "source_file": "reference/bdthemes-element-pack/modules/google-reviews/widgets/google-reviews.php",
       "original_class": "ElementPack\\Modules\\GoogleReviews\\Widgets\\Google_Reviews",
       "original_base_class": "Module_Base",
       "category": [
@@ -7521,8 +7521,8 @@
     {
       "name": "Gravity Forms",
       "legacy_widget_id": "bdt-gravity-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/gravity-forms",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/gravity-forms/widgets/gravity-forms.php",
+      "directory": "reference/bdthemes-element-pack/modules/gravity-forms",
+      "source_file": "reference/bdthemes-element-pack/modules/gravity-forms/widgets/gravity-forms.php",
       "original_class": "ElementPack\\Modules\\GravityForms\\Widgets\\Gravity_Forms",
       "original_base_class": "Module_Base",
       "category": [
@@ -7575,8 +7575,8 @@
     {
       "name": "Help Desk",
       "legacy_widget_id": "bdt-helpdesk",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/helpdesk",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/helpdesk/widgets/helpdesk.php",
+      "directory": "reference/bdthemes-element-pack/modules/helpdesk",
+      "source_file": "reference/bdthemes-element-pack/modules/helpdesk/widgets/helpdesk.php",
       "original_class": "ElementPack\\Modules\\Helpdesk\\Widgets\\Helpdesk",
       "original_base_class": "Module_Base",
       "category": [
@@ -7633,8 +7633,8 @@
     {
       "name": "Honeycombs",
       "legacy_widget_id": "bdt-honeycombs",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/honeycombs",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/honeycombs/widgets/honeycombs.php",
+      "directory": "reference/bdthemes-element-pack/modules/honeycombs",
+      "source_file": "reference/bdthemes-element-pack/modules/honeycombs/widgets/honeycombs.php",
       "original_class": "ElementPack\\Modules\\Honeycombs\\Widgets\\Honeycombs",
       "original_base_class": "Module_Base",
       "category": [
@@ -7691,8 +7691,8 @@
     {
       "name": "Horizontal Scroller",
       "legacy_widget_id": "bdt-horizontal-scroller",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/horizontal-scroller",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/horizontal-scroller/widgets/horizontal-scroller.php",
+      "directory": "reference/bdthemes-element-pack/modules/horizontal-scroller",
+      "source_file": "reference/bdthemes-element-pack/modules/horizontal-scroller/widgets/horizontal-scroller.php",
       "original_class": "ElementPack\\Modules\\HorizontalScroller\\Widgets\\Horizontal_Scroller",
       "original_base_class": "Module_Base",
       "category": [
@@ -7748,8 +7748,8 @@
     {
       "name": "Hover Box",
       "legacy_widget_id": "bdt-hover-box",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/hover-box",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/hover-box/widgets/hover-box.php",
+      "directory": "reference/bdthemes-element-pack/modules/hover-box",
+      "source_file": "reference/bdthemes-element-pack/modules/hover-box/widgets/hover-box.php",
       "original_class": "ElementPack\\Modules\\HoverBox\\Widgets\\Hover_Box",
       "original_base_class": "Module_Base",
       "category": [
@@ -7807,8 +7807,8 @@
     {
       "name": "Hover Video",
       "legacy_widget_id": "bdt-hover-video",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/hover-video",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/hover-video/widgets/hover-video.php",
+      "directory": "reference/bdthemes-element-pack/modules/hover-video",
+      "source_file": "reference/bdthemes-element-pack/modules/hover-video/widgets/hover-video.php",
       "original_class": "ElementPack\\Modules\\HoverVideo\\Widgets\\Hover_Video",
       "original_base_class": "Module_Base",
       "category": [
@@ -7864,8 +7864,8 @@
     {
       "name": "Icon Mobile Menu",
       "legacy_widget_id": "bdt-icon-mobile-menu",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/icon-mobile-menu",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/icon-mobile-menu/widgets/icon-mobile-menu.php",
+      "directory": "reference/bdthemes-element-pack/modules/icon-mobile-menu",
+      "source_file": "reference/bdthemes-element-pack/modules/icon-mobile-menu/widgets/icon-mobile-menu.php",
       "original_class": "ElementPack\\Modules\\IconMobileMenu\\Widgets\\Icon_Mobile_Menu",
       "original_base_class": "Module_Base",
       "category": [
@@ -7923,8 +7923,8 @@
     {
       "name": "Icon Nav",
       "legacy_widget_id": "bdt-iconnav",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/iconnav",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/iconnav/widgets/iconnav.php",
+      "directory": "reference/bdthemes-element-pack/modules/iconnav",
+      "source_file": "reference/bdthemes-element-pack/modules/iconnav/widgets/iconnav.php",
       "original_class": "ElementPack\\Modules\\Iconnav\\Widgets\\Iconnav",
       "original_base_class": "Module_Base",
       "category": [
@@ -7981,8 +7981,8 @@
     {
       "name": "Iframe",
       "legacy_widget_id": "bdt-iframe",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/iframe",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/iframe/widgets/iframe.php",
+      "directory": "reference/bdthemes-element-pack/modules/iframe",
+      "source_file": "reference/bdthemes-element-pack/modules/iframe/widgets/iframe.php",
       "original_class": "ElementPack\\Modules\\Iframe\\Widgets\\Iframe",
       "original_base_class": "Module_Base",
       "category": [
@@ -8040,8 +8040,8 @@
     {
       "name": "Image Accordion",
       "legacy_widget_id": "bdt-image-accordion",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/image-accordion",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/image-accordion/widgets/image-accordion.php",
+      "directory": "reference/bdthemes-element-pack/modules/image-accordion",
+      "source_file": "reference/bdthemes-element-pack/modules/image-accordion/widgets/image-accordion.php",
       "original_class": "ElementPack\\Modules\\ImageAccordion\\Widgets\\Image_Accordion",
       "original_base_class": "Module_Base",
       "category": [
@@ -8099,8 +8099,8 @@
     {
       "name": "Image Compare",
       "legacy_widget_id": "bdt-image-compare",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/image-compare",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/image-compare/widgets/image-compare.php",
+      "directory": "reference/bdthemes-element-pack/modules/image-compare",
+      "source_file": "reference/bdthemes-element-pack/modules/image-compare/widgets/image-compare.php",
       "original_class": "ElementPack\\Modules\\ImageCompare\\Widgets\\Image_Compare",
       "original_base_class": "Module_Base",
       "category": [
@@ -8154,8 +8154,8 @@
     {
       "name": "Image Expand",
       "legacy_widget_id": "bdt-image-expand",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/image-expand",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/image-expand/widgets/image-expand.php",
+      "directory": "reference/bdthemes-element-pack/modules/image-expand",
+      "source_file": "reference/bdthemes-element-pack/modules/image-expand/widgets/image-expand.php",
       "original_class": "ElementPack\\Modules\\ImageExpand\\Widgets\\Image_Expand",
       "original_base_class": "Module_Base",
       "category": [
@@ -8213,8 +8213,8 @@
     {
       "name": "Image Magnifier",
       "legacy_widget_id": "bdt-image-magnifier",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/image-magnifier",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/image-magnifier/widgets/image-magnifier.php",
+      "directory": "reference/bdthemes-element-pack/modules/image-magnifier",
+      "source_file": "reference/bdthemes-element-pack/modules/image-magnifier/widgets/image-magnifier.php",
       "original_class": "ElementPack\\Modules\\ImageMagnifier\\Widgets\\Image_Magnifier",
       "original_base_class": "Module_Base",
       "category": [
@@ -8270,8 +8270,8 @@
     {
       "name": "Image Stack",
       "legacy_widget_id": "bdt-image-stack",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/image-stack",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/image-stack/widgets/image-stack.php",
+      "directory": "reference/bdthemes-element-pack/modules/image-stack",
+      "source_file": "reference/bdthemes-element-pack/modules/image-stack/widgets/image-stack.php",
       "original_class": "ElementPack\\Modules\\ImageStack\\Widgets\\Image_Stack",
       "original_base_class": "Module_Base",
       "category": [
@@ -8327,8 +8327,8 @@
     {
       "name": "Instagram",
       "legacy_widget_id": "bdt-instagram",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/instagram",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/instagram/widgets/instagram.php",
+      "directory": "reference/bdthemes-element-pack/modules/instagram",
+      "source_file": "reference/bdthemes-element-pack/modules/instagram/widgets/instagram.php",
       "original_class": "ElementPack\\Modules\\Instagram\\Widgets\\Instagram",
       "original_base_class": "Module_Base",
       "category": [
@@ -8388,8 +8388,8 @@
     {
       "name": "Instagram Feed",
       "legacy_widget_id": "bdt-instagram-feed",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/instagram-feed",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/instagram-feed/widgets/instagram-feed.php",
+      "directory": "reference/bdthemes-element-pack/modules/instagram-feed",
+      "source_file": "reference/bdthemes-element-pack/modules/instagram-feed/widgets/instagram-feed.php",
       "original_class": "ElementPack\\Modules\\InstagramFeed\\Widgets\\Instagram_Feed",
       "original_base_class": "Module_Base",
       "category": [
@@ -8437,8 +8437,8 @@
     {
       "name": "Interactive Card",
       "legacy_widget_id": "bdt-interactive-card",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/interactive-card",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/interactive-card/widgets/interactive-card.php",
+      "directory": "reference/bdthemes-element-pack/modules/interactive-card",
+      "source_file": "reference/bdthemes-element-pack/modules/interactive-card/widgets/interactive-card.php",
       "original_class": "ElementPack\\Modules\\InteractiveCard\\Widgets\\Interactive_Card",
       "original_base_class": "Module_Base",
       "category": [
@@ -8498,8 +8498,8 @@
     {
       "name": "Interactive Tabs",
       "legacy_widget_id": "bdt-interactive-tabs",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/interactive-tabs",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/interactive-tabs/widgets/interactive-tabs.php",
+      "directory": "reference/bdthemes-element-pack/modules/interactive-tabs",
+      "source_file": "reference/bdthemes-element-pack/modules/interactive-tabs/widgets/interactive-tabs.php",
       "original_class": "ElementPack\\Modules\\InteractiveTabs\\Widgets\\Interactive_Tabs",
       "original_base_class": "Module_Base",
       "category": [
@@ -8560,8 +8560,8 @@
     {
       "name": "Layer Slider",
       "legacy_widget_id": "bdt-layer-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/layer-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/layer-slider/widgets/layer-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/layer-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/layer-slider/widgets/layer-slider.php",
       "original_class": "ElementPack\\Modules\\LayerSlider\\Widgets\\Layer_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -8611,8 +8611,8 @@
     {
       "name": "LearnPress Carousel",
       "legacy_widget_id": "bdt-learnpress-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/learnpress-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/learnpress-carousel/widgets/learnpress-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/learnpress-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/learnpress-carousel/widgets/learnpress-carousel.php",
       "original_class": "ElementPack\\Modules\\LearnpressCarousel\\Widgets\\Learnpress_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -8672,8 +8672,8 @@
     {
       "name": "LearnPress Grid",
       "legacy_widget_id": "bdt-learnpress-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/learnpress-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/learnpress-grid/widgets/learnpress-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/learnpress-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/learnpress-grid/widgets/learnpress-grid.php",
       "original_class": "ElementPack\\Modules\\LearnPressGrid\\Widgets\\Learnpress_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -8728,8 +8728,8 @@
     {
       "name": "Lightbox",
       "legacy_widget_id": "lightbox",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/lightbox",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/lightbox/widgets/lightbox.php",
+      "directory": "reference/bdthemes-element-pack/modules/lightbox",
+      "source_file": "reference/bdthemes-element-pack/modules/lightbox/widgets/lightbox.php",
       "original_class": "ElementPack\\Modules\\Lightbox\\Widgets\\Lightbox",
       "original_base_class": "Module_Base",
       "category": [
@@ -8784,8 +8784,8 @@
     {
       "name": "Logo Carousel",
       "legacy_widget_id": "bdt-logo-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/logo-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/logo-carousel/widgets/logo-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/logo-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/logo-carousel/widgets/logo-carousel.php",
       "original_class": "ElementPack\\Modules\\LogoCarousel\\Widgets\\Logo_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -8846,8 +8846,8 @@
     {
       "name": "Logo Grid",
       "legacy_widget_id": "bdt-logo-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/logo-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/logo-grid/widgets/logo-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/logo-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/logo-grid/widgets/logo-grid.php",
       "original_class": "ElementPack\\Modules\\LogoGrid\\Widgets\\Logo_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -8906,8 +8906,8 @@
     {
       "name": "Lottie Icon Box",
       "legacy_widget_id": "bdt-lottie-icon-box",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/lottie-icon-box",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/lottie-icon-box/widgets/lottie-icon-box.php",
+      "directory": "reference/bdthemes-element-pack/modules/lottie-icon-box",
+      "source_file": "reference/bdthemes-element-pack/modules/lottie-icon-box/widgets/lottie-icon-box.php",
       "original_class": "ElementPack\\Modules\\LottieIconBox\\Widgets\\Lottie_Icon_Box",
       "original_base_class": "Module_Base",
       "category": [
@@ -8963,8 +8963,8 @@
     {
       "name": "Lottie Image",
       "legacy_widget_id": "bdt-lottie-image",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/lottie-image",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/lottie-image/widgets/lottie-image.php",
+      "directory": "reference/bdthemes-element-pack/modules/lottie-image",
+      "source_file": "reference/bdthemes-element-pack/modules/lottie-image/widgets/lottie-image.php",
       "original_class": "ElementPack\\Modules\\LottieImage\\Widgets\\Lottie_Image",
       "original_base_class": "Module_Base",
       "category": [
@@ -9017,8 +9017,8 @@
     {
       "name": "Mailchimp",
       "legacy_widget_id": "bdt-mailchimp",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/mailchimp",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/mailchimp/widgets/mailchimp.php",
+      "directory": "reference/bdthemes-element-pack/modules/mailchimp",
+      "source_file": "reference/bdthemes-element-pack/modules/mailchimp/widgets/mailchimp.php",
       "original_class": "ElementPack\\Modules\\Mailchimp\\Widgets\\Mailchimp",
       "original_base_class": "Module_Base",
       "category": [
@@ -9076,8 +9076,8 @@
     {
       "name": "Mailchimp for WP",
       "legacy_widget_id": "bdt-mailchimp-for-wp",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/mailchimp-for-wp",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/mailchimp-for-wp/widgets/mailchimp-for-wp.php",
+      "directory": "reference/bdthemes-element-pack/modules/mailchimp-for-wp",
+      "source_file": "reference/bdthemes-element-pack/modules/mailchimp-for-wp/widgets/mailchimp-for-wp.php",
       "original_class": "ElementPack\\Modules\\MailchimpForWP\\Widgets\\Mailchimp_For_WP",
       "original_base_class": "Module_Base",
       "category": [
@@ -9125,8 +9125,8 @@
     {
       "name": "Marker",
       "legacy_widget_id": "bdt-marker",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/marker",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/marker/widgets/marker.php",
+      "directory": "reference/bdthemes-element-pack/modules/marker",
+      "source_file": "reference/bdthemes-element-pack/modules/marker/widgets/marker.php",
       "original_class": "ElementPack\\Modules\\Marker\\Widgets\\Marker",
       "original_base_class": "Module_Base",
       "category": [
@@ -9183,8 +9183,8 @@
     {
       "name": "Marquee",
       "legacy_widget_id": "bdt-marquee",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/marquee",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/marquee/widgets/marquee.php",
+      "directory": "reference/bdthemes-element-pack/modules/marquee",
+      "source_file": "reference/bdthemes-element-pack/modules/marquee/widgets/marquee.php",
       "original_class": "ElementPack\\Modules\\Marquee\\Widgets\\Marquee",
       "original_base_class": "Module_Base",
       "category": [
@@ -9240,8 +9240,8 @@
     {
       "name": "Mega Menu",
       "legacy_widget_id": "bdt-mega-menu",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/mega-menu",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/mega-menu/widgets/mega-menu.php",
+      "directory": "reference/bdthemes-element-pack/modules/mega-menu",
+      "source_file": "reference/bdthemes-element-pack/modules/mega-menu/widgets/mega-menu.php",
       "original_class": "ElementPack\\Modules\\MegaMenu\\Widgets\\Mega_menu",
       "original_base_class": "Module_Base",
       "category": [
@@ -9300,8 +9300,8 @@
     {
       "name": "Member",
       "legacy_widget_id": "bdt-member",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/member",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/member/widgets/member.php",
+      "directory": "reference/bdthemes-element-pack/modules/member",
+      "source_file": "reference/bdthemes-element-pack/modules/member/widgets/member.php",
       "original_class": "ElementPack\\Modules\\Member\\Widgets\\Member",
       "original_base_class": "Module_Base",
       "category": [
@@ -9363,8 +9363,8 @@
     {
       "name": "Modal",
       "legacy_widget_id": "bdt-modal",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/modal",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/modal/widgets/modal.php",
+      "directory": "reference/bdthemes-element-pack/modules/modal",
+      "source_file": "reference/bdthemes-element-pack/modules/modal/widgets/modal.php",
       "original_class": "ElementPack\\Modules\\Modal\\Widgets\\Modal",
       "original_base_class": "Module_Base",
       "category": [
@@ -9418,8 +9418,8 @@
     {
       "name": "Navbar",
       "legacy_widget_id": "bdt-navbar",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/navbar",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/navbar/widgets/navbar.php",
+      "directory": "reference/bdthemes-element-pack/modules/navbar",
+      "source_file": "reference/bdthemes-element-pack/modules/navbar/widgets/navbar.php",
       "original_class": "ElementPack\\Modules\\Navbar\\Widgets\\Navbar",
       "original_base_class": "Module_Base",
       "category": [
@@ -9470,8 +9470,8 @@
     {
       "name": "News Ticker",
       "legacy_widget_id": "bdt-news-ticker",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/news-ticker",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/news-ticker/widgets/news-ticker.php",
+      "directory": "reference/bdthemes-element-pack/modules/news-ticker",
+      "source_file": "reference/bdthemes-element-pack/modules/news-ticker/widgets/news-ticker.php",
       "original_class": "ElementPack\\Modules\\NewsTicker\\Widgets\\News_Ticker",
       "original_base_class": "Module_Base",
       "category": [
@@ -9529,8 +9529,8 @@
     {
       "name": "Ninja Forms",
       "legacy_widget_id": "bdt-ninja-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/ninja-forms",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/ninja-forms/widgets/ninja-forms.php",
+      "directory": "reference/bdthemes-element-pack/modules/ninja-forms",
+      "source_file": "reference/bdthemes-element-pack/modules/ninja-forms/widgets/ninja-forms.php",
       "original_class": "ElementPack\\Modules\\NinjaForms\\Widgets\\Ninja_Forms",
       "original_base_class": "Module_Base",
       "category": [
@@ -9578,8 +9578,8 @@
     {
       "name": "Notification",
       "legacy_widget_id": "bdt-notification",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/notification",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/notification/widgets/notification.php",
+      "directory": "reference/bdthemes-element-pack/modules/notification",
+      "source_file": "reference/bdthemes-element-pack/modules/notification/widgets/notification.php",
       "original_class": "ElementPack\\Modules\\Notification\\Widgets\\Notification",
       "original_base_class": "Module_Base",
       "category": [
@@ -9636,8 +9636,8 @@
     {
       "name": "Offcanvas",
       "legacy_widget_id": "bdt-offcanvas",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/offcanvas",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/offcanvas/widgets/offcanvas.php",
+      "directory": "reference/bdthemes-element-pack/modules/offcanvas",
+      "source_file": "reference/bdthemes-element-pack/modules/offcanvas/widgets/offcanvas.php",
       "original_class": "ElementPack\\Modules\\Offcanvas\\Widgets\\Offcanvas",
       "original_base_class": "Module_Base",
       "category": [
@@ -9694,8 +9694,8 @@
     {
       "name": " Open Street Map",
       "legacy_widget_id": "bdt-open-street-map",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/open-street-map",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/open-street-map/widgets/open-street-map.php",
+      "directory": "reference/bdthemes-element-pack/modules/open-street-map",
+      "source_file": "reference/bdthemes-element-pack/modules/open-street-map/widgets/open-street-map.php",
       "original_class": "ElementPack\\Modules\\OpenStreetMap\\Widgets\\Open_Street_Map",
       "original_base_class": "Module_Base",
       "category": [
@@ -9751,8 +9751,8 @@
     {
       "name": "Panel Slider",
       "legacy_widget_id": "bdt-panel-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/panel-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/panel-slider/widgets/panel-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/panel-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/panel-slider/widgets/panel-slider.php",
       "original_class": "ElementPack\\Modules\\PanelSlider\\Widgets\\Panel_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -9811,8 +9811,8 @@
     {
       "name": "Portfolio Carousel",
       "legacy_widget_id": "bdt-portfolio-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/portfolio-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/portfolio-carousel/widgets/portfolio-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/portfolio-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/portfolio-carousel/widgets/portfolio-carousel.php",
       "original_class": "ElementPack\\Modules\\PortfolioCarousel\\Widgets\\Portfolio_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -9877,8 +9877,8 @@
     {
       "name": "Portfolio Gallery",
       "legacy_widget_id": "bdt-portfolio-gallery",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/portfolio-gallery",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/portfolio-gallery/widgets/portfolio-gallery.php",
+      "directory": "reference/bdthemes-element-pack/modules/portfolio-gallery",
+      "source_file": "reference/bdthemes-element-pack/modules/portfolio-gallery/widgets/portfolio-gallery.php",
       "original_class": "ElementPack\\Modules\\PortfolioGallery\\Widgets\\Portfolio_Gallery",
       "original_base_class": "Module_Base",
       "category": [
@@ -9943,8 +9943,8 @@
     {
       "name": "Portfolio List",
       "legacy_widget_id": "bdt-portfolio-list",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/portfolio-list",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/portfolio-list/widgets/portfolio-list.php",
+      "directory": "reference/bdthemes-element-pack/modules/portfolio-list",
+      "source_file": "reference/bdthemes-element-pack/modules/portfolio-list/widgets/portfolio-list.php",
       "original_class": "ElementPack\\Modules\\PortfolioList\\Widgets\\Portfolio_List",
       "original_base_class": "Module_Base",
       "category": [
@@ -9999,8 +9999,8 @@
     {
       "name": "Post Block",
       "legacy_widget_id": "bdt-post-block",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-block",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-block/widgets/post-block.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-block",
+      "source_file": "reference/bdthemes-element-pack/modules/post-block/widgets/post-block.php",
       "original_class": "ElementPack\\Modules\\PostBlock\\Widgets\\Post_Block",
       "original_base_class": "Module_Base",
       "category": [
@@ -10057,8 +10057,8 @@
     {
       "name": "Post Block Modern",
       "legacy_widget_id": "bdt-post-block-modern",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-block-modern",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-block-modern/widgets/post-block-modern.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-block-modern",
+      "source_file": "reference/bdthemes-element-pack/modules/post-block-modern/widgets/post-block-modern.php",
       "original_class": "ElementPack\\Modules\\PostBlockModern\\Widgets\\Post_Block_Modern",
       "original_base_class": "Module_Base",
       "category": [
@@ -10111,8 +10111,8 @@
     {
       "name": "Post Card",
       "legacy_widget_id": "bdt-post-card",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-card",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-card/widgets/post-card.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-card",
+      "source_file": "reference/bdthemes-element-pack/modules/post-card/widgets/post-card.php",
       "original_class": "ElementPack\\Modules\\PostCard\\Widgets\\Post_Card",
       "original_base_class": "Module_Base",
       "category": [
@@ -10165,8 +10165,8 @@
     {
       "name": "Post Comments",
       "legacy_widget_id": "bdt-post-comments",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-comments",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-comments/widgets/post-comments.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-comments",
+      "source_file": "reference/bdthemes-element-pack/modules/post-comments/widgets/post-comments.php",
       "original_class": "ElementPack\\Modules\\PostComments\\Widgets\\Post_Comments",
       "original_base_class": "Module_Base",
       "category": [
@@ -10214,8 +10214,8 @@
     {
       "name": "Post Content",
       "legacy_widget_id": "bdt-post-content",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-content",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-content/widgets/post-content.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-content",
+      "source_file": "reference/bdthemes-element-pack/modules/post-content/widgets/post-content.php",
       "original_class": "ElementPack\\Modules\\PostContent\\Widgets\\Post_Content",
       "original_base_class": "Module_Base",
       "category": [
@@ -10263,8 +10263,8 @@
     {
       "name": "Post Featured Image",
       "legacy_widget_id": "bdt-post-featured-image",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-featured-image",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-featured-image/widgets/post-featured-image.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-featured-image",
+      "source_file": "reference/bdthemes-element-pack/modules/post-featured-image/widgets/post-featured-image.php",
       "original_class": "ElementPack\\Modules\\PostFeaturedImage\\Widgets\\Post_Featured_Image",
       "original_base_class": "Module_Base",
       "category": [
@@ -10312,8 +10312,8 @@
     {
       "name": "Post Gallery",
       "legacy_widget_id": "bdt-post-gallery",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-gallery",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-gallery/widgets/post-gallery.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-gallery",
+      "source_file": "reference/bdthemes-element-pack/modules/post-gallery/widgets/post-gallery.php",
       "original_class": "ElementPack\\Modules\\PostGallery\\Widgets\\Post_Gallery",
       "original_base_class": "Module_Base",
       "category": [
@@ -10380,8 +10380,8 @@
     {
       "name": "Post Grid",
       "legacy_widget_id": "bdt-post-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-grid/widgets/post-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/post-grid/widgets/post-grid.php",
       "original_class": "ElementPack\\Modules\\PostGrid\\Widgets\\Post_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -10453,8 +10453,8 @@
     {
       "name": "Post Grid Tab",
       "legacy_widget_id": "bdt-post-grid-tab",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-grid-tab",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-grid-tab/widgets/post-grid-tab.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-grid-tab",
+      "source_file": "reference/bdthemes-element-pack/modules/post-grid-tab/widgets/post-grid-tab.php",
       "original_class": "ElementPack\\Modules\\PostGridTab\\Widgets\\Post_Grid_Tab",
       "original_base_class": "Module_Base",
       "category": [
@@ -10513,8 +10513,8 @@
     {
       "name": "Post Info",
       "legacy_widget_id": "bdt-post-info",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-info",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-info/widgets/post-info.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-info",
+      "source_file": "reference/bdthemes-element-pack/modules/post-info/widgets/post-info.php",
       "original_class": "ElementPack\\Modules\\PostInfo\\Widgets\\Post_Info",
       "original_base_class": "Module_Base",
       "category": [
@@ -10569,8 +10569,8 @@
     {
       "name": "Post List",
       "legacy_widget_id": "bdt-post-list",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-list",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-list/widgets/post-list.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-list",
+      "source_file": "reference/bdthemes-element-pack/modules/post-list/widgets/post-list.php",
       "original_class": "ElementPack\\Modules\\PostList\\Widgets\\Post_List",
       "original_base_class": "Module_Base",
       "category": [
@@ -10630,8 +10630,8 @@
     {
       "name": "Post Slider",
       "legacy_widget_id": "bdt-post-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-slider/widgets/post-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/post-slider/widgets/post-slider.php",
       "original_class": "ElementPack\\Modules\\PostSlider\\Widgets\\Post_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -10689,8 +10689,8 @@
     {
       "name": "Post Title",
       "legacy_widget_id": "bdt-post-title",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/post-title",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/post-title/widgets/post-title.php",
+      "directory": "reference/bdthemes-element-pack/modules/post-title",
+      "source_file": "reference/bdthemes-element-pack/modules/post-title/widgets/post-title.php",
       "original_class": "ElementPack\\Modules\\PostTitle\\Widgets\\Post_Title",
       "original_base_class": "Module_Base",
       "category": [
@@ -10738,8 +10738,8 @@
     {
       "name": "Price List",
       "legacy_widget_id": "bdt-price-list",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/price-list",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/price-list/widgets/price-list.php",
+      "directory": "reference/bdthemes-element-pack/modules/price-list",
+      "source_file": "reference/bdthemes-element-pack/modules/price-list/widgets/price-list.php",
       "original_class": "ElementPack\\Modules\\PriceList\\Widgets\\Price_List",
       "original_base_class": "Module_Base",
       "category": [
@@ -10789,8 +10789,8 @@
     {
       "name": "Price Table",
       "legacy_widget_id": "bdt-price-table",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/price-table",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/price-table/widgets/price-table.php",
+      "directory": "reference/bdthemes-element-pack/modules/price-table",
+      "source_file": "reference/bdthemes-element-pack/modules/price-table/widgets/price-table.php",
       "original_class": "ElementPack\\Modules\\PriceTable\\Widgets\\Price_Table",
       "original_base_class": "Module_Base",
       "category": [
@@ -10856,8 +10856,8 @@
     {
       "name": "Product Carousel",
       "legacy_widget_id": "bdt-product-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/product-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/product-carousel/widgets/product-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/product-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/product-carousel/widgets/product-carousel.php",
       "original_class": "ElementPack\\Modules\\ProductCarousel\\Widgets\\Product_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -10916,8 +10916,8 @@
     {
       "name": "Product Grid",
       "legacy_widget_id": "bdt-product-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/product-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/product-grid/widgets/product-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/product-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/product-grid/widgets/product-grid.php",
       "original_class": "ElementPack\\Modules\\ProductGrid\\Widgets\\Product_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -10971,8 +10971,8 @@
     {
       "name": "Profile Card",
       "legacy_widget_id": "bdt-profile-card",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/profile-card",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/profile-card/widgets/profile-card.php",
+      "directory": "reference/bdthemes-element-pack/modules/profile-card",
+      "source_file": "reference/bdthemes-element-pack/modules/profile-card/widgets/profile-card.php",
       "original_class": "ElementPack\\Modules\\ProfileCard\\Widgets\\Profile_Card",
       "original_base_class": "Module_Base",
       "category": [
@@ -11027,8 +11027,8 @@
     {
       "name": "Progress Pie",
       "legacy_widget_id": "bdt-progress-pie",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/progress-pie",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/progress-pie/widgets/progress-pie.php",
+      "directory": "reference/bdthemes-element-pack/modules/progress-pie",
+      "source_file": "reference/bdthemes-element-pack/modules/progress-pie/widgets/progress-pie.php",
       "original_class": "ElementPack\\Modules\\ProgressPie\\Widgets\\Progress_Pie",
       "original_base_class": "Module_Base",
       "category": [
@@ -11082,8 +11082,8 @@
     {
       "name": "Protected Content",
       "legacy_widget_id": "bdt-protected-content",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/protected-content",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/protected-content/widgets/protected-content.php",
+      "directory": "reference/bdthemes-element-pack/modules/protected-content",
+      "source_file": "reference/bdthemes-element-pack/modules/protected-content/widgets/protected-content.php",
       "original_class": "ElementPack\\Modules\\ProtectedContent\\Widgets\\Protected_Content",
       "original_base_class": "Module_Base",
       "category": [
@@ -11133,8 +11133,8 @@
     {
       "name": "QR Code",
       "legacy_widget_id": "bdt-qrcode",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/qrcode",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/qrcode/widgets/qrcode.php",
+      "directory": "reference/bdthemes-element-pack/modules/qrcode",
+      "source_file": "reference/bdthemes-element-pack/modules/qrcode/widgets/qrcode.php",
       "original_class": "ElementPack\\Modules\\Qrcode\\Widgets\\Qrcode",
       "original_base_class": "Module_Base",
       "category": [
@@ -11188,8 +11188,8 @@
     {
       "name": "QuForm",
       "legacy_widget_id": "bdt-quform",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/quform",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/quform/widgets/quform.php",
+      "directory": "reference/bdthemes-element-pack/modules/quform",
+      "source_file": "reference/bdthemes-element-pack/modules/quform/widgets/quform.php",
       "original_class": "ElementPack\\Modules\\Quform\\Widgets\\QuForm",
       "original_base_class": "Module_Base",
       "category": [
@@ -11238,8 +11238,8 @@
     {
       "name": "Reading Progress",
       "legacy_widget_id": "bdt-reading-progress",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/reading-progress",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/reading-progress/widgets/reading-progress.php",
+      "directory": "reference/bdthemes-element-pack/modules/reading-progress",
+      "source_file": "reference/bdthemes-element-pack/modules/reading-progress/widgets/reading-progress.php",
       "original_class": "ElementPack\\Modules\\ReadingProgress\\Widgets\\Reading_Progress",
       "original_base_class": "Module_Base",
       "category": [
@@ -11298,8 +11298,8 @@
     {
       "name": "Reading Timer",
       "legacy_widget_id": "bdt-reading-timer",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/reading-timer",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/reading-timer/widgets/reading-timer.php",
+      "directory": "reference/bdthemes-element-pack/modules/reading-timer",
+      "source_file": "reference/bdthemes-element-pack/modules/reading-timer/widgets/reading-timer.php",
       "original_class": "ElementPack\\Modules\\ReadingTimer\\Widgets\\Reading_Timer",
       "original_base_class": "Module_Base",
       "category": [
@@ -11350,8 +11350,8 @@
     {
       "name": "Remote Arrows",
       "legacy_widget_id": "bdt-remote-arrows",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/remote-arrows",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/remote-arrows/widgets/remote-arrows.php",
+      "directory": "reference/bdthemes-element-pack/modules/remote-arrows",
+      "source_file": "reference/bdthemes-element-pack/modules/remote-arrows/widgets/remote-arrows.php",
       "original_class": "ElementPack\\Modules\\RemoteArrows\\Widgets\\Remote_Arrows",
       "original_base_class": "Module_Base",
       "category": [
@@ -11406,8 +11406,8 @@
     {
       "name": "Remote Fraction",
       "legacy_widget_id": "bdt-remote-fraction",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/remote-fraction",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/remote-fraction/widgets/remote-fraction.php",
+      "directory": "reference/bdthemes-element-pack/modules/remote-fraction",
+      "source_file": "reference/bdthemes-element-pack/modules/remote-fraction/widgets/remote-fraction.php",
       "original_class": "ElementPack\\Modules\\RemoteFraction\\Widgets\\Remote_Fraction",
       "original_base_class": "Module_Base",
       "category": [
@@ -11462,8 +11462,8 @@
     {
       "name": "Remote Pagination",
       "legacy_widget_id": "bdt-remote-pagination",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/remote-pagination",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/remote-pagination/widgets/remote-pagination.php",
+      "directory": "reference/bdthemes-element-pack/modules/remote-pagination",
+      "source_file": "reference/bdthemes-element-pack/modules/remote-pagination/widgets/remote-pagination.php",
       "original_class": "ElementPack\\Modules\\RemotePagination\\Widgets\\Remote_Pagination",
       "original_base_class": "Module_Base",
       "category": [
@@ -11518,8 +11518,8 @@
     {
       "name": "Remote Thumbs",
       "legacy_widget_id": "bdt-remote-thumbs",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/remote-thumbs",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/remote-thumbs/widgets/remote-thumbs.php",
+      "directory": "reference/bdthemes-element-pack/modules/remote-thumbs",
+      "source_file": "reference/bdthemes-element-pack/modules/remote-thumbs/widgets/remote-thumbs.php",
       "original_class": "ElementPack\\Modules\\RemoteThumbs\\Widgets\\Remote_Thumbs",
       "original_base_class": "Module_Base",
       "category": [
@@ -11574,8 +11574,8 @@
     {
       "name": "Review Card",
       "legacy_widget_id": "bdt-review-card",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/review-card",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/review-card/widgets/review-card.php",
+      "directory": "reference/bdthemes-element-pack/modules/review-card",
+      "source_file": "reference/bdthemes-element-pack/modules/review-card/widgets/review-card.php",
       "original_class": "ElementPack\\Modules\\ReviewCard\\Widgets\\Review_Card",
       "original_base_class": "Module_Base",
       "category": [
@@ -11636,8 +11636,8 @@
     {
       "name": "Review Card Carousel",
       "legacy_widget_id": "bdt-review-card-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/review-card-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/review-card-carousel/widgets/review-card-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/review-card-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/review-card-carousel/widgets/review-card-carousel.php",
       "original_class": "ElementPack\\Modules\\ReviewCardCarousel\\Widgets\\Review_Card_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -11698,8 +11698,8 @@
     {
       "name": "Review Card Grid",
       "legacy_widget_id": "bdt-review-card-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/review-card-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/review-card-grid/widgets/review-card-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/review-card-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/review-card-grid/widgets/review-card-grid.php",
       "original_class": "ElementPack\\Modules\\ReviewCardGrid\\Widgets\\Review_Card_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -11756,8 +11756,8 @@
     {
       "name": "Revolution Slider",
       "legacy_widget_id": "bdt-revolution-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/revolution-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/revolution-slider/widgets/revolution-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/revolution-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/revolution-slider/widgets/revolution-slider.php",
       "original_class": "ElementPack\\Modules\\RevolutionSlider\\Widgets\\Revolution_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -11805,8 +11805,8 @@
     {
       "name": "Scroll Button",
       "legacy_widget_id": "bdt-scroll-button",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/scroll-button",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/scroll-button/widgets/scroll-button.php",
+      "directory": "reference/bdthemes-element-pack/modules/scroll-button",
+      "source_file": "reference/bdthemes-element-pack/modules/scroll-button/widgets/scroll-button.php",
       "original_class": "ElementPack\\Modules\\ScrollButton\\Widgets\\Scroll_Button",
       "original_base_class": "Module_Base",
       "category": [
@@ -11859,8 +11859,8 @@
     {
       "name": "Scroll Image",
       "legacy_widget_id": "bdt-scroll-image",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/scroll-image",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/scroll-image/widgets/scroll-image.php",
+      "directory": "reference/bdthemes-element-pack/modules/scroll-image",
+      "source_file": "reference/bdthemes-element-pack/modules/scroll-image/widgets/scroll-image.php",
       "original_class": "ElementPack\\Modules\\ScrollImage\\Widgets\\Scroll_Image",
       "original_base_class": "Module_Base",
       "category": [
@@ -11914,8 +11914,8 @@
     {
       "name": "Scroll Navigation",
       "legacy_widget_id": "bdt-scrollnav",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/scrollnav",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/scrollnav/widgets/scrollnav.php",
+      "directory": "reference/bdthemes-element-pack/modules/scrollnav",
+      "source_file": "reference/bdthemes-element-pack/modules/scrollnav/widgets/scrollnav.php",
       "original_class": "ElementPack\\Modules\\Scrollnav\\Widgets\\Scrollnav",
       "original_base_class": "Module_Base",
       "category": [
@@ -11971,8 +11971,8 @@
     {
       "name": "Search",
       "legacy_widget_id": "bdt-search",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/search",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/search/widgets/search.php",
+      "directory": "reference/bdthemes-element-pack/modules/search",
+      "source_file": "reference/bdthemes-element-pack/modules/search/widgets/search.php",
       "original_class": "ElementPack\\Modules\\Search\\Widgets\\Search",
       "original_base_class": "Module_Base",
       "category": [
@@ -12030,8 +12030,8 @@
     {
       "name": "Single Post",
       "legacy_widget_id": "bdt-single-post",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/single-post",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/single-post/widgets/single-post.php",
+      "directory": "reference/bdthemes-element-pack/modules/single-post",
+      "source_file": "reference/bdthemes-element-pack/modules/single-post/widgets/single-post.php",
       "original_class": "ElementPack\\Modules\\SinglePost\\Widgets\\Single_Post",
       "original_base_class": "Module_Base",
       "category": [
@@ -12083,8 +12083,8 @@
     {
       "name": "Slider",
       "legacy_widget_id": "bdt-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/slider/widgets/slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/slider",
+      "source_file": "reference/bdthemes-element-pack/modules/slider/widgets/slider.php",
       "original_class": "ElementPack\\Modules\\Slider\\Widgets\\Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -12145,8 +12145,8 @@
     {
       "name": "Slideshow",
       "legacy_widget_id": "bdt-slideshow",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/slideshow",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/slideshow/widgets/slideshow.php",
+      "directory": "reference/bdthemes-element-pack/modules/slideshow",
+      "source_file": "reference/bdthemes-element-pack/modules/slideshow/widgets/slideshow.php",
       "original_class": "ElementPack\\Modules\\Slideshow\\Widgets\\Slideshow",
       "original_base_class": "Module_Base",
       "category": [
@@ -12205,8 +12205,8 @@
     {
       "name": "Slinky Vertical Menu",
       "legacy_widget_id": "bdt-slinky-vertical-menu",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/slinky-vertical-menu",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/slinky-vertical-menu/widgets/slinky-vertical-menu.php",
+      "directory": "reference/bdthemes-element-pack/modules/slinky-vertical-menu",
+      "source_file": "reference/bdthemes-element-pack/modules/slinky-vertical-menu/widgets/slinky-vertical-menu.php",
       "original_class": "ElementPack\\Modules\\SlinkyVerticalMenu\\Widgets\\Slinky_Vertical_Menu",
       "original_base_class": "Module_Base",
       "category": [
@@ -12264,8 +12264,8 @@
     {
       "name": "Social Proof",
       "legacy_widget_id": "bdt-social-proof",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/social-proof",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/social-proof/widgets/social-proof.php",
+      "directory": "reference/bdthemes-element-pack/modules/social-proof",
+      "source_file": "reference/bdthemes-element-pack/modules/social-proof/widgets/social-proof.php",
       "original_class": "ElementPack\\Modules\\SocialProof\\Widgets\\Social_Proof",
       "original_base_class": "Module_Base",
       "category": [
@@ -12318,8 +12318,8 @@
     {
       "name": "Social Share",
       "legacy_widget_id": "bdt-social-share",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/social-share",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/social-share/widgets/social-share.php",
+      "directory": "reference/bdthemes-element-pack/modules/social-share",
+      "source_file": "reference/bdthemes-element-pack/modules/social-share/widgets/social-share.php",
       "original_class": "ElementPack\\Modules\\SocialShare\\Widgets\\Social_Share",
       "original_base_class": "Module_Base",
       "category": [
@@ -12372,8 +12372,8 @@
     {
       "name": "Source Code",
       "legacy_widget_id": "bdt-source-code",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/source-code",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/source-code/widgets/source-code.php",
+      "directory": "reference/bdthemes-element-pack/modules/source-code",
+      "source_file": "reference/bdthemes-element-pack/modules/source-code/widgets/source-code.php",
       "original_class": "ElementPack\\Modules\\SourceCode\\Widgets\\Source_Code",
       "original_base_class": "Module_Base",
       "category": [
@@ -12428,8 +12428,8 @@
     {
       "name": "Stacker",
       "legacy_widget_id": "bdt-stacker",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/stacker",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/stacker/widgets/stacker.php",
+      "directory": "reference/bdthemes-element-pack/modules/stacker",
+      "source_file": "reference/bdthemes-element-pack/modules/stacker/widgets/stacker.php",
       "original_class": "ElementPack\\Modules\\Stacker\\Widgets\\Stacker",
       "original_base_class": "Module_Base",
       "category": [
@@ -12484,8 +12484,8 @@
     {
       "name": "Static Carousel",
       "legacy_widget_id": "bdt-static-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/static-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/static-carousel/widgets/static-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/static-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/static-carousel/widgets/static-carousel.php",
       "original_class": "ElementPack\\Modules\\StaticCarousel\\Widgets\\Static_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -12546,8 +12546,8 @@
     {
       "name": "Static Grid Tab",
       "legacy_widget_id": "bdt-static-grid-tab",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/static-grid-tab",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/static-grid-tab/widgets/static-grid-tab.php",
+      "directory": "reference/bdthemes-element-pack/modules/static-grid-tab",
+      "source_file": "reference/bdthemes-element-pack/modules/static-grid-tab/widgets/static-grid-tab.php",
       "original_class": "ElementPack\\Modules\\StaticGridTab\\Widgets\\Static_Grid_Tab",
       "original_base_class": "Module_Base",
       "category": [
@@ -12608,8 +12608,8 @@
     {
       "name": "Step Flow",
       "legacy_widget_id": "bdt-step-flow",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/step-flow",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/step-flow/widgets/step-flow.php",
+      "directory": "reference/bdthemes-element-pack/modules/step-flow",
+      "source_file": "reference/bdthemes-element-pack/modules/step-flow/widgets/step-flow.php",
       "original_class": "ElementPack\\Modules\\StepFlow\\Widgets\\Step_Flow",
       "original_base_class": "Module_Base",
       "category": [
@@ -12664,8 +12664,8 @@
     {
       "name": "Sub Menu",
       "legacy_widget_id": "bdt-sub-menu",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/sub-menu",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/sub-menu/widgets/sub-menu.php",
+      "directory": "reference/bdthemes-element-pack/modules/sub-menu",
+      "source_file": "reference/bdthemes-element-pack/modules/sub-menu/widgets/sub-menu.php",
       "original_class": "ElementPack\\Modules\\SubMenu\\Widgets\\Sub_Menu",
       "original_base_class": "Module_Base",
       "category": [
@@ -12718,8 +12718,8 @@
     {
       "name": "SVG Blob",
       "legacy_widget_id": "bdt-svg-blob",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/svg-blob",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/svg-blob/widgets/svg-blob.php",
+      "directory": "reference/bdthemes-element-pack/modules/svg-blob",
+      "source_file": "reference/bdthemes-element-pack/modules/svg-blob/widgets/svg-blob.php",
       "original_class": "ElementPack\\Modules\\SvgBlob\\Widgets\\Svg_Blob",
       "original_base_class": "Module_Base",
       "category": [
@@ -12773,8 +12773,8 @@
     {
       "name": "SVG Image",
       "legacy_widget_id": "bdt-svg-image",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/svg-image",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/svg-image/widgets/svg-image.php",
+      "directory": "reference/bdthemes-element-pack/modules/svg-image",
+      "source_file": "reference/bdthemes-element-pack/modules/svg-image/widgets/svg-image.php",
       "original_class": "ElementPack\\Modules\\SvgImage\\Widgets\\Svg_Image",
       "original_base_class": "Module_Base",
       "category": [
@@ -12827,8 +12827,8 @@
     {
       "name": "SVG Maps",
       "legacy_widget_id": "bdt-svg-maps",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/svg-maps",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/svg-maps/widgets/svg-maps.php",
+      "directory": "reference/bdthemes-element-pack/modules/svg-maps",
+      "source_file": "reference/bdthemes-element-pack/modules/svg-maps/widgets/svg-maps.php",
       "original_class": "ElementPack\\Modules\\SvgMaps\\Widgets\\Svg_Maps",
       "original_base_class": "Module_Base",
       "category": [
@@ -12882,8 +12882,8 @@
     {
       "name": "Switcher",
       "legacy_widget_id": "bdt-switcher",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/switcher",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/switcher/widgets/switcher.php",
+      "directory": "reference/bdthemes-element-pack/modules/switcher",
+      "source_file": "reference/bdthemes-element-pack/modules/switcher/widgets/switcher.php",
       "original_class": "ElementPack\\Modules\\Switcher\\Widgets\\Switcher",
       "original_base_class": "Module_Base",
       "category": [
@@ -12940,8 +12940,8 @@
     {
       "name": "Table",
       "legacy_widget_id": "bdt-table",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/table",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/table/widgets/table.php",
+      "directory": "reference/bdthemes-element-pack/modules/table",
+      "source_file": "reference/bdthemes-element-pack/modules/table/widgets/table.php",
       "original_class": "ElementPack\\Modules\\Table\\Widgets\\Table",
       "original_base_class": "Module_Base",
       "category": [
@@ -13003,8 +13003,8 @@
     {
       "name": "Table of Content",
       "legacy_widget_id": "bdt-table-of-content",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/table-of-content",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/table-of-content/widgets/table-of-content.php",
+      "directory": "reference/bdthemes-element-pack/modules/table-of-content",
+      "source_file": "reference/bdthemes-element-pack/modules/table-of-content/widgets/table-of-content.php",
       "original_class": "ElementPack\\Modules\\TableOfContent\\Widgets\\Table_Of_Content",
       "original_base_class": "Module_Base",
       "category": [
@@ -13060,8 +13060,8 @@
     {
       "name": "TablePress",
       "legacy_widget_id": "bdt-tablepress",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/tablepress",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/tablepress/widgets/tablepress.php",
+      "directory": "reference/bdthemes-element-pack/modules/tablepress",
+      "source_file": "reference/bdthemes-element-pack/modules/tablepress/widgets/tablepress.php",
       "original_class": "ElementPack\\Modules\\Tablepress\\Widgets\\Tablepress",
       "original_base_class": "Module_Base",
       "category": [
@@ -13109,8 +13109,8 @@
     {
       "name": "Tabs",
       "legacy_widget_id": "bdt-tabs",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/tabs",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/tabs/widgets/tabs.php",
+      "directory": "reference/bdthemes-element-pack/modules/tabs",
+      "source_file": "reference/bdthemes-element-pack/modules/tabs/widgets/tabs.php",
       "original_class": "ElementPack\\Modules\\Tabs\\Widgets\\Tabs",
       "original_base_class": "Module_Base",
       "category": [
@@ -13168,8 +13168,8 @@
     {
       "name": "Tags Cloud",
       "legacy_widget_id": "bdt-tags-cloud",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/tags-cloud",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/tags-cloud/widgets/tags-cloud.php",
+      "directory": "reference/bdthemes-element-pack/modules/tags-cloud",
+      "source_file": "reference/bdthemes-element-pack/modules/tags-cloud/widgets/tags-cloud.php",
       "original_class": "ElementPack\\Modules\\TagsCloud\\Widgets\\Tags_Cloud",
       "original_base_class": "Module_Base",
       "category": [
@@ -13227,8 +13227,8 @@
     {
       "name": "Testimonial Carousel",
       "legacy_widget_id": "bdt-testimonial-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/testimonial-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/testimonial-carousel/widgets/testimonial-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/testimonial-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/testimonial-carousel/widgets/testimonial-carousel.php",
       "original_class": "ElementPack\\Modules\\TestimonialCarousel\\Widgets\\Testimonial_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -13292,8 +13292,8 @@
     {
       "name": "Testimonial Grid",
       "legacy_widget_id": "bdt-testimonial-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/testimonial-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/testimonial-grid/widgets/testimonial-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/testimonial-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/testimonial-grid/widgets/testimonial-grid.php",
       "original_class": "ElementPack\\Modules\\TestimonialGrid\\Widgets\\Testimonial_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -13350,8 +13350,8 @@
     {
       "name": "Testimonial Slider",
       "legacy_widget_id": "bdt-testimonial-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/testimonial-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/testimonial-slider/widgets/testimonial-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/testimonial-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/testimonial-slider/widgets/testimonial-slider.php",
       "original_class": "ElementPack\\Modules\\TestimonialSlider\\Widgets\\Testimonial_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -13414,8 +13414,8 @@
     {
       "name": "The Newsletter",
       "legacy_widget_id": "bdt-the-newsletter",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/the-newsletter",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/the-newsletter/widgets/the-newsletter.php",
+      "directory": "reference/bdthemes-element-pack/modules/the-newsletter",
+      "source_file": "reference/bdthemes-element-pack/modules/the-newsletter/widgets/the-newsletter.php",
       "original_class": "ElementPack\\Modules\\TheNewsletter\\Widgets\\The_Newsletter",
       "original_base_class": "Module_Base",
       "category": [
@@ -13467,8 +13467,8 @@
     {
       "name": "360&#176; Product Viewer",
       "legacy_widget_id": "bdt-threesixty-product-viewer",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/threesixty-product-viewer",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/threesixty-product-viewer/widgets/threesixty-product-viewer.php",
+      "directory": "reference/bdthemes-element-pack/modules/threesixty-product-viewer",
+      "source_file": "reference/bdthemes-element-pack/modules/threesixty-product-viewer/widgets/threesixty-product-viewer.php",
       "original_class": "ElementPack\\Modules\\ThreesixtyProductViewer\\Widgets\\Threesixty_Product_Viewer",
       "original_base_class": "Module_Base",
       "category": [
@@ -13523,8 +13523,8 @@
     {
       "name": "Thumb Gallery",
       "legacy_widget_id": "bdt-thumb-gallery",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/thumb-gallery",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/thumb-gallery/widgets/thumb-gallery.php",
+      "directory": "reference/bdthemes-element-pack/modules/thumb-gallery",
+      "source_file": "reference/bdthemes-element-pack/modules/thumb-gallery/widgets/thumb-gallery.php",
       "original_class": "ElementPack\\Modules\\ThumbGallery\\Widgets\\Thumb_Gallery",
       "original_base_class": "Module_Base",
       "category": [
@@ -13582,8 +13582,8 @@
     {
       "name": "Time Zone",
       "legacy_widget_id": "bdt-time-zone",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/time-zone",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/time-zone/widgets/time-zone.php",
+      "directory": "reference/bdthemes-element-pack/modules/time-zone",
+      "source_file": "reference/bdthemes-element-pack/modules/time-zone/widgets/time-zone.php",
       "original_class": "ElementPack\\Modules\\TimeZone\\Widgets\\Time_Zone",
       "original_base_class": "Module_Base",
       "category": [
@@ -13637,8 +13637,8 @@
     {
       "name": "Timeline",
       "legacy_widget_id": "bdt-timeline",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/timeline",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/timeline/widgets/timeline.php",
+      "directory": "reference/bdthemes-element-pack/modules/timeline",
+      "source_file": "reference/bdthemes-element-pack/modules/timeline/widgets/timeline.php",
       "original_class": "ElementPack\\Modules\\Timeline\\Widgets\\Timeline",
       "original_base_class": "Module_Base",
       "category": [
@@ -13700,8 +13700,8 @@
     {
       "name": "Read More Toggle",
       "legacy_widget_id": "bdt-toggle",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/toggle",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/toggle/widgets/toggle.php",
+      "directory": "reference/bdthemes-element-pack/modules/toggle",
+      "source_file": "reference/bdthemes-element-pack/modules/toggle/widgets/toggle.php",
       "original_class": "ElementPack\\Modules\\Toggle\\Widgets\\Toggle",
       "original_base_class": "Module_Base",
       "category": [
@@ -13758,8 +13758,8 @@
     {
       "name": "Total Count",
       "legacy_widget_id": "bdt-total-count",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/total-count",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/total-count/widgets/total-count.php",
+      "directory": "reference/bdthemes-element-pack/modules/total-count",
+      "source_file": "reference/bdthemes-element-pack/modules/total-count/widgets/total-count.php",
       "original_class": "ElementPack\\Modules\\TotalCount\\Widgets\\Total_Count",
       "original_base_class": "Module_Base",
       "category": [
@@ -13815,8 +13815,8 @@
     {
       "name": "Trailer Box",
       "legacy_widget_id": "bdt-trailer-box",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/trailer-box",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/trailer-box/widgets/trailer-box.php",
+      "directory": "reference/bdthemes-element-pack/modules/trailer-box",
+      "source_file": "reference/bdthemes-element-pack/modules/trailer-box/widgets/trailer-box.php",
       "original_class": "ElementPack\\Modules\\TrailerBox\\Widgets\\Trailer_Box",
       "original_base_class": "Module_Base",
       "category": [
@@ -13868,8 +13868,8 @@
     {
       "name": "Tutor LMS Course Carousel",
       "legacy_widget_id": "bdt-tutor-lms-course-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/tutor-lms-course-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/tutor-lms-course-carousel/widgets/tutor-lms-course-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/tutor-lms-course-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/tutor-lms-course-carousel/widgets/tutor-lms-course-carousel.php",
       "original_class": "ElementPack\\Modules\\TutorLmsCourseCarousel\\Widgets\\TutorLms_Course_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -13927,8 +13927,8 @@
     {
       "name": "Tutor LMS Course Grid",
       "legacy_widget_id": "bdt-tutor-lms-course-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/tutor-lms-course-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/tutor-lms-course-grid/widgets/tutor-lms-course-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/tutor-lms-course-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/tutor-lms-course-grid/widgets/tutor-lms-course-grid.php",
       "original_class": "ElementPack\\Modules\\TutorLmsCourseGrid\\Widgets\\TutorLms_Course_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -13984,8 +13984,8 @@
     {
       "name": "Twitter Carousel",
       "legacy_widget_id": "bdt-twitter-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/twitter-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/twitter-carousel/widgets/twitter-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/twitter-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/twitter-carousel/widgets/twitter-carousel.php",
       "original_class": "ElementPack\\Modules\\TwitterCarousel\\Widgets\\Twitter_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -14043,8 +14043,8 @@
     {
       "name": "Twitter Grid",
       "legacy_widget_id": "bdt-twitter-grid",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/twitter-grid",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/twitter-grid/widgets/twitter-grid.php",
+      "directory": "reference/bdthemes-element-pack/modules/twitter-grid",
+      "source_file": "reference/bdthemes-element-pack/modules/twitter-grid/widgets/twitter-grid.php",
       "original_class": "ElementPack\\Modules\\TwitterGrid\\Widgets\\Twitter_Grid",
       "original_base_class": "Module_Base",
       "category": [
@@ -14097,8 +14097,8 @@
     {
       "name": "Twitter Slider",
       "legacy_widget_id": "bdt-twitter-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/twitter-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/twitter-slider/widgets/twitter-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/twitter-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/twitter-slider/widgets/twitter-slider.php",
       "original_class": "ElementPack\\Modules\\TwitterSlider\\Widgets\\Twitter_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -14156,8 +14156,8 @@
     {
       "name": "User Login",
       "legacy_widget_id": "bdt-user-login",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/user-login",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/user-login/widgets/user-login.php",
+      "directory": "reference/bdthemes-element-pack/modules/user-login",
+      "source_file": "reference/bdthemes-element-pack/modules/user-login/widgets/user-login.php",
       "original_class": "ElementPack\\Modules\\UserLogin\\Widgets\\User_Login",
       "original_base_class": "Module_Base",
       "category": [
@@ -14220,8 +14220,8 @@
     {
       "name": "User Register",
       "legacy_widget_id": "bdt-user-register",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/user-register",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/user-register/widgets/user-register.php",
+      "directory": "reference/bdthemes-element-pack/modules/user-register",
+      "source_file": "reference/bdthemes-element-pack/modules/user-register/widgets/user-register.php",
       "original_class": "ElementPack\\Modules\\UserRegister\\Widgets\\User_Register",
       "original_base_class": "Module_Base",
       "category": [
@@ -14282,8 +14282,8 @@
     {
       "name": "Vertical Menu",
       "legacy_widget_id": "bdt-vertical-menu",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/vertical-menu",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/vertical-menu/widgets/vertical-menu.php",
+      "directory": "reference/bdthemes-element-pack/modules/vertical-menu",
+      "source_file": "reference/bdthemes-element-pack/modules/vertical-menu/widgets/vertical-menu.php",
       "original_class": "ElementPack\\Modules\\VerticalMenu\\Widgets\\Vertical_Menu",
       "original_base_class": "Module_Base",
       "category": [
@@ -14339,8 +14339,8 @@
     {
       "name": "Video Gallery",
       "legacy_widget_id": "bdt-video-gallery",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/video-gallery",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/video-gallery/widgets/video-gallery.php",
+      "directory": "reference/bdthemes-element-pack/modules/video-gallery",
+      "source_file": "reference/bdthemes-element-pack/modules/video-gallery/widgets/video-gallery.php",
       "original_class": "ElementPack\\Modules\\VideoGallery\\Widgets\\Video_Gallery",
       "original_base_class": "Module_Base",
       "category": [
@@ -14394,8 +14394,8 @@
     {
       "name": "Video Player",
       "legacy_widget_id": "bdt-video-player",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/video-player",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/video-player/widgets/video-player.php",
+      "directory": "reference/bdthemes-element-pack/modules/video-player",
+      "source_file": "reference/bdthemes-element-pack/modules/video-player/widgets/video-player.php",
       "original_class": "ElementPack\\Modules\\VideoPlayer\\Widgets\\Video_Player",
       "original_base_class": "Module_Base",
       "category": [
@@ -14447,8 +14447,8 @@
     {
       "name": "WC - Add To Cart",
       "legacy_widget_id": "bdt-wc-add-to-cart",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/wc-add-to-cart",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/wc-add-to-cart/widgets/wc-add-to-cart.php",
+      "directory": "reference/bdthemes-element-pack/modules/wc-add-to-cart",
+      "source_file": "reference/bdthemes-element-pack/modules/wc-add-to-cart/widgets/wc-add-to-cart.php",
       "original_class": "ElementPack\\Modules\\WcAddToCart\\Widgets\\Add_To_Cart",
       "original_base_class": "Widget_Button",
       "category": [
@@ -14499,8 +14499,8 @@
     {
       "name": "WC - Carousel",
       "legacy_widget_id": "bdt-wc-carousel",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/wc-carousel",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/wc-carousel/widgets/wc-carousel.php",
+      "directory": "reference/bdthemes-element-pack/modules/wc-carousel",
+      "source_file": "reference/bdthemes-element-pack/modules/wc-carousel/widgets/wc-carousel.php",
       "original_class": "ElementPack\\Modules\\WcCarousel\\Widgets\\WC_Carousel",
       "original_base_class": "Module_Base",
       "category": [
@@ -14560,8 +14560,8 @@
     {
       "name": "WC - Categories",
       "legacy_widget_id": "bdt-wc-categories",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/wc-categories",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/wc-categories/widgets/wc-categories.php",
+      "directory": "reference/bdthemes-element-pack/modules/wc-categories",
+      "source_file": "reference/bdthemes-element-pack/modules/wc-categories/widgets/wc-categories.php",
       "original_class": "ElementPack\\Modules\\WcCategories\\Widgets\\WC_Categories",
       "original_base_class": "Module_Base",
       "category": [
@@ -14613,8 +14613,8 @@
     {
       "name": "WC - Elements",
       "legacy_widget_id": "bdt-wc-elements",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/wc-elements",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/wc-elements/widgets/wc-elements.php",
+      "directory": "reference/bdthemes-element-pack/modules/wc-elements",
+      "source_file": "reference/bdthemes-element-pack/modules/wc-elements/widgets/wc-elements.php",
       "original_class": "ElementPack\\Modules\\WcElements\\Widgets\\WC_Elements",
       "original_base_class": "Module_Base",
       "category": [
@@ -14667,8 +14667,8 @@
     {
       "name": "WC - Mini Cart",
       "legacy_widget_id": "bdt-wc-mini-cart",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/wc-mini-cart",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/wc-mini-cart/widgets/wc-mini-cart.php",
+      "directory": "reference/bdthemes-element-pack/modules/wc-mini-cart",
+      "source_file": "reference/bdthemes-element-pack/modules/wc-mini-cart/widgets/wc-mini-cart.php",
       "original_class": "ElementPack\\Modules\\WcMiniCart\\Widgets\\WC_Mini_Cart",
       "original_base_class": "Module_Base",
       "category": [
@@ -14719,8 +14719,8 @@
     {
       "name": "WC - Products",
       "legacy_widget_id": "bdt-wc-products",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/wc-products",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/wc-products/widgets/wc-products.php",
+      "directory": "reference/bdthemes-element-pack/modules/wc-products",
+      "source_file": "reference/bdthemes-element-pack/modules/wc-products/widgets/wc-products.php",
       "original_class": "ElementPack\\Modules\\WcProducts\\Widgets\\WC_Products",
       "original_base_class": "Module_Base",
       "category": [
@@ -14785,8 +14785,8 @@
     {
       "name": "WC - Slider",
       "legacy_widget_id": "bdt-wc-slider",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/wc-slider",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/wc-slider/widgets/wc-slider.php",
+      "directory": "reference/bdthemes-element-pack/modules/wc-slider",
+      "source_file": "reference/bdthemes-element-pack/modules/wc-slider/widgets/wc-slider.php",
       "original_class": "ElementPack\\Modules\\WcSlider\\Widgets\\WC_Slider",
       "original_base_class": "Module_Base",
       "category": [
@@ -14844,8 +14844,8 @@
     {
       "name": "weForms",
       "legacy_widget_id": "bdt-we-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/we-forms",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/we-forms/widgets/we-forms.php",
+      "directory": "reference/bdthemes-element-pack/modules/we-forms",
+      "source_file": "reference/bdthemes-element-pack/modules/we-forms/widgets/we-forms.php",
       "original_class": "ElementPack\\Modules\\WeForms\\Widgets\\We_Forms",
       "original_base_class": "Module_Base",
       "category": [
@@ -14893,8 +14893,8 @@
     {
       "name": "Weather",
       "legacy_widget_id": "bdt-weather",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/weather",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/weather/widgets/weather.php",
+      "directory": "reference/bdthemes-element-pack/modules/weather",
+      "source_file": "reference/bdthemes-element-pack/modules/weather/widgets/weather.php",
       "original_class": "ElementPack\\Modules\\Weather\\Widgets\\Weather",
       "original_base_class": "Module_Base",
       "category": [
@@ -14949,8 +14949,8 @@
     {
       "name": "Webhook Form",
       "legacy_widget_id": "bdt-webhook-form",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/webhook-form",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/webhook-form/widgets/webhook-form.php",
+      "directory": "reference/bdthemes-element-pack/modules/webhook-form",
+      "source_file": "reference/bdthemes-element-pack/modules/webhook-form/widgets/webhook-form.php",
       "original_class": "ElementPack\\Modules\\WebhookForm\\Widgets\\Webhook_Form",
       "original_base_class": "Module_Base",
       "category": [
@@ -15010,8 +15010,8 @@
     {
       "name": "WP Forms",
       "legacy_widget_id": "bdt-wp-forms",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/wp-forms",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/wp-forms/widgets/wp-forms.php",
+      "directory": "reference/bdthemes-element-pack/modules/wp-forms",
+      "source_file": "reference/bdthemes-element-pack/modules/wp-forms/widgets/wp-forms.php",
       "original_class": "ElementPack\\Modules\\WpForms\\Widgets\\Wp_Forms",
       "original_base_class": "Module_Base",
       "category": [
@@ -15059,8 +15059,8 @@
     {
       "name": "wpDataTable",
       "legacy_widget_id": "bdt-wpdatatable",
-      "directory": "digitalisimo-elements/bdthemes-element-pack/modules/wpdatatable",
-      "source_file": "digitalisimo-elements/bdthemes-element-pack/modules/wpdatatable/widgets/wpdatatable.php",
+      "directory": "reference/bdthemes-element-pack/modules/wpdatatable",
+      "source_file": "reference/bdthemes-element-pack/modules/wpdatatable/widgets/wpdatatable.php",
       "original_class": "ElementPack\\Modules\\Wpdatatable\\Widgets\\wpdatatable",
       "original_base_class": "Module_Base",
       "category": [

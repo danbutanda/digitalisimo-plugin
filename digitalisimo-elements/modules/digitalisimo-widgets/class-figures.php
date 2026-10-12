@@ -1,26 +1,23 @@
 <?php
-namespace Digitalisimo\Elements\Legacy;
+namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
 
-require_once __DIR__ . '/class-translator.php';
-
 /**
- * Figuras decorativas que el Shape Builder de Element Pack guardó en widgets, secciones y
- * contenedores. Se registran sus mismos controles para que Elementor regenere el CSS guardado
- * (tamaño, posición, giro, filtros) y se pintan las figuras con trazados propios equivalentes; una
- * figura subida se muestra con el SVG saneado de Elementor. La sección sólo aparece donde ya había
- * figuras: para contenido nuevo está la figura decorativa propia del título.
+ * Figuras decorativas en widgets, secciones, columnas y contenedores: círculo, cuadrado, triángulo,
+ * esquina, mancha, óvalo, insignia o un SVG propio, con color o degradado, tamaño, posición, giro,
+ * filtros, desplazamiento al pasar el cursor y animación de entrada. Los trazados son propios; un
+ * SVG subido se muestra con el SVG saneado de Elementor.
  */
-final class Shapes {
-	const ENABLE = 'bdt_shape_builder_enable';
-	const LIST   = 'bdt_shape_builder_list';
-	const STYLE  = 'digitalisimo-legacy-shapes';
-	const SCRIPT = 'digitalisimo-legacy-shapes';
+final class Figures {
+	const ENABLE = 'digitalisimo_figures_enable';
+	const LIST   = 'digitalisimo_figures';
+	const STYLE  = 'digitalisimo-figures';
+	const SCRIPT = 'digitalisimo-figures';
 
 	private static $buffers = array();
 
-	/** Trazados propios: mismas proporciones y caja que las figuras de Element Pack, no sus trazados. */
+	/** Trazados propios de cada figura: [viewBox, contenido SVG]. */
 	public static function shapes() {
 		$badge = array();
 		for ( $i = 0; $i < 32; $i++ ) {
@@ -33,16 +30,13 @@ final class Shapes {
 			'square'       => array( '0 0 100 100', '<rect x="10" y="10" width="80" height="80"/>' ),
 			'triangle'     => array( '0 0 100 100', '<polygon points="10,10 90,10 50,90"/>' ),
 			'corner'       => array( '0 0 200 200', '<path d="M0 0H200C200 40 160 60 120 70C70 82 40 120 30 200H0Z"/>' ),
-			'epblob'       => array( '0 0 200 200', '<path d="M150 30C185 55 195 110 175 150C155 190 100 200 60 180C20 160 5 115 20 75C35 35 75 10 110 12C125 13 140 22 150 30Z"/>' ),
+			'blob'         => array( '0 0 200 200', '<path d="M150 30C185 55 195 110 175 150C155 190 100 200 60 180C20 160 5 115 20 75C35 35 75 10 110 12C125 13 140 22 150 30Z"/>' ),
 			'oval'         => array( '0 0 300 300', '<ellipse cx="150" cy="150" rx="145" ry="105" transform="rotate(-12 150 150)"/>' ),
 			'verify-badge' => array( '0 0 400 400', '<polygon points="' . implode( ' ', $badge ) . '"/>' ),
 		);
 	}
 
 	public static function init() {
-		if ( Translator::element_pack_active() ) {
-			return;
-		}
 		foreach ( array( 'section/section_advanced/after_section_end', 'container/section_layout/after_section_end', 'common/_section_style/after_section_end' ) as $place ) {
 			add_action( 'elementor/element/' . $place, array( __CLASS__, 'register_controls' ) );
 		}
@@ -57,30 +51,29 @@ final class Shapes {
 
 	public static function register_assets() {
 		if ( ! wp_style_is( self::STYLE, 'registered' ) ) {
-			wp_register_style( self::STYLE, plugins_url( 'modules/digitalisimo-legacy/assets/legacy-shapes.css', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
+			wp_register_style( self::STYLE, plugins_url( 'assets/css/figures.css', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
 		}
 		if ( ! wp_script_is( self::SCRIPT, 'registered' ) ) {
-			wp_register_script( self::SCRIPT, plugins_url( 'modules/digitalisimo-legacy/assets/legacy-shapes.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( self::SCRIPT, plugins_url( 'assets/js/figures.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
 		}
 	}
 
 	public static function register_controls( $element ) {
 		$c   = '\\Elementor\\Controls_Manager';
-		$sel = '{{WRAPPER}} .digi-legacy-shape{{CURRENT_ITEM}}';
-		$element->start_controls_section( 'digitalisimo_legacy_shapes', array(
-			'label'     => 'Figuras de Element Pack',
-			'tab'       => $c::TAB_ADVANCED,
-			'condition' => array( self::ENABLE => 'yes' ),
+		$sel = '{{WRAPPER}} .digi-figure{{CURRENT_ITEM}}';
+		$element->start_controls_section( 'digitalisimo_figures_section', array(
+			'label' => 'Figuras decorativas',
+			'tab'   => $c::TAB_ADVANCED,
 		) );
 		$element->add_control( self::ENABLE, array( 'label' => 'Mostrar figuras', 'type' => $c::SWITCHER, 'return_value' => 'yes', 'default' => '' ) );
 		$r     = new \Elementor\Repeater();
-		$names = array( 'circle' => 'Círculo', 'square' => 'Cuadrado', 'triangle' => 'Triángulo', 'corner' => 'Esquina', 'epblob' => 'Mancha', 'oval' => 'Óvalo', 'verify-badge' => 'Insignia', 'custom' => 'SVG propio' );
+		$names = array( 'circle' => 'Círculo', 'square' => 'Cuadrado', 'triangle' => 'Triángulo', 'corner' => 'Esquina', 'blob' => 'Mancha', 'oval' => 'Óvalo', 'verify-badge' => 'Insignia', 'custom' => 'SVG propio' );
 		$r->add_control( 'shape_type', array( 'label' => 'Figura', 'type' => $c::SELECT, 'default' => 'circle', 'options' => $names ) );
 		$r->add_control( 'custom_shape_upload', array( 'label' => 'SVG', 'type' => $c::MEDIA, 'media_types' => array( 'svg' ), 'default' => array( 'url' => '', 'id' => '' ), 'condition' => array( 'shape_type' => 'custom' ) ) );
 		$r->add_control( 'custom_shape_color_popover', array( 'label' => 'Colores del SVG', 'type' => $c::POPOVER_TOGGLE, 'condition' => array( 'shape_type' => 'custom' ) ) );
 		$r->start_popover();
-		$r->add_control( 'custom_shape_fill_color', array( 'label' => 'Relleno', 'type' => $c::COLOR, 'condition' => array( 'custom_shape_color_popover' => 'yes', 'shape_type' => 'custom' ), 'selectors' => array( '{{WRAPPER}} .digi-legacy-shape.digi-legacy-shape--custom{{CURRENT_ITEM}} svg *' => 'fill: {{VALUE}};color: {{VALUE}};' ) ) );
-		$r->add_control( 'custom_shape_stroke_color', array( 'label' => 'Trazo', 'type' => $c::COLOR, 'condition' => array( 'custom_shape_color_popover' => 'yes', 'shape_type' => 'custom' ), 'selectors' => array( '{{WRAPPER}} .digi-legacy-shape.digi-legacy-shape--custom{{CURRENT_ITEM}} svg *' => 'stroke: {{VALUE}};' ) ) );
+		$r->add_control( 'custom_shape_fill_color', array( 'label' => 'Relleno', 'type' => $c::COLOR, 'condition' => array( 'custom_shape_color_popover' => 'yes', 'shape_type' => 'custom' ), 'selectors' => array( '{{WRAPPER}} .digi-figure.digi-figure--custom{{CURRENT_ITEM}} svg *' => 'fill: {{VALUE}};color: {{VALUE}};' ) ) );
+		$r->add_control( 'custom_shape_stroke_color', array( 'label' => 'Trazo', 'type' => $c::COLOR, 'condition' => array( 'custom_shape_color_popover' => 'yes', 'shape_type' => 'custom' ), 'selectors' => array( '{{WRAPPER}} .digi-figure.digi-figure--custom{{CURRENT_ITEM}} svg *' => 'stroke: {{VALUE}};' ) ) );
 		$r->end_popover();
 		$r->add_control( 'shape_color_popover', array( 'label' => 'Color', 'type' => $c::POPOVER_TOGGLE, 'condition' => array( 'shape_type!' => 'custom' ) ) );
 		$r->start_popover();
@@ -118,17 +111,17 @@ final class Shapes {
 		$r->add_control( 'shape_offset_popover', array( 'label' => 'Desplazamiento y giro', 'type' => $c::POPOVER_TOGGLE ) );
 		$r->start_popover();
 		$off = array( 'shape_offset_popover' => 'yes' );
-		$r->add_responsive_control( 'shape_position_x', array( 'label' => 'X', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -500, 'max' => 500 ) ), 'default' => array( 'unit' => 'px', 'size' => 0 ), 'condition' => $off, 'selectors' => array( $sel => '--shape-position-x: {{SIZE}}{{UNIT}};' ) ) );
-		$r->add_responsive_control( 'shape_position_y', array( 'label' => 'Y', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -500, 'max' => 500 ) ), 'default' => array( 'unit' => 'px', 'size' => 0 ), 'condition' => $off, 'selectors' => array( $sel => '--shape-position-y: {{SIZE}}{{UNIT}};' ) ) );
-		$r->add_responsive_control( 'shape_rotate', array( 'label' => 'Giro', 'type' => $c::SLIDER, 'size_units' => array( 'deg' ), 'range' => array( 'deg' => array( 'min' => -360, 'max' => 360 ) ), 'default' => array( 'size' => 0, 'unit' => 'deg' ), 'condition' => $off, 'selectors' => array( $sel => '--shape-rotate: {{SIZE}}{{UNIT}};' ) ) );
+		$r->add_responsive_control( 'shape_position_x', array( 'label' => 'X', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -500, 'max' => 500 ) ), 'default' => array( 'unit' => 'px', 'size' => 0 ), 'condition' => $off, 'selectors' => array( $sel => '--digi-figure-position-x: {{SIZE}}{{UNIT}};' ) ) );
+		$r->add_responsive_control( 'shape_position_y', array( 'label' => 'Y', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -500, 'max' => 500 ) ), 'default' => array( 'unit' => 'px', 'size' => 0 ), 'condition' => $off, 'selectors' => array( $sel => '--digi-figure-position-y: {{SIZE}}{{UNIT}};' ) ) );
+		$r->add_responsive_control( 'shape_rotate', array( 'label' => 'Giro', 'type' => $c::SLIDER, 'size_units' => array( 'deg' ), 'range' => array( 'deg' => array( 'min' => -360, 'max' => 360 ) ), 'default' => array( 'size' => 0, 'unit' => 'deg' ), 'condition' => $off, 'selectors' => array( $sel => '--digi-figure-rotate: {{SIZE}}{{UNIT}};' ) ) );
 		$r->end_popover();
-		$r->add_group_control( \Elementor\Group_Control_Css_Filter::get_type(), array( 'name' => 'css_filters_hover', 'selector' => '{{WRAPPER}}:hover .digi-legacy-shape{{CURRENT_ITEM}}' ) );
+		$r->add_group_control( \Elementor\Group_Control_Css_Filter::get_type(), array( 'name' => 'css_filters_hover', 'selector' => '{{WRAPPER}}:hover .digi-figure{{CURRENT_ITEM}}' ) );
 		$r->add_control( 'shape_offset_hover_popover', array( 'label' => 'Al pasar el cursor', 'type' => $c::POPOVER_TOGGLE ) );
 		$r->start_popover();
 		$hov = array( 'shape_offset_hover_popover' => 'yes' );
-		$r->add_responsive_control( 'shape_position_x_hover', array( 'label' => 'X', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -500, 'max' => 500 ) ), 'default' => array( 'unit' => 'px', 'size' => 0 ), 'condition' => $hov, 'selectors' => array( $sel => '--shape-position-hover-x: {{SIZE}}{{UNIT}};' ) ) );
-		$r->add_responsive_control( 'shape_position_y_hover', array( 'label' => 'Y', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -500, 'max' => 500 ) ), 'default' => array( 'unit' => 'px', 'size' => 0 ), 'condition' => $hov, 'selectors' => array( $sel => '--shape-position-hover-y: {{SIZE}}{{UNIT}};' ) ) );
-		$r->add_responsive_control( 'shape_rotate_hover', array( 'label' => 'Giro', 'type' => $c::SLIDER, 'size_units' => array( 'deg' ), 'range' => array( 'deg' => array( 'min' => -360, 'max' => 360 ) ), 'default' => array( 'size' => 0, 'unit' => 'deg' ), 'condition' => $hov, 'selectors' => array( $sel => '--shape-rotate-hover: {{SIZE}}{{UNIT}};' ) ) );
+		$r->add_responsive_control( 'shape_position_x_hover', array( 'label' => 'X', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -500, 'max' => 500 ) ), 'default' => array( 'unit' => 'px', 'size' => 0 ), 'condition' => $hov, 'selectors' => array( $sel => '--digi-figure-position-hover-x: {{SIZE}}{{UNIT}};' ) ) );
+		$r->add_responsive_control( 'shape_position_y_hover', array( 'label' => 'Y', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -500, 'max' => 500 ) ), 'default' => array( 'unit' => 'px', 'size' => 0 ), 'condition' => $hov, 'selectors' => array( $sel => '--digi-figure-position-hover-y: {{SIZE}}{{UNIT}};' ) ) );
+		$r->add_responsive_control( 'shape_rotate_hover', array( 'label' => 'Giro', 'type' => $c::SLIDER, 'size_units' => array( 'deg' ), 'range' => array( 'deg' => array( 'min' => -360, 'max' => 360 ) ), 'default' => array( 'size' => 0, 'unit' => 'deg' ), 'condition' => $hov, 'selectors' => array( $sel => '--digi-figure-rotate-hover: {{SIZE}}{{UNIT}};' ) ) );
 		$r->end_popover();
 		$element->add_control( self::LIST, array(
 			'label'       => 'Figuras',
@@ -157,13 +150,13 @@ final class Shapes {
 			$attrs = '';
 			if ( 'yes' === ( $shape['shape_builder_animation_popover'] ?? '' ) && 'on-load' === ( $shape['animation_trigger_type'] ?? 'on-load' ) ) {
 				$name  = preg_replace( '/[^a-z-]/', '', (string) ( $shape['animation_name'] ?? 'fade-in' ) );
-				$attrs = ' data-digi-shape-animation="' . esc_attr( '' !== $name ? $name : 'fade-in' ) . '" style="' . esc_attr( '--digi-shape-duration:' . (float) ( $shape['animation_duration']['size'] ?? 1 ) . 's;--digi-shape-delay:' . (float) ( $shape['animation_delay']['size'] ?? 0 ) . 's' ) . '"';
+				$attrs = ' data-digi-figure-animation="' . esc_attr( '' !== $name ? $name : 'fade-in' ) . '" style="' . esc_attr( '--digi-figure-duration:' . (float) ( $shape['animation_duration']['size'] ?? 1 ) . 's;--digi-figure-delay:' . (float) ( $shape['animation_delay']['size'] ?? 0 ) . 's' ) . '"';
 			}
 			if ( 'custom' === $type ) {
 				$id  = absint( $shape['custom_shape_upload']['id'] ?? 0 );
 				$svg = $id && class_exists( '\\Elementor\\Core\\Files\\File_Types\\Svg' ) ? (string) \Elementor\Core\Files\File_Types\Svg::get_inline_svg( $id ) : '';
 				if ( '' !== $svg ) {
-					$out .= '<div class="digi-legacy-shape digi-legacy-shape--custom elementor-repeater-item-' . esc_attr( $item ) . '" aria-hidden="true"' . $attrs . '>' . $svg . '</div>';
+					$out .= '<div class="digi-figure digi-figure--custom elementor-repeater-item-' . esc_attr( $item ) . '" aria-hidden="true"' . $attrs . '>' . $svg . '</div>';
 				}
 				continue;
 			}
@@ -173,7 +166,7 @@ final class Shapes {
 			$fill = '';
 			$defs = '';
 			if ( 'gradient' === ( $shape['shape_fill_type'] ?? 'solid' ) ) {
-				$grad   = 'digi-shape-' . $item;
+				$grad   = 'digi-figure-' . $item;
 				$stops  = '<stop offset="' . (float) ( $shape['shape_gradient_location_1']['size'] ?? 0 ) . '%" stop-color="' . esc_attr( self::color( $shape['shape_gradient_color_1'] ?? '', '#08AEEC' ) ) . '"/>'
 					. '<stop offset="' . (float) ( $shape['shape_gradient_location_2']['size'] ?? 100 ) . '%" stop-color="' . esc_attr( self::color( $shape['shape_gradient_color_2'] ?? '', '#20E2AD' ) ) . '"/>';
 				$defs   = 'radial' === ( $shape['shape_gradient_type'] ?? 'linear' )
@@ -183,13 +176,13 @@ final class Shapes {
 			} else {
 				$fill = self::color( $shape['shape_color'] ?? '', '#000000' );
 			}
-			$out .= '<div class="digi-legacy-shape elementor-repeater-item-' . esc_attr( $item ) . '" aria-hidden="true"' . $attrs . '>'
+			$out .= '<div class="digi-figure elementor-repeater-item-' . esc_attr( $item ) . '" aria-hidden="true"' . $attrs . '>'
 				. '<svg viewBox="' . esc_attr( $shapes[ $type ][0] ) . '" preserveAspectRatio="none" focusable="false"><g fill="' . esc_attr( $fill ) . '">' . $defs . $shapes[ $type ][1] . '</g></svg></div>';
 		}
 		if ( '' !== $out ) {
 			self::register_assets();
 			wp_enqueue_style( self::STYLE );
-			if ( false !== strpos( $out, 'data-digi-shape-animation' ) ) {
+			if ( false !== strpos( $out, 'data-digi-figure-animation' ) ) {
 				wp_enqueue_script( self::SCRIPT );
 			}
 		}
@@ -217,7 +210,7 @@ final class Shapes {
 		ob_start();
 	}
 
-	/** Las figuras de secciones y contenedores van dentro de su envoltorio, como hacía el script de Element Pack. */
+	/** Las figuras de secciones, columnas y contenedores van dentro de su envoltorio, detrás del contenido. */
 	public static function after_render( $element ) {
 		$key = spl_object_id( $element );
 		if ( ! isset( self::$buffers[ $key ] ) ) {

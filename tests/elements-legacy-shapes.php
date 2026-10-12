@@ -1,6 +1,8 @@
 <?php
 namespace {
 	define( 'ABSPATH', __DIR__ );
+	define( 'DIGITALISIMO_MIGRATION_FILE', __DIR__ . '/../digitalisimo-migration/digitalisimo-migration.php' );
+	define( 'DIGITALISIMO_MIGRATION_VERSION', 'test' );
 	function check_shape( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 	function sanitize_html_class( $v ) { return preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $v ); }
 	function esc_attr( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
@@ -9,7 +11,7 @@ namespace {
 	function wp_script_is() { return true; }
 	function wp_enqueue_style( $h ) { $GLOBALS['enqueued'][] = $h; }
 	function wp_enqueue_script( $h ) { $GLOBALS['enqueued'][] = $h; }
-	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-legacy/class-shapes.php';
+	require __DIR__ . '/../digitalisimo-migration/legacy/class-shapes.php';
 	use Digitalisimo\Elements\Legacy\Shapes;
 
 	check_shape( '' === Shapes::markup( array( 'bdt_shape_builder_list' => array( array( 'shape_type' => 'circle' ) ) ), 'e1' ), 'Sin activar no hay figuras.' );

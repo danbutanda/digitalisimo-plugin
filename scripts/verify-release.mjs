@@ -8,6 +8,7 @@ const modules = [
   ['digitalisimo-backups', 'digitalisimo-backups.php', 'digitalisimo-backups'],
   ['digitalisimo-tools', 'digitalisimo-tools.php', 'digitalisimo-tools'],
   ['digitalisimo-elements', 'pro-elements.php', 'digitalisimo-elements'],
+  ['digitalisimo-migration', 'digitalisimo-migration.php', 'digitalisimo-migration'],
 ];
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || 'dist';
 const expected = new Map();

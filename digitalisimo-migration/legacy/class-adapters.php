@@ -477,32 +477,8 @@ if ( class_exists( '\\Digitalisimo\\Elements\\Vertical_Menu_Widget' ) ) {
 	final class Bdt_Scrollnav extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-scrollnav'; }
 }
 if ( class_exists( '\\ElementorPro\\Modules\\Slides\\Widgets\\Slides' ) ) {
-	final class Bdt_Slider extends \ElementorPro\Modules\Slides\Widgets\Slides {
-		use Legacy_Adapter;
-		const LEGACY_ID = 'bdt-slider';
-
-		private static $depth = 0;
-
-		/** Las diapositivas de Element Pack que eran una plantilla de Elementor la muestran como contenido. */
-		protected function render() {
-			$slides = $this->get_settings( 'slides' );
-			if ( is_array( $slides ) && self::$depth < 2 && class_exists( '\\Elementor\\Plugin' ) ) {
-				++self::$depth;
-				foreach ( $slides as $index => $slide ) {
-					$id = absint( $slide['digitalisimo_template_id'] ?? 0 );
-					if ( $id && 'publish' === get_post_status( $id ) ) {
-						$slides[ $index ]['description'] = \Elementor\Plugin::instance()->frontend->get_builder_content_for_display( $id, true );
-					}
-				}
-				--self::$depth;
-				$this->set_settings( 'slides', $slides );
-				if ( method_exists( $this, 'reset_render_state' ) ) {
-					$this->reset_render_state();
-				}
-			}
-			parent::render();
-		}
-	}
+	// Las diapositivas de plantilla las pinta el núcleo (`Slides_Templates`) en cualquier widget Diapositivas.
+	final class Bdt_Slider extends \ElementorPro\Modules\Slides\Widgets\Slides { use Legacy_Adapter; const LEGACY_ID = 'bdt-slider'; }
 }
 if ( class_exists( '\\ElementorPro\\Modules\\Posts\\Widgets\\Posts' ) && class_exists( '\\ElementorPro\\Modules\\Posts\\Skins\\Skin_Classic' ) ) {
 	require_once __DIR__ . '/class-posts-skin.php';

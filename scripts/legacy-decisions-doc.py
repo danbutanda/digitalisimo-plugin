@@ -34,4 +34,4 @@ unsupported = sorted((wid, e.get('decision_reason') or '') for wid, e in entries
 php = ['<?php', '/** Generado por scripts/legacy-decisions-doc.py desde docs/migration-map.json: widgets de Element Pack sin adaptador y su motivo. */', "defined( 'ABSPATH' ) || exit;", '', 'return array(']
 php += ['\t%s => %s,' % (php_str(wid), php_str(reason)) for wid, reason in unsupported]
 php += [');', '']
-(ROOT / 'digitalisimo-elements/modules/digitalisimo-legacy/unsupported.php').write_text('\n'.join(php), encoding='utf-8')
+(ROOT / 'digitalisimo-migration/legacy/unsupported.php').write_text('\n'.join(php), encoding='utf-8')

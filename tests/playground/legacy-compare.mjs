@@ -1,6 +1,6 @@
 // Compara las firmas de contenido de las fases A (Element Pack) y B (adaptador propio).
 import { readFileSync } from 'node:fs';
-const [a, b, c, d] = process.argv.slice(2).map((f) => JSON.parse(readFileSync(f, 'utf8')));
+const [a, b, c, d, e] = process.argv.slice(2).map((f) => JSON.parse(readFileSync(f, 'utf8')));
 let failed = 0;
 const norm = (list) => list.map((s) => s.normalize('NFC'));
 for (const [widget, cases] of Object.entries(a.widgets)) {
@@ -28,6 +28,18 @@ for (const [widget, cases] of Object.entries(a.widgets)) {
           if (!entryA.known?.[key] && (ta.length !== tc.length || ta.some((x) => !tc.includes(x)))) problems.push(`tras la migración cambia ${key}: ${JSON.stringify(tc)}`);
         }
         notes.push(`migración: ${JSON.stringify(entryC.migration)} → editor ${entryC.editor_widget}`);
+      }
+      const entryE = e?.widgets?.[widget]?.[name]?.[blog];
+      if (entryE) {
+        // Fase E: el documento convertido se pinta sólo con el núcleo, sin capa heredada.
+        for (const key of ['text', 'links', 'images']) {
+          const ta = norm(entryA.signature[key]); const te = norm(entryE.signature[key]);
+          if (!entryA.known?.[key] && (ta.length !== te.length || ta.some((x) => !te.includes(x)))) problems.push(`convertido y sin capa heredada cambia ${key}: ${JSON.stringify(te)}`);
+        }
+        if (entryE.legacy_left?.length) problems.push(`quedan identificadores heredados: ${JSON.stringify(entryE.legacy_left)}`);
+        if (entryE.html_missing?.length) problems.push(`convertido, HTML sin: ${JSON.stringify(entryE.html_missing)}`);
+        if (entryE.css_missing?.length) problems.push(`convertido, CSS sin: ${JSON.stringify(entryE.css_missing)}`);
+        notes.push(`convertido: ${entryE.editor_widget}`);
       }
       const migrated = entryC && ((entryC.migration?.native ?? 0) + (entryC.migration?.adapter ?? 0)) > 0;
       if (entryD && migrated && (!entryD.reverted || entryD.data_md5 !== entryA.data_md5)) problems.push('restaurar no devolvió el documento original');

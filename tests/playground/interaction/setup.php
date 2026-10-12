@@ -7,6 +7,7 @@ require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 activate_plugin( 'elementor/elementor.php' );
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
+activate_plugin( 'digitalisimo-migration/digitalisimo-migration.php' );
 update_option( 'elementor_element_cache_ttl', 'disable' );
 update_option( 'elementor_onboarded', true );
 // Plantilla de Elementor para los casos que muestran una plantilla («__TEMPLATE__»).
