@@ -19,6 +19,7 @@ for (const [widget, cases] of Object.entries(a.widgets)) {
         if (missing.length) target.push(`${key} ausente: ${JSON.stringify(missing)}${why}`);
         if (extra.length) target.push(`${key} adicional: ${JSON.stringify(extra)}${why}`);
       }
+      if (entryB?.editor_resave && !entryB.editor_resave.ok) problems.push(`tras guardar desde el editor: ${JSON.stringify(entryB.editor_resave)}`);
       const entryC = c?.widgets?.[widget]?.[name]?.[blog];
       const entryD = d?.widgets?.[widget]?.[name]?.[blog];
       if (entryC) {

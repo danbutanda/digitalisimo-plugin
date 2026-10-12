@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.128
+# DIGITALÍSIMO Elements 4.3.0.129
+
+- 4.3.0.129: el arnés A/B vuelve a guardar cada página desde el editor (`ajax_save()`) y exige la misma salida con el widget heredado aún en el documento; la prueba de interacción en Chrome cubre once widgets (acordeón, pestañas, deslizador propio, carrusel de logos, carrusel de medios, deslizador de diapositivas, marquesina, comparador de imágenes, menú vertical, botón de desplazamiento y panel lateral).
 
 - 4.3.0.128: adaptadores de Element Pack para Mailchimp (formulario de PRO Elements con su acción Mailchimp, clave y audiencia tomadas de los ajustes de Element Pack) y Marker (Hotspot de PRO Elements con cada marcador en su posición); el panel lateral renombra su ajuste `animation` a `panel_animation` (Elementor trataba el anterior como animación de entrada y dejaba el widget oculto en el navegador) y corrige los documentos guardados al cargarlos; nueva prueba de interacción en Chrome (`tests/playground/interaction.sh`).
 

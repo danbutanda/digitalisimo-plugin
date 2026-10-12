@@ -38,6 +38,40 @@ const checks = {
     }, { timeout: 4000 }, before);
     return 'el carrusel de medios de PRO Elements avanza con la flecha';
   },
+  'bdt-marquee': async (page) => {
+    await page.waitForSelector('[data-digi-marquee-toggle]', { timeout: 5000 });
+    await page.click('[data-digi-marquee-toggle]');
+    await page.waitForFunction(() => document.querySelector('[data-digi-marquee-toggle]').getAttribute('aria-pressed') === 'true' && document.querySelector('[data-digi-marquee]').classList.contains('is-paused'), { timeout: 3000 });
+    return 'la marquesina se pausa con su botón';
+  },
+  'bdt-image-compare': async (page) => {
+    await page.waitForSelector('.digi-compare__range', { timeout: 5000 });
+    const before = await page.$eval('.digi-compare__range', (r) => Number(r.value));
+    await page.focus('.digi-compare__range');
+    for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+    await page.waitForFunction((b) => Number(document.querySelector('.digi-compare__range').value) > b && (document.querySelector('[data-digi-compare]').getAttribute('style') || '').includes('--digi-compare-pos'), { timeout: 3000 }, before);
+    return 'el comparador de imágenes se mueve con el teclado';
+  },
+  'bdt-vertical-menu': async (page) => {
+    await page.waitForSelector('[data-digi-menu-toggle]', { timeout: 5000 });
+    await page.click('[data-digi-menu-toggle]');
+    await page.waitForFunction(() => document.querySelector('[data-digi-menu-toggle]').getAttribute('aria-expanded') === 'true', { timeout: 3000 });
+    return 'el submenú del menú vertical se despliega con su botón';
+  },
+  'bdt-scroll-button': async (page) => {
+    await page.waitForSelector('.digi-scroll-button__link', { timeout: 5000 });
+    // El botón desplaza hasta el elemento cuyo ID lleva en su enlace: la página de prueba lo añade al principio.
+    await page.evaluate(() => {
+      const id = decodeURIComponent(document.querySelector('.digi-scroll-button__link').hash.slice(1));
+      if (id && !document.getElementById(id)) document.body.insertAdjacentHTML('afterbegin', `<div id="${id}"></div>`);
+      document.body.style.minHeight = '4000px';
+      window.scrollTo(0, 2000);
+    });
+    await page.waitForFunction(() => window.scrollY > 1000, { timeout: 3000 });
+    await page.evaluate(() => document.querySelector('.digi-scroll-button__link').click());
+    await page.waitForFunction(() => window.scrollY < 50, { timeout: 5000 });
+    return 'el botón de desplazamiento vuelve al inicio';
+  },
   'bdt-offcanvas': async (page) => {
     await page.waitForSelector('[data-digi-offcanvas-open]', { timeout: 5000 });
     await page.click('[data-digi-offcanvas-open]');
@@ -51,6 +85,8 @@ const checks = {
     return 'el panel lateral se abre con su botón y se cierra con Escape';
   },
 };
+checks['bdt-logo-carousel'] = async (page) => (await checks['bdt-static-carousel'](page)).replace('deslizador propio', 'carrusel de logos');
+checks['bdt-slider'] = async (page) => (await checks['bdt-custom-carousel'](page)).replace('carrusel de medios', 'deslizador de diapositivas');
 (async () => {
   const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'] });
   const results = {};

@@ -11,6 +11,10 @@ foreach ( array( 1, 2 ) as $blog ) {
 	switch_to_blog( $blog );
 	$markers = (array) get_option( 'digi_ab_markers', array() );
 	if ( function_exists( 'bbp_insert_forum' ) && empty( $markers['__BBP_FORUM__'] ) ) {
+		// bbPress asigna el rol de foro al primer inicio de sesión: se fija ya para que el autor sea el mismo en todas las fases.
+		if ( function_exists( 'bbp_set_user_role' ) ) {
+			bbp_set_user_role( 1, bbp_get_keymaster_role() );
+		}
 		$forum = bbp_insert_forum( array( 'post_title' => 'Foro A/B', 'post_content' => 'Foro para comparar.' ) );
 		$topic = bbp_insert_topic( array( 'post_parent' => $forum, 'post_title' => 'Tema A/B', 'post_content' => 'Tema para comparar.' ), array( 'forum_id' => $forum ) );
 		$reply = bbp_insert_reply( array( 'post_parent' => $topic, 'post_title' => 'Respuesta A/B', 'post_content' => 'Respuesta para comparar.' ), array( 'forum_id' => $forum, 'topic_id' => $topic ) );

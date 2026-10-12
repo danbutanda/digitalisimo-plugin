@@ -10,7 +10,7 @@ ONLY="${1:-}"
 mkdir -p "$OUT"
 rm -f "$OUT"/phase*.json
 BLUEPRINT="$OUT/blueprint.json"
-# EXTRA_PLUGINS=bbpress,otro instala plugins reales de wordpress.org y los activa en la red.
+# EXTRA_PLUGINS=bbpress,otro instala plugins reales de wordpress.org y los activa en la red. BLOG=1|2 limita las fases a un sitio.
 EXTRA_STEPS=""
 EXTRA="${EXTRA_PLUGINS:-}"
 for slug in ${EXTRA//,/ }; do
@@ -22,11 +22,11 @@ cat > "$BLUEPRINT" <<JSON
 $EXTRA_STEPS
 {"step":"runPHP","code":"<?php putenv('DIGI_EXTRA=${EXTRA_PLUGINS:-}'); require '/wordpress/wp-content/digi-tests/legacy-setup.php';"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/digi-tests/legacy-content.php';"},
-{"step":"runPHP","code":"<?php putenv('DIGI_PHASE=A'); putenv('DIGI_ONLY=$ONLY'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"},
+{"step":"runPHP","code":"<?php putenv('DIGI_PHASE=A'); putenv('DIGI_ONLY=$ONLY'); putenv('DIGI_BLOG=${BLOG:-}'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/digi-tests/legacy-deactivate.php';"},
-{"step":"runPHP","code":"<?php putenv('DIGI_PHASE=B'); putenv('DIGI_ONLY=$ONLY'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"},
-{"step":"runPHP","code":"<?php putenv('DIGI_PHASE=C'); putenv('DIGI_ONLY=$ONLY'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"},
-{"step":"runPHP","code":"<?php putenv('DIGI_PHASE=D'); putenv('DIGI_ONLY=$ONLY'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"}]}
+{"step":"runPHP","code":"<?php putenv('DIGI_PHASE=B'); putenv('DIGI_ONLY=$ONLY'); putenv('DIGI_BLOG=${BLOG:-}'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"},
+{"step":"runPHP","code":"<?php putenv('DIGI_PHASE=C'); putenv('DIGI_ONLY=$ONLY'); putenv('DIGI_BLOG=${BLOG:-}'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"},
+{"step":"runPHP","code":"<?php putenv('DIGI_PHASE=D'); putenv('DIGI_ONLY=$ONLY'); putenv('DIGI_BLOG=${BLOG:-}'); require '/wordpress/wp-content/digi-tests/legacy-ab.php';"}]}
 JSON
 # FAKE_PLUGINS=1 monta plugins de prueba en las rutas que Element Pack exige para sus widgets de integración.
 FAKE_MOUNTS=()

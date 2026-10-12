@@ -9,8 +9,16 @@ activate_plugin( 'elementor/elementor.php' );
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
 update_option( 'elementor_element_cache_ttl', 'disable' );
 update_option( 'elementor_onboarded', true );
-// «__SITE__» en cualquier valor es la URL del sitio (imágenes de ejemplo).
-$cases = json_decode( str_replace( '__SITE__', untrailingslashit( home_url() ), (string) file_get_contents( __DIR__ . '/cases.json' ) ), true );
+// Plantilla de Elementor para los casos que muestran una plantilla («__TEMPLATE__»).
+if ( ! get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' ) ) {
+	$template = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'digi-ab-template', 'post_name' => 'digi-ab-template' ) );
+	update_post_meta( $template, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $template, '_elementor_template_type', 'section' );
+	update_post_meta( $template, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 'tplsec1', 'elType' => 'container', 'settings' => array(), 'elements' => array( array( 'id' => 'tpl0001', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Contenido de plantilla' ), 'elements' => array() ) ) ) ) ) ) );
+}
+$template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
+// «__SITE__» en cualquier valor es la URL del sitio (imágenes de ejemplo); «__TEMPLATE__», el ID de la plantilla.
+$cases = json_decode( str_replace( array( '__SITE__', '__TEMPLATE__' ), array( untrailingslashit( home_url() ), (string) $template->ID ), (string) file_get_contents( __DIR__ . '/cases.json' ) ), true );
 foreach ( $cases as $widget => $settings ) {
 	$slug = 'digi-ix-' . $widget;
 	if ( get_page_by_path( $slug ) ) {

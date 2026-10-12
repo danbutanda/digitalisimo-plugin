@@ -61,7 +61,9 @@ function digi_ab_signature( $html ) {
 }
 
 $result = array( 'phase' => $phase, 'element_pack' => defined( 'BDTEP_VER' ), 'widgets' => array() );
-foreach ( array( 1, 2 ) as $blog ) {
+// DIGI_BLOG limita la ejecución a un sitio: bbPress arrastra estado entre sitios dentro del mismo proceso.
+$blogs = (int) getenv( 'DIGI_BLOG' ) > 0 ? array( (int) getenv( 'DIGI_BLOG' ) ) : array( 1, 2 );
+foreach ( $blogs as $blog ) {
 	switch_to_blog( $blog );
 	update_option( 'elementor_element_cache_ttl', 'disable' );
 	$registered = \Elementor\Plugin::$instance->widgets_manager->get_widget_types();
@@ -136,6 +138,32 @@ foreach ( array( 1, 2 ) as $blog ) {
 				// Sin contenido Elementor no pinta el envoltorio: no hay nada que comprobar.
 				if ( '' !== $target && 'B' === $phase && false !== strpos( $html, 'elementor-element-w' . substr( md5( $slug ), 0, 6 ) ) ) {
 					$entry['wrapper_ok'] = false !== strpos( $html, 'data-widget_type="' . $target . '.' ) && false !== strpos( $html, 'elementor-widget-' . $target );
+				}
+				// Guardado desde el editor: lo que el editor carga se vuelve a guardar y la página debe seguir igual,
+				// con el widget heredado aún en el documento (la migración es otra acción, siempre explícita).
+				// Se guarda sobre la misma página y después se restaura su `_elementor_data` original, para que las
+				// fases C y D sigan partiendo del documento tal y como lo dejó Element Pack.
+				if ( 'B' === $phase && $entry['registered'] ) {
+					wp_set_current_user( 1 );
+					$original = (string) get_post_meta( $id, '_elementor_data', true );
+					try {
+						$document = \Elementor\Plugin::$instance->documents->get( $id, false );
+						\Elementor\Plugin::$instance->documents->ajax_save( array( 'editor_post_id' => $id, 'status' => 'publish', 'elements' => $document->get_elements_raw_data(), 'settings' => array() ) );
+						// Sólo el guardado necesita sesión: la página se vuelve a pintar como visitante, igual que antes.
+						wp_set_current_user( 0 );
+						delete_post_meta( $id, '_elementor_element_cache' );
+						$saved_html = \Elementor\Plugin::$instance->frontend->get_builder_content( $id, false );
+						$same       = digi_ab_signature( $saved_html ) === $entry['signature'];
+						$kept       = false !== strpos( (string) get_post_meta( $id, '_elementor_data', true ), '"widgetType":"' . $type . '"' );
+						$entry['editor_resave'] = array( 'ok' => $same && $kept, 'same_output' => $same, 'widget_kept' => $kept );
+					} catch ( \Throwable $e ) {
+						$entry['editor_resave'] = array( 'ok' => false, 'error' => $e->getMessage() );
+					}
+					update_post_meta( $id, '_elementor_data', wp_slash( $original ) );
+					delete_post_meta( $id, '_elementor_element_cache' );
+					delete_post_meta( $id, '_elementor_css' );
+					// Las páginas se comparan como visitante: formularios de acceso y de bbPress cambian con sesión.
+					wp_set_current_user( 0 );
 				}
 				if ( $expect_html ) {
 					$entry['html_missing'] = array_values( array_filter( $expect_html, static function ( $fragment ) use ( $html ) {
