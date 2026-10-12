@@ -118,6 +118,8 @@ Lote 35 (4.3.0.129): el A/B añade el guardado desde el editor en la fase B (`ed
 
 ## Estado de cierre (4.3.0.125)
 
+Los pasos para desactivar y desinstalar Element Pack en una red real están en [ELEMENT_PACK_RETIREMENT.md](ELEMENT_PACK_RETIREMENT.md).
+
 - **Decisiones:** los 263 IDs del inventario tienen decisión en [element-pack-decisions.md](element-pack-decisions.md), validada por `tests/elements-legacy-decisions.mjs` en cada publicación: 201 con adaptador publicado y 62 que no se reproducen, cada uno con su motivo (desde los lotes 33 y 34, los formularios de contacto, webhook y Mailchimp y el marcador también se adaptan). Ninguno queda «pendiente: adaptador».
 - **Documentos existentes:** un documento con widgets `bdt-*` se sigue viendo sin Element Pack gracias a los adaptadores, y la migración por sitio (respaldo, previsualización y reversión) traduce sus ajustes. Los widgets ACF y los que necesitan controles propios siguen siempre en su adaptador.
 - **Validación de regresión (2026-10-11):** A/B Multisite completo con Element Pack 9.9.1 en las 187 fixtures de `tests/legacy/`, con `FAKE_PLUGINS=1 EXTRA_PLUGINS=woocommerce,secure-custom-fields`: las 526 combinaciones coincidieron con las diferencias declaradas. Los 12 widgets de bbPress se validaron aparte con `EXTRA_PLUGINS=bbpress`, y las listas una por una, porque bbPress conserva estado entre shortcodes del mismo proceso: 24 combinaciones coincidieron.
