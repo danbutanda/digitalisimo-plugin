@@ -6,6 +6,7 @@ $hooks = array();
 $elementor_loaded = false;
 function add_action( $name, $callback, $priority = 10, $args = 1 ) { $GLOBALS['hooks'][ $name ][] = $callback; }
 function add_filter( $name, $callback, $priority = 10, $args = 1 ) { add_action( $name, $callback, $priority, $args ); }
+function register_activation_hook( $file, $callback ) { $GLOBALS['activation'] = $callback; }
 function is_multisite() { return true; }
 function is_admin() { return true; }
 function is_main_site() { return true; }
@@ -18,6 +19,8 @@ function plugin_dir_path( $file ) { return dirname( $file ) . '/'; }
 function plugins_url( $path, $file = '' ) { return 'https://example.test/wp-content/plugins/digitalisimo-elements/' . ltrim( $path, '/' ); }
 require __DIR__ . '/../digitalisimo-elements/pro-elements.php';
 $assert = function( $ok, $message ) { if ( ! $ok ) throw new RuntimeException( $message ); };
+$assert( ! defined( 'DIGITALISIMO_ELEMENTS_CORE' ) && ! defined( 'ELEMENTOR_VERSION' ), 'Con Elementor activo para la red, el núcleo incluido no se carga.' );
+$assert( array( 'Digitalisimo_Elements_Core', 'activate' ) === ( $GLOBALS['activation'] ?? null ), 'La activación del plugin ejecuta la del núcleo incluido cuando hace falta.' );
 $assert( in_array( 'pro_elements_plugin_load_plugin', $hooks['plugins_loaded'] ?? array(), true ), 'La comprobación debe esperar a plugins_loaded.' );
 $assert( ! in_array( 'pro_elements_plugin_fail_load', $hooks['admin_notices'] ?? array(), true ), 'No debe avisar que falta Elementor antes de terminar la carga.' );
 $elementor_loaded = true;

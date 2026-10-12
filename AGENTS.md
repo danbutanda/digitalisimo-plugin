@@ -54,6 +54,10 @@ Responsable de dominios, Namecheap, shortcodes/formularios, precios y el flujo d
 
 Responsable de ubicación, IPInfo, ubicación administrativa y señales locales reutilizables por SEO Local.
 
+### DIGITALÍSIMO Elements
+
+Constructor visual completo: incluye el núcleo gratuito de Elementor en `digitalisimo-elements/elementor/` (copia sin cambios de wordpress.org), las funciones avanzadas derivadas de PRO Elements (`core/`, `modules/`, `plugin.php`) y los widgets y rasgos propios DIGITALÍSIMO. No necesita el plugin Elementor; si está activo, manda y el núcleo incluido no se carga (`Digitalisimo_Elements_Core`). Los archivos de `elementor/` nunca se editan a mano: cada versión de Elementor se trae con `scripts/sync-elementor-core.sh` (comprueba las sumas oficiales) y se publica como una versión de Elements; las correcciones de seguridad de Elementor sólo llegan a los sitios así. El procedimiento y el paso de los sitios al núcleo incluido están en `docs/ELEMENTOR_CORE.md`.
+
 ### DIGITALÍSIMO Migración
 
 Responsable de la compatibilidad con documentos creados con Element Pack Pro: adaptadores que los mantienen visibles sin ese plugin, inventario por sitio y de red, y conversión reversible de cada documento al formato propio (widgets de DIGITALÍSIMO Elements o de PRO Elements, rasgos propios y CSS personalizado del elemento). Se instala sólo mientras dura la migración y se desinstala al terminarla. DIGITALÍSIMO Elements no contiene, nombra ni necesita nada de Element Pack: `scripts/build-packages.sh` aborta si su ZIP lo menciona. Los pasos de retirada están en `docs/ELEMENT_PACK_RETIREMENT.md`.

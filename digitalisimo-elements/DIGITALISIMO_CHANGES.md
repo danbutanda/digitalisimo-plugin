@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.137
+# DIGITALÍSIMO Elements 4.3.0.138
+
+- 4.3.0.138: incluye el núcleo gratuito de Elementor 4.3.4 (copia sin cambios de wordpress.org, comprobada con sus sumas SHA-256, con sus traducciones en español) y ya no necesita el plugin Elementor: si está activo, éste manda y el núcleo incluido no se carga. Al activarse hace lo mismo que Elementor (kit, opciones iniciales) y da su kit a los sitios nuevos de la red; los complementos que exigen «elementor» quedan satisfechos; las rutas del plugin Elementor guardadas en el contenido pasan a las del núcleo incluido (y una petición a la ruta antigua se redirige); la reversión de versiones y el canal beta de Elementor quedan desactivados porque actualizarían la carpeta del plugin.
 
 - 4.3.0.137: corrección urgente. Desde 4.3.0.133 la vista previa del editor de Elementor no cargaba: Tabla de datos y Reproductor de video leían sus ajustes para decidir si cargar su script también en la instancia de registro del widget, que no tiene ajustes, y Elementor terminaba con un error fatal al encolar los scripts de la vista previa. Esa instancia ahora carga el script sin leer ajustes.
 

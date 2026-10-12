@@ -6,4 +6,4 @@ Compatibilidad temporal con documentos de Elementor creados con Element Pack Pro
 - **Herramientas → Migrar Element Pack** (y `wp digitalisimo-migration`) muestra el inventario del sitio y convierte cada documento al formato propio, con copia del original y restauración. En Multisite, **Red → Ajustes → Migrar Element Pack** resume todos los sitios sin modificarlos.
 - **Al terminar**, el contenido ya sólo usa widgets y ajustes de DIGITALÍSIMO Elements: se desinstalan Element Pack y este plugin.
 
-Requiere Elementor y DIGITALÍSIMO Elements. Los pasos completos están en `docs/ELEMENT_PACK_RETIREMENT.md` del repositorio.
+Requiere DIGITALÍSIMO Elements (que ya incluye Elementor). Los pasos completos están en `docs/ELEMENT_PACK_RETIREMENT.md` del repositorio.

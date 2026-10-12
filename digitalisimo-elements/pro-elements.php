@@ -1,16 +1,15 @@
 <?php
 /**
  * Plugin Name: DIGITALÍSIMO Elements
- * Description: Funciones avanzadas para Elementor gratuito. Versión derivada de PRO Elements 4.3.0.
+ * Description: Constructor visual completo: incluye Elementor (núcleo gratuito) y sus funciones avanzadas, derivadas de PRO Elements 4.3.0, más los widgets DIGITALÍSIMO. No necesita el plugin Elementor; si está activo, éste manda.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.137
+ * Version: 4.3.0.138
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
  * Requires PHP: 7.4
  * Requires at least: 6.8
- * Requires Plugins: elementor
- * Elementor tested up to: 4.3.0
+ * Elementor tested up to: 4.3.4
  * Text Domain: pro-elements
  */
 
@@ -18,8 +17,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.137' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.138' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
+// Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
+require_once __DIR__ . '/digitalisimo-core.php';
+Digitalisimo_Elements_Core::load();
+register_activation_hook( __FILE__, array( 'Digitalisimo_Elements_Core', 'activate' ) );
+add_action( 'admin_notices', array( 'Digitalisimo_Elements_Core', 'external_notice' ) );
+add_action( 'network_admin_notices', array( 'Digitalisimo_Elements_Core', 'external_notice' ) );
 require_once __DIR__ . '/digitalisimo-compat.php';
 require_once __DIR__ . '/digitalisimo-updater.php';
 require_once __DIR__ . '/digitalisimo-brand.php';

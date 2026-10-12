@@ -1,5 +1,7 @@
 # DIGITALÍSIMO Migración · historial
 
+- 1.0.7: depende de DIGITALÍSIMO Elements (`Requires Plugins: digitalisimo-elements`), que ya incluye Elementor, en lugar del plugin Elementor, así que puede activarse en sitios sin él.
+
 - 1.0.6: corrección urgente del editor. Los adaptadores de productos de WooCommerce añadían ajustes ocultos fuera de toda sección y Elementor detenía la petición al construirlos (la ruta REST de clases globales respondía con error 500); ahora van dentro de la sección de contenido. Mientras haya adaptadores, las peticiones AJAX del editor de Elementor pueden usar hasta 512 MB, porque cargan los controles de unos 400 widgets.
 
 - 1.0.5: la piel de tabla de WC Products pasa a la tabla propia de Productos con sus columnas, encabezados, SKU, selector de cantidad y las opciones de DataTables (buscador, orden, paginación, resumen y filas por página).

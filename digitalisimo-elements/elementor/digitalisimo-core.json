@@ -1,0 +1,24 @@
+{
+  "name": "Elementor",
+  "version": "4.3.4",
+  "source": "https://downloads.wordpress.org/plugin/elementor.4.3.4.zip",
+  "sha256": "1b67ddd3acca7b245ac0b7e42e4f8ef958e01602d629e8919874b90607cdc12e",
+  "license": "GPL-3.0-or-later",
+  "translations": [
+    "es_AR",
+    "es_CL",
+    "es_CO",
+    "es_CR",
+    "es_DO",
+    "es_EC",
+    "es_ES",
+    "es_GT",
+    "es_HN",
+    "es_MX",
+    "es_PE",
+    "es_PR",
+    "es_UY",
+    "es_VE"
+  ],
+  "synced": "2026-10-12"
+}

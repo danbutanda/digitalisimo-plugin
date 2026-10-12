@@ -11,8 +11,8 @@ const modules = [
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.52.zip', version: '1.0.52' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.28.zip', version: '1.0.28' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.137.zip', version: '4.3.0.137' };
-const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.6.zip', version: '1.0.6' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.138.zip', version: '4.3.0.138' };
+const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.7.zip', version: '1.0.7' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -65,8 +65,13 @@ const declarations = new Map();
   const zip = join(packageDir, elementsModule.zip);
   if (!existsSync(main) || !existsSync(zip)) throw new Error(`Falta ${main} o ${zip}`);
   const source = readFileSync(main, 'utf8');
-  if (!source.includes(`Version: ${elementsModule.version}`) || !source.includes('Requires Plugins: elementor') || !source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements')) throw new Error('La versión derivada debe exigir Elementor y tener su actualizador propio.');
+  if (!source.includes(`Version: ${elementsModule.version}`) || source.includes('Requires Plugins: elementor') || !source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements')) throw new Error('DIGITALÍSIMO Elements trae su propio núcleo de Elementor (no lo exige) y tiene su actualizador propio.');
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
+  // Núcleo de Elementor incluido (carpeta elementor/, sin tocar) junto al núcleo derivado de Pro (carpeta core/).
+  const manifest = JSON.parse(readFileSync(join(elementsModule.dir, 'elementor/digitalisimo-core.json'), 'utf8'));
+  if (!readFileSync(join(elementsModule.dir, 'elementor/elementor.php'), 'utf8').includes(`define( 'ELEMENTOR_VERSION', '${manifest.version}' );`)) throw new Error('El manifiesto del núcleo incluido no coincide con su versión de Elementor.');
+  for (const required of ['digitalisimo-core.php', 'elementor/elementor.php', 'elementor/includes/plugin.php', 'elementor/vendor/autoload_packages.php', 'elementor/vendor/autoload.php', 'elementor/digitalisimo-core.json', 'elementor/languages/elementor-es_MX.l10n.php', 'elementor/languages/elementor-es_ES.l10n.php', 'core/compatibility/compatibility.php']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
+  if (!source.includes("Digitalisimo_Elements_Core::load();") || source.indexOf("Digitalisimo_Elements_Core::load();") > source.indexOf("require_once __DIR__ . '/digitalisimo-compat.php';")) throw new Error('El núcleo incluido debe cargarse antes que el resto de DIGITALÍSIMO Elements.');
   for (const required of ['pro-elements.php', 'plugin.php', 'license.txt', 'COPYING', 'DIGITALISIMO_CHANGES.md', 'digitalisimo-updater.php', 'digitalisimo-compat.php', 'digitalisimo-brand.php', 'vendor/autoload.php', 'vendor/composer/ClassLoader.php', 'vendor/composer/autoload_real.php', 'assets/digitalisimo/logo-negro.webp', 'assets/digitalisimo/logo-blanco.webp', 'assets/digitalisimo/icono.png', 'modules/digitalisimo-slider/class-module.php', 'modules/digitalisimo-slider/class-widget.php', 'assets/css/slider-optimizado.css', 'assets/js/slider-optimizado.js', 'modules/digitalisimo-widgets/class-registry.php', 'modules/digitalisimo-widgets/class-animated-link.php', 'assets/css/animated-link.css', 'modules/digitalisimo-widgets/class-fancy-list.php', 'assets/css/fancy-list.css', 'modules/digitalisimo-widgets/class-document-viewer.php', 'assets/css/document-viewer.css', 'modules/digitalisimo-widgets/class-carousel-engine.php', 'modules/digitalisimo-widgets/class-brand-carousel.php', 'assets/css/carousel-engine.css', 'assets/css/brand-carousel.css', 'assets/js/carousel-engine.js', 'modules/digitalisimo-widgets/class-logo-carousel.php', 'assets/css/logo-carousel.css']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
   for (const required of ['modules/digitalisimo-widgets/class-advanced-heading.php', 'assets/css/advanced-heading.css']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
   for (const required of ['modules/digitalisimo-widgets/class-brand-grid.php', 'assets/css/brand-grid.css']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
@@ -90,7 +95,7 @@ const declarations = new Map();
   const zip = join(packageDir, migrationModule.zip);
   if (!existsSync(main) || !existsSync(zip)) throw new Error(`Falta ${main} o ${zip}`);
   const source = readFileSync(main, 'utf8');
-  if (!source.includes(`Version: ${migrationModule.version}`) || !source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-migration') || !source.includes('Requires Plugins: elementor')) throw new Error('Cabecera incorrecta en DIGITALÍSIMO Migración');
+  if (!source.includes(`Version: ${migrationModule.version}`) || !source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-migration') || !source.includes('Requires Plugins: digitalisimo-elements')) throw new Error('Cabecera incorrecta en DIGITALÍSIMO Migración: depende de DIGITALÍSIMO Elements, que ya trae Elementor');
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
   for (const required of ['digitalisimo-migration.php', 'includes/class-updater.php', 'includes/class-plugin.php', 'legacy/class-native.php', 'legacy/class-migration.php', 'legacy/class-adapters.php', 'legacy/unsupported.php', 'legacy/maps/bdt-accordion.php', 'legacy/conditions/class-legacy-rules.php']) if (!listing.includes(`${migrationModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Migración`);
   if (listing.split('\n').some((entry) => /(^|\/)bdthemes-element-pack(\/|$)/i.test(entry)) || listing.includes('.DS_Store')) throw new Error('DIGITALÍSIMO Migración no debe contener la copia de referencia ni archivos de sistema.');

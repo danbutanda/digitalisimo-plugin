@@ -6,6 +6,7 @@ La copia local `reference/bdthemes-element-pack/` se utiliza sólo para análisi
 | --- | --- | --- |
 | Código PHP de Element Pack | Referencia local; no incluido en runtime ni ZIP | Si se reutiliza código directamente, registrar archivo, procedencia, avisos de copyright, cambios y fuente correspondiente. |
 | Código de PRO Elements ya integrado | Distribuido como derivado GPLv3 | Mantener `COPYING`, `license.txt` y `DIGITALISIMO_CHANGES.md`. |
+| Elementor (núcleo gratuito) en `digitalisimo-elements/elementor/` | Distribuido sin cambios, GPL-3.0-or-later, © Elementor Ltd.; traducciones es_* de translate.wordpress.org (GPL) | Sincronizar sólo con `scripts/sync-elementor-core.sh` (sumas SHA-256 oficiales), conservar su `license.txt` y el manifiesto `digitalisimo-core.json`; ver [ELEMENTOR_CORE.md](ELEMENTOR_CORE.md). |
 | UIkit de Element Pack | Referencia; exclusión prevista | Reconstruir sólo las funciones necesarias con código propio. |
 | Swiper | Candidato a motor compartido | Confirmar versión, licencia, fuente y compatibilidad antes de reutilizar un archivo externo. |
 | Iconos, imágenes, fuentes, plantillas y otros assets | Licencia individual pendiente de auditar | No trasladar a un widget ni a un ZIP hasta documentar origen y permiso de distribución. |

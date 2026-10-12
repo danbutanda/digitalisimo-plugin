@@ -8,6 +8,9 @@ rollback/
 # Dependencias y archivos de desarrollo locales.
 node_modules/
 vendor/
+# El núcleo de Elementor incluido en DIGITALÍSIMO Elements se versiona completo, también su vendor: la Release se
+# compila desde el repositorio y sin él el plugin no arranca.
+!digitalisimo-elements/elementor/vendor/
 
 # Copia local de Element Pack sólo para investigación; nunca se versiona ni se distribuye.
 reference/
