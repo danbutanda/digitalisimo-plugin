@@ -18,3 +18,4 @@
 .digi-advanced-icon-box__title a,.digi-advanced-icon-box__more,.digi-advanced-icon-box__description a{position:relative;z-index:2}
 .digi-advanced-icon-box a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 @media(max-width:767px){.digi-advanced-icon-box--left,.digi-advanced-icon-box--right{gap:min(var(--digi-icon-gap),5vw)}}
+.digi-advanced-icon-box__arrow{position:absolute;inset-inline-end:0;inset-block-start:52px;z-index:1;width:100px;color:#798184;pointer-events:none;transform:rotate(var(--digi-step-arrow-rotate,0deg))}.digi-advanced-icon-box__arrow svg{display:block;width:100%;height:auto;overflow:visible}[dir=rtl] .digi-advanced-icon-box__arrow svg{transform:scaleX(-1)}@media (min-width:1025px){.digi-advanced-icon-box__arrow--hide-desktop{display:none}}@media (min-width:768px) and (max-width:1024px){.digi-advanced-icon-box__arrow--hide-tablet{display:none}}@media (max-width:767px){.digi-advanced-icon-box__arrow--hide-mobile{display:none}}

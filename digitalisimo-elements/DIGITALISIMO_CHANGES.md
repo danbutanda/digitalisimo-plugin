@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.132
+# DIGITALÍSIMO Elements 4.3.0.133
+
+- 4.3.0.133: Tabla de datos gana «Interacción»: buscador, orden al pulsar un encabezado (numérico cuando la columna lo es), paginación con filas por página y resumen de filas, añadidos en el navegador sobre la tabla completa; sin esas opciones no carga JavaScript. Slider de dispositivos acepta diapositivas de color, vídeo MP4 y YouTube (dominio sin cookies), con controles para pausar el vídeo. Reproductor de video gana una lista de vídeos que cambia de vídeo al pulsar su título o, si se elige, al pasar el cursor o enfocarlo. Caja de icono avanzada gana una flecha decorativa al siguiente paso (curva o recta, continua o punteada) con color, ancho, posición, giro y dispositivos donde ocultarla.
 
 - 4.3.0.132: Horario gana «Estado en vivo»: hora de apertura y cierre por fila con selector de hora, día de la semana explícito, zona horaria del sitio o desplazamiento UTC, mensajes de abierto y cerrado, y hora y fecha actuales opcionales. El servidor pinta el estado y el navegador lo recalcula, de modo que una página en caché no muestra un estado viejo; un cierre anterior a la apertura termina al día siguiente. Tarjeta destacada gana redes sociales (icono, nombre accesible y enlace por perfil). Acordeón gana «Título al abrirse» por elemento, alternado con CSS sin JavaScript.
 

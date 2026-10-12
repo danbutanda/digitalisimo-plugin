@@ -11,7 +11,7 @@ namespace Elementor {
 		public function add_group_control( $type, $args ) { $this->controls[ $args['name'] ] = array( 'type' => $type ) + $args; }
 	}
 	class Controls_Manager {
-		const SELECT = 'select', ICONS = 'icons', MEDIA = 'media', TEXT = 'text', SWITCHER = 'switcher', WYSIWYG = 'wysiwyg', URL = 'url', TAB_STYLE = 'style', CHOOSE = 'choose', SLIDER = 'slider', COLOR = 'color';
+		const SELECT = 'select', ICONS = 'icons', MEDIA = 'media', TEXT = 'text', SWITCHER = 'switcher', WYSIWYG = 'wysiwyg', URL = 'url', TAB_STYLE = 'style', CHOOSE = 'choose', SLIDER = 'slider', COLOR = 'color', SELECT2 = 'select2';
 	}
 	class Icons_Manager {
 		public static function render_icon( $icon, $attributes ) { echo '<i class="test-star" aria-hidden="true"></i>'; }
@@ -22,6 +22,7 @@ namespace Elementor {
 namespace {
 	define( 'ABSPATH', __DIR__ );
 	function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
+	function wp_json_encode( $value ) { return json_encode( $value ); }
 	function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 	function esc_url( $value ) { return preg_match( '~^(https?://|/)~', (string) $value ) ? (string) $value : ''; }
 	function absint( $value ) { return abs( (int) $value ); }
@@ -54,5 +55,16 @@ namespace {
 	check_icon_box( str_contains( $editor, 'safeUrl( settings.global_link_url )' ) && str_contains( $editor, 'elementor.helpers.renderIcon' ), 'El editor debe previsualizar icono y enlace seguros.' );
 	check_icon_box( str_contains( $editor, 'linkRel( settings.global_link_url )' ) && str_contains( $editor, 'linkRel( settings.title_link_url )' ) && str_contains( $editor, 'linkRel( settings.readmore_link )' ), 'Los tres enlaces del editor deben conservar la política de destino y rel del frontend.' );
 	check_icon_box( str_contains( $editor, 'aria-hidden="{{ settings.icon_type === \'image\' && !String( settings.title_text || \'\' ).trim() ? \'false\' : \'true\' }}"' ), 'Una imagen informativa sin título no debe ocultarse al lector de pantalla en la vista previa.' );
+	$widget->settings = array( 'icon_type' => 'icon', 'selected_icon' => array( 'value' => 'fas fa-star' ), 'title_text' => 'Paso 1', 'step_arrow' => 'yes', 'step_arrow_style' => 'straight-dashed', 'step_arrow_hide_on' => array( 'mobile', 'otro', 'tablet' ) );
+	ob_start(); $render->invoke( $widget ); $arrow = ob_get_clean();
+	check_icon_box( str_contains( $arrow, '<span class="digi-advanced-icon-box__arrow digi-advanced-icon-box__arrow--hide-tablet digi-advanced-icon-box__arrow--hide-mobile" aria-hidden="true"><svg viewBox="0 0 100 30"' ) && str_contains( $arrow, '<path d="M3 15H92" stroke-dasharray="2 6"/>' ) && str_ends_with( $arrow, '</svg></span></div>' ), 'La flecha es un SVG propio decorativo dentro de la caja, con trazo y dispositivos elegidos.' );
+	$widget->settings['step_arrow_style'] = 'raro';
+	ob_start(); $render->invoke( $widget ); $arrow = ob_get_clean();
+	check_icon_box( str_contains( $arrow, '<path d="M3 23C27 5 64 2 92 15"/>' ) && ! str_contains( $arrow, 'dasharray' ), 'Un trazo desconocido usa la curva continua.' );
+	$widget->settings['step_arrow'] = '';
+	ob_start(); $render->invoke( $widget ); $arrow = ob_get_clean();
+	check_icon_box( ! str_contains( $arrow, '__arrow' ), 'Sin activar no hay flecha.' );
+	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $editor = ob_get_clean();
+	check_icon_box( str_contains( $editor, '"M3 23C27 5 64 2 92 15"' ) && str_contains( $editor, 'digi-advanced-icon-box__arrow--hide-' ), 'El editor previsualiza la flecha con los mismos trazos.' );
 	echo "DIGITALÍSIMO Elements: Caja de icono avanzada validada.\n";
 }

@@ -226,7 +226,13 @@ return array(
 			$out['source']  = 'manual';
 			$out['content'] = '';
 		}
-		foreach ( array( 'file', 'static_columns_data', 'static_rows_data', 'meta_table_columns', 'meta_post_id', 'meta_repeater_field_name', 'google_sheet_id', 'google_sheet_range', 'google_sheet_cache', 'cache_refresh', 'use_data_table' ) as $key ) {
+		// DataTables pasa a la interacción propia con las mismas opciones y su largo de página (10 filas).
+		$datatable = 'yes' === ( $out['use_data_table'] ?? '' );
+		foreach ( array( 'table_search' => 'show_searching', 'table_sort' => 'show_ordering', 'table_paginate' => 'show_pagination', 'table_info' => 'show_info' ) as $own => $legacy ) {
+			$out[ $own ] = $datatable && 'yes' === ( $out[ $legacy ] ?? '' ) ? 'yes' : '';
+		}
+		$out['table_page_size'] = 10;
+		foreach ( array( 'file', 'static_columns_data', 'static_rows_data', 'meta_table_columns', 'meta_post_id', 'meta_repeater_field_name', 'google_sheet_id', 'google_sheet_range', 'google_sheet_cache', 'cache_refresh', 'use_data_table', 'show_searching', 'show_ordering', 'show_pagination', 'show_info' ) as $key ) {
 			unset( $out[ $key ] );
 		}
 		return $out;

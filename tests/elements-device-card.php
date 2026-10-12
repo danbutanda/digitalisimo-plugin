@@ -51,6 +51,19 @@ namespace {
 	$slider->settings['slides'] = array();
 	ob_start(); (new \ReflectionMethod( $slider, 'render' ))->invoke( $slider ); $one = ob_get_clean();
 	check_device( ! str_contains( $one, 'data-digi-carousel-next' ), 'Una captura no debe mostrar flechas.' );
+	$slider->settings = array( 'device_type' => 'mobile', 'slides' => array(
+		array( '_id' => 'c1', 'background' => 'color', 'title' => 'Color' ),
+		array( '_id' => 'v1', 'background' => 'video', 'video' => array( 'url' => 'https://v.test/a.mp4' ), 'title' => 'Demo', 'link' => array( 'url' => 'https://a.test/' ) ),
+		array( '_id' => 'y1', 'background' => 'youtube', 'youtube_url' => 'https://youtu.be/YE7VzlLtp-4' ),
+		array( '_id' => 'x1', 'background' => 'youtube', 'youtube_url' => 'https://v.test/no-es-youtube' ),
+		array( '_id' => 'i1', 'background' => 'video' ),
+	) );
+	ob_start(); (new \ReflectionMethod( $slider, 'render' ))->invoke( $slider ); $kinds = ob_get_clean();
+	check_device( 3 === substr_count( $kinds, '<li class="digi-carousel__slide' ) && str_contains( $kinds, 'elementor-repeater-item-c1"><span class="digi-device-slider__color" aria-hidden="true"></span><span class="digi-device-slider__title">Color</span>' ), 'Una diapositiva de color se pinta con su título; las de vídeo sin dirección válida se omiten.' );
+	check_device( str_contains( $kinds, '<video class="digi-device-slider__video" src="https://v.test/a.mp4" autoplay muted loop playsinline controls preload="metadata" aria-label="Demo"></video><a class="digi-device-slider__title" href="https://a.test/">Demo</a>' ), 'El vídeo tiene controles y su enlace pasa al título, fuera del reproductor.' );
+	check_device( str_contains( $kinds, 'src="https://www.youtube-nocookie.com/embed/YE7VzlLtp-4?autoplay=1' ) && str_contains( $kinds, 'playlist=YE7VzlLtp-4' ) && str_contains( $kinds, 'rel=0" title="Vídeo de YouTube"' ) && str_contains( $kinds, 'loading="lazy"' ), 'YouTube usa el dominio sin cookies, título accesible y carga diferida fuera de la primera diapositiva.' );
+	check_device( 'YE7VzlLtp-4' === \Digitalisimo\Elements\Device_Slider_Widget::youtube_id( 'https://www.youtube.com/watch?v=YE7VzlLtp-4&t=3' ) && 'YE7VzlLtp-4' === \Digitalisimo\Elements\Device_Slider_Widget::youtube_id( 'https://www.youtube.com/shorts/YE7VzlLtp-4' ) && '' === \Digitalisimo\Elements\Device_Slider_Widget::youtube_id( 'https://v.test/a.mp4' ), 'El identificador de YouTube se extrae de enlaces largos, cortos y Shorts.' );
+	check_device( isset( $slider->controls['slides']['fields']['background'], $slider->controls['slides']['fields']['color'], $slider->controls['slides']['fields']['video'], $slider->controls['slides']['fields']['youtube_url'] ) && 'image' === $slider->controls['slides']['fields']['background']['default'], 'Las diapositivas existentes siguen siendo de imagen por defecto.' );
 	$card->settings = array( 'icon_type' => 'image', 'image' => array( 'id' => 10, 'url' => 'https://site.test/captura.webp' ), 'title_text' => 'Tarjeta <script>x</script>', 'description_text' => 'Texto', 'title_size' => 'script', 'button_text' => 'Leer', 'link' => array( 'url' => 'https://site.test/leer', 'is_external' => true, 'nofollow' => true ) );
 	ob_start(); (new \ReflectionMethod( $card, 'render' ))->invoke( $card ); $html = ob_get_clean();
 	check_device( str_contains( $html, '<article class="digi-fancy-card">' ) && str_contains( $html, '<h3 ' ) && str_contains( $html, 'href="https://site.test/leer"' ) && ! str_contains( $html, '<script' ), 'La tarjeta debe tener estructura semántica y salida saneada.' );

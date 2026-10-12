@@ -104,7 +104,10 @@ namespace {
 	$creative = Translator::translate( 'bdt-creative-button', array( 'button_style' => 'aura', 'alignment' => 'right' ) );
 	check_adapter( 'glow' === $creative['effect'] && 'right' === $creative['align'] && 'Read More' === $creative['text'], 'Creative Button usa el efecto propio más parecido.' );
 	$device = Translator::translate( 'bdt-device-slider', array( 'device_type' => 'macbookpro', 'slides' => array( array( 'title' => 'A', 'background' => 'image', 'image' => array( 'url' => 'x.png' ), 'title_link' => array( 'url' => 'https://a.test/' ) ), array( 'title' => 'B' ) ) ) );
-	check_adapter( 'desktop' === $device['device_type'] && 'https://a.test/' === $device['slides'][0]['link']['url'] && ! isset( $device['slides'][1]['image'] ), 'Device Slider traduce marco, enlace y sólo diapositivas con imagen.' );
+	check_adapter( 'desktop' === $device['device_type'] && 'https://a.test/' === $device['slides'][0]['link']['url'] && ! isset( $device['slides'][1]['image'] ), 'Device Slider traduce marco y enlace; la imagen sólo queda en diapositivas de imagen.' );
+	check_adapter( 'color' === $device['slides'][1]['background'] && '#14ABF4' === $device['slides'][1]['color'] && ! isset( $device['slides'][0]['color'] ), 'Device Slider conserva las diapositivas de color con el color por defecto de Element Pack.' );
+	$media = Translator::translate( 'bdt-device-slider', array( 'slides' => array( array( 'background' => 'video', 'video_link' => 'https://v.test/a.mp4' ), array( 'background' => 'youtube' ) ) ) );
+	check_adapter( 'https://v.test/a.mp4' === $media['slides'][0]['video']['url'] && 'https://youtu.be/YE7VzlLtp-4' === $media['slides'][1]['youtube_url'] && ! isset( $media['slides'][0]['video_link'], $media['slides'][1]['youtube_link'] ), 'Device Slider conserva vídeos MP4 y de YouTube.' );
 	$comparison = Translator::translate( 'bdt-comparison-list', array() );
 	check_adapter( 'Feature list' === $comparison['comparison_list_title'] && 'Pro' === $comparison['comparison_header_list'][1]['header_title'] && '1|1' === $comparison['comparison_list'][2]['feature_ability'], 'Comparison List usa las filas por defecto de Element Pack.' );
 
@@ -132,6 +135,10 @@ namespace {
 
 	$html = Translator::translate( 'bdt-table', array() );
 	check_adapter( 'manual' === $html['source'] && 0 === strpos( $html['content'], "Name,Age,Phone\nTom,5,010281065" ) && 'comma' === $html['delimiter'], 'La tabla HTML por defecto pasa a CSV.' );
+	check_adapter( 'yes' === $html['table_search'] && 'yes' === $html['table_sort'] && 'yes' === $html['table_paginate'] && 'yes' === $html['table_info'] && 10 === $html['table_page_size'] && ! isset( $html['use_data_table'], $html['show_searching'] ), 'DataTables pasa a la interacción propia con 10 filas por página.' );
+	$plain = Translator::translate( 'bdt-table', array( 'use_data_table' => '', 'show_info' => 'yes' ) );
+	check_adapter( '' === $plain['table_search'] && '' === $plain['table_info'], 'Sin DataTables la tabla no tiene interacción.' );
+	check_adapter( '' === Translator::translate( 'bdt-table', array( 'show_pagination' => '' ) )['table_paginate'], 'Cada opción de DataTables se respeta por separado.' );
 	$static = Translator::translate( 'bdt-table', array( 'source' => 'static', 'static_columns_data' => array( array( 'static_column_name' => 'Plan' ), array( 'static_column_name' => 'Precio, IVA' ) ), 'static_rows_data' => array( array( 'static_row_column_type' => 'row' ), array( 'static_row_column_type' => 'column', 'static_cell_name' => 'Pro' ), array( 'static_row_column_type' => 'column', 'static_cell_name' => '99' ) ) ) );
 	check_adapter( "Plan,\"Precio, IVA\"\nPro,99" === $static['content'] && ! isset( $static['static_rows_data'] ), 'Las filas escritas en Element Pack pasan a CSV con comillas cuando hace falta.' );
 	$cloud = Translator::translate( 'bdt-tags-cloud', array( 'data_source' => 'static', 'static_open_new_window' => 'yes' ) );
@@ -251,7 +258,14 @@ namespace {
 	check_adapter( 'custom' === $si['link_to'] && 'on' === $si['link']['is_external'] && 'no' === $si['open_lightbox'], 'Scroll Image abre su enlace externo en otra pestaña.' );
 	$hv = Translator::translate( 'bdt-hover-video', array( 'hover_video_list' => array( array( 'source_type' => 'remote_url', 'remote_url' => array( 'url' => 'https://s.test/v.mp4' ), 'hover_video_title' => 'Uno' ) ) ) );
 	check_adapter( 'url' === $hv['source'] && 'https://s.test/v.mp4' === $hv['video_url']['url'] && 'Uno' === $hv['title'], 'Hover Video muestra su primer vídeo.' );
+	$hv = Translator::translate( 'bdt-hover-video', array( 'hover_video_list' => array( array( 'source_type' => 'remote_url', 'remote_url' => array( 'url' => 'https://s.test/1.mp4' ), 'hover_video_title' => 'Uno' ), array( 'source_type' => 'hosted_url', 'hosted_url' => array( 'id' => 7, 'url' => 'https://s.test/2.mp4' ), 'hover_video_title' => 'Dos <b>' ) ) ) );
+	check_adapter( 2 === count( $hv['playlist'] ) && 'url' === $hv['playlist'][0]['source'] && 'https://s.test/1.mp4' === $hv['playlist'][0]['video_url']['url'] && 'media' === $hv['playlist'][1]['source'] && 7 === $hv['playlist'][1]['video']['id'] && 'Dos' === $hv['playlist'][1]['title'] && 'hover' === $hv['playlist_trigger'], 'Hover Video pasa toda su lista a la lista de vídeos, que cambia al pasar el cursor.' );
 
+	$sf = Translator::translate( 'bdt-step-flow', array() );
+	check_adapter( 'yes' === $sf['step_arrow'] && 'curve' === $sf['step_arrow_style'] && array() === $sf['step_arrow_hide_on'] && ! isset( $sf['direction_style'], $sf['show_indicator'] ), 'Step Flow muestra su flecha como la flecha propia de la caja.' );
+	$sf = Translator::translate( 'bdt-step-flow', array( 'show_indicator' => 'yes', 'direction_style' => '4', 'direction_hide_on' => array( 'mobile' ), 'direction_color' => '#ff0000', 'direction_width' => array( 'unit' => 'px', 'size' => 140 ), 'direction_offset_x' => array( 'unit' => 'px', 'size' => -30 ) ) );
+	check_adapter( 'straight-dashed' === $sf['step_arrow_style'] && array( 'mobile' ) === $sf['step_arrow_hide_on'] && '#ff0000' === $sf['step_arrow_color'] && 140 === $sf['step_arrow_width']['size'] && ! isset( $sf['step_arrow_offset_x'] ), 'Step Flow conserva trazo, dispositivos, color y ancho; el desplazamiento sólo con su interruptor.' );
+	check_adapter( -30 === Translator::translate( 'bdt-step-flow', array( 'direction_offset_toggle' => 'yes', 'direction_offset_x' => array( 'unit' => 'px', 'size' => -30 ) ) )['step_arrow_offset_x']['size'] && '' === Translator::translate( 'bdt-step-flow', array( 'show_indicator' => '' ) )['step_arrow'], 'El desplazamiento activado se traslada y la flecha apagada sigue apagada.' );
 	$mb = Translator::translate( 'bdt-member', array( 'name' => 'Ana', 'role' => 'Directora' ) );
 	check_adapter( 'Ana' === $mb['title_text'] && 'Directora' === $mb['badge_text'] && 'image' === $mb['icon_type'] && ! isset( $mb['social_link_list'] ), 'Member pasa nombre y cargo a la tarjeta.' );
 	check_adapter( 3 === count( $mb['social_links'] ) && 'Instagram' === $mb['social_links'][2]['social_label'] && 'fab fa-instagram' === $mb['social_links'][2]['social_icon']['value'] && '' !== $mb['social_links'][0]['social_link']['url'], 'Member conserva los perfiles sociales por defecto con su nombre accesible.' );

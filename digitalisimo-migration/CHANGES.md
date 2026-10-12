@@ -1,5 +1,7 @@
 # DIGITALÍSIMO Migración · historial
 
+- 1.0.2: Table pasa DataTables (buscador, orden, paginación de 10 filas y resumen) a la interacción propia de la tabla; Device Slider conserva sus diapositivas de color, vídeo y YouTube con los valores por defecto de Element Pack; Hover Video pasa toda su lista de vídeos, que cambia al pasar el cursor; Step Flow conserva su flecha de dirección (trazo, dispositivos, color, ancho y, con su interruptor, desplazamiento y giro).
+
 - 1.0.1: Business Hours dinámico pasa al estado en vivo propio (horas en formato de 24 horas, día, zona horaria, mensajes de abierto y cerrado, hora y fecha de la cabecera) y respeta la etiqueta personalizada del día; sus estilos de cabecera, días, horas, separadores y aviso pasan al widget propio (28 controles en lugar de 6); Member conserva sus perfiles sociales con su título como nombre accesible; Toggle conserva el título que muestra al abrirse («Collapse»).
 
 - 1.0.0: primera versión independiente. Reúne la compatibilidad con Element Pack que estaba en DIGITALÍSIMO Elements (adaptadores, extensiones, figuras y visibilidad heredadas, inventario de red y de sitio) y añade la conversión completa: cada documento queda sólo con widgets y ajustes de DIGITALÍSIMO Elements o de PRO Elements, con copia del original y restauración. La conversión exige Element Pack desactivado; el comando de WP-CLI pasa a ser `wp digitalisimo-migration`.

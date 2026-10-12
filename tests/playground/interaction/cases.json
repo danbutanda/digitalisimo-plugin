@@ -226,5 +226,29 @@
         "dynamic_end_time": "05:00 PM"
       }
     ]
+  },
+  "bdt-table": {
+    "source": "custom",
+    "content": "<table><tr><th>Plan</th><th>Precio</th></tr><tr><td>Plan 01</td><td>$38</td></tr><tr><td>Plan 02</td><td>$75</td></tr><tr><td>Plan 03</td><td>$11</td></tr><tr><td>Plan 04</td><td>$48</td></tr><tr><td>Plan 05</td><td>$85</td></tr><tr><td>Plan 06</td><td>$21</td></tr><tr><td>Plan 07</td><td>$58</td></tr><tr><td>Plan 08</td><td>$95</td></tr><tr><td>Plan 09</td><td>$31</td></tr><tr><td>Plan 10</td><td>$68</td></tr><tr><td>Plan 11</td><td>$4</td></tr><tr><td>Plan 12</td><td>$41</td></tr><tr><td>Plan 13</td><td>$78</td></tr><tr><td>Plan 14</td><td>$14</td></tr><tr><td>Plan 15</td><td>$51</td></tr><tr><td>Plan 16</td><td>$88</td></tr><tr><td>Plan 17</td><td>$24</td></tr><tr><td>Plan 18</td><td>$61</td></tr><tr><td>Plan 19</td><td>$98</td></tr><tr><td>Plan 20</td><td>$34</td></tr><tr><td>Plan 21</td><td>$71</td></tr><tr><td>Plan 22</td><td>$7</td></tr><tr><td>Plan 23</td><td>$44</td></tr><tr><td>Plan 24</td><td>$81</td></tr><tr><td>Plan 25</td><td>$17</td></tr></table>"
+  },
+  "bdt-hover-video": {
+    "hover_video_list": [
+      {
+        "_id": "h1",
+        "source_type": "remote_url",
+        "remote_url": {
+          "url": "https://example.com/recorrido.mp4"
+        },
+        "hover_video_title": "Recorrido"
+      },
+      {
+        "_id": "h2",
+        "source_type": "remote_url",
+        "remote_url": {
+          "url": "https://example.com/instalacion.mp4"
+        },
+        "hover_video_title": "Instalación"
+      }
+    ]
   }
 }

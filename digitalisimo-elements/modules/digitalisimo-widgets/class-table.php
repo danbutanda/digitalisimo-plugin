@@ -3,7 +3,11 @@ namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
 
-/** Tabla de datos estáticos con encabezados reales y sin dependencias de navegador. */
+/**
+ * Tabla de datos con encabezados reales. El servidor pinta siempre la tabla completa; con «Interacción»
+ * el navegador añade buscador, orden por columna, paginación y resumen de filas sobre esa misma tabla,
+ * y sin JavaScript se sigue leyendo entera.
+ */
 class Table_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-table'; }
 	public function get_title() { return 'Tabla de datos'; }
@@ -11,7 +15,19 @@ class Table_Widget extends \Elementor\Widget_Base {
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'tabla', 'csv', 'datos', 'comparar' ); }
 	public function get_style_depends() { return array( 'digitalisimo-table' ); }
-	public function get_script_depends() { return array(); }
+	const FEATURES = array( 'search' => 'table_search', 'sort' => 'table_sort', 'paginate' => 'table_paginate', 'info' => 'table_info' );
+
+	/** El script sólo se carga si la tabla usa alguna función interactiva, o en la vista previa del editor. */
+	public function get_script_depends() {
+		$s = (array) $this->get_settings();
+		foreach ( self::FEATURES as $key ) {
+			if ( 'yes' === ( $s[ $key ] ?? '' ) ) {
+				return array( 'digitalisimo-table' );
+			}
+		}
+		$preview = class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->preview ) && \Elementor\Plugin::$instance->preview->is_preview_mode();
+		return $preview ? array( 'digitalisimo-table' ) : array();
+	}
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';
@@ -22,6 +38,13 @@ class Table_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'csv_file', array( 'label' => 'Archivo CSV del sitio', 'type' => $c::MEDIA, 'media_types' => array( 'text' ), 'description' => 'Selecciona un CSV o TSV ya subido a Medios (hasta 1 MB). No se consultan URLs remotas.', 'condition' => array( 'source' => 'media' ) ) );
 		$this->add_control( 'delimiter', array( 'label' => 'Separador', 'type' => $c::SELECT, 'default' => 'comma', 'options' => array( 'comma' => 'Coma', 'semicolon' => 'Punto y coma', 'tab' => 'Tabulación' ) ) );
 		$this->add_control( 'first_column_header', array( 'label' => 'Primera columna como encabezado de fila', 'type' => $c::SWITCHER, 'default' => '', 'return_value' => 'yes' ) );
+		$this->end_controls_section();
+		$this->start_controls_section( 'section_interactive', array( 'label' => 'Interacción' ) );
+		$this->add_control( 'table_search', array( 'label' => 'Buscador', 'type' => $c::SWITCHER ) );
+		$this->add_control( 'table_sort', array( 'label' => 'Ordenar al pulsar un encabezado', 'type' => $c::SWITCHER ) );
+		$this->add_control( 'table_paginate', array( 'label' => 'Paginación', 'type' => $c::SWITCHER ) );
+		$this->add_control( 'table_page_size', array( 'label' => 'Filas por página', 'type' => $c::NUMBER, 'default' => 10, 'min' => 1, 'max' => 500, 'condition' => array( 'table_paginate' => 'yes' ) ) );
+		$this->add_control( 'table_info', array( 'label' => 'Resumen de filas', 'type' => $c::SWITCHER, 'description' => 'Por ejemplo, «Filas 1–10 de 57».' ) );
 		$this->end_controls_section();
 		$this->start_controls_section( 'section_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
 		$this->add_control( 'header_background', array( 'label' => 'Fondo de encabezado', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-table thead' => 'background-color:{{VALUE}};' ) ) );
@@ -77,7 +100,14 @@ class Table_Widget extends \Elementor\Widget_Base {
 		if ( ! array_filter( $headers, 'strlen' ) ) { return; }
 		$caption = trim( wp_strip_all_tags( (string) ( $s['caption'] ?? '' ) ) );
 		$first_header = 'yes' === ( $s['first_column_header'] ?? '' );
-		echo '<div class="digi-table-wrap" role="region" aria-label="' . esc_attr( '' !== $caption ? $caption : 'Tabla de datos' ) . '" tabindex="0"><table class="digi-table">';
+		$features = '';
+		foreach ( self::FEATURES as $feature => $key ) {
+			$features .= 'yes' === ( $s[ $key ] ?? '' ) ? ' data-' . $feature : '';
+		}
+		if ( '' !== $features ) {
+			$features = ' data-digi-table' . $features . ( false !== strpos( $features, 'data-paginate' ) ? ' data-page-size="' . esc_attr( (string) max( 1, min( 500, (int) ( $s['table_page_size'] ?? 10 ) ) ) ) . '"' : '' );
+		}
+		echo '<div class="digi-table-wrap" role="region" aria-label="' . esc_attr( '' !== $caption ? $caption : 'Tabla de datos' ) . '" tabindex="0"' . $features . '><table class="digi-table">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- atributos fijos y número escapado.
 		if ( '' !== $caption ) { echo '<caption>' . esc_html( $caption ) . '</caption>'; }
 		echo '<thead><tr>';
 		foreach ( $headers as $header ) { echo '<th scope="col">' . esc_html( $header ) . '</th>'; }

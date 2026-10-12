@@ -1,8 +1,8 @@
 {
   "defaults": {
-    "_known": {
-      "text": "Element Pack añade con DataTables el buscador, la paginación y el resumen de filas; el widget propio muestra la tabla estática accesible"
-    }
+    "_expect_html": [
+      " data-digi-table data-search data-sort data-paginate data-info data-page-size=\"10\""
+    ]
   },
   "static": {
     "source": "static",
@@ -32,9 +32,6 @@
         "static_cell_name": "$99"
       }
     ],
-    "use_data_table": "",
-    "_known": {
-      "text": "Sin DataTables las tablas coinciden; se declaran por si Element Pack añade controles"
-    }
+    "use_data_table": ""
   }
 }

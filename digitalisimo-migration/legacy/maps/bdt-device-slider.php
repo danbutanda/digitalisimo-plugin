@@ -1,8 +1,8 @@
 <?php
 /**
  * Element Pack Pro 9.9.1 `bdt-device-slider` → `digitalisimo-device-slider`.
- * Los marcos de Element Pack pasan al tipo de dispositivo propio; sólo las diapositivas con imagen
- * tienen equivalente (fondo de color y videos no se trasladan).
+ * Los marcos de Element Pack pasan al tipo de dispositivo propio; cada diapositiva conserva su contenido
+ * (imagen, color, vídeo MP4 o YouTube) con los valores por defecto de Element Pack.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -24,16 +24,27 @@ return array(
 	),
 	'repeaters' => array(
 		'slides' => array(
-			'defaults'     => array( 'title' => 'Slide Title', 'title_link' => array( 'url' => '' ), 'background' => 'color', 'image' => $placeholder ),
+			'defaults'     => array( 'title' => 'Slide Title', 'title_link' => array( 'url' => '' ), 'background' => 'color', 'color' => '#14ABF4', 'image' => $placeholder, 'video_link' => '//test-videos.co.uk/vids/bigbuckbunny/mp4/av1/1080/Big_Buck_Bunny_1080_10s_1MB.mp4', 'youtube_link' => 'https://youtu.be/YE7VzlLtp-4' ),
 			'default_rows' => array( array( 'title' => 'Slide Item 1' ), array( 'title' => 'Slide Item 2' ), array( 'title' => 'Slide Item 3' ), array( 'title' => 'Slide Item 4' ) ),
 			'rename'       => array( 'title_link' => 'link' ),
 		),
 	),
 	'filter'    => static function ( array $out ) {
 		foreach ( $out['slides'] as $index => $slide ) {
-			if ( 'image' !== ( $slide['background'] ?? 'color' ) ) {
+			$kind                = in_array( $slide['background'] ?? 'color', array( 'image', 'color', 'video', 'youtube' ), true ) ? ( $slide['background'] ?? 'color' ) : 'color';
+			$slide['background'] = $kind;
+			if ( 'video' === $kind ) {
+				$slide['video'] = array( 'url' => (string) ( $slide['video_link'] ?? '' ) );
+			} elseif ( 'youtube' === $kind ) {
+				$slide['youtube_url'] = (string) ( $slide['youtube_link'] ?? '' );
+			}
+			if ( 'image' !== $kind ) {
 				unset( $slide['image'] );
 			}
+			if ( 'color' !== $kind ) {
+				unset( $slide['color'] );
+			}
+			unset( $slide['video_link'], $slide['youtube_link'] );
 			if ( 'yes' !== ( $out['show_title'] ?? 'yes' ) ) {
 				$slide['title'] = '';
 			}

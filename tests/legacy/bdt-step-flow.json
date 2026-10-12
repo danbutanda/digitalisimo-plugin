@@ -1,15 +1,18 @@
 {
   "defaults": {
     "_known": {
-      "images": "La flecha de dirección era un recurso de Element Pack y no se traslada"
-    }
+      "images": "La flecha es un SVG propio decorativo, oculto a lectores de pantalla; Element Pack usaba una imagen de su carpeta con alt «Direction Arrows»"
+    },
+    "_expect_html": [
+      "<span class=\"digi-advanced-icon-box__arrow\" aria-hidden=\"true\"><svg viewBox=\"0 0 100 30\""
+    ]
   },
   "custom": {
     "title_text": "Paso uno",
     "description_text": "Primero esto",
     "badge_text": "Paso 01",
     "_known": {
-      "images": "La flecha de dirección era un recurso de Element Pack y no se traslada"
+      "images": "La flecha es un SVG propio decorativo, oculto a lectores de pantalla; Element Pack usaba una imagen de su carpeta con alt «Direction Arrows»"
     }
   }
 }

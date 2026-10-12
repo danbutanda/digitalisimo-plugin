@@ -1,7 +1,36 @@
 {
   "defaults": {
     "_known": {
-      "text": "Se muestra el primer vídeo de la lista; Element Pack mostraba los títulos de todos para elegir al pasar el cursor"
+      "text": "Sin vídeos, Element Pack mostraba los títulos con un póster «sin vídeo»; el reproductor propio no se muestra"
+    }
+  },
+  "lista": {
+    "hover_video_list": [
+      {
+        "_id": "h1",
+        "source_type": "remote_url",
+        "remote_url": {
+          "url": "https://example.com/uno.mp4"
+        },
+        "hover_video_title": "Recorrido"
+      },
+      {
+        "_id": "h2",
+        "source_type": "remote_url",
+        "remote_url": {
+          "url": "https://example.com/dos.mp4"
+        },
+        "hover_video_title": "Instalación"
+      }
+    ],
+    "_expect_html": [
+      "data-digi-playlist=\"hover\"",
+      "data-src=\"https://example.com/dos.mp4\"",
+      ">Instalación</button>"
+    ],
+    "_known": {
+      "text": "El reproductor nativo incluye dentro de <video> un aviso con enlace al archivo, que sólo ven los navegadores sin vídeo HTML",
+      "links": "El reproductor nativo incluye dentro de <video> un aviso con enlace al archivo, que sólo ven los navegadores sin vídeo HTML"
     }
   }
 }

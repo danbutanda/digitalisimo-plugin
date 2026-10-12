@@ -145,6 +145,33 @@ return array(
 			'size' => 0,
 		),
 	),
-	// Indicador de dirección y animaciones del botón no se trasladan.
+	// Las animaciones del botón no se trasladan; el indicador de dirección pasa a la flecha propia de la caja.
 	'drop'      => array( 'show_indicator', 'direction_hide_on', 'readmore_on_hover', 'button_css_id', 'advanced_readmore_icon', 'readmore_icon_align' ),
+	'filter'    => static function ( array $out, array $settings ) {
+		$styles                    = array( '1' => 'curve', '2' => 'curve-dashed', '3' => 'straight', '4' => 'straight-dashed', '5' => 'curve', '6' => 'curve-dashed', '7' => 'curve', '8' => 'curve-dashed' );
+		$out['step_arrow']         = 'yes' === ( $settings['show_indicator'] ?? 'yes' ) ? 'yes' : '';
+		$out['step_arrow_style']   = $styles[ (string) ( $out['direction_style'] ?? '1' ) ] ?? 'curve';
+		$out['step_arrow_hide_on'] = array_values( array_intersect( array( 'desktop', 'tablet', 'mobile' ), (array) ( $settings['direction_hide_on'] ?? array() ) ) );
+		// Element Pack sólo aplicaba desplazamiento y giro con «direction_offset_toggle».
+		$moves = array( 'direction_width' => 'step_arrow_width' );
+		if ( 'yes' === ( $out['direction_offset_toggle'] ?? '' ) ) {
+			$moves += array( 'direction_offset_x' => 'step_arrow_offset_x', 'direction_offset_y' => 'step_arrow_offset_y', 'direction_rotate' => 'step_arrow_rotate' );
+		}
+		foreach ( $moves as $from => $to ) {
+			foreach ( array( '', '_tablet', '_mobile' ) as $device ) {
+				if ( isset( $out[ $from . $device ]['size'] ) && '' !== (string) $out[ $from . $device ]['size'] ) {
+					$out[ $to . $device ] = $out[ $from . $device ];
+				}
+			}
+		}
+		if ( ! empty( $out['direction_color'] ) ) {
+			$out['step_arrow_color'] = $out['direction_color'];
+		}
+		foreach ( array_keys( $out ) as $key ) {
+			if ( 0 === strpos( $key, 'direction_' ) ) {
+				unset( $out[ $key ] );
+			}
+		}
+		return $out;
+	},
 );

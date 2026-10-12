@@ -1,10 +1,13 @@
 {
   "defaults": {
     "_known": {
-      "text": "Las diapositivas de color de Element Pack no tienen equivalente propio y no se muestran",
       "links": "Los botones decorativos y flechas de Element Pack eran enlaces #; el propio usa botones",
-      "images": "Element Pack dibujaba el marco del dispositivo con un SVG de su carpeta; el propio lo dibuja con CSS"
-    }
+      "images": "Element Pack dibujaba el marco del dispositivo con un SVG de su carpeta; el propio lo dibuja con CSS",
+      "text": "Las flechas propias son botones con los caracteres ‹ y ›; Element Pack usaba enlaces #"
+    },
+    "_expect_html": [
+      "<span class=\"digi-device-slider__color\" aria-hidden=\"true\"></span><span class=\"digi-device-slider__title\">Slide Item 1</span>"
+    ]
   },
   "custom": {
     "device_type": "iphonex",
@@ -25,5 +28,57 @@
       "links": "Los botones decorativos y flechas de Element Pack eran enlaces #; el propio usa botones",
       "images": "Element Pack dibujaba el marco del dispositivo con un SVG de su carpeta; el propio lo dibuja con CSS"
     }
+  },
+  "videos": {
+    "device_type": "iphonex",
+    "slides": [
+      {
+        "_id": "v1",
+        "title": "Demo",
+        "background": "video",
+        "video_link": "https://example.com/demo.mp4",
+        "title_link": {
+          "url": "https://example.com/demo"
+        }
+      },
+      {
+        "_id": "y1",
+        "title": "Tráiler",
+        "background": "youtube",
+        "youtube_link": "https://youtu.be/YE7VzlLtp-4"
+      }
+    ],
+    "_known": {
+      "links": "Los botones decorativos y flechas de Element Pack eran enlaces #; el propio usa botones",
+      "images": "Element Pack dibujaba el marco del dispositivo con un SVG de su carpeta; el propio lo dibuja con CSS",
+      "text": "Las flechas propias son botones con los caracteres ‹ y ›; Element Pack usaba enlaces #"
+    },
+    "_expect_html": [
+      "<video class=\"digi-device-slider__video\" src=\"https://example.com/demo.mp4\" autoplay muted loop playsinline controls",
+      "youtube-nocookie.com/embed/YE7VzlLtp-4"
+    ]
+  },
+  "colores": {
+    "slides": [
+      {
+        "_id": "k1",
+        "title": "Rojo",
+        "background": "color",
+        "color": "#AA0000"
+      },
+      {
+        "_id": "k2",
+        "title": "Azul",
+        "background": "color"
+      }
+    ],
+    "_known": {
+      "links": "Los botones decorativos y flechas de Element Pack eran enlaces #; el propio usa botones",
+      "images": "Element Pack dibujaba el marco del dispositivo con un SVG de su carpeta; el propio lo dibuja con CSS",
+      "text": "Las flechas propias son botones con los caracteres ‹ y ›; Element Pack usaba enlaces #"
+    },
+    "_expect_css": [
+      ".elementor-repeater-item-k1 .digi-device-slider__color{background-color:#AA0000"
+    ]
   }
 }

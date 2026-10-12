@@ -44,6 +44,6 @@ Tras convertir, el documento no contiene ningún identificador de Element Pack y
 ## Validación disponible en el repositorio
 
 - `bash tests/playground/legacy-ab.sh` (con `FAKE_PLUGINS=1 EXTRA_PLUGINS=woocommerce,secure-custom-fields`, y `EXTRA_PLUGINS=bbpress` aparte): compara cada widget con Element Pack activo y sin él, en el sitio principal y un subsitio. Comprueba también el guardado desde el editor, la conversión, el documento convertido con DIGITALÍSIMO Migración desactivado (fase E) y la restauración.
-- `bash tests/playground/interaction.sh`: trece widgets con JavaScript en Chrome real.
+- `bash tests/playground/interaction.sh`: quince widgets con JavaScript en Chrome real.
 - `bash tests/playground/form-submit.sh`: envío real de los formularios heredados.
 - `bash tests/playground/migration-report.sh`: pantallas de red y de sitio de la herramienta.

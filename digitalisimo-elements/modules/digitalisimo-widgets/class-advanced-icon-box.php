@@ -42,6 +42,17 @@ class Advanced_Icon_Box_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'badge_text', array( 'label' => 'Texto del distintivo', 'type' => $c::TEXT, 'condition' => array( 'badge' => 'yes' ) ) );
 		$this->end_controls_section();
 
+		$this->start_controls_section( 'section_step_arrow', array( 'label' => 'Flecha al siguiente paso' ) );
+		$this->add_control( 'step_arrow', array( 'label' => 'Mostrar flecha', 'type' => $c::SWITCHER, 'return_value' => 'yes', 'description' => 'Une cajas colocadas una junto a otra como pasos de un proceso. Es decorativa: los lectores de pantalla no la anuncian.' ) );
+		$this->add_control( 'step_arrow_style', array( 'label' => 'Trazo', 'type' => $c::SELECT, 'default' => 'curve', 'options' => array( 'curve' => 'Curva', 'curve-dashed' => 'Curva punteada', 'straight' => 'Recta', 'straight-dashed' => 'Recta punteada' ), 'condition' => array( 'step_arrow' => 'yes' ) ) );
+		$this->add_control( 'step_arrow_hide_on', array( 'label' => 'Ocultar en', 'type' => $c::SELECT2, 'multiple' => true, 'options' => array( 'desktop' => 'Escritorio', 'tablet' => 'Tableta', 'mobile' => 'Móvil' ), 'default' => array( 'mobile' ), 'condition' => array( 'step_arrow' => 'yes' ) ) );
+		$this->add_control( 'step_arrow_color', array( 'label' => 'Color', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box__arrow' => 'color:{{VALUE}};' ), 'condition' => array( 'step_arrow' => 'yes' ) ) );
+		$this->add_responsive_control( 'step_arrow_width', array( 'label' => 'Ancho', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => 20, 'max' => 300 ) ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box__arrow' => 'width:{{SIZE}}{{UNIT}};' ), 'condition' => array( 'step_arrow' => 'yes' ) ) );
+		$this->add_responsive_control( 'step_arrow_offset_x', array( 'label' => 'Desde el borde final', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -300, 'max' => 300 ) ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box__arrow' => 'inset-inline-end:{{SIZE}}{{UNIT}};' ), 'condition' => array( 'step_arrow' => 'yes' ) ) );
+		$this->add_responsive_control( 'step_arrow_offset_y', array( 'label' => 'Desde arriba', 'type' => $c::SLIDER, 'size_units' => array( 'px', '%' ), 'range' => array( 'px' => array( 'min' => -300, 'max' => 300 ) ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box__arrow' => 'inset-block-start:{{SIZE}}{{UNIT}};' ), 'condition' => array( 'step_arrow' => 'yes' ) ) );
+		$this->add_responsive_control( 'step_arrow_rotate', array( 'label' => 'Giro', 'type' => $c::SLIDER, 'range' => array( 'px' => array( 'min' => -180, 'max' => 180 ) ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box__arrow' => '--digi-step-arrow-rotate:{{SIZE}}deg;' ), 'condition' => array( 'step_arrow' => 'yes' ) ) );
+		$this->end_controls_section();
+
 		$this->start_controls_section( 'section_icon_box_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
 		$this->add_responsive_control( 'text_align', array( 'label' => 'Alineación', 'type' => $c::CHOOSE, 'options' => array( 'left' => array( 'title' => 'Izquierda', 'icon' => 'eicon-text-align-left' ), 'center' => array( 'title' => 'Centro', 'icon' => 'eicon-text-align-center' ), 'right' => array( 'title' => 'Derecha', 'icon' => 'eicon-text-align-right' ) ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box' => 'text-align:{{VALUE}};' ) ) );
 		$this->add_responsive_control( 'icon_size', array( 'label' => 'Tamaño del icono', 'type' => $c::SLIDER, 'range' => array( 'px' => array( 'min' => 16, 'max' => 160 ) ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-icon-box__visual' => '--digi-icon-size:{{SIZE}}px;' ) ) );
@@ -124,7 +135,27 @@ class Advanced_Icon_Box_Widget extends \Elementor\Widget_Base {
 			$link = self::link_attributes( $s['readmore_link'] ?? array() );
 			echo $link ? '<a class="digi-advanced-icon-box__more"' . $link . '>' . esc_html( $readmore ) . '</a>' : '<span class="digi-advanced-icon-box__more">' . esc_html( $readmore ) . '</span>';
 		}
-		echo '</div></div>';
+		echo '</div>';
+		echo self::arrow( $s ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG fijo y clases de una lista cerrada.
+		echo '</div>';
+	}
+
+	/** Trazos propios de la flecha: línea principal y punta, sobre una caja de 100 × 30. */
+	const ARROWS = array(
+		'curve'    => array( 'M3 23C27 5 64 2 92 15', 'M83 8.5 93 15.5 81.5 20' ),
+		'straight' => array( 'M3 15H92', 'M84 7.5 93 15 84 22.5' ),
+	);
+
+	public static function arrow( $s ) {
+		if ( 'yes' !== ( $s['step_arrow'] ?? '' ) ) { return ''; }
+		$style  = (string) ( $s['step_arrow_style'] ?? 'curve' );
+		$shape  = self::ARROWS[ str_replace( '-dashed', '', $style ) ] ?? self::ARROWS['curve'];
+		$dashed = '-dashed' === substr( $style, -7 ) ? ' stroke-dasharray="2 6"' : '';
+		$class  = 'digi-advanced-icon-box__arrow';
+		foreach ( array_intersect( array( 'desktop', 'tablet', 'mobile' ), (array) ( $s['step_arrow_hide_on'] ?? array() ) ) as $device ) {
+			$class .= ' digi-advanced-icon-box__arrow--hide-' . $device;
+		}
+		return '<span class="' . $class . '" aria-hidden="true"><svg viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="' . $shape[0] . '"' . $dashed . '/><path d="' . $shape[1] . '"/></svg></span>';
 	}
 
 	protected function content_template() {
@@ -154,7 +185,7 @@ class Advanced_Icon_Box_Widget extends \Elementor\Widget_Base {
 		<# if ( settings.show_separator === 'yes' ) { #><span class="digi-advanced-icon-box__separator" aria-hidden="true"></span><# } #>
 		<# if ( settings.description_text ) { #><div class="digi-advanced-icon-box__description">{{{ settings.description_text }}}</div><# } #>
 		<# if ( more ) { #><# if ( moreUrl ) { #><a class="digi-advanced-icon-box__more" href="{{ moreUrl }}"<# if ( settings.readmore_link.is_external ) { #> target="_blank"<# } #><# if ( linkRel( settings.readmore_link ) ) { #> rel="{{ linkRel( settings.readmore_link ) }}"<# } #>>{{ more }}</a><# } else { #><span class="digi-advanced-icon-box__more">{{ more }}</span><# } #><# } #>
-		</div></div><# } #>
+		</div><# if ( settings.step_arrow === 'yes' ) { var arrowStyle = settings.step_arrow_style || 'curve'; var arrowShape = arrowStyle.indexOf( 'straight' ) === 0 ? <?php echo wp_json_encode( self::ARROWS['straight'] ); ?> : <?php echo wp_json_encode( self::ARROWS['curve'] ); ?>; var arrowHide = _.map( _.intersection( [ 'desktop', 'tablet', 'mobile' ], settings.step_arrow_hide_on || [] ), function ( d ) { return ' digi-advanced-icon-box__arrow--hide-' + d; } ).join( '' ); #><span class="digi-advanced-icon-box__arrow{{ arrowHide }}" aria-hidden="true"><svg viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="{{ arrowShape[0] }}"<# if ( /-dashed$/.test( arrowStyle ) ) { #> stroke-dasharray="2 6"<# } #>/><path d="{{ arrowShape[1] }}"/></svg></span><# } #></div><# } #>
 		<?php
 	}
 }

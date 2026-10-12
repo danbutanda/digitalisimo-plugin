@@ -4,11 +4,12 @@ namespace Elementor {
 		public $settings = array();
 		public $controls = array();
 		public function get_settings_for_display() { return $this->settings; }
+		public function get_settings() { return $this->settings; }
 		public function start_controls_section( $name, $args ) {}
 		public function end_controls_section() {}
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
 	}
-	class Controls_Manager { const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const COLOR = 'color'; const MEDIA = 'media'; const TAB_STYLE = 'style'; }
+	class Controls_Manager { const NUMBER = 'number'; const TEXT = 'text'; const TEXTAREA = 'textarea'; const SELECT = 'select'; const SWITCHER = 'switcher'; const COLOR = 'color'; const MEDIA = 'media'; const TAB_STYLE = 'style'; }
 }
 namespace {
 	define( 'ABSPATH', __DIR__ );
@@ -59,5 +60,12 @@ namespace {
 	}
 	ob_start(); (new \ReflectionMethod( $widget, 'content_template' ))->invoke( $widget ); $editor = ob_get_clean();
 	check_table( str_contains( $editor, 'var rows = []' ) && str_contains( $editor, 'digi-table-wrap' ) && str_contains( $editor, "settings.source === 'media'" ), 'El editor debe distinguir CSV manual y de Medios.' );
+	$widget->settings = array( 'content' => "Plan,Precio\nA,1\nB,2", 'table_search' => 'yes', 'table_paginate' => 'yes', 'table_page_size' => 900 );
+	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $live = ob_get_clean();
+	check_table( str_contains( $live, 'tabindex="0" data-digi-table data-search data-paginate data-page-size="500">' ) && array( 'digitalisimo-table' ) === $widget->get_script_depends(), 'Con interacción la tabla anuncia sus funciones, limita el largo de página y carga su script.' );
+	check_table( isset( $widget->controls['table_search'], $widget->controls['table_sort'], $widget->controls['table_paginate'], $widget->controls['table_page_size'], $widget->controls['table_info'] ), 'Faltan los controles de interacción.' );
+	$widget->settings = array( 'content' => "Plan,Precio\nA,1" );
+	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $plain = ob_get_clean();
+	check_table( ! str_contains( $plain, 'data-digi-table' ) && array() === $widget->get_script_depends(), 'Sin interacción la tabla no carga JavaScript.' );
 	echo "DIGITALÍSIMO Elements: Tabla CSV validada.\n";
 }

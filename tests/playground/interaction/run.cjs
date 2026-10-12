@@ -124,6 +124,37 @@ checks['bdt-business-hours'] = async (page) => {
   if (got.format === 'g:i a' && got.clock !== before.clock && got.clock !== after.clock) throw new Error(`hora ${got.clock}, se esperaba ${after.clock}`);
   return `el horario recalcula en el navegador el estado (${got.state === 'open' ? 'abierto' : 'cerrado'}) y la hora (${got.clock})`;
 };
+checks['bdt-table'] = async (page) => {
+  const visibleRows = () => page.$$eval('.digi-table tbody tr', (rows) => rows.filter((r) => !r.hidden).map((r) => r.cells[0].textContent.trim() + '|' + r.cells[1].textContent.trim()));
+  const text = (selector) => page.$eval(selector, (el) => el.textContent.trim());
+  let rows = await visibleRows();
+  if (rows.length !== 10 || (await text('.digi-table__page')) !== 'Página 1 de 3' || (await text('.digi-table__info')) !== 'Filas 1–10 de 25') throw new Error('la primera página debe mostrar 10 de 25 filas');
+  await page.click('.digi-table__pager button:last-child');
+  rows = await visibleRows();
+  if (rows[0].split('|')[0] !== 'Plan 11' || (await text('.digi-table__page')) !== 'Página 2 de 3') throw new Error('«Siguiente» debe mostrar la segunda página');
+  await page.click('.digi-table thead th:nth-child(2) .digi-table__sort');
+  const sorted = await page.$$eval('.digi-table tbody tr', (all) => all.map((r) => parseInt(r.cells[1].textContent.replace(/\D/g, ''), 10)));
+  if (sorted.some((v, i) => i && v < sorted[i - 1])) throw new Error('el precio debe ordenarse como número');
+  if ((await page.$eval('.digi-table thead th:nth-child(2)', (th) => th.getAttribute('aria-sort'))) !== 'ascending') throw new Error('falta aria-sort');
+  await page.type('.digi-table__search input', 'plan 2');
+  rows = await visibleRows();
+  if (rows.length !== 6 || !(await text('.digi-table__info')).includes('(filtradas de 25)')) throw new Error(`la búsqueda debe dejar 6 filas (Plan 20 a 25), deja ${rows.length}`);
+  await page.type('.digi-table__search input', 'zzz');
+  if ((await visibleRows()).length || (await page.$eval('.digi-table__empty', (el) => el.hidden))) throw new Error('sin coincidencias debe avisarlo');
+  return 'la tabla pagina, ordena por número y filtra con su buscador';
+};
+checks['bdt-hover-video'] = async (page) => {
+  const state = () => page.$eval('.digi-video-player', (p) => ({ src: p.querySelector('video').currentSrc || p.querySelector('video').getAttribute('src') || (p.querySelector('video source') || {}).src, label: p.querySelector('video').getAttribute('aria-label'), pressed: [...p.querySelectorAll('.digi-video-player__item')].map((b) => b.getAttribute('aria-pressed')).join(',') }));
+  const before = await state();
+  if (!String(before.src).includes('recorrido.mp4') || before.pressed !== 'true,false') throw new Error('el primer vídeo debe estar activo al cargar');
+  await page.hover('.digi-video-player__item:nth-of-type(1)');
+  await page.hover('li:nth-child(2) .digi-video-player__item');
+  await page.waitForFunction(() => document.querySelector('.digi-video-player video').getAttribute('aria-label') === 'Instalación', { timeout: 3000 });
+  const after = await state();
+  if (!String(after.src).includes('instalacion.mp4') || after.pressed !== 'false,true') throw new Error(`el segundo título debe activar su vídeo: ${JSON.stringify(after)}`);
+  if (!(await page.$eval('.digi-video-player video', (v) => v.muted))) throw new Error('al pasar el cursor el vídeo debe ir silenciado');
+  return 'la lista de vídeos cambia de vídeo al pasar el cursor por su título, silenciado';
+};
 checks['bdt-logo-carousel'] = async (page) => (await checks['bdt-static-carousel'](page)).replace('deslizador propio', 'carrusel de logos');
 checks['bdt-slider'] = async (page) => (await checks['bdt-custom-carousel'](page)).replace('carrusel de medios', 'deslizador de diapositivas');
 (async () => {
