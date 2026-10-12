@@ -3,7 +3,7 @@ namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
 
-/** Visor de documentos independiente; referencia funcional: Element Pack Pro 9.9.1 (GPLv3). */
+/** Visor de documentos independiente: incrusta un PDF u otro archivo público en la página. */
 class Document_Viewer_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-document-viewer'; }
 	public function get_title() { return 'Visor de documentos'; }

@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.129
+# DIGITALÍSIMO Elements 4.3.0.130
+
+- 4.3.0.130: Enlace animado reescrito desde cero: hoja CSS propia (variables y keyframes propios) y trazos SVG propios para la onda, el arco y el garabato, con el mismo efecto en las quince variantes; deja de distribuirse código adaptado de Element Pack. Los documentos `bdt-animated-link` pasan a un adaptador con mapa (antes un alias), que respeta el texto por defecto «Animated Link» y los estilos guardados. Se retiran menciones a Element Pack de los comentarios de los widgets propios.
 
 - 4.3.0.129: el arnés A/B vuelve a guardar cada página desde el editor (`ajax_save()`) y exige la misma salida con el widget heredado aún en el documento; la prueba de interacción en Chrome cubre once widgets (acordeón, pestañas, deslizador propio, carrusel de logos, carrusel de medios, deslizador de diapositivas, marquesina, comparador de imágenes, menú vertical, botón de desplazamiento y panel lateral).
 

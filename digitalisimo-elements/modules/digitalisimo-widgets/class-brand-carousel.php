@@ -4,7 +4,7 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-carousel-engine.php';
 
-/** Carrusel de marcas con motor nativo compartido; referencia funcional Element Pack Pro 9.9.1. */
+/** Carrusel de marcas con el motor de carrusel propio compartido. */
 class Brand_Carousel_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-brand-carousel'; }
 	public function get_title() { return 'Carrusel de marcas'; }
@@ -16,7 +16,7 @@ class Brand_Carousel_Widget extends \Elementor\Widget_Base {
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';
-		$this->start_controls_section( 'ep_section_brand', array( 'label' => 'Marcas' ) );
+		$this->start_controls_section( 'section_brand', array( 'label' => 'Marcas' ) );
 		$repeater = new \Elementor\Repeater();
 		$repeater->add_control( 'image', array( 'label' => 'Logo', 'type' => $c::MEDIA, 'dynamic' => array( 'active' => true ) ) );
 		$repeater->add_control( 'brand_name', array( 'label' => 'Nombre', 'type' => $c::TEXT, 'dynamic' => array( 'active' => true ), 'label_block' => true ) );

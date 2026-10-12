@@ -51,7 +51,7 @@
           }, config.auto * 1000);
         }
       }
-      // Elementos externos indicados por selector (la presentación «custom» de Element Pack).
+      // Elementos externos indicados por selector: cada uno abre el panel.
       if (config.selector) {
         document.addEventListener('click', function (event) {
           var target = null;

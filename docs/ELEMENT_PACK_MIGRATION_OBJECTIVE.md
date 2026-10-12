@@ -116,6 +116,8 @@ Lote 34 (4.3.0.128): Mailchimp pasa de DESCARTAR a ADAPTAR sobre `form` (acción
 
 Lote 35 (4.3.0.129): el A/B añade el guardado desde el editor en la fase B (`editor_resave`: misma salida y widget heredado conservado; la migración sigue siendo una acción explícita) y la prueba de interacción pasa de cinco a once widgets. No se cambió ningún adaptador.
 
+Lote 36 (4.3.0.130): primer paso para que el núcleo quede libre de referencias. El CSS y los trazos SVG del Enlace animado, únicos archivos adaptados de Element Pack, se reescriben desde cero; el alias `bdt-animated-link` se convierte en adaptador con mapa (corrige el texto por defecto) y los widgets propios dejan de citar Element Pack en sus comentarios. Siguen: rasgos propios en el núcleo (lote 37), plugin DIGITALÍSIMO Migración con toda la compatibilidad heredada (lote 38) y auditoría final (lote 39).
+
 ## Estado de cierre (4.3.0.125)
 
 Los pasos para desactivar y desinstalar Element Pack en una red real están en [ELEMENT_PACK_RETIREMENT.md](ELEMENT_PACK_RETIREMENT.md).

@@ -109,6 +109,7 @@ final class Adapters {
 	/** ID heredado => clase adaptadora; la clase base debe estar cargada por el registro. */
 	const CLASSES = array(
 		'bdt-accordion' => Bdt_Accordion::class,
+		'bdt-animated-link' => Bdt_AnimatedLink::class,
 		'bdt-advanced-button' => Bdt_AdvancedButton::class,
 		'bdt-advanced-divider' => Bdt_AdvancedDivider::class,
 		'bdt-advanced-heading' => Bdt_AdvancedHeading::class,
@@ -991,4 +992,7 @@ if ( class_exists( '\\ElementorPro\\Modules\\Forms\\Widgets\\Form' ) ) {
 }
 if ( class_exists( '\\ElementorPro\\Modules\\Hotspot\\Widgets\\Hotspot' ) ) {
 	final class Bdt_Marker extends \ElementorPro\Modules\Hotspot\Widgets\Hotspot { use Legacy_Adapter; const LEGACY_ID = 'bdt-marker'; }
+}
+if ( class_exists( '\\Digitalisimo\\Elements\\Animated_Link_Widget' ) ) {
+	final class Bdt_AnimatedLink extends \Digitalisimo\Elements\Animated_Link_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-animated-link'; }
 }

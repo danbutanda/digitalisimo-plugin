@@ -369,10 +369,5 @@ final class Widget_Registry {
 		}
 		require_once dirname( __DIR__ ) . '/digitalisimo-legacy/class-adapters.php';
 		Legacy\Adapters::register( $manager );
-		if ( method_exists( $manager, 'get_widget_types' ) && $manager->get_widget_types( 'bdt-animated-link' ) ) {
-			return;
-		}
-		require_once __DIR__ . '/class-animated-link.php';
-		$manager->register( new Legacy_Animated_Link_Widget() );
 	}
 }

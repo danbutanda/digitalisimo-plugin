@@ -3,7 +3,7 @@ namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
 
-/** Lista de tarjetas: reconstrucción funcional de Fancy List (Element Pack Pro, GPLv3). */
+/** Lista de tarjetas con icono o imagen, texto y enlace por elemento. */
 class Fancy_List_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-fancy-list'; }
 	public function get_title() { return 'Lista destacada'; }

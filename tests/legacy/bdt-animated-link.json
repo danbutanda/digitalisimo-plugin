@@ -1,0 +1,12 @@
+{
+  "defaults": {},
+  "leda_con_enlace": {
+    "link_style": "leda",
+    "link_text": "Ver más",
+    "link_url": { "url": "https://example.test/mas/", "is_external": "", "nofollow": "", "custom_attributes": "" }
+  },
+  "trazo": {
+    "link_style": "carme",
+    "link_text": "Con trazo"
+  }
+}

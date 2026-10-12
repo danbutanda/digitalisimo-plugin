@@ -37,7 +37,7 @@ namespace {
 	// Cada mapa tiene su clase adaptadora en Adapters::CLASSES y cada clase su mapa.
 	$adapters = file_get_contents( $base . 'class-adapters.php' );
 	preg_match_all( "/^\t\t'([a-z0-9-]+)' => (\w+)::class,$/m", $adapters, $registered );
-	check_adapter( array() === array_diff( $ids, $registered[1] ) && array() === array_diff( $registered[1], $ids, array( 'bdt-animated-link' ) ), 'Mapas y clases adaptadoras deben coincidir: ' . implode( ', ', array_merge( array_diff( $ids, $registered[1] ), array_diff( $registered[1], $ids ) ) ) );
+	check_adapter( array() === array_diff( $ids, $registered[1] ) && array() === array_diff( $registered[1], $ids ), 'Mapas y clases adaptadoras deben coincidir: ' . implode( ', ', array_merge( array_diff( $ids, $registered[1] ), array_diff( $registered[1], $ids ) ) ) );
 	foreach ( $registered[2] as $class ) {
 		check_adapter( 1 === preg_match( '/final class ' . $class . ' extends /', $adapters ), 'Falta declarar ' . $class );
 	}

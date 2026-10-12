@@ -383,11 +383,12 @@
       },
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "implemented with conditional legacy read adapter; permanent conversion and visual comparison pending",
+      "status": "implemented with conditional legacy read adapter; permanent conversion and visual comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.130 adapter and the per-site reversible migration tool",
       "decision": "ADAPTAR",
       "decision_target": "digitalisimo-animated-link",
       "legacy_documents": "adaptador publicado",
-      "decision_reason": "Ya resuelto desde 4.3.0.x con el adaptador de lectura del Enlace animado propio."
+      "decision_reason": "Ya resuelto desde 4.3.0.x con el adaptador de lectura del Enlace animado propio.",
+      "legacy_adapter": "modules/digitalisimo-legacy/maps/bdt-animated-link.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.130"
     },
     "bdt-audio-player": {
       "target": "digitalisimo-audio-player",

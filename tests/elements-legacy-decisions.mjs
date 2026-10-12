@@ -14,7 +14,7 @@ for (const widget of inventory) {
   assert.ok(decisions.has(entry.decision), `${widget.legacy_widget_id} sin decisión válida`);
   const hasMap = existsSync(new URL(`${widget.legacy_widget_id}.php`, maps));
   if (entry.legacy_documents === 'adaptador publicado' || entry.legacy_adapter) {
-    assert.ok(hasMap || widget.legacy_widget_id === 'bdt-animated-link', `${widget.legacy_widget_id} declara adaptador sin mapa`);
+    assert.ok(hasMap, `${widget.legacy_widget_id} declara adaptador sin mapa`);
   }
   if (hasMap) assert.ok(entry.legacy_adapter || entry.legacy_documents === 'adaptador publicado', `${widget.legacy_widget_id} tiene mapa sin registrarlo`);
   if (entry.decision === 'DESCARTAR') assert.ok((entry.decision_reason || '').length > 20, `${widget.legacy_widget_id} se descarta sin motivo`);
