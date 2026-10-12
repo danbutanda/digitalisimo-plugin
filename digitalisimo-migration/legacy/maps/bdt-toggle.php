@@ -43,16 +43,17 @@ return array(
 			'size' => 1000,
 		),
 	),
-	// Un solo elemento: el texto «Show All» es su título; al abrirse no cambia a «Collapse».
+	// Un solo elemento: «Show All» es su título y «Collapse» el que muestra mientras está abierto.
 	'filter'    => static function ( array $out ) {
 		$source      = (string) ( $out['source'] ?? 'custom' );
 		$out['tabs'] = array( array(
-			'_id'         => 'toggle',
-			'tab_title'   => trim( wp_strip_all_tags( (string) ( $out['toggle_title'] ?? '' ) ) ),
-			'source'      => in_array( $source, array( 'elementor', 'anywhere' ), true ) ? $source : 'custom',
-			'tab_content' => (string) ( $out['toggle_content'] ?? '' ),
-			'template_id' => (string) ( $out['template_id'] ?? '' ),
-			'anywhere_id' => (string) ( $out['anywhere_id'] ?? '' ),
+			'_id'            => 'toggle',
+			'tab_title'      => trim( wp_strip_all_tags( (string) ( $out['toggle_title'] ?? '' ) ) ),
+			'tab_title_open' => trim( wp_strip_all_tags( (string) ( $out['toggle_open_title'] ?? '' ) ) ),
+			'source'         => in_array( $source, array( 'elementor', 'anywhere' ), true ) ? $source : 'custom',
+			'tab_content'    => (string) ( $out['toggle_content'] ?? '' ),
+			'template_id'    => (string) ( $out['template_id'] ?? '' ),
+			'anywhere_id'    => (string) ( $out['anywhere_id'] ?? '' ),
 		) );
 		$out['active_item'] = 'yes' === ( $out['toggle_initially_open'] ?? '' ) ? 1 : 0;
 		foreach ( array_keys( $out ) as $key ) {

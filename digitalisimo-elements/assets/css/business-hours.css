@@ -6,3 +6,7 @@
 .digi-hours__row dd{margin:0;text-align:end}
 .digi-hours--striped .digi-hours__row:nth-child(odd){background:rgba(0,0,0,.03)}
 .digi-hours__row.is-highlighted,.digi-hours__row.is-today{color:var(--digi-hours-accent);font-weight:600}
+.digi-hours__now{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.25rem 1rem;margin:0 0 .75rem;font-weight:600}
+.digi-hours__status{--digi-hours-status:#1e7b34;margin-top:.75rem;padding:.6rem .8rem;border-inline-start:4px solid var(--digi-hours-status);background:color-mix(in srgb,var(--digi-hours-status) 10%,transparent)}
+.digi-hours__status.is-closed{--digi-hours-status:#b42318}
+.digi-hours__status>:first-child{margin-top:0}.digi-hours__status>:last-child{margin-bottom:0}

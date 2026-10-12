@@ -6,7 +6,22 @@ $placeholder_url = class_exists( '\Elementor\Utils' ) ? \Elementor\Utils::get_pl
 
 return array(
 	'target'    => 'digitalisimo-business-hours',
-	'classes'   => array( '.bdt-business-hours' => '.digi-hours' ),
+	'classes'   => array(
+		'.bdt-ep-business-hours .bdt-live-status'           => '.digi-hours__status',
+		'.bdt-ep-business-hours .heading-date.bdt-width-1-2' => '.digi-hours__row dt',
+		'.bdt-ep-business-hours-current-time'               => '.digi-hours__clock',
+		'.bdt-ep-business-hours-current-date'               => '.digi-hours__date',
+		'.bdt-ep-business-hours-header'                     => '.digi-hours__now',
+		'.bdt-ep-business-hours-inner'                      => '.digi-hours__list',
+		'.bdt-ep-business-hours'                            => '.digi-hours',
+		'.bdt-business-hours'                               => '.digi-hours',
+		'.bdt-live-status'                                  => '.digi-hours__status',
+		'.bdt-business-day'                                 => '.digi-hours__row dt',
+		'.bdt-business-time'                                => '.digi-hours__row dd',
+		'.border-divider'                                   => '.digi-hours__row',
+		'.heading-date'                                     => '.digi-hours__row dt',
+		'.heading-time'                                     => '.digi-hours__row dd',
+	),
 	'defaults'  => array(
 		'business_hour_style' => 'default',
 		'dynamic_timezone' => 'default',
@@ -111,19 +126,45 @@ return array(
 				) ),
 		),
 	),
+	// El modo dinámico pasa al estado en vivo propio: horas estructuradas por fila, zona horaria y mensajes.
 	'filter'    => static function ( array $out ) {
-		$rows = array();
-		if ( 'dynamic' === ( $out['business_hour_style'] ?? 'default' ) ) {
+		$rows    = array();
+		$days    = array( 'sunday' => '0', 'monday' => '1', 'tuesday' => '2', 'wednesday' => '3', 'thursday' => '4', 'friday' => '5', 'saturday' => '6' );
+		$dynamic = 'dynamic' === ( $out['business_hour_style'] ?? 'default' );
+		$clock   = static function ( $value ) {
+			$time = strtotime( '1970-01-01 ' . trim( (string) $value ) . ' UTC' );
+			return false === $time ? '' : gmdate( 'H:i', $time );
+		};
+		if ( $dynamic ) {
 			$sep = ' ' . trim( (string) ( $out['dynamic_time_separator'] ?? '-' ) ) . ' ';
 			foreach ( is_array( $out['dynamic_days_times'] ?? null ) ? $out['dynamic_days_times'] : array() as $row ) {
 				$closed = 'yes' === ( $row['dynamic_close_this'] ?? '' );
-				$rows[] = array( '_id' => (string) ( $row['_id'] ?? '' ), 'day' => (string) ( $row['dynamic_enter_day'] ?? '' ), 'hours' => $closed ? (string) ( $row['dynamic_close_text'] ?? '' ) : trim( (string) ( $row['dynamic_start_time'] ?? '' ) . $sep . (string) ( $row['dynamic_end_time'] ?? '' ) ), 'highlight' => 'yes' === ( $row['dynamic_highlight_this'] ?? '' ) ? 'yes' : '' );
+				$day    = (string) ( $row['dynamic_enter_day'] ?? '' );
+				$label  = trim( (string) ( $row['dynamic_enter_day_level'] ?? '' ) );
+				$rows[] = array(
+					'_id'       => (string) ( $row['_id'] ?? '' ),
+					'day'       => '' !== $label ? $label : ucwords( $day ),
+					'weekday'   => $days[ strtolower( trim( $day ) ) ] ?? '',
+					'hours'     => $closed ? (string) ( $row['dynamic_close_text'] ?? '' ) : trim( (string) ( $row['dynamic_start_time'] ?? '' ) . $sep . (string) ( $row['dynamic_end_time'] ?? '' ) ),
+					'opens'     => $closed ? '' : $clock( $row['dynamic_start_time'] ?? '' ),
+					'closes'    => $closed ? '' : $clock( $row['dynamic_end_time'] ?? '' ),
+					'highlight' => 'yes' === ( $row['dynamic_highlight_this'] ?? '' ) ? 'yes' : '',
+				);
 			}
+			$zone = (string) ( $out['dynamic_timezone'] ?? 'default' );
+			$zone = 'custom' === $zone ? (string) ( $out['custom_timezone_input'] ?? '' ) : ( 'default' === $zone ? '' : $zone );
+			$out['timezone']    = is_numeric( $zone ) ? (string) ( (float) $zone + 0 ) : ''; // «-0» y «+6» pasan a «0» y «6», las claves del selector.
+			$out['live_status'] = 'yes';
+			$out['open_text']   = (string) ( $out['dynamic_open_day'] ?? '' );
+			$out['closed_text'] = (string) ( $out['dynamic_close_day'] ?? '' );
 		} else {
 			foreach ( is_array( $out['business_days_times'] ?? null ) ? $out['business_days_times'] : array() as $row ) {
 				$rows[] = array( '_id' => (string) ( $row['_id'] ?? '' ), 'day' => (string) ( $row['enter_day'] ?? '' ), 'hours' => (string) ( $row['enter_time'] ?? '' ), 'highlight' => 'yes' === ( $row['highlight_this'] ?? '' ) ? 'yes' : '' );
 			}
 		}
+		$header                 = 'yes' === ( $out['show_header'] ?? '' );
+		$out['show_clock']      = $header && 'yes' === ( $out['show_current_time'] ?? '' ) ? 'yes' : '';
+		$out['show_date']       = $header && 'yes' === ( $out['show_current_date'] ?? '' ) ? 'yes' : '';
 		$out['rows']            = $rows;
 		$out['highlight_today'] = '';
 		$out['striped']         = 'yes' === ( $out['business_hours_striped'] ?? '' ) ? 'yes' : '';

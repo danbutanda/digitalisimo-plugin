@@ -1,13 +1,36 @@
 {
   "defaults": {
     "_known": {
-      "text": "Cada horario se muestra en una sola celda; el aviso «abierto/cerrado ahora» calculado por zona horaria no se traslada"
+      "text": "Cada horario se muestra en una sola celda"
     }
   },
   "dynamic": {
     "business_hour_style": "dynamic",
     "_known": {
-      "text": "Cada horario se muestra en una sola celda; el aviso «abierto/cerrado ahora» calculado por zona horaria no se traslada"
-    }
+      "text": "Cada horario se muestra en una sola celda (Element Pack separaba apertura, separador y cierre en nodos)"
+    },
+    "_expect_html": [
+      "class=\"digi-hours__status",
+      "data-opens=\"09:00\" data-closes=\"17:00\"",
+      "<template class=\"digi-hours__alt\""
+    ]
+  },
+  "styled": {
+    "business_hour_style": "dynamic",
+    "business_day_color": "#123456",
+    "business_timing_color": "#654321",
+    "business_dynamic_msg_typography_typography": "custom",
+    "business_dynamic_msg_typography_font_size": {
+      "unit": "px",
+      "size": 19
+    },
+    "_known": {
+      "text": "Cada horario se muestra en una sola celda (Element Pack separaba apertura, separador y cierre en nodos)"
+    },
+    "_expect_css": [
+      ".digi-hours__row dt{color:#123456",
+      ".digi-hours__row dd{color:#654321",
+      ".digi-hours__status{font-size:19px"
+    ]
   }
 }

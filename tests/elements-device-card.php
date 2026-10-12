@@ -31,6 +31,7 @@ namespace {
 	function esc_url( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	function wp_strip_all_tags( $v ) { return strip_tags( (string) $v ); }
 	function absint( $v ) { return abs( (int) $v ); }
+	function sanitize_html_class( $v ) { return preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $v ); }
 	function get_post_meta( $id, $key, $single ) { return $id === 10 ? 'Captura móvil' : ''; }
 	function wp_get_attachment_image( $id, $size, $icon, $attrs ) { return '<img class="' . $attrs['class'] . '" src="https://site.test/captura.webp" alt="' . htmlspecialchars( $attrs['alt'], ENT_QUOTES, 'UTF-8' ) . '" srcset="https://site.test/captura.webp 800w">'; }
 	function check_device( $condition, $message ) { if ( ! $condition ) { throw new \RuntimeException( $message ); } }
@@ -59,5 +60,15 @@ namespace {
 	$card->settings['link']['url'] = '';
 	ob_start(); (new \ReflectionMethod( $card, 'render' ))->invoke( $card ); $html = ob_get_clean();
 	check_device( ! str_contains( $html, '<a ' ), 'Sin URL no debe existir enlace vacío.' );
+	$card->settings['social_links'] = array(
+		array( '_id' => 'a1', 'social_icon' => array( 'value' => 'fab fa-linkedin-in', 'library' => 'fa-brands' ), 'social_label' => 'LinkedIn <b>', 'social_link' => array( 'url' => 'https://www.linkedin.com/in/ana', 'is_external' => true ) ),
+		array( '_id' => 'a2', 'social_icon' => array( 'value' => '' ), 'social_label' => 'Sitio', 'social_link' => array( 'url' => 'https://ana.test/' ) ),
+		array( '_id' => 'a3', 'social_icon' => array( 'value' => 'fab fa-x-twitter' ), 'social_label' => 'X', 'social_link' => array( 'url' => '' ) ),
+	);
+	ob_start(); (new \ReflectionMethod( $card, 'render' ))->invoke( $card ); $html = ob_get_clean();
+	check_device( 2 === substr_count( $html, '<li><a ' ) && str_contains( $html, '<ul class="digi-fancy-card__social">' ), 'Las redes sin enlace no se pintan.' );
+	check_device( str_contains( $html, 'href="https://www.linkedin.com/in/ana" target="_blank" class="digi-fancy-card__social-link elementor-repeater-item-a1" rel="noopener noreferrer" aria-label="LinkedIn"><i aria-hidden="true"></i></a>' ), 'Un perfil con icono usa el nombre como aria-label.' );
+	check_device( str_contains( $html, 'elementor-repeater-item-a2">Sitio</a>' ) && ! str_contains( $html, 'aria-label="Sitio"' ), 'Un perfil sin icono muestra su nombre como texto.' );
+	check_device( isset( $card->controls['social_links']['fields']['social_icon'], $card->controls['social_links']['fields']['social_label'], $card->controls['social_links']['fields']['social_link'] ) && array() === $card->controls['social_links']['default'], 'El repetidor de redes empieza vacío para no cambiar tarjetas existentes.' );
 	echo "DIGITALÍSIMO Elements: Slider de dispositivos y Tarjeta destacada validados.\n";
 }

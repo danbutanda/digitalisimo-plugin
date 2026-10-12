@@ -81,5 +81,12 @@ namespace {
 	check_accordion( str_contains( $templates, 'digi-accordion--icon-left' ) && str_contains( $templates, 'data-icon="star"' ) && str_contains( $templates, 'data-icon="plus"' ) && str_contains( $templates, 'data-icon="minus"' ), 'Deben conservarse los iconos nativos de Elementor.' );
 	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $editor = ob_get_clean();
 	check_accordion( str_contains( $editor, 'digi-accordion__summary' ) && str_contains( $editor, 'tab_content' ) && str_contains( $editor, 'openAll || active === visible' ) && str_contains( $editor, '<{{ tag }} class="digi-accordion__label digi-accordion__title">' ), 'La plantilla de Elementor debe conservar elementos, apertura y encabezados válidos.' );
+	$widget->settings = array( 'tabs' => array( array( 'tab_title' => 'Show All', 'tab_title_open' => 'Collapse <b>', 'tab_content' => '<p>Oculto</p>' ), array( 'tab_title' => 'Sin alternativo', 'tab_title_open' => '  ', 'tab_content' => '<p>x</p>' ) ), 'title_html_tag' => 'h3' );
+	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $toggle = ob_get_clean();
+	check_accordion( str_contains( $toggle, '<span class="digi-accordion__closed-label">Show All</span><span class="digi-accordion__open-label">Collapse &lt;b&gt;</span>' ) && 1 === substr_count( $toggle, 'digi-accordion__open-label' ) && str_contains( $toggle, '>Sin alternativo</h3>' ), 'El título al abrirse acompaña al normal sólo cuando tiene texto, escapado.' );
+	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $toggle_editor = ob_get_clean();
+	check_accordion( str_contains( $toggle_editor, 'item.tab_title_open' ) && isset( $widget->controls['tabs']['fields']['tab_title_open'] ), 'El editor y los controles incluyen el título al abrirse.' );
+	$css = (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/accordion.css' );
+	check_accordion( str_contains( $css, '.digi-accordion__item[open] .digi-accordion__open-label{display:inline}' ), 'El CSS alterna los títulos según el estado abierto.' );
 	echo "DIGITALÍSIMO Elements: Acordeón nativo validado.\n";
 }

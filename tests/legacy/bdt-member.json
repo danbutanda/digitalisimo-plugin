@@ -1,16 +1,55 @@
 {
   "defaults": {
     "_known": {
-      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor",
-      "links": "Los enlaces sociales del miembro no se trasladan"
-    }
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor"
+    },
+    "_expect_html": [
+      "class=\"digi-fancy-card__social\"",
+      "aria-label=\"Instagram\""
+    ]
   },
   "custom": {
     "name": "Ana",
     "role": "Directora",
     "_known": {
-      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor",
-      "links": "Los enlaces sociales del miembro no se trasladan"
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor"
     }
+  },
+  "social": {
+    "name": "Ana",
+    "role": "Directora",
+    "social_link_list": [
+      {
+        "_id": "s1",
+        "social_link_title": "LinkedIn",
+        "social_icon_link": {
+          "url": "https://www.linkedin.com/in/ana",
+          "is_external": "on"
+        },
+        "social_share_icon": {
+          "value": "fab fa-linkedin-in",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "s2",
+        "social_link_title": "Sitio",
+        "social_icon_link": {
+          "url": "https://ana.example.com/"
+        },
+        "social_share_icon": {
+          "value": "",
+          "library": ""
+        }
+      }
+    ],
+    "_known": {
+      "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor",
+      "text": "Un perfil sin icono muestra su nombre como texto; Element Pack dejaba el enlace vacío"
+    },
+    "_expect_html": [
+      "href=\"https://www.linkedin.com/in/ana\" target=\"_blank\" class=\"digi-fancy-card__social-link elementor-repeater-item-s1\" rel=\"noopener noreferrer\" aria-label=\"LinkedIn\"",
+      ">Sitio</a>"
+    ]
   }
 }

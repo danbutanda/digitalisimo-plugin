@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Interacción en navegador real: arranca Playground en modo servidor (sitio simple, sin Element Pack),
 # crea una página por widget heredado y comprueba con Chrome que el acordeón, las pestañas, el deslizador
-# propio, el carrusel de medios y el panel lateral responden al pulsar, sin errores de JavaScript ni recursos 404.
+# propio, el carrusel de medios y el panel lateral responden al pulsar, y que el horario recalcula su estado en vivo,
+# sin errores de JavaScript ni recursos 404.
 # Uso: bash tests/playground/interaction.sh   (PUPPETEER_PATH apunta al node_modules con puppeteer-core)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

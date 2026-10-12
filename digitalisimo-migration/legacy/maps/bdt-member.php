@@ -101,7 +101,19 @@ return array(
 			'description_text' => trim( wp_strip_all_tags( (string) ( $out['description_text'] ?? '' ) ) ),
 			'button_text'      => '',
 			'link'             => array( 'url' => '' ),
+			'social_links'     => array(),
 		);
+		// Cada perfil conserva su enlace e icono; el título, que Element Pack mostraba en un globo, pasa a ser su nombre accesible.
+		if ( 'yes' === ( $out['member_social_icon'] ?? 'yes' ) ) {
+			foreach ( is_array( $out['social_link_list'] ?? null ) ? $out['social_link_list'] : array() as $row ) {
+				$link = is_array( $row['social_icon_link'] ?? null ) && ! empty( $row['social_icon_link']['url'] ) ? $row['social_icon_link'] : array( 'url' => (string) ( $row['social_link'] ?? '' ), 'is_external' => 'on' );
+				$icon = is_array( $row['social_share_icon'] ?? null ) && ! empty( $row['social_share_icon']['value'] ) ? $row['social_share_icon'] : ( ! empty( $row['social_icon'] ) ? array( 'value' => (string) $row['social_icon'], 'library' => '' ) : array( 'value' => '', 'library' => '' ) );
+				if ( '' === (string) ( $link['url'] ?? '' ) ) {
+					continue;
+				}
+				$set['social_links'][] = array( '_id' => (string) ( $row['_id'] ?? '' ), 'social_icon' => $icon, 'social_label' => trim( wp_strip_all_tags( (string) ( $row['social_link_title'] ?? '' ) ) ), 'social_link' => $link );
+			}
+		}
 		foreach ( array_keys( $out ) as $key ) {
 			if ( preg_match( '/^(photo|member_alternative_photo|alternative_photo|image_mask_shape|name|role|description_text|member_social_icon|social_link_list|flip_effect|flip_direction|flip_3d|photo_hover_animation|social_icon_tooltip)$/', $key ) ) {
 				unset( $out[ $key ] );

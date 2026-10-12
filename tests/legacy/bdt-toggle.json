@@ -1,7 +1,6 @@
 {
   "defaults": {
     "_known": {
-      "text": "El título no cambia a «Collapse» al abrirse",
       "links": "El acordeón usa <details>; Element Pack usaba un enlace javascript:void(0)"
     }
   },
@@ -10,8 +9,10 @@
     "toggle_content": "<p>Oculto</p>",
     "toggle_initially_open": "yes",
     "_known": {
-      "text": "El título no cambia a «Collapse» al abrirse",
       "links": "El acordeón usa <details>; Element Pack usaba un enlace javascript:void(0)"
-    }
+    },
+    "_expect_html": [
+      "<span class=\"digi-accordion__closed-label\">Ver más</span><span class=\"digi-accordion__open-label\">Collapse</span>"
+    ]
   }
 }

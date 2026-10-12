@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.131
+# DIGITALÍSIMO Elements 4.3.0.132
+
+- 4.3.0.132: Horario gana «Estado en vivo»: hora de apertura y cierre por fila con selector de hora, día de la semana explícito, zona horaria del sitio o desplazamiento UTC, mensajes de abierto y cerrado, y hora y fecha actuales opcionales. El servidor pinta el estado y el navegador lo recalcula, de modo que una página en caché no muestra un estado viejo; un cierre anterior a la apertura termina al día siguiente. Tarjeta destacada gana redes sociales (icono, nombre accesible y enlace por perfil). Acordeón gana «Título al abrirse» por elemento, alternado con CSS sin JavaScript.
 
 - 4.3.0.131: la compatibilidad con contenido heredado sale del núcleo al nuevo plugin DIGITALÍSIMO Migración. El núcleo gana rasgos propios sobre widgets nativos y cualquier elemento: categorías y etiquetas en la piel clásica de Entradas, partes del producto y número de productos en Productos, origen ACF en Acordeón, Pestañas, Deslizador, Lista de iconos y Galería, plantilla por diapositiva en Diapositivas, figuras decorativas, enlace del elemento y reglas de visibilidad por elemento. La cookie, la caché y los filtros del visitante usan nombres propios.
 

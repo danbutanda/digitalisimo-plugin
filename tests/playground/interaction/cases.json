@@ -168,5 +168,63 @@
       }
     ]
   },
-  "bdt-scroll-button": {}
+  "bdt-scroll-button": {},
+  "bdt-toggle": {
+    "toggle_title": "Ver más",
+    "toggle_open_title": "Ver menos",
+    "toggle_content": "<p>Contenido oculto</p>"
+  },
+  "bdt-business-hours": {
+    "business_hour_style": "dynamic",
+    "dynamic_timezone": "-0",
+    "show_header": "yes",
+    "show_current_time": "yes",
+    "show_current_date": "yes",
+    "dynamic_open_day": "Abierto ahora",
+    "dynamic_close_day": "Cerrado ahora",
+    "dynamic_days_times": [
+      {
+        "_id": "d0",
+        "dynamic_enter_day": "Monday",
+        "dynamic_start_time": "09:00 AM",
+        "dynamic_end_time": "05:00 PM"
+      },
+      {
+        "_id": "d1",
+        "dynamic_enter_day": "Tuesday",
+        "dynamic_start_time": "09:00 AM",
+        "dynamic_end_time": "05:00 PM"
+      },
+      {
+        "_id": "d2",
+        "dynamic_enter_day": "Wednesday",
+        "dynamic_start_time": "09:00 AM",
+        "dynamic_end_time": "05:00 PM"
+      },
+      {
+        "_id": "d3",
+        "dynamic_enter_day": "Thursday",
+        "dynamic_start_time": "09:00 AM",
+        "dynamic_end_time": "05:00 PM"
+      },
+      {
+        "_id": "d4",
+        "dynamic_enter_day": "Friday",
+        "dynamic_start_time": "09:00 AM",
+        "dynamic_end_time": "05:00 PM"
+      },
+      {
+        "_id": "d5",
+        "dynamic_enter_day": "Saturday",
+        "dynamic_start_time": "09:00 AM",
+        "dynamic_end_time": "05:00 PM"
+      },
+      {
+        "_id": "d6",
+        "dynamic_enter_day": "Sunday",
+        "dynamic_start_time": "09:00 AM",
+        "dynamic_end_time": "05:00 PM"
+      }
+    ]
+  }
 }

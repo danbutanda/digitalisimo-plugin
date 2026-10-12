@@ -21,6 +21,7 @@ class Accordion_Widget extends \Elementor\Widget_Base {
 		$this->start_controls_section( 'section_items', array( 'label' => 'Elementos' ) );
 		$repeater = new \Elementor\Repeater();
 		$repeater->add_control( 'tab_title', array( 'label' => 'Título', 'type' => $c::TEXT, 'default' => 'Título', 'dynamic' => array( 'active' => true ) ) );
+		$repeater->add_control( 'tab_title_open', array( 'label' => 'Título al abrirse', 'type' => $c::TEXT, 'description' => 'Opcional: sustituye al título mientras el elemento está abierto (por ejemplo, «Ver menos»).' ) );
 		$sources = array( 'custom' => 'Contenido personalizado', 'elementor' => 'Plantilla Elementor' );
 		if ( function_exists( 'post_type_exists' ) && post_type_exists( 'ae_global_templates' ) ) { $sources['anywhere'] = 'Plantilla Anywhere Elementor'; }
 		$repeater->add_control( 'source', array( 'label' => 'Fuente', 'type' => $c::SELECT, 'default' => 'custom', 'options' => $sources ) );
@@ -116,7 +117,9 @@ class Accordion_Widget extends \Elementor\Widget_Base {
 			if ( $open_all || $active === $visible ) { echo ' open'; }
 		echo '><summary class="digi-accordion__summary"><' . $tag . ' class="digi-accordion__label digi-accordion__title">';
 			if ( $custom_icons && ! empty( $item['repeater_icon']['value'] ) ) { echo '<span class="digi-accordion__custom-icon" aria-hidden="true">'; self::print_icon( $item['repeater_icon'] ); echo '</span>'; }
-			echo esc_html( $title ) . '</' . $tag . '><span class="digi-accordion__marker' . ( $toggle_icons ? ' digi-accordion__marker--custom' : '' ) . '" aria-hidden="true">';
+			$open_title = trim( (string) ( $item['tab_title_open'] ?? '' ) );
+			echo '' === $open_title ? esc_html( $title ) : '<span class="digi-accordion__closed-label">' . esc_html( $title ) . '</span><span class="digi-accordion__open-label">' . esc_html( $open_title ) . '</span>';
+			echo '</' . $tag . '><span class="digi-accordion__marker' . ( $toggle_icons ? ' digi-accordion__marker--custom' : '' ) . '" aria-hidden="true">';
 			if ( $toggle_icons ) {
 				echo '<span class="digi-accordion__icon-closed">'; self::print_icon( $settings['accordion_icon'] ?? null ); echo '</span>';
 				echo '<span class="digi-accordion__icon-open">'; self::print_icon( $settings['accordion_active_icon'] ?? null ); echo '</span>';
@@ -144,7 +147,7 @@ class Accordion_Widget extends \Elementor\Widget_Base {
 		var customIcons = closed && closed.rendered && opened && opened.rendered; #>
 		<# if ( valid ) { #><div class="digi-accordion<# if ( settings.icon_align === 'left' ) { #> digi-accordion--icon-left<# } #>"><# _.each( items, function( item, index ) { if ( ! item || !( item.source === 'elementor' || item.source === 'anywhere' || String( item.tab_title || '' ).trim() || String( item.tab_content || '' ).trim() ) ) return; visible++; var title = String( item.tab_title || '' ).trim() || 'Elemento ' + ( index + 1 ); var itemIcon = settings.show_custom_icon === 'yes' && item.repeater_icon && item.repeater_icon.value ? elementor.helpers.renderIcon( view, item.repeater_icon, { 'aria-hidden': true }, 'i', 'object' ) : null; #>
 		<details class="digi-accordion__item" <# if ( settings.multiple !== 'yes' ) { #>name="{{ group }}"<# } #> <# if ( openAll || active === visible ) { #>open<# } #>>
-		<summary class="digi-accordion__summary"><{{ tag }} class="digi-accordion__label digi-accordion__title"><# if ( itemIcon && itemIcon.rendered ) { #><span class="digi-accordion__custom-icon" aria-hidden="true">{{{ itemIcon.value }}}</span><# } #>{{ title }}</{{ tag }}><span class="digi-accordion__marker<# if ( customIcons ) { #> digi-accordion__marker--custom<# } #>" aria-hidden="true"><# if ( customIcons ) { #><span class="digi-accordion__icon-closed"><# if ( closed && closed.rendered ) { #>{{{ closed.value }}}<# } #></span><span class="digi-accordion__icon-open"><# if ( opened && opened.rendered ) { #>{{{ opened.value }}}<# } #></span><# } #></span></summary>
+		<summary class="digi-accordion__summary"><{{ tag }} class="digi-accordion__label digi-accordion__title"><# if ( itemIcon && itemIcon.rendered ) { #><span class="digi-accordion__custom-icon" aria-hidden="true">{{{ itemIcon.value }}}</span><# } #><# if ( String( item.tab_title_open || '' ).trim() ) { #><span class="digi-accordion__closed-label">{{ title }}</span><span class="digi-accordion__open-label">{{ item.tab_title_open }}</span><# } else { #>{{ title }}<# } #></{{ tag }}><span class="digi-accordion__marker<# if ( customIcons ) { #> digi-accordion__marker--custom<# } #>" aria-hidden="true"><# if ( customIcons ) { #><span class="digi-accordion__icon-closed"><# if ( closed && closed.rendered ) { #>{{{ closed.value }}}<# } #></span><span class="digi-accordion__icon-open"><# if ( opened && opened.rendered ) { #>{{{ opened.value }}}<# } #></span><# } #></span></summary>
 		<div class="digi-accordion__content"><# if ( item.source === 'elementor' || item.source === 'anywhere' ) { #><p>Plantilla #{{ item.source === 'anywhere' ? item.anywhere_id : item.template_id }}</p><# } else { #>{{{ item.tab_content || '' }}}<# } #></div></details><# } ); #></div><# } #>
 		<?php
 	}

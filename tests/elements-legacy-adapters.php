@@ -254,12 +254,17 @@ namespace {
 
 	$mb = Translator::translate( 'bdt-member', array( 'name' => 'Ana', 'role' => 'Directora' ) );
 	check_adapter( 'Ana' === $mb['title_text'] && 'Directora' === $mb['badge_text'] && 'image' === $mb['icon_type'] && ! isset( $mb['social_link_list'] ), 'Member pasa nombre y cargo a la tarjeta.' );
+	check_adapter( 3 === count( $mb['social_links'] ) && 'Instagram' === $mb['social_links'][2]['social_label'] && 'fab fa-instagram' === $mb['social_links'][2]['social_icon']['value'] && '' !== $mb['social_links'][0]['social_link']['url'], 'Member conserva los perfiles sociales por defecto con su nombre accesible.' );
+	$mb = Translator::translate( 'bdt-member', array( 'social_link_list' => array( array( 'social_link_title' => 'Web', 'social_link' => 'https://ana.test/', 'social_icon' => 'fa fa-globe' ), array( 'social_link_title' => 'Vacío' ) ) ) );
+	check_adapter( 1 === count( $mb['social_links'] ) && 'https://ana.test/' === $mb['social_links'][0]['social_link']['url'] && 'fa fa-globe' === $mb['social_links'][0]['social_icon']['value'], 'Member usa el enlace y el icono antiguos y omite perfiles sin enlace.' );
+	check_adapter( array() === Translator::translate( 'bdt-member', array( 'member_social_icon' => '' ) )['social_links'], 'Member sin redes visibles no las traslada.' );
 	check_adapter( '' === Translator::translate( 'bdt-trailer-box', array() )['button_text'] && 'Ver' === Translator::translate( 'bdt-trailer-box', array( 'link_type' => 'button', 'button_text' => 'Ver' ) )['button_text'], 'Trailer Box sólo muestra botón si lo tenía.' );
 
 	$et = Translator::translate( 'bdt-edd-tabs', array( 'tabs' => array( array( 'tab_title' => 'Compras', 'tab_content' => 'purchase_history' ) ) ) );
 	check_adapter( '[purchase_history]' === $et['tabs'][0]['tab_content'] && 'custom' === $et['tabs'][0]['source'], 'EDD Tabs muestra el shortcode de cada pestaña en el acordeón.' );
 	$tg = Translator::translate( 'bdt-toggle', array( 'toggle_title' => 'Más', 'toggle_content' => 'Oculto', 'toggle_initially_open' => 'yes' ) );
 	check_adapter( 1 === count( $tg['tabs'] ) && 'Más' === $tg['tabs'][0]['tab_title'] && 'Oculto' === $tg['tabs'][0]['tab_content'] && 1 === $tg['active_item'] && ! isset( $tg['toggle_title'] ), 'Toggle es un acordeón de un elemento abierto si lo estaba.' );
+	check_adapter( 'Collapse' === $tg['tabs'][0]['tab_title_open'] && 'Menos' === Translator::translate( 'bdt-toggle', array( 'toggle_open_title' => 'Menos' ) )['tabs'][0]['tab_title_open'], 'Toggle conserva el título que muestra al abrirse.' );
 	$hb = Translator::translate( 'bdt-hover-box', array( 'hover_box' => array( array( 'hover_box_title' => 'A', 'hover_box_content' => 'B', 'selected_icon' => array( 'value' => 'fas fa-star' ) ) ) ) );
 	check_adapter( 'A' === $hb['tabs'][0]['tab_title'] && 'B' === $hb['tabs'][0]['tab_content'] && 'icon' === $hb['tabs'][0]['icon_type'] && ! isset( $hb['hover_box'] ), 'Hover Box pasa sus cajas a pestañas.' );
 
@@ -270,6 +275,10 @@ namespace {
 
 	$bh = Translator::translate( 'bdt-business-hours', array( 'business_hour_style' => 'dynamic' ) );
 	check_adapter( 7 === count( $bh['rows'] ) && '09:00 AM - 05:00 PM' === $bh['rows'][0]['hours'] && 'Closed' === $bh['rows'][6]['hours'], 'Business Hours une apertura y cierre o muestra el cierre.' );
+	check_adapter( 'yes' === $bh['live_status'] && '' === $bh['timezone'] && '1' === $bh['rows'][0]['weekday'] && '09:00' === $bh['rows'][0]['opens'] && '17:00' === $bh['rows'][0]['closes'] && '' === $bh['rows'][6]['opens'] && '0' === $bh['rows'][6]['weekday'] && str_starts_with( $bh['open_text'], 'Office Open' ) && str_starts_with( $bh['closed_text'], 'Office Closed' ), 'Business Hours dinámico pasa al estado en vivo con horas de 24 horas.' );
+	$bh = Translator::translate( 'bdt-business-hours', array( 'business_hour_style' => 'dynamic', 'dynamic_timezone' => 'custom', 'custom_timezone_input' => '+5.5', 'show_header' => 'yes', 'dynamic_days_times' => array( array( 'dynamic_enter_day' => 'Friday', 'dynamic_enter_day_level' => 'Vie', 'dynamic_start_time' => '10:30 PM', 'dynamic_end_time' => '02:00 AM' ) ) ) );
+	check_adapter( '5.5' === $bh['timezone'] && 'Vie' === $bh['rows'][0]['day'] && '5' === $bh['rows'][0]['weekday'] && '22:30' === $bh['rows'][0]['opens'] && '02:00' === $bh['rows'][0]['closes'] && 'yes' === $bh['show_clock'] && 'yes' === $bh['show_date'], 'Business Hours conserva zona, etiqueta del día, cierre de madrugada y cabecera.' );
+	check_adapter( '0' === Translator::translate( 'bdt-business-hours', array( 'business_hour_style' => 'dynamic', 'dynamic_timezone' => '-0' ) )['timezone'] && ! isset( Translator::translate( 'bdt-business-hours', array() )['live_status'] ), 'La zona «-0» es UTC y el horario fijo no tiene estado en vivo.' );
 	$ap = Translator::translate( 'bdt-audio-player', array( 'source_type' => 'remote_url', 'remote_url' => array( 'url' => 'https://s.test/a.mp3' ), 'title' => 'Uno' ) );
 	check_adapter( 'https://s.test/a.mp3' === $ap['tracks'][0]['audio_url']['url'] && 'Uno' === $ap['tracks'][0]['title'], 'Audio Player conserva su pista.' );
 

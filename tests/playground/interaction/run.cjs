@@ -85,6 +85,45 @@ const checks = {
     return 'el panel lateral se abre con su botón y se cierra con Escape';
   },
 };
+// El reloj del navegador va 12 horas por delante del servidor: el estado y la hora que pintó el servidor ya no
+// valen y el script del Horario debe recalcularlos en la zona del negocio (UTC en este caso).
+const SHIFT = 12 * 3600 * 1000;
+const prepare = {
+  'bdt-business-hours': (page) => page.evaluateOnNewDocument((shift) => {
+    const Real = Date;
+    function Shifted(...args) { return args.length ? new Real(...args) : new Real(Real.now() + shift); }
+    Shifted.prototype = Real.prototype; Shifted.now = () => Real.now() + shift; Shifted.UTC = Real.UTC; Shifted.parse = Real.parse;
+    window.Date = Shifted;
+  }, SHIFT),
+};
+checks['bdt-toggle'] = async (page) => {
+  const visible = (selector) => page.$eval(selector, (el) => el.getClientRects().length > 0);
+  if (!(await visible('.digi-accordion__closed-label')) || (await visible('.digi-accordion__open-label'))) throw new Error('cerrado debe verse sólo «Ver más»');
+  await page.click('summary.digi-accordion__summary');
+  await page.waitForFunction(() => document.querySelector('details.digi-accordion__item').open, { timeout: 3000 });
+  if ((await visible('.digi-accordion__closed-label')) || !(await visible('.digi-accordion__open-label'))) throw new Error('abierto debe verse sólo «Ver menos»');
+  return 'el toggle cambia a «Ver menos» al abrirse';
+};
+checks['bdt-business-hours'] = async (page) => {
+  const expected = () => {
+    const now = new Date(Date.now() + SHIFT);
+    const h = now.getUTCHours(), m = now.getUTCMinutes(), total = h * 60 + m;
+    return { state: total >= 540 && total < 1020 ? 'open' : 'closed', clock: `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}` };
+  };
+  const before = expected();
+  const got = await page.$eval('.digi-hours', (root) => ({
+    state: root.querySelector('.digi-hours__status').dataset.state,
+    text: root.querySelector('.digi-hours__status').textContent.trim(),
+    alt: root.querySelector('template.digi-hours__alt').content.textContent.trim(),
+    clock: root.querySelector('.digi-hours__clock').textContent.trim(),
+    format: root.dataset.timeFormat,
+  }));
+  const after = expected();
+  if (got.state !== after.state && got.state !== before.state) throw new Error(`estado ${got.state}, se esperaba ${after.state}`);
+  if (got.text !== (got.state === 'open' ? 'Abierto ahora' : 'Cerrado ahora') || got.alt !== (got.state === 'open' ? 'Cerrado ahora' : 'Abierto ahora')) throw new Error(`mensajes intercambiados mal: «${got.text}» / «${got.alt}»`);
+  if (got.format === 'g:i a' && got.clock !== before.clock && got.clock !== after.clock) throw new Error(`hora ${got.clock}, se esperaba ${after.clock}`);
+  return `el horario recalcula en el navegador el estado (${got.state === 'open' ? 'abierto' : 'cerrado'}) y la hora (${got.clock})`;
+};
 checks['bdt-logo-carousel'] = async (page) => (await checks['bdt-static-carousel'](page)).replace('deslizador propio', 'carrusel de logos');
 checks['bdt-slider'] = async (page) => (await checks['bdt-custom-carousel'](page)).replace('carrusel de medios', 'deslizador de diapositivas');
 (async () => {
@@ -99,6 +138,7 @@ checks['bdt-slider'] = async (page) => (await checks['bdt-custom-carousel'](page
     page.on('pageerror', (e) => errors.push(String(e.message || e)));
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('response', (r) => { if (r.status() >= 400 && r.url().startsWith(base)) failedRequests.push(`${r.status()} ${r.url()}`); });
+    if (prepare[widget]) await prepare[widget](page);
     const url = `${base}/digi-ix-${widget}/`;
     try {
       const response = await page.goto(url, { waitUntil: 'networkidle0', timeout: 90000 });
