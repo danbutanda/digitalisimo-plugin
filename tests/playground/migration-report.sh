@@ -9,6 +9,10 @@ cp "$ROOT/tests/playground/migration-report/probe.php" "$OUT/probe.php"
 cat > "$OUT/blueprint.json" <<'JSON'
 {"steps":[{"step":"enableMultisite"},{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":true}},{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe.php';"}]}
 JSON
+# CORE=bundled no instala el plugin Elementor: corre sobre el núcleo incluido en DIGITALÍSIMO Elements.
+if [ "${CORE:-}" = "bundled" ]; then
+  sed -i 's#{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":[a-z]*}},##' "$OUT/blueprint.json"
+fi
 $CLI run-blueprint --site-url=http://playground.test --blueprint="$OUT/blueprint.json" \
   --mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" \
   --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \

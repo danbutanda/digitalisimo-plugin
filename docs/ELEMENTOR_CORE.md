@@ -37,5 +37,7 @@ Elementor publica versiones con frecuencia, a veces con correcciones de segurida
 3. Valida:
    - `bash tests/playground/core-switch.sh`: las mismas páginas con el plugin Elementor y con el núcleo incluido en una red, tras borrar Elementor.
    - `CORE=bundled bash tests/playground/interaction.sh`: widgets en Chrome y el editor de Elementor sobre el núcleo incluido.
+   - `CORE=bundled FAKE_PLUGINS=1 EXTRA_PLUGINS=woocommerce,secure-custom-fields bash tests/playground/legacy-ab.sh` (y bbPress aparte): la migración desde Element Pack completa sobre el núcleo incluido.
+   - `CORE=bundled bash tests/playground/form-submit.sh` y `CORE=bundled bash tests/playground/migration-report.sh`.
    - Las pruebas habituales de la publicación.
 4. Publica DIGITALÍSIMO Elements como cualquier otra versión.

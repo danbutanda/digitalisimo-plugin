@@ -2,8 +2,14 @@
 /** Prepara la red de Playground: plugins activos en red, subsitio y extensiones de Element Pack. */
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
+// Con CORE=bundled el plugin Elementor no está instalado: DIGITALÍSIMO Elements trae su núcleo.
 foreach ( array( 'elementor/elementor.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-migration/digitalisimo-migration.php', 'bdthemes-element-pack/bdthemes-element-pack.php' ) as $plugin ) {
-	activate_plugin( $plugin, '', true );
+	if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin ) ) {
+		$activated = activate_plugin( $plugin, '', true );
+		if ( is_wp_error( $activated ) ) {
+			file_put_contents( '/wordpress/wp-content/digi-ab/setup-error.txt', $plugin . ': ' . $activated->get_error_message() . "\n", FILE_APPEND );
+		}
+	}
 }
 // Plugins reales instalados con EXTRA_PLUGINS.
 foreach ( array_filter( explode( ',', (string) getenv( 'DIGI_EXTRA' ) ) ) as $slug ) {

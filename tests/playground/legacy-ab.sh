@@ -8,9 +8,13 @@ OUT="${OUT:-/tmp/digi-legacy-ab}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 ONLY="${1:-}"
 mkdir -p "$OUT"
-rm -f "$OUT"/phase*.json
+rm -f "$OUT"/phase*.json "$OUT/setup-error.txt"
 BLUEPRINT="$OUT/blueprint.json"
 # EXTRA_PLUGINS=bbpress,otro instala plugins reales de wordpress.org y los activa en la red. BLOG=1|2 limita las fases a un sitio.
+# CORE=bundled no instala el plugin Elementor: todo (Element Pack incluido en la fase A) corre sobre el núcleo de Elementor
+# incluido en DIGITALÍSIMO Elements, el escenario final de un sitio que ya retiró Elementor.
+ELEMENTOR_STEP='{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":false}},'
+[ "${CORE:-}" = "bundled" ] && ELEMENTOR_STEP=''
 EXTRA_STEPS=""
 EXTRA="${EXTRA_PLUGINS:-}"
 for slug in ${EXTRA//,/ }; do
@@ -18,7 +22,7 @@ for slug in ${EXTRA//,/ }; do
 done
 cat > "$BLUEPRINT" <<JSON
 {"steps":[{"step":"enableMultisite"},
-{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":false}},
+$ELEMENTOR_STEP
 $EXTRA_STEPS
 {"step":"runPHP","code":"<?php putenv('DIGI_EXTRA=${EXTRA_PLUGINS:-}'); require '/wordpress/wp-content/digi-tests/legacy-setup.php';"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/digi-tests/legacy-content.php';"},
@@ -45,4 +49,5 @@ $CLI run-blueprint --site-url=http://playground.test --blueprint="$BLUEPRINT" "$
   --mount="$ROOT/tests/playground:/wordpress/wp-content/digi-tests" \
   --mount="$ROOT/tests/legacy:/wordpress/wp-content/digi-legacy-fixtures" \
   --mount="$OUT:/wordpress/wp-content/digi-ab" > "$OUT/playground.log" 2>&1 || { tail -20 "$OUT/playground.log"; exit 1; }
+[ -f "$OUT/setup-error.txt" ] && { echo "Preparación incompleta:"; cat "$OUT/setup-error.txt"; exit 1; }
 node "$ROOT/tests/playground/legacy-compare.mjs" "$OUT/phaseA.json" "$OUT/phaseB.json" "$OUT/phaseC.json" "$OUT/phaseD.json" "$OUT/phaseE.json"
