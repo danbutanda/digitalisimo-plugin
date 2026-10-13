@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.140
+# DIGITALÍSIMO Elements 4.3.0.141
+
+- 4.3.0.141: identidad propia del constructor. Con el núcleo incluido, ninguna pantalla muestra el nombre ni el logotipo de Elementor: menú, editor, biblioteca de plantillas, kits, panel del escritorio, avisos, barra de administración y botones «Editar con DIGITALÍSIMO Elements» llevan la marca y el símbolo de DIGITALÍSIMO, en cualquier idioma. Se retiran la meta generator del HTML público, las novedades y anuncios remotos, las noticias del blog del proveedor, su pantalla de inicio promocional, el asistente de bienvenida y las invitaciones a valorarlo o mejorar de plan; el inicio rápido conserva sus accesos. Los identificadores internos no cambian, así que el contenido, los kits, las plantillas y los complementos siguen funcionando igual. Si el plugin Elementor está activo, manda su propia marca.
 
 - 4.3.0.140: el núcleo de Elementor incluido pasa a 4.3.5 (copia sin cambios de wordpress.org, comprobada con sus sumas SHA-256, con las traducciones en español al día). Esa versión corrige fallos de seguridad en el manejo de CSS, SVG e identificadores de elementos, la edición de páginas con «Internal CSS Embedding» activo y la apertura del Theme Builder desde «Editar con Elementor» en la página.
 

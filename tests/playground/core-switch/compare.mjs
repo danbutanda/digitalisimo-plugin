@@ -18,7 +18,8 @@ for (const [phase, data] of [['elementor', a], ['bundled', b]]) {
   expect(data.checks.js_text === 'ok', `${phase}: los scripts de Elementor deben encontrar su traducción`);
   expect(data.checks.kit_1 && data.checks.kit_2, `${phase}: cada sitio debe tener su kit`);
 }
-expect(a.checks.php_text !== 'Edit with Elementor' && b.checks.php_text === a.checks.php_text, `el español debe seguir tras borrar Elementor: «${a.checks.php_text}» / «${b.checks.php_text}»`);
+// Con el núcleo incluido, el texto sigue en español y lleva la marca propia (con el plugin Elementor, la suya).
+expect(a.checks.php_text !== 'Edit with Elementor' && b.checks.php_text === a.checks.php_text.replace(/\bElementor\b/g, 'DIGITALÍSIMO Elements') && !/Elementor\b/.test(b.checks.php_text), `el español debe seguir tras borrar Elementor, con la marca propia: «${a.checks.php_text}» / «${b.checks.php_text}»`);
 expect(Array.isArray(b.checks.rollback) && b.checks.rollback.length === 0, 'la reversión de versiones de Elementor debe quedar vacía con el núcleo incluido');
 expect(b.checks.kit_new_site === true, 'un sitio nuevo de la red debe recibir su kit');
 // La imagen de ejemplo se guardó con la ruta del plugin Elementor; con el núcleo incluido debe apuntar a su carpeta.

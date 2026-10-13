@@ -179,7 +179,7 @@ final class Digitalisimo_Elements_Core {
 	}
 
 	public static function block_rollback() {
-		wp_die( esc_html( sprintf( 'La versión de Elementor (%s) viene incluida en DIGITALÍSIMO Elements y cambia con cada actualización de este plugin.', self::version() ) ), '', array( 'back_link' => true ) );
+		wp_die( esc_html( sprintf( 'La versión del constructor (%s) viene incluida en DIGITALÍSIMO Elements y cambia con cada actualización de este plugin.', self::version() ) ), '', array( 'back_link' => true ) );
 	}
 
 	public static function no_beta() {
@@ -218,6 +218,6 @@ final class Digitalisimo_Elements_Core {
 		if ( self::bundled() || ! $screen || ! in_array( $screen->id, array( 'plugins', 'plugins-network' ), true ) || ! current_user_can( 'activate_plugins' ) || ! self::version() ) {
 			return;
 		}
-		echo '<div class="notice notice-info"><p>' . esc_html( sprintf( 'DIGITALÍSIMO Elements incluye Elementor %s. Puedes desactivar el plugin Elementor (y después borrarlo): tus páginas, plantillas y ajustes siguen igual.', self::version() ) ) . '</p></div>';
+		echo '<div class="notice notice-info"><p>' . esc_html( sprintf( 'DIGITALÍSIMO Elements ya incluye su propio constructor (versión %s). Puedes desactivar el plugin Elementor (y después borrarlo): tus páginas, plantillas, kits y ajustes siguen igual.', self::version() ) ) . '</p></div>';
 	}
 }

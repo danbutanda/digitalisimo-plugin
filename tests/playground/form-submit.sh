@@ -2,6 +2,8 @@
 # Envío de Contact Form, Webhook Form y Mailchimp heredados por el AJAX de PRO Elements (Playground Multisite, sin Element Pack).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+. "$ROOT/tests/playground/playground-cleanup.sh"
+trap playground_cleanup EXIT
 OUT="${OUT:-/tmp/digi-form-submit}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 mkdir -p "$OUT" && rm -f "$OUT/result.json"

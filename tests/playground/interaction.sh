@@ -10,6 +10,7 @@
 # activa con él, y además se abre el editor de Elementor como administrador (sin errores ni recursos 404).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+. "$ROOT/tests/playground/playground-cleanup.sh"
 OUT="${OUT:-/tmp/digi-interaction}"
 PORT="${PORT:-9431}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
@@ -34,7 +35,7 @@ $CLI server --port="$PORT" --site-url="http://127.0.0.1:$PORT" --blueprint="$OUT
   --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/server.log" 2>&1 &
 SERVER=$!
 stop_server() { kill $SERVER 2>/dev/null || true; for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done; }
-trap stop_server EXIT
+trap 'stop_server; playground_cleanup' EXIT
 for i in $(seq 1 200); do
   sleep 3
   if ! kill -0 $SERVER 2>/dev/null; then tail -20 "$OUT/server.log"; exit 1; fi

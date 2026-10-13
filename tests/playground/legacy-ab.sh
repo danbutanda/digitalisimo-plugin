@@ -4,6 +4,7 @@
 # Uso: bash tests/playground/legacy-ab.sh [bdt-accordion,bdt-otro]   → resultados en $OUT (por defecto /tmp/digi-legacy-ab)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+. "$ROOT/tests/playground/playground-cleanup.sh"
 OUT="${OUT:-/tmp/digi-legacy-ab}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 ONLY="${1:-}"
@@ -11,7 +12,7 @@ mkdir -p "$OUT"
 rm -f "$OUT"/phase*.json "$OUT/setup-error.txt"
 # Element Pack copia sus máscaras (shape-N) y separadores (ep-*) dentro de la carpeta de Elementor; con CORE=bundled
 # esa carpeta es la del repositorio. Se borran al terminar (sólo esos nombres y sólo si git no los versiona).
-trap 'git -C "$ROOT" clean -fq -- "digitalisimo-elements/elementor/assets/mask-shapes/shape-*.svg" "digitalisimo-elements/elementor/assets/shapes/ep-*.svg" >/dev/null 2>&1 || true' EXIT
+trap 'git -C "$ROOT" clean -fq -- "digitalisimo-elements/elementor/assets/mask-shapes/shape-*.svg" "digitalisimo-elements/elementor/assets/shapes/ep-*.svg" >/dev/null 2>&1 || true; playground_cleanup' EXIT
 BLUEPRINT="$OUT/blueprint.json"
 # EXTRA_PLUGINS=bbpress,otro instala plugins reales de wordpress.org y los activa en la red. BLOG=1|2 limita las fases a un sitio.
 # CORE=bundled no instala el plugin Elementor: todo (Element Pack incluido en la fase A) corre sobre el núcleo de Elementor

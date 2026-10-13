@@ -1,0 +1,63 @@
+/* Identidad DIGITALÍSIMO del constructor (núcleo incluido): el símbolo propio en lugar del logotipo del núcleo. */
+
+/* Glifo del logotipo en la fuente de iconos del núcleo: botones «Editar con…», avisos, cabeceras y aplicaciones. */
+.eicon-elementor::before,
+.eicon-elementor-circle::before,
+.eicon-elementor-square::before {
+	content: "" !important;
+	display: inline-block;
+	width: 1em;
+	height: 1em;
+	vertical-align: -0.125em;
+	background: url("icono.png") center / contain no-repeat;
+}
+
+/* Las cabeceras pintan el glifo blanco sobre un círculo oscuro: el símbolo propio va sin fondo. */
+.e-logo-wrapper {
+	background: none !important;
+}
+
+/* Icono del menú de administración. */
+#adminmenu .toplevel_page_elementor .wp-menu-image::before,
+#adminmenu .toplevel_page_elementor-home .wp-menu-image::before {
+	content: "" !important;
+	/* El núcleo recorta el pseudo-elemento con la silueta de su logotipo. */
+	-webkit-mask-image: none !important;
+	mask-image: none !important;
+	background-color: transparent !important;
+	display: block;
+	width: 20px;
+	height: 20px;
+	margin: 7px auto 0;
+	padding: 0;
+	background: url("icono.png") center / contain no-repeat;
+}
+
+/* Pantalla de carga del editor y de la biblioteca: el símbolo propio en lugar de las barras del logotipo. */
+.elementor-loader-boxes {
+	display: none !important;
+}
+.elementor-loader {
+	background: #fff url("icono.png") center / 56% no-repeat !important;
+}
+
+/* Logotipo SVG de las barras superiores: administración (Editor One) y editor. */
+#editor-one-top-bar .MuiToolbar-root > .MuiStack-root:first-child > .MuiStack-root:first-child > svg:first-child,
+#elementor-editor-wrapper-v2 header .MuiGrid-container > .MuiStack-root:first-child > button:first-child > svg {
+	background: url("icono.png") center / contain no-repeat;
+}
+#editor-one-top-bar .MuiToolbar-root > .MuiStack-root:first-child > .MuiStack-root:first-child > svg:first-child > *,
+#elementor-editor-wrapper-v2 header .MuiGrid-container > .MuiStack-root:first-child > button:first-child > svg > * {
+	display: none;
+}
+
+/* Inicio rápido: el núcleo pinta siempre un vídeo de YouTube y su botón «ver guía»; sin datos quedan vacíos. */
+#e-home-screen .MuiPaper-root:has(iframe[src*="youtube"]) > .MuiBox-root:has(iframe),
+#e-home-screen .MuiPaper-root:has(iframe[src*="youtube"]) button.MuiButton-outlined {
+	display: none !important;
+}
+
+/* Panel del escritorio: el pie sólo enlaza al blog, la ayuda, la IA y los planes del proveedor. */
+.e-dashboard-overview .e-overview__footer {
+	display: none !important;
+}

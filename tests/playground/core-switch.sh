@@ -6,6 +6,8 @@
 # Uso: bash tests/playground/core-switch.sh   → resultados en $OUT (por defecto /tmp/digi-core-switch)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+. "$ROOT/tests/playground/playground-cleanup.sh"
+trap playground_cleanup EXIT
 OUT="${OUT:-/tmp/digi-core-switch}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 mkdir -p "$OUT" && rm -f "$OUT"/*.json

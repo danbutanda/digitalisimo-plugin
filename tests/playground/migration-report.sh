@@ -2,6 +2,8 @@
 # Informe de Element Pack en la red y en el sitio (Playground Multisite). Uso: bash tests/playground/migration-report.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+. "$ROOT/tests/playground/playground-cleanup.sh"
+trap playground_cleanup EXIT
 OUT="${OUT:-/tmp/digi-migration-report}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 mkdir -p "$OUT" && rm -f "$OUT/result.txt"

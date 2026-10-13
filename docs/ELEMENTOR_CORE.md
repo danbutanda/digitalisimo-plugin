@@ -19,7 +19,14 @@ Desde 4.3.0.138, DIGITALÍSIMO Elements trae el núcleo gratuito de Elementor de
 - **Complementos de terceros:** los que declaran `Requires Plugins: elementor` quedan satisfechos con DIGITALÍSIMO Elements. DIGITALÍSIMO Migración declara `Requires Plugins: digitalisimo-elements`.
 - **Versión fija:** la herramienta de reversión de versiones y el canal beta de Elementor quedan desactivados, porque actualizarían la carpeta del plugin entero. La versión del núcleo la decide cada publicación de DIGITALÍSIMO Elements.
 - **Figuras propias del sitio:** los SVG guardados en `uploads/digitalisimo-elements/shapes/` de cada sitio aparecen en el separador de forma como `digi-<nombre>` (con su versión negativa si existe `<nombre>-negative.svg`). Viven en los archivos del sitio y no en la carpeta del plugin, así que una actualización no los borra. DIGITALÍSIMO Migración deja ahí los separadores de Element Pack al convertir.
-- **Interfaz:** el editor y la administración siguen mostrando «Elementor». Los identificadores internos (clases, ganchos, metadatos) no pueden cambiar sin romper el contenido y los complementos.
+- **Identidad propia:** con el núcleo incluido, nadie ve el nombre ni el logotipo de Elementor; el constructor se presenta como DIGITALÍSIMO Elements. Lo hace `digitalisimo-identity.php` en tiempo de ejecución, sin editar el núcleo:
+  - **Textos:** los de PHP pasan por los filtros `gettext` y los de JavaScript por los filtros `i18n.*` de `wp.hooks`, en cualquier idioma y sólo para los dominios `elementor` y `elementor-pro`. «Elementor», «Elementor Pro» y «Elementor One» pasan a «DIGITALÍSIMO Elements». La IA del editor, un servicio externo con su propia cuenta, se llama sólo «IA».
+  - **Logotipos:** `assets/digitalisimo/identity.css` pone el símbolo propio en el menú, las barras superiores de la administración y del editor, la pantalla de carga, la biblioteca de plantillas, la app de kits, los avisos y los botones «Editar con DIGITALÍSIMO Elements».
+  - **Contenido remoto y promocional:** se retiran la meta `generator`, las novedades y anuncios remotos, las noticias del blog en el panel del escritorio, la pantalla «Home» (su dirección lleva al inicio rápido) y el asistente de bienvenida. Del inicio rápido salen el vídeo, la valoración, las mejoras de plan y los enlaces a la comunidad. Los accesos a ajustes del sitio, logotipo, colores y fuentes se conservan.
+  - **Lo que no cambia:** los identificadores internos (clases CSS, ganchos, metadatos, rutas como `?action=elementor`, tipos de contenido) y los registros técnicos de «Información del sistema». De ellos dependen el contenido, los kits, las plantillas y los complementos de terceros. Las descripciones de herramientas que el MCP entrega a los agentes de IA tampoco cambian.
+  - **Integración que se mantiene:** la biblioteca de kits y de plantillas, la conexión de cuenta y la IA del editor siguen funcionando con los servicios del proveedor; sus propias páginas (inicio de sesión, cuenta) son externas.
+  - **Plugin Elementor activo:** si está activo, manda el plugin con su propia marca y la identidad no se aplica.
+  - **Créditos:** se conservan en los archivos (`license.txt`, cabeceras GPL del núcleo, [third-party-licenses.md](third-party-licenses.md)), no en la interfaz.
 
 ## Pasar un sitio o una red al núcleo incluido
 
@@ -38,7 +45,8 @@ Elementor publica versiones con frecuencia, a veces con correcciones de segurida
 2. Sincroniza: `bash scripts/sync-elementor-core.sh X.Y.Z`. Comprueba las sumas, copia el núcleo y sus traducciones en español y actualiza el manifiesto. Nunca se editan a mano los archivos de `elementor/`.
 3. Valida:
    - `bash tests/playground/core-switch.sh`: las mismas páginas con el plugin Elementor y con el núcleo incluido en una red, tras borrar Elementor.
-   - `CORE=bundled bash tests/playground/interaction.sh`: widgets en Chrome y el editor de Elementor sobre el núcleo incluido.
+   - `CORE=bundled bash tests/playground/interaction.sh`: widgets en Chrome y el editor sobre el núcleo incluido.
+   - `bash tests/playground/brand-audit.sh`: recorre en Chrome, en español y en inglés, la administración, el editor, la biblioteca, los kits y el frontal; falla si se ve «Elementor» o su logotipo. Una versión nueva del núcleo puede traer pantallas o textos fijos nuevos.
    - `CORE=bundled FAKE_PLUGINS=1 EXTRA_PLUGINS=woocommerce,secure-custom-fields bash tests/playground/legacy-ab.sh` (y bbPress aparte): la migración desde Element Pack completa sobre el núcleo incluido.
    - `CORE=bundled bash tests/playground/form-submit.sh` y `CORE=bundled bash tests/playground/migration-report.sh`.
    - Las pruebas habituales de la publicación.

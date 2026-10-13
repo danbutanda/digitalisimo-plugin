@@ -1,5 +1,5 @@
 <?php
-/** Identidad visual de este derivado; no modifica las marcas del editor Elementor. */
+/** Página «Acerca de» y menú propios; la marca del constructor la aplica Digitalisimo_Elements_Identity. */
 defined( 'ABSPATH' ) || exit;
 
 final class Digitalisimo_Elements_Brand {
@@ -27,9 +27,25 @@ final class Digitalisimo_Elements_Brand {
 	public static function menu() {
 		if ( self::has_parent( 'digitalisimo' ) ) {
 			add_submenu_page( 'digitalisimo', 'DIGITALÍSIMO Elements', 'Elements', 'manage_options', self::PAGE, array( __CLASS__, 'page' ) );
+		} elseif ( self::builder_menu() ) {
+			// Con el núcleo incluido, el menú del constructor ya se llama DIGITALÍSIMO Elements: la página va dentro.
+			add_submenu_page( self::builder_menu(), 'DIGITALÍSIMO Elements', 'Acerca de', 'manage_options', self::PAGE, array( __CLASS__, 'page' ) );
 		} else {
 			add_menu_page( 'DIGITALÍSIMO Elements', 'DIGITALÍSIMO Elements', 'manage_options', self::PAGE, array( __CLASS__, 'page' ), plugins_url( 'assets/digitalisimo/icono.png', __FILE__ ), 56 );
 		}
+	}
+
+	/** Menú del constructor cuando lleva la identidad propia (núcleo incluido), o '' si no. */
+	private static function builder_menu() {
+		if ( ! class_exists( 'Digitalisimo_Elements_Core' ) || ! Digitalisimo_Elements_Core::bundled() ) {
+			return '';
+		}
+		foreach ( array( 'elementor-home', 'elementor' ) as $slug ) {
+			if ( self::has_parent( $slug ) ) {
+				return $slug;
+			}
+		}
+		return '';
 	}
 
 	public static function network_menu() {
@@ -52,10 +68,10 @@ final class Digitalisimo_Elements_Brand {
 		$logo = plugins_url( 'assets/digitalisimo/logo-blanco.webp', __FILE__ );
 		$icon = plugins_url( 'assets/digitalisimo/icono.png', __FILE__ );
 		echo '<div class="wrap digitalisimo-elements-about"><style>.digitalisimo-elements-about .digi-banner{background:#171b2e;border-radius:16px;color:#fff;padding:26px 30px;max-width:900px}.digitalisimo-elements-about .digi-banner img{display:block;max-width:320px;width:100%;height:auto}.digitalisimo-elements-about .digi-card{max-width:900px;background:#fff;border:1px solid #dce1ea;border-radius:12px;padding:24px 30px;margin-top:20px}.digitalisimo-elements-about .digi-icon{width:48px;height:48px;vertical-align:middle;margin-right:10px}.digitalisimo-elements-about p{font-size:14px;line-height:1.6}</style>';
-		echo '<div class="digi-banner"><img src="' . esc_url( $logo ) . '" width="320" height="55" alt="DIGITALÍSIMO"><h1 style="color:#fff">Elements</h1><p>Constructor visual completo: Elementor y sus funciones avanzadas en un solo plugin.</p></div>';
+		echo '<div class="digi-banner"><img src="' . esc_url( $logo ) . '" width="320" height="55" alt="DIGITALÍSIMO"><h1 style="color:#fff">Elements</h1><p>Constructor visual completo: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin.</p></div>';
 		echo '<div class="digi-card"><h2><img class="digi-icon" src="' . esc_url( $icon ) . '" width="48" height="48" alt="">DIGITALÍSIMO Elements ' . esc_html( DIGITALISIMO_ELEMENTS_VERSION ) . '</h2>';
-		echo '<p>Incluye Elementor' . ( class_exists( 'Digitalisimo_Elements_Core' ) ? ' ' . esc_html( Digitalisimo_Elements_Core::version() ) : '' ) . ' (núcleo gratuito, GPLv3, © Elementor Ltd.) sin modificar, y funciones avanzadas derivadas de PRO Elements 4.3.0, a su vez derivado del código GPLv3 de Elementor Pro. Conserva los créditos y las licencias originales. DIGITALÍSIMO no está afiliado con Elementor Ltd. ni con el equipo de PRO Elements.</p>';
-		echo '<p>No necesita el plugin Elementor: si está activo, éste manda y el núcleo incluido no se carga. No se carga junto con Elementor Pro ni con otra copia de PRO Elements. Las funciones conectadas a servicios externos pueden requerir cuentas o permisos del proveedor.</p>';
-		echo '<p><a href="' . esc_url( 'https://github.com/danbutanda/digitalisimo-plugin' ) . '" target="_blank" rel="noopener noreferrer">Código y actualizaciones</a> · <a href="' . esc_url( 'https://github.com/proelements/proelements/releases/tag/v4.3.0' ) . '" target="_blank" rel="noopener noreferrer">Proyecto de origen</a></p></div></div>';
+		echo '<p>Abre cualquier página con «Editar con DIGITALÍSIMO Elements». Funciona con el contenido, los kits, las plantillas y los complementos ya creados para el constructor, y no necesita ningún otro plugin.</p>';
+		echo '<p>Se basa en software libre bajo GPLv3 de terceros, distribuido sin modificar; los créditos y las licencias originales están en <code>license.txt</code> y en la documentación del proyecto. Los servicios en la nube del constructor (biblioteca de kits, IA) pueden requerir una cuenta del proveedor.</p>';
+		echo '<p><a href="' . esc_url( 'https://github.com/danbutanda/digitalisimo-plugin' ) . '" target="_blank" rel="noopener noreferrer">Código y actualizaciones</a></p></div></div>';
 	}
 }

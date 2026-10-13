@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name: DIGITALÍSIMO Elements
- * Description: Constructor visual completo: incluye Elementor (núcleo gratuito) y sus funciones avanzadas, derivadas de PRO Elements 4.3.0, más los widgets DIGITALÍSIMO. No necesita el plugin Elementor; si está activo, éste manda.
+ * Description: Constructor visual completo de DIGITALÍSIMO: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin, compatible con el contenido, los kits y los complementos ya creados para el constructor.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.140
+ * Version: 4.3.0.141
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.140' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.141' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 // Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
 require_once __DIR__ . '/digitalisimo-core.php';
@@ -28,10 +28,12 @@ add_action( 'network_admin_notices', array( 'Digitalisimo_Elements_Core', 'exter
 require_once __DIR__ . '/digitalisimo-compat.php';
 require_once __DIR__ . '/digitalisimo-updater.php';
 require_once __DIR__ . '/digitalisimo-brand.php';
+require_once __DIR__ . '/digitalisimo-identity.php';
 require_once __DIR__ . '/digitalisimo-duplicator.php';
 require_once __DIR__ . '/modules/digitalisimo-widgets/class-google-reviews-service.php';
 Digitalisimo_Elements_Updater::init();
 Digitalisimo_Elements_Brand::init();
+Digitalisimo_Elements_Identity::init();
 Digitalisimo_Elements_Duplicator::init();
 \Digitalisimo\Elements\Google_Reviews_Service::init();
 

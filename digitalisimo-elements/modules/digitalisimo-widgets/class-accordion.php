@@ -22,12 +22,12 @@ class Accordion_Widget extends \Elementor\Widget_Base {
 		$repeater = new \Elementor\Repeater();
 		$repeater->add_control( 'tab_title', array( 'label' => 'Título', 'type' => $c::TEXT, 'default' => 'Título', 'dynamic' => array( 'active' => true ) ) );
 		$repeater->add_control( 'tab_title_open', array( 'label' => 'Título al abrirse', 'type' => $c::TEXT, 'description' => 'Opcional: sustituye al título mientras el elemento está abierto (por ejemplo, «Ver menos»).' ) );
-		$sources = array( 'custom' => 'Contenido personalizado', 'elementor' => 'Plantilla Elementor' );
-		if ( function_exists( 'post_type_exists' ) && post_type_exists( 'ae_global_templates' ) ) { $sources['anywhere'] = 'Plantilla Anywhere Elementor'; }
+		$sources = array( 'custom' => 'Contenido personalizado', 'elementor' => 'Plantilla guardada' );
+		if ( function_exists( 'post_type_exists' ) && post_type_exists( 'ae_global_templates' ) ) { $sources['anywhere'] = 'Plantilla de AnyWhere'; }
 		$repeater->add_control( 'source', array( 'label' => 'Fuente', 'type' => $c::SELECT, 'default' => 'custom', 'options' => $sources ) );
 		$repeater->add_control( 'tab_content', array( 'label' => 'Contenido', 'type' => $c::WYSIWYG, 'default' => 'Contenido del elemento.', 'dynamic' => array( 'active' => true ), 'condition' => array( 'source' => 'custom' ) ) );
-		$repeater->add_control( 'template_id', array( 'label' => 'Plantilla Elementor', 'type' => $c::SELECT2, 'options' => self::template_options( 'elementor_library' ), 'condition' => array( 'source' => 'elementor' ), 'label_block' => true ) );
-		$repeater->add_control( 'anywhere_id', array( 'label' => 'Plantilla Anywhere Elementor', 'type' => $c::SELECT2, 'options' => self::template_options( 'ae_global_templates' ), 'condition' => array( 'source' => 'anywhere' ), 'label_block' => true ) );
+		$repeater->add_control( 'template_id', array( 'label' => 'Plantilla guardada', 'type' => $c::SELECT2, 'options' => self::template_options( 'elementor_library' ), 'condition' => array( 'source' => 'elementor' ), 'label_block' => true ) );
+		$repeater->add_control( 'anywhere_id', array( 'label' => 'Plantilla de AnyWhere', 'type' => $c::SELECT2, 'options' => self::template_options( 'ae_global_templates' ), 'condition' => array( 'source' => 'anywhere' ), 'label_block' => true ) );
 		$repeater->add_control( 'repeater_icon', array( 'label' => 'Icono del título', 'type' => $c::ICONS ) );
 		$this->add_control( 'tabs', array( 'label' => 'Elementos', 'type' => $c::REPEATER, 'fields' => $repeater->get_controls(), 'default' => array( array( 'tab_title' => 'Primer elemento', 'tab_content' => 'Contenido del primer elemento.' ), array( 'tab_title' => 'Segundo elemento', 'tab_content' => 'Contenido del segundo elemento.' ) ), 'title_field' => '{{{ tab_title }}}' ) );
 		$this->add_control( 'active_item', array( 'label' => 'Abrir inicialmente', 'type' => $c::NUMBER, 'default' => 1, 'min' => 0, 'max' => 100, 'description' => '0 deja todos cerrados.' ) );

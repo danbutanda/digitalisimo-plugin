@@ -68,5 +68,5 @@ $offer = Digitalisimo_Elements_Updater::uri_update( false, array(), $file, array
 $assert( '4.3.0.9' === $offer['version'] && true === $offer['autoupdate'], 'Update URI debe entregar el paquete propio con actualización automática.' );
 $assert( false === Digitalisimo_Elements_Updater::uri_update( false, array(), 'otro/plugin.php', array() ), 'No debe modificar otros plugins.' );
 ob_start(); Digitalisimo_Elements_Brand::page(); $html = ob_get_clean();
-$assert( false !== strpos( $html, 'logo-blanco.webp' ) && false !== strpos( $html, 'icono.png' ) && false !== strpos( $html, 'PRO Elements 4.3.0' ), 'La página debe mostrar ambos logos y atribución.' );
+$assert( false !== strpos( $html, 'logo-blanco.webp' ) && false !== strpos( $html, 'icono.png' ) && false !== strpos( $html, 'license.txt' ) && false !== strpos( $html, 'GPLv3' ) && false === stripos( $html, 'elementor' ), 'La página debe mostrar ambos logos y remitir a los créditos sin la marca del núcleo.' );
 echo "DIGITALÍSIMO Elements: actualización, contexto y atribución correctos.\n";
