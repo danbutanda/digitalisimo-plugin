@@ -1,8 +1,8 @@
 {
   "name": "Elementor",
-  "version": "4.3.4",
-  "source": "https://downloads.wordpress.org/plugin/elementor.4.3.4.zip",
-  "sha256": "1b67ddd3acca7b245ac0b7e42e4f8ef958e01602d629e8919874b90607cdc12e",
+  "version": "4.3.5",
+  "source": "https://downloads.wordpress.org/plugin/elementor.4.3.5.zip",
+  "sha256": "8f025581b9e425dbe0a64adbcaae955d90b23bbfc8584d90495df4fc75eae239",
   "license": "GPL-3.0-or-later",
   "translations": [
     "es_AR",
@@ -20,7 +20,7 @@
     "es_UY",
     "es_VE"
   ],
-  "synced": "2026-10-12",
+  "synced": "2026-10-13",
   "files": 4867,
-  "tree_sha256": "6ac4b1b5cb6bf38f1cf9ccb8d5a31a7e26e69d97fc7cbda1fdf351006ad06d91"
+  "tree_sha256": "d180bf65b1736768efdb69804e884a5bbf607ae4346a28bfa7e3c5a238d21863"
 }

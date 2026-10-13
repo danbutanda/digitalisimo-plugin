@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.139
+# DIGITALÍSIMO Elements 4.3.0.140
+
+- 4.3.0.140: el núcleo de Elementor incluido pasa a 4.3.5 (copia sin cambios de wordpress.org, comprobada con sus sumas SHA-256, con las traducciones en español al día). Esa versión corrige fallos de seguridad en el manejo de CSS, SVG e identificadores de elementos, la edición de páginas con «Internal CSS Embedding» activo y la apertura del Theme Builder desde «Editar con Elementor» en la página.
 
 - 4.3.0.139: separadores de forma propios de cada sitio: los SVG de `uploads/digitalisimo-elements/shapes/` aparecen en el separador de secciones y contenedores (con su versión negativa si existe), fuera de la carpeta del plugin para que las actualizaciones no los borren. El paquete comprueba que la carpeta del núcleo de Elementor incluido coincide archivo por archivo con su manifiesto: otros plugins escriben en la carpeta de Elementor y nada ajeno debe viajar en el ZIP.
 
