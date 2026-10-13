@@ -5,6 +5,7 @@ defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/class-translator.php';
 require_once __DIR__ . '/class-acf.php';
+require_once __DIR__ . '/class-masks.php';
 
 /**
  * Registra un ID `bdt-*` sobre el widget propio equivalente. Al construir cada elemento traduce sus
@@ -14,6 +15,8 @@ require_once __DIR__ . '/class-acf.php';
 trait Legacy_Adapter {
 	public function __construct( $data = array(), $args = null ) {
 		if ( is_array( $data ) && ! empty( $data['id'] ) ) {
+			// La máscara de imagen se pinta con los ajustes originales: la traducción puede descartarlos.
+			Masks::remember( $data['id'], is_array( $data['settings'] ?? null ) ? $data['settings'] : array() );
 			$data['settings'] = Translator::translate( static::LEGACY_ID, is_array( $data['settings'] ?? null ) ? $data['settings'] : array() );
 		}
 		if ( method_exists( (string) get_parent_class( $this ), '__construct' ) ) {

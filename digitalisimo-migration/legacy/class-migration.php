@@ -58,7 +58,7 @@ final class Migration {
 	/** IDs de documentos del sitio que contienen widgets de Element Pack. */
 	public static function documents( $limit = 0 ) {
 		global $wpdb;
-		$needles = array( '"widgetType":"bdt-', '"widgetType":"fooevents-calendar"', '"widgetType":"lightbox"', '"ep_', '"element_pack_', '"bdt_' );
+		$needles = array( '"widgetType":"bdt-', '"widgetType":"fooevents-calendar"', '"widgetType":"lightbox"', '"ep_', '"element_pack_', '"bdt_', '"_mask_shape":"shape-', '"shape_divider_top":"ep-', '"shape_divider_bottom":"ep-', '"image_mask_' );
 		$sql     = "SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_elementor_data' AND ( " . implode( ' OR ', array_fill( 0, count( $needles ), 'meta_value LIKE %s' ) ) . ' ) ORDER BY post_id';
 		if ( $limit ) {
 			$sql .= ' LIMIT ' . absint( $limit );
@@ -97,6 +97,34 @@ final class Migration {
 		}
 		ksort( $rows );
 		return $rows;
+	}
+
+	/** Elementos (de cualquier tipo) con máscaras o separadores de Element Pack, y figuras que ya no tienen archivo. */
+	public static function figures() {
+		$out = array( 'elements' => 0, 'documents' => 0, 'missing' => array() );
+		foreach ( self::documents() as $post_id ) {
+			$count = self::count_figures( self::data( $post_id ), $out['missing'] );
+			$out['elements'] += $count;
+			$out['documents'] += $count ? 1 : 0;
+		}
+		$out['missing'] = array_values( array_unique( $out['missing'] ) );
+		sort( $out['missing'] );
+		return $out;
+	}
+
+	private static function count_figures( array $elements, array &$missing ) {
+		$count = 0;
+		foreach ( $elements as $element ) {
+			if ( ! is_array( $element ) ) {
+				continue;
+			}
+			if ( Masks::is_legacy( $element ) ) {
+				++$count;
+				$missing = array_merge( $missing, Masks::missing( $element ) );
+			}
+			$count += self::count_figures( (array) ( $element['elements'] ?? array() ), $missing );
+		}
+		return $count;
 	}
 
 	private static function data( $post_id ) {
@@ -241,6 +269,13 @@ final class Migration {
 			echo '<tr><td><code>' . esc_html( $type ) . '</code></td><td>' . absint( $row['elements'] ) . '</td><td>' . absint( $row['documents'] ) . '</td><td>' . esc_html( $status ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
+		$figures = self::figures();
+		if ( $figures['elements'] ) {
+			echo '<p>' . esc_html( sprintf( 'Máscaras y separadores con figuras de Element Pack: %d elementos en %d documentos. Al convertir pasan a copias propias guardadas en los archivos de este sitio.', $figures['elements'], $figures['documents'] ) ) . '</p>';
+		}
+		if ( $figures['missing'] ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( 'No se encontró el archivo de: %s. Mantén Element Pack instalado (desactivado) hasta convertir; sin archivo, la conversión retira esa máscara o separador para que la imagen siga visible.', implode( ', ', $figures['missing'] ) ) ) . '</p></div>';
+		}
 		echo '<p>' . esc_html( sprintf( 'Documentos pendientes de convertir: %d. Documentos con copia original: %d.', $pending, $backups ) ) . '</p>';
 		if ( ! $pending && ! $inventory ) {
 			echo '<div class="notice notice-success inline"><p>Este sitio ya no tiene contenido heredado. Cuando todos los sitios estén así y revisados, puedes desinstalar Element Pack y DIGITALÍSIMO Migración.</p></div>';

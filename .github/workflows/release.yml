@@ -97,6 +97,7 @@ jobs:
           node tests/elements-legacy-decisions.mjs
           php tests/elements-legacy-extensions.php
           php tests/elements-legacy-shapes.php
+          php tests/elements-legacy-masks.php
           node tests/elements-carousel-engine.mjs
           php tests/performance-hero.php
           php tests/tools-updater.php

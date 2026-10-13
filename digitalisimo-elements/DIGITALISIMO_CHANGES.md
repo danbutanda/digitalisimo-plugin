@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.138
+# DIGITALÍSIMO Elements 4.3.0.139
+
+- 4.3.0.139: separadores de forma propios de cada sitio: los SVG de `uploads/digitalisimo-elements/shapes/` aparecen en el separador de secciones y contenedores (con su versión negativa si existe), fuera de la carpeta del plugin para que las actualizaciones no los borren. El paquete comprueba que la carpeta del núcleo de Elementor incluido coincide archivo por archivo con su manifiesto: otros plugins escriben en la carpeta de Elementor y nada ajeno debe viajar en el ZIP.
 
 - 4.3.0.138: incluye el núcleo gratuito de Elementor 4.3.4 (copia sin cambios de wordpress.org, comprobada con sus sumas SHA-256, con sus traducciones en español) y ya no necesita el plugin Elementor: si está activo, éste manda y el núcleo incluido no se carga. Al activarse hace lo mismo que Elementor (kit, opciones iniciales) y da su kit a los sitios nuevos de la red; los complementos que exigen «elementor» quedan satisfechos; las rutas del plugin Elementor guardadas en el contenido pasan a las del núcleo incluido (y una petición a la ruta antigua se redirige); la reversión de versiones y el canal beta de Elementor quedan desactivados porque actualizarían la carpeta del plugin.
 

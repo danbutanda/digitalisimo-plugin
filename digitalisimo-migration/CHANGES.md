@@ -1,5 +1,7 @@
 # DIGITALÍSIMO Migración · historial
 
+- 1.0.8: máscaras y separadores de Element Pack. Element Pack añadía sus figuras a la máscara nativa (`shape-1`…`shape-31`) y al separador de forma (`ep-…`) y copiaba los SVG dentro de la carpeta de Elementor; sin él, una máscara sin archivo ocultaba la imagen entera y el separador desaparecía. Ahora los SVG usados se copian, saneados, desde Element Pack (o desde las copias que dejó en Elementor) a los archivos de cada sitio: mientras dura la migración se pintan desde ahí, y al convertir la máscara nativa pasa a «Personalizada», «Image Masking» de Caja de imagen, Carrusel de imágenes y de los widgets de Element Pack pasa al CSS del elemento (sobre la imagen equivalente del widget de destino) y el separador pasa al separador propio del sitio. La herramienta y `wp digitalisimo-migration` informan de esos elementos y avisan si falta algún archivo.
+
 - 1.0.7: depende de DIGITALÍSIMO Elements (`Requires Plugins: digitalisimo-elements`), que ya incluye Elementor, en lugar del plugin Elementor, así que puede activarse en sitios sin él.
 
 - 1.0.6: corrección urgente del editor. Los adaptadores de productos de WooCommerce añadían ajustes ocultos fuera de toda sección y Elementor detenía la petición al construirlos (la ruta REST de clases globales respondía con error 500); ahora van dentro de la sección de contenido. Mientras haya adaptadores, las peticiones AJAX del editor de Elementor pueden usar hasta 512 MB, porque cargan los controles de unos 400 widgets.

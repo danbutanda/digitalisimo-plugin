@@ -4,6 +4,7 @@ namespace Digitalisimo\Elements\Legacy;
 defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/class-translator.php';
+require_once __DIR__ . '/class-masks.php';
 
 /**
  * Conversión completa de un documento de Element Pack al formato propio.
@@ -14,8 +15,9 @@ require_once __DIR__ . '/class-translator.php';
  * a los rasgos propios del núcleo (categorías en Entradas, partes de productos, origen ACF,
  * diapositivas de plantilla). En cualquier elemento, las reglas de visibilidad, las figuras, el
  * enlace del elemento y los efectos de las extensiones pasan a sus ajustes propios o al CSS
- * personalizado. Tras convertir, el documento no contiene identificadores de Element Pack y se pinta
- * sólo con DIGITALÍSIMO Elements.
+ * personalizado, y las máscaras y separadores de Element Pack a copias propias (ver Masks). Tras
+ * convertir, el documento no contiene identificadores de Element Pack y se pinta sólo con
+ * DIGITALÍSIMO Elements.
  */
 final class Native {
 	const STYLE_SECTION = 'digitalisimo_legacy_style';
@@ -56,6 +58,11 @@ final class Native {
 			$element['settings'] = self::element_settings( $element, $post_id );
 			++$changes;
 		}
+		// Máscaras y separadores con figuras de Element Pack, en cualquier elemento (también en los ya convertidos).
+		if ( Masks::is_legacy( $element ) ) {
+			$element['settings'] = Masks::convert( $element, self::$errors );
+			$changes            += $changes ? 0 : 1;
+		}
 		if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
 			foreach ( $element['elements'] as $index => $child ) {
 				if ( is_array( $child ) ) {
@@ -72,7 +79,7 @@ final class Native {
 		if ( 'widget' === ( $element['elType'] ?? '' ) && Translator::is_legacy_id( (string) ( $element['widgetType'] ?? '' ) ) ) {
 			return true;
 		}
-		if ( self::has_legacy_element_settings( (array) ( $element['settings'] ?? array() ) ) ) {
+		if ( self::has_legacy_element_settings( (array) ( $element['settings'] ?? array() ) ) || Masks::is_legacy( $element ) ) {
 			return true;
 		}
 		foreach ( (array) ( $element['elements'] ?? array() ) as $child ) {
@@ -129,6 +136,14 @@ final class Native {
 		$target   = (string) $map['target'];
 		$settings = Translator::translate( $type, is_array( $element['settings'] ?? null ) ? $element['settings'] : array() );
 		$css      = self::legacy_style_css( $element, $settings, $post_id );
+		// La máscara de imagen del widget, sobre la imagen del widget de destino.
+		$original = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
+		$mask     = Masks::widget_css( $target, $original );
+		if ( '' !== $mask ) {
+			$css = trim( $css . "\n" . $mask );
+		} elseif ( 'yes' === ( $original['image_mask_popover'] ?? '' ) ) {
+			self::$errors[] = $type . ': máscara de imagen sin archivo, retirada';
+		}
 		$settings = self::nativize( $type, $target, $settings );
 		$controls = self::target_controls( $target );
 		$out      = array();

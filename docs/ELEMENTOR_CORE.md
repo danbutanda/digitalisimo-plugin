@@ -5,7 +5,8 @@ Desde 4.3.0.138, DIGITALÍSIMO Elements trae el núcleo gratuito de Elementor de
 ## Qué contiene y cómo funciona
 
 - **Ubicación:** `digitalisimo-elements/elementor/` es una copia sin cambios del plugin Elementor publicado en wordpress.org. Cada archivo se comprueba contra las sumas SHA-256 oficiales al sincronizar.
-- **Manifiesto:** `elementor/digitalisimo-core.json` guarda la versión, el ZIP de origen, su SHA-256, la licencia (GPL-3.0-or-later) y la fecha.
+- **Manifiesto:** `elementor/digitalisimo-core.json` guarda la versión, el ZIP de origen, su SHA-256, la licencia (GPL-3.0-or-later), la fecha y la huella de la carpeta (`files` y `tree_sha256`, calculados con `scripts/elementor-core-tree.py`).
+- **Nada ajeno en el paquete:** algunos plugins escriben en la carpeta de Elementor (Element Pack copiaba ahí sus máscaras y separadores), y en una prueba local esa carpeta puede ser la del repositorio. `scripts/build-packages.sh` no crea el ZIP de Elements si la huella de `elementor/` no coincide con la del manifiesto, y `tests/validate-suite.mjs` comprueba la huella y el número de archivos del núcleo dentro del ZIP.
 - **No confundir con `core/`:** la carpeta `digitalisimo-elements/core/` es otra cosa, el núcleo derivado de Elementor Pro (`ElementorPro\Core\…`).
 - **Qué núcleo manda:** el núcleo incluido se carga sólo si el plugin Elementor no está activo en el sitio ni en la red. Con Elementor activo, manda Elementor y no cambia nada. La petición que activa Elementor tampoco carga el núcleo incluido, para que las dos copias no choquen.
 - **Datos:** son los mismos que con el plugin (`_elementor_*`, `elementor_*`, kits, plantillas y CSS generado). No hay conversión ni pasos de datos.
@@ -17,6 +18,7 @@ Desde 4.3.0.138, DIGITALÍSIMO Elements trae el núcleo gratuito de Elementor de
 - **Idioma:** se incluyen las traducciones en español de wordpress.org (es_MX, es_ES y las demás variantes es_*), en PHP y en los JSON de los scripts del editor. Se usan si WordPress no tiene las del plugin Elementor, que se borran al eliminarlo. Para otros idiomas hace falta el paquete global de Elementor.
 - **Complementos de terceros:** los que declaran `Requires Plugins: elementor` quedan satisfechos con DIGITALÍSIMO Elements. DIGITALÍSIMO Migración declara `Requires Plugins: digitalisimo-elements`.
 - **Versión fija:** la herramienta de reversión de versiones y el canal beta de Elementor quedan desactivados, porque actualizarían la carpeta del plugin entero. La versión del núcleo la decide cada publicación de DIGITALÍSIMO Elements.
+- **Figuras propias del sitio:** los SVG guardados en `uploads/digitalisimo-elements/shapes/` de cada sitio aparecen en el separador de forma como `digi-<nombre>` (con su versión negativa si existe `<nombre>-negative.svg`). Viven en los archivos del sitio y no en la carpeta del plugin, así que una actualización no los borra. DIGITALÍSIMO Migración deja ahí los separadores de Element Pack al convertir.
 - **Interfaz:** el editor y la administración siguen mostrando «Elementor». Los identificadores internos (clases, ganchos, metadatos) no pueden cambiar sin romper el contenido y los complementos.
 
 ## Pasar un sitio o una red al núcleo incluido

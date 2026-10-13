@@ -24,6 +24,8 @@ final class Plugin {
 		\Digitalisimo\Elements\Legacy\Extensions::init();
 		require_once $legacy . 'class-shapes.php';
 		\Digitalisimo\Elements\Legacy\Shapes::init();
+		require_once $legacy . 'class-masks.php';
+		\Digitalisimo\Elements\Legacy\Masks::init();
 		require_once $legacy . 'conditions/class-legacy-visibility.php';
 		\Digitalisimo\Elements\Legacy_Visibility::init();
 		self::bridge_visitor_filters();

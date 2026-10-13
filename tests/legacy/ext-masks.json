@@ -1,0 +1,34 @@
+{
+  "caja-imagen": {
+    "_widget": "image-box",
+    "title_text": "Caja con máscara",
+    "description_text": "La imagen lleva una figura de Element Pack.",
+    "image_mask_popover": "yes",
+    "image_mask_shape_default": "shape-7",
+    "image_mask_shape_size": "cover",
+    "_expect_css": [".elementor-image-box-img img{-webkit-mask-image", "digitalisimo-elements/masks/mask-7.svg", "mask-size:cover"],
+    "_expect_css_converted": [".elementor-image-box-img img{-webkit-mask-image", "digitalisimo-elements/masks/mask-7.svg", "mask-size:cover"]
+  },
+  "carrusel-color": {
+    "_widget": "image-carousel",
+    "carousel": [{ "id": "", "url": "https://example.com/wp-content/uploads/carrusel-1.png" }],
+    "image_mask_popover": "yes",
+    "image_mask_shape_default": "shape-21",
+    "_expect_css": [".swiper-slide-inner img{-webkit-mask-image", "digitalisimo-elements/masks/mask-21.svg", ".swiper-slide-inner::before{content", "digitalisimo-elements/masks/mask-21-color.svg"],
+    "_expect_css_converted": [".swiper-slide-inner img{-webkit-mask-image", "digitalisimo-elements/masks/mask-21.svg", ".swiper-slide-inner::before{content", "digitalisimo-elements/masks/mask-21-color.svg"]
+  },
+  "mascara-nativa": {
+    "_widget": "heading",
+    "title": "Título enmascarado",
+    "_mask_switch": "yes",
+    "_mask_shape": "shape-12",
+    "_expect_css": ["digitalisimo-elements/masks/mask-12.svg"],
+    "_expect_css_converted": ["-webkit-mask-image:url(", "digitalisimo-elements/masks/mask-12.svg"]
+  },
+  "separador": {
+    "_widget": "heading",
+    "title": "Sección con separadores",
+    "_section": { "shape_divider_top": "ep-mosque", "shape_divider_top_negative": "yes", "shape_divider_bottom": "ep-hill" },
+    "_expect_html": ["elementor-shape elementor-shape-top\" aria-hidden=\"true\" data-negative=\"true\"", "elementor-shape elementor-shape-bottom\" aria-hidden=\"true\" data-negative=\"false\""]
+  }
+}

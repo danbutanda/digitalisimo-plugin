@@ -110,7 +110,7 @@ foreach ( $blogs as $blog ) {
 			if ( 'E' === $phase ) {
 				// Tras convertir no debe quedar ningún identificador heredado en el documento.
 				$saved = (string) get_post_meta( $id, '_elementor_data', true );
-				preg_match_all( '/"widgetType":"(?:bdt-[a-z0-9-]+|fooevents-calendar|lightbox)"|"(?:ep_|element_pack_|bdt_|_digitalisimo_legacy)[a-z0-9_]*"/', $saved, $left );
+				preg_match_all( '/"widgetType":"(?:bdt-[a-z0-9-]+|fooevents-calendar|lightbox)"|"(?:ep_|element_pack_|bdt_|_digitalisimo_legacy|image_mask_)[a-z0-9_]*"|"_mask_shape":"shape-\d+"|"shape_divider_(?:top|bottom)":"ep-[a-z0-9-]+"/', $saved, $left );
 				$entry_extra['legacy_left'] = array_values( array_unique( $left[0] ) );
 			}
 			$GLOBALS['wp_query']     = new WP_Query( array( 'page_id' => $id ) );

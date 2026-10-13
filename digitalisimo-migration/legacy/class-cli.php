@@ -54,6 +54,13 @@ final class Cli {
 			return;
 		}
 		\WP_CLI\Utils\format_items( 'table', self::rows(), array( 'widget', 'elementos', 'documentos', 'adaptador' ) );
+		$figures = Migration::figures();
+		if ( $figures['elements'] ) {
+			\WP_CLI::log( sprintf( 'Máscaras y separadores de Element Pack: %d elementos en %d documentos.', $figures['elements'], $figures['documents'] ) );
+		}
+		if ( $figures['missing'] ) {
+			\WP_CLI::warning( 'Sin archivo (la conversión los retira): ' . implode( ', ', $figures['missing'] ) . '. Mantén Element Pack instalado y desactivado hasta convertir.' );
+		}
 		if ( empty( $assoc['convert'] ) ) {
 			return;
 		}

@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Constructor visual completo: incluye Elementor (núcleo gratuito) y sus funciones avanzadas, derivadas de PRO Elements 4.3.0, más los widgets DIGITALÍSIMO. No necesita el plugin Elementor; si está activo, éste manda.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.138
+ * Version: 4.3.0.139
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.138' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.139' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 // Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
 require_once __DIR__ . '/digitalisimo-core.php';

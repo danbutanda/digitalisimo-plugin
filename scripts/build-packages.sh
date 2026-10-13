@@ -18,6 +18,19 @@ build_package() {
     # The local Element Pack copy is research material, never plugin runtime code.
     exclude+=( 'digitalisimo-elements/bdthemes-element-pack' 'digitalisimo-elements/bdthemes-element-pack/*' )
   fi
+  if [[ "$directory" == 'digitalisimo-elements' ]]; then
+    # El núcleo de Elementor incluido sale tal cual de wordpress.org: otros plugins copian archivos en la carpeta
+    # de Elementor (y en un sitio de pruebas esa carpeta es ésta), así que su huella debe ser la del manifiesto.
+    local expected actual
+    expected="$(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print(m["files"], m["tree_sha256"])' "$root_dir/$directory/elementor/digitalisimo-core.json")"
+    actual="$(python3 "$root_dir/scripts/elementor-core-tree.py" "$root_dir/$directory/elementor" | python3 -c 'import json,sys; m=json.load(sys.stdin); print(m["files"], m["tree_sha256"])')"
+    if [[ "$expected" != "$actual" ]]; then
+      echo "BUILD ABORTED: digitalisimo-elements/elementor no coincide con su manifiesto ($actual frente a $expected)" >&2
+      git -C "$root_dir" status --short --untracked-files=all --ignored -- "$directory/elementor" 2>/dev/null | head -20 >&2 || true
+      return 1
+    fi
+    echo 'BUNDLED CORE CHECK: PASS' >&2
+  fi
   ( cd "$root_dir" && zip -FSrq "$archive" "$directory" -x "${exclude[@]}" )
   unzip -t "$archive" >/dev/null
   if [[ "$directory" == 'digitalisimo-elements' ]]; then

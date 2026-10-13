@@ -28,5 +28,49 @@
     "_known": {
       "images": "Element Pack sólo muestra adjuntos de Medios (el caso usa URLs externas) e incluye la descripción en el ALT; el propio usa el nombre"
     }
+  },
+  "mascara": {
+    "logo_list": [
+      {
+        "_id": "g1",
+        "image": {
+          "url": "https://example.com/logos/a.png"
+        },
+        "name": "Alfa",
+        "link": {
+          "url": "https://alfa.example/"
+        }
+      },
+      {
+        "_id": "g2",
+        "image": {
+          "url": "https://example.com/logos/b.png"
+        },
+        "name": "Beta"
+      }
+    ],
+    "columns": "2",
+    "_known": {
+      "images": "Element Pack sólo muestra adjuntos de Medios (el caso usa URLs externas) e incluye la descripción en el ALT; el propio usa el nombre"
+    },
+    "image_mask_popover": "yes",
+    "image_mask_shape_default": "shape-14",
+    "image_mask_shape_position": "top-left",
+    "_expect_css": [
+      ".digi-logo-grid__image{-webkit-mask-image",
+      "digitalisimo-elements/masks/mask-14.svg",
+      "mask-position:top left"
+    ],
+    "_expect_css_converted": [
+      ".digi-logo-grid__image{-webkit-mask-image",
+      "digitalisimo-elements/masks/mask-14.svg",
+      "mask-position:top left"
+    ],
+    "_expect_html": [
+      "digi-logo-grid__image"
+    ],
+    "_expect_html_converted": [
+      "digi-logo-grid__image"
+    ]
   }
 }

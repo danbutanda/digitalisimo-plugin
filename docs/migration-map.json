@@ -4528,6 +4528,16 @@
       "decision": "COMPARTIR",
       "user_priority_order": 63,
       "status": "SVG uploads use Elementor sanitized SVG support; documents keep their media references and need no migration."
+    },
+    "image-masking": {
+      "decision": "ADAPTAR",
+      "legacy_adapter": "digitalisimo-migration/legacy/class-masks.php, inactive while Element Pack is loaded; lote 45",
+      "status": "Element Pack registers shape-1…shape-31 in Elementor's native mask and copies the SVGs into Elementor's folder; its Image Masking adds image_mask_* to Image Box and Image Carousel, and its masked widgets apply them to their own image. Used SVGs are copied (sanitized) from the installed Element Pack, or from its copies in Elementor, to uploads/digitalisimo-elements/masks/ of each site. During the migration the CSS points to that copy; conversion turns the native mask into Custom with the copy and moves Image Masking (position, size, repeat, responsive custom size and colour overlay of shapes 21-23) to the element custom CSS, on the equivalent image of the target widget. A mask without any file is removed so the image stays visible. Declared difference: Image Masking on Elementor 4's atomic image (e-image), which Element Pack applied with inline styles at render time, is not carried over; conversion removes its image_mask_* props and the image shows without mask. Multisite A/B with Element Pack 9.9.1."
+    },
+    "shape-divider": {
+      "decision": "ADAPTAR",
+      "legacy_adapter": "digitalisimo-migration/legacy/class-masks.php + digitalisimo-elements/modules/digitalisimo-widgets/class-divider-shapes.php; lote 45",
+      "status": "Element Pack adds eight ep-* shape dividers whose SVGs it copies into Elementor's folder. During the migration they keep rendering from the original or the own copy; conversion copies the divider and its negative version to uploads/digitalisimo-elements/shapes/ of the site and renames the setting to digi-<name> (mezquita, navidad, colinas…), which DIGITALÍSIMO Elements registers from the site files. Multisite A/B with Element Pack 9.9.1."
     }
   }
 }

@@ -3,5 +3,26 @@
     "_known": {
       "text": "Reviews de PRO Elements dibuja la valoración con glifos de estrella de su fuente de iconos"
     }
+  },
+  "mascara": {
+    "_known": {
+      "text": "Reviews de PRO Elements dibuja la valoración con glifos de estrella de su fuente de iconos"
+    },
+    "image_mask_popover": "yes",
+    "image_mask_shape_default": "shape-3",
+    "_expect_css": [
+      ".elementor-testimonial__image img{-webkit-mask-image",
+      "digitalisimo-elements/masks/mask-3.svg"
+    ],
+    "_expect_css_converted": [
+      ".elementor-testimonial__image img{-webkit-mask-image",
+      "digitalisimo-elements/masks/mask-3.svg"
+    ],
+    "_expect_html": [
+      "elementor-testimonial__image"
+    ],
+    "_expect_html_converted": [
+      "elementor-testimonial__image"
+    ]
   }
 }

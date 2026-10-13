@@ -64,9 +64,11 @@ mkdir -p "$CORE"
 cp -a "$WORK/src/elementor/." "$CORE/"
 mkdir -p "$CORE/languages"
 cp -a "$WORK/languages/." "$CORE/languages/"
-python3 - "$CORE/digitalisimo-core.json" "$VERSION" "$WORK/elementor.zip" "$LOCALES" <<'PY'
-import datetime, hashlib, json, sys
-path, version, archive, locales = sys.argv[1:5]
+python3 - "$CORE/digitalisimo-core.json" "$VERSION" "$WORK/elementor.zip" "$LOCALES" "$ROOT/scripts/elementor-core-tree.py" <<'PY'
+import datetime, hashlib, json, os, runpy, sys
+path, version, archive, locales, tree = sys.argv[1:6]
+# Huella del árbol copiado: el empaquetado y validate-suite rechazan cualquier archivo que no esté en ella.
+fingerprint = runpy.run_path(tree)['tree'](os.path.dirname(path))
 json.dump({
     'name': 'Elementor',
     'version': version,
@@ -75,6 +77,8 @@ json.dump({
     'license': 'GPL-3.0-or-later',
     'translations': sorted(line.split()[0] for line in locales.splitlines() if line.strip()),
     'synced': datetime.date.today().isoformat(),
+    'files': fingerprint['files'],
+    'tree_sha256': fingerprint['tree_sha256'],
 }, open(path, 'w'), indent=2)
 open(path, 'a').write('\n')
 PY

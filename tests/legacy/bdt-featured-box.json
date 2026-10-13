@@ -19,5 +19,52 @@
     "_known": {
       "images": "El widget propio deja vacío el ALT de una imagen que acompaña a un título visible; Element Pack repetía el título"
     }
+  },
+  "mascara": {
+    "image": {
+      "url": "https://example.com/img/caja.jpg"
+    },
+    "title_text": "Migraciones",
+    "sub_title_text": "Gratis",
+    "description_text": "Movemos tu sitio sin perder nada.",
+    "readmore_text": "Solicitar",
+    "readmore_link": {
+      "url": "https://example.com/migrar"
+    },
+    "_skin": "split",
+    "_known": {
+      "images": "El widget propio deja vacío el ALT de una imagen que acompaña a un título visible; Element Pack repetía el título"
+    },
+    "image_mask_popover": "yes",
+    "image_mask_shape_default": "shape-2",
+    "image_mask_shape_size": "initial",
+    "image_mask_shape_custom_size": {
+      "unit": "%",
+      "size": 80
+    },
+    "image_mask_shape_custom_size_tablet": {
+      "unit": "%",
+      "size": 60
+    },
+    "_expect_css": [
+      ".digi-featured-box__image{-webkit-mask-image",
+      "digitalisimo-elements/masks/mask-2.svg",
+      "mask-size:80%",
+      "@media(max-width:1024px)",
+      "mask-size:60%"
+    ],
+    "_expect_css_converted": [
+      ".digi-featured-box__image{-webkit-mask-image",
+      "digitalisimo-elements/masks/mask-2.svg",
+      "mask-size:80%",
+      "@media(max-width:1024px)",
+      "mask-size:60%"
+    ],
+    "_expect_html": [
+      "digi-featured-box__image"
+    ],
+    "_expect_html_converted": [
+      "digi-featured-box__image"
+    ]
   }
 }

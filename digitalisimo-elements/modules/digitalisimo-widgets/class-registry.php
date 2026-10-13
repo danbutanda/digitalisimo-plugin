@@ -272,7 +272,7 @@ final class Widget_Registry {
 		require_once __DIR__ . '/class-image-shadow.php';
 		Image_Shadow_Extension::init();
 		// Rasgos propios sobre widgets nativos y sobre cualquier elemento.
-		foreach ( array( 'class-posts-terms.php' => Posts_Terms::class, 'class-products-parts.php' => Products_Parts::class, 'class-acf-source.php' => Acf_Source::class, 'class-slides-templates.php' => Slides_Templates::class, 'class-figures.php' => Figures::class, 'class-element-link.php' => Element_Link::class, 'class-author-box-extras.php' => Author_Box_Extras::class, 'class-media-text-extras.php' => Media_Text_Extras::class, 'class-cart-title.php' => Cart_Title::class ) as $file => $class ) {
+		foreach ( array( 'class-posts-terms.php' => Posts_Terms::class, 'class-products-parts.php' => Products_Parts::class, 'class-acf-source.php' => Acf_Source::class, 'class-slides-templates.php' => Slides_Templates::class, 'class-figures.php' => Figures::class, 'class-element-link.php' => Element_Link::class, 'class-author-box-extras.php' => Author_Box_Extras::class, 'class-media-text-extras.php' => Media_Text_Extras::class, 'class-cart-title.php' => Cart_Title::class, 'class-divider-shapes.php' => Divider_Shapes::class ) as $file => $class ) {
 			require_once __DIR__ . '/' . $file;
 			$class::init();
 		}
