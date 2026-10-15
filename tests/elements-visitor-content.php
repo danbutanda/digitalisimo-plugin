@@ -144,10 +144,14 @@ namespace {
 	$GLOBALS['digi']['user'] = 0;
 	check_vc( false === Own::check( 'user', $rule( 'user', array( '0' ) ) ) && false === Own::check( 'user', $rule( 'user', '0' ) ), 'Propio: un visitante anónimo nunca es el usuario «0».' );
 	$GLOBALS['digi']['user'] = 3;
+	set_error_handler( static function ( $no, $str, $file, $line ) { throw new ErrorException( $str, 0, $no, $file, $line ); } );
+	check_vc( true === Own::check( 'user', $rule( 'user', array( '' ) ) ) && true === Own::check( 'user', $rule( 'user', array( ' ', null ) ) ) && true === Own::check( 'user', $rule( 'user', array( array( 'id' => '' ) ) ) ), 'Propio: una lista sólo con blancos es «sin usuarios elegidos».' );
+	check_vc( true === Own::check( 'user', $rule( 'user', array( array( 'id' => '3' ), array( 'id' => 9 ) ) ) ) && false === Own::check( 'user', $rule( 'user', array( array( 'id' => '9' ) ) ) ), 'Propio: una lista de objetos {id} restringe a esos usuarios.' );
 	check_vc( false === Own::check( 'user', $rule( 'user', '9' ) ) && false === Own::check( 'user', $rule( 'user', 9 ) ) && true === Own::check( 'user', $rule( 'user', '3' ) ) && true === Own::check( 'user', $rule( 'user', ' ' ) ), 'Propio: un solo ID guardado como texto restringe a ese usuario.' );
 	$GLOBALS['digi']['user'] = 9;
 	$GLOBALS['digi']['roles'] = array( 'administrator' );
 	check_vc( true === Own::check( 'role', $rule( 'role', 'administrator' ) ) && true === Own::check( 'role', $rule( 'role', array( 'editor', 'administrator' ) ) ) && false === Own::check( 'role', $rule( 'role', array( 'subscriber' ) ) ) && false === Own::check( 'role', $rule( 'role', 'subscriber' ) ), 'Propio: el rol acepta un valor o una lista.' );
+	check_vc( true === Own::check( 'role', $rule( 'role', array( array( 'id' => 'administrator' ) ) ) ) && false === Own::check( 'role', $rule( 'role', array( array( 'id' => 'editor' ), array() ) ) ), 'Propio: una lista de objetos {id} vale como lista de roles, sin avisos PHP.' );
 	$GLOBALS['digi']['user'] = 0;
 	check_vc( false === Own::check( 'role', $rule( 'role', array( 'administrator' ) ) ), 'Propio: sin sesión ningún rol cumple.' );
 	$_SERVER['REQUEST_URI'] = '/oferta/';
@@ -156,6 +160,17 @@ namespace {
 	$_SERVER['REQUEST_URI'] = '/oferta/?ref=vip';
 	$_GET = array( 'ref' => 'vip' );
 	check_vc( true === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref=vip' ) ) && false === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref=vip', 'not' ) ) && false === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref=otro' ) ), 'Propio: con parámetros se compara de verdad.' );
+	check_vc( true === Own::check( 'url_parameters', $rule( 'url_parameters', "x=1\r\nref=vip" ) ) && true === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref' ) ) && false === Own::check( 'url_parameters', $rule( 'url_parameters', 'otro' ) ), 'Propio: varias líneas (también con retorno de carro) y «sólo nombre».' );
+	$_SERVER['REQUEST_URI'] = '/oferta/?ref=v%20ip&acento=ma%C3%B1ana&eq=a%3Db';
+	$_GET = array( 'ref' => 'v ip', 'acento' => 'mañana', 'eq' => 'a=b' );
+	check_vc( true === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref=v ip' ) ) && true === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref=v%20ip' ) ) && true === Own::check( 'url_parameters', $rule( 'url_parameters', 'acento=mañana' ) ) && true === Own::check( 'url_parameters', $rule( 'url_parameters', 'eq=a=b' ) ) && false === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref=vip' ) ), 'Propio: los valores codificados (espacios, acentos, «=») se comparan decodificados.' );
+	$_SERVER['REQUEST_URI'] = '/oferta/?ref';
+	$_GET = array( 'ref' => '' );
+	check_vc( true === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref' ) ) && false === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref=vip' ) ), 'Propio: el parámetro presente sin valor cuenta como presente.' );
+	$_SERVER['REQUEST_URI'] = '/oferta/?ref[]=vip';
+	$_GET = array( 'ref' => array( 'vip' ) );
+	check_vc( false === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref=vip' ) ) && true === Own::check( 'url_parameters', $rule( 'url_parameters', 'ref' ) ), 'Propio: un parámetro de lista no es un valor, pero sí está presente.' );
+	restore_error_handler();
 
 	// Motor heredado: port literal de Element Pack, con sus particularidades (un documento migrado no cambia lo que ve cada visitante).
 	$legacy = static function ( $key, $value, $operator = 'is' ) {

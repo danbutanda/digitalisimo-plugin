@@ -1,7 +1,8 @@
 <?php
 /**
  * Menú Digitalisimo → Plugins con Tools: una sola entrada «Digitalisimo», una sola entrada «Plugins», y la
- * pantalla pinta el catálogo. Se ejecuta dos veces: con Tools solo y con SEO activo (entonces manda el de SEO).
+ * pantalla pinta el catálogo. Se ejecuta tres veces: con Tools solo, con SEO activo (entonces manda el de SEO) y con
+ * Backups en lugar de SEO (un módulo que crea el menú padre sin el núcleo `Digitalisimo_Core`).
  */
 define( 'WP_ADMIN', true );
 require '/wordpress/wp-load.php';
@@ -19,6 +20,7 @@ if ( 1 !== count( $top ) ) $problems[] = 'menú Digitalisimo: ' . count( $top ) 
 $subs = array_column( (array) ( $GLOBALS['submenu']['digitalisimo'] ?? array() ), 2 );
 if ( 1 !== count( array_keys( $subs, 'digitalisimo-plugins', true ) ) ) $problems[] = 'submenú Plugins: ' . count( array_keys( $subs, 'digitalisimo-plugins', true ) ) . ' entradas';
 if ( ! in_array( 'digitalisimo-tools-elementor-templates', $subs, true ) ) $problems[] = 'falta el submenú Herramientas';
+if ( 'backups' === $scenario && ! preg_grep( '/backups/', $subs ) ) $problems[] = 'falta el submenú Backups';
 $hook = get_plugin_page_hookname( 'digitalisimo-plugins', 'digitalisimo' );
 $callbacks = array();
 foreach ( (array) ( $GLOBALS['wp_filter'][ $hook ]->callbacks ?? array() ) as $group ) { foreach ( $group as $cb ) { $f = $cb['function']; $callbacks[] = is_array( $f ) ? ( is_object( $f[0] ) ? get_class( $f[0] ) : $f[0] ) . '::' . $f[1] : (string) $f; } }

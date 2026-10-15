@@ -109,22 +109,32 @@ final class Visibility_Rules {
 		return self::compare( is_user_logged_in(), $relation );
 	}
 
-	/** Sin usuarios elegidos vale cualquier usuario con sesión, como indica el propio control; un solo ID vale como lista de uno. */
-	private static function rule_user( $relation, $val ) {
-		$user = get_current_user_id();
-		$ids  = is_array( $val ) ? $val : ( null === $val || '' === trim( (string) $val ) ? array() : array( $val ) );
-		if ( empty( $ids ) ) {
-			return self::compare( $user > 0, $relation );
+	/** Valores de un control de lista (o un solo valor): ID de cada entrada, sin blancos ni entradas no escalares. */
+	private static function list_values( $val ) {
+		$values = array();
+		foreach ( is_array( $val ) ? $val : array( $val ) as $item ) {
+			$value = is_array( $item ) ? ( $item['id'] ?? '' ) : $item;
+			if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
+				$values[] = trim( (string) $value );
+			}
 		}
-		return self::compare( self::any( $ids, static function ( $id ) use ( $user ) {
-			return $user > 0 && $id == $user; // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual
-		} ), $relation );
+		return $values;
 	}
 
-	/** El valor puede llegar como lista si el control se guardó con selección múltiple. */
+	/** Sin usuarios elegidos (lista vacía o sólo blancos) vale cualquier usuario con sesión, como indica el propio control; un solo ID vale como lista de uno. */
+	private static function rule_user( $relation, $val ) {
+		$user = (int) get_current_user_id();
+		$ids  = array_filter( array_map( 'intval', self::list_values( $val ) ) );
+		if ( ! $ids ) {
+			return self::compare( $user > 0, $relation );
+		}
+		return self::compare( $user > 0 && in_array( $user, $ids, true ), $relation );
+	}
+
+	/** El valor puede llegar como un rol, una lista de roles o una lista de objetos {id}. */
 	private static function rule_role( $relation, $val ) {
-		$roles = (array) wp_get_current_user()->roles;
-		return self::compare( is_user_logged_in() && array_intersect( array_map( 'strval', (array) $val ), array_map( 'strval', $roles ) ), $relation );
+		$roles = array_map( 'strval', (array) wp_get_current_user()->roles );
+		return self::compare( is_user_logged_in() && array_intersect( self::list_values( $val ), $roles ), $relation );
 	}
 
 	private static function rule_post( $relation, $val ) {
@@ -237,22 +247,35 @@ final class Visibility_Rules {
 		return self::compare( $show, $relation );
 	}
 
+	/**
+	 * Los parámetros se leen ya decodificados ($_GET): valen los valores con espacios, acentos o signos codificados y
+	 * el parámetro presente sin valor. Cada línea de la regla es «nombre=valor» o sólo «nombre» (basta con que exista).
+	 * Sin parámetros en la URL el parámetro no está: «es» no se cumple y «no es» sí, igual que con otros parámetros.
+	 */
 	private static function rule_url_parameters( $relation, $val ) {
-		$uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-		if ( '' === $uri ) {
-			return null;
-		}
-		// Sin parámetros en la URL el parámetro no está: «es» no se cumple y «no es» sí, igual que con otros parámetros.
-		$query  = (string) wp_parse_url( $uri, PHP_URL_QUERY );
-		$params = explode( "\n", sanitize_textarea_field( (string) $val ) );
-		foreach ( $params as $index => $param ) {
-			if ( ! strpos( $param, '=' ) ) {
-				// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide la visibilidad.
-				$ref              = isset( $_GET[ $param ] ) && is_scalar( $_GET[ $param ] ) ? sanitize_text_field( wp_unslash( $_GET[ $param ] ) ) : '';
-				$params[ $index ] = $param . '=' . rawurlencode( $ref );
+		$query = wp_unslash( $_GET ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo decide la visibilidad.
+		$query = is_array( $query ) ? $query : array();
+		$match = false;
+		foreach ( explode( "\n", (string) $val ) as $param ) {
+			$param = trim( $param );
+			if ( '' === $param ) {
+				continue;
+			}
+			if ( false === strpos( $param, '=' ) ) {
+				if ( array_key_exists( $param, $query ) ) {
+					$match = true;
+					break;
+				}
+				continue;
+			}
+			list( $name, $value ) = array_map( 'trim', explode( '=', $param, 2 ) );
+			$actual               = isset( $query[ $name ] ) && is_scalar( $query[ $name ] ) ? (string) $query[ $name ] : null;
+			if ( null !== $actual && ( $actual === $value || $actual === rawurldecode( $value ) ) ) {
+				$match = true;
+				break;
 			}
 		}
-		return self::compare( ! empty( array_intersect( $params, explode( '&', $query ) ) ), $relation );
+		return self::compare( $match, $relation );
 	}
 
 	private static function rule_url_string( $relation, $val ) {
