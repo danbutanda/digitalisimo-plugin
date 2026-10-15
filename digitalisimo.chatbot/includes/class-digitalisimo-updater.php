@@ -65,6 +65,8 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			add_filter( 'plugins_api', array( __CLASS__, 'info' ), 20, 3 );
 			add_action( 'upgrader_process_complete', array( __CLASS__, 'clear' ), 10, 2 );
 			add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'force_check' ) );
+			// «Buscar actualizaciones de nuevo» de WordPress (update-core.php?force-check=1): vaciar las cachés propias antes de que WordPress vuelva a consultar.
+			add_action( 'load-update-core.php', array( __CLASS__, 'native_force_check' ), 1 );
 			add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 			add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
 			add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_inline_update' ) );
@@ -97,6 +99,13 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		 * Comprobación manual: sin esto habría que esperar a que expire la caché,
 		 * porque «Volver a comprobar» de WordPress no la invalida.
 		 */
+		/** El botón nativo de WordPress consulta de inmediato: se olvidan la versión conocida y el índice compartido. */
+		public static function native_force_check() {
+			if ( empty( $_GET['force-check'] ) ) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo vacía cachés propias.
+			delete_site_transient( self::CACHE_KEY );
+			delete_transient( self::CACHE_KEY );
+			delete_site_transient( self::MANIFEST_CACHE );
+		}
 		public static function force_check() {
 			if ( ! self::can_update() ) wp_die( esc_html__( 'No autorizado.', 'digitalisimo' ) );
 			check_admin_referer( self::ACTION );

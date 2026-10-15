@@ -1,6 +1,6 @@
 # DIGITALÍSIMO Migración · historial
 
-- @NEXT_MIGRATION@: las reglas heredadas se declaran al contenido por visitante con sus claves (filtro `digitalisimo_elements_visitor_content_conditions`): sólo las que varían entre visitantes (navegador, país, URL, carrito, fecha…) sacan la página de la caché de página; las de sesión, rol o contenido no. El actualizador vacía sus cachés con el botón nativo «Buscar actualizaciones de nuevo».
+- 1.0.10: las reglas heredadas se declaran al contenido por visitante con sus claves (filtro `digitalisimo_elements_visitor_content_conditions`): sólo las que varían entre visitantes (navegador, país, URL, carrito, fecha…) sacan la página de la caché de página; las de sesión, rol o contenido no. El actualizador vacía sus cachés con el botón nativo «Buscar actualizaciones de nuevo».
 
 - 1.0.9: el actualizador lee la versión disponible del índice `digitalisimo-plugins.json` de la última Release, sin pasar por la API de GitHub y su límite de consultas; si GitHub falla, conserva la última versión conocida. Las páginas con reglas de visibilidad heredadas de Element Pack se anuncian como contenido por visitante (también mientras Element Pack sigue activo, y sólo con la extensión encendida en el sitio) para que las cachés de página no las guarden; las reglas heredadas siguen siendo el port literal de Element Pack (sin usuarios elegidos, «Usuario» no cumple con nadie), a diferencia de las propias de DIGITALÍSIMO Elements.
 
