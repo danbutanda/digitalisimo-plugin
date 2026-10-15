@@ -95,6 +95,7 @@ jobs:
           php tests/elements-video-player.php
           php tests/elements-products-carousel.php
           php tests/elements-core-loader.php
+          php tests/elements-updater-manifest.php
           php tests/elements-identity.php
           node tests/elements-legacy-decisions.mjs
           php tests/elements-legacy-extensions.php
@@ -194,7 +195,10 @@ jobs:
         env:
           MODULES: ${{ steps.modules.outputs.names }}
         run: |
-          echo "name=v$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          tag="v$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}"
+          echo "name=$tag" >> "$GITHUB_OUTPUT"
+          # Índice de versiones que los actualizadores leen como archivo de la última Release.
+          node scripts/release-manifest.mjs "$RUNNER_TEMP/digitalisimo-suite" "$tag"
           {
             echo 'body<<NOTAS'
             if [[ -n "$MODULES" ]]; then echo "Plugins con versión nueva: ${MODULES}."; else echo 'Sin versiones nuevas: vuelve a publicar el ZIP vigente de cada plugin.'; fi
@@ -210,4 +214,6 @@ jobs:
           body: ${{ steps.tag.outputs.body }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: ${{ runner.temp }}/digitalisimo-suite/*.zip
+          files: |
+            ${{ runner.temp }}/digitalisimo-suite/*.zip
+            ${{ runner.temp }}/digitalisimo-suite/digitalisimo-plugins.json

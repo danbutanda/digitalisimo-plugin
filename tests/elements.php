@@ -12,7 +12,8 @@ function add_filter( $name, $callback, $priority = 10, $args = 1 ) { $GLOBALS['h
 function add_action( $name, $callback, $priority = 10, $args = 1 ) { add_filter( $name, $callback, $priority, $args ); }
 function is_multisite() { return $GLOBALS['multisite']; }
 function get_option( $key, $default = false ) { return 'active_plugins' === $key ? $GLOBALS['active_plugins'] : $default; }
-function get_site_option( $key, $default = false ) { return 'active_sitewide_plugins' === $key ? $GLOBALS['network_active_plugins'] : $default; }
+function get_site_option( $key, $default = false ) { return 'active_sitewide_plugins' === $key ? $GLOBALS['network_active_plugins'] : ( $GLOBALS['site_options'][ $key ] ?? $default ); }
+function update_site_option( $key, $value ) { $GLOBALS['site_options'][ $key ] = $value; return true; }
 function is_main_site() { return true; }
 function is_network_admin() { return false; }
 function current_user_can() { return true; }

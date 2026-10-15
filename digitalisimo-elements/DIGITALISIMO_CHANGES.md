@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.141
+# DIGITALÍSIMO Elements 4.3.0.142
+
+- 4.3.0.142: el actualizador lee la versión disponible del índice `digitalisimo-plugins.json` adjunto a la última Release, un archivo normal de GitHub, en lugar de su API, que limita a 60 consultas por hora a cada servidor y que agotaban entre todos los plugins Digitalisimo: en esos casos la actualización no aparecía. Si GitHub no responde o limita, se mantiene a la vista la última versión encontrada. Sólo acepta ZIPs de este plugin publicados en el repositorio oficial; la API queda de respaldo. «Buscar actualizaciones» descarga el índice de nuevo.
 
 - 4.3.0.141: identidad propia del constructor. Con el núcleo incluido, ninguna pantalla muestra el nombre ni el logotipo de Elementor: menú, editor, biblioteca de plantillas, kits, panel del escritorio, avisos, barra de administración y botones «Editar con DIGITALÍSIMO Elements» llevan la marca y el símbolo de DIGITALÍSIMO, en cualquier idioma. Se retiran la meta generator del HTML público, las novedades y anuncios remotos, las noticias del blog del proveedor, su pantalla de inicio promocional, el asistente de bienvenida y las invitaciones a valorarlo o mejorar de plan; el inicio rápido conserva sus accesos. Los identificadores internos no cambian, así que el contenido, los kits, las plantillas y los complementos siguen funcionando igual. Si el plugin Elementor está activo, manda su propia marca.
 
