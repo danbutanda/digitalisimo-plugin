@@ -18,6 +18,9 @@ function get_site_transient( $key ) { global $test_transients; return $test_tran
 function set_site_transient( $key, $value ) { global $test_transients; $test_transients[ $key ] = $value; }
 function delete_site_transient( $key ) { global $test_transients; unset( $test_transients[ $key ] ); }
 function delete_transient() {}
+$test_options = array();
+if ( ! function_exists( 'get_site_option' ) ) { function get_site_option( $key, $default = false ) { global $test_options; return $test_options[ $key ] ?? $default; } }
+if ( ! function_exists( 'update_site_option' ) ) { function update_site_option( $key, $value ) { global $test_options; $test_options[ $key ] = $value; return true; } }
 function wp_remote_get() {
 	global $test_version;
 	return array( 'code' => 200, 'body' => json_encode( array( array( 'assets' => array( array( 'name' => 'digitalisimo-tools-' . $test_version . '.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v-test/digitalisimo-tools-' . $test_version . '.zip' ) ), 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v-test' ) ) ) );

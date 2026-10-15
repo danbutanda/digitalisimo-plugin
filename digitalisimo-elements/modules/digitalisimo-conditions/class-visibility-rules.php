@@ -109,15 +109,22 @@ final class Visibility_Rules {
 		return self::compare( is_user_logged_in(), $relation );
 	}
 
+	/** Sin usuarios elegidos vale cualquier usuario con sesión, como indica el propio control; un solo ID vale como lista de uno. */
 	private static function rule_user( $relation, $val ) {
 		$user = get_current_user_id();
-		return self::compare( self::any( $val, static function ( $id ) use ( $user ) {
-			return $id == $user; // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual
+		$ids  = is_array( $val ) ? $val : ( null === $val || '' === trim( (string) $val ) ? array() : array( $val ) );
+		if ( empty( $ids ) ) {
+			return self::compare( $user > 0, $relation );
+		}
+		return self::compare( self::any( $ids, static function ( $id ) use ( $user ) {
+			return $user > 0 && $id == $user; // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual
 		} ), $relation );
 	}
 
+	/** El valor puede llegar como lista si el control se guardó con selección múltiple. */
 	private static function rule_role( $relation, $val ) {
-		return self::compare( is_user_logged_in() && in_array( $val, (array) wp_get_current_user()->roles ), $relation ); // phpcs:ignore WordPress.PHP.StrictInArray.MissingTrueStrict
+		$roles = (array) wp_get_current_user()->roles;
+		return self::compare( is_user_logged_in() && array_intersect( array_map( 'strval', (array) $val ), array_map( 'strval', $roles ) ), $relation );
 	}
 
 	private static function rule_post( $relation, $val ) {
@@ -235,10 +242,8 @@ final class Visibility_Rules {
 		if ( '' === $uri ) {
 			return null;
 		}
-		$query = (string) wp_parse_url( $uri, PHP_URL_QUERY );
-		if ( '' === $query ) {
-			return false;
-		}
+		// Sin parámetros en la URL el parámetro no está: «es» no se cumple y «no es» sí, igual que con otros parámetros.
+		$query  = (string) wp_parse_url( $uri, PHP_URL_QUERY );
 		$params = explode( "\n", sanitize_textarea_field( (string) $val ) );
 		foreach ( $params as $index => $param ) {
 			if ( ! strpos( $param, '=' ) ) {

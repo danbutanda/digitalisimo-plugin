@@ -89,6 +89,7 @@ jobs:
           php tests/elements-duplicator.php
           php tests/elements-display-conditions.php
           php tests/elements-legacy-visibility.php
+          php tests/elements-visitor-content.php
           php tests/elements-legacy-adapters.php
           php tests/elements-native-features.php
           php tests/elements-author-box-extras.php
@@ -96,6 +97,9 @@ jobs:
           php tests/elements-products-carousel.php
           php tests/elements-core-loader.php
           php tests/elements-updater-manifest.php
+          php tests/backups-updater-manifest.php
+          php tests/tools-updater-manifest.php
+          php tests/migration-updater.php
           php tests/elements-identity.php
           node tests/elements-legacy-decisions.mjs
           php tests/elements-legacy-extensions.php
@@ -107,6 +111,9 @@ jobs:
           php tests/updater-isolation.php seo
           php tests/updater-isolation.php hosting
           php tests/updater-isolation.php ia
+          php tests/updater-manifest.php seo
+          php tests/updater-manifest.php hosting
+          php tests/updater-manifest.php ia
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
           php tests/performance-cache.php
@@ -147,6 +154,8 @@ jobs:
           php tests/performance-tracking.php
           php tests/performance-site-kit.php
           php tests/seo-release-check.php
+          php tests/plugin-catalog-manifest.php
+          php tests/tools-bridge-manifest.php
           php tests/performance-form-ui.php
           php tests/sitemap.php
           php tests/sitemap-routes.php

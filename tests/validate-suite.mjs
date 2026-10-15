@@ -11,7 +11,7 @@ const modules = [
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.52.zip', version: '1.0.52' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.28.zip', version: '1.0.28' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.142.zip', version: '4.3.0.142' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.143.zip', version: '4.3.0.143' };
 const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.8.zip', version: '1.0.8' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
@@ -75,7 +75,7 @@ const declarations = new Map();
   if (tree.files !== manifest.files || tree.tree_sha256 !== manifest.tree_sha256) throw new Error(`digitalisimo-elements/elementor no coincide con su manifiesto (${tree.files} archivos frente a ${manifest.files}).`);
   const zippedCore = listing.split('\n').filter((entry) => entry.startsWith(`${elementsModule.dir}/elementor/`) && !entry.endsWith('/') && entry !== `${elementsModule.dir}/elementor/digitalisimo-core.json`);
   if (zippedCore.length !== manifest.files) throw new Error(`El ZIP de Elements lleva ${zippedCore.length} archivos del núcleo incluido y su manifiesto ${manifest.files}.`);
-  for (const required of ['digitalisimo-core.php', 'digitalisimo-identity.php', 'assets/digitalisimo/identity.css', 'elementor/elementor.php', 'elementor/includes/plugin.php', 'elementor/vendor/autoload_packages.php', 'elementor/vendor/autoload.php', 'elementor/digitalisimo-core.json', 'elementor/languages/elementor-es_MX.l10n.php', 'elementor/languages/elementor-es_ES.l10n.php', 'core/compatibility/compatibility.php']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
+  for (const required of ['digitalisimo-core.php', 'digitalisimo-identity.php', 'assets/digitalisimo/identity.css', 'modules/digitalisimo-conditions/class-visitor-content.php', 'elementor/elementor.php', 'elementor/includes/plugin.php', 'elementor/vendor/autoload_packages.php', 'elementor/vendor/autoload.php', 'elementor/digitalisimo-core.json', 'elementor/languages/elementor-es_MX.l10n.php', 'elementor/languages/elementor-es_ES.l10n.php', 'core/compatibility/compatibility.php']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
   // La marca propia del constructor (núcleo incluido) se aplica en tiempo de ejecución: el núcleo no se edita.
   if (!source.includes('Digitalisimo_Elements_Identity::init();') || /Description:[^\n]*Elementor/.test(source)) throw new Error('DIGITALÍSIMO Elements debe cargar su identidad propia y no nombrar el núcleo en su descripción.');
   if (!source.includes("Digitalisimo_Elements_Core::load();") || source.indexOf("Digitalisimo_Elements_Core::load();") > source.indexOf("require_once __DIR__ . '/digitalisimo-compat.php';")) throw new Error('El núcleo incluido debe cargarse antes que el resto de DIGITALÍSIMO Elements.');
@@ -216,8 +216,8 @@ const updaters = [
   'digitalisimo.chatbot/includes/class-digitalisimo-updater.php',
   'digitalisimo-hosting/includes/class-digitalisimo-updater.php',
 ].map((file) => readFileSync(file, 'utf8'));
-if (updaters.some((source) => !source.includes('const CACHE_TTL  = HOUR_IN_SECONDS') || !source.includes('set_site_transient( self::CACHE_KEY, $index, self::CACHE_TTL )')))
-  throw new Error('Durante desarrollo todos los módulos deben consultar Releases cada minuto, incluso tras un fallo temporal.');
+if (updaters.some((source) => !source.includes('const CACHE_TTL  = 10 * MINUTE_IN_SECONDS') || !source.includes('set_site_transient( self::CACHE_KEY, $index, self::CACHE_TTL )') || !source.includes('set_site_transient( self::CACHE_KEY, $known, 2 * MINUTE_IN_SECONDS )') || !source.includes("const MANIFEST_CACHE = 'digitalisimo_plugins_manifest'")))
+  throw new Error('Todos los módulos deben leer el índice de la Release cada diez minutos y reintentar a los dos minutos tras un fallo temporal.');
 if (!seoSuite.includes("add_submenu_page( 'digitalisimo', 'SEO', 'SEO'")) throw new Error('Falta el acceso unificado SEO');
 if (!seoSuite.includes("digitalisimo-seo-snippet-editor") || !seoSuite.includes('Vista previa en Google') || !seoSuite.includes('digitalisimo_native_slug'))
   throw new Error('SEO debe ofrecer editor de snippet con vista previa, título, descripción y permalink.');

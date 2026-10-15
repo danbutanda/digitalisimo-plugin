@@ -159,6 +159,7 @@ namespace {
 	// Integración con Elementor: controles con los mismos nombres y valores por defecto.
 	Legacy_Visibility::init();
 	check_legacy( in_array( 'elementor/frontend/widget/should_render', $GLOBALS['digi']['hooks'], true ) && in_array( 'elementor/element/common/section_visibility_control_controls/before_section_end', $GLOBALS['digi']['hooks'], true ), 'Sin Element Pack deben registrarse controles y render.' );
+	check_legacy( in_array( 'digitalisimo_elements_visitor_content_switches', $GLOBALS['digi']['hooks'], true ) && in_array( 'ep_display_conditions_enable', Legacy_Visibility::visitor_content_switch( array( 'x' ) ), true ), 'Las reglas heredadas se anuncian como contenido por visitante.' );
 	$element = new Fake_Element();
 	Legacy_Visibility::register_section( $element );
 	check_legacy( array( 'ep_display_conditions_enable' => 'yes' ) === $element->sections['section_visibility_control_controls']['condition'], 'La sección sólo aparece en elementos que ya usan las reglas.' );
@@ -180,6 +181,7 @@ namespace {
 	check_legacy( false === Legacy_Visibility::should_render( true, $element ), 'Con la extensión encendida en Element Pack se aplican las reglas.' );
 	$GLOBALS['digi']['options']['element_pack_elementor_extend'] = array( 'visibility-controls' => 'off' );
 	check_legacy( true === Legacy_Visibility::should_render( true, $element ), 'Si Element Pack tenía la extensión apagada, las reglas no se aplicaban y siguen sin aplicarse.' );
+	check_legacy( array( 'x' ) === Legacy_Visibility::visitor_content_switch( array( 'x' ) ), 'Con la extensión apagada, las páginas con reglas guardadas no pierden la caché de página.' );
 	$GLOBALS['digi']['options']['element_pack_elementor_extend'] = array( 'otra' => 'on' );
 	check_legacy( true === Legacy_Visibility::should_render( true, $element ), 'La extensión venía apagada por defecto.' );
 	unset( $GLOBALS['digi']['options'] );
@@ -190,7 +192,7 @@ namespace {
 	$GLOBALS['digi']['hooks'] = array();
 	define( 'BDTEP_VER', '9.9.1' );
 	Legacy_Visibility::init();
-	check_legacy( array() === $GLOBALS['digi']['hooks'], 'Con Element Pack activo no se compite por sus controles.' );
+	check_legacy( array( 'digitalisimo_elements_visitor_content_switches' ) === $GLOBALS['digi']['hooks'], 'Con Element Pack activo no se compite por sus controles; sólo se anuncian sus reglas como contenido por visitante.' );
 
 	echo "DIGITALÍSIMO Elements: condiciones heredadas de Element Pack validadas.\n";
 }

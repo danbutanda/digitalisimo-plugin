@@ -20,6 +20,8 @@ final class Display_Conditions {
 		add_action( 'wp_footer', array( Conditions\Visitor::class, 'print_timezone_script' ) );
 		require_once __DIR__ . '/class-visibility.php';
 		Visibility::init();
+		require_once __DIR__ . '/class-visitor-content.php';
+		Conditions\Visitor_Content::init();
 	}
 
 	public static function register_groups( $manager ) {

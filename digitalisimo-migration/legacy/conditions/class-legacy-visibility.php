@@ -21,6 +21,8 @@ final class Legacy_Visibility {
 	const SECTION = 'section_visibility_control_controls';
 
 	public static function init() {
+		// Con o sin Element Pack, las páginas con sus reglas cambian por visitante: fuera de las cachés de página.
+		add_filter( 'digitalisimo_elements_visitor_content_switches', array( __CLASS__, 'visitor_content_switch' ) );
 		if ( self::element_pack_active() ) {
 			return;
 		}
@@ -34,6 +36,15 @@ final class Legacy_Visibility {
 			add_filter( 'elementor/frontend/' . $element . '/should_render', array( __CLASS__, 'should_render' ), 10, 2 );
 		}
 		add_filter( 'elementor/element/is_dynamic_content', array( __CLASS__, 'is_dynamic_content' ), 10, 2 );
+	}
+
+	/** Sólo mientras la extensión está activa en el sitio: apagada, los elementos se pintan igual para todos. */
+	public static function visitor_content_switch( $keys ) {
+		$keys = (array) $keys;
+		if ( Legacy_Rules::enabled_on_site() ) {
+			$keys[] = 'ep_display_conditions_enable';
+		}
+		return $keys;
 	}
 
 	public static function element_pack_active() {

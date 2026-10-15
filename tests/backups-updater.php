@@ -9,6 +9,7 @@ $GLOBALS['updater_cache'] = array();
 $GLOBALS['updater_network'] = true;
 $GLOBALS['updater_network_admin'] = true;
 $GLOBALS['updater_checks'] = 0;
+$GLOBALS['updater_options'] = array();
 function add_filter( $hook, $callback, $priority = 10, $accepted = 1 ) { $GLOBALS['updater_hooks'][ $hook ] = $callback; }
 function add_action( $hook, $callback, $priority = 10, $accepted = 1 ) { $GLOBALS['updater_hooks'][ $hook ] = $callback; }
 function plugin_basename( $file ) { return 'digitalisimo-backups/digitalisimo-backups.php'; }
@@ -28,8 +29,12 @@ function get_site_transient( $key ) { return $GLOBALS['updater_cache'][ $key ] ?
 function set_site_transient( $key, $value, $ttl = 0 ) { $GLOBALS['updater_cache'][ $key ] = $value; }
 function delete_site_transient( $key ) { unset( $GLOBALS['updater_cache'][ $key ] ); }
 function delete_transient( $key ) { unset( $GLOBALS['updater_cache'][ $key ] ); }
+function get_site_option( $key, $default = false ) { return $GLOBALS['updater_options'][ $key ] ?? $default; }
+function update_site_option( $key, $value ) { $GLOBALS['updater_options'][ $key ] = $value; return true; }
 function wp_update_plugins() { $GLOBALS['updater_checks']++; }
 function wp_remote_get( $url, $args ) {
+	// Sin índice de la Release (404) el lector debe caer a la API y pedirle suficientes publicaciones.
+	if ( false === strpos( $url, 'api.github.com' ) ) return array( 'code' => 404, 'body' => '' );
 	if ( false === strpos( $url, 'per_page=100' ) ) throw new RuntimeException( 'La búsqueda de Releases no cubre suficientes publicaciones.' );
 	return array( 'code' => 200, 'body' => json_encode( array(
 		array( 'draft' => false, 'prerelease' => false, 'html_url' => 'https://github.test/stable', 'assets' => array( array( 'name' => 'digitalisimo-backups-1.0.48.zip', 'browser_download_url' => 'https://github.test/backups.zip' ) ) ),
@@ -59,8 +64,9 @@ $checked = Digitalisimo_Backups_Updater::check( (object) array( 'checked' => arr
 if ( $external !== $checked->response['tercero/plugin.php'] ) throw new RuntimeException( 'Backups debe conservar las actualizaciones de terceros.' );
 if ( ( $checked->response[ $file ]->new_version ?? '' ) !== '1.0.48' || ( $checked->response[ $file ]->package ?? '' ) !== 'https://github.test/backups.zip' ) throw new RuntimeException( 'La actualización estable no quedó disponible.' );
 if ( ! Digitalisimo_Backups_Updater::auto_update( false, (object) array( 'plugin' => $file ) ) ) throw new RuntimeException( 'La actualización automática no está activa.' );
+$GLOBALS['updater_cache']['digitalisimo_plugins_manifest'] = array( 'plugins' => array() );
 Digitalisimo_Backups_Updater::refresh();
-if ( 1 !== $GLOBALS['updater_checks'] || isset( $GLOBALS['updater_cache']['digitalisimo_backups_release'] ) ) throw new RuntimeException( 'La comprobación no limpió la caché.' );
+if ( 1 !== $GLOBALS['updater_checks'] || isset( $GLOBALS['updater_cache']['digitalisimo_backups_release'] ) || isset( $GLOBALS['updater_cache']['digitalisimo_plugins_manifest'] ) ) throw new RuntimeException( 'La comprobación no limpió la caché propia ni el índice compartido.' );
 $GLOBALS['updater_cache']['update_plugins'] = $checked;
 Digitalisimo_Backups_Updater::refresh();
 if ( $external !== $GLOBALS['updater_cache']['update_plugins']->response['tercero/plugin.php'] || 1 !== $GLOBALS['updater_checks'] ) throw new RuntimeException( 'La consulta periódica debe conservar avisos ajenos sin forzar otra consulta global.' );

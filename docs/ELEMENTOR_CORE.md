@@ -46,6 +46,7 @@ Elementor publica versiones con frecuencia, a veces con correcciones de segurida
 3. Valida:
    - `bash tests/playground/core-switch.sh`: las mismas páginas con el plugin Elementor y con el núcleo incluido en una red, tras borrar Elementor.
    - `CORE=bundled bash tests/playground/interaction.sh`: widgets en Chrome y el editor sobre el núcleo incluido.
+   - `bash tests/playground/conditions.sh`: condiciones de visualización en páginas reales con los tres motores, caché de elementos, plantillas incrustadas y guardado desde el editor.
    - `bash tests/playground/brand-audit.sh`: recorre en Chrome, en español y en inglés, la administración, el editor, la biblioteca, los kits y el frontal; falla si se ve «Elementor» o su logotipo. Una versión nueva del núcleo puede traer pantallas o textos fijos nuevos.
    - `CORE=bundled FAKE_PLUGINS=1 EXTRA_PLUGINS=woocommerce,secure-custom-fields bash tests/playground/legacy-ab.sh` (y bbPress aparte): la migración desde Element Pack completa sobre el núcleo incluido.
    - `CORE=bundled bash tests/playground/form-submit.sh` y `CORE=bundled bash tests/playground/migration-report.sh`.
