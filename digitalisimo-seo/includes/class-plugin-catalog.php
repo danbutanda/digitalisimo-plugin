@@ -6,6 +6,17 @@ final class Digitalisimo_Plugin_Catalog {
 	const INSTALL_ACTION = 'digitalisimo_catalog_install';
 	const UPDATE_ACTION  = 'digitalisimo_catalog_update';
 	const CACHE_KEY      = 'digitalisimo_plugin_catalog_releases';
+	const REPOSITORY     = 'danbutanda/digitalisimo-plugin';
+	/**
+	 * Índice de versiones adjunto a cada Release (el ZIP vigente de los siete plugins). Se descarga como un archivo
+	 * de la última Release, no por la API de GitHub, que limita a 60 consultas por hora a cada servidor sin
+	 * autenticar y que agotan entre todos los plugins Digitalisimo.
+	 */
+	const MANIFEST_URL   = 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest/download/digitalisimo-plugins.json';
+	/** Caché compartida del índice: un solo archivo sirve a todos los plugins que lo lean. */
+	const MANIFEST_CACHE = 'digitalisimo_plugins_manifest';
+	/** Último índice encontrado: si GitHub no responde, el catálogo sigue ofreciendo lo último publicado en lugar de vaciarse. */
+	const LAST_KNOWN     = 'digitalisimo_catalog_last_known';
 	private static $initialized = false;
 
 	public static function init() {
@@ -19,7 +30,12 @@ final class Digitalisimo_Plugin_Catalog {
 		}
 		add_action( 'admin_post_' . self::INSTALL_ACTION, array( __CLASS__, 'install' ) );
 		add_action( 'admin_post_' . self::UPDATE_ACTION, array( __CLASS__, 'update' ) );
+		// «Buscar actualizaciones» de cualquier plugin Digitalisimo (y la limpieza tras actualizar) borra el índice compartido: el catálogo se rehace entonces con el índice nuevo.
+		add_action( 'delete_site_transient_' . self::MANIFEST_CACHE, array( __CLASS__, 'clear' ) );
 	}
+
+	/** Vacía la caché propia; el índice compartido lo vacía quien lo descarga de nuevo. */
+	public static function clear() { delete_site_transient( self::CACHE_KEY ); }
 
 	public static function menu() { add_submenu_page( 'digitalisimo', 'Plugins · Digitalisimo', 'Plugins', 'manage_options', 'digitalisimo-plugins', array( __CLASS__, 'page' ) ); }
 	public static function network_menu() { add_submenu_page( 'digitalisimo-network', 'Plugins · Digitalisimo', 'Plugins', 'manage_network_plugins', 'digitalisimo-plugins', array( __CLASS__, 'page' ) ); }
@@ -48,7 +64,46 @@ final class Digitalisimo_Plugin_Catalog {
 	private static function releases() {
 		$cached = get_site_transient( self::CACHE_KEY );
 		if ( false !== $cached ) return (array) $cached;
-		$response = wp_remote_get( 'https://api.github.com/repos/danbutanda/digitalisimo-plugin/releases?per_page=50', array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-Plugin-Catalog' ) ) );
+		$index = self::from_manifest();
+		// Cada plugin con entrada válida en el índice la usa; sólo si alguno del catálogo queda sin entrada se completa con la API, de respaldo.
+		if ( array_diff_key( self::plugins(), $index ) ) $index += self::from_api();
+		if ( $index ) {
+			update_site_option( self::LAST_KNOWN, $index );
+			set_site_transient( self::CACHE_KEY, $index, 10 * MINUTE_IN_SECONDS );
+			return $index;
+		}
+		// GitHub no respondió o limitó las consultas: se conserva lo último encontrado y se reintenta pronto.
+		$known = get_site_option( self::LAST_KNOWN, array() );
+		$known = is_array( $known ) ? $known : array();
+		set_site_transient( self::CACHE_KEY, $known, 2 * MINUTE_IN_SECONDS );
+		return $known;
+	}
+
+	/** Índice según el archivo de la última Release; cada entrada sólo se acepta si es un ZIP de su propio slug en este repositorio, y una rechazada no invalida las demás. */
+	private static function from_manifest() {
+		$manifest = get_site_transient( self::MANIFEST_CACHE );
+		if ( ! is_array( $manifest ) ) {
+			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 10, 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-Plugin-Catalog' ) ) );
+			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
+			$manifest = json_decode( wp_remote_retrieve_body( $response ), true );
+			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) return array();
+			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
+		}
+		$index = array();
+		foreach ( $manifest['plugins'] as $slug => $entry ) {
+			$slug    = (string) $slug;
+			$version = is_array( $entry ) ? (string) ( $entry['version'] ?? '' ) : '';
+			$package = is_array( $entry ) ? (string) ( $entry['url'] ?? '' ) : '';
+			if ( ! preg_match( '/^digitalisimo-[a-z]+(?:-[a-z]+)*$/', $slug ) || ! preg_match( '/^\d+(?:\.\d+)+$/', $version ) ) continue;
+			if ( ! preg_match( '#^https://github\.com/' . preg_quote( self::REPOSITORY, '#' ) . '/releases/download/[A-Za-z0-9._-]+/' . preg_quote( $slug . '-' . $version, '#' ) . '\.zip$#', $package ) ) continue;
+			$index[ $slug ] = array( 'version' => $version, 'package' => esc_url_raw( $package ) );
+		}
+		return $index;
+	}
+
+	/** Respaldo por la API de GitHub (sujeta a su límite de consultas): el asset más reciente de cada plugin. */
+	private static function from_api() {
+		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50', array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-Plugin-Catalog' ) ) );
 		$index = array();
 		if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) foreach ( (array) json_decode( wp_remote_retrieve_body( $response ), true ) as $release ) {
 			if ( ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) continue;
@@ -58,7 +113,6 @@ final class Digitalisimo_Plugin_Catalog {
 				$index[ $match[1] ] = array( 'version' => $match[2], 'package' => esc_url_raw( $asset['browser_download_url'] ?? '' ) );
 			}
 		}
-		set_site_transient( self::CACHE_KEY, $index, HOUR_IN_SECONDS );
 		return $index;
 	}
 

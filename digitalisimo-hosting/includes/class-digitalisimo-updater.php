@@ -17,10 +17,19 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 	final class Digitalisimo_Updater {
 		const REPOSITORY = 'danbutanda/digitalisimo-plugin';
 		const CACHE_KEY  = 'digitalisimo_releases_index';
-		// Durante el desarrollo se consulta GitHub cada minuto. Al estabilizar
-		// releases, este valor vuelve a HOUR_IN_SECONDS.
-		const CACHE_TTL  = HOUR_IN_SECONDS;
+		// El índice se vuelve a leer cada diez minutos: es un archivo de la Release, no una consulta a la API.
+		const CACHE_TTL  = 10 * MINUTE_IN_SECONDS;
 		const ACTION     = 'digitalisimo_check_updates';
+		/**
+		 * Índice de versiones adjunto a cada Release (el ZIP vigente de los siete plugins). Se descarga como un archivo
+		 * de la última Release, no por la API de GitHub, que limita a 60 consultas por hora a cada servidor sin
+		 * autenticar y que agotan entre todos los plugins Digitalisimo.
+		 */
+		const MANIFEST_URL = 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest/download/digitalisimo-plugins.json';
+		/** Caché compartida del índice: un solo archivo sirve a todos los plugins que lo lean. */
+		const MANIFEST_CACHE = 'digitalisimo_plugins_manifest';
+		/** Último índice encontrado: si GitHub no responde, las actualizaciones siguen a la vista en lugar de desaparecer. */
+		const LAST_KNOWN = 'digitalisimo_releases_last_known';
 
 		/** Módulos registrados, indexados por su archivo principal relativo. */
 		private static $modules = array();
@@ -93,6 +102,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			check_admin_referer( self::ACTION );
 			delete_site_transient( self::CACHE_KEY );
 			delete_transient( self::CACHE_KEY );
+			delete_site_transient( self::MANIFEST_CACHE );
 			$updates = get_site_transient( 'update_plugins' );
 			if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) set_site_transient( 'update_plugins', self::inject( $updates ) );
 			else wp_update_plugins();
@@ -120,17 +130,56 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 		private static function releases() {
 			$cached = get_site_transient( self::CACHE_KEY );
 			if ( false !== $cached ) return (array) $cached;
+			$index = self::from_manifest();
+			// Cada módulo registrado con entrada válida en el índice la usa; sólo si alguno queda sin entrada se completa con la API, de respaldo.
+			foreach ( self::$modules as $module ) { if ( empty( $index[ $module['slug'] ] ) ) { $index += self::from_api(); break; } }
+			if ( $index ) {
+				update_site_option( self::LAST_KNOWN, $index );
+				set_site_transient( self::CACHE_KEY, $index, self::CACHE_TTL );
+				return $index;
+			}
+			// GitHub no respondió o limitó las consultas: se conserva el último índice encontrado y se reintenta pronto,
+			// para que una actualización ya anunciada no desaparezca de la lista de Plugins.
+			$known = get_site_option( self::LAST_KNOWN, array() );
+			$known = is_array( $known ) ? $known : array();
+			set_site_transient( self::CACHE_KEY, $known, 2 * MINUTE_IN_SECONDS );
+			return $known;
+		}
 
+		/**
+		 * Índice de la última Release: versión y ZIP de cada plugin sin pasar por la API de GitHub. Sólo se acepta una
+		 * entrada cuyo ZIP sea del plugin nombrado y de este repositorio; una entrada rechazada o ausente no invalida
+		 * las demás, y releases() completa por la API sólo los módulos registrados que queden sin entrada.
+		 */
+		private static function from_manifest() {
+			$manifest = get_site_transient( self::MANIFEST_CACHE );
+			if ( ! is_array( $manifest ) ) {
+				$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => 10, 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-WordPress-Updater' ) ) );
+				if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
+				$manifest = json_decode( wp_remote_retrieve_body( $response ), true );
+				if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) return array();
+				set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
+			}
+			$release_url = (string) ( $manifest['release_url'] ?? '' );
+			if ( 0 !== strpos( $release_url, 'https://github.com/' . self::REPOSITORY . '/releases' ) ) $release_url = 'https://github.com/' . self::REPOSITORY . '/releases';
+			$index = array();
+			foreach ( (array) ( $manifest['plugins'] ?? array() ) as $slug => $entry ) {
+				$version = is_array( $entry ) ? (string) ( $entry['version'] ?? '' ) : '';
+				$package = is_array( $entry ) ? (string) ( $entry['url'] ?? '' ) : '';
+				if ( ! preg_match( '/^digitalisimo-[a-z]+(?:-[a-z]+)*$/', (string) $slug ) || ! preg_match( '/^\d+(?:\.\d+)+$/', $version ) ) continue;
+				if ( ! preg_match( '#^https://github\.com/' . preg_quote( self::REPOSITORY, '#' ) . '/releases/download/[A-Za-z0-9._-]+/' . $slug . '-' . preg_quote( $version, '#' ) . '\.zip$#', $package ) ) continue;
+				$index[ $slug ] = array( 'version' => $version, 'package' => esc_url_raw( $package ), 'url' => esc_url_raw( $release_url ), 'notes' => '' );
+			}
+			return $index;
+		}
+
+		/** Respaldo por la API de GitHub (sujeta a su límite de consultas): el asset más reciente de cada plugin. */
+		private static function from_api() {
 			$response = wp_remote_get(
 				'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50',
 				array( 'timeout' => 10, 'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-WordPress-Updater' ) )
 			);
-			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-				// Reintento corto ante fallos de red: un error puntual no debe bloquear la comprobación.
-				set_site_transient( self::CACHE_KEY, array(), 5 * MINUTE_IN_SECONDS );
-				return array();
-			}
-
+			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
 			$index = array();
 			foreach ( (array) json_decode( wp_remote_retrieve_body( $response ), true ) as $release ) {
 				if ( ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) continue;
@@ -146,7 +195,6 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 					);
 				}
 			}
-			set_site_transient( self::CACHE_KEY, $index, self::CACHE_TTL );
 			return $index;
 		}
 
@@ -232,10 +280,17 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 					'download_link' => $release['package'] ?? '',
 					'requires'      => '6.0',
 					'requires_php'  => '7.4',
-					'sections'      => array( 'changelog' => $release['notes'] ?? 'Sin notas de versión.' ),
+					'sections'      => array( 'changelog' => self::changelog( $release ) ),
 				);
 			}
 			return $result;
+		}
+
+		/** Notas de la Release; el índice no las trae, así que en su lugar se enlaza la página de la Release en GitHub. */
+		private static function changelog( $release ) {
+			if ( ! empty( $release['notes'] ) ) return $release['notes'];
+			if ( ! empty( $release['url'] ) ) return '<p>Notas de la versión ' . esc_html( $release['version'] ?? '' ) . ' en <a href="' . esc_url( $release['url'] ) . '">GitHub</a>.</p>';
+			return 'Sin notas de versión.';
 		}
 
 		/** Limpia sólo la caché de Digitalisimo tras actualizar uno de sus módulos. */
@@ -243,6 +298,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			if ( 'update' !== ( $options['action'] ?? '' ) || 'plugin' !== ( $options['type'] ?? '' ) || ! array_intersect( (array) ( $options['plugins'] ?? array() ), array_keys( self::$modules ) ) ) return;
 			delete_site_transient( self::CACHE_KEY );
 			delete_transient( self::CACHE_KEY );
+			delete_site_transient( self::MANIFEST_CACHE );
 		}
 	}
 }

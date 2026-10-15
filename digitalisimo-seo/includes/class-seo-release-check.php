@@ -5,6 +5,18 @@ defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_SEO_Release_Check {
 	const CACHE_KEY = 'digitalisimo_seo_release_check';
 	const HOOK = 'digitalisimo_seo_refresh_release';
+	const SLUG = 'digitalisimo-seo';
+	const REPOSITORY = 'danbutanda/digitalisimo-plugin';
+	/**
+	 * Índice de versiones adjunto a cada Release (el ZIP vigente de los siete plugins). Se descarga como un archivo
+	 * de la última Release, no por la API de GitHub, que limita a 60 consultas por hora a cada servidor sin
+	 * autenticar y que agotan entre todos los plugins Digitalisimo.
+	 */
+	const MANIFEST_URL = 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest/download/digitalisimo-plugins.json';
+	/** Caché compartida del índice: un solo archivo sirve a todos los plugins que lo lean. */
+	const MANIFEST_CACHE = 'digitalisimo_plugins_manifest';
+	/** Última versión encontrada: si GitHub no responde, la actualización sigue a la vista en lugar de desaparecer. */
+	const LAST_KNOWN = 'digitalisimo_seo_last_release';
 
 	public static function init() {
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 30, 4 );
@@ -24,15 +36,19 @@ final class Digitalisimo_SEO_Release_Check {
 	public static function clear_for_manual() {
 		if ( ! current_user_can( is_multisite() ? 'manage_network_plugins' : 'update_plugins' ) ) return;
 		check_admin_referer( 'digitalisimo_check_updates' );
-		delete_site_transient( self::CACHE_KEY );
+		self::clear();
 	}
 
-	/** El cron actualiza únicamente el índice de SEO y el aviso; no consulta WordPress.org. */
-	public static function refresh() {
-		$previous = get_site_transient( self::CACHE_KEY );
+	/** Vacía la caché propia y el índice compartido para que la siguiente consulta descargue el índice de nuevo. */
+	private static function clear() {
 		delete_site_transient( self::CACHE_KEY );
-		$release = self::release();
-		if ( ! $release && is_array( $previous ) && ! empty( $previous['version'] ) ) set_site_transient( self::CACHE_KEY, $previous, MINUTE_IN_SECONDS );
+		delete_site_transient( self::MANIFEST_CACHE );
+	}
+
+	/** El cron actualiza únicamente el índice de SEO y el aviso; no consulta WordPress.org. Si GitHub falla, release() conserva la última versión encontrada. */
+	public static function refresh() {
+		self::clear();
+		self::release();
 		$updates = get_site_transient( 'update_plugins' );
 		if ( ! is_object( $updates ) || ! isset( $updates->checked ) || ! is_array( $updates->checked ) ) {
 			wp_update_plugins();
@@ -45,14 +61,49 @@ final class Digitalisimo_SEO_Release_Check {
 	private static function release() {
 		$cached = get_site_transient( self::CACHE_KEY );
 		if ( is_array( $cached ) ) return $cached;
-		$response = wp_remote_get( 'https://api.github.com/repos/danbutanda/digitalisimo-plugin/releases?per_page=50', array(
-			'timeout' => function_exists( 'wp_doing_cron' ) && wp_doing_cron() ? 10 : 3,
+		$latest = self::from_manifest();
+		if ( ! $latest ) $latest = self::from_api();
+		if ( $latest ) {
+			update_site_option( self::LAST_KNOWN, $latest );
+			set_site_transient( self::CACHE_KEY, $latest, 10 * MINUTE_IN_SECONDS );
+			return $latest;
+		}
+		// GitHub no respondió o limitó las consultas: se conserva lo último encontrado y se reintenta pronto.
+		$known = get_site_option( self::LAST_KNOWN, array() );
+		$known = is_array( $known ) ? $known : array();
+		set_site_transient( self::CACHE_KEY, $known, 2 * MINUTE_IN_SECONDS );
+		return $known;
+	}
+
+	/** Las consultas en cron pueden esperar; las de una pantalla de administración no deben retrasarla. */
+	private static function timeout() { return function_exists( 'wp_doing_cron' ) && wp_doing_cron() ? 10 : 3; }
+
+	/** Versión de SEO en el índice de la última Release; sólo acepta un ZIP suyo de este repositorio. */
+	private static function from_manifest() {
+		$manifest = get_site_transient( self::MANIFEST_CACHE );
+		if ( ! is_array( $manifest ) ) {
+			$response = wp_remote_get( self::MANIFEST_URL, array( 'timeout' => self::timeout(), 'redirection' => 5, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'Digitalisimo-SEO-Updater' ) ) );
+			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
+			$manifest = json_decode( wp_remote_retrieve_body( $response ), true );
+			if ( ! is_array( $manifest ) || empty( $manifest['plugins'] ) || ! is_array( $manifest['plugins'] ) ) return array();
+			set_site_transient( self::MANIFEST_CACHE, $manifest, 10 * MINUTE_IN_SECONDS );
+		}
+		$entry   = $manifest['plugins'][ self::SLUG ] ?? null;
+		$version = is_array( $entry ) ? (string) ( $entry['version'] ?? '' ) : '';
+		$package = is_array( $entry ) ? (string) ( $entry['url'] ?? '' ) : '';
+		if ( ! preg_match( '/^\d+(?:\.\d+)+$/', $version ) || ! preg_match( '#^https://github\.com/' . preg_quote( self::REPOSITORY, '#' ) . '/releases/download/[A-Za-z0-9._-]+/' . self::SLUG . '-' . preg_quote( $version, '#' ) . '\.zip$#', $package ) ) return array();
+		$release_url = (string) ( $manifest['release_url'] ?? '' );
+		if ( 0 !== strpos( $release_url, 'https://github.com/' . self::REPOSITORY . '/releases' ) ) $release_url = 'https://github.com/' . self::REPOSITORY . '/releases';
+		return array( 'version' => $version, 'package' => esc_url_raw( $package ), 'url' => esc_url_raw( $release_url ) );
+	}
+
+	/** Respaldo por la API de GitHub (sujeta a su límite de consultas): el asset más reciente de SEO. */
+	private static function from_api() {
+		$response = wp_remote_get( 'https://api.github.com/repos/' . self::REPOSITORY . '/releases?per_page=50', array(
+			'timeout' => self::timeout(),
 			'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'Digitalisimo-SEO-Updater' ),
 		) );
-		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-			set_site_transient( self::CACHE_KEY, array(), MINUTE_IN_SECONDS );
-			return array();
-		}
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) return array();
 		$latest = array();
 		foreach ( (array) json_decode( wp_remote_retrieve_body( $response ), true ) as $release ) {
 			if ( ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) continue;
@@ -64,7 +115,6 @@ final class Digitalisimo_SEO_Release_Check {
 				$latest = array( 'version' => $match[1], 'package' => $package, 'url' => esc_url_raw( $release['html_url'] ?? '' ) );
 			}
 		}
-		set_site_transient( self::CACHE_KEY, $latest, 5 * MINUTE_IN_SECONDS );
 		return $latest;
 	}
 
