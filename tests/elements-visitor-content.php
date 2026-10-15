@@ -16,7 +16,7 @@ namespace {
 	function add_action( $hook, $callback ) { $GLOBALS['digi']['hooks'][ $hook ] = $callback; }
 	function add_filter( $hook, $callback ) { $GLOBALS['digi']['hooks'][ $hook ] = $callback; }
 	function do_action( $hook ) { $GLOBALS['digi']['actions'][] = $hook; }
-	function apply_filters( $hook, $value ) { return array_key_exists( $hook, $GLOBALS['digi']['filters'] ) ? $GLOBALS['digi']['filters'][ $hook ] : $value; }
+	function apply_filters( $hook, $value, ...$args ) { if ( ! array_key_exists( $hook, $GLOBALS['digi']['filters'] ) ) { return $value; } $o = $GLOBALS['digi']['filters'][ $hook ]; return is_callable( $o ) ? $o( $value, ...$args ) : $o; }
 	function is_admin() { return $GLOBALS['digi']['admin']; }
 	function nocache_headers() { $GLOBALS['digi']['headers']++; }
 	function sanitize_text_field( $v ) { return trim( strip_tags( (string) $v ) ); }
@@ -30,7 +30,8 @@ namespace {
 	function is_user_logged_in() { return $GLOBALS['digi']['user'] > 0; }
 	function get_current_user_id() { return $GLOBALS['digi']['user']; }
 	function wp_get_current_user() { return (object) array( 'roles' => $GLOBALS['digi']['roles'] ); }
-	function is_singular( $t = '' ) { return true; }
+	function is_singular( $t = '' ) { return $GLOBALS['digi']['singular'] ?? true; }
+	function get_page_template_slug( $id = 0 ) { return $GLOBALS['digi']['template'] ?? ''; }
 	function is_single() { return false; }
 	function is_front_page() { return false; } function is_home() { return false; } function is_404() { return false; }
 	function get_the_ID() { return 12; } function get_queried_object_id() { return 12; } function get_queried_object() { return null; } function get_post_type() { return 'page'; }
@@ -52,13 +53,16 @@ namespace {
 
 	VC::init();
 	check_vc( isset( $GLOBALS['digi']['hooks']['elementor/element/is_dynamic_content'], $GLOBALS['digi']['hooks']['elementor/frontend/before_render'], $GLOBALS['digi']['hooks']['template_redirect'] ), 'Debe engancharse a la caché de elementos, al render y a template_redirect (antes de la salida).' );
-	// Cada motor declara su interruptor por filtro sólo mientras está activo en el sitio.
-	check_vc( array() === VC::SWITCH_KEYS && array() === VC::switches(), 'El núcleo no conoce interruptores por sí mismo.' );
-	check_vc( array( 'digitalisimo_visibility_enable' ) === Visibility::visitor_content_switch( array() ), 'El motor propio anuncia su interruptor cuando está activo.' );
+	// Cada motor declara sus reglas por filtro sólo mientras está activo en el sitio; el núcleo no conoce motores por sí mismo.
+	check_vc( array() === VC::SWITCH_KEYS && array() === VC::switches() && array( 'e_display_conditions', 'display-conditions' ) === VC::markers(), 'El núcleo no conoce interruptores ni marcadores ajenos por sí mismo.' );
+	$own_settings = array( 'digitalisimo_visibility_enable' => 'yes', 'digitalisimo_visibility_rules' => array( array( 'rule_key' => 'authentication' ), array( 'rule_key' => 'country' ) ) );
+	check_vc( array( 'authentication', 'country' ) === Visibility::visitor_content_conditions( array(), $own_settings ) && array( 'x' ) === Visibility::visitor_content_conditions( array( 'x' ), array( 'digitalisimo_visibility_enable' => '' ) + $own_settings ), 'El motor propio declara las claves de sus reglas activas.' );
 	$GLOBALS['digi']['filters']['digitalisimo_elements_visibility_enabled'] = false;
-	check_vc( array( 'x' ) === Visibility::visitor_content_switch( array( 'x' ) ), 'Con el motor propio apagado en el sitio, su interruptor no cuenta: la página se pinta igual para todos.' );
+	check_vc( array( 'x' ) === Visibility::visitor_content_conditions( array( 'x' ), $own_settings ), 'Con el motor propio apagado en el sitio sus reglas no cuentan: la página se pinta igual para todos.' );
 	unset( $GLOBALS['digi']['filters']['digitalisimo_elements_visibility_enabled'] );
-	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_switches'] = Visibility::visitor_content_switch( array() );
+	check_vc( in_array( 'digitalisimo_visibility_enable', Visibility::visitor_content_markers( array() ), true ), 'El motor propio declara su marcador.' );
+	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_conditions'] = array( Visibility::class, 'visitor_content_conditions' );
+	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_markers'] = array( Visibility::class, 'visitor_content_markers' );
 
 	// Caché de elementos: los widgets que incrustan plantillas y las diapositivas de plantilla son dinámicos.
 	foreach ( VC::TEMPLATE_WIDGETS as $type ) {
@@ -69,39 +73,69 @@ namespace {
 	check_vc( false === VC::is_dynamic_content( false, array( 'widgetType' => 'slides', 'settings' => array( 'slides' => array( array( 'heading' => 'x' ) ) ) ) ) && false === VC::is_dynamic_content( false, array( 'widgetType' => 'heading', 'settings' => array() ) ), 'Lo demás conserva la decisión de Elementor.' );
 	check_vc( true === VC::is_dynamic_content( true, array( 'widgetType' => 'heading', 'settings' => array() ) ), 'Lo que ya era dinámico sigue siéndolo.' );
 
-	// Detección de elementos condicionados en los tres motores.
-	check_vc( VC::is_conditioned( array( 'e_display_conditions' => array( '[[{"condition":"login_status"}]]' ) ) ) && VC::is_conditioned( array( 'digitalisimo_visibility_enable' => 'yes' ) ), 'Los dos motores del núcleo cuentan como contenido por visitante.' );
+	// Identificadores de condición en los tres formatos y clasificación: sesión, rol, usuario y contenido no varían entre visitantes anónimos.
+	check_vc( array( 'login_status', 'digitalisimo_country' ) === VC::condition_ids( array( 'e_display_conditions' => array( '[[{"id":"a","condition":"login_status","comparator":"is"}],[{"condition":"digitalisimo_country"}]]' ) ) ), 'Las condiciones nativas se leen de sus grupos.' );
+	check_vc( array( 'login_status' ) === VC::condition_ids( array( 'e_display_conditions' => '[[{"condition":"login_status"}]]' ) ), 'También como cadena.' );
+	check_vc( array( 'digitalisimo_browser' ) === VC::condition_ids( array( 'display-conditions' => array( '$$type' => 'display-conditions', 'value' => array( array( '$$type' => 'condition-group', 'value' => array( array( '$$type' => 'condition', 'value' => array( 'condition' => array( '$$type' => 'string', 'value' => 'digitalisimo_browser' ) ) ) ) ) ) ) ) ), 'Las condiciones atómicas se leen a cualquier profundidad.' );
+	check_vc( array( 'authentication', 'country' ) === VC::condition_ids( $own_settings ), 'Las reglas propias llegan por el filtro.' );
+	check_vc( array() === VC::condition_ids( array( 'e_display_conditions' => array( '[]' ) ) ) && array() === VC::condition_ids( array( 'e_display_conditions' => '[[]]' ) ) && array() === VC::condition_ids( array( 'title' => 'Hola' ) ) && array() === VC::condition_ids( array( 'e_display_conditions' => array( '[[{"condition":""}]]' ) ) ), 'Sin condiciones no hay identificadores.' );
+	check_vc( ! VC::varies_by_visitor( array( 'login_status', 'user_role', 'authentication', 'role', 'user', 'post_type', 'digitalisimo_special_page', 'page_author' ) ) && ! VC::varies_by_visitor( array() ), 'Sesión, rol, usuario y contenido no varían entre visitantes anónimos.' );
+	check_vc( VC::varies_by_visitor( array( 'login_status', 'digitalisimo_country' ) ) && VC::varies_by_visitor( array( 'browser' ) ) && VC::varies_by_visitor( array( 'current_date' ) ) && VC::varies_by_visitor( array( 'url_parameters' ) ) && VC::varies_by_visitor( array( 'dynamic_tags' ) ) && VC::varies_by_visitor( array( 'inventada' ) ) && VC::varies_by_visitor( array( '*' ) ), 'País, navegador, fecha, URL, etiquetas dinámicas y lo desconocido sí varían.' );
+	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_cacheable_conditions'] = array_merge( VC::CACHEABLE_CONDITIONS, array( 'inventada' ) );
+	check_vc( ! VC::varies_by_visitor( array( 'inventada' ) ), 'Un sitio puede declarar cacheable una condición propia.' );
+	unset( $GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_cacheable_conditions'] );
+	check_vc( ! VC::is_conditioned( array( 'e_display_conditions' => array( '[[{"condition":"login_status"}]]' ) ) ) && VC::is_conditioned( array( 'e_display_conditions' => array( '[[{"condition":"login_status"},{"condition":"digitalisimo_country"}]]' ) ) ), 'Un elemento sólo para sesión sigue en caché; uno por país, no.' );
+	check_vc( ! VC::is_conditioned( array( 'digitalisimo_visibility_enable' => 'yes', 'digitalisimo_visibility_rules' => array( array( 'rule_key' => 'authentication' ) ) ) ) && VC::is_conditioned( $own_settings ), 'Lo mismo con las reglas propias.' );
 	check_vc( ! VC::is_conditioned( array( 'ep_display_conditions_enable' => 'yes' ) ), 'El núcleo no conoce los interruptores heredados por sí mismo.' );
-	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_switches'] = array( 'digitalisimo_visibility_enable', 'ep_display_conditions_enable' );
-	check_vc( VC::is_conditioned( array( 'ep_display_conditions_enable' => 'yes' ) ), 'Un plugin de compatibilidad añade los suyos por filtro.' );
-	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_switches'] = array();
-	check_vc( ! VC::is_conditioned( array( 'digitalisimo_visibility_enable' => 'yes' ) ) && ! VC::is_conditioned( array( 'ep_display_conditions_enable' => 'yes' ) ), 'Un interruptor de un motor apagado no marca la página.' );
-	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_switches'] = array( 'digitalisimo_visibility_enable' );
-	check_vc( ! VC::is_conditioned( array( 'e_display_conditions' => array( '[]' ) ) ) && ! VC::is_conditioned( array( 'digitalisimo_visibility_enable' => '' ) ) && ! VC::is_conditioned( array( 'title' => 'Hola' ) ), 'Sin condiciones no se marca nada.' );
-	check_vc( VC::is_conditioned( array( 'display-conditions' => array( '$$type' => 'display-conditions', 'value' => array( array( '$$type' => 'condition-group', 'value' => array( 'x' ) ) ) ) ) ) && ! VC::is_conditioned( array( 'display-conditions' => array( '$$type' => 'display-conditions', 'value' => null ) ) ), 'Las condiciones de los elementos atómicos cuentan como contenido por visitante.' );
+	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_switches'] = array( 'ep_display_conditions_enable' );
+	check_vc( VC::is_conditioned( array( 'ep_display_conditions_enable' => 'yes' ) ) && array( '*' ) === VC::condition_ids( array( 'ep_display_conditions_enable' => 'yes' ) ) && in_array( 'ep_display_conditions_enable', VC::markers(), true ), 'Un interruptor de compatibilidad (motor que no enumera sus reglas) cuenta como condición desconocida.' );
+	unset( $GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_switches'] );
+	check_vc( VC::is_conditioned( array( 'display-conditions' => array( '$$type' => 'display-conditions', 'value' => array( array( '$$type' => 'condition-group', 'value' => array( array( 'condition' => 'digitalisimo_os' ) ) ) ) ) ) ) && ! VC::is_conditioned( array( 'display-conditions' => array( '$$type' => 'display-conditions', 'value' => null ) ) ), 'Las condiciones atómicas (editor v4) se clasifican igual.' );
 
-	// Marcadores en el JSON guardado del documento (sin decodificarlo).
-	$doc = static function ( $settings ) { return '[{"id":"a1","elType":"container","settings":{},"elements":[{"id":"b2","elType":"widget","widgetType":"heading","settings":' . $settings . '}]}]'; };
-	check_vc( VC::has_conditioned_markers( $doc( '{"title":"Hola","e_display_conditions":["[[{\\"id\\":\\"c1\\",\\"condition\\":\\"login_status\\"}]]"]}' ) ) && VC::has_conditioned_markers( $doc( '{"e_display_conditions":"[[{\\"id\\":\\"c1\\"}]]"}' ) ) && VC::has_conditioned_markers( $doc( '{"e_display_conditions": "[{\\"id\\":\\"c1\\"}]"}' ) ), 'Las condiciones nativas guardadas se detectan en el JSON.' );
-	check_vc( ! VC::has_conditioned_markers( $doc( '{"e_display_conditions":["[]"]}' ) ) && ! VC::has_conditioned_markers( $doc( '{"e_display_conditions":"[[]]"}' ) ) && ! VC::has_conditioned_markers( $doc( '{"e_display_conditions":""}' ) ) && ! VC::has_conditioned_markers( $doc( '{"title":"e_display_conditions"}' ) ), 'Condiciones vacías o el texto suelto no cuentan.' );
-	check_vc( VC::has_conditioned_markers( $doc( '{"display-conditions":{"$$type":"display-conditions","value":[{"$$type":"condition-group","value":[{"x":1}]}]}}' ) ) && ! VC::has_conditioned_markers( $doc( '{"display-conditions":{"$$type":"display-conditions","value":[]}}' ) ) && ! VC::has_conditioned_markers( $doc( '{"display-conditions":{"$$type":"display-conditions","value":null}}' ) ), 'Las condiciones atómicas se detectan sólo con grupos.' );
-	check_vc( VC::has_conditioned_markers( $doc( '{"digitalisimo_visibility_enable":"yes","digitalisimo_visibility_rules":[]}' ) ) && ! VC::has_conditioned_markers( $doc( '{"digitalisimo_visibility_enable":""}' ) ) && ! VC::has_conditioned_markers( $doc( '{"ep_display_conditions_enable":"yes"}' ) ) && ! VC::has_conditioned_markers( '' ) && ! VC::has_conditioned_markers( null ), 'Los interruptores vigentes se detectan; los de motores ausentes y el vacío, no.' );
+	// JSON guardado del documento: sólo se decodifica si aparece un marcador, y sólo cuentan las condiciones que varían.
+	$doc    = static function ( $settings ) { return '[{"id":"a1","elType":"container","settings":{},"elements":[{"id":"b2","elType":"widget","widgetType":"heading","settings":' . $settings . '}]}]'; };
+	$native = static function ( $condition ) { return '{"title":"Hola","e_display_conditions":["[[{\\"id\\":\\"c1\\",\\"condition\\":\\"' . $condition . '\\"}]]"]}'; };
+	check_vc( VC::has_visitor_conditions( $doc( $native( 'digitalisimo_country' ) ) ) && VC::has_visitor_conditions( $doc( '{"e_display_conditions":"[[{\\"condition\\":\\"current_date\\"}]]"}' ) ), 'Las condiciones nativas que varían se detectan en el JSON.' );
+	check_vc( ! VC::has_visitor_conditions( $doc( $native( 'login_status' ) ) ) && ! VC::has_visitor_conditions( $doc( $native( 'user_role' ) ) ), 'Un documento sólo con condiciones de sesión sigue en caché (los usuarios con sesión nunca se sirven desde ella).' );
+	check_vc( ! VC::has_visitor_conditions( $doc( '{"e_display_conditions":["[]"]}' ) ) && ! VC::has_visitor_conditions( $doc( '{"e_display_conditions":"[[]]"}' ) ) && ! VC::has_visitor_conditions( $doc( '{"title":"e_display_conditions"}' ) ) && ! VC::has_visitor_conditions( '' ) && ! VC::has_visitor_conditions( null ) && ! VC::has_visitor_conditions( 'no es json e_display_conditions' ), 'Condiciones vacías, el texto suelto, el vacío o un JSON roto no cuentan.' );
+	check_vc( VC::has_visitor_conditions( $doc( '{"display-conditions":{"$$type":"display-conditions","value":[{"$$type":"condition-group","value":[{"condition":"digitalisimo_browser"}]}]}}' ) ) && ! VC::has_visitor_conditions( $doc( '{"display-conditions":{"$$type":"display-conditions","value":[]}}' ) ), 'Las condiciones atómicas se detectan sólo con grupos que varían.' );
+	check_vc( VC::has_visitor_conditions( $doc( '{"digitalisimo_visibility_enable":"yes","digitalisimo_visibility_rules":[{"rule_key":"url_parameters"}]}' ) ) && ! VC::has_visitor_conditions( $doc( '{"digitalisimo_visibility_enable":"yes","digitalisimo_visibility_rules":[{"rule_key":"authentication"}]}' ) ) && ! VC::has_visitor_conditions( $doc( '{"digitalisimo_visibility_enable":""}' ) ) && ! VC::has_visitor_conditions( $doc( '{"ep_display_conditions_enable":"yes","ep_display_conditions":[{"ep_condition_key":"browser"}]}' ) ), 'Las reglas propias se clasifican por su clave; las de un motor ausente no cuentan.' );
+	check_vc( VC::has_visitor_conditions( '[{"id":"x","elType":"container","settings":{},"elements":[{"id":"y","elType":"container","settings":{},"elements":[{"id":"z","elType":"widget","settings":' . $native( 'digitalisimo_language' ) . '}]}]}]' ), 'Se recorren los hijos a cualquier profundidad.' );
+
+	// Documentos a revisar: el de la URL si está construido con el editor, más las ubicaciones del Theme Builder que su plantilla imprime.
+	check_vc( array() === VC::documents_to_scan(), 'Una página sin «construido con Elementor» no se revisa.' );
+	$GLOBALS['digi']['meta'][12]['_elementor_edit_mode'] = 'builder';
 	check_vc( array( 12 ) === VC::documents_to_scan(), 'Sin Theme Builder se revisa el documento de la URL.' );
+	check_vc( array( 'header', 'footer', 'single', 'popup' ) === VC::theme_locations(), 'Una entrada con plantilla predeterminada imprime cabecera, pie, plantilla de entrada y ventanas.' );
+	$GLOBALS['digi']['template'] = 'elementor_canvas';
+	check_vc( array() === VC::theme_locations(), 'Con Canvas no se imprime ninguna ubicación.' );
+	$GLOBALS['digi']['template'] = 'elementor_header_footer';
+	check_vc( array( 'header', 'footer', 'popup' ) === VC::theme_locations(), 'Con «Cabecera y pie» (o cualquier plantilla del tema) no se imprime la plantilla de entrada.' );
+	$GLOBALS['digi']['template'] = 'default';
+	check_vc( array( 'header', 'footer', 'single', 'popup' ) === VC::theme_locations(), '«default» es la plantilla predeterminada.' );
+	$GLOBALS['digi']['template'] = '';
+	$GLOBALS['digi']['singular'] = false;
+	check_vc( array( 'header', 'footer', 'archive', 'popup' ) === VC::theme_locations() && array() === VC::documents_to_scan(), 'Un archivo imprime cabecera, pie, archivo y ventanas, sin documento propio.' );
+	$GLOBALS['digi']['singular'] = true;
 
-	// Antes de la salida: el documento de la URL sin condiciones no toca la caché de página.
+	// Antes de la salida: el documento de la URL sin condiciones (o sólo con las de sesión) no toca la caché de página.
 	$GLOBALS['digi']['meta'][12]['_elementor_data'] = $doc( '{"title":"Hola"}' );
 	VC::flag_before_output();
-	check_vc( ! defined( 'DONOTCACHEPAGE' ) && 0 === $GLOBALS['digi']['headers'], 'Un documento sin condiciones no pide quedar fuera de la caché.' );
+	$GLOBALS['digi']['meta'][12]['_elementor_data'] = $doc( $native( 'login_status' ) );
+	VC::flag_before_output();
+	check_vc( ! defined( 'DONOTCACHEPAGE' ) && 0 === $GLOBALS['digi']['headers'], 'Un documento sin condiciones por visitante no pide quedar fuera de la caché.' );
 	VC::reset();
 
-	// Caché de página: al pintar un elemento condicionado se avisa una sola vez, fuera del editor y de la administración.
+	// Caché de página: al pintar un elemento que varía se avisa una sola vez, fuera del editor y de la administración.
 	$element = new class() { public $settings = array(); public function get_settings() { return $this->settings; } };
 	VC::before_render( $element );
-	check_vc( ! defined( 'DONOTCACHEPAGE' ) && 0 === $GLOBALS['digi']['headers'], 'Un elemento sin condiciones no toca la caché de página.' );
-	$element->settings = array( 'digitalisimo_visibility_enable' => 'yes' );
+	$element->settings = array( 'e_display_conditions' => array( '[[{"condition":"login_status"}]]' ) );
+	VC::before_render( $element );
+	check_vc( ! defined( 'DONOTCACHEPAGE' ) && 0 === $GLOBALS['digi']['headers'], 'Un elemento sin condiciones, o sólo de sesión, no toca la caché de página.' );
+	$element->settings = $own_settings;
 	VC::before_render( $element );
 	VC::before_render( $element );
-	check_vc( defined( 'DONOTCACHEPAGE' ) && DONOTCACHEPAGE && defined( 'LSCACHE_NO_CACHE' ) && 1 === $GLOBALS['digi']['headers'] && in_array( 'litespeed_control_set_nocache', $GLOBALS['digi']['actions'], true ), 'La página condicionada pide no guardarse en caché, una sola vez.' );
+	check_vc( defined( 'DONOTCACHEPAGE' ) && DONOTCACHEPAGE && defined( 'LSCACHE_NO_CACHE' ) && 1 === $GLOBALS['digi']['headers'] && in_array( 'litespeed_control_set_nocache', $GLOBALS['digi']['actions'], true ), 'La página con contenido por visitante pide no guardarse en caché, una sola vez.' );
 	// headers_sent() es nativa de PHP: en CLI siempre es false, así que nocache_headers() se invoca; en una página ya enviada no.
 	VC::reset();
 	$GLOBALS['digi']['edit'] = true;
@@ -113,11 +147,11 @@ namespace {
 	VC::before_render( $element );
 	check_vc( 1 === $GLOBALS['digi']['headers'], 'Un filtro del sitio puede desactivar el aviso.' );
 	unset( $GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_no_cache'] );
-	// Antes de la salida: con condiciones en el documento, las cabeceras salen en template_redirect (a tiempo para CDN y proxies).
+	// Antes de la salida: con condiciones por visitante en el documento, las cabeceras salen en template_redirect (a tiempo para CDN y proxies).
 	VC::reset();
-	$GLOBALS['digi']['meta'][12]['_elementor_data'] = $doc( '{"e_display_conditions":["[[{\\"id\\":\\"c1\\",\\"condition\\":\\"login_status\\"}]]"]}' );
+	$GLOBALS['digi']['meta'][12]['_elementor_data'] = $doc( $native( 'digitalisimo_country' ) );
 	VC::flag_before_output();
-	check_vc( 2 === $GLOBALS['digi']['headers'], 'Un documento con condiciones pide no guardarse antes de la salida.' );
+	check_vc( 2 === $GLOBALS['digi']['headers'], 'Un documento con condiciones por visitante pide no guardarse antes de la salida.' );
 	VC::flag_before_output();
 	VC::before_render( $element );
 	check_vc( 2 === $GLOBALS['digi']['headers'], 'Se avisa una sola vez por petición.' );
@@ -130,6 +164,11 @@ namespace {
 	VC::flag_before_output();
 	$GLOBALS['digi']['admin'] = false;
 	check_vc( 2 === $GLOBALS['digi']['headers'], 'En el editor y en la administración no se decide nada.' );
+	VC::reset();
+	$GLOBALS['digi']['meta'][12]['_elementor_edit_mode'] = '';
+	VC::flag_before_output();
+	check_vc( 2 === $GLOBALS['digi']['headers'], 'Una página devuelta al editor de WordPress conserva su JSON pero ya no cuenta.' );
+	$GLOBALS['digi']['meta'][12]['_elementor_edit_mode'] = 'builder';
 	VC::reset();
 
 	// Reglas del motor propio: usuario sin selección = cualquier usuario con sesión; rol guardado como lista; parámetros sin query.

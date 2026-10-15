@@ -21,8 +21,9 @@ final class Legacy_Visibility {
 	const SECTION = 'section_visibility_control_controls';
 
 	public static function init() {
-		// Con o sin Element Pack, las páginas con sus reglas cambian por visitante: fuera de las cachés de página.
-		add_filter( 'digitalisimo_elements_visitor_content_switches', array( __CLASS__, 'visitor_content_switch' ) );
+		// Con o sin Element Pack, sus reglas se declaran al contenido por visitante (caché de página): sólo las que varían entre visitantes sacan la página de la caché.
+		add_filter( 'digitalisimo_elements_visitor_content_markers', array( __CLASS__, 'visitor_content_markers' ) );
+		add_filter( 'digitalisimo_elements_visitor_content_conditions', array( __CLASS__, 'visitor_content_conditions' ), 10, 2 );
 		if ( self::element_pack_active() ) {
 			return;
 		}
@@ -38,13 +39,25 @@ final class Legacy_Visibility {
 		add_filter( 'elementor/element/is_dynamic_content', array( __CLASS__, 'is_dynamic_content' ), 10, 2 );
 	}
 
-	/** Sólo mientras la extensión está activa en el sitio: apagada, los elementos se pintan igual para todos. */
-	public static function visitor_content_switch( $keys ) {
-		$keys = (array) $keys;
-		if ( Legacy_Rules::enabled_on_site() ) {
-			$keys[] = 'ep_display_conditions_enable';
+	/** Texto que delata reglas heredadas en el JSON guardado. */
+	public static function visitor_content_markers( $markers ) {
+		$markers   = (array) $markers;
+		$markers[] = 'ep_display_conditions_enable';
+		return $markers;
+	}
+
+	/** Claves de las reglas heredadas activas en el elemento; con la extensión apagada en el sitio no hay ninguna. */
+	public static function visitor_content_conditions( $ids, $settings ) {
+		$ids = (array) $ids;
+		if ( ! Legacy_Rules::enabled_on_site() || 'yes' !== ( $settings['ep_display_conditions_enable'] ?? '' ) ) {
+			return $ids;
 		}
-		return $keys;
+		foreach ( (array) ( $settings['ep_display_conditions'] ?? array() ) as $row ) {
+			if ( is_array( $row ) && ! empty( $row['ep_condition_key'] ) ) {
+				$ids[] = (string) $row['ep_condition_key'];
+			}
+		}
+		return $ids;
 	}
 
 	public static function element_pack_active() {

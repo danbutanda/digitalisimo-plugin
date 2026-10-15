@@ -73,4 +73,15 @@ check_updater( $item && '1.0.20' === $item->new_version, 'Buscar actualizaciones
 // 7. Con la versión instalada al día no hay nada pendiente.
 $u::clear(); $responses = array( 'manifest' => manifest( '1.0.0' ) ); $site_options = array();
 check_updater( null === pending(), 'La versión instalada no se ofrece como actualización.' );
+// «Buscar actualizaciones de nuevo» de WordPress vacía la caché propia y el índice compartido; sin force-check no toca nada.
+$_GET['force-check'] = '1';
+set_site_transient( $u::MANIFEST_CACHE, array( 'x' => 1 ) );
+set_site_transient( $u::CACHE_KEY, array( 'y' => 1 ) );
+$u::native_force_check();
+check_updater( ! isset( $GLOBALS['cache'][ $u::MANIFEST_CACHE ] ) && ! isset( $GLOBALS['cache'][ $u::CACHE_KEY ] ), '«Buscar actualizaciones de nuevo» vacía la caché y el índice.' );
+unset( $_GET['force-check'] );
+set_site_transient( $u::MANIFEST_CACHE, array( 'x' => 1 ) );
+$u::native_force_check();
+check_updater( isset( $GLOBALS['cache'][ $u::MANIFEST_CACHE ] ), 'Sin force-check la caché se conserva.' );
+check_updater( false !== strpos( (string) file_get_contents( ( new ReflectionClass( $u ) )->getFileName() ), "add_action( 'load-update-core.php', array( __CLASS__, 'native_force_check' ), 1 )" ), 'El actualizador escucha la pantalla de actualizaciones antes que WordPress.' );
 echo "DIGITALÍSIMO Migración: actualizador con índice de la Release validado.\n";

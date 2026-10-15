@@ -27,6 +27,8 @@ final class Updater {
 		add_filter( 'plugin_action_links_' . self::FILE, array( __CLASS__, 'action_link' ) );
 		add_filter( 'network_admin_plugin_action_links_' . self::FILE, array( __CLASS__, 'action_link' ) );
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'force_check' ) );
+		// «Buscar actualizaciones de nuevo» de WordPress (update-core.php?force-check=1): vaciar las cachés propias antes de que WordPress vuelva a consultar.
+		add_action( 'load-update-core.php', array( __CLASS__, 'native_force_check' ), 1 );
 		add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 		add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'clear_after_upgrade' ), 10, 2 );
@@ -57,6 +59,11 @@ final class Updater {
 		return $links;
 	}
 
+	/** El botón nativo de WordPress consulta de inmediato: se olvidan la versión conocida y el índice compartido. */
+	public static function native_force_check() {
+		if ( empty( $_GET['force-check'] ) ) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sólo vacía cachés propias.
+		self::clear();
+	}
 	public static function force_check() {
 		if ( ! self::can_update() ) wp_die( 'No autorizado.' );
 		check_admin_referer( self::ACTION );

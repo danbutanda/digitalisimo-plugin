@@ -2,8 +2,8 @@
 # Condiciones de visualización en páginas reales (Playground, núcleo incluido): lo que debe ocultarse no está en el
 # HTML y lo que debe verse sí, con los tres motores (nativo, propio y heredado), en widgets y contenedores con hijos,
 # como visitante y con sesión, y con la caché de elementos de Elementor desactivada y activada; además, en un proceso
-# limpio por página, la página condicionada pide quedar fuera de la caché de página antes de la salida y la que no
-# tiene condiciones, no.
+# limpio por página, la página con contenido por visitante pide quedar fuera de la caché de página antes de la salida
+# y la que no tiene condiciones, o sólo de sesión, no.
 # Uso: bash tests/playground/conditions.sh   → resultados en $OUT (por defecto /tmp/digi-conditions)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -23,6 +23,9 @@ cat > "$OUT/blueprint.json" <<'JSON'
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe-cache.php';"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe-cache.php';"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe-cache.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe-cache.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe-cache.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe-cache.php';"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/probe-cache.php';"}]}
 JSON
 $CLI run-blueprint --site-url=http://playground.test --blueprint="$OUT/blueprint.json" \
@@ -32,7 +35,7 @@ $CLI run-blueprint --site-url=http://playground.test --blueprint="$OUT/blueprint
 node -e '
 const r = require(process.argv[1]);
 let failed = 0, total = 0;
-for (const s of ["sin-condiciones", "propio-widget-disable", "nativo-widget-disable", "heredado-widget-disable"]) {
+for (const s of ["sin-condiciones", "propio-widget-disable", "nativo-widget-disable", "heredado-widget-disable", "visitante-propio", "visitante-nativo", "visitante-heredado"]) {
   if (!r["no-cache"] || !(s in r["no-cache"])) { total++; failed++; console.log(`FALLA  caché de página · ${s}: sin resultado (la petición limpia no se ejecutó)`); }
 }
 for (const [cache, cases] of Object.entries(r)) {

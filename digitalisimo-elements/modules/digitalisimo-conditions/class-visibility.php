@@ -29,16 +29,30 @@ final class Visibility {
 			add_filter( 'elementor/frontend/' . $element . '/should_render', array( __CLASS__, 'should_render' ), 10, 2 );
 		}
 		add_filter( 'elementor/element/is_dynamic_content', array( __CLASS__, 'is_dynamic_content' ), 10, 2 );
-		// Las páginas con reglas propias quedan fuera de las cachés de página, sólo mientras el motor está activo en el sitio.
-		add_filter( 'digitalisimo_elements_visitor_content_switches', array( __CLASS__, 'visitor_content_switch' ) );
+		// Las reglas propias se declaran al contenido por visitante (caché de página), sólo mientras el motor está activo en el sitio.
+		add_filter( 'digitalisimo_elements_visitor_content_markers', array( __CLASS__, 'visitor_content_markers' ) );
+		add_filter( 'digitalisimo_elements_visitor_content_conditions', array( __CLASS__, 'visitor_content_conditions' ), 10, 2 );
 	}
 
-	public static function visitor_content_switch( $keys ) {
-		$keys = (array) $keys;
-		if ( Visibility_Rules::enabled_on_site() ) {
-			$keys[] = 'digitalisimo_visibility_enable';
+	/** Texto que delata reglas propias en el JSON guardado. */
+	public static function visitor_content_markers( $markers ) {
+		$markers   = (array) $markers;
+		$markers[] = 'digitalisimo_visibility_enable';
+		return $markers;
+	}
+
+	/** Claves de las reglas propias activas en el elemento; con el motor apagado en el sitio no hay ninguna. */
+	public static function visitor_content_conditions( $ids, $settings ) {
+		$ids = (array) $ids;
+		if ( ! Visibility_Rules::enabled_on_site() || 'yes' !== ( $settings['digitalisimo_visibility_enable'] ?? '' ) ) {
+			return $ids;
 		}
-		return $keys;
+		foreach ( (array) ( $settings['digitalisimo_visibility_rules'] ?? array() ) as $row ) {
+			if ( is_array( $row ) && ! empty( $row['rule_key'] ) ) {
+				$ids[] = (string) $row['rule_key'];
+			}
+		}
+		return $ids;
 	}
 
 	public static function register_section( $element ) {
