@@ -184,7 +184,9 @@ namespace {
 	check_legacy( true === Legacy_Visibility::should_render( true, $element ), 'Si Element Pack tenía la extensión apagada, las reglas no se aplicaban y siguen sin aplicarse.' );
 	check_legacy( array( 'x' ) === Legacy_Visibility::visitor_content_conditions( array( 'x' ), $legacy_rows ), 'Con la extensión apagada, las páginas con reglas guardadas no pierden la caché de página.' );
 	$GLOBALS['digi']['options']['element_pack_elementor_extend'] = array( 'otra' => 'on' );
-	check_legacy( true === Legacy_Visibility::should_render( true, $element ), 'La extensión venía apagada por defecto.' );
+	check_legacy( false === Legacy_Visibility::should_render( true, $element ), 'Sin la clave guardada la extensión cuenta como activa, como en Element Pack (default_activation).' );
+	$GLOBALS['digi']['options']['element_pack_elementor_extend'] = array();
+	check_legacy( false === Legacy_Visibility::should_render( true, $element ), 'Con la opción vacía también se aplican.' );
 	unset( $GLOBALS['digi']['options'] );
 	$GLOBALS['digi']['edit'] = true;
 	check_legacy( true === Legacy_Visibility::should_render( true, $element ), 'El editor siempre muestra el elemento.' );

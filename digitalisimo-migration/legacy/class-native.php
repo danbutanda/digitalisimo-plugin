@@ -276,29 +276,8 @@ final class Native {
 		$s   = (array) $element['settings'];
 		$css = array();
 
-		// Visibilidad: sólo si Element Pack la aplicaba en este sitio.
-		if ( isset( $s['ep_display_conditions_enable'] ) || isset( $s['ep_display_conditions'] ) ) {
-			if ( 'yes' === ( $s['ep_display_conditions_enable'] ?? '' ) && self::visibility_enabled_on_site() ) {
-				$s['digitalisimo_visibility_enable']   = 'yes';
-				$s['digitalisimo_visibility_to']       = (string) ( $s['ep_display_conditions_to'] ?? 'show' );
-				$s['digitalisimo_visibility_relation'] = (string) ( $s['ep_display_conditions_relation'] ?? 'all' );
-				$rules                                  = array();
-				foreach ( (array) ( $s['ep_display_conditions'] ?? array() ) as $row ) {
-					if ( ! is_array( $row ) ) {
-						continue;
-					}
-					$rule = array();
-					foreach ( $row as $key => $value ) {
-						$rule[ 0 === strpos( (string) $key, 'ep_condition_' ) ? 'rule_' . substr( (string) $key, 13 ) : $key ] = $value;
-					}
-					if ( 'country' === ( $rule['rule_key'] ?? '' ) ) {
-						$rule['rule_country_value'] = self::country_codes( $rule['rule_country_value'] ?? array() );
-					}
-					$rules[] = $rule;
-				}
-				$s['digitalisimo_visibility_rules'] = $rules;
-			}
-		}
+		// Visibilidad: las reglas se conservan siempre; sólo se aplican si Element Pack las aplicaba en este sitio.
+		$s = self::visibility_settings( $s ) + $s;
 
 		// Figuras.
 		if ( isset( $s['bdt_shape_builder_enable'] ) || isset( $s['bdt_shape_builder_list'] ) ) {
@@ -353,9 +332,45 @@ final class Native {
 		return $s;
 	}
 
+	/**
+	 * Reglas de visibilidad de Element Pack en el formato propio (claves `digitalisimo_visibility_*`). Las reglas nunca
+	 * se pierden: con la extensión apagada expresamente en el sitio quedan guardadas pero desactivadas, como en Element
+	 * Pack, y el administrador puede encenderlas desde el editor. Sin reglas heredadas devuelve una lista vacía.
+	 */
+	public static function visibility_settings( array $s ) {
+		if ( ! isset( $s['ep_display_conditions_enable'] ) && ! isset( $s['ep_display_conditions'] ) ) {
+			return array();
+		}
+		$rules = array();
+		foreach ( (array) ( $s['ep_display_conditions'] ?? array() ) as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$rule = array();
+			foreach ( $row as $key => $value ) {
+				$rule[ 0 === strpos( (string) $key, 'ep_condition_' ) ? 'rule_' . substr( (string) $key, 13 ) : $key ] = $value;
+			}
+			if ( 'country' === ( $rule['rule_key'] ?? '' ) ) {
+				$rule['rule_country_value'] = self::country_codes( $rule['rule_country_value'] ?? array() );
+			}
+			$rules[] = $rule;
+		}
+		$enabled = 'yes' === ( $s['ep_display_conditions_enable'] ?? '' ) && self::visibility_enabled_on_site();
+		return array(
+			'digitalisimo_visibility_enable'   => $enabled ? 'yes' : '',
+			'digitalisimo_visibility_to'       => (string) ( $s['ep_display_conditions_to'] ?? 'show' ),
+			'digitalisimo_visibility_relation' => (string) ( $s['ep_display_conditions_relation'] ?? 'all' ),
+			'digitalisimo_visibility_rules'    => $rules,
+		);
+	}
+
+	/** Como Legacy_Rules::enabled_on_site(): Element Pack trae la extensión activa por defecto; sólo un «off» guardado la apaga. */
 	private static function visibility_enabled_on_site() {
+		if ( class_exists( '\\Digitalisimo\\Elements\\Conditions\\Legacy_Rules' ) ) {
+			return \Digitalisimo\Elements\Conditions\Legacy_Rules::enabled_on_site();
+		}
 		$options = get_option( 'element_pack_elementor_extend', null );
-		return ! is_array( $options ) || ( isset( $options['visibility-controls'] ) && 'on' === $options['visibility-controls'] );
+		return ! is_array( $options ) || ! isset( $options['visibility-controls'] ) || 'off' !== $options['visibility-controls'];
 	}
 
 	/** Países guardados como nombre en inglés por versiones antiguas: pasan a su código ISO. */

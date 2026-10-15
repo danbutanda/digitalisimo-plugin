@@ -22,10 +22,119 @@ final class Migration {
 	const BACKUP = '_digitalisimo_ep_backup';
 	const BATCH  = 20;
 
+	/** Opción del sitio que recuerda que las reglas perdidas ya se recuperaron una vez. */
+	const REPAIRED = 'digitalisimo_ep_conditions_repaired';
+
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ) );
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'handle' ) );
+		add_action( 'admin_init', array( __CLASS__, 'repair_once' ) );
+	}
+
+	/**
+	 * Hasta 1.0.10 la conversión descartaba las reglas de visibilidad cuando la opción de Element Pack del sitio no
+	 * tenía guardada la clave de la extensión (que viene activa por defecto). Una vez por sitio se recuperan desde la
+	 * copia original de cada documento convertido; después queda el botón y `wp digitalisimo-migration --repair`.
+	 */
+	public static function repair_once() {
+		if ( '1' === (string) get_option( self::REPAIRED, '' ) || ! current_user_can( 'edit_posts' ) ) {
+			return;
+		}
+		update_option( self::REPAIRED, '1', false );
+		self::repair_all();
+	}
+
+	/** @return array{documents:int, elements:int} */
+	public static function repair_all() {
+		$totals = array( 'documents' => 0, 'elements' => 0 );
+		foreach ( self::backups() as $post_id ) {
+			$count = self::repair_conditions( $post_id );
+			if ( $count ) {
+				$totals['documents']++;
+				$totals['elements'] += $count;
+			}
+		}
+		return $totals;
+	}
+
+	/** Devuelve a un documento convertido las reglas de visibilidad que su copia original tenía y él ya no. */
+	public static function repair_conditions( $post_id ) {
+		$backup = json_decode( (string) get_post_meta( $post_id, self::BACKUP, true ), true );
+		if ( ! is_array( $backup ) || ! isset( $backup['data'] ) || ! is_string( $backup['data'] ) ) {
+			return 0;
+		}
+		$original = json_decode( $backup['data'], true );
+		$current  = self::data( $post_id );
+		if ( ! is_array( $original ) || ! $current ) {
+			return 0;
+		}
+		list( $repaired, $count ) = self::repair_conditions_data( $current, $original );
+		if ( $count ) {
+			update_post_meta( $post_id, '_elementor_data', wp_slash( wp_json_encode( $repaired ) ) );
+			self::clear_css( $post_id );
+		}
+		return $count;
+	}
+
+	/**
+	 * Reparación pura: cada elemento del original con reglas de Element Pack cuyo homólogo (mismo id) en el documento
+	 * actual no tiene ninguna clave `digitalisimo_visibility_*` recibe las reglas convertidas.
+	 *
+	 * @return array{0:array,1:int} datos reparados y elementos tocados.
+	 */
+	public static function repair_conditions_data( array $current, array $original ) {
+		$with_rules = array();
+		self::collect_rules( $original, $with_rules );
+		if ( ! $with_rules ) {
+			return array( $current, 0 );
+		}
+		$count = 0;
+		return array( self::inject_rules( $current, $with_rules, $count ), $count );
+	}
+
+	private static function collect_rules( array $elements, array &$out ) {
+		foreach ( $elements as $element ) {
+			if ( ! is_array( $element ) ) {
+				continue;
+			}
+			$settings = isset( $element['settings'] ) && is_array( $element['settings'] ) ? $element['settings'] : array();
+			$id       = (string) ( $element['id'] ?? '' );
+			if ( '' !== $id && 'yes' === ( $settings['ep_display_conditions_enable'] ?? '' ) && ! empty( $settings['ep_display_conditions'] ) ) {
+				$out[ $id ] = Native::visibility_settings( $settings );
+			}
+			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
+				self::collect_rules( $element['elements'], $out );
+			}
+		}
+	}
+
+	private static function inject_rules( array $elements, array $with_rules, &$count ) {
+		foreach ( $elements as $index => $element ) {
+			if ( ! is_array( $element ) ) {
+				continue;
+			}
+			$id       = (string) ( $element['id'] ?? '' );
+			$settings = isset( $element['settings'] ) && is_array( $element['settings'] ) ? $element['settings'] : array();
+			if ( '' !== $id && isset( $with_rules[ $id ] ) && ! self::has_own_rules( $settings ) ) {
+				$element['settings'] = $with_rules[ $id ] + $settings;
+				++$count;
+			}
+			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
+				$element['elements'] = self::inject_rules( $element['elements'], $with_rules, $count );
+			}
+			$elements[ $index ] = $element;
+		}
+		return $elements;
+	}
+
+	private static function has_own_rules( array $settings ) {
+		foreach ( array_keys( $settings ) as $key ) {
+			if ( 0 === strpos( (string) $key, 'digitalisimo_visibility_' ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static function menu() {
@@ -233,6 +342,10 @@ final class Migration {
 			foreach ( array_slice( self::backups(), 0, self::BATCH ) as $post_id ) {
 				$count += self::revert_document( $post_id ) ? 1 : 0;
 			}
+		} elseif ( 'repair' === $task ) {
+			$totals          = self::repair_all();
+			$count           = $totals['documents'];
+			$stats['native'] = $totals['elements'];
 		}
 		wp_safe_redirect( add_query_arg( array( 'page' => self::PAGE, 'done' => $task, 'count' => $count, 'native' => $stats['native'] ), admin_url( 'tools.php' ) ) );
 		exit;
@@ -253,7 +366,9 @@ final class Migration {
 			$done = sanitize_key( wp_unslash( $_GET['done'] ) );
 			$msg  = 'convert' === $done
 				? sprintf( 'Se convirtieron %d documentos (%d elementos): ya sólo usan widgets y ajustes propios.', absint( $_GET['count'] ?? 0 ), absint( $_GET['native'] ?? 0 ) )
-				: sprintf( 'Se restauraron %d documentos a su versión original.', absint( $_GET['count'] ?? 0 ) );
+				: ( 'repair' === $done
+					? sprintf( 'Se recuperaron reglas de visibilidad en %d documentos (%d elementos).', absint( $_GET['count'] ?? 0 ), absint( $_GET['native'] ?? 0 ) )
+					: sprintf( 'Se restauraron %d documentos a su versión original.', absint( $_GET['count'] ?? 0 ) ) );
 			echo '<div class="notice notice-success"><p>' . esc_html( $msg ) . '</p></div>';
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
@@ -280,14 +395,14 @@ final class Migration {
 		if ( ! $pending && ! $inventory ) {
 			echo '<div class="notice notice-success inline"><p>Este sitio ya no tiene contenido heredado. Cuando todos los sitios estén así y revisados, puedes desinstalar Element Pack y DIGITALÍSIMO Migración.</p></div>';
 		}
-		foreach ( array( 'convert' => array( 'Convertir el siguiente lote', $active ? 0 : $pending, 'button-primary' ), 'revert' => array( 'Restaurar el siguiente lote al original', $backups, 'button-secondary' ) ) as $task => $button ) {
+		foreach ( array( 'convert' => array( 'Convertir el siguiente lote', $active ? 0 : $pending, 'button-primary' ), 'repair' => array( 'Recuperar reglas de visibilidad perdidas', $backups, 'button-secondary' ), 'revert' => array( 'Restaurar el siguiente lote al original', $backups, 'button-secondary' ) ) as $task => $button ) {
 			if ( ! $button[1] ) {
 				continue;
 			}
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;margin-right:8px">';
 			wp_nonce_field( self::ACTION . '_' . get_current_blog_id() );
 			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '"><input type="hidden" name="task" value="' . esc_attr( $task ) . '">';
-			submit_button( $button[0] . ' (' . min( self::BATCH, $button[1] ) . ')', $button[2], 'submit', false );
+			submit_button( $button[0] . ' (' . ( 'repair' === $task ? $button[1] : min( self::BATCH, $button[1] ) ) . ')', $button[2], 'submit', false );
 			echo '</form>';
 		}
 		echo '</div>';

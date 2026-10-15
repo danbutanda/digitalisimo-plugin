@@ -27,12 +27,13 @@ final class Cli {
 	 *
 	 *     wp digitalisimo-migration --url=https://sitio.example/
 	 *     wp digitalisimo-migration --convert --url=https://sitio.example/
+	 *     wp digitalisimo-migration --repair --url=https://sitio.example/   (reglas de visibilidad perdidas, desde la copia original)
 	 *     wp digitalisimo-migration --network
 	 */
 	public function __invoke( $args, $assoc ) {
 		if ( ! empty( $assoc['network'] ) ) {
-			if ( ! empty( $assoc['convert'] ) || ! empty( $assoc['revert'] ) ) {
-				\WP_CLI::error( 'La conversión y la restauración se lanzan sitio por sitio con --url.' );
+			if ( ! empty( $assoc['convert'] ) || ! empty( $assoc['revert'] ) || ! empty( $assoc['repair'] ) ) {
+				\WP_CLI::error( 'La conversión, la reparación y la restauración se lanzan sitio por sitio con --url.' );
 			}
 			$rows = array();
 			foreach ( is_multisite() ? get_sites( array( 'number' => 0, 'fields' => 'ids' ) ) : array( get_current_blog_id() ) as $site_id ) {
@@ -43,6 +44,11 @@ final class Cli {
 				restore_current_blog();
 			}
 			\WP_CLI\Utils\format_items( 'table', $rows, array( 'sitio', 'widget', 'elementos', 'documentos', 'adaptador' ) );
+			return;
+		}
+		if ( ! empty( $assoc['repair'] ) ) {
+			$totals = Migration::repair_all();
+			\WP_CLI::success( sprintf( 'Reglas de visibilidad recuperadas en %d documentos (%d elementos).', $totals['documents'], $totals['elements'] ) );
 			return;
 		}
 		if ( ! empty( $assoc['revert'] ) ) {

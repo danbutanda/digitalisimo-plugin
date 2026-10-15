@@ -40,13 +40,13 @@ final class Legacy_Rules {
 	}
 
 	/**
-	 * Element Pack sólo aplicaba las reglas con su extensión encendida en el sitio, y sus ajustes
-	 * siguen en la base de datos tras retirarlo. Sin esa opción (por ejemplo, contenido importado)
-	 * se aplican, porque un elemento con reglas sólo pudo crearse con la extensión activa.
+	 * Element Pack trae Visibility Controls activa por defecto (`default_activation` en su módulo) y sólo deja de
+	 * aplicar las reglas si el sitio la apagó expresamente en sus ajustes, que siguen en la base de datos tras
+	 * retirarlo. Una opción sin la clave (lo habitual: nunca se guardó esa pestaña) cuenta como activa.
 	 */
 	public static function enabled_on_site() {
 		$options = get_option( 'element_pack_elementor_extend', null );
-		$enabled = ! is_array( $options ) || ( isset( $options['visibility-controls'] ) && 'on' === $options['visibility-controls'] );
+		$enabled = ! is_array( $options ) || ! isset( $options['visibility-controls'] ) || 'off' !== $options['visibility-controls'];
 		return (bool) apply_filters( 'digitalisimo_elements_legacy_visibility', $enabled );
 	}
 
