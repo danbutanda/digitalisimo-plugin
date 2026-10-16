@@ -8,7 +8,7 @@ const expect = (ok, message) => { if (!ok) problems.push(message); };
 
 async function open(browser, { width, height, mobile = false, js = true }) {
   const page = await browser.newPage();
-  await page.setJavaScriptEnabled(js);
+  if (!js) await page.setJavaScriptEnabled(false);
   if (mobile) await page.setViewport({ width, height, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   else await page.setViewport({ width, height });
   const errors = [];
@@ -55,6 +55,8 @@ async function inspect(page, { sample = true } = {}) {
         kept: groups.map((g) => g.children.length),
         itemWidth: +(widths[0] || 0).toFixed(2), gapEach: +((groupWidth - widths.reduce((a, b) => a + b, 0)) / Math.max(1, items.length)).toFixed(2),
         viewport: viewport.clientWidth, groupWidth: +groupWidth.toFixed(2), trackMinus2Groups: +(track.getBoundingClientRect().width - 2 * groupWidth).toFixed(2),
+        // Hueco fantasma: lo que el grupo mide de más respecto a sus elementos y separaciones (Firefox lo dejaba al medir por contenido).
+        phantom: +(groupWidth - widths.reduce((a, b) => a + b, 0) - items.length * (parseFloat(getComputedStyle(groups[0]).gap) || 0)).toFixed(2),
         fitScale: track.style.getPropertyValue('--digi-fit-scale'), duration: getComputedStyle(track).animationDuration, playState: getComputedStyle(track).animationPlayState, fillMode: getComputedStyle(track).animationFillMode,
         imagesComplete: images.filter((i) => i.complete && i.naturalWidth > 0).length, images: images.length,
         visibleIncomplete: images.filter((i) => { const r = i.getBoundingClientRect(); return r.width > 0 && r.right > 0 && r.left < innerWidth && !(i.complete && i.naturalWidth > 0); }).length,
@@ -104,6 +106,7 @@ async function inspect(page, { sample = true } = {}) {
       expect(!s.preparing && s.started !== null && s.started < 6000, `${mode.name} · ${key}: debe arrancar pronto (${JSON.stringify({ preparing: s.preparing, started: s.started })})`);
       expect(s.playState === 'running', `${mode.name} · ${key}: la pista debe estar en marcha (${s.playState})`);
       expect(Math.abs(s.trackMinus2Groups) <= 1, `${mode.name} · ${key}: la pista debe medir dos grupos exactos (${s.trackMinus2Groups})`);
+      expect(Math.abs(s.phantom) <= 1, `${mode.name} · ${key}: el grupo debe medir exactamente sus elementos y separaciones, sin hueco (${s.phantom} px de más)`);
       // El salto del cierre es el ancho de un grupo más, como mucho, el avance de un fotograma.
       expect(Array.isArray(s.wrapJumps) && s.wrapJumps.length === 1 && Math.abs(Math.abs(s.wrapJumps[0]) - s.groupWidth) <= 2 * s.wrapStep + 2, `${mode.name} · ${key}: el cierre del bucle debe saltar un grupo exacto (${JSON.stringify(s.wrapJumps)} frente a ${s.groupWidth}, paso ${s.wrapStep})`);
       expect(s.frames >= 50 && s.longFrames <= 3 && s.moved > 0, `${mode.name} · ${key}: el movimiento debe ser fluido (${s.frames} fotogramas, ${s.longFrames} largos, ${s.moved} px)`);
@@ -174,6 +177,36 @@ async function inspect(page, { sample = true } = {}) {
     await page.close();
   }
   await browser.close();
+  // Firefox (si está instalado): mide el ancho de los grupos por sus variables y no por el contenido, así que las uniones
+  // y el cierre del bucle deben ser tan exactos como en Chrome.
+  const firefoxPath = process.env.FIREFOX_PATH || ['/snap/bin/firefox', '/usr/bin/firefox'].find((p) => require('fs').existsSync(p));
+  if (firefoxPath) {
+    try {
+      const profile = firefoxPath.startsWith('/snap/') ? `${process.env.HOME}/snap/firefox/common/digi-slider-profile` : `${out}/firefox-profile`;
+      require('fs').mkdirSync(profile, { recursive: true });
+      const firefox = await puppeteer.launch({ browser: 'firefox', executablePath: firefoxPath, headless: true, protocol: 'webDriverBiDi', userDataDir: profile, args: ['--width=1440', '--height=900'] });
+      const { page, errors, failed, status } = await open(firefox, { width: 1440, height: 900 });
+      expect(status === 200, `firefox: la página respondió ${status}`);
+      await new Promise((r) => setTimeout(r, 2500));
+      const state = await inspect(page);
+      for (const key of ['Onda', 'Logos', 'Onda repetida']) {
+        const s = state[key] || {};
+        expect(!s.preparing && s.playState === 'running' && s.moved > 0, `firefox · ${key}: debe estar en marcha (${JSON.stringify({ preparing: s.preparing, playState: s.playState, moved: s.moved })})`);
+        expect(Math.abs(s.phantom) <= 1 && Math.abs(s.trackMinus2Groups) <= 1, `firefox · ${key}: grupo sin hueco y pista de dos grupos (${s.phantom} px de más, ${s.trackMinus2Groups})`);
+        expect(Array.isArray(s.wrapJumps) && s.wrapJumps.length === 1 && Math.abs(Math.abs(s.wrapJumps[0]) - s.groupWidth) <= 2 * s.wrapStep + 2, `firefox · ${key}: el cierre del bucle debe saltar un grupo exacto (${JSON.stringify(s.wrapJumps)} frente a ${s.groupWidth})`);
+      }
+      expect(state.Onda && state.Onda.kept[0] === 2 && parseFloat(state.Onda.duration) === 15, `firefox · Onda: dos mitades a 15 s (${JSON.stringify(state.Onda && [state.Onda.kept, state.Onda.duration])})`);
+      expect(state.Logos && state.Logos.kept[0] === 12, `firefox · Logos: los doce enteros (${JSON.stringify(state.Logos && state.Logos.kept)})`);
+      expect(errors.length === 0 && failed.length === 0, `firefox: errores o recursos no encontrados: ${errors.concat(failed).join(' | ')}`);
+      notes.push(`firefox: Onda ${state.Onda.kept[0]}/grupo (${state.Onda.phantom} px de más), ${state.Onda.duration}; Logos ${state.Logos.kept[0]}/grupo (${state.Logos.phantom} px de más)`);
+      await page.close();
+      await firefox.close();
+    } catch (e) {
+      problems.push(`firefox: no se pudo completar la pasada: ${String(e.message || e).slice(0, 300)}`);
+    }
+  } else {
+    notes.push('firefox: no instalado, pasada omitida');
+  }
   require('fs').writeFileSync(`${out}/slider.json`, JSON.stringify({ problems, notes }, null, 1));
   for (const n of notes) console.log(`INFO   ${n}`);
   for (const p of problems) console.log(`FALLA  ${p}`);

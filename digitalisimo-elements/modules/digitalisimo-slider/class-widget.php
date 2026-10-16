@@ -199,8 +199,10 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		if ( $mirror_loop ) $classes[] = 'digi-slider--mirror-loop';
 		if ( 'fixed' === ( $s['height_mode'] ?? 'auto' ) ) $classes[] = 'digi-slider--fixed';
 		$label = trim( (string) ( $s['label'] ?? '' ) );
-		$style = $loop_duration > 0 ? '--digi-loop-duration:' . round( $loop_duration, 3 ) . 's' : ( $loop_scale > 0 ? '--digi-loop-scale:' . round( $loop_scale, 4 ) : '' );
-		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . ( '' !== $style ? ' style="' . esc_attr( $style ) . '"' : '' ) . ( $sources_count ? ' data-digi-sources="' . (int) $sources_count . '"' : '' ) . ( $label ? ' role="group" aria-label="' . esc_attr( $label ) . '"' : '' ) . '><div class="digi-slider__viewport"><div class="digi-slider__track">';
+		// El ancho de cada grupo se declara (elementos × ancho de elemento): medido por el contenido, Firefox no resuelve las
+		// unidades de contenedor y dejaba un hueco al final de cada grupo.
+		$style = '--digi-count:' . count( $items ) . ( $loop_duration > 0 ? ';--digi-loop-duration:' . round( $loop_duration, 3 ) . 's' : ( $loop_scale > 0 ? ';--digi-loop-scale:' . round( $loop_scale, 4 ) : '' ) );
+		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . ' style="' . esc_attr( $style ) . '"' . ( $sources_count ? ' data-digi-sources="' . (int) $sources_count . '"' : '' ) . ( $label ? ' role="group" aria-label="' . esc_attr( $label ) . '"' : '' ) . '><div class="digi-slider__viewport"><div class="digi-slider__track">';
 		$this->group( $items, $s, $mirror, false, $accessible_count );
 		if ( $infinite ) $this->group( $items, $s, $mirror, true, 0 );
 		echo '</div></div></div>';

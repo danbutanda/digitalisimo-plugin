@@ -39,8 +39,10 @@ function slider({ id, top = 100, items = 8, itemWidth = 1000, viewport = 1000, s
   const track = { children: groups, style, computed: { animationDuration: '30s', animationDelay: '3s', animationName }, getAnimations: () => [animation] };
   const view = { clientWidth: viewport, getBoundingClientRect: () => ({ left: 0, right: viewport, width: viewport }) };
   const classes = new Set([...(preparing ? ['digi-slider--preparing'] : []), ...(infinite ? ['digi-slider--infinite'] : []), ...(mirror ? ['digi-slider--mirror'] : []), ...(natural ? ['digi-slider--natural'] : [])]);
+  const sliderProps = {};
   const instance = {
     id, dataset: { digiSources: String(sources) }, isConnected: true,
+    style: { setProperty: (k, v) => { sliderProps[k] = v; }, removeProperty: (k) => { delete sliderProps[k]; }, getPropertyValue: (k) => sliderProps[k] || '' },
     classList: {
       contains: (name) => classes.has(name),
       remove: (name) => { classes.delete(name); if (name === 'digi-slider--preparing') starts.push({ id, frame: frameNumber }); },
@@ -50,7 +52,7 @@ function slider({ id, top = 100, items = 8, itemWidth = 1000, viewport = 1000, s
     querySelectorAll: (selector) => (selector === '.digi-slider--preparing' ? [] : groups.flatMap((group) => group.children.map((item) => item.img))),
     matches: () => true,
   };
-  return { instance, image, track, groups, view, finish, animation, kept: () => groups.map((group) => group.children.length), order: () => groups[0].children.map((item) => item.index), scale: () => style.getPropertyValue('--digi-fit-scale') };
+  return { instance, image, track, groups, view, finish, animation, kept: () => groups.map((group) => group.children.length), order: () => groups[0].children.map((item) => item.index), scale: () => style.getPropertyValue('--digi-fit-scale'), count: () => instance.style.getPropertyValue('--digi-count') };
 }
 
 function nextFrame() { const callbacks = frames.splice(0); frameNumber++; for (const callback of callbacks) callback(); }
@@ -97,8 +99,10 @@ assert.equal(below.image.loading, 'lazy', 'Un slider lejano no descarga imágene
 // Recorte al preparar: sólo repeticiones, nunca por debajo de las imágenes distintas, en múltiplos de la secuencia.
 assert.deepEqual(wave.kept(), [2, 2], 'La onda de ocho copias queda en dos por grupo (viewport más uno, par con espejo).');
 assert.equal(wave.scale(), '0.2500', 'La duración se escala por variable en la proporción recortada (2/8).');
+assert.equal(wave.count(), '2', 'El ancho declarado del grupo sigue al número de mitades que quedan.');
 assert.deepEqual(logos.kept(), [12, 12], 'Doce logotipos distintos se conservan todos aunque diez cubran el viewport.');
 assert.equal(logos.scale(), '', 'Sin recorte no hay escala.');
+assert.equal(logos.count(), '12');
 assert.deepEqual(three.kept(), [6, 6], 'Tres logos repetidos: cinco cubren 450 px, más uno son seis, múltiplo de tres.');
 assert.deepEqual(three.order(), [0, 1, 2, 3, 4, 5], 'Se conserva el orden de la secuencia.');
 assert.equal(three.scale(), '0.6000');
@@ -139,12 +143,14 @@ three.view.clientWidth = 200;
 resizeHandler();
 await wait(250);
 assert.deepEqual(three.kept(), [3, 3], 'Con 200 px bastan dos más uno: una secuencia entera.');
+assert.equal(three.count(), '3');
 assert.equal(three.scale(), '0.3000');
 three.view.clientWidth = 1000;
 resizeHandler();
 await wait(250);
 assert.deepEqual(three.kept(), [10, 10], 'Con 1000 px hacen falta once: vuelven las diez.');
 assert.equal(three.scale(), '', 'Sin recorte, la escala desaparece.');
+assert.equal(three.count(), '10');
 logos.view.clientWidth = 300;
 resizeHandler();
 await wait(250);

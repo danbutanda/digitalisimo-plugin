@@ -1,16 +1,17 @@
 .elementor-widget-digitalisimo-slider-optimizado{width:var(--container-widget-width,100%);min-width:0}
 .elementor-widget-digitalisimo-slider-optimizado.elementor-invisible:not([data-settings]){visibility:visible!important}
-.digi-slider{--digi-visible:9;--digi-gap:16px;--digi-duration:30s;--digi-max-width:10000px;--digi-height:auto;width:100%;max-width:100%;min-width:0}
+.digi-slider{--digi-visible:9;--digi-gap:16px;--digi-duration:30s;--digi-max-width:10000px;--digi-height:auto;--digi-count:10;--digi-item:max(1px,calc((100cqw - (var(--digi-visible) - 1)*var(--digi-gap))/var(--digi-visible)));width:100%;max-width:100%;min-width:0}
 .digi-slider__viewport{width:100%;overflow:hidden;container-type:inline-size}
 .digi-slider__track{display:flex;width:max-content;max-width:none;align-items:stretch;animation:none}
-.digi-slider__group{display:flex;flex:0 0 auto;align-items:center;gap:var(--digi-gap);padding-inline-end:var(--digi-gap)}
+.digi-slider__group{display:flex;flex:0 0 calc(var(--digi-count)*(var(--digi-item) + var(--digi-gap)));width:calc(var(--digi-count)*(var(--digi-item) + var(--digi-gap)));box-sizing:border-box;align-items:center;gap:var(--digi-gap);padding-inline-end:var(--digi-gap)}
 .digi-slider--mirror-repeat{--digi-gap:0px!important}
-.digi-slider--mirror-loop{--digi-visible:1!important}
-.digi-slider__item{flex:0 0 max(1px,calc((100cqw - (var(--digi-visible) - 1)*var(--digi-gap))/var(--digi-visible)));min-width:0;max-width:none}
+.digi-slider--mirror-loop{--digi-visible:1!important;--digi-item:100cqw!important}
+.digi-slider__item{flex:0 0 var(--digi-item);min-width:0;max-width:none}
 .digi-slider__item img{display:block;max-width:min(100%,var(--digi-max-width));width:100%;height:auto;margin-inline:auto;object-fit:contain}
 .digi-slider__item a{display:block}
 .digi-slider__item--mirror img{transform:scaleX(-1)}
 .digi-slider--fixed .digi-slider__item img{height:var(--digi-height)}
+.digi-slider--natural .digi-slider__group{flex-basis:auto;width:auto}
 .digi-slider--natural .digi-slider__item{flex:0 0 auto;width:auto}
 .digi-slider--natural .digi-slider__item img{max-width:none;width:auto}
 .digi-slider--mirror-loop .digi-slider__item{flex:0 0 100cqw!important;width:100cqw!important}

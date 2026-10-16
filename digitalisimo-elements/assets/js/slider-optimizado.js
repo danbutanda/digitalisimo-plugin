@@ -81,6 +81,8 @@
     });
     if (kept < total) rail.style.setProperty('--digi-fit-scale', (kept / total).toFixed(4));
     else rail.style.removeProperty('--digi-fit-scale');
+    // El ancho declarado de cada grupo sigue al número de elementos que quedan.
+    slider.style.setProperty('--digi-count', String(kept));
     slider.dataset.digiFit = '1';
     return true;
   }
