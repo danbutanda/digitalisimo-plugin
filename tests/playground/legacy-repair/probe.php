@@ -126,7 +126,7 @@ update_post_meta( $r_old, '_elementor_data', wp_slash( wp_json_encode( $converte
 $check( false !== strpos( (string) get_post_meta( $page, '_elementor_data', true ), 'TITULO-VIEJO' ), 'revisiones: simulación del fallo, la página tiene el contenido de la revisión vieja' );
 $over = Migration::overwritten_parents();
 $check( isset( $over[ $page ] ) && $r_old === $over[ $page ]['revision'] && ! $over[ $page ]['autosave'], 'revisiones: la página sobrescrita se detecta con la revisión que la pisó' );
-$check( Migration::recover_from_revision( $page ), 'revisiones: la recuperación desde la última revisión guardada responde' );
+$check( 'revision' === Migration::recover_from_revision( $page, $r_old ), 'revisiones: la recuperación desde la última revisión guardada responde' );
 $current = (string) get_post_meta( $page, '_elementor_data', true );
 $check( false !== strpos( $current, 'TITULO-SOLO-INTERNAS' ) && false === strpos( $current, 'TITULO-VIEJO' ) && false === strpos( $current, 'ep_display_conditions' ) && false !== strpos( $current, 'digitalisimo_visibility_enable' ) && array() === Migration::overwritten_parents(), 'revisiones: la página vuelve a su última versión guardada, convertida, y deja de estar sobrescrita' );
 update_option( 'page_on_front', $page );
@@ -135,5 +135,21 @@ $check( false === strpos( $html, 'TITULO-SOLO-INTERNAS' ) && false !== strpos( $
 $before = (string) get_post_meta( $page, '_elementor_data', true );
 Migration::convert_document( $r_latest );
 $check( $before === (string) get_post_meta( $page, '_elementor_data', true ) && false === strpos( (string) get_metadata( 'post', $r_latest, '_elementor_data', true ), 'ep_display_conditions' ), 'revisiones: convertir una revisión escribe en la revisión y no toca la página' );
+
+// 7. Sin revisión guardada (plantillas: sólo autoguardados): la página sobrescrita se recupera desde su copia original, salvo
+//    que esa copia sea la del autoguardado; entonces puede darse por revisada.
+$tpl = $make( 'digi-pie', $data( $legacy ) );
+Migration::convert_document( $tpl );
+$auto = $rev( $tpl, $old, 'autosave-v1' );
+list( $converted_auto ) = Migration::convert_data( json_decode( (string) get_metadata( 'post', $auto, '_elementor_data', true ), true ), $auto );
+update_post_meta( $auto, '_elementor_data', wp_slash( wp_json_encode( $converted_auto ) ) );
+$over = Migration::overwritten_parents();
+$check( isset( $over[ $tpl ] ) && $auto === $over[ $tpl ]['revision'] && $over[ $tpl ]['autosave'] && 0 === Migration::latest_revision( $tpl ) && 'backup' === Migration::recovery_source( $tpl, $auto )[0], 'sin revisión: la página sobrescrita por un autoguardado se detecta y se recuperará desde su copia original' );
+$check( 'backup' === Migration::recover_from_revision( $tpl, $auto ) && false !== strpos( (string) get_post_meta( $tpl, '_elementor_data', true ), 'TITULO-SOLO-INTERNAS' ) && ! isset( Migration::overwritten_parents()[ $tpl ] ), 'sin revisión: recuperada desde la copia original, deja de estar sobrescrita' );
+update_post_meta( $auto, '_elementor_data', wp_slash( wp_json_encode( $converted_auto ) ) );
+update_metadata( 'post', $tpl, Migration::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => (string) get_metadata( 'post', $auto, '_elementor_data', true ) ) ) ) );
+$check( '' === Migration::recovery_source( $tpl, $auto )[0] && '' === Migration::recover_from_revision( $tpl, $auto ) && isset( Migration::overwritten_parents()[ $tpl ] ), 'sin revisión ni copia distinta del autoguardado: no hay de dónde recuperar y sigue listada' );
+Migration::acknowledge( $tpl );
+$check( ! isset( Migration::overwritten_parents()[ $tpl ] ), 'dada por revisada, deja de listarse' );
 
 file_put_contents( '/wordpress/wp-content/probe/result.json', wp_json_encode( $problems, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) );

@@ -475,7 +475,7 @@ final class Migration {
 			}
 			$raw_parent   = (string) get_metadata( 'post', $parent_id, '_elementor_data', true );
 			$raw_revision = (string) get_metadata( 'post', $revision_id, '_elementor_data', true );
-			if ( '' === $raw_parent || '' === $raw_revision ) {
+			if ( '' === $raw_parent || '' === $raw_revision || ( isset( $cache['ack'][ $parent_id ] ) && $cache['ack'][ $parent_id ] === md5( $raw_parent ) ) ) {
 				continue;
 			}
 			$key = md5( $raw_parent ) . ':' . md5( $raw_revision );
@@ -501,22 +501,52 @@ final class Migration {
 	}
 
 	/**
-	 * Devuelve a una página sobrescrita su última versión guardada en el editor (Elementor crea una revisión en cada
-	 * guardado), convertida; si esa versión era heredada pasa a ser la copia original de la página.
+	 * Devuelve a una página sobrescrita su última versión guardada en el editor, convertida (Elementor crea una revisión
+	 * en cada guardado), y esa versión pasa a ser su copia original si era heredada. Sin revisión guardada (las plantillas
+	 * de Elementor sólo tienen autoguardados) usa la copia original de la página, que se conserva, salvo que esa copia sea
+	 * la de la revisión que la pisó.
+	 *
+	 * @return string 'revision', 'backup' o '' si no hay de dónde recuperar.
 	 */
-	public static function recover_from_revision( $parent_id ) {
-		$latest = self::latest_revision( $parent_id );
-		$raw    = $latest ? (string) get_metadata( 'post', $latest, '_elementor_data', true ) : '';
+	public static function recover_from_revision( $parent_id, $revision_id = 0 ) {
+		list( $source, $raw ) = self::recovery_source( $parent_id, $revision_id );
 		if ( '' === $raw ) {
-			return false;
+			return '';
 		}
 		list( $converted, $changes ) = self::convert_data( self::decode( $raw ), $parent_id );
 		update_metadata( 'post', $parent_id, '_elementor_data', wp_slash( wp_json_encode( $converted ) ) );
-		if ( $changes ) {
+		if ( 'revision' === $source && $changes ) {
 			update_metadata( 'post', $parent_id, self::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ) );
 		}
 		self::clear_css( $parent_id );
-		return true;
+		return $source;
+	}
+
+	/**
+	 * De dónde puede recuperarse una página sobrescrita: su última revisión guardada o, si no la hay, su copia original
+	 * cuando no es la de la revisión que la pisó.
+	 *
+	 * @return array{0:string,1:string} origen ('revision', 'backup' o '') y datos en bruto.
+	 */
+	public static function recovery_source( $parent_id, $revision_id = 0 ) {
+		$latest = self::latest_revision( $parent_id );
+		$raw    = $latest ? (string) get_metadata( 'post', $latest, '_elementor_data', true ) : '';
+		if ( '' !== $raw ) {
+			return array( 'revision', $raw );
+		}
+		$backup = json_decode( (string) get_metadata( 'post', $parent_id, self::BACKUP, true ), true );
+		$raw    = is_array( $backup ) && isset( $backup['data'] ) && is_string( $backup['data'] ) ? $backup['data'] : '';
+		if ( '' !== $raw && $revision_id && self::decode( $raw ) === self::decode( get_metadata( 'post', $revision_id, '_elementor_data', true ) ) ) {
+			$raw = '';
+		}
+		return array( '' !== $raw ? 'backup' : '', $raw );
+	}
+
+	/** Da por revisada una página sobrescrita con su contenido actual: deja de listarse mientras ese contenido no cambie. */
+	public static function acknowledge( $parent_id ) {
+		$cache                          = (array) get_option( self::REVISION_CHECK, array() );
+		$cache['ack'][ (int) $parent_id ] = md5( (string) get_metadata( 'post', $parent_id, '_elementor_data', true ) );
+		update_option( self::REVISION_CHECK, $cache, false );
 	}
 
 	/**
@@ -591,10 +621,16 @@ final class Migration {
 			$args['native'] = $step['elements'];
 			$args['left']   = $step['remaining'];
 		} elseif ( 'recover' === $task ) {
-			foreach ( array_slice( array_keys( self::overwritten_parents() ), 0, self::BATCH ) as $parent_id ) {
-				$args['count'] += self::recover_from_revision( $parent_id ) ? 1 : 0;
+			foreach ( array_slice( self::overwritten_parents(), 0, self::BATCH, true ) as $parent_id => $info ) {
+				$args['count'] += '' !== self::recover_from_revision( $parent_id, $info['revision'] ) ? 1 : 0;
 			}
 			$args['left'] = count( self::overwritten_parents() );
+		} elseif ( 'acknowledge' === $task ) {
+			$post_id = absint( $_POST['post_id'] ?? 0 );
+			if ( $post_id ) {
+				self::acknowledge( $post_id );
+				$args['count'] = 1;
+			}
 		}
 		wp_safe_redirect( add_query_arg( $args, admin_url( 'tools.php' ) ) );
 		exit;
@@ -629,7 +665,9 @@ final class Migration {
 			} elseif ( 'repair' === $done ) {
 				$msg = sprintf( 'Se recuperaron reglas de visibilidad en %d documentos (%d elementos).', $count, $items ) . ' ' . ( $left ? sprintf( 'Quedan %d documentos con copia por revisar.', $left ) : 'Revisión completa: todos los documentos con copia están revisados.' );
 			} elseif ( 'recover' === $done ) {
-				$msg = sprintf( 'Se recuperaron %d páginas desde su última revisión guardada.', $count ) . ( $left ? ' ' . sprintf( 'Quedan %d (sin revisión guardada de la que recuperar, o para el siguiente lote).', $left ) : '' );
+				$msg = sprintf( 'Se recuperaron %d páginas desde su última revisión guardada o su copia original.', $count ) . ( $left ? ' ' . sprintf( 'Quedan %d; la lista indica por qué.', $left ) : '' );
+			} elseif ( 'acknowledge' === $done ) {
+				$msg = $count ? 'Página dada por revisada: deja de listarse mientras su contenido no cambie.' : 'No se indicó ninguna página.';
 			} else {
 				$msg = sprintf( 'Se restauraron %d documentos a su versión original.', $count );
 			}
@@ -662,11 +700,23 @@ final class Migration {
 		if ( $backups ) {
 			echo '<p>' . esc_html( $repaired ? sprintf( 'Reglas de visibilidad: revisadas en los %d documentos con copia original.', $backups ) : sprintf( 'Reglas de visibilidad: %d documentos con copia original por revisar (la revisión también avanza sola al navegar por la administración).', $to_review ) ) . '</p>';
 		}
+		$recoverable = 0;
 		if ( $overwritten ) {
-			echo '<div class="notice notice-error inline"><p>' . esc_html( sprintf( 'Hasta Migración 1.0.13, convertir una revisión escribía el resultado en la página a la que pertenece: %d páginas tienen ahora el contenido de una revisión anterior o de un autoguardado. «Recuperar desde la última revisión guardada» vuelve a convertir la última versión que se guardó en el editor de cada una; revísalas después.', count( $overwritten ) ) ) . '</p><ul style="list-style:disc;margin-left:20px">';
+			echo '<div class="notice notice-error inline"><p>' . esc_html( sprintf( 'Hasta Migración 1.0.13, convertir una revisión escribía el resultado en la página a la que pertenece: %d páginas tienen ahora el contenido de una revisión anterior o de un autoguardado. «Recuperar» vuelve a convertir la última versión guardada en el editor de cada una o, si no tiene revisiones guardadas (las plantillas sólo tienen autoguardados), su copia original; revísalas después.', count( $overwritten ) ) ) . '</p><ul style="list-style:disc;margin-left:20px">';
 			foreach ( $overwritten as $parent_id => $info ) {
-				$title = get_the_title( $parent_id );
-				echo '<li><a href="' . esc_url( admin_url( 'post.php?post=' . (int) $parent_id . '&action=elementor' ) ) . '">' . esc_html( '' !== $title ? $title : '#' . $parent_id ) . '</a> · ' . esc_html( sprintf( $info['autosave'] ? 'sobrescrita con el autoguardado del %s' : 'sobrescrita con la revisión del %s', $info['date'] ) ) . '</li>';
+				$title  = get_the_title( $parent_id );
+				$source = self::recovery_source( $parent_id, $info['revision'] )[0];
+				$recoverable += '' !== $source ? 1 : 0;
+				$how = 'revision' === $source ? 'se recuperará desde su última revisión guardada' : ( 'backup' === $source ? 'sin revisión guardada: se recuperará desde su copia original' : 'sin revisión guardada ni copia original distinta: esa versión es la única conocida; revísala en el editor y, si está bien, dala por revisada' );
+				echo '<li><a href="' . esc_url( admin_url( 'post.php?post=' . (int) $parent_id . '&action=elementor' ) ) . '">' . esc_html( '' !== $title ? $title : '#' . $parent_id ) . '</a> · ' . esc_html( sprintf( $info['autosave'] ? 'sobrescrita con el autoguardado del %s' : 'sobrescrita con la revisión del %s', $info['date'] ) ) . ' · ' . esc_html( $how );
+				if ( '' === $source ) {
+					echo ' <form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+					wp_nonce_field( self::ACTION . '_' . get_current_blog_id() );
+					echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '"><input type="hidden" name="task" value="acknowledge"><input type="hidden" name="post_id" value="' . (int) $parent_id . '">';
+					submit_button( 'Dar por revisada', 'link', 'submit', false );
+					echo '</form>';
+				}
+				echo '</li>';
 			}
 			echo '</ul></div>';
 		}
@@ -675,7 +725,7 @@ final class Migration {
 		}
 		$buttons = array(
 			'convert' => array( 'Convertir el siguiente lote', $active ? 0 : $convertible, 'button-primary' ),
-			'recover' => array( 'Recuperar desde la última revisión guardada', count( $overwritten ), 'button-primary' ),
+			'recover' => array( 'Recuperar las páginas sobrescritas', $recoverable, 'button-primary' ),
 			'repair'  => array( $repaired ? 'Revisar de nuevo las reglas de visibilidad' : 'Recuperar reglas de visibilidad perdidas', $to_review, 'button-secondary' ),
 			'revert'  => array( 'Restaurar el siguiente lote al original', $backups, 'button-secondary' ),
 		);

@@ -54,10 +54,14 @@ final class Cli {
 		}
 		if ( ! empty( $assoc['recover'] ) ) {
 			$count = 0;
-			foreach ( array_keys( Migration::overwritten_parents() ) as $parent_id ) {
-				$count += Migration::recover_from_revision( $parent_id ) ? 1 : 0;
+			foreach ( Migration::overwritten_parents() as $parent_id => $info ) {
+				$count += '' !== Migration::recover_from_revision( $parent_id, $info['revision'] ) ? 1 : 0;
 			}
-			\WP_CLI::success( sprintf( 'Páginas recuperadas desde su última revisión guardada: %d', $count ) );
+			\WP_CLI::success( sprintf( 'Páginas recuperadas desde su última revisión guardada o su copia original: %d', $count ) );
+			$left = count( Migration::overwritten_parents() );
+			if ( $left ) {
+				\WP_CLI::warning( sprintf( '%d páginas sin revisión guardada ni copia original distinta de la que las sobrescribió: revísalas en el editor (Herramientas → Migrar Element Pack las lista).', $left ) );
+			}
 			return;
 		}
 		if ( ! empty( $assoc['revert'] ) ) {

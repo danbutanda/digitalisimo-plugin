@@ -102,7 +102,7 @@ namespace {
 	function wp_doing_ajax() { return $GLOBALS['digi']['ajax'] ?? false; }
 	function wp_doing_cron() { return false; }
 	function current_user_can( $cap ) { return in_array( $cap, (array) ( $GLOBALS['digi']['caps'] ?? array() ), true ); }
-	$GLOBALS['wpdb'] = new class() { public $postmeta = 'wp_postmeta'; public $posts = 'wp_posts'; public function prepare( $q ) { return $q; } public function esc_like( $s ) { return $s; } public function get_col( $q ) { return false !== strpos( $q, "'_elementor_data'" ) ? ( $GLOBALS['digi']['documents'] ?? array() ) : $GLOBALS['digi']['backups']; } };
+	$GLOBALS['wpdb'] = new class() { public $postmeta = 'wp_postmeta'; public $posts = 'wp_posts'; public function prepare( $q ) { return $q; } public function get_var( $q ) { return $GLOBALS['digi']['latest'] ?? 0; } public function esc_like( $s ) { return $s; } public function get_col( $q ) { return false !== strpos( $q, "'_elementor_data'" ) ? ( $GLOBALS['digi']['documents'] ?? array() ) : $GLOBALS['digi']['backups']; } };
 	$make = static function ( $id, $time, $with_rules = true ) use ( $legacy ) {
 		$settings = $with_rules ? array( 'title' => 'Agencia' ) + $legacy : array( 'title' => 'Agencia' );
 		$GLOBALS['digi']['meta'][ $id ][ Migration::BACKUP ] = json_encode( array( 'time' => $time, 'data' => json_encode( array( array( 'id' => 'w' . $id, 'elType' => 'widget', 'settings' => $settings ) ) ) ) );
@@ -172,5 +172,20 @@ namespace {
 	check_repair( 0 === $n2 && $again === $out, 'Convertir dos veces no cambia nada.' );
 	$GLOBALS['digi']['meta'][200] = array( '_elementor_data' => json_encode( $doc ) ); $GLOBALS['digi']['writes'] = array();
 	check_repair( 1 === Migration::convert_document( 200 )['native'] && array( '200:' . Migration::BACKUP, '200:_elementor_data' ) === $GLOBALS['digi']['writes'] && 'yes' === json_decode( $GLOBALS['digi']['meta'][200]['_elementor_data'], true )[0]['settings']['digitalisimo_visibility_enable'], 'La conversión guarda copia y resultado en el documento indicado, sin redirigir al padre.' );
-	echo "DIGITALÍSIMO Migración: activación por defecto, conversión sin pérdida, reparación de reglas (por lotes reanudables), lotes que saltan los documentos sin adaptador y escritura en el documento indicado validados.\n";
+
+	// Página sobrescrita: se recupera desde su última revisión guardada; sin ella, desde su copia original salvo que sea la del autoguardado que la pisó.
+	$original = array( array( 'id' => 'f1', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'ORIGINAL' ) + $legacy ) );
+	$auto     = array( array( 'id' => 'f1', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'AUTOGUARDADO' ) + $legacy ) );
+	$GLOBALS['digi']['meta'][301] = array( '_elementor_data' => json_encode( $auto ) );
+	$GLOBALS['digi']['meta'][300] = array( '_elementor_data' => json_encode( Migration::convert_data( $auto, 301 )[0] ), Migration::BACKUP => json_encode( array( 'time' => 1000, 'data' => json_encode( $original ) ) ) );
+	$GLOBALS['digi']['latest']    = 0;
+	$title = static function ( $id ) { return json_decode( $GLOBALS['digi']['meta'][ $id ]['_elementor_data'], true )[0]['settings']; };
+	check_repair( 'backup' === Migration::recovery_source( 300, 301 )[0] && 'backup' === Migration::recover_from_revision( 300, 301 ) && 'ORIGINAL' === $title( 300 )['title'] && 'yes' === $title( 300 )['digitalisimo_visibility_enable'] && false !== strpos( $GLOBALS['digi']['meta'][300][ Migration::BACKUP ], 'ORIGINAL' ), 'Sin revisión guardada, la página se recupera desde su copia original convertida y la copia se conserva.' );
+	$GLOBALS['digi']['meta'][300][ Migration::BACKUP ] = json_encode( array( 'time' => 1000, 'data' => json_encode( $auto ) ) );
+	check_repair( '' === Migration::recovery_source( 300, 301 )[0] && '' === Migration::recover_from_revision( 300, 301 ), 'Si la copia original es la del autoguardado, no hay de dónde recuperar.' );
+	$GLOBALS['digi']['meta'][302] = array( '_elementor_data' => json_encode( $original ) ); $GLOBALS['digi']['latest'] = 302;
+	check_repair( 'revision' === Migration::recover_from_revision( 300, 301 ) && 'ORIGINAL' === $title( 300 )['title'] && false !== strpos( $GLOBALS['digi']['meta'][300][ Migration::BACKUP ], 'ORIGINAL' ), 'Con revisión guardada se recupera desde ella y esa versión pasa a ser la copia original.' );
+	Migration::acknowledge( 300 );
+	check_repair( md5( $GLOBALS['digi']['meta'][300]['_elementor_data'] ) === ( get_option( Migration::REVISION_CHECK )['ack'][300] ?? '' ), 'Dar por revisada recuerda el contenido actual de la página.' );
+	echo "DIGITALÍSIMO Migración: activación por defecto, conversión sin pérdida, reparación de reglas (por lotes reanudables), lotes que saltan los documentos sin adaptador, escritura en el documento indicado y recuperación de páginas sobrescritas validados.\n";
 }
