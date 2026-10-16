@@ -98,7 +98,7 @@ namespace {
 	function wp_doing_ajax() { return $GLOBALS['digi']['ajax'] ?? false; }
 	function wp_doing_cron() { return false; }
 	function current_user_can( $cap ) { return in_array( $cap, (array) ( $GLOBALS['digi']['caps'] ?? array() ), true ); }
-	$GLOBALS['wpdb'] = new class() { public $postmeta = 'wp_postmeta'; public function prepare( $q ) { return $q; } public function get_col( $q ) { return $GLOBALS['digi']['backups']; } };
+	$GLOBALS['wpdb'] = new class() { public $postmeta = 'wp_postmeta'; public function prepare( $q ) { return $q; } public function esc_like( $s ) { return $s; } public function get_col( $q ) { return false !== strpos( $q, "'_elementor_data'" ) ? ( $GLOBALS['digi']['documents'] ?? array() ) : $GLOBALS['digi']['backups']; } };
 	$make = static function ( $id, $time, $with_rules = true ) use ( $legacy ) {
 		$settings = $with_rules ? array( 'title' => 'Agencia' ) + $legacy : array( 'title' => 'Agencia' );
 		$GLOBALS['digi']['meta'][ $id ][ Migration::BACKUP ] = json_encode( array( 'time' => $time, 'data' => json_encode( array( array( 'id' => 'w' . $id, 'elType' => 'widget', 'settings' => $settings ) ) ) ) );
@@ -129,5 +129,34 @@ namespace {
 	check_repair( $writes === count( $GLOBALS['digi']['writes'] ), 'Terminada, no vuelve a tocar nada.' );
 	$GLOBALS['digi']['options'][ Migration::REPAIR_CUTOFF ] = 0;
 	check_repair( array( 'documents' => 0, 'elements' => 0 ) === Migration::repair_all( 10 ), 'Repetir sobre documentos ya reparados no cambia nada.' );
-	echo "DIGITALÍSIMO Migración: activación por defecto, conversión sin pérdida y reparación de reglas (por lotes) validadas.\n";
+
+	// Lotes de conversión: un widget sin adaptador se queda tal cual, así que su documento es heredado pero no convertible y los lotes lo saltan.
+	$blocked_widget = array( 'id' => 'u1', 'elType' => 'widget', 'widgetType' => 'bdt-barcode', 'settings' => array( 'barcode_text' => 'x' ) );
+	$mapped_widget  = array( 'id' => 'u3', 'elType' => 'widget', 'widgetType' => 'bdt-advanced-heading', 'settings' => array( 'title' => 'x' ) );
+	check_repair( Native::is_legacy( $blocked_widget ) && ! Native::is_convertible( $blocked_widget ), 'Un widget sin adaptador es heredado pero no convertible.' );
+	check_repair( Native::is_convertible( array( 'settings' => array( 'barcode_text' => 'x' ) + $legacy ) + $blocked_widget ), 'Sin adaptador pero con reglas heredadas, las reglas sí se convierten.' );
+	check_repair( Native::is_convertible( $mapped_widget ), 'Un widget con adaptador es convertible.' );
+	check_repair( Native::is_convertible( array( 'id' => 'c1', 'elType' => 'container', 'settings' => array(), 'elements' => array( $blocked_widget, array( 'id' => 'u4', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( '_mask_shape' => 'shape-3' ) ) ) ) ), 'Una máscara de Element Pack en un hijo hace convertible el contenedor.' );
+	check_repair( ! Native::is_convertible( array( 'id' => 'c2', 'elType' => 'container', 'settings' => array(), 'elements' => array( $blocked_widget ) ) ), 'Un contenedor cuyo único heredado es un widget sin adaptador no es convertible.' );
+	$GLOBALS['digi']['documents'] = array( 101, 102, 103 );
+	$GLOBALS['digi']['meta'][101]['_elementor_data'] = json_encode( array( $blocked_widget ) );
+	$GLOBALS['digi']['meta'][102]['_elementor_data'] = json_encode( array( $mapped_widget ) );
+	$GLOBALS['digi']['meta'][103]['_elementor_data'] = json_encode( array( array( 'id' => 'h1', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'ep_ en un texto' ) ) ) );
+	$groups = Migration::classify();
+	check_repair( array( 102 ) === $groups['convertible'] && array( 101 ) === $groups['blocked'] && array( 102 ) === Migration::convertible() && array( 101, 102 ) === Migration::pending(), 'Los lotes toman sólo los convertibles; el bloqueado cuenta aparte y el que no tiene nada heredado no cuenta.' );
+
+	// Botón de recuperación: lotes reanudables con el cursor de la recuperación automática; terminada la pasada, el botón la reinicia.
+	$GLOBALS['digi']['options'] = array( Migration::REPAIR_CUTOFF => 2000 ); $GLOBALS['digi']['backups'] = range( 1, 5 );
+	for ( $i = 1; $i <= 5; $i++ ) { $make( $i, 1000 ); }
+	$step = Migration::repair_step( 2, true );
+	check_repair( 2 === $step['documents'] && 3 === $step['remaining'] && ! $step['done'] && 2 === (int) $GLOBALS['digi']['options'][ Migration::REPAIR_CURSOR ] && 3 === Migration::repair_remaining(), 'El primer lote repara dos y deja tres por revisar.' );
+	$step = Migration::repair_step( 2, true );
+	check_repair( 2 === $step['documents'] && 1 === $step['remaining'] && 4 === (int) $GLOBALS['digi']['options'][ Migration::REPAIR_CURSOR ], 'El segundo lote continúa donde quedó el primero.' );
+	$step = Migration::repair_step( 2, true );
+	check_repair( 1 === $step['documents'] && 0 === $step['remaining'] && $step['done'] && '1' === (string) $GLOBALS['digi']['options'][ Migration::REPAIRED ] && ! isset( $GLOBALS['digi']['options'][ Migration::REPAIR_CURSOR ] ) && 5 === (int) $GLOBALS['digi']['options'][ Migration::REPAIR_TOTALS ]['documents'] && 5 === Migration::repair_remaining(), 'El tercer lote termina la pasada y acumula el total.' );
+	$step = Migration::repair_step( 2, true );
+	check_repair( 0 === $step['documents'] && 3 === $step['remaining'] && ! $step['done'] && ! isset( $GLOBALS['digi']['options'][ Migration::REPAIRED ] ), 'Terminada, el botón reinicia la pasada desde el principio sin cambiar lo ya reparado.' );
+	Migration::repair_once();
+	check_repair( '1' === (string) $GLOBALS['digi']['options'][ Migration::REPAIRED ], 'La recuperación automática continúa la pasada reiniciada hasta terminarla.' );
+	echo "DIGITALÍSIMO Migración: activación por defecto, conversión sin pérdida, reparación de reglas (por lotes reanudables) y lotes que saltan los documentos sin adaptador validados.\n";
 }

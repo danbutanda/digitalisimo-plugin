@@ -90,6 +90,26 @@ final class Native {
 		return false;
 	}
 
+	/**
+	 * ¿La conversión cambiaría algo en el elemento o en sus hijos? Espejo de element(): un widget sin adaptador se queda
+	 * tal cual, así que un documento que sólo conserva widgets así es heredado pero no convertible, y los lotes lo saltan.
+	 */
+	public static function is_convertible( array $element ) {
+		$settings = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
+		if ( 'widget' === ( $element['elType'] ?? '' ) && Translator::is_legacy_id( (string) ( $element['widgetType'] ?? '' ) ) && Translator::map( (string) $element['widgetType'] ) ) {
+			return true;
+		}
+		if ( self::has_legacy_element_settings( $settings ) || Masks::is_legacy( $element ) ) {
+			return true;
+		}
+		foreach ( (array) ( $element['elements'] ?? array() ) as $child ) {
+			if ( is_array( $child ) && self::is_convertible( $child ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private static function has_legacy_element_settings( array $settings ) {
 		foreach ( array_keys( $settings ) as $key ) {
 			foreach ( self::ELEMENT_PREFIXES as $prefix ) {

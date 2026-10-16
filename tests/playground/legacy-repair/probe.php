@@ -90,4 +90,19 @@ $check( '' === ( $w1['digitalisimo_visibility_enable'] ?? 'x' ) && 'static_page'
 $html = $render( $off );
 $check( false !== strpos( $html, 'TITULO-SOLO-INTERNAS' ), 'extensión apagada: convertido, el título sigue visible' );
 
+// 5. Lotes: un documento que sólo conserva un widget sin adaptador no bloquea la fila; los lotes toman los convertibles y lo cuentan aparte.
+update_option( 'element_pack_elementor_extend', array( 'wrapper-link' => 'on' ) );
+$blocked = $make( 'digi-bloqueado', array( array( 'id' => 'c9', 'elType' => 'container', 'settings' => (object) array(), 'elements' => array(
+	array( 'id' => 'w9', 'elType' => 'widget', 'widgetType' => 'bdt-barcode', 'settings' => (object) array( 'barcode_text' => 'SIN-ADAPTADOR' ) ),
+) ) ) );
+$next   = $make( 'digi-siguiente', $data( $legacy ) );
+$groups = Migration::classify();
+$check( in_array( $blocked, $groups['blocked'], true ) && ! in_array( $blocked, $groups['convertible'], true ) && in_array( $next, $groups['convertible'], true ) && in_array( $blocked, Migration::pending(), true ), 'lotes: el documento con sólo un widget sin adaptador se cuenta aparte y el siguiente entra en el lote' );
+$check( 0 === ( Migration::convert_document( $blocked )['native'] ?? -1 ), 'lotes: convertir el documento bloqueado no cambia nada' );
+foreach ( Migration::convertible() as $id ) {
+	Migration::convert_document( $id );
+}
+$groups = Migration::classify();
+$check( array() === $groups['convertible'] && array( $blocked ) === $groups['blocked'], 'lotes: convertido todo lo convertible, sólo queda el documento bloqueado y no vuelve a entrar en un lote' );
+
 file_put_contents( '/wordpress/wp-content/probe/result.json', wp_json_encode( $problems, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) );

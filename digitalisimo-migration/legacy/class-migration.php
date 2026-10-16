@@ -44,12 +44,28 @@ final class Migration {
 	 * Hasta 1.0.10 la conversión descartaba las reglas de visibilidad cuando la opción de Element Pack del sitio no
 	 * tenía guardada la clave de la extensión (que viene activa por defecto). Se recuperan desde la copia original de
 	 * cada documento convertido antes de la actualización, por lotes en cada carga de una pantalla de administración
-	 * (nunca en AJAX, REST ni cron, y sólo para quien administra el sitio) hasta terminar; después quedan el botón y
-	 * `wp digitalisimo-migration --repair`.
+	 * (nunca en AJAX, REST ni cron, y sólo para quien administra el sitio) hasta terminar; el botón de la herramienta
+	 * avanza la misma pasada y, terminada, la reinicia; `wp digitalisimo-migration --repair` la hace entera.
 	 */
 	public static function repair_once() {
 		if ( '1' === (string) get_option( self::REPAIRED, '' ) || wp_doing_ajax() || wp_doing_cron() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ! current_user_can( 'manage_options' ) ) {
 			return;
+		}
+		self::repair_step( self::REPAIR_BATCH );
+	}
+
+	/**
+	 * Un lote de la pasada de recuperación, reanudable: el cursor es el mismo para la recuperación automática y para el
+	 * botón, así que cada lote continúa donde quedó el anterior. Con $restart, una pasada ya terminada vuelve a empezar
+	 * (reparar de nuevo no cambia lo ya reparado).
+	 *
+	 * @return array{documents:int, elements:int, remaining:int, done:bool} lo reparado en este lote y lo que queda.
+	 */
+	public static function repair_step( $limit, $restart = false ) {
+		if ( $restart && '1' === (string) get_option( self::REPAIRED, '' ) ) {
+			delete_option( self::REPAIRED );
+			delete_option( self::REPAIR_CURSOR );
+			delete_option( self::REPAIR_TOTALS );
 		}
 		$cutoff = (int) get_option( self::REPAIR_CUTOFF, 0 );
 		if ( ! $cutoff ) {
@@ -58,18 +74,21 @@ final class Migration {
 		}
 		$cursor    = (int) get_option( self::REPAIR_CURSOR, 0 );
 		$totals    = (array) get_option( self::REPAIR_TOTALS, array( 'documents' => 0, 'elements' => 0 ) );
+		$step      = array( 'documents' => 0, 'elements' => 0, 'remaining' => 0, 'done' => true );
 		$processed = 0;
-		$done      = true;
 		foreach ( self::backups() as $post_id ) {
 			if ( $post_id <= $cursor ) {
 				continue;
 			}
-			if ( $processed >= self::REPAIR_BATCH ) {
-				$done = false;
-				break;
+			if ( $limit && $processed >= $limit ) {
+				$step['done'] = false;
+				++$step['remaining'];
+				continue;
 			}
 			$count = self::repair_conditions( $post_id, $cutoff );
 			if ( $count ) {
+				++$step['documents'];
+				$step['elements']   += $count;
 				$totals['documents'] = (int) ( $totals['documents'] ?? 0 ) + 1;
 				$totals['elements']  = (int) ( $totals['elements'] ?? 0 ) + $count;
 			}
@@ -78,10 +97,25 @@ final class Migration {
 		}
 		update_option( self::REPAIR_CURSOR, $cursor, false );
 		update_option( self::REPAIR_TOTALS, $totals, false );
-		if ( $done ) {
+		if ( $step['done'] ) {
 			update_option( self::REPAIRED, '1', false );
 			delete_option( self::REPAIR_CURSOR );
 		}
+		return $step;
+	}
+
+	/** Documentos con copia original que la pasada de recuperación en curso aún no revisó (todos si ya terminó). */
+	public static function repair_remaining() {
+		$backups = self::backups();
+		if ( '1' === (string) get_option( self::REPAIRED, '' ) ) {
+			return count( $backups );
+		}
+		$cursor = (int) get_option( self::REPAIR_CURSOR, 0 );
+		$left   = 0;
+		foreach ( $backups as $post_id ) {
+			$left += $post_id > $cursor ? 1 : 0;
+		}
+		return $left;
 	}
 
 	/** Aviso único al terminar la recuperación automática, si cambió algo. */
@@ -101,7 +135,8 @@ final class Migration {
 	}
 
 	/**
-	 * Recupera en todos los documentos con copia original (botón y WP-CLI). Con $limit, sólo un lote desde el inicio.
+	 * Recupera en todos los documentos con copia original (WP-CLI); una pasada completa da por terminada la automática.
+	 * Con $limit, sólo un lote desde el inicio.
 	 *
 	 * @return array{documents:int, elements:int}
 	 */
@@ -118,6 +153,10 @@ final class Migration {
 				$totals['documents']++;
 				$totals['elements'] += $count;
 			}
+		}
+		if ( ! $limit ) {
+			update_option( self::REPAIRED, '1', false );
+			delete_option( self::REPAIR_CURSOR );
 		}
 		return $totals;
 	}
@@ -386,17 +425,47 @@ final class Migration {
 		}
 	}
 
-	/** Documentos que aún contienen widgets o ajustes heredados. */
-	public static function pending() {
-		$pending = array();
+	/**
+	 * Clasifica los documentos con contenido heredado: «convertible» si la conversión aún cambiaría algo y «blocked» si
+	 * sólo conserva widgets sin adaptador, que se quedan tal cual (sin Element Pack no se muestran) y por eso los lotes
+	 * los saltan en vez de repetirlos.
+	 *
+	 * @return array{convertible:int[], blocked:int[]}
+	 */
+	public static function classify() {
+		$groups = array( 'convertible' => array(), 'blocked' => array() );
 		foreach ( self::documents() as $post_id ) {
+			$legacy      = false;
+			$convertible = false;
 			foreach ( self::data( $post_id ) as $element ) {
-				if ( is_array( $element ) && Native::is_legacy( $element ) ) {
-					$pending[] = $post_id;
+				if ( ! is_array( $element ) ) {
+					continue;
+				}
+				if ( Native::is_convertible( $element ) ) {
+					$convertible = true;
 					break;
 				}
+				$legacy = $legacy || Native::is_legacy( $element );
+			}
+			if ( $convertible ) {
+				$groups['convertible'][] = $post_id;
+			} elseif ( $legacy ) {
+				$groups['blocked'][] = $post_id;
 			}
 		}
+		return $groups;
+	}
+
+	/** Documentos que la conversión aún cambiaría: los que toman los lotes. */
+	public static function convertible() {
+		return self::classify()['convertible'];
+	}
+
+	/** Documentos que aún contienen widgets o ajustes heredados, convertibles o no. */
+	public static function pending() {
+		$groups  = self::classify();
+		$pending = array_merge( $groups['convertible'], $groups['blocked'] );
+		sort( $pending );
 		return $pending;
 	}
 
@@ -405,25 +474,30 @@ final class Migration {
 			wp_die( 'No autorizado.', 403 );
 		}
 		check_admin_referer( self::ACTION . '_' . get_current_blog_id() );
-		$task  = sanitize_key( wp_unslash( $_POST['task'] ?? '' ) );
-		$count = 0;
-		$stats = array( 'native' => 0 );
+		$task = sanitize_key( wp_unslash( $_POST['task'] ?? '' ) );
+		$args = array( 'page' => self::PAGE, 'done' => $task, 'count' => 0, 'native' => 0 );
 		if ( 'convert' === $task && ! Translator::element_pack_active() ) {
-			foreach ( array_slice( self::pending(), 0, self::BATCH ) as $post_id ) {
+			foreach ( array_slice( self::convertible(), 0, self::BATCH ) as $post_id ) {
 				$result = self::convert_document( $post_id );
-				$stats['native'] += $result['native'] ?? 0;
-				$count++;
+				if ( ! empty( $result['native'] ) ) {
+					$args['native'] += (int) $result['native'];
+					++$args['count'];
+				}
 			}
+			$groups          = self::classify();
+			$args['left']    = count( $groups['convertible'] );
+			$args['blocked'] = count( $groups['blocked'] );
 		} elseif ( 'revert' === $task ) {
 			foreach ( array_slice( self::backups(), 0, self::BATCH ) as $post_id ) {
-				$count += self::revert_document( $post_id ) ? 1 : 0;
+				$args['count'] += self::revert_document( $post_id ) ? 1 : 0;
 			}
 		} elseif ( 'repair' === $task ) {
-			$totals          = self::repair_all( self::BATCH );
-			$count           = $totals['documents'];
-			$stats['native'] = $totals['elements'];
+			$step           = self::repair_step( self::BATCH, true );
+			$args['count']  = $step['documents'];
+			$args['native'] = $step['elements'];
+			$args['left']   = $step['remaining'];
 		}
-		wp_safe_redirect( add_query_arg( array( 'page' => self::PAGE, 'done' => $task, 'count' => $count, 'native' => $stats['native'] ), admin_url( 'tools.php' ) ) );
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'tools.php' ) ) );
 		exit;
 	}
 
@@ -431,20 +505,32 @@ final class Migration {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$inventory = self::inventory();
-		$pending   = count( self::pending() );
-		$backups   = count( self::backups() );
-		$active    = Translator::element_pack_active();
+		$inventory   = self::inventory();
+		$groups      = self::classify();
+		$convertible = count( $groups['convertible'] );
+		$blocked     = count( $groups['blocked'] );
+		$backups     = count( self::backups() );
+		$repaired    = '1' === (string) get_option( self::REPAIRED, '' );
+		$to_review   = self::repair_remaining();
+		$active      = Translator::element_pack_active();
 		echo '<div class="wrap"><h1>Migrar Element Pack</h1>';
 		echo '<p>Mientras este plugin esté activo, las páginas creadas con Element Pack se siguen viendo sin él. La conversión deja cada documento sólo con widgets y ajustes de DIGITALÍSIMO Elements (los estilos que sólo existían en Element Pack pasan al CSS personalizado del elemento) y guarda una copia del original para poder restaurarlo. Sólo afecta a este sitio.</p>';
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sólo muestra el resultado de la acción.
 		if ( isset( $_GET['done'] ) ) {
-			$done = sanitize_key( wp_unslash( $_GET['done'] ) );
-			$msg  = 'convert' === $done
-				? sprintf( 'Se convirtieron %d documentos (%d elementos): ya sólo usan widgets y ajustes propios.', absint( $_GET['count'] ?? 0 ), absint( $_GET['native'] ?? 0 ) )
-				: ( 'repair' === $done
-					? sprintf( 'Se recuperaron reglas de visibilidad en %d documentos (%d elementos).', absint( $_GET['count'] ?? 0 ), absint( $_GET['native'] ?? 0 ) )
-					: sprintf( 'Se restauraron %d documentos a su versión original.', absint( $_GET['count'] ?? 0 ) ) );
+			$done  = sanitize_key( wp_unslash( $_GET['done'] ) );
+			$count = absint( $_GET['count'] ?? 0 );
+			$items = absint( $_GET['native'] ?? 0 );
+			$left  = absint( $_GET['left'] ?? 0 );
+			if ( 'convert' === $done ) {
+				$msg = sprintf( 'Se convirtieron %d documentos (%d elementos): ya sólo usan widgets y ajustes propios.', $count, $items ) . ' ' . ( $left ? sprintf( 'Quedan %d por convertir.', $left ) : 'No queda nada por convertir.' );
+				if ( absint( $_GET['blocked'] ?? 0 ) ) {
+					$msg .= ' ' . sprintf( '%d documentos conservan sólo widgets sin adaptador y no cambian.', absint( $_GET['blocked'] ) );
+				}
+			} elseif ( 'repair' === $done ) {
+				$msg = sprintf( 'Se recuperaron reglas de visibilidad en %d documentos (%d elementos).', $count, $items ) . ' ' . ( $left ? sprintf( 'Quedan %d documentos con copia por revisar.', $left ) : 'Revisión completa: todos los documentos con copia están revisados.' );
+			} else {
+				$msg = sprintf( 'Se restauraron %d documentos a su versión original.', $count );
+			}
 			echo '<div class="notice notice-success"><p>' . esc_html( $msg ) . '</p></div>';
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
@@ -467,11 +553,22 @@ final class Migration {
 		if ( $figures['missing'] ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( 'No se encontró el archivo de: %s. Mantén Element Pack instalado (desactivado) hasta convertir; sin archivo, la conversión retira esa máscara o separador para que la imagen siga visible.', implode( ', ', $figures['missing'] ) ) ) . '</p></div>';
 		}
-		echo '<p>' . esc_html( sprintf( 'Documentos pendientes de convertir: %d. Documentos con copia original: %d.', $pending, $backups ) ) . '</p>';
-		if ( ! $pending && ! $inventory ) {
+		echo '<p>' . esc_html( sprintf( 'Documentos pendientes de convertir: %d. Documentos que sólo conservan widgets sin adaptador: %d. Documentos con copia original: %d.', $convertible, $blocked, $backups ) ) . '</p>';
+		if ( $blocked ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( '%d documentos no cambian al convertir porque sólo les quedan widgets sin adaptador (en la tabla, «Sin adaptador»): sin Element Pack esos widgets no se muestran. Sustitúyelos en el editor por la alternativa que indica la tabla, o déjalos; los lotes los saltan.', $blocked ) ) . '</p></div>';
+		}
+		if ( $backups ) {
+			echo '<p>' . esc_html( $repaired ? sprintf( 'Reglas de visibilidad: revisadas en los %d documentos con copia original.', $backups ) : sprintf( 'Reglas de visibilidad: %d documentos con copia original por revisar (la revisión también avanza sola al navegar por la administración).', $to_review ) ) . '</p>';
+		}
+		if ( ! $convertible && ! $blocked && ! $inventory ) {
 			echo '<div class="notice notice-success inline"><p>Este sitio ya no tiene contenido heredado. Cuando todos los sitios estén así y revisados, puedes desinstalar Element Pack y DIGITALÍSIMO Migración.</p></div>';
 		}
-		foreach ( array( 'convert' => array( 'Convertir el siguiente lote', $active ? 0 : $pending, 'button-primary' ), 'repair' => array( 'Recuperar reglas de visibilidad perdidas', $backups, 'button-secondary' ), 'revert' => array( 'Restaurar el siguiente lote al original', $backups, 'button-secondary' ) ) as $task => $button ) {
+		$buttons = array(
+			'convert' => array( 'Convertir el siguiente lote', $active ? 0 : $convertible, 'button-primary' ),
+			'repair'  => array( $repaired ? 'Revisar de nuevo las reglas de visibilidad' : 'Recuperar reglas de visibilidad perdidas', $to_review, 'button-secondary' ),
+			'revert'  => array( 'Restaurar el siguiente lote al original', $backups, 'button-secondary' ),
+		);
+		foreach ( $buttons as $task => $button ) {
 			if ( ! $button[1] ) {
 				continue;
 			}
@@ -505,13 +602,14 @@ final class Migration {
 					$missing[] = $type . ' (' . $row['elements'] . ')';
 				}
 			}
-			$pending = count( self::pending() );
+			$groups  = self::classify();
+			$pending = count( $groups['convertible'] ) . ( $groups['blocked'] ? ' (+' . count( $groups['blocked'] ) . ' sólo con widgets sin adaptador)' : '' );
 			$name    = get_bloginfo( 'name' );
 			$url     = home_url( '/' );
 			$tool    = admin_url( 'tools.php?page=' . self::PAGE );
 			restore_current_blog();
 			$total_missing += count( $missing );
-			echo '<tr><td><strong>' . esc_html( $name ) . '</strong><br><code>' . esc_html( $url ) . '</code></td><td>' . absint( $compatible ) . '</td><td>' . ( $missing ? esc_html( implode( ', ', $missing ) ) : '—' ) . '</td><td>' . absint( $pending ) . '</td><td><a href="' . esc_url( $tool ) . '">Abrir la herramienta del sitio</a></td></tr>';
+			echo '<tr><td><strong>' . esc_html( $name ) . '</strong><br><code>' . esc_html( $url ) . '</code></td><td>' . absint( $compatible ) . '</td><td>' . ( $missing ? esc_html( implode( ', ', $missing ) ) : '—' ) . '</td><td>' . esc_html( $pending ) . '</td><td><a href="' . esc_url( $tool ) . '">Abrir la herramienta del sitio</a></td></tr>';
 		}
 		echo '</tbody></table>';
 		echo '<p>' . esc_html( $total_missing ? 'Hay widgets sin adaptador: la herramienta de cada sitio explica el motivo y la alternativa de cada uno.' : 'Ningún sitio usa widgets de Element Pack sin adaptador.' ) . '</p>';

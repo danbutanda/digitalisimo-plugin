@@ -74,7 +74,7 @@ final class Cli {
 			\WP_CLI::error( 'Desactiva Element Pack en este sitio antes de convertir: sus controles ocupan los mismos nombres.' );
 		}
 		$totals = array( 'native' => 0, 'documents' => 0 );
-		foreach ( Migration::pending() as $post_id ) {
+		foreach ( Migration::convertible() as $post_id ) {
 			$stats = Migration::convert_document( $post_id );
 			if ( ! empty( $stats['native'] ) ) {
 				$totals['documents']++;
@@ -82,6 +82,10 @@ final class Cli {
 			}
 		}
 		\WP_CLI::success( sprintf( '%d documentos convertidos (%d elementos): ya sólo usan widgets y ajustes propios.', $totals['documents'], $totals['native'] ) );
+		$blocked = count( Migration::classify()['blocked'] );
+		if ( $blocked ) {
+			\WP_CLI::warning( sprintf( '%d documentos conservan sólo widgets sin adaptador y no cambian: sustitúyelos en el editor por la alternativa que indica la tabla.', $blocked ) );
+		}
 	}
 
 	/** Inventario del sitio en curso; un widget sin adaptador muestra su motivo. */
