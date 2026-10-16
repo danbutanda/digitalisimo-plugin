@@ -1,0 +1,916 @@
+{
+ "empty": {
+  "title": "Página vacía (referencia: sólo el encabezado común)",
+  "widgets": []
+ },
+ "accordion": {
+  "title": "Acordeón",
+  "widgets": [
+   {
+    "type": "digitalisimo-accordion",
+    "settings": {}
+   }
+  ]
+ },
+ "advanced-button": {
+  "title": "Botón",
+  "widgets": [
+   {
+    "type": "digitalisimo-advanced-button",
+    "settings": {
+     "text": "Conoce más",
+     "link": {
+      "url": "https://example.com/"
+     },
+     "button_icon": {
+      "value": "fas fa-arrow-right",
+      "library": "fa-solid"
+     }
+    }
+   }
+  ]
+ },
+ "advanced-divider": {
+  "title": "Separador avanzado",
+  "widgets": [
+   {
+    "type": "digitalisimo-advanced-divider",
+    "settings": {
+     "divider_type": "wave"
+    }
+   }
+  ]
+ },
+ "advanced-heading": {
+  "title": "Encabezado avanzado",
+  "widgets": [
+   {
+    "type": "digitalisimo-advanced-heading",
+    "settings": {
+     "main_heading": "Encabezado",
+     "sub_heading": "Antetítulo",
+     "split_main_heading": "yes",
+     "split_text": "destacado"
+    }
+   }
+  ]
+ },
+ "advanced-icon-box": {
+  "title": "Caja de icono avanzada",
+  "widgets": [
+   {
+    "type": "digitalisimo-advanced-icon-box",
+    "settings": {}
+   }
+  ]
+ },
+ "animated-heading": {
+  "title": "Encabezado animado",
+  "widgets": [
+   {
+    "type": "digitalisimo-animated-heading",
+    "settings": {}
+   }
+  ]
+ },
+ "animated-link": {
+  "title": "Enlace animado",
+  "widgets": [
+   {
+    "type": "digitalisimo-animated-link",
+    "settings": {}
+   }
+  ]
+ },
+ "audio-player": {
+  "title": "Reproductor de audio",
+  "widgets": [
+   {
+    "type": "digitalisimo-audio-player",
+    "settings": {
+     "preload": "none",
+     "tracks": [
+      {
+       "_id": "a1",
+       "title": "Pista",
+       "artist": "Artista",
+       "audio_url": {
+        "url": "https://example.com/pista.mp3"
+       },
+       "cover": "__IMAGE__"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "breadcrumbs": {
+  "title": "Ruta de navegación",
+  "widgets": [
+   {
+    "type": "digitalisimo-breadcrumbs",
+    "settings": {}
+   }
+  ]
+ },
+ "business-hours": {
+  "title": "Horario",
+  "widgets": [
+   {
+    "type": "digitalisimo-business-hours",
+    "settings": {
+     "live_status": "yes",
+     "show_clock": "yes"
+    }
+   }
+  ]
+ },
+ "call-out": {
+  "title": "Llamada a la acción",
+  "widgets": [
+   {
+    "type": "digitalisimo-call-out",
+    "settings": {}
+   }
+  ]
+ },
+ "chart": {
+  "title": "Gráfico",
+  "widgets": [
+   {
+    "type": "digitalisimo-chart",
+    "settings": {}
+   }
+  ]
+ },
+ "comparison-list": {
+  "title": "Lista comparativa",
+  "widgets": [
+   {
+    "type": "digitalisimo-comparison-list",
+    "settings": {}
+   }
+  ]
+ },
+ "custom-gallery": {
+  "title": "Galería personalizada",
+  "widgets": [
+   {
+    "type": "digitalisimo-custom-gallery",
+    "settings": {
+     "gallery_images": [
+      "__IMAGE__",
+      "__IMAGE__",
+      "__IMAGE__"
+     ]
+    }
+   }
+  ]
+ },
+ "device-slider": {
+  "title": "Slider de dispositivos",
+  "widgets": [
+   {
+    "type": "digitalisimo-device-slider",
+    "settings": {
+     "device_type": "mobile",
+     "gallery_images": [
+      "__IMAGE__",
+      "__IMAGE__",
+      "__IMAGE__"
+     ]
+    }
+   }
+  ]
+ },
+ "document-viewer": {
+  "title": "Visor de documentos",
+  "widgets": [
+   {
+    "type": "digitalisimo-document-viewer",
+    "settings": {
+     "file_source": {
+      "url": "https://example.com/documento.pdf"
+     }
+    }
+   }
+  ]
+ },
+ "dual-button": {
+  "title": "Botón doble",
+  "widgets": [
+   {
+    "type": "digitalisimo-dual-button",
+    "settings": {}
+   }
+  ]
+ },
+ "fancy-card": {
+  "title": "Tarjeta destacada",
+  "widgets": [
+   {
+    "type": "digitalisimo-fancy-card",
+    "settings": {
+     "image": "__IMAGE__",
+     "description_text": "Texto de la tarjeta",
+     "link": {
+      "url": "https://example.com/"
+     },
+     "social_links": [
+      {
+       "_id": "s1",
+       "social_icon": {
+        "value": "fab fa-facebook-f",
+        "library": "fa-brands"
+       },
+       "social_label": "Facebook",
+       "social_link": {
+        "url": "https://facebook.com/"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "fancy-icons": {
+  "title": "Iconos destacados",
+  "widgets": [
+   {
+    "type": "digitalisimo-fancy-icons",
+    "settings": {
+     "share_items": [
+      {
+       "_id": "i1",
+       "social_type": "icon",
+       "social_icon": {
+        "value": "fab fa-facebook-f",
+        "library": "fa-brands"
+       },
+       "social_name": "Facebook",
+       "social_link": {
+        "url": "https://facebook.com/"
+       }
+      },
+      {
+       "_id": "i2",
+       "social_type": "text",
+       "social_name": "Texto",
+       "social_link": {
+        "url": "https://example.com/"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "fancy-list": {
+  "title": "Lista destacada",
+  "widgets": [
+   {
+    "type": "digitalisimo-fancy-list",
+    "settings": {
+     "icon_list": [
+      {
+       "_id": "l1",
+       "text": "Uno",
+       "text_details": "Detalle",
+       "img": "__IMAGE__",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "l2",
+       "text": "Dos",
+       "list_icon": {
+        "value": "fas fa-star",
+        "library": "fa-solid"
+       }
+      },
+      {
+       "_id": "l3",
+       "text": "Tres"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "fancy-slider": {
+  "title": "Slider destacado",
+  "widgets": [
+   {
+    "type": "digitalisimo-fancy-slider",
+    "settings": {
+     "slides": [
+      {
+       "_id": "f1",
+       "sub_title": "Sub",
+       "title": "Uno",
+       "description": "<p>Texto</p>",
+       "slide_image": "__IMAGE__",
+       "slide_button": "Ver",
+       "button_link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "f2",
+       "title": "Dos",
+       "slide_image": "__IMAGE__"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "fancy-tabs": {
+  "title": "Pestañas",
+  "widgets": [
+   {
+    "type": "digitalisimo-fancy-tabs",
+    "settings": {}
+   }
+  ]
+ },
+ "featured-box": {
+  "title": "Caja destacada",
+  "widgets": [
+   {
+    "type": "digitalisimo-featured-box",
+    "settings": {
+     "image": "__IMAGE__",
+     "title_text": "Destacado",
+     "description_text": "Texto",
+     "readmore": "yes",
+     "readmore_text": "Más",
+     "readmore_link": {
+      "url": "https://example.com/"
+     }
+    }
+   }
+  ]
+ },
+ "google-reviews": {
+  "title": "Reseñas de Google",
+  "widgets": [
+   {
+    "type": "digitalisimo-google-reviews",
+    "settings": {
+     "google_place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4"
+    }
+   }
+  ]
+ },
+ "icon-nav": {
+  "title": "Navegación con iconos",
+  "widgets": [
+   {
+    "type": "digitalisimo-icon-nav",
+    "settings": {
+     "layout": "bar",
+     "iconnavs": [
+      {
+       "_id": "n1",
+       "iconnav_title": "Inicio",
+       "iconnav_icon": {
+        "value": "fas fa-home",
+        "library": "fa-solid"
+       },
+       "iconnav_link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "n2",
+       "iconnav_title": "Contacto",
+       "iconnav_icon": {
+        "value": "fas fa-envelope",
+        "library": "fa-solid"
+       },
+       "iconnav_link": {
+        "url": "https://example.com/contacto"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "image-compare": {
+  "title": "Comparador de imágenes",
+  "widgets": [
+   {
+    "type": "digitalisimo-image-compare",
+    "settings": {
+     "before_image": "__IMAGE__",
+     "after_image": "__IMAGE__"
+    }
+   }
+  ]
+ },
+ "logos": {
+  "title": "Logotipos",
+  "widgets": [
+   {
+    "type": "digitalisimo-logos",
+    "settings": {
+     "layout": "carousel",
+     "items": [
+      {
+       "_id": "g1",
+       "image": "__IMAGE__",
+       "name": "Logo 1",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "g2",
+       "image": "__IMAGE__",
+       "name": "Logo 2",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "g3",
+       "image": "__IMAGE__",
+       "name": "Logo 3",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "g4",
+       "image": "__IMAGE__",
+       "name": "Logo 4",
+       "link": {
+        "url": "https://example.com/"
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "map": {
+  "title": "Mapa",
+  "widgets": [
+   {
+    "type": "digitalisimo-map",
+    "settings": {}
+   }
+  ]
+ },
+ "marquee": {
+  "title": "Marquesina",
+  "widgets": [
+   {
+    "type": "digitalisimo-marquee",
+    "settings": {
+     "items": [
+      {
+       "_id": "m1",
+       "text": "Uno"
+      },
+      {
+       "_id": "m2",
+       "text": "Dos",
+       "image": "__IMAGE__"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "notification": {
+  "title": "Notificación",
+  "widgets": [
+   {
+    "type": "digitalisimo-notification",
+    "settings": {}
+   }
+  ]
+ },
+ "offcanvas": {
+  "title": "Panel lateral",
+  "widgets": [
+   {
+    "type": "digitalisimo-offcanvas",
+    "settings": {
+     "source": "text",
+     "content_before": "<p>Contenido del panel</p>"
+    }
+   }
+  ]
+ },
+ "product-grid": {
+  "title": "Cuadrícula de productos",
+  "widgets": [
+   {
+    "type": "digitalisimo-product-grid",
+    "settings": {
+     "product_items": [
+      {
+       "_id": "p1",
+       "image": "__IMAGE__",
+       "title": "Producto",
+       "price": "$10",
+       "readmore_link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "p2",
+       "image": "__IMAGE__",
+       "title": "Otro",
+       "price": "$12"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "progress-bars": {
+  "title": "Barras de progreso",
+  "widgets": [
+   {
+    "type": "digitalisimo-progress-bars",
+    "settings": {}
+   }
+  ]
+ },
+ "qr-code": {
+  "title": "Código QR",
+  "widgets": [
+   {
+    "type": "digitalisimo-qr-code",
+    "settings": {}
+   }
+  ]
+ },
+ "reading-progress": {
+  "title": "Progreso de lectura",
+  "widgets": [
+   {
+    "type": "digitalisimo-reading-progress",
+    "settings": {}
+   }
+  ]
+ },
+ "reading-time": {
+  "title": "Tiempo de lectura",
+  "widgets": [
+   {
+    "type": "digitalisimo-reading-time",
+    "settings": {}
+   }
+  ]
+ },
+ "scroll-button": {
+  "title": "Botón de desplazamiento",
+  "widgets": [
+   {
+    "type": "digitalisimo-scroll-button",
+    "settings": {
+     "section_id": "inicio"
+    }
+   }
+  ]
+ },
+ "table": {
+  "title": "Tabla de datos",
+  "widgets": [
+   {
+    "type": "digitalisimo-table",
+    "settings": {
+     "table_search": "yes",
+     "table_sort": "yes"
+    }
+   }
+  ]
+ },
+ "tags-cloud": {
+  "title": "Nube de etiquetas",
+  "widgets": [
+   {
+    "type": "digitalisimo-tags-cloud",
+    "settings": {
+     "source": "static",
+     "static_tags": [
+      {
+       "_id": "t1",
+       "tag_text": "Uno",
+       "tag_link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "t2",
+       "tag_text": "Dos",
+       "tag_weight": 3
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "timeline": {
+  "title": "Línea de tiempo",
+  "widgets": [
+   {
+    "type": "digitalisimo-timeline",
+    "settings": {
+     "items": [
+      {
+       "_id": "h1",
+       "date": "2024",
+       "title": "Inicio",
+       "text": "Texto",
+       "image": "__IMAGE__",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "h2",
+       "date": "2026",
+       "title": "Hoy"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "total-count": {
+  "title": "Contador total",
+  "widgets": [
+   {
+    "type": "digitalisimo-total-count",
+    "settings": {}
+   }
+  ]
+ },
+ "user-register": {
+  "title": "Registro de usuarios",
+  "widgets": [
+   {
+    "type": "digitalisimo-user-register",
+    "settings": {}
+   }
+  ]
+ },
+ "vertical-menu": {
+  "title": "Menú vertical",
+  "widgets": [
+   {
+    "type": "digitalisimo-vertical-menu",
+    "settings": {
+     "source": "static"
+    }
+   }
+  ]
+ },
+ "video-player": {
+  "title": "Reproductor de video (YouTube)",
+  "widgets": [
+   {
+    "type": "digitalisimo-video-player",
+    "settings": {
+     "source": "embed",
+     "embed_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    }
+   }
+  ]
+ },
+ "slider-optimizado": {
+  "title": "Slider Optimizado",
+  "widgets": [
+   {
+    "type": "digitalisimo-slider-optimizado",
+    "settings": {
+     "gallery_images": [
+      "__IMAGE__",
+      "__IMAGE__",
+      "__IMAGE__",
+      "__IMAGE__",
+      "__IMAGE__",
+      "__IMAGE__"
+     ]
+    }
+   }
+  ]
+ },
+ "all-own": {
+  "title": "Doce widgets propios",
+  "widgets": [
+   {
+    "type": "digitalisimo-advanced-heading",
+    "settings": {
+     "main_heading": "Encabezado",
+     "sub_heading": "Antetítulo",
+     "split_main_heading": "yes",
+     "split_text": "destacado"
+    }
+   },
+   {
+    "type": "digitalisimo-advanced-button",
+    "settings": {
+     "text": "Conoce más",
+     "link": {
+      "url": "https://example.com/"
+     },
+     "button_icon": {
+      "value": "fas fa-arrow-right",
+      "library": "fa-solid"
+     }
+    }
+   },
+   {
+    "type": "digitalisimo-logos",
+    "settings": {
+     "layout": "carousel",
+     "items": [
+      {
+       "_id": "g1",
+       "image": "__IMAGE__",
+       "name": "Logo 1",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "g2",
+       "image": "__IMAGE__",
+       "name": "Logo 2",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "g3",
+       "image": "__IMAGE__",
+       "name": "Logo 3",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "g4",
+       "image": "__IMAGE__",
+       "name": "Logo 4",
+       "link": {
+        "url": "https://example.com/"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "type": "digitalisimo-advanced-icon-box",
+    "settings": {}
+   },
+   {
+    "type": "digitalisimo-fancy-tabs",
+    "settings": {}
+   },
+   {
+    "type": "digitalisimo-accordion",
+    "settings": {}
+   },
+   {
+    "type": "digitalisimo-table",
+    "settings": {
+     "table_search": "yes",
+     "table_sort": "yes"
+    }
+   },
+   {
+    "type": "digitalisimo-timeline",
+    "settings": {
+     "items": [
+      {
+       "_id": "h1",
+       "date": "2024",
+       "title": "Inicio",
+       "text": "Texto",
+       "image": "__IMAGE__",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "h2",
+       "date": "2026",
+       "title": "Hoy"
+      }
+     ]
+    }
+   },
+   {
+    "type": "digitalisimo-fancy-list",
+    "settings": {
+     "icon_list": [
+      {
+       "_id": "l1",
+       "text": "Uno",
+       "text_details": "Detalle",
+       "img": "__IMAGE__",
+       "link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "l2",
+       "text": "Dos",
+       "list_icon": {
+        "value": "fas fa-star",
+        "library": "fa-solid"
+       }
+      },
+      {
+       "_id": "l3",
+       "text": "Tres"
+      }
+     ]
+    }
+   },
+   {
+    "type": "digitalisimo-product-grid",
+    "settings": {
+     "product_items": [
+      {
+       "_id": "p1",
+       "image": "__IMAGE__",
+       "title": "Producto",
+       "price": "$10",
+       "readmore_link": {
+        "url": "https://example.com/"
+       }
+      },
+      {
+       "_id": "p2",
+       "image": "__IMAGE__",
+       "title": "Otro",
+       "price": "$12"
+      }
+     ]
+    }
+   },
+   {
+    "type": "digitalisimo-progress-bars",
+    "settings": {}
+   },
+   {
+    "type": "digitalisimo-breadcrumbs",
+    "settings": {}
+   }
+  ]
+ },
+ "pro-heavy": {
+  "title": "PRO pesado (Media carousel, Lottie, Slides)",
+  "widgets": [
+   {
+    "type": "media-carousel",
+    "settings": {
+     "slides": [
+      {
+       "_id": "mc1",
+       "image": "__IMAGE__"
+      },
+      {
+       "_id": "mc2",
+       "image": "__IMAGE__"
+      },
+      {
+       "_id": "mc3",
+       "image": "__IMAGE__"
+      }
+     ]
+    }
+   },
+   {
+    "type": "lottie",
+    "settings": {}
+   },
+   {
+    "type": "slides",
+    "settings": {
+     "slides": [
+      {
+       "_id": "sl1",
+       "heading": "Uno"
+      },
+      {
+       "_id": "sl2",
+       "heading": "Dos"
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

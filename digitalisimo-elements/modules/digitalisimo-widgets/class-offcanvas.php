@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /**
  * Panel lateral que se abre con su botón o con cualquier elemento indicado por un selector. Muestra
@@ -114,7 +115,7 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 	public static function media_content( $type, $url, $label ) {
 		$url = (string) $url;
 		if ( '' === $url ) { return ''; }
-		if ( 'image' === $type ) { return '<img class="digi-offcanvas__media" src="' . esc_url( $url ) . '" alt="' . esc_attr( $label ) . '">'; }
+		if ( 'image' === $type ) { return Image_Markup::img( array( 'url' => $url ), array( 'class' => 'digi-offcanvas__media', 'alt_exact' => $label ) ); }
 		if ( 'video' === $type ) { return '<video class="digi-offcanvas__media" src="' . esc_url( $url ) . '" controls playsinline></video>'; }
 		if ( preg_match( '~(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)([\w-]{11})~', $url, $m ) ) {
 			$url = 'https://www.youtube-nocookie.com/embed/' . $m[1];
@@ -122,7 +123,7 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 			$url = 'https://player.vimeo.com/video/' . $m[1];
 		}
 		$url = esc_url( $url, array( 'https' ) );
-		return '' === $url ? '' : '<iframe class="digi-offcanvas__media digi-offcanvas__media--embed" src="' . $url . '" title="' . esc_attr( $label ) . '" loading="lazy" allowfullscreen></iframe>';
+		return '' === $url ? '' : Image_Markup::preconnect( $url ) . '<iframe class="digi-offcanvas__media digi-offcanvas__media--embed" src="' . $url . '" title="' . esc_attr( $label ) . '" loading="lazy" allowfullscreen></iframe>';
 	}
 
 	private static function sidebar_content( $sidebar ) {
@@ -165,7 +166,7 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 				$icon = '<span class="digi-offcanvas__icon">' . (string) ob_get_clean() . '</span>';
 			}
 			if ( ! empty( $s['trigger_image']['url'] ) ) {
-				$icon = '<img class="digi-offcanvas__image" src="' . esc_url( $s['trigger_image']['url'] ) . '" alt="">';
+				$icon = Image_Markup::img( (array) $s['trigger_image'], array( 'size' => 'thumbnail', 'class' => 'digi-offcanvas__image', 'decorative' => true ) );
 			}
 			$inner = 'right' === ( $s['button_icon_align'] ?? 'left' ) ? '<span class="digi-offcanvas__text">' . esc_html( $text ) . '</span>' . $icon : $icon . '<span class="digi-offcanvas__text">' . esc_html( $text ) . '</span>';
 			echo '<div class="digi-offcanvas__trigger"><button type="button" class="elementor-button elementor-size-' . esc_attr( $size ) . ' digi-offcanvas__button" aria-controls="' . esc_attr( $id ) . '" aria-expanded="false"' . ( '' === $text ? ' aria-label="' . esc_attr( $label ) . '"' : '' ) . ' data-digi-offcanvas-open>' . $inner . '</button></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono de Elementor y texto escapado.

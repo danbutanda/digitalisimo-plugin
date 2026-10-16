@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 require_once __DIR__ . '/class-carousel-engine.php';
 require_once __DIR__ . '/class-widget-alias.php';
 
@@ -40,11 +41,16 @@ class Logos_Widget extends \Elementor\Widget_Base {
 	}
 
 	public function get_style_depends() {
-		return $this->carousel() ? array( 'digitalisimo-carousel-engine', 'digitalisimo-logos' ) : array( 'digitalisimo-logos' );
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() ) { return array( 'digitalisimo-carousel-engine', 'digitalisimo-logos', 'digitalisimo-logos-grid' ); }
+		return $this->carousel() ? array( 'digitalisimo-carousel-engine', 'digitalisimo-logos' ) : array( 'digitalisimo-logos', 'digitalisimo-logos-grid' );
 	}
 
+	/** El motor sólo mueve las flechas: en cuadrícula, o en carrusel sin navegación, no se carga. */
 	public function get_script_depends() {
-		return $this->carousel() ? array( 'digitalisimo-carousel-engine' ) : array();
+		if ( ! $this->carousel() ) { return array(); }
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() ) { return array( 'digitalisimo-carousel-engine' ); }
+		$s = (array) $this->get_settings();
+		return 'none' === ( $s['navigation'] ?? 'arrows' ) ? array() : array( 'digitalisimo-carousel-engine' );
 	}
 
 	protected function register_controls() {
@@ -118,24 +124,8 @@ class Logos_Widget extends \Elementor\Widget_Base {
 		return $items;
 	}
 
-	/** Texto alternativo: el de Medios, el nombre, el ALT guardado o el título del adjunto. */
-	private static function alt( array $image, $name ) {
-		$id  = absint( $image['id'] ?? 0 );
-		$alt = $id ? trim( (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) ) : '';
-		if ( '' === $alt ) { $alt = (string) $name; }
-		if ( '' === $alt && ! empty( $image['alt'] ) ) { $alt = trim( wp_strip_all_tags( (string) $image['alt'] ) ); }
-		if ( '' === $alt && $id ) { $alt = trim( (string) get_the_title( $id ) ); }
-		return $alt;
-	}
-
-	private function image_html( array $image, $alt, $size ) {
-		$id    = absint( $image['id'] ?? 0 );
-		$attrs = array( 'class' => $this->cls( 'image' ), 'alt' => $alt, 'decoding' => 'async' );
-		$html  = $id ? wp_get_attachment_image( $id, $size, false, $attrs ) : '';
-		if ( $html ) { return $html; }
-		if ( empty( $image['url'] ) ) { return ''; }
-		$dimensions = ! empty( $image['width'] ) && ! empty( $image['height'] ) ? ' width="' . absint( $image['width'] ) . '" height="' . absint( $image['height'] ) . '"' : '';
-		return '<img class="' . esc_attr( $attrs['class'] ) . '" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async"' . $dimensions . '>';
+	private function image_html( array $image, $alt, $size, array $columns ) {
+		return Image_Markup::img( $image, array( 'size' => $size, 'class' => $this->cls( 'image' ), 'alt_exact' => $alt, 'columns' => $columns ) );
 	}
 
 	private function link_open( $key, array $link, $class, $label = '' ) {
@@ -154,8 +144,9 @@ class Logos_Widget extends \Elementor\Widget_Base {
 		$label  = trim( wp_strip_all_tags( (string) ( $s['label'] ?? '' ) ) );
 		$label  = '' !== $label ? $label : 'Logotipos';
 		$show   = array( 'name' => 'yes' === ( $s['show_name'] ?? 'yes' ), 'description' => 'yes' === ( $s['show_description'] ?? 'yes' ), 'link_text' => 'yes' === ( $s['show_link_text'] ?? '' ) );
+		$columns = Image_Markup::columns( $s, 'columns', 4 );
 		if ( 'carousel' === $layout ) {
-			$this->render_carousel( $items, $s, $size, $tag, $label, $show );
+			$this->render_carousel( $items, $s, $size, $tag, $label, $show, $columns );
 			return;
 		}
 		$style   = self::choice( $s['style'] ?? 'box', self::STYLES, 'box' );
@@ -171,9 +162,9 @@ class Logos_Widget extends \Elementor\Widget_Base {
 			$image_linked = $linked && ! $text_link;
 			$shown_name   = $show['name'] && '' !== $name && $item['caption'];
 			$caption      = $item['caption'] && ( $shown_name || '' !== $description ) || $text_link;
-			$alt          = self::alt( $item['image'], $name );
+			$alt          = Image_Markup::alt( $item['image'], $name, true );
 			if ( $shown_name && ! $image_linked ) { $alt = ''; }
-			$image = $this->image_html( $item['image'], $alt, $size );
+			$image = $this->image_html( $item['image'], $alt, $size, $columns );
 			if ( '' === $image && '' === $name ) { continue; }
 			$item_mods = $linked ? array( 'linked' ) : array();
 			echo '<li class="' . esc_attr( $this->cls( 'item', $item_mods ) . ( '' !== $item['_id'] ? ' elementor-repeater-item-' . sanitize_html_class( $item['_id'] ) : '' ) ) . '">';
@@ -206,14 +197,14 @@ class Logos_Widget extends \Elementor\Widget_Base {
 		return $out;
 	}
 
-	private function render_carousel( array $items, array $s, $size, $tag, $label, array $show ) {
+	private function render_carousel( array $items, array $s, $size, $tag, $label, array $show, array $columns ) {
 		$stretch = 'yes' === ( $s['match_height'] ?? 'yes' );
 		echo '<div class="' . esc_attr( $this->cls( '', array( 'carousel' ) ) ) . '">';
 		Carousel_Engine::open( $label, count( $items ) );
 		foreach ( $items as $index => $item ) {
 			$name   = $item['name'];
-			$alt    = self::alt( $item['image'], $name );
-			$image  = $this->image_html( $item['image'], $alt, $size );
+			$alt    = Image_Markup::alt( $item['image'], $name, true );
+			$image  = $this->image_html( $item['image'], $alt, $size, $columns );
 			$linked = ! empty( $item['link']['url'] ) && ( '' !== $alt || '' !== $name );
 			if ( '' === $image && '' === $name ) { continue; }
 			echo '<li class="digi-carousel__slide ' . esc_attr( $this->cls( 'item' ) . ( '' !== $item['_id'] ? ' elementor-repeater-item-' . sanitize_html_class( $item['_id'] ) : '' ) ) . '">';

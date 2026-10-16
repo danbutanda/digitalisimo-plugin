@@ -37,6 +37,8 @@ jobs:
           php tests/elements-device-card.php
           php tests/elements-icon-navigation.php
           php tests/elements-logos.php
+          php tests/elements-image-markup.php
+          php tests/elements-front-budget.php
           php tests/elements-google-reviews.php
           php tests/elements-notification.php
           node tests/elements-notification-events.mjs

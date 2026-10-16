@@ -11,7 +11,12 @@ class Scroll_Button_Widget extends \Elementor\Widget_Base {
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'desplazar', 'ancla', 'subir', 'scroll' ); }
 	public function get_style_depends() { return array( 'digitalisimo-scroll-button' ); }
-	public function get_script_depends() { return array( 'digitalisimo-scroll-button' ); }
+	/** Sin desplazamiento vertical el ancla nativa con scroll-behavior basta; el script sólo aplica el desplazamiento. */
+	public function get_script_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return array( 'digitalisimo-scroll-button' ); }
+		$s = (array) $this->get_settings();
+		return 0 !== self::number( $s['offset'] ?? null, -200, 200, 0 ) ? array( 'digitalisimo-scroll-button' ) : array();
+	}
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';

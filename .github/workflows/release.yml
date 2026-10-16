@@ -54,6 +54,8 @@ jobs:
           php tests/elements-fancy-list.php
           php tests/elements-document-viewer.php
           php tests/elements-logos.php
+          php tests/elements-image-markup.php
+          php tests/elements-front-budget.php
           php tests/elements-advanced-heading.php
           php tests/elements-external-row.php
           php tests/elements-google-reviews.php

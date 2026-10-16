@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Fichas de productos manuales, sin consultas ni datos estructurados inventados. */
 class Product_Grid_Widget extends \Elementor\Widget_Base {
@@ -64,8 +65,7 @@ class Product_Grid_Widget extends \Elementor\Widget_Base {
 			if ( '' === $alt && '' === $title ) { $alt = trim( (string) ( $image['alt'] ?? '' ) ); }
 			if ( '' === $alt && '' === $title ) { $alt = 'Producto'; }
 			if ( '' !== $title ) { $alt = ''; }
-			$image_html = $id ? wp_get_attachment_image( $id, $size, false, array( 'class' => 'digi-product-grid__image', 'alt' => $alt, 'decoding' => 'async' ) ) : '';
-			if ( ! $image_html && ! empty( $image['url'] ) ) { $image_html = '<img class="digi-product-grid__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async">'; }
+			$image_html = Image_Markup::img( $image, array( 'size' => $size, 'class' => 'digi-product-grid__image', 'alt_exact' => $alt, 'columns' => Image_Markup::columns( $s, 'columns', 3 ) ) );
 			$out .= '<li class="digi-product-grid__item">';
 			if ( $image_html ) { $out .= '<div class="digi-product-grid__visual">' . $image_html . '</div>'; }
 			$out .= '<div class="digi-product-grid__body">';

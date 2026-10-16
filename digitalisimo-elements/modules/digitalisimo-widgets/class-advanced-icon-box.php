@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Tarjeta informativa con icono o imagen; no requiere JavaScript. */
 class Advanced_Icon_Box_Widget extends \Elementor\Widget_Base {
@@ -84,14 +85,10 @@ class Advanced_Icon_Box_Widget extends \Elementor\Widget_Base {
 
 	private static function image_markup( $settings, $title ) {
 		$image = is_array( $settings['image'] ?? null ) ? $settings['image'] : array();
-		$id = absint( $image['id'] ?? 0 );
-		$alt = '' !== $title ? '' : trim( (string) ( $settings['image_alt'] ?? '' ) );
-		if ( '' === $alt && $id && '' === $title ) { $alt = (string) get_post_meta( $id, '_wp_attachment_image_alt', true ); }
-		if ( $id ) {
-			return wp_get_attachment_image( $id, 'medium', false, array( 'alt' => $alt, 'decoding' => 'async' ) ) ?: '';
-		}
-		$url = esc_url( $image['url'] ?? '' );
-		return $url ? '<img src="' . $url . '" alt="' . esc_attr( $alt ) . '" decoding="async">' : '';
+		// Junto a un título la imagen es decorativa; sin título manda el ALT escrito en el widget y, si falta, el de Medios.
+		if ( '' !== $title ) { return Image_Markup::img( $image, array( 'size' => 'medium', 'alt_exact' => '' ) ); }
+		$alt = trim( (string) ( $settings['image_alt'] ?? '' ) );
+		return Image_Markup::img( $image, array( 'size' => 'medium' ) + ( '' !== $alt ? array( 'alt_exact' => $alt ) : array() ) );
 	}
 
 	protected function render() {

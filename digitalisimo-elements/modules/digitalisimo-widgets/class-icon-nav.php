@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 require_once __DIR__ . '/class-widget-alias.php';
 
 /**
@@ -20,7 +21,12 @@ class Icon_Nav_Widget extends \Elementor\Widget_Base {
 	public function get_icon() { return 'eicon-nav-menu'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'icon nav', 'menú', 'navegación', 'barra lateral', 'móvil', 'iconos' ); }
-	public function get_style_depends() { return array( 'digitalisimo-icon-nav' ); }
+	/** Barra lateral o barra horizontal: cada instancia carga sólo su hoja. */
+	public function get_style_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return array( 'digitalisimo-icon-nav', 'digitalisimo-icon-nav-bar' ); }
+		$s = (array) $this->get_settings();
+		return 'bar' === ( $s['layout'] ?? 'rail' ) ? array( 'digitalisimo-icon-nav-bar' ) : array( 'digitalisimo-icon-nav' );
+	}
 	public function get_script_depends() { return array(); }
 
 	protected function register_controls() {
@@ -109,7 +115,7 @@ class Icon_Nav_Widget extends \Elementor\Widget_Base {
 			$site_name = get_bloginfo( 'name' );
 			$image = is_array( $s['branding_image'] ?? null ) ? $s['branding_image'] : array();
 			echo '<a class="' . esc_attr( $this->cls( 'brand' ) ) . '" href="' . esc_url( home_url( '/' ) ) . '" aria-label="' . esc_attr( $site_name ) . '">';
-			if ( ! empty( $image['id'] ) ) { echo wp_get_attachment_image( absint( $image['id'] ), 'thumbnail', false, array( 'alt' => $site_name ) ); } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- imagen de WordPress.
+			if ( ! empty( $image['id'] ) || ! empty( $image['url'] ) ) { echo Image_Markup::img( $image, array( 'size' => 'thumbnail', 'alt' => $site_name ) ); } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generado y escapado por Image_Markup.
 			else { $initials = ''; foreach ( preg_split( '/\s+/u', trim( (string) $site_name ), -1, PREG_SPLIT_NO_EMPTY ) as $word ) { $initials .= function_exists( 'mb_substr' ) ? mb_substr( $word, 0, 1 ) : substr( $word, 0, 1 ); } echo '<span>' . esc_html( $initials ) . '</span>'; }
 			echo '</a>';
 		}

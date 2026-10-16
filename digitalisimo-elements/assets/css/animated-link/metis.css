@@ -1,0 +1,3 @@
+/* metis: la línea crece desde la izquierda y se retira hacia la derecha. */
+.digi-animated-link--metis::before { transform: scaleX(0); transform-origin: right center; transition: transform var(--digi-link-speed) ease; }
+.digi-animated-link--metis:is(:hover, :focus-visible)::before { transform: scaleX(1); transform-origin: left center; }

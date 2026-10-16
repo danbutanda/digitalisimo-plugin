@@ -11,6 +11,7 @@ namespace {
 	function wp_strip_all_tags( $v ) { return strip_tags( (string) $v ); }
 	function esc_html( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	function esc_attr( $v ) { return esc_html( $v ); }
+	function absint( $v ) { return abs( (int) $v ); }
 	function esc_url( $v ) { return 0 === strpos( (string) $v, 'javascript:' ) ? '' : (string) $v; }
 	function sanitize_html_class( $v ) { return preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $v ); }
 	foreach ( array( 'audio-player', 'image-compare', 'business-hours' ) as $file ) {

@@ -108,7 +108,7 @@ final class Google_Reviews_Service {
 			$text = trim( wp_strip_all_tags( (string) ( $review['text']['text'] ?? $review['originalText']['text'] ?? '' ) ) );
 			$rating = max( 0, min( 5, (float) ( $review['rating'] ?? 0 ) ) );
 			$out .= '<li class="digi-google-reviews__item"><div class="digi-google-reviews__author">';
-			if ( $photo ) { $out .= '<img src="' . $photo . '" alt="" width="40" height="40" loading="lazy">'; }
+			if ( $photo ) { $out .= '<img src="' . $photo . '" alt="" width="40" height="40" loading="lazy" decoding="async">'; }
 			if ( $name ) { $out .= $profile ? '<a href="' . $profile . '" target="_blank" rel="noopener noreferrer">' . esc_html( $name ) . '</a>' : '<span>' . esc_html( $name ) . '</span>'; }
 			$out .= '</div><span class="digi-google-reviews__rating" aria-label="' . esc_attr( 'Calificación: ' . $rating . ' de 5' ) . '">' . esc_html( number_format_i18n( $rating, 1 ) ) . ' ★</span>';
 			if ( $text ) { $out .= '<p>' . esc_html( $text ) . '</p>'; }

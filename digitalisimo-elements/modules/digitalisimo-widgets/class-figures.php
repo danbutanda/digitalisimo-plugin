@@ -54,7 +54,7 @@ final class Figures {
 			wp_register_style( self::STYLE, plugins_url( 'assets/css/figures.css', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
 		}
 		if ( ! wp_script_is( self::SCRIPT, 'registered' ) ) {
-			wp_register_script( self::SCRIPT, plugins_url( 'assets/js/figures.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( self::SCRIPT, plugins_url( 'assets/js/figures.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 	}
 

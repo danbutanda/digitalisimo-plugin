@@ -19,6 +19,7 @@ class Google_Reviews_Widget extends \Elementor\Widget_Base {
 		$this->add_control( 'google_place_id', array( 'label' => 'Place ID', 'type' => $c::TEXT, 'label_block' => true, 'description' => 'Usa el ID del lugar de Google Maps. La clave de Places API (New) se configura en Ajustes → Google Reviews · DIGITALÍSIMO.' ) );
 		$this->add_control( 'max_reviews', array( 'label' => 'Reseñas visibles', 'type' => $c::NUMBER, 'default' => 5, 'min' => 1, 'max' => 5 ) );
 		$this->add_control( 'heading', array( 'label' => 'Encabezado', 'type' => $c::TEXT, 'default' => 'Reseñas de Google', 'dynamic' => array( 'active' => true ) ) );
+		$this->add_control( 'heading_tag', array( 'label' => 'Etiqueta del encabezado', 'type' => $c::SELECT, 'default' => 'h3', 'options' => array( 'h2' => 'H2', 'h3' => 'H3', 'h4' => 'H4', 'h5' => 'H5', 'h6' => 'H6', 'p' => 'Párrafo' ), 'condition' => array( 'heading!' => '' ) ) );
 		$this->end_controls_section();
 		$this->start_controls_section( 'section_reviews_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
 		$this->add_responsive_control( 'columns', array( 'label' => 'Columnas', 'type' => $c::SELECT, 'default' => '2', 'tablet_default' => '2', 'mobile_default' => '1', 'options' => array( '1' => '1', '2' => '2', '3' => '3' ), 'selectors' => array( '{{WRAPPER}} .digi-google-reviews__list' => 'grid-template-columns:repeat({{VALUE}},minmax(0,1fr));' ) ) );
@@ -41,7 +42,8 @@ class Google_Reviews_Widget extends \Elementor\Widget_Base {
 			echo ' data-digi-google-reviews data-endpoint="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-place-id="' . esc_attr( $place_id ) . '" data-signature="' . esc_attr( Google_Reviews_Service::signature( $place_id ) ) . '" data-limit="' . (int) $limit . '"';
 		}
 		echo '>';
-		if ( $heading ) { echo '<h3 class="digi-google-reviews__title">' . esc_html( $heading ) . '</h3>'; }
+		$tag = in_array( $s['heading_tag'] ?? 'h3', array( 'h2', 'h3', 'h4', 'h5', 'h6', 'p' ), true ) ? $s['heading_tag'] : 'h3';
+		if ( $heading ) { echo '<' . $tag . ' class="digi-google-reviews__title">' . esc_html( $heading ) . '</' . $tag . '>'; }
 		echo '<div class="digi-google-reviews__results" aria-live="polite"></div><p class="digi-google-reviews__fallback"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">Ver reseñas en Google Maps</a></p>';
 		if ( ! Google_Reviews_Service::api_key() && current_user_can( 'manage_options' ) ) { echo '<p>Configura la clave de Places API (New) en Ajustes → Google Reviews · DIGITALÍSIMO para mostrar las tarjetas.</p>'; }
 		echo '</section>';

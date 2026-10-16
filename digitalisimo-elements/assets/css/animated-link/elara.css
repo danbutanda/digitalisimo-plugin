@@ -1,0 +1,5 @@
+/* elara: la línea se ensancha y engrosa mientras el texto sube. */
+.digi-animated-link--elara::before { transform-origin: center bottom; transition: transform var(--digi-link-speed) ease-out; }
+.digi-animated-link--elara > span { transition: transform var(--digi-link-speed) ease-out; }
+.digi-animated-link--elara:is(:hover, :focus-visible)::before { transform: translateY(2px) scale(1.08, 3); }
+.digi-animated-link--elara:is(:hover, :focus-visible) > span { transform: translateY(-2px); }

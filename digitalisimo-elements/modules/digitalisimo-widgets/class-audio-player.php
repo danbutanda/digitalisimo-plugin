@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Reproductor de audio con <audio> nativo: una pista o una lista, con portada, título y artista. */
 class Audio_Player_Widget extends \Elementor\Widget_Base {
@@ -49,10 +50,9 @@ class Audio_Player_Widget extends \Elementor\Widget_Base {
 			if ( '' === $src ) { continue; }
 			$title  = trim( wp_strip_all_tags( (string) ( $track['title'] ?? '' ) ) );
 			$artist = trim( wp_strip_all_tags( (string) ( $track['artist'] ?? '' ) ) );
-			$cover  = (string) ( $track['cover']['url'] ?? '' );
 			$name   = trim( $title . ( '' !== $artist ? ' — ' . $artist : '' ) );
 			$out   .= '<li class="digi-audio__track elementor-repeater-item-' . esc_attr( sanitize_html_class( (string) ( $track['_id'] ?? $index ) ) ) . '">'
-				. ( '' !== $cover ? '<img class="digi-audio__cover" src="' . esc_url( $cover ) . '" alt="" loading="lazy">' : '' )
+				. Image_Markup::img( is_array( $track['cover'] ?? null ) ? $track['cover'] : array(), array( 'size' => 'medium', 'class' => 'digi-audio__cover', 'decorative' => true ) )
 				. '<div class="digi-audio__body">' . ( '' !== $title ? '<p class="digi-audio__title">' . esc_html( $title ) . '</p>' : '' ) . ( '' !== $artist ? '<p class="digi-audio__artist">' . esc_html( $artist ) . '</p>' : '' )
 				. '<audio ' . $attrs . ' src="' . esc_url( $src ) . '"' . ( '' !== $name ? ' aria-label="' . esc_attr( $name ) . '"' : '' ) . '></audio></div></li>';
 		}

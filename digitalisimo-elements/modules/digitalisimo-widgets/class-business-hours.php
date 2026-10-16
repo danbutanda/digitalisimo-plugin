@@ -24,7 +24,15 @@ class Business_Hours_Widget extends \Elementor\Widget_Base {
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'horario', 'apertura', 'negocio', 'días', 'abierto' ); }
 	public function get_style_depends() { return array( 'digitalisimo-business-hours' ); }
-	public function get_script_depends() { return array( 'digitalisimo-business-hours' ); }
+	/** El script resalta el día de hoy y recalcula estado, hora y fecha: sin esas opciones no se carga. */
+	public function get_script_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return array( 'digitalisimo-business-hours' ); }
+		$s = (array) $this->get_settings();
+		foreach ( array( 'highlight_today' => 'yes', 'live_status' => '', 'show_clock' => '', 'show_date' => '' ) as $key => $default ) {
+			if ( 'yes' === ( $s[ $key ] ?? $default ) ) { return array( 'digitalisimo-business-hours' ); }
+		}
+		return array();
+	}
 
 	protected function register_controls() {
 		$c    = '\\Elementor\\Controls_Manager';

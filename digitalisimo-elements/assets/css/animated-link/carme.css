@@ -1,0 +1,5 @@
+/* carme: un garabato se dibuja bajo el texto. */
+.digi-animated-link--carme::before { display: none; }
+.digi-animated-link--carme .digi-animated-link__graphic--scribble { top: 100%; left: 0; }
+.digi-animated-link--carme .digi-animated-link__graphic--scribble path { transition: stroke-dashoffset .6s var(--digi-link-ease); }
+.digi-animated-link--carme:is(:hover, :focus-visible) .digi-animated-link__graphic--scribble path { transition-duration: .3s; transition-timing-function: ease-out; }

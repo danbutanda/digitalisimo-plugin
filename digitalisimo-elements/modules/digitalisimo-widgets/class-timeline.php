@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Línea de tiempo como lista ordenada: elementos escritos o las últimas entradas. */
 class Timeline_Widget extends \Elementor\Widget_Base {
@@ -40,7 +41,7 @@ class Timeline_Widget extends \Elementor\Widget_Base {
 		if ( 'posts' === ( $s['source'] ?? 'items' ) ) {
 			$entries = array();
 			foreach ( get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => max( 1, min( 30, (int) ( $s['posts_count'] ?? 4 ) ) ), 'no_found_rows' => true ) ) as $post ) {
-				$entries[] = array( 'date' => get_the_date( '', $post ), 'title' => get_the_title( $post ), 'text' => wp_trim_words( get_the_excerpt( $post ), 20 ), 'image' => array( 'url' => (string) get_the_post_thumbnail_url( $post, 'medium' ) ), 'link' => array( 'url' => get_permalink( $post ) ) );
+				$entries[] = array( 'date' => get_the_date( '', $post ), 'title' => get_the_title( $post ), 'text' => wp_trim_words( get_the_excerpt( $post ), 20 ), 'image' => array( 'id' => (int) get_post_thumbnail_id( $post ), 'url' => (string) get_the_post_thumbnail_url( $post, 'medium' ) ), 'link' => array( 'url' => get_permalink( $post ) ) );
 			}
 			return $entries;
 		}
@@ -49,7 +50,8 @@ class Timeline_Widget extends \Elementor\Widget_Base {
 
 	protected function render() {
 		$s    = $this->get_settings_for_display();
-		$tag  = in_array( $s['title_tag'] ?? 'h3', array( 'h2', 'h3', 'h4', 'p' ), true ) ? $s['title_tag'] : 'h3';
+		$tag  = (string) ( $s['title_tag'] ?? 'h3' );
+		$tag  = in_array( $tag, array( 'h2', 'h3', 'h4', 'p' ), true ) ? $tag : 'h3';
 		$more = trim( wp_strip_all_tags( (string) ( $s['read_more'] ?? '' ) ) );
 		$out  = '';
 		foreach ( $this->entries( $s ) as $entry ) {
@@ -58,11 +60,11 @@ class Timeline_Widget extends \Elementor\Widget_Base {
 			$date  = trim( wp_strip_all_tags( (string) ( $entry['date'] ?? '' ) ) );
 			$text  = trim( wp_strip_all_tags( (string) ( $entry['text'] ?? '' ) ) );
 			if ( '' === $title && '' === $text ) { continue; }
-			$image = 'yes' === ( $s['show_image'] ?? 'yes' ) ? (string) ( $entry['image']['url'] ?? '' ) : '';
+			$image = 'yes' === ( $s['show_image'] ?? 'yes' ) ? Image_Markup::img( is_array( $entry['image'] ?? null ) ? $entry['image'] : array(), array( 'size' => 'medium', 'class' => 'digi-timeline__image', 'decorative' => true ) ) : '';
 			$url   = (string) ( $entry['link']['url'] ?? '' );
 			$out  .= '<li class="digi-timeline__item"><div class="digi-timeline__card">'
 				. ( '' !== $date ? '<p class="digi-timeline__date">' . esc_html( $date ) . '</p>' : '' )
-				. ( '' !== $image ? '<img class="digi-timeline__image" src="' . esc_url( $image ) . '" alt="" loading="lazy">' : '' )
+				. $image
 				. ( '' !== $title ? '<' . $tag . ' class="digi-timeline__title">' . esc_html( $title ) . '</' . $tag . '>' : '' )
 				. ( '' !== $text ? '<p class="digi-timeline__text">' . esc_html( $text ) . '</p>' : '' )
 				. ( '' !== $url && '' !== $more ? '<a class="digi-timeline__link" href="' . esc_url( $url ) . '">' . esc_html( $more ) . ( '' !== $title ? '<span class="screen-reader-text">: ' . esc_html( $title ) . '</span>' : '' ) . '</a>' : '' )

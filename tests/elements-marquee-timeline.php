@@ -11,6 +11,8 @@ namespace {
 	function wp_strip_all_tags( $v ) { return strip_tags( (string) $v ); }
 	function esc_html( $v ) { return htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ); }
 	function esc_attr( $v ) { return esc_html( $v ); }
+	function absint( $v ) { return abs( (int) $v ); }
+	function get_post_thumbnail_id( $post ) { return 0; }
 	function esc_url( $v ) { return (string) $v; }
 	function get_posts( $args ) { return array( (object) array( 'ID' => 1, 'post_title' => 'Entrada uno' ), (object) array( 'ID' => 2, 'post_title' => 'Entrada dos' ) ); }
 	function get_the_title( $p ) { return $p->post_title; }

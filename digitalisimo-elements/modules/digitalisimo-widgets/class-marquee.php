@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /**
  * Marquesina de textos, imágenes o titulares de entradas en movimiento continuo. Tiene botón de
@@ -59,9 +60,9 @@ class Marquee_Widget extends \Elementor\Widget_Base {
 		foreach ( $this->entries( $s ) as $index => $entry ) {
 			if ( ! is_array( $entry ) ) { continue; }
 			$text  = trim( wp_strip_all_tags( (string) ( $entry['text'] ?? '' ) ) );
-			$image = (string) ( $entry['image']['url'] ?? '' );
+			$image = Image_Markup::img( is_array( $entry['image'] ?? null ) ? $entry['image'] : array(), array( 'size' => 'medium', 'class' => 'digi-marquee__image', 'alt_exact' => $text ) );
 			if ( '' === $text && '' === $image ) { continue; }
-			$inner = ( '' !== $image ? '<img class="digi-marquee__image" src="' . esc_url( $image ) . '" alt="' . esc_attr( $text ) . '" loading="lazy">' : '' ) . ( '' !== $text && '' === $image ? '<span class="digi-marquee__text">' . esc_html( $text ) . '</span>' : '' );
+			$inner = $image . ( '' !== $text && '' === $image ? '<span class="digi-marquee__text">' . esc_html( $text ) . '</span>' : '' );
 			$url   = (string) ( $entry['link']['url'] ?? '' );
 			if ( '' !== $url ) {
 				$external = ! empty( $entry['link']['is_external'] );

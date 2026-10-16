@@ -1,0 +1,6 @@
+/* ersa: tachado que crece y texto que se amplía. */
+.digi-animated-link--ersa { padding: 0 10px; letter-spacing: 1px; text-indent: 1px; }
+.digi-animated-link--ersa::before { top: 50%; height: 2px; transform: scaleX(0); transform-origin: right center; transition: transform var(--digi-link-speed) ease-out; }
+.digi-animated-link--ersa > span { transition: transform var(--digi-link-speed) ease-out; }
+.digi-animated-link--ersa:is(:hover, :focus-visible)::before { transform: scaleX(1); transform-origin: left center; }
+.digi-animated-link--ersa:is(:hover, :focus-visible) > span { transform: scale(1.1); }

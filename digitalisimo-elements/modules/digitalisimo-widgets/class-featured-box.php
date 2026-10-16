@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Caja editorial con imagen y contenido visible, sin efectos ni scripts globales. */
 class Featured_Box_Widget extends \Elementor\Widget_Base {
@@ -53,11 +54,8 @@ class Featured_Box_Widget extends \Elementor\Widget_Base {
 		$side = 'right' === ( $s['skin_content_position'] ?? 'left' ) ? 'right' : 'left';
 		$tag = in_array( $s['title_size'] ?? 'h3', array( 'h2', 'h3', 'h4', 'div' ), true ) ? ( $s['title_size'] ?? 'h3' ) : 'h3';
 		echo '<article class="digi-featured-box digi-featured-box--' . esc_attr( $layout ) . ' digi-featured-box--' . esc_attr( $layout === 'split' ? $side : $position ) . '">';
-		$image_id = absint( $image['id'] ?? 0 );
 		$size = in_array( $s['image_size'] ?? 'large', array( 'medium', 'large', 'full' ), true ) ? ( $s['image_size'] ?? 'large' ) : 'large';
-		$alt = $image_id ? (string) get_post_meta( $image_id, '_wp_attachment_image_alt', true ) : '';
-		$markup = $image_id ? wp_get_attachment_image( $image_id, $size, false, array( 'class' => 'digi-featured-box__image', 'alt' => $alt, 'decoding' => 'async' ) ) : '';
-		if ( ! $markup && ! empty( $image['url'] ) ) { $markup = '<img class="digi-featured-box__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async">'; }
+		$markup = Image_Markup::img( $image, array( 'size' => $size, 'class' => 'digi-featured-box__image', 'sizes' => 'split' === $layout ? Image_Markup::sizes_for_columns( 2, 2, 1 ) : Image_Markup::sizes_for_columns( 1 ) ) );
 		if ( $markup ) { echo '<figure class="digi-featured-box__media">' . $markup . '</figure>'; }
 		$badge = trim( wp_strip_all_tags( (string) ( $s['badge_text'] ?? '' ) ) );
 		if ( 'yes' === ( $s['badge'] ?? '' ) && $badge ) { echo '<span class="digi-featured-box__badge">' . esc_html( $badge ) . '</span>'; }

@@ -1,0 +1,8 @@
+/* leda: el texto sale por la izquierda y su copia entra desde la derecha. */
+.digi-animated-link--leda { overflow: hidden; line-height: 2; }
+.digi-animated-link--leda::before { top: auto; bottom: 5px; height: 2px; transform: scaleX(0); transform-origin: right center; transition: transform var(--digi-link-speed) ease-out; }
+.digi-animated-link--leda::after { content: attr(data-text); top: 0; height: 100%; background: none; transform: translateX(150%); transition: transform var(--digi-link-speed) ease-out; }
+.digi-animated-link--leda > span { transition: transform var(--digi-link-speed) ease-out; }
+.digi-animated-link--leda:is(:hover, :focus-visible)::before { transform: scaleX(1); transform-origin: left center; }
+.digi-animated-link--leda:is(:hover, :focus-visible)::after { transform: translateX(0); }
+.digi-animated-link--leda:is(:hover, :focus-visible) > span { transform: translateX(-150%); }

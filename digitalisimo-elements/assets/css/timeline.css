@@ -15,4 +15,4 @@
 .digi-timeline__title{margin:0 0 .35rem}
 .digi-timeline__text{margin:0 0 .5rem}
 @media (max-width:767px){.digi-timeline::before{left:7px}.digi-timeline__item,.digi-timeline__item:nth-child(even){width:auto;margin-left:0;padding:0 0 2rem 2.25rem}.digi-timeline__item::after,.digi-timeline__item:nth-child(even)::after{left:0;right:auto}}
-.digi-timeline .screen-reader-text{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}
+.digi-timeline .screen-reader-text{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}.digi-timeline__item{content-visibility:auto;contain-intrinsic-size:auto 240px}.digi-timeline__link:focus-visible{outline:2px solid currentColor;outline-offset:2px}

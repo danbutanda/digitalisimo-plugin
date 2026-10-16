@@ -35,7 +35,7 @@ namespace {
 	) );
 	ob_start(); (new \ReflectionMethod( $widget, 'render' ))->invoke( $widget ); $html = ob_get_clean();
 	check_fancy_slider( 2 === substr_count( $html, '<li class="digi-carousel__slide ' ) && str_contains( $html, 'data-digi-carousel-next' ), 'Debe renderizar dos diapositivas y la navegación del motor.' );
-	check_fancy_slider( str_contains( $html, 'srcset=' ) && 1 === substr_count( $html, 'loading="lazy"' ) && str_contains( $html, 'alt="Imagen destacada"' ), 'La primera imagen debe cargar de inmediato; las siguientes, diferidas y con ALT/srcset.' );
+	check_fancy_slider( str_contains( $html, 'srcset=' ) && 0 === substr_count( $html, 'loading="lazy"' ) && str_contains( $html, 'alt="Imagen destacada"' ), 'WordPress decide la carga de cada imagen según su posición real; ALT y srcset se conservan.' );
 	check_fancy_slider( str_contains( $html, '<h2 class="digi-fancy-slider__title">' ) && ! str_contains( $html, '<script' ) && str_contains( $html, 'href="https://site.test/leer"' ), 'El texto y las etiquetas deben sanearse sin perder el enlace.' );
 	check_fancy_slider( str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'target="_blank"' ), 'Título y botón externos deben proteger la pestaña.' );
 	ob_start(); (new \ReflectionMethod( $widget, 'content_template' ))->invoke( $widget ); $editor = ob_get_clean();

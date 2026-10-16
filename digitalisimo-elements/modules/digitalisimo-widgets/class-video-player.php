@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /**
  * Reproductor de vídeo: archivo con el reproductor HTML nativo (no se solicita hasta que el visitante lo usa)
@@ -136,7 +137,7 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 	/** Elemento del escenario: <video> nativo o <iframe> del servicio, con nombre accesible. */
 	private static function stage( array $item ) {
 		if ( 'embed' === $item['kind'] ) {
-			return '<iframe class="digi-video-player__embed" src="' . esc_url( $item['url'] ) . '" title="' . esc_attr( $item['title'] ) . '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>';
+			return Image_Markup::preconnect( $item['url'] ) . '<iframe class="digi-video-player__embed" src="' . esc_url( $item['url'] ) . '" title="' . esc_attr( $item['title'] ) . '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>';
 		}
 		return '<video controls playsinline preload="none" aria-label="' . esc_attr( $item['title'] ) . '"' . ( $item['poster'] ? ' poster="' . esc_url( $item['poster'] ) . '"' : '' ) . '><source src="' . esc_url( $item['url'] ) . '">'
 			. esc_html( 'Tu navegador no puede reproducir este video.' ) . ' <a href="' . esc_url( $item['url'] ) . '">' . esc_html( 'Abrir video' ) . '</a></video>';

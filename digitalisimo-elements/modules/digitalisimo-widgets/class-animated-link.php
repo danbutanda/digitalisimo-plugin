@@ -16,7 +16,15 @@ class Animated_Link_Widget extends \Elementor\Widget_Base {
 	public function get_icon() { return 'eicon-animated-headline'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'digitalisimo', 'enlace', 'animado', 'link' ); }
-	public function get_style_depends() { return array( 'digitalisimo-animated-link' ); }
+	/** La base más la hoja del estilo elegido; la instancia de registro declara las dieciséis para el editor. */
+	public function get_style_depends() {
+		$all = array( 'digitalisimo-animated-link' );
+		foreach ( self::STYLES as $style ) { $all[] = 'digitalisimo-animated-link-' . $style; }
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return $all; }
+		$s = (array) $this->get_settings();
+		$style = in_array( $s['link_style'] ?? '', self::STYLES, true ) ? $s['link_style'] : 'metis';
+		return array( 'digitalisimo-animated-link', 'digitalisimo-animated-link-' . $style );
+	}
 	public function get_script_depends() { return array(); }
 
 	protected function register_controls() {

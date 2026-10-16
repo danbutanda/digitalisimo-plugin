@@ -43,7 +43,7 @@ namespace {
 	check_oc( str_contains( $render(), '<section class="widget">Widgets</section>' ), 'La barra lateral activa se muestra en el panel.' );
 	$widget->settings = array( 'source' => 'text', 'content_before' => '<p>Hola</p>', 'side' => 'center', 'auto_open' => '3', 'auto_open_limit' => '2', 'button_text' => 'Ver', 'trigger_image' => array( 'url' => 'https://s.test/poster.jpg' ) );
 	$modal = $render();
-	check_oc( str_contains( $modal, 'digi-offcanvas__panel--center' ) && str_contains( $modal, '&quot;auto&quot;:3' ) && str_contains( $modal, '&quot;limit&quot;:2' ) && str_contains( $modal, '<img class="digi-offcanvas__image" src="https://s.test/poster.jpg" alt="">' ), 'La ventana modal se centra, se abre sola con límite y admite imagen como botón.' );
+	check_oc( str_contains( $modal, 'digi-offcanvas__panel--center' ) && str_contains( $modal, '&quot;auto&quot;:3' ) && str_contains( $modal, '&quot;limit&quot;:2' ) && str_contains( $modal, '<img class="digi-offcanvas__image" alt="" decoding="async" aria-hidden="true" src="https://s.test/poster.jpg">' ), 'La ventana modal se centra, se abre sola con límite y admite imagen como botón.' );
 	check_oc( str_contains( \Digitalisimo\Elements\Offcanvas_Widget::media_content( 'embed', 'https://youtu.be/dQw4w9WgXcQ', 'V' ), 'src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"' ) && '' === \Digitalisimo\Elements\Offcanvas_Widget::media_content( 'embed', '', 'V' ), 'YouTube pasa a su reproductor sin cookies.' );
 	echo "DIGITALÍSIMO Elements: panel lateral validado.\n";
 }

@@ -49,7 +49,7 @@ final class Floating_Effects_Extension {
 
 	public static function scripts() {
 		if ( ! wp_script_is( 'digitalisimo-floating-effects', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-floating-effects', plugins_url( 'modules/digitalisimo-widgets/assets/js/floating-effects.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-floating-effects', plugins_url( 'modules/digitalisimo-widgets/assets/js/floating-effects.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 	}
 

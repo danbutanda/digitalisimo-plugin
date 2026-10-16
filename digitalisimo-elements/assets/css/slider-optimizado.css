@@ -28,4 +28,4 @@
 @keyframes digi-slider-once-right{from{transform:translate3d(min(0px,calc(100cqw - 100%)),0,0)}to{transform:translate3d(0,0,0)}}
 @media(max-width:1024px){.digi-slider{--digi-visible:6}}
 @media(max-width:767px){.digi-slider{--digi-visible:3}}
-@media(prefers-reduced-motion:reduce){.digi-slider__track{animation:none!important;transform:none!important}.digi-slider__viewport{overflow-x:auto}.digi-slider__group[aria-hidden="true"]{display:none}}
+@media(prefers-reduced-motion:reduce){.digi-slider__track{animation:none!important;transform:none!important}.digi-slider__viewport{overflow-x:auto}.digi-slider__group[aria-hidden="true"]{display:none}}.digi-slider__item a:focus-visible{outline:2px solid currentColor;outline-offset:2px}

@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Comparador antes/después con un control deslizante nativo (teclado y lectores de pantalla). */
 class Image_Compare_Widget extends \Elementor\Widget_Base {
@@ -30,16 +31,19 @@ class Image_Compare_Widget extends \Elementor\Widget_Base {
 
 	protected function render() {
 		$s      = $this->get_settings_for_display();
-		$before = (string) ( $s['before_image']['url'] ?? '' );
-		$after  = (string) ( $s['after_image']['url'] ?? '' );
-		if ( '' === $before || '' === $after ) { return; }
+		$before = is_array( $s['before_image'] ?? null ) ? $s['before_image'] : array();
+		$after  = is_array( $s['after_image'] ?? null ) ? $s['after_image'] : array();
+		if ( ( empty( $before['url'] ) && empty( $before['id'] ) ) || ( empty( $after['url'] ) && empty( $after['id'] ) ) ) { return; }
 		$start  = max( 0, min( 100, (int) ( $s['start'] ?? 50 ) ) );
 		$vert   = 'vertical' === ( $s['orientation'] ?? 'horizontal' );
 		$bl     = trim( wp_strip_all_tags( (string) ( $s['before_label'] ?? '' ) ) );
 		$al     = trim( wp_strip_all_tags( (string) ( $s['after_label'] ?? '' ) ) );
-		echo '<div class="digi-compare digi-compare--' . ( $vert ? 'vertical' : 'horizontal' ) . '" style="--digi-compare-pos:' . esc_attr( (string) $start ) . '%" data-digi-compare>'
-			. '<img class="digi-compare__after" src="' . esc_url( $after ) . '" alt="' . esc_attr( $al ) . '">'
-			. '<img class="digi-compare__before" src="' . esc_url( $before ) . '" alt="' . esc_attr( $bl ) . '">'
+		// La proporción de la imagen reserva el alto del comparador antes de que carguen las fotos.
+		list( $width, $height ) = Image_Markup::dimensions( $after, 'large' );
+		$ratio = $width && $height ? ';--digi-compare-ratio:' . (int) $width . ' / ' . (int) $height : '';
+		echo '<div class="digi-compare digi-compare--' . ( $vert ? 'vertical' : 'horizontal' ) . '" style="--digi-compare-pos:' . esc_attr( (string) $start ) . '%' . esc_attr( $ratio ) . '" data-digi-compare>'
+			. Image_Markup::img( $after, array( 'size' => 'large', 'class' => 'digi-compare__after', 'alt_exact' => $al, 'sizes' => Image_Markup::sizes_for_columns( 1 ) ) )
+			. Image_Markup::img( $before, array( 'size' => 'large', 'class' => 'digi-compare__before', 'alt_exact' => $bl, 'sizes' => Image_Markup::sizes_for_columns( 1 ) ) )
 			. ( '' !== $bl ? '<span class="digi-compare__label digi-compare__label--before" aria-hidden="true">' . esc_html( $bl ) . '</span>' : '' )
 			. ( '' !== $al ? '<span class="digi-compare__label digi-compare__label--after" aria-hidden="true">' . esc_html( $al ) . '</span>' : '' )
 			. '<input class="digi-compare__range" type="range" min="0" max="100" value="' . esc_attr( (string) $start ) . '" aria-label="' . esc_attr( 'Comparar ' . ( '' !== $bl ? $bl : 'antes' ) . ' y ' . ( '' !== $al ? $al : 'después' ) ) . '"' . ( $vert ? ' aria-orientation="vertical"' : '' ) . '>'

@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 require_once __DIR__ . '/class-widget-alias.php';
 
 /**
@@ -102,10 +103,7 @@ class Fancy_Tabs_Widget extends \Elementor\Widget_Base {
 			$type = $item['icon_type'] ?? 'icon';
 			if ( 'icon' === $type && ! empty( $item['selected_icon']['value'] ) ) { echo '<span class="' . esc_attr( $this->cls( 'icon' ) ) . '" aria-hidden="true">'; \Elementor\Icons_Manager::render_icon( $item['selected_icon'], array( 'aria-hidden' => 'true' ) ); echo '</span>'; }
 			elseif ( 'image' === $type && ! empty( $item['image']['url'] ) ) {
-				$image = $item['image']; $image_id = absint( $image['id'] ?? 0 );
-				$markup = $image_id ? wp_get_attachment_image( $image_id, 'thumbnail', false, array( 'class' => $this->cls( 'icon' ), 'alt' => '' ) ) : '';
-				if ( ! $markup ) { $markup = '<img class="' . esc_attr( $this->cls( 'icon' ) ) . '" src="' . esc_url( $image['url'] ) . '" alt="">'; }
-				echo $markup; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- imagen de WordPress o escapada.
+				echo Image_Markup::img( $item['image'], array( 'size' => 'thumbnail', 'class' => $this->cls( 'icon' ), 'decorative' => true ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generado y escapado por Image_Markup.
 			}
 			echo '<span class="' . esc_attr( $this->cls( 'label' ) ) . '"><strong>' . esc_html( wp_strip_all_tags( $item['tab_title'] ) ) . '</strong>';
 			$subtitle = trim( wp_strip_all_tags( (string) ( $item['tab_sub_title'] ?? '' ) ) );

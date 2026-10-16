@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Mapa de OpenStreetMap (visor oficial, sin librerías ni clave) con la lista de ubicaciones. */
 class Map_Widget extends \Elementor\Widget_Base {
@@ -63,6 +64,6 @@ class Map_Widget extends \Elementor\Widget_Base {
 			}
 			$list = '<ul class="digi-map__places">' . $list . '</ul>';
 		}
-		echo '<div class="digi-map"><iframe class="digi-map__frame" src="' . esc_url( self::embed_url( $first[1], $first[2], $zoom ) ) . '" title="' . esc_attr( 'Mapa: ' . $title ) . '" loading="lazy" referrerpolicy="no-referrer"></iframe>' . $list . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- lista escapada al construirse.
+		echo '<div class="digi-map">' . Image_Markup::preconnect( 'https://www.openstreetmap.org/' ) . '<iframe class="digi-map__frame" src="' . esc_url( self::embed_url( $first[1], $first[2], $zoom ) ) . '" title="' . esc_attr( 'Mapa: ' . $title ) . '" loading="lazy" referrerpolicy="no-referrer"></iframe>' . $list . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- lista escapada al construirse.
 	}
 }

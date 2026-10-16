@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Tarjeta visual con enlace explícito, redes sociales opcionales y contenido siempre visible. */
 class Fancy_Card_Widget extends \Elementor\Widget_Base {
@@ -52,11 +53,7 @@ class Fancy_Card_Widget extends \Elementor\Widget_Base {
 		$visual = '';
 		if ( 'image' === ( $s['icon_type'] ?? 'image' ) ) {
 			$image = is_array( $s['image'] ?? null ) ? $s['image'] : array();
-			$id = absint( $image['id'] ?? 0 );
-			$alt = $id ? (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) : '';
-			if ( ! $alt && ! $title ) { $alt = $description; }
-			$visual = $id ? wp_get_attachment_image( $id, 'medium', false, array( 'class' => 'digi-fancy-card__image', 'alt' => $alt, 'decoding' => 'async' ) ) : '';
-			if ( ! $visual && ! empty( $image['url'] ) ) { $visual = '<img class="digi-fancy-card__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async">'; }
+			$visual = Image_Markup::img( $image, array( 'size' => 'medium', 'class' => 'digi-fancy-card__image', 'alt' => $title ? '' : $description ) );
 		} elseif ( 'icon' === ( $s['icon_type'] ?? '' ) && ! empty( $s['selected_icon']['value'] ) ) {
 			ob_start(); \Elementor\Icons_Manager::render_icon( $s['selected_icon'], array( 'aria-hidden' => 'true' ) ); $visual = ob_get_clean();
 		}

@@ -10,6 +10,8 @@ namespace Elementor {
 		public function add_control( $name, $args ) { $this->controls[ $name ] = $args; }
 		public function add_responsive_control( $name, $args ) { $this->controls[ $name ] = $args; }
 		public function add_group_control( $type, $args ) { $this->groups[ $args['name'] ] = array( 'type' => $type, 'args' => $args ); }
+		public function get_settings( $key = null ) { return null === $key ? $this->settings : ( $this->settings[ $key ] ?? null ); }
+		public function is_type_instance() { return array() === $this->settings; }
 	}
 	class Controls_Manager { const TEXT = 'text'; const URL = 'url'; const SELECT = 'select'; const ICONS = 'icons'; const SWITCHER = 'switcher'; const SLIDER = 'slider'; const COLOR = 'color'; const DIMENSIONS = 'dimensions'; const TAB_STYLE = 'style'; }
 	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
@@ -24,19 +26,20 @@ namespace {
 	function check_advanced_button( $condition, $message ) { if ( ! $condition ) { throw new \RuntimeException( $message ); } }
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php';
 	$widget = new \Digitalisimo\Elements\Advanced_Button_Widget();
-	check_advanced_button( 'digitalisimo-advanced-button' === $widget->get_name() && array( 'digitalisimo-advanced-button' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'El botón sólo debe cargar su CSS.' );
+	check_advanced_button( 'digitalisimo-advanced-button' === $widget->get_name() && array( 'digitalisimo-advanced-button', 'digitalisimo-advanced-button-effects' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'La instancia de registro declara la base y los efectos para el editor; sin JavaScript.' );
 	( new \ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
 	check_advanced_button( isset( $widget->controls['text'], $widget->controls['link'], $widget->controls['button_icon'], $widget->controls['badge_text'], $widget->controls['button_effect'] ), 'Faltan controles de botón, icono o distintivo.' );
 	check_advanced_button( isset( $widget->controls['button_border_style'], $widget->controls['button_border_width'], $widget->controls['button_border_color'], $widget->controls['button_width'], $widget->groups['advanced_button_typography'], $widget->groups['advanced_button_shadow'] ), 'Faltan controles visuales del botón.' );
 	check_advanced_button( '' === $widget->controls['button_border_style']['default'] && str_contains( $widget->controls['button_border_width']['selectors']['{{WRAPPER}} .digi-advanced-button'], 'border-width:') && 'typography' === $widget->groups['advanced_button_typography']['type'], 'Los estilos nuevos deben conservar el diseño anterior hasta configurarse y generar CSS por widget.' );
 	$widget->settings = array( 'text' => 'Comprar <ahora>', 'link' => array( 'url' => 'https://example.com/', 'is_external' => 'on', 'nofollow' => 'on' ), 'button_size' => 'lg', 'button_effect' => 'c', 'button_icon' => array( 'value' => 'star' ), 'icon_align' => 'left', 'show_button_badge' => 'yes', 'badge_text' => 'Oferta', 'badge_align' => 'right', 'button_css_id' => 'cta" onclick="x' );
+	check_advanced_button( array( 'digitalisimo-advanced-button', 'digitalisimo-advanced-button-effects' ) === $widget->get_style_depends(), 'Un efecto distinto del fundido carga la hoja de efectos.' );
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $html = ob_get_clean();
 	check_advanced_button( str_contains( $html, 'href="https://example.com/"' ) && str_contains( $html, 'target="_blank"' ) && str_contains( $html, 'rel="noopener noreferrer nofollow"' ), 'El enlace externo debe conservar URL y atributos seguros.' );
 	check_advanced_button( str_contains( $html, 'digi-advanced-button--effect-c' ) && str_contains( $html, 'data-icon="star"' ) && str_contains( $html, 'Oferta' ), 'Deben mostrarse efecto, icono y distintivo.' );
 	check_advanced_button( ! str_contains( $html, '<ahora>' ) && ! str_contains( $html, 'onclick=' ) && str_contains( $html, 'Comprar &lt;ahora&gt;' ), 'El contenido y el ID deben escaparse.' );
 	$widget->settings['icon_align'] = 'bottom';
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $bottom = ob_get_clean();
-	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/advanced-button.css' );
+	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/advanced-button.css' ) . file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/advanced-button-effects.css' );
 	check_advanced_button( strpos( $bottom, 'digi-advanced-button__text' ) < strpos( $bottom, 'digi-advanced-button__icon' ) && str_contains( $css, '.digi-advanced-button--icon-bottom .digi-advanced-button__content{flex-direction:column}' ) && ! str_contains( $css, '.digi-advanced-button--icon-bottom .digi-advanced-button__content{flex-direction:column-reverse}' ), 'El icono inferior debe verse debajo del texto.' );
 	$widget->settings['icon_align'] = 'left';
 	$widget->settings['link']['url'] = 'https://example.com/?a=1&b=2';
@@ -50,12 +53,14 @@ namespace {
 	check_advanced_button( '' === $empty, 'No debe pintarse un botón sin nombre accesible.' );
 	ob_start(); ( new \ReflectionMethod( $widget, 'content_template' ) )->invoke( $widget ); $editor = ob_get_clean();
 	check_advanced_button( str_contains( $editor, 'var P = [["digi-advanced-button",[]]]' ) && str_contains( $editor, "cls( 'content' )" ) && str_contains( $editor, 'settings.button_icon' ) && str_contains( $editor, 'target="_blank"' ) && str_contains( $editor, 'rel="{{ rel }}"' ) && str_contains( $editor, 'id="{{ buttonId }}"' ), 'La vista previa debe conservar texto, icono y atributos del enlace.' );
+	$widget->settings = array( 'text' => 'Fundido', 'button_effect' => 'a' );
+	check_advanced_button( array( 'digitalisimo-advanced-button' ) === $widget->get_style_depends() && str_contains( file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/advanced-button.css' ), '--effect-a' ) && ! str_contains( file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/advanced-button.css' ), '--effect-b' ), 'El fundido por defecto vive en la base y no carga la hoja de efectos.' );
 	$widget->settings = array( 'text' => 'Contorno', 'button_effect' => 'outline' );
 	ob_start(); ( new \ReflectionMethod( $widget, 'render' ) )->invoke( $widget ); $outline = ob_get_clean();
 	check_advanced_button( str_contains( $outline, 'digi-advanced-button--effect-outline' ) && str_contains( $css, '.digi-advanced-button--effect-outline{' ) && str_contains( $css, '.digi-advanced-button--effect-fill::before' ) && str_contains( $css, '.digi-advanced-button--effect-underline{' ) && str_contains( $css, '.digi-advanced-button--effect-glow:hover' ), 'Los efectos del botón creativo viven ahora en el botón.' );
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-creative-button.php';
 	$creative = new \Digitalisimo\Elements\Creative_Button_Widget();
-	check_advanced_button( 'digitalisimo-creative-button' === $creative->get_name() && false === $creative->show_in_panel() && $creative instanceof \Digitalisimo\Elements\Advanced_Button_Widget && array( 'digitalisimo-advanced-button' ) === $creative->get_style_depends(), 'El botón creativo es un alias oculto del botón y usa su hoja.' );
+	check_advanced_button( 'digitalisimo-creative-button' === $creative->get_name() && false === $creative->show_in_panel() && $creative instanceof \Digitalisimo\Elements\Advanced_Button_Widget && in_array( 'digitalisimo-advanced-button', $creative->get_style_depends(), true ), 'El botón creativo es un alias oculto del botón y usa su hoja.' );
 	$creative->settings = \Digitalisimo\Elements\Creative_Button_Widget::upgrade_settings( array( 'text' => 'Ver', 'link' => array( 'url' => 'https://example.com/' ), 'icon' => array( 'value' => 'star' ), 'effect' => 'lift', 'align_tablet' => 'center', 'button_color' => '#111', 'padding' => array( 'top' => '1', 'unit' => 'em' ) ) );
 	check_advanced_button( 'g' === $creative->settings['button_effect'] && 'star' === $creative->settings['button_icon']['value'] && 'center' === $creative->settings['align_tablet'] && '#111' === $creative->settings['button_background_color'] && '1' === $creative->settings['advanced_button_padding']['top'] && 'left' === $creative->settings['icon_align'] && '2' === $creative->settings['button_border_width']['top'] && ! isset( $creative->settings['effect'], $creative->settings['icon'], $creative->settings['padding'] ), 'Los ajustes del botón creativo pasan a los del botón con el aspecto que tenía.' );
 	check_advanced_button( 'g' === \Digitalisimo\Elements\Creative_Button_Widget::upgrade_settings( array( 'button_effect' => 'g', 'effect' => '' ) )['button_effect'], 'Un efecto ya traducido no se pisa con la clave de antes vacía.' );

@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Galería de imágenes de Medios con URLs y ALT del sitio actual. */
 class Custom_Gallery_Widget extends \Elementor\Widget_Base {
@@ -53,11 +54,8 @@ class Custom_Gallery_Widget extends \Elementor\Widget_Base {
 		foreach ( $items as $index => $item ) {
 			$image = $item['image'];
 			$id = absint( $image['id'] ?? 0 );
-			$alt = $id ? (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) : '';
 			$title = trim( wp_strip_all_tags( (string) $item['title'] ) );
-			if ( '' === $alt && $title ) { $alt = $title; }
-			$markup = $id ? wp_get_attachment_image( $id, $size, false, array( 'class' => 'digi-custom-gallery__image', 'alt' => $alt, 'decoding' => 'async' ) ) : '';
-			if ( ! $markup && ! empty( $image['url'] ) ) { $markup = '<img class="digi-custom-gallery__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async">'; }
+			$markup = Image_Markup::img( $image, array( 'size' => $size, 'class' => 'digi-custom-gallery__image', 'alt' => $title, 'columns' => Image_Markup::columns( $s, 'columns', 3 ) ) );
 			if ( ! $markup ) { continue; }
 			echo '<li class="digi-custom-gallery__item"><figure>';
 			$link = $item['link'];

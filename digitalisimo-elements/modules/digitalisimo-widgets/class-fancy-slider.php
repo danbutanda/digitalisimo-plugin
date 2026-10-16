@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 require_once __DIR__ . '/class-carousel-engine.php';
 
 /** Diapositivas editoriales con imagen, texto y enlaces, usando el carrusel compartido. */
@@ -12,7 +13,12 @@ class Fancy_Slider_Widget extends \Elementor\Widget_Base {
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'slider', 'destacado', 'imagen', 'contenido' ); }
 	public function get_style_depends() { return array( 'digitalisimo-carousel-engine', 'digitalisimo-fancy-slider' ); }
-	public function get_script_depends() { return array( 'digitalisimo-carousel-engine' ); }
+	/** El motor sólo mueve las flechas: sin navegación no se carga. */
+	public function get_script_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return array( 'digitalisimo-carousel-engine' ); }
+		$s = (array) $this->get_settings();
+		return 'none' === ( $s['navigation'] ?? 'arrows' ) ? array() : array( 'digitalisimo-carousel-engine' );
+	}
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';
@@ -77,12 +83,7 @@ class Fancy_Slider_Widget extends \Elementor\Widget_Base {
 			echo '</div>';
 			$image = is_array( $slide['slide_image'] ?? null ) ? $slide['slide_image'] : array();
 			if ( 'yes' === ( $s['show_slide_image'] ?? 'yes' ) && ( ! empty( $image['id'] ) || ! empty( $image['url'] ) ) ) {
-				$id = absint( $image['id'] ?? 0 );
-				$alt = $id ? (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) : '';
-				$attrs = array( 'class' => 'digi-fancy-slider__image', 'alt' => $alt, 'decoding' => 'async' );
-				if ( $index > 0 ) { $attrs['loading'] = 'lazy'; }
-				$markup = $id ? wp_get_attachment_image( $id, $size, false, $attrs ) : '';
-				if ( ! $markup && ! empty( $image['url'] ) ) { $markup = '<img class="digi-fancy-slider__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async"' . ( $index > 0 ? ' loading="lazy"' : '' ) . '>'; }
+				$markup = Image_Markup::img( $image, array( 'size' => $size, 'class' => 'digi-fancy-slider__image', 'sizes' => 'top' === $position ? Image_Markup::sizes_for_columns( 1 ) : Image_Markup::sizes_for_columns( 2, 2, 1 ) ) );
 				if ( $markup ) { echo '<div class="digi-fancy-slider__media">' . $markup . '</div>'; }
 			}
 			echo '</li>';

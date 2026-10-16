@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Visor de documentos independiente: incrusta un PDF u otro archivo público en la página. */
 class Document_Viewer_Widget extends \Elementor\Widget_Base {
@@ -66,7 +67,7 @@ class Document_Viewer_Widget extends \Elementor\Widget_Base {
 		$title = trim( (string) ( $settings['frame_title'] ?? '' ) );
 		if ( '' === $title ) { $title = 'Visor de documento'; }
 		echo '<div class="digi-document-viewer">';
-		echo '<iframe class="digi-document-viewer__frame" src="' . esc_url( $frame_url ) . '" title="' . esc_attr( $title ) . '" loading="lazy"></iframe>';
+		echo Image_Markup::preconnect( $frame_url ) . '<iframe class="digi-document-viewer__frame" src="' . esc_url( $frame_url ) . '" title="' . esc_attr( $title ) . '" loading="lazy"></iframe>';
 		echo '<a class="digi-document-viewer__link" href="' . esc_url( $source ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( 'Abrir documento' ) . '</a>';
 		echo '</div>';
 	}

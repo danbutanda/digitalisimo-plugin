@@ -1,0 +1,5 @@
+/* kale: una barra sube y se recoge; después queda la línea. */
+.digi-animated-link--kale::before { height: 10px; opacity: 0; }
+.digi-animated-link--kale::after { content: ''; opacity: 0; transition: opacity var(--digi-link-speed) ease; }
+.digi-animated-link--kale:is(:hover, :focus-visible)::before { opacity: 1; animation: digiLinkRise var(--digi-link-speed) ease forwards; }
+.digi-animated-link--kale:is(:hover, :focus-visible)::after { opacity: 1; transition-delay: var(--digi-link-speed); }

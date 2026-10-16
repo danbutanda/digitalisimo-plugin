@@ -20,7 +20,13 @@ class Advanced_Button_Widget extends \Elementor\Widget_Base {
 	public function get_icon() { return 'eicon-button'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'botón', 'button', 'enlace', 'cta', 'creativo', 'efecto' ); }
-	public function get_style_depends() { return array( 'digitalisimo-advanced-button' ); }
+	/** La hoja de efectos sólo con un efecto distinto del fundido por defecto. */
+	public function get_style_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return array( 'digitalisimo-advanced-button', 'digitalisimo-advanced-button-effects' ); }
+		$s = (array) $this->get_settings();
+		$effect = in_array( $s['button_effect'] ?? 'a', self::EFFECTS, true ) ? $s['button_effect'] : 'a';
+		return 'a' === $effect ? array( 'digitalisimo-advanced-button' ) : array( 'digitalisimo-advanced-button', 'digitalisimo-advanced-button-effects' );
+	}
 	public function get_script_depends() { return array(); }
 
 	protected function register_controls() {

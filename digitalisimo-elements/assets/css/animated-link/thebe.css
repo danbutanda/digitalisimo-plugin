@@ -1,0 +1,5 @@
+/* thebe: la primera línea crece y engrosa; la segunda la sigue con retraso. */
+.digi-animated-link--thebe::before { transform: scaleX(0); transform-origin: right center; transition: transform var(--digi-link-speed) var(--digi-link-ease); }
+.digi-animated-link--thebe::after { content: ''; top: calc(100% + var(--digi-link-gap)); transform: scaleX(0); transform-origin: right center; transition: transform .4s .1s var(--digi-link-ease); }
+.digi-animated-link--thebe:is(:hover, :focus-visible)::before { transform: scale(1, 2); transform-origin: left center; }
+.digi-animated-link--thebe:is(:hover, :focus-visible)::after { transform: scaleX(1); transform-origin: left center; }

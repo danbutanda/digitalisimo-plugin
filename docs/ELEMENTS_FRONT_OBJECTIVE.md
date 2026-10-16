@@ -75,3 +75,4 @@ Núcleo incluido (Elementor 4.3.5, copia sin cambios): Elements no fija sus ajus
 ## Registro de avance
 
 - 2026-10-16 · 4.3.0.152 · Objetivo redactado con la línea base de la auditoría estática. Fase 0 en curso.
+- 2026-10-16 · 4.3.0.153 · Fase 0 publicada: arnés `tests/playground/front-budget.sh` con `baseline.json` y medición en `docs/measurements/2026-10-16-elements-front-budget.md`. Fase 1 publicada: generador único de imágenes en los 45 widgets, scripts condicionales en seis, `defer` en los catorce registros, QR sin jQuery, hojas por variante (Enlace animado, Botón, Navegación con iconos, Logotipos), foco propio, `content-visibility`, `preconnect` y etiqueta de encabezado en Reseñas; `tests/elements-front-budget.php` vigila el presupuesto en CI. Pendientes de la fase 1: ninguna. Siguiente: Fase 2.

@@ -239,6 +239,28 @@ final class Widget_Registry {
 		),
 	);
 
+	/** Hojas por variante: cada instancia declara sólo la suya (ver docs/ELEMENTS_FRONT_OBJECTIVE.md). */
+	const VARIANT_STYLES = array(
+		'digitalisimo-logos-grid'               => 'assets/css/logos-grid.css',
+		'digitalisimo-icon-nav-bar'             => 'assets/css/icon-nav-bar.css',
+		'digitalisimo-advanced-button-effects'  => 'assets/css/advanced-button-effects.css',
+		'digitalisimo-animated-link-carpo'      => 'assets/css/animated-link/carpo.css',
+		'digitalisimo-animated-link-carme'      => 'assets/css/animated-link/carme.css',
+		'digitalisimo-animated-link-dia'        => 'assets/css/animated-link/dia.css',
+		'digitalisimo-animated-link-eirene'     => 'assets/css/animated-link/eirene.css',
+		'digitalisimo-animated-link-elara'      => 'assets/css/animated-link/elara.css',
+		'digitalisimo-animated-link-ersa'       => 'assets/css/animated-link/ersa.css',
+		'digitalisimo-animated-link-helike'     => 'assets/css/animated-link/helike.css',
+		'digitalisimo-animated-link-herse'      => 'assets/css/animated-link/herse.css',
+		'digitalisimo-animated-link-io'         => 'assets/css/animated-link/io.css',
+		'digitalisimo-animated-link-iocaste'    => 'assets/css/animated-link/iocaste.css',
+		'digitalisimo-animated-link-kale'       => 'assets/css/animated-link/kale.css',
+		'digitalisimo-animated-link-leda'       => 'assets/css/animated-link/leda.css',
+		'digitalisimo-animated-link-metis'      => 'assets/css/animated-link/metis.css',
+		'digitalisimo-animated-link-mneme'      => 'assets/css/animated-link/mneme.css',
+		'digitalisimo-animated-link-thebe'      => 'assets/css/animated-link/thebe.css',
+	);
+
 	public static function init() {
 		require_once __DIR__ . '/class-backdrop-filter.php';
 		Backdrop_Filter_Extension::init();
@@ -284,46 +306,51 @@ final class Widget_Registry {
 				wp_register_style( $handle, plugins_url( $widget['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
 			}
 		}
+		foreach ( self::VARIANT_STYLES as $handle => $css ) {
+			if ( ! wp_style_is( $handle, 'registered' ) ) {
+				wp_register_style( $handle, plugins_url( $css, DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
+			}
+		}
 	}
 
 	public static function scripts() {
 		if ( ! wp_script_is( 'digitalisimo-qr-vendor', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-qr-vendor', plugins_url( 'modules/digitalisimo-widgets/assets/js/third-party/jquery-qrcode.min.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'jquery' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-qr-vendor', plugins_url( 'modules/digitalisimo-widgets/assets/js/third-party/qrcode-generator.min.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		if ( ! wp_script_is( 'digitalisimo-qr-code', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-qr-code', plugins_url( 'modules/digitalisimo-widgets/assets/js/qr-code.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'digitalisimo-qr-vendor' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-qr-code', plugins_url( 'modules/digitalisimo-widgets/assets/js/qr-code.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'digitalisimo-qr-vendor' ), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		if ( ! wp_script_is( 'digitalisimo-notification', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-notification', plugins_url( 'assets/js/notification.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-notification', plugins_url( 'assets/js/notification.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		if ( ! wp_script_is( 'digitalisimo-google-reviews', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-google-reviews', plugins_url( 'assets/js/google-reviews.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-google-reviews', plugins_url( 'assets/js/google-reviews.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		foreach ( array( 'image-compare', 'business-hours', 'marquee', 'table', 'video-player' ) as $script ) {
 			if ( ! wp_script_is( 'digitalisimo-' . $script, 'registered' ) ) {
-				wp_register_script( 'digitalisimo-' . $script, plugins_url( 'assets/js/' . $script . '.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+				wp_register_script( 'digitalisimo-' . $script, plugins_url( 'assets/js/' . $script . '.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 			}
 		}
 		if ( ! wp_script_is( 'digitalisimo-reading-progress', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-reading-progress', plugins_url( 'assets/js/reading-progress.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-reading-progress', plugins_url( 'assets/js/reading-progress.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		if ( ! wp_script_is( 'digitalisimo-offcanvas', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-offcanvas', plugins_url( 'assets/js/offcanvas.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-offcanvas', plugins_url( 'assets/js/offcanvas.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		if ( ! wp_script_is( 'digitalisimo-vertical-menu', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-vertical-menu', plugins_url( 'assets/js/vertical-menu.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-vertical-menu', plugins_url( 'assets/js/vertical-menu.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		if ( ! wp_script_is( 'digitalisimo-content-switcher', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-content-switcher', plugins_url( 'assets/js/content-switcher.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-content-switcher', plugins_url( 'assets/js/content-switcher.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		if ( ! wp_script_is( 'digitalisimo-animated-heading', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-animated-heading', plugins_url( 'assets/js/animated-heading.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-animated-heading', plugins_url( 'assets/js/animated-heading.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		if ( ! wp_script_is( 'digitalisimo-carousel-engine', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-carousel-engine', plugins_url( 'assets/js/carousel-engine.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-carousel-engine', plugins_url( 'assets/js/carousel-engine.js', DIGITALISIMO_ELEMENTS_FILE ), array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 		if ( ! wp_script_is( 'digitalisimo-scroll-button', 'registered' ) ) {
-			wp_register_script( 'digitalisimo-scroll-button', plugins_url( 'assets/js/scroll-button.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+			wp_register_script( 'digitalisimo-scroll-button', plugins_url( 'assets/js/scroll-button.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
 	}
 

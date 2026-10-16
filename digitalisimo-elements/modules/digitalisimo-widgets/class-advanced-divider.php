@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 
 /** Separador decorativo con CSS específico y sin runtime JavaScript. */
 class Advanced_Divider_Widget extends \Elementor\Widget_Base {
@@ -41,8 +42,8 @@ class Advanced_Divider_Widget extends \Elementor\Widget_Base {
 		$s = $this->get_settings_for_display();
 		$type = self::safe_type( $s['divider_type'] ?? 'line' );
 		$image = '';
-		if ( 'image' === $type && ! empty( $s['divider_image']['id'] ) && function_exists( 'wp_get_attachment_image' ) ) {
-			$image = wp_get_attachment_image( absint( $s['divider_image']['id'] ), 'full', false, array( 'alt' => '', 'aria-hidden' => 'true' ) );
+		if ( 'image' === $type && ! empty( $s['divider_image']['id'] ) ) {
+			$image = Image_Markup::img( (array) $s['divider_image'], array( 'size' => 'full', 'decorative' => true ) );
 		}
 		if ( 'image' === $type && ! $image ) { $type = 'line'; }
 		echo '<div class="digi-advanced-divider digi-advanced-divider--' . esc_attr( $type ) . '" role="presentation" aria-hidden="true">';

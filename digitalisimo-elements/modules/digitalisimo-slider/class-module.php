@@ -42,7 +42,7 @@ final class Elementor_Slider {
 			if ( $current && $current->src === $url && $current->ver === DIGITALISIMO_ELEMENTS_VERSION ) return;
 			wp_deregister_script( $handle );
 		}
-		wp_register_script( $handle, $url, array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, true );
+		wp_register_script( $handle, $url, array( 'elementor-frontend' ), DIGITALISIMO_ELEMENTS_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 	}
 
 	public static function widget( $manager ) {

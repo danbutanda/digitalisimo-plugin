@@ -2,6 +2,7 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-image-markup.php';
 require_once __DIR__ . '/class-carousel-engine.php';
 
 /**
@@ -16,7 +17,12 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'dispositivo', 'capturas', 'slider', 'móvil' ); }
 	public function get_style_depends() { return array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider' ); }
-	public function get_script_depends() { return array( 'digitalisimo-carousel-engine' ); }
+	/** El motor sólo mueve las flechas: sin navegación no se carga. */
+	public function get_script_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return array( 'digitalisimo-carousel-engine' ); }
+		$s = (array) $this->get_settings();
+		return 'none' === ( $s['navigation'] ?? 'arrows' ) ? array() : array( 'digitalisimo-carousel-engine' );
+	}
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';
@@ -80,15 +86,9 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 				$markup = '<video class="digi-device-slider__video" src="' . esc_url( $item['video']['url'] ) . '" autoplay muted loop playsinline controls preload="metadata"' . ( '' !== $title ? ' aria-label="' . esc_attr( $title ) . '"' : '' ) . '></video>';
 			} elseif ( 'youtube' === $item['background'] ) {
 				$yt = self::youtube_id( $item['youtube_url'] ?? '' );
-				$markup = '<iframe class="digi-device-slider__video" src="' . esc_url( 'https://www.youtube-nocookie.com/embed/' . $yt . '?autoplay=1&mute=1&loop=1&playlist=' . $yt . '&playsinline=1&rel=0' ) . '" title="' . esc_attr( '' !== $title ? $title : 'Vídeo de YouTube' ) . '" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen' . ( $index > 0 ? ' loading="lazy"' : '' ) . '></iframe>';
+				$markup = Image_Markup::preconnect( 'https://www.youtube-nocookie.com/' ) . '<iframe class="digi-device-slider__video" src="' . esc_url( 'https://www.youtube-nocookie.com/embed/' . $yt . '?autoplay=1&mute=1&loop=1&playlist=' . $yt . '&playsinline=1&rel=0' ) . '" title="' . esc_attr( '' !== $title ? $title : 'Vídeo de YouTube' ) . '" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen' . ( $index > 0 ? ' loading="lazy"' : '' ) . '></iframe>';
 			} else {
-				$image = $item['image']; $id = absint( $image['id'] ?? 0 );
-				$alt = $id ? (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) : '';
-				if ( ! $alt ) { $alt = $title; }
-				$attrs = array( 'class' => 'digi-device-slider__image', 'alt' => $alt, 'decoding' => 'async' );
-				if ( $index > 0 ) { $attrs['loading'] = 'lazy'; }
-				$markup = $id ? wp_get_attachment_image( $id, $size, false, $attrs ) : '';
-				if ( ! $markup && ! empty( $image['url'] ) ) { $markup = '<img class="digi-device-slider__image" src="' . esc_url( $image['url'] ) . '" alt="' . esc_attr( $alt ) . '" decoding="async"' . ( $index > 0 ? ' loading="lazy"' : '' ) . '>'; }
+				$markup = Image_Markup::img( $item['image'], array( 'size' => $size, 'class' => 'digi-device-slider__image', 'alt' => $title, 'columns' => array( 1 ) ) );
 			}
 			if ( ! $markup ) { continue; }
 			echo '<li class="digi-carousel__slide digi-device-slider__slide' . ( ! empty( $item['_id'] ) ? ' elementor-repeater-item-' . esc_attr( sanitize_html_class( (string) $item['_id'] ) ) : '' ) . '">';

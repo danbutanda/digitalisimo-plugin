@@ -6,7 +6,7 @@ namespace Elementor {
 		public $controls = array();
 		private $attributes = array();
 		public function get_settings_for_display() { return $this->settings; }
-		public function get_settings() { return $this->settings; }
+		public function get_settings( $key = null ) { return null === $key ? $this->settings : ( $this->settings[ $key ] ?? null ); }
 		public function is_type_instance() { return array() === $this->settings; }
 		public function start_controls_section( $name, $args ) {}
 		public function end_controls_section() {}
@@ -37,14 +37,14 @@ namespace {
 	foreach ( array( 'brand-carousel', 'logo-carousel', 'brand-grid', 'logo-grid' ) as $alias ) { require_once __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-' . $alias . '.php'; }
 
 	$widget = new \Digitalisimo\Elements\Logos_Widget();
-	check_logos( 'digitalisimo-logos' === $widget->get_name() && array( 'digitalisimo-carousel-engine', 'digitalisimo-logos' ) === $widget->get_style_depends() && array( 'digitalisimo-carousel-engine' ) === $widget->get_script_depends(), 'La instancia de registro declara el motor y su hoja para que el editor los tenga.' );
+	check_logos( 'digitalisimo-logos' === $widget->get_name() && array( 'digitalisimo-carousel-engine', 'digitalisimo-logos', 'digitalisimo-logos-grid' ) === $widget->get_style_depends() && array( 'digitalisimo-carousel-engine' ) === $widget->get_script_depends(), 'La instancia de registro declara el motor y sus dos hojas para que el editor los tenga.' );
 	( new \ReflectionMethod( $widget, 'register_controls' ) )->invoke( $widget );
 	check_logos( isset( $widget->controls['gallery_images'], $widget->controls['items']['fields']['link_text'], $widget->controls['items']['fields']['caption'], $widget->controls['layout'], $widget->controls['columns'], $widget->controls['style'], $widget->controls['details'], $widget->controls['navigation'], $widget->controls['show_link_text'] ), 'Faltan controles de galería, datos por logotipo o presentación.' );
 	check_logos( str_contains( $widget->controls['columns']['selectors']['{{WRAPPER}} .digi-logos__list'], 'grid-template-columns' ) && str_contains( $widget->controls['columns']['selectors']['{{WRAPPER}} .digi-carousel'], '--digi-carousel-visible' ), 'Las columnas sirven a la cuadrícula y al carrusel.' );
 
 	// Cuadrícula: imágenes de Medios, datos individuales, enlace en la tarjeta y modo de detalles.
 	$widget->settings = array( 'layout' => 'grid', 'style' => 'border', 'details' => 'tooltip', 'gallery_images' => array( array( 'id' => 12 ), array( 'url' => 'https://example.test/manual.webp', 'alt' => 'Manual', 'width' => 320, 'height' => 160 ) ), 'items' => array( array( '_id' => 'x1', 'image' => array( 'url' => 'https://example.test/tercero.webp' ), 'name' => '<script>mal</script>', 'description' => 'Descripción & más', 'link' => array( 'url' => 'https://example.test/', 'is_external' => true, 'nofollow' => true ) ), array( 'image' => array() ) ) );
-	check_logos( array( 'digitalisimo-logos' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'La cuadrícula no carga el motor de carrusel.' );
+	check_logos( array( 'digitalisimo-logos', 'digitalisimo-logos-grid' ) === $widget->get_style_depends() && array() === $widget->get_script_depends(), 'La cuadrícula carga su hoja y no el motor de carrusel.' );
 	$html = render_logos( $widget );
 	check_logos( 3 === substr_count( $html, '<li class="digi-logos__item' ) && str_contains( $html, 'class="digi-logos digi-logos--grid digi-logos--border digi-logos--tooltip"' ) && str_contains( $html, '<ul class="digi-logos__list">' ), 'Deben omitirse imágenes vacías y declararse presentación, tarjetas y detalles.' );
 	check_logos( str_contains( $html, 'alt="Marca &amp; Compañía"' ) && str_contains( $html, 'alt="Manual"' ) && str_contains( $html, 'width="320" height="160"' ) && ! str_contains( $html, 'loading="' ), 'ALT y dimensiones se conservan y WordPress decide la carga.' );
@@ -55,7 +55,7 @@ namespace {
 	$widget->settings['show_link_text'] = 'yes';
 	$widget->settings['details'] = 'always';
 	$text = render_logos( $widget );
-	check_logos( str_contains( $text, '<div class="digi-logos__card"><img class="digi-logos__image" src="https://example.test/tercero.webp" alt="" decoding="async"></div>' ) && str_contains( $text, '<a class="digi-logos__link" href="https://example.test/" target="_blank" rel="nofollow noopener noreferrer">Visitar mal</a>' ), 'Con texto de enlace, un solo destino por logotipo y ALT vacío junto al nombre visible.' );
+	check_logos( str_contains( $text, '<div class="digi-logos__card"><img class="digi-logos__image" alt="" decoding="async" src="https://example.test/tercero.webp"></div>' ) && str_contains( $text, '<a class="digi-logos__link" href="https://example.test/" target="_blank" rel="nofollow noopener noreferrer">Visitar mal</a>' ), 'Con texto de enlace, un solo destino por logotipo y ALT vacío junto al nombre visible.' );
 
 	// Al abrir: detalles nativos, sin enlace en la imagen.
 	$widget->settings['details'] = 'click';
@@ -64,7 +64,10 @@ namespace {
 
 	// Carrusel: motor compartido, nombre y texto del enlace dentro de la tarjeta.
 	$widget->settings = array( 'layout' => 'carousel', 'label' => 'Clientes', 'navigation' => 'arrows', 'show_link_text' => 'yes', 'items' => array( array( 'image' => array( 'id' => 12 ), 'name' => 'Primera', 'link' => array( 'url' => 'https://example.test/a' ), 'link_text' => 'Visitar' ), array( 'image' => array( 'url' => 'https://example.test/b.png' ), 'name' => 'Segunda' ) ) );
-	check_logos( array( 'digitalisimo-carousel-engine', 'digitalisimo-logos' ) === $widget->get_style_depends() && array( 'digitalisimo-carousel-engine' ) === $widget->get_script_depends(), 'El carrusel carga el motor compartido.' );
+	check_logos( array( 'digitalisimo-carousel-engine', 'digitalisimo-logos' ) === $widget->get_style_depends() && array( 'digitalisimo-carousel-engine' ) === $widget->get_script_depends(), 'El carrusel carga el motor compartido y no la hoja de cuadrícula.' );
+	$widget->settings['navigation'] = 'none';
+	check_logos( array() === $widget->get_script_depends(), 'Sin flechas no hace falta el motor.' );
+	$widget->settings['navigation'] = 'arrows';
 	$carousel = render_logos( $widget );
 	check_logos( str_contains( $carousel, 'class="digi-logos digi-logos--carousel"' ) && str_contains( $carousel, 'aria-label="Clientes"' ) && str_contains( $carousel, 'style="--digi-carousel-count:2"' ) && 2 === substr_count( $carousel, '<li class="digi-carousel__slide digi-logos__item">' ) && str_contains( $carousel, 'data-digi-carousel-next' ), 'El carrusel usa el motor con dos diapositivas, nombre accesible y flechas.' );
 	check_logos( str_contains( $carousel, '<a class="digi-logos__card digi-logos__card--stretch" href="https://example.test/a">' ) && str_contains( $carousel, '<h3 class="digi-logos__name">Primera</h3>' ) && str_contains( $carousel, '<span class="digi-logos__link-text">Visitar</span>' ) && str_contains( $carousel, '<div class="digi-logos__card digi-logos__card--stretch">' ), 'La tarjeta enlazada lleva imagen, nombre y texto del enlace.' );
@@ -121,7 +124,7 @@ namespace {
 	check_logos( str_contains( $editor, '["digi-logo-grid",{"content":"caption"' ), 'La vista previa del alias conoce sus clases de antes.' );
 
 	$js = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/js/carousel-engine.js' );
-	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/logos.css' );
+	$css = file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/logos.css' ) . file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/css/logos-grid.css' );
 	check_logos( str_contains( $js, 'frontend/element_ready/digitalisimo-logos.default' ) && str_contains( $js, 'frontend/element_ready/digitalisimo-brand-carousel.default' ) && str_contains( $js, 'frontend/element_ready/digitalisimo-logo-carousel.default' ), 'El motor se engancha al widget y a sus alias en el editor.' );
 	check_logos( str_contains( $css, '.digi-logos--overlay .digi-logos__content' ) && str_contains( $css, '.digi-logos__content--tooltip' ) && str_contains( $css, '.digi-logos--tictactoe' ) && str_contains( $css, '@media(hover:none)' ) && ! str_contains( $css, 'digi-brand-' ) && ! str_contains( $css, 'digi-logo-grid' ), 'La hoja unificada cubre los cuatro diseños y sólo con sus propias clases.' );
 	foreach ( array( 'brand-carousel', 'logo-carousel', 'brand-grid', 'logo-grid' ) as $retired ) {

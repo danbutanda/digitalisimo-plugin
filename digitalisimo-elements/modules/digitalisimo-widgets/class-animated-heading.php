@@ -11,7 +11,12 @@ class Animated_Heading_Widget extends \Elementor\Widget_Base {
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'encabezado', 'animado', 'heading', 'título' ); }
 	public function get_style_depends() { return array( 'digitalisimo-animated-heading' ); }
-	public function get_script_depends() { return array( 'digitalisimo-animated-heading' ); }
+	/** El script sólo rota frases: con una sola, o con la rotación apagada, no hace falta. */
+	public function get_script_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return array( 'digitalisimo-animated-heading' ); }
+		$s = (array) $this->get_settings();
+		return 'yes' === ( $s['rotate'] ?? 'yes' ) && count( self::phrases( $s['animated_text'] ?? '' ) ) > 1 ? array( 'digitalisimo-animated-heading' ) : array();
+	}
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';
