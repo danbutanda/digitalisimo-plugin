@@ -105,4 +105,35 @@ foreach ( Migration::convertible() as $id ) {
 $groups = Migration::classify();
 $check( array() === $groups['convertible'] && array( $blocked ) === $groups['blocked'], 'lotes: convertido todo lo convertible, sólo queda el documento bloqueado y no vuelve a entrar en un lote' );
 
+// 6. Revisiones: no entran en los lotes; una página sobrescrita por la conversión de una revisión (hasta 1.0.13) se detecta
+//    y se recupera desde su última revisión guardada; convertir una revisión escribe en la revisión, no en la página.
+$rev = static function ( $parent, array $elements, $suffix ) {
+	$id = wp_insert_post( array( 'post_type' => 'revision', 'post_status' => 'inherit', 'post_parent' => $parent, 'post_name' => $parent . '-' . $suffix, 'post_title' => 'rev' ) );
+	update_metadata( 'post', $id, '_elementor_data', wp_slash( wp_json_encode( $elements ) ) );
+	return (int) $id;
+};
+$page = $make( 'digi-con-revisiones', $data( $legacy ) );
+$old  = $data( $legacy );
+$old[0]['elements'][0]['settings'] = (object) ( array( 'title' => 'TITULO-VIEJO' ) + $legacy );
+$r_old    = $rev( $page, $old, 'revision-v1' );
+$r_latest = $rev( $page, $data( $legacy ), 'revision-v1' );
+$check( ! in_array( $r_old, Migration::pending(), true ) && ! in_array( $r_latest, Migration::pending(), true ) && in_array( $page, Migration::convertible(), true ) && in_array( $r_old, Migration::legacy_revisions(), true ), 'revisiones: no entran en pendientes; la página sí, y las revisiones heredadas se conocen' );
+Migration::convert_document( $page );
+$check( false !== strpos( (string) get_post_meta( $page, '_elementor_data', true ), 'TITULO-SOLO-INTERNAS' ) && array() === Migration::overwritten_parents(), 'revisiones: convertida la página, ninguna sobrescrita' );
+// Lo que hacía 1.0.13 con una revisión: update_post_meta() escribe en el padre.
+list( $converted_old ) = Migration::convert_data( json_decode( (string) get_metadata( 'post', $r_old, '_elementor_data', true ), true ), $r_old );
+update_post_meta( $r_old, '_elementor_data', wp_slash( wp_json_encode( $converted_old ) ) );
+$check( false !== strpos( (string) get_post_meta( $page, '_elementor_data', true ), 'TITULO-VIEJO' ), 'revisiones: simulación del fallo, la página tiene el contenido de la revisión vieja' );
+$over = Migration::overwritten_parents();
+$check( isset( $over[ $page ] ) && $r_old === $over[ $page ]['revision'] && ! $over[ $page ]['autosave'], 'revisiones: la página sobrescrita se detecta con la revisión que la pisó' );
+$check( Migration::recover_from_revision( $page ), 'revisiones: la recuperación desde la última revisión guardada responde' );
+$current = (string) get_post_meta( $page, '_elementor_data', true );
+$check( false !== strpos( $current, 'TITULO-SOLO-INTERNAS' ) && false === strpos( $current, 'TITULO-VIEJO' ) && false === strpos( $current, 'ep_display_conditions' ) && false !== strpos( $current, 'digitalisimo_visibility_enable' ) && array() === Migration::overwritten_parents(), 'revisiones: la página vuelve a su última versión guardada, convertida, y deja de estar sobrescrita' );
+update_option( 'page_on_front', $page );
+$html = $render( $page );
+$check( false === strpos( $html, 'TITULO-SOLO-INTERNAS' ) && false !== strpos( $html, 'SIEMPRE' ), 'revisiones: recuperada, la portada oculta el título' );
+$before = (string) get_post_meta( $page, '_elementor_data', true );
+Migration::convert_document( $r_latest );
+$check( $before === (string) get_post_meta( $page, '_elementor_data', true ) && false === strpos( (string) get_metadata( 'post', $r_latest, '_elementor_data', true ), 'ep_display_conditions' ), 'revisiones: convertir una revisión escribe en la revisión y no toca la página' );
+
 file_put_contents( '/wordpress/wp-content/probe/result.json', wp_json_encode( $problems, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) );

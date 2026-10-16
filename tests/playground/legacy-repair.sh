@@ -2,7 +2,9 @@
 # Reglas de visibilidad heredadas en una portada estática real (Playground): con la opción de Element Pack guardada sin
 # la clave de la extensión, el motor heredado y la conversión ocultan el título en la portada; un documento convertido
 # que perdió las reglas se repara desde su copia original; con la extensión apagada las reglas se guardan sin aplicarse;
-# un documento que sólo conserva un widget sin adaptador se cuenta aparte y no vuelve a entrar en los lotes.
+# un documento que sólo conserva un widget sin adaptador se cuenta aparte y no vuelve a entrar en los lotes; las revisiones
+# no entran en los lotes, una página sobrescrita por la conversión de una revisión se detecta y se recupera desde su última
+# revisión guardada, y convertir una revisión escribe en la revisión y no en la página.
 # Uso: bash tests/playground/legacy-repair.sh   → resultados en $OUT (por defecto /tmp/digi-legacy-repair)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -26,6 +28,6 @@ const fs = require("fs");
 if (!fs.existsSync(process.argv[1])) { console.log("FALLA  la sonda no escribió resultados"); process.exit(1); }
 const problems = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 for (const p of problems) console.log(`FALLA  ${p}`);
-console.log(problems.length ? `\n${problems.length} comprobaciones fallan.` : "\nReglas heredadas en portada estática: motor heredado, conversión, reparación, extensión apagada y lotes correctos.");
+console.log(problems.length ? `\n${problems.length} comprobaciones fallan.` : "\nReglas heredadas en portada estática: motor heredado, conversión, reparación, extensión apagada, lotes y revisiones correctos.");
 process.exit(problems.length ? 1 : 0);
 ' "$OUT/result.json"

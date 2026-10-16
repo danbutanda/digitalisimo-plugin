@@ -31,6 +31,8 @@ final class Migration {
 	const REPAIR_TOTALS = 'digitalisimo_ep_conditions_repair_totals';
 	/** Documentos por petición en la recuperación automática. */
 	const REPAIR_BATCH = 25;
+	/** Por revisión heredada, si su conversión coincide con el contenido actual de su página (ver overwritten_parents()). */
+	const REVISION_CHECK = 'digitalisimo_ep_revision_check';
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
@@ -167,7 +169,7 @@ final class Migration {
 	 * se inspecciona antes de decodificar nada.
 	 */
 	public static function repair_conditions( $post_id, $cutoff = 0 ) {
-		$raw = (string) get_post_meta( $post_id, self::BACKUP, true );
+		$raw = (string) get_metadata( 'post', $post_id, self::BACKUP, true );
 		if ( '' === $raw || false === strpos( $raw, 'ep_display_conditions_enable' ) ) {
 			return 0;
 		}
@@ -185,7 +187,7 @@ final class Migration {
 		}
 		list( $repaired, $count ) = self::repair_conditions_data( $current, $original );
 		if ( $count ) {
-			update_post_meta( $post_id, '_elementor_data', wp_slash( wp_json_encode( $repaired ) ) );
+			update_metadata( 'post', $post_id, '_elementor_data', wp_slash( wp_json_encode( $repaired ) ) );
 			self::clear_css( $post_id );
 		}
 		return $count;
@@ -279,11 +281,24 @@ final class Migration {
 		return 'Sin adaptador: no se mostrará sin Element Pack.' . ( '' !== $reason ? ' ' . $reason : '' );
 	}
 
-	/** IDs de documentos del sitio que contienen widgets de Element Pack. */
+	/** IDs de documentos del sitio (no revisiones) que contienen widgets o ajustes de Element Pack. */
 	public static function documents( $limit = 0 ) {
+		return self::query_documents( false, $limit );
+	}
+
+	/**
+	 * Revisiones y autoguardados con contenido heredado. No entran en los lotes: Elementor conserva en cada revisión lo
+	 * guardado en su momento, y WordPress redirige al padre las escrituras de meta hechas con update_post_meta() sobre
+	 * una revisión. Sirven para detectar páginas sobrescritas por conversiones anteriores (overwritten_parents()).
+	 */
+	public static function legacy_revisions() {
+		return self::query_documents( true );
+	}
+
+	private static function query_documents( $revisions, $limit = 0 ) {
 		global $wpdb;
 		$needles = array( '"widgetType":"bdt-', '"widgetType":"fooevents-calendar"', '"widgetType":"lightbox"', '"ep_', '"element_pack_', '"bdt_', '"_mask_shape":"shape-', '"shape_divider_top":"ep-', '"shape_divider_bottom":"ep-', '"image_mask_' );
-		$sql     = "SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_elementor_data' AND ( " . implode( ' OR ', array_fill( 0, count( $needles ), 'meta_value LIKE %s' ) ) . ' ) ORDER BY post_id';
+		$sql     = "SELECT DISTINCT m.post_id FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE m.meta_key = '_elementor_data' AND p.post_type " . ( $revisions ? '=' : '<>' ) . " 'revision' AND ( " . implode( ' OR ', array_fill( 0, count( $needles ), 'm.meta_value LIKE %s' ) ) . ' ) ORDER BY m.post_id';
 		if ( $limit ) {
 			$sql .= ' LIMIT ' . absint( $limit );
 		}
@@ -351,8 +366,12 @@ final class Migration {
 		return $count;
 	}
 
+	/** Elementos del documento indicado (una revisión lee los suyos, no los del padre). */
 	private static function data( $post_id ) {
-		$raw  = get_post_meta( $post_id, '_elementor_data', true );
+		return self::decode( get_metadata( 'post', $post_id, '_elementor_data', true ) );
+	}
+
+	private static function decode( $raw ) {
 		$data = is_string( $raw ) ? json_decode( $raw, true ) : ( is_array( $raw ) ? $raw : null );
 		return is_array( $data ) ? $data : array();
 	}
@@ -374,20 +393,15 @@ final class Migration {
 	}
 
 	/**
-	 * Convierte un documento al formato propio y guarda una copia del original la primera vez.
+	 * Conversión en memoria de los elementos de un documento, sin guardar.
 	 *
-	 * @return array{native:int} número de elementos convertidos.
+	 * @return array{0:array,1:int} elementos convertidos y número de cambios.
 	 */
-	public static function convert_document( $post_id ) {
-		$raw = get_post_meta( $post_id, '_elementor_data', true );
-		if ( ! is_string( $raw ) || '' === $raw ) {
-			return array( 'native' => 0 );
-		}
+	public static function convert_data( array $data, $post_id ) {
 		// Los widgets (y con ellos los adaptadores) se registran la primera vez que Elementor los pide.
-		if ( class_exists( '\\Elementor\\Plugin' ) ) {
+		if ( class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->widgets_manager ) ) {
 			\Elementor\Plugin::$instance->widgets_manager->get_widget_types();
 		}
-		$data    = self::data( $post_id );
 		$changes = 0;
 		foreach ( $data as $index => $element ) {
 			if ( is_array( $element ) ) {
@@ -395,34 +409,114 @@ final class Migration {
 				$changes += $count;
 			}
 		}
+		return array( $data, $changes );
+	}
+
+	/**
+	 * Convierte un documento al formato propio y guarda una copia del original la primera vez. Las escrituras van al id
+	 * indicado (update_metadata), nunca al padre de una revisión como haría update_post_meta().
+	 *
+	 * @return array{native:int} número de elementos convertidos.
+	 */
+	public static function convert_document( $post_id ) {
+		$raw = get_metadata( 'post', $post_id, '_elementor_data', true );
+		if ( ! is_string( $raw ) || '' === $raw ) {
+			return array( 'native' => 0 );
+		}
+		list( $data, $changes ) = self::convert_data( self::decode( $raw ), $post_id );
 		if ( ! $changes ) {
 			return array( 'native' => 0 );
 		}
-		if ( '' === (string) get_post_meta( $post_id, self::BACKUP, true ) ) {
-			add_post_meta( $post_id, self::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ), true );
+		if ( '' === (string) get_metadata( 'post', $post_id, self::BACKUP, true ) ) {
+			add_metadata( 'post', $post_id, self::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ), true );
 		}
-		update_post_meta( $post_id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+		update_metadata( 'post', $post_id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
 		self::clear_css( $post_id );
 		return array( 'native' => $changes );
 	}
 
 	public static function revert_document( $post_id ) {
-		$backup = json_decode( (string) get_post_meta( $post_id, self::BACKUP, true ), true );
+		$backup = json_decode( (string) get_metadata( 'post', $post_id, self::BACKUP, true ), true );
 		if ( ! is_array( $backup ) || ! isset( $backup['data'] ) || ! is_string( $backup['data'] ) ) {
 			return false;
 		}
-		update_post_meta( $post_id, '_elementor_data', wp_slash( $backup['data'] ) );
-		delete_post_meta( $post_id, self::BACKUP );
+		update_metadata( 'post', $post_id, '_elementor_data', wp_slash( $backup['data'] ) );
+		delete_metadata( 'post', $post_id, self::BACKUP );
 		self::clear_css( $post_id );
 		return true;
 	}
 
 	private static function clear_css( $post_id ) {
-		delete_post_meta( $post_id, '_elementor_css' );
-		delete_post_meta( $post_id, '_elementor_element_cache' );
+		delete_metadata( 'post', $post_id, '_elementor_css' );
+		delete_metadata( 'post', $post_id, '_elementor_element_cache' );
 		if ( class_exists( '\Elementor\Core\Files\CSS\Post' ) ) {
 			\Elementor\Core\Files\CSS\Post::create( $post_id )->delete();
 		}
+	}
+
+	/**
+	 * Páginas cuyo contenido actual es la conversión de una de sus revisiones. Hasta 1.0.13 las revisiones entraban en
+	 * los lotes y, como update_post_meta() escribe en el padre cuando recibe una revisión, convertir una revisión antigua
+	 * o un autoguardado dejaba ese contenido en la página. La comparación es por valor (la conversión es determinista) y
+	 * se recuerda por hash para no reconvertir en cada carga. La última revisión guardada no cuenta: su conversión es
+	 * justamente el contenido correcto.
+	 *
+	 * @return array<int, array{revision:int, date:string, autosave:bool}> por página, la revisión que la sobrescribió.
+	 */
+	public static function overwritten_parents() {
+		$out   = array();
+		$cache = (array) get_option( self::REVISION_CHECK, array() );
+		$dirty = false;
+		foreach ( self::legacy_revisions() as $revision_id ) {
+			$revision  = get_post( $revision_id );
+			$parent_id = $revision ? (int) $revision->post_parent : 0;
+			if ( ! $parent_id || $revision_id === self::latest_revision( $parent_id ) ) {
+				continue;
+			}
+			$raw_parent   = (string) get_metadata( 'post', $parent_id, '_elementor_data', true );
+			$raw_revision = (string) get_metadata( 'post', $revision_id, '_elementor_data', true );
+			if ( '' === $raw_parent || '' === $raw_revision ) {
+				continue;
+			}
+			$key = md5( $raw_parent ) . ':' . md5( $raw_revision );
+			if ( ! isset( $cache[ $revision_id ]['key'] ) || $cache[ $revision_id ]['key'] !== $key ) {
+				list( $converted, $changes ) = self::convert_data( self::decode( $raw_revision ), $revision_id );
+				$cache[ $revision_id ] = array( 'key' => $key, 'same' => $changes > 0 && self::decode( wp_json_encode( $converted ) ) === self::decode( $raw_parent ) );
+				$dirty                 = true;
+			}
+			if ( ! empty( $cache[ $revision_id ]['same'] ) ) {
+				$out[ $parent_id ] = array( 'revision' => $revision_id, 'date' => (string) $revision->post_modified, 'autosave' => (bool) wp_is_post_autosave( $revision_id ) );
+			}
+		}
+		if ( $dirty ) {
+			update_option( self::REVISION_CHECK, $cache, false );
+		}
+		return $out;
+	}
+
+	/** Última revisión guardada de una página (no un autoguardado), o 0. */
+	public static function latest_revision( $parent_id ) {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d AND post_type = 'revision' AND post_name NOT LIKE %s ORDER BY ID DESC LIMIT 1", $parent_id, '%' . $wpdb->esc_like( '-autosave-v' ) . '%' ) );
+	}
+
+	/**
+	 * Devuelve a una página sobrescrita su última versión guardada en el editor (Elementor crea una revisión en cada
+	 * guardado), convertida; si esa versión era heredada pasa a ser la copia original de la página.
+	 */
+	public static function recover_from_revision( $parent_id ) {
+		$latest = self::latest_revision( $parent_id );
+		$raw    = $latest ? (string) get_metadata( 'post', $latest, '_elementor_data', true ) : '';
+		if ( '' === $raw ) {
+			return false;
+		}
+		list( $converted, $changes ) = self::convert_data( self::decode( $raw ), $parent_id );
+		update_metadata( 'post', $parent_id, '_elementor_data', wp_slash( wp_json_encode( $converted ) ) );
+		if ( $changes ) {
+			update_metadata( 'post', $parent_id, self::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ) );
+		}
+		self::clear_css( $parent_id );
+		return true;
 	}
 
 	/**
@@ -496,6 +590,11 @@ final class Migration {
 			$args['count']  = $step['documents'];
 			$args['native'] = $step['elements'];
 			$args['left']   = $step['remaining'];
+		} elseif ( 'recover' === $task ) {
+			foreach ( array_slice( array_keys( self::overwritten_parents() ), 0, self::BATCH ) as $parent_id ) {
+				$args['count'] += self::recover_from_revision( $parent_id ) ? 1 : 0;
+			}
+			$args['left'] = count( self::overwritten_parents() );
 		}
 		wp_safe_redirect( add_query_arg( $args, admin_url( 'tools.php' ) ) );
 		exit;
@@ -512,6 +611,7 @@ final class Migration {
 		$backups     = count( self::backups() );
 		$repaired    = '1' === (string) get_option( self::REPAIRED, '' );
 		$to_review   = self::repair_remaining();
+		$overwritten = self::overwritten_parents();
 		$active      = Translator::element_pack_active();
 		echo '<div class="wrap"><h1>Migrar Element Pack</h1>';
 		echo '<p>Mientras este plugin esté activo, las páginas creadas con Element Pack se siguen viendo sin él. La conversión deja cada documento sólo con widgets y ajustes de DIGITALÍSIMO Elements (los estilos que sólo existían en Element Pack pasan al CSS personalizado del elemento) y guarda una copia del original para poder restaurarlo. Sólo afecta a este sitio.</p>';
@@ -528,6 +628,8 @@ final class Migration {
 				}
 			} elseif ( 'repair' === $done ) {
 				$msg = sprintf( 'Se recuperaron reglas de visibilidad en %d documentos (%d elementos).', $count, $items ) . ' ' . ( $left ? sprintf( 'Quedan %d documentos con copia por revisar.', $left ) : 'Revisión completa: todos los documentos con copia están revisados.' );
+			} elseif ( 'recover' === $done ) {
+				$msg = sprintf( 'Se recuperaron %d páginas desde su última revisión guardada.', $count ) . ( $left ? ' ' . sprintf( 'Quedan %d (sin revisión guardada de la que recuperar, o para el siguiente lote).', $left ) : '' );
 			} else {
 				$msg = sprintf( 'Se restauraron %d documentos a su versión original.', $count );
 			}
@@ -560,11 +662,20 @@ final class Migration {
 		if ( $backups ) {
 			echo '<p>' . esc_html( $repaired ? sprintf( 'Reglas de visibilidad: revisadas en los %d documentos con copia original.', $backups ) : sprintf( 'Reglas de visibilidad: %d documentos con copia original por revisar (la revisión también avanza sola al navegar por la administración).', $to_review ) ) . '</p>';
 		}
-		if ( ! $convertible && ! $blocked && ! $inventory ) {
+		if ( $overwritten ) {
+			echo '<div class="notice notice-error inline"><p>' . esc_html( sprintf( 'Hasta Migración 1.0.13, convertir una revisión escribía el resultado en la página a la que pertenece: %d páginas tienen ahora el contenido de una revisión anterior o de un autoguardado. «Recuperar desde la última revisión guardada» vuelve a convertir la última versión que se guardó en el editor de cada una; revísalas después.', count( $overwritten ) ) ) . '</p><ul style="list-style:disc;margin-left:20px">';
+			foreach ( $overwritten as $parent_id => $info ) {
+				$title = get_the_title( $parent_id );
+				echo '<li><a href="' . esc_url( admin_url( 'post.php?post=' . (int) $parent_id . '&action=elementor' ) ) . '">' . esc_html( '' !== $title ? $title : '#' . $parent_id ) . '</a> · ' . esc_html( sprintf( $info['autosave'] ? 'sobrescrita con el autoguardado del %s' : 'sobrescrita con la revisión del %s', $info['date'] ) ) . '</li>';
+			}
+			echo '</ul></div>';
+		}
+		if ( ! $convertible && ! $blocked && ! $inventory && ! $overwritten ) {
 			echo '<div class="notice notice-success inline"><p>Este sitio ya no tiene contenido heredado. Cuando todos los sitios estén así y revisados, puedes desinstalar Element Pack y DIGITALÍSIMO Migración.</p></div>';
 		}
 		$buttons = array(
 			'convert' => array( 'Convertir el siguiente lote', $active ? 0 : $convertible, 'button-primary' ),
+			'recover' => array( 'Recuperar desde la última revisión guardada', count( $overwritten ), 'button-primary' ),
 			'repair'  => array( $repaired ? 'Revisar de nuevo las reglas de visibilidad' : 'Recuperar reglas de visibilidad perdidas', $to_review, 'button-secondary' ),
 			'revert'  => array( 'Restaurar el siguiente lote al original', $backups, 'button-secondary' ),
 		);

@@ -28,12 +28,13 @@ final class Cli {
 	 *     wp digitalisimo-migration --url=https://sitio.example/
 	 *     wp digitalisimo-migration --convert --url=https://sitio.example/
 	 *     wp digitalisimo-migration --repair --url=https://sitio.example/   (reglas de visibilidad perdidas, desde la copia original)
+	 *     wp digitalisimo-migration --recover --url=https://sitio.example/  (páginas sobrescritas por la conversión de una revisión, desde su última revisión guardada)
 	 *     wp digitalisimo-migration --network
 	 */
 	public function __invoke( $args, $assoc ) {
 		if ( ! empty( $assoc['network'] ) ) {
-			if ( ! empty( $assoc['convert'] ) || ! empty( $assoc['revert'] ) || ! empty( $assoc['repair'] ) ) {
-				\WP_CLI::error( 'La conversión, la reparación y la restauración se lanzan sitio por sitio con --url.' );
+			if ( ! empty( $assoc['convert'] ) || ! empty( $assoc['revert'] ) || ! empty( $assoc['repair'] ) || ! empty( $assoc['recover'] ) ) {
+				\WP_CLI::error( 'La conversión, la reparación, la recuperación y la restauración se lanzan sitio por sitio con --url.' );
 			}
 			$rows = array();
 			foreach ( is_multisite() ? get_sites( array( 'number' => 0, 'fields' => 'ids' ) ) : array( get_current_blog_id() ) as $site_id ) {
@@ -49,6 +50,14 @@ final class Cli {
 		if ( ! empty( $assoc['repair'] ) ) {
 			$totals = Migration::repair_all();
 			\WP_CLI::success( sprintf( 'Reglas de visibilidad recuperadas en %d documentos (%d elementos).', $totals['documents'], $totals['elements'] ) );
+			return;
+		}
+		if ( ! empty( $assoc['recover'] ) ) {
+			$count = 0;
+			foreach ( array_keys( Migration::overwritten_parents() ) as $parent_id ) {
+				$count += Migration::recover_from_revision( $parent_id ) ? 1 : 0;
+			}
+			\WP_CLI::success( sprintf( 'Páginas recuperadas desde su última revisión guardada: %d', $count ) );
 			return;
 		}
 		if ( ! empty( $assoc['revert'] ) ) {

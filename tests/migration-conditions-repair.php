@@ -91,6 +91,10 @@ namespace {
 	function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['digi']['meta'][ $id ][ $key ] ?? ''; }
 	function update_post_meta( $id, $key, $value ) { $GLOBALS['digi']['meta'][ $id ][ $key ] = $value; $GLOBALS['digi']['writes'][] = $id . ':' . $key; return true; }
 	function delete_post_meta( $id, $key ) { unset( $GLOBALS['digi']['meta'][ $id ][ $key ] ); }
+	function get_metadata( $type, $id, $key, $single = false ) { return get_post_meta( $id, $key, $single ); }
+	function update_metadata( $type, $id, $key, $value ) { return update_post_meta( $id, $key, $value ); }
+	function add_metadata( $type, $id, $key, $value, $unique = false ) { return $unique && isset( $GLOBALS['digi']['meta'][ $id ][ $key ] ) ? false : update_post_meta( $id, $key, $value ); }
+	function delete_metadata( $type, $id, $key ) { delete_post_meta( $id, $key ); return true; }
 	function wp_slash( $v ) { return $v; }
 	function wp_json_encode( $v ) { return json_encode( $v ); }
 	function update_option( $n, $v, $a = true ) { $GLOBALS['digi']['options'][ $n ] = $v; return true; }
@@ -98,7 +102,7 @@ namespace {
 	function wp_doing_ajax() { return $GLOBALS['digi']['ajax'] ?? false; }
 	function wp_doing_cron() { return false; }
 	function current_user_can( $cap ) { return in_array( $cap, (array) ( $GLOBALS['digi']['caps'] ?? array() ), true ); }
-	$GLOBALS['wpdb'] = new class() { public $postmeta = 'wp_postmeta'; public function prepare( $q ) { return $q; } public function esc_like( $s ) { return $s; } public function get_col( $q ) { return false !== strpos( $q, "'_elementor_data'" ) ? ( $GLOBALS['digi']['documents'] ?? array() ) : $GLOBALS['digi']['backups']; } };
+	$GLOBALS['wpdb'] = new class() { public $postmeta = 'wp_postmeta'; public $posts = 'wp_posts'; public function prepare( $q ) { return $q; } public function esc_like( $s ) { return $s; } public function get_col( $q ) { return false !== strpos( $q, "'_elementor_data'" ) ? ( $GLOBALS['digi']['documents'] ?? array() ) : $GLOBALS['digi']['backups']; } };
 	$make = static function ( $id, $time, $with_rules = true ) use ( $legacy ) {
 		$settings = $with_rules ? array( 'title' => 'Agencia' ) + $legacy : array( 'title' => 'Agencia' );
 		$GLOBALS['digi']['meta'][ $id ][ Migration::BACKUP ] = json_encode( array( 'time' => $time, 'data' => json_encode( array( array( 'id' => 'w' . $id, 'elType' => 'widget', 'settings' => $settings ) ) ) ) );
@@ -158,5 +162,15 @@ namespace {
 	check_repair( 0 === $step['documents'] && 3 === $step['remaining'] && ! $step['done'] && ! isset( $GLOBALS['digi']['options'][ Migration::REPAIRED ] ), 'Terminada, el botón reinicia la pasada desde el principio sin cambiar lo ya reparado.' );
 	Migration::repair_once();
 	check_repair( '1' === (string) $GLOBALS['digi']['options'][ Migration::REPAIRED ], 'La recuperación automática continúa la pasada reiniciada hasta terminarla.' );
-	echo "DIGITALÍSIMO Migración: activación por defecto, conversión sin pérdida, reparación de reglas (por lotes reanudables) y lotes que saltan los documentos sin adaptador validados.\n";
+
+	// Conversión en memoria: idempotente y sin claves heredadas; la conversión guardada escribe en el id indicado (también una revisión).
+	$doc = array( array( 'id' => 'k1', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'x' ) + $legacy ) );
+	$GLOBALS['digi']['options']['element_pack_elementor_extend'] = array();
+	list( $out, $n ) = Migration::convert_data( $doc, 7 );
+	check_repair( 1 === $n && 'yes' === $out[0]['settings']['digitalisimo_visibility_enable'] && ! isset( $out[0]['settings']['ep_display_conditions'] ) && ! Native::is_convertible( $out[0] ), 'La conversión en memoria pasa las reglas y no deja claves heredadas.' );
+	list( $again, $n2 ) = Migration::convert_data( $out, 7 );
+	check_repair( 0 === $n2 && $again === $out, 'Convertir dos veces no cambia nada.' );
+	$GLOBALS['digi']['meta'][200] = array( '_elementor_data' => json_encode( $doc ) ); $GLOBALS['digi']['writes'] = array();
+	check_repair( 1 === Migration::convert_document( 200 )['native'] && array( '200:' . Migration::BACKUP, '200:_elementor_data' ) === $GLOBALS['digi']['writes'] && 'yes' === json_decode( $GLOBALS['digi']['meta'][200]['_elementor_data'], true )[0]['settings']['digitalisimo_visibility_enable'], 'La conversión guarda copia y resultado en el documento indicado, sin redirigir al padre.' );
+	echo "DIGITALÍSIMO Migración: activación por defecto, conversión sin pérdida, reparación de reglas (por lotes reanudables), lotes que saltan los documentos sin adaptador y escritura en el documento indicado validados.\n";
 }
