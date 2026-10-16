@@ -47,6 +47,10 @@ final class Legacy_Rules {
 	public static function enabled_on_site() {
 		$options = get_option( 'element_pack_elementor_extend', null );
 		$enabled = ! is_array( $options ) || ! isset( $options['visibility-controls'] ) || 'off' !== $options['visibility-controls'];
+		// Element Pack consultaba además su filtro antes de cargar la extensión.
+		if ( $enabled && has_filter( 'elementpack/extend/visibility_controls' ) ) {
+			$enabled = (bool) apply_filters( 'elementpack/extend/visibility_controls', true );
+		}
 		return (bool) apply_filters( 'digitalisimo_elements_legacy_visibility', $enabled );
 	}
 
@@ -282,26 +286,19 @@ final class Legacy_Rules {
 		return self::compare( $show, $relation );
 	}
 
+	/**
+	 * Mismas cookies que Element Pack (`bdt-visit-count-<id>` y `_ep_<md5(host)><id>`). Element Pack abría un buffer de
+	 * salida en todas las páginas para poder escribirlas al pintar; aquí lo abre Visitor_Content sólo cuando la página
+	 * usa estas reglas. Las sesiones se distinguen con la cookie de sesión del navegador en lugar de session_start().
+	 */
 	private static function rule_visit_count( $relation, $val, $row, $element_id ) {
-		$cookie = 'bdt-visit-count-' . $element_id;
-		$count  = isset( $_COOKIE[ $cookie ] ) ? absint( $_COOKIE[ $cookie ] ) + 1 : 0;
-		if ( ! headers_sent() ) {
-			setcookie( $cookie, (string) $count ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.cookies_setcookie
-		}
-		$show = is_array( $val ) && ! empty( $val ) ? in_array( $count, $val, true ) : $val > $count;
+		$count = Visitor::visit_count( $element_id, 'bdt-visit-count-' );
+		$show  = is_array( $val ) && ! empty( $val ) ? in_array( $count, $val, true ) : $val > $count;
 		return self::compare( $show, $relation );
 	}
-
-	/** Sin sesiones PHP en páginas públicas: se lee el contador guardado, pero no se incrementa. */
 	private static function rule_session_count( $relation, $val, $row, $element_id ) {
-		$host   = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
-		$cookie = '_ep_' . md5( $host ) . $element_id;
-		$count  = false;
-		if ( isset( $_COOKIE[ $cookie ] ) ) {
-			$data  = json_decode( stripslashes( sanitize_text_field( wp_unslash( $_COOKIE[ $cookie ] ) ) ), true );
-			$count = is_array( $data ) && isset( $data['count'] ) ? $data['count'] : false;
-		}
-		$show = is_array( $val ) && ! empty( $val ) ? in_array( $count, $val, true ) : $val >= $count;
+		$count = Visitor::session_count( $element_id, '_ep_' );
+		$show  = is_array( $val ) && ! empty( $val ) ? in_array( $count, $val, true ) : $val >= $count;
 		return self::compare( $show, $relation );
 	}
 
@@ -321,7 +318,8 @@ final class Legacy_Rules {
 	/** Acepta el código guardado por versiones actuales o el nombre en inglés de las antiguas. */
 	public static function country_code( $value ) {
 		static $names;
-		$value = strtolower( trim( (string) $value ) );
+		$value = trim( (string) $value );
+		$value = function_exists( 'mb_strtolower' ) ? mb_strtolower( $value, 'UTF-8' ) : strtolower( $value );
 		if ( preg_match( '/^[a-z]{2}$/', $value ) ) {
 			return $value;
 		}
@@ -545,6 +543,7 @@ final class Legacy_Rules {
 	}
 
 	/** Valor del campo ACF en la entrada actual o en una página de opciones. */
+	/** Como Element Pack: sin nombre de campo la regla no se evalúa; con un campo que ya no existe se compara con null. */
 	private static function acf_field( $row ) {
 		$key = $row['ep_condition_' . $row['ep_condition_key'] . '_name'] ?? '';
 		if ( ! $key || ! function_exists( 'get_field_object' ) ) {
@@ -552,7 +551,7 @@ final class Legacy_Rules {
 		}
 		$field = get_field_object( $key );
 		if ( ! is_array( $field ) ) {
-			return null;
+			return array( array(), null );
 		}
 		$options = array();
 		if ( function_exists( 'acf_options_page' ) && function_exists( 'acf_get_field_groups' ) ) {

@@ -54,6 +54,7 @@ namespace {
 	$GLOBALS['digi']['cart'] = new Fake_Cart();
 	function add_action( $hook, $callback ) { $GLOBALS['digi']['hooks'][] = $hook; }
 	function add_filter( $hook, $callback ) { $GLOBALS['digi']['hooks'][] = $hook; }
+	function has_filter( $hook ) { return isset( $GLOBALS['digi']['has_filter'][ $hook ] ); }
 	function apply_filters( $hook, $value ) { return array_key_exists( $hook, $GLOBALS['digi']['filters'] ?? array() ) ? $GLOBALS['digi']['filters'][ $hook ] : $value; }
 	function sanitize_text_field( $value ) { return trim( strip_tags( (string) $value ) ); }
 	function sanitize_textarea_field( $value ) { return trim( (string) $value ); }
@@ -141,6 +142,12 @@ namespace {
 	// País: código actual, nombre antiguo y desconocido como Element Pack.
 	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_country'] = 'MX';
 	check_legacy( Rules::check( 'country', $rule( 'country', array( 'mx' ) ) ) && Rules::check( 'country', $rule( 'country', array( 'Mexico' ) ) ) && Rules::check( 'country', $rule( 'country', array( 'united states' ), array( 'operator' => 'not' ) ) ), 'El país admite códigos y nombres antiguos.' );
+	check_legacy( 'ci' === Rules::country_code( "Côte d'Ivoire" ) && 'ax' === Rules::country_code( 'Åland Islands' ) && 'kp' === Rules::country_code( "Korea, Democratic People's Republic of" ) && 'la' === Rules::country_code( "Lao People's Democratic Republic" ) && 'mx' === Rules::country_code( 'MX' ), 'Los nombres de país con acento o apóstrofe que Element Pack resolvía también se resuelven.' );
+	$GLOBALS['digi']['has_filter']['elementpack/extend/visibility_controls'] = true;
+	$GLOBALS['digi']['filters']['elementpack/extend/visibility_controls'] = false;
+	check_legacy( ! Rules::enabled_on_site(), 'El filtro de Element Pack que apagaba la extensión se respeta.' );
+	unset( $GLOBALS['digi']['has_filter']['elementpack/extend/visibility_controls'], $GLOBALS['digi']['filters']['elementpack/extend/visibility_controls'] );
+	check_legacy( Rules::enabled_on_site(), 'Sin el filtro la extensión sigue activa.' );
 	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_country'] = '';
 	check_legacy( ! Rules::check( 'country', $rule( 'country', array( 'mx' ) ) ) && Rules::check( 'country', $rule( 'country', array( 'mx' ), array( 'operator' => 'not' ) ) ), 'País desconocido: «no es» se cumple, como en Element Pack.' );
 
@@ -154,7 +161,7 @@ namespace {
 	$GLOBALS['digi']['user'] = 9;
 	check_legacy( Rules::check( 'last_purchased_date', $rule( 'last_purchased_date', '2026-03-10' ) ) && Rules::check( 'purchased_date', $rule( 'purchased_date', '2026-03-10' ) ) && ! Rules::check( 'purchased_date', $rule( 'purchased_date', '2026/03/10' ) ), 'Fechas de compra completada.' );
 	check_legacy( Rules::check( 'orders_placed', $rule( 'orders_placed', 1, array( 'ep_condition_addition_operator' => 'equal' ) ) ), 'Pedidos realizados.' );
-	check_legacy( Rules::check( 'acf_boolean', $rule( 'acf_boolean', 'true', array( 'ep_condition_acf_boolean_name' => 'field_promo' ) ) ) && null === Rules::check( 'acf_boolean', $rule( 'acf_boolean', 'true', array( 'ep_condition_acf_boolean_name' => 'field_otro' ) ) ), 'Campo ACF verdadero/falso.' );
+	check_legacy( Rules::check( 'acf_boolean', $rule( 'acf_boolean', 'true', array( 'ep_condition_acf_boolean_name' => 'field_promo' ) ) ) && false === Rules::check( 'acf_boolean', $rule( 'acf_boolean', 'true', array( 'ep_condition_acf_boolean_name' => 'field_otro' ) ) ) && true === Rules::check( 'acf_boolean', $rule( 'acf_boolean', 'true', array( 'ep_condition_acf_boolean_name' => 'field_otro', 'operator' => 'not' ) ) ) && null === Rules::check( 'acf_boolean', $rule( 'acf_boolean', 'true', array( 'ep_condition_acf_boolean_name' => '' ) ) ), 'Campo ACF verdadero/falso; un campo que ya no existe compara con vacío como Element Pack (con «no es» se muestra) y sin nombre no se evalúa.' );
 
 	// Integración con Elementor: controles con los mismos nombres y valores por defecto.
 	Legacy_Visibility::init();
@@ -195,7 +202,7 @@ namespace {
 	$GLOBALS['digi']['hooks'] = array();
 	define( 'BDTEP_VER', '9.9.1' );
 	Legacy_Visibility::init();
-	check_legacy( array( 'digitalisimo_elements_visitor_content_markers', 'digitalisimo_elements_visitor_content_conditions' ) === $GLOBALS['digi']['hooks'], 'Con Element Pack activo no se compite por sus controles; sólo se anuncian sus reglas al contenido por visitante.' );
+	check_legacy( array( 'digitalisimo_elements_visitor_content_markers', 'digitalisimo_elements_visitor_content_conditions', 'digitalisimo_elements_visit_count_fallbacks', 'digitalisimo_elements_session_count_fallback', 'digitalisimo_elements_visitor_timezone_cookies' ) === $GLOBALS['digi']['hooks'], 'Con Element Pack activo no se compite por sus controles; sólo se anuncian sus reglas al contenido por visitante y sus cookies como semilla.' );
 
 	echo "DIGITALÍSIMO Elements: condiciones heredadas de Element Pack validadas.\n";
 }

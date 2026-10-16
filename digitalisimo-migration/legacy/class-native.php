@@ -277,7 +277,7 @@ final class Native {
 		$css = array();
 
 		// Visibilidad: las reglas se conservan siempre; sólo se aplican si Element Pack las aplicaba en este sitio.
-		$s = self::visibility_settings( $s ) + $s;
+		$s = self::apply_visibility( $s );
 
 		// Figuras.
 		if ( isset( $s['bdt_shape_builder_enable'] ) || isset( $s['bdt_shape_builder_list'] ) ) {
@@ -364,6 +364,31 @@ final class Native {
 		);
 	}
 
+	/**
+	 * Aplica las reglas heredadas convertidas sobre los ajustes del elemento. Unas reglas propias ya presentes (de una
+	 * conversión o reparación anterior, o pegadas con «Pegar estilo») sólo se sustituyen si las heredadas estaban activas.
+	 */
+	public static function apply_visibility( array $s ) {
+		$legacy = self::visibility_settings( $s );
+		if ( ! $legacy ) {
+			return $s;
+		}
+		if ( 'yes' === $legacy['digitalisimo_visibility_enable'] || ! self::has_own_rules( $s ) ) {
+			return $legacy + $s;
+		}
+		return $s;
+	}
+
+	/** ¿El elemento ya tiene reglas propias (`digitalisimo_visibility_*`)? */
+	public static function has_own_rules( array $s ) {
+		foreach ( array_keys( $s ) as $key ) {
+			if ( 0 === strpos( (string) $key, 'digitalisimo_visibility_' ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Como Legacy_Rules::enabled_on_site(): Element Pack trae la extensión activa por defecto; sólo un «off» guardado la apaga. */
 	private static function visibility_enabled_on_site() {
 		if ( class_exists( '\\Digitalisimo\\Elements\\Conditions\\Legacy_Rules' ) ) {
@@ -387,7 +412,8 @@ final class Native {
 		}
 		$out = array();
 		foreach ( (array) $values as $value ) {
-			$value = strtolower( trim( (string) $value ) );
+			$value = trim( (string) $value );
+			$value = function_exists( 'mb_strtolower' ) ? mb_strtolower( $value, 'UTF-8' ) : strtolower( $value );
 			$code  = preg_match( '/^[a-z]{2}$/', $value ) ? $value : (string) ( $names[ $value ] ?? '' );
 			if ( '' !== $code ) {
 				$out[] = $code;

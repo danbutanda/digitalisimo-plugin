@@ -51,6 +51,9 @@ final class Visitor_Content {
 		'single_product_price', 'single_product_stock', 'single_product_category', 'single_product_downloadable', 'single_product_virtual', 'single_product_featured', 'single_product_backorder', 'single_product_onsale', 'single_product_sold_individually', 'single_product_type',
 	);
 
+	/** Reglas que escriben cookies al pintar: la página se bufferiza para que lleguen a tiempo (el constructor de origen bufferizaba todas). */
+	const COOKIE_CONDITIONS = array( 'visit_count', 'session_count' );
+
 	/** Ubicaciones del Theme Builder que se imprimen con la página (las ventanas van en el pie). */
 	const THEME_LOCATIONS = array( 'header', 'footer', 'single', 'archive', 'popup' );
 
@@ -163,9 +166,14 @@ final class Visitor_Content {
 	 * condiciones de cada elemento.
 	 */
 	public static function has_visitor_conditions( $json ) {
+		return self::varies_by_visitor( self::document_condition_ids( $json ) );
+	}
+
+	/** Identificadores de todas las condiciones de un documento (`_elementor_data`), a cualquier profundidad; sin marcadores no se decodifica. */
+	public static function document_condition_ids( $json ) {
 		$json = (string) $json;
 		if ( '' === $json ) {
-			return false;
+			return array();
 		}
 		$found = false;
 		foreach ( self::markers() as $marker ) {
@@ -175,26 +183,34 @@ final class Visitor_Content {
 			}
 		}
 		if ( ! $found ) {
-			return false;
+			return array();
 		}
 		$elements = json_decode( $json, true );
-		return is_array( $elements ) && self::elements_vary( $elements );
+		$ids      = array();
+		if ( is_array( $elements ) ) {
+			self::collect_element_ids( $elements, $ids );
+		}
+		return array_values( array_unique( $ids ) );
 	}
 
-	private static function elements_vary( array $elements ) {
+	private static function collect_element_ids( array $elements, array &$ids ) {
 		foreach ( $elements as $element ) {
 			if ( ! is_array( $element ) ) {
 				continue;
 			}
 			$settings = isset( $element['settings'] ) && is_array( $element['settings'] ) ? $element['settings'] : array();
-			if ( $settings && self::is_conditioned( $settings ) ) {
-				return true;
+			if ( $settings ) {
+				$ids = array_merge( $ids, self::condition_ids( $settings ) );
 			}
-			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) && self::elements_vary( $element['elements'] ) ) {
-				return true;
+			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
+				self::collect_element_ids( $element['elements'], $ids );
 			}
 		}
-		return false;
+	}
+
+	/** ¿Alguna regla escribe cookies al pintar (visitas, sesiones)? Entonces la salida se bufferiza. */
+	public static function needs_buffer( array $ids ) {
+		return (bool) array_intersect( $ids, self::COOKIE_CONDITIONS );
 	}
 
 	/**
@@ -243,17 +259,34 @@ final class Visitor_Content {
 		return array_values( array_unique( array_filter( $ids ) ) );
 	}
 
-	/** Antes de la salida: si algún documento de la petición varía por visitante, la página no se guarda. */
+	/**
+	 * Antes de la salida: si algún documento de la petición varía por visitante, la página no se guarda; si alguna regla
+	 * escribe cookies al pintar, se abre un buffer de salida para que las cabeceras sigan abiertas (el constructor de
+	 * origen lo abría en todas las páginas; aquí sólo cuando hace falta).
+	 */
 	public static function flag_before_output() {
 		if ( self::$flagged || is_admin() || self::in_editor() || is_feed() || is_robots() || is_embed() ) {
 			return;
 		}
+		$ids = array();
 		foreach ( self::documents_to_scan() as $post_id ) {
-			if ( self::has_visitor_conditions( get_post_meta( $post_id, '_elementor_data', true ) ) ) {
-				self::flag_page();
-				return;
-			}
+			$ids = array_merge( $ids, self::document_condition_ids( get_post_meta( $post_id, '_elementor_data', true ) ) );
 		}
+		$ids = array_values( array_unique( $ids ) );
+		if ( self::needs_buffer( $ids ) && apply_filters( 'digitalisimo_elements_visitor_content_buffer', true ) ) {
+			self::$buffered = true;
+			ob_start();
+		}
+		if ( self::varies_by_visitor( $ids ) ) {
+			self::flag_page();
+		}
+	}
+
+	private static $buffered = false;
+
+	/** ¿Se abrió el buffer de salida en esta petición? */
+	public static function buffered() {
+		return self::$buffered;
 	}
 
 	public static function before_render( $element ) {
@@ -303,6 +336,7 @@ final class Visitor_Content {
 
 	/** Para las pruebas: vuelve al estado inicial de la petición. */
 	public static function reset() {
-		self::$flagged = false;
+		self::$flagged  = false;
+		self::$buffered = false;
 	}
 }

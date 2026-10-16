@@ -160,7 +160,8 @@ final class Visibility {
 
 	/** El editor siempre muestra el elemento; el sitio aplica las reglas. */
 	public static function should_render( $should_render, $element ) {
-		if ( \Elementor\Plugin::$instance->editor->is_edit_mode() || ! Visibility_Rules::enabled_on_site() ) {
+		// Otro motor ya decidió ocultarlo: no se reabre.
+		if ( false === $should_render || \Elementor\Plugin::$instance->editor->is_edit_mode() || ! Visibility_Rules::enabled_on_site() ) {
 			return $should_render;
 		}
 		$show = Visibility_Rules::should_show( (array) $element->get_settings(), $element->get_id() );

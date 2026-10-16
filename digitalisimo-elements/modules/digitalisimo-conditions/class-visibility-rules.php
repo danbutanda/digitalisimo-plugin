@@ -303,26 +303,15 @@ final class Visibility_Rules {
 		return self::compare( $show, $relation );
 	}
 
+	/** Las cookies se escriben al pintar: Visitor_Content abre un buffer de salida cuando la página usa estas reglas. */
 	private static function rule_visit_count( $relation, $val, $row, $element_id ) {
-		$cookie = 'digi-visit-count-' . $element_id;
-		$count  = isset( $_COOKIE[ $cookie ] ) ? absint( $_COOKIE[ $cookie ] ) + 1 : 0;
-		if ( ! headers_sent() ) {
-			setcookie( $cookie, (string) $count ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.cookies_setcookie
-		}
-		$show = is_array( $val ) && ! empty( $val ) ? in_array( $count, $val, true ) : $val > $count;
+		$count = Visitor::visit_count( $element_id, 'digi-visit-count-', array_map( 'strval', (array) apply_filters( 'digitalisimo_elements_visit_count_fallbacks', array() ) ) );
+		$show  = is_array( $val ) && ! empty( $val ) ? in_array( $count, $val, true ) : $val > $count;
 		return self::compare( $show, $relation );
 	}
-
-	/** Sin sesiones PHP en páginas públicas: se lee el contador guardado, pero no se incrementa. */
 	private static function rule_session_count( $relation, $val, $row, $element_id ) {
-		$host   = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
-		$cookie = '_digi_' . md5( $host ) . $element_id;
-		$count  = false;
-		if ( isset( $_COOKIE[ $cookie ] ) ) {
-			$data  = json_decode( stripslashes( sanitize_text_field( wp_unslash( $_COOKIE[ $cookie ] ) ) ), true );
-			$count = is_array( $data ) && isset( $data['count'] ) ? $data['count'] : false;
-		}
-		$show = is_array( $val ) && ! empty( $val ) ? in_array( $count, $val, true ) : $val >= $count;
+		$count = Visitor::session_count( $element_id, '_digi_', (string) apply_filters( 'digitalisimo_elements_session_count_fallback', '' ) );
+		$show  = is_array( $val ) && ! empty( $val ) ? in_array( $count, $val, true ) : $val >= $count;
 		return self::compare( $show, $relation );
 	}
 

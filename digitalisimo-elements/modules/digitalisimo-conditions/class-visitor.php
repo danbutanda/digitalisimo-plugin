@@ -7,7 +7,81 @@ defined( 'ABSPATH' ) || exit;
 final class Visitor {
 	const TIMEZONE_COOKIE = 'digi_visitor_tz';
 
+	/** Cookie de sesión del navegador (sin caducidad) que sustituye a session_start() para contar sesiones. */
+	const SESSION_COOKIE = 'digi_session';
+
 	private static $timezone_script = false;
+
+	/** Cookies escritas en esta petición (nombre → valor), para diagnósticos y pruebas. */
+	public static $written = array();
+
+	private static function write_cookie( $name, $value, $expires = 0 ) {
+		self::$written[ $name ] = (string) $value;
+		if ( headers_sent() ) {
+			return false;
+		}
+		return setcookie( $name, (string) $value, (int) $expires, '/' ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.cookies_setcookie
+	}
+
+	/**
+	 * Visitas de un elemento, como en el constructor de origen: una cookie por elemento con el total, que se incrementa en cada
+	 * página que lo evalúa; sin cookie la visita cuenta como 0. $fallbacks son prefijos de cookies anteriores (de un
+	 * plugin de compatibilidad) que sirven de semilla cuando la propia no existe.
+	 */
+	public static function visit_count( $element_id, $prefix = 'digi-visit-count-', array $fallbacks = array() ) {
+		$name = $prefix . $element_id;
+		$raw  = null;
+		foreach ( array_merge( array( $prefix ), $fallbacks ) as $candidate ) {
+			if ( isset( $_COOKIE[ $candidate . $element_id ] ) ) {
+				$raw = $_COOKIE[ $candidate . $element_id ];
+				break;
+			}
+		}
+		$count = null === $raw ? 0 : absint( $raw ) + 1;
+		self::write_cookie( $name, $count );
+		return $count;
+	}
+
+	/** Identificador de la sesión del navegador: se crea la primera vez y vive mientras el navegador siga abierto. */
+	public static function session_id() {
+		static $id = null;
+		if ( null !== $id ) {
+			return $id;
+		}
+		$id = isset( $_COOKIE[ self::SESSION_COOKIE ] ) ? preg_replace( '/[^A-Za-z0-9]/', '', (string) wp_unslash( $_COOKIE[ self::SESSION_COOKIE ] ) ) : '';
+		if ( '' === $id ) {
+			$id = wp_generate_password( 20, false, false );
+			self::write_cookie( self::SESSION_COOKIE, $id );
+		}
+		return $id;
+	}
+
+	/**
+	 * Sesiones de un elemento, como en el constructor de origen: una cookie de un año por elemento con {user_id, count}; cuando la
+	 * sesión del navegador cambia, cuenta una más. Sin cookie previa se crea con 1 y devuelve false (así lo hacía
+	 * el origen: la primera sesión no se compara). $fallback es el prefijo de la cookie anterior que sirve de semilla.
+	 */
+	public static function session_count( $element_id, $prefix = '_digi_', $fallback = '' ) {
+		$host    = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+		$name    = $prefix . md5( $host ) . $element_id;
+		$raw     = $_COOKIE[ $name ] ?? ( '' !== $fallback ? ( $_COOKIE[ $fallback . md5( $host ) . $element_id ] ?? null ) : null );
+		$session = self::session_id();
+		$expires = time() + YEAR_IN_SECONDS;
+		if ( null === $raw ) {
+			self::write_cookie( $name, wp_json_encode( array( 'user_id' => $session, 'count' => 1 ) ), $expires );
+			return false;
+		}
+		$data = json_decode( stripslashes( sanitize_text_field( wp_unslash( $raw ) ) ), true );
+		if ( ! is_array( $data ) || ! isset( $data['count'] ) ) {
+			return false;
+		}
+		$count = (int) $data['count'];
+		if ( ! isset( $data['user_id'] ) || (string) $data['user_id'] !== (string) $session ) {
+			++$count;
+			self::write_cookie( $name, wp_json_encode( array( 'user_id' => $session, 'count' => $count ) ), $expires );
+		}
+		return $count;
+	}
 
 	public static function user_agent() {
 		return isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
@@ -65,10 +139,17 @@ final class Visitor {
 
 	/** La zona horaria del sistema sobrevive a una VPN; se valida contra la lista IANA. */
 	private static function timezone_country() {
-		if ( empty( $_COOKIE[ self::TIMEZONE_COOKIE ] ) ) {
+		$zone = '';
+		// La cookie propia y, si no existe, las que dejó un plugin anterior (las declara un plugin de compatibilidad).
+		foreach ( array_merge( array( self::TIMEZONE_COOKIE ), array_map( 'strval', (array) apply_filters( 'digitalisimo_elements_visitor_timezone_cookies', array() ) ) ) as $cookie ) {
+			if ( ! empty( $_COOKIE[ $cookie ] ) ) {
+				$zone = sanitize_text_field( wp_unslash( $_COOKIE[ $cookie ] ) );
+				break;
+			}
+		}
+		if ( '' === $zone ) {
 			return '';
 		}
-		$zone = sanitize_text_field( wp_unslash( $_COOKIE[ self::TIMEZONE_COOKIE ] ) );
 		if ( ! in_array( $zone, timezone_identifiers_list(), true ) ) {
 			return '';
 		}

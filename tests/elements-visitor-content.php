@@ -102,6 +102,11 @@ namespace {
 	check_vc( VC::has_visitor_conditions( $doc( '{"digitalisimo_visibility_enable":"yes","digitalisimo_visibility_rules":[{"rule_key":"url_parameters"}]}' ) ) && ! VC::has_visitor_conditions( $doc( '{"digitalisimo_visibility_enable":"yes","digitalisimo_visibility_rules":[{"rule_key":"authentication"}]}' ) ) && ! VC::has_visitor_conditions( $doc( '{"digitalisimo_visibility_enable":""}' ) ) && ! VC::has_visitor_conditions( $doc( '{"ep_display_conditions_enable":"yes","ep_display_conditions":[{"ep_condition_key":"browser"}]}' ) ), 'Las reglas propias se clasifican por su clave; las de un motor ausente no cuentan.' );
 	check_vc( VC::has_visitor_conditions( '[{"id":"x","elType":"container","settings":{},"elements":[{"id":"y","elType":"container","settings":{},"elements":[{"id":"z","elType":"widget","settings":' . $native( 'digitalisimo_language' ) . '}]}]}]' ), 'Se recorren los hijos a cualquier profundidad.' );
 
+	// Identificadores de todo el documento y buffer de salida para las reglas que escriben cookies.
+	check_vc( array( 'digitalisimo_language' ) === VC::document_condition_ids( $doc( $native( 'digitalisimo_language' ) ) ) && array() === VC::document_condition_ids( $doc( '{"title":"Hola"}' ) ) && array( 'authentication', 'country' ) === VC::document_condition_ids( $doc( json_encode( $own_settings ) ) ), 'Se enumeran las condiciones de todos los elementos del documento.' );
+	check_vc( VC::needs_buffer( array( 'login_status', 'visit_count' ) ) && VC::needs_buffer( array( 'session_count' ) ) && ! VC::needs_buffer( array( 'digitalisimo_country', 'authentication' ) ) && ! VC::needs_buffer( array() ), 'Sólo visitas y sesiones necesitan el buffer de salida.' );
+	check_vc( ! VC::varies_by_visitor( array( 'authentication' ) ) && VC::varies_by_visitor( array( 'visit_count' ) ), 'Las visitas varían por visitante (la página no se guarda).' );
+
 	// Documentos a revisar: el de la URL si está construido con el editor, más las ubicaciones del Theme Builder que su plantilla imprime.
 	check_vc( array() === VC::documents_to_scan(), 'Una página sin «construido con Elementor» no se revisa.' );
 	$GLOBALS['digi']['meta'][12]['_elementor_edit_mode'] = 'builder';
@@ -170,6 +175,27 @@ namespace {
 	check_vc( 2 === $GLOBALS['digi']['headers'], 'Una página devuelta al editor de WordPress conserva su JSON pero ya no cuenta.' );
 	$GLOBALS['digi']['meta'][12]['_elementor_edit_mode'] = 'builder';
 	VC::reset();
+	// Buffer de salida: sólo cuando el documento usa visitas o sesiones; un filtro del sitio lo desactiva.
+	$level = ob_get_level();
+	$GLOBALS['digi']['meta'][12]['_elementor_data'] = $doc( '{"digitalisimo_visibility_enable":"yes","digitalisimo_visibility_rules":[{"rule_key":"visit_count"}]}' );
+	VC::flag_before_output();
+	check_vc( VC::buffered() && ob_get_level() === $level + 1 && 3 === $GLOBALS['digi']['headers'], 'Con «Número de visitas» se abre el buffer y la página no se guarda en caché.' );
+	ob_end_clean();
+	VC::reset();
+	$GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_buffer'] = false;
+	VC::flag_before_output();
+	check_vc( ! VC::buffered() && ob_get_level() === $level, 'Un filtro del sitio evita el buffer.' );
+	unset( $GLOBALS['digi']['filters']['digitalisimo_elements_visitor_content_buffer'] );
+	VC::reset();
+	$GLOBALS['digi']['meta'][12]['_elementor_data'] = $doc( $native( 'digitalisimo_country' ) );
+	VC::flag_before_output();
+	check_vc( ! VC::buffered() && ob_get_level() === $level, 'Sin esas reglas no se abre ningún buffer.' );
+	VC::reset();
+	// Si otro motor ya ocultó el elemento, el propio no lo reabre.
+	$hidden = new class() { public function get_settings() { return array( 'digitalisimo_visibility_enable' => 'yes', 'digitalisimo_visibility_to' => 'show', 'digitalisimo_visibility_rules' => array( array( 'rule_key' => 'authentication', 'rule_operator' => 'is', 'rule_authentication_value' => 'authenticated' ) ) ); } public function get_id() { return 'e9'; } };
+	$GLOBALS['digi']['user'] = 9;
+	check_vc( true === Visibility::should_render( true, $hidden ) && false === Visibility::should_render( false, $hidden ), 'Un elemento que otro motor ocultó sigue oculto aunque las reglas propias lo mostrarían.' );
+	$GLOBALS['digi']['user'] = 0;
 
 	// Reglas del motor propio: usuario sin selección = cualquier usuario con sesión; rol guardado como lista; parámetros sin query.
 	$rule = static function ( $key, $value, $operator = 'is' ) {

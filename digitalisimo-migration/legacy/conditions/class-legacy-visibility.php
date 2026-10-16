@@ -24,6 +24,10 @@ final class Legacy_Visibility {
 		// Con o sin Element Pack, sus reglas se declaran al contenido por visitante (caché de página): sólo las que varían entre visitantes sacan la página de la caché.
 		add_filter( 'digitalisimo_elements_visitor_content_markers', array( __CLASS__, 'visitor_content_markers' ) );
 		add_filter( 'digitalisimo_elements_visitor_content_conditions', array( __CLASS__, 'visitor_content_conditions' ), 10, 2 );
+		// Las cookies que dejó Element Pack siguen valiendo para las reglas propias tras convertir: contadores y zona horaria.
+		add_filter( 'digitalisimo_elements_visit_count_fallbacks', array( __CLASS__, 'visit_count_fallbacks' ) );
+		add_filter( 'digitalisimo_elements_session_count_fallback', array( __CLASS__, 'session_count_fallback' ) );
+		add_filter( 'digitalisimo_elements_visitor_timezone_cookies', array( __CLASS__, 'timezone_cookies' ) );
 		if ( self::element_pack_active() ) {
 			return;
 		}
@@ -37,6 +41,22 @@ final class Legacy_Visibility {
 			add_filter( 'elementor/frontend/' . $element . '/should_render', array( __CLASS__, 'should_render' ), 10, 2 );
 		}
 		add_filter( 'elementor/element/is_dynamic_content', array( __CLASS__, 'is_dynamic_content' ), 10, 2 );
+	}
+
+	public static function visit_count_fallbacks( $prefixes ) {
+		$prefixes   = (array) $prefixes;
+		$prefixes[] = 'bdt-visit-count-';
+		return $prefixes;
+	}
+
+	public static function session_count_fallback( $prefix ) {
+		return '' === (string) $prefix ? '_ep_' : $prefix;
+	}
+
+	public static function timezone_cookies( $cookies ) {
+		$cookies   = (array) $cookies;
+		$cookies[] = 'ep_visitor_tz';
+		return $cookies;
 	}
 
 	/** Texto que delata reglas heredadas en el JSON guardado. */
@@ -169,7 +189,8 @@ final class Legacy_Visibility {
 
 	/** El editor siempre muestra el elemento; el frontend aplica las reglas como Element Pack. */
 	public static function should_render( $should_render, $element ) {
-		if ( \Elementor\Plugin::$instance->editor->is_edit_mode() || ! Legacy_Rules::enabled_on_site() ) {
+		// Otro motor ya decidió ocultarlo: no se reabre.
+		if ( false === $should_render || \Elementor\Plugin::$instance->editor->is_edit_mode() || ! Legacy_Rules::enabled_on_site() ) {
 			return $should_render;
 		}
 		$show = Legacy_Rules::should_show( (array) $element->get_settings(), $element->get_id() );

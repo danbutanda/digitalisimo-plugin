@@ -12,6 +12,7 @@ namespace {
 	function get_option( $name, $default = false ) { return array_key_exists( $name, $GLOBALS['digi']['options'] ) ? $GLOBALS['digi']['options'][ $name ] : $default; }
 	function apply_filters( $hook, $value ) { return $value; }
 	function add_action() {} function add_filter() {}
+	function has_filter( $hook ) { return isset( $GLOBALS['digi']['has_filter'][ $hook ] ); }
 	function check_repair( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
 	require __DIR__ . '/../digitalisimo-migration/legacy/conditions/class-legacy-rules.php';
@@ -70,5 +71,63 @@ namespace {
 	check_repair( 0 === $count2 && $again === $repaired, 'Reparar dos veces no cambia nada.' );
 	list( $same, $count3 ) = Migration::repair_conditions_data( $current, array( array( 'id' => 'z', 'elType' => 'widget', 'settings' => array() ) ) );
 	check_repair( 0 === $count3 && $same === $current, 'Sin reglas en el original no se toca el documento.' );
-	echo "DIGITALÍSIMO Migración: activación por defecto, conversión sin pérdida y reparación de reglas validadas.\n";
+	// La conversión no pisa reglas propias ya presentes salvo que las heredadas estuvieran activas.
+	$own_active = array( 'digitalisimo_visibility_enable' => 'yes', 'digitalisimo_visibility_to' => 'hide', 'digitalisimo_visibility_rules' => array( array( 'rule_key' => 'authentication' ) ) );
+	$GLOBALS['digi']['options']['element_pack_elementor_extend'] = array( 'visibility-controls' => 'off' );
+	$mixed = Native::apply_visibility( $own_active + array( 'ep_display_conditions' => $legacy['ep_display_conditions'] ) );
+	check_repair( 'yes' === $mixed['digitalisimo_visibility_enable'] && 'hide' === $mixed['digitalisimo_visibility_to'] && 'authentication' === $mixed['digitalisimo_visibility_rules'][0]['rule_key'], 'Reglas heredadas inactivas no pisan las propias.' );
+	$GLOBALS['digi']['options']['element_pack_elementor_extend'] = array();
+	$mixed = Native::apply_visibility( $own_active + $legacy );
+	check_repair( 'yes' === $mixed['digitalisimo_visibility_enable'] && 'hide' === $mixed['digitalisimo_visibility_to'] && 'static_page' === $mixed['digitalisimo_visibility_rules'][0]['rule_key'], 'Reglas heredadas activas (las que Element Pack aplicaba) sí sustituyen a las propias.' );
+	check_repair( array( 'title' => 'x' ) === Native::apply_visibility( array( 'title' => 'x' ) ) && Native::has_own_rules( $own_active ) && ! Native::has_own_rules( array( 'title' => 'x' ) ), 'Sin reglas heredadas no cambia nada.' );
+
+	// Interruptor encendido sin filas: Element Pack no pintaba el elemento; la reparación lo recupera.
+	$no_rows = array( array( 'id' => 'q1', 'elType' => 'widget', 'settings' => array( 'ep_display_conditions_enable' => 'yes', 'ep_display_conditions_to' => 'show', 'ep_display_conditions' => array() ) ) );
+	list( $fixed, $n ) = Migration::repair_conditions_data( array( array( 'id' => 'q1', 'elType' => 'widget', 'settings' => array( 'title' => 'x' ) ) ), $no_rows );
+	check_repair( 1 === $n && 'yes' === $fixed[0]['settings']['digitalisimo_visibility_enable'] && array() === $fixed[0]['settings']['digitalisimo_visibility_rules'], 'Un interruptor encendido sin filas también se recupera.' );
+
+	// Reparación por documento: prefiltro de texto, corte temporal y escritura sólo cuando cambia algo.
+	$GLOBALS['digi']['meta'] = array(); $GLOBALS['digi']['writes'] = array();
+	function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['digi']['meta'][ $id ][ $key ] ?? ''; }
+	function update_post_meta( $id, $key, $value ) { $GLOBALS['digi']['meta'][ $id ][ $key ] = $value; $GLOBALS['digi']['writes'][] = $id . ':' . $key; return true; }
+	function delete_post_meta( $id, $key ) { unset( $GLOBALS['digi']['meta'][ $id ][ $key ] ); }
+	function wp_slash( $v ) { return $v; }
+	function wp_json_encode( $v ) { return json_encode( $v ); }
+	function update_option( $n, $v, $a = true ) { $GLOBALS['digi']['options'][ $n ] = $v; return true; }
+	function delete_option( $n ) { unset( $GLOBALS['digi']['options'][ $n ] ); return true; }
+	function wp_doing_ajax() { return $GLOBALS['digi']['ajax'] ?? false; }
+	function wp_doing_cron() { return false; }
+	function current_user_can( $cap ) { return in_array( $cap, (array) ( $GLOBALS['digi']['caps'] ?? array() ), true ); }
+	$GLOBALS['wpdb'] = new class() { public $postmeta = 'wp_postmeta'; public function prepare( $q ) { return $q; } public function get_col( $q ) { return $GLOBALS['digi']['backups']; } };
+	$make = static function ( $id, $time, $with_rules = true ) use ( $legacy ) {
+		$settings = $with_rules ? array( 'title' => 'Agencia' ) + $legacy : array( 'title' => 'Agencia' );
+		$GLOBALS['digi']['meta'][ $id ][ Migration::BACKUP ] = json_encode( array( 'time' => $time, 'data' => json_encode( array( array( 'id' => 'w' . $id, 'elType' => 'widget', 'settings' => $settings ) ) ) ) );
+		$GLOBALS['digi']['meta'][ $id ]['_elementor_data'] = json_encode( array( array( 'id' => 'w' . $id, 'elType' => 'widget', 'settings' => array( 'title' => 'Agencia' ) ) ) );
+	};
+	$make( 1, 1000 ); $make( 2, 1000, false ); $make( 3, 5000 );
+	check_repair( 1 === Migration::repair_conditions( 1, 2000 ) && 0 === Migration::repair_conditions( 2, 2000 ) && 0 === Migration::repair_conditions( 3, 2000 ), 'Se repara el documento convertido antes del corte con reglas en la copia; sin reglas o posterior al corte, no.' );
+	check_repair( array( '1:_elementor_data' ) === array_values( array_filter( $GLOBALS['digi']['writes'], static function ( $w ) { return false !== strpos( $w, '_elementor_data' ); } ) ), 'Sólo se escribe el documento que cambió.' );
+	check_repair( 1 === Migration::repair_conditions( 3, 0 ), 'Sin corte (botón y WP-CLI) también se repara el posterior.' );
+
+	// Recuperación automática: por lotes reanudables, nunca en AJAX, sólo administradores, aviso al terminar.
+	$GLOBALS['digi']['options'] = array(); $GLOBALS['digi']['backups'] = range( 1, 60 );
+	for ( $i = 1; $i <= 60; $i++ ) { $make( $i, 1000 ); }
+	$GLOBALS['digi']['caps'] = array( 'edit_posts' );
+	Migration::repair_once();
+	check_repair( ! isset( $GLOBALS['digi']['options'][ Migration::REPAIR_CURSOR ] ), 'Un usuario sin manage_options no dispara la recuperación.' );
+	$GLOBALS['digi']['caps'] = array( 'manage_options' ); $GLOBALS['digi']['ajax'] = true;
+	Migration::repair_once();
+	check_repair( ! isset( $GLOBALS['digi']['options'][ Migration::REPAIR_CURSOR ] ), 'En AJAX no se repara nada.' );
+	$GLOBALS['digi']['ajax'] = false;
+	Migration::repair_once();
+	check_repair( 25 === (int) $GLOBALS['digi']['options'][ Migration::REPAIR_CURSOR ] && '1' !== (string) ( $GLOBALS['digi']['options'][ Migration::REPAIRED ] ?? '' ) && 25 === (int) $GLOBALS['digi']['options'][ Migration::REPAIR_TOTALS ]['documents'], 'Primer lote: 25 documentos y cursor guardado, sin dar por terminado.' );
+	Migration::repair_once();
+	Migration::repair_once();
+	check_repair( '1' === (string) $GLOBALS['digi']['options'][ Migration::REPAIRED ] && ! isset( $GLOBALS['digi']['options'][ Migration::REPAIR_CURSOR ] ) && 60 === (int) $GLOBALS['digi']['options'][ Migration::REPAIR_TOTALS ]['documents'], 'Tras tres lotes termina, borra el cursor y acumula el total.' );
+	$writes = count( $GLOBALS['digi']['writes'] );
+	Migration::repair_once();
+	check_repair( $writes === count( $GLOBALS['digi']['writes'] ), 'Terminada, no vuelve a tocar nada.' );
+	$GLOBALS['digi']['options'][ Migration::REPAIR_CUTOFF ] = 0;
+	check_repair( array( 'documents' => 0, 'elements' => 0 ) === Migration::repair_all( 10 ), 'Repetir sobre documentos ya reparados no cambia nada.' );
+	echo "DIGITALÍSIMO Migración: activación por defecto, conversión sin pérdida y reparación de reglas (por lotes) validadas.\n";
 }

@@ -24,32 +24,96 @@ final class Migration {
 
 	/** Opción del sitio que recuerda que las reglas perdidas ya se recuperaron una vez. */
 	const REPAIRED = 'digitalisimo_ep_conditions_repaired';
+	/** Último documento revisado por la recuperación automática (reanudable) y momento de la actualización que la estrenó. */
+	const REPAIR_CURSOR = 'digitalisimo_ep_conditions_repair_cursor';
+	const REPAIR_CUTOFF = 'digitalisimo_ep_conditions_repair_cutoff';
+	/** Resultado acumulado para avisar al terminar. */
+	const REPAIR_TOTALS = 'digitalisimo_ep_conditions_repair_totals';
+	/** Documentos por petición en la recuperación automática. */
+	const REPAIR_BATCH = 25;
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'network_admin_menu', array( __CLASS__, 'network_menu' ) );
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'handle' ) );
 		add_action( 'admin_init', array( __CLASS__, 'repair_once' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'repair_notice' ) );
 	}
 
 	/**
 	 * Hasta 1.0.10 la conversión descartaba las reglas de visibilidad cuando la opción de Element Pack del sitio no
-	 * tenía guardada la clave de la extensión (que viene activa por defecto). Una vez por sitio se recuperan desde la
-	 * copia original de cada documento convertido; después queda el botón y `wp digitalisimo-migration --repair`.
+	 * tenía guardada la clave de la extensión (que viene activa por defecto). Se recuperan desde la copia original de
+	 * cada documento convertido antes de la actualización, por lotes en cada carga de una pantalla de administración
+	 * (nunca en AJAX, REST ni cron, y sólo para quien administra el sitio) hasta terminar; después quedan el botón y
+	 * `wp digitalisimo-migration --repair`.
 	 */
 	public static function repair_once() {
-		if ( '1' === (string) get_option( self::REPAIRED, '' ) || ! current_user_can( 'edit_posts' ) ) {
+		if ( '1' === (string) get_option( self::REPAIRED, '' ) || wp_doing_ajax() || wp_doing_cron() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		update_option( self::REPAIRED, '1', false );
-		self::repair_all();
+		$cutoff = (int) get_option( self::REPAIR_CUTOFF, 0 );
+		if ( ! $cutoff ) {
+			$cutoff = time();
+			update_option( self::REPAIR_CUTOFF, $cutoff, false );
+		}
+		$cursor    = (int) get_option( self::REPAIR_CURSOR, 0 );
+		$totals    = (array) get_option( self::REPAIR_TOTALS, array( 'documents' => 0, 'elements' => 0 ) );
+		$processed = 0;
+		$done      = true;
+		foreach ( self::backups() as $post_id ) {
+			if ( $post_id <= $cursor ) {
+				continue;
+			}
+			if ( $processed >= self::REPAIR_BATCH ) {
+				$done = false;
+				break;
+			}
+			$count = self::repair_conditions( $post_id, $cutoff );
+			if ( $count ) {
+				$totals['documents'] = (int) ( $totals['documents'] ?? 0 ) + 1;
+				$totals['elements']  = (int) ( $totals['elements'] ?? 0 ) + $count;
+			}
+			$cursor = $post_id;
+			++$processed;
+		}
+		update_option( self::REPAIR_CURSOR, $cursor, false );
+		update_option( self::REPAIR_TOTALS, $totals, false );
+		if ( $done ) {
+			update_option( self::REPAIRED, '1', false );
+			delete_option( self::REPAIR_CURSOR );
+		}
 	}
 
-	/** @return array{documents:int, elements:int} */
-	public static function repair_all() {
+	/** Aviso único al terminar la recuperación automática, si cambió algo. */
+	public static function repair_notice() {
+		if ( '1' !== (string) get_option( self::REPAIRED, '' ) || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$totals = get_option( self::REPAIR_TOTALS, null );
+		if ( ! is_array( $totals ) ) {
+			return;
+		}
+		delete_option( self::REPAIR_TOTALS );
+		if ( empty( $totals['documents'] ) ) {
+			return;
+		}
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( 'DIGITALÍSIMO Migración recuperó reglas de visibilidad perdidas en %d documentos (%d elementos). Vacía la caché de página si la hay.', (int) $totals['documents'], (int) $totals['elements'] ) ) . '</p></div>';
+	}
+
+	/**
+	 * Recupera en todos los documentos con copia original (botón y WP-CLI). Con $limit, sólo un lote desde el inicio.
+	 *
+	 * @return array{documents:int, elements:int}
+	 */
+	public static function repair_all( $limit = 0 ) {
 		$totals = array( 'documents' => 0, 'elements' => 0 );
+		$cutoff = (int) get_option( self::REPAIR_CUTOFF, 0 );
+		$seen   = 0;
 		foreach ( self::backups() as $post_id ) {
-			$count = self::repair_conditions( $post_id );
+			if ( $limit && $seen++ >= $limit ) {
+				break;
+			}
+			$count = self::repair_conditions( $post_id, $cutoff );
 			if ( $count ) {
 				$totals['documents']++;
 				$totals['elements'] += $count;
@@ -58,10 +122,21 @@ final class Migration {
 		return $totals;
 	}
 
-	/** Devuelve a un documento convertido las reglas de visibilidad que su copia original tenía y él ya no. */
-	public static function repair_conditions( $post_id ) {
-		$backup = json_decode( (string) get_post_meta( $post_id, self::BACKUP, true ), true );
+	/**
+	 * Devuelve a un documento convertido las reglas de visibilidad que su copia original tenía y él ya no. Con $cutoff,
+	 * sólo documentos convertidos antes de ese momento (los posteriores ya se convirtieron bien); el texto de la copia
+	 * se inspecciona antes de decodificar nada.
+	 */
+	public static function repair_conditions( $post_id, $cutoff = 0 ) {
+		$raw = (string) get_post_meta( $post_id, self::BACKUP, true );
+		if ( '' === $raw || false === strpos( $raw, 'ep_display_conditions_enable' ) ) {
+			return 0;
+		}
+		$backup = json_decode( $raw, true );
 		if ( ! is_array( $backup ) || ! isset( $backup['data'] ) || ! is_string( $backup['data'] ) ) {
+			return 0;
+		}
+		if ( $cutoff && (int) ( $backup['time'] ?? 0 ) >= $cutoff ) {
 			return 0;
 		}
 		$original = json_decode( $backup['data'], true );
@@ -100,7 +175,8 @@ final class Migration {
 			}
 			$settings = isset( $element['settings'] ) && is_array( $element['settings'] ) ? $element['settings'] : array();
 			$id       = (string) ( $element['id'] ?? '' );
-			if ( '' !== $id && 'yes' === ( $settings['ep_display_conditions_enable'] ?? '' ) && ! empty( $settings['ep_display_conditions'] ) ) {
+			// También sin filas: con el interruptor encendido y «Mostrar», Element Pack no pintaba el elemento.
+			if ( '' !== $id && 'yes' === ( $settings['ep_display_conditions_enable'] ?? '' ) ) {
 				$out[ $id ] = Native::visibility_settings( $settings );
 			}
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
@@ -343,7 +419,7 @@ final class Migration {
 				$count += self::revert_document( $post_id ) ? 1 : 0;
 			}
 		} elseif ( 'repair' === $task ) {
-			$totals          = self::repair_all();
+			$totals          = self::repair_all( self::BATCH );
 			$count           = $totals['documents'];
 			$stats['native'] = $totals['elements'];
 		}
@@ -402,7 +478,7 @@ final class Migration {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;margin-right:8px">';
 			wp_nonce_field( self::ACTION . '_' . get_current_blog_id() );
 			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '"><input type="hidden" name="task" value="' . esc_attr( $task ) . '">';
-			submit_button( $button[0] . ' (' . ( 'repair' === $task ? $button[1] : min( self::BATCH, $button[1] ) ) . ')', $button[2], 'submit', false );
+			submit_button( $button[0] . ' (' . min( self::BATCH, $button[1] ) . ')', $button[2], 'submit', false );
 			echo '</form>';
 		}
 		echo '</div>';
