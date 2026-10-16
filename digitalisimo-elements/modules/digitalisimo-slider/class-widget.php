@@ -38,7 +38,7 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 
 		$this->start_controls_section( 'style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
-		$this->add_responsive_control( 'visible', array( 'label' => 'Elementos visibles', 'type' => $c::NUMBER, 'min' => 1, 'max' => 9, 'step' => 1, 'default' => 9, 'tablet_default' => 6, 'mobile_default' => 3, 'description' => 'Elige entre 1 y 9. Usa los iconos de escritorio, tableta y móvil para definir cada vista.', 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-visible: {{VALUE}};' ) ) );
+		$this->add_responsive_control( 'visible', array( 'label' => 'Elementos visibles', 'type' => $c::NUMBER, 'min' => 1, 'max' => 9, 'step' => 1, 'default' => 9, 'tablet_default' => 6, 'mobile_default' => 3, 'description' => 'Elige entre 1 y 9. Usa los iconos de escritorio, tableta y móvil para definir cada vista.', 'render_type' => 'template', 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-visible: {{VALUE}};' ) ) );
 		$this->add_responsive_control( 'gap', array( 'label' => 'Separación', 'type' => $c::SLIDER, 'size_units' => array( 'px', 'em', 'rem' ), 'range' => array( 'px' => array( 'min' => 0, 'max' => 100 ) ), 'default' => array( 'size' => 16, 'unit' => 'px' ), 'description' => 'Con imagen repetida y espejo, las mitades se unen sin separación.', 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-gap: {{SIZE}}{{UNIT}};' ) ) );
 		$this->add_responsive_control( 'max_width', array( 'label' => 'Ancho máximo por elemento', 'type' => $c::SLIDER, 'size_units' => array( 'px', 'em', 'rem' ), 'range' => array( 'px' => array( 'min' => 20, 'max' => 1000 ) ), 'selectors' => array( '{{WRAPPER}} .digi-slider' => '--digi-max-width: {{SIZE}}{{UNIT}};' ) ) );
 		$this->add_responsive_control( 'width', array( 'label' => 'Ancho del slider', 'type' => $c::SLIDER, 'size_units' => array( '%', 'px', 'vw' ), 'range' => array( '%' => array( 'min' => 1, 'max' => 100 ), 'px' => array( 'min' => 50, 'max' => 2000 ) ), 'selectors' => array( '{{WRAPPER}} .digi-slider' => 'width: {{SIZE}}{{UNIT}};' ) ) );
@@ -142,7 +142,17 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$mirror_repeat = $mirror && 'repeat' === ( $s['mode'] ?? 'multiple' );
 		$mirror_loop = $mirror_repeat && $infinite;
 		$loop_duration = 0;
-		$max_visible = max( 1, absint( $s['visible'] ?? 9 ), absint( $s['visible_tablet'] ?? 6 ), absint( $s['visible_mobile'] ?? 3 ) );
+		$loop_scale    = 0;
+		$sources_count = 0;
+		// Elementos visibles por dispositivo: un campo vacío usa el valor de la hoja de estilos (9, 6 y 3) y los
+		// breakpoints adicionales de Elementor (widescreen, laptop, tablet_extra, mobile_extra) también cuentan.
+		$visible_values = array();
+		foreach ( $s as $key => $value ) {
+			if ( ( 'visible' === $key || 0 === strpos( (string) $key, 'visible_' ) ) && ! is_array( $value ) && '' !== trim( (string) $value ) ) $visible_values[ $key ] = absint( $value );
+		}
+		$visible_values += array( 'visible' => 9, 'visible_tablet' => 6, 'visible_mobile' => 3 );
+		$max_visible = max( 1, max( $visible_values ) );
+		$natural     = 'yes' === ( $s['natural_width'] ?? '' ) && 'repeat' === ( $s['mode'] ?? 'multiple' );
 		$speed = is_numeric( $s['speed'] ?? null ) ? (float) $s['speed'] : 30.0;
 		// Hasta 4.3.0.148 el bucle se rellenaba hasta este largo: la duración configurada se ajustó sobre él y se conserva su velocidad.
 		$legacy_minimum = min( 30, max( 10, $max_visible ) );
@@ -152,22 +162,28 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 			if ( $previous_count % 2 ) ++$previous_count;
 			$loop_duration = max( 2.0, min( 600.0, $speed ) * 2 / $previous_count );
 			// Dos mitades forman el ciclo completo; el segundo grupo repite ese ciclo.
-			$items = array( $items[0], $items[0] );
+			$items         = array( $items[0], $items[0] );
+			$sources_count = 1;
 		} elseif ( $infinite ) {
 			$source = $items;
 			$ids    = array();
 			foreach ( $items as $item ) $ids[ absint( $item['image']['id'] ?? 0 ) . '|' . (string) ( $item['alt'] ?? '' ) . '|' . (string) ( $item['link']['url'] ?? '' ) ] = true;
-			// Varias copias de la misma imagen son una sola: el bucle la repite cuantas veces haga falta.
-			if ( 1 === count( $ids ) ) $source = array( $items[0] );
+			// Varias copias de la misma imagen son una sola: el bucle la repite cuantas veces haga falta y se anuncia una vez.
+			if ( 1 === count( $ids ) ) {
+				$source           = array( $items[0] );
+				$accessible_count = 1;
+			}
 			$previous_count = max( $legacy_minimum, count( $items ) );
 			if ( $mirror && $previous_count % 2 ) ++$previous_count;
-			// Un grupo cubre el viewport más un elemento en el dispositivo más exigente; con espejo, par.
-			$need = $max_visible + 1;
+			// Un grupo cubre el viewport más un elemento en el dispositivo más exigente; con espejo, par. Con «Ancho natural»
+			// cada copia mide lo que mide la imagen, no una fracción del viewport: se conserva el largo anterior.
+			$need = $natural ? $legacy_minimum : $max_visible + 1;
 			if ( $mirror && $need % 2 ) ++$need;
 			$items = array();
 			while ( count( $items ) < $need || count( $items ) < count( $source ) || ( $mirror && count( $items ) % 2 ) ) $items[] = $source[ count( $items ) % count( $source ) ];
+			$sources_count = count( $source );
 			// La duración es la de un grupo: si el grupo cambió de largo, se escala para que la velocidad lineal sea la misma.
-			if ( count( $items ) !== $previous_count ) $loop_duration = max( 1.0, min( 600.0, $speed ) * count( $items ) / $previous_count );
+			if ( count( $items ) !== $previous_count ) $loop_scale = max( 1 / max( 1.0, min( 600.0, $speed ) ), count( $items ) / $previous_count );
 		}
 		$classes = array( 'digi-slider' );
 		if ( $animate ) {
@@ -183,7 +199,8 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		if ( $mirror_loop ) $classes[] = 'digi-slider--mirror-loop';
 		if ( 'fixed' === ( $s['height_mode'] ?? 'auto' ) ) $classes[] = 'digi-slider--fixed';
 		$label = trim( (string) ( $s['label'] ?? '' ) );
-		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . ( $loop_duration > 0 ? ' style="--digi-loop-duration:' . esc_attr( round( $loop_duration, 3 ) . 's' ) . '"' : '' ) . ( $label ? ' role="group" aria-label="' . esc_attr( $label ) . '"' : '' ) . '><div class="digi-slider__viewport"><div class="digi-slider__track">';
+		$style = $loop_duration > 0 ? '--digi-loop-duration:' . round( $loop_duration, 3 ) . 's' : ( $loop_scale > 0 ? '--digi-loop-scale:' . round( $loop_scale, 4 ) : '' );
+		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . ( '' !== $style ? ' style="' . esc_attr( $style ) . '"' : '' ) . ( $sources_count ? ' data-digi-sources="' . (int) $sources_count . '"' : '' ) . ( $label ? ' role="group" aria-label="' . esc_attr( $label ) . '"' : '' ) . '><div class="digi-slider__viewport"><div class="digi-slider__track">';
 		$this->group( $items, $s, $mirror, false, $accessible_count );
 		if ( $infinite ) $this->group( $items, $s, $mirror, true, 0 );
 		echo '</div></div></div>';

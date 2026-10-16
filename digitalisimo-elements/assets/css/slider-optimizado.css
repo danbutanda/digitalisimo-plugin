@@ -15,12 +15,11 @@
 .digi-slider--natural .digi-slider__item img{max-width:none;width:auto}
 .digi-slider--mirror-loop .digi-slider__item{flex:0 0 100cqw!important;width:100cqw!important}
 .digi-slider--mirror-loop .digi-slider__item img{width:100%!important;max-width:100%!important;height:auto!important;border-radius:0!important}
-.digi-slider--infinite .digi-slider__track{animation:digi-slider-left var(--digi-loop-duration,var(--digi-duration)) linear infinite}
+.digi-slider--infinite .digi-slider__track{animation:digi-slider-left calc(var(--digi-loop-duration,var(--digi-duration))*var(--digi-loop-scale,1)*var(--digi-fit-scale,1)) linear infinite backwards}
 .digi-slider--infinite.digi-slider--right .digi-slider__track{animation-name:digi-slider-right}
-.digi-slider--once .digi-slider__track{animation:digi-slider-once-left var(--digi-duration) linear 1 forwards}
+.digi-slider--once .digi-slider__track{animation:digi-slider-once-left var(--digi-duration) linear 1 both}
 .digi-slider--once.digi-slider--right .digi-slider__track{animation-name:digi-slider-once-right}
 .digi-slider--pause:hover .digi-slider__track{animation-play-state:paused}
-.digi-slider--infinite .digi-slider__track,.digi-slider--once .digi-slider__track{animation-fill-mode:backwards}
 .digi-slider--preparing .digi-slider__track{animation-delay:3s}
 @keyframes digi-slider-left{to{transform:translate3d(-50%,0,0)}}
 @keyframes digi-slider-right{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(0,0,0)}}

@@ -55,7 +55,7 @@ async function inspect(page, { sample = true } = {}) {
         kept: groups.map((g) => g.children.length),
         itemWidth: +(widths[0] || 0).toFixed(2), gapEach: +((groupWidth - widths.reduce((a, b) => a + b, 0)) / Math.max(1, items.length)).toFixed(2),
         viewport: viewport.clientWidth, groupWidth: +groupWidth.toFixed(2), trackMinus2Groups: +(track.getBoundingClientRect().width - 2 * groupWidth).toFixed(2),
-        inlineDuration: track.style.animationDuration, duration: getComputedStyle(track).animationDuration, playState: getComputedStyle(track).animationPlayState,
+        fitScale: track.style.getPropertyValue('--digi-fit-scale'), duration: getComputedStyle(track).animationDuration, playState: getComputedStyle(track).animationPlayState, fillMode: getComputedStyle(track).animationFillMode,
         imagesComplete: images.filter((i) => i.complete && i.naturalWidth > 0).length, images: images.length,
         visibleIncomplete: images.filter((i) => { const r = i.getBoundingClientRect(); return r.width > 0 && r.right > 0 && r.left < innerWidth && !(i.complete && i.naturalWidth > 0); }).length,
         started: window.__digi ? window.__digi.started[key] : null,
@@ -87,11 +87,6 @@ async function inspect(page, { sample = true } = {}) {
   }, sample);
 }
 
-function need(entry) {
-  // La regla del script: elementos cuyo ancho acumulado (con separación) alcanza el viewport, más uno.
-  const unit = entry.itemWidth + entry.gapEach;
-  return Math.min(12, Math.ceil(entry.viewport / unit) + 1);
-}
 
 (async () => {
   const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'] });
@@ -102,7 +97,8 @@ function need(entry) {
     const state = await inspect(page);
     await page.screenshot({ path: `${out}/${mode.name}.png` }).catch(() => {});
     const near = ['Onda', 'Logos', 'Onda repetida'];
-    expect(Object.keys(state).length === 4, `${mode.name}: deben pintarse cuatro sliders (${Object.keys(state).join(', ')})`);
+    for (const key of near.concat(['Logos una pasada'])) expect(state[key] && !state[key].preparing, `${mode.name} · ${key}: debe arrancar (${JSON.stringify(state[key] && state[key].preparing)})`);
+    expect(Object.keys(state).length === 5, `${mode.name}: deben pintarse cinco sliders (${Object.keys(state).join(', ')})`);
     for (const key of near) {
       const s = state[key] || {};
       expect(!s.preparing && s.started !== null && s.started < 6000, `${mode.name} · ${key}: debe arrancar pronto (${JSON.stringify({ preparing: s.preparing, started: s.started })})`);
@@ -122,14 +118,27 @@ function need(entry) {
     const waveSpeed = wave.groupWidth / parseFloat(wave.duration);
     const waveExpected = (8 * wave.viewport) / 60;
     expect(Math.abs(waveSpeed - waveExpected) < 1, `${mode.name} · Onda: la velocidad debe ser la de ocho copias en 60 s (${waveSpeed.toFixed(1)} frente a ${waveExpected.toFixed(1)} px/s; duración ${wave.duration})`);
-    // Logos: doce distintos, recortados a los que cubren el viewport más uno, con la duración en proporción.
+    expect(wave.fitScale === '0.2500', `${mode.name} · Onda: la escala del recorte es 2/8 (${wave.fitScale})`);
+    // Logos: doce distintos se conservan enteros en cualquier pantalla, a la duración configurada.
     const logos = state.Logos || {};
-    const logosNeed = need(logos);
-    expect(logos.kept && logos.kept[0] === logosNeed && logos.kept[1] === logosNeed, `${mode.name} · Logos: ${logosNeed} por grupo (${JSON.stringify(logos.kept)}; unidad ${logos.itemWidth}+${logos.gapEach} en ${logos.viewport})`);
-    expect(logosNeed === 12 ? logos.inlineDuration === '' : Math.abs(parseFloat(logos.inlineDuration) - 100 * logosNeed / 12) < 0.5, `${mode.name} · Logos: duración en proporción (${logos.inlineDuration} para ${logosNeed}/12)`);
+    expect(logos.kept && logos.kept[0] === 12 && logos.kept[1] === 12 && logos.fitScale === '' && parseFloat(logos.duration) === 100, `${mode.name} · Logos: los doce distintos enteros a 100 s (${JSON.stringify(logos.kept)}, ${logos.fitScale}, ${logos.duration})`);
     // Onda repetida con espejo: dos mitades de siempre, con la duración equivalente de 6 s.
     const loop = state['Onda repetida'] || {};
-    expect(loop.kept && loop.kept[0] === 2 && loop.inlineDuration === '' && parseFloat(loop.duration) === 6, `${mode.name} · Onda repetida: dos mitades a 6 s (${JSON.stringify(loop.kept)}, ${loop.duration})`);
+    expect(loop.kept && loop.kept[0] === 2 && loop.fitScale === '' && parseFloat(loop.duration) === 6, `${mode.name} · Onda repetida: dos mitades a 6 s (${JSON.stringify(loop.kept)}, ${loop.duration})`);
+    // Una sola pasada: arranca, conserva el final al terminar (fill both) y no se recorta.
+    const once = state['Logos una pasada'] || {};
+    expect(!once.preparing && once.kept && once.kept[0] === 12 && once.fillMode === 'both', `${mode.name} · una pasada: doce logos, en marcha y con relleno «both» (${JSON.stringify({ preparing: once.preparing, kept: once.kept, fillMode: once.fillMode })})`);
+    const onceEnd = await page.evaluate(async () => {
+      const slider = document.querySelector('.digi-slider[aria-label="Logos una pasada"]');
+      const track = slider.querySelector('.digi-slider__track');
+      const anim = track.getAnimations()[0];
+      if (!anim) return null;
+      anim.currentTime = anim.effect.getTiming().duration - 30;
+      await Promise.race([anim.finished, new Promise((r) => setTimeout(r, 2000))]);
+      await new Promise((r) => setTimeout(r, 100));
+      return { state: anim.playState, x: new DOMMatrixReadOnly(getComputedStyle(track).transform).m41, viewport: slider.querySelector('.digi-slider__viewport').clientWidth, group: track.getBoundingClientRect().width };
+    });
+    expect(onceEnd && onceEnd.state === 'finished' && onceEnd.x < -10 && Math.abs(onceEnd.x - (onceEnd.viewport - onceEnd.group)) < 2, `${mode.name} · una pasada: al terminar se queda en el final (${JSON.stringify(onceEnd)})`);
     // La lejana arranca al llegar.
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await new Promise((r) => setTimeout(r, 2500));
@@ -140,9 +149,8 @@ function need(entry) {
       await page.setViewport({ width: 1024, height: 900 });
       await new Promise((r) => setTimeout(r, 800));
       const tablet = await inspect(page, { sample: false });
-      expect(tablet.Onda && tablet.Onda.kept[0] === 8 && tablet.Onda.inlineDuration === '' && parseFloat(tablet.Onda.duration) === 60, `tableta · Onda: vuelven las ocho copias a 60 s (${JSON.stringify(tablet.Onda)})`);
-      const tabletNeed = need(tablet.Logos);
-      expect(tablet.Logos && tablet.Logos.kept[0] === tabletNeed, `tableta · Logos: ${tabletNeed} por grupo (${JSON.stringify(tablet.Logos.kept)})`);
+      expect(tablet.Onda && tablet.Onda.kept[0] === 8 && tablet.Onda.fitScale === '' && parseFloat(tablet.Onda.duration) === 60, `tableta · Onda: vuelven las ocho copias a 60 s (${JSON.stringify(tablet.Onda)})`);
+      expect(tablet.Logos && tablet.Logos.kept[0] === 12, `tableta · Logos: los doce siguen (${JSON.stringify(tablet.Logos.kept)})`);
     }
     expect(errors.length === 0, `${mode.name}: errores de JavaScript: ${errors.join(' | ')}`);
     expect(failed.length === 0, `${mode.name}: recursos no encontrados: ${failed.join(' | ')}`);

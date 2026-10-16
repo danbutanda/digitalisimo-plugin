@@ -37,51 +37,52 @@
     return element.getBoundingClientRect().width;
   }
 
-  // En bucle, cada grupo sólo necesita cubrir el viewport más un elemento (par con espejo, para conservar la
-  // alternancia en la unión). Los elementos sobrantes se apartan de la pista y la duración se escala en la misma
-  // proporción, así que la velocidad lineal no cambia y la capa animada es la menor posible. Al cambiar el tamaño
-  // de la ventana se vuelve a medir y, si hacen falta, los elementos apartados regresan.
+  function track(slider) {
+    return slider.querySelector('.digi-slider__track');
+  }
+
+  // En bucle, cada grupo sólo necesita cubrir el viewport más un elemento. Sólo se apartan repeticiones: nunca se baja
+  // del número de imágenes distintas (data-digi-sources) y se conservan múltiplos enteros de la secuencia (par con
+  // espejo, para que la alternancia siga en la unión). La duración se escala en la misma proporción por una variable
+  // CSS, así que la velocidad lineal no cambia y la capa animada es la menor posible. «Ancho natural» no se recorta:
+  // sus copias no miden una fracción del viewport. Sin la hoja de estilos aplicada todavía (CSS diferido) no hay
+  // animación ni medidas fiables: se devuelve false y se reintenta al arrancar, al cargar la página y al cambiar de tamaño.
   function fit(slider) {
-    if (!slider.classList.contains('digi-slider--infinite')) return;
+    if (!slider.classList.contains('digi-slider--infinite') || slider.classList.contains('digi-slider--natural')) return false;
     var viewport = slider.querySelector('.digi-slider__viewport');
-    var track = slider.querySelector('.digi-slider__track');
-    if (!viewport || !track) return;
-    var groups = Array.prototype.filter.call(track.children, function (child) { return child.classList.contains('digi-slider__group'); });
-    if (groups.length !== 2) return;
+    var rail = track(slider);
+    if (!viewport || !rail) return false;
+    var computed = window.getComputedStyle(rail);
+    if (!computed || 'none' === computed.animationName || !(parseFloat(computed.animationDuration) > 0)) return false;
+    var groups = Array.prototype.filter.call(rail.children, function (child) { return child.classList.contains('digi-slider__group'); });
+    if (groups.length !== 2) return false;
     var spare = slider.__digiSpare || (slider.__digiSpare = [[], []]);
-    groups.forEach(function (group, index) {
-      spare[index].forEach(function (item) { group.appendChild(item); });
-      spare[index] = [];
-    });
-    var items = Array.prototype.slice.call(groups[0].children);
+    var current = groups[0].children.length;
+    var total = current + spare[0].length;
     var available = viewport.clientWidth;
-    var full = width(groups[0]);
-    if (items.length < 2 || !(available > 0) || !(full > 0) || !slider.dataset.digiDuration) {
-      if (!slider.dataset.digiDuration) slider.dataset.digiDuration = window.getComputedStyle(track).animationDuration;
-      if (items.length < 2 || !(available > 0) || !(full > 0)) return;
-    }
+    var groupWidth = width(groups[0]);
+    if (current < 1 || total < 2 || !(available > 0) || !(groupWidth > 0)) return false;
+    var items = Array.prototype.slice.call(groups[0].children);
+    var unit = width(items[0]) + Math.max(0, groupWidth - items.reduce(function (sum, item) { return sum + width(item); }, 0)) / current;
+    if (!(unit > 0)) return false;
+    var sources = Math.max(1, parseInt(slider.dataset.digiSources, 10) || 1);
     var mirror = slider.classList.contains('digi-slider--mirror');
-    var gapEach = Math.max(0, full - items.reduce(function (sum, item) { return sum + width(item); }, 0)) / items.length;
-    var covered = 0;
-    var need = items.length;
-    for (var i = 0; i < items.length; i++) {
-      covered += width(items[i]) + gapEach;
-      if (covered >= available) { need = Math.min(items.length, i + 2); break; }
-    }
-    if (mirror && need % 2 && need < items.length) need++;
-    if (need < items.length) {
-      groups.forEach(function (group, index) {
-        Array.prototype.slice.call(group.children, need).forEach(function (item) {
-          spare[index].push(item);
-          group.removeChild(item);
-        });
-      });
-      var base = parseFloat(slider.dataset.digiDuration);
-      var kept = width(groups[0]);
-      track.style.animationDuration = base > 0 && kept > 0 ? (base * kept / full).toFixed(3) + 's' : '';
-    } else {
-      track.style.animationDuration = '';
-    }
+    var need = Math.min(total, Math.ceil(available / unit) + 1);
+    var kept = Math.min(total, Math.ceil(need / sources) * sources);
+    while (mirror && kept % 2 && kept < total) kept += sources;
+    kept = Math.max(2, Math.min(total, kept));
+    groups.forEach(function (group, index) {
+      while (group.children.length > kept) {
+        var last = group.children[group.children.length - 1];
+        group.removeChild(last);
+        spare[index].unshift(last);
+      }
+      while (group.children.length < kept && spare[index].length) group.appendChild(spare[index].shift());
+    });
+    if (kept < total) rail.style.setProperty('--digi-fit-scale', (kept / total).toFixed(4));
+    else rail.style.removeProperty('--digi-fit-scale');
+    slider.dataset.digiFit = '1';
+    return true;
   }
 
   function prepare(slider) {
@@ -114,14 +115,17 @@
   }
 
   // Mientras se prepara, el CSS retrasa el movimiento tres segundos (así arranca solo aunque este script no llegue a
-  // ejecutarse). Al liberar, el retraso desaparece y la animación conserva su posición: si aún no había empezado,
-  // parte del inicio; si el retraso ya venció, sigue donde estaba, sin salto.
+  // ejecutarse); las instancias lejanas quedan además en pausa real hasta que se preparan. Al liberar, el retraso y la
+  // pausa desaparecen y la animación conserva su posición: si aún no había empezado parte del inicio; si el retraso ya
+  // venció, sigue donde estaba, sin salto.
   function start(slider) {
-    var track = slider.querySelector('.digi-slider__track');
-    var animations = track && typeof track.getAnimations === 'function' ? track.getAnimations() : [];
-    var delay = track ? parseFloat(window.getComputedStyle(track).animationDelay) * 1000 : 0;
+    var rail = track(slider);
+    if (slider.dataset.digiFit !== '1') fit(slider);
+    var animations = rail && typeof rail.getAnimations === 'function' ? rail.getAnimations() : [];
+    var delay = rail ? parseFloat(window.getComputedStyle(rail).animationDelay) * 1000 : 0;
     var positions = animations.map(function (animation) { return Math.max(0, (animation.currentTime || 0) - (delay > 0 ? delay : 0)); });
     slider.classList.remove('digi-slider--preparing');
+    if (rail) rail.style.animationPlayState = '';
     animations.forEach(function (animation, index) {
       try { animation.currentTime = positions[index]; } catch (error) { /* la animación ya no existe */ }
     });
@@ -138,6 +142,7 @@
         start(ready);
         delete ready.dataset.digiPreparing;
         fitted.add(ready);
+        watch(ready);
       });
       releasing.clear();
     });
@@ -170,21 +175,37 @@
       } else if (!observer || nearViewport(slider)) {
         queue(slider);
       } else {
+        // Lejos del viewport: en pausa real hasta prepararse, para no entrar en vista en marcha y sin imágenes.
+        var rail = track(slider);
+        if (rail) rail.style.animationPlayState = 'paused';
         observer.observe(slider);
       }
     });
   }
 
-  var resizeTimer = 0;
-  window.addEventListener('resize', function () {
-    window.clearTimeout(resizeTimer);
-    resizeTimer = window.setTimeout(function () {
-      fitted.forEach(function (slider) {
-        if ('isConnected' in slider && !slider.isConnected) { fitted.delete(slider); return; }
-        fit(slider);
-      });
-    }, 250);
-  });
+  // Cambios de tamaño del viewport o de los elementos (ventana, orientación, controles del editor): se vuelve a medir.
+  var refitTimer = 0;
+  function refit() {
+    fitted.forEach(function (slider) {
+      if ('isConnected' in slider && !slider.isConnected) { fitted.delete(slider); return; }
+      fit(slider);
+    });
+  }
+  function scheduleRefit() {
+    window.clearTimeout(refitTimer);
+    refitTimer = window.setTimeout(refit, 150);
+  }
+  var resizer = 'ResizeObserver' in window ? new ResizeObserver(scheduleRefit) : null;
+  function watch(slider) {
+    if (!resizer || slider.dataset.digiWatched === '1') return;
+    slider.dataset.digiWatched = '1';
+    var viewport = slider.querySelector('.digi-slider__viewport');
+    var first = slider.querySelector('.digi-slider__item');
+    if (viewport) resizer.observe(viewport);
+    if (first) resizer.observe(first);
+  }
+  window.addEventListener('resize', scheduleRefit);
+  window.addEventListener('load', scheduleRefit);
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { scan(document); });
   else scan(document);

@@ -1,8 +1,8 @@
 <?php
 /**
- * Página para la prueba del Slider Optimizado en navegador: cuatro instancias en una misma página (onda de diez copias
- * de una imagen en modo múltiple con espejo, doce logotipos distintos, onda repetida con espejo y, tras un separador de
- * 3000 px, otra de logotipos lejana), con imágenes PNG reales creadas aquí como adjuntos.
+ * Página para la prueba del Slider Optimizado en navegador: cinco instancias en una misma página (onda de diez copias
+ * de una imagen en modo múltiple con espejo, doce logotipos distintos, onda repetida con espejo, logotipos en una sola pasada y, tras un
+ * separador de 3000 px, otra de logotipos lejana), con imágenes PNG reales creadas aquí como adjuntos.
  */
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -33,6 +33,7 @@ $elements = array( array( 'id' => 'sldc01', 'elType' => 'container', 'settings' 
 	$widget( 'sldw01', array( 'mode' => 'multiple', 'gallery_images' => array_fill( 0, 10, $wave ), 'mirror' => 'yes', 'animation' => 'continuous', 'infinite' => 'yes', 'direction' => 'right', 'speed' => 75, 'visible' => 1, 'visible_tablet' => 6, 'visible_mobile' => 1, 'gap' => $px( 0 ), 'image_size' => 'full', 'label' => 'Onda' ) ),
 	$widget( 'sldw02', $logo_settings + array( 'label' => 'Logos' ) ),
 	$widget( 'sldw03', array( 'mode' => 'repeat', 'repeat_image' => $wave, 'repeat_count' => 10, 'mirror' => 'yes', 'animation' => 'continuous', 'infinite' => 'yes', 'speed' => 30, 'image_size' => 'full', 'label' => 'Onda repetida' ) ),
+	$widget( 'sldw05', array_merge( $logo_settings, array( 'infinite' => '', 'speed' => 2, 'label' => 'Logos una pasada' ) ) ),
 	array( 'id' => 'sldsp1', 'elType' => 'widget', 'widgetType' => 'spacer', 'settings' => (object) array( 'space' => $px( 3000 ) ), 'elements' => array() ),
 	$widget( 'sldw04', $logo_settings + array( 'label' => 'Logos lejanos' ) ),
 ) ) );
