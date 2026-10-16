@@ -30,6 +30,8 @@ Desde 4.3.0.138, DIGITALÍSIMO Elements trae el núcleo gratuito de Elementor de
 
 ## Pasar un sitio o una red al núcleo incluido
 
+Con DIGITALÍSIMO Migración activo, **Migrar** (Herramientas → Migrar a DIGITALÍSIMO Elements, o Red → Ajustes → Migrar a DIGITALÍSIMO Elements → Migrar toda la red) hace todo esto en un clic: desactiva Elementor (sólo si el núcleo incluido puede sustituirlo), Elementor Pro, PRO Elements y Element Pack, convierte el contenido y deja el informe ([ELEMENT_PACK_RETIREMENT.md](ELEMENT_PACK_RETIREMENT.md)). A mano:
+
 1. Actualiza DIGITALÍSIMO Elements a 4.3.0.138 o posterior y haz un respaldo.
 2. En **Plugins** (o **Red → Plugins**) un aviso indica qué versión de Elementor incluye DIGITALÍSIMO Elements. Desactiva el plugin **Elementor** donde esté activo (en la red o en cada sitio).
 3. Revisa páginas, plantillas, Theme Builder y el editor de alguna página.

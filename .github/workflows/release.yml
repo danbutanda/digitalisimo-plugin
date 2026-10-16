@@ -101,6 +101,7 @@ jobs:
           php tests/tools-updater-manifest.php
           php tests/migration-updater.php
           php tests/migration-conditions-repair.php
+          php tests/migration-runner.php
           php tests/elements-visitor-counters.php
           php tests/elements-identity.php
           node tests/elements-legacy-decisions.mjs

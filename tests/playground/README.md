@@ -36,7 +36,9 @@ Con `EXTRA_PLUGINS=slug,…`, `legacy-ab.sh` instala esos plugins reales de word
 EXTRA_PLUGINS=woocommerce bash tests/playground/legacy-ab.sh bdt-wc-products,bdt-wc-add-to-cart
 ```
 
-`migration-report.sh` comprueba en Playground Multisite la pantalla de red (Red → Ajustes → Migrar Element Pack), que sólo informa por sitio y enlaza a la herramienta de cada uno, y la del sitio, que explica el motivo de cada widget sin adaptador.
+`migrate.sh` prueba «Migrar toda la red» de punta a punta en Chrome real: una red de Playground servida como `http://playground.test` (una red no admite puertos; Chrome la resuelve al puerto local con `--host-resolver-rules`), con Elementor activado en toda la red y Element Pack en cada sitio. Firma cada página de los dos sitios (textos, enlaces, imágenes y, en los alias, el estilo calculado de cada elemento), pulsa el único botón de la pantalla de red, espera al resumen y comprueba que cada sitio queda sin esos plugins, sobre el núcleo incluido, con el contenido de Element Pack, su revisión y los alias convertidos con copia del original, y con las mismas páginas; en el subsitio, el CSS adicional que nombra las clases de la Cuadrícula de marcas mantiene ese alias y el informe lo explica. Necesita la copia de referencia de Element Pack (`EP_DIR`).
+
+`migration-report.sh` comprueba en Playground Multisite la pantalla de red (Red → Ajustes → Migrar a DIGITALÍSIMO Elements), con su único botón «Migrar toda la red» y el estado de cada sitio con el enlace a su herramienta, y la del sitio, con su único botón «Migrar» y el motivo de cada widget sin adaptador.
 
 `form-submit.sh` envía en Playground Multisite (sin Element Pack) una página con `bdt-contact-form`, otra con `bdt-webhook-form` y otra con `bdt-mailchimp` por el AJAX de PRO Elements en cada sitio, y comprueba el correo (destinatario, asunto, `Reply-To`, mensaje), la petición al webhook (URL y campos) y la llamada a la API de Mailchimp (audiencia y clave que Element Pack guardaba en sus ajustes, correo y `FNAME`).
 

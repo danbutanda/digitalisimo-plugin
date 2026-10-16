@@ -12,7 +12,7 @@ const modules = [
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.30.zip', version: '1.0.30' };
 const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.153.zip', version: '4.3.0.153' };
-const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.15.zip', version: '1.0.15' };
+const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.16.zip', version: '1.0.16' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -104,7 +104,7 @@ const declarations = new Map();
   const source = readFileSync(main, 'utf8');
   if (!source.includes(`Version: ${migrationModule.version}`) || !source.includes('Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-migration') || !source.includes('Requires Plugins: digitalisimo-elements')) throw new Error('Cabecera incorrecta en DIGITALÍSIMO Migración: depende de DIGITALÍSIMO Elements, que ya trae Elementor');
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
-  for (const required of ['digitalisimo-migration.php', 'includes/class-updater.php', 'includes/class-plugin.php', 'legacy/class-native.php', 'legacy/class-migration.php', 'legacy/class-adapters.php', 'legacy/class-masks.php', 'legacy/unsupported.php', 'legacy/maps/bdt-accordion.php', 'legacy/conditions/class-legacy-rules.php']) if (!listing.includes(`${migrationModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Migración`);
+  for (const required of ['digitalisimo-migration.php', 'includes/class-updater.php', 'includes/class-plugin.php', 'legacy/class-native.php', 'legacy/class-migration.php', 'legacy/class-adapters.php', 'legacy/class-masks.php', 'legacy/class-runner.php', 'legacy/class-retire.php', 'legacy/class-aliases.php', 'assets/js/migrate.js', 'legacy/unsupported.php', 'legacy/maps/bdt-accordion.php', 'legacy/conditions/class-legacy-rules.php']) if (!listing.includes(`${migrationModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Migración`);
   if (listing.split('\n').some((entry) => /(^|\/)bdthemes-element-pack(\/|$)/i.test(entry)) || listing.includes('.DS_Store')) throw new Error('DIGITALÍSIMO Migración no debe contener la copia de referencia ni archivos de sistema.');
 }
 // Cada módulo debe llevar el mismo controlador probado; así una Release parcial

@@ -5,16 +5,22 @@ defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/class-translator.php';
 require_once __DIR__ . '/class-native.php';
+// Las pantallas usan la tarea de Migrar, la retirada de plugins y los alias (sin efectos al cargarse).
+require_once __DIR__ . '/class-runner.php';
+require_once __DIR__ . '/class-retire.php';
+require_once __DIR__ . '/class-aliases.php';
 
 /**
  * Migración de documentos de Element Pack en el sitio actual.
  *
- * Herramientas → Migrar Element Pack muestra qué widgets heredados usa cada documento del sitio y
- * los convierte por lotes al formato propio (`Native`): widgets de DIGITALÍSIMO Elements o de PRO
- * Elements, rasgos propios y CSS personalizado del elemento, sin identificadores de Element Pack.
- * Antes de tocar un documento guarda su `_elementor_data` original y permite restaurarlo. Nunca toca
- * otros sitios de la red: en Multisite, Red → Ajustes → Migrar Element Pack sólo informa del estado
- * de cada sitio y enlaza a su herramienta.
+ * Herramientas → Migrar a DIGITALÍSIMO Elements tiene un solo botón, «Migrar», que lanza la tarea completa del
+ * sitio (Runner): desactiva los plugins sustituidos, convierte por lotes cada documento al formato propio (`Native`:
+ * widgets de DIGITALÍSIMO Elements o de PRO Elements, rasgos propios y CSS personalizado del elemento, sin
+ * identificadores de Element Pack), actualiza los widgets fusionados y deja el informe. Antes de tocar un documento
+ * guarda su `_elementor_data` original (`wp digitalisimo-migration --revert` lo restaura). Nunca toca otros sitios
+ * de la red: en Multisite, Red → Ajustes → Migrar a DIGITALÍSIMO Elements recorre todos los sitios, y lo dice.
+ * Esta clase conserva el inventario, la conversión documento a documento y las recuperaciones de versiones antiguas
+ * que la tarea encadena.
  */
 final class Migration {
 	const PAGE   = 'digitalisimo-ep-migration';
@@ -46,8 +52,8 @@ final class Migration {
 	 * Hasta 1.0.10 la conversión descartaba las reglas de visibilidad cuando la opción de Element Pack del sitio no
 	 * tenía guardada la clave de la extensión (que viene activa por defecto). Se recuperan desde la copia original de
 	 * cada documento convertido antes de la actualización, por lotes en cada carga de una pantalla de administración
-	 * (nunca en AJAX, REST ni cron, y sólo para quien administra el sitio) hasta terminar; el botón de la herramienta
-	 * avanza la misma pasada y, terminada, la reinicia; `wp digitalisimo-migration --repair` la hace entera.
+	 * (nunca en AJAX, REST ni cron, y sólo para quien administra el sitio) hasta terminar; Migrar continúa la misma
+	 * pasada si aún no terminó; `wp digitalisimo-migration --repair` la hace entera.
 	 */
 	public static function repair_once() {
 		if ( '1' === (string) get_option( self::REPAIRED, '' ) || wp_doing_ajax() || wp_doing_cron() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ! current_user_can( 'manage_options' ) ) {
@@ -255,11 +261,11 @@ final class Migration {
 	}
 
 	public static function menu() {
-		add_management_page( 'Migrar Element Pack', 'Migrar Element Pack', 'manage_options', self::PAGE, array( __CLASS__, 'page' ) );
+		add_management_page( 'Migrar a DIGITALÍSIMO Elements', 'Migrar a DIGITALÍSIMO Elements', 'manage_options', self::PAGE, array( __CLASS__, 'page' ) );
 	}
 
 	public static function network_menu() {
-		add_submenu_page( 'settings.php', 'Migrar Element Pack', 'Migrar Element Pack', 'manage_network_options', self::PAGE, array( __CLASS__, 'network_page' ) );
+		add_submenu_page( 'settings.php', 'Migrar a DIGITALÍSIMO Elements', 'Migrar a DIGITALÍSIMO Elements', 'manage_network_options', self::PAGE, array( __CLASS__, 'network_page' ) );
 	}
 
 	/** Motivo y alternativa de un widget de Element Pack sin adaptador (vacío si lo tiene). */
@@ -287,9 +293,10 @@ final class Migration {
 	}
 
 	/**
-	 * Revisiones y autoguardados con contenido heredado. No entran en los lotes: Elementor conserva en cada revisión lo
-	 * guardado en su momento, y WordPress redirige al padre las escrituras de meta hechas con update_post_meta() sobre
-	 * una revisión. Sirven para detectar páginas sobrescritas por conversiones anteriores (overwritten_parents()).
+	 * Revisiones y autoguardados con contenido heredado. Sirven para detectar páginas sobrescritas por conversiones
+	 * anteriores (overwritten_parents()); después, Migrar los convierte cada uno en su propio registro (convert_document()
+	 * escribe con update_metadata(), nunca en el padre como haría update_post_meta() sobre una revisión), salvo los que
+	 * delatan una página sobrescrita que no pudo recuperarse.
 	 */
 	public static function legacy_revisions() {
 		return self::query_documents( true );
@@ -446,9 +453,11 @@ final class Migration {
 		return true;
 	}
 
-	private static function clear_css( $post_id ) {
+	/** Cachés de Elementor del documento: su CSS, el HTML de sus elementos y la lista de recursos que encola. */
+	public static function clear_css( $post_id ) {
 		delete_metadata( 'post', $post_id, '_elementor_css' );
 		delete_metadata( 'post', $post_id, '_elementor_element_cache' );
+		delete_metadata( 'post', $post_id, '_elementor_page_assets' );
 		if ( class_exists( '\Elementor\Core\Files\CSS\Post' ) ) {
 			\Elementor\Core\Files\CSS\Post::create( $post_id )->delete();
 		}
@@ -464,32 +473,68 @@ final class Migration {
 	 * @return array<int, array{revision:int, date:string, autosave:bool}> por página, la revisión que la sobrescribió.
 	 */
 	public static function overwritten_parents() {
-		$out   = array();
-		$cache = (array) get_option( self::REVISION_CHECK, array() );
-		$dirty = false;
+		$out = array();
 		foreach ( self::legacy_revisions() as $revision_id ) {
-			$revision  = get_post( $revision_id );
-			$parent_id = $revision ? (int) $revision->post_parent : 0;
-			if ( ! $parent_id || $revision_id === self::latest_revision( $parent_id ) ) {
-				continue;
-			}
-			$raw_parent   = (string) get_metadata( 'post', $parent_id, '_elementor_data', true );
-			$raw_revision = (string) get_metadata( 'post', $revision_id, '_elementor_data', true );
-			if ( '' === $raw_parent || '' === $raw_revision || ( isset( $cache['ack'][ $parent_id ] ) && $cache['ack'][ $parent_id ] === md5( $raw_parent ) ) ) {
-				continue;
-			}
-			$key = md5( $raw_parent ) . ':' . md5( $raw_revision );
-			if ( ! isset( $cache[ $revision_id ]['key'] ) || $cache[ $revision_id ]['key'] !== $key ) {
-				list( $converted, $changes ) = self::convert_data( self::decode( $raw_revision ), $revision_id );
-				$cache[ $revision_id ] = array( 'key' => $key, 'same' => $changes > 0 && self::decode( wp_json_encode( $converted ) ) === self::decode( $raw_parent ) );
-				$dirty                 = true;
-			}
-			if ( ! empty( $cache[ $revision_id ]['same'] ) ) {
-				$out[ $parent_id ] = array( 'revision' => $revision_id, 'date' => (string) $revision->post_modified, 'autosave' => (bool) wp_is_post_autosave( $revision_id ) );
+			$info = self::overwritten_by( $revision_id );
+			if ( $info ) {
+				$out[ $info['parent'] ] = $info;
 			}
 		}
-		if ( $dirty ) {
+		return $out;
+	}
+
+	/**
+	 * ¿Sobrescribió esta revisión a su página? La comprobación de overwritten_parents() para una sola revisión, con la
+	 * caché guardada en cuanto cambia: Migrar la recorre por lotes con plazo y una petición cortada no pierde lo hecho.
+	 *
+	 * @return array{parent:int, revision:int, date:string, autosave:bool}|null
+	 */
+	public static function overwritten_by( $revision_id ) {
+		$revision  = get_post( $revision_id );
+		$parent_id = $revision ? (int) $revision->post_parent : 0;
+		if ( ! $parent_id || (int) $revision_id === self::latest_revision( $parent_id ) ) {
+			return null;
+		}
+		$cache        = (array) get_option( self::REVISION_CHECK, array() );
+		$raw_parent   = (string) get_metadata( 'post', $parent_id, '_elementor_data', true );
+		$raw_revision = (string) get_metadata( 'post', $revision_id, '_elementor_data', true );
+		if ( '' === $raw_parent || '' === $raw_revision || ( isset( $cache['ack'][ $parent_id ] ) && $cache['ack'][ $parent_id ] === md5( $raw_parent ) ) ) {
+			return null;
+		}
+		$key = md5( $raw_parent ) . ':' . md5( $raw_revision );
+		if ( ! isset( $cache[ $revision_id ]['key'] ) || $cache[ $revision_id ]['key'] !== $key ) {
+			list( $converted, $changes ) = self::convert_data( self::decode( $raw_revision ), $revision_id );
+			$parent                      = self::decode( $raw_parent );
+			// Una página cuyos alias ya pasaron a su widget fusionado sigue reconociéndose: la comparación se hace con los
+			// alias convertidos en los dos lados.
+			if ( Aliases::map() ) {
+				$converted = Aliases::convert_data( $converted )[0];
+				$parent    = Aliases::convert_data( $parent )[0];
+			}
+			$cache[ $revision_id ] = array( 'key' => $key, 'same' => $changes > 0 && self::decode( wp_json_encode( $converted ) ) === self::decode( wp_json_encode( $parent ) ) );
 			update_option( self::REVISION_CHECK, $cache, false );
+		}
+		return empty( $cache[ $revision_id ]['same'] ) ? null : array( 'parent' => $parent_id, 'revision' => (int) $revision_id, 'date' => (string) $revision->post_modified, 'autosave' => (bool) wp_is_post_autosave( $revision_id ) );
+	}
+
+	/**
+	 * Revisiones heredadas que pueden haber sobrescrito su página: sólo las conversiones de Migración 1.0.13 o anterior
+	 * lo hacían, y esas conversiones dejaban la copia original en la página. Las demás no se comprueban.
+	 *
+	 * @return int[]
+	 */
+	public static function recover_candidates() {
+		$revisions = self::legacy_revisions();
+		if ( ! $revisions ) {
+			return array();
+		}
+		$backups = array_flip( self::backups() );
+		$out     = array();
+		foreach ( $revisions as $revision_id ) {
+			$revision = get_post( $revision_id );
+			if ( $revision && isset( $backups[ (int) $revision->post_parent ] ) ) {
+				$out[] = (int) $revision_id;
+			}
 		}
 		return $out;
 	}
@@ -593,39 +638,15 @@ final class Migration {
 		return $pending;
 	}
 
+	/** Dar por revisada una página sobrescrita sin origen del que recuperarla (enlaces de versiones anteriores). */
 	public static function handle() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( 'No autorizado.', 403 );
 		}
 		check_admin_referer( self::ACTION . '_' . get_current_blog_id() );
 		$task = sanitize_key( wp_unslash( $_POST['task'] ?? '' ) );
-		$args = array( 'page' => self::PAGE, 'done' => $task, 'count' => 0, 'native' => 0 );
-		if ( 'convert' === $task && ! Translator::element_pack_active() ) {
-			foreach ( array_slice( self::convertible(), 0, self::BATCH ) as $post_id ) {
-				$result = self::convert_document( $post_id );
-				if ( ! empty( $result['native'] ) ) {
-					$args['native'] += (int) $result['native'];
-					++$args['count'];
-				}
-			}
-			$groups          = self::classify();
-			$args['left']    = count( $groups['convertible'] );
-			$args['blocked'] = count( $groups['blocked'] );
-		} elseif ( 'revert' === $task ) {
-			foreach ( array_slice( self::backups(), 0, self::BATCH ) as $post_id ) {
-				$args['count'] += self::revert_document( $post_id ) ? 1 : 0;
-			}
-		} elseif ( 'repair' === $task ) {
-			$step           = self::repair_step( self::BATCH, true );
-			$args['count']  = $step['documents'];
-			$args['native'] = $step['elements'];
-			$args['left']   = $step['remaining'];
-		} elseif ( 'recover' === $task ) {
-			foreach ( array_slice( self::overwritten_parents(), 0, self::BATCH, true ) as $parent_id => $info ) {
-				$args['count'] += '' !== self::recover_from_revision( $parent_id, $info['revision'] ) ? 1 : 0;
-			}
-			$args['left'] = count( self::overwritten_parents() );
-		} elseif ( 'acknowledge' === $task ) {
+		$args = array( 'page' => self::PAGE, 'done' => $task, 'count' => 0 );
+		if ( 'acknowledge' === $task ) {
 			$post_id = absint( $_POST['post_id'] ?? 0 );
 			if ( $post_id ) {
 				self::acknowledge( $post_id );
@@ -636,54 +657,54 @@ final class Migration {
 		exit;
 	}
 
+	private static function assets() {
+		if ( function_exists( 'wp_enqueue_script' ) && defined( 'DIGITALISIMO_MIGRATION_FILE' ) ) {
+			wp_enqueue_script( 'digitalisimo-migration-migrate', plugins_url( 'assets/js/migrate.js', DIGITALISIMO_MIGRATION_FILE ), array(), DIGITALISIMO_MIGRATION_VERSION, true );
+		}
+	}
+
 	public static function page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$inventory   = self::inventory();
-		$groups      = self::classify();
-		$convertible = count( $groups['convertible'] );
-		$blocked     = count( $groups['blocked'] );
-		$backups     = count( self::backups() );
-		$repaired    = '1' === (string) get_option( self::REPAIRED, '' );
-		$to_review   = self::repair_remaining();
-		$overwritten = self::overwritten_parents();
-		$active      = Translator::element_pack_active();
-		echo '<div class="wrap"><h1>Migrar Element Pack</h1>';
-		echo '<p>Mientras este plugin esté activo, las páginas creadas con Element Pack se siguen viendo sin él. La conversión deja cada documento sólo con widgets y ajustes de DIGITALÍSIMO Elements (los estilos que sólo existían en Element Pack pasan al CSS personalizado del elemento) y guarda una copia del original para poder restaurarlo. Sólo afecta a este sitio.</p>';
+		Runner::load();
+		$state   = Runner::state();
+		$running = $state && empty( $state['done'] );
+		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements</h1>';
+		echo '<p>Un solo paso. <strong>Migrar</strong> desactiva en este sitio los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro, PRO Elements y Element Pack), convierte al formato propio el contenido de Element Pack y el de los widgets fusionados, vacía las cachés y deja aquí el informe. Guarda una copia de cada documento antes de tocarlo y no borra ningún plugin: los deja desactivados para que los elimines desde Plugins cuando hayas comprobado el sitio. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver. Sólo afecta a este sitio' . ( is_multisite() ? '; Red → Ajustes → Migrar a DIGITALÍSIMO Elements hace lo mismo en todos los sitios de la red' : '' ) . '.</p>';
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sólo muestra el resultado de la acción.
-		if ( isset( $_GET['done'] ) ) {
-			$done  = sanitize_key( wp_unslash( $_GET['done'] ) );
-			$count = absint( $_GET['count'] ?? 0 );
-			$items = absint( $_GET['native'] ?? 0 );
-			$left  = absint( $_GET['left'] ?? 0 );
-			if ( 'convert' === $done ) {
-				$msg = sprintf( 'Se convirtieron %d documentos (%d elementos): ya sólo usan widgets y ajustes propios.', $count, $items ) . ' ' . ( $left ? sprintf( 'Quedan %d por convertir.', $left ) : 'No queda nada por convertir.' );
-				if ( absint( $_GET['blocked'] ?? 0 ) ) {
-					$msg .= ' ' . sprintf( '%d documentos conservan sólo widgets sin adaptador y no cambian.', absint( $_GET['blocked'] ) );
-				}
-			} elseif ( 'repair' === $done ) {
-				$msg = sprintf( 'Se recuperaron reglas de visibilidad en %d documentos (%d elementos).', $count, $items ) . ' ' . ( $left ? sprintf( 'Quedan %d documentos con copia por revisar.', $left ) : 'Revisión completa: todos los documentos con copia están revisados.' );
-			} elseif ( 'recover' === $done ) {
-				$msg = sprintf( 'Se recuperaron %d páginas desde su última revisión guardada o su copia original.', $count ) . ( $left ? ' ' . sprintf( 'Quedan %d; la lista indica por qué.', $left ) : '' );
-			} elseif ( 'acknowledge' === $done ) {
-				$msg = $count ? 'Página dada por revisada: deja de listarse mientras su contenido no cambie.' : 'No se indicó ninguna página.';
-			} else {
-				$msg = sprintf( 'Se restauraron %d documentos a su versión original.', $count );
-			}
-			echo '<div class="notice notice-success"><p>' . esc_html( $msg ) . '</p></div>';
+		if ( isset( $_GET['done'] ) && 'acknowledge' === sanitize_key( wp_unslash( $_GET['done'] ) ) ) {
+			echo '<div class="notice notice-success"><p>' . esc_html( absint( $_GET['count'] ?? 0 ) ? 'Página dada por revisada: deja de listarse mientras su contenido no cambie.' : 'No se indicó ninguna página.' ) . '</p></div>';
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-		if ( $active ) {
-			echo '<div class="notice notice-warning"><p>Element Pack sigue activo en este sitio: desactívalo (sin desinstalarlo) antes de convertir, porque sus controles ocupan los mismos nombres. Mientras esté activo, sus widgets se muestran con su propio código.</p></div>';
+		self::assets();
+		echo '<div id="digi-migrate" class="digi-migrate" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( Runner::AJAX . '_' . get_current_blog_id() ) ) . '" data-network="0" data-running="' . ( $running ? '1' : '0' ) . '">';
+		echo '<p><button type="button" class="button button-primary button-hero digi-migrate__button"' . ( $running ? ' disabled' : '' ) . '>Migrar</button></p>';
+		echo '<div class="digi-migrate__status">' . Runner::render( $running ? $state : Runner::report() ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML ya escapado por Runner.
+		echo '</div>';
+		echo '<h2>Qué hay en este sitio</h2>';
+		self::site_summary();
+		echo '</div>';
+	}
+
+	/** Estado del sitio antes de migrar: plugins sustituidos, inventario de Element Pack, figuras y recuentos. */
+	private static function site_summary() {
+		$status = Retire::status();
+		$parts  = array();
+		foreach ( $status as $info ) {
+			$parts[] = $info['label'] . ' (' . ( $info['network'] ? 'activo en toda la red' : ( $info['site'] ? 'activo en este sitio' : 'desactivado' ) ) . ')';
 		}
+		echo '<p>' . esc_html( 'Plugins que DIGITALÍSIMO Elements sustituye: ' . ( $parts ? implode( ', ', $parts ) . '.' : 'ninguno instalado.' ) ) . '</p>';
+		if ( Translator::element_pack_active() ) {
+			echo '<div class="notice notice-warning inline"><p>Element Pack está activo: Migrar lo desactiva (sin borrarlo) antes de convertir, porque sus controles ocupan los mismos nombres. Mientras esté activo, sus widgets se muestran con su propio código.</p></div>';
+		}
+		$inventory = self::inventory();
 		echo '<table class="widefat striped" style="max-width:860px"><thead><tr><th>Widget de Element Pack</th><th>Elementos</th><th>Documentos</th><th>Estado</th></tr></thead><tbody>';
 		if ( ! $inventory ) {
 			echo '<tr><td colspan="4">Este sitio no usa widgets de Element Pack.</td></tr>';
 		}
 		foreach ( $inventory as $type => $row ) {
-			$status = self::status( $type, $row['map'] );
-			echo '<tr><td><code>' . esc_html( $type ) . '</code></td><td>' . absint( $row['elements'] ) . '</td><td>' . absint( $row['documents'] ) . '</td><td>' . esc_html( $status ) . '</td></tr>';
+			echo '<tr><td><code>' . esc_html( $type ) . '</code></td><td>' . absint( $row['elements'] ) . '</td><td>' . absint( $row['documents'] ) . '</td><td>' . esc_html( self::status( $type, $row['map'] ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 		$figures = self::figures();
@@ -691,66 +712,41 @@ final class Migration {
 			echo '<p>' . esc_html( sprintf( 'Máscaras y separadores con figuras de Element Pack: %d elementos en %d documentos. Al convertir pasan a copias propias guardadas en los archivos de este sitio.', $figures['elements'], $figures['documents'] ) ) . '</p>';
 		}
 		if ( $figures['missing'] ) {
-			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( 'No se encontró el archivo de: %s. Mantén Element Pack instalado (desactivado) hasta convertir; sin archivo, la conversión retira esa máscara o separador para que la imagen siga visible.', implode( ', ', $figures['missing'] ) ) ) . '</p></div>';
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( 'No se encontró el archivo de: %s. Mantén Element Pack instalado (desactivado) hasta migrar; sin archivo, la conversión retira esa máscara o separador para que la imagen siga visible.', implode( ', ', $figures['missing'] ) ) ) . '</p></div>';
 		}
-		echo '<p>' . esc_html( sprintf( 'Documentos pendientes de convertir: %d. Documentos que sólo conservan widgets sin adaptador: %d. Documentos con copia original: %d.', $convertible, $blocked, $backups ) ) . '</p>';
-		if ( $blocked ) {
-			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( '%d documentos no cambian al convertir porque sólo les quedan widgets sin adaptador (en la tabla, «Sin adaptador»): sin Element Pack esos widgets no se muestran. Sustitúyelos en el editor por la alternativa que indica la tabla, o déjalos; los lotes los saltan.', $blocked ) ) . '</p></div>';
+		$groups    = self::classify();
+		$revisions = count( self::legacy_revisions() );
+		$aliases   = Aliases::map() ? count( Aliases::documents() ) : count( Aliases::documents_with( Aliases::KNOWN ) );
+		echo '<p>' . esc_html( sprintf( 'Documentos con contenido de Element Pack: %d por convertir y %d que sólo conservan widgets sin equivalente. Revisiones y autoguardados con contenido de Element Pack: %d. Documentos con widgets fusionados por actualizar: %d. Documentos con copia original: %d.', count( $groups['convertible'] ), count( $groups['blocked'] ), $revisions, $aliases, count( self::backups() ) ) ) . '</p>';
+		if ( $groups['blocked'] ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( '%d documentos no cambian al migrar porque sólo les quedan widgets sin equivalente (en la tabla, «Sin adaptador»): sin Element Pack esos widgets no se muestran. Sustitúyelos en el editor por la alternativa que indica la tabla, o acepta que desaparezcan.', count( $groups['blocked'] ) ) ) . '</p></div>';
 		}
-		if ( $backups ) {
-			echo '<p>' . esc_html( $repaired ? sprintf( 'Reglas de visibilidad: revisadas en los %d documentos con copia original.', $backups ) : sprintf( 'Reglas de visibilidad: %d documentos con copia original por revisar (la revisión también avanza sola al navegar por la administración).', $to_review ) ) . '</p>';
+		$active = array_filter( $status, static function ( $info ) {
+			return $info['site'] || $info['network'];
+		} );
+		if ( ! $inventory && ! $revisions && ! $aliases && ! $active ) {
+			echo '<div class="notice notice-success inline"><p>Este sitio ya no tiene contenido heredado ni plugins sustituidos activos. Cuando lo hayas comprobado, puedes desinstalar Element Pack, Elementor, Elementor Pro y DIGITALÍSIMO Migración.</p></div>';
 		}
-		$recoverable = 0;
-		if ( $overwritten ) {
-			echo '<div class="notice notice-error inline"><p>' . esc_html( sprintf( 'Hasta Migración 1.0.13, convertir una revisión escribía el resultado en la página a la que pertenece: %d páginas tienen ahora el contenido de una revisión anterior o de un autoguardado. «Recuperar» vuelve a convertir la última versión guardada en el editor de cada una o, si no tiene revisiones guardadas (las plantillas sólo tienen autoguardados), su copia original; revísalas después.', count( $overwritten ) ) ) . '</p><ul style="list-style:disc;margin-left:20px">';
-			foreach ( $overwritten as $parent_id => $info ) {
-				$title  = get_the_title( $parent_id );
-				$source = self::recovery_source( $parent_id, $info['revision'] )[0];
-				$recoverable += '' !== $source ? 1 : 0;
-				$how = 'revision' === $source ? 'se recuperará desde su última revisión guardada' : ( 'backup' === $source ? 'sin revisión guardada: se recuperará desde su copia original' : 'sin revisión guardada ni copia original distinta: esa versión es la única conocida; revísala en el editor y, si está bien, dala por revisada' );
-				echo '<li><a href="' . esc_url( admin_url( 'post.php?post=' . (int) $parent_id . '&action=elementor' ) ) . '">' . esc_html( '' !== $title ? $title : '#' . $parent_id ) . '</a> · ' . esc_html( sprintf( $info['autosave'] ? 'sobrescrita con el autoguardado del %s' : 'sobrescrita con la revisión del %s', $info['date'] ) ) . ' · ' . esc_html( $how );
-				if ( '' === $source ) {
-					echo ' <form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
-					wp_nonce_field( self::ACTION . '_' . get_current_blog_id() );
-					echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '"><input type="hidden" name="task" value="acknowledge"><input type="hidden" name="post_id" value="' . (int) $parent_id . '">';
-					submit_button( 'Dar por revisada', 'link', 'submit', false );
-					echo '</form>';
-				}
-				echo '</li>';
-			}
-			echo '</ul></div>';
-		}
-		if ( ! $convertible && ! $blocked && ! $inventory && ! $overwritten ) {
-			echo '<div class="notice notice-success inline"><p>Este sitio ya no tiene contenido heredado. Cuando todos los sitios estén así y revisados, puedes desinstalar Element Pack y DIGITALÍSIMO Migración.</p></div>';
-		}
-		$buttons = array(
-			'convert' => array( 'Convertir el siguiente lote', $active ? 0 : $convertible, 'button-primary' ),
-			'recover' => array( 'Recuperar las páginas sobrescritas', $recoverable, 'button-primary' ),
-			'repair'  => array( $repaired ? 'Revisar de nuevo las reglas de visibilidad' : 'Recuperar reglas de visibilidad perdidas', $to_review, 'button-secondary' ),
-			'revert'  => array( 'Restaurar el siguiente lote al original', $backups, 'button-secondary' ),
-		);
-		foreach ( $buttons as $task => $button ) {
-			if ( ! $button[1] ) {
-				continue;
-			}
-			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;margin-right:8px">';
-			wp_nonce_field( self::ACTION . '_' . get_current_blog_id() );
-			echo '<input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '"><input type="hidden" name="task" value="' . esc_attr( $task ) . '">';
-			submit_button( $button[0] . ' (' . min( self::BATCH, $button[1] ) . ')', $button[2], 'submit', false );
-			echo '</form>';
-		}
-		echo '</div>';
 	}
 
-	/** Resumen por sitio de la red: sólo lectura, con enlace a la herramienta de cada sitio. */
+	/** Pantalla de red: un botón que migra todos los sitios (y lo dice) y el estado de cada uno. */
 	public static function network_page() {
 		if ( ! current_user_can( 'manage_network_options' ) ) {
 			return;
 		}
-		$sites = get_sites( array( 'number' => 500, 'fields' => 'ids' ) );
-		echo '<div class="wrap"><h1>Migrar Element Pack en la red</h1>';
-		echo '<p>Estado de los widgets de Element Pack en cada sitio. Esta pantalla sólo informa: la conversión de documentos se lanza desde la herramienta de cada sitio y nunca afecta a otro.</p>';
-		echo '<table class="widefat striped"><thead><tr><th>Sitio</th><th>Elementos compatibles</th><th>Sin adaptador</th><th>Documentos pendientes de convertir</th><th></th></tr></thead><tbody>';
+		Runner::load();
+		$job     = Runner::network_state() ? Runner::network_summary() : null;
+		$running = $job && empty( $job['done'] );
+		$sites   = get_sites( array( 'number' => 500, 'fields' => 'ids' ) );
+		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements en la red</h1>';
+		echo '<p>Un solo paso para toda la red. <strong>Migrar toda la red</strong> desactiva en toda la red los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro, PRO Elements y Element Pack) y después hace en cada uno de los ' . count( $sites ) . ' sitios lo mismo que el botón de su herramienta: desactiva los que tenga activos por sitio, convierte su contenido de Element Pack y sus widgets fusionados, vacía sus cachés y deja su informe en Herramientas → Migrar a DIGITALÍSIMO Elements. <strong>Modifica todos los sitios de la red.</strong> No borra ningún plugin: cuando hayas comprobado los sitios, los eliminas desde Red → Plugins.</p>';
+		self::assets();
+		echo '<div id="digi-migrate" class="digi-migrate" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( Runner::AJAX . '_network' ) ) . '" data-network="1" data-running="' . ( $running ? '1' : '0' ) . '">';
+		echo '<p><button type="button" class="button button-primary button-hero digi-migrate__button"' . ( $running ? ' disabled' : '' ) . '>Migrar toda la red</button></p>';
+		echo '<div class="digi-migrate__status">' . Runner::render_network( $job ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML ya escapado por Runner.
+		echo '</div>';
+		echo '<h2>Estado de cada sitio</h2>';
+		echo '<table class="widefat striped"><thead><tr><th>Sitio</th><th>Elementos compatibles</th><th>Sin adaptador</th><th>Documentos pendientes de convertir</th><th>Widgets fusionados</th><th>Plugins sustituidos activos en el sitio</th><th>Última migración</th><th></th></tr></thead><tbody>';
 		$total_missing = 0;
 		foreach ( $sites as $site_id ) {
 			switch_to_blog( (int) $site_id );
@@ -765,15 +761,31 @@ final class Migration {
 			}
 			$groups  = self::classify();
 			$pending = count( $groups['convertible'] ) . ( $groups['blocked'] ? ' (+' . count( $groups['blocked'] ) . ' sólo con widgets sin adaptador)' : '' );
-			$name    = get_bloginfo( 'name' );
-			$url     = home_url( '/' );
-			$tool    = admin_url( 'tools.php?page=' . self::PAGE );
+			$aliases = Aliases::map() ? count( Aliases::documents() ) : count( Aliases::documents_with( Aliases::KNOWN ) );
+			$plugins = array();
+			foreach ( Retire::status() as $info ) {
+				if ( $info['site'] ) {
+					$plugins[] = $info['label'];
+				}
+			}
+			$report = Runner::report();
+			$state  = Runner::state();
+			$last   = $state && empty( $state['done'] ) ? 'En marcha' : ( $report && ! empty( $report['finished'] ) ? wp_date( 'd/m/Y H:i', (int) $report['finished'] ) : 'Nunca' );
+			$name   = get_bloginfo( 'name' );
+			$url    = home_url( '/' );
+			$tool   = admin_url( 'tools.php?page=' . self::PAGE );
 			restore_current_blog();
 			$total_missing += count( $missing );
-			echo '<tr><td><strong>' . esc_html( $name ) . '</strong><br><code>' . esc_html( $url ) . '</code></td><td>' . absint( $compatible ) . '</td><td>' . ( $missing ? esc_html( implode( ', ', $missing ) ) : '—' ) . '</td><td>' . esc_html( $pending ) . '</td><td><a href="' . esc_url( $tool ) . '">Abrir la herramienta del sitio</a></td></tr>';
+			echo '<tr><td><strong>' . esc_html( $name ) . '</strong><br><code>' . esc_html( $url ) . '</code></td><td>' . absint( $compatible ) . '</td><td>' . ( $missing ? esc_html( implode( ', ', $missing ) ) : '—' ) . '</td><td>' . esc_html( $pending ) . '</td><td>' . absint( $aliases ) . '</td><td>' . esc_html( $plugins ? implode( ', ', $plugins ) : '—' ) . '</td><td>' . esc_html( $last ) . '</td><td><a href="' . esc_url( $tool ) . '">Abrir la herramienta del sitio</a></td></tr>';
 		}
 		echo '</tbody></table>';
-		echo '<p>' . esc_html( $total_missing ? 'Hay widgets sin adaptador: la herramienta de cada sitio explica el motivo y la alternativa de cada uno.' : 'Ningún sitio usa widgets de Element Pack sin adaptador.' ) . '</p>';
+		$network_active = array();
+		foreach ( Retire::status() as $info ) {
+			if ( $info['network'] ) {
+				$network_active[] = $info['label'];
+			}
+		}
+		echo '<p>' . esc_html( ( $network_active ? 'Activos en toda la red: ' . implode( ', ', $network_active ) . '. ' : '' ) . ( $total_missing ? 'Hay widgets sin adaptador: la herramienta de cada sitio explica el motivo y la alternativa de cada uno.' : 'Ningún sitio usa widgets de Element Pack sin adaptador.' ) ) . '</p>';
 		echo '</div>';
 	}
 }

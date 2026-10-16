@@ -4,11 +4,11 @@ namespace Digitalisimo\Migration;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Arranque de la compatibilidad heredada.
+ * Arranque de la compatibilidad heredada y de «Migrar».
  *
  * Necesita DIGITALÍSIMO Elements: sus widgets son el destino de cada adaptador y de la conversión.
- * Mientras Element Pack esté activo en un sitio, sus propios widgets se pintan con su código y aquí
- * sólo funcionan el inventario y la conversión (que exige desactivarlo antes).
+ * Mientras Element Pack esté activo en un sitio, sus propios widgets se pintan con su código; Migrar
+ * lo desactiva (junto con Elementor, Elementor Pro y PRO Elements) antes de convertir.
  */
 final class Plugin {
 	public static function boot() {
@@ -31,6 +31,9 @@ final class Plugin {
 		self::bridge_visitor_filters();
 		add_filter( 'admin_memory_limit', array( __CLASS__, 'editor_memory' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'register_adapters' ), 30 );
+		// Migrar en un clic: su paso AJAX, su continuación con WP-Cron y el origen de la pantalla de red.
+		require_once $legacy . 'class-runner.php';
+		\Digitalisimo\Elements\Legacy\Runner::init();
 		if ( is_admin() ) {
 			require_once $legacy . 'class-migration.php';
 			\Digitalisimo\Elements\Legacy\Migration::init();
