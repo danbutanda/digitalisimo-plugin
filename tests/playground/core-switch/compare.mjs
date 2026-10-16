@@ -7,8 +7,14 @@ const merge = (phase) => { const one = read(`${phase}-1`); const two = read(`${p
 const a = merge('elementor');
 const b = merge('bundled');
 const removed = read('removed');
+const rows = read('rows');
 const problems = [];
 const expect = (ok, message) => { if (!ok) problems.push(message); };
+// Con Elementor instalado pero desactivado manda el núcleo incluido y la identidad está activa; aun así, la fila del
+// plugin Elementor muestra sus propias cabeceras («Elementor» por «Elementor.com») con la nota, nada se lee como
+// «DIGITALÍSIMO Elements.com», y el plugin no cuenta como desinstalable: borrarlo (paso siguiente) no carga su archivo.
+expect(rows.bundled && !rows.external_active && rows.installed && rows.brand_active === 'DIGITALÍSIMO Elements', `la lista de plugins debe pintarse con el núcleo incluido, Elementor instalado y desactivado y la marca activa: ${JSON.stringify(rows)}`);
+expect(!rows.error && rows.row_name === 'Elementor' && rows.row_author === 'Elementor.com' && rows.html_author && !rows.html_duplicate && rows.html_note && rows.html_own && rows.uninstallable === false, `la fila del plugin Elementor desactivado debe mostrar sus cabeceras con la nota, sin leerse como un segundo DIGITALÍSIMO Elements, y no ser desinstalable: ${JSON.stringify(rows)}`);
 expect(a.checks.core_bundled === '' && a.checks.elementor_path.startsWith('/elementor/'), `con Elementor activo debe mandar el plugin Elementor: ${JSON.stringify(a.checks)}`);
 expect(removed.deleted && !removed.still_there && removed.global_lang.length === 0, `Elementor y sus traducciones deben quedar borrados: ${JSON.stringify(removed)}`);
 expect(b.checks.core_bundled === b.checks.elementor && b.checks.elementor_path.startsWith('/digitalisimo-elements/elementor/'), `sin Elementor debe cargar el núcleo incluido: ${JSON.stringify(b.checks)}`);

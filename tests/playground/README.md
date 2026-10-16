@@ -53,7 +53,7 @@ CORE=bundled bash tests/playground/interaction.sh
 
 `interaction.sh` abre además el editor de Elementor como administrador y exige panel, vista previa y ninguna respuesta de error; un mu-plugin de prueba deja en `fatal.log` los errores fatales de cada petición, también las AJAX del editor.
 
-`core-switch.sh` crea en una red páginas con widgets de Elementor, Pro y DIGITALÍSIMO bajo el plugin Elementor, lo borra (con sus traducciones) y comprueba que el núcleo incluido las pinta igual (texto, enlaces, imágenes y CSS), en español, con un kit por sitio, aceptando los complementos que exigen `elementor` y sirviendo desde el núcleo las rutas antiguas guardadas en el contenido. Cada sitio se pinta en su propia petición: Elementor guarda en caché los documentos por ID sin distinguir el sitio.
+`core-switch.sh` crea en una red páginas con widgets de Elementor, Pro y DIGITALÍSIMO bajo el plugin Elementor, lo borra (con sus traducciones) y comprueba que el núcleo incluido las pinta igual (texto, enlaces, imágenes y CSS), en español, con un kit por sitio, aceptando los complementos que exigen `elementor` y sirviendo desde el núcleo las rutas antiguas guardadas en el contenido. Cada sitio se pinta en su propia petición: Elementor guarda en caché los documentos por ID sin distinguir el sitio. Con Elementor instalado pero desactivado, la lista de plugins (`WP_Plugins_List_Table`) lo sigue llamando «Elementor» por «Elementor.com» con su nota, sin que la identidad lo convierta en un segundo «DIGITALÍSIMO Elements», no lo cuenta como desinstalable, y el paso siguiente lo borra con el núcleo incluido cargado.
 
 ## Identidad propia del constructor
 

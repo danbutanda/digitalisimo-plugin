@@ -14,7 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Digitalisimo_Elements_Core {
-	const EXTERNAL = 'elementor/elementor.php';
+	const EXTERNAL     = 'elementor/elementor.php';
+	const EXTERNAL_PRO = 'elementor-pro/elementor-pro.php';
 
 	public static function dir() {
 		return __DIR__ . '/elementor/';
@@ -83,6 +84,88 @@ final class Digitalisimo_Elements_Core {
 		// al leerlo se apunta a los del núcleo incluido, y una petición que aún llegue a la ruta antigua se redirige.
 		add_filter( 'get_post_metadata', array( __CLASS__, 'old_asset_urls' ), 10, 4 );
 		add_action( 'init', array( __CLASS__, 'redirect_old_asset' ), 0 );
+		// El plugin Elementor (y Elementor Pro) instalado pero desactivado no se toca: su fila en la lista de plugins muestra
+		// sus propias cabeceras, sin que los filtros de identidad las conviertan en un segundo «DIGITALÍSIMO Elements»; una
+		// nota aditiva explica que no hace falta; y borrarlo no carga su archivo principal, que chocaría con el núcleo incluido.
+		add_filter( 'all_plugins', array( __CLASS__, 'external_rows' ) );
+		foreach ( self::EXTERNAL_PLUGINS as $file ) {
+			add_action( 'after_plugin_row_' . $file, array( __CLASS__, 'external_row_note' ), 10, 2 );
+		}
+		add_filter( 'option_uninstall_plugins', array( __CLASS__, 'skip_external_uninstall' ) );
+	}
+
+	/** Plugins externos del constructor que, instalados junto a DIGITALÍSIMO Elements, deben seguir leyéndose como lo que son. */
+	const EXTERNAL_PLUGINS = array( self::EXTERNAL, self::EXTERNAL_PRO );
+
+	/**
+	 * Con el núcleo incluido, los filtros de identidad reescriben «Elementor» en los textos del dominio `elementor`, y
+	 * WordPress traduce con ese dominio las cabeceras del plugin Elementor al listarlo: su fila pasaba a leerse como un
+	 * segundo «DIGITALÍSIMO Elements» por «DIGITALÍSIMO Elements.com». Las cabeceras se traducen aquí con su propio
+	 * dominio y sin los filtros de identidad, y se entregan sin dominio para que WordPress no las vuelva a traducir: la
+	 * fila dice exactamente lo que dice el plugin. Las demás filas no se tocan.
+	 */
+	public static function external_rows( $plugins ) {
+		if ( ! is_array( $plugins ) ) {
+			return $plugins;
+		}
+		$brand   = array( 'Digitalisimo_Elements_Identity', 'gettext' );
+		$removed = false;
+		foreach ( self::EXTERNAL_PLUGINS as $file ) {
+			if ( ! isset( $plugins[ $file ] ) || ! is_array( $plugins[ $file ] ) ) {
+				continue;
+			}
+			$row    = $plugins[ $file ];
+			$domain = (string) ( $row['TextDomain'] ?? '' );
+			if ( '' !== $domain && function_exists( 'translate' ) ) {
+				if ( ! $removed && function_exists( 'remove_filter' ) ) {
+					$removed = remove_filter( 'gettext', $brand, 20 );
+				}
+				foreach ( array( 'Name', 'PluginURI', 'Description', 'Author', 'AuthorURI', 'Version' ) as $field ) {
+					if ( isset( $row[ $field ] ) && is_string( $row[ $field ] ) && '' !== $row[ $field ] ) {
+						$row[ $field ] = translate( $row[ $field ], $domain ); // phpcs:ignore WordPress.WP.I18n.LowLevelTranslationFunction,WordPress.WP.I18n.NonSingularStringLiteralText,WordPress.WP.I18n.NonSingularStringLiteralDomain -- como _get_plugin_data_markup_translate(), con el dominio del propio plugin.
+					}
+				}
+			}
+			$row['TextDomain'] = '';
+			$row['DomainPath'] = '';
+			$plugins[ $file ]  = $row;
+		}
+		if ( $removed ) {
+			add_filter( 'gettext', $brand, 20, 3 );
+		}
+		return $plugins;
+	}
+
+	/**
+	 * Al borrar un plugin con rutina de desinstalación registrada, WordPress incluye su archivo principal para ejecutarla;
+	 * con el núcleo incluido ya cargado, el de Elementor (o el de Elementor Pro) redeclara sus funciones y clases y la
+	 * petición muere con un error fatal: el plugin no se podía borrar. Mientras manda el núcleo incluido, esos dos se
+	 * borran sin ejecutar su rutina (la de Elementor sólo quita una tarea programada y avisa a su API): se van sus
+	 * archivos y nada más.
+	 */
+	public static function skip_external_uninstall( $value ) {
+		if ( is_array( $value ) ) {
+			foreach ( self::EXTERNAL_PLUGINS as $file ) {
+				unset( $value[ $file ] );
+			}
+		}
+		return $value;
+	}
+
+	/** Nota bajo la fila del plugin externo (sólo se engancha con el núcleo incluido, es decir, con ese plugin desactivado). */
+	public static function external_row_note( $plugin_file, $plugin_data ) {
+		if ( ! in_array( $plugin_file, self::EXTERNAL_PLUGINS, true ) || ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		$text = self::EXTERNAL === $plugin_file
+			? sprintf( 'Este es el plugin Elementor original: no hace falta, porque DIGITALÍSIMO Elements ya incluye el constructor (versión %s). Desactivado no hace nada y puedes borrarlo; si lo activas, manda él.', self::version() )
+			: 'Este es el plugin Elementor Pro original: no hace falta, porque DIGITALÍSIMO Elements ya incluye las funciones avanzadas. Debe quedar desactivado y puedes borrarlo.';
+		$columns = 4;
+		if ( function_exists( '_get_list_table' ) && function_exists( 'get_current_screen' ) && get_current_screen() ) {
+			$table   = _get_list_table( 'WP_Plugins_List_Table', array( 'screen' => get_current_screen() ) );
+			$columns = $table ? (int) $table->get_column_count() : $columns;
+		}
+		echo '<tr class="plugin-update-tr" data-plugin="' . esc_attr( $plugin_file ) . '"><td colspan="' . esc_attr( $columns ) . '" class="plugin-update colspanchange"><div class="update-message notice inline notice-warning notice-alt"><p>' . esc_html( $text ) . '</p></div></td></tr>';
 	}
 
 	/** Ruta de los archivos del plugin Elementor y la del núcleo incluido (sólo la ruta: vale con cualquier dominio). */

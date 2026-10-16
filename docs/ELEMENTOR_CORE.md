@@ -33,7 +33,7 @@ Desde 4.3.0.138, DIGITALÍSIMO Elements trae el núcleo gratuito de Elementor de
 1. Actualiza DIGITALÍSIMO Elements a 4.3.0.138 o posterior y haz un respaldo.
 2. En **Plugins** (o **Red → Plugins**) un aviso indica qué versión de Elementor incluye DIGITALÍSIMO Elements. Desactiva el plugin **Elementor** donde esté activo (en la red o en cada sitio).
 3. Revisa páginas, plantillas, Theme Builder y el editor de alguna página.
-4. Si todo está bien, borra el plugin Elementor. Si algo falla, vuelve a activarlo: manda de nuevo y no se pierde nada.
+4. Si todo está bien, borra el plugin Elementor. Si algo falla, vuelve a activarlo: manda de nuevo y no se pierde nada. Mientras siga instalado y desactivado, la lista de plugins lo muestra con sus propias cabeceras («Elementor», por «Elementor.com») y una nota de que es el original y no hace falta: sus cabeceras no pasan por los filtros de identidad, así que no se confunde con DIGITALÍSIMO Elements (igual con Elementor Pro). Borrarlo con el núcleo incluido cargado no ejecuta su rutina de desinstalación (cargaría su archivo principal sobre el núcleo): sólo se van sus archivos.
 
 Elementor Pro y PRO Elements deben quedar desactivados, como ya exigía DIGITALÍSIMO Elements. Element Pack Pro se retira siguiendo [ELEMENT_PACK_RETIREMENT.md](ELEMENT_PACK_RETIREMENT.md).
 

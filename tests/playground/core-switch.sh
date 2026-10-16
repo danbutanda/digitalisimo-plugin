@@ -2,7 +2,9 @@
 # Cambio de núcleo en una red Multisite: crea páginas con widgets de Elementor, Pro y DIGITALÍSIMO bajo el plugin
 # Elementor, borra Elementor (y con él sus traducciones) y comprueba que el núcleo incluido en DIGITALÍSIMO Elements
 # las pinta igual (texto, enlaces, imágenes y CSS), en español, con un kit por sitio y aceptando los complementos
-# que declaran «Requires Plugins: elementor».
+# que declaran «Requires Plugins: elementor». Con Elementor instalado pero desactivado, la lista de plugins lo sigue
+# llamando Elementor (sus cabeceras, con una nota), no «DIGITALÍSIMO Elements», y se puede borrar desde esa petición
+# (con el núcleo incluido cargado) sin que WordPress cargue su archivo principal.
 # Uso: bash tests/playground/core-switch.sh   → resultados en $OUT (por defecto /tmp/digi-core-switch)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -18,6 +20,8 @@ cat > "$OUT/blueprint.json" <<'JSON'
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/digi-tests/core-switch/setup.php';"},
 {"step":"runPHP","code":"<?php putenv('DIGI_CORE_PHASE=elementor'); putenv('DIGI_CORE_BLOG=1'); require '/wordpress/wp-content/digi-tests/core-switch/phase.php';"},
 {"step":"runPHP","code":"<?php putenv('DIGI_CORE_PHASE=elementor'); putenv('DIGI_CORE_BLOG=2'); require '/wordpress/wp-content/digi-tests/core-switch/phase.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/digi-tests/core-switch/deactivate-elementor.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/digi-tests/core-switch/rows.php';"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/digi-tests/core-switch/remove-elementor.php';"},
 {"step":"runPHP","code":"<?php putenv('DIGI_CORE_PHASE=bundled'); putenv('DIGI_CORE_BLOG=1'); require '/wordpress/wp-content/digi-tests/core-switch/phase.php';"},
 {"step":"runPHP","code":"<?php putenv('DIGI_CORE_PHASE=bundled'); putenv('DIGI_CORE_BLOG=2'); require '/wordpress/wp-content/digi-tests/core-switch/phase.php';"}]}
