@@ -77,7 +77,49 @@ final class Digitalisimo_Elements_Identity {
 	}
 
 	public static function gettext( $translation, $text, $domain ) {
-		return in_array( $domain, self::DOMAINS, true ) ? self::brand( $translation ) : $translation;
+		return in_array( $domain, self::DOMAINS, true ) && ! self::external_header( $text ) ? self::brand( $translation ) : $translation;
+	}
+
+	/**
+	 * Cabeceras del plugin Elementor (o Elementor Pro) original que siga instalado junto a DIGITALÍSIMO Elements. WordPress
+	 * las traduce con el dominio del plugin en _get_plugin_data_markup_translate() (lista de plugins, Escritorio →
+	 * Actualizaciones, confirmación de borrado, correo de actualización automática, pantallas de actualización) y la marca
+	 * no debe tocarlas: ese plugin es lo que es. Sólo cuenta si el texto es exactamente una de esas cabeceras (se leen una
+	 * vez por petición) y sólo mientras se traduce desde esa función para uno de esos plugins.
+	 */
+	public static function external_header( $text ) {
+		static $headers = null;
+		if ( null === $headers ) {
+			$headers = array();
+			if ( defined( 'Digitalisimo_Elements_Core::EXTERNAL_PLUGINS' ) && defined( 'WP_PLUGIN_DIR' ) && function_exists( 'get_file_data' ) ) {
+				foreach ( Digitalisimo_Elements_Core::EXTERNAL_PLUGINS as $file ) {
+					$path = WP_PLUGIN_DIR . '/' . $file;
+					if ( is_readable( $path ) ) {
+						foreach ( get_file_data( $path, array( 'Plugin Name', 'Description', 'Author', 'Plugin URI', 'Author URI' ), 'plugin' ) as $value ) {
+							if ( '' !== $value ) {
+								$headers[ $value ] = true;
+							}
+						}
+					}
+				}
+			}
+		}
+		if ( ! isset( $headers[ $text ] ) ) {
+			return false;
+		}
+		foreach ( debug_backtrace( 0, 10 ) as $frame ) { // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace -- distingue la traducción de cabeceras de cualquier otro texto igual.
+			if ( '_get_plugin_data_markup_translate' !== (string) ( $frame['function'] ?? '' ) ) {
+				continue;
+			}
+			$file = str_replace( '\\', '/', (string) ( $frame['args'][0] ?? '' ) );
+			foreach ( Digitalisimo_Elements_Core::EXTERNAL_PLUGINS as $external ) {
+				if ( $file === $external || substr( $file, -strlen( '/' . $external ) ) === '/' . $external ) {
+					return true;
+				}
+			}
+			return false;
+		}
+		return false;
 	}
 
 	public static function gettext_with_context( $translation, $text, $context, $domain ) {

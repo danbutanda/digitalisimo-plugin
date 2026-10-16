@@ -57,7 +57,7 @@ CORE=bundled bash tests/playground/interaction.sh
 
 ## Identidad propia del constructor
 
-`brand-audit.sh` arranca un sitio en español sólo con DIGITALÍSIMO Elements y su núcleo incluido, y lo recorre en Chrome en español y en inglés:
+`brand-audit.sh` arranca un sitio en español sólo con DIGITALÍSIMO Elements y su núcleo incluido, y lo recorre en Chrome en español y en inglés: La fila del plugin Elementor original instalado queda fuera de esta auditoría a propósito (sus cabeceras se muestran tal cual); la cubre `core-switch.sh`.
 
 - Todas las pantallas del menú del constructor, el escritorio, los plugins, las páginas y el editor de bloques.
 - La app de kits.

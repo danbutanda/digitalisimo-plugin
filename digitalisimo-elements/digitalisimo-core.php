@@ -89,7 +89,8 @@ final class Digitalisimo_Elements_Core {
 		// nota aditiva explica que no hace falta; y borrarlo no carga su archivo principal, que chocaría con el núcleo incluido.
 		add_filter( 'all_plugins', array( __CLASS__, 'external_rows' ) );
 		foreach ( self::EXTERNAL_PLUGINS as $file ) {
-			add_action( 'after_plugin_row_' . $file, array( __CLASS__, 'external_row_note' ), 10, 2 );
+			// Tras la fila de actualización de WordPress (prioridad 10), para que no se mezclen.
+			add_action( 'after_plugin_row_' . $file, array( __CLASS__, 'external_row_note' ), 11, 2 );
 		}
 		add_filter( 'option_uninstall_plugins', array( __CLASS__, 'skip_external_uninstall' ) );
 	}
@@ -117,6 +118,10 @@ final class Digitalisimo_Elements_Core {
 			$row    = $plugins[ $file ];
 			$domain = (string) ( $row['TextDomain'] ?? '' );
 			if ( '' !== $domain && function_exists( 'translate' ) ) {
+				// Como _get_plugin_data_markup_translate(): las traducciones del propio plugin, si aún no están cargadas.
+				if ( function_exists( 'is_textdomain_loaded' ) && ! is_textdomain_loaded( $domain ) && function_exists( 'load_plugin_textdomain' ) ) {
+					load_plugin_textdomain( $domain, false, dirname( $file ) . (string) ( $row['DomainPath'] ?? '' ) );
+				}
 				if ( ! $removed && function_exists( 'remove_filter' ) ) {
 					$removed = remove_filter( 'gettext', $brand, 20 );
 				}
@@ -152,20 +157,90 @@ final class Digitalisimo_Elements_Core {
 		return $value;
 	}
 
-	/** Nota bajo la fila del plugin externo (sólo se engancha con el núcleo incluido, es decir, con ese plugin desactivado). */
+	/**
+	 * Nota aditiva bajo la fila del plugin externo. Conserva data-plugin (así WordPress la retira al borrar el plugin por
+	 * AJAX) pero no la clase update-message, que updates.js sobrescribe con «Actualizando…» al actualizar ese plugin.
+	 */
 	public static function external_row_note( $plugin_file, $plugin_data ) {
 		if ( ! in_array( $plugin_file, self::EXTERNAL_PLUGINS, true ) || ! current_user_can( 'activate_plugins' ) ) {
 			return;
 		}
-		$text = self::EXTERNAL === $plugin_file
-			? sprintf( 'Este es el plugin Elementor original: no hace falta, porque DIGITALÍSIMO Elements ya incluye el constructor (versión %s). Desactivado no hace nada y puedes borrarlo; si lo activas, manda él.', self::version() )
-			: 'Este es el plugin Elementor Pro original: no hace falta, porque DIGITALÍSIMO Elements ya incluye las funciones avanzadas. Debe quedar desactivado y puedes borrarlo.';
 		$columns = 4;
 		if ( function_exists( '_get_list_table' ) && function_exists( 'get_current_screen' ) && get_current_screen() ) {
 			$table   = _get_list_table( 'WP_Plugins_List_Table', array( 'screen' => get_current_screen() ) );
 			$columns = $table ? (int) $table->get_column_count() : $columns;
 		}
-		echo '<tr class="plugin-update-tr" data-plugin="' . esc_attr( $plugin_file ) . '"><td colspan="' . esc_attr( $columns ) . '" class="plugin-update colspanchange"><div class="update-message notice inline notice-warning notice-alt"><p>' . esc_html( $text ) . '</p></div></td></tr>';
+		echo '<tr class="plugin-update-tr digitalisimo-plugin-note" data-plugin="' . esc_attr( $plugin_file ) . '"><td colspan="' . esc_attr( $columns ) . '" class="plugin-update colspanchange"><div class="notice inline notice-warning notice-alt"><p>' . esc_html( self::external_note_text( $plugin_file ) ) . '</p></div></td></tr>';
+	}
+
+	/**
+	 * Texto de la nota según el estado real: activo aquí (Elementor Pro puede estarlo con el núcleo incluido cargado)
+	 * manda él y no se da por borrable; en Red → Plugins se cuenta sitio por sitio dónde sigue activo, porque borrarlo
+	 * desde la red dejaría esos sitios sin él; en un sitio de la red se indica dónde se borra.
+	 */
+	public static function external_note_text( $plugin_file ) {
+		$what   = self::EXTERNAL_PRO === $plugin_file
+			? 'el plugin Elementor Pro original: no hace falta, porque DIGITALÍSIMO Elements ya incluye las funciones avanzadas'
+			: sprintf( 'el plugin Elementor original: no hace falta, porque DIGITALÍSIMO Elements ya incluye el constructor (versión %s)', self::version() );
+		$active = self::active_sites( $plugin_file );
+		if ( $active['here'] ) {
+			return sprintf( 'Este es %s. Está activo, así que mientras tanto manda él: desactívalo para que DIGITALÍSIMO Elements lo sustituya y entonces podrás borrarlo.', $what );
+		}
+		if ( $active['sites'] ) {
+			return sprintf( 'Este es %s. Sigue activo en %d sitios de la red: desactívalo allí antes de borrarlo, o esos sitios se quedarían sin él.', $what, $active['sites'] );
+		}
+		$where = is_multisite() && ! is_network_admin() ? ' (se borra desde Red → Plugins)' : '';
+		return sprintf( 'Este es %s. Desactivado no hace nada y puedes borrarlo%s; si lo activas, manda él.', $what, $where );
+	}
+
+	/**
+	 * ¿Está activo un plugin aquí (sitio actual o toda la red) y, en la administración de red, en cuántos sitios más?
+	 *
+	 * @return array{here:bool, sites:int}
+	 */
+	public static function active_sites( $plugin_file ) {
+		$here  = in_array( $plugin_file, (array) get_option( 'active_plugins', array() ), true ) || ( is_multisite() && isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $plugin_file ] ) );
+		$sites = 0;
+		if ( ! $here && is_multisite() && is_network_admin() && function_exists( 'get_sites' ) ) {
+			foreach ( get_sites( array( 'number' => 500, 'fields' => 'ids' ) ) as $site_id ) {
+				$sites += in_array( $plugin_file, (array) get_blog_option( (int) $site_id, 'active_plugins', array() ), true ) ? 1 : 0;
+			}
+		}
+		return array( 'here' => $here, 'sites' => $sites );
+	}
+
+	/**
+	 * Dos carpetas instaladas del mismo plugin Digitalísimo (misma «Update URI» de este repositorio): pasa al subir a mano
+	 * un ZIP con otra carpeta raíz o al dejar una copia antigua. Sólo una puede estar activa y la otra sobra; el aviso en
+	 * Plugins dice cuáles son para borrar la inactiva. Vale para los siete plugins, con o sin el núcleo incluido.
+	 */
+	public static function duplicate_copies_notice() {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || ! in_array( $screen->id, array( 'plugins', 'plugins-network' ), true ) || ! current_user_can( 'activate_plugins' ) || ! function_exists( 'get_plugins' ) ) {
+			return;
+		}
+		$plugins = get_plugins();
+		foreach ( self::duplicate_copies( $plugins ) as $files ) {
+			$list = array();
+			foreach ( $files as $file ) {
+				$list[] = dirname( $file ) . ( self::active_sites( $file )['here'] ? ' (activa)' : ' (inactiva)' );
+			}
+			echo '<div class="notice notice-warning"><p>' . esc_html( sprintf( 'Hay %d copias instaladas del plugin «%s»: %s. Sólo hace falta una; borra la inactiva desde esta lista.', count( $files ), (string) ( $plugins[ $files[0] ]['Name'] ?? $files[0] ), implode( ', ', $list ) ) ) . '</p></div>';
+		}
+	}
+
+	/** Agrupa por «Update URI» de este repositorio los plugins instalados; devuelve sólo los grupos con más de una carpeta. */
+	public static function duplicate_copies( array $plugins ) {
+		$groups = array();
+		foreach ( $plugins as $file => $data ) {
+			$uri = (string) ( $data['UpdateURI'] ?? '' );
+			if ( 0 === strpos( $uri, 'https://github.com/danbutanda/digitalisimo-plugin/' ) ) {
+				$groups[ $uri ][] = (string) $file;
+			}
+		}
+		return array_filter( $groups, static function ( $files ) {
+			return count( $files ) > 1;
+		} );
 	}
 
 	/** Ruta de los archivos del plugin Elementor y la del núcleo incluido (sólo la ruta: vale con cualquier dominio). */

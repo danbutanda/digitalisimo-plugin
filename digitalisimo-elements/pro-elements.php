@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Constructor visual completo de DIGITALÍSIMO: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin, compatible con el contenido, los kits y los complementos ya creados para el constructor.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.147
+ * Version: 4.3.0.148
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.147' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.148' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 // Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
 require_once __DIR__ . '/digitalisimo-core.php';
@@ -25,6 +25,8 @@ Digitalisimo_Elements_Core::load();
 register_activation_hook( __FILE__, array( 'Digitalisimo_Elements_Core', 'activate' ) );
 add_action( 'admin_notices', array( 'Digitalisimo_Elements_Core', 'external_notice' ) );
 add_action( 'network_admin_notices', array( 'Digitalisimo_Elements_Core', 'external_notice' ) );
+add_action( 'admin_notices', array( 'Digitalisimo_Elements_Core', 'duplicate_copies_notice' ) );
+add_action( 'network_admin_notices', array( 'Digitalisimo_Elements_Core', 'duplicate_copies_notice' ) );
 require_once __DIR__ . '/digitalisimo-compat.php';
 require_once __DIR__ . '/digitalisimo-updater.php';
 require_once __DIR__ . '/digitalisimo-brand.php';

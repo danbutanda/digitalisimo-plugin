@@ -7,14 +7,20 @@ const merge = (phase) => { const one = read(`${phase}-1`); const two = read(`${p
 const a = merge('elementor');
 const b = merge('bundled');
 const removed = read('removed');
-const rows = read('rows');
 const problems = [];
 const expect = (ok, message) => { if (!ok) problems.push(message); };
-// Con Elementor instalado pero desactivado manda el núcleo incluido y la identidad está activa; aun así, la fila del
-// plugin Elementor muestra sus propias cabeceras («Elementor» por «Elementor.com») con la nota, nada se lee como
-// «DIGITALÍSIMO Elements.com», y el plugin no cuenta como desinstalable: borrarlo (paso siguiente) no carga su archivo.
-expect(rows.bundled && !rows.external_active && rows.installed && rows.brand_active === 'DIGITALÍSIMO Elements', `la lista de plugins debe pintarse con el núcleo incluido, Elementor instalado y desactivado y la marca activa: ${JSON.stringify(rows)}`);
-expect(!rows.error && rows.row_name === 'Elementor' && rows.row_author === 'Elementor.com' && rows.html_author && !rows.html_duplicate && rows.html_note && rows.html_own && rows.uninstallable === false, `la fila del plugin Elementor desactivado debe mostrar sus cabeceras con la nota, sin leerse como un segundo DIGITALÍSIMO Elements, y no ser desinstalable: ${JSON.stringify(rows)}`);
+// Si la sonda murió antes de escribir su resultado, el error de PHP que dejó el gestor de apagado es el problema.
+const readOr = (name, errorName) => { try { return read(name); } catch (e) { let detail = e.message; try { detail = JSON.stringify(read(errorName)); } catch (e2) { /* sin detalle */ } problems.push(`${name}.json no se escribió: ${detail}`); return {}; } };
+const rows = readOr('rows', 'error-rows');
+// Con Elementor instalado pero desactivado manda el núcleo incluido y la identidad está activa; aun así, sus cabeceras
+// salen tal cual por todas las vías (get_plugin_data y las dos listas, con la nota propia del ancho de cada tabla), nada
+// se lee como «DIGITALÍSIMO Elements.com», y el plugin no cuenta como desinstalable: borrarlo (paso siguiente) no carga su archivo.
+expect(rows.bundled && !rows.external_active && rows.installed && rows.brand_active === 'DIGITALÍSIMO Elements' && rows.uninstallable === false, `la lista de plugins debe pintarse con el núcleo incluido, Elementor instalado, desactivado, no desinstalable y la marca activa: ${JSON.stringify(rows)}`);
+expect(!rows.error && rows.data_name === 'Elementor', `get_plugin_data() (Actualizaciones, borrado, correos) debe devolver el nombre real del plugin Elementor: ${JSON.stringify({ error: rows.error, data_name: rows.data_name })}`);
+for (const [screen, columns] of [['plugins', 3], ['plugins-network', 4]]) {
+  const r = rows[screen] || {};
+  expect(r.row_name === 'Elementor' && r.row_author === 'Elementor.com' && r.html_author && !r.html_duplicate && r.html_note && r.own_rows === 1 && r.elementor_rows === 1 && r.colspan === columns, `${screen}: la fila del plugin Elementor desactivado debe mostrar sus cabeceras con la nota propia (${columns} columnas) y la propia debe aparecer una sola vez: ${JSON.stringify(r)}`);
+}
 expect(a.checks.core_bundled === '' && a.checks.elementor_path.startsWith('/elementor/'), `con Elementor activo debe mandar el plugin Elementor: ${JSON.stringify(a.checks)}`);
 expect(removed.deleted && !removed.still_there && removed.global_lang.length === 0, `Elementor y sus traducciones deben quedar borrados: ${JSON.stringify(removed)}`);
 expect(b.checks.core_bundled === b.checks.elementor && b.checks.elementor_path.startsWith('/digitalisimo-elements/elementor/'), `sin Elementor debe cargar el núcleo incluido: ${JSON.stringify(b.checks)}`);
