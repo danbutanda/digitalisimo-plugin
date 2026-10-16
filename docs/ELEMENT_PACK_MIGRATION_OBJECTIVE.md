@@ -4,6 +4,8 @@ Este documento es el punto de entrada para cualquier agente que continúe la mig
 
 La petición del usuario es terminar primero el bloque prioritario de [63 componentes](element-pack-priority.md) (53 widgets y 10 extensiones), y después continuar con los restantes del [inventario de 263 IDs Elementor](element-pack-inventory.md). El orden interno puede agrupar componentes que comparten motor, pero no sustituir esta prioridad por una puntuación técnica. Desde 4.3.0.125 el **criterio de cierre está cumplido**: los 63 componentes prioritarios y los 210 restantes tienen decisión y validación verificables (véase «Estado de cierre» al final). Lo que sigue son mejoras de paridad sobre las diferencias declaradas, no adaptadores pendientes.
 
+Desde 4.3.0.152 cuatro grupos de widgets propios con la misma función se fusionaron (Logotipos reúne Brand Carousel, Logo Carousel, Brand Grid y Logo Grid; Botón absorbe Creative Button; Navegación con iconos absorbe Icon Mobile Menu; Pestañas absorbe Content Switcher). Los IDs `digitalisimo-*` retirados siguen registrados como alias ocultos con su clase PHP y sus clases CSS (`class-widget-alias.php`), así que los destinos de `docs/migration-map.json`, los adaptadores `Bdt_*` que extienden esas clases y los mapas `.styles.php` no cambian.
+
 ## Fuente, alcance y procedencia
 
 - La copia `reference/bdthemes-element-pack/` es **sólo referencia local de análisis**. No se instala, no se ejecuta, no se importa en runtime y está excluida del ZIP. El repositorio no distribuye sus pantallas de activación/desactivación, administración, licenciamiento ni servicios remotos. Se incorporan widgets; las 10 extensiones prioritarias se evalúan por separado y sólo si pueden integrarse sin efectos globales imprevistos.

@@ -202,6 +202,78 @@ checks['bdt-wc-products'] = async (page) => {
 };
 checks['bdt-logo-carousel'] = async (page) => (await checks['bdt-static-carousel'](page)).replace('deslizador propio', 'carrusel de logos');
 checks['bdt-slider'] = async (page) => (await checks['bdt-custom-carousel'](page)).replace('carrusel de medios', 'deslizador de diapositivas');
+// Widgets fusionados y sus alias: el contenido guardado con el esquema de antes se pinta con el widget nuevo y conserva sus clases.
+const classes = (page, selector) => page.$eval(selector, (el) => el.className);
+checks['digitalisimo-logos'] = async (page) => {
+  if (!(await classes(page, '.digi-logos')).includes('digi-logos--carousel') || (await page.$('.digi-brand-carousel'))) throw new Error('el widget nuevo imprime sólo sus clases en carrusel');
+  if ((await page.$$('.digi-logos__link-text')).length !== 1) throw new Error('el texto del enlace va dentro de la tarjeta enlazada');
+  return (await checks['bdt-static-carousel'](page)).replace('el deslizador propio', 'Logotipos en carrusel');
+};
+checks['digitalisimo-brand-carousel'] = async (page) => {
+  const root = await classes(page, '.digi-logos');
+  if (!root.includes('digi-brand-carousel') || !(await page.$('a.digi-logos__card.digi-brand-carousel__card')) || !(await page.$('.digi-brand-carousel__website'))) throw new Error(`el alias no conserva sus clases: ${root}`);
+  return (await checks['bdt-static-carousel'](page)).replace('el deslizador propio', 'el carrusel de marcas (alias) con sus clases de antes');
+};
+checks['digitalisimo-brand-grid'] = async (page) => {
+  const items = await page.$$('details.digi-logos__details.digi-brand-grid__details');
+  if (items.length !== 2) throw new Error('la cuadrícula de marcas al abrir debe tener dos detalles con sus clases de antes');
+  await (await items[0].$('summary')).click();
+  await page.waitForFunction(() => document.querySelector('details.digi-brand-grid__details').open, { timeout: 3000 });
+  if (!(await page.$('details[open] a.digi-logos__link.digi-brand-grid__link'))) throw new Error('al abrir debe verse el enlace de texto');
+  return 'la cuadrícula de marcas (alias) abre sus detalles sin JavaScript y conserva sus clases';
+};
+checks['digitalisimo-logo-grid'] = async (page) => {
+  const caption = await page.$('.digi-logos__content--tooltip.digi-logo-grid__caption--tooltip');
+  if (!caption || !(await classes(page, '.digi-logos')).includes('digi-logos--border')) throw new Error('el pie con enlace debe ser un globo y el diseño de bordes conservarse');
+  if ((await page.$$('.digi-logo-grid__caption')).length !== 1) throw new Error('el logotipo sin la opción no muestra pie');
+  // Chrome sin interfaz no declara un dispositivo que apunte (hover:none) y la hoja deja el globo visible, como la de antes;
+  // con un puntero el globo queda oculto hasta apuntar.
+  const hoverable = await page.evaluate(() => matchMedia('(hover: hover)').matches);
+  const opacity = await caption.evaluate((el) => getComputedStyle(el).opacity);
+  if (!hoverable) {
+    if (opacity !== '1') throw new Error(`sin dispositivo que apunte el globo debe verse (opacidad ${opacity})`);
+    return 'la cuadrícula de logotipos (alias) muestra el globo estático sin puntero y conserva sus clases';
+  }
+  if (opacity !== '0') throw new Error(`el globo debe estar oculto hasta apuntar (opacidad ${opacity})`);
+  await page.hover('a.digi-logos__card');
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.digi-logos__content--tooltip')).opacity === '1', { timeout: 3000 });
+  return 'la cuadrícula de logotipos (alias) muestra el globo al apuntar y conserva sus clases';
+};
+checks['digitalisimo-creative-button'] = async (page) => {
+  const got = await page.$eval('a.digi-advanced-button', (el) => ({ cls: el.className, padding: parseFloat(getComputedStyle(el).paddingLeft), font: parseFloat(getComputedStyle(el).fontSize), border: getComputedStyle(el).borderTopWidth, icon: !!el.querySelector('.digi-advanced-button__icon svg, .digi-advanced-button__icon i') }));
+  if (!got.cls.includes('digi-creative-button') || !got.cls.includes('digi-advanced-button--effect-g') || !got.icon) throw new Error(`el botón creativo debe ser un botón con elevación y su clase de antes: ${JSON.stringify(got)}`);
+  if (Math.abs(got.padding - 1.3 * got.font) > 1 || got.border !== '2px') throw new Error(`el aspecto de antes (relleno 1.3em, borde 2px) debe conservarse: ${JSON.stringify(got)}`);
+  return 'el botón creativo (alias) conserva su aspecto, su efecto y su clase';
+};
+checks['digitalisimo-advanced-button'] = async (page) => {
+  const got = await page.$eval('a.digi-advanced-button', (el) => ({ cls: el.className, bg: getComputedStyle(el).backgroundColor }));
+  if (!got.cls.includes('digi-advanced-button--effect-outline') || got.cls.includes('digi-creative-button') || got.bg !== 'rgba(0, 0, 0, 0)') throw new Error(`el efecto contorno debe aplicarse sin clases ajenas: ${JSON.stringify(got)}`);
+  return 'el botón usa el efecto «Contorno» heredado del creativo';
+};
+checks['digitalisimo-icon-mobile-menu'] = async (page) => {
+  const got = await page.$eval('nav.digi-icon-nav', (el) => ({ cls: el.className, links: el.querySelectorAll('a.digi-icon-nav__link.digi-icon-mobile-menu__item').length, radius: getComputedStyle(el.querySelector('a.digi-icon-nav__link')).borderRadius, label: el.querySelector('a').getAttribute('aria-label') }));
+  if (!got.cls.includes('digi-icon-nav--bar') || !got.cls.includes('digi-icon-mobile-menu--style-4') || got.links !== 2 || got.radius !== '50%' || got.label !== 'Inicio') throw new Error(`el menú móvil debe ser la barra circular con sus clases: ${JSON.stringify(got)}`);
+  return 'el menú móvil (alias) se pinta como barra horizontal circular con sus clases de antes';
+};
+checks['digitalisimo-icon-nav'] = async (page) => {
+  const got = await page.$eval('nav.digi-icon-nav', (el) => ({ cls: el.className, rail: !!el.querySelector('.digi-icon-nav__rail'), border: getComputedStyle(el.querySelector('a.digi-icon-nav__link')).borderTopWidth, texts: el.querySelectorAll('.digi-icon-nav__text').length }));
+  if (!got.cls.includes('digi-icon-nav--style-2') || got.rail || got.border !== '1px' || got.texts !== 2 || got.cls.includes('digi-icon-mobile-menu')) throw new Error(`la barra horizontal con bordes debe pintarse sin raíl ni clases ajenas: ${JSON.stringify(got)}`);
+  return 'la navegación con iconos en barra horizontal con bordes';
+};
+checks['digitalisimo-content-switcher'] = async (page) => {
+  const got = await page.$eval('.digi-fancy-tabs', (el) => ({ cls: el.className, selected: el.dataset.digiSelected, tabs: el.querySelectorAll('.digi-fancy-tabs__tab.digi-content-switcher__tab').length, active: el.querySelector('[aria-selected="true"]').textContent.trim() }));
+  if (!got.cls.includes('digi-fancy-tabs--switcher') || !got.cls.includes('digi-content-switcher') || got.tabs !== 2 || got.selected !== '1' || got.active !== 'Anual') throw new Error(`el alternador debe ser pestañas en línea con «Anual» activa: ${JSON.stringify(got)}`);
+  await page.click('[role="tab"]');
+  await page.waitForFunction(() => document.querySelectorAll('[role="tab"]')[0].getAttribute('aria-selected') === 'true' && !document.querySelectorAll('[role="tabpanel"]')[0].hidden, { timeout: 3000 });
+  return 'el alternador (alias) arranca en su opción activa y cambia al pulsar';
+};
+checks['digitalisimo-fancy-tabs'] = async (page) => {
+  const got = await page.$eval('.digi-fancy-tabs', (el) => ({ cls: el.className, strong: el.querySelector('.digi-fancy-tabs__label strong') && getComputedStyle(el.querySelector('.digi-fancy-tabs__label strong')).fontWeight }));
+  if (!got.cls.includes('digi-fancy-tabs--switcher') || got.cls.includes('digi-content-switcher')) throw new Error(`las pestañas en línea no llevan clases ajenas: ${JSON.stringify(got)}`);
+  await page.click('[role="tab"]:nth-child(2)');
+  await page.waitForFunction(() => { const p = document.querySelectorAll('[role="tabpanel"]')[1]; return p && !p.hidden && p.querySelector('.elementor-widget-heading'); }, { timeout: 4000 });
+  return 'las pestañas en línea muestran una plantilla publicada en su panel';
+};
 (async () => {
   const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'] });
   const results = {};

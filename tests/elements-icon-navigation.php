@@ -30,13 +30,12 @@ namespace {
 	function get_bloginfo( $value ) { return 'Sitio'; }
 	function home_url( $path ) { return 'https://site.test' . $path; }
 	function check_icon_navigation( $condition, $message ) { if ( ! $condition ) { throw new \RuntimeException( $message ); } }
-	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-icon-mobile-menu.php';
-	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php';
+	require_once __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-widgets/class-icon-mobile-menu.php';
 	$external = array( 'url' => 'https://external.test/', 'is_external' => true, 'nofollow' => true );
 	$mobile = new \Digitalisimo\Elements\Icon_Mobile_Menu_Widget();
-	$mobile->settings = array( 'menu_style' => 'style-3', 'menu_tooltip' => 'yes', 'menu_items' => array( array( '_id' => 'one', 'menu_text' => 'Externo', 'menu_icon' => array( 'value' => 'fas fa-star' ), 'link' => $external ) ) );
+	$mobile->settings = \Digitalisimo\Elements\Icon_Mobile_Menu_Widget::upgrade_settings( array( 'menu_style' => 'style-3', 'menu_tooltip' => 'yes', 'menu_items' => array( array( '_id' => 'one', 'menu_text' => 'Externo', 'menu_icon' => array( 'value' => 'fas fa-star' ), 'link' => $external ) ) ) );
 	ob_start(); (new \ReflectionMethod( $mobile, 'render' ))->invoke( $mobile ); $html = ob_get_clean();
-	check_icon_navigation( str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'data-tooltip="Externo"' ), 'El menú móvil debe proteger enlaces externos y mostrar su nombre.' );
+	check_icon_navigation( str_contains( $html, 'rel="nofollow noopener noreferrer"' ) && str_contains( $html, 'data-tooltip="Externo"' ) && str_contains( $html, 'class="digi-icon-nav digi-icon-nav--bar digi-icon-nav--style-3 digi-icon-mobile-menu digi-icon-mobile-menu--bar digi-icon-mobile-menu--style-3"' ), 'El menú móvil debe proteger enlaces externos, mostrar su nombre y conservar sus clases.' );
 	ob_start(); (new \ReflectionMethod( $mobile, 'content_template' ))->invoke( $mobile ); $editor = ob_get_clean();
 	check_icon_navigation( str_contains( $editor, 'data-tooltip=' ) && str_contains( $editor, 'target="_blank"' ), 'El editor del menú móvil debe reflejar tooltip y destino externo.' );
 	$nav = new \Digitalisimo\Elements\Icon_Nav_Widget();

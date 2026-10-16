@@ -2,63 +2,34 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-advanced-button.php';
 
-/** Botón con efectos visuales CSS y enlace nativo. */
-class Creative_Button_Widget extends \Elementor\Widget_Base {
-	public function get_name() { return 'digitalisimo-creative-button'; }
-	public function get_title() { return 'Botón creativo'; }
-	public function get_icon() { return 'eicon-button'; }
-	public function get_categories() { return array( 'digitalisimo' ); }
-	public function get_keywords() { return array( 'botón', 'creativo', 'efecto', 'enlace' ); }
-	public function get_style_depends() { return array( 'digitalisimo-creative-button' ); }
-	public function get_script_depends() { return array(); }
+/** Botón creativo: alias oculto del Botón para el contenido guardado; sus efectos siguen disponibles allí. */
+class Creative_Button_Widget extends Advanced_Button_Widget {
+	use Widget_Alias;
 
-	protected function register_controls() {
-		$c = '\\Elementor\\Controls_Manager';
-		$this->start_controls_section( 'section_creative_button', array( 'label' => 'Contenido' ) );
-		$this->add_control( 'text', array( 'label' => 'Texto', 'type' => $c::TEXT, 'dynamic' => array( 'active' => true ), 'default' => 'Conoce más' ) );
-		$this->add_control( 'link', array( 'label' => 'Enlace', 'type' => $c::URL, 'dynamic' => array( 'active' => true ) ) );
-		$this->add_control( 'icon', array( 'label' => 'Icono', 'type' => $c::ICONS ) );
-		$this->add_control( 'effect', array( 'label' => 'Efecto', 'type' => $c::SELECT, 'default' => 'fill', 'options' => array( 'fill' => 'Relleno', 'outline' => 'Contorno', 'lift' => 'Elevación', 'underline' => 'Subrayado', 'glow' => 'Resplandor' ) ) );
-		$this->end_controls_section();
-		$this->start_controls_section( 'section_creative_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
-		$this->add_responsive_control( 'align', array( 'label' => 'Alineación', 'type' => $c::CHOOSE, 'options' => array( 'left' => array( 'title' => 'Izquierda', 'icon' => 'eicon-text-align-left' ), 'center' => array( 'title' => 'Centro', 'icon' => 'eicon-text-align-center' ), 'right' => array( 'title' => 'Derecha', 'icon' => 'eicon-text-align-right' ) ), 'selectors' => array( '{{WRAPPER}} .digi-creative-button__wrap' => 'text-align:{{VALUE}};' ) ) );
-		$this->add_control( 'button_color', array( 'label' => 'Fondo', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-creative-button' => 'background-color:{{VALUE}};' ) ) );
-		$this->add_control( 'text_color', array( 'label' => 'Texto', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-creative-button' => 'color:{{VALUE}};' ) ) );
-		$this->add_responsive_control( 'padding', array( 'label' => 'Relleno', 'type' => $c::DIMENSIONS, 'size_units' => array( 'px', 'em', 'rem' ), 'selectors' => array( '{{WRAPPER}} .digi-creative-button' => 'padding:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ) ) );
-		$this->end_controls_section();
-	}
+	const ALIAS_ID       = 'digitalisimo-creative-button';
+	const LEGACY_KEYS    = array( 'effect' => false, 'icon' => false, 'button_color' => false, 'text_color' => false, 'padding' => true );
+	const LEGACY_CLASSES = array( 'prefix' => 'digi-creative-button', 'elements' => array( 'content' => false, 'text' => false, 'icon' => false, 'badge' => false ) );
+	const EFFECT_MAP     = array( 'fill' => 'fill', 'outline' => 'outline', 'lift' => 'g', 'underline' => 'underline', 'glow' => 'glow' );
 
-	protected function render() {
-		$s = $this->get_settings_for_display();
-		$text = trim( wp_strip_all_tags( (string) ( $s['text'] ?? '' ) ) );
-		if ( '' === $text ) { return; }
-		$effect = in_array( $s['effect'] ?? 'fill', array( 'fill', 'outline', 'lift', 'underline', 'glow' ), true ) ? ( $s['effect'] ?? 'fill' ) : 'fill';
-		$link = is_array( $s['link'] ?? null ) ? $s['link'] : array();
-		$has_link = ! empty( $link['url'] );
-		echo '<div class="digi-creative-button__wrap">';
-		if ( $has_link ) {
-			$this->add_link_attributes( 'creative_button_link', $link );
-			if ( ! empty( $link['is_external'] ) ) {
-				$this->add_render_attribute( 'creative_button_link', 'rel', array( 'noopener', 'noreferrer' ) );
-			}
-			echo '<a class="digi-creative-button digi-creative-button--' . esc_attr( $effect ) . '" ' . $this->get_render_attribute_string( 'creative_button_link' ) . '>';
+	public static function upgrade_settings( array $s ) {
+		if ( ! isset( $s['button_effect'] ) && '' !== (string) ( $s['effect'] ?? '' ) ) {
+			$s['button_effect'] = self::EFFECT_MAP[ (string) $s['effect'] ] ?? 'fill';
 		}
-		else { echo '<span class="digi-creative-button digi-creative-button--' . esc_attr( $effect ) . '">'; }
-		$icon = is_array( $s['icon'] ?? null ) ? $s['icon'] : array();
-		if ( ! empty( $icon['value'] ) ) { \Elementor\Icons_Manager::render_icon( $icon, array( 'aria-hidden' => 'true' ) ); }
-		echo '<span>' . esc_html( $text ) . '</span>';
-		echo $has_link ? '</a>' : '</span>';
-		echo '</div>';
-	}
-
-	protected function content_template() {
-		?>
-		<# var effect = _.contains( ['fill','outline','lift','underline','glow'], settings.effect ) ? settings.effect : 'fill';
-		var link = settings.link || {}; var href = link.url || '';
-		var rel = [ link.nofollow ? 'nofollow' : '', link.is_external ? 'noopener noreferrer' : '' ].filter(Boolean).join(' ');
-		var icon = elementor.helpers.renderIcon( view, settings.icon, { 'aria-hidden': true }, 'i', 'object' ); #>
-		<# if ( settings.text ) { #><div class="digi-creative-button__wrap"><# if ( href ) { #><a class="digi-creative-button digi-creative-button--{{ effect }}" href="{{ href }}"<# if ( link.is_external ) { #> target="_blank"<# } #><# if ( rel ) { #> rel="{{ rel }}"<# } #>><# } else { #><span class="digi-creative-button digi-creative-button--{{ effect }}"><# } #><# if ( icon && icon.rendered ) { #>{{{ icon.value }}}<# } #><span>{{ settings.text }}</span><# if ( href ) { #></a><# } else { #></span><# } #></div><# } #>
-		<?php
+		unset( $s['effect'] );
+		foreach ( array( 'icon' => 'button_icon', 'button_color' => 'button_background_color', 'text_color' => 'advanced_button_text_color', 'padding' => 'advanced_button_padding' ) as $from => $to ) {
+			Settings_Upgrade::rename( $s, $from, $to );
+		}
+		// El aspecto que tenía el botón creativo por defecto: relleno, borde y radio de su hoja de estilos.
+		Settings_Upgrade::fill( $s, array(
+			'button_effect'           => 'fill',
+			'icon_align'              => 'left',
+			'button_size'             => 'md',
+			'advanced_button_padding' => array( 'top' => '0.8', 'right' => '1.3', 'bottom' => '0.8', 'left' => '1.3', 'unit' => 'em', 'isLinked' => false ),
+			'button_border_width'     => array( 'top' => '2', 'right' => '2', 'bottom' => '2', 'left' => '2', 'unit' => 'px', 'isLinked' => true ),
+			'advanced_button_radius'  => array( 'size' => 6, 'unit' => 'px' ),
+		) );
+		return $s;
 	}
 }

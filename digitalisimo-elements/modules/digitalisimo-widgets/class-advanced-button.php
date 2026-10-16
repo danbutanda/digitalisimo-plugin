@@ -2,14 +2,24 @@
 namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
+require_once __DIR__ . '/class-widget-alias.php';
 
-/** Botón con icono, distintivo y estilos de interacción sin JavaScript. */
+/**
+ * Botón con icono, distintivo y efectos de interacción sin JavaScript. Reúne el Botón avanzado y el
+ * Botón creativo, que sigue registrado como alias oculto de éste (misma clase PHP, mismo nombre y
+ * mismas clases CSS) para el contenido ya guardado.
+ */
 class Advanced_Button_Widget extends \Elementor\Widget_Base {
+	use Legacy_Classes;
+
+	const CSS_PREFIX = 'digi-advanced-button';
+	const EFFECTS    = array( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'fill', 'outline', 'underline', 'glow' );
+
 	public function get_name() { return 'digitalisimo-advanced-button'; }
-	public function get_title() { return 'Botón avanzado'; }
+	public function get_title() { return 'Botón'; }
 	public function get_icon() { return 'eicon-button'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
-	public function get_keywords() { return array( 'botón', 'button', 'enlace', 'cta' ); }
+	public function get_keywords() { return array( 'botón', 'button', 'enlace', 'cta', 'creativo', 'efecto' ); }
 	public function get_style_depends() { return array( 'digitalisimo-advanced-button' ); }
 	public function get_script_depends() { return array(); }
 
@@ -30,11 +40,11 @@ class Advanced_Button_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 
 		$this->start_controls_section( 'section_style', array( 'label' => 'Estilo', 'tab' => $c::TAB_STYLE ) );
-		$this->add_control( 'button_effect', array( 'label' => 'Efecto', 'type' => $c::SELECT, 'default' => 'a', 'options' => array( 'a' => 'Fundido', 'b' => 'Desde arriba', 'c' => 'Desde un lado', 'd' => 'Desde el centro', 'e' => 'Diagonal', 'f' => 'Desde el centro vertical', 'g' => 'Elevación', 'h' => 'Barrido diagonal', 'i' => 'Apertura' ) ) );
+		$this->add_control( 'button_effect', array( 'label' => 'Efecto', 'type' => $c::SELECT, 'default' => 'a', 'options' => array( 'a' => 'Fundido', 'b' => 'Desde arriba', 'fill' => 'Desde abajo', 'c' => 'Desde un lado', 'd' => 'Desde el centro', 'e' => 'Diagonal', 'f' => 'Desde el centro vertical', 'g' => 'Elevación', 'h' => 'Barrido diagonal', 'i' => 'Apertura', 'outline' => 'Contorno', 'underline' => 'Subrayado', 'glow' => 'Resplandor' ) ) );
 		$this->add_control( 'advanced_button_text_color', array( 'label' => 'Color de texto', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-button' => 'color:{{VALUE}};' ) ) );
 		$this->add_control( 'button_background_color', array( 'label' => 'Color de fondo', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-button' => 'background-color:{{VALUE}};' ) ) );
 		$this->add_control( 'advanced_button_hover_text_color', array( 'label' => 'Texto al pasar el cursor', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-button:hover, {{WRAPPER}} .digi-advanced-button:focus-visible' => 'color:{{VALUE}};' ) ) );
-		$this->add_control( 'button_hover_background_color', array( 'label' => 'Fondo del efecto', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-button::before' => 'background-color:{{VALUE}};' ) ) );
+		$this->add_control( 'button_hover_background_color', array( 'label' => 'Fondo del efecto', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-advanced-button::before' => 'background-color:{{VALUE}};', '{{WRAPPER}} .digi-advanced-button--effect-outline:hover, {{WRAPPER}} .digi-advanced-button--effect-outline:focus-visible' => 'background-color:{{VALUE}};' ) ) );
 		$this->add_control( 'button_border_style', array( 'label' => 'Estilo del borde', 'type' => $c::SELECT, 'default' => '', 'options' => array( '' => 'Predeterminado', 'none' => 'Sin borde', 'solid' => 'Sólido', 'dotted' => 'Punteado', 'dashed' => 'Rayado', 'groove' => 'Ranurado' ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-button' => 'border-style:{{VALUE}};' ) ) );
 		$this->add_responsive_control( 'button_border_width', array( 'label' => 'Grosor del borde', 'type' => $c::DIMENSIONS, 'size_units' => array( 'px' ), 'condition' => array( 'button_border_style!' => 'none' ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-button' => 'border-width:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};' ) ) );
 		$this->add_control( 'button_border_color', array( 'label' => 'Color del borde', 'type' => $c::COLOR, 'condition' => array( 'button_border_style!' => 'none' ), 'selectors' => array( '{{WRAPPER}} .digi-advanced-button' => 'border-color:{{VALUE}};' ) ) );
@@ -55,7 +65,7 @@ class Advanced_Button_Widget extends \Elementor\Widget_Base {
 		$text = trim( (string) ( $s['text'] ?? '' ) );
 		if ( '' === $text ) { return; }
 		$size = self::choice( $s['button_size'] ?? '', array( 'xs', 'sm', 'md', 'lg', 'xl' ), 'md' );
-		$effect = self::choice( $s['button_effect'] ?? '', array( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i' ), 'a' );
+		$effect = self::choice( $s['button_effect'] ?? '', self::EFFECTS, 'a' );
 		$position = self::choice( $s['icon_align'] ?? '', array( 'left', 'right', 'top', 'bottom' ), 'right' );
 		$icon = is_array( $s['button_icon'] ?? null ) ? $s['button_icon'] : array();
 		$badge = 'yes' === ( $s['show_button_badge'] ?? '' ) ? trim( (string) ( $s['badge_text'] ?? '' ) ) : '';
@@ -63,30 +73,31 @@ class Advanced_Button_Widget extends \Elementor\Widget_Base {
 		$url = esc_url( (string) ( $s['link']['url'] ?? '' ) );
 		$tag = '' !== $url ? 'a' : 'span';
 		$css_id = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) ( $s['button_css_id'] ?? '' ) );
-		echo '<div class="digi-advanced-button__wrap"><' . $tag . ' class="digi-advanced-button digi-advanced-button--' . esc_attr( $size ) . ' digi-advanced-button--effect-' . esc_attr( $effect ) . ' digi-advanced-button--icon-' . esc_attr( $position ) . '"';
+		echo '<div class="' . esc_attr( $this->cls( 'wrap' ) ) . '"><' . $tag . ' class="' . esc_attr( $this->cls( '', array( $size, 'effect-' . $effect, 'icon-' . $position ) ) ) . '"';
 		if ( $css_id ) { echo ' id="' . esc_attr( $css_id ) . '"'; }
 		if ( 'a' === $tag ) {
-			echo ' href="' . $url . '"';
+			echo ' href="' . $url . '"'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapada arriba.
 			if ( ! empty( $s['link']['is_external'] ) ) { echo ' target="_blank"'; }
 			$rel = array();
 			if ( ! empty( $s['link']['is_external'] ) ) { $rel = array( 'noopener', 'noreferrer' ); }
 			if ( ! empty( $s['link']['nofollow'] ) ) { $rel[] = 'nofollow'; }
 			if ( $rel ) { echo ' rel="' . esc_attr( implode( ' ', $rel ) ) . '"'; }
 		}
-		echo '><span class="digi-advanced-button__content">';
-		if ( '' !== $badge && 'left' === $badge_align ) { echo '<span class="digi-advanced-button__badge">' . esc_html( $badge ) . '</span>'; }
-		if ( ! empty( $icon['value'] ) && class_exists( '\\Elementor\\Icons_Manager' ) && in_array( $position, array( 'left', 'top' ), true ) ) { echo '<span class="digi-advanced-button__icon" aria-hidden="true">'; \Elementor\Icons_Manager::render_icon( $icon, array( 'aria-hidden' => 'true' ) ); echo '</span>'; }
-		echo '<span class="digi-advanced-button__text">' . esc_html( $text ) . '</span>';
-		if ( ! empty( $icon['value'] ) && class_exists( '\\Elementor\\Icons_Manager' ) && in_array( $position, array( 'right', 'bottom' ), true ) ) { echo '<span class="digi-advanced-button__icon" aria-hidden="true">'; \Elementor\Icons_Manager::render_icon( $icon, array( 'aria-hidden' => 'true' ) ); echo '</span>'; }
-		if ( '' !== $badge && 'right' === $badge_align ) { echo '<span class="digi-advanced-button__badge">' . esc_html( $badge ) . '</span>'; }
+		echo '><span class="' . esc_attr( $this->cls( 'content' ) ) . '">';
+		if ( '' !== $badge && 'left' === $badge_align ) { echo '<span class="' . esc_attr( $this->cls( 'badge' ) ) . '">' . esc_html( $badge ) . '</span>'; }
+		if ( ! empty( $icon['value'] ) && class_exists( '\\Elementor\\Icons_Manager' ) && in_array( $position, array( 'left', 'top' ), true ) ) { echo '<span class="' . esc_attr( $this->cls( 'icon' ) ) . '" aria-hidden="true">'; \Elementor\Icons_Manager::render_icon( $icon, array( 'aria-hidden' => 'true' ) ); echo '</span>'; }
+		echo '<span class="' . esc_attr( $this->cls( 'text' ) ) . '">' . esc_html( $text ) . '</span>';
+		if ( ! empty( $icon['value'] ) && class_exists( '\\Elementor\\Icons_Manager' ) && in_array( $position, array( 'right', 'bottom' ), true ) ) { echo '<span class="' . esc_attr( $this->cls( 'icon' ) ) . '" aria-hidden="true">'; \Elementor\Icons_Manager::render_icon( $icon, array( 'aria-hidden' => 'true' ) ); echo '</span>'; }
+		if ( '' !== $badge && 'right' === $badge_align ) { echo '<span class="' . esc_attr( $this->cls( 'badge' ) ) . '">' . esc_html( $badge ) . '</span>'; }
 		echo '</span></' . $tag . '></div>';
 	}
 
 	protected function content_template() {
 		?>
-		<# var text = String( settings.text || '' ).trim();
+		<# <?php echo $this->cls_template_js(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON de clases fijas. ?>
+		var text = String( settings.text || '' ).trim();
 		var size = _.contains( ['xs','sm','md','lg','xl'], settings.button_size ) ? settings.button_size : 'md';
-		var effect = _.contains( ['a','b','c','d','e','f','g','h','i'], settings.button_effect ) ? settings.button_effect : 'a';
+		var effect = _.contains( <?php echo json_encode( self::EFFECTS ); ?>, settings.button_effect ) ? settings.button_effect : 'a';
 		var position = _.contains( ['left','right','top','bottom'], settings.icon_align ) ? settings.icon_align : 'right';
 		var badge = settings.show_button_badge === 'yes' ? String( settings.badge_text || '' ).trim() : '';
 		var icon = settings.button_icon && settings.button_icon.value ? elementor.helpers.renderIcon( view, settings.button_icon, { 'aria-hidden': true }, 'i', 'object' ) : null;
@@ -96,12 +107,12 @@ class Advanced_Button_Widget extends \Elementor\Widget_Base {
 		var buttonId = String( settings.button_css_id || '' ).replace( /[^A-Za-z0-9_-]/g, '' );
 		var external = hasUrl && settings.link && settings.link.is_external;
 		var rel = hasUrl ? [ external ? 'noopener noreferrer' : '', settings.link && settings.link.nofollow ? 'nofollow' : '' ].filter( Boolean ).join( ' ' ) : ''; #>
-		<# if ( text ) { #><div class="digi-advanced-button__wrap"><{{ tag }} class="digi-advanced-button digi-advanced-button--{{ size }} digi-advanced-button--effect-{{ effect }} digi-advanced-button--icon-{{ position }}"<# if ( buttonId ) { #> id="{{ buttonId }}"<# } #><# if ( hasUrl ) { #> href="{{ url }}"<# } #><# if ( external ) { #> target="_blank"<# } #><# if ( rel ) { #> rel="{{ rel }}"<# } #>><span class="digi-advanced-button__content">
-		<# if ( badge && settings.badge_align === 'left' ) { #><span class="digi-advanced-button__badge">{{ badge }}</span><# } #>
-		<# if ( icon && icon.rendered && ( position === 'left' || position === 'top' ) ) { #><span class="digi-advanced-button__icon" aria-hidden="true">{{{ icon.value }}}</span><# } #>
-		<span class="digi-advanced-button__text">{{ text }}</span>
-		<# if ( icon && icon.rendered && ( position === 'right' || position === 'bottom' ) ) { #><span class="digi-advanced-button__icon" aria-hidden="true">{{{ icon.value }}}</span><# } #>
-		<# if ( badge && settings.badge_align !== 'left' ) { #><span class="digi-advanced-button__badge">{{ badge }}</span><# } #>
+		<# if ( text ) { #><div class="{{ cls( 'wrap' ) }}"><{{ tag }} class="{{ cls( '', [ size, 'effect-' + effect, 'icon-' + position ] ) }}"<# if ( buttonId ) { #> id="{{ buttonId }}"<# } #><# if ( hasUrl ) { #> href="{{ url }}"<# } #><# if ( external ) { #> target="_blank"<# } #><# if ( rel ) { #> rel="{{ rel }}"<# } #>><span class="{{ cls( 'content' ) }}">
+		<# if ( badge && settings.badge_align === 'left' ) { #><span class="{{ cls( 'badge' ) }}">{{ badge }}</span><# } #>
+		<# if ( icon && icon.rendered && ( position === 'left' || position === 'top' ) ) { #><span class="{{ cls( 'icon' ) }}" aria-hidden="true">{{{ icon.value }}}</span><# } #>
+		<span class="{{ cls( 'text' ) }}">{{ text }}</span>
+		<# if ( icon && icon.rendered && ( position === 'right' || position === 'bottom' ) ) { #><span class="{{ cls( 'icon' ) }}" aria-hidden="true">{{{ icon.value }}}</span><# } #>
+		<# if ( badge && settings.badge_align !== 'left' ) { #><span class="{{ cls( 'badge' ) }}">{{ badge }}</span><# } #>
 		</span></{{ tag }}></div><# } #>
 		<?php
 	}

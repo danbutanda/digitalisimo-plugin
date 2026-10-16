@@ -260,5 +260,235 @@
     "_skin": "bdt-table",
     "show_quantity": "yes",
     "posts_per_page": 6
+  },
+  "digitalisimo-logos": {
+    "layout": "carousel",
+    "columns": "2",
+    "navigation": "arrows",
+    "show_link_text": "yes",
+    "items": [
+      {
+        "_id": "n1",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "name": "Uno",
+        "link": {
+          "url": "https://example.test/uno"
+        },
+        "link_text": "Visitar"
+      },
+      {
+        "_id": "n2",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "name": "Dos"
+      },
+      {
+        "_id": "n3",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "name": "Tres"
+      },
+      {
+        "_id": "n4",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "name": "Cuatro"
+      }
+    ]
+  },
+  "digitalisimo-brand-carousel": {
+    "columns": "2",
+    "navigation": "arrows",
+    "brand_items": [
+      {
+        "_id": "b1",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "brand_name": "Marca 1",
+        "link": {
+          "url": "https://example.test/1"
+        },
+        "website_link_text": "Web"
+      },
+      {
+        "_id": "b2",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "brand_name": "Marca 2"
+      },
+      {
+        "_id": "b3",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "brand_name": "Marca 3"
+      },
+      {
+        "_id": "b4",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "brand_name": "Marca 4"
+      }
+    ]
+  },
+  "digitalisimo-brand-grid": {
+    "brand_event": "click",
+    "brand_items": [
+      {
+        "_id": "g1",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "brand_name": "Marca A",
+        "link": {
+          "url": "https://example.test/a"
+        }
+      },
+      {
+        "_id": "g2",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "brand_name": "Marca B"
+      }
+    ]
+  },
+  "digitalisimo-logo-grid": {
+    "layout": "border",
+    "logo_list": [
+      {
+        "_id": "q1",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "name": "Logo A",
+        "description": "Detalle",
+        "link": {
+          "url": "https://example.test/a"
+        },
+        "logo_tooltip": "yes"
+      },
+      {
+        "_id": "q2",
+        "image": {
+          "url": "__SITE__/wp-content/plugins/elementor/assets/images/placeholder.png"
+        },
+        "name": "Logo B"
+      }
+    ]
+  },
+  "digitalisimo-creative-button": {
+    "text": "Creativo",
+    "link": {
+      "url": "https://example.test/"
+    },
+    "effect": "lift",
+    "icon": {
+      "value": "fas fa-star",
+      "library": "fa-solid"
+    }
+  },
+  "digitalisimo-advanced-button": {
+    "text": "Contorno",
+    "link": {
+      "url": "https://example.test/"
+    },
+    "button_effect": "outline"
+  },
+  "digitalisimo-icon-mobile-menu": {
+    "menu_style": "style-4",
+    "menu_items": [
+      {
+        "_id": "m1",
+        "menu_text": "Inicio",
+        "menu_icon": {
+          "value": "fas fa-home",
+          "library": "fa-solid"
+        },
+        "link": {
+          "url": "https://example.test/"
+        }
+      },
+      {
+        "_id": "m2",
+        "menu_text": "Buscar",
+        "menu_icon": {
+          "value": "fas fa-search",
+          "library": "fa-solid"
+        },
+        "link": {
+          "url": "https://example.test/buscar"
+        }
+      }
+    ]
+  },
+  "digitalisimo-icon-nav": {
+    "layout": "bar",
+    "menu_style": "style-2",
+    "iconnavs": [
+      {
+        "_id": "i1",
+        "iconnav_title": "Inicio",
+        "iconnav_icon": {
+          "value": "fas fa-home",
+          "library": "fa-solid"
+        },
+        "iconnav_link": {
+          "url": "https://example.test/"
+        }
+      },
+      {
+        "_id": "i2",
+        "iconnav_title": "Contacto",
+        "iconnav_icon": {
+          "value": "fas fa-envelope",
+          "library": "fa-solid"
+        },
+        "iconnav_link": {
+          "url": "https://example.test/contacto"
+        }
+      }
+    ]
+  },
+  "digitalisimo-content-switcher": {
+    "switcher_items": [
+      {
+        "_id": "s1",
+        "title": "Mensual",
+        "content": "<p>Precio mensual</p>"
+      },
+      {
+        "_id": "s2",
+        "title": "Anual",
+        "content": "<p>Precio anual</p>",
+        "switcher_active": "yes"
+      }
+    ]
+  },
+  "digitalisimo-fancy-tabs": {
+    "style": "switcher",
+    "tabs": [
+      {
+        "_id": "t1",
+        "tab_title": "Texto",
+        "icon_type": "none",
+        "tab_content": "<p>Panel de texto</p>"
+      },
+      {
+        "_id": "t2",
+        "tab_title": "Plantilla",
+        "icon_type": "none",
+        "content_type": "template",
+        "template_id": "__TEMPLATE__"
+      }
+    ]
   }
 }

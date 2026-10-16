@@ -53,6 +53,7 @@
   else scan(document);
   function registerEditor() {
     if (window.elementorFrontend && elementorFrontend.hooks) {
+      elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-logos.default', function (element) { scan(element[0]); });
       elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-brand-carousel.default', function (element) { scan(element[0]); });
       elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-logo-carousel.default', function (element) { scan(element[0]); });
       elementorFrontend.hooks.addAction('frontend/element_ready/digitalisimo-device-slider.default', function (element) { scan(element[0]); });

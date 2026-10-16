@@ -3,7 +3,11 @@ namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
 
-/** Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. */
+/**
+ * Registro de componentes propios; Elementor solicita los assets sólo al usar el widget. Las entradas sin
+ * `css` son alias ocultos de un widget fusionado (ver class-widget-alias.php): conservan su nombre y su
+ * clase PHP para el contenido guardado y para los adaptadores de la Migración, y heredan sus recursos.
+ */
 final class Widget_Registry {
 	private const WIDGETS = array(
 		'digitalisimo-video-player' => array(
@@ -111,11 +115,7 @@ final class Widget_Registry {
 			'class' => Vertical_Menu_Widget::class,
 			'css'   => 'assets/css/vertical-menu.css',
 		),
-		'digitalisimo-icon-mobile-menu' => array(
-			'file'  => 'class-icon-mobile-menu.php',
-			'class' => Icon_Mobile_Menu_Widget::class,
-			'css'   => 'assets/css/icon-mobile-menu.css',
-		),
+		'digitalisimo-icon-mobile-menu' => array( 'file' => 'class-icon-mobile-menu.php', 'class' => Icon_Mobile_Menu_Widget::class ),
 		'digitalisimo-google-reviews' => array(
 			'file'  => 'class-google-reviews.php',
 			'class' => Google_Reviews_Widget::class,
@@ -156,21 +156,13 @@ final class Widget_Registry {
 			'class' => Custom_Gallery_Widget::class,
 			'css'   => 'assets/css/custom-gallery.css',
 		),
-		'digitalisimo-creative-button' => array(
-			'file'  => 'class-creative-button.php',
-			'class' => Creative_Button_Widget::class,
-			'css'   => 'assets/css/creative-button.css',
-		),
+		'digitalisimo-creative-button' => array( 'file' => 'class-creative-button.php', 'class' => Creative_Button_Widget::class ),
 		'digitalisimo-comparison-list' => array(
 			'file'  => 'class-comparison-list.php',
 			'class' => Comparison_List_Widget::class,
 			'css'   => 'assets/css/comparison-list.css',
 		),
-		'digitalisimo-content-switcher' => array(
-			'file'  => 'class-content-switcher.php',
-			'class' => Content_Switcher_Widget::class,
-			'css'   => 'assets/css/content-switcher.css',
-		),
+		'digitalisimo-content-switcher' => array( 'file' => 'class-content-switcher.php', 'class' => Content_Switcher_Widget::class ),
 		'digitalisimo-dual-button' => array(
 			'file'  => 'class-dual-button.php',
 			'class' => Dual_Button_Widget::class,
@@ -226,31 +218,20 @@ final class Widget_Registry {
 			'class' => Document_Viewer_Widget::class,
 			'css'   => 'assets/css/document-viewer.css',
 		),
-		'digitalisimo-brand-carousel' => array(
-			'file'  => 'class-brand-carousel.php',
-			'class' => Brand_Carousel_Widget::class,
-			'css'   => 'assets/css/brand-carousel.css',
+		'digitalisimo-logos' => array(
+			'file'  => 'class-logos.php',
+			'class' => Logos_Widget::class,
+			'css'   => 'assets/css/logos.css',
 		),
-		'digitalisimo-logo-carousel' => array(
-			'file'  => 'class-logo-carousel.php',
-			'class' => Logo_Carousel_Widget::class,
-			'css'   => 'assets/css/logo-carousel.css',
-		),
+		'digitalisimo-brand-carousel' => array( 'file' => 'class-brand-carousel.php', 'class' => Brand_Carousel_Widget::class ),
+		'digitalisimo-logo-carousel' => array( 'file' => 'class-logo-carousel.php', 'class' => Logo_Carousel_Widget::class ),
 		'digitalisimo-advanced-heading' => array(
 			'file'  => 'class-advanced-heading.php',
 			'class' => Advanced_Heading_Widget::class,
 			'css'   => 'assets/css/advanced-heading.css',
 		),
-		'digitalisimo-brand-grid' => array(
-			'file'  => 'class-brand-grid.php',
-			'class' => Brand_Grid_Widget::class,
-			'css'   => 'assets/css/brand-grid.css',
-		),
-		'digitalisimo-logo-grid' => array(
-			'file'  => 'class-logo-grid.php',
-			'class' => Logo_Grid_Widget::class,
-			'css'   => 'assets/css/logo-grid.css',
-		),
+		'digitalisimo-brand-grid' => array( 'file' => 'class-brand-grid.php', 'class' => Brand_Grid_Widget::class ),
+		'digitalisimo-logo-grid' => array( 'file' => 'class-logo-grid.php', 'class' => Logo_Grid_Widget::class ),
 		'digitalisimo-scroll-button' => array(
 			'file'  => 'class-scroll-button.php',
 			'class' => Scroll_Button_Widget::class,
@@ -296,6 +277,9 @@ final class Widget_Registry {
 			wp_register_style( 'digitalisimo-carousel-engine', plugins_url( 'assets/css/carousel-engine.css', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
 		}
 		foreach ( self::WIDGETS as $handle => $widget ) {
+			if ( empty( $widget['css'] ) ) {
+				continue;
+			}
 			if ( ! wp_style_is( $handle, 'registered' ) ) {
 				wp_register_style( $handle, plugins_url( $widget['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
 			}

@@ -53,12 +53,9 @@ jobs:
           php tests/elements-animated-link-legacy.php
           php tests/elements-fancy-list.php
           php tests/elements-document-viewer.php
-          php tests/elements-brand-carousel.php
-          php tests/elements-logo-carousel.php
+          php tests/elements-logos.php
           php tests/elements-advanced-heading.php
           php tests/elements-external-row.php
-          php tests/elements-brand-grid.php
-          php tests/elements-logo-grid.php
           php tests/elements-google-reviews.php
           php tests/elements-notification.php
           node tests/elements-notification-events.mjs
