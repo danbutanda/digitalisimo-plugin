@@ -142,19 +142,32 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		$mirror_repeat = $mirror && 'repeat' === ( $s['mode'] ?? 'multiple' );
 		$mirror_loop = $mirror_repeat && $infinite;
 		$loop_duration = 0;
+		$max_visible = max( 1, absint( $s['visible'] ?? 9 ), absint( $s['visible_tablet'] ?? 6 ), absint( $s['visible_mobile'] ?? 3 ) );
+		$speed = is_numeric( $s['speed'] ?? null ) ? (float) $s['speed'] : 30.0;
+		// Hasta 4.3.0.148 el bucle se rellenaba hasta este largo: la duración configurada se ajustó sobre él y se conserva su velocidad.
+		$legacy_minimum = min( 30, max( 10, $max_visible ) );
 		// Una serie par conserva la alternancia de espejos en la unión del loop.
 		if ( $mirror_loop ) {
-			$minimum = min( 30, max( 10, absint( $s['visible'] ?? 9 ), absint( $s['visible_tablet'] ?? 6 ), absint( $s['visible_mobile'] ?? 3 ) ) );
-			$previous_count = max( $minimum, count( $items ) );
+			$previous_count = max( $legacy_minimum, count( $items ) );
 			if ( $previous_count % 2 ) ++$previous_count;
-			$speed = is_numeric( $s['speed'] ?? null ) ? (float) $s['speed'] : 30.0;
 			$loop_duration = max( 2.0, min( 600.0, $speed ) * 2 / $previous_count );
 			// Dos mitades forman el ciclo completo; el segundo grupo repite ese ciclo.
 			$items = array( $items[0], $items[0] );
 		} elseif ( $infinite ) {
-			$minimum = min( 30, max( 10, absint( $s['visible'] ?? 9 ), absint( $s['visible_tablet'] ?? 6 ), absint( $s['visible_mobile'] ?? 3 ) ) );
 			$source = $items;
-			while ( count( $items ) < $minimum || ( $mirror && count( $items ) % 2 ) ) $items[] = $source[ count( $items ) % count( $source ) ];
+			$ids    = array();
+			foreach ( $items as $item ) $ids[ absint( $item['image']['id'] ?? 0 ) . '|' . (string) ( $item['alt'] ?? '' ) . '|' . (string) ( $item['link']['url'] ?? '' ) ] = true;
+			// Varias copias de la misma imagen son una sola: el bucle la repite cuantas veces haga falta.
+			if ( 1 === count( $ids ) ) $source = array( $items[0] );
+			$previous_count = max( $legacy_minimum, count( $items ) );
+			if ( $mirror && $previous_count % 2 ) ++$previous_count;
+			// Un grupo cubre el viewport más un elemento en el dispositivo más exigente; con espejo, par.
+			$need = $max_visible + 1;
+			if ( $mirror && $need % 2 ) ++$need;
+			$items = array();
+			while ( count( $items ) < $need || count( $items ) < count( $source ) || ( $mirror && count( $items ) % 2 ) ) $items[] = $source[ count( $items ) % count( $source ) ];
+			// La duración es la de un grupo: si el grupo cambió de largo, se escala para que la velocidad lineal sea la misma.
+			if ( count( $items ) !== $previous_count ) $loop_duration = max( 1.0, min( 600.0, $speed ) * count( $items ) / $previous_count );
 		}
 		$classes = array( 'digi-slider' );
 		if ( $animate ) {
@@ -165,11 +178,12 @@ final class Elementor_Slider_Widget extends \Elementor\Widget_Base {
 		if ( 'right' === ( $s['direction'] ?? 'left' ) ) $classes[] = 'digi-slider--right';
 		if ( 'yes' === ( $s['pause'] ?? '' ) ) $classes[] = 'digi-slider--pause';
 		if ( 'yes' === ( $s['natural_width'] ?? '' ) && 'repeat' === ( $s['mode'] ?? '' ) ) $classes[] = 'digi-slider--natural';
+		if ( $mirror ) $classes[] = 'digi-slider--mirror';
 		if ( $mirror_repeat ) $classes[] = 'digi-slider--mirror-repeat';
 		if ( $mirror_loop ) $classes[] = 'digi-slider--mirror-loop';
 		if ( 'fixed' === ( $s['height_mode'] ?? 'auto' ) ) $classes[] = 'digi-slider--fixed';
 		$label = trim( (string) ( $s['label'] ?? '' ) );
-		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . ( $mirror_loop ? ' style="--digi-loop-duration:' . esc_attr( round( $loop_duration, 3 ) . 's' ) . '"' : '' ) . ( $label ? ' role="group" aria-label="' . esc_attr( $label ) . '"' : '' ) . '><div class="digi-slider__viewport"><div class="digi-slider__track">';
+		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . ( $loop_duration > 0 ? ' style="--digi-loop-duration:' . esc_attr( round( $loop_duration, 3 ) . 's' ) . '"' : '' ) . ( $label ? ' role="group" aria-label="' . esc_attr( $label ) . '"' : '' ) . '><div class="digi-slider__viewport"><div class="digi-slider__track">';
 		$this->group( $items, $s, $mirror, false, $accessible_count );
 		if ( $infinite ) $this->group( $items, $s, $mirror, true, 0 );
 		echo '</div></div></div>';
