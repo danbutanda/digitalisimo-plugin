@@ -46,11 +46,12 @@ build_package() {
       return 1
     fi
     echo 'REFERENCE LEAK CHECK: PASS' >&2
-    # El núcleo no nombra ni contiene nada de Element Pack: la compatibilidad vive en DIGITALÍSIMO Migración.
+    # El núcleo no nombra ni contiene nada de Element Pack ni de Prime Slider: su compatibilidad vive en DIGITALÍSIMO
+    # Migración.
     local mentions
-    mentions="$(unzip -p "$archive" | LC_ALL=C grep -aoiE 'bdthemes|element[ _-]?pack|elementpack|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]' | sort | uniq -c | head -20 || true)"
+    mentions="$(unzip -p "$archive" | LC_ALL=C grep -aoiE 'bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]' | sort | uniq -c | head -20 || true)"
     if [[ -n "$mentions" ]]; then
-      echo "BUILD ABORTED: $archive menciona Element Pack" >&2
+      echo "BUILD ABORTED: $archive menciona Element Pack o Prime Slider" >&2
       echo "$mentions" >&2
       rm -f "$archive"
       return 1

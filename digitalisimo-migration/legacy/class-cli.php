@@ -51,15 +51,24 @@ final class Cli {
 			if ( ! empty( $assoc['convert'] ) || ! empty( $assoc['revert'] ) || ! empty( $assoc['repair'] ) || ! empty( $assoc['recover'] ) ) {
 				\WP_CLI::error( 'La conversión, la reparación, la recuperación y la restauración se lanzan sitio por sitio con --url.' );
 			}
-			$rows = array();
+			$rows    = array();
+			$without = array();
 			foreach ( is_multisite() ? get_sites( array( 'number' => 0, 'fields' => 'ids' ) ) : array( get_current_blog_id() ) as $site_id ) {
 				switch_to_blog( (int) $site_id );
 				foreach ( self::rows() as $row ) {
 					$rows[] = array( 'sitio' => home_url( '/' ) ) + $row;
 				}
+				// Lo que la migración no convierte en ese sitio, como en la columna «Sin equivalente» de la pantalla de red.
+				$line = Dropped::summary( Dropped::analyze(), Dropped::kept() );
+				if ( '' !== $line ) {
+					$without[] = home_url( '/' ) . ': ' . $line;
+				}
 				restore_current_blog();
 			}
 			\WP_CLI\Utils\format_items( 'table', $rows, array( 'sitio', 'widget', 'elementos', 'documentos', 'adaptador' ) );
+			foreach ( $without as $line ) {
+				\WP_CLI::warning( 'Sin equivalente en ' . $line . '. Detalle con --url en cada sitio.' );
+			}
 			return;
 		}
 		if ( ! empty( $assoc['repair'] ) ) {
@@ -94,6 +103,18 @@ final class Cli {
 		}
 		if ( $figures['missing'] ) {
 			\WP_CLI::warning( 'Sin archivo (la conversión los retira): ' . implode( ', ', $figures['missing'] ) . '. Mantén Element Pack instalado y desactivado hasta convertir.' );
+		}
+		// Lo que Migrar no convierte, con el mismo listado que la herramienta del sitio.
+		$dropped = Dropped::analyze();
+		if ( $dropped['docs'] || $dropped['omitted'] ) {
+			\WP_CLI::warning( self::text( Dropped::render( Dropped::describe( $dropped ), $dropped['omitted'], Dropped::INTRO ) ) );
+		}
+		$kept = Dropped::kept_messages( Dropped::kept() );
+		foreach ( array_merge( $kept['pending'], $kept['info'] ) as $message ) {
+			\WP_CLI::warning( $message );
+		}
+		if ( $kept['idle'] ) {
+			\WP_CLI::log( Dropped::idle_message( $kept['idle'] ) );
 		}
 		if ( empty( $assoc['convert'] ) ) {
 			return;

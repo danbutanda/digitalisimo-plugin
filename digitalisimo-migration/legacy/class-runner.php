@@ -15,13 +15,17 @@ defined( 'ABSPATH' ) || exit;
  *                  que hubiera arrancado antes (con esos plugins cargados) se pausa sin trabajar.
  *  3. recover    — páginas sobrescritas por conversiones antiguas (Migración ≤ 1.0.13), revisión a revisión.
  *  4. repair     — reglas de visibilidad perdidas por conversiones antiguas (Migración ≤ 1.0.10), una sola vez.
- *  5. convert    — documentos con contenido de Element Pack, al formato propio, con copia del original.
+ *  5. convert    — documentos con contenido de Element Pack, al formato propio, con copia del original. Las
+ *                  extensiones heredadas sin equivalente que la conversión retira se leen después de esa copia
+ *                  (Dropped); antes de convertir sólo se anota lo que una copia anterior no recoge.
  *  6. revisions  — revisiones y autoguardados con contenido de Element Pack, cada uno en su propio registro: restaurar
  *                  una revisión ya no devuelve widgets que dejaron de existir. Se dejan las que delatan una página
  *                  sobrescrita que no pudo recuperarse, para que siga listada hasta que alguien la revise.
  *  7. references — qué alias de widgets fusionados no pueden convertirse porque otro CSS del sitio nombra sus clases.
  *  8. aliases    — los demás alias, del alias oculto al widget que lo absorbió (Aliases).
- *  9. finish     — cachés de Elementor vaciadas e informe.
+ *  9. finish     — cachés de Elementor vaciadas e informe, que lista también, como información, cada extensión
+ *                  heredada sin equivalente por documento y los plugins de la familia que la migración todavía no
+ *                  desactiva (Element Pack Addon, Prime Slider) con los widgets de Prime Slider que quedan.
  *
  * Cada documento y cada etapa sin documentos se anotan antes de empezar con su número de intento: si una petición
  * muere en ellos dos veces, se saltan y se listan. El cerrojo es atómico, propio de cada petición y se renueva con cada
@@ -81,6 +85,12 @@ final class Runner {
 		require_once __DIR__ . '/class-migration.php';
 		require_once __DIR__ . '/class-retire.php';
 		require_once __DIR__ . '/class-aliases.php';
+		self::dropped();
+	}
+
+	/** Lo que la migración aún no convierte (extensiones sin equivalente, Prime Slider): sólo cuando hace falta. */
+	private static function dropped() {
+		require_once __DIR__ . '/class-dropped.php';
 	}
 
 	/**
@@ -242,6 +252,8 @@ final class Runner {
 			'keep_revisions' => array(),
 			'plugins'        => array(),
 			'blocked'        => array(),
+			// Extensiones heredadas sin equivalente que la conversión retira y la copia original no recoge (Dropped::uncovered()).
+			'dropped'        => array( 'docs' => array(), 'omitted' => 0 ),
 			'report'         => array(),
 		);
 	}
@@ -450,7 +462,14 @@ final class Runner {
 			// dejaría de reconocerse, y se hará todo junto al volver a pulsar Migrar.
 			return self::next( $state, 'finish' );
 		}
+		self::dropped();
 		list( $state, $complete ) = self::loop( $state, Migration::documents(), $deadline, static function ( $post_id, array &$state ) {
+			// La conversión retira las claves heredadas y el informe las lee de la copia original: sólo se anota antes lo
+			// que una copia guardada por una conversión anterior no recoge.
+			$found = Dropped::uncovered( $post_id );
+			if ( $found ) {
+				$state['dropped'] = Dropped::add( (array) ( $state['dropped'] ?? array() ), $post_id, $found );
+			}
 			$result = Migration::convert_document( $post_id );
 			if ( ! empty( $result['native'] ) ) {
 				++$state['counts']['converted'];
@@ -512,6 +531,8 @@ final class Runner {
 			$state  = self::warn( $state, 'El informe quedó incompleto: ' . $e->getMessage() );
 			$report = array();
 		}
+		// Lo anotado ya está en el informe, con título y enlace.
+		unset( $state['dropped'] );
 		return self::close( $state, $report );
 	}
 
@@ -592,6 +613,11 @@ final class Runner {
 		}
 		$blocked = array_keys( (array) $state['blocked'] );
 		$map     = Aliases::map();
+		// Extensiones sin equivalente: lo que guarda cada documento y su copia original (claves sin prefijo heredado,
+		// ajustes de la página, lo retirado al convertir) más lo anotado que esa copia no recoge.
+		self::dropped();
+		$dropped = Dropped::merge( Dropped::analyze(), (array) ( $state['dropped'] ?? array() ) );
+		$kept    = Dropped::kept();
 		return array(
 			'convertible'     => count( $groups['convertible'] ),
 			'blocked'         => self::documents_info( $groups['blocked'] ),
@@ -607,6 +633,13 @@ final class Runner {
 			// Element Pack aún hace falta (sus ajustes y figuras) mientras quede contenido suyo por convertir.
 			'ep_needed'       => count( $groups['convertible'] ) > 0 || (bool) array_intersect( $failed, Migration::documents() ),
 			'plugins'         => $plugins,
+			'dropped'         => Dropped::describe( $dropped ),
+			'dropped_omitted' => (int) $dropped['omitted'],
+			// Plugins de la familia que la migración no desactiva: con algo para una persona, y los que no.
+			'kept'            => array_values( array_filter( $kept, array( Dropped::class, 'kept_pending' ) ) ),
+			'kept_idle'       => array_values( array_filter( $kept, static function ( $row ) {
+				return ! Dropped::kept_pending( $row );
+			} ) ),
 		);
 	}
 
@@ -636,9 +669,19 @@ final class Runner {
 	/** ¿Quedó algo para una persona en el informe de una tarea terminada? */
 	public static function has_pending( array $state ) {
 		$r = (array) ( $state['report'] ?? array() );
+		// Los efectos heredados sin equivalente y los plugins de la familia activos son información: nadie podría hacerlos
+		// desaparecer. Sólo cuentan los widgets de Prime Slider que hoy no se ven.
 		foreach ( array( 'blocked', 'unsupported', 'review', 'failed', 'alias_blocked', 'missing_figures' ) as $key ) {
 			if ( ! empty( $r[ $key ] ) ) {
 				return true;
+			}
+		}
+		if ( ! empty( $r['kept'] ) ) {
+			self::dropped();
+			foreach ( (array) $r['kept'] as $row ) {
+				if ( is_array( $row ) && Dropped::kept_hidden( $row ) ) {
+					return true;
+				}
 			}
 		}
 		foreach ( (array) ( $r['plugins'] ?? array() ) as $plugin ) {
@@ -785,7 +828,17 @@ final class Runner {
 				if ( $state && empty( $state['done'] ) ) {
 					$row = array( 'status' => 'running', 'stage' => (string) $state['stage'] );
 				} elseif ( $report && (int) ( $report['finished'] ?? 0 ) >= (int) $job['started'] ) {
-					$row = array( 'status' => 'done', 'counts' => (array) $report['counts'], 'pending' => self::has_pending( $report ), 'ep_needed' => ! empty( $report['report']['ep_needed'] ) );
+					$done = (array) ( $report['report'] ?? array() );
+					$row  = array(
+						'status'    => 'done',
+						'counts'    => (array) $report['counts'],
+						'pending'   => self::has_pending( $report ),
+						'ep_needed' => ! empty( $done['ep_needed'] ),
+						// Lo que el informe del sitio lista como información: documentos con efectos heredados descartados
+						// y plugins de la familia sin desactivar.
+						'dropped'   => count( (array) ( $done['dropped'] ?? array() ) ) + (int) ( $done['dropped_omitted'] ?? 0 ),
+						'kept'      => array_values( array_map( 'strval', array_column( (array) ( $done['kept'] ?? array() ), 'label' ) ) ),
+					);
 				} else {
 					$row = array( 'status' => 'missing' );
 				}
@@ -1036,6 +1089,26 @@ final class Runner {
 			}
 			$pending .= '</tbody></table>';
 		}
+		// Lo que no tiene equivalente es información (no deja el sitio pendiente), salvo el contenido que hoy no se ve.
+		$info = '';
+		if ( ! empty( $r['dropped'] ) || ! empty( $r['dropped_omitted'] ) ) {
+			self::dropped();
+			$info .= Dropped::render( (array) ( $r['dropped'] ?? array() ), (int) ( $r['dropped_omitted'] ?? 0 ), Dropped::INTRO );
+		}
+		$kept = array( 'pending' => array(), 'info' => array(), 'idle' => array() );
+		if ( ! empty( $r['kept'] ) || ! empty( $r['kept_idle'] ) ) {
+			self::dropped();
+			$kept = Dropped::kept_messages( array_merge( (array) ( $r['kept'] ?? array() ), (array) ( $r['kept_idle'] ?? array() ) ) );
+		}
+		foreach ( $kept['pending'] as $message ) {
+			$pending .= '<div class="notice notice-warning inline"><p>' . esc_html( $message ) . '</p></div>';
+		}
+		foreach ( $kept['info'] as $message ) {
+			$info .= '<div class="notice notice-info inline"><p>' . esc_html( $message ) . '</p></div>';
+		}
+		if ( $kept['idle'] ) {
+			$info .= '<p>' . esc_html( Dropped::idle_message( $kept['idle'] ) ) . '</p>';
+		}
 		foreach ( array(
 			'blocked' => 'Páginas que conservan esos widgets:',
 			'review'  => 'Páginas sobrescritas por una conversión antigua sin revisión ni copia de la que recuperarlas: revísalas en el editor y guárdalas (dejan de listarse al guardarlas).',
@@ -1058,10 +1131,26 @@ final class Runner {
 		if ( ! empty( $r['aliases_left'] ) ) {
 			$pending .= '<p>' . esc_html( sprintf( 'Quedan %d documentos con widgets fusionados por actualizar: vuelve a pulsar Migrar cuando se resuelvan los avisos.', (int) $r['aliases_left'] ) ) . '</p>';
 		}
+		$info = '' !== $info ? '<h3>Sin equivalente</h3>' . $info : '';
 		if ( '' !== $pending ) {
-			return $html . '<h3>Pendiente de revisar</h3>' . $pending;
+			return $html . '<h3>Pendiente de revisar</h3>' . $pending . $info;
 		}
-		return $html . '<div class="notice notice-success inline"><p>Este sitio ya no depende de Elementor, Elementor Pro, PRO Elements ni Element Pack. Si usas una caché de página o una CDN, vacíala. Cuando hayas comprobado el sitio, borra esos plugins y DIGITALÍSIMO Migración.</p></div>';
+		return $html . $info . '<div class="notice notice-success inline"><p>Este sitio ya no depende de Elementor, Elementor Pro, PRO Elements ni Element Pack. Si usas una caché de página o una CDN, vacíala. Cuando hayas comprobado el sitio, borra esos plugins y DIGITALÍSIMO Migración.</p></div>';
+	}
+
+	/** Plugins de la familia que la migración no desactiva, con su estado en la red (para la pantalla de red). */
+	public static function kept_network() {
+		$out = array();
+		foreach ( Retire::network_summary( true ) as $row ) {
+			if ( $row['network'] ) {
+				$out[] = $row['label'] . ' (activo en toda la red)';
+			} elseif ( $row['sites'] ) {
+				$out[] = sprintf( '%s (activo en %d sitios)', $row['label'], (int) $row['sites'] );
+			} else {
+				$out[] = $row['label'] . ' (desactivado)';
+			}
+		}
+		return $out;
 	}
 
 	/** HTML de la migración de red: estado de cada sitio y, al terminar, qué plugins pueden borrarse. */
@@ -1099,7 +1188,9 @@ final class Runner {
 			if ( 'done' === $row['status'] ) {
 				$ep_needed = $ep_needed || ! empty( $row['ep_needed'] );
 				$state     = ! empty( $row['pending'] ) ? 'Terminado, con asuntos por revisar' : 'Terminado';
-				$result    = sprintf( '%d documentos y %d revisiones convertidos, %d con widgets fusionados actualizados', (int) ( $c['converted'] ?? 0 ), (int) ( $c['revisions'] ?? 0 ), (int) ( $c['aliases'] ?? 0 ) ) . ( ! empty( $c['deactivated'] ) ? '; desactivados: ' . implode( ', ', (array) $c['deactivated'] ) : '' );
+				$result    = sprintf( '%d documentos y %d revisiones convertidos, %d con widgets fusionados actualizados', (int) ( $c['converted'] ?? 0 ), (int) ( $c['revisions'] ?? 0 ), (int) ( $c['aliases'] ?? 0 ) ) . ( ! empty( $c['deactivated'] ) ? '; desactivados: ' . implode( ', ', (array) $c['deactivated'] ) : '' )
+					. ( ! empty( $row['dropped'] ) ? sprintf( '; efectos heredados sin equivalente en %d documentos', (int) $row['dropped'] ) : '' )
+					. ( ! empty( $row['kept'] ) ? '; sin desactivar: ' . implode( ', ', (array) $row['kept'] ) : '' );
 			} elseif ( 'running' === $row['status'] ) {
 				$ep_needed = true;
 				$state     = 'En marcha';
@@ -1131,6 +1222,11 @@ final class Runner {
 			}
 			if ( $still ) {
 				$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Aún no: ' . implode( ', ', $still ) . '. El informe de cada sitio explica por qué.' ) . '</p></div>';
+			}
+			$kept = self::kept_network();
+			if ( $kept ) {
+				self::dropped();
+				$html .= '<div class="notice notice-info inline"><p>' . esc_html( Dropped::kept_notice( $kept, 'El informe de cada sitio dice qué usa cada uno.' ) ) . '</p></div>';
 			}
 		}
 		return $html;

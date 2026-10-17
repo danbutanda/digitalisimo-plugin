@@ -1,8 +1,12 @@
+# Los patrones de archivos que sólo existen en la raíz se anclan con «/»: sin ancla valdrían en cualquier carpeta y
+# dejarían fuera, sin aviso, archivos del tema `digitalisimo-theme/` (functions.php, style.css, assets/dist/...).
+# `tests/repo-hygiene.mjs` comprueba que un tema en una subcarpeta se versiona completo.
+
 # Paquetes generados localmente y artefactos de compilación.
 *.zip
-dist/
-rollback/
-.tools/
+/dist/
+/rollback/
+/.tools/
 .DS_Store
 
 # Dependencias y archivos de desarrollo locales.
@@ -12,17 +16,18 @@ vendor/
 # compila desde el repositorio y sin él el plugin no arranca.
 !digitalisimo-elements/elementor/vendor/
 
-# Copia local de Element Pack sólo para investigación; nunca se versiona ni se distribuye.
+# Copias locales de terceros sólo para investigación; nunca se versionan ni se distribuyen. Sin ancla a propósito:
+# una carpeta reference/ se ignora en cualquier nivel.
 reference/
 digitalisimo-elements/bdthemes-element-pack/
 
 # Archivos duplicados obsoletos (superados por sus versiones activas).
-functions 2.php
+/functions 2.php
 */includes/* 2.php
 
-# Tema hijo Hello Elementor: no forma parte de la suite de plugins.
-functions.php
-style.css
+# Tema hijo Hello Elementor que vivía en la raíz: no forma parte de la suite de plugins.
+/functions.php
+/style.css
 
 # Caché de Python de los scripts de análisis.
 __pycache__/

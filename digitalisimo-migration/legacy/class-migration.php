@@ -9,6 +9,7 @@ require_once __DIR__ . '/class-native.php';
 require_once __DIR__ . '/class-runner.php';
 require_once __DIR__ . '/class-retire.php';
 require_once __DIR__ . '/class-aliases.php';
+require_once __DIR__ . '/class-dropped.php';
 
 /**
  * Migración de documentos de Element Pack en el sitio actual.
@@ -687,7 +688,10 @@ final class Migration {
 		echo '</div>';
 	}
 
-	/** Estado del sitio antes de migrar: plugins sustituidos, inventario de Element Pack, figuras y recuentos. */
+	/**
+	 * Estado del sitio antes de migrar: plugins sustituidos, inventario de Element Pack, figuras, recuentos, cada
+	 * extensión heredada sin equivalente por documento y los plugins de la familia que la migración no desactiva.
+	 */
 	private static function site_summary() {
 		$status = Retire::status();
 		$parts  = array();
@@ -721,10 +725,24 @@ final class Migration {
 		if ( $groups['blocked'] ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( '%d documentos no cambian al migrar porque sólo les quedan widgets sin equivalente (en la tabla, «Sin adaptador»): sin Element Pack esos widgets no se muestran. Sustitúyelos en el editor por la alternativa que indica la tabla, o acepta que desaparezcan.', count( $groups['blocked'] ) ) ) . '</p></div>';
 		}
+		// Lo que Migrar no convierte: el mismo listado que dará el informe final. Es información; sólo el contenido que
+		// hoy no se ve (widgets de Prime Slider sin su plugin) impide dar el sitio por terminado.
+		$dropped = Dropped::analyze();
+		echo Dropped::render( Dropped::describe( $dropped ), $dropped['omitted'], Dropped::INTRO ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML ya escapado por Dropped.
+		$kept = Dropped::kept_messages( Dropped::kept() );
+		foreach ( $kept['pending'] as $message ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( $message ) . '</p></div>';
+		}
+		foreach ( $kept['info'] as $message ) {
+			echo '<div class="notice notice-info inline"><p>' . esc_html( $message ) . '</p></div>';
+		}
+		if ( $kept['idle'] ) {
+			echo '<p>' . esc_html( Dropped::idle_message( $kept['idle'] ) ) . '</p>';
+		}
 		$active = array_filter( $status, static function ( $info ) {
 			return $info['site'] || $info['network'];
 		} );
-		if ( ! $inventory && ! $revisions && ! $aliases && ! $active ) {
+		if ( ! $inventory && ! $groups['convertible'] && ! $revisions && ! $aliases && ! $active && ! $kept['pending'] ) {
 			echo '<div class="notice notice-success inline"><p>Este sitio ya no tiene contenido heredado ni plugins sustituidos activos. Cuando lo hayas comprobado, puedes desinstalar Element Pack, Elementor, Elementor Pro y DIGITALÍSIMO Migración.</p></div>';
 		}
 	}
@@ -746,7 +764,7 @@ final class Migration {
 		echo '<div class="digi-migrate__status">' . Runner::render_network( $job ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML ya escapado por Runner.
 		echo '</div>';
 		echo '<h2>Estado de cada sitio</h2>';
-		echo '<table class="widefat striped"><thead><tr><th>Sitio</th><th>Elementos compatibles</th><th>Sin adaptador</th><th>Documentos pendientes de convertir</th><th>Widgets fusionados</th><th>Plugins sustituidos activos en el sitio</th><th>Última migración</th><th></th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>Sitio</th><th>Elementos compatibles</th><th>Sin adaptador</th><th>Documentos pendientes de convertir</th><th>Widgets fusionados</th><th>Plugins sustituidos activos en el sitio</th><th>Sin equivalente</th><th>Última migración</th><th></th></tr></thead><tbody>';
 		$total_missing = 0;
 		foreach ( $sites as $site_id ) {
 			switch_to_blog( (int) $site_id );
@@ -768,15 +786,17 @@ final class Migration {
 					$plugins[] = $info['label'];
 				}
 			}
-			$report = Runner::report();
-			$state  = Runner::state();
-			$last   = $state && empty( $state['done'] ) ? 'En marcha' : ( $report && ! empty( $report['finished'] ) ? wp_date( 'd/m/Y H:i', (int) $report['finished'] ) : 'Nunca' );
-			$name   = get_bloginfo( 'name' );
-			$url    = home_url( '/' );
-			$tool   = admin_url( 'tools.php?page=' . self::PAGE );
+			// Efectos heredados que se descartan y plugins de la familia que la migración no desactiva.
+			$without = Dropped::summary( Dropped::analyze(), Dropped::kept() );
+			$report  = Runner::report();
+			$state   = Runner::state();
+			$last    = $state && empty( $state['done'] ) ? 'En marcha' : ( $report && ! empty( $report['finished'] ) ? wp_date( 'd/m/Y H:i', (int) $report['finished'] ) : 'Nunca' );
+			$name    = get_bloginfo( 'name' );
+			$url     = home_url( '/' );
+			$tool    = admin_url( 'tools.php?page=' . self::PAGE );
 			restore_current_blog();
 			$total_missing += count( $missing );
-			echo '<tr><td><strong>' . esc_html( $name ) . '</strong><br><code>' . esc_html( $url ) . '</code></td><td>' . absint( $compatible ) . '</td><td>' . ( $missing ? esc_html( implode( ', ', $missing ) ) : '—' ) . '</td><td>' . esc_html( $pending ) . '</td><td>' . absint( $aliases ) . '</td><td>' . esc_html( $plugins ? implode( ', ', $plugins ) : '—' ) . '</td><td>' . esc_html( $last ) . '</td><td><a href="' . esc_url( $tool ) . '">Abrir la herramienta del sitio</a></td></tr>';
+			echo '<tr><td><strong>' . esc_html( $name ) . '</strong><br><code>' . esc_html( $url ) . '</code></td><td>' . absint( $compatible ) . '</td><td>' . ( $missing ? esc_html( implode( ', ', $missing ) ) : '—' ) . '</td><td>' . esc_html( $pending ) . '</td><td>' . absint( $aliases ) . '</td><td>' . esc_html( $plugins ? implode( ', ', $plugins ) : '—' ) . '</td><td>' . esc_html( '' !== $without ? $without : '—' ) . '</td><td>' . esc_html( $last ) . '</td><td><a href="' . esc_url( $tool ) . '">Abrir la herramienta del sitio</a></td></tr>';
 		}
 		echo '</tbody></table>';
 		$network_active = array();
@@ -786,6 +806,10 @@ final class Migration {
 			}
 		}
 		echo '<p>' . esc_html( ( $network_active ? 'Activos en toda la red: ' . implode( ', ', $network_active ) . '. ' : '' ) . ( $total_missing ? 'Hay widgets sin adaptador: la herramienta de cada sitio explica el motivo y la alternativa de cada uno.' : 'Ningún sitio usa widgets de Element Pack sin adaptador.' ) ) . '</p>';
+		$kept = Runner::kept_network();
+		if ( $kept ) {
+			echo '<div class="notice notice-info inline"><p>' . esc_html( Dropped::kept_notice( $kept, 'La columna «Sin equivalente» y la herramienta de cada sitio dicen qué usa cada uno.' ) ) . '</p></div>';
+		}
 		echo '</div>';
 	}
 }

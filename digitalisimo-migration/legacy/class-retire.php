@@ -13,6 +13,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * Un plugin más que sustituya DIGITALÍSIMO Elements se añade a PLUGINS (o con el filtro
  * `digitalisimo_migration_retired_plugins`), en el orden en que debe desactivarse.
+ *
+ * KEPT reconoce, del mismo modo, los plugins de la familia que la migración todavía no desactiva ni convierte (Element
+ * Pack Addon, con los widgets que Element Pack 10 separó del plugin principal, y Prime Slider, Pro o Lite): sólo se
+ * informan en el análisis y en el informe. Pasan a PLUGINS cuando la migración sepa convertir lo suyo.
  */
 final class Retire {
 	const PLUGINS = array(
@@ -21,6 +25,15 @@ final class Retire {
 		'elementor-pro.php'              => array( 'name' => '/^Elementor Pro/i', 'label' => 'Elementor Pro', 'conflict' => true ),
 		'pro-elements.php'               => array( 'name' => '/^PRO Elements/i', 'label' => 'PRO Elements', 'conflict' => true ),
 		'elementor.php'                  => array( 'name' => '/^Elementor$/i', 'label' => 'Elementor', 'core' => true ),
+	);
+
+	/**
+	 * Plugins de la familia que se detectan sin desactivarlos: por archivo principal o por «Plugin Name» (el archivo del
+	 * Addon no está confirmado), nunca uno que ya figure en PLUGINS. `pro`: si su nombre dice Pro, la etiqueta también.
+	 */
+	const KEPT = array(
+		'element-pack-addon' => array( 'file' => '/^bdthemes-element-pack-addons?\.php$/', 'name' => '/^Element Pack\b.*\bAdd-?ons?\b/i', 'label' => 'Element Pack Addon' ),
+		'prime-slider'       => array( 'file' => '/^bdthemes-prime-slider(-lite)?\.php$/', 'name' => '/^Prime Slider\b/i', 'label' => 'Prime Slider', 'pro' => true ),
 	);
 
 	/**
@@ -44,6 +57,38 @@ final class Retire {
 					continue;
 				}
 				$out[ (string) $file ] = array( 'label' => (string) $rule['label'], 'core' => ! empty( $rule['core'] ), 'conflict' => ! empty( $rule['conflict'] ), 'element_pack' => 0 === strpos( $basename, 'bdthemes-element-pack' ), 'version' => (string) ( $data['Version'] ?? '' ) );
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Plugins de la familia instalados que la migración no desactiva (KEPT), con su estado en este sitio y en la red.
+	 *
+	 * @return array<string, array{slug:string, label:string, version:string, element_pack:bool, site:bool, network:bool}> archivo => datos.
+	 */
+	public static function kept_status() {
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$own     = defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ? plugin_basename( DIGITALISIMO_ELEMENTS_FILE ) : '';
+		$retired = self::installed();
+		$site    = (array) get_option( 'active_plugins', array() );
+		$network = is_multisite() ? array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) : array();
+		$out     = array();
+		foreach ( (array) get_plugins() as $file => $data ) {
+			$file = (string) $file;
+			$name = (string) ( $data['Name'] ?? '' );
+			if ( $file === $own || isset( $retired[ $file ] ) ) {
+				continue;
+			}
+			foreach ( self::KEPT as $slug => $rule ) {
+				if ( ! preg_match( $rule['file'], basename( $file ) ) && ! preg_match( $rule['name'], $name ) ) {
+					continue;
+				}
+				$label        = $rule['label'] . ( ! empty( $rule['pro'] ) && preg_match( '/\bPro\b/', $name ) ? ' Pro' : '' );
+				$out[ $file ] = array( 'slug' => $slug, 'label' => $label, 'version' => (string) ( $data['Version'] ?? '' ), 'element_pack' => false, 'site' => in_array( $file, $site, true ), 'network' => in_array( $file, $network, true ) );
+				break;
 			}
 		}
 		return $out;
@@ -139,13 +184,14 @@ final class Retire {
 	}
 
 	/**
-	 * En una red: en cuántos sitios sigue activo por sitio cada plugin retirable (y si lo está en toda la red).
+	 * En una red: en cuántos sitios sigue activo por sitio cada plugin retirable (y si lo está en toda la red). Con
+	 * $kept, lo mismo para los plugins de la familia que la migración no desactiva.
 	 *
 	 * @return array<string, array{label:string, network:bool, sites:int, element_pack:bool}>
 	 */
-	public static function network_summary() {
+	public static function network_summary( $kept = false ) {
 		$out = array();
-		foreach ( self::status() as $file => $info ) {
+		foreach ( ( $kept ? self::kept_status() : self::status() ) as $file => $info ) {
 			$out[ $file ] = array( 'label' => $info['label'], 'network' => $info['network'], 'sites' => 0, 'element_pack' => $info['element_pack'] );
 		}
 		if ( ! $out || ! is_multisite() || ! function_exists( 'get_sites' ) ) {

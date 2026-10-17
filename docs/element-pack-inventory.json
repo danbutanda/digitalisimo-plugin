@@ -7,52 +7,102 @@
     {
       "name": "Backdrop Filter",
       "source": "reference/bdthemes-element-pack/modules/backdrop-filter",
-      "user_priority_order": 54
+      "user_priority_order": 54,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Floating Effects",
       "source": "reference/bdthemes-element-pack/modules/floating-effects",
-      "user_priority_order": 55
+      "user_priority_order": 55,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Notation",
       "source": "reference/bdthemes-element-pack/modules/notation",
-      "user_priority_order": 56
+      "user_priority_order": 56,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Shape Builder",
       "source": "reference/bdthemes-element-pack/modules/shape-builder",
-      "user_priority_order": 57
+      "user_priority_order": 57,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Text Gradient Background",
       "source": "reference/bdthemes-element-pack/modules/text-gradient-background",
-      "user_priority_order": 58
+      "user_priority_order": 58,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Realistic Image Shadow",
       "source": "reference/bdthemes-element-pack/modules/realistic-image-shadow",
-      "user_priority_order": 59
+      "user_priority_order": 59,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Visibility Controls",
       "source": "reference/bdthemes-element-pack/modules/visibility-controls",
-      "user_priority_order": 60
+      "user_priority_order": 60,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Wrapper Link",
       "source": "reference/bdthemes-element-pack/modules/wrapper-link",
-      "user_priority_order": 61
+      "user_priority_order": 61,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Duplicator",
       "source": "reference/bdthemes-element-pack/includes/class-duplicator.php",
-      "user_priority_order": 62
+      "user_priority_order": 62,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "SVG Support",
       "source": "reference/bdthemes-element-pack/includes/class-svg-support.php",
-      "user_priority_order": 63
+      "user_priority_order": 63,
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     }
   ],
   "unclassified_widget_files": [
@@ -342,6 +392,1318 @@
       "bdt-wpdatatable"
     ]
   },
+  "baseline_version": "9.9.1",
+  "compared_versions": [
+    {
+      "plugin": "Element Pack Pro",
+      "version": "10.0.1",
+      "edition": "pro"
+    }
+  ],
+  "moved_to_addon_count": 88,
+  "moved_to_addon_note": "88 IDs faltan en 10.0.1 y se marcan `moved_to_addon` porque el changelog de la versión más reciente dice que los widgets obsoletos pasaron al plugin Element Pack Addon con los mismos nombres (declara 85; la diferencia sólo se resuelve con el ZIP del Addon).",
+  "new_since_baseline": [],
+  "extensions": [
+    {
+      "name": "Adblock Detector",
+      "slug": "adblock-detector",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_adblock_detector_enable"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": []
+    },
+    {
+      "name": "Animated Gradient Background",
+      "slug": "animated-gradient-background",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "element_pack_agbg_blending_mode",
+        "element_pack_agbg_color_list",
+        "element_pack_agbg_direction",
+        "element_pack_agbg_show",
+        "element_pack_agbg_transitionSpeed",
+        "end_color",
+        "start_color"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "container",
+        "section"
+      ]
+    },
+    {
+      "name": "Backdrop Filter",
+      "slug": "backdrop-filter",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [
+        "element_pack_backdrop_filter",
+        "element_pack_backdrop_filter_type",
+        "element_pack_bf_blur",
+        "element_pack_bf_brightness",
+        "element_pack_bf_contrast",
+        "element_pack_bf_grayscale",
+        "element_pack_bf_hue_rotate",
+        "element_pack_bf_invert",
+        "element_pack_bf_opacity",
+        "element_pack_bf_saturate",
+        "element_pack_bf_sepia",
+        "element_pack_liquid_glass_effects_blur",
+        "ep_backdrop_filter_notice",
+        "ep_liquid_glass_effects_notice"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "column",
+        "common",
+        "container",
+        "section"
+      ]
+    },
+    {
+      "name": "Background Expand",
+      "slug": "background-expand",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_bg_expand_anim_speed",
+        "ep_bg_expand_border_radius",
+        "ep_bg_expand_border_radius_active",
+        "ep_bg_expand_container_width",
+        "ep_bg_expand_enable",
+        "ep_bg_expand_output",
+        "ep_bg_expand_output_active"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": true,
+      "element_types": [
+        "container",
+        "section"
+      ]
+    },
+    {
+      "name": "Background Image Parallax",
+      "slug": "background-image-parallax",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_background_image_parallax_delay",
+        "ep_background_image_parallax_on",
+        "ep_background_image_parallax_orientation",
+        "ep_background_image_parallax_overflow",
+        "ep_background_image_parallax_scale"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": true,
+      "element_types": [
+        "image",
+        "widget"
+      ]
+    },
+    {
+      "name": "Background Overlay",
+      "slug": "background-overlay",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "element_pack_background_overlay",
+        "ep_background_overlay_hover_opacity",
+        "ep_background_overlay_hover_radius",
+        "ep_background_overlay_hover_transition_duration",
+        "ep_background_overlay_margin",
+        "ep_background_overlay_opacity",
+        "ep_background_overlay_radius",
+        "ep_background_overlay_zindex",
+        "ep_overlay_blend_mode"
+      ],
+      "group_controls": [
+        "ep_background_overlay",
+        "ep_background_overlay_hover",
+        "ep_css_filters",
+        "ep_css_filters_hover"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common"
+      ]
+    },
+    {
+      "name": "Background Parallax",
+      "slug": "background-parallax",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_parallax_bg_border_color_end",
+        "ep_parallax_bg_border_color_start",
+        "ep_parallax_bg_color_end",
+        "ep_parallax_bg_color_start",
+        "ep_parallax_bg_colors",
+        "section_parallax_on",
+        "section_parallax_value",
+        "section_parallax_x_value"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "container",
+        "section"
+      ]
+    },
+    {
+      "name": "Confetti Effects",
+      "slug": "confetti-effects",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_widget_cf_angle",
+        "ep_widget_cf_anim_infinite",
+        "ep_widget_cf_colors",
+        "ep_widget_cf_confetti",
+        "ep_widget_cf_fireworks_duration",
+        "ep_widget_cf_origin",
+        "ep_widget_cf_origin_x",
+        "ep_widget_cf_origin_y",
+        "ep_widget_cf_particle_count",
+        "ep_widget_cf_scalar",
+        "ep_widget_cf_shape_type",
+        "ep_widget_cf_shapes",
+        "ep_widget_cf_shapes_emoji",
+        "ep_widget_cf_shapes_svg",
+        "ep_widget_cf_spread",
+        "ep_widget_cf_start_velocity",
+        "ep_widget_cf_trigger_delay",
+        "ep_widget_cf_trigger_selector",
+        "ep_widget_cf_trigger_type",
+        "ep_widget_cf_type",
+        "ep_widget_cf_z_index"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "container",
+        "section",
+        "widget"
+      ]
+    },
+    {
+      "name": "Content Protector",
+      "slug": "content-protector",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_content_protector_enable"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": []
+    },
+    {
+      "name": "Cursor Effects",
+      "slug": "cursor-effects",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "element_pack_cursor_effects_disable_default_cursor",
+        "element_pack_cursor_effects_disable_on_mobile",
+        "element_pack_cursor_effects_gsap_height",
+        "element_pack_cursor_effects_gsap_width",
+        "element_pack_cursor_effects_icons",
+        "element_pack_cursor_effects_icons_size",
+        "element_pack_cursor_effects_image_gsap_animation",
+        "element_pack_cursor_effects_image_radius",
+        "element_pack_cursor_effects_image_size",
+        "element_pack_cursor_effects_image_src",
+        "element_pack_cursor_effects_primary",
+        "element_pack_cursor_effects_primary_color",
+        "element_pack_cursor_effects_primary_size",
+        "element_pack_cursor_effects_secondary",
+        "element_pack_cursor_effects_secondary_color",
+        "element_pack_cursor_effects_secondary_size",
+        "element_pack_cursor_effects_show",
+        "element_pack_cursor_effects_source",
+        "element_pack_cursor_effects_speed",
+        "element_pack_cursor_effects_style",
+        "element_pack_cursor_effects_text_color",
+        "element_pack_cursor_effects_text_label",
+        "element_pack_cursor_effects_text_padding",
+        "element_pack_cursor_effects_text_radius",
+        "important_note"
+      ],
+      "group_controls": [
+        "element_pack_cursor_effects_image_border",
+        "element_pack_cursor_effects_text_background",
+        "element_pack_cursor_effects_text_border",
+        "element_pack_cursor_effects_text_typography"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "container",
+        "section",
+        "widget"
+      ]
+    },
+    {
+      "name": "Custom Js",
+      "slug": "custom-js",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_custom_footer_script",
+        "ep_custom_header_script"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "*"
+      ]
+    },
+    {
+      "name": "Duplicator",
+      "slug": "duplicator",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": []
+    },
+    {
+      "name": "Elementor",
+      "slug": "elementor",
+      "kind": "kit-tab",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "element_pack_cb_bg",
+        "element_pack_cb_color",
+        "element_pack_cb_padding",
+        "element_pack_cb_radius",
+        "element_pack_global_tooltip_arrow_color",
+        "element_pack_global_tooltip_border_radius",
+        "element_pack_global_tooltip_color",
+        "element_pack_global_tooltip_padding",
+        "element_pack_global_tooltip_text_align",
+        "element_pack_global_tooltip_width",
+        "element_pack_lightbox_bg",
+        "element_pack_lightbox_max_height",
+        "element_pack_navigation_color",
+        "element_pack_navigation_heading",
+        "element_pack_navigation_hover_border_color",
+        "element_pack_navigation_hover_color",
+        "element_pack_navigation_icon_size",
+        "element_pack_navigation_radius",
+        "element_pack_navigation_size",
+        "element_pack_toolbar_bg",
+        "element_pack_toolbar_color",
+        "hr_1"
+      ],
+      "group_controls": [
+        "element_pack_cb_border",
+        "element_pack_global_tooltip_background",
+        "element_pack_global_tooltip_border",
+        "element_pack_global_tooltip_box_shadow",
+        "element_pack_global_tooltip_typography",
+        "element_pack_navigation_bg_color",
+        "element_pack_navigation_border",
+        "element_pack_navigation_hover_bg_color",
+        "element_pack_toolbar_typography"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": []
+    },
+    {
+      "name": "Equal Height",
+      "slug": "equal-height",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "equal_height_important_note",
+        "section_equal_height_custom_selector",
+        "section_equal_height_on",
+        "section_equal_height_selector"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "container",
+        "section"
+      ]
+    },
+    {
+      "name": "Floating Effects",
+      "slug": "floating-effects",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [
+        "ep_floating_effects_border_radius",
+        "ep_floating_effects_border_radius_delay",
+        "ep_floating_effects_border_radius_duration",
+        "ep_floating_effects_border_radius_toggle",
+        "ep_floating_effects_easing",
+        "ep_floating_effects_hr",
+        "ep_floating_effects_opacity_duration",
+        "ep_floating_effects_opacity_end",
+        "ep_floating_effects_opacity_start",
+        "ep_floating_effects_opacity_toggle",
+        "ep_floating_effects_rotate_delay",
+        "ep_floating_effects_rotate_duration",
+        "ep_floating_effects_rotate_infinite",
+        "ep_floating_effects_rotate_toggle",
+        "ep_floating_effects_rotate_x",
+        "ep_floating_effects_rotate_y",
+        "ep_floating_effects_rotate_z",
+        "ep_floating_effects_scale_delay",
+        "ep_floating_effects_scale_duration",
+        "ep_floating_effects_scale_toggle",
+        "ep_floating_effects_scale_x",
+        "ep_floating_effects_scale_y",
+        "ep_floating_effects_show",
+        "ep_floating_effects_skew_delay",
+        "ep_floating_effects_skew_duration",
+        "ep_floating_effects_skew_toggle",
+        "ep_floating_effects_skew_x",
+        "ep_floating_effects_skew_y",
+        "ep_floating_effects_translate_delay",
+        "ep_floating_effects_translate_duration",
+        "ep_floating_effects_translate_toggle",
+        "ep_floating_effects_translate_x",
+        "ep_floating_effects_translate_y"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": true,
+      "element_types": [
+        "column",
+        "common",
+        "section",
+        "widget"
+      ]
+    },
+    {
+      "name": "Global Badge",
+      "slug": "global-badge",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_global_badge_border_radius",
+        "ep_global_badge_clip_path",
+        "ep_global_badge_clip_path_value",
+        "ep_global_badge_enable",
+        "ep_global_badge_floating",
+        "ep_global_badge_floating_blur_end",
+        "ep_global_badge_floating_blur_speed",
+        "ep_global_badge_floating_blur_start",
+        "ep_global_badge_floating_blur_toggle",
+        "ep_global_badge_floating_opacity_end",
+        "ep_global_badge_floating_opacity_speed",
+        "ep_global_badge_floating_opacity_start",
+        "ep_global_badge_floating_opacity_toggle",
+        "ep_global_badge_floating_rotate_",
+        "ep_global_badge_floating_rotate_speed",
+        "ep_global_badge_floating_rotate_toggle",
+        "ep_global_badge_floating_translate_speed",
+        "ep_global_badge_floating_translate_toggle",
+        "ep_global_badge_floating_translate_x",
+        "ep_global_badge_floating_translate_y",
+        "ep_global_badge_horizontal",
+        "ep_global_badge_icon",
+        "ep_global_badge_icon_color",
+        "ep_global_badge_icon_gap",
+        "ep_global_badge_icon_position",
+        "ep_global_badge_icon_selected",
+        "ep_global_badge_icon_size",
+        "ep_global_badge_icon_type",
+        "ep_global_badge_lottie_end_point",
+        "ep_global_badge_lottie_icon_fill_color",
+        "ep_global_badge_lottie_icon_stroke_color",
+        "ep_global_badge_lottie_json_code",
+        "ep_global_badge_lottie_json_path",
+        "ep_global_badge_lottie_json_source",
+        "ep_global_badge_lottie_loop",
+        "ep_global_badge_lottie_renderer",
+        "ep_global_badge_lottie_speed",
+        "ep_global_badge_lottie_start_point",
+        "ep_global_badge_lottie_upload_json_file",
+        "ep_global_badge_offset_x",
+        "ep_global_badge_offset_y",
+        "ep_global_badge_overflow_hidden",
+        "ep_global_badge_padding",
+        "ep_global_badge_rotate",
+        "ep_global_badge_size",
+        "ep_global_badge_style",
+        "ep_global_badge_style_layout_heading",
+        "ep_global_badge_svg_code",
+        "ep_global_badge_svg_color",
+        "ep_global_badge_svg_layer",
+        "ep_global_badge_svg_offset_x",
+        "ep_global_badge_svg_offset_y",
+        "ep_global_badge_svg_width",
+        "ep_global_badge_text",
+        "ep_global_badge_text_color",
+        "ep_global_badge_vertical"
+      ],
+      "group_controls": [
+        "ep_global_badge_background",
+        "ep_global_badge_border",
+        "ep_global_badge_box_shadow",
+        "ep_global_badge_text_shadow",
+        "ep_global_badge_typography"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "variable"
+      ]
+    },
+    {
+      "name": "Grid Line",
+      "slug": "grid-line",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_grid_line_column_color",
+        "ep_grid_line_columns",
+        "ep_grid_line_direction",
+        "ep_grid_line_enable",
+        "ep_grid_line_horizontal",
+        "ep_grid_line_horizontal_output",
+        "ep_grid_line_line_color",
+        "ep_grid_line_line_width",
+        "ep_grid_line_max_width",
+        "ep_grid_line_outline",
+        "ep_grid_line_output",
+        "ep_grid_line_z_index"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": true,
+      "element_types": []
+    },
+    {
+      "name": "Hash Link",
+      "slug": "hash-link",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_hash_link_color",
+        "ep_hash_link_color_hover",
+        "ep_hash_link_container",
+        "ep_hash_link_enable",
+        "ep_hash_link_notes",
+        "ep_hash_link_selector"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": []
+    },
+    {
+      "name": "Image Hover Effects",
+      "slug": "image-hover-effects",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "effects_color",
+        "effects_duration",
+        "effets_width",
+        "ep_image_hover_effects_on",
+        "hover_effects"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "image",
+        "widget"
+      ]
+    },
+    {
+      "name": "Image Masking",
+      "slug": "image-masking",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [
+        "image_mask_popover",
+        "image_mask_shape",
+        "image_mask_shape_custom",
+        "image_mask_shape_custom_size",
+        "image_mask_shape_default",
+        "image_mask_shape_position",
+        "image_mask_shape_repeat",
+        "image_mask_shape_size"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "image-box",
+        "image-carousel"
+      ]
+    },
+    {
+      "name": "Image Parallax",
+      "slug": "image-parallax",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "element_pack_sbc_parallax_ec",
+        "element_pack_sbc_parallax_sc",
+        "element_pack_sbc_parallax_show",
+        "element_pack_sbgc_parallax_ec",
+        "element_pack_sbgc_parallax_sc",
+        "element_pack_sbgc_parallax_show",
+        "section_parallax_bg_size",
+        "section_parallax_bgp_x",
+        "section_parallax_bgp_y",
+        "section_parallax_depth",
+        "section_parallax_elements",
+        "section_parallax_image",
+        "section_parallax_mode",
+        "section_parallax_title"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "*",
+        "container",
+        "section"
+      ]
+    },
+    {
+      "name": "Notation",
+      "slug": "notation",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [
+        "ep_notation_active",
+        "ep_notation_anim_duration",
+        "ep_notation_bracket_on",
+        "ep_notation_color",
+        "ep_notation_custom_selector",
+        "ep_notation_infinity_loop",
+        "ep_notation_list",
+        "ep_notation_loop_delay",
+        "ep_notation_select_type",
+        "ep_notation_stroke_width",
+        "ep_notation_type",
+        "ep_notation_waypoint_offset"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "widget"
+      ]
+    },
+    {
+      "name": "Parallax Effects",
+      "slug": "parallax-effects",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_parallax_effects_blur",
+        "ep_parallax_effects_blur_end",
+        "ep_parallax_effects_blur_start",
+        "ep_parallax_effects_easing",
+        "ep_parallax_effects_easing_value",
+        "ep_parallax_effects_hr",
+        "ep_parallax_effects_hue",
+        "ep_parallax_effects_hue_value",
+        "ep_parallax_effects_media_query",
+        "ep_parallax_effects_opacity",
+        "ep_parallax_effects_opacity_custom_show",
+        "ep_parallax_effects_opacity_custom_value",
+        "ep_parallax_effects_opacity_toggole",
+        "ep_parallax_effects_rotate",
+        "ep_parallax_effects_rotate_end",
+        "ep_parallax_effects_rotate_start",
+        "ep_parallax_effects_scale",
+        "ep_parallax_effects_scale_end",
+        "ep_parallax_effects_scale_start",
+        "ep_parallax_effects_sepia",
+        "ep_parallax_effects_sepia_value",
+        "ep_parallax_effects_show",
+        "ep_parallax_effects_target",
+        "ep_parallax_effects_transition",
+        "ep_parallax_effects_transition_duration",
+        "ep_parallax_effects_transition_easing",
+        "ep_parallax_effects_transition_for",
+        "ep_parallax_effects_viewport",
+        "ep_parallax_effects_viewport_end",
+        "ep_parallax_effects_viewport_start",
+        "ep_parallax_effects_x",
+        "ep_parallax_effects_x_custom_show",
+        "ep_parallax_effects_x_custom_value",
+        "ep_parallax_effects_x_end",
+        "ep_parallax_effects_x_start",
+        "ep_parallax_effects_y",
+        "ep_parallax_effects_y_custom_show",
+        "ep_parallax_effects_y_custom_value",
+        "ep_parallax_effects_y_end",
+        "ep_parallax_effects_y_start"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "column",
+        "common",
+        "section",
+        "widget"
+      ]
+    },
+    {
+      "name": "Particles",
+      "slug": "particles",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "section_particles_js",
+        "section_particles_on",
+        "section_particles_z_index"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "container",
+        "section"
+      ]
+    },
+    {
+      "name": "Realistic Image Shadow",
+      "slug": "realistic-image-shadow",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [
+        "element_pack_ris_blur",
+        "element_pack_ris_enable",
+        "element_pack_ris_on_hover",
+        "element_pack_ris_opacity",
+        "element_pack_ris_scale_x",
+        "element_pack_ris_selector",
+        "element_pack_ris_x",
+        "element_pack_ris_y"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "widget"
+      ]
+    },
+    {
+      "name": "Reveal Effects",
+      "slug": "reveal-effects",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "element_pack_reveal_effects_color",
+        "element_pack_reveal_effects_direction",
+        "element_pack_reveal_effects_easing",
+        "element_pack_reveal_effects_enable",
+        "element_pack_reveal_effects_speed"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "widget"
+      ]
+    },
+    {
+      "name": "Ripple Effects",
+      "slug": "ripple-effects",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_ripple_color",
+        "ep_ripple_custom_selector",
+        "ep_ripple_duration",
+        "ep_ripple_easing",
+        "ep_ripple_enable",
+        "ep_ripple_important_note",
+        "ep_ripple_on",
+        "ep_ripple_opacity",
+        "ep_ripple_selector"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "widget"
+      ]
+    },
+    {
+      "name": "Scroll Box",
+      "slug": "scroll-box",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_scroll_box_border_color",
+        "ep_scroll_box_border_radius",
+        "ep_scroll_box_border_type",
+        "ep_scroll_box_border_width",
+        "ep_scroll_box_enable",
+        "ep_scroll_box_max_height",
+        "ep_scroll_box_width"
+      ],
+      "group_controls": [
+        "ep_scroll_box_thumb_color",
+        "ep_scroll_box_thumb_shadow",
+        "ep_scroll_box_track_color",
+        "ep_scroll_box_track_shadow"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "container",
+        "section",
+        "text-editor"
+      ]
+    },
+    {
+      "name": "Scroll Fill Effect",
+      "slug": "scroll-fill-effect",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_widget_sf_fx_animation_type",
+        "ep_widget_sf_fx_base_color",
+        "ep_widget_sf_fx_enable",
+        "ep_widget_sf_fx_notice",
+        "ep_widget_sf_fx_rgm_end_trigger",
+        "ep_widget_sf_fx_rgm_mask_color",
+        "ep_widget_sf_fx_rgm_notice",
+        "ep_widget_sf_fx_rgm_start_trigger",
+        "ep_widget_sf_fx_rgm_x_percent",
+        "ep_widget_sf_fx_sg_duration",
+        "ep_widget_sf_fx_sg_end_color",
+        "ep_widget_sf_fx_sg_end_opacity",
+        "ep_widget_sf_fx_sg_end_scale",
+        "ep_widget_sf_fx_sg_end_trigger",
+        "ep_widget_sf_fx_sg_stagger",
+        "ep_widget_sf_fx_sg_start_color",
+        "ep_widget_sf_fx_sg_start_opacity",
+        "ep_widget_sf_fx_sg_start_scale",
+        "ep_widget_sf_fx_sg_start_trigger"
+      ],
+      "group_controls": [
+        "ep_widget_sf_fx_fill_bg"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "bdt-advanced-heading",
+        "heading",
+        "text-editor",
+        "widget"
+      ]
+    },
+    {
+      "name": "Section Sticky",
+      "slug": "section-sticky",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "section_sticky_active_bg",
+        "section_sticky_active_padding",
+        "section_sticky_animation",
+        "section_sticky_border_radius",
+        "section_sticky_bottom",
+        "section_sticky_off_media",
+        "section_sticky_offset",
+        "section_sticky_on",
+        "section_sticky_on_scroll_up",
+        "section_sticky_position",
+        "section_sticky_zindex"
+      ],
+      "group_controls": [
+        "section_sticky_active_shadow",
+        "section_sticky_border"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "container",
+        "section",
+        "widget"
+      ]
+    },
+    {
+      "name": "Shape Builder",
+      "slug": "shape-builder",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [
+        "animation_delay",
+        "animation_duration",
+        "animation_easing",
+        "animation_name",
+        "animation_repeat",
+        "animation_trigger_type",
+        "animation_viewport",
+        "animation_yoyo",
+        "bdt_shape_builder_enable",
+        "bdt_shape_builder_list",
+        "custom_shape_color_popover",
+        "custom_shape_fill_color",
+        "custom_shape_stroke_color",
+        "custom_shape_upload",
+        "shape_builder_animation_popover",
+        "shape_color",
+        "shape_color_popover",
+        "shape_fill_type",
+        "shape_gap",
+        "shape_gradient_angle",
+        "shape_gradient_color_1",
+        "shape_gradient_color_2",
+        "shape_gradient_location_1",
+        "shape_gradient_location_2",
+        "shape_gradient_type",
+        "shape_offset_hover_popover",
+        "shape_offset_popover",
+        "shape_position_horizontal",
+        "shape_position_horizontal_offset_end",
+        "shape_position_horizontal_offset_start",
+        "shape_position_popover",
+        "shape_position_vertical",
+        "shape_position_vertical_offset_end",
+        "shape_position_vertical_offset_start",
+        "shape_position_x",
+        "shape_position_x_hover",
+        "shape_position_y",
+        "shape_position_y_hover",
+        "shape_rotate",
+        "shape_rotate_hover",
+        "shape_type",
+        "shape_z_index"
+      ],
+      "group_controls": [
+        "css_filters",
+        "css_filters_hover"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "container",
+        "section",
+        "widget"
+      ]
+    },
+    {
+      "name": "Shape Divider",
+      "slug": "shape-divider",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "shape-divider"
+      ]
+    },
+    {
+      "name": "Sound Effects",
+      "slug": "sound-effects",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_sound_effects_active",
+        "ep_sound_effects_element_selector",
+        "ep_sound_effects_event",
+        "ep_sound_effects_hosted_url",
+        "ep_sound_effects_hosted_url_mp3",
+        "ep_sound_effects_select_type",
+        "ep_sound_effects_source",
+        "ep_sound_effects_source_local_link"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common"
+      ]
+    },
+    {
+      "name": "SVG Support",
+      "slug": "svg-support",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": []
+    },
+    {
+      "name": "Text Gradient Background",
+      "slug": "text-gradient-background",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [
+        "element_pack_tgb_enable",
+        "element_pack_tgb_selector"
+      ],
+      "group_controls": [
+        "element_pack_tgb_background"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "widget"
+      ]
+    },
+    {
+      "name": "Threed Text",
+      "slug": "threed-text",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "ep_threed_text_active",
+        "ep_threed_text_depth",
+        "ep_threed_text_depth_color",
+        "ep_threed_text_event",
+        "ep_threed_text_event_direction",
+        "ep_threed_text_event_rotation",
+        "ep_threed_text_fade",
+        "ep_threed_text_layers",
+        "ep_threed_text_perspective"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": true,
+      "element_types": [
+        "bdt-advanced-heading",
+        "heading",
+        "widget"
+      ]
+    },
+    {
+      "name": "Tile Scroll",
+      "slug": "tile-scroll",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "element_pack_tile_scroll_display",
+        "element_pack_tile_scroll_elements",
+        "element_pack_tile_scroll_gap",
+        "element_pack_tile_scroll_height",
+        "element_pack_tile_scroll_images",
+        "element_pack_tile_scroll_item_width",
+        "element_pack_tile_scroll_notice",
+        "element_pack_tile_scroll_rotate",
+        "element_pack_tile_scroll_show",
+        "element_pack_tile_scroll_title",
+        "element_pack_tile_scroll_x_end",
+        "element_pack_tile_scroll_x_start",
+        "element_pack_title_radius"
+      ],
+      "group_controls": [
+        "element_pack_tile_scroll_gap",
+        "element_pack_tile_scroll_shadow"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "container",
+        "section"
+      ]
+    },
+    {
+      "name": "Tooltip",
+      "slug": "tooltip",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "element_pack_widget_tooltip",
+        "element_pack_widget_tooltip_animation",
+        "element_pack_widget_tooltip_arrow",
+        "element_pack_widget_tooltip_arrow_color",
+        "element_pack_widget_tooltip_border_radius",
+        "element_pack_widget_tooltip_color",
+        "element_pack_widget_tooltip_custom_trigger",
+        "element_pack_widget_tooltip_follow_cursor",
+        "element_pack_widget_tooltip_padding",
+        "element_pack_widget_tooltip_placement",
+        "element_pack_widget_tooltip_text",
+        "element_pack_widget_tooltip_text_align",
+        "element_pack_widget_tooltip_trigger",
+        "element_pack_widget_tooltip_width",
+        "element_pack_widget_tooltip_x_offset",
+        "element_pack_widget_tooltip_y_offset"
+      ],
+      "group_controls": [
+        "element_pack_widget_tooltip_background",
+        "element_pack_widget_tooltip_border",
+        "element_pack_widget_tooltip_box_shadow",
+        "element_pack_widget_tooltip_typography"
+      ],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "common",
+        "widget"
+      ]
+    },
+    {
+      "name": "Transform Effects",
+      "slug": "transform-effects",
+      "kind": "extension",
+      "present_in": [
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": false,
+      "control_keys": [
+        "element_pack_column_overflow",
+        "element_pack_column_transform",
+        "element_pack_rotate_toggle_hover",
+        "element_pack_rotate_toggle_normal",
+        "element_pack_scale_hover",
+        "element_pack_scale_normal",
+        "element_pack_section_overflow",
+        "element_pack_section_transform",
+        "element_pack_skew_hover",
+        "element_pack_skew_normal",
+        "element_pack_translate_toggle_hover",
+        "element_pack_translate_toggle_normal",
+        "element_pack_widget_effect_rotatex_hover",
+        "element_pack_widget_effect_rotatex_normal",
+        "element_pack_widget_effect_rotatey_hover",
+        "element_pack_widget_effect_rotatey_normal",
+        "element_pack_widget_effect_rotatez_hover",
+        "element_pack_widget_effect_rotatez_normal",
+        "element_pack_widget_effect_scalex_hover",
+        "element_pack_widget_effect_scalex_normal",
+        "element_pack_widget_effect_scaley_hover",
+        "element_pack_widget_effect_scaley_normal",
+        "element_pack_widget_effect_skewx_hover",
+        "element_pack_widget_effect_skewx_normal",
+        "element_pack_widget_effect_skewy_hover",
+        "element_pack_widget_effect_skewy_normal",
+        "element_pack_widget_effect_transition",
+        "element_pack_widget_effect_transition_delay",
+        "element_pack_widget_effect_transition_duration",
+        "element_pack_widget_effect_transition_easing",
+        "element_pack_widget_effect_transx_hover",
+        "element_pack_widget_effect_transx_normal",
+        "element_pack_widget_effect_transy_hover",
+        "element_pack_widget_effect_transy_normal",
+        "element_pack_widget_motion_effect_notice",
+        "element_pack_widget_transform"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": false,
+      "element_types": [
+        "column",
+        "common",
+        "section"
+      ]
+    },
+    {
+      "name": "Visibility Controls",
+      "slug": "visibility-controls",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [
+        "ep_condition_addition_operator",
+        "ep_condition_custom_page_id",
+        "ep_condition_key",
+        "ep_condition_operator",
+        "ep_condition_time_range_end_time",
+        "ep_display_conditions",
+        "ep_display_conditions_enable",
+        "ep_display_conditions_relation",
+        "ep_display_conditions_to"
+      ],
+      "group_controls": [],
+      "dynamic_control_keys": true,
+      "element_types": [
+        "common",
+        "container",
+        "section"
+      ]
+    },
+    {
+      "name": "Wrapper Link",
+      "slug": "wrapper-link",
+      "kind": "extension",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false,
+      "treated_in_migration_map": true,
+      "control_keys": [],
+      "group_controls": [],
+      "dynamic_control_keys": true,
+      "element_types": [
+        "column",
+        "common",
+        "container",
+        "section"
+      ]
+    }
+  ],
   "widgets": [
     {
       "name": "Accordion",
@@ -400,7 +1762,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "ACF Accordion",
@@ -453,7 +1820,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "ACF Gallery",
@@ -514,7 +1886,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "ACF List",
@@ -566,7 +1943,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "ACF Slider",
@@ -622,7 +2004,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "ACF Tabs",
@@ -677,7 +2064,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Advanced Button",
@@ -728,7 +2120,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Advanced Calculator",
@@ -784,7 +2181,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Advanced Counter",
@@ -841,7 +2243,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Advanced Divider",
@@ -895,7 +2302,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Advanced Google Map",
@@ -952,7 +2364,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Advanced Heading",
@@ -1006,7 +2423,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Advanced Icon Box",
@@ -1064,7 +2486,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Advanced Image Gallery",
@@ -1128,7 +2555,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Advanced Progress Bar",
@@ -1182,7 +2614,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Age Gate",
@@ -1235,7 +2672,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Air Pollution",
@@ -1286,7 +2729,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Animated Card",
@@ -1339,7 +2788,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Animated Heading",
@@ -1397,7 +2851,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Animated Link",
@@ -1448,7 +2907,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Audio Player",
@@ -1510,7 +2974,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "BarCode",
@@ -1565,7 +3034,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "bbPress Forum Form",
@@ -1614,7 +3088,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Forum Index",
@@ -1663,7 +3143,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Reply Form",
@@ -1712,7 +3198,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Single Forum",
@@ -1762,7 +3254,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Single Reply",
@@ -1812,7 +3310,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Single Tag",
@@ -1862,7 +3366,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Single Topic",
@@ -1912,7 +3422,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Single View",
@@ -1961,7 +3477,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Stats",
@@ -2010,7 +3532,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Topic Form",
@@ -2059,7 +3587,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Topic Index",
@@ -2108,7 +3642,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "bbPress Topic Tags",
@@ -2157,7 +3697,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Brand Carousel",
@@ -2216,7 +3762,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Brand Grid",
@@ -2270,7 +3821,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Breadcrumbs",
@@ -2321,7 +3877,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "BuddyPress Friends",
@@ -2370,7 +3931,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "BuddyPress Group",
@@ -2419,7 +3986,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "BuddyPress Member",
@@ -2468,7 +4041,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Business Hours",
@@ -2525,7 +4104,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Calendly",
@@ -2574,7 +4158,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Call Out",
@@ -2627,7 +4216,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Carousel",
@@ -2691,7 +4286,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Changelog",
@@ -2746,7 +4347,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Charitable Campaigns",
@@ -2801,7 +4407,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Charitable Donation Form",
@@ -2856,7 +4468,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Charitable Donations",
@@ -2911,7 +4529,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Charitable Donors",
@@ -2966,7 +4590,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Charitable Login",
@@ -3021,7 +4651,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Charitable Profile",
@@ -3076,7 +4712,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Charitable Registration",
@@ -3131,7 +4773,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Charitable Stat",
@@ -3186,7 +4834,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Chart",
@@ -3238,7 +4892,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Circle Info",
@@ -3292,7 +4951,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Circle Menu",
@@ -3351,7 +5015,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Comment",
@@ -3402,7 +5071,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Comparison List",
@@ -3453,7 +5127,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Simple Contact Form",
@@ -3515,7 +5194,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Contact Form 7",
@@ -3564,7 +5248,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Content Switcher",
@@ -3622,7 +5311,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Cookie Consent",
@@ -3677,7 +5371,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Countdown",
@@ -3736,7 +5435,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Coupon Code",
@@ -3793,7 +5497,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Creative Button",
@@ -3845,7 +5554,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Crypto Currency Card",
@@ -3902,7 +5616,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Crypto Currency Carousel",
@@ -3964,7 +5684,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Crypto Currency Chart",
@@ -4024,7 +5750,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Crypto Currency Chart Carousel",
@@ -4086,7 +5818,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Crypto Currency Grid",
@@ -4143,7 +5881,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Crypto Currency List",
@@ -4201,7 +5945,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Crypto Currency Table",
@@ -4262,7 +6012,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Crypto Currency Ticker",
@@ -4321,7 +6077,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Custom Carousel",
@@ -4386,7 +6148,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Custom Gallery",
@@ -4450,7 +6217,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Dark Mode",
@@ -4507,7 +6279,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Device Slider",
@@ -4564,7 +6342,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Document Viewer",
@@ -4613,7 +6396,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Download Monitor",
@@ -4666,7 +6454,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Dropbar",
@@ -4718,7 +6512,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Dual Button",
@@ -4774,7 +6574,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Dynamic Carousel",
@@ -4837,7 +6642,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Dynamic Grid",
@@ -4895,7 +6705,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "EDD Cart",
@@ -4949,7 +6764,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Category Carousel",
@@ -5010,7 +6831,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Category Grid",
@@ -5065,7 +6892,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Checkout",
@@ -5118,7 +6951,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD History",
@@ -5169,7 +7008,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Login",
@@ -5228,7 +7073,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Mini Cart",
@@ -5282,7 +7133,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Product",
@@ -5344,7 +7201,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Product Carousel",
@@ -5405,7 +7268,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Product Review Carousel",
@@ -5464,7 +7333,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Product Reviews",
@@ -5517,7 +7392,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Profile Editor",
@@ -5568,7 +7449,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Purchase History",
@@ -5619,7 +7506,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Register",
@@ -5672,7 +7565,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "EDD Tabs",
@@ -5730,7 +7629,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Events Calendar Carousel",
@@ -5792,7 +7697,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Events Calendar Grid",
@@ -5849,7 +7759,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Events Calendar List",
@@ -5903,7 +7818,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Everest Forms",
@@ -5959,7 +7879,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Facebook Feed",
@@ -6015,7 +7941,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Facebook Feed Carousel",
@@ -6074,7 +8005,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Fancy Card",
@@ -6134,7 +8070,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Fancy Icons",
@@ -6188,7 +8130,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Fancy List",
@@ -6241,7 +8188,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Fancy Slider",
@@ -6300,7 +8252,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Fancy Tabs",
@@ -6356,7 +8313,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "FAQ",
@@ -6414,7 +8376,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Featured Box",
@@ -6471,7 +8438,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Flip Box",
@@ -6527,7 +8499,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Floating Knowledgebase",
@@ -6585,7 +8562,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Fluent Forms",
@@ -6638,7 +8620,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "FooEvents Calendar",
@@ -6694,7 +8681,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "FooEvents Calendar Carousel",
@@ -6752,7 +8744,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "FooEvents Calendar Events",
@@ -6806,7 +8803,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Formidable Forms",
@@ -6860,7 +8862,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Forminator Forms",
@@ -6914,7 +8921,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Give Donation History",
@@ -6969,7 +8981,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Give Donor Wall",
@@ -7024,7 +9042,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Give Form",
@@ -7081,7 +9105,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Give Form Grid",
@@ -7136,7 +9166,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Give Goal",
@@ -7191,7 +9227,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Give Login",
@@ -7246,7 +9288,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Give Profile Editor",
@@ -7301,7 +9349,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Give Receipt",
@@ -7356,7 +9410,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Give Register",
@@ -7411,7 +9471,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Give Totals",
@@ -7462,7 +9528,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Google Reviews",
@@ -7516,7 +9588,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Gravity Forms",
@@ -7570,7 +9647,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Help Desk",
@@ -7628,7 +9710,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Honeycombs",
@@ -7686,7 +9773,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Horizontal Scroller",
@@ -7743,7 +9836,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Hover Box",
@@ -7802,7 +9900,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Hover Video",
@@ -7859,7 +9962,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Icon Mobile Menu",
@@ -7918,7 +10026,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Icon Nav",
@@ -7976,7 +10089,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Iframe",
@@ -8035,7 +10153,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Image Accordion",
@@ -8094,7 +10217,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Image Compare",
@@ -8149,7 +10278,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Image Expand",
@@ -8208,7 +10342,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Image Magnifier",
@@ -8265,7 +10404,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Image Stack",
@@ -8322,7 +10466,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Instagram",
@@ -8383,7 +10532,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Instagram Feed",
@@ -8432,7 +10586,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Interactive Card",
@@ -8493,7 +10652,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Interactive Tabs",
@@ -8555,7 +10719,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Layer Slider",
@@ -8606,7 +10775,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "LearnPress Carousel",
@@ -8667,7 +10842,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "LearnPress Grid",
@@ -8723,7 +10903,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Lightbox",
@@ -8779,7 +10964,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Logo Carousel",
@@ -8841,7 +11031,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Logo Grid",
@@ -8901,7 +11096,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Lottie Icon Box",
@@ -8958,7 +11158,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Lottie Image",
@@ -9012,7 +11217,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Mailchimp",
@@ -9071,7 +11281,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Mailchimp for WP",
@@ -9120,7 +11335,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Marker",
@@ -9178,7 +11398,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Marquee",
@@ -9235,7 +11460,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Mega Menu",
@@ -9295,7 +11525,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Member",
@@ -9358,7 +11593,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Modal",
@@ -9413,7 +11654,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Navbar",
@@ -9465,7 +11711,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "News Ticker",
@@ -9524,7 +11775,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Ninja Forms",
@@ -9573,7 +11830,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Notification",
@@ -9631,7 +11893,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Offcanvas",
@@ -9689,7 +11956,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": " Open Street Map",
@@ -9746,7 +12018,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Panel Slider",
@@ -9806,7 +12083,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Portfolio Carousel",
@@ -9872,7 +12154,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Portfolio Gallery",
@@ -9938,7 +12225,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Portfolio List",
@@ -9994,7 +12286,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Post Block",
@@ -10052,7 +12349,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Block Modern",
@@ -10106,7 +12409,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Card",
@@ -10160,7 +12469,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Comments",
@@ -10209,7 +12524,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Content",
@@ -10258,7 +12579,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Featured Image",
@@ -10307,7 +12634,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Gallery",
@@ -10375,7 +12708,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Grid",
@@ -10448,7 +12787,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Grid Tab",
@@ -10508,7 +12853,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Info",
@@ -10564,7 +12915,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post List",
@@ -10625,7 +12982,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Slider",
@@ -10684,7 +13047,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Post Title",
@@ -10733,7 +13102,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Price List",
@@ -10784,7 +13159,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Price Table",
@@ -10851,7 +13231,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Product Carousel",
@@ -10911,7 +13296,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Product Grid",
@@ -10966,7 +13356,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Profile Card",
@@ -11022,7 +13417,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Progress Pie",
@@ -11077,7 +13477,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Protected Content",
@@ -11128,7 +13533,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "QR Code",
@@ -11183,7 +13593,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "QuForm",
@@ -11233,7 +13648,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Reading Progress",
@@ -11293,7 +13713,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Reading Timer",
@@ -11345,7 +13770,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Remote Arrows",
@@ -11401,7 +13831,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Remote Fraction",
@@ -11457,7 +13892,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Remote Pagination",
@@ -11513,7 +13953,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Remote Thumbs",
@@ -11569,7 +14014,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Review Card",
@@ -11631,7 +14081,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Review Card Carousel",
@@ -11693,7 +14148,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Review Card Grid",
@@ -11751,7 +14211,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Revolution Slider",
@@ -11800,7 +14265,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Scroll Button",
@@ -11854,7 +14324,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Scroll Image",
@@ -11909,7 +14384,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Scroll Navigation",
@@ -11966,7 +14446,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Search",
@@ -12025,7 +14510,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Single Post",
@@ -12078,7 +14568,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Slider",
@@ -12140,7 +14636,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Slideshow",
@@ -12200,7 +14701,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Slinky Vertical Menu",
@@ -12259,7 +14765,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Social Proof",
@@ -12313,7 +14825,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Social Share",
@@ -12367,7 +14884,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Source Code",
@@ -12423,7 +14945,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Stacker",
@@ -12479,7 +15006,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Static Carousel",
@@ -12541,7 +15073,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Static Grid Tab",
@@ -12603,7 +15140,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Step Flow",
@@ -12659,7 +15201,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Sub Menu",
@@ -12713,7 +15260,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "SVG Blob",
@@ -12768,7 +15320,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "SVG Image",
@@ -12822,7 +15379,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "SVG Maps",
@@ -12877,7 +15439,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Switcher",
@@ -12935,7 +15502,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Table",
@@ -12998,7 +15570,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Table of Content",
@@ -13055,7 +15632,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "TablePress",
@@ -13104,7 +15686,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Tabs",
@@ -13163,7 +15750,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Tags Cloud",
@@ -13222,7 +15814,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Testimonial Carousel",
@@ -13287,7 +15885,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Testimonial Grid",
@@ -13345,7 +15948,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Testimonial Slider",
@@ -13409,7 +16017,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "The Newsletter",
@@ -13462,7 +16075,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "360&#176; Product Viewer",
@@ -13518,7 +16136,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Thumb Gallery",
@@ -13577,7 +16200,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Time Zone",
@@ -13632,7 +16261,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Timeline",
@@ -13695,7 +16329,13 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1"
+      ],
+      "moved_to_addon": true,
+      "missing_since": "10.0.1",
+      "moved_to_addon_evidence": "changelog"
     },
     {
       "name": "Read More Toggle",
@@ -13753,7 +16393,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Total Count",
@@ -13810,7 +16455,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Trailer Box",
@@ -13863,7 +16513,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Tutor LMS Course Carousel",
@@ -13922,7 +16577,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Tutor LMS Course Grid",
@@ -13979,7 +16639,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Twitter Carousel",
@@ -14038,7 +16703,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Twitter Grid",
@@ -14092,7 +16762,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Twitter Slider",
@@ -14151,7 +16826,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "User Login",
@@ -14215,7 +16895,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "User Register",
@@ -14277,7 +16962,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Vertical Menu",
@@ -14334,7 +17024,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Video Gallery",
@@ -14389,7 +17084,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Video Player",
@@ -14442,7 +17142,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "WC - Add To Cart",
@@ -14494,7 +17199,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "WC - Carousel",
@@ -14555,7 +17265,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "WC - Categories",
@@ -14608,7 +17323,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "WC - Elements",
@@ -14662,7 +17382,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "WC - Mini Cart",
@@ -14714,7 +17439,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "WC - Products",
@@ -14780,7 +17510,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "WC - Slider",
@@ -14839,7 +17574,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "weForms",
@@ -14888,7 +17628,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Weather",
@@ -14944,7 +17689,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "Webhook Form",
@@ -15005,7 +17755,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "WP Forms",
@@ -15054,7 +17809,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     },
     {
       "name": "wpDataTable",
@@ -15103,7 +17863,12 @@
         "Swiper": "KEEP ONLY IF NEEDED",
         "Element Pack admin and licensing": "REMOVE"
       },
-      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration."
+      "review_note": "Static inference only; verify runtime dependencies, controls, output, license, and visual behavior before migration.",
+      "present_in": [
+        "9.9.1",
+        "10.0.1"
+      ],
+      "moved_to_addon": false
     }
   ]
 }
