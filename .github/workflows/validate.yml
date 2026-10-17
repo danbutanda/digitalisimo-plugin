@@ -25,6 +25,7 @@ jobs:
       - name: Probar protecciones de rendimiento
         run: |
           php tests/migration-runner.php
+          php tests/elements-sibling-updates.php
           php tests/elements-duplicator.php
           php tests/elements-advanced-icon-box.php
           php tests/elements-animated-heading.php
