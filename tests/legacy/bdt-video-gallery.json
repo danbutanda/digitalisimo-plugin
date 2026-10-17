@@ -1,14 +1,9 @@
 {
   "defaults": {
     "_known": {
-      "images": "La lista propia muestra título y descripción de cada vídeo; Element Pack añadía miniaturas de su carpeta",
-      "text": "Element Pack repetía el título y la descripción de cada vídeo en diapositivas ocultas; el propio los muestra en la lista y una vez para el vídeo elegido",
-      "links": "Los vídeos se eligen con botones que cambian el reproductor; Element Pack enlazaba cada uno a su dirección"
-    },
-    "_expect_html": [
-      "<div class=\"digi-video-player__stage\"><iframe class=\"digi-video-player__embed\" src=\"https://www.youtube-nocookie.com/embed/vN9DnFiRMX0?rel=0\"",
-      "data-kind=\"embed\" data-src=\"https://player.vimeo.com/video/258349022?dnt=1\"",
-      "<span class=\"digi-video-player__item-description\">Auto VR Concept</span>"
-    ]
+      "images": "Los vídeos de ejemplo eran de terceros y no se trasladan: una galería que nunca se editó queda vacía",
+      "text": "Los vídeos de ejemplo eran de terceros y no se trasladan: una galería que nunca se editó queda vacía",
+      "links": "Los vídeos de ejemplo eran de terceros y no se trasladan: una galería que nunca se editó queda vacía"
+    }
   }
 }

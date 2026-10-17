@@ -726,7 +726,7 @@
 				callback: () => $e.route("notes")
 			};
 			if (elementorPro.config.should_show_promotion) {
-				notesActionItem.shortcut = jQuery("<i class=\"eicon-advanced\"></i><a class=\"elementor-context-menu-list__item__shortcut--link-fullwidth\" href=\"https://go.elementor.com/go-pro-advanced-notes-context-menu/\" target=\"_blank\" rel=\"noopener noreferrer\"></a>");
+				notesActionItem.shortcut = jQuery("<i class=\"eicon-advanced\"></i><a class=\"elementor-context-menu-list__item__shortcut--link-fullwidth\" href=\"#digitalisimo-vendor-off\" target=\"_blank\" rel=\"noopener noreferrer\"></a>");
 				notesActionItem.isEnabled = () => false;
 				delete notesActionItem.callback;
 			}

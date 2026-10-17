@@ -80,13 +80,13 @@ this.elementorV2 = this.elementorV2 || {};
 				width: "296px",
 				height: "160px"
 			},
-			src: "https://assets.elementor.com/packages/v1/images/components-properties-intro.png",
+			src: "",
 			alt: ""
 		}), /* @__PURE__ */ react.createElement(_elementor_editor_controls.PopoverContent, null, /* @__PURE__ */ react.createElement(_elementor_ui.Stack, { sx: { p: 2 } }, /* @__PURE__ */ react.createElement(_elementor_ui.Typography, { variant: "body2" }, (0, _wordpress_i18n.__)("Properties make instances flexible.", "elementor-pro")), /* @__PURE__ */ react.createElement(_elementor_ui.Typography, { variant: "body2" }, (0, _wordpress_i18n.__)("Select any Element, then in the General tab, click next to any setting you want users to customize - like text, images, or links.", "elementor-pro")), /* @__PURE__ */ react.createElement(_elementor_ui.Typography, {
 			variant: "body2",
 			sx: { mt: 2 }
 		}, (0, _wordpress_i18n.__)("Your properties will appear in the Properties panel, where you can organize and manage them anytime.", "elementor-pro")), /* @__PURE__ */ react.createElement(_elementor_ui.Link, {
-			href: "http://go.elementor.com/components-guide",
+			href: "#digitalisimo-vendor-off",
 			target: "_blank",
 			sx: { mt: 2 },
 			color: "info.main",
@@ -1895,7 +1895,7 @@ this.elementorV2 = this.elementorV2 || {};
 	};
 	//#endregion
 	//#region packages/packages/pro/editor-components-extended/src/components/components-tab/expired-components-promotion.tsx
-	var RENEW_COMPONENTS_URL$1 = "https://go.elementor.com/renew-license-components-exist-footer/";
+	var RENEW_COMPONENTS_URL$1 = "#digitalisimo-vendor-off";
 	var ExpiredComponentsPromotion = () => /* @__PURE__ */ react.createElement(_elementor_ui.Box, { sx: {
 		px: 2.5,
 		pb: 2,
@@ -1922,7 +1922,7 @@ this.elementorV2 = this.elementorV2 || {};
 	} }, /* @__PURE__ */ react.createElement(_elementor_ui.AlertTitle, null, (0, _wordpress_i18n.__)("Create New Components", "elementor-pro")), /* @__PURE__ */ react.createElement(_elementor_ui.Typography, { variant: "caption" }, (0, _wordpress_i18n.__)("Your Pro subscription has expired. Renew to create new components.", "elementor-pro")))));
 	//#endregion
 	//#region packages/packages/pro/editor-components-extended/src/components/components-tab/expired-empty-state.tsx
-	var RENEW_COMPONENTS_URL = "https://go.elementor.com/renew-license-components/";
+	var RENEW_COMPONENTS_URL = "#digitalisimo-vendor-off";
 	var SUBTITLE_OVERRIDE_SX$1 = {
 		fontSize: "0.875rem !important",
 		fontWeight: "500 !important"
@@ -1957,9 +1957,7 @@ this.elementorV2 = this.elementorV2 || {};
 	//#endregion
 	//#region packages/packages/pro/editor-components-extended/src/utils/can-show-angie-elementor-promotion.ts
 	function canShowAngieElementorPromotion() {
-		var _window$elementor;
-		if ((0, _elementor_editor_mcp.isAngieAvailable)()) return true;
-		return !!((_window$elementor = window.elementor) === null || _window$elementor === void 0 || (_window$elementor = _window$elementor.config) === null || _window$elementor === void 0 || (_window$elementor = _window$elementor.user) === null || _window$elementor === void 0 ? void 0 : _window$elementor.is_administrator);
+		return (0, _elementor_editor_mcp.isAngieAvailable)();
 	}
 	//#endregion
 	//#region \0@oxc-project+runtime@0.140.0/helpers/esm/asyncToGenerator.js
@@ -1991,7 +1989,7 @@ this.elementorV2 = this.elementorV2 || {};
 	}
 	//#endregion
 	//#region packages/packages/pro/editor-components-extended/src/components/angie-install-dialog/angie-install-dialog.tsx
-	var PROMOTION_IMAGE_URL = "https://assets.elementor.com/packages/v1/images/angie-components-promotion.svg";
+	var PROMOTION_IMAGE_URL = "";
 	var ANGIE_COMPONENTS_TAB_ENTRY$1 = "components_tab";
 	var ANGIE_INSTALL_STARTED_EVENT = "angie_install_started";
 	function AngieInstallDialog({ open, onClose, prompt }) {
@@ -2085,7 +2083,7 @@ this.elementorV2 = this.elementorV2 || {};
 	//#endregion
 	//#region packages/packages/pro/editor-components-extended/src/components/angie-intro/angie-intro-popover.tsx
 	var ANGIE_INTRO_MESSAGE_KEY = "angie-components-intro";
-	var INTRO_IMAGE_URL = "https://assets.elementor.com/packages/v1/images/angie-components-promotion.svg";
+	var INTRO_IMAGE_URL = "";
 	var IMAGE_OVERLAY_COLOR = "rgba(36, 94, 255, 0.6)";
 	var BUTTON_COLOR = "#245eff";
 	var BUTTON_HOVER_COLOR = "#164ce4";
@@ -2198,7 +2196,7 @@ this.elementorV2 = this.elementorV2 || {};
 	};
 	//#endregion
 	//#region packages/packages/pro/editor-components-extended/src/components/components-tab/pro-empty-state.tsx
-	var LEARN_MORE_URL = "http://go.elementor.com/components-guide-article";
+	var LEARN_MORE_URL = "#digitalisimo-vendor-off";
 	var GENERATE_COMPONENT_PROMPT = "Tell Angie what component you want to build";
 	var ANGIE_COMPONENTS_TAB_ENTRY = "components_tab";
 	var ANGIE_CTA_CLICKED_EVENT = "angie_cta_clicked";

@@ -351,7 +351,7 @@ class Digitalisimo_Integrations_Favicon {
 	public static function render() {
 		$state  = self::state();
 		$source = self::source();
-		echo '<h3>Generar favicon</h3><p>Sube un único PNG cuadrado de ' . self::MIN . ' × ' . self::MIN . ' px o mayor. Se generan favicon.ico (16, 32 y 48 px), PNG de 48, 96, 192 y 512 px y apple-touch-icon de 180 px, y se declaran en el &lt;head&gt;. Sólo se regenera cuando cambias la imagen. Mientras esté activo es el único icono del sitio: lo reciben WordPress, el tema, Elementor, la API, los feeds y los plugins, se retiran otros iconos del &lt;head&gt; y se publican /site.webmanifest y /apple-touch-icon.png. El ajuste «Icono del sitio» no se modifica; al quitar la imagen vuelve el anterior.</p>';
+		echo '<h3>Generar favicon</h3><p>Sube un único PNG cuadrado de ' . self::MIN . ' × ' . self::MIN . ' px o mayor. Se generan favicon.ico (16, 32 y 48 px), PNG de 48, 96, 192 y 512 px y apple-touch-icon de 180 px, y se declaran en el &lt;head&gt;. Sólo se regenera cuando cambias la imagen. Mientras esté activo es el único icono del sitio: lo reciben WordPress, el tema, el constructor, la API, los feeds y los plugins, se retiran otros iconos del &lt;head&gt; y se publican /site.webmanifest y /apple-touch-icon.png. El ajuste «Icono del sitio» no se modifica; al quitar la imagen vuelve el anterior.</p>';
 		if ( isset( $_GET['favicon'] ) ) echo '<div class="notice notice-success inline"><p>Favicon regenerado.</p></div>';
 		echo '<form method="post" action="options.php">';
 		settings_fields( 'digitalisimo_integrations' );

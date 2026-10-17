@@ -86,10 +86,10 @@
 			super(..._args);
 			_classPrivateFieldInitSpec(this, _actionLinks, [{
 				href: "elementor_pro_renew_license_menu_link",
-				external_url: "https://go.elementor.com/wp-menu-renew/"
+				external_url: "#digitalisimo-vendor-off"
 			}, {
 				href: "elementor_pro_upgrade_license_menu_link",
-				external_url: "https://go.elementor.com/go-pro-advanced-elementor-menu/"
+				external_url: "#digitalisimo-vendor-off"
 			}]);
 		}
 		onInit() {

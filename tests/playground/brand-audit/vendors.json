@@ -1,0 +1,17 @@
+{
+  "_comentario": "Lista única de dominios de los plugins de origen. La leen run.cjs (navegador), probe-http.php (servidor) y tests/elements-vendor-static.mjs (código). La clasificación es siempre por host, nunca por identificadores internos.",
+  "hosts": ["elementor.com", "elementor.cloud", "elementor.red", "elementor.io", "mxpnl.com", "proelements.org", "bdthemes.com", "bdthemes.co", "elementpack.pro", "primeslider.pro"],
+  "future": ["elegantthemes.com", "muffingroup.com", "generatepress.com", "gpsites.co", "bricksbuilder.io"],
+  "callerHosts": {
+    "mixpanel.com": { "caller": "digitalisimo-elements/(elementor|assets|core|modules)/", "motivo": "telemetría del núcleo (api-eu/api-js); otros plugins pueden usar Mixpanel por su cuenta" }
+  },
+  "paths": [
+    { "host": "^storage\\.googleapis\\.com$", "re": "elementor", "motivo": "recursos de la plataforma del proveedor" },
+    { "host": "^(api|downloads|www)\\.wordpress\\.org$|^wordpress\\.org$|^ps\\.w\\.org$|^s\\.w\\.org$", "re": "(^|[/=])(elementor|elementor-pro|pro-elements|hello-elementor|hello-biz|hello-commerce|hello-theme|bdthemes-element-pack|bdthemes-element-pack-lite|bdthemes-prime-slider-lite|bdthemes-prime-slider)(?=[./?&#]|$)", "motivo": "ficha, descarga o icono en wordpress.org de un plugin o tema de origen" }
+  ],
+  "videoHosts": "(^|\\.)(youtube(-nocookie)?\\.com|youtu\\.be|ytimg\\.com|googlevideo\\.com|vimeo\\.com|vimeocdn\\.com|dailymotion\\.com|dai\\.ly|dmcdn\\.net|videopress\\.com|video\\.wordpress\\.com)$",
+  "vendorVideos": ["XHOmBV4js_E", "235215203", "x6tqhqb", "ZCAOzTNk", "vN9DnFiRMX0", "YE7VzlLtp-4"],
+  "videoSources": ["digitalisimo-elements/elementor", "digitalisimo-elements/modules", "digitalisimo-elements/core", "digitalisimo-elements/assets/js", "digitalisimo-migration/legacy", "reference"],
+  "originalPlugins": ["elementor/elementor.php", "elementor-pro/elementor-pro.php", "pro-elements/pro-elements.php", "bdthemes-element-pack/bdthemes-element-pack.php", "bdthemes-element-pack-lite/bdthemes-element-pack-lite.php", "bdthemes-prime-slider-lite/bdthemes-prime-slider.php"],
+  "originalSlugs": ["elementor", "elementor-pro", "pro-elements", "bdthemes-element-pack", "bdthemes-element-pack-lite", "bdthemes-prime-slider-lite", "hello-elementor"]
+}

@@ -2,7 +2,7 @@
   "defaults": {
     "_known": {
       "text": "La línea de tiempo usa el formato de fecha del sitio, no muestra categorías y da a cada enlace un nombre propio oculto («: título»)",
-      "links": "Element Pack enlazaba además categorías y repetía enlaces en sus atributos",
+      "links": "Element Pack enlazaba además categorías y repetía enlaces en sus atributos. Los hitos de ejemplo ya no enlazan al sitio del proveedor del plugin anterior",
       "images": "Las imágenes de los hitos son decorativas (texto alternativo vacío)"
     }
   },

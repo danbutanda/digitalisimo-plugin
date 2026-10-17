@@ -61,7 +61,7 @@ class Post_Time extends Pro_Tag {
 			[
 				'label' => esc_html__( 'Custom Format', 'elementor-pro' ),
 				'default' => '',
-				'description' => sprintf( '<a href="https://go.elementor.com/wordpress-date-time/" target="_blank">%s</a>', esc_html__( 'Documentation on date and time formatting', 'elementor-pro' ) ),
+				'description' => esc_html__( 'Usa los caracteres de formato de fecha y hora de PHP; por ejemplo: d/m/Y H:i.', 'elementor-pro' ),
 				'condition' => [
 					'format' => 'custom',
 				],

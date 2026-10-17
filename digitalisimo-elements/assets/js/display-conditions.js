@@ -54,7 +54,7 @@
 				content: (0, _wordpress_i18n.__)("Upgrade to Elementor Pro Advanced to get the Display Conditions feature as well as additional professional and ecommerce widgets", "elementor-pro"),
 				targetElement: this.el,
 				actionButton: {
-					url: "https://go.elementor.com/go-pro-advanced-display-conditions/",
+					url: "#digitalisimo-vendor-off",
 					text: (0, _wordpress_i18n.__)("Upgrade Now", "elementor-pro"),
 					classes: ["elementor-button", "go-pro"]
 				}
@@ -1929,7 +1929,7 @@
 			color: "text.tertiary",
 			sx: { mb: 4 }
 		}, (0, _wordpress_i18n.__)("It will only appear on your website when all the conditions are met.", "elementor-pro"), " ", /* @__PURE__ */ react.createElement(_elementor_ui.Link, {
-			href: "https://go.elementor.com/app-display-conditions/",
+			href: "#digitalisimo-vendor-off",
 			target: "_blank",
 			rel: "noreferrer",
 			color: "info.main",
@@ -1974,7 +1974,7 @@
 			onClose: handleClose,
 			sx: { mt: 3 }
 		}, (0, _wordpress_i18n.__)("Keep in mind: Certain cache plugins can conflict with your display conditions.", "elementor-pro"), " ", /* @__PURE__ */ react.default.createElement(_elementor_ui.Link, {
-			href: "https://go.elementor.com/app-display-conditions-cache-notice/",
+			href: "#digitalisimo-vendor-off",
 			underline: "hover",
 			color: "info.main",
 			target: "_blank",

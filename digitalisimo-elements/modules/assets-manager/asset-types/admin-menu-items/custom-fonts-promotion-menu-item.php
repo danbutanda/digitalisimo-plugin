@@ -25,7 +25,7 @@ class Custom_Fonts_Promotion_Menu_Item extends Base_Promotion_Item {
 			'utm_campaign' => 'connect-and-activate-license',
 		] );
 
-		$renew_url = 'https://go.elementor.com/renew-custom-fonts/';
+		$renew_url = '';
 
 		return API::is_license_expired()
 			? $renew_url

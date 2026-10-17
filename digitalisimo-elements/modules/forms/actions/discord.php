@@ -41,7 +41,7 @@ class Discord extends Action_Base {
 				],
 				'label_block' => true,
 				'separator' => 'before',
-				'description' => esc_html__( 'Enter the webhook URL that will receive the form\'s submitted data.', 'elementor-pro' ) . ' ' . sprintf( '<a href="%s" target="_blank">%s</a>.', 'https://support.discordapp.com/hc/en-us/articles/228383668-Intro-to-Webhooks', esc_html__( 'Click here for Instructions', 'elementor-pro' ) ),
+				'description' => esc_html__( 'Enter the webhook URL that will receive the form\'s submitted data.', 'elementor-pro' ),
 				'render_type' => 'none',
 				'dynamic' => [
 					'active' => true,
@@ -196,11 +196,12 @@ class Discord extends Action_Base {
 			$embeds['timestamp'] = gmdate( \DateTime::ISO8601 );
 			$embeds['footer'] = [
 				'text' => sprintf(
-					/* translators: %s: Elementor. */
+					/* translators: %s: DIGITALÍSIMO Elements. */
 					esc_html__( 'Powered by %s', 'elementor-pro' ),
-					'Elementor'
+					'DIGITALÍSIMO Elements'
 				),
-				'icon_url' => is_ssl() ? ELEMENTOR_ASSETS_URL . 'images/logo-icon.png' : null,
+				// Símbolo propio, no el logotipo del núcleo.
+				'icon_url' => is_ssl() ? plugins_url( 'assets/digitalisimo/icono.png', DIGITALISIMO_ELEMENTS_FILE ) : null,
 			];
 		}
 

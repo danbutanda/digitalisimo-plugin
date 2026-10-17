@@ -2,7 +2,8 @@
   "defaults": {
     "_known": {
       "images": "La imagen de ejemplo de Element Pack pasa a la de Elementor; el ALT describe la foto del autor",
-      "links": "El menú se abre con un botón (details/summary); Element Pack usaba un enlace javascript:void(0)"
+      "links": "El menú se abre con un botón (details/summary); Element Pack usaba un enlace javascript:void(0). Los perfiles sociales de ejemplo enlazaban las redes del proveedor del plugin anterior y no se trasladan",
+      "text": "La biografía de ejemplo ya no nombra al proveedor del plugin anterior"
     },
     "_expect_html": [
       "<span class=\"digi-author-box__badge\">Pro</span>",

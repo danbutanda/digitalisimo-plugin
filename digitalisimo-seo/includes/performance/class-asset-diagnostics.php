@@ -50,8 +50,8 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		}
 		echo '</tbody></table></div>';
 		$widgets = (array) ( $result['widgets'] ?? array() );
-		echo '<h3>Elementor y Swiper</h3>';
-		if ( ! $widgets ) echo '<p>No se capturaron widgets Elementor en esta URL. Esto no demuestra que Swiper sea prescindible para otros componentes.</p>';
+		echo '<h3>Constructor y Swiper</h3>';
+		if ( ! $widgets ) echo '<p>No se capturaron widgets del constructor en esta URL. Esto no demuestra que Swiper sea prescindible para otros componentes.</p>';
 		else {
 			echo '<table class="widefat striped"><thead><tr><th>Widget</th><th>Dependencias JS</th><th>Dependencias CSS</th></tr></thead><tbody>';
 			foreach ( $widgets as $widget ) echo '<tr><td>' . esc_html( $widget['name'] ?? '' ) . '</td><td>' . esc_html( implode( ', ', (array) ( $widget['scripts'] ?? array() ) ) ) . '</td><td>' . esc_html( implode( ', ', (array) ( $widget['styles'] ?? array() ) ) ) . '</td></tr>';
@@ -225,8 +225,8 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 
 	private static function origin( $src ) {
 		if ( preg_match( '#^https?://#i', $src ) && wp_parse_url( $src, PHP_URL_HOST ) !== wp_parse_url( home_url( '/' ), PHP_URL_HOST ) ) return 'Externo';
-		if ( false !== strpos( $src, '/plugins/elementor-pro/' ) ) return 'Elementor Pro';
-		if ( false !== strpos( $src, '/plugins/elementor/' ) ) return 'Elementor';
+		// Constructor instalado como plugin aparte: se informa sin nombrar al proveedor.
+		if ( false !== strpos( $src, '/plugins/elementor-pro/' ) || false !== strpos( $src, '/plugins/elementor/' ) ) return 'Constructor externo';
 		if ( false !== strpos( $src, '/plugins/woocommerce/' ) ) return 'WooCommerce';
 		if ( false !== strpos( $src, '/plugins/digitalisimo-' ) ) return 'DIGITALÍSIMO';
 		if ( false !== strpos( $src, '/themes/' ) ) return 'Tema';
@@ -238,7 +238,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 	private static function status( $handle, $src, $type ) {
 		if ( 'CSS' === $type && in_array( $handle, array( 'wp-block-library', 'wp-block-library-theme' ), true ) && Digitalisimo_Integrations_Performance_Manager::plain_elementor_page() ) return 'Revisar';
 		if ( preg_match( '/^(jquery|wp-|elementor-frontend|elementor-pro-frontend|swiper)/', $handle ) ) return 'Crítico';
-		if ( false !== strpos( $src, '/plugins/elementor' ) ) return 'Elementor';
+		if ( false !== strpos( $src, '/plugins/elementor' ) ) return 'Constructor';
 		if ( false !== strpos( $src, '/plugins/woocommerce/' ) ) return 'Mantener';
 		return 'Desconocido';
 	}
@@ -351,7 +351,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {
 			$matches = array_filter( $links, function( $link ) use ( $row ) { return ( $link['attrs']['href'] ?? '' ) === ( $row['url'] ?? '' ) && 'preload' === ( $link['attrs']['rel'] ?? '' ); } );
 			$link = $matches ? reset( $matches ) : null;
-			$preloads[] = array_merge( $row, array( 'position' => $link ? ( $link['offset'] < $first_elementor ? 'ANTES de Elementor' : 'DESPUÉS de Elementor' ) : 'AUSENTE', 'status' => $link && $link['offset'] < $first_elementor ? 'OK' : 'ERROR: OPTIMIZACIÓN NO APLICADA' ) );
+			$preloads[] = array_merge( $row, array( 'position' => $link ? ( $link['offset'] < $first_elementor ? 'ANTES del CSS del constructor' : 'DESPUÉS del CSS del constructor' ) : 'AUSENTE', 'status' => $link && $link['offset'] < $first_elementor ? 'OK' : 'ERROR: OPTIMIZACIÓN NO APLICADA' ) );
 		}
 		$css = array();
 		foreach ( (array) $resources as $resource ) {

@@ -552,7 +552,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		$rules = self::rules( 'off' === $mode ? 'auto' : $mode, $allowlist, $report );
 		$rule  = $rules[ strtolower( $family ) ] ?? null;
 		if ( ! $rule ) return 'strict' === $mode || 'manual' === $mode ? 'No detectado' : 'No detectado · conservado por modo seguro';
-		$labels = array( 'kit' => 'Kit Elementor', 'content' => 'Contenido Elementor', 'exception' => 'Excepción manual', 'manual' => 'Lista manual' );
+		$labels = array( 'kit' => 'Kit del constructor', 'content' => 'Contenido del constructor', 'exception' => 'Excepción manual', 'manual' => 'Lista manual' );
 		return $labels[ $rule['source'] ] ?? '';
 	}
 
@@ -609,7 +609,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		};
 		if ( empty( $report['scanned_at'] ) ) return $fail( 'Analiza primero las fuentes.' );
 		$rules = self::rules( $mode, $allowlist, $report );
-		if ( ! $rules ) return $fail( 'manual' === $mode ? 'Escribe al menos una familia válida en la lista manual.' : 'No se detectaron familias en el Kit ni en el contenido Elementor de este sitio.' );
+		if ( ! $rules ) return $fail( 'manual' === $mode ? 'Escribe al menos una familia válida en la lista manual.' : 'No se detectaron familias en el Kit ni en el contenido del constructor de este sitio.' );
 
 		$manifest = array( 'schema' => self::SCHEMA, 'fingerprint' => $fingerprint, 'mode' => $mode, 'whitelist' => self::compact_rules( $rules ), 'rows' => array(), 'undetected' => array(), 'invalid' => 0, 'built_at' => $now );
 		$uploads   = wp_upload_dir();
@@ -784,7 +784,7 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 	public static function optimize_action() {
 		list( $result, $target ) = self::run_for_site( 'digitalisimo_performance_optimize_fonts_', function() {
 			$report = Digitalisimo_Integrations_Performance_Fonts::scan();
-			if ( empty( $report['families'] ) ) return array( 'error' => 'No se detectaron familias Elementor. No se modificó la política.' );
+			if ( empty( $report['families'] ) ) return array( 'error' => 'No se detectaron familias del constructor. No se modificó la política.' );
 			self::forget();
 			$settings = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 			$settings['perf_font_guard_mode'] = 'auto';

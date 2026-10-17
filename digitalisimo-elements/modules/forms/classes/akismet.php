@@ -49,12 +49,7 @@ class Akismet {
 			[
 				'type' => Controls_Manager::ALERT,
 				'alert_type' => 'info',
-				'content' => sprintf(
-					/* translators: 1: Link opening tag, 2: Link closing tag. */
-					esc_html__( 'Assign shortcodes to the fields below to enable spam protection on your form. %1$sShow me how%2$s', 'elementor-pro' ),
-					'<a href="http://go.elementor.com/widget-form-akismet/" target="_blank">',
-					'</a>'
-				),
+				'content' => esc_html__( 'Assign shortcodes to the fields below to enable spam protection on your form.', 'elementor-pro' ),
 				'condition' => [
 					'akismet_enabled' => 'yes',
 				],

@@ -72,7 +72,8 @@ final class Digitalisimo_Elements_Brand {
 		echo '<p>Constructor visual completo: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin.</p>';
 		echo '<div class="card" style="max-width:900px"><h2>DIGITALÍSIMO Elements ' . esc_html( DIGITALISIMO_ELEMENTS_VERSION ) . '</h2>';
 		echo '<p>Abre cualquier página con «Editar con DIGITALÍSIMO Elements». Funciona con el contenido, los kits, las plantillas y los complementos ya creados para el constructor, y no necesita ningún otro plugin.</p>';
-		echo '<p>Se basa en software libre bajo GPLv3 de terceros, distribuido sin modificar; los créditos y las licencias originales están en <code>license.txt</code> y en la documentación del proyecto. Los servicios en la nube del constructor (biblioteca de kits, IA) pueden requerir una cuenta del proveedor.</p>';
-		echo '<p><a class="button button-primary" href="' . esc_url( 'https://github.com/danbutanda/digitalisimo-plugin' ) . '" target="_blank" rel="noopener noreferrer">Código y actualizaciones</a></p></div></div>';
+		echo '<p>Se basa en software libre bajo GPLv3 de terceros, distribuido sin modificar; los créditos y las licencias originales están en <code>license.txt</code> y en la documentación del proyecto. Todo funciona en tu sitio: no se conecta con servicios ni cuentas externas.</p>';
+		// Las actualizaciones llegan por la pantalla Plugins de WordPress: sin enlaces a sitios externos.
+		echo '<p><a class="button button-primary" href="' . esc_url( is_network_admin() ? network_admin_url( 'plugins.php' ) : admin_url( 'plugins.php' ) ) . '">Ver actualizaciones</a></p></div></div>';
 	}
 }

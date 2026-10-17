@@ -431,7 +431,7 @@ class Digitalisimo_Integrations_Settings {
 			self::field( 'noindex_empty_tags', 'Tags vacíos', 'checkbox' );
 			self::field( 'noindex_date_archives', 'Archivos por fecha', 'checkbox' );
 			self::field( 'noindex_attachments', 'Páginas de adjuntos', 'checkbox' );
-			self::field( 'noindex_elementor', 'Plantillas de Elementor', 'checkbox' );
+			self::field( 'noindex_elementor', 'Plantillas del constructor (DIGITALÍSIMO Elements)', 'checkbox' );
 			self::field( 'noindex_woo_pages', 'Carrito, checkout, gracias y mi cuenta', 'checkbox' );
 			self::field( 'noindex_page_slugs', 'Slugs de páginas de prueba o privadas', 'textarea', 'Uno por línea. Ejemplo: prueba, gracias-por-contactar.' );
 			self::field( 'noindex_page_ids', 'IDs de páginas de prueba o privadas', 'textarea', 'Separados por comas.' );

@@ -15,7 +15,7 @@ class Setup_Header extends \Elementor\Modules\Checklist\Steps\Setup_Header {
 	public function __construct( $module, $wordpress_adapter = null, $kit_adapter = null ) {
 		$promotion_data = ! $this->does_license_support_header()
 			? [
-				'url' => 'http://go.elementor.com/app-website-checklist-header-article',
+				'url' => '',
 				'text' => esc_html__( 'Upgrade Now', 'elementor-pro' ),
 				'icon' => 'default',
 			]

@@ -78,4 +78,9 @@ set_site_transient( $u::MANIFEST_CACHE, array( 'x' => 1 ) );
 $u::native_force_check();
 check_updater( isset( $GLOBALS['cache'][ $u::MANIFEST_CACHE ] ), 'Sin force-check la caché se conserva.' );
 check_updater( false !== strpos( (string) file_get_contents( ( new ReflectionClass( $u ) )->getFileName() ), "add_action( 'load-update-core.php', array( __CLASS__, 'native_force_check' ), 1 )" ), 'El actualizador escucha la pantalla de actualizaciones antes que WordPress.' );
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); } }
+// «Ver detalles»: la ficha la da el actualizador, sin enlaces a GitHub (si no, WordPress la pide a wordpress.org).
+$info = $u::info( false, 'plugin_information', (object) array( 'slug' => 'digitalisimo-elements' ) );
+check_updater( is_object( $info ) && 'digitalisimo-elements' === $info->slug && '' !== $info->version && 'https://digitalisimo.mx' === $info->homepage && false === stripos( $info->homepage . implode( '', $info->sections ), 'github' ), 'La ficha de «Ver detalles» es propia y no enlaza a GitHub.' );
+check_updater( 'ajena' === $u::info( 'ajena', 'plugin_information', (object) array( 'slug' => 'otro-plugin' ) ) && 'x' === $u::info( 'x', 'query_plugins', (object) array( 'slug' => 'digitalisimo-elements' ) ), 'La ficha de otros plugins y otras consultas no se toca.' );
 echo "DIGITALÍSIMO Elements: actualizador con índice de la Release validado.\n";

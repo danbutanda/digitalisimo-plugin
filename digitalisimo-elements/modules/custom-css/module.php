@@ -51,7 +51,7 @@ class Module extends Module_Base {
 				'messages' => [
 					esc_html__( 'Apply CSS to any widget and elevate any element with Custom CSS.', 'elementor-pro' ),
 				],
-				'link' => 'https://go.elementor.com/go-pro-advanced-custom-css/',
+				'link' => '',
 			];
 
 			$promotion_data = Filtered_Promotions_Manager::get_filtered_promotion_data( $promotion_data, 'elementor-pro/advanced-custom-css-promotion-pro-widget/promotion', 'link' );
@@ -136,9 +136,9 @@ class Module extends Module_Base {
 				'description' => sprintf(
 					/* translators: 1: Link opening tag, 2: Link opening tag, 3: Link closing tag. */
 					esc_html__( 'Use %1$scustom CSS%3$s to style your content or add %2$sthe "selector" prefix%3$s to target specific elements.', 'elementor-pro' ),
-					'<a href="https://go.elementor.com/learn-more-panel-custom-css/" target="_blank">',
-					'<a href="https://go.elementor.com/learn-more-panel-custom-css-selectors/" target="_blank">',
-					'</a>'
+					'',
+					'',
+					''
 				),
 				'language' => 'css',
 				'render_type' => 'ui',

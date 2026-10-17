@@ -244,44 +244,54 @@ final class Digitalisimo_Elements_Identity {
 	}
 
 	/**
-	 * Datos remotos del inicio rápido: textos con la marca propia y sin lo que promociona productos, vídeos o
-	 * comunidades del proveedor. Se conservan los accesos (ajustes del sitio, logotipo, colores, fuentes…).
+	 * Inicio rápido: el contenido es propio y no depende de datos remotos (la caché remota se sirve vacía, ver
+	 * Digitalisimo_Elements_Vendor_Free). Sin el bloque superior con el vídeo del proveedor (el componente lo pinta
+	 * si la clave existe, aunque esté vacía), sin promociones ni complementos, con accesos directos a la
+	 * configuración del sitio y del constructor e iconos propios. La copia se repite por nivel de licencia porque el
+	 * núcleo elige una según el nivel del usuario.
 	 */
 	public static function home_data( $data ) {
-		if ( ! is_array( $data ) ) {
-			return $data;
-		}
-		// Llega como el JSON remoto completo o ya sin su envoltorio `home-screen`, según la versión del núcleo.
-		$wrapped = isset( $data['home-screen'] ) && is_array( $data['home-screen'] );
-		$screen  = $wrapped ? $data['home-screen'] : ( isset( $data['top_with_licences'] ) ? $data : null );
-		if ( null !== $screen ) {
-			foreach ( (array) ( $screen['top_with_licences'] ?? array() ) as $i => $top ) {
-				if ( is_array( $top ) ) {
-					$screen['top_with_licences'][ $i ] = array_merge( $top, array( 'button_watch_title' => '', 'button_watch_url' => '', 'youtube_embed_id' => '' ) );
-				}
+		$icon = static function ( $name ) {
+			return function_exists( 'plugins_url' ) ? plugins_url( 'assets/digitalisimo/home/' . $name . '.svg', DIGITALISIMO_ELEMENTS_FILE ) : '';
+		};
+		$admin    = static function ( $path ) {
+			return function_exists( 'admin_url' ) ? admin_url( $path ) : $path;
+		};
+		$settings = static function ( $tab = null ) {
+			if ( class_exists( '\\Elementor\\Core\\DocumentTypes\\Page' ) && method_exists( '\\Elementor\\Core\\DocumentTypes\\Page', 'get_site_settings_url_config' ) ) {
+				$config = \Elementor\Core\DocumentTypes\Page::get_site_settings_url_config( $tab );
+				return array( 'url' => (string) ( $config['url'] ?? '' ), 'new_page' => ! empty( $config['new_page'] ) );
 			}
-			if ( isset( $screen['add_ons'] ) && is_array( $screen['add_ons'] ) ) {
-				$screen['add_ons']['hide_section'] = true;
-				$screen['add_ons']['repeater']     = array();
-			}
-			foreach ( (array) ( $screen['sidebar_promotion_variants'] ?? array() ) as $i => $promotion ) {
-				if ( is_array( $promotion ) ) {
-					$screen['sidebar_promotion_variants'][ $i ]['is_enabled'] = false;
-				}
-			}
-			// Enlaces propios en lugar de los de la comunidad y el blog del proveedor.
-			$icon                     = function_exists( 'plugins_url' ) ? plugins_url( 'assets/digitalisimo/icono.png', DIGITALISIMO_ELEMENTS_FILE ) : '';
-			$screen['external_links'] = array(
-				array( 'label' => 'Acerca de ' . self::NAME, 'image' => $icon, 'url' => function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=digitalisimo-elements-about' ) : '' ),
-				array( 'label' => 'Código y actualizaciones', 'image' => $icon, 'url' => 'https://github.com/danbutanda/digitalisimo-plugin' ),
+			return array( 'url' => '', 'new_page' => false );
+		};
+		$theme_builder = class_exists( '\\Elementor\\Plugin' ) && ! empty( \Elementor\Plugin::$instance->app ) ? (string) \Elementor\Plugin::$instance->app->get_settings( 'menu_url' ) : '';
+		$item          = static function ( $title, $image, $target ) {
+			return array_merge( array( 'title' => $title, 'title_small' => 'Personalizar', 'image' => $image, 'is_relative_url' => false, 'new_page' => false ), $target );
+		};
+		$repeater = array(
+			$item( 'Ajustes del sitio', $icon( 'site-settings' ), $settings() ),
+			$item( 'Logotipo', $icon( 'site-logo' ), $settings( 'settings-site-identity' ) ),
+			$item( 'Colores globales', $icon( 'global-colors' ), $settings( 'global-colors' ) ),
+			$item( 'Fuentes globales', $icon( 'global-fonts' ), $settings( 'global-typography' ) ),
+			$item( 'Theme Builder', $icon( 'theme-builder' ), array( 'url' => $theme_builder ) ),
+			$item( 'Popups', $icon( 'popups' ), array( 'url' => $admin( 'edit.php?post_type=elementor_library&tabs_group=popup&elementor_library_type=popup' ) ) ),
+			$item( 'Iconos propios', $icon( 'custom-icons' ), array( 'url' => $admin( 'edit.php?post_type=elementor_icons' ) ) ),
+			$item( 'Fuentes propias', $icon( 'custom-fonts' ), array( 'url' => $admin( 'edit.php?post_type=elementor_font' ) ) ),
+		);
+		$started = array();
+		foreach ( array( 'free', 'pro', 'one' ) as $tier ) {
+			$started[] = array(
+				'license'  => array( $tier ),
+				'header'   => array( 'title' => 'Primeros pasos', 'description' => 'Accesos para preparar el diseño del sitio.' ),
+				'repeater' => $repeater,
 			);
-			if ( $wrapped ) {
-				$data['home-screen'] = $screen;
-			} else {
-				$data = $screen;
-			}
 		}
-		return self::brand_deep( $data );
+		return array(
+			'get_started'    => $started,
+			'external_links' => array(
+				array( 'label' => 'Acerca de ' . self::NAME, 'image' => function_exists( 'plugins_url' ) ? plugins_url( 'assets/digitalisimo/icono.png', DIGITALISIMO_ELEMENTS_FILE ) : '', 'url' => $admin( 'admin.php?page=digitalisimo-elements-about' ) ),
+			),
+		);
 	}
 
 	/** Marca en los textos de una estructura, sin tocar direcciones ni identificadores. */

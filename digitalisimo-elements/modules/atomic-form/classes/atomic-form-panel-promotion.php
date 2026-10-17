@@ -18,9 +18,9 @@ class Atomic_Form_Panel_Promotion {
 
 	const FORM_FEATURE_NAME = 'form';
 
-	const RENEW_WIDGET_CTA_URL = 'https://go.elementor.com/renew-license-atomic-form-modal';
+	const RENEW_WIDGET_CTA_URL = '';
 
-	const RENEW_SECTION_CTA_URL = 'https://go.elementor.com/renew-license-atomic-form-section';
+	const RENEW_SECTION_CTA_URL = '';
 
 	public function register(): void {
 		if ( ! $this->is_active() ) {
@@ -171,15 +171,8 @@ class Atomic_Form_Panel_Promotion {
 	}
 
 	private function get_cta_overrides(): array {
-		if ( ! $this->has_time_to_renew() ) {
-			return [];
-		}
-
-		return [
-			'ctaText' => __( 'Renew now', 'elementor-pro' ),
-			'widgetCtaUrl' => API::get_renew_url( self::RENEW_WIDGET_CTA_URL ),
-			'sectionCtaUrl' => API::get_renew_url( self::RENEW_SECTION_CTA_URL ),
-		];
+		// Sin renovación con el proveedor (y API::get_renew_url() no existe en este build).
+		return [];
 	}
 
 	private function has_time_to_renew(): bool {

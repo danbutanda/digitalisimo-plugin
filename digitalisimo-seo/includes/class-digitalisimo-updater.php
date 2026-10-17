@@ -287,7 +287,7 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 					'slug'          => $module['slug'],
 					'version'       => $release['version'] ?? $module['version'],
 					'author'        => 'Digitalísimo',
-					'homepage'      => 'https://github.com/' . self::REPOSITORY,
+					'homepage'      => 'https://digitalisimo.mx',
 					'download_link' => $release['package'] ?? '',
 					'requires'      => '6.0',
 					'requires_php'  => '7.4',
@@ -297,10 +297,15 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			return $result;
 		}
 
-		/** Notas de la Release; el índice no las trae, así que en su lugar se enlaza la página de la Release en GitHub. */
+		/**
+		 * Notas de la Release sin enlaces: las líneas con una dirección (las que GitHub añade a las notas generadas)
+		 * no se muestran. El índice no trae notas, y entonces la ficha sólo indica la versión publicada.
+		 */
 		private static function changelog( $release ) {
-			if ( ! empty( $release['notes'] ) ) return $release['notes'];
-			if ( ! empty( $release['url'] ) ) return '<p>Notas de la versión ' . esc_html( $release['version'] ?? '' ) . ' en <a href="' . esc_url( $release['url'] ) . '">GitHub</a>.</p>';
+			$lines = preg_split( '/\r\n|\r|\n/', (string) ( $release['notes'] ?? '' ) );
+			$notes = trim( implode( "\n", preg_grep( '#https?://|<a\b#i', $lines, PREG_GREP_INVERT ) ) );
+			if ( '' !== $notes ) return $notes;
+			if ( ! empty( $release['version'] ) ) return '<p>Versión ' . esc_html( $release['version'] ) . ' publicada.</p>';
 			return 'Sin notas de versión.';
 		}
 

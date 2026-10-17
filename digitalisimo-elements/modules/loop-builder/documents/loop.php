@@ -63,8 +63,8 @@ class Loop extends Theme_Document {
 			'title' => esc_html__( 'What is a loop?', 'elementor-pro' ),
 			'content' => esc_html__( 'A Loop is a layout you can customize to display recurring dynamic content - like listings, posts, portfolios, products, , etc.', 'elementor-pro' ),
 			'tip' => esc_html__( 'Start by creating a master item. All the other instances in the grid will match this design. Then go back to the widget in the editor panel and assign both a template and a source of content. Your grid should populate automatically.', 'elementor-pro' ),
-			'docs' => 'https://go.elementor.com/app-theme-builder-loop',
-			'video_url' => 'https://www.youtube.com/embed/zMvY9XaE1YY',
+			'docs' => '',
+			'video_url' => '',
 		];
 	}
 

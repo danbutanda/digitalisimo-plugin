@@ -1,8 +1,8 @@
 {
   "defaults": {
     "_known": {
-      "text": "El código QR propio incluye el texto y el enlace como respaldo accesible; Element Pack sólo dibujaba el código con JavaScript",
-      "links": "Enlace de respaldo al contenido del código QR"
+      "text": "El código de ejemplo codificaba la dirección del proveedor del plugin anterior: sin contenido guardado no se dibuja",
+      "links": "El código de ejemplo codificaba la dirección del proveedor del plugin anterior: sin contenido guardado no se dibuja"
     }
   },
   "custom": {

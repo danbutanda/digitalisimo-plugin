@@ -336,12 +336,7 @@ class Stripe_Button extends Payment_Button {
 				'frontend_available' => true,
 				'multiple' => false,
 				'default' => 'USD',
-				'description' => sprintf(
-					/* translators: 1: Stripe api key explanation link opening tag, 2: Link closing tag. */
-					esc_html__( 'Notice! Please make sure to meet Stripe\'s guidelines regarding minimum charge amounts. %1$s Learn more. %2$s', 'elementor-pro' ),
-					sprintf( '<a href="%s" target="_blank">', Module::STRIPE_TRANSACTIONS_LINK ),
-					'</a>'
-				),
+				'description' => esc_html__( 'Notice! Please make sure to meet Stripe\'s guidelines regarding minimum charge amounts.', 'elementor-pro' ),
 				'render_type' => 'none',
 				'required' => true,
 				'select2options' => [

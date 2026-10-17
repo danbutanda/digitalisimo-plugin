@@ -548,7 +548,7 @@ this.elementorV2 = this.elementorV2 || {};
 				valueTransformer: parse
 			}, isLicenseExpired && { emptyState: /* @__PURE__ */ react.createElement(_elementor_editor_ui.CtaButton, {
 				size: "small",
-				href: "https://go.elementor.com/renew-license-manager-size-variable"
+				href: "#digitalisimo-vendor-off"
 			}) });
 			(0, _elementor_editor_variables.registerVariableType)(_objectSpread2(_objectSpread2({}, commonOptions), {}, {
 				key: sizeVariablePropTypeUtil.key,

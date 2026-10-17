@@ -18,8 +18,8 @@ class Module extends Module_Base {
 	const STRIPE_TEST_SECRET_KEY = 'pro_stripe_test_secret_key';
 	const STRIPE_LIVE_SECRET_KEY = 'pro_stripe_live_secret_key';
 	const STRIPE_TAX_ENDPOINT_URL = 'tax_rates';
-	const WP_DASH_STRIPE_API_KEYS_LINK = 'https://go.elementor.com/wp-dash-stripe-api-keys/';
-	const STRIPE_TRANSACTIONS_LINK = 'https://go.elementor.com/stripe-transaction/';
+	const WP_DASH_STRIPE_API_KEYS_LINK = '';
+	const STRIPE_TRANSACTIONS_LINK = '';
 	const STRIPE_LICENCE_FEATURE_NAME = 'stripe-button';
 
 	const WIDGET_NAME_CLASS_NAME_MAP = [
@@ -406,12 +406,7 @@ class Module extends Module_Base {
 					'label' => esc_html__( 'Test Secret key', 'elementor-pro' ),
 					'field_args' => [
 						'type' => 'text',
-						'desc' => sprintf(
-							/* translators: 1: Link to stripe api key explanation, 2: Link closing tag. */
-							esc_html__( 'Enter your test secret key %1$slink%2$s.', 'elementor-pro' ),
-							'<a href=" ' . self::WP_DASH_STRIPE_API_KEYS_LINK . ' " target="_blank">',
-							'</a>'
-						),
+						'desc' => esc_html__( 'Enter your test secret key.', 'elementor-pro' ),
 					],
 				],
 				'validate_stripe_api_test_secret_key_button' => [
@@ -424,12 +419,7 @@ class Module extends Module_Base {
 					'label' => esc_html__( 'Live Secret key', 'elementor-pro' ),
 					'field_args' => [
 						'type' => 'text',
-						'desc' => sprintf(
-							/* translators: 1: Link to stripe api key explanation, 2: Link closing tag. */
-							esc_html__( 'Enter your Live secret key %1$slink%2$s.', 'elementor-pro' ),
-							'<a href=" ' . self::WP_DASH_STRIPE_API_KEYS_LINK . ' " target="_blank">',
-							'</a>'
-						),
+						'desc' => esc_html__( 'Enter your Live secret key.', 'elementor-pro' ),
 					],
 				],
 				'validate_stripe_api_live_secret_key_button' => [

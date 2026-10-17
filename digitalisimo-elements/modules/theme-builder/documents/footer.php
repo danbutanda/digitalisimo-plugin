@@ -40,8 +40,8 @@ class Footer extends Header_Footer_Base {
 			'title' => esc_html__( 'What is a footer template?', 'elementor-pro' ),
 			'content' => esc_html__( 'The footer template allows you to easily design and edit custom WordPress footers without the limits of your theme’s footer design constraints', 'elementor-pro' ),
 			'tip' => esc_html__( 'You can create multiple footers, and assign each to different areas of your site.', 'elementor-pro' ),
-			'docs' => 'https://go.elementor.com/app-theme-builder-footer',
-			'video_url' => 'https://www.youtube.com/embed/xa8DoR4tQrY',
+			'docs' => '',
+			'video_url' => '',
 		];
 	}
 }

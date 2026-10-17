@@ -70,4 +70,9 @@ if ( 1 !== $GLOBALS['updater_checks'] || isset( $GLOBALS['updater_cache']['digit
 $GLOBALS['updater_cache']['update_plugins'] = $checked;
 Digitalisimo_Backups_Updater::refresh();
 if ( $external !== $GLOBALS['updater_cache']['update_plugins']->response['tercero/plugin.php'] || 1 !== $GLOBALS['updater_checks'] ) throw new RuntimeException( 'La consulta periódica debe conservar avisos ajenos sin forzar otra consulta global.' );
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); } }
+// «Ver detalles»: la ficha la da el actualizador, sin enlaces a GitHub (si no, WordPress la pide a wordpress.org).
+$info = Digitalisimo_Backups_Updater::info( false, 'plugin_information', (object) array( 'slug' => 'digitalisimo-backups' ) );
+(function ( $ok, $message ) { if ( ! $ok ) throw new RuntimeException( $message ); })( is_object( $info ) && 'digitalisimo-backups' === $info->slug && '' !== $info->version && 'https://digitalisimo.mx' === $info->homepage && false === stripos( $info->homepage . implode( '', $info->sections ), 'github' ), 'La ficha de «Ver detalles» es propia y no enlaza a GitHub.' );
+(function ( $ok, $message ) { if ( ! $ok ) throw new RuntimeException( $message ); })( 'ajena' === Digitalisimo_Backups_Updater::info( 'ajena', 'plugin_information', (object) array( 'slug' => 'otro-plugin' ) ) && 'x' === Digitalisimo_Backups_Updater::info( 'x', 'query_plugins', (object) array( 'slug' => 'digitalisimo-backups' ) ), 'La ficha de otros plugins y otras consultas no se toca.' );
 echo "DIGITALÍSIMO Backups: enlace, detección y actualización automática verificados.\n";

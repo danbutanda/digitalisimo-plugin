@@ -1770,7 +1770,7 @@
 			dismissButtonOnClick: resetActionState,
 			approveButtonText: (0, _wordpress_i18n.__)("Learn More", "elementor-pro"),
 			approveButtonColor: "link",
-			approveButtonUrl: "https://go.elementor.com/app-theme-builder-template-load-issue",
+			approveButtonUrl: "#digitalisimo-vendor-off",
 			approveButtonTarget: "_target"
 		}), /* @__PURE__ */ react.default.createElement(_elementor_app_ui.CssGrid, {
 			columns: gridColumns,
@@ -2562,7 +2562,7 @@
 			dismissButtonOnClick: resetActionState,
 			approveButtonText: (0, _wordpress_i18n.__)("Learn More", "elementor-pro"),
 			approveButtonColor: "link",
-			approveButtonUrl: "https://go.elementor.com/app-theme-builder-conditions-load-issue",
+			approveButtonUrl: "#digitalisimo-vendor-off",
 			approveButtonTarget: "_target"
 		}), /* @__PURE__ */ react.default.createElement("div", { className: "e-site-editor-conditions__rows" }, rows), /* @__PURE__ */ react.default.createElement("div", { className: "e-site-editor-conditions__add-button-container" }, /* @__PURE__ */ react.default.createElement(_elementor_app_ui.Button, {
 			className: "e-site-editor-conditions__add-button",
@@ -2631,7 +2631,7 @@
 		}), hasError && /* @__PURE__ */ react.default.createElement(_elementor_app_ui.Dialog, {
 			title: action.error,
 			approveButtonText: (0, _wordpress_i18n.__)("Learn More", "elementor-pro"),
-			approveButtonUrl: "https://go.elementor.com/app-theme-builder-import-issue",
+			approveButtonUrl: "#digitalisimo-vendor-off",
 			approveButtonTarget: "_blank",
 			approveButtonColor: "link",
 			dismissButtonText: (0, _wordpress_i18n.__)("Go Back", "elementor-pro"),
@@ -2706,7 +2706,7 @@
 		};
 		return /* @__PURE__ */ react.default.createElement(_elementor_app_ui.ErrorBoundary, {
 			title: (0, _wordpress_i18n.__)("Theme Builder could not be loaded", "elementor-pro"),
-			learnMoreUrl: "https://go.elementor.com/app-theme-builder-load-issue"
+			learnMoreUrl: "#digitalisimo-vendor-off"
 		}, /* @__PURE__ */ react.default.createElement(_elementor_site_editor.Layout, {
 			allPartsButton: /* @__PURE__ */ react.default.createElement(_elementor_site_editor.AllPartsButton, { url: "/site-editor" }),
 			headerButtons,
@@ -3141,7 +3141,7 @@
 		}, (0, _wordpress_i18n.__)("Take control of your workflow. The Expert plan lets you decide exactly what's included in your export/import kits, from themes to experiments so nothing gets left behind.", "elementor"))), /* @__PURE__ */ react.default.createElement(_elementor_ui.Button, {
 			variant: "outlined",
 			color: "promotion",
-			onClick: () => window.open("https://go.elementor.com/go-pro-import-export", "_blank"),
+			onClick: () => window.open("#digitalisimo-vendor-off", "_blank"),
 			startIcon: /* @__PURE__ */ react.default.createElement("span", { className: "eicon-upgrade-crown" }),
 			sx: {
 				flexShrink: 0,

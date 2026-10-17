@@ -38,7 +38,7 @@ return array(
 				'marker_place' => 'Bangladesh',
 				'marker_content' => 'Your Business Address Here',
 				'marker_phone' => '+880123456789',
-				'marker_website' => 'https://bdthemes.com',
+				'marker_website' => '',
 				'marker_image' => array(
 					'url' => $placeholder_url,
 				),
@@ -46,11 +46,11 @@ return array(
 			'default_rows' => array( array(
 					'marker_lat' => '24.8248746',
 					'marker_lng' => '89.3826299',
-					'marker_title' => 'BdThemes',
+					'marker_title' => 'Marker #1',
 					'marker_place' => 'Bogura',
-					'marker_content' => '<strong>BdThemes Limited</strong>,<br>Latifpur, Bogra - 5800,<br>Bangladesh',
+					'marker_content' => 'Your Business Address Here',
 					'marker_phone' => '+880123456789',
-					'marker_website' => 'https://bdthemes.com',
+					'marker_website' => '',
 				) ),
 		),
 	),

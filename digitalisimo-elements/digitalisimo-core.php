@@ -55,6 +55,10 @@ final class Digitalisimo_Elements_Core {
 			return false;
 		}
 		define( 'DIGITALISIMO_ELEMENTS_CORE', self::version() );
+		// Sin telemetría del proveedor en el editor (sólo para el núcleo incluido: el plugin original no se toca).
+		if ( ! defined( 'ELEMENTOR_EDITOR_EVENTS_MIXPANEL_TOKEN' ) ) {
+			define( 'ELEMENTOR_EDITOR_EVENTS_MIXPANEL_TOKEN', '' );
+		}
 		self::hooks();
 		require self::dir() . 'elementor.php';
 		return true;

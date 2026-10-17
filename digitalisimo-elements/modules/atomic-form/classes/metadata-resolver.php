@@ -88,7 +88,7 @@ class Metadata_Resolver {
 			case 'credit':
 				return [
 					'title' => __( 'Powered by', 'elementor-pro' ),
-					'value' => __( 'Elementor', 'elementor-pro' ),
+					'value' => 'DIGITALÍSIMO Elements',
 				];
 
 			default:

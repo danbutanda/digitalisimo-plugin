@@ -56,13 +56,13 @@ final class Extensions {
 			$terms[] = array( 'name' => $key, 'operator' => '===', 'value' => 'yes' );
 		}
 		$element->start_controls_section( self::SECTION, array(
-			'label'      => 'Efectos de Element Pack',
+			'label'      => 'Efectos heredados',
 			'tab'        => $c::TAB_ADVANCED,
 			'conditions' => array( 'relation' => 'or', 'terms' => $terms ),
 		) );
 		$element->add_control( 'digitalisimo_legacy_extensions_notice', array(
 			'type'            => $c::RAW_HTML,
-			'raw'             => 'Efectos creados con Element Pack. Siguen aplicándose; para contenido nuevo usa las opciones propias de Elements.',
+			'raw'             => 'Efectos creados con el plugin anterior. Siguen aplicándose; para contenido nuevo usa las opciones propias de Elements.',
 			'content_classes' => 'elementor-descriptor',
 		) );
 		$element->add_control( self::LINK, array( 'label' => 'Enlace del elemento', 'type' => $c::URL, 'default' => array( 'url' => '' ), 'dynamic' => array( 'active' => true ), 'render_type' => 'none' ) );

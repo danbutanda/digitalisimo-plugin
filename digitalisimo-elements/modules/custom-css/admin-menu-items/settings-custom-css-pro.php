@@ -13,7 +13,7 @@ class Settings_Custom_CSS_Pro extends Settings_Custom_CSS {
 			'messages' => [
 				esc_html__( 'Apply CSS globally across your site to elevate your designs.', 'elementor-pro' ),
 			],
-			'link' => 'https://go.elementor.com/go-pro-advanced-global-css/',
+			'link' => '',
 		];
 
 		$promotion_data = Filtered_Promotions_Manager::get_filtered_promotion_data( $promotion_data, 'elementor-pro/advanced-custom-css-promotion-pro-settings/promotion', 'link' );

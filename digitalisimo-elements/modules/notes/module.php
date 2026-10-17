@@ -143,7 +143,7 @@ class Module extends App {
 			'admin_url_create_user' => get_admin_url( null, 'user-new.php' ),
 			'admin_url_edit_user' => get_admin_url( null, 'user-edit.php' ),
 			'avatar_defaults' => User::generate_avatars_urls( 0 ),
-			'help_notes_features' => 'https://go.elementor.com/app-notes',
+			'help_notes_features' => '',
 		] );
 	}
 

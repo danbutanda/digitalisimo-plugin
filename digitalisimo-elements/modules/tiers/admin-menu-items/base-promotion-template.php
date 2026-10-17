@@ -82,7 +82,10 @@ abstract class Base_Promotion_Template implements Admin_Menu_Item_With_Page {
 
 				</div>
 
-				<iframe class="e-feature-promotion_iframe" src="<?php Utils::print_unescaped_internal_string( $promotion_data['video_url'] ); ?>&rel=0" title="Elementor" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+				<?php // Sin vídeo de promoción del proveedor: el iframe sólo se pinta si hay una dirección. ?>
+				<?php if ( ! empty( $promotion_data['video_url'] ) ) { ?>
+				<iframe class="e-feature-promotion_iframe" src="<?php Utils::print_unescaped_internal_string( $promotion_data['video_url'] ); ?>&rel=0" title="DIGITALÍSIMO Elements" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+				<?php } ?>
 			</div>
 		<?php
 	}

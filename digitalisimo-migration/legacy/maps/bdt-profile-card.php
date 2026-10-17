@@ -33,7 +33,7 @@ return array(
 		),
 		'profile_name' => 'Adam Smith',
 		'profile_username' => '@adamsmith',
-		'profile_content' => 'Hello, My name is Adam Smith ! I am Web Developer at BDThemes LTD.',
+		'profile_content' => 'Hello, My name is Adam Smith ! I am Web Developer.',
 		'profile_posts' => 'Posts',
 		'profile_posts_number' => '213',
 		'profile_followers' => 'Followers',
@@ -76,7 +76,7 @@ return array(
 			),
 			'default_rows' => array( array(
 					'social_icon_link' => array(
-						'url' => 'http://www.facebook.com/sigmative/',
+						'url' => '',
 					),
 					'social_icon' => array(
 						'value' => 'fab fa-facebook-f',
@@ -85,7 +85,7 @@ return array(
 					'social_link_title' => 'Facebook',
 				), array(
 					'social_icon_link' => array(
-						'url' => 'http://www.x.com/bdthemes/',
+						'url' => '',
 					),
 					'social_icon' => array(
 						'value' => 'fab fa-x-twitter',
@@ -94,7 +94,7 @@ return array(
 					'social_link_title' => 'X',
 				), array(
 					'social_icon_link' => array(
-						'url' => 'http://www.instagram.com/sigmative/',
+						'url' => '',
 					),
 					'social_icon' => array(
 						'value' => 'fab fa-instagram',

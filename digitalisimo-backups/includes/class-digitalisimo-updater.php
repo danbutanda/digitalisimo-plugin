@@ -21,6 +21,7 @@ final class Digitalisimo_Backups_Updater {
 	public static function register() {
 		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins', 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) add_filter( $hook, array( __CLASS__, 'check' ), 30 );
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 30, 4 );
+		add_filter( 'plugins_api', array( __CLASS__, 'info' ), 20, 3 );
 		add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
 		add_filter( 'plugin_action_links_' . self::file(), array( __CLASS__, 'action_link' ) );
 		add_filter( 'network_admin_plugin_action_links_' . self::file(), array( __CLASS__, 'action_link' ) );
@@ -185,6 +186,14 @@ final class Digitalisimo_Backups_Updater {
 			}
 		}
 		return $best;
+	}
+
+	/** Ficha de «Ver detalles»: sin ella WordPress la pide a wordpress.org, que no conoce este plugin y responde con un error. */
+	public static function info( $result, $action, $args ) {
+		if ( 'plugin_information' !== $action || ! is_object( $args ) || self::SLUG !== ( $args->slug ?? '' ) ) return $result;
+		$release = self::release();
+		$version = (string) ( $release['version'] ?? DIGITALISIMO_BACKUPS_VERSION );
+		return (object) array( 'name' => 'Digitalisimo Backups', 'slug' => self::SLUG, 'version' => $version, 'author' => 'Digitalísimo', 'homepage' => 'https://digitalisimo.mx', 'download_link' => (string) ( $release['package'] ?? '' ), 'requires' => '6.0', 'requires_php' => '7.4', 'sections' => array( 'changelog' => '<p>Versión ' . esc_html( $version ) . ' publicada.</p>' ) );
 	}
 
 	public static function uri_update( $update, $plugin_data, $plugin_file, $locales ) {

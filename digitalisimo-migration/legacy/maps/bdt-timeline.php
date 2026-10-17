@@ -83,7 +83,7 @@ return array(
 					'url' => $placeholder_url,
 				),
 				'timeline_text' => 'I am timeline item content. Click edit button to change this text. A wonderful serenity has taken possession of my entire soul, like these sweet mornings of spring which I enjoy with my whole heart. I am alone, and feel the charm of existence in this spot, which was created for the bliss of souls like mine.',
-				'timeline_link' => 'https://bdthemes.com',
+				'timeline_link' => '',
 				'timeline_select_icon' => array(
 					'value' => 'fas fa-file-alt',
 					'library' => 'fa-solid',

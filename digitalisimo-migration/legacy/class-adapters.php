@@ -29,7 +29,7 @@ trait Legacy_Adapter {
 	}
 
 	public function get_title(): string {
-		return parent::get_title() . ' (Element Pack)';
+		return parent::get_title() . ' (heredado)';
 	}
 
 	public function show_in_panel(): bool {
@@ -67,7 +67,7 @@ trait Legacy_Adapter {
 		}
 		$existing = array_keys( (array) $this->get_controls() );
 		$this->start_controls_section( 'digitalisimo_legacy_style', array(
-			'label' => 'Estilo de Element Pack',
+			'label' => 'Estilo heredado',
 			'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
 		) );
 		foreach ( $styles as $control ) {

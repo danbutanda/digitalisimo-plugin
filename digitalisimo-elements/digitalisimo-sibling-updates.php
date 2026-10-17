@@ -39,6 +39,7 @@ final class Digitalisimo_Elements_Sibling_Updates {
 			add_filter( $hook, array( __CLASS__, 'check' ), 31 );
 		}
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 31, 4 );
+		add_filter( 'plugins_api', array( __CLASS__, 'info' ), 25, 3 );
 		add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
 		add_filter( 'plugin_action_links', array( __CLASS__, 'action_link' ), 10, 4 );
 		add_filter( 'network_admin_plugin_action_links', array( __CLASS__, 'action_link' ), 10, 4 );
@@ -176,6 +177,22 @@ final class Digitalisimo_Elements_Sibling_Updates {
 			}
 		}
 		return $transient;
+	}
+
+	/** Ficha de «Ver detalles» de un plugin Digitalisimo cuyo actualizador no respondió (inactivo o antiguo). */
+	public static function info( $result, $action, $args ) {
+		if ( false !== $result || 'plugin_information' !== $action || ! is_object( $args ) || empty( $args->slug ) ) {
+			return $result;
+		}
+		foreach ( self::installed() as $info ) {
+			if ( $info['slug'] !== $args->slug ) {
+				continue;
+			}
+			$release = self::release( $info['slug'] );
+			$version = (string) ( $release['version'] ?? $info['version'] );
+			return (object) array( 'name' => $info['name'], 'slug' => $info['slug'], 'version' => $version, 'author' => 'Digitalísimo', 'homepage' => 'https://digitalisimo.mx', 'download_link' => (string) ( $release['package'] ?? '' ), 'requires_php' => '7.4', 'sections' => array( 'changelog' => '<p>Versión ' . esc_html( $version ) . ' publicada.</p>' ) );
+		}
+		return $result;
 	}
 
 	/** La consulta de WordPress por «Update URI», si ningún actualizador respondió por ese archivo. */

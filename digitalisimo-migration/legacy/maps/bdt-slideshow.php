@@ -153,8 +153,8 @@ return array(
 				'image' => array(
 					'url' => $placeholder_url,
 				),
-				'video_link' => '//test-videos.co.uk/vids/bigbuckbunny/mp4/av1/1080/Big_Buck_Bunny_1080_10s_1MB.mp4',
-				'youtube_link' => 'https://youtu.be/YE7VzlLtp-4',
+				'video_link' => '',
+				'youtube_link' => '',
 				'text' => 'I am slideshow description text, you can edit this text from slider items of slideshow content.',
 				'marker_invisible_height' => array(
 					'size' => 20,

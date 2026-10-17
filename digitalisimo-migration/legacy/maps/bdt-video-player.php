@@ -10,9 +10,9 @@ return array(
 	'classes'   => array( '.bdt-video-player' => '.digi-video-player' ),
 	'defaults'  => array(
 		'title' => 'Big Buck Bunny',
-		'source' => 'https://www.elementpack.pro/demo/wp-content/uploads/2025/11/BigBuckBunny.mp4',
+		'source' => '',
 		'poster' => array(
-			'url' => 'https://www.elementpack.pro/demo/wp-content/uploads/2025/11/BigBuckBunny.jpg',
+			'url' => '',
 		),
 		'seek_bar' => 'yes',
 		'time_duration' => 'both',

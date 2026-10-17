@@ -49,54 +49,13 @@ return array(
 			'defaults'     => array(
 				'source_type' => 'remote_url',
 				'remote_url' => array(
-					'url' => 'https://www.youtube.com/watch?v=vN9DnFiRMX0&feature=youtu.be',
+					'url' => '',
 				),
 				'title' => 'Video Title',
 				'desc' => 'Women typing keyboard',
 			),
-			'default_rows' => array( array(
-					'title' => 'Youtube Video',
-					'desc' => 'Women typing keyboard',
-					'remote_url' => array(
-						'url' => 'https://www.youtube.com/watch?v=vN9DnFiRMX0&feature=youtu.be',
-					),
-				), array(
-					'title' => 'Vimeo Video',
-					'desc' => 'Auto VR Concept',
-					'remote_url' => array(
-						'url' => 'https://vimeo.com/258349022',
-					),
-				), array(
-					'title' => 'Wista Video',
-					'desc' => 'Brendan - Make It Clap',
-					'remote_url' => array(
-						'url' => 'https://home.wistia.com/medias/e4a27b971d',
-					),
-				), array(
-					'title' => 'Dailymotion Video',
-					'desc' => 'Drama B - DREAMS',
-					'remote_url' => array(
-						'url' => 'http://www.dailymotion.com/embed/video/x2ioxee',
-					),
-				), array(
-					'title' => 'MP4 Format Video',
-					'desc' => 'BdThemes Intro',
-					'remote_url' => array(
-						'url' => '//test-videos.co.uk/vids/bigbuckbunny/mp4/av1/1080/Big_Buck_Bunny_1080_10s_1MB.mp4',
-					),
-				), array(
-					'title' => 'WEBM Format Video',
-					'desc' => 'Fish Frenzy - Oceans Clip',
-					'remote_url' => array(
-						'url' => 'https://s3.amazonaws.com/fooplugins/rvs/oceans-clip.webm',
-					),
-				), array(
-					'title' => 'OGV Format Video',
-					'desc' => 'Fish Frenzy - Oceans Clip',
-					'remote_url' => array(
-						'url' => 'https://s3.amazonaws.com/fooplugins/rvs/oceans-clip.ogv',
-					),
-				) ),
+			// Las filas de ejemplo eran vídeos de terceros: una galería que nunca se editó queda vacía.
+			'default_rows' => array(),
 		),
 	),
 	// Cada vídeo remoto (YouTube, Vimeo) pasa a una diapositiva de vídeo con su póster.

@@ -16,11 +16,11 @@ class API {
 	/**
 	 * @deprecated 3.8.0
 	 */
-	const STORE_URL = 'https://my.elementor.com/api/v1/licenses/';
+	const STORE_URL = '';
 
-	const BASE_URL = 'https://my.elementor.com/api/v2/';
+	const BASE_URL = '';
 
-	const RENEW_URL = 'https://go.elementor.com/renew/';
+	const RENEW_URL = '';
 
 	// License Statuses
 	const STATUS_EXPIRED = 'expired';

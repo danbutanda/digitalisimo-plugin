@@ -34,7 +34,7 @@ class Popups_Promotion_Menu_Item extends Base_Promotion_Item {
 
 	public function get_cta_url(): string {
 		if ( ! API::active_licence_has_feature( Popup_Module::DOCUMENT_TYPE ) ) {
-			$upgrade_url = 'https://go.elementor.com/go-pro-advanced-popups/';
+			$upgrade_url = '';
 
 			return $upgrade_url;
 		}
@@ -45,7 +45,7 @@ class Popups_Promotion_Menu_Item extends Base_Promotion_Item {
 			'utm_campaign' => 'connect-and-activate-license',
 		] );
 
-		$renew_url = 'https://go.elementor.com/renew-popups/';
+		$renew_url = '';
 
 		return API::is_license_expired()
 			? $renew_url

@@ -1,0 +1,7 @@
+{
+  "_comentario": "Excepciones de tests/elements-vendor-static.mjs. Cada entrada: archivo (regex sobre la ruta desde digitalisimo-elements/), patron (regex opcional sobre la línea; sin él vale cualquier mención del archivo) y motivo (obligatorio). Una excepción que ya no se usa hace fallar la prueba: hay que quitarla.",
+  "excepciones": [
+    { "archivo": "^digitalisimo-vendor-free\\.php$", "motivo": "Guarda del producto: nombra los hosts del proveedor para bloquear sus peticiones, enlaces y redirecciones." },
+    { "archivo": "^digitalisimo-identity\\.php$", "patron": "strpos\\(", "motivo": "Identidad: reconoce enlaces del proveedor para retirarlos de los textos." }
+  ]
+}

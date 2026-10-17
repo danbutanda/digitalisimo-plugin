@@ -105,11 +105,11 @@ class Module extends Module_Base {
 
 	private function get_cta_url() {
 		if ( ! API::active_licence_has_feature( static::ROLE_MANAGER_OPTION_NAME ) ) {
-			return 'https://go.elementor.com/go-pro-advanced-role-manager/';
+			return '';
 		}
 
 		return API::is_license_expired()
-			? 'https://go.elementor.com/renew-role-manager/'
+			? ''
 			: $this->get_connect_url();
 	}
 

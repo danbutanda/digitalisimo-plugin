@@ -254,8 +254,8 @@ class Convertkit extends Integration_Base {
 						'desc' => sprintf(
 							/* translators: 1: Link opening tag, 2: Link closing tag. */
 							esc_html__( 'To integrate with our forms you need an %1$sAPI Key%2$s.', 'elementor-pro' ),
-							'<a href="https://app.convertkit.com/account/edit" target="_blank">',
-							'</a>'
+							'',
+							''
 						),
 					],
 				],

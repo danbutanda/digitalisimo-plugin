@@ -39,7 +39,7 @@ class Checkout extends Base_Widget {
 	}
 
 	public function get_help_url() {
-		return 'https://go.elementor.com/widget-woocommerce-checkout';
+		return '';
 	}
 
 	public function get_script_depends() {

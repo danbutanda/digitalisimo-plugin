@@ -420,7 +420,7 @@ class Digitalisimo_Integrations_Quality_Rules {
 		$candidate = null;
 		foreach ( self::srcset_widths( $image['srcset'] ?? '' ) as $w ) if ( $w >= $needed ) { $candidate = $w; break; }
 		if ( null !== $candidate && $candidate < $nw ) return array( 'needed' => $needed, 'candidate' => $candidate, 'status' => self::WARNING, 'issue' => 'Se descargan ' . $nw . ' px y bastaría la variante de ' . $candidate . ' px: el sizes declara más ancho del que ocupa.' );
-		if ( '' === trim( (string) ( $image['srcset'] ?? '' ) ) ) return array( 'needed' => $needed, 'candidate' => null, 'status' => self::WARNING, 'issue' => 'Se descargan ' . $nw . ' px para ' . $needed . ' px y no hay srcset: activa la optimización de imágenes o elige un tamaño menor en Elementor.' );
+		if ( '' === trim( (string) ( $image['srcset'] ?? '' ) ) ) return array( 'needed' => $needed, 'candidate' => null, 'status' => self::WARNING, 'issue' => 'Se descargan ' . $nw . ' px para ' . $needed . ' px y no hay srcset: activa la optimización de imágenes o elige un tamaño menor en el constructor.' );
 		return $result;
 	}
 
@@ -436,7 +436,7 @@ class Digitalisimo_Integrations_Quality_Rules {
 		$above = ! empty( $row['above_desktop'] ) || ! empty( $row['above_mobile'] );
 		$known = null !== ( $row['above_desktop'] ?? null ) || null !== ( $row['above_mobile'] ?? null );
 		$state = ! empty( $row['selected'] ) ? ( ! empty( $row['enabled'] ) ? 'DIFERIDO' : 'EN LISTA · diferido desactivado' ) : 'NORMAL';
-		if ( empty( $row['eligible'] ) ) return array( 'state' => $state, 'safe' => false, 'status' => self::NA, 'reason' => 'No es una hoja de un widget de Elementor apta para diferir.' );
+		if ( empty( $row['eligible'] ) ) return array( 'state' => $state, 'safe' => false, 'status' => self::NA, 'reason' => 'No es una hoja de un widget del constructor apta para diferir.' );
 		if ( empty( $row['present'] ) ) return array( 'state' => $state, 'safe' => false, 'status' => self::NA, 'reason' => 'El widget no aparece en esta página.' );
 		if ( ! $known ) return array( 'state' => $state, 'safe' => false, 'status' => self::NA, 'reason' => 'Sin medición del navegador.' );
 		if ( $above ) return array( 'state' => $state, 'safe' => false, 'status' => 'DIFERIDO' === $state ? self::ERROR : self::OK, 'reason' => 'El widget aparece en el primer viewport' . ( ! empty( $row['above_mobile'] ) && empty( $row['above_desktop'] ) ? ' móvil' : '' ) . ': diferirlo provoca un salto visual.' );

@@ -200,8 +200,8 @@ return array(
 				'tab_text' => 'Tab Content',
 				'source' => 'background',
 				'background' => 'image',
-				'video_link' => '//test-videos.co.uk/vids/bigbuckbunny/mp4/av1/1080/Big_Buck_Bunny_1080_10s_1MB.mp4',
-				'youtube_link' => 'https://youtu.be/YE7VzlLtp-4',
+				'video_link' => '',
+				'youtube_link' => '',
 			),
 			'default_rows' => array( array(
 					'tab_sub_title' => 'This is a subtitle',

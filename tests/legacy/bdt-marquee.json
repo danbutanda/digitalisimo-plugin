@@ -1,7 +1,7 @@
 {
   "defaults": {
     "_known": {
-      "text": "La marquesina muestra el rótulo y el botón «Pausar»; Element Pack no tenía control de pausa"
+      "text": "La marquesina muestra el rótulo y el botón «Pausar»; Element Pack no tenía control de pausa. Los rótulos de ejemplo nombraban productos del proveedor del plugin anterior y pasan a «Marquee Item 1…6»"
     }
   }
 }

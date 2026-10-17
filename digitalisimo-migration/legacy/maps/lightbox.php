@@ -28,16 +28,16 @@ return array(
 			'url' => $placeholder_url,
 		),
 		'content_video' => array(
-			'url' => '//test-videos.co.uk/vids/bigbuckbunny/mp4/av1/1080/Big_Buck_Bunny_1080_10s_1MB.mp4',
+			'url' => '',
 		),
 		'content_youtube' => array(
-			'url' => 'https://www.youtube.com/watch?v=YE7VzlLtp-4',
+			'url' => '',
 		),
 		'content_vimeo' => array(
-			'url' => 'https://vimeo.com/1084537',
+			'url' => '',
 		),
 		'content_google_map' => array(
-			'url' => 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d4740.819266853735!2d9.99008871708242!3d53.550454675412404!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x3f9d24afe84a0263!2sRathaus!5e0!3m2!1sde!2sde!4v1499675200938',
+			'url' => '',
 		),
 		'content_caption' => 'This is a image',
 		'glassmorphism_blur_level' => array(

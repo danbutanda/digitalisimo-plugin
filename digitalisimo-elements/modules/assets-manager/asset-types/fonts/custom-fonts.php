@@ -112,9 +112,8 @@ class Custom_Fonts extends Classes\Font_Base {
 				'id' => 'variable_description',
 				'field_type' => 'html',
 				'label' => false,
-				'raw_html' => sprintf( '<div class="variable-description">%s %s</div>',
-					esc_html__( 'Check the boxes to enable Width and Weight, then define the minimum and maximum values for each.', 'elementor-pro' ),
-					'<a href="https://go.elementor.com/wp-dash-variable-fonts-help/" target="_blank">' . esc_html__( 'Learn More', 'elementor-pro' ) . '.</a>'
+				'raw_html' => sprintf( '<div class="variable-description">%s</div>',
+					esc_html__( 'Check the boxes to enable Width and Weight, then define the minimum and maximum values for each.', 'elementor-pro' )
 				),
 			],
 			[

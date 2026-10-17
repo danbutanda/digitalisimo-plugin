@@ -253,7 +253,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			$status = $guard::status();
 			$modes  = array( 'off' => 'Apagado', 'auto' => 'Seguro', 'strict' => 'Estricto', 'manual' => 'Manual' );
 			if ( $network ) { echo '<h2>Todos los sitios</h2>'; $guard::render_network_recalculate(); }
-			echo '<h2>Fuentes de este sitio</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code>. Cada sitio detecta sus propias familias, estilos y pesos en el Kit y en el contenido Elementor publicado, y genera su CSS sólo con las variantes autorizadas. Los originales no se modifican y los icon fonts nunca se filtran.</p>';
+			echo '<h2>Fuentes de este sitio</h2><p>Sitio: <code>' . esc_html( home_url( '/' ) ) . '</code>. Cada sitio detecta sus propias familias, estilos y pesos en el Kit y en el contenido publicado con el constructor, y genera su CSS sólo con las variantes autorizadas. Los originales no se modifican y los icon fonts nunca se filtran.</p>';
 			if ( isset( $_GET['font_guard_error'] ) ) echo '<div class="notice notice-error"><p>' . esc_html( wp_unslash( $_GET['font_guard_error'] ) ) . '</p></div>';
 			if ( isset( $_GET['font_guard_optimized'] ) ) echo '<div class="notice notice-success"><p>Modo seguro activado para este sitio. Reglas @font-face omitidas: ' . esc_html( absint( $_GET['font_guard_optimized'] ) ) . '.</p></div>';
 			if ( isset( $_GET['font_guard_recalculated'] ) ) echo '<div class="notice notice-success"><p>Fuentes recalculadas con el modo vigente. Reglas @font-face omitidas: ' . esc_html( absint( $_GET['font_guard_recalculated'] ) ) . '.</p></div>';
@@ -263,7 +263,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 			submit_button( 'Detectar y optimizar (modo seguro)', 'primary', 'submit', false );
 			echo '</form>';
 			$guard::render_recalculate( $network, $site_id );
-			echo '<p class="description">«Detectar y optimizar» activa el modo Seguro en este sitio. «Recalcular fuentes» vuelve a detectar y regenera el CSS y los preloads con el modo que tenga configurado. El recálculo también ocurre solo al editar en Elementor, cambiar la política o limpiar la caché de rendimiento.</p>';
+			echo '<p class="description">«Detectar y optimizar» activa el modo Seguro en este sitio. «Recalcular fuentes» vuelve a detectar y regenera el CSS y los preloads con el modo que tenga configurado. El recálculo también ocurre solo al editar en el constructor, cambiar la política o limpiar la caché de rendimiento.</p>';
 
 			if ( is_array( $report ) && ! empty( $report['scanned_at'] ) ) {
 				$names = array();
@@ -274,7 +274,7 @@ class Digitalisimo_Integrations_Performance_Fonts {
 				$inline = (array) ( $report['inline'] ?? array() );
 				$formats = array_keys( array_filter( array( 'negritas (700)' => ! empty( $inline['bold'] ), 'cursivas (italic)' => ! empty( $inline['italic'] ) ) ) );
 				echo '<tr><th>Formato en el contenido</th><td>' . esc_html( $formats ? 'Se encontraron ' . implode( ' y ', $formats ) . ': se autorizan para la familia del texto.' : 'Sin negritas ni cursivas detectadas.' ) . '</td></tr>';
-				echo '<tr><th>Inventario</th><td>' . esc_html( (int) ( $report['documents'] ?? 0 ) . ' documentos Elementor · ' . ( ! empty( $report['complete'] ) ? 'completo' : 'parcial' ) . ' · ' . $report['scanned_at'] ) . '</td></tr>';
+				echo '<tr><th>Inventario</th><td>' . esc_html( (int) ( $report['documents'] ?? 0 ) . ' documentos del constructor · ' . ( ! empty( $report['complete'] ) ? 'completo' : 'parcial' ) . ' · ' . $report['scanned_at'] ) . '</td></tr>';
 				echo '<tr><th>CSS generado</th><td>' . esc_html( $status['remote'] ? 'Google Fonts remoto: la URL de fonts.googleapis.com se reescribe con las variantes autorizadas.' : ( $status['copies'] ? $status['copies'] . ' copias activas · ' . $status['removed'] . ' reglas omitidas' : 'Sin copias activas: se sirve el CSS original.' ) ) . '</td></tr>';
 				if ( $status['undetected'] ) echo '<tr><th>Conservadas sin detectar</th><td>' . esc_html( implode( ', ', $status['undetected'] ) ) . ' <span class="description">— el modo Seguro las mantiene y las registra aquí.</span></td></tr>';
 				echo '</tbody></table>';

@@ -13203,7 +13203,7 @@
 	//#region modules/notes/assets/js/app/components/panel-empty.js
 	function PanelEmpty() {
 		return /* @__PURE__ */ react.default.createElement(Container$2, null, /* @__PURE__ */ react.default.createElement("div", null, /* @__PURE__ */ react.default.createElement(IconContainer, null, /* @__PURE__ */ react.default.createElement(Icon$2, { className: "eicon-commenting-o" })), /* @__PURE__ */ react.default.createElement(Heading, null, (0, _wordpress_i18n.__)("Share your thoughts with a Note", "elementor-pro")), /* @__PURE__ */ react.default.createElement(Text$1, null, (0, _wordpress_i18n.__)("Select an element on the page to leave a comment, ask a question, etc.", "elementor-pro")), /* @__PURE__ */ react.default.createElement(Link, {
-			href: "https://go.elementor.com/app-notes/",
+			href: "#digitalisimo-vendor-off",
 			target: "_blank",
 			className: "elementor-clickable"
 		}, (0, _wordpress_i18n.__)("Learn More", "elementor-pro"), /* @__PURE__ */ react.default.createElement(Icon$2, { className: "eicon-info" }))));

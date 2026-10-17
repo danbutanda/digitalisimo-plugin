@@ -17,6 +17,9 @@ build_package() {
   if [[ "$directory" == 'digitalisimo-elements' ]]; then
     # The local Element Pack copy is research material, never plugin runtime code.
     exclude+=( 'digitalisimo-elements/bdthemes-element-pack' 'digitalisimo-elements/bdthemes-element-pack/*' )
+    # El historial heredado del derivado (cientos de enlaces al proveedor) y su actualizador, que no se carga, se
+    # quedan en el repositorio pero no viajan en el paquete.
+    exclude+=( 'digitalisimo-elements/changelog.txt' 'digitalisimo-elements/updater/*' )
   fi
   if [[ "$directory" == 'digitalisimo-elements' ]]; then
     # El núcleo de Elementor incluido sale tal cual de wordpress.org: otros plugins copian archivos en la carpeta

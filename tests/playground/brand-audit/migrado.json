@@ -1,0 +1,21 @@
+{
+  "_comentario": "STATE=migrado: cachés que un sitio que viene de Elementor ya tiene guardadas. brand-audit.sh descarga cada URL (en el equipo de prueba, no desde el sitio) y setup.php la guarda en su opción: «assets» con el formato de EditorAssetsAPI ({timeout, value}) y la clave de datos indicada; «raw» tal cual (o su clave). Si una descarga falla se usa un ejemplo mínimo con URL del proveedor.",
+  "caches": [
+    { "option": "_elementor_home_screen_data", "url": "https://assets.elementor.com/home-screen/v1/home-screen.json", "format": "assets", "key": "home-screen" },
+    { "option": "_elementor_notifications_data", "url": "https://assets.elementor.com/notifications/v1/notifications.json", "format": "assets", "key": "notifications" },
+    { "option": "_elementor_apps_data", "url": "https://assets.elementor.com/apps/v1/apps.json", "format": "assets", "key": "apps" },
+    { "option": "_elementor_free_to_pro_upsell", "url": "https://assets.elementor.com/free-to-pro-upsell/v1/free-to-pro-upsell.json", "format": "assets", "key": "free-to-pro-upsell" },
+    { "option": "_elementor_v4_promotions", "url": "https://assets.elementor.com/packages/v1/promotions.json", "format": "assets", "key": "promotions" },
+    { "option": "elementor_plugins_page_assets_data", "url": "https://assets.elementor.com/editor-promotions/v1/plugins-page.json", "format": "assets", "key": "plugins-page" },
+    { "option": "elementor_side_menu_assets_data", "url": "https://assets.elementor.com/editor-promotions/v1/side-menu.json", "format": "assets", "key": "side-menu" },
+    { "option": "elementor_conversion_banner_assets_data", "url": "https://assets.elementor.com/editor-promotions/v1/conversion-banner.json", "format": "assets", "key": "conversion-banner" },
+    { "option": "elementor_pointer_assets_data", "url": "https://assets.elementor.com/editor-promotions/v1/pointer.json", "format": "assets", "key": "pointer" },
+    { "option": "elementor_connect_page_assets_data", "url": "https://assets.elementor.com/editor-promotions/v1/connect-page.json", "format": "assets", "key": "connect-page" },
+    { "option": "_elementor_mixpanel_config", "url": "https://assets.elementor.com/mixpanel/v1/mixpanel.json", "format": "assets", "key": "mixpanel" },
+    { "option": "_elementor_ab_testing_data", "url": "https://assets.elementor.com/ab-testing/v1/ab-testing.json", "format": "assets", "key": "ab-testing" },
+    { "option": "_elementor_onboarding_strings_es_MX", "url": "https://assets.elementor.com/onboarding/v1/strings/es_MX.json", "format": "assets", "key": "translations" },
+    { "option": "_elementor_onboarding_strings_en_US", "url": "https://assets.elementor.com/onboarding/v1/strings/en_US.json", "format": "assets", "key": "translations" },
+    { "option": "elementor_remote_info_library", "url": "https://my.elementor.com/api/v1/templates/info/", "format": "raw" },
+    { "option": "elementor_remote_info_feed_data", "url": "https://my.elementor.com/api/v2/info/", "format": "raw", "key": "feed" }
+  ]
+}

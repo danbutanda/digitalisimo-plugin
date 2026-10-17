@@ -25,7 +25,7 @@ return array(
 					'marker_lat' => '24.82391',
 					'marker_lng' => '89.38414',
 					'marker_title' => 'Marker #1',
-					'marker_content' => '<strong>BdThemes Limited</strong>,<br>Latifpur, Bogra - 5800,<br>Bangladesh',
+					'marker_content' => 'Your Business Address Here',
 				) ),
 		),
 	),

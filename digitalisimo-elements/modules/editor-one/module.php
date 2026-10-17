@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Module extends BaseModule {
-	const UPGRADE_URL = 'https://go.elementor.com/go-pro-upgrade-one-wp-menu-pro/';
+	const UPGRADE_URL = '';
 
 	public function get_name(): string {
 		return 'editor-one';

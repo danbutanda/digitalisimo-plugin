@@ -33,17 +33,17 @@ return array(
 				'marquee_color' => '',
 			),
 			'default_rows' => array( array(
-					'marquee_content' => 'Element Pack',
+					'marquee_content' => 'Marquee Item 1',
 				), array(
-					'marquee_content' => 'Prime Slider ',
+					'marquee_content' => 'Marquee Item 2',
 				), array(
-					'marquee_content' => 'Ultimate Post Kit',
+					'marquee_content' => 'Marquee Item 3',
 				), array(
-					'marquee_content' => 'Ultimate Store Kit',
+					'marquee_content' => 'Marquee Item 4',
 				), array(
-					'marquee_content' => 'Pixel Gallery',
+					'marquee_content' => 'Marquee Item 5',
 				), array(
-					'marquee_content' => 'Live Copy Paste',
+					'marquee_content' => 'Marquee Item 6',
 				) ),
 		),
 		'marquee_type_images' => array(

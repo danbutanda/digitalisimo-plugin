@@ -56,8 +56,8 @@ final class Digitalisimo_Plugin_Catalog {
 			'digitalisimo-hosting' => array( 'Digitalisimo Hosting', 'digitalisimo-hosting/digitalisimo-hosting.php', 'Dominios, Namecheap, WooCommerce y hosting.' ),
 			'digitalisimo-ia-tools' => array( 'Digitalisimo IA Tools', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'Chatbot, proveedores IA, RAG y generación de imágenes.' ),
 			'digitalisimo-seo' => array( 'Digitalisimo SEO', 'digitalisimo-seo/digitalisimo-integrations.php', 'SEO técnico, schema, contenido y SEO AI.' ),
-			'digitalisimo-tools' => array( 'DIGITALÍSIMO Tools', 'digitalisimo-tools/digitalisimo-tools.php', 'Herramientas internas y plantillas Elementor de red.' ),
-			'digitalisimo-elements' => array( 'DIGITALÍSIMO Elements', 'digitalisimo-elements/pro-elements.php', 'Funciones GPL avanzadas para Elementor gratuito.' ),
+			'digitalisimo-tools' => array( 'DIGITALÍSIMO Tools', 'digitalisimo-tools/digitalisimo-tools.php', 'Herramientas internas, plantillas de red, WebP y ajustes del sitio.' ),
+			'digitalisimo-elements' => array( 'DIGITALÍSIMO Elements', 'digitalisimo-elements/pro-elements.php', 'Constructor visual completo: editor, funciones avanzadas, kits, plantillas y widgets propios.' ),
 		);
 	}
 

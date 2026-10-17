@@ -50,21 +50,25 @@ namespace {
 	$id::script_filters( $scripts );
 	check_identity( 0 === strpos( $scripts->inline, 'wp-i18n|' ) && false !== strpos( $scripts->inline, '"i18n.gettext_"' ) && false !== strpos( $scripts->inline, '"elementor-pro"' ) && false !== strpos( $scripts->inline, json_encode( $id::RULES, JSON_UNESCAPED_UNICODE ) ), 'Los scripts reciben las mismas reglas por wp.hooks.' );
 
-	$home = array( 'home-screen' => array(
+	// El inicio rápido es propio: con o sin datos remotos (que ya no se piden), el mismo contenido local.
+	$remote = array(
 		'top_with_licences'          => array( array( 'license' => array( 'pro' ), 'title' => 'Unleash your imagination with Elementor', 'button_watch_url' => 'https://www.youtube.com/watch?v=x', 'youtube_embed_id' => 'x' ) ),
 		'get_started'                => array( array( 'license' => array( 'pro' ), 'repeater' => array( array( 'title' => 'Site Settings', 'image' => 'https://assets.elementor.com/i/site-settings.svg' ) ) ) ),
 		'add_ons'                    => array( 'hide_section' => false, 'repeater' => array( array( 'title' => 'Image Optimizer' ) ) ),
 		'sidebar_promotion_variants' => array( array( 'is_enabled' => true, 'type' => 'default' ) ),
 		'external_links'             => array( array( 'label' => 'Blog', 'url' => 'https://elementor.com/blog' ) ),
-	) );
-	$home = $id::home_data( $home )['home-screen'];
-	check_identity( 'Unleash your imagination with DIGITALÍSIMO Elements' === $home['top_with_licences'][0]['title'] && '' === $home['top_with_licences'][0]['youtube_embed_id'] && '' === $home['top_with_licences'][0]['button_watch_url'], 'El inicio rápido lleva la marca propia y sin el vídeo del proveedor.' );
-	check_identity( true === $home['add_ons']['hide_section'] && array() === $home['add_ons']['repeater'] && false === $home['sidebar_promotion_variants'][0]['is_enabled'] && 2 === count( $home['external_links'] ) && 'Código y actualizaciones' === $home['external_links'][1]['label'], 'Sin promociones ni complementos; los enlaces del proveedor pasan a los propios.' );
-	check_identity( 'https://assets.elementor.com/i/site-settings.svg' === $home['get_started'][0]['repeater'][0]['image'] && array( 'pro' ) === $home['get_started'][0]['license'], 'Los accesos y sus imágenes se conservan.' );
+	);
+	foreach ( array( $remote, array(), array( 'home-screen' => $remote ) ) as $input ) {
+		$home = $id::home_data( $input );
+		// Sin la clave, el componente no pinta el bloque superior (con la clave vacía sí lo pintaría, con el vídeo).
+		check_identity( ! array_key_exists( 'top_with_licences', $home ) && ! array_key_exists( 'add_ons', $home ) && ! array_key_exists( 'sidebar_promotion_variants', $home ), 'El inicio rápido no tiene el bloque del vídeo, complementos ni promociones.' );
+		$json = json_encode( $home );
+		check_identity( false === stripos( $json, 'elementor.com' ) && false === stripos( $json, 'youtube' ) && false === stripos( $json, 'github.com' ), 'Ningún dato del inicio rápido apunta a otra empresa.' );
+		check_identity( array( 'free', 'pro', 'one' ) === array_map( static function ( $g ) { return $g['license'][0]; }, $home['get_started'] ) && 8 === count( $home['get_started'][0]['repeater'] ) && 'Ajustes del sitio' === $home['get_started'][0]['repeater'][0]['title'], 'Los accesos propios se muestran con cualquier nivel de licencia.' );
+		check_identity( 1 === count( $home['external_links'] ) && 'Acerca de DIGITALÍSIMO Elements' === $home['external_links'][0]['label'], 'Sólo el enlace a la página propia.' );
+	}
 
 	check_identity( 'DIGITALÍSIMO Elements #42' === $id::default_title( array( 'post_title' => 'Elementor #42' ) )['post_title'] && 'Mi Elementor #42' === $id::default_title( array( 'post_title' => 'Mi Elementor #42' ) )['post_title'], 'Sólo el título automático exacto cambia.' );
-	$flat = $id::home_data( array( 'top_with_licences' => array( array( 'title' => 'Elementor', 'youtube_embed_id' => 'y' ) ), 'external_links' => array( array( 'url' => 'https://x' ) ) ) );
-	check_identity( '' === $flat['top_with_licences'][0]['youtube_embed_id'] && 2 === count( $flat['external_links'] ) && 'DIGITALÍSIMO Elements' === $flat['top_with_licences'][0]['title'], 'Los datos sin envoltorio también se filtran.' );
 	check_identity( '' === $id::footer_text( 'Enjoyed Elementor? <a href="https://go.elementor.com/admin-review/">★★★★★</a>' ) && '' === $id::footer_text( 'Enjoyed Elementor? <a href="https://wordpress.org/support/plugin/elementor/reviews/">★★★★★</a>' ) && 'Gracias por crear con WordPress.' === $id::footer_text( 'Gracias por crear con WordPress.' ), 'El pie que pide valorar el núcleo desaparece; el de WordPress queda.' );
 	check_identity( '1' === $id::no_generator() && '1' === $id::onboarded(), 'Sin meta generator ni asistente de bienvenida del núcleo.' );
 	echo "DIGITALÍSIMO Elements: identidad propia del constructor validada.\n";

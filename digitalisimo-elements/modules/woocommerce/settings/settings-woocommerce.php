@@ -38,7 +38,7 @@ class Settings_Woocommerce extends Tab_Base {
 	}
 
 	public function get_help_url() {
-		return 'https://go.elementor.com/global-woocommerce';
+		return '';
 	}
 
 	protected function register_tab_controls() {
@@ -851,7 +851,7 @@ class Settings_Woocommerce extends Tab_Base {
 			'messages' => [
 				esc_html__( 'Upgrade your subscription to customize these and much more.', 'elementor-pro' ),
 			],
-			'link' => 'https://go.elementor.com/go-pro-advanced-site-settings-woocommerce-notices/',
+			'link' => '',
 		];
 	}
 
@@ -868,7 +868,7 @@ class Settings_Woocommerce extends Tab_Base {
 			'messages' => [
 				esc_html__( 'Upgrade your subscription to customize these and much more.', 'elementor-pro' ),
 			],
-			'link' => 'https://go.elementor.com/go-pro-advanced-site-settings-woocommerce-pages/',
+			'link' => '',
 		];
 	}
 

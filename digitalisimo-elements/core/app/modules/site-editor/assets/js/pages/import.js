@@ -60,7 +60,7 @@ export default function Import() {
 					<Dialog
 						title={ action.error }
 						approveButtonText={ __( 'Learn More', 'elementor-pro' ) }
-						approveButtonUrl="https://go.elementor.com/app-theme-builder-import-issue"
+						approveButtonUrl="#digitalisimo-vendor-off"
 						approveButtonTarget="_blank"
 						approveButtonColor="link"
 						dismissButtonText={ __( 'Go Back', 'elementor-pro' ) }

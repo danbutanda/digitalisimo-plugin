@@ -9,10 +9,10 @@ return array(
 	// Clases de Element Pack más usadas en sus selectores: .bdt-qrcode
 	'classes'   => array( '.bdt-qrcode > *' => '.digi-qr-code__canvas', '.bdt-qrcode' => '.digi-qr-code' ),
 	'defaults'  => array(
-		'text' => 'http://bdthemes.com',
+		'text' => '',
 		'site_link' => '',
 		'label_type' => 'text',
-		'label' => 'BDTHEMES',
+		'label' => '',
 		'image' => array(
 			'url' => $placeholder_url,
 		),

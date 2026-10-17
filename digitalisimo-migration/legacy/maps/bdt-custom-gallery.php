@@ -28,7 +28,7 @@ return array(
 	'repeaters' => array(
 		'gallery' => array(
 			'target'       => 'gallery_items',
-			'defaults'     => array( 'image_title' => 'Slide Title', 'gallery_image' => $placeholder, 'image_text' => 'Slide Content', 'image_link_type' => '', 'image_link_website' => array( 'url' => 'https://elementpack.pro' ) ),
+			'defaults'     => array( 'image_title' => 'Slide Title', 'gallery_image' => $placeholder, 'image_text' => 'Slide Content', 'image_link_type' => '', 'image_link_website' => array( 'url' => '' ) ),
 			'default_rows' => $rows,
 		),
 	),

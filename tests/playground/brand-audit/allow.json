@@ -1,0 +1,4 @@
+{
+  "_comentario": "Excepciones de la auditoría de marca hacia los plugins de origen. Cada entrada: pantalla (regex sobre la pantalla o el contexto del servidor, opcional), url (regex, obligatoria), origen (regex sobre red|servidor|redirección|ventana|dom|texto|latente|netlog|sondeo, opcional) y motivo (obligatorio). Una excepción que no se use en toda la corrida hace fallar la auditoría, para que la lista no envejezca.",
+  "excepciones": []
+}

@@ -28,8 +28,8 @@ class Single_Post extends Single_Base {
 			'title' => esc_html__( 'What is a single post template?', 'elementor-pro' ),
 			'content' => esc_html__( 'A single post template allows you to easily design the layout and style of posts, ensuring a design consistency throughout all your blog posts, for example.', 'elementor-pro' ),
 			'tip' => esc_html__( 'You can create multiple single post templates, and assign each to a different category.', 'elementor-pro' ),
-			'docs' => 'https://go.elementor.com/app-theme-builder-post',
-			'video_url' => 'https://www.youtube.com/embed/8Fk-Edu7DL0',
+			'docs' => '',
+			'video_url' => '',
 		];
 	}
 

@@ -111,11 +111,6 @@ class Digitalisimo_Integrations_Schema_Audit {
 		return Digitalisimo_Integrations_Quality_Audit::badge( $status, $label );
 	}
 
-	/** Enlaces a las herramientas oficiales con la URL ya cargada. */
-	private static function external_tests( $url ) {
-		return '<a class="button" href="' . esc_url( 'https://validator.schema.org/#url=' . rawurlencode( $url ) ) . '" target="_blank" rel="noopener">Abrir en Schema.org Validator</a> <a class="button" href="' . esc_url( 'https://search.google.com/test/rich-results?url=' . rawurlencode( $url ) ) . '" target="_blank" rel="noopener">Abrir en Google Rich Results</a>';
-	}
-
 	/** Tablas de un informe; compartidas por el auditor y la vista previa del editor. */
 	public static function report_html( $report ) {
 		$html = '<h4>Entidades</h4><table class="widefat striped"><thead><tr><th>Tipo</th><th>@id</th><th>Nombre</th></tr></thead><tbody>';
@@ -165,7 +160,7 @@ class Digitalisimo_Integrations_Schema_Audit {
 		}
 		echo '</tbody></table>';
 		$record = $all[ $selected ] ?? end( $all );
-		echo '<h3>' . esc_html( $record['url'] ) . '</h3><p>' . self::external_tests( $record['url'] ) . '</p>';
+		echo '<h3>' . esc_html( $record['url'] ) . '</h3>';
 		if ( $record['note'] ) echo '<p class="description">' . esc_html( $record['note'] ) . '</p>';
 		if ( empty( $record['report'] ) ) { echo '<p>' . self::badge( Digitalisimo_Integrations_Schema_Rules::ERROR, 'HTTP ' . (int) $record['code'] ) . ' ' . esc_html( $record['error'] ?: 'La URL no respondió con 200.' ) . '</p></div>'; return; }
 		if ( ! empty( $record['raw'] ) ) {
@@ -197,8 +192,7 @@ class Digitalisimo_Integrations_Schema_Audit {
 		$html   = '<p>' . self::badge( $report['status'] ) . ' Grafo de Digitalísimo para este contenido. Las FAQ u otros schemas que añadan el tema o los plugins se integran al publicarse; revísalos después en SEO → Auditoría.</p>';
 		if ( $log ) { $html .= '<ul style="list-style:disc;padding-left:20px">'; foreach ( $log as $line ) $html .= '<li>' . esc_html( $line ) . '</li>'; $html .= '</ul>'; }
 		$html .= self::report_html( $report );
-		$html .= '<p><strong>JSON-LD</strong> · cópialo en Schema.org Validator o en Rich Results («Código») para probarlo antes de publicar.</p><textarea readonly rows="10" class="large-text code" onclick="this.select()">' . esc_textarea( Digitalisimo_Integrations_Schema_Graph::json( $doc, true ) ) . '</textarea>';
-		$html .= '<p><a class="button" href="https://validator.schema.org/" target="_blank" rel="noopener">Schema.org Validator</a> <a class="button" href="https://search.google.com/test/rich-results" target="_blank" rel="noopener">Google Rich Results</a></p>';
+		$html .= '<p><strong>JSON-LD</strong> · cópialo en el validador externo que uses para probarlo antes de publicar.</p><textarea readonly rows="10" class="large-text code" onclick="this.select()">' . esc_textarea( Digitalisimo_Integrations_Schema_Graph::json( $doc, true ) ) . '</textarea>';
 		wp_send_json_success( $html );
 	}
 }

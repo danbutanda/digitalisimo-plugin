@@ -24,7 +24,7 @@ return array(
 	),
 	'repeaters' => array(
 		'slides' => array(
-			'defaults'     => array( 'title' => 'Slide Title', 'title_link' => array( 'url' => '' ), 'background' => 'color', 'color' => '#14ABF4', 'image' => $placeholder, 'video_link' => '//test-videos.co.uk/vids/bigbuckbunny/mp4/av1/1080/Big_Buck_Bunny_1080_10s_1MB.mp4', 'youtube_link' => 'https://youtu.be/YE7VzlLtp-4' ),
+			'defaults'     => array( 'title' => 'Slide Title', 'title_link' => array( 'url' => '' ), 'background' => 'color', 'color' => '#14ABF4', 'image' => $placeholder, 'video_link' => '', 'youtube_link' => '' ),
 			'default_rows' => array( array( 'title' => 'Slide Item 1' ), array( 'title' => 'Slide Item 2' ), array( 'title' => 'Slide Item 3' ), array( 'title' => 'Slide Item 4' ) ),
 			'rename'       => array( 'title_link' => 'link' ),
 		),

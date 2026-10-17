@@ -42,8 +42,8 @@ final class Plugin_Catalog {
 		'digitalisimo-ia-tools' => array( 'name' => 'Digitalisimo IA Tools', 'file' => 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'description' => 'Chatbot, proveedores IA, RAG y generación de imágenes.' ),
 		'digitalisimo-hosting' => array( 'name' => 'Digitalisimo Hosting', 'file' => 'digitalisimo-hosting/digitalisimo-hosting.php', 'description' => 'Dominios, Namecheap, WooCommerce y hosting.' ),
 		'digitalisimo-backups' => array( 'name' => 'Digitalisimo Backups', 'file' => 'digitalisimo-backups/digitalisimo-backups.php', 'description' => 'Respaldos de sitio y red.' ),
-		'digitalisimo-tools' => array( 'name' => 'DIGITALÍSIMO Tools', 'file' => 'digitalisimo-tools/digitalisimo-tools.php', 'description' => 'Herramientas internas y plantillas Elementor de red.' ),
-		'digitalisimo-elements' => array( 'name' => 'DIGITALÍSIMO Elements', 'file' => 'digitalisimo-elements/pro-elements.php', 'description' => 'Funciones GPL avanzadas para Elementor gratuito, con identidad DIGITALÍSIMO.' ),
+		'digitalisimo-tools' => array( 'name' => 'DIGITALÍSIMO Tools', 'file' => 'digitalisimo-tools/digitalisimo-tools.php', 'description' => 'Herramientas internas, plantillas de red, WebP y ajustes del sitio.' ),
+		'digitalisimo-elements' => array( 'name' => 'DIGITALÍSIMO Elements', 'file' => 'digitalisimo-elements/pro-elements.php', 'description' => 'Constructor visual completo: editor, funciones avanzadas, kits, plantillas y widgets propios.' ),
 	); }
 	private static function releases() {
 		$cached = get_site_transient( self::CACHE ); if ( false !== $cached ) return (array) $cached;

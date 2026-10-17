@@ -36,7 +36,7 @@ export function UpgradeNoticeBanner() {
 					<Button
 						variant="outlined"
 						color="promotion"
-						onClick={ () => window.open( 'https://go.elementor.com/go-pro-import-export', '_blank' ) }
+						onClick={ () => window.open( '#digitalisimo-vendor-off', '_blank' ) }
 						startIcon={ <span className="eicon-upgrade-crown"></span> }
 						sx={ { flexShrink: 0, whiteSpace: 'nowrap' } }
 					>

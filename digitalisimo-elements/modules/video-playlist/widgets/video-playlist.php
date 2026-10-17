@@ -165,7 +165,7 @@ class Video_Playlist extends Base_Widget {
 					'active' => false,
 				],
 				'placeholder' => esc_html__( 'Enter your URL', 'elementor-pro' ) . ' (Vimeo)',
-				'default' => 'https://vimeo.com/235215203',
+				'default' => '',
 				'label_block' => true,
 				'condition' => [
 					'type' => 'vimeo',
@@ -410,22 +410,22 @@ class Video_Playlist extends Base_Widget {
 				'fields' => $repeater->get_controls(),
 				'default' => [
 					[
+						// Sin vídeos de muestra del proveedor: el administrador pega los suyos.
 						'title' => esc_html__( 'Sample Video', 'elementor-pro' ),
-						'youtube_url' => 'https://www.youtube.com/watch?v=XHOmBV4js_E',
-						'duration' => '0:16',
-						'thumbnail' => [ 'url' => 'https://img.youtube.com/vi/XHOmBV4js_E/maxresdefault.jpg' ],
+						'youtube_url' => '',
+						'duration' => '',
 					],
 					[
+						// Sin vídeos de muestra del proveedor: el administrador pega los suyos.
 						'title' => esc_html__( 'Sample Video', 'elementor-pro' ),
-						'youtube_url' => 'https://www.youtube.com/watch?v=XHOmBV4js_E',
-						'duration' => '0:16',
-						'thumbnail' => [ 'url' => 'https://img.youtube.com/vi/XHOmBV4js_E/maxresdefault.jpg' ],
+						'youtube_url' => '',
+						'duration' => '',
 					],
 					[
+						// Sin vídeos de muestra del proveedor: el administrador pega los suyos.
 						'title' => esc_html__( 'Sample Video', 'elementor-pro' ),
-						'youtube_url' => 'https://www.youtube.com/watch?v=XHOmBV4js_E',
-						'duration' => '0:16',
-						'thumbnail' => [ 'url' => 'https://img.youtube.com/vi/XHOmBV4js_E/maxresdefault.jpg' ],
+						'youtube_url' => '',
+						'duration' => '',
 					],
 				],
 				'frontend_available' => true,

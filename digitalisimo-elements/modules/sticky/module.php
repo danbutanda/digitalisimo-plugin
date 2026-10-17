@@ -151,12 +151,7 @@ class Module extends Module_Base {
 		$element->add_control(
 			'anchor_offset_description',
 			[
-				'raw' => sprintf(
-					/* translators: 1: Link opening tag, 2: Link closing tag. */
-					esc_html__( 'Using the Anchor offset may require you to adjust the offset of other sticky elements. %1$s Learn more %2$s', 'elementor-pro' ),
-					'<a href="https://elementor.com/help/sticky-headers/" target="_blank">',
-					'</a>'
-				),
+				'raw' => esc_html__( 'Using the Anchor offset may require you to adjust the offset of other sticky elements.', 'elementor-pro' ),
 				'type' => Controls_Manager::RAW_HTML,
 				'content_classes' => 'elementor-control-field-description',
 				'condition' => [

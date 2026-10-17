@@ -41,8 +41,8 @@ class Header extends Header_Footer_Base {
 			'title' => esc_html__( 'What is a header template?', 'elementor-pro' ),
 			'content' => esc_html__( 'The header template allows you to easily design and edit custom WordPress headers so you are no longer constrained by your theme’s header design limitations.', 'elementor-pro' ),
 			'tip' => esc_html__( 'You can create multiple headers, and assign each to different areas of your site.', 'elementor-pro' ),
-			'docs' => 'https://go.elementor.com/app-theme-builder-header',
-			'video_url' => 'https://www.youtube.com/embed/HHy5RK6W-6I',
+			'docs' => '',
+			'video_url' => '',
 		];
 	}
 }

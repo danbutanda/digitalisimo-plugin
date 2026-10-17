@@ -21,7 +21,7 @@ class Custom_Icons_Promotion_Menu_Item extends Base_Promotion_Item {
 			'utm_campaign' => 'connect-and-activate-license',
 		] );
 
-		$renew_url = 'https://go.elementor.com/renew-custom-icons/';
+		$renew_url = '';
 
 		return API::is_license_expired()
 			? $renew_url

@@ -57,4 +57,9 @@ $test_transients['update_plugins'] = $transient;
 $assert( $external === $test_transients['update_plugins']->response['tercero/plugin.php'], 'La consulta periódica de Tools no debe borrar avisos ajenos.' );
 $assert( '1.0.18' === $transient->response[ \Digitalisimo\Tools\Updater::FILE ]->new_version, 'Tools nuevo debe detectar una versión superior.' );
 $assert( false !== strpos( \Digitalisimo\Tools\Updater::action_link( array() )[0] ?? '', 'Buscar actualizaciones' ), 'Tools nuevo debe mostrar su enlace propio.' );
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); } }
+// «Ver detalles»: la ficha la da el actualizador, sin enlaces a GitHub (si no, WordPress la pide a wordpress.org).
+$info = \Digitalisimo\Tools\Updater::info( false, 'plugin_information', (object) array( 'slug' => 'digitalisimo-tools' ) );
+$assert( is_object( $info ) && 'digitalisimo-tools' === $info->slug && '' !== $info->version && 'https://digitalisimo.mx' === $info->homepage && false === stripos( $info->homepage . implode( '', $info->sections ), 'github' ), 'La ficha de «Ver detalles» es propia y no enlaza a GitHub.' );
+$assert( 'ajena' === \Digitalisimo\Tools\Updater::info( 'ajena', 'plugin_information', (object) array( 'slug' => 'otro-plugin' ) ) && 'x' === \Digitalisimo\Tools\Updater::info( 'x', 'query_plugins', (object) array( 'slug' => 'digitalisimo-tools' ) ), 'La ficha de otros plugins y otras consultas no se toca.' );
 echo "Actualizador Tools: puente antiguo, nueva versión y enlace de red correctos.\n";

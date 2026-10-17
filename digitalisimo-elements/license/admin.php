@@ -13,8 +13,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Admin {
 	use Editor_One_Trait;
 
-	const API_TEMPLATES_URL = 'https://my.elementor.com/api/connect/v1/library/templates';
-
 	public function __construct() {
 		$this->register_rest_controller();
 	}
@@ -61,19 +59,6 @@ class Admin {
 
 		return $response;
 	}
-	public function http_remove_pro_templates ( $response, $parsed_args, $url ) {
-		if ( strpos( $url,  static::API_TEMPLATES_URL ) === 0 ) {
-			$body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-			if ( is_array( $body ) ) {
-				$body = array_filter( $body, function( $item ) {
-					return empty( $item['is_pro'] ) || intval( $item['is_pro'] ) === 0;
-				});
-				$response['body'] = wp_json_encode( array_values( $body ) );
-			}
-		}
-		return $response;
-	}
 
 
 	public function handle_check_license() {
@@ -88,8 +73,6 @@ class Admin {
 	}
 
 	public function register_actions() {
-		add_filter( 'http_response',  [ $this, 'http_remove_pro_templates'], 10, 3 );
-
 		add_filter( 'rest_request_after_callbacks', [ $this, 'rest_remove_pro_templates' ], 10, 3 );
 	}
 

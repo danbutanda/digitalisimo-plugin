@@ -3,7 +3,7 @@
 defined( 'ABSPATH' ) || exit;
 
 return array(
-	'bdt-advanced-calculator' => 'Calculadora basada en fórmulas propias de Element Pack evaluadas con su script; no hay un motor equivalente seguro sin reimplementar el evaluador. Para contenido nuevo: formulario de PRO Elements con campos calculados o un plugin de calculadoras.',
+	'bdt-advanced-calculator' => 'Calculadora basada en fórmulas propias de Element Pack evaluadas con su script; no hay un motor equivalente seguro sin reimplementar el evaluador. Para contenido nuevo: formulario de DIGITALÍSIMO Elements con campos calculados o un plugin de calculadoras.',
 	'bdt-age-gate' => 'Verificación de edad por ventana bloqueante con cookie; afecta a toda la página y su cumplimiento legal depende del sitio. Se recomienda un plugin dedicado o Display Conditions.',
 	'bdt-air-pollution' => 'Depende de una API externa con clave propia de Element Pack (calidad del aire); sin servicio no hay datos que mostrar.',
 	'bdt-barcode' => 'Código de barras generado por una librería de Element Pack; uso marginal. Para QR existe el widget propio.',
@@ -41,13 +41,13 @@ return array(
 	'bdt-floating-knowledgebase' => 'Ayuda flotante con búsqueda AJAX propia de Element Pack.',
 	'bdt-fooevents-calendar-carousel' => 'Carrusel con consulta propia de FooEvents; usar el calendario (adaptado) o los shortcodes del plugin.',
 	'bdt-fooevents-calendar-events' => 'Lista o rejilla propia sobre eventos de FooEvents; usar el calendario (adaptado) o los shortcodes del plugin.',
-	'bdt-helpdesk' => 'Botones flotantes de contacto (WhatsApp, Messenger, etc.); PRO Elements incluye botones flotantes para contenido nuevo.',
+	'bdt-helpdesk' => 'Botones flotantes de contacto (WhatsApp, Messenger, etc.); DIGITALÍSIMO Elements incluye botones flotantes para contenido nuevo.',
 	'bdt-honeycombs' => 'Rejilla hexagonal decorativa con su script; uso marginal.',
 	'bdt-horizontal-scroller' => 'Desplazamiento horizontal de secciones con su script; cambia el comportamiento de la página.',
 	'bdt-instagram' => 'Lee la API de Instagram con token propio; la API Basic Display fue retirada. Usar Instagram Feed (adaptado por shortcode).',
 	'bdt-learnpress-carousel' => 'Carrusel de cursos de LearnPress con consulta propia; usar los bloques o shortcodes de LearnPress.',
 	'bdt-learnpress-grid' => 'Rejilla de cursos de LearnPress con consulta propia; usar los bloques de LearnPress.',
-	'bdt-mega-menu' => 'Mega menú con plantillas por elemento de menú; el Mega Menu de PRO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento.',
+	'bdt-mega-menu' => 'Mega menú con plantillas por elemento de menú; el Mega Menu de DIGITALÍSIMO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento.',
 	'bdt-protected-content' => 'Contenido protegido por contraseña o rol en el cliente; la protección real es la de WordPress o Display Conditions por rol.',
 	'bdt-remote-arrows' => 'Controla carruseles de Element Pack desde otro widget; sin esos carruseles no tiene función.',
 	'bdt-remote-fraction' => 'Igual que Remote Arrows.',

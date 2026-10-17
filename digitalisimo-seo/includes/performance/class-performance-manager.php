@@ -116,7 +116,7 @@ class Digitalisimo_Integrations_Performance_Manager {
 			foreach ( array( 'wp-block-library', 'wp-block-library-theme' ) as $handle ) {
 				if ( ! wp_style_is( $handle, 'enqueued' ) || self::has_queued_dependent( $styles, $handle ) ) continue;
 				wp_dequeue_style( $handle );
-				self::log( $handle, 'Página Elementor sin bloques ni dependientes encolados', $styles );
+				self::log( $handle, 'Página del constructor sin bloques ni dependientes encolados', $styles );
 			}
 		}
 		if ( self::frontend_safe() && self::enabled( 'perf_dashicons' ) && ! is_user_logged_in() && ! is_admin_bar_showing() && wp_style_is( 'dashicons', 'enqueued' ) && ! self::has_queued_dependent( $styles, 'dashicons' ) ) {
@@ -130,7 +130,7 @@ class Digitalisimo_Integrations_Performance_Manager {
 		$scripts = wp_scripts();
 		if ( self::enabled( 'perf_embeds' ) && self::plain_elementor_page() && wp_script_is( 'wp-embed', 'enqueued' ) && ! self::has_queued_dependent( $scripts, 'wp-embed' ) ) {
 			wp_dequeue_script( 'wp-embed' );
-			self::log( 'wp-embed', 'Página Elementor sin bloques, shortcode embed ni dependientes', $scripts );
+			self::log( 'wp-embed', 'Página del constructor sin bloques, shortcode embed ni dependientes', $scripts );
 		}
 	}
 

@@ -36,7 +36,7 @@ class Submissions_Promotion_Menu_Item extends Base_Promotion_Template {
 	}
 
 	protected function get_video_url(): string {
-		return 'https://www.youtube-nocookie.com/embed/LNfnwba9C-8?si=JLHk3UAexnvTfU1a';
+		return '';
 	}
 
 	public function get_cta_text(): string {
@@ -51,7 +51,7 @@ class Submissions_Promotion_Menu_Item extends Base_Promotion_Template {
 
 	protected function get_cta_url(): string {
 		if ( ! API::active_licence_has_feature( Form_Submissions_Component::NAME ) ) {
-			$upgrade_url = 'https://go.elementor.com/go-pro-advanced-form-submissions/';
+			$upgrade_url = '';
 
 			return $upgrade_url;
 		}
@@ -62,7 +62,7 @@ class Submissions_Promotion_Menu_Item extends Base_Promotion_Template {
 			'utm_campaign' => 'connect-and-activate-license',
 		] );
 
-		$renew_url = 'https://go.elementor.com/renew-submissions/';
+		$renew_url = '';
 
 		return API::is_license_expired()
 				? $renew_url

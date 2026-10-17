@@ -109,4 +109,10 @@ check_sibling( array() === $s::release( 'digitalisimo-migration' ), 'Un ZIP fuer
 $GLOBALS['t']['cache'] = array();
 $GLOBALS['t']['manifest']['plugins']['digitalisimo-migration']['url'] = $repo . 'digitalisimo-tools-1.0.17.zip';
 check_sibling( array() === $s::release( 'digitalisimo-migration' ), 'Un ZIP de otro plugin se rechaza.' );
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); } }
+// «Ver detalles» de un hermano inactivo: si su actualizador no respondió, la ficha la da Elements, sin GitHub.
+$info = $s::info( false, 'plugin_information', (object) array( 'slug' => 'digitalisimo-migration' ) );
+check_sibling( is_object( $info ) && 'digitalisimo-migration' === $info->slug && '' !== $info->version && false === stripos( $info->homepage . implode( '', $info->sections ), 'github' ), 'Elements da la ficha de un plugin Digitalisimo inactivo.' );
+$own = (object) array( 'slug' => 'digitalisimo-migration' );
+check_sibling( $own === $s::info( $own, 'plugin_information', (object) array( 'slug' => 'digitalisimo-migration' ) ) && false === $s::info( false, 'plugin_information', (object) array( 'slug' => 'otro-plugin' ) ), 'La ficha de su propio actualizador y la de otros plugins no se tocan.' );
 echo "DIGITALÍSIMO Elements: actualizaciones de los plugins Digitalisimo inactivos o en otra carpeta validadas.\n";

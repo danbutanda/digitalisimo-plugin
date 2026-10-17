@@ -69,12 +69,7 @@ class Facebook_Embed extends Base_Widget {
 			[
 				'type' => Controls_Manager::ALERT,
 				'alert_type' => 'info',
-				'content' => sprintf(
-					/* translators: 1: Link opening tag, 2: Link closing tag. */
-					esc_html__( 'Facebook post embedding is exclusively available for the web, mobile devices are not supported. %1$sLearn more%2$s', 'elementor-pro' ),
-					sprintf( '<a href="%s" target="_blank">', Facebook_SDK_Manager::FACEBOOK_PLUGINS_FAQ_URL ),
-					'</a>'
-				),
+				'content' => esc_html__( 'Facebook post embedding is exclusively available for the web, mobile devices are not supported.', 'elementor-pro' ),
 			]
 		);
 
@@ -96,7 +91,7 @@ class Facebook_Embed extends Base_Widget {
 			'post_url',
 			[
 				'label' => esc_html__( 'URL', 'elementor-pro' ),
-				'default' => 'https://www.facebook.com/elemntor/posts/2624214124556197',
+				'default' => '',
 				'dynamic' => [
 					'active' => true,
 				],
@@ -112,7 +107,7 @@ class Facebook_Embed extends Base_Widget {
 			'video_url',
 			[
 				'label' => esc_html__( 'URL', 'elementor-pro' ),
-				'default' => 'https://www.facebook.com/elemntor/videos/1683988961912056/',
+				'default' => '',
 				'dynamic' => [
 					'active' => true,
 				],
@@ -128,7 +123,7 @@ class Facebook_Embed extends Base_Widget {
 			'comment_url',
 			[
 				'label' => esc_html__( 'URL', 'elementor-pro' ),
-				'default' => 'https://www.facebook.com/elemntor/videos/1811703749140576/?comment_id=1812873919023559',
+				'default' => '',
 				'dynamic' => [
 					'active' => true,
 				],

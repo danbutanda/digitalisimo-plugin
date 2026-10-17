@@ -5,8 +5,8 @@ final class Elementor_Adapter {
 	public static function available() { return did_action( 'elementor/loaded' ) || defined( 'ELEMENTOR_VERSION' ); }
 	public static function template_posts() { return get_posts( array( 'post_type' => 'elementor_library', 'post_status' => array( 'publish', 'draft', 'private' ), 'numberposts' => -1, 'orderby' => 'title', 'order' => 'ASC' ) ); }
 	public static function export( array $item ) {
-		$master = get_post( absint( $item['master_post_id'] ) ); if ( ! $master || 'elementor_library' !== $master->post_type ) return new \WP_Error( 'digitalisimo_tools_master', 'La plantilla maestra no existe o no es una Saved Template de Elementor.' );
-		$data = json_decode( (string) get_post_meta( $master->ID, '_elementor_data', true ), true ); if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $data ) ) return new \WP_Error( 'digitalisimo_tools_data', 'La plantilla maestra contiene _elementor_data inválido.' );
+		$master = get_post( absint( $item['master_post_id'] ) ); if ( ! $master || 'elementor_library' !== $master->post_type ) return new \WP_Error( 'digitalisimo_tools_master', 'La plantilla maestra no existe o no es una plantilla guardada de DIGITALÍSIMO Elements.' );
+		$data = json_decode( (string) get_post_meta( $master->ID, '_elementor_data', true ), true ); if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $data ) ) return new \WP_Error( 'digitalisimo_tools_data', 'La plantilla maestra contiene datos de diseño inválidos.' );
 		$meta = array(); foreach ( array( '_elementor_edit_mode', '_elementor_template_type', '_elementor_page_settings', '_elementor_version', '_elementor_pro_version' ) as $key ) $meta[ $key ] = get_post_meta( $master->ID, $key, true );
 		return array( 'post' => $master, 'data' => $data, 'meta' => $meta );
 	}

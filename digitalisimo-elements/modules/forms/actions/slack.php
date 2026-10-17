@@ -42,7 +42,7 @@ class Slack extends Action_Base {
 				],
 				'label_block' => true,
 				'separator' => 'before',
-				'description' => esc_html__( 'Enter the webhook URL that will receive the form\'s submitted data.', 'elementor-pro' ) . ' ' . sprintf( '<a href="%s" target="_blank">%s</a>.', 'https://slack.com/apps/A0F7XDUAZ-incoming-webhooks/', esc_html__( 'Click here for Instructions', 'elementor-pro' ) ),
+				'description' => esc_html__( 'Enter the webhook URL that will receive the form\'s submitted data.', 'elementor-pro' ),
 				'render_type' => 'none',
 				'classes' => 'elementor-control-direction-ltr',
 				'dynamic' => [
@@ -229,7 +229,7 @@ class Slack extends Action_Base {
 					esc_html__( 'Powered by %s', 'elementor-pro' ),
 					'DIGITALÍSIMO Elements'
 				),
-				'footer_icon' => is_ssl() ? ELEMENTOR_ASSETS_URL . 'images/logo-icon.png' : null,
+				'footer_icon' => is_ssl() ? plugins_url( 'assets/digitalisimo/icono.png', DIGITALISIMO_ELEMENTS_FILE ) : null,
 				'ts' => time(),
 			] );
 		}

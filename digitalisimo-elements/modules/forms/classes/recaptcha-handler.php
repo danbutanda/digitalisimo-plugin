@@ -54,8 +54,8 @@ class Recaptcha_Handler {
 				echo sprintf(
 					/* translators: 1: Link opening tag, 2: Link closing tag. */
 					esc_html__( '%1$sreCAPTCHA%2$s is a free service by Google that protects your website from spam and abuse. It does this while letting your valid users pass through with ease.', 'elementor-pro' ),
-					'<a href="https://www.google.com/recaptcha/" target="_blank">',
-					'</a>'
+					'',
+					''
 				);
 			},
 			'fields' => [

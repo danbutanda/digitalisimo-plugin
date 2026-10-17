@@ -204,7 +204,7 @@ final class Masks {
 			// Elementor busca la versión negativa junto a la principal: sólo se ofrece si están en la misma carpeta.
 			$negative = isset( $files['-negative'] ) && dirname( $files['-negative'] ) === dirname( $files[''] ) && basename( $files['-negative'], '.svg' ) === basename( $files[''], '.svg' ) . '-negative';
 			$shapes[ 'ep-' . $name ] = array(
-				'title'        => ucfirst( str_replace( '-', ' ', $slug ) ) . ' (Element Pack)',
+				'title'        => ucfirst( str_replace( '-', ' ', $slug ) ) . ' (heredado)',
 				'path'         => $files[''],
 				'url'          => self::url_of( $files[''] ),
 				'has_flip'     => true,

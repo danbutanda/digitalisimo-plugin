@@ -58,7 +58,7 @@ function manifest( $version, $url = null ) {
 	else $plugins[ $GLOBALS['slug'] ] = array( 'version' => $version, 'file' => $GLOBALS['slug'] . '-' . $version . '.zip', 'url' => $url ?? 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/' . $tag . '/' . $GLOBALS['slug'] . '-' . $version . '.zip' );
 	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => $tag, 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/' . $tag, 'generated' => '2026-10-15T00:00:00Z', 'plugins' => $plugins ) ) );
 }
-$api = array( 'code' => 200, 'body' => json_encode( array( array( 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/x', 'body' => 'Notas de la API', 'assets' => array( array( 'name' => $slug . '-1.5.0.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/' . $slug . '-1.5.0.zip' ), array( 'name' => 'digitalisimo-backups-1.0.52.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/digitalisimo-backups-1.0.52.zip' ) ) ) ) ) );
+$api = array( 'code' => 200, 'body' => json_encode( array( array( 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/x', 'body' => "Notas de la API\n\n**Full Changelog**: https://github.com/danbutanda/digitalisimo-plugin/compare/v1...x", 'assets' => array( array( 'name' => $slug . '-1.5.0.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/' . $slug . '-1.5.0.zip' ), array( 'name' => 'digitalisimo-backups-1.0.52.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/digitalisimo-backups-1.0.52.zip' ) ) ) ) ) );
 
 // 1. El índice de la última Release basta: no se consulta la API y se recuerda como último índice conocido.
 $responses = array( 'manifest' => manifest( '1.2.0' ), 'api' => $api );
@@ -68,7 +68,8 @@ check_updater( 1 === count( $calls ) && false !== strpos( $calls[0], '/releases/
 check_updater( '1.2.0' === ( $site_options[ $u::LAST_KNOWN ][ $slug ]['version'] ?? '' ) && 7 === count( $site_options[ $u::LAST_KNOWN ] ), 'El índice completo queda como último conocido.' );
 check_updater( 10 * MINUTE_IN_SECONDS === $ttl[ $u::CACHE_KEY ] && 10 * MINUTE_IN_SECONDS === $ttl[ $u::MANIFEST_CACHE ], 'El índice se vuelve a leer cada diez minutos.' );
 $info = $u::info( null, 'plugin_information', (object) array( 'slug' => $slug ) );
-check_updater( is_object( $info ) && '1.2.0' === $info->version && false !== strpos( $info->sections['changelog'], 'href="https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.15.389"' ), 'La ficha del plugin sale del índice y, sin notas, enlaza la Release en GitHub.' );
+// La ficha («Ver detalles») no enlaza a dominios ajenos: sin notas indica sólo la versión, y la página del plugin es la propia.
+check_updater( is_object( $info ) && '1.2.0' === $info->version && false !== strpos( $info->sections['changelog'], '1.2.0' ) && false === strpos( $info->sections['changelog'], 'href=' ) && 'https://digitalisimo.mx' === $info->homepage, 'La ficha del plugin sale del índice y, sin notas, indica la versión sin enlazar a GitHub.' );
 
 // 2. El índice se comparte: otra consulta (otro plugin o la caché propia vencida) no lo vuelve a descargar.
 delete_site_transient( $u::CACHE_KEY );
@@ -90,7 +91,7 @@ foreach ( array( manifest( 'latest' ), manifest( null ), array( 'code' => 200, '
 	$item = pending();
 	check_updater( $item && '1.5.0' === $item->new_version && 1 === api_calls(), 'Un índice sin entrada válida para este módulo deja paso a la API.' );
 }
-check_updater( 'Notas de la API' === $u::info( null, 'plugin_information', (object) array( 'slug' => $slug ) )->sections['changelog'], 'Las notas de la API se conservan en la ficha.' );
+check_updater( 'Notas de la API' === $u::info( null, 'plugin_information', (object) array( 'slug' => $slug ) )->sections['changelog'], 'Las notas de la API se conservan en la ficha, sin las líneas con enlaces que añade GitHub.' );
 
 // 5. GitHub no responde o limita las consultas: se mantiene el último índice encontrado y se reintenta pronto.
 clear_updater();

@@ -399,7 +399,7 @@ class Module extends Module_Base {
 			$source->maybe_render_blank_state( $which, [
 				'post_type' => self::DOCUMENT_TYPE,
 				'cpt' => self::CPT,
-				'description' => esc_html__( 'Add pixels, meta tags and any other scripts to your site.', 'elementor-pro' ) . sprintf( '<br><a target="_blank" href="https://go.elementor.com/wp-dash-custom-code">%s</a>', esc_html__( 'Learn more about adding custom code', 'elementor-pro' ) ),
+				'description' => esc_html__( 'Add pixels, meta tags and any other scripts to your site.', 'elementor-pro' ),
 				'href' => esc_url( admin_url( '/post-new.php?post_type=' . self::CPT ) ),
 			] );
 		}

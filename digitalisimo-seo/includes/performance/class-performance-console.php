@@ -69,8 +69,8 @@ class Digitalisimo_Integrations_Performance_Console {
 		echo '<div class="wrap digitalisimo-admin-shell"><h1>Rendimiento y calidad · Digitalísimo' . ( $network ? ' · Red' : '' ) . '</h1>';
 		self::navigation( $network, $section );
 		if ( 'status' === $section ) {
-			echo '<p>Las optimizaciones nuevas permanecen desactivadas hasta validar el sitio. El modo seguro conserva recursos centrales de Elementor, Pro y WooCommerce.</p>';
-			echo '<table class="widefat striped"><tbody><tr><th>Modo seguro efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Activo' : 'Desactivado' ) . '</td></tr><tr><th>CSS Gutenberg efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Activado sólo en páginas Elementor elegibles' : 'Desactivado' ) . '</td></tr></tbody></table>';
+			echo '<p>Las optimizaciones nuevas permanecen desactivadas hasta validar el sitio. El modo seguro conserva recursos centrales del constructor y WooCommerce.</p>';
+			echo '<table class="widefat striped"><tbody><tr><th>Modo seguro efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_safe_mode' ) ? 'Activo' : 'Desactivado' ) . '</td></tr><tr><th>CSS Gutenberg efectivo</th><td>' . ( Digitalisimo_Integrations_SEO_Resolver::option( 'perf_gutenberg' ) ? 'Activado sólo en páginas elegibles del constructor' : 'Desactivado' ) . '</td></tr></tbody></table>';
 			if ( $network ) self::network_sites();
 		} elseif ( 'measurements' === $section ) Digitalisimo_Integrations_Performance_Measurements::render( $network );
 		elseif ( 'audit' === $section ) Digitalisimo_Integrations_Quality_Audit::render_audit( $network );
@@ -82,7 +82,7 @@ class Digitalisimo_Integrations_Performance_Console {
 		elseif ( 'preloads' === $section ) { self::settings( $network, 'preloads' ); Digitalisimo_Integrations_Performance_Fonts::render( $network ); Digitalisimo_Integrations_Performance_Migration::render( $network ); }
 		elseif ( 'javascript' === $section ) { self::settings( $network, 'javascript' ); Digitalisimo_Integrations_Performance_JavaScript::render( $network ); }
 		elseif ( 'images' === $section ) { self::settings( $network, 'images' ); Digitalisimo_Integrations_Quality_Audit::render_images( $network ); Digitalisimo_Integrations_Quality_Audit::render_alt( $network ); Digitalisimo_Integrations_Performance_Images::render( $network ); }
-		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Tracking::render_site_kit( $network ); echo '<details><summary>Revisar Custom Code de Elementor</summary>'; Digitalisimo_Integrations_Performance_Migration::render( $network ); echo '</details>'; }
+		elseif ( 'tracking' === $section ) { self::settings( $network, 'tracking' ); Digitalisimo_Integrations_Performance_Tracking::render_site_kit( $network ); echo '<details><summary>Revisar el Código personalizado del constructor</summary>'; Digitalisimo_Integrations_Performance_Migration::render( $network ); echo '</details>'; }
 		elseif ( 'cache' === $section ) self::cache_section( $network );
 		else Digitalisimo_Integrations_Performance_Debug::render( $network );
 		if ( 'status' === $section ) Digitalisimo_Integrations_Asset_Diagnostics::render( $network );
@@ -96,7 +96,7 @@ class Digitalisimo_Integrations_Performance_Console {
 				array( true, 'Elimina los widgets que ya no se usan.' ),
 				array( false, 'Ocultar elementos pesados en escritorio, tablet o móvil cuando ya no se necesitan: elimínalos.' ),
 				array( false, 'Duplicar secciones completas sólo para mostrarlas en distintos dispositivos.' ),
-				array( false, 'Widgets de Elementor innecesarios.' ),
+				array( false, 'Widgets innecesarios del constructor.' ),
 				array( false, 'Enlaces con href="#" como destino final.' ),
 			),
 			'Carruseles y movimiento' => array(
@@ -123,7 +123,7 @@ class Digitalisimo_Integrations_Performance_Console {
 				array( true, 'Prueba siempre en móvil, además de escritorio.' ),
 			),
 		);
-		echo '<h2>Recomendaciones</h2><p>Buenas prácticas para construir páginas rápidas y claras con WordPress y Elementor. Esta pestaña sólo informa: no cambia nada del sitio.</p>';
+		echo '<h2>Recomendaciones</h2><p>Buenas prácticas para construir páginas rápidas y claras con WordPress y el constructor. Esta pestaña sólo informa: no cambia nada del sitio.</p>';
 		foreach ( $groups as $title => $items ) {
 			echo '<h3>' . esc_html( $title ) . '</h3><ul style="list-style:none;margin-left:0">';
 			foreach ( $items as $item ) echo '<li style="margin:6px 0"><span style="display:inline-block;min-width:118px;font-weight:600;color:' . ( $item[0] ? '#00a32a' : '#b26200' ) . '">' . ( $item[0] ? '✓ Recomendado' : '⚠ Evitar' ) . '</span> ' . esc_html( $item[1] ) . '</li>';

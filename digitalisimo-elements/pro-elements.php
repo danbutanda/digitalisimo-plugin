@@ -33,6 +33,7 @@ require_once __DIR__ . '/digitalisimo-updater.php';
 require_once __DIR__ . '/digitalisimo-sibling-updates.php';
 require_once __DIR__ . '/digitalisimo-brand.php';
 require_once __DIR__ . '/digitalisimo-identity.php';
+require_once __DIR__ . '/digitalisimo-vendor-free.php';
 require_once __DIR__ . '/digitalisimo-duplicator.php';
 require_once __DIR__ . '/modules/digitalisimo-widgets/class-google-reviews-service.php';
 Digitalisimo_Elements_Updater::init();
@@ -40,6 +41,7 @@ Digitalisimo_Elements_Updater::init();
 Digitalisimo_Elements_Sibling_Updates::init();
 Digitalisimo_Elements_Brand::init();
 Digitalisimo_Elements_Identity::init();
+Digitalisimo_Elements_Vendor_Free::init();
 Digitalisimo_Elements_Duplicator::init();
 \Digitalisimo\Elements\Google_Reviews_Service::init();
 
@@ -155,70 +157,32 @@ function pro_elements_plugin_fail_load() {
 	if ( isset( $screen->parent_file ) && 'plugins.php' === $screen->parent_file && 'update' === $screen->id ) {
 		return;
 	}
-
-	$plugin = 'elementor/elementor.php';
-
-	if ( _is_elementor_installed() ) {
-		if ( ! current_user_can( 'activate_plugins' ) ) {
-			return;
-		}
-
-		$activation_url = wp_nonce_url( 'plugins.php?action=activate&amp;plugin=' . $plugin . '&amp;plugin_status=all&amp;paged=1&amp;s', 'activate-plugin_' . $plugin );
-
-		$message = '<h3>' . esc_html__( 'DIGITALÍSIMO Elements requiere Elementor gratuito.', 'elementor-pro' ) . '</h3>';
-		$message .= '<p>' . esc_html__( 'Activa Elementor para usar sus funciones avanzadas.', 'elementor-pro' ) . '</p>';
-		$message .= '<p>' . sprintf( '<a href="%s" class="button-primary">%s</a>', $activation_url, esc_html__( 'Activate Now', 'elementor-pro' ) ) . '</p>';
-	} else {
-		if ( ! current_user_can( 'install_plugins' ) ) {
-			return;
-		}
-
-		$install_url = wp_nonce_url( self_admin_url( 'update.php?action=install-plugin&plugin=elementor' ), 'install-plugin_elementor' );
-
-		$message = '<h3>' . esc_html__( 'DIGITALÍSIMO Elements requiere Elementor gratuito.', 'elementor-pro' ) . '</h3>';
-		$message .= '<p>' . esc_html__( 'Instala y activa Elementor para usar sus funciones avanzadas.', 'elementor-pro' ) . '</p>';
-		$message .= '<p>' . sprintf( '<a href="%s" class="button-primary">%s</a>', $install_url, esc_html__( 'Install Now', 'elementor-pro' ) ) . '</p>';
+	if ( ! current_user_can( 'activate_plugins' ) ) {
+		return;
 	}
+	// El constructor viene incluido: nunca se pide instalar ni activar otro plugin.
+	$message  = '<h3>' . esc_html__( 'No se pudo cargar el constructor incluido en DIGITALÍSIMO Elements.', 'elementor-pro' ) . '</h3>';
+	$message .= '<p>' . esc_html__( 'Falta o no se puede leer su carpeta elementor/. Vuelve a instalar DIGITALÍSIMO Elements desde su ZIP.', 'elementor-pro' ) . '</p>';
+	pro_elements_print_error( $message );
+}
 
-	pro_elements_print_error($message);
+/** Un plugin Elementor externo anterior a 4.0 sigue activo y manda: basta desactivarlo. */
+function pro_elements_external_builder_notice() {
+	if ( ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
+	$message  = '<h3>' . esc_html__( 'Hay otro constructor activo que reemplaza al incluido en DIGITALÍSIMO Elements.', 'elementor-pro' ) . '</h3>';
+	$message .= '<p>' . esc_html__( 'Desactívalo en Plugins: DIGITALÍSIMO Elements trae su propio constructor y lo usa en cuanto el otro deja de estar activo.', 'elementor-pro' ) . '</p>';
+	$message .= '<p>' . sprintf( '<a href="%s" class="button-primary">%s</a>', esc_url( self_admin_url( 'plugins.php' ) ), esc_html__( 'Ir a Plugins', 'elementor-pro' ) ) . '</p>';
+	pro_elements_print_error( $message );
 }
 
 function pro_elements_plugin_fail_load_out_of_date() {
-	if ( ! current_user_can( 'update_plugins' ) ) {
-		return;
-	}
-
-	$file_path = 'elementor/elementor.php';
-
-	$upgrade_link = wp_nonce_url( self_admin_url( 'update.php?action=upgrade-plugin&plugin=' ) . $file_path, 'upgrade-plugin_' . $file_path );
-	$message = sprintf(
-	/* translators: 1: Title opening tag, 2: Title closing tag */
-		esc_html__( '%1$sDIGITALÍSIMO Elements requiere Elementor 4.0 o posterior.%2$s Actualiza Elementor para reactivar este plugin.', 'elementor-pro' ),
-		'<h3>',
-		'</h3>'
-	);
-	$message .= '<p>' . sprintf( '<a href="%s" class="button-primary">%s</a>', $upgrade_link, esc_html__( 'Update Now', 'elementor-pro' ) ) . '</p>';
-
-	pro_elements_print_error($message);
+	pro_elements_external_builder_notice();
 }
 
+/** Con un Elementor externo más viejo que el recomendado no se pide actualizarlo: la pantalla Plugins ya explica que sobra. */
 function pro_elements_admin_notice_upgrade_recommendation() {
-	if ( ! current_user_can( 'update_plugins' ) ) {
-		return;
-	}
-
-	$file_path = 'elementor/elementor.php';
-
-	$upgrade_link = wp_nonce_url( self_admin_url( 'update.php?action=upgrade-plugin&plugin=' ) . $file_path, 'upgrade-plugin_' . $file_path );
-	$message = sprintf(
-	/* translators: 1: Title opening tag, 2: Title closing tag */
-		esc_html__( '%1$sDon’t miss out on the new version of Elementor%2$s Update to the latest version of Elementor to enjoy new features, better performance and compatibility.', 'elementor-pro' ),
-		'<h3>',
-		'</h3>'
-	);
-	$message .= '<p>' . sprintf( '<a href="%s" class="button-primary">%s</a>', $upgrade_link, esc_html__( 'Update Now', 'elementor-pro' ) ) . '</p>';
-
-	pro_elements_print_error($message);
 }
 
 if ( ! function_exists( '_is_elementor_installed' ) ) {

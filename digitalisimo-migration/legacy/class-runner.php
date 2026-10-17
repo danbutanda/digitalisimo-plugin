@@ -504,7 +504,7 @@ final class Runner {
 				\Elementor\Plugin::$instance->files_manager->clear_cache();
 			}
 		} catch ( \Throwable $e ) {
-			$state = self::warn( $state, 'No se pudo vaciar la caché de Elementor (' . $e->getMessage() . '): hazlo en Elementor → Herramientas → Regenerar archivos.' );
+			$state = self::warn( $state, 'No se pudo vaciar la caché del constructor (' . $e->getMessage() . '): hazlo en DIGITALÍSIMO Elements → Herramientas → Vaciar archivos y datos.' );
 		}
 		try {
 			$report = self::build_report( $state );

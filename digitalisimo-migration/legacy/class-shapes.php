@@ -68,7 +68,7 @@ final class Shapes {
 		$c   = '\\Elementor\\Controls_Manager';
 		$sel = '{{WRAPPER}} .digi-legacy-shape{{CURRENT_ITEM}}';
 		$element->start_controls_section( 'digitalisimo_legacy_shapes', array(
-			'label'     => 'Figuras de Element Pack',
+			'label'     => 'Figuras heredadas',
 			'tab'       => $c::TAB_ADVANCED,
 			'condition' => array( self::ENABLE => 'yes' ),
 		) );

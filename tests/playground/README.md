@@ -63,7 +63,7 @@ CORE=bundled bash tests/playground/interaction.sh
 
 ## Identidad propia del constructor
 
-`brand-audit.sh` arranca un sitio en español sólo con DIGITALÍSIMO Elements y su núcleo incluido, y lo recorre en Chrome en español y en inglés: La fila del plugin Elementor original instalado queda fuera de esta auditoría a propósito (sus cabeceras se muestran tal cual); la cubre `core-switch.sh`.
+`brand-audit.sh` arranca un sitio en español sólo con DIGITALÍSIMO Elements y su núcleo incluido (Playground con un solo worker), y lo recorre en Chrome en español y en inglés. La fila del plugin Elementor original instalado queda fuera de esta auditoría a propósito (sus cabeceras se muestran tal cual); la cubre `core-switch.sh`.
 
 - Todas las pantallas del menú del constructor, el escritorio, los plugins, las páginas y el editor de bloques.
 - La app de kits.
@@ -73,6 +73,53 @@ CORE=bundled bash tests/playground/interaction.sh
 Anota cada aparición visible de «Elementor» (textos, títulos, atributos accesibles, imágenes y logotipos, incluidos el icono del menú y los SVG de las barras superiores) y la meta `generator` del HTML público. Guarda capturas y el marcado de las barras en `$OUT` y falla si queda alguna. Los registros técnicos de «Información del sistema» (rutas y clases PHP) no cuentan: son identificadores.
 
 También mide los colores calculados de cada elemento visible de la administración y del editor (texto, fondo, degradados, bordes, contorno, sombras, relleno y trazo de SVG, con `::before` y `::after`) y falla si uno es de la paleta de Elementor: así una versión nueva del núcleo no puede reintroducirla sin que se note.
+
+### Nada hacia los plugins de origen
+
+La misma corrida falla si algo apunta a un plugin de origen. `brand-audit/vendors.json` es la lista única de dominios: Elementor, Elementor Pro, PRO Elements, Element Pack, Prime Slider y los futuros (Divi, Betheme, GeneratePress, Bricks). También incluye:
+
+- Mixpanel, sólo si lo llama el núcleo.
+- Las fichas y descargas de wordpress.org de los plugins y temas de origen.
+- Los vídeos de muestra del proveedor. `vendors.cjs` los regenera desde el código en cada corrida.
+
+La clasificación es siempre por host. Por eso los identificadores internos (clases, slugs, `admin.php?page=elementor*`, rutas de `digitalisimo-elements/elementor/assets/`) nunca cuentan.
+
+| Fuente | Qué se registra | Severidad |
+|---|---|---|
+| Navegador | Toda petición, también la de iframes de otro origen (sin aislamiento de sitios); navegaciones, redirecciones y ventanas nuevas (`popup`, `window.open`). Chrome resuelve todo host externo a `NOTFOUND`, así que nada sale a internet. | Falla |
+| DOM | `href`, `src`, `srcset`, `action`, `poster`, `data-*`, `style`, `on*`, valores de campos, estilos calculados con `url()` (también `::before`/`::after`), texto con un dominio del proveedor, shadow DOM abierto y `<template>`. Se revisa en cada marco del sitio, en `about:blank` y en `srcdoc`, visible u oculto. | Falla |
+| Latente | Scripts en línea y plantillas (`script#handle-js-extra`/`-js-before` lleva a la llamada PHP), datos globales del constructor y respuestas AJAX/REST con URL del proveedor. | Informe; con `LATENT=fail`, falla |
+| Servidor | `probe-http.php`, un mu-plugin de la prueba, registra con `pre_http_request` (prioridad `PHP_INT_MAX`) cada petición con su pantalla (cookie `digi_screen`), contexto (AJAX, REST, cron) y llamador. También `wp_redirect`, la cabecera `Location` y `pre_wp_mail`. Va a `$OUT/http.jsonl`. | «salió», redirección y correo fallan; «bloqueada» (otra guarda ya respondió) es informe |
+| Cron | `brand-audit/cron.php` ejecuta los eventos programados de los plugins y la telemetría del núcleo al terminar cada idioma. | Como el servidor |
+| Sondeo | Los enlaces propios que redirigen (`go_*`, `elementor-one-upgrade`, `elementor-connect`, `action=authorize`) y las páginas `admin.php?page=` no visitadas se piden sin seguir la redirección. Nunca se piden `admin-post.php` ni acciones. | Falla |
+| Netlog | `$OUT/netlog.json` de Chrome: hosts del proveedor que nadie atribuyó a una pantalla (workers, preconexiones). | Falla |
+
+Una URL de YouTube, Vimeo, Dailymotion o VideoPress en el contenido (frontal y vista previa), o en los datos y plantillas de los widgets de vídeo, es un servicio: sólo falla si es un vídeo del proveedor. En la administración, cualquier vídeo que se cargue falla.
+
+Opciones:
+
+- `SCOPE=quick` recorre las pantallas de siempre, más la red, el DOM, el servidor y el cron. El frontal como visitante se revisa en una sesión sin cookies, con red, DOM y cabeceras HTTP. `SCOPE=full`, por defecto, añade:
+  - pantallas de conexión, apps, roles, información del sistema, MCP, envíos y tipos de contenido del constructor;
+  - pantallas de WordPress: temas, actualizaciones, medios y entrada nueva;
+  - Migración, montado y activo;
+  - cada pestaña de Ajustes y Herramientas, el diálogo «Añadir plantilla» y cada botón de la barra superior de Editor One;
+  - las rutas de la app de kits y del Theme Builder;
+  - en el editor: cada pestaña de la biblioteca, el panel de un widget seleccionado (con su enlace de ayuda), los vídeos con su valor por defecto, los ajustes del sitio y de la página, revisiones, navegador, atajos, buscador, notas, el menú contextual y cada botón de su barra;
+  - un popup y una cabecera en el editor;
+  - cada menú de la barra de administración del frontal.
+- `STATE=migrado` prepara un sitio que viene de Elementor: telemetría y beta activas, instalación de hace 60 días, cuenta conectada con un token ficticio y las cachés remotas guardadas. Las cachés (`brand-audit/migrado.json`) las descarga el arnés con `curl`; si una falla, se guarda un ejemplo con URL del proveedor.
+- `ORIGINAL=1` instala el plugin Elementor de wordpress.org, inactivo, y un Elementor Pro con sólo sus cabeceras. Sus filas (`tr[data-plugin]`, la tabla de actualizaciones y su ventana de detalles) quedan excluidas, y también las imágenes que piden. La nota propia `digitalisimo-plugin-note` no se excluye. La exclusión debe aplicarse al menos una vez en `plugins.php`; si no, la corrida falla. En el servidor sólo se permite que WordPress consulte en wordpress.org las actualizaciones y traducciones del plugin instalado.
+- `LATENT=fail` hace fallar también lo latente.
+
+Las excepciones van en `brand-audit/allow.json`, cada una con pantalla, URL, fuente y motivo. Una excepción que no se use en toda la corrida falla. El informe agrupa las fallas por fuente, pantalla y dominio, con dos ejemplos y su ubicación (selector, script o llamador PHP). Después resume por dominio. El detalle completo queda en `$OUT/vendor-urls.json`, con un resumen por dominio y por pantalla.
+
+```bash
+OUT=/tmp/aud LOCALES=es_MX PORT=9449 bash tests/playground/brand-audit.sh            # completa, un idioma
+SCOPE=quick STATE=migrado bash tests/playground/brand-audit.sh                         # sitio que viene de Elementor
+ORIGINAL=1 bash tests/playground/brand-audit.sh                                        # con el plugin original instalado
+```
+
+`tests/elements-vendor-static.mjs` hace la misma revisión sin Playground sobre el código editable de DIGITALÍSIMO Elements. Busca los dominios de `vendors.json` y los vídeos del proveedor en `core/`, `modules/`, `license/`, `assets/js` (fuente y minificado), `plugin.php`, `pro-elements.php` y `digitalisimo-*.php`. Los comentarios no cuentan. Las excepciones, cada una con su motivo, están en `tests/elements-vendor-static.allow.json`; una excepción sin uso falla. El núcleo incluido (`elementor/`) no se revisa ahí.
 
 ## Diseño compartido
 

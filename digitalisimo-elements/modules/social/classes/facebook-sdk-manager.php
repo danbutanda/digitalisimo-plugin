@@ -17,7 +17,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Facebook_SDK_Manager {
 
 	const OPTION_NAME_APP_ID = 'elementor_pro_facebook_app_id';
-	const FACEBOOK_PLUGINS_FAQ_URL = 'https://developers.facebook.com/docs/plugins/faqs?__cft__[0]=AZWTalTI1B5jfnDA1jij6GA2PisutktOCj7s5QwreTg5em5ewsd2SG3kRoKU88Q8v_2xyZHRsZs9mYrtQT1qBH05IIvy1T5a4SwAkTrZ7ZjuKqqahQEdc3dP-VZPvPApR-KDDeJmV2Auvjw_MKpySqgq&__tn__=R]-R#faq_1585575021764180';
 
 	public static function get_app_id() {
 		return get_option( self::OPTION_NAME_APP_ID, '' );
@@ -45,12 +44,7 @@ class Facebook_SDK_Manager {
 				[
 					'type' => Controls_Manager::ALERT,
 					'alert_type' => 'info',
-					'content' => sprintf(
-						/* translators: 1: Link opening tag, 2: Link closing tag. */
-						esc_html__( 'This Facebook widget has been discontinued by Meta and will no longer show any content. Please remove it from your page layout to maintain a professional site appearance. %1$sLearn more%2$s', 'elementor-pro' ),
-						sprintf( '<a href="%s" target="_blank">', 'https://developers.facebook.com/blog/post/2025/11/10/platform-evolution-facebook-social-plugins-to-be-discontinued-february-2026/' ),
-						'</a>'
-					),
+					'content' => esc_html__( 'This Facebook widget has been discontinued by Meta and will no longer show any content. Please remove it from your page layout to maintain a professional site appearance.', 'elementor-pro' ),
 				]
 			);
 			return;
@@ -89,12 +83,7 @@ class Facebook_SDK_Manager {
 			[
 				'type' => Controls_Manager::ALERT,
 				'alert_type' => 'info',
-				'content' => sprintf(
-					/* translators: 1: Link opening tag, 2: Link closing tag. */
-					esc_html__( 'For visitors from the EU, Facebook widgets will only work for site visitors if they have logged into Facebook and consented to cookies. %1$sLearn more%2$s', 'elementor-pro' ),
-					sprintf( '<a href="%s" target="_blank">', 'https://developers.facebook.com/docs/plugins/' ),
-					'</a>'
-				),
+				'content' => esc_html__( 'For visitors from the EU, Facebook widgets will only work for site visitors if they have logged into Facebook and consented to cookies.', 'elementor-pro' ),
 			]
 		);
 	}
@@ -141,8 +130,8 @@ class Facebook_SDK_Manager {
 				echo sprintf(
 					/* translators: 1: Link opening tag, 2: Link closing tag. */
 					esc_html__( 'Facebook SDK lets you connect to your %1$sdedicated application%2$s so you can track the Facebook Widgets analytics on your site.', 'elementor-pro' ),
-					'<a href="https://developers.facebook.com/docs/apps/register/" target="_blank">',
-					'</a>'
+					'',
+					''
 				);
 				echo '<br><br>';
 
@@ -156,8 +145,8 @@ class Facebook_SDK_Manager {
 						'desc' => sprintf(
 							/* translators: 1: Link opening tag, 2: Link closing tag. */
 							esc_html__( 'Remember to add the domain to your %1$sApp Domains%2$s', 'elementor-pro' ),
-							sprintf( '<a href="%s" target="_blank">', $this->get_app_settings_url() ),
-							'</a>'
+							'',
+							''
 						),
 					],
 				],
@@ -165,14 +154,6 @@ class Facebook_SDK_Manager {
 		] );
 	}
 
-	private function get_app_settings_url() {
-		$app_id = self::get_app_id();
-		if ( $app_id ) {
-			return sprintf( 'https://developers.facebook.com/apps/%d/settings/', $app_id );
-		} else {
-			return 'https://developers.facebook.com/apps/';
-		}
-	}
 
 	private function validate_sdk() {
 		$errors = [];

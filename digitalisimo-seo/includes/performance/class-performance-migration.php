@@ -76,7 +76,7 @@ class Digitalisimo_Integrations_Performance_Migration {
 		if ( empty( $report['scanned_at'] ) ) return 'Falta analizar Custom Code';
 		foreach ( (array) ( $report['rows'] ?? array() ) as $row ) {
 			if ( 'publish' !== ( $row['status'] ?? '' ) ) continue;
-			if ( array_intersect( $ids, (array) ( $row['tracking_ids'] ?? array() ) ) ) return 'ID publicado en Elementor Custom Code';
+			if ( array_intersect( $ids, (array) ( $row['tracking_ids'] ?? array() ) ) ) return 'ID publicado en el Código personalizado del constructor';
 		}
 		return '';
 	}
@@ -168,7 +168,7 @@ class Digitalisimo_Integrations_Performance_Migration {
 		if ( $switched ) switch_to_blog( $site_id );
 		try {
 			$report = get_option( self::OPTION, array() );
-			echo '<h2>Migrar Custom Code de Elementor</h2><p>Inventario de ' . esc_html( home_url( '/' ) ) . '. No modifica ni elimina Custom Code. Tras configurar cada función en Digitalísimo, comprueba su salida y desactiva manualmente el código equivalente para evitar duplicados.</p>';
+			echo '<h2>Migrar el Código personalizado del constructor</h2><p>Inventario de ' . esc_html( home_url( '/' ) ) . '. No modifica ni elimina Custom Code. Tras configurar cada función en Digitalísimo, comprueba su salida y desactiva manualmente el código equivalente para evitar duplicados.</p>';
 			$section = sanitize_key( $_GET['section'] ?? 'tracking' );
 			if ( ! in_array( $section, array( 'css', 'tracking', 'preloads' ), true ) ) $section = 'tracking';
 			echo '<form method="post" action="' . esc_url( $action ) . '"><input type="hidden" name="action" value="digitalisimo_performance_scan_custom_code"><input type="hidden" name="network_context" value="' . ( $network ? '1' : '0' ) . '"><input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '"><input type="hidden" name="section" value="' . esc_attr( $section ) . '">';
@@ -186,7 +186,7 @@ class Digitalisimo_Integrations_Performance_Migration {
 				submit_button( 'Preparar valores en SEO sin activarlos', 'secondary', 'submit', false );
 				echo '</form>';
 			}
-			if ( empty( $report['rows'] ) ) { echo '<p>No se detectaron fragmentos relevantes de Elementor Custom Code.</p>'; return; }
+			if ( empty( $report['rows'] ) ) { echo '<p>No se detectaron fragmentos relevantes en el Código personalizado del constructor.</p>'; return; }
 			echo '<table class="widefat striped"><thead><tr><th>Custom Code</th><th>Estado</th><th>Ubicación</th><th>Google IDs</th><th>Preloads</th><th>CSS técnico</th></tr></thead><tbody>';
 			foreach ( (array) ( $report['rows'] ?? array() ) as $row ) {
 				$edit = get_edit_post_link( $row['id'] );

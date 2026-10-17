@@ -1,8 +1,8 @@
 {
   "defaults": {
     "_known": {
-      "text": "Element Pack dibujaba controles propios con texto de tiempo; el widget propio usa los controles nativos del navegador",
-      "links": "Los controles de Element Pack eran enlaces javascript:void(0); los nativos son botones del reproductor"
+      "text": "El vídeo y el póster de ejemplo se cargaban desde el sitio del proveedor del plugin anterior: sin vídeo guardado no se muestra ninguno",
+      "links": "El vídeo y el póster de ejemplo se cargaban desde el sitio del proveedor del plugin anterior: sin vídeo guardado no se muestra ninguno"
     }
   },
   "custom": {

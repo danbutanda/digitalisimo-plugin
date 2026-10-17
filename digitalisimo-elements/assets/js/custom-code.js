@@ -885,7 +885,7 @@
 			dismissButtonOnClick: resetActionState,
 			approveButtonText: (0, _wordpress_i18n.__)("Learn More", "elementor-pro"),
 			approveButtonColor: "link",
-			approveButtonUrl: "https://go.elementor.com/app-theme-builder-conditions-load-issue",
+			approveButtonUrl: "#digitalisimo-vendor-off",
 			approveButtonTarget: "_target"
 		}), /* @__PURE__ */ react.default.createElement("div", { className: "e-site-editor-conditions__rows" }, rows), /* @__PURE__ */ react.default.createElement("div", { className: "e-site-editor-conditions__add-button-container" }, /* @__PURE__ */ react.default.createElement(_elementor_app_ui.Button, {
 			className: "e-site-editor-conditions__add-button",
@@ -1111,7 +1111,7 @@
 			});
 		}
 		addDescription() {
-			const description = "<p>" + (0, _wordpress_i18n.__)("Manage and create all of your custom code here.<br />Organize all of your custom code and incorporate code snippets in your site. Add tracking codes, meta titles, and other scripts. Set display conditions, locations, and priority all from one place.", "elementor-pro") + "&nbsp;<a target=\"_blank\" href=\"https://go.elementor.com/wp-dash-custom-code\">" + (0, _wordpress_i18n.__)("Learn more", "elementor-pro") + "</a></p>";
+			const description = "<p>" + (0, _wordpress_i18n.__)("Manage and create all of your custom code here.<br />Organize all of your custom code and incorporate code snippets in your site. Add tracking codes, meta titles, and other scripts. Set display conditions, locations, and priority all from one place.", "elementor-pro") + "&nbsp;<a target=\"_blank\" href=\"#digitalisimo-vendor-off\">" + (0, _wordpress_i18n.__)("Learn more", "elementor-pro") + "</a></p>";
 			jQuery(description).insertBefore(".wp-header-end");
 		}
 		addLocationChangeHandler() {

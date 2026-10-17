@@ -45,7 +45,7 @@ function SiteEditor() {
 	return (
 		<ErrorBoundary
 			title={ __( 'Theme Builder could not be loaded', 'elementor-pro' ) }
-			learnMoreUrl="https://go.elementor.com/app-theme-builder-load-issue"
+			learnMoreUrl="#digitalisimo-vendor-off"
 		>
 			<Layout allPartsButton={ <AllPartsButton url={ '/' + basePath } /> } headerButtons={ headerButtons } titleRedirectRoute={ '/' + basePath } promotion={ isLocked }>
 				<Grid container className="e-site-editor__content_container">

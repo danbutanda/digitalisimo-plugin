@@ -36,7 +36,7 @@ class Notices extends Base_Widget {
 	}
 
 	public function get_help_url() {
-		return 'https://go.elementor.com/widget-woocommerce-notices-location';
+		return '';
 	}
 
 	/**

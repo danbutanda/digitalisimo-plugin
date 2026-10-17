@@ -72,7 +72,7 @@ export default function SiteTemplates( props ) {
 						dismissButtonOnClick={ resetActionState }
 						approveButtonText={ __( 'Learn More', 'elementor-pro' ) }
 						approveButtonColor="link"
-						approveButtonUrl="https://go.elementor.com/app-theme-builder-template-load-issue"
+						approveButtonUrl="#digitalisimo-vendor-off"
 						approveButtonTarget="_target"
 					/>
 			}

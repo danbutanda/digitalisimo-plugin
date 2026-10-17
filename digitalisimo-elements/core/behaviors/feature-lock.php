@@ -32,7 +32,7 @@ class Feature_Lock implements Temp_Lock_Behavior {
 
 		$connect_url = Plugin::instance()->license_admin->get_connect_url( $utm_args );
 
-		$renew_url = add_query_arg( $utm_args, 'https://my.elementor.com/subscriptions/' );
+		$renew_url = '';
 
 		return [
 			'is_locked' => $this->is_locked(),

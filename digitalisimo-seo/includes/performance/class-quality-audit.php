@@ -668,7 +668,7 @@ class Digitalisimo_Integrations_Quality_Audit {
 	/** Rendimiento y calidad → SEO técnico: rastreabilidad de enlaces y jerarquía. */
 	public static function render_seo( $network ) {
 		$ctx = self::context( $network );
-		if ( ! self::header( $ctx, 'SEO técnico', 'Enlaces que un buscador no puede seguir y jerarquía de encabezados. No se inventan URLs ni se cambian etiquetas: Elementor permite elegir la etiqueta HTML de cada título y la decisión es del diseñador.' ) ) return;
+		if ( ! self::header( $ctx, 'SEO técnico', 'Enlaces que un buscador no puede seguir y jerarquía de encabezados. No se inventan URLs ni se cambian etiquetas: el constructor permite elegir la etiqueta HTML de cada título y la decisión es del diseñador.' ) ) return;
 		$f = (array) $ctx['record']['findings'];
 		echo '<h3>Enlaces</h3>';
 		self::table( array( 'status' => 'Estado', 'issue' => 'Problema', 'kind' => 'Tipo', 'name' => 'Texto accesible', 'href' => 'href', 'selector' => 'Selector', 'widget' => 'Widget', 'hidden' => 'Oculto' ), $f['links'] ?? array(), 'Todos los enlaces tienen un destino válido.' );

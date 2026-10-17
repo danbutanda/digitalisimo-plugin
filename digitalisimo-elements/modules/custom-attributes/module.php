@@ -175,7 +175,7 @@ class Module extends Module_Base {
 					'messages' => [
 						esc_html__( 'Add custom HTML attributes to any element.', 'elementor-pro' ),
 					],
-					'link' => 'https://go.elementor.com/go-pro-advanced-attributes/',
+					'link' => '',
 				] ),
 			]
 		);

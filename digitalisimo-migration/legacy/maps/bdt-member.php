@@ -64,7 +64,7 @@ return array(
 			),
 			'default_rows' => array( array(
 					'social_icon_link' => array(
-						'url' => 'http://www.facebook.com/sigmative/',
+						'url' => '',
 					),
 					'social_share_icon' => array(
 						'value' => 'fab fa-facebook-f',
@@ -73,7 +73,7 @@ return array(
 					'social_link_title' => 'Facebook',
 				), array(
 					'social_icon_link' => array(
-						'url' => 'http://www.x.com/bdthemescom/',
+						'url' => '',
 					),
 					'social_share_icon' => array(
 						'value' => 'fab fa-x-twitter',
@@ -82,7 +82,7 @@ return array(
 					'social_link_title' => 'X',
 				), array(
 					'social_icon_link' => array(
-						'url' => 'http://www.instagram.com/sigmative/',
+						'url' => '',
 					),
 					'social_share_icon' => array(
 						'value' => 'fab fa-instagram',

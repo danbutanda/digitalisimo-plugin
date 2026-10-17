@@ -61,3 +61,38 @@
 .e-dashboard-overview .e-overview__footer {
 	display: none !important;
 }
+
+/*
+ * Sin accesos al proveedor (Digitalisimo_Elements_Vendor_Free): ayuda, novedades, cuenta y comentarios de la barra
+ * superior; «Need help» de widgets, menú y ajustes del sitio; pestañas remotas y de nube de la biblioteca;
+ * insignias de conexión; información con vídeo del Theme Builder; IA en el perfil y en Código personalizado. El
+ * script vendor-free.js desactiva además cualquier enlace o iframe hacia sus dominios. En los bundles derivados de
+ * PRO, las direcciones del proveedor se sustituyeron por «#digitalisimo-vendor-off»: ese enlace nunca se pinta.
+ */
+#editor-one-top-bar [data-test="header-help-button"],
+#editor-one-top-bar [data-test="header-user-button"],
+#editor-one-top-bar [data-test="header-feedback-button"],
+#editor-one-top-bar [data-test="header-upgrade-button"],
+#editor-one-top-bar .MuiBadge-root:has( [data-test="whats-new-button"] ),
+#editor-one-top-bar [data-test="whats-new-button"],
+#editor-one-top-bar .MuiDivider-vertical:has( + [data-test="header-user-button"] ),
+#elementor-panel__editor__help,
+.elementor-template-library-menu-item[data-tab="templates/blocks"],
+.elementor-template-library-menu-item[data-tab="templates/pages"],
+.elementor-template-library-blank-footer-link,
+#elementor-template-library-connect__badge,
+#elementor-template-library-connect__badge-wrapper,
+.elementor-template-library-cloud-empty__button,
+.source-option[data-source="cloud"],
+.source-selections-input.cloud,
+.connect-badge,
+.cloud-badge,
+.account-badge,
+.e-site-part__info-toggle,
+tr:has( > td #elementor_enable_ai ),
+tr:has( + tr > td #elementor_enable_ai ),
+#elementor-custom-code .e-ai-button,
+[href$="#digitalisimo-vendor-off"],
+[data-digitalisimo-vendor="off"] {
+	display: none !important;
+}

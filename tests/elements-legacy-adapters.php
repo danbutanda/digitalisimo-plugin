@@ -106,8 +106,10 @@ namespace {
 	$device = Translator::translate( 'bdt-device-slider', array( 'device_type' => 'macbookpro', 'slides' => array( array( 'title' => 'A', 'background' => 'image', 'image' => array( 'url' => 'x.png' ), 'title_link' => array( 'url' => 'https://a.test/' ) ), array( 'title' => 'B' ) ) ) );
 	check_adapter( 'desktop' === $device['device_type'] && 'https://a.test/' === $device['slides'][0]['link']['url'] && ! isset( $device['slides'][1]['image'] ), 'Device Slider traduce marco y enlace; la imagen sólo queda en diapositivas de imagen.' );
 	check_adapter( 'color' === $device['slides'][1]['background'] && '#14ABF4' === $device['slides'][1]['color'] && ! isset( $device['slides'][0]['color'] ), 'Device Slider conserva las diapositivas de color con el color por defecto de Element Pack.' );
-	$media = Translator::translate( 'bdt-device-slider', array( 'slides' => array( array( 'background' => 'video', 'video_link' => 'https://v.test/a.mp4' ), array( 'background' => 'youtube' ) ) ) );
-	check_adapter( 'https://v.test/a.mp4' === $media['slides'][0]['video']['url'] && 'https://youtu.be/YE7VzlLtp-4' === $media['slides'][1]['youtube_url'] && ! isset( $media['slides'][0]['video_link'], $media['slides'][1]['youtube_link'] ), 'Device Slider conserva vídeos MP4 y de YouTube.' );
+	$media = Translator::translate( 'bdt-device-slider', array( 'slides' => array( array( 'background' => 'video', 'video_link' => 'https://v.test/a.mp4' ), array( 'background' => 'youtube', 'youtube_link' => 'https://youtu.be/abcdefghijk' ), array( 'background' => 'youtube' ) ) ) );
+	check_adapter( 'https://v.test/a.mp4' === $media['slides'][0]['video']['url'] && 'https://youtu.be/abcdefghijk' === $media['slides'][1]['youtube_url'] && ! isset( $media['slides'][0]['video_link'], $media['slides'][1]['youtube_link'] ), 'Device Slider conserva vídeos MP4 y de YouTube.' );
+	// El vídeo de ejemplo del plugin anterior no se escribe: sin enlace guardado, la diapositiva queda sin vídeo.
+	check_adapter( '' === $media['slides'][2]['youtube_url'], 'Device Slider no escribe el vídeo de ejemplo del plugin anterior.' );
 	$comparison = Translator::translate( 'bdt-comparison-list', array() );
 	check_adapter( 'Feature list' === $comparison['comparison_list_title'] && 'Pro' === $comparison['comparison_header_list'][1]['header_title'] && '1|1' === $comparison['comparison_list'][2]['feature_ability'], 'Comparison List usa las filas por defecto de Element Pack.' );
 
@@ -125,8 +127,11 @@ namespace {
 
 	$notice = Translator::translate( 'bdt-notification', array( 'notification_timeout' => array( 'size' => 8000 ), 'notification_position' => 'top-center', 'ex_system' => 'yes' ) );
 	check_adapter( 8000 === $notice['notification_timeout'] && 'top-right' === $notice['notification_position'] && ! isset( $notice['ex_system'] ), 'Notification convierte tiempos y posiciones.' );
-	$qr = Translator::translate( 'bdt-qrcode', array( 'label_type' => 'none', 'size' => array( 'size' => 320 ), 'fill' => '#123456' ) );
-	check_adapter( 'http://bdthemes.com' === $qr['text'] && '' === $qr['site_link'] && '' === $qr['label'] && 320 === $qr['size'] && '#123456' === $qr['foreground'], 'QR Code conserva el texto codificado, tamaño y color.' );
+	$qr = Translator::translate( 'bdt-qrcode', array( 'text' => 'https://ana.test/', 'label_type' => 'none', 'size' => array( 'size' => 320 ), 'fill' => '#123456' ) );
+	check_adapter( 'https://ana.test/' === $qr['text'] && '' === $qr['site_link'] && '' === $qr['label'] && 320 === $qr['size'] && '#123456' === $qr['foreground'], 'QR Code conserva el texto codificado, tamaño y color.' );
+	// La dirección y la etiqueta de ejemplo eran del proveedor del plugin anterior: sin texto guardado no se codifica nada.
+	$qr = Translator::translate( 'bdt-qrcode', array() );
+	check_adapter( '' === $qr['text'] && '' === $qr['label'], 'QR Code no codifica la dirección de ejemplo del plugin anterior.' );
 	$grid = Translator::translate( 'bdt-product-grid', array( 'show_price' => '', 'readmore_text' => 'Comprar' ) );
 	check_adapter( ! isset( $grid['product_items'][0]['price'] ) && 'Comprar' === $grid['product_items'][0]['button_text'] && 10678 === $grid['product_items'][0]['rating_count'] && 'Pizza' === $grid['product_items'][0]['title'], 'Product Grid aplica los interruptores y la valoración.' );
 	$logos = Translator::translate( 'bdt-logo-grid', array() );
@@ -164,7 +169,8 @@ namespace {
 	$card = Translator::translate( 'bdt-profile-card', array( 'profile_name' => 'Ana' ) );
 	check_adapter( 'custom' === $card['source'] && 'Ana' === $card['author_name'] && 'Follow' === $card['link_text'] && ! isset( $card['profile_posts'] ), 'Profile Card pasa a un cuadro de autor propio.' );
 	check_adapter( '@adamsmith' === $card['digitalisimo_author_username'] && 'yes' === $card['digitalisimo_author_show_username'] && 'Pro' === $card['digitalisimo_author_badge'] && 3 === count( $card['digitalisimo_author_stats'] ) && '423' === $card['digitalisimo_author_stats'][1]['stat_value'] && 'Followers' === $card['digitalisimo_author_stats'][1]['stat_label'], 'Profile Card conserva usuario, distintivo y cifras.' );
-	check_adapter( 3 === count( $card['digitalisimo_author_social'] ) && 'Facebook' === $card['digitalisimo_author_social'][0]['social_label'] && 3 === count( $card['digitalisimo_author_menu'] ) && 'Billing' === $card['digitalisimo_author_menu'][0]['menu_label'] && ! isset( $card['custom_navs'], $card['social_link_list'] ), 'Profile Card conserva sus redes y su menú.' );
+	// Los perfiles de ejemplo enlazaban las redes del proveedor del plugin anterior: no se trasladan.
+	check_adapter( array() === $card['digitalisimo_author_social'] && 3 === count( $card['digitalisimo_author_menu'] ) && 'Billing' === $card['digitalisimo_author_menu'][0]['menu_label'] && ! isset( $card['custom_navs'], $card['social_link_list'] ), 'Profile Card conserva su menú y no traslada las redes de ejemplo.' );
 	$blog = Translator::translate( 'bdt-profile-card', array( 'profile' => 'blog', 'blog_user_id' => '7', 'show_badge' => '', 'show_user_menu' => '' ) );
 	check_adapter( 'custom' === $blog['source'] && '7' === $blog['digitalisimo_author_user'] && '' === $blog['digitalisimo_author_username'] && 'posts' === $blog['digitalisimo_author_stats'][0]['stat_source'] && 'comments' === $blog['digitalisimo_author_stats'][1]['stat_source'] && '' === $blog['digitalisimo_author_badge'] && array() === $blog['digitalisimo_author_menu'], 'El perfil «blog» muestra al usuario elegido con sus cifras al día.' );
 
@@ -275,12 +281,16 @@ namespace {
 	check_adapter( '' === Translator::translate( 'bdt-lottie-icon-box', array( 'readmore' => '' ) )['digitalisimo_lottie_button_text'], 'Sin «Leer más» no hay botón.' );
 	check_adapter( 'Plano' === Translator::translate( 'bdt-marker', array( 'caption' => 'Plano' ) )['digitalisimo_hotspot_caption'], 'Marker conserva la leyenda de la imagen.' );
 	$vg = Translator::translate( 'bdt-video-gallery', array() );
-	check_adapter( 7 === count( $vg['playlist'] ) && 'Youtube Video' === $vg['playlist'][0]['title'] && 'Women typing keyboard' === $vg['playlist'][0]['description'] && 'url' === $vg['playlist'][0]['source'] && 0 === strpos( $vg['playlist'][4]['video_url']['url'], 'https://test-videos.co.uk/' ) && 'yes' === $vg['playlist_caption'] && 'click' === $vg['playlist_trigger'] && ! isset( $vg['video_gallery'] ), 'Video Gallery pasa su lista con títulos y descripciones al reproductor.' );
+	// Las filas de ejemplo eran vídeos de terceros: una galería que nunca se editó no escribe ninguno.
+	check_adapter( array() === $vg['playlist'] && '' === $vg['video_url']['url'] && 'yes' === $vg['playlist_caption'] && 'click' === $vg['playlist_trigger'] && ! isset( $vg['video_gallery'] ), 'Video Gallery sin lista guardada no escribe los vídeos de ejemplo.' );
+	$vg = Translator::translate( 'bdt-video-gallery', array( 'video_gallery' => array( array( 'title' => 'Youtube Video', 'desc' => 'Women typing keyboard', 'remote_url' => array( 'url' => 'https://www.youtube.com/watch?v=abcdefghijk' ) ), array( 'remote_url' => array( 'url' => '//v.test/b.mp4' ) ) ) ) );
+	check_adapter( 2 === count( $vg['playlist'] ) && 'Youtube Video' === $vg['playlist'][0]['title'] && 'Women typing keyboard' === $vg['playlist'][0]['description'] && 'url' === $vg['playlist'][0]['source'] && 'https://v.test/b.mp4' === $vg['playlist'][1]['video_url']['url'] && 'Video Title' === $vg['playlist'][1]['title'], 'Video Gallery pasa su lista con títulos y descripciones al reproductor.' );
 	$vg = Translator::translate( 'bdt-video-gallery', array( 'show_video_title' => '', 'show_video_desc' => '', 'video_gallery' => array( array( 'source_type' => 'hosted_url', 'hosted_url' => array( 'id' => 9, 'url' => 'https://s.test/v.mp4' ), 'title' => 'Uno' ), array( 'source_type' => 'remote_url', 'remote_url' => array( 'url' => 'https://s.test/wp-content/plugins/bdthemes-element-pack/assets/v.mp4' ) ) ) ) );
 	check_adapter( 1 === count( $vg['playlist'] ) && 'media' === $vg['playlist'][0]['source'] && 9 === $vg['playlist'][0]['video']['id'] && 'media' === $vg['source'] && '' === $vg['playlist_caption'], 'Video Gallery omite los vídeos del plugin heredado y respeta título y descripción ocultos.' );
 	$mb = Translator::translate( 'bdt-member', array( 'name' => 'Ana', 'role' => 'Directora' ) );
 	check_adapter( 'Ana' === $mb['title_text'] && 'Directora' === $mb['badge_text'] && 'image' === $mb['icon_type'] && ! isset( $mb['social_link_list'] ), 'Member pasa nombre y cargo a la tarjeta.' );
-	check_adapter( 3 === count( $mb['social_links'] ) && 'Instagram' === $mb['social_links'][2]['social_label'] && 'fab fa-instagram' === $mb['social_links'][2]['social_icon']['value'] && '' !== $mb['social_links'][0]['social_link']['url'], 'Member conserva los perfiles sociales por defecto con su nombre accesible.' );
+	// Los perfiles de ejemplo enlazaban las redes del proveedor del plugin anterior: no se trasladan.
+	check_adapter( array() === $mb['social_links'], 'Member no traslada los perfiles sociales de ejemplo del plugin anterior.' );
 	$mb = Translator::translate( 'bdt-member', array( 'social_link_list' => array( array( 'social_link_title' => 'Web', 'social_link' => 'https://ana.test/', 'social_icon' => 'fa fa-globe' ), array( 'social_link_title' => 'Vacío' ) ) ) );
 	check_adapter( 1 === count( $mb['social_links'] ) && 'https://ana.test/' === $mb['social_links'][0]['social_link']['url'] && 'fa fa-globe' === $mb['social_links'][0]['social_icon']['value'], 'Member usa el enlace y el icono antiguos y omite perfiles sin enlace.' );
 	check_adapter( array() === Translator::translate( 'bdt-member', array( 'member_social_icon' => '' ) )['social_links'], 'Member sin redes visibles no las traslada.' );

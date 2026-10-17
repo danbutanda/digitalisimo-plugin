@@ -216,7 +216,7 @@ class Module extends Module_Base {
 				'messages' => [
 					esc_html__( 'Create Global Widgets. Modify the content, style and setting of any widget and reuse it across your website to accelerate your workflow and stay consistent.', 'elementor-pro' ),
 				],
-				'link' => 'https://go.elementor.com/go-pro-advanced-global-widget/',
+				'link' => '',
 			];
 
 			$promotion_data = Filtered_Promotions_Manager::get_filtered_promotion_data( $promotion_data, 'elementor-pro/advanced-global-widget-pro-widget/promotion', 'link' );

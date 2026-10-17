@@ -24,8 +24,8 @@ class Digitalisimo_Integrations_SEO_AI_Crawler_Verifier {
 	/** El registro es extensible sin dispersar reglas de confianza por el plugin. */
 	public static function methods() {
 		return apply_filters( 'digitalisimo_seo_ai_crawler_verification_methods', array(
-			'google' => array( 'label' => 'Google', 'suffixes' => array( 'googlebot.com', 'google.com', 'googleusercontent.com' ), 'documentation' => 'https://developers.google.com/crawling/docs/crawlers-fetchers/verify-google-requests' ),
-			'bing' => array( 'label' => 'Microsoft Bing', 'suffixes' => array( 'search.msn.com' ), 'documentation' => 'https://www.bing.com/webmasters/help/how-to-verify-bingbot-3905dc26' ),
+			'google' => array( 'label' => 'Google', 'suffixes' => array( 'googlebot.com', 'google.com', 'googleusercontent.com' ) ),
+			'bing' => array( 'label' => 'Microsoft Bing', 'suffixes' => array( 'search.msn.com' ) ),
 		) );
 	}
 	private static function host_matches( $host, $suffixes ) {
@@ -79,6 +79,6 @@ class Digitalisimo_Integrations_SEO_AI_Crawler_Verifier {
 		echo '</select></label></p>'; submit_button( 'Verificar IP', 'primary', 'digitalisimo_verify_crawler' ); echo '</form>';
 		if ( is_array( $result ) ) { $class = ! empty( $result['valid'] ) ? 'notice-success' : 'notice-warning'; echo '<div class="notice ' . esc_attr( $class ) . ' inline"><p><strong>' . ( ! empty( $result['valid'] ) ? 'Crawler verificado' : 'No verificado' ) . '.</strong> ' . esc_html( $result['message'] ) . ( ! empty( $result['host'] ) ? '<br>Host inverso: <code>' . esc_html( $result['host'] ) . '</code>' : '' ) . ( ! empty( $result['cached'] ) ? '<br><em>Resultado obtenido de caché.</em>' : '' ) . '</p></div>'; }
 		if ( ! $network ) self::observations_html(); else echo '<p class="description">La detección y los bloqueos se consultan dentro de cada sitio de la red.</p>';
-		echo '<h2>Fuentes oficiales</h2><ul>'; foreach ( self::methods() as $method ) echo '<li><a target="_blank" rel="noopener noreferrer" href="' . esc_url( $method['documentation'] ) . '">' . esc_html( $method['label'] ) . '</a></li>'; echo '</ul><p class="description">OpenAI y otros proveedores sólo se podrán verificar aquí cuando publiquen un mecanismo oficial apropiado; una coincidencia de User-Agent nunca se marca como verificación.</p></div>';
+		echo '<p class="description">Sólo se verifican los proveedores que publican un mecanismo oficial (DNS inverso y directo); los demás se podrán verificar aquí cuando lo publiquen. Una coincidencia de User-Agent nunca se marca como verificación.</p></div>';
 	}
 }

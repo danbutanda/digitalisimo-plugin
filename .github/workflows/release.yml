@@ -45,6 +45,7 @@ jobs:
         run: |
           node tests/update-in-place.mjs
           node tests/digitalisimo-ui.mjs
+          node tests/elements-vendor-static.mjs
           for module in seo ia hosting backups tools elements migration; do php tests/update-enqueue.php "$module"; done
           php tests/tools-slider.php
           php tests/elements-slider-registration.php
@@ -107,6 +108,7 @@ jobs:
           php tests/migration-runner.php
           php tests/elements-visitor-counters.php
           php tests/elements-identity.php
+          php tests/elements-vendor-guard.php
           php tests/digitalisimo-ui-loader.php
           php tests/elements-palette.php
           node tests/elements-legacy-decisions.mjs

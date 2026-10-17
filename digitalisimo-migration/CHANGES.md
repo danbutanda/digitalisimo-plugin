@@ -1,5 +1,7 @@
 # DIGITALÍSIMO Migración · historial
 
+- @NEXT_MIGRATION@: sin referencias a otras empresas. En el informe y en los adaptadores, lo que nombraba Element Pack o PRO Elements ahora dice «heredado» o DIGITALÍSIMO Elements. Los valores de muestra de Element Pack ya no se escriben en los documentos convertidos: vídeos de ejemplo, enlaces a bdthemes.com y elementpack.pro, perfiles sociales, y la dirección y los rótulos de BdThemes. Un widget que nunca se editó queda vacío o con un texto neutro. Los nombres de los plugins que desactiva siguen visibles, sin enlaces, para que se sepa qué borrar después. «Ver detalles» muestra una ficha propia.
+
 - 1.0.18: la pantalla «Migrar a DIGITALÍSIMO Elements» usa el diseño compartido de los plugins Digitalisimo (`digitalisimo-ui/`, la misma copia en los siete), también cuando Migración es el único plugin Digitalisimo además de Elements: antes sólo lo recibía si SEO, IA o Hosting estaban activos.
 
 - 1.0.17: «Buscar actualizaciones» y actualizaciones también instalado en una carpeta con otro nombre. El actualizador buscaba el plugin en `digitalisimo-migration/`: subido a mano con otro nombre de carpeta, su fila sólo decía «Desactivar» y sus versiones nuevas no se veían. Ahora usa su archivo real y, al actualizar, deja la copia nueva en la carpeta donde estaba instalado, para que siga activo.
