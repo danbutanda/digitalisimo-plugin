@@ -109,8 +109,8 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 
 | Incremento | Contenido | Estado |
 |---|---|---|
-| F0 | Base, sin cambios de comportamiento | **Publicado** · Migración @NEXT_MIGRATION@ |
-| F0.1 | Aviso de extensiones de Element Pack y detección del Addon | **Publicado** · Migración @NEXT_MIGRATION@ |
+| F0 | Base, sin cambios de comportamiento | **Publicado** · Migración 1.0.20 |
+| F0.1 | Aviso de extensiones de Element Pack y detección del Addon | **Publicado** · Migración 1.0.20 |
 | F0.2 | Sin rastro de los plugins de origen ni de sus proveedores | **Publicado** · Elements 4.3.0.157 y los demás plugins · `v2026.10.17.408` (seguimiento F0.2b en curso) |
 | F1 | Tema y publicación | Pendiente |
 | F1b | Editor de fragmentos PHP en Tools | Pendiente · diseño en curso |
