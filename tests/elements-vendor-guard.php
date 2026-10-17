@@ -5,6 +5,14 @@
  * telemetría, IA y experimentos del proveedor quedan apagados, avisos y sugerencias se dan por vistos, y no quedan
  * rutas REST, redirecciones ni accesos de cuenta. Con el plugin Elementor original activo no se engancha nada.
  */
+namespace Elementor {
+	// Página de ajustes del núcleo: sus pestañas son privadas, como en includes/settings/settings-page.php.
+	abstract class Settings_Page {
+		private $tabs = array( 'general' => array( 'sections' => array( 'tools' => array( 'fields' => array( 'clear_cache' => array(), 'reset_api_data' => array() ) ) ) ), 'versions' => array() );
+		public function tabs() { return $this->tabs; }
+	}
+	class Tools extends Settings_Page {}
+}
 namespace {
 	define( 'ABSPATH', __DIR__ . '/' );
 	define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ ); // el «constructor» de la prueba es este directorio.
@@ -148,5 +156,20 @@ namespace {
 		}
 	}
 	check_guard( array() === $missing, 'Cachés remotas del núcleo sin servir vacías: ' . implode( ', ', $missing ) );
+	// Herramientas sin «Control de versiones» (revertir pediría a wordpress.org e instalaría el plugin original) ni «Sincronizar biblioteca».
+	foreach ( array( 'elementor/admin/after_create_settings/elementor-tools', 'admin_post_elementor_rollback', 'wp_ajax_elementor_element_manager_get_admin_app_data' ) as $hook ) {
+		check_guard( ! empty( $GLOBALS['t']['hooks'][ $hook ] ), 'Con el núcleo incluido se engancha ' . $hook . '.' );
+	}
+	check_guard( 0 === $GLOBALS['t']['hooks']['admin_post_elementor_rollback'][0][1], 'La guarda de revertir corre antes que el núcleo.' );
+	$tools = new \Elementor\Tools();
+	$g::tools_tabs( $tools );
+	$tabs = $tools->tabs();
+	check_guard( ! isset( $tabs['versions'] ) && ! isset( $tabs['general']['sections']['tools']['fields']['reset_api_data'] ) && isset( $tabs['general']['sections']['tools']['fields']['clear_cache'] ), 'Herramientas pierde sólo «Control de versiones» y «Sincronizar biblioteca».' );
+	check_guard( array() === $g::no_versions(), 'La lista de versiones para revertir se sirve vacía, sin pedirla.' );
+	// Administrador de elementos: fuera los enlaces de mejora del proveedor; el resto de la respuesta, intacto.
+	$response = json_encode( array( 'success' => true, 'data' => array( 'promotion_data' => array( 'element_manager' => array( 'text' => 'Upgrade Now', 'url' => 'https://go.elementor.com/go-pro-element-manager/' ) ), 'widgets' => array( array( 'title' => 'https://elementor.com/en-mi-contenido' ) ) ) ) );
+	$clean = json_decode( $g::strip_promotion_urls( $response ), true );
+	check_guard( '' === $clean['data']['promotion_data']['element_manager']['url'] && 'Upgrade Now' === $clean['data']['promotion_data']['element_manager']['text'] && 'https://elementor.com/en-mi-contenido' === $clean['data']['widgets'][0]['title'], 'El Administrador de elementos no recibe enlaces de mejora y el resto no se toca.' );
+	check_guard( 'no-json' === $g::strip_promotion_urls( 'no-json' ), 'Una respuesta que no es JSON pasa intacta.' );
 	echo "DIGITALÍSIMO Elements: sin peticiones, cuentas, telemetría ni accesos del proveedor del núcleo incluido.\n";
 }

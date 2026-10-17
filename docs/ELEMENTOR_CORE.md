@@ -34,6 +34,7 @@ Desde 4.3.0.138, DIGITALÍSIMO Elements trae el núcleo gratuito de Elementor de
       - la biblioteca de kits del proveedor: su ruta lleva a importar un kit en ZIP;
       - los vídeos y la documentación del Theme Builder, los avisos, las sugerencias de sus productos y cualquier «Learn more».
     - Las pantallas ocultas de cuenta, Site Planner, mejoras y apps redirigen a «Acerca de».
+    - Herramientas no tiene «Control de versiones» ni «Sincronizar biblioteca»: revertir pediría la lista a wordpress.org e instalaría el plugin Elementor original sobre el núcleo incluido (una petición que llegue igualmente se rechaza). Las versiones del constructor llegan con las de DIGITALÍSIMO Elements.
     - Se borran una vez las cachés remotas guardadas y los tokens de cuenta.
     - En el código derivado de PRO (editable) no queda ninguna dirección del proveedor ni enlaces de ayuda a otras empresas: en el PHP los textos siguen y el enlace se quita; en los bundles compilados la dirección se sustituyó por la marca `#digitalisimo-vendor-off`, que `identity.css` oculta y `vendor-free.js` desactiva (las imágenes quedan sin dirección, para que el navegador no las pida). `tests/elements-vendor-static.mjs` falla si vuelve a aparecer una dirección del proveedor fuera de la guarda.
     - La promoción de Angie en la pestaña Componentes sólo aparece si el administrador instaló Angie por su cuenta.

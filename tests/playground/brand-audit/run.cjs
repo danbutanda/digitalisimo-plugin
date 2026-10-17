@@ -561,7 +561,8 @@ if (require.main === module) (async () => {
     const editorStep = async (label, fn, arg, wait = 2000) => {
       await enter(label);
       const res = await page.evaluate(fn, arg).catch((e) => 'error: ' + e.message);
-      if (typeof res === 'string' && res) { notes.push(`${state.locale} ${label}: ${res}`); return; }
+      // Un error del editor al abrir el estado se anota, pero lo que haya quedado en pantalla se audita igual.
+      if (typeof res === 'string' && res) notes.push(`${state.locale} ${label}: ${res}`);
       await sleep(wait);
       await audit(page, label);
       visited.push(`${state.locale} ${label}`);
@@ -590,8 +591,8 @@ if (require.main === module) (async () => {
         const routes = await page.evaluate(() => {
           try {
             const c = $e.components.get('library');
-            const r = c.getRoutes ? c.getRoutes() : c.routes || {};
-            return Object.keys(r).map((k) => (k.startsWith('library/') ? k : 'library/' + k)).filter((k) => /^library\/templates\//.test(k));
+            const keys = [...Object.keys(c.tabs || {}), ...Object.keys(c.getRoutes ? c.getRoutes() : c.routes || {})];
+            return [...new Set(keys.map((k) => (k.startsWith('library/') ? k : 'library/' + k)).filter((k) => /^library\/templates\//.test(k)))];
           } catch (e) { return []; }
         });
         if (!routes.length) notes.push(`${state.locale} editor-biblioteca: no se pudieron enumerar sus rutas`);

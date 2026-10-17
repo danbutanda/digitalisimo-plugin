@@ -86,6 +86,9 @@ final class Digitalisimo_Elements_Vendor_Free {
 		add_filter( 'wp_redirect', array( __CLASS__, 'redirect' ), 1 );
 		add_action( 'admin_init', array( __CLASS__, 'pages' ), 0 );
 		add_action( 'elementor/init', array( __CLASS__, 'core_ready' ), 20 );
+		add_action( 'elementor/admin/after_create_settings/elementor-tools', array( __CLASS__, 'tools_tabs' ) );
+		add_action( 'admin_post_elementor_rollback', array( __CLASS__, 'no_rollback' ), 0 );
+		add_action( 'wp_ajax_elementor_element_manager_get_admin_app_data', array( __CLASS__, 'element_manager_buffer' ), 0 );
 		add_filter( 'elementor/finder/categories', array( __CLASS__, 'finder' ) );
 		add_filter( 'elementor/editor-one/menu/excluded_level4_slugs', array( __CLASS__, 'menu_slugs' ) );
 		add_filter( 'elementor/editor-one/menu/excluded_level3_slugs', array( __CLASS__, 'menu_slugs' ) );
@@ -267,7 +270,52 @@ final class Digitalisimo_Elements_Vendor_Free {
 		if ( function_exists( 'wp_next_scheduled' ) && wp_next_scheduled( 'elementor/tracker/send_event' ) ) {
 			wp_clear_scheduled_hook( 'elementor/tracker/send_event' );
 		}
+		if ( defined( 'ELEMENTOR_VERSION' ) ) {
+			// Sin lista de versiones: el núcleo la pediría a wordpress.org para ofrecer «revertir».
+			add_filter( 'pre_transient_elementor_rollback_versions_' . ELEMENTOR_VERSION, array( __CLASS__, 'no_versions' ) );
+		}
 		self::forget_vendor_data();
+	}
+
+	public static function no_versions() {
+		return array();
+	}
+
+	/**
+	 * Herramientas: fuera «Control de versiones» (revertir instalaría el plugin Elementor original del directorio sobre
+	 * el núcleo incluido; las versiones del constructor llegan con DIGITALÍSIMO Elements) y «Sincronizar biblioteca»
+	 * (la biblioteca remota del proveedor ya no existe).
+	 */
+	public static function tools_tabs( $page ) {
+		if ( ! is_object( $page ) || ! class_exists( '\Elementor\Settings_Page' ) || ! property_exists( '\Elementor\Settings_Page', 'tabs' ) ) {
+			return;
+		}
+		$strip = function () {
+			if ( is_array( $this->tabs ) ) {
+				unset( $this->tabs['versions'], $this->tabs['general']['sections']['tools']['fields']['reset_api_data'] );
+			}
+		};
+		\Closure::bind( $strip, $page, '\Elementor\Settings_Page' )();
+	}
+
+	/** Una petición de revertir que llegue igualmente (enlace guardado, otra pestaña) no reinstala nada. */
+	public static function no_rollback() {
+		wp_die( esc_html( 'Con el núcleo incluido, las versiones del constructor llegan con las actualizaciones de DIGITALÍSIMO Elements.' ), '', array( 'response' => 403, 'back_link' => true ) );
+	}
+
+	/** Administrador de elementos: su respuesta trae enlaces de mejora del proveedor; salen sin tocar lo demás. */
+	public static function element_manager_buffer() {
+		ob_start( array( __CLASS__, 'strip_promotion_urls' ) );
+	}
+
+	public static function strip_promotion_urls( $output ) {
+		$data = json_decode( (string) $output, true );
+		if ( ! is_array( $data ) || ! isset( $data['data']['promotion_data'] ) ) {
+			return $output;
+		}
+		$data['data']['promotion_data'] = self::strip_vendor_urls( $data['data']['promotion_data'] );
+		$json = function_exists( 'wp_json_encode' ) ? wp_json_encode( $data ) : json_encode( $data );
+		return is_string( $json ) ? $json : $output;
 	}
 
 	/** Una sola vez por versión: cachés remotas guardadas y tokens de cuenta del proveedor fuera de la base de datos. */

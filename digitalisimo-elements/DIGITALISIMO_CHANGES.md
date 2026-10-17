@@ -7,6 +7,8 @@
   - las pestañas remotas y de nube de la biblioteca: queda «Mis plantillas»;
   - la Kit Library, que ahora lleva a importar un kit en ZIP;
   - la IA del editor, los avisos, las sugerencias y los «Learn more».
+  - «Control de versiones» y «Sincronizar biblioteca» en Herramientas: revertir habría instalado el plugin Elementor original sobre el núcleo incluido;
+  - los enlaces de mejora del Administrador de elementos.
 
   Los widgets de vídeo nuevos empiezan sin el vídeo de muestra del proveedor. En el código derivado de PRO se quitaron todos los enlaces a elementor.com y a otras empresas: la ayuda de los servicios de formularios, Facebook, Adobe Fonts y Font Awesome. Se fueron también el pie «Powered by» de Discord y Slack y el contenido de muestra de la página de Facebook del proveedor. `vendor-free.js` desactiva en la administración, el editor y la App cualquier enlace, iframe o ventana que el núcleo abra hacia esos dominios. «Ver detalles» muestra una ficha propia (antes buscaba el plugin en wordpress.org y daba error), y Elements la da también para los plugins Digitalisimo inactivos. Ya no se ofrece lo que exigía una cuenta del proveedor (bloques y páginas remotas, kits, nube, IA del editor); los equivalentes propios están en `docs/ELEMENTOR_CORE.md`. Con el plugin Elementor original activo manda él y nada de esto se aplica.
 
