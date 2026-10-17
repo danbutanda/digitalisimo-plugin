@@ -1,6 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.156
+# DIGITALÍSIMO Elements 4.3.0.157
 
-- @NEXT@: sin rastro del proveedor del núcleo ni de otras empresas. Con el núcleo incluido el constructor ya no se conecta con servicios ni cuentas externas. `digitalisimo-vendor-free.php` responde en el servidor a lo que el núcleo pide a sus dominios (biblioteca, Connect, kits, nube, IA, notificaciones, telemetría, Mixpanel), sin que salga la petición. También apaga la telemetría, sirve vacías sus cachés remotas, borra una vez los datos y tokens que guardaron, redirige las pantallas de cuenta a «Acerca de» y retira sus rutas REST. Salen de la interfaz:
+- 4.3.0.157: sin rastro del proveedor del núcleo ni de otras empresas. Con el núcleo incluido el constructor ya no se conecta con servicios ni cuentas externas. `digitalisimo-vendor-free.php` responde en el servidor a lo que el núcleo pide a sus dominios (biblioteca, Connect, kits, nube, IA, notificaciones, telemetría, Mixpanel), sin que salga la petición. También apaga la telemetría, sirve vacías sus cachés remotas, borra una vez los datos y tokens que guardaron, redirige las pantallas de cuenta a «Acerca de» y retira sus rutas REST. Salen de la interfaz:
   - el vídeo y los anuncios del inicio rápido, que ahora sólo tiene accesos propios con iconos propios;
   - «Mi cuenta», la ayuda, las novedades, Angie y los comentarios de la barra superior y del menú del editor;
   - los «Need help?» y los vídeos e «i» del Theme Builder;
