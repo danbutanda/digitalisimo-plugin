@@ -24,9 +24,10 @@ final class Updater {
 		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins', 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) add_filter( $hook, array( __CLASS__, 'check' ), 30 );
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 30, 4 );
 		add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
-		add_filter( 'plugin_action_links_' . self::FILE, array( __CLASS__, 'action_link' ) );
-		add_filter( 'network_admin_plugin_action_links_' . self::FILE, array( __CLASS__, 'action_link' ) );
+		add_filter( 'plugin_action_links_' . self::file(), array( __CLASS__, 'action_link' ) );
+		add_filter( 'network_admin_plugin_action_links_' . self::file(), array( __CLASS__, 'action_link' ) );
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'force_check' ) );
+		add_filter( 'upgrader_source_selection', array( __CLASS__, 'keep_folder' ), 10, 4 );
 		// «Buscar actualizaciones de nuevo» de WordPress (update-core.php?force-check=1): vaciar las cachés propias antes de que WordPress vuelva a consultar.
 		add_action( 'load-update-core.php', array( __CLASS__, 'native_force_check' ), 1 );
 		add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
@@ -38,6 +39,39 @@ final class Updater {
 		if ( ( ! is_multisite() || is_main_site() ) && ! wp_next_scheduled( 'digitalisimo_migration_refresh_updates' ) ) wp_schedule_event( time() + 5 * MINUTE_IN_SECONDS, 'digitalisimo_migration_five_minutes', 'digitalisimo_migration_refresh_updates' );
 	}
 
+	/** @var string|null archivo principal tal como está instalado (carpeta real incluida). */
+	private static $file = null;
+
+	/**
+	 * El archivo principal con su carpeta real: un plugin subido a mano con otro nombre de carpeta
+	 * (`digitalisimo-x-1.0.5/`) seguía buscándose en la carpeta habitual y perdía «Buscar actualizaciones» y sus
+	 * actualizaciones. FILE queda como valor habitual.
+	 */
+	public static function file() {
+		if ( null === self::$file ) {
+			self::$file = defined( 'DIGITALISIMO_MIGRATION_FILE' ) && function_exists( 'plugin_basename' ) ? plugin_basename( DIGITALISIMO_MIGRATION_FILE ) : self::FILE;
+		}
+		return self::$file;
+	}
+
+	/**
+	 * Al actualizar, el ZIP de la Release trae la carpeta habitual: si el plugin está instalado en otra, la copia nueva
+	 * se deja en esa misma carpeta, para que el plugin siga activo en su sitio en lugar de moverse y desactivarse.
+	 */
+	public static function keep_folder( $source, $remote_source = '', $upgrader = null, $hook_extra = array() ) {
+		global $wp_filesystem;
+		if ( ( function_exists( 'is_wp_error' ) && is_wp_error( $source ) ) || self::file() !== ( $hook_extra['plugin'] ?? '' ) ) {
+			return $source;
+		}
+		$folder = dirname( self::file() );
+		$source = rtrim( (string) $source, '/\\' );
+		if ( '.' === $folder || basename( $source ) === $folder || ! $wp_filesystem || ! $wp_filesystem->exists( $source . '/' . basename( self::file() ) ) ) {
+			return $source . '/';
+		}
+		$target = dirname( $source ) . '/' . $folder;
+		return $wp_filesystem->move( $source, $target, true ) ? $target . '/' : $source . '/';
+	}
+
 	public static function schedule_interval( $schedules ) {
 		$schedules['digitalisimo_migration_five_minutes'] = array( 'interval' => 5 * MINUTE_IN_SECONDS, 'display' => 'Cada cinco minutos · DIGITALÍSIMO Migración' );
 		return $schedules;
@@ -46,8 +80,8 @@ final class Updater {
 	/** Usa la actualización AJAX de WordPress dentro de la lista de Plugins. */
 	public static function enqueue_inline_update( $hook ) {
 		if ( 'plugins.php' !== $hook || ! self::can_update() ) return;
-		wp_enqueue_script( 'digitalisimo-inline-plugin-update', plugins_url( 'assets/js/update-in-place.js', WP_PLUGIN_DIR . '/' . self::FILE ), array( 'updates' ), DIGITALISIMO_MIGRATION_VERSION, true );
-		wp_add_inline_script( 'digitalisimo-inline-plugin-update', 'window.digitalisimoPluginUpdateFiles=window.digitalisimoPluginUpdateFiles||{};window.digitalisimoPluginUpdateFiles[' . wp_json_encode( self::FILE ) . ']=true;', 'before' );
+		wp_enqueue_script( 'digitalisimo-inline-plugin-update', plugins_url( 'assets/js/update-in-place.js', WP_PLUGIN_DIR . '/' . self::file() ), array( 'updates' ), DIGITALISIMO_MIGRATION_VERSION, true );
+		wp_add_inline_script( 'digitalisimo-inline-plugin-update', 'window.digitalisimoPluginUpdateFiles=window.digitalisimoPluginUpdateFiles||{};window.digitalisimoPluginUpdateFiles[' . wp_json_encode( self::file() ) . ']=true;', 'before' );
 	}
 
 	private static function can_update() { return is_multisite() ? current_user_can( 'manage_network_plugins' ) : current_user_can( 'update_plugins' ); }
@@ -99,7 +133,7 @@ final class Updater {
 	}
 
 	public static function clear_after_upgrade( $upgrader, $options ) {
-		if ( 'update' === ( $options['action'] ?? '' ) && 'plugin' === ( $options['type'] ?? '' ) && in_array( self::FILE, (array) ( $options['plugins'] ?? array() ), true ) ) self::clear();
+		if ( 'update' === ( $options['action'] ?? '' ) && 'plugin' === ( $options['type'] ?? '' ) && in_array( self::file(), (array) ( $options['plugins'] ?? array() ), true ) ) self::clear();
 	}
 
 	private static function release() {
@@ -155,26 +189,26 @@ final class Updater {
 	}
 
 	public static function uri_update( $update, $plugin_data, $plugin_file, $locales ) {
-		if ( self::FILE !== $plugin_file ) return $update;
+		if ( self::file() !== $plugin_file ) return $update;
 		$release = self::release();
 		if ( empty( $release['version'] ) || empty( $release['package'] ) || ! version_compare( $release['version'], DIGITALISIMO_MIGRATION_VERSION, '>' ) ) return false;
 		return array( 'slug' => 'digitalisimo-migration', 'version' => $release['version'], 'package' => $release['package'], 'url' => $release['url'], 'requires_php' => '7.4' );
 	}
 
-	public static function auto_update( $update, $item ) { return isset( $item->plugin ) && self::FILE === $item->plugin ? true : $update; }
+	public static function auto_update( $update, $item ) { return isset( $item->plugin ) && self::file() === $item->plugin ? true : $update; }
 
 	public static function check( $transient ) {
 		// Una caché ausente o aún incompleta debe quedar en manos de WordPress.
 		if ( ! is_object( $transient ) || ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) return $transient;
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) $transient->response = array();
 		if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) $transient->no_update = array();
-		$transient->checked[ self::FILE ] = DIGITALISIMO_MIGRATION_VERSION;
+		$transient->checked[ self::file() ] = DIGITALISIMO_MIGRATION_VERSION;
 		$release = self::release();
 		if ( empty( $release['version'] ) || empty( $release['package'] ) ) return $transient;
 		$pending = version_compare( $release['version'], DIGITALISIMO_MIGRATION_VERSION, '>' );
-		$item = (object) array( 'id' => 'https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-migration', 'slug' => 'digitalisimo-migration', 'plugin' => self::FILE, 'new_version' => $pending ? $release['version'] : DIGITALISIMO_MIGRATION_VERSION, 'url' => $release['url'], 'package' => $pending ? $release['package'] : '', 'tested' => get_bloginfo( 'version' ), 'requires' => '6.0', 'requires_php' => '7.4' );
-		if ( $pending ) { unset( $transient->no_update[ self::FILE ] ); $transient->response[ self::FILE ] = $item; }
-		else { unset( $transient->response[ self::FILE ] ); $transient->no_update[ self::FILE ] = $item; }
+		$item = (object) array( 'id' => 'https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-migration', 'slug' => 'digitalisimo-migration', 'plugin' => self::file(), 'new_version' => $pending ? $release['version'] : DIGITALISIMO_MIGRATION_VERSION, 'url' => $release['url'], 'package' => $pending ? $release['package'] : '', 'tested' => get_bloginfo( 'version' ), 'requires' => '6.0', 'requires_php' => '7.4' );
+		if ( $pending ) { unset( $transient->no_update[ self::file() ] ); $transient->response[ self::file() ] = $item; }
+		else { unset( $transient->response[ self::file() ] ); $transient->no_update[ self::file() ] = $item; }
 		return $transient;
 	}
 }

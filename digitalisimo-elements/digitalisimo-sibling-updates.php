@@ -1,13 +1,21 @@
 <?php
 /**
- * Actualizaciones de los plugins Digitalisimo instalados pero inactivos.
+ * Actualizaciones de los plugins Digitalisimo que su propio actualizador no atiende.
  *
- * Cada plugin Digitalisimo trae su propio actualizador, pero WordPress sólo ejecuta el código de los plugins activos:
- * uno instalado y sin activar (DIGITALÍSIMO Migración antes de usarse, por ejemplo) no tenía «Buscar actualizaciones»
- * ni recibía sus versiones nuevas. DIGITALÍSIMO Elements, siempre activo donde se usan los demás, se encarga de ellos
- * mientras estén inactivos: lee del mismo índice de la Release (`digitalisimo-plugins.json`, con la misma caché
- * compartida) la versión de cada uno, por la clave que da su «Update URI», y la entrega a WordPress como haría su propio
- * actualizador. En cuanto un plugin se activa, su actualizador vuelve a encargarse y éste lo deja.
+ * Cada plugin Digitalisimo trae su propio actualizador, pero hay dos casos en que no puede atenderse a sí mismo:
+ *
+ *  - Inactivo: WordPress sólo ejecuta el código de los plugins activos, así que DIGITALÍSIMO Migración instalado y sin
+ *    activar no tenía «Buscar actualizaciones» ni recibía sus versiones nuevas.
+ *  - En otra carpeta: hasta Migración 1.0.17, Tools 1.0.31, Backups 1.0.55 y Elements 4.3.0.155 cada actualizador
+ *    buscaba su plugin en la carpeta habitual (`digitalisimo-migration/…`). Instalado en otra (un ZIP subido a mano con
+ *    otro nombre), su fila sólo decía «Desactivar» y sus versiones nuevas iban a una entrada de un plugin inexistente.
+ *
+ * DIGITALÍSIMO Elements, siempre activo donde se usan los demás, cubre lo que falte: lee del mismo índice de la Release
+ * (`digitalisimo-plugins.json`, con la misma caché compartida) la versión de cada plugin por la clave de su «Update
+ * URI», la entrega a WordPress si nadie lo hizo para ese archivo, quita las entradas huérfanas que los actualizadores
+ * antiguos dejan con la carpeta habitual, pone «Buscar actualizaciones» en la fila que no lo tiene y, al actualizar un
+ * plugin Digitalisimo, deja la copia nueva en la carpeta donde estaba instalado (el ZIP trae la habitual), para que
+ * siga activo. Un plugin que se atiende bien a sí mismo no nota nada.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -21,9 +29,10 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	const MANIFEST_URL   = 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest/download/digitalisimo-plugins.json';
 	const MANIFEST_CACHE = 'digitalisimo_plugins_manifest';
 	const OWN_SLUG       = 'digitalisimo-elements';
+	const LINK_TEXT      = 'Buscar actualizaciones';
 
-	/** @var array|null plugins inactivos de esta petición (se vuelve a leer al activar o desactivar uno). */
-	private static $siblings = null;
+	/** @var array|null plugins Digitalisimo instalados en esta petición (se vuelve a leer al activar, desactivar o borrar uno). */
+	private static $installed = null;
 
 	public static function init() {
 		foreach ( array( 'pre_set_site_transient_update_plugins', 'pre_set_transient_update_plugins', 'site_transient_update_plugins', 'transient_update_plugins' ) as $hook ) {
@@ -31,8 +40,9 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		}
 		add_filter( 'update_plugins_github.com', array( __CLASS__, 'uri_update' ), 31, 4 );
 		add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
-		add_filter( 'plugin_action_links', array( __CLASS__, 'action_link' ), 10, 2 );
-		add_filter( 'network_admin_plugin_action_links', array( __CLASS__, 'action_link' ), 10, 2 );
+		add_filter( 'plugin_action_links', array( __CLASS__, 'action_link' ), 10, 4 );
+		add_filter( 'network_admin_plugin_action_links', array( __CLASS__, 'action_link' ), 10, 4 );
+		add_filter( 'upgrader_source_selection', array( __CLASS__, 'keep_folder' ), 11, 4 );
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'force_check' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 		add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
@@ -44,7 +54,7 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	}
 
 	public static function forget() {
-		self::$siblings = null;
+		self::$installed = null;
 	}
 
 	private static function can_update() {
@@ -52,40 +62,48 @@ final class Digitalisimo_Elements_Sibling_Updates {
 	}
 
 	/**
-	 * Plugins Digitalisimo instalados e inactivos en esta petición (los activos tienen su propio actualizador cargado),
-	 * salvo DIGITALÍSIMO Elements y las copias inactivas de un plugin que ya está activo en otra carpeta.
+	 * Plugins Digitalisimo instalados (por su «Update URI»), con su clave en el índice y si están activos.
 	 *
-	 * @return array<string, array{slug:string, version:string, name:string}> archivo => datos.
+	 * @return array<string, array{slug:string, version:string, name:string, active:bool}> archivo => datos.
 	 */
-	public static function siblings() {
-		if ( null !== self::$siblings ) {
-			return self::$siblings;
+	public static function installed() {
+		if ( null !== self::$installed ) {
+			return self::$installed;
 		}
 		if ( ! function_exists( 'get_plugins' ) || ! function_exists( 'is_plugin_active' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
-		$own      = defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ? plugin_basename( DIGITALISIMO_ELEMENTS_FILE ) : '';
-		$active   = array();
-		$inactive = array();
+		self::$installed = array();
 		foreach ( (array) get_plugins() as $file => $data ) {
 			$uri = (string) ( $data['UpdateURI'] ?? '' );
 			if ( 0 !== strpos( $uri, self::PREFIX ) ) {
 				continue;
 			}
 			$slug = substr( $uri, strlen( self::PREFIX ) );
-			if ( ! preg_match( '/^[a-z0-9-]+$/', $slug ) || self::OWN_SLUG === $slug || $file === $own ) {
-				continue;
+			if ( preg_match( '/^[a-z0-9-]+$/', $slug ) ) {
+				self::$installed[ (string) $file ] = array( 'slug' => $slug, 'version' => (string) ( $data['Version'] ?? '' ), 'name' => (string) ( $data['Name'] ?? $slug ), 'active' => is_plugin_active( $file ) );
 			}
-			if ( is_plugin_active( $file ) ) {
-				$active[ $slug ] = true;
-				continue;
-			}
-			$inactive[ (string) $file ] = array( 'slug' => $slug, 'version' => (string) ( $data['Version'] ?? '' ), 'name' => (string) ( $data['Name'] ?? $slug ) );
 		}
-		self::$siblings = array_filter( $inactive, static function ( $info ) use ( $active ) {
-			return ! isset( $active[ $info['slug'] ] );
-		} );
-		return self::$siblings;
+		return self::$installed;
+	}
+
+	/**
+	 * Los que este servicio puede atender: todos menos DIGITALÍSIMO Elements (el que lo ejecuta) y las copias inactivas
+	 * de un plugin activo en otra carpeta (el aviso de copias duplicadas pide borrarlas).
+	 *
+	 * @return array<string, array{slug:string, version:string, name:string, active:bool}>
+	 */
+	public static function siblings() {
+		$own    = defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ? plugin_basename( DIGITALISIMO_ELEMENTS_FILE ) : '';
+		$active = array();
+		foreach ( self::installed() as $info ) {
+			if ( $info['active'] ) {
+				$active[ $info['slug'] ] = true;
+			}
+		}
+		return array_filter( self::installed(), static function ( $info, $file ) use ( $own, $active ) {
+			return self::OWN_SLUG !== $info['slug'] && $file !== $own && ( $info['active'] || ! isset( $active[ $info['slug'] ] ) );
+		}, ARRAY_FILTER_USE_BOTH );
 	}
 
 	/** Versión y ZIP de un plugin en el índice de la última Release; sólo acepta un ZIP suyo de este repositorio. */
@@ -115,7 +133,11 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		return array( 'version' => $version, 'package' => esc_url_raw( $package ), 'url' => esc_url_raw( $release_url ) );
 	}
 
-	/** Las versiones nuevas de los plugins inactivos, en la caché de actualizaciones de WordPress. */
+	/**
+	 * En la caché de actualizaciones de WordPress: la versión de cada plugin Digitalisimo que nadie entregó para su
+	 * archivo real (corre después de los actualizadores propios), y fuera las entradas huérfanas que un actualizador
+	 * antiguo deja con la carpeta habitual cuando el plugin está instalado en otra.
+	 */
 	public static function check( $transient ) {
 		if ( ! is_object( $transient ) || ! isset( $transient->checked ) || ! is_array( $transient->checked ) ) {
 			return $transient;
@@ -126,29 +148,40 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) {
 			$transient->no_update = array();
 		}
+		$installed = self::installed();
+		$slugs     = array_flip( array_column( $installed, 'slug' ) );
+		foreach ( array( 'response', 'no_update' ) as $list ) {
+			foreach ( $transient->{$list} as $file => $item ) {
+				$slug = is_object( $item ) ? (string) ( $item->slug ?? '' ) : ( is_array( $item ) ? (string) ( $item['slug'] ?? '' ) : '' );
+				if ( isset( $slugs[ $slug ] ) && ! isset( $installed[ $file ] ) ) {
+					unset( $transient->{$list}[ $file ], $transient->checked[ $file ] );
+				}
+			}
+		}
 		foreach ( self::siblings() as $file => $info ) {
+			if ( isset( $transient->response[ $file ] ) || isset( $transient->no_update[ $file ] ) || '' === $info['version'] ) {
+				continue;
+			}
 			$release = self::release( $info['slug'] );
-			if ( empty( $release['version'] ) || '' === $info['version'] ) {
+			if ( empty( $release['version'] ) ) {
 				continue;
 			}
 			$transient->checked[ $file ] = $info['version'];
 			$pending                     = version_compare( $release['version'], $info['version'], '>' );
 			$item                        = (object) array( 'id' => self::PREFIX . $info['slug'], 'slug' => $info['slug'], 'plugin' => $file, 'new_version' => $pending ? $release['version'] : $info['version'], 'url' => $release['url'], 'package' => $pending ? $release['package'] : '', 'requires_php' => '7.4', 'icons' => array(), 'banners' => array(), 'banners_rtl' => array(), 'tested' => '', 'compatibility' => new stdClass() );
 			if ( $pending ) {
-				unset( $transient->no_update[ $file ] );
 				$transient->response[ $file ] = $item;
 			} else {
-				unset( $transient->response[ $file ] );
 				$transient->no_update[ $file ] = $item;
 			}
 		}
 		return $transient;
 	}
 
-	/** La consulta de WordPress por «Update URI» para un plugin inactivo. */
+	/** La consulta de WordPress por «Update URI», si ningún actualizador respondió por ese archivo. */
 	public static function uri_update( $update, $plugin_data, $plugin_file, $locales ) {
 		$siblings = self::siblings();
-		if ( ! isset( $siblings[ $plugin_file ] ) ) {
+		if ( $update || ! isset( $siblings[ $plugin_file ] ) ) {
 			return $update;
 		}
 		$info    = $siblings[ $plugin_file ];
@@ -159,20 +192,50 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		return array( 'slug' => $info['slug'], 'version' => $release['version'], 'package' => $release['package'], 'url' => $release['url'], 'requires_php' => '7.4', 'autoupdate' => true );
 	}
 
-	/** Como su propio actualizador: los plugins Digitalisimo se actualizan solos. */
+	/** Como sus propios actualizadores: los plugins Digitalisimo se actualizan solos. */
 	public static function auto_update( $update, $item ) {
 		return isset( $item->plugin ) && isset( self::siblings()[ $item->plugin ] ) ? true : $update;
 	}
 
-	/** «Buscar actualizaciones» en la fila de cada plugin Digitalisimo inactivo. */
-	public static function action_link( $links, $plugin_file ) {
+	/**
+	 * «Buscar actualizaciones» en la fila de un plugin Digitalisimo que no lo tenga: el filtro propio de la fila (el de
+	 * su actualizador) se consulta antes, y si ya pone el enlace no se añade otro.
+	 */
+	public static function action_link( $links, $plugin_file, $plugin_data = array(), $context = '' ) {
 		if ( ! self::can_update() || ! isset( self::siblings()[ $plugin_file ] ) ) {
 			return $links;
 		}
+		$specific = ( 'network_admin_plugin_action_links' === current_filter() ? 'network_admin_' : '' ) . 'plugin_action_links_' . $plugin_file;
+		$own      = has_filter( $specific ) ? (array) apply_filters( $specific, array(), $plugin_file, $plugin_data, $context ) : array();
+		foreach ( $own as $link ) {
+			if ( false !== strpos( (string) $link, self::LINK_TEXT ) ) {
+				return $links;
+			}
+		}
 		$url     = wp_nonce_url( add_query_arg( array( 'action' => self::ACTION, 'plugin' => rawurlencode( $plugin_file ), 'digitalisimo_context' => is_network_admin() ? 'network' : 'site' ), admin_url( 'admin-post.php' ) ), self::ACTION );
 		$links   = (array) $links;
-		$links[] = '<a href="' . esc_url( $url ) . '">Buscar actualizaciones</a>';
+		$links[] = '<a href="' . esc_url( $url ) . '">' . self::LINK_TEXT . '</a>';
 		return $links;
+	}
+
+	/**
+	 * Al actualizar un plugin Digitalisimo, el ZIP de la Release trae la carpeta habitual: si el plugin está instalado en
+	 * otra, la copia nueva se deja en esa misma carpeta (WordPress borra la antigua y, si la carpeta cambiara, el plugin
+	 * quedaría desactivado por no encontrarse su archivo).
+	 */
+	public static function keep_folder( $source, $remote_source = '', $upgrader = null, $hook_extra = array() ) {
+		global $wp_filesystem;
+		$plugin = (string) ( $hook_extra['plugin'] ?? '' );
+		if ( ( function_exists( 'is_wp_error' ) && is_wp_error( $source ) ) || '' === $plugin || ! isset( self::installed()[ $plugin ] ) ) {
+			return $source;
+		}
+		$folder = dirname( $plugin );
+		$trim   = rtrim( (string) $source, '/\\' );
+		if ( '.' === $folder || basename( $trim ) === $folder || ! $wp_filesystem || ! $wp_filesystem->exists( $trim . '/' . basename( $plugin ) ) ) {
+			return $source;
+		}
+		$target = dirname( $trim ) . '/' . $folder;
+		return $wp_filesystem->move( $trim, $target, true ) ? $target . '/' : $source;
 	}
 
 	public static function force_check() {
@@ -184,6 +247,8 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		delete_site_transient( self::MANIFEST_CACHE );
 		$updates = get_site_transient( 'update_plugins' );
 		if ( is_object( $updates ) && isset( $updates->checked ) && is_array( $updates->checked ) ) {
+			// La entrada de este plugin se vuelve a calcular con el índice nuevo.
+			unset( $updates->response[ $plugin ], $updates->no_update[ $plugin ] );
 			set_site_transient( 'update_plugins', self::check( $updates ) );
 		} else {
 			wp_update_plugins();
@@ -224,10 +289,11 @@ final class Digitalisimo_Elements_Sibling_Updates {
 		}
 	}
 
-	/** Tras actualizar un plugin Digitalisimo inactivo, el índice se vuelve a leer. */
+	/** Tras actualizar un plugin Digitalisimo, el índice se vuelve a leer. */
 	public static function clear_after_upgrade( $upgrader, $options ) {
-		if ( 'update' === ( $options['action'] ?? '' ) && 'plugin' === ( $options['type'] ?? '' ) && array_intersect( (array) ( $options['plugins'] ?? array() ), array_keys( self::siblings() ) ) ) {
+		if ( 'update' === ( $options['action'] ?? '' ) && 'plugin' === ( $options['type'] ?? '' ) && array_intersect( (array) ( $options['plugins'] ?? array() ), array_keys( self::installed() ) ) ) {
 			delete_site_transient( self::MANIFEST_CACHE );
+			self::forget();
 		}
 	}
 }
