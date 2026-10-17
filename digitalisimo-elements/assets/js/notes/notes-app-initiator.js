@@ -1816,8 +1816,8 @@
 			fontSize: "--font-size-md"
 		} };
 		Button = qe(ButtonBase)`
-	--color-editor-info: #58d0f5;
-	--color-editor-info-dark: #10bcf2;
+	--color-editor-info: #245eff;
+	--color-editor-info-dark: #164ce4;
 	--color-default: inherit;
 	--color-ghost: transparent;
 	--color-white: #fff;
@@ -1928,7 +1928,7 @@
 		Marker = qe.span.withConfig({ shouldForwardProp: (prop) => "children" === prop })`
   all: revert;
 
-  --color-editor-info: #58d0f5;
+  --color-editor-info: #245eff;
   --color-ghost: #fff;
   --color-white: #fff;
   --color-gray: #a4afb6;
@@ -10498,7 +10498,7 @@
 
 	&[role="option"]:hover,
 	&[aria-selected="true"] {
-		background: #58d0f5 !important;
+		background: #245eff !important;
 
 		&,
 		& * {
@@ -11500,7 +11500,7 @@
 
 	&:hover,
 	&:focus {
-		color: #58d0f5 !important;
+		color: #245eff !important;
 		text-decoration: none !important;
 	}
 `;
@@ -11529,7 +11529,7 @@
 	all: revert;
 	display: block !important;
 	text-decoration: none !important;
-	color: #58d0f5 !important;
+	color: #245eff !important;
 
 	&:hover,
 	&:focus {
@@ -11657,7 +11657,7 @@
 		}))`
 	all: revert;
 
-	color: #58d0f5 !important;
+	color: #245eff !important;
 	font-family: Roboto, sans-serif !important;
 	font-size: 1em !important;
 	font-weight: normal !important;
@@ -11985,7 +11985,7 @@
 	var init_note_content_mention = __esmMin((() => {
 		init_styled_components_browser_esm();
 		NoteContentMention = qe.span`
-  color: #58d0f5;
+  color: #245eff;
 `;
 	}));
 	//#endregion
@@ -11996,8 +11996,8 @@
 		NoteContentLink = qe.a`
   all: revert;
 
-  --color-editor-info: #58d0f5;
-  --color-editor-info-dark: #10bcf2;
+  --color-editor-info: #245eff;
+  --color-editor-info-dark: #164ce4;
 
   font-family: Roboto, sans-serif !important;
   font-size: 1em !important;
@@ -13288,7 +13288,7 @@
 
 	&:hover {
 		i::before {
-			color: #58d0f5;
+			color: #245eff;
 			content: '\\e926'; // eicon-info-circle
 		}
 	}

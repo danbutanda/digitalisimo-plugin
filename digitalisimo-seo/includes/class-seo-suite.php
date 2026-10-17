@@ -145,7 +145,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		echo '</td></tr>';
 	}
 	public static function robots_preview_row() {
-		echo '<tr><th scope="row">Salida actual</th><td><p class="description">Vista previa de las reglas guardadas. Los cambios del formulario aparecerán después de guardar.</p><pre style="max-height:360px;overflow:auto;white-space:pre-wrap;background:#fff;border:1px solid #dcdcde;padding:12px">' . esc_html( Digitalisimo_Integrations_Robots::preview() ) . '</pre></td></tr>';
+		echo '<tr><th scope="row">Salida actual</th><td><p class="description">Vista previa de las reglas guardadas. Los cambios del formulario aparecerán después de guardar.</p><pre style="max-height:360px;overflow:auto;white-space:pre-wrap;background:#fff;border:1px solid var(--digi-line,#dce4ff);padding:12px">' . esc_html( Digitalisimo_Integrations_Robots::preview() ) . '</pre></td></tr>';
 	}
 	/** La red replica las pestañas del sitio y omite identidad e imágenes exclusivas de cada sitio. */
 	private static function network_site_fields( $tab ) {
@@ -408,8 +408,8 @@ class Digitalisimo_Integrations_SEO_Suite {
 		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return;
 		// Esta base visual también cubre los metaboxes de otros módulos activos y
 		// cualquier panel futuro cuyo ID comience con digitalisimo- o digitalisimo_.
-		wp_enqueue_style( 'digitalisimo-editor-ui', DIGITALISIMO_INTEGRATIONS_URL . 'assets/editor-ui.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION );
-		wp_enqueue_style( 'digitalisimo-seo-snippet-editor', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-editor.css', array(), DIGITALISIMO_INTEGRATIONS_VERSION );
+		wp_enqueue_style( 'digitalisimo-editor-ui', DIGITALISIMO_INTEGRATIONS_URL . 'assets/editor-ui.css', function_exists( 'digitalisimo_ui_dependency' ) ? digitalisimo_ui_dependency() : array(), DIGITALISIMO_INTEGRATIONS_VERSION );
+		wp_enqueue_style( 'digitalisimo-seo-snippet-editor', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-editor.css', function_exists( 'digitalisimo_ui_dependency' ) ? digitalisimo_ui_dependency() : array(), DIGITALISIMO_INTEGRATIONS_VERSION );
 		wp_enqueue_style( 'digitalisimo-seo-snippet-modal', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-modal.css', array( 'digitalisimo-seo-snippet-editor' ), DIGITALISIMO_INTEGRATIONS_VERSION );
 		wp_enqueue_script( 'digitalisimo-seo-snippet-editor', DIGITALISIMO_INTEGRATIONS_URL . 'assets/snippet-editor.js', array(), DIGITALISIMO_INTEGRATIONS_VERSION, true );
 	}

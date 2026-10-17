@@ -1886,7 +1886,7 @@ this.elementorV2 = this.elementorV2 || {};
 			startIcon: /* @__PURE__ */ react.createElement(_elementor_icons.AIIcon, { fontSize: "small" }),
 			onClick: handleCreateClick,
 			sx: {
-				color: "#c00bb9",
+				color: "#245eff",
 				px: "5px",
 				py: "4px",
 				minWidth: "auto"
@@ -2086,9 +2086,9 @@ this.elementorV2 = this.elementorV2 || {};
 	//#region packages/packages/pro/editor-components-extended/src/components/angie-intro/angie-intro-popover.tsx
 	var ANGIE_INTRO_MESSAGE_KEY = "angie-components-intro";
 	var INTRO_IMAGE_URL = "https://assets.elementor.com/packages/v1/images/angie-components-promotion.svg";
-	var IMAGE_OVERLAY_COLOR = "rgba(255, 0, 191, 0.6)";
-	var BUTTON_COLOR = "#f0abfc";
-	var BUTTON_HOVER_COLOR = "#e879f9";
+	var IMAGE_OVERLAY_COLOR = "rgba(36, 94, 255, 0.6)";
+	var BUTTON_COLOR = "#245eff";
+	var BUTTON_HOVER_COLOR = "#164ce4";
 	var BUTTON_TEXT_COLOR = "#0c0d0e";
 	var AngieIntroPopover = ({ open, onClose, onConfirm, anchorRef }) => {
 		const anchorEl = anchorRef === null || anchorRef === void 0 ? void 0 : anchorRef.current;
@@ -2301,7 +2301,7 @@ this.elementorV2 = this.elementorV2 || {};
 				alignItems: "center",
 				padding: .5,
 				gap: .5,
-				color: "#c00bb9",
+				color: "#245eff",
 				textDecoration: "none",
 				"&:hover": { textDecoration: "underline" }
 			}

@@ -51,14 +51,14 @@
 #poststuff [id^="digitalisimo-"] .button-primary,
 #poststuff [id^="digitalisimo_"] .button-primary {
 	border: 0;
-	border-radius: 8px;
-	background: linear-gradient(100deg, #4359ee, #a84ed3);
+	border-radius: var(--digi-radius-control, 9px);
+	background: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9));
 	box-shadow: 0 7px 16px rgba(91, 80, 221, .22);
 	color: #fff;
 	text-shadow: none;
 }
 #poststuff [id^="digitalisimo-"] .button-secondary,
-#poststuff [id^="digitalisimo_"] .button-secondary { border-color: #cbd5f5; border-radius: 8px; color: #4352bf; background: #fff; }
+#poststuff [id^="digitalisimo_"] .button-secondary { border-color: #cbd5f5; border-radius: var(--digi-radius-control, 9px); color: #4352bf; background: #fff; }
 
 #poststuff .digitalisimo-editorial-panels {
 	display: grid;
@@ -83,4 +83,4 @@
 .edit-post-sidebar [id^="digitalisimo-"] .components-panel__body-title,
 .edit-post-sidebar [id^="digitalisimo_"] .components-panel__body-title { color: #202d4c; }
 .edit-post-sidebar [id^="digitalisimo-"] .components-button.is-primary,
-.edit-post-sidebar [id^="digitalisimo_"] .components-button.is-primary { border-radius: 8px; background: linear-gradient(100deg, #4359ee, #a84ed3); }
+.edit-post-sidebar [id^="digitalisimo_"] .components-button.is-primary { border-radius: var(--digi-radius-control, 9px); background: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9)); }

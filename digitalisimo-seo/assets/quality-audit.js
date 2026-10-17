@@ -327,7 +327,7 @@
 			frame.id = 'digitalisimo-quality-frame';
 			frame.title = 'Vista móvil de la auditoría';
 			frame.setAttribute('aria-hidden', 'true');
-			frame.style.cssText = 'position:fixed;top:44px;right:16px;width:390px;height:844px;border:2px solid #2271b1;background:#fff;z-index:2147483646;box-shadow:0 8px 32px rgba(0,0,0,.35)';
+			frame.style.cssText = 'position:fixed;top:44px;right:16px;width:390px;height:844px;border:2px solid var(--digi-blue,#245eff);background:#fff;z-index:2147483646;box-shadow:0 8px 32px rgba(0,0,0,.35)';
 			frame.addEventListener('load', function () {
 				var win;
 				try {

@@ -175,7 +175,7 @@ class Digitalisimo_Integrations_Schema_Audit {
 		}
 		echo '<h4>Publicado ahora</h4><p>' . self::badge( $record['report']['status'] ) . ' ' . (int) $record['report']['blocks'] . ' bloque(s) JSON-LD en el HTML final.</p>';
 		echo self::report_html( $record['report'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- report_html escapa cada valor.
-		if ( ! empty( $record['graph'] ) ) echo '<details><summary><strong>JSON-LD publicado</strong></summary><pre style="max-height:420px;overflow:auto;white-space:pre-wrap;background:#fff;border:1px solid #dcdcde;padding:12px">' . esc_html( Digitalisimo_Integrations_Schema_Graph::json( 1 === count( $record['graph'] ) ? $record['graph'][0] : $record['graph'], true ) ) . '</pre></details>';
+		if ( ! empty( $record['graph'] ) ) echo '<details><summary><strong>JSON-LD publicado</strong></summary><pre style="max-height:420px;overflow:auto;white-space:pre-wrap;background:#fff;border:1px solid var(--digi-line,#dce4ff);padding:12px">' . esc_html( Digitalisimo_Integrations_Schema_Graph::json( 1 === count( $record['graph'] ) ? $record['graph'][0] : $record['graph'], true ) ) . '</pre></details>';
 		echo '</div>';
 	}
 

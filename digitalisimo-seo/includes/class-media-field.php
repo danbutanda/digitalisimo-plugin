@@ -43,7 +43,7 @@ if ( ! class_exists( 'Digitalisimo_Media_Field' ) ) {
 			if ( 0 !== strpos( $page, 'digitalisimo' ) && ! $editing ) return;
 			$can_upload = current_user_can( 'upload_files' );
 			if ( $can_upload ) wp_enqueue_media();
-			wp_enqueue_style( self::HANDLE, self::$base . 'assets/media-field.css', array(), self::$version );
+			wp_enqueue_style( self::HANDLE, self::$base . 'assets/media-field.css', function_exists( 'digitalisimo_ui_dependency' ) ? digitalisimo_ui_dependency() : array(), self::$version );
 			wp_enqueue_script( self::HANDLE, self::$base . 'assets/media-field.js', array(), self::$version, true );
 			wp_localize_script(
 				self::HANDLE,

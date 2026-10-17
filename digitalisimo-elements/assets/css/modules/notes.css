@@ -6,7 +6,7 @@
 }
 
 .e-route-notes {
-  --color-editor-info: #58d0f5;
+  --color-editor-info: #245eff;
 }
 .e-route-notes [data-radix-portal] *:focus {
   outline: none;

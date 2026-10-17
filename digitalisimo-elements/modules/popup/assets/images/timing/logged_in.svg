@@ -6,6 +6,6 @@
 <path d="M31.8594 25.1206C32.8214 24.5658 33.9506 24.246 35.1578 24.246C38.676 24.246 41.5285 26.9608 41.5285 30.3091" stroke="#9DA5AE" stroke-width="1.64211" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M16.1594 25.1206C15.1974 24.5658 14.0682 24.246 12.8609 24.246C9.34272 24.246 6.49023 26.9608 6.49023 30.3091" stroke="#9DA5AE" stroke-width="1.64211" stroke-linecap="round" stroke-linejoin="round"/>
 <circle cx="24.0632" cy="30.6316" r="6.63158" stroke="#9DA5AE" stroke-width="1.64211"/>
-<path d="M21.4121 33.5212L26.2499 27.9158" stroke="#E879F9" stroke-width="1.64211" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M26.25 33.5212L21.4122 27.9158" stroke="#E879F9" stroke-width="1.64211" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M21.4121 33.5212L26.2499 27.9158" stroke="#8249EE" stroke-width="1.64211" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M26.25 33.5212L21.4122 27.9158" stroke="#8249EE" stroke-width="1.64211" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

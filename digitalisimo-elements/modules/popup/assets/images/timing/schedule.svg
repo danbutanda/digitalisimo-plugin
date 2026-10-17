@@ -14,11 +14,11 @@
 <path d="M16.3507 28.9784H15.2025" stroke="#9DA5AE" stroke-width="1.64211" stroke-linecap="round"/>
 <path d="M18.3903 33.7875L17.5784 34.6196" stroke="#9DA5AE" stroke-width="1.64211" stroke-linecap="round"/>
 <path d="M17.3851 23.239L18.197 24.0711" stroke="#9DA5AE" stroke-width="1.64211" stroke-linecap="round"/>
-<path d="M0.883911 17.7485L5.35702 19.1261" stroke="#E879F9" stroke-width="1.64211" stroke-linecap="round"/>
-<path d="M8.1452 5.80011L10.3704 8.08776" stroke="#E879F9" stroke-width="1.64211" stroke-linecap="round"/>
-<path d="M39.5368 6.03L35.9285 9.72272" stroke="#E879F9" stroke-width="1.64211" stroke-linecap="round"/>
-<ellipse cx="12.4285" cy="10.1209" rx="0.821053" ry="0.841536" fill="#E879F9"/>
-<path d="M47.1052 17.5879L44.1268 18.6442" stroke="#E879F9" stroke-width="1.64211" stroke-linecap="round"/>
-<ellipse cx="0.821053" cy="0.833602" rx="0.821053" ry="0.833602" transform="matrix(-0.898794 0.438371 0.438371 0.898794 41.8984 18.5684)" fill="#E879F9"/>
+<path d="M0.883911 17.7485L5.35702 19.1261" stroke="#8249EE" stroke-width="1.64211" stroke-linecap="round"/>
+<path d="M8.1452 5.80011L10.3704 8.08776" stroke="#8249EE" stroke-width="1.64211" stroke-linecap="round"/>
+<path d="M39.5368 6.03L35.9285 9.72272" stroke="#8249EE" stroke-width="1.64211" stroke-linecap="round"/>
+<ellipse cx="12.4285" cy="10.1209" rx="0.821053" ry="0.841536" fill="#8249EE"/>
+<path d="M47.1052 17.5879L44.1268 18.6442" stroke="#8249EE" stroke-width="1.64211" stroke-linecap="round"/>
+<ellipse cx="0.821053" cy="0.833602" rx="0.821053" ry="0.833602" transform="matrix(-0.898794 0.438371 0.438371 0.898794 41.8984 18.5684)" fill="#8249EE"/>
 <ellipse cx="23.9878" cy="29.0718" rx="1.63036" ry="1.66507" stroke="#9DA5AE" stroke-width="1.80632"/>
 </svg>

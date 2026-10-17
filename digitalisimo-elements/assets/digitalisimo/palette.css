@@ -1,0 +1,287 @@
+/*
+ * Paleta DIGITALÍSIMO del constructor con el núcleo incluido: administración, ventana del editor y App.
+ *
+ * El núcleo se distribuye sin cambios y trae su paleta por tres vías: variables CSS (--e-a-*, --e-one-palette-*,
+ * --e-context-*), colores fijos en algunas reglas y el tema JavaScript de su librería de interfaz (MUI con emotion,
+ * sin variables). Esta hoja los sustituye por los tokens de digitalisimo-ui.css, con sus valores como respaldo, así
+ * que funciona aunque la hoja compartida no esté cargada:
+ *  - las variables, con `html:root`, que gana a los `:root` del núcleo sin depender del orden de impresión;
+ *  - los botones primarios, con el degradado propio, texto blanco y el radio de los controles;
+ *  - los componentes MUI, por sus clases estables y sólo dentro de la interfaz del núcleo (caché de emotion «eui»),
+ *    con !important porque emotion inserta sus estilos al final de <head>;
+ *  - las reglas con color fijo, con su mismo selector y más especificidad.
+ * Se conservan los colores semánticos (éxito, aviso, peligro) y los neutros. Nunca toca --e-global-* (el kit del
+ * sitio). El tema oscuro del editor está en palette-dark.css y el lienzo de vista previa, en palette-preview.css.
+ */
+
+/* Variables del núcleo (tema claro). */
+html:root {
+	--e-a-color-primary: var(--digi-blue, #245eff);
+	--e-a-color-primary-bold: var(--digi-blue, #245eff);
+	--e-a-color-primary-bold-dark: var(--digi-blue-dark, #164ce4);
+	--e-a-color-accent: var(--digi-pink-dark, #c72f91);
+	--e-a-color-accent-promotion: var(--digi-pink-dark, #c72f91);
+	--e-a-color-accent-promotion-disabled: rgba(199, 47, 145, .38);
+	--e-a-color-global: var(--digi-violet, #8249ee);
+	--e-a-color-info: var(--digi-blue, #245eff);
+	--e-a-bg-primary: var(--digi-tint, #eef2ff);
+	--e-a-btn-color: #fff;
+	--e-a-btn-bg-primary: var(--digi-blue, #245eff);
+	--e-a-btn-bg-primary-hover: var(--digi-blue-dark, #164ce4);
+	--e-a-btn-bg-primary-active: var(--digi-violet-dark, #6635db);
+	--e-a-btn-bg-accent: var(--digi-pink-dark, #c72f91);
+	--e-a-btn-bg-accent-hover: #b0257f;
+	--e-a-btn-bg-accent-active: #9b1f70;
+	--e-a-btn-bg-info: var(--digi-blue, #245eff);
+	--e-a-btn-bg-info-hover: var(--digi-blue-dark, #164ce4);
+	--e-a-btn-bg-info-active: var(--digi-violet-dark, #6635db);
+	--e-one-palette-primary-light: #5b85ff;
+	--e-one-palette-primary-main: var(--digi-blue, #245eff);
+	--e-one-palette-primary-dark: var(--digi-blue-dark, #164ce4);
+	--e-one-palette-primary-contrast-text: #fff;
+	--e-one-palette-global-light: #a98af3;
+	--e-one-palette-global-main: var(--digi-violet, #8249ee);
+	--e-one-palette-global-dark: var(--digi-violet-dark, #6635db);
+	--e-one-palette-promotion-light: #e13da9;
+	--e-one-palette-promotion-main: var(--digi-pink-dark, #c72f91);
+	--e-one-palette-promotion-dark: #9b1f70;
+	--e-one-palette-decorative-light: #f7a8d3;
+	--e-one-palette-decorative-main: var(--digi-pink, #f13b9b);
+	--e-one-palette-decorative-dark: var(--digi-pink-dark, #c72f91);
+	--e-context-cta-color: var(--digi-blue, #245eff);
+	--e-context-cta-color-dark: var(--digi-blue-dark, #164ce4);
+	--e-context-cta-tint-4: rgba(36, 94, 255, .4);
+	--e-context-cta-tint-1: rgba(36, 94, 255, .04);
+	--e-context-promotion-color: var(--digi-pink-dark, #c72f91);
+	--e-context-promotion-color-dark: #9b1f70;
+	--e-context-promotion-tint-4: rgba(199, 47, 145, .4);
+	--e-context-promotion-tint-1: rgba(199, 47, 145, .04);
+	--e-notice-context-color: var(--digi-pink-dark, #c72f91);
+}
+html body #wp-link-wrap { --e-a-color-primary-bold: var(--digi-blue, #245eff); }
+html body .elementor-global-styles-dialog {
+	--gsd-color-primary-main: var(--digi-blue, #245eff);
+	--gsd-color-primary-hover: var(--digi-blue-dark, #164ce4);
+}
+
+/* Botones de la App (Theme Builder, kits, importar y exportar) y de Código personalizado: variables por elemento. */
+html body .eps-button,
+html .eps-theme-dark .eps-button,
+html body.eps-theme-dark .eps-button {
+	--button-primary-background-color: var(--digi-blue, #245eff);
+	--button-primary-hover-background-color: var(--digi-blue-dark, #164ce4);
+	--button-primary-active-background-color: var(--digi-violet-dark, #6635db);
+	--button-primary-color: #fff;
+	--button-cta-background-color: var(--digi-blue, #245eff);
+	--button-cta-hover-background-color: var(--digi-blue-dark, #164ce4);
+	--button-cta-active-background-color: var(--digi-violet-dark, #6635db);
+	--button-brand-background-color: var(--digi-pink-dark, #c72f91);
+	--button-brand-hover-background-color: #b0257f;
+	--button-brand-active-background-color: #9b1f70;
+}
+/* Variables globales de la App (sólo en su página: son nombres genéricos). */
+html:has(#e-app) {
+	--cta: var(--digi-blue, #245eff);
+	--brand: var(--digi-pink-dark, #c72f91);
+	--accent: var(--digi-blue, #245eff);
+	--primary: var(--digi-blue, #245eff);
+	--primary-bg: var(--digi-tint, #eef2ff);
+	--info: var(--digi-blue, #245eff);
+}
+html:has(#e-app) body.eps-theme-dark {
+	--accent: #6f93ff;
+	--cta: var(--digi-blue, #245eff);
+	--brand: var(--digi-pink-dark, #c72f91);
+}
+
+/* Botones primarios del núcleo y de la App: el degradado propio. */
+html body :is(
+	.elementor-button.e-primary,
+	.e-btn.e-primary,
+	.dialog-buttons-wrapper .dialog-button.e-primary,
+	.dialog-buttons-wrapper .dialog-button.dialog-ok,
+	.dialog-buttons-wrapper .dialog-button.dialog-take_over,
+	.dialog-type-confirm .dialog-buttons-wrapper .elementor-button.dialog-button.dialog-ok,
+	#elementor-deactivate-feedback-modal .dialog-buttons-wrapper .dialog-button.dialog-submit,
+	.elementor-global-styles-dialog__button-insert,
+	.e-kit-library__connect-button,
+	.e-onboarding__button-action,
+	.e-onboarding101-variant-b-content .e-onboarding101-variant-b-button--primary,
+	.eps-button.eps-button--contained.eps-button--primary,
+	.eps-button.eps-button--contained.eps-button--cta,
+	.e-site-editor-conditions__add-button,
+	.e-button.e-button--cta
+):not(.e-btn-txt):not(.e-danger):not([disabled]):not(.eps-button--disabled) {
+	background-image: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9));
+	border-color: transparent;
+	color: #fff;
+	border-radius: var(--digi-radius-control, 9px);
+}
+html body :is(
+	.elementor-button.e-primary,
+	.e-btn.e-primary,
+	.dialog-buttons-wrapper .dialog-button.e-primary,
+	.dialog-buttons-wrapper .dialog-button.dialog-ok,
+	.dialog-buttons-wrapper .dialog-button.dialog-take_over,
+	.dialog-type-confirm .dialog-buttons-wrapper .elementor-button.dialog-button.dialog-ok,
+	#elementor-deactivate-feedback-modal .dialog-buttons-wrapper .dialog-button.dialog-submit,
+	.elementor-global-styles-dialog__button-insert,
+	.e-kit-library__connect-button,
+	.e-onboarding__button-action,
+	.e-onboarding101-variant-b-content .e-onboarding101-variant-b-button--primary,
+	.eps-button.eps-button--contained.eps-button--primary,
+	.eps-button.eps-button--contained.eps-button--cta,
+	.e-site-editor-conditions__add-button,
+	.e-button.e-button--cta
+):not(.e-btn-txt):not(.e-danger):not([disabled]):not(.eps-button--disabled):is(:hover, :focus-visible) {
+	background-image: var(--digi-gradient-hover, linear-gradient(135deg, #164ce4, #6635db 58%, #c72f91));
+	color: #fff;
+}
+
+/*
+ * Botones de WordPress en las pantallas del constructor (Ajustes, Herramientas, Plantillas, Código, Fuentes, Iconos,
+ * Envíos y sus pantallas de edición): el núcleo los repinta con su paleta; aquí llevan el estilo de los plugins.
+ */
+html body.e-has-sidebar-navigation #wpcontent :is(.button-primary, .wrap .page-title-action:not(.button-secondary), input[type=submit].button-primary, .wp-core-ui .button-primary),
+html body #wpcontent :is(#elementor-switch-mode-button, #elementor-editor-button).button-primary,
+html body #wpcontent .e-conversion-banner__button.button.button-primary {
+	background: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9));
+	border: 0;
+	border-radius: var(--digi-radius-control, 9px);
+	box-shadow: var(--digi-shadow-button, 0 8px 17px rgba(66, 74, 219, .23));
+	color: #fff;
+}
+html body.e-has-sidebar-navigation #wpcontent :is(.button-primary, .wrap .page-title-action:not(.button-secondary), input[type=submit].button-primary, .wp-core-ui .button-primary):is(:hover, :focus),
+html body #wpcontent :is(#elementor-switch-mode-button, #elementor-editor-button).button-primary:is(:hover, :focus),
+html body #wpcontent .e-conversion-banner__button.button.button-primary:is(:hover, :focus, :active) {
+	background: var(--digi-gradient-hover, linear-gradient(135deg, #164ce4, #6635db 58%, #c72f91));
+	color: #fff;
+}
+/* «Volver al editor de WordPress» conserva el gris del núcleo: es la acción secundaria. */
+html body.elementor-editor-active #wpcontent #elementor-switch-mode-button.button-primary {
+	background: #f7f7f7;
+	box-shadow: none;
+	color: #555;
+}
+
+/* Colores fijos del núcleo y de las funciones derivadas de PRO: administración. */
+html body #adminmenu :is(#toplevel_page_elementor a[href="admin.php?page=go_elementor_pro"], #toplevel_page_elementor-home a[href*=elementor-one-upgrade], #toplevel_page_elementor a[href*=elementor_pro_upgrade_license_menu_link]) {
+	background-color: var(--digi-pink-dark, #c72f91);
+}
+html body #adminmenu :is(#toplevel_page_elementor a[href="admin.php?page=go_elementor_pro"], #toplevel_page_elementor-home a[href*=elementor-one-upgrade], #toplevel_page_elementor a[href*=elementor_pro_upgrade_license_menu_link]):is(:hover, :focus) {
+	background-color: #b0257f;
+}
+html body .elementor-plugins-gopro,
+html body .e-dashboard-overview :is(.e-overview__go-pro, .e-overview__ai) a { color: var(--digi-pink-dark, #c72f91); }
+html body .elementor-plugins-gopro:is(:hover, :focus) { color: #b0257f; }
+html body #wpcontent .wrap.elementor-admin-page-license .elementor-license-box .elementor-upgrade-link {
+	color: var(--digi-pink-dark, #c72f91);
+	border-color: var(--digi-pink-dark, #c72f91);
+}
+html body #wpcontent .wrap.elementor-admin-page-license .elementor-license-box .elementor-upgrade-link:hover,
+html body #wpcontent .wrap.elementor-admin-page-license .elementor-license-box.elementor-pro-connect-promotion .button-upgrade {
+	background-color: var(--digi-pink-dark, #c72f91);
+}
+html body .e-custom-code-conditions-modal .eps-modal__header .eps-app__logo { background: none; }
+html body #elementor-custom-code .inside .elementor-custom-code-meta-box .elementor-custom-code-panel .e-ai-button { color: var(--digi-violet, #8249ee); }
+html body #elementor-custom-code .inside .elementor-custom-code-meta-box .elementor-custom-code-panel .e-ai-button:hover { color: var(--digi-violet-dark, #6635db); }
+/* IA de la imagen destacada en el editor de bloques (estilos de emotion con su propia caché). */
+html body .e-featured-image-ai :is(a, i) { color: var(--digi-violet, #8249ee); }
+
+/* Colores fijos: ventana del editor. */
+html body #nprogress .bar { background: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9)); }
+html body #nprogress .peg { box-shadow: 0 0 10px var(--digi-blue, #245eff), 0 0 5px var(--digi-blue, #245eff); }
+html body #nprogress .spinner-icon {
+	border-block-start-color: var(--digi-blue, #245eff);
+	border-inline-start-color: var(--digi-blue, #245eff);
+}
+html body .elementor-panel-elements-widget-creation__cta,
+html body .elementor-panel-heading.elementor-panel-category-title .elementor-panel-custom-widgets__cta--heading { color: var(--digi-blue, #245eff); }
+html body :is(.e-control-display-conditions, .e-control-display-conditions-promo, .e-control-display-conditions-promotion).eicon-flow.filled,
+html body #elementor-navigator__ai-titles:hover,
+html body .e-ai-button:hover { color: var(--digi-violet, #8249ee); }
+html body :is(.dialog-tooltip-widget .dialog-tooltip-header .eicon-pro-icon, .e-link-promotion, .e-notice-bar__primary_action a) { color: var(--digi-pink-dark, #c72f91); }
+html body #elementor-template-library-templates:is([data-template-source=cloud], [data-template-source=empty]) .toolbar-container .quota-progress-bar-normal { background-color: var(--digi-line, #dce4ff); }
+html body #elementor-template-library-templates:is([data-template-source=cloud], [data-template-source=empty]) .toolbar-container .quota-progress-bar-fill-normal { background-color: var(--digi-blue, #245eff); }
+html body #elementor-template-library-templates:is([data-template-source=cloud], [data-template-source=empty]) .toolbar-container .quota-progress-bar-fill-alert { background-color: var(--digi-pink-dark, #c72f91); }
+html body :is(.elementor-template-library-template-local, .elementor-template-library-template-cloud:not(.elementor-template-library-template-view-grid)) .elementor-template-library-template-insert.disabled { color: rgba(36, 94, 255, .35); }
+html body #elementor-template-library-save-template-form .cloud-library-form-inputs .upgrade-badge { border-color: rgba(199, 47, 145, .5); }
+html body .e-responsive-bar-switcher__option:hover { background-color: #1c2547; }
+html body .e-pro-promotion-placeholder__unlock-btn { background: var(--digi-pink-dark, #c72f91); }
+/* Contorno de los elementos v4 sobre el lienzo (se pinta en la ventana del editor, con el tema JS). */
+html body [data-element-overlay] { outline-color: var(--digi-blue, #245eff) !important; }
+
+/* Colores fijos: App (kits, Theme Builder, onboarding). */
+html body .eps-add-new-button .eps-icon { background-color: var(--digi-blue, #245eff); color: #fff; }
+html body .eps-inline-link--color-cta { --eps-inline-link-color: var(--digi-blue, #245eff); }
+html body .e-kit-library__kit-item-subscription-plan-badge.promoted { --e-a-color-brand: var(--digi-pink-dark, #c72f91); }
+html body .e-kit-library .connect-badge { color: var(--digi-blue, #245eff); }
+html body :is(.e-kit-library__kit-item-overlay-promotion-button, .e-kit-library__quota-bar__upgrade-link, .e-onboarding__go-pro-title) { color: var(--digi-pink-dark, #c72f91); }
+html body :is(.e-kit-library .upgrade-badge, .e-onboarding__go-pro-cta) { color: var(--digi-pink-dark, #c72f91); border-color: var(--digi-pink-dark, #c72f91); }
+html body :is(.e-kit-library__quota-bar__progress-container--empty, .e-kit-library__quota-bar__progress-container--normal) { background-color: var(--digi-line, #dce4ff); }
+html body .e-kit-library__quota-bar__progress-bar--normal { background: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9)); }
+html body :is(.e-kit-library__quota-bar__progress-container--alert, .e-kit-library__quota-bar__progress-bar--alert) { background: var(--digi-pink-dark, #c72f91); }
+html body .e-onboarding__header .eps-button__go-pro-btn { background-color: var(--digi-pink-dark, #c72f91); }
+html body .e-onboarding__header .eps-button__go-pro-btn:hover { background: #b0257f; }
+html body .e-onboarding__progress-bar-item--active { color: var(--digi-blue, #245eff); }
+html body :is(.e-onboarding__progress-bar-item--active, .e-onboarding__progress-bar-item--completed) .e-onboarding__progress-bar-item-icon {
+	border-color: var(--digi-blue, #245eff);
+	background-color: var(--digi-blue, #245eff);
+}
+html body .e-onboarding {
+	--theme-card-primary-color: var(--digi-blue, #245eff);
+	--theme-card-primary-shadow: 0 6px 16px rgba(36, 94, 255, .25);
+}
+html body .e-onboarding__page-siteLogo .e-app-upload-file__button:hover { background-color: var(--digi-tint, #eef2ff); }
+
+/*
+ * Componentes MUI de la interfaz del núcleo (inicio, barra superior, barra lateral, gestor de elementos, editor v4,
+ * App). Sus colores vienen del tema JS, sin variables: se sustituyen por sus clases estables. Los botones de un grupo
+ * (Publicar y su desplegable) van en azul sólido para que el degradado no se corte entre ellos.
+ */
+:is(.MuiButton-containedPrimary, .MuiButton-containedAccent, .MuiButton-containedPromotion)[class*="eui-"]:not(.Mui-disabled) {
+	background-color: var(--digi-blue, #245eff) !important;
+	background-image: var(--digi-gradient, linear-gradient(135deg, #245eff, #774af0 58%, #e13da9)) !important;
+	color: #fff !important;
+}
+:is(.MuiButton-containedPrimary, .MuiButton-containedAccent, .MuiButton-containedPromotion)[class*="eui-"]:not(.Mui-disabled):hover {
+	background-image: var(--digi-gradient-hover, linear-gradient(135deg, #164ce4, #6635db 58%, #c72f91)) !important;
+}
+:is(.MuiButton-containedPrimary, .MuiButton-containedAccent, .MuiButton-containedPromotion).MuiButtonGroup-grouped[class*="eui-"]:not(.Mui-disabled) {
+	background-image: none !important;
+	border-color: rgba(255, 255, 255, .35) !important;
+}
+:is(.MuiButton-containedPrimary, .MuiButton-containedAccent, .MuiButton-containedPromotion).MuiButtonGroup-grouped[class*="eui-"]:not(.Mui-disabled):hover {
+	background-color: var(--digi-blue-dark, #164ce4) !important;
+}
+:is(.MuiButton-outlinedPrimary, .MuiButton-outlinedAccent, .MuiButton-outlinedPromotion)[class*="eui-"]:not(.Mui-disabled) {
+	color: var(--digi-blue, #245eff) !important;
+	border-color: rgba(36, 94, 255, .5) !important;
+}
+:is(.MuiButton-textPrimary, .MuiButton-textAccent, .MuiButton-textPromotion, .MuiIconButton-colorPrimary, .MuiIconButton-colorAccent, .MuiIconButton-colorPromotion)[class*="eui-"]:not(.Mui-disabled) {
+	color: var(--digi-blue, #245eff) !important;
+}
+:is(.MuiButton-outlinedPrimary, .MuiButton-outlinedAccent, .MuiButton-outlinedPromotion, .MuiButton-textPrimary, .MuiButton-textAccent, .MuiButton-textPromotion, .MuiIconButton-colorPrimary, .MuiIconButton-colorAccent, .MuiIconButton-colorPromotion)[class*="eui-"]:not(.Mui-disabled):hover {
+	background-color: rgba(36, 94, 255, .06) !important;
+}
+:is(.MuiButton-containedGlobal, .MuiChip-filledGlobal, .MuiBadge-colorGlobal)[class*="eui-"] { background-color: var(--digi-violet, #8249ee) !important; color: #fff !important; }
+:is(.MuiButton-outlinedGlobal, .MuiButton-textGlobal, .MuiIconButton-colorGlobal, .MuiChip-outlinedGlobal)[class*="eui-"] { color: var(--digi-violet, #8249ee) !important; border-color: rgba(130, 73, 238, .5) !important; }
+:is(.MuiBadge-colorPrimary, .MuiBadge-colorAccent, .MuiBadge-colorPromotion)[class*="eui-"] { background-color: var(--digi-pink, #f13b9b) !important; color: #fff !important; }
+.MuiChip-filledPrimary[class*="eui-"] { background-color: var(--digi-blue, #245eff) !important; color: #fff !important; }
+:is(.MuiChip-filledAccent, .MuiChip-filledPromotion)[class*="eui-"] { background-color: var(--digi-pink-dark, #c72f91) !important; color: #fff !important; }
+.MuiChip-outlinedPrimary[class*="eui-"] { color: var(--digi-blue, #245eff) !important; border-color: rgba(36, 94, 255, .5) !important; }
+:is(.MuiChip-outlinedAccent, .MuiChip-outlinedPromotion)[class*="eui-"] { color: var(--digi-pink-dark, #c72f91) !important; border-color: rgba(199, 47, 145, .5) !important; }
+:is(.MuiAlert-standardPromotion, .MuiAlert-outlinedPromotion)[class*="eui-"] { color: #6e1450 !important; background-color: #fdf0f8 !important; border-color: rgba(199, 47, 145, .4) !important; }
+:is(.MuiAlert-standardPromotion, .MuiAlert-outlinedPromotion)[class*="eui-"] .MuiAlert-icon { color: var(--digi-pink-dark, #c72f91) !important; }
+.MuiAlert-filledPromotion[class*="eui-"] { background-color: var(--digi-pink-dark, #c72f91) !important; color: #fff !important; }
+.MuiSwitch-switchBase.MuiSwitch-colorPrimary.Mui-checked[class*="eui-"]:not(.Mui-disabled) { color: var(--digi-blue, #245eff) !important; }
+.MuiSwitch-switchBase.MuiSwitch-colorPrimary.Mui-checked[class*="eui-"]:not(.Mui-disabled) + .MuiSwitch-track { background-color: var(--digi-blue, #245eff) !important; }
+:is(.MuiCheckbox-colorPrimary.Mui-checked, .MuiCheckbox-colorPrimary.MuiCheckbox-indeterminate, .MuiRadio-colorPrimary.Mui-checked, .MuiSlider-colorPrimary, .MuiCircularProgress-colorPrimary)[class*="eui-"]:not(.Mui-disabled) { color: var(--digi-blue, #245eff) !important; }
+.MuiTabs-indicator[class*="eui-"] { background-color: var(--digi-blue, #245eff) !important; }
+.MuiTab-textColorPrimary.Mui-selected[class*="eui-"] { color: var(--digi-blue, #245eff) !important; }
+.MuiLinearProgress-colorPrimary[class*="eui-"] { background-color: rgba(36, 94, 255, .18) !important; }
+.MuiLinearProgress-barColorPrimary[class*="eui-"] { background-color: var(--digi-blue, #245eff) !important; }
+.MuiInputBase-colorPrimary.Mui-focused[class*="eui-"] .MuiOutlinedInput-notchedOutline { border-color: var(--digi-blue, #245eff) !important; }
+.MuiFormLabel-colorPrimary.Mui-focused[class*="eui-"] { color: var(--digi-blue, #245eff) !important; }
+:is(.MuiMenuItem-root, .MuiListItemButton-root).Mui-selected[class*="eui-"],
+[class*="eui-"] .MuiAutocomplete-option[aria-selected="true"] { background-color: rgba(36, 94, 255, .08) !important; }

@@ -14,6 +14,10 @@ defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_Elements_Identity {
 	const NAME   = 'DIGITALÍSIMO Elements';
 	const STYLE  = 'digitalisimo-elements-identity';
+	/** Paleta propia (assets/digitalisimo/palette*.css): administración y editor, tema oscuro y lienzo. */
+	const PALETTE         = 'digitalisimo-elements-palette';
+	const PALETTE_DARK    = 'digitalisimo-elements-palette-dark';
+	const PALETTE_PREVIEW = 'digitalisimo-elements-palette-preview';
 	const DOMAINS = array( 'elementor', 'elementor-pro' );
 
 	/** Patrones (sin delimitadores, compartidos con JavaScript) y su sustitución, en orden. */
@@ -45,6 +49,11 @@ final class Digitalisimo_Elements_Identity {
 			add_action( $hook, array( __CLASS__, 'enqueue_style' ) );
 		}
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_front_style' ) );
+		// La paleta, después de las hojas del núcleo (en la administración se encolan con prioridad 10).
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_palette' ), 100 );
+		add_action( 'elementor/editor/after_enqueue_styles', array( __CLASS__, 'enqueue_editor_palette' ), 100 );
+		add_action( 'elementor/app/init', array( __CLASS__, 'enqueue_app_palette' ) );
+		add_action( 'elementor/preview/enqueue_styles', array( __CLASS__, 'enqueue_preview_palette' ), 100 );
 		add_filter( 'pre_option_elementor_meta_generator_tag', array( __CLASS__, 'no_generator' ) );
 		add_filter( 'elementor/core/admin/notifications', '__return_empty_array', 99 );
 		add_filter( 'elementor/announcements/raw_announcements', '__return_empty_array', 99 );
@@ -158,6 +167,54 @@ final class Digitalisimo_Elements_Identity {
 		if ( ! wp_style_is( self::STYLE, 'enqueued' ) ) {
 			wp_enqueue_style( self::STYLE, plugins_url( 'assets/digitalisimo/identity.css', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION );
 		}
+	}
+
+	/**
+	 * Paleta propia en la administración: los colores del núcleo (variables, reglas fijas y componentes MUI) pasan a
+	 * los tokens de digitalisimo-ui.css, que se carga como dependencia para que los tokens sean los de los plugins.
+	 *
+	 * `admin_enqueue_scripts` pasa el sufijo de la pantalla: no se toma como dependencia.
+	 */
+	public static function enqueue_palette() {
+		self::add_palette( array() );
+	}
+
+	/** @param string[] $deps Hojas registradas que deben imprimirse antes. */
+	private static function add_palette( array $deps ) {
+		if ( ! wp_style_is( self::PALETTE, 'enqueued' ) ) {
+			$shared = function_exists( 'digitalisimo_ui_dependency' ) ? digitalisimo_ui_dependency() : array();
+			wp_enqueue_style( self::PALETTE, plugins_url( 'assets/digitalisimo/palette.css', DIGITALISIMO_ELEMENTS_FILE ), array_merge( $shared, $deps ), DIGITALISIMO_ELEMENTS_VERSION );
+		}
+	}
+
+	/**
+	 * En el editor, además, el tema oscuro: palette-dark.css lleva el mismo atributo media que la hoja oscura del
+	 * núcleo (auto, claro u oscuro según la preferencia) y un script lo copia cuando la preferencia cambia en vivo.
+	 */
+	public static function enqueue_editor_palette() {
+		self::add_palette( wp_style_is( 'elementor-editor', 'registered' ) ? array( 'elementor-editor' ) : array() );
+		$styles = wp_styles();
+		$media  = isset( $styles->registered['e-theme-ui-dark'] ) && is_string( $styles->registered['e-theme-ui-dark']->args ) && '' !== $styles->registered['e-theme-ui-dark']->args ? $styles->registered['e-theme-ui-dark']->args : 'none';
+		wp_enqueue_style( self::PALETTE_DARK, plugins_url( 'assets/digitalisimo/palette-dark.css', DIGITALISIMO_ELEMENTS_FILE ), array( self::PALETTE ), DIGITALISIMO_ELEMENTS_VERSION, $media );
+		wp_register_script( self::PALETTE_DARK, false, array(), DIGITALISIMO_ELEMENTS_VERSION, true );
+		wp_add_inline_script( self::PALETTE_DARK, self::palette_dark_sync() );
+		wp_enqueue_script( self::PALETTE_DARK );
+	}
+
+	/** Copia en palette-dark.css el atributo media que el editor cambia en #e-theme-ui-dark-css. */
+	public static function palette_dark_sync() {
+		return '(function(){var s=document.getElementById("e-theme-ui-dark-css"),d=document.getElementById(' . wp_json_encode( self::PALETTE_DARK . '-css' ) . ');'
+			. 'if(!s||!d){return;}d.media=s.media||"none";if(window.MutationObserver){new MutationObserver(function(){d.media=s.media||"none";}).observe(s,{attributes:true,attributeFilter:["media"]});}})();';
+	}
+
+	/** En la App la acción corre antes de que se encolen sus hojas: la dependencia la imprime después de app.css. */
+	public static function enqueue_app_palette() {
+		self::add_palette( array( 'elementor-app' ) );
+	}
+
+	/** El lienzo de vista previa: sólo la interfaz del editor, sin la hoja compartida (es la página real). */
+	public static function enqueue_preview_palette() {
+		wp_enqueue_style( self::PALETTE_PREVIEW, plugins_url( 'assets/digitalisimo/palette-preview.css', DIGITALISIMO_ELEMENTS_FILE ), wp_style_is( 'editor-preview', 'registered' ) ? array( 'editor-preview' ) : array(), DIGITALISIMO_ELEMENTS_VERSION );
 	}
 
 	/** En la página sólo hace falta para la barra de administración («Editar con…»). */

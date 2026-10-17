@@ -10,7 +10,7 @@ Auditoría inicial realizada sobre la versión 1.0.35. Esta descripción registr
 | `includes/class-backups.php` | Concentra interfaz, settings, cron, generación ZIP/SQL, subida remota, historial, retención y restauración. No hay separación en servicios o motor de jobs. |
 | `includes/class-digitalisimo-core.php` | Integra el menú Digitalisimo con otros módulos sin exigir su presencia. |
 | `includes/class-digitalisimo-updater.php` | Consulta Releases propios y ofrece actualizaciones por `Update URI`; independiente de los otros plugins. |
-| `assets/admin-ui.css` | Presentación administrativa. |
+| `assets/backups-admin.css` | Presentación propia de Backups (pestañas, rejilla, tarjetas y avance) sobre el diseño compartido `digitalisimo-ui/`, que trae la misma copia que los demás plugins. |
 
 La configuración vive en options del sitio o de la red. El historial también usa options. Existen acciones `admin-post`, eventos WP-Cron, creación manual y políticas automáticas. Los destinos declarados son local, SFTP, Google Drive y OneDrive. Se ofrecen importación de ZIP propio y conjuntos Updraft. Hay flujos de red y de sitio; la interfaz actual conserva parte del contexto administrativo, pero el motor de respaldo completo aún no está unificado.
 

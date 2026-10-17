@@ -362,7 +362,7 @@ class Digitalisimo_Integrations_Favicon {
 		if ( ! empty( $state['error'] ) ) { echo '<div class="notice notice-error inline"><p>' . esc_html( $state['error'] ) . '</p></div>'; return; }
 		if ( ! self::active() ) { echo '<p>El favicon se generará al guardar.</p>'; return; }
 		echo '<p>Generado el ' . esc_html( date_i18n( 'Y-m-d H:i', (int) $state['generated'] ) ) . '.</p><p>';
-		foreach ( array( 'favicon-48x48.png' => 48, 'favicon-96x96.png' => 48, 'apple-touch-icon.png' => 60, 'favicon-192x192.png' => 64 ) as $file => $show ) echo '<img src="' . esc_url( self::url( $file ) ) . '" width="' . (int) $show . '" height="' . (int) $show . '" alt="" style="margin-right:12px;vertical-align:middle;border:1px solid #dcdcde"> ';
+		foreach ( array( 'favicon-48x48.png' => 48, 'favicon-96x96.png' => 48, 'apple-touch-icon.png' => 60, 'favicon-192x192.png' => 64 ) as $file => $show ) echo '<img src="' . esc_url( self::url( $file ) ) . '" width="' . (int) $show . '" height="' . (int) $show . '" alt="" style="margin-right:12px;vertical-align:middle;border:1px solid var(--digi-line,#dce4ff)"> ';
 		echo '</p><details><summary>Etiquetas que se imprimen en el &lt;head&gt;</summary><pre style="white-space:pre-wrap">' . esc_html( implode( "\n", self::tags() ) ) . '</pre></details>';
 		$html = self::home_html();
 		if ( null === $html ) echo '<p class="description">No se pudo leer la portada para comprobar duplicados.</p>';

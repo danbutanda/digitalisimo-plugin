@@ -5,14 +5,14 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.226.zip', version: '1.0.226' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.56.zip', version: '1.0.56' },
-  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.27.zip', version: '1.0.27' },
-  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.55.zip', version: '1.0.55' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.227.zip', version: '1.0.227' },
+  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.57.zip', version: '1.0.57' },
+  { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.28.zip', version: '1.0.28' },
+  { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.56.zip', version: '1.0.56' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.31.zip', version: '1.0.31' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.32.zip', version: '1.0.32' };
 const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.155.zip', version: '4.3.0.155' };
-const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.17.zip', version: '1.0.17' };
+const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.18.zip', version: '1.0.18' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -116,6 +116,21 @@ for (const module of [...modules, toolsModule, elementsModule, migrationModule])
   const packaged = execFileSync('unzip', ['-p', zip, asset], { encoding: 'utf8' });
   if (packaged !== inlineUpdater || readFileSync(asset, 'utf8') !== inlineUpdater) throw new Error(`Controlador de actualizaciones ausente o distinto en ${zip}`);
 }
+// El diseño compartido viaja idéntico en los siete plugins (copia más nueva gana en tiempo de ejecución): un plugin
+// que se instala solo conserva el estilo y una Release parcial no deja dos variantes.
+for (const shared of ['digitalisimo-ui/digitalisimo-ui.php', 'digitalisimo-ui/digitalisimo-ui.css']) {
+  const reference = readFileSync(`digitalisimo-elements/${shared}`, 'utf8');
+  for (const module of [...modules, toolsModule, elementsModule, migrationModule]) {
+    const packaged = execFileSync('unzip', ['-p', join(packageDir, module.zip), `${module.dir}/${shared}`], { encoding: 'utf8' });
+    if (packaged !== reference || readFileSync(`${module.dir}/${shared}`, 'utf8') !== reference) throw new Error(`Diseño compartido ausente o distinto (${shared}) en ${module.zip}`);
+    if (!/require_once [^;]*'\/?digitalisimo-ui\/digitalisimo-ui\.php';/.test(readFileSync(join(module.dir, module.file), 'utf8'))) throw new Error(`${module.dir} debe cargar el diseño compartido.`);
+  }
+}
+{
+  // La paleta propia del constructor sustituye en tiempo de ejecución la del núcleo incluido.
+  const listing = execFileSync('unzip', ['-Z1', join(packageDir, elementsModule.zip)], { encoding: 'utf8' });
+  for (const required of ['assets/digitalisimo/palette.css', 'assets/digitalisimo/palette-dark.css', 'assets/digitalisimo/palette-preview.css']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
+}
 for (const file of phpFiles) {
   const source = readFileSync(file, 'utf8');
   if (/delete_(?:site_)?transient\s*\(\s*['"]update_plugins['"]/.test(source)) throw new Error(`${file} borra el inventario global de actualizaciones`);
@@ -139,7 +154,7 @@ const seoSnippetCss = readFileSync('digitalisimo-seo/assets/snippet-editor.css',
 const seoSnippetModalCss = readFileSync('digitalisimo-seo/assets/snippet-modal.css', 'utf8');
 const seoEditorUiCss = readFileSync('digitalisimo-seo/assets/editor-ui.css', 'utf8');
 const seoSnippetJs = readFileSync('digitalisimo-seo/assets/snippet-editor.js', 'utf8');
-const seoAdminUiCss = readFileSync('digitalisimo-seo/assets/admin-ui.css', 'utf8');
+const seoAdminUiCss = readFileSync('digitalisimo-seo/digitalisimo-ui/digitalisimo-ui.css', 'utf8');
 const seoBootstrap = readFileSync('digitalisimo-seo/digitalisimo-integrations.php', 'utf8');
 const seoSettings = readFileSync('digitalisimo-seo/includes/class-settings.php', 'utf8');
 const seoResolver = readFileSync('digitalisimo-seo/includes/class-seo-resolver.php', 'utf8');
@@ -245,8 +260,8 @@ if (!seoKeywordMatch.includes('Normalizer::FORM_KD') || !seoKeywordMatch.include
 if (!seoFrontInspector.includes('missing_secondary_keywords') || !seoSuite.includes("<meta name=\"author\"") || !seoSuite.includes("<meta name=\"publisher\"") || !readFileSync('digitalisimo-seo/includes/schema/class-schema-graph.php', 'utf8').includes("'publisher' => array( '@id' => $ids['identity'] )") || !seoSuite.includes('ensure_post_author')) throw new Error('SEO Front debe agrupar keywords secundarias y el front debe emitir autor y publisher reales.');
 const seoImages = readFileSync('digitalisimo-seo/includes/performance/class-performance-images.php', 'utf8');
 if (seoSuite.includes('attachment_alt') || !seoSettings.includes("'seo_alt_keyword_mode'   => 'contextual'") || !seoSuite.includes("'seo_alt_keyword_mode'") || !seoImages.includes('Digitalisimo_Integrations_Image_Alt::apply') || !seoBootstrap.includes('class-image-alt.php')) throw new Error('El ALT debe resolverse en la salida con la palabra clave de apoyo por modo, sin plantilla que repita la keyword.');
-if (!seoResolver.includes('site_only_keys') || !seoResolver.includes("'seo_site_name', 'seo_default_image', 'seo_default_image_alt'") || !seoSuite.includes('navigation_tabs( $tab, true )') || !seoSuite.includes('network_site_fields') || !seoSuite.includes('%sep%') || !readFileSync('digitalisimo-seo/assets/admin-ui.css', 'utf8').includes('digitalisimo-inherited-value')) throw new Error('La identidad e imágenes locales no deben heredarse y la red debe usar la navegación del sitio y mostrar valores heredados.');
-if (!seoSuite.includes('digitalisimo-default-value') || !seoSettings.includes('digitalisimo-default-note') || !readFileSync('digitalisimo-seo/assets/admin-ui.css', 'utf8').includes('digitalisimo-default-note')) throw new Error('Los valores predeterminados del plugin deben distinguirse visualmente.');
+if (!seoResolver.includes('site_only_keys') || !seoResolver.includes("'seo_site_name', 'seo_default_image', 'seo_default_image_alt'") || !seoSuite.includes('navigation_tabs( $tab, true )') || !seoSuite.includes('network_site_fields') || !seoSuite.includes('%sep%') || !seoAdminUiCss.includes('digitalisimo-inherited-value')) throw new Error('La identidad e imágenes locales no deben heredarse y la red debe usar la navegación del sitio y mostrar valores heredados.');
+if (!seoSuite.includes('digitalisimo-default-value') || !seoSettings.includes('digitalisimo-default-note') || !readFileSync('digitalisimo-seo/digitalisimo-ui/digitalisimo-ui.css', 'utf8').includes('digitalisimo-default-note')) throw new Error('Los valores predeterminados del plugin deben distinguirse visualmente.');
 if (!seoSettings.includes('migrate_template_defaults') || !seoSettings.includes('TEMPLATE_DEFAULTS_MIGRATION') || !seoSettings.includes('template_default_keys') || !seoSuite.includes('template_default_keys')) throw new Error('Las plantillas predeterminadas deben reemplazar valores vacíos de versiones anteriores y al guardar.');
 const crawlerVerifier = readFileSync('digitalisimo-seo/includes/class-seo-ai-crawler-verifier.php', 'utf8');
 if (!crawlerVerifier.includes('observe_public_request') || !crawlerVerifier.includes('PROCESS_HOOK') || !crawlerVerifier.includes('wp_schedule_single_event') || !crawlerVerifier.includes('Bloquear IP') || !crawlerVerifier.includes('block_fake_bot')) throw new Error('Los bots falsos deben detectarse en cola y ofrecer bloqueo manual.');

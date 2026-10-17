@@ -13,7 +13,7 @@ final class Digitalisimo_Backups_Core {
 	public static function assets() {
 		$page = sanitize_key( $_GET['page'] ?? '' );
 		if ( false === strpos( $page, 'digitalisimo' ) ) return;
-		wp_enqueue_style( 'digitalisimo-backups-ui', plugins_url( '../assets/admin-ui.css', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION );
+		wp_enqueue_style( 'digitalisimo-backups-ui', plugins_url( '../assets/backups-admin.css', __FILE__ ), function_exists( 'digitalisimo_ui_dependency' ) ? digitalisimo_ui_dependency() : array(), DIGITALISIMO_BACKUPS_VERSION );
 		if ( ! in_array( $page, array( 'digitalisimo-backups', 'digitalisimo-network-backups' ), true ) ) return;
 		wp_enqueue_script( 'digitalisimo-backups-manual', plugins_url( '../assets/manual-progress.js', __FILE__ ), array(), DIGITALISIMO_BACKUPS_VERSION, true );
 		wp_add_inline_script( 'digitalisimo-backups-manual', 'window.digitalisimoBackupsManual=' . wp_json_encode( array( 'url' => admin_url( 'admin-ajax.php' ), 'nonce' => wp_create_nonce( 'digitalisimo_backups_manual' ), 'context' => is_network_admin() ? 'network' : 'site' ) ) . ';', 'before' );

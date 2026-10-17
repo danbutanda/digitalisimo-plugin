@@ -27,6 +27,8 @@ jobs:
           php tests/migration-runner.php
           php tests/elements-sibling-updates.php
           php tests/updater-real-folder.php
+          php tests/digitalisimo-ui-loader.php
+          php tests/elements-palette.php
           php tests/elements-duplicator.php
           php tests/elements-advanced-icon-box.php
           php tests/elements-animated-heading.php
@@ -83,6 +85,7 @@ jobs:
       - name: Validar suite y paquetes
         run: |
           node tests/update-in-place.mjs
+          node tests/digitalisimo-ui.mjs
           DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
           DIGITALISIMO_PACKAGE_DIR=dist node scripts/verify-release.mjs
 

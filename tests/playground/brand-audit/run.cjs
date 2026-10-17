@@ -70,6 +70,35 @@ function collect() {
     const svg = document.querySelector(sel);
     if (svg && !/icono\.png/.test(getComputedStyle(svg).backgroundImage)) out.push({ kind: 'logotipo', text: 'SVG sin símbolo propio: ' + sel, shown: shown(svg), where: where(svg) });
   }
+  // Paleta: ningún elemento visible de la administración o del editor se pinta con un color de Elementor (texto, fondo,
+  // degradados, bordes, contorno, sombras, relleno y trazo de SVG, también en ::before y ::after). El frontal no cuenta:
+  // sus colores son el diseño del usuario.
+  if (!/^\/digi-marca\//.test(location.pathname)) {
+    const palette = [[208, 4, 212], [243, 186, 253], [192, 11, 185], [147, 0, 63], [240, 171, 252], [146, 0, 59], [147, 0, 60], [230, 10, 234], [231, 60, 246], [29, 221, 191], [94, 234, 212], [88, 208, 245]];
+    const near = (r, g, b) => palette.some(([x, y, z]) => Math.hypot(r - x, g - y, b - z) < 40);
+    const colors = (value) => [...String(value || '').matchAll(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/g)].filter((m) => m[4] === undefined || parseFloat(m[4]) > 0.05).map((m) => [+m[1], +m[2], +m[3]]);
+    const props = ['color', 'background-color', 'background-image', 'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color', 'outline-color', 'box-shadow', 'fill', 'stroke', 'text-decoration-color'];
+    const seen = new Set();
+    document.querySelectorAll('body *').forEach((el) => {
+      for (const pseudo of [null, '::before', '::after']) {
+        const s = getComputedStyle(el, pseudo);
+        if (pseudo && (s.content === 'none' || s.content === 'normal')) continue;
+        for (const prop of props) {
+          // Un borde de 0 o un contorno inexistente no se ven.
+          if (/^border-(\w+)-color$/.test(prop) && parseFloat(s.getPropertyValue(prop.replace('-color', '-width'))) === 0) continue;
+          if (prop === 'outline-color' && (s.outlineStyle === 'none' || parseFloat(s.outlineWidth) === 0)) continue;
+          if ((prop === 'fill' || prop === 'stroke') && !(el instanceof SVGElement)) continue;
+          for (const [r, g, b] of colors(s.getPropertyValue(prop))) {
+            if (!near(r, g, b)) continue;
+            const key = where(el) + (pseudo || '') + ' ' + prop;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push({ kind: 'color de Elementor', text: `${prop}: rgb(${r}, ${g}, ${b})${pseudo ? ' en ' + pseudo : ''}`, shown: shown(el), where: where(el) });
+          }
+        }
+      }
+    });
+  }
   return out;
 }
 
@@ -170,7 +199,7 @@ async function audit(page, label, locale, findings) {
   fs.writeFileSync(`${OUT}/brand-audit.json`, JSON.stringify({ visited, findings, errors }, null, 2));
   const groups = new Map();
   for (const f of shown) {
-    const key = `${f.kind} · ${f.text}`;
+    const key = f.kind === 'color de Elementor' ? `${f.kind} · ${f.text} · ${f.where}` : `${f.kind} · ${f.text}`;
     if (!groups.has(key)) groups.set(key, new Set());
     groups.get(key).add(`${f.locale} ${f.screen}`);
   }

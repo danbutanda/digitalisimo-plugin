@@ -56,7 +56,7 @@
 				text-decoration: none;
 				padding: 12px 20px;
 				color: #FFF;
-				background-color: #58D0F5;
+				background-color: #245eff;
 		">
 			<?php echo esc_html__( 'Take me there', 'elementor-pro' ); ?>
 		</a>

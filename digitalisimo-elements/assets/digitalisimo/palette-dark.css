@@ -1,0 +1,28 @@
+/*
+ * Paleta DIGITALÍSIMO para el tema oscuro del editor (núcleo incluido). Se imprime después de palette.css con el
+ * mismo atributo media que la hoja oscura del núcleo (#e-theme-ui-dark-css), y el editor lo copia cuando la
+ * preferencia cambia en vivo (Digitalisimo_Elements_Identity::palette_dark_sync()). Sobre el fondo oscuro del panel
+ * los tonos son más claros que en el tema claro, para conservar el contraste del texto.
+ */
+html:root {
+	--e-a-color-primary: #6f93ff;
+	--e-a-color-primary-bold: #8fabff;
+	--e-a-color-primary-bold-dark: #b3c6ff;
+	--e-a-color-accent: var(--digi-pink-dark, #c72f91);
+	--e-a-color-accent-promotion: var(--digi-pink, #f13b9b);
+	--e-a-color-accent-promotion-disabled: rgba(241, 59, 155, .38);
+	--e-a-color-global: #a98af3;
+	--e-a-color-info: #6f93ff;
+	--e-a-bg-primary: #1c2547;
+	--e-a-bg-info: #1c2547;
+	--e-a-btn-color: #fff;
+	--e-a-btn-bg-primary: var(--digi-blue, #245eff);
+	--e-a-btn-bg-primary-hover: #3d72ff;
+	--e-a-btn-bg-primary-active: var(--digi-blue-dark, #164ce4);
+	--e-a-btn-bg-accent: var(--digi-pink-dark, #c72f91);
+	--e-a-btn-bg-accent-hover: #b0257f;
+	--e-a-btn-bg-accent-active: #9b1f70;
+	--e-a-btn-bg-info: var(--digi-blue, #245eff);
+	--e-a-btn-bg-info-hover: #3d72ff;
+	--e-a-btn-bg-info-active: var(--digi-blue-dark, #164ce4);
+}

@@ -27,6 +27,7 @@ add_action( 'admin_notices', array( 'Digitalisimo_Elements_Core', 'external_noti
 add_action( 'network_admin_notices', array( 'Digitalisimo_Elements_Core', 'external_notice' ) );
 add_action( 'admin_notices', array( 'Digitalisimo_Elements_Core', 'duplicate_copies_notice' ) );
 add_action( 'network_admin_notices', array( 'Digitalisimo_Elements_Core', 'duplicate_copies_notice' ) );
+require_once __DIR__ . '/digitalisimo-ui/digitalisimo-ui.php';
 require_once __DIR__ . '/digitalisimo-compat.php';
 require_once __DIR__ . '/digitalisimo-updater.php';
 require_once __DIR__ . '/digitalisimo-sibling-updates.php';

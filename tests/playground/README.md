@@ -72,6 +72,12 @@ CORE=bundled bash tests/playground/interaction.sh
 
 Anota cada aparición visible de «Elementor» (textos, títulos, atributos accesibles, imágenes y logotipos, incluidos el icono del menú y los SVG de las barras superiores) y la meta `generator` del HTML público. Guarda capturas y el marcado de las barras en `$OUT` y falla si queda alguna. Los registros técnicos de «Información del sistema» (rutas y clases PHP) no cuentan: son identificadores.
 
+También mide los colores calculados de cada elemento visible de la administración y del editor (texto, fondo, degradados, bordes, contorno, sombras, relleno y trazo de SVG, con `::before` y `::after`) y falla si uno es de la paleta de Elementor: así una versión nueva del núcleo no puede reintroducirla sin que se note.
+
+## Diseño compartido
+
+`shared-ui.sh` monta los siete plugins en un sitio y, con un mu-plugin que filtra los plugins activos por petición (cookie `digi_ui_plugins`), abre la pantalla de cada uno con ese plugin solo (Migración junto a Elements, que necesita) y después con los siete activos. En cada una comprueba que haya una sola hoja compartida `digitalisimo-ui`, la clase de body `digitalisimo-admin`, el token `--digi-gradient` válido, el botón primario con el degradado propio y ningún color de la paleta de Elementor. Guarda capturas en `$OUT`.
+
 Todos los arneses cargan `playground-cleanup.sh`: al salir borran las copias temporales del sitio (`node-playground-cli-site-*`, unos 400 MB) que Playground deja cuando su proceso termina por la fuerza, sin tocar las de otra prueba en marcha.
 
 ## Condiciones de visualización

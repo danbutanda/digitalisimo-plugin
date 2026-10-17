@@ -674,12 +674,12 @@ class Digitalisimo_Integrations_Quality_Audit {
 		self::table( array( 'status' => 'Estado', 'issue' => 'Problema', 'kind' => 'Tipo', 'name' => 'Texto accesible', 'href' => 'href', 'selector' => 'Selector', 'widget' => 'Widget', 'hidden' => 'Oculto' ), $f['links'] ?? array(), 'Todos los enlaces tienen un destino válido.' );
 		echo '<h3>Encabezados · escritorio</h3>';
 		self::table( array( 'status' => 'Estado', 'issue' => 'Problema', 'text' => 'Texto', 'selector' => 'Selector', 'widget' => 'Widget' ), $f['headings'] ?? array(), 'Jerarquía correcta.' );
-		echo '<pre style="background:#fff;border:1px solid #dcdcde;padding:12px;max-height:420px;overflow:auto">' . esc_html( implode( "\n", (array) ( $ctx['record']['tree']['desktop'] ?? array() ) ) ?: 'Sin encabezados visibles.' ) . '</pre>';
+		echo '<pre style="background:#fff;border:1px solid var(--digi-line,#dce4ff);padding:12px;max-height:420px;overflow:auto">' . esc_html( implode( "\n", (array) ( $ctx['record']['tree']['desktop'] ?? array() ) ) ?: 'Sin encabezados visibles.' ) . '</pre>';
 		$mobile = (array) ( $ctx['record']['tree']['mobile'] ?? array() );
 		if ( $mobile && $mobile !== (array) $ctx['record']['tree']['desktop'] ) {
 			echo '<h3>Encabezados · móvil</h3><p class="description">Difiere del escritorio: hay encabezados ocultos o distintos por dispositivo.</p>';
 			self::table( array( 'status' => 'Estado', 'issue' => 'Problema', 'text' => 'Texto', 'selector' => 'Selector', 'widget' => 'Widget' ), $f['headings_mobile'] ?? array(), 'Jerarquía correcta.' );
-			echo '<pre style="background:#fff;border:1px solid #dcdcde;padding:12px;max-height:420px;overflow:auto">' . esc_html( implode( "\n", $mobile ) ) . '</pre>';
+			echo '<pre style="background:#fff;border:1px solid var(--digi-line,#dce4ff);padding:12px;max-height:420px;overflow:auto">' . esc_html( implode( "\n", $mobile ) ) . '</pre>';
 		}
 	}
 

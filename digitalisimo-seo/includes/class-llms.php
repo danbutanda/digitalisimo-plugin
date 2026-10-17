@@ -369,7 +369,7 @@ class Digitalisimo_Integrations_LLMS {
 		if ( ! empty( $http['note'] ) ) echo '<tr><th>Nota</th><td>' . esc_html( $http['note'] ) . '</td></tr>';
 		echo '<tr><th>HTTP</th><td>' . esc_html( $http['code'] ?: '—' ) . '</td></tr><tr><th>Content-Type</th><td><code>' . esc_html( $http['type'] ?: '—' ) . '</code></td></tr><tr><th>H1</th><td>' . esc_html( $http['h1'] ? 'Encontrado: ' . $http['title'] : 'No encontrado' ) . '</td></tr><tr><th>Enlaces</th><td>' . (int) $http['links'] . '</td></tr><tr><th>Secciones ##</th><td>' . (int) $http['sections'] . '</td></tr><tr><th>Longitud</th><td>' . (int) $http['bytes'] . ' bytes</td></tr></tbody></table>';
 		if ( ! $status['enabled'] ) echo '<p>Para publicar el archivo, marca «Activar llms.txt» y guarda.</p>';
-		echo '<h3>Vista previa</h3><pre style="background:#fff;border:1px solid #dcdcde;padding:12px;max-height:420px;overflow:auto;white-space:pre-wrap">' . esc_html( substr( (string) $status['content'], 0, 8000 ) ) . '</pre>';
+		echo '<h3>Vista previa</h3><pre style="background:#fff;border:1px solid var(--digi-line,#dce4ff);padding:12px;max-height:420px;overflow:auto;white-space:pre-wrap">' . esc_html( substr( (string) $status['content'], 0, 8000 ) ) . '</pre>';
 	}
 
 	/** Estado para el resumen de la auditoría y la pestaña llms.txt de SEO AI. */
