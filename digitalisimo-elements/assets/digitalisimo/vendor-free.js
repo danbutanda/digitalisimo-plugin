@@ -3,8 +3,9 @@
  * Lo carga digitalisimo-vendor-free.php sólo con el núcleo incluido. Sin enlaces, iframes, vídeos ni ventanas
  * hacia los dominios del proveedor: se desactivan sin quitar nodos (las interfaces en React los esperan), los
  * accesos de cuenta, ayuda, novedades y Angie del editor se ocultan con la API de sus menús, la biblioteca deja
- * sólo «Mis plantillas» y la ruta de kits del proveedor en la App lleva a importar kits en ZIP. Las filas del plugin
- * Elementor original instalado no se tocan (regla del proyecto).
+ * sólo «Mis plantillas», la ruta de kits del proveedor en la App lleva a importar kits en ZIP y la de su asistente de
+ * configuración, al Inicio rápido propio. Las filas del plugin Elementor original instalado no se tocan (regla del
+ * proyecto).
  */
 ( function () {
 	'use strict';
@@ -24,6 +25,10 @@
 		try {
 			host = new URL( url, window.location.href ).hostname.toLowerCase();
 		} catch ( e ) {
+			return false;
+		}
+		// El propio sitio nunca es del proveedor, aunque esté alojado en uno de sus subdominios.
+		if ( host === window.location.hostname.toLowerCase() ) {
 			return false;
 		}
 		for ( var i = 0; i < hosts.length; i++ ) {
@@ -202,10 +207,16 @@
 		}, 250 );
 	}
 
-	/** App: la biblioteca de kits del proveedor lleva a importar un kit en ZIP. */
+	/**
+	 * App: la biblioteca de kits del proveedor lleva a importar un kit en ZIP, y su asistente de configuración (cuenta,
+	 * planes y tema del proveedor; el núcleo redirige a «#onboarding» tras activarse), al Inicio rápido propio.
+	 */
 	function app() {
 		var guard = function () {
-			if ( /^#\/kit-library/.test( window.location.hash ) ) {
+			var hash = window.location.hash;
+			if ( /^#\/?onboarding\b/.test( hash ) && config.home ) {
+				window.location.replace( config.home );
+			} else if ( /^#\/kit-library/.test( hash ) ) {
 				window.location.replace( '#/import' );
 			}
 		};

@@ -81,5 +81,14 @@ namespace {
 	$GLOBALS['t']['registered'] = array( 'editor-preview' => true );
 	$id::enqueue_preview_palette();
 	check_palette( array( $id::PALETTE_PREVIEW ) === array_keys( $GLOBALS['t']['styles'] ) && array( 'editor-preview' ) === $GLOBALS['t']['styles'][ $id::PALETTE_PREVIEW ]['deps'] && false !== strpos( $GLOBALS['t']['styles'][ $id::PALETTE_PREVIEW ]['src'], 'palette-preview.css' ), 'El lienzo carga sólo palette-preview.css, después de editor-preview.' );
+
+	// Importar y exportar kits (#/import-customization, #/export-customization): el enlace «Click to upload» (Link MUI sin
+	// clase de color, se cubre por su data-testid, que sigue en el bundle de la App) y el subrayado de los campos.
+	$css = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/digitalisimo/palette.css' ) );
+	check_palette( false !== strpos( $css, 'html body .MuiLink-root[data-testid="click-to-upload"][class*="eui-"]' ) && false !== strpos( $css, 'html body.eps-theme-dark .MuiLink-root[data-testid="click-to-upload"][class*="eui-"]' ), 'palette.css cubre el enlace «Click to upload» al importar un kit, en los dos temas.' );
+	check_palette( false !== strpos( $css, ':is(.MuiInput-underline, .MuiFilledInput-underline).MuiInputBase-colorPrimary[class*="eui-"]:not(.Mui-error)::after { border-bottom-color: var(--digi-blue, #245eff) !important; }' ), 'palette.css cubre el subrayado de los campos al exportar un kit.' );
+	foreach ( array( 'app.js', 'app.min.js' ) as $bundle ) {
+		check_palette( 1 === preg_match( '/"data-testid":\s*["`]click-to-upload["`]/', (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/elementor/assets/js/' . $bundle ) ), 'El núcleo ya no marca «click-to-upload» en ' . $bundle . ': revisar palette.css.' );
+	}
 	echo "DIGITALÍSIMO Elements: paleta propia en la administración, el editor, la App y el lienzo.\n";
 }

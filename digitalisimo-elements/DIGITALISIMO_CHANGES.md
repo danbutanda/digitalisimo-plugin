@@ -1,5 +1,16 @@
 # DIGITALÍSIMO Elements 4.3.0.157
 
+- @NEXT@: sin direcciones latentes del proveedor ni su asistente de configuración. Con el núcleo incluido, lo que el constructor entrega al navegador (configuración común, de la administración, del editor y de la App y su cargador; promociones de los widgets Pro; barra lateral; plantillas del editor y de la biblioteca) ya no lleva enlaces, mejoras, planes, Site Planner ni vídeos del proveedor, aunque no se vieran: `digitalisimo-vendor-free.php` los quita en origen con los filtros del núcleo. Un «Learn more» sale con su enlace y un enlace dentro de una frase deja su texto. El contenido, los ajustes de la página, los disparadores y reglas de los popups, las condiciones del Theme Builder, las preferencias y el historial de kits del usuario no se tocan, y tampoco las direcciones del propio sitio aunque esté alojado en un subdominio del proveedor (antes sus enlaces se habrían ocultado). Además:
+  - el asistente de configuración del núcleo (cuenta, planes y tema del proveedor) ya no se ofrece: su ruta en la App y cualquier redirección hacia él llevan al Inicio rápido propio;
+  - una redirección hacia el proveedor sólo se desvía a «Acerca de» si la pide el constructor: la de otro plugin o del frontal (un enlace de afiliado enmascarado) ya no termina en la administración;
+  - el programa beta queda apagado, sin la ventana que pedía el correo para el boletín del proveedor;
+  - la ventana «My account» de la barra superior («Have an … plan?») no se ve aunque llegue a abrirse;
+  - importar y exportar kits: la cabecera lleva el símbolo propio (mostraba el logotipo del núcleo), el enlace «Click to upload» y el subrayado de los campos usan la paleta propia, y salen el «Learn more» sin destino y «Save to library», que guardaba en la nube del proveedor;
+  - los fondos con vídeo ya no sugieren el vídeo de muestra del proveedor;
+  - la pestaña «Editor atómico» de Ajustes y las ventanas de activación del editor atómico ya no piden imágenes al proveedor: `vendor-early.js`, en la cabecera, no deja asignar a una imagen, vídeo o marco una dirección suya.
+
+  Con el plugin Elementor original activo manda él y nada de esto se aplica.
+
 - 4.3.0.157: sin rastro del proveedor del núcleo ni de otras empresas. Con el núcleo incluido el constructor ya no se conecta con servicios ni cuentas externas. `digitalisimo-vendor-free.php` responde en el servidor a lo que el núcleo pide a sus dominios (biblioteca, Connect, kits, nube, IA, notificaciones, telemetría, Mixpanel), sin que salga la petición. También apaga la telemetría, sirve vacías sus cachés remotas, borra una vez los datos y tokens que guardaron, redirige las pantallas de cuenta a «Acerca de» y retira sus rutas REST. Salen de la interfaz:
   - el vídeo y los anuncios del inicio rápido, que ahora sólo tiene accesos propios con iconos propios;
   - «Mi cuenta», la ayuda, las novedades, Angie y los comentarios de la barra superior y del menú del editor;

@@ -71,5 +71,23 @@ namespace {
 	check_identity( 'DIGITALÍSIMO Elements #42' === $id::default_title( array( 'post_title' => 'Elementor #42' ) )['post_title'] && 'Mi Elementor #42' === $id::default_title( array( 'post_title' => 'Mi Elementor #42' ) )['post_title'], 'Sólo el título automático exacto cambia.' );
 	check_identity( '' === $id::footer_text( 'Enjoyed Elementor? <a href="https://go.elementor.com/admin-review/">★★★★★</a>' ) && '' === $id::footer_text( 'Enjoyed Elementor? <a href="https://wordpress.org/support/plugin/elementor/reviews/">★★★★★</a>' ) && 'Gracias por crear con WordPress.' === $id::footer_text( 'Gracias por crear con WordPress.' ), 'El pie que pide valorar el núcleo desaparece; el de WordPress queda.' );
 	check_identity( '1' === $id::no_generator() && '1' === $id::onboarded(), 'Sin meta generator ni asistente de bienvenida del núcleo.' );
+
+	// Menú «My account» de la barra superior (conexión, planes y cuenta del proveedor, «Have an … plan?»): su botón no se
+	// pinta y, si la ventana llega a abrirse, tampoco se ve. Las marcas siguen en el bundle del núcleo (las dos formas).
+	$css = (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/assets/digitalisimo/identity.css' );
+	check_identity( false !== strpos( $css, '#editor-one-top-bar [data-test="header-user-button"]' ) && false !== strpos( $css, '[data-test="user-profile-menu"] .MuiPaper-root' ) && false !== strpos( $css, '[data-test^="user-menu-"]' ), 'identity.css oculta el botón y la ventana «My account» de la barra superior.' );
+	foreach ( array( 'editor-one-top-bar.js', 'editor-one-top-bar.min.js' ) as $bundle ) {
+		$code = (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/elementor/assets/js/' . $bundle );
+		foreach ( array( 'header-user-button', 'user-profile-menu', 'user-menu-connect' ) as $mark ) {
+			check_identity( 1 === preg_match( '/"data-test":\s*["`]' . $mark . '["`]/', $code ), 'El núcleo ya no marca «' . $mark . '» en ' . $bundle . ': revisar identity.css.' );
+		}
+	}
+	// Importar y exportar kits en la App: el logotipo SVG en línea de la cabecera (reconocido por su trazo) lleva el
+	// símbolo propio; el «Learn more» sin destino al importar y «Save to library» (nube del proveedor) no se pintan.
+	check_identity( false !== strpos( $css, '#e-app svg:has( > path[d^="M2.69648 24.8891"] )' ) && false !== strpos( $css, '#e-app svg > path[d^="M2.69648 24.8891"]' ) && false !== strpos( $css, '#e-app [data-testid="import-learn-more-link"]' ) && false !== strpos( $css, '#e-app [data-testid="export-kit-footer-save-to-library-button"]' ), 'identity.css cubre la cabecera, el «Learn more» y «Save to library» (nube del proveedor) de importar y exportar kits.' );
+	foreach ( array( 'app.js', 'app.min.js' ) as $bundle ) {
+		$code = (string) file_get_contents( __DIR__ . '/../digitalisimo-elements/elementor/assets/js/' . $bundle );
+		check_identity( false !== strpos( $code, 'M2.69648 24.8891' ) && 1 === preg_match( '/"data-testid":\s*["`]import-learn-more-link["`]/', $code ) && 1 === preg_match( '/"data-testid":\s*["`]export-kit-footer-save-to-library-button["`]/', $code ), 'El núcleo cambió el logotipo, el «Learn more» o «Save to library» de importar y exportar kits en ' . $bundle . ': revisar identity.css.' );
+	}
 	echo "DIGITALÍSIMO Elements: identidad propia del constructor validada.\n";
 }

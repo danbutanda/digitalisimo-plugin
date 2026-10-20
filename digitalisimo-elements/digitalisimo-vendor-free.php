@@ -19,6 +19,9 @@ defined( 'ABSPATH' ) || exit;
 final class Digitalisimo_Elements_Vendor_Free {
 	const SCRIPT = 'digitalisimo-elements-vendor-free';
 
+	/** Guarda temprana (assets/digitalisimo/vendor-early.js): en la cabecera, antes que los scripts del núcleo. */
+	const EARLY = 'digitalisimo-elements-vendor-early';
+
 	/**
 	 * Dominios del proveedor del núcleo y de PRO Elements (también sus subdominios). Los de los complementos que
 	 * sustituye DIGITALÍSIMO Migración no se nombran aquí: Elements no los contiene ni los pide (el empaquetado aborta si
@@ -63,6 +66,51 @@ final class Digitalisimo_Elements_Vendor_Free {
 	/** Rutas REST de conexión, comentarios y permisos para servicios del proveedor. */
 	const REST_ROUTES = '#^/(elementor/v1/library/connect|elementor/v1/angie|elementor-ai/v1|elementor-one/v1/(top-bar/feedback|feedback))#';
 
+	/** Hosts donde viven los vídeos de VIDEOS: el identificador sólo cuenta en una dirección de vídeo. */
+	const VIDEO_HOSTS = '#(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com|vimeo\.com|dailymotion\.com|videopress\.com)$#i';
+
+	/**
+	 * Plantillas del núcleo (`<script type="text/template">`) con enlaces, insignias o direcciones del proveedor. Sólo
+	 * se limpian éstas, nunca el contenido del usuario. tests/elements-vendor-guard.php falla si una versión nueva del
+	 * núcleo añade otra plantilla con una dirección del proveedor.
+	 */
+	const TEMPLATES = array(
+		'tmpl-elementor-template-library-save-template',
+		'tmpl-elementor-template-library-save-template-variant-b',
+		'tmpl-elementor-template-library-import',
+		'tmpl-elementor-template-library-templates-empty',
+		'tmpl-elementor-global-styles-dialog',
+		'tmpl-elementor-panel-categories',
+		'tmpl-elementor-panel-global',
+		'tmpl-elementor-panel-revisions-no-revisions',
+		'tmpl-elementor-beta-tester',
+	);
+
+	/** Scripts cuyos datos localizados (wp_localize_script, sin filtro propio) traen direcciones del proveedor. */
+	const LOCALIZED = array( 'e-react-promotions', 'editor-one-sidebar-navigation' );
+
+	/**
+	 * Datos del usuario dentro de la configuración del editor: su contenido, los ajustes de la página, los
+	 * disparadores y reglas de un popup (`displaySettings`), las condiciones de una plantilla del Theme Builder y sus
+	 * preferencias. El editor los reenvía al guardar: uno vaciado aquí se perdería. Un enlace que el usuario puso
+	 * hacia esos dominios es suyo y nunca se toca.
+	 */
+	const EDITOR_USER_DATA = array(
+		array( 'initial_document', 'elements' ),
+		array( 'initial_document', 'settings', 'settings' ),
+		array( 'initial_document', 'displaySettings', '*', 'settings' ),
+		array( 'initial_document', 'theme_builder', 'settings' ),
+		array( 'settings', '*', 'settings' ),
+	);
+
+	/** Datos del usuario dentro de la configuración de la App: el historial de kits importados. */
+	const APP_USER_DATA = array(
+		array( 'importSessions' ),
+		array( 'lastImportedSession' ),
+		array( '*', 'importSessions' ),
+		array( '*', 'lastImportedSession' ),
+	);
+
 	public static function init() {
 		if ( ! class_exists( 'Digitalisimo_Elements_Core' ) || ! Digitalisimo_Elements_Core::bundled() ) {
 			return;
@@ -73,6 +121,9 @@ final class Digitalisimo_Elements_Vendor_Free {
 		}
 		add_filter( 'pre_option_elementor_allow_tracking', array( __CLASS__, 'no' ) );
 		add_filter( 'pre_option_elementor_tracker_notice', array( __CLASS__, 'one' ) );
+		// Programa beta: su boletín es del proveedor y sus versiones serían las del plugin Elementor original.
+		add_filter( 'pre_option_elementor_beta', array( __CLASS__, 'no' ) );
+		add_action( 'current_screen', array( __CLASS__, 'no_beta_tester' ), 20 );
 		foreach ( self::EXPERIMENTS_OFF as $experiment ) {
 			add_filter( 'pre_option_elementor_experiment-' . $experiment, array( __CLASS__, 'inactive' ) );
 		}
@@ -94,6 +145,14 @@ final class Digitalisimo_Elements_Vendor_Free {
 		add_filter( 'elementor/editor-one/menu/excluded_level3_slugs', array( __CLASS__, 'menu_slugs' ) );
 		add_filter( 'elementor/document/config', array( __CLASS__, 'document_config' ), 20 );
 		add_filter( 'elementor/editor/localize_settings', array( __CLASS__, 'editor_settings' ), 20 );
+		// Datos localizados del núcleo: común (todas las pantallas), administración y App (también su cargador).
+		add_filter( 'elementor/common/localize_settings', array( __CLASS__, 'common_settings' ), 99 );
+		add_filter( 'elementor/admin/localize_settings', array( __CLASS__, 'admin_settings' ), 99 );
+		add_action( 'elementor/common/after_register_scripts', array( __CLASS__, 'app_config' ), 1 );
+		// Plantillas del núcleo: se limpian justo antes de imprimirse (el núcleo las imprime con prioridad 10).
+		foreach ( array( 'elementor/editor/footer', 'admin_footer', 'wp_footer' ) as $hook ) {
+			add_action( $hook, array( __CLASS__, 'templates' ), 9 );
+		}
 		add_filter( 'elementor/editor/v2/packages', array( __CLASS__, 'editor_packages' ), 20 );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'editor_scripts' ), 20 );
 		add_action( 'elementor/editor/v2/scripts/enqueue', array( __CLASS__, 'editor_scripts' ), 20 );
@@ -104,7 +163,10 @@ final class Digitalisimo_Elements_Vendor_Free {
 		add_filter( 'plugin_row_meta', array( __CLASS__, 'plugin_row_meta' ), 20, 2 );
 	}
 
-	/** ¿La URL va a un dominio del proveedor? */
+	/**
+	 * ¿La URL va a un dominio del proveedor? Las del propio sitio nunca: uno alojado en un subdominio del proveedor
+	 * (`mi-sitio.elementor.cloud`) sigue siendo del usuario, con sus enlaces, redirecciones y peticiones.
+	 */
 	public static function vendor_url( $url ) {
 		$host = strtolower( (string) wp_parse_url( (string) $url, PHP_URL_HOST ) );
 		if ( '' === $host ) {
@@ -112,6 +174,16 @@ final class Digitalisimo_Elements_Vendor_Free {
 		}
 		foreach ( self::HOSTS as $vendor ) {
 			if ( $host === $vendor || substr( $host, -strlen( $vendor ) - 1 ) === '.' . $vendor ) {
+				return ! self::own_host( $host );
+			}
+		}
+		return false;
+	}
+
+	/** ¿Es el host del sitio en curso o de la red? Se calcula en cada llamada: switch_to_blog() cambia de sitio. */
+	private static function own_host( $host ) {
+		foreach ( array( 'home_url', 'site_url', 'network_home_url' ) as $function ) {
+			if ( function_exists( $function ) && strtolower( (string) wp_parse_url( (string) $function(), PHP_URL_HOST ) ) === $host ) {
 				return true;
 			}
 		}
@@ -120,7 +192,7 @@ final class Digitalisimo_Elements_Vendor_Free {
 
 	/**
 	 * ¿La pide el constructor (núcleo incluido o derivado de PRO), y no otro plugin? Decide el primer archivo de la
-	 * pila que no es de WordPress ni de esta clase: quien llamó a wp_remote_*().
+	 * pila que no es de WordPress ni de esta clase: quien llamó a wp_remote_*() o a wp_redirect().
 	 */
 	private static function from_builder() {
 		$dir = wp_normalize_path( dirname( DIGITALISIMO_ELEMENTS_FILE ) ) . '/';
@@ -240,9 +312,25 @@ final class Digitalisimo_Elements_Vendor_Free {
 		return $result;
 	}
 
-	/** Una redirección del constructor hacia el proveedor lleva a la página propia. */
+	/**
+	 * Una redirección del constructor hacia el proveedor lleva a la página propia; la de cualquier otro código (un
+	 * enlace de afiliado de otro plugin, el frontal) no cambia, como en el escudo. La del núcleo hacia su asistente de
+	 * configuración tras activarlo (`page=elementor-app#onboarding`: cuenta, planes y tema del proveedor) lleva al
+	 * Inicio rápido propio.
+	 */
 	public static function redirect( $location ) {
-		return self::vendor_url( $location ) && function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=digitalisimo-elements-about' ) : $location;
+		if ( ! function_exists( 'admin_url' ) ) {
+			return $location;
+		}
+		if ( self::vendor_url( $location ) && self::from_builder() ) {
+			return admin_url( 'admin.php?page=digitalisimo-elements-about' );
+		}
+		return self::onboarding_url( $location ) ? admin_url( 'admin.php?page=elementor' ) : $location;
+	}
+
+	/** ¿La dirección abre el asistente de configuración del núcleo en la App? */
+	public static function onboarding_url( $location ) {
+		return (bool) preg_match( '#[?&]page=elementor-app(&[^\#]*)?\#/?onboarding\b#i', (string) $location );
 	}
 
 	/** Pantallas ocultas de cuenta, Site Planner, mejoras y apps del proveedor: a la página propia. */
@@ -279,6 +367,18 @@ final class Digitalisimo_Elements_Vendor_Free {
 
 	public static function no_versions() {
 		return array();
+	}
+
+	/**
+	 * Sin la ventana del programa beta (boletín del proveedor): el núcleo la engancha en `current_screen` (prioridad
+	 * 10) en Inicio rápido y Herramientas; aquí se desengancha su plantilla y su script.
+	 */
+	public static function no_beta_tester() {
+		$admin = class_exists( '\Elementor\Plugin' ) && isset( \Elementor\Plugin::$instance->admin ) ? \Elementor\Plugin::$instance->admin : null;
+		if ( is_object( $admin ) ) {
+			remove_action( 'admin_head', array( $admin, 'add_beta_tester_template' ) );
+			remove_action( 'admin_enqueue_scripts', array( $admin, 'enqueue_beta_tester_scripts' ) );
+		}
 	}
 
 	/**
@@ -368,7 +468,11 @@ final class Digitalisimo_Elements_Vendor_Free {
 		return $config;
 	}
 
-	/** Ajustes del editor: sin accesos a la cuenta, ayuda ni documentación del proveedor. */
+	/**
+	 * Ajustes del editor: sin accesos a la cuenta, ayuda, documentación ni vídeos del proveedor (también los «Learn
+	 * more» de las descripciones de los controles y el vídeo de ejemplo de los fondos). El contenido del usuario, los
+	 * ajustes de la página y sus preferencias viajan en la misma configuración y no se tocan (EDITOR_USER_DATA).
+	 */
 	public static function editor_settings( $settings ) {
 		if ( ! is_array( $settings ) ) {
 			return $settings;
@@ -379,18 +483,237 @@ final class Digitalisimo_Elements_Vendor_Free {
 				$settings['user']['top_bar'][ $key ] = '';
 			}
 		}
-		return self::strip_vendor_urls( $settings );
+		return self::strip_vendor_urls( $settings, self::EDITOR_USER_DATA );
 	}
 
-	/** Cualquier cadena que sea una URL del proveedor queda vacía (los identificadores internos no cambian). */
-	private static function strip_vendor_urls( $value ) {
-		if ( is_array( $value ) ) {
-			foreach ( $value as $key => $item ) {
-				$value[ $key ] = self::strip_vendor_urls( $item );
+	/** Configuración común (todas las pantallas del constructor y el frontal): sin planes ni mejoras del proveedor. */
+	public static function common_settings( $config ) {
+		return is_array( $config ) ? self::strip_vendor_urls( $config ) : $config;
+	}
+
+	/** Configuración de la administración: los avisos de los experimentos llegan sin su «Learn more» del proveedor. */
+	public static function admin_settings( $settings ) {
+		return is_array( $settings ) ? self::strip_vendor_urls( $settings ) : $settings;
+	}
+
+	/**
+	 * Configuración de la App (la imprime su cargador en cada pantalla y la propia App): sin la mejora del Theme Builder,
+	 * los planes de la biblioteca de kits ni las direcciones del asistente de configuración (Site Planner, planes). Se
+	 * limpia la de la App y la de cada componente justo antes de imprimirse; el historial de kits importados es del
+	 * usuario y no se toca (APP_USER_DATA).
+	 */
+	public static function app_config() {
+		$app = class_exists( '\Elementor\Plugin' ) && isset( \Elementor\Plugin::$instance->app ) ? \Elementor\Plugin::$instance->app : null;
+		if ( ! is_object( $app ) ) {
+			return;
+		}
+		self::strip_settings( $app );
+		if ( method_exists( $app, 'get_components' ) ) {
+			foreach ( (array) $app->get_components() as $component ) {
+				self::strip_settings( $component );
+			}
+		}
+	}
+
+	/** Ajustes de un objeto del núcleo (get_settings/set_settings) sin direcciones del proveedor. */
+	public static function strip_settings( $object ) {
+		if ( ! is_object( $object ) || ! method_exists( $object, 'get_settings' ) || ! method_exists( $object, 'set_settings' ) ) {
+			return;
+		}
+		$settings = $object->get_settings();
+		if ( ! is_array( $settings ) ) {
+			return;
+		}
+		$clean = self::strip_vendor_urls( $settings, self::APP_USER_DATA );
+		if ( $clean !== $settings ) {
+			$object->set_settings( $clean );
+		}
+	}
+
+	/**
+	 * Plantillas del núcleo con enlaces o direcciones del proveedor (TEMPLATES): se limpian en la lista del núcleo
+	 * justo antes de imprimirse. Sólo cambian esos bloques `<script type="text/template">`.
+	 */
+	public static function templates() {
+		$common = class_exists( '\Elementor\Plugin' ) && isset( \Elementor\Plugin::$instance->common ) ? \Elementor\Plugin::$instance->common : null;
+		if ( ! is_object( $common ) || ! property_exists( $common, 'templates' ) ) {
+			return;
+		}
+		$strip = function () {
+			if ( is_array( $this->templates ) ) {
+				foreach ( $this->templates as $index => $template ) {
+					$this->templates[ $index ] = Digitalisimo_Elements_Vendor_Free::template_markup( $template );
+				}
+			}
+		};
+		// La lista es privada de la clase que la declara (core/common/app.php), no de una posible subclase.
+		$scope = ( new \ReflectionProperty( $common, 'templates' ) )->getDeclaringClass()->getName();
+		\Closure::bind( $strip, $common, $scope )();
+	}
+
+	/** Dentro de un texto con plantillas, sólo las de TEMPLATES pierden los enlaces y direcciones del proveedor. */
+	public static function template_markup( $html ) {
+		if ( ! is_string( $html ) || false === strpos( $html, 'text/template' ) ) {
+			return $html;
+		}
+		return (string) preg_replace_callback(
+			'#(<script\b([^>]*)>)(.*?)(</script>)#is',
+			static function ( $m ) {
+				$template = preg_match( '#\btype\s*=\s*(["\'])text/template\1#i', $m[2] ) && preg_match( '#\bid\s*=\s*(["\'])([^"\']+)\1#i', $m[2], $id );
+				return $template && in_array( $id[2], self::TEMPLATES, true ) ? $m[1] . self::strip_vendor_markup( $m[3] ) . $m[4] : $m[0];
+			},
+			$html
+		);
+	}
+
+	/**
+	 * Datos localizados con wp_localize_script() que el núcleo no deja filtrar (LOCALIZED): mejoras de los widgets
+	 * Pro en el editor y de la barra lateral de la administración. Se reescriben ya encolados, antes de imprimirse.
+	 */
+	public static function localized_data() {
+		if ( ! function_exists( 'wp_scripts' ) ) {
+			return;
+		}
+		$scripts = wp_scripts();
+		foreach ( self::LOCALIZED as $handle ) {
+			$data = $scripts->get_data( $handle, 'data' );
+			if ( is_string( $data ) && '' !== $data ) {
+				$clean = self::strip_localized( $data );
+				if ( $clean !== $data ) {
+					$scripts->add_data( $handle, 'data', $clean );
+				}
+			}
+		}
+	}
+
+	/** `var nombre = {…};` (una línea por llamada) con los mismos datos, sin direcciones del proveedor. */
+	public static function strip_localized( $data ) {
+		return (string) preg_replace_callback(
+			'/^(var\s+[\w$]+\s*=\s*)(.+);$/m',
+			static function ( $m ) {
+				$value = json_decode( $m[2] );
+				if ( ! is_array( $value ) && ! $value instanceof \stdClass ) {
+					return $m[0];
+				}
+				// «<» y «>» escapados (JSON_HEX_TAG): el script en línea nunca lleva un «</script>» literal.
+				$json = wp_json_encode( self::strip_vendor_urls( $value ), JSON_HEX_TAG | JSON_UNESCAPED_SLASHES );
+				return is_string( $json ) ? $m[1] . $json . ';' : $m[0];
+			},
+			$data
+		);
+	}
+
+	/**
+	 * Datos del núcleo sin direcciones del proveedor (los identificadores internos no cambian):
+	 *  - una cadena que es una URL del proveedor, o de uno de sus vídeos de ejemplo, queda vacía;
+	 *  - en un texto con HTML, sus enlaces y direcciones salen (strip_vendor_markup()).
+	 * Las rutas de $keep (con «*» como comodín) son datos del usuario y pasan intactas.
+	 *
+	 * @param mixed      $value Datos.
+	 * @param string[][] $keep  Rutas que no se tocan.
+	 * @param string[]   $path  Ruta de $value (uso interno).
+	 */
+	public static function strip_vendor_urls( $value, array $keep = array(), array $path = array() ) {
+		if ( is_array( $value ) || $value instanceof \stdClass ) {
+			$object = is_object( $value );
+			$value  = $object ? clone $value : $value;
+			foreach ( ( $object ? get_object_vars( $value ) : $value ) as $key => $item ) {
+				$child = array_merge( $path, array( (string) $key ) );
+				if ( self::kept( $child, $keep ) ) {
+					continue;
+				}
+				if ( $object ) {
+					$value->$key = self::strip_vendor_urls( $item, $keep, $child );
+				} else {
+					$value[ $key ] = self::strip_vendor_urls( $item, $keep, $child );
+				}
 			}
 			return $value;
 		}
-		return is_string( $value ) && preg_match( '#^(https?:)?//#i', $value ) && self::vendor_url( $value ) ? '' : $value;
+		if ( ! is_string( $value ) || false === strpos( $value, '//' ) ) {
+			return $value;
+		}
+		if ( preg_match( '#^(https?:)?//\S*$#i', $value ) ) {
+			return self::vendor_link( $value ) ? '' : $value;
+		}
+		return self::strip_vendor_markup( $value );
+	}
+
+	/** ¿La ruta coincide con alguna de las que se conservan? */
+	private static function kept( array $path, array $keep ) {
+		foreach ( $keep as $pattern ) {
+			if ( count( $pattern ) !== count( $path ) ) {
+				continue;
+			}
+			foreach ( array_values( $pattern ) as $index => $segment ) {
+				if ( '*' !== $segment && (string) $segment !== $path[ $index ] ) {
+					continue 2;
+				}
+			}
+			return true;
+		}
+		return false;
+	}
+
+	/** ¿Dirección del proveedor o de uno de sus vídeos de ejemplo (en un host de vídeo)? */
+	public static function vendor_link( $url ) {
+		if ( self::vendor_url( $url ) ) {
+			return true;
+		}
+		$host = strtolower( (string) wp_parse_url( (string) $url, PHP_URL_HOST ) );
+		return '' !== $host && preg_match( self::VIDEO_HOSTS, $host ) && preg_match( self::VIDEOS, (string) $url );
+	}
+
+	/**
+	 * HTML o código de plantilla del núcleo sin enlaces ni direcciones del proveedor:
+	 *  - un enlace que va solo, tras una frase completa o al principio («… cases. Learn more», un botón «Upgrade Now»),
+	 *    sale con su texto;
+	 *  - uno dentro de una frase («Learn more about the Template Library», «with Flexbox and Grid») deja su texto;
+	 *  - cualquier otra dirección del proveedor (en el código de la plantilla, en un atributo) queda vacía.
+	 */
+	public static function strip_vendor_markup( $text ) {
+		if ( ! is_string( $text ) || false === strpos( $text, '//' ) ) {
+			return $text;
+		}
+		$original = $text;
+		$text     = (string) preg_replace_callback(
+			'#(\s*)<a\b[^>]*?\bhref\s*=\s*(["\'])([^"\']*)\2[^>]*>((?:(?!</a>).)*)</a>#is',
+			static function ( $m ) use ( $original ) {
+				if ( ! self::vendor_link( html_entity_decode( $m[3][0], ENT_QUOTES ) ) ) {
+					return $m[0][0];
+				}
+				$before = rtrim( substr( $original, 0, $m[0][1] ) );
+				$last   = '' === $before ? '' : substr( $before, -1 );
+				$alone  = '' === $last || false !== strpos( '.!?:;>\'"', $last ) || self::learn_more( $m[4][0] );
+				return $alone ? '' : $m[1][0] . $m[4][0];
+			},
+			$text,
+			-1,
+			$count,
+			PREG_OFFSET_CAPTURE
+		);
+		return (string) preg_replace_callback(
+			'#(?:https?:)?//[^\s"\'<>(){}\\\\]+#i',
+			static function ( $m ) {
+				return self::vendor_link( html_entity_decode( $m[0], ENT_QUOTES ) ) ? '' : $m[0];
+			},
+			$text
+		);
+	}
+
+	/** ¿El texto del enlace es un «Learn more» (en inglés o en el idioma del sitio)? Esos enlaces nunca dejan su texto. */
+	private static function learn_more( $html ) {
+		static $labels = null;
+		if ( null === $labels ) {
+			$labels = array( 'learn more', 'read more' );
+			if ( function_exists( '__' ) ) {
+				foreach ( array( 'Learn more', 'Learn More', 'Read more' ) as $label ) {
+					$labels[] = strtolower( (string) __( $label, 'elementor' ) ); // phpcs:ignore WordPress.WP.I18n -- textos del núcleo.
+				}
+			}
+		}
+		$text = strtolower( trim( html_entity_decode( strip_tags( (string) $html ), ENT_QUOTES ) ) );
+		return '' !== $text && in_array( $text, $labels, true );
 	}
 
 	/** El paquete «Widget personalizado» del editor promociona Angie, el agente de IA del proveedor. */
@@ -401,25 +724,37 @@ final class Digitalisimo_Elements_Vendor_Free {
 	/** Editor: fuera las novedades remotas y, con el script propio, los accesos del proveedor en sus menús. */
 	public static function editor_scripts() {
 		wp_dequeue_script( 'e-editor-notifications' );
+		self::localized_data();
 		self::enqueue_script( 'editor' );
 	}
 
 	/** Administración y App: el script propio retira enlaces y vídeos del proveedor que pinta el núcleo. */
 	public static function admin_script() {
+		self::localized_data();
 		self::enqueue_script( did_action( 'elementor/app/init' ) && ! did_action( 'admin_enqueue_scripts' ) ? 'app' : 'admin' );
 	}
 
+	/**
+	 * Los dos scripts propios: la guarda temprana, sin dependencias y en la cabecera (en la App, que sólo imprime el
+	 * pie, sale antes que sus scripts porque se encola antes), para que ninguna imagen, vídeo o marco del núcleo llegue
+	 * a pedir una dirección del proveedor; y vendor-free.js en el pie, que desactiva enlaces y menús ya pintados.
+	 */
 	private static function enqueue_script( $context ) {
 		if ( wp_script_is( self::SCRIPT, 'enqueued' ) ) {
 			return;
 		}
-		$deps = 'editor' === $context && wp_script_is( 'elementor-v2-editor-app-bar', 'registered' ) ? array( 'elementor-v2-editor-app-bar' ) : array();
-		wp_enqueue_script( self::SCRIPT, plugins_url( 'assets/digitalisimo/vendor-free.js', DIGITALISIMO_ELEMENTS_FILE ), $deps, DIGITALISIMO_ELEMENTS_VERSION, true );
-		wp_add_inline_script( self::SCRIPT, 'window.digitalisimoVendorFree=' . wp_json_encode( array(
+		$config = 'window.digitalisimoVendorFree=' . wp_json_encode( array(
 			'hosts'   => self::HOSTS,
 			'context' => $context,
 			'about'   => admin_url( 'admin.php?page=digitalisimo-elements-about' ),
-		) ) . ';', 'before' );
+			// El asistente de configuración del núcleo (#/onboarding en la App) lleva al Inicio rápido propio.
+			'home'    => admin_url( 'admin.php?page=elementor' ),
+		) ) . ';';
+		wp_enqueue_script( self::EARLY, plugins_url( 'assets/digitalisimo/vendor-early.js', DIGITALISIMO_ELEMENTS_FILE ), array(), DIGITALISIMO_ELEMENTS_VERSION, false );
+		wp_add_inline_script( self::EARLY, $config, 'before' );
+		$deps = 'editor' === $context && wp_script_is( 'elementor-v2-editor-app-bar', 'registered' ) ? array( 'elementor-v2-editor-app-bar' ) : array();
+		wp_enqueue_script( self::SCRIPT, plugins_url( 'assets/digitalisimo/vendor-free.js', DIGITALISIMO_ELEMENTS_FILE ), $deps, DIGITALISIMO_ELEMENTS_VERSION, true );
+		wp_add_inline_script( self::SCRIPT, $config, 'before' );
 	}
 
 	/**

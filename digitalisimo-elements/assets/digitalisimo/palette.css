@@ -233,6 +233,19 @@ html body .e-onboarding {
 	--theme-card-primary-shadow: 0 6px 16px rgba(36, 94, 255, .25);
 }
 html body .e-onboarding__page-siteLogo .e-app-upload-file__button:hover { background-color: var(--digi-tint, #eef2ff); }
+/*
+ * Importar un kit (#/import-customization): el enlace «Click to upload» de la zona de arrastre es un Link MUI sin color
+ * propio, así que toma el primario accesible del tema JS (sin clase de color que lo distinga). Se cubre por su
+ * data-testid, que es el del bundle de la App (import/components/drop-zone.js).
+ */
+html body .MuiLink-root[data-testid="click-to-upload"][class*="eui-"] {
+	color: var(--digi-blue, #245eff) !important;
+	text-decoration-color: rgba(36, 94, 255, .4) !important;
+}
+html body.eps-theme-dark .MuiLink-root[data-testid="click-to-upload"][class*="eui-"] {
+	color: #8fabff !important;
+	text-decoration-color: rgba(143, 171, 255, .4) !important;
+}
 
 /*
  * Componentes MUI de la interfaz del núcleo (inicio, barra superior, barra lateral, gestor de elementos, editor v4,
@@ -282,6 +295,8 @@ html body .e-onboarding__page-siteLogo .e-app-upload-file__button:hover { backgr
 .MuiLinearProgress-colorPrimary[class*="eui-"] { background-color: rgba(36, 94, 255, .18) !important; }
 .MuiLinearProgress-barColorPrimary[class*="eui-"] { background-color: var(--digi-blue, #245eff) !important; }
 .MuiInputBase-colorPrimary.Mui-focused[class*="eui-"] .MuiOutlinedInput-notchedOutline { border-color: var(--digi-blue, #245eff) !important; }
+/* Subrayado de los campos con línea (nombre y descripción al exportar un kit): su ::after es el primario (el de error se conserva). */
+:is(.MuiInput-underline, .MuiFilledInput-underline).MuiInputBase-colorPrimary[class*="eui-"]:not(.Mui-error)::after { border-bottom-color: var(--digi-blue, #245eff) !important; }
 .MuiFormLabel-colorPrimary.Mui-focused[class*="eui-"] { color: var(--digi-blue, #245eff) !important; }
 :is(.MuiMenuItem-root, .MuiListItemButton-root).Mui-selected[class*="eui-"],
 [class*="eui-"] .MuiAutocomplete-option[aria-selected="true"] { background-color: rgba(36, 94, 255, .08) !important; }

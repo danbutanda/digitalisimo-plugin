@@ -50,6 +50,13 @@
 #elementor-editor-wrapper-v2 header .MuiGrid-container > .MuiStack-root:first-child > button:first-child > svg > * {
 	display: none;
 }
+/* Cabecera de importar y exportar kits en la App: su logotipo es un SVG en línea sin clase propia, se reconoce por su trazo. */
+#e-app svg:has( > path[d^="M2.69648 24.8891"] ) {
+	background: url("icono.png") center / contain no-repeat;
+}
+#e-app svg > path[d^="M2.69648 24.8891"] {
+	display: none;
+}
 
 /* Inicio rápido: el núcleo pinta siempre un vídeo de YouTube y su botón «ver guía»; sin datos quedan vacíos. */
 #e-home-screen .MuiPaper-root:has(iframe[src*="youtube"]) > .MuiBox-root:has(iframe),
@@ -64,8 +71,11 @@
 
 /*
  * Sin accesos al proveedor (Digitalisimo_Elements_Vendor_Free): ayuda, novedades, cuenta y comentarios de la barra
- * superior; «Need help» de widgets, menú y ajustes del sitio; pestañas remotas y de nube de la biblioteca;
- * insignias de conexión; información con vídeo del Theme Builder; IA en el perfil y en Código personalizado. El
+ * superior, y el menú «My account» aunque llegue a abrirse (su ventana va en un portal fuera de #editor-one-top-bar:
+ * conexión, planes y cuenta del proveedor, «Have an … plan?»); «Need help» de widgets, menú y ajustes del sitio;
+ * pestañas remotas y de nube de la biblioteca y el pie que remite a su documentación; insignias de conexión;
+ * información con vídeo del Theme Builder; el «Learn more» sin destino al importar un kit y «Save to library» (la
+ * nube del proveedor) al exportarlo; IA en el perfil y en Código personalizado. El
  * script vendor-free.js desactiva además cualquier enlace o iframe hacia sus dominios. En los bundles derivados de
  * PRO, las direcciones del proveedor se sustituyeron por «#digitalisimo-vendor-off»: ese enlace nunca se pinta.
  */
@@ -76,10 +86,12 @@
 #editor-one-top-bar .MuiBadge-root:has( [data-test="whats-new-button"] ),
 #editor-one-top-bar [data-test="whats-new-button"],
 #editor-one-top-bar .MuiDivider-vertical:has( + [data-test="header-user-button"] ),
+[data-test="user-profile-menu"] .MuiPaper-root,
+[data-test^="user-menu-"],
 #elementor-panel__editor__help,
 .elementor-template-library-menu-item[data-tab="templates/blocks"],
 .elementor-template-library-menu-item[data-tab="templates/pages"],
-.elementor-template-library-blank-footer-link,
+.elementor-template-library-blank-footer,
 #elementor-template-library-connect__badge,
 #elementor-template-library-connect__badge-wrapper,
 .elementor-template-library-cloud-empty__button,
@@ -89,6 +101,8 @@
 .cloud-badge,
 .account-badge,
 .e-site-part__info-toggle,
+#e-app [data-testid="import-learn-more-link"],
+#e-app [data-testid="export-kit-footer-save-to-library-button"],
 tr:has( > td #elementor_enable_ai ),
 tr:has( + tr > td #elementor_enable_ai ),
 #elementor-custom-code .e-ai-button,
