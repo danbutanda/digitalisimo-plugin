@@ -114,7 +114,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | F0 | Base, sin cambios de comportamiento | **Publicado** · Migración 1.0.20 · `v2026.10.17.409` |
 | F0.1 | Aviso de extensiones de Element Pack y detección del Addon | **Publicado** · Migración 1.0.20 · `v2026.10.17.409` |
 | F0.2 | Sin rastro de los plugins de origen ni de sus proveedores | **Publicado** · Elements 4.3.0.157 y los demás plugins · `v2026.10.17.408` (seguimiento F0.2b publicado: Elements 4.3.0.158 · `v2026.10.20.410`) |
-| F1 | Tema y publicación | **Publicado** · tema 1.0.0, SEO 1.0.231, Tools 1.0.36 y Elements 4.3.0.161 |
+| F1 | Tema y publicación | **Publicado** · tema 1.0.0, SEO 1.0.231, Tools 1.0.36 y Elements 4.3.0.161 · `v2026.10.20.415` |
 | F1b | Editor de fragmentos PHP en Tools | **Publicado** · Tools 1.0.34 · `v2026.10.20.411` |
 | F2 | Base común de conversión y Migración v2 | Pendiente |
 | F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md` | Pendiente |
