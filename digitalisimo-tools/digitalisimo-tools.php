@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DIGITALÍSIMO Tools
  * Description: Herramientas internas de administración y automatización para redes WordPress.
- * Version: 1.0.33
+ * Version: 1.0.34
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-tools
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -10,7 +10,7 @@
  * Network: true
  */
 defined( 'ABSPATH' ) || exit;
-define( 'DIGITALISIMO_TOOLS_VERSION', '1.0.33' );
+define( 'DIGITALISIMO_TOOLS_VERSION', '1.0.34' );
 define( 'DIGITALISIMO_TOOLS_FILE', __FILE__ );
 define( 'DIGITALISIMO_TOOLS_DIR', __DIR__ . '/' );
 require_once DIGITALISIMO_TOOLS_DIR . 'digitalisimo-ui/digitalisimo-ui.php';

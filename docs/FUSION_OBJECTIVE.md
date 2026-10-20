@@ -113,7 +113,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | F0.1 | Aviso de extensiones de Element Pack y detección del Addon | **Publicado** · Migración 1.0.20 · `v2026.10.17.409` |
 | F0.2 | Sin rastro de los plugins de origen ni de sus proveedores | **Publicado** · Elements 4.3.0.157 y los demás plugins · `v2026.10.17.408` (seguimiento F0.2b en curso) |
 | F1 | Tema y publicación | Pendiente |
-| F1b | Editor de fragmentos PHP en Tools | **Publicado** · Tools @NEXT_TOOLS@ |
+| F1b | Editor de fragmentos PHP en Tools | **Publicado** · Tools 1.0.34 |
 | F2 | Base común de conversión y Migración v2 | Pendiente |
 | F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md` | Pendiente |
 | F7a | Capacidades que Divi y Betheme necesitan | Pendiente |
@@ -245,7 +245,7 @@ Hecho en `fusion/f0-2-sin-referencias` (commit a6218fa). Inventario en `docs/fus
 |---|---|---|---|---|
 | `digitalisimo_compat` | La escriben la importación o la migración de ese sitio | — (automática, sin pantalla) | Lista cerrada de CPT, sidebars y ubicaciones del origen | Pendiente (F2) |
 | `digitalisimo_theme_switch` | Registro del paso desde Hello en ese sitio | — (automática, sin pantalla) | Escrita sólo por el tema | Pendiente (F1) |
-| Fragmentos PHP | Fragmentos del sitio | Fragmentos de red, que corren en todos los sitios (Tools es de red) salvo donde estén pausados o detenidos | `Store::sanitize_item()` igual en las dos superficies; revisión de sintaxis, prueba previa, firma, capacidad y nonce | Publicado (F1b) · Tools @NEXT_TOOLS@ |
+| Fragmentos PHP | Fragmentos del sitio | Fragmentos de red, que corren en todos los sitios (Tools es de red) salvo donde estén pausados o detenidos | `Store::sanitize_item()` igual en las dos superficies; revisión de sintaxis, prueba previa, firma, capacidad y nonce | Publicado (F1b) · Tools 1.0.34 |
 
 Cada opción nueva se añade aquí antes de darse por terminada.
 
