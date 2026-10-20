@@ -74,6 +74,8 @@ jobs:
           php tests/favicon.php
           php tests/schema.php
           php tests/tools-site-options.php
+          php tests/tools-php-snippets.php
+          php tests/tools-php-guard.php
           php tests/hosting-migration.php
           php tests/performance-preloads.php
           php tests/performance-migration.php

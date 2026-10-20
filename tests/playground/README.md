@@ -125,6 +125,14 @@ ORIGINAL=1 bash tests/playground/brand-audit.sh                                 
 
 `shared-ui.sh` monta los siete plugins en un sitio y, con un mu-plugin que filtra los plugins activos por petición (cookie `digi_ui_plugins`), abre la pantalla de cada uno con ese plugin solo (Migración junto a Elements, que necesita) y después con los siete activos. En cada una comprueba que haya una sola hoja compartida `digitalisimo-ui`, la clase de body `digitalisimo-admin`, el token `--digi-gradient` válido, el botón primario con el degradado propio y ningún color de la paleta de Elementor. Guarda capturas en `$OUT`.
 
+## Código PHP de DIGITALÍSIMO Tools
+
+`tools-php.sh` arranca Playground en modo servidor con un solo proceso (`PORT`, por defecto 9451), primero en un sitio individual con la ruta privada de acceso y después en una red servida como `http://playground.test` con los sitios 2 y 3. Monta Tools, el plugin falso `fake-plugins/digitalisimo-php-redirect` (con su bandera, la portada redirige una vez) y la sonda `tools-php/probe.php` (mu-plugin): banderas por sitio en la opción `digi_php_probe_flags` para `DIGITALISIMO_TOOLS_PHP_SAFE_MODE`, `DISALLOW_FILE_EDIT` y `SAVEQUERIES` (en una opción y no en archivos, porque Playground conserva entre peticiones la caché de rutas de PHP), captura de correos con `pre_wp_mail` y `?digi_php_probe=state|tamper|import|cron|mails` para leer o preparar el estado. El conductor `tools-php/run.mjs` hace lo que haría el navegador del administrador con un tarro de cookies: los tres pasos de «Guardar y activar» (prepare, abrir el escritorio con la sesión y cada portada sin cookies, activate con su reintento) sin que el servidor se pida nada a sí mismo, y juzga por los códigos HTTP, las cabeceras que añaden los fragmentos y el estado de la sonda. Cubre los escenarios de la especificación: fragmento válido, sintaxis, fatal al cargarse, fatal diferido con su conciliación, correo y cron, salida al cargarse, portada que redirige, la constante, el enlace de rescate con la ruta privada (página, cookie, acceso, modo reducido, cookie falsificada o de otro sitio, petición pública limitada), la red (aislamiento, pausa sólo en un sitio, un solo correo, «Reanudar en todos los sitios»), una alteración directa de la base de datos, `DISALLOW_FILE_EDIT`, las consultas sin fragmentos, una importación con `status=active` y el escape de un título y un error con `<script>`.
+
+```bash
+OUT=/tmp/digi-tools-php PORT=9451 bash tests/playground/tools-php.sh
+```
+
 Todos los arneses cargan `playground-cleanup.sh`: al salir borran las copias temporales del sitio (`node-playground-cli-site-*`, unos 400 MB) que Playground deja cuando su proceso termina por la fuerza, sin tocar las de otra prueba en marcha.
 
 ## Condiciones de visualización

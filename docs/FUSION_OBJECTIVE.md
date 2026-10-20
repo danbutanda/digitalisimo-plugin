@@ -75,9 +75,9 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
     - `Retire::PLUGINS` gana `phase` (`start`, `end`, `theme`); la red sólo retira `start` al inicio. Element Pack conserva su orden actual como excepción documentada.
 11. **Compatibilidad cotidiana en Elements.** La opción `digitalisimo_compat`, que escriben la importación o la migración, activa los CPT del origen con sus slugs, las sidebars como widget Sidebar en plantillas del Theme Builder y las ubicaciones de menú. Sin esa opción, cero consultas.
     - Lo no convertible se marca con un widget oculto `digitalisimo-unconverted`: no pinta nada en el frontal, avisa en el editor y conserva la carga original. Mientras quede alguno bloqueante, no se activa el resultado ni se retira el origen.
-12. **Editor de fragmentos PHP en DIGITALÍSIMO Tools** (sustituye al tema hijo). Fragmentos por sitio y por red, guardados fuera de las carpetas del tema y del plugin, ejecutados por Tools en un gancho temprano.
-    - Ninguno se ejecuta sin pasar la revisión de sintaxis y la prueba previa. Un fragmento que provoca un error fatal se desactiva solo y queda anotado. Hay modo seguro para arrancar sin fragmentos.
-    - Sólo lo usa quien puede editar temas (superadministrador en red) y no está disponible con `DISALLOW_FILE_EDIT`.
+12. **Editor de fragmentos PHP en DIGITALÍSIMO Tools** (sustituye al tema hijo). Fragmentos por sitio y por red, guardados en la base de datos, sin archivos, y ejecutados por Tools con `include` por su envoltorio `digitalisimo-php://` en `after_setup_theme` con prioridad `PHP_INT_MIN`: ya cargó el `functions.php` del tema, así que un `remove_action` sobre lo del tema funciona; no se pueden sustituir funciones *pluggable* ni engancharse a `plugins_loaded`.
+    - Ninguno se ejecuta sin pasar la revisión de sintaxis, la prueba previa (escritorio y portada, lanzada por el navegador del administrador) y la firma de la versión probada. Un fragmento que provoca un error fatal se desactiva solo (si es de red, se pausa sólo en ese sitio) y queda anotado. Hay modo seguro para arrancar sin fragmentos.
+    - Sólo lo usa quien puede editar temas (superadministrador en red); con `DISALLOW_FILE_EDIT` o `DISALLOW_FILE_MODS` los activos siguen y sólo se pueden desactivar o detener (D1).
     - Sin Tools activo no se ejecuta ningún fragmento. Diseño detallado en F1b.
 
 ## Reglas transversales
@@ -89,7 +89,7 @@ Cada incremento las cumple. Las permanentes están también en `AGENTS.md`.
 - **Entradas seguras.**
   - ZIP sin `..`, rutas absolutas ni symlinks, con límites de entradas, tamaño y ratio. JSON con límites de tamaño y profundidad. `unserialize` con `allowed_classes => false`.
   - Medios con `wp_safe_remote_get` a IP pública, tope de tamaño, verificación de tipo, SVG saneado y deduplicación por hash.
-  - Código ejecutable a Código personalizado en borrador o al informe. Nunca se ejecutan hooks PHP de GP ni `{echo:}` de Bricks.
+  - Código ejecutable a Código personalizado en borrador, a Tools desactivado o al informe; nunca se ejecuta automáticamente (ni los hooks PHP de GP ni `{echo:}` de Bricks).
 - **Procedencia y registro.** `_digitalisimo_import_origin` (origen, versión, id, hash) en todo lo creado. Original y registro de conversión en base de datos privada (autoload off), visibles sólo para administradores. Reimportar no duplica: se omite, se actualiza o se marca conflicto.
 - **Condiciones y caché.** Cada condición nueva se declara cacheable o variable, y `THEME_LOCATIONS` se puede ampliar por filtro. El editor distingue visibilidad, render condicional y autorización: ninguna condición se presenta como protección.
 - **Recursos.**
@@ -113,7 +113,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | F0.1 | Aviso de extensiones de Element Pack y detección del Addon | **Publicado** · Migración 1.0.20 · `v2026.10.17.409` |
 | F0.2 | Sin rastro de los plugins de origen ni de sus proveedores | **Publicado** · Elements 4.3.0.157 y los demás plugins · `v2026.10.17.408` (seguimiento F0.2b en curso) |
 | F1 | Tema y publicación | Pendiente |
-| F1b | Editor de fragmentos PHP en Tools | Pendiente · diseño en curso |
+| F1b | Editor de fragmentos PHP en Tools | **Publicado** · Tools @NEXT_TOOLS@ |
 | F2 | Base común de conversión y Migración v2 | Pendiente |
 | F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md` | Pendiente |
 | F7a | Capacidades que Divi y Betheme necesitan | Pendiente |
@@ -170,10 +170,13 @@ Hecho en `fusion/f0-2-sin-referencias` (commit a6218fa). Inventario en `docs/fus
 
 ### F1b · Editor de fragmentos PHP en Tools
 
-- Pantalla en Tools (sitio y red, con la paridad de `AGENTS.md`) para crear, revisar, activar y desactivar fragmentos, con historial y registro.
-- Seguridad: capacidad, nonce, `DISALLOW_FILE_EDIT`, revisión de sintaxis, prueba antes de activar, autodesactivación ante un error fatal y modo seguro.
-- Los fragmentos importados (GeneratePress) llegan desactivados.
-- **Pruebas** unitarias y en Playground: un fatal no tumba el sitio, el modo seguro funciona y la red y el sitio quedan aislados.
+- Pestaña «Código PHP» en Digitalisimo → Herramientas (sitio y red, con la paridad de `AGENTS.md`) para crear, revisar, activar y desactivar fragmentos, con versiones anteriores, registro y avisos. Las pestañas de Tools recargan la página y tienen un formulario cada una (excepción declarada en `AGENTS.md`); la nueva no repite ningún `name`.
+- «Guardar y activar» es un solo botón con tres pasos: revisión sin ejecutar, prueba en el escritorio y en la portada **lanzada por el navegador del administrador** (sin loopback del servidor, así que funciona detrás de un WAF o una CDN y con `--workers=1`) y firma HMAC del hash probado. En la red se prueban el escritorio de la red, la portada del principal y hasta cuatro portadas con otro tema; una redirección al mismo host se reintenta una vez.
+- Seguridad: `edit_themes` + `unfiltered_html`; nonce por acción, ámbito, sitio y fragmento; con `DISALLOW_FILE_EDIT`/`DISALLOW_FILE_MODS` lo activo sigue y sólo se desactiva o detiene; firma con las claves de `wp-config.php` (una firma inválida detiene el fragmento y obliga a revisarlo y reactivarlo uno por uno, nunca en bloque); autodesactivación ante un fatal atribuido con certeza; **modo reducido** (con la constante o con la cookie del enlace de rescate, la pantalla sólo deja desactivar o detener).
+- Recuperación sin FTP: guardián, «Detener todos» (sitio, red o todos los sitios), enlace de rescate personal (por correo al activar o pedido en `/?digitalisimo-php-rescue=request`) y `DIGITALISIMO_TOOLS_PHP_SAFE_MODE` en `wp-config.php`.
+- Los fragmentos importados (`digitalisimo_tools_php_import`: GeneratePress en F5, `functions.php` de un hijo) llegan de sitio, desactivados y con revisión obligatoria; `digitalisimo_tools_php_sources` los expone a SEO y Migración sin código salvo con permiso de edición.
+- **Pruebas:** `tests/tools-php-snippets.php` (unitaria, también en PHP 7.4 con php-wasm-cli) y `tests/tools-php-guard.php` (guardián en subprocesos) en `validate.yml` y `release.yml`; `tests/playground/tools-php.sh` con los escenarios de sitio individual y de red: un fatal no tumba el sitio, el modo seguro funciona y la red y el sitio quedan aislados.
+- **Medición pendiente** en staging con el protocolo de F1: como mucho 1 ms por cada 10 KB de código activo, sin cambios en `Vary`, cookies ni cabeceras para los visitantes.
 
 ### F2 · Base común de conversión
 
@@ -242,7 +245,7 @@ Hecho en `fusion/f0-2-sin-referencias` (commit a6218fa). Inventario en `docs/fus
 |---|---|---|---|---|
 | `digitalisimo_compat` | La escriben la importación o la migración de ese sitio | — (automática, sin pantalla) | Lista cerrada de CPT, sidebars y ubicaciones del origen | Pendiente (F2) |
 | `digitalisimo_theme_switch` | Registro del paso desde Hello en ese sitio | — (automática, sin pantalla) | Escrita sólo por el tema | Pendiente (F1) |
-| Fragmentos PHP | Fragmentos del sitio | Fragmentos de red, que corren en todos los sitios donde Tools está activo | Revisión de sintaxis, prueba previa, capacidad y nonce | Pendiente (F1b) |
+| Fragmentos PHP | Fragmentos del sitio | Fragmentos de red, que corren en todos los sitios (Tools es de red) salvo donde estén pausados o detenidos | `Store::sanitize_item()` igual en las dos superficies; revisión de sintaxis, prueba previa, firma, capacidad y nonce | Publicado (F1b) · Tools @NEXT_TOOLS@ |
 
 Cada opción nueva se añade aquí antes de darse por terminada.
 
@@ -314,7 +317,7 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
 - **Actualizaciones automáticas.** Lo publicado llega solo a todos los sitios: por eso todo cambio de comportamiento es opt-in por instancia y el runner guarda `state['v']`.
 - **Núcleo.** Cada `sync-elementor-core.sh` puede cambiar formatos atómicos: se repiten las pruebas.
 - **Multisite.**
-  - Un fragmento PHP de red corre en todos los sitios donde Tools está activo; uno de sitio, sólo en ese sitio.
+  - Un fragmento PHP de red corre en todos los sitios (Tools es de red) salvo donde esté pausado o detenido; uno de sitio, sólo en ese sitio.
   - `allowedthemes` sólo lo cambia «Migrar toda la red».
   - Las actualizaciones del tema dependen de que Elements esté activo en el sitio principal o en la red.
 - **Repositorio público.** Nada de código de Betheme, de Bricks ni de bundles de Divi; ninguna muestra real ni dato de clientes.
@@ -347,5 +350,6 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
 - 2026-10-16 · F0.2 hecho en la rama `fusion/f0-2-sin-referencias` (commit a6218fa): escudo en el servidor, interfaz sin servicios del proveedor, textos propios en los siete plugins. `elements-vendor-guard.php`, `elements-vendor-static.mjs` y `elements-identity.php` en verde; `brand-audit.sh` ampliado. Pendiente con aprobación: vídeos de muestra en páginas publicadas.
 - 2026-10-16 · F0 y F0.1 en curso en la rama `fusion/f0-base`.
 - 2026-10-17 · F0.2 publicado en `v2026.10.17.408` (Elements 4.3.0.157, SEO 1.0.228, IA 1.0.58, Hosting 1.0.29, Backups 1.0.57, Tools 1.0.33, Migración 1.0.19), con Herramientas sin «Control de versiones» ni «Sincronizar biblioteca». La auditoría ampliada no encontró peticiones, enlaces ni vídeos del proveedor; F0.2b retira lo visible restante (asistente de configuración, paleta de importar/exportar personalizado, texto de Elementor One) y las URL latentes.
+- 2026-10-17 · F1b en la rama `fusion/f1b-codigo-php`: pestaña «Código PHP» de Tools (sitio y red) con revisión, prueba desde el navegador, firma, guardián, conciliación, rescate, modo reducido e importación desactivada. `tools-php-snippets.php` y `tools-php-guard.php` en verde en PHP 7.4, 8.2, 8.4 y 8.5; `tools-php.sh` en Playground (sitio individual y red).
 - 2026-10-17 · F0: esta guía, la evidencia depurada en `docs/fusion/` (14 informes y un índice), las referencias de la fusión en `docs/third-party-licenses.md` y las reglas en `AGENTS.md`.
 - 2026-10-17 · Revisión adversarial de F0 y F0.1: lo que no tiene equivalente pasa a ser información (un sitio ya no queda «con asuntos por revisar» para siempre), se lee de la copia original al volver a migrar y no cuenta dos veces lo que no cupo; la guarda del empaquetado cubre Prime Slider; reglas de `AGENTS.md` acotadas (rastro de proveedores, uso de `reference/`, activación del tema, acciones con destino).

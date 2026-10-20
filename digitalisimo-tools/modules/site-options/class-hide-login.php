@@ -157,9 +157,14 @@ final class Hide_Login {
 		return add_query_arg( $args, $target );
 	}
 
-	/** Respeta la preferencia de barra final del sitio. */
+	/**
+	 * Respeta la preferencia de barra final del sitio. Antes de que exista $wp_rewrite (el enlace de rescate de Código PHP
+	 * pide la URL en plugins_loaded) la deduce de la estructura de enlaces, como WP_Rewrite::init(): sin esto, la dirección
+	 * salía sin barra y costaba una redirección más.
+	 */
 	private static function trailing( $value ) {
 		$rewrite = $GLOBALS['wp_rewrite'] ?? null;
-		return ( $rewrite && ! empty( $rewrite->use_trailing_slashes ) ) ? trailingslashit( $value ) : untrailingslashit( $value );
+		$slash   = $rewrite ? ! empty( $rewrite->use_trailing_slashes ) : '/' === substr( (string) get_option( 'permalink_structure' ), -1 );
+		return $slash ? trailingslashit( $value ) : untrailingslashit( $value );
 	}
 }
