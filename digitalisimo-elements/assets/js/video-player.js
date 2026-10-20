@@ -10,7 +10,9 @@
   function select(player, button, play, muted) {
     var stage = player.querySelector('.digi-video-player__stage');
     if (!stage) return;
-    var current = stage.firstElementChild;
+    // El vídeo actual es el <iframe> o <video> del escenario, no su primer hijo: el HTML que una caché guardó con
+    // una versión anterior lleva la preconexión <link> dentro del escenario.
+    var current = stage.querySelector(':scope > iframe, :scope > video');
     if (button.getAttribute('aria-pressed') === 'true') {
       if (play && current && current.tagName === 'VIDEO') { current.muted = !!muted || current.muted; current.play().catch(function () {}); }
       return;

@@ -54,7 +54,7 @@ namespace {
 	check_video( 'https://www.youtube-nocookie.com/embed/YE7VzlLtp-4?rel=0' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://www.youtube.com/watch?v=YE7VzlLtp-4' ) && 'https://player.vimeo.com/video/76979871?dnt=1' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://vimeo.com/76979871' ) && 'https://www.dailymotion.com/embed/video/x7tgad0' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://www.dailymotion.com/video/x7tgad0' ) && 'https://fast.wistia.net/embed/iframe/abc123' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://home.wistia.com/medias/abc123' ) && '' === \Digitalisimo\Elements\Video_Player_Widget::embed_url( 'https://cdn.test/a.mp4' ), 'Los enlaces de los cuatro servicios se incrustan sin rastreo cuando es posible.' );
 	$widget->settings = array( 'source' => 'embed', 'embed_url' => 'https://youtu.be/YE7VzlLtp-4', 'title' => 'Tráiler' );
 	ob_start(); $render->invoke( $widget ); $embed = ob_get_clean();
-	check_video( '<div class="digi-video-player" data-ratio="16/9"><link rel="preconnect" href="https://www.youtube-nocookie.com" crossorigin><iframe class="digi-video-player__embed" src="https://www.youtube-nocookie.com/embed/YE7VzlLtp-4?rel=0" title="Tráiler" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>' === $embed, 'Un vídeo incrustado preconecta con su dominio y usa iframe con título y carga diferida.' );
+	check_video( '<link rel="preconnect" href="https://www.youtube-nocookie.com" crossorigin><div class="digi-video-player" data-ratio="16/9"><iframe class="digi-video-player__embed" src="https://www.youtube-nocookie.com/embed/YE7VzlLtp-4?rel=0" title="Tráiler" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>' === $embed, 'Un vídeo incrustado preconecta con su dominio antes del reproductor y usa iframe con título y carga diferida.' );
 	$widget->settings = array( 'source' => 'url', 'video_url' => array( 'url' => 'https://vimeo.com/76979871' ) );
 	ob_start(); $render->invoke( $widget ); $vimeo = ob_get_clean();
 	check_video( str_contains( $vimeo, 'src="https://player.vimeo.com/video/76979871?dnt=1"' ) && ! str_contains( $vimeo, '<video' ), 'Un enlace de servicio escrito como URL externa también se incrusta.' );
@@ -65,6 +65,14 @@ namespace {
 	) );
 	ob_start(); $render->invoke( $widget ); $mixed = ob_get_clean();
 	check_video( str_contains( $mixed, '<div class="digi-video-player__stage"><iframe class="digi-video-player__embed"' ) && str_contains( $mixed, 'data-kind="embed"' ) && str_contains( $mixed, 'data-kind="video"' ) && str_contains( $mixed, '<span class="digi-video-player__item-description">Primer clip</span>' ) && ! str_contains( $mixed, 'Inválido' ), 'La lista mezcla vídeos incrustados y archivos, con descripción en texto plano.' );
+	// El script de la lista sustituye el vídeo del escenario: la preconexión con un servicio que aún no se había
+	// preconectado en la página va antes del reproductor, nunca dentro del escenario.
+	$widget->settings = array( 'playlist' => array(
+		array( 'source' => 'embed', 'embed_url' => 'https://www.dailymotion.com/video/x7tgad0', 'title' => 'Dailymotion' ),
+		array( 'source' => 'url', 'video_url' => array( 'url' => 'https://cdn.test/a.mp4' ), 'title' => 'Archivo' ),
+	) );
+	ob_start(); $render->invoke( $widget ); $first = ob_get_clean();
+	check_video( str_starts_with( $first, '<link rel="preconnect" href="https://www.dailymotion.com" crossorigin><div class="digi-video-player digi-video-player--playlist"' ) && str_contains( $first, '<div class="digi-video-player__stage"><iframe class="digi-video-player__embed" src="https://www.dailymotion.com/embed/video/x7tgad0"' ) && 1 === substr_count( $first, 'rel="preconnect"' ), 'Con lista, la preconexión va antes del reproductor y el escenario sólo contiene el vídeo.' );
 	// La instancia de registro (la del editor) no tiene ajustes: no se leen y se devuelve el script.
 	$type = new \Digitalisimo\Elements\Video_Player_Widget();
 	$type->type_instance = true;

@@ -251,7 +251,37 @@
       }
     ]
   },
-  "bdt-video-gallery": {},
+  "bdt-video-gallery": {
+    "video_gallery": [
+      {
+        "_id": "g1",
+        "source_type": "remote_url",
+        "remote_url": {
+          "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+        },
+        "title": "Youtube Video",
+        "desc": "Cortometraje"
+      },
+      {
+        "_id": "g2",
+        "source_type": "remote_url",
+        "remote_url": {
+          "url": "https://vimeo.com/1084537"
+        },
+        "title": "Vimeo Video",
+        "desc": "Segundo vídeo"
+      },
+      {
+        "_id": "g3",
+        "source_type": "remote_url",
+        "remote_url": {
+          "url": "//example.com/intro.mp4"
+        },
+        "title": "Archivo MP4",
+        "desc": "Intro del producto"
+      }
+    ]
+  },
   "bdt-wc-carousel": {
     "posts_per_page": 6,
     "columns": "3"

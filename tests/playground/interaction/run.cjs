@@ -65,7 +65,10 @@ const checks = {
       const id = decodeURIComponent(document.querySelector('.digi-scroll-button__link').hash.slice(1));
       if (id && !document.getElementById(id)) document.body.insertAdjacentHTML('afterbegin', `<div id="${id}"></div>`);
       document.body.style.minHeight = '4000px';
-      window.scrollTo(0, 2000);
+      // Sin desplazamiento vertical el widget usa el ancla nativa con `scroll-behavior: smooth` en <html>: el
+      // descenso de preparación debe ser instantáneo, porque un clic durante un desplazamiento suave en curso
+      // no lo interrumpe en Chrome y la página terminaría abajo.
+      window.scrollTo({ top: 2000, behavior: 'instant' });
     });
     await page.waitForFunction(() => window.scrollY > 1000, { timeout: 3000 });
     await page.evaluate(() => document.querySelector('.digi-scroll-button__link').click());
@@ -155,19 +158,24 @@ checks['bdt-hover-video'] = async (page) => {
   if (!(await page.$eval('.digi-video-player video', (v) => v.muted))) throw new Error('al pasar el cursor el vídeo debe ir silenciado');
   return 'la lista de vídeos cambia de vídeo al pasar el cursor por su título, silenciado';
 };
+// La galería lleva sus vídeos en el caso: una galería que nunca se editó ya no trae los vídeos de ejemplo de
+// Element Pack y no se pinta. El escenario sólo contiene el vídeo actual (la preconexión va antes del reproductor),
+// y cambiar de vídeo lo sustituye sin dejar el anterior debajo.
 checks['bdt-video-gallery'] = async (page) => {
-  const stage = () => page.$eval('.digi-video-player__stage', (s) => ({ tag: s.firstElementChild.tagName, src: s.firstElementChild.getAttribute('src'), now: (document.querySelector('.digi-video-player__now-title') || {}).textContent }));
+  const stage = () => page.$eval('.digi-video-player__stage', (s) => ({ children: s.children.length, tag: s.firstElementChild.tagName, src: s.firstElementChild.getAttribute('src'), now: (document.querySelector('.digi-video-player__now-title') || {}).textContent }));
   const before = await stage();
-  if (before.tag !== 'IFRAME' || !before.src.includes('youtube-nocookie.com/embed/') || before.now !== 'Youtube Video') throw new Error(`al cargar debe verse el primer vídeo de YouTube: ${JSON.stringify(before)}`);
+  if (before.children !== 1 || before.tag !== 'IFRAME' || !before.src.includes('youtube-nocookie.com/embed/aqz-KE-bpKQ') || before.now !== 'Youtube Video') throw new Error(`al cargar debe verse sólo el primer vídeo, de YouTube: ${JSON.stringify(before)}`);
   await page.click('li:nth-child(2) .digi-video-player__item');
   await page.waitForFunction(() => document.querySelector('.digi-video-player__now-title').textContent === 'Vimeo Video', { timeout: 3000 });
   const vimeo = await stage();
-  if (vimeo.tag !== 'IFRAME' || !vimeo.src.startsWith('https://player.vimeo.com/video/258349022?dnt=1')) throw new Error(`el segundo botón debe cargar Vimeo: ${JSON.stringify(vimeo)}`);
-  await page.click('li:nth-child(5) .digi-video-player__item');
+  if (vimeo.children !== 1 || vimeo.tag !== 'IFRAME' || !vimeo.src.startsWith('https://player.vimeo.com/video/1084537?dnt=1')) throw new Error(`el segundo botón debe cambiar el vídeo por el de Vimeo: ${JSON.stringify(vimeo)}`);
+  await page.click('li:nth-child(3) .digi-video-player__item');
   await page.waitForFunction(() => document.querySelector('.digi-video-player__stage').firstElementChild.tagName === 'VIDEO', { timeout: 3000 });
+  const file = await stage();
+  if (file.children !== 1 || file.src !== 'https://example.com/intro.mp4') throw new Error(`el tercer botón debe cambiar el vídeo por el archivo: ${JSON.stringify(file)}`);
   const description = await page.$eval('.digi-video-player__now-description', (p) => p.textContent);
   if (!description.includes('Intro')) throw new Error('la descripción debe cambiar con el vídeo');
-  return 'la galería cambia entre YouTube, Vimeo y un archivo MP4, y actualiza título y descripción';
+  return 'la galería cambia entre YouTube, Vimeo y un archivo MP4 sin dejar el vídeo anterior, y actualiza título y descripción';
 };
 checks['bdt-wc-carousel'] = async (page) => {
   await page.waitForSelector('.digi-products-carousel [data-digi-carousel-next]', { timeout: 5000 });

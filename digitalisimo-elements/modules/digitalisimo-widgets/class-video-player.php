@@ -134,10 +134,13 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 		return $items;
 	}
 
-	/** Elemento del escenario: <video> nativo o <iframe> del servicio, con nombre accesible. */
+	/**
+	 * Elemento del escenario: <video> nativo o <iframe> del servicio, con nombre accesible. Es lo único que va en el
+	 * escenario, porque el script de la lista lo sustituye al cambiar de vídeo: la preconexión se pinta antes del reproductor.
+	 */
 	private static function stage( array $item ) {
 		if ( 'embed' === $item['kind'] ) {
-			return Image_Markup::preconnect( $item['url'] ) . '<iframe class="digi-video-player__embed" src="' . esc_url( $item['url'] ) . '" title="' . esc_attr( $item['title'] ) . '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>';
+			return '<iframe class="digi-video-player__embed" src="' . esc_url( $item['url'] ) . '" title="' . esc_attr( $item['title'] ) . '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>';
 		}
 		return '<video controls playsinline preload="none" aria-label="' . esc_attr( $item['title'] ) . '"' . ( $item['poster'] ? ' poster="' . esc_url( $item['poster'] ) . '"' : '' ) . '><source src="' . esc_url( $item['url'] ) . '">'
 			. esc_html( 'Tu navegador no puede reproducir este video.' ) . ' <a href="' . esc_url( $item['url'] ) . '">' . esc_html( 'Abrir video' ) . '</a></video>';
@@ -157,12 +160,13 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 		}
 		$ratio = (string) ( $settings['ratio'] ?? '16/9' );
 		if ( ! in_array( $ratio, array( '16/9', '4/3', '1/1', 'auto' ), true ) ) { $ratio = '16/9'; }
+		$preconnect = 'embed' === $current['kind'] ? Image_Markup::preconnect( $current['url'] ) : '';
 		if ( ! $list ) {
-			echo '<div class="digi-video-player" data-ratio="' . esc_attr( $ratio ) . '">' . self::stage( $current ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- stage() escapa cada atributo.
+			echo $preconnect . '<div class="digi-video-player" data-ratio="' . esc_attr( $ratio ) . '">' . self::stage( $current ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- preconnect() y stage() escapan cada atributo.
 			return;
 		}
 		$trigger = 'hover' === ( $settings['playlist_trigger'] ?? 'click' ) ? 'hover' : 'click';
-		echo '<div class="digi-video-player digi-video-player--playlist" data-digi-playlist="' . esc_attr( $trigger ) . '" data-ratio="' . esc_attr( $ratio ) . '"><div class="digi-video-player__stage">' . self::stage( $current ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- stage() escapa cada atributo.
+		echo $preconnect . '<div class="digi-video-player digi-video-player--playlist" data-digi-playlist="' . esc_attr( $trigger ) . '" data-ratio="' . esc_attr( $ratio ) . '"><div class="digi-video-player__stage">' . self::stage( $current ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- preconnect() y stage() escapan cada atributo.
 		if ( 'yes' === ( $settings['playlist_caption'] ?? '' ) ) {
 			echo '<div class="digi-video-player__now" aria-live="polite"><p class="digi-video-player__now-title">' . esc_html( $current['title'] ) . '</p><p class="digi-video-player__now-description"' . ( '' === $current['description'] ? ' hidden' : '' ) . '>' . esc_html( $current['description'] ) . '</p></div>';
 		}
