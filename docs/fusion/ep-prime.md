@@ -307,7 +307,7 @@ Las decisiones son 186 ADAPTAR, 14 RECONSTRUIR, 6 COMPARTIR y 57 DESCARTAR. En t
    - Control `pause_button` (WCAG 2.2.2), con el patrón de `class-marquee.php:80`.
    - Pausa con `:focus-within`.
    - `role=group` y `aria-label="n de N"` por diapositiva, como `nested-carousel.php:358-369`.
-6. **Pruebas.** Mantener `tests/elements-slider-registration.php`, `elements-slider-loading.php`, `elements-slider-multiple.mjs` y `tools-slider.php`. Añadir:
+6. **Pruebas.** Mantener `tests/elements-slider-registration.php`, `elements-slider-loading.php`, `elements-slider-multiple.mjs` y `elements-slider-widget.php`. Añadir:
    - Comprobación de que un documento guardado sale igual al leerse y volver a guardarse (`get_raw_data()`).
    - Sitio con `container` inactivo.
    - Varias instancias en la misma página con espejo y bucle.

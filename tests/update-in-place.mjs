@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
-const modules = ['digitalisimo-seo', 'digitalisimo.chatbot', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements', 'digitalisimo-migration'];
+const modules = ['digitalisimo-seo', 'digitalisimo-ia-tools', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements', 'digitalisimo-migration'];
 const script = readFileSync('digitalisimo-elements/assets/js/update-in-place.js', 'utf8');
 for (const module of modules) {
   assert.equal(readFileSync(`${module}/assets/js/update-in-place.js`, 'utf8'), script, `${module} debe incluir el mismo controlador`);

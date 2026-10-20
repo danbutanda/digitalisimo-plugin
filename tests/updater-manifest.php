@@ -12,7 +12,7 @@ define( 'MINUTE_IN_SECONDS', 60 );
 $cases = array(
 	'seo' => array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'digitalisimo-seo/digitalisimo-integrations.php', 'digitalisimo-seo' ),
 	'hosting' => array( 'digitalisimo-hosting/includes/class-digitalisimo-updater.php', 'digitalisimo-hosting/digitalisimo-hosting.php', 'digitalisimo-hosting' ),
-	'ia' => array( 'digitalisimo.chatbot/includes/class-digitalisimo-updater.php', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'digitalisimo-ia-tools' ),
+	'ia' => array( 'digitalisimo-ia-tools/includes/class-digitalisimo-updater.php', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'digitalisimo-ia-tools' ),
 );
 $case = $cases[ $argv[1] ?? '' ] ?? null;
 if ( ! $case ) throw new RuntimeException( 'Indica seo, hosting o ia.' );

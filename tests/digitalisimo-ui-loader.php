@@ -19,7 +19,7 @@ namespace {
 	function wp_style_is( $handle, $list = 'enqueued' ) { return 'registered' === $list ? isset( $GLOBALS['t']['registered'][ $handle ] ) : in_array( $handle, $GLOBALS['t']['enqueued'], true ); }
 	function wp_enqueue_style( $handle ) { $GLOBALS['t']['enqueued'][] = $handle; }
 
-	$modules = array( 'digitalisimo-seo', 'digitalisimo.chatbot', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements', 'digitalisimo-migration' );
+	$modules = array( 'digitalisimo-seo', 'digitalisimo-ia-tools', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements', 'digitalisimo-migration' );
 	foreach ( $modules as $module ) {
 		require __DIR__ . '/../' . $module . '/digitalisimo-ui/digitalisimo-ui.php';
 	}

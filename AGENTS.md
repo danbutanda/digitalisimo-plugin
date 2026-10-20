@@ -1,4 +1,4 @@
-# Digitalisimo · guía de arquitectura y avance
+# DIGITALÍSIMO · guía de arquitectura y avance
 
 Este repositorio entrega módulos WordPress independientes que comparten un núcleo interno (`Digitalisimo_Core`). No existe un plugin Core que el usuario tenga que instalar: el primer módulo instalado crea el menú **Digitalisimo** y los siguientes se integran en él.
 
@@ -6,6 +6,7 @@ Este repositorio entrega módulos WordPress independientes que comparten un núc
 
 - Repositorio oficial de código y Releases: `danbutanda/digitalisimo-plugin`. Los siete actualizadores nativos consultan este repositorio de forma independiente; cada uno identifica su plugin por su archivo real (`plugin_basename()`), nunca por la carpeta habitual, y conserva su carpeta al actualizarse; los plugins Digitalisimo que su propio actualizador no atiende (inactivos, o con un actualizador antiguo en una carpeta con otro nombre) los cubre DIGITALÍSIMO Elements (`digitalisimo-sibling-updates.php`), con «Buscar actualizaciones» en su fila. Incrementar la versión y generar ZIP **sólo de cada plugin modificado**; nunca incrementar versiones de plugins intactos para completar una entrega. El workflow `release.yml` publica automáticamente cuando un plugin modificado llega a `main`. Cada Release contiene **el ZIP vigente de los siete plugins**, los intactos sin cambiar de versión, porque actualizadores y catálogos sólo leen las 50 Releases más recientes. Hay que comprobar que terminó con éxito y que la Release tiene los siete assets. Ver `docs/RELEASE_PROCESS.md`.
 
+- **Carpeta del repositorio ≠ carpeta en los sitios.** La carpeta y el archivo principal de cada plugin en `wp-content/plugins/` (los que lleva su ZIP) nunca cambian: renombrarlos desactivaría el plugin en los sitios instalados y rompería los catálogos de SEO y Tools, que lo buscan por esa ruta. La carpeta del repositorio sí puede llamarse distinto: IA Tools vive en `digitalisimo-ia-tools/` y se empaqueta como `digitalisimo.chatbot/digitalisimo-chatbot.php`. La tabla completa está en `README.md`; `scripts/build-packages.sh` y `scripts/verify-release.mjs` la aplican y comprueban.
 - Cada módulo se instala solo o junto a los demás; nunca debe requerir que otro módulo esté activo salvo para una mejora opcional.
 - Enlaces, formularios, AJAX y redirecciones deben conservar el contexto donde inició la acción: administración de red, administración del sitio actual en Multisite o WordPress individual. Usar `admin_url( 'admin-post.php' )`/`admin_url( 'admin-ajax.php' )` para procesar solicitudes y enviar el contexto explícitamente cuando el handler ya no pueda inferir la pantalla de origen. Una tarea iniciada en un sitio sólo puede modificar datos de ese sitio, salvo que su interfaz indique y autorice expresamente el alcance de red.
 - WordPress Multisite: la red define defaults y cada sitio puede heredar o personalizar. La resolución es `contenido → sitio → red → default`.
@@ -13,7 +14,7 @@ Este repositorio entrega módulos WordPress independientes que comparten un núc
 - **Paridad obligatoria sitio/red.** Toda opción nueva debe quedar operativa en las dos superficies antes de darse por terminada; una opción que sólo existe en una de ellas se considera incompleta. Los cuatro puntos son:
   1. `Digitalisimo_Integrations_Settings::defaults()` — declarar la clave con su valor neutro.
   2. `Digitalisimo_Integrations_Settings::sanitize()` — validar el envío **por sitio** (Digitalisimo → SEO).
-  3. `Digitalisimo_Integrations_SEO_Suite::network_fields()` — pintar el campo en **Red → Digitalisimo → SEO**.
+  3. `Digitalisimo_Integrations_SEO_Suite::network_site_fields()` — pintar el campo en **Red → Digitalisimo → SEO**.
   4. `Digitalisimo_Integrations_SEO_Suite::save_network()` — validar el envío **de red**. Este método sanitiza por defecto con `sanitize_textarea_field()`: cualquier clave que necesite reglas propias (rutas, slugs, secretos, enumeraciones) debe declarar su caso explícito, o la red aceptará valores que el formulario del sitio rechaza.
 - El checkbox «Heredar de la red» existe sólo en la administración de cada sitio. La pantalla de red define los valores que todos heredan: nunca muestra ese checkbox (usar `! is_network_admin()` cuando un mismo formulario sirve a ambas superficies).
 - La lectura en runtime siempre pasa por `Digitalisimo_Integrations_SEO_Resolver::option()`, nunca por `get_option()` directo: es lo que hace efectiva la herencia. Recordar que `inherits_network()` hereda **por defecto** cuando la clave aún no figura en `digitalisimo_seo_network_inherit`, así que un valor de red recién definido se aplica de inmediato a los sitios que nunca lo personalizaron.
@@ -35,25 +36,27 @@ Este repositorio entrega módulos WordPress independientes que comparten un núc
 
 ## Módulos
 
-### Digitalisimo SEO
+### DIGITALÍSIMO SEO
 
-Responsable de las señales SEO públicas: title, description, canonical, robots/noindex, sitemap, schema, keywords, clusters, SEO local, social, importación Yoast/Rank Math y SEO AI. Todas las auditorías, pruebas y análisis del plugin se reúnen en SEO → Auditoría (`Digitalisimo_Integrations_SEO_Audit_Hub`).
+Responsable de las señales SEO públicas: title, description, canonical, robots/noindex, sitemap, schema, keywords, clusters, SEO local (ubicaciones e IPInfo), social, importación Yoast/Rank Math, SEO AI y el módulo de rendimiento (`docs/PERFORMANCE_OBJECTIVE.md`). Todas las auditorías, pruebas y análisis del plugin se reúnen en SEO → Auditoría (`Digitalisimo_Integrations_SEO_Audit_Hub`).
 
 SEO AI pertenece aquí porque regula descubrimiento, rastreo, interpretación y citabilidad externa. Incluye crawlers, robots.txt, llms.txt, IndexNow, entidades, diagnóstico, auditoría y referencias de tráfico IA.
 
-### Digitalisimo AI y Chatbot
+### DIGITALÍSIMO IA Tools
 
-Responsable de la IA interna: proveedores (OpenAI, Anthropic, Google, DeepSeek y xAI), perfiles de uso, chatbot, asistentes editoriales, automatizaciones, imágenes y base de conocimiento del sitio.
+Carpeta del repositorio `digitalisimo-ia-tools/`; en los sitios, `digitalisimo.chatbot/digitalisimo-chatbot.php`. Responsable de la IA interna: proveedores (OpenAI, Anthropic, Google, DeepSeek y xAI), perfiles de uso, chatbot, asistentes editoriales, automatizaciones, imágenes y base de conocimiento del sitio.
 
 La base de conocimiento es RAG, no entrenamiento de modelos: sólo indexa contenido público permitido y lo usa como contexto. No afecta la indexación externa ni transfiere contenido a un proveedor hasta que una función IA configurada por el administrador realiza una consulta.
 
-### Digitalisimo Hosting
+Su API editorial (`digitalisimo-publisher/v1`, `digitalisimo-mcp/v1`) es la que usa el servidor MCP local de `mcp/digitalisimo-wordpress/`, que sólo crea borradores.
+
+### DIGITALÍSIMO Hosting
 
 Responsable de dominios, Namecheap, shortcodes/formularios, precios y el flujo de compra de dominio y hosting en WooCommerce. Incluye productos, carrito y checkout de hosting; conserva una migración única desde las opciones históricas de Ecommerce sin borrar ese respaldo.
 
-### Digitalisimo Geolocalización
+### DIGITALÍSIMO Backups
 
-Responsable de ubicación, IPInfo, ubicación administrativa y señales locales reutilizables por SEO Local.
+Responsable de los respaldos completos del sitio o de la red (manifiesto con SHA-256, almacén privado fuera de la raíz web, destinos local, SFTP, Google Drive y OneDrive) y de su restauración. Un archivo parcial nunca se presenta como respaldo completo. Objetivo, estado y pendientes en `docs/BACKUPS.md`.
 
 ### DIGITALÍSIMO Elements
 
@@ -68,6 +71,10 @@ Responsable de migrar un sitio o una red a DIGITALÍSIMO Elements con **un solo 
 Responsable de herramientas de administración que no son SEO: plantillas Elementor de red, WebP, **Ajustes del sitio** (ruta privada de acceso, redirección de adjuntos y bloqueo del desplazamiento horizontal en móvil) y **Código PHP**. Esos ajustes viven en `digitalisimo_tools_site_options` (sitio) y `digitalisimo_tools_site_defaults` (red), se importan una vez desde las claves que tenía SEO y, mientras Tools no esté activo, SEO los sigue aplicando (`Digitalisimo_Integrations_Settings::tools_handles_site_options()`) para no abrir `wp-login.php` al actualizar; nunca se ejecutan en los dos plugins a la vez.
 
 **Código PHP** (`modules/php-snippets/`) sustituye al `functions.php` de un tema hijo. Los fragmentos de sitio viven en las opciones del sitio (`digitalisimo_tools_php*`: el front sólo mira el indicador con autoload `digitalisimo_tools_php_on` y, si existe, `digitalisimo_tools_php_run` sin autoload, así que un sitio sin fragmentos no hace ninguna consulta) y los de red en `sitemeta` (`digitalisimo_tools_php_network*`, precargada en la misma consulta que `digitalisimo_tools_site_defaults`). Se ejecutan con `include` por el envoltorio `digitalisimo-php://` en `after_setup_theme` (prioridad `PHP_INT_MIN`), primero los de red, en todos los sitios salvo donde estén pausados o detenidos. Sólo se ejecuta lo probado y firmado (HMAC con las claves de `wp-config.php`): «Guardar y activar» revisa la sintaxis y prueba el código en el escritorio y en la portada **desde el navegador del administrador** (el servidor no hace ninguna petición a sí mismo, así que no es una tarea remota), y un fatal atribuido desactiva el fragmento de sitio o pausa sólo en ese sitio el de red con una sola fila `INSERT IGNORE`; la conciliación (al abrir la pestaña y en el cron horario `digitalisimo_tools_php_hourly`) hace el resto. Edita sólo quien tiene `edit_themes` + `unfiltered_html` (en una red, el superadministrador); con `DISALLOW_FILE_EDIT` o `DISALLOW_FILE_MODS` lo activo sigue y sólo se desactiva o detiene. Recuperación sin FTP: «Detener todos», el enlace de rescate personal (por correo al activar o pedido en `/?digitalisimo-php-rescue=request`) y la constante `DIGITALISIMO_TOOLS_PHP_SAFE_MODE`; con la constante o la cookie del enlace la pantalla entra en **modo reducido**, que sólo deja desactivar o detener. Lo importado (`digitalisimo_tools_php_import`: GeneratePress, `functions.php` de un hijo) llega de sitio, inactivo y con revisión obligatoria; nunca se activa solo. Las pestañas de Tools recargan la página y tienen un formulario cada una: es la excepción declarada a la regla del formulario único con paneles, y ninguna repite un `name` de otra.
+
+### Tema `digitalisimo-theme`
+
+Tema clásico mínimo que acompaña a DIGITALÍSIMO Elements (llega con el incremento F1 de `docs/FUSION_OBJECTIVE.md`): cede cabecera y pie al Theme Builder, sin fuentes, JS ni pantallas propias, y viaja en cada Release junto a los siete plugins. Se distribuye **sin tema hijo**: el código PHP propio de un sitio o de la red va al editor de fragmentos de DIGITALÍSIMO Tools, y el CSS al CSS adicional o al kit. En producción sólo lo activa el propietario.
 
 ## Fusión de constructores
 

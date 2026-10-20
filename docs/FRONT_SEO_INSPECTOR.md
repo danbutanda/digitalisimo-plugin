@@ -1,9 +1,24 @@
 # Inspector del front SEO
 
-**SEO Front** es la última pestaña de **Digitalisimo → SEO**. Sirve para comprobar una URL ya publicada del sitio, usando la respuesta HTML que WordPress recibe sin cookies ni sesión de administrador. No guarda datos, no modifica contenido y no cambia la configuración SEO.
+**SEO Front** es una sección de **DIGITALÍSIMO → SEO → Auditoría** (`Digitalisimo_Integrations_SEO_Audit_Hub`), junto
+a Schema, llms.txt, Rendimiento y calidad y Archivos públicos. Los enlaces antiguos a la pestaña SEO Front siguen
+abriendo esta sección. Sirve para comprobar una URL ya publicada del sitio, usando la respuesta HTML que WordPress
+recibe sin cookies ni sesión de administrador. No guarda datos, no modifica contenido y no cambia la configuración SEO.
 
-Se puede inspeccionar cualquier URL `http` o `https` del mismo host del sitio. El inspector sigue hasta cinco redirecciones que se mantengan en ese host y muestra el estado HTTP final. Esta restricción evita que el administrador use la herramienta para solicitar direcciones internas o externas desde el servidor. Si el servidor no puede validar el certificado de su propio dominio, reintenta únicamente esa URL propia y muestra un aviso para revisar DNS, SNI o la cadena de certificados desde el hosting. Ese aviso no confirma por sí solo un fallo para visitantes externos.
+Se puede inspeccionar cualquier URL `http` o `https` del mismo host del sitio. El inspector sigue hasta cinco
+redirecciones que se mantengan en ese host y muestra el estado HTTP final. Esta restricción evita que el
+administrador use la herramienta para solicitar direcciones internas o externas desde el servidor. Si el servidor no
+puede validar el certificado de su propio dominio, reintenta únicamente esa URL propia y muestra un aviso para revisar
+DNS, SNI o la cadena de certificados desde el hosting. Ese aviso no confirma por sí solo un fallo para visitantes
+externos.
 
-El informe se organiza en Resumen, Encabezados, Imágenes, Enlaces, Social y Herramientas. Incluye SEO del HTML (`title`, description, keywords, canonical, robots, hreflang, idioma, charset y paginación), un índice ordenado de todos los encabezados `H1` a `H6`, cada imagen con `alt` y `title`, enlaces agrupados por URL, metadatos Open Graph/X, bloques Schema JSON-LD y redirecciones. Herramientas reúne `robots.txt`, sitemap, Rich Results, PageSpeed, todas las metas, scripts externos y el `head` recibido escapado.
+El informe se organiza en Resumen, Encabezados, Imágenes, Enlaces, Social y Herramientas. Incluye SEO del HTML
+(`title`, description, keywords, canonical, robots, hreflang, idioma, charset y paginación), un índice ordenado de todos
+los encabezados `H1` a `H6`, cada imagen con `alt` y `title`, enlaces agrupados por URL, metadatos Open Graph/X,
+bloques Schema JSON-LD y redirecciones. Herramientas reúne `robots.txt`, sitemap, Rich Results, PageSpeed, todas las
+metas, scripts externos y el `head` recibido escapado.
 
-Al final compara las señales observadas con las opciones efectivas de Digitalisimo. Advierte sobre `title`, description o canonical duplicados, IDs de Schema repetidos, Schema JSON-LD inválido y señales globales activas que no aparecieron en la respuesta. El resultado refleja una solicitud desde el propio servidor: una CDN, caché por ubicación o WAF puede entregar una variante distinta a rastreadores externos.
+Al final compara las señales observadas con las opciones efectivas de DIGITALÍSIMO SEO. Advierte sobre `title`,
+description o canonical duplicados, IDs de Schema repetidos, Schema JSON-LD inválido y señales globales activas que no
+aparecieron en la respuesta. El resultado refleja una solicitud desde el propio servidor: una CDN, caché por ubicación
+o WAF puede entregar una variante distinta a rastreadores externos.

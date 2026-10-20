@@ -21,13 +21,5 @@ vendor/
 reference/
 digitalisimo-elements/bdthemes-element-pack/
 
-# Archivos duplicados obsoletos (superados por sus versiones activas).
-/functions 2.php
-*/includes/* 2.php
-
-# Tema hijo Hello Elementor que vivía en la raíz: no forma parte de la suite de plugins.
-/functions.php
-/style.css
-
 # Caché de Python de los scripts de análisis.
 __pycache__/

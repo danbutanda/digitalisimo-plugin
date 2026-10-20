@@ -19,8 +19,10 @@ cat > "$OUT/blueprint.json" <<JSON
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}]}
 JSON
 MOUNTS=()
-for dir in digitalisimo-seo digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration; do
-  MOUNTS+=("--mount=$ROOT/$dir:/wordpress/wp-content/plugins/$dir")
+# Carpeta del repositorio → carpeta en los sitios (IA Tools se instala como digitalisimo.chatbot/).
+for dir in digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration; do
+  site=$dir; [ "$dir" = digitalisimo-ia-tools ] && site=digitalisimo.chatbot
+  MOUNTS+=("--mount=$ROOT/$dir:/wordpress/wp-content/plugins/$site")
 done
 fuser -k -n tcp "$PORT" >/dev/null 2>&1 || true
 sleep 1

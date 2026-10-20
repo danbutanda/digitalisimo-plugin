@@ -21,18 +21,45 @@ jobs:
         with:
           node-version: '20'
       - name: Validar sintaxis PHP
-        run: find digitalisimo-seo digitalisimo.chatbot digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration -name '*.php' -print0 | xargs -0 -r -n1 php -l
-      - name: Probar protecciones de rendimiento
+        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration -name '*.php' -print0 | xargs -0 -r -n1 php -l
+      - name: Probar la suite
+        # Misma lista en validate.yml y release.yml (tests/repo-hygiene.mjs lo comprueba).
         run: |
-          php tests/migration-runner.php
-          php tests/migration-dropped-extensions.php
-          php tests/elements-sibling-updates.php
-          php tests/updater-real-folder.php
-          php tests/digitalisimo-ui-loader.php
-          php tests/elements-palette.php
-          php tests/elements-identity.php
-          php tests/elements-vendor-guard.php
-          php tests/elements-duplicator.php
+          node tests/repo-hygiene.mjs
+          node tests/update-in-place.mjs
+          node tests/digitalisimo-ui.mjs
+          node tests/elements-vendor-static.mjs
+          for module in seo ia hosting backups tools elements migration; do php tests/update-enqueue.php "$module"; done
+          php tests/elements-slider-widget.php
+          php tests/elements-slider-registration.php
+          php tests/elements-slider-loading.php
+          node tests/elements-slider-multiple.mjs
+          php tests/elements-animated-link.php
+          php tests/elements-animated-link-legacy.php
+          php tests/elements-fancy-list.php
+          php tests/elements-document-viewer.php
+          php tests/elements-logos.php
+          php tests/elements-image-markup.php
+          php tests/elements-front-budget.php
+          php tests/elements-advanced-heading.php
+          php tests/elements-external-row.php
+          php tests/elements-google-reviews.php
+          php tests/elements-notification.php
+          node tests/elements-notification-events.mjs
+          php tests/elements-product-grid.php
+          php tests/elements-qr-code.php
+          php tests/elements-table.php
+          php tests/elements-vertical-menu.php
+          php tests/elements-offcanvas.php
+          php tests/elements-progress-reading.php
+          php tests/elements-media-hours.php
+          php tests/elements-marquee-timeline.php
+          php tests/elements-chart-map.php
+          node tests/elements-offcanvas.mjs
+          php tests/elements-scroll-button.php
+          php tests/elements-accordion.php
+          php tests/elements-advanced-button.php
+          php tests/elements-advanced-divider.php
           php tests/elements-advanced-icon-box.php
           php tests/elements-animated-heading.php
           node tests/elements-animated-heading-instances.mjs
@@ -44,17 +71,61 @@ jobs:
           php tests/elements-gallery-creative.php
           php tests/elements-device-card.php
           php tests/elements-icon-navigation.php
-          php tests/elements-logos.php
-          php tests/elements-image-markup.php
-          php tests/elements-front-budget.php
-          php tests/elements-google-reviews.php
-          php tests/elements-notification.php
-          node tests/elements-notification-events.mjs
-          php tests/elements-product-grid.php
-          php tests/elements-qr-code.php
-          php tests/elements-table.php
-          node tests/elements-slider-multiple.mjs
-          for module in seo ia hosting backups tools elements; do php tests/update-enqueue.php "$module"; done
+          php tests/elements-backdrop-filter.php
+          php tests/elements-fancy-icons.php
+          php tests/elements-fancy-slider.php
+          php tests/elements-fancy-tabs.php
+          php tests/elements-featured-box.php
+          php tests/elements-floating-effects.php
+          node tests/elements-floating-effects.mjs
+          php tests/elements-icon-mobile-menu.php
+          php tests/elements-icon-nav.php
+          php tests/elements-image-shadow.php
+          php tests/elements-login-registration.php
+          php tests/elements-notation.php
+          php tests/elements-shape-builder.php
+          php tests/elements-tags-cloud.php
+          php tests/elements-text-gradient.php
+          php tests/elements-total-count.php
+          php tests/elements-user-register.php
+          php tests/elements-widget-assets.php
+          php tests/elements-duplicator.php
+          php tests/elements-display-conditions.php
+          php tests/elements-legacy-visibility.php
+          php tests/elements-visitor-content.php
+          php tests/elements-legacy-adapters.php
+          php tests/elements-native-features.php
+          php tests/elements-author-box-extras.php
+          php tests/elements-video-player.php
+          php tests/elements-products-carousel.php
+          php tests/elements-core-loader.php
+          php tests/elements-updater-manifest.php
+          php tests/elements-sibling-updates.php
+          php tests/updater-real-folder.php
+          php tests/backups-updater-manifest.php
+          php tests/tools-updater-manifest.php
+          php tests/migration-updater.php
+          php tests/migration-conditions-repair.php
+          php tests/migration-runner.php
+          php tests/migration-dropped-extensions.php
+          php tests/elements-visitor-counters.php
+          php tests/elements-identity.php
+          php tests/elements-vendor-guard.php
+          php tests/digitalisimo-ui-loader.php
+          php tests/elements-palette.php
+          node tests/elements-legacy-decisions.mjs
+          php tests/elements-legacy-extensions.php
+          php tests/elements-legacy-shapes.php
+          php tests/elements-legacy-masks.php
+          node tests/elements-carousel-engine.mjs
+          php tests/performance-hero.php
+          php tests/tools-updater.php
+          php tests/updater-isolation.php seo
+          php tests/updater-isolation.php hosting
+          php tests/updater-isolation.php ia
+          php tests/updater-manifest.php seo
+          php tests/updater-manifest.php hosting
+          php tests/updater-manifest.php ia
           php tests/performance-runtime.php
           php tests/performance-diagnostics.php
           php tests/performance-cache.php
@@ -62,6 +133,7 @@ jobs:
           php tests/performance-debug.php
           php tests/performance-css.php
           php tests/performance-fonts.php
+          php tests/performance-font-inline.php
           php tests/performance-font-guard.php
           php tests/performance-font-optimizer.php
           php tests/performance-font-policy.php
@@ -70,18 +142,39 @@ jobs:
           php tests/quality-rules.php
           php tests/quality-audit.php
           php tests/llms.php
+          php tests/seo-excerpt.php
           php tests/image-alt.php
           php tests/favicon.php
           php tests/schema.php
+          php tests/schema-detection.php
+          php tests/elements.php
+          php tests/elements-load-order.php
+          php tests/hosting-migration.php
+          php tests/backups-sftp.php
+          php tests/backups-integrity.php
+          php tests/backups-manifest.php
+          php tests/backups-policies.php
+          php tests/backups-streaming.php
+          php tests/backups-storage.php
+          php tests/backups-operation-lock.php
+          php tests/backups-manual-progress.php
+          php tests/backups-cloud-verification.php
+          php tests/backups-updater.php
           php tests/tools-site-options.php
           php tests/tools-php-snippets.php
           php tests/tools-php-guard.php
-          php tests/hosting-migration.php
           php tests/performance-preloads.php
           php tests/performance-migration.php
           php tests/performance-tracking.php
+          php tests/performance-site-kit.php
           php tests/seo-release-check.php
+          php tests/plugin-catalog-manifest.php
+          php tests/tools-bridge-manifest.php
           php tests/performance-form-ui.php
+          php tests/sitemap.php
+          php tests/sitemap-routes.php
+          php tests/robots.php
+          php tests/seo-ai-robots.php
       - name: Construir paquetes limpios
         run: |
           mkdir -p dist
@@ -89,10 +182,6 @@ jobs:
           bash scripts/build-packages.sh dist
       - name: Validar suite y paquetes
         run: |
-          node tests/repo-hygiene.mjs
-          node tests/update-in-place.mjs
-          node tests/digitalisimo-ui.mjs
-          node tests/elements-vendor-static.mjs
           DIGITALISIMO_PACKAGE_DIR=dist node tests/validate-suite.mjs
           DIGITALISIMO_PACKAGE_DIR=dist node scripts/verify-release.mjs
 
@@ -104,9 +193,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Validar puente MCP WordPress
+      - name: Validar MCP de WordPress
+        working-directory: mcp/digitalisimo-wordpress
         run: |
-          cd integrations/mcp-publisher
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           node --check server.mjs
           npm test

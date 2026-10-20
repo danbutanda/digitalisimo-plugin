@@ -38,7 +38,7 @@ class Digitalisimo_Integrations_SEO {
 		echo '</div><script>document.querySelectorAll("[data-content-tab]").forEach(function(link){link.addEventListener("click",function(event){event.preventDefault();var tab=link.dataset.contentTab;document.querySelectorAll("[data-content-panel]").forEach(function(panel){panel.hidden=panel.dataset.contentPanel!==tab;});document.querySelectorAll("[data-content-tab]").forEach(function(item){item.classList.toggle("button-primary",item===link);item.classList.toggle("button-secondary",item!==link);});history.replaceState(null,"",location.pathname+location.search.replace(/([?&])content_tab=[^&]*&?/,"$1").replace(/[?&]$/,"")+"#"+tab);});});</script></div>';
 	}
 	/** Compatibilidad para enlaces administrativos antiguos: la redacción vive ahora en IA Tools. */
-	public static function playbook_content() { echo '<p>La voz de marca, el método editorial, el chat de artículo y los borradores se administran en <strong>Digitalisimo IA Tools → Redacción</strong>.</p>'; }
+	public static function playbook_content() { echo '<p>La voz de marca, el método editorial, el chat de artículo y los borradores se administran en <strong>DIGITALÍSIMO IA Tools → Redacción</strong>.</p>'; }
 	/** Referencia de variables dinámicas disponibles para contenidos SEO. */
 	public static function shortcodes_content() {
 		$rows = array(

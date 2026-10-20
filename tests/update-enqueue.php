@@ -11,7 +11,7 @@ define( 'DIGITALISIMO_MIGRATION_VERSION', '1.0.0' );
 
 $cases = array(
 	'seo' => array( 'digitalisimo-seo/includes/class-digitalisimo-updater.php', 'digitalisimo-seo/digitalisimo-integrations.php', 'Digitalisimo_Updater', 'register', 'digitalisimo-seo' ),
-	'ia' => array( 'digitalisimo.chatbot/includes/class-digitalisimo-updater.php', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'Digitalisimo_Updater', 'register', 'digitalisimo-ia-tools' ),
+	'ia' => array( 'digitalisimo-ia-tools/includes/class-digitalisimo-updater.php', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'Digitalisimo_Updater', 'register', 'digitalisimo-ia-tools' ),
 	'hosting' => array( 'digitalisimo-hosting/includes/class-digitalisimo-updater.php', 'digitalisimo-hosting/digitalisimo-hosting.php', 'Digitalisimo_Updater', 'register', 'digitalisimo-hosting' ),
 	'backups' => array( 'digitalisimo-backups/includes/class-digitalisimo-updater.php', 'digitalisimo-backups/digitalisimo-backups.php', 'Digitalisimo_Backups_Updater', 'register', '' ),
 	'tools' => array( 'digitalisimo-tools/includes/class-updater.php', 'digitalisimo-tools/digitalisimo-tools.php', 'Digitalisimo\\Tools\\Updater', 'init', '' ),

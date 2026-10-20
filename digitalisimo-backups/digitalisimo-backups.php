@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Digitalisimo Backups
+ * Plugin Name: DIGITALÍSIMO Backups
  * Description: Respaldos completos de WordPress hacia almacenamiento local, SFTP, Google Drive u OneDrive.
  * Version: 1.0.57
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-backups

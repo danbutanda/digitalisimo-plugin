@@ -1,4 +1,18 @@
-# A/B de adaptadores de Element Pack
+# Pruebas en WordPress Playground
+
+Pruebas que levantan un WordPress efímero con [WordPress Playground](https://wordpress.github.io/wordpress-playground/)
+y montan las carpetas del repositorio como plugins (IA Tools se monta como `digitalisimo.chatbot/`, la carpeta que
+tiene en los sitios). No forman parte de los workflows: se corren a mano antes de publicar un cambio que las afecte.
+
+| Script | Qué comprueba |
+| --- | --- |
+| `legacy-ab.sh`, `migrate.sh`, `legacy-repair.sh`, `migration-report.sh` | Adaptadores y conversión de Element Pack con DIGITALÍSIMO Migración. |
+| `core-switch.sh`, `brand-audit.sh` | Núcleo de Elementor incluido e identidad propia del constructor. |
+| `interaction.sh`, `slider.sh`, `front-budget.sh`, `form-submit.sh`, `conditions.sh` | Widgets en Chrome real, presupuesto del front, formularios y condiciones de visualización. |
+| `shared-ui.sh` | Diseño compartido de los siete plugins. |
+| `tools-catalog.sh`, `tools-php.sh` | Catálogo de plugins y código PHP de DIGITALÍSIMO Tools. |
+
+## A/B de adaptadores de Element Pack
 
 `legacy-ab.sh` comprueba en WordPress Playground (red Multisite con un subsitio) que una página guardada con un widget `bdt-*` se ve igual con Element Pack activo que sólo con DIGITALÍSIMO Elements. Necesita la copia local de referencia en `reference/bdthemes-element-pack/`, que no se versiona ni se publica.
 

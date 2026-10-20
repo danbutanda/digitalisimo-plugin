@@ -66,12 +66,30 @@ if ( ! class_exists( 'Digitalisimo_Updater' ) ) {
 			add_filter( 'auto_update_plugin', array( __CLASS__, 'auto_update' ), 10, 2 );
 			add_filter( 'plugins_api', array( __CLASS__, 'info' ), 20, 3 );
 			add_action( 'upgrader_process_complete', array( __CLASS__, 'clear' ), 10, 2 );
+			add_filter( 'upgrader_source_selection', array( __CLASS__, 'keep_folder' ), 10, 4 );
 			add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'force_check' ) );
 			// «Buscar actualizaciones de nuevo» de WordPress (update-core.php?force-check=1): vaciar las cachés propias antes de que WordPress vuelva a consultar.
 			add_action( 'load-update-core.php', array( __CLASS__, 'native_force_check' ), 1 );
 			add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 			add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
 			add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_inline_update' ) );
+		}
+
+		/**
+		 * Al actualizar, el ZIP de la Release trae la carpeta habitual del módulo: si está instalado en otra (un ZIP subido
+		 * a mano como `digitalisimo-seo-1.0.5/`), la copia nueva se deja en esa misma carpeta, para que el plugin siga
+		 * activo en su sitio en lugar de moverse y desactivarse. Cada módulo registrado se atiende por su archivo real; la
+		 * actualización de cualquier otro plugin no se toca.
+		 */
+		public static function keep_folder( $source, $remote_source = '', $upgrader = null, $hook_extra = array() ) {
+			global $wp_filesystem;
+			$file = (string) ( $hook_extra['plugin'] ?? '' );
+			if ( ( function_exists( 'is_wp_error' ) && is_wp_error( $source ) ) || ! isset( self::$modules[ $file ] ) ) return $source;
+			$folder = dirname( $file );
+			$source = rtrim( (string) $source, '/\\' );
+			if ( '.' === $folder || basename( $source ) === $folder || ! $wp_filesystem || ! $wp_filesystem->exists( $source . '/' . basename( $file ) ) ) return $source . '/';
+			$target = dirname( $source ) . '/' . $folder;
+			return $wp_filesystem->move( $source, $target, true ) ? $target . '/' : $source . '/';
 		}
 
 		/** Usa la misma actualización AJAX de WordPress sin abandonar Plugins. */

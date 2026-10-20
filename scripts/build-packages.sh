@@ -5,10 +5,15 @@ root_dir="$(cd "$(dirname "$0")/.." && pwd)"
 output_dir="${1:-$root_dir/dist}"
 mkdir -p "$output_dir"
 
+# build_package <carpeta del repositorio> <archivo principal> <prefijo del ZIP> [carpeta dentro del ZIP]
+# La carpeta dentro del ZIP es la que reciben los sitios (wp-content/plugins/<carpeta>/<archivo principal>) y no puede
+# cambiar sin desactivar el plugin instalado; la del repositorio puede llamarse distinto (IA Tools vive en
+# digitalisimo-ia-tools/ y se instala como digitalisimo.chatbot/). Ver la tabla de README.md.
 build_package() {
   local directory="$1"
   local main_file="$2"
   local prefix="$3"
+  local folder="${4:-$1}"
   local version
   version="$(sed -n 's/^ \* Version: \(.*\)$/\1/p' "$root_dir/$directory/$main_file" | head -1 | tr -d '[:space:]')"
   test -n "$version"
@@ -17,9 +22,6 @@ build_package() {
   if [[ "$directory" == 'digitalisimo-elements' ]]; then
     # The local Element Pack copy is research material, never plugin runtime code.
     exclude+=( 'digitalisimo-elements/bdthemes-element-pack' 'digitalisimo-elements/bdthemes-element-pack/*' )
-    # El historial heredado del derivado (cientos de enlaces al proveedor) y su actualizador, que no se carga, se
-    # quedan en el repositorio pero no viajan en el paquete.
-    exclude+=( 'digitalisimo-elements/changelog.txt' 'digitalisimo-elements/updater/*' )
   fi
   if [[ "$directory" == 'digitalisimo-elements' ]]; then
     # El núcleo de Elementor incluido sale tal cual de wordpress.org: otros plugins copian archivos en la carpeta
@@ -34,8 +36,21 @@ build_package() {
     fi
     echo 'BUNDLED CORE CHECK: PASS' >&2
   fi
-  ( cd "$root_dir" && zip -FSrq "$archive" "$directory" -x "${exclude[@]}" )
+  if [[ "$folder" == "$directory" ]]; then
+    ( cd "$root_dir" && zip -FSrq "$archive" "$directory" -x "${exclude[@]}" )
+  else
+    local stage
+    stage="$(mktemp -d)"
+    cp -a "$root_dir/$directory" "$stage/$folder"
+    ( cd "$stage" && zip -FSrq "$archive" "$folder" -x "${exclude[@]}" )
+    rm -rf "$stage"
+  fi
   unzip -t "$archive" >/dev/null
+  if ! unzip -Z1 "$archive" | grep -xF "$folder/$main_file" >/dev/null; then
+    echo "BUILD ABORTED: $archive no contiene $folder/$main_file" >&2
+    rm -f "$archive"
+    return 1
+  fi
   if [[ "$directory" == 'digitalisimo-elements' ]]; then
     local leaked
     leaked="$(unzip -Z1 "$archive" | LC_ALL=C grep -Ei '(^|/)(bdthemes-element-pack|element-pack-pro)(/|$)|bdthemes' || true)"
@@ -69,7 +84,7 @@ fi
 for package in "${packages[@]}"; do
   case "$package" in
     digitalisimo-seo) build_package digitalisimo-seo digitalisimo-integrations.php "$package" ;;
-    digitalisimo-ia-tools) build_package digitalisimo.chatbot digitalisimo-chatbot.php "$package" ;;
+    digitalisimo-ia-tools) build_package digitalisimo-ia-tools digitalisimo-chatbot.php "$package" digitalisimo.chatbot ;;
     digitalisimo-hosting) build_package digitalisimo-hosting digitalisimo-hosting.php "$package" ;;
     digitalisimo-backups) build_package digitalisimo-backups digitalisimo-backups.php "$package" ;;
     digitalisimo-tools) build_package digitalisimo-tools digitalisimo-tools.php "$package" ;;

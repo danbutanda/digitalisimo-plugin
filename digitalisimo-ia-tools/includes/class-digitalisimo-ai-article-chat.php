@@ -18,7 +18,7 @@ class Digitalisimo_AI_Article_Chat {
 	public static function public_assets() { if ( is_singular() ) wp_enqueue_style( 'digitalisimo-ai-article-dialogue', DIGITALISIMO_CHATBOT_URL . 'assets/article-dialogue.css', array(), DIGITALISIMO_CHATBOT_VERSION ); }
 	public static function assets( $hook ) { if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) return; wp_enqueue_media(); wp_enqueue_style( 'digitalisimo-ai-article-chat', DIGITALISIMO_CHATBOT_URL . 'assets/article-chat.css', array(), DIGITALISIMO_CHATBOT_VERSION ); wp_enqueue_script( 'digitalisimo-ai-article-chat', DIGITALISIMO_CHATBOT_URL . 'assets/article-chat.js', array(), DIGITALISIMO_CHATBOT_VERSION, true ); }
 
-	public static function metaboxes() { foreach ( self::types() as $type ) add_meta_box( 'digitalisimo-ai-article-chat', 'Digitalisimo IA · Chat del artículo', array( __CLASS__, 'box' ), $type, 'normal', 'default' ); }
+	public static function metaboxes() { foreach ( self::types() as $type ) add_meta_box( 'digitalisimo-ai-article-chat', 'DIGITALÍSIMO IA Tools · Chat del artículo', array( __CLASS__, 'box' ), $type, 'normal', 'default' ); }
 	public static function box( $post ) {
 		wp_nonce_field( 'digitalisimo_ai_article_chat_save', 'digitalisimo_ai_article_chat_nonce' ); $data = json_decode( (string) get_post_meta( $post->ID, self::META_KEY, true ), true ); $speakers = (array) ( $data['speakers'] ?? array() ); $messages = (array) ( $data['messages'] ?? array() );
 		if ( ! $speakers ) $speakers = array( array( 'id' => 'user', 'name' => 'Empresario', 'icon' => '🧑', 'align' => 'end' ), array( 'id' => 'maryia', 'name' => 'MaryIA', 'icon' => '🤖', 'align' => 'center' ), array( 'id' => 'daniel', 'name' => 'Daniel', 'icon' => '👨‍💼', 'align' => 'start' ) );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Digitalisimo Hosting
+ * Plugin Name: DIGITALÍSIMO Hosting
  * Description: Dominios, Namecheap, formularios de DIGITALÍSIMO Elements y flujo de hosting para Digitalisimo.
  * Version: 1.0.29
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-hosting

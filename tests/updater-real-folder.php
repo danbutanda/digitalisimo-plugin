@@ -64,5 +64,44 @@ namespace {
 		check_folder( '/tmp/up/otro/' === $class::keep_folder( '/tmp/up/otro/', '', null, array( 'plugin' => 'otro/otro.php' ) ) && 1 === count( $GLOBALS['t']['moves'] ), $class . ': la actualización de otro plugin no se toca.' );
 		$GLOBALS['t']['cache'] = array();
 	}
-	echo "Actualizadores de Elements, Migración, Tools y Backups: carpeta real atendida y conservada al actualizar.\n";
+
+	// Actualizador compartido de SEO, Hosting e IA Tools: una sola clase (la de la primera copia que se carga) atiende a
+	// los tres módulos, cada uno por su archivo real. Las tres copias son idénticas, para que cualquiera sirva igual.
+	$shared = array(
+		// slug => carpeta del repositorio, carpeta en los sitios (y en el ZIP), archivo principal.
+		'digitalisimo-seo'      => array( 'digitalisimo-seo', 'digitalisimo-seo', 'digitalisimo-integrations.php' ),
+		'digitalisimo-hosting'  => array( 'digitalisimo-hosting', 'digitalisimo-hosting', 'digitalisimo-hosting.php' ),
+		'digitalisimo-ia-tools' => array( 'digitalisimo-ia-tools', 'digitalisimo.chatbot', 'digitalisimo-chatbot.php' ),
+	);
+	$copy = file_get_contents( __DIR__ . '/../digitalisimo-seo/includes/class-digitalisimo-updater.php' );
+	foreach ( $shared as $slug => $spec ) {
+		check_folder( $copy === file_get_contents( __DIR__ . '/../' . $spec[0] . '/includes/class-digitalisimo-updater.php' ), $spec[0] . ': su copia del actualizador compartido debe ser idéntica a la de digitalisimo-seo.' );
+	}
+	function apply_filters( $hook, $value ) { return $value; }
+	require __DIR__ . '/../digitalisimo-seo/includes/class-digitalisimo-updater.php';
+	$GLOBALS['t']['filters'] = array();
+	foreach ( $shared as $slug => $spec ) {
+		$GLOBALS['t']['manifest']['plugins'][ $slug ] = array( 'version' => '9.0.0', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v1/' . $slug . '-9.0.0.zip' );
+		Digitalisimo_Updater::register( WP_PLUGIN_DIR . '/' . $spec[1] . '-subido/' . $spec[2], '1.0.1', $slug );
+	}
+	Digitalisimo_Updater::register( WP_PLUGIN_DIR . '/digitalisimo-otro/digitalisimo-otro.php', '1.0.1', 'digitalisimo-otro' );
+	$GLOBALS['t']['manifest']['plugins']['digitalisimo-otro'] = array( 'version' => '1.0.1', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v1/digitalisimo-otro-1.0.1.zip' );
+	check_folder( 1 === count( $GLOBALS['t']['filters']['upgrader_source_selection'] ?? array() ), 'Digitalisimo_Updater: la conservación de la carpeta se registra una sola vez para todos los módulos.' );
+	foreach ( $shared as $slug => $spec ) {
+		$file = $spec[1] . '-subido/' . $spec[2];
+		$usual = $spec[1] . '/' . $spec[2];
+		check_folder( ! empty( $GLOBALS['t']['filters'][ 'plugin_action_links_' . $file ] ) && empty( $GLOBALS['t']['filters'][ 'plugin_action_links_' . $usual ] ), $slug . ': «Buscar actualizaciones» en la fila de su carpeta real.' );
+		$tr = Digitalisimo_Updater::inject( (object) array( 'checked' => array( $file => '1.0.1' ), 'response' => array(), 'no_update' => array() ) );
+		check_folder( isset( $tr->response[ $file ] ) && '9.0.0' === $tr->response[ $file ]->new_version && $file === $tr->response[ $file ]->plugin && ! isset( $tr->response[ $usual ] ), $slug . ': la versión nueva va a su archivo real.' );
+		check_folder( is_array( Digitalisimo_Updater::uri_update( false, array(), $file, array() ) ) && true === Digitalisimo_Updater::auto_update( false, (object) array( 'plugin' => $file ) ), $slug . ': la consulta por Update URI y la actualización automática, por su archivo real.' );
+		// La copia nueva llega con la carpeta del ZIP (la habitual en los sitios) y se deja en la carpeta instalada.
+		$GLOBALS['t']['fs']    = array( '/tmp/up/' . $usual );
+		$GLOBALS['t']['moves'] = array();
+		check_folder( '/tmp/up/' . $spec[1] . '-subido/' === Digitalisimo_Updater::keep_folder( '/tmp/up/' . $spec[1] . '/', '', null, array( 'plugin' => $file ) ) && array( array( '/tmp/up/' . $spec[1], '/tmp/up/' . $spec[1] . '-subido' ) ) === $GLOBALS['t']['moves'], $slug . ': la copia nueva conserva la carpeta instalada.' );
+		check_folder( '/tmp/up/otro/' === Digitalisimo_Updater::keep_folder( '/tmp/up/otro/', '', null, array( 'plugin' => 'otro/otro.php' ) ) && 1 === count( $GLOBALS['t']['moves'] ), $slug . ': la actualización de otro plugin no se toca.' );
+	}
+	$GLOBALS['t']['fs']    = array( '/tmp/up/digitalisimo-otro/digitalisimo-otro.php' );
+	$GLOBALS['t']['moves'] = array();
+	check_folder( '/tmp/up/digitalisimo-otro/' === Digitalisimo_Updater::keep_folder( '/tmp/up/digitalisimo-otro', '', null, array( 'plugin' => 'digitalisimo-otro/digitalisimo-otro.php' ) ) && array() === $GLOBALS['t']['moves'], 'Digitalisimo_Updater: un módulo en su carpeta habitual se actualiza sin mover nada.' );
+	echo "Actualizadores de Elements, Migración, Tools, Backups y el compartido de SEO, Hosting e IA Tools: carpeta real atendida y conservada al actualizar.\n";
 }

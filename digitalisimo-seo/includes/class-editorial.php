@@ -57,7 +57,7 @@ class Digitalisimo_Integrations_Editorial {
 	public static function editorial_suggestions( $request ) {
 		$post_id = absint( $request->get_param( 'post_id' ) ); $post = get_post( $post_id );
 		if ( ! $post ) return new WP_Error( 'digitalisimo_post', 'No se encontró el contenido.', array( 'status' => 404 ) );
-		if ( ! class_exists( 'Digitalisimo_AI' ) ) return new WP_Error( 'digitalisimo_ai_missing', 'Activa Digitalisimo IA Tools y configura un proveedor para usar estas sugerencias.', array( 'status' => 400 ) );
+		if ( ! class_exists( 'Digitalisimo_AI' ) ) return new WP_Error( 'digitalisimo_ai_missing', 'Activa DIGITALÍSIMO IA Tools y configura un proveedor para usar estas sugerencias.', array( 'status' => 400 ) );
 		$keyword = sanitize_text_field( $request->get_param( 'keyword' ) );
 		if ( ! $keyword ) return new WP_Error( 'digitalisimo_keyword', 'Define primero la keyword principal.', array( 'status' => 400 ) );
 		$task = sanitize_key( $request->get_param( 'task' ) );

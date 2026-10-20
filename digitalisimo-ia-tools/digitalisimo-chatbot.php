@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Digitalisimo IA Tools
+ * Plugin Name: DIGITALÍSIMO IA Tools
  * Description: Herramientas de IA para chatbot, contenido, SEO, ecommerce, conocimiento e imágenes.
  * Version: 1.0.58
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-ia-tools

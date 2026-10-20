@@ -72,7 +72,7 @@ final class Digitalisimo_Backups_Updater {
 	}
 
 	public static function schedule_interval( $schedules ) {
-		$schedules['digitalisimo_backups_five_minutes'] = array( 'interval' => 5 * MINUTE_IN_SECONDS, 'display' => 'Cada cinco minutos · Digitalisimo Backups' );
+		$schedules['digitalisimo_backups_five_minutes'] = array( 'interval' => 5 * MINUTE_IN_SECONDS, 'display' => 'Cada cinco minutos · DIGITALÍSIMO Backups' );
 		return $schedules;
 	}
 
@@ -112,7 +112,7 @@ final class Digitalisimo_Backups_Updater {
 		if ( empty( $_GET['digitalisimo-backups-checked'] ) || ! self::can_update() ) return;
 		$release = self::release();
 		$pending = ! empty( $release['version'] ) && version_compare( $release['version'], DIGITALISIMO_BACKUPS_VERSION, '>' );
-		$message = $pending ? 'Digitalisimo Backups ' . $release['version'] . ' está disponible para actualizar.' : 'Digitalisimo Backups está al día.';
+		$message = $pending ? 'DIGITALÍSIMO Backups ' . $release['version'] . ' está disponible para actualizar.' : 'DIGITALÍSIMO Backups está al día.';
 		echo '<div class="notice notice-' . ( $pending ? 'warning' : 'success' ) . ' is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
 	}
 
@@ -193,7 +193,7 @@ final class Digitalisimo_Backups_Updater {
 		if ( 'plugin_information' !== $action || ! is_object( $args ) || self::SLUG !== ( $args->slug ?? '' ) ) return $result;
 		$release = self::release();
 		$version = (string) ( $release['version'] ?? DIGITALISIMO_BACKUPS_VERSION );
-		return (object) array( 'name' => 'Digitalisimo Backups', 'slug' => self::SLUG, 'version' => $version, 'author' => 'Digitalísimo', 'homepage' => 'https://digitalisimo.mx', 'download_link' => (string) ( $release['package'] ?? '' ), 'requires' => '6.0', 'requires_php' => '7.4', 'sections' => array( 'changelog' => '<p>Versión ' . esc_html( $version ) . ' publicada.</p>' ) );
+		return (object) array( 'name' => 'DIGITALÍSIMO Backups', 'slug' => self::SLUG, 'version' => $version, 'author' => 'Digitalísimo', 'homepage' => 'https://digitalisimo.mx', 'download_link' => (string) ( $release['package'] ?? '' ), 'requires' => '6.0', 'requires_php' => '7.4', 'sections' => array( 'changelog' => '<p>Versión ' . esc_html( $version ) . ' publicada.</p>' ) );
 	}
 
 	public static function uri_update( $update, $plugin_data, $plugin_file, $locales ) {

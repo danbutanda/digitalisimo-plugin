@@ -1,4 +1,4 @@
-/* Pantallas de Digitalisimo Backups: pestañas, tarjetas y avance. Los tokens, el armazón, las tablas, los campos y los botones son los del diseño compartido (digitalisimo-ui). */
+/* Pantallas de DIGITALÍSIMO Backups: pestañas, tarjetas y avance. Los tokens, el armazón, las tablas, los campos y los botones son los del diseño compartido (digitalisimo-ui). */
 .digitalisimo-backups { max-width: 1280px; }
 .digitalisimo-backups-tabs { display: flex; gap: 12px; margin: 22px 0; }
 .digitalisimo-backups-tabs a { padding: 12px 20px; border: 1px solid var(--digi-line); border-radius: 12px; background: #fff; color: var(--digi-text); font-weight: 700; text-decoration: none; }

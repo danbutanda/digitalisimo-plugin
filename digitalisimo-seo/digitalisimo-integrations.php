@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Digitalisimo SEO
+ * Plugin Name: DIGITALÍSIMO SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
  * Version: 1.0.228
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo

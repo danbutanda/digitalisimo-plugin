@@ -19,7 +19,7 @@ Uso, desde cualquier carpeta y siempre con -I (nada del directorio actual se imp
   `present_in` y `moved_to_addon` a cada widget y las extensiones de la versión más reciente, pero nunca quita ni añade
   IDs, porque `docs/migration-map.json` y `tests/elements-legacy-decisions.mjs` exigen exactamente los mismos.
 - Ya no escribe `docs/migration-map.json` (sus decisiones se mantienen a mano y con `legacy-decisions-doc.py`) ni los
-  `docs/element-pack-{framework-inventory,dependency-graph}.*`: ese marco y el grafo van en el JSON de `--out`.
+  inventarios aparte del marco y del grafo de dependencias: ambos van en el JSON de `--out`.
 """
 
 import argparse

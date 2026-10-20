@@ -1,22 +1,27 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+// Carpeta del repositorio, archivo principal, slug del ZIP y carpeta dentro del ZIP: la del ZIP es la que tienen los
+// sitios instalados y nunca cambia; la del repositorio puede llamarse distinto (IA Tools).
 const modules = [
-  ['digitalisimo-seo', 'digitalisimo-integrations.php', 'digitalisimo-seo'],
-  ['digitalisimo.chatbot', 'digitalisimo-chatbot.php', 'digitalisimo-ia-tools'],
-  ['digitalisimo-hosting', 'digitalisimo-hosting.php', 'digitalisimo-hosting'],
-  ['digitalisimo-backups', 'digitalisimo-backups.php', 'digitalisimo-backups'],
-  ['digitalisimo-tools', 'digitalisimo-tools.php', 'digitalisimo-tools'],
-  ['digitalisimo-elements', 'pro-elements.php', 'digitalisimo-elements'],
-  ['digitalisimo-migration', 'digitalisimo-migration.php', 'digitalisimo-migration'],
+  ['digitalisimo-seo', 'digitalisimo-integrations.php', 'digitalisimo-seo', 'digitalisimo-seo'],
+  ['digitalisimo-ia-tools', 'digitalisimo-chatbot.php', 'digitalisimo-ia-tools', 'digitalisimo.chatbot'],
+  ['digitalisimo-hosting', 'digitalisimo-hosting.php', 'digitalisimo-hosting', 'digitalisimo-hosting'],
+  ['digitalisimo-backups', 'digitalisimo-backups.php', 'digitalisimo-backups', 'digitalisimo-backups'],
+  ['digitalisimo-tools', 'digitalisimo-tools.php', 'digitalisimo-tools', 'digitalisimo-tools'],
+  ['digitalisimo-elements', 'pro-elements.php', 'digitalisimo-elements', 'digitalisimo-elements'],
+  ['digitalisimo-migration', 'digitalisimo-migration.php', 'digitalisimo-migration', 'digitalisimo-migration'],
 ];
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || 'dist';
 const expected = new Map();
-for (const [directory, mainFile, slug] of modules) {
+const installed = new Map();
+for (const [directory, mainFile, slug, folder] of modules) {
   const source = readFileSync(join(directory, mainFile), 'utf8');
   const version = source.match(/^ \* Version: (\d+(?:\.\d+)+)\s*$/m)?.[1];
   if (!version) throw new Error(`Falta versión numérica en ${directory}/${mainFile}`);
   expected.set(slug, version);
+  installed.set(slug, `${folder}/${mainFile}`);
 }
 const selected = process.argv.filter((argument) => argument.startsWith('digitalisimo-'));
 for (const slug of selected) if (!expected.has(slug)) throw new Error(`Módulo desconocido: ${slug}`);
@@ -25,6 +30,13 @@ const actual = readdirSync(packageDir).filter((file) => file.endsWith('.zip')).s
 const wanted = selectedVersions.map(([slug, version]) => `${slug}-${version}.zip`).sort();
 if (actual.length !== wanted.length || actual.some((file, index) => file !== wanted[index])) {
   throw new Error(`La entrega exige exactamente estos ZIPs: ${wanted.join(', ')}. Encontrados: ${actual.join(', ')}`);
+}
+for (const [slug, version] of selectedVersions) {
+  const entries = execFileSync('unzip', ['-Z1', join(packageDir, `${slug}-${version}.zip`)], { encoding: 'utf8' }).split('\n').filter(Boolean);
+  const folder = installed.get(slug).split('/')[0];
+  if (!entries.includes(installed.get(slug))) throw new Error(`${slug}-${version}.zip debe contener ${installed.get(slug)}: es la ruta del plugin en los sitios instalados`);
+  const strays = entries.filter((entry) => !entry.startsWith(`${folder}/`));
+  if (strays.length) throw new Error(`${slug}-${version}.zip tiene archivos fuera de ${folder}/: ${strays.slice(0, 5).join(', ')}`);
 }
 console.log(`Paquetes completos: ${wanted.join(', ')}`);
 

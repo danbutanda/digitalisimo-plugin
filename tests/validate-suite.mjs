@@ -6,7 +6,7 @@ const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
   { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.228.zip', version: '1.0.228' },
-  { dir: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.58.zip', version: '1.0.58' },
+  { dir: 'digitalisimo-ia-tools', folder: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.58.zip', version: '1.0.58' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.29.zip', version: '1.0.29' },
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.57.zip', version: '1.0.57' },
 ];
@@ -20,7 +20,7 @@ if (!webpModule.includes('type="button" id="digitalisimo-webp-start"') || !webpM
 if (!webpModule.includes("wp_update_post( $change, true )") || !webpModule.includes('update_attached_file( $attachment_id, $saved[\'path\'] )') || !webpModule.includes('wp_generate_attachment_metadata( $attachment_id, $saved[\'path\'] )') || !webpModule.includes('wp_update_attachment_metadata( $attachment_id, $metadata )') || !webpModule.includes('wp_unique_filename') || !webpModule.includes('self::clear_errors( $network, $site_id )') || webpModule.includes("array( 'key' => self::META_DONE, 'compare' => 'NOT EXISTS' )")) throw new Error('WebP debe actualizar el adjunto real y volver a procesar los JPG/PNG marcados por versiones anteriores.');
 if (!webpModule.includes("add_filter( 'display_media_states'") || !webpModule.includes("add_filter( 'wp_prepare_attachment_for_js'") || !webpModule.includes('self::META_DONE, true') || !webpModule.includes('wp_normalize_path( $file ) === wp_normalize_path( $optimized_file )') || !webpModule.includes("'image/webp' === get_post_mime_type")) throw new Error('La etiqueta de optimización debe identificar sólo adjuntos WebP convertidos por Tools.');
 if (!toolsMenu.includes('self::network_context() ? network_admin_url') || !toolsMenu.includes('self::context_field()') || !toolsBootstrap.includes('Network_Admin::init(); if ( ! is_multisite() ) return;')) throw new Error('Tools debe conservar el contexto y ofrecer WebP en WordPress individual.');
-for (const directory of ['digitalisimo-seo', 'digitalisimo.chatbot', 'digitalisimo-hosting']) if (!readFileSync(join(directory, 'includes/class-digitalisimo-updater.php'), 'utf8').includes('digitalisimo_context')) throw new Error(`El actualizador de ${directory} debe conservar el contexto de origen.`);
+for (const directory of ['digitalisimo-seo', 'digitalisimo-ia-tools', 'digitalisimo-hosting']) if (!readFileSync(join(directory, 'includes/class-digitalisimo-updater.php'), 'utf8').includes('digitalisimo_context')) throw new Error(`El actualizador de ${directory} debe conservar el contexto de origen.`);
 const phpFiles = [];
 function walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -38,7 +38,7 @@ for (const module of modules) {
   if (!source.includes(`Version: ${module.version}`)) throw new Error(`Versión incorrecta en ${main}`);
   if (!source.includes(`Update URI: https://github.com/danbutanda/digitalisimo-plugin/${module.zip.replace(/-[0-9.]+\.zip$/, '')}`)) throw new Error(`Falta Update URI en ${main}`);
 	const zipListing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
-	if (!zipListing.includes(`${module.dir}/${module.file}`)) throw new Error(`El ZIP ${zip} no conserva su archivo principal`);
+	if (!zipListing.includes(`${module.folder ?? module.dir}/${module.file}`)) throw new Error(`El ZIP ${zip} no conserva su archivo principal`);
 	if (zipListing.includes('.DS_Store')) throw new Error(`El ZIP ${zip} contiene archivos de sistema`);
   if (module.dir === 'digitalisimo-seo' && ['class-performance-manager.php', 'class-performance-hero.php', 'class-performance-font-inline.php', 'class-performance-css-audit.php', 'class-asset-diagnostics.php', 'class-performance-measurements.php'].some((file) => !zipListing.includes(`includes/performance/${file}`))) throw new Error('El ZIP SEO no contiene el módulo de rendimiento.');
   if (module.dir === 'digitalisimo-seo' && !zipListing.includes('assets/js/performance-css-audit.js')) throw new Error('El ZIP SEO no contiene la auditoría CSS del navegador.');
@@ -112,16 +112,16 @@ const declarations = new Map();
 const inlineUpdater = readFileSync('digitalisimo-elements/assets/js/update-in-place.js', 'utf8');
 for (const module of [...modules, toolsModule, elementsModule, migrationModule]) {
   const zip = join(packageDir, module.zip);
-  const asset = `${module.dir}/assets/js/update-in-place.js`;
-  const packaged = execFileSync('unzip', ['-p', zip, asset], { encoding: 'utf8' });
-  if (packaged !== inlineUpdater || readFileSync(asset, 'utf8') !== inlineUpdater) throw new Error(`Controlador de actualizaciones ausente o distinto en ${zip}`);
+  const asset = 'assets/js/update-in-place.js';
+  const packaged = execFileSync('unzip', ['-p', zip, `${module.folder ?? module.dir}/${asset}`], { encoding: 'utf8' });
+  if (packaged !== inlineUpdater || readFileSync(join(module.dir, asset), 'utf8') !== inlineUpdater) throw new Error(`Controlador de actualizaciones ausente o distinto en ${zip}`);
 }
 // El diseño compartido viaja idéntico en los siete plugins (copia más nueva gana en tiempo de ejecución): un plugin
 // que se instala solo conserva el estilo y una Release parcial no deja dos variantes.
 for (const shared of ['digitalisimo-ui/digitalisimo-ui.php', 'digitalisimo-ui/digitalisimo-ui.css']) {
   const reference = readFileSync(`digitalisimo-elements/${shared}`, 'utf8');
   for (const module of [...modules, toolsModule, elementsModule, migrationModule]) {
-    const packaged = execFileSync('unzip', ['-p', join(packageDir, module.zip), `${module.dir}/${shared}`], { encoding: 'utf8' });
+    const packaged = execFileSync('unzip', ['-p', join(packageDir, module.zip), `${module.folder ?? module.dir}/${shared}`], { encoding: 'utf8' });
     if (packaged !== reference || readFileSync(`${module.dir}/${shared}`, 'utf8') !== reference) throw new Error(`Diseño compartido ausente o distinto (${shared}) en ${module.zip}`);
     if (!/require_once [^;]*'\/?digitalisimo-ui\/digitalisimo-ui\.php';/.test(readFileSync(join(module.dir, module.file), 'utf8'))) throw new Error(`${module.dir} debe cargar el diseño compartido.`);
   }
@@ -161,14 +161,16 @@ const seoResolver = readFileSync('digitalisimo-seo/includes/class-seo-resolver.p
 const seoAi = readFileSync('digitalisimo-seo/includes/class-seo-ai.php', 'utf8');
 if (!seoSettings.includes("'seo_ai_google_extended_policy' => 'allow'") || !seoSettings.includes("Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy") || !seoSuite.includes("self::nf( 'seo_ai_google_extended_policy'") || !seoSuite.includes("self::f( 'seo_ai_google_extended_policy'") || !seoSuite.includes("$current[ $key ] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy")) throw new Error('Google-Extended necesita opción independiente con paridad de sitio y red.');
 if (!seoSettings.includes("'seo_title_post'         => '%title% %sep% %sitename%'") || !seoSettings.includes("'seo_description_post'   => '%excerpt%'") || !seoSettings.includes("'seo_title_page'         => '%title%'") || !seoSettings.includes("'seo_description_page'   => '%excerpt%'") || !seoSettings.includes("'seo_title_archive'      => '%title%'") || !seoSettings.includes("'seo_description_archive'=> '%excerpt%'") ) throw new Error('Los valores iniciales de títulos y descripciones SEO no coinciden con la configuración predeterminada.');
-const chatbotAi = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai.php', 'utf8');
-const chatbotImages = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-images.php', 'utf8');
-const chatbotDialogueCss = readFileSync('digitalisimo.chatbot/assets/article-dialogue.css', 'utf8');
-const chatbotMcpArticles = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-mcp-articles.php', 'utf8');
+const chatbotAi = readFileSync('digitalisimo-ia-tools/includes/class-digitalisimo-ai.php', 'utf8');
+const chatbotImages = readFileSync('digitalisimo-ia-tools/includes/class-digitalisimo-ai-images.php', 'utf8');
+const chatbotDialogueCss = readFileSync('digitalisimo-ia-tools/assets/article-dialogue.css', 'utf8');
+const chatbotMcpArticles = readFileSync('digitalisimo-ia-tools/includes/class-digitalisimo-mcp-articles.php', 'utf8');
 const coreFiles = modules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-core.php'), 'utf8'));
 const sharedModules = modules.filter((module) => module.dir !== 'digitalisimo-backups');
 const updaterFiles = sharedModules.map((module) => readFileSync(join(module.dir, 'includes/class-digitalisimo-updater.php'), 'utf8'));
 if (updaterFiles.some((source) => !source.includes("'update_plugins_github.com'") || !source.includes('function uri_update('))) throw new Error('Los módulos deben usar el mecanismo Update URI de WordPress.');
+// SEO, Hosting e IA Tools comparten Digitalisimo_Updater (se declara una vez, la primera copia cargada): sus copias deben ser idénticas.
+if (new Set(updaterFiles).size !== 1) throw new Error('SEO, Hosting e IA Tools deben llevar la misma copia de includes/class-digitalisimo-updater.php.');
 if (!readFileSync('digitalisimo-backups/includes/class-digitalisimo-updater.php', 'utf8').includes("'update_plugins_github.com'") || !readFileSync('digitalisimo-tools/includes/class-updater.php', 'utf8').includes("'update_plugins_github.com'")) throw new Error('Backups y Tools deben usar Update URI de forma independiente.');
 if (updaterFiles.some((source) =>
   !source.includes("current_user_can( 'manage_network_plugins' )") ||
@@ -181,9 +183,9 @@ const backups = readFileSync('digitalisimo-backups/includes/class-backups.php', 
 if (!backups.includes("'wp_ajax_' . self::ACTION_MANUAL_START") || !backups.includes('function manual_status()') || !backups.includes('function wordpress_config_file()') || !readFileSync('digitalisimo-backups/assets/manual-progress.js', 'utf8').includes('digitalisimo_backups_manual_status')) throw new Error('Backups debe incluir avance consultable y validar wp-config.php antes del trabajo largo.');
 if (!backups.includes('create_network') || !backups.includes('create_site') || !backups.includes('create_incremental_site') || !backups.includes('network_context') || !backups.includes('servers_panel') || !backups.includes('manual_destinations') || !backups.includes('digitalisimo_backup_destination') || !backups.includes('incremental_destination') || !backups.includes('remove_history') || !backups.includes('restore_digitalisimo_zip') || !backups.includes('restore_updraft_set') || !backups.includes('download_remote') || !backups.includes('delete_remote') || !backups.includes('digitalisimo_backups_policy') || !backups.includes('create_automation') || !backups.includes('update_automation') || !backups.includes('delete_automation') || !backups.includes('automation_fields') || !backups.includes('MIGRAR-A-WORDPRESS-UNICO.txt') || !backups.includes('database.sql') || !backups.includes('manifest.json') || !backups.includes('ssh2_connect') || !backups.includes('oauth2.googleapis.com') || !backups.includes('graph.microsoft.com') || !backups.includes('resumable_upload'))
   throw new Error('Backups debe incluir archivos y base de datos, con destinos local, SFTP, Google Drive y OneDrive.');
-const articleChatPublisher = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-publisher.php','utf8');
-const articleChatEditor = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-article-chat.php','utf8');
-const contentPlaybook = readFileSync('digitalisimo.chatbot/includes/class-digitalisimo-ai-content-playbook.php','utf8');
+const articleChatPublisher = readFileSync('digitalisimo-ia-tools/includes/class-digitalisimo-ai-content-publisher.php','utf8');
+const articleChatEditor = readFileSync('digitalisimo-ia-tools/includes/class-digitalisimo-ai-article-chat.php','utf8');
+const contentPlaybook = readFileSync('digitalisimo-ia-tools/includes/class-digitalisimo-ai-content-playbook.php','utf8');
 if (!articleChatEditor.includes("add_shortcode( 'digitalisimo_article_chat'") ||
     !articleChatEditor.includes("get_post_meta( self::current_content_id(), self::META_KEY, true )"))
   throw new Error('Falta shortcode del chat conectado al metadato del artículo.');
@@ -209,9 +211,10 @@ if (!articleChatPublisher.includes("'speaker' => 'empresario'") || !articleChatP
 if (!chatbotDialogueCss.includes('start{justify-self:start;background:#fff8df') || !chatbotDialogueCss.includes('center{justify-self:center;background:#fff2f8') || !chatbotDialogueCss.includes('end{justify-self:end;background:#edf7ff'))
 	throw new Error('La paleta del chat debe ser amarillo Empresario, rosa MaryIA y azul Daniel.');
 const mcpWordPress = readFileSync('mcp/digitalisimo-wordpress/server.mjs', 'utf8');
-if (!mcpWordPress.includes('digitalisimo_article_chat: articleChat') || !mcpWordPress.includes('digitalisimo-publisher/v1/articles'))
-	throw new Error('El MCP de WordPress debe enviar el chat editorial obligatorio al publisher de IA Tools.');
-const chatbotBootstrap = readFileSync('digitalisimo.chatbot/digitalisimo-chatbot.php', 'utf8');
+const mcpClient = readFileSync('mcp/digitalisimo-wordpress/wordpress.mjs', 'utf8');
+if (!mcpWordPress.includes('digitalisimo_article_chat: articleChat') || !mcpClient.includes("articles: 'digitalisimo-publisher/v1/articles'") || !mcpClient.includes("target.base + '/wp-json/' + endpoint"))
+	throw new Error('El MCP de WordPress debe enviar el chat editorial obligatorio a la ruta real del publisher de IA Tools, sin anteponer otro espacio de nombres.');
+const chatbotBootstrap = readFileSync('digitalisimo-ia-tools/digitalisimo-chatbot.php', 'utf8');
 if (!chatbotBootstrap.includes('Digitalisimo_AI_Article_Chat::init') || !chatbotBootstrap.includes('Digitalisimo_AI_Content_Publisher::init'))
 	throw new Error('IA Tools debe inicializar el chat y el publisher editorial.');
 if (seoBootstrap.includes('class-content-publisher.php') || seoBootstrap.includes('Digitalisimo_Integrations_Content_Publisher::init'))
@@ -228,7 +231,7 @@ const seoAiTools = [
 ].map((file) => readFileSync(join('digitalisimo-seo/includes', file), 'utf8'));
 const updaters = [
   'digitalisimo-seo/includes/class-digitalisimo-updater.php',
-  'digitalisimo.chatbot/includes/class-digitalisimo-updater.php',
+  'digitalisimo-ia-tools/includes/class-digitalisimo-updater.php',
   'digitalisimo-hosting/includes/class-digitalisimo-updater.php',
 ].map((file) => readFileSync(file, 'utf8'));
 if (updaters.some((source) => !source.includes('const CACHE_TTL  = 10 * MINUTE_IN_SECONDS') || !source.includes('set_site_transient( self::CACHE_KEY, $index, self::CACHE_TTL )') || !source.includes('set_site_transient( self::CACHE_KEY, $known, 2 * MINUTE_IN_SECONDS )') || !source.includes("const MANIFEST_CACHE = 'digitalisimo_plugins_manifest'")))

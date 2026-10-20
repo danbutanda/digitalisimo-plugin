@@ -29,9 +29,9 @@ Leyenda: (a) texto visible · (b) enlace · (c) identificador interno, no se cam
 | Fila de plugins: enlaces del núcleo | — | — | — | No aparecen. Los enlaces «Video Tutorials» y «Go Pro» del núcleo se registran para `ELEMENTOR_PLUGIN_BASE` (`elementor/core/admin/admin.php:1030-1031, 411-412`), que con el núcleo incluido es `digitalisimo-elements/elementor/elementor.php` y no corresponde a ninguna fila |
 | «Ver detalles» de Elements, Tools, Migración y Backups | El modal consulta wordpress.org con el slug `digitalisimo-*` y responde «No se encontró el plugin» | — | — | No nombra Elementor, pero el enlace está roto. Ninguno de esos cuatro engancha `plugins_api`: añadirlo como en `digitalisimo-seo/includes/class-digitalisimo-updater.php:280` |
 | `readme.txt:3-7` | Dentro del ZIP; WordPress no lo muestra. Dice «Versión derivada de PRO Elements… junto con Elementor gratuito. Requiere Elementor 4.0», ya falso | (a) en el ZIP | — | Reescribir: «Constructor visual completo… No necesita otros plugins. Créditos y licencias en license.txt.» |
-| `changelog.txt:1` («# PRO Elements - by PROElements.org») y 586 enlaces a `github.com/elementor/elementor/issues` | Sólo en el ZIP; nada lo lee (lo verifiqué: `tests/validate-suite.mjs:82` no lo exige) | (b) en el ZIP | — | Excluirlo del ZIP en `scripts/build-packages.sh` (sin borrar la fuente) o sustituirlo por uno propio |
+| `changelog.txt:1` («# PRO Elements - by PROElements.org») y 586 enlaces a `github.com/elementor/elementor/issues` | Sólo en el ZIP; nada lo lee (lo verifiqué: `tests/validate-suite.mjs:82` no lo exige) | (b) en el ZIP | — | Hecho: primero se excluyó del ZIP y después se borró del repositorio |
 | `license.txt`, `COPYING`, `DIGITALISIMO_CHANGES.md` | Sólo en el ZIP | (d), legal | — | **No tocar.** La GPLv3 exige conservar los avisos de copyright y de modificación |
-| `updater/updater.php` | Actualizador por GitHub heredado de PRO Elements. Es código muerto: no se incluye en ningún sitio, pero viaja en el ZIP | — | — | Excluirlo del ZIP |
+| `updater/updater.php` | Actualizador por GitHub heredado de PRO Elements. Era código muerto: no se incluía en ningún sitio, pero viajaba en el ZIP | — | — | Hecho: excluido del ZIP y después borrado del repositorio |
 | `modules/digitalisimo-*` | — | — | — | Limpios. Sólo hay comentarios y clases CSS o PHP (c); las URL de YouTube y Vimeo son para incrustar los vídeos del usuario |
 
 **Hallazgos del código derivado de PRO** (son de otro frente, pero llegan fuera del admin):
@@ -156,6 +156,6 @@ Sin apariciones.
 3. **P2, textos visibles en SEO (B)**, empezando por las rutas de menú falsas «Elementor → Herramientas» (`class-seo-suite.php:267, 284`).
 4. **P2, textos de Tools (C), Hosting (D) e IA (E)**, más las descripciones de los dos catálogos (`digitalisimo-seo/includes/class-plugin-catalog.php:59-60`, `digitalisimo-tools/includes/class-plugin-catalog.php:45-46`).
 5. **P2, Migración:** «PRO Elements» como alternativa (`unsupported.php:6, 44, 50`), la ruta de `class-runner.php:507` y las etiquetas «(Element Pack)» del editor.
-6. **P3:** reescribir `readme.txt`; sacar del ZIP `changelog.txt` y `updater/updater.php`; reescribir el README de Tools; listar en el informe de Migración los valores por defecto con dominios del proveedor.
+6. **P3:** reescribir `readme.txt`; sacar del ZIP `changelog.txt` y `updater/updater.php` (hecho; ya no están en el repositorio); reescribir el README de Tools; listar en el informe de Migración los valores por defecto con dominios del proveedor.
 7. **P3, funcional:** las rutas del núcleo incluido en las comprobaciones de SEO (riesgo 1) y el tema Hello (riesgo 2).
 8. **P4:** ampliar `brand-audit.sh` a nuestras pantallas, enlaces e iframes; añadir `plugins_api` para «Ver detalles» en Elements, Tools, Migración y Backups.

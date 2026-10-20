@@ -186,14 +186,14 @@ final class Digitalisimo_Backups {
 	private static function schedule_options() { return array( 'disabled' => 'Desactivado', 'hourly' => 'Cada hora', 'digitalisimo_every_6_hours' => 'Cada 6 horas', 'digitalisimo_every_12_hours' => 'Cada 12 horas', 'daily' => 'Diario', 'weekly' => 'Semanal', 'monthly' => 'Mensual' ); }
 	private static function sync_schedules( $settings ) { foreach ( array( 'full' => 'full_schedule', 'db' => 'database_schedule' ) as $type => $key ) { $hook = 'digitalisimo_backups_' . $type; wp_clear_scheduled_hook( $hook ); if ( 'full' === $type && 'disabled' !== $settings[ $key ] ) wp_schedule_event( time() + MINUTE_IN_SECONDS, $settings[ $key ], $hook, array( get_current_blog_id() ) ); } }
 	private static function sync_policy_schedules() { foreach ( self::policies() as $policy ) { $args = array( $policy['id'], get_current_blog_id() ); wp_clear_scheduled_hook( 'digitalisimo_backups_policy', $args ); if ( ! empty( $policy['enabled'] ) && 'disabled' !== $policy['schedule'] ) wp_schedule_event( time() + MINUTE_IN_SECONDS, $policy['schedule'], 'digitalisimo_backups_policy', $args ); } }
-	public static function scheduled_policy( $policy_id, $site_id ) { $result = self::run_policy( $policy_id, $site_id ); if ( is_wp_error( $result ) ) error_log( 'Digitalisimo Backups: ' . $result->get_error_message() ); }
+	public static function scheduled_policy( $policy_id, $site_id ) { $result = self::run_policy( $policy_id, $site_id ); if ( is_wp_error( $result ) ) error_log( 'DIGITALÍSIMO Backups: ' . $result->get_error_message() ); }
 	public static function scheduled_backup( $site_id ) {
 		if ( current_filter() === 'digitalisimo_backups_db' ) {
-			error_log( 'Digitalisimo Backups: se omitió la exportación parcial de base de datos; requiere una política de respaldo completo.' );
+			error_log( 'DIGITALÍSIMO Backups: se omitió la exportación parcial de base de datos; requiere una política de respaldo completo.' );
 			return;
 		}
 		if ( is_multisite() && ( (int) $site_id !== (int) get_main_site_id() || (int) get_current_blog_id() !== (int) get_main_site_id() ) ) {
-			error_log( 'Digitalisimo Backups: se omitió una tarea heredada de subsitio que no cubre la red completa.' );
+			error_log( 'DIGITALÍSIMO Backups: se omitió una tarea heredada de subsitio que no cubre la red completa.' );
 			return;
 		}
 		try {
@@ -206,7 +206,7 @@ final class Digitalisimo_Backups {
 				self::prune( dirname( $file ), (int) $settings['retention'] );
 			} finally { self::release_operation_lock( $operation_lock ); }
 		} catch ( Exception $e ) {
-			error_log( 'Digitalisimo Backups: ' . $e->getMessage() );
+			error_log( 'DIGITALÍSIMO Backups: ' . $e->getMessage() );
 		}
 	}
 
@@ -447,7 +447,7 @@ final class Digitalisimo_Backups {
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' );
 		self::assert_full_files_ready();
 		$dir = self::local_directory();
-		if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de Digitalisimo Backups.' );
+		if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de DIGITALÍSIMO Backups.' );
 		self::protect( $dir );
 		$name = 'digitalisimo-backup-' . sanitize_title( wp_parse_url( home_url(), PHP_URL_HOST ) ) . '-' . gmdate( 'Ymd-His' ) . '-' . substr( str_replace( '-', '', wp_generate_uuid4() ), 0, 8 ) . '.zip';
 		$file = trailingslashit( $dir ) . $name;
@@ -569,7 +569,7 @@ final class Digitalisimo_Backups {
 	private static function create_site( $site_id, $type = 'full' ) {
 		if ( ! class_exists( 'ZipArchive' ) ) throw new Exception( 'El servidor necesita la extensión PHP ZipArchive para crear el respaldo.' );
 		$dir = self::local_directory();
-		if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de Digitalisimo Backups.' );
+		if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de DIGITALÍSIMO Backups.' );
 		self::protect( $dir );
 		$site = get_site( $site_id );
 		if ( ! $site ) throw new Exception( 'El sitio elegido ya no existe.' );
@@ -896,7 +896,7 @@ final class Digitalisimo_Backups {
 		$site = get_site( $site_id );
 		if ( ! $site ) throw new Exception( 'El sitio de la política ya no existe.' );
 		$dir = self::local_directory();
-		if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de Digitalisimo Backups.' );
+		if ( ! wp_mkdir_p( $dir ) || ! is_writable( $dir ) ) throw new Exception( 'No se puede escribir en la carpeta protegida de DIGITALÍSIMO Backups.' );
 		self::protect( $dir );
 		$base = self::latest_full_backup( $site_id );
 		$since = $base ? (int) @filemtime( trailingslashit( $dir ) . $base['file'] ) : 0;

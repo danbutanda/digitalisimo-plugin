@@ -52,10 +52,10 @@ final class Digitalisimo_Plugin_Catalog {
 
 	private static function plugins() {
 		return array(
-			'digitalisimo-backups' => array( 'Digitalisimo Backups', 'digitalisimo-backups/digitalisimo-backups.php', 'Respaldos de sitio y red.' ),
-			'digitalisimo-hosting' => array( 'Digitalisimo Hosting', 'digitalisimo-hosting/digitalisimo-hosting.php', 'Dominios, Namecheap, WooCommerce y hosting.' ),
-			'digitalisimo-ia-tools' => array( 'Digitalisimo IA Tools', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'Chatbot, proveedores IA, RAG y generación de imágenes.' ),
-			'digitalisimo-seo' => array( 'Digitalisimo SEO', 'digitalisimo-seo/digitalisimo-integrations.php', 'SEO técnico, schema, contenido y SEO AI.' ),
+			'digitalisimo-backups' => array( 'DIGITALÍSIMO Backups', 'digitalisimo-backups/digitalisimo-backups.php', 'Respaldos de sitio y red.' ),
+			'digitalisimo-hosting' => array( 'DIGITALÍSIMO Hosting', 'digitalisimo-hosting/digitalisimo-hosting.php', 'Dominios, Namecheap, WooCommerce y hosting.' ),
+			'digitalisimo-ia-tools' => array( 'DIGITALÍSIMO IA Tools', 'digitalisimo.chatbot/digitalisimo-chatbot.php', 'Chatbot, proveedores IA, RAG y generación de imágenes.' ),
+			'digitalisimo-seo' => array( 'DIGITALÍSIMO SEO', 'digitalisimo-seo/digitalisimo-integrations.php', 'SEO técnico, schema, contenido y SEO AI.' ),
 			'digitalisimo-tools' => array( 'DIGITALÍSIMO Tools', 'digitalisimo-tools/digitalisimo-tools.php', 'Herramientas internas, plantillas de red, WebP y ajustes del sitio.' ),
 			'digitalisimo-elements' => array( 'DIGITALÍSIMO Elements', 'digitalisimo-elements/pro-elements.php', 'Constructor visual completo: editor, funciones avanzadas, kits, plantillas y widgets propios.' ),
 		);

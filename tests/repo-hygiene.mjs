@@ -81,4 +81,15 @@ for (const theme of themes) {
   assert.deepEqual(forced, [], `Archivos del tema ${theme} versionados a pesar de .gitignore (se añadieron con -f): ${forced.join(', ')}`);
 }
 
-console.log(`Higiene del repositorio: ${mustTrack.length} rutas de tema y plugin se versionan, ${mustIgnore.length} de terceros y paquetes se ignoran; ${themes.length} tema(s) en la raíz sin archivos ignorados.`);
+// validate.yml (cada push) y release.yml (publicación) corren la misma lista de pruebas, y toda prueba suelta de
+// tests/ está en ella: una prueba que ningún workflow ejecuta no protege nada.
+const workflowTests = (name) => readFileSync(join(root, '.github/workflows', name), 'utf8').split('\n')
+  .map((line) => line.trim()).filter((line) => /^(?:(?:php|node) tests\/|for module in )/.test(line));
+const releaseTests = workflowTests('release.yml');
+assert.ok(releaseTests.length > 100, 'release.yml debe correr la suite de pruebas');
+assert.deepEqual(workflowTests('validate.yml'), releaseTests, 'validate.yml y release.yml deben correr la misma lista de pruebas');
+const listed = new Set(releaseTests.flatMap((line) => line.match(/tests\/[^ ;"]+/g) || []));
+const standalone = readdirSync(join(root, 'tests')).filter((file) => /\.(php|mjs)$/.test(file) && file !== 'validate-suite.mjs').map((file) => `tests/${file}`);
+assert.deepEqual(standalone.filter((file) => !listed.has(file)), [], 'Pruebas de tests/ que ningún workflow ejecuta');
+
+console.log(`Higiene del repositorio: ${mustTrack.length} rutas de tema y plugin se versionan, ${mustIgnore.length} de terceros y paquetes se ignoran; ${themes.length} tema(s) en la raíz sin archivos ignorados; ${releaseTests.length} pruebas iguales en validate.yml y release.yml.`);

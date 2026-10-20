@@ -6,7 +6,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
-const modules = ['digitalisimo-seo', 'digitalisimo.chatbot', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements', 'digitalisimo-migration'];
+const modules = ['digitalisimo-seo', 'digitalisimo-ia-tools', 'digitalisimo-hosting', 'digitalisimo-backups', 'digitalisimo-tools', 'digitalisimo-elements', 'digitalisimo-migration'];
 const loader = readFileSync('digitalisimo-elements/digitalisimo-ui/digitalisimo-ui.php', 'utf8');
 const shared = readFileSync('digitalisimo-elements/digitalisimo-ui/digitalisimo-ui.css', 'utf8');
 for (const module of modules) {
@@ -20,7 +20,7 @@ const version = loader.match(/\$GLOBALS\['digitalisimo_ui_copies'\]\['([^']+)'\]
 const fingerprint = createHash('sha256').update(loader).update(shared).digest('hex');
 assert.ok(RELEASED[version], `La versión ${version} del diseño compartido no tiene huella en tests/digitalisimo-ui.mjs`);
 assert.equal(fingerprint, RELEASED[version], `El diseño compartido cambió sin subir su versión (${version}): súbela en digitalisimo-ui.php y registra la huella nueva (${fingerprint})`);
-for (const module of ['digitalisimo.chatbot', 'digitalisimo-hosting', 'digitalisimo-backups']) {
+for (const module of ['digitalisimo-ia-tools', 'digitalisimo-hosting', 'digitalisimo-backups']) {
   assert.ok(!existsSync(`${module}/assets/admin-ui.css`), `${module} no debe conservar su copia propia del estilo`);
 }
 

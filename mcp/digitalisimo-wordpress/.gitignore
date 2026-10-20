@@ -1,2 +1,5 @@
 node_modules/
 .env
+# Credenciales de los sitios: siempre fuera del repositorio.
+sites.json
+*.private.json

@@ -80,7 +80,7 @@ class Digitalisimo_Integrations_Performance_Manager {
 		if ( ! ( defined( 'DIGITALISIMO_PERFORMANCE_DEBUG' ) && DIGITALISIMO_PERFORMANCE_DEBUG ) && ! apply_filters( 'digitalisimo_performance_debug', false ) ) return;
 		$registered = $registry->registered[ $handle ] ?? null;
 		if ( ! $registered ) return;
-		$record = array( 'time' => current_time( 'mysql' ), 'handle' => $handle, 'reason' => $reason, 'url' => is_singular() ? get_permalink( get_queried_object_id() ) : home_url( '/' ), 'dependencies' => $registered->deps, 'module' => 'Digitalisimo SEO Rendimiento' );
+		$record = array( 'time' => current_time( 'mysql' ), 'handle' => $handle, 'reason' => $reason, 'url' => is_singular() ? get_permalink( get_queried_object_id() ) : home_url( '/' ), 'dependencies' => $registered->deps, 'module' => 'DIGITALÍSIMO SEO Rendimiento' );
 		$log = (array) get_option( self::LOG_OPTION, array() );
 		$log[] = $record;
 		update_option( self::LOG_OPTION, array_slice( $log, -100 ), false );

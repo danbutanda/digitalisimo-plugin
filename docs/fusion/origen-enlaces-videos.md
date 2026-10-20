@@ -32,7 +32,7 @@ Precedente útil: `P:core/editor/editor.php:156-161` y `P:core/admin/admin.php:8
 | img.youtube.com / vimeo.com | 0 / 4 | 0 | 0 / 4 | 0 | 3 / 1 | 1 / 1 | no |
 | wordpress.org/(plugins\|support/plugin)/elementor | 0 (sólo `E:readme.txt` y traducciones) | – | – | – | – | – | sí, en el pie (`identity.php:363`) |
 | help.elementor.com, elementor.cloud, youtu.be de Elementor | 0 | – | – | – | – | – | — |
-| proelements.org / github.com/proelements | 0 en código; sólo `P:license.txt:2`, `P:changelog.txt:1`, `P:DIGITALISIMO_CHANGES.md:172` (no se ven; la licencia GPL exige conservarlos) | | | | | | — |
+| proelements.org / github.com/proelements | 0 en código; sólo `P:license.txt:2`, `P:DIGITALISIMO_CHANGES.md:172` (no se ven; la licencia GPL exige conservarlos) | | | | | | — |
 
 Element Pack, Prime Slider y Hello Elementor: Elements no tiene referencias visibles. Hello sólo aparece en el onboarding (ya desactivado) y en el banner de conversión, que sólo sale sin PRO. Divi, Betheme, GeneratePress y Bricks: 0.
 

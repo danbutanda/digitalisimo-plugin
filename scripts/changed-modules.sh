@@ -10,7 +10,7 @@ fi
 git diff --name-only -z "$base" "$head" | while IFS= read -r -d '' path; do
   case "$path" in
     digitalisimo-seo/*) echo digitalisimo-seo ;;
-    digitalisimo.chatbot/*) echo digitalisimo-ia-tools ;;
+    digitalisimo-ia-tools/*) echo digitalisimo-ia-tools ;;
     digitalisimo-hosting/*) echo digitalisimo-hosting ;;
     digitalisimo-backups/*) echo digitalisimo-backups ;;
     digitalisimo-tools/*) echo digitalisimo-tools ;;

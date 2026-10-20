@@ -30,7 +30,7 @@ ob_start();
 if ( 'seo' === $scenario ) Digitalisimo_Plugin_Catalog::page(); else \Digitalisimo\Tools\Plugin_Catalog::page();
 $html = (string) ob_get_clean();
 if ( substr_count( $html, '<tr>' ) < 6 ) $problems[] = 'la tabla del catálogo tiene ' . substr_count( $html, '<tr>' ) . ' filas';
-foreach ( array( 'Digitalisimo SEO', 'DIGITALÍSIMO Tools', 'DIGITALÍSIMO Elements' ) as $name ) { if ( false === strpos( $html, $name ) ) $problems[] = 'falta ' . $name; }
+foreach ( array( 'DIGITALÍSIMO SEO', 'DIGITALÍSIMO Tools', 'DIGITALÍSIMO Elements' ) as $name ) { if ( false === strpos( $html, $name ) ) $problems[] = 'falta ' . $name; }
 if ( $notices ) $problems[] = 'avisos PHP: ' . implode( ' | ', array_slice( $notices, 0, 5 ) );
 $result = file_exists( '/wordpress/wp-content/probe/result.json' ) ? (array) json_decode( file_get_contents( '/wordpress/wp-content/probe/result.json' ), true ) : array();
 $result[ $scenario ] = $problems;

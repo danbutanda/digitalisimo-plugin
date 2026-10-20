@@ -156,7 +156,7 @@ Lo más importante primero:
 
 **Completo:**
 - Widget `digitalisimo-slider-optimizado` con CSS y JS propios y `defer` (`modules/digitalisimo-slider/class-widget.php:7-13`, `class-module.php:45`).
-- Se conservan los nombres de controles (`SLIDER_OPTIMIZADO.md`).
+- Se conservan los nombres de controles ([`docs/SLIDER_OPTIMIZADO.md`](../SLIDER_OPTIMIZADO.md)).
 - Tiene una excepción documentada en el presupuesto del front (`tests/elements-front-budget.php:27`).
 
 ### Constructor WooCommerce
@@ -208,7 +208,7 @@ Lo más importante primero:
   - Filtros `elementor/template_library/sources/local/import/elements` y `elementor/template_library/import/process_content`, que reciben el `$data` crudo (`sources/base.php:464-513`).
   - `register_source()` (`manager.php:113`). `import_template()` respeta `$data['source']` (`:603-633`).
   - Los medios se descargan por URL (`classes/class-import-images.php:133`).
-- **Biblioteca en la nube y kit library (parcial):** dependen de Elementor Connect. No es un servicio propio (`docs/DIGITALISIMO_ELEMENTS_REVIEW.md`).
+- **Biblioteca en la nube y kit library (parcial):** dependen de Elementor Connect. No es un servicio propio.
 - **Diseño global:**
   - Kit en la opción `elementor_active_kit` (`core/kits/manager.php:22`).
   - Clases globales v4 en el CPT `e_global_class` (`global-classes/global-class-post-type.php:10`).

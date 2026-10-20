@@ -5,7 +5,7 @@
 ## 1. Qué hay, versión y formato
 
 - **No hay ningún tema en el repositorio.** Las únicas pistas sobre Hello Elementor son:
-  - La versión 3.5.1 usada en las pruebas de Playground (`docs/PERFORMANCE_MULTISITE_OBJECTIVE.md:125`).
+  - La versión 3.5.1 usada en las pruebas de Playground (`docs/PERFORMANCE_OBJECTIVE.md:177`).
   - Una condición de SEO sólo para Hello: `digitalisimo-seo/includes/performance/class-performance-manager.php:50` (`if ( 'hello-elementor' !== get_template() ) return false;`).
   - Pruebas que usan el handle `hello-theme-frontend` (`tests/performance-javascript.php:43-55`) y `hello-theme` (`tests/quality-audit.php:90`).
 - **Lo que Elements espera de un tema** sale del código derivado de PRO, no de `elementor/`:
