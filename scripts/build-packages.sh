@@ -4,6 +4,9 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "$0")/.." && pwd)"
 output_dir="${1:-$root_dir/dist}"
 mkdir -p "$output_dir"
+# Ruta absoluta: algunos paquetes se arman desde una copia temporal con la carpeta del sitio (cd), y una salida
+# relativa como `dist` dejaría de encontrarse.
+output_dir="$(cd "$output_dir" && pwd)"
 
 # build_package <carpeta del repositorio> <archivo principal> <prefijo del ZIP> [carpeta dentro del ZIP]
 # La carpeta dentro del ZIP es la que reciben los sitios (wp-content/plugins/<carpeta>/<archivo principal>) y no puede
