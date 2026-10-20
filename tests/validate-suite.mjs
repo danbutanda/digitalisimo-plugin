@@ -55,7 +55,7 @@ for (const module of modules) {
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
   if (!listing.includes(`${toolsModule.dir}/${toolsModule.file}`) || listing.includes('.DS_Store')) throw new Error('El paquete de DIGITALÍSIMO Tools no tiene una estructura válida');
   if (!readFileSync(join(toolsModule.dir, 'modules/elementor-network-templates/class-network-admin.php'), 'utf8').includes("'Herramientas', $capability, self::PAGE")) throw new Error('El submenú de DIGITALÍSIMO Tools debe mostrarse como Herramientas.');
-  for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php', 'assets/media-badges.js', 'assets/media-badges.css']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
+  for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php', 'assets/media-badges.js', 'assets/media-badges.css', 'modules/php-snippets/class-store.php', 'modules/php-snippets/class-stream.php', 'modules/php-snippets/class-guard.php', 'modules/php-snippets/class-runner.php', 'modules/php-snippets/class-tester.php', 'modules/php-snippets/class-import.php', 'modules/php-snippets/class-admin.php', 'assets/js/php-snippets.js']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
   if (listing.includes('modules/elementor-slider/') || listing.includes('assets/slider-optimizado.css') || source.includes('modules/elementor-slider/class-module.php')) throw new Error('El slider ya no debe formar parte de DIGITALÍSIMO Tools.');
 }
 
