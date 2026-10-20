@@ -16,12 +16,13 @@ hereda o personaliza.
 | **DIGITALÍSIMO Tools** | Plantillas de red del constructor, WebP, ajustes del sitio (acceso privado, adjuntos, desplazamiento móvil) y editor de fragmentos PHP. |
 | **DIGITALÍSIMO Elements** | Constructor visual completo: núcleo de Elementor incluido, funciones avanzadas y widgets propios. |
 | **DIGITALÍSIMO Migración** | Migra un sitio o una red a DIGITALÍSIMO Elements con un solo botón; se instala sólo mientras dura la migración. |
-| Tema **`digitalisimo-theme`** | Tema clásico mínimo para DIGITALÍSIMO Elements, sin tema hijo: el código PHP propio va al editor de fragmentos de Tools. Llega con el incremento F1 de la fusión. |
+| Tema **`digitalisimo-theme`** | Tema clásico mínimo para DIGITALÍSIMO Elements, sin tema hijo: el código PHP propio va al editor de fragmentos de Tools. |
 
 ## Carpetas: repositorio, ZIP y sitio
 
 La carpeta y el archivo principal que tiene cada plugin en los sitios no cambian nunca: renombrarlos desactivaría el
-plugin instalado. La carpeta del repositorio puede llamarse distinto; el empaquetado pone en el ZIP la del sitio.
+plugin instalado. La carpeta del repositorio puede llamarse distinto; el empaquetado pone en el ZIP la del sitio. El
+tema se reconoce por su `Update URI`, así que una copia instalada en otra carpeta sigue siendo el mismo tema.
 
 | Carpeta del repositorio | ZIP de la Release | Carpeta y archivo principal en el sitio |
 | --- | --- | --- |
@@ -32,6 +33,7 @@ plugin instalado. La carpeta del repositorio puede llamarse distinto; el empaque
 | `digitalisimo-tools/` | `digitalisimo-tools-X.zip` | `digitalisimo-tools/digitalisimo-tools.php` |
 | `digitalisimo-elements/` | `digitalisimo-elements-X.zip` | `digitalisimo-elements/pro-elements.php` |
 | `digitalisimo-migration/` | `digitalisimo-migration-X.zip` | `digitalisimo-migration/digitalisimo-migration.php` |
+| `digitalisimo-theme/` | `digitalisimo-theme-X.zip` | `wp-content/themes/digitalisimo-theme/style.css` |
 
 Otras carpetas: `mcp/digitalisimo-wordpress/` (servidor MCP local que guarda borradores mediante la API de IA Tools;
 ver su [README](mcp/digitalisimo-wordpress/README.md)), `scripts/` (empaquetado, publicación y herramientas de la
@@ -40,9 +42,10 @@ fusión), `tests/` (pruebas PHP y Node de los workflows; `tests/playground/` par
 
 ## Actualizaciones y publicación
 
-Cada plugin trae su propio actualizador, que lee las [Releases del repositorio](https://github.com/danbutanda/digitalisimo-plugin/releases).
-Sólo los plugins modificados suben de versión, pero cada Release lleva el ZIP vigente de los siete. Los ZIP se generan
-con `scripts/build-packages.sh`; el procedimiento completo está en [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
+Cada plugin y el tema traen su propio actualizador, que lee las [Releases del repositorio](https://github.com/danbutanda/digitalisimo-plugin/releases).
+Sólo los paquetes modificados suben de versión, pero cada Release lleva los siete plugins y el tema (8 ZIP), cada uno
+en su versión vigente. Los ZIP se generan con `scripts/build-packages.sh`; el procedimiento completo está en
+[docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
 
 ## Documentación
 

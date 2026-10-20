@@ -47,7 +47,9 @@ function pending() { $t = Digitalisimo_Updater::inject( (object) array( 'checked
 /** Vacía la caché como tras actualizar un módulo propio (el mismo clear() que WordPress invoca). */
 function clear_updater() { Digitalisimo_Updater::clear( null, array( 'action' => 'update', 'type' => 'plugin', 'plugins' => array( $GLOBALS['file'] ) ) ); }
 function api_calls() { return count( array_filter( $GLOBALS['calls'], function( $url ) { return false !== strpos( $url, 'api.github.com' ); } ) ); }
-/** Índice de la Release con los siete plugins; el módulo bajo prueba recibe la versión y el enlace indicados (o ninguna entrada con null). */
+/** Entrada del tema en el índice (clave «themes»): los actualizadores de plugins sólo leen «plugins» y no deben cambiar con ella. */
+function theme_index( $tag = 'v2026.10.15.389' ) { return array( 'digitalisimo-theme' => array( 'version' => '1.0.0', 'file' => 'digitalisimo-theme-1.0.0.zip', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/' . $tag . '/digitalisimo-theme-1.0.0.zip', 'requires' => '6.8', 'requires_php' => '7.4' ) ); }
+/** Índice de la Release con los siete plugins y el tema; el módulo bajo prueba recibe la versión y el enlace indicados (o ninguna entrada con null). */
 function manifest( $version, $url = null ) {
 	$tag = 'v2026.10.15.389';
 	$plugins = array();
@@ -56,9 +58,9 @@ function manifest( $version, $url = null ) {
 	}
 	if ( null === $version ) unset( $plugins[ $GLOBALS['slug'] ] );
 	else $plugins[ $GLOBALS['slug'] ] = array( 'version' => $version, 'file' => $GLOBALS['slug'] . '-' . $version . '.zip', 'url' => $url ?? 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/' . $tag . '/' . $GLOBALS['slug'] . '-' . $version . '.zip' );
-	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => $tag, 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/' . $tag, 'generated' => '2026-10-15T00:00:00Z', 'plugins' => $plugins ) ) );
+	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => $tag, 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/' . $tag, 'generated' => '2026-10-15T00:00:00Z', 'plugins' => $plugins, 'themes' => theme_index( $tag ) ) ) );
 }
-$api = array( 'code' => 200, 'body' => json_encode( array( array( 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/x', 'body' => "Notas de la API\n\n**Full Changelog**: https://github.com/danbutanda/digitalisimo-plugin/compare/v1...x", 'assets' => array( array( 'name' => $slug . '-1.5.0.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/' . $slug . '-1.5.0.zip' ), array( 'name' => 'digitalisimo-backups-1.0.52.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/digitalisimo-backups-1.0.52.zip' ) ) ) ) ) );
+$api = array( 'code' => 200, 'body' => json_encode( array( array( 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/x', 'body' => "Notas de la API\n\n**Full Changelog**: https://github.com/danbutanda/digitalisimo-plugin/compare/v1...x", 'assets' => array( array( 'name' => 'digitalisimo-theme-1.0.0.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/digitalisimo-theme-1.0.0.zip' ), array( 'name' => $slug . '-1.5.0.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/' . $slug . '-1.5.0.zip' ), array( 'name' => 'digitalisimo-backups-1.0.52.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/digitalisimo-backups-1.0.52.zip' ) ) ) ) ) );
 
 // 1. El índice de la última Release basta: no se consulta la API y se recuerda como último índice conocido.
 $responses = array( 'manifest' => manifest( '1.2.0' ), 'api' => $api );
@@ -67,6 +69,7 @@ check_updater( $item && '1.2.0' === $item->new_version && false !== strpos( $ite
 check_updater( 1 === count( $calls ) && false !== strpos( $calls[0], '/releases/latest/download/digitalisimo-plugins.json' ) && 0 === api_calls(), 'Sin consultar la API de GitHub.' );
 check_updater( '1.2.0' === ( $site_options[ $u::LAST_KNOWN ][ $slug ]['version'] ?? '' ) && 7 === count( $site_options[ $u::LAST_KNOWN ] ), 'El índice completo queda como último conocido.' );
 check_updater( 10 * MINUTE_IN_SECONDS === $ttl[ $u::CACHE_KEY ] && 10 * MINUTE_IN_SECONDS === $ttl[ $u::MANIFEST_CACHE ], 'El índice se vuelve a leer cada diez minutos.' );
+check_updater( ! isset( $site_options[ $u::LAST_KNOWN ]['digitalisimo-theme'] ) && theme_index() === ( $cache[ $u::MANIFEST_CACHE ]['themes'] ?? null ), 'El tema no entra en el índice de los plugins, y el índice compartido conserva «themes» para el actualizador del tema.' );
 $info = $u::info( null, 'plugin_information', (object) array( 'slug' => $slug ) );
 // La ficha («Ver detalles») no enlaza a dominios ajenos: sin notas indica sólo la versión, y la página del plugin es la propia.
 check_updater( is_object( $info ) && '1.2.0' === $info->version && false !== strpos( $info->sections['changelog'], '1.2.0' ) && false === strpos( $info->sections['changelog'], 'href=' ) && 'https://digitalisimo.mx' === $info->homepage, 'La ficha del plugin sale del índice y, sin notas, indica la versión sin enlazar a GitHub.' );
@@ -85,7 +88,7 @@ foreach ( array( 'https://example.com/' . $slug . '-1.2.0.zip', 'https://github.
 }
 
 // 4. Una versión mal formada o un índice que no cubre este módulo tampoco sirven: la API construye el índice completo.
-foreach ( array( manifest( 'latest' ), manifest( null ), array( 'code' => 200, 'body' => '{"tag":"v1"}' ) ) as $useless ) {
+foreach ( array( manifest( 'latest' ), manifest( null ), array( 'code' => 200, 'body' => '{"tag":"v1"}' ), array( 'code' => 200, 'body' => json_encode( array( 'tag' => 'v1', 'themes' => theme_index() ) ) ) ) as $useless ) {
 	clear_updater();
 	$calls = array(); $responses = array( 'manifest' => $useless, 'api' => $api );
 	$item = pending();

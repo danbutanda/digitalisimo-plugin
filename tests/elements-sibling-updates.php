@@ -45,7 +45,8 @@ require __DIR__ . '/../digitalisimo-elements/digitalisimo-sibling-updates.php';
 $s    = 'Digitalisimo_Elements_Sibling_Updates';
 $uri  = 'https://github.com/danbutanda/digitalisimo-plugin/';
 $repo = 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.17.406/';
-$GLOBALS['t']['manifest'] = array( 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.17.406', 'plugins' => array(
+// El índice lleva también el tema («themes»): no es un plugin hermano y nada de lo siguiente debe cambiar por él.
+$GLOBALS['t']['manifest'] = array( 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.17.406', 'themes' => array( 'digitalisimo-theme' => array( 'version' => '1.0.0', 'file' => 'digitalisimo-theme-1.0.0.zip', 'url' => $repo . 'digitalisimo-theme-1.0.0.zip', 'requires' => '6.8', 'requires_php' => '7.4' ) ), 'plugins' => array(
 	'digitalisimo-migration' => array( 'version' => '1.0.17', 'url' => $repo . 'digitalisimo-migration-1.0.17.zip' ),
 	'digitalisimo-tools'     => array( 'version' => '1.0.31', 'url' => $repo . 'digitalisimo-tools-1.0.31.zip' ),
 	'digitalisimo-seo'       => array( 'version' => '1.0.226', 'url' => $repo . 'digitalisimo-seo-1.0.226.zip' ),
@@ -101,7 +102,11 @@ $GLOBALS['t']['can'] = true;
 $GLOBALS['t']['fs'] = array( '/tmp/upgrade/abc/digitalisimo-migration/digitalisimo-migration.php' );
 $kept = $s::keep_folder( '/tmp/upgrade/abc/digitalisimo-migration/', '/tmp/upgrade/abc', null, array( 'plugin' => $migration ) );
 check_sibling( '/tmp/upgrade/abc/digitalisimo-migration-1.0.15/' === $kept && array( array( '/tmp/upgrade/abc/digitalisimo-migration', '/tmp/upgrade/abc/digitalisimo-migration-1.0.15' ) ) === $GLOBALS['t']['moves'], 'La copia nueva conserva la carpeta instalada: ' . $kept );
+// La actualización del tema (hook_extra con «theme» y sin «plugin») no se toca.
+check_sibling( '/tmp/upgrade/abc/digitalisimo-theme/' === $s::keep_folder( '/tmp/upgrade/abc/digitalisimo-theme/', '/tmp/upgrade/abc', null, array( 'theme' => 'digitalisimo-theme', 'type' => 'theme', 'action' => 'update' ) ) && 1 === count( $GLOBALS['t']['moves'] ), 'La actualización del tema no pasa por la conservación de carpetas de los plugins.' );
 check_sibling( '/tmp/upgrade/abc/digitalisimo-tools/' === $s::keep_folder( '/tmp/upgrade/abc/digitalisimo-tools/', '', null, array( 'plugin' => 'digitalisimo-tools/digitalisimo-tools.php' ) ) && '/x/otro/' === $s::keep_folder( '/x/otro/', '', null, array( 'plugin' => 'otro/otro.php' ) ) && '/x/y/' === $s::keep_folder( '/x/y/', '', null, array() ) && 1 === count( $GLOBALS['t']['moves'] ), 'En su carpeta habitual, ajeno o en una instalación nueva, no se mueve nada.' );
+// El tema del índice no es un plugin hermano: no recibe entrada.
+check_sibling( array() === $s::release( 'digitalisimo-theme' ), 'La entrada del tema («themes») no se ofrece como plugin.' );
 // Sólo ZIPs suyos del repositorio oficial.
 $GLOBALS['t']['cache'] = array();
 $GLOBALS['t']['manifest']['plugins']['digitalisimo-migration']['url'] = 'https://evil.example/digitalisimo-migration-1.0.17.zip';

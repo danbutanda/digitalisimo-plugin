@@ -1,0 +1,2 @@
+/* Hoja de un tercero que depende de «hello-elementor-theme-style» (P-4): sin el alias del tema no se imprimiría. */
+.digi-ts-dep { border-inline-start: 6px solid rgb(10, 60, 160); padding-inline-start: 8px; }

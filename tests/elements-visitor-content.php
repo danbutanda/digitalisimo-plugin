@@ -122,6 +122,24 @@ namespace {
 	$GLOBALS['digi']['singular'] = false;
 	check_vc( array( 'header', 'footer', 'archive', 'popup' ) === VC::theme_locations() && array() === VC::documents_to_scan(), 'Un archivo imprime cabecera, pie, archivo y ventanas, sin documento propio.' );
 	$GLOBALS['digi']['singular'] = true;
+	// Un tema con ubicaciones propias las añade según las que la petición ya imprime (como hace el tema DIGITALÍSIMO).
+	$GLOBALS['digi']['filters']['digitalisimo_conditions_theme_locations'] = static function ( $locations ) {
+		if ( in_array( 'header', $locations, true ) ) {
+			$locations = array_merge( $locations, array( 'digitalisimo_before_header', 'digitalisimo_after_header', 'digitalisimo_before_footer', 'digitalisimo_after_footer' ) );
+		}
+		if ( array_intersect( array( 'single', 'archive' ), $locations ) ) {
+			$locations = array_merge( $locations, array( 'digitalisimo_before_main_content', 'digitalisimo_after_main_content', 'header', 7 ) );
+		}
+		return $locations;
+	};
+	check_vc( array( 'header', 'footer', 'single', 'popup', 'digitalisimo_before_header', 'digitalisimo_after_header', 'digitalisimo_before_footer', 'digitalisimo_after_footer', 'digitalisimo_before_main_content', 'digitalisimo_after_main_content', '7' ) === VC::theme_locations(), 'El filtro añade las ubicaciones del tema, sin repetir las que ya estaban y como texto.' );
+	$GLOBALS['digi']['template'] = 'elementor_canvas';
+	check_vc( array() === VC::theme_locations() && array( 12 ) === VC::documents_to_scan(), 'Con Canvas el filtro del tema no añade nada: ninguna ubicación, sólo el documento de la URL.' );
+	$GLOBALS['digi']['template'] = '';
+	$GLOBALS['digi']['filters']['digitalisimo_conditions_theme_locations'] = 'no es una lista';
+	check_vc( array( 'no es una lista' ) === VC::theme_locations(), 'Un filtro que devuelve otra cosa no rompe la petición.' );
+	unset( $GLOBALS['digi']['filters']['digitalisimo_conditions_theme_locations'] );
+	check_vc( array( 'header', 'footer', 'single', 'popup' ) === VC::theme_locations(), 'Sin filtro se conservan las ubicaciones del constructor.' );
 
 	// Antes de la salida: el documento de la URL sin condiciones (o sólo con las de sesión) no toca la caché de página.
 	$GLOBALS['digi']['meta'][12]['_elementor_data'] = $doc( '{"title":"Hola"}' );

@@ -15,10 +15,12 @@ function is_feed() { global $state; return $state['feed']; }
 function is_preview() { global $state; return $state['preview']; }
 function is_customize_preview() { return false; }
 function current_user_can( $capability ) { global $state; return $state['admin']; }
-function apply_filters( $hook, $value ) { return $value; }
+function apply_filters( $hook, $value, ...$args ) { global $state; return isset( $state['filters'][ $hook ] ) ? $state['filters'][ $hook ]( $value, ...$args ) : $value; }
 function is_singular( $type = '' ) { global $state; return $state['singular']; }
 function is_home() { global $state; return $state['home']; }
 function get_template() { global $state; return $state['theme']; }
+class Fake_Theme { private $folder; public function __construct( $folder ) { $this->folder = $folder; } public function get( $header ) { return 'UpdateURI' === $header && 0 === strpos( $this->folder, 'digitalisimo-theme' ) ? 'https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-theme' : ( 'UpdateURI' === $header && 'otro-tema' === $this->folder ? 'https://github.com/otro/tema' : '' ); } }
+function wp_get_theme( $stylesheet = '' ) { return new Fake_Theme( (string) $stylesheet ); }
 function get_queried_object() { global $state; $post = new WP_Post(); $post->post_content = $state['content']; return $post; }
 function get_post_meta( $id, $key ) { global $state; return '_elementor_edit_mode' === $key ? 'builder' : $state['data']; }
 function has_blocks( $post ) { global $state; return $state['blocks']; }
@@ -66,6 +68,28 @@ foreach ( array( 'admin', 'preview', 'feed', 'blocks', 'home' ) as $condition ) 
 $state['theme'] = 'twentytwentyfive'; $styles = registry();
 Digitalisimo_Integrations_Performance_Manager::clean_styles();
 check( in_array( 'wp-block-library', $styles->queue, true ), 'Un tema no Hello conserva Gutenberg.' );
+// El tema DIGITALÍSIMO (también como padre de un hijo: get_template() devuelve el padre) cede el contenido igual que Hello.
+$state['theme'] = 'digitalisimo-theme'; $styles = registry();
+Digitalisimo_Integrations_Performance_Manager::clean_styles();
+check( ! in_array( 'wp-block-library', $styles->queue, true ) && ! in_array( 'wp-block-library-theme', $styles->queue, true ), 'El tema DIGITALÍSIMO debe retirar el CSS de bloques como Hello.' );
+check( Digitalisimo_Integrations_Performance_Manager::builder_theme(), 'El tema DIGITALÍSIMO es un tema del constructor.' );
+// Una copia en otra carpeta (digitalisimo-theme-1.0.0) se reconoce por su Update URI; otro tema con otra URI, no.
+$state['theme'] = 'digitalisimo-theme-1.0.0'; $styles = registry();
+Digitalisimo_Integrations_Performance_Manager::clean_styles();
+check( Digitalisimo_Integrations_Performance_Manager::builder_theme() && ! in_array( 'wp-block-library', $styles->queue, true ), 'El tema DIGITALÍSIMO en una carpeta renombrada debe reconocerse por su Update URI.' );
+$state['theme'] = 'otro-tema'; $styles = registry();
+check( ! Digitalisimo_Integrations_Performance_Manager::builder_theme(), 'Un tema con otro Update URI no es el tema DIGITALÍSIMO.' );
+// Un tercero puede reconocer su tema (recibe la plantilla) o excluir uno de los dos.
+$seen = '';
+$state['filters']['digitalisimo_performance_builder_theme'] = function( $value, $template ) use ( &$seen ) { $seen = $template; return $value || 'tema-propio' === $template; };
+$state['theme'] = 'tema-propio'; $styles = registry();
+Digitalisimo_Integrations_Performance_Manager::clean_styles();
+check( 'tema-propio' === $seen && ! in_array( 'wp-block-library', $styles->queue, true ), 'El filtro digitalisimo_performance_builder_theme debe recibir la plantilla y poder aceptar otro tema.' );
+$state['filters']['digitalisimo_performance_builder_theme'] = function( $value, $template ) { return 'digitalisimo-theme' === $template ? false : $value; };
+$state['theme'] = 'digitalisimo-theme'; $styles = registry();
+Digitalisimo_Integrations_Performance_Manager::clean_styles();
+check( in_array( 'wp-block-library', $styles->queue, true ), 'El filtro también puede excluir un tema del constructor.' );
+unset( $state['filters'] );
 $state['theme'] = 'hello-elementor';
 $state['data'] = '[{"widgetType":"shortcode"}]'; $styles = registry();
 Digitalisimo_Integrations_Performance_Manager::clean_styles();
@@ -92,4 +116,4 @@ check( false === Digitalisimo_Integrations_Performance_Manager::google_font_disp
 $state['options']['perf_font_swap'] = 1;
 check( 'swap' === Digitalisimo_Integrations_Performance_Manager::custom_font_display( 'block' ), 'La opción activa usa swap.' );
 check( 'swap' === Digitalisimo_Integrations_Performance_Manager::google_font_display( false ), 'Google Fonts usa swap cuando se activa.' );
-echo "Rendimiento: contextos, dependencias, reversión y fuentes correctos.\n";
+echo "Rendimiento: contextos, temas del constructor, dependencias, reversión y fuentes correctos.\n";

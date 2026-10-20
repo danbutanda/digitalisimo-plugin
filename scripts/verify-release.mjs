@@ -12,6 +12,7 @@ const modules = [
   ['digitalisimo-tools', 'digitalisimo-tools.php', 'digitalisimo-tools', 'digitalisimo-tools'],
   ['digitalisimo-elements', 'pro-elements.php', 'digitalisimo-elements', 'digitalisimo-elements'],
   ['digitalisimo-migration', 'digitalisimo-migration.php', 'digitalisimo-migration', 'digitalisimo-migration'],
+  ['digitalisimo-theme', 'style.css', 'digitalisimo-theme', 'digitalisimo-theme'],
 ];
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || 'dist';
 const expected = new Map();

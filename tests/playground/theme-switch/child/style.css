@@ -1,0 +1,11 @@
+/*
+ * Theme Name: DIGI Hello Child
+ * Template: hello-elementor
+ * Description: Tema hijo sintético de la prueba A/B (S4): reglas propias, un encolado que depende de la hoja de Hello,
+ *              un shortcode y una plantilla de página que sólo existen en el hijo. No se publica.
+ * Version: 1.0.0
+ * Text Domain: digi-hello-child
+ */
+.site-header { border-bottom: 3px solid rgb(200, 30, 30); }
+.site-footer { border-top: 3px solid rgb(200, 30, 30); }
+.digi-child-box { min-height: 40px; padding: 8px; background: url(img/dot.svg) repeat; }

@@ -44,10 +44,26 @@ class Digitalisimo_Integrations_Performance_Manager {
 		return (bool) apply_filters( 'digitalisimo_performance_frontend_safe', true );
 	}
 
+	/** Tema que cede el contenido al constructor (Hello o DIGITALÍSIMO, también como padre de un hijo). */
+	public static function builder_theme() {
+		$template = get_template();
+		$builder  = in_array( $template, array( 'hello-elementor', 'digitalisimo-theme' ), true ) || self::digitalisimo_theme( $template );
+		return (bool) apply_filters( 'digitalisimo_performance_builder_theme', $builder, $template );
+	}
+
+	/** El tema DIGITALÍSIMO instalado en otra carpeta (una copia con otro nombre) se reconoce por su `Update URI`. */
+	private static function digitalisimo_theme( $template ) {
+		static $seen = array();
+		$template = (string) $template;
+		if ( '' === $template || ! function_exists( 'wp_get_theme' ) ) return false;
+		if ( ! isset( $seen[ $template ] ) ) $seen[ $template ] = 'https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-theme' === (string) wp_get_theme( $template )->get( 'UpdateURI' );
+		return $seen[ $template ];
+	}
+
 	/** Sólo una página construida con Elementor y sin bloques/shortcodes visibles. */
 	public static function plain_elementor_page() {
 		if ( ! self::frontend_safe() || ! is_singular( 'page' ) || is_home() ) return false;
-		if ( 'hello-elementor' !== get_template() ) return false;
+		if ( ! self::builder_theme() ) return false;
 		$post = get_queried_object();
 		if ( ! $post instanceof WP_Post || 'builder' !== get_post_meta( $post->ID, '_elementor_edit_mode', true ) ) return false;
 		if ( has_blocks( $post ) || has_shortcode( $post->post_content, 'embed' ) || false !== strpos( $post->post_content, '[' ) ) return false;

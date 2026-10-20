@@ -16,5 +16,6 @@ git diff --name-only -z "$base" "$head" | while IFS= read -r -d '' path; do
     digitalisimo-tools/*) echo digitalisimo-tools ;;
     digitalisimo-elements/*) echo digitalisimo-elements ;;
     digitalisimo-migration/*) echo digitalisimo-migration ;;
+    digitalisimo-theme/*) echo digitalisimo-theme ;;
   esac
 done | sort -u

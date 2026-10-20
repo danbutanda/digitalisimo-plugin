@@ -1,0 +1,132 @@
+# Copyright (C) 2026 Digitalísimo
+# This file is distributed under the GPL-3.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: DIGITALÍSIMO 1.0.0\n"
+"Report-Msgid-Bugs-To: https://github.com/danbutanda/digitalisimo-plugin/issues\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-10-17T00:00:00+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Language-Team: \n"
+"X-Domain: digitalisimo-theme\n"
+
+#: comments.php:28
+msgctxt "comments title"
+msgid "One Response"
+msgstr ""
+
+#: comments.php:33
+#, php-format
+msgctxt "comments title"
+msgid "%s Response"
+msgid_plural "%s Responses"
+msgstr[0] ""
+msgstr[1] ""
+
+#: inc/elements.php:19
+msgid "Before header"
+msgstr ""
+
+#: inc/elements.php:20
+msgid "After header"
+msgstr ""
+
+#: inc/elements.php:21
+msgid "Before main content"
+msgstr ""
+
+#: inc/elements.php:22
+msgid "Before title"
+msgstr ""
+
+#: inc/elements.php:23
+msgid "After title"
+msgstr ""
+
+#: inc/elements.php:24
+msgid "After content"
+msgstr ""
+
+#: inc/elements.php:25
+msgid "Before comments"
+msgstr ""
+
+#: inc/elements.php:26
+msgid "After main content"
+msgstr ""
+
+#: inc/elements.php:27
+msgid "Before footer"
+msgstr ""
+
+#: inc/elements.php:28
+msgid "After footer"
+msgstr ""
+
+#: inc/fallbacks.php:19
+msgid "Canvas"
+msgstr ""
+
+#: inc/fallbacks.php:20
+msgid "Full width"
+msgstr ""
+
+#: inc/fallbacks.php:53
+msgid "The DIGITALÍSIMO theme shows simple fallbacks until DIGITALÍSIMO Elements is active."
+msgstr ""
+
+#: inc/setup.php:20
+msgid "Header"
+msgstr ""
+
+#: inc/setup.php:21
+msgid "Footer"
+msgstr ""
+
+#: inc/template-tags.php:107
+msgid "Skip to content"
+msgstr ""
+
+#: template-parts/404.php:13
+msgid "The page can&rsquo;t be found."
+msgstr ""
+
+#: template-parts/404.php:18
+msgid "It looks like nothing was found at this location."
+msgstr ""
+
+#: template-parts/archive.php:49 template-parts/search.php:55
+#, php-format
+msgid "%s Previous"
+msgstr ""
+
+#: template-parts/archive.php:53 template-parts/search.php:59
+#, php-format
+msgid "Next %s"
+msgstr ""
+
+#: template-parts/footer.php:16
+msgid "Footer menu"
+msgstr ""
+
+#: template-parts/header.php:26
+msgid "Home"
+msgstr ""
+
+#: template-parts/header.php:39
+msgid "Main menu"
+msgstr ""
+
+#: template-parts/search.php:14
+msgid "Search results for: "
+msgstr ""
+
+#: template-parts/search.php:42
+msgid "It seems we can't find what you're looking for."
+msgstr ""
+
+#: template-parts/single.php:29
+msgid "Tagged "
+msgstr ""

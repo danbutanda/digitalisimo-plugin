@@ -137,7 +137,10 @@ final class Digitalisimo_Plugin_Catalog {
 			elseif ( ! self::can_manage() && ( ! $installed || $update ) ) echo 'Disponible para administrador'; else echo '—';
 			echo '</td></tr>';
 		}
-		echo '</tbody></table></div>';
+		echo '</tbody></table>';
+		// Otros módulos añaden aquí sus secciones (Tools: «Tema»), con el contexto de la pantalla.
+		do_action( 'digitalisimo_plugin_catalog_after', is_network_admin() ? 'network' : 'site' );
+		echo '</div>';
 	}
 
 	private static function request_plugin() {

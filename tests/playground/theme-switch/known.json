@@ -1,0 +1,79 @@
+{
+ "_comentario": "Diferencias aceptadas entre Hello (A) y el tema DIGITALÍSIMO (B). Cada entrada filtra por escenario (scenarios), fase (phases), clave de URL (urls), ancho (widths), comprobación (check, regex) y detalle (detail, regex sin mayúsculas), y max limita la magnitud aceptada (por ejemplo, nodos de más); lo que no indica vale para todo. Una entrada que no se use en la corrida hace fallar la prueba (salvo las marcadas woo con WOO=0 y las marcadas full con QUICK=1). Claves de URL: home, builder, post, category, blog, search, 404, canvas, full, carousel, short, notitle, child, shop, product, cart.",
+ "entries": [
+  {
+   "id": "link-profile",
+   "check": "^head$",
+   "detail": "link rel: -profile",
+   "motivo": "El tema no imprime <link rel=\"profile\" href=\"https://gmpg.org/xfn/11\"> (§7.2): es un perfil XFN obsoleto que ningún agente usa."
+  },
+  {
+   "id": "archive-hide-title-text",
+   "scenarios": ["S1", "S3", "S3c", "S3h", "S4", "S5"],
+   "phases": ["B"],
+   "urls": ["blog", "category"],
+   "check": "^(signature\\.text|h1|box\\.(title|main|footer))$",
+   "motivo": "Hello consulta hide_title también en los archivos con get_the_ID() del primer resultado y oculta el título del archivo; el tema sólo lo aplica en contenido singular (§7.4, diferencia declarada)."
+  },
+  {
+   "id": "archive-hide-title-pixels",
+   "scenarios": ["S1", "S3", "S3c", "S3h", "S4", "S5"],
+   "phases": ["B"],
+   "urls": ["blog", "category"],
+   "check": "^pixels$",
+   "full": true,
+   "motivo": "La misma diferencia de hide_title en los archivos: el título del archivo desplaza el resto de la página."
+  },
+  {
+   "id": "woo-skip-target",
+   "phases": ["B"],
+   "urls": ["shop", "product"],
+   "check": "^skip$",
+   "detail": "span#content",
+   "woo": true,
+   "motivo": "WooCommerce imprime main#main: con Hello el enlace de salto no tenía destino; el tema añade <span id=\"content\"> en woocommerce_before_main_content (FR-17)."
+  },
+  {
+   "id": "s4-child-style",
+   "scenarios": ["S4"],
+   "phases": ["B"],
+   "check": "^(pixels|box\\.(header|main|footer|title))$",
+   "motivo": "El style.css y extra.css del hijo de Hello no se cargan con el tema (D2: sólo se informa; «import --child-css» lo copia si se pide)."
+  },
+  {
+   "id": "s4-child-php",
+   "scenarios": ["S4"],
+   "phases": ["B"],
+   "urls": ["child"],
+   "check": "^(signature\\.text|h1|nodes)$",
+   "motivo": "El PHP del hijo (shortcode y plantilla de página propia) no se carga con el tema; Tools lo avisa antes del cambio y la bitácora después (FR-8)."
+  },
+  {
+   "id": "s5-description",
+   "scenarios": ["S5"],
+   "phases": ["B"],
+   "urls": ["post", "product"],
+   "check": "^(meta\\.description|head)$",
+   "detail": "A=1 B=0|meta name: -description$",
+   "motivo": "Sin SEO, Hello era la única fuente de la meta description (entrada y producto, con extracto); el tema nunca la imprime (AGENTS.md: sin señales SEO duplicadas) y deja el aviso description_lost en la bitácora y en Tools (FR-10)."
+  },
+  {
+   "id": "generated-header-footer-markup",
+   "scenarios": ["S3", "S3c", "S3h"],
+   "phases": ["B"],
+   "urls": ["home", "builder", "full", "carousel", "short"],
+   "check": "^nodes$",
+   "max": 22,
+   "motivo": "Cabecera y pie generados (§10.3): son plantillas del constructor de temas, y el contenedor y cada widget (título, lema, menú, copyright) llevan su envoltorio; el menú del widget añade su botón móvil con iconos. En páginas que ya usaban el constructor son unos 20 nodos más con cabecera y pie (S3 y S3c); en S3h, con todo oculto, el pie generado es un contenedor vacío y no suma nodos."
+  },
+  {
+   "id": "generated-header-footer-assets",
+   "scenarios": ["S3", "S3c", "S3h"],
+   "phases": ["B"],
+   "urls": ["post", "category", "blog", "search", "404", "notitle", "child", "shop", "product", "cart"],
+   "check": "^nodes$",
+   "max": 50,
+   "motivo": "Cabecera y pie generados en páginas que no usaban el constructor: además del envoltorio de los widgets, la plantilla carga las hojas y scripts del constructor (frontend, widgets, menú con smartmenus y el CSS de cada plantilla), unos 20 <link>/<script> más (§17, «Cabecera generada»)."
+  }
+ ]
+}

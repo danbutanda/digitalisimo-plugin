@@ -23,6 +23,8 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
 | Rastro de los plugins de origen | **Ninguno**: ni enlaces, ni vídeos, ni cuentas, ni servicios, ni peticiones (F0.2) | 2026-10-16 |
 | Slug del tema | `digitalisimo-theme`, definitivo. `digitalisimo-theme-child` no se distribuye | 2026-10-16 |
 | Páginas de GP hechas con bloques del núcleo | Siguen en el editor de bloques | 2026-10-16 |
+| Copias del tema que no están cargadas (D1) | Las cubre **DIGITALÍSIMO Tools** (`Theme_Updates`): inactivas, en otra carpeta o en otros sitios de la red. También es el respaldo de la copia cargada. No va en Elements, porque ningún módulo puede exigir otro | 2026-10-17 |
+| `style.css` de un hijo de Hello (D2) | **Sólo se informa:** en Tools antes del cambio, y en la bitácora y en `wp digitalisimo-theme status` después. `wp digitalisimo-theme import --child-css` lo copia al CSS adicional sólo si se pide, porque pegarlo cambia su lugar en la cascada | 2026-10-17 |
 
 ## Arquitectura
 
@@ -63,7 +65,7 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
    - Cede cabecera y pie sin duplicarlos, con menús `menu-1` y `menu-2`. Modos normal, ancho completo y lienzo, con respaldos sin Elements.
    - `title-tag`, soporte Woo sin plantillas propias, `base.css` con `:where()` (incluye `alignwide` y `alignfull`), sin fuentes, sin JS y sin pantallas de administración.
    - El PHP propio va al editor de fragmentos de Tools (punto 12); el CSS, al CSS adicional o al kit. Un hijo que el administrador cree por su cuenta sigue funcionando.
-   - Su API pública (hooks, filtros, handles) es un contrato estable con `_deprecated_hook`.
+   - Su API pública (ganchos, filtros, handles y funciones; tabla en F1) es un contrato estable: un cambio pasa por `_deprecated_hook` durante 2 versiones o 12 meses.
 10. **Migración v2, mismo botón.**
     - Drivers: `detect, analyze, documents, backup, convert, validate, activate, revert`.
     - Runner con estado por driver y cursor, y `state['v']`: una tarea iniciada con la versión vieja termina con su semántica.
@@ -112,7 +114,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | F0 | Base, sin cambios de comportamiento | **Publicado** · Migración 1.0.20 · `v2026.10.17.409` |
 | F0.1 | Aviso de extensiones de Element Pack y detección del Addon | **Publicado** · Migración 1.0.20 · `v2026.10.17.409` |
 | F0.2 | Sin rastro de los plugins de origen ni de sus proveedores | **Publicado** · Elements 4.3.0.157 y los demás plugins · `v2026.10.17.408` (seguimiento F0.2b publicado: Elements 4.3.0.158 · `v2026.10.20.410`) |
-| F1 | Tema y publicación | Pendiente |
+| F1 | Tema y publicación | **Publicado** · tema 1.0.0, SEO 1.0.231, Tools 1.0.36 y Elements 4.3.0.161 |
 | F1b | Editor de fragmentos PHP en Tools | **Publicado** · Tools 1.0.34 · `v2026.10.20.411` |
 | F2 | Base común de conversión y Migración v2 | Pendiente |
 | F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md` | Pendiente |
@@ -153,20 +155,319 @@ Hecho en `fusion/f0-2-sin-referencias` (commit a6218fa). Inventario en `docs/fus
 - Con el plugin Elementor original activo manda él y nada de esto se aplica.
 - **Pruebas:** `tests/elements-vendor-guard.php`, `tests/elements-vendor-static.mjs` (con `tests/elements-vendor-static.allow.json`), `tests/elements-identity.php` corregida y `tests/playground/brand-audit.sh` ampliado (red del navegador, DOM, servidor, cron, sondeo de redirecciones, netlog, `STATE=migrado`, `ORIGINAL=1`, lista única `vendors.json` y excepciones en `allow.json`).
 - **Pendiente con aprobación del propietario:** listar y corregir las páginas publicadas que muestran el vídeo de muestra del proveedor por defecto, y los valores por defecto de Element Pack en páginas ya migradas, porque cambian páginas publicadas.
-- **Pendiente funcional (no es de marca):** SEO sigue reconociendo las hojas del constructor sólo en `/plugins/elementor(-pro)/` (`class-performance-css.php:48`, `class-performance-debug.php:71`, `class-asset-diagnostics.php:349`). Con el núcleo incluido salen de la carpeta de Elements, así que el diferido de CSS por widget y su diagnóstico no actúan. Se corrige junto al cambio de SEO de F1.
+- **Pendiente funcional (no es de marca):** SEO sigue reconociendo las hojas del constructor sólo en `/plugins/elementor(-pro)/` (`class-performance-css.php:48`, `class-performance-debug.php:71`, `class-asset-diagnostics.php:349`). Con el núcleo incluido salen de la carpeta de Elements, así que el diferido de CSS por widget y su diagnóstico no actúan. **Cerrado en F1:** `Digitalisimo_Integrations_Performance_CSS::builder_asset_paths()` toma los prefijos de `ELEMENTOR_ASSETS_URL` y `ELEMENTOR_PRO_ASSETS_URL` más los dos históricos (`tests/seo-bundled-assets.php`).
 - **Funciones que se pierden** (exigen una cuenta del proveedor) y su equivalente propio: bloques y páginas remotas → «Mis plantillas» y Plantillas de red de Tools; kits de Elementor → importar o exportar kits en ZIP; nube → exportar e importar, o Plantillas de red; IA del editor → DIGITALÍSIMO IA en sus pantallas; ayuda, novedades y cuenta → página Acerca de.
 - **Aceptación:** 0 peticiones, redirecciones, enlaces, iframes y vídeos hacia los dominios de origen en todas las pantallas y estados, en español e inglés, salvo las excepciones declaradas.
 
 ### F1 · Tema y publicación
 
-- Tema `digitalisimo-theme/`: `style.css` (cabecera con ` * `, `Update URI`, GPL-3.0-or-later), `functions.php`, `inc/{setup,elements,assets,fallbacks,class-updater}.php`, `header.php`, `footer.php`, `index.php` despachador, `comments.php`, `template-parts/*` y `base.css`. Detalle en `docs/fusion/tema.md`.
-- Actualizador con `update_themes_github.com` y respaldo en `pre_set_site_transient_update_themes`; conserva la carpeta y **ofrece** las versiones, sin forzar. `digitalisimo-sibling-updates.php` cubre el tema inactivo.
-- Release de 8 ZIP + índice: clave `themes`; `plugins` sigue en 7. Se actualizan `build-packages.sh`, `changed-modules.sh`, `release.yml`, `validate.yml`, `release-manifest.mjs`, `verify-release.mjs`, `validate-suite.mjs`, `RELEASE_PROCESS.md` y `AGENTS.md`.
-- Tools gana una fila «Tema» con `Theme_Upgrader` que lee sólo `themes`. En la red se instala desde la red; en un sitio de la red sólo se ve el estado.
-- Paso desde Hello al activar el tema: logo, menús, CSS adicional, ajustes `hello_*` y cabecera y pie dinámicos convertidos en plantillas. Idempotente, también por CLI, con registro reversible `digitalisimo_theme_switch`. Hello nunca se borra. El modo paridad con el reset de Hello se deriva de ese registro (`from=hello`).
-- En la misma Release: SEO acepta el tema propio (`class-performance-manager.php:50`), retira la meta description de Hello sólo donde SEO imprime la suya y reconoce las hojas del núcleo incluido (pendiente de F0.2); Elements marca el tema como compatible.
-- **Pruebas:** `tests/theme-structure.php`, `tests/theme-updater.php` y `tests/playground/theme-switch.sh` (Hello frente al tema propio con el mismo contenido: Theme Builder, single, archivo, 404, búsqueda, lienzo, ancho completo, tienda, producto, carrito y sliders, en tres anchos).
-- **Medición:** protocolo en staging con OpenLiteSpeed, LSCache y CDN (caché fría y caliente, 5 corridas, mediana; TTFB, LCP, CLS, bytes por handle, nodos DOM; sin `Vary` ni cookies añadidas). Nada se activa en ningún sitio.
+Se hizo en la rama `fusion/f1-tema`, desde `main@15b2b2d`.
+
+- **Versiones:** tema 1.0.0, SEO 1.0.231, Tools 1.0.36 y Elements 4.3.0.161. IA, Hosting, Backups y Migración viajan en la Release con su versión vigente.
+- **Precedencia:** si `docs/fusion/tema.md` no coincide con esta sección, manda esta sección. Las diferencias están en «Correcciones al informe del tema».
+
+#### Tema `digitalisimo-theme/`
+
+Lo que no figura en este árbol está prohibido. Lo vigilan `tests/theme-structure.php` y la guarda de `scripts/build-packages.sh`.
+
+```
+style.css  theme.json  functions.php  header.php  footer.php  index.php  comments.php  sidebar.php
+screenshot.png  readme.txt  license.txt
+inc/{setup,template-tags,elements,assets,fallbacks,switch,cli,class-updater}.php
+template-parts/{header,footer,single,archive,search,404}.php
+fallback/{canvas,full-width}.php
+assets/css/base.css  assets/css/parity/{reset,theme,header-footer}.css
+languages/{digitalisimo-theme.pot,es_MX.l10n.php,es_ES.l10n.php}
+```
+
+- **`index.php`.** Despacha a `elementor_theme_do_location()` (`single` o `archive`) y, si no hay plantilla, a `template-parts/`.
+  - No hay `page.php`, `single.php`, `archive.php`, `404.php`, `woocommerce.php`, `sidebar-*.php` ni plantillas de bloques.
+  - `sidebar.php` existe y está vacío: WooCommerce llama a `get_sidebar()` y, sin ese archivo, WordPress cargaría `theme-compat/sidebar.php`.
+- **Ubicaciones.**
+  - `header` y `footer` se registran con `hook` y `remove_hooks`: si el constructor imprime algo, retira el respaldo de prioridad 10.
+  - También se registran `archive`, `single` y diez ubicaciones de gancho `digitalisimo_*`.
+  - Las condiciones de visitante de Elements las reconocen por el filtro `digitalisimo_conditions_theme_locations`.
+- **Sin constructor.**
+  - Las plantillas `elementor_canvas` y `elementor_header_footer` caen en `fallback/canvas.php` y `fallback/full-width.php`.
+  - Las pantallas Temas y Plugins muestran un aviso.
+- **Salto al contenido.** Enlace `skip-link` a `#content`, sin nodos nuevos entre la cabecera y el contenido. El destino es:
+  - con el constructor, un atributo del primer envoltorio (`elementor/document/wrapper_attributes`);
+  - en WooCommerce, `<span id="content">`;
+  - en los respaldos, `<main id="content">`.
+- **Textos.**
+  - Están en inglés, con `es_MX` y `es_ES` en `.l10n.php`; cualquier otra variante `es_*` usa `es_MX`.
+  - Ni «Hello» ni «Elementor» aparecen en cadenas traducibles; `readme.txt` sólo los nombra en «Créditos».
+- **WP-CLI.**
+  - `wp digitalisimo-theme status`;
+  - `import [--from=<stylesheet>] [--dry-run] [--child-css]`;
+  - `revert [--yes] [--force]`.
+
+  En una red se ejecuta sitio por sitio con `--url`.
+
+#### Paso desde el tema anterior (`inc/switch.php`)
+
+WordPress dispara `after_switch_theme` en la petición siguiente al cambio de tema; el tema lo escucha con prioridad 20, después de que WordPress traslade los menús.
+
+**Cómo se ejecuta.**
+- Corre bajo el cerrojo `digitalisimo_theme_switch_lock`.
+- **Regla de escritura idempotente:** sólo escribe un valor si en el destino falta, si es igual al de origen o si su md5 coincide con lo que copió antes. En cualquier otro caso lo anota en `skipped` y deja un aviso.
+- Al terminar suelta el cerrojo (también si la importación lanzó una excepción) y dispara `digitalisimo_theme_switched`.
+- **Nunca tumba el sitio.** `digitalisimo_theme_after_switch()` y el aviso a Elements van en `try … catch ( Throwable )`: el error queda en la bitácora (`switch_failed` o `switched_event_failed`) y WordPress vacía `theme_switched`, en lugar de repetir el fallo en cada petición. El inventario del hijo salta las subcarpetas ilegibles (`CATCH_GET_CHILD`), igual que la copia de Tools.
+- Con `--dry-run` no escribe nada ni dispara nada.
+
+**Pasos.**
+
+| Paso | Qué hace | Quién |
+|---|---|---|
+| T1 | Copia `custom_logo`, sólo si es un adjunto de imagen | Tema |
+| T2 | Copia `nav_menu_locations` de `menu-1` y `menu-2`, sólo con menús existentes. Hace falta porque WordPress no los traslada si el cambio viene del Personalizador | Tema |
+| T3 | Copia el CSS adicional, sólo desde Hello. Si el destino ya tiene otro CSS, deja un aviso | Tema |
+| T4 | Copia el resto de mods sin pisar nada. Excluye `sidebars_widgets`, `custom_css_post_id`, las claves numéricas, `hello-header-footer` y `wp_classic_sidebars` | Tema |
+| T5 | Lee los seis ajustes `hello_elementor_settings_*` | Tema |
+| T6 | Calcula el modo de cabecera y pie (`disabled`, `tb`, `tb_partial`, `dynamic`, `hidden` o `classic`) y `pending`. `hidden` sólo existe para la cabecera: con todo apagado, Hello sigue imprimiendo el pie vacío, así que el pie es `dynamic` y su plantilla, un contenedor vacío. Lee opciones y el meta del kit, sin llamar al constructor | Tema |
+| T7 | Convierte la cabecera y el pie dinámicos en plantillas del Theme Builder | Elements |
+| T8 | Limpia las cachés de CSS del constructor | Elements |
+| T9 | Anota si Hello imprimía la meta description y si SEO la imprime; si sólo la imprimía Hello, deja el aviso `description_lost` | Tema |
+| T10 | Hace el inventario del hijo (sus `*.php`, los bytes de `style.css`, sus plantillas de página y sus selectores) y de los callbacks de `hello_elementor_*` y `hello-plus-theme/*` | Tema |
+
+**Reversión** (`wp digitalisimo-theme revert`).
+- Vuelve a `last.stylesheet` y marca `reverted`.
+- Elements retira lo generado: lo pasa a la papelera si no se editó y a borrador si se editó.
+- **Dejar el tema desde Apariencia** (o el Personalizador) hace lo mismo sin WP-CLI: Elements escucha `switch_theme` y, si el tema saliente es el DIGITALÍSIMO (por carpeta o por `Update URI`) y el entrante no es él ni un hijo suyo, retira lo generado y marca `reverted`. Es idempotente: la reversión de WP-CLI ya marcó `reverted` antes de cambiar de tema.
+- Sin Elements y con plantillas generadas, devuelve `WP_Error`. Con `--force`, el tema las pasa a borrador.
+- Nunca escribe en los mods ni en los ajustes de Hello.
+
+#### Actualizador y Release
+
+- **Actualizador del tema.** `Digitalisimo_Theme_Updater` (`inc/class-updater.php`) sólo se carga en la administración, en cron y en WP-CLI.
+  - Usa `update_themes_github.com`, con respaldo en `pre_set_site_transient_update_themes` y `site_transient_update_themes` (prioridad 30).
+  - Compara con la versión instalada de su `style.css`, no con la constante, que en la petición que actualiza el propio tema sigue siendo la anterior.
+  - Sus entradas son siempre arrays.
+  - Conserva la carpeta con `$hook_extra['theme']`; si no puede, devuelve `WP_Error`.
+  - Ninguna oferta lleva `autoupdate`. Si una versión es incompatible, lleva `disable_autoupdate`.
+  - Detalle en `docs/RELEASE_PROCESS.md`.
+- **Cobertura en Tools (D1).** `Digitalisimo\Tools\Theme_Updates` trabaja en la prioridad 31.
+  - Rehace siempre la entrada de las copias que no están cargadas.
+  - Para la copia cargada sólo escribe si no hay una entrada con su `id`.
+  - En una red añade «Buscar actualizaciones» a la fila del tema en Temas.
+  - Sirve una ficha de detalles propia (`admin-post.php?action=digitalisimo_theme_details`). Hace falta porque «Ver detalles» abre la URL de la oferta en un iframe, y GitHub no deja mostrarse en un iframe.
+- **Release.** Lleva 8 ZIP más el índice:
+  - `themes.digitalisimo-theme` con `version`, `file`, `url`, `requires` y `requires_php`;
+  - `plugins` sigue con 7 entradas.
+
+  Cambian `build-packages.sh` (con la guarda del tema), `changed-modules.sh`, `release-manifest.mjs`, `verify-release.mjs`, `validate-suite.mjs`, `release.yml` y `validate.yml`.
+
+#### Otros módulos
+
+- **Tools · sección «Tema».** La pinta `Theme_Catalog` debajo del catálogo de plugins de SEO y del de Tools, con la acción `digitalisimo_plugin_catalog_after`.
+  - **Filas:** una por copia, incluida la cargada, o «No instalado» si no hay ninguna.
+  - **Acciones:** Instalar, Actualizar (`Theme_Upgrader::bulk_upgrade()`), Buscar actualizaciones, Ver detalles e «Ir a Temas». **Nunca ofrece «Activar»** ni habilita el tema en la red.
+  - **Contextos:** en una red se instala y se actualiza desde la red; en un sitio de la red sólo se ve el estado.
+  - **Sin sistema de archivos directo:** enlaza a `update-core.php`.
+  - **«Antes de cambiar de tema».** Aparece con Hello o un hijo suyo activo y es de sólo lectura. Muestra:
+    - el inventario del hijo;
+    - los filtros `hello_elementor_*` con callbacks;
+    - si Hello imprime la meta description y SEO no;
+    - el modo previsto de cabecera y pie.
+
+    La regla de ese modo es la del tema, duplicada a propósito porque ningún módulo puede exigir otro; una prueba compara las dos salidas.
+- **SEO.**
+  - En rendimiento acepta el tema propio, también como padre y también en otra carpeta (por su `Update URI`), con `builder_theme()` y el filtro `digitalisimo_performance_builder_theme`.
+  - Retira la meta description de Hello (`wp_head`, 10) sólo donde imprime la suya.
+  - Reconoce las hojas del núcleo incluido por `ELEMENTOR_ASSETS_URL` y `ELEMENTOR_PRO_ASSETS_URL`, lo que cierra el pendiente de F0.2.
+  - Su catálogo dispara `digitalisimo_plugin_catalog_after`.
+- **Elements.**
+  - **`Theme_Compat`** (`modules/digitalisimo-theme/`):
+    - reconoce el tema por su carpeta habitual o por su `Update URI` (una copia en otra carpeta, como la de `theme-network.sh`);
+    - hace que el asistente del núcleo considere compatible el tema;
+    - con el tema activo, bloquea la activación de Hello por AJAX y por REST;
+    - escucha `digitalisimo_theme_switched`, `digitalisimo_theme_reverted` y `switch_theme` (al dejar el tema desde Apariencia).
+  - **`Hello_Header_Footer`** convierte la cabecera y el pie dinámicos de Hello en plantillas del Theme Builder.
+    - Escribe valores explícitos del kit: logo o título, lema, menú y copyright, con la disposición y la escalera de anchos de Hello.
+    - Trabaja con cerrojo propio y sin duplicados (`_digitalisimo_generated`), y calcula el hash después de guardar.
+    - Si el cambio de tema ocurre en el front, la conversión se hace en cron.
+    - Limpia las cachés del CSS al recibir el aviso y otra vez después de crear, publicar o restaurar plantillas.
+    - Al revertir o al dejar el tema, retira lo generado (papelera si no se editó, borrador si se editó) y lo restaura al volver.
+  - **Condiciones de visitante:** aceptan ubicaciones nuevas por filtro.
+
+#### Decisiones fijadas en F1
+
+D1 y D2 están en «Decisiones», arriba. Además:
+
+1. **Sin tema hijo.**
+2. **`theme.json` copiado de Hello** (v3, 800/1200 y `appearanceTools`): sin él, WordPress encola `classic-theme-styles`.
+3. **`overflow-x:clip` en `body`**, como hace Hello. Siguen prohibidos `hidden` y `auto` en `body`, y cualquier `overflow` en `html`.
+4. **Cabecera y pie con `hook` y `remove_hooks`.** Así se evita el reemplazo por búfer de salida del constructor.
+5. **Ninguna oferta lleva `autoupdate`** y nadie filtra `auto_update_theme`. `disable_autoupdate` sólo sirve para apagarla.
+6. **Las entradas de `update_themes` son siempre arrays.**
+7. **`files:` de `release.yml` no cambia:** `*.zip` ya incluye el tema.
+8. **La compatibilidad con el asistente del núcleo va en Elements** (`elementor/onboarding/is_elementor_theme_active`).
+9. **El marcado de los respaldos copia el de Hello 3.5.1:** mismas etiquetas, ids y clases.
+10. **La meta description de SEO sale de `head()`** (`wp_head`, 1).
+11. **SEO no necesita alias de handles** para su lista diferible. Los alias `hello-elementor*` son para dependencias de terceros.
+12. **No se reconstruye lo que no se puede verificar:** `tb_partial`, Hello+ y `hello-biz`/`hello-commerce` se declaran y no se convierten.
+
+#### API pública del tema
+
+Es un contrato estable: un cambio pasa por `_deprecated_hook` durante 2 versiones o 12 meses. La columna GP sólo documenta la equivalencia para F5; F1 no tiene código de GeneratePress.
+
+| Gancho (`do_action`) | Dónde | Equivalente GP (F5) |
+|---|---|---|
+| `digitalisimo_before_header` | `header.php` | `generate_before_header` |
+| `digitalisimo_header` (5: plantilla; 10: respaldo) | `header.php` | `generate_header` |
+| `digitalisimo_after_header` | `header.php` | `generate_after_header` |
+| `digitalisimo_before_main_content` | `template-parts/{single,archive,search,404}.php` | `generate_before_main_content` |
+| `digitalisimo_before_entry_title` | `single`, `archive`, `search` | `generate_before_entry_title` |
+| `digitalisimo_after_entry_title` | `single`, `archive`, `search` | `generate_after_entry_title` |
+| `digitalisimo_after_entry_content` | `single` | `generate_after_entry_content` |
+| `digitalisimo_before_comments` | `single` | `generate_before_comments_container` |
+| `digitalisimo_after_main_content` | `single`, `archive`, `search`, `404` | `generate_after_main_content` |
+| `digitalisimo_before_footer` | `footer.php` | `generate_before_footer` |
+| `digitalisimo_footer` (5 / 10) | `footer.php` | `generate_footer` |
+| `digitalisimo_after_footer` | `footer.php` | `generate_after_footer` |
+
+- **Filtros:**
+  - `digitalisimo_theme_content_width`
+  - `digitalisimo_theme_woocommerce_support`
+  - `digitalisimo_theme_viewport`
+  - `digitalisimo_theme_header_footer( $show, $part )`
+  - `digitalisimo_theme_page_title`
+  - `digitalisimo_theme_skip_link`
+  - `digitalisimo_theme_skip_link_url`
+  - `digitalisimo_theme_register_locations`
+  - `digitalisimo_theme_hook_locations`
+  - `digitalisimo_theme_enqueue_style`
+  - `digitalisimo_theme_parity`
+- **Handles:** `digitalisimo-theme`, `digitalisimo-theme-parity-reset`, `digitalisimo-theme-parity` y `digitalisimo-theme-parity-header-footer`.
+- **Funciones:**
+  - `digitalisimo_theme_location()`
+  - `digitalisimo_theme_parity()`
+  - `digitalisimo_theme_switch_record()`
+  - `digitalisimo_theme_hello_settings()`
+  - `digitalisimo_theme_show_header_footer( $part )`
+  - `digitalisimo_theme_show_title()`
+- **Acciones entre módulos:** `digitalisimo_theme_switched( $record, $old )` se dispara con el cerrojo ya suelto, y `digitalisimo_theme_reverted( $record )` al revertir.
+
+Los alias `hello-elementor*` sin `src` son compatibilidad, no API.
+
+#### Matriz Hello 3.5.1 → tema propio
+
+La paridad rige con `origin.family = hello` y sin `reverted`. Fuera de paridad (modo base) sólo se carga `base.css`.
+
+| Aspecto | Paridad | Diferencia o límite declarado |
+|---|---|---|
+| Hojas | `parity/reset.css`, `theme.css` y `header-footer.css`, idénticas byte a byte. Se cargan con las mismas condiciones: ajustes `hello_style` y `hello_theme`, y filtros `hello_elementor_enqueue_*`. Los alias `hello-elementor*` sin `src` hacen que lo que depende de ellos se siga imprimiendo | Sin variantes `-rtl`, porque Hello no las encola |
+| Marcado | Cabecera y pie clásicos, entradas, archivos, búsqueda, 404 y comentarios llevan las etiquetas, ids y clases de Hello. `sidebar.php` vacío | Sin `<link rel="profile">`. `<span id="content">` en WooCommerce |
+| Ajustes de Hello | Los seis `hello_elementor_settings_*` se leen al cambiar (`hello` del registro) y apagan lo mismo que en Hello | `hello-plus-theme/settings` no se puentea: sólo alimenta la interfaz de Hello |
+| Filtros de Hello | Se aplican los 8 de front: `page_title`, `header_footer`, `enqueue_style`, `enqueue_theme_style`, `viewport_content`, `enable_skip_link`, `skip_link_url` y `content_width`. Orden: valor por defecto, ajuste guardado, filtro de Hello y filtro propio | Un fragmento que llama a funciones `hello_*` sin `function_exists` daría Fatal. El inventario de filtros lo avisa, pero las llamadas no se detectan |
+| Título | `hide_title` del documento lo apaga | Sólo en páginas singulares. Hello lo consulta también en archivos, con el primer resultado |
+| Ancho | `content_width` 800 y `theme.json` 800/1200 | — |
+| Logo, menús, CSS adicional y mods | Se trasladan (T1–T4) de forma idempotente, sin pisar lo editado en destino | El CSS adicional sólo se copia desde Hello. Si el destino ya tiene otro CSS, hay aviso |
+| Cabecera y pie | • `tb`: el Theme Builder cede igual.<br>• `dynamic`: plantillas generadas.<br>• `hidden` (sólo la cabecera): no se pinta. El pie con todo oculto se genera como un contenedor vacío, con su fondo y su relleno, porque Hello lo imprime vacío.<br>• `classic` y `disabled`: como en Hello | • `tb_partial`: en las URL excluidas, Hello pintaba su cabecera y el tema pinta la clásica (con aviso).<br>• Cabecera generada: el botón móvil y el desplegable son los del widget Menú (puntos de corte del kit), no `hello-frontend.js`; `smartmenus` pesa 24 109 B y necesita jQuery, frente a 1 830 B.<br>• Son plantillas del constructor: unos 20 nodos más que la de Hello (el envoltorio de cada widget) y, en páginas que no usaban el constructor, sus hojas y scripts (declarado en `theme-switch/known.json`).<br>• Si la primera petición tras el cambio es anónima, se ve la cabecera clásica hasta que corre el cron, que convierte como el administrador que activó el tema.<br>• La vista previa del Personalizador muestra la cabecera clásica |
+| Meta description | SEO imprime la suya y retira la de Hello | Sin SEO se pierde, con el aviso `description_lost` en la bitácora y en Tools |
+| Hijo de Hello | Inventario antes del cambio (Tools) y después (bitácora) | Su PHP no se carga: va a fragmentos de Tools (F1b). Su `style.css` sólo se copia con `--child-css` (D2) |
+| Hello+, `hello-biz`, `hello-commerce` | Familia `other`, con aviso | Sin conversión |
+| Versión de Hello | Paridad con 3.5.1 | Con otra versión de origen, la versión queda en el registro y la diferencia se informa |
+| `id="content"` | Uno solo por página | Se repite si el contenido ya usa ese id. Se desactiva con `digitalisimo_theme_skip_link_url` |
+
+#### A/B en Playground
+
+Lo hacen dos arneses. En ninguno se monta con escritura nada del repositorio, y Hello se copia desde `reference/`.
+
+- **`tests/playground/theme-switch.sh`:** sitio individual, en Chrome, con `WOO=1`.
+- **`tests/playground/theme-network.sh`:** red Multisite, sin Chrome.
+
+**Escenarios de `theme-switch.sh`:**
+- **S1** sin Theme Builder, con un fragmento que filtra `hello_elementor_page_title`.
+- **S2** con Theme Builder.
+- **S3** con cabecera y pie dinámicos:
+  - **S3c:** la primera petición es anónima y la conversión se hace por cron;
+  - **S3h:** todo oculto: sin cabecera y con el pie vacío, en A y en B.
+- **S4** hijo de Hello, con importación `--child-css`.
+- **S5** sin SEO.
+
+**Fases:** A (Hello), B (tema), C (reversión), C2 (ida y vuelta), D (modo base), E (sin constructor), F (editor) y F2 (asistente: 403 por AJAX y por REST).
+
+**Comprobaciones.** Son 15 por URL, en tres anchos (360, 768 y 1280):
+- estado HTTP;
+- firma visible;
+- meta description;
+- número de `h1`;
+- cajas;
+- sin desplazamiento horizontal;
+- consola y registro de PHP limpios;
+- píxeles, con un máximo de 0,5 %;
+- bytes de hojas y nodos del DOM;
+- origen de las URL;
+- `base.css` dentro del techo;
+- estilos calculados de la cabecera generada;
+- sin `#sidebar` en WooCommerce;
+- un solo `#content`;
+- el enlace de salto se ve al recibir el foco (también en el modo base, fase D, y sin constructor, fase E).
+
+Las diferencias aceptadas están en `theme-switch/known.json`. Una excepción sin usar hace fallar la prueba.
+
+**Comprobaciones de `theme-network.sh`:**
+- **N1:** cobertura sin el tema cargado.
+- **N2:** sección «Tema».
+- **N3:** actualizar con Tools conservando la carpeta. **N3f:** `move()` falla.
+- **N4:** actualización automática y `disable_autoupdate`.
+- **N5:** ficha de detalles.
+- **N6:** copia activa con su actualizador y respaldo de Tools.
+
+**Resultado:** A/B Hello 3.5.1 frente al tema en verde (S1–S5, S3c, S3h y E con WOO=1 en tres anchos; corrida de aceptación completa del 2026-10-20 y rápida tras las correcciones) · red Multisite N1–N6 y N3f en verde.
+
+#### Medición en staging (pendiente de autorización del propietario)
+
+**Protocolo:** `MODE=measure BASE=<url> bash tests/playground/theme-switch.sh`, contra staging con OpenLiteSpeed, LSCache y CDN.
+- 5 corridas en frío y 5 en caliente, con la mediana de TTFB, LCP y CLS.
+- Bytes por handle y nodos del DOM.
+- Sin `Vary` ni cookies añadidas.
+
+Nunca cambia el tema. El tema no se activa en ningún sitio real.
+
+#### Pruebas
+
+- **En `validate.yml` y `release.yml`:**
+  - `tests/theme-structure.php`, `theme-updater.php` y `theme-switch.php`;
+  - `release-manifest.mjs`;
+  - `tools-theme.php`;
+  - `seo-hello-description.php` y `seo-bundled-assets.php`;
+  - `elements-theme-compat.php` y `elements-hello-header-footer.php`.
+- **Listas unificadas:** `validate.yml` y `release.yml` ejecutan la misma lista (lo comprueba `tests/repo-hygiene.mjs`). `seo-excerpt.php`, `plugin-catalog-manifest.php` y `elements-visitor-content.php`, que antes sólo estaban en `release.yml`, ahora están en las dos.
+- **`php -l`:** cubre `digitalisimo-theme`.
+- **Regresión:**
+  - `conditions.sh`;
+  - `CORE=bundled interaction.sh`;
+  - `brand-audit.sh`;
+  - `front-budget.sh`, que mide también las diez ubicaciones nuevas;
+  - `tools-catalog.sh`.
+
+#### Riesgos y límites declarados
+
+Se suman a las diferencias de la matriz.
+
+- **Versiones anteriores.** Con SEO o Tools anteriores a F1, el catálogo no dispara la acción y la sección «Tema» no aparece. Los dos plugins se actualizan solos.
+- **Sin Tools.**
+  - En una red, sólo se actualiza la copia activa en el sitio principal.
+  - En un sitio individual con el tema inactivo, no hay aviso; al activarlo, el tema se atiende solo.
+- **Credenciales FTP.** Los botones de Tools no las piden: enlazan a `update-core.php`. Si la cabecera del paquete no se puede leer y la carpeta tiene otro nombre, la actualización se detiene con `WP_Error`, sin daños.
+- **Carpeta con punto.** El AJAX nativo de Temas la rompe; para esa copia, el botón de Tools es la vía.
+- **«Ver detalles» sin Tools.** Abre la Release en un iframe que se ve en blanco (`x-frame-options: deny`). «Actualizar ahora» funciona.
+- **Homónimo en wordpress.org.** `pre_set` lo sustituye: el tema para la copia cargada y Tools para las demás. Hoy el slug no existe.
+- **Diez ubicaciones más.** El constructor las recorre al encolar estilos; se mide en `front-budget.sh`.
+- **Importar un kit puede cambiar el tema.** La importación de kits del núcleo, con su paso `theme`, puede activar otro tema (o reinstalar Hello) aunque el tema DIGITALÍSIMO esté activo. F1 no lo bloquea: **pendiente de la etapa K**, que importa siempre con `theme=false` (además de sin `experiments` ni `plugins`).
+
+#### Correcciones al informe del tema
+
+Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
+
+- El tema **lleva `theme.json`** (§6.A decía que no).
+- `overflow-x:clip` en `body` **está permitido** (§6.B lo prohibía).
+- La paridad sale de `origin.family = hello`, no de `from=hello`, y sobrevive a un rodeo por otro tema. Los ajustes de Hello van en `hello`, no en `hello_settings`.
+- El registro se divide en dos: `digitalisimo_theme_switch` (pequeño, con carga automática) y `digitalisimo_theme_switch_log` (sin carga automática).
+- Las copias del tema que no están cargadas las cubre Tools (D1), no `digitalisimo-sibling-updates.php`.
+- El plan aprobado está fuera del repositorio y no se edita. Donde contradiga «sin hijo» o D1, manda este documento.
 
 ### F1b · Editor de fragmentos PHP en Tools
 
@@ -244,7 +545,11 @@ Hecho en `fusion/f0-2-sin-referencias` (commit a6218fa). Inventario en `docs/fus
 | Opción | Sitio | Red | Sanitización | Estado |
 |---|---|---|---|---|
 | `digitalisimo_compat` | La escriben la importación o la migración de ese sitio | — (automática, sin pantalla) | Lista cerrada de CPT, sidebars y ubicaciones del origen | Pendiente (F2) |
-| `digitalisimo_theme_switch` | Registro del paso desde Hello en ese sitio | — (automática, sin pantalla) | Escrita sólo por el tema | Pendiente (F1) |
+| `digitalisimo_theme_switch` | Registro del paso al tema en ese sitio: `origin`, `last`, `hello`, `header_footer` y `generated`. Carga automática y menos de 1 KB, porque el front lo lee | — (automática, sin pantalla) | Escrita sólo por el tema, bajo cerrojo; `generated`, `header_footer.pending` y `blocked` los escribe Elements | Publicado (F1) |
+| `digitalisimo_theme_switch_log` | Bitácora del paso en ese sitio: hashes de lo copiado, lo omitido, el CSS adicional, el hijo, los filtros, la descripción y hasta 50 avisos sin repetir. **Sin carga automática** | — (automática, sin pantalla) | Escrita sólo por el tema | Publicado (F1) |
+| `digitalisimo_theme_switch_user` | Id del administrador que activó el tema en ese sitio. Elements lo anota en `switch_theme` (el tema aún no está cargado en esa petición) y la conversión lo usa como autor cuando el registro no trae usuario. **Sin carga automática** | — (automática, sin pantalla) | Escrita sólo por Elements | Publicado (F1) |
+| `digitalisimo_theme_switch_lock` y `digitalisimo_theme_convert_lock` | Cerrojos temporales del tema y de Elements: `INSERT IGNORE` con token; se roban pasados 300 s | — (automáticos) | Sin entrada del usuario | Publicado (F1) |
+| `digitalisimo_theme_release` y `digitalisimo_tools_theme_release` (transitorios); `digitalisimo_theme_last_release` y `digitalisimo_tools_theme_last_release` (opciones) | — | Cachés de red del tema y de Tools (automáticas, sin pantalla) | Entrada del índice validada: versión, URL del repositorio y requisitos | Publicado (F1) |
 | Fragmentos PHP | Fragmentos del sitio | Fragmentos de red, que corren en todos los sitios (Tools es de red) salvo donde estén pausados o detenidos | `Store::sanitize_item()` igual en las dos superficies; revisión de sintaxis, prueba previa, firma, capacidad y nonce | Publicado (F1b) · Tools 1.0.34 |
 
 Cada opción nueva se añade aquí antes de darse por terminada.
@@ -273,7 +578,7 @@ Origen → versión → formato → capacidades probadas → resultado → limit
 | GenerateBlocks, GB Pro, GenerateCloud | GenerateBlocks 2.5.0 | Bloques `generateblocks/*` | — | Pendiente (F5) | Copia oficial de GenerateBlocks en `reference/` (GPLv2 o posterior); GB Pro y GenerateCloud sólo por las muestras |
 | Bricks | 2.x (esquema 2.4.3) | `_bricks_page_*_2`, `_bricks_template_*`, opciones `bricks_*` | — | Pendiente (F6) | Sin código; claves no documentadas exigen muestras |
 | Bricks | 2.x | Exportación global (ZIP + `manifest.json`) | — | Pendiente (F6) | Claves no documentadas |
-| Hello Elementor → tema propio | 3.5.1 | `theme_mods`, `hello_*`, cabecera y pie dinámicos | — | Pendiente (F1) | Copia oficial en `reference/` (GPLv3 o posterior) |
+| Hello Elementor → tema propio | 3.5.1 | `theme_mods`, `hello_*`, cabecera y pie dinámicos | Paso T1–T10; paridad de hojas, marcado y 8 filtros; cabecera y pie dinámicos al Theme Builder; reversión e ida y vuelta; A/B S1–S5 en tres anchos con WooCommerce; red N1–N6 | **Publicado** (F1) · A/B Hello 3.5.1 frente al tema en verde (S1–S5, S3c, S3h y E con WOO=1 en tres anchos; corrida de aceptación completa del 2026-10-20 y rápida tras las correcciones) | `tb_partial`, Hello+, `hello-biz`/`hello-commerce` y el PHP del hijo, sin convertir; diferencias declaradas en F1. Copia oficial en `reference/` (GPLv3 o posterior) |
 | Kits de Elementor (Envato y propios) | 3.0 | ZIP de kit | — | Regresión pendiente (F2) | El importador no debe cambiar tema, experimentos ni plugins |
 
 ### Recorridos
@@ -318,8 +623,8 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
 - **Núcleo.** Cada `sync-elementor-core.sh` puede cambiar formatos atómicos: se repiten las pruebas.
 - **Multisite.**
   - Un fragmento PHP de red corre en todos los sitios (Tools es de red) salvo donde esté pausado o detenido; uno de sitio, sólo en ese sitio.
-  - `allowedthemes` sólo lo cambia «Migrar toda la red».
-  - Las actualizaciones del tema dependen de que Elements esté activo en el sitio principal o en la red.
+  - `allowedthemes` sólo podría cambiarlo «Migrar toda la red», como excepción declarada en `tests/theme-structure.php`; hoy ningún paquete lo escribe.
+  - Las copias del tema que no están cargadas (inactivas, en otra carpeta o en otro sitio de la red) las actualiza DIGITALÍSIMO Tools (D1). Sin Tools en la red, sólo se actualiza la copia activa en el sitio principal. Tools nunca activa el tema ni lo habilita en la red.
 - **Repositorio público.** Nada de código de Betheme, de Bricks ni de bundles de Divi; ninguna muestra real ni dato de clientes.
 
 ## Supuestos
@@ -353,3 +658,11 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
 - 2026-10-17 · F1b en la rama `fusion/f1b-codigo-php`: pestaña «Código PHP» de Tools (sitio y red) con revisión, prueba desde el navegador, firma, guardián, conciliación, rescate, modo reducido e importación desactivada. `tools-php-snippets.php` y `tools-php-guard.php` en verde en PHP 7.4, 8.2, 8.4 y 8.5; `tools-php.sh` en Playground (sitio individual y red).
 - 2026-10-17 · F0: esta guía, la evidencia depurada en `docs/fusion/` (14 informes y un índice), las referencias de la fusión en `docs/third-party-licenses.md` y las reglas en `AGENTS.md`.
 - 2026-10-17 · Revisión adversarial de F0 y F0.1: lo que no tiene equivalente pasa a ser información (un sitio ya no queda «con asuntos por revisar» para siempre), se lee de la copia original al volver a migrar y no cuenta dos veces lo que no cupo; la guarda del empaquetado cubre Prime Slider; reglas de `AGENTS.md` acotadas (rastro de proveedores, uso de `reference/`, activación del tema, acciones con destino).
+- 2026-10-19 · F1 en la rama `fusion/f1-tema`:
+  - tema `digitalisimo-theme` 1.0.0, clásico, sin hijo y con actualizador propio;
+  - Release de 8 ZIP, con `themes` en el índice;
+  - en Tools, cobertura de las copias no cargadas (D1) y sección «Tema»; el `style.css` de un hijo de Hello sólo se informa (D2);
+  - SEO acepta el tema propio en rendimiento, retira la meta description de Hello y reconoce las hojas del núcleo incluido (cierra el pendiente de F0.2);
+  - Elements gana compatibilidad con el asistente, el bloqueo de Hello y la conversión de la cabecera y el pie dinámicos.
+
+  Publicado con SEO 1.0.231, Tools 1.0.36 y Elements 4.3.0.161. La medición en staging queda pendiente de autorización y el tema no se activó en ningún sitio real.

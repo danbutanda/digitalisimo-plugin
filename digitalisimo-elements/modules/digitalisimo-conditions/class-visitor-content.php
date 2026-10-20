@@ -214,11 +214,20 @@ final class Visitor_Content {
 	}
 
 	/**
-	 * Ubicaciones del Theme Builder que esta petición imprime: con la plantilla Canvas ninguna; con «Cabecera y pie»
-	 * o cualquier plantilla del tema distinta de la predeterminada, cabecera, pie y ventanas, pero no la plantilla
-	 * de entrada; en archivos, cabecera, pie, archivo y ventanas.
+	 * Ubicaciones del Theme Builder que esta petición imprime. Un tema que registra ubicaciones propias (las del
+	 * tema DIGITALÍSIMO alrededor de la cabecera, el pie y el contenido) las añade con el filtro
+	 * `digitalisimo_conditions_theme_locations` según las que ya se imprimen.
 	 */
 	public static function theme_locations() {
+		return array_values( array_unique( array_map( 'strval', (array) apply_filters( 'digitalisimo_conditions_theme_locations', self::base_theme_locations() ) ) ) );
+	}
+
+	/**
+	 * Con la plantilla Canvas ninguna; con «Cabecera y pie» o cualquier plantilla del tema distinta de la
+	 * predeterminada, cabecera, pie y ventanas, pero no la plantilla de entrada; en archivos, cabecera, pie,
+	 * archivo y ventanas.
+	 */
+	private static function base_theme_locations() {
 		$locations = self::THEME_LOCATIONS;
 		if ( ! is_singular() ) {
 			return array_values( array_diff( $locations, array( 'single' ) ) );

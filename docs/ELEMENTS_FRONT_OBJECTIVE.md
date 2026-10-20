@@ -65,6 +65,17 @@ Núcleo incluido (Elementor 4.3.5, copia sin cambios): Elements no fija sus ajus
 
 **Fase 4 · Decisiones de producto.** Ocultar del panel los widgets PRO con equivalente propio más ligero (Media carousel, Testimonial carousel, Reviews, Slides, Nested carousel, Lottie), conservándolos registrados para el contenido existente; «Marcado optimizado» como opción. Requiere aprobación del propietario con las cifras de las fases anteriores.
 
+## Presupuesto del tema y de las capacidades de la fusión
+
+`docs/FUSION_OBJECTIVE.md` exige una fila aquí para cada widget o capacidad nueva de la fusión. La regla es la del criterio 7: CSS de 4 KB o menos y JS de 8 KB o menos, salvo excepción con su motivo. Los tamaños en gzip -9 se miden sin nombre de archivo en la cabecera (`gzip -9 < archivo`, igual que `gzencode( …, 9 )` en las pruebas). El tema DIGITALÍSIMO (F1) no es un widget, pero lo que imprime en todas las páginas cuenta igual.
+
+| Recurso | Dónde se carga | CSS | JS | Techo | Vigilancia |
+|---|---|---|---|---|---|
+| `base.css` (handle `digitalisimo-theme`) | Toda página con el tema fuera de paridad (sitios nuevos o que no venían de Hello) | 2,6 KB (2 697 B; 1 080 B en gzip -9) | 0 | El `theme.css` de Hello 3.5.1: 5 827 B y 1 399 B en gzip -9 | `tests/theme-structure.php`: tamaño, cada selector en `:where(`, sin `--e-global`, `.elementor`, `.e-con`, `.swiper`, `@font-face` ni `url(`. `theme-switch.sh`, fase D |
+| `parity/{reset,theme,header-footer}.css` (handles `digitalisimo-theme-parity*`) | Sólo en paridad (sitios que venían de Hello), con las mismas condiciones que en Hello | 19 190 B (4 771 B en gzip -9) | 0 | **Excepción:** son las hojas que Hello ya cargaba, sin cambios, así que el coste neto es 0. En B, los bytes de las hojas del tema no pueden superar los de A | Sumas sha256 en `tests/theme-structure.php`; `theme-switch.sh`, comprobación 9 |
+| Diez ubicaciones de gancho `digitalisimo_*` | El Theme Builder las recorre al encolar estilos | 0 | 0 | No añaden bytes propios. El coste de recorrerlas se mide frente a la página vacía | `front-budget.sh` (corrida de integración) |
+| Cabecera y pie generados desde Hello | Sólo en sitios que venían de Hello con cabecera y pie dinámicos | Lo del widget Menú | `smartmenus` (24 109 B; 7 068 B en gzip -9, con jQuery) | **Diferencia declarada:** Hello usaba `hello-frontend.js` (1 830 B). Se acepta para no mantener otro menú | `theme-switch.sh`, S3 |
+
 ## Riesgos y reversión
 
 - La carga condicional de PRO puede dejar sin script un popup o una plantilla del Theme Builder: se detecta por documento, plantillas asignadas y popups de la página, con un filtro para forzar la carga y pruebas de cada combinación en Playground.
@@ -76,3 +87,8 @@ Núcleo incluido (Elementor 4.3.5, copia sin cambios): Elements no fija sus ajus
 
 - 2026-10-16 · 4.3.0.152 · Objetivo redactado con la línea base de la auditoría estática. Fase 0 en curso.
 - 2026-10-16 · 4.3.0.153 · Fase 0 publicada: arnés `tests/playground/front-budget.sh` con `baseline.json` y medición en `docs/measurements/2026-10-16-elements-front-budget.md`. Fase 1 publicada: generador único de imágenes en los 45 widgets, scripts condicionales en seis, `defer` en los catorce registros, QR sin jQuery, hojas por variante (Enlace animado, Botón, Navegación con iconos, Logotipos), foco propio, `content-visibility`, `preconnect` y etiqueta de encabezado en Reseñas; `tests/elements-front-budget.php` vigila el presupuesto en CI. Pendientes de la fase 1: ninguna. Siguiente: Fase 2.
+- 2026-10-19 · Tema 1.0.0 (F1 de la fusión) · Presupuesto del tema:
+  - `base.css`, 2,6 KB y 0 JS, con el `theme.css` de Hello como techo;
+  - hojas de paridad idénticas a las de Hello, con coste neto 0;
+  - diez ubicaciones de gancho, medidas en `front-budget.sh`;
+  - en la cabecera generada desde Hello, `smartmenus` como diferencia declarada.

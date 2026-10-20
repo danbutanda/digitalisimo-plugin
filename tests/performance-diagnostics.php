@@ -22,7 +22,10 @@ function set_site_transient( $key, $value, $ttl = 0 ) { $GLOBALS['site_transient
 function wp_redirect( $url ) { $GLOBALS['redirected_to'] = $url; return true; }
 function get_option( $key, $default = false ) { return $default; }
 class Digitalisimo_Integrations_Performance_Preloads { const OPTION = 'preload_manifest'; }
-class Digitalisimo_Integrations_Performance_CSS { public static function configured( $handle, $href ) { return 'elementor-pro-widget-form' === $handle; } }
+// La clase CSS es la real (sus rutas del constructor las usa el diagnóstico); sólo se simula la medición que autoriza diferir.
+class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key ) { return 'perf_css_defer' === $key ? 1 : 0; } }
+class Digitalisimo_Integrations_Performance_CSS_Audit { public static function allowed( $handle, $href ) { return 'elementor-pro-widget-form' === $handle; } }
+require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-css.php';
 
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-asset-diagnostics.php';
 require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-measurements.php';
@@ -79,4 +82,16 @@ echo '<img src="https://example.test/image.jpg" width="200" height="100">';
 Digitalisimo_Integrations_Asset_Diagnostics::finish_probe();
 $browser_result = $GLOBALS['site_transients']['digitalisimo_perf_browser_result_probe123'] ?? array();
 if ( 7 !== ( $browser_result['user_id'] ?? 0 ) || 2 !== ( $browser_result['site_id'] ?? 0 ) || 'https://example.test/wp-admin/admin-post.php?action=complete' !== ( $GLOBALS['redirected_to'] ?? '' ) || 1 !== count( $browser_result['result']['images'] ?? array() ) ) throw new RuntimeException( 'La captura del navegador debe volver al administrador original y conservar usuario y sitio.' );
-echo "Diagnóstico: CSS local y fuentes verificados.\n";
+// Núcleo incluido: sin constantes no cambia nada; con ellas, sus recursos son del constructor y su CSS marca la posición de los preloads.
+$origin = $class->getMethod( 'origin' ); $status = $class->getMethod( 'status' );
+$core_css = 'https://example.test/wp-content/plugins/digitalisimo-elements/elementor/assets/css/frontend.min.css';
+$late = '<head><link rel="stylesheet" id="elementor-frontend-css" href="' . $core_css . '"><link rel="preload" href="https://example.test/inter.woff2" as="font"></head>';
+$manifest = array( 'rows' => array( array( 'url' => 'https://example.test/inter.woff2' ) ) );
+if ( 'Constructor externo' !== $origin->invoke( null, 'https://example.test/wp-content/plugins/elementor/assets/js/frontend.min.js' ) || 'DIGITALÍSIMO' !== $origin->invoke( null, $core_css ) || 'Desconocido' !== $status->invoke( null, 'otro', $core_css, 'CSS' ) ) throw new RuntimeException( 'Sin constantes el diagnóstico clasifica como antes.' );
+define( 'ELEMENTOR_ASSETS_URL', 'https://example.test/wp-content/plugins/digitalisimo-elements/elementor/assets/' );
+define( 'ELEMENTOR_PRO_ASSETS_URL', 'https://example.test/wp-content/plugins/digitalisimo-elements/assets/' );
+if ( 'Constructor' !== $origin->invoke( null, $core_css ) || 'Constructor' !== $origin->invoke( null, 'https://example.test/wp-content/plugins/digitalisimo-elements/assets/js/frontend.min.js' ) || 'Constructor' !== $status->invoke( null, 'otro', $core_css, 'CSS' ) ) throw new RuntimeException( 'Los recursos del núcleo incluido deben clasificarse como Constructor.' );
+if ( 'Constructor externo' !== $origin->invoke( null, 'https://example.test/wp-content/plugins/elementor-pro/assets/css/frontend.min.css' ) || 'DIGITALÍSIMO' !== $origin->invoke( null, 'https://example.test/wp-content/plugins/digitalisimo-seo/assets/app.js' ) ) throw new RuntimeException( 'Constructor externo sólo para las carpetas históricas; los demás módulos siguen siendo DIGITALÍSIMO.' );
+$late_delivery = Digitalisimo_Integrations_Asset_Diagnostics::inspect_delivery( $late, array(), $manifest );
+if ( 'DESPUÉS del CSS del constructor' !== $late_delivery['preloads'][0]['position'] || 'OK' === $late_delivery['preloads'][0]['status'] ) throw new RuntimeException( 'Un preload detrás del CSS del núcleo incluido debe marcarse como no aplicado.' );
+echo "Diagnóstico: CSS local, fuentes y núcleo incluido verificados.\n";

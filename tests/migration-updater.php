@@ -28,11 +28,13 @@ require __DIR__ . '/../digitalisimo-migration/includes/class-updater.php';
 $u = 'Digitalisimo\\Migration\\Updater';
 function check_updater( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 function pending() { $t = Digitalisimo\Migration\Updater::check( (object) array( 'checked' => array() ) ); return $t->response[ Digitalisimo\Migration\Updater::FILE ] ?? null; }
+/** Entrada del tema en el índice (clave «themes»): los actualizadores de plugins sólo leen «plugins» y no deben cambiar con ella. */
+function theme_index( $tag = 'v2026.10.15.389' ) { return array( 'digitalisimo-theme' => array( 'version' => '1.0.0', 'file' => 'digitalisimo-theme-1.0.0.zip', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/' . $tag . '/digitalisimo-theme-1.0.0.zip', 'requires' => '6.8', 'requires_php' => '7.4' ) ); }
 function manifest( $version, $url = null ) {
 	$url = $url ?? 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.15.389/digitalisimo-migration-' . $version . '.zip';
-	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => 'v2026.10.15.389', 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.15.389', 'plugins' => array( 'digitalisimo-migration' => array( 'version' => $version, 'url' => $url ), 'digitalisimo-seo' => array( 'version' => '1.0.224', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.15.389/digitalisimo-seo-1.0.224.zip' ) ) ) ) );
+	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => 'v2026.10.15.389', 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.15.389', 'themes' => theme_index(), 'plugins' => array( 'digitalisimo-migration' => array( 'version' => $version, 'url' => $url ), 'digitalisimo-seo' => array( 'version' => '1.0.224', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.15.389/digitalisimo-seo-1.0.224.zip' ) ) ) ) );
 }
-$api = array( 'code' => 200, 'body' => json_encode( array( array( 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/x', 'assets' => array( array( 'name' => 'digitalisimo-migration-1.0.9.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/digitalisimo-migration-1.0.9.zip' ) ) ) ) ) );
+$api = array( 'code' => 200, 'body' => json_encode( array( array( 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/x', 'assets' => array( array( 'name' => 'digitalisimo-theme-1.0.0.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/digitalisimo-theme-1.0.0.zip' ), array( 'name' => 'digitalisimo-migration-1.0.9.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/digitalisimo-migration-1.0.9.zip' ) ) ) ) ) );
 
 // 1. El índice de la última Release basta: no se consulta la API.
 $responses = array( 'manifest' => manifest( '1.0.1' ), 'api' => $api );

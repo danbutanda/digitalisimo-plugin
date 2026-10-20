@@ -8,6 +8,44 @@ mkdir -p "$output_dir"
 # relativa como `dist` dejaría de encontrarse.
 output_dir="$(cd "$output_dir" && pwd)"
 
+# Guarda del tema: un tema clásico mínimo con su árbol propio, sin JavaScript, sin plantillas de bloques ni de
+# WooCommerce, sin «Template:» (nunca es un tema hijo) y sin dominios de los productos de origen
+# (tests/playground/brand-audit/vendors.json, «hosts» y «future»). Si algo falla, borra el ZIP.
+check_theme_package() {
+  local archive="$1"
+  local problems='' entries name rel required style vendor_re unpacked hits
+  entries="$(unzip -Z1 "$archive")"
+  for required in style.css functions.php index.php header.php footer.php sidebar.php comments.php theme.json screenshot.png license.txt inc/class-updater.php inc/switch.php assets/css/base.css; do
+    grep -qxF "digitalisimo-theme/$required" <<<"$entries" || problems+="falta digitalisimo-theme/$required"$'\n'
+  done
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    rel="${name#digitalisimo-theme/}"
+    if [[ "$name" != digitalisimo-theme/* ]]; then problems+="fuera de la carpeta del tema: $name"$'\n'; continue; fi
+    if [[ "/$rel" =~ /(woocommerce|templates|parts|block-templates|block-template-parts)(/|$) ]]; then problems+="carpeta de plantillas prohibida: $name"$'\n'; fi
+    [[ "$name" == */ ]] && continue
+    if [[ "$rel" == *.js ]]; then problems+="JavaScript prohibido: $name"$'\n'; fi
+    if [[ "$rel" =~ (^|/)sidebar-[^/]*\.php$ ]]; then problems+="barra lateral prohibida: $name"$'\n'; fi
+    if [[ "$rel" != */* && "$rel" == *.php && ! "$rel" =~ ^(index|header|footer|comments|functions|sidebar)\.php$ ]]; then problems+="PHP prohibido en la raíz: $name"$'\n'; fi
+  done <<<"$entries"
+  style="$(unzip -p "$archive" digitalisimo-theme/style.css 2>/dev/null || true)"
+  if grep -qE '^[[:space:]]*\*?[[:space:]]*Template:' <<<"$style"; then problems+='style.css declara «Template:»: el tema no puede ser hijo de otro'$'\n'; fi
+  vendor_re="$(python3 -c 'import json,sys; v=json.load(open(sys.argv[1], encoding="utf-8")); print("|".join(h.replace(".", "\\.") for h in v["hosts"] + v.get("future", [])))' "$root_dir/tests/playground/brand-audit/vendors.json")"
+  test -n "$vendor_re"
+  unpacked="$(mktemp -d)"
+  unzip -q "$archive" -d "$unpacked"
+  hits="$(cd "$unpacked" && LC_ALL=C grep -rlaiE "(^|[^a-z0-9-])([a-z0-9-]+\.)*($vendor_re)([^a-z0-9-]|$)" . || true)"
+  rm -rf "$unpacked"
+  if [[ -n "$hits" ]]; then problems+="dominio de un producto de origen en: ${hits//$'\n'/, }"$'\n'; fi
+  if [[ -n "$problems" ]]; then
+    echo "BUILD ABORTED: $archive no cumple la guarda del tema" >&2
+    printf '%s' "$problems" >&2
+    rm -f "$archive"
+    return 1
+  fi
+  echo 'THEME PACKAGE CHECK: PASS' >&2
+}
+
 # build_package <carpeta del repositorio> <archivo principal> <prefijo del ZIP> [carpeta dentro del ZIP]
 # La carpeta dentro del ZIP es la que reciben los sitios (wp-content/plugins/<carpeta>/<archivo principal>) y no puede
 # cambiar sin desactivar el plugin instalado; la del repositorio puede llamarse distinto (IA Tools vive en
@@ -54,6 +92,9 @@ build_package() {
     rm -f "$archive"
     return 1
   fi
+  if [[ "$directory" == 'digitalisimo-theme' ]]; then
+    check_theme_package "$archive" || return 1
+  fi
   if [[ "$directory" == 'digitalisimo-elements' ]]; then
     local leaked
     leaked="$(unzip -Z1 "$archive" | LC_ALL=C grep -Ei '(^|/)(bdthemes-element-pack|element-pack-pro)(/|$)|bdthemes' || true)"
@@ -81,7 +122,7 @@ build_package() {
 
 packages=("${@:2}")
 if (( ${#packages[@]} == 0 )); then
-  packages=(digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration)
+  packages=(digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme)
 fi
 
 for package in "${packages[@]}"; do
@@ -93,6 +134,7 @@ for package in "${packages[@]}"; do
     digitalisimo-tools) build_package digitalisimo-tools digitalisimo-tools.php "$package" ;;
     digitalisimo-elements) build_package digitalisimo-elements pro-elements.php "$package" ;;
     digitalisimo-migration) build_package digitalisimo-migration digitalisimo-migration.php "$package" ;;
+    digitalisimo-theme) build_package digitalisimo-theme style.css "$package" ;;
     *) echo "Módulo desconocido: $package" >&2; exit 1 ;;
   esac
 done

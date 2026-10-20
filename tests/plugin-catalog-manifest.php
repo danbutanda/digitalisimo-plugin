@@ -44,10 +44,12 @@ function releases( $class ) { $m = new ReflectionMethod( $class, 'releases' ); i
 function api_calls() { return count( array_filter( $GLOBALS['calls'], function ( $url ) { return false !== strpos( $url, 'api.github.com' ); } ) ); }
 function reset_all() { $GLOBALS['cache'] = array(); $GLOBALS['calls'] = array(); }
 function download_url( $slug, $version, $tag = 'v2026.10.15.389' ) { return 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/' . $tag . '/' . $slug . '-' . $version . '.zip'; }
+/** Entrada del tema en el índice (clave «themes»): los actualizadores de plugins sólo leen «plugins» y no deben cambiar con ella. */
+function theme_index( $tag = 'v2026.10.15.389' ) { return array( 'digitalisimo-theme' => array( 'version' => '1.0.0', 'file' => 'digitalisimo-theme-1.0.0.zip', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/' . $tag . '/digitalisimo-theme-1.0.0.zip', 'requires' => '6.8', 'requires_php' => '7.4' ) ); }
 function manifest( $plugins ) {
 	$entries = array();
 	foreach ( $plugins as $slug => $entry ) $entries[ $slug ] = is_array( $entry ) ? $entry : array( 'version' => $entry, 'url' => download_url( $slug, $entry ) );
-	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => 'v2026.10.15.389', 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.15.389', 'generated' => '2026-10-15T00:00:00Z', 'plugins' => $entries ) ) );
+	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => 'v2026.10.15.389', 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.15.389', 'generated' => '2026-10-15T00:00:00Z', 'plugins' => $entries, 'themes' => theme_index() ) ) );
 }
 // La API responde con otras versiones para distinguir qué fuente alimentó el índice.
 function api( $plugins ) {
@@ -67,7 +69,7 @@ foreach ( $catalogs as $class => list( $cache_key, $last_known ) ) {
 	// 1. (a) El índice de la última Release basta: los siete plugins sin ninguna consulta a la API.
 	reset_all(); $site_options = array(); $responses = array( 'manifest' => manifest( $slugs ), 'api' => api( $api_versions ) );
 	$index = releases( $class );
-	check_catalog( count( $index ) === count( $slugs ), $label . ': el índice debe contener los siete plugins.' );
+	check_catalog( count( $index ) === count( $slugs ) && ! isset( $index['digitalisimo-theme'] ), $label . ': el índice debe contener los siete plugins, sin el tema de «themes».' );
 	foreach ( $slugs as $slug => $version ) check_catalog( ( $index[ $slug ]['version'] ?? '' ) === $version && ( $index[ $slug ]['package'] ?? '' ) === download_url( $slug, $version ), $label . ': ' . $slug . ' debe salir del índice de la Release.' );
 	check_catalog( 1 === count( $calls ) && false !== strpos( $calls[0], '/releases/latest/download/digitalisimo-plugins.json' ) && 0 === api_calls(), $label . ': sin consultar la API de GitHub.' );
 	check_catalog( ( $site_options[ $last_known ] ?? array() ) === $index, $label . ': debe recordar el último índice encontrado.' );
@@ -124,4 +126,10 @@ reset_all(); $site_options = array(); $responses = array( 'manifest' => manifest
 releases( 'Digitalisimo_Plugin_Catalog' );
 $index = releases( 'Digitalisimo\\Tools\\Plugin_Catalog' );
 check_catalog( '4.3.0.142' === ( $index['digitalisimo-elements']['version'] ?? '' ) && 1 === count( $calls ), 'El índice descargado por el catálogo de SEO sirve al de Tools sin otra descarga.' );
+check_catalog( theme_index() === ( $cache['digitalisimo_plugins_manifest']['themes'] ?? null ), 'El índice compartido conserva «themes» para quien lo lea después.' );
+// 9. El tema no es un plugin del catálogo: ninguno de los dos lo ofrece para instalar como plugin.
+foreach ( array( 'Digitalisimo_Plugin_Catalog' => 'plugins', 'Digitalisimo\\Tools\\Plugin_Catalog' => 'catalog' ) as $class => $method ) {
+	$list = new ReflectionMethod( $class, $method ); if ( PHP_VERSION_ID < 80100 ) { $list->setAccessible( true ); }
+	check_catalog( ! isset( $list->invoke( null )['digitalisimo-theme'] ), $class . ': el tema no figura en la lista de plugins.' );
+}
 echo "Catálogos de plugins: índice de la Release, respaldo por API y última conocida validados en SEO y Tools.\n";

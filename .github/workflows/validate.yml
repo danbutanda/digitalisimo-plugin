@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '20'
       - name: Validar sintaxis PHP
-        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration -name '*.php' -print0 | xargs -0 -r -n1 php -l
+        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar la suite
         # Misma lista en validate.yml y release.yml (tests/repo-hygiene.mjs lo comprueba).
         run: |
@@ -175,6 +175,16 @@ jobs:
           php tests/sitemap-routes.php
           php tests/robots.php
           php tests/seo-ai-robots.php
+          # Tema DIGITALÍSIMO: estructura, actualizador, paso desde el tema anterior, índice de la Release y módulos que lo atienden.
+          php tests/theme-structure.php
+          php tests/theme-updater.php
+          php tests/theme-switch.php
+          node tests/release-manifest.mjs
+          php tests/tools-theme.php
+          php tests/seo-hello-description.php
+          php tests/seo-bundled-assets.php
+          php tests/elements-theme-compat.php
+          php tests/elements-hello-header-footer.php
       - name: Construir paquetes limpios
         run: |
           mkdir -p dist

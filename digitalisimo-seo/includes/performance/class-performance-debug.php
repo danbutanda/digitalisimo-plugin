@@ -67,8 +67,9 @@ class Digitalisimo_Integrations_Performance_Debug {
 	public static function css_label( $row, $defer, $safe, $handles ) {
 		$handle = (string) ( $row['handle'] ?? '' );
 		$src = (string) ( $row['src'] ?? '' );
-		if ( in_array( $handle, array( 'elementor-frontend', 'elementor-pro-frontend', 'widget-heading', 'widget-image-carousel', 'widget-nav-menu', 'widget-nested-tabs', 'widget-counter', 'widget-call-to-action' ), true ) || preg_match( '#/elementor(?:-pro)?/assets/css/frontend(?:\.min)?\.css#i', $src ) ) return 'CRÍTICO';
-		if ( $defer && ! $safe && in_array( $handle, $handles, true ) && preg_match( '#/plugins/elementor(?:-pro)?/assets/css/widget-[a-z0-9-]+(?:\.min)?\.css#i', $src ) ) return 'DIFERIDO CONFIGURADO';
+		// Las rutas del constructor salen de Performance_CSS::builder_asset_paths(): valen también para el núcleo incluido.
+		if ( in_array( $handle, array( 'elementor-frontend', 'elementor-pro-frontend', 'widget-heading', 'widget-image-carousel', 'widget-nav-menu', 'widget-nested-tabs', 'widget-counter', 'widget-call-to-action' ), true ) || preg_match( '#/elementor(?:-pro)?/assets/css/frontend(?:\.min)?\.css#i', $src ) || Digitalisimo_Integrations_Performance_CSS::builder_asset( $src, 'css/frontend(?:\.min)?\.css' ) ) return 'CRÍTICO';
+		if ( $defer && ! $safe && in_array( $handle, $handles, true ) && Digitalisimo_Integrations_Performance_CSS::builder_asset( $src, 'css/widget-[a-z0-9-]+(?:\.min)?\.css' ) ) return 'DIFERIDO CONFIGURADO';
 		if ( 'Revisar' === ( $row['status'] ?? '' ) ) return 'EXCLUIDO DEL CAMBIO';
 		return 'NORMAL';
 	}

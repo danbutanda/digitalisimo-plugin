@@ -5,14 +5,15 @@ import { join } from 'node:path';
 const packageDir = process.env.DIGITALISIMO_PACKAGE_DIR || '.';
 
 const modules = [
-  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.230.zip', version: '1.0.230' },
+  { dir: 'digitalisimo-seo', file: 'digitalisimo-integrations.php', zip: 'digitalisimo-seo-1.0.231.zip', version: '1.0.231' },
   { dir: 'digitalisimo-ia-tools', folder: 'digitalisimo.chatbot', file: 'digitalisimo-chatbot.php', zip: 'digitalisimo-ia-tools-1.0.59.zip', version: '1.0.59' },
   { dir: 'digitalisimo-hosting', file: 'digitalisimo-hosting.php', zip: 'digitalisimo-hosting-1.0.30.zip', version: '1.0.30' },
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.58.zip', version: '1.0.58' },
 ];
-const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.35.zip', version: '1.0.35' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.160.zip', version: '4.3.0.160' };
+const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.36.zip', version: '1.0.36' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.161.zip', version: '4.3.0.161' };
 const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.20.zip', version: '1.0.20' };
+const themeModule = { dir: 'digitalisimo-theme', file: 'style.css', zip: 'digitalisimo-theme-1.0.0.zip', version: '1.0.0' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');
 const toolsMenu = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-network-admin.php', 'utf8');
 const toolsBootstrap = readFileSync('digitalisimo-tools/modules/elementor-network-templates/class-module.php', 'utf8');
@@ -55,7 +56,9 @@ for (const module of modules) {
   const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' });
   if (!listing.includes(`${toolsModule.dir}/${toolsModule.file}`) || listing.includes('.DS_Store')) throw new Error('El paquete de DIGITALÍSIMO Tools no tiene una estructura válida');
   if (!readFileSync(join(toolsModule.dir, 'modules/elementor-network-templates/class-network-admin.php'), 'utf8').includes("'Herramientas', $capability, self::PAGE")) throw new Error('El submenú de DIGITALÍSIMO Tools debe mostrarse como Herramientas.');
-  for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php', 'assets/media-badges.js', 'assets/media-badges.css', 'modules/php-snippets/class-store.php', 'modules/php-snippets/class-stream.php', 'modules/php-snippets/class-guard.php', 'modules/php-snippets/class-runner.php', 'modules/php-snippets/class-tester.php', 'modules/php-snippets/class-import.php', 'modules/php-snippets/class-admin.php', 'assets/js/php-snippets.js']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
+  for (const required of ['class-registry.php', 'class-sync.php', 'class-dependency-resolver.php', 'class-elementor-adapter.php', 'class-network-admin.php', 'assets/media-badges.js', 'assets/media-badges.css', 'modules/php-snippets/class-store.php', 'modules/php-snippets/class-stream.php', 'modules/php-snippets/class-guard.php', 'modules/php-snippets/class-runner.php', 'modules/php-snippets/class-tester.php', 'modules/php-snippets/class-import.php', 'modules/php-snippets/class-admin.php', 'assets/js/php-snippets.js', 'includes/class-theme-updates.php', 'includes/class-theme-catalog.php']) if (!listing.includes(required)) throw new Error(`Falta ${required} en DIGITALÍSIMO Tools`);
+  // Actualizaciones y sección «Tema» de DIGITALÍSIMO Tools: las cubre aunque el tema no esté cargado.
+  for (const required of ['includes/class-theme-updates.php', 'includes/class-theme-catalog.php']) if (!source.includes(`'${required}'`)) throw new Error(`digitalisimo-tools.php debe cargar ${required}`);
   if (listing.includes('modules/elementor-slider/') || listing.includes('assets/slider-optimizado.css') || source.includes('modules/elementor-slider/class-module.php')) throw new Error('El slider ya no debe formar parte de DIGITALÍSIMO Tools.');
 }
 
@@ -75,7 +78,7 @@ const declarations = new Map();
   if (tree.files !== manifest.files || tree.tree_sha256 !== manifest.tree_sha256) throw new Error(`digitalisimo-elements/elementor no coincide con su manifiesto (${tree.files} archivos frente a ${manifest.files}).`);
   const zippedCore = listing.split('\n').filter((entry) => entry.startsWith(`${elementsModule.dir}/elementor/`) && !entry.endsWith('/') && entry !== `${elementsModule.dir}/elementor/digitalisimo-core.json`);
   if (zippedCore.length !== manifest.files) throw new Error(`El ZIP de Elements lleva ${zippedCore.length} archivos del núcleo incluido y su manifiesto ${manifest.files}.`);
-  for (const required of ['digitalisimo-core.php', 'digitalisimo-identity.php', 'assets/digitalisimo/identity.css', 'modules/digitalisimo-conditions/class-visitor-content.php', 'elementor/elementor.php', 'elementor/includes/plugin.php', 'elementor/vendor/autoload_packages.php', 'elementor/vendor/autoload.php', 'elementor/digitalisimo-core.json', 'elementor/languages/elementor-es_MX.l10n.php', 'elementor/languages/elementor-es_ES.l10n.php', 'core/compatibility/compatibility.php']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
+  for (const required of ['digitalisimo-core.php', 'digitalisimo-identity.php', 'assets/digitalisimo/identity.css', 'modules/digitalisimo-conditions/class-visitor-content.php', 'elementor/elementor.php', 'elementor/includes/plugin.php', 'elementor/vendor/autoload_packages.php', 'elementor/vendor/autoload.php', 'elementor/digitalisimo-core.json', 'elementor/languages/elementor-es_MX.l10n.php', 'elementor/languages/elementor-es_ES.l10n.php', 'core/compatibility/compatibility.php', 'modules/digitalisimo-theme/class-module.php', 'modules/digitalisimo-theme/class-hello-header-footer.php']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
   // La marca propia del constructor (núcleo incluido) se aplica en tiempo de ejecución: el núcleo no se edita.
   if (!source.includes('Digitalisimo_Elements_Identity::init();') || /Description:[^\n]*Elementor/.test(source)) throw new Error('DIGITALÍSIMO Elements debe cargar su identidad propia y no nombrar el núcleo en su descripción.');
   if (!source.includes("Digitalisimo_Elements_Core::load();") || source.indexOf("Digitalisimo_Elements_Core::load();") > source.indexOf("require_once __DIR__ . '/digitalisimo-compat.php';")) throw new Error('El núcleo incluido debe cargarse antes que el resto de DIGITALÍSIMO Elements.');
@@ -107,6 +110,33 @@ const declarations = new Map();
   for (const required of ['digitalisimo-migration.php', 'includes/class-updater.php', 'includes/class-plugin.php', 'legacy/class-native.php', 'legacy/class-migration.php', 'legacy/class-adapters.php', 'legacy/class-masks.php', 'legacy/class-runner.php', 'legacy/class-retire.php', 'legacy/class-dropped.php', 'legacy/class-aliases.php', 'assets/js/migrate.js', 'legacy/unsupported.php', 'legacy/maps/bdt-accordion.php', 'legacy/conditions/class-legacy-rules.php']) if (!listing.includes(`${migrationModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Migración`);
   if (listing.split('\n').some((entry) => /(^|\/)bdthemes-element-pack(\/|$)/i.test(entry)) || listing.includes('.DS_Store')) throw new Error('DIGITALÍSIMO Migración no debe contener la copia de referencia ni archivos de sistema.');
 }
+{
+  // Tema DIGITALÍSIMO: clásico y sin padre, con su actualizador propio. No lleva el controlador de actualizaciones de los
+  // plugins ni el diseño compartido (no tiene pantallas ni JavaScript), así que queda fuera de los dos bucles siguientes.
+  const main = join(themeModule.dir, themeModule.file);
+  const zip = join(packageDir, themeModule.zip);
+  if (!existsSync(main) || !existsSync(zip)) throw new Error(`Falta ${main} o ${zip}`);
+  const header = readFileSync(main, 'utf8');
+  const field = (name) => header.match(new RegExp(`^[ \\t]*\\*?[ \\t]*${name}:[ \\t]*(.*?)[ \\t]*$`, 'm'))?.[1];
+  const expected = { Version: themeModule.version, 'Update URI': 'https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-theme', License: 'GPL-3.0-or-later', 'Text Domain': 'digitalisimo-theme' };
+  for (const [name, value] of Object.entries(expected)) if (field(name) !== value) throw new Error(`Cabecera «${name}» del tema: se esperaba ${value} y hay ${field(name) ?? 'nada'}`);
+  if (/^\s*\*?\s*Template:/m.test(header)) throw new Error('El tema DIGITALÍSIMO no puede declarar «Template:»: nunca es hijo de otro tema.');
+  const constant = readFileSync(join(themeModule.dir, 'functions.php'), 'utf8').match(/define\(\s*'DIGITALISIMO_THEME_VERSION'\s*,\s*'([^']*)'\s*\)/)?.[1];
+  if (constant !== themeModule.version) throw new Error(`DIGITALISIMO_THEME_VERSION (${constant ?? 'sin definir'}) debe coincidir con la versión de style.css (${themeModule.version}).`);
+  // Los archivos obligatorios son los de la guarda de scripts/build-packages.sh: una sola lista.
+  const guard = readFileSync('scripts/build-packages.sh', 'utf8').match(/check_theme_package\(\) \{[\s\S]*?for required in ([^;]+); do/)?.[1]?.trim().split(/\s+/);
+  if (!guard || guard.length < 10) throw new Error('No se encontró la lista de archivos obligatorios de la guarda del tema en scripts/build-packages.sh.');
+  const listing = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' }).split('\n');
+  for (const required of guard) if (!listing.includes(`${themeModule.dir}/${required}`)) throw new Error(`Falta ${required} en el paquete del tema`);
+  const extra = listing.filter((entry) => entry.includes('.DS_Store') || entry.startsWith(`${themeModule.dir}/digitalisimo-ui/`) || entry.startsWith(`${themeModule.dir}/assets/js/`));
+  if (extra.length) throw new Error(`El paquete del tema no debe llevar archivos de sistema, diseño compartido ni JavaScript: ${extra.join(', ')}`);
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', `${themeModule.dir}/style.css`, `${themeModule.dir}/functions.php`], { stdio: 'ignore' });
+  } catch {
+    throw new Error('style.css y functions.php del tema deben estar versionados (git ls-files).');
+  }
+  walk(themeModule.dir);
+}
 // Cada módulo debe llevar el mismo controlador probado; así una Release parcial
 // no puede perder la actualización en la propia pantalla Plugins.
 const inlineUpdater = readFileSync('digitalisimo-elements/assets/js/update-in-place.js', 'utf8');
@@ -131,9 +161,23 @@ for (const shared of ['digitalisimo-ui/digitalisimo-ui.php', 'digitalisimo-ui/di
   const listing = execFileSync('unzip', ['-Z1', join(packageDir, elementsModule.zip)], { encoding: 'utf8' });
   for (const required of ['assets/digitalisimo/palette.css', 'assets/digitalisimo/palette-dark.css', 'assets/digitalisimo/palette-preview.css']) if (!listing.includes(`${elementsModule.dir}/${required}`)) throw new Error(`Falta ${required} en DIGITALÍSIMO Elements`);
 }
+// Nadie borra el inventario global de actualizaciones de plugins ni de temas: ni los siete plugins ni el tema (el
+// núcleo incluido, que no se edita, queda fuera).
+const inventoryFiles = [];
+function collectPhp(dir) {
+  for (const entry of readdirSync(dir)) {
+    const filename = join(dir, entry);
+    if (filename === join(elementsModule.dir, 'elementor')) continue;
+    if (statSync(filename).isDirectory()) collectPhp(filename);
+    else if (filename.endsWith('.php')) inventoryFiles.push(filename);
+  }
+}
+for (const module of [...modules, toolsModule, elementsModule, migrationModule, themeModule]) collectPhp(module.dir);
+for (const file of inventoryFiles) {
+  if (/delete_(?:site_)?transient\s*\(\s*['"]update_(?:plugins|themes)['"]/.test(readFileSync(file, 'utf8'))) throw new Error(`${file} borra el inventario global de actualizaciones`);
+}
 for (const file of phpFiles) {
   const source = readFileSync(file, 'utf8');
-  if (/delete_(?:site_)?transient\s*\(\s*['"]update_plugins['"]/.test(source)) throw new Error(`${file} borra el inventario global de actualizaciones`);
   for (const match of source.matchAll(/(?:final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)/g)) {
     const name = match[1];
     if (!declarations.has(name)) declarations.set(name, []);
@@ -322,4 +366,4 @@ if (!chatbotMcpArticles.includes("'post_status' => 'draft'")) throw new Error('E
 if (seoAiTools.some((source) => source.includes("add_submenu_page( 'digitalisimo'"))) throw new Error('Una herramienta SEO AI sigue expuesta como submenú lateral');
 if (coreFiles.some((source) => !source.includes("remove_submenu_page( 'digitalisimo', 'digitalisimo' )"))) throw new Error('El submenú automático Digitalisimo no se oculta en todos los módulos');
 
-console.log(`Suite validada: ${modules.length + 3} módulos, ${phpFiles.length} archivos PHP base, sin clases duplicadas no protegidas.`);
+console.log(`Suite validada: ${modules.length + 3} módulos y 1 tema, ${phpFiles.length} archivos PHP base, ${inventoryFiles.length} sin borrar el inventario de actualizaciones, sin clases duplicadas no protegidas.`);

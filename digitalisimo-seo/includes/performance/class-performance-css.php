@@ -41,11 +41,41 @@ class Digitalisimo_Integrations_Performance_CSS {
 		return implode( "\n", array_slice( array_keys( $allowed ), 0, 100 ) );
 	}
 
+	/**
+	 * Prefijos de ruta de los recursos del constructor. Los del núcleo en uso salen de las constantes que define
+	 * al cargarse, así que valen con el núcleo incluido y con la carpeta renombrada; los dos últimos son las
+	 * carpetas históricas del constructor instalado como plugin aparte.
+	 */
+	public static function builder_asset_paths() {
+		$paths = array();
+		foreach ( array( 'ELEMENTOR_ASSETS_URL', 'ELEMENTOR_PRO_ASSETS_URL' ) as $constant ) {
+			if ( ! defined( $constant ) ) continue;
+			$path = wp_parse_url( (string) constant( $constant ), PHP_URL_PATH );
+			if ( is_string( $path ) && '' !== trim( $path, '/' ) ) $paths[] = rtrim( $path, '/' ) . '/';
+		}
+		$paths[] = '/plugins/elementor/assets/';
+		$paths[] = '/plugins/elementor-pro/assets/';
+		return array_values( array_unique( $paths ) );
+	}
+
+	/**
+	 * ¿La URL apunta a un recurso del constructor? $file es la expresión regular (sin delimitadores) del resto de
+	 * la ruta tras el prefijo; vacía, basta el prefijo. El prefijo puede ir precedido de otra ruta, como el
+	 * subdirectorio de un sitio de la red.
+	 */
+	public static function builder_asset( $url, $file = '' ) {
+		$path = wp_parse_url( (string) $url, PHP_URL_PATH );
+		if ( ! is_string( $path ) || '' === $path ) return false;
+		foreach ( self::builder_asset_paths() as $prefix ) {
+			if ( preg_match( '#' . preg_quote( $prefix, '#' ) . $file . '#i', $path ) ) return true;
+		}
+		return false;
+	}
+
 	private static function elementor_widget_source( $handle, $href ) {
 		$widget = self::canonical_handle( $handle );
 		if ( ! preg_match( '/^widget-[a-z0-9-]+$/', $widget ) ) return false;
-		$path = wp_parse_url( $href, PHP_URL_PATH );
-		return is_string( $path ) && (bool) preg_match( '#/plugins/elementor(?:-pro)?/assets/css/' . preg_quote( $widget, '#' ) . '(?:\.min)?\.css$#i', $path );
+		return self::builder_asset( $href, 'css/' . preg_quote( $widget, '#' ) . '(?:\.min)?\.css$' );
 	}
 
 	/** Hoja de un widget de Elementor que la lista diferible aceptaría. */

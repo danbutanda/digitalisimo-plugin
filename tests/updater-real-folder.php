@@ -43,7 +43,8 @@ namespace {
 	}
 	$GLOBALS['wp_filesystem'] = new Fake_Filesystem();
 	function check_folder( $ok, $message ) { if ( ! $ok ) { throw new \RuntimeException( $message ); } }
-	$GLOBALS['t']['manifest'] = array( 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v1', 'plugins' => array() );
+	// El índice lleva también el tema («themes»): estos actualizadores sólo leen «plugins».
+	$GLOBALS['t']['manifest'] = array( 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v1', 'plugins' => array(), 'themes' => array( 'digitalisimo-theme' => array( 'version' => '1.0.0', 'file' => 'digitalisimo-theme-1.0.0.zip', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v1/digitalisimo-theme-1.0.0.zip', 'requires' => '6.8', 'requires_php' => '7.4' ) ) );
 	foreach ( $plugins as $class => $spec ) {
 		$GLOBALS['t']['manifest']['plugins'][ $spec[2] ] = array( 'version' => '9.0.0', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v1/' . $spec[2] . '-9.0.0.zip' );
 	}
@@ -62,6 +63,9 @@ namespace {
 		$GLOBALS['t']['moves'] = array();
 		check_folder( '/tmp/up/' . $spec[2] . '-subido/' === $class::keep_folder( '/tmp/up/' . $spec[2] . '/', '', null, array( 'plugin' => $file ) ) && array( array( '/tmp/up/' . $spec[2], '/tmp/up/' . $spec[2] . '-subido' ) ) === $GLOBALS['t']['moves'], $class . ': la copia nueva conserva la carpeta instalada.' );
 		check_folder( '/tmp/up/otro/' === $class::keep_folder( '/tmp/up/otro/', '', null, array( 'plugin' => 'otro/otro.php' ) ) && 1 === count( $GLOBALS['t']['moves'] ), $class . ': la actualización de otro plugin no se toca.' );
+		check_folder( '/tmp/up/digitalisimo-theme/' === $class::keep_folder( '/tmp/up/digitalisimo-theme/', '', null, array( 'theme' => 'digitalisimo-theme', 'type' => 'theme', 'action' => 'update' ) ) && 1 === count( $GLOBALS['t']['moves'] ), $class . ': la actualización del tema no se toca.' );
+		$theme_hooks = array_filter( array_keys( $GLOBALS['t']['filters'] ), function ( $hook ) { return false !== stripos( $hook, 'theme' ); } );
+		check_folder( array() === $theme_hooks, $class . ': no se engancha a nada de temas (' . implode( ', ', $theme_hooks ) . ').' );
 		$GLOBALS['t']['cache'] = array();
 	}
 

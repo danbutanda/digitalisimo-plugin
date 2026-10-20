@@ -11,10 +11,11 @@ on:
       - 'digitalisimo-tools/**'
       - 'digitalisimo-elements/**'
       - 'digitalisimo-migration/**'
+      - 'digitalisimo-theme/**'
   workflow_dispatch:
     inputs:
       modules:
-        description: 'Slugs de los plugins con versión nueva, separados por espacios. Vacío: vuelve a publicar el ZIP vigente de los siete sin cambiar versiones.'
+        description: 'Slugs de los plugins o del tema con versión nueva, separados por espacios. Vacío: vuelve a publicar el ZIP vigente de los siete plugins y del tema sin cambiar versiones.'
         required: false
         default: ''
         type: string
@@ -40,7 +41,7 @@ jobs:
         with:
           php-version: '8.2'
       - name: Validar sintaxis PHP
-        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration -name '*.php' -print0 | xargs -0 -r -n1 php -l
+        run: find digitalisimo-seo digitalisimo-ia-tools digitalisimo-hosting digitalisimo-backups digitalisimo-tools digitalisimo-elements digitalisimo-migration digitalisimo-theme -name '*.php' -print0 | xargs -0 -r -n1 php -l
       - name: Probar la suite
         # Misma lista en validate.yml y release.yml (tests/repo-hygiene.mjs lo comprueba).
         run: |
@@ -194,6 +195,16 @@ jobs:
           php tests/sitemap-routes.php
           php tests/robots.php
           php tests/seo-ai-robots.php
+          # Tema DIGITALÍSIMO: estructura, actualizador, paso desde el tema anterior, índice de la Release y módulos que lo atienden.
+          php tests/theme-structure.php
+          php tests/theme-updater.php
+          php tests/theme-switch.php
+          node tests/release-manifest.mjs
+          php tests/tools-theme.php
+          php tests/seo-hello-description.php
+          php tests/seo-bundled-assets.php
+          php tests/elements-theme-compat.php
+          php tests/elements-hello-header-footer.php
       - name: Seleccionar plugins modificados
         id: modules
         env:
@@ -228,7 +239,7 @@ jobs:
           read -r -a modules <<< "$MODULES"
           bash scripts/build-packages.sh "$RUNNER_TEMP/digitalisimo-packages" "${modules[@]}"
           DIGITALISIMO_PACKAGE_DIR="$RUNNER_TEMP/digitalisimo-packages" node scripts/verify-release.mjs --remote "${modules[@]}"
-      - name: Comprobar que la Release lleva el ZIP vigente de los siete plugins
+      - name: Comprobar que la Release lleva el ZIP vigente de los siete plugins y del tema
         env:
           DIGITALISIMO_PACKAGE_DIR: ${{ runner.temp }}/digitalisimo-suite
         run: node scripts/verify-release.mjs
@@ -243,9 +254,9 @@ jobs:
           node scripts/release-manifest.mjs "$RUNNER_TEMP/digitalisimo-suite" "$tag"
           {
             echo 'body<<NOTAS'
-            if [[ -n "$MODULES" ]]; then echo "Plugins con versión nueva: ${MODULES}."; else echo 'Sin versiones nuevas: vuelve a publicar el ZIP vigente de cada plugin.'; fi
+            if [[ -n "$MODULES" ]]; then echo "Paquetes con versión nueva: ${MODULES}."; else echo 'Sin versiones nuevas: vuelve a publicar el ZIP vigente de cada plugin y del tema.'; fi
             echo
-            echo 'Esta Release incluye siempre el ZIP vigente de los siete plugins Digitalisimo, para que cada uno y su versión más reciente estén en la última Release.'
+            echo 'Esta Release incluye siempre el ZIP vigente de los siete plugins Digitalisimo y del tema, para que cada uno y su versión más reciente estén en la última Release.'
             echo 'NOTAS'
           } >> "$GITHUB_OUTPUT"
       - name: Publicar Release y assets

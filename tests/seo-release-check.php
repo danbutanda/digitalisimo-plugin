@@ -28,7 +28,7 @@ function wp_remote_get( $url, $args ) {
 	// El índice de la Release se descarga como archivo, sin límite de consultas: sólo se cuentan las llamadas a api.github.com.
 	if ( false === strpos( $url, 'api.github.com' ) ) return $GLOBALS['manifest_response'] ?? array( 'code' => 404, 'body' => '' );
 	$GLOBALS['requests']++;
-	return array( 'code' => $GLOBALS['response_code'] ?? 200, 'body' => json_encode( array( array( 'draft' => false, 'prerelease' => false, 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest', 'assets' => array( array( 'name' => 'digitalisimo-seo-' . $GLOBALS['release_version'] . '.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/latest/digitalisimo-seo-' . $GLOBALS['release_version'] . '.zip' ) ) ) ) ) );
+	return array( 'code' => $GLOBALS['response_code'] ?? 200, 'body' => json_encode( array( array( 'draft' => false, 'prerelease' => false, 'html_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/latest', 'assets' => array( array( 'name' => 'digitalisimo-theme-1.0.0.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/x/digitalisimo-theme-1.0.0.zip' ), array( 'name' => 'digitalisimo-seo-' . $GLOBALS['release_version'] . '.zip', 'browser_download_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/latest/digitalisimo-seo-' . $GLOBALS['release_version'] . '.zip' ) ) ) ) ) );
 }
 function is_wp_error( $value ) { return false; }
 function wp_remote_retrieve_response_code( $response ) { return $response['code']; }
@@ -58,9 +58,11 @@ $other = $class::uri_update( false, array(), 'otro-plugin/otro.php', array() );
 if ( false !== $other ) throw new RuntimeException( 'SEO no debe alterar el actualizador de otro plugin.' );
 
 // Índice de versiones adjunto a la última Release: SEO lo lee antes que la API de GitHub.
+/** Entrada del tema en el índice (clave «themes»): los actualizadores de plugins sólo leen «plugins» y no deben cambiar con ella. */
+function theme_index( $tag = 'v2026.10.15.389' ) { return array( 'digitalisimo-theme' => array( 'version' => '1.0.0', 'file' => 'digitalisimo-theme-1.0.0.zip', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/' . $tag . '/digitalisimo-theme-1.0.0.zip', 'requires' => '6.8', 'requires_php' => '7.4' ) ); }
 function seo_manifest( $version, $url = null ) {
 	$url = $url ?? 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.15.389/digitalisimo-seo-' . $version . '.zip';
-	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => 'v2026.10.15.389', 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.15.389', 'plugins' => array( 'digitalisimo-seo' => array( 'version' => $version, 'url' => $url ), 'digitalisimo-tools' => array( 'version' => '1.0.28', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.15.389/digitalisimo-tools-1.0.28.zip' ) ) ) ) );
+	return array( 'code' => 200, 'body' => json_encode( array( 'tag' => 'v2026.10.15.389', 'release_url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/tag/v2026.10.15.389', 'themes' => theme_index(), 'plugins' => array( 'digitalisimo-seo' => array( 'version' => $version, 'url' => $url ), 'digitalisimo-tools' => array( 'version' => '1.0.28', 'url' => 'https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.15.389/digitalisimo-tools-1.0.28.zip' ) ) ) ) );
 }
 function seo_reset_caches() { delete_site_transient( Digitalisimo_SEO_Release_Check::CACHE_KEY ); delete_site_transient( Digitalisimo_SEO_Release_Check::MANIFEST_CACHE ); }
 function seo_inject() { return Digitalisimo_SEO_Release_Check::inject( (object) array( 'checked' => array(), 'response' => array(), 'no_update' => array() ) ); }

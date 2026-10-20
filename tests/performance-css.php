@@ -80,4 +80,12 @@ try { $audit::receive(); } catch ( RuntimeException $error ) { if ( 'success' !=
 if ( 2 !== $cache['pages'][ $page ]['390.844'][ $handle ]['passes'] ) throw new RuntimeException( 'Dos visitas seguras deben habilitar la hoja.' );
 $_POST['page'] = str_repeat( 'a', 64 );
 try { $audit::receive(); throw new RuntimeException( 'Se aceptó un reporte para otra página.' ); } catch ( RuntimeException $error ) { if ( 'error:Origen inválido.' !== $error->getMessage() ) throw $error; }
-echo "CSS: medición, dependencia, URL, caducidad, exclusiones y Multisite correctos.\n";
+// Núcleo incluido: sin las constantes del constructor sólo valen las carpetas históricas; con ellas, también las del núcleo en uso.
+$bundled = 'https://example.test/wp-content/plugins/digitalisimo-elements/elementor/assets/css/widget-heading.min.css';
+if ( ! $css::eligible( 'widget-heading', 'https://example.test/wp-content/plugins/elementor/assets/css/widget-heading.min.css' ) || ! $css::eligible( $handle, 'https://example.test/wp-content/plugins/elementor-pro/assets/css/widget-form.min.css' ) ) throw new RuntimeException( 'Las hojas de widgets del constructor aparte siguen siendo aptas.' );
+if ( $css::eligible( 'widget-heading', $bundled ) ) throw new RuntimeException( 'Sin constantes no cambia el comportamiento.' );
+define( 'ELEMENTOR_ASSETS_URL', 'https://example.test/wp-content/plugins/digitalisimo-elements/elementor/assets/' );
+define( 'ELEMENTOR_PRO_ASSETS_URL', 'https://example.test/wp-content/plugins/digitalisimo-elements/assets/' );
+if ( ! $css::eligible( 'widget-heading', $bundled ) || ! $css::eligible( $handle, 'https://example.test/wp-content/plugins/digitalisimo-elements/assets/css/widget-form.min.css?ver=4.3.0' ) ) throw new RuntimeException( 'Las hojas de widgets del núcleo incluido deben ser aptas.' );
+if ( $css::eligible( 'elementor-frontend', 'https://example.test/wp-content/plugins/digitalisimo-elements/elementor/assets/css/frontend.min.css' ) || $css::eligible( 'widget-heading', 'https://example.test/wp-content/plugins/otro-plugin/assets/css/widget-heading.min.css' ) || $css::eligible( 'widget-heading', 'https://example.test/wp-content/plugins/digitalisimo-elements/assets/css/widget-form.min.css' ) ) throw new RuntimeException( 'Sólo es apta la hoja del widget nombrado, dentro del constructor.' );
+echo "CSS: medición, dependencia, URL, caducidad, exclusiones, Multisite y núcleo incluido correctos.\n";

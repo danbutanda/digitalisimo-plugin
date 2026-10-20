@@ -227,6 +227,8 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 		if ( preg_match( '#^https?://#i', $src ) && wp_parse_url( $src, PHP_URL_HOST ) !== wp_parse_url( home_url( '/' ), PHP_URL_HOST ) ) return 'Externo';
 		// Constructor instalado como plugin aparte: se informa sin nombrar al proveedor.
 		if ( false !== strpos( $src, '/plugins/elementor-pro/' ) || false !== strpos( $src, '/plugins/elementor/' ) ) return 'Constructor externo';
+		// Núcleo incluido en otra carpeta: sus rutas salen de las constantes del constructor en uso.
+		if ( Digitalisimo_Integrations_Performance_CSS::builder_asset( $src ) ) return 'Constructor';
 		if ( false !== strpos( $src, '/plugins/woocommerce/' ) ) return 'WooCommerce';
 		if ( false !== strpos( $src, '/plugins/digitalisimo-' ) ) return 'DIGITALÍSIMO';
 		if ( false !== strpos( $src, '/themes/' ) ) return 'Tema';
@@ -238,7 +240,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 	private static function status( $handle, $src, $type ) {
 		if ( 'CSS' === $type && in_array( $handle, array( 'wp-block-library', 'wp-block-library-theme' ), true ) && Digitalisimo_Integrations_Performance_Manager::plain_elementor_page() ) return 'Revisar';
 		if ( preg_match( '/^(jquery|wp-|elementor-frontend|elementor-pro-frontend|swiper)/', $handle ) ) return 'Crítico';
-		if ( false !== strpos( $src, '/plugins/elementor' ) ) return 'Constructor';
+		if ( false !== strpos( $src, '/plugins/elementor' ) || Digitalisimo_Integrations_Performance_CSS::builder_asset( $src ) ) return 'Constructor';
 		if ( false !== strpos( $src, '/plugins/woocommerce/' ) ) return 'Mantener';
 		return 'Desconocido';
 	}
@@ -346,7 +348,7 @@ class Digitalisimo_Integrations_Asset_Diagnostics {
 			$links[] = array( 'offset' => $match[1], 'attrs' => $attrs, 'tag' => $match[0] );
 		}
 		$first_elementor = strlen( $head );
-		foreach ( $links as $link ) if ( 'stylesheet' === ( $link['attrs']['rel'] ?? '' ) && preg_match( '~/(?:plugins/elementor(?:-pro)?/|uploads/elementor/)~', $link['attrs']['href'] ?? '' ) ) { $first_elementor = $link['offset']; break; }
+		foreach ( $links as $link ) if ( 'stylesheet' === ( $link['attrs']['rel'] ?? '' ) && ( preg_match( '~/(?:plugins/elementor(?:-pro)?/|uploads/elementor/)~', $link['attrs']['href'] ?? '' ) || Digitalisimo_Integrations_Performance_CSS::builder_asset( $link['attrs']['href'] ?? '' ) ) ) { $first_elementor = $link['offset']; break; }
 		$preloads = array();
 		foreach ( (array) ( $manifest['rows'] ?? array() ) as $row ) {
 			$matches = array_filter( $links, function( $link ) use ( $row ) { return ( $link['attrs']['href'] ?? '' ) === ( $row['url'] ?? '' ) && 'preload' === ( $link['attrs']['rel'] ?? '' ); } );
