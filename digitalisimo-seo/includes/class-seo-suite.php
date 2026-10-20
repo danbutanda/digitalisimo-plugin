@@ -24,7 +24,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		add_action( 'init', array( __CLASS__, 'taxonomies' ) ); add_action( 'created_term', array( __CLASS__, 'save_term' ), 10, 3 ); add_action( 'edited_term', array( __CLASS__, 'save_term' ), 10, 3 );
 		remove_action( 'wp_head', 'rel_canonical' ); add_filter( 'pre_get_document_title', array( __CLASS__, 'title' ), 20 ); add_action( 'wp_head', array( __CLASS__, 'mobile_horizontal_scroll_css' ), 0 ); add_action( 'wp_head', array( __CLASS__, 'head' ), 1 ); add_filter( 'wp_robots', array( __CLASS__, 'robots' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'attachment_redirect' ) ); add_shortcode( 'digitalisimo_breadcrumbs', array( __CLASS__, 'breadcrumb_shortcode' ) );
-		if ( is_multisite() ) { add_action( 'network_admin_edit_digitalisimo_save_network_seo', array( __CLASS__, 'save_network' ) ); add_action( 'admin_post_digitalisimo_clone_site', array( __CLASS__, 'create_clone' ) ); add_action( 'digitalisimo_seo_clone_site', array( __CLASS__, 'run_clone' ) ); add_filter( 'manage_sites_action_links', array( __CLASS__, 'site_clone_action' ), 20, 3 ); }
+		if ( is_multisite() ) { add_action( 'network_admin_edit_digitalisimo_save_network_seo', array( __CLASS__, 'save_network' ) ); add_action( 'admin_post_digitalisimo_clone_site', array( __CLASS__, 'create_clone' ) ); add_action( 'network_admin_menu', array( __CLASS__, 'clone_menu' ), 40 ); add_action( 'digitalisimo_seo_clone_site', array( __CLASS__, 'run_clone' ) ); add_filter( 'manage_sites_action_links', array( __CLASS__, 'site_clone_action' ), 20, 3 ); }
 	}
 	private static function o( $key, $default = '' ) { return Digitalisimo_Integrations_Settings::get( $key, $default ); }
 	private static function m( $id, $key, $default = '' ) { return Digitalisimo_Integrations_SEO_Resolver::post( $id, $key, $default ); }
@@ -52,7 +52,11 @@ class Digitalisimo_Integrations_SEO_Suite {
 	public static function navigation_tabs( $active = 'dashboard', $network = false ) {
 		echo '<h2 class="nav-tab-wrapper digitalisimo-tabs">'; foreach ( self::navigation_items() as $tab => $label ) { $target = 'dashboard' === $tab ? 'digitalisimo-seo' : ( 'content' === $tab ? 'digitalisimo-content' : 'digitalisimo-seo-' . $tab ); $url = $network ? network_admin_url( 'admin.php?page=digitalisimo-network-seo&tab=' . $tab ) : admin_url( 'admin.php?page=' . $target ); echo '<a class="nav-tab ' . ( $active === $tab ? 'nav-tab-active' : '' ) . '"' . ( $network ? ' data-tab="' . esc_attr( $tab ) . '"' : '' ) . ' href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>'; } echo '</h2>';
 	}
-	public static function network_menu() { add_menu_page( 'Digitalisimo', 'Digitalisimo', 'manage_network_options', 'digitalisimo-network-seo', array( __CLASS__, 'network_page' ), 'dashicons-chart-line', 56 ); add_submenu_page( 'digitalisimo-network-seo', 'SEO', 'SEO', 'manage_network_options', 'digitalisimo-network-seo', array( __CLASS__, 'network_page' ) ); add_submenu_page( 'digitalisimo-network-seo', 'Clonar sitio', 'Clonar sitio', 'manage_network_options', 'digitalisimo-network-seo-clone', array( __CLASS__, 'clone_page' ) ); }
+	/**
+	 * «Clonar sitio» bajo Red → Digitalisimo (el menú de red que crea el núcleo compartido). El enlace «Duplicar» de Red →
+	 * Sitios abre esta página: sin registrarla, WordPress responde «no tienes permisos para acceder a esta página».
+	 */
+	public static function clone_menu() { add_submenu_page( 'digitalisimo-network', 'Clonar sitio', 'Clonar sitio', 'manage_network_options', 'digitalisimo-network-seo-clone', array( __CLASS__, 'clone_page' ) ); }
 	/** Enlace contextual en Red → Sitios; sólo lo ven los superadministradores. */
 	public static function site_clone_action( $actions, $site_id, $blogname = '' ) { $site_id = absint( $site_id ); if ( ! is_network_admin() || ! current_user_can( 'manage_network_options' ) || ! is_super_admin() || ! $site_id ) return $actions; $actions['digitalisimo_clone'] = '<a href="' . esc_url( add_query_arg( array( 'page' => 'digitalisimo-network-seo-clone', 'source_site' => $site_id ), network_admin_url( 'admin.php' ) ) ) . '">Duplicar</a>'; return $actions; }
 	/** La clonación sólo existe en el administrador de red y nunca se expone dentro de un sitio. */

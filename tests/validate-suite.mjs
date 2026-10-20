@@ -148,6 +148,8 @@ const hosting = readFileSync('digitalisimo-hosting/includes/class-hosting.php', 
 if (!hosting.includes('migrate_legacy_options') || !hosting.includes('digitalisimo_integrations_options') || !hosting.includes('hosting_product_ids') || !hosting.includes('require_domain_hosting') || !hosting.includes("add_shortcode( 'digitalisimo_domain_search'" ) || !hosting.includes("'digitalisimo/v1'")) throw new Error('Hosting debe migrar las opciones de Ecommerce y conservar sus reglas, shortcode y ruta pública.');
 if (!hosting.includes("array( 'digitalisimo-hosting/v1', 'digitalisimo/v1' )") || !hosting.includes('replace_hosting') || !hosting.includes('simplify_checkout')) throw new Error('Hosting debe conservar la compatibilidad de checkout y API de Ecommerce.');
 const seoSuite = readFileSync('digitalisimo-seo/includes/class-seo-suite.php', 'utf8');
+// «Duplicar» en Red → Sitios abre la página «Clonar sitio»: debe registrarse bajo el menú de red del núcleo (sin ella, WordPress responde «no tienes permisos»).
+if (!seoSuite.includes("add_action( 'network_admin_menu', array( __CLASS__, 'clone_menu' ), 40 )") || !seoSuite.includes("add_submenu_page( 'digitalisimo-network', 'Clonar sitio', 'Clonar sitio', 'manage_network_options', 'digitalisimo-network-seo-clone'")) throw new Error('SEO debe registrar la página Clonar sitio en el menú de red');
 const seoEditorial = readFileSync('digitalisimo-seo/includes/class-seo.php', 'utf8');
 const seoEditorialTools = readFileSync('digitalisimo-seo/includes/class-editorial.php', 'utf8');
 const seoSnippetCss = readFileSync('digitalisimo-seo/assets/snippet-editor.css', 'utf8');
