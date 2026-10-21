@@ -35,6 +35,33 @@ class Revert_Runner extends Revert_Runner_Base {
 		$this->revert_attachments( $data['session_id'] );
 
 		Custom_Icons::clear_icon_list_option();
+		// DIGITALÍSIMO: la caché de conjuntos se rehace con los que quedan, como estaba antes de importar (A10).
+		Custom_Icons::get_custom_icons_config();
+		self::digitalisimo_tidy_folder();
+	}
+
+	/**
+	 * DIGITALÍSIMO: sin conjuntos, la carpeta `uploads/elementor/custom-icons/` que creó la importación (sólo con su
+	 * `index.php` y su `.htaccess`) no se queda en el sitio tras revertir (A10).
+	 */
+	private static function digitalisimo_tidy_folder(): void {
+		$uploads = wp_upload_dir( null, false );
+		if ( ! empty( $uploads['error'] ) || empty( $uploads['basedir'] ) ) {
+			return;
+		}
+		$dir = trailingslashit( $uploads['basedir'] ) . 'elementor/custom-icons';
+		if ( ! is_dir( $dir ) || is_link( $dir ) ) {
+			return;
+		}
+		if ( array_diff( (array) scandir( $dir ), [ '.', '..', 'index.php', '.htaccess' ] ) ) {
+			return;
+		}
+		foreach ( [ 'index.php', '.htaccess' ] as $file ) {
+			if ( is_file( $dir . '/' . $file ) && ! is_link( $dir . '/' . $file ) ) {
+				wp_delete_file( $dir . '/' . $file );
+			}
+		}
+		@rmdir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
 	}
 
 	private function revert_imported_icon_sets( $metadata ) {

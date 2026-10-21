@@ -349,13 +349,35 @@ class Custom_Icons extends  Assets_Base {
 		}
 
 		// remove icon set assets directory
+		// DIGITALÍSIMO: la ruta guardada puede venir de un kit; sólo se borra una carpeta real dentro de
+		// uploads/elementor/custom-icons (nunca la propia raíz ni algo fuera de ella).
 		$icon_set_dir = get_post_meta( $post_id, '_elementor_icon_set_path', true );
-		if ( ! empty( $icon_set_dir ) && is_dir( $icon_set_dir ) ) {
+		if ( ! empty( $icon_set_dir ) && is_string( $icon_set_dir ) && is_dir( $icon_set_dir ) && self::is_icon_set_dir( $icon_set_dir ) ) {
 			$this::get_wp_filesystem()->rmdir( $icon_set_dir, true );
 		}
 
 		// Force refresh of list in Options Table
 		self::clear_icon_list_option();
+	}
+
+	/**
+	 * DIGITALÍSIMO: ¿es una carpeta de conjunto dentro de `uploads/elementor/custom-icons`? Con `realpath`, sin
+	 * aceptar la raíz ni enlaces que salgan de ella.
+	 */
+	public static function is_icon_set_dir( string $dir ): bool {
+		$uploads = wp_upload_dir( null, false );
+		if ( ! empty( $uploads['error'] ) || empty( $uploads['basedir'] ) ) {
+			return false;
+		}
+		/** This filter is documented in modules/assets-manager/asset-types/icons/icon-sets/icon-set-base.php */
+		$root = realpath( (string) apply_filters( 'elementor_pro/icons_manager/custom_icons/dir', $uploads['basedir'] . '/elementor/custom-icons' ) );
+		$real = realpath( $dir );
+		if ( false === $root || false === $real ) {
+			return false;
+		}
+		$root = trailingslashit( wp_normalize_path( $root ) );
+		$real = trailingslashit( wp_normalize_path( $real ) );
+		return $real !== $root && 0 === strpos( $real, $root );
 	}
 
 	public static function clear_icon_list_option() {

@@ -1,0 +1,56 @@
+{
+  "_comentario": "Kit propio 3.0 sin portada: en «nuevo» no cambian page_on_front ni show_on_front (A6, CV-26). Lleva una plantilla con una condición del Theme Builder que nombra una página que no viaja (regla de cierre, A14) y una referencia de visibilidad con destino ausente. Sintético.",
+  "zip": "propio-sin-portada.zip",
+  "format": "3.0",
+  "caso": "A6 sin portada; A14 (cierre: condición y regla de visibilidad sin destino)",
+  "cubre": ["digitalisimo", "sin-portada", "cierre", "gate"],
+  "assets": {},
+  "entries": {
+    "manifest.json": {
+      "name": "kit-propio-sin-portada", "title": "Kit propio sin portada", "description": "Sintético", "author": "", "version": "3.0",
+      "elementor_version": "4.3.5", "created": "2026-01-15 10:00:00", "thumbnail": false, "site": "http://origen.test",
+      "site-settings": { "theme": false, "globalColors": true, "globalFonts": true, "themeStyleSettings": true, "generalSettings": true, "experiments": false },
+      "plugins": [],
+      "templates": {
+        "111": { "title": "Pie con exclusión", "doc_type": "footer", "thumbnail": false, "location": "footer", "conditions": [ { "type": "include", "name": "general", "sub_name": "", "sub_id": "" } ] }
+      },
+      "content": { "page": {
+        "211": { "title": "Página con reglas", "excerpt": "", "doc_type": "wp-page", "thumbnail": false, "url": "http://origen.test/pagina-con-reglas/", "terms": [] }
+      } },
+      "taxonomies": {},
+      "wp-content": {},
+      "digitalisimo": {
+        "v": 1, "elements": "4.3.0.160", "core": "4.3.5", "home": "http://origen.test", "site": "http://origen.test", "uploads": "http://origen.test/wp-content/uploads",
+        "kit": "4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d",
+        "parts": { "theme-builder": 1 },
+        "widgets": { "heading": 3 },
+        "needs": { "woocommerce": false, "acf": [], "google_places": false },
+        "media": { "embedded": 0, "linked": 0, "bytes": 0 },
+        "not_exported": { "draft": 1 }
+      }
+    },
+    "site-settings.json": { "content": [], "metadata": [], "settings": { "custom_colors": [ { "_id": "e2f3a4b", "title": "Sin portada", "color": "#336699" } ] } },
+    "templates/111.json": { "content": [ { "id": "c111a01", "elType": "container", "settings": [], "elements": [ { "id": "e111a01", "elType": "widget", "widgetType": "heading", "settings": { "title": "Pie con exclusión" }, "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "content/page/211.json": { "content": [ { "id": "c211a01", "elType": "container", "settings": [], "elements": [
+      { "id": "e211a01", "elType": "widget", "widgetType": "heading", "settings": { "title": "Sólo en la página 999", "digitalisimo_visibility_enable": "yes", "digitalisimo_visibility_to": "show", "digitalisimo_visibility_relation": "all", "digitalisimo_visibility_rules": [ { "_id": "d211a01", "rule_key": "post", "rule_operator": "is", "rule_post_value": ["999", "211"] } ] }, "elements": [] },
+      { "id": "e211a02", "elType": "widget", "widgetType": "heading", "settings": { "title": "Sólo la usuaria 7", "digitalisimo_visibility_enable": "yes", "digitalisimo_visibility_to": "show", "digitalisimo_visibility_relation": "all", "digitalisimo_visibility_rules": [ { "_id": "d211a02", "rule_key": "user", "rule_operator": "is", "rule_user_value": ["7"] } ] }, "elements": [] },
+      { "id": "e211a03", "elType": "widget", "widgetType": "heading", "settings": { "title": "Para todos" }, "elements": [] }
+    ] } ], "settings": [], "metadata": [] },
+    "digitalisimo/theme-builder.json": { "111": { "conditions": [ { "type": "include", "name": "general", "sub_name": "", "sub_id": "" }, { "type": "exclude", "name": "singular", "sub_name": "page", "sub_id": "998" } ], "fields": {} } },
+    "digitalisimo/urls.json": { "page:211": "/pagina-con-reglas/" }
+  },
+  "expect": {
+    "documents": {
+      "templates/111": { "key": "elementor_library:pie-con-exclusion", "doc_type": "footer", "status": "draft", "conditions": [], "review": true },
+      "content/page/211": { "key": "page:pagina-con-reglas", "doc_type": "wp-page", "status": "draft", "review": true,
+        "checks": {
+          "0.elements.0.settings.digitalisimo_visibility_rules.0.rule_post_value": ["post:page:pagina-con-reglas"],
+          "0.elements.1.settings.digitalisimo_visibility_rules.0.rule_user_value": { "never_empty": true, "not_a_user": true },
+          "0.elements.2.settings.title": "Para todos"
+        } }
+    },
+    "options": { "fresh": { "unchanged": ["show_on_front", "page_on_front"] }, "add": { "unchanged": ["show_on_front", "page_on_front"] } },
+    "report": { "codes": ["review"] },
+    "maps": { "post": { "211": "post:page:pagina-con-reglas" } }
+  }
+}

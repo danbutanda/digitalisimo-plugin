@@ -26,6 +26,9 @@ const ALLOW = (JSON.parse(fs.readFileSync(path.join(__dirname, 'allow.json'), 'u
   ...a, used: 0, reUrl: new RegExp(a.url), reScreen: a.pantalla ? new RegExp(a.pantalla) : null, reSource: a.origen ? new RegExp(a.origen) : null,
 }));
 const IDS = fs.existsSync(`${OUT}/ids.json`) ? JSON.parse(fs.readFileSync(`${OUT}/ids.json`, 'utf8')) : {};
+// STATE=kit (etapa K): la sesión de «wp digitalisimo-elements kit import» y lo que importó (setup.php, fase kit).
+const STATE = process.env.STATE || 'nuevo';
+const KIT = STATE === 'kit' && fs.existsSync(`${OUT}/kit.json`) ? JSON.parse(fs.readFileSync(`${OUT}/kit.json`, 'utf8')) : null;
 // Pantallas donde nombrar (sin enlace) los plugins de origen es la función: Migración dice cuáles desactiva.
 const TEXT_EXEMPT = /[?&]page=digitalisimo-ep-migration\b/;
 const CFG = {
@@ -513,7 +516,14 @@ if (require.main === module) (async () => {
       'wp-admin/admin.php?page=elementor-app#/export-customization', 'wp-admin/admin.php?page=elementor-app#/site-editor/templates',
       'wp-admin/admin.php?page=elementor-app#/site-editor/add-new', 'wp-admin/admin.php?page=elementor-app#/site-editor/import',
     ] : [];
-    const planned = [...new Set([...fixed, ...extra].map((p) => `${base}/${p}`).concat(screens))];
+    // STATE=kit, con cualquier SCOPE (CV-28): la App de importación en sus tres pantallas y la pantalla «Kits» con el
+    // informe de la sesión importada.
+    const kitScreens = STATE === 'kit' ? [
+      'wp-admin/admin.php?page=elementor-app#/import-customization', 'wp-admin/admin.php?page=elementor-app#/import-customization/content',
+      'wp-admin/admin.php?page=elementor-app#/import-customization/complete', 'wp-admin/admin.php?page=digitalisimo-elements-kits',
+    ] : [];
+    if (STATE === 'kit' && !KIT) brand.push({ locale, screen: 'kit', kind: 'error', text: 'STATE=kit sin kit.json: la importación del kit no terminó', shown: true, where: '' });
+    const planned = [...new Set([...fixed, ...extra, ...kitScreens].map((p) => `${base}/${p}`).concat(screens).concat(KIT && KIT.screen ? [KIT.screen.replace(/^https?:\/\/[^/]+/, base)] : []))];
     // Lo que se va a visitar no se sondea aparte: el sondeo es para los enlaces que el recorrido no abre.
     for (const url of planned) visitedUrls.add(url.split('#')[0]);
     for (const url of planned) {
@@ -651,6 +661,12 @@ if (require.main === module) (async () => {
         }
       },
     });
+    // STATE=kit: cada documento importado como administrador (vista previa de los borradores de «agregar»).
+    if (KIT) {
+      for (const item of (KIT.pages || []).slice(0, SCOPE === 'full' ? 40 : 12)) {
+        await screenAt(String(item.url).replace(/^https?:\/\/[^/]+/, base), `kit · ${item.type} ${item.id}${item.status === 'publish' ? '' : ' (vista previa)'}`);
+      }
+    }
     // Frontal como visitante: el documento completo en una sesión sin cookies (red, DOM, scripts) y la meta generator.
     const ctx = await browser.createBrowserContext();
     const visitor = await ctx.newPage();

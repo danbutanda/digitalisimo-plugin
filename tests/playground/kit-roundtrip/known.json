@@ -1,0 +1,142 @@
+{
+ "_comentario": "Diferencias aceptadas entre la firma de A y la de B en kit-roundtrip.sh (A1), cada una con su motivo. «ruta» es una expresión regular sobre la ruta de la diferencia (compare.mjs); «escenarios» la limita. Una entrada que no se usa en una corrida que incluye su escenario hace fallar la corrida: así no quedan excepciones muertas. «valor_a» y «valor_b», opcionales, limitan una entrada a esos valores (expresión regular sobre el JSON del valor, o «(no existe)»).",
+ "diferencias": [
+  {
+   "ruta": "^attachments\\.media:(LICENSE\\.txt|README\\.txt|demo\\.html):",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "los documentos de un conjunto de iconos (html y txt) no se reimportan (§7.8 #3: drop_documents); sólo viajan css, json y fuentes"
+  },
+  {
+   "ruta": "^documents\\.page:digi-k-cierre\\.(status|data\\.0\\.elements\\.[01]\\.settings\\.(e_display_conditions\\.\\d+\\.\\d+\\.users|digitalisimo_visibility_rules\\.\\d+\\.rule_user_value)(\\.\\d+)?)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "los usuarios nunca viajan: una regla de acceso por usuario se cierra con el valor que nunca coincide y el documento queda en borrador con «revisar antes de publicar» (§5.5, A14)"
+  },
+  {
+   "ruta": "^documents\\.elementor_library:entrada-del-kit\\.(conditions|status)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "una condición del Theme Builder por autor (post_by_author) nunca tiene destino: la plantilla queda sin condiciones y en borrador (§9.5, CV-33)"
+  },
+  {
+   "ruta": "^documents\\.page:rasgo-author-box-extras\\.data\\.0\\.elements\\.0\\.settings\\.digitalisimo_author_user$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "la autora elegida en la caja de autor es un usuario: no viaja (§9.2, kind user)"
+  },
+  {
+   "ruta": "^kit\\.(defaults\\.acme-tarjeta|own\\._digitalisimo_unconverted_defaults|own)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "los valores por defecto de un tipo que el sitio no registra se conservan en la meta del kit _digitalisimo_unconverted_defaults y se reexportan (B1); si A no tiene metas propias en el kit, la diferencia aparece en kit.own entero, con sólo esa clave en B",
+   "valor_b": "^(\\(no existe\\)|\\{\"_digitalisimo_unconverted_defaults\":\\{\"acme-tarjeta\":.*\\}\\}|\\{\"acme-tarjeta\":.*\\})$"
+  },
+  {
+   "ruta": "^snippets\\.Digi K Fragmento\\.status$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "un fragmento de Custom Code importado queda siempre en borrador, también en «nuevo» (D8, §7.8 #5)"
+  },
+  {
+   "ruta": "^posts\\.page:digi-k-protegida$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "decisión del frente B (kits/export/class-wp-content.php:176-178): lo protegido con contraseña no se exporta, porque vaciar la contraseña lo haría público (A14). Pendiente de confirmar en §8.2, que pedía vaciarla"
+  },
+  {
+   "ruta": "^counts\\.doc_type\\.post_type:page$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "la misma página protegida, que no viaja (ver posts.page:digi-k-protegida)"
+  },
+  {
+   "ruta": "^documents\\.[^.]+\\.data\\..*\\.settings\\.(email_(to|from|from_name|subject|reply_to|to_cc|to_bcc)(_2)?|redirect_to|webhooks)$",
+   "valor_b": "^\\(no existe\\)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "el formulario quita al exportar destinatarios, remitente, asunto y redirección (E:modules/forms/actions/email.php:317-334, redirect.php:60-66) y K, la URL del webhook (webhook.php:68-85, CC-19): quedan en «Configurar después»"
+  },
+  {
+   "ruta": "\\.__dynamic__\\.[^.]+\\.settings\\.(action|do_not_show_again)$",
+   "valor_a": "^\\(no existe\\)$",
+   "valor_b": "^(\"open\"|\"\")$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "al importar, el núcleo vuelve a escribir la etiqueta dinámica de popup con el valor por defecto de sus controles (action = open, do_not_show_again vacío: E:modules/popup/tag.php:47-94): mismo comportamiento"
+  }
+ ],
+ "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",
+ "opciones": [
+  {
+   "nombre": "^[a-z0-9_]+_children$",
+   "motivo": "caché de jerarquía de términos que WordPress regenera al crear términos (category_children, elementor_library_category_children, product_cat_children)"
+  },
+  {
+   "nombre": "^fresh_site$",
+   "motivo": "WordPress la pone a 0 la primera vez que el sitio recibe contenido"
+  },
+  {
+   "nombre": "^_?elementor_log$",
+   "motivo": "registro de mensajes del constructor (el importador anota cada paso)"
+  },
+  {
+   "nombre": "^nav_menu_options$",
+   "motivo": "caché de WordPress de los menús creados"
+  },
+  {
+   "nombre": "^rewrite_rules$",
+   "motivo": "reglas de reescritura que WordPress regenera al crear contenido"
+  },
+  {
+   "nombre": "^elementor_fonts_manager_|^elementor_pro_custom_fonts",
+   "motivo": "caché de fuentes propias que el constructor regenera"
+  },
+  {
+   "nombre": "^elementor_import_sessions$|^elementor_revert_sessions$",
+   "motivo": "sesiones nativas del importador (§5.3: fuera de A6)"
+  },
+  {
+   "nombre": "^digitalisimo_elements_kit_flash_",
+   "motivo": "mensaje de un solo uso de la pantalla «Kits» (5 minutos)"
+  }
+ ],
+ "_comentario_capturas": "«capturas»: zonas que la comparación de píxeles de R1 oculta (display: none en A y en B, porque su alto también depende de ese dato) en las páginas cuya clave casa con «pagina». Sólo lo que depende del host o de algo que nunca viaja y que la firma compara por dato; una entrada cuya página no se compara hace fallar la corrida.",
+ "capturas": [
+  {
+   "pagina": "^widget-digitalisimo-qr-code$",
+   "selector": ".digi-qr-code__canvas",
+   "motivo": "el código QR codifica una URL del sitio (http://a.test frente a http://b.test); la firma compara su texto"
+  },
+  {
+   "pagina": "^rasgo-author-box-extras$",
+   "selector": ".elementor-author-box",
+   "motivo": "la autora elegida es un usuario, que nunca viaja (§9.2, kind user; ver known.json): B pinta la caja sin ella"
+  },
+  {
+   "pagina": "^rasgo-posts-terms$",
+   "selector": ".elementor-post__meta-data, .elementor-post__avatar",
+   "motivo": "autor y comentarios de cada entrada: los usuarios y los comentarios nunca viajan (CR-14); la fecha se compara en la firma (posts.*.date)"
+  }
+ ]
+}

@@ -74,6 +74,12 @@ class Import {
 	}
 
 	private function import_theme_builder_template( $id, array $template_settings, array $template_data, array $import_data ) {
+		// DIGITALÍSIMO (§7.8 #6, D7): lo que el mismo kit ya importó sin cambios se reutiliza, en cualquier estado.
+		$existing = apply_filters( 'digitalisimo_elements_kit_existing_document', null, $template_settings['doc_type'], $id, $template_data + [ 'import_settings' => $template_settings ] );
+		if ( is_int( $existing ) && $existing > 0 ) {
+			return $existing;
+		}
+
 		$new_document = Plugin::elementor()->documents->create(
 			$template_settings['doc_type'],
 			[
@@ -85,6 +91,12 @@ class Import {
 
 		if ( is_wp_error( $new_document ) ) {
 			throw new \Exception( esc_html( $new_document->get_error_message() ) );
+		}
+
+		// DIGITALÍSIMO (A8): una miniatura que el mismo kit ya importó se reutiliza; el núcleo la volvería a descargar.
+		$digitalisimo_thumbnail = 0;
+		if ( class_exists( '\Digitalisimo\Elements\Import\Kits\Parts\Media' ) ) {
+			list( $template_settings, $digitalisimo_thumbnail ) = \Digitalisimo\Elements\Import\Kits\Parts\Media::reuse_thumbnail( $template_settings );
 		}
 
 		$template_data['import_settings'] = $template_settings;
@@ -108,11 +120,26 @@ class Import {
 
 		$document_id = $new_document->get_main_id();
 
+		if ( $digitalisimo_thumbnail > 0 ) {
+			\Digitalisimo\Elements\Import\Kits\Parts\Media::set_thumbnail( (int) $document_id, $digitalisimo_thumbnail );
+		}
+
 		if ( isset( $import_data['session_id'] ) ) {
 			$this->set_session_post_meta( $document_id, $import_data['session_id'] );
 		}
 
+		self::digitalisimo_created( (int) $document_id, (string) $template_settings['doc_type'], $id, $template_data );
+
 		return $document_id;
+	}
+
+	/** DIGITALÍSIMO: procedencia de lo creado (D7), si hay una importación de kits en curso. */
+	private static function digitalisimo_created( int $post_id, string $type, $old_id, array $data ): void {
+		$context = '\Digitalisimo\Elements\Import\Kits\Context';
+		$session = '\Digitalisimo\Elements\Import\Kits\Session';
+		if ( class_exists( $context, false ) && class_exists( $session ) && method_exists( $context, 'created' ) ) {
+			$context::created( $post_id, $type, $old_id, $session::document_hash( $data ) );
+		}
 	}
 
 	private function set_session_post_meta( $post_id, $session_id ) {

@@ -64,6 +64,58 @@ class Export_Runner extends Export_Runner_Base {
 		] );
 	}
 
+	/** Extensiones de los archivos de un conjunto que reconstruye la importación. */
+	const DIGITALISIMO_SET_FILES = [ 'css', 'json', 'woff', 'woff2', 'ttf', 'otf', 'eot', 'svg' ];
+
+	/**
+	 * DIGITALÍSIMO: URL de los archivos de un conjunto (hasta una subcarpeta), sólo si su carpeta está dentro de
+	 * `uploads/elementor/custom-icons/` de este sitio.
+	 *
+	 * @param string $path Carpeta del conjunto (`_elementor_icon_set_path`).
+	 *
+	 * @return string[]
+	 */
+	private static function digitalisimo_set_files( string $path ): array {
+		$uploads = wp_upload_dir( null, false );
+		if ( '' === $path || ! empty( $uploads['error'] ) || empty( $uploads['basedir'] ) || empty( $uploads['baseurl'] ) ) {
+			return [];
+		}
+		$root = realpath( trailingslashit( $uploads['basedir'] ) . 'elementor/custom-icons' );
+		$dir  = realpath( $path );
+		if ( false === $root || false === $dir || ! is_dir( $dir ) ) {
+			return [];
+		}
+		$root = trailingslashit( wp_normalize_path( $root ) );
+		$dir  = trailingslashit( wp_normalize_path( $dir ) );
+		if ( 0 !== strpos( $dir, $root ) || $dir === $root ) {
+			return [];
+		}
+		$base  = trailingslashit( $uploads['baseurl'] ) . 'elementor/custom-icons/' . substr( $dir, strlen( $root ) );
+		$urls  = [];
+		$stack = [ '' ];
+		while ( $stack && count( $urls ) < 200 ) {
+			$sub = array_shift( $stack );
+			foreach ( (array) scandir( $dir . $sub ) as $name ) {
+				if ( '.' === $name || '..' === $name || 1 !== preg_match( '/^[A-Za-z0-9 ._-]+$/', (string) $name ) ) {
+					continue;
+				}
+				$file = $dir . $sub . $name;
+				if ( is_dir( $file ) && ! is_link( $file ) ) {
+					if ( '' === $sub ) {
+						$stack[] = $name . '/';
+					}
+					continue;
+				}
+				if ( is_file( $file ) && in_array( strtolower( (string) pathinfo( $name, PATHINFO_EXTENSION ) ), self::DIGITALISIMO_SET_FILES, true ) ) {
+					$urls[] = $base . $sub . rawurlencode( $name );
+				}
+			}
+		}
+		sort( $urls, SORT_STRING );
+
+		return $urls;
+	}
+
 	private function prepare_icon_set_data( $icon_set ) {
 		$icon_set_config = Custom_Icons::get_icon_set_config( $icon_set->ID );
 		$icon_set_path = get_post_meta( $icon_set->ID, '_elementor_icon_set_path', true );
@@ -86,6 +138,22 @@ class Export_Runner extends Export_Runner_Base {
 			];
 
 			do_action( 'elementor/templates/collect_media_url', $url, (array) $attachment );
+		}
+
+		// DIGITALÍSIMO: los archivos del conjunto viajan aunque no sean adjuntos (al subir un conjunto sólo se extrae su
+		// ZIP en la carpeta): la importación los pide por su URL y el proxy de kits los sirve desde el paquete.
+		$known = array_column( $attachments_data, 'url' );
+		foreach ( self::digitalisimo_set_files( is_string( $icon_set_path ) ? $icon_set_path : '' ) as $file_url ) {
+			if ( in_array( $file_url, $known, true ) ) {
+				continue;
+			}
+			$known[] = $file_url;
+			$attachments_data[] = [
+				'id' => 0,
+				'title' => '',
+				'url' => $file_url,
+			];
+			do_action( 'elementor/templates/collect_media_url', $file_url, [] );
 		}
 
 		return [

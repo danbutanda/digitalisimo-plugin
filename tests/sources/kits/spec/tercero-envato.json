@@ -1,0 +1,86 @@
+{
+  "_comentario": "Template Kit de un marketplace, en el formato que describe §10.2 con palabras propias (sintético hasta D17: sin kits reales no se sabe cuál de las dos lecturas manda, así que ambas dicen lo mismo). `type` es el tipo de documento del constructor, como lo lee el adaptador nativo (`IEC:compatibility/envato.php`: «doc_type = type»): la cabecera y el pie traen `header` y `footer`, y la página de inicio, `page` con `template_type` editorial `single-page`, que es una plantilla de página de la biblioteca y conserva su estado (D8). Viene dentro de un ZIP de marketplace con documentación HTML y JS fuera del kit (CR-19), que se ignora.",
+  "zip": "tercero-envato.zip",
+  "format": "envato",
+  "mode": "add",
+  "caso": "R2 (A3): en «agregar» sobre B vacío y después «Aplicar los ajustes del kit»",
+  "cubre": ["estilos", "pagina", "cabecera", "pie", "desconocida", "sub_id", "metadata", "imagen-remota", "imagen-404", "required_plugins", "marketplace"],
+  "assets": {
+    "heroe": { "png": [12, 90, 160], "w": 40, "h": 20 },
+    "captura": { "png": [200, 200, 200], "w": 8, "h": 6 }
+  },
+  "outer": {
+    "kit": "kit-de-autor.zip",
+    "docs": {
+      "Documentacion/index.html": "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><title>Guía del kit</title></head><body><h1>Guía</h1><p>Importa kit-de-autor.zip.</p><script src=\"guia.js\"></script></body></html>",
+      "Documentacion/guia.js": "document.title = 'Guía del kit';"
+    }
+  },
+  "entries": {
+    "manifest.json": {
+      "manifest_version": "1.0.2", "title": "Kit de autor sintético", "page_builder": "elementor", "kit_version": "1.0.0",
+      "templates": [
+        { "name": "Estilos globales", "screenshot": "screenshots/estilos.png", "source": "templates/estilos.json", "preview_url": "http://demo-autor.test/", "type": "section", "metadata": { "template_type": "global-styles", "include_in_zip": "1", "elementor_pro_conditions": [] } },
+        { "name": "Inicio", "screenshot": "screenshots/estilos.png", "source": "templates/inicio.json", "preview_url": "http://demo-autor.test/inicio/", "type": "page", "metadata": { "template_type": "single-page", "include_in_zip": "1", "wp_page_template": "elementor_header_footer", "additional_template_information": ["Página de inicio"], "elementor_pro_conditions": [] } },
+        { "name": "Cabecera", "screenshot": "screenshots/estilos.png", "source": "templates/cabecera.json", "preview_url": "http://demo-autor.test/", "type": "header", "metadata": { "template_type": "header", "include_in_zip": "1", "elementor_pro_conditions": ["include/general"] } },
+        { "name": "Pie", "screenshot": "screenshots/estilos.png", "source": "templates/pie.json", "preview_url": "http://demo-autor.test/", "type": "footer", "metadata": { "template_type": "footer", "include_in_zip": "1", "elementor_pro_conditions": ["include/general", "exclude/singular/page/321"] } },
+        { "name": "Bloque raro", "screenshot": "screenshots/estilos.png", "source": "templates/bloque-raro.json", "preview_url": "http://demo-autor.test/", "type": "section", "metadata": { "template_type": "acme-bloque", "include_in_zip": "1" } }
+      ],
+      "required_plugins": [
+        { "name": "Elementor", "version": "3.20.0", "file": "elementor/elementor.php" },
+        { "name": "Elementor Pro", "version": "3.20.0", "file": "elementor-pro/elementor-pro.php" },
+        { "name": "Formularios Acme", "version": "1.0.0", "file": "acme-forms/acme-forms.php" }
+      ],
+      "images": [ { "url": "http://demo-autor.test/wp-content/uploads/2026/01/heroe.png" }, { "url": "http://demo-autor.test/wp-content/uploads/2026/01/perdida.png" } ]
+    },
+    "screenshots/estilos.png": { "$asset": "captura" },
+    "templates/estilos.json": { "version": "0.4", "title": "Estilos globales", "type": "page", "content": [], "metadata": { "template_type": "global-styles", "include_in_zip": "1" }, "page_settings": {
+      "system_colors": [ { "_id": "primary", "title": "Principal", "color": "#0C5AA0" }, { "_id": "secondary", "title": "Secundario", "color": "#F2A900" }, { "_id": "text", "title": "Texto", "color": "#1A1A1A" }, { "_id": "accent", "title": "Acento", "color": "#E03C31" } ],
+      "custom_colors": [ { "_id": "f1a2b3c", "title": "Arena", "color": "#EADBC8" } ],
+      "system_typography": [ { "_id": "primary", "title": "Principal", "typography_typography": "custom", "typography_font_family": "Georgia", "typography_font_weight": "700" } ],
+      "custom_typography": [ { "_id": "a9b8c7d", "title": "Lema", "typography_typography": "custom", "typography_font_family": "Verdana", "typography_font_weight": "400" } ]
+    } },
+    "templates/inicio.json": { "version": "0.4", "title": "Inicio", "type": "page", "metadata": { "template_type": "single-page", "include_in_zip": "1", "wp_page_template": "elementor_header_footer", "elementor_pro_conditions": [] }, "page_settings": { "hide_title": "yes" }, "content": [
+      { "id": "a01b001", "elType": "section", "settings": { "background_background": "classic", "background_image": { "id": 4401, "url": "http://demo-autor.test/wp-content/uploads/2026/01/heroe.png" } }, "elements": [
+        { "id": "a01b002", "elType": "column", "settings": { "_column_size": 100 }, "elements": [
+          { "id": "a01b003", "elType": "widget", "widgetType": "heading", "settings": { "title": "Bienvenida", "__globals__": { "title_color": "globals/colors?id=primary", "typography_typography": "globals/typography?id=a9b8c7d" } }, "elements": [] },
+          { "id": "a01b004", "elType": "widget", "widgetType": "image", "settings": { "image": { "id": 4402, "url": "http://demo-autor.test/wp-content/uploads/2026/01/perdida.png" } }, "elements": [] }
+        ], "isInner": false }
+      ], "isInner": false }
+    ] },
+    "templates/cabecera.json": { "version": "0.4", "title": "Cabecera", "type": "header", "metadata": { "template_type": "header", "include_in_zip": "1", "elementor_pro_conditions": ["include/general"] }, "page_settings": [], "content": [
+      { "id": "a02b001", "elType": "container", "settings": [], "elements": [ { "id": "a02b002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Cabecera del autor" }, "elements": [] } ] }
+    ] },
+    "templates/pie.json": { "version": "0.4", "title": "Pie", "type": "footer", "metadata": { "template_type": "footer", "include_in_zip": "1", "elementor_pro_conditions": ["include/general", "exclude/singular/page/321"] }, "page_settings": [], "content": [
+      { "id": "a03b001", "elType": "container", "settings": [], "elements": [ { "id": "a03b002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Pie del autor" }, "elements": [] } ] }
+    ] },
+    "templates/bloque-raro.json": { "version": "0.4", "title": "Bloque raro", "type": "section", "metadata": { "template_type": "acme-bloque", "include_in_zip": "1" }, "page_settings": [], "content": [
+      { "id": "a04b001", "elType": "container", "settings": [], "elements": [ { "id": "a04b002", "elType": "widget", "widgetType": "acme-cinta", "settings": { "texto": "Widget de otro constructor" }, "elements": [] } ] }
+    ] }
+  },
+  "remote": {
+    "http://demo-autor.test/wp-content/uploads/2026/01/heroe.png": { "$asset": "heroe" },
+    "http://demo-autor.test/wp-content/uploads/2026/01/perdida.png": null
+  },
+  "expect": {
+    "mode": "add",
+    "documents": {
+      "inicio": { "key": "elementor_library:inicio", "doc_type": "page", "status": "publish", "conditions": [],
+        "checks": {
+          "0.settings.background_image.id": "media:heroe.png:{{sha1:heroe}}",
+          "0.elements.0.elements.0.settings.__globals__.title_color": { "re": "^globals/colors\\?id=k[0-9a-f]{6}$" },
+          "0.elements.0.elements.1.widgetType": "image"
+        },
+        "meta_absent": ["template_type", "elementor_pro_conditions", "include_in_zip", "additional_template_information"] },
+      "cabecera": { "key": "elementor_library:cabecera", "doc_type": "header", "status": "draft", "conditions": ["include/general"] },
+      "pie": { "key": "elementor_library:pie", "doc_type": "footer", "status": "draft", "conditions": [], "review": true },
+      "bloque-raro": { "key": "elementor_library:bloque-raro", "doc_type": "section", "status": "publish", "original_type": "acme-bloque",
+        "checks": { "0.elements.0.widgetType": "digitalisimo-unconverted", "0.elements.0.settings.digitalisimo_unconverted.type": "widget/acme-cinta", "0.elements.0.settings.digitalisimo_unconverted.reason": "unknown" },
+        "types": { "acme-cinta": 1, "container": 1 } }
+    },
+    "kit_after_apply": { "system_colors": { "primary": "#0C5AA0", "secondary": "#F2A900" }, "custom_colors_include": [ { "_id": "f1a2b3c", "color": "#EADBC8" } ], "custom_typography_include": [ { "_id": "a9b8c7d" } ] },
+    "analysis": { "plugins": ["Formularios Acme"], "builder_plugins_named": false },
+    "media": { "downloaded": 1, "failed": 1 },
+    "report": { "codes": ["review"], "levels_absent": ["error"] }
+  }
+}

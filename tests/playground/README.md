@@ -13,6 +13,7 @@ tiene en los sitios). No forman parte de los workflows: se corren a mano antes d
 | `tools-catalog.sh`, `tools-php.sh` | Catálogo de plugins y código PHP de DIGITALÍSIMO Tools. |
 | `theme-switch.sh` | A/B en Chrome del tema DIGITALÍSIMO frente a Hello 3.5.1 (sitio individual, `WOO=1`): escenarios S1–S5, S3c y S3h; fases A–F2; 15 comprobaciones por URL y ancho. |
 | `theme-network.sh` | Tema DIGITALÍSIMO en una red Multisite sin Chrome: cobertura de Tools, sección «Tema», actualización con la carpeta conservada (N1–N6 y N3f). |
+| `kit-roundtrip.sh`, `brand-audit.sh STATE=kit` | Kits de Elementor con DIGITALÍSIMO Elements (etapa K): ida y vuelta, terceros, «sólo agregar», red, reversión, entradas hostiles y marca. Obligatorias antes de publicar K y después de cada `sync-elementor-core.sh`. |
 
 ## A/B de adaptadores de Element Pack
 
@@ -123,6 +124,7 @@ Opciones:
   - en el editor: cada pestaña de la biblioteca, el panel de un widget seleccionado (con su enlace de ayuda), los vídeos con su valor por defecto, los ajustes del sitio y de la página, revisiones, navegador, atajos, buscador, notas, el menú contextual y cada botón de su barra;
   - un popup y una cabecera en el editor;
   - cada menú de la barra de administración del frontal.
+- `STATE=kit` importa un kit sintético de terceros y audita la App de importación, la pantalla «Kits» y las páginas importadas (ver «Kits de Elementor»).
 - `STATE=migrado` prepara un sitio que viene de Elementor: telemetría y beta activas, instalación de hace 60 días, cuenta conectada con un token ficticio y las cachés remotas guardadas. Las cachés (`brand-audit/migrado.json`) las descarga el arnés con `curl`; si una falla, se guarda un ejemplo con URL del proveedor.
 - `ORIGINAL=1` instala el plugin Elementor de wordpress.org, inactivo, y un Elementor Pro con sólo sus cabeceras. Sus filas (`tr[data-plugin]`, la tabla de actualizaciones y su ventana de detalles) quedan excluidas, y también las imágenes que piden. La nota propia `digitalisimo-plugin-note` no se excluye. La exclusión debe aplicarse al menos una vez en `plugins.php`; si no, la corrida falla. En el servidor sólo se permite que WordPress consulte en wordpress.org las actualizaciones y traducciones del plugin instalado.
 - `LATENT=fail` hace fallar también lo latente.
@@ -136,6 +138,50 @@ ORIGINAL=1 bash tests/playground/brand-audit.sh                                 
 ```
 
 `tests/elements-vendor-static.mjs` hace la misma revisión sin Playground sobre el código editable de DIGITALÍSIMO Elements. Busca los dominios de `vendors.json` y los vídeos del proveedor en `core/`, `modules/`, `license/`, `assets/js` (fuente y minificado), `plugin.php`, `pro-elements.php` y `digitalisimo-*.php`. Los comentarios no cuentan. Las excepciones, cada una con su motivo, están en `tests/elements-vendor-static.allow.json`; una excepción sin uso falla. El núcleo incluido (`elementor/`) no se revisa ahí.
+
+## Kits de Elementor (etapa K)
+
+`kit-roundtrip.sh` prueba el importador y el exportador de kits de DIGITALÍSIMO Elements en Playground (modo servidor, un worker por sitio) y Chrome sin interfaz. Nada sale a internet: Chrome resuelve `a.test`, `b.test` y `playground.test` a sus puertos y todo lo demás a `NOTFOUND`, y en PHP el simulador de red (`kit-roundtrip/net-sim.php`, en `pre_http_request` con prioridad `PHP_INT_MAX - 1`, después del proxy de medios de K) anota cada petición que el producto deja salir, con su host, si el contexto de K estaba activo y quién la pidió. Sólo sirve los hosts de demostración de los kits sintéticos desde `$OUT/shared/remote/`; el sitio A y el proveedor reciben un error.
+
+- **A** (`http://a.test`, puerto 9461) se prepara una vez con `kit-roundtrip/cases.json`: cada documento se guarda con `Document::save()`, como el editor. Tiene los 44 widgets propios visibles, el Slider Optimizado y los 7 alias, los rasgos, los tres motores de condiciones, el Theme Builder en cinco ubicaciones, popup, loop con plantilla alterna y filtro de taxonomía, formulario, menús, fuente e iconos propios, kit con globales, valores por defecto y fondo con imagen, separadores `digi-*` y máscaras. `setup-a.php` vuelca además los controles de todos los widgets registrados (inventario en tiempo de ejecución, §9.2) y las referencias que anotó (`refs.json`): todo control que parece guardar un ID (consultas, plantillas, menús, usuarios) tiene que estar en el registro de referencias de K, en lo que el núcleo ya traduce (según el método de importación de cada widget, que se vuelca como `import`: el rasgo de PRO filtra por nombre y Loop Grid, Plantilla y Nav Menu sólo traducen lo suyo) o en `tests/sources/kits/no-reference.json` con su motivo, y nunca en dos de esos sitios a la vez, y A exporta su kit por REST (el cuerpo de la App) y por `wp digitalisimo-elements kit export`.
+- **B** (`http://b.test`, puerto 9462) es un sitio nuevo en cada escenario: sin el contenido por defecto y con los autoincrementos de entradas y términos desplazados a 100000, así un ID de A sin traducir nunca coincide por azar (`unresolved:<id>`).
+- **La red** de R6 (`http://playground.test`, puerto 9463) tiene el sitio 2 en `/sub/` y el 3 en `/tercero/`, un administrador del sitio 2 sin `unfiltered_html` y `upload_filetypes` sin SVG.
+
+| Escenario | Qué comprueba |
+| --- | --- |
+| R1 | Ida y vuelta en «nuevo» por la pantalla «Kits» y por `--mode=fresh`: firma de datos de A igual a la de B (con IDs de elemento y referencias resueltas), export(A) = export(B), REST = WP-CLI (también el kit exportado: los mismos archivos y el mismo JSON), render en 360, 768 y 1280 px (≤ 0,5 % de píxeles, sin errores JS ni 404) y ninguna petición al host de A (A1, A2, A4, A6). |
+| R1c | El cuerpo exacto de la App, capturado en Chrome (la prueba no sale de la App hasta que termina su último runner), y una variante con selección parcial (CV-14). |
+| R2, R3, R3b | Kits de terceros sintéticos (marketplace, Pro 3.x en 2.0 y 1.x) en «agregar» sobre B vacío, frente al `expect` de su spec; R2 aplica después los ajustes del kit y R3 abre el editor con un widget desconocido (A3, A4, A14). |
+| R4, R4v4 | «Sólo agregar» sobre B con contenido de choque (y, en R4v4, variables y clases v4): lo previo no cambia y el kit se compara campo a campo (A6, A7). |
+| R5 | Reimportar el mismo kit no crea filas ni archivos (A8). |
+| R6 | Importación en el sitio 2 de la red: los sitios 1 y 3 y `sitemeta` no cambian (A9). |
+| R7 | Sin proveedor: `file_url`, `source=cloud` y `process-media` responden 403 y nadie llega a sus dominios (A5). |
+| R8 | Revertir deja B como su instantánea; cada documento que creó la sesión sale de B, como hace el núcleo: páginas y entradas a la papelera (D16) y plantillas borradas del todo (`Document::delete()`), y lo que B ya tenía no cambia (A10). |
+| R9 | Permisos (una editora recibe un rechazo: 404 del núcleo, o 401/403) y ZIP hostiles construidos en la prueba (A11). |
+| R10 | Un kit subido en Plantillas llega al importador de kits con un token de un solo uso (CV-16). |
+| R13 | Con `SLOW=1`: cien imágenes en un host lento; ninguna petición REST pasa de 25 s (A13). |
+
+Los tres sitios usan el tema DIGITALÍSIMO (`digitalisimo-theme/` del repositorio, montado y activado en la preparación, antes de cualquier instantánea) y la misma identidad (nombre y descripción), que nunca viaja en un kit: un tema de bloques pinta su propia navegación de reserva y no imprime las ubicaciones del Theme Builder, así que la comparación de capturas mediría el tema y no el kit. Una editora no ve las rutas del importador (el núcleo sólo registra el módulo de kits con `manage_options`): recibe 404, no 403, y R9 lo acepta como rechazo.
+
+Opciones: `SCENARIOS=R1,R4`, `QUICK=1` (R1 sólo por REST, R4 y R9; no vale para la aceptación), `CORE=plugin` (el plugin Elementor de wordpress.org instalado y activo; para R1 y R3), `WOO=1` (WooCommerce: plantillas de producto, productos, variaciones e imagen de categoría), `SLOW=1`, `KIT_GOLDEN=write` (reescribe `kit-roundtrip/golden/` con la firma de R1, que las corridas siguientes comparan) y `PREPARE=a|b` (sólo prepara ese sitio y lo deja arrancado). Los puertos son 9461, 9462 y 9463 (`PORT_A`, `PORT_B`, `PORT_NET`); el arnés rechaza los de otros arneses y sólo libera un puerto ocupado por una corrida anterior suya. `OUT` (por defecto `/var/tmp/digi-k/kit-roundtrip`) y `TMPDIR` necesitan 2 GB libres. WP-CLI corre dentro del sitio (`kit-roundtrip/cli.php`) con `wp-cli.phar`, que el arnés descarga una vez a `KIT_CACHE` (o `WP_CLI_PHAR`). Los sitios montan una copia fija de `digitalisimo-elements/` y `digitalisimo-theme/` tomada al empezar (`$OUT/src`, con la lista de archivos sin confirmar en `summary.json`), así un cambio en el árbol a mitad de corrida no mezcla versiones entre escenarios; `LIVE=1` monta el árbol de trabajo.
+
+`SCENARIOS=RX KIT=<ZIP>` es un diagnóstico que no cuenta para A1–A14: importa ese ZIP en «agregar» sobre un B vacío y anota cada runner y los errores fatales (sirve, por ejemplo, para aislar qué parte de un kit rompe una importación).
+
+`$OUT/summary.json` guarda el SHA (y, en `src`, los archivos sin confirmar de la copia montada), los escenarios con su duración y sus problemas, la petición REST más lenta de toda la corrida (A13 suma cada escenario: `rest-all.jsonl`) y el estado de A1 a A14; un error fatal de cualquier escenario (`fatal-all.log`) hace fallar la corrida; antes de publicar se copia a `docs/fusion/k-kits-evidence.json`. Las diferencias aceptadas entre A y B están en `kit-roundtrip/known.json` (una entrada puede limitarse a unos valores con `valor_a` y `valor_b`; y, en su lista «opciones», las opciones que WordPress o el constructor escriben solos, como `fresh_site`, `*_children` o `elementor_log`, cada una con su motivo). Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no se aceptan por nombre: la instantánea las guarda decodificadas y se comparan por contenido, iguales o, en «agregar», sólo con entradas nuevas. Las metas del kit también se comparan por contenido, sin las marcas que el constructor reescribe en cada guardado (versión, índice de clases globales). En `uploads` sólo se aceptan los temporales de K (`digitalisimo-elements/tmp/<token>/`) con su `.htaccess` y su `index.php` y con la limpieza `digitalisimo_elements_kits_cleanup` programada; la copia extraída del núcleo (`elementor/tmp/`) debe desaparecer. R1 compara además capturas con zonas quitadas (`display: none` en A y en B) declaradas en `known.json` («capturas»: el código QR, la caja de autor, autor y comentarios de una entrada), cada una con su motivo y lo que nunca debe viajar en un kit propio (opciones internas, metas efímeras, correos, comentarios, contraseñas, webhooks) en `kit-roundtrip/not-exported.json`, cada entrada con su motivo; una entrada que no se usa hace fallar la corrida. Los kits de terceros son sintéticos y deterministas (`tests/sources/kits/`, con `build.mjs` y `fixtures.lock.json`): ningún kit real entra en el repositorio.
+
+```bash
+OUT=/var/tmp/digi-kits bash tests/playground/kit-roundtrip.sh
+SCENARIOS=R1 QUICK=1 bash tests/playground/kit-roundtrip.sh
+SCENARIOS=R2,R3 CORE=plugin bash tests/playground/kit-roundtrip.sh
+SCENARIOS=R6 bash tests/playground/kit-roundtrip.sh
+SCENARIOS=RX KIT=/var/tmp/digi-k/mi-kit.zip bash tests/playground/kit-roundtrip.sh
+SCENARIOS=R1 SLOW=1 bash tests/playground/kit-roundtrip.sh
+OUT=/var/tmp/digi-aud-kit PORT=9464 SCOPE=quick STATE=kit bash tests/playground/brand-audit.sh
+OUT=/var/tmp/digi-aud-kit-full PORT=9464 SCOPE=full STATE=kit bash tests/playground/brand-audit.sh
+OUT=/var/tmp/digi-aud-kit-envato PORT=9464 SCOPE=quick STATE=kit KIT_FIXTURE=tercero-envato bash tests/playground/brand-audit.sh
+```
+
+`brand-audit.sh STATE=kit` (puerto 9464 por defecto) importa el kit sintético `KIT_FIXTURE` (por defecto `tercero-pro3`) con `wp digitalisimo-elements kit import`, con el sitio ya en marcha (`brand-audit/kit-cli.php` y el `wp-cli.phar` local de `KIT_CACHE`), y, con cualquier `SCOPE`, recorre además la App de importación (`#/import-customization`, `/content` y `/complete`), la pantalla «Kits» con el informe de esa sesión y cada documento importado (la vista previa de los borradores de «agregar»).
 
 ## Diseño compartido
 

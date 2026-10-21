@@ -1,0 +1,80 @@
+{
+  "_comentario": "Kit propio con WooCommerce (WOO=1): plantillas de producto y de archivo de productos, productos simple y variable en el WXR (las variaciones no se exportan: van en not_exported, B21), la imagen de la categoría como meta de término (parte term-meta, B18) y la portada. Sintético.",
+  "zip": "woo.zip",
+  "format": "3.0",
+  "caso": "R1 y R4 con WOO=1; A6 «nuevo» con portada (woocommerce_*_page_id sólo con WOO=1)",
+  "cubre": ["producto", "variaciones", "categoria", "portada", "term-meta"],
+  "assets": {
+    "camiseta": { "png": [230, 120, 20], "w": 20, "h": 20 },
+    "ropa": { "png": [20, 120, 230], "w": 20, "h": 20 }
+  },
+  "entries": {
+    "manifest.json": {
+      "name": "kit-tienda", "title": "Kit tienda", "description": "Sintético", "author": "", "version": "3.0",
+      "elementor_version": "4.3.5", "created": "2026-01-15 10:00:00", "thumbnail": false, "site": "http://tienda.test",
+      "site-settings": { "theme": false, "globalColors": true, "globalFonts": true, "themeStyleSettings": true, "generalSettings": true, "experiments": false },
+      "plugins": [ { "name": "WooCommerce", "plugin": "woocommerce/woocommerce", "pluginUri": "", "version": "9.0.0" } ],
+      "templates": {
+        "1401": { "title": "Producto de la tienda", "doc_type": "product", "thumbnail": false, "location": "single", "conditions": [ { "type": "include", "name": "product", "sub_name": "", "sub_id": "" } ] },
+        "1402": { "title": "Archivo de la tienda", "doc_type": "product-archive", "thumbnail": false, "location": "archive", "conditions": [ { "type": "include", "name": "product_archive", "sub_name": "", "sub_id": "" } ] }
+      },
+      "content": { "page": { "1451": { "title": "Portada de la tienda", "excerpt": "", "doc_type": "wp-page", "thumbnail": false, "url": "http://tienda.test/", "terms": [], "show_on_front": true } } },
+      "wp-content": { "product": { "1501": { "id": 1501, "title": "Camiseta" }, "1502": { "id": 1502, "title": "Sudadera" } } },
+      "taxonomies": { "product": [ { "name": "product_cat", "label": "Categorías de producto" } ] },
+      "digitalisimo": {
+        "v": 1, "elements": "4.3.0.160", "core": "4.3.5", "home": "http://tienda.test", "site": "http://tienda.test", "uploads": "http://tienda.test/wp-content/uploads",
+        "kit": "5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b",
+        "parts": { "media": 1, "term-meta": 1, "theme-builder": 1 },
+        "widgets": { "woocommerce-product-title": 1, "woocommerce-products": 1, "heading": 1 },
+        "needs": { "woocommerce": true, "acf": [], "google_places": false },
+        "media": { "embedded": 2, "linked": 0, "bytes": 0 },
+        "not_exported": { "product_variation": 2 }
+      }
+    },
+    "site-settings.json": { "content": [], "metadata": [], "settings": { "custom_colors": [ { "_id": "c1d2e3f", "title": "Tienda", "color": "#E67814" } ] } },
+    "templates/1401.json": { "content": [ { "id": "c14a001", "elType": "container", "settings": [], "elements": [ { "id": "e14a001", "elType": "widget", "widgetType": "woocommerce-product-title", "settings": [], "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "templates/1402.json": { "content": [ { "id": "c14b001", "elType": "container", "settings": [], "elements": [ { "id": "e14b001", "elType": "widget", "widgetType": "woocommerce-products", "settings": { "query_post_type": "current_query" }, "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "content/page/1451.json": { "content": [ { "id": "c145001", "elType": "container", "settings": [], "elements": [ { "id": "e145001", "elType": "widget", "widgetType": "heading", "settings": { "title": "Portada de la tienda", "link": { "url": "http://tienda.test/producto/camiseta/", "is_external": "", "nofollow": "" } }, "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "taxonomies/product_cat.json": [ { "term_id": 1601, "name": "Ropa", "slug": "ropa", "taxonomy": "product_cat", "description": "", "parent": 0 } ],
+    "wp-content/product/product.xml": { "$wxr": {
+      "title": "Kit tienda", "site": "http://tienda.test",
+      "authors": [ { "id": 1, "login": "tienda", "email": "tienda@example.com", "display": "Tienda" } ],
+      "terms": [ { "id": 1601, "taxonomy": "product_cat", "slug": "ropa", "name": "Ropa" } ],
+      "items": [
+        { "id": 1501, "title": "Camiseta", "slug": "camiseta", "type": "product", "author": "tienda", "content": "<p>Camiseta de algodón.</p>", "terms": [ { "taxonomy": "product_cat", "slug": "ropa", "name": "Ropa" }, { "taxonomy": "product_type", "slug": "simple", "name": "simple" } ],
+          "meta": { "_price": "15", "_regular_price": "15", "_thumbnail_id": "1511", "_stock_status": "instock" } },
+        { "id": 1502, "title": "Sudadera", "slug": "sudadera", "type": "product", "author": "tienda", "content": "<p>Sudadera con talla.</p>", "terms": [ { "taxonomy": "product_cat", "slug": "ropa", "name": "Ropa" }, { "taxonomy": "product_type", "slug": "variable", "name": "variable" } ],
+          "meta": { "_product_attributes": "a:1:{s:5:\"talla\";a:6:{s:4:\"name\";s:5:\"Talla\";s:5:\"value\";s:5:\"S | M\";s:8:\"position\";i:0;s:10:\"is_visible\";i:1;s:12:\"is_variation\";i:1;s:11:\"is_taxonomy\";i:0;}}", "_stock_status": "instock" } },
+        { "id": 1511, "title": "Camiseta (foto)", "slug": "camiseta-foto", "type": "attachment", "status": "inherit", "attachment_url": "http://tienda.test/wp-content/uploads/camiseta.png" },
+        { "id": 1512, "title": "Ropa (foto)", "slug": "ropa-foto", "type": "attachment", "status": "inherit", "attachment_url": "http://tienda.test/wp-content/uploads/ropa.png" }
+      ] } },
+    "digitalisimo/term-meta.json": { "1601": { "taxonomy": "product_cat", "slug": "ropa", "meta": { "thumbnail_id": ["1512"], "order": ["0"] } } },
+    "digitalisimo/media.json": {
+      "http://tienda.test/wp-content/uploads/camiseta.png": { "file": "{{file:camiseta}}", "sha256": "{{sha256:camiseta}}", "mime": "image/png", "bytes": "{{bytes:camiseta}}" },
+      "http://tienda.test/wp-content/uploads/ropa.png": { "file": "{{file:ropa}}", "sha256": "{{sha256:ropa}}", "mime": "image/png", "bytes": "{{bytes:ropa}}" }
+    },
+    "digitalisimo/media/{{file:camiseta}}": { "$asset": "camiseta" },
+    "digitalisimo/media/{{file:ropa}}": { "$asset": "ropa" },
+    "digitalisimo/theme-builder.json": {
+      "1401": { "conditions": [ { "type": "include", "name": "product", "sub_name": "", "sub_id": "" }, { "type": "include", "name": "product", "sub_name": "in_product_cat", "sub_id": "1601" } ], "fields": {} },
+      "1402": { "conditions": [ { "type": "include", "name": "product_archive", "sub_name": "", "sub_id": "" } ], "fields": {} }
+    },
+    "digitalisimo/urls.json": { "page:1451": "/", "product:1501": "/producto/camiseta/" }
+  },
+  "expect": {
+    "requires": { "woo": true },
+    "documents": {
+      "templates/1401": { "key": "elementor_library:producto-de-la-tienda", "doc_type": "product", "status": { "fresh": "publish", "add": "draft" }, "conditions": ["include/product", "include/product/in_product_cat/term:product_cat:ropa"] },
+      "templates/1402": { "key": "elementor_library:archivo-de-la-tienda", "doc_type": "product-archive", "status": { "fresh": "publish", "add": "draft" }, "conditions": ["include/product_archive"] },
+      "content/page/1451": { "key": "page:portada-de-la-tienda", "doc_type": "wp-page", "status": { "fresh": "publish", "add": "draft" }, "checks": { "0.elements.0.settings.link.url": "{{home}}/producto/camiseta/" } }
+    },
+    "posts": {
+      "product:camiseta": { "status": { "fresh": "publish", "add": "draft" }, "thumbnail": "media:camiseta.png:{{sha1:camiseta}}" },
+      "product:sudadera": { "status": { "fresh": "publish", "add": "draft" } }
+    },
+    "terms": { "product_cat:ropa": { "meta": { "thumbnail_id": "media:ropa.png:{{sha1:ropa}}", "order": "0" } } },
+    "options": { "fresh": { "show_on_front": "page", "page_on_front": "post:page:portada-de-la-tienda" }, "add": { "unchanged": ["show_on_front", "page_on_front", "woocommerce_shop_page_id", "woocommerce_cart_page_id", "woocommerce_checkout_page_id", "woocommerce_myaccount_page_id"] } },
+    "report": { "not_exported": { "product_variation": 2 } },
+    "media": { "embedded": 2, "downloaded": 0 }
+  }
+}

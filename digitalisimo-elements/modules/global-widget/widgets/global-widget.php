@@ -57,6 +57,15 @@ class Global_Widget extends Base_Widget {
 		$this->set_template_data( $template_data );
 
 		$template_widget_type = $this->get_template_widget_type();
+
+		// DIGITALÍSIMO: el original nunca es otro widget global (una plantilla cuyo contenido es una instancia
+		// global): se instanciaría a sí mismo sin fin y agotaría la memoria (etapa K, kits de terceros).
+		if ( ! is_string( $template_widget_type ) || '' === $template_widget_type || $this->get_name() === $template_widget_type ) {
+			$this->template_data = null;
+
+			return false;
+		}
+
 		$original_widget_type = Plugin::elementor()->widgets_manager->get_widget_types(
 			$template_widget_type
 		);
@@ -84,11 +93,17 @@ class Global_Widget extends Base_Widget {
 	private function resolve_original_widget_type_from_data( array $data ): void {
 		$widget_type_name = $data['originalWidgetType'] ?? null;
 
-		if ( ! $widget_type_name && ! empty( $data['widgetType'] ) && 'global' !== $data['widgetType'] ) {
+		// DIGITALÍSIMO: `originalWidgetType = global` (lo dejaba el guardado al recibir una instancia ya global)
+		// haría que el original fuera este mismo widget, y `get_controls()` se llamaría a sí mismo sin fin.
+		if ( $this->get_name() === $widget_type_name ) {
+			$widget_type_name = null;
+		}
+
+		if ( ! $widget_type_name && ! empty( $data['widgetType'] ) && $this->get_name() !== $data['widgetType'] ) {
 			$widget_type_name = $data['widgetType'];
 		}
 
-		if ( ! $widget_type_name ) {
+		if ( ! is_string( $widget_type_name ) || '' === $widget_type_name ) {
 			return;
 		}
 
@@ -245,7 +260,8 @@ class Global_Widget extends Base_Widget {
 	}
 
 	private function init_original_element_instance() {
-		if ( ! $this->original_widget_type ) {
+		// DIGITALÍSIMO: nunca se instancia a sí mismo como original (ver `resolve_original_widget_type_from_data()`).
+		if ( ! $this->original_widget_type || $this->get_name() === $this->original_widget_type->get_name() ) {
 			return;
 		}
 

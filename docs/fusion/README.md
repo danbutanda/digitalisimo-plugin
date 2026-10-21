@@ -32,6 +32,17 @@ Cada informe empieza con una nota de estado y termina con «Decisiones posterior
 | [tema.md](tema.md) | Tema propio mínimo sin hijo: archivos, ubicaciones, estilos base, respaldos sin Elements, publicación y actualizador, paso desde Hello | F1 (y F1b) |
 | [verificaciones.md](verificaciones.md) | Lo comprobado en el código por las críticas del plan y cómo se resolvió cada punto | Todos |
 
+Desde el cambio de alcance del 20 de octubre de 2026, los informes de Divi, Betheme, GP y Bricks sólo sirven a las capacidades que se integran en Elements (F7a, F7b y F4-Woo): ya no se importan ni convierten esos orígenes.
+
+## Kits de Elementor (K)
+
+| Informe | Qué cubre | Incremento |
+|---|---|---|
+| [k-kits.md](k-kits.md) | Diseño de K: hechos del núcleo con rutas y líneas, formato del kit, modos y estados, contextos y ganchos, seguridad de las entradas, runners, remapeo, kits de terceros, marcador `digitalisimo-unconverted` y registro extensible | K (y F7a, F7b, F4-Woo, F8) |
+| [k-envato.md](k-envato.md) | Template Kits de Envato: estado (sintético), lecturas a confirmar y procedimiento con kits reales, que nunca entran en Git | K |
+
+La evidencia de Playground de K se guarda en `k-kits-evidence.json`, el `summary.json` de `tests/playground/kit-roundtrip.sh`.
+
 ## Sin rastro de los plugins de origen (F0.2, resuelto)
 
 | Informe | Qué cubre |

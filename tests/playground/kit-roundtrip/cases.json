@@ -1,0 +1,1547 @@
+{
+  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias) tiene su caso, y cada parte de K el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs.",
+  "media": {
+    "imagen-a": {
+      "png": [
+        208,
+        74,
+        31
+      ],
+      "w": 64,
+      "h": 48,
+      "title": "Imagen A",
+      "alt": "Imagen A del kit"
+    },
+    "imagen-b": {
+      "png": [
+        36,
+        94,
+        255
+      ],
+      "w": 48,
+      "h": 64,
+      "title": "Imagen B",
+      "alt": "Imagen B del kit"
+    },
+    "fondo-kit": {
+      "png": [
+        246,
+        241,
+        232
+      ],
+      "w": 32,
+      "h": 32,
+      "title": "Fondo del kit"
+    },
+    "portada-video": {
+      "png": [
+        20,
+        20,
+        20
+      ],
+      "w": 64,
+      "h": 36,
+      "title": "Portada del vídeo"
+    },
+    "documento": {
+      "pdf": "Documento del kit",
+      "title": "Documento PDF"
+    },
+    "pista": {
+      "mp3": true,
+      "title": "Pista de audio"
+    },
+    "video": {
+      "mp4": true,
+      "title": "Vídeo corto"
+    },
+    "tabla": {
+      "csv": "Nombre,Valor\nUno,1\nDos,2\n",
+      "title": "Tabla CSV"
+    },
+    "figura": {
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><circle cx=\"5\" cy=\"5\" r=\"4\" fill=\"#245eff\"/></svg>",
+      "title": "Figura SVG"
+    }
+  },
+  "users": [
+    {
+      "login": "autora",
+      "role": "author",
+      "display_name": "Autora del kit",
+      "email": "autora@example.com"
+    }
+  ],
+  "terms": [
+    {
+      "taxonomy": "category",
+      "slug": "noticias",
+      "name": "Noticias",
+      "meta": {
+        "thumbnail_id": "@media-id:imagen-b",
+        "digi_k_color": "#123456"
+      }
+    },
+    {
+      "taxonomy": "category",
+      "slug": "guias",
+      "name": "Guías"
+    },
+    {
+      "taxonomy": "post_tag",
+      "slug": "destacado",
+      "name": "Destacado"
+    }
+  ],
+  "posts": [
+    {
+      "type": "post",
+      "slug": "digi-k-entrada-1",
+      "title": "Primera entrada",
+      "author": "autora",
+      "terms": {
+        "category": [
+          "noticias"
+        ],
+        "post_tag": [
+          "destacado"
+        ]
+      },
+      "thumbnail": "imagen-a",
+      "content": "<p>Texto de la primera entrada con un <a href=\"{{home}}/digi-k-padre/\">enlace interno</a> y una imagen.</p>",
+      "comments": [
+        {
+          "author": "Lectora del kit",
+          "email": "lectora-k@example.com",
+          "ip": "192.0.2.44",
+          "content": "Comentario que no viaja en el kit."
+        }
+      ]
+    },
+    {
+      "type": "post",
+      "slug": "digi-k-entrada-2",
+      "title": "Segunda entrada",
+      "author": "autora",
+      "terms": {
+        "category": [
+          "guias"
+        ]
+      },
+      "thumbnail": "imagen-b",
+      "content": "<p>Texto de la segunda entrada.</p>"
+    },
+    {
+      "type": "post",
+      "slug": "digi-k-entrada-3",
+      "title": "Tercera entrada",
+      "author": "autora",
+      "terms": {
+        "category": [
+          "noticias"
+        ]
+      },
+      "content": "<p>Texto de la tercera entrada.</p>"
+    },
+    {
+      "type": "page",
+      "slug": "digi-k-protegida",
+      "title": "Digi K Protegida",
+      "password": "secreto-del-kit",
+      "content": "<p>Contenido protegido con contraseña: no viaja en el kit.</p>"
+    }
+  ],
+  "menus": [
+    {
+      "slug": "principal",
+      "name": "Principal",
+      "items": [
+        {
+          "type": "page",
+          "object": "digi-k-inicio",
+          "title": "Inicio"
+        },
+        {
+          "type": "custom",
+          "title": "Contacto",
+          "url": "{{home}}/digi-k-padre/#contacto"
+        },
+        {
+          "type": "category",
+          "object": "noticias",
+          "title": "Noticias"
+        }
+      ]
+    },
+    {
+      "slug": "secundario",
+      "name": "Secundario",
+      "items": [
+        {
+          "type": "page",
+          "object": "digi-k-padre",
+          "title": "Padre"
+        },
+        {
+          "type": "custom",
+          "title": "Externo",
+          "url": "https://servicio.test/"
+        }
+      ]
+    }
+  ],
+  "files": {
+    "shapes/onda.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 100\" preserveAspectRatio=\"none\"><path class=\"elementor-shape-fill\" d=\"M0 0v60c250 40 750-40 1000 0V0z\"/></svg>",
+    "shapes/onda-negative.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 100\" preserveAspectRatio=\"none\"><path class=\"elementor-shape-fill\" d=\"M0 100V60c250 40 750-40 1000 0v40z\"/></svg>",
+    "shapes/sin-uso.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><rect class=\"elementor-shape-fill\" width=\"10\" height=\"5\"/></svg>",
+    "masks/gota.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M50 0C30 40 10 60 10 75a40 40 0 0080 0C90 60 70 40 50 0z\"/></svg>"
+  },
+  "font": {
+    "title": "Digi Sans K",
+    "weight": "700",
+    "style": "normal"
+  },
+  "icons": {
+    "name": "digi-k-iconos",
+    "prefix": "dki-",
+    "glyphs": [
+      "estrella",
+      "flecha"
+    ]
+  },
+  "kit": {
+    "settings": {
+      "system_colors": [
+        {
+          "_id": "primary",
+          "title": "Principal",
+          "color": "#D04A1F"
+        },
+        {
+          "_id": "secondary",
+          "title": "Secundario",
+          "color": "#245EFF"
+        },
+        {
+          "_id": "text",
+          "title": "Texto",
+          "color": "#1D1D1F"
+        },
+        {
+          "_id": "accent",
+          "title": "Acento",
+          "color": "#2BB673"
+        }
+      ],
+      "custom_colors": [
+        {
+          "_id": "a1b2c3d",
+          "title": "Marca",
+          "color": "#D04A1F"
+        },
+        {
+          "_id": "b2c3d4e",
+          "title": "Fondo suave",
+          "color": "#F6F1E8"
+        }
+      ],
+      "custom_typography": [
+        {
+          "_id": "c3d4e5f",
+          "title": "Titular",
+          "typography_typography": "custom",
+          "typography_font_family": "Digi Sans K",
+          "typography_font_weight": "700",
+          "typography_font_size": {
+            "unit": "px",
+            "size": 34,
+            "sizes": []
+          }
+        }
+      ],
+      "body_background_background": "classic",
+      "body_background_image": "@media:fondo-kit",
+      "body_background_size": "cover",
+      "container_width": {
+        "unit": "px",
+        "size": 1180,
+        "sizes": []
+      },
+      "custom_css": "/* CSS del kit */ .digi-k-marca{outline:1px solid #D04A1F}"
+    },
+    "defaults": {
+      "heading": {
+        "title_color": "#245EFF",
+        "__globals__": {
+          "title_color": "globals/colors?id=a1b2c3d"
+        }
+      },
+      "digitalisimo-accordion": {
+        "title_html_tag": "h3"
+      },
+      "acme-tarjeta": {
+        "titulo": "Tipo que el sitio no registra: se conserva"
+      }
+    }
+  },
+  "templates": [
+    {
+      "slug": "digi-k-seccion",
+      "type": "section",
+      "title": "Sección del kit",
+      "elements": [
+        {
+          "id": "c5e0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e5e0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Contenido de la sección guardada"
+              }
+            },
+            {
+              "id": "e5e0002",
+              "elType": "widget",
+              "widgetType": "image",
+              "settings": {
+                "image": "@media:imagen-a"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-loop",
+      "type": "loop-item",
+      "title": "Elemento de bucle",
+      "settings": {
+        "preview_type": "single/post"
+      },
+      "elements": [
+        {
+          "id": "c1a0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e1a0001",
+              "elType": "widget",
+              "widgetType": "theme-post-title",
+              "settings": {
+                "header_size": "h3"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-loop-alterna",
+      "type": "loop-item",
+      "title": "Elemento de bucle alterno",
+      "settings": {
+        "preview_type": "single/post"
+      },
+      "elements": [
+        {
+          "id": "c1b0001",
+          "elType": "container",
+          "settings": {
+            "background_background": "classic",
+            "background_color": "#F6F1E8"
+          },
+          "elements": [
+            {
+              "id": "e1b0001",
+              "elType": "widget",
+              "widgetType": "theme-post-title",
+              "settings": {
+                "header_size": "h4"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-popup",
+      "type": "popup",
+      "title": "Popup del kit",
+      "settings": {
+        "triggers": {
+          "page_load": "yes",
+          "page_load_delay": 60
+        }
+      },
+      "conditions": [
+        "include/singular/page/@post:page:digi-k-padre"
+      ],
+      "elements": [
+        {
+          "id": "c7a0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e7a0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Popup del kit"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-cabecera",
+      "type": "header",
+      "title": "Cabecera del kit",
+      "conditions": [
+        "include/general",
+        "exclude/singular/page/@post:page:digi-k-hija"
+      ],
+      "elements": [
+        {
+          "id": "c8a0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e8a0001",
+              "elType": "widget",
+              "widgetType": "nav-menu",
+              "settings": {
+                "menu": "principal"
+              }
+            },
+            {
+              "id": "e8a0002",
+              "elType": "widget",
+              "widgetType": "digitalisimo-icon-nav",
+              "settings": {
+                "navbar": "@menu:principal"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-pie",
+      "type": "footer",
+      "title": "Pie del kit",
+      "conditions": [
+        "include/general"
+      ],
+      "elements": [
+        {
+          "id": "c8b0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e8b0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Pie del kit"
+              }
+            },
+            {
+              "id": "e8b0002",
+              "elType": "widget",
+              "widgetType": "wp-widget-nav_menu",
+              "settings": {
+                "wp": {
+                  "title": "Más",
+                  "nav_menu": "@menu-int:secundario"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-entrada",
+      "type": "single-post",
+      "title": "Entrada del kit",
+      "conditions": [
+        "include/singular/post",
+        "exclude/singular/post_by_author/@user:autora"
+      ],
+      "elements": [
+        {
+          "id": "c8c0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e8c0001",
+              "elType": "widget",
+              "widgetType": "theme-post-title",
+              "settings": {}
+            },
+            {
+              "id": "e8c0002",
+              "elType": "widget",
+              "widgetType": "theme-post-content",
+              "settings": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-archivo",
+      "type": "archive",
+      "title": "Archivo del kit",
+      "conditions": [
+        "include/archive/category/@term:category:noticias",
+        "include/archive/in_category_children/@term:category:guias"
+      ],
+      "elements": [
+        {
+          "id": "c8d0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e8d0001",
+              "elType": "widget",
+              "widgetType": "theme-archive-title",
+              "settings": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-404",
+      "type": "error-404",
+      "title": "Error 404 del kit",
+      "conditions": [
+        "include/singular/not_found404"
+      ],
+      "elements": [
+        {
+          "id": "c8e0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e8e0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Página no encontrada"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-pagina",
+      "type": "single-page",
+      "title": "Página hija del kit",
+      "conditions": [
+        "include/singular/child_of/@post:page:digi-k-padre"
+      ],
+      "elements": [
+        {
+          "id": "c8f0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e8f0001",
+              "elType": "widget",
+              "widgetType": "theme-post-content",
+              "settings": {}
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "slug": "digi-k-padre",
+      "title": "Padre",
+      "elements": [
+        {
+          "id": "c2a0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e2a0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Página padre"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-hija",
+      "title": "Hija",
+      "parent": "digi-k-padre",
+      "elements": [
+        {
+          "id": "c2b0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e2b0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Página hija"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-inicio",
+      "title": "Inicio del kit",
+      "front": true,
+      "elements": [
+        {
+          "id": "c3a0001",
+          "elType": "container",
+          "settings": {
+            "shape_divider_top": "digi-onda",
+            "shape_divider_bottom": "digi-onda",
+            "shape_divider_bottom_negative": "yes",
+            "background_background": "classic",
+            "background_image": "@media:imagen-b",
+            "custom_css": "selector .digi-k-mascara img{-webkit-mask-image:url(\"{{uploads}}/digitalisimo-elements/masks/gota.svg\");mask-image:url(\"{{uploads}}/digitalisimo-elements/masks/gota.svg\")}"
+          },
+          "elements": [
+            {
+              "id": "e3a0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Inicio del kit",
+                "_css_classes": "digi-k-marca",
+                "__globals__": {
+                  "title_color": "globals/colors?id=a1b2c3d",
+                  "typography_typography": "globals/typography?id=c3d4e5f"
+                }
+              }
+            },
+            {
+              "id": "e3a0002",
+              "elType": "widget",
+              "widgetType": "image",
+              "settings": {
+                "image": "@media:imagen-a",
+                "_css_classes": "digi-k-mascara",
+                "link_to": "custom",
+                "link": {
+                  "url": "{{home}}/digi-k-padre/",
+                  "is_external": "",
+                  "nofollow": ""
+                }
+              }
+            },
+            {
+              "id": "e3a0003",
+              "elType": "widget",
+              "widgetType": "icon",
+              "settings": {
+                "selected_icon": {
+                  "value": "dki-estrella",
+                  "library": "digi-k-iconos"
+                }
+              }
+            },
+            {
+              "id": "e3a0004",
+              "elType": "widget",
+              "widgetType": "text-editor",
+              "settings": {
+                "editor": "<p style=\"font-family:'Digi Sans K'\">Texto con la fuente propia y un <a href=\"{{home}}/digi-k-hija/\">enlace</a>.</p>",
+                "typography_typography": "custom",
+                "typography_font_family": "Digi Sans K"
+              }
+            }
+          ]
+        },
+        {
+          "id": "c3b0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e3b0001",
+              "elType": "widget",
+              "widgetType": "taxonomy-filter",
+              "settings": {
+                "selected_element": "e3b0002",
+                "taxonomy": "category"
+              }
+            },
+            {
+              "id": "e3b0002",
+              "elType": "widget",
+              "widgetType": "loop-grid",
+              "settings": {
+                "template_id": "@template:digi-k-loop",
+                "posts_per_page": 3,
+                "post_query_post_type": "post",
+                "alternate_template": "yes",
+                "alternate_templates": [
+                  {
+                    "_id": "d3b0001",
+                    "template_id": "@template:digi-k-loop-alterna",
+                    "repeat_template": 2,
+                    "show_once": ""
+                  }
+                ]
+              }
+            },
+            {
+              "id": "e3b0003",
+              "elType": "widget",
+              "widgetType": "loop-carousel",
+              "settings": {
+                "template_id": "@template:digi-k-loop",
+                "posts_per_page": 3,
+                "post_query_post_type": "post"
+              }
+            }
+          ]
+        },
+        {
+          "id": "c3c0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e3c0001",
+              "elType": "widget",
+              "widgetType": "form",
+              "settings": {
+                "form_name": "Contacto",
+                "form_fields": [
+                  {
+                    "_id": "f3c0001",
+                    "field_type": "email",
+                    "field_label": "Correo",
+                    "required": "true"
+                  }
+                ],
+                "submit_actions": [
+                  "email",
+                  "webhook",
+                  "redirect"
+                ],
+                "email_to": "dueno@example.com",
+                "webhooks": "https://hooks.example.com/privado/abc",
+                "redirect_to": "{{home}}/digi-k-padre/"
+              }
+            },
+            {
+              "id": "e3c0002",
+              "elType": "widget",
+              "widgetType": "nav-menu",
+              "settings": {
+                "menu": "secundario"
+              }
+            },
+            {
+              "id": "e3c0003",
+              "elType": "widget",
+              "widgetType": "wp-widget-media_image",
+              "settings": {
+                "wp": {
+                  "attachment_id": "@media-int:imagen-b",
+                  "url": "@media-url:imagen-b",
+                  "size": "full"
+                }
+              }
+            },
+            {
+              "id": "e3c0004",
+              "elType": "widget",
+              "widgetType": "wp-widget-media_gallery",
+              "settings": {
+                "wp": {
+                  "ids": "@media-ids:imagen-a,imagen-b"
+                }
+              }
+            },
+            {
+              "id": "e3c0005",
+              "elType": "widget",
+              "widgetType": "template",
+              "settings": {
+                "template_id": "@template:digi-k-seccion"
+              }
+            },
+            {
+              "id": "e3c0006",
+              "elType": "widget",
+              "widgetType": "button",
+              "settings": {
+                "text": "Abrir popup",
+                "__dynamic__": {
+                  "link": "[elementor-tag id=\"d3c0001\" name=\"popup\" settings=\"%7B%22popup%22%3A%22@template:digi-k-popup%22%7D\"]"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "c3d0001",
+          "elType": "container",
+          "settings": {
+            "digitalisimo_element_link": {
+              "url": "{{home}}/digi-k-padre/",
+              "is_external": "",
+              "nofollow": ""
+            }
+          },
+          "elements": [
+            {
+              "id": "e3d0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Sólo en la portada (motor nativo con una condición propia)",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_specific_content\",\"comparator\":\"is_one_of\",\"items\":[\"@post-int:page:digi-k-inicio\"]}]]"
+                ]
+              }
+            },
+            {
+              "id": "e3d0002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Reglas propias de visibilidad",
+                "digitalisimo_visibility_enable": "yes",
+                "digitalisimo_visibility_to": "show",
+                "digitalisimo_visibility_relation": "any",
+                "digitalisimo_visibility_rules": [
+                  {
+                    "_id": "d3d0001",
+                    "rule_key": "post",
+                    "rule_operator": "is",
+                    "rule_post_value": [
+                      "@post:page:digi-k-inicio",
+                      "@post:post:digi-k-entrada-1"
+                    ]
+                  },
+                  {
+                    "_id": "d3d0003",
+                    "rule_key": "static_page",
+                    "rule_operator": "is",
+                    "rule_static_page_value": "custom",
+                    "rule_custom_page_id": "@post:page:digi-k-padre"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "e3d0003",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos (control)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-cierre",
+      "title": "Digi K Cierre",
+      "elements": [
+        {
+          "id": "c3e0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e3e0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Sólo la autora (condición nativa por usuario)",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_user\",\"comparator\":\"is_one_of\",\"users\":[\"@user-int:autora\"]}]]"
+                ]
+              }
+            },
+            {
+              "id": "e3e0002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Sólo la autora (regla propia por usuario)",
+                "digitalisimo_visibility_enable": "yes",
+                "digitalisimo_visibility_to": "show",
+                "digitalisimo_visibility_relation": "all",
+                "digitalisimo_visibility_rules": [
+                  {
+                    "_id": "d3e0001",
+                    "rule_key": "user",
+                    "rule_operator": "is",
+                    "rule_user_value": [
+                      "@user:autora"
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "e3e0003",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos (control del cierre)"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "widgets": {
+    "digitalisimo-accordion": {
+      "base": "front-budget:accordion",
+      "settings": {
+        "tabs": [
+          {
+            "_id": "d4a0001",
+            "tab_title": "Texto",
+            "source": "custom",
+            "tab_content": "<p>Contenido escrito.</p>"
+          },
+          {
+            "_id": "d4a0002",
+            "tab_title": "Plantilla",
+            "source": "elementor",
+            "template_id": "@template:digi-k-seccion"
+          },
+          {
+            "_id": "d4a0003",
+            "tab_title": "AnyWhere",
+            "source": "anywhere",
+            "anywhere_id": "@post:page:digi-k-padre"
+          }
+        ]
+      }
+    },
+    "digitalisimo-advanced-button": {
+      "base": "front-budget:advanced-button",
+      "settings": {
+        "link": {
+          "url": "{{home}}/digi-k-padre/"
+        }
+      }
+    },
+    "digitalisimo-advanced-divider": {
+      "base": "front-budget:advanced-divider"
+    },
+    "digitalisimo-advanced-heading": {
+      "base": "front-budget:advanced-heading"
+    },
+    "digitalisimo-advanced-icon-box": {
+      "base": "front-budget:advanced-icon-box",
+      "settings": {
+        "title_link": {
+          "url": "{{home}}/digi-k-hija/"
+        }
+      }
+    },
+    "digitalisimo-animated-heading": {
+      "base": "front-budget:animated-heading"
+    },
+    "digitalisimo-animated-link": {
+      "base": "front-budget:animated-link",
+      "settings": {
+        "link": {
+          "url": "{{home}}/digi-k-padre/"
+        }
+      }
+    },
+    "digitalisimo-audio-player": {
+      "base": "front-budget:audio-player",
+      "settings": {
+        "tracks": [
+          {
+            "_id": "d4b0001",
+            "title": "Pista",
+            "artist": "Artista",
+            "audio_url": {
+              "url": "@media-url:pista"
+            },
+            "cover": "@media:imagen-a"
+          }
+        ]
+      }
+    },
+    "digitalisimo-breadcrumbs": {
+      "base": "front-budget:breadcrumbs"
+    },
+    "digitalisimo-business-hours": {
+      "base": "front-budget:business-hours"
+    },
+    "digitalisimo-call-out": {
+      "base": "front-budget:call-out"
+    },
+    "digitalisimo-chart": {
+      "base": "front-budget:chart"
+    },
+    "digitalisimo-comparison-list": {
+      "base": "front-budget:comparison-list"
+    },
+    "digitalisimo-custom-gallery": {
+      "base": "front-budget:custom-gallery"
+    },
+    "digitalisimo-device-slider": {
+      "base": "front-budget:device-slider"
+    },
+    "digitalisimo-document-viewer": {
+      "base": "front-budget:document-viewer",
+      "settings": {
+        "file_source": {
+          "url": "@media-url:documento"
+        }
+      }
+    },
+    "digitalisimo-dual-button": {
+      "base": "front-budget:dual-button"
+    },
+    "digitalisimo-fancy-card": {
+      "base": "front-budget:fancy-card"
+    },
+    "digitalisimo-fancy-icons": {
+      "base": "front-budget:fancy-icons"
+    },
+    "digitalisimo-fancy-list": {
+      "base": "front-budget:fancy-list"
+    },
+    "digitalisimo-fancy-slider": {
+      "base": "front-budget:fancy-slider"
+    },
+    "digitalisimo-fancy-tabs": {
+      "base": "front-budget:fancy-tabs",
+      "settings": {
+        "tabs": [
+          {
+            "_id": "d4c0001",
+            "tab_title": "Texto",
+            "icon_type": "none",
+            "content_type": "content",
+            "tab_content": "<p>Panel de texto</p>"
+          },
+          {
+            "_id": "d4c0002",
+            "tab_title": "Plantilla",
+            "icon_type": "none",
+            "content_type": "template",
+            "template_id": "@template:digi-k-seccion"
+          }
+        ]
+      }
+    },
+    "digitalisimo-featured-box": {
+      "base": "front-budget:featured-box"
+    },
+    "digitalisimo-google-reviews": {
+      "base": "front-budget:google-reviews"
+    },
+    "digitalisimo-icon-nav": {
+      "base": "front-budget:icon-nav",
+      "settings": {
+        "navbar": "@menu:principal"
+      }
+    },
+    "digitalisimo-image-compare": {
+      "base": "front-budget:image-compare"
+    },
+    "digitalisimo-logos": {
+      "base": "front-budget:logos"
+    },
+    "digitalisimo-map": {
+      "base": "front-budget:map"
+    },
+    "digitalisimo-marquee": {
+      "base": "front-budget:marquee"
+    },
+    "digitalisimo-notification": {
+      "base": "front-budget:notification"
+    },
+    "digitalisimo-offcanvas": {
+      "base": "front-budget:offcanvas",
+      "settings": {
+        "source": "template",
+        "template_id": "@template:digi-k-seccion"
+      }
+    },
+    "digitalisimo-product-grid": {
+      "base": "front-budget:product-grid"
+    },
+    "digitalisimo-progress-bars": {
+      "base": "front-budget:progress-bars"
+    },
+    "digitalisimo-qr-code": {
+      "base": "front-budget:qr-code"
+    },
+    "digitalisimo-reading-progress": {
+      "base": "front-budget:reading-progress"
+    },
+    "digitalisimo-reading-time": {
+      "base": "front-budget:reading-time"
+    },
+    "digitalisimo-scroll-button": {
+      "base": "front-budget:scroll-button"
+    },
+    "digitalisimo-table": {
+      "base": "front-budget:table",
+      "settings": {
+        "source": "csv",
+        "csv_file": "@media:tabla"
+      }
+    },
+    "digitalisimo-tags-cloud": {
+      "base": "front-budget:tags-cloud"
+    },
+    "digitalisimo-timeline": {
+      "base": "front-budget:timeline"
+    },
+    "digitalisimo-total-count": {
+      "base": "front-budget:total-count"
+    },
+    "digitalisimo-user-register": {
+      "base": "front-budget:user-register"
+    },
+    "digitalisimo-vertical-menu": {
+      "base": "front-budget:vertical-menu",
+      "settings": {
+        "source": "menu",
+        "menu": "principal"
+      }
+    },
+    "digitalisimo-video-player": {
+      "base": "front-budget:video-player",
+      "settings": {
+        "source": "url",
+        "video_url": {
+          "url": "@media-url:video"
+        },
+        "poster": "@media:portada-video"
+      }
+    },
+    "digitalisimo-slider-optimizado": {
+      "base": "front-budget:slider-optimizado"
+    },
+    "digitalisimo-icon-mobile-menu": {
+      "alias": true,
+      "settings": {
+        "menu_style": "style-4",
+        "menu_items": [
+          {
+            "_id": "d4d0001",
+            "menu_text": "Inicio",
+            "menu_icon": {
+              "value": "fas fa-home",
+              "library": "fa-solid"
+            },
+            "link": {
+              "url": "{{home}}/"
+            }
+          }
+        ]
+      }
+    },
+    "digitalisimo-creative-button": {
+      "alias": true,
+      "settings": {
+        "text": "Creativo",
+        "link": {
+          "url": "{{home}}/digi-k-padre/"
+        },
+        "effect": "lift"
+      }
+    },
+    "digitalisimo-content-switcher": {
+      "alias": true,
+      "settings": {
+        "switcher_items": [
+          {
+            "_id": "d4e0001",
+            "title": "Mensual",
+            "content": "<p>Precio mensual</p>"
+          },
+          {
+            "_id": "d4e0002",
+            "title": "Anual",
+            "content": "<p>Precio anual</p>",
+            "switcher_active": "yes"
+          }
+        ]
+      }
+    },
+    "digitalisimo-brand-carousel": {
+      "alias": true,
+      "settings": {
+        "columns": "2",
+        "navigation": "arrows",
+        "brand_items": [
+          {
+            "_id": "d4f0001",
+            "image": "@media:imagen-a",
+            "brand_name": "Marca 1",
+            "link": {
+              "url": "{{home}}/digi-k-padre/"
+            }
+          },
+          {
+            "_id": "d4f0002",
+            "image": "@media:imagen-b",
+            "brand_name": "Marca 2"
+          }
+        ]
+      }
+    },
+    "digitalisimo-logo-carousel": {
+      "alias": true,
+      "settings": {
+        "logo_list": [
+          {
+            "_id": "d500001",
+            "image": "@media:imagen-a",
+            "name": "Logo A"
+          },
+          {
+            "_id": "d500002",
+            "image": "@media:imagen-b",
+            "name": "Logo B"
+          }
+        ]
+      }
+    },
+    "digitalisimo-brand-grid": {
+      "alias": true,
+      "settings": {
+        "brand_event": "click",
+        "brand_items": [
+          {
+            "_id": "d510001",
+            "image": "@media:imagen-a",
+            "brand_name": "Marca A",
+            "link": {
+              "url": "{{home}}/digi-k-hija/"
+            }
+          }
+        ]
+      }
+    },
+    "digitalisimo-logo-grid": {
+      "alias": true,
+      "settings": {
+        "layout": "border",
+        "logo_list": [
+          {
+            "_id": "d520001",
+            "image": "@media:imagen-b",
+            "name": "Logo A",
+            "link": {
+              "url": "https://servicio.test/a"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "traits": {
+    "backdrop-filter": {
+      "widget": "heading",
+      "settings": {
+        "title": "Desenfoque",
+        "digitalisimo_backdrop_enable": "yes",
+        "digitalisimo_backdrop_blur": {
+          "unit": "px",
+          "size": 6
+        }
+      }
+    },
+    "floating-effects": {
+      "widget": "heading",
+      "settings": {
+        "title": "Flotante",
+        "digitalisimo_float_enable": "yes"
+      }
+    },
+    "notation": {
+      "widget": "heading",
+      "settings": {
+        "title": "Subrayado",
+        "digitalisimo_notation_line": "underline",
+        "digitalisimo_notation_color": "#D04A1F"
+      }
+    },
+    "shape-builder": {
+      "widget": "heading",
+      "settings": {
+        "title": "Forma",
+        "digitalisimo_shape_enable": "yes",
+        "digitalisimo_shape_type": "circle"
+      }
+    },
+    "text-gradient": {
+      "widget": "heading",
+      "settings": {
+        "title": "Degradado",
+        "digitalisimo_text_gradient_enable": "yes",
+        "digitalisimo_text_gradient_start": "#D04A1F",
+        "digitalisimo_text_gradient_end": "#245EFF"
+      }
+    },
+    "image-shadow": {
+      "widget": "image",
+      "settings": {
+        "image": "@media:imagen-a",
+        "digitalisimo_image_shadow_enable": "yes"
+      }
+    },
+    "figures": {
+      "widget": "heading",
+      "settings": {
+        "title": "Figuras",
+        "digitalisimo_figures_enable": "yes",
+        "digitalisimo_figures": [
+          {
+            "_id": "d530001",
+            "shape_type": "custom",
+            "custom_shape_upload": "@media:figura"
+          }
+        ]
+      }
+    },
+    "element-link": {
+      "container": {
+        "digitalisimo_element_link": {
+          "url": "{{home}}/digi-k-hija/"
+        },
+        "digitalisimo_element_link_label": "Ir a la hija"
+      },
+      "widget": "heading",
+      "settings": {
+        "title": "Contenedor enlazado"
+      }
+    },
+    "slides-templates": {
+      "widget": "slides",
+      "settings": {
+        "slides": [
+          {
+            "_id": "d540001",
+            "heading": "Diapositiva",
+            "digitalisimo_template_id": "@template:digi-k-seccion"
+          }
+        ]
+      }
+    },
+    "author-box-extras": {
+      "widget": "author-box",
+      "settings": {
+        "source": "custom",
+        "digitalisimo_author_user": "@user:autora",
+        "author_name": "Autora del kit"
+      }
+    },
+    "acf-source": {
+      "widget": "heading",
+      "settings": {
+        "title": "Campo ACF",
+        "digitalisimo_acf_field": "field_digi_k_titulo"
+      }
+    },
+    "posts-terms": {
+      "widget": "posts",
+      "settings": {
+        "posts_post_type": "post",
+        "posts_per_page": 2
+      }
+    },
+    "media-text-extras": {
+      "widget": "image-box",
+      "settings": {
+        "image": "@media:imagen-b",
+        "title_text": "Caja con imagen",
+        "link": {
+          "url": "{{home}}/digi-k-padre/"
+        }
+      }
+    },
+    "divider-shapes": {
+      "container": {
+        "shape_divider_top": "digi-onda"
+      },
+      "widget": "heading",
+      "settings": {
+        "title": "Separador propio"
+      }
+    },
+    "products-parts": {
+      "woo": true,
+      "widget": "woocommerce-products",
+      "settings": {
+        "digitalisimo_wc_custom": "yes",
+        "digitalisimo_products_limit": 2
+      }
+    },
+    "cart-title": {
+      "woo": true,
+      "widget": "woocommerce-menu-cart",
+      "settings": {
+        "digitalisimo_cart_title": "Tu carrito"
+      }
+    }
+  },
+  "woo": {
+    "product_categories": [
+      {
+        "slug": "ropa",
+        "name": "Ropa",
+        "image": "imagen-a"
+      }
+    ],
+    "products": [
+      {
+        "slug": "digi-k-camiseta",
+        "title": "Camiseta",
+        "type": "simple",
+        "price": "15",
+        "category": "ropa",
+        "image": "imagen-b"
+      },
+      {
+        "slug": "digi-k-sudadera",
+        "title": "Sudadera",
+        "type": "variable",
+        "category": "ropa",
+        "attribute": {
+          "name": "Talla",
+          "options": [
+            "S",
+            "M"
+          ]
+        },
+        "variations": [
+          {
+            "attributes": {
+              "talla": "S"
+            },
+            "price": "30"
+          },
+          {
+            "attributes": {
+              "talla": "M"
+            },
+            "price": "32"
+          }
+        ]
+      }
+    ],
+    "templates": [
+      {
+        "slug": "digi-k-producto",
+        "type": "product",
+        "title": "Producto del kit",
+        "conditions": [
+          "include/product/in_product_cat/@term:product_cat:ropa"
+        ],
+        "elements": [
+          {
+            "id": "c9a0001",
+            "elType": "container",
+            "settings": {},
+            "elements": [
+              {
+                "id": "e9a0001",
+                "elType": "widget",
+                "widgetType": "woocommerce-product-title",
+                "settings": {}
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "pages": {
+      "shop": "digi-k-tienda"
+    }
+  },
+  "parts": {
+    "origin": {
+      "case": "R5",
+      "motivo": "reimportar el kit de A en B no crea filas: cada documento, entrada y adjunto lleva _digitalisimo_import_origin"
+    },
+    "element-defaults": {
+      "case": "kit.defaults",
+      "motivo": "valores por defecto de heading con __globals__, de un widget propio y de un tipo desconocido (acme-tarjeta)"
+    },
+    "kit-settings": {
+      "case": "kit.settings",
+      "motivo": "colores y tipografías del sistema y personalizados, fondo con imagen, ancho y CSS del kit"
+    },
+    "files": {
+      "case": "files",
+      "motivo": "separador digi-onda con su negativo y la máscara gota; sin-uso no viaja"
+    },
+    "media": {
+      "case": "media",
+      "motivo": "imágenes, PDF, CSV y SVG del sitio, y URL de archivos bajo uploads (audio, vídeo, documento)"
+    },
+    "theme-builder": {
+      "case": "templates",
+      "motivo": "cinco ubicaciones con include, exclude, child_of, in_category_children y post_by_author"
+    },
+    "term-meta": {
+      "case": "terms",
+      "motivo": "thumbnail_id y una meta propia de la categoría noticias"
+    }
+  },
+  "options": {
+    "digitalisimo_elements_google_places_key": "clave-secreta-google-k"
+  },
+  "snippets": [
+    {
+      "title": "Digi K Fragmento",
+      "code": "<script>window.digiKFragmento = 1;</script>",
+      "location": "elementor_head",
+      "priority": "5",
+      "conditions": [
+        "include/general"
+      ]
+    }
+  ],
+  "site": {
+    "blogname": "Sitio del kit",
+    "blogdescription": "Ida y vuelta de K"
+  }
+}

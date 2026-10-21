@@ -1,0 +1,170 @@
+{
+  "_comentario": "Kit de un sitio con el constructor y su versión Pro 3.x, en formato 2.0 (§13.2). Pide tema, experimentos (con container inactivo) y plugins; trae colores que chocan con los de A, un conflicto del Theme Builder, popup, loop con plantilla alterna, Loop Carousel, filtro de taxonomía, widget global, formulario con webhook, etiquetas dinámicas, un contenedor desconocido en la raíz con hijos conocidos (con IDs) y un widget desconocido, una instancia e-component, una fuente woff2 remota con un font_face hostil, un conjunto de iconos con URL externa y ruta absoluta, Custom Code, metadata con un objeto serializado y una meta protegida, y un WXR con _menu_item_classes hostil, _elementor_data en una entrada, comentarios con correo e IP. Sintético.",
+  "zip": "tercero-pro3.zip",
+  "format": "2.0",
+  "mode": "add",
+  "caso": "R3 (A3, A4, A14), R4 (choque) y brand-audit.sh STATE=kit; con CORE=plugin, R3",
+  "cubre": ["theme", "experiments", "plugins", "colores", "conflicto", "popup", "loop", "loop-carousel", "taxonomy-filter", "global-widget", "formulario", "dinamicas", "desconocido", "e-component", "fuente", "iconos", "metadata", "wxr", "custom-code", "comentarios"],
+  "assets": {
+    "acme-sans": { "woff2": "acme-sans" },
+    "foto": { "png": [90, 140, 60], "w": 30, "h": 20 }
+  },
+  "entries": {
+    "manifest.json": {
+      "name": "kit-acme-pro", "title": "Kit Acme Pro", "description": "Kit sintético con formato 2.0", "author": "Autor Acme", "version": "2.0",
+      "elementor_version": "3.20.0", "created": "2026-01-15 10:00:00", "thumbnail": false, "site": "http://demo-autor.test",
+      "theme": { "name": "Tema Acme", "theme_uri": "http://demo-autor.test/tema/", "version": "2.1", "slug": "acme-tema" },
+      "experiments": ["nested-elements", "e_font_icon_svg"],
+      "site-settings": ["settings-global-colors", "settings-global-typography", "theme-style-typography", "settings-general"],
+      "plugins": [
+        { "name": "Elementor Pro", "plugin": "elementor-pro/elementor-pro", "pluginUri": "", "version": "3.20.0" },
+        { "name": "Formularios Acme", "plugin": "acme-forms/acme-forms", "pluginUri": "http://demo-autor.test/acme-forms/", "version": "1.0.0" },
+        { "name": "WooCommerce", "plugin": "woocommerce/woocommerce", "pluginUri": "", "version": "8.0.0" }
+      ],
+      "templates": {
+        "601": { "title": "Cabecera Acme", "doc_type": "header", "thumbnail": false, "location": "header", "conditions": [ { "type": "include", "name": "general", "sub_name": "", "sub_id": "" } ] },
+        "602": { "title": "Popup Acme", "doc_type": "popup", "thumbnail": false, "location": "popup", "conditions": [ { "type": "include", "name": "singular", "sub_name": "page", "sub_id": "701" } ] },
+        "603": { "title": "Bucle Acme", "doc_type": "loop-item", "thumbnail": false, "location": "" },
+        "604": { "title": "Bucle Acme alterno", "doc_type": "loop-item", "thumbnail": false, "location": "" },
+        "605": { "title": "Widget global Acme", "doc_type": "widget", "thumbnail": false, "location": "" }
+      },
+      "content": { "page": {
+        "701": { "title": "Inicio Acme", "excerpt": "", "doc_type": "wp-page", "thumbnail": false, "url": "http://demo-autor.test/", "terms": [], "show_on_front": true },
+        "702": { "title": "Blog Acme", "excerpt": "", "doc_type": "wp-page", "thumbnail": false, "url": "http://demo-autor.test/blog-acme/", "terms": [] }
+      } },
+      "wp-content": { "post": { "801": { "id": 801, "title": "Noticia Acme" }, "802": { "id": 802, "title": "Entrada con datos del constructor" } }, "nav_menu_item": { "811": { "id": 811, "title": "Blog" }, "812": { "id": 812, "title": "Clases hostiles" } } },
+      "taxonomies": { "post": [ { "name": "category", "label": "Categorías" } ], "nav_menu_item": [ { "name": "nav_menu", "label": "Menús" } ] }
+    },
+    "site-settings.json": {
+      "content": [], "metadata": [],
+      "theme": { "name": "Tema Acme", "theme_uri": "http://demo-autor.test/tema/", "version": "2.1", "slug": "acme-tema" },
+      "experiments": { "container": { "name": "container", "title": "Contenedor", "state": "inactive", "default": "inactive", "release_status": "stable" }, "nested-elements": { "name": "nested-elements", "title": "Elementos anidados", "state": "active", "default": "inactive", "release_status": "stable" } },
+      "settings": {
+        "system_colors": [ { "_id": "primary", "title": "Principal", "color": "#7A1FA2" }, { "_id": "secondary", "title": "Secundario", "color": "#54595F" }, { "_id": "text", "title": "Texto", "color": "#7A7A7A" }, { "_id": "accent", "title": "Acento", "color": "#61CE70" } ],
+        "custom_colors": [ { "_id": "a1b2c3d", "title": "Marca Acme", "color": "#123ABC" }, { "_id": "c4d5e6f", "title": "Gris Acme", "color": "#EEEEEE" } ],
+        "custom_typography": [ { "_id": "c3d4e5f", "title": "Titular Acme", "typography_typography": "custom", "typography_font_family": "Acme Sans", "typography_font_weight": "400" } ],
+        "custom_css": ".acme{color:#7A1FA2}",
+        "container_width": { "unit": "px", "size": 1300, "sizes": [] },
+        "site_name": "Sitio Acme", "site_description": "No debe viajar"
+      }
+    },
+    "templates/601.json": { "content": [ { "id": "a61b001", "elType": "container", "settings": [], "elements": [
+      { "id": "a61b002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Cabecera Acme" }, "elements": [] },
+      { "id": "a61b003", "elType": "widget", "widgetType": "nav-menu", "settings": { "menu": "menu-acme" }, "elements": [] }
+    ] } ], "settings": [], "metadata": [] },
+    "templates/602.json": { "content": [ { "id": "a62b001", "elType": "container", "settings": [], "elements": [ { "id": "a62b002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Popup Acme" }, "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "templates/603.json": { "content": [ { "id": "a63b001", "elType": "container", "settings": [], "elements": [ { "id": "a63b002", "elType": "widget", "widgetType": "theme-post-title", "settings": { "header_size": "h3" }, "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "templates/604.json": { "content": [ { "id": "a64b001", "elType": "container", "settings": [], "elements": [ { "id": "a64b002", "elType": "widget", "widgetType": "theme-post-title", "settings": { "header_size": "h4" }, "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "templates/605.json": { "content": [ { "id": "a65b001", "elType": "widget", "widgetType": "heading", "settings": { "title": "Widget global Acme" }, "elements": [] } ], "settings": [], "metadata": [] },
+    "content/page/701.json": { "settings": [], "metadata": [], "content": [
+      { "id": "a71b001", "elType": "container", "settings": [], "elements": [
+        { "id": "a71b002", "elType": "widget", "widgetType": "loop-grid", "settings": { "template_id": "603", "posts_per_page": 2, "alternate_template": "yes", "alternate_templates": [ { "_id": "a71b0a1", "template_id": "604", "repeat_template": 2 } ] }, "elements": [] },
+        { "id": "a71b003", "elType": "widget", "widgetType": "loop-carousel", "settings": { "template_id": "603", "posts_per_page": 2 }, "elements": [] },
+        { "id": "a71b004", "elType": "widget", "widgetType": "taxonomy-filter", "settings": { "selected_element": "a71b002", "taxonomy": "category" }, "elements": [] },
+        { "id": "a71b005", "elType": "widget", "widgetType": "global", "templateID": 605, "settings": [], "elements": [] },
+        { "id": "a71b006", "elType": "widget", "widgetType": "form", "settings": { "form_name": "Contacto Acme", "form_fields": [ { "_id": "a71b0b1", "field_type": "email", "field_label": "Correo" } ], "submit_actions": ["email", "webhook"], "email_to": "autor@example.com", "webhooks": "http://hooks.demo-autor.test/privado" }, "elements": [] },
+        { "id": "a71b007", "elType": "widget", "widgetType": "button", "settings": { "text": "Abrir popup", "__dynamic__": { "link": "[elementor-tag id=\"a71d001\" name=\"popup\" settings=\"%7B%22popup%22%3A%22602%22%7D\"]" } }, "elements": [] },
+        { "id": "a71b008", "elType": "widget", "widgetType": "heading", "settings": { "title": "Título", "__dynamic__": { "title": "[elementor-tag id=\"a71d002\" name=\"post-title\" settings=\"%7B%7D\"]" }, "__globals__": { "title_color": "globals/colors?id=primary" } }, "elements": [] },
+        { "id": "a71b009", "elType": "widget", "widgetType": "e-component", "version": "0.4", "settings": { "component_id": { "$$type": "number", "value": 991 } }, "elements": [] },
+        { "id": "a71b00a", "elType": "widget", "widgetType": "image", "settings": { "image": { "id": 821, "url": "http://demo-autor.test/wp-content/uploads/2026/01/foto.png" } }, "elements": [] }
+      ] },
+      { "id": "a71c001", "elType": "acme-seccion", "settings": { "fondo": "#000000" }, "elements": [
+        { "id": "a71c002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Hijo conocido" }, "elements": [] },
+        { "id": "a71c003", "elType": "widget", "widgetType": "template", "settings": { "template_id": "603" }, "elements": [] },
+        { "id": "a71c004", "elType": "widget", "widgetType": "acme-hero", "settings": { "titulo": "Héroe de otro constructor", "enlace": "http://demo-autor.test/blog-acme/" }, "elements": [] }
+      ] }
+    ] },
+    "content/page/702.json": { "settings": [], "content": [ { "id": "a72b001", "elType": "container", "settings": [], "elements": [ { "id": "a72b002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Blog Acme" }, "elements": [] } ] } ],
+      "metadata": {
+        "acme_opcion": "O:8:\"stdClass\":1:{s:1:\"a\";i:1;}",
+        "acme_lista": "a:1:{i:0;s:3:\"uno\";}",
+        "acme_enlace": "http://demo-autor.test/blog-acme/",
+        "_elementor_css": "a:0:{}"
+      } },
+    "taxonomies/category.json": [ { "term_id": 31, "name": "Novedades", "slug": "novedades", "taxonomy": "category", "description": "", "parent": 0 } ],
+    "taxonomies/nav_menu.json": [ { "term_id": 41, "name": "Menú Acme", "slug": "menu-acme", "taxonomy": "nav_menu", "description": "", "parent": 0 } ],
+    "custom-fonts.json": [ { "ID": 901, "post_title": "Acme Sans", "post_content": "", "post_status": "publish", "font_type": "static",
+      "font_files": [ { "font_weight": "400", "font_style": "normal", "woff2": { "id": "902", "url": "http://demo-autor.test/wp-content/uploads/acme-sans.woff2" } } ],
+      "font_face": "@font-face{font-family:'Acme Sans';src:url('http://demo-autor.test/wp-content/uploads/acme-sans.woff2') format('woff2')}</style><script>document.title='font_face hostil'</script><style>",
+      "font_variables": [], "font_variable_ranges": [], "attachments": [ { "id": 902, "title": "acme-sans", "url": "http://demo-autor.test/wp-content/uploads/acme-sans.woff2" } ] } ],
+    "custom-icons.json": [ { "ID": 911, "post_title": "acme-iconos", "post_content": "", "post_status": "publish",
+      "icon_set_config": "{\"name\":\"acme-iconos\",\"label\":\"Acme Iconos\",\"url\":\"http://cdn.demo-autor.test/acme-iconos.css\",\"enqueue\":[\"http://cdn.demo-autor.test/extra.css\"],\"prefix\":\"acme-\",\"displayPrefix\":\"\",\"labelIcon\":\"eicon eicon-folder\",\"ver\":\"1.0.0\",\"custom_icon_type\":\"Fontello\",\"count\":30,\"icons\":[\"uno\",\"dos\"],\"fetchJson\":\"http://cdn.demo-autor.test/icons.js\"}",
+      "icon_set_path": "/etc/", "icon_type": "Fontello", "attachments": [] } ],
+    "custom-code.json": [ { "ID": 921, "post_title": "Fragmento Acme", "post_content": "<script>console.log('fragmento')</script>", "post_status": "publish", "location": "elementor_head", "priority": "5", "conditions": ["include/singular/page/701"] } ],
+    "wp-content/post/post.xml": { "$wxr": {
+      "title": "Kit Acme", "site": "http://demo-autor.test",
+      "authors": [ { "id": 1, "login": "autor-acme", "email": "autor@example.com", "display": "Autor Acme", "first": "Autor", "last": "Acme" } ],
+      "terms": [ { "id": 31, "taxonomy": "category", "slug": "novedades", "name": "Novedades" } ],
+      "items": [
+        { "id": 801, "title": "Noticia Acme", "slug": "noticia-acme", "type": "post", "author": "autor-acme", "content": "<p>Ver <a href=\"http://demo-autor.test/blog-acme/\">el blog</a>.</p><img src=\"http://demo-autor.test/wp-content/uploads/2026/01/foto.png\">", "terms": [ { "taxonomy": "category", "slug": "novedades", "name": "Novedades" } ],
+          "comments": [ { "id": 1, "author": "Lectora", "email": "lectora@example.com", "ip": "192.0.2.10", "content": "Comentario con correo e IP" } ],
+          "meta": { "acme_objeto": "O:8:\"stdClass\":0:{}", "acme_texto": "texto" } },
+        { "id": 802, "title": "Entrada con datos del constructor", "slug": "entrada-con-datos", "type": "post", "author": "autor-acme", "content": "<p>Sin constructor.</p>", "password": "secreto",
+          "meta": { "_elementor_data": "[{\"id\":\"a80b001\",\"elType\":\"widget\",\"widgetType\":\"html\",\"settings\":{\"html\":\"<script>document.title='kses esquivado'</script>\"},\"elements\":[]}]", "_elementor_edit_mode": "builder" } },
+        { "id": 821, "title": "Foto", "slug": "foto", "type": "attachment", "status": "inherit", "attachment_url": "http://demo-autor.test/wp-content/uploads/2026/01/foto.png" }
+      ] } },
+    "wp-content/nav_menu_item/nav_menu_item.xml": { "$wxr": {
+      "title": "Kit Acme", "site": "http://demo-autor.test",
+      "authors": [ { "id": 1, "login": "autor-acme", "email": "autor@example.com", "display": "Autor Acme" } ],
+      "terms": [ { "id": 41, "taxonomy": "nav_menu", "slug": "menu-acme", "name": "Menú Acme" } ],
+      "items": [
+        { "id": 811, "title": "Blog", "slug": "blog", "type": "nav_menu_item", "terms": [ { "taxonomy": "nav_menu", "slug": "menu-acme", "name": "Menú Acme" } ],
+          "meta": { "_menu_item_type": "custom", "_menu_item_menu_item_parent": "0", "_menu_item_object_id": "811", "_menu_item_object": "custom", "_menu_item_target": "", "_menu_item_classes": "a:1:{i:0;s:0:\"\";}", "_menu_item_xfn": "", "_menu_item_url": "http://demo-autor.test/blog-acme/" } },
+        { "id": 812, "title": "Clases hostiles", "slug": "clases-hostiles", "type": "nav_menu_item", "terms": [ { "taxonomy": "nav_menu", "slug": "menu-acme", "name": "Menú Acme" } ],
+          "meta": { "_menu_item_type": "custom", "_menu_item_menu_item_parent": "0", "_menu_item_object_id": "812", "_menu_item_object": "custom", "_menu_item_target": "", "_menu_item_classes": "a:1:{i:0;O:8:\"stdClass\":0:{}}", "_menu_item_xfn": "", "_menu_item_url": "http://servicio.test/externo/" } }
+      ] } }
+  },
+  "remote": {
+    "http://demo-autor.test/wp-content/uploads/acme-sans.woff2": { "$asset": "acme-sans" },
+    "http://demo-autor.test/wp-content/uploads/2026/01/foto.png": { "$asset": "foto" }
+  },
+  "expect": {
+    "mode": "add",
+    "documents": {
+      "templates/601": { "key": "elementor_library:cabecera-acme", "doc_type": "header", "status": "draft", "conditions": ["include/general"] },
+      "templates/602": { "key": "elementor_library:popup-acme", "doc_type": "popup", "status": "draft", "conditions": ["include/singular/page/post:page:inicio-acme"] },
+      "templates/603": { "key": "elementor_library:bucle-acme", "doc_type": "loop-item", "status": "publish" },
+      "templates/604": { "key": "elementor_library:bucle-acme-alterno", "doc_type": "loop-item", "status": "publish" },
+      "templates/605": { "key": "elementor_library:widget-global-acme", "doc_type": "widget", "status": "publish" },
+      "content/page/701": { "key": "page:inicio-acme", "doc_type": "wp-page", "status": "draft",
+        "checks": {
+          "0.elements.0.settings.template_id": "post:elementor_library:bucle-acme",
+          "0.elements.0.settings.alternate_templates.0.template_id": "post:elementor_library:bucle-acme-alterno",
+          "0.elements.1.settings.template_id": "post:elementor_library:bucle-acme",
+          "0.elements.2.settings.selected_element": "a71b002",
+          "0.elements.3.templateID": "post:elementor_library:widget-global-acme",
+          "0.elements.5.settings.__dynamic__.link.settings.popup": "post:elementor_library:popup-acme",
+          "0.elements.6.settings.__globals__.title_color": { "re": "^globals/colors\\?id=k[0-9a-f]{6}$" },
+          "0.elements.7.widgetType": "digitalisimo-unconverted",
+          "0.elements.7.settings.digitalisimo_unconverted.reason": "component",
+          "0.elements.7.settings.digitalisimo_unconverted.type": "widget/e-component",
+          "0.elements.8.settings.image.id": "media:foto.png:{{sha1:foto}}",
+          "1.settings.digitalisimo_unconverted_wrapper": 1,
+          "1.elements.0.widgetType": "digitalisimo-unconverted",
+          "1.elements.0.settings.digitalisimo_unconverted.reason": "unknown",
+          "1.elements.0.settings.digitalisimo_unconverted.type": "acme-seccion",
+          "1.elements.0.settings.digitalisimo_unconverted.element.elements.0.id": "a71c002",
+          "1.elements.0.settings.digitalisimo_unconverted.element.elements.1.settings.template_id": "post:elementor_library:bucle-acme",
+          "1.elements.0.settings.digitalisimo_unconverted.element.elements.2.settings.enlace": "{{home}}/blog-acme/"
+        },
+        "types": { "loop-grid": 1, "loop-carousel": 1, "taxonomy-filter": 1, "global": 1, "form": 1, "button": 1, "heading": 2, "e-component": 1, "image": 1, "acme-seccion": 1, "template": 1, "acme-hero": 1, "container": 1 } },
+      "content/page/702": { "key": "page:blog-acme", "doc_type": "wp-page", "status": "draft",
+        "meta": { "acme_lista": ["uno"], "acme_enlace": "{{home}}/blog-acme/" }, "meta_absent": ["acme_opcion", "_elementor_css"] }
+    },
+    "posts": {
+      "post:noticia-acme": { "status": "draft", "content_has": ["{{home}}/blog-acme/"], "meta_absent": ["acme_objeto"], "comments_without_contact": true },
+      "post:entrada-con-datos-del-constructor": { "status": "draft", "elementor_meta_absent": ["_elementor_data", "_elementor_edit_mode"], "password": "secreto" }
+    },
+    "menus": { "menu-acme": { "items": 2, "urls": ["{{home}}/blog-acme/", "http://servicio.test/externo/"], "object_classes": 0 } },
+    "fonts": { "Acme Sans": { "local": true, "face_has": [], "face_lacks": ["<script", "</style>", "demo-autor.test"] } },
+    "icons": { "acme-iconos": { "external": false } },
+    "snippets": { "Fragmento Acme": { "status": "draft", "location": "elementor_head", "priority": "5", "conditions": ["include/singular/page/post:page:inicio-acme"] } },
+    "kit": { "add": { "custom_colors_include": [ { "_id": "a1b2c3d", "color": "#123ABC" }, { "_id": "c4d5e6f", "color": "#EEEEEE" } ], "custom_colors_from_system": 1, "unchanged": ["system_colors", "custom_css", "container_width"], "identity_unchanged": true } },
+    "analysis": { "theme_requested": true, "experiments": ["container"], "plugins": ["Formularios Acme", "WooCommerce"], "builder_plugins_named": false, "widgets_unknown": ["acme-hero", "acme-seccion"], "components": 1 },
+    "media": { "downloaded": 2 },
+    "report": { "levels_absent": ["error"] },
+    "theme_unchanged": true,
+    "experiments_unchanged": true,
+    "plugins_unchanged": true
+  }
+}

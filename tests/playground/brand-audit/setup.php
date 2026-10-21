@@ -3,8 +3,10 @@
  * Sitio para la auditoría de marca: DIGITALÍSIMO Elements con su núcleo incluido (sin el plugin Elementor),
  * una página construida con el editor (con los vídeos que se pintan con su valor por defecto), una plantilla, un
  * popup, una cabecera del Theme Builder y un selector de idioma por cookie (`digi_locale`).
- * Opciones (audit-options.json, lo escribe brand-audit.sh): scope (quick|full), state (nuevo|migrado) y original
+ * Opciones (audit-options.json, lo escribe brand-audit.sh): scope (quick|full), state (nuevo|migrado|kit) y original
  * (el plugin Elementor de wordpress.org instalado e inactivo, más un Elementor Pro con sólo sus cabeceras).
+ * STATE=kit: con el sitio ya en marcha, brand-audit.sh importa tests/sources/kits/tercero-pro3.zip con «wp digitalisimo-elements kit
+ * import» (kit-cli.php) y vuelve a llamar a este archivo con `$digi_brand_phase = 'kit'`, que anota la sesión y las páginas.
  */
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -13,6 +15,35 @@ $digi_opts = json_decode( (string) @file_get_contents( $digi_dir . '/audit-optio
 $digi_fail = static function ( $message ) use ( $digi_dir ) {
 	file_put_contents( $digi_dir . '/setup-error.txt', $message . "\n", FILE_APPEND );
 };
+
+// STATE=kit, después del paso «wp digitalisimo-elements kit import» del blueprint: anota la sesión de K, su informe
+// en la pantalla «Kits» y cada documento importado (con su vista previa, porque «agregar» los deja en borrador).
+if ( 'kit' === ( $digi_brand_phase ?? '' ) ) {
+	global $wpdb;
+	$digi_sessions = (array) $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'digitalisimo\\_elements\\_kit\\_session\\_%'" );
+	if ( ! $digi_sessions ) {
+		$digi_fail( 'STATE=kit: «wp digitalisimo-elements kit import» no dejó ninguna sesión de K' );
+		return;
+	}
+	$digi_session = substr( (string) end( $digi_sessions ), strlen( 'digitalisimo_elements_kit_session_' ) );
+	$digi_pages   = array();
+	// Tipos explícitos: `any` deja fuera los que tienen exclude_from_search, como la biblioteca de plantillas, que es
+	// todo lo que trae un Template Kit.
+	foreach ( get_posts( array( 'post_type' => array_values( array_intersect( array( 'page', 'post', 'elementor_library', 'e-landing-page' ), get_post_types() ) ), 'post_status' => array( 'publish', 'draft', 'private' ), 'posts_per_page' => -1, 'meta_key' => '_elementor_import_session_id' ) ) as $digi_post ) {
+		$digi_pages[] = array(
+			'id'      => $digi_post->ID,
+			'type'    => $digi_post->post_type,
+			'status'  => $digi_post->post_status,
+			'url'     => 'publish' === $digi_post->post_status ? get_permalink( $digi_post ) : get_preview_post_link( $digi_post ),
+			'editor'  => in_array( $digi_post->post_type, array( 'page', 'elementor_library' ), true ),
+		);
+	}
+	if ( ! $digi_pages ) {
+		$digi_fail( 'STATE=kit: la importación no creó documentos' );
+	}
+	file_put_contents( $digi_dir . '/kit.json', wp_json_encode( array( 'session' => $digi_session, 'screen' => admin_url( 'admin.php?page=digitalisimo-elements-kits&session=' . rawurlencode( $digi_session ) ), 'pages' => $digi_pages ) ) );
+	return;
+}
 if ( ! is_dir( WPMU_PLUGIN_DIR ) ) {
 	mkdir( WPMU_PLUGIN_DIR, 0777, true );
 }

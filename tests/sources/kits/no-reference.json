@@ -1,0 +1,255 @@
+{
+ "_comentario": "Controles que, por su tipo o su nombre (query, template_query, o select2/select/number terminados en _id, _ids, template, menu, navbar, user o _value), parecen guardar una referencia y no la guardan (§9.2). compare.mjs de kit-roundtrip acepta un control así sólo si figura aquí con su motivo; widget «*» vale para cualquier elemento. Un control nuevo que sí guarde un ID se declara en el registro de referencias de K, no aquí.",
+ "controles": [
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_authentication_value",
+   "motivo": "Reglas de visibilidad: estado de la sesión (con sesión iniciada)"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_role_value",
+   "motivo": "Reglas de visibilidad: nombre de rol de WordPress, no un ID"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_post_type_value",
+   "motivo": "Reglas de visibilidad: slug de tipo de contenido"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_static_page_value",
+   "motivo": "Reglas de visibilidad: tipo de página especial (home, static, blog, 404, custom); el ID de «custom» va en rule_custom_page_id"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_date_value",
+   "motivo": "Reglas de visibilidad: fecha o intervalo"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_time_range_value",
+   "motivo": "Reglas de visibilidad: hora"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_date_time_before_value",
+   "motivo": "Reglas de visibilidad: fecha"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_time_value",
+   "motivo": "Reglas de visibilidad: hora"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_day_value",
+   "motivo": "Reglas de visibilidad: día de la semana"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_os_value",
+   "motivo": "Reglas de visibilidad: sistema operativo"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_browser_value",
+   "motivo": "Reglas de visibilidad: navegador"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_ex_url_value",
+   "motivo": "Reglas de visibilidad: URL externa de referencia, no del sitio"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_url_parameters_value",
+   "motivo": "Reglas de visibilidad: pares parámetro=valor"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_url_string_value",
+   "motivo": "Reglas de visibilidad: texto de la URL"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_search_engine_url_value",
+   "motivo": "Reglas de visibilidad: buscador"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_visit_count_value",
+   "motivo": "Reglas de visibilidad: número de visitas"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_session_count_value",
+   "motivo": "Reglas de visibilidad: número de sesiones"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_language_value",
+   "motivo": "Reglas de visibilidad: código de idioma"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_country_value",
+   "motivo": "Reglas de visibilidad: código de país"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_shortcode_value",
+   "motivo": "Reglas de visibilidad: texto esperado de un shortcode"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_cart_item_number_value",
+   "motivo": "Reglas de visibilidad: cantidad"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_cart_subtotal_price_value",
+   "motivo": "Reglas de visibilidad: importe"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_first_purchased_date_value",
+   "motivo": "Reglas de visibilidad: fecha"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_purchased_date_value",
+   "motivo": "Reglas de visibilidad: fecha"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_last_purchased_date_value",
+   "motivo": "Reglas de visibilidad: fecha"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_purchased_item_number_value",
+   "motivo": "Reglas de visibilidad: cantidad"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_orders_placed_value",
+   "motivo": "Reglas de visibilidad: cantidad"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_single_product_price_value",
+   "motivo": "Reglas de visibilidad: importe"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_single_product_stock_value",
+   "motivo": "Reglas de visibilidad: cantidad"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_single_product_downloadable_value",
+   "motivo": "Reglas de visibilidad: sí/no"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_single_product_virtual_value",
+   "motivo": "Reglas de visibilidad: sí/no"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_single_product_featured_value",
+   "motivo": "Reglas de visibilidad: sí/no"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_single_product_backorder_value",
+   "motivo": "Reglas de visibilidad: sí/no"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_single_product_onsale_value",
+   "motivo": "Reglas de visibilidad: sí/no"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_single_product_sold_individually_value",
+   "motivo": "Reglas de visibilidad: sí/no"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_single_product_type_value",
+   "motivo": "Reglas de visibilidad: tipo de producto (slug)"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_acf_boolean_value",
+   "motivo": "Reglas de visibilidad: valor de un campo ACF"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_acf_choice_value",
+   "motivo": "Reglas de visibilidad: valor de un campo ACF"
+  },
+  {
+   "widget": "*",
+   "control": "digitalisimo_visibility_rules.rule_acf_text_value",
+   "motivo": "Reglas de visibilidad: valor de un campo ACF"
+  },
+  {
+   "widget": "loop-grid",
+   "control": "alternate_templates.repeat_template",
+   "motivo": "posición en la cuadrícula (número), no un ID"
+  },
+  {
+   "widget": "loop-grid",
+   "control": "alternate_templates.static_position",
+   "motivo": "posición fija (número), no un ID"
+  },
+  {
+   "widget": "digitalisimo-icon-nav",
+   "control": "navbar_level",
+   "motivo": "niveles del menú (1 a 3)"
+  },
+  {
+   "widget": "digitalisimo-accordion",
+   "control": "active_item",
+   "motivo": "número del elemento abierto"
+  },
+  {
+   "widget": "form",
+   "control": "activecampaign_fields_map.local_id",
+   "motivo": "campo del propio formulario que se asocia con un campo del servicio de correo; no es un ID de contenido"
+  },
+  {
+   "widget": "form",
+   "control": "convertkit_fields_map.local_id",
+   "motivo": "campo del propio formulario que se asocia con un campo del servicio de correo; no es un ID de contenido"
+  },
+  {
+   "widget": "form",
+   "control": "drip_fields_map.local_id",
+   "motivo": "campo del propio formulario que se asocia con un campo del servicio de correo; no es un ID de contenido"
+  },
+  {
+   "widget": "form",
+   "control": "getresponse_fields_map.local_id",
+   "motivo": "campo del propio formulario que se asocia con un campo del servicio de correo; no es un ID de contenido"
+  },
+  {
+   "widget": "form",
+   "control": "mailchimp_fields_map.local_id",
+   "motivo": "campo del propio formulario que se asocia con un campo del servicio de correo; no es un ID de contenido"
+  },
+  {
+   "widget": "form",
+   "control": "mailerlite_fields_map.local_id",
+   "motivo": "campo del propio formulario que se asocia con un campo del servicio de correo; no es un ID de contenido"
+  },
+  {
+   "widget": "rating",
+   "control": "rating_value",
+   "motivo": "valor de la valoración (número de estrellas), no un ID"
+  }
+ ]
+}

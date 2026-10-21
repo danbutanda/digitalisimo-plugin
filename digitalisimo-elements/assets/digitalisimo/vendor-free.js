@@ -208,16 +208,29 @@
 	}
 
 	/**
-	 * App: la biblioteca de kits del proveedor lleva a importar un kit en ZIP, y su asistente de configuración (cuenta,
-	 * planes y tema del proveedor; el núcleo redirige a «#onboarding» tras activarse), al Inicio rápido propio.
+	 * Kits en la App: un solo importador, el 3.0 («#/import-customization»). La biblioteca de kits del proveedor y el
+	 * importador y el exportador heredados (2.0, que instalan plugins y cambian el tema) llevan a él, sin su consulta.
+	 * Las expresiones no capturan «#/import-customization/…» ni «#/export-customization/…». Devuelve '' si se queda.
+	 */
+	function kitRoute( hash ) {
+		if ( /^#\/kit-library/.test( hash ) || /^#\/import(?:[\/?]|$)/.test( hash ) ) {
+			return '#/import-customization';
+		}
+		return /^#\/export(?:[\/?]|$)/.test( hash ) ? '#/export-customization' : '';
+	}
+
+	/**
+	 * App: el asistente de configuración del núcleo (cuenta, planes y tema del proveedor; el núcleo redirige a
+	 * «#onboarding» tras activarse) lleva al Inicio rápido propio, y los kits, al importador 3.0 (kitRoute).
 	 */
 	function app() {
 		var guard = function () {
 			var hash = window.location.hash;
+			var target = kitRoute( hash );
 			if ( /^#\/?onboarding\b/.test( hash ) && config.home ) {
 				window.location.replace( config.home );
-			} else if ( /^#\/kit-library/.test( hash ) ) {
-				window.location.replace( '#/import' );
+			} else if ( target ) {
+				window.location.replace( target );
 			}
 		};
 		guard();

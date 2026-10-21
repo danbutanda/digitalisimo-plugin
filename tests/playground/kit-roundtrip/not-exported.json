@@ -1,0 +1,113 @@
+{
+ "_comentario": "Lo que un kit propio no lleva a propósito (§8.3, §4.1 #11, CR-14, CC-19). kit-roundtrip.sh busca «buscar» en cada archivo de los kits exportados por A (REST y WP-CLI) y falla si aparece; antes comprueba con «origen» que A sí tiene ese dato, para que la comprobación no sea vacía: una entrada que A no tiene falla como «sin usar».",
+ "entradas": [
+  {
+   "clave": "digitalisimo_elements_vendor_free",
+   "tipo": "opción",
+   "buscar": "digitalisimo_elements_vendor_free",
+   "origen": {
+    "opcion": "digitalisimo_elements_vendor_free"
+   },
+   "motivo": "estado interno del escudo de proveedor de cada sitio"
+  },
+  {
+   "clave": "digitalisimo_elements_core_mode",
+   "tipo": "opción",
+   "buscar": "digitalisimo_elements_core_mode",
+   "origen": {
+    "opcion": "digitalisimo_elements_core_mode"
+   },
+   "motivo": "estado del cargador del núcleo de cada sitio"
+  },
+  {
+   "clave": "digitalisimo_elements_google_places_key",
+   "tipo": "opción",
+   "buscar": "clave-secreta-google-k",
+   "origen": {
+    "opcion": "digitalisimo_elements_google_places_key"
+   },
+   "motivo": "clave privada de Google Places (B15: queda en «Configurar después»)"
+  },
+  {
+   "clave": "_edit_lock y _edit_last",
+   "tipo": "meta",
+   "buscar": "_edit_lock",
+   "origen": {
+    "meta": "_edit_lock"
+   },
+   "motivo": "estado efímero del editor (§8.2)"
+  },
+  {
+   "clave": "_elementor_css",
+   "tipo": "meta",
+   "buscar": "_elementor_css",
+   "origen": {
+    "meta": "_elementor_css"
+   },
+   "motivo": "caché del CSS generado (§8.2)"
+  },
+  {
+   "clave": "_elementor_data en el WXR",
+   "tipo": "meta",
+   "buscar": "<wp:meta_key><![CDATA[_elementor_data]]></wp:meta_key>",
+   "origen": {
+    "meta": "_elementor_data"
+   },
+   "motivo": "el contenido del constructor nunca va en el WXR: se saltaría kses (V-20)"
+  },
+  {
+   "clave": "correos de usuarios",
+   "tipo": "texto",
+   "buscar": "autora@example.com",
+   "origen": {
+    "usuario": "autora"
+   },
+   "motivo": "datos personales del autor (CR-14)"
+  },
+  {
+   "clave": "login de usuarios",
+   "tipo": "texto",
+   "buscar": "[CDATA[autora]]",
+   "origen": {
+    "usuario": "autora"
+   },
+   "motivo": "el login se sustituye por autor-<n> (CR-14) en todo el WXR: <wp:author>, <dc:creator> y <guid>, donde el exportador del núcleo también lo escribe"
+  },
+  {
+   "clave": "comentarios",
+   "tipo": "texto",
+   "buscar": "lectora-k@example.com",
+   "origen": {
+    "comentario": "lectora-k@example.com"
+   },
+   "motivo": "los comentarios, con su correo e IP, no viajan (CR-14)"
+  },
+  {
+   "clave": "contraseñas de entradas",
+   "tipo": "texto",
+   "buscar": "secreto-del-kit",
+   "origen": {
+    "contrasena": "secreto-del-kit"
+   },
+   "motivo": "post_password se vacía (CR-14)"
+  },
+  {
+   "clave": "URL de webhooks",
+   "tipo": "texto",
+   "buscar": "hooks.example.com",
+   "origen": {
+    "meta_contiene": "hooks.example.com"
+   },
+   "motivo": "una URL privada de webhook no viaja (CC-19, §7.8 #8)"
+  },
+  {
+   "clave": "destinatarios de formularios",
+   "tipo": "texto",
+   "buscar": "dueno@example.com",
+   "origen": {
+    "meta_contiene": "dueno@example.com"
+   },
+   "motivo": "el núcleo vacía email_to al exportar (B14); queda «Configurar después»"
+  }
+ ]
+}

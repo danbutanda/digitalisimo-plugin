@@ -185,6 +185,24 @@ jobs:
           php tests/seo-bundled-assets.php
           php tests/elements-theme-compat.php
           php tests/elements-hello-header-footer.php
+          # Kits de Elementor (etapa K): contrato y partes, guardián y normalizador, contrato con el núcleo, sesión y
+          # contexto, ajustes del kit, remapeo, marcador, correcciones de PRO, pantalla y WP-CLI, widget global,
+          # integración de los frentes, revisión estática, inventario, guarda de la App y fixtures sintéticos.
+          php tests/elements-kit-parts.php
+          php tests/elements-kit-guard.php
+          php tests/elements-kit-core-contract.php
+          php tests/elements-kit-session.php
+          php tests/elements-kit-settings.php
+          php tests/elements-kit-remap.php
+          php tests/elements-kit-preserve.php
+          php tests/elements-kit-pro-fixes.php
+          php tests/elements-kit-actions.php
+          php tests/elements-kit-global-widget.php
+          php tests/elements-kit-integration.php
+          node tests/elements-kit-static.mjs
+          node tests/elements-kit-inventory.mjs
+          node tests/elements-kit-app-guard.mjs
+          node tests/elements-kit-fixtures.mjs
       - name: Construir paquetes limpios
         run: |
           mkdir -p dist

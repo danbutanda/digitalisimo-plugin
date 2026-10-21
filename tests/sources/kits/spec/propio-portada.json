@@ -1,0 +1,81 @@
+{
+  "_comentario": "Kit propio 3.0 de DIGITALÍSIMO Elements con portada: clave «digitalisimo» del manifiesto y carpeta digitalisimo/ (§5.2) con un separador, un medio incrustado, las condiciones completas del Theme Builder y las rutas. Sintético: no sale de un sitio real.",
+  "zip": "propio-portada.zip",
+  "format": "3.0",
+  "caso": "A6: «nuevo» con portada (cambian page_on_front y show_on_front) y «agregar» sin tocar la portada; R1 con portada",
+  "cubre": ["portada", "digitalisimo", "identidad", "media", "files", "theme-builder", "urls"],
+  "assets": {
+    "propia": { "png": [170, 51, 0], "w": 24, "h": 16 },
+    "ola": { "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 100\" preserveAspectRatio=\"none\"><path class=\"elementor-shape-fill\" d=\"M0 0v50c300 50 700-50 1000 0V0z\"/></svg>" }
+  },
+  "entries": {
+    "manifest.json": {
+      "name": "kit-propio-con-portada", "title": "Kit propio con portada", "description": "Sintético", "author": "", "version": "3.0",
+      "elementor_version": "4.3.5", "created": "2026-01-15 10:00:00", "thumbnail": false, "site": "http://origen.test",
+      "site-settings": { "theme": false, "globalColors": true, "globalFonts": true, "themeStyleSettings": true, "generalSettings": true, "experiments": false, "customCode": true, "customIcons": true, "customFonts": true, "classes": true, "variables": true },
+      "plugins": [ { "name": "DIGITALÍSIMO Elements", "plugin": "digitalisimo-elements/pro-elements", "pluginUri": "", "version": "4.3.0.160" } ],
+      "templates": {
+        "101": { "title": "Cabecera propia", "doc_type": "header", "thumbnail": false, "location": "header", "conditions": [ { "type": "include", "name": "general", "sub_name": "", "sub_id": "" } ] },
+        "102": { "title": "Sección propia", "doc_type": "section", "thumbnail": false, "location": "" }
+      },
+      "content": { "page": {
+        "201": { "title": "Portada propia", "excerpt": "", "doc_type": "wp-page", "thumbnail": false, "url": "http://origen.test/", "terms": [], "show_on_front": true },
+        "202": { "title": "Contacto propio", "excerpt": "", "doc_type": "wp-page", "thumbnail": false, "url": "http://origen.test/contacto-propio/", "terms": [] }
+      } },
+      "taxonomies": {},
+      "wp-content": {},
+      "digitalisimo": {
+        "v": 1, "elements": "4.3.0.160", "core": "4.3.5", "home": "http://origen.test", "site": "http://origen.test", "uploads": "http://origen.test/wp-content/uploads",
+        "kit": "3f2c1d0e9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e",
+        "parts": { "files": 1, "media": 1, "theme-builder": 1 },
+        "widgets": { "heading": 3, "image": 1, "template": 1, "button": 1 },
+        "needs": { "woocommerce": false, "acf": [], "google_places": false },
+        "media": { "embedded": 1, "linked": 0, "bytes": "{{bytes:propia}}" },
+        "not_exported": {}
+      }
+    },
+    "site-settings.json": { "content": [], "metadata": [], "settings": {
+      "system_colors": [ { "_id": "primary", "title": "Principal", "color": "#AA3300" }, { "_id": "secondary", "title": "Secundario", "color": "#0033AA" }, { "_id": "text", "title": "Texto", "color": "#222222" }, { "_id": "accent", "title": "Acento", "color": "#00AA66" } ],
+      "custom_colors": [ { "_id": "d1e2f3a", "title": "Propio", "color": "#AA3300" } ],
+      "custom_typography": [],
+      "site_name": "Origen sintético", "site_description": "La identidad no viaja", "site_logo": { "id": 999, "url": "http://origen.test/wp-content/uploads/logo.png" }
+    } },
+    "templates/101.json": { "content": [ { "id": "c101a01", "elType": "container", "settings": [], "elements": [ { "id": "e101a01", "elType": "widget", "widgetType": "heading", "settings": { "title": "Cabecera propia" }, "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "templates/102.json": { "content": [ { "id": "c102a01", "elType": "container", "settings": [], "elements": [ { "id": "e102a01", "elType": "widget", "widgetType": "image", "settings": { "image": { "id": 301, "url": "http://origen.test/wp-content/uploads/propia.png" } }, "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "content/page/201.json": { "content": [ { "id": "c201a01", "elType": "container", "settings": { "shape_divider_top": "digi-ola" }, "elements": [
+      { "id": "e201a01", "elType": "widget", "widgetType": "heading", "settings": { "title": "Portada propia", "link": { "url": "http://origen.test/contacto-propio/", "is_external": "", "nofollow": "" }, "__globals__": { "title_color": "globals/colors?id=d1e2f3a" } }, "elements": [] },
+      { "id": "e201a02", "elType": "widget", "widgetType": "template", "settings": { "template_id": "102" }, "elements": [] },
+      { "id": "e201a03", "elType": "widget", "widgetType": "button", "settings": { "text": "Escríbenos", "link": { "url": "http://origen.test/contacto-propio/?desde=portada#formulario", "is_external": "", "nofollow": "" } }, "elements": [] }
+    ] } ], "settings": [], "metadata": [] },
+    "content/page/202.json": { "content": [ { "id": "c202a01", "elType": "container", "settings": [], "elements": [ { "id": "e202a01", "elType": "widget", "widgetType": "heading", "settings": { "title": "Contacto propio" }, "elements": [] } ] } ], "settings": [], "metadata": [] },
+    "digitalisimo/files.json": { "shapes/ola.svg": { "sha256": "{{sha256:ola}}", "bytes": "{{bytes:ola}}" } },
+    "digitalisimo/files/shapes/ola.svg": { "$asset": "ola" },
+    "digitalisimo/media.json": { "http://origen.test/wp-content/uploads/propia.png": { "file": "{{file:propia}}", "sha256": "{{sha256:propia}}", "mime": "image/png", "bytes": "{{bytes:propia}}" } },
+    "digitalisimo/media/{{file:propia}}": { "$asset": "propia" },
+    "digitalisimo/theme-builder.json": { "101": { "conditions": [ { "type": "include", "name": "general", "sub_name": "", "sub_id": "" } ], "fields": {} } },
+    "digitalisimo/urls.json": { "page:201": "/", "page:202": "/contacto-propio/" }
+  },
+  "expect": {
+    "documents": {
+      "templates/101": { "key": "elementor_library:cabecera-propia", "doc_type": "header", "status": { "fresh": "publish", "add": "draft" }, "conditions": ["include/general"],
+        "data": [ { "id": "c101a01", "elType": "container", "settings": {}, "elements": [ { "id": "e101a01", "elType": "widget", "widgetType": "heading", "settings": { "title": "Cabecera propia" }, "elements": [] } ] } ] },
+      "templates/102": { "key": "elementor_library:seccion-propia", "doc_type": "section", "status": "publish",
+        "checks": { "0.elements.0.settings.image.id": "media:propia.png:{{sha1:propia}}" } },
+      "content/page/201": { "key": "page:portada-propia", "doc_type": "wp-page", "status": { "fresh": "publish", "add": "draft" },
+        "checks": {
+          "0.id": "c201a01",
+          "0.settings.shape_divider_top": "digi-ola",
+          "0.elements.0.settings.link.url": "{{home}}/contacto-propio/",
+          "0.elements.0.settings.__globals__.title_color": "globals/colors?id=d1e2f3a",
+          "0.elements.1.settings.template_id": "post:elementor_library:seccion-propia",
+          "0.elements.2.settings.link.url": "{{home}}/contacto-propio/?desde=portada#formulario"
+        } },
+      "content/page/202": { "key": "page:contacto-propio", "doc_type": "wp-page", "status": { "fresh": "publish", "add": "draft" } }
+    },
+    "kit": { "fresh": { "custom_colors": [ { "_id": "d1e2f3a", "title": "Propio", "color": "#AA3300" } ], "identity_unchanged": true }, "add": { "custom_colors_include": [ { "_id": "d1e2f3a", "color": "#AA3300" } ], "identity_unchanged": true } },
+    "options": { "fresh": { "show_on_front": "page", "page_on_front": "post:page:portada-propia" }, "add": { "unchanged": ["show_on_front", "page_on_front"] } },
+    "files": { "shapes/ola.svg": "{{sha256:ola}}" },
+    "media": { "embedded": 1, "downloaded": 0 },
+    "maps": { "post": { "102": "post:elementor_library:seccion-propia", "201": "post:page:portada-propia" } }
+  }
+}

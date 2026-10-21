@@ -75,6 +75,9 @@ Núcleo incluido (Elementor 4.3.5, copia sin cambios): Elements no fija sus ajus
 | `parity/{reset,theme,header-footer}.css` (handles `digitalisimo-theme-parity*`) | Sólo en paridad (sitios que venían de Hello), con las mismas condiciones que en Hello | 19 190 B (4 771 B en gzip -9) | 0 | **Excepción:** son las hojas que Hello ya cargaba, sin cambios, así que el coste neto es 0. En B, los bytes de las hojas del tema no pueden superar los de A | Sumas sha256 en `tests/theme-structure.php`; `theme-switch.sh`, comprobación 9 |
 | Diez ubicaciones de gancho `digitalisimo_*` | El Theme Builder las recorre al encolar estilos | 0 | 0 | No añaden bytes propios. El coste de recorrerlas se mide frente a la página vacía | `front-budget.sh` (corrida de integración) |
 | Cabecera y pie generados desde Hello | Sólo en sitios que venían de Hello con cabecera y pie dinámicos | Lo del widget Menú | `smartmenus` (24 109 B; 7 068 B en gzip -9, con jQuery) | **Diferencia declarada:** Hello usaba `hello-frontend.js` (1 830 B). Se acepta para no mantener otro menú | `theme-switch.sh`, S3 |
+| Widget oculto `digitalisimo-unconverted` (marcador de K) | Se registra sólo si el sitio tiene marcadores, durante una importación o al importar plantillas. En el front no imprime nada, ni su envoltorio, y oculta la sección envoltorio cuando sólo contiene marcadores | 0 | 0 | **0/0**: no declara hojas ni scripts | `tests/elements-kit-preserve.php` (`render()` vacío, `should_render` de la sección envoltorio, sin marcadores no se registra nada); regresión de `front-budget.sh` sin cambios |
+| Lectura de los marcadores (`elementor/document/load/data` y `elementor/frontend/section/should_render`) | Sólo en sitios con marcadores, y sólo en documentos con `_digitalisimo_unconverted` | 0 | 0 | 0 consultas en un sitio sin marcadores: la opción `digitalisimo_elements_unconverted` es un entero con carga automática | `tests/elements-kit-preserve.php` |
+| `assets/digitalisimo/kits.js` | Sólo en la App de administración (`page=elementor-app`) con el núcleo incluido: el enlace al informe al terminar una importación. Nunca en el front | 0 | ≤ 2 KB | 2 KB | `brand-audit.sh` con `STATE=kit` |
 
 ## Riesgos y reversión
 
@@ -92,3 +95,4 @@ Núcleo incluido (Elementor 4.3.5, copia sin cambios): Elements no fija sus ajus
   - hojas de paridad idénticas a las de Hello, con coste neto 0;
   - diez ubicaciones de gancho, medidas en `front-budget.sh`;
   - en la cabecera generada desde Hello, `smartmenus` como diferencia declarada.
+- 2026-10-20 · Elements 4.3.0.162 (K de la fusión) · Los kits no añaden recursos al front: el marcador `digitalisimo-unconverted` cuesta 0/0 y sólo se registra en sitios con marcadores; `kits.js` (≤ 2 KB) sólo se carga en la App de administración.

@@ -1,0 +1,22 @@
+{
+  "_comentario": "Variante sin portada de woo.json (CV-26): en «nuevo» no cambian page_on_front ni show_on_front.",
+  "extends": "woo.json",
+  "zip": "woo-sin-portada.zip",
+  "caso": "A6 «nuevo» sin portada con WOO=1",
+  "cubre": ["producto", "categoria", "sin-portada"],
+  "remove_entries": ["content/page/1451.json"],
+  "entries": {
+    "manifest.json": { "name": "kit-tienda-sin-portada", "title": "Kit tienda sin portada", "content": { "page": {} } },
+    "digitalisimo/urls.json": { "product:1501": "/producto/camiseta/" }
+  },
+  "expect": {
+    "requires": { "woo": true },
+    "documents": {
+      "templates/1401": { "key": "elementor_library:producto-de-la-tienda", "doc_type": "product", "status": { "fresh": "publish", "add": "draft" }, "conditions": ["include/product", "include/product/in_product_cat/term:product_cat:ropa"] },
+      "templates/1402": { "key": "elementor_library:archivo-de-la-tienda", "doc_type": "product-archive", "status": { "fresh": "publish", "add": "draft" }, "conditions": ["include/product_archive"] }
+    },
+    "posts": { "product:camiseta": { "status": { "fresh": "publish", "add": "draft" } } },
+    "terms": { "product_cat:ropa": { "meta": { "thumbnail_id": "media:ropa.png:{{sha1:ropa}}" } } },
+    "options": { "fresh": { "unchanged": ["show_on_front", "page_on_front"] }, "add": { "unchanged": ["show_on_front", "page_on_front"] } }
+  }
+}

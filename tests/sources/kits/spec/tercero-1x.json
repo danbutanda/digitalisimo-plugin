@@ -1,0 +1,39 @@
+{
+  "_comentario": "Kit en el formato 1.x (manifiesto sin «version» 3.0 ni ajustes por casillas): pasa por el adaptador nativo, que vuelve a pedir tema y experimentos; configure() los apaga (V-31). Secciones y columnas, que no se convierten. Sintético.",
+  "zip": "tercero-1x.zip",
+  "format": "1.x",
+  "mode": "add",
+  "caso": "R3b (A3): en «agregar» sobre B vacío",
+  "cubre": ["version", "secciones", "tema-pedido"],
+  "assets": {},
+  "entries": {
+    "manifest.json": {
+      "name": "kit-antiguo", "title": "Kit antiguo", "description": "Formato 1.x", "author": "Autor Antiguo", "version": "1.0",
+      "elementor_version": "3.5.0", "created": "2022-03-01 10:00:00", "thumbnail": false, "site": "http://antiguo.test",
+      "theme": { "name": "Tema Antiguo", "slug": "tema-antiguo", "version": "1.0" },
+      "site-settings": ["settings-global-colors", "settings-global-typography", "settings-general"],
+      "templates": { "1201": { "title": "Bloque antiguo", "doc_type": "section", "thumbnail": false } },
+      "content": { "page": { "1301": { "title": "Página antigua", "excerpt": "", "doc_type": "wp-page", "thumbnail": false, "url": "http://antiguo.test/pagina-antigua/", "terms": [] } } },
+      "wp-content": {}
+    },
+    "site-settings.json": { "content": [], "metadata": [], "settings": { "system_colors": [ { "_id": "primary", "title": "Principal", "color": "#225588" } ], "custom_colors": [ { "_id": "b1c2d3e", "title": "Antiguo", "color": "#998877" } ] } },
+    "templates/1201.json": { "content": [ { "id": "b12a001", "elType": "section", "settings": [], "elements": [ { "id": "b12a002", "elType": "column", "settings": { "_column_size": 100 }, "elements": [ { "id": "b12a003", "elType": "widget", "widgetType": "heading", "settings": { "title": "Bloque antiguo" }, "elements": [] } ], "isInner": false } ], "isInner": false } ], "settings": [], "metadata": [] },
+    "content/page/1301.json": { "content": [ { "id": "b13a001", "elType": "section", "settings": [], "elements": [ { "id": "b13a002", "elType": "column", "settings": { "_column_size": 100 }, "elements": [
+      { "id": "b13a003", "elType": "widget", "widgetType": "heading", "settings": { "title": "Página antigua", "link": { "url": "http://antiguo.test/pagina-antigua/#arriba", "is_external": "", "nofollow": "" } }, "elements": [] },
+      { "id": "b13a004", "elType": "widget", "widgetType": "template", "settings": { "template_id": "1201" }, "elements": [] }
+    ], "isInner": false } ], "isInner": false } ], "settings": [], "metadata": [] }
+  },
+  "expect": {
+    "mode": "add",
+    "documents": {
+      "templates/1201": { "key": "elementor_library:bloque-antiguo", "doc_type": "section", "status": "publish", "types": { "section": 1, "column": 1, "heading": 1 } },
+      "content/page/1301": { "key": "page:pagina-antigua", "doc_type": "wp-page", "status": "draft",
+        "checks": { "0.elType": "section", "0.elements.0.elements.0.settings.link.url": "{{home}}/pagina-antigua/#arriba", "0.elements.0.elements.1.settings.template_id": "post:elementor_library:bloque-antiguo" } }
+    },
+    "kit": { "add": { "custom_colors_include": [ { "_id": "b1c2d3e", "color": "#998877" } ], "identity_unchanged": true } },
+    "analysis": { "theme_requested": true },
+    "theme_unchanged": true,
+    "experiments_unchanged": true,
+    "report": { "levels_absent": ["error"] }
+  }
+}

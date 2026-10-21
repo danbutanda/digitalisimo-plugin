@@ -1,0 +1,285 @@
+{
+ "version": 1,
+ "sha": "df7cdc47bbe24394a835b8faba8eb02ac1aafd7b",
+ "branch": "fusion/k-kits",
+ "date": "2026-10-21T10:06:15.684Z",
+ "options": {
+  "core": "bundled",
+  "woo": false,
+  "slow": false,
+  "quick": false,
+  "scenarios": [
+   "R1",
+   "R1c",
+   "R2",
+   "R3",
+   "R3b",
+   "R4",
+   "R4v4",
+   "R5",
+   "R6",
+   "R7",
+   "R8",
+   "R9",
+   "R10"
+  ]
+ },
+ "scenarios": {
+  "R1": {
+   "id": "R1",
+   "problems": [],
+   "started": "2026-10-21T10:08:08.138Z",
+   "reports": {
+    "pantalla": {
+     "media": {
+      "media.served": 12,
+      "plugins.not_installed": 1,
+      "element-defaults.unconverted": 1,
+      "media.reused": 7,
+      "media.imported": 3,
+      "theme-builder.closed": 1,
+      "review": 3,
+      "note:acf": 1,
+      "unresolved": 3,
+      "note:google_places": 1,
+      "note:form": 1
+     }
+    },
+    "wp-cli": {
+     "media": {
+      "element-defaults.unconverted": 1,
+      "media.reused": 7,
+      "media.imported": 3,
+      "theme-builder.closed": 1,
+      "review": 3,
+      "media.served": 12,
+      "note:acf": 1,
+      "unresolved": 3,
+      "note:google_places": 1,
+      "note:form": 1
+     }
+    }
+   },
+   "render": {
+    "pages": 70,
+    "widths": [
+     360,
+     768,
+     1280
+    ]
+   },
+   "golden": "sin golden (KIT_GOLDEN=write para crearlo)",
+   "ms": 2981024,
+   "ok": true
+  },
+  "R1c": {
+   "id": "R1c",
+   "problems": [],
+   "started": "2026-10-21T10:57:49.162Z",
+   "app_body": {
+    "id": "99e3348cdf2ba9f82d32d43ac723eaeb6c5dbd17a1d46eaa3faad6c95c503886",
+    "session": "6ad89ae393760",
+    "include": [
+     "plugins",
+     "settings",
+     "templates",
+     "content"
+    ],
+    "customization": {
+     "settings": null,
+     "templates": null,
+     "content": null,
+     "plugins": null
+    }
+   },
+   "partial": {
+    "ok": true,
+    "quitada": null
+   },
+   "ms": 230598,
+   "ok": true
+  },
+  "R2": {
+   "id": "R2",
+   "problems": [],
+   "started": "2026-10-21T11:01:39.761Z",
+   "ms": 78206,
+   "ok": true
+  },
+  "R3": {
+   "id": "R3",
+   "problems": [],
+   "started": "2026-10-21T11:02:57.968Z",
+   "ms": 138260,
+   "ok": true
+  },
+  "R3b": {
+   "id": "R3b",
+   "problems": [],
+   "started": "2026-10-21T11:05:16.228Z",
+   "ms": 73036,
+   "ok": true
+  },
+  "R4": {
+   "id": "R4",
+   "problems": [],
+   "started": "2026-10-21T11:06:29.264Z",
+   "ms": 122549,
+   "ok": true
+  },
+  "R4v4": {
+   "id": "R4v4",
+   "problems": [],
+   "started": "2026-10-21T11:08:31.813Z",
+   "ms": 121624,
+   "ok": true
+  },
+  "R5": {
+   "id": "R5",
+   "problems": [],
+   "started": "2026-10-21T11:10:33.438Z",
+   "reutilizados": 70,
+   "ms": 128338,
+   "ok": true
+  },
+  "R6": {
+   "id": "R6",
+   "problems": [],
+   "started": "2026-10-21T11:12:41.776Z",
+   "ms": 118292,
+   "ok": true
+  },
+  "R7": {
+   "id": "R7",
+   "problems": [],
+   "started": "2026-10-21T11:14:40.069Z",
+   "ms": 51131,
+   "ok": true
+  },
+  "R8": {
+   "id": "R8",
+   "problems": [],
+   "started": "2026-10-21T11:15:31.200Z",
+   "borrados": 10,
+   "papelera": 70,
+   "ms": 123174,
+   "ok": true
+  },
+  "R9": {
+   "id": "R9",
+   "problems": [],
+   "started": "2026-10-21T11:17:34.374Z",
+   "editora": {
+    "upload": 404,
+    "import": 404,
+    "import-runner": 404,
+    "revert": 404,
+    "export": 404
+   },
+   "ms": 81413,
+   "ok": true
+  },
+  "R10": {
+   "id": "R10",
+   "problems": [],
+   "started": "2026-10-21T11:18:55.787Z",
+   "ms": 107219,
+   "ok": true
+  }
+ },
+ "max_rest_ms": 16850,
+ "acceptance": {
+  "A1": {
+   "nombre": "Ida y vuelta propia (R1)",
+   "estado": "ok",
+   "detalle": []
+  },
+  "A2": {
+   "nombre": "Origen fuera de línea",
+   "estado": "ok",
+   "detalle": [
+    "pantalla: el host de A estuvo bloqueado y no hizo falta",
+    "wp-cli: el host de A estuvo bloqueado y no hizo falta"
+   ]
+  },
+  "A3": {
+   "nombre": "Terceros (R2, R3, R3b)",
+   "estado": "ok",
+   "detalle": []
+  },
+  "A4": {
+   "nombre": "Sin pérdida",
+   "estado": "ok",
+   "detalle": []
+  },
+  "A5": {
+   "nombre": "Sin peticiones al proveedor",
+   "estado": "ok",
+   "detalle": [
+    "exportación: 7 consulta(s) fuera de la sesión (actualizaciones de WordPress u otras), sólo informadas",
+    "R6: 8 consulta(s) fuera de la sesión (actualizaciones de WordPress u otras), sólo informadas"
+   ]
+  },
+  "A6": {
+   "nombre": "Sin cambios sin permiso, por modo",
+   "estado": "ok",
+   "detalle": []
+  },
+  "A7": {
+   "nombre": "Sólo agregar (R4)",
+   "estado": "ok",
+   "detalle": []
+  },
+  "A8": {
+   "nombre": "Reimportación (R5)",
+   "estado": "ok",
+   "detalle": []
+  },
+  "A9": {
+   "nombre": "Multisite (R6)",
+   "estado": "ok",
+   "detalle": []
+  },
+  "A10": {
+   "nombre": "Reversión (R8)",
+   "estado": "ok",
+   "detalle": [
+    "R8: de 80 documento(s) creados, 70 en la papelera y 10 plantilla(s) borradas del todo, como hace el núcleo (D16)"
+   ]
+  },
+  "A11": {
+   "nombre": "Entradas hostiles (R9)",
+   "estado": "ok",
+   "detalle": []
+  },
+  "A12": {
+   "nombre": "Marca y regresión",
+   "estado": "no medido",
+   "detalle": [
+    "Se mide con brand-audit.sh STATE=kit, front-budget.sh, conditions.sh, CORE=bundled interaction.sh y las pruebas unitarias."
+   ]
+  },
+  "A13": {
+   "nombre": "Tiempo por petición",
+   "estado": "ok",
+   "detalle": [
+    "petición REST más lenta: 16827 ms"
+   ]
+  },
+  "A14": {
+   "nombre": "Sin ampliar visibilidad",
+   "estado": "ok",
+   "detalle": []
+  }
+ },
+ "src": {
+  "live": false,
+  "dirty": []
+ },
+ "inventory": {
+  "problems": 0,
+  "ejemplos": []
+ },
+ "not_exported": [],
+ "ms": 4477693
+}

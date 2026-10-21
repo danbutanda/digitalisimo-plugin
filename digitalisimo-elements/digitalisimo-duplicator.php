@@ -120,8 +120,11 @@ final class Digitalisimo_Elements_Duplicator {
 			}
 		}
 
+		// La copia es del usuario, no de una importación: sin la sesión del importador («Revertir» la borraría), sin
+		// la procedencia del kit (una reimportación la confundiría con el original) y sin la caché de elementos.
 		$skip = array(
 			'_edit_lock', '_edit_last', '_wp_old_slug', '_elementor_css', '_elementor_page_assets', '_elementor_controls_usage',
+			'_elementor_element_cache', '_elementor_import_session_id', '_digitalisimo_import_origin',
 			'digitalisimo_seo_canonical', '_yoast_wpseo_canonical', 'rank_math_canonical_url',
 		);
 		$skip = apply_filters( 'digitalisimo_elements_duplicator_skip_meta', $skip, $post );

@@ -393,6 +393,20 @@ class Plugin {
 		return $settings;
 	}
 
+	/**
+	 * DIGITALÍSIMO (§7.8 #10, D3): en la App de kits la personalización fina (elegir páginas, plantillas, taxonomías
+	 * y ajustes) se habilita con `plan_type = expert`; el servidor la habilita con `Utils::is_high_tier()`. Sólo en
+	 * la App: el editor y la biblioteca no cambian.
+	 */
+	private function add_kit_customization_plan_to_app_settings( $settings ) {
+		$app = isset( self::elementor()->app ) ? self::elementor()->app : null;
+		if ( is_array( $settings ) && isset( $settings['library_connect'] ) && is_array( $settings['library_connect'] ) && is_object( $app ) && method_exists( $app, 'is_current' ) && $app->is_current() ) {
+			$settings['library_connect']['plan_type'] = 'expert';
+		}
+
+		return $settings;
+	}
+
 	private function setup_hooks() {
 		add_action( 'elementor/init', [ $this, 'on_elementor_init' ] );
 
@@ -411,6 +425,11 @@ class Plugin {
 		add_filter( 'elementor/common/localize_settings', function ( $settings ) {
 			return $this->add_subscription_template_access_level_to_settings( $settings );
 		}, 11 /** After Elementor Core (Library) */ );
+
+		// DIGITALÍSIMO: después del plan de la licencia (11), que lo dejaría en «free».
+		add_filter( 'elementor/common/localize_settings', function ( $settings ) {
+			return $this->add_kit_customization_plan_to_app_settings( $settings );
+		}, 12 );
 	}
 
 	private function get_assets() {

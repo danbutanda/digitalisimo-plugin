@@ -31,7 +31,7 @@ Desde 4.3.0.138, DIGITALÍSIMO Elements trae el núcleo gratuito de Elementor de
       - la cuenta, la ayuda, las novedades y Angie, tanto en la barra superior como en los menús del editor (la ventana «My account», con la conexión y los planes del proveedor, tampoco se ve si llega a abrirse);
       - los «Need help»;
       - la biblioteca remota y la nube: queda «Mis plantillas», y al exportar un kit no se ofrece «Save to library»;
-      - la biblioteca de kits del proveedor: su ruta lleva a importar un kit en ZIP;
+      - la biblioteca de kits del proveedor: su ruta lleva al importador de kits (`#/import-customization`), igual que las rutas del importador heredado `#/import` y `#/export`;
       - el asistente de configuración del núcleo (`#/onboarding` en la App: cuenta, planes y tema del proveedor). La marca `elementor_onboarded` lo da por completado, así que el núcleo no redirige a él tras activarse; una redirección que lo pida y su ruta en la App (`vendor-free.js`) llevan al Inicio rápido propio;
       - los vídeos y la documentación del Theme Builder, los avisos, las sugerencias de sus productos y cualquier «Learn more».
     - Las pantallas ocultas de cuenta, Site Planner, mejoras y apps redirigen a «Acerca de», y también una redirección del constructor hacia el proveedor. Como en el escudo, sólo la del constructor: la de otro plugin o del frontal (un enlace de afiliado enmascarado, por ejemplo) llega a su destino.
@@ -58,6 +58,21 @@ Desde 4.3.0.138, DIGITALÍSIMO Elements trae el núcleo gratuito de Elementor de
   - **Plugin Elementor activo:** si está activo, manda el plugin con su propia marca y la identidad no se aplica.
   - **Créditos:** se conservan en los archivos (`license.txt`, cabeceras GPL del núcleo, [third-party-licenses.md](third-party-licenses.md)), no en la interfaz.
 
+## Kits
+
+Desde la etapa K, exportar e importar kits usa el importador 3.0 del núcleo (el de la App, por REST) con las mejoras de DIGITALÍSIMO Elements, sin otro sistema de kits y sin editar `elementor/`. El diseño completo está en [fusion/k-kits.md](fusion/k-kits.md) y el estado en [FUSION_OBJECTIVE.md](FUSION_OBJECTIVE.md), sección K.
+
+- **Dónde:** Herramientas → Importar/Exportar, la pantalla «Kits» de DIGITALÍSIMO Elements (sólo en el sitio, con su informe) y `wp digitalisimo-elements kit export|import|revert|report|inspect`. Un ZIP de kit subido en Plantillas → Importar se lleva al importador de kits.
+- **Qué nunca hace:** instalar, activar o desactivar plugins o temas, cambiar experimentos ni crear un kit nuevo. Por defecto importa en «sólo agregar»; «nuevo» sólo si el administrador lo pide y el sitio está vacío.
+- **Flujo heredado 2.0:** con el núcleo incluido, la App, el AJAX, `wp elementor kit`, `wp elementor library import` con un kit o una URL y la reversión heredada se cortan antes de descargar o de cambiar opciones, y mandan al importador 3.0 o a `wp digitalisimo-elements kit`. **Con el plugin Elementor original activo, sus flujos 2.0 siguen como él los hace**; las mejoras del 3.0 valen con los dos núcleos.
+- **Ganchos del núcleo de los que depende K.** Todos son públicos, y `tests/elements-kit-core-contract.php` comprueba que siguen existiendo con el mismo nombre, firma y prioridad:
+  - las acciones `elementor/import-export-customization/{import,export,revert}-kit` y `…/import-kit/runner/after-run`, los nombres de los runners por defecto y que `register()` sustituye por nombre en los dos procesos;
+  - que `run_runner()` sólo guarda en el último runner y que `prevent_saving_elements_on_post_creation` sigue en `elementor/document/save/data` con prioridad 10 (K envuelve los desconocidos en 5);
+  - `elementor/import/kit/result/<origen>`, `elementor/import/get_default_settings_conflicts`, `elementor/kit/meta_to_preserve_on_kit_import`, `elementor/document/load/data`, `elementor/frontend/section/should_render`, `elementor/template_library/sources/local/import/elements`, `elementor/templates/collect_media_url` y `elementor/import-export-customization/export/wp-content/query-args/customization`;
+  - los filtros del importador WXR (`wp_import_posts`, `wp_import_post_data_raw`, `wp_import_post_data_processed`, `wp_import_post_meta`, `wp_import_term_meta`, `wp_import_post_comments`, `wp_import_insert_post`, `import_attachment_size_limit`) y del exportador (`wxr_export_skip_postmeta`, `wxr_export_skip_termmeta`), y que `fetch_remote_file()` sigue pidiendo los adjuntos en flujo (`stream`);
+  - los métodos públicos de los runners que K extiende, con la misma firma;
+  - **`Components\Module::IS_IMPORT_EXPORT_SUPPORTED`**, hoy `false`: mientras lo sea, las instancias de componentes v4 se conservan como marcador con el motivo `component`. Si una versión nueva lo cambia, la prueba falla con «revisar el motivo `component`».
+
 ## Pasar un sitio o una red al núcleo incluido
 
 Con DIGITALÍSIMO Migración activo, **Migrar** (Herramientas → Migrar a DIGITALÍSIMO Elements, o Red → Ajustes → Migrar a DIGITALÍSIMO Elements → Migrar toda la red) hace todo esto en un clic: desactiva Elementor (sólo si el núcleo incluido puede sustituirlo), Elementor Pro, PRO Elements y Element Pack, convierte el contenido y deja el informe ([ELEMENT_PACK_RETIREMENT.md](ELEMENT_PACK_RETIREMENT.md)). A mano:
@@ -82,5 +97,10 @@ Elementor publica versiones con frecuencia, a veces con correcciones de segurida
    - `bash tests/playground/brand-audit.sh`: recorre en Chrome, en español y en inglés, la administración, el editor, la biblioteca, los kits y el frontal; falla si se ve «Elementor» o su logotipo. Una versión nueva del núcleo puede traer pantallas o textos fijos nuevos.
    - `CORE=bundled FAKE_PLUGINS=1 EXTRA_PLUGINS=woocommerce,secure-custom-fields bash tests/playground/legacy-ab.sh` (y bbPress aparte): la migración desde Element Pack completa sobre el núcleo incluido.
    - `CORE=bundled bash tests/playground/form-submit.sh` y `CORE=bundled bash tests/playground/migration-report.sh`.
+   - **Kits (K):**
+     - `php tests/elements-kit-core-contract.php` (con php-wasm, juzgando por la salida completa): falla si cambió un gancho, un nombre de runner, una firma o `IS_IMPORT_EXPORT_SUPPORTED`. Si falla, se adapta K antes de publicar, nunca el núcleo.
+     - `bash tests/playground/kit-roundtrip.sh` completo (con `WOO=1`, `CORE=plugin` y `SLOW=1`) y `PORT=9464 SCOPE=quick STATE=kit bash tests/playground/brand-audit.sh` (también con `SCOPE=full`). Son obligatorios a mano, porque Playground no corre en CI; el `summary.json` se copia a `docs/fusion/k-kits-evidence.json`.
+     - Si la firma de R1 difiere de `tests/playground/kit-roundtrip/golden/` sólo por un cambio legítimo del formato del núcleo, se revisa la diferencia y se regenera con `KIT_GOLDEN=write SCENARIOS=R1 bash tests/playground/kit-roundtrip.sh`; cualquier otra diferencia es una regresión.
+     - El inventario en tiempo de ejecución de `kit-roundtrip.sh` falla si un widget del núcleo trae un control con aspecto de referencia (un ID, un menú, una plantilla) que el registro de K no declara: se declara en `References::builtin()` o se anota con su motivo en `tests/sources/kits/no-reference.json`.
    - Las pruebas habituales de la publicación.
 4. Publica DIGITALÍSIMO Elements como cualquier otra versión.

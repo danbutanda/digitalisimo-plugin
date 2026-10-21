@@ -61,7 +61,28 @@ class Webhook extends Action_Base {
 		$widget->end_controls_section();
 	}
 
-	public function on_export( $element ) {}
+	/**
+	 * DIGITALÍSIMO (§7.8 #8, CC-19): la URL de un webhook es privada (suele llevar un token) y no viaja en un kit.
+	 * Se quita, también si es una etiqueta dinámica, y se anota en «Configurar después» del informe.
+	 */
+	public function on_export( $element ) {
+		if ( ! is_array( $element ) || ! isset( $element['settings'] ) || ! is_array( $element['settings'] ) ) {
+			return null;
+		}
+
+		$had = ! empty( $element['settings']['webhooks'] ) || ! empty( $element['settings']['__dynamic__']['webhooks'] );
+
+		unset( $element['settings']['webhooks'], $element['settings']['__dynamic__']['webhooks'] );
+
+		if ( $had ) {
+			$context = '\Digitalisimo\Elements\Import\Kits\Context';
+			if ( class_exists( $context, false ) && method_exists( $context, 'export_note' ) ) {
+				$context::export_note( 'webhooks' );
+			}
+		}
+
+		return $element;
+	}
 
 	public function run( $record, $ajax_handler ) {
 		$settings = $record->get( 'form_settings' );

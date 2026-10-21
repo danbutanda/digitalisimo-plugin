@@ -1,6 +1,8 @@
 # Objetivo: fusión de constructores en DIGITALÍSIMO Elements
 
-Este documento es el punto de entrada para cualquier agente que continúe la fusión. El objetivo es que **DIGITALÍSIMO Elements sea el único constructor** de los sitios: con las capacidades útiles de Divi, Betheme/BeBuilder, GeneratePress (GP Premium), Bricks (sólo por su documentación pública), Element Pack Pro y Prime Slider; capaz de importar plantillas y kits de esos formatos; con DIGITALÍSIMO Migración convirtiendo sitios completos; con un tema propio mínimo, y con el código PHP propio de cada sitio en un editor de fragmentos de DIGITALÍSIMO Tools.
+Este documento es el punto de entrada para cualquier agente que continúe la fusión. El objetivo es que **DIGITALÍSIMO Elements sea el único constructor** de los sitios: con las capacidades útiles de Divi, Betheme/BeBuilder, GeneratePress (GP Premium), Bricks (sólo por su documentación pública), Element Pack Pro y Prime Slider; con DIGITALÍSIMO Migración convirtiendo los sitios hechos con Element Pack y Prime Slider; con un tema propio mínimo, y con el código PHP propio de cada sitio en un editor de fragmentos de DIGITALÍSIMO Tools.
+
+**Cambio de alcance (2026-10-20).** No se importan ni convierten temas, plantillas, kits ni opciones de Divi, Betheme, Bricks ni GeneratePress, y no hay paso de tema desde ellos: sus **beneficios** se integran en Elements (F7a, F7b y F4-Woo), y los **kits de Elementor**, propios y de terceros, se exportan e importan con todas las mejoras (K). F2, F3, F4 (la conversión), F5 y F6 se eliminan; sus secciones quedan como registro.
 
 Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y sin otro plugin de migración. Las reglas permanentes están en `AGENTS.md` (sección «Fusión de constructores»). La evidencia de la revisión (formatos, rutas, líneas y riesgos de cada origen) está en `docs/fusion/`. Si un informe de `docs/fusion/` y este documento no coinciden, manda este documento.
 
@@ -25,20 +27,39 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
 | Páginas de GP hechas con bloques del núcleo | Siguen en el editor de bloques | 2026-10-16 |
 | Copias del tema que no están cargadas (D1) | Las cubre **DIGITALÍSIMO Tools** (`Theme_Updates`): inactivas, en otra carpeta o en otros sitios de la red. También es el respaldo de la copia cargada. No va en Elements, porque ningún módulo puede exigir otro | 2026-10-17 |
 | `style.css` de un hijo de Hello (D2) | **Sólo se informa:** en Tools antes del cambio, y en la bitácora y en `wp digitalisimo-theme status` después. `wp digitalisimo-theme import --child-css` lo copia al CSS adicional sólo si se pide, porque pegarlo cambia su lugar en la cascada | 2026-10-17 |
+| Alcance | **Sin importar ni convertir** Divi, Betheme, Bricks ni GeneratePress: sus beneficios se integran en Elements y los kits de Elementor funcionan con todas las mejoras. F2, F3, F4 (la conversión), F5 y F6 se eliminan; siguen F1, F1b, F-front, F7a, F7b, F4-Woo y F8, y se añade K. Las decisiones anteriores sobre esos orígenes (hooks de GP, muestras, tema al migrar, páginas de GP) quedan sin efecto | 2026-10-20 |
+| K-D1 · Modo de importación | **«Sólo agregar» siempre por defecto**, también en un sitio vacío. «Nuevo» sólo si el administrador lo pide (pantalla «Kits» o `--mode=fresh`) **y** el sitio está vacío; si no, se rechaza con el motivo. Un Template Kit de Envato entra siempre en «agregar» | 2026-10-20 |
+| K-D2 · Kit de destino | Siempre el kit activo, con respaldo; nunca se crea un kit nuevo. Los metadatos nativos quedan inertes, así la reversión nativa del kit no borra nada | 2026-10-20 |
+| K-D3 · Personalización fina | Habilitada en la App (casillas por parte); el servidor fuerza siempre `theme` y `experiments` a `false` | 2026-10-20 |
+| K-D4 · Flujo heredado 2.0 | La App lleva al importador 3.0. `wp elementor kit` y `wp elementor library import` con un kit o una URL terminan antes de descargar o de cambiar opciones y mandan a `wp digitalisimo-elements kit` | 2026-10-20 |
+| K-D5 · Plugins que pide el kit | Nunca se instalan ni se activan: sólo se informan | 2026-10-20 |
+| K-D6 · Medios | Dentro del kit por defecto: 20 MB por archivo y, en la App, `min(32 MB, memory_limit / 8)` en total (WP-CLI sin tope total). Sólo adjuntos del sitio actual, nunca por HTTP ni de otro sitio de la red | 2026-10-20 |
+| K-D7 · Reimportación | Lo creado por el mismo kit se reconoce por procedencia en cualquier estado: se reutiliza si nada cambió; si no, borrador «actualización» o «conflicto». **Nunca se actualiza en el sitio** | 2026-10-20 |
+| K-D8 · Estados en «agregar» | En borrador lo que se ve sin que nadie lo enlace (entradas de tipos visibles, plantillas con ubicación o condiciones, popups y botones flotantes); conservan su estado lo que sólo se ve incrustado, fuentes, iconos, adjuntos y menús. Siempre en borrador, en los dos modos: Custom Code y todo documento con una referencia de acceso sin destino | 2026-10-20 |
+| K-D9 · Widget desconocido | Marcador oculto `digitalisimo-unconverted` con el original completo y un motivo (`unknown` o `component`). Sólo se registra si hay marcadores o una importación en curso | 2026-10-20 |
+| K-D10 · Playground en CI | No. Unitarias en los dos workflows; `kit-roundtrip.sh` y `brand-audit.sh STATE=kit`, a mano antes de publicar y tras cada `sync-elementor-core.sh`, con su evidencia en `docs/fusion/` | 2026-10-20 |
+| K-D11 · Ajustes del kit en «agregar» | No se aplican: los colores y tipografías que usa el contenido se añaden como personalizados; el resto, con «Aplicar los ajustes del kit», que se puede deshacer | 2026-10-20 |
+| K-D12 · ZIP de kit en Plantillas → Importar | Se lleva al importador de kits con el kit ya preparado (token de un solo uso) | 2026-10-20 |
+| K-D13 · Límites del guardián | 512 MB descomprimido, 5 000 entradas, relación 100:1, JSON ≤ 32 MB y profundidad ≤ 256, XML ≤ 64 MB sin `<!DOCTYPE` ni `<!ENTITY`, un nivel de ZIP anidado; por sesión, 512 MB de descargas y 20 s de red por petición, y ningún medio nuevo pasados 15 s de la petición (filtro `digitalisimo_elements_kit_guard_limits`) | 2026-10-20 |
+| K-D14 · Plantillas de red de Tools | Mantienen su remapeo; K no cambia Tools | 2026-10-20 |
+| K-D15 · SVG con la subida sin filtrar apagada | Se respeta: los separadores y máscaras propios se escriben saneados por K; los SVG de la biblioteca se omiten y se informan | 2026-10-20 |
+| K-D16 · Documentos al revertir | A la papelera, como el núcleo | 2026-10-20 |
+| K-D17 · Template Kits reales de Envato | Regresión obligatoria si el propietario aporta 3 o más (fuera de Git); si no, la fila de la matriz queda «sintético» con el riesgo abierto (`docs/fusion/k-envato.md`) | 2026-10-20 |
+| K-D18 · Referencias por meta de SEO | SEO las declara en su propia etapa con `scope = post_meta`; K no cambia SEO | 2026-10-20 |
+| K-D19 · Plugin Elementor original activo | Las guardas del flujo 2.0 sólo con el núcleo incluido; las mejoras del 3.0 valen con los dos núcleos | 2026-10-20 |
+| K-D20 · IDs de elemento | Se conservan al exportar; si un nodo no coincide, ese documento conserva los IDs nuevos y se informa | 2026-10-20 |
 
 ## Arquitectura
 
-1. **Conversores en Elements, orquestación en Migración.** El módulo `digitalisimo-elements/modules/digitalisimo-import/` declara descriptores y carga los lectores por autoload: cero carga en sitios que no importan.
-   - Contiene la interfaz `Source` pura (`sniff`, `parse`, `convert` → `Result`), el árbol neutro, el emisor a contenedores y widgets, el validador común y los escritores de kit con los repositorios del núcleo.
-   - El **intérprete genérico de mapas** se traslada aquí desde el Translator de Migración.
-   - Fuentes: Divi (D5 con `parse_blocks`, D4 con tokenizador propio), Betheme, Bricks y GP.
-   - Element Pack y Prime Slider siguen en Migración: la guarda de `scripts/build-packages.sh` aborta si el ZIP de Elements los menciona. Sus mapas se pasan por filtro.
-2. **Importador sin otro sistema de kits.** Una sola acción «Importar» que detecta el formato.
-   - Plantillas sueltas: un punto de entrada propio llama a `import_template(['source'=>'digitalisimo-import'])`; ese `Source` delega en `get_source('local')->save_item()`.
-   - Kits ajenos, demos locales de Betheme y paquetes locales de la Site Library de GP: se convierten a un kit 3.0 sin `theme`, `experiments` ni `plugins` y se importan con el filtro `site-settings/customization` en modo «sólo agregar». Sólo un sitio sin contenido previo del constructor reemplaza los ajustes del sistema.
-   - `_digitalisimo_presets` y `_elementor_elements_default_values` se preservan al importar.
-   - Se ejecuta en AJAX autenticado o CLI. Si se instancia `Import` directamente, se dispara a mano la acción que registra los runners de PRO.
-   - Los componentes v4 se crean con `Components_Repository` después de importar; sus instancias se reinsertan con el mapa de IDs.
+1. **Conversores en Elements, orquestación en Migración.** El módulo `digitalisimo-elements/modules/digitalisimo-import/` (espacio de nombres `Digitalisimo\Elements\Import`, autocarga acotada) aloja el importador de kits de K: cero carga en sitios que no importan.
+   - Desde el 2026-10-20 no hay lectores de Divi, Betheme, Bricks ni GP, ni la interfaz `Source` ni el árbol neutro que iban con F2.
+   - Element Pack y Prime Slider siguen en Migración (F8): la guarda de `scripts/build-packages.sh` aborta si el ZIP de Elements los menciona. Migración puede convertir los marcadores `digitalisimo-unconverted` con el filtro `digitalisimo_elements_unconverted_convert` que publica K.
+2. **Importador sin otro sistema de kits (K).** Se usa el importador 3.0 del núcleo, enganchado con filtros públicos y con runners sustituidos por nombre; el ZIP sigue siendo un kit 3.0 y lo propio viaja en la clave y la carpeta `digitalisimo/`.
+   - «Sólo agregar» por defecto; «nuevo» sólo explícito y en un sitio vacío. Nunca cambia el tema, los experimentos ni los plugins, ni crea un kit nuevo.
+   - Plantillas sueltas: camino nativo de la biblioteca, con el marcador para lo desconocido. Un ZIP de kit subido en la biblioteca va al importador de kits.
+   - Las metas `_digitalisimo_*` del kit y `_elementor_elements_default_values` viajan y se preservan (registro de partes).
+   - Las instancias de componentes v4 se conservan como marcador mientras el núcleo no admita componentes en kits.
+   - Detalle en «K · Kits de Elementor con las mejoras» y en `docs/fusion/k-kits.md`.
 3. **Destino clásico.** Contenedores flex o grid y widgets nativos y propios. v4 sólo en sitios que ya lo tienen.
 4. **El kit es el sistema de diseño.** Colores y tipografías del origen van al kit con `_id` prefijado; variables v4 donde exista v4.
    - **Presets de estilo:** se guardan en la meta del kit y compilan su CSS en el del kit (`elementor/css-file/post/parse`, `add_controls_stack_style_rules()` sobre una instancia de muestra).
@@ -76,7 +97,8 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
     - «No pisar»: se reconvierte si cambió el origen; nunca se reescribe ni se revierte lo editado después (hash). La reversión sólo por CLI.
     - `Retire::PLUGINS` gana `phase` (`start`, `end`, `theme`); la red sólo retira `start` al inicio. Element Pack conserva su orden actual como excepción documentada.
 11. **Compatibilidad cotidiana en Elements.** La opción `digitalisimo_compat`, que escriben la importación o la migración, activa los CPT del origen con sus slugs, las sidebars como widget Sidebar en plantillas del Theme Builder y las ubicaciones de menú. Sin esa opción, cero consultas.
-    - Lo no convertible se marca con un widget oculto `digitalisimo-unconverted`: no pinta nada en el frontal, avisa en el editor y conserva la carga original. Mientras quede alguno bloqueante, no se activa el resultado ni se retira el origen.
+    - Lo no convertible se marca con un widget oculto `digitalisimo-unconverted`: no pinta nada en el frontal, avisa en el editor y conserva la carga original. Mientras quede alguno bloqueante, no se activa el resultado ni se retira el origen. K lo implementa para kits y biblioteca (`docs/fusion/k-kits.md`, §9); Migración lo usará en F8.
+    - K no escribe `digitalisimo_compat`: la conversión que la escribía (F2) se eliminó el 2026-10-20.
 12. **Editor de fragmentos PHP en DIGITALÍSIMO Tools** (sustituye al tema hijo). Fragmentos por sitio y por red, guardados en la base de datos, sin archivos, y ejecutados por Tools con `include` por su envoltorio `digitalisimo-php://` en `after_setup_theme` con prioridad `PHP_INT_MIN`: ya cargó el `functions.php` del tema, así que un `remove_action` sobre lo del tema funciona; no se pueden sustituir funciones *pluggable* ni engancharse a `plugins_loaded`.
     - Ninguno se ejecuta sin pasar la revisión de sintaxis, la prueba previa (escritorio y portada, lanzada por el navegador del administrador) y la firma de la versión probada. Un fragmento que provoca un error fatal se desactiva solo (si es de red, se pausa sólo en ese sitio) y queda anotado. Hay modo seguro para arrancar sin fragmentos.
     - Sólo lo usa quien puede editar temas (superadministrador en red); con `DISALLOW_FILE_EDIT` o `DISALLOW_FILE_MODS` los activos siguen y sólo se pueden desactivar o detener (D1).
@@ -92,7 +114,7 @@ Cada incremento las cumple. Las permanentes están también en `AGENTS.md`.
   - ZIP sin `..`, rutas absolutas ni symlinks, con límites de entradas, tamaño y ratio. JSON con límites de tamaño y profundidad. `unserialize` con `allowed_classes => false`.
   - Medios con `wp_safe_remote_get` a IP pública, tope de tamaño, verificación de tipo, SVG saneado y deduplicación por hash.
   - Código ejecutable a Código personalizado en borrador, a Tools desactivado o al informe; nunca se ejecuta automáticamente (ni los hooks PHP de GP ni `{echo:}` de Bricks).
-- **Procedencia y registro.** `_digitalisimo_import_origin` (origen, versión, id, hash) en todo lo creado. Original y registro de conversión en base de datos privada (autoload off), visibles sólo para administradores. Reimportar no duplica: se omite, se actualiza o se marca conflicto.
+- **Procedencia y registro.** `_digitalisimo_import_origin` (origen, versión, id, hash) en todo lo creado. Original y registro de conversión en base de datos privada (autoload off), visibles sólo para administradores. Reimportar no duplica: se reutiliza lo que no cambió y, si cambió, se crea un borrador «actualización» o «conflicto»; nunca se pisa en el sitio lo ya importado (K-D7).
 - **Condiciones y caché.** Cada condición nueva se declara cacheable o variable, y `THEME_LOCATIONS` se puede ampliar por filtro. El editor distingue visibilidad, render condicional y autorización: ninguna condición se presenta como protección.
 - **Recursos.**
   - Dependencias por elemento, también del contenido que llega por AJAX, popups, quick view y «cargar más». Inicialización idempotente con limpieza.
@@ -116,14 +138,16 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | F0.2 | Sin rastro de los plugins de origen ni de sus proveedores | **Publicado** · Elements 4.3.0.157 y los demás plugins · `v2026.10.17.408` (seguimiento F0.2b publicado: Elements 4.3.0.158 · `v2026.10.20.410`) |
 | F1 | Tema y publicación | **Publicado** · tema 1.0.0, SEO 1.0.231, Tools 1.0.36 y Elements 4.3.0.161 · `v2026.10.20.415` |
 | F1b | Editor de fragmentos PHP en Tools | **Publicado** · Tools 1.0.34 · `v2026.10.20.411` |
-| F2 | Base común de conversión y Migración v2 | Pendiente |
+| K | Kits de Elementor con las mejoras: exportar e importar kits propios y de terceros, con el registro que usan F7a, F7b y F4-Woo | **Publicado** · Elements 4.3.0.162 |
+| F2 | Base común de conversión y Migración v2 | Eliminado (2026-10-20) |
 | F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md` | Pendiente |
 | F7a | Capacidades que Divi y Betheme necesitan | Pendiente |
-| F3 | Divi (D5 y D4) | Pendiente |
-| F4 | Betheme / BeBuilder + WooCommerce visual | Pendiente |
-| F5 | GeneratePress | Pendiente |
+| F3 | Divi (D5 y D4) | Eliminado (2026-10-20) |
+| F4 | Conversión de Betheme / BeBuilder | Eliminado (2026-10-20) |
+| F4-Woo | WooCommerce visual: widgets nuevos | Pendiente |
+| F5 | GeneratePress | Eliminado (2026-10-20) |
 | F7b | Capacidades que Bricks necesita | Pendiente |
-| F6 | Bricks (con las exportaciones del usuario) | Pendiente |
+| F6 | Bricks (con las exportaciones del usuario) | Eliminado (2026-10-20) |
 | F8 | Element Pack 10.x y Prime Slider en Migración | Pendiente |
 
 ### F0 · Base
@@ -479,7 +503,110 @@ Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
 - **Pruebas:** `tests/tools-php-snippets.php` (unitaria, también en PHP 7.4 con php-wasm-cli) y `tests/tools-php-guard.php` (guardián en subprocesos) en `validate.yml` y `release.yml`; `tests/playground/tools-php.sh` con los escenarios de sitio individual y de red: un fatal no tumba el sitio, el modo seguro funciona y la red y el sitio quedan aislados.
 - **Medición pendiente** en staging con el protocolo de F1: como mucho 1 ms por cada 10 KB de código activo, sin cambios en `Vary`, cookies ni cabeceras para los visitantes.
 
+### K · Kits de Elementor con las mejoras
+
+**Publicado** · Elements 4.3.0.162 (rama `fusion/k-kits`). Sólo cambia DIGITALÍSIMO Elements: Migración, Tools, SEO, IA Tools, Hosting, Backups y `digitalisimo-ui` no cambian. Diseño, ganchos y evidencia del núcleo en [docs/fusion/k-kits.md](fusion/k-kits.md); Template Kits de Envato en [docs/fusion/k-envato.md](fusion/k-envato.md).
+
+**Objetivo.** Exportar e importar **kits de Elementor** con todas las mejoras de DIGITALÍSIMO Elements: los propios y los de terceros (Elementor y Elementor Pro en formato 1.x, 2.x o 3.0, y los Template Kits de Envato). Un kit exportado desde un sitio con Elements e importado como «nuevo» en un sitio vacío da el mismo resultado, en datos y en capturas. Un kit de terceros entra en «sólo agregar». En todos los casos:
+- sin otro sistema de kits y sin tocar el núcleo incluido;
+- sin errores ni peticiones al proveedor;
+- sin cambiar el tema, los experimentos ni los plugins;
+- sin perder datos: lo que no se puede pintar se conserva y se informa;
+- sin ampliar quién ve un contenido.
+
+**Qué cambia para el administrador**
+- **Herramientas → Importar/Exportar** abre el importador de kits (`#/import-customization` y `#/export-customization`), siempre en «sólo agregar». La biblioteca de kits del proveedor y las rutas del flujo 2.0 llevan ahí.
+- **Pantalla «Kits»** (`admin.php?page=digitalisimo-elements-kits`, sólo en el sitio, con `manage_options` y `digitalisimo-ui`): importar, con la casilla «Este sitio es nuevo» que sólo se habilita si el sitio está vacío (K-D1); lista de importaciones (de las sesiones nativas del núcleo) y su informe; «Aplicar los ajustes del kit» y deshacerlo; «Publicar páginas y plantillas».
+- **Informe** de cada importación: el modo y su porqué; «revisar antes de publicar»; lo conservado sin mostrar; lo que el kit pedía y no se aplicó (tema y experimentos sin nombre, plugins por nombre y sin enlace, y los de la familia del constructor como «funciones incluidas en DIGITALÍSIMO Elements»); referencias sin destino; medios; URL del origen que quedan; lo no exportado en el origen; lo que hay que configurar después (formularios, webhooks, Google, ACF, barras laterales); ajustes no aplicados; borradores; la papelera tras revertir.
+- **WP-CLI:** `wp digitalisimo-elements kit export|import|revert|report|inspect`. `import` exige `--user` con `manage_options` y acepta `--mode=add|fresh` (por defecto `add`).
+- Un **ZIP de kit subido en Plantillas → Importar** se lleva al importador de kits con un token de un solo uso (una hora, por usuario). La biblioteca dentro del editor no se intercepta.
+
+**Frentes.** Rutas relativas a `digitalisimo-elements/modules/digitalisimo-import/` salvo que se diga otra cosa.
+
+| Frente | Qué entrega | Archivos |
+|---|---|---|
+| E · contrato | Interfaces, registro de partes y de referencias, contextos | `class-module.php` (esqueleto), `kits/{interface-part,interface-early-part,class-parts,class-references,class-part-context,class-export-context,class-import-context,class-revert-context}.php`; `tests/elements-kit-parts.php` §1 |
+| A · importador | Ganchos, sesión, contextos, guardián, normalizador, proxy de medios, filtros del WXR, guardas del flujo 2.0, runners y correcciones en derivados de PRO | `class-module.php`, `kits/{class-session,class-context,class-zip-guard,class-inspection,class-normalizer,class-normalized,class-media-proxy,class-wxr-guard,class-legacy-guard,class-cli-guard}.php`, `kits/runners/`, una línea en `pro-elements.php`, los derivados de PRO de `docs/fusion/k-kits.md` §7 con su nota en `DIGITALISIMO_CHANGES.md`, y `digitalisimo-duplicator.php` |
+| B · datos propios | Las siete partes y la exportación propia (IDs de elemento, miniatura completa, WXR anonimizado) | `kits/parts/`, `kits/export/` |
+| C · remapeo | `Remapper` y las referencias integradas | `kits/class-remapper.php`, `References::builtin()` |
+| D · terceros | Template Kits de Envato, marcador y biblioteca | `sources/{class-envato-kit,class-asset-scan}.php`, `kits/class-preserve.php`, `class-unconverted-widget.php`, `kits/class-library.php` |
+| F · interfaz | Informe, pantalla «Kits», WP-CLI y guardas de la App | `kits/{class-report,class-report-page,class-cli}.php`, `digitalisimo-elements/assets/digitalisimo/vendor-free.js` y `kits.js` |
+| G · pruebas | Unitarias, fixtures y Playground | `tests/elements-kit-*`, `tests/sources/kits/`, `tests/playground/kit-roundtrip*`, rama `kit` de `brand-audit`, `tests/playground/README.md` |
+| H · documentación | Esta sección y las demás | `docs/{FUSION_OBJECTIVE,PLUGIN_ROADMAP,ELEMENTOR_CORE,ELEMENTS_FRONT_OBJECTIVE}.md`, `docs/fusion/k-*.md`, `AGENTS.md`, `digitalisimo-elements/readme.txt` |
+| I · integración | Correcciones de la primera corrida completa, una sola fuente entre frentes, versión, paquete, workflows y evidencia | `tests/elements-kit-{global-widget,integration}.php`, `pro-elements.php` (versión), `tests/validate-suite.mjs`, `validate.yml` y `release.yml`, `dist/`, `rollback/`, `docs/fusion/k-kits-evidence.json`; lo que cambió en la integración está en `docs/fusion/k-kits.md` §14 |
+
+**Aceptación.** Cada criterio se mide con `tests/playground/kit-roundtrip.sh` o con las pruebas unitarias. La evidencia (`summary.json` del arnés) se guarda como `docs/fusion/k-kits-evidence.json`.
+
+| # | Criterio | Cómo se mide |
+|---|---|---|
+| A1 | **Ida y vuelta propia (R1).** El sitio A tiene los 44 widgets visibles, el Slider Optimizado y los 7 alias; los rasgos; los tres motores de condiciones; el Theme Builder en cinco ubicaciones; popup; loop con plantilla alterna y filtro de taxonomía; formulario; menú; fuente e iconos propios; kit con globales, valores por defecto y fondo con imagen; separadores `digi-*` y máscaras. Se exporta por REST y por WP-CLI y se importa en B vacío como «nuevo» | Firma de datos con **0 diferencias** fuera de `known.json` (cada entrada con su motivo; una sin usar falla), con los IDs de elemento y la integridad de las referencias. Los autoincrementos de B se desplazan antes: un ID sin traducir cuenta como `unresolved`. export(A) = export(B) normalizado; REST = WP-CLI salvo IDs; medios incrustados, 0 descargas y 0 peticiones al host de A. Píxeles ≤ 0,5 % en 360, 768 y 1280 px; 0 errores JS, 0 respuestas 404 y 0 fatales; mismos sha256 en `uploads/digitalisimo-elements/` |
+| A2 | **Origen fuera de línea** | A1 con el host de A bloqueado |
+| A3 | **Terceros:** Envato sintético (R2), Pro 3.x en 2.0 (R3) y 1.x (R3b), en «agregar» sobre B vacío | `failed` vacío en cada runner; sin entradas `error`; cada documento cumple el `expect` de su fixture; tras «Aplicar los ajustes del kit», colores y tipografías en el kit activo; las condiciones de Pro, como condiciones del Theme Builder en plantillas en borrador |
+| A4 | **Sin pérdida** | Elementos por tipo (un marcador cuenta como su tipo original), documentos por tipo y términos por taxonomía iguales en el kit y en B. La carga de cada marcador se reexporta igual; sin `unfiltered_html`, igual a kses del original, y la diferencia queda en el informe |
+| A5 | **Sin peticiones al proveedor** | Mientras dura el contexto de K, 0 peticiones a los dominios de `vendors.json` y a `*.wordpress.org`, con `CORE=bundled` y con `CORE=plugin`; el netlog de Chrome tampoco las tiene |
+| A6 | **Sin cambios sin permiso** | «Agregar»: todas las opciones idénticas, salvo transitorios, `cron`, `elementor_import_sessions`, `elementor_revert_sessions`, `digitalisimo_elements_kit_session_*` y `digitalisimo_elements_unconverted`, y los árboles de `wp-content/plugins` y `wp-content/themes` idénticos. «Nuevo»: además pueden cambiar los ajustes del kit activo (conserva su ID), la portada si el kit la trae y, con `WOO=1`, las páginas de WooCommerce. Nunca el tema, los plugins ni los experimentos |
+| A7 | **Sólo agregar (R4)** sobre un sitio con contenido de choque | Lo previo conserva el md5 de sus datos, contenido, estado y condiciones. El kit se compara campo a campo: no cambia lo previo de colores, tipografías, CSS, puntos de corte ni estilo del tema, y lo añadido es exactamente el mapa de ajustes. Estados según K-D8. Tras «Publicar», una página importada pinta su fuente y su icono propios |
+| A8 | **Reimportación (R5)** | La segunda vez no crea filas en `posts`, `postmeta`, `terms` ni `termmeta` ni archivos en `uploads/`; el número de colores y tipografías no cambia; «reutilizado» = documentos del kit |
+| A9 | **Multisite (R6)**, importando en el sitio 2 | Sitios 1 y 3 idénticos (tablas sin transitorios, `uploads/`, `plugins` y `themes`) y `sitemeta` idéntica salvo `_site_transient_*`; archivos en `uploads/sites/2/`; un administrador sin `unfiltered_html` no importa Custom Code; los tipos de archivo bloqueados por la red se avisan; nunca se instala nada |
+| A10 | **Reversión (R8)** | B coincide con su instantánea, salvo los documentos que van a la papelera (contados aparte) y los adjuntos de la sesión, que se borran. Se restauran ajustes, metas y datos v4 del kit, las opciones de A6 y `uploads/digitalisimo-elements/` |
+| A11 | **Entradas hostiles (R9)** | Todas rechazadas con un mensaje (también rutas REST con otra capitalización y descargas en flujo); nada escrito fuera de las carpetas de K; 0 fatales; un editor recibe 403 |
+| A12 | **Marca y regresión** | `brand-audit.sh STATE=kit` con `SCOPE=quick` y `SCOPE=full`; `front-budget.sh`, `conditions.sh`, `CORE=bundled interaction.sh` y `brand-audit.sh`; las unitarias en los dos workflows |
+| A13 | **Tiempo por petición** | Con `SLOW=1` (host lento y 100 imágenes), ninguna petición REST dura más de 25 s; lo que no cabe queda «no descargado (tiempo)» |
+| A14 | **Sin ampliar visibilidad** | Ninguna referencia sin destino deja un elemento, plantilla o fragmento visible para más usuarios o páginas que en el origen; el documento queda en borrador con «revisar antes de publicar» |
+
+**Regla de cierre (fallar cerrado)**
+- En una lista, un valor sin destino se quita y se anota.
+- Un valor único, o una lista que queda vacía, sólo se vacía si en ese control vacío **no** significa «cualquiera». Si lo significa (por ejemplo, el usuario de Visibilidad), se usa el valor que nunca coincide que declara la referencia (`never`), que sobrevive a `absint()` sin volverse un ID real.
+- Si la referencia decide quién ve algo o dónde se aplica (`gate`), el documento queda **en borrador en los dos modos** con «revisar antes de publicar», y «Publicar» no lo publica mientras su copia local no cambie.
+- En el Theme Builder y en Custom Code, una condición sin destino deja el documento **sin condiciones** (no se aplica en ninguna parte) y el informe conserva la lista original.
+
+**Registro extensible.** Es lo que permite a las etapas siguientes añadir sus datos de kit **sin tocar el código de K** (`digitalisimo-elements/modules/digitalisimo-import/kits/`; contrato completo en `docs/fusion/k-kits.md` §10):
+- **Partes**, con el filtro `digitalisimo_elements_kit_parts`: una clase que implementa `Part` (`key`, `version`, `kit_meta_keys`, `export`, `import` y `revert`) viaja en `digitalisimo/<key>.json` y anota su versión en el manifiesto. Una `Early_Part` corre además en el runner `plugins`, antes de taxonomías y contenido. Las partes de K son `origin`, `element-defaults`, `kit-settings`, `files`, `media`, `theme-builder` y `term-meta`; la clave `urls` está reservada.
+- **Referencias**, con el filtro `digitalisimo_elements_kit_references`: `[ scope, type, path, kind, gate, never ]`, con `scope` `element`, `document`, `condition`, `post_meta` o `term_meta`, y `kind` `post`, `template`, `term`, `menu`, `menu_slug`, `user`, `attachment`, `url`, `media-url`, `css`, `file`, `element`, `conditions`, `note:<código>` o `map:<nombre>`. Los controles URL se derivan solos de su tipo.
+- **Contextos:** `Export_Context` (`add_file()`, `budget()`), `Import_Context` (modo, mapas, `add_map()`, `store()`, `staged_path()`, `flag_review()`) y `Revert_Context` (`unchanged()`), sobre la base común `Part_Context` (informe y huella).
+- **Ganchos:** además de los dos filtros, `digitalisimo_elements_kit_media_limits`, `digitalisimo_elements_kit_guard_limits`, `digitalisimo_elements_kit_existing_document`, `digitalisimo_elements_kit_imported`, `digitalisimo_elements_unconverted_convert` y `digitalisimo_elements_kit_theme_builder_fields`.
+
+**Obligación de F7a, F7b, F4-Woo y SEO.** Cada dato nuevo que deba viajar en un kit se declara así, con su caso en `tests/playground/kit-roundtrip/cases.json`; toda meta del kit va en `kit_meta_keys()`; `version()` sube al cambiar el formato; ningún CSS generado lleva una URL absoluta de `uploads`. El inventario en tiempo de ejecución falla si un control con aspecto de referencia no está declarado.
+
+| Etapa | Qué añade | Cómo, sin tocar K |
+|---|---|---|
+| F7a · presets | `_digitalisimo_presets` | Parte `presets`, con la meta en `kit_meta_keys()`, fusión por slug y `map:presets` sobre `_css_classes` |
+| F7a · degradados y máscaras | Ajustes de elemento | Referencias `url`, `media-url` o `file`; un SVG de máscara viaja como `files/masks/<slug>.svg`. Nunca una URL en el CSS |
+| F7a · condiciones nuevas | Argumentos con IDs | `scope = condition` (con `gate` por defecto) y `never` si vacío significa «cualquiera» |
+| F7a · prioridad del Theme Builder | Un campo por plantilla | Filtro `digitalisimo_elements_kit_theme_builder_fields` |
+| F7b · acciones con destino | `_digitalisimo_actions` | Referencias a la entrada (`post`) y al elemento destino (`element`). En los kits propios los IDs de elemento se conservan (K-D20); en los de terceros llegan regenerados y el informe marca el destino que falte |
+| F7b · consultas guardadas | CPT con UUID | Parte `saved-queries` y `map:queries` |
+| F7b · componentes v3 | Plantilla y `_digitalisimo_slot` | Parte `components` y referencias `template` |
+| F4-Woo · widgets nuevos | Controles por ID | Referencias, o controles `Query` con sufijo `*_post_ids` o `*_term_ids`, que traduce el núcleo |
+| F4-Woo · atributos y muestras | Taxonomías `pa_*` y sus metas | `Early_Part` que registra los atributos antes de las taxonomías, más referencias `term_meta` |
+| F4-Woo · variaciones | `product_variation` | Parte propia; hasta entonces K las anota como no exportadas |
+| SEO (K-D18) | `_related_pillar`, `_related_location_id` | `scope = post_meta` con `kind` `post` y `term`; hasta entonces viajan sin traducir y el informe las cuenta |
+
+El único límite del registro: los archivos de un kit sólo pueden ser medios por sha256 y SVG de separadores y máscaras. Otro tipo de archivo exige ampliar esas formas y el guardián en K.
+
+**Datos y opciones.** Todas automáticas y sin pantalla de ajustes (ver «Opciones nuevas»). El estado de cada importación sale de las sesiones nativas del núcleo (`elementor_import_sessions` y `elementor_revert_sessions`), unidas a la opción de detalle de K. Los temporales viven en `uploads/digitalisimo-elements/tmp/<64 hex>/`, protegidos, con la ruta guardada relativa a `uploads`, y se borran al terminar y con el evento único `digitalisimo_elements_kits_cleanup` a las 24 h.
+
+**Pruebas**
+- **Unitarias**, en `validate.yml` y `release.yml`, tras `tests/elements-palette.php` y en el mismo orden: `tests/elements-kit-{guard,session,settings,remap,preserve,parts,pro-fixes,core-contract,actions}.php` y `tests/elements-kit-{inventory,fixtures,static,app-guard}.mjs`. La prueba del contrato es la sección 1 de `tests/elements-kit-parts.php`. Ninguna se salta sin `ZipArchive`.
+- **Fixtures sintéticos** en `tests/sources/kits/` (generador `build.mjs`, `fixtures.lock.json`, hosts `.test`, correos `@example.com`).
+- **Playground** (manual, K-D10): `tests/playground/kit-roundtrip.sh`, escenarios R1 (ida y vuelta), R1c (cuerpo exacto de la App), R2 (Envato), R3 y R3b (Pro 3.x y 1.x), R4 y R4v4 (sólo agregar con choque), R5 (reimportar), R6 (red), R7 (sin proveedor), R8 (revertir), R9 (permisos y entradas hostiles) y R10 (biblioteca), con `WOO`, `CORE`, `SLOW`, `QUICK=1` y `KIT_GOLDEN=write`, en los puertos 9461 a 9463; y `brand-audit.sh` con `STATE=kit` en el 9464.
+
+**Límites declarados**
+- **Sincronizaciones del núcleo:** nombres de runners, `register()`, ganchos, formato atómico o `IS_IMPORT_EXPORT_SUPPORTED` pueden cambiar. Lo detectan `elements-kit-core-contract.php` y el `golden/` del arnés (ver `docs/ELEMENTOR_CORE.md`).
+- **Sesiones:** si Elements se desactiva a mitad de una importación, esa sesión falla y hay que volver a subir el kit. Sólo se revierte la última importación, y sus documentos van a la papelera.
+- **Memoria y tiempo:** el tope de medios de la App; los kits grandes, por WP-CLI. Lo que no cabe en el presupuesto de red o en los 15 s de medios de una petición queda «no descargado (tiempo)». Los bucles del núcleo que crean y guardan los documentos corren en una sola petición cada uno; sin revisiones durante la importación y con las medidas de los SVG leídas del archivo (antes el núcleo las pedía por HTTP al propio sitio y esperaba 10 s), un kit de 70 páginas tarda en Playground de 14 a 16,5 s en `elementor-content` y de 12 a 16 s en la petición final (≈0,1 s por documento guardado; `kit-roundtrip.sh` con `SLOW=1`, A13 ok). Un kit de varios cientos de documentos puede pasar de 25 s: repartir esos bucles exigiría cambiar el proceso del núcleo.
+- **Kits de terceros:** los IDs de elemento llegan regenerados; las rutas ocupadas reciben `-2` en «agregar»; con contenedores o v4 apagados, el contenido se conserva oculto; un host caído deja el marcador de posición nativo; las fuentes de Google sólo se listan.
+- **Ajustes del kit en «agregar»:** las páginas usan el estilo del sitio hasta «Aplicar los ajustes del kit».
+- **Componentes v4:** se conservan como marcador `component`, pero ni se exportan ni se pintan: es un límite del núcleo.
+- **kses en la red:** para un administrador sin `unfiltered_html`, el núcleo sanea el contenido y la carga de los marcadores; se informa.
+- **SVG con la subida sin filtrar apagada:** los de la biblioteca se omiten (K-D15).
+- **Envato:** sin kits reales, la conversión sólo está probada con un formato sintético (K-D17).
+- **Plugin Elementor original activo:** sus flujos 2.0 siguen como él los hace (K-D19).
+- **Pendientes de otras etapas:** metas de SEO con IDs (K-D18), variaciones de producto (F4-Woo), plantillas de red de Tools con su propio remapeo (K-D14). Un kit de K en un sitio sin Elements pierde los widgets propios.
+
 ### F2 · Base común de conversión
+
+**Eliminado el 2026-10-20** (cambio de alcance): se conserva como registro. El importador de kits es K.
 
 - El módulo `digitalisimo-import` (arquitectura, puntos 1 y 2) y Migración v2 (punto 10), con la fachada de Element Pack sin cambio de comportamiento.
 - Flujo de tema: borradores + `awaiting_theme` en producción. Al activar el tema propio, la tarea se reanuda: activa por hash, publica las plantillas del Theme Builder y retira el origen. Las plantillas convertidas nunca se publican antes del cambio de tema, porque reemplazarían la cabecera de cualquier tema.
@@ -497,8 +624,11 @@ Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
 - Prioridad manual en el Theme Builder.
 - Sticky con «mostrar u ocultar al fijarse».
 - Controles de documento para ocultar cabecera, pie e imagen destacada.
+- **Datos de kit:** presets, degradados, máscaras, condiciones nuevas y prioridad del Theme Builder se declaran en el registro de K (partes, referencias y `digitalisimo_elements_kit_theme_builder_fields`), con su caso en `kit-roundtrip/cases.json`, sin tocar K. Ver «K · Kits de Elementor con las mejoras».
 
 ### F3 · Divi (D5 y D4)
+
+**Eliminado el 2026-10-20** (cambio de alcance): se conserva como registro.
 
 - Lectores D5 y D4 con tablas generadas desde `conversion-outline.json` y presets aplanados o vinculados. Unos 60 módulos automáticos; los parciales se declaran.
 - Customizer y `gcid-*` al kit; `et_template` al Theme Builder con su tabla de condiciones; `et_pb_layout` y globales a plantillas vinculadas.
@@ -509,12 +639,22 @@ Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
 
 ### F4 · Betheme / BeBuilder + WooCommerce visual
 
+**La conversión de Betheme se eliminó el 2026-10-20** (cambio de alcance) y se conserva como registro. Los widgets WooCommerce nuevos siguen como F4-Woo.
+
 - Tres generaciones de `mfn-page-items`, `old_id → css_*`, `be_classes`, globales, medianil y breakpoints.
 - CPT `template` (cabecera con sticky y móvil, pie, single, archivo, producto, tienda, popup, megamenú) al Theme Builder; opción `betheme` al kit; metas SEO al importador de SEO; los 57 widgets `mfn_*`; demos locales.
 - Widgets Woo nuevos, clean-room: wishlist (con exportación y borrado de datos personales), quick view, swatches con term meta propia, barra de envío gratis y cupón en el mini carrito pintados por fragmentos, filtros de precio y atributo. Se excluye la «venta falsa». La matriz indica si cada función la da WooCommerce, el constructor o una extensión.
 - **Aceptación:** páginas comerciales y plantillas de producto representativas sin Betheme, con flujo Woo en modo de prueba.
 
+### F4-Woo · WooCommerce visual
+
+- Los widgets Woo nuevos de F4, como widgets propios y clean-room: lista de deseos (con exportación y borrado de datos personales), vista rápida, muestras con term meta propia, barra de envío gratis y cupón en el minicarrito pintados por fragmentos, y filtros de precio y atributo. Se excluye la «venta falsa».
+- **Datos de kit:** los controles por ID se declaran en el registro de K o usan controles `Query` con sufijo `*_post_ids`/`*_term_ids`; los atributos (`pa_*`) y sus metas, con una `Early_Part` y referencias `term_meta`; las variaciones de producto, con una parte propia. Ver «K · Kits de Elementor con las mejoras».
+- **Aceptación** (se precisa en su especificación): flujo Woo en modo de prueba y su caso de kit en `kit-roundtrip.sh` con `WOO=1`.
+
 ### F5 · GeneratePress
+
+**Eliminado el 2026-10-20** (cambio de alcance): se conserva como registro. Lo importado a Tools sigue siendo posible desde el `functions.php` de un tema hijo.
 
 - `gp_elements` sin PHP a Código personalizado o a plantillas Section en ubicaciones `digitalisimo_*`; cabecera, pie y hero al Theme Builder; condiciones y roles con las reglas existentes; layout por página a los ajustes del documento.
 - Hooks con PHP al editor de fragmentos de Tools, traducidos de `generate_*` a `digitalisimo_*`, desactivados y con su origen. Migración nunca activa PHP.
@@ -528,8 +668,11 @@ Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
 - Edición múltiple y «aplicar a todos los de este tipo».
 - Etiquetas dinámicas dentro de texto, con escape por contexto y lista blanca de campos de usuario.
 - Lógica condicional de formularios.
+- **Datos de kit:** las acciones con destino (`_digitalisimo_actions`: entrada como `post`, elemento destino como `element`), las consultas guardadas (parte `saved-queries` y `map:queries`) y los componentes v3 (parte `components` y referencias `template`) se declaran en el registro de K, sin tocar K.
 
 ### F6 · Bricks (con las exportaciones del usuario)
+
+**Eliminado el 2026-10-20** (cambio de alcance): se conserva como registro.
 
 - Árbol plano, clases (incrustadas en v3 o globales en v4), variables, paleta, theme styles, componentes (los slots pierden el vínculo y se declara), plantillas y condiciones, interacciones, datos dinámicos, query loop y filtros.
 - Mapa de IDs de 6 a 7 caracteres.
@@ -539,6 +682,7 @@ Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
 
 - Element Pack: el Addon entra en `Retire`; se corrigen las clases de 6 mapas; las extensiones convertibles pasan a ser nativas en Elements (tooltip como rasgo, sticky, transform, parallax aproximado) y las que se descarten necesitan aprobación del propietario; se convierten su Theme Builder, fuentes e iconos.
 - Prime Slider: se detecta y se convierte, por defecto al Slider Optimizado ampliado. Swiper sólo con necesidad demostrada en la matriz. Sin la versión Lite, sus valores por defecto quedan pendientes.
+- Un kit o una plantilla con widgets de Element Pack o de Prime Slider entra en Elements como marcador `digitalisimo-unconverted` (K). Migración los convertirá con el filtro `digitalisimo_elements_unconverted_convert`, que K ya publica y que sólo corre en el editor y en Migración, nunca en el front.
 
 ## Opciones nuevas (paridad sitio/red)
 
@@ -551,12 +695,18 @@ Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
 | `digitalisimo_theme_switch_lock` y `digitalisimo_theme_convert_lock` | Cerrojos temporales del tema y de Elements: `INSERT IGNORE` con token; se roban pasados 300 s | — (automáticos) | Sin entrada del usuario | Publicado (F1) |
 | `digitalisimo_theme_release` y `digitalisimo_tools_theme_release` (transitorios); `digitalisimo_theme_last_release` y `digitalisimo_tools_theme_last_release` (opciones) | — | Cachés de red del tema y de Tools (automáticas, sin pantalla) | Entrada del índice validada: versión, URL del repositorio y requisitos | Publicado (F1) |
 | Fragmentos PHP | Fragmentos del sitio | Fragmentos de red, que corren en todos los sitios (Tools es de red) salvo donde estén pausados o detenidos | `Store::sanitize_item()` igual en las dos superficies; revisión de sintaxis, prueba previa, firma, capacidad y nonce | Publicado (F1b) · Tools 1.0.34 |
+| `digitalisimo_elements_kit_session_<sesión>` | Detalle de cada importación del sitio: modo, usuario, origen, mapas, análisis, respaldo de los ajustes y metas del kit (también v4) e informe (≤ 64 KB, listas ≤ 200). **Sin carga automática**; se conservan las 10 últimas. Si está importada o revertida lo dicen las sesiones nativas (`elementor_import_sessions`, `elementor_revert_sessions`) | — (automática, sin pantalla: un kit siempre se importa en un sitio) | Escrita sólo por el importador, tras exigir `manage_options`; la carpeta temporal se guarda relativa a `uploads` y se comprueba con `realpath` | Publicado (K) · Elements 4.3.0.162 |
+| `digitalisimo_elements_unconverted` | Número de marcadores `digitalisimo-unconverted` del sitio: un entero con carga automática. Con 0, ni el widget ni los ganchos de lectura se registran | — (automática, sin pantalla) | Entero ≥ 0, recalculado al importar y al guardar un documento con marcadores | Publicado (K) · Elements 4.3.0.162 |
+| `digitalisimo_elements_kit_notice` (meta de usuario) | Aviso único «importación terminada» del administrador que importó; se lee de la caché de metas del usuario, sin consultas | — (automática, sin pantalla) | Escrita y borrada sólo por el importador | Publicado (K) · Elements 4.3.0.162 |
+| Metas `_digitalisimo_import_origin` (entradas, términos y adjuntos), `_digitalisimo_unconverted` (documentos con marcadores), `_digitalisimo_original_type` (plantilla `section` que guarda un tipo ausente) y `_digitalisimo_unconverted_defaults` (kit: valores por defecto de tipos desconocidos) | En el contenido de ese sitio | — (automáticas, sin pantalla) | Escritas sólo por el importador. `_digitalisimo_import_origin` y `_digitalisimo_unconverted` nunca viajan en un kit (lista negra) ni las copia el duplicador | Publicado (K) · Elements 4.3.0.162 |
 
 Cada opción nueva se añade aquí antes de darse por terminada.
 
 ## Matriz de validación
 
 Origen → versión → formato → capacidades probadas → resultado → limitaciones. «Pendiente» significa sin conversión ni prueba todavía.
+
+Desde el 2026-10-20 las filas de Divi, Betheme, GeneratePress, GenerateBlocks y Bricks quedan como registro de la revisión: no se importan ni convierten (F3, F4, F5 y F6 eliminados), y su «Pendiente» ya no tiene etapa. Los kits de Elementor tienen sus propias filas (K).
 
 | Origen | Versión | Formato | Capacidades probadas | Resultado | Limitaciones |
 |---|---|---|---|---|---|
@@ -579,7 +729,10 @@ Origen → versión → formato → capacidades probadas → resultado → limit
 | Bricks | 2.x (esquema 2.4.3) | `_bricks_page_*_2`, `_bricks_template_*`, opciones `bricks_*` | — | Pendiente (F6) | Sin código; claves no documentadas exigen muestras |
 | Bricks | 2.x | Exportación global (ZIP + `manifest.json`) | — | Pendiente (F6) | Claves no documentadas |
 | Hello Elementor → tema propio | 3.5.1 | `theme_mods`, `hello_*`, cabecera y pie dinámicos | Paso T1–T10; paridad de hojas, marcado y 8 filtros; cabecera y pie dinámicos al Theme Builder; reversión e ida y vuelta; A/B S1–S5 en tres anchos con WooCommerce; red N1–N6 | **Publicado** (F1) · A/B Hello 3.5.1 frente al tema en verde (S1–S5, S3c, S3h y E con WOO=1 en tres anchos; corrida de aceptación completa del 2026-10-20 y rápida tras las correcciones) | `tb_partial`, Hello+, `hello-biz`/`hello-commerce` y el PHP del hijo, sin convertir; diferencias declaradas en F1. Copia oficial en `reference/` (GPLv3 o posterior) |
-| Kits de Elementor (Envato y propios) | 3.0 | ZIP de kit | — | Regresión pendiente (F2) | El importador no debe cambiar tema, experimentos ni plugins |
+| Kit propio (DIGITALÍSIMO Elements) | Kit 3.0 con la parte `digitalisimo` v1 | ZIP de kit | R1 ida y vuelta en «nuevo» (pantalla «Kits» y `--mode=fresh`, REST = WP-CLI), A2 sin el origen, R4 y R4v4 sólo agregar con choque, R5 reimportación, R6 red, R8 reversión, R9 entradas hostiles | **Publicado** (K) · Elements 4.3.0.162 | Componentes v4 conservados como marcador, sin viajar ni pintarse (límite del núcleo); sólo se revierte la última importación. El importador ya no cambia tema, experimentos ni plugins |
+| Kits de Elementor y Elementor Pro (terceros) | 3.0, 2.0 y 1.x (Pro 3.x) | ZIP de kit | R3 (2.0 con tema, experimentos y plugins pedidos, colores que chocan, Theme Builder, popup, loop, formulario con webhook, contenedor desconocido, `e-component`, fuente, iconos con URL externa y WXR hostil), R3b (1.x) y R7 sin proveedor, en «agregar» | **Publicado** (K) · Elements 4.3.0.162 | IDs de elemento regenerados por su exportador; Google Fonts sólo listadas; tema, experimentos y plugins pedidos sólo informados |
+| Template Kit de Envato | Formato de Envato (`manifest_version`) | ZIP de marketplace | R2 en «agregar» y «Aplicar los ajustes del kit» | **Publicado, sintético** (K-D17) · Elements 4.3.0.162 | Sin kits reales: lecturas «a confirmar» en `docs/fusion/k-envato.md` |
+| Plantilla suelta | JSON de plantilla o ZIP de plantillas | Biblioteca → Importar | Marcador para los tipos desconocidos; un ZIP de kit subido ahí va al importador de kits (R10) | **Publicado** (K) · Elements 4.3.0.162 | La biblioteca dentro del editor no se intercepta |
 
 ### Recorridos
 
@@ -610,6 +763,7 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
 | Sitio con v4 apagado | Pendiente |
 | Sitio con el experimento `container` inactivo | Pendiente |
 | Sin rastro de los plugins de origen (`brand-audit.sh`) | Publicado (F0.2); F0.2b cierra lo visible restante |
+| Kits: ida y vuelta, sólo agregar, reimportación, red, reversión, permisos y entradas hostiles (`kit-roundtrip.sh`, R1 a R10) | Publicado (K) · Elements 4.3.0.162 |
 
 ## Riesgos
 
@@ -617,7 +771,7 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
 - **Contenido y CSS que dependen del origen.** Shortcodes y CSS de usuario contra clases del origen conservan clases de compatibilidad y se informan.
 - **El tema de origen pinta el contenido.** Divi, Betheme y Bricks son temas: cambiar de tema antes de convertir deja shortcodes crudos o páginas vacías. Por eso se convierte a borrador y el tema cambia al final.
 - **Plantillas publicadas antes de tiempo.** Una plantilla del Theme Builder publicada reemplaza la cabecera de cualquier tema: las convertidas no se publican antes del cambio de tema.
-- **Importar un kit** crea un kit nuevo, puede cambiar tema, experimentos y plugins, y borra instancias de componentes v4. Se mitiga con el modo «sólo agregar» y el kit sin `theme`, `experiments` ni `plugins`.
+- **Importar un kit** con el importador del núcleo creaba un kit nuevo, podía cambiar el tema, los experimentos y los plugins, y borraba las instancias de componentes v4. **Mitigado en parte en K:** el kit nuevo, el tema, los experimentos y los plugins quedan cerrados (se importa siempre en el kit activo, el servidor fuerza `theme` y `experiments` a `false`, los plugins sólo se informan y los flujos 2.0 se cortan con el núcleo incluido). Las instancias de componentes v4 se conservan como marcador, pero no viajan ni se pintan: es un límite del núcleo (`IS_IMPORT_EXPORT_SUPPORTED`), y en esa parte el riesgo sigue abierto.
 - **Interacciones PRO.** Al habilitarlas, el contenido v4 con `hover`, `click` o `scrollOn` guardados empezaría a animarse: se inventaría antes.
 - **Actualizaciones automáticas.** Lo publicado llega solo a todos los sitios: por eso todo cambio de comportamiento es opt-in por instancia y el runner guarda `state['v']`.
 - **Núcleo.** Cada `sync-elementor-core.sh` puede cambiar formatos atómicos: se repiten las pruebas.
@@ -642,10 +796,14 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
 - No habrá biblioteca remota para pintar páginas.
 - No se activarán el tema ni v4 en producción sin autorización.
 - No se tocarán pedidos, clientes, inventario ni envíos de formularios.
+- No se importarán ni convertirán temas, plantillas, kits ni opciones de Divi, Betheme, Bricks ni GeneratePress (2026-10-20).
+- No habrá otro formato ni otro sistema de kits. Importar un kit no instalará, activará ni desactivará plugins o temas, no cambiará experimentos, no creará kits y no actualizará en el sitio lo ya importado.
+- No se importarán kits por URL, desde la Kit Library ni desde la nube, ni se aceptará `process-media`.
+- No se codificará la carga de un marcador para esquivar kses.
 
 ## Evidencia
 
-`docs/fusion/README.md` indexa los informes depurados: un informe por origen (Divi, Betheme, GP, Bricks, Element Pack y Prime Slider), los de Elements, Migración y el tema, las verificaciones del plan y los cuatro inventarios de F0.2.
+`docs/fusion/README.md` indexa los informes depurados: un informe por origen (Divi, Betheme, GP, Bricks, Element Pack y Prime Slider), los de Elements, Migración y el tema, las verificaciones del plan y los cuatro inventarios de F0.2. Los de K son `docs/fusion/k-kits.md` (diseño, ganchos y hechos del núcleo), `docs/fusion/k-envato.md` (Template Kits de Envato) y `docs/fusion/k-kits-evidence.json` (resumen de `kit-roundtrip.sh`).
 
 ## Registro de avance
 
@@ -666,3 +824,12 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
   - Elements gana compatibilidad con el asistente, el bloqueo de Hello y la conversión de la cabecera y el pie dinámicos.
 
   Publicado con SEO 1.0.231, Tools 1.0.36 y Elements 4.3.0.161. La medición en staging queda pendiente de autorización y el tema no se activó en ningún sitio real.
+
+- 2026-10-20 · Cambio de alcance: no se importan ni convierten Divi, Betheme, Bricks ni GeneratePress; sus beneficios se integran en Elements y los kits de Elementor funcionan con todas las mejoras. F2, F3, F4 (la conversión), F5 y F6 eliminados; nuevos K y F4-Woo. `AGENTS.md` reescrito en consecuencia.
+- 2026-10-20 · K en la rama `fusion/k-kits`, con su contrato (registro de partes y de referencias, contextos y `Part_Context`, prueba en `tests/elements-kit-parts.php` §1):
+  - importador 3.0 en «sólo agregar» por defecto, siempre en el kit activo y sin cambiar tema, experimentos ni plugins; flujos 2.0 cortados con el núcleo incluido;
+  - datos propios que se perdían (valores por defecto, condiciones completas del Theme Builder, separadores y máscaras, medios incrustados, metas de término, IDs de elemento), remapeo cerrado de IDs y URL, procedencia y reimportación sin duplicar;
+  - kits de terceros (Elementor y Pro 1.x, 2.x y 3.0, Envato sintético) y marcador `digitalisimo-unconverted`;
+  - pantalla «Kits», informe y `wp digitalisimo-elements kit`.
+
+  Publicado con Elements 4.3.0.162. Evidencia en `docs/fusion/k-kits-evidence.json`; Envato real pendiente (K-D17).

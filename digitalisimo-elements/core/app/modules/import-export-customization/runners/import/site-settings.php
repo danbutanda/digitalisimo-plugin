@@ -74,21 +74,9 @@ class Site_Settings extends Import_Runner_Base {
 			$result['site-settings'][ $key ] = $value;
 		}
 
-		if ( $customization['theme'] ?? false ) {
-			$import_theme_result = $runner->import_theme( $data );
-			if ( ! empty( $import_theme_result ) ) {
-				$result['theme'] = $import_theme_result;
-			}
-		}
-
-		if ( $customization['experiments'] ?? false ) {
-			$runner->import_experiments( $data );
-			$session_meta = $runner->get_import_session_metadata();
-			$imported_experiments = $session_meta['imported_experiments'] ?? [];
-			if ( ! empty( $imported_experiments ) ) {
-				$result['experiments'] = $imported_experiments;
-			}
-		}
+		// DIGITALÍSIMO (§7.8 #9, V-31, CR-6): un kit nunca instala ni activa un tema ni cambia experimentos, aunque
+		// la App lo pida. Normalmente este delegado ni se alcanza (DIGITALÍSIMO Elements sustituye el runner de
+		// ajustes); queda como defensa si ese runner no se registra.
 
 		return $result;
 	}

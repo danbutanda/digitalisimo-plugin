@@ -245,7 +245,13 @@ class Module extends Module_Base {
 		if ( ! ( $document instanceof Widget ) && ! empty( $data['elements'] ) ) {
 			$data['elements'] = Plugin::elementor()->db->iterate_data( $data['elements'], function( $element ) {
 				if ( ! empty( $element['templateID'] ) ) {
-					$element['originalWidgetType'] = $element['widgetType'];
+					// DIGITALÍSIMO: una instancia que ya es global (contenido importado de un kit) conserva su tipo
+					// original; `originalWidgetType = global` haría que el widget se instanciara a sí mismo sin fin.
+					if ( isset( $element['widgetType'] ) && 'global' !== $element['widgetType'] ) {
+						$element['originalWidgetType'] = $element['widgetType'];
+					} elseif ( isset( $element['originalWidgetType'] ) && 'global' === $element['originalWidgetType'] ) {
+						unset( $element['originalWidgetType'] );
+					}
 					$element['widgetType'] = 'global';
 				}
 

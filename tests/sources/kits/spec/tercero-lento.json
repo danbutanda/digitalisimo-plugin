@@ -1,0 +1,33 @@
+{
+  "_comentario": "Kit de terceros 3.0 con 100 imágenes remotas en un host de demostración lento (SLOW=1, A13): ninguna petición REST de la importación dura más de 25 s y lo que no cabe en el presupuesto de red queda como «no descargado (tiempo)». Las 100 imágenes se generan con «repeat».",
+  "zip": "tercero-lento.zip",
+  "format": "3.0",
+  "mode": "add",
+  "caso": "R13 con SLOW=1 (A13)",
+  "cubre": ["cien-imagenes", "lento"],
+  "assets": {},
+  "remote": {},
+  "repeat": {
+    "count": 100,
+    "assets": { "img-{{n}}": { "png": ["{{shade}}", 80, 160], "w": 12, "h": 12 } },
+    "remote": { "http://lento.test/wp-content/uploads/img-{{n}}.png": { "$asset": "img-{{n}}" } },
+    "list": { "path": ["content/page/1801.json", "content", 0, "elements"], "item": { "id": "f18{{n}}a", "elType": "widget", "widgetType": "image", "settings": { "image": { "id": "", "url": "http://lento.test/wp-content/uploads/img-{{n}}.png" } }, "elements": [] } }
+  },
+  "entries": {
+    "manifest.json": {
+      "name": "kit-lento", "title": "Kit lento", "description": "Cien imágenes remotas", "author": "", "version": "3.0",
+      "elementor_version": "4.3.5", "created": "2026-01-15 10:00:00", "thumbnail": false, "site": "http://lento.test",
+      "site-settings": { "theme": false, "globalColors": false, "globalFonts": false, "themeStyleSettings": false, "generalSettings": false, "experiments": false },
+      "plugins": [], "templates": {},
+      "content": { "page": { "1801": { "title": "Galería lenta", "excerpt": "", "doc_type": "wp-page", "thumbnail": false, "url": "http://lento.test/galeria-lenta/", "terms": [] } } },
+      "taxonomies": {}, "wp-content": {}
+    },
+    "content/page/1801.json": { "content": [ { "id": "c180001", "elType": "container", "settings": [], "elements": [] } ], "settings": [], "metadata": [] }
+  },
+  "expect": {
+    "mode": "add",
+    "documents": { "content/page/1801": { "key": "page:galeria-lenta", "doc_type": "wp-page", "status": "draft", "types": { "image": 100, "container": 1 } } },
+    "rest_max_ms": 25000,
+    "media": { "downloaded_plus_timeout": 100 }
+  }
+}
