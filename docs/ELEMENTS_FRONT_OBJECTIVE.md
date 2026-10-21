@@ -65,7 +65,7 @@ Núcleo incluido (Elementor 4.3.5, copia sin cambios): Elements no fija sus ajus
 
 **Fase 4 · Decisiones de producto.** Ocultar del panel los widgets PRO con equivalente propio más ligero (Media carousel, Testimonial carousel, Reviews, Slides, Nested carousel, Lottie), conservándolos registrados para el contenido existente; «Marcado optimizado» como opción. Requiere aprobación del propietario con las cifras de las fases anteriores.
 
-## Fase 2 · resultado (Elements 4.3.0.163, SEO 1.0.232)
+## Fase 2 · resultado (Elements 4.3.0.163, SEO 1.0.232 · `v2026.10.21.417`)
 
 Hecha el 2026-10-21 en la rama `fusion/f-front` (etapa F-front de `docs/FUSION_OBJECTIVE.md`). Todo vive en el módulo propio `digitalisimo-elements/modules/digitalisimo-front/`, que arranca en `pro_elements_load_plugin_func()`. `plugin.php`, los cuatro paquetes compilados de PRO (`assets/js/{frontend,elements-handlers}{,.min}.js`, sha256 vigilada en `tests/elements-pro-inventory.mjs`) y `elementor/` no cambian. Medición completa, con cada modo del arnés, en `docs/measurements/2026-10-21-elements-front-phase2.md`.
 
@@ -144,7 +144,7 @@ Paridad sitio/red con los cuatro puntos de `AGENTS.md` trasladados a Elements: `
   - diez ubicaciones de gancho, medidas en `front-budget.sh`;
   - en la cabecera generada desde Hello, `smartmenus` como diferencia declarada.
 - 2026-10-20 · Elements 4.3.0.162 (K de la fusión) · Los kits no añaden recursos al front: el marcador `digitalisimo-unconverted` cuesta 0/0 y sólo se registra en sitios con marcadores; `kits.js` (≤ 2 KB) sólo se carga en la App de administración.
-- 2026-10-21 · Elements 4.3.0.163 y SEO 1.0.232 (F-front de la fusión) · **Fase 2 hecha** (ver «Fase 2 · resultado»):
+- 2026-10-21 · Elements 4.3.0.163 y SEO 1.0.232 · `v2026.10.21.417` (F-front de la fusión) · **Fase 2 hecha** (ver «Fase 2 · resultado»):
   - puerta de PRO por clase, con `plugin.php` y los paquetes compilados intactos: `empty` pasa de 28 a 24 peticiones y pierde 382 667 B de JS; `all-own`, de 43 a 39; `pro-heavy`, sin cambio. En Lighthouse, `total-byte-weight` baja 386 068 B en `empty` y 385 930 B en `all-own`, y sube 40 B en `pro-heavy`;
   - réplica del contador de popups (≤ 0,5 KB, en línea sólo en páginas sin PRO de sitios con popups);
   - `font-display: swap` por defecto donde el sitio nunca eligió, iconos en línea con análisis y «Aplicar», y «Desactivar» para la caché de elementos y la carga optimizada de imágenes, sólo con el núcleo incluido y sin escribir ajustes ni experimentos del núcleo;

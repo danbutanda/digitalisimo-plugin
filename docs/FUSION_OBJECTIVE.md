@@ -140,7 +140,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | F1b | Editor de fragmentos PHP en Tools | **Publicado** · Tools 1.0.34 · `v2026.10.20.411` |
 | K | Kits de Elementor con las mejoras: exportar e importar kits propios y de terceros, con el registro que usan F7a, F7b y F4-Woo | **Publicado** · Elements 4.3.0.162 · `v2026.10.21.416` |
 | F2 | Base común de conversión y Migración v2 | Eliminado (2026-10-20) |
-| F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md`: funciones avanzadas sólo donde se usan, valores por defecto del núcleo y librerías sin CDN | **Publicado** · Elements 4.3.0.163 y SEO 1.0.232 |
+| F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md`: funciones avanzadas sólo donde se usan, valores por defecto del núcleo y librerías sin CDN | **Publicado** · Elements 4.3.0.163 y SEO 1.0.232 · `v2026.10.21.417` |
 | F7a | Capacidades que Divi y Betheme necesitan | Pendiente |
 | F3 | Divi (D5 y D4) | Eliminado (2026-10-20) |
 | F4 | Conversión de Betheme / BeBuilder | Eliminado (2026-10-20) |
@@ -614,7 +614,7 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 
 ### F-front · Fase 2 del front
 
-**Publicado** · Elements 4.3.0.163 y SEO 1.0.232 (rama `fusion/f-front`). Sólo cambian DIGITALÍSIMO Elements y DIGITALÍSIMO SEO: Tools, Migración, Backups, Hosting, IA Tools, el tema y `digitalisimo-ui` no cambian. Resultado, cifras, interruptores y presupuesto en [docs/ELEMENTS_FRONT_OBJECTIVE.md](ELEMENTS_FRONT_OBJECTIVE.md) («Fase 2 · resultado»); medición en `docs/measurements/2026-10-21-elements-front-phase2.md`.
+**Publicado** · Elements 4.3.0.163 y SEO 1.0.232 · `v2026.10.21.417`. Sólo cambian DIGITALÍSIMO Elements y DIGITALÍSIMO SEO: Tools, Migración, Backups, Hosting, IA Tools, el tema y `digitalisimo-ui` no cambian. Resultado, cifras, interruptores y presupuesto en [docs/ELEMENTS_FRONT_OBJECTIVE.md](ELEMENTS_FRONT_OBJECTIVE.md) («Fase 2 · resultado»); medición en `docs/measurements/2026-10-21-elements-front-phase2.md`.
 
 **Objetivo.** Controladores de PRO por elemento (Fase 2), para validar cada conversión una sola vez: una página hecha con el núcleo y widgets propios no paga los paquetes globales de PRO, y una que los usa los recibe siempre. Lo que decide el núcleo se mejora con valores por defecto donde el sitio nunca eligió, nunca escribiendo sus ajustes ni sus experimentos.
 
@@ -891,4 +891,4 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
   - pantalla «Rendimiento» con seis interruptores, paridad sitio/red y transición por sitio;
   - SEO recalcula el blindaje de fuentes y muestra el `font-display` en vigor.
 
-  Publicado con Elements 4.3.0.163 y SEO 1.0.232. `empty`: 28 → 24 peticiones y −382 667 B de JS; Lighthouse −386 068 B. Medición en `docs/measurements/2026-10-21-elements-front-phase2.md`; `migrate.sh` y `legacy-ab.sh` pendientes de una copia oficial de Element Pack.
+  Publicado con Elements 4.3.0.163 y SEO 1.0.232 · `v2026.10.21.417`. `empty`: 28 → 24 peticiones y −382 667 B de JS; Lighthouse −386 068 B. Medición en `docs/measurements/2026-10-21-elements-front-phase2.md`; `migrate.sh` y `legacy-ab.sh` pendientes de una copia oficial de Element Pack.
