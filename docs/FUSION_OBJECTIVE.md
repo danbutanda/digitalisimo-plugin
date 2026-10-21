@@ -138,7 +138,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | F0.2 | Sin rastro de los plugins de origen ni de sus proveedores | **Publicado** · Elements 4.3.0.157 y los demás plugins · `v2026.10.17.408` (seguimiento F0.2b publicado: Elements 4.3.0.158 · `v2026.10.20.410`) |
 | F1 | Tema y publicación | **Publicado** · tema 1.0.0, SEO 1.0.231, Tools 1.0.36 y Elements 4.3.0.161 · `v2026.10.20.415` |
 | F1b | Editor de fragmentos PHP en Tools | **Publicado** · Tools 1.0.34 · `v2026.10.20.411` |
-| K | Kits de Elementor con las mejoras: exportar e importar kits propios y de terceros, con el registro que usan F7a, F7b y F4-Woo | **Publicado** · Elements 4.3.0.162 |
+| K | Kits de Elementor con las mejoras: exportar e importar kits propios y de terceros, con el registro que usan F7a, F7b y F4-Woo | **Publicado** · Elements 4.3.0.162 · `v2026.10.21.416` |
 | F2 | Base común de conversión y Migración v2 | Eliminado (2026-10-20) |
 | F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md` | Pendiente |
 | F7a | Capacidades que Divi y Betheme necesitan | Pendiente |
@@ -505,7 +505,7 @@ Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
 
 ### K · Kits de Elementor con las mejoras
 
-**Publicado** · Elements 4.3.0.162 (rama `fusion/k-kits`). Sólo cambia DIGITALÍSIMO Elements: Migración, Tools, SEO, IA Tools, Hosting, Backups y `digitalisimo-ui` no cambian. Diseño, ganchos y evidencia del núcleo en [docs/fusion/k-kits.md](fusion/k-kits.md); Template Kits de Envato en [docs/fusion/k-envato.md](fusion/k-envato.md).
+**Publicado** · Elements 4.3.0.162 · `v2026.10.21.416`. Sólo cambia DIGITALÍSIMO Elements: Migración, Tools, SEO, IA Tools, Hosting, Backups y `digitalisimo-ui` no cambian. Diseño, ganchos y evidencia del núcleo en [docs/fusion/k-kits.md](fusion/k-kits.md); Template Kits de Envato en [docs/fusion/k-envato.md](fusion/k-envato.md).
 
 **Objetivo.** Exportar e importar **kits de Elementor** con todas las mejoras de DIGITALÍSIMO Elements: los propios y los de terceros (Elementor y Elementor Pro en formato 1.x, 2.x o 3.0, y los Template Kits de Envato). Un kit exportado desde un sitio con Elements e importado como «nuevo» en un sitio vacío da el mismo resultado, en datos y en capturas. Un kit de terceros entra en «sólo agregar». En todos los casos:
 - sin otro sistema de kits y sin tocar el núcleo incluido;
@@ -832,4 +832,4 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
   - kits de terceros (Elementor y Pro 1.x, 2.x y 3.0, Envato sintético) y marcador `digitalisimo-unconverted`;
   - pantalla «Kits», informe y `wp digitalisimo-elements kit`.
 
-  Publicado con Elements 4.3.0.162. Evidencia en `docs/fusion/k-kits-evidence.json`; Envato real pendiente (K-D17).
+  Publicado con Elements 4.3.0.162 · `v2026.10.21.416`. Evidencia en `docs/fusion/k-kits-evidence.json`; Envato real pendiente (K-D17).
