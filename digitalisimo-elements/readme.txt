@@ -18,3 +18,15 @@ Exporta e importa kits en ZIP con todo lo que añade DIGITALÍSIMO Elements: val
 * El kit exportado no lleva correos, nombres de usuario, contraseñas, comentarios ni claves.
 
 Se usa desde Herramientas (Importar/Exportar), desde la pantalla «Kits» de DIGITALÍSIMO Elements, con el informe de cada importación, y con «wp digitalisimo-elements kit».
+
+== Rendimiento ==
+
+Las páginas sólo cargan lo que usan: una página hecha con el constructor y los widgets propios pesa unos 380 KB menos de JavaScript y hace cuatro peticiones menos.
+
+* Funciones avanzadas sólo donde hacen falta: los scripts de popups, formularios, menús, carruseles, efectos de movimiento y elementos fijos se cargan en las páginas que los usan. Ante cualquier duda se cargan como siempre, y los contadores de visitas y sesiones de los popups siguen contando en las demás páginas.
+* Sin peticiones a CDN en las páginas públicas: el resaltado de código trae sus librerías dentro del plugin, sin cambiar ni un byte, y el editor de código personalizado usa el analizador de WordPress.
+* Mejores valores por defecto sólo donde el sitio nunca eligió otra cosa en los ajustes del constructor: el texto se muestra mientras cargan las fuentes de Google. Nunca se cambia un ajuste ya elegido, y la caché de elementos y la carga optimizada de imágenes del constructor se pueden desactivar con un interruptor.
+* Iconos en línea (SVG) sin fuentes de iconos: en un sitio que ya existe nunca se aplican solos. Primero se analiza el sitio, se muestra lo que podría depender de las fuentes de iconos y se aplican con un botón que se puede revertir.
+* Opcional: Lottie y el resaltado de código pueden cargar su librería al acercarse a la pantalla.
+
+Todo se ajusta en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, en cada sitio y, en una red, también en la administración de la red, cuyos valores heredan los sitios que no los cambian. Al actualizar, cada sitio vacía una vez los archivos generados del constructor para aplicar los cambios.

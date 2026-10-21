@@ -16,15 +16,17 @@ PORT="${PORT:-9431}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 PUPPETEER_PATH="${PUPPETEER_PATH:-$(ls -d "$HOME"/.npm/_npx/*/node_modules 2>/dev/null | while read -r d; do [ -d "$d/puppeteer-core" ] && echo "$d" && break; done)}"
 [ -n "$PUPPETEER_PATH" ] || { echo "No se encontró puppeteer-core: exportar PUPPETEER_PATH"; exit 1; }
-mkdir -p "$OUT" && rm -f "$OUT"/*.png "$OUT/interaction.json" "$OUT/setup-error.txt" "$OUT/fatal.log"
+mkdir -p "$OUT" && rm -f "$OUT"/*.png "$OUT/interaction.json" "$OUT/setup-error.txt" "$OUT/fatal.log" "$OUT/transition.json"
 cp "$ROOT/tests/playground/interaction/cases.json" "$OUT/cases.json"
 cp "$ROOT/tests/playground/interaction/setup.php" "$OUT/setup.php"
+cp "$ROOT/tests/playground/interaction/transition.php" "$OUT/transition.php"
 ELEMENTOR_STEP='{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":true}},'
 [ "${CORE:-}" = "bundled" ] && ELEMENTOR_STEP=''
 cat > "$OUT/blueprint.json" <<JSON
 {"steps":[$ELEMENTOR_STEP
 {"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"woocommerce"},"options":{"activate":true}},
-{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}]}
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/transition.php';"}]}
 JSON
 # El servidor anterior puede seguir escuchando (el proceso hijo de npx sobrevive a su padre): se libera el puerto.
 fuser -k -n tcp "$PORT" >/dev/null 2>&1 || true

@@ -53,5 +53,45 @@ $guard::invalidate_on_meta( 1, 5, '_otro_campo', '' );
 if ( $GLOBALS['deleted_manifest'] ) throw new RuntimeException( 'Los cambios ajenos a Elementor no deben invalidar el blindaje.' );
 $guard::invalidate_on_meta( 1, 5, '_elementor_data', '' );
 if ( $guard::OPTION !== $GLOBALS['deleted_manifest'] ) throw new RuntimeException( 'Un cambio en Elementor debe invalidar las copias preparadas.' );
+
+// El núcleo anota cada CSS local en `_elementor_local_google_fonts` al volver a descargarlo
+// (tras su propio vaciado o el de DIGITALÍSIMO Elements): se agenda el cron compartido una sola vez.
+require __DIR__ . '/../digitalisimo-seo/includes/performance/class-performance-preloads.php';
+$preloads = Digitalisimo_Integrations_Performance_Preloads::class;
+$GLOBALS['hooks']  = array();
+$GLOBALS['events'] = array();
+function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['hooks'][ $hook ][] = $callback; return true; }
+function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) { return add_action( $hook, $callback, $priority, $accepted_args ); }
+function do_action( $hook, ...$args ) { foreach ( $GLOBALS['hooks'][ $hook ] ?? array() as $callback ) call_user_func_array( $callback, $args ); }
+function wp_next_scheduled( $hook ) { foreach ( $GLOBALS['events'] as $event ) if ( $hook === $event[1] ) return $event[0]; return false; }
+function wp_schedule_single_event( $timestamp, $hook ) { $GLOBALS['events'][] = array( $timestamp, $hook ); return true; }
+$rebuilds = function() use ( $preloads ) { return count( array_filter( $GLOBALS['events'], function( $event ) use ( $preloads ) { return $preloads::CRON === $event[1]; } ) ); };
+$guard::init();
+foreach ( array( 'add_option__elementor_local_google_fonts', 'update_option__elementor_local_google_fonts' ) as $hook ) {
+	if ( array( array( $guard, 'schedule_on_local_fonts' ) ) !== ( $GLOBALS['hooks'][ $hook ] ?? array() ) ) throw new RuntimeException( 'El blindaje debe escuchar ' . $hook . ' una sola vez.' );
+}
+if ( isset( $GLOBALS['hooks']['delete_option__elementor_local_google_fonts'] ) ) throw new RuntimeException( 'Vaciar las fuentes no debe agendar: sin archivos, el recálculo dejaría el blindaje sin filas.' );
+$manifest_before = $GLOBALS['manifest'];
+$options_before  = $GLOBALS['options'] ?? array();
+$GLOBALS['deleted_manifest'] = '';
+$first  = array( 'inter' => array( 'url' => 'https://site.test/wp-content/uploads/elementor/google-fonts/css/inter.css', 'version' => 1 ) );
+$second = $first + array( 'roboto' => array( 'url' => 'https://site.test/wp-content/uploads/elementor/google-fonts/css/roboto.css', 'version' => 1 ) );
+// Primera descarga tras vaciar: la fila no existe y update_option() crea la opción.
+do_action( 'add_option__elementor_local_google_fonts', '_elementor_local_google_fonts', $first );
+if ( 1 !== $rebuilds() ) throw new RuntimeException( 'Crear la lista de CSS locales debe agendar el recálculo.' );
+// Otras familias en la misma visita o en las siguientes, con el evento aún pendiente.
+do_action( 'update_option__elementor_local_google_fonts', $first, $second, '_elementor_local_google_fonts' );
+do_action( 'update_option__elementor_local_google_fonts', $second, $second + array( 'lora' => array() ), '_elementor_local_google_fonts' );
+if ( 1 !== $rebuilds() || 1 !== count( $GLOBALS['events'] ) ) throw new RuntimeException( 'Crear y escribir la lista de CSS locales debe agendar el recálculo compartido una sola vez.' );
+if ( $GLOBALS['deleted_manifest'] || $manifest_before !== $GLOBALS['manifest'] || $options_before !== ( $GLOBALS['options'] ?? array() ) ) throw new RuntimeException( 'Durante la visita sólo se agenda: ni copias, ni manifiesto, ni opciones.' );
+// Ya ejecutado el evento, una descarga posterior vuelve a agendar.
+$GLOBALS['events'] = array();
+do_action( 'update_option__elementor_local_google_fonts', $second, $first, '_elementor_local_google_fonts' );
+if ( 1 !== $rebuilds() ) throw new RuntimeException( 'Una descarga posterior al recálculo debe volver a agendarlo.' );
+// Cambiar font-display sólo vacía (lo hace el núcleo); el recálculo llega con la nueva descarga.
+$GLOBALS['events'] = array();
+do_action( 'update_option_elementor_font_display', 'auto', 'swap', 'elementor_font_display' );
+do_action( 'delete_option__elementor_local_google_fonts', '_elementor_local_google_fonts' );
+if ( $GLOBALS['events'] ) throw new RuntimeException( 'Sin una nueva descarga no debe agendarse el recálculo.' );
 unlink( $original ); unlink( $generated );
-echo "Blindaje de fuentes: política, variantes, iconos y modo seguro correctos.\n";
+echo "Blindaje de fuentes: política, variantes, iconos, modo seguro y recálculo tras una nueva descarga correctos.\n";

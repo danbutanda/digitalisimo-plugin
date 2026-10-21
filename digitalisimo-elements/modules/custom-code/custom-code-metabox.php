@@ -87,26 +87,6 @@ class Custom_Code_Metabox extends Assets_Base {
 		return $result;
 	}
 
-	/**
-	 * Add script integrity.
-	 *
-	 * This is method is public, since its has to remove its own filter.
-	 *
-	 * @param string $html
-	 * @param mixed $handle
-	 *
-	 * @return string
-	 */
-	public function add_script_integrity( $html, $handle ) {
-		if ( 'jshint' === $handle ) {
-			$html = str_replace( '></script>', ' integrity="sha512-qcoitUjhkmNyPmbIOlUV/zd8MJvrVcKrNqnveMWS3C6MYOl5+HLwliRKUm/Ae/dfIok6+E54hjgVrAeS+sBAGA==" crossorigin="anonymous"></script>', $html );
-
-			remove_filter( 'script_loader_tag', [ $this, 'add_script_integrity' ] );
-		}
-
-		return $html;
-	}
-
 	protected function actions() {
 		add_action( 'add_meta_boxes_' . Module::CPT, function () {
 			$this->add_meta_boxes();
@@ -265,19 +245,12 @@ class Custom_Code_Metabox extends Assets_Base {
 	}
 
 	private function enqueue_code_editor_scripts( $field_code_id ) {
-		// Add integrity attribute to jshint.
-		add_filter( 'script_loader_tag', [ $this, 'add_script_integrity' ], 10, 2 );
-
 		wp_enqueue_script( 'htmlhint' );
 		wp_enqueue_script( 'csslint' );
 
-		wp_deregister_script( 'jshint' );
-
-		wp_enqueue_script( 'jshint',
-			'https://cdnjs.cloudflare.com/ajax/libs/jshint/2.12.0/jshint.min.js',
-			[],
-			'2.12.0'
-		);
+		// DIGITALÍSIMO: los avisos de JavaScript los da el `jshint` que registra WordPress; el editor no pide nada a
+		// un CDN (antes cargaba JSHint 2.12.0 de cdnjs con su atributo de integridad).
+		wp_enqueue_script( 'jshint' );
 
 		/**
 		 * Some of the plugins may load 'code-editor' for their needs and change the default behavior, so it should

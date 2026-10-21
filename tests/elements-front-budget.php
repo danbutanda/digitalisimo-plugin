@@ -36,6 +36,19 @@ namespace {
 		preg_match_all( '/wp_register_script\(.*?\);/s', $source, $found );
 		foreach ( $found[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ), $file . ': script sin defer.' ); }
 	}
+	// Rendimiento del front (F-front): todo script que registre el módulo va con defer y sin jQuery directo; el cargador
+	// opt-in de Lottie y Prism (`lazy_libs`) tiene que estar entre ellos.
+	$front_files = glob( $root . '/modules/digitalisimo-front/*.php' );
+	$front_scripts = 0;
+	foreach ( $front_files as $file ) {
+		preg_match_all( '/wp_register_script\(.*?\);/s', file_get_contents( $file ), $found );
+		foreach ( $found[0] as $registration ) {
+			$front_scripts++;
+			check_budget( str_contains( $registration, "'strategy' => 'defer'" ), basename( $file ) . ': script sin defer.' );
+			check_budget( ! str_contains( $registration, "'jquery'" ), basename( $file ) . ': un script del front no depende de jQuery.' );
+		}
+	}
+	check_budget( in_array( $root . '/modules/digitalisimo-front/class-lazy-libs.php', $front_files, true ) && $front_scripts >= 1, 'El cargador de modules/digitalisimo-front/ se revisa (' . $front_scripts . ' registros).' );
 	// Entradas del registro: nombre => array( 'file' => ..., 'class' => ..., 'css' => ... ) sin paréntesis anidados.
 	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(([^()]*)\)/", $registry, $entries, PREG_SET_ORDER );
 	$files = array();

@@ -268,6 +268,7 @@ class Digitalisimo_Integrations_SEO_Suite {
 		self::f( 'perf_dashicons', 'No cargar Dashicons para invitados', 'checkbox', 'Sólo sin barra de administración ni dependientes encolados.' );
 		echo '<tr><th colspan="2"><h2>Fuentes</h2></th></tr>';
 		self::f( 'perf_font_swap', 'font-display: swap en fuentes del constructor', 'checkbox', 'Se aplica a las fuentes Google locales y a las fuentes personalizadas del constructor. Tras activarlo, borra la caché de fuentes y regenera el CSS desde DIGITALÍSIMO Elements → Herramientas → Vaciar archivos y datos. No altera fuentes ajenas.' );
+		self::font_display_state_row();
 		echo '<tr><th colspan="2"><h2>CSS no crítico</h2><p>Las primeras dos visitas miden las reglas CSS y el primer viewport sin diferir nada. Sólo las hojas verificadas podrán diferirse en visitas posteriores con la misma URL y tamaño; cualquier duda conserva el CSS normal.</p></th></tr>';
 		self::f( 'perf_css_defer', 'Detectar y diferir CSS no crítico', 'checkbox', 'Desactivado por defecto. Respeta dependencias de WordPress y conserva <noscript>.' );
 		self::f( 'perf_hero_critical', 'CSS crítico del Hero', 'checkbox', 'Activo sólo si se identifica con seguridad el primer H1 y su contenedor en una página hecha con el constructor. Se calcula en segundo plano y se imprime antes de los estilos normales; no difiere CSS del constructor.' );
@@ -285,12 +286,56 @@ class Digitalisimo_Integrations_SEO_Suite {
 		self::nf( 'perf_embeds', 'Desactivar wp-embed cuando no se usa', 'checkbox' );
 		self::nf( 'perf_dashicons', 'No cargar Dashicons para invitados', 'checkbox' );
 		self::nf( 'perf_font_swap', 'font-display: swap en fuentes del constructor', 'checkbox', 'Requiere regenerar el CSS y la caché de fuentes del constructor para los archivos ya creados (DIGITALÍSIMO Elements → Herramientas → Vaciar archivos y datos).' );
+		self::font_display_network_note();
 		self::nf( 'perf_css_defer', 'Detectar y diferir CSS no crítico', 'checkbox', 'Las primeras dos visitas analizan sin diferir. Sólo se diferirá con evidencia por sitio, URL y viewport.' );
 		self::nf( 'perf_hero_critical', 'CSS crítico del Hero', 'checkbox', 'Predeterminado de red. Cada sitio sólo imprime el CSS si su propia página hecha con el constructor supera la detección segura.' );
 		self::nf( 'perf_css_defer_exclusions', 'Excluir hojas del diferimiento', 'textarea', 'Handles de WordPress, uno por línea. Cada sitio puede personalizar esta lista.' );
 		self::nf( 'perf_caption_normal', 'Normalizar leyendas de los carruseles', 'checkbox' );
 		self::nf( 'perf_custom_css', 'CSS técnico de red', 'textarea', 'Los sitios pueden heredarlo o reemplazarlo. Sin HTML, @import ni url().' );
 		self::nf( 'perf_custom_css_paused', 'Pausar CSS técnico personalizado', 'checkbox', 'Los sitios pueden heredar esta pausa o definirla individualmente.' );
+	}
+	private static function font_display_origins() {
+		return array(
+			'seo'      => 'Lo fuerza esta casilla de DIGITALÍSIMO SEO, por encima de los ajustes del constructor.',
+			'builder'  => 'Elegido en los ajustes del constructor.',
+			'elements' => 'Valor por defecto de DIGITALÍSIMO Elements, sólo para las fuentes de Google; se desactiva en DIGITALÍSIMO Elements → Rendimiento.',
+			'default'  => 'Valor por defecto del constructor: este sitio nunca lo eligió.',
+		);
+	}
+	/**
+	 * font-display de las fuentes de Google del constructor y quién lo decide, sólo con funciones de WordPress:
+	 * esta casilla (su `pre_option_` gana), la fila que guardan los ajustes del constructor, un valor por defecto
+	 * añadido con `default_option_` (DIGITALÍSIMO Elements) o «auto». Sin Elements: «auto» o lo guardado.
+	 *
+	 * @return array{value:string,origin:string,base:string,base_origin:string}
+	 */
+	public static function font_display_state() {
+		global $wpdb;
+		$option = 'elementor_font_display';
+		// Sin get_option(): pasaría por el pre_option_ de esta casilla y no distinguiría una fila de un valor por defecto.
+		$stored      = is_object( $wpdb ) ? $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", $option ) ) : null;
+		$base        = 'auto';
+		$base_origin = 'default';
+		if ( null !== $stored ) { $base = (string) $stored; $base_origin = 'builder'; }
+		elseif ( has_filter( 'default_option_' . $option ) ) {
+			// Lo que devuelve get_option( 'elementor_font_display', 'auto' ) cuando la fila no existe.
+			$filtered = (string) apply_filters( 'default_option_' . $option, 'auto', $option, true );
+			if ( '' !== $filtered && 'auto' !== $filtered ) { $base = $filtered; $base_origin = 'elements'; }
+		}
+		$seo = (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'perf_font_swap' );
+		return array( 'value' => $seo ? 'swap' : $base, 'origin' => $seo ? 'seo' : $base_origin, 'base' => $base, 'base_origin' => $base_origin );
+	}
+	/** Bajo la casilla del sitio. Sin campos: no repite ningún `name` del formulario. */
+	private static function font_display_state_row() {
+		$state   = self::font_display_state();
+		$origins = self::font_display_origins();
+		echo '<tr class="digitalisimo-font-display-state"><th scope="row">font-display en vigor</th><td><span class="digitalisimo-effective-state ' . ( 'swap' === $state['value'] ? 'is-active' : 'is-inactive' ) . '">' . esc_html( $state['value'] ) . '</span> <span class="description">' . esc_html( $origins[ $state['origin'] ] ) . '</span>';
+		if ( 'seo' === $state['origin'] ) echo '<p class="description">Sin esta casilla: ' . esc_html( $state['base'] ) . ' · ' . esc_html( $origins[ $state['base_origin'] ] ) . '</p>';
+		echo '</td></tr>';
+	}
+	/** La red no tiene un valor único: cada sitio guarda el suyo en los ajustes del constructor. */
+	private static function font_display_network_note() {
+		echo '<tr class="digitalisimo-font-display-state"><th scope="row">font-display en cada sitio</th><td><p class="description">Con esta casilla apagada, cada sitio usa el font-display que eligió en los ajustes del constructor; si nunca lo eligió, el valor por defecto de DIGITALÍSIMO Elements (swap, sólo para las fuentes de Google; se desactiva en DIGITALÍSIMO Elements → Rendimiento) o, sin él, auto. Activada, aplica swap en los sitios que la heredan, por encima de los ajustes del constructor. Cada sitio muestra bajo esta casilla su valor en vigor y su origen.</p></td></tr>';
 	}
 	public static function performance_tracking_site_fields() {
 		echo '<tr><th colspan="2"><h2>Google Tracking</h2><p>Apagado por defecto. Primero ejecuta la auditoría de Custom Code. Si Site Kit está activo o existe un ID publicado en el Código personalizado del constructor, Digitalísimo no imprime tracking para evitar duplicados.</p></th></tr>';

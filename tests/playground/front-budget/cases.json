@@ -1,7 +1,63 @@
 {
  "empty": {
   "title": "Página vacía (referencia: sólo el encabezado común)",
-  "widgets": []
+  "widgets": [],
+  "modes": [
+   "normal",
+   "cache",
+   "plugin",
+   "seo",
+   "guard",
+   "lazy",
+   "old",
+   "old-applied",
+   "old-dirty",
+   "old-inactive",
+   "off"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "proFrontend": false,
+    "config": "undefined",
+    "errors": 0
+   },
+   "seo": {
+    "deferred": {
+     "jquery-core": true,
+     "elementor-frontend": true
+    }
+   },
+   "guard": {
+    "fontGuardCopy": true,
+    "fontDisplay": "swap"
+   },
+   "old": {
+    "pre": {
+     "eicons": true,
+     "fontDisplay": "auto",
+     "proHandlers": true
+    },
+    "fontDisplay": "swap",
+    "eicons": true
+   },
+   "old-applied": {
+    "eicons": false,
+    "fontDisplay": "swap"
+   },
+   "old-dirty": {
+    "eicons": true
+   },
+   "old-inactive": {
+    "eicons": true
+   },
+   "off": {
+    "proHandlers": true,
+    "proFrontend": true,
+    "config": "object",
+    "fontDisplay": "auto"
+   }
+  }
  },
  "accordion": {
   "title": "Acordeón",
@@ -868,7 +924,20 @@
     "type": "digitalisimo-breadcrumbs",
     "settings": {}
    }
-  ]
+  ],
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "proFrontend": false,
+    "config": "undefined",
+    "errors": 0
+   }
+  }
  },
  "pro-heavy": {
   "title": "PRO pesado (Media carousel, Lottie, Slides)",
@@ -911,6 +980,1789 @@
      ]
     }
    }
+  ],
+  "modes": [
+   "normal",
+   "cache",
+   "plugin",
+   "lazy"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:",
+    "errors": 0
+   }
+  }
+ },
+ "core-only": {
+  "title": "Sólo widgets del núcleo (encabezado, imagen, botón, lista de iconos, pestañas)",
+  "widgets": [
+   {
+    "type": "heading",
+    "settings": {
+     "title": "Núcleo"
+    }
+   },
+   {
+    "type": "image",
+    "settings": {
+     "image": "__IMAGE__"
+    }
+   },
+   {
+    "type": "button",
+    "settings": {
+     "text": "Botón del núcleo",
+     "link": {
+      "url": "https://example.com/"
+     }
+    }
+   },
+   {
+    "type": "icon-list",
+    "settings": {
+     "icon_list": [
+      {
+       "_id": "il1",
+       "text": "Uno",
+       "selected_icon": {
+        "value": "fas fa-check",
+        "library": "fa-solid"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "type": "tabs",
+    "settings": {
+     "tabs": [
+      {
+       "_id": "t1",
+       "tab_title": "Uno",
+       "tab_content": "Contenido uno"
+      },
+      {
+       "_id": "t2",
+       "tab_title": "Dos",
+       "tab_content": "Contenido dos"
+      }
+     ]
+    }
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "proFrontend": false,
+    "errors": 0
+   }
+  }
+ },
+ "pro-static": {
+  "title": "Widgets de PRO sin controlador (tabla de precios, cita, llamada a la acción, flip box)",
+  "widgets": [
+   {
+    "type": "price-table",
+    "settings": {}
+   },
+   {
+    "type": "blockquote",
+    "settings": {
+     "blockquote_content": "Una cita de prueba."
+    }
+   },
+   {
+    "type": "call-to-action",
+    "settings": {}
+   },
+   {
+    "type": "flip-box",
+    "settings": {}
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "proFrontend": false,
+    "errors": 0
+   }
+  }
+ },
+ "pro-popup": {
+  "title": "Botón del núcleo que abre un popup (etiqueta dinámica)",
+  "widgets": [
+   {
+    "type": "button",
+    "settings": {
+     "text": "Abrir popup",
+     "link": {
+      "url": ""
+     },
+     "__dynamic__": {
+      "link": "[elementor-tag id=\"p0p0001\" name=\"popup\" settings=\"%7B%22popup%22%3A%22__POPUP__%22%7D\"]"
+     }
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "popup",
+    "type": "popup",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Popup de medición"
+      }
+     }
+    ]
+   }
+  ],
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".elementor-widget-button .elementor-button"
+   },
+   {
+    "do": "wait",
+    "ms": 1200
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "doc:",
+    "errors": 0,
+    "after": {
+     "popupShown": true
+    }
+   },
+   "seo": {
+    "deferred": {
+     "pro-elements-handlers": true
+    },
+    "jsFallback": false
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin",
+   "seo"
   ]
+ },
+ "pro-popup-condition": {
+  "title": "Popup por condición de la página, con disparador de carga",
+  "widgets": [],
+  "extra": [
+   {
+    "key": "popup",
+    "type": "popup",
+    "conditions": [
+     "include/singular/page/__SELF__"
+    ],
+    "triggers": {
+     "page_load": "yes",
+     "page_load_delay": 0
+    },
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Popup de medición"
+      }
+     }
+    ]
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "doc:",
+    "popupShown": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "pro-popup-classic": {
+  "title": "Página sin contenido del constructor con un popup por condición",
+  "classic": true,
+  "widgets": [],
+  "extra": [
+   {
+    "key": "popup",
+    "type": "popup",
+    "conditions": [
+     "include/singular/page/__SELF__"
+    ],
+    "triggers": {
+     "page_load": "yes",
+     "page_load_delay": 0
+    },
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Popup de medición"
+      }
+     }
+    ]
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "doc:",
+    "popupShown": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "pro-popup-views": {
+  "title": "Popup que se muestra tras dos vistas de página (la réplica cuenta la vista de «empty»)",
+  "widgets": [],
+  "extra": [
+   {
+    "key": "popup",
+    "type": "popup",
+    "conditions": [
+     "include/singular/page/__SELF__"
+    ],
+    "triggers": {
+     "page_load": "yes",
+     "page_load_delay": 0
+    },
+    "timing": {
+     "page_views": "yes",
+     "page_views_views": 2
+    },
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Popup de medición"
+      }
+     }
+    ]
+   }
+  ],
+  "sequence": [
+   "pro-popup-views",
+   "empty"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "doc:",
+    "popupShown": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "pro-light": {
+  "title": "Cuenta atrás de PRO",
+  "widgets": [
+   {
+    "type": "countdown",
+    "settings": {
+     "countdown_type": "evergreen",
+     "evergreen_counter_hours": 5
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:countdown",
+    "countdownTicks": true,
+    "swiper": false,
+    "lottieLib": false,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "pro-form": {
+  "title": "Formulario de PRO sin acciones",
+  "widgets": [
+   {
+    "type": "form",
+    "settings": {
+     "form_name": "Medición",
+     "submit_actions": []
+    }
+   }
+  ],
+  "actions": [
+   {
+    "do": "fill",
+    "selector": ".elementor-widget-form [name=\"form_fields[name]\"]",
+    "value": "Ana"
+   },
+   {
+    "do": "fill",
+    "selector": ".elementor-widget-form [name=\"form_fields[email]\"]",
+    "value": "ana@example.com"
+   },
+   {
+    "do": "fill",
+    "selector": ".elementor-widget-form [name=\"form_fields[message]\"]",
+    "value": "Hola desde la medición"
+   },
+   {
+    "do": "click",
+    "selector": ".elementor-widget-form button[type=\"submit\"]"
+   },
+   {
+    "do": "waitFor",
+    "selector": ".elementor-message",
+    "ms": 20000
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:form",
+    "errors": 0,
+    "after": {
+     "formSuccess": true
+    }
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "pro-nav": {
+  "title": "Menú de PRO con un menú de WordPress, a 390 px",
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "widgets": [
+   {
+    "type": "nav-menu",
+    "settings": {
+     "menu": "__MENU__"
+    }
+   }
+  ],
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".elementor-menu-toggle"
+   },
+   {
+    "do": "wait",
+    "ms": 600
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:nav-menu",
+    "errors": 0,
+    "after": {
+     "navExpanded": true
+    }
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "pro-loop": {
+  "title": "Cuadrícula de bucle con «cargar más»",
+  "widgets": [
+   {
+    "type": "loop-grid",
+    "settings": {
+     "template_id": "__LOOP__",
+     "posts_per_page": 2,
+     "pagination_type": "load_more_on_click"
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "loop",
+    "type": "loop-item",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Entrada",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "actions": [
+   {
+    "do": "scroll",
+    "to": ".e-loop__load-more"
+   },
+   {
+    "do": "click",
+    "selector": ".e-loop__load-more .elementor-button"
+   },
+   {
+    "do": "waitCount",
+    "selector": ".e-loop-item",
+    "min": 3,
+    "ms": 20000
+   },
+   {
+    "do": "wait",
+    "ms": 500
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:loop-grid",
+    "errors": 0,
+    "after": {
+     "grew": [
+      "loopItems"
+     ]
+    }
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "pro-loop-filter": {
+  "title": "Filtro de taxonomía sobre una cuadrícula de bucle",
+  "widgets": [
+   {
+    "type": "taxonomy-filter",
+    "settings": {
+     "selected_element": "fbloop1",
+     "taxonomy": "category"
+    }
+   },
+   {
+    "type": "loop-grid",
+    "id": "fbloop1",
+    "settings": {
+     "template_id": "__LOOP__",
+     "posts_per_page": 12
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "loop",
+    "type": "loop-item",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Entrada",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "actions": [
+   {
+    "do": "mark",
+    "selector": ".e-loop-item"
+   },
+   {
+    "do": "click",
+    "selector": ".e-filter-item[data-filter=\"digi-fb-dos\"]"
+   },
+   {
+    "do": "waitChange",
+    "selector": ".e-loop-item",
+    "ms": 20000
+   },
+   {
+    "do": "wait",
+    "ms": 500
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:",
+    "errors": 0,
+    "after": {
+     "changed": [
+      "loopSig"
+     ]
+    }
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "motion": {
+  "title": "Widget propio con efecto de movimiento al desplazar",
+  "widgets": [
+   {
+    "type": "digitalisimo-advanced-heading",
+    "settings": {
+     "title": "Se mueve",
+     "motion_fx_motion_fx_scrolling": "yes",
+     "motion_fx_translateY_effect": "yes",
+     "motion_fx_translateY_speed": {
+      "unit": "px",
+      "size": 6,
+      "sizes": []
+     }
+    }
+   },
+   {
+    "type": "spacer",
+    "settings": {
+     "space": {
+      "unit": "px",
+      "size": 2000
+     }
+    }
+   }
+  ],
+  "actions": [
+   {
+    "do": "scroll",
+    "to": 700
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "setting:motion",
+    "motionElement": ">0",
+    "errors": 0,
+    "after": {
+     "changed": [
+      "motionTransform"
+     ]
+    }
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "sticky": {
+  "title": "Contenedor fijo arriba (sticky)",
+  "elements": [
+   {
+    "elType": "container",
+    "settings": {
+     "sticky": "top"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Cabecera fija"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "settings": {},
+    "elements": [
+     {
+      "type": "spacer",
+      "settings": {
+       "space": {
+        "unit": "px",
+        "size": 2500
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "actions": [
+   {
+    "do": "scroll",
+    "to": 900
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "setting:sticky",
+    "errors": 0,
+    "after": {
+     "stickyActive": true
+    }
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "nested-template": {
+  "title": "Acordeón propio cacheable con una plantilla que tiene una cuenta atrás",
+  "widgets": [
+   {
+    "type": "digitalisimo-accordion",
+    "settings": {
+     "_element_cache": "no",
+     "tabs": [
+      {
+       "_id": "a1",
+       "tab_title": "Con plantilla",
+       "source": "elementor",
+       "template_id": "__TEMPLATE__"
+      }
+     ]
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "tpl",
+    "type": "section",
+    "widgets": [
+     {
+      "type": "countdown",
+      "settings": {
+       "countdown_type": "evergreen",
+       "evergreen_counter_hours": 5
+      }
+     }
+    ]
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "nested:",
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "nested-shortcode": {
+  "title": "Pestañas del núcleo con [elementor-template] en el contenido",
+  "widgets": [
+   {
+    "type": "tabs",
+    "settings": {
+     "_element_cache": "no",
+     "tabs": [
+      {
+       "_id": "t1",
+       "tab_title": "Plantilla",
+       "tab_content": "[elementor-template id='__TEMPLATE__']"
+      }
+     ]
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "tpl",
+    "type": "section",
+    "widgets": [
+     {
+      "type": "countdown",
+      "settings": {
+       "countdown_type": "evergreen",
+       "evergreen_counter_hours": 5
+      }
+     }
+    ]
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "nested:",
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "global-widget": {
+  "title": "Widget global de una cuenta atrás",
+  "widgets": [
+   {
+    "type": "global",
+    "templateID": "__TEMPLATE__",
+    "settings": {}
+   }
+  ],
+  "extra": [
+   {
+    "key": "global",
+    "type": "widget",
+    "widgets": [
+     {
+      "type": "countdown",
+      "settings": {
+       "countdown_type": "evergreen",
+       "evergreen_counter_hours": 5
+      }
+     }
+    ]
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "pro-in-html": {
+  "title": "Widget HTML que nombra el global de PRO",
+  "widgets": [
+   {
+    "type": "html",
+    "settings": {
+     "html": "<script>window.digiFbProType = typeof elementorProFrontend;</script><p>HTML propio</p>"
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "code:global",
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "hidden-pro": {
+  "title": "Cuenta atrás oculta para visitantes por una condición propia",
+  "widgets": [
+   {
+    "type": "countdown",
+    "settings": {
+     "countdown_type": "evergreen",
+     "evergreen_counter_hours": 5,
+     "digitalisimo_visibility_enable": "yes",
+     "digitalisimo_visibility_to": "show",
+     "digitalisimo_visibility_relation": "all",
+     "digitalisimo_visibility_rules": [
+      {
+       "_id": "r1",
+       "rule_key": "authentication",
+       "rule_operator": "is",
+       "rule_authentication_value": "authenticated"
+      }
+     ]
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "third-party": {
+  "title": "Widget de un complemento de terceros (clase fuera de los espacios propios)",
+  "widgets": [
+   {
+    "type": "digi-fb-fake-card",
+    "settings": {
+     "title": "Tarjeta de terceros"
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "third-party:",
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "third-party-free": {
+  "title": "Widget de terceros declarado libre por el filtro",
+  "widgets": [
+   {
+    "type": "digi-fb-fake-free",
+    "settings": {
+     "title": "Tarjeta libre"
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "proFrontend": false,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "third-party-script": {
+  "title": "Script de terceros que depende de elementor-pro-frontend",
+  "widgets": [],
+  "runtime": "Un script ajeno depende del paquete: la puerta lo ve en la cola (doubt:dependency), no en los datos.",
+  "expect": {
+   "*": {
+    "proFrontend": true,
+    "fakeAddonScript": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "forced": {
+  "title": "Página forzada por el filtro digitalisimo_elements_pro_frontend_needed",
+  "widgets": [],
+  "runtime": "El mu-plugin de prueba fuerza el filtro en esta página.",
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "always:filter",
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ]
+ },
+ "code": {
+  "title": "Resaltado de código con números de línea, líneas resaltadas y copiar",
+  "widgets": [
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "javascript",
+     "code": "const saludo = 'hola';\nfunction decir( texto ) {\n\treturn texto + 1;\n}\n// nota",
+     "line_numbers": "line-numbers",
+     "copy_to_clipboard": "copy-to-clipboard",
+     "highlight_lines": "1-2"
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:code-highlight",
+    "prism": true,
+    "cdnjs": false,
+    "clipboardLocal": true,
+    "tokensMin": ">0",
+    "failed": 0,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "plugin",
+   "lazy"
+  ]
+ },
+ "code-langs": {
+  "title": "Resaltado de código: un widget por cada uno de los 37 lenguajes del control",
+  "widgets": [
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "markup",
+     "code": "<div class=\"a\">Hola</div>",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "html",
+     "code": "<p class=\"b\">Hola</p>",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "css",
+     "code": "a { color: red; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "sass",
+     "code": "$c: red\na\n  color: $c",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "scss",
+     "code": "$c: red;\na { color: $c; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "less",
+     "code": "@c: red;\na { color: @c; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "javascript",
+     "code": "const a = 1; // nota",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "typescript",
+     "code": "let a: number = 1;",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "jsx",
+     "code": "const a = <div className=\"x\">Hola</div>;",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "tsx",
+     "code": "const a: number = 1;\nconst b = <div>Hola</div>;",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "php",
+     "code": "<?php echo \"hola\"; ?>",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "ruby",
+     "code": "def a\n  puts \"hola\"\nend",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "json",
+     "code": "{\"a\": 1, \"b\": true}",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "http",
+     "code": "GET /index.html HTTP/1.1\nHost: example.com",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "xml",
+     "code": "<a b=\"c\">d</a>",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "svg",
+     "code": "<svg width=\"10\" height=\"10\"></svg>",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "rust",
+     "code": "fn main() { let a = 1; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "csharp",
+     "code": "public class A { int b = 1; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "dart",
+     "code": "void main() { var a = 1; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "git",
+     "code": "$ git commit -m \"nota\"\n+ linea nueva\n- linea vieja",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "java",
+     "code": "public class A { int b = 1; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "sql",
+     "code": "SELECT a FROM b WHERE c = 1;",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "go",
+     "code": "func main() { a := 1 }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "kotlin",
+     "code": "fun main() { val a = 1 }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "julia",
+     "code": "function a(x)\n  return x + 1\nend",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "python",
+     "code": "def a():\n    return 1",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "swift",
+     "code": "let a = 1",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "bash",
+     "code": "echo \"hola\" # nota",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "scala",
+     "code": "object A { val b = 1 }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "haskell",
+     "code": "main = putStrLn \"hola\"",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "perl",
+     "code": "my $a = 1; print \"hola\";",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "objectivec",
+     "code": "int main() { return 0; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "visual-basic,",
+     "code": "Dim a As Integer = 1",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "r",
+     "code": "a <- c(1, 2)",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "c",
+     "code": "int main() { return 0; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "cpp",
+     "code": "int main() { return 0; }",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "aspnet",
+     "code": "<%@ Page Language=\"C#\" %>",
+     "line_numbers": "",
+     "copy_to_clipboard": ""
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "prism": true,
+    "cdnjs": false,
+    "codeBlocks": 37,
+    "tokensMin": ">0",
+    "failed": 0,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "normal"
+  ]
+ },
+ "icons": {
+  "title": "Iconos: lista, caja de icono (una con un icono FA4 sin migrar), iconos sociales y botón propio",
+  "widgets": [
+   {
+    "type": "icon-list",
+    "settings": {
+     "icon_list": [
+      {
+       "_id": "il1",
+       "text": "Uno",
+       "selected_icon": {
+        "value": "fas fa-check",
+        "library": "fa-solid"
+       }
+      },
+      {
+       "_id": "il2",
+       "text": "Dos",
+       "selected_icon": {
+        "value": "far fa-star",
+        "library": "fa-regular"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "type": "icon-box",
+    "settings": {
+     "selected_icon": {
+      "value": "fas fa-rocket",
+      "library": "fa-solid"
+     },
+     "title_text": "Caja",
+     "description_text": "Con icono nuevo"
+    }
+   },
+   {
+    "type": "icon-box",
+    "settings": {
+     "icon": "fa fa-star",
+     "title_text": "Caja FA4",
+     "description_text": "Icono antiguo sin migrar",
+     "_css_classes": "digi-fb-fa4"
+    }
+   },
+   {
+    "type": "social-icons",
+    "settings": {
+     "social_icon_list": [
+      {
+       "_id": "s1",
+       "social_icon": {
+        "value": "fab fa-facebook",
+        "library": "fa-brands"
+       },
+       "link": {
+        "url": "https://example.com/"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "type": "digitalisimo-advanced-button",
+    "settings": {
+     "text": "Botón propio",
+     "link": {
+      "url": "https://example.com/"
+     },
+     "button_icon": {
+      "value": "fas fa-arrow-right",
+      "library": "fa-solid"
+     }
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0
+   },
+   "normal": {
+    "svgIcons": ">0",
+    "fontAwesome": false
+   },
+   "old": {
+    "pre": {
+     "fontAwesome": true
+    },
+    "fontAwesome": true,
+    "svgIcons": 0
+   },
+   "old-applied": {
+    "fontAwesome": false,
+    "eicons": false,
+    "svgIcons": ">0",
+    "iconsINew": 0
+   },
+   "old-applied+cache": {
+    "warm": {
+     "iconsINew": ">0",
+     "svgIcons": 0
+    },
+    "svgIcons": ">0",
+    "iconsINew": 0
+   },
+   "old-inactive": {
+    "fontAwesome": true,
+    "svgIcons": 0
+   }
+  },
+  "modes": [
+   "normal",
+   "old",
+   "old-applied",
+   "old-applied+cache",
+   "old-inactive"
+  ]
+ },
+ "lottie-below": {
+  "title": "Lottie bajo un espaciador de 2 000 px",
+  "widgets": [
+   {
+    "type": "spacer",
+    "settings": {
+     "space": {
+      "unit": "px",
+      "size": 2000
+     }
+    }
+   },
+   {
+    "type": "lottie",
+    "settings": {}
+   }
+  ],
+  "actions": [
+   {
+    "do": "scroll",
+    "to": "bottom"
+   },
+   {
+    "do": "wait",
+    "ms": 2500
+   }
+  ],
+  "expect": {
+   "lazy": {
+    "lottieLib": false,
+    "after": {
+     "lottieLib": true,
+     "lottieSvg": true
+    }
+   },
+   "*": {
+    "errors": 0
+   }
+  },
+  "modes": [
+   "lazy"
+  ]
+ },
+ "lottie-above": {
+  "title": "Lottie en la primera pantalla",
+  "widgets": [
+   {
+    "type": "lottie",
+    "settings": {}
+   }
+  ],
+  "expect": {
+   "*": {
+    "lottieLib": true,
+    "lottieSvg": true,
+    "errors": 0
+   },
+   "lazy": {
+    "clsVsNormal": "<=0.005"
+   }
+  },
+  "modes": [
+   "normal",
+   "lazy"
+  ]
+ },
+ "code-below": {
+  "title": "Resaltado de código bajo un espaciador de 2 000 px",
+  "widgets": [
+   {
+    "type": "spacer",
+    "settings": {
+     "space": {
+      "unit": "px",
+      "size": 2000
+     }
+    }
+   },
+   {
+    "type": "code-highlight",
+    "settings": {
+     "language": "javascript",
+     "code": "const a = 1; // nota",
+     "line_numbers": "line-numbers",
+     "copy_to_clipboard": ""
+    }
+   }
+  ],
+  "actions": [
+   {
+    "do": "scroll",
+    "to": "bottom"
+   },
+   {
+    "do": "wait",
+    "ms": 2500
+   }
+  ],
+  "expect": {
+   "lazy": {
+    "prism": false,
+    "after": {
+     "prismCore": true,
+     "prismLoader": true,
+     "prismGrammar": true,
+     "tokensMin": ">0"
+    }
+   },
+   "*": {
+    "errors": 0,
+    "cdnjs": false
+   }
+  },
+  "modes": [
+   "lazy"
+  ]
+ },
+ "v4-only": {
+  "title": "Página sólo con elementos atómicos (v4)",
+  "elements": [
+   {
+    "elType": "e-div-block",
+    "settings": {},
+    "elements": [
+     {
+      "type": "e-heading",
+      "settings": {}
+     },
+     {
+      "type": "e-paragraph",
+      "settings": {}
+     }
+    ]
+   }
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "proFrontend": false,
+    "elementorFrontend": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "v4"
+  ]
+ },
+ "classic-page": {
+  "title": "Página sin contenido del constructor (vista de THEME=1)",
+  "classic": true,
+  "widgets": [],
+  "modes": []
+ },
+ "tb-header-core": {
+  "title": "Cabecera del Theme Builder con un encabezado del núcleo",
+  "widgets": [],
+  "header": true,
+  "extra": [
+   {
+    "key": "header",
+    "type": "header",
+    "conditions": [
+     "include/general"
+    ],
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Cabecera del núcleo"
+      }
+     }
+    ]
+   }
+  ],
+  "views": [
+   "/digi-fb-empty/",
+   "/category/digi-fb-uno/",
+   "/?s=medicion",
+   "/digi-fb-no-existe/",
+   "/digi-fb-classic-page/"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "proFrontend": false,
+    "headerShown": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "theme"
+  ]
+ },
+ "tb-header-pro": {
+  "title": "Cabecera del Theme Builder con el Menú de PRO",
+  "widgets": [],
+  "header": true,
+  "extra": [
+   {
+    "key": "header",
+    "type": "header",
+    "conditions": [
+     "include/general"
+    ],
+    "widgets": [
+     {
+      "type": "nav-menu",
+      "settings": {
+       "menu": "__MENU__"
+      }
+     }
+    ]
+   }
+  ],
+  "views": [
+   "/digi-fb-empty/",
+   "/category/digi-fb-uno/",
+   "/?s=medicion",
+   "/digi-fb-no-existe/",
+   "/digi-fb-classic-page/"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "headerShown": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "theme"
+  ]
+ },
+ "mig-navbar": {
+  "title": "Menú heredado (adaptador de Migración): el controlador del menú de PRO lo inicializa y abre su submenú",
+  "widgets": [
+   {
+    "type": "bdt-navbar",
+    "settings": {
+     "navbar": "__MENU__"
+    }
+   }
+  ],
+  "actions": [
+   {
+    "do": "openSubmenu",
+    "selector": ".elementor-nav-menu--main .menu-item-has-children > a"
+   },
+   {
+    "do": "wait",
+    "ms": 900
+   }
+  ],
+  "expect": {
+   "migration": {
+    "proHandlers": true,
+    "reason": "class:bdt-navbar",
+    "smartMenus": true,
+    "errors": 0,
+    "after": {
+     "subMenuShown": true
+    }
+   }
+  },
+  "modes": [
+   "migration"
+  ]
+ },
+ "mig-form": {
+  "title": "Formulario de contacto heredado (adaptador de Migración)",
+  "widgets": [
+   {
+    "type": "bdt-contact-form",
+    "settings": {}
+   }
+  ],
+  "actions": [
+   {
+    "do": "fillAll",
+    "selector": ".elementor-form input[type=\"text\"], .elementor-form textarea",
+    "value": "Hola desde la medición"
+   },
+   {
+    "do": "fillAll",
+    "selector": ".elementor-form input[type=\"email\"]",
+    "value": "ana@example.com"
+   },
+   {
+    "do": "click",
+    "selector": ".elementor-form button[type=\"submit\"]"
+   },
+   {
+    "do": "waitFor",
+    "selector": ".elementor-message",
+    "ms": 20000
+   }
+  ],
+  "expect": {
+   "migration": {
+    "proHandlers": true,
+    "reason": "class:bdt-contact-form",
+    "errors": 0,
+    "after": {
+     "formSuccess": true
+    }
+   }
+  },
+  "modes": [
+   "migration"
+  ]
+ },
+ "mig-countdown": {
+  "title": "Cuenta atrás heredada (adaptador de Migración)",
+  "widgets": [
+   {
+    "type": "bdt-countdown",
+    "settings": {
+     "loop_time": "yes",
+     "loop_hours": 5
+    }
+   }
+  ],
+  "expect": {
+   "migration": {
+    "proHandlers": true,
+    "reason": "class:bdt-countdown",
+    "countdownTicks": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "migration"
+  ]
+ },
+ "f7b-action": {
+  "title": "Acción «abrir popup» de _digitalisimo_actions (contrato para F7b)",
+  "widgets": [],
+  "pending": "F7b: la acción con destino que abre un popup o un panel lateral llamará Pro_Gate::require(); hasta entonces el caso se omite.",
+  "modes": []
  }
 }

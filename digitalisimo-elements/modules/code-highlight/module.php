@@ -53,13 +53,19 @@ class Module extends Module_Base {
 	}
 
 	public function register_frontend_scripts() {
-		$base_url = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.23.0';
+		// DIGITALÍSIMO: Prism 1.23.0 se sirve desde el plugin, con los mismos bytes que antes se pedían a un CDN
+		// (assets/lib/prism/MANIFEST.json, scripts/sync-prism.mjs). El autoloader pide cada gramática a la carpeta
+		// components/ junto a él; sólo se incluyen las del control `language` del widget. El plugin copy-to-clipboard
+		// pedía además clipboard.js 2.0.0 a ese CDN cuando `window.ClipboardJS` no existía: ahora llega antes, desde el
+		// plugin y con los mismos bytes, y ya no sale ninguna petición.
+		$base_url = ELEMENTOR_PRO_URL . 'assets/lib/prism';
 		wp_register_script( 'prismjs_core', $base_url . '/components/prism-core.min.js', [], '1.23.0', true );
 		wp_register_script( 'prismjs_loader', $base_url . '/plugins/autoloader/prism-autoloader.min.js', [ 'prismjs_core' ], '1.23.0', true );
 		wp_register_script( 'prismjs_normalize', $base_url . '/plugins/normalize-whitespace/prism-normalize-whitespace.min.js', [ 'prismjs_core' ], '1.23.0', true );
 		wp_register_script( 'prismjs_line_numbers', $base_url . '/plugins/line-numbers/prism-line-numbers.min.js', [ 'prismjs_normalize' ], '1.23.0', true );
 		wp_register_script( 'prismjs_line_highlight', $base_url . '/plugins/line-highlight/prism-line-highlight.min.js', [ 'prismjs_normalize' ], '1.23.0', true );
 		wp_register_script( 'prismjs_toolbar', $base_url . '/plugins/toolbar/prism-toolbar.min.js', [ 'prismjs_normalize' ], '1.23.0', true );
-		wp_register_script( 'prismjs_copy_to_clipboard', $base_url . '/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js', [ 'prismjs_toolbar' ], '1.23.0', true );
+		wp_register_script( 'prismjs_clipboard', $base_url . '/clipboard/clipboard.min.js', [], '2.0.0', true );
+		wp_register_script( 'prismjs_copy_to_clipboard', $base_url . '/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js', [ 'prismjs_toolbar', 'prismjs_clipboard' ], '1.23.0', true );
 	}
 }

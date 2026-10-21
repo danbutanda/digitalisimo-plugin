@@ -8,7 +8,8 @@ tiene en los sitios). No forman parte de los workflows: se corren a mano antes d
 | --- | --- |
 | `legacy-ab.sh`, `migrate.sh`, `legacy-repair.sh`, `migration-report.sh` | Adaptadores y conversión de Element Pack con DIGITALÍSIMO Migración. |
 | `core-switch.sh`, `brand-audit.sh` | Núcleo de Elementor incluido e identidad propia del constructor. |
-| `interaction.sh`, `slider.sh`, `front-budget.sh`, `form-submit.sh`, `conditions.sh` | Widgets en Chrome real, presupuesto del front, formularios y condiciones de visualización. |
+| `interaction.sh`, `slider.sh`, `front-budget.sh`, `form-submit.sh`, `conditions.sh` | Widgets en Chrome real, presupuesto del front (con la puerta de PRO, sus modos y Lighthouse), formularios y condiciones de visualización. |
+| `front-network.sh` | Ajustes «Rendimiento» de DIGITALÍSIMO Elements en una red Multisite sin Chrome: herencia, transición por sitio, permisos y vaciados (N1–N7). |
 | `shared-ui.sh` | Diseño compartido de los siete plugins. |
 | `tools-catalog.sh`, `tools-php.sh` | Catálogo de plugins y código PHP de DIGITALÍSIMO Tools. |
 | `theme-switch.sh` | A/B en Chrome del tema DIGITALÍSIMO frente a Hello 3.5.1 (sitio individual, `WOO=1`): escenarios S1–S5, S3c y S3h; fases A–F2; 15 comprobaciones por URL y ancho. |
@@ -76,7 +77,7 @@ CORE=bundled bash tests/playground/interaction.sh
 
 `slider.sh` arranca Playground en modo servidor con el núcleo incluido y una página con cinco Slider Optimizado (onda de diez copias de una imagen en modo múltiple con espejo, doce logotipos distintos, onda repetida con espejo, logotipos en una sola pasada y una instancia lejana tras un separador de 3000 px), con imágenes PNG creadas como adjuntos. Chrome comprueba en escritorio y en móvil que no hay errores ni recursos 404, que las instancias cercanas arrancan pronto y la lejana al llegar, que la pista de la onda se recorta a dos mitades con la duración en proporción (la velocidad de sus ocho copias en 60 s) mientras los doce logotipos distintos se conservan enteros, que la pasada única conserva el final, que la pista mide dos grupos exactos y el cierre del bucle salta un grupo, que el movimiento no pierde fotogramas, que al pasar a tableta vuelven los elementos apartados, que ningún grupo mide más que sus elementos (Firefox dejaba un hueco al medir por contenido), que sin JavaScript el movimiento arranca solo a los tres segundos y, si hay Firefox instalado (`/snap/bin/firefox`, `/usr/bin/firefox` o `FIREFOX_PATH`), repite en él las comprobaciones de marcha, uniones y cierre del bucle.
 
-`core-switch.sh` crea en una red páginas con widgets de Elementor, Pro y DIGITALÍSIMO bajo el plugin Elementor, lo borra (con sus traducciones) y comprueba que el núcleo incluido las pinta igual (texto, enlaces, imágenes y CSS), en español, con un kit por sitio, aceptando los complementos que exigen `elementor` y sirviendo desde el núcleo las rutas antiguas guardadas en el contenido. Cada sitio se pinta en su propia petición: Elementor guarda en caché los documentos por ID sin distinguir el sitio. Con Elementor instalado pero desactivado, la lista de plugins (`WP_Plugins_List_Table`) lo sigue llamando «Elementor» por «Elementor.com» con su nota, sin que la identidad lo convierta en un segundo «DIGITALÍSIMO Elements», no lo cuenta como desinstalable, y el paso siguiente lo borra con el núcleo incluido cargado.
+`core-switch.sh` instala el plugin Elementor en la versión fijada `ELEMENTOR_PIN` (por defecto 4.3.5, la del núcleo incluido; desde downloads.wordpress.org), crea en una red páginas con widgets de Elementor, Pro y DIGITALÍSIMO bajo el plugin Elementor, lo borra (con sus traducciones) y comprueba que el núcleo incluido las pinta igual (texto, enlaces, imágenes y CSS), en español, con un kit por sitio, aceptando los complementos que exigen `elementor` y sirviendo desde el núcleo las rutas antiguas guardadas en el contenido. Cada sitio se pinta en su propia petición: Elementor guarda en caché los documentos por ID sin distinguir el sitio. Con Elementor instalado pero desactivado, la lista de plugins (`WP_Plugins_List_Table`) lo sigue llamando «Elementor» por «Elementor.com» con su nota, sin que la identidad lo convierta en un segundo «DIGITALÍSIMO Elements», no lo cuenta como desinstalable, y el paso siguiente lo borra con el núcleo incluido cargado. En cada sitio y fase comprueba además el valor por defecto de `font-display` de F-front: `default_option_elementor_font_display` no existe con el plugin Elementor (ni antes ni después de la transición) y existe, con `swap`, sobre el núcleo incluido tras la transición (D3).
 
 ## Identidad propia del constructor
 
@@ -183,9 +184,60 @@ OUT=/var/tmp/digi-aud-kit-envato PORT=9464 SCOPE=quick STATE=kit KIT_FIXTURE=ter
 
 `brand-audit.sh STATE=kit` (puerto 9464 por defecto) importa el kit sintético `KIT_FIXTURE` (por defecto `tercero-pro3`) con `wp digitalisimo-elements kit import`, con el sitio ya en marcha (`brand-audit/kit-cli.php` y el `wp-cli.phar` local de `KIT_CACHE`), y, con cualquier `SCOPE`, recorre además la App de importación (`#/import-customization`, `/content` y `/complete`), la pantalla «Kits» con el informe de esa sesión y cada documento importado (la vista previa de los borradores de «agregar»).
 
+## Presupuesto del front y puerta de PRO (F-front)
+
+`front-budget.sh` arranca Playground en modo servidor (`PORT`, por defecto 9441: no correrlo a la vez que `brand-audit.sh`) con una **copia fija** del plugin tomada al empezar (`$OUT/src`, como `kit-roundtrip.sh`; `LIVE=1` monta el árbol), crea una página `digi-fb-<caso>` por caso de `front-budget/cases.json` y mide cada una en Chrome sin caché. Con el modo normal compara con `front-budget/baseline.json`; los demás modos sólo exigen su `expect` y guardan `front-budget-<modo>.json`. Cada resultado anota la versión y la huella de `ELEMENTS_DIR`, el SHA de git, el modo y la duración.
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `ELEMENTS_DIR` | `digitalisimo-elements/` | carpeta del plugin medido (p. ej. el ZIP publicado de una versión anterior, extraído) |
+| `BASELINE_FILE`, `BASELINE=write` | `front-budget/baseline.json` | línea base del modo normal; `write` la guarda (con `LIGHTHOUSE=1`, en la misma pasada) |
+| `EXPECT=0` | `1` | sólo mide: no exige `expect` ni compara (la medición «antes» de una versión sin la puerta) |
+| `CASES=a,b` | los del modo | casos a medir; por defecto los que nombran el modo en `modes` (sin `modes`, sólo el normal) |
+| `LIGHTHOUSE=1`, `LIGHTHOUSE_PATH` | la carpeta de `puppeteer-core` | Lighthouse móvil en `empty`, `all-own` y `pro-heavy`; exige 13.5.0 (`lhr.lighthouseVersion`) y un `{error}` hace fallar |
+| `ELEMENTOR_PIN` | `4.3.5` | versión del plugin Elementor de `CORE=plugin` |
+| `NORMAL_FILE` | `$OUT/front-budget.json` | medición normal con la que `LAZY=1` compara el CLS de `lottie-above` |
+| `KEEP=1` | — | sólo prepara el sitio y lo deja arrancado (depuración) |
+
+| Modo | Qué hace | `expect` propio |
+|---|---|---|
+| normal | sitio nuevo con el núcleo incluido | la tabla de casos y la línea base |
+| `CACHE=1` | sin `elementor_element_cache_ttl` (caché de elementos activa); cada página se visita dos veces y se mide la segunda | las mismas decisiones de la puerta |
+| `CORE=plugin` | Elementor `ELEMENTOR_PIN` de downloads.wordpress.org, activo junto a Elements | las mismas decisiones; ningún filtro `default_option_` del módulo (`?digi_probe=state`) |
+| `SEO=1` | DIGITALÍSIMO SEO con `perf_js_jquery_mode = defer` | `defer` en jQuery y `elementor-frontend` (`empty`) y en `pro-elements-handlers` (`pro-popup`), popup visible, `digitalisimo_performance_js_fallback` vacía |
+| `SEO=guard` | SEO con el blindaje de fuentes (`auto`, modo seguro apagado), fuentes de Google locales, sitio antiguo y el kit en Lato 400/700 (archivos estáticos por peso: con una fuente variable como Roboto el blindaje no tiene nada que recortar y, con razón, no crea copias). Tras la medición previa, la sonda hace lo de «Optimizar fuentes» (`?digi_probe=fontguard`) y se exige la copia servida | tras la transición, una visita y dos pasadas de cron (cada una espera a que venza el evento de SEO, agendado a `time() + 10`), el `<link>` apunta a una copia `digitalisimo-` nueva con `swap` |
+| `THEME=1` | tema `digitalisimo-theme`; una cabecera del Theme Builder con un encabezado del núcleo y otra con el Menú de PRO, activadas de una en una por la sonda | `tb-header-core` sin paquetes y `tb-header-pro` con ellos en página, archivo, búsqueda, 404 y página clásica |
+| `MIGRATION=1` | DIGITALÍSIMO Migración activo: `bdt-navbar`, `bdt-contact-form` y `bdt-countdown` | `reason: class:` y menú, formulario y cuenta atrás funcionando |
+| `LAZY=1` | `lazy_libs` elegido en el sitio (con `THEME=1`, sobre el tema clásico; la referencia de CLS es entonces una corrida `THEME=1` en `NORMAL_FILE`) | `lottie-below` y `code-below` cargan al desplazar; `lottie-above` con CLS ≤ normal + 0,005 |
+| `V4=1` | experimento atómico activo; página `v4-only` | sin paquetes y con `elementor-frontend` (D19) |
+| `DEFAULTS=old` | sitio instalado con 3.16.0 (historial), sin `elementor_font_display` ni experimento de iconos. Mide antes de la transición (`pre`), comprueba que la primera visita agenda el evento, ejecuta `wp-cron.php` y vuelve a medir | `swap` tras el cron; iconos sin cambio |
+| `DEFAULTS=old-applied` | `old` y «Aplicar» por la acción real (sesión, pantalla «Rendimiento», formulario con nonce) | sin Font Awesome ni `eicons`, con SVG; con `CACHE=1`, `icons` se calienta con `<i>` antes de aplicar (`warm`) |
+| `DEFAULTS=old-dirty` | `old` en una red (`http://digi-fb.test`, que Chrome y Node resuelven al puerto) con `.fa-star{}` en el CSS adicional y `svg_icons` pedido por la red | no se aplica; el hallazgo aparece en `?digi_probe=state` |
+| `DEFAULTS=old-inactive` | `old` con el experimento guardado `inactive` y «Aplicar» | no cambia: manda la elección del sitio |
+| `DEFAULTS=off` | `old` con los seis interruptores apagados | paquetes en `empty` y `display=auto` |
+
+**Casos** (`front-budget/cases.json`, documentos construidos por `front-budget/lib.php`, el mismo código que usa la prueba de CI `tests/elements-front-cases.php`): `widgets` dentro de un contenedor (`container`: sus ajustes) tras el encabezado de referencia, o `elements` (árbol crudo), o `classic` (sin contenido del constructor); `extra` (popups con disparadores, condiciones y `timing`, plantillas, plantillas de bucle, cabeceras, widget global); `actions` (`click`, `scroll`, `wait`, `waitFor`, `waitCount` —hasta que haya al menos `min` elementos—, `mark` y `waitChange` —hasta que cambie su texto—, `hover`, `openSubmenu` —abre un submenú del menú de PRO con la API de SmartMenus, que en Chrome sin interfaz no reconoce un puntero simulado—, `viewport`, `fill`, `fillAll`); `sequence` (casos que se visitan antes en un perfil limpio, para los contadores de popups); `views` (URL medidas en `THEME=1`); `viewport`; `runtime` (lo decide la petición, no los datos: la prueba de CI lo omite); `pending` (contrato pendiente, se omite); `modes` y `expect`. `expect` se indexa por modo (`*` vale para todos; `old-applied+cache` para la combinación) y por instantánea: `pre` (antes de la transición), `warm` (caché caliente antes de aplicar), la carga y `after` (tras las acciones, con `changed` y `grew` frente a la carga). `reason` se compara por prefijo con cualquiera de las razones; `">0"`, `"<=0.005"` son comparaciones numéricas. Marcadores: `__SITE__`, `__IMAGE__`, `__MENU__` y, por caso, `__SELF__`, `__POPUP__`, `__TEMPLATE__`, `__LOOP__` y `__DOC:<key>__`.
+
+**Sonda** (`front-budget/probe.php`, mu-plugin sólo de Playground con el token de `mode.json`): imprime `<!-- digitalisimo-pro-gate {…} -->` con `Pro_Gate::reasons()` en `wp_footer` 99, atiende `?digi_probe=state` (aplicado, efectivo, pendiente, `wp_next_scheduled()`, análisis de iconos, filtros `default_option_`, filas del núcleo, respaldo de JavaScript de SEO), `?digi_probe=header&key=<caso>` (`THEME=1`) y `?digi_probe=fontguard` (`SEO=guard`), fuerza `…_needed` en `digi-fb-forced`, da por enviados los correos y apaga el disparo de WP-Cron desde las visitas: el arnés ejecuta `wp-cron.php` hasta que no queda nada de la transición, así la medición no depende del lazo de red de Playground. El complemento falso `front-budget/fake-addon/` registra un widget de terceros, otro que su filtro declara libre y, en `digi-fb-third-party-script`, un script que depende de `elementor-pro-frontend`.
+
+Procedimiento de la Fase 2 (§5.7): la medición «antes» se toma con el arnés de la rama sobre el ZIP publicado (`ELEMENTS_DIR=<ZIP extraído> EXPECT=0 BASELINE=write BASELINE_FILE=… LIGHTHOUSE=1`), la rama se mide en modo normal (`BASELINE=write LIGHTHOUSE=1`, línea base nueva) y en cada modo con su `CASES` por defecto, y la tabla queda en `docs/measurements/`.
+
+```bash
+OUT=/var/tmp/digi-fb PORT=9471 BASELINE=write LIGHTHOUSE=1 bash tests/playground/front-budget.sh
+OUT=/var/tmp/digi-fb-cache PORT=9472 CACHE=1 bash tests/playground/front-budget.sh
+OUT=/var/tmp/digi-fb-lazy PORT=9473 LAZY=1 NORMAL_FILE=/var/tmp/digi-fb/front-budget.json bash tests/playground/front-budget.sh
+OUT=/var/tmp/digi-fb-apply PORT=9474 DEFAULTS=old-applied CACHE=1 bash tests/playground/front-budget.sh
+```
+
+`front-network.sh` (run-blueprint con Multisite, sin Chrome) cubre la red: cada paso de `front-network/probe.php` es una petición propia al sitio que le toca (front, el wp-cron de ese blog o `admin-post.php` con usuario y nonce, con `wp_redirect` y `wp_die` capturados) y `front-network/report.cjs` juzga N1–N7: herencia del sitio 2 con el evento en su blog, el sitio 1 que personaliza, el sitio 3 creado después, rechazos 403 (editor, administrador de sitio en la red, nonce de otro sitio) y redirección a la misma superficie, «Heredar de la red» sólo en la pantalla del sitio (otro blueprint comprueba el sitio único), un vaciado `elementor/core/files/clear_cache` por sitio que cambia y ninguno en los demás, y las pantallas sin «Elementor», enlaces externos ni dominios de `brand-audit/vendors.json`.
+
+```bash
+OUT=/var/tmp/digi-front-network bash tests/playground/front-network.sh
+```
+
 ## Diseño compartido
 
-`shared-ui.sh` monta los siete plugins en un sitio y, con un mu-plugin que filtra los plugins activos por petición (cookie `digi_ui_plugins`), abre la pantalla de cada uno con ese plugin solo (Migración junto a Elements, que necesita) y después con los siete activos. En cada una comprueba que haya una sola hoja compartida `digitalisimo-ui`, la clase de body `digitalisimo-admin`, el token `--digi-gradient` válido, el botón primario con el degradado propio y ningún color de la paleta de Elementor. Guarda capturas en `$OUT`.
+`shared-ui.sh` monta los siete plugins en un sitio y, con un mu-plugin que filtra los plugins activos por petición (cookie `digi_ui_plugins`), abre la pantalla de cada uno con ese plugin solo (Migración junto a Elements, que necesita; de Elements, «Acerca de» y «Rendimiento») y después con los siete activos. En cada una comprueba que haya una sola hoja compartida `digitalisimo-ui`, la clase de body `digitalisimo-admin`, el token `--digi-gradient` válido, el botón primario con el degradado propio y ningún color de la paleta de Elementor. Guarda capturas en `$OUT`.
 
 ## Código PHP de DIGITALÍSIMO Tools
 

@@ -140,7 +140,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | F1b | Editor de fragmentos PHP en Tools | **Publicado** · Tools 1.0.34 · `v2026.10.20.411` |
 | K | Kits de Elementor con las mejoras: exportar e importar kits propios y de terceros, con el registro que usan F7a, F7b y F4-Woo | **Publicado** · Elements 4.3.0.162 · `v2026.10.21.416` |
 | F2 | Base común de conversión y Migración v2 | Eliminado (2026-10-20) |
-| F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md` | Pendiente |
+| F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md`: funciones avanzadas sólo donde se usan, valores por defecto del núcleo y librerías sin CDN | **Publicado** · Elements 4.3.0.163 y SEO 1.0.232 |
 | F7a | Capacidades que Divi y Betheme necesitan | Pendiente |
 | F3 | Divi (D5 y D4) | Eliminado (2026-10-20) |
 | F4 | Conversión de Betheme / BeBuilder | Eliminado (2026-10-20) |
@@ -614,7 +614,46 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 
 ### F-front · Fase 2 del front
 
-- Handlers PRO por elemento (`docs/ELEMENTS_FRONT_OBJECTIVE.md`, Fase 2), para validar cada conversión una sola vez.
+**Publicado** · Elements 4.3.0.163 y SEO 1.0.232 (rama `fusion/f-front`). Sólo cambian DIGITALÍSIMO Elements y DIGITALÍSIMO SEO: Tools, Migración, Backups, Hosting, IA Tools, el tema y `digitalisimo-ui` no cambian. Resultado, cifras, interruptores y presupuesto en [docs/ELEMENTS_FRONT_OBJECTIVE.md](ELEMENTS_FRONT_OBJECTIVE.md) («Fase 2 · resultado»); medición en `docs/measurements/2026-10-21-elements-front-phase2.md`.
+
+**Objetivo.** Controladores de PRO por elemento (Fase 2), para validar cada conversión una sola vez: una página hecha con el núcleo y widgets propios no paga los paquetes globales de PRO, y una que los usa los recibe siempre. Lo que decide el núcleo se mejora con valores por defecto donde el sitio nunca eligió, nunca escribiendo sus ajustes ni sus experimentos.
+
+**Qué cambia**
+- **Puerta de PRO** (`modules/digitalisimo-front/class-pro-gate.php`). `plugin.php` encola los dos paquetes como siempre; la puerta recorre los datos de los documentos impresos y, en `wp_footer` 19, los retira si nada los pidió. Decide por la **clase** de cada elemento, así que los adaptadores de Migración (que heredan de un widget de PRO con otro nombre) cargan PRO sin que Elements los nombre. Falla abierta: editor, vistas previas, Personalizador, excepciones y dudas dejan los paquetes. Filtros `digitalisimo_elements_pro_frontend_needed` y `digitalisimo_elements_pro_frontend_third_party`; `Pro_Gate::require()` es la API que usará F7b para «abrir popup u off-canvas» de `_digitalisimo_actions`.
+- **Contador de popups.** Sin los paquetes, en sitios con popups, una réplica de `setViewsAndSessions()` (`assets/popup-counter.js`, ≤ 0,5 KB) va en línea en posición `before` de `elementor-frontend`.
+- **Valores por defecto del núcleo** (`class-core-defaults.php`, `class-icon-scan.php`), sólo con el núcleo incluido: `swap` por `default_option_elementor_font_display`; iconos en línea por el valor por defecto del experimento, sólo tras el análisis y «Aplicar» (o, heredado de la red, con veredicto `clean`); `disable` y `0` para la caché de elementos y la carga optimizada de imágenes con sus interruptores.
+- **Librerías** (`class-lazy-libs.php`, `assets/lib/prism/`): Prism 1.23.0 y clipboard.js 2.0.0 desde el plugin, con los mismos bytes que el CDN; `jshint` de WordPress en el editor de Código personalizado; cargador opt-in `lazy_libs`.
+- **Pantalla «Rendimiento»** (`admin.php?page=digitalisimo-elements-front`), en el sitio y en la red, con `digitalisimo-ui` y sin hoja propia; **transición** por sitio (`class-transition.php`) que vacía una vez CSS y cachés del constructor bajo cerrojo `INSERT IGNORE` y sólo después aplica.
+- **SEO 1.0.232**: recálculo del blindaje de fuentes con `add_option__elementor_local_google_fonts` y `update_option__elementor_local_google_fonts`, y fila del `font-display` en vigor (sitio) o nota fija (red) en Rendimiento. Sin opciones nuevas en SEO.
+- **Derivados de PRO** cambiados, con su nota en `digitalisimo-elements/DIGITALISIMO_CHANGES.md`: `modules/lottie/widgets/lottie.php` y `modules/code-highlight/widgets/code-highlight.php` (sólo `get_script_depends()`), `modules/code-highlight/module.php` (sólo `register_frontend_scripts()`) y `modules/custom-code/custom-code-metabox.php` (sólo el `jshint` del editor). Además, una línea en `pro-elements.php` arranca el módulo.
+
+**Aceptación** (§9 de la especificación; evidencia en la medición)
+
+| # | Criterio | Estado |
+|---|---|---|
+| 1 | Vacía sin PRO | **Pasa:** `empty` y `all-own` sin paquetes, −4 peticiones y −382 667 B de JS, CLS relativo igual |
+| 2 | PRO donde hace falta | **Pasa:** las 23 páginas con paquetes son las esperadas, con su razón y su comprobación funcional, también con `CACHE=1` |
+| 3 | Negativos | **Pasa:** `core-only`, `pro-static`, `third-party-free` y `v4-only` sin paquetes; `v4-only` conserva `elementor-frontend` |
+| 4 | Migración | **Parcial:** `MIGRATION=1` en verde (menú, formulario y cuenta atrás heredados); `migrate.sh` y `legacy-ab.sh` no se corrieron (copia de Element Pack sin descarga oficial anotada) |
+| 5 | Plugin original | **Pasa:** `CORE=plugin` con las mismas decisiones y sin valores por defecto; `core-switch.sh` con sus dos `has_filter` |
+| 6 | SEO | **Pasa:** `SEO=1` (diferido sin respaldo) y `SEO=guard` (copia `digitalisimo-` con `swap`) |
+| 7 | Valores por defecto | **Pasa:** `DEFAULTS=old`, `old-applied` (con y sin `CACHE=1`), `old-dirty`, `old-inactive` y `off` |
+| 8 | Librerías | **Pasa** `code` y `code-langs` (Prism local, ningún CDN, `.token` en los 37, ningún 404) y `LAZY=1` con el tema de bloques (tras el ajuste de `Lazy_Libs::declares()`, cubierto por `tests/elements-local-libs.php`) y con `THEME=1` |
+| 9 | Red | **Pasa:** `front-network.sh` N1–N7 |
+| 10 | Interfaz | **Pasa:** `shared-ui.sh` (18 pantallas) y `brand-audit.sh SCOPE=full` (194 pantallas) con «Rendimiento» |
+| 11 | Lighthouse 13.5.0 | **Pasa:** −386 068 B en `empty`, −385 930 B en `all-own`, `pro-heavy` +0,00 % |
+| 12 | Regresión | **Pasa:** `conditions.sh`, `kit-roundtrip.sh` y `form-submit.sh` en verde. `interaction.sh` aplica ahora la transición en su preparación (`interaction/transition.php`) y pasa en los dos modos (29 y 29) |
+| 13 | CI | Las doce pruebas nuevas en `validate.yml` y `release.yml`, con listas iguales; sha256 de los cuatro paquetes sin cambio |
+| 14 | Paquetes | Al publicar: `build-packages.sh` sin abortar, `verify-release.mjs` con 8 ZIP, `unzip -t` y Release con los 8 assets |
+
+**Límites declarados**
+- `migrate.sh` y `legacy-ab.sh` quedan pendientes hasta tener una copia de Element Pack con su descarga oficial anotada en `reference/OFFICIAL-SOURCES.txt`.
+- Prism 1.23.0 tiene avisos publicados (CVE-2024-53382, corregido en 1.30.0): su subida es una etapa propia. Un lenguaje añadido por un tercero que no esté en el subconjunto queda sin resaltar.
+- La transición vacía CSS y cachés del constructor una vez por sitio al actualizar; un plugin de caché de página que no escuche `elementor/core/files/clear_cache` necesita una purga manual.
+- Con un tema de bloques el contenido se pinta antes de `wp_head`: `Lazy_Libs::declares()` declara el cargador mientras `wp_enqueue_scripts` no ha corrido y, si el registro falla, `HANDLE` queda como alias de las librerías.
+- Fallar abierto tiene coste: un elemento PRO oculto por condiciones, o una cabecera con el Menú de PRO o sticky, cargan los paquetes; el contenido con widgets PRO que un tercero inyecte por AJAX necesita el filtro `…_needed` o el interruptor apagado.
+- Una lectura de `sitemeta` por petición en una red sin caché de objetos.
+- Volver a 4.3.0.162 exige «Vaciar archivos y datos» en Herramientas del constructor.
 
 ### F7a · Capacidades que Divi y Betheme necesitan
 
@@ -699,6 +738,18 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 | `digitalisimo_elements_unconverted` | Número de marcadores `digitalisimo-unconverted` del sitio: un entero con carga automática. Con 0, ni el widget ni los ganchos de lectura se registran | — (automática, sin pantalla) | Entero ≥ 0, recalculado al importar y al guardar un documento con marcadores | Publicado (K) · Elements 4.3.0.162 |
 | `digitalisimo_elements_kit_notice` (meta de usuario) | Aviso único «importación terminada» del administrador que importó; se lee de la caché de metas del usuario, sin consultas | — (automática, sin pantalla) | Escrita y borrada sólo por el importador | Publicado (K) · Elements 4.3.0.162 |
 | Metas `_digitalisimo_import_origin` (entradas, términos y adjuntos), `_digitalisimo_unconverted` (documentos con marcadores), `_digitalisimo_original_type` (plantilla `section` que guarda un tipo ausente) y `_digitalisimo_unconverted_defaults` (kit: valores por defecto de tipos desconocidos) | En el contenido de ese sitio | — (automáticas, sin pantalla) | Escritas sólo por el importador. `_digitalisimo_import_origin` y `_digitalisimo_unconverted` nunca viajan en un kit (lista negra) ni las copia el duplicador | Publicado (K) · Elements 4.3.0.162 |
+| `digitalisimo_elements_front` (sitio) y `digitalisimo_elements_front_defaults` (red) | Los seis booleanos de abajo y `own` (las claves que el sitio personaliza, siempre dentro de las seis); carga automática, < 200 B. Pantalla «Rendimiento» de DIGITALÍSIMO Elements, con «Heredar de la red» por clave sólo en un sitio de una red | Los seis booleanos en `sitemeta`, en Red → «Rendimiento» de Elements, sin «Heredar de la red»; una lectura por petición en una red sin caché de objetos | `Settings::sanitize()` en el sitio y `Settings::save_network()` en la red, clave por clave (`! empty()`), sin saneado genérico; `Settings::defaults()` y `Settings::network_fields()` completan los cuatro puntos. Nonce y capacidad por acción (`manage_options`; `manage_network_options` en la red) | Publicado (F-front) · Elements 4.3.0.163 |
+| `pro_conditional` | Funciones avanzadas sólo donde se usan (puerta de PRO). Por defecto activado | Valor de red heredable; rige de inmediato en los sitios que no lo personalizaron | Booleano en las dos superficies | Publicado (F-front) · Elements 4.3.0.163 |
+| `font_swap` | `font-display: swap` por defecto para las fuentes de Google del constructor donde el sitio nunca lo eligió. Por defecto activado; sólo con el núcleo incluido | Ídem | Booleano en las dos superficies | Publicado (F-front) · Elements 4.3.0.163 |
+| `svg_icons` | Iconos en línea (SVG): «Analizar», «Aplicar» y «Revertir» en el sitio. Por defecto apagado; sólo con el núcleo incluido | «Aplicar los iconos en línea (SVG) en los sitios cuyo análisis salga limpio»: un sitio que lo hereda sólo lo aplica con veredicto `clean` | Booleano en las dos superficies; «Aplicar» y «Revertir» lo guardan como elección del sitio | Publicado (F-front) · Elements 4.3.0.163 |
+| `lazy_libs` | Cargar Lottie y el resaltado de código al acercarse a la pantalla. Por defecto apagado | Valor de red heredable | Booleano en las dos superficies | Publicado (F-front) · Elements 4.3.0.163 |
+| `element_cache_off` | Desactivar la caché de elementos donde el sitio no la eligió. Por defecto apagado; sólo con el núcleo incluido | Valor de red heredable | Booleano en las dos superficies | Publicado (F-front) · Elements 4.3.0.163 |
+| `image_loading_off` | Desactivar la carga optimizada de imágenes donde el sitio no la eligió. Por defecto apagado; sólo con el núcleo incluido | Valor de red heredable | Booleano en las dos superficies | Publicado (F-front) · Elements 4.3.0.163 |
+| `digitalisimo_elements_front_applied` | Valores en vigor, huella, veredicto de iconos y fecha; carga automática. Es lo único que leen la puerta, los valores por defecto y el cargador en el front | — (automática, sin pantalla: cada sitio transita en sus peticiones) | Sólo la escribe la transición, al final y bajo cerrojo | Publicado (F-front) · Elements 4.3.0.163 |
+| `digitalisimo_elements_icon_scan` | Estado, cursor y hasta 50 hallazgos (fuente, id y extracto ≤ 120 caracteres) del análisis de iconos. **Sin carga automática** | — (automática, sin pantalla) | Sólo la escribe el análisis; los extractos se muestran con `esc_html()` | Publicado (F-front) · Elements 4.3.0.163 |
+| `digitalisimo_elements_front_lock` | Cerrojo de la transición: `INSERT IGNORE` con token; se roba pasados 300 s | — (automático) | Sin entrada del usuario | Publicado (F-front) · Elements 4.3.0.163 |
+| `digitalisimo_elements_front_snippets` | Booleano con carga automática: algún fragmento publicado de Código personalizado nombra los globales de PRO. Se recalcula al guardar, borrar o cambiar de estado un fragmento y en la transición | — (automática, sin pantalla) | Sin entrada del usuario | Publicado (F-front) · Elements 4.3.0.163 |
+| Evento `digitalisimo_elements_front_transition` | Evento único por sitio cuando el valor efectivo difiere del aplicado; en `admin_init` se ejecuta si sigue pendiente (redes con `DISABLE_WP_CRON`) | — | — | Publicado (F-front) · Elements 4.3.0.163 |
 
 Cada opción nueva se añade aquí antes de darse por terminada.
 
@@ -833,3 +884,11 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
   - pantalla «Kits», informe y `wp digitalisimo-elements kit`.
 
   Publicado con Elements 4.3.0.162 · `v2026.10.21.416`. Evidencia en `docs/fusion/k-kits-evidence.json`; Envato real pendiente (K-D17).
+- 2026-10-21 · F-front en la rama `fusion/f-front` (Fase 2 de `docs/ELEMENTS_FRONT_OBJECTIVE.md`):
+  - puerta de PRO por clase, con `plugin.php` y los paquetes compilados intactos, y réplica del contador de popups;
+  - valores por defecto del núcleo sin escribir sus ajustes ni sus experimentos: `swap`, iconos en línea con análisis y «Aplicar», «Desactivar» para la caché de elementos y la carga optimizada de imágenes;
+  - Prism 1.23.0 y clipboard.js 2.0.0 desde el plugin, `jshint` de WordPress y cargador opt-in `lazy_libs`;
+  - pantalla «Rendimiento» con seis interruptores, paridad sitio/red y transición por sitio;
+  - SEO recalcula el blindaje de fuentes y muestra el `font-display` en vigor.
+
+  Publicado con Elements 4.3.0.163 y SEO 1.0.232. `empty`: 28 → 24 peticiones y −382 667 B de JS; Lighthouse −386 068 B. Medición en `docs/measurements/2026-10-21-elements-front-phase2.md`; `migrate.sh` y `legacy-ab.sh` pendientes de una copia oficial de Element Pack.

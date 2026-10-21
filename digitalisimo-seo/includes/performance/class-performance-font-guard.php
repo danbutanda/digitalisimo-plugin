@@ -42,6 +42,10 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 		add_action( 'admin_post_digitalisimo_performance_recalculate_network_fonts', array( __CLASS__, 'recalculate_network_action' ) );
 		foreach ( array( 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ) as $hook ) add_action( $hook, array( __CLASS__, 'invalidate_on_meta' ), 10, 4 );
 		add_action( 'save_post_elementor_library', array( __CLASS__, 'invalidate_on_library_save' ) );
+		// El constructor anota cada CSS local en esta opción justo después de descargarlo (una familia nueva,
+		// o de nuevo tras vaciar sus fuentes él mismo o DIGITALÍSIMO Elements): sólo entonces hay archivos que copiar.
+		add_action( 'add_option__elementor_local_google_fonts', array( __CLASS__, 'schedule_on_local_fonts' ) );
+		add_action( 'update_option__elementor_local_google_fonts', array( __CLASS__, 'schedule_on_local_fonts' ) );
 		add_action( 'init', array( __CLASS__, 'schedule_missing' ), 31 );
 		add_filter( 'style_loader_src', array( __CLASS__, 'style_src' ), 20, 2 );
 	}
@@ -742,6 +746,14 @@ class Digitalisimo_Integrations_Performance_Font_Guard {
 
 	public static function invalidate_on_library_save() {
 		self::forget();
+		self::schedule();
+	}
+
+	/**
+	 * Ocurre durante una visita: sólo agenda. No hace falta olvidar el manifiesto: una copia cuyo
+	 * original cambió o desapareció ya no se sirve (`row_usable()`), y las demás siguen vigentes.
+	 */
+	public static function schedule_on_local_fonts() {
 		self::schedule();
 	}
 

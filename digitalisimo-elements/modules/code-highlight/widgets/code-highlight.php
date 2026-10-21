@@ -41,6 +41,14 @@ class Code_Highlight extends Base_Widget {
 	}
 
 	public function get_script_depends() {
+		// DIGITALÍSIMO: con «Cargar Lottie y el resaltado de código al acercarse a la pantalla» (`lazy_libs`) aplicado,
+		// Prism lo pide el cargador de modules/digitalisimo-front/ cuando el widget se acerca. Apagado, como siempre
+		// (Prism se sirve desde el plugin: modules/code-highlight/module.php).
+		$lazy = 'Digitalisimo\Elements\Front\Lazy_Libs';
+		if ( class_exists( $lazy ) && $lazy::declares( $this ) ) {
+			return [ $lazy::HANDLE ];
+		}
+
 		$depends = [
 			'prismjs_core' => true,
 			'prismjs_loader' => true,

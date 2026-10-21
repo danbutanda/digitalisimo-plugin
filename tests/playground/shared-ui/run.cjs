@@ -18,7 +18,8 @@ const SCREENS = {
   hosting: ['admin.php?page=digitalisimo-hosting'],
   backups: ['admin.php?page=digitalisimo-backups'],
   tools: ['admin.php?page=digitalisimo-tools-elementor-templates', 'admin.php?page=digitalisimo-tools-elementor-templates&tab=php'],
-  elements: ['admin.php?page=digitalisimo-elements-about'],
+  // «Rendimiento» (F-front): la pantalla de sitio; la de red la cubre front-network.sh (este arnés es de sitio único).
+  elements: ['admin.php?page=digitalisimo-elements-about', 'admin.php?page=digitalisimo-elements-front'],
   migration: ['tools.php?page=digitalisimo-ep-migration'],
 };
 // Migración requiere Elements (Requires Plugins); los demás se prueban solos.

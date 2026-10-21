@@ -85,6 +85,21 @@ foreach ( array( $only ) as $blog ) {
 		$result['checks']['js_text'] = is_string( $json ) && false !== strpos( $json, '"locale_data"' ) ? 'ok' : 'sin traducción';
 	}
 	$result['checks'][ 'kit_' . $blog ] = (int) get_option( 'elementor_active_kit' ) > 0;
+	// F-front (D3): el valor por defecto de font-display de Elements sólo existe con el núcleo incluido, y sólo después
+	// de la transición del sitio (ninguna fila elementor_font_display en esta red: la activación en red no la escribe).
+	$transition = '\\Digitalisimo\\Elements\\Front\\Transition';
+	$front      = array(
+		'elementor_version' => defined( 'ELEMENTOR_VERSION' ) ? ELEMENTOR_VERSION : '',
+		'has_filter'        => false !== has_filter( 'default_option_elementor_font_display' ),
+		'module'            => class_exists( $transition ),
+	);
+	if ( class_exists( $transition ) ) {
+		$front['changed'] = $transition::run_now();
+		$front['applied'] = $transition::applied();
+	}
+	$front['has_filter_after']        = false !== has_filter( 'default_option_elementor_font_display' );
+	$front['font_display']            = get_option( 'elementor_font_display', 'auto' );
+	$result['checks']['front']        = $front;
 	foreach ( $cases as $widget => $settings ) {
 		$slug = 'digi-core-' . $widget;
 		$doc_post  = get_page_by_path( $slug );

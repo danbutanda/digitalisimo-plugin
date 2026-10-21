@@ -41,6 +41,17 @@ jobs:
           php tests/elements-logos.php
           php tests/elements-image-markup.php
           php tests/elements-front-budget.php
+          php tests/elements-pro-gate.php
+          node tests/elements-pro-inventory.mjs
+          node tests/elements-popup-counter.mjs
+          php tests/elements-front-settings.php
+          php tests/elements-front-transition.php
+          php tests/elements-core-defaults.php
+          php tests/elements-icon-scan.php
+          php tests/elements-icons-svg.php
+          node tests/elements-lazy-libs.mjs
+          php tests/elements-local-libs.php
+          php tests/elements-front-cases.php
           php tests/elements-advanced-heading.php
           php tests/elements-external-row.php
           php tests/elements-google-reviews.php
@@ -135,6 +146,7 @@ jobs:
           php tests/performance-fonts.php
           php tests/performance-font-inline.php
           php tests/performance-font-guard.php
+          php tests/seo-font-swap-state.php
           php tests/performance-font-optimizer.php
           php tests/performance-font-policy.php
           php tests/performance-images.php
