@@ -39,6 +39,25 @@ add('N6', delta('post-site1-own', 'post-network-off', '1') === 0 && delta('post-
 add('N6', delta('visit-2b', 'cron-2b', '2') === 1 && delta('visit-2b', 'cron-2b', '1') === 0, `la transición del sitio 2 vacía sólo el sitio 2, una vez (${JSON.stringify([clears('visit-2b'), clears('cron-2b')])})`);
 add('N6', delta('visit-1b', 'cron-1b', '1') === 0, 'el sitio 1, que no cambia, no se vacía');
 add('N6', delta('visit-3a', 'cron-3a', '3') === 1 && delta('visit-3a', 'cron-3a', '2') === 0, `la transición del sitio 3 vacía sólo el sitio 3 (${JSON.stringify([clears('visit-3a'), clears('cron-3a')])})`);
+// F7a: «Registrar visitas sin gestor de consentimiento» (page_visits_no_consent), fuera de la transición.
+const st = (name, blog) => (((step(name).data || {}).sites || {})[blog]) || ((step(name).data || {}).state) || {};
+const own1 = (step('post-site1-own').data || {}).site1 || {};
+add('N2', own1.visits === false && own1.visits_inherits === false, `el sitio 1 personaliza page_visits_no_consent apagada (${JSON.stringify(own1)})`);
+const netPrivacy = (step('post-network-privacy').data || {}).network || {};
+add('N4', netPrivacy.page_visits_no_consent === true && netPrivacy.pro_conditional === false, `la red guarda page_visits_no_consent=true sin cambiar lo demás (${JSON.stringify(netPrivacy)})`);
+add('N1', st('post-network-off', 2).visits === false, `antes de encenderla en la red, el sitio 2 la tiene apagada (${JSON.stringify(st('post-network-off', 2))})`);
+const v2 = (step('visit-2c').data || {}).state || {};
+add('N1', v2.visits === true && v2.visits_inherits === true, `el sitio 2 hereda page_visits_no_consent=true de la red (${JSON.stringify({ visits: v2.visits, inherits: v2.visits_inherits })})`);
+const v1 = (step('visit-1c').data || {}).state || {};
+add('N2', v1.visits === false, `el sitio 1 conserva page_visits_no_consent apagada tras encenderla la red (${JSON.stringify({ visits: v1.visits, inherits: v1.visits_inherits })})`);
+const v3 = (step('visit-3b').data || {}).state || {};
+add('N3', v3.visits === true && v3.visits_inherits === true, `el sitio 3 hereda page_visits_no_consent=true (${JSON.stringify({ visits: v3.visits, inherits: v3.visits_inherits })})`);
+for (const [visit, cron, blog] of [['visit-2c', 'cron-2c', '2'], ['visit-3b', 'cron-3b', '3']]) {
+  add('N6', !scheduled(visit), `page_visits_no_consent no transita: ${visit} no agenda ${HOOK}`);
+  add('N6', !((step(cron).data || {}).ran || []).includes(HOOK), `page_visits_no_consent no transita: ${cron} no ejecuta ${HOOK}`);
+}
+add('N6', !scheduled('visit-1c'), 'el sitio 1 no agenda nada al cambiar la privacidad de la red');
+for (const blog of ['1', '2', '3']) add('N6', delta('cron-3a', 'cron-3b', blog) === 0, `cambiar page_visits_no_consent no vacía el sitio ${blog} (${JSON.stringify([clears('cron-3a'), clears('cron-3b')])})`);
 for (const n of ['N5/N7']) add(n, true, '');
 
 let failed = 0;

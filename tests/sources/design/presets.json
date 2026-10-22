@@ -1,0 +1,522 @@
+{
+	"description": "Presets de estilo (F7a): casos compartidos entre tests/elements-design-presets.php (núcleo real) y la prueba del editor. settings = ajustes del preset ya saneados; fill = lo que el preset aporta al elemento; css = declaraciones que añade o cambia en el CSS del documento 10, por regla.",
+	"document": 10,
+	"selector": ".elementor-{document} .elementor-element.elementor-element-{id}",
+	"breakpoints": {
+		"tablet": "@media(max-width:1024px)",
+		"mobile": "@media(max-width:767px)"
+	},
+	"cases": [
+		{
+			"name": "heading-typography",
+			"note": "Grupo de tipografía con su conmutador (R-B1): tamaño de escritorio y de tableta y grosor.",
+			"type": "heading",
+			"slug": "titulo-grande",
+			"element": {
+				"id": "h1a",
+				"elType": "widget",
+				"widgetType": "heading"
+			},
+			"preset": {
+				"typography_typography": "custom",
+				"typography_font_size": {
+					"unit": "px",
+					"size": 32,
+					"sizes": []
+				},
+				"typography_font_size_tablet": {
+					"unit": "px",
+					"size": 24,
+					"sizes": []
+				},
+				"typography_font_weight": "700"
+			},
+			"local": [],
+			"settings": {
+				"typography_typography": "custom",
+				"typography_font_size": {
+					"unit": "px",
+					"size": 32,
+					"sizes": []
+				},
+				"typography_font_size_tablet": {
+					"unit": "px",
+					"size": 24,
+					"sizes": []
+				},
+				"typography_font_weight": "700"
+			},
+			"fill": {
+				"values": {
+					"typography_typography": "custom",
+					"typography_font_size": {
+						"unit": "px",
+						"size": 32,
+						"sizes": []
+					},
+					"typography_font_size_tablet": {
+						"unit": "px",
+						"size": 24,
+						"sizes": []
+					},
+					"typography_font_weight": "700"
+				},
+				"globals": {}
+			},
+			"css": {
+				".elementor-10 .elementor-element.elementor-element-h1a .elementor-heading-title": {
+					"font-size": "32px",
+					"font-weight": "700"
+				},
+				"@media(max-width:1024px)|.elementor-10 .elementor-element.elementor-element-h1a .elementor-heading-title": {
+					"font-size": "24px"
+				}
+			}
+		},
+		{
+			"name": "heading-typography-global",
+			"note": "Tipografía y color globales: el global vive en la clave del conmutador del grupo.",
+			"type": "heading",
+			"slug": "titulo-global",
+			"element": {
+				"id": "h2b",
+				"elType": "widget",
+				"widgetType": "heading"
+			},
+			"preset": {
+				"__globals__": {
+					"typography_typography": "globals/typography?id=primary",
+					"title_color": "globals/colors?id=accent"
+				}
+			},
+			"local": [],
+			"settings": {
+				"__globals__": {
+					"typography_typography": "globals/typography?id=primary",
+					"title_color": "globals/colors?id=accent"
+				}
+			},
+			"fill": {
+				"values": {},
+				"globals": {
+					"typography_typography": "globals/typography?id=primary",
+					"title_color": "globals/colors?id=accent"
+				}
+			},
+			"css": {
+				".elementor-10 .elementor-element.elementor-element-h2b .elementor-heading-title": {
+					"font-family": "var( --e-global-typography-primary-font-family )",
+					"font-weight": "var( --e-global-typography-primary-font-weight )",
+					"color": "var( --e-global-color-accent )"
+				}
+			}
+		},
+		{
+			"name": "container-background-classic",
+			"note": "Tipo de fondo (CHOOSE sin selectores, frontend_available) más su color (R-B1).",
+			"type": "container",
+			"slug": "fondo-oscuro",
+			"element": {
+				"id": "c3c",
+				"elType": "container"
+			},
+			"preset": {
+				"background_background": "classic",
+				"background_color": "#112233"
+			},
+			"local": [],
+			"settings": {
+				"background_background": "classic",
+				"background_color": "#112233"
+			},
+			"fill": {
+				"values": {
+					"background_background": "classic",
+					"background_color": "#112233"
+				},
+				"globals": {}
+			},
+			"css": {
+				".elementor-10 .elementor-element.elementor-element-c3c:not(.elementor-motion-effects-element-type-background), .elementor-10 .elementor-element.elementor-element-c3c > .elementor-motion-effects-container > .elementor-motion-effects-layer": {
+					"background-color": "#112233"
+				}
+			}
+		},
+		{
+			"name": "container-background-gradient",
+			"note": "Degradado: color_b y las paradas sólo se leen como {{otro.VALUE}} desde el ángulo (V-B2).",
+			"type": "container",
+			"slug": "fondo-degradado",
+			"element": {
+				"id": "c4d",
+				"elType": "container"
+			},
+			"preset": {
+				"background_background": "gradient",
+				"background_color": "#ff0000",
+				"background_color_stop": {
+					"unit": "%",
+					"size": 10,
+					"sizes": []
+				},
+				"background_color_b": "#0000ff",
+				"background_color_b_stop": {
+					"unit": "%",
+					"size": 90,
+					"sizes": []
+				},
+				"background_gradient_angle": {
+					"unit": "deg",
+					"size": 45,
+					"sizes": []
+				}
+			},
+			"local": [],
+			"settings": {
+				"background_background": "gradient",
+				"background_color": "#ff0000",
+				"background_color_stop": {
+					"unit": "%",
+					"size": 10,
+					"sizes": []
+				},
+				"background_color_b": "#0000ff",
+				"background_color_b_stop": {
+					"unit": "%",
+					"size": 90,
+					"sizes": []
+				},
+				"background_gradient_angle": {
+					"unit": "deg",
+					"size": 45,
+					"sizes": []
+				}
+			},
+			"fill": {
+				"values": {
+					"background_background": "gradient",
+					"background_color": "#ff0000",
+					"background_color_stop": {
+						"unit": "%",
+						"size": 10,
+						"sizes": []
+					},
+					"background_color_b": "#0000ff",
+					"background_color_b_stop": {
+						"unit": "%",
+						"size": 90,
+						"sizes": []
+					},
+					"background_gradient_angle": {
+						"unit": "deg",
+						"size": 45,
+						"sizes": []
+					}
+				},
+				"globals": {}
+			},
+			"css": {
+				".elementor-10 .elementor-element.elementor-element-c4d:not(.elementor-motion-effects-element-type-background), .elementor-10 .elementor-element.elementor-element-c4d > .elementor-motion-effects-container > .elementor-motion-effects-layer": {
+					"background-color": "transparent",
+					"background-image": "linear-gradient(45deg, #ff0000 10%, #0000ff 90%)"
+				}
+			}
+		},
+		{
+			"name": "heading-box-shadow",
+			"note": "Sombra de caja con su conmutador (POPOVER_TOGGLE) en la pila common.",
+			"type": "heading",
+			"slug": "sombra-suave",
+			"element": {
+				"id": "h5e",
+				"elType": "widget",
+				"widgetType": "heading"
+			},
+			"preset": {
+				"_box_shadow_box_shadow_type": "yes",
+				"_box_shadow_box_shadow": {
+					"horizontal": 0,
+					"vertical": 4,
+					"blur": 12,
+					"spread": 0,
+					"color": "rgba(0,0,0,0.25)"
+				}
+			},
+			"local": [],
+			"settings": {
+				"_box_shadow_box_shadow_type": "yes",
+				"_box_shadow_box_shadow": {
+					"horizontal": 0,
+					"vertical": 4,
+					"blur": 12,
+					"spread": 0,
+					"color": "rgba(0,0,0,0.25)"
+				}
+			},
+			"fill": {
+				"values": {
+					"_box_shadow_box_shadow_type": "yes",
+					"_box_shadow_box_shadow": {
+						"horizontal": 0,
+						"vertical": 4,
+						"blur": 12,
+						"spread": 0,
+						"color": "rgba(0,0,0,0.25)"
+					}
+				},
+				"globals": {}
+			},
+			"css": {
+				".elementor-10 .elementor-element.elementor-element-h5e > .elementor-widget-container": {
+					"box-shadow": "0px 4px 12px 0px rgba(0,0,0,0.25)"
+				}
+			}
+		},
+		{
+			"name": "heading-padding",
+			"note": "Dimensiones responsivas en el contenedor interno del widget.",
+			"type": "heading",
+			"slug": "con-aire",
+			"element": {
+				"id": "h6f",
+				"elType": "widget",
+				"widgetType": "heading"
+			},
+			"preset": {
+				"_padding": {
+					"unit": "px",
+					"top": 10,
+					"right": 20,
+					"bottom": 10,
+					"left": 20,
+					"isLinked": false
+				},
+				"_padding_mobile": {
+					"unit": "em",
+					"top": 1,
+					"right": 1,
+					"bottom": 1,
+					"left": 1,
+					"isLinked": true
+				}
+			},
+			"local": [],
+			"settings": {
+				"_padding": {
+					"unit": "px",
+					"top": 10,
+					"right": 20,
+					"bottom": 10,
+					"left": 20,
+					"isLinked": false
+				},
+				"_padding_mobile": {
+					"unit": "em",
+					"top": 1,
+					"right": 1,
+					"bottom": 1,
+					"left": 1,
+					"isLinked": true
+				}
+			},
+			"fill": {
+				"values": {
+					"_padding": {
+						"unit": "px",
+						"top": 10,
+						"right": 20,
+						"bottom": 10,
+						"left": 20,
+						"isLinked": false
+					},
+					"_padding_mobile": {
+						"unit": "em",
+						"top": 1,
+						"right": 1,
+						"bottom": 1,
+						"left": 1,
+						"isLinked": true
+					}
+				},
+				"globals": {}
+			},
+			"css": {
+				".elementor-10 .elementor-element.elementor-element-h6f > .elementor-widget-container": {
+					"padding": "10px 20px 10px 20px"
+				},
+				"@media(max-width:767px)|.elementor-10 .elementor-element.elementor-element-h6f > .elementor-widget-container": {
+					"padding": "1em 1em 1em 1em"
+				}
+			}
+		},
+		{
+			"name": "divider-weight",
+			"note": "El preset sustituye los valores por defecto locales del divisor (V-B1): 1px y #000.",
+			"type": "divider",
+			"slug": "linea-gruesa",
+			"element": {
+				"id": "d7a",
+				"elType": "widget",
+				"widgetType": "divider"
+			},
+			"preset": {
+				"weight": {
+					"unit": "px",
+					"size": 6,
+					"sizes": []
+				},
+				"color": "#ff0000"
+			},
+			"local": [],
+			"settings": {
+				"weight": {
+					"unit": "px",
+					"size": 6,
+					"sizes": []
+				},
+				"color": "#ff0000"
+			},
+			"fill": {
+				"values": {
+					"weight": {
+						"unit": "px",
+						"size": 6,
+						"sizes": []
+					},
+					"color": "#ff0000"
+				},
+				"globals": {}
+			},
+			"css": {
+				".elementor-10 .elementor-element.elementor-element-d7a": {
+					"--divider-color": "#ff0000",
+					"--divider-border-width": "6px"
+				}
+			}
+		},
+		{
+			"name": "heading-offset-rtl",
+			"note": "Selectores que empiezan antes de {{WRAPPER}} (body:not(.rtl) y body.rtl, R-I10). La posición (prefix_class) es local.",
+			"type": "heading",
+			"slug": "desplazado",
+			"element": {
+				"id": "h8b",
+				"elType": "widget",
+				"widgetType": "heading"
+			},
+			"preset": {
+				"_offset_x": {
+					"unit": "px",
+					"size": 20,
+					"sizes": []
+				}
+			},
+			"local": {
+				"_position": "absolute"
+			},
+			"settings": {
+				"_offset_x": {
+					"unit": "px",
+					"size": 20,
+					"sizes": []
+				}
+			},
+			"fill": {
+				"values": {
+					"_offset_x": {
+						"unit": "px",
+						"size": 20,
+						"sizes": []
+					}
+				},
+				"globals": {}
+			},
+			"css": {
+				"body:not(.rtl) .elementor-10 .elementor-element.elementor-element-h8b": {
+					"left": "20px"
+				},
+				"body.rtl .elementor-10 .elementor-element.elementor-element-h8b": {
+					"right": "20px"
+				}
+			}
+		},
+		{
+			"name": "heading-local-wins",
+			"note": "Un control es local o del preset (R-M10): el color y el tamaño (por su variante móvil) son locales; el grosor viene del preset.",
+			"type": "heading",
+			"slug": "tarjeta",
+			"element": {
+				"id": "h9c",
+				"elType": "widget",
+				"widgetType": "heading"
+			},
+			"preset": {
+				"title_color": "#ff0000",
+				"typography_typography": "custom",
+				"typography_font_size": {
+					"unit": "px",
+					"size": 40,
+					"sizes": []
+				},
+				"typography_font_weight": "800"
+			},
+			"local": {
+				"title_color": "#000000",
+				"typography_typography": "custom",
+				"typography_font_size_mobile": {
+					"unit": "px",
+					"size": 12,
+					"sizes": []
+				}
+			},
+			"settings": {
+				"title_color": "#ff0000",
+				"typography_typography": "custom",
+				"typography_font_size": {
+					"unit": "px",
+					"size": 40,
+					"sizes": []
+				},
+				"typography_font_weight": "800"
+			},
+			"fill": {
+				"values": {
+					"typography_font_weight": "800"
+				},
+				"globals": {}
+			},
+			"css": {
+				".elementor-10 .elementor-element.elementor-element-h9c .elementor-heading-title": {
+					"font-weight": "800"
+				}
+			}
+		},
+		{
+			"name": "heading-local-global-wins",
+			"note": "Un global local también es local: el color del preset no entra.",
+			"type": "heading",
+			"slug": "rojo",
+			"element": {
+				"id": "h0d",
+				"elType": "widget",
+				"widgetType": "heading"
+			},
+			"preset": {
+				"title_color": "#ff0000"
+			},
+			"local": {
+				"__globals__": {
+					"title_color": "globals/colors?id=primary"
+				}
+			},
+			"settings": {
+				"title_color": "#ff0000"
+			},
+			"fill": {
+				"values": {},
+				"globals": {}
+			},
+			"css": {}
+		}
+	]
+}

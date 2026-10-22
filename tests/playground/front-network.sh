@@ -9,6 +9,9 @@
 #   N5  network_fields() y la pantalla de red sin «Heredar de la red»; la del sitio con él; un sitio único sin él
 #   N6  elementor/core/files/clear_cache una vez por sitio que cambia y nunca en los que no
 #   N7  la pantalla de red y la del sitio sin «Elementor» ni enlaces externos (ni dominios de brand-audit/vendors.json)
+#   F7a: la clave `page_visits_no_consent` («Privacidad») entra en N1 (el sitio 2 la hereda de la red), N2 (el sitio 1
+#   la personaliza apagada), N3 (el sitio 3 la hereda), N4 (guardado de red), N5 (su casilla en las tres pantallas, con
+#   «Heredar de la red» sólo en el sitio de la red) y N6 (no transita: ni evento ni vaciado al cambiarla)
 # Cada paso es una petición PHP propia (front, wp-cron o admin-post) en el sitio que le toca (front-network/probe.php).
 # Uso: bash tests/playground/front-network.sh   → $OUT/result.json (por defecto /tmp/digi-front-network)
 #      ELEMENTS_DIR=…  mide otra copia del plugin · LIVE=1 monta el árbol sin copiar
@@ -48,6 +51,7 @@ STEPS=(setup:1 visit-1a:1 cron-1a:1 visit-2a:2 cron-2a:2
   post-editor:2 post-siteadmin-net:2 post-bad-nonce:2 post-site1-own:1 post-network-off:1
   visit-2b:2 cron-2b:2 visit-1b:1 cron-1b:1
   create-3:1 visit-3a:3 cron-3a:3
+  post-network-privacy:1 visit-2c:2 cron-2c:2 visit-1c:1 visit-3b:3 cron-3b:3
   screen-site:2 screen-network:1)
 run_blueprint blueprint-network.json 1 "${STEPS[@]}"
 run_blueprint blueprint-single.json 0 single-setup:1 single:1

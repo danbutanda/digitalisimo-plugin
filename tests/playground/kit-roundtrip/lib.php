@@ -61,6 +61,16 @@ function digi_k_media_bytes( array $spec ) {
 	if ( isset( $spec['svg'] ) ) {
 		return array( (string) $spec['svg'], 'svg', 'image/svg+xml' );
 	}
+	if ( isset( $spec['svg_file'] ) ) {
+		// SVG sintético de tests/sources/kits/media/ (kit-roundtrip.sh lo copia a digi-shared/media), en la forma que deja
+		// el saneador del núcleo: K lo vuelve a sanear en B y la copia de máscaras (masks/<sha8>.svg) debe coincidir.
+		$svg = (string) @file_get_contents( DIGI_K_SHARED . '/media/' . basename( (string) $spec['svg_file'] ) );
+		if ( '' !== $svg && class_exists( '\\Elementor\\Core\\Utils\\Svg\\Svg_Sanitizer' ) ) {
+			$clean = ( new \Elementor\Core\Utils\Svg\Svg_Sanitizer() )->sanitize( $svg );
+			$svg   = is_string( $clean ) && '' !== $clean ? $clean : $svg;
+		}
+		return array( $svg, 'svg', 'image/svg+xml' );
+	}
 	if ( isset( $spec['csv'] ) ) {
 		return array( (string) $spec['csv'], 'csv', 'text/csv' );
 	}

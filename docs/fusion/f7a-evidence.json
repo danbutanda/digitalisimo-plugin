@@ -1,0 +1,378 @@
+{
+ "_comentario": "Evidencia depurada de la etapa F7a (Elements 4.3.0.164). Playground a mano (no en CI). Resultados completos en los informes de la especificación; aquí sólo el estado, los recuentos y la duración de cada corrida.",
+ "fecha": "2026-10-22",
+ "design.sh": {
+  "normal": {
+   "estado": "pass",
+   "nucleo": "4.3.5",
+   "incluido": true,
+   "huella_elements": "b82d2f9da21f6b7e",
+   "duracion_s": 2253,
+   "avisos_php": 0,
+   "escenarios": {
+    "DS1": {
+     "estado": "pass",
+     "comprobaciones": 155,
+     "ms": 618680
+    },
+    "DS2": {
+     "estado": "pass",
+     "comprobaciones": 139,
+     "ms": 172426
+    },
+    "DS3": {
+     "estado": "pass",
+     "comprobaciones": 22,
+     "ms": 192460
+    },
+    "DS4": {
+     "estado": "pass",
+     "comprobaciones": 9,
+     "ms": 213757
+    },
+    "DS5": {
+     "estado": "pass",
+     "comprobaciones": 25,
+     "ms": 164650
+    },
+    "DS6": {
+     "estado": "pass",
+     "comprobaciones": 9,
+     "ms": 90132
+    },
+    "DS7": {
+     "estado": "pass",
+     "comprobaciones": 15,
+     "ms": 118390
+    },
+    "DS8": {
+     "estado": "pass",
+     "comprobaciones": 28,
+     "ms": 285847
+    },
+    "DS13": {
+     "estado": "pass",
+     "comprobaciones": 25,
+     "ms": 336336
+    }
+   }
+  },
+  "cache": {
+   "estado": "pass",
+   "nucleo": "4.3.5",
+   "incluido": true,
+   "huella_elements": "b82d2f9da21f6b7e",
+   "duracion_s": 2329,
+   "avisos_php": 0,
+   "escenarios": {
+    "DS1": {
+     "estado": "pass",
+     "comprobaciones": 161,
+     "ms": 806385
+    },
+    "DS2": {
+     "estado": "pass",
+     "comprobaciones": 142,
+     "ms": 229660
+    },
+    "DS3": {
+     "estado": "pass",
+     "comprobaciones": 23,
+     "ms": 154447
+    },
+    "DS4": {
+     "estado": "pass",
+     "comprobaciones": 11,
+     "ms": 216865
+    },
+    "DS5": {
+     "estado": "pass",
+     "comprobaciones": 29,
+     "ms": 201450
+    },
+    "DS6": {
+     "estado": "pass",
+     "comprobaciones": 14,
+     "ms": 127954
+    },
+    "DS7": {
+     "estado": "pass",
+     "comprobaciones": 26,
+     "ms": 210929
+    },
+    "DS8": {
+     "estado": "pass",
+     "comprobaciones": 28,
+     "ms": 224617
+    },
+    "DS9": {
+     "estado": "pass",
+     "comprobaciones": 14,
+     "ms": 98783
+    }
+   }
+  },
+  "plugin-4.3.5": {
+   "estado": "pass",
+   "nucleo": "4.3.5",
+   "incluido": false,
+   "huella_elements": "b82d2f9da21f6b7e",
+   "duracion_s": 646,
+   "avisos_php": 0,
+   "escenarios": {
+    "DS1": {
+     "estado": "pass",
+     "comprobaciones": 56,
+     "ms": 139483
+    },
+    "DS2": {
+     "estado": "pass",
+     "comprobaciones": 23,
+     "ms": 17219
+    },
+    "DS3": {
+     "estado": "pass",
+     "comprobaciones": 13,
+     "ms": 17680
+    },
+    "DS4": {
+     "estado": "pass",
+     "comprobaciones": 6,
+     "ms": 27862
+    },
+    "DS5": {
+     "estado": "pass",
+     "comprobaciones": 25,
+     "ms": 141668
+    },
+    "DS6": {
+     "estado": "pass",
+     "comprobaciones": 9,
+     "ms": 76502
+    },
+    "DS7": {
+     "estado": "pass",
+     "comprobaciones": 15,
+     "ms": 102926
+    },
+    "DS8": {
+     "estado": "pass",
+     "comprobaciones": 12,
+     "ms": 53736
+    },
+    "DS10": {
+     "estado": "pass",
+     "comprobaciones": 3,
+     "ms": 1605
+    }
+   }
+  },
+  "plugin-4.3.0": {
+   "estado": "pass",
+   "nucleo": "4.3.0",
+   "incluido": false,
+   "huella_elements": "b82d2f9da21f6b7e",
+   "duracion_s": 609,
+   "avisos_php": 0,
+   "escenarios": {
+    "DS1": {
+     "estado": "pass",
+     "comprobaciones": 56,
+     "ms": 135935
+    },
+    "DS2": {
+     "estado": "pass",
+     "comprobaciones": 23,
+     "ms": 14631
+    },
+    "DS3": {
+     "estado": "pass",
+     "comprobaciones": 13,
+     "ms": 15361
+    },
+    "DS4": {
+     "estado": "pass",
+     "comprobaciones": 6,
+     "ms": 25266
+    },
+    "DS5": {
+     "estado": "pass",
+     "comprobaciones": 25,
+     "ms": 133416
+    },
+    "DS6": {
+     "estado": "pass",
+     "comprobaciones": 9,
+     "ms": 69638
+    },
+    "DS7": {
+     "estado": "pass",
+     "comprobaciones": 15,
+     "ms": 95630
+    },
+    "DS8": {
+     "estado": "pass",
+     "comprobaciones": 12,
+     "ms": 55426
+    },
+    "DS10": {
+     "estado": "pass",
+     "comprobaciones": 3,
+     "ms": 2350
+    }
+   }
+  },
+  "plugin-4.0.0": {
+   "estado": "pass",
+   "nucleo": "4.0.0",
+   "incluido": false,
+   "huella_elements": "b82d2f9da21f6b7e",
+   "duracion_s": 225,
+   "avisos_php": 0,
+   "escenarios": {
+    "DS10": {
+     "estado": "pass",
+     "comprobaciones": 10,
+     "ms": 161586
+    }
+   }
+  },
+  "woo": {
+   "estado": "pass",
+   "nucleo": "4.3.5",
+   "incluido": true,
+   "huella_elements": "b82d2f9da21f6b7e",
+   "duracion_s": 1364,
+   "avisos_php": 0,
+   "escenarios": {
+    "DS1": {
+     "estado": "pass",
+     "comprobaciones": 161,
+     "ms": 1283507
+    }
+   }
+  },
+  "v4": {
+   "estado": "pass",
+   "nucleo": "4.3.5",
+   "incluido": true,
+   "huella_elements": "13034937540a7553",
+   "duracion_s": 267,
+   "avisos_php": 0,
+   "escenarios": {
+    "DS11": {
+     "estado": "pass",
+     "comprobaciones": 7,
+     "ms": 207765
+    }
+   }
+  },
+  "net": {
+   "estado": "pass",
+   "nucleo": "4.3.5",
+   "incluido": true,
+   "huella_elements": "13034937540a7553",
+   "duracion_s": 166,
+   "avisos_php": 0,
+   "escenarios": {
+    "DS12": {
+     "estado": "pass",
+     "comprobaciones": 13,
+     "ms": 108103
+    }
+   }
+  }
+ },
+ "kit-roundtrip.sh": {
+  "version": 1,
+  "sha": "2ae0d74a008f1e52631f0f52b200eac8bcb939ab",
+  "fecha": "2026-10-22T19:27:41.623Z",
+  "escenarios": {
+   "R1": true,
+   "R1c": true,
+   "R2": true,
+   "R3": true,
+   "R3b": true,
+   "R4": true,
+   "R4v4": true,
+   "R5": true,
+   "R6": true,
+   "R7": true,
+   "R8": true,
+   "R9": true,
+   "R10": true
+  },
+  "peticion_mas_lenta_ms": 25719,
+  "aceptacion": {
+   "A1": "falla",
+   "A2": "ok",
+   "A3": "ok",
+   "A4": "ok",
+   "A5": "ok",
+   "A6": "ok",
+   "A7": "ok",
+   "A8": "ok",
+   "A9": "ok",
+   "A10": "ok",
+   "A11": "ok",
+   "A12": "no medido",
+   "A13": "falla",
+   "A14": "ok"
+  },
+  "notas": {
+   "A1": "captura del visor de PDF tomada antes de pintar; la corrida completa anterior (kit-full, 2026-10-21) dio A1 ok",
+   "A13": "4.3.0.163 tarda 26,2 s en la misma petición con el mismo contenido: crece con los 14 documentos nuevos del arnés; F7a añade un 3 % por documento"
+  }
+ },
+ "front-budget.sh": {
+  "comparacion_con_4.3.0.163": {
+   "normal": {
+    "ref": "fb-163-normal/front-budget.json",
+    "now": "fb-normal/front-budget.json",
+    "mode": "normal"
+   },
+   "cache": {
+    "ref": "fb-163-cache/front-budget-cache.json",
+    "now": "fb-cache/front-budget-cache.json",
+    "mode": "cache"
+   },
+   "plugin": {
+    "ref": "fb-163-plugin/front-budget-plugin.json",
+    "now": "fb-plugin/front-budget-plugin.json",
+    "mode": "plugin"
+   }
+  },
+  "num_queries_empty_all_own": {
+   "normal": "150/141",
+   "cache": "114/116",
+   "plugin": "153/148"
+  },
+  "scripts_del_editor_en_el_front": 0
+ },
+ "conditions.sh": {
+  "WOO=0": "Condiciones de visualización: 278 comprobaciones correctas.",
+  "WOO=1": "Condiciones de visualización: 278 comprobaciones correctas."
+ },
+ "theme-switch.sh": {
+  "S1,S2,S4,S5,E": "pasa (reg-theme-switch)",
+  "S3,S3c,S3h": "pasa (margen de nodos 22→29 por F-front: la cabecera propia de Hello ya no carga PRO)"
+ },
+ "shared-ui.sh": "Pantallas: 18. Con problemas: 0.",
+ "core-switch.sh": "Páginas iguales con el plugin Elementor y con el núcleo incluido: 64",
+ "front-network.sh": "N1–N7 en verde (132 s)",
+ "form-submit.sh": {
+  "plugin": "Contact Form, Webhook Form y Mailchimp heredados validados en los dos sitios (44 s)",
+  "bundled": "ídem (41 s)"
+ },
+ "brand-audit.sh": {
+  "SCOPE": "full",
+  "pantallas": 220,
+  "marca_visible": 0,
+  "proveedores": "0 fallas, 0 latentes"
+ },
+ "interaction.sh": {
+  "widgets": "28/28 en CORE=bundled y plugin, en la rama y en 4.3.0.163",
+  "editor": "falla igual en la rama y en 4.3.0.163 (AxiosError en handleTimeout, GET elementor/v1/global-classes agota 40 s con un worker): entorno"
+ },
+ "pruebas_unitarias": "206/206 (run-tests de validate.yml y release.yml)"
+}

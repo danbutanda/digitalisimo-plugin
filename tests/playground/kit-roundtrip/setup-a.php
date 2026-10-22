@@ -251,7 +251,11 @@ if ( ! empty( $digi_opts['woo'] ) && class_exists( 'WooCommerce' ) ) {
 // un documento puede nombrarse a sí mismo o a otro creado después (la portada, la hija, los popups).
 $documents = array();
 foreach ( (array) $cases['pages'] as $page ) {
-	$documents[] = array( 'type' => 'wp-page', 'post_type' => 'page', 'slug' => $page['slug'], 'title' => $page['title'], 'parent' => $page['parent'] ?? '', 'elements' => $page['elements'], 'settings' => $page['settings'] ?? array(), 'front' => ! empty( $page['front'] ) );
+	// «woo»: la página nombra productos (condición de existencias de F7a) y sólo se crea con WOO=1.
+	if ( ! empty( $page['woo'] ) && empty( $digi_opts['woo'] ) ) {
+		continue;
+	}
+	$documents[] = array( 'type' => 'wp-page', 'post_type' => 'page', 'slug' => $page['slug'], 'title' => $page['title'], 'parent' => $page['parent'] ?? '', 'elements' => $page['elements'], 'settings' => $page['settings'] ?? array(), 'front' => ! empty( $page['front'] ), 'meta' => (array) ( $page['meta'] ?? array() ) );
 }
 $templates = (array) $cases['templates'];
 if ( ! empty( $digi_opts['woo'] ) ) {
@@ -305,6 +309,44 @@ foreach ( (array) $cases['menus'] as $menu ) {
 // cambia (D5). Con una ubicación asignada en A, las páginas sin cabecera del Theme Builder pintarían el menú en A y
 // no en B, y la captura mediría el tema. Los menús se ven por el widget de menú de la cabecera del kit.
 
+// Presets de estilo del sitio (F7a, V.10): la opción digitalisimo_elements_presets, sembrada con Store::replace() con
+// los controles de estilo visibles (Performance::set_use_style_controls( true ), como en el editor) y antes de guardar
+// los documentos, porque Guard vacía al guardar el vínculo a un preset que no existe. Fecha y huella fijas: R1
+// compara la opción entera de A y de B, con `hash` y `updated`.
+if ( ! empty( $cases['kit']['presets'] ) ) {
+	$store       = '\\Digitalisimo\\Elements\\Design\\Presets\\Store';
+	$performance = '\\Elementor\\Core\\Frontend\\Performance';
+	if ( ! class_exists( $store ) || ! method_exists( $store, 'replace' ) ) {
+		digi_k_fail( 'Presets de estilo: falta Digitalisimo\\Elements\\Design\\Presets\\Store::replace() (módulo digitalisimo-design de F7a)' );
+	} elseif ( ! method_exists( $performance, 'set_use_style_controls' ) || ! method_exists( $performance, 'is_use_style_controls' ) ) {
+		digi_k_fail( 'Presets de estilo: el núcleo no tiene Performance::set_use_style_controls()' );
+	} else {
+		$previous = (bool) $performance::is_use_style_controls();
+		$performance::set_use_style_controls( true );
+		try {
+			$store::replace( array( 'v' => 1, 'presets' => (array) $cases['kit']['presets'] ) );
+		} finally {
+			$performance::set_use_style_controls( $previous );
+		}
+		$seeded = $store::all();
+		foreach ( $store::dropped() as $drop ) {
+			digi_k_fail( 'Presets de estilo: Store::replace() descartó ' . wp_json_encode( $drop ) );
+		}
+		foreach ( (array) $cases['kit']['presets'] as $slug => $preset ) {
+			$inert = ! empty( $seeded[ $slug ]['inert'] );
+			if ( ! isset( $seeded[ $slug ] ) ) {
+				digi_k_fail( "Presets de estilo: falta {$slug} tras sembrar" );
+			} elseif ( $inert !== ( 'acme-tarjeta' === $preset['type'] ) ) {
+				digi_k_fail( "Presets de estilo: {$slug} " . ( $inert ? 'quedó inerte' : 'no quedó inerte' ) . " (tipo {$preset['type']})" );
+			} elseif ( (int) $seeded[ $slug ]['updated'] !== (int) $preset['updated'] ) {
+				digi_k_fail( "Presets de estilo: {$slug} no conservó su fecha" );
+			}
+		}
+		// Lo que el saneado dejó de cada preset (si quitó una clave, la huella es la de lo que quedó).
+		digi_k_write( 'presets-seed.json', $seeded );
+	}
+}
+
 // Ajustes y valores por defecto del kit (se guardan con el documento del kit, como desde «Ajustes del sitio»).
 $kit = \Elementor\Plugin::$instance->kits_manager->get_active_kit();
 if ( $kit && $kit->get_id() ) {
@@ -340,6 +382,10 @@ foreach ( $documents as $doc ) {
 	if ( ! empty( $doc['front'] ) ) {
 		update_option( 'show_on_front', 'page' );
 		update_option( 'page_on_front', $id );
+	}
+	// Metas públicas del documento (las lee la condición «Campo personalizado» de F7a y viajan con el documento).
+	foreach ( (array) ( $doc['meta'] ?? array() ) as $meta_key => $meta_value ) {
+		update_post_meta( $id, $meta_key, $meta_value );
 	}
 }
 

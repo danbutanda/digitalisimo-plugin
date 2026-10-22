@@ -62,6 +62,14 @@
     "figura": {
       "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><circle cx=\"5\" cy=\"5\" r=\"4\" fill=\"#245eff\"/></svg>",
       "title": "Figura SVG"
+    },
+    "mascara-svg": {
+      "svg_file": "mascara.svg",
+      "title": "Máscara SVG del kit"
+    },
+    "tesela-svg": {
+      "svg_file": "tesela.svg",
+      "title": "Tesela SVG del kit"
     }
   },
   "users": [
@@ -243,6 +251,11 @@
           "_id": "b2c3d4e",
           "title": "Fondo suave",
           "color": "#F6F1E8"
+        },
+        {
+          "_id": "bb00001",
+          "title": "Sólo del preset",
+          "color": "#F0E6D2"
         }
       ],
       "custom_typography": [
@@ -281,6 +294,95 @@
       },
       "acme-tarjeta": {
         "titulo": "Tipo que el sitio no registra: se conserva"
+      },
+      "divider": {
+        "digitalisimo_preset": "separador"
+      }
+    },
+    "presets": {
+      "tarjeta": {
+        "type": "heading",
+        "label": "Tarjeta",
+        "updated": 1792000000,
+        "settings": {
+          "title_color": "#245EFF",
+          "typography_typography": "custom",
+          "typography_font_size": {
+            "unit": "px",
+            "size": 30,
+            "sizes": []
+          },
+          "typography_font_size_tablet": {
+            "unit": "px",
+            "size": 24,
+            "sizes": []
+          },
+          "typography_font_weight": "700",
+          "__globals__": {
+            "title_color": "globals/colors?id=a1b2c3d"
+          }
+        }
+      },
+      "caja": {
+        "type": "container",
+        "label": "Caja",
+        "updated": 1792000100,
+        "settings": {
+          "background_background": "classic",
+          "background_color": "#F0E6D2",
+          "padding": {
+            "unit": "px",
+            "top": "24",
+            "right": "24",
+            "bottom": "24",
+            "left": "24",
+            "isLinked": true
+          },
+          "padding_mobile": {
+            "unit": "px",
+            "top": "12",
+            "right": "12",
+            "bottom": "12",
+            "left": "12",
+            "isLinked": true
+          },
+          "box_shadow_box_shadow_type": "yes",
+          "box_shadow_box_shadow": {
+            "horizontal": 0,
+            "vertical": 4,
+            "blur": 12,
+            "spread": 0,
+            "color": "rgba(0,0,0,0.2)"
+          },
+          "__globals__": {
+            "background_color": "globals/colors?id=bb00001"
+          }
+        }
+      },
+      "separador": {
+        "type": "divider",
+        "label": "Separador",
+        "updated": 1792000200,
+        "settings": {
+          "weight": {
+            "unit": "px",
+            "size": 4,
+            "sizes": []
+          },
+          "color": "#D04A1F"
+        }
+      },
+      "tipo-ausente": {
+        "type": "acme-tarjeta",
+        "label": "Tipo ausente",
+        "updated": 1792000300,
+        "settings": {
+          "titulo_color": "#123456",
+          "titulo_tamano": {
+            "unit": "px",
+            "size": 18
+          }
+        }
       }
     }
   },
@@ -566,6 +668,67 @@
               "elType": "widget",
               "widgetType": "theme-post-content",
               "settings": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-cab-auto",
+      "type": "header",
+      "title": "Cabecera automática",
+      "conditions": [
+        "include/singular/page/@post:page:digi-k-prioridad"
+      ],
+      "elements": [
+        {
+          "id": "c8a0101",
+          "elType": "container",
+          "settings": {
+            "background_background": "classic",
+            "background_color": "#1D1D1F"
+          },
+          "elements": [
+            {
+              "id": "e8a0101",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Cabecera automática",
+                "title_color": "#FFFFFF"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-cab-manual",
+      "type": "header",
+      "title": "Cabecera prioritaria",
+      "settings": {
+        "digitalisimo_tb_priority": 10
+      },
+      "conditions": [
+        "include/singular/page/@post:page:digi-k-prioridad"
+      ],
+      "elements": [
+        {
+          "id": "c8a0201",
+          "elType": "container",
+          "settings": {
+            "background_background": "classic",
+            "background_color": "#2BB673"
+          },
+          "elements": [
+            {
+              "id": "e8a0201",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Cabecera prioritaria",
+                "title_color": "#1D1D1F"
+              }
             }
           ]
         }
@@ -919,6 +1082,593 @@
               "widgetType": "heading",
               "settings": {
                 "title": "Para todos (control del cierre)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-presets",
+      "title": "Presets de estilo",
+      "elements": [
+        {
+          "id": "c6a0001",
+          "elType": "container",
+          "settings": {
+            "digitalisimo_preset": "caja"
+          },
+          "elements": [
+            {
+              "id": "e6a0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Tarjeta con su color local",
+                "digitalisimo_preset": "tarjeta",
+                "title_color": "#1D1D1F"
+              }
+            },
+            {
+              "id": "e6a0002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Tarjeta tal cual",
+                "digitalisimo_preset": "tarjeta"
+              }
+            },
+            {
+              "id": "e6a0003",
+              "elType": "widget",
+              "widgetType": "divider",
+              "settings": {
+                "digitalisimo_preset": "separador"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-diseno",
+      "title": "Fondos de diseño",
+      "elements": [
+        {
+          "id": "c6b0001",
+          "elType": "container",
+          "settings": {
+            "background_background": "gradient",
+            "background_color": "#D04A1F",
+            "background_color_stop": {
+              "unit": "%",
+              "size": 0
+            },
+            "background_color_b": "#245EFF",
+            "background_color_b_stop": {
+              "unit": "%",
+              "size": 100
+            },
+            "background_gradient_type": "linear",
+            "background_gradient_angle": {
+              "unit": "deg",
+              "size": 135
+            },
+            "background_digi_kind": "conic",
+            "background_digi_conic_from": {
+              "unit": "deg",
+              "size": 45
+            },
+            "background_digi_conic_from_tablet": {
+              "unit": "deg",
+              "size": 90
+            },
+            "background_digi_conic_at": "top left",
+            "background_digi_stops": [
+              {
+                "_id": "d6b0001",
+                "color": "#2BB673",
+                "position": {
+                  "unit": "%",
+                  "size": 30
+                }
+              },
+              {
+                "_id": "d6b0002",
+                "color": "#F6F1E8",
+                "position": {
+                  "unit": "%",
+                  "size": 55
+                },
+                "__globals__": {
+                  "color": "globals/colors?id=b2c3d4e"
+                }
+              },
+              {
+                "_id": "d6b0003",
+                "color": "#1D1D1F",
+                "position": {
+                  "unit": "%",
+                  "size": 80
+                }
+              }
+            ],
+            "background_hover_background": "gradient",
+            "background_hover_color": "#245EFF",
+            "background_hover_color_b": "#D04A1F",
+            "background_hover_digi_repeat": "yes",
+            "background_hover_digi_stops": [
+              {
+                "_id": "d6b0004",
+                "color": "#F6F1E8",
+                "position": {
+                  "unit": "%",
+                  "size": 10
+                }
+              }
+            ],
+            "__globals__": {
+              "background_color": "globals/colors?id=primary"
+            }
+          },
+          "elements": [
+            {
+              "id": "e6b0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Degradado de cuatro paradas, cónico y repetido al pasar el cursor"
+              }
+            }
+          ]
+        },
+        {
+          "id": "a6b0001",
+          "elType": "section",
+          "settings": {
+            "digitalisimo_pattern": "yes",
+            "digitalisimo_pattern_tile": "puntos",
+            "digitalisimo_pattern_color": "#245EFF",
+            "digitalisimo_pattern_blend": "multiply",
+            "__globals__": {
+              "digitalisimo_pattern_color": "globals/colors?id=secondary"
+            }
+          },
+          "elements": [
+            {
+              "id": "b6b0001",
+              "elType": "column",
+              "settings": {
+                "_column_size": 100,
+                "digitalisimo_mask": "yes",
+                "digitalisimo_mask_shape": "media",
+                "digitalisimo_mask_media": "@media:mascara-svg"
+              },
+              "elements": [
+                {
+                  "id": "e6b0002",
+                  "elType": "widget",
+                  "widgetType": "heading",
+                  "settings": {
+                    "title": "Columna con la máscara del sitio dentro de una sección con tesela",
+                    "header_size": "h2"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "c6b0002",
+          "elType": "container",
+          "settings": {
+            "digitalisimo_mask": "yes",
+            "digitalisimo_mask_shape": "estrella",
+            "background_background": "classic",
+            "background_color": "#2BB673",
+            "min_height": {
+              "unit": "px",
+              "size": 160
+            }
+          },
+          "elements": [
+            {
+              "id": "e6b0003",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Contenedor con la máscara estrella"
+              }
+            },
+            {
+              "id": "e6b0004",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Widget con la tesela del sitio",
+                "digitalisimo_pattern": "yes",
+                "digitalisimo_pattern_tile": "media",
+                "digitalisimo_pattern_media": "@media:tesela-svg",
+                "digitalisimo_pattern_color": "#D04A1F"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-sticky",
+      "title": "Estado al fijarse",
+      "elements": [
+        {
+          "id": "c6c0001",
+          "elType": "container",
+          "settings": {
+            "sticky": "top",
+            "sticky_on": [
+              "desktop",
+              "tablet",
+              "mobile"
+            ],
+            "background_background": "classic",
+            "background_color": "#F6F1E8"
+          },
+          "elements": [
+            {
+              "id": "e6c0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Sólo al fijarse",
+                "digitalisimo_sticky_state": "show"
+              }
+            },
+            {
+              "id": "e6c0002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Sólo sin fijar",
+                "digitalisimo_sticky_state": "hide"
+              }
+            },
+            {
+              "id": "e6c0003",
+              "elType": "widget",
+              "widgetType": "theme-site-logo",
+              "settings": {}
+            }
+          ]
+        },
+        {
+          "id": "c6c0002",
+          "elType": "container",
+          "settings": {
+            "min_height": {
+              "unit": "px",
+              "size": 1200
+            }
+          },
+          "elements": [
+            {
+              "id": "e6c0004",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Contenido largo debajo del contenedor fijo"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-doc-controles",
+      "title": "Controles de documento",
+      "settings": {
+        "digitalisimo_hide_header": "yes",
+        "digitalisimo_hide_footer": "yes",
+        "digitalisimo_hide_featured_image": "yes"
+      },
+      "elements": [
+        {
+          "id": "c6d0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e6d0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Página sin cabecera, sin pie y sin imagen destacada"
+              }
+            },
+            {
+              "id": "e6d0002",
+              "elType": "widget",
+              "widgetType": "theme-post-featured-image",
+              "settings": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-prioridad",
+      "title": "Prioridad de cabeceras",
+      "elements": [
+        {
+          "id": "c6e0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e6e0001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Página con dos cabeceras propias"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-c-cookie",
+      "title": "Condición cookie",
+      "elements": [
+        {
+          "id": "c910001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e910001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Condicionado: Condición cookie",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_cookie\",\"name\":\"digi_k_aviso\",\"comparator\":\"is_not_empty\"}]]"
+                ]
+              }
+            },
+            {
+              "id": "e910002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos: Condición cookie"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-c-visita",
+      "title": "Condición visita",
+      "elements": [
+        {
+          "id": "c920001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e920001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Condicionado: Condición visita",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_page_visit\",\"comparator\":\"is_one_of\",\"pages\":[\"@post-int:page:digi-k-padre\",\"@post-int:page:digi-k-hija\"]}]]"
+                ]
+              }
+            },
+            {
+              "id": "e920002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos: Condición visita"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-c-visita-falta",
+      "title": "Condición visita sin destino",
+      "elements": [
+        {
+          "id": "c930001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e930001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Condicionado: Condición visita sin destino",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_page_visit\",\"comparator\":\"is_none_of\",\"pages\":[\"@post-int:page:digi-k-protegida\"]}]]"
+                ]
+              }
+            },
+            {
+              "id": "e930002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos: Condición visita sin destino"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-c-campo",
+      "title": "Condición campo",
+      "meta": {
+        "digi_k_tono": "azul"
+      },
+      "elements": [
+        {
+          "id": "c940001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e940001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Condicionado: Condición campo",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_field\",\"source\":\"post\",\"key\":\"digi_k_tono\",\"comparator\":\"is\",\"value\":\"azul\"}]]"
+                ]
+              }
+            },
+            {
+              "id": "e940002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos: Condición campo"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-c-usuario",
+      "title": "Condición campo de usuario",
+      "elements": [
+        {
+          "id": "c950001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e950001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Condicionado: Condición campo de usuario",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_user_field\",\"key\":\"first_name\",\"comparator\":\"is\",\"value\":\"Ana\"}]]"
+                ]
+              }
+            },
+            {
+              "id": "e950002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos: Condición campo de usuario"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-c-autor",
+      "title": "Condición autor",
+      "elements": [
+        {
+          "id": "c960001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e960001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Condicionado: Condición autor",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_author\",\"comparator\":\"role_in\",\"roles\":[\"administrator\"]}]]"
+                ]
+              }
+            },
+            {
+              "id": "e960002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos: Condición autor"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-c-busqueda",
+      "title": "Condición búsqueda",
+      "elements": [
+        {
+          "id": "c970001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e970001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Condicionado: Condición búsqueda",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_search\",\"comparator\":\"contains\",\"value\":\"kit\"}]]"
+                ]
+              }
+            },
+            {
+              "id": "e970002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos: Condición búsqueda"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-c-existencias",
+      "title": "Condición existencias",
+      "woo": true,
+      "elements": [
+        {
+          "id": "c980001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e980001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Condicionado: Condición existencias",
+                "e_display_conditions": [
+                  "[[{\"condition\":\"digitalisimo_product_stock_of\",\"products\":[\"@post-int:product:digi-k-camiseta\"],\"match\":\"any\",\"comparator\":\"instock\"}]]"
+                ]
+              }
+            },
+            {
+              "id": "e980002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Para todos: Condición existencias"
               }
             }
           ]
@@ -1524,6 +2274,10 @@
     "term-meta": {
       "case": "terms",
       "motivo": "thumbnail_id y una meta propia de la categoría noticias"
+    },
+    "presets": {
+      "case": "kit.presets",
+      "motivo": "presets de estilo del sitio (heading con color global y tipografía responsiva, contenedor con un color global que sólo usa el preset, divisor en los valores por defecto del kit y uno inerte de un tipo ausente); en R4, choque de tarjeta con otro contenido renombrado a tarjeta-k<hex> y vínculos reescritos"
     }
   },
   "options": {

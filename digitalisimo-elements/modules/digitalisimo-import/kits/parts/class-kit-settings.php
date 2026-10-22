@@ -64,6 +64,12 @@ final class Kit_Settings implements Part {
 				$trees[] = array( array( 'settings' => $settings ) );
 			}
 		}
+		// Árboles de otras partes (F7a: los presets de estilo), con la forma de `used_globals()`: sólo suman.
+		foreach ( (array) ( function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_elements_kit_used_globals_trees', array(), $context ) : array() ) as $tree ) {
+			if ( is_array( $tree ) ) {
+				$trees[] = $tree;
+			}
+		}
 		$used = self::used_globals( $trees );
 		if ( ! $used['colors'] && ! $used['typography'] ) {
 			return null;

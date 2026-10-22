@@ -154,6 +154,28 @@ $digi_ids['same_title'] = digi_k_document( 'section', 'elementor_library', 'digi
 $same = get_posts( array( 'post_type' => 'attachment', 'name' => 'digi-k-imagen-a', 'posts_per_page' => 1, 'fields' => 'ids', 'post_status' => 'inherit' ) );
 $digi_ids['same_file'] = $same ? (int) $same[0] : digi_k_attachment( 'imagen-a', array( 'png' => array( 10, 200, 10 ), 'w' => 16, 'h' => 16, 'title' => 'Imagen A de B' ) );
 
+// F7a: un preset `tarjeta` propio de B con otro estilo (el del kit debe llegar como `tarjeta-k<hex>` y sus vínculos,
+// reescritos) y la subida de SVG sin filtrar apagada (la copia saneada de la máscara del sitio viaja por la parte
+// `files`, no como adjunto).
+$digi_store = '\\Digitalisimo\\Elements\\Design\\Presets\\Store';
+$digi_perf  = '\\Elementor\\Core\\Frontend\\Performance';
+if ( class_exists( $digi_store ) && method_exists( $digi_perf, 'set_use_style_controls' ) ) {
+	$previous = (bool) $digi_perf::is_use_style_controls();
+	$digi_perf::set_use_style_controls( true );
+	try {
+		$digi_store::replace( array( 'v' => 1, 'presets' => array( 'tarjeta' => array( 'type' => 'heading', 'label' => 'Tarjeta de B', 'updated' => 1791000000, 'settings' => array( 'title_color' => '#00AA55', 'typography_typography' => 'custom', 'typography_font_weight' => '300' ) ) ) ) );
+	} finally {
+		$digi_perf::set_use_style_controls( $previous );
+	}
+	$digi_ids['presets'] = array_keys( $digi_store::all() );
+	if ( array( 'tarjeta' ) !== $digi_ids['presets'] ) {
+		digi_k_fail( 'R4: no se pudo sembrar el preset tarjeta de B: ' . wp_json_encode( $digi_store::dropped() ) );
+	}
+} else {
+	digi_k_fail( 'R4: falta Store de presets (F7a) o Performance::set_use_style_controls()' );
+}
+update_option( 'elementor_unfiltered_files_upload', '0' );
+
 if ( 'clash-v4' === $digi_mode ) {
 	update_post_meta( $kit->get_id(), '_elementor_global_variables', wp_slash( wp_json_encode( array( 'format_version' => 1, 'data' => array( 'e-gv-b000001' => array( 'type' => 'global-color-variable', 'label' => 'color-de-b', 'value' => '#00AA55' ) ), 'watermark' => 1 ) ) ) );
 	update_post_meta( $kit->get_id(), '_elementor_global_classes', wp_slash( wp_json_encode( array( 'items' => array( 'g-b000001' => array( 'id' => 'g-b000001', 'type' => 'class', 'label' => 'clase-de-b', 'variants' => array() ) ), 'order' => array( 'g-b000001' ) ) ) ) );

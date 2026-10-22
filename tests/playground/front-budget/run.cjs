@@ -23,6 +23,12 @@ const LIGHTHOUSE = !!process.env.LIGHTHOUSE;
 const LIGHTHOUSE_PATH = process.env.LIGHTHOUSE_PATH || '';
 const LIGHTHOUSE_VERSION = '13.5.0';
 const NORMAL_FILE = process.env.NORMAL_FILE || '';
+// COMPARE_FILE: front-budget.json de otra corrida del mismo modo (p. ej. 4.3.0.163 con ELEMENTS_DIR): cada caso que
+// existía entonces (sin `since`) debe dar el mismo HTML y el mismo CSS, salvo `ver=` y nonces; en COMPARE_STRICT
+// (por defecto empty y all-own), además los mismos bytes, peticiones, handles y consultas (F7a, criterios 1 y 2).
+const COMPARE_FILE = process.env.COMPARE_FILE || '';
+const COMPARE_STRICT = (process.env.COMPARE_STRICT || 'empty,all-own').split(',').map((s) => s.trim()).filter(Boolean);
+const PAGES_DIR = path.join(OUT, 'pages');
 const MODE = JSON.parse(fs.readFileSync(path.join(OUT, 'mode.json'), 'utf8'));
 const DEFAULTS = MODE.defaults || '';
 const CACHE = !!MODE.cache;
@@ -69,6 +75,8 @@ const wanted = (c, name) => SNAPSHOTS.concat(['']).some((at) => Object.prototype
 
 function compare(actual, expected) {
   if (typeof expected === 'string') {
+    // «~expresión»: el valor (texto) debe coincidir con la expresión regular (valores calculados del navegador).
+    if (expected.startsWith('~')) return typeof actual === 'string' && new RegExp(expected.slice(1)).test(actual);
     const m = expected.match(/^(>=|<=|>|<|=)\s*(-?[\d.]+)$/);
     if (m) {
       const a = Number(actual), b = Number(m[2]);
@@ -173,6 +181,13 @@ function requestFacts(requests) {
     cdnjs: requests.some((r) => /(^|\.)cdnjs\.cloudflare\.com$/.test((() => { try { return new URL(r.url).host; } catch (e) { return ''; } })())),
     eicons: has(/\/eicons\/|elementor-icons(\.min)?\.css/),
     fontAwesome: has(/font-awesome|fontawesome|\/fa-/),
+    // F7a: scripts del editor (nunca en el front), hoja del sticky «al fijarse» y archivos SVG pedidos (máscaras y
+    // patrones van en `data:` dentro del CSS: ninguna petición a uploads ni al núcleo).
+    presetsEditor: has(/presets-editor(\.min)?\.js/),
+    designEditor: has(/design-editor(\.min)?\.js/),
+    stickyStateCss: has(/sticky-state(\.min)?\.css/),
+    svgRequests: requests.filter((r) => /\.svg(\?|$)/.test(r.url)).length,
+    uploadsNonCss: requests.filter((r) => r.same && /\/wp-content\/uploads\//.test(r.url) && r.type !== 'css' && r.type !== 'img').length,
   };
 }
 
@@ -236,8 +251,42 @@ function domFacts() {
     fakeAddonScript: window.digiFbFakeAddon === 'object',
     fontLinks: [...document.querySelectorAll('link[rel="stylesheet"]')].filter((l) => /^elementor-gf-|google-?fonts|fonts\.googleapis/.test(`${l.id} ${l.href}`)).map((l) => ({ id: l.id, href: l.href })),
     deferred,
+    // Handles de WordPress impresos (hojas y scripts, con sus datos en línea), ordenados: F7a, criterio 2.
+    handles: [...new Set([...document.querySelectorAll('link[rel="stylesheet"][id], style[id], script[id]')].map((el) => el.id.replace(/-(css|js|js-extra|js-before|js-after|inline-css)$/, '')))].sort(),
+    docId: ((document.querySelector('[data-elementor-type="wp-page"], [data-elementor-type="wp-post"]') || {}).dataset || {}).elementorId || '',
+    pageVisitScript: (document.getElementById('digitalisimo-page-visit') || { textContent: '' }).textContent.length,
+    cookies: document.cookie.split(';').map((c) => c.trim().split('=')[0]).filter(Boolean).sort(),
+    seenCookie: /(^|;\s*)digi_seen(_\d+)?=/.test(document.cookie),
   };
 }
+
+// Hechos que declara cada caso (F7a): `styles` (valor calculado de una propiedad, también en ::before/::after),
+// `counts` (elementos que coinciden), `visible` (se ve, como `shown()` de domFacts) y `hits` (elementFromPoint en el
+// centro del elemento devuelve el propio elemento o un descendiente). Se guardan como `style:<n>`, `count:<n>`,
+// `shown:<n>` y `hit:<n>`.
+function caseFacts(spec) {
+  const out = {};
+  const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return false; for (let n = el; n && n.nodeType === 1; n = n.parentElement) { const s = getComputedStyle(n); if (s.display === 'none' || s.visibility === 'hidden') return false; } return true; };
+  for (const [name, d] of Object.entries(spec.styles || {})) {
+    const el = document.querySelector(d.selector);
+    out[`style:${name}`] = el ? getComputedStyle(el, d.pseudo || null).getPropertyValue(d.prop).trim() : null;
+  }
+  for (const [name, sel] of Object.entries(spec.counts || {})) out[`count:${name}`] = document.querySelectorAll(sel).length;
+  for (const [name, sel] of Object.entries(spec.visible || {})) out[`shown:${name}`] = shown(document.querySelector(sel));
+  for (const [name, sel] of Object.entries(spec.hits || {})) {
+    const el = document.querySelector(sel);
+    if (!el) { out[`hit:${name}`] = false; continue; }
+    el.scrollIntoView({ block: 'center' });
+    const r = el.getBoundingClientRect();
+    const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    out[`hit:${name}`] = !!at && (at === el || el.contains(at));
+  }
+  out.inlineCss = [...document.querySelectorAll('style')].map((s) => s.textContent).join('\n');
+  return out;
+}
+
+// Huellas normalizadas (F7a, criterio 1): normalización y comparación en compare-lib.cjs (también la usa compare.cjs).
+const { sha, hashes, compareRuns, summaryLines } = require('./compare-lib.cjs');
 
 async function fontDisplay(links) {
   const values = [];
@@ -285,6 +334,8 @@ async function runActions(page, actions) {
     else if (a.do === 'viewport') await page.setViewport({ width: a.width, height: a.height });
     else if (a.do === 'fill') { await page.waitForSelector(a.selector, { timeout: 10000 }); await page.type(a.selector, a.value); }
     else if (a.do === 'fillAll') await page.$$eval(a.selector, (els, v) => els.forEach((el) => { if (!el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } }), a.value);
+    // Segunda visita a la misma URL en el mismo perfil (cookies de la primera): «Visitó la página» de F7a.
+    else if (a.do === 'reload') { await page.reload({ waitUntil: 'networkidle0', timeout: 180000 }); await sleep(a.ms || 800); }
     else throw new Error(`acción desconocida ${a.do}`);
   }
 }
@@ -299,17 +350,23 @@ async function visit(context, slug, url, { measure = true } = {}) {
   const requests = [];
   const errors = [];
   const failed = [];
+  // Cuerpos de las hojas del mismo origen de la primera carga (huella del CSS, F7a criterio 1).
+  const cssBodies = {};
+  const pending = [];
   page.on('pageerror', (e) => errors.push(String(e.message || e)));
   page.on('console', (m) => { if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text()); });
-  page.on('response', async (r) => {
+  page.on('response', (r) => { pending.push((async () => {
     const u = r.url();
     if (u.startsWith('data:')) return;
     const same = sameOrigin(u);
+    const type = kind(u, r.request().resourceType());
     let bytes = parseInt(r.headers()['content-length'] || '0', 10);
-    if (!bytes && r.status() === 200) { try { bytes = (await r.buffer()).length; } catch (e) { bytes = 0; } }
+    if (same && type === 'css' && r.status() === 200) {
+      try { const text = (await r.buffer()).toString('utf8'); if (!(u in cssBodies)) cssBodies[u] = text; if (!bytes) bytes = Buffer.byteLength(text); } catch (e) { /* sin cuerpo */ }
+    } else if (!bytes && r.status() === 200) { try { bytes = (await r.buffer()).length; } catch (e) { bytes = 0; } }
     if (r.status() >= 400 && same && r.request().resourceType() !== 'document') failed.push(`${r.status()} ${u}`);
-    requests.push({ url: u, type: kind(u, r.request().resourceType()), bytes, same, status: r.status() });
-  });
+    requests.push({ url: u, type, bytes, same, status: r.status() });
+  })()); });
   await page.evaluateOnNewDocument(() => {
     window.__digi = { cls: 0, longTasks: 0, longTaskMs: 0, lottieAt: 0 };
     try {
@@ -331,12 +388,38 @@ async function visit(context, slug, url, { measure = true } = {}) {
     if (!measure) { await page.close(); return result; }
     const gate = (html.match(/<!-- digitalisimo-pro-gate (\{.*?\}) -->/) || [])[1];
     const parsed = gate ? JSON.parse(gate) : {};
+    const spec = { styles: c.styles, counts: c.counts, visible: c.visible, hits: c.hits };
     const snap = async () => {
+      await Promise.all(pending.splice(0));
       const dom = await page.evaluate(domFacts);
       const fonts = await fontDisplay(dom.fontLinks);
-      return { ...requestFacts(requests), ...dom, ...fonts, reasons: parsed.reasons || [], gate: !!parsed.gate, errors: errors.length + failed.length, failed: failed.length, errorList: errors.concat(failed) };
+      const own = await page.evaluate(caseFacts, spec).catch((e) => ({ inlineCss: '', caseError: String(e.message || e) }));
+      const inlineCss = own.inlineCss || '';
+      delete own.inlineCss;
+      // `assets`: bytes de las peticiones cuya URL coincide (0 si no hay); `css`: coincidencias en las hojas del mismo
+      // origen y en los <style> (una sola definición de variable por documento, F7a V.5).
+      const extra = {};
+      for (const [name, re] of Object.entries(c.assets || {})) extra[`asset:${name}`] = requests.filter((r) => new RegExp(re).test(r.url)).reduce((s, r) => s + r.bytes, 0);
+      const allCss = Object.values(cssBodies).join('\n') + '\n' + inlineCss;
+      for (const [name, re] of Object.entries(c.cssCount || {})) extra[`css:${name}`] = (allCss.match(new RegExp(re, 'g')) || []).length;
+      const doc = dom.docId ? requests.find((r) => new RegExp(`/elementor/css/post-${dom.docId}\\.css`).test(r.url)) : null;
+      // Scripts del mismo origen con sus bytes (evidencia del presupuesto de F7a: de dónde sale cada KB de JS).
+      const jsFiles = requests.filter((q) => q.same && q.type === 'js').map((q) => `${(() => { try { return new URL(q.url).pathname; } catch (e) { return q.url; } })()} ${q.bytes}`).sort();
+      return { ...requestFacts(requests), ...dom, ...fonts, ...own, ...extra, jsFiles, docCss: doc ? doc.bytes : 0, reasons: parsed.reasons || [], gate: !!parsed.gate, queries: typeof parsed.queries === 'number' ? parsed.queries : null, errors: errors.length + failed.length, failed: failed.length, errorList: errors.concat(failed) };
     };
     const load = await snap();
+    // Huellas de la primera carga (las acciones no cuentan); la página y su CSS normalizados quedan en $OUT/pages.
+    const h = hashes(html, cssBodies, c.volatile || []);
+    load.hash = { html: h.html, css: h.css };
+    load.cssFiles = h.cssFiles;
+    load.htmlBytes = Buffer.byteLength(html);
+    try {
+      fs.mkdirSync(PAGES_DIR, { recursive: true });
+      const base = slug.replace(/[^a-z0-9-]/gi, '_') + (url === pageUrl(slug) ? '' : '@' + sha(url).slice(0, 6));
+      load.pageFile = base;
+      fs.writeFileSync(path.join(PAGES_DIR, `${base}.html`), h.page);
+      fs.writeFileSync(path.join(PAGES_DIR, `${base}.css`), h.cssText);
+    } catch (e) { /* sin carpeta */ }
     if (wanted(c, 'countdownTicks')) {
       const read = () => page.$eval('.elementor-countdown-seconds', (el) => el.textContent).catch(() => null);
       const first = await read();
@@ -486,6 +569,26 @@ async function lighthouse(url, wsEndpoint) {
     if (EXPECT && !/front_notice=icons-applied/.test(summary.applyLanded)) problem(`${LABEL}: «Aplicar» terminó en ${summary.applyLanded}`);
   }
   const results = await measureAll(browser, slugs, 'load');
+  // Consultas en caliente (F7a, criterio 2): tres visitas más sin cookies a cada caso de COMPARE_STRICT; la sonda
+  // cuenta hasta el pie (`queries`) y, en queries.jsonl, hasta `shutdown`.
+  for (const slug of COMPARE_STRICT) {
+    if (!results[slug] || !results[slug].ok) continue;
+    const list = [];
+    for (let i = 0; i < 3; i++) {
+      const res = await request('GET', `/digi-fb-${slug}/`);
+      const m = (res.text.match(/<!-- digitalisimo-pro-gate (\{.*?\}) -->/) || [])[1];
+      list.push(m ? JSON.parse(m).queries : null);
+    }
+    results[slug].queriesWarm = list;
+  }
+  try {
+    const lines = fs.readFileSync(path.join(OUT, 'queries.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    for (const r of Object.values(results)) {
+      if (!r.ok) continue;
+      const p = new URL(r.url).pathname;
+      r.queriesShutdown = lines.filter((l) => l.uri === p).map((l) => l.queries);
+    }
+  } catch (e) { notes.push(`queries.jsonl: ${e.message}`); }
   summary.states.final = await probe('state');
 
   // Diferencias con la página vacía de esta corrida (CLS relativo, §5.4).
@@ -531,7 +634,9 @@ async function lighthouse(url, wsEndpoint) {
       if (warm && warm[slug] && Object.keys(hot).length) check(`${key} (caché caliente, antes de aplicar)`, hot, warm[slug], warm[slug]);
     }
     modeChecks(summary.states);
+    f7aInvariants(results);
   }
+  if (COMPARE_FILE) compareWith(COMPARE_FILE, results, summary);
 
   const duration = Math.round(Date.now() / 1000 - +process.env.STARTED);
   summary.duration = duration;
@@ -621,4 +726,35 @@ function modeChecks(states) {
   }
   if (DEFAULTS === 'off') for (const key of ['pro_conditional', 'font_swap', 'svg_icons', 'lazy_libs', 'element_cache_off', 'image_loading_off']) if (applied[key]) problem(`off: ${key} quedó aplicado`);
   if (MODE.seo === '1') { const fb = (s.options || {}).digitalisimo_performance_js_fallback; if (fb && fb.at) problem(`seo: digitalisimo_performance_js_fallback no está vacía (${JSON.stringify(fb)})`); }
+}
+
+// F7a: lo que sólo puede aparecer en el caso que lo usa (criterio 2 y presupuesto de V.12): los scripts del editor
+// nunca en el front, la hoja del sticky «al fijarse» sólo con el control y el script de visitas sólo en una página
+// rastreada.
+function f7aInvariants(results) {
+  const only = [
+    ['presetsEditor', 'presets-editor.js en el front', []],
+    ['designEditor', 'design-editor.js en el front', []],
+    ['stickyStateCss', 'sticky-state.css sin el control', ['sticky-state']],
+  ];
+  for (const [key, r] of Object.entries(results)) {
+    if (!r.ok) continue;
+    for (const snap of [r, r.after].filter(Boolean)) {
+      for (const [field, label, allowed] of only) if (snap[field] && !allowed.includes(r.slug)) problem(`${key}: ${label}`);
+      if (snap.pageVisitScript > 0 && r.slug !== 'page-visit-tracked') problem(`${key}: script de visitas en una página no rastreada (${snap.pageVisitScript} B)`);
+    }
+  }
+}
+
+// COMPARE_FILE (F7a, criterio 1): cada caso que ya existía da el mismo HTML y el mismo CSS normalizados; en
+// COMPARE_STRICT, además los mismos bytes, peticiones, handles y consultas. La corrida de referencia es del mismo
+// arnés (sus páginas normalizadas quedan en <dir de COMPARE_FILE>/pages); compare-lib.cjs recalcula las huellas.
+function compareWith(file, results, summary) {
+  let ref;
+  try { ref = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { problem(`COMPARE_FILE: no se pudo leer ${file}: ${e.message}`); return; }
+  const { out, problems: found } = compareRuns({ ref, refDir: path.dirname(file), now: { results, mode: LABEL, elements: summary.elements }, nowDir: OUT, cases, strict: COMPARE_STRICT });
+  out.file = file;
+  summary.compare = out;
+  for (const message of found) problem(message);
+  for (const line of summaryLines(file, out)) console.log(line);
 }

@@ -50,7 +50,8 @@ function blueprint(site, { network = false } = {}) {
   return file;
 }
 
-async function startSite(site, { network = false, fresh = true } = {}) {
+// `elements`: otra carpeta de DIGITALÍSIMO Elements para ese sitio (R4: la 4.3.0.163 publicada, OLD_ELEMENTS).
+async function startSite(site, { network = false, fresh = true, elements = '' } = {}) {
   await stopSite(site);
   const dir = path.join(OUT, site);
   if (fresh) {
@@ -64,7 +65,7 @@ async function startSite(site, { network = false, fresh = true } = {}) {
   }
   const port = PORTS[site];
   const args = [...CLI.slice(1), 'server', `--port=${port}`, '--workers=1', `--site-url=http://${HOSTS[site]}`, `--blueprint=${blueprint(site, { network })}`,
-    `--mount=${path.join(SRC, 'digitalisimo-elements')}:/wordpress/wp-content/plugins/digitalisimo-elements`,
+    `--mount=${elements || path.join(SRC, 'digitalisimo-elements')}:/wordpress/wp-content/plugins/digitalisimo-elements`,
     `--mount=${path.join(SRC, 'digitalisimo-theme')}:/wordpress/wp-content/themes/digitalisimo-theme`,
     `--mount=${dir}:/wordpress/wp-content/probe`,
     `--mount=${path.join(OUT, 'shared')}:/wordpress/wp-content/digi-shared`];

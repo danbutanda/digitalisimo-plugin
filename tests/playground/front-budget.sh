@@ -21,6 +21,9 @@
 #          DEFAULTS=old|old-applied|old-dirty|old-inactive|off (se combinan: DEFAULTS=old-applied CACHE=1)
 #   ELEMENTOR_PIN    versión del plugin Elementor de CORE=plugin (por defecto 4.3.5, la del núcleo incluido)
 #   PORT, OUT, TMPDIR   puerto (por defecto 9441: no correr a la vez que brand-audit.sh), resultados y temporales
+#   COMPARE_FILE     front-budget.json de otra corrida del mismo modo (p. ej. 4.3.0.163 con ELEMENTS_DIR): cada caso sin
+#                    `since` debe dar el mismo HTML y CSS normalizados (sin origen, `ver=`, nonces, tokens ni la hora del horario); en COMPARE_STRICT (por
+#                    defecto empty,all-own), además los mismos bytes, peticiones, handles y $wpdb->num_queries
 #   LIVE=1           monta las carpetas tal cual; por defecto se mide una copia fija tomada al empezar ($OUT/src)
 #   KEEP=1           sólo prepara el sitio y lo deja arrancado (depuración; Ctrl+C para salir)
 # Resultado: $OUT/front-budget.json (normal) o $OUT/front-budget-<modo>.json, con SHA, modo y duración.
@@ -85,7 +88,8 @@ free_port() {
 free_port "$PORT"
 
 mkdir -p "$OUT" "$TMPDIR"
-rm -f "$OUT"/*.png "$OUT/setup-error.txt" "$OUT/setup-notes.txt" "$OUT/fatal.log" "$OUT/ready.txt" "$OUT/server.log"
+rm -f "$OUT"/*.png "$OUT/setup-error.txt" "$OUT/setup-notes.txt" "$OUT/fatal.log" "$OUT/ready.txt" "$OUT/server.log" "$OUT/queries.jsonl"
+rm -rf "$OUT/pages"
 cp "$ROOT/tests/playground/front-budget/"{cases.json,setup.php,activate.php,lib.php,probe.php} "$OUT/"
 
 # Copia fija de lo que se mide (como kit-roundtrip.sh): un cambio a mitad de corrida no mezcla versiones.
@@ -147,7 +151,7 @@ fi
 status=0
 OUT="$OUT" BASE="http://$SITE_HOST" PORT="$PORT" HOST_MAP="$([ "$NETWORK" = 1 ] && echo "$SITE_HOST" || echo '')" TOKEN="$TOKEN" MODE_LABEL="$MODE_LABEL" MODE_PARTS="$(IFS=,; echo "${PARTS[*]:-}")" \
   EXPECT="${EXPECT:-1}" CASES="${CASES:-}" BASELINE="${BASELINE:-}" BASELINE_FILE="$BASELINE_FILE" LIGHTHOUSE="${LIGHTHOUSE:-}" LIGHTHOUSE_PATH="$LIGHTHOUSE_PATH" \
-  NORMAL_FILE="${NORMAL_FILE:-}" ELEMENTS_SHA="$ELEMENTS_SHA" ELEMENTS_VERSION="$ELEMENTS_VERSION" GIT_SHA="$GIT_SHA" ELEMENTS_DIR="$ELEMENTS_DIR" STARTED="$STARTED" \
+  NORMAL_FILE="${NORMAL_FILE:-}" COMPARE_FILE="${COMPARE_FILE:-}" COMPARE_STRICT="${COMPARE_STRICT:-}" ELEMENTS_SHA="$ELEMENTS_SHA" ELEMENTS_VERSION="$ELEMENTS_VERSION" GIT_SHA="$GIT_SHA" ELEMENTS_DIR="$ELEMENTS_DIR" STARTED="$STARTED" \
   NODE_PATH="$PUPPETEER_PATH" node "$ROOT/tests/playground/front-budget/run.cjs" || status=$?
 [ -s "$OUT/fatal.log" ] && { echo "Errores fatales:"; cat "$OUT/fatal.log"; status=1; }
 echo "Duración: $(( $(date +%s) - STARTED )) s"

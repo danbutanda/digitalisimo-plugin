@@ -84,6 +84,22 @@
     "R1c"
    ],
    "motivo": "al importar, el núcleo vuelve a escribir la etiqueta dinámica de popup con el valor por defecto de sus controles (action = open, do_not_show_again vacío: E:modules/popup/tag.php:47-94): mismo comportamiento"
+  },
+  {
+   "ruta": "^documents\\.page:condicion-visita-sin-destino\\.(status|data\\.0\\.elements\\.0\\.settings\\.e_display_conditions\\.0\\.0\\.pages(\\.0)?)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "«Visitó la página» de F7a apunta a la página protegida, que no viaja (posts.page:digi-k-protegida): la referencia queda sin destino (gate), la lista vacía nunca se cumple y el documento llega en borrador para revisar (A14, V.4.1)"
+  },
+  {
+   "ruta": "^indexes\\.tracked_pages\\.(docs\\.post:page:condicion-visita-sin-destino|union)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "el índice de páginas rastreadas sólo cuenta documentos publicados (V.4.3): en B la página con la referencia sin destino está en borrador, así que ni ella ni la página protegida que nombraba entran"
   }
  ],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",

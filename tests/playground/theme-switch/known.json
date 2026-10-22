@@ -63,8 +63,8 @@
    "phases": ["B"],
    "urls": ["home", "builder", "full", "carousel", "short"],
    "check": "^nodes$",
-   "max": 22,
-   "motivo": "Cabecera y pie generados (§10.3): son plantillas del constructor de temas, y el contenedor y cada widget (título, lema, menú, copyright) llevan su envoltorio; el menú del widget añade su botón móvil con iconos. En páginas que ya usaban el constructor son unos 20 nodos más con cabecera y pie (S3 y S3c); en S3h, con todo oculto, el pie generado es un contenedor vacío y no suma nodos."
+   "max": 29,
+   "motivo": "Cabecera y pie generados (§10.3): son plantillas del constructor de temas, y el contenedor y cada widget (título, lema, menú, copyright) llevan su envoltorio; el menú del widget añade su botón móvil con iconos. En páginas que ya usaban el constructor son unos 20 nodos más con cabecera y pie (S3 y S3c); en S3h, con todo oculto, el pie generado es un contenedor vacío y no suma nodos. Desde F-front (Elements 4.3.0.163) la página con la cabecera propia de Hello ya no carga los paquetes de PRO (no los necesita), mientras que la cabecera generada sí, porque su menú es el de PRO: el margen pasa de 22 a 29 nodos (medido: 26–27)."
   },
   {
    "id": "generated-header-footer-assets",

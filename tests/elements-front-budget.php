@@ -49,6 +49,19 @@ namespace {
 		}
 	}
 	check_budget( in_array( $root . '/modules/digitalisimo-front/class-lazy-libs.php', $front_files, true ) && $front_scripts >= 1, 'El cargador de modules/digitalisimo-front/ se revisa (' . $front_scripts . ' registros).' );
+	// Capacidades de diseño (F7a): cada hoja del front del módulo está en su tope, sin url() salvo `data:`, y sólo se
+	// registra; la encola el cargador del núcleo por la declaración `assets` de su control, en las páginas que lo usan.
+	$design_styles = array(
+		'digitalisimo-sticky-state' => array( 'class' => 'sticky/class-sticky-state.php', 'css' => 'sticky/assets/sticky-state.css', 'cap' => 512 ),
+	);
+	foreach ( $design_styles as $handle => $style ) {
+		$css_path = $root . '/modules/digitalisimo-design/' . $style['css'];
+		$class    = is_file( $root . '/modules/digitalisimo-design/' . $style['class'] ) ? (string) file_get_contents( $root . '/modules/digitalisimo-design/' . $style['class'] ) : '';
+		check_budget( is_file( $css_path ) && filesize( $css_path ) <= min( $style['cap'], $css_cap ), $handle . ': la hoja pesa ' . ( is_file( $css_path ) ? filesize( $css_path ) : 0 ) . ' bytes, más de ' . $style['cap'] . '.' );
+		check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', (string) file_get_contents( $css_path ) ), $handle . ': sin url() en la hoja.' );
+		check_budget( str_contains( $class, 'wp_register_style(' ) && str_contains( $class, "'assets'" ) && str_contains( $class, "'styles'" ) && ! str_contains( $class, 'wp_enqueue_style(' ), $handle . ': sólo se registra y se declara en `assets` del control.' );
+		check_budget( ! str_contains( $class, 'wp_register_script(' ) && ! str_contains( $class, 'wp_enqueue_script(' ), $handle . ': 0 JS.' );
+	}
 	// Entradas del registro: nombre => array( 'file' => ..., 'class' => ..., 'css' => ... ) sin paréntesis anidados.
 	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(([^()]*)\)/", $registry, $entries, PREG_SET_ORDER );
 	$files = array();

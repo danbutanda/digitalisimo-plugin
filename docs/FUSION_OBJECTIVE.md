@@ -19,7 +19,7 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
 | Primer incremento | Tema y base común de conversión, después de F0, F0.1 y F0.2 | 2026-10-16 |
 | Muestras | Hay muestras reales de Divi, Betheme, Bricks y GeneratePress. Se guardan fuera de Git; al repositorio sólo llegan fixtures sintéticos o anonimizados | 2026-10-16 |
 | Tema al migrar Divi, Betheme o Bricks | «Migrar» deja todo en borrador. En producción el administrador activa el tema tras la vista previa y la tarea termina sola. Fuera de producción el clic hace todo | 2026-10-16 |
-| Presets vinculados | Sólo estilo, compilados en el CSS del kit | 2026-10-16 |
+| Presets vinculados | Sólo estilo, compilados en el CSS del kit. **Corregida el 2026-10-21** (F7a, fila «F7a · Presets de estilo») | 2026-10-16 |
 | Widgets anidados | Un widget **nuevo** (slider) o los anidados del núcleo; nunca se cambia la clase ni el ID de un widget existente | 2026-10-16 |
 | Interacciones con destino | Registro propio de acciones (`_digitalisimo_actions`), con lista blanca y sin JS arbitrario | 2026-10-16 |
 | Rastro de los plugins de origen | **Ninguno**: ni enlaces, ni vídeos, ni cuentas, ni servicios, ni peticiones (F0.2) | 2026-10-16 |
@@ -48,6 +48,8 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
 | K-D18 · Referencias por meta de SEO | SEO las declara en su propia etapa con `scope = post_meta`; K no cambia SEO | 2026-10-20 |
 | K-D19 · Plugin Elementor original activo | Las guardas del flujo 2.0 sólo con el núcleo incluido; las mejoras del 3.0 valen con los dos núcleos | 2026-10-20 |
 | K-D20 · IDs de elemento | Se conservan al exportar; si un nodo no coincide, ese documento conserva los IDs nuevos y se informa | 2026-10-20 |
+| F7a · Presets de estilo | **Sólo estilo, definidos en el sitio y en el kit, aplicados en el CSS del documento que los usa.** Viven en la opción `digitalisimo_elements_presets` del sitio (sin carga automática) y viajan en el kit con la parte `presets`; al generar el CSS de un documento, el preset se aplana en cada elemento vinculado con sus propios selectores, así que lo que el elemento guarda gana siempre. Sustituye a «compilados en el CSS del kit»: sin CSS en el kit, sin selector propio y 0 B en las páginas que no los usan | 2026-10-21 |
+| F7a · Condiciones nuevas al volver atrás | **Fallan cerradas:** cada grupo con una condición de F7a lleva un centinela que 4.3.0.163 evalúa como falso; una lista vacía nunca se cumple, y sin WooCommerce las de existencias tampoco. En v4 no se ofrecen | 2026-10-21 |
 
 ## Arquitectura
 
@@ -62,9 +64,9 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
    - Detalle en «K · Kits de Elementor con las mejoras» y en `docs/fusion/k-kits.md`.
 3. **Destino clásico.** Contenedores flex o grid y widgets nativos y propios. v4 sólo en sitios que ya lo tienen.
 4. **El kit es el sistema de diseño.** Colores y tipografías del origen van al kit con `_id` prefijado; variables v4 donde exista v4.
-   - **Presets de estilo:** se guardan en la meta del kit y compilan su CSS en el del kit (`elementor/css-file/post/parse`, `add_controls_stack_style_rules()` sobre una instancia de muestra).
-   - **Vínculo:** la instancia lleva una clase por `prefix_class`, con selector `.elementor-kit-N .elementor-widget-{tipo}.digi-preset-{slug}`. Su especificidad (0,2,0) siempre pierde ante lo local (0,3,0).
-   - **Edición:** se reutilizan la extracción, el saneador y el import/export de kit-elements-defaults. Con «Guardar como predeterminado» se define qué gana. En v4, un preset es una clase global.
+   - **Presets de estilo (F7a, corregido el 2026-10-21):** se guardan en la opción `digitalisimo_elements_presets` del sitio, sin carga automática, y viajan en el kit con la parte `presets` (sin metas del kit). No hay CSS de presets en el kit: en `elementor/element/before_parse_css`, al generar el CSS de cada documento, las claves del preset que el elemento no guarda se escriben en memoria en el elemento, que genera su CSS con sus propios selectores (RTL, `.woocommerce` y `{{ID}}` incluidos). Nada se guarda y el HTML no cambia.
+   - **Vínculo:** el control `digitalisimo_preset` (sin `prefix_class`), que viaja con `map:presets`. Lo local gana siempre porque lo que el elemento guarda nunca se toca, y un control es local o del preset, nunca mezclado: si el elemento guarda cualquier variante responsiva de un control, el preset no aporta ninguna.
+   - **Edición:** menú contextual del editor y pestaña «Presets de estilo» de Ajustes del sitio. El saneado reutiliza la cadena `Settings_Sanitizer` de kit-elements-defaults con una lista blanca por tipo de control y un cierre por dependencias. «Guardar como predeterminado» sigue siendo una copia local, y gana. En v4 no hay nada nuevo: el equivalente es la clase global del núcleo.
 5. **Un motor de componentes.**
    - v4: Components del núcleo. Slots e import/export quedan como limitación del núcleo.
    - v3: plantilla de biblioteca + widget Template con **sobrescrituras de contenido** por instancia. Se aplican envolviendo `builder_content_data`, con la caché de elementos apagada sólo dentro del envoltorio y claves estables (`_digitalisimo_slot`) en vez de IDs.
@@ -141,7 +143,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | K | Kits de Elementor con las mejoras: exportar e importar kits propios y de terceros, con el registro que usan F7a, F7b y F4-Woo | **Publicado** · Elements 4.3.0.162 · `v2026.10.21.416` |
 | F2 | Base común de conversión y Migración v2 | Eliminado (2026-10-20) |
 | F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md`: funciones avanzadas sólo donde se usan, valores por defecto del núcleo y librerías sin CDN | **Publicado** · Elements 4.3.0.163 y SEO 1.0.232 · `v2026.10.21.417` |
-| F7a | Capacidades que Divi y Betheme necesitan | Pendiente |
+| F7a | Capacidades que Divi y Betheme necesitan: presets de estilo, degradados, máscaras y patrones, condiciones nuevas, prioridad de las plantillas, sticky «al fijarse» y controles de documento | **Publicado** · Elements 4.3.0.164 |
 | F3 | Divi (D5 y D4) | Eliminado (2026-10-20) |
 | F4 | Conversión de Betheme / BeBuilder | Eliminado (2026-10-20) |
 | F4-Woo | WooCommerce visual: widgets nuevos | Pendiente |
@@ -564,16 +566,16 @@ Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
 - **Partes**, con el filtro `digitalisimo_elements_kit_parts`: una clase que implementa `Part` (`key`, `version`, `kit_meta_keys`, `export`, `import` y `revert`) viaja en `digitalisimo/<key>.json` y anota su versión en el manifiesto. Una `Early_Part` corre además en el runner `plugins`, antes de taxonomías y contenido. Las partes de K son `origin`, `element-defaults`, `kit-settings`, `files`, `media`, `theme-builder` y `term-meta`; la clave `urls` está reservada.
 - **Referencias**, con el filtro `digitalisimo_elements_kit_references`: `[ scope, type, path, kind, gate, never ]`, con `scope` `element`, `document`, `condition`, `post_meta` o `term_meta`, y `kind` `post`, `template`, `term`, `menu`, `menu_slug`, `user`, `attachment`, `url`, `media-url`, `css`, `file`, `element`, `conditions`, `note:<código>` o `map:<nombre>`. Los controles URL se derivan solos de su tipo.
 - **Contextos:** `Export_Context` (`add_file()`, `budget()`), `Import_Context` (modo, mapas, `add_map()`, `store()`, `staged_path()`, `flag_review()`) y `Revert_Context` (`unchanged()`), sobre la base común `Part_Context` (informe y huella).
-- **Ganchos:** además de los dos filtros, `digitalisimo_elements_kit_media_limits`, `digitalisimo_elements_kit_guard_limits`, `digitalisimo_elements_kit_existing_document`, `digitalisimo_elements_kit_imported`, `digitalisimo_elements_unconverted_convert` y `digitalisimo_elements_kit_theme_builder_fields`.
+- **Ganchos:** además de los dos filtros, `digitalisimo_elements_kit_media_limits`, `digitalisimo_elements_kit_guard_limits`, `digitalisimo_elements_kit_existing_document`, `digitalisimo_elements_kit_imported`, `digitalisimo_elements_unconverted_convert` y `digitalisimo_elements_kit_theme_builder_fields`. F7a añadió `digitalisimo_elements_kit_used_globals_trees( array $trees, Export_Context $context )` en `Kit_Settings::export()`, por el que una parte aporta árboles de ajustes para que sus colores y tipografías globales entren en `used`: sólo suma, y es la única excepción declarada a «sin tocar K» (`docs/fusion/k-kits.md`, §15).
 
 **Obligación de F7a, F7b, F4-Woo y SEO.** Cada dato nuevo que deba viajar en un kit se declara así, con su caso en `tests/playground/kit-roundtrip/cases.json`; toda meta del kit va en `kit_meta_keys()`; `version()` sube al cambiar el formato; ningún CSS generado lleva una URL absoluta de `uploads`. El inventario en tiempo de ejecución falla si un control con aspecto de referencia no está declarado.
 
 | Etapa | Qué añade | Cómo, sin tocar K |
 |---|---|---|
-| F7a · presets | `_digitalisimo_presets` | Parte `presets`, con la meta en `kit_meta_keys()`, fusión por slug y `map:presets` sobre `_css_classes` |
-| F7a · degradados y máscaras | Ajustes de elemento | Referencias `url`, `media-url` o `file`; un SVG de máscara viaja como `files/masks/<slug>.svg`. Nunca una URL en el CSS |
-| F7a · condiciones nuevas | Argumentos con IDs | `scope = condition` (con `gate` por defecto) y `never` si vacío significa «cualquiera» |
-| F7a · prioridad del Theme Builder | Un campo por plantilla | Filtro `digitalisimo_elements_kit_theme_builder_fields` |
+| F7a · presets | La opción `digitalisimo_elements_presets` del sitio (no hay meta del kit) y el control `digitalisimo_preset` de cada elemento | Parte `presets` (versión 1, `kit_meta_keys()` vacío), que exporta la opción entera con los presets inertes. «Nuevo» reemplaza; «agregar» fusiona por slug (misma huella reutiliza, otra huella pasa a `slug-k<6 hex>`, slug libre añade) y nunca cambia un preset del sitio. `map:presets` sobre `digitalisimo_preset`, sin `gate` y con la identidad incluida, para todos los slugs del kit. Los globales que sólo usa un preset entran por el filtro `digitalisimo_elements_kit_used_globals_trees`, la única línea de F7a en K |
+| F7a · degradados, máscaras y patrones | Ajustes de elemento y las copias saneadas `uploads/digitalisimo-elements/masks/<sha8>.svg` de los SVG del sitio | Nada nuevo que declarar: los colores de las paradas son `__globals__`, el SVG elegido es una referencia `media` derivada de su control y la ruta relativa de `digitalisimo_mask_file` o `digitalisimo_pattern_file` la exporta, sanea y traduce la parte `files`. Las formas de la biblioteca viajan por su slug. Nunca una URL en el CSS |
+| F7a · condiciones nuevas | Argumentos con IDs | `condition · digitalisimo_page_visit · pages.* · post` y `condition · digitalisimo_product_stock_of · products.* · post`, las dos con `gate`; el centinela viaja tal cual porque `special_page` no tiene referencia |
+| F7a · prioridad del Theme Builder | Un campo por plantilla | Campo `priority` de `digitalisimo_elements_kit_theme_builder_fields`: se escribe si falta y reindexa con el valor recibido |
 | F7b · acciones con destino | `_digitalisimo_actions` | Referencias a la entrada (`post`) y al elemento destino (`element`). En los kits propios los IDs de elemento se conservan (K-D20); en los de terceros llegan regenerados y el informe marca el destino que falte |
 | F7b · consultas guardadas | CPT con UUID | Parte `saved-queries` y `map:queries` |
 | F7b · componentes v3 | Plantilla y `_digitalisimo_slot` | Parte `components` y referencias `template` |
@@ -657,13 +659,132 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 
 ### F7a · Capacidades que Divi y Betheme necesitan
 
-- Presets de estilo en el kit.
-- Degradados de N paradas, máscaras y patrones en el runtime de Elements (clean-room, sin recursos de origen).
-- Condiciones nuevas (cookie, visita de página, campo, autor, stock, búsqueda), clasificadas para la caché.
-- Prioridad manual en el Theme Builder.
-- Sticky con «mostrar u ocultar al fijarse».
-- Controles de documento para ocultar cabecera, pie e imagen destacada.
-- **Datos de kit:** presets, degradados, máscaras, condiciones nuevas y prioridad del Theme Builder se declaran en el registro de K (partes, referencias y `digitalisimo_elements_kit_theme_builder_fields`), con su caso en `kit-roundtrip/cases.json`, sin tocar K. Ver «K · Kits de Elementor con las mejoras».
+**Publicado** · Elements 4.3.0.164. Sólo cambia DIGITALÍSIMO Elements, desde 4.3.0.163. El tema sigue en 1.0.0 sin que cambie ningún archivo de `digitalisimo-theme/`, y SEO, Tools, Migración, Backups, Hosting, IA Tools y `digitalisimo-ui` no cambian. Diseño, hechos del núcleo, ganchos, formatos y desviaciones en [docs/fusion/f7a.md](fusion/f7a.md).
+
+**Objetivo.** Integrar en Elements, sin importar nada de los orígenes y sin motores paralelos, lo que Divi y Betheme ofrecían y el constructor no tenía. Todo es opt-in por instancia o por documento, con el valor por defecto igual al de 4.3.0.163, y cuesta 0 B en las páginas que no lo usan. Es clean-room: la capacidad se inspira en el comportamiento descrito; el código y el catálogo de formas son propios (`docs/third-party-licenses.md`).
+
+**Qué cambia para el administrador**
+- **Presets de estilo** (`modules/digitalisimo-design/presets/`), en widgets v3 y contenedores:
+  - control «Preset de estilo»;
+  - menú contextual con «Guardar estilo como preset…», «Usar sólo el preset» y «Desvincular y copiar estilos»;
+  - vista previa en el editor;
+  - pestaña «Presets de estilo» en Ajustes del sitio (grupo «Sistema de diseño») con los usos de cada preset; los de un tipo ausente aparecen como «tipo no disponible», sin acciones.
+
+  Crear, cambiar, renombrar o borrar exige `manage_options` sin la restricción `design` del Role Manager. Vincular, poder diseñar. Borrar un preset en uso se rechaza.
+- **Degradados** (`backgrounds/class-gradient.php`), sobre el grupo de fondo del núcleo: hasta 8 paradas intermedias, cónico (con ángulo y posición propios) y repetido. Valen en sección, columna, contenedor y widget, en normal, hover y superposición; las paradas A y B siguen siendo las del núcleo.
+- **Máscaras de recorte** (`backgrounds/class-mask.php`) en contenedores, secciones y columnas, con 12 formas propias o un SVG de Medios. Los widgets conservan la máscara del núcleo.
+- **Patrones** (`backgrounds/class-pattern.php`) en los cuatro: una tesela coloreada y repetida sobre el fondo, con 12 teselas propias o un SVG de Medios, y «Elevar sobre lo siguiente», activado por defecto.
+- **Condiciones nuevas** (`modules/digitalisimo-conditions/`), en el gestor nativo:
+  - variables: `digitalisimo_cookie`, `digitalisimo_page_visit` y `digitalisimo_product_stock_of`;
+  - cacheables: `digitalisimo_field`, `digitalisimo_user_field`, `digitalisimo_author` y `digitalisimo_search`.
+
+  Cada una lleva el aviso de que no protege contenido.
+- **Prioridad de las plantillas** (`theme-builder/class-priority.php`): «Prioridad» de 1 a 99 en las plantillas del Theme Builder de ubicación no múltiple. Gana el número menor, con la escala de PRO.
+- **Sticky «al fijarse»** (`sticky/`): «Al fijarse» en los descendientes de un contenedor fijo, con «Sólo mientras está fijado», «Oculto mientras está fijado» y sus variantes tras el desplazamiento de efectos. Sólo CSS.
+- **Controles de documento** (`document/class-document-controls.php`):
+  - «Ocultar imagen destacada», con cualquier tema;
+  - «Ocultar cabecera» y «Ocultar pie», sólo con el tema DIGITALÍSIMO; con otro tema, una nota remite a las condiciones de la plantilla.
+- **Pantalla «Rendimiento» → «Privacidad»:** «Registrar visitas sin gestor de consentimiento» (`page_visits_no_consent`), con paridad sitio/red y apagada por defecto.
+
+**Decisiones** (sección V de la especificación, que sustituye a la v1 donde chocan)
+
+| Tema | Decisión |
+|---|---|
+| Presets: datos | Opción del sitio `digitalisimo_elements_presets`, sin carga automática, con hasta 200 presets, 16 KB por preset y 128 KB en total (filtro `digitalisimo_elements_preset_limits`). Un preset de un tipo no registrado se guarda `inert`, no se aplica ni se edita, viaja en los kits y vuelve cuando el tipo existe |
+| Presets: aplicación | **Aplanados en el CSS del documento que los usa** (`elementor/element/before_parse_css`): las claves del preset que el elemento no guarda se escriben en memoria y el elemento genera su CSS con sus propios selectores. 0 B en el CSS del kit, sin selector propio ni `:where()`; el `_elementor_data` y el HTML no cambian. Cada preset se valida aparte antes de aplanarse; uno con error no se aplica y el editor lo marca |
+| Presets: qué es estilo | Semilla de controles con `selectors` (fuera MEDIA, GALLERY, REPEATER, URL, WYSIWYG, CODE, clases, ID, CSS propio, `prefix_class`, `__dynamic__`), cierre por dependencias (conmutadores, `condition`, `{{otro.X}}`, POPOVER_TOGGLE) y lista blanca por tipo de control. Una comprobación final con `\`, `//`, `url(`, `image-set(`, `@`, llaves, `<` o `expression(` descarta el preset entero |
+| Presets: lo local gana | Un control es local o del preset, nunca mezclado: si el elemento guarda cualquier variante responsiva, el preset no aporta ninguna. En v4, nada nuevo |
+| Presets: invalidación | Un `clear_cache()` por petición, en `shutdown`. Renombrar no vacía nada |
+| Degradados | Controles propios `digi_stops`, `digi_kind`, `digi_conic_from`, `digi_conic_at` y `digi_repeat` por prefijo de grupo. Reglas en los mismos selectores y `@media` que el núcleo, con `add_rules()` en array. Sólo la pila `common` en widgets. Sin controles nuevos, el CSS es byte a byte el del núcleo |
+| Máscaras y patrones | SVG codificado en porcentaje, sin `;` ni base64, en una variable `--digi-mask-<slug>` o `--digi-tile-<slug>` por documento. Un SVG del sitio se sanea (saneador del núcleo, lista de rechazo y tope de 8 KB) y se copia a `uploads/digitalisimo-elements/masks/<sha8>.svg`, comprobado con `realpath`; el CSS lee esa copia, nunca el adjunto ni una URL. El patrón va en `::after` con `display: block`, el elemento lleva `isolation: isolate` y, con «Elevar», `z-index: 1`. Catálogo propio, sin `diagonal`, `arco` ni `ola` |
+| Condiciones: fallar cerrado | Centinela `{ condition: digitalisimo_special_page, comparator: is_one_of, pages: [ digitalisimo_f7a ] }` al final de cada grupo con una condición de F7a, en v3 y en el prop v4. 4.3.0.164 lo cumple; 4.3.0.163 no reconoce esa página y el grupo falla. Se retira al cargar en el editor. Siempre registradas: sin WooCommerce, las de existencias dan `false`; una lista vacía nunca se cumple |
+| Condiciones: v4 | No se ofrecen en el control de v4. Si un documento v4 las trae, el centinela va en el prop. Un elemento v4 con condiciones es dinámico para la caché de elementos, y sus condiciones variables sacan la página de la caché de página: una corrección que vale para todas |
+| Cookie | Nombre normalizado como PHP. Vetos por fragmento (`wordpress_`, `wp-postpass_`, `wp-settings-`, `woocommerce_`, `comment_author_`, `sess`, `auth`, `token`, `login`, `pass`, `secret`, `csrf`, `nonce`, `key`, `hash`…), ampliables con `digitalisimo_elements_cookie_condition_denied`. Sólo existe, no existe, es y no es. Configurarla exige `unfiltered_html` (en una red, el superadministrador), comprobado en el servidor |
+| Campos | Meta del contenido o del término consultado, salvo la protegida; usuario por lista blanca (`digitalisimo_elements_field_condition_user_keys`); nunca opciones. Claves vetadas ampliables con `digitalisimo_elements_field_condition_denied` |
+| «Visitó la página» | Cookie `digi_seen` (o `digi_seen_<blog_id>` en una red), con la ruta de `home_url( '/' )`, hasta 50 IDs en base 36, 30 días, `SameSite=Lax` y `Secure` en HTTPS. La escribe un script en línea (menos de 400 B) sólo en las vistas individuales rastreadas, con el consentimiento `preferences` de la WP Consent API o, sin ella, con `page_visits_no_consent`; el filtro `digitalisimo_elements_page_visit_tracking` lo apaga. El índice cuenta sólo documentos publicados |
+| Prioridad | La escala de PRO, de 1 a 99; vacío es automática. Sustituye la prioridad calculada en cualquier `include` que se cumpla y un `exclude` sigue mandando. A igual número gana la manual, y entre manuales iguales, el ID más alto. Sin manuales entre las candidatas, el array sale idéntico (`===`). Viaja como ajuste del documento y como campo de kit |
+| Sticky | Sin pila de ancestros: la hoja reconoce al ancestro fijo por su propio `data-settings` (`"sticky":"top"` o `"bottom"`) y el hijo lleva su clase por `prefix_class` (`digi-sticky-`). Funciona con la caché de elementos y sin destello |
+| Documento | La cabecera y el pie se ocultan con `skip_doc_in_location()` para las plantillas y con el filtro público `digitalisimo_theme_header_footer` para el respaldo, sólo en esa petición; los ganchos `digitalisimo_before_*` y `after_*` siguen. La imagen destacada se oculta sólo en el widget del contenido consultado, nunca en un bucle; `og:image` no cambia. El tema no cambia |
+| Guardas | Cada submódulo comprueba sus símbolos del núcleo (`class_exists`, `method_exists`) y `ELEMENTOR_VERSION` ≥ 4.3. Sin ellos no registra nada, y el editor avisa a quien puede administrar |
+| Playground en CI | No (como K-D10). Unitarias en los dos workflows; `design.sh` y las ampliaciones, a mano antes de publicar y tras cada `sync-elementor-core.sh` |
+
+**Frentes.** Rutas relativas a `digitalisimo-elements/modules/digitalisimo-design/` salvo que se diga otra cosa.
+
+| Frente | Qué entrega | Archivos |
+|---|---|---|
+| A · base | Arranque, guardas, utilidades CSS y cerrojo compartido `Digitalisimo\Elements\Lock` (lo usa también la conversión de la cabecera y el pie de Hello) | `class-module.php`, `class-css.php`, `class-lock.php`, una línea en `pro-elements.php`; `tests/elements-design-css.php` |
+| B · almacén | `Store` (saneado, límites, inertes, usos), acciones AJAX y `Guard` (tipo y restricción `design`) | `presets/class-{store,ajax,guard,module}.php`; `tests/elements-design-presets.php` |
+| C · aplanado | Control `digitalisimo_preset`, `Compiler` y pestaña del kit | `presets/class-{controls,compiler,kit-tab}.php`; `tests/sources/design/presets.json` |
+| D · editor | `presets-editor.js` (opciones por tipo, vista previa por `editor/style/styleText`, menú contextual) y su configuración | `presets/class-editor.php`, `presets/assets/presets-editor.js`; `tests/elements-design-presets-editor.mjs` |
+| E · kit | Parte `presets`, referencia `map:presets` y el filtro de globales en K | `presets/class-kit-part.php`, `digitalisimo-import/kits/parts/class-kit-settings.php` (una línea); `tests/elements-design-presets-kit.php`, `elements-kit-inventory.mjs`, `elements-kit-integration.php` |
+| F · degradados | Paradas, cónico y repetido; vista previa | `backgrounds/class-gradient.php`, `backgrounds/assets/design-editor.js`; `tests/elements-design-gradient.{php,mjs}`, `tests/sources/design/gradients.json` |
+| G · máscaras y patrones | Biblioteca propia, máscaras, patrones y copias de los SVG del sitio | `backgrounds/class-{library,mask,pattern}.php`, `library.php`, `MANIFEST.json`, `svg/`; `scripts/design-library.mjs`; `tests/elements-design-backgrounds.php` |
+| H · condiciones | Las siete condiciones, el centinela, la guarda de la cookie y `Visitor_Content` | `digitalisimo-conditions/class-conditions-{more,guard}.php`, `class-module.php`, `class-visitor-content.php`, `class-conditions.php` (sólo `Special_Page_Condition`); `tests/elements-conditions-more.php`, `elements-visitor-content.php` |
+| I · visitas | Cookie por sitio, consentimiento, índice, purga, privacidad y `page_visits_no_consent` | `digitalisimo-conditions/class-page-visits.php`, `digitalisimo-front/class-settings{,-page}.php`; `tests/elements-page-visits.{php,mjs}`, `elements-front-settings.php` |
+| J · prioridad | Control, índice y la línea del derivado de PRO | `theme-builder/class-priority.php`, `modules/theme-builder/classes/conditions-manager.php` (una línea); `tests/elements-tb-priority.php` |
+| K · sticky | Control y hoja | `sticky/class-sticky-state.php`, `sticky/assets/sticky-state.css`; `tests/elements-sticky-state.php`, `elements-front-budget.php` |
+| L · documento | Cabecera, pie e imagen destacada | `document/class-document-controls.php`; `tests/elements-document-controls.php` |
+| M · Playground | `design.sh` (DS1–DS13) y las ampliaciones de `front-budget.sh`, `conditions.sh`, `kit-roundtrip.sh` y `brand-audit.sh` | `tests/playground/design*`, `tests/playground/README.md`, `docs/fusion/f7a-evidence.json` |
+| N · publicación | Revisión estática, documentación, versión y paquete | `tests/elements-design-static.mjs`, `tests/sources/design/pro-pinned.json`, `tests/validate-suite.mjs`, los documentos, `DIGITALISIMO_CHANGES.md` y `readme.txt` |
+
+**Aceptación** (V.13 de la especificación). Evidencia en `docs/fusion/f7a-evidence.json`.
+
+| # | Criterio | Estado |
+|---|---|---|
+| 1 | **Sin regresión:** un documento sin controles de F7a pinta el mismo HTML y CSS que con 4.3.0.163 | Unitarias existentes en verde, también con los cambios de F7a. Playground: `front-budget.sh` igual a 4.3.0.163 caso a caso (74/74 normal, 25/25 `CACHE=1`, 26/26 plugin; sólo cambian los *nonces* y la hora del horario, ningún CSS); `conditions.sh` 278 comprobaciones con y sin WooCommerce; `kit-roundtrip.sh` R1; `theme-switch.sh` rápido S1–S5 y E (margen de nodos de S3 de 22 a 29 por F-front); `form-submit.sh` en los dos modos; `interaction.sh` 28/28 widgets en los dos modos. El caso `editor` de `interaction.sh` falla igual con 4.3.0.163 en condiciones idénticas (tiempo del cliente REST con un worker): entorno, no F7a |
+| 2 | **Coste cero donde no se usa:** mismos bytes, peticiones, handles y `$wpdb->num_queries` en `empty` y `all-own` | Unitarias: la opción de presets no se lee sin vínculos; el índice de visitas y el de prioridad sólo se leen si están en `wp_load_alloptions()`; los scripts del editor no se encolan en el front. Playground: `num_queries` iguales a 4.3.0.163 (150/141, 114/116 y 153/148 en los tres modos); ningún script del editor en las 146 cargas del front |
+| 3 | **Presets que se aplican** (R-B1, V-B1, V-B2) | `elements-design-presets.php` compila los casos obligatorios de V.2.2 con el núcleo real. Playground: DS1 en verde en normal, `CACHE=1`, plugin 4.3.0/4.3.5 y `WOO=1` (161/161) |
+| 4 | **Lo local gana** | Unitarias (R-M10 en PHP y en el editor). Playground: DS1 en tres anchos y píxeles ≤ 0,5 % |
+| 5 | **Sólo estilo y permisos** | Las unitarias rechazan `\75 rl(`, `//`, `image-set(` y `@`, y borrar con usos. Playground: DS1 y R9 (`code` 403 de `elementor_ajax` para la editora) |
+| 6 | **Presets en kits** | `elements-design-presets-kit.php`: «nuevo», «agregar», renombrado, identidad, inertes, globales que sólo usa un preset y revertir. Playground: `kit-roundtrip.sh` R1–R10 en verde (choque `tarjeta-k<hex>`, mapa de identidad sin `map.miss`, inerte conservado, color global traducido, reversión limpia) |
+| 7 | **Degradados:** cadenas idénticas en PHP y JS | `elements-design-gradient.{php,mjs}` con las 24 fixtures (también el cónico con `from` y `at`) y el `addRules` real del editor. Playground: DS2 (las 2 diferencias conocidas del radial son del núcleo, no de F7a) |
+| 8 | **Máscaras y patrones** | `elements-design-backgrounds.php`: `data:` en porcentaje por el `Stylesheet` real, SVG hostil sin regla, una variable por slug y documento con 20 usos, copias `masks/<sha8>.svg`. Playground: DS3, DS4 (desplegable visible sobre el contenedor siguiente), R4 con la subida sin filtrar apagada y `front-budget.sh` `design-pattern` en verde |
+| 9 | **Condiciones correctas y clasificadas** | `elements-conditions-more.php` y `elements-visitor-content.php` en verde: vetos, restauración sin permiso, lista vacía, sin WooCommerce, cacheables y variables. Playground: `conditions.sh` 278 comprobaciones, con la caché apagada y a 24 h, con y sin WooCommerce |
+| 10 | **Fallar cerrado** | La unitaria carga el `class-conditions.php` de 4.3.0.163 (sha256 comprobada) con las clases reales de PRO: con el centinela el grupo falla, también en v4. Playground: DS13 con el asset 4.3.0.163 (lo condicionado no se ve), R4 con un B en 4.3.0.163 (6 páginas sin lo condicionado) y DS11 |
+| 11 | **Ninguna condición como protección** | Cada condición lleva el aviso (unitarias). Playground: DS5 y `conditions.sh` (ningún valor en el HTML) |
+| 12 | **Visita de página** | `elements-page-visits.{php,mjs}`: consentimiento, opción, índice sólo de publicados, purga, script de 350 a 381 B. Playground: DS5 (con y sin la WP Consent API, y la opción) y DS12 (red de subdirectorios sin cruce) |
+| 13 | **Prioridad manual** | `elements-tb-priority.php`: sin manuales el array sale `===`, orden de D20, `exclude`, reindexado y la línea del derivado. Playground: DS6 |
+| 14 | **Sticky** | `elements-sticky-state.php` y una comprobación en Chrome con la hoja real (estados, espaciador, editor, sin ancestro). Playground: DS8 y DS9 con un Logotipo del sitio dinámico y la caché a 24 h |
+| 15 | **Controles de documento** | `elements-document-controls.php`, con el `Locations_Manager` real de PRO, Hello y bucles; el árbol de `digitalisimo-theme/` es byte a byte el de 1.0.0. Playground: DS7 (tema DIGITALÍSIMO, Hello y bucles) |
+| 16 | **Caché, plugin original, v4 y red** | Playground: DS9 (446/448), DS10 con 4.0.0, 4.3.0 y 4.3.5, DS11 (7/7) y DS12 (13/13) |
+| 17 | **Guardas** | Unitarias: con un símbolo ausente, cada submódulo no registra nada y no hay ningún fatal |
+| 18 | **Marca y diseño** | `tests/elements-design-static.mjs` en verde. Playground: `brand-audit.sh SCOPE=full` (220 pantallas, marca visible 0, proveedores 0) y `shared-ui.sh` (18 pantallas) |
+| 19 | **Presupuesto** | Archivos dentro de su techo (`docs/ELEMENTS_FRONT_OBJECTIVE.md`). Playground: los 7 casos nuevos de `front-budget.sh` dentro de su techo en los tres modos |
+| 20 | **CI y paquete** | Las catorce pruebas nuevas en `validate.yml` y `release.yml`, con listas iguales (`repo-hygiene.mjs`); `plugin.php`, los CSS y los paquetes JS de PRO y la huella de `elementor/` sin cambios. Al publicar: `build-packages.sh`, `verify-release.mjs` con 8 ZIP, `unzip -t` y la Release con los 8 assets y el índice |
+| 21 | **Excepciones declaradas** | `migrate.sh` y `legacy-ab.sh` siguen pendientes de la copia oficial de Element Pack, como en F-front. En `kit-roundtrip.sh`, A13 (petición más lenta 25,7 s frente a 25 s) también falla con 4.3.0.163 con el mismo contenido (26,2 s): crece con los 14 documentos nuevos del arnés y F7a añade un 3 % por documento; la mejora es importar el contenido por lotes (etapa propia). A1 de la corrida final falló sólo por una captura del visor de PDF tomada antes de pintar (la corrida anterior pasó) |
+
+**Límites declarados**
+- **Volver a 4.3.0.163:** los ajustes quedan guardados y sin efecto. Tras «Vaciar archivos y datos» en Herramientas del constructor:
+  - los elementos vinculados vuelven a sus valores locales y por defecto;
+  - el degradado queda en A → B, y máscaras y patrones desaparecen;
+  - los elementos «al fijarse» se ven siempre;
+  - lo condicionado por una condición de F7a **no** se ve (centinela);
+  - el Theme Builder vuelve al orden automático;
+  - la cabecera, el pie y la imagen destacada se ven.
+- **Presets:**
+  - En una pila optimizada (front y WP-CLI) el núcleo quita `options` y `size_units` de cada control, así que ahí una opción se valida por su forma. Un valor bien formado escrito por WP-CLI que no está entre las opciones se aplica en el front y no en la vista previa.
+  - Un preset no lleva las paradas intermedias de un degradado (son un repetidor) ni el SVG de una máscara o un patrón.
+  - En la vista previa, si un control responsivo tiene un valor por defecto en tableta y el preset sólo define escritorio, gana el preset en tableta; en el front, no.
+  - Las plantillas de red de Tools pueden copiar un elemento vinculado a un preset que el sitio destino no tiene: se ve con su estilo local.
+- **Condiciones:**
+  - Las de F7a no se ofrecen en v4, y el prop v4 `display-conditions` sigue sin `kind` en K: sus IDs no se traducen al importar un kit (otra etapa).
+  - «Visitó la página» no hace nada sin gestor de consentimiento ni la opción, y lo dice la ayuda.
+  - La unión de páginas rastreadas se corta en 200 sin aviso.
+  - Las plantillas incrustadas sin `_elementor_conditions` no activan el rastreo.
+  - La purga por entrada cubre `clean_post_cache()` y `litespeed_purge_post`; las demás cachés de página, a mano.
+- **Máscaras y patrones:**
+  - Si en el destino ya existe `masks/<sha8>.svg` con otro contenido, K renombra la copia a `<sha8>-k<hex>` pero no reescribe la ruta relativa del control, que sigue apuntando a la copia que ya había, también saneada. Sólo ocurre con 8 hex iguales y contenido distinto; arreglarlo exige traducir esas rutas en K (otra etapa).
+  - La máscara recorta todo su contenido, también los desplegables. Con «Elevar» apagado, un desplegable puede quedar bajo el contenedor siguiente.
+- **Sticky:**
+  - Depende del formato de `data-settings`, que vigilan la prueba y `docs/ELEMENTOR_CORE.md`; la alternativa preparada es un ajuste oculto calculado al guardar.
+  - En los dispositivos donde no se fija, «Sólo mientras está fijado» queda oculto.
+- **Documento:**
+  - Si un sitio fuerza la caché de elementos en el widget «Imagen destacada», la decisión queda en la caché de la plantilla.
+  - En la página de entradas y en la tienda, leer los ajustes puede costar una consulta.
+- **Prioridad:**
+  - El aviso de conflictos del núcleo sigue apareciendo.
+  - Las ubicaciones múltiples (popups y ganchos) no se reordenan.
+  - Sin manuales, el desempate de PHP 7.4 sigue como hoy.
 
 ### F3 · Divi (D5 y D4)
 
@@ -750,6 +871,14 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 | `digitalisimo_elements_front_lock` | Cerrojo de la transición: `INSERT IGNORE` con token; se roba pasados 300 s | — (automático) | Sin entrada del usuario | Publicado (F-front) · Elements 4.3.0.163 |
 | `digitalisimo_elements_front_snippets` | Booleano con carga automática: algún fragmento publicado de Código personalizado nombra los globales de PRO. Se recalcula al guardar, borrar o cambiar de estado un fragmento y en la transición | — (automática, sin pantalla) | Sin entrada del usuario | Publicado (F-front) · Elements 4.3.0.163 |
 | Evento `digitalisimo_elements_front_transition` | Evento único por sitio cuando el valor efectivo difiere del aplicado; en `admin_init` se ejecuta si sigue pendiente (redes con `DISABLE_WP_CRON`) | — | — | Publicado (F-front) · Elements 4.3.0.163 |
+| `digitalisimo_elements_presets` | Presets de estilo del sitio: `{ v: 1, presets: { slug: { type, label, settings, hash, updated, inert } } }`. **Sin carga automática**: sólo se lee al generar el CSS de un documento con elementos vinculados, en el editor y en las acciones. Hasta 200 presets, 16 KB por preset y 128 KB en total. Sin presets, no existe | — (cada sitio tiene los suyos; viajan en los kits con la parte `presets`) | `Store::sanitize_settings()` (lista blanca por tipo de control, cierre por dependencias y comprobación final) dentro de `set_use_style_controls( true )`; escrita bajo el cerrojo `digitalisimo_elements_lock_presets`, con `manage_options` sin la restricción `design`, nonce del editor y capacidad comprobada en el servidor | Publicado (F7a) · Elements 4.3.0.164 |
+| `page_visits_no_consent` en `digitalisimo_elements_front` (sitio) y `digitalisimo_elements_front_defaults` (red) | «Registrar visitas sin gestor de consentimiento», en «Rendimiento» → «Privacidad», con «Heredar de la red» sólo en un sitio de una red. Por defecto apagada. Sin la WP Consent API, es lo único que permite escribir la cookie de «Visitó la página» | El valor que heredan los sitios, en Red → «Rendimiento» → «Privacidad», sin «Heredar de la red» | Booleano en las dos superficies: los cuatro puntos de paridad (`Settings::defaults()`, `sanitize()`, `network_privacy_fields()` y `save_network()`). Fuera de `KEYS`: no entra en la huella de la transición ni vacía cachés | Publicado (F7a) · Elements 4.3.0.164 |
+| `digitalisimo_elements_tracked_pages` | Índice de «Visitó la página»: `{ docs: { id: [ids] }, union: [ids] }`, con la unión (≤ 200) calculada al escribir. Carga automática; **existe siempre** (`[]`, creada en `admin_init`) y el front sólo la lee si está en `wp_load_alloptions()`. Cuentan sólo documentos `publish` (plantillas con condiciones), nunca revisiones, borradores ni marcadores. No hay meta por documento: nada viaja en el WXR | — (automática, sin pantalla) | Enteros de entradas publicadas; se recalcula en `elementor/document/after_save`, `transition_post_status`, `deleted_post` y `digitalisimo_elements_kit_imported`, y purga lo que entra y lo que sale | Publicado (F7a) · Elements 4.3.0.164 |
+| `digitalisimo_elements_tb_priority` | Índice de las plantillas con prioridad manual. Carga automática; **existe siempre** (`[]`, creada en `admin_init`) y sólo se lee si está en `wp_load_alloptions()`: 0 consultas sin ella | — (automática, sin pantalla) | Enteros de 1 a 99; se reindexa al guardar, al mover a la papelera, al restaurar, al borrar y al cambiar `_elementor_page_settings` de una plantilla | Publicado (F7a) · Elements 4.3.0.164 |
+| `digitalisimo_elements_lock_*` | Cerrojos del cerrojo compartido `Digitalisimo\Elements\Lock` (hoy `digitalisimo_elements_lock_presets`, que se roba a los 30 s): `INSERT IGNORE` con token, sin carga automática. Los cerrojos que ya existían conservan su opción (`digitalisimo_theme_convert_lock`, 300 s) | — (automáticos) | Sin entrada del usuario | Publicado (F7a) · Elements 4.3.0.164 |
+| Claves de `_elementor_page_settings`: `digitalisimo_tb_priority` (plantillas del Theme Builder), `digitalisimo_hide_header`, `digitalisimo_hide_footer` y `digitalisimo_hide_featured_image` (páginas y entradas) | Ajustes de cada documento, en el panel del editor; viajan con el documento (la prioridad, también como campo de kit) | — | Los del núcleo para los ajustes de documento; la prioridad, entero de 1 a 99 o vacío | Publicado (F7a) · Elements 4.3.0.164 |
+| Cookie `digi_seen` (`digi_seen_<blog_id>` en una red) | Páginas que abrió el visitante (≤ 50 IDs en base 36, 30 días, ruta del sitio), escrita sólo por el script de las páginas rastreadas y con consentimiento. Declarada con `wp_add_privacy_policy_content()` y, con la WP Consent API, con `wp_add_cookie_info()` en `preferences` | — | El servidor no la escribe; al leerla sólo acepta IDs en base 36 | Publicado (F7a) · Elements 4.3.0.164 |
+| Copias `uploads/digitalisimo-elements/masks/<sha8>.svg` | El SVG de Medios elegido para una máscara o un patrón, saneado y copiado al guardar; la ruta relativa va en `digitalisimo_mask_file` o `digitalisimo_pattern_file` | — | Saneador SVG del núcleo, lista de rechazo y tope de 8 KB; sólo adjuntos SVG del sitio actual; ruta comprobada con `realpath` | Publicado (F7a) · Elements 4.3.0.164 |
 
 Cada opción nueva se añade aquí antes de darse por terminada.
 
@@ -769,7 +898,7 @@ Desde el 2026-10-20 las filas de Divi, Betheme, GeneratePress, GenerateBlocks y 
 | Divi | 5.15.0 | JSON `et_builder`, `et_builder_layouts`, `et_theme_builder` | — | Pendiente (F3) | Imágenes en base64 |
 | Divi | 5.15.0 | Theme Builder (`et_template`, `_et_use_on`) | — | Pendiente (F3) | Archivo de autor por rol sin equivalente |
 | Betheme | 29.0.3 | `mfn-page-items`, generaciones 1, 2 y 3 | — | Pendiente (F4) | Sólo formatos (clean-room); medianil y breakpoints propios |
-| Betheme | 29.0.3 | CPT `template` + `mfn_template_conditions` | — | Pendiente (F4) | «Cabecera distinta al fijarse» sin equivalente 1:1 hasta F7a |
+| Betheme | 29.0.3 | CPT `template` + `mfn_template_conditions` | — | Pendiente (F4) | «Cabecera distinta al fijarse»: desde F7a la cubre «Al fijarse» del sticky (sin conversión) |
 | Betheme | 29.0.3 | Opción `betheme`, `be_classes`, `be_css_variables` | — | Pendiente (F4) | Clases incrustadas en v3 |
 | Betheme | 29.0.3 | Demo local (WXR, `options.txt`, `menu.txt`) | — | Pendiente (F4) | Sólo paquetes que el usuario ya tenga |
 | Betheme + Elementor | 29.0.3 | `_elementor_data` con 57 widgets `mfn_*` | — | Pendiente (F4) | Sus cabeceras y pies están en BeBuilder |
@@ -784,6 +913,7 @@ Desde el 2026-10-20 las filas de Divi, Betheme, GeneratePress, GenerateBlocks y 
 | Kits de Elementor y Elementor Pro (terceros) | 3.0, 2.0 y 1.x (Pro 3.x) | ZIP de kit | R3 (2.0 con tema, experimentos y plugins pedidos, colores que chocan, Theme Builder, popup, loop, formulario con webhook, contenedor desconocido, `e-component`, fuente, iconos con URL externa y WXR hostil), R3b (1.x) y R7 sin proveedor, en «agregar» | **Publicado** (K) · Elements 4.3.0.162 | IDs de elemento regenerados por su exportador; Google Fonts sólo listadas; tema, experimentos y plugins pedidos sólo informados |
 | Template Kit de Envato | Formato de Envato (`manifest_version`) | ZIP de marketplace | R2 en «agregar» y «Aplicar los ajustes del kit» | **Publicado, sintético** (K-D17) · Elements 4.3.0.162 | Sin kits reales: lecturas «a confirmar» en `docs/fusion/k-envato.md` |
 | Plantilla suelta | JSON de plantilla o ZIP de plantillas | Biblioteca → Importar | Marcador para los tipos desconocidos; un ZIP de kit subido ahí va al importador de kits (R10) | **Publicado** (K) · Elements 4.3.0.162 | La biblioteca dentro del editor no se intercepta |
+| Capacidades de Divi y Betheme en Elements (clean-room) | Elements 4.3.0.164 | Ajustes de elemento y de documento, opción de presets del sitio y parte `presets` del kit | Presets, degradados, máscaras, patrones, siete condiciones, prioridad de las plantillas, sticky «al fijarse» y controles de documento: 14 unitarias nuevas con el núcleo y las clases de PRO reales donde se pueden cargar; `design.sh` DS1–DS13 y las ampliaciones de `front-budget.sh`, `conditions.sh`, `kit-roundtrip.sh` y `brand-audit.sh`: en verde | **Publicado** (F7a) · Elements 4.3.0.164 | Nada se importa de los orígenes. Las condiciones de F7a no se ofrecen en v4 y el prop v4 `display-conditions` no se traduce en los kits; hueco de nombres de K con `masks/<sha8>.svg` (ver F7a, «Límites declarados») |
 
 ### Recorridos
 
@@ -810,7 +940,7 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
 | Corte y reanudación | Pendiente |
 | Reversión | Pendiente |
 | CSS y JS por handle | Pendiente |
-| Precedencia frente a CSS sin capa, en línea, `!important` y `@layer bricks` | Pendiente |
+| Precedencia frente a CSS sin capa, en línea, `!important` y `@layer bricks` | Parcial (F7a, presets): un preset no tiene selector ni capa propios, porque se aplana en los selectores del elemento; frente a otro CSS se comporta como el estilo local. `@layer bricks`, pendiente |
 | Sitio con v4 apagado | Pendiente |
 | Sitio con el experimento `container` inactivo | Pendiente |
 | Sin rastro de los plugins de origen (`brand-audit.sh`) | Publicado (F0.2); F0.2b cierra lo visible restante |
@@ -854,7 +984,7 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
 
 ## Evidencia
 
-`docs/fusion/README.md` indexa los informes depurados: un informe por origen (Divi, Betheme, GP, Bricks, Element Pack y Prime Slider), los de Elements, Migración y el tema, las verificaciones del plan y los cuatro inventarios de F0.2. Los de K son `docs/fusion/k-kits.md` (diseño, ganchos y hechos del núcleo), `docs/fusion/k-envato.md` (Template Kits de Envato) y `docs/fusion/k-kits-evidence.json` (resumen de `kit-roundtrip.sh`).
+`docs/fusion/README.md` indexa los informes depurados: un informe por origen (Divi, Betheme, GP, Bricks, Element Pack y Prime Slider), los de Elements, Migración y el tema, las verificaciones del plan y los cuatro inventarios de F0.2. Los de K son `docs/fusion/k-kits.md` (diseño, ganchos y hechos del núcleo), `docs/fusion/k-envato.md` (Template Kits de Envato) y `docs/fusion/k-kits-evidence.json` (resumen de `kit-roundtrip.sh`). Los de F7a son `docs/fusion/f7a.md` (hechos del núcleo, ganchos, formatos, centinela, consentimiento y desviaciones) y `docs/fusion/f7a-evidence.json` (resumen de `design.sh` y de las ampliaciones).
 
 ## Registro de avance
 
@@ -892,3 +1022,13 @@ Divi y GP se aceptan con A/B en Playground (`--workers=1`) cuando su copia tiene
   - SEO recalcula el blindaje de fuentes y muestra el `font-display` en vigor.
 
   Publicado con Elements 4.3.0.163 y SEO 1.0.232 · `v2026.10.21.417`. `empty`: 28 → 24 peticiones y −382 667 B de JS; Lighthouse −386 068 B. Medición en `docs/measurements/2026-10-21-elements-front-phase2.md`; `migrate.sh` y `legacy-ab.sh` pendientes de una copia oficial de Element Pack.
+- 2026-10-21 · F7a en la rama `fusion/f7a`. La especificación v1 se revisó con dos críticas adversariales (reglas y verificación contra el código: 7 bloqueantes, 27 importantes y 35 menores) y su sección V sustituyó lo que chocaba:
+  - **Presets:** definidos en el sitio y en el kit, aplicados en el CSS del documento que los usa. Es la decisión corregida del 2026-10-16, que los compilaba en el CSS del kit.
+  - **Condiciones:** fallan cerradas, con el centinela y la lista vacía; en v4 no se ofrecen.
+  - **Cookie de visitas** por sitio y con consentimiento.
+  - **Sticky** sólo con CSS, sin pila de ancestros.
+  - **Máscaras y patrones** codificados en porcentaje, con catálogo propio y las copias de los SVG del sitio que transporta K.
+  - **Cabecera y pie** sólo con el tema DIGITALÍSIMO.
+  - **Guardas** de símbolos por submódulo.
+
+  Doce frentes de código (A–L) con 14 pruebas nuevas en los dos workflows, más la revisión estática (N). Las correcciones que trajo la integración están en `docs/fusion/f7a.md`: `Store::replace()` conserva los presets del sitio, `Visitor_Content` lee el prop v4 y el control del preset repinta la vista previa. Una sola línea en un derivado de PRO (`conditions-manager.php`) y una en K (`digitalisimo_elements_kit_used_globals_trees`). Publicado con Elements 4.3.0.164. Playground en verde, con la evidencia en `docs/fusion/f7a-evidence.json`: `design.sh` DS1–DS13 en sus ocho modos, `front-budget.sh` (igual a 4.3.0.163 caso a caso), `conditions.sh` (278), `kit-roundtrip.sh` R1–R10, `brand-audit.sh SCOPE=full` (220 pantallas, marca 0), `theme-switch.sh`, `shared-ui.sh`, `core-switch.sh`, `front-network.sh`, `form-submit.sh` e `interaction.sh` (el caso `editor` falla igual con 4.3.0.163: entorno). Límites: A13 de K (25,7 s, también con 4.3.0.163) y la configuración del editor, 127 KB mayor por los controles nuevos. Como en F-front, `migrate.sh` y `legacy-ab.sh` siguen pendientes de una copia oficial de Element Pack.

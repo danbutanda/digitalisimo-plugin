@@ -46,15 +46,34 @@ add_filter(
 add_action(
 	'wp_footer',
 	static function () {
+		global $wpdb;
 		$gate = 'Digitalisimo\\Elements\\Front\\Pro_Gate';
 		$out  = array( 'gate' => class_exists( $gate ) );
 		if ( $out['gate'] ) {
 			$out['reasons'] = $gate::reasons();
 			$out['needed']  = $gate::needed();
 		}
+		// Consultas de la petición hasta el pie (F7a, criterio 2): el arnés las compara con las de 4.3.0.163. Se toman
+		// antes de construir el comentario, así que la sonda no suma ninguna propia.
+		$out['queries'] = isset( $wpdb->num_queries ) ? (int) $wpdb->num_queries : -1;
 		echo "\n<!-- digitalisimo-pro-gate " . wp_json_encode( $out, JSON_UNESCAPED_SLASHES ) . " -->\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	},
 	99
+);
+
+// Consultas de la petición completa (hasta `shutdown`), por URL, en $OUT/queries.jsonl: lo que corre después del pie
+// (cachés, transitorios) también cuenta. Sólo peticiones del front, sin la sonda ni wp-cron.
+add_action(
+	'shutdown',
+	static function () {
+		global $wpdb;
+		$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : ''; // phpcs:ignore
+		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || false !== strpos( $uri, 'digi_probe=' ) || 0 !== strpos( $uri, '/digi-fb-' ) ) {
+			return;
+		}
+		@file_put_contents( WP_CONTENT_DIR . '/probe/queries.jsonl', wp_json_encode( array( 'uri' => $uri, 'queries' => (int) $wpdb->num_queries, 'logged_in' => is_user_logged_in() ) ) . "\n", FILE_APPEND ); // phpcs:ignore
+	},
+	PHP_INT_MAX
 );
 
 add_action( 'wp_loaded', 'digi_fb_probe_route', 99 );
@@ -110,6 +129,16 @@ function digi_fb_probe_state() {
 	}
 	foreach ( array( 'elementor_experiment-e_font_icon_svg', 'elementor_local_google_fonts', 'elementor_install_history', 'elementor_icon_manager_needs_update', 'digitalisimo_performance_js_fallback', 'digitalisimo_elements_front', 'digitalisimo_elements_front_snippets' ) as $option ) {
 		$state['options'][ $option ] = get_option( $option, null );
+	}
+	// F7a: opciones nuevas (presets sin carga automática; índices que existen siempre, con carga automática).
+	$alloptions = wp_load_alloptions();
+	foreach ( array( 'digitalisimo_elements_presets', 'digitalisimo_elements_tracked_pages', 'digitalisimo_elements_tb_priority' ) as $option ) {
+		$value                       = get_option( $option, null );
+		$state['f7a'][ $option ]     = array(
+			'row'      => digi_fb_probe_row( $option ),
+			'autoload' => array_key_exists( $option, $alloptions ),
+			'value'    => 'digitalisimo_elements_presets' === $option && is_array( $value ) ? array( 'slugs' => array_keys( (array) ( $value['presets'] ?? array() ) ) ) : $value,
+		);
 	}
 	$state['rows']['elementor_experiment-e_font_icon_svg'] = digi_fb_probe_row( 'elementor_experiment-e_font_icon_svg' );
 	if ( class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->experiments ) ) {

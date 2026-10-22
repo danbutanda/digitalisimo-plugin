@@ -352,7 +352,7 @@ async function R1(s) {
     verdict('A4', !diffs.some((d) => /^counts\./.test(d)), diffs.filter((d) => /^counts\./.test(d)).slice(0, 5));
     // A6 «nuevo»: además de lo que crea el contenido, sólo cambian la portada (el kit la trae) y, con WOO=1, las páginas
     // de la tienda; el kit activo conserva su ID y nunca cambian el tema, los plugins ni los experimentos.
-    const a6 = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, '^page_on_front$', '^show_on_front$', ...(WOO ? ['^woocommerce_.*_page_id$'] : [])], allowTables: { posts: 'libre', postmeta: 'libre', terms: 'libre', termmeta: 'libre', term_taxonomy: 'libre', term_relationships: 'libre', comments: 'libre', commentmeta: 'libre', options: 'libre' }, uploads: 'libre', kit: 'libre', caches: 'libre' });
+    const a6 = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, ...F7A_OPTIONS, '^page_on_front$', '^show_on_front$', ...(WOO ? ['^woocommerce_.*_page_id$'] : [])], allowTables: { posts: 'libre', postmeta: 'libre', terms: 'libre', termmeta: 'libre', term_taxonomy: 'libre', term_relationships: 'libre', comments: 'libre', commentmeta: 'libre', options: 'libre' }, uploads: 'libre', kit: 'libre', caches: 'libre' });
     verdict('A6', !a6.length, a6.slice(0, 10).map((p) => `R1 ${via}: ${p}`));
     const net = networkCheck('b', `R1 ${via}`);
     verdict('A1', !net.toA.length, net.toA.slice(0, 5).map((e) => `${via}: petición al host de A ${e.url} (CV-4)`));
@@ -379,6 +379,8 @@ async function R1(s) {
       const render = await renderCompare(sigA, sigB, `R1-${via}`);
       verdict('A1', !render.problems.length, render.problems.slice(0, 20));
       s.render = { pages: render.pages, widths: WIDTHS };
+      const f7a = await f7aRoundtrip(sigB);
+      verdict('A1', !f7a.length, f7a.map((p) => `R1 (F7a): ${p}`));
     }
   }
   if (sigs.pantalla && sigs['wp-cli']) {
@@ -529,7 +531,8 @@ async function openEditor(site, slug) {
   const ctx = await b.createBrowserContext();
   const page = await ctx.newPage();
   const errors = [];
-  page.on('pageerror', (e) => errors.push(String(e.message || e).slice(0, 200)));
+  const stacks = [];
+  page.on('pageerror', (e) => { errors.push(String(e.message || e).slice(0, 200)); stacks.push(String(e.stack || e.message || e).slice(0, 4000)); });
   const auth = await adminSession(site);
   await page.setCookie(...Object.entries(R.jars[auth.jar]).map(([name, value]) => ({ name, value, domain: R.HOSTS[site], path: '/' })));
   const found = await R.request(site, 'GET', `/wp-json/wp/v2/pages?slug=${slug}&status=draft,publish&_fields=id`, { jar: auth.jar, headers: { 'X-WP-Nonce': auth.nonce } });
@@ -540,12 +543,148 @@ async function openEditor(site, slug) {
     await R.sleep(4000);
   } catch (e) { errors.push('el editor no cargó: ' + String(e.message || e).slice(0, 160)); }
   await ctx.close();
+  // La pila completa de cada error, para el triaje (el veredicto lleva sólo el mensaje).
+  if (stacks.length) fs.writeFileSync(path.join(OUT, 'scenarios', `editor-errors-${site}-${slug}.json`), JSON.stringify(stacks, null, 1));
   return { errors };
 }
 
 async function R2(s) { await thirdParty(s, 'tercero-envato.zip', { applySettings: true }); }
 async function R3(s) { await thirdParty(s, 'tercero-pro3.zip', { editor: 'inicio-acme' }); }
 async function R3b(s) { await thirdParty(s, 'tercero-1x.zip'); }
+
+// ── F7a: presets, máscaras, prioridad y condiciones en los kits (V.10, V.13 #6 y #10) ─────────────────────────────
+// Opciones que una importación cambia a propósito: los presets del kit (parte `presets`) y los índices derivados del
+// contenido (páginas rastreadas por «Visitó la página» y prioridad manual del Theme Builder). Sólo se permiten en las
+// instantáneas de R1 y R4; R5, R6 y R8 los comprueban aparte.
+const F7A_OPTIONS = ['^digitalisimo_elements_presets$', '^digitalisimo_elements_tracked_pages$', '^digitalisimo_elements_tb_priority$'];
+const F7A = {
+  presets: 'page:presets-de-estilo',
+  design: 'page:fondos-de-diseno',
+  priority: 'page:prioridad-de-cabeceras',
+  missing: 'page:condicion-visita-sin-destino',
+  headers: { auto: 'elementor_library:cabecera-automatica', manual: 'elementor_library:cabecera-prioritaria' },
+  // Páginas con una condición de F7a: «Condicionado: <título>» sólo se ve si se cumple; «Para todos: <título>», siempre.
+  conditions: ['Condición cookie', 'Condición visita', 'Condición campo', 'Condición campo de usuario', 'Condición autor', 'Condición búsqueda', 'Condición existencias'],
+};
+const condKey = (title) => `page:${title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+const at2 = (value, ...keys) => keys.reduce((node, k) => (node === undefined || node === null ? undefined : node[k]), value);
+const withoutGlobals = (settings) => { const { __globals__, ...rest } = settings || {}; return rest; };
+const maskCopies = (sig) => Object.keys(sig.files || {}).filter((f) => /^masks\/[0-9a-f]{8,64}\.svg$/.test(f));
+
+/** HTML de una página como visitante (sin cookies) y el CSS del documento que enlaza. */
+async function visit(site, docPath) {
+  const res = await R.request(site, 'GET', docPath || '/', { jar: '__anon' });
+  const css = [];
+  for (const m of res.text.matchAll(/href=['"]([^'"]*\/elementor\/css\/post-\d+\.css[^'"]*)['"]/g)) {
+    const r = await R.request(site, 'GET', m[1].replace(/^https?:\/\/[^/]+/, ''), { jar: '__anon' }).catch(() => null);
+    if (r && r.status === 200) css.push(r.text);
+  }
+  for (const m of res.text.matchAll(/<style[^>]*id=['"]elementor-post-\d+-inline-css['"][^>]*>([\s\S]*?)<\/style>/g)) css.push(m[1]);
+  return { status: res.status, html: res.text, css: css.join('\n') };
+}
+
+/** Las páginas con condiciones de F7a vistas por un visitante: qué «Condicionado» se ve y si el control se pinta. */
+async function conditionsSeen(site, sig) {
+  const out = {};
+  for (const title of F7A.conditions) {
+    const d = (sig.documents || {})[condKey(title)];
+    if (!d) continue;
+    if (d.status !== 'publish') { out[title] = { estado: d.status }; continue; }
+    const page = await visit(site, d.path);
+    out[title] = { estado: d.status, http: page.status, condicionado: page.html.includes(`Condicionado: ${title}`), control: page.html.includes(`Para todos: ${title}`) };
+  }
+  return out;
+}
+
+/** R1: la cabecera con prioridad manual gana en A y en B (D20) y A tiene lo que la firma compara. */
+async function f7aRoundtrip(sigB) {
+  const problems = [];
+  for (const [site, sig] of [['a', sigA], ['b', sigB]]) {
+    const d = (sig.documents || {})[F7A.priority];
+    if (!d) { problems.push(`${site}: falta ${F7A.priority}`); continue; }
+    const page = await visit(site, d.path);
+    if (!page.html.includes('Cabecera prioritaria') || page.html.includes('Cabecera automática')) problems.push(`${site}: ${d.path} no pinta la cabecera con prioridad manual 10 (D20)`);
+    const design = (sig.documents || {})[F7A.design];
+    if (design && design.status === 'publish') {
+      const p2 = await visit(site, design.path);
+      if (!/--digi-mask-[a-z0-9-]+:url\("data:image\/svg\+xml,/.test(p2.css)) problems.push(`${site}: el CSS de ${design.path} no define la variable de máscara con data: en porcentaje (V.5)`);
+      if (/\/digitalisimo-elements\/masks\//.test(p2.css)) problems.push(`${site}: el CSS de ${design.path} nombra la copia en uploads (V.5: sólo data:)`);
+    }
+  }
+  return problems;
+}
+
+/** R4 y R4v4: lo que F7a añade a «sólo agregar» (V.13 #6): choque de preset, mapa sin falsos, globales, máscara, prioridad. */
+async function f7aClash(sigAfter, kitAfter, session) {
+  const out = { A7: [], A4: [], A14: [] };
+  const presets = sigAfter.presets || {};
+  const own = presets.tarjeta;
+  if (!own || own.label !== 'Tarjeta de B' || at2(own, 'settings', 'title_color') !== '#00AA55') out.A7.push(`el preset tarjeta de B cambió: ${JSON.stringify(own).slice(0, 160)}`);
+  const renamed = Object.keys(presets).filter((k) => /^tarjeta-k[0-9a-f]{6}$/.test(k));
+  if (renamed.length !== 1) out.A7.push(`choque de tarjeta: se esperaba un tarjeta-k<hex>, hay ${JSON.stringify(Object.keys(presets))}`);
+  const tk = renamed[0];
+  if (tk && !compare.same(withoutGlobals(presets[tk].settings), withoutGlobals(at2(sigA, 'presets', 'tarjeta', 'settings')))) out.A7.push(`${tk} no tiene el estilo de la tarjeta de A`);
+  if (!presets['tipo-ausente'] || presets['tipo-ausente'].inert !== true) out.A7.push('el preset inerte tipo-ausente no llegó, o no llegó inerte');
+  if (!presets.separador) out.A7.push('falta el preset separador');
+  // El color que sólo usa `caja` choca con «Propio de B» (bb00001): debe llegar como otro _id con el valor de A.
+  const global = String(at2(presets, 'caja', 'settings', '__globals__', 'background_color') || '');
+  const gid = (global.match(/id=([a-z0-9]+)$/) || [])[1];
+  const color = ((kitAfter.settings || {}).custom_colors || []).find((c) => c._id === gid);
+  if (!presets.caja) out.A7.push('falta el preset caja');
+  else if (!gid || gid === 'bb00001' || !color || String(color.color).toUpperCase() !== '#F0E6D2') out.A7.push(`caja: el color global que sólo usa un preset no se tradujo (${global || 'sin global'}; ${JSON.stringify(color || null)})`);
+  // Vínculos reescritos en el documento importado y en los valores por defecto añadidos.
+  const doc = (sigAfter.documents || {})[F7A.presets];
+  const tree = doc ? compare.normalizeTree(doc.data) : [];
+  const links = { contenedor: at2(tree, 0, 'settings', 'digitalisimo_preset'), local: at2(tree, 0, 'elements', 0, 'settings', 'digitalisimo_preset'), tal: at2(tree, 0, 'elements', 1, 'settings', 'digitalisimo_preset'), divisor: at2(tree, 0, 'elements', 2, 'settings', 'digitalisimo_preset') };
+  if (!doc) out.A7.push(`falta ${F7A.presets} en B`);
+  else if (links.local !== tk || links.tal !== tk || links.contenedor !== 'caja' || links.divisor !== 'separador') out.A7.push(`vínculos de ${F7A.presets} sin reescribir: ${JSON.stringify(links)}`);
+  if (at2(kitAfter, 'defaults', 'divider', 'digitalisimo_preset') !== 'separador') out.A7.push(`el valor por defecto del divisor no llegó con su preset: ${JSON.stringify(at2(kitAfter, 'defaults', 'divider') || null)}`);
+  // Informe: el renombrado figura y el mapa de identidad no deja `map.miss` de presets (V-I8).
+  const report = await R.control('b', 'report', { session }).catch(() => null);
+  const entries = (((report || {}).session || {}).report || {}).entries || [];
+  if (!entries.some((e) => e.code === 'settings.presets.renamed' && at2(e, 'data', 'from') === 'tarjeta' && at2(e, 'data', 'to') === tk)) out.A7.push('el informe no dice que tarjeta se renombró');
+  const miss = entries.filter((e) => e.code === 'map.miss' && at2(e, 'data', 'map') === 'presets');
+  if (miss.length) out.A7.push(`map.miss falso de presets: ${JSON.stringify(miss.slice(0, 3).map((e) => e.data))}`);
+  // Copia saneada de la máscara del sitio, por la parte `files` con la subida de SVG sin filtrar apagada (R-I8).
+  const copies = maskCopies(sigA);
+  if (!copies.length) out.A4.push('A no tiene ninguna copia masks/<sha8>.svg: el caso de la máscara del sitio no se probó');
+  for (const f of copies) if (sigAfter.files[f] !== sigA.files[f]) out.A4.push(`la copia ${f} no llegó a B igual que en A (${sigAfter.files[f] || 'falta'})`);
+  const fileOf = (sig) => at2(compare.normalizeTree(((sig.documents || {})[F7A.design] || {}).data || []), 1, 'elements', 0, 'settings', 'digitalisimo_mask_file');
+  if (fileOf(sigAfter) !== fileOf(sigA)) out.A4.push(`la máscara de la columna apunta a ${fileOf(sigAfter)} y en A a ${fileOf(sigA)}`);
+  // Las dos cabeceras con prioridad llegan en borrador: no cambian la cabecera de B (A7).
+  for (const key of Object.values(F7A.headers)) if (at2(sigAfter, 'documents', key, 'status') !== 'draft') out.A7.push(`${key} llegó ${at2(sigAfter, 'documents', key, 'status') || 'sin crear'}, no en borrador`);
+  // Una referencia sin destino de «Visitó la página» deja el documento en borrador y para revisar (A14).
+  const missing = (sigAfter.documents || {})[F7A.missing];
+  if (!missing || missing.status !== 'draft') out.A14.push(`${F7A.missing}: ${missing ? missing.status : 'no está'} (esperado borrador por la página que no viaja)`);
+  if (!(sigAfter.review || []).some((k) => /^page:condicion-visita-sin-destino/.test(k))) out.A14.push(`${F7A.missing} no quedó en «Revisar antes de publicar»`);
+  return out;
+}
+
+/** R4: el kit de A en un B con 4.3.0.163; lo condicionado por una condición de F7a no se ve (centinela, V.13 #10). */
+async function f7aOldVersion(s) {
+  const old = process.env.OLD_ELEMENTS || '';
+  if (!old || !fs.existsSync(path.join(old, 'pro-elements.php'))) { verdict('A14', false, 'R4 · 4.3.0.163: falta la copia de la versión anterior (OLD_ELEMENTS)'); s.problems.push('R4 · 4.3.0.163: sin OLD_ELEMENTS'); return; }
+  forget('b');
+  await R.startSite('b', { elements: old });
+  await warmUp('b');
+  resetLogs('b');
+  const run = await importApp('b', kits.rest, { label: 'R4 4.3.0.163' });
+  if (!run.ok) { s.problems.push(`R4 · 4.3.0.163: la importación falló: ${run.message || run.failed.join('; ')}`); verdict('A14', false, 'R4 · 4.3.0.163: la importación falló'); return; }
+  const pub = await publish('b', run.session);
+  if (!pub.ok) s.problems.push(`R4 · 4.3.0.163: «Publicar páginas y plantillas»: ${pub.message}`);
+  const sig = await signature('b', 'R4-163');
+  const seen = await conditionsSeen('b', sig);
+  s.v163 = seen;
+  const problems = [];
+  for (const [title, r] of Object.entries(seen)) {
+    if (r.condicionado) problems.push(`4.3.0.163 muestra «Condicionado: ${title}» a un visitante: una condición de F7a amplió la visibilidad`);
+    if (r.estado === 'publish' && !r.control) problems.push(`4.3.0.163: ${title} no pinta su control «Para todos» (la página no se midió)`);
+  }
+  const measured = Object.values(seen).filter((r) => r.estado === 'publish' && r.control).length;
+  if (measured < 4) problems.push(`4.3.0.163: sólo ${measured} página(s) con condiciones de F7a publicadas y medidas (esperadas al menos 4)`);
+  verdict('A14', !problems.length, problems.map((p) => `R4: ${p}`).concat(`R4 · 4.3.0.163: ${measured} página(s) con condiciones de F7a, ninguna muestra lo condicionado`));
+  s.problems.push(...problems);
+}
 
 /** R4 y R4v4: «sólo agregar» sobre B con el contenido de choque (A6, A7). */
 async function clash(s, v4) {
@@ -573,12 +712,23 @@ async function clash(s, v4) {
   problems.push(...kitAddProblems(kitBefore, kitAfter, v4 ? ', R4v4' : ''));
   if (!compare.same(sigBefore.options, sigAfter.options)) problems.push(`opciones de portada cambiaron: ${JSON.stringify(sigAfter.options)}`);
   verdict('A7', !problems.length, problems.map((p) => `${s.id}: ${p}`));
-  const a6 = compare.compareSnapshots(before, after, { allowOptions: CONTENT_OPTIONS, allowTables: { posts: 'nuevas', postmeta: 'nuevas', terms: 'nuevas', termmeta: 'nuevas', term_taxonomy: 'nuevas', term_relationships: 'nuevas' }, uploads: 'libre', kit: 'libre', caches: 'nuevas' });
+  const a6 = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, ...F7A_OPTIONS], allowTables: { posts: 'nuevas', postmeta: 'nuevas', terms: 'nuevas', termmeta: 'nuevas', term_taxonomy: 'nuevas', term_relationships: 'nuevas' }, uploads: 'libre', kit: 'libre', caches: 'nuevas' });
   verdict('A6', !a6.length, a6.slice(0, 10).map((p) => `${s.id}: ${p}`));
+  // F7a (V.13 #6): presets, globales de un preset, máscara del sitio, prioridad en borrador y referencia sin destino.
+  await withReview(sigAfter, run.session);
+  const f7a = await f7aClash(sigAfter, kitAfter, run.session);
+  for (const [id, list] of Object.entries(f7a)) verdict(id, !list.length, list.map((p) => `${s.id} (F7a): ${p}`));
+  s.f7a = f7a;
   // Tras «Publicar», una página importada pinta su fuente y su icono propios (CV-17): se comprueba en el HTML.
   const pub = await publish('b', run.session);
   if (!pub.ok) s.problems.push(`«Publicar páginas y plantillas»: ${pub.message}`);
+  // Lo condicionado por una condición de F7a que no se cumple para un visitante tampoco se ve aquí (A14).
+  s.condiciones = await conditionsSeen('b', await signature('b', `${s.id}-publicado`));
+  const shown = Object.entries(s.condiciones).filter(([t, r]) => r.condicionado && !['Condición campo', 'Condición autor'].includes(t)).map(([t]) => t);
+  verdict('A14', !shown.length, shown.map((t) => `${s.id}: un visitante ve «Condicionado: ${t}»`));
   networkCheck('b', s.id);
+  // Con QUICK=1, kit-roundtrip.sh no prepara 4.3.0.163: el paso sólo corre si se pasa OLD_ELEMENTS.
+  if (!v4 && (!QUICK || process.env.OLD_ELEMENTS)) await f7aOldVersion(s);
 }
 async function publish(site, session) {
   const auth = await adminSession(site);
@@ -603,6 +753,7 @@ async function R5(s) {
   const first = await importApp('b', kits.rest, { label: 'R5 primera' });
   if (!first.ok) { s.problems.push(`primera importación: ${first.message || first.failed.join('; ')}`); verdict('A8', false, 'R5: la primera importación falló'); return; }
   const kit1 = await R.control('b', 'kit');
+  const presets1 = (await R.control('b', 'option', { name: 'digitalisimo_elements_presets' })).value;
   const before = await snapshot('b', 'R5-antes');
   const second = await importApp('b', kits.rest, { label: 'R5 segunda' });
   if (!second.ok) { s.problems.push(`segunda importación: ${second.message || second.failed.join('; ')}`); verdict('A8', false, 'R5: la segunda importación falló'); return; }
@@ -611,6 +762,11 @@ async function R5(s) {
   const problems = compare.compareSnapshots(before, after, { allowOptions: CONTENT_OPTIONS, trees: true, uploads: 'igual' })
     .filter((p) => !/opción digitalisimo_elements_kit_session_/.test(p));
   for (const key of ['custom_colors', 'custom_typography']) if ((kit1.settings[key] || []).length !== (kit2.settings[key] || []).length) problems.push(`${key}: ${(kit1.settings[key] || []).length} → ${(kit2.settings[key] || []).length} (CV-10)`);
+  // F7a: la primera importación trae los presets; la segunda los reutiliza (misma huella) sin crear ninguno.
+  const presets2 = (await R.control('b', 'option', { name: 'digitalisimo_elements_presets' })).value;
+  const slugs = (v) => Object.keys((v && v.presets) || {}).sort();
+  if (!slugs(presets1).length) problems.push('la primera importación no trajo presets (F7a)');
+  if (!compare.same(presets1, presets2)) problems.push(`la segunda importación cambió los presets: ${JSON.stringify(slugs(presets1))} → ${JSON.stringify(slugs(presets2))} (F7a)`);
   const report = await R.control('b', 'report', { session: second.session });
   const counts = (((report || {}).session || {}).report || {}).counts || {};
   s.reutilizados = counts['origin.reuse'] || counts.reused || null;
@@ -635,6 +791,13 @@ async function R6(s) {
   const report = await R.control('net', 'report', { session: run.session || '', blog: 2 }).catch(() => null);
   const counts = (((report || {}).session || {}).report || {}).counts || {};
   if (!Object.keys(counts).some((c) => /custom_code\.skipped/.test(c))) problems.push('el informe no dice que Custom Code no se importó sin unfiltered_html');
+  // F7a: los presets del kit sólo en el sitio 2; los sitios 1 y 3 siguen sin la opción.
+  for (const blog of [1, 2, 3]) {
+    const value = (await R.control('net', 'option', { name: 'digitalisimo_elements_presets', blog })).value;
+    const n = Object.keys((value && value.presets) || {}).length;
+    if (blog === 2 && run.ok && !n) problems.push('el sitio 2 no recibió los presets del kit (F7a)');
+    if (blog !== 2 && value !== false) problems.push(`el sitio ${blog} tiene presets (${n}) tras importar en el sitio 2 (F7a)`);
+  }
   verdict('A9', !problems.length && run.ok, problems.map((p) => `R6: ${p}`));
   networkCheck('net', 'R6');
   await R.stopSite('net');
@@ -664,6 +827,7 @@ async function R8(s) {
   const before = await snapshot('b', 'R8-antes');
   const sigBefore = await signature('b', 'R8-antes', 'a.test');
   const kitBefore = await R.control('b', 'kit');
+  const presetsBefore = (await R.control('b', 'option', { name: 'digitalisimo_elements_presets' })).value;
   const run = await importApp('b', kits.rest, { label: 'R8' });
   if (!run.ok) { s.problems.push(`importación: ${run.message || run.failed.join('; ')}`); verdict('A10', false, 'R8: la importación falló'); return; }
   // Lo que creó la sesión: lo que hay después de importar y no estaba antes (B ya traía su contenido).
@@ -689,6 +853,10 @@ async function R8(s) {
   if (!created.length) problems.push('la importación no creó documentos: la reversión no se pudo medir');
   for (const [k, d] of Object.entries(sigBefore.documents)) if (!sig.documents[k] || sig.documents[k].status !== d.status) problems.push(`${k}, que ya estaba en B, cambió con la reversión`);
   if (!compare.same(kitBefore.settings, kitAfter.settings)) problems.push('los ajustes del kit no volvieron a los de antes');
+  // F7a: la parte `presets` revierte su opción y los valores por defecto que reescribió.
+  const presetsAfter = (await R.control('b', 'option', { name: 'digitalisimo_elements_presets' })).value;
+  if (!compare.same(presetsBefore, presetsAfter)) problems.push(`la opción digitalisimo_elements_presets no volvió a la de antes: ${JSON.stringify(Object.keys((presetsAfter && presetsAfter.presets) || {}))}`);
+  if (!compare.same(kitBefore.defaults, kitAfter.defaults)) problems.push(`los valores por defecto del kit no volvieron a los de antes: ${JSON.stringify(Object.keys(kitAfter.defaults || {}))}`);
   s.papelera = trashed;
   verdict('A10', !problems.length, problems.map((p) => `R8: ${p}`).concat(`R8: de ${created.length} documento(s) creados, ${trashed} en la papelera y ${s.borrados} plantilla(s) borradas del todo, como hace el núcleo (D16)`));
 }
@@ -696,6 +864,7 @@ async function R8(s) {
 /** R9: permisos y entradas hostiles (A11). */
 async function R9(s) {
   await freshB('users');
+  const content = await R.control('b', 'content');
   const problems = [];
   const editor = { nonce: await R.login('b', 'editora', 'editora-k', 'b-editora'), jar: 'b-editora', base: '' };
   for (const route of ['upload', 'import', 'import-runner', 'revert', 'export']) {
@@ -705,6 +874,11 @@ async function R9(s) {
     if (![401, 403, 404].includes(res.status)) problems.push(`editora → ${route}: ${res.status}, esperado un rechazo`);
     else s.editora = Object.assign(s.editora || {}, { [route]: res.status });
   }
+  // F7a: la editora abre el editor (deja _edit_lock y puede generar CSS) antes de la instantánea; sus acciones de
+  // presets van después y no deben cambiar nada.
+  const pageId = (content.ids || {}).page;
+  const editorPage = pageId ? await R.request('b', 'GET', `/wp-admin/post.php?post=${pageId}&action=elementor`, { jar: editor.jar }) : null;
+  const ajaxNonce = editorPage ? (editorPage.text.match(/"ajax":\{"url":"[^"]*","nonce":"([0-9a-f]{10})"/) || [])[1] : '';
   const before = await snapshot('b', 'R9-antes');
   const { zipStore } = build;
   const manifest = JSON.stringify({ name: 'hostil', title: 'Hostil', version: '3.0', site: 'http://hostil.test', templates: {}, content: {} });
@@ -734,6 +908,24 @@ async function R9(s) {
     const message = res.json && res.json.data ? (res.json.data.message || res.json.message || '') : (res.json && res.json.message) || '';
     if (res.status < 400) problems.push(`${name}: la subida no se rechazó (${res.status})`);
     else if (!message) problems.push(`${name}: rechazo sin mensaje`);
+  }
+  // F7a (V.13 #5, V-m14): la editora abre el editor y pide crear y borrar presets por elementor_ajax; el núcleo responde
+  // 200 y cada acción lleva su `code`, que debe ser 403.
+  const nonce = ajaxNonce;
+  if (!nonce) problems.push(`editora: sin el nonce de elementor_ajax en el editor (${editorPage ? editorPage.status : 'sin página'})`);
+  else {
+    const actions = {
+      guardar: { action: 'digitalisimo_preset_save', data: { slug: 'intruso', type: 'heading', label: 'Intruso', settings: { title_color: '#ff0000' } } },
+      borrar: { action: 'digitalisimo_preset_delete', data: { slug: 'intruso' } },
+    };
+    const body = new URLSearchParams({ action: 'elementor_ajax', _nonce: nonce, editor_post_id: String(pageId), initial_document_id: String(pageId), actions: JSON.stringify(actions) }).toString();
+    const res = await R.request('b', 'POST', '/wp-admin/admin-ajax.php', { body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, jar: editor.jar, label: 'R9 editora presets' });
+    const responses = (res.json && res.json.data && res.json.data.responses) || {};
+    s.presets_ajax = { http: res.status, codes: Object.fromEntries(Object.entries(responses).map(([k, v]) => [k, v && v.code])) };
+    for (const id of Object.keys(actions)) {
+      const r = responses[id];
+      if (!r || r.success !== false || Number(r.code) !== 403) problems.push(`editora → ${actions[id].action}: code ${r ? r.code : 'sin respuesta'} (HTTP ${res.status}), esperado 403`);
+    }
   }
   const after = await snapshot('b', 'R9-despues');
   const changed = compare.compareSnapshots(before, after, { allowOptions: CONTENT_OPTIONS, uploads: 'igual' })
@@ -835,6 +1027,16 @@ async function main() {
     await R.startSite('a');
     fs.copyFileSync(path.join(OUT, 'a', 'refs.json'), path.join(SHARED, 'refs-a.json'));
     sigA = await signature('a', 'a', '');
+    // F7a: A tiene lo que R1 y R4 comparan (presets sembrados, uno inerte, copias de máscara e índices).
+    {
+      const sane = [];
+      const p = sigA.presets || {};
+      if (Object.keys(p).length !== 4 || !(p['tipo-ausente'] || {}).inert) sane.push(`presets de A: ${JSON.stringify(Object.keys(p))}`);
+      if (!maskCopies(sigA).length) sane.push('A no tiene copias masks/<sha8>.svg de su máscara del sitio');
+      if (!at2(sigA, 'indexes', 'tracked_pages', 'union', 'length')) sane.push('A no tiene páginas rastreadas');
+      if (!Object.keys(at2(sigA, 'indexes', 'tb_priority') || {}).length) sane.push('A no tiene prioridades manuales');
+      verdict('A1', !sane.length, sane.map((x) => `preparación de A (F7a): ${x}`));
+    }
     const controls = R.readJson('a', 'controls.json');
     const refsFile = path.join(OUT, 'a', 'references.json');
     if (fs.existsSync(refsFile)) {

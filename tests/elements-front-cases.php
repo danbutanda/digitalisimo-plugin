@@ -93,7 +93,7 @@ namespace {
 		return $out;
 	}
 
-	$get_name    = '/function\s+get_name\s*\(\s*\)\s*(?::\s*string\s*)?\{\s*return\s+\'([^\']+)\'\s*;/';
+	$get_name    = '/function\s+get_name\s*\(\s*\)\s*(?::\s*string\s*)?\{\s*(?:\/\/[^\n]*\n\s*)*return\s+\'([^\']+)\'\s*;/';
 	$get_type    = '/function\s+get_element_type\s*\(\s*\)\s*(?::\s*string\s*)?\{\s*return\s+\'([^\']+)\'\s*;/';
 	$classes     = array(); // fqcn => [ parent, name, file ].
 	$by_name     = array(); // nombre de widget => [ fqcn, origen ].
@@ -213,7 +213,7 @@ namespace {
 	$cases       = is_array( $cases ) ? $cases : array();
 	$modes       = array( 'normal', 'cache', 'plugin', 'seo', 'guard', 'theme', 'migration', 'lazy', 'v4', 'old', 'old-applied', 'old-dirty', 'old-inactive', 'off' );
 	$expect_keys = array_merge( array( '*', 'pre', 'warm', 'before', 'after', 'old-applied+cache', 'guard+old' ), $modes );
-	$actions     = array( 'click', 'scroll', 'wait', 'waitFor', 'waitCount', 'mark', 'waitChange', 'hover', 'openSubmenu', 'viewport', 'fill', 'fillAll' );
+	$actions     = array( 'click', 'scroll', 'wait', 'waitFor', 'waitCount', 'mark', 'waitChange', 'hover', 'openSubmenu', 'viewport', 'fill', 'fillAll', 'reload' );
 	$extra_types = array( 'popup', 'section', 'page', 'container', 'widget', 'loop-item', 'header', 'footer' );
 	foreach ( $cases as $slug => $case ) {
 		check_cases( preg_match( '/^[a-z0-9-]+$/', (string) $slug ) && is_array( $case ) && isset( $case['title'] ), "$slug: nombre o título inválidos" );

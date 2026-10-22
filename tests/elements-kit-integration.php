@@ -6,7 +6,8 @@
  *  1. `Module::init()` engancha a todos los frentes (marcador, biblioteca, pantalla «Kits», WP-CLI).
  *  2. Una sola fuente: huellas y procedencia en `Parts\Origin`, lista negra en `Export\Meta_Blacklist`, condiciones
  *     en `Remapper`, recuento de marcadores en `Preserve`; la búsqueda de procedencia ve la biblioteca de plantillas.
- *  3. Cada código que emiten K y los derivados de PRO cae en una sección del informe (salvo los de diagnóstico).
+ *  3. Cada código que emiten K, los derivados de PRO y las partes y referencias de fuera de K (F7a: presets de estilo y
+ *     condiciones) cae en una sección del informe (salvo los de diagnóstico).
  *  4. «Publicar páginas y plantillas»: `Session::publishable()` existe y publica lo visible, nunca el Theme Builder;
  *     una sección (sin ubicación) no es plantilla «que se aplica sola» (D8).
  *  5. Datos personales: el `author` del manifiesto sale vacío y el `<guid>` del WXR no lleva el login.
@@ -141,7 +142,10 @@ namespace {
 		glob( $E . '/modules/*/import-export-customization/*.php' ),
 		glob( $E . '/modules/assets-manager/asset-types/*/import-export-customization/*.php' ),
 		glob( $E . '/modules/assets-manager/asset-types/import-export/traits/*.php' ),
-		glob( $E . '/modules/forms/actions/*.php' )
+		glob( $E . '/modules/forms/actions/*.php' ),
+		// Partes y referencias registradas fuera de K (F7a): presets de estilo y condiciones.
+		glob( $E . '/modules/digitalisimo-design/{,*/}*.php', GLOB_BRACE ),
+		glob( $E . '/modules/digitalisimo-conditions/*.php' )
 	);
 	$codes = array();
 	foreach ( $sources as $file ) {

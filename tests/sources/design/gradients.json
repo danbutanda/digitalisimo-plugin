@@ -1,0 +1,1226 @@
+{
+  "description": "Fixtures compartidas de los degradados de F7a: Backgrounds\\Gradient::rules() (tests/elements-design-gradient.php) y design-editor.js (tests/elements-design-gradient.mjs) deben dar exactamente `expected`. `config` es Gradient::editor_config().",
+  "config": {
+    "prefixes": {
+      "section": [
+        "background_",
+        "background_hover_",
+        "background_overlay_",
+        "background_overlay_hover_"
+      ],
+      "column": [
+        "background_",
+        "background_hover_",
+        "background_overlay_",
+        "background_overlay_hover_"
+      ],
+      "container": [
+        "background_",
+        "background_hover_",
+        "background_overlay_",
+        "background_overlay_hover_"
+      ],
+      "widget": [
+        "_background_",
+        "_background_hover_"
+      ]
+    },
+    "max": 8,
+    "positions": [
+      "center center",
+      "center left",
+      "center right",
+      "top center",
+      "top left",
+      "top right",
+      "bottom center",
+      "bottom left",
+      "bottom right"
+    ],
+    "defaults": {
+      "color": "",
+      "color_stop": {
+        "unit": "%",
+        "size": 0
+      },
+      "color_b": "#f2295b",
+      "color_b_stop": {
+        "unit": "%",
+        "size": 100
+      },
+      "gradient_type": "linear",
+      "gradient_angle": {
+        "unit": "deg",
+        "size": 180
+      },
+      "gradient_position": "center center"
+    },
+    "responsive": [
+      "color_stop",
+      "color_b_stop",
+      "gradient_angle",
+      "gradient_position",
+      "digi_conic_from"
+    ],
+    "deny": [
+      "<script",
+      "<foreignobject",
+      "<image",
+      "<iframe",
+      "<embed",
+      "<object",
+      "@import",
+      "url(",
+      "javascript:",
+      "<!entity",
+      "<?php"
+    ],
+    "svgMax": 8192,
+    "svgRawMax": 65536,
+    "svgError": "El SVG elegido no se puede usar como máscara ni como patrón: debe ser un SVG de este sitio, de hasta 8 KB y sin scripts, imágenes ni enlaces externos."
+  },
+  "cases": [
+    {
+      "name": "sin controles nuevos no emite nada",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": []
+      },
+      "expected": {},
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "lineal con una parada intermedia",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 135
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(135deg, #ff0000 0%, #00ff00 50%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "radial con paradas desordenadas y empate estable",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "radial",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "top left",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#111111",
+            "position": {
+              "unit": "%",
+              "size": 70
+            }
+          },
+          {
+            "_id": "b",
+            "color": "#222222",
+            "position": {
+              "unit": "%",
+              "size": 20
+            }
+          },
+          {
+            "_id": "c",
+            "color": "#333333",
+            "position": {
+              "unit": "%",
+              "size": 45
+            }
+          },
+          {
+            "_id": "d",
+            "color": "#444444",
+            "position": {
+              "unit": "%",
+              "size": 20
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "radial-gradient(at top left, #ff0000 0%, #222222 20%, #444444 20%, #333333 45%, #111111 70%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "cónico con ángulo y centro propios",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 90
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "conic",
+        "background_digi_repeat": "",
+        "background_digi_stops": [],
+        "background_digi_conic_from": {
+          "unit": "deg",
+          "size": 45
+        },
+        "background_digi_conic_at": "bottom right"
+      },
+      "expected": {
+        "desktop": "conic-gradient(from 45deg at bottom right, #ff0000 0%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "cónico sin ángulo ni centro guardados",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_b": "#0000ff",
+        "background_digi_kind": "conic"
+      },
+      "expected": {
+        "desktop": "conic-gradient(from 0deg at center center, #ff0000 0%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "lineal repetido",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ffffff",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#000000",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 10
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 90
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "yes",
+        "background_digi_stops": []
+      },
+      "expected": {
+        "desktop": "repeating-linear-gradient(90deg, #ffffff 0%, #000000 10%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "radial repetido sin posición guardada",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_b": "#0000ff",
+        "background_gradient_type": "radial",
+        "background_digi_repeat": "yes",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "rgba(0, 0, 0, 0.5)",
+            "position": {
+              "unit": "%",
+              "size": 5
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "repeating-radial-gradient(at center center, #ff0000 0%, rgba(0, 0, 0, 0.5) 5%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "cónico repetido",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "conic",
+        "background_digi_repeat": "yes",
+        "background_digi_stops": [],
+        "background_digi_conic_from": {
+          "unit": "deg",
+          "size": 0
+        },
+        "background_digi_conic_at": "center center"
+      },
+      "expected": {
+        "desktop": "repeating-conic-gradient(from 0deg at center center, #ff0000 0%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "ocho paradas como mucho",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_b": "#0000ff",
+        "background_digi_stops": [
+          {
+            "_id": "r1",
+            "color": "#000001",
+            "position": {
+              "unit": "%",
+              "size": 10
+            }
+          },
+          {
+            "_id": "r2",
+            "color": "#000002",
+            "position": {
+              "unit": "%",
+              "size": 20
+            }
+          },
+          {
+            "_id": "r3",
+            "color": "#000003",
+            "position": {
+              "unit": "%",
+              "size": 30
+            }
+          },
+          {
+            "_id": "r4",
+            "color": "#000004",
+            "position": {
+              "unit": "%",
+              "size": 40
+            }
+          },
+          {
+            "_id": "r5",
+            "color": "#000005",
+            "position": {
+              "unit": "%",
+              "size": 50
+            }
+          },
+          {
+            "_id": "r6",
+            "color": "#000006",
+            "position": {
+              "unit": "%",
+              "size": 60
+            }
+          },
+          {
+            "_id": "r7",
+            "color": "#000007",
+            "position": {
+              "unit": "%",
+              "size": 70
+            }
+          },
+          {
+            "_id": "r8",
+            "color": "#000008",
+            "position": {
+              "unit": "%",
+              "size": 80
+            }
+          },
+          {
+            "_id": "r9",
+            "color": "#000009",
+            "position": {
+              "unit": "%",
+              "size": 90
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #ff0000 0%, #000001 10%, #000002 20%, #000003 30%, #000004 40%, #000005 50%, #000006 60%, #000007 70%, #000008 80%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "filas no válidas descartadas",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "red;}body{x:y",
+            "position": {
+              "unit": "%",
+              "size": 30
+            }
+          },
+          {
+            "_id": "b",
+            "color": "#abcdef"
+          },
+          {
+            "_id": "c",
+            "color": "#123456",
+            "position": {
+              "unit": "px",
+              "size": 10
+            }
+          },
+          {
+            "_id": "d",
+            "color": "#654321",
+            "position": {
+              "unit": "%",
+              "size": 40
+            }
+          },
+          "texto",
+          {
+            "_id": "e",
+            "color": "url(x)",
+            "position": {
+              "unit": "%",
+              "size": 20
+            }
+          },
+          {
+            "_id": "f",
+            "color": "#999999",
+            "position": {
+              "unit": "%",
+              "size": ""
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #ff0000 0%, #654321 40%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "colores globales en A y en las filas",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#999999",
+            "position": {
+              "unit": "%",
+              "size": 50
+            },
+            "__globals__": {
+              "color": "globals/colors?id=accent"
+            }
+          },
+          {
+            "_id": "b",
+            "color": "#888888",
+            "position": {
+              "unit": "%",
+              "size": 60
+            },
+            "__globals__": {
+              "color": "globals/colors?id=Bad-Id"
+            }
+          }
+        ],
+        "__globals__": {
+          "background_color": "globals/colors?id=primary",
+          "background_color_b": ""
+        }
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, var(--e-global-color-primary) 0%, var(--e-global-color-accent) 50%, #888888 60%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "responsivo con herencia hacia el dispositivo mayor",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            },
+            "position_mobile": {
+              "unit": "%",
+              "size": 30
+            }
+          }
+        ],
+        "background_gradient_angle_tablet": {
+          "unit": "deg",
+          "size": 90
+        },
+        "background_gradient_angle_mobile": {
+          "unit": "deg",
+          "size": ""
+        },
+        "background_color_stop_tablet": {
+          "unit": "%",
+          "size": 10
+        },
+        "background_color_stop_mobile": {
+          "unit": "%"
+        }
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #ff0000 0%, #00ff00 50%, #0000ff 100%)",
+        "tablet": "linear-gradient(90deg, #ff0000 10%, #00ff00 50%, #0000ff 100%)",
+        "mobile": "linear-gradient(90deg, #ff0000 10%, #00ff00 30%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "un dispositivo sin valores propios no emite",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            },
+            "position_tablet": {
+              "unit": "%",
+              "size": ""
+            }
+          }
+        ],
+        "background_gradient_angle_tablet": {
+          "unit": "deg",
+          "size": ""
+        }
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #ff0000 0%, #00ff00 50%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "superposición",
+      "prefix": "background_overlay_",
+      "settings": {
+        "background_overlay_background": "gradient",
+        "background_overlay_color": "#ff0000",
+        "background_overlay_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_overlay_color_b": "#0000ff",
+        "background_overlay_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_overlay_gradient_type": "linear",
+        "background_overlay_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_overlay_gradient_position": "center center",
+        "background_overlay_digi_kind": "",
+        "background_overlay_digi_repeat": "",
+        "background_overlay_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #ff0000 0%, #00ff00 50%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "al pasar el cursor",
+      "prefix": "background_hover_",
+      "settings": {
+        "background_hover_background": "gradient",
+        "background_hover_color": "#ff0000",
+        "background_hover_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_hover_color_b": "#0000ff",
+        "background_hover_color_b_stop": {
+          "unit": "%",
+          "size": 25
+        },
+        "background_hover_gradient_type": "linear",
+        "background_hover_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_hover_gradient_position": "center center",
+        "background_hover_digi_kind": "",
+        "background_hover_digi_repeat": "yes",
+        "background_hover_digi_stops": []
+      },
+      "expected": {
+        "desktop": "repeating-linear-gradient(180deg, #ff0000 0%, #0000ff 25%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "widget",
+      "prefix": "_background_",
+      "settings": {
+        "_background_background": "gradient",
+        "_background_color": "#ff0000",
+        "_background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "_background_color_b": "#0000ff",
+        "_background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "_background_gradient_type": "linear",
+        "_background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "_background_gradient_position": "center center",
+        "_background_digi_kind": "",
+        "_background_digi_repeat": "",
+        "_background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #ff0000 0%, #00ff00 50%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "fondo clásico no emite",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "classic",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            }
+          }
+        ]
+      },
+      "expected": {},
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "A vacío es transparente",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, transparent 0%, #00ff00 50%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "B no válido deja el del núcleo",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "expression(alert(1))",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            }
+          }
+        ]
+      },
+      "expected": {},
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "ángulo y posición a medida",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "custom",
+          "size": "calc(10% + 5px)"
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "custom",
+          "size": "calc(45deg + 10deg)"
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(calc(45deg + 10deg), #ff0000 calc(10% + 5px), #00ff00 50%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "ángulo a medida no válido",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "custom",
+          "size": "1;}"
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "custom",
+          "size": "url(x)"
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #ff0000 0%, #00ff00 50%, #0000ff)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "puntos de corte adicionales",
+      "prefix": "background_",
+      "devices": [
+        "desktop",
+        "widescreen",
+        "laptop",
+        "tablet_extra",
+        "tablet",
+        "mobile"
+      ],
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#00ff00",
+            "position": {
+              "unit": "%",
+              "size": 50
+            },
+            "position_tablet": {
+              "unit": "%",
+              "size": 60
+            }
+          }
+        ],
+        "background_gradient_angle_widescreen": {
+          "unit": "deg",
+          "size": 45
+        },
+        "background_color_stop_laptop": {
+          "unit": "%",
+          "size": 5
+        }
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #ff0000 0%, #00ff00 50%, #0000ff 100%)",
+        "widescreen": "linear-gradient(45deg, #ff0000 0%, #00ff00 50%, #0000ff 100%)",
+        "laptop": "linear-gradient(180deg, #ff0000 5%, #00ff00 50%, #0000ff 100%)",
+        "tablet": "linear-gradient(180deg, #ff0000 5%, #00ff00 60%, #0000ff 100%)"
+      }
+    },
+    {
+      "name": "decimales y números en cadena",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "#ff0000",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "#0000ff",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "#aaaaaa",
+            "position": {
+              "unit": "%",
+              "size": "33.333333"
+            }
+          },
+          {
+            "_id": "b",
+            "color": "#bbbbbb",
+            "position": {
+              "unit": "%",
+              "size": 12.5
+            }
+          },
+          {
+            "_id": "c",
+            "color": "#cccccc",
+            "position": {
+              "unit": "%",
+              "size": "1e1"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #ff0000 0%, #cccccc 10%, #bbbbbb 12.5%, #aaaaaa 33.333333%, #0000ff 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    },
+    {
+      "name": "hsl, currentColor y espacios",
+      "prefix": "background_",
+      "settings": {
+        "background_background": "gradient",
+        "background_color": "  #FFF  ",
+        "background_color_stop": {
+          "unit": "%",
+          "size": 0
+        },
+        "background_color_b": "currentcolor",
+        "background_color_b_stop": {
+          "unit": "%",
+          "size": 100
+        },
+        "background_gradient_type": "linear",
+        "background_gradient_angle": {
+          "unit": "deg",
+          "size": 180
+        },
+        "background_gradient_position": "center center",
+        "background_digi_kind": "",
+        "background_digi_repeat": "",
+        "background_digi_stops": [
+          {
+            "_id": "a",
+            "color": "hsl(120deg 50% 50% / 0.5)",
+            "position": {
+              "unit": "%",
+              "size": 25
+            }
+          }
+        ]
+      },
+      "expected": {
+        "desktop": "linear-gradient(180deg, #FFF 0%, hsl(120deg 50% 50% / 0.5) 25%, currentColor 100%)"
+      },
+      "devices": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ]
+    }
+  ]
+}

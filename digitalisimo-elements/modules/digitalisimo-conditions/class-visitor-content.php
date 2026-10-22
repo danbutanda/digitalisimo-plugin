@@ -47,6 +47,9 @@ final class Visitor_Content {
 		'page_author', 'post_author', 'page_parent', 'page_title', 'post_title', 'featured_image', 'number_of_comments', 'date_of_publish', 'date_of_modification',
 		'digitalisimo_user', 'digitalisimo_specific_content', 'digitalisimo_post_type', 'digitalisimo_special_page', 'digitalisimo_url_path',
 		'digitalisimo_product_category', 'digitalisimo_product_category_archive', 'digitalisimo_product_price', 'digitalisimo_product_status', 'digitalisimo_product_stock', 'digitalisimo_product_type',
+		// F7a: campo del contenido o del término y autor (de la URL), campo del usuario (sólo con sesión) y búsqueda (de la URL).
+		// Cookie, visitas y existencias de otro producto varían y no están aquí.
+		'digitalisimo_field', 'digitalisimo_user_field', 'digitalisimo_author', 'digitalisimo_search',
 		'authentication', 'role', 'post_type', 'static_page', 'acf_boolean', 'acf_choice', 'acf_text', 'current_category_page',
 		'single_product_price', 'single_product_stock', 'single_product_category', 'single_product_downloadable', 'single_product_virtual', 'single_product_featured', 'single_product_backorder', 'single_product_onsale', 'single_product_sold_individually', 'single_product_type',
 	);
@@ -83,9 +86,16 @@ final class Visitor_Content {
 		return array_values( array_unique( array_map( 'strval', (array) apply_filters( 'digitalisimo_elements_visitor_content_cacheable_conditions', self::CACHEABLE_CONDITIONS ) ) ) );
 	}
 
-	/** Un widget que incrusta plantillas, o un widget de diapositivas con plantillas, no se guarda en caché. */
+	/**
+	 * Un widget que incrusta plantillas, o un widget de diapositivas con plantillas, no se guarda en caché. Tampoco un
+	 * elemento atómico (v4) con condiciones en su prop `display-conditions`: PRO sólo mira `e_display_conditions`, así
+	 * que sin esto la caché de elementos serviría a todos lo que vio el primer visitante (F7a, V.4.1).
+	 */
 	public static function is_dynamic_content( $is_dynamic, $raw_data ) {
 		if ( $is_dynamic ) {
+			return true;
+		}
+		if ( self::has_atomic_conditions( isset( $raw_data['settings'] ) && is_array( $raw_data['settings'] ) ? $raw_data['settings'] : array() ) ) {
 			return true;
 		}
 		$type = (string) ( $raw_data['widgetType'] ?? '' );
@@ -100,6 +110,33 @@ final class Visitor_Content {
 			}
 		}
 		return false;
+	}
+
+	/** ¿Tiene el prop v4 `display-conditions` algún grupo? Un prop sin valor o con la lista vacía no condiciona nada. */
+	public static function has_atomic_conditions( array $settings ) {
+		$prop = $settings['display-conditions'] ?? null;
+		if ( is_array( $prop ) && array_key_exists( 'value', $prop ) ) {
+			return is_array( $prop['value'] ) && ! empty( $prop['value'] );
+		}
+		return ! empty( $prop );
+	}
+
+	/**
+	 * Identificadores del prop v4 tal como lo guardan el control atómico y el editor: cada condición es una cadena JSON
+	 * (`{ $$type: string, value: "{\"condition\":…}" }`) dentro de un `condition-group`. Sin esto, una condición v4
+	 * variable no sacaría la página de la caché de página (F7a).
+	 */
+	public static function atomic_condition_ids( array $prop ) {
+		$ids = array();
+		foreach ( isset( $prop['value'] ) && is_array( $prop['value'] ) ? $prop['value'] : array() as $group ) {
+			foreach ( is_array( $group ) && isset( $group['value'] ) && is_array( $group['value'] ) ? $group['value'] : array() as $item ) {
+				$condition = is_array( $item ) && isset( $item['value'] ) && is_string( $item['value'] ) ? json_decode( $item['value'], true ) : null;
+				if ( is_array( $condition ) && isset( $condition['condition'] ) && is_string( $condition['condition'] ) ) {
+					$ids[] = $condition['condition'];
+				}
+			}
+		}
+		return $ids;
 	}
 
 	/** Identificadores bajo claves «condition» (cadena, o {value: cadena} en los elementos atómicos), a cualquier profundidad. */
@@ -139,7 +176,7 @@ final class Visitor_Content {
 			$ids = array_merge( $ids, self::collect_condition_keys( json_decode( $raw, true ) ) );
 		}
 		if ( ! empty( $settings['display-conditions'] ) ) {
-			$ids = array_merge( $ids, self::collect_condition_keys( (array) $settings['display-conditions'] ) );
+			$ids = array_merge( $ids, self::collect_condition_keys( (array) $settings['display-conditions'] ), self::atomic_condition_ids( (array) $settings['display-conditions'] ) );
 		}
 		$ids = (array) apply_filters( 'digitalisimo_elements_visitor_content_conditions', $ids, $settings );
 		foreach ( self::switches() as $key ) {

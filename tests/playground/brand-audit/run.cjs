@@ -301,7 +301,9 @@ async function audit(page, label) {
     if (own) {
       let items = [];
       try { items = await frame.evaluate(collect, CFG); } catch (e) { /* marco que se fue */ }
-      for (const item of items) brand.push({ locale, screen: label, frame: sub ? 'iframe' : '', ...item });
+      // La pantalla de Migración nombra, sin enlace, los plugins que desactiva (AGENTS.md): su texto queda exento también
+      // en brand-audit.json, no sólo en el recuento (TEXT_EXEMPT).
+      for (const item of items) brand.push({ locale, screen: label, frame: sub ? 'iframe' : '', ...item, ...(item.kind === 'texto' && TEXT_EXEMPT.test(label) ? { exempt: true } : {}) });
     }
     if (own || blank) {
       let urls = [];
@@ -484,6 +486,158 @@ if (require.main === module) (async () => {
     }
   };
 
+  // F7a (SCOPE=full): un paso del panel es una lista de acciones $e/DOM en la página del editor (cada una devuelve ''
+  // o el motivo del fallo), una espera y la auditoría; `need` son selectores que deben existir al auditar.
+  const f7aError = (label, what) => brand.push({ locale: state.locale, screen: label, kind: 'error', text: `F7a: ${what}`, shown: true, where: '' });
+  const f7aStep = async (label, actions, { need = [], wait = 1500, target = page } = {}) => {
+    await enter(label);
+    for (const [fn, arg] of actions) {
+      const res = await target.evaluate(fn, arg).catch((e) => 'error: ' + e.message);
+      // La espera (`settle`) no es una comprobación: lo que no se asienta va a las notas; los `need` deciden.
+      if (res && fn === settle) notes.push(`${state.locale} ${label}: espera del editor: ${String(res).replace(/^aviso: /, '')}`);
+      else if (res) f7aError(label, res);
+      await sleep(900);
+    }
+    await sleep(wait);
+    for (const sel of need) if (!(await target.$(sel).catch(() => null))) f7aError(label, `no aparece ${sel}`);
+    await audit(page, label);
+    visited.push(`${state.locale} ${label}`);
+  };
+  const pick = (id) => { const c = elementor.getContainer(id); if (!c) return `sin el elemento ${id}`; $e.run('document/elements/select', { container: c }); return ''; };
+  const tab = (name) => { const t = document.querySelector(`#elementor-panel .elementor-tab-control-${name} a, #elementor-panel .elementor-tab-control-${name}`); if (!t) return `sin la pestaña ${name}`; t.click(); return ''; };
+  const section = (name) => {
+    const v = elementor.getPanelView().getCurrentPageView();
+    if (!v || typeof v.activateSection !== 'function') return 'el panel no tiene secciones';
+    v.activateSection(name);
+    v._renderChildren();
+    return document.querySelector(`#elementor-panel .elementor-control-${name}`) ? '' : `sin la sección ${name}`;
+  };
+  const popover = (name) => { const t = document.querySelector(`#elementor-panel .elementor-control-${name} .elementor-control-popover-toggle-toggle-label`); if (!t) return `sin el popover ${name}`; t.click(); return ''; };
+  const route = (r) => { $e.route(r); return ''; };
+  const run = (r) => { $e.run(r); return ''; };
+  const click = (sel) => { const b = document.querySelector(sel); if (!b) return `sin ${sel}`; b.click(); return ''; };
+  const closeDialog = () => { const b = [...document.querySelectorAll('.dialog-widget .dialog-cancel, .dialog-widget .dialog-button.dialog-cancel')].find((x) => x.offsetParent); if (b) b.click(); return ''; };
+  // Estado limpio antes de cada paso de F7a: los pasos anteriores del editor (Escape tras cada uno, notas, buscador,
+  // lista de pasos) pueden dejar abierto el diálogo «Salir», un panel lateral o el modo vista previa, sin panel.
+  const reset = () => {
+    for (const d of document.querySelectorAll('.dialog-widget, [role="dialog"]')) {
+      if (!d.offsetParent && getComputedStyle(d).position !== 'fixed') continue;
+      const cancel = d.querySelector('.dialog-cancel, .dialog-button.dialog-cancel') || [...d.querySelectorAll('button')].find((b) => /^(cancel|cancelar)$/i.test(b.textContent.trim()));
+      if (cancel) cancel.click();
+    }
+    // Sólo lo que está abierto: cerrar «Ajustes del sitio» sin abrirlo cambia de documento.
+    for (const name of ['notes', 'finder', 'shortcuts', 'navigator', 'library', 'panel/global']) { try { const c = $e.components.get(name); if (c && c.isOpen) $e.run(`${name}/close`); } catch (e) { /* no estaba abierto */ } }
+    try { if (elementor.channels.dataEditMode.request('activeMode') !== 'edit') elementor.changeEditMode('edit'); } catch (e) { /* ya en edición */ }
+    try { $e.run('panel/open'); } catch (e) { /* ya abierto */ }
+    return '';
+  };
+  // Espera a que el editor se asiente: hay documento actual y ningún elemento de la vista previa espera su render
+  // remoto (`elementor-loading`). El núcleo (`onModelRemoteRender`) lee `elementor.documents.getCurrent().id`: si un
+  // render remoto (el del widget de vídeo, que no tiene plantilla JS) vuelve mientras se cambia de documento, lanza
+  // «Cannot read properties of null (reading 'id')» y el cambio a «Ajustes del sitio» queda a medias, sin documento,
+  // para el resto de los pasos. Con un solo worker y carga alta ese render tarda varios segundos.
+  // El núcleo sólo quita `elementor-loading` cuando `render_widget` responde con éxito (`onRemoteGetHtml`): si la
+  // petición se aborta (`renderRemoteServer` aborta la activa al repetirse) o falla, la clase queda para siempre sin
+  // nada que esperar. Esa clase huérfana (sin petición activa en su modelo) se reintenta una vez a los 5 s y, si a los
+  // 20 s sigue, deja de bloquear. El motivo nombra cada elemento; empieza por «aviso:» cuando no impide seguir.
+  const settle = () => new Promise((resolve) => {
+    const start = Date.now();
+    const seen = new Map();
+    const retried = new Set();
+    const tick = () => {
+      let busy = '';
+      const orphans = [];
+      try {
+        if (!elementor.documents.getCurrent()) busy = 'sin documento actual';
+        else {
+          const active = [];
+          for (const el of (elementor.$previewContents ? elementor.$previewContents.find('.elementor-loading').toArray() : [])) {
+            const id = el.getAttribute('data-id') || '';
+            let model = null;
+            try { const c = id ? elementor.getContainer(id) : null; model = c ? (c.view && c.view.getEditModel ? c.view.getEditModel() : c.model) : null; } catch (e) { /* sin contenedor */ }
+            const name = `${id || '?'}${model ? ` ${model.get('widgetType') || model.get('elType') || ''}` : ''}`.trim();
+            if (model && typeof model.isRemoteRequestActive === 'function' && !model.isRemoteRequestActive()) orphans.push({ id: id || name, name, model });
+            else active.push(name);
+          }
+          if (active.length) busy = `${active.length} elementos con render remoto pendiente: ${active.join(', ')}`;
+        }
+      } catch (e) { busy = String(e.message || e); }
+      const now = Date.now();
+      for (const o of orphans) {
+        if (!seen.has(o.id)) seen.set(o.id, now);
+        else if (now - seen.get(o.id) > 5000 && !retried.has(o.id)) { retried.add(o.id); try { o.model.renderRemoteServer(); } catch (e) { /* sin render remoto */ } }
+      }
+      const waiting = orphans.filter((o) => now - seen.get(o.id) <= 20000);
+      if (!busy && !waiting.length) {
+        resolve(orphans.length ? `aviso: ${orphans.length} elementos conservan elementor-loading sin petición activa tras reintentar su render (${orphans.map((o) => o.name).join(', ')}); se sigue` : '');
+        return;
+      }
+      if (now - start > 90000) { resolve(`el editor no se asentó en 90 s (${busy || `${waiting.length} elementos sin petición activa con elementor-loading`})`); return; }
+      setTimeout(tick, 500);
+    };
+    tick();
+  });
+  // La espera fuera de un paso: lo que no se asienta queda en las notas (AVISO). No es marca: lo que el paso siguiente
+  // tenga que ver lo comprueban sus `need`.
+  const settleNow = async (label) => {
+    const res = await page.evaluate(settle).catch((e) => 'error: ' + e.message);
+    if (res) notes.push(`${state.locale} ${label}: espera del editor: ${String(res).replace(/^aviso: /, '')}`);
+  };
+  const f7aEditor = async (frame) => {
+    // Presets: «Preset de estilo» en Avanzado del encabezado vinculado, su menú contextual y el diálogo «Guardar estilo
+    // como preset…» (se cancela), y la pestaña «Presets de estilo» de Ajustes del sitio con el diálogo de borrar.
+    await f7aStep('editor · F7a · preset de estilo', [[settle, null], [reset, null], [settle, null], [pick, 'mw00001'], [tab, 'advanced'], [section, 'digitalisimo_section_preset']], { need: ['#elementor-panel .elementor-control-digitalisimo_preset'] });
+    await enter('editor · F7a · menú contextual de presets');
+    await settleNow('editor · F7a · menú contextual de presets');
+    await page.evaluate(reset).catch(() => {});
+    await sleep(900);
+    await settleNow('editor · F7a · menú contextual de presets');
+    const heading = await frame.$('.elementor-element-mw00001');
+    if (heading) {
+      // El evento `contextmenu` en el elemento de la vista previa (el que escucha el comportamiento del núcleo); el clic
+      // derecho del ratón queda de respaldo: con la vista previa ocupada no siempre llega.
+      const group = '.elementor-context-menu-list__group-digitalisimo-preset';
+      await frame.evaluate(() => {
+        const el = document.querySelector('.elementor-element-mw00001');
+        const r = el.getBoundingClientRect();
+        el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window, button: 2, clientX: r.left + 12, clientY: r.top + 12 }));
+      }).catch(() => {});
+      if (!(await page.waitForSelector(group, { visible: true, timeout: 8000 }).catch(() => null))) {
+        await heading.click({ button: 'right' }).catch(() => {});
+        await page.waitForSelector(group, { visible: true, timeout: 8000 }).catch(() => null);
+      }
+      await sleep(800);
+      if (!(await page.$(group))) f7aError('editor · F7a · menú contextual de presets', 'el menú contextual no tiene el grupo de presets');
+      await audit(page, 'editor · F7a · menú contextual de presets');
+      visited.push(`${state.locale} editor · F7a · menú contextual de presets`);
+      const item = await page.$('.elementor-context-menu-list__item-digitalisimo-preset-save:not(.elementor-context-menu-list__item--disabled)');
+      if (item) {
+        await item.click().catch(() => {});
+        await f7aStep('editor · F7a · guardar estilo como preset (diálogo)', [], { need: ['.dialog-widget .dialog-confirm-ok, .dialog-widget .dialog-ok, .dialog-widget input'] });
+        await page.evaluate(closeDialog).catch(() => {});
+      } else f7aError('editor · F7a · menú contextual de presets', 'sin la acción «Guardar estilo como preset…» habilitada');
+      await page.keyboard.press('Escape').catch(() => {});
+    } else f7aError('editor · F7a · menú contextual de presets', 'la vista previa no tiene mw00001');
+    await f7aStep('editor · F7a · ajustes del sitio · presets de estilo', [[settle, null], [reset, null], [settle, null], [run, 'panel/global/open'], [settle, null], [route, 'panel/global/settings-digitalisimo-presets']], { need: ['#elementor-panel [data-digi-preset-row="marca-titulo"]'], wait: 2500 });
+    await f7aStep('editor · F7a · presets de estilo · borrar (diálogo)', [[click, '#elementor-panel [data-digi-preset-action="delete"][data-digi-preset="marca-titulo"]']], { need: ['.dialog-widget .dialog-cancel'] });
+    await page.evaluate(closeDialog).catch(() => {});
+    // Cerrar «Ajustes del sitio» vuelve al documento de la página: antes y después, sin render remoto pendiente.
+    await settleNow('editor · F7a · cerrar ajustes del sitio');
+    await page.evaluate(() => { try { $e.run('panel/global/close'); } catch (e) { /* ya cerrado */ } }).catch(() => {});
+    await sleep(1500);
+    await settleNow('editor · F7a · cerrar ajustes del sitio');
+    // Fondo del contenedor: degradado avanzado (forma cónica, paradas) y el popover «Patrón».
+    await f7aStep('editor · F7a · degradado avanzado', [[settle, null], [reset, null], [settle, null], [pick, 'mc00003'], [tab, 'style'], [section, 'section_background']], { need: ['#elementor-panel .elementor-control-background_digi_kind', '#elementor-panel .elementor-control-background_digi_stops', '#elementor-panel .elementor-control-background_digi_conic_from'] });
+    await f7aStep('editor · F7a · patrón (popover)', [[popover, 'digitalisimo_pattern']], { need: ['#elementor-panel .elementor-control-digitalisimo_pattern_tile', '#elementor-panel .elementor-control-digitalisimo_pattern_raise'] });
+    await page.keyboard.press('Escape').catch(() => {});
+    // Avanzado del contenedor: la sección «Máscara» y, en Efectos de movimiento, el aviso del sticky en el propio
+    // elemento fijo; en su hijo, el estado «al fijarse».
+    await f7aStep('editor · F7a · máscara', [[settle, null], [reset, null], [settle, null], [pick, 'mc00003'], [tab, 'advanced'], [section, 'digitalisimo_section_mask']], { need: ['#elementor-panel .elementor-control-digitalisimo_mask_shape'] });
+    await f7aStep('editor · F7a · sticky · aviso en el elemento fijo', [[section, 'section_effects']], { need: ['#elementor-panel .elementor-control-sticky'] });
+    await f7aStep('editor · F7a · sticky · estado al fijarse', [[settle, null], [reset, null], [settle, null], [pick, 'mw00006'], [tab, 'advanced'], [section, 'section_effects']], { need: ['#elementor-panel .elementor-control-digitalisimo_sticky_state'] });
+    // Ajustes de la página: «Ocultar imagen destacada» (cualquier tema) y la nota de cabecera y pie con otro tema.
+    await f7aStep('editor · F7a · controles de documento', [[settle, null], [reset, null], [settle, null], [route, 'panel/page-settings/settings']], { need: ['#elementor-panel .elementor-control-digitalisimo_hide_featured_image'] });
+  };
   for (const locale of LOCALES) {
     state.locale = locale;
     await page.setCookie({ name: 'digi_locale', value: locale, url: base });
@@ -511,6 +665,8 @@ if (require.main === module) (async () => {
       'wp-admin/edit.php?post_type=e-floating-buttons', 'wp-admin/edit.php?post_type=e-landing-page',
       'wp-admin/themes.php', 'wp-admin/update-core.php', 'wp-admin/upload.php', 'wp-admin/post-new.php', 'wp-admin/tools.php',
       'wp-admin/tools.php?page=digitalisimo-ep-migration',
+      // F7a: «Rendimiento» con su sección «Privacidad» (también llega por el menú; aquí, aunque el menú cambie).
+      'wp-admin/admin.php?page=digitalisimo-elements-front',
       'wp-admin/admin.php?page=elementor-app#/kit-library/cloud', 'wp-admin/admin.php?page=elementor-app#/kit-library/favorites',
       'wp-admin/admin.php?page=elementor-app#/onboarding', 'wp-admin/admin.php?page=elementor-app#/import-customization',
       'wp-admin/admin.php?page=elementor-app#/export-customization', 'wp-admin/admin.php?page=elementor-app#/site-editor/templates',
@@ -534,6 +690,16 @@ if (require.main === module) (async () => {
         // Pestañas de Ajustes y Herramientas (en la misma página) y el diálogo «Añadir plantilla».
         if (/page=elementor-(settings|tools)\b/.test(url)) await clickEach('.nav-tab-wrapper a.nav-tab, [role="tablist"] [role="tab"]', label, { max: 12 });
         if (/\/edit\.php\?post_type=elementor_library(&|$)/.test(url)) await clickEach('.page-title-action', label, { max: 1 });
+        // F7a: la sección «Privacidad» de «Rendimiento» («Registrar visitas sin gestor de consentimiento»).
+        if (/[?&]page=digitalisimo-elements-front(&|$)/.test(url)) {
+          const at = `${label} · Privacidad`;
+          await enter(at);
+          const found = await page.evaluate(() => { const h = document.getElementById('digitalisimo-front-privacy'); if (!h) return false; h.scrollIntoView({ block: 'start' }); return !!document.querySelector('input[name*="page_visits_no_consent"]'); }).catch(() => false);
+          if (!found) f7aError(at, 'sin la sección «Privacidad» o sin la casilla page_visits_no_consent');
+          await sleep(800);
+          await audit(page, at);
+          visited.push(`${state.locale} ${at}`);
+        }
       };
       await screenAt(url, short(url), { after });
     }
@@ -570,6 +736,8 @@ if (require.main === module) (async () => {
     // Un estado del editor abierto con un comando $e (no por textos, que dependen del idioma).
     const editorStep = async (label, fn, arg, wait = 2000) => {
       await enter(label);
+      // Sin cambiar de documento con un render remoto pendiente (ver `settle`); si no se asienta, el paso sigue igual.
+      await settleNow(label);
       const res = await page.evaluate(fn, arg).catch((e) => 'error: ' + e.message);
       // Un error del editor al abrir el estado se anota, pero lo que haya quedado en pantalla se audita igual.
       if (typeof res === 'string' && res) notes.push(`${state.locale} ${label}: ${res}`);
@@ -633,6 +801,8 @@ if (require.main === module) (async () => {
         await enter('editor · menú contextual');
         const el = await frame.$('.elementor-element-mw00001');
         if (el) { await el.click({ button: 'right' }).catch(() => {}); await sleep(1500); await audit(page, 'editor · menú contextual'); await page.keyboard.press('Escape').catch(() => {}); }
+        // F7a: pantallas nuevas del editor. Un control o una sección que falta es un error: no se habría auditado.
+        await f7aEditor(frame);
         // Cada botón de la barra superior del editor, salvo publicar o guardar.
         await clickEach('#elementor-editor-wrapper-v2 header button', 'editor · barra superior', { max: 14 });
       }
@@ -642,7 +812,30 @@ if (require.main === module) (async () => {
     if (SCOPE === 'full') {
       for (const [key, prefix] of [['popup', 'editor popup'], ['header', 'editor cabecera']]) {
         if (!IDS[key]) continue;
-        try { await editorAt(IDS[key], prefix); } catch (e) { notes.push(`${locale} ${prefix}: ${String(e.message || e).slice(0, 160)}`); }
+        try {
+          await editorAt(IDS[key], prefix);
+          // F7a: la prioridad manual de la plantilla, en los ajustes del documento de la cabecera.
+          // F7a: la prioridad manual de la plantilla, en los ajustes del documento de la cabecera. En este sitio (tema de
+          // bloques, sin ubicaciones) la vista previa de la cabecera nunca se adjunta, desde antes de F7a, y sin ella el
+          // panel no tiene «Ajustes de la página»: entonces se comprueba el control en la configuración del documento y
+          // se revisan su etiqueta y su ayuda.
+          if (key === 'header') {
+            const at = `${prefix} · F7a · prioridad de la plantilla`;
+            const ready = await page.evaluate(() => { try { $e.route('panel/page-settings/settings'); return ''; } catch (e) { return String(e.message || e); } }).catch((e) => String(e.message || e));
+            if (!ready) await f7aStep(at, [[settle, null], [reset, null], [settle, null], [route, 'panel/page-settings/settings']], { need: ['#elementor-panel .elementor-control-digitalisimo_tb_priority'] });
+            else {
+              await enter(at);
+              const info = await page.evaluate(() => { const c = ((elementor.config.document || {}).settings || {}).controls || {}; const p = c.digitalisimo_tb_priority; return p ? { label: String(p.label || ''), description: String(p.description || ''), type: p.type } : null; }).catch(() => null);
+              if (!info) f7aError(at, 'el documento de la cabecera no declara digitalisimo_tb_priority');
+              else {
+                if (/\belementor\b/i.test(`${info.label} ${info.description}`)) brand.push({ locale: state.locale, screen: at, kind: 'texto', text: `${info.label} · ${info.description}`.slice(0, 200), shown: true, where: 'controls.digitalisimo_tb_priority' });
+                notes.push(`${state.locale} ${at}: sin vista previa de la cabecera (${ready}); control comprobado en la configuración del documento: «${info.label}» (${info.type})`);
+              }
+              await audit(page, at);
+              visited.push(`${state.locale} ${at}`);
+            }
+          }
+        } catch (e) { notes.push(`${locale} ${prefix}: ${String(e.message || e).slice(0, 160)}`); }
         await closeOthers();
       }
     }

@@ -49,6 +49,9 @@ function inspect() {
     gradient: root.getPropertyValue('--digi-gradient').trim(),
     primary: primary ? { text: primary.value || primary.textContent.trim(), image: getComputedStyle(primary).backgroundImage, color: getComputedStyle(primary).color } : null,
     elementorColors,
+    // F7a: la sección «Privacidad» de «Rendimiento», visible, con su casilla (la revisión de colores de arriba ya la cubre).
+    privacy: (() => { const h = document.getElementById('digitalisimo-front-privacy'); return !!h && shown(h); })(),
+    privacyField: !!document.querySelector('input[name="digitalisimo_elements_front[page_visits_no_consent]"]'),
   };
 }
 
@@ -69,7 +72,8 @@ function inspect() {
       const facts = await page.evaluate(inspect);
       const label = `${run.name} · ${screen}`;
       const file = `${OUT}/${run.name}-${screen.replace(/[^a-z0-9]+/gi, '-').slice(0, 60)}.png`;
-      await page.screenshot({ path: file, fullPage: false });
+      // «Rendimiento» se captura entera: la sección «Privacidad» (F7a) queda debajo del primer pantallazo.
+      await page.screenshot({ path: file, fullPage: /page=digitalisimo-elements-front\b/.test(screen) });
       const fail = [];
       if (!response || response.status() >= 400) fail.push(`respuesta ${response ? response.status() : 'nula'}`);
       if (!facts.bodyClass) fail.push('sin la clase de body digitalisimo-admin');
@@ -78,6 +82,7 @@ function inspect() {
       if (!/linear-gradient/.test(facts.gradient)) fail.push(`token --digi-gradient inválido: «${facts.gradient}»`);
       if (facts.primary && !/linear-gradient/.test(facts.primary.image)) fail.push(`botón primario «${facts.primary.text}» sin degradado (${facts.primary.image})`);
       if (facts.elementorColors.length) fail.push(`paleta del constructor: ${facts.elementorColors.slice(0, 3).join(' | ')}`);
+      if (/page=digitalisimo-elements-front\b/.test(screen) && (!facts.privacy || !facts.privacyField)) fail.push(`sin la sección «Privacidad» visible o sin la casilla page_visits_no_consent (${facts.privacy}/${facts.privacyField})`);
       results.push({ label, ...facts, fail });
       console.log(`${fail.length ? 'FALLA' : 'ok   '} ${label}${fail.length ? ' — ' + fail.join('; ') : ''}${facts.primary ? '' : ' (sin botón primario visible)'}`);
       if (fail.length) problems.push(label);

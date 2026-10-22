@@ -39,6 +39,17 @@ function digi_k_reference_keys() {
 	);
 }
 
+/**
+ * Claves de condiciones del motor nativo que guardan IDs, por condición (F7a): dentro de `e_display_conditions` la
+ * misma clave (`pages`) puede ser una lista de IDs o el centinela `digitalisimo_f7a`, así que se nombra por condición.
+ */
+function digi_k_condition_reference_keys() {
+	return array(
+		'digitalisimo_page_visit'       => array( 'pages' => 'post' ),
+		'digitalisimo_product_stock_of' => array( 'products' => 'post' ),
+	);
+}
+
 final class Digi_K_Signature {
 	/** @var string */
 	private $home;
@@ -197,6 +208,10 @@ final class Digi_K_Signature {
 				$this->used_files[ $file ] = true;
 			}
 		}
+		// Copia saneada de un SVG del sitio de una máscara o un patrón (F7a): el control oculto guarda la ruta relativa.
+		if ( preg_match( '#^digitalisimo-elements/(masks/[a-z0-9]+(?:-[a-z0-9]+)*\.svg)$#', $value, $m ) ) {
+			$this->used_files[ $m[1] ] = true;
+		}
 		$value = preg_replace_callback(
 			'#' . preg_quote( $this->uploads, '#' ) . '/[^\s"\'()<>]+#',
 			function ( $match ) {
@@ -301,7 +316,7 @@ final class Digi_K_Signature {
 		}
 		if ( isset( $settings['e_display_conditions'] ) && is_array( $settings['e_display_conditions'] ) ) {
 			$decoded = json_decode( (string) ( $settings['e_display_conditions'][0] ?? '[]' ), true );
-			$settings['e_display_conditions'] = is_array( $decoded ) ? $this->generic( $decoded, $doc ) : $settings['e_display_conditions'];
+			$settings['e_display_conditions'] = is_array( $decoded ) ? $this->generic( $this->condition_refs( $decoded ), $doc ) : $settings['e_display_conditions'];
 		}
 		if ( isset( $settings['__dynamic__'] ) && is_array( $settings['__dynamic__'] ) ) {
 			foreach ( $settings['__dynamic__'] as $key => $tag ) {
@@ -321,6 +336,22 @@ final class Digi_K_Signature {
 			}
 		}
 		return $this->generic( $settings, $doc . ' · ' . $element_id );
+	}
+
+	/** Grupos de `e_display_conditions` con los IDs de las condiciones de F7a nombrados (digi_k_condition_reference_keys). */
+	private function condition_refs( array $groups ) {
+		$keys = digi_k_condition_reference_keys();
+		foreach ( $groups as $g => $group ) {
+			foreach ( is_array( $group ) ? $group : array() as $c => $condition ) {
+				$name = is_array( $condition ) ? (string) ( $condition['condition'] ?? '' ) : '';
+				foreach ( $keys[ $name ] ?? array() as $key => $kind ) {
+					if ( isset( $condition[ $key ] ) && is_array( $condition[ $key ] ) ) {
+						$groups[ $g ][ $c ][ $key ] = $this->sym( $kind, array_values( $condition[ $key ] ) );
+					}
+				}
+			}
+		}
+		return $groups;
 	}
 
 	/** IDs de elemento de un árbol. */
@@ -653,6 +684,40 @@ function digi_k_signature() {
 		}
 		unset( $config['custom_icon_post_id'] );
 		$out['icons'][ $set->post_title ] = array( 'status' => $set->post_status, 'config' => $config );
+	}
+
+	// Presets de estilo del sitio (F7a): la opción entera, con `hash`, `updated` e `inert` (R1 los compara tal cual).
+	$presets = get_option( 'digitalisimo_elements_presets', array() );
+	$out['presets'] = array();
+	foreach ( (array) ( is_array( $presets ) ? ( $presets['presets'] ?? array() ) : array() ) as $slug => $preset ) {
+		$out['presets'][ $slug ] = is_array( $preset ) ? $sig->generic( $preset, 'presets · ' . $slug ) : $preset;
+	}
+	ksort( $out['presets'] );
+	// Índices derivados de F7a (páginas rastreadas por «Visitó la página» y prioridad manual del Theme Builder), con
+	// sus IDs nombrados: tras importar deben apuntar a los documentos de este sitio.
+	$tracked = get_option( 'digitalisimo_elements_tracked_pages', null );
+	$out['indexes'] = array( 'tracked_pages' => null, 'tb_priority' => null );
+	if ( is_array( $tracked ) ) {
+		$docs = array();
+		foreach ( (array) ( $tracked['docs'] ?? array() ) as $doc_id => $pages ) {
+			$name          = $sig->sym( 'post', (int) $doc_id );
+			$list          = $sig->sym( 'post', array_values( array_map( 'intval', (array) $pages ) ) );
+			sort( $list );
+			$docs[ $name ] = $list;
+		}
+		ksort( $docs );
+		$union = $sig->sym( 'post', array_values( array_map( 'intval', (array) ( $tracked['union'] ?? array() ) ) ) );
+		sort( $union );
+		$out['indexes']['tracked_pages'] = array( 'docs' => $docs, 'union' => $union );
+	}
+	$priority = get_option( 'digitalisimo_elements_tb_priority', null );
+	if ( is_array( $priority ) ) {
+		$named = array();
+		foreach ( $priority as $template_id => $number ) {
+			$named[ $sig->sym( 'template', (int) $template_id ) ] = (int) $number;
+		}
+		ksort( $named );
+		$out['indexes']['tb_priority'] = $named;
 	}
 
 	$out['options'] = array(

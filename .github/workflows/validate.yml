@@ -215,6 +215,21 @@ jobs:
           node tests/elements-kit-inventory.mjs
           node tests/elements-kit-app-guard.mjs
           node tests/elements-kit-fixtures.mjs
+          # Capacidades de Divi y Betheme (etapa F7a)
+          php tests/elements-design-css.php
+          php tests/elements-design-presets.php
+          php tests/elements-design-presets-kit.php
+          node tests/elements-design-presets-editor.mjs
+          php tests/elements-design-gradient.php
+          node tests/elements-design-gradient.mjs
+          php tests/elements-design-backgrounds.php
+          php tests/elements-conditions-more.php
+          php tests/elements-page-visits.php
+          node tests/elements-page-visits.mjs
+          php tests/elements-tb-priority.php
+          php tests/elements-sticky-state.php
+          php tests/elements-document-controls.php
+          node tests/elements-design-static.mjs
       - name: Construir paquetes limpios
         run: |
           mkdir -p dist

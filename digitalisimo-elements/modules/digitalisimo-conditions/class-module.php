@@ -14,6 +14,21 @@ final class Display_Conditions {
 	const GROUP_URL         = 'digitalisimo_url';
 	const GROUP_WOOCOMMERCE = 'digitalisimo_woocommerce';
 
+	/**
+	 * Condiciones de F7a (`class-conditions-more.php`). Se registran siempre, también sin WooCommerce, y cada grupo
+	 * que las usa lleva el centinela de `Conditions\Conditions_Guard`: volver a una versión que no las conoce, o
+	 * llevarlas en un kit a ella, nunca amplía quién ve un elemento.
+	 */
+	const MORE = array(
+		'digitalisimo_cookie',
+		'digitalisimo_page_visit',
+		'digitalisimo_field',
+		'digitalisimo_user_field',
+		'digitalisimo_author',
+		'digitalisimo_product_stock_of',
+		'digitalisimo_search',
+	);
+
 	public static function init() {
 		add_action( 'elementor/display_conditions/register_groups', array( __CLASS__, 'register_groups' ) );
 		add_action( 'elementor/display_conditions/register', array( __CLASS__, 'register_conditions' ) );
@@ -22,6 +37,11 @@ final class Display_Conditions {
 		Visibility::init();
 		require_once __DIR__ . '/class-visitor-content.php';
 		Conditions\Visitor_Content::init();
+		require_once __DIR__ . '/class-conditions-guard.php';
+		Conditions\Conditions_Guard::init();
+		require_once __DIR__ . '/class-page-visits.php';
+		Conditions\Page_Visits::init();
+		add_filter( 'digitalisimo_elements_kit_references', array( __CLASS__, 'kit_references' ) );
 	}
 
 	public static function register_groups( $manager ) {
@@ -37,6 +57,7 @@ final class Display_Conditions {
 			return;
 		}
 		require_once __DIR__ . '/class-conditions.php';
+		require_once __DIR__ . '/class-conditions-more.php';
 		foreach ( self::condition_classes() as $class ) {
 			$manager->register_condition_instance( new $class() );
 		}
@@ -78,7 +99,34 @@ final class Display_Conditions {
 				Conditions\Product_Category_Archive_Condition::class,
 			) );
 		}
-		return $classes;
+		return array_merge( $classes, self::more_classes() );
+	}
+
+	/** @return string[] Clases de las condiciones de F7a, en el orden de `MORE`. */
+	public static function more_classes() {
+		return array(
+			Conditions\Cookie_Condition::class,
+			Conditions\Page_Visit_Condition::class,
+			Conditions\Field_Condition::class,
+			Conditions\User_Field_Condition::class,
+			Conditions\Author_Condition::class,
+			Conditions\Product_Stock_Of_Condition::class,
+			Conditions\Search_Condition::class,
+		);
+	}
+
+	/**
+	 * Referencias de kit de las condiciones de F7a con IDs (5.1): las dos deciden quién ve algo (`gate`), así que un
+	 * destino que falta deja el documento en borrador con «revisar antes de publicar». Una lista que el remapeo vacía
+	 * nunca se cumple.
+	 *
+	 * @param array $refs Referencias registradas.
+	 */
+	public static function kit_references( $refs ) {
+		$refs   = is_array( $refs ) ? $refs : array();
+		$refs[] = array( 'condition', 'digitalisimo_page_visit', 'pages.*', 'post', true );
+		$refs[] = array( 'condition', 'digitalisimo_product_stock_of', 'products.*', 'post', true );
+		return $refs;
 	}
 
 	private static function woocommerce_active() {

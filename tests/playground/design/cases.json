@@ -1,0 +1,171 @@
+{
+ "description": "Documentos de tests/playground/design.sh (F7a, escenarios DS1–DS13). Forma compacta y marcadores en design/lib.php. «at: ajax» = run.cjs lo guarda por elementor_ajax (save_builder) como administrador; «scope: net» = sólo en NET=1, en los sitios /uno/ y /dos/; «modes» limita el documento a esos modos.",
+ "menu": [
+  { "title": "Inicio", "url": "/" },
+  { "title": "Páginas", "children": [ "Primera opción del submenú", "Segunda opción del submenú", "Tercera opción del submenú", "Cuarta opción del submenú" ] },
+  { "title": "Contacto", "url": "/contacto/" }
+ ],
+ "docs": {
+  "ds1-presets": { "scenario": "DS1", "type": "page", "title": "DS1 · presets", "at": "ajax", "generate": "presets" },
+  "ds1-rtl": { "scenario": "DS1", "type": "page", "title": "DS1 · preset en RTL", "at": "ajax", "generate": "presets-rtl", "rtl": true },
+  "ds1-woo-template": { "scenario": "DS1", "type": "product", "title": "DS1 · producto", "at": "ajax", "modes": [ "woo" ], "conditions": [ "include/woocommerce/product" ],
+   "elements": [ { "c": "awc0001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "woocommerce-product-price", "id": "awcl001", "s": { "digitalisimo_preset": "precio" } },
+    { "w": "woocommerce-product-price", "id": "awcr001", "s": { "price_color": "#aa0000", "typography_typography": "custom", "typography_font_size": { "unit": "px", "size": 31, "sizes": [] } } },
+    { "w": "woocommerce-product-price", "id": "awcn001", "s": {} }
+   ] } ] },
+
+  "ds2-gradients": { "scenario": "DS2", "type": "page", "title": "DS2 · degradados", "generate": "gradients",
+   "gradients": [ "sin controles nuevos no emite nada", "lineal con una parada intermedia", "radial con paradas desordenadas y empate estable", "cónico con ángulo y centro propios", "cónico sin ángulo ni centro guardados", "lineal repetido", "radial repetido sin posición guardada", "cónico repetido", "ocho paradas como mucho", "filas no válidas descartadas", "colores globales en A y en las filas", "responsivo con herencia hacia el dispositivo mayor", "un dispositivo sin valores propios no emite", "superposición", "al pasar el cursor", "widget", "fondo clásico no emite", "A vacío es transparente", "B no válido deja el del núcleo", "ángulo y posición a medida", "ángulo a medida no válido", "decimales y números en cadena", "hsl, currentColor y espacios" ] },
+
+  "ds3-masks": { "scenario": "DS3", "type": "page", "title": "DS3 · máscaras", "elements": [
+   { "c": "cmask01", "s": { "digitalisimo_mask": "yes", "digitalisimo_mask_shape": "circulo", "background_background": "classic", "background_color": "#1d4ed8", "min_height": { "unit": "px", "size": 200, "sizes": [] } }, "e": [ { "w": "heading", "id": "cmaskt1", "s": { "title": "Círculo" } } ] },
+   { "c": "cmask02", "s": { "digitalisimo_mask": "yes", "digitalisimo_mask_shape": "estrella", "digitalisimo_mask_size": "cover", "background_background": "classic", "background_color": "#047857", "min_height": { "unit": "px", "size": 200, "sizes": [] } }, "e": [ { "w": "heading", "id": "cmaskt2", "s": { "title": "Estrella" } } ] },
+   { "sec": "csec001", "s": { "digitalisimo_mask": "yes", "digitalisimo_mask_shape": "hexagono", "background_background": "classic", "background_color": "#b91c1c", "height": "min-height", "custom_height": { "unit": "px", "size": 200, "sizes": [] } }, "e": [
+    { "col": "csecc01", "e": [ { "w": "heading", "id": "csect01", "s": { "title": "Sección con hexágono" } } ] } ] },
+   { "sec": "csec002", "e": [
+    { "col": "ccol001", "s": { "digitalisimo_mask": "yes", "digitalisimo_mask_shape": "corazon", "background_background": "classic", "background_color": "#7c3aed" }, "e": [ { "w": "heading", "id": "ccolt01", "s": { "title": "Columna con corazón" } }, { "w": "spacer", "id": "ccolsp1", "s": { "space": { "unit": "px", "size": 160, "sizes": [] } } } ] } ] },
+   { "c": "cmed001", "s": { "digitalisimo_mask": "yes", "digitalisimo_mask_shape": "media", "digitalisimo_mask_media": "__SVG:valida__", "background_background": "classic", "background_color": "#0f766e", "min_height": { "unit": "px", "size": 200, "sizes": [] } }, "e": [ { "w": "heading", "id": "cmedt01", "s": { "title": "SVG del sitio" } } ] },
+   { "c": "cbad001", "s": { "digitalisimo_mask": "yes", "digitalisimo_mask_shape": "media", "digitalisimo_mask_media": "__SVG:hostil__", "background_background": "classic", "background_color": "#c2410c", "min_height": { "unit": "px", "size": 200, "sizes": [] } }, "e": [ { "w": "heading", "id": "cbadt01", "s": { "title": "SVG hostil" } } ] },
+   { "c": "cnone01", "s": { "background_background": "classic", "background_color": "#334155", "min_height": { "unit": "px", "size": 120, "sizes": [] } }, "e": [ { "w": "heading", "id": "cnonet1", "s": { "title": "Sin máscara" } } ] }
+  ] },
+
+  "ds4-patterns": { "scenario": "DS4", "type": "page", "title": "DS4 · patrones", "elements": [
+   { "c": "dpat001", "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "puntos", "digitalisimo_pattern_color": "#ff0000", "background_background": "classic", "background_color": "#fef3c7", "min_height": { "unit": "px", "size": 220, "sizes": [] } }, "e": [ { "w": "button", "id": "dbtn001", "s": { "text": "Botón sobre el patrón" } } ] },
+   { "c": "dnav000", "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rayas", "digitalisimo_pattern_color": "#1e3a8a", "background_background": "classic", "background_color": "#e0e7ff" }, "e": [ { "w": "nav-menu", "id": "dnm0000", "s": { "menu": "__MENU__", "layout": "horizontal" } } ] },
+   { "c": "dnx0000", "s": { "background_background": "classic", "background_color": "#14532d", "min_height": { "unit": "px", "size": 320, "sizes": [] } }, "e": [ { "w": "heading", "id": "dnxt000", "s": { "title": "Contenedor siguiente (Elevar por defecto)", "title_color": "#ffffff" } } ] },
+   { "c": "dnav001", "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rayas", "digitalisimo_pattern_color": "#1e3a8a", "digitalisimo_pattern_raise": "", "background_background": "classic", "background_color": "#e0e7ff" }, "e": [ { "w": "nav-menu", "id": "dnm0001", "s": { "menu": "__MENU__", "layout": "horizontal" } } ] },
+   { "c": "dnx0001", "s": { "background_background": "classic", "background_color": "#14532d", "min_height": { "unit": "px", "size": 320, "sizes": [] } }, "e": [ { "w": "heading", "id": "dnxt001", "s": { "title": "Contenedor siguiente (Elevar apagado)", "title_color": "#ffffff" } } ] },
+   { "c": "dnav002", "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rayas", "digitalisimo_pattern_color": "#1e3a8a", "digitalisimo_pattern_raise": "", "z_index": 5, "background_background": "classic", "background_color": "#e0e7ff" }, "e": [ { "w": "nav-menu", "id": "dnm0002", "s": { "menu": "__MENU__", "layout": "horizontal" } } ] },
+   { "c": "dnx0002", "s": { "background_background": "classic", "background_color": "#14532d", "min_height": { "unit": "px", "size": 320, "sizes": [] } }, "e": [ { "w": "heading", "id": "dnxt002", "s": { "title": "Contenedor siguiente (Elevar apagado, índice Z propio)", "title_color": "#ffffff" } } ] },
+   { "c": "dmany00", "s": { "flex_direction": "row", "flex_wrap": "wrap" }, "e": [
+    { "c": "dm01", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm02", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm03", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm04", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm05", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm06", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm07", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm08", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm09", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm10", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm11", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm12", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm13", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm14", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm15", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm16", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm17", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm18", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm19", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } },
+    { "c": "dm20", "inner": true, "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "rejilla", "width": { "unit": "%", "size": 18 }, "min_height": { "unit": "px", "size": 40, "sizes": [] } } }
+   ] }
+  ] },
+  "ds4-header-page": { "scenario": "DS4", "type": "page", "title": "DS4 · página con cabecera de patrón", "elements": [
+   { "c": "dhn0001", "s": { "background_background": "classic", "background_color": "#7f1d1d", "min_height": { "unit": "px", "size": 420, "sizes": [] } }, "e": [ { "w": "heading", "id": "dhnt001", "s": { "title": "Primer contenedor de la página", "title_color": "#ffffff" } } ] }
+  ] },
+  "ds4-header": { "scenario": "DS4", "type": "header", "title": "DS4 · cabecera con patrón", "conditions": [ "include/singular/page/__ID:ds4-header-page__" ], "elements": [
+   { "c": "dhd0001", "s": { "digitalisimo_pattern": "yes", "digitalisimo_pattern_tile": "puntos", "digitalisimo_pattern_color": "#0f172a", "background_background": "classic", "background_color": "#fde68a" }, "e": [ { "w": "nav-menu", "id": "dhm0001", "s": { "menu": "__MENU__", "layout": "horizontal" } } ] }
+  ] },
+
+  "ds5-tracked": { "scenario": "DS5", "type": "page", "title": "DS5 · página rastreada", "elements": [ { "c": "etr0001", "e": [ { "w": "heading", "id": "etrt001", "s": { "title": "Página rastreada" } } ] } ] },
+  "ds5-cond": { "scenario": "DS5", "type": "page", "title": "DS5 · condiciones de visita", "elements": [
+   { "c": "ev00001", "s": { "$conditions": [ [ { "condition": "digitalisimo_page_visit", "comparator": "is_one_of", "pages": [ { "id": "__ID:ds5-tracked__", "label": "DS5 · página rastreada" } ] } ] ] }, "e": [ { "w": "heading", "id": "evt0001", "s": { "title": "visto-ev1" } } ] },
+   { "c": "env0001", "s": { "$conditions": [ [ { "condition": "digitalisimo_page_visit", "comparator": "is_none_of", "pages": [ { "id": "__ID:ds5-tracked__", "label": "DS5 · página rastreada" } ] } ] ] }, "e": [ { "w": "heading", "id": "envt001", "s": { "title": "visto-env1" } } ] },
+   { "c": "eck0001", "s": { "$conditions": [ [ { "condition": "digitalisimo_cookie", "name": "digi_ds_flag", "comparator": "is", "value": "secreto-ds5" } ] ] }, "e": [ { "w": "heading", "id": "eckt001", "s": { "title": "visto-eck1" } } ] },
+   { "c": "efr0001", "e": [ { "w": "heading", "id": "efrt001", "s": { "title": "visto-siempre" } } ] }
+  ] },
+  "ds5-untracked": { "scenario": "DS5", "type": "page", "title": "DS5 · página no rastreada", "elements": [ { "c": "eun0001", "e": [ { "w": "heading", "id": "eunt001", "s": { "title": "Página no rastreada" } } ] } ] },
+  "ds5-draft-target": { "scenario": "DS5", "type": "page", "title": "DS5 · destino de un borrador", "elements": [ { "c": "edt0001", "e": [ { "w": "heading", "id": "edtt001", "s": { "title": "Destino de un borrador" } } ] } ] },
+  "ds5-draft-src": { "scenario": "DS5", "type": "page", "title": "DS5 · borrador con condición", "status": "draft", "elements": [
+   { "c": "eds0001", "s": { "$conditions": [ [ { "condition": "digitalisimo_page_visit", "comparator": "is_one_of", "pages": [ { "id": "__ID:ds5-draft-target__", "label": "Destino" } ] } ] ] }, "e": [ { "w": "heading", "id": "edst001", "s": { "title": "borrador" } } ] } ] },
+  "ds5-rev-target": { "scenario": "DS5", "type": "page", "title": "DS5 · destino de una revisión", "elements": [ { "c": "ert0001", "e": [ { "w": "heading", "id": "ertt001", "s": { "title": "Destino de una revisión" } } ] } ] },
+  "ds5-rev-src": { "scenario": "DS5", "type": "page", "title": "DS5 · página con revisión",
+   "first": [ { "c": "ers0001", "s": { "$conditions": [ [ { "condition": "digitalisimo_page_visit", "comparator": "is_one_of", "pages": [ { "id": "__ID:ds5-rev-target__", "label": "Destino" } ] } ] ] }, "e": [ { "w": "heading", "id": "erst001", "s": { "title": "revisión" } } ] } ],
+   "elements": [ { "c": "ers0001", "e": [ { "w": "heading", "id": "erst001", "s": { "title": "sin condiciones ya" } } ] } ] },
+  "ds5-kit-target": { "scenario": "DS5", "type": "page", "title": "DS5 · destino de una importación en «agregar»", "elements": [ { "c": "ekt0001", "e": [ { "w": "heading", "id": "ektt001", "s": { "title": "Destino de un kit" } } ] } ] },
+  "ds5-kit-src": { "scenario": "DS5", "type": "section", "title": "DS5 · plantilla importada en borrador", "status": "draft", "elements": [
+   { "c": "eks0001", "s": { "$conditions": [ [ { "condition": "digitalisimo_page_visit", "comparator": "is_one_of", "pages": [ { "id": "__ID:ds5-kit-target__", "label": "Destino" } ] } ] ] }, "e": [ { "w": "heading", "id": "ekst001", "s": { "title": "importada" } } ] } ] },
+
+  "ds6-page": { "scenario": "DS6", "type": "page", "title": "DS6 · prioridad", "elements": [ { "c": "fpg0001", "e": [ { "w": "heading", "id": "fpgt001", "s": { "title": "Página de prioridad" } } ] } ] },
+  "ds6-h1": { "scenario": "DS6", "type": "header", "title": "DS6 · cabecera uno", "conditions": [ "include/singular/page/__ID:ds6-page__" ], "elements": [ { "c": "fh10001", "e": [ { "w": "heading", "id": "fh1t001", "s": { "title": "Cabecera uno" } } ] } ] },
+  "ds6-h2": { "scenario": "DS6", "type": "header", "title": "DS6 · cabecera dos", "conditions": [ "include/singular/page/__ID:ds6-page__" ], "elements": [ { "c": "fh20001", "e": [ { "w": "heading", "id": "fh2t001", "s": { "title": "Cabecera dos" } } ] } ] },
+  "ds6-h3": { "scenario": "DS6", "type": "header", "title": "DS6 · cabecera excluida", "conditions": [ "include/singular/page/__ID:ds6-page__", "exclude/singular/page/__ID:ds6-page__" ], "settings": { "digitalisimo_tb_priority": 1 }, "elements": [ { "c": "fh30001", "e": [ { "w": "heading", "id": "fh3t001", "s": { "title": "Cabecera excluida" } } ] } ] },
+
+  "ds7-tpl": { "scenario": "DS7", "type": "page", "title": "DS7 · ocultar plantillas", "settings": { "digitalisimo_hide_header": "yes", "digitalisimo_hide_footer": "yes" }, "elements": [ { "c": "gtp0001", "e": [ { "w": "heading", "id": "gtpt001", "s": { "title": "Página sin cabecera ni pie" } } ] } ] },
+  "ds7-tpl-ctrl": { "scenario": "DS7", "type": "page", "title": "DS7 · plantillas visibles", "elements": [ { "c": "gtc0001", "e": [ { "w": "heading", "id": "gtct001", "s": { "title": "Página de control" } } ] } ] },
+  "ds7-header": { "scenario": "DS7", "type": "header", "title": "DS7 · cabecera", "conditions": [ "include/singular/page/__ID:ds7-tpl__", "include/singular/page/__ID:ds7-tpl-ctrl__" ], "elements": [ { "c": "ghd0001", "e": [ { "w": "heading", "id": "ghdt001", "s": { "title": "Cabecera DS7" } } ] } ] },
+  "ds7-footer": { "scenario": "DS7", "type": "footer", "title": "DS7 · pie", "conditions": [ "include/singular/page/__ID:ds7-tpl__", "include/singular/page/__ID:ds7-tpl-ctrl__" ], "elements": [ { "c": "gft0001", "e": [ { "w": "heading", "id": "gftt001", "s": { "title": "Pie DS7" } } ] } ] },
+  "ds7-fb": { "scenario": "DS7", "type": "page", "title": "DS7 · ocultar respaldo", "settings": { "digitalisimo_hide_header": "yes", "digitalisimo_hide_footer": "yes" }, "elements": [ { "c": "gfb0001", "e": [ { "w": "heading", "id": "gfbt001", "s": { "title": "Sin respaldo del tema" } } ] } ] },
+  "ds7-fb-ctrl": { "scenario": "DS7", "type": "page", "title": "DS7 · respaldo visible", "elements": [ { "c": "gfc0001", "e": [ { "w": "heading", "id": "gfct001", "s": { "title": "Con respaldo del tema" } } ] } ] },
+  "ds7-loop": { "scenario": "DS7", "type": "loop-item", "title": "DS7 · elemento de bucle", "elements": [ { "c": "glo0001", "e": [ { "w": "theme-post-featured-image", "id": "gli0001" }, { "w": "theme-post-title", "id": "glt0001" } ] } ] },
+  "ds7-single": { "scenario": "DS7", "type": "single-post", "title": "DS7 · plantilla de entrada", "conditions": [ "include/singular/post" ], "elements": [
+   { "c": "gsi0001", "e": [ { "w": "theme-post-title", "id": "gst0001" }, { "w": "theme-post-featured-image", "id": "gfi0001" }, { "w": "theme-post-content", "id": "gsc0001" } ] },
+   { "c": "gsl0001", "e": [ { "w": "loop-grid", "id": "glg0001", "s": { "template_id": "__ID:ds7-loop__", "posts_per_page": 10, "post_query_post_type": "post" } } ] }
+  ] },
+  "ds7-archive": { "scenario": "DS7", "type": "archive", "title": "DS7 · archivo", "conditions": [ "include/archive/category" ], "elements": [
+   { "c": "gar0001", "e": [ { "w": "loop-grid", "id": "gla0001", "s": { "template_id": "__ID:ds7-loop__", "posts_per_page": 10, "post_query_post_type": "current_query" } } ] } ] },
+  "ds7-post-a": { "scenario": "DS7", "type": "post", "title": "DS7 · entrada con la imagen oculta", "thumbnail": true, "categories": [ "digi-ds-cat" ], "settings": { "digitalisimo_hide_featured_image": "yes" }, "elements": [ { "c": "gpa0001", "e": [ { "w": "text-editor", "id": "gpat001", "s": { "editor": "<p>Entrada A</p>" } } ] } ] },
+  "ds7-post-b": { "scenario": "DS7", "type": "post", "title": "DS7 · entrada con la imagen visible", "thumbnail": true, "categories": [ "digi-ds-cat" ], "elements": [ { "c": "gpb0001", "e": [ { "w": "text-editor", "id": "gpbt001", "s": { "editor": "<p>Entrada B</p>" } } ] } ] },
+
+  "ds8-sticky": { "scenario": "DS8", "type": "page", "title": "DS8 · sticky", "elements": [
+   { "c": "hst0001", "s": { "sticky": "top", "sticky_on": [ "desktop", "tablet", "mobile" ], "sticky_effects_offset": 300, "background_background": "classic", "background_color": "#ffffff", "flex_direction": "row" }, "e": [
+    { "w": "heading", "id": "hsw0001", "s": { "title": "show", "digitalisimo_sticky_state": "show" } },
+    { "w": "heading", "id": "hhd0001", "s": { "title": "hide", "digitalisimo_sticky_state": "hide" } },
+    { "w": "heading", "id": "hse0001", "s": { "title": "show-effects", "digitalisimo_sticky_state": "show-effects" } },
+    { "w": "heading", "id": "hhe0001", "s": { "title": "hide-effects", "digitalisimo_sticky_state": "hide-effects" } },
+    { "w": "heading", "id": "hal0001", "s": { "title": "siempre" } }
+   ] },
+   { "c": "hnx0001", "s": { "background_background": "classic", "background_color": "#dbeafe", "min_height": { "unit": "px", "size": 200, "sizes": [] } }, "e": [ { "w": "heading", "id": "hnxt001", "s": { "title": "Sección siguiente" } } ] },
+   { "c": "hfr0001", "e": [ { "w": "heading", "id": "hfrt001", "s": { "title": "show sin ancestro fijo", "digitalisimo_sticky_state": "show" } } ] },
+   { "c": "htl0001", "s": { "min_height": { "unit": "px", "size": 3200, "sizes": [] } }, "e": [ { "w": "heading", "id": "htlt001", "s": { "title": "Relleno" } } ] }
+  ] },
+  "ds8-plain": { "scenario": "DS8", "type": "page", "title": "DS8 · sticky sin estados", "elements": [
+   { "c": "hpl0001", "s": { "sticky": "top", "sticky_on": [ "desktop", "tablet", "mobile" ], "sticky_effects_offset": 300, "background_background": "classic", "background_color": "#ffffff", "flex_direction": "row" }, "e": [
+    { "w": "heading", "id": "hps0001", "s": { "title": "hide" } }, { "w": "heading", "id": "hpe0001", "s": { "title": "hide-effects" } }, { "w": "heading", "id": "hpa0001", "s": { "title": "siempre" } } ] },
+   { "c": "hpn0001", "s": { "background_background": "classic", "background_color": "#dbeafe", "min_height": { "unit": "px", "size": 200, "sizes": [] } }, "e": [ { "w": "heading", "id": "hpnt001", "s": { "title": "Sección siguiente" } } ] },
+   { "c": "hpt0001", "s": { "min_height": { "unit": "px", "size": 3200, "sizes": [] } }, "e": [ { "w": "heading", "id": "hptt001", "s": { "title": "Relleno" } } ] }
+  ] },
+  "ds8-bottom": { "scenario": "DS8", "type": "page", "title": "DS8 · sticky abajo", "elements": [
+   { "c": "hbp0001", "s": { "min_height": { "unit": "px", "size": 1600, "sizes": [] } }, "e": [ { "w": "heading", "id": "hbpt001", "s": { "title": "Relleno antes" } } ] },
+   { "c": "hbt0001", "s": { "sticky": "bottom", "sticky_on": [ "desktop", "tablet", "mobile" ], "background_background": "classic", "background_color": "#fde68a", "flex_direction": "row" }, "e": [
+    { "w": "heading", "id": "hbs0001", "s": { "title": "show", "digitalisimo_sticky_state": "show" } },
+    { "w": "heading", "id": "hbh0001", "s": { "title": "hide", "digitalisimo_sticky_state": "hide" } } ] },
+   { "c": "hba0001", "s": { "min_height": { "unit": "px", "size": 1600, "sizes": [] } }, "e": [ { "w": "heading", "id": "hbat001", "s": { "title": "Relleno después" } } ] }
+  ] },
+  "ds8-device": { "scenario": "DS8", "type": "page", "title": "DS8 · sticky sólo en escritorio", "elements": [
+   { "c": "hdv0001", "s": { "sticky": "top", "sticky_on": [ "desktop" ], "background_background": "classic", "background_color": "#ffffff", "flex_direction": "row" }, "e": [
+    { "w": "heading", "id": "hds0001", "s": { "title": "show", "digitalisimo_sticky_state": "show" } },
+    { "w": "heading", "id": "hdh0001", "s": { "title": "hide", "digitalisimo_sticky_state": "hide" } } ] },
+   { "c": "hdt0001", "s": { "min_height": { "unit": "px", "size": 3200, "sizes": [] } }, "e": [ { "w": "heading", "id": "hdtt001", "s": { "title": "Relleno" } } ] }
+  ] },
+
+  "ds9-sticky": { "scenario": "DS9", "type": "page", "title": "DS9 · sticky con contenido dinámico", "elements": [
+   { "c": "ist0001", "s": { "sticky": "top", "sticky_on": [ "desktop", "tablet", "mobile" ], "background_background": "classic", "background_color": "#ffffff", "flex_direction": "row" }, "e": [
+    { "w": "theme-site-logo", "id": "isl0001", "s": { "digitalisimo_sticky_state": "show", "width": { "unit": "px", "size": 60, "sizes": [] }, "__dynamic__": { "image": "[elementor-tag id=\"d9a1b2c\" name=\"site-logo\" settings=\"%7B%7D\"]" } } },
+    { "w": "heading", "id": "ich0001", "s": { "title": "vip-show", "digitalisimo_sticky_state": "show", "$conditions": [ [ { "condition": "digitalisimo_cookie", "name": "digi_ds_vip", "comparator": "is_not_empty" } ] ] } },
+    { "w": "heading", "id": "ich0002", "s": { "title": "vip-hide", "digitalisimo_sticky_state": "hide", "$conditions": [ [ { "condition": "digitalisimo_cookie", "name": "digi_ds_vip", "comparator": "is_not_empty" } ] ] } },
+    { "w": "heading", "id": "ihd0001", "s": { "title": "hide", "digitalisimo_sticky_state": "hide" } }
+   ] },
+   { "c": "inx0001", "s": { "background_background": "classic", "background_color": "#dbeafe", "min_height": { "unit": "px", "size": 200, "sizes": [] } }, "e": [ { "w": "heading", "id": "inxt001", "s": { "title": "Sección siguiente" } } ] },
+   { "c": "itl0001", "s": { "min_height": { "unit": "px", "size": 3200, "sizes": [] } }, "e": [ { "w": "heading", "id": "itlt001", "s": { "title": "Relleno" } } ] }
+  ] },
+  "ds9-post-a": { "scenario": "DS9", "type": "post", "title": "DS9 · entrada A, imagen oculta", "thumbnail": true, "categories": [ "digi-ds-cat" ], "settings": { "digitalisimo_hide_featured_image": "yes" }, "elements": [ { "c": "ipa0001", "e": [ { "w": "text-editor", "id": "ipat001", "s": { "editor": "<p>Entrada A de la caché</p>" } } ] } ] },
+  "ds9-post-b": { "scenario": "DS9", "type": "post", "title": "DS9 · entrada B, imagen visible", "thumbnail": true, "categories": [ "digi-ds-cat" ], "elements": [ { "c": "ipb0001", "e": [ { "w": "text-editor", "id": "ipbt001", "s": { "editor": "<p>Entrada B de la caché</p>" } } ] } ] },
+
+  "ds11-v4": { "scenario": "DS11", "type": "page", "title": "DS11 · v4", "modes": [ "v4" ], "elements": [
+   { "div4": "k4d0001", "e": [ { "v4": "e-heading", "id": "k4h0001", "s": { "$conditions4": [ [ { "condition": "digitalisimo_cookie", "name": "digi_ds_vip", "comparator": "is_not_empty" } ] ] } } ] },
+   { "div4": "k4d0002", "e": [ { "v4": "e-heading", "id": "k4h0002" } ] },
+   { "c": "k3c0001", "e": [ { "w": "heading", "id": "k3h0001", "s": { "title": "Encabezado v3" } } ] }
+  ] },
+
+  "ds12-track": { "scenario": "DS12", "scope": "net", "type": "page", "title": "DS12 · rastreada", "elements": [ { "c": "mtr0001", "e": [ { "w": "heading", "id": "mtrt001", "s": { "title": "Rastreada en la red" } } ] } ] },
+  "ds12-cond": { "scenario": "DS12", "scope": "net", "type": "page", "title": "DS12 · condición", "elements": [
+   { "c": "mv00001", "s": { "$conditions": [ [ { "condition": "digitalisimo_page_visit", "comparator": "is_one_of", "pages": [ { "id": "__ID:ds12-track__", "label": "Rastreada" } ] } ] ] }, "e": [ { "w": "heading", "id": "mvt0001", "s": { "title": "visto-red" } } ] },
+   { "c": "mfr0001", "e": [ { "w": "heading", "id": "mfrt001", "s": { "title": "siempre-red" } } ] }
+  ] },
+  "ds12-h1": { "scenario": "DS12", "scope": "net", "type": "header", "title": "DS12 · cabecera uno", "conditions": [ "include/singular/page/__ID:ds12-cond__" ], "elements": [ { "c": "mh10001", "e": [ { "w": "heading", "id": "mh1t001", "s": { "title": "Cabecera uno de la red" } } ] } ] },
+  "ds12-h2": { "scenario": "DS12", "scope": "net", "type": "header", "title": "DS12 · cabecera dos", "conditions": [ "include/singular/page/__ID:ds12-cond__" ], "elements": [ { "c": "mh20001", "e": [ { "w": "heading", "id": "mh2t001", "s": { "title": "Cabecera dos de la red" } } ] } ] },
+  "ds12-presets": { "scenario": "DS12", "scope": "net", "type": "page", "title": "DS12 · preset", "at": "ajax", "elements": [ { "c": "mpc0001", "e": [ { "w": "heading", "id": "mpl0001", "s": { "title": "Preset de la red", "digitalisimo_preset": "tarjeta" } } ] } ] }
+ }
+}

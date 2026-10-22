@@ -137,6 +137,259 @@ foreach ( array( 'disable', '24' ) as $cache ) {
 		}
 	}
 }
+// ── F7a (V.13 #9 y #11): las siete condiciones nuevas, el centinela, la lista vacía y la ausencia de WooCommerce ──────
+// Cada variante pinta la página con sus cookies y su consulta, como visitante y con sesión, con la caché de elementos
+// apagada y a 24 h. Ningún valor recibido o guardado (cookie, meta, término buscado) aparece nunca en el HTML.
+$f7a_secrets = array( 'valor-cookie-secreto-k7', 'azul-meta-secreto-k7', 'termino-secreto-k7' );
+$f7a_page    = static function ( $slug ) {
+	$found = get_page_by_path( $slug );
+	return $found ? (int) $found->ID : (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug, 'post_author' => 1 ) );
+};
+$f7a_visited = $f7a_page( 'digi-cond-f7a-visitada' );
+update_user_meta( 1, 'first_name', 'Ana' );
+$f7a_woo      = class_exists( 'WooCommerce' ) && function_exists( 'wc_get_product' );
+$f7a_products = array( $f7a_visited, $f7a_visited );
+if ( $f7a_woo ) {
+	foreach ( array( 'instock', 'outofstock' ) as $i => $status ) {
+		$existing = get_page_by_path( 'digi-cond-producto-' . $status, OBJECT, 'product' );
+		if ( $existing ) {
+			$f7a_products[ $i ] = (int) $existing->ID;
+			continue;
+		}
+		$product = new WC_Product_Simple();
+		$product->set_name( 'Producto ' . $status );
+		$product->set_slug( 'digi-cond-producto-' . $status );
+		$product->set_status( 'publish' );
+		$product->set_regular_price( '10' );
+		$product->set_stock_status( $status );
+		$f7a_products[ $i ] = (int) $product->save();
+	}
+}
+$f7a_sentinel = array( 'condition' => 'digitalisimo_special_page', 'comparator' => 'is_one_of', 'pages' => array( 'digitalisimo_f7a' ) );
+$f7a_groups   = static function ( array $groups ) {
+	return array( 'e_display_conditions' => array( wp_json_encode( $groups ) ) );
+};
+$f7a_w = static function ( $id, $text, array $groups = array() ) use ( $widget, $f7a_groups ) {
+	return $widget( $id, $text, $groups ? $f7a_groups( $groups ) : array() );
+};
+$cookie   = static function ( $comparator, $extra = array(), $name = 'digi_prueba' ) {
+	return array( 'condition' => 'digitalisimo_cookie', 'name' => $name, 'comparator' => $comparator ) + $extra;
+};
+$visit    = static function ( $comparator, array $pages ) {
+	return array( 'condition' => 'digitalisimo_page_visit', 'comparator' => $comparator, 'pages' => $pages );
+};
+$field    = static function ( $key, $comparator, $value = '', $source = 'post' ) {
+	return array( 'condition' => 'digitalisimo_field', 'source' => $source, 'key' => $key, 'comparator' => $comparator, 'value' => $value );
+};
+$ufield   = static function ( $key, $comparator, $value = '' ) {
+	return array( 'condition' => 'digitalisimo_user_field', 'key' => $key, 'comparator' => $comparator, 'value' => $value );
+};
+$author   = static function ( $comparator, array $roles = array() ) {
+	return array( 'condition' => 'digitalisimo_author', 'comparator' => $comparator, 'roles' => $roles );
+};
+$search   = static function ( $comparator, $value = '' ) {
+	return array( 'condition' => 'digitalisimo_search', 'comparator' => $comparator, 'value' => $value );
+};
+$stock    = static function ( array $products, $comparator, $match = 'any' ) {
+	return array( 'condition' => 'digitalisimo_product_stock_of', 'products' => array_map( 'strval', $products ), 'match' => $match, 'comparator' => $comparator );
+};
+$both     = static function ( array $hidden, array $visible ) {
+	return array( 'anonimo' => array( $hidden, $visible ), 'sesion' => array( $hidden, $visible ) );
+};
+$with_cookie = array( 'digi_prueba' => 'valor-cookie-secreto-k7', 'wordpress_logged_in_k7' => 'x' );
+$p0          = $f7a_products[0];
+$p1          = $f7a_products[1];
+$in_stock    = $f7a_woo ? array( 'EXIST-EN-STOCK', 'EXIST-ALGUNO-AGOTADO' ) : array();
+$f7a_cases   = array(
+	// Variable (navegador): existe, no existe, es; un nombre vetado nunca se cumple; con el centinela, igual que sin él.
+	'f7a-cookie'       => array(
+		'elements' => array( $container( 'f1', array(
+			$f7a_w( 'a1', 'COOKIE-EXISTE', array( array( $cookie( 'is_not_empty' ) ) ) ),
+			$f7a_w( 'a2', 'COOKIE-NO-EXISTE', array( array( $cookie( 'is_empty' ) ) ) ),
+			$f7a_w( 'a3', 'COOKIE-ES', array( array( $cookie( 'is', array( 'value' => 'valor-cookie-secreto-k7' ) ) ) ) ),
+			$f7a_w( 'a4', 'COOKIE-VETADA', array( array( $cookie( 'is_not_empty', array(), 'wordpress_logged_in_k7' ) ) ) ),
+			$f7a_w( 'a5', 'COOKIE-CENTINELA', array( array( $cookie( 'is_not_empty' ), $f7a_sentinel ) ) ),
+			$f7a_w( 'a6', 'COOKIE-CONTROL' ),
+		) ) ),
+		'variants' => array(
+			'con-cookie' => array( 'cookies' => $with_cookie ) + $both( array( 'COOKIE-NO-EXISTE', 'COOKIE-VETADA' ), array( 'COOKIE-EXISTE', 'COOKIE-ES', 'COOKIE-CENTINELA', 'COOKIE-CONTROL' ) ),
+			'sin-cookie' => array( 'cookies' => array() ) + $both( array( 'COOKIE-EXISTE', 'COOKIE-ES', 'COOKIE-VETADA', 'COOKIE-CENTINELA' ), array( 'COOKIE-NO-EXISTE', 'COOKIE-CONTROL' ) ),
+		),
+	),
+	// Variable (cookie de visitas del sitio): visitó, no visitó; una lista vacía nunca se cumple; una cookie dañada no cuenta.
+	'f7a-visita'       => array(
+		'elements' => array( $container( 'f2', array(
+			$f7a_w( 'b1', 'VISITO-ALGUNA', array( array( $visit( 'is_one_of', array( (string) $f7a_visited ) ) ) ) ),
+			$f7a_w( 'b2', 'NO-VISITO-NINGUNA', array( array( $visit( 'is_none_of', array( (string) $f7a_visited ) ) ) ) ),
+			$f7a_w( 'b3', 'VISITO-LISTA-VACIA', array( array( $visit( 'is_one_of', array() ) ) ) ),
+			$f7a_w( 'b4', 'NO-VISITO-LISTA-VACIA', array( array( $visit( 'is_none_of', array() ) ) ) ),
+			$f7a_w( 'b5', 'VISITA-CONTROL' ),
+		) ) ),
+		'variants' => array(
+			'visito'        => array( 'cookies' => array( 'digi_seen' => base_convert( (string) $f7a_visited, 10, 36 ) ) ) + $both( array( 'NO-VISITO-NINGUNA', 'VISITO-LISTA-VACIA', 'NO-VISITO-LISTA-VACIA' ), array( 'VISITO-ALGUNA', 'VISITA-CONTROL' ) ),
+			'no-visito'     => array( 'cookies' => array() ) + $both( array( 'VISITO-ALGUNA', 'VISITO-LISTA-VACIA', 'NO-VISITO-LISTA-VACIA' ), array( 'NO-VISITO-NINGUNA', 'VISITA-CONTROL' ) ),
+			'cookie-danada' => array( 'cookies' => array( 'digi_seen' => base_convert( (string) $f7a_visited, 10, 36 ) . ';x' ) ) + $both( array( 'VISITO-ALGUNA', 'VISITO-LISTA-VACIA', 'NO-VISITO-LISTA-VACIA' ), array( 'NO-VISITO-NINGUNA', 'VISITA-CONTROL' ) ),
+		),
+	),
+	// Cacheable (de la URL): la meta del contenido; las metas protegidas o que suenan a secreto y un valor vacío nunca.
+	'f7a-campo'        => array(
+		'meta'     => array( 'digi_tono' => 'azul-meta-secreto-k7', '_digi_privado' => 'x', 'digi_token' => 'x' ),
+		'elements' => array( $container( 'f3', array(
+			$f7a_w( 'c1', 'CAMPO-ES', array( array( $field( 'digi_tono', 'is', 'azul-meta-secreto-k7' ) ) ) ),
+			$f7a_w( 'c2', 'CAMPO-CONTIENE', array( array( $field( 'digi_tono', 'contains', 'azul' ) ) ) ),
+			$f7a_w( 'c3', 'CAMPO-NO-ES', array( array( $field( 'digi_tono', 'is_not', 'azul-meta-secreto-k7' ) ) ) ),
+			$f7a_w( 'c4', 'CAMPO-PROTEGIDO', array( array( $field( '_digi_privado', 'is_not_empty' ) ) ) ),
+			$f7a_w( 'c5', 'CAMPO-VETADO', array( array( $field( 'digi_token', 'is_not_empty' ) ) ) ),
+			$f7a_w( 'c6', 'CAMPO-VALOR-VACIO', array( array( $field( 'digi_tono', 'is', '' ) ) ) ),
+			$f7a_w( 'c7', 'CAMPO-TERMINO', array( array( $field( 'digi_tono', 'is_not_empty', '', 'term' ) ) ) ),
+			$f7a_w( 'c8', 'CAMPO-CONTROL' ),
+		) ) ),
+		'variants' => array(
+			'pagina' => $both( array( 'CAMPO-NO-ES', 'CAMPO-PROTEGIDO', 'CAMPO-VETADO', 'CAMPO-VALOR-VACIO', 'CAMPO-TERMINO' ), array( 'CAMPO-ES', 'CAMPO-CONTIENE', 'CAMPO-CONTROL' ) ),
+		),
+	),
+	// Cacheable (sólo con sesión): campo del perfil de la lista blanca; sin sesión nunca se cumple.
+	'f7a-usuario'      => array(
+		'elements' => array( $container( 'f4', array(
+			$f7a_w( 'd1', 'USUARIO-ES', array( array( $ufield( 'first_name', 'is', 'Ana' ) ) ) ),
+			$f7a_w( 'd2', 'USUARIO-NO-ES', array( array( $ufield( 'first_name', 'is_not', 'Ana' ) ) ) ),
+			$f7a_w( 'd3', 'USUARIO-VALOR-VACIO', array( array( $ufield( 'first_name', 'is', '' ) ) ) ),
+			$f7a_w( 'd4', 'USUARIO-CLAVE-FUERA', array( array( $ufield( 'session_tokens', 'is_not_empty' ) ) ) ),
+			$f7a_w( 'd5', 'USUARIO-CONTROL' ),
+		) ) ),
+		'variants' => array(
+			'pagina' => array(
+				'anonimo' => array( array( 'USUARIO-ES', 'USUARIO-NO-ES', 'USUARIO-VALOR-VACIO', 'USUARIO-CLAVE-FUERA' ), array( 'USUARIO-CONTROL' ) ),
+				'sesion'  => array( array( 'USUARIO-NO-ES', 'USUARIO-VALOR-VACIO', 'USUARIO-CLAVE-FUERA' ), array( 'USUARIO-ES', 'USUARIO-CONTROL' ) ),
+			),
+		),
+	),
+	// Cacheable (de la URL): el autor de la página (el administrador) es el usuario actual, o tiene uno de estos roles.
+	'f7a-autor'        => array(
+		'elements' => array( $container( 'f5', array(
+			$f7a_w( 'g1', 'AUTOR-ES-ACTUAL', array( array( $author( 'is_current_user' ) ) ) ),
+			$f7a_w( 'g2', 'AUTOR-NO-ES-ACTUAL', array( array( $author( 'is_not_current_user' ) ) ) ),
+			$f7a_w( 'g3', 'AUTOR-ROL', array( array( $author( 'role_in', array( 'administrator' ) ) ) ) ),
+			$f7a_w( 'g4', 'AUTOR-ROL-VACIO', array( array( $author( 'role_in' ) ) ) ),
+			$f7a_w( 'g5', 'AUTOR-SIN-ROL-VACIO', array( array( $author( 'role_not_in' ) ) ) ),
+			$f7a_w( 'g6', 'AUTOR-CONTROL' ),
+		) ) ),
+		'variants' => array(
+			'pagina' => array(
+				'anonimo' => array( array( 'AUTOR-ES-ACTUAL', 'AUTOR-ROL-VACIO', 'AUTOR-SIN-ROL-VACIO' ), array( 'AUTOR-NO-ES-ACTUAL', 'AUTOR-ROL', 'AUTOR-CONTROL' ) ),
+				'sesion'  => array( array( 'AUTOR-NO-ES-ACTUAL', 'AUTOR-ROL-VACIO', 'AUTOR-SIN-ROL-VACIO' ), array( 'AUTOR-ES-ACTUAL', 'AUTOR-ROL', 'AUTOR-CONTROL' ) ),
+			),
+		),
+	),
+	// Cacheable (de la URL): sólo en la página de resultados; un término esperado vacío nunca se cumple.
+	'f7a-busqueda'     => array(
+		'elements' => array( $container( 'f6', array(
+			$f7a_w( 'h1', 'BUSQUEDA-CONTIENE', array( array( $search( 'contains', 'secreto' ) ) ) ),
+			$f7a_w( 'h2', 'BUSQUEDA-ES', array( array( $search( 'is', 'termino-secreto-k7' ) ) ) ),
+			$f7a_w( 'h3', 'BUSQUEDA-NO-ES', array( array( $search( 'is_not', 'termino-secreto-k7' ) ) ) ),
+			$f7a_w( 'h4', 'BUSQUEDA-UNO-DE', array( array( $search( 'is_one_of', 'otro, termino-secreto-k7' ) ) ) ),
+			$f7a_w( 'h5', 'BUSQUEDA-SIN-RESULTADOS', array( array( $search( 'no_results' ) ) ) ),
+			$f7a_w( 'h6', 'BUSQUEDA-CON-RESULTADOS', array( array( $search( 'has_results' ) ) ) ),
+			$f7a_w( 'h7', 'BUSQUEDA-VALOR-VACIO', array( array( $search( 'is', '' ) ) ) ),
+			$f7a_w( 'h8', 'BUSQUEDA-CONTROL' ),
+		) ) ),
+		'variants' => array(
+			'resultados' => array( 'query' => array( 's' => 'termino-secreto-k7' ) ) + $both( array( 'BUSQUEDA-NO-ES', 'BUSQUEDA-CON-RESULTADOS', 'BUSQUEDA-VALOR-VACIO' ), array( 'BUSQUEDA-CONTIENE', 'BUSQUEDA-ES', 'BUSQUEDA-UNO-DE', 'BUSQUEDA-SIN-RESULTADOS', 'BUSQUEDA-CONTROL' ) ),
+			'pagina'     => $both( array( 'BUSQUEDA-CONTIENE', 'BUSQUEDA-ES', 'BUSQUEDA-NO-ES', 'BUSQUEDA-UNO-DE', 'BUSQUEDA-SIN-RESULTADOS', 'BUSQUEDA-CON-RESULTADOS', 'BUSQUEDA-VALOR-VACIO' ), array( 'BUSQUEDA-CONTROL' ) ),
+		),
+	),
+	// Variable: existencias de productos concretos. Sin WooCommerce nunca se cumple; una lista vacía, tampoco.
+	'f7a-existencias'  => array(
+		'elements' => array( $container( 'f7', array(
+			$f7a_w( 'i1', 'EXIST-EN-STOCK', array( array( $stock( array( $p0 ), 'instock' ) ) ) ),
+			$f7a_w( 'i2', 'EXIST-AGOTADO', array( array( $stock( array( $p0 ), 'outofstock' ) ) ) ),
+			$f7a_w( 'i3', 'EXIST-TODOS-EN-STOCK', array( array( $stock( array( $p0, $p1 ), 'instock', 'all' ) ) ) ),
+			$f7a_w( 'i4', 'EXIST-ALGUNO-AGOTADO', array( array( $stock( array( $p0, $p1 ), 'outofstock', 'any' ) ) ) ),
+			$f7a_w( 'i5', 'EXIST-LISTA-VACIA', array( array( $stock( array(), 'instock' ) ) ) ),
+			$f7a_w( 'i6', 'EXIST-CONTROL' ),
+		) ) ),
+		'variants' => array(
+			'pagina' => $both( array_values( array_diff( array( 'EXIST-EN-STOCK', 'EXIST-AGOTADO', 'EXIST-TODOS-EN-STOCK', 'EXIST-ALGUNO-AGOTADO', 'EXIST-LISTA-VACIA' ), $in_stock ) ), array_merge( $in_stock, array( 'EXIST-CONTROL' ) ) ),
+		),
+	),
+	// Centinela: en 4.3.0.164 se cumple solo y no cambia un grupo; en un O, el otro grupo decide.
+	'f7a-centinela'    => array(
+		'elements' => array( $container( 'f8', array(
+			$f7a_w( 'j1', 'CENTINELA-SOLO', array( array( $f7a_sentinel ) ) ),
+			$f7a_w( 'j2', 'CENTINELA-O', array( array( $cookie( 'is_not_empty' ), $f7a_sentinel ), array( $author( 'role_in' ), $f7a_sentinel ) ) ),
+			$f7a_w( 'j3', 'CENTINELA-CONTROL' ),
+		) ) ),
+		'variants' => array(
+			'con-cookie' => array( 'cookies' => $with_cookie ) + $both( array(), array( 'CENTINELA-SOLO', 'CENTINELA-O', 'CENTINELA-CONTROL' ) ),
+			'sin-cookie' => array( 'cookies' => array() ) + $both( array( 'CENTINELA-O' ), array( 'CENTINELA-SOLO', 'CENTINELA-CONTROL' ) ),
+		),
+	),
+);
+$f7a_render = static function ( $id, $query ) {
+	$GLOBALS['wp_query']     = new WP_Query( $query ? $query : array( 'page_id' => $id ) );
+	$GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	$GLOBALS['post']         = get_post( $id );
+	setup_postdata( $GLOBALS['post'] );
+	\Elementor\Plugin::$instance->documents->get( $id, false );
+	$html = (string) \Elementor\Plugin::$instance->frontend->get_builder_content( $id, false );
+	wp_reset_postdata();
+	return $html;
+};
+$f7a_variant = static function ( $id, array $variant, $who ) use ( $f7a_render, $check, $f7a_secrets ) {
+	$saved = $_COOKIE;
+	foreach ( (array) ( $variant['cookies'] ?? array() ) as $name => $value ) {
+		$_COOKIE[ $name ] = $value;
+	}
+	wp_set_current_user( 'sesion' === $who ? 1 : 0 );
+	list( $hidden, $visible ) = $variant[ $who ];
+	$problems = $check( $f7a_render( $id, $variant['query'] ?? null ), array_merge( $hidden, $f7a_secrets ), $visible );
+	$_COOKIE = $saved;
+	wp_set_current_user( 0 );
+	return $problems;
+};
+foreach ( array( 'disable', '24' ) as $cache ) {
+	update_option( 'elementor_element_cache_ttl', $cache );
+	foreach ( $f7a_cases as $name => $case ) {
+		$id = $f7a_page( 'digi-cond-' . $name . '-' . $cache );
+		update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+		update_post_meta( $id, '_elementor_template_type', 'wp-page' );
+		update_post_meta( $id, '_elementor_version', ELEMENTOR_VERSION );
+		update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( $case['elements'] ) ) );
+		foreach ( (array) ( $case['meta'] ?? array() ) as $key => $value ) {
+			update_post_meta( $id, $key, $value );
+		}
+		delete_post_meta( $id, '_elementor_element_cache' );
+		$page_ids[ 'digi-cond-' . $name . '-' . $cache ] = (int) $id;
+		$entry = array();
+		// Cada variante, como visitante y con sesión; con la caché a 24 h, la primera se repite al final: lo que pintaron
+		// las demás no se le sirve.
+		$variants = $case['variants'];
+		$order    = array_keys( $variants );
+		if ( '24' === $cache ) {
+			$order[] = $order[0];
+		}
+		foreach ( $order as $n => $label ) {
+			foreach ( array( 'anonimo', 'sesion' ) as $who ) {
+				$key = $label . ' · ' . $who . ( $n >= count( $variants ) ? ' · repetida' : '' );
+				$entry[ $key ] = $f7a_variant( $id, $variants[ $label ], $who );
+			}
+		}
+		// Vista previa del editor: todo se ve, nunca un valor; después, el visitante vuelve a ver lo suyo.
+		if ( 'disable' === $cache ) {
+			wp_set_current_user( 1 );
+			\Elementor\Plugin::$instance->editor->set_edit_mode( true );
+			$first = reset( $variants );
+			$texts = array_unique( array_merge( $first['anonimo'][0], $first['anonimo'][1], $first['sesion'][0], $first['sesion'][1] ) );
+			$entry['editor'] = $check( $f7a_render( $id, $first['query'] ?? null ), $f7a_secrets, array_values( $texts ) );
+			\Elementor\Plugin::$instance->editor->set_edit_mode( false );
+			wp_set_current_user( 0 );
+			$entry['tras-editor · anonimo'] = $f7a_variant( $id, $first, 'anonimo' );
+		}
+		$result[ 'cache-' . $cache ][ $name ] = $entry;
+	}
+}
+$result['_f7a'] = array( 'woo' => $f7a_woo, 'visitada' => $f7a_visited, 'productos' => $f7a_products );
+
 // Señales a la caché de página: se miden en un proceso limpio por página (probe-cache.php), como en WordPress.
 $result['no-cache'] = array();
 foreach ( array( 'nativo-contenedor', 'propio-contenedor', 'heredado-contenedor', 'plantilla-acordeon' ) as $name ) {

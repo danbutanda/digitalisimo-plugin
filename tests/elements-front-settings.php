@@ -12,7 +12,9 @@
  *   sitio, sólo `POST`, y redirección construida en el servidor para la misma superficie;
  * - «Aplicar» y «Revertir» sólo cambian `svg_icons`; «Analizar» copia el veredicto al aplicado;
  * - extractos del análisis con `esc_html()`, nunca dentro de `<style>` ni `<script>`;
- * - textos sin el nombre del constructor original, sin dominios de `vendors.json` y sin enlaces fuera del sitio.
+ * - textos sin el nombre del constructor original, sin dominios de `vendors.json` y sin enlaces fuera del sitio;
+ * - F7a: `page_visits_no_consent` («Privacidad») con los cuatro puntos de paridad, «Heredar de la red» sólo en el sitio,
+ *   apagada por defecto y fuera de la transición (ni huella ni vaciado).
  */
 
 namespace Elementor {
@@ -369,6 +371,8 @@ namespace {
 	use Digitalisimo\Elements\Front\Transition;
 
 	$keys     = array( 'pro_conditional', 'font_swap', 'svg_icons', 'lazy_libs', 'element_cache_off', 'image_loading_off' );
+	$privacy  = array( 'page_visits_no_consent' );
+	$all      = array_merge( $keys, $privacy );
 	$site     = Settings::OPTION;
 	$network  = Settings::NETWORK_OPTION;
 	$page_url = 'https://b.test/wp-admin/admin.php?page=digitalisimo-elements-front';
@@ -380,6 +384,7 @@ namespace {
 	// 1. Paridad: las seis claves en los cuatro puntos y en la pantalla.
 	fs_reset();
 	$check( $keys === Settings::KEYS, 'Settings::KEYS son las seis claves de §3.2, en su orden.' );
+	$check( $privacy === Settings::PRIVACY_KEYS && $all === Settings::keys(), 'F7a: page_visits_no_consent es la clave de «Privacidad» y keys() suma las seis y ella.' );
 	$check( 'digitalisimo_elements_front' === $site && 'digitalisimo_elements_front_defaults' === $network, 'Nombres de las opciones de sitio y de red (§4).' );
 	$check(
 		array(
@@ -389,12 +394,13 @@ namespace {
 			'lazy_libs'         => false,
 			'element_cache_off' => false,
 			'image_loading_off' => false,
+			'page_visits_no_consent' => false,
 		) === Settings::defaults(),
-		'defaults(): las seis claves con su valor neutro.'
+		'defaults(): las siete claves con su valor neutro (la de privacidad, apagada).'
 	);
-	$check( array_merge( $keys, array( 'own' ) ) === array_keys( Settings::sanitize( array() ) ), 'sanitize(): las seis claves y own.' );
-	$check( $keys === array_keys( Settings::save_network( array() ) ), 'save_network(): las seis claves.' );
-	$check( $keys === array_keys( Settings::LABELS ) && $keys === array_keys( Settings::HELP ), 'Cada clave tiene etiqueta y ayuda, y ninguna más.' );
+	$check( array_merge( $all, array( 'own' ) ) === array_keys( Settings::sanitize( array() ) ), 'sanitize(): las siete claves y own.' );
+	$check( $all === array_keys( Settings::save_network( array() ) ), 'save_network(): las siete claves.' );
+	$check( $all === array_keys( Settings::LABELS ) && $all === array_keys( Settings::HELP ), 'Cada clave tiene etiqueta y ayuda, y ninguna más.' );
 	$network_html = $capture( array( Settings::class, 'network_fields' ) );
 	$site_html    = $capture( array( Settings_Page::class, 'site_fields' ) );
 	foreach ( $keys as $key ) {
@@ -433,12 +439,12 @@ namespace {
 	$check( array( 'font_swap', 'svg_icons' ) === Settings::sanitize( array( 'own' => array( 'svg_icons', 'bogus', 'svg_icons', 5, array( 'x' ), 'font_swap', '__proto__' ) ) )['own'], 'sanitize(): una lista own explícita queda acotada a las seis, sin repetir.' );
 	$check( array() === Settings::sanitize( array( 'font_swap' => '1' ) )['own'] && array() === Settings::sanitize( array( 'inherit' => 'x', 'own' => 'svg_icons' ) )['own'], 'sanitize(): sin mapa ni lista válidos, en una red todo hereda.' );
 	fs_reset( array( 'multisite' => false ) );
-	$check( $keys === Settings::sanitize( array( 'inherit' => array( 'font_swap' => '1' ) ) )['own'], 'sanitize(): en un sitio único no hay nada que heredar: own son las seis.' );
+	$check( $all === Settings::sanitize( array( 'inherit' => array( 'font_swap' => '1' ) ) )['own'], 'sanitize(): en un sitio único no hay nada que heredar: own son todas.' );
 
 	// 4. save_network(): la misma regla, clave por clave, sin saneado genérico.
 	fs_reset();
 	$saved = Settings::save_network( array( 'pro_conditional' => '0', 'font_swap' => '<script>', 'svg_icons' => '1', 'evil' => 'x', 'inherit' => array( 'font_swap' => '1' ) ) );
-	$check( array( 'pro_conditional' => false, 'font_swap' => true, 'svg_icons' => true, 'lazy_libs' => false, 'element_cache_off' => false, 'image_loading_off' => false ) === $saved && $saved === $GLOBALS['fs']['site'][ $network ], 'save_network(): seis booleanos en sitemeta; lo demás se descarta.' );
+	$check( array( 'pro_conditional' => false, 'font_swap' => true, 'svg_icons' => true, 'lazy_libs' => false, 'element_cache_off' => false, 'image_loading_off' => false, 'page_visits_no_consent' => false ) === $saved && $saved === $GLOBALS['fs']['site'][ $network ], 'save_network(): siete booleanos en sitemeta; lo demás se descarta.' );
 	$check( array( array( 'network', $network, null ) ) === $GLOBALS['fs']['writes'], 'save_network() sólo escribe la opción de red: ningún sitio cambia.' );
 	fs_reset( array( 'multisite' => false ) );
 	Settings::save_network( array( 'font_swap' => '0' ) );
@@ -732,5 +738,60 @@ namespace {
 	$check( array() === preg_grep( '/^admin_post_nopriv_|^wp_ajax/', $hooks ), 'Ninguna acción para visitantes sin sesión ni por AJAX.' );
 	$check( false !== strpos( file_get_contents( $front . '/class-settings-page.php' ), 'wp_safe_redirect( self::url(' ) && false === strpos( file_get_contents( $front . '/class-settings-page.php' ), 'wp_get_referer' ), 'La redirección se construye con url(), nunca con el referer.' );
 
-	echo "F-front · ajustes: paridad sitio/red, herencia, own, capacidades, nonces, redirección, iconos, escapado y textos en verde.\n";
+	// 14. F7a · «Privacidad»: page_visits_no_consent con los cuatro puntos de paridad, sin transición ni vaciado.
+	$key = 'page_visits_no_consent';
+	fs_reset();
+	$net_priv  = $capture( array( Settings::class, 'network_privacy_fields' ) );
+	$site_priv = $capture( array( Settings_Page::class, 'privacy_fields' ) );
+	$check( 2 === substr_count( $net_priv, 'name="' . $network . '[' . $key . ']"' ) && false === strpos( $net_priv, 'Heredar de la red' ) && false === strpos( $net_priv, '[inherit]' ), 'Privacidad · red: oculto y casilla, sin «Heredar de la red».' );
+	$check( 2 === substr_count( $site_priv, 'name="' . $site . '[' . $key . ']"' ) && 1 === substr_count( $site_priv, 'Heredar de la red' ) && false !== strpos( $site_priv, 'name="' . $site . '[inherit][' . $key . ']"' ) && false !== strpos( $site_priv, 'data-field="digitalisimo-front-page-visits-no-consent"' ), 'Privacidad · sitio de una red: la casilla y «Heredar de la red» con el script común.' );
+	$check( false === strpos( $capture( array( Settings::class, 'network_fields' ) ), $key ) && false === strpos( $capture( array( Settings_Page::class, 'site_fields' ) ), $key ), 'Privacidad: la clave no se repite en las filas de rendimiento (ningún name duplicado).' );
+	$check( false !== strpos( $site_priv, 'WP Consent API' ) && false !== strpos( $site_priv, 'En vigor en este sitio:' ) && false === stripos( $site_priv . $net_priv, 'elementor' ), 'Privacidad: la ayuda nombra la WP Consent API, dice el estado y no nombra el constructor original.' );
+	fs_reset( array( 'network' => true ) );
+	$check( false === strpos( $capture( array( Settings_Page::class, 'privacy_fields' ) ), 'Heredar de la red' ), 'Privacidad: en la red (is_network_admin) el mismo formulario no muestra la casilla.' );
+	fs_reset( array( 'multisite' => false ) );
+	$single_priv = $capture( array( Settings_Page::class, 'privacy_fields' ) );
+	$check( false !== strpos( $single_priv, 'name="' . $site . '[' . $key . ']"' ) && false === strpos( $single_priv, 'Heredar de la red' ) && false === strpos( $single_priv, '[inherit]' ), 'Privacidad: un sitio único no muestra «Heredar de la red».' );
+
+	fs_reset();
+	$clean = Settings::sanitize( array( $key => 'yes', 'inherit' => array( $key => '0' ) ) );
+	$check( true === $clean[ $key ] && array( $key ) === $clean['own'], 'Privacidad · sanitize(): booleano, y own sale del mapa inherit.' );
+	$check( false === Settings::sanitize( array( $key => '' ) )[ $key ] && false === Settings::sanitize( array( $key => array() ) )[ $key ] && false === Settings::sanitize( array() )[ $key ], 'Privacidad · sanitize(): vacío, lista o ausente dan false.' );
+	$saved = Settings::save_network( array( $key => '<b>1</b>', 'inherit' => array( $key => '1' ) ) );
+	$check( true === $saved[ $key ] && true === $GLOBALS['fs']['site'][ $network ][ $key ] && ! isset( $saved['inherit'] ), 'Privacidad · save_network(): booleano en sitemeta, sin inherit.' );
+	$check( false === Settings::save_network( array( $key => '0' ) )[ $key ], 'Privacidad · save_network(): «0» da false.' );
+
+	fs_reset( array( 'blog' => 2 ) );
+	$check( false === Settings::get( $key ) && Settings::inherits_network( $key ) && 'default' === Settings::origin( $key ), 'Privacidad: un sitio que nunca la guardó hereda y vale false (apagada por defecto).' );
+	$GLOBALS['fs']['site'][ $network ] = array( $key => true );
+	$check( true === Settings::get( $key ) && 'network' === Settings::origin( $key ), 'Privacidad: un valor de red recién definido rige de inmediato.' );
+	update_option( $site, Settings::sanitize( array( $key => '0', 'inherit' => array( $key => '0' ) ) ) );
+	$check( false === Settings::get( $key ) && ! Settings::inherits_network( $key ) && 'site' === Settings::origin( $key ), 'Privacidad: el sitio que la personaliza manda sobre la red.' );
+	fs_reset( array( 'multisite' => false ) );
+	update_option( $site, Settings::sanitize( array( $key => '1' ) ) );
+	$GLOBALS['fs']['site'][ $network ] = array( $key => false );
+	$check( true === Settings::get( $key ) && 0 === $GLOBALS['fs']['site_reads'], 'Privacidad: en un sitio único manda el sitio y no se lee sitemeta.' );
+
+	fs_reset( array( 'blog' => 2 ) );
+	$_POST = array( '_wpnonce' => $nonce( Settings_Page::ACTION_SAVE ), $site => array( 'pro_conditional' => '1', 'font_swap' => '1', 'inherit' => array( 'pro_conditional' => '1', 'font_swap' => '1', $key => '1' ) ) );
+	Settings_Page::process_save();
+	$hash   = Transition::applied()['hash'];
+	$clears = fs_clears();
+	$_POST  = array( '_wpnonce' => $nonce( Settings_Page::ACTION_SAVE ), $site => array( 'pro_conditional' => '1', 'font_swap' => '1', $key => '1', 'inherit' => array( 'pro_conditional' => '1', 'font_swap' => '1', $key => '0' ) ) );
+	$result = Settings_Page::process_save();
+	$check( 'saved' === $result['notice'] && true === Settings::get( $key ) && $hash === Transition::applied()['hash'] && $clears === fs_clears() && ! array_key_exists( $key, Transition::applied() ), 'Privacidad: guardarla no transita (misma huella, ningún vaciado y fuera de lo aplicado).' );
+	$_POST = array( '_wpnonce' => $nonce( Settings_Page::ACTION_APPLY ) );
+	Settings_Page::process_apply();
+	$check( true === Settings::get( $key ) && ! Settings::inherits_network( $key ), 'Privacidad: «Aplicar» los iconos no pierde la clave.' );
+
+	fs_reset();
+	$page = $capture( array( Settings_Page::class, 'render' ) );
+	$form = substr( $page, (int) strpos( $page, 'value="' . Settings_Page::ACTION_SAVE . '"' ) );
+	$form = substr( $form, 0, (int) strpos( $form, '</form>' ) );
+	$check( false !== strpos( $form, '<h2 id="digitalisimo-front-privacy">Privacidad</h2>' ) && false !== strpos( $form, 'name="' . $site . '[' . $key . ']"' ), 'Privacidad · sitio: la sección va dentro del formulario de ajustes.' );
+	fs_reset( array( 'network' => true, 'caps' => array( 'manage_network_options' ) ) );
+	$page = $capture( array( Settings_Page::class, 'render_network' ) );
+	$check( false !== strpos( $page, '>Privacidad</h2>' ) && 2 === substr_count( $page, 'name="' . $network . '[' . $key . ']"' ) && false === strpos( $page, 'Heredar de la red' ) && 1 === substr_count( $page, '<form' ), 'Privacidad · red: la sección en el único formulario, sin «Heredar de la red».' );
+
+	echo "F-front · ajustes: paridad sitio/red, herencia, own, capacidades, nonces, redirección, iconos, escapado, textos y la sección «Privacidad» de F7a en verde.\n";
 }

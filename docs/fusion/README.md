@@ -43,6 +43,14 @@ Desde el cambio de alcance del 20 de octubre de 2026, los informes de Divi, Beth
 
 La evidencia de Playground de K se guarda en `k-kits-evidence.json`, el `summary.json` de `tests/playground/kit-roundtrip.sh`.
 
+## Capacidades de Divi y Betheme en Elements (F7a)
+
+| Informe | Qué cubre | Incremento |
+|---|---|---|
+| [f7a.md](f7a.md) | Diseño de F7a: comportamientos tomados de los orígenes (clean-room), hechos del núcleo con rutas y líneas, guardas, formato de la opción de presets, aplanado, biblioteca de formas y teselas, las siete condiciones, el centinela, la corrección de la caché v4, el consentimiento de «Visitó una página», ganchos y filtros nuevos, desviaciones de cada frente y límites | F7a (y K) |
+
+La evidencia de Playground de F7a irá a `f7a-evidence.json`, con los `summary.json` de `tests/playground/design.sh` y de las ampliaciones de `front-budget.sh`, `conditions.sh`, `kit-roundtrip.sh` y `brand-audit.sh`.
+
 ## Sin rastro de los plugins de origen (F0.2, resuelto)
 
 | Informe | Qué cubre |

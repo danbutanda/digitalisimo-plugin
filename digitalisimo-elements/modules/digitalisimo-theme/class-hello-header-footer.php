@@ -11,10 +11,11 @@ defined( 'ABSPATH' ) || exit;
  * `digitalisimo_theme_switched` después de soltar su cerrojo. Aquí sólo se escriben `generated`,
  * `header_footer.pending` y `header_footer.blocked` (y `reverted` y `state` cuando se deja el tema desde Apariencia,
  * sin pasar por su reversión), siempre sobre el registro releído, y bajo un cerrojo propio
- * (`digitalisimo_theme_convert_lock`, INSERT IGNORE con token, como Migración): dos peticiones no pueden crear dos
- * plantillas. Cada plantilla generada lleva `_digitalisimo_generated = hello_<parte>` y la huella de su
- * `_elementor_data` releído tras guardarlo: una plantilla que el usuario editó nunca se pisa, ni se borra al revertir
- * (pasa a borrador). Lo que no se puede reconstruir se declara en la bitácora (`digitalisimo_theme_switch_log`).
+ * (`digitalisimo_theme_convert_lock`, con el cerrojo compartido `Lock`: INSERT IGNORE con token, como Migración):
+ * dos peticiones no pueden crear dos plantillas. Cada plantilla generada lleva `_digitalisimo_generated =
+ * hello_<parte>` y la huella de su `_elementor_data` releído tras guardarlo: una plantilla que el usuario editó nunca
+ * se pisa, ni se borra al revertir (pasa a borrador). Lo que no se puede reconstruir se declara en la bitácora
+ * (`digitalisimo_theme_switch_log`).
  *
  * El árbol (`build()`) reproduce el marcado y las medidas de Hello 3.5.1 (`template-parts/dynamic-*.php`,
  * `assets/css/{theme,header-footer}.css` e `includes/settings/settings-*.php`) con valores explícitos: Hello no está
@@ -46,8 +47,6 @@ final class Hello_Header_Footer {
 	/** Color de los enlaces de `assets/css/reset.css` de Hello 3.5.1, cuando el kit no define otro. */
 	const LINK_COLOR       = '#c36';
 	const LINK_HOVER_COLOR = '#336';
-
-	private static $tokens = array();
 
 	/** ¿La conversión en curso creó o publicó alguna plantilla? (para limpiar las cachés al terminar). */
 	private static $changed = false;
@@ -949,60 +948,27 @@ final class Hello_Header_Footer {
 
 	/* ------------------------------------------------------------------ Cerrojo (§4.5) */
 
-	/** INSERT IGNORE con token propio; un cerrojo de más de 300 s se roba sólo si nadie lo cambió entre la lectura y el robo. */
+	/**
+	 * Cerrojo compartido de Elements (`Digitalisimo\Elements\Lock`, `modules/digitalisimo-design/class-lock.php`):
+	 * INSERT IGNORE con token propio; uno de más de 300 s se roba sólo si nadie lo cambió entre la lectura y el robo, y
+	 * una petición nunca reentra en el suyo ni suelta el de otra.
+	 */
 	private static function lock() {
-		global $wpdb;
-		$blog = self::blog();
-		if ( isset( self::$tokens[ $blog ] ) ) {
-			return false; // Ya lo tiene esta petición: no se reentra.
-		}
-		$token = function_exists( 'wp_generate_password' ) ? wp_generate_password( 20, false ) : bin2hex( random_bytes( 10 ) );
-		$value = time() . '|' . $token;
-		$taken = (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'off' )", self::LOCK, $value ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		if ( 1 !== $taken ) {
-			$held = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			if ( '' !== $held && time() - (int) $held < self::STALE ) {
-				return false;
-			}
-			if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $value, self::LOCK, $held ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-				return false;
-			}
-		}
-		wp_cache_delete( self::LOCK, 'options' );
-		if ( ! self::$tokens ) {
-			register_shutdown_function( array( __CLASS__, 'unlock_all' ) );
-		}
-		self::$tokens[ $blog ] = $token;
-		return true;
+		require_once dirname( __DIR__ ) . '/digitalisimo-design/class-lock.php';
+		return Lock::acquire( self::LOCK, self::STALE );
 	}
 
 	/** Suelta el cerrojo propio; nunca el de otra petición. */
 	private static function unlock() {
-		global $wpdb;
-		$blog  = self::blog();
-		$token = self::$tokens[ $blog ] ?? '';
-		unset( self::$tokens[ $blog ] );
-		if ( '' !== $token ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value LIKE %s", self::LOCK, '%|' . $wpdb->esc_like( $token ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			wp_cache_delete( self::LOCK, 'options' );
-		}
+		require_once dirname( __DIR__ ) . '/digitalisimo-design/class-lock.php';
+		Lock::release( self::LOCK );
 	}
 
-	/** Si la petición termina con un error fatal, suelta los cerrojos propios que quedaran tomados (en su sitio). */
+	/**
+	 * Suelta el cerrojo propio del sitio actual si quedó tomado. Los de otros sitios de la red los suelta el cerrojo
+	 * compartido al terminar la petición (`Lock::release_all()`, registrada al tomar el primero).
+	 */
 	public static function unlock_all() {
-		foreach ( array_keys( self::$tokens ) as $blog ) {
-			$switch = function_exists( 'is_multisite' ) && is_multisite() && (int) $blog && (int) $blog !== (int) self::blog();
-			if ( $switch ) {
-				switch_to_blog( (int) $blog );
-			}
-			self::unlock();
-			if ( $switch ) {
-				restore_current_blog();
-			}
-		}
-	}
-
-	private static function blog() {
-		return function_exists( 'get_current_blog_id' ) ? (string) get_current_blog_id() : '0';
+		self::unlock();
 	}
 }

@@ -2764,5 +2764,1049 @@
   "widgets": [],
   "pending": "F7b: la acción con destino que abre un popup o un panel lateral llamará Pro_Gate::require(); hasta entonces el caso se omite.",
   "modes": []
+ },
+ "design-preset": {
+  "title": "Presets de estilo aplanados en el CSS del documento que los usa (F7a): lo local gana",
+  "since": "4.3.0.164",
+  "uses": 3,
+  "presets": {
+   "fb-tarjeta": {
+    "type": "heading",
+    "label": "Tarjeta de medición",
+    "settings": {
+     "title_color": "#123456",
+     "typography_typography": "custom",
+     "typography_font_size": {
+      "unit": "px",
+      "size": 31,
+      "sizes": []
+     },
+     "typography_font_weight": "700"
+    }
+   },
+   "fb-caja": {
+    "type": "container",
+    "label": "Caja de medición",
+    "settings": {
+     "background_background": "classic",
+     "background_color": "#E8F0FF"
+    }
+   }
+  },
+  "widgets": [
+   {
+    "type": "heading",
+    "id": "fbp0001",
+    "settings": {
+     "title": "Con preset",
+     "digitalisimo_preset": "fb-tarjeta"
+    }
+   },
+   {
+    "type": "heading",
+    "id": "fbp0002",
+    "settings": {
+     "title": "Con preset y color local",
+     "digitalisimo_preset": "fb-tarjeta",
+     "title_color": "#654321"
+    }
+   },
+   {
+    "elType": "container",
+    "id": "fbp0003",
+    "settings": {
+     "digitalisimo_preset": "fb-caja"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbp0004",
+      "settings": {
+       "title": "Caja con preset"
+      }
+     }
+    ]
+   }
+  ],
+  "styles": {
+   "preset-color": {
+    "selector": ".elementor-element-fbp0001 .elementor-heading-title",
+    "prop": "color"
+   },
+   "preset-size": {
+    "selector": ".elementor-element-fbp0001 .elementor-heading-title",
+    "prop": "font-size"
+   },
+   "preset-weight": {
+    "selector": ".elementor-element-fbp0001 .elementor-heading-title",
+    "prop": "font-weight"
+   },
+   "local-color": {
+    "selector": ".elementor-element-fbp0002 .elementor-heading-title",
+    "prop": "color"
+   },
+   "local-size": {
+    "selector": ".elementor-element-fbp0002 .elementor-heading-title",
+    "prop": "font-size"
+   },
+   "box-background": {
+    "selector": ".elementor-element-fbp0003",
+    "prop": "background-color"
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "style:preset-color": "rgb(18, 52, 86)",
+    "style:preset-size": "31px",
+    "style:preset-weight": "700",
+    "style:local-color": "rgb(101, 67, 33)",
+    "style:local-size": "31px",
+    "style:box-background": "rgb(232, 240, 255)",
+    "presetsEditor": false
+   }
+  }
+ },
+ "design-gradient": {
+  "title": "Degradado avanzado: cónico con parada intermedia y lineal repetido (F7a)",
+  "since": "4.3.0.164",
+  "uses": 2,
+  "widgets": [
+   {
+    "elType": "container",
+    "id": "fbg0001",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 120,
+      "sizes": []
+     },
+     "background_background": "gradient",
+     "background_color": "#FF0000",
+     "background_color_b": "#0000FF",
+     "background_digi_kind": "conic",
+     "background_digi_conic_from": {
+      "unit": "deg",
+      "size": 45,
+      "sizes": []
+     },
+     "background_digi_conic_at": "top left",
+     "background_digi_stops": [
+      {
+       "_id": "g1",
+       "color": "#00FF00",
+       "position": {
+        "unit": "%",
+        "size": 50,
+        "sizes": []
+       }
+      }
+     ]
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbg0002",
+      "settings": {
+       "title": "Cónico"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbg0003",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 120,
+      "sizes": []
+     },
+     "background_background": "gradient",
+     "background_color": "#FFFF00",
+     "background_color_b": "#FF00FF",
+     "background_color_b_stop": {
+      "unit": "%",
+      "size": 20,
+      "sizes": []
+     },
+     "background_gradient_angle": {
+      "unit": "deg",
+      "size": 90,
+      "sizes": []
+     },
+     "background_digi_repeat": "yes",
+     "background_digi_stops": [
+      {
+       "_id": "g2",
+       "color": "#00FFFF",
+       "position": {
+        "unit": "%",
+        "size": 10,
+        "sizes": []
+       }
+      }
+     ]
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbg0004",
+      "settings": {
+       "title": "Lineal repetido"
+      }
+     }
+    ]
+   }
+  ],
+  "styles": {
+   "conic": {
+    "selector": ".elementor-element-fbg0001",
+    "prop": "background-image"
+   },
+   "repeat": {
+    "selector": ".elementor-element-fbg0003",
+    "prop": "background-image"
+   }
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "style:conic": "~^conic-gradient\\(from 45deg at (left top|0% 0%), rgb\\(255, 0, 0\\) 0%, rgb\\(0, 255, 0\\) 50%, rgb\\(0, 0, 255\\) 100%\\)$",
+    "style:repeat": "~^repeating-linear-gradient\\(90deg, rgb\\(255, 255, 0\\) 0%, rgb\\(0, 255, 255\\) 10%, rgb\\(255, 0, 255\\) 20%\\)$",
+    "svgRequests": 0
+   }
+  }
+ },
+ "design-mask": {
+  "title": "Máscara de recorte de la biblioteca en contenedor, sección y columna (F7a): data: en porcentaje, sin peticiones",
+  "since": "4.3.0.164",
+  "uses": 3,
+  "elements": [
+   {
+    "elType": "container",
+    "id": "fbm0001",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 160,
+      "sizes": []
+     },
+     "background_background": "classic",
+     "background_color": "#245EFF",
+     "digitalisimo_mask": "yes",
+     "digitalisimo_mask_shape": "corazon"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbm0002",
+      "settings": {
+       "title": "Máscara de contenedor"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "section",
+    "id": "fbm0003",
+    "settings": {
+     "background_background": "classic",
+     "background_color": "#FF7A00",
+     "digitalisimo_mask": "yes",
+     "digitalisimo_mask_shape": "estrella"
+    },
+    "elements": [
+     {
+      "elType": "column",
+      "id": "fbm0004",
+      "settings": {
+       "_column_size": 100,
+       "background_background": "classic",
+       "background_color": "#00AA66",
+       "digitalisimo_mask": "yes",
+       "digitalisimo_mask_shape": "rombo"
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "id": "fbm0005",
+        "settings": {
+         "title": "Máscara de sección y de columna"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "styles": {
+   "container": {
+    "selector": ".elementor-element-fbm0001",
+    "prop": "mask-image"
+   },
+   "section": {
+    "selector": ".elementor-element-fbm0003",
+    "prop": "mask-image"
+   },
+   "column": {
+    "selector": ".elementor-element-fbm0004 > .elementor-widget-wrap",
+    "prop": "mask-image"
+   }
+  },
+  "cssCount": {
+   "def-corazon": "--digi-mask-corazon:url\\(",
+   "def-estrella": "--digi-mask-estrella:url\\(",
+   "def-rombo": "--digi-mask-rombo:url\\(",
+   "base64": ";base64,"
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "style:container": "~^url\\(\"data:image/svg\\+xml,%3Csvg",
+    "style:section": "~^url\\(\"data:image/svg\\+xml,%3Csvg",
+    "style:column": "~^url\\(\"data:image/svg\\+xml,%3Csvg",
+    "css:def-corazon": 1,
+    "css:def-estrella": 1,
+    "css:def-rombo": 1,
+    "css:base64": 0,
+    "svgRequests": 0,
+    "uploadsNonCss": 0
+   }
+  }
+ },
+ "design-pattern": {
+  "title": "Patrón «puntos» en 20 contenedores (F7a): una sola definición de la variable por documento",
+  "since": "4.3.0.164",
+  "uses": 20,
+  "widgets": [
+   {
+    "elType": "container",
+    "id": "fbt0001",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0001",
+      "settings": {
+       "title": "Tesela 1"
+      }
+     },
+     {
+      "type": "button",
+      "id": "fbtbtn1",
+      "settings": {
+       "text": "Botón sobre el patrón"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0002",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0002",
+      "settings": {
+       "title": "Tesela 2"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0003",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0003",
+      "settings": {
+       "title": "Tesela 3"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0004",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0004",
+      "settings": {
+       "title": "Tesela 4"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0005",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0005",
+      "settings": {
+       "title": "Tesela 5"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0006",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0006",
+      "settings": {
+       "title": "Tesela 6"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0007",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0007",
+      "settings": {
+       "title": "Tesela 7"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0008",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0008",
+      "settings": {
+       "title": "Tesela 8"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0009",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0009",
+      "settings": {
+       "title": "Tesela 9"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0010",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0010",
+      "settings": {
+       "title": "Tesela 10"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0011",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0011",
+      "settings": {
+       "title": "Tesela 11"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0012",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0012",
+      "settings": {
+       "title": "Tesela 12"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0013",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0013",
+      "settings": {
+       "title": "Tesela 13"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0014",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0014",
+      "settings": {
+       "title": "Tesela 14"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0015",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0015",
+      "settings": {
+       "title": "Tesela 15"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0016",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0016",
+      "settings": {
+       "title": "Tesela 16"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0017",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0017",
+      "settings": {
+       "title": "Tesela 17"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0018",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0018",
+      "settings": {
+       "title": "Tesela 18"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0019",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0019",
+      "settings": {
+       "title": "Tesela 19"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbt0020",
+    "settings": {
+     "min_height": {
+      "unit": "px",
+      "size": 60,
+      "sizes": []
+     },
+     "digitalisimo_pattern": "yes",
+     "digitalisimo_pattern_tile": "puntos",
+     "digitalisimo_pattern_color": "#245EFF"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbh0020",
+      "settings": {
+       "title": "Tesela 20"
+      }
+     }
+    ]
+   }
+  ],
+  "styles": {
+   "after-mask": {
+    "selector": ".elementor-element-fbt0001",
+    "pseudo": "::after",
+    "prop": "mask-image"
+   },
+   "after-display": {
+    "selector": ".elementor-element-fbt0001",
+    "pseudo": "::after",
+    "prop": "display"
+   },
+   "isolation": {
+    "selector": ".elementor-element-fbt0001",
+    "prop": "isolation"
+   },
+   "z-index": {
+    "selector": ".elementor-element-fbt0001",
+    "prop": "z-index"
+   }
+  },
+  "hits": {
+   "button": ".elementor-element-fbtbtn1 .elementor-button"
+  },
+  "cssCount": {
+   "def-puntos": "--digi-tile-puntos:url\\(",
+   "use-puntos": "var\\(--digi-tile-puntos\\)",
+   "base64": ";base64,"
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "css:def-puntos": 1,
+    "css:use-puntos": ">=20",
+    "css:base64": 0,
+    "style:after-mask": "~^url\\(\"data:image/svg\\+xml,%3Csvg",
+    "style:after-display": "block",
+    "style:isolation": "isolate",
+    "style:z-index": "1",
+    "hit:button": true,
+    "svgRequests": 0,
+    "uploadsNonCss": 0
+   }
+  }
+ },
+ "sticky-state": {
+  "title": "Sticky «al fijarse» (F7a): un hijo que aparece y otro que desaparece al fijarse el contenedor",
+  "since": "4.3.0.164",
+  "elements": [
+   {
+    "elType": "container",
+    "id": "fbs0001",
+    "settings": {
+     "sticky": "top"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "id": "fbs0002",
+      "settings": {
+       "title": "Siempre"
+      }
+     },
+     {
+      "type": "heading",
+      "id": "fbs0003",
+      "settings": {
+       "title": "Al fijarse",
+       "digitalisimo_sticky_state": "show"
+      }
+     },
+     {
+      "type": "heading",
+      "id": "fbs0004",
+      "settings": {
+       "title": "Sin fijar",
+       "digitalisimo_sticky_state": "hide"
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbs0005",
+    "settings": {},
+    "elements": [
+     {
+      "type": "spacer",
+      "settings": {
+       "space": {
+        "unit": "px",
+        "size": 2500,
+        "sizes": []
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "visible": {
+   "always": ".elementor-element-fbs0001:not(.elementor-sticky__spacer) .elementor-element-fbs0002",
+   "show": ".elementor-element-fbs0001:not(.elementor-sticky__spacer) .elementor-element-fbs0003",
+   "hide": ".elementor-element-fbs0001:not(.elementor-sticky__spacer) .elementor-element-fbs0004"
+  },
+  "counts": {
+   "spacerShow": ".elementor-sticky__spacer .elementor-element-fbs0003"
+  },
+  "assets": {
+   "sticky-state": "sticky-state(\\.min)?\\.css"
+  },
+  "actions": [
+   {
+    "do": "scroll",
+    "to": 900
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "setting:sticky",
+    "errors": 0,
+    "stickyStateCss": true,
+    "asset:sticky-state": "<=512",
+    "shown:always": true,
+    "shown:show": false,
+    "shown:hide": true,
+    "after": {
+     "stickyActive": true,
+     "shown:always": true,
+     "shown:show": true,
+     "shown:hide": false
+    }
+   }
+  }
+ },
+ "doc-hide": {
+  "title": "Controles de documento (F7a): «Ocultar imagen destacada» en su propia página; cabecera con otro tema, sin efecto",
+  "since": "4.3.0.164",
+  "thumbnail": true,
+  "page_settings": {
+   "digitalisimo_hide_featured_image": "yes",
+   "digitalisimo_hide_header": "yes"
+  },
+  "widgets": [
+   {
+    "type": "theme-post-featured-image",
+    "id": "fbd0001",
+    "settings": {}
+   },
+   {
+    "type": "text-editor",
+    "id": "fbd0002",
+    "settings": {
+     "editor": "<p>Texto después de la imagen destacada.</p>"
+    }
+   }
+  ],
+  "counts": {
+   "featured": ".elementor-widget-theme-post-featured-image",
+   "text": ".elementor-element-fbd0002"
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "count:featured": 0,
+    "count:text": 1
+   }
+  }
+ },
+ "page-visit-tracked": {
+  "title": "Página rastreada por «Visitó una página» (F7a): script en línea < 400 B y la condición cumplida en la visita siguiente",
+  "since": "4.3.0.164",
+  "save": "document",
+  "front_settings": {
+   "page_visits_no_consent": true
+  },
+  "widgets": [
+   {
+    "type": "heading",
+    "id": "fbv0001",
+    "settings": {
+     "title": "Ya visitaste esta página",
+     "e_display_conditions": [
+      "[[{\"condition\":\"digitalisimo_page_visit\",\"comparator\":\"is_one_of\",\"pages\":[\"__SELF__\"]}]]"
+     ]
+    }
+   }
+  ],
+  "counts": {
+   "visited": ".elementor-element-fbv0001"
+  },
+  "actions": [
+   {
+    "do": "reload"
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache",
+   "plugin"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "pageVisitScript": "<400",
+    "seenCookie": true,
+    "after": {
+     "pageVisitScript": "<400",
+     "seenCookie": true,
+     "count:visited": 1
+    }
+   },
+   "normal": {
+    "count:visited": 0
+   },
+   "plugin": {
+    "count:visited": 0
+   },
+   "cache": {
+    "count:visited": 1
+   }
+  }
  }
 }

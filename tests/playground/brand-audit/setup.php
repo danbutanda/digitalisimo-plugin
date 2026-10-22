@@ -96,13 +96,30 @@ $digi_doc = static function ( $post_type, $title, $slug, $type, array $data, arr
 $digi_ids = array();
 $digi_ids['page'] = $digi_doc( 'page', 'Prueba de marca', 'digi-marca', 'wp-page', array(
 	array( 'id' => 'mc00001', 'elType' => 'container', 'settings' => array(), 'elements' => array(
-		array( 'id' => 'mw00001', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Título de prueba' ), 'elements' => array() ),
+		array( 'id' => 'mw00001', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Título de prueba', 'digitalisimo_preset' => 'marca-titulo' ), 'elements' => array() ),
 		array( 'id' => 'mw00002', 'elType' => 'widget', 'widgetType' => 'button', 'settings' => array( 'text' => 'Botón de prueba' ), 'elements' => array() ),
 		array( 'id' => 'mw00003', 'elType' => 'widget', 'widgetType' => 'video', 'settings' => array(), 'elements' => array() ),
 		array( 'id' => 'mw00004', 'elType' => 'widget', 'widgetType' => 'e-youtube', 'settings' => array(), 'elements' => array(), 'version' => '0.4' ),
 	) ),
 	array( 'id' => 'mc00002', 'elType' => 'container', 'settings' => array( 'background_background' => 'video', 'min_height' => array( 'unit' => 'px', 'size' => 200 ) ), 'elements' => array(
 		array( 'id' => 'mw00005', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Fondo de vídeo' ), 'elements' => array() ),
+	) ),
+	// F7a: degradado cónico con una parada, máscara, patrón y sticky con un hijo «al fijarse», para que el editor
+	// muestre sus controles (degradado avanzado, «Máscara», popover «Patrón», estado de sticky y su aviso).
+	array( 'id' => 'mc00003', 'elType' => 'container', 'settings' => array(
+		'sticky'                    => 'top',
+		'min_height'                => array( 'unit' => 'px', 'size' => 160 ),
+		'background_background'     => 'gradient',
+		'background_color'          => '#245EFF',
+		'background_color_b'        => '#00C2A8',
+		'background_digi_kind'      => 'conic',
+		'background_digi_stops'     => array( array( '_id' => 'm1', 'color' => '#FFFFFF', 'position' => array( 'unit' => '%', 'size' => 50 ) ) ),
+		'digitalisimo_mask'         => 'yes',
+		'digitalisimo_mask_shape'   => 'hexagono',
+		'digitalisimo_pattern'      => 'yes',
+		'digitalisimo_pattern_tile' => 'puntos',
+	), 'elements' => array(
+		array( 'id' => 'mw00006', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Al fijarse', 'digitalisimo_sticky_state' => 'show' ), 'elements' => array() ),
 	) ),
 ) );
 $digi_ids['template'] = $digi_doc( 'elementor_library', 'Plantilla de prueba', 'digi-marca-plantilla', 'section', array( array( 'id' => 'tc00001', 'elType' => 'container', 'settings' => array(), 'elements' => array( array( 'id' => 'tw00001', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'title' => 'Contenido de plantilla' ), 'elements' => array() ) ) ) ) );

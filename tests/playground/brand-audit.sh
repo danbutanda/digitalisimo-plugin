@@ -36,7 +36,7 @@ mkdir -p "$OUT" && rm -rf "$OUT"/*.png "$OUT"/*.bars.html "$OUT/brand-audit.json
   "$OUT/setup-warnings.txt" "$OUT/ids.json" "$OUT/fatal.log" "$OUT/http.jsonl" "$OUT/netlog.json" "$OUT/cron-"*.json "$OUT/migrado" \
   "$OUT/kits" "$OUT/kit.json"
 A="$ROOT/tests/playground/brand-audit"
-cp "$A/setup.php" "$A/probe-http.php" "$A/cron.php" "$A/migrado.json" "$OUT/"
+cp "$A/setup.php" "$A/setup-f7a.php" "$A/probe-http.php" "$A/cron.php" "$A/migrado.json" "$OUT/"
 # Lista de proveedores con los vídeos de muestra regenerados desde el código (el núcleo cambia en cada versión).
 node "$A/vendors.cjs" "$ROOT" > "$OUT/vendors.json"
 printf '{"scope":"%s","state":"%s","original":%s}\n' "$SCOPE" "$STATE" "$([ "$ORIGINAL" = 1 ] && echo true || echo false)" > "$OUT/audit-options.json"
@@ -77,7 +77,8 @@ if [ "$STATE" = kit ]; then
 fi
 cat > "$OUT/blueprint.json" <<JSON
 {$LIBRARIES"steps":[$STEPS
-{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}$KIT_STEPS]}
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup-f7a.php';"}$KIT_STEPS]}
 JSON
 MOUNTS=(--mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$OUT:/wordpress/wp-content/probe")
 [ "$SCOPE" = full ] && MOUNTS+=(--mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration")

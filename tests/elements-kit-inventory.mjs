@@ -3,11 +3,12 @@
 //   class-registry.php) y el Slider Optimizado tienen su caso en tests/playground/kit-roundtrip/cases.json, con la
 //   marca de alias igual a la del registro; ningún caso nombra un widget propio que no existe.
 // - Cada rasgo propio que inicia el registro tiene su caso, y cada «base» de front-budget existe.
-// - Cada parte de K (Parts::BUILTIN) tiene su caso con motivo (§11.2: obligación de cada etapa).
+// - Cada parte de K (Parts::BUILTIN) tiene su caso con motivo (§11.2: obligación de cada etapa). Las partes de fuera de
+//   kits/ (clases que implementan Part con `const KEY`, F7a) se aceptan en cases.parts y se listan si aún no tienen caso.
 // - tests/sources/kits/no-reference.json: cada control que parece referencia y no lo es lleva su motivo.
 // El inventario en tiempo de ejecución (todos los controles de todos los widgets) lo hace kit-roundtrip.sh.
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -71,8 +72,30 @@ for (const part of parts) {
   const c = (cases.parts || {})[part];
   if (!c || !c.case || !c.motivo) problems.push(`parte ${part}: sin caso con «case» y «motivo» en kit-roundtrip/cases.json`);
 }
+// Partes registradas con el filtro digitalisimo_elements_kit_parts fuera de kits/ (F7a y siguientes): las clases que
+// implementan Part (por su nombre corto con `use`, o completo) y declaran su clave en `const KEY`.
+const walkPhp = (dir, out = []) => {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) { if (p !== join(E, 'modules/digitalisimo-import/kits') && name !== 'elementor') walkPhp(p, out); }
+    else if (name.endsWith('.php')) out.push(p);
+  }
+  return out;
+};
+const external = {};
+for (const file of walkPhp(join(E, 'modules'))) {
+  const text = readFileSync(file, 'utf8');
+  const short = /^use\s+Digitalisimo\\Elements\\Import\\Kits\\Part;/m.test(text);
+  if (!/\bclass\s+\w+\s+implements\s+[^{]*?(?:\\Digitalisimo\\Elements\\Import\\Kits\\Part\b|(?<![\\\w])Part\b)/.test(text)) continue;
+  if (!short && !/implements\s+[^{]*\\Digitalisimo\\Elements\\Import\\Kits\\Part\b/.test(text)) continue;
+  const key = text.match(/\bconst\s+KEY\s*=\s*'([a-z0-9]+(?:-[a-z0-9]+)*)'\s*;/);
+  if (!key) { problems.push(`${file.slice(ROOT.length + 1)}: implementa Part sin «const KEY = '<clave>'»`); continue; }
+  if (parts.includes(key[1]) || external[key[1]]) { problems.push(`${file.slice(ROOT.length + 1)}: la clave de parte «${key[1]}» ya existe`); continue; }
+  external[key[1]] = file.slice(ROOT.length + 1);
+}
+const pending = Object.keys(external).filter((part) => { const c = (cases.parts || {})[part]; return !c || !c.case || !c.motivo; });
 for (const part of Object.keys(cases.parts || {})) {
-  if (!parts.includes(part)) problems.push(`parte ${part}: caso de una parte que Parts::BUILTIN no declara`);
+  if (!parts.includes(part) && !external[part]) problems.push(`parte ${part}: caso de una parte que ni Parts::BUILTIN ni una clase Part de modules/ declaran`);
 }
 
 // Controles que parecen referencia y no lo son (compare.mjs los acepta sólo con motivo).
@@ -82,4 +105,7 @@ for (const entry of noRef.controles || []) {
 }
 
 assert.deepEqual(problems, [], `Inventario de kits incompleto:\n  ${problems.join('\n  ')}`);
-console.log(`Kits: inventario con ${visible} widgets propios visibles (con el Slider Optimizado) y ${aliases} alias en kit-roundtrip, ${Object.keys(cases.traits).length} rasgos, ${parts.length} partes con caso y ${(noRef.controles || []).length} controles sin referencia justificados.`);
+const externalNote = Object.keys(external).length ? `, ${Object.keys(external).length} parte(s) de fuera de K (${Object.keys(external).join(', ')})` : '';
+console.log(`Kits: inventario con ${visible} widgets propios visibles (con el Slider Optimizado) y ${aliases} alias en kit-roundtrip, ${Object.keys(cases.traits).length} rasgos, ${parts.length} partes de K con caso${externalNote} y ${(noRef.controles || []).length} controles sin referencia justificados.`);
+// El caso de cada parte de fuera de K lo añade el frente de Playground de su etapa (para F7a, el frente M).
+if (pending.length) console.log(`Kits: sin caso en kit-roundtrip/cases.json todavía: ${pending.map((part) => `${part} (${external[part]})`).join(', ')}.`);

@@ -409,6 +409,7 @@ class Conditions_Manager {
 		}
 
 		asort( $conditions_priority );
+		$conditions_priority = apply_filters( 'digitalisimo_elements_theme_builder_priorities', $conditions_priority, $location ); // DIGITALÍSIMO (F7a): prioridad manual; sin manuales, el mismo array.
 
 		return $conditions_priority;
 	}

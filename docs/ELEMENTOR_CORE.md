@@ -73,6 +73,65 @@ Desde la etapa K, exportar e importar kits usa el importador 3.0 del núcleo (el
   - los métodos públicos de los runners que K extiende, con la misma firma;
   - **`Components\Module::IS_IMPORT_EXPORT_SUPPORTED`**, hoy `false`: mientras lo sea, las instancias de componentes v4 se conservan como marcador con el motivo `component`. Si una versión nueva lo cambia, la prueba falla con «revisar el motivo `component`».
 
+## Diseño y condiciones (F7a)
+
+Desde 4.3.0.164, presets de estilo, degradados, máscaras, patrones, sticky «al fijarse», controles de documento y prioridad del Theme Builder viven en `modules/digitalisimo-design/`; las condiciones nuevas y «Visitó una página», en `modules/digitalisimo-conditions/`. Diseño completo en [fusion/f7a.md](fusion/f7a.md) y estado en [FUSION_OBJECTIVE.md](FUSION_OBJECTIVE.md), sección F7a.
+
+**Guardas.** Cada submódulo comprueba con `Design\Module::requires()` los símbolos de esta lista y `ELEMENTOR_VERSION` ≥ 4.3. Si falta uno, ese submódulo no registra controles ni ganchos, lo guardado queda inerte, nunca hay un error fatal y el editor avisa a quien puede administrar. Un símbolo que cambie de nombre en una versión nueva apaga en silencio su capacidad: por eso se repasan en cada sincronización.
+
+| Submódulo | Símbolos (sin el prefijo `Elementor\` salvo los de PRO) |
+|---|---|
+| Presets (`Presets\Module::SYMBOLS`) | `Controls_Stack::get_data`, `Controls_Stack::get_controls`, `Core\Base\Base_Object::set_settings`, `Core\Frontend\Performance::set_use_style_controls` y `::is_use_style_controls`, `Modules\KitElementsDefaults\Utils\Settings_Sanitizer::remove_invalid_settings` y `Core\Files\CSS\Post` |
+| Degradados | `Controls_Manager`, `Stylesheet`, `Core\Files\CSS\Post`, `Controls_Stack::start_injection` y `Controls_Stack::get_current_section` |
+| Máscaras | `Controls_Manager`, `Stylesheet`, `Core\Files\CSS\Post` y `Core\Utils\Svg\Svg_Sanitizer` |
+| Patrones | Los de máscaras y `Controls_Stack::start_popover` |
+| Sticky | `Controls_Manager`, `Controls_Stack::start_injection`, `Controls_Stack::get_controls` y `ElementorPro\Modules\Sticky\Module` |
+| Documento | `Controls_Manager`, `Core\DocumentTypes\PageBase`, `Modules\Library\Documents\Page`, `Controls_Stack::start_injection`, `ElementorPro\Modules\ThemeBuilder\Module::instance`, `ElementorPro\…\Classes\Locations_Manager::skip_doc_in_location` y `ElementorPro\…\Classes\Conditions_Manager::get_documents_for_location` |
+| Prioridad | `Controls_Manager`, `Core\Base\Document::start_injection`, `ElementorPro\Modules\ThemeBuilder\Documents\Theme_Document::get_location` y `ElementorPro\Modules\ThemeBuilder\Module::instance` |
+
+**Ganchos y comportamientos del núcleo de los que depende F7a:**
+- **CSS:**
+  - `elementor/element/before_parse_css` sigue corriendo **antes** de `render_element_styles()` (`core/files/css/post.php`). Es donde se aplanan los presets.
+  - `elementor/element/parse_css` y `elementor/files/css/selectors`.
+  - `Stylesheet::add_rules()` y el `addRules` del editor siguen partiendo por `;`. La firma `this.addRules = function(selector, styleRules, query)` de `assets/js/editor.js` la lee `tests/elements-design-gradient.mjs`.
+- **Controles:**
+  - `elementor/element/common/_section_style/before_section_start`, y que el núcleo lo sigue repitiendo para `common-optimized` (`should_manually_trigger_common_action()`), porque F7a sólo engancha `common`;
+  - `elementor/element/container/section_layout/before_section_start`;
+  - `…/{section_background,section_style,section_background_overlay,_section_background}/before_section_end`;
+  - `{section,column,container}/section_effects/after_section_end` y `{section,container,common}/section_effects/before_section_end` (detrás de `sticky_divider`);
+  - `elementor/documents/register_controls`, con `post_status` y `post_title` como puntos de inyección y `hide_title` inyectado después.
+- **Pilas optimizadas:** `Controls_Stack::add_control()` sigue quitando `options` y `size_units` en las pilas optimizadas, y `Performance::should_optimize_controls()` sigue igual. Los presets validan por la forma fuera de la administración.
+- **Fondos:**
+  - los controles de anclaje del grupo de fondo (`gradient_type`, `gradient_angle`, `gradient_position`, `color`, `color_stop`, `color_b` y `color_b_stop`) y sus valores por defecto, que se copian en `Gradient::CORE_DEFAULTS`;
+  - que `gradient_angle` sólo aparece con `linear` y `gradient_position` sólo con `radial`;
+  - `Svg_Sanitizer::sanitize()`.
+- **Kit de ajustes:** la cadena `Settings_Sanitizer` (`for()`, `using()`, `remove_invalid_settings()`, `kses_deep()`).
+- **Documentos y editor:**
+  - `elementor/document/save/data`, `elementor/document/load/data` (que también corre en el front, `includes/frontend.php`) y `elementor/document/after_save`;
+  - `Editor::is_edit_mode()`, `elementor/ajax/register_actions` y `elementor/kit/register_tabs`;
+  - `elementor/editor/after_enqueue_scripts`, `elementor/preview/enqueue_styles` y `elementor/frontend/after_register_styles`;
+  - la declaración `assets` de los controles, que encola la hoja del sticky.
+- **Render y caché:** `elementor/frontend/widget/should_render` y `elementor/element/is_dynamic_content`.
+- **JS del editor:**
+  - los filtros `editor/style/styleText` y `elements/{tipo}/contextMenuGroups`;
+  - `view.controlsCSSParser` y su constructor, y el selector `.elementor-{doc} .elementor-element.elementor-element-{id}`;
+  - `elementorFrontend.config.responsive.activeBreakpoints`;
+  - los comandos `document/elements/settings`, `document/globals/settings` y `document/dynamic/disable`;
+  - `elementor.config.controls`, `elementor.notifications.showToast( { message, buttons } )`, `elementor.selection.getElements()`, `elementor.helpers.isAtomicWidget()` y `elementor.documents.getCurrent().config.type`;
+  - que `prefix_class` con `render_type => 'ui'` repinta la clase en vivo.
+- **Sticky:**
+  - el formato de `data-settings`: `wp_json_encode()` sin opciones en `includes/base/element-base.php`, con `get_frontend_settings()` quitando `''` y `null`, así que `"sticky":"top"` o `"sticky":"bottom"` sólo aparece en un elemento fijo;
+  - las clases `elementor-sticky--active`, `elementor-sticky--effects` y `elementor-sticky__spacer`;
+  - que el espaciador se clona antes de `--active`.
+
+  Si cambia, la alternativa preparada es un ajuste oculto calculado al guardar ([fusion/f7a.md](fusion/f7a.md), §10).
+- **Condiciones** (derivado de PRO, pero se comprueba igual):
+  - una condición desconocida se sigue dando por cumplida (`modules/display-conditions/classes/and-condition.php`), que es lo que el centinela neutraliza;
+  - la forma de `elementor.config.displayConditions`;
+  - el evento `elementor/display-conditions/open` con `detail.props.conditionsConfig`;
+  - el formato del prop v4 `display-conditions`: condiciones como cadenas JSON dentro de un `condition-group`.
+- **Theme Builder y bucles** (derivado de PRO): el `asort( $conditions_priority )` de `Conditions_Manager::get_location_templates()` con la línea del filtro `digitalisimo_elements_theme_builder_priorities` justo detrás; `$wp_query->is_loop_widget` y el tipo de documento `loop-item`.
+
 ## Pasar un sitio o una red al núcleo incluido
 
 Con DIGITALÍSIMO Migración activo, **Migrar** (Herramientas → Migrar a DIGITALÍSIMO Elements, o Red → Ajustes → Migrar a DIGITALÍSIMO Elements → Migrar toda la red) hace todo esto en un clic: desactiva Elementor (sólo si el núcleo incluido puede sustituirlo), Elementor Pro, PRO Elements y Element Pack, convierte el contenido y deja el informe ([ELEMENT_PACK_RETIREMENT.md](ELEMENT_PACK_RETIREMENT.md)). A mano:
@@ -102,5 +161,9 @@ Elementor publica versiones con frecuencia, a veces con correcciones de segurida
      - `bash tests/playground/kit-roundtrip.sh` completo (con `WOO=1`, `CORE=plugin` y `SLOW=1`) y `PORT=9464 SCOPE=quick STATE=kit bash tests/playground/brand-audit.sh` (también con `SCOPE=full`). Son obligatorios a mano, porque Playground no corre en CI; el `summary.json` se copia a `docs/fusion/k-kits-evidence.json`.
      - Si la firma de R1 difiere de `tests/playground/kit-roundtrip/golden/` sólo por un cambio legítimo del formato del núcleo, se revisa la diferencia y se regenera con `KIT_GOLDEN=write SCENARIOS=R1 bash tests/playground/kit-roundtrip.sh`; cualquier otra diferencia es una regresión.
      - El inventario en tiempo de ejecución de `kit-roundtrip.sh` falla si un widget del núcleo trae un control con aspecto de referencia (un ID, un menú, una plantilla) que el registro de K no declara: se declara en `References::builtin()` o se anota con su motivo en `tests/sources/kits/no-reference.json`.
+   - **Diseño y condiciones (F7a):**
+     - las unitarias de F7a (con php-wasm, juzgando por la salida completa), que usan el núcleo incluido real: `tests/elements-design-{css,presets,presets-kit,gradient,backgrounds}.php`, `tests/elements-design-{presets-editor,gradient}.mjs`, `tests/elements-conditions-more.php`, `tests/elements-page-visits.{php,mjs}`, `tests/elements-tb-priority.php`, `tests/elements-sticky-state.php`, `tests/elements-document-controls.php` y `tests/elements-design-static.mjs`;
+     - con un símbolo de la tabla de «Diseño y condiciones (F7a)» que ya no existe, se adapta el submódulo antes de publicar, nunca el núcleo;
+     - `bash tests/playground/design.sh` (DS1–DS13, también con `CACHE=1`, `CORE=plugin`, `V4=1` y `NET=1`), a mano porque Playground no corre en CI.
    - Las pruebas habituales de la publicación.
 4. Publica DIGITALÍSIMO Elements como cualquier otra versión.

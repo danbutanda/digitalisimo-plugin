@@ -97,13 +97,13 @@ namespace {
 	$manager = new Fake_Manager();
 	\Digitalisimo\Elements\Display_Conditions::register_groups( $manager );
 	\Digitalisimo\Elements\Display_Conditions::register_conditions( $manager );
-	check_conditions( 12 === count( $manager->conditions ) && ! isset( $manager->groups['digitalisimo_woocommerce'] ), 'Sin WooCommerce sólo deben existir las doce condiciones generales.' );
+	check_conditions( 19 === count( $manager->conditions ) && ! isset( $manager->groups['digitalisimo_woocommerce'] ), 'Sin WooCommerce deben existir las doce condiciones generales y las siete de F7a, que se registran siempre.' );
 
 	eval( 'class WooCommerce {}' ); // Declarada aquí para no adelantarse a la primera comprobación.
 	$manager = new Fake_Manager();
 	\Digitalisimo\Elements\Display_Conditions::register_groups( $manager );
 	\Digitalisimo\Elements\Display_Conditions::register_conditions( $manager );
-	check_conditions( 28 === count( $manager->conditions ) && 'WooCommerce' === ( $manager->groups['digitalisimo_woocommerce'] ?? '' ), 'Con WooCommerce deben añadirse sus dieciséis condiciones y su grupo.' );
+	check_conditions( 35 === count( $manager->conditions ) && 'WooCommerce' === ( $manager->groups['digitalisimo_woocommerce'] ?? '' ), 'Con WooCommerce deben añadirse sus dieciséis condiciones y su grupo.' );
 	$c = $manager->conditions;
 
 	foreach ( $c as $name => $condition ) {

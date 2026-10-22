@@ -97,7 +97,7 @@ export function compareSignatures(sigA, sigB, { known = [], scenario = 'R1' } = 
     documents: Object.fromEntries(Object.entries(sig.documents || {}).map(([k, d]) => { const { path, slug, ...rest } = d; return [k, { ...rest, data: normalizeTree(d.data) }]; })),
     posts: Object.fromEntries(Object.entries(sig.posts || {}).map(([k, p]) => { const { comments, password, ...rest } = p; return [k, rest]; })),
     snippets: sig.snippets, attachments: sig.attachments, terms: sig.terms, menus: sig.menus, kit: sig.kit, fonts: sig.fonts, icons: sig.icons,
-    options: sig.options, files: sig.files, counts: sig.counts,
+    options: sig.options, files: sig.files, counts: sig.counts, presets: sig.presets, indexes: sig.indexes,
   });
   const problems = applyKnown(diff(pick(sigA), pick(sigB)), known, scenario).map((d) => `${d.path}: A ${short(d.a)} · B ${short(d.b)}`);
   for (const id of sigB.unresolved || []) problems.push(`unresolved: ${id} (un ID del origen que no se tradujo, CV-8)`);

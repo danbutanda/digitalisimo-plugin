@@ -492,6 +492,13 @@ final class Special_Page_Condition extends Base {
 	}
 
 	public function check( $args ) : bool {
+		// F7a · centinela: inicio
+		// Lo añade Conditions_Guard (SENTINEL_PAGE) al guardar a cada grupo con una condición nueva. Aquí se cumple;
+		// 4.3.0.163 no reconoce esa página especial y el grupo falla: volver atrás nunca amplía quién ve algo.
+		if ( isset( $args['pages'] ) && array( 'digitalisimo_f7a' ) === self::values( $args['pages'] ) ) {
+			return true;
+		}
+		// F7a · centinela: fin
 		$privacy = (int) get_option( 'wp_page_for_privacy_policy' );
 		$flags   = array(
 			'front_page' => is_front_page(),

@@ -77,6 +77,51 @@ if ( ! is_array( $cases ) ) {
 	$cases = array();
 }
 
+// F7a: presets de los casos (`presets`, slug → { type, label, settings }) en la opción del sitio, con `Store::replace()`
+// dentro de los controles de estilo, como los siembra un kit. Sólo si la versión medida los tiene (4.3.0.163 no).
+$digi_fb_presets = array();
+foreach ( $cases as $case ) {
+	foreach ( (array) ( $case['presets'] ?? array() ) as $preset_slug => $preset ) {
+		$digi_fb_presets[ (string) $preset_slug ] = $preset;
+	}
+}
+if ( $digi_fb_presets ) {
+	$store = '\\Digitalisimo\\Elements\\Design\\Presets\\Store';
+	$css   = '\\Digitalisimo\\Elements\\Design\\Css';
+	if ( class_exists( $store ) && class_exists( $css ) && method_exists( $store, 'replace' ) ) {
+		$css::with_style_controls(
+			static function () use ( $store, $digi_fb_presets ) {
+				$store::replace( array( 'v' => 1, 'presets' => $digi_fb_presets ) );
+			}
+		);
+		$dropped = method_exists( $store, 'dropped' ) ? (array) $store::dropped() : array();
+		if ( $dropped ) {
+			digi_fb_fail( 'Presets descartados por Store::replace(): ' . wp_json_encode( $dropped ) );
+		}
+	} else {
+		file_put_contents( DIGI_FB_DIR . '/setup-notes.txt', "Sin Presets\\Store en esta versión: los presets de los casos no se siembran\n", FILE_APPEND );
+	}
+}
+// F7a: ajustes de «Rendimiento» que piden los casos (`front_settings`, p. ej. «Registrar visitas sin gestor de
+// consentimiento»), como propios del sitio y sin tocar las demás claves (LAZY y DEFAULTS=off ya escribieron las suyas).
+$digi_fb_front = array();
+foreach ( $cases as $case ) {
+	foreach ( (array) ( $case['front_settings'] ?? array() ) as $key => $value ) {
+		$digi_fb_front[ (string) $key ] = (bool) $value;
+	}
+}
+if ( $digi_fb_front ) {
+	$stored = get_option( 'digitalisimo_elements_front', array() );
+	$stored = is_array( $stored ) ? $stored : array();
+	$own    = isset( $stored['own'] ) && is_array( $stored['own'] ) ? $stored['own'] : array();
+	foreach ( $digi_fb_front as $key => $value ) {
+		$stored[ $key ] = $value;
+		$own[]          = $key;
+	}
+	$stored['own'] = array_values( array_unique( $own ) );
+	update_option( 'digitalisimo_elements_front', $stored, true );
+}
+
 // Páginas y documentos: primero se reservan todos (para resolver los marcadores), después se guardan sus datos.
 $pages  = array();
 $extras = array();
@@ -117,6 +162,24 @@ foreach ( $cases as $slug => $case ) {
 	if ( null !== $tree ) {
 		update_post_meta( $id, '_elementor_template_type', 'wp-page' );
 		$save_data( $id, digi_fb_replace( $tree, $markers ) );
+	}
+	// F7a: ajustes del documento (`page_settings`, p. ej. «Ocultar imagen destacada») e imagen destacada (`thumbnail`).
+	if ( ! empty( $case['page_settings'] ) && is_array( $case['page_settings'] ) ) {
+		update_post_meta( $id, '_elementor_page_settings', $case['page_settings'] );
+	}
+	if ( ! empty( $case['thumbnail'] ) && $image_id ) {
+		set_post_thumbnail( $id, $image_id );
+	}
+	// `save: document`: además se guarda por `Document::save()` como el editor (administrador), para que corran
+	// `elementor/document/save/data` (centinela de las condiciones de F7a) y `after_save` (índice de visitas).
+	if ( 'document' === ( $case['save'] ?? '' ) && null !== $tree ) {
+		wp_set_current_user( 1 );
+		$document = \Elementor\Plugin::$instance->documents->get( $id, false );
+		$saved    = $document ? $document->save( array( 'elements' => json_decode( wp_json_encode( digi_fb_replace( $tree, $markers ) ), true ) ) ) : false;
+		wp_set_current_user( 0 );
+		if ( ! $saved ) {
+			digi_fb_fail( "$slug: Document::save() no guardó el documento" );
+		}
 	}
 	foreach ( (array) ( $case['extra'] ?? array() ) as $extra ) {
 		$key  = (string) $extra['key'];

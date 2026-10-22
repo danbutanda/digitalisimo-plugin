@@ -7,11 +7,12 @@ defined( 'ABSPATH' ) || exit;
  * Pantalla «Rendimiento» (`admin.php?page=digitalisimo-elements-front`), en cada sitio y en la red (D13).
  *
  * - **Sitio:** un formulario de ajustes sin pestañas con los seis interruptores, su estado en vigor y, si lo decide
- *   otro, quién; en una red, «Heredar de la red» por interruptor. Debajo, «Iconos en línea (SVG)»: el análisis, sus
- *   hallazgos y tres formularios pequeños («Analizar», «Aplicar» y «Revertir»), cada uno con su acción y su nonce.
- *   Guardar transita el sitio en el momento.
- * - **Red:** los seis valores que heredan los sitios (`Settings::network_fields()`), sin «Heredar de la red». Guardar
- *   sólo escribe la opción de red: cada sitio aplica en sus propias peticiones.
+ *   otro, quién, y la sección «Privacidad» (F7a: «Registrar visitas sin gestor de consentimiento»); en una red,
+ *   «Heredar de la red» por interruptor. Debajo, «Iconos en línea (SVG)»: el análisis, sus hallazgos y tres
+ *   formularios pequeños («Analizar», «Aplicar» y «Revertir»), cada uno con su acción y su nonce. Guardar transita el
+ *   sitio en el momento; lo de «Privacidad» no transita: no vacía cachés.
+ * - **Red:** los valores que heredan los sitios (`Settings::network_fields()` y `Settings::network_privacy_fields()`),
+ *   sin «Heredar de la red». Guardar sólo escribe la opción de red: cada sitio aplica en sus propias peticiones.
  *
  * Seguridad (R14): acciones distintas para sitio y red, cada una con su nonce (acción y sitio, o acción y red);
  * capacidad por acción, nunca por un parámetro de contexto (`manage_options` en el sitio; `is_multisite()` y
@@ -162,6 +163,10 @@ final class Settings_Page {
 		echo '<table class="form-table" role="presentation"><tbody>';
 		self::site_fields();
 		echo '</tbody></table>';
+		self::privacy_heading();
+		echo '<table class="form-table" role="presentation"><tbody>';
+		self::privacy_fields();
+		echo '</tbody></table>';
 		echo '<p><button type="submit" class="button button-primary">' . esc_html( 'Guardar ajustes' ) . '</button></p>';
 		echo '</form>';
 		self::render_icons();
@@ -185,6 +190,10 @@ final class Settings_Page {
 		wp_nonce_field( self::nonce_action( self::ACTION_SAVE_NETWORK ) );
 		echo '<table class="form-table" role="presentation"><tbody>';
 		Settings::network_fields();
+		echo '</tbody></table>';
+		self::privacy_heading();
+		echo '<table class="form-table" role="presentation"><tbody>';
+		Settings::network_privacy_fields();
 		echo '</tbody></table>';
 		echo '<p><button type="submit" class="button button-primary">' . esc_html( 'Guardar valores de red' ) . '</button></p>';
 		echo '</form>';
@@ -225,6 +234,44 @@ final class Settings_Page {
 				echo ' · ' . esc_html( $state['note'] );
 			}
 			echo '</p>';
+			if ( 'default' === $origin && ! $inherit ) {
+				echo '<p class="description digitalisimo-default-note">' . esc_html( 'Valor predeterminado del plugin.' ) . '</p>';
+			}
+			if ( $inherit_ui ) {
+				$field = Settings::OPTION . '[inherit][' . $key . ']';
+				echo '<p class="digitalisimo-inheritance"><input type="hidden" name="' . esc_attr( $field ) . '" value="0">';
+				echo '<label><input type="checkbox" class="digitalisimo-front-inherit" data-field="' . esc_attr( $id ) . '" name="' . esc_attr( $field ) . '" value="1"' . ( $inherit ? ' checked="checked"' : '' ) . '> ' . esc_html( 'Heredar de la red' ) . '</label><br>';
+				echo '<span class="description">' . esc_html( 'Valor de la red:' ) . ' ' . self::badge( $network[ $key ] ) . ' · ' . esc_html( 'Origen: ' . self::ORIGINS[ $origin ] ) . '</span></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en badge().
+			}
+			echo '</td></tr>';
+		}
+	}
+
+	/** Encabezado de la sección «Privacidad», igual en el sitio y en la red. */
+	private static function privacy_heading(): void {
+		echo '<h2 id="digitalisimo-front-privacy">' . esc_html( 'Privacidad' ) . '</h2>';
+		echo '<p>' . esc_html( 'Cookies propias que algunas condiciones de visualización necesitan. Ninguna sale del sitio y ninguna se escribe en las páginas que no las usan.' ) . '</p>';
+	}
+
+	/**
+	 * Filas de la sección «Privacidad» del sitio: casilla, ayuda y estado en vigor; en el sitio de una red, «Heredar de
+	 * la red» (nunca en la red ni en un sitio único). No dependen de la transición: rigen en cuanto se guardan.
+	 */
+	public static function privacy_fields(): void {
+		$inherit_ui = is_multisite() && ! is_network_admin();
+		$network    = Settings::network_values();
+		foreach ( Settings::PRIVACY_KEYS as $key ) {
+			$id      = 'digitalisimo-front-' . str_replace( '_', '-', $key );
+			$name    = Settings::OPTION . '[' . $key . ']';
+			$inherit = $inherit_ui && Settings::inherits_network( $key );
+			$value   = Settings::get( $key );
+			$origin  = Settings::origin( $key );
+			$class   = $inherit ? 'digitalisimo-inherited-value' : ( 'default' === $origin ? 'digitalisimo-default-value' : '' );
+			echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( Settings::label( $key ) ) . '</label></th><td>';
+			echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="0">';
+			echo '<label><input type="checkbox" id="' . esc_attr( $id ) . '" name="' . esc_attr( $name ) . '" value="1"' . ( '' !== $class ? ' class="' . esc_attr( $class ) . '"' : '' ) . ( $value ? ' checked="checked"' : '' ) . '> ' . esc_html( 'Activar' ) . '</label>';
+			echo '<p class="description">' . esc_html( Settings::help( $key ) ) . '</p>';
+			echo '<p class="description">' . esc_html( 'En vigor en este sitio:' ) . ' ' . self::badge( $value ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en badge().
 			if ( 'default' === $origin && ! $inherit ) {
 				echo '<p class="description digitalisimo-default-note">' . esc_html( 'Valor predeterminado del plugin.' ) . '</p>';
 			}
@@ -535,9 +582,9 @@ final class Settings_Page {
 		if ( ! Transition::bundled() ) {
 			return array( 'notice' => 'core-original' );
 		}
-		// Los valores deseados de hoy, para que ninguna otra clave cambie por guardarse.
+		// Los valores deseados de hoy, para que ninguna otra clave cambie por guardarse (también las de privacidad).
 		$input = array();
-		foreach ( Settings::KEYS as $key ) {
+		foreach ( Settings::keys() as $key ) {
 			$input[ $key ] = Settings::get( $key );
 		}
 		$input['svg_icons'] = $on;

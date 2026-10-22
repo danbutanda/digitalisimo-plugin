@@ -3,7 +3,7 @@
  * Plugin Name: DIGITALÍSIMO Elements
  * Description: Constructor visual completo de DIGITALÍSIMO: editor, funciones avanzadas, kits, plantillas y widgets propios en un solo plugin, compatible con el contenido, los kits y los complementos ya creados para el constructor.
  * Plugin URI: https://github.com/danbutanda/digitalisimo-plugin
- * Version: 4.3.0.163
+ * Version: 4.3.0.164
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-elements
  * Author: DIGITALÍSIMO
  * Author URI: https://digitalisimo.mx/
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
-define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.163' );
+define( 'DIGITALISIMO_ELEMENTS_VERSION', '4.3.0.164' );
 define( 'DIGITALISIMO_ELEMENTS_FILE', __FILE__ );
 // Núcleo de Elementor incluido: se carga antes que todo lo demás y sólo si el plugin Elementor no está activo.
 require_once __DIR__ . '/digitalisimo-core.php';
@@ -124,6 +124,9 @@ function pro_elements_load_plugin_func() {
 	// Rendimiento del front (F-front): antes de `init` 0, donde el núcleo crea los experimentos.
 	require_once __DIR__ . '/modules/digitalisimo-front/class-module.php';
 	\Digitalisimo\Elements\Front\Module::init();
+	// Capacidades de diseño (F7a): presets, fondos, sticky, documento y prioridad; cada submódulo sólo si existe.
+	require_once __DIR__ . '/modules/digitalisimo-design/class-module.php';
+	\Digitalisimo\Elements\Design\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

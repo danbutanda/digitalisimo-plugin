@@ -9,6 +9,7 @@
  *   post-<caso>                un envío a admin-post.php con usuario, nonce y datos del caso (redirección capturada)
  *   screen-site, screen-network  la pantalla del sitio 2 y la de la red (N5, N7)
  *   create-3                   crea el sitio 3 después del cambio de la red (N3)
+ *   post-network-privacy       la red enciende `page_visits_no_consent` (F7a, «Privacidad»), sin tocar lo demás
  *   single-setup, single       sitio único (otro blueprint): la pantalla sin «Heredar de la red»
  * Nada de esto se publica.
  */
@@ -92,6 +93,9 @@ function digi_site_state( $blog ) {
 		'stored'    => get_option( 'digitalisimo_elements_front', null ),
 		'inherits'  => class_exists( $settings ) ? $settings::inherits_network( 'pro_conditional' ) : null,
 		'wanted'    => class_exists( $settings ) ? $settings::get( 'pro_conditional' ) : null,
+		// F7a: «Registrar visitas sin gestor de consentimiento» (sección «Privacidad»; no transita).
+		'visits'          => class_exists( $settings ) ? $settings::get( 'page_visits_no_consent' ) : null,
+		'visits_inherits' => class_exists( $settings ) ? $settings::inherits_network( 'page_visits_no_consent' ) : null,
 	);
 	if ( $switched ) {
 		restore_current_blog();
@@ -165,6 +169,28 @@ function digi_screen_problems( $label, $html, $want_inherit ) {
 	return $problems;
 }
 
+/**
+ * F7a: la sección «Privacidad» con la casilla `page_visits_no_consent` en la opción del formulario, y su «Heredar de la
+ * red» sólo donde se pide (el sitio de una red).
+ */
+function digi_privacy_problems( $label, $html, $option, $want_inherit ) {
+	$problems = array();
+	if ( false === strpos( $html, 'id="digitalisimo-front-privacy"' ) ) {
+		$problems[] = "$label: falta la sección «Privacidad»";
+	}
+	if ( false === strpos( $html, 'name="' . $option . '[page_visits_no_consent]"' ) ) {
+		$problems[] = "$label: falta la casilla {$option}[page_visits_no_consent]";
+	}
+	if ( false === strpos( $html, 'Registrar visitas sin gestor de consentimiento' ) ) {
+		$problems[] = "$label: falta el texto «Registrar visitas sin gestor de consentimiento»";
+	}
+	$inherit = false !== strpos( $html, 'name="digitalisimo_elements_front[inherit][page_visits_no_consent]"' );
+	if ( $inherit !== $want_inherit ) {
+		$problems[] = "$label: «Heredar de la red» de page_visits_no_consent " . ( $want_inherit ? 'falta' : 'no debe aparecer' );
+	}
+	return $problems;
+}
+
 $problems = array();
 $data     = array();
 $ns       = '\\Digitalisimo\\Elements\\Front\\';
@@ -222,10 +248,14 @@ switch ( true ) {
 			'post-siteadmin-net'  => array( 'siteadmin2', array( 'action' => 'digitalisimo_elements_front_save_network', 'digitalisimo_elements_front_defaults' => array( 'pro_conditional' => '0' ) ), 'digitalisimo_elements_front_save_network|network', 'die', 403 ),
 			// N4: un nonce de otro sitio o de otra acción no vale.
 			'post-bad-nonce'      => array( 'admin', array( 'action' => 'digitalisimo_elements_front_save', $option => array( 'pro_conditional' => '0' ) ), 'digitalisimo_elements_front_save|1', 'die', 403 ),
-			// N2 y N4: el sitio 1 personaliza pro_conditional (y lo conserva tras cambiar la red).
-			'post-site1-own'      => array( 'admin', array( 'action' => 'digitalisimo_elements_front_save', $option => array( 'pro_conditional' => '1', 'font_swap' => '1', 'svg_icons' => '0', 'lazy_libs' => '0', 'element_cache_off' => '0', 'image_loading_off' => '0', 'inherit' => array( 'pro_conditional' => '0', 'font_swap' => '1', 'svg_icons' => '1', 'lazy_libs' => '1', 'element_cache_off' => '1', 'image_loading_off' => '1' ) ) ), 'digitalisimo_elements_front_save|1', 'redirect', 'wp-admin/admin.php?page=digitalisimo-elements-front' ),
+			// N2 y N4: el sitio 1 personaliza pro_conditional y, apagada, page_visits_no_consent (F7a), y los conserva
+			// tras cambiar la red.
+			'post-site1-own'      => array( 'admin', array( 'action' => 'digitalisimo_elements_front_save', $option => array( 'pro_conditional' => '1', 'font_swap' => '1', 'svg_icons' => '0', 'lazy_libs' => '0', 'element_cache_off' => '0', 'image_loading_off' => '0', 'page_visits_no_consent' => '0', 'inherit' => array( 'pro_conditional' => '0', 'font_swap' => '1', 'svg_icons' => '1', 'lazy_libs' => '1', 'element_cache_off' => '1', 'image_loading_off' => '1', 'page_visits_no_consent' => '0' ) ) ), 'digitalisimo_elements_front_save|1', 'redirect', 'wp-admin/admin.php?page=digitalisimo-elements-front' ),
 			// N1 y N4: la red apaga pro_conditional (la red sólo escribe su opción).
 			'post-network-off'    => array( 'admin', array( 'action' => 'digitalisimo_elements_front_save_network', 'digitalisimo_elements_front_defaults' => array( 'pro_conditional' => '0', 'font_swap' => '1' ) ), 'digitalisimo_elements_front_save_network|network', 'redirect', 'wp-admin/network/admin.php?page=digitalisimo-elements-front' ),
+			// F7a (N1, N3, N6): la red enciende «Registrar visitas sin gestor de consentimiento» con los mismos valores en
+			// lo demás; los sitios que heredan la toman sin transición ni vaciado.
+			'post-network-privacy' => array( 'admin', array( 'action' => 'digitalisimo_elements_front_save_network', 'digitalisimo_elements_front_defaults' => array( 'pro_conditional' => '0', 'font_swap' => '1', 'page_visits_no_consent' => '1' ) ), 'digitalisimo_elements_front_save_network|network', 'redirect', 'wp-admin/network/admin.php?page=digitalisimo-elements-front' ),
 		);
 		if ( ! isset( $cases[ $digi_step ] ) ) {
 			$problems[] = "caso desconocido $digi_step";
@@ -240,14 +270,15 @@ switch ( true ) {
 				$problems[] = "$digi_step: se esperaba un rechazo $detail y hubo " . wp_json_encode( $result );
 			}
 		} else {
-			$expected = 'post-network-off' === $digi_step ? network_admin_url( 'admin.php?page=digitalisimo-elements-front' ) : get_admin_url( $digi_blog, 'admin.php?page=digitalisimo-elements-front' );
+			$expected = 0 === strpos( $digi_step, 'post-network-' ) ? network_admin_url( 'admin.php?page=digitalisimo-elements-front' ) : get_admin_url( $digi_blog, 'admin.php?page=digitalisimo-elements-front' );
 			if ( 0 !== strpos( $result['redirect'], $expected ) ) {
 				$problems[] = "$digi_step: redirección a «{$result['redirect']}», se esperaba la misma superficie «{$expected}…»";
 			}
 		}
-		if ( 'post-network-off' === $digi_step && $before !== digi_clears() ) {
-			$problems[] = 'post-network-off: guardar la red no debe vaciar ningún sitio en esa petición';
+		if ( 0 === strpos( $digi_step, 'post-network-' ) && $before !== digi_clears() ) {
+			$problems[] = "$digi_step: guardar la red no debe vaciar ningún sitio en esa petición";
 		}
+		$data['sites'] = array( 1 => digi_site_state( 1 ), 2 => digi_site_state( 2 ) ) + ( get_site( 3 ) ? array( 3 => digi_site_state( 3 ) ) : array() );
 		break;
 
 	case 'create-3' === $digi_step:
@@ -262,7 +293,7 @@ switch ( true ) {
 		set_current_screen( 'dashboard' );
 		$html = digi_screen( array( $ns . 'Settings_Page', 'render' ) );
 		file_put_contents( DIGI_DIR . '/screen-site-' . get_current_blog_id() . '.html', $html );
-		$problems = digi_screen_problems( 'pantalla del sitio ' . get_current_blog_id(), $html, true );
+		$problems = array_merge( digi_screen_problems( 'pantalla del sitio ' . get_current_blog_id(), $html, true ), digi_privacy_problems( 'pantalla del sitio ' . get_current_blog_id(), $html, 'digitalisimo_elements_front', true ) );
 		$data     = array( 'blog' => get_current_blog_id(), 'bytes' => strlen( $html ) );
 		break;
 
@@ -275,6 +306,11 @@ switch ( true ) {
 		$problems = array_merge( digi_screen_problems( 'campos de la red (network_fields)', $fields, false ), digi_screen_problems( 'pantalla de la red', $html, false ) );
 		if ( false === strpos( $html, 'digitalisimo_elements_front_defaults[pro_conditional]' ) ) {
 			$problems[] = 'pantalla de la red: faltan los interruptores de red';
+		}
+		$problems = array_merge( $problems, digi_privacy_problems( 'pantalla de la red', $html, 'digitalisimo_elements_front_defaults', false ) );
+		// Tras post-network-privacy la casilla de la red sale marcada (lo guardado, no el predeterminado).
+		if ( ! preg_match( '/<input[^>]*id="digitalisimo-front-network-page-visits-no-consent"[^>]*checked="checked"/', $html ) ) {
+			$problems[] = 'pantalla de la red: la casilla de privacidad no refleja el valor guardado (encendido)';
 		}
 		$data = array( 'network_admin' => is_network_admin(), 'bytes' => strlen( $html ) );
 		break;
@@ -292,7 +328,7 @@ switch ( true ) {
 		set_current_screen( 'dashboard' );
 		$html = digi_screen( array( $page, 'render' ) );
 		file_put_contents( DIGI_DIR . '/screen-single.html', $html );
-		$problems = digi_screen_problems( 'pantalla del sitio único', $html, false );
+		$problems = array_merge( digi_screen_problems( 'pantalla del sitio único', $html, false ), digi_privacy_problems( 'pantalla del sitio único', $html, 'digitalisimo_elements_front', false ) );
 		if ( is_multisite() ) {
 			$problems[] = 'el paso single debe correr en un sitio único';
 		}

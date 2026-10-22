@@ -1,0 +1,150 @@
+{
+  "generator": "scripts/design-library.mjs",
+  "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+  "files": {
+    "masks/circulo.svg": {
+      "sha256": "568c43a527d86d758874860897a7410f0c17d8b337d49edcc2eb3995c4eb72d8",
+      "bytes": 101,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/corazon.svg": {
+      "sha256": "4fc90b0fe7e7e034fec7b182acfc3c625ae60cf485cc1f4e09d9c7aaaadc086b",
+      "bytes": 184,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/cruz.svg": {
+      "sha256": "7cfb9b1926e90e2176b12c9bc09653ae88c7e32fe854bab5161850a375846740",
+      "bytes": 119,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/elipse.svg": {
+      "sha256": "738e85205d62b83fb412d8a81f968cfdf4cf183eabc813cdfa0ba57a611d3d7b",
+      "bytes": 111,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/escudo.svg": {
+      "sha256": "e9a355166bb12ac68e7d224b89e4faf53e59d872f4fa8a459e08e3e94a15f96a",
+      "bytes": 132,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/estrella.svg": {
+      "sha256": "3f5c3f4aa8b612153ac654a7ded89154eaf90096e990c7a99ed396b683041e89",
+      "bytes": 166,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/gota.svg": {
+      "sha256": "e2ef6a4b51a73bbd284448392ad35f17fd9b8354d8ec7edc53f0ad6a3e7761ce",
+      "bytes": 139,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/hexagono.svg": {
+      "sha256": "405083a289b2796a9d0a1d61dd7fc5709699f8a6ced7e23a5e1efee05289a7e7",
+      "bytes": 115,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/octogono.svg": {
+      "sha256": "929ff8ef6b4739708f7cea0d897e0b3fae820d405209d136d3e3a5d037258405",
+      "bytes": 134,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/rectangulo-redondeado.svg": {
+      "sha256": "a600f83ed5f914e935080cc11c5dbcb734c7c6eb4f4f836bb9313d843691ed46",
+      "bytes": 109,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/rombo.svg": {
+      "sha256": "a3e4ebb154c003410ed160231371e2244e559c50b91023dcf65c67bb83ebb600",
+      "bytes": 106,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "masks/triangulo.svg": {
+      "sha256": "022f29de7ad99742f9e1f5a8af7eb32d137e0824eea2f480548b46253a8d96f2",
+      "bytes": 100,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/anillos.svg": {
+      "sha256": "5ac4659ec1eb27d1d4eb4e98ca0f1afb8695d13e4b8825257b44cfb26de9f7af",
+      "bytes": 168,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/cuadros.svg": {
+      "sha256": "61b617a39282ca1b606e225af1b092a61c99dc0d88f398c8a3b91227a1ac91f9",
+      "bytes": 90,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/ladrillos.svg": {
+      "sha256": "4b03ee6728f33a8fe37b40ded4ba1ece7cf39e64875861dc3c96a11b757087d1",
+      "bytes": 117,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/lineas-cruzadas.svg": {
+      "sha256": "477cf9688dff789399ee51fb1464f7a418b4359210f13bb324b2388a1e2e4f14",
+      "bytes": 135,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/puntos-alternos.svg": {
+      "sha256": "586b3de33ed1713fd9c0f2c734969974642adc5bff695eaee9e3ae185e649547",
+      "bytes": 131,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/puntos.svg": {
+      "sha256": "33cec2b242cab35bb305225979b327fd6b3353693c1ecd56d78cb2e63e947396",
+      "bytes": 98,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/rayas.svg": {
+      "sha256": "a3c5eaf260acae7cc3758231f1e02e7a02d2a554ada3e50bb1d18d676b1e588c",
+      "bytes": 108,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/rejilla.svg": {
+      "sha256": "d0f9e64010c201c881013eccf3c13cff362fee882d55c7e8b16a394e6e0ea72b",
+      "bytes": 103,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/rombos.svg": {
+      "sha256": "6f061244a91d26f4adab731b59048f1b3e4acc6be00a38a57e54f0a15631174f",
+      "bytes": 102,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/semicirculos.svg": {
+      "sha256": "f28ece72eb01f3199e872baa9a0a7021a9b66d6e954098f2c455c67156c8d066",
+      "bytes": 100,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/signos-mas.svg": {
+      "sha256": "65b55f616b45a5d0b35c1d1723a5bdf4531ebc8d3189dd4489b6a7e683d524de",
+      "bytes": 108,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    },
+    "patterns/tablero.svg": {
+      "sha256": "a8880dce2e50f77c717c88c8cff0eff6ebe4d85f31200b642373cd688de9e191",
+      "bytes": 108,
+      "author": "DIGITALÍSIMO, GPL-3.0-or-later",
+      "date": "2026-10-21"
+    }
+  }
+}

@@ -20,6 +20,7 @@
 #   OUT, TMPDIR          resultados (por defecto /var/tmp/digi-k/kit-roundtrip) y temporales de Playground (2 GB libres)
 #   PORT_A, PORT_B, PORT_NET   9461, 9462 y 9463; nunca los de otros arneses (9431, 9433, 9435, 9441, 9451, 9453, 9455, 9457)
 #   WP_CLI_PHAR          wp-cli.phar local; si no, se descarga una vez a $KIT_CACHE (la misma copia que usa Playground)
+#   OLD_ZIP, OLD_ELEMENTS  ZIP o carpeta de DIGITALÍSIMO Elements 4.3.0.163 para el paso de R4 con la versión anterior
 #   LIVE=1               monta digitalisimo-elements/ y digitalisimo-theme/ del árbol de trabajo; por defecto se monta una
 #                        copia fija en $OUT/src, tomada al empezar, para que un cambio a mitad de corrida no mezcle versiones
 set -euo pipefail
@@ -88,6 +89,8 @@ else
   cp "$KIT_CACHE/wp-cli.phar" "$OUT/shared/wp-cli.phar"
 fi
 cp "$K/cases.json" "$OUT/shared/cases.json"
+# SVG sintéticos de los medios de cases.json con «svg_file» (máscara y tesela de F7a).
+mkdir -p "$OUT/shared/media" && cp "$ROOT"/tests/sources/kits/media/*.svg "$OUT/shared/media/"
 
 # Plugin y tema: una copia fija para toda la corrida (A, B y la red ven el mismo código aunque el árbol cambie).
 if [ "${LIVE:-0}" = 1 ]; then
@@ -99,6 +102,21 @@ else
   cp -a "$ROOT/digitalisimo-elements" "$ROOT/digitalisimo-theme" "$SRC/"
   git -C "$ROOT" status --porcelain -- digitalisimo-elements digitalisimo-theme > "$SRC/dirty.txt" 2>/dev/null || true
 fi
+
+# R4 importa también el kit de A en un B con DIGITALÍSIMO Elements 4.3.0.163 (el asset de la Release v2026.10.21.417):
+# lo condicionado por una condición de F7a no debe verse allí (V.13 #10, centinela). OLD_ZIP = ZIP local; si no, se
+# descarga una vez a $KIT_CACHE y se comprueba su sha256. OLD_ELEMENTS = carpeta ya extraída (se usa tal cual).
+OLD_SHA=ae6f92a7f7a2d0d823c9011a0dea5e54882d19eafb73656c913bfec1efa22c26
+if [ -z "${OLD_ELEMENTS:-}" ] && { [ -z "$SCENARIOS" ] || [[ ",$SCENARIOS," == *",R4,"* ]]; } && [ -z "$QUICK" ]; then
+  OLD_ZIP="${OLD_ZIP:-$KIT_CACHE/digitalisimo-elements-4.3.0.163.zip}"
+  if [ ! -s "$OLD_ZIP" ]; then
+    curl -fsSL -m 300 -o "$OLD_ZIP.part" https://github.com/danbutanda/digitalisimo-plugin/releases/download/v2026.10.21.417/digitalisimo-elements-4.3.0.163.zip && mv "$OLD_ZIP.part" "$OLD_ZIP"
+  fi
+  [ "$(sha256sum "$OLD_ZIP" | cut -d' ' -f1)" = "$OLD_SHA" ] || { echo "$OLD_ZIP no es el asset 4.3.0.163 de v2026.10.21.417 (sha256 distinto)"; exit 1; }
+  rm -rf "$OUT/old" && mkdir -p "$OUT/old" && unzip -q "$OLD_ZIP" -d "$OUT/old"
+  OLD_ELEMENTS="$OUT/old/digitalisimo-elements"
+fi
+export OLD_ELEMENTS="${OLD_ELEMENTS:-}"
 
 TOKEN="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 export TOKEN
