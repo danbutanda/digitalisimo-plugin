@@ -9,9 +9,13 @@ class Hierarchy_Or_Query implements Query_Interface {
 	private $terms;
 	private $taxonomy;
 	private $logical_join;
+	private $taxonomy_manager;
 
 	public function __construct( $filter_terms, $taxonomy_manager ) {
 		$this->query = Query_Constants::DATA;
+		// DIGITALÍSIMO (F4-Woo, V.8.2): como en Hierarchy_And_Query; sin esta línea, dos términos hijos del mismo padre
+		// con «O» terminaban en un error fatal al llamar a un método sobre `null`.
+		$this->taxonomy_manager = $taxonomy_manager;
 		$this->terms = $filter_terms['hierarchical-terms'] ?? [];
 		$this->taxonomy = $filter_terms['taxonomy'];
 		$this->logical_join = $filter_terms['logicalJoin'];

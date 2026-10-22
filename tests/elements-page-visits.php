@@ -387,6 +387,16 @@ namespace {
 		check_pv( false !== strpos( $text, $needle ), "La política de privacidad nombra {$needle}." );
 	}
 	check_pv( false === strpos( $text, 'http' ), 'Sin enlaces.' );
+	// F4-Woo (V.4.5): encabezado genérico y veraz para todo Elements; sin el filtro, la misma lista de siempre.
+	check_pv( false !== strpos( $text, 'Según las funciones que use este sitio, guarda en el navegador del visitante (cookies o almacenamiento local) o en su cuenta' ) && false === strpos( $text, 'Sólo escribe estas cookies' ), 'El encabezado del texto de privacidad es genérico (cookies, almacenamiento local o cuenta).' );
+	check_pv( 5 === substr_count( $text, '<li>' ) && false === strpos( $text, 'digi_wishlist' ), 'Sin el filtro, la lista de siempre (cinco elementos de las condiciones).' );
+	check_pv( false !== strpos( $text, 'Las condiciones de visualización deciden qué se muestra' ), 'El párrafo final se acota a las condiciones.' );
+	$GLOBALS['pv']['filters']['digitalisimo_elements_privacy_items'] = static function ( $items ) { $items[] = '<strong>digi_wishlist</strong>: lista de deseos.'; return $items; };
+	$with = PV::privacy_text();
+	check_pv( 6 === substr_count( $with, '<li>' ) && false !== strpos( $with, '<li><strong>digi_wishlist</strong>: lista de deseos.</li>' ) && false !== strpos( $with, 'digi_seen' ), 'Con el filtro, el elemento añadido aparece después de los de siempre.' );
+	$GLOBALS['pv']['filters']['digitalisimo_elements_privacy_items'] = 'roto';
+	check_pv( 5 === substr_count( PV::privacy_text(), '<li>' ), 'Un filtro que no devuelve una lista no borra los elementos de siempre.' );
+	unset( $GLOBALS['pv']['filters']['digitalisimo_elements_privacy_items'] );
 	eval( 'function wp_add_cookie_info( ...$args ) { $GLOBALS["pv"]["cookies"][] = $args; }' );
 	PV::register_cookie_info();
 	check_pv( 'digi_seen' === $GLOBALS['pv']['cookies'][0][0] && 'preferences' === $GLOBALS['pv']['cookies'][0][2], 'Con la WP Consent API, la cookie se declara en «preferences».' );

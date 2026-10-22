@@ -23,6 +23,12 @@ defined( 'ABSPATH' ) || exit;
  * - `never` (opcional): valor que nunca coincide, para un control en el que vacío significa «cualquiera» (regla de
  *   cierre). Lo fija quien declara la referencia y debe sobrevivir a `absint()` sin volverse un ID real.
  *
+ * Sólo en `scope = term_meta`, la clave opcional `taxonomies` (también junto a una entrada posicional) acota la
+ * referencia a los términos de esas taxonomías: nombres exactos o prefijos con `*` final (`pa_*`), para una clave
+ * demasiado común como `image` (punto de extensión genérico de K, V.11.4 de F4-Woo). Fuera de ellas la referencia no
+ * existe: la meta se trata como hoy una clave sin referencia. Sin la clave, nada cambia. La parte `term-meta`
+ * traduce cada término dentro de `within_taxonomy()`; fuera, una referencia acotada nunca se aplica.
+ *
  * `kind = conditions` es un valor con condiciones de visualización en JSON (`e_display_conditions`): cada condición
  * se resuelve con las referencias de `scope = condition`.
  *
@@ -43,6 +49,12 @@ final class References {
 
 	const FIELDS = array( 'scope', 'type', 'path', 'kind', 'gate', 'never' );
 
+	/** Claves opcionales que sólo se declaran por nombre, también junto a una entrada posicional (V.11.4). */
+	const NAMED_FIELDS = array( 'taxonomies' );
+
+	/** Una taxonomía de `taxonomies`: nombre exacto (`pa_color`) o prefijo con `*` final (`pa_*`). */
+	const TAXONOMY_PATTERN = '/^(?:[a-z0-9_-]{1,32}|[a-z0-9_-]{1,31}\*)$/';
+
 	const TYPE_PATTERN   = '/^(?:\*|[A-Za-z0-9_.:-]{1,191})$/';
 	const PATH_PATTERN   = '/^(?:\*|[A-Za-z0-9_-]+)(?:\.(?:\*|[A-Za-z0-9_-]+))*$/';
 	const SUFFIX_PATTERN = '/^[a-z0-9_-]{1,64}$/';
@@ -55,6 +67,9 @@ final class References {
 
 	/** @var array[] Tipo => referencias derivadas de sus controles. */
 	private static $derived = array();
+
+	/** @var string|null Taxonomía del término cuyas metas se traducen (`within_taxonomy()`); null fuera. */
+	private static $term_taxonomy = null;
 
 	/**
 	 * Referencias integradas y del filtro, válidas e indexadas por ámbito y tipo.
@@ -201,6 +216,9 @@ final class References {
 	/**
 	 * Referencias que se aplican a un ámbito y un tipo: las del tipo, las de `*` y, en `element`, las derivadas
 	 * de sus controles URL. Si dos cubren la misma ruta, gana la del tipo, luego la de `*` y por último la derivada.
+	 *
+	 * En `term_meta`, una referencia acotada con `taxonomies` sólo cuenta dentro de `within_taxonomy()` con una de
+	 * sus taxonomías (V.11.4); las demás, como siempre.
 	 */
 	public static function matching( string $scope, string $type ): array {
 		$index = self::all();
@@ -209,6 +227,9 @@ final class References {
 		$types = '*' === $type ? array( '*' ) : array( $type, '*' );
 		foreach ( $types as $candidate ) {
 			foreach ( isset( $index[ $scope ][ $candidate ] ) ? $index[ $scope ][ $candidate ] : array() as $ref ) {
+				if ( isset( $ref['taxonomies'] ) && ! self::applies_to_taxonomy( $ref, (string) self::$term_taxonomy ) ) {
+					continue;
+				}
 				if ( ! isset( $seen[ $ref['path'] ] ) ) {
 					$seen[ $ref['path'] ] = true;
 					$refs[]               = $ref;
@@ -327,7 +348,7 @@ final class References {
 	 *
 	 * @param mixed $ref Entrada con claves o posicional.
 	 *
-	 * @return array|null `{ scope, type, path, kind, gate, never }`.
+	 * @return array|null `{ scope, type, path, kind, gate, never }`, más `taxonomies` sólo si se declaró.
 	 */
 	public static function normalize( $ref ): ?array {
 		if ( ! is_array( $ref ) ) {
@@ -338,6 +359,11 @@ final class References {
 			foreach ( self::FIELDS as $position => $field ) {
 				if ( array_key_exists( $position, $ref ) ) {
 					$named[ $field ] = $ref[ $position ];
+				}
+			}
+			foreach ( self::NAMED_FIELDS as $field ) {
+				if ( array_key_exists( $field, $ref ) ) {
+					$named[ $field ] = $ref[ $field ];
 				}
 			}
 			$ref = $named;
@@ -363,7 +389,17 @@ final class References {
 		if ( null !== $never && ! is_int( $never ) && ( ! is_string( $never ) || '' === $never ) ) {
 			return self::invalid( 'valor de cierre inválido', $ref );
 		}
-		return array(
+		$taxonomies = null;
+		if ( isset( $ref['taxonomies'] ) ) {
+			if ( 'term_meta' !== $scope ) {
+				return self::invalid( 'taxonomías fuera de term_meta', $ref );
+			}
+			$taxonomies = self::taxonomy_list( $ref['taxonomies'] );
+			if ( null === $taxonomies ) {
+				return self::invalid( 'taxonomías inválidas', $ref );
+			}
+		}
+		$out = array(
 			'scope' => $scope,
 			'type'  => $type,
 			'path'  => $path,
@@ -371,6 +407,89 @@ final class References {
 			'gate'  => isset( $ref['gate'] ) ? (bool) $ref['gate'] : ( 'condition' === $scope || 'conditions' === $kind ),
 			'never' => $never,
 		);
+		if ( null !== $taxonomies ) {
+			$out['taxonomies'] = $taxonomies;
+		}
+		return $out;
+	}
+
+	/**
+	 * Lista normalizada de `taxonomies` (sin repetir y ordenada), o null si no es válida: vacía, con algo que no es una
+	 * cadena o con un nombre que no cumple `TAXONOMY_PATTERN` (un `*` solo, que sería «todas», tampoco).
+	 *
+	 * @param mixed $value Una cadena o una lista de cadenas.
+	 *
+	 * @return string[]|null
+	 */
+	public static function taxonomy_list( $value ): ?array {
+		$items = is_string( $value ) ? array( $value ) : $value;
+		if ( ! is_array( $items ) || ! $items ) {
+			return null;
+		}
+		$out = array();
+		foreach ( $items as $item ) {
+			if ( ! is_string( $item ) || 1 !== preg_match( self::TAXONOMY_PATTERN, $item ) ) {
+				return null;
+			}
+			$out[ $item ] = true;
+		}
+		$out = array_keys( $out );
+		sort( $out, SORT_STRING );
+		return $out;
+	}
+
+	/**
+	 * ¿Se aplica la referencia a un término de esa taxonomía? Siempre sin `taxonomies`; con ella, sólo si la taxonomía
+	 * es una de las nombradas o empieza por uno de sus prefijos. Una taxonomía desconocida (`''`) no cumple ninguna.
+	 *
+	 * @param array  $ref      Referencia normalizada.
+	 * @param string $taxonomy Taxonomía del término.
+	 */
+	public static function applies_to_taxonomy( array $ref, string $taxonomy ): bool {
+		if ( ! isset( $ref['taxonomies'] ) || ! is_array( $ref['taxonomies'] ) ) {
+			return true;
+		}
+		if ( '' === $taxonomy ) {
+			return false;
+		}
+		foreach ( $ref['taxonomies'] as $pattern ) {
+			$pattern = (string) $pattern;
+			if ( '*' === substr( $pattern, -1 ) ? 0 === strpos( $taxonomy, substr( $pattern, 0, -1 ) ) : $pattern === $taxonomy ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** ¿Tiene la meta de término `$key` alguna referencia acotada con `taxonomies`? Sin ninguna, nada cambia. */
+	public static function term_meta_restricted( string $key ): bool {
+		$index = self::all();
+		foreach ( isset( $index['term_meta'][ $key ] ) ? $index['term_meta'][ $key ] : array() as $ref ) {
+			if ( isset( $ref['taxonomies'] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Ejecuta `$callback` con las referencias `term_meta` de un término de `$taxonomy`: dentro, `matching()` (y así
+	 * `Remapper::apply_meta()`) cuenta las referencias acotadas a esa taxonomía. Al salir, también con una excepción,
+	 * vuelve el valor anterior.
+	 *
+	 * @param string   $taxonomy Taxonomía del término que se traduce.
+	 * @param callable $callback Función sin argumentos.
+	 *
+	 * @return mixed Lo que devuelva `$callback`.
+	 */
+	public static function within_taxonomy( string $taxonomy, callable $callback ) {
+		$previous            = self::$term_taxonomy;
+		self::$term_taxonomy = $taxonomy;
+		try {
+			return $callback();
+		} finally {
+			self::$term_taxonomy = $previous;
+		}
 	}
 
 	/** ¿Es un `kind` conocido (`KINDS`, `note:<código>` o `map:<nombre>`)? */
@@ -433,8 +552,9 @@ final class References {
 	 * @internal Sólo para pruebas.
 	 */
 	public static function reset(): void {
-		self::$index   = null;
-		self::$derived = array();
+		self::$index         = null;
+		self::$derived       = array();
+		self::$term_taxonomy = null;
 	}
 
 	/** Widget o elemento registrado de un tipo, o null si el núcleo no está cargado o no existe. */

@@ -1,0 +1,11 @@
+/* DIGITALÍSIMO Elements · campos de muestra en los términos de WooCommerce. Sin .digitalisimo-admin: cada token lleva su respaldo. */
+.digi-swatch-admin__color{display:inline-flex;align-items:center;gap:8px}
+.digi-swatch-admin__color input[type="color"]{inline-size:40px;block-size:32px;padding:2px;border:1px solid var(--digi-line,#dce4ff);border-radius:var(--digi-radius-control,9px);cursor:pointer}
+.digi-swatch-admin__color input[type="color"]:focus-visible{outline:2px solid var(--digi-focus,#5365f5);outline-offset:2px}
+.digi-swatch-admin__color input[type="text"]{inline-size:8em;font-family:monospace}
+.digi-swatch-admin__media{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.digi-swatch-admin__preview img,.digi-swatch-admin__chip img{display:block;inline-size:48px;block-size:48px;object-fit:cover;border-radius:var(--digi-radius-control,9px)}
+.digi-swatch-admin__preview:empty{display:none}
+.digi-swatch-admin__label{display:block;font-weight:600}
+.digi-swatch-admin__chip{display:inline-block;inline-size:24px;block-size:24px;overflow:hidden;vertical-align:middle;border:1px solid var(--digi-line,#dce4ff);border-radius:50%}
+.digi-swatch-admin__chip img{inline-size:24px;block-size:24px;border-radius:0}

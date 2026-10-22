@@ -76,6 +76,16 @@ class Module extends Module_Base {
 	}
 
 	public function register_widget_filter( $widget_id, $filter_data ) {
+		// DIGITALÍSIMO (F4-Woo, V.8.2): la clave `taxonomy` existe siempre, delante de las demás, aunque la URL o el
+		// refresco sólo traigan otro tipo (un precio). El filtro de taxonomía la lee sin comprobarla
+		// (`widgets/taxonomy-filter.php:765`) y, sin ella, `array_key_exists()` recibiría `null` en PHP 8.
+		if ( ! is_array( $filter_data ) ) {
+			$filter_data = [];
+		}
+		if ( ! isset( $filter_data['taxonomy'] ) ) {
+			$filter_data = array_merge( [ 'taxonomy' => [] ], $filter_data );
+		}
+
 		if ( empty( $this->filters[ $widget_id ] ) ) {
 			$this->filters[ $widget_id ] = $filter_data;
 			return;
@@ -101,6 +111,17 @@ class Module extends Module_Base {
 		/** @var array $filter_types An array containing all of a widget's different filters - e.g. taxonomy, price, rating... */
 		$filter_types = $this->filters[ $widget_id ];
 
+		// DIGITALÍSIMO (F4-Woo, V.8.2): los tipos registrados (precio y atributo de F4-Woo, los de F7b) se apartan y se
+		// aplican al final con su filtro. `taxonomy` y cualquier tipo no registrado siguen el camino de siempre.
+		$registered_filters = [];
+		$registered_types = apply_filters( 'digitalisimo_elements_loop_filter_types', [] );
+		foreach ( is_array( $registered_types ) ? $registered_types : [] as $registered_type ) {
+			if ( is_string( $registered_type ) && 'taxonomy' !== $registered_type && isset( $filter_types[ $registered_type ] ) ) {
+				$registered_filters[ $registered_type ] = $filter_types[ $registered_type ];
+				unset( $filter_types[ $registered_type ] );
+			}
+		}
+
 		// TODO: This part is non-generic and should be refactored to allow for multiple types of filters.
 		$query_args['tax_query']['relation'] = $this->query['AND']['relation'];
 
@@ -125,6 +146,10 @@ class Module extends Module_Base {
 		}
 
 		$query_args['tax_query'] = array_merge( $query_args['tax_query'], $tax_query ?? [] );
+
+		foreach ( $registered_filters as $registered_type => $registered_filter ) {
+			$query_args = apply_filters( 'digitalisimo_elements_loop_filter_query', $query_args, $registered_type, is_array( $registered_filter ) ? $registered_filter : [], $widget );
+		}
 
 		return $query_args;
 	}
@@ -178,7 +203,9 @@ class Module extends Module_Base {
 		$filter = str_replace( 'e-filter-', '', $param_key );
 
 		// Split the filter into an array of widget ID and filter type
-		$filter = explode( '-', $filter );
+		// DIGITALÍSIMO (F4-Woo, V.8.2): sólo por el primer guion tras el ID, así un nombre con guion
+		// (`pa_talla-zapato`, `tipo-de-tela`) deja de descartarse; un nombre sin guion da lo mismo que antes.
+		$filter = explode( '-', $filter, 2 );
 
 		if ( count( $filter ) !== 2 ) {
 			return [];
@@ -219,8 +246,15 @@ class Module extends Module_Base {
 				continue;
 			}
 
+			// DIGITALÍSIMO (F4-Woo, V.8.2): el tipo de cada nombre lo decide su registro (`digi_price_*`, `digiattr_*`);
+			// cualquier otro nombre sigue siendo una taxonomía.
+			$filter_type = apply_filters( 'digitalisimo_elements_loop_filter_param_type', 'taxonomy', $parsed_query_string['taxonomy'] );
+			if ( ! is_string( $filter_type ) || '' === $filter_type ) {
+				$filter_type = 'taxonomy';
+			}
+
 			$filter_data = [
-				'taxonomy' => [
+				$filter_type => [
 					$parsed_query_string['taxonomy'] => [
 						'terms' => $terms,
 						'logicalJoin' => $logical_join,

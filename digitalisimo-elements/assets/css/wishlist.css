@@ -1,0 +1,23 @@
+.digi-wish,.digi-wish-link{display:inline-flex;align-items:center;gap:.4em;font:inherit;color:inherit;line-height:1.2;text-decoration:none}
+.digi-wish{padding:.45em .8em;border:1px solid currentColor;border-radius:999px;background:none;cursor:pointer}
+.digi-wish[hidden],.digi-wishlist [hidden],.digi-wish-merge[hidden]{display:none!important}
+.digi-wish__icon{width:1em;height:1em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+.digi-wish[aria-pressed="true"] .digi-wish__icon{fill:currentColor}
+.digi-wish:focus-visible,.digi-wish-link:focus-visible,.digi-wishlist :focus-visible,.digi-wish-merge button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.digi-wish-count{min-width:1.4em;font-variant-numeric:tabular-nums;text-align:center}
+.digi-wish .screen-reader-text,.digi-wish-link .screen-reader-text,.digi-wishlist .screen-reader-text,.digi-wish-status{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}
+.digi-wishlist__items{display:grid;gap:var(--digi-wl-gap,1rem);margin:0;padding:0;list-style:none}
+.digi-wishlist--grid .digi-wishlist__items{grid-template-columns:repeat(var(--digi-wl-cols,3),minmax(0,1fr))}
+.digi-wishlist__item{display:grid;gap:.75rem;align-content:start}
+.digi-wishlist--list .digi-wishlist__item{grid-template-columns:var(--digi-wl-img,96px) minmax(0,1fr);align-items:start}
+.digi-wishlist--list .digi-wishlist__item>.digi-wishlist__body:first-child{grid-column:1/-1}
+.digi-wishlist__media,.digi-wishlist__img{display:block;width:100%;height:auto}
+.digi-wishlist__body{display:grid;gap:.4rem;justify-items:start}
+.digi-wishlist__name{margin:0;font-size:1em}
+.digi-wishlist__body .stock{margin:0}
+.digi-wishlist__remove,.digi-wishlist__clear{padding:0;border:0;background:none;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
+.digi-wishlist__clear{margin-top:1rem}
+.digi-wishlist__empty{margin:0}
+.digi-wish-merge{position:fixed;z-index:9999;inset-block-end:1rem;inset-inline:1rem;max-width:28rem;margin-inline:auto;padding:1rem;border:1px solid CanvasText;border-radius:.5rem;background:Canvas;color:CanvasText}
+.digi-wish-merge p{margin:0 0 .75rem}
+.digi-wish-merge button{margin-inline-end:.5rem;padding:.4em .9em;border:1px solid currentColor;border-radius:.35rem;background:none;font:inherit;color:inherit;cursor:pointer}

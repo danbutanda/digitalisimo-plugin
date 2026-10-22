@@ -279,6 +279,9 @@ final class Widget_Registry {
 			require_once __DIR__ . '/' . $file;
 			$class::init();
 		}
+		// Guarda hacia delante (F4-Woo, V.10.2): sólo en las peticiones del editor.
+		require_once __DIR__ . '/class-unknown-guard.php';
+		Unknown_Guard::init();
 		add_action( 'elementor/elements/categories_registered', array( __CLASS__, 'category' ), 20 );
 		add_action( 'elementor/frontend/after_register_styles', array( __CLASS__, 'styles' ) );
 		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'scripts' ) );

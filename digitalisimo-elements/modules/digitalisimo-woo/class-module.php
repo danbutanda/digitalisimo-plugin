@@ -56,6 +56,9 @@ final class Module {
 	/** @var bool */
 	private static $notice = false;
 
+	/** @var array Para las pruebas: `woocommerce` (bool) y `wc_version` (string) en lugar de lo detectado. */
+	private static $env = array();
+
 	/** Punto de entrada, en `pro_elements_load_plugin_func()` detrás de `Design\Module::init()`. Idempotente. */
 	public static function init(): void {
 		if ( self::$initialized ) {
@@ -70,9 +73,11 @@ final class Module {
 	 * nombres). Las pruebas la usan con otra carpeta para comprobar que sin submódulos sólo arranca la base.
 	 *
 	 * @param string $dir Carpeta del módulo.
+	 * @param array  $env Para las pruebas: `woocommerce` (bool) y `wc_version` (string) en lugar de lo detectado.
 	 * @return string[]
 	 */
-	public static function load( string $dir ): array {
+	public static function load( string $dir, array $env = array() ): array {
+		self::$env = $env;
 		self::$dir = rtrim( $dir, '/\\' ) . '/';
 		self::register_autoloader();
 		if ( ! function_exists( 'add_action' ) ) {
@@ -99,12 +104,23 @@ final class Module {
 
 	/** WooCommerce cargado y compatible (`WooCommerce`, `WC()` y `WC_VERSION` ≥ `MIN_WC`). */
 	public static function woocommerce_ok(): bool {
-		return self::woocommerce_loaded() && self::wc_version_supported( (string) WC_VERSION );
+		return self::woocommerce_loaded() && self::wc_version_supported( self::wc_version() );
 	}
 
 	/** WooCommerce cargado, sea cual sea su versión. */
 	public static function woocommerce_loaded(): bool {
+		if ( isset( self::$env['woocommerce'] ) ) {
+			return (bool) self::$env['woocommerce'];
+		}
 		return class_exists( 'WooCommerce', false ) && function_exists( 'WC' ) && defined( 'WC_VERSION' );
+	}
+
+	/** Versión de WooCommerce cargada, o ''. */
+	public static function wc_version(): string {
+		if ( isset( self::$env['wc_version'] ) ) {
+			return (string) self::$env['wc_version'];
+		}
+		return defined( 'WC_VERSION' ) ? (string) WC_VERSION : '';
 	}
 
 	/** `$version` (`11.2.1`, `10.0.0-rc.1`…) es igual o posterior a `MIN_WC`, comparando mayor y menor. */
@@ -206,7 +222,7 @@ final class Module {
 
 	/** Aviso de versión, sólo para quien puede activar plugins. */
 	public static function version_notice(): void {
-		if ( ! function_exists( 'current_user_can' ) || ! current_user_can( 'activate_plugins' ) || ! defined( 'WC_VERSION' ) ) {
+		if ( ! function_exists( 'current_user_can' ) || ! current_user_can( 'activate_plugins' ) || '' === self::wc_version() ) {
 			return;
 		}
 		printf(
@@ -216,7 +232,7 @@ final class Module {
 					/* translators: 1: versión mínima, 2: versión instalada. */
 					__( 'Los widgets de WooCommerce de DIGITALÍSIMO Elements necesitan WooCommerce %1$s o posterior (versión instalada: %2$s). Sus ajustes se conservan y vuelven a aplicarse al actualizar WooCommerce.', 'pro-elements' ),
 					self::MIN_WC,
-					(string) WC_VERSION
+					self::wc_version()
 				)
 			)
 		);
@@ -277,6 +293,15 @@ final class Module {
 	/** `Quick_View` → `quick-view`. */
 	public static function slug( string $part ): string {
 		return str_replace( '_', '-', strtolower( $part ) );
+	}
+
+	/** Para las pruebas: vuelve al estado anterior a `init()`, sin quitar la autocarga. */
+	public static function reset(): void {
+		self::$initialized = false;
+		self::$active      = false;
+		self::$missing     = array();
+		self::$notice      = false;
+		self::$env         = array();
 	}
 
 	/** Carpeta del módulo (la de `load()`, o la de este archivo), con barra final. */

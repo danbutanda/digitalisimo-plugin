@@ -13,7 +13,8 @@ defined( 'ABSPATH' ) || exit;
  *   El runner final añade al ZIP lo que devuelve `files()`.
  * - `budget()` dice cuánto cabe todavía: tope por archivo y total (D6, filtro `digitalisimo_elements_kit_media_limits`).
  * - `exported()` lista lo que exportaron los runners de K, para que una parte exporte sólo lo suyo.
- * - `not_exported()` suma a `manifest.digitalisimo.not_exported`.
+ * - `not_exported()` suma a `manifest.digitalisimo.not_exported`; `get_not_exported()` lo da con el filtro acotado
+ *   `digitalisimo_elements_kit_not_exported`, que sólo puede bajar contadores (V.11.4 de F4-Woo).
  */
 final class Export_Context extends Part_Context {
 	const SURFACE_APP = 'app';
@@ -27,6 +28,9 @@ final class Export_Context extends Part_Context {
 	const TOTAL_LIMIT = 33554432;
 
 	const MAX_REJECTED = 200;
+
+	/** Filtro acotado de `get_not_exported()` (V.11.4 de F4-Woo): sólo baja contadores. */
+	const FILTER_NOT_EXPORTED = 'digitalisimo_elements_kit_not_exported';
 
 	/** @var string */
 	private $surface;
@@ -324,9 +328,44 @@ final class Export_Context extends Part_Context {
 		$this->not_exported[ $reason ] = ( isset( $this->not_exported[ $reason ] ) ? $this->not_exported[ $reason ] : 0 ) + max( 0, $count );
 	}
 
-	/** @return int[] Motivo => número. */
+	/**
+	 * Lo no exportado, para `manifest.digitalisimo.not_exported` (lo lee `Export_Finish` al cerrar el manifiesto).
+	 *
+	 * Punto de extensión genérico de K (F4-Woo, V.11.4): pasa por `digitalisimo_elements_kit_not_exported( array $map,
+	 * Export_Context $context )` **acotado** con `lower_only()`, así que una parte sólo puede bajar un contador de K
+	 * (el de lo que ella misma exporta, como `variations`): nunca subirlo ni inventar un motivo. Sin funciones
+	 * enganchadas, o con un mapa vacío, el resultado es el de siempre.
+	 *
+	 * @return int[] Motivo => número.
+	 */
 	public function get_not_exported(): array {
-		return $this->not_exported;
+		if ( ! $this->not_exported || ! function_exists( 'apply_filters' ) ) {
+			return $this->not_exported;
+		}
+		return self::lower_only( $this->not_exported, apply_filters( self::FILTER_NOT_EXPORTED, $this->not_exported, $this ) );
+	}
+
+	/**
+	 * Acota lo que devuelve el filtro: por cada motivo de `$map` sólo vale un entero entre 0 y su número. Un motivo
+	 * que no estaba, un número mayor o negativo, lo que no es un entero y un filtro que no devuelve un array se
+	 * ignoran; el orden de `$map` se conserva.
+	 *
+	 * @param int[] $map      Motivo => número, tal como lo anotó K.
+	 * @param mixed $filtered Lo que devolvió el filtro.
+	 *
+	 * @return int[]
+	 */
+	public static function lower_only( array $map, $filtered ): array {
+		if ( ! is_array( $filtered ) ) {
+			return $map;
+		}
+		foreach ( $map as $reason => $count ) {
+			$lower = array_key_exists( $reason, $filtered ) ? $filtered[ $reason ] : null;
+			if ( is_int( $lower ) && $lower >= 0 && $lower < $count ) {
+				$map[ $reason ] = $lower;
+			}
+		}
+		return $map;
 	}
 
 	private function allowed( string $real ): bool {

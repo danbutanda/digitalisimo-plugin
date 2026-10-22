@@ -127,6 +127,9 @@ function pro_elements_load_plugin_func() {
 	// Capacidades de diseño (F7a): presets, fondos, sticky, documento y prioridad; cada submódulo sólo si existe.
 	require_once __DIR__ . '/modules/digitalisimo-design/class-module.php';
 	\Digitalisimo\Elements\Design\Module::init();
+	// WooCommerce visual (F4-Woo): sin WooCommerce, sólo el registro oculto del editor; en el front, nada.
+	require_once __DIR__ . '/modules/digitalisimo-woo/class-module.php';
+	\Digitalisimo\Elements\Woo\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

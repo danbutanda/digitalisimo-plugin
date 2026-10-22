@@ -21,7 +21,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * Al importar, cada término se busca en el mapa `term` y sólo se escriben metas en los términos que **creó** la
  * sesión (`_elementor_import_session_id`): un término reutilizado por su slug ya es del sitio y no se toca. Las
- * referencias `scope = term_meta` (por ejemplo `thumbnail_id` → `attachment`) se traducen con el remapeo.
+ * referencias `scope = term_meta` (por ejemplo `thumbnail_id` → `attachment`) se traducen con el remapeo; una
+ * acotada con `taxonomies` (V.11.4 de F4-Woo, como `image` en los atributos `pa_*`) sólo en los términos de sus
+ * taxonomías, aquí y en `attachment_ids()`.
  */
 final class Term_Meta implements Part {
 	const KEY     = 'term-meta';
@@ -98,16 +100,31 @@ final class Term_Meta implements Part {
 				continue;
 			}
 			++$summary['terms'];
+			$taxonomy = null;
 			foreach ( $entry['meta'] as $key => $values ) {
 				if ( ! is_string( $key ) || 1 !== preg_match( self::KEY_PATTERN, $key ) || Meta_Blacklist::blocks( $key ) ) {
 					continue;
+				}
+				// Una referencia acotada con `taxonomies` (V.11.4) sólo se aplica a los términos de sus taxonomías.
+				$restricted = References::term_meta_restricted( $key );
+				if ( $restricted && null === $taxonomy ) {
+					$taxonomy = self::taxonomy_of( $new );
 				}
 				foreach ( array_slice( is_array( $values ) ? $values : array( $values ), 0, self::MAX_VALUES ) as $raw ) {
 					list( $ok, $value ) = Meta_Blacklist::value( $raw );
 					if ( ! $ok ) {
 						continue;
 					}
-					$value = $remapper->apply_meta( 'term_meta', $key, $value, $new );
+					if ( $restricted ) {
+						$value = References::within_taxonomy(
+							(string) $taxonomy,
+							function () use ( $remapper, $key, $value, $new ) {
+								return $remapper->apply_meta( 'term_meta', $key, $value, $new );
+							}
+						);
+					} else {
+						$value = $remapper->apply_meta( 'term_meta', $key, $value, $new );
+					}
 					if ( null === $value || '' === $value ) {
 						continue;
 					}
@@ -186,7 +203,16 @@ final class Term_Meta implements Part {
 		) : array();
 	}
 
-	/** Adjuntos de las metas de término con referencia `attachment` (para que viajen en `media`). */
+	/** Taxonomía real de un término del sitio, o '' si no existe (una referencia acotada no se le aplica). */
+	private static function taxonomy_of( int $term_id ): string {
+		$term = function_exists( 'get_term' ) ? get_term( $term_id ) : null;
+		return is_object( $term ) && isset( $term->taxonomy ) && is_string( $term->taxonomy ) ? $term->taxonomy : '';
+	}
+
+	/**
+	 * Adjuntos de las metas de término con referencia `attachment` (para que viajen en `media`). Una referencia acotada
+	 * con `taxonomies` (V.11.4) sólo cuenta en los términos de sus taxonomías.
+	 */
 	public static function attachment_ids( Export_Context $context ): array {
 		$keys = array();
 		foreach ( References::all() as $scope => $types ) {
@@ -196,7 +222,7 @@ final class Term_Meta implements Part {
 			foreach ( $types as $key => $refs ) {
 				foreach ( $refs as $ref ) {
 					if ( 'attachment' === $ref['kind'] && '' === $ref['path'] ) {
-						$keys[ $key ] = true;
+						$keys[ $key ][] = $ref;
 					}
 				}
 			}
@@ -206,7 +232,14 @@ final class Term_Meta implements Part {
 			return $ids;
 		}
 		foreach ( self::exported_terms( $context ) as $term ) {
-			foreach ( array_keys( $keys ) as $key ) {
+			foreach ( $keys as $key => $refs ) {
+				$applies = false;
+				foreach ( $refs as $ref ) {
+					$applies = $applies || References::applies_to_taxonomy( $ref, (string) $term->taxonomy );
+				}
+				if ( ! $applies ) {
+					continue;
+				}
 				foreach ( (array) get_term_meta( $term->term_id, $key ) as $value ) {
 					if ( is_numeric( $value ) && (int) $value > 0 ) {
 						$ids[ (int) $value ] = true;

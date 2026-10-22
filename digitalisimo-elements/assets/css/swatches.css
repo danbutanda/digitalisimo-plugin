@@ -1,0 +1,19 @@
+/* DIGITALÍSIMO Elements · muestras de variación (F4-Woo). Sin colores propios: borde y texto heredan; el color o la imagen de cada término es su dato. */
+.digi-swatch-field--ready>select{display:none!important}
+.digi-swatch-field:not(.digi-swatch-field--ready)>.digi-swatches{display:none}
+.digi-swatches{--_s:var(--digi-swatch-size,var(--digi-swatch-size-attr,32px));display:flex;flex-wrap:wrap;align-items:center;gap:var(--digi-swatch-gap,.5em);margin:0;padding:0;list-style:none}
+.digi-swatch-field>.digi-swatches{margin-block:.25em}
+.digi-swatches>li{margin:0;padding:0;list-style:none}
+.digi-swatch{position:relative;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-inline-size:var(--_s);block-size:var(--_s);margin:0;padding:0;border:1px solid var(--digi-swatch-border,currentColor);border-radius:var(--digi-swatch-radius,50%);background-color:var(--digi-swatch-color,transparent);color:inherit;font-size:.875em;line-height:1;text-decoration:none;cursor:pointer;overflow:hidden}
+.digi-swatches--rounded .digi-swatch{border-radius:var(--digi-swatch-radius,.375em)}
+.digi-swatches--pill .digi-swatch,.digi-swatches--circle .digi-swatch--text{border-radius:var(--digi-swatch-radius,999px)}
+.digi-swatch--text{padding-inline:.75em;white-space:nowrap}
+.digi-swatch>input{position:absolute;inset:0;inline-size:100%;block-size:100%;margin:0;opacity:0;cursor:inherit}
+.digi-swatch__face,.digi-swatch__img{display:block;inline-size:100%;block-size:100%;margin:0;object-fit:cover}
+.digi-swatch.is-selected{box-shadow:0 0 0 2px Canvas,0 0 0 4px var(--digi-swatch-selected,currentColor)}
+.digi-swatches--links .digi-swatch:hover{border-color:var(--digi-swatch-selected,currentColor)}
+.digi-swatch:has(>input:focus-visible),.digi-swatches--links .digi-swatch:focus-visible{outline:2px solid;outline-offset:3px}
+.digi-swatch.is-disabled{opacity:.45;cursor:not-allowed}
+.digi-swatch.is-disabled::after{content:"";position:absolute;inset-inline:-10%;inset-block-start:50%;border-block-start:1px solid currentColor;transform:rotate(-45deg);pointer-events:none}
+.digi-swatches .screen-reader-text{position:absolute!important;inline-size:1px;block-size:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.digi-swatches__notice{margin:0;font-size:.875em;opacity:.8}

@@ -310,7 +310,10 @@ final class Page_Visits {
 		}
 	}
 
-	/** Texto sugerido para la política de privacidad: todas las cookies propias de Elements. */
+	/**
+	 * Texto sugerido para la política de privacidad: el único de Elements (D22). Las cookies de las condiciones y lo que
+	 * añaden otros módulos por el filtro `digitalisimo_elements_privacy_items` (la lista de deseos de F4-Woo, V.4.5).
+	 */
 	public static function privacy_text(): string {
 		$items = array(
 			'<strong>digi_seen</strong> (en una red, <strong>digi_seen_</strong> seguido del número del sitio): las páginas de este sitio que el visitante abrió, guardadas como números, para la condición «Visitó una página». Dura 30 días y sólo se escribe con el consentimiento de preferencias del visitante (WP Consent API) o si el administrador lo permite sin gestor de consentimiento.',
@@ -319,8 +322,12 @@ final class Page_Visits {
 			'<strong>digi-visit-count-…</strong>: cuántas veces vio el visitante un elemento, para las reglas de visibilidad que lo piden. Se borra al cerrar el navegador.',
 			'<strong>_digi_…</strong>: en cuántas sesiones vio el visitante un elemento, para las reglas de visibilidad que lo piden. Dura un año.',
 		);
-		$html = '<p>DIGITALÍSIMO Elements no envía datos de los visitantes a terceros. Sólo escribe estas cookies propias del sitio, y sólo en las páginas que usan una condición que las necesita:</p><ul><li>' . implode( '</li><li>', $items ) . '</li></ul>';
-		$html .= '<p>Estas condiciones deciden qué se muestra, no quién puede leerlo: no protegen contenido.</p>';
+		$filtered = function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_elements_privacy_items', $items ) : $items;
+		if ( is_array( $filtered ) ) {
+			$items = array_values( array_filter( array_map( 'strval', array_filter( $filtered, 'is_scalar' ) ), 'strlen' ) );
+		}
+		$html  = '<p>DIGITALÍSIMO Elements no envía datos de los visitantes a terceros. Según las funciones que use este sitio, guarda en el navegador del visitante (cookies o almacenamiento local) o en su cuenta los datos que se indican, y sólo cuando la función los necesita:</p><ul><li>' . implode( '</li><li>', $items ) . '</li></ul>';
+		$html .= '<p>Las condiciones de visualización deciden qué se muestra, no quién puede leerlo: no protegen contenido.</p>';
 		return function_exists( 'wp_kses_post' ) ? wp_kses_post( $html ) : $html;
 	}
 
