@@ -143,7 +143,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | K | Kits de Elementor con las mejoras: exportar e importar kits propios y de terceros, con el registro que usan F7a, F7b y F4-Woo | **Publicado** · Elements 4.3.0.162 · `v2026.10.21.416` |
 | F2 | Base común de conversión y Migración v2 | Eliminado (2026-10-20) |
 | F-front | Fase 2 de `ELEMENTS_FRONT_OBJECTIVE.md`: funciones avanzadas sólo donde se usan, valores por defecto del núcleo y librerías sin CDN | **Publicado** · Elements 4.3.0.163 y SEO 1.0.232 · `v2026.10.21.417` |
-| F7a | Capacidades que Divi y Betheme necesitan: presets de estilo, degradados, máscaras y patrones, condiciones nuevas, prioridad de las plantillas, sticky «al fijarse» y controles de documento | **Publicado** · Elements 4.3.0.164 |
+| F7a | Capacidades que Divi y Betheme necesitan: presets de estilo, degradados, máscaras y patrones, condiciones nuevas, prioridad de las plantillas, sticky «al fijarse» y controles de documento | **Publicado** · Elements 4.3.0.164 · `v2026.10.22.418` |
 | F3 | Divi (D5 y D4) | Eliminado (2026-10-20) |
 | F4 | Conversión de Betheme / BeBuilder | Eliminado (2026-10-20) |
 | F4-Woo | WooCommerce visual: widgets nuevos | Pendiente |
@@ -659,7 +659,7 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 
 ### F7a · Capacidades que Divi y Betheme necesitan
 
-**Publicado** · Elements 4.3.0.164. Sólo cambia DIGITALÍSIMO Elements, desde 4.3.0.163. El tema sigue en 1.0.0 sin que cambie ningún archivo de `digitalisimo-theme/`, y SEO, Tools, Migración, Backups, Hosting, IA Tools y `digitalisimo-ui` no cambian. Diseño, hechos del núcleo, ganchos, formatos y desviaciones en [docs/fusion/f7a.md](fusion/f7a.md).
+**Publicado** · Elements 4.3.0.164 · `v2026.10.22.418`. Sólo cambia DIGITALÍSIMO Elements, desde 4.3.0.163. El tema sigue en 1.0.0 sin que cambie ningún archivo de `digitalisimo-theme/`, y SEO, Tools, Migración, Backups, Hosting, IA Tools y `digitalisimo-ui` no cambian. Diseño, hechos del núcleo, ganchos, formatos y desviaciones en [docs/fusion/f7a.md](fusion/f7a.md).
 
 **Objetivo.** Integrar en Elements, sin importar nada de los orígenes y sin motores paralelos, lo que Divi y Betheme ofrecían y el constructor no tenía. Todo es opt-in por instancia o por documento, con el valor por defecto igual al de 4.3.0.163, y cuesta 0 B en las páginas que no lo usan. Es clean-room: la capacidad se inspira en el comportamiento descrito; el código y el catálogo de formas son propios (`docs/third-party-licenses.md`).
 

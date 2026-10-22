@@ -159,7 +159,7 @@ Paridad sitio/red con los cuatro puntos de `AGENTS.md` trasladados a Elements: `
   - SEO recalcula el blindaje de fuentes cuando el constructor reescribe sus fuentes locales y muestra el `font-display` en vigor.
 
   Para volver a 4.3.0.162 hace falta «Vaciar archivos y datos» en Herramientas del constructor. Pendientes: `migrate.sh` y `legacy-ab.sh` (sin copia oficial de Element Pack) y la subida de Prism a ≥ 1.30.0 como etapa propia. Siguiente: Fase 3.
-- 2026-10-21 · Elements 4.3.0.164 (F7a de la fusión) · Capacidades de Divi y Betheme, opt-in y con coste 0 donde no se usan. Seis filas nuevas en «Presupuesto del tema y de las capacidades de la fusión»:
+- 2026-10-21 · Elements 4.3.0.164 · `v2026.10.22.418` (F7a de la fusión) · Capacidades de Divi y Betheme, opt-in y con coste 0 donde no se usan. Seis filas nuevas en «Presupuesto del tema y de las capacidades de la fusión»:
   - presets en el CSS del documento que los usa y 0 en el resto, sin excepción declarada: sustituye a la fila prevista en el plan, que los compilaba en el CSS del kit;
   - degradados, máscaras y patrones como reglas del documento, con una variable por slug y documento y ningún archivo;
   - `sticky-state.css`, de 475 B, sólo donde se usa;
