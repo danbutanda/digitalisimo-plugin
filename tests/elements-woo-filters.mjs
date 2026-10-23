@@ -209,7 +209,7 @@ const PAGE = `<div data-elementor-id="10" class="elementor elementor-10">${loopH
 
 // ---------------------------------------------------------------------------------------------------------------
 // Entorno: relojes falsos, fetch controlable, historia, núcleo y módulo de PRO.
-function env({ html = PAGE, edit = false, proComplete = true, search = '' } = {}) {
+function env({ html = PAGE, edit = false, proComplete = true, search = '', ignoreAbort = false } = {}) {
   const doc = makeDocument(html);
   let now = 0; const timers = [];
   const setTimeout = (fn, ms = 0) => { const t = { fn, at: now + ms, id: timers.length + 1 }; timers.push(t); return t.id; };
@@ -218,7 +218,7 @@ function env({ html = PAGE, edit = false, proComplete = true, search = '' } = {}
   const fetches = [];
   const fetch = (url, init) => new Promise((resolve, reject) => {
     const call = { url, init, body: JSON.parse(init.body), resolve: (data) => resolve({ ok: true, status: 200, json: async () => data }), fail: () => resolve({ ok: false, status: 400, json: async () => ({}) }) };
-    init.signal.addEventListener('abort', () => { call.aborted = true; reject(Object.assign(new Error('abort'), { name: 'AbortError' })); });
+    init.signal.addEventListener('abort', () => { call.aborted = true; if (!ignoreAbort) reject(Object.assign(new Error('abort'), { name: 'AbortError' })); });
     fetches.push(call);
   });
   const location = { origin: 'https://example.test', pathname: '/tienda/', search, hash: '', reloads: 0, assigned: [], get href() { return this.origin + this.pathname + this.search + this.hash; }, reload() { this.reloads++; }, assign(u) { this.assigned.push(u); } };
@@ -379,6 +379,24 @@ assert.ok(!/<script|innerHTML\s*=\s*[^h]/.test(source.form), 'Los formularios no
   await e.tick(0);
   assert.deepEqual(e.fetches[5].body.widget_filters, {});
   assert.equal(e.location.search, '?utm=x');
+}
+
+// 2b · Un servidor que responde aunque la petición se abortara: sólo se inserta la última (número de secuencia).
+{
+  const e = env({ ignoreAbort: true });
+  const form = e.doc.querySelector('.elementor-element-f000001 form');
+  const loop = e.doc.querySelector('[data-elementor-id="10"] .elementor-element-abc1234');
+  input(form.querySelector('input[type=number][data-digi-edge=min]'), '20');
+  submit(form);
+  await e.tick(0);
+  input(form.querySelector('input[type=number][data-digi-edge=min]'), '30');
+  submit(form);
+  await e.tick(0);
+  e.fetches[1].resolve(response(4));
+  await e.tick(0);
+  e.fetches[0].resolve(response(9));
+  await e.tick(0);
+  assert.equal(loop.querySelectorAll('.e-loop-item').length, 4, 'La respuesta vieja que llega tarde no pisa la nueva.');
 }
 
 // 3 · Debounce: «al cambiar» con 300 ms; casillas 300 ms; botones 0.

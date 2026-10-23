@@ -257,6 +257,7 @@ jobs:
           node tests/elements-woo-wishlist.mjs
           php tests/elements-loop-filter-parse.php
           php tests/elements-woo-filters.php
+          node tests/elements-woo-filters.mjs
           php tests/elements-woo-products-parts.php
           php tests/elements-kit-extensions.php
           php tests/elements-woo-kit.php

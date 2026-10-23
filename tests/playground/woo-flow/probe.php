@@ -62,6 +62,10 @@ add_action(
 			wp_send_json( digi_wf_probe_ping() );
 		}
 		if ( 'setup' === $op ) {
+			// En los sitios nuevos de la red el tema que dejó activate.php no siempre queda: se fija aquí, en su petición.
+			if ( 'digitalisimo' === ( $mode['theme'] ?? 'digitalisimo' ) && 'digitalisimo-theme' !== get_stylesheet() && wp_get_theme( 'digitalisimo-theme' )->exists() ) {
+				switch_theme( 'digitalisimo-theme' );
+			}
 			require_once WP_CONTENT_DIR . '/probe/store.php';
 			wp_send_json( digi_wf_store_setup() );
 		}

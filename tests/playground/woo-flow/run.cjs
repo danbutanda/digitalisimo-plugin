@@ -135,6 +135,7 @@ async function prepare() {
       entry.setup = await probe(site, 'setup');
       entry.setup_ms = Date.now() - t0;
       entry.state = await probe(site, 'state');
+      entry.theme = (await probe(site, 'ping')).theme;
     } catch (e) {
       entry.error = String(e.message || e);
     }
@@ -154,7 +155,8 @@ async function W0(s) {
     const ping = entry.ping || {};
     const state = entry.state || {};
     const setup = entry.setup || {};
-    check(s, `W0.2 ${site.path}`, 'WooCommerce 11.2.1 cargado y con su base de datos al día, activo junto a DIGITALÍSIMO Elements', ping.woocommerce === pin.version && ping.wc_db === pin.version && ping.plugins.includes('woocommerce/woocommerce.php') && ping.plugins.includes('digitalisimo-elements/pro-elements.php'), JSON.stringify({ wc: ping.woocommerce, db: ping.wc_db, elementor: ping.elementor, elements: ping.elements, bundled: ping.bundled, theme: ping.theme }));
+    check(s, `W0.2 ${site.path}`, 'WooCommerce 11.2.1 cargado y con su base de datos al día, activo junto a DIGITALÍSIMO Elements', ping.woocommerce === pin.version && ping.wc_db === pin.version && ping.plugins.includes('woocommerce/woocommerce.php') && ping.plugins.includes('digitalisimo-elements/pro-elements.php'), JSON.stringify({ wc: ping.woocommerce, db: ping.wc_db, elementor: ping.elementor, elements: ping.elements, bundled: ping.bundled, theme: entry.theme }));
+    check(s, `W0.2b ${site.path}`, 'el tema pedido queda activo en el sitio', entry.theme === (ENV.THEME === 'block' ? entry.theme : 'digitalisimo-theme'), String(entry.theme));
     check(s, `W0.3 ${site.path}`, 'preparación sin errores', !(setup.errors || []).length, (setup.errors || []).join('; '));
     check(s, `W0.4 ${site.path}`, 'catálogo: seis simples y un variable con seis variaciones; tabla de atributos activa con filas', state.products === 7 && setup.variations === 6 && state.options.woocommerce_attribute_lookup_enabled === 'yes' && state.lookup > 0, JSON.stringify({ products: state.products, variations: setup.variations, lookup: state.lookup, lookupEnabled: state.options && state.options.woocommerce_attribute_lookup_enabled }));
     const spain = (state.zones || []).find((z) => (z.locations || []).includes('ES'));
