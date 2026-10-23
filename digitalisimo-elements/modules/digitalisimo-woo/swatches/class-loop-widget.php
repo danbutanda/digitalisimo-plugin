@@ -12,13 +12,13 @@ require_once __DIR__ . '/class-loop.php';
  *
  * Las opciones de atributos se construyen sólo con WooCommerce y fuera de la pila optimizada (V.12.1): en el front el
  * render valida el atributo contra los registrados, nunca contra los controles. Sin WooCommerce, el registro oculto
- * del editor (frente A) usa estos mismos controles: `register_controls()` no llama a WooCommerce.
+ * del editor (`Woo\Inert`) usa esta misma clase: `register_controls()` no llama a WooCommerce y la salida va en
+ * `render_widget()`, que la base no llama sin WooCommerce.
  */
-class Loop_Widget extends \Elementor\Widget_Base {
+class Loop_Widget extends \Digitalisimo\Elements\Woo\Widget {
 	public function get_name() { return 'digitalisimo-woo-swatches'; }
 	public function get_title() { return 'Muestras de variación'; }
 	public function get_icon() { return 'eicon-product-meta'; }
-	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'muestras', 'variación', 'color', 'talla', 'atributo', 'woocommerce' ); }
 	public function get_style_depends() { return array( 'digitalisimo-woo-swatches' ); }
 
@@ -84,7 +84,7 @@ class Loop_Widget extends \Elementor\Widget_Base {
 		return ( isset( $plugin->editor ) && $plugin->editor->is_edit_mode() ) || ( isset( $plugin->preview ) && $plugin->preview->is_preview_mode() );
 	}
 
-	protected function render() {
+	protected function render_widget() {
 		$settings  = (array) $this->get_settings_for_display();
 		$requested = is_string( $settings['attribute'] ?? '' ) ? (string) ( $settings['attribute'] ?? '' ) : '';
 		if ( '' !== $requested && ( 0 !== strpos( $requested, 'pa_' ) || ! taxonomy_exists( $requested ) ) ) {

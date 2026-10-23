@@ -18,7 +18,7 @@ final class Button {
 	 * con el valor que nunca coincide y no pinta nada).
 	 *
 	 * @param array $args text (texto visible, «Guardar» por defecto; '' = sólo icono), icon (bool), guest ('browser' o
-	 *                    'login'), class (clases extra).
+	 *                    'login': añade el enlace «Inicia sesión para guardar»), class (clases extra).
 	 */
 	public static function markup( int $product_id, array $args = array() ): string {
 		if ( $product_id <= 0 || ! function_exists( 'wc_get_product' ) || ! Products::is_public( $product_id ) ) {
@@ -35,14 +35,19 @@ final class Button {
 		if ( $product->is_type( 'variable' ) ) {
 			$attrs .= ' data-variable="1"';
 		}
-		if ( 'login' === ( $args['guest'] ?? '' ) ) {
-			$attrs .= ' data-guest="login"';
-		}
 		$class = trim( 'digi-wish ' . preg_replace( '/[^A-Za-z0-9_ -]/', '', (string) ( $args['class'] ?? '' ) ) );
 		$html  = '<button type="button" class="' . esc_attr( $class ) . '"' . $attrs . ' aria-pressed="false" hidden>';
 		$html .= ( $args['icon'] ?? true ) ? self::ICON : '';
 		$html .= '' === $text ? '' : '<span class="digi-wish__text">' . esc_html( $text ) . '</span>';
 		$html .= '<span class="screen-reader-text">' . esc_html( $label ) . '</span></button>';
+		// «Pedir iniciar sesión» (por instancia o con el modo invitado apagado en el sitio): un enlace oculto, igual para
+		// todos, que el script muestra sólo a un invitado. Con él en la página, ningún botón guarda en el navegador.
+		if ( 'login' === ( $args['guest'] ?? '' ) || ( class_exists( Module::class ) && ! Module::guest_storage() ) ) {
+			$url = class_exists( Module::class ) ? Module::login_url() : '';
+			if ( '' !== $url ) {
+				$html .= '<a class="' . esc_attr( $class ) . ' digi-wish--login" href="' . esc_url( $url ) . '" data-digi-wish-login hidden>Inicia sesión para guardar<span class="screen-reader-text"> ' . esc_html( $name ) . ' en la lista de deseos</span></a>';
+			}
+		}
 		return $html;
 	}
 

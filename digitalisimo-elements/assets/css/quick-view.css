@@ -1,0 +1,27 @@
+/* DIGITALÍSIMO Elements · vista rápida (F4-Woo). Sin colores propios: el diálogo usa Canvas/CanvasText salvo que la instancia los cambie. */
+.digi-qv__open{display:inline-flex;align-items:center;gap:.4em;cursor:pointer}
+.digi-qv__icon{display:inline-flex}
+.digi-qv__icon svg{inline-size:1em;block-size:1em;fill:currentColor}
+html.digi-qv-open{overflow:hidden}
+.digi-qv{box-sizing:border-box;inline-size:var(--digi-qv-width,min(56rem,calc(100vw - 2rem)));max-inline-size:calc(100vw - 2rem);max-block-size:calc(100dvh - 2rem);margin:auto;padding:var(--digi-qv-padding,1.5rem);border:0;border-radius:var(--digi-qv-radius,0);background:var(--digi-qv-bg,Canvas);color:var(--digi-qv-color,CanvasText);overflow:auto;overscroll-behavior:contain}
+.digi-qv::backdrop{background:rgb(0 0 0/.5)}
+.digi-qv[open]{animation:digi-qv-in .15s ease-out}
+@keyframes digi-qv-in{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.digi-qv[open]{animation:none}}
+.digi-qv__close{position:sticky;inset-block-start:0;z-index:1;float:inline-end;margin:0 0 .5rem .5rem;padding:.4em .8em;border:1px solid currentColor;border-radius:999px;background:var(--digi-qv-bg,Canvas);color:inherit;font:inherit;line-height:1.2;cursor:pointer}
+.digi-qv__body{clear:both}
+.digi-qv__body[aria-busy="true"]{min-block-size:8rem}
+.digi-qv [tabindex="-1"]:focus{outline:0}
+.digi-qv__close:focus-visible,.digi-qv__thumb:focus-visible{outline:2px solid;outline-offset:2px}
+.digi-qv .digi-qv__product{display:grid;gap:1.5rem;margin:0}
+@media (min-width:768px){.digi-qv .digi-qv__product{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.digi-qv .digi-qv__product--single{grid-template-columns:minmax(0,1fr)}}
+.digi-qv .digi-qv__product .images,.digi-qv .digi-qv__product .summary{float:none;inline-size:auto;margin:0}
+.digi-qv__media img{display:block;inline-size:100%;block-size:auto}
+.digi-qv__thumbs{display:flex;flex-wrap:wrap;gap:.5rem;margin-block-start:.75rem}
+.digi-qv__thumb{inline-size:4rem;padding:0;border:1px solid transparent;background:none;color:inherit;cursor:pointer}
+.digi-qv__thumb[aria-pressed="true"]{border-color:currentColor}
+.digi-qv__title{margin-block:0 .5rem}
+.digi-qv__more{margin-block:1rem 0}
+.digi-qv__error a{text-decoration:underline}
+.digi-qv .screen-reader-text,.digi-qv__open .screen-reader-text{position:absolute!important;inline-size:1px;block-size:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.digi-qv__notice{margin:0;font-size:.875em;opacity:.8}

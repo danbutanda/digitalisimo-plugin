@@ -16,12 +16,13 @@ final class Inert_Widget extends \Elementor\Widget_Base {
 	const ARG_TITLE = 'digitalisimo_woo_title';
 
 	public function get_name() {
-		$type = $this->get_data( 'widgetType' );
-		if ( is_string( $type ) && '' !== $type ) {
-			return $type;
-		}
+		// La instancia de registro no tiene datos (leerlos daría un error): su nombre está en los argumentos.
 		$name = $this->get_default_args( self::ARG_NAME );
-		return is_string( $name ) && '' !== $name ? $name : 'digitalisimo-woo-inert';
+		if ( is_string( $name ) && '' !== $name ) {
+			return $name;
+		}
+		$type = method_exists( $this, 'is_type_instance' ) && $this->is_type_instance() ? null : $this->get_data( 'widgetType' );
+		return is_string( $type ) && '' !== $type ? $type : 'digitalisimo-woo-inert';
 	}
 
 	public function get_title() {

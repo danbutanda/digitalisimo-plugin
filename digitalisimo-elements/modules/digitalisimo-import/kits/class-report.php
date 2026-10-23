@@ -22,6 +22,9 @@ defined( 'ABSPATH' ) || exit;
  * `Session::update()` (el importador, frente A, es quien escribe esa opción).
  */
 final class Report {
+	/** @var string[]|null Textos de la petición (`labels()`). */
+	private static $labels = null;
+
 	const NATIVE_IMPORT_SESSIONS = 'elementor_import_sessions';
 	/** Nombre real en el núcleo (`IEC:module.php:55`), no el de §5.3. */
 	const NATIVE_REVERT_SESSIONS = 'elementor_revert_sessions';
@@ -32,6 +35,15 @@ final class Report {
 	const STATUS_REVERTED    = 'reverted';
 
 	const MAX_ROWS = 20;
+
+	/**
+	 * Filtro de textos (punto de extensión genérico de K, V.11.4 de F4-Woo): una etapa da texto a sus códigos nuevos.
+	 * Sólo añade: un código que ya tiene texto en `CODE_LABELS` nunca cambia (ver `labels()`).
+	 */
+	const FILTER_LABELS = 'digitalisimo_elements_kit_report_labels';
+
+	/** Prefijo con que una etapa da texto a un motivo de `not_exported` propio: `not-exported.<motivo>`. */
+	const NOT_EXPORTED_CODE = 'not-exported.';
 
 	/** Secciones del detalle, en el orden de §12.2, más «Otros avisos». */
 	const SECTIONS = array(
@@ -527,10 +539,11 @@ final class Report {
 	 * @param string $code Código del aviso.
 	 */
 	public static function code_label( string $code ): string {
+		$labels    = self::labels();
 		$candidate = $code;
 		while ( '' !== $candidate ) {
-			if ( isset( self::CODE_LABELS[ $candidate ] ) ) {
-				return self::CODE_LABELS[ $candidate ];
+			if ( isset( $labels[ $candidate ] ) ) {
+				return $labels[ $candidate ];
 			}
 			$cut = max( (int) strrpos( $candidate, '.' ), (int) strrpos( $candidate, ':' ) );
 			if ( $cut <= 0 ) {
@@ -539,6 +552,54 @@ final class Report {
 			$candidate = substr( $candidate, 0, $cut );
 		}
 		return '';
+	}
+
+	/**
+	 * Textos de los códigos: `CODE_LABELS` más los que añade `digitalisimo_elements_kit_report_labels` (una vez por
+	 * petición). Sin funciones enganchadas, exactamente `CODE_LABELS`.
+	 *
+	 * @return string[] Código => texto.
+	 */
+	public static function labels(): array {
+		if ( null === self::$labels ) {
+			self::$labels = function_exists( 'apply_filters' ) ? self::add_only( self::CODE_LABELS, apply_filters( self::FILTER_LABELS, self::CODE_LABELS ) ) : self::CODE_LABELS;
+		}
+		return self::$labels;
+	}
+
+	/**
+	 * Acota lo que devuelve el filtro de textos: sólo códigos nuevos (`[a-z0-9_:.-]`, ≤ 100) con un texto plano no
+	 * vacío (≤ 200 caracteres). Un código que ya tiene texto, uno quitado o un filtro que no devuelve un array no
+	 * cambian nada; el orden de `$base` se conserva y lo nuevo va detrás.
+	 *
+	 * @param string[] $base     Textos de K.
+	 * @param mixed    $filtered Lo que devolvió el filtro.
+	 *
+	 * @return string[]
+	 */
+	public static function add_only( array $base, $filtered ): array {
+		if ( ! is_array( $filtered ) ) {
+			return $base;
+		}
+		foreach ( $filtered as $code => $text ) {
+			if ( ! is_string( $code ) || isset( $base[ $code ] ) || 1 !== preg_match( '/^[a-z0-9_:.-]{1,100}$/', $code ) || ! is_string( $text ) ) {
+				continue;
+			}
+			$text = trim( (string) preg_replace( '/\s+/', ' ', strip_tags( $text ) ) );
+			if ( '' !== $text ) {
+				$base[ $code ] = function_exists( 'mb_substr' ) ? mb_substr( $text, 0, 200 ) : substr( $text, 0, 200 );
+			}
+		}
+		return $base;
+	}
+
+	/**
+	 * Olvida los textos de la petición.
+	 *
+	 * @internal Sólo para pruebas.
+	 */
+	public static function reset_labels(): void {
+		self::$labels = null;
 	}
 
 	/** Etiqueta de un nivel. */
@@ -882,9 +943,13 @@ final class Report {
 		return $out;
 	}
 
-	/** Texto de un motivo de `not_exported`. */
+	/** Texto de un motivo de `not_exported`: el de K, el que añadió una etapa (`not-exported.<motivo>`) o el motivo. */
 	public static function not_exported_label( string $reason ): string {
-		return isset( self::NOT_EXPORTED_LABELS[ $reason ] ) ? self::NOT_EXPORTED_LABELS[ $reason ] : $reason;
+		if ( isset( self::NOT_EXPORTED_LABELS[ $reason ] ) ) {
+			return self::NOT_EXPORTED_LABELS[ $reason ];
+		}
+		$labels = self::labels();
+		return isset( $labels[ self::NOT_EXPORTED_CODE . $reason ] ) ? $labels[ self::NOT_EXPORTED_CODE . $reason ] : $reason;
 	}
 
 	/**

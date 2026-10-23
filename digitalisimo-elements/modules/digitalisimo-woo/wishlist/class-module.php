@@ -23,6 +23,26 @@ final class Module {
 	/** Lo que usa de WooCommerce, comprobado al arrancar (D3). */
 	const SYMBOLS = array( 'wc_get_product()', 'wc_get_stock_html()', 'woocommerce_template_loop_add_to_cart()' );
 
+	/** Textos del navegador (todos los visitantes). */
+	const TEXTS = array(
+		'saved'   => 'Guardado en tu lista de deseos',
+		'removed' => 'Quitado de tu lista de deseos',
+		'full'    => 'Tu lista de deseos está llena.',
+		'cleared' => 'Lista vaciada',
+		'error'   => 'No se pudo actualizar tu lista de deseos.',
+	);
+
+	/** Textos del aviso de fusión, sólo para un usuario con sesión (V.4.2). */
+	const ACCOUNT_TEXTS = array(
+		'ask1'      => 'Tienes 1 producto guardado en este navegador. ¿Añadirlo a tu lista?',
+		'ask'       => 'Tienes %d productos guardados en este navegador. ¿Añadirlos a tu lista?',
+		'add'       => 'Añadir',
+		'discard'   => 'Descartar',
+		'added'     => 'Añadidos a tu lista de deseos',
+		'discarded' => 'Se borró la lista de este navegador.',
+		'failed'    => '%d no se pudieron añadir: si tienen opciones, guárdalos desde su ficha.',
+	);
+
 	private static $booted = false;
 
 	public static function init(): void {
@@ -61,15 +81,16 @@ final class Module {
 			'key'   => Privacy::storage_key(),
 			'cards' => Rest::url( 'cards' ),
 			'mode'  => $store ? 'store' : 'own',
-			'guest' => (bool) apply_filters( 'digitalisimo_elements_wishlist_guest_storage', true ),
-			'login' => self::login_url(),
+			'guest' => self::guest_storage(),
 			'limit' => Store::limit(),
 			'max'   => max( Store::LIMIT, Store::limit() ),
+			't'     => self::TEXTS,
 		);
 		$user = get_current_user_id();
 		if ( ! $user || ( is_multisite() && ! is_user_member_of_blog( $user ) ) ) {
 			return $config; // Un usuario de la red que no es miembro del sitio usa el modo de invitado.
 		}
+		$config['t']       += self::ACCOUNT_TEXTS;
 		$own                = Store::valid( Store::read( $user ) );
 		$config['loggedIn'] = true;
 		$config['rest']     = Rest::url( '' );
@@ -92,6 +113,11 @@ final class Module {
 			$config['nonce'] = wp_create_nonce( 'wp_rest' );
 		}
 		return $config;
+	}
+
+	/** Modo invitado en todo el sitio; el filtro lo apaga y el botón de un invitado pasa a «Inicia sesión para guardar». */
+	public static function guest_storage(): bool {
+		return (bool) apply_filters( 'digitalisimo_elements_wishlist_guest_storage', true );
 	}
 
 	/**

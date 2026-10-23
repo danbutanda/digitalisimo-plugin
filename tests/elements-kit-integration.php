@@ -145,7 +145,9 @@ namespace {
 		glob( $E . '/modules/forms/actions/*.php' ),
 		// Partes y referencias registradas fuera de K (F7a): presets de estilo y condiciones.
 		glob( $E . '/modules/digitalisimo-design/{,*/}*.php', GLOB_BRACE ),
-		glob( $E . '/modules/digitalisimo-conditions/*.php' )
+		glob( $E . '/modules/digitalisimo-conditions/*.php' ),
+		// Partes y referencias de F4-Woo (WooCommerce visual): `kit/` y los demás submódulos.
+		glob( $E . '/modules/digitalisimo-woo/{,*/}*.php', GLOB_BRACE )
 	);
 	$codes = array();
 	foreach ( $sources as $file ) {

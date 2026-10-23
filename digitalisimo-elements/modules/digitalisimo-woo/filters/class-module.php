@@ -15,13 +15,18 @@ defined( 'ABSPATH' ) || exit;
  * - Registra los tipos `digitalisimo_price` (`digi_price_*`) y `digitalisimo_attribute` (`digiattr_*`) en `Types`, que
  *   engancha los tres filtros del derivado de PRO (V.8.2).
  * - Invalida los transitorios de `Bounds` con los eventos de producto.
+ * - Registra `filters-form.js` (`digitalisimo-woo-filters-form`, con `defer` y detrás del coordinador): el
+ *   comportamiento de los dos formularios. El coordinador (`filters.js`, `digitalisimo-woo-filters`) lo registra
+ *   `Woo\Assets` con la dependencia `elementor-frontend`. Son dos archivos para que cada uno quepa en 8 KB; los dos
+ *   widgets declaran los dos handles y su hoja (`digitalisimo-woo-filters`). En el front no se encola nada más.
  * - Encola `filters-editor.js` en el editor, que rellena la lista de Loop Grid del documento (la de PRO sólo sirve a
- *   su widget). En el front no añade nada: los dos widgets declaran su hoja y su script (`digitalisimo-woo-filters`,
- *   que `Woo\Assets` registra con `defer` y la dependencia `elementor-frontend`).
+ *   su widget).
  */
 final class Module {
 	const EDITOR_HANDLE = 'digitalisimo-woo-filters-editor';
 	const EDITOR_SCRIPT = 'assets/js/filters-editor.js';
+	const FORM_HANDLE   = 'digitalisimo-woo-filters-form';
+	const FORM_SCRIPT   = 'assets/js/filters-form.js';
 
 	/** @var bool */
 	private static $initialized = false;
@@ -39,7 +44,18 @@ final class Module {
 		Types::register( Types::PRICE, Types::PRICE_PREFIX, array( Query::class, 'apply_price' ) );
 		Types::register( Types::ATTRIBUTE, Types::ATTRIBUTE_PREFIX, array( Query::class, 'apply_attribute' ) );
 		Bounds::init();
+		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'register_scripts' ) );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_scripts' ), 5 );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'editor_script' ) );
+	}
+
+	/** Registra `filters-form.js` detrás del coordinador. Idempotente. */
+	public static function register_scripts(): void {
+		if ( ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) || wp_script_is( self::FORM_HANDLE, 'registered' ) || ! is_file( dirname( DIGITALISIMO_ELEMENTS_FILE ) . '/' . self::FORM_SCRIPT ) ) {
+			return;
+		}
+		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
+		wp_register_script( self::FORM_HANDLE, plugins_url( self::FORM_SCRIPT, DIGITALISIMO_ELEMENTS_FILE ), array( 'digitalisimo-woo-filters' ), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 	}
 
 	/** `elementor/editor/after_enqueue_scripts`: el script que rellena «Loop Grid» en los dos widgets. */

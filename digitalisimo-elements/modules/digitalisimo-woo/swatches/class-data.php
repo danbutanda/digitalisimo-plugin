@@ -93,7 +93,8 @@ final class Data {
 	public static function term( \WP_Term $term ): array {
 		$id    = (int) $term->term_id;
 		$image = function_exists( 'get_term_meta' ) ? absint( get_term_meta( $id, 'image', true ) ) : 0;
-		if ( $image && ( ! function_exists( 'wp_attachment_is_image' ) || ! wp_attachment_is_image( $image ) ) ) {
+		// Como `build_term_visual()`: un adjunto imagen con URL para el tamaño de la muestra.
+		if ( $image && ( ! function_exists( 'wp_attachment_is_image' ) || ! wp_attachment_is_image( $image ) || ! wp_get_attachment_image_url( $image, 'thumbnail' ) ) ) {
 			$image = 0;
 		}
 		$color = '';

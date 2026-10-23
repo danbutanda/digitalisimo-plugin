@@ -23,46 +23,19 @@ require_once __DIR__ . '/class-data.php';
  *   mismas metas y no pasa por este filtro: no hay doble pintado (V.6.5).
  */
 final class Form {
-	const HANDLE = 'digitalisimo-woo-swatches';
-	const CSS    = 'assets/css/swatches.css';
-	const JS     = 'assets/js/swatches.js';
+	const FEATURE = 'swatches';
 
 	/** @var int Contador de grupos de la petición. */
 	private static $uid = 0;
 
 	public static function init(): void {
 		add_filter( 'woocommerce_dropdown_variation_attribute_options_html', array( __CLASS__, 'filter' ), 20, 2 );
-		add_action( 'elementor/frontend/after_register_styles', array( __CLASS__, 'register' ) );
-		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'register' ) );
-		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register' ), 5 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_product' ), 20 );
 	}
 
-	/**
-	 * Registra la hoja y el script si el registro común (frente A) aún no lo hizo. `defer`, sin jQuery.
-	 */
-	public static function register(): void {
-		if ( ! function_exists( 'wp_register_style' ) ) {
-			return;
-		}
-		$file    = defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ? DIGITALISIMO_ELEMENTS_FILE : dirname( __DIR__, 3 ) . '/pro-elements.php';
-		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
-		if ( ! wp_style_is( self::HANDLE, 'registered' ) ) {
-			wp_register_style( self::HANDLE, plugins_url( self::CSS, $file ), array(), $version );
-		}
-		if ( ! wp_script_is( self::HANDLE, 'registered' ) ) {
-			wp_register_script( self::HANDLE, plugins_url( self::JS, $file ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
-		}
-	}
-
-	/** Encola la hoja y el script de las muestras. */
+	/** Encola la hoja y el script de las muestras (`digitalisimo-woo-swatches`, registrados por `Woo\Assets`). */
 	public static function enqueue(): void {
-		if ( ! function_exists( 'wp_enqueue_style' ) ) {
-			return;
-		}
-		self::register();
-		wp_enqueue_style( self::HANDLE );
-		wp_enqueue_script( self::HANDLE );
+		\Digitalisimo\Elements\Woo\Assets::enqueue( self::FEATURE );
 	}
 
 	/**

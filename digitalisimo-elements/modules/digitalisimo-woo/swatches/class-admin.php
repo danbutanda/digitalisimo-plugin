@@ -44,18 +44,12 @@ final class Admin {
 	}
 
 	/**
-	 * La opción existe siempre (con carga automática), así el front sabe sin consultar que no hay muestras; y los
-	 * ganchos de la pantalla de términos y de su lista, sólo para el atributo que se está editando.
+	 * Ganchos de la pantalla de términos y de su lista, sólo para el atributo que se está editando. La opción
+	 * `digitalisimo_elements_swatches` la crea `Woo\Flags` en `admin_init` (existe siempre, con carga automática).
 	 */
 	public static function admin_init(): void {
 		if ( function_exists( 'is_network_admin' ) && is_network_admin() ) {
 			return; // Los atributos son de cada sitio: la red no tiene esta pantalla.
-		}
-		if ( function_exists( 'wp_load_alloptions' ) ) {
-			$all = wp_load_alloptions();
-			if ( is_array( $all ) && ! array_key_exists( Data::OPTION, $all ) ) {
-				add_option( Data::OPTION, array( 'v' => 1, 'attributes' => array() ), '', true );
-			}
 		}
 		$taxonomy = self::request_taxonomy();
 		if ( '' === $taxonomy ) {

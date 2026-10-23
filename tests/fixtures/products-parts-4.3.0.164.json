@@ -1,0 +1,963 @@
+{
+    "controls": {
+        "digitalisimo_wc_parts_section": {
+            "label": "Partes del producto",
+            "name": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "section"
+        },
+        "digitalisimo_wc_custom": {
+            "default": "",
+            "label": "Elegir qué partes mostrar",
+            "name": "digitalisimo_wc_custom",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_parts": {
+            "condition": {
+                "digitalisimo_wc_custom": "yes"
+            },
+            "default": [
+                "image",
+                "title",
+                "rating",
+                "price",
+                "cart",
+                "badge"
+            ],
+            "label": "Partes",
+            "multiple": true,
+            "name": "digitalisimo_wc_parts",
+            "options": {
+                "image": "Imagen",
+                "title": "Título",
+                "excerpt": "Extracto del contenido",
+                "summary": "Resumen (extracto manual o contenido)",
+                "category": "Categorías",
+                "rating": "Valoración",
+                "price": "Precio",
+                "cart": "Botón de compra",
+                "readmore": "Leer más",
+                "badge": "Insignia de oferta",
+                "sku": "Referencia (SKU, en tabla)",
+                "tags": "Etiquetas (en tabla)",
+                "quantity": "Selector de cantidad (en tabla)"
+            },
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "select2"
+        },
+        "digitalisimo_wc_title_tag": {
+            "condition": {
+                "digitalisimo_wc_custom": "yes"
+            },
+            "default": "h2",
+            "label": "Etiqueta del título",
+            "name": "digitalisimo_wc_title_tag",
+            "options": {
+                "h1": "h1",
+                "h2": "h2",
+                "h3": "h3",
+                "h4": "h4",
+                "h5": "h5",
+                "h6": "h6",
+                "div": "div",
+                "span": "span",
+                "p": "p"
+            },
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "select"
+        },
+        "digitalisimo_wc_excerpt_length": {
+            "condition": {
+                "digitalisimo_wc_custom": "yes"
+            },
+            "default": 10,
+            "label": "Palabras del extracto",
+            "min": 1,
+            "name": "digitalisimo_wc_excerpt_length",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "number"
+        },
+        "digitalisimo_wc_readmore_text": {
+            "condition": {
+                "digitalisimo_wc_custom": "yes"
+            },
+            "default": "Read More",
+            "label": "Texto de «Leer más»",
+            "name": "digitalisimo_wc_readmore_text",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_products_limit": {
+            "default": "",
+            "description": "Vacío: filas por columnas.",
+            "label": "Número de productos",
+            "min": 1,
+            "name": "digitalisimo_products_limit",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "number"
+        },
+        "digitalisimo_wc_layout": {
+            "default": "grid",
+            "description": "En carrusel se ven tantas fichas como columnas en cada dispositivo; en tabla, una fila por producto con las partes elegidas como columnas.",
+            "label": "Presentación",
+            "name": "digitalisimo_wc_layout",
+            "options": {
+                "grid": "Rejilla",
+                "carousel": "Carrusel",
+                "table": "Tabla"
+            },
+            "section": "digitalisimo_wc_parts_section",
+            "separator": "before",
+            "tab": "content",
+            "type": "select"
+        },
+        "digitalisimo_wc_navigation": {
+            "condition": {
+                "digitalisimo_wc_layout": "carousel"
+            },
+            "default": "yes",
+            "label": "Flechas",
+            "name": "digitalisimo_wc_navigation",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_th_image": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Imagen",
+            "label": "Encabezado: imagen",
+            "name": "digitalisimo_wc_th_image",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_title": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Producto",
+            "label": "Encabezado: producto",
+            "name": "digitalisimo_wc_th_title",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_excerpt": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Descripción",
+            "label": "Encabezado: descripción",
+            "name": "digitalisimo_wc_th_excerpt",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_category": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Categorías",
+            "label": "Encabezado: categorías",
+            "name": "digitalisimo_wc_th_category",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_tags": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Etiquetas",
+            "label": "Encabezado: etiquetas",
+            "name": "digitalisimo_wc_th_tags",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_rating": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Valoración",
+            "label": "Encabezado: valoración",
+            "name": "digitalisimo_wc_th_rating",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_price": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Precio",
+            "label": "Encabezado: precio",
+            "name": "digitalisimo_wc_th_price",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_quantity": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Cantidad",
+            "label": "Encabezado: cantidad",
+            "name": "digitalisimo_wc_th_quantity",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_cart": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Carrito",
+            "label": "Encabezado: carrito",
+            "name": "digitalisimo_wc_th_cart",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_table_search": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "",
+            "label": "Buscador",
+            "name": "digitalisimo_wc_table_search",
+            "section": "digitalisimo_wc_parts_section",
+            "separator": "before",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_table_sort": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "",
+            "label": "Ordenar al pulsar un encabezado",
+            "name": "digitalisimo_wc_table_sort",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_table_paginate": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "",
+            "label": "Paginación",
+            "name": "digitalisimo_wc_table_paginate",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_table_page_size": {
+            "condition": {
+                "digitalisimo_wc_layout": "table",
+                "digitalisimo_wc_table_paginate": "yes"
+            },
+            "default": 10,
+            "label": "Filas por página",
+            "max": 500,
+            "min": 1,
+            "name": "digitalisimo_wc_table_page_size",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "number"
+        },
+        "digitalisimo_wc_table_info": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "",
+            "label": "Resumen de filas",
+            "name": "digitalisimo_wc_table_info",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        }
+    },
+    "front": {
+        "digitalisimo_wc_parts_section": {
+            "name": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "section"
+        },
+        "digitalisimo_wc_custom": {
+            "default": "",
+            "name": "digitalisimo_wc_custom",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_parts": {
+            "condition": {
+                "digitalisimo_wc_custom": "yes"
+            },
+            "default": [
+                "image",
+                "title",
+                "rating",
+                "price",
+                "cart",
+                "badge"
+            ],
+            "multiple": true,
+            "name": "digitalisimo_wc_parts",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "select2"
+        },
+        "digitalisimo_wc_title_tag": {
+            "condition": {
+                "digitalisimo_wc_custom": "yes"
+            },
+            "default": "h2",
+            "name": "digitalisimo_wc_title_tag",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "select"
+        },
+        "digitalisimo_wc_excerpt_length": {
+            "condition": {
+                "digitalisimo_wc_custom": "yes"
+            },
+            "default": 10,
+            "min": 1,
+            "name": "digitalisimo_wc_excerpt_length",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "number"
+        },
+        "digitalisimo_wc_readmore_text": {
+            "condition": {
+                "digitalisimo_wc_custom": "yes"
+            },
+            "default": "Read More",
+            "name": "digitalisimo_wc_readmore_text",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_products_limit": {
+            "default": "",
+            "min": 1,
+            "name": "digitalisimo_products_limit",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "number"
+        },
+        "digitalisimo_wc_layout": {
+            "default": "grid",
+            "name": "digitalisimo_wc_layout",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "select"
+        },
+        "digitalisimo_wc_navigation": {
+            "condition": {
+                "digitalisimo_wc_layout": "carousel"
+            },
+            "default": "yes",
+            "name": "digitalisimo_wc_navigation",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_th_image": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Imagen",
+            "name": "digitalisimo_wc_th_image",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_title": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Producto",
+            "name": "digitalisimo_wc_th_title",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_excerpt": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Descripción",
+            "name": "digitalisimo_wc_th_excerpt",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_category": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Categorías",
+            "name": "digitalisimo_wc_th_category",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_tags": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Etiquetas",
+            "name": "digitalisimo_wc_th_tags",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_rating": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Valoración",
+            "name": "digitalisimo_wc_th_rating",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_price": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Precio",
+            "name": "digitalisimo_wc_th_price",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_quantity": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Cantidad",
+            "name": "digitalisimo_wc_th_quantity",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_th_cart": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "Carrito",
+            "name": "digitalisimo_wc_th_cart",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "text"
+        },
+        "digitalisimo_wc_table_search": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "",
+            "name": "digitalisimo_wc_table_search",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_table_sort": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "",
+            "name": "digitalisimo_wc_table_sort",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_table_paginate": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "",
+            "name": "digitalisimo_wc_table_paginate",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        },
+        "digitalisimo_wc_table_page_size": {
+            "condition": {
+                "digitalisimo_wc_layout": "table",
+                "digitalisimo_wc_table_paginate": "yes"
+            },
+            "default": 10,
+            "max": 500,
+            "min": 1,
+            "name": "digitalisimo_wc_table_page_size",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "number"
+        },
+        "digitalisimo_wc_table_info": {
+            "condition": {
+                "digitalisimo_wc_layout": "table"
+            },
+            "default": "",
+            "name": "digitalisimo_wc_table_info",
+            "section": "digitalisimo_wc_parts_section",
+            "tab": "content",
+            "type": "switcher"
+        }
+    },
+    "cases": {
+        "sin elegir": {
+            "during": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            },
+            "after": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            }
+        },
+        "partes por defecto": {
+            "during": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            },
+            "after": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            }
+        },
+        "título h3 y extras": {
+            "during": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [],
+                    "output": ""
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|closure"
+                    ],
+                    "output": "<h3 class=\"woocommerce-loop-product__title\"></h3>"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "4|closure",
+                        "6|closure"
+                    ],
+                    "output": "<div class=\"digi-product__categories\"><a href=\"#\">Ropa</a></div><div class=\"digi-product__excerpt\">Uno dos tres cuatro cinco seis siete ocho nueve diez</div>"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "11|closure"
+                    ],
+                    "output": "<a class=\"button digi-product__readmore\" href=\"https://sitio.test/producto/\">Ver</a>"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            },
+            "after": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            }
+        },
+        "resumen y compra": {
+            "during": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [],
+                    "output": ""
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [],
+                    "output": ""
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "6|closure"
+                    ],
+                    "output": "<div class=\"digi-product__excerpt\">Uno dos tres…</div>"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            },
+            "after": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            }
+        },
+        "ninguna parte": {
+            "during": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [],
+                    "output": ""
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [],
+                    "output": ""
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [],
+                    "output": ""
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [],
+                    "output": ""
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            },
+            "after": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            }
+        },
+        "límite de productos": {
+            "during": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [
+                        "20|closure"
+                    ],
+                    "output": "{\"posts_per_page\":4}"
+                }
+            },
+            "after": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            }
+        },
+        "tabla": {
+            "during": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [],
+                    "output": ""
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price"
+                    ],
+                    "output": "[woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [],
+                    "output": ""
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            },
+            "after": {
+                "woocommerce_before_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_show_product_loop_sale_flash",
+                        "10|woocommerce_template_loop_product_thumbnail"
+                    ],
+                    "output": "[woocommerce_template_loop_product_thumbnail][woocommerce_show_product_loop_sale_flash]"
+                },
+                "woocommerce_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_product_title"
+                    ],
+                    "output": "[woocommerce_template_loop_product_title]"
+                },
+                "woocommerce_after_shop_loop_item_title": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_price",
+                        "5|woocommerce_template_loop_rating"
+                    ],
+                    "output": "[woocommerce_template_loop_rating][woocommerce_template_loop_price]"
+                },
+                "woocommerce_after_shop_loop_item": {
+                    "hooks": [
+                        "10|woocommerce_template_loop_add_to_cart"
+                    ],
+                    "output": "[woocommerce_template_loop_add_to_cart]"
+                },
+                "woocommerce_shortcode_products_query": {
+                    "hooks": [],
+                    "output": "{\"posts_per_page\":8}"
+                }
+            }
+        }
+    }
+}

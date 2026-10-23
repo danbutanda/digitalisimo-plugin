@@ -4,7 +4,8 @@
 //   marca de alias igual a la del registro; ningún caso nombra un widget propio que no existe.
 // - Cada rasgo propio que inicia el registro tiene su caso, y cada «base» de front-budget existe.
 // - Cada parte de K (Parts::BUILTIN) tiene su caso con motivo (§11.2: obligación de cada etapa). Las partes de fuera de
-//   kits/ (clases que implementan Part con `const KEY`, F7a) se aceptan en cases.parts y se listan si aún no tienen caso.
+//   kits/ (clases que implementan Part o Early_Part con `const KEY`, F7a y F4-Woo) se aceptan en cases.parts y se
+//   listan si aún no tienen caso.
 // - tests/sources/kits/no-reference.json: cada control que parece referencia y no lo es lleva su motivo.
 // El inventario en tiempo de ejecución (todos los controles de todos los widgets) lo hace kit-roundtrip.sh.
 import assert from 'node:assert/strict';
@@ -85,9 +86,10 @@ const walkPhp = (dir, out = []) => {
 const external = {};
 for (const file of walkPhp(join(E, 'modules'))) {
   const text = readFileSync(file, 'utf8');
-  const short = /^use\s+Digitalisimo\\Elements\\Import\\Kits\\Part;/m.test(text);
-  if (!/\bclass\s+\w+\s+implements\s+[^{]*?(?:\\Digitalisimo\\Elements\\Import\\Kits\\Part\b|(?<![\\\w])Part\b)/.test(text)) continue;
-  if (!short && !/implements\s+[^{]*\\Digitalisimo\\Elements\\Import\\Kits\\Part\b/.test(text)) continue;
+  // `Part` o `Early_Part` (que la extiende: la parte temprana `woo-attributes` de F4-Woo, V.11.5).
+  const short = /^use\s+Digitalisimo\\Elements\\Import\\Kits\\(?:Early_)?Part;/m.test(text);
+  if (!/\bclass\s+\w+\s+implements\s+[^{]*?(?:\\Digitalisimo\\Elements\\Import\\Kits\\(?:Early_)?Part\b|(?<![\\\w])(?:Early_)?Part\b)/.test(text)) continue;
+  if (!short && !/implements\s+[^{]*\\Digitalisimo\\Elements\\Import\\Kits\\(?:Early_)?Part\b/.test(text)) continue;
   const key = text.match(/\bconst\s+KEY\s*=\s*'([a-z0-9]+(?:-[a-z0-9]+)*)'\s*;/);
   if (!key) { problems.push(`${file.slice(ROOT.length + 1)}: implementa Part sin «const KEY = '<clave>'»`); continue; }
   if (parts.includes(key[1]) || external[key[1]]) { problems.push(`${file.slice(ROOT.length + 1)}: la clave de parte «${key[1]}» ya existe`); continue; }

@@ -250,6 +250,14 @@ jobs:
           php tests/elements-sticky-state.php
           php tests/elements-document-controls.php
           node tests/elements-design-static.mjs
+          # WooCommerce visual (etapa F4-Woo)
+          php tests/elements-woo-module.php
+          php tests/elements-unknown-guard.php
+          php tests/elements-woo-wishlist.php
+          php tests/elements-loop-filter-parse.php
+          php tests/elements-woo-products-parts.php
+          php tests/elements-kit-extensions.php
+          php tests/elements-woo-kit.php
       - name: Seleccionar plugins modificados
         id: modules
         env:

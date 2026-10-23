@@ -28,8 +28,9 @@ defined( 'ABSPATH' ) || exit;
  * - **`import()`:** la configuración de muestras, sólo de los atributos que creó la sesión (`Swatches\Data::put()`,
  *   bajo su cerrojo); la de uno que ya existía no se aplica (`woocommerce.swatches-skipped`). La imagen de cada
  *   término viaja con la parte `term-meta` de K y la referencia acotada a `pa_*` (V.6.6).
- * - **`revert()`:** borra los atributos creados cuya huella no cambió, sin muestras editadas y que ningún término ni
- *   producto ajeno a la sesión usa; los demás se conservan y se informan.
+ * - **`revert()`:** borra los atributos creados cuya huella no cambió, con sus muestras como las dejó la sesión y que
+ *   ningún término ni producto ajeno a la sesión usa (y quita sólo las muestras que escribió); los demás se conservan
+ *   y se informan.
  *
  * Sin WooCommerce, no exporta nada e informa `woocommerce.inactive` si el kit trae atributos: los términos `pa_*`
  * del kit los descarta el núcleo como siempre (`taxonomies.missing`).
@@ -201,7 +202,7 @@ final class Attributes_Part implements Early_Part {
 		}
 		$stored  = $context->stored();
 		$created = isset( $stored['attributes'] ) && is_array( $stored['attributes'] ) ? $stored['attributes'] : array();
-		$written = isset( $stored['swatches'] ) && is_array( $stored['swatches'] ) ? $stored['swatches'] : array();
+		$written = isset( $stored['written'] ) && is_array( $stored['written'] ) ? array_map( 'strval', $stored['written'] ) : array();
 		$class   = self::swatches_class();
 		$summary = array(
 			'attributes' => count( $created ),
@@ -229,7 +230,7 @@ final class Attributes_Part implements Early_Part {
 				continue;
 			}
 			// Sólo en un atributo que creó esta sesión; en «agregar», nunca sobre una entrada que ya tenía el sitio.
-			if ( ! isset( $created[ $slug ] ) || isset( $written[ $slug ] ) || ( null !== $site && ! $context->is_fresh() ) ) {
+			if ( ! isset( $created[ $slug ] ) || in_array( (string) $slug, $written, true ) || ( null !== $site && ! $context->is_fresh() ) ) {
 				++$summary['skipped'];
 				$context->report( 'woocommerce.swatches-skipped', array( 'attribute' => $slug ), Part_Context::INFO );
 				continue;
@@ -239,10 +240,21 @@ final class Attributes_Part implements Early_Part {
 				$context->report( 'woocommerce.swatches-failed', array( 'attribute' => $slug ), Part_Context::WARNING );
 				continue;
 			}
-			$written[ $slug ] = Part_Context::hash( $class::entry( $slug ) );
+			$written[] = (string) $slug;
 			++$summary['swatches'];
 		}
-		$context->store( array( 'swatches' => $written ) );
+		// Huella de la entrada de cada atributo creado tal como queda (también sin muestras o con la que ya tenía el
+		// sitio): `revert()` sólo borra un atributo cuyas muestras nadie tocó después, y sólo quita lo que escribió.
+		$after = array();
+		foreach ( array_keys( $created ) as $slug ) {
+			$after[ (string) $slug ] = Part_Context::hash( '' === $class ? null : $class::entry( (string) $slug ) );
+		}
+		$context->store(
+			array(
+				'swatches' => $after,
+				'written'  => array_values( array_unique( $written ) ),
+			)
+		);
 		return $summary;
 	}
 
@@ -252,6 +264,7 @@ final class Attributes_Part implements Early_Part {
 		}
 		$created  = isset( $stored['attributes'] ) && is_array( $stored['attributes'] ) ? $stored['attributes'] : array();
 		$swatches = isset( $stored['swatches'] ) && is_array( $stored['swatches'] ) ? $stored['swatches'] : array();
+		$written  = isset( $stored['written'] ) && is_array( $stored['written'] ) ? array_map( 'strval', $stored['written'] ) : array();
 		$class    = self::swatches_class();
 		$deleted  = false;
 		foreach ( $created as $slug => $info ) {
@@ -262,9 +275,9 @@ final class Attributes_Part implements Early_Part {
 			if ( ! is_object( $attr ) ) {
 				continue; // Ya no existe: WooCommerce borró también su entrada de muestras (gancho del frente D).
 			}
-			$entry        = '' === $class ? null : $class::entry( $slug );
-			$swatches_ok  = isset( $swatches[ $slug ] ) ? $context->unchanged( $entry, (string) $swatches[ $slug ] ) : null === $entry;
-			if ( ! $context->unchanged( self::print_of( $attr ), $hash ) || ! $swatches_ok ) {
+			$entry       = '' === $class ? null : $class::entry( $slug );
+			$swatches_ok = isset( $swatches[ $slug ] ) ? $context->unchanged( $entry, (string) $swatches[ $slug ] ) : null === $entry;
+			if ( ! $context->unchanged( self::state_of( $attr ), $hash ) || ! $swatches_ok ) {
 				$context->report( 'woocommerce.attribute-edited', array( 'attribute' => $slug ), Part_Context::INFO );
 				continue;
 			}
@@ -274,7 +287,7 @@ final class Attributes_Part implements Early_Part {
 			}
 			if ( wc_delete_attribute( $id ) ) {
 				$deleted = true;
-				if ( '' !== $class && null !== $entry ) {
+				if ( '' !== $class && null !== $entry && in_array( $slug, $written, true ) ) {
 					$class::remove( $slug );
 				}
 			}
@@ -355,23 +368,26 @@ final class Attributes_Part implements Early_Part {
 
 	/** Huella de un atributo: *slug*, etiqueta, tipo, orden y archivos públicos (la configuración de muestras va aparte). */
 	public static function fingerprint( string $slug, array $entry ): string {
-		return Part_Context::hash(
-			array(
-				'slug'         => $slug,
-				'label'        => isset( $entry['label'] ) ? (string) $entry['label'] : '',
-				'type'         => isset( $entry['type'] ) ? (string) $entry['type'] : '',
-				'orderby'      => isset( $entry['orderby'] ) ? (string) $entry['orderby'] : '',
-				'has_archives' => ! empty( $entry['has_archives'] ),
-			)
+		return Part_Context::hash( self::state( $slug, $entry ) );
+	}
+
+	/** Lo que entra en la huella de un atributo. */
+	public static function state( string $slug, array $entry ): array {
+		return array(
+			'slug'         => $slug,
+			'label'        => isset( $entry['label'] ) ? (string) $entry['label'] : '',
+			'type'         => isset( $entry['type'] ) ? (string) $entry['type'] : '',
+			'orderby'      => isset( $entry['orderby'] ) ? (string) $entry['orderby'] : '',
+			'has_archives' => ! empty( $entry['has_archives'] ),
 		);
 	}
 
-	/** Huella de un atributo del sitio (`wc_get_attribute()`), con la misma forma que `fingerprint()`. */
-	public static function print_of( $attribute ): string {
+	/** Estado de un atributo del sitio (`wc_get_attribute()`), con la forma de `state()`; `[]` si no es un atributo. */
+	public static function state_of( $attribute ): array {
 		if ( ! is_object( $attribute ) ) {
-			return '';
+			return array();
 		}
-		return self::fingerprint(
+		return self::state(
 			(string) preg_replace( '/^pa_/', '', isset( $attribute->slug ) ? (string) $attribute->slug : '' ),
 			array(
 				'label'        => isset( $attribute->name ) ? (string) $attribute->name : '',
@@ -380,6 +396,11 @@ final class Attributes_Part implements Early_Part {
 				'has_archives' => ! empty( $attribute->has_archives ),
 			)
 		);
+	}
+
+	/** Huella de un atributo del sitio, la que guarda `import_early()` y compara `revert()` («no pisar», R8). */
+	public static function print_of( $attribute ): string {
+		return is_object( $attribute ) ? Part_Context::hash( self::state_of( $attribute ) ) : '';
 	}
 
 	private static function current_hash( int $id ): string {

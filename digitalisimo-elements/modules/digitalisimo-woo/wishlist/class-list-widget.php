@@ -12,6 +12,11 @@ class List_Widget extends \Digitalisimo\Elements\Woo\Widget {
 
 	private static $count = 0;
 
+	/** Para las pruebas: cada petición empieza a contar instancias desde cero. */
+	public static function reset_count(): void {
+		self::$count = 0;
+	}
+
 	public function get_name() { return 'digitalisimo-woo-wishlist'; }
 	public function get_title() { return 'Lista de deseos'; }
 	public function get_icon() { return 'eicon-heart'; }

@@ -16,6 +16,12 @@ defined( 'ABSPATH' ) || exit;
  * (región, ventana desplazable con desplazamiento por ficha y flechas), con tantas fichas visibles como
  * columnas tenga el widget en cada dispositivo. La presentación «Tabla» (Products_Table) pinta esos mismos
  * productos en una tabla con encabezados.
+ *
+ * Partes de WooCommerce visual (F4-Woo, D24 y V.12.2): «Vista rápida», «Lista de deseos» y «Muestras de variación»,
+ * fuera del valor por defecto y sólo con «Elegir qué partes mostrar». Cada una pinta el marcado de su renderizador
+ * (`Woo\Quick_View\Trigger`, `Woo\Wishlist\Button`, `Woo\Swatches\Loop`) sólo si existe; sin él, los ganchos del bucle
+ * quedan como sin la parte. Sus hojas y scripts se declaran en `assets` del control, con una condición `contains` por
+ * parte, para que la caché de elementos no los pierda. La presentación «Tabla» usa sus propias columnas y no las pinta.
  */
 final class Products_Parts {
 	const PARTS_KEY = 'digitalisimo_wc_parts';
@@ -28,6 +34,17 @@ final class Products_Parts {
 		'badge'  => array( 'woocommerce_before_shop_loop_item_title', 'woocommerce_show_product_loop_sale_flash', 10 ),
 	);
 	const TITLE_TAGS = array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'span', 'p' );
+
+	/**
+	 * Partes de F4-Woo: renderizador, gancho del bucle de WooCommerce, prioridad y capacidad de `Woo\Assets` (handle
+	 * `digitalisimo-woo-<capacidad>`). La vista rápida y la lista de deseos van tras el botón de compra (10) y «Leer
+	 * más» (11); las muestras, tras el precio (10).
+	 */
+	const WOO_PARTS = array(
+		'quickview' => array( 'Digitalisimo\\Elements\\Woo\\Quick_View\\Trigger', 'woocommerce_after_shop_loop_item', 12, 'quick-view' ),
+		'wishlist'  => array( 'Digitalisimo\\Elements\\Woo\\Wishlist\\Button', 'woocommerce_after_shop_loop_item', 13, 'wishlist' ),
+		'swatches'  => array( 'Digitalisimo\\Elements\\Woo\\Swatches\\Loop', 'woocommerce_after_shop_loop_item_title', 15, 'swatches' ),
+	);
 
 	private static $state = array();
 
@@ -47,8 +64,9 @@ final class Products_Parts {
 			'type'      => $c::SELECT2,
 			'multiple'  => true,
 			'default'   => array( 'image', 'title', 'rating', 'price', 'cart', 'badge' ),
-			'options'   => array( 'image' => 'Imagen', 'title' => 'Título', 'excerpt' => 'Extracto del contenido', 'summary' => 'Resumen (extracto manual o contenido)', 'category' => 'Categorías', 'rating' => 'Valoración', 'price' => 'Precio', 'cart' => 'Botón de compra', 'readmore' => 'Leer más', 'badge' => 'Insignia de oferta', 'sku' => 'Referencia (SKU, en tabla)', 'tags' => 'Etiquetas (en tabla)', 'quantity' => 'Selector de cantidad (en tabla)' ),
+			'options'   => array( 'image' => 'Imagen', 'title' => 'Título', 'excerpt' => 'Extracto del contenido', 'summary' => 'Resumen (extracto manual o contenido)', 'category' => 'Categorías', 'rating' => 'Valoración', 'price' => 'Precio', 'cart' => 'Botón de compra', 'readmore' => 'Leer más', 'badge' => 'Insignia de oferta', 'sku' => 'Referencia (SKU, en tabla)', 'tags' => 'Etiquetas (en tabla)', 'quantity' => 'Selector de cantidad (en tabla)', 'quickview' => 'Vista rápida', 'wishlist' => 'Lista de deseos', 'swatches' => 'Muestras de variación' ),
 			'condition' => array( 'digitalisimo_wc_custom' => 'yes' ),
+			'assets'    => self::woo_assets(),
 		) );
 		$widget->add_control( 'digitalisimo_wc_title_tag', array( 'label' => 'Etiqueta del título', 'type' => $c::SELECT, 'default' => 'h2', 'options' => array_combine( self::TITLE_TAGS, self::TITLE_TAGS ), 'condition' => array( 'digitalisimo_wc_custom' => 'yes' ) ) );
 		$widget->add_control( 'digitalisimo_wc_excerpt_length', array( 'label' => 'Palabras del extracto', 'type' => $c::NUMBER, 'default' => 10, 'min' => 1, 'condition' => array( 'digitalisimo_wc_custom' => 'yes' ) ) );
@@ -115,11 +133,106 @@ final class Products_Parts {
 					echo '<a class="button digi-product__readmore" href="' . esc_url( get_permalink() ) . '">' . esc_html( '' !== $label ? $label : __( 'Read more', 'woocommerce' ) ) . '</a>';
 				}, 11 );
 			}
+			foreach ( self::woo_hooks( $parts, $element ) as $hook ) {
+				$state['added'][] = $hook;
+			}
 			foreach ( $state['added'] as $hook ) {
 				add_action( $hook[0], $hook[1], $hook[2] );
 			}
 		}
 		self::$state[ spl_object_id( $element ) ] = $state;
+	}
+
+	/**
+	 * Declaración `assets` del control de partes (V.12.2): la hoja y el script de cada parte de F4-Woo, sólo si la
+	 * instancia elige sus partes y contiene esa. «Elegir qué partes mostrar» va primero: con él apagado, el núcleo da
+	 * `null` a las partes y la condición termina antes de mirarlas.
+	 */
+	public static function woo_assets(): array {
+		$assets = array( 'styles' => array(), 'scripts' => array() );
+		foreach ( self::WOO_PARTS as $part => $spec ) {
+			$conditions = array(
+				'relation' => 'and',
+				'terms'    => array(
+					array( 'name' => 'digitalisimo_wc_custom', 'operator' => '===', 'value' => 'yes' ),
+					array( 'name' => self::PARTS_KEY, 'operator' => 'contains', 'value' => $part ),
+				),
+			);
+			foreach ( array( 'styles', 'scripts' ) as $type ) {
+				$assets[ $type ][] = array( 'name' => 'digitalisimo-woo-' . $spec[3], 'conditions' => $conditions );
+			}
+		}
+		return $assets;
+	}
+
+	/** ¿Pinta esta instancia la parte `$part`? («Elegir qué partes mostrar» y la parte elegida). Para el permiso de la vista rápida. */
+	public static function has_part( array $settings, string $part ): bool {
+		return 'yes' === ( $settings['digitalisimo_wc_custom'] ?? '' ) && in_array( $part, array_map( 'strval', (array) ( $settings[ self::PARTS_KEY ] ?? array() ) ), true );
+	}
+
+	/**
+	 * Ganchos de las partes de F4-Woo elegidas cuyo renderizador existe. Sin renderizador (WooCommerce visual no está o
+	 * el frente no lo entregó), ninguno: los ganchos quedan como sin la parte.
+	 *
+	 * @param string[] $parts   Partes elegidas.
+	 * @param object   $element Widget Productos.
+	 * @return array<int,array> Ganchos `array( gancho, callback, prioridad )`.
+	 */
+	public static function woo_hooks( array $parts, $element ): array {
+		$hooks = array();
+		$args  = null;
+		foreach ( self::WOO_PARTS as $part => $spec ) {
+			if ( ! in_array( $part, $parts, true ) || ! class_exists( $spec[0] ) || ! is_callable( array( $spec[0], 'markup' ) ) ) {
+				continue;
+			}
+			if ( null === $args ) {
+				// `post` y `widget` son los que lee `Quick_View\Trigger` (el documento y el ID del elemento del permiso
+				// de `woo/quick-view`); `post_id` y `widget_id`, el mismo dato con los nombres del contrato de V.15.2.
+				$post   = self::document_id();
+				$widget = is_object( $element ) && method_exists( $element, 'get_id' ) ? (string) $element->get_id() : '';
+				$args   = array(
+					'context'   => 'products',
+					'post'      => $post,
+					'widget'    => $widget,
+					'post_id'   => $post,
+					'widget_id' => $widget,
+				);
+			}
+			$class   = $spec[0];
+			$hooks[] = array(
+				$spec[1],
+				static function () use ( $class, $part, $args ) {
+					echo self::woo_markup( $class, $part, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- marcado escapado por su renderizador.
+				},
+				$spec[2],
+			);
+		}
+		return $hooks;
+	}
+
+	/** Marcado de una parte para el producto en curso del bucle; '' si no hay producto o el renderizador falla. */
+	private static function woo_markup( string $class, string $part, array $args ): string {
+		global $product;
+		try {
+			if ( 'swatches' === $part ) {
+				return is_object( $product ) && class_exists( '\WC_Product' ) && $product instanceof \WC_Product ? (string) $class::markup( $product, $args ) : '';
+			}
+			$id = function_exists( 'get_the_ID' ) ? (int) get_the_ID() : 0;
+			return $id > 0 ? (string) $class::markup( $id, $args ) : '';
+		} catch ( \Throwable $error ) {
+			return '';
+		}
+	}
+
+	/** Documento que contiene el widget (el permiso de las rutas públicas lo busca ahí, V-M22). */
+	private static function document_id(): int {
+		$plugin    = class_exists( '\Elementor\Plugin', false ) ? \Elementor\Plugin::$instance : null;
+		$documents = is_object( $plugin ) && isset( $plugin->documents ) && is_object( $plugin->documents ) ? $plugin->documents : null;
+		$document  = $documents && method_exists( $documents, 'get_current' ) ? $documents->get_current() : null;
+		if ( is_object( $document ) && method_exists( $document, 'get_main_id' ) ) {
+			return (int) $document->get_main_id();
+		}
+		return function_exists( 'get_the_ID' ) ? (int) get_the_ID() : 0;
 	}
 
 	/** Envuelve la lista de productos en el motor de carruseles; null si el HTML no tiene la lista esperada. */

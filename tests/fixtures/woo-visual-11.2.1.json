@@ -1,0 +1,36 @@
+{
+  "fuente": "WooCommerce 11.2.1 (reference/woocommerce.11.2.1.zip), src/Internal/ProductAttributes/VisualAttributeTermMeta.php; sanitize_hex_color() de WordPress (wp-includes/formatting.php).",
+  "frente": "F4-Woo, frente 0 (V.6.1). Los usa tests/elements-woo-swatches.php para comparar Swatches\\Data con el formato de WooCommerce.",
+  "metas": {
+    "image": "ID de adjunto (absint); sólo se escribe si wp_attachment_is_image() (:248-249)",
+    "color": "sanitize_hex_color(): '#rgb' o '#rrggbb', mayúsculas o minúsculas tal cual, sin canal alfa (:254-256)"
+  },
+  "reglas": [
+    "Escritura excluyente (save_term_visual, :247-263): con una imagen válida se escribe image y se borra color; si no, con un color válido se escribe color y se borra image; si no, se borran las dos.",
+    "Lectura (build_term_visual, :124-147): primero la imagen (si es un adjunto imagen con URL para el tamaño pedido); si no, el color saneado; si no, ninguno.",
+    "Precarga del bucle (prime_term_visual_caches, :91-118): update_meta_cache('term', ids) y _prime_post_caches(imágenes, false, true).",
+    "sanitize_hex_color() devuelve '' con '', el valor tal cual si coincide con |^#([A-Fa-f0-9]{3}){1,2}$| y null en otro caso."
+  ],
+  "adjuntos": {
+    "55": { "imagen": true, "url": "https://sitio.test/wp-content/uploads/rojo-150x150.jpg" },
+    "56": { "imagen": false, "url": "" }
+  },
+  "escritura": [
+    { "caso": "color corto", "color": "#c00", "image": 0, "metas": { "color": "#c00" } },
+    { "caso": "color largo en mayúsculas (se guarda tal cual)", "color": "#CC0000", "image": 0, "metas": { "color": "#CC0000" } },
+    { "caso": "color con canal alfa (no válido)", "color": "#cc000080", "image": 0, "metas": {} },
+    { "caso": "nombre de color (no válido)", "color": "red", "image": 0, "metas": {} },
+    { "caso": "sin almohadilla (no válido)", "color": "cc0000", "image": 0, "metas": {} },
+    { "caso": "imagen y color: gana la imagen", "color": "#c00", "image": 55, "metas": { "image": 55 } },
+    { "caso": "adjunto que no es imagen: queda el color", "color": "#00f", "image": 56, "metas": { "color": "#00f" } },
+    { "caso": "adjunto que no es imagen y sin color", "color": "", "image": 56, "metas": {} },
+    { "caso": "nada", "color": "", "image": 0, "metas": {} }
+  ],
+  "lectura": [
+    { "caso": "imagen y color guardados: la imagen", "metas": { "image": "55", "color": "#c00" }, "visual": { "type": "image", "value": "https://sitio.test/wp-content/uploads/rojo-150x150.jpg" } },
+    { "caso": "imagen que no es imagen: el color", "metas": { "image": "56", "color": "#c00" }, "visual": { "type": "color", "value": "#c00" } },
+    { "caso": "color no válido: ninguno", "metas": { "color": "#zzz" }, "visual": { "type": "none", "value": "" } },
+    { "caso": "color con canal alfa guardado por otro camino: ninguno", "metas": { "color": "#cc000080" }, "visual": { "type": "none", "value": "" } },
+    { "caso": "sin metas", "metas": {}, "visual": { "type": "none", "value": "" } }
+  ]
+}

@@ -1,0 +1,18 @@
+.digi-ship[hidden],.digi-coupon[hidden],.digi-ship__state[hidden],.digi-coupon__state[hidden]{display:none!important}
+.digi-cart-extras{display:grid;gap:.75rem;margin-block:.75rem}
+.digi-ship__text{margin:0 0 .4rem}
+.digi-ship__bar{height:var(--digi-ship-height,6px);overflow:hidden;border-radius:var(--digi-ship-radius,999px);background:var(--digi-ship-track,color-mix(in srgb,currentColor 15%,transparent))}
+.digi-ship__bar span{display:block;width:var(--digi-ship,0%);height:100%;border-radius:inherit;background:var(--digi-ship-fill,currentColor)}
+.digi-ship__editor{font-style:italic;opacity:.75}
+.digi-coupon__form{margin:0}
+.digi-coupon__label{display:block;margin-bottom:.25rem}
+.digi-coupon__row{display:flex;gap:.5rem}
+.digi-coupon__input{flex:1 1 auto;min-width:0;font:inherit}
+.digi-coupon__apply{font:inherit;cursor:pointer}
+.digi-coupon__list{margin:.5rem 0 0;padding:0;list-style:none}
+.digi-coupon__list li{display:flex;flex-wrap:wrap;gap:.5rem;align-items:baseline}
+.digi-coupon__code{font-weight:600}
+.digi-coupon__remove{padding:0;border:0;background:none;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
+.digi-coupon__status{margin:.4rem 0 0}
+.digi-cart-extras :focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.digi-cart-extras .screen-reader-text{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap}

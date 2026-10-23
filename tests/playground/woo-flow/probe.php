@@ -9,7 +9,8 @@
  * - `setup`: prepara la tienda de este sitio (`store.php`, idempotente) y devuelve lo creado;
  * - `state`: ajustes de la tienda, zonas y métodos, cupones, pasarelas disponibles y la tabla de atributos;
  * - `orders`: los pedidos del sitio, del más reciente al más antiguo (estado, pago, envío, cupones y total).
- * Además da por enviados los correos (`pre_wp_mail`): el pedido de prueba no sale del Playground.
+ * Las peticiones con token corren como el usuario 1 (el administrador que prepara la tienda). Además da por enviados
+ * los correos (`pre_wp_mail`): el pedido de prueba no sale del Playground.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,6 +27,22 @@ function digi_wf_probe_mode() {
 	}
 	return $mode;
 }
+
+// Las peticiones de la sonda las hace el administrador que prepara la tienda (usuario 1, superadministrador en la red):
+// en un sitio nuevo de la red, la instalación perezosa de WooCommerce corre en `init` de su primera petición y escribe
+// los ajustes del kit, lo que sólo puede hacer alguien con permiso (como visitante, el núcleo lanza «Access denied»).
+add_action(
+	'plugins_loaded',
+	static function () {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sonda de Playground protegida por token.
+		$mode = digi_wf_probe_mode();
+		if ( isset( $_GET['digi_wf'], $_GET['token'] ) && ! empty( $mode['token'] ) && hash_equals( (string) $mode['token'], (string) wp_unslash( $_GET['token'] ) ) ) {
+			wp_set_current_user( 1 );
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+	},
+	0
+);
 
 add_action(
 	'wp_loaded',
