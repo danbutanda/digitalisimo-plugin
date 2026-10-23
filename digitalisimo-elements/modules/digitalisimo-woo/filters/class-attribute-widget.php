@@ -164,6 +164,9 @@ class Attribute_Widget extends Filter_Widget {
 		$logic    = $multiple && 'AND' === ( isset( $s['logic'] ) ? $s['logic'] : 'OR' ) ? 'AND' : 'OR';
 		$names    = $this->names( $taxonomy, $multiple, $logic );
 		$selected = $this->selected( $names );
+		if ( ! $multiple ) {
+			$selected = array_slice( $selected, 0, 1 ); // Una sola selección: el primero de la URL.
+		}
 		$own      = array_values( array_filter( array( $names['name'], $names['type'] ) ) );
 		$kept     = $this->kept_params( $own );
 		$legend   = trim( (string) ( isset( $s['legend'] ) ? $s['legend'] : '' ) );

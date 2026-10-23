@@ -23,6 +23,12 @@ class Export_Finish extends Export_Runner_Base {
 	/** Tipos anotados con `add_exported()` que no son entradas. */
 	const NOT_POSTS = array( 'attachment', 'media_url', 'term' );
 
+	/**
+	 * Filtro de `needs` (punto de extensión genérico de K, V.11.4 de F4-Woo): una etapa declara qué necesita el kit
+	 * según su contenido. Sólo enciende una necesidad que ya existe y es booleana (ver `extend_needs()`).
+	 */
+	const FILTER_NEEDS = 'digitalisimo_elements_kit_needs';
+
 	public static function get_name(): string {
 		return Module::RUNNER;
 	}
@@ -187,7 +193,33 @@ class Export_Finish extends Export_Runner_Base {
 		$needs['acf'] = array_slice( array_keys( $needs['acf'] ), 0, 200 );
 		return array(
 			'widgets' => $widgets,
-			'needs'   => $needs,
+			'needs'   => self::extend_needs( $needs, $widgets, $context ),
 		);
+	}
+
+	/**
+	 * `needs` con lo que declaran otras etapas por `digitalisimo_elements_kit_needs( array $needs, array $widgets,
+	 * Export_Context $context )` (por ejemplo, F4-Woo: WooCommerce para un kit con widgets `digitalisimo-woo-*`).
+	 * Acotado: sólo pasa a `true` una necesidad booleana que K ya calcula; nunca la apaga, nunca toca la lista de
+	 * campos de ACF y nunca crea una clave. Sin funciones enganchadas, `$needs` tal cual.
+	 *
+	 * @param array          $needs   Lo que calculó K.
+	 * @param int[]          $widgets Tipo de widget => número, de lo exportado.
+	 * @param Export_Context $context Contexto de exportación.
+	 */
+	public static function extend_needs( array $needs, array $widgets, Export_Context $context ): array {
+		if ( ! function_exists( 'apply_filters' ) ) {
+			return $needs;
+		}
+		$filtered = apply_filters( self::FILTER_NEEDS, $needs, $widgets, $context );
+		if ( ! is_array( $filtered ) ) {
+			return $needs;
+		}
+		foreach ( $needs as $key => $value ) {
+			if ( false === $value && array_key_exists( $key, $filtered ) && true === $filtered[ $key ] ) {
+				$needs[ $key ] = true;
+			}
+		}
+		return $needs;
 	}
 }

@@ -16,7 +16,23 @@
  *     referencia; una imagen sin destino no se escribe y se informa.
  *  4. Por tokens: K aplica el filtro una sola vez, en `get_not_exported()`, que es lo que lee `Export_Finish`; y las
  *     dos piezas no tocan otro archivo de K.
+ *  5. Textos del informe (`digitalisimo_elements_kit_report_labels`): sin funciones enganchadas, `Report::labels()` es
+ *     `CODE_LABELS` y cada texto y cada línea del informe salen idénticos; con ellas, sólo se añaden códigos nuevos
+ *     (nunca se pisa, quita ni reordena uno de K) y un motivo propio de `not_exported` toma su texto de
+ *     `not-exported.<motivo>`.
+ *  6. `needs` (`digitalisimo_elements_kit_needs`): sin funciones enganchadas, tal cual; con ellas, sólo se enciende una
+ *     necesidad booleana que K ya calcula (nunca se apaga, nunca cambia la lista de ACF ni se crea una clave).
  */
+namespace Elementor\App\Modules\ImportExportCustomization\Runners\Export {
+	if ( ! class_exists( __NAMESPACE__ . '\\Export_Runner_Base', false ) ) {
+		/** Base de los runners de exportación del núcleo (sólo para cargar `Export_Finish`). */
+		abstract class Export_Runner_Base {
+			abstract public function should_export( array $data );
+			abstract public function export( array $data );
+		}
+	}
+}
+
 namespace {
 	define( 'ABSPATH', __DIR__ );
 
@@ -423,5 +439,107 @@ namespace Ext_Test {
 	$check( false === strpos( $sources, 'str_contains(' ) && false === strpos( $sources, 'str_starts_with(' ), '4: sin funciones de PHP 8 en K.' );
 
 	unset( $GLOBALS['wp']['hooks']['digitalisimo_elements_kit_references'] );
-	echo "DIGITALÍSIMO Elements: punto de extensión genérico de K validado (contadores que sólo bajan y referencias term_meta acotadas por taxonomía, sin efecto cuando no se usan).\n";
+
+	// ── 5. Textos del informe ────────────────────────────────────────────────────────────────────────────────────
+	$site();
+	$R = '\\Digitalisimo\\Elements\\Import\\Kits\\Report';
+	$R::reset_labels();
+	$check( 'digitalisimo_elements_kit_report_labels' === $R::FILTER_LABELS, '5: el filtro se llama digitalisimo_elements_kit_report_labels.' );
+	$check( $R::CODE_LABELS === $R::labels(), '5: sin funciones enganchadas, labels() es exactamente CODE_LABELS.' );
+	$samples = array( 'unresolved', 'files.rejected.size', 'note:otro', 'woocommerce.page', 'woocommerce.inactive', 'zzz', 'reference.attachment', 'not-exported.downloads' );
+	$entries = array();
+	foreach ( $samples as $code ) {
+		$entries[] = array( 'code' => $code, 'level' => 'info', 'data' => array( 'a' => 1 ) );
+	}
+	$snapshot = function () use ( $R, $samples, $entries ) {
+		$out = array();
+		foreach ( $samples as $i => $code ) {
+			$out[] = array( $R::code_label( $code ), $R::describe_entry( $entries[ $i ] ) );
+		}
+		$out[] = array( $R::not_exported_label( 'drafts' ), $R::not_exported_label( 'downloads' ) );
+		return $out;
+	};
+	$plain = $snapshot();
+	$check( 'Páginas de WooCommerce del kit: las del sitio no cambiaron' === $plain[3][0] && 'downloads' === $plain[8][1], '5: hoy, sin textos propios, `woocommerce.*` toma el de su prefijo y un motivo nuevo sale tal cual.' );
+	$filter(
+		$R::FILTER_LABELS,
+		function ( $labels ) {
+			return $labels;
+		}
+	);
+	$R::reset_labels();
+	$check( $plain === $snapshot() && $R::CODE_LABELS === $R::labels(), '5: un filtro que devuelve lo mismo no cambia ni un texto.' );
+	$filter(
+		$R::FILTER_LABELS,
+		function ( $labels ) {
+			$labels['woocommerce']            = 'Pisado';
+			$labels['unresolved']             = 'Pisado';
+			unset( $labels['theme'] );
+			$labels['woocommerce.inactive']   = '  <b>Sin WooCommerce:</b>   no se importó ';
+			$labels['not-exported.downloads'] = 'Archivos descargables';
+			$labels['Mal Código']             = 'x';
+			$labels['vacío.raro']             = 'x';
+			$labels['otro.vacio']             = '   ';
+			$labels['otro.numero']            = 5;
+			$labels[7]                        = 'x';
+			$labels[ str_repeat( 'a', 101 ) ] = 'x';
+			return array_reverse( $labels, true );
+		}
+	);
+	$R::reset_labels();
+	$labels = $R::labels();
+	$check( array_slice( $labels, 0, count( $R::CODE_LABELS ), true ) === $R::CODE_LABELS, '5: los textos de K no cambian, no se quitan ni se reordenan, aunque el filtro lo intente.' );
+	$added = array_slice( $labels, count( $R::CODE_LABELS ), null, true );
+	ksort( $added );
+	$check( array( 'not-exported.downloads' => 'Archivos descargables', 'woocommerce.inactive' => 'Sin WooCommerce: no se importó' ) === $added, '5: sólo se añaden códigos nuevos válidos con texto plano: ' . json_encode( array_slice( $labels, count( $R::CODE_LABELS ), null, true ), JSON_UNESCAPED_UNICODE ) );
+	$check( 'Sin WooCommerce: no se importó' === $R::code_label( 'woocommerce.inactive' ) && 'Páginas de WooCommerce del kit: las del sitio no cambiaron' === $R::code_label( 'woocommerce.page' ) && 'Referencia sin destino' === $R::code_label( 'unresolved' ), '5: el código nuevo toma su texto; los de K, el suyo.' );
+	$check( 'Archivos descargables' === $R::not_exported_label( 'downloads' ) && 'Borradores y entradas privadas' === $R::not_exported_label( 'drafts' ) && 'otro' === $R::not_exported_label( 'otro' ), '5: un motivo propio de not_exported toma `not-exported.<motivo>`; los de K, el suyo.' );
+	$check( $R::CODE_LABELS === $R::add_only( $R::CODE_LABELS, 'nada' ), '5: un filtro que no devuelve un array no cambia nada.' );
+	unset( $GLOBALS['wp']['hooks'][ $R::FILTER_LABELS ] );
+	$R::reset_labels();
+	$check( $plain === $snapshot(), '5: sin el filtro, el informe vuelve a salir idéntico.' );
+	$report_src = file_get_contents( $K . '/kits/class-report.php' );
+	$check( 1 === substr_count( $sources, 'apply_filters( self::FILTER_LABELS' ) && 1 === substr_count( $report_src, 'self::add_only( self::CODE_LABELS, apply_filters( self::FILTER_LABELS' ) && 0 === preg_match( '/self::CODE_LABELS\[\s*\$/', $report_src ), '5: K aplica el filtro de textos una vez, acotado, y code_label() ya no lee CODE_LABELS directamente.' );
+
+	// ── 6. `needs` ───────────────────────────────────────────────────────────────────────────────────────────────
+	$F       = '\\Digitalisimo\\Elements\\Import\\Kits\\Runners\\Export_Finish';
+	$needs   = array( 'woocommerce' => false, 'acf' => array( 'field_abc123' ), 'google_places' => false );
+	$widgets = array( 'digitalisimo-woo-quick-view' => 1, 'heading' => 2 );
+	$export  = new Export_Context();
+	$check( 'digitalisimo_elements_kit_needs' === $F::FILTER_NEEDS, '6: el filtro se llama digitalisimo_elements_kit_needs.' );
+	$check( $needs === $F::extend_needs( $needs, $widgets, $export ), '6: sin funciones enganchadas, needs tal cual.' );
+	$seen = null;
+	$filter(
+		$F::FILTER_NEEDS,
+		function ( $value, $types, $context ) use ( &$seen ) {
+			$seen = array( $value, $types, $context );
+			$value['woocommerce'] = isset( $types['digitalisimo-woo-quick-view'] );
+			return $value;
+		}
+	);
+	$check( array( 'woocommerce' => true, 'acf' => array( 'field_abc123' ), 'google_places' => false ) === $F::extend_needs( $needs, $widgets, $export ) && $needs === $seen[0] && $widgets === $seen[1] && $export === $seen[2], '6: una etapa enciende una necesidad según los widgets exportados; recibe needs, widgets y contexto.' );
+	$filter(
+		$F::FILTER_NEEDS,
+		function ( $value ) {
+			$value['woocommerce']   = false;
+			$value['acf']           = array( 'field_otro99' );
+			$value['google_places'] = 'sí';
+			$value['nuevo']         = true;
+			return $value;
+		}
+	);
+	$on = array( 'woocommerce' => true, 'acf' => array( 'field_abc123' ), 'google_places' => false );
+	$check( $on === $F::extend_needs( $on, $widgets, $export ), '6: nunca apaga una necesidad, no cambia la lista de ACF, no acepta lo que no es true ni crea claves.' );
+	$filter(
+		$F::FILTER_NEEDS,
+		function () {
+			return 'nada';
+		}
+	);
+	$check( $needs === $F::extend_needs( $needs, $widgets, $export ), '6: un filtro que no devuelve un array no cambia nada.' );
+	unset( $GLOBALS['wp']['hooks'][ $F::FILTER_NEEDS ] );
+	$finish_src = file_get_contents( $K . '/kits/runners/class-export-finish.php' );
+	$check( 1 === substr_count( $finish_src, 'apply_filters( self::FILTER_NEEDS' ) && 1 === substr_count( $finish_src, "'needs'   => self::extend_needs( \$needs, \$widgets, \$context )" ), '6: Export_Finish aplica el filtro una vez, sobre el needs que escribe en el manifiesto.' );
+
+	echo "DIGITALÍSIMO Elements: punto de extensión genérico de K validado (contadores que sólo bajan, referencias term_meta acotadas por taxonomía, textos del informe que sólo se añaden y needs que sólo se encienden; sin efecto cuando no se usan).\n";
 }

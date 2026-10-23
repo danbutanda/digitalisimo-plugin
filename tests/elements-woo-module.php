@@ -272,7 +272,7 @@ namespace {
 	// Carpeta temporal: las clases base del módulo, widgets y submódulos de prueba y los recursos del plugin.
 	$real = realpath( __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-woo' );
 	$tmp  = $GLOBALS['wt_tmp'] . '/woo';
-	foreach ( array( $tmp . '/wishlist', $tmp . '/quick-view', $tmp . '/filters', $tmp . '/cart', $GLOBALS['wt_tmp'] . '/plugin/assets/css', $GLOBALS['wt_tmp'] . '/plugin/assets/js' ) as $dir ) {
+	foreach ( array( $tmp . '/wishlist', $tmp . '/quick-view', $tmp . '/filters', $tmp . '/cart', $tmp . '/kit', $GLOBALS['wt_tmp'] . '/plugin/assets/css', $GLOBALS['wt_tmp'] . '/plugin/assets/js' ) as $dir ) {
 		if ( ! is_dir( $dir ) ) {
 			mkdir( $dir, 0777, true );
 		}
@@ -287,6 +287,8 @@ namespace {
 	file_put_contents( $tmp . '/filters/class-price-widget.php', '<?php namespace Digitalisimo\Elements\Woo\Filters; class Price_Widget extends \No\Existe\Base {}' );
 	file_put_contents( $tmp . '/wishlist/class-module.php', '<?php namespace Digitalisimo\Elements\Woo\Wishlist; final class Module { public static function init() { $GLOBALS["wt"]["boot"][] = "wishlist"; if ( ! \Digitalisimo\Elements\Woo\Module::requires( "wishlist", array( "wc_get_product()", "WooCommerce" ) ) ) { return; } $GLOBALS["wt"]["boot"][] = "wishlist:ok"; } }' );
 	file_put_contents( $tmp . '/cart/class-module.php', '<?php namespace Digitalisimo\Elements\Woo\Cart; final class Module { public static function init() { if ( ! \Digitalisimo\Elements\Woo\Module::requires( "cart", array( "WC_Simbolo_Futuro::metodo", "wc_funcion_futura()", "const:WC_CONSTANTE_FUTURA" ) ) ) { $GLOBALS["wt"]["boot"][] = "cart:off"; return; } $GLOBALS["wt"]["boot"][] = "cart:ok"; } }' );
+	// Kits (frente H): con WooCommerce, init(); sin él, init_inactive() con un solo filtro, como el real.
+	file_put_contents( $tmp . '/kit/class-module.php', '<?php namespace Digitalisimo\Elements\Woo\Kit; final class Module { private static $parts = false; public static function init() { $GLOBALS["wt"]["boot"][] = "kit"; } public static function init_inactive() { if ( self::$parts ) { return; } self::$parts = true; add_filter( "digitalisimo_elements_kit_parts", array( __CLASS__, "parts" ) ); } public static function parts( $parts ) { $parts[] = "woo-inactive"; return $parts; } public static function reset() { self::$parts = false; } }' );
 	file_put_contents( $GLOBALS['wt_tmp'] . '/plugin/assets/css/wishlist.css', '.digi-wish{}' );
 	file_put_contents( $GLOBALS['wt_tmp'] . '/plugin/assets/js/wishlist.js', '/* lista */' );
 	file_put_contents( $GLOBALS['wt_tmp'] . '/plugin/assets/js/filters.js', '/* filtros */' );
@@ -330,7 +332,7 @@ namespace {
 		$GLOBALS['wt']['ajax']  = $ajax;
 		Unknown_Guard::reset();
 		Module::reset();
-		foreach ( array( Inert::class, Registry::class, Assets::class, Rest::class, Flags::class, Privacy::class ) as $class ) {
+		foreach ( array( Inert::class, Registry::class, Assets::class, Rest::class, Flags::class, Privacy::class, 'Digitalisimo\\Elements\\Woo\\Kit\\Module' ) as $class ) {
 			if ( class_exists( $class, false ) ) {
 				$class::reset();
 			}
@@ -351,11 +353,39 @@ namespace {
 		check_wt( $ok === Module::wc_version_supported( (string) $version ), "WooCommerce {$version}: " . ( $ok ? 'admitido' : 'no admitido' ) . '.' );
 	}
 
-	// 2. Sin WooCommerce, en el front: sólo el arranque; ni ganchos, ni rutas, ni consultas, ni opciones.
+	// 2. Sin WooCommerce, en el front: sólo el arranque y el filtro de partes de kits; ni rutas, ni consultas, ni opciones.
 	wt_request();
 	$started = Module::load( $tmp, array( 'woocommerce' => false ) );
-	check_wt( array( 'Inert' ) === $started && ! Module::active(), 'Sin WooCommerce sólo arranca Inert.' );
-	check_wt( 0 === wt_hook_count() && array() === $GLOBALS['wpdb']->log && array() === $GLOBALS['wt']['get'] && empty( $GLOBALS['wt']['meta_reads'] ), 'Sin WooCommerce, en el front: 0 ganchos, 0 consultas y ninguna opción leída.' );
+	check_wt( array( 'Inert', 'Kit\\Module::init_inactive' ) === $started && ! Module::active(), 'Sin WooCommerce sólo arrancan Inert y las partes de kits (init_inactive).' );
+	check_wt( array( 'digitalisimo_elements_kit_parts' ) === array_keys( $GLOBALS['wt']['hooks'] ) && 1 === wt_hook_count() && array() === $GLOBALS['wpdb']->log && array() === $GLOBALS['wt']['get'] && empty( $GLOBALS['wt']['meta_reads'] ), 'Sin WooCommerce, en el front: un solo filtro (las partes de kits, que sólo corre al importar), 0 consultas y ninguna opción leída.' );
+	check_wt( array( 'x', 'woo-inactive' ) === apply_filters( 'digitalisimo_elements_kit_parts', array( 'x' ) ) && array() === $GLOBALS['wpdb']->log, 'El filtro sólo añade las partes (para informar woocommerce.inactive), sin consultas.' );
+	Module::reset();
+	Module::load( $tmp, array( 'woocommerce' => false ) );
+	check_wt( 1 === wt_hook_count(), 'init_inactive() no engancha dos veces.' );
+	$kit_file = $real . '/kit/class-module.php';
+	if ( is_file( $kit_file ) ) {
+		$kit_source = (string) file_get_contents( $kit_file );
+		$body       = function ( string $name ) use ( $kit_source ): string {
+			$start = strpos( $kit_source, 'function ' . $name . '()' );
+			if ( false === $start ) {
+				return '';
+			}
+			$open  = strpos( $kit_source, '{', $start );
+			$depth = 0;
+			for ( $i = $open, $n = strlen( $kit_source ); $i < $n; $i++ ) {
+				if ( '{' === $kit_source[ $i ] ) {
+					++$depth;
+				} elseif ( '}' === $kit_source[ $i ] && 0 === --$depth ) {
+					return substr( $kit_source, $open, $i - $open + 1 );
+				}
+			}
+			return '';
+		};
+		$inactive = $body( 'init_inactive' );
+		$register = $body( 'register_parts' );
+		$all      = $inactive . $register;
+		check_wt( false !== strpos( $inactive, 'register_parts()' ) && substr_count( $all, 'add_filter(' ) >= 1 && substr_count( $all, 'add_filter(' ) <= 2 && false !== strpos( $register, 'FILTER_PARTS' ) && 0 === substr_count( $all, 'add_action(' ) && false === strpos( $all, '$wpdb' ) && false === strpos( $all, 'get_option(' ) && false === strpos( $all, 'get_post' ), 'El init_inactive() real de kit/ sólo engancha filtros de K (partes y, si acaso, etiquetas del informe), sin acciones, consultas ni opciones (' . substr_count( $all, 'add_filter(' ) . ' filtros).' );
+	}
 	check_wt( ! class_exists( 'Digitalisimo\\Elements\\Woo\\Rest', false ) && ! class_exists( 'Digitalisimo\\Elements\\Woo\\Assets', false ) && ! class_exists( 'Digitalisimo\\Elements\\Woo\\Flags', false ), 'Sin WooCommerce no se carga la base (ni REST, ni recursos, ni banderas).' );
 	foreach ( array(
 		'REST con elementor-preview'   => array( array( 'elementor-preview' => '5', 'rest_route' => '/elementor/v1/x' ), false, false, '/' ),
@@ -367,7 +397,7 @@ namespace {
 		wt_request( $case[0], $case[1], $case[2] );
 		$_SERVER['REQUEST_URI'] = $case[3];
 		Module::load( $tmp, array( 'woocommerce' => false ) );
-		check_wt( 0 === wt_hook_count() && ! Unknown_Guard::editor_request(), "Sin WooCommerce, {$label}: nada enganchado." );
+		check_wt( array( 'digitalisimo_elements_kit_parts' ) === array_keys( $GLOBALS['wt']['hooks'] ) && ! Unknown_Guard::editor_request() && array() === $GLOBALS['wpdb']->log, "Sin WooCommerce, {$label}: nada enganchado salvo el filtro de partes de kits." );
 	}
 
 	// 3. Sin WooCommerce, en las tres peticiones del editor: los siete widgets, ocultos y con el aviso.
@@ -405,7 +435,7 @@ namespace {
 
 	// 4. WooCommerce anterior a 10.0: como sin WooCommerce, y un aviso en la administración.
 	wt_request( array(), false );
-	check_wt( array( 'Inert' ) === Module::load( $tmp, array( 'woocommerce' => true, 'wc_version' => '9.9.0' ) ) && 0 === wt_hook_count(), 'WooCommerce 9.9: en el front, nada.' );
+	check_wt( array( 'Inert', 'Kit\\Module::init_inactive' ) === Module::load( $tmp, array( 'woocommerce' => true, 'wc_version' => '9.9.0' ) ) && array( 'digitalisimo_elements_kit_parts' ) === array_keys( $GLOBALS['wt']['hooks'] ), 'WooCommerce 9.9: en el front, como sin WooCommerce.' );
 	wt_request( array(), true );
 	Module::load( $tmp, array( 'woocommerce' => true, 'wc_version' => '9.9.0' ) );
 	check_wt( 1 === count( $GLOBALS['wt']['hooks']['admin_notices'] ?? array() ), 'WooCommerce 9.9: aviso en la administración.' );
@@ -418,8 +448,9 @@ namespace {
 	// 5. WooCommerce compatible: la base, después los submódulos; un símbolo que falta deja el suyo sin nada.
 	wt_request();
 	$started = Module::load( $tmp, array( 'woocommerce' => true, 'wc_version' => '11.2.1' ) );
-	check_wt( array( 'Assets', 'Rest', 'Flags', 'Privacy', 'Registry', 'Wishlist\\Module', 'Cart\\Module' ) === $started && Module::active(), 'Con WooCommerce 11.2.1: base y submódulos que existen, en orden (' . implode( ', ', $started ) . ').' );
-	check_wt( array( 'wishlist', 'wishlist:ok', 'cart:off' ) === $GLOBALS['wt']['boot'], 'requires(): el submódulo con sus símbolos arranca; el que pide símbolos ausentes no registra nada.' );
+	check_wt( array( 'Assets', 'Rest', 'Flags', 'Privacy', 'Registry', 'Wishlist\\Module', 'Cart\\Module', 'Kit\\Module' ) === $started && Module::active(), 'Con WooCommerce 11.2.1: base y submódulos que existen, en orden (' . implode( ', ', $started ) . ').' );
+	check_wt( array( 'wishlist', 'wishlist:ok', 'cart:off', 'kit' ) === $GLOBALS['wt']['boot'], 'requires(): el submódulo con sus símbolos arranca; el que pide símbolos ausentes no registra nada.' );
+	check_wt( ! isset( $GLOBALS['wt']['hooks']['digitalisimo_elements_kit_parts'] ), 'Con WooCommerce, kits por init() y no por init_inactive().' );
 	check_wt( array( 'cart' => array( 'WC_Simbolo_Futuro::metodo', 'wc_funcion_futura()', 'const:WC_CONSTANTE_FUTURA' ) ) === Module::missing() && 1 === count( $GLOBALS['wt']['hooks']['elementor/editor/after_enqueue_scripts'] ?? array() ), 'Los símbolos ausentes se anotan y el editor avisa una sola vez.' );
 	check_wt( ! isset( $GLOBALS['wt']['hooks']['elementor/document/load/data'] ), 'En el front, la guarda hacia delante no se engancha.' );
 	check_wt( Module::symbol_exists( 'WooCommerce' ) && Module::symbol_exists( 'wc_get_product()' ) && Module::symbol_exists( 'const:ABSPATH' ) && ! Module::symbol_exists( 'WooCommerce::nada' ) && ! Module::symbol_exists( '' ), 'symbol_exists(): clases, funciones, constantes y métodos.' );

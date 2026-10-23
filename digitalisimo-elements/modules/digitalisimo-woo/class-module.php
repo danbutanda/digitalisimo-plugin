@@ -8,8 +8,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * Arranque del módulo: registra la autocarga acotada a `Digitalisimo\Elements\Woo\` y decide el modo.
  *
- * - **Sin WooCommerce, o con WooCommerce anterior a `MIN_WC`** (D3): sólo `Inert::init()`, que actúa en las tres
- *   peticiones del editor (V.10.1) y en ninguna otra. En el front, REST, cron y WP-CLI no se registra nada y no se hace
+ * - **Sin WooCommerce, o con WooCommerce anterior a `MIN_WC`** (D3): `Inert::init()`, que actúa en las tres peticiones
+ *   del editor (V.10.1) y en ninguna otra, y `Kit\Module::init_inactive()` (frente H), un solo filtro
+ *   (`digitalisimo_elements_kit_parts`) que sólo corre cuando K arma sus partes, para que un kit importado sin
+ *   WooCommerce informe `woocommerce.inactive`. En el front, REST, cron y WP-CLI no se registra nada más y no se hace
  *   ninguna consulta. Con WooCommerce antiguo, además, un aviso en la administración a quien puede activar plugins.
  * - **Con WooCommerce ≥ `MIN_WC`:** la base (`BASE`: recursos, REST, banderas, privacidad y registro de widgets) y
  *   después cada submódulo de `BOOT` cuyo archivo exista. Cada submódulo comprueba sus símbolos con
@@ -87,7 +89,15 @@ final class Module {
 			if ( self::woocommerce_loaded() ) {
 				self::hook_version_notice();
 			}
-			return self::call( 'Inert', 'init' ) ? array( 'Inert' ) : array();
+			$started = array();
+			if ( self::call( 'Inert', 'init' ) ) {
+				$started[] = 'Inert';
+			}
+			// Kits sin WooCommerce: sólo el filtro de partes, que informa `woocommerce.inactive` (V.10.1).
+			if ( '' !== self::file_for( self::NAMESPACE_PREFIX . 'Kit\\Module' ) && self::call( 'Kit\\Module', 'init_inactive' ) ) {
+				$started[] = 'Kit\\Module::init_inactive';
+			}
+			return $started;
 		}
 		self::$active = true;
 		$started      = array();

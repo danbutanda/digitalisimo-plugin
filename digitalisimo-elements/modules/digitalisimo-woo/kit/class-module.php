@@ -17,9 +17,12 @@ defined( 'ABSPATH' ) || exit;
  *   las variaciones cuyo padre no se exportó.
  * - **Medios**: un runner de exportación (`Media_Runner`, antes del final de K) anota las imágenes de las variaciones
  *   como adjuntos exportados, para que la parte `media` de K las incruste.
+ * - **Informe** (`digitalisimo_elements_kit_report_labels`) y **`needs`** (`digitalisimo_elements_kit_needs`): los textos
+ *   de sus códigos y «necesita WooCommerce» en un kit con widgets `digitalisimo-woo-*`.
  *
  * Arranca desde `Woo\Module` (`BOOT`) sólo con WooCommerce compatible. `init_inactive()` (sin WooCommerce) sólo
- * registra las partes, que entonces no hacen nada salvo informar `woocommerce.inactive` si el kit trae sus datos.
+ * registra las partes y los textos: las partes no hacen nada salvo informar `woocommerce.inactive` si el kit trae sus
+ * datos.
  */
 final class Module {
 	/** Símbolos de WooCommerce que usan las partes sin detección propia (D3). */
@@ -46,6 +49,37 @@ final class Module {
 	const FILTER_PARTS        = 'digitalisimo_elements_kit_parts';
 	const FILTER_REFERENCES   = 'digitalisimo_elements_kit_references';
 	const FILTER_NOT_EXPORTED = 'digitalisimo_elements_kit_not_exported';
+	const FILTER_LABELS       = 'digitalisimo_elements_kit_report_labels';
+	const FILTER_NEEDS        = 'digitalisimo_elements_kit_needs';
+
+	/** Textos del informe de los códigos de las partes (K sólo los añade: nunca cambian los suyos). */
+	const LABELS = array(
+		'woocommerce.inactive'               => 'El kit trae atributos o variaciones de WooCommerce y este sitio no tiene WooCommerce activo: no se importaron',
+		'woocommerce.attribute-archives-off' => 'Atributo de WooCommerce creado sin archivos públicos: importar en «Sólo agregar» nunca abre direcciones nuevas',
+		'woocommerce.attribute-differs'      => 'El sitio ya tenía un atributo con ese nombre y otra etiqueta o tipo: se conservó el suyo',
+		'woocommerce.attribute-failed'       => 'Atributo de WooCommerce que no se pudo crear',
+		'woocommerce.attribute-invalid'      => 'Atributo del kit con un nombre no válido: se descartó',
+		'woocommerce.attribute-edited'       => 'Atributo editado después de importar: se conservó al revertir',
+		'woocommerce.attribute-in-use'       => 'Atributo que usa contenido del sitio: se conservó al revertir',
+		'woocommerce.swatches-skipped'       => 'Muestras de un atributo que el sitio ya tenía: no se aplicaron las del kit',
+		'woocommerce.swatches-failed'        => 'Muestras del kit que no se pudieron guardar',
+		'woocommerce.swatches-unavailable'   => 'Muestras del kit que este sitio no puede guardar: no se aplicaron',
+		'woocommerce.variations-kept'        => 'Producto que el sitio ya tenía: sus variaciones no cambiaron',
+		'woocommerce.variations-orphan'      => 'Variaciones cuyo producto no llegó al sitio: no se importaron',
+		'woocommerce.variations-parent'      => 'Variaciones de un producto que en el sitio no es variable: no se importaron',
+		'woocommerce.variations-limit'       => 'Producto con más variaciones de las que se importan: el resto no se importó',
+		'woocommerce.variation-attribute'    => 'Variación con un valor de atributo que el sitio no tiene: no se importó',
+		'woocommerce.variation-failed'       => 'Variación que no se pudo crear',
+		'woocommerce.variation-edited'       => 'Variación editada después de importar: se conservó al revertir',
+		'woocommerce.sku-conflict'           => 'SKU que ya usa otro producto del sitio: la variación quedó sin SKU',
+		'woocommerce.shipping-class'         => 'Clase de envío que el sitio no tiene: la variación quedó sin clase',
+		'woocommerce.lookup-refreshed'       => 'Productos importados añadidos a la tabla de búsqueda de WooCommerce (filtro y orden por precio)',
+		'reference.attachment'               => 'Imagen de una variación sin destino: quedó sin imagen',
+		'not-exported.downloads'             => 'Archivos descargables de variaciones',
+	);
+
+	/** Prefijo de los widgets de F4-Woo: un kit que los lleva necesita WooCommerce. */
+	const WIDGET_PREFIX = 'digitalisimo-woo-';
 
 	/** Valor que nunca coincide (`References::NEVER_ID`), por si K aún no está cargado al declarar. */
 	const NEVER_ID = 2147483647;
@@ -71,12 +105,14 @@ final class Module {
 		}
 		add_filter( self::FILTER_REFERENCES, array( __CLASS__, 'references' ) );
 		add_filter( self::FILTER_NOT_EXPORTED, array( __CLASS__, 'not_exported' ), 10, 2 );
+		add_filter( self::FILTER_NEEDS, array( __CLASS__, 'needs' ), 10, 2 );
 		add_action( self::EXPORT_ACTION, array( __CLASS__, 'export_runner' ), self::EXPORT_PRIORITY );
 	}
 
 	/**
-	 * Sin WooCommerce (o con uno incompatible): sólo las partes, para que el informe diga `woocommerce.inactive` cuando
-	 * el kit trae atributos o variaciones. Un solo `add_filter`, que sólo corre cuando K arma sus partes.
+	 * Sin WooCommerce (o con uno incompatible): sólo las partes y los textos del informe, para que diga
+	 * `woocommerce.inactive` con su texto cuando el kit trae atributos o variaciones. Dos `add_filter`, que sólo corren
+	 * cuando K arma sus partes o pinta un informe.
 	 */
 	public static function init_inactive(): void {
 		if ( function_exists( 'add_filter' ) ) {
@@ -106,6 +142,38 @@ final class Module {
 		}
 		self::$parts = true;
 		add_filter( self::FILTER_PARTS, array( __CLASS__, 'parts' ) );
+		add_filter( self::FILTER_LABELS, array( __CLASS__, 'labels' ) );
+	}
+
+	/**
+	 * `digitalisimo_elements_kit_report_labels`: los textos de `LABELS` (K descarta los que ya tiene).
+	 *
+	 * @param mixed $labels Textos de K y de otras etapas.
+	 * @return array
+	 */
+	public static function labels( $labels ): array {
+		return ( is_array( $labels ) ? $labels : array() ) + self::LABELS;
+	}
+
+	/**
+	 * `digitalisimo_elements_kit_needs`: un kit con algún widget `digitalisimo-woo-*` necesita WooCommerce (K sólo
+	 * deja encender la necesidad, nunca apagarla).
+	 *
+	 * @param mixed $needs   Necesidades que calculó K.
+	 * @param mixed $widgets Tipo de widget => número.
+	 * @return mixed
+	 */
+	public static function needs( $needs, $widgets = array() ) {
+		if ( ! is_array( $needs ) || ! is_array( $widgets ) ) {
+			return $needs;
+		}
+		foreach ( array_keys( $widgets ) as $type ) {
+			if ( 0 === strpos( (string) $type, self::WIDGET_PREFIX ) ) {
+				$needs['woocommerce'] = true;
+				break;
+			}
+		}
+		return $needs;
 	}
 
 	/**

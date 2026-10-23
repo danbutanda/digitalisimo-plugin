@@ -129,7 +129,7 @@ final class State {
 				continue;
 			}
 			// Con «o cupón», «y cupón», «sólo cupón» o sin requisito no se puede decir cuánto falta.
-			if ( 'min_amount' !== ( $method->requires ?? '' ) || ! is_numeric( $method->min_amount ?? null ) ) {
+			if ( ! is_numeric( $method->min_amount ?? null ) ) {
 				return $none;
 			}
 			$min       = (float) $method->min_amount;

@@ -37,6 +37,7 @@ namespace Elementor {
 		public function html() { ob_start(); $this->render(); return ob_get_clean(); }
 		protected function register_controls() {}
 		protected function render() {}
+		protected function content_template() {}
 	}
 	class Plugin { public static $instance; }
 }
@@ -100,6 +101,7 @@ namespace {
 	function get_term_meta( $id, $key, $single ) { return $GLOBALS['termmeta'][ $id ][ $key ] ?? ''; }
 	function update_termmeta_cache( $ids ) { $GLOBALS['primed'][] = $ids; }
 	function wp_attachment_is_image( $id ) { return 99 === (int) $id; }
+	function wp_get_attachment_image_url( $id, $size = 'thumbnail' ) { return 99 === (int) $id ? 'https://example.test/99.jpg' : false; }
 	function wp_get_attachment_image( $id, $size, $icon, $attrs ) { return '<img src="https://example.test/' . (int) $id . '.jpg" alt="' . esc_attr( $attrs['alt'] ) . '" decoding="async"' . ( isset( $attrs['aria-hidden'] ) ? ' aria-hidden="true"' : '' ) . '>'; }
 	class WP_Term { public $term_id; public $slug; public $name; public $taxonomy; public $parent = 0; public $count = 1; public function __construct( $id, $slug, $name, $taxonomy ) { $this->term_id = $id; $this->slug = $slug; $this->name = $name; $this->taxonomy = $taxonomy; } }
 	$GLOBALS['terms'] = array(
@@ -269,6 +271,183 @@ namespace {
 	$GLOBALS['options']['woocommerce_hide_out_of_stock_items']  = 'no';
 	$GLOBALS['options']['woocommerce_attribute_lookup_enabled'] = 'no';
 
-	// --- Del URL al bucle con el módulo real de PRO (los tipos registrados). --------------------------------------
-	require_once __DIR__ . '/elements-loop-filter-doubles.inc';
+}
+namespace ElementorPro\Base {
+	abstract class Module_Base { public function __construct() {} }
+}
+namespace ElementorPro\Core {
+	class Utils { public static function _unstable_get_super_global_value( $super_global, $key ) { return $super_global[ $key ] ?? null; } }
+}
+namespace ElementorPro\Modules\LoopFilter\Data {
+	class Controller { public function __construct() {} }
+}
+namespace {
+	// --- Del URL al bucle con el módulo real de PRO y los tipos registrados. ---------------------------------------
+	function wp_create_nonce( $action ) { return 'nonce'; }
+	$loop_dir = $root . '/modules/loop-filter/';
+	foreach ( array( 'query/data/query-constants.php', 'query/interfaces/query-interface.php', 'query/query-types/single-terms-query.php', 'query/query-types/hierarchy-and-query.php', 'query/query-types/hierarchy-or-query.php', 'query/taxonomy-manager.php', 'query/taxonomy-query-builder.php', 'traits/hierarchical-taxonomy-trait.php', 'module.php' ) as $file ) {
+		require_once $loop_dir . $file;
+	}
+	$loop = new class() { public function get_id() { return 'abc1234'; } };
+	$from_url = function ( $query_string ) use ( $loop ) {
+		$_SERVER['QUERY_STRING'] = $query_string;
+		$filter = new \ElementorPro\Modules\LoopFilter\Module();
+		return $filter->filter_loop_query( array( 'post_type' => 'product' ), $loop );
+	};
+	$args = $from_url( 'e-filter-abc1234-digi_price_min=50&e-filter-abc1234-digi_price_max=10&e-filter-abc1234-product_cat=ropa' );
+	check_filters( array( 'min' => 10.0, 'max' => 50.0 ) === $args['digitalisimo_price_range'], 'Precio desde la URL, intercambiado.' );
+	check_filters( 'product_cat' === ( $args['tax_query'][0]['taxonomy'] ?? '' ) && 2 === count( $args['tax_query'] ), 'La taxonomía de PRO del mismo bucle sigue en tax_query y el precio no entra en él.' );
+	$args = $from_url( 'e-filter-abc1234-digiattr_pa_talla-zapato=40~41' );
+	$found = array_values( array_filter( $args['tax_query'], function ( $clause ) { return is_array( $clause ) && 'pa_talla-zapato' === ( $clause['taxonomy'] ?? '' ); } ) );
+	check_filters( 1 === count( $found ) && array( '40', '41' ) === $found[0]['terms'] && 'IN' === $found[0]['operator'] && false === $found[0]['include_children'], 'Un atributo con guion desde la URL, con «O» (R-B3).' );
+	$args = $from_url( 'e-filter-abc1234-digi_price_min=abc' );
+	check_filters( ! isset( $args['digitalisimo_price_range'] ), 'Un precio inválido no filtra (ni vacía el bucle).' );
+	$args = $from_url( 'e-filter-zzz9999-digi_price_min=5' );
+	check_filters( ! isset( $args['digitalisimo_price_range'] ), 'Un filtro de otro bucle no afecta a éste.' );
+	// Refresco: el cuerpo de la petición del coordinador.
+	$_SERVER['QUERY_STRING'] = '';
+	$filter = new \ElementorPro\Modules\LoopFilter\Module();
+	$filter->register_widget_filter( 'abc1234', array( 'taxonomy' => array( 'product_cat' => array( 'terms' => array( 'ropa' ), 'logicalJoin' => 'AND' ) ), 'digitalisimo_price' => array( 'digi_price_min' => array( 'terms' => array( '5' ), 'logicalJoin' => 'AND' ) ), 'digitalisimo_attribute' => array( 'digiattr_pa_color' => array( 'terms' => array( 'rojo', 'azul' ), 'logicalJoin' => 'OR' ) ) ) );
+	$args = $filter->filter_loop_query( array( 'post_type' => 'product' ), $loop );
+	check_filters( array( 'min' => 5.0, 'max' => null ) === $args['digitalisimo_price_range'] && 3 === count( $args['tax_query'] ), 'Los tres tipos del refresco, cada uno por su camino.' );
+
+	// --- Límites del precio y términos con existencias. -----------------------------------------------------------
+	$GLOBALS['wpdb']->row = (object) array( 'min_price' => '3.50', 'max_price' => '187.20' );
+	check_filters( array( 'min' => 3.5, 'max' => 187.2 ) === $bounds::price() && 1 === count( $GLOBALS['wpdb']->queries ), 'Una consulta con la caché fría.' );
+	check_filters( false !== strpos( $GLOBALS['wpdb']->queries[0], "FROM wp_wc_product_meta_lookup l INNER JOIN wp_posts p ON p.ID = l.product_id WHERE p.post_type = 'product' AND p.post_status = 'publish'" ), 'Sólo productos publicados.' );
+	$bounds::price();
+	check_filters( 1 === count( $GLOBALS['wpdb']->queries ), 'Después, del transitorio.' );
+	check_filters( array( 'min' => 0.0, 'max' => 190.0 ) === $bounds::price_display( 10 ), 'Redondeados hacia fuera al paso, como el widget nativo.' );
+	do_action( 'woocommerce_update_product', 5 );
+	check_filters( false === get_transient( $bounds::PRICE ), 'Un evento de producto invalida los límites.' );
+	$GLOBALS['wpdb']->col = array( '1', '2' );
+	check_filters( array( 1, 2 ) === $bounds::terms_in_stock( 'pa_color' ) && false !== strpos( end( $GLOBALS['wpdb']->queries ), "SELECT DISTINCT term_id FROM wp_wc_product_attributes_lookup WHERE taxonomy = 'pa_color' AND in_stock = 1" ), 'Términos con existencias: una consulta acotada (R-M17).' );
+	$count = count( $GLOBALS['wpdb']->queries );
+	$bounds::terms_in_stock( 'pa_color' );
+	check_filters( $count === count( $GLOBALS['wpdb']->queries ), 'Cacheada.' );
+	do_action( 'woocommerce_product_set_stock_status', 5 );
+	check_filters( false === get_transient( $bounds::TERMS ), 'Un cambio de existencias la invalida.' );
+}
+namespace {
+	// --- Widgets. ------------------------------------------------------------------------------------------------
+	\Elementor\Plugin::$instance = (object) array(
+		'editor'  => new class() { public $edit = false; public function is_edit_mode() { return $this->edit; } },
+		'preview' => new class() { public function is_preview_mode() { return false; } },
+	);
+	require_once $root . '/modules/posts/traits/pagination-trait.php';
+	foreach ( array( 'filters/class-filter-widget.php', 'filters/class-price-widget.php', 'filters/class-attribute-widget.php' ) as $file ) {
+		require_once $root . '/modules/digitalisimo-woo/' . $file;
+	}
+	$price_class = \Digitalisimo\Elements\Woo\Filters\Price_Widget::class;
+	$attr_class  = \Digitalisimo\Elements\Woo\Filters\Attribute_Widget::class;
+	check_filters( \Digitalisimo\Elements\Woo\Inert::cooperates( $price_class ) && \Digitalisimo\Elements\Woo\Inert::cooperates( $attr_class ), 'Los dos siguen el contrato de Woo\Widget (render_widget(), sin render()).' );
+	foreach ( \Digitalisimo\Elements\Woo\Registry::WIDGETS as $name => $entry ) {
+		if ( false !== strpos( $name, '-filter' ) ) {
+			check_filters( is_file( $root . '/modules/digitalisimo-woo/' . $entry['file'] ) && class_exists( $entry['class'], false ), 'El registro de A apunta a un widget que existe: ' . $name );
+		}
+	}
+	foreach ( array( $price_class, $attr_class ) as $class ) {
+		$widget = new $class();
+		check_filters( array( 'digitalisimo-woo-filters' ) === $widget->get_style_depends() && array( 'digitalisimo-woo-filters', 'digitalisimo-woo-filters-form' ) === $widget->get_script_depends(), $class . ': su hoja y sus dos scripts.' );
+		$controls = $widget->controls();
+		check_filters( 'loop' === $controls['destination']['default'] && array( '' => 'Elige un Loop Grid' ) === $controls['selected_element']['options'], $class . ': destino Loop Grid por defecto; la lista la rellena el editor.' );
+		foreach ( $controls as $id => $control ) {
+			if ( ! empty( $control['selectors'] ) || ! empty( $control['group'] ) ) {
+				check_filters( ! array_key_exists( 'default', $control ), $class . ': el control de estilo ' . $id . ' no tiene default que pinte.' );
+			}
+			foreach ( array( 'label', 'raw', 'description', 'default', 'placeholder' ) as $key ) {
+				if ( isset( $control[ $key ] ) && is_string( $control[ $key ] ) ) {
+					check_filters( false === stripos( $control[ $key ], 'elementor' ), $class . ': texto sin el nombre del núcleo: ' . $control[ $key ] );
+				}
+			}
+		}
+		check_filters( false !== strpos( $controls['shop_note']['raw'], 'Este destino no filtra un Loop Grid; usa el destino Loop Grid' ) && false !== strpos( $controls['loop_note']['raw'], 'Loop Carousel' ) && false !== strpos( $controls['loop_note']['raw'], 'Consulta actual' ), $class . ': el editor explica qué filtra cada destino (V.8.5).' );
+	}
+	$attr_controls = ( new $attr_class() )->controls();
+	check_filters( array( '' => 'Elige un atributo', 'pa_color' => 'Color', 'pa_talla-zapato' => 'Talla de zapato' ) === $attr_controls['attribute']['options'], 'Atributos con nombre ASCII; el no ASCII no se ofrece (V.8.1).' );
+	\Elementor\Core\Frontend\Performance::$optimize = true;
+	$calls = count( $GLOBALS['get_terms_calls'] );
+	check_filters( array( '' => 'Elige un atributo' ) === ( new $attr_class() )->controls()['attribute']['options'], 'En la pila optimizada del front no se piden los atributos (V-M18).' );
+	\Elementor\Core\Frontend\Performance::$optimize = false;
+	$attr_src = file_get_contents( $root . '/modules/digitalisimo-woo/filters/class-attribute-widget.php' );
+	check_filters( 1 === preg_match( "/function attribute_options\(\): array \{.*?should_optimize_controls\(\);\s*if \( \\\$optimize \|\| ! function_exists\( 'wc_get_attribute_taxonomies' \)/s", $attr_src ), 'Sin WooCommerce (Inert), las opciones no llaman a WooCommerce.' );
+
+	// Precio, destino Loop Grid, con un filtro en la URL y otros parámetros que el formulario conserva.
+	$GLOBALS['transients'][ $bounds::PRICE ] = array( 'min' => 3.5, 'max' => 187.2 );
+	$_GET = array( 'e-filter-abc1234-digi_price_min' => '20', 'e-filter-abc1234-product_cat' => 'ropa', 'e-page-abc1234' => '3', 'utm_source' => 'boletín', 'paged' => '2', 'arr' => array( 'x' ) );
+	$GLOBALS['query_vars'] = array( 'paged' => 2 );
+	$base = array( 'destination' => 'loop', 'selected_element' => 'abc1234', 'bounds' => 'auto', 'step' => 1, 'display' => 'both', 'apply' => 'button', 'legend' => 'Precio', 'show_legend' => 'yes', 'label_min' => 'Mínimo', 'label_max' => 'Máximo', 'button_text' => 'Aplicar', 'clear_text' => 'Quitar filtro' );
+	$html = ( new $price_class( $base ) )->html();
+	check_filters( 0 === strpos( $html, '<form class="digi-filter digi-filter--price" method="get" action="https://example.test/tienda/" aria-label="Filtrar por precio" data-digi-filter="price" data-target="loop" data-loop="abc1234"' ), 'Formulario GET con destino y bucle: ' . substr( $html, 0, 220 ) );
+	check_filters( false !== strpos( $html, '<span class="e-filter" hidden data-base-url="https://example.test/tienda/" data-page-num="2"></span>' ), 'El span .e-filter oculto con los datos de PRO (V.8.3).' );
+	check_filters( false !== strpos( $html, 'name="e-filter-abc1234-digi_price_min" data-digi-edge="min" value="20" min="3" max="188" step="1"' ) && false !== strpos( $html, 'name="e-filter-abc1234-digi_price_max" data-digi-edge="max" value=""' ), 'Campos numéricos con los nombres reservados, el valor de la URL y los límites.' );
+	check_filters( 2 === substr_count( $html, 'type="range"' ) && 2 === substr_count( $html, 'aria-hidden="true" tabindex="-1"' ) && false === strpos( $html, 'type="range" name=' ), 'Con «Ambos», los deslizadores sin nombre, con aria-hidden y tabindex=-1 (V.8.6).' );
+	check_filters( false !== strpos( $html, "aria-valuetext=\"20,00\u{00a0}€\"" ) && false !== strpos( $html, 'data-currency="{&quot;s&quot;:&quot;\\u20ac&quot;,&quot;d&quot;:2,&quot;ds&quot;:&quot;,&quot;,&quot;ts&quot;:&quot;.&quot;,&quot;f&quot;:&quot;%2$s\\u00a0%1$s&quot;}"' ), 'Importe formateado y formato de la tienda para el script.' );
+	check_filters( false !== strpos( $html, '<input type="hidden" name="e-filter-abc1234-product_cat" value="ropa"><input type="hidden" name="utm_source" value="boletín">' ) && false === strpos( $html, 'name="e-page-abc1234"' ) && false === strpos( $html, 'name="paged"' ) && false === strpos( $html, 'name="arr' ), 'Campos ocultos con los demás parámetros; sin paginación ni arreglos (V.8.6).' );
+	check_filters( false !== strpos( $html, '<a class="digi-filter__clear" rel="nofollow" href="https://example.test/tienda/?e-filter-abc1234-product_cat=ropa&#038;utm_source=bolet%C3%ADn">Quitar filtro</a>' ), '«Quitar filtro» con nofollow y sin los parámetros propios (V.13).' );
+	check_filters( 1 === preg_match( '/data-status="\{[^"]*Resultados actualizados[^"]*\}"/', $html ), 'Textos de la región viva para el coordinador.' );
+	check_filters( ! preg_match( '/<script|<img|ld\+json/', $html ), 'Sin <script>, <img> ni JSON-LD.' );
+	// Destino «Tienda»: min_price y max_price, deslizador solo (con nombre) y sin datos de bucle.
+	$_GET = array( 'min_price' => '15', 'max_price' => '-3', 'orderby' => 'price' );
+	$html = ( new $price_class( array( 'destination' => 'shop', 'display' => 'slider', 'bounds' => 'fixed', 'bound_min' => 0, 'bound_max' => 100, 'step' => 5 ) + $base ) )->html();
+	check_filters( false !== strpos( $html, 'data-target="shop" data-loop=""' ) && false !== strpos( $html, 'type="range" data-digi-edge="min" value="15"' ) && false !== strpos( $html, 'name="min_price"' ) && false !== strpos( $html, 'type="range" data-digi-edge="max" value="100"' ) && false !== strpos( $html, 'name="max_price"' ), 'Tienda: parámetros nativos desde $_GET saneado; un máximo inválido queda en el límite.' );
+	check_filters( false === strpos( $html, 'aria-hidden' ) && false === strpos( $html, 'type="number"' ) && false !== strpos( $html, '<input type="hidden" name="orderby" value="price">' ), 'Deslizador solo: es el control accesible; la ordenación se conserva.' );
+	// Sin bucle elegido: nada en el front, el aviso en el editor.
+	check_filters( '' === ( new $price_class( array( 'selected_element' => '' ) + $base ) )->html(), 'Sin Loop Grid elegido, el front no pinta nada.' );
+	\Elementor\Plugin::$instance->editor->edit = true;
+	check_filters( false !== strpos( ( new $price_class( array( 'selected_element' => 'NO VALE' ) + $base ) )->html(), 'Elige el Loop Grid que filtra este widget.' ), 'En el editor, el aviso.' );
+	\Elementor\Plugin::$instance->editor->edit = false;
+
+	// Atributo: casillas, radios, desplegable, botones y muestras; destino Loop Grid y Tienda.
+	$_GET  = array( 'e-filter-abc1234-digiattr_pa_color' => 'rojo~azul', 'e-filter-abc1234-digi_price_min' => '20' );
+	$aset  = array( 'destination' => 'loop', 'selected_element' => 'abc1234', 'attribute' => 'pa_color', 'display' => 'checkboxes', 'selection' => 'multiple', 'logic' => 'OR', 'hide_empty' => 'yes', 'legend' => '', 'show_legend' => 'yes', 'any_text' => 'Cualquiera', 'button_text' => 'Aplicar', 'clear_text' => 'Limpiar' );
+	$html  = ( new $attr_class( $aset ) )->html();
+	check_filters( false !== strpos( $html, 'class="digi-filter digi-filter--attribute digi-filter--checkboxes" method="get"' ) && false !== strpos( $html, 'aria-label="Filtrar por color"' ) && false !== strpos( $html, 'data-key="digiattr_pa_color" data-logic="OR" data-multiple="1"' ), 'Casillas con el nombre accesible y la clave del tipo.' );
+	check_filters( false !== strpos( $html, '<input type="checkbox" name="e-filter-abc1234-digiattr_pa_color" value="rojo" checked>' ) && false !== strpos( $html, 'value="azul" checked>' ) && false === strpos( $html, 'value="verde"' ), 'Elegidos desde la URL; un término sin productos se oculta.' );
+	check_filters( false !== strpos( $html, '<input type="hidden" name="e-filter-abc1234-digi_price_min" value="20">' ) && false === strpos( $html, 'type="hidden" name="e-filter-abc1234-digiattr_pa_color"' ), 'Conserva el precio; no repite su propio nombre.' );
+	check_filters( false !== strpos( $html, 'href="https://example.test/tienda/?e-filter-abc1234-digi_price_min=20">Limpiar</a>' ) && false !== strpos( $html, 'rel="nofollow"' ), '«Limpiar» sin el atributo, con nofollow.' );
+	$html = ( new $attr_class( array( 'selection' => 'single' ) + $aset ) )->html();
+	check_filters( false !== strpos( $html, '<input type="radio" name="e-filter-abc1234-digiattr_pa_color" value=""><span>Cualquiera</span>' ) && 1 === substr_count( $html, ' checked' ), 'Una sola selección: radios con «Cualquiera».' );
+	$html = ( new $attr_class( array( 'display' => 'dropdown' ) + $aset ) )->html();
+	check_filters( false !== strpos( $html, '<select class="digi-filter__select" name="e-filter-abc1234-digiattr_pa_color" aria-label="Color"><option value="">Cualquiera</option><option value="rojo" selected>Rojo</option>' ) && false !== strpos( $html, 'data-multiple="0"' ), 'Desplegable de un solo término.' );
+	$html = ( new $attr_class( array( 'display' => 'buttons', 'hide_empty' => '' ) + $aset ) )->html();
+	check_filters( 3 === substr_count( $html, 'class="digi-filter__term" rel="nofollow" role="button"' ) && false === strpos( $html, 'digi-filter__submit' ), 'Botones como enlaces con nofollow; sin «ocultar vacíos», los tres.' );
+	check_filters( false !== strpos( $html, 'aria-pressed="true" data-value="rojo" href="https://example.test/tienda/?e-filter-abc1234-digi_price_min=20&#038;e-filter-abc1234-digiattr_pa_color=azul"' ), 'Pulsar uno activo lo quita de la selección (sin JS).' );
+	check_filters( false !== strpos( $html, 'aria-pressed="false" data-value="verde" href="https://example.test/tienda/?e-filter-abc1234-digi_price_min=20&#038;e-filter-abc1234-digiattr_pa_color=rojo~azul~verde"' ), 'Pulsar uno inactivo lo añade con «~» (O).' );
+	$html = ( new $attr_class( array( 'display' => 'buttons', 'logic' => 'AND', 'hide_empty' => '' ) + $aset ) )->html();
+	check_filters( false !== strpos( $html, 'digiattr_pa_color=rojo+azul+verde"' ) && false !== strpos( $html, 'data-logic="AND"' ), 'Con «Y», «+» literal (espacio en el servidor).' );
+	// Muestras con los datos de WooCommerce (Swatches\Data): color, imagen por Image_Markup e inicial.
+	$GLOBALS['termmeta'] = array( 1 => array( 'color' => '#cc0000' ), 2 => array( 'image' => 99 ) );
+	$GLOBALS['options']['digitalisimo_elements_swatches'] = array( 'v' => 1, 'attributes' => array( 'color' => array( 'type' => 'visual', 'shape' => 'rounded', 'size' => 40 ) ) );
+	\Digitalisimo\Elements\Woo\Swatches\Data::flush();
+	$html = ( new $attr_class( array( 'display' => 'swatches', 'hide_empty' => '' ) + $aset ) )->html();
+	check_filters( false !== strpos( $html, 'style="--digi-swatch-size:40px;--digi-swatch-radius:.35em"' ) && false !== strpos( $html, '<span class="digi-filter__swatch" aria-hidden="true" style="--digi-swatch:#cc0000"></span><span class="digi-filter__sr">Rojo</span>' ), 'Muestra de color con su nombre accesible, con la forma y el tamaño del atributo.' );
+	check_filters( false !== strpos( $html, '<img src="https://example.test/99.jpg" alt="" decoding="async" aria-hidden="true">' ) && false !== strpos( $html, '<span class="digi-filter__sr">Verde</span>' ) && ! empty( $GLOBALS['primed'] ), 'Imagen por Image_Markup (decorativa) y metas precargadas.' );
+	// Ocultar vacíos con la tabla y «Ocultar agotados»: sólo los términos con existencias.
+	$GLOBALS['options']['woocommerce_attribute_lookup_enabled'] = 'yes';
+	$GLOBALS['options']['woocommerce_hide_out_of_stock_items']  = 'yes';
+	$GLOBALS['transients'][ $bounds::TERMS ] = array( 'pa_color' => array( 2, 3 ) );
+	$html = ( new $attr_class( $aset ) )->html();
+	check_filters( false === strpos( $html, 'value="rojo"' ) && false !== strpos( $html, 'value="azul"' ) && false !== strpos( $html, 'value="verde"' ), 'Con la tabla y «Ocultar agotados», los términos con existencias (aunque hide_empty diga otra cosa).' );
+	$GLOBALS['options']['woocommerce_attribute_lookup_enabled'] = 'no';
+	$GLOBALS['options']['woocommerce_hide_out_of_stock_items']  = 'no';
+	// Tienda: filter_* y query_type_*.
+	$_GET = array( 'filter_color' => 'rojo,verde', 'query_type_color' => 'or', 'min_price' => '5' );
+	$html = ( new $attr_class( array( 'destination' => 'shop', 'hide_empty' => '' ) + $aset ) )->html();
+	check_filters( false !== strpos( $html, 'name="filter_color" value="rojo" checked>' ) && false !== strpos( $html, 'name="filter_color" value="verde" checked>' ) && false !== strpos( $html, '<input type="hidden" name="query_type_color" value="or">' ) && false !== strpos( $html, '<input type="hidden" name="min_price" value="5">' ), 'Tienda: filter_color separado por comas, query_type_color y el precio conservado.' );
+	$html = ( new $attr_class( array( 'destination' => 'shop', 'display' => 'buttons', 'hide_empty' => '' ) + $aset ) )->html();
+	check_filters( false !== strpos( $html, 'data-value="azul" href="https://example.test/tienda/?min_price=5&#038;filter_color=rojo,verde,azul&#038;query_type_color=or"' ), 'Tienda: los enlaces llevan la selección entera y su query_type.' );
+	foreach ( array( '', 'pa_noexiste', 'product_cat' ) as $bad ) {
+		check_filters( '' === ( new $attr_class( array( 'attribute' => $bad ) + $aset ) )->html(), 'Un atributo que no es global no pinta nada: ' . $bad );
+	}
+	$_GET = array();
+
+	// --- Revisión por tokens: nada de clases internas de WooCommerce ni del gancho de la consulta principal. --------
+	foreach ( glob( $root . '/modules/digitalisimo-woo/filters/*.php' ) as $file ) {
+		$source = preg_replace( '#/\*.*?\*/|//[^\n]*#s', '', file_get_contents( $file ) );
+		check_filters( false === strpos( $source, 'Automattic\\WooCommerce\\Internal' ) && false === strpos( $source, 'woocommerce_enable_post_clause_filtering' ), basename( $file ) . ': ni clases internas de WooCommerce ni woocommerce_enable_post_clause_filtering.' );
+		check_filters( ! preg_match( '/\bstr_contains\(|\bmatch\s*\(|\bfn\s*\(|\?->/', $source ), basename( $file ) . ': compatible con PHP 7.4.' );
+	}
+
+	echo "DIGITALÍSIMO Elements: filtros de precio y de atributo (tipos, consulta con la regla de WooCommerce, «Tienda», widgets y SEO) validados.\n";
 }

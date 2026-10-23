@@ -340,7 +340,9 @@ namespace Woo_Kit_Test {
 	$check( array() === $context->get_report()['entries'], '0: sin datos del kit, nada que decir.' );
 	Kit::reset();
 	Kit::init_inactive();
-	$check( 1 === count( $GLOBALS['wp']['hooks'] ) && isset( $GLOBALS['wp']['hooks']['digitalisimo_elements_kit_parts'] ), '0: init_inactive() sólo engancha el filtro de partes.' );
+	$check( array( 'digitalisimo_elements_kit_parts', 'digitalisimo_elements_kit_report_labels' ) === array_keys( $GLOBALS['wp']['hooks'] ), '0: init_inactive() sólo engancha las partes y los textos del informe.' );
+	Report::reset_labels();
+	$check( 'El kit trae atributos o variaciones de WooCommerce y este sitio no tiene WooCommerce activo: no se importaron' === Report::code_label( 'woocommerce.inactive' ), '0: y el informe dice woocommerce.inactive con su texto, no con el de las páginas de WooCommerce.' );
 
 	// ── Dobles de WooCommerce 11.2.1 ─────────────────────────────────────────────────────────────────────────────
 	if ( ! function_exists( 'wc_create_attribute' ) ) {
@@ -359,7 +361,9 @@ namespace Woo_Kit_Test {
 	Kit::reset();
 	Kit::init();
 	$hooks = $GLOBALS['wp']['hooks'];
-	$check( isset( $hooks['digitalisimo_elements_kit_parts'][10], $hooks['digitalisimo_elements_kit_references'][10], $hooks['digitalisimo_elements_kit_not_exported'][10], $hooks[ Kit::EXPORT_ACTION ][30] ), '1: init() engancha partes, referencias, el contador y el runner de medios (export-kit, 30).' );
+	$check( isset( $hooks['digitalisimo_elements_kit_parts'][10], $hooks['digitalisimo_elements_kit_references'][10], $hooks['digitalisimo_elements_kit_not_exported'][10], $hooks['digitalisimo_elements_kit_report_labels'][10], $hooks['digitalisimo_elements_kit_needs'][10], $hooks[ Kit::EXPORT_ACTION ][30] ), '1: init() engancha partes, referencias, el contador, los textos, needs y el runner de medios (export-kit, 30).' );
+	$base = array( 'woocommerce' => false, 'acf' => array(), 'google_places' => false );
+	$check( true === \Digitalisimo\Elements\Import\Kits\Runners\Export_Finish::extend_needs( $base, array( 'digitalisimo-woo-wishlist-button' => 1 ), new Export_Context() )['woocommerce'] && $base === \Digitalisimo\Elements\Import\Kits\Runners\Export_Finish::extend_needs( $base, array( 'heading' => 1, 'digitalisimo-heading' => 1 ), new Export_Context() ), '1: un kit con un widget digitalisimo-woo-* necesita WooCommerce; uno sin ellos, no cambia.' );
 	Kit::init();
 	$check( 1 === count( $GLOBALS['wp']['hooks']['digitalisimo_elements_kit_parts'][10] ), '1: init() es idempotente.' );
 	Parts::reset();
@@ -767,7 +771,14 @@ namespace Woo_Kit_Test {
 	}
 	preg_match_all( "/->report\(\s*'([a-z0-9_:.-]+)'/", $sources, $found );
 	$check( count( $found[1] ) >= 15, '11: se encontraron los códigos del informe (' . count( $found[1] ) . ').' );
+	$check( 'Archivos descargables de variaciones' === Report::not_exported_label( 'downloads' ), '11: el motivo `downloads` tiene texto.' );
+	$check( array() === array_intersect_key( Kit::LABELS, Report::CODE_LABELS ), '11: ningún texto de F4-Woo intenta pisar uno de K.' );
+	Kit::reset();
+	Kit::init();
+	Report::reset_labels();
+	$labels = Report::labels();
 	foreach ( array_unique( $found[1] ) as $code ) {
+		$check( isset( Kit::LABELS[ $code ], $labels[ $code ] ) && Kit::LABELS[ $code ] === $labels[ $code ], "11: el código {$code} tiene su propio texto en el informe." );
 		$section = Report::section_for( $code );
 		$check( 0 === strpos( $code, 'woocommerce.' ) ? 'requested' === $section : ( 'reference.attachment' === $code && 'unresolved' === $section ), "11: el código {$code} tiene la sección que dice V.11.5 ({$section})." );
 	}

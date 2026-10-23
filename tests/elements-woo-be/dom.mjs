@@ -93,7 +93,19 @@ function walk(n, fn) { for (const c of n.childNodes) { if (c.nodeType === 1) { f
 
 function matches(n, sel) {
   if (n.nodeType !== 1) return false;
-  return sel.split(',').some((part) => {
+  return sel.split(',').some((group) => {
+    // Descendientes: la última parte es el nodo; las anteriores, antepasados en orden.
+    const parts = group.trim().split(/\s+/);
+    if (!simple(n, parts.pop())) return false;
+    let c = n.parentNode;
+    while (parts.length && c) { if (c.nodeType === 1 && simple(c, parts[parts.length - 1])) parts.pop(); c = c.parentNode; }
+    return !parts.length;
+  });
+}
+
+function simple(n, part) {
+  if (n.nodeType !== 1 || n.tagName === '#DOCUMENT') return false;
+  {
     const m = part.trim().match(/^([a-z0-9]+)?((?:\.[\w-]+)*)((?:\[[\w-]+(?:="[^"]*")?\])*)$/);
     if (!m) throw new Error('Selector no admitido en el DOM de prueba: ' + part);
     if (m[1] && n.localName !== m[1]) return false;
@@ -104,7 +116,7 @@ function matches(n, sel) {
       if (v !== undefined && n.attrs[k] !== v) return false;
     }
     return true;
-  });
+  }
 }
 
 function decode(t) { return t.replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
