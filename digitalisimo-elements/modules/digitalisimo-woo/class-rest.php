@@ -277,7 +277,7 @@ final class Rest {
 		if ( ! isset( $element['settings'] ) || ! is_array( $element['settings'] ) ) {
 			$element['settings'] = array();
 		}
-		return true === (bool) call_user_func( $predicate, $element ) ? $element : null;
+		return true === call_user_func( $predicate, $element ) ? $element : null;
 	}
 
 	/**

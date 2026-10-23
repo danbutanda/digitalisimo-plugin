@@ -685,7 +685,10 @@ namespace {
 
 	// 12. Textos visibles sin el nombre del proveedor y PHP 7.4 en la base.
 	foreach ( $base as $file ) {
-		$code = file_get_contents( $file );
+		$code = '';
+		foreach ( token_get_all( (string) file_get_contents( $file ) ) as $token ) {
+			$code .= is_array( $token ) ? ( in_array( $token[0], array( T_COMMENT, T_DOC_COMMENT ), true ) ? '' : $token[1] ) : $token;
+		}
 		check_wt( ! preg_match( '/\bmatch\s*\(|\bstr_contains\(|\bstr_starts_with\(|\bstr_ends_with\(|\?->|#\[|\bmixed\s+\$|\breadonly\b|\benum\s+[A-Z]/', $code ), basename( $file ) . ': compatible con PHP 7.4.' );
 		check_wt( ! preg_match( "/__\(\s*'[^']*Elementor/i", $code ) && ! preg_match( "/esc_html__\(\s*'[^']*Elementor/i", $code ), basename( $file ) . ': textos visibles sin «Elementor».' );
 		check_wt( false === strpos( $code, 'Automattic\\WooCommerce\\Internal' ), basename( $file ) . ': ninguna clase interna de WooCommerce.' );

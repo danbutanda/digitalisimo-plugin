@@ -16,6 +16,84 @@ tiene en los sitios). No forman parte de los workflows: se corren a mano antes d
 | `theme-network.sh` | Tema DIGITALÍSIMO en una red Multisite sin Chrome: cobertura de Tools, sección «Tema», actualización con la carpeta conservada (N1–N6 y N3f). |
 | `design.sh` | Capacidades de diseño de DIGITALÍSIMO Elements (F7a, DS1–DS13): presets, degradados, máscaras y patrones, «Visitó la página», prioridad del Theme Builder, controles de documento, sticky «al fijarse», caché de elementos, plugin original, v4, red y vuelta a 4.3.0.163. |
 | `kit-roundtrip.sh`, `brand-audit.sh STATE=kit` | Kits de Elementor con DIGITALÍSIMO Elements (etapa K): ida y vuelta, terceros, «sólo agregar», red, reversión, entradas hostiles y marca. Obligatorias antes de publicar K y después de cada `sync-elementor-core.sh`. |
+| `woo-flow.sh` | WooCommerce visual de DIGITALÍSIMO Elements (F4-Woo, W0–W13) con WooCommerce 11.2.1 fijado: tienda de prueba, compra en modo de prueba y, cuando existan los widgets, lista de deseos, vista rápida, muestras, barra de envío, cupón, filtros y vuelta atrás. |
+
+## WooCommerce en los arneses (F4-Woo)
+
+Todo arnés que instala WooCommerce usa la copia oficial **11.2.1** de `reference/woocommerce.11.2.1.zip` (descargada de
+`https://downloads.wordpress.org/plugin/woocommerce.11.2.1.zip`, anotada en `reference/OFFICIAL-SOURCES.txt`, que no se
+versiona). Su suma se copia aquí y en `tests/playground/woocommerce-pin.sh`:
+
+```
+woocommerce.11.2.1.zip  sha256 5317434cb381b5fdc7c1dd6ee258324f08c390976aaf8d1199f2a0e9a3ab8586
+```
+
+`tests/playground/woocommerce-pin.sh` (se carga con «.») hace lo mismo en todos: busca el ZIP en `reference/` del
+repositorio y, en un worktree, en el del repositorio principal (o `WOO_ZIP`); comprueba la sha256 contra la anotada para
+ese nombre en `OFFICIAL-SOURCES.txt` junto al ZIP (o `WOO_SOURCES`) y, para 11.2.1, también contra la copia de arriba;
+lo extrae en `$OUT/woocommerce/plugin/` y lo **monta** como `wp-content/plugins/woocommerce` (`--mount`; el blueprint
+sólo lo activa con `activatePlugin`, o lo activa el PHP del arnés). Deja `$OUT/woocommerce.json` (`source`, `version`,
+`sha256`, `zip`, `note`), que cada arnés copia a su resumen.
+
+- Una suma distinta, un ZIP sin anotar, una cabecera `Version:` que no coincide con el nombre o un `WOO_ZIP` que no
+  existe detienen el arnés.
+- Sin copia local (y sin `WOO_ZIP`), los arneses existentes instalan, como antes, la última versión de wordpress.org y lo
+  anotan (`source: "wordpress.org"`): esa corrida no vale para F4-Woo. `woo-flow.sh` exige la copia (`WOO_REQUIRE=1`).
+- Sólo hay 11.2.1: no existe una versión mínima hasta que haya otra copia oficial anotada.
+
+| Arnés | WooCommerce | Resumen |
+|---|---|---|
+| `front-budget.sh WOO=1` | montado; `front-budget/activate.php` lo activa | `front-budget-woo*.json` → `woocommerce` (con `loaded`, la versión que cargó el sitio: otra hace fallar) |
+| `interaction.sh` | montado y activo | `interaction.json` → `woocommerce` |
+| `kit-roundtrip.sh WOO=1` | extraído una vez y montado en A, B y la red | `summary.json` → `woocommerce` |
+| `theme-switch.sh` (`WOO=1` por defecto) | montado y activo | `theme-switch.json` → `woocommerce` |
+| `conditions.sh WOO=1` | montado y activo | salida; falla si la versión cargada no es la montada |
+| `design.sh WOO=1` | montado; `design/setup.php` lo activa | `summary.json` → `woocommerce` |
+| `woo-flow.sh` | montado y activo; obligatorio | `summary.json` → `woocommerce` |
+
+`brand-audit.sh` y `form-submit.sh` no instalan WooCommerce.
+
+### WooCommerce visual (`woo-flow.sh`)
+
+Arranca Playground en modo servidor con un solo proceso, WooCommerce 11.2.1 fijado y obligatorio, una **copia fija** de
+`digitalisimo-elements/` (o `ELEMENTS_DIR`) y `digitalisimo-theme/` (`$OUT/src`; `LIVE=1` monta el árbol) y el tema
+DIGITALÍSIMO activo (`THEME=block` deja el de bloques de Playground). El blueprint sólo activa los plugins y, con `NET=1`,
+crea `/dos/` y `/tres/`; la tienda de cada sitio se prepara después en una petición propia de ese sitio
+(`?digi_wf=setup`, `woo-flow/store.php`, idempotente): España y euros sin impuestos, compra como invitado, dos
+categorías, seis productos simples (12–60 €), `pa_color` y `pa_talla` sin muestras y un variable con sus seis
+combinaciones; zona «España» con «Tarifa plana» (5 €) y «Envío gratuito» desde 50 € y la zona 0 sin métodos; cupones
+`DIGI10` (10 %) y `DIGIENVIO` (envío gratuito); «Contra reembolso» como pago fuera de línea; páginas clásicas
+`digi-wf-carrito` y `digi-wf-pago` junto a las de bloques que crea WooCommerce; la tabla de búsqueda de atributos activa
+y con actualización directa. «Retener existencias» queda vacío: la reserva de WooCommerce usa
+`NOW() + INTERVAL n MINUTE`, que la base SQLite de Playground no traduce, y el pago fallaría sin él.
+
+El conductor `woo-flow/run.cjs` escribe `$OUT/summary.json` (SHA, modo, Elements, `woocommerce`, preparación de cada
+sitio y, por escenario, sus comprobaciones con estado `ok`, `falla` o `pendiente`; el del escenario es `falla`,
+`pendiente`, `parcial` u `ok`). Chrome sólo resuelve el sitio de prueba: nada sale a internet. La sonda
+(`woo-flow/probe.php`, mu-plugin con el token de `mode.json`) atiende `?digi_wf=ping|setup|state|orders` y da por enviados
+los correos.
+
+| Escenario | Estado | Qué comprueba |
+|---|---|---|
+| W0 · Preparación y sin WooCommerce | parcial | WooCommerce es la copia fijada y está al día en cada sitio; catálogo, zona, cupones y pago; compra de invitado (Camiseta 60 € → `DIGI10` en el carrito clásico → pago clásico con «Envío gratuito» y «Contra reembolso» → «Pedido recibido», pedido `processing` de 54,00 €), sin errores de JavaScript ni peticiones fuera. Pendiente: sin WooCommerce (desactivarlo con widgets F4-Woo en la página; importar el mismo kit por «Kits», la App y WP-CLI en un sitio sin WooCommerce, puerto 9494) |
+| W1–W13 | pendiente | descritos en `woo-flow/run.cjs` (V.16.4 de la especificación): lista de deseos, caché de página simulada, vista rápida, muestras, barra de envío, cupón, filtros, tienda, compra con el pago de bloques, seguridad de las rutas y vuelta atrás a 4.3.0.164 |
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `SCENARIOS` | W0–W13 | escenarios a correr |
+| `KEEP=1` | — | prepara las tiendas y deja el sitio arrancado (`$OUT/env.json` sirve para correr `run.cjs` a mano) |
+| `CORE=plugin`, `ELEMENTOR_PIN` | `bundled`, `4.3.5` | plugin Elementor de downloads.wordpress.org junto a Elements |
+| `NET=1` | — | red de subdirectorios servida como `http://playground.test` (Chrome y Node la resuelven al puerto) |
+| `CACHE=1` | — | caché de elementos del núcleo a 24 h (si no, desactivada) |
+| `THEME` | `digitalisimo` | `block`: el tema de bloques de Playground (W6, convivencia con `wc-visual`) |
+| `QUICK=1` | — | un solo ancho; no vale para la aceptación |
+| `PORT` | 9491; 9492 con `NET=1`; 9493 con `CORE=plugin` | el bloque 9490–9499 es de este arnés (9494, el sitio sin WooCommerce de W0); cualquier otro puerto se rechaza, y `design.sh` y `kit-roundtrip.sh` rechazan este bloque |
+| `OUT`, `TMPDIR` | `/var/tmp/digi-f4/woo-flow-<modo>`, `/var/tmp/digi-f4/tmp` | resultados y temporales (2 GB libres) |
+
+```bash
+SCENARIOS=W0 bash tests/playground/woo-flow.sh                 # → /var/tmp/digi-f4/woo-flow-normal/summary.json
+KEEP=1 bash tests/playground/woo-flow.sh                       # tienda lista en http://127.0.0.1:9491
+```
 
 ## A/B de adaptadores de Element Pack
 
@@ -200,7 +278,8 @@ OUT=/var/tmp/digi-aud-kit-envato PORT=9464 SCOPE=quick STATE=kit KIT_FIXTURE=ter
 | `ELEMENTOR_PIN` | `4.3.5` | versión del plugin Elementor de `CORE=plugin` |
 | `NORMAL_FILE` | `$OUT/front-budget.json` | medición normal con la que `LAZY=1` compara el CLS de `lottie-above` |
 | `KEEP=1` | — | sólo prepara el sitio y lo deja arrancado (depuración) |
-| `COMPARE_FILE`, `COMPARE_STRICT` | —, `empty,all-own` | `front-budget[-modo].json` de otra corrida del mismo modo (p. ej. el ZIP 4.3.0.163 extraído en `ELEMENTS_DIR`): cada caso sin `since` debe dar el mismo HTML y CSS normalizados; en `COMPARE_STRICT`, además los mismos bytes, peticiones, handles y `$wpdb->num_queries` (F7a, criterios 1 y 2) |
+| `COMPARE_FILE`, `COMPARE_STRICT` | —, `empty,all-own` (con `WOO=1`, `woo-empty,all-own,woo-loop-filter-pro,woo-pro-existing`) | `front-budget[-modo].json` de otra corrida del mismo modo (p. ej. el ZIP 4.3.0.163 extraído en `ELEMENTS_DIR`): cada caso sin `since` debe dar el mismo HTML y CSS normalizados; en `COMPARE_STRICT`, además los mismos bytes, peticiones, handles y `$wpdb->num_queries` (F7a, criterios 1 y 2) |
+| `WOO_ZIP` | `reference/woocommerce.11.2.1.zip` | WooCommerce de `WOO=1` (ver «WooCommerce en los arneses») |
 
 | Modo | Qué hace | `expect` propio |
 |---|---|---|
@@ -213,6 +292,7 @@ OUT=/var/tmp/digi-aud-kit-envato PORT=9464 SCOPE=quick STATE=kit KIT_FIXTURE=ter
 | `MIGRATION=1` | DIGITALÍSIMO Migración activo: `bdt-navbar`, `bdt-contact-form` y `bdt-countdown` | `reason: class:` y menú, formulario y cuenta atrás funcionando |
 | `LAZY=1` | `lazy_libs` elegido en el sitio (con `THEME=1`, sobre el tema clásico; la referencia de CLS es entonces una corrida `THEME=1` en `NORMAL_FILE`) | `lottie-below` y `code-below` cargan al desplazar; `lottie-above` con CLS ≤ normal + 0,005 |
 | `V4=1` | experimento atómico activo; página `v4-only` | sin paquetes y con `elementor-frontend` (D19) |
+| `WOO=1` | WooCommerce 11.2.1 fijado y activo, tienda sin «Próximamente», dos categorías de producto con tres simples cada una y un variable con un atributo global sin muestras (`pa_digi-fb-talla`, tres variaciones; `__WC_VARIABLE__` es su ID). Sólo corren los casos que nombran `woo` (o `woo+cache`, `plugin+woo`, `v4+woo`); la página de referencia de las diferencias es `woo-empty` | `woo-empty` sin paquetes; `woo-loop-filter-pro` (filtro de taxonomía de PRO sobre un Loop Grid de productos) con `class:` y el bucle cambiado tras el clic; `woo-pro-existing` (Menú del carrito, Productos con «Elegir qué partes mostrar» y «Añadir al carrito» de PRO del variable) con `class:woocommerce-menu-cart`; `all-own` como en normal |
 | `DEFAULTS=old` | sitio instalado con 3.16.0 (historial), sin `elementor_font_display` ni experimento de iconos. Mide antes de la transición (`pre`), comprueba que la primera visita agenda el evento, ejecuta `wp-cron.php` y vuelve a medir | `swap` tras el cron; iconos sin cambio |
 | `DEFAULTS=old-applied` | `old` y «Aplicar» por la acción real (sesión, pantalla «Rendimiento», formulario con nonce) | sin Font Awesome ni `eicons`, con SVG; con `CACHE=1`, `icons` se calienta con `<i>` antes de aplicar (`warm`) |
 | `DEFAULTS=old-dirty` | `old` en una red (`http://digi-fb.test`, que Chrome y Node resuelven al puerto) con `.fa-star{}` en el CSS adicional y `svg_icons` pedido por la red | no se aplica; el hallazgo aparece en `?digi_probe=state` |
@@ -232,6 +312,18 @@ OUT=/var/tmp/digi-fb PORT=9471 BASELINE=write LIGHTHOUSE=1 bash tests/playground
 OUT=/var/tmp/digi-fb-cache PORT=9472 CACHE=1 bash tests/playground/front-budget.sh
 OUT=/var/tmp/digi-fb-lazy PORT=9473 LAZY=1 NORMAL_FILE=/var/tmp/digi-fb/front-budget.json bash tests/playground/front-budget.sh
 OUT=/var/tmp/digi-fb-apply PORT=9474 DEFAULTS=old-applied CACHE=1 bash tests/playground/front-budget.sh
+```
+
+**Línea base de F4-Woo** (V.16.3): la corrida previa se toma con el arnés de la rama sobre el asset 4.3.0.164 de la
+Release `v2026.10.22.418` (sha256 `2b3f25ab7e2200aa5bcd293c394e3b8108ced97a2ed074fd90a07ef2cb0fa60e`, el `digest` de
+GitHub), extraído en una carpeta propia, y se guarda como `front-budget-woo-4.3.0.164.json` junto a su `pages/`; la de
+4.3.0.165 la usa como `COMPARE_FILE` (los casos sin `since` deben dar el mismo HTML y CSS, y los cuatro estrictos, los
+mismos bytes, peticiones, handles y consultas):
+
+```bash
+OUT=/var/tmp/digi-f4/fb-woo-164 PORT=9471 WOO=1 ELEMENTS_DIR=/var/tmp/digi-f4/rel164/elements/digitalisimo-elements bash tests/playground/front-budget.sh
+cp /var/tmp/digi-f4/fb-woo-164/front-budget-woo.json /var/tmp/digi-f4/fb-woo-164/front-budget-woo-4.3.0.164.json
+OUT=/var/tmp/digi-f4/fb-woo PORT=9472 WOO=1 COMPARE_FILE=/var/tmp/digi-f4/fb-woo-164/front-budget-woo-4.3.0.164.json bash tests/playground/front-budget.sh
 ```
 
 `front-network.sh` (run-blueprint con Multisite, sin Chrome) cubre la red: cada paso de `front-network/probe.php` es una petición propia al sitio que le toca (front, el wp-cron de ese blog o `admin-post.php` con usuario y nonce, con `wp_redirect` y `wp_die` capturados) y `front-network/report.cjs` juzga N1–N7: herencia del sitio 2 con el evento en su blog, el sitio 1 que personaliza, el sitio 3 creado después, rechazos 403 (editor, administrador de sitio en la red, nonce de otro sitio) y redirección a la misma superficie, «Heredar de la red» sólo en la pantalla del sitio (otro blueprint comprueba el sitio único), un vaciado `elementor/core/files/clear_cache` por sitio que cambia y ninguno en los demás, y las pantallas sin «Elementor», enlaces externos ni dominios de `brand-audit/vendors.json`. La clave de privacidad `page_visits_no_consent` (F7a) recorre los mismos pasos: el sitio 1 la personaliza apagada, `post-network-privacy` la enciende en la red, los sitios 2 y 3 la heredan sin evento de transición ni vaciado, y su casilla y la sección «Privacidad» aparecen en las tres pantallas, con «Heredar de la red» sólo en el sitio de la red.
@@ -258,7 +350,7 @@ Todos los arneses cargan `playground-cleanup.sh`: al salir borran las copias tem
 
 `conditions.sh` crea páginas reales con los tres motores (Display Conditions nativo, reglas propias `digitalisimo_visibility_*` y reglas heredadas `ep_display_conditions_*`), en widgets y en contenedores con hijos, con «Mostrar» y «Ocultar», con reglas de sesión, tipo de contenido, página especial y URL, combinadas con el enlace del elemento y las figuras, dentro de plantillas incrustadas (acordeón propio y shortcode de plantilla), y las pinta como visitante, con sesión, otra vez como visitante y en la vista previa del editor, con la caché de elementos de Elementor desactivada y activada. Comprueba que lo oculto no aparece en el HTML y lo visible sí; que quien llena la caché primero (un administrador) no decide lo que ven los visitantes; y que quien llena la caché primero (un administrador) no decide lo que ven los visitantes. `probe-save.php`, en una segunda petición PHP (como el guardado AJAX real), guarda cada página desde el editor como administrador con la caché activa y comprueba que el primer visitante no ve lo que sólo él podía ver. `probe-cache.php` se ejecuta en un proceso PHP limpio por página (una petición de visitante con su consulta principal y `template_redirect`) y comprueba que la página con elementos condicionados pide quedar fuera de la caché de página antes de la salida (`DONOTCACHEPAGE` y, si el SAPI las expone, las cabeceras HTTP) y que una página sin condiciones no lo pide.
 
-Las siete condiciones de F7a (cookie, «Visitó la página», campo, campo del usuario, autor, búsqueda y existencias de productos) se pintan en las mismas dos cachés, como visitante y con sesión, en cada variante de cookie y de consulta, en la vista previa del editor y después como visitante. Comprueban que una lista vacía nunca se cumple, que el centinela `digitalisimo_special_page` deja igual un grupo y que ningún valor (cookie, meta o término buscado) llega al HTML. En `probe-cache.php`, cookie, visitas y existencias sacan la página de la caché de página y las otras cuatro no. Con `WOO=1` el blueprint instala WooCommerce y las existencias se miden con dos productos reales; sin WooCommerce no se cumplen nunca.
+Las siete condiciones de F7a (cookie, «Visitó la página», campo, campo del usuario, autor, búsqueda y existencias de productos) se pintan en las mismas dos cachés, como visitante y con sesión, en cada variante de cookie y de consulta, en la vista previa del editor y después como visitante. Comprueban que una lista vacía nunca se cumple, que el centinela `digitalisimo_special_page` deja igual un grupo y que ningún valor (cookie, meta o término buscado) llega al HTML. En `probe-cache.php`, cookie, visitas y existencias sacan la página de la caché de página y las otras cuatro no. Con `WOO=1` el blueprint monta WooCommerce 11.2.1 fijado y las existencias se miden con dos productos reales; sin WooCommerce no se cumplen nunca.
 
 `legacy-repair.sh` reproduce el caso real de una portada estática con una regla heredada «ocultar en la página de inicio estática» y la opción `element_pack_elementor_extend` guardada sin la clave de Visibility Controls (activa por defecto en Element Pack): el motor heredado oculta el título en la portada y lo muestra en una interna, la conversión conserva el comportamiento, un documento convertido que perdió las reglas se repara desde su copia original (`Migration::repair_conditions`) y, con la extensión apagada expresamente, la conversión guarda las reglas desactivadas; un documento que sólo conserva un widget sin adaptador se cuenta aparte (`Migration::classify`) y no vuelve a entrar en los lotes; las revisiones no entran en pendientes, una página sobrescrita por la conversión de una revisión se detecta (`Migration::overwritten_parents`) y se recupera desde su última revisión guardada, y convertir una revisión escribe en la revisión y no en la página; sin revisión guardada (autoguardado de una plantilla) se recupera desde la copia original o se da por revisada.
 
@@ -274,7 +366,7 @@ Las siete condiciones de F7a (cookie, «Visitó la página», campo, campo del u
 | `CORE=plugin ELEMENTOR_PIN=…` | DS1–DS8 rápidos y DS10 (con una versión < 4.3, sólo DS10) | plugin Elementor de downloads.wordpress.org; compara cada comprobación con el `summary.json` del modo normal (`COMPARE_SUMMARY`, por defecto `/var/tmp/digi-f7a/design-normal/summary.json`) |
 | `V4=1` | DS11 | experimento atómico y caché de elementos activos |
 | `NET=1` | DS12 | red de subdirectorios (`/uno/`, `/dos/`, IDs repetidos) servida como `http://playground.test`, que Chrome resuelve con `--host-resolver-rules` |
-| `WOO=1` | DS1 con un widget de WooCommerce | WooCommerce de wordpress.org |
+| `WOO=1` | DS1 con un widget de WooCommerce | WooCommerce 11.2.1 fijado (ver «WooCommerce en los arneses») |
 
 `SCENARIOS=DS1,DS5` elige escenarios y `QUICK=1` mide un solo ancho (1280 px) sin abrir el editor. `KEEP=1` deja el sitio arrancado y escribe `$OUT/env.json`, con el que `ENV_FILE=$OUT/env.json SCENARIOS=DS3 node tests/playground/design/run.cjs` corre escenarios a mano contra él (la sonda se carga desde la carpeta montada, así que un arreglo del arnés llega sin preparar el sitio otra vez). DS7 monta Hello 3.5.1 desde `reference/hello-elementor.3.5.1.zip` (copia oficial anotada, comprobada por su sha256) y cambia de tema sin `switch_theme()`: volver desde Hello con la activación nativa dejaría el tema en paridad. DS13 extrae el asset `digitalisimo-elements-4.3.0.163.zip` de la Release `v2026.10.21.417` (`OLD_ZIP`, comprobado por su sha256 y `unzip -t`) y lo instala sobre el resultado reemplazando la copia montada entre dos peticiones, como una actualización en el sitio; con `LIVE=1` no se corre.
 

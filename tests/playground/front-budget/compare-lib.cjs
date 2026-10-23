@@ -11,9 +11,12 @@ const crypto = require('crypto');
 
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
-// Origen del Playground (`http://127.0.0.1:<puerto>`, también escapado en JSON): la referencia y la corrida actual
-// pueden levantarse en puertos distintos del rango de front-budget.
-const normalizeOrigin = (s) => s.replace(/https?:(\\?\/\\?\/)(?:127\.0\.0\.1|localhost)(?::\d+)?(?=[\\/"'\s)?#]|$)/g, 'http:$1ORIGEN');
+// Origen del Playground (`http://127.0.0.1:<puerto>`, también escapado en JSON y codificado en una URL, como el
+// `?url=` de los enlaces oEmbed): la referencia y la corrida actual pueden levantarse en puertos distintos del rango
+// de front-budget.
+const normalizeOrigin = (s) => s
+  .replace(/https?:(\\?\/\\?\/)(?:127\.0\.0\.1|localhost)(?::\d+)?(?=[\\/"'\s)?#]|$)/g, 'http:$1ORIGEN')
+  .replace(/https?%3A%2F%2F(?:127\.0\.0\.1|localhost)(?:%3A\d+)?(?=%2F|[&"'\s]|$)/gi, 'http%3A%2F%2FORIGEN');
 
 // Lo que el widget de horario (business-hours) calcula con la hora del servidor: el reloj, la fecha, `data-today` y
 // el estado abierto/cerrado con su alternativa. Los dos textos del estado se conservan, ordenados, para que un
@@ -44,7 +47,12 @@ function normalizeHtml(html, volatile = []) {
     .replace(/(<input\b[^>]*\bvalue=")[A-Za-z0-9_-]{10,}("[^>]*\bname="[^"]*(?:nonce|token)[^"]*")/gi, '$1N$2')
     // Claves JSON o atributos `data-*` de token (`"…token":"…"`, `data-…-token="…"`).
     .replace(/(\\?"[A-Za-z_-]*token\\?"\s*:\s*\\?")[A-Za-z0-9_.-]{10,}(\\?")/gi, '$1N$2')
-    .replace(/(\bdata-[a-z-]*token=")[A-Za-z0-9_.-]{10,}(")/gi, '$1N$2');
+    .replace(/(\bdata-[a-z-]*token=")[A-Za-z0-9_.-]{10,}(")/gi, '$1N$2')
+    // WooCommerce (WOO=1): las claves del carrito en `sessionStorage` son el md5 del blog y de la URL del sitio, que
+    // cambia con el puerto (`wc_cart_fragments_params`).
+    .replace(/\b(wc_cart_hash_|wc_fragments_)[a-f0-9]{32}\b/g, '$1H')
+    // y el campo de cantidad lleva un `id` de `uniqid( 'quantity_' )` (la hora en hexadecimal).
+    .replace(/\bquantity_[a-f0-9]{13}\b/g, 'quantity_U');
   for (const re of volatile || []) out = out.replace(new RegExp(re, 'g'), '«volátil»');
   return out;
 }

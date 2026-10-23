@@ -3833,13 +3833,13 @@
    {
     "type": "taxonomy-filter",
     "settings": {
-     "selected_element": "fbwloop1",
+     "selected_element": "fbwloop",
      "taxonomy": "product_cat"
     }
    },
    {
     "type": "loop-grid",
-    "id": "fbwloop1",
+    "id": "fbwloop",
     "settings": {
      "_skin": "product",
      "template_id": "__LOOP__",
