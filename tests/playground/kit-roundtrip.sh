@@ -13,12 +13,15 @@
 #   SCENARIOS=R1,R4      escenarios (por defecto todos: R1,R1c,R2,R3,R3b,R4,R4v4,R5,R6,R7,R8,R9,R10; con SLOW=1, R13)
 #   QUICK=1              R1 (sólo REST), R4 y R9: iteración local, no vale para la aceptación
 #   CORE=bundled|plugin  núcleo incluido (por defecto) o el plugin Elementor de wordpress.org instalado y activo
-#   WOO=0|1              WooCommerce en A y B (plantillas de producto, productos, variaciones e imagen de categoría)
+#   WOO=0|1              WooCommerce en A y B (plantillas de producto, productos, variaciones e imagen de categoría): el
+#                        fijado de tests/playground/woocommerce-pin.sh (11.2.1 de reference/, con su sha256, montado en los
+#                        tres sitios; WOO_ZIP para otra copia anotada); sin copia local, la última de wordpress.org
 #   SLOW=0|1             host de demostración lento y kit de 100 imágenes (A13: ninguna petición REST dura más de 25 s)
 #   KIT_GOLDEN=write     reescribe tests/playground/kit-roundtrip/golden/ con las firmas de esta corrida
 #   PREPARE=a|b          sólo prepara ese sitio y lo deja arrancado (para revisar la preparación; Ctrl+C para salir)
 #   OUT, TMPDIR          resultados (por defecto /var/tmp/digi-k/kit-roundtrip) y temporales de Playground (2 GB libres)
-#   PORT_A, PORT_B, PORT_NET   9461, 9462 y 9463; nunca los de otros arneses (9431, 9433, 9435, 9441, 9451, 9453, 9455, 9457)
+#   PORT_A, PORT_B, PORT_NET   9461, 9462 y 9463; nunca los de otros arneses (9431, 9433, 9435, 9441, 9451, 9453, 9455, 9457,
+#                              9481–9489 y 9490–9499)
 #   WP_CLI_PHAR          wp-cli.phar local; si no, se descarga una vez a $KIT_CACHE (la misma copia que usa Playground)
 #   OLD_ZIP, OLD_ELEMENTS  ZIP o carpeta de DIGITALÍSIMO Elements 4.3.0.163 para el paso de R4 con la versión anterior
 #   LIVE=1               monta digitalisimo-elements/ y digitalisimo-theme/ del árbol de trabajo; por defecto se monta una
@@ -43,7 +46,7 @@ case "$PREPARE" in ''|a|b) ;; *) echo "PREPARE debe ser a o b"; exit 1;; esac
 
 # Puertos: nunca los de otros arneses, y sólo se libera uno ocupado por una corrida anterior de este mismo arnés.
 for port in "$PORT_A" "$PORT_B" "$PORT_NET"; do
-  case "$port" in 9431|9433|9435|9441|9451|9453|9455|9457) echo "El puerto $port es de otro arnés: usa 9461, 9462 y 9463"; exit 1;; esac
+  case "$port" in 9431|9433|9435|9441|9451|9453|9455|9457|948[1-9]|949[0-9]) echo "El puerto $port es de otro arnés: usa 9461, 9462 y 9463"; exit 1;; esac
 done
 [ "$PORT_A" != "$PORT_B" ] && [ "$PORT_A" != "$PORT_NET" ] && [ "$PORT_B" != "$PORT_NET" ] || { echo 'PORT_A, PORT_B y PORT_NET deben ser distintos'; exit 1; }
 free_port() {
@@ -72,7 +75,7 @@ for dir in "$TMPDIR" "$OUT"; do
 done
 
 rm -rf "$OUT/a" "$OUT/b" "$OUT/net" "$OUT/shared" "$OUT/shots" "$OUT/scenarios"
-rm -f "$OUT/summary.json" "$OUT/run.log"
+rm -f "$OUT/summary.json" "$OUT/run.log" "$OUT/woocommerce.json"
 mkdir -p "$OUT/shared/exports" "$OUT/shots" "$OUT/scenarios"
 
 # Fixtures sintéticos deterministas (tests/sources/kits/) y medios remotos de demostración para net-sim.php.
@@ -117,6 +120,13 @@ if [ -z "${OLD_ELEMENTS:-}" ] && { [ -z "$SCENARIOS" ] || [[ ",$SCENARIOS," == *
   OLD_ELEMENTS="$OUT/old/digitalisimo-elements"
 fi
 export OLD_ELEMENTS="${OLD_ELEMENTS:-}"
+
+# WOO=1: WooCommerce fijado, extraído una vez en $OUT/woocommerce y montado en A, B y la red (run.cjs lee WOO_DIR).
+export WOO_DIR=''
+if [ "$WOO" = 1 ]; then
+  . "$ROOT/tests/playground/woocommerce-pin.sh"
+  woo_pin "$OUT/woocommerce" "$OUT/woocommerce.json" || exit 1
+fi
 
 TOKEN="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 export TOKEN

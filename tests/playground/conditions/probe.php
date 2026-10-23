@@ -388,7 +388,7 @@ foreach ( array( 'disable', '24' ) as $cache ) {
 		$result[ 'cache-' . $cache ][ $name ] = $entry;
 	}
 }
-$result['_f7a'] = array( 'woo' => $f7a_woo, 'visitada' => $f7a_visited, 'productos' => $f7a_products );
+$result['_f7a'] = array( 'woo' => $f7a_woo, 'visitada' => $f7a_visited, 'productos' => $f7a_products, 'wc_version' => defined( 'WC_VERSION' ) ? WC_VERSION : null );
 
 // Señales a la caché de página: se miden en un proceso limpio por página (probe-cache.php), como en WordPress.
 $result['no-cache'] = array();

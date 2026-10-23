@@ -31,6 +31,8 @@ const SCENARIOS = (process.env.SCENARIOS || ALL_SCENARIOS.join(',')).split(',').
 const issues = [];
 const accepted = [];
 const report = { base, woo: WOO, quick: QUICK, scenarios: {}, phases: {}, issues, accepted, unusedKnown: [] };
+// De dónde salió WooCommerce (tests/playground/woocommerce-pin.sh): la copia fijada de reference/ o wordpress.org.
+if (WOO) { try { report.woocommerce = JSON.parse(fs.readFileSync(path.join(OUT, 'woocommerce.json'), 'utf8')); } catch (e) { report.woocommerce = null; } }
 let known = { entries: [] };
 
 function log(...args) { console.log(...args); }

@@ -265,6 +265,10 @@ foreach ( $templates as $template ) {
 	$documents[] = array( 'type' => $template['type'], 'post_type' => 'elementor_library', 'slug' => $template['slug'], 'title' => $template['title'], 'elements' => $template['elements'], 'settings' => $template['settings'] ?? array(), 'conditions' => $template['conditions'] ?? array() );
 }
 foreach ( (array) $cases['widgets'] as $type => $case ) {
+	// «woo»: widget de WooCommerce (F4-Woo, V.9): sin WOO=1 su tipo no existe y la página no se crea.
+	if ( ! empty( $case['woo'] ) && empty( $digi_opts['woo'] ) ) {
+		continue;
+	}
 	$slug        = 'digi-k-w-' . preg_replace( '/^digitalisimo-/', '', $type );
 	$widget      = array( 'id' => digi_k_eid( 'e', $slug ), 'elType' => 'widget', 'widgetType' => $type, 'settings' => digi_k_widget_settings( $case, $budget ), 'elements' => array() );
 	$documents[] = array( 'type' => 'wp-page', 'post_type' => 'page', 'slug' => $slug, 'title' => 'Widget ' . $type, 'elements' => array( array( 'id' => digi_k_eid( 'c', $slug ), 'elType' => 'container', 'settings' => array(), 'elements' => array( $widget ) ) ) );

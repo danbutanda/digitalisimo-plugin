@@ -10,7 +10,9 @@
 # y capturas $OUT/shots/{A,B,D}-<escenario>-<url>-<ancho>.png.
 # El tema nunca se monta desde el repositorio: se construye con scripts/build-packages.sh y se monta la copia extraída.
 # Uso: bash tests/playground/theme-switch.sh
-#   WOO=1|0         WooCommerce instalado (1 por defecto y obligatorio para la aceptación; 0 sólo para corridas rápidas)
+#   WOO=1|0         WooCommerce instalado (1 por defecto y obligatorio para la aceptación; 0 sólo para corridas rápidas): el
+#                   fijado de tests/playground/woocommerce-pin.sh (11.2.1 de reference/, montado; WOO_ZIP para otra copia
+#                   anotada); sin copia local, la última de wordpress.org, anotado en theme-switch.json
 #   SCENARIOS=S1,S3 escenarios (por defecto S1,S2,S3,S3c,S3h,S4,S5); SKIP_E=1 omite la fase E
 #   QUICK=1         menos URL y anchos (iteración local; no vale para la aceptación)
 #   OUT, PORT       carpeta de resultados (/tmp/digi-theme-switch) y puerto del servidor (9453)
@@ -54,7 +56,7 @@ fi
 sha256sum "$HELLO_ZIP" | grep -q '^c166fdcb091a' || { echo "$HELLO_ZIP no es Hello Elementor 3.5.1"; exit 1; }
 
 rm -rf "$OUT/shots" "$OUT/pkg" "$OUT/themes" "$OUT/child"
-rm -f "$OUT"/*.jsonl "$OUT/fatal.log" "$OUT/setup-error.txt" "$OUT/theme-switch.json" "$OUT/token"
+rm -f "$OUT"/*.jsonl "$OUT/fatal.log" "$OUT/setup-error.txt" "$OUT/theme-switch.json" "$OUT/token" "$OUT/woocommerce.json"
 # Paquete del tema con su guarda (THEME PACKAGE CHECK) y copia extraída fuera del repositorio (RL-6).
 bash "$ROOT/scripts/build-packages.sh" "$OUT/pkg" digitalisimo-theme > "$OUT/build.log" 2>&1 || { cat "$OUT/build.log"; exit 1; }
 grep -q 'THEME PACKAGE CHECK: PASS' "$OUT/build.log" || { echo 'El paquete del tema no pasó su guarda:'; cat "$OUT/build.log"; exit 1; }
@@ -67,7 +69,13 @@ head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$OUT/token"
 TOKEN="$(cat "$OUT/token")"
 
 WOO_STEP=''
-[ "$WOO" = 1 ] && WOO_STEP='{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"woocommerce"},"options":{"activate":true}},'
+WOO_MOUNT=()
+if [ "$WOO" = 1 ]; then
+  . "$ROOT/tests/playground/woocommerce-pin.sh"
+  woo_pin "$OUT/woocommerce" "$OUT/woocommerce.json" || exit 1
+  WOO_STEP="$(woo_step true),"
+  [ -n "$(woo_mount)" ] && WOO_MOUNT=("$(woo_mount)")
+fi
 cat > "$OUT/blueprint.json" <<JSON
 {"steps":[$WOO_STEP
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"}]}
@@ -80,7 +88,7 @@ $CLI server --port="$PORT" --workers=1 --site-url="http://127.0.0.1:$PORT" --blu
   --mount="$ROOT/digitalisimo-seo:/wordpress/wp-content/plugins/digitalisimo-seo" \
   --mount="$ROOT/digitalisimo-tools:/wordpress/wp-content/plugins/digitalisimo-tools" \
   --mount="$OUT/themes/digitalisimo-theme:/wordpress/wp-content/themes/digitalisimo-theme" \
-  --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/server.log" 2>&1 &
+  --mount="$OUT:/wordpress/wp-content/probe" "${WOO_MOUNT[@]}" > "$OUT/server.log" 2>&1 &
 SERVER=$!
 stop_server() { kill $SERVER 2>/dev/null || true; for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done; }
 trap 'stop_server; playground_cleanup' EXIT

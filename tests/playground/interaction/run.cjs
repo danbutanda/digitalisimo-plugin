@@ -363,6 +363,9 @@ checks['digitalisimo-fancy-tabs'] = async (page) => {
     await page.close();
   }
   await browser.close();
-  require('fs').writeFileSync(`${process.env.OUT || '/tmp'}/interaction.json`, JSON.stringify(results, null, 2));
+  // De dónde salió WooCommerce (tests/playground/woocommerce-pin.sh): la copia fijada de reference/ o wordpress.org.
+  let woocommerce = null;
+  try { woocommerce = JSON.parse(require('fs').readFileSync(`${process.env.OUT || '/tmp'}/woocommerce.json`, 'utf8')); } catch (e) { /* sin datos */ }
+  require('fs').writeFileSync(`${process.env.OUT || '/tmp'}/interaction.json`, JSON.stringify({ woocommerce, ...results }, null, 2));
   process.exit(failed ? 1 : 0);
 })();

@@ -23,6 +23,8 @@ const TOKEN = process.env.TOKEN;
 const CLI = (process.env.PLAYGROUND_CLI || 'npx --yes @wp-playground/cli@3.1.56').split(/\s+/);
 const CORE = process.env.CORE || 'bundled';
 const WOO = process.env.WOO === '1';
+// WooCommerce fijado (woocommerce-pin.sh): carpeta extraída que se monta; vacía = la última de wordpress.org.
+const WOO_DIR = process.env.WOO_DIR || '';
 const SLOW = process.env.SLOW === '1';
 const QUICK = process.env.QUICK === '1';
 const GOLDEN = process.env.KIT_GOLDEN === 'write';
@@ -42,7 +44,7 @@ function blueprint(site, { network = false } = {}) {
   const steps = [];
   if (network) steps.push({ step: 'enableMultisite' });
   if (CORE === 'plugin') steps.push({ step: 'installPlugin', pluginData: { resource: 'wordpress.org/plugins', slug: 'elementor' }, options: { activate: false } });
-  if (WOO) steps.push({ step: 'installPlugin', pluginData: { resource: 'wordpress.org/plugins', slug: 'woocommerce' }, options: { activate: false } });
+  if (WOO && !WOO_DIR) steps.push({ step: 'installPlugin', pluginData: { resource: 'wordpress.org/plugins', slug: 'woocommerce' }, options: { activate: false } });
   steps.push({ step: 'runPHP', code: "<?php require '/wordpress/wp-content/probe/activate.php';" });
   steps.push({ step: 'runPHP', code: `<?php require '/wordpress/wp-content/probe/${site === 'a' ? 'setup-a' : network ? 'setup-net' : 'setup-b'}.php';` });
   const file = path.join(OUT, site, 'blueprint.json');
@@ -69,6 +71,7 @@ async function startSite(site, { network = false, fresh = true, elements = '' } 
     `--mount=${path.join(SRC, 'digitalisimo-theme')}:/wordpress/wp-content/themes/digitalisimo-theme`,
     `--mount=${dir}:/wordpress/wp-content/probe`,
     `--mount=${path.join(OUT, 'shared')}:/wordpress/wp-content/digi-shared`];
+  if (WOO && WOO_DIR) args.push(`--mount=${WOO_DIR}:/wordpress/wp-content/plugins/woocommerce`);
   const logFile = fs.openSync(path.join(dir, 'server.log'), 'w');
   const child = spawn(CLI[0], args, { stdio: ['ignore', logFile, logFile], detached: true, env: process.env });
   servers[site] = child;

@@ -27,6 +27,8 @@ const log = (...a) => { const line = a.join(' '); console.log(line); fs.appendFi
 
 // ── Resultados ─────────────────────────────────────────────────────────────────────────────────────────────────
 const summary = { harness: 'design', mode: MODE.label, git: ENV.GIT_SHA, elements_sha: ENV.ELEMENTS_SHA, quick: QUICK, started: new Date(+ENV.STARTED * 1000).toISOString(), scenarios: {} };
+// WOO=1: de dónde salió WooCommerce (tests/playground/woocommerce-pin.sh), la copia fijada de reference/ o wordpress.org.
+if (MODE.woo) { try { summary.woocommerce = JSON.parse(fs.readFileSync(path.join(OUT, 'woocommerce.json'), 'utf8')); } catch (e) { summary.woocommerce = null; } }
 let current = null;
 function scenario(name) {
   current = summary.scenarios[name] = summary.scenarios[name] || { status: 'pass', checks: [], notes: [], ms: 0 };

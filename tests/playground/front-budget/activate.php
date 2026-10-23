@@ -48,6 +48,14 @@ if ( 'plugin' === ( $mode['core'] ?? 'bundled' ) ) {
 	}
 }
 $plugins = array( 'digitalisimo-elements/pro-elements.php', 'digi-fb-fake-addon/digi-fb-fake-addon.php' );
+// WOO=1 (F4-Woo): WooCommerce montado (o instalado sin activar por el blueprint) se activa antes que el constructor.
+if ( ! empty( $mode['woo'] ) ) {
+	if ( ! file_exists( WP_PLUGIN_DIR . '/woocommerce/woocommerce.php' ) ) {
+		digi_fb_fail( 'WOO=1: WooCommerce no está montado ni instalado' );
+	} else {
+		array_unshift( $plugins, 'woocommerce/woocommerce.php' );
+	}
+}
 if ( ! empty( $mode['seo'] ) ) {
 	$plugins[] = 'digitalisimo-seo/digitalisimo-integrations.php';
 }
@@ -113,6 +121,14 @@ if ( ! empty( $mode['seo'] ) ) {
 		$seo['perf_js_jquery_mode'] = 'defer';
 	}
 	update_option( 'digitalisimo_integrations_options', $seo );
+}
+if ( ! empty( $mode['woo'] ) ) {
+	// Tienda abierta (sin «Próximamente») y sin el asistente: las páginas de la tienda se sirven a los visitantes.
+	update_option( 'woocommerce_coming_soon', 'no' );
+	update_option( 'woocommerce_store_pages_only', 'no' );
+	update_option( 'woocommerce_onboarding_profile', array( 'skipped' => true ) );
+	update_option( 'woocommerce_show_marketplace_suggestions', 'no' );
+	update_option( 'woocommerce_allow_tracking', 'no' );
 }
 update_option( 'elementor_onboarded', true );
 update_option( 'users_can_register', 1 );

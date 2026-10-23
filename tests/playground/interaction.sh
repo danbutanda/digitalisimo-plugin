@@ -8,6 +8,8 @@
 # Uso: bash tests/playground/interaction.sh   (PUPPETEER_PATH apunta al node_modules con puppeteer-core)
 # CORE=bundled no instala el plugin Elementor: todo corre sobre el núcleo incluido en DIGITALÍSIMO Elements, que se
 # activa con él, y además se abre el editor de Elementor como administrador (sin errores ni recursos 404).
+# WooCommerce es el fijado de tests/playground/woocommerce-pin.sh (11.2.1 de reference/, con su sha256, montado; WOO_ZIP
+# para otra copia anotada); sin copia local se instala la última de wordpress.org y interaction.json lo anota.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 . "$ROOT/tests/playground/playground-cleanup.sh"
@@ -16,7 +18,12 @@ PORT="${PORT:-9431}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 PUPPETEER_PATH="${PUPPETEER_PATH:-$(ls -d "$HOME"/.npm/_npx/*/node_modules 2>/dev/null | while read -r d; do [ -d "$d/puppeteer-core" ] && echo "$d" && break; done)}"
 [ -n "$PUPPETEER_PATH" ] || { echo "No se encontró puppeteer-core: exportar PUPPETEER_PATH"; exit 1; }
-mkdir -p "$OUT" && rm -f "$OUT"/*.png "$OUT/interaction.json" "$OUT/setup-error.txt" "$OUT/fatal.log" "$OUT/transition.json"
+mkdir -p "$OUT" && rm -f "$OUT"/*.png "$OUT/interaction.json" "$OUT/setup-error.txt" "$OUT/fatal.log" "$OUT/transition.json" "$OUT/woocommerce.json"
+. "$ROOT/tests/playground/woocommerce-pin.sh"
+woo_pin "$OUT/woocommerce" "$OUT/woocommerce.json" || exit 1
+WOO_STEP="$(woo_step true)"
+WOO_MOUNT=()
+[ -n "$(woo_mount)" ] && WOO_MOUNT=("$(woo_mount)")
 cp "$ROOT/tests/playground/interaction/cases.json" "$OUT/cases.json"
 cp "$ROOT/tests/playground/interaction/setup.php" "$OUT/setup.php"
 cp "$ROOT/tests/playground/interaction/transition.php" "$OUT/transition.php"
@@ -24,7 +31,7 @@ ELEMENTOR_STEP='{"step":"installPlugin","pluginData":{"resource":"wordpress.org/
 [ "${CORE:-}" = "bundled" ] && ELEMENTOR_STEP=''
 cat > "$OUT/blueprint.json" <<JSON
 {"steps":[$ELEMENTOR_STEP
-{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"woocommerce"},"options":{"activate":true}},
+$WOO_STEP,
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"},
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/transition.php';"}]}
 JSON
@@ -34,7 +41,7 @@ sleep 1
 $CLI server --port="$PORT" --site-url="http://127.0.0.1:$PORT" --blueprint="$OUT/blueprint.json" \
   --mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" \
   --mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration" \
-  --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/server.log" 2>&1 &
+  --mount="$OUT:/wordpress/wp-content/probe" "${WOO_MOUNT[@]}" > "$OUT/server.log" 2>&1 &
 SERVER=$!
 stop_server() { kill $SERVER 2>/dev/null || true; for i in 1 2 3; do fuser -k -n tcp "$PORT" >/dev/null 2>&1 || break; sleep 1; done; }
 trap 'stop_server; playground_cleanup' EXIT

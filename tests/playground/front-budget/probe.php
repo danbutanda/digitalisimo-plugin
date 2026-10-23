@@ -115,6 +115,7 @@ function digi_fb_probe_state() {
 		'multisite'    => is_multisite(),
 		'elementor'    => defined( 'ELEMENTOR_VERSION' ) ? ELEMENTOR_VERSION : '',
 		'elements'     => defined( 'ELEMENTOR_PRO_VERSION' ) ? ELEMENTOR_PRO_VERSION : '',
+		'woocommerce'  => defined( 'WC_VERSION' ) ? WC_VERSION : null,
 		'bundled'      => class_exists( 'Digitalisimo_Elements_Core' ) && Digitalisimo_Elements_Core::bundled(),
 		'module'       => class_exists( $ns . 'Module' ),
 		'gate'         => class_exists( $ns . 'Pro_Gate' ),

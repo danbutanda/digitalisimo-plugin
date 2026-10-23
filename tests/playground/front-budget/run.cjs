@@ -27,7 +27,11 @@ const NORMAL_FILE = process.env.NORMAL_FILE || '';
 // existía entonces (sin `since`) debe dar el mismo HTML y el mismo CSS, salvo `ver=` y nonces; en COMPARE_STRICT
 // (por defecto empty y all-own), además los mismos bytes, peticiones, handles y consultas (F7a, criterios 1 y 2).
 const COMPARE_FILE = process.env.COMPARE_FILE || '';
-const COMPARE_STRICT = (process.env.COMPARE_STRICT || 'empty,all-own').split(',').map((s) => s.trim()).filter(Boolean);
+// WOO=1 (F4-Woo, V.16.3 y criterios 1 y 2): la página de referencia es `woo-empty` y los casos estrictos, los cuatro
+// que existían en 4.3.0.164.
+const WOO = PARTS.includes('woo');
+const EMPTY = WOO ? 'woo-empty' : 'empty';
+const COMPARE_STRICT = (process.env.COMPARE_STRICT || (WOO ? 'woo-empty,all-own,woo-loop-filter-pro,woo-pro-existing' : 'empty,all-own')).split(',').map((s) => s.trim()).filter(Boolean);
 const PAGES_DIR = path.join(OUT, 'pages');
 const MODE = JSON.parse(fs.readFileSync(path.join(OUT, 'mode.json'), 'utf8'));
 const DEFAULTS = MODE.defaults || '';
@@ -529,6 +533,11 @@ async function lighthouse(url, wsEndpoint) {
   const skipped = Object.keys(cases).filter((s) => cases[s].pending).map((s) => `${s} (${cases[s].pending.slice(0, 60)}…)`);
   console.log(`modo ${LABEL} · ${slugs.length} casos${ONLY.length ? ' (CASES)' : ''}${skipped.length ? ` · omitidos: ${skipped.join(', ')}` : ''}`);
   const summary = { mode: LABEL, parts: PARTS, elements: { dir: process.env.ELEMENTS_DIR, version: process.env.ELEMENTS_VERSION, sha: process.env.ELEMENTS_SHA }, git: process.env.GIT_SHA, expect: EXPECT, started: new Date(+process.env.STARTED * 1000).toISOString(), states: {} };
+  // WOO=1: de dónde salió WooCommerce (woocommerce-pin.sh) y la versión que cargó el sitio.
+  if (WOO) {
+    try { summary.woocommerce = JSON.parse(fs.readFileSync(path.join(OUT, 'woocommerce.json'), 'utf8')); } catch (e) { summary.woocommerce = { source: null, note: `sin woocommerce.json: ${e.message}` }; }
+    if (summary.woocommerce.source !== 'reference') notes.push(`WooCommerce: ${summary.woocommerce.note}`);
+  }
 
   // Estado previo: la sonda, la primera visita (agenda la transición) y, en los DEFAULTS, la medición previa.
   summary.states.initial = await probe('state');
@@ -590,11 +599,16 @@ async function lighthouse(url, wsEndpoint) {
     }
   } catch (e) { notes.push(`queries.jsonl: ${e.message}`); }
   summary.states.final = await probe('state');
+  if (WOO) {
+    summary.woocommerce.loaded = summary.states.final.woocommerce || null;
+    if (!summary.woocommerce.loaded) problem('woo: WooCommerce no está cargado en el sitio');
+    else if (summary.woocommerce.version && summary.woocommerce.loaded !== summary.woocommerce.version) problem(`woo: el sitio cargó WooCommerce ${summary.woocommerce.loaded} y se montó ${summary.woocommerce.version}`);
+  }
 
   // Diferencias con la página vacía de esta corrida (CLS relativo, §5.4).
-  const empty = results.empty || {};
+  const empty = results[EMPTY] || {};
   for (const r of Object.values(results)) {
-    if (!r.ok || r.slug === 'empty' || !empty.ok) continue;
+    if (!r.ok || r.slug === EMPTY || !empty.ok) continue;
     r.delta = { requests: r.requests - empty.requests, bytes: r.bytes - empty.bytes, css: r.css - empty.css, js: r.js - empty.js, img: r.img - empty.img, third: r.bytesThird - empty.bytesThird, nodes: r.nodes - empty.nodes, cls: Math.round((r.cls - empty.cls) * 1000) / 1000 };
   }
   if (LIGHTHOUSE) {

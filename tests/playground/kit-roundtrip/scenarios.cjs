@@ -27,6 +27,8 @@ const summary = {
   branch: '',
   date: new Date().toISOString(),
   options: { core: CORE, woo: WOO, slow: SLOW, quick: QUICK, scenarios: SCENARIOS },
+  // WOO=1: de dónde salió WooCommerce (tests/playground/woocommerce-pin.sh), la copia fijada de reference/ o wordpress.org.
+  woocommerce: WOO ? (() => { try { return JSON.parse(fs.readFileSync(path.join(OUT, 'woocommerce.json'), 'utf8')); } catch (e) { return null; } })() : null,
   scenarios: {},
   max_rest_ms: 0,
   acceptance: {},

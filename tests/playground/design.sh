@@ -31,6 +31,8 @@
 #   OLD_ZIP             ZIP 4.3.0.163 para DS13 (por defecto la copia de /var/tmp/digi-f7a/rel163/zip o se descarga);
 #                       se comprueba su sha256
 #   HELLO_ZIP           Hello 3.5.1 (reference/hello-elementor.3.5.1.zip, también la del worktree principal)
+#   WOO_ZIP             WooCommerce de WOO=1 (tests/playground/woocommerce-pin.sh: por defecto 11.2.1 de reference/, con su
+#                       sha256, montado); sin copia local, la última de wordpress.org, anotado en summary.json
 #   OUT, TMPDIR         resultados (por defecto /var/tmp/digi-f7a/design-<modo>) y temporales (/var/tmp/digi-f7a/tmp)
 #   PORT                9481 (sitio individual) o 9482 (NET=1); se rechazan los de los demás arneses
 #   LIVE=1              monta el árbol de trabajo (DS13 queda fuera: reemplaza la copia montada)
@@ -63,7 +65,7 @@ if [ -n "$NET" ]; then PORT="${PORT:-9482}"; SITE_HOST="playground.test"; else P
 # Puertos: nunca los de otros arneses (6.4) ni los que usan a la vez otros agentes; sólo se libera uno ocupado por una
 # corrida anterior de este mismo arnés en este mismo $OUT.
 case "$PORT" in
-  9431|9433|9435|9441|9445|9448|9449|9451|9453|9454|9455|9456|9457|946[0-9]|947[0-9]) echo "El puerto $PORT es de otro arnés: usa 9481–9489"; exit 1;;
+  9431|9433|9435|9441|9445|9448|9449|9451|9453|9454|9455|9456|9457|946[0-9]|947[0-9]|949[0-9]) echo "El puerto $PORT es de otro arnés: usa 9481–9489"; exit 1;;
 esac
 free_port() {
   local port="$1" pids pid cmd
@@ -90,6 +92,14 @@ rm -f "$OUT"/{setup-error.txt,ready.txt,fatal.log,php-errors.log,server.log,summ
 rm -rf "$OUT/shots" && mkdir -p "$OUT/shots"
 cp "$D"/{setup.php,lib.php,probe.php,cases.json,svg-valida.svg,svg-hostil.svg} "$OUT/"
 cp "$ROOT/tests/sources/design/presets.json" "$ROOT/tests/sources/design/gradients.json" "$OUT/"
+# WOO=1: WooCommerce fijado, extraído en $OUT/woocommerce y montado (setup.php lo activa).
+rm -f "$OUT/woocommerce.json"
+WOO_MOUNT=''
+if [ -n "$WOO" ]; then
+  . "$ROOT/tests/playground/woocommerce-pin.sh"
+  woo_pin "$OUT/woocommerce" "$OUT/woocommerce.json" || exit 1
+  WOO_MOUNT="$(woo_mount)"
+fi
 
 # Copia fija de lo que se prueba: un cambio a mitad de corrida no mezcla versiones, y DS13 la reemplaza por 4.3.0.163.
 if [ "${LIVE:-0}" = 1 ]; then
@@ -143,7 +153,7 @@ require("fs").writeFileSync(out + "/mode.json", JSON.stringify({ label, token, c
 STEPS=()
 [ -n "$NET" ] && STEPS+=('{"step":"enableMultisite"}')
 [ "$CORE" = plugin ] && STEPS+=("{\"step\":\"installPlugin\",\"pluginData\":{\"resource\":\"url\",\"url\":\"https://downloads.wordpress.org/plugin/elementor.$ELEMENTOR_PIN.zip\"},\"options\":{\"activate\":false}}")
-[ -n "$WOO" ] && STEPS+=('{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"woocommerce"},"options":{"activate":false}}')
+[ -n "$WOO" ] && [ -n "$(woo_step false)" ] && STEPS+=("$(woo_step false)")
 STEPS+=('{"step":"runPHP","code":"<?php putenv('"'"'DIGI_DS_PHASE=activate'"'"'); require '"'"'/wordpress/wp-content/probe/setup.php'"'"';"}')
 STEPS+=('{"step":"runPHP","code":"<?php putenv('"'"'DIGI_DS_PHASE=content'"'"'); require '"'"'/wordpress/wp-content/probe/setup.php'"'"';"}')
 printf '{"steps":[%s]}\n' "$(IFS=,; echo "${STEPS[*]}")" > "$OUT/blueprint.json"
@@ -153,6 +163,7 @@ MOUNTS=(--mount="$SRC/digitalisimo-elements:/wordpress/wp-content/plugins/digita
   --mount="$OUT:/wordpress/wp-content/probe")
 [ -z "$NET" ] && MOUNTS+=(--mount="$SRC/digitalisimo-seo:/wordpress/wp-content/plugins/digitalisimo-seo")
 [ -n "$HELLO_DIR" ] && MOUNTS+=(--mount="$HELLO_DIR:/wordpress/wp-content/themes/hello-elementor")
+[ -n "$WOO_MOUNT" ] && MOUNTS+=("$WOO_MOUNT")
 
 echo "design · modo $MODE_LABEL · Elements $ELEMENTS_SHA · puerto $PORT · $OUT"
 $CLI server --port="$PORT" --workers=1 --site-url="http://$SITE_HOST" --blueprint="$OUT/blueprint.json" "${MOUNTS[@]}" > "$OUT/server.log" 2>&1 &

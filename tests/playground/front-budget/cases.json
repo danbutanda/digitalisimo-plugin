@@ -928,7 +928,8 @@
   "modes": [
    "normal",
    "cache",
-   "plugin"
+   "plugin",
+   "woo"
   ],
   "expect": {
    "*": {
@@ -3806,6 +3807,142 @@
    },
    "cache": {
     "count:visited": 1
+   }
+  }
+ },
+ "woo-empty": {
+  "title": "Página vacía con WooCommerce activo (referencia de WOO=1: sólo el encabezado común)",
+  "widgets": [],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "proFrontend": false,
+    "config": "undefined",
+    "errors": 0
+   }
+  }
+ },
+ "woo-loop-filter-pro": {
+  "title": "Filtro de taxonomía de PRO sobre un Loop Grid de productos (sin filtros de F4-Woo: igual que 4.3.0.164)",
+  "widgets": [
+   {
+    "type": "taxonomy-filter",
+    "settings": {
+     "selected_element": "fbwloop1",
+     "taxonomy": "product_cat"
+    }
+   },
+   {
+    "type": "loop-grid",
+    "id": "fbwloop1",
+    "settings": {
+     "_skin": "product",
+     "template_id": "__LOOP__",
+     "posts_per_page": 12
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "loop",
+    "type": "loop-item",
+    "source": "product",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Producto",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p002\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "actions": [
+   {
+    "do": "mark",
+    "selector": ".e-loop-item"
+   },
+   {
+    "do": "click",
+    "selector": ".e-filter-item[data-filter=\"digi-fb-cat-dos\"]"
+   },
+   {
+    "do": "waitChange",
+    "selector": ".e-loop-item",
+    "ms": 20000
+   },
+   {
+    "do": "wait",
+    "ms": 500
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:",
+    "errors": 0,
+    "after": {
+     "changed": [
+      "loopSig"
+     ]
+    }
+   }
+  }
+ },
+ "woo-pro-existing": {
+  "title": "Widgets de WooCommerce que ya existían: Menú del carrito, Productos con «Elegir qué partes mostrar» y «Añadir al carrito» de un variable con un atributo sin muestras",
+  "widgets": [
+   {
+    "type": "woocommerce-menu-cart",
+    "settings": {}
+   },
+   {
+    "type": "woocommerce-products",
+    "settings": {
+     "columns": 3,
+     "rows": 1,
+     "paginate": "",
+     "digitalisimo_wc_custom": "yes",
+     "digitalisimo_wc_parts": [
+      "image",
+      "title",
+      "category",
+      "price",
+      "cart"
+     ]
+    }
+   },
+   {
+    "type": "wc-add-to-cart",
+    "settings": {
+     "product_id": "__WC_VARIABLE__",
+     "show_quantity": "yes"
+    }
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:woocommerce-menu-cart",
+    "errors": 0
    }
   }
  }

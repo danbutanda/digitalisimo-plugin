@@ -211,15 +211,17 @@ namespace {
 	$cases = json_decode( (string) file_get_contents( $root . '/tests/playground/front-budget/cases.json' ), true );
 	check_cases( is_array( $cases ) && count( $cases ) > 48, 'cases.json debe ser JSON válido y conservar los casos de la medición anterior' );
 	$cases       = is_array( $cases ) ? $cases : array();
-	$modes       = array( 'normal', 'cache', 'plugin', 'seo', 'guard', 'theme', 'migration', 'lazy', 'v4', 'old', 'old-applied', 'old-dirty', 'old-inactive', 'off' );
-	$expect_keys = array_merge( array( '*', 'pre', 'warm', 'before', 'after', 'old-applied+cache', 'guard+old' ), $modes );
+	$modes       = array( 'normal', 'cache', 'plugin', 'seo', 'guard', 'theme', 'migration', 'lazy', 'v4', 'woo', 'old', 'old-applied', 'old-dirty', 'old-inactive', 'off' );
+	// Combinaciones que un caso nombra tal cual: los casos de WOO=1 sólo corren con WooCommerce (F4-Woo, V.16.3).
+	$combos      = array( 'old-applied+cache', 'woo+cache', 'plugin+woo', 'v4+woo' );
+	$expect_keys = array_merge( array( '*', 'pre', 'warm', 'before', 'after', 'guard+old' ), $combos, $modes );
 	$actions     = array( 'click', 'scroll', 'wait', 'waitFor', 'waitCount', 'mark', 'waitChange', 'hover', 'openSubmenu', 'viewport', 'fill', 'fillAll', 'reload' );
 	$extra_types = array( 'popup', 'section', 'page', 'container', 'widget', 'loop-item', 'header', 'footer' );
 	foreach ( $cases as $slug => $case ) {
 		check_cases( preg_match( '/^[a-z0-9-]+$/', (string) $slug ) && is_array( $case ) && isset( $case['title'] ), "$slug: nombre o título inválidos" );
 		check_cases( isset( $case['widgets'] ) || isset( $case['elements'] ) || ! empty( $case['classic'] ), "$slug: necesita widgets, elements o classic" );
 		foreach ( (array) ( $case['modes'] ?? array() ) as $mode ) {
-			check_cases( in_array( $mode, $modes, true ) || in_array( $mode, array( 'old-applied+cache' ), true ), "$slug: modo desconocido $mode" );
+			check_cases( in_array( $mode, $modes, true ) || in_array( $mode, $combos, true ), "$slug: modo desconocido $mode" );
 		}
 		foreach ( array_keys( (array) ( $case['expect'] ?? array() ) ) as $key ) {
 			check_cases( in_array( $key, $expect_keys, true ), "$slug: clave de expect desconocida $key" );
@@ -290,7 +292,7 @@ namespace {
 			$skipped[] = "$slug (pendiente: " . $case['pending'] . ')';
 			continue;
 		}
-		foreach ( array( 'normal', 'migration', 'theme', 'v4' ) as $mode ) {
+		foreach ( array( 'normal', 'migration', 'theme', 'v4', 'woo' ) as $mode ) {
 			if ( ! in_array( $mode, (array) ( $case['modes'] ?? array( 'normal' ) ), true ) ) {
 				continue;
 			}
