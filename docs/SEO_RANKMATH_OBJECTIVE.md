@@ -706,7 +706,7 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 | RM1 Importador | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. Pestaña «Importar» del sitio y botón de red que encola cada sitio. Usuarios: sólo se cuentan (sin destino). |
 | RM2 Redirecciones | **Publicado** · SEO 1.0.233 · `v2026.10.27.419` (primera parte). Pendiente la segunda parte: categorías, programación y CSV. |
 | RM3 Monitor 404 | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. Exclusiones por fragmento de URL (sin comparaciones). |
-| RM4 Sitemaps | Imágenes **publicadas** · SEO 1.0.233 · `v2026.10.27.419`. Noticias y mapa HTML **publicados** · SEO 1.0.236. Autores y términos: **no se añaden**, porque el sitemap propio sólo publica documentos (decisión previa que `tests/sitemap.php` exige; por lo mismo, `seo_sitemap_taxonomies` no tiene efecto). Pendiente: vídeo, con el VideoObject de RM8. |
+| RM4 Sitemaps | Imágenes **publicadas** · SEO 1.0.233 · `v2026.10.27.419`. Noticias y mapa HTML **publicados** · SEO 1.0.236 · `v2026.10.27.422`. Autores y términos: **no se añaden**, porque el sitemap propio sólo publica documentos (decisión previa que `tests/sitemap.php` exige; por lo mismo, `seo_sitemap_taxonomies` no tiene efecto). Pendiente: vídeo, con el VideoObject de RM8. |
 | RM5 Verificación | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. |
 | RM6 Robots avanzados | **Publicado** · SEO 1.0.233 · `v2026.10.27.419` para contenidos y sitio. Pendiente: las directivas por término. |
 | RM13 Migas y categoría principal | **Publicado** · SEO 1.0.234 · `v2026.10.27.420`. Pendientes: título de miga en términos y que el widget de migas de DIGITALÍSIMO Elements lea la misma ruta. |
