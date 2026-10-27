@@ -716,7 +716,7 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 | RM9 Análisis de contenido | **Publicado** · SEO 1.0.238 · `v2026.10.27.424`: caja «Análisis SEO» en el editor, puntuación en la columna «Análisis» y el mismo título y descripción que publica el head. Pendiente: exponerlo como ability (RM15). |
 | RM14 Edición masiva y CSV | **Publicado** · SEO 1.0.239 · `v2026.10.27.425`: edición rápida y masiva, filtro SEO en los listados y CSV de ida y vuelta. La categoría principal se edita en el editor (SEO → Avanzado), no en la edición rápida. |
 | RM12 WooCommerce | Primera parte **publicada** · SEO 1.0.240 · `v2026.10.27.426`: noindex y sitemap de productos ocultos, generator, y 301 de las URL sin base cuando Rank Math las quitaba. **Pendiente de decisión del propietario:** quitar `/product/` y `/product-category/` en DIGITALÍSIMO SEO, porque cambia las URL de todos los productos. |
-| RM15 Abilities | **Publicado** · SEO 1.0.241: ocho abilities de sólo lectura en la categoría `digitalisimo-seo`. Las de escritura no se añaden sin una decisión del propietario. |
+| RM15 Abilities | **Publicado** · SEO 1.0.241 · `v2026.10.27.427`: ocho abilities de sólo lectura en la categoría `digitalisimo-seo`. Las de escritura no se añaden sin una decisión del propietario. |
 | RM11, RM16 | Pendientes: RM11 sólo el `alt` de los avatares (el resto se descartó); RM16, según demanda. |
 
 Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php`, `tests/seo-links.php`, `tests/seo-content-analysis.php`, `tests/seo-bulk.php`, `tests/seo-abilities.php` y `tests/playground/seo-rankmath.sh` (239 comprobaciones en red y en un sitio individual con WooCommerce 11.2.1).
