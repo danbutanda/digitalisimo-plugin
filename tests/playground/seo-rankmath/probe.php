@@ -313,6 +313,45 @@ if ( 'analysis' === $step ) {
 	return;
 }
 
+if ( 'bulk' === $step ) {
+	// RM14: edición rápida y masiva, filtro del listado y CSV de ida y vuelta.
+	$a = wp_insert_post( array( 'post_title' => 'Rápida', 'post_status' => 'publish' ) );
+	$b = wp_insert_post( array( 'post_title' => 'Masiva', 'post_status' => 'publish' ) );
+	update_post_meta( $a, 'digitalisimo_seo_title', 'Viejo' );
+	$_POST = array( 'digitalisimo_seo_quick_nonce' => wp_create_nonce( 'digitalisimo_seo_quick' ), 'digitalisimo_seo_quick' => array( 'seo_title' => 'Nuevo título', 'seo_description' => 'Nueva descripción', 'keywords' => 'uno, dos', 'noindex' => '1', 'nofollow' => '0' ) );
+	wp_update_post( array( 'ID' => $a ) );
+	digi_check( 'Nuevo título' === get_post_meta( $a, 'digitalisimo_seo_title', true ) && 'uno, dos' === get_post_meta( $a, 'digitalisimo_seo_keywords', true ) && '1' === get_post_meta( $a, 'digitalisimo_seo_noindex', true ) && '' === get_post_meta( $a, 'digitalisimo_seo_nofollow', true ), 'La edición rápida guarda título, keywords y robots' );
+	$_POST['digitalisimo_seo_quick'] = array( 'seo_title' => '', 'seo_description' => 'Nueva descripción', 'keywords' => 'uno, dos', 'noindex' => '0', 'nofollow' => '0' );
+	wp_update_post( array( 'ID' => $a ) );
+	digi_check( '' === get_post_meta( $a, 'digitalisimo_seo_title', true ) && '' === get_post_meta( $a, 'digitalisimo_seo_noindex', true ), 'Vaciar un campo en la edición rápida lo vacía' );
+	$_POST['digitalisimo_seo_quick_nonce'] = 'malo'; $_POST['digitalisimo_seo_quick']['seo_title'] = 'Intruso';
+	wp_update_post( array( 'ID' => $a ) );
+	digi_check( '' === get_post_meta( $a, 'digitalisimo_seo_title', true ), 'Sin nonce válido no se guarda nada' );
+	$_POST = array(); $_REQUEST = array( 'digitalisimo_seo_bulk_nonce' => wp_create_nonce( 'digitalisimo_seo_bulk' ), 'digitalisimo_seo_bulk' => array( 'noindex' => '1', 'nofollow' => '' ) );
+	foreach ( array( $a, $b ) as $id ) wp_update_post( array( 'ID' => $id ) );
+	digi_check( '1' === get_post_meta( $a, 'digitalisimo_seo_noindex', true ) && '1' === get_post_meta( $b, 'digitalisimo_seo_noindex', true ) && '' === get_post_meta( $b, 'digitalisimo_seo_nofollow', true ), 'La edición masiva activa noindex y deja nofollow «sin cambios»' );
+	$_REQUEST = array();
+	$found = get_posts( array( 'post_type' => 'post', 'fields' => 'ids', 'posts_per_page' => -1, 'meta_query' => Digitalisimo_Integrations_SEO_Bulk::filter_meta( 'noindex' ) ) );
+	digi_check( in_array( $a, $found, true ) && in_array( $b, $found, true ), 'El filtro «Con noindex» encuentra los dos' );
+	// CSV: exportar, editar y volver a importar.
+	$mem = fopen( 'php://memory', 'w+' ); Digitalisimo_Integrations_SEO_Bulk::write_csv( $mem ); rewind( $mem ); $csv = stream_get_contents( $mem ); fclose( $mem );
+	digi_check( 0 === strpos( $csv, "\xEF\xBB\xBFid,type,status,url,seo_title" ) && false !== strpos( $csv, (string) $b . ',post,publish,' ), 'La exportación empieza con BOM y cabecera y lista los contenidos' );
+	$rows = array( implode( ',', Digitalisimo_Integrations_SEO_Bulk::COLUMNS ), $b . ',post,publish,,"Título desde CSV",,,,0,,"\'=FORMULA",,', '999999,post,publish,,Fantasma,,,,,,,,', 'texto,,,,,,,,,,,,' );
+	$file = trailingslashit( wp_upload_dir()['basedir'] ) . 'digitalisimo-seo/tmp/prueba-' . wp_generate_password( 8, false ) . '.csv';
+	wp_mkdir_p( dirname( $file ) ); file_put_contents( $file, implode( "\n", $rows ) . "\n" );
+	update_option( Digitalisimo_Integrations_SEO_Bulk::JOB, array( 'status' => 'running', 'file' => $file, 'offset' => 0, 'user' => 1, 'updated' => 0, 'skipped' => 0, 'errors' => array(), 'tick' => time() ), false );
+	Digitalisimo_Integrations_SEO_Bulk::run_batch();
+	$job = get_option( Digitalisimo_Integrations_SEO_Bulk::JOB );
+	digi_check( 'done' === $job['status'] && 1 === $job['updated'] && 2 === $job['skipped'] && ! file_exists( $file ), 'Importación: una fila aplicada, dos omitidas y el archivo borrado: ' . json_encode( $job ) );
+	digi_check( 'Título desde CSV' === get_post_meta( $b, 'digitalisimo_seo_title', true ) && '' === get_post_meta( $b, 'digitalisimo_seo_noindex', true ) && '=FORMULA' === get_post_meta( $b, 'digitalisimo_seo_social_title', true ), 'La fila importada cambia lo indicado y conserva lo vacío' );
+	$outside = WP_CONTENT_DIR . '/fuera.csv'; file_put_contents( $outside, "id\n1\n" );
+	update_option( Digitalisimo_Integrations_SEO_Bulk::JOB, array( 'status' => 'running', 'file' => $outside, 'offset' => 0, 'user' => 1, 'updated' => 0, 'skipped' => 0, 'errors' => array() ), false );
+	Digitalisimo_Integrations_SEO_Bulk::run_batch();
+	digi_check( 'error' === get_option( Digitalisimo_Integrations_SEO_Bulk::JOB )['status'] && file_exists( $outside ), 'Un archivo fuera de la carpeta de trabajo nunca se lee ni se borra' );
+	unlink( $outside );
+	return;
+}
+
 if ( 'screens' === $step ) {
 	require_once ABSPATH . 'wp-admin/includes/admin.php';
 	Digitalisimo_Integrations_Settings::register_settings(); Digitalisimo_Integrations_Redirections::maybe_install(); Digitalisimo_Integrations_404_Monitor::maybe_install(); // Lo que hace admin_init para SEO, sin los ganchos de otros plugins.

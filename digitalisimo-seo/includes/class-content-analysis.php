@@ -140,7 +140,7 @@ class Digitalisimo_Integrations_Content_Analysis {
 	public static function columns() {
 		foreach ( self::types() as $type ) {
 			add_filter( "manage_{$type}_posts_columns", function( $columns ) { $columns['digitalisimo_score'] = 'Análisis'; return $columns; } );
-			add_action( "manage_{$type}_posts_custom_column", function( $column, $post_id ) { if ( 'digitalisimo_score' !== $column ) return; $score = get_post_meta( $post_id, self::SCORE, true ); echo '' === $score ? '—' : self::badge( (int) $score ); }, 10, 2 ); // phpcs:ignore WordPress.Security.EscapeOutput
+			add_action( "manage_{$type}_posts_custom_column", function( $column, $post_id ) { if ( 'digitalisimo_score' !== $column ) return; $score = get_post_meta( $post_id, self::SCORE, true ); echo ( '' === $score ? '—' : self::badge( (int) $score ) ) . Digitalisimo_Integrations_SEO_Bulk::row_data( $post_id ); }, 10, 2 ); // phpcs:ignore WordPress.Security.EscapeOutput
 		}
 	}
 }
