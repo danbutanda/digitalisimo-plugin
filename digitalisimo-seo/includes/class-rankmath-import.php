@@ -18,7 +18,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 	const HOOK   = 'digitalisimo_seo_rankmath_batch';
 	const BATCH  = 100;
 	const BUDGET = 20;
-	const PHASES = array( 'options', 'posts', 'terms', 'redirections', 'done' );
+	const PHASES = array( 'options', 'posts', 'terms', 'redirections', 'bases', 'done' );
 
 	/** Textos por defecto de Rank Math en inglés: no se importan sobre los propios en español. */
 	const ENGLISH_DEFAULTS = array( 'Home', 'Archives for %s', 'Results for %s', '404 Error: page not found' );
@@ -39,6 +39,8 @@ class Digitalisimo_Integrations_RankMath_Import {
 			'schema_legacy'     => 'Contenidos con el formato antiguo de rich snippet de Rank Math (no se importan).',
 			'gtin'              => 'GTIN de Rank Math que no pasó al campo GTIN de WooCommerce: no es un GTIN válido, el producto ya tenía uno, otro producto lo usa o WooCommerce no está activo.',
 			'html_sitemap'      => 'Rank Math publicaba un mapa del sitio en HTML: pon el shortcode [digitalisimo_sitemap] en la página donde estaba.',
+			'url_base'          => 'Rank Math quitaba la base de las URL (/product/, /product-category/ o /category/): DIGITALÍSIMO SEO no la quita, así que vuelven a llevarla. El importador creó las 301 de las URL sin base a las de ahora (ver «Redirecciones»).',
+			'base_collision'    => 'URL sin base que ya pertenecen a otra página o entrada: no se redirigen (revísalas en Redirecciones).',
 			'schema_default'    => 'Tipos de contenido con un schema por defecto de Rank Math sin equivalente (libro, receta, evento…): quedan en Automático.',
 			'term_canonical'    => 'Términos con canonical propio: los términos aún no tienen canonical editable.',
 			'term_social'       => 'Términos con datos sociales propios: los términos aún no los tienen.',
@@ -237,6 +239,9 @@ class Digitalisimo_Integrations_RankMath_Import {
 		}
 		if ( $types ) $want['_type_templates'] = $types;
 		if ( ! empty( $g['product_brand'] ) ) $want['seo_product_brand'] = (string) $g['product_brand'];
+		if ( isset( $g['noindex_hidden_products'] ) ) $want['seo_noindex_hidden_products'] = self::on( $g['noindex_hidden_products'] ) ? 1 : 0;
+		if ( isset( $g['wc_remove_generator'] ) ) $want['seo_wc_remove_generator'] = self::on( $g['wc_remove_generator'] ) ? 1 : 0;
+		if ( self::on( $g['wc_remove_product_base'] ?? '' ) || self::on( $g['wc_remove_category_base'] ?? '' ) || self::on( $g['wc_remove_category_parent_slugs'] ?? '' ) || self::on( $g['strip_category_base'] ?? '' ) ) $notes[] = 'url_base';
 		$defaults_by_type = array();
 		foreach ( $t as $key => $value ) {
 			if ( ! preg_match( '/^pt_([a-z0-9_-]+)_default_rich_snippet$/', (string) $key, $m ) || in_array( $m[1], array( 'page', 'attachment', 'product' ), true ) ) continue;
@@ -429,6 +434,9 @@ class Digitalisimo_Integrations_RankMath_Import {
 		}
 		self::note( $job, $result['notes'] );
 		$job['robots_txt'] = substr( $result['robots_txt'], 0, 5000 );
+		// Bases de URL que Rank Math quitaba: la fase «bases» crea las 301 de esas URL a las de ahora.
+		$g = $rm['general'];
+		$job['bases'] = array_keys( array_filter( array( 'product' => self::on( $g['wc_remove_product_base'] ?? '' ), 'product_cat' => self::on( $g['wc_remove_category_base'] ?? '' ), 'category' => self::on( $g['strip_category_base'] ?? '' ) ) ) );
 		return true;
 	}
 
@@ -576,6 +584,60 @@ class Digitalisimo_Integrations_RankMath_Import {
 		return count( $ids ) < self::BATCH;
 	}
 
+	/**
+	 * Ruta que tenía un enlace cuando Rank Math quitaba su base: la de ahora sin el segmento de la base.
+	 * Pura. '' si la ruta no lleva esa base (o la base usa etiquetas como %product_cat%).
+	 */
+	public static function without_base( $path, $base ) {
+		$base = trim( (string) $base, '/' );
+		$path = '/' . trim( (string) $path, '/' ) . '/';
+		if ( '' === $base || false !== strpos( $base, '%' ) || 0 !== strpos( $path, '/' . $base . '/' ) ) return '';
+		return trim( substr( $path, strlen( $base ) + 1 ), '/' );
+	}
+
+	/** Bases actuales de productos, categorías de producto y categorías de entradas. */
+	private static function base_of( $kind ) {
+		$woo = (array) get_option( 'woocommerce_permalinks', array() );
+		if ( 'product' === $kind ) return (string) ( $woo['product_base'] ?? '' ) ?: 'product';
+		if ( 'product_cat' === $kind ) return (string) ( $woo['category_base'] ?? '' ) ?: 'product-category';
+		return (string) get_option( 'category_base' ) ?: 'category';
+	}
+
+	/** 301 de cada URL sin base a la de ahora; nunca si la ruta sin base ya es de otro contenido. */
+	private static function phase_bases( array &$job ) {
+		$kinds = array_values( (array) ( $job['bases'] ?? array() ) );
+		$step  = (string) ( $job['base_step'] ?? ( $kinds[0] ?? '' ) );
+		if ( '' === $step || ! in_array( $step, $kinds, true ) ) return true;
+		$home_path = (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+		global $wpdb;
+		if ( 'product' === $step ) {
+			$items = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product' AND post_status = 'publish' AND ID > %d ORDER BY ID ASC LIMIT %d", (int) $job['cursor'], self::BATCH ) ) );
+			$links = array_map( function( $id ) { return array( $id, get_permalink( $id ) ); }, $items );
+		} else {
+			$items = taxonomy_exists( $step ) ? array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT term_id FROM {$wpdb->term_taxonomy} WHERE taxonomy = %s AND term_id > %d ORDER BY term_id ASC LIMIT %d", $step, (int) $job['cursor'], self::BATCH ) ) ) : array();
+			$links = array_map( function( $id ) use ( $step ) { $link = get_term_link( $id, $step ); return array( $id, is_wp_error( $link ) ? '' : $link ); }, $items );
+		}
+		foreach ( $links as $pair ) {
+			list( $id, $link ) = $pair;
+			$job['cursor'] = $id;
+			if ( ! $link ) continue;
+			list( $path ) = Digitalisimo_Integrations_Redirections::relative( $link, $home_path );
+			$old = self::without_base( $path, self::base_of( $step ) );
+			if ( '' === $old ) continue;
+			$owner = url_to_postid( home_url( '/' . $old . '/' ) );
+			if ( $owner && ( 'product' !== $step || (int) $owner !== (int) $id ) ) { self::note( $job, array( 'base_collision' ), '/' . $old . '/' ); continue; }
+			$data = array( 'sources' => array( array( 'pattern' => $old, 'comparison' => 'exact' ) ), 'url_to' => '/' . trim( $path, '/' ) . '/', 'header_code' => 301, 'origin' => 'rankmath', 'import_key' => 'rankmath-base:' . $step . ':' . $id );
+			if ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Digitalisimo_Integrations_Redirections::table() . ' WHERE import_key = %s', $data['import_key'] ) ) ) continue; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( ! is_wp_error( Digitalisimo_Integrations_Redirections::save( $data, 0, false ) ) ) self::count( $job, 'bases' );
+		}
+		if ( count( $items ) >= self::BATCH ) return false;
+		// Siguiente tipo de base, o fin de la fase.
+		$next = array_search( $step, $kinds, true ) + 1;
+		Digitalisimo_Integrations_Redirections::refresh_index();
+		if ( isset( $kinds[ $next ] ) ) { $job['base_step'] = $kinds[ $next ]; $job['cursor'] = 0; return false; }
+		return true;
+	}
+
 	private static function phase_redirections( array &$job ) {
 		global $wpdb;
 		if ( ! self::has_redirections_table() ) return true;
@@ -645,7 +707,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 		} else echo '<p class="description">No hay datos de Rank Math en este sitio.</p>';
 		if ( ! $job ) return;
 		$done = (array) ( $job['done'] ?? array() );
-		echo '<h3>Informe</h3><ul><li>Ajustes importados: ' . esc_html( (int) ( $done['options'] ?? 0 ) ) . '</li><li>Contenidos actualizados: ' . esc_html( (int) ( $done['posts'] ?? 0 ) ) . '</li><li>Términos actualizados: ' . esc_html( (int) ( $done['terms'] ?? 0 ) ) . '</li><li>Redirecciones importadas: ' . esc_html( (int) ( $done['redirections'] ?? 0 ) ) . '</li><li>GTIN pasados a WooCommerce: ' . esc_html( (int) ( $done['gtin'] ?? 0 ) ) . '</li></ul>';
+		echo '<h3>Informe</h3><ul><li>Ajustes importados: ' . esc_html( (int) ( $done['options'] ?? 0 ) ) . '</li><li>Contenidos actualizados: ' . esc_html( (int) ( $done['posts'] ?? 0 ) ) . '</li><li>Términos actualizados: ' . esc_html( (int) ( $done['terms'] ?? 0 ) ) . '</li><li>Redirecciones importadas: ' . esc_html( (int) ( $done['redirections'] ?? 0 ) ) . '</li><li>GTIN pasados a WooCommerce: ' . esc_html( (int) ( $done['gtin'] ?? 0 ) ) . '</li><li>Redirecciones de URL sin base: ' . esc_html( (int) ( $done['bases'] ?? 0 ) ) . '</li></ul>';
 		$labels = self::note_labels();
 		if ( ! empty( $job['notes'] ) ) {
 			echo '<h3>Revisar</h3><table class="widefat striped"><thead><tr><th>Qué</th><th>Cuántos</th><th>Ejemplos</th></tr></thead><tbody>';

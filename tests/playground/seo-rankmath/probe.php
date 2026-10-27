@@ -38,7 +38,7 @@ if ( 'seed' === $step ) {
 	$GLOBALS['wp_rewrite']->set_permalink_structure( '/%postname%/' );
 	flush_rewrite_rules( false );
 	update_option( 'rank-math-options-titles', array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Acme RM', 'pt_post_title' => '%title% %sep% %sitename% %sep% %wc_price%', 'noindex_search' => 'on', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ), 'social_url_facebook' => 'https://facebook.com/acme' ) );
-	update_option( 'rank-math-options-general', array( 'breadcrumbs' => 'on', 'google_verify' => '<meta name="google-site-verification" content="rm-google-123" />', 'robots_txt_content' => "User-agent: *\nDisallow: /privado/", 'redirections_post_redirect' => 'on', '404_monitor_limit' => 500 ) );
+	update_option( 'rank-math-options-general', array( 'breadcrumbs' => 'on', 'google_verify' => '<meta name="google-site-verification" content="rm-google-123" />', 'robots_txt_content' => "User-agent: *\nDisallow: /privado/", 'redirections_post_redirect' => 'on', '404_monitor_limit' => 500, 'strip_category_base' => 'on', 'wc_remove_product_base' => 'on', 'noindex_hidden_products' => 'on', 'wc_remove_generator' => 'on' ) );
 	update_option( 'rank-math-options-sitemap', array( 'include_images' => 'on' ) );
 	update_option( 'rank_math_modules', array( 'redirections', '404-monitor' ) );
 	$upload = wp_upload_dir();
@@ -57,6 +57,7 @@ if ( 'seed' === $step ) {
 	update_post_meta( $edited, 'digitalisimo_seo_title', 'Título propio' );
 	update_post_meta( $edited, 'digitalisimo_seo_noindex', '' );
 	$term = wp_insert_term( 'Categoría RM', 'category' );
+	wp_insert_term( 'Choca', 'category', array( 'slug' => 'entrada-rm' ) ); // Misma ruta que una entrada: sin redirección.
 	update_term_meta( $term['term_id'], 'rank_math_title', '%term% %sep% %sitename%' );
 	update_term_meta( $term['term_id'], 'rank_math_robots', array( 'noindex' ) );
 	$table = $wpdb->prefix . 'rank_math_redirections';
@@ -75,6 +76,7 @@ if ( 'seed' === $step ) {
 		$item = new WC_Product_Simple(); $item->set_name( 'Tenis Acme' ); $item->set_regular_price( '1200' ); $item->set_status( 'publish' ); $product = $item->save();
 		update_post_meta( $product, '_rank_math_gtin_code', '4006381333931' );
 		if ( taxonomy_exists( 'product_brand' ) ) wp_set_object_terms( $product, 'Acme Sport', 'product_brand' );
+		$hidden = new WC_Product_Simple(); $hidden->set_name( 'Producto oculto' ); $hidden->set_regular_price( '10' ); $hidden->set_status( 'publish' ); $hidden->set_catalog_visibility( 'hidden' ); update_option( 'digi_probe_hidden', $hidden->save() );
 	}
 	update_option( 'digi_probe_ids', array( 'post' => $post, 'edited' => $edited, 'term' => $term['term_id'], 'product' => $product ) );
 	digi_check( 6 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), 'Semilla de Rank Math creada' );
@@ -104,6 +106,9 @@ if ( 'import' === $step ) {
 	digi_check( '-' === ( $o['seo_separator'] ?? '' ) && 'Acme RM' === ( $o['seo_organization_name'] ?? '' ) && 'rm-google-123' === ( $o['seo_verify_google'] ?? '' ) && 1 === ( $o['seo_404_enabled'] ?? 0 ) && 500 === ( $o['seo_404_limit'] ?? 0 ) && 1 === ( $o['noindex_authors'] ?? null ), 'Ajustes importados: ' . json_encode( array_intersect_key( $o, array_flip( array( 'seo_separator', 'seo_organization_name', 'seo_verify_google', 'seo_404_enabled', 'seo_404_limit', 'noindex_authors' ) ) ) ) );
 	digi_check( '%title% %sep% %sitename%' === ( $o['seo_title_post'] ?? '' ), 'La plantilla pierde la variable sin destino y su separador' );
 	digi_check( 'https://facebook.com/acme' === ( $o['seo_social_profiles']['facebook'] ?? '' ), 'Perfil de Facebook importado' );
+	$index = get_option( Digitalisimo_Integrations_Redirections::INDEX );
+	digi_check( isset( $index['exact']['categoria-rm'] ) && ! isset( $index['exact']['entrada-rm'] ) && isset( $job['notes']['base_collision'] ), 'Sin base de categorías: 301 de /categoria-rm/ y ninguna sobre la ruta de una entrada' );
+	if ( ! empty( $ids['product'] ) ) digi_check( isset( $index['exact']['tenis-acme'] ) && '/product/tenis-acme/' === $index['rules'][ $index['exact']['tenis-acme'] ]['u'], 'Sin base de productos: 301 de /tenis-acme/ a /product/tenis-acme/' );
 	if ( ! empty( $ids['product'] ) ) digi_check( '4006381333931' === wc_get_product( $ids['product'] )->get_global_unique_id() && 1 === (int) ( $job['done']['gtin'] ?? 0 ), 'El GTIN de Rank Math pasa al campo de WooCommerce' );
 	if ( is_multisite() ) { $inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() ); digi_check( isset( $inherit['seo_separator'] ) && 0 === $inherit['seo_separator'], 'En la red, lo importado deja de heredar' ); }
 	// Repetir no duplica.
@@ -111,7 +116,8 @@ if ( 'import' === $step ) {
 	Digitalisimo_Integrations_RankMath_Import::run_batch();
 	$again = Digitalisimo_Integrations_RankMath_Import::job();
 	digi_check( 0 === (int) ( $again['done']['redirections'] ?? 0 ) && 3 === (int) ( $again['notes']['redirect_existing']['count'] ?? 0 ), 'Volver a importar no duplica redirecciones' );
-	digi_check( 3 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Digitalisimo_Integrations_Redirections::table() ), 'Tres reglas en la tabla propia' );
+	digi_check( 3 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Digitalisimo_Integrations_Redirections::table() . " WHERE import_key LIKE 'rankmath:%'" ), 'Tres reglas de la tabla de Rank Math' );
+	digi_check( 0 === (int) ( $again['done']['bases'] ?? 0 ), 'Volver a importar no duplica las redirecciones de URL sin base' );
 	return;
 }
 
@@ -219,6 +225,13 @@ if ( 'schema' === $step ) {
 		$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'product', 'p' => $ids['product'] ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
 		ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
 		digi_check( false !== strpos( $graph, '"brand":{"@type":"Brand","name":"Acme Sport"}' ), 'El producto publica su marca' );
+		$hidden = (int) get_option( 'digi_probe_hidden' );
+		$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'product', 'p' => $hidden ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+		digi_check( ! empty( Digitalisimo_Integrations_SEO_Suite::robots( array() )['noindex'] ), 'Un producto oculto recibe noindex' );
+		ob_start(); Digitalisimo_Integrations_Sitemap::urls_xml( array( 'product' ) ); $xml = ob_get_clean();
+		digi_check( false === strpos( $xml, get_permalink( $hidden ) ) && false !== strpos( $xml, get_permalink( $ids['product'] ) ), 'El producto oculto sale del sitemap; el visible sigue' );
+		Digitalisimo_Integrations_SEO_Suite::remove_wc_generator();
+		digi_check( false === has_filter( 'get_the_generator_html', 'wc_generator_tag' ), 'La meta generator de WooCommerce se retira' );
 		WC()->structured_data->generate_product_data( wc_get_product( $ids['product'] ) );
 		$woo = WC()->structured_data->get_data();
 		digi_check( false !== strpos( wp_json_encode( $woo ), '4006381333931' ), 'WooCommerce publica el GTIN importado' );

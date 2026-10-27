@@ -93,6 +93,12 @@ foreach ( array( 'local_hours', 'local_review' ) as $note ) check( in_array( $no
 $author = $i::map_options( array( 'titles' => array( 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ) ) ), array(), $defaults, $ctx );
 check( 1 === $author['set']['noindex_authors'], 'Con robots propios de autor, manda su noindex.' );
 
+// URL sin la base que Rank Math quitaba.
+check( 'tenis' === $i::without_base( 'product/tenis', '/product/' ) && 'calzado/tenis' === $i::without_base( '/product-category/calzado/tenis/', 'product-category' ), 'Sin base: se quita sólo el primer segmento.' );
+check( '' === $i::without_base( 'tienda/tenis', 'product' ) && '' === $i::without_base( 'shop/ropa/tenis', 'shop/%product_cat%' ) && '' === $i::without_base( 'productos/x', 'product' ), 'Sin base reconocible no se inventa nada.' );
+$bases = $i::map_options( array( 'general' => array( 'wc_remove_product_base' => 'on', 'noindex_hidden_products' => 'on', 'wc_remove_generator' => 'off' ) ), array(), array(), $ctx );
+check( in_array( 'url_base', $bases['notes'], true ) && 1 === $bases['set']['seo_noindex_hidden_products'] && 0 === $bases['set']['seo_wc_remove_generator'], 'Ajustes de WooCommerce y aviso de las bases.' );
+
 // Redirecciones de la tabla de Rank Math.
 $row = array( 'id' => 31, 'sources' => serialize( array( array( 'pattern' => 'vieja', 'comparison' => 'exact', 'ignore' => 'case' ), array( 'pattern' => '^x/(.*)', 'comparison' => 'regex' ) ) ), 'url_to' => 'https://sitio.test/nueva/', 'header_code' => '301', 'hits' => '7', 'status' => 'inactive', 'created' => '2025-01-02 03:04:05', 'updated' => '0000-00-00 00:00:00', 'last_accessed' => '0000-00-00 00:00:00' );
 $map = $i::map_redirection( $row );
