@@ -703,12 +703,12 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 
 | Etapa | Estado |
 |---|---|
-| RM1 Importador | **Publicado** · SEO 1.0.233. Pestaña «Importar» del sitio y botón de red que encola cada sitio. Usuarios: sólo se cuentan (sin destino). |
-| RM2 Redirecciones | **Publicado** · SEO 1.0.233 (primera parte). Pendiente la segunda parte: categorías, programación y CSV. |
-| RM3 Monitor 404 | **Publicado** · SEO 1.0.233. Exclusiones por fragmento de URL (sin comparaciones). |
-| RM4 Sitemaps | Imágenes **publicadas** · SEO 1.0.233 (destacada y del contenido, exclusión por adjunto en la destacada). Pendientes: autores, HTML, noticias y vídeo. |
-| RM5 Verificación | **Publicado** · SEO 1.0.233. |
-| RM6 Robots avanzados | **Publicado** · SEO 1.0.233 para contenidos y sitio. Pendiente: las directivas por término. |
+| RM1 Importador | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. Pestaña «Importar» del sitio y botón de red que encola cada sitio. Usuarios: sólo se cuentan (sin destino). |
+| RM2 Redirecciones | **Publicado** · SEO 1.0.233 · `v2026.10.27.419` (primera parte). Pendiente la segunda parte: categorías, programación y CSV. |
+| RM3 Monitor 404 | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. Exclusiones por fragmento de URL (sin comparaciones). |
+| RM4 Sitemaps | Imágenes **publicadas** · SEO 1.0.233 · `v2026.10.27.419` (destacada y del contenido, exclusión por adjunto en la destacada). Pendientes: autores, HTML, noticias y vídeo. |
+| RM5 Verificación | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. |
+| RM6 Robots avanzados | **Publicado** · SEO 1.0.233 · `v2026.10.27.419` para contenidos y sitio. Pendiente: las directivas por término. |
 | RM7–RM16 | Pendientes, en el orden de «Orden de trabajo». |
 
 Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` y `tests/playground/seo-rankmath.sh` (96 comprobaciones en red y sitio individual).
