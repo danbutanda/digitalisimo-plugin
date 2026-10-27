@@ -164,6 +164,8 @@ class Digitalisimo_Integrations_Settings {
 			'seo_breadcrumbs_search_format'  => 'Resultados de «%s»',
 			'seo_breadcrumbs_404_label'   => 'Página no encontrada',
 			'seo_type_templates'          => array(),
+			'seo_schema_type_defaults'    => array(),
+			'seo_product_brand'           => '',
 			'seo_ai_enabled'         => 1,
 			'seo_ai_search_default'  => 'allow',
 			'seo_ai_training_default'=> 'allow',
@@ -270,6 +272,8 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( array( 'seo_max_snippet', 'seo_max_video_preview' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_robots_number( $input[ $key ] );
 		// Migas y plantillas por tipo (RM13 y RM10).
 		foreach ( Digitalisimo_Integrations_SEO_Suite::breadcrumb_text_keys() as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
+		if ( isset( $input['seo_schema_type_defaults'] ) ) $output['seo_schema_type_defaults'] = Digitalisimo_Integrations_Schema_Graph::sanitize_type_defaults( $input['seo_schema_type_defaults'] );
+		if ( isset( $input['seo_product_brand'] ) ) $output['seo_product_brand'] = sanitize_key( $input['seo_product_brand'] );
 		if ( isset( $input['seo_type_templates'] ) ) $output['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( $input['seo_type_templates'] );
 		if ( isset( $input['seo_ai_google_extended_policy'] ) ) $output['seo_ai_google_extended_policy'] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy( $input['seo_ai_google_extended_policy'] );
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );

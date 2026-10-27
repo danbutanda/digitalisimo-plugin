@@ -38,7 +38,8 @@ class Digitalisimo_Integrations_RankMath_Import {
 			'schema_other'      => 'Schemas sin equivalente directo en el selector de tipo (quedan sin importar; revisa su JSON-LD).',
 			'schema_legacy'     => 'Contenidos con el formato antiguo de rich snippet de Rank Math (no se importan).',
 			'news_robots'       => 'Contenidos excluidos sólo de Google News: llegará con el sitemap de noticias (RM4).',
-			'gtin'              => 'Productos con GTIN de Rank Math: llegará con el schema de producto completo (RM8).',
+			'gtin'              => 'GTIN de Rank Math que no pasó al campo GTIN de WooCommerce: no es un GTIN válido, el producto ya tenía uno, otro producto lo usa o WooCommerce no está activo.',
+			'schema_default'    => 'Tipos de contenido con un schema por defecto de Rank Math sin equivalente (libro, receta, evento…): quedan en Automático.',
 			'term_canonical'    => 'Términos con canonical propio: los términos aún no tienen canonical editable.',
 			'term_social'       => 'Términos con datos sociales propios: los términos aún no los tienen.',
 			'users'             => 'Usuarios con título, descripción o robots propios de su archivo de autor (no se importan).',
@@ -154,7 +155,11 @@ class Digitalisimo_Integrations_RankMath_Import {
 		if ( self::filled( $rm['rank_math_rich_snippet'] ?? null ) ) $notes[] = 'schema_legacy';
 		if ( self::filled( $rm['rank_math_exclude_sitemap'] ?? null ) && $empty( 'sitemap_exclude' ) ) $set['sitemap_exclude'] = '1';
 		if ( 'noindex' === ( $rm['rank_math_news_sitemap_robots'] ?? '' ) ) $notes[] = 'news_robots';
-		if ( self::filled( $rm['_rank_math_gtin_code'] ?? null ) ) $notes[] = 'gtin';
+		// El GTIN pasa al campo nativo de WooCommerce, que ya lo publica; sólo si es un GTIN válido.
+		if ( self::filled( $rm['_rank_math_gtin_code'] ?? null ) ) {
+			$gtin = preg_replace( '/[^0-9]/', '', (string) $rm['_rank_math_gtin_code'] );
+			if ( preg_match( '/^(\d{8}|\d{12,14})$/', $gtin ) ) $set['_gtin'] = $gtin; else $notes[] = 'gtin';
+		}
 		return array( 'set' => $set, 'notes' => array_values( array_unique( $notes ) ) );
 	}
 
@@ -231,6 +236,17 @@ class Digitalisimo_Integrations_RankMath_Import {
 			if ( '' !== $text ) $types[ $m[1] ][ $m[2] ] = $text;
 		}
 		if ( $types ) $want['_type_templates'] = $types;
+		if ( ! empty( $g['product_brand'] ) ) $want['seo_product_brand'] = (string) $g['product_brand'];
+		$defaults_by_type = array();
+		foreach ( $t as $key => $value ) {
+			if ( ! preg_match( '/^pt_([a-z0-9_-]+)_default_rich_snippet$/', (string) $key, $m ) || in_array( $m[1], array( 'page', 'attachment', 'product' ), true ) ) continue;
+			$snippet = strtolower( (string) $value );
+			if ( 'off' === $snippet ) $defaults_by_type[ $m[1] ] = 'none';
+			elseif ( 'article' === $snippet ) { $article = (string) ( $t[ 'pt_' . $m[1] . '_default_article_type' ] ?? 'Article' ); $defaults_by_type[ $m[1] ] = in_array( $article, array( 'Article', 'BlogPosting', 'NewsArticle' ), true ) ? $article : 'Article'; }
+			elseif ( 'service' === $snippet ) $defaults_by_type[ $m[1] ] = 'Service';
+			else $notes[] = 'schema_default';
+		}
+		if ( $defaults_by_type ) $want['_schema_defaults'] = $defaults_by_type;
 		if ( isset( $g['attachment_redirect_urls'] ) ) $want['seo_redirect_attachments'] = self::on( $g['attachment_redirect_urls'] ) ? 1 : 0;
 		foreach ( array( 'google_verify' => 'seo_verify_google', 'bing_verify' => 'seo_verify_bing', 'baidu_verify' => 'seo_verify_baidu', 'yandex_verify' => 'seo_verify_yandex', 'pinterest_verify' => 'seo_verify_pinterest', 'norton_verify' => 'seo_verify_norton' ) as $from => $to ) if ( ! empty( $g[ $from ] ) ) $want[ $to ] = (string) $g[ $from ];
 		if ( ! empty( $g['custom_webmaster_tags'] ) ) $notes[] = 'custom_webmaster';
@@ -256,7 +272,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 
 		$set = array();
 		foreach ( $want as $key => $value ) {
-			if ( in_array( $key, array( '_profiles', '_type_templates' ), true ) ) { $set[ $key ] = $value; continue; }
+			if ( in_array( $key, array( '_profiles', '_type_templates', '_schema_defaults' ), true ) ) { $set[ $key ] = $value; continue; }
 			$edited = array_key_exists( $key, $site ) && (string) $site[ $key ] !== (string) ( $defaults[ $key ] ?? '' ) && (string) $site[ $key ] !== (string) $value;
 			if ( $edited ) { $notes[] = 'option_kept'; continue; }
 			$set[ $key ] = $value;
@@ -431,6 +447,13 @@ class Digitalisimo_Integrations_RankMath_Import {
 					$current = is_array( $site['seo_type_templates'] ?? null ) ? $site['seo_type_templates'] : array();
 					$out['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( $current + $value );
 					break;
+				case '_schema_defaults':
+					$current = is_array( $site['seo_schema_type_defaults'] ?? null ) ? $site['seo_schema_type_defaults'] : array();
+					$out['seo_schema_type_defaults'] = Digitalisimo_Integrations_Schema_Graph::sanitize_type_defaults( $current + $value );
+					break;
+				case 'seo_product_brand':
+					$out[ $key ] = sanitize_key( $value );
+					break;
 				case 'seo_separator':
 					if ( array_key_exists( $value, Digitalisimo_Integrations_SEO_Suite::separator_choices() ) ) $out[ $key ] = $value;
 					break;
@@ -491,6 +514,11 @@ class Digitalisimo_Integrations_RankMath_Import {
 		foreach ( $ids as $id ) {
 			list( $rm, $current ) = self::split_meta( (array) get_post_meta( $id ) );
 			$result = self::map_post( $rm, $current, $ctx );
+			if ( isset( $result['set']['_gtin'] ) ) {
+				if ( ! self::import_gtin( $id, $result['set']['_gtin'] ) ) $result['notes'][] = 'gtin';
+				else self::count( $job, 'gtin' );
+				unset( $result['set']['_gtin'] );
+			}
 			foreach ( $result['set'] as $key => $value ) {
 				$value = in_array( $key, array( 'canonical', 'social_image' ), true ) ? esc_url_raw( $value ) : sanitize_textarea_field( $value );
 				if ( '' === $value ) continue;
@@ -501,6 +529,15 @@ class Digitalisimo_Integrations_RankMath_Import {
 			$job['cursor'] = $id;
 		}
 		return count( $ids ) < self::BATCH;
+	}
+
+	/** GTIN al campo de WooCommerce, sólo si el producto no tiene uno; WooCommerce rechaza un GTIN repetido. */
+	private static function import_gtin( $post_id, $gtin ) {
+		if ( ! function_exists( 'wc_get_product' ) ) return false;
+		$product = wc_get_product( $post_id );
+		if ( ! $product || ! is_callable( array( $product, 'set_global_unique_id' ) ) || '' !== (string) $product->get_global_unique_id() ) return false;
+		try { $product->set_global_unique_id( $gtin ); $product->save(); } catch ( Throwable $error ) { return false; }
+		return $gtin === (string) wc_get_product( $post_id )->get_global_unique_id();
 	}
 
 	private static function phase_terms( array &$job ) {
@@ -594,7 +631,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 		} else echo '<p class="description">No hay datos de Rank Math en este sitio.</p>';
 		if ( ! $job ) return;
 		$done = (array) ( $job['done'] ?? array() );
-		echo '<h3>Informe</h3><ul><li>Ajustes importados: ' . esc_html( (int) ( $done['options'] ?? 0 ) ) . '</li><li>Contenidos actualizados: ' . esc_html( (int) ( $done['posts'] ?? 0 ) ) . '</li><li>Términos actualizados: ' . esc_html( (int) ( $done['terms'] ?? 0 ) ) . '</li><li>Redirecciones importadas: ' . esc_html( (int) ( $done['redirections'] ?? 0 ) ) . '</li></ul>';
+		echo '<h3>Informe</h3><ul><li>Ajustes importados: ' . esc_html( (int) ( $done['options'] ?? 0 ) ) . '</li><li>Contenidos actualizados: ' . esc_html( (int) ( $done['posts'] ?? 0 ) ) . '</li><li>Términos actualizados: ' . esc_html( (int) ( $done['terms'] ?? 0 ) ) . '</li><li>Redirecciones importadas: ' . esc_html( (int) ( $done['redirections'] ?? 0 ) ) . '</li><li>GTIN pasados a WooCommerce: ' . esc_html( (int) ( $done['gtin'] ?? 0 ) ) . '</li></ul>';
 		$labels = self::note_labels();
 		if ( ! empty( $job['notes'] ) ) {
 			echo '<h3>Revisar</h3><table class="widefat striped"><thead><tr><th>Qué</th><th>Cuántos</th><th>Ejemplos</th></tr></thead><tbody>';

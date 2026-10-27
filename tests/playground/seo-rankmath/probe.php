@@ -23,6 +23,7 @@ if ( 'setup' === $step || 'single-setup' === $step ) {
 	require_once ABSPATH . 'wp-admin/includes/plugin.php';
 	$result = activate_plugin( 'digitalisimo-seo/digitalisimo-integrations.php', '', is_multisite() );
 	digi_check( ! is_wp_error( $result ), 'El plugin se activa' );
+	if ( 'single-setup' === $step && file_exists( WP_PLUGIN_DIR . '/woocommerce/woocommerce.php' ) ) { $woo = activate_plugin( 'woocommerce/woocommerce.php' ); digi_check( ! is_wp_error( $woo ), 'WooCommerce se activa' ); }
 	if ( is_multisite() ) { $site = wpmu_create_blog( 'playground.test', '/sub/', 'Sub', 1 ); digi_check( ! is_wp_error( $site ), 'Se crea el sitio /sub/' ); }
 	return;
 }
@@ -68,7 +69,13 @@ if ( 'seed' === $step ) {
 		array( serialize( array( array( 'pattern' => '(roto', 'comparison' => 'regex' ) ) ), '/z/', 301, 'active' ),
 	);
 	foreach ( $rows as $row ) $wpdb->insert( $table, array( 'sources' => $row[0], 'url_to' => $row[1], 'header_code' => $row[2], 'status' => $row[3], 'hits' => 3, 'created' => '2025-01-01 00:00:00', 'updated' => '2025-01-01 00:00:00' ) );
-	update_option( 'digi_probe_ids', array( 'post' => $post, 'edited' => $edited, 'term' => $term['term_id'] ) );
+	$product = 0;
+	if ( class_exists( 'WC_Product_Simple' ) ) {
+		$item = new WC_Product_Simple(); $item->set_name( 'Tenis Acme' ); $item->set_regular_price( '1200' ); $item->set_status( 'publish' ); $product = $item->save();
+		update_post_meta( $product, '_rank_math_gtin_code', '4006381333931' );
+		if ( taxonomy_exists( 'product_brand' ) ) wp_set_object_terms( $product, 'Acme Sport', 'product_brand' );
+	}
+	update_option( 'digi_probe_ids', array( 'post' => $post, 'edited' => $edited, 'term' => $term['term_id'], 'product' => $product ) );
 	digi_check( 6 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), 'Semilla de Rank Math creada' );
 	return;
 }
@@ -76,7 +83,7 @@ if ( 'seed' === $step ) {
 $ids = get_option( 'digi_probe_ids', array() );
 
 if ( 'import' === $step ) {
-	do_action( 'admin_init' );
+	Digitalisimo_Integrations_Settings::register_settings(); Digitalisimo_Integrations_Redirections::maybe_install(); Digitalisimo_Integrations_404_Monitor::maybe_install(); // Lo que hace admin_init para SEO, sin los ganchos de otros plugins.
 	Digitalisimo_Integrations_RankMath_Import::start();
 	Digitalisimo_Integrations_RankMath_Import::run_batch();
 	$job = Digitalisimo_Integrations_RankMath_Import::job();
@@ -96,6 +103,7 @@ if ( 'import' === $step ) {
 	digi_check( '-' === ( $o['seo_separator'] ?? '' ) && 'Acme RM' === ( $o['seo_organization_name'] ?? '' ) && 'rm-google-123' === ( $o['seo_verify_google'] ?? '' ) && 1 === ( $o['seo_404_enabled'] ?? 0 ) && 500 === ( $o['seo_404_limit'] ?? 0 ) && 1 === ( $o['noindex_authors'] ?? null ), 'Ajustes importados: ' . json_encode( array_intersect_key( $o, array_flip( array( 'seo_separator', 'seo_organization_name', 'seo_verify_google', 'seo_404_enabled', 'seo_404_limit', 'noindex_authors' ) ) ) ) );
 	digi_check( '%title% %sep% %sitename%' === ( $o['seo_title_post'] ?? '' ), 'La plantilla pierde la variable sin destino y su separador' );
 	digi_check( 'https://facebook.com/acme' === ( $o['seo_social_profiles']['facebook'] ?? '' ), 'Perfil de Facebook importado' );
+	if ( ! empty( $ids['product'] ) ) digi_check( '4006381333931' === wc_get_product( $ids['product'] )->get_global_unique_id() && 1 === (int) ( $job['done']['gtin'] ?? 0 ), 'El GTIN de Rank Math pasa al campo de WooCommerce' );
 	if ( is_multisite() ) { $inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() ); digi_check( isset( $inherit['seo_separator'] ) && 0 === $inherit['seo_separator'], 'En la red, lo importado deja de heredar' ); }
 	// Repetir no duplica.
 	Digitalisimo_Integrations_RankMath_Import::start();
@@ -192,10 +200,35 @@ if ( 'crumbs' === $step ) {
 	return;
 }
 
+if ( 'schema' === $step ) {
+	// RM8: entidad por defecto, sección y keywords reales, marca del producto y ruta de una categoría.
+	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_schema_type_defaults' => array( 'post' => 'NewsArticle' ) ) ) );
+	if ( is_multisite() ) update_option( 'digitalisimo_seo_network_inherit', array( 'seo_schema_type_defaults' => 0 ) + (array) get_option( 'digitalisimo_seo_network_inherit', array() ) );
+	$cat  = get_term_by( 'name', 'Tenis', 'category' );
+	$post = wp_insert_post( array( 'post_title' => 'Noticia', 'post_status' => 'publish', 'post_category' => array( $cat->term_id ) ) );
+	update_post_meta( $post, 'digitalisimo_seo_keywords', 'tenis,ofertas' );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => $post ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
+	digi_check( false !== strpos( $graph, '"@type":"NewsArticle"' ) && false !== strpos( $graph, '"articleSection":"Tenis"' ) && false !== strpos( $graph, '"keywords":"tenis, ofertas"' ), 'NewsArticle por defecto con sección y keywords' );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'cat' => $cat->term_id ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
+	digi_check( false !== strpos( $graph, '"name":"Calzado"' ) && false !== strpos( $graph, '"BreadcrumbList"' ), 'El BreadcrumbList de una categoría incluye su antecesor' );
+	if ( ! empty( $ids['product'] ) ) {
+		$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'product', 'p' => $ids['product'] ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+		ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
+		digi_check( false !== strpos( $graph, '"brand":{"@type":"Brand","name":"Acme Sport"}' ), 'El producto publica su marca' );
+		WC()->structured_data->generate_product_data( wc_get_product( $ids['product'] ) );
+		$woo = WC()->structured_data->get_data();
+		digi_check( false !== strpos( wp_json_encode( $woo ), '4006381333931' ), 'WooCommerce publica el GTIN importado' );
+	}
+	return;
+}
+
 if ( 'screens' === $step ) {
 	require_once ABSPATH . 'wp-admin/includes/admin.php';
-	do_action( 'admin_init' );
-	foreach ( array( 'digitalisimo-seo-redirections', 'digitalisimo-seo-monitor404', 'digitalisimo-seo-import', 'digitalisimo-seo-indexing', 'digitalisimo-seo-general', 'digitalisimo-seo-sitemap', 'digitalisimo-seo-breadcrumbs', 'digitalisimo-seo-titles' ) as $page ) {
+	Digitalisimo_Integrations_Settings::register_settings(); Digitalisimo_Integrations_Redirections::maybe_install(); Digitalisimo_Integrations_404_Monitor::maybe_install(); // Lo que hace admin_init para SEO, sin los ganchos de otros plugins.
+	foreach ( array( 'digitalisimo-seo-redirections', 'digitalisimo-seo-monitor404', 'digitalisimo-seo-import', 'digitalisimo-seo-indexing', 'digitalisimo-seo-general', 'digitalisimo-seo-sitemap', 'digitalisimo-seo-breadcrumbs', 'digitalisimo-seo-titles', 'digitalisimo-seo-schema' ) as $page ) {
 		$_GET['page'] = $page;
 		ob_start(); Digitalisimo_Integrations_SEO_Suite::page(); $html = ob_get_clean();
 		digi_check( strlen( $html ) > 500 && false === stripos( $html, 'rankmath.com' ), 'Pantalla ' . $page );
@@ -219,7 +252,7 @@ if ( 'network' === $step ) {
 	set_current_screen( 'dashboard-network' );
 	digi_check( is_network_admin(), 'Pantalla de red' );
 	ob_start(); Digitalisimo_Integrations_SEO_Suite::network_page(); $html = ob_get_clean();
-	foreach ( array( 'seo_redirect_enabled', 'seo_404_enabled', 'seo_verify_google', 'seo_noindex_paginated', 'seo_max_snippet', 'seo_sitemap_images', 'seo_breadcrumbs_separator', 'seo_breadcrumbs_taxonomy', 'seo_title_taxonomy' ) as $key ) digi_check( false !== strpos( $html, 'name="digitalisimo_network[' . $key . ']"' ), 'La red pinta ' . $key );
+	foreach ( array( 'seo_redirect_enabled', 'seo_404_enabled', 'seo_verify_google', 'seo_noindex_paginated', 'seo_max_snippet', 'seo_sitemap_images', 'seo_breadcrumbs_separator', 'seo_breadcrumbs_taxonomy', 'seo_title_taxonomy', 'seo_product_brand' ) as $key ) digi_check( false !== strpos( $html, 'name="digitalisimo_network[' . $key . ']"' ), 'La red pinta ' . $key );
 	digi_check( false === strpos( $html, 'Heredar de la red' ), 'La red no muestra Heredar de la red' );
 	digi_check( false !== strpos( $html, 'digitalisimo_seo_rankmath_import_network' ) && false !== strpos( $html, 'digitalisimo_rankmath_nonce' ), 'La red ofrece importar en todos los sitios con su nonce propio' );
 	// Guardado de red: mismas reglas que el sitio.
@@ -228,6 +261,7 @@ if ( 'network' === $step ) {
 	add_filter( 'wp_redirect', function() { throw new Exception( 'redirect' ); } );
 	try { Digitalisimo_Integrations_SEO_Suite::save_network(); } catch ( Exception $e ) {}
 	$net = (array) get_site_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	digi_check( false !== strpos( $html, 'digitalisimo_network[seo_schema_type_defaults][post]' ), 'La red pinta la entidad por defecto de cada tipo' );
 	digi_check( 'Ruta' === $net['seo_breadcrumbs_prefix'] && array( 'servicio' => array( 'title' => '%title%' ) ) === $net['seo_type_templates'], 'save_network sanea migas y plantillas por tipo: ' . json_encode( array( $net['seo_breadcrumbs_prefix'] ?? null, $net['seo_type_templates'] ?? null ) ) );
 	digi_check( 'NET-1' === $net['seo_verify_bing'] && '' === $net['seo_max_snippet'] && 50 === $net['seo_404_limit'] && '' === $net['seo_redirect_fallback_url'] && 'facebook-domain-verification|fb1' === $net['seo_verify_custom'] && 1 === $net['seo_noindex_paginated'], 'save_network sanea las claves nuevas: ' . json_encode( array_intersect_key( $net, array_flip( array( 'seo_verify_bing', 'seo_max_snippet', 'seo_404_limit', 'seo_redirect_fallback_url', 'seo_verify_custom', 'seo_noindex_paginated' ) ) ) ) );
 	return;

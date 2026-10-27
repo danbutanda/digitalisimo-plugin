@@ -151,7 +151,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 			$id   = $page['url'] . '#' . strtolower( $e['type'] );
 			$base = array( '@type' => $e['type'], '@id' => $id, 'mainEntityOfPage' => array( '@id' => $ids['webpage'] ) );
 			if ( Digitalisimo_Integrations_Schema_Vocabulary::is_a( $e['type'], 'Article' ) ) {
-				$entity = $base + array_filter( array( 'headline' => self::cut( $page['headline'] ?? $page['title'], 110 ), 'description' => $page['description'], 'datePublished' => $page['published'] ?? '', 'dateModified' => $page['modified'] ?? '', 'inLanguage' => $site['language'] ?? '', 'publisher' => array( '@id' => $ids['identity'] ) ) );
+				$entity = $base + array_filter( array( 'headline' => self::cut( $page['headline'] ?? $page['title'], 110 ), 'description' => $page['description'], 'datePublished' => $page['published'] ?? '', 'dateModified' => $page['modified'] ?? '', 'inLanguage' => $site['language'] ?? '', 'publisher' => array( '@id' => $ids['identity'] ), 'articleSection' => $e['section'] ?? '', 'keywords' => $e['keywords'] ?? '' ) );
 				if ( ! empty( $page['image'] ) ) $entity['image'] = array( '@id' => $ids['image'] );
 				if ( ! empty( $page['author']['name'] ) ) {
 					$author = self::person_node( $site, $page['author'] );
@@ -162,6 +162,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 				if ( isset( $e['offers']['price'], $e['offers']['priceCurrency'] ) && is_numeric( $e['offers']['price'] ) && preg_match( '/^[A-Z]{3}$/', $e['offers']['priceCurrency'] ) ) $entity['offers'] = array( '@type' => 'Offer', 'price' => $e['offers']['price'], 'priceCurrency' => $e['offers']['priceCurrency'], 'url' => $page['url'], 'seller' => array( '@id' => $ids['identity'] ) );
 			} elseif ( 'Product' === $e['type'] ) {
 				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'image' => $page['image'] ?? '', 'sku' => $e['sku'] ?? '' ) );
+				if ( ! empty( $e['brand'] ) ) $entity['brand'] = array( '@type' => 'Brand', 'name' => $e['brand'] );
 				if ( isset( $e['offers']['priceCurrency'], $e['offers']['price'] ) && is_numeric( $e['offers']['price'] ) && preg_match( '/^[A-Z]{3}$/', $e['offers']['priceCurrency'] ) ) {
 					$entity['offers'] = array( '@type' => 'Offer', 'price' => $e['offers']['price'], 'priceCurrency' => $e['offers']['priceCurrency'], 'url' => $page['url'], 'seller' => array( '@id' => $ids['identity'] ) );
 					if ( ! empty( $e['offers']['availability'] ) ) $entity['offers']['availability'] = $e['offers']['availability'];
@@ -479,9 +480,35 @@ class Digitalisimo_Integrations_Schema_Graph {
 		// El tipo real de WooCommerce prevalece sobre una selección antigua del editor.
 		if ( 'product' === $post->post_type ) return $woo && self::o( 'seo_schema_unify', 1 ) ? 'Product' : '';
 		if ( in_array( $chosen, array( 'Article', 'Service' ), true ) ) return $chosen;
+		// Sin elección en el editor manda el tipo por defecto de su tipo de contenido (RM8); «none» no publica entidad.
+		$default = '' === $chosen ? self::type_default( $post->post_type ) : '';
+		if ( 'none' === $default ) return '';
+		if ( '' !== $default ) return $default;
 		if ( '' === $chosen && 'post' === $post->post_type ) return 'BlogPosting';
 		if ( '' === $chosen && preg_match( '/^(?:services?|servicios?)$/i', $post->post_type ) ) return 'Service';
 		return '';
+	}
+
+	/** Entidades que un tipo de contenido puede declarar por defecto. */
+	public static function type_default_choices() { return array( '' => 'Automático', 'Article' => 'Artículo', 'BlogPosting' => 'Entrada de blog', 'NewsArticle' => 'Noticia', 'Service' => 'Servicio', 'none' => 'Ninguna (sólo WebPage)' ); }
+	public static function sanitize_type_defaults( $value ) {
+		$out = array();
+		foreach ( is_array( $value ) ? $value : array() as $type => $choice ) {
+			$type = sanitize_key( $type );
+			if ( '' !== $type && '' !== $choice && array_key_exists( (string) $choice, self::type_default_choices() ) ) $out[ $type ] = (string) $choice;
+		}
+		return array_slice( $out, 0, 50, true );
+	}
+	public static function type_default( $post_type ) {
+		$defaults = self::o( 'seo_schema_type_defaults', array() );
+		$value    = is_array( $defaults ) ? (string) ( $defaults[ $post_type ] ?? '' ) : '';
+		return array_key_exists( $value, self::type_default_choices() ) ? $value : '';
+	}
+	/** Taxonomía de marcas de los productos: la elegida o, si existe, la de WooCommerce. */
+	public static function brand_taxonomy() {
+		$chosen = sanitize_key( (string) self::o( 'seo_product_brand', '' ) );
+		if ( '' !== $chosen ) return taxonomy_exists( $chosen ) ? $chosen : '';
+		return taxonomy_exists( 'product_brand' ) ? 'product_brand' : '';
 	}
 
 	/** Encuentra un único video local relevante en bloques o en un widget Elementor. */
@@ -550,8 +577,19 @@ class Digitalisimo_Integrations_Schema_Graph {
 			if ( is_array( $offer ) && isset( $offer['price'], $offer['priceCurrency'] ) ) $entity['offers'] = $offer;
 		}
 		$profile = ! $home && 'Person' === $chosen && 'product' !== $post->post_type ? array( 'name' => wp_strip_all_tags( get_the_title( $post ) ), 'slug' => $post->post_name ?: (string) $post->ID, 'url' => $url ) : array();
+		if ( $type && Digitalisimo_Integrations_Schema_Vocabulary::is_a( $type, 'Article' ) ) {
+			// Sólo datos que el sitio ya tiene: su categoría principal y las keywords que eligió el editor.
+			$taxonomy = Digitalisimo_Integrations_Breadcrumbs::taxonomy_for( $post->post_type );
+			$section  = $taxonomy ? Digitalisimo_Integrations_SEO_Variables::primary_term( $post->ID, $taxonomy ) : null;
+			if ( $section ) $entity['section'] = wp_strip_all_tags( $section->name );
+			$keywords = implode( ', ', array_filter( array_map( 'trim', explode( ',', (string) get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'keywords', true ) ) ) ) );
+			if ( '' !== $keywords ) $entity['keywords'] = $keywords;
+		}
 		if ( 'Product' === $type && function_exists( 'wc_get_product' ) && ( $product = wc_get_product( $post->ID ) ) ) {
 			$entity['sku'] = $product->get_sku();
+			$brand_taxonomy = self::brand_taxonomy();
+			$brands = $brand_taxonomy ? get_the_terms( $post->ID, $brand_taxonomy ) : array();
+			if ( is_array( $brands ) && $brands ) $entity['brand'] = wp_strip_all_tags( $brands[0]->name );
 			$price = function_exists( 'wc_get_price_to_display' ) ? wc_get_price_to_display( $product ) : $product->get_price();
 			if ( ! $product->is_type( 'variable' ) && is_numeric( $price ) && function_exists( 'get_woocommerce_currency' ) ) {
 				$entity['offers'] = array( 'price' => $price, 'priceCurrency' => get_woocommerce_currency(), 'availability' => $product->is_in_stock() ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' );
@@ -591,7 +629,8 @@ class Digitalisimo_Integrations_Schema_Graph {
 		$profile = array();
 		if ( $author_archive && ( $user = get_queried_object() ) instanceof WP_User && $user->display_name ) { $url = get_author_posts_url( $user->ID ); $profile = array( 'name' => $user->display_name, 'slug' => $user->user_nicename, 'url' => $url, 'same_as' => $user->user_url ? array( $user->user_url ) : array() ); }
 		$crumbs = array();
-		if ( 'term' === $kind && self::o( 'seo_breadcrumbs' ) && ( $term = get_queried_object() ) ) $crumbs = array( array( 'name' => 'Inicio', 'url' => home_url( '/' ) ), array( 'name' => $term->name, 'url' => $url ) );
+		// La misma ruta que las migas visibles: la categoría con sus antecesores.
+		if ( 'term' === $kind && self::o( 'seo_breadcrumbs' ) && get_queried_object() ) $crumbs = Digitalisimo_Integrations_Breadcrumbs::trail();
 		return array( 'kind' => $kind, 'home' => $home, 'url' => $home ? home_url( '/' ) : $url, 'title' => wp_strip_all_tags( (string) ( $c['title'] ?? '' ) ), 'description' => wp_strip_all_tags( (string) ( $c['description'] ?? '' ) ), 'breadcrumbs' => $crumbs, 'entity' => null, 'profile' => $profile );
 	}
 

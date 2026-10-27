@@ -55,6 +55,9 @@ check( ! isset( $edited['set']['noindex'] ) && ! isset( $edited['set']['nofollow
 $empty = $i::map_post( $rm, array( 'title' => '' ), $ctx );
 check( isset( $empty['set']['title'] ), 'Un título vacío sí se rellena.' );
 
+$gtin = $i::map_post( array( '_rank_math_gtin_code' => '4006-3813-3393-1' ), array(), $ctx );
+check( '4006381333931' === $gtin['set']['_gtin'] && ! in_array( 'gtin', $gtin['notes'], true ), 'Un GTIN válido pasa a WooCommerce sin guiones.' );
+
 // Términos.
 $term = $i::map_term( array( 'rank_math_title' => '%term% %sep% %sitename%', 'rank_math_robots' => array( 'noindex' ), 'rank_math_canonical_url' => 'https://x.test/' ), array(), $ctx );
 check( '%term% %sep% %sitename%' === $term['set']['title'] && '1' === $term['set']['noindex'] && in_array( 'term_canonical', $term['notes'], true ), 'Los términos se importan e informan lo que no tiene destino.' );
@@ -63,8 +66,8 @@ check( '%term% %sep% %sitename%' === $term['set']['title'] && '1' === $term['set
 $defaults = array( 'seo_separator' => '|', 'noindex_authors' => 1, 'seo_title_post' => '%title% %sep% %sitename%', 'seo_organization_name' => '', 'seo_breadcrumbs' => 1 );
 $site     = array( 'seo_separator' => '|', 'seo_organization_name' => 'Ya editado', 'seo_title_post' => '%title% %sep% %sitename%' );
 $rmo = array(
-	'titles'  => array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Rank', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'off', 'author_robots' => array( 'noindex' ), 'pt_post_title' => '%title% %sep% %wc_price%', 'pt_product_title' => '%title% %sep% %wc_price%', 'pt_servicio_description' => 'Servicio %title%', 'local_address' => array( 'streetAddress' => 'Calle 1', 'addressCountry' => 'mx' ), 'geo' => '19.43, -99.13', 'opening_hours' => array( array( 'day' => 'Monday', 'time' => '09:00-17:00' ) ), 'social_url_facebook' => 'https://facebook.com/acme' ),
-	'general' => array( 'breadcrumbs_separator' => '»', 'breadcrumbs_archive_format' => 'Archives for %s', 'breadcrumbs_search_format' => 'Buscaste %s', 'breadcrumbs_remove_post_title' => 'on', 'breadcrumbs' => 'off', 'google_verify' => 'gcode', 'robots_txt_content' => "User-agent: *\nDisallow: /", 'redirections_fallback' => 'homepage', 'redirections_post_redirect' => 'on' ),
+	'titles'  => array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Rank', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'off', 'author_robots' => array( 'noindex' ), 'pt_post_title' => '%title% %sep% %wc_price%', 'pt_product_title' => '%title% %sep% %wc_price%', 'pt_servicio_description' => 'Servicio %title%', 'pt_post_default_rich_snippet' => 'article', 'pt_post_default_article_type' => 'NewsArticle', 'pt_servicio_default_rich_snippet' => 'service', 'pt_receta_default_rich_snippet' => 'recipe', 'pt_curso_default_rich_snippet' => 'off', 'pt_page_default_rich_snippet' => 'article', 'local_address' => array( 'streetAddress' => 'Calle 1', 'addressCountry' => 'mx' ), 'geo' => '19.43, -99.13', 'opening_hours' => array( array( 'day' => 'Monday', 'time' => '09:00-17:00' ) ), 'social_url_facebook' => 'https://facebook.com/acme' ),
+	'general' => array( 'product_brand' => 'pa_marca', 'breadcrumbs_separator' => '»', 'breadcrumbs_archive_format' => 'Archives for %s', 'breadcrumbs_search_format' => 'Buscaste %s', 'breadcrumbs_remove_post_title' => 'on', 'breadcrumbs' => 'off', 'google_verify' => 'gcode', 'robots_txt_content' => "User-agent: *\nDisallow: /", 'redirections_fallback' => 'homepage', 'redirections_post_redirect' => 'on' ),
 	'sitemap' => array( 'include_images' => 'on', 'exclude_posts' => '4, 5' ),
 	'modules' => array( '404-monitor' ),
 );
@@ -81,6 +84,8 @@ check( "User-agent: *\nDisallow: /" === $opt['robots_txt'] && in_array( 'robots_
 check( array( 'https://facebook.com/acme' ) === $set['_profiles'], 'Los perfiles sociales pasan al clasificador.' );
 check( '»' === $set['seo_breadcrumbs_separator'] && 'Buscaste %s' === $set['seo_breadcrumbs_search_format'] && 1 === $set['seo_breadcrumbs_hide_current'] && ! isset( $set['seo_breadcrumbs_archive_format'] ), 'Las migas se importan sin los textos por defecto en inglés.' );
 check( array( 'product' => array( 'title' => '%title%' ), 'servicio' => array( 'description' => 'Servicio %title%' ) ) === $set['_type_templates'], 'Las plantillas de otros tipos se importan: ' . json_encode( $set['_type_templates'] ) );
+check( array( 'post' => 'NewsArticle', 'servicio' => 'Service', 'curso' => 'none' ) === $set['_schema_defaults'] && in_array( 'schema_default', $opt['notes'], true ), 'Schema por defecto por tipo: ' . json_encode( $set['_schema_defaults'] ) );
+check( 'pa_marca' === $set['seo_product_brand'], 'La taxonomía de marca se importa.' );
 foreach ( array( 'local_hours', 'local_review' ) as $note ) check( in_array( $note, $opt['notes'], true ), 'Falta la nota ' . $note );
 $author = $i::map_options( array( 'titles' => array( 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ) ) ), array(), $defaults, $ctx );
 check( 1 === $author['set']['noindex_authors'], 'Con robots propios de autor, manda su noindex.' );
