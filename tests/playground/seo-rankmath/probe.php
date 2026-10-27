@@ -34,7 +34,8 @@ global $wpdb;
 
 if ( 'seed' === $step ) {
 	// Datos sintéticos de Rank Math: opciones, metas, términos y su tabla de redirecciones.
-	update_option( 'permalink_structure', '/%postname%/' ); // Con enlaces simples un cambio de slug no cambia la URL.
+	// Con enlaces simples un cambio de slug no cambia la URL. Como en Ajustes → Enlaces permanentes: estructura y reglas a la vez.
+	$GLOBALS['wp_rewrite']->set_permalink_structure( '/%postname%/' );
 	flush_rewrite_rules( false );
 	update_option( 'rank-math-options-titles', array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Acme RM', 'pt_post_title' => '%title% %sep% %sitename% %sep% %wc_price%', 'noindex_search' => 'on', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ), 'social_url_facebook' => 'https://facebook.com/acme' ) );
 	update_option( 'rank-math-options-general', array( 'breadcrumbs' => 'on', 'google_verify' => '<meta name="google-site-verification" content="rm-google-123" />', 'robots_txt_content' => "User-agent: *\nDisallow: /privado/", 'redirections_post_redirect' => 'on', '404_monitor_limit' => 500 ) );
@@ -254,6 +255,41 @@ if ( 'news' === $step ) {
 	return;
 }
 
+if ( 'links' === $step ) {
+	// RM7: recuentos, huérfanas, pilar sin enlace, backlog en cron y sugerencias.
+	Digitalisimo_Integrations_Links::install();
+	$pillar = wp_insert_post( array( 'post_type' => 'page', 'post_title' => 'Guía de SEO', 'post_status' => 'publish', 'post_content' => '<p>Guía completa.</p>' ) );
+	$target = wp_insert_post( array( 'post_title' => 'Auditoría técnica', 'post_status' => 'publish', 'post_content' => '<p>Sin enlaces.</p>' ) );
+	update_post_meta( $target, 'digitalisimo_seo_keywords', 'auditoría técnica' );
+	$source = wp_insert_post( array( 'post_title' => 'Fuente', 'post_status' => 'publish', 'post_content' => '<p><a href="' . get_permalink( $target ) . '">uno</a> <a href="' . get_permalink( $target ) . '#x">otra vez</a> <a href="https://externo.test/">fuera</a> <a href="#ancla">ancla</a></p><p>Hablamos de auditoría técnica y de la guía de seo.</p>' ) );
+	update_post_meta( $source, '_related_pillar', (string) $pillar );
+	wp_update_post( array( 'ID' => $source ) ); // El guardado registra los enlaces.
+	$c = Digitalisimo_Integrations_Links::counts( array( $source, $target, $pillar ) );
+	digi_check( 2 === $c[ $source ]['internal'] && 1 === $c[ $source ]['external'] && 1 === $c[ $target ]['incoming'] && 0 === $c[ $pillar ]['incoming'], 'Recuentos al guardar: ' . json_encode( $c ) );
+	$orphans = Digitalisimo_Integrations_Links::orphans();
+	digi_check( in_array( $pillar, $orphans, true ) && ! in_array( $target, $orphans, true ), 'El pilar sin enlaces entrantes es huérfano; el enlazado no' );
+	$gaps = Digitalisimo_Integrations_Links::pillar_gaps();
+	digi_check( in_array( (string) $source, array_column( $gaps, 'post_id' ), true ), 'El secundario que no enlaza a su pilar se informa' );
+	ob_start(); Digitalisimo_Integrations_Links::metabox_html( get_post( $source ) ); $box = ob_get_clean();
+	digi_check( false !== strpos( $box, 'Guía de SEO' ) && false !== strpos( $box, 'tu contenido pilar' ) && false === strpos( $box, '«auditoría técnica»' ), 'El editor sugiere el pilar y no lo ya enlazado' );
+	$third = wp_insert_post( array( 'post_title' => 'Tercera', 'post_status' => 'publish', 'post_content' => '<p>Una auditoría técnica cada año.</p>' ) );
+	ob_start(); Digitalisimo_Integrations_Links::metabox_html( get_post( $third ) ); $box = ob_get_clean();
+	digi_check( false !== strpos( $box, '«auditoría técnica» aparece en el texto' ), 'El editor sugiere el contenido cuya keyword aparece sin enlace' );
+	wp_delete_post( $target, true );
+	digi_check( 0 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Digitalisimo_Integrations_Links::table() . ' WHERE target_post_id = %d', $target ) ), 'Borrar un contenido deja rotos (destino 0) los enlaces que lo apuntaban' );
+	// Backlog: lo existente se analiza en cron.
+	delete_post_meta_by_key( Digitalisimo_Integrations_Links::META ); delete_option( Digitalisimo_Integrations_Links::DONE );
+	digi_check( count( Digitalisimo_Integrations_Links::backlog( 500 ) ) > 3, 'Lo existente queda pendiente' );
+	Digitalisimo_Integrations_Links::run_batch();
+	digi_check( array() === Digitalisimo_Integrations_Links::backlog( 1 ) && get_option( Digitalisimo_Integrations_Links::DONE ), 'El lote analiza lo pendiente y lo marca terminado' );
+	$_GET['page'] = 'digitalisimo-seo-audit'; $_GET['audit'] = 'links';
+	require_once ABSPATH . 'wp-admin/includes/admin.php';
+	ob_start(); Digitalisimo_Integrations_SEO_Audit_Hub::render(); $audit = ob_get_clean();
+	digi_check( false !== strpos( $audit, 'Páginas huérfanas' ) && false !== strpos( $audit, 'Guía de SEO' ), 'Auditoría → Enlaces internos lista las huérfanas' );
+	unset( $_GET['audit'] );
+	return;
+}
+
 if ( 'screens' === $step ) {
 	require_once ABSPATH . 'wp-admin/includes/admin.php';
 	Digitalisimo_Integrations_Settings::register_settings(); Digitalisimo_Integrations_Redirections::maybe_install(); Digitalisimo_Integrations_404_Monitor::maybe_install(); // Lo que hace admin_init para SEO, sin los ganchos de otros plugins.
@@ -281,7 +317,7 @@ if ( 'network' === $step ) {
 	set_current_screen( 'dashboard-network' );
 	digi_check( is_network_admin(), 'Pantalla de red' );
 	ob_start(); Digitalisimo_Integrations_SEO_Suite::network_page(); $html = ob_get_clean();
-	foreach ( array( 'seo_redirect_enabled', 'seo_404_enabled', 'seo_verify_google', 'seo_noindex_paginated', 'seo_max_snippet', 'seo_sitemap_images', 'seo_breadcrumbs_separator', 'seo_breadcrumbs_taxonomy', 'seo_title_taxonomy', 'seo_product_brand', 'seo_sitemap_news_enabled', 'seo_sitemap_news_exclude_terms' ) as $key ) digi_check( false !== strpos( $html, 'name="digitalisimo_network[' . $key . ']"' ), 'La red pinta ' . $key );
+	foreach ( array( 'seo_redirect_enabled', 'seo_404_enabled', 'seo_verify_google', 'seo_noindex_paginated', 'seo_max_snippet', 'seo_sitemap_images', 'seo_breadcrumbs_separator', 'seo_breadcrumbs_taxonomy', 'seo_title_taxonomy', 'seo_product_brand', 'seo_sitemap_news_enabled', 'seo_sitemap_news_exclude_terms', 'seo_links_counter' ) as $key ) digi_check( false !== strpos( $html, 'name="digitalisimo_network[' . $key . ']"' ), 'La red pinta ' . $key );
 	digi_check( false === strpos( $html, 'Heredar de la red' ), 'La red no muestra Heredar de la red' );
 	digi_check( false !== strpos( $html, 'digitalisimo_seo_rankmath_import_network' ) && false !== strpos( $html, 'digitalisimo_rankmath_nonce' ), 'La red ofrece importar en todos los sitios con su nonce propio' );
 	// Guardado de red: mismas reglas que el sitio.

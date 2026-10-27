@@ -712,6 +712,7 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 | RM13 Migas y categoría principal | **Publicado** · SEO 1.0.234 · `v2026.10.27.420`. Pendientes: título de miga en términos y que el widget de migas de DIGITALÍSIMO Elements lea la misma ruta. |
 | RM10 Variables | **Publicado** · SEO 1.0.234 · `v2026.10.27.420` (25 variables y plantillas por tipo de contenido). Pendientes: plantillas por taxonomía y por archivo de tipo. |
 | RM8 Schema | Primera parte **publicada** · SEO 1.0.235 · `v2026.10.27.421`: marca del producto, entidad por defecto por tipo, `articleSection` y `keywords`, GTIN importado al campo de WooCommerce. WooCommerce 11.2.1 ya publica GTIN, AggregateOffer, `priceValidUntil`, valoraciones y reseñas, y la unificación las fusiona: no se duplican. Pendientes: plantillas con condiciones y VideoObject de YouTube y Vimeo, que va con el sitemap de vídeo (el oEmbed de YouTube no da la fecha de subida que Google exige y no se inventa). |
-| RM7, RM9, RM11, RM12, RM14–RM16 | Pendientes, en el orden de «Orden de trabajo». |
+| RM7 Enlaces | **Publicado** · SEO 1.0.237: recuentos, columna, sugerencias en el editor, huérfanas y secundarios sin pilar en Auditoría. Pendiente: comprobación de enlaces rotos (peticiones HTTP en cola). El auto-enlazado de Rank Math no se porta. |
+| RM9, RM11, RM12, RM14–RM16 | Pendientes, en el orden de «Orden de trabajo». |
 
-Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php` y `tests/playground/seo-rankmath.sh` (152 comprobaciones en red y en un sitio individual con WooCommerce 11.2.1).
+Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php`, `tests/seo-links.php` y `tests/playground/seo-rankmath.sh` (171 comprobaciones en red y en un sitio individual con WooCommerce 11.2.1).
