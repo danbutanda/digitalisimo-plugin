@@ -5,16 +5,18 @@ function is_serialized( $data ) { return is_string( $data ) && preg_match( '/^(a
 function sanitize_key( $value ) { return strtolower( preg_replace( '/[^a-z0-9_-]/i', '', (string) $value ) ); }
 function absint( $value ) { return abs( (int) $value ); }
 function add_action() {}
+require __DIR__ . '/../digitalisimo-seo/includes/class-seo-variables.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-rankmath-import.php';
+class Digitalisimo_Integrations_SEO_Suite { public static function sanitize_type_templates( $v ) { return $v; } }
 function check( $condition, $message ) { if ( ! $condition ) throw new RuntimeException( $message ); }
 $i   = Digitalisimo_Integrations_RankMath_Import::class;
 $ctx = array( 'sitedesc' => 'Lema', 'org_name' => 'Acme', 'keyword_max' => 3 );
 
 // Plantillas: equivalentes, alias y variables sin destino.
 check( array( '%title% %sep% %sitename%', array() ) === $i::translate_template( '%title% %sep% %sitename%', $ctx ), 'Las variables comunes se conservan.' );
-check( array( '%description% · Lema', array() ) === $i::translate_template( '%term_description% · %sitedesc%', $ctx ), 'Los alias se traducen y lo del sitio se resuelve.' );
-check( array( '%title%', array( 'currentyear' ) ) === $i::translate_template( '%title% %sep% %currentyear%', $ctx ), 'Una variable sin destino se quita junto con su separador.' );
-check( array( '%title%', array( 'customfield' ) ) === $i::translate_template( '%title% %customfield(precio)%', $ctx ), 'Una variable con argumentos sin destino se quita.' );
+check( array( '%description% · %sitedesc% %category% %date(Y)%', array() ) === $i::translate_template( '%term_description% · %sitedesc% %primary_taxonomy_terms% %date(Y)%', $ctx ), 'Los alias se traducen y las variables propias se conservan, también con argumento.' );
+check( array( '%title%', array( 'wc_price' ) ) === $i::translate_template( '%title% %sep% %wc_price%', $ctx ), 'Una variable sin destino se quita junto con su separador.' );
+check( array( '%title%', array( 'title' ) ) === $i::translate_template( '%title% %title(x)%', $ctx ), 'Una variable que no admite argumento se quita si lo trae.' );
 
 // Contenidos.
 $rm = array(
@@ -61,8 +63,8 @@ check( '%term% %sep% %sitename%' === $term['set']['title'] && '1' === $term['set
 $defaults = array( 'seo_separator' => '|', 'noindex_authors' => 1, 'seo_title_post' => '%title% %sep% %sitename%', 'seo_organization_name' => '', 'seo_breadcrumbs' => 1 );
 $site     = array( 'seo_separator' => '|', 'seo_organization_name' => 'Ya editado', 'seo_title_post' => '%title% %sep% %sitename%' );
 $rmo = array(
-	'titles'  => array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Rank', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'off', 'author_robots' => array( 'noindex' ), 'pt_post_title' => '%title% %sep% %currentyear%', 'local_address' => array( 'streetAddress' => 'Calle 1', 'addressCountry' => 'mx' ), 'geo' => '19.43, -99.13', 'opening_hours' => array( array( 'day' => 'Monday', 'time' => '09:00-17:00' ) ), 'social_url_facebook' => 'https://facebook.com/acme' ),
-	'general' => array( 'breadcrumbs' => 'off', 'google_verify' => 'gcode', 'robots_txt_content' => "User-agent: *\nDisallow: /", 'redirections_fallback' => 'homepage', 'redirections_post_redirect' => 'on' ),
+	'titles'  => array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Rank', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'off', 'author_robots' => array( 'noindex' ), 'pt_post_title' => '%title% %sep% %wc_price%', 'pt_product_title' => '%title% %sep% %wc_price%', 'pt_servicio_description' => 'Servicio %title%', 'local_address' => array( 'streetAddress' => 'Calle 1', 'addressCountry' => 'mx' ), 'geo' => '19.43, -99.13', 'opening_hours' => array( array( 'day' => 'Monday', 'time' => '09:00-17:00' ) ), 'social_url_facebook' => 'https://facebook.com/acme' ),
+	'general' => array( 'breadcrumbs_separator' => '»', 'breadcrumbs_archive_format' => 'Archives for %s', 'breadcrumbs_search_format' => 'Buscaste %s', 'breadcrumbs_remove_post_title' => 'on', 'breadcrumbs' => 'off', 'google_verify' => 'gcode', 'robots_txt_content' => "User-agent: *\nDisallow: /", 'redirections_fallback' => 'homepage', 'redirections_post_redirect' => 'on' ),
 	'sitemap' => array( 'include_images' => 'on', 'exclude_posts' => '4, 5' ),
 	'modules' => array( '404-monitor' ),
 );
@@ -77,6 +79,8 @@ check( 0 === $set['seo_breadcrumbs'] && 'gcode' === $set['seo_verify_google'] &&
 check( ! isset( $set['seo_redirect_fallback_url'] ) && in_array( 'fallback_home', $opt['notes'], true ), 'Redirigir todos los 404 a la portada no se importa.' );
 check( "User-agent: *\nDisallow: /" === $opt['robots_txt'] && in_array( 'robots_txt', $opt['notes'], true ), 'El robots.txt sólo se muestra para revisión.' );
 check( array( 'https://facebook.com/acme' ) === $set['_profiles'], 'Los perfiles sociales pasan al clasificador.' );
+check( '»' === $set['seo_breadcrumbs_separator'] && 'Buscaste %s' === $set['seo_breadcrumbs_search_format'] && 1 === $set['seo_breadcrumbs_hide_current'] && ! isset( $set['seo_breadcrumbs_archive_format'] ), 'Las migas se importan sin los textos por defecto en inglés.' );
+check( array( 'product' => array( 'title' => '%title%' ), 'servicio' => array( 'description' => 'Servicio %title%' ) ) === $set['_type_templates'], 'Las plantillas de otros tipos se importan: ' . json_encode( $set['_type_templates'] ) );
 foreach ( array( 'local_hours', 'local_review' ) as $note ) check( in_array( $note, $opt['notes'], true ), 'Falta la nota ' . $note );
 $author = $i::map_options( array( 'titles' => array( 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ) ) ), array(), $defaults, $ctx );
 check( 1 === $author['set']['noindex_authors'], 'Con robots propios de autor, manda su noindex.' );

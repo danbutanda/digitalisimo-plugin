@@ -28,6 +28,9 @@ function is_paged() { return false; }
 function is_singular() { return true; }
 function get_queried_object_id() { return 468; }
 function get_the_title( $id ) { return 'Inicio'; }
+function get_object_taxonomies() { return array(); }
+require __DIR__ . '/../digitalisimo-seo/includes/class-seo-variables.php';
+require __DIR__ . '/../digitalisimo-seo/includes/class-breadcrumbs.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-suite.php';
 $seo = Digitalisimo_Integrations_SEO_Suite::class;
 ob_start(); $seo::metabox( $post ); $html = ob_get_clean();

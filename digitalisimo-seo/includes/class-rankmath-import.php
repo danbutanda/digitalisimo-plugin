@@ -20,8 +20,8 @@ class Digitalisimo_Integrations_RankMath_Import {
 	const BUDGET = 20;
 	const PHASES = array( 'options', 'posts', 'terms', 'redirections', 'done' );
 
-	/** Variables que DIGITALÍSIMO resuelve al mostrar la página. */
-	const SUPPORTED_VARS = array( 'title', 'sep', 'sitename', 'excerpt', 'term', 'description', 'page' );
+	/** Textos por defecto de Rank Math en inglés: no se importan sobre los propios en español. */
+	const ENGLISH_DEFAULTS = array( 'Home', 'Archives for %s', 'Results for %s', '404 Error: page not found' );
 
 	public static function init() {
 		add_action( self::HOOK, array( __CLASS__, 'run_batch' ) );
@@ -72,11 +72,12 @@ class Digitalisimo_Integrations_RankMath_Import {
 	 * @return array{0:string,1:string[]} Texto traducido y variables quitadas por no tener equivalente.
 	 */
 	public static function translate_template( $template, array $ctx = array() ) {
-		$aliases = array( 'excerpt_only' => '%excerpt%', 'term_description' => '%description%', 'pagenumber' => '%page%', 'sitedesc' => (string) ( $ctx['sitedesc'] ?? '' ), 'org_name' => (string) ( $ctx['org_name'] ?? '' ) );
-		$unknown = array();
-		$text    = preg_replace_callback( '/%([a-z_]+)(\([^)%]*\))?%/i', function( $m ) use ( $aliases, &$unknown ) {
+		$aliases   = array( 'excerpt_only' => '%excerpt%', 'term_description' => '%description%', 'pagenumber' => '%page%', 'primary_taxonomy_terms' => '%category%', 'post_author' => '%name%' );
+		$supported = array_keys( Digitalisimo_Integrations_SEO_Variables::catalog() );
+		$unknown   = array();
+		$text      = preg_replace_callback( '/%([a-z_]+)(\([^)%]*\))?%/i', function( $m ) use ( $aliases, $supported, &$unknown ) {
 			$name = strtolower( $m[1] );
-			if ( in_array( $name, self::SUPPORTED_VARS, true ) && empty( $m[2] ) ) return '%' . $name . '%';
+			if ( in_array( $name, $supported, true ) && ( empty( $m[2] ) || in_array( $name, Digitalisimo_Integrations_SEO_Variables::WITH_ARGS, true ) ) ) return '%' . $name . ( $m[2] ?? '' ) . '%';
 			if ( array_key_exists( $name, $aliases ) ) return $aliases[ $name ];
 			$unknown[ $name ] = true;
 			return '';
@@ -218,6 +219,18 @@ class Digitalisimo_Integrations_RankMath_Import {
 		if ( ! empty( $t['opening_hours'] ) ) $notes[] = 'local_hours';
 		if ( $address || ! empty( $t['geo'] ) ) $notes[] = 'local_review';
 		if ( isset( $g['breadcrumbs'] ) ) $want['seo_breadcrumbs'] = self::on( $g['breadcrumbs'] ) ? 1 : 0;
+		foreach ( array( 'breadcrumbs_separator' => 'seo_breadcrumbs_separator', 'breadcrumbs_home_label' => 'seo_breadcrumbs_home_label', 'breadcrumbs_prefix' => 'seo_breadcrumbs_prefix', 'breadcrumbs_archive_format' => 'seo_breadcrumbs_archive_format', 'breadcrumbs_search_format' => 'seo_breadcrumbs_search_format', 'breadcrumbs_404_label' => 'seo_breadcrumbs_404_label' ) as $from => $to ) {
+			if ( isset( $g[ $from ] ) && '' !== trim( (string) $g[ $from ] ) && ! in_array( trim( (string) $g[ $from ] ), self::ENGLISH_DEFAULTS, true ) ) $want[ $to ] = trim( (string) $g[ $from ] );
+		}
+		foreach ( array( 'breadcrumbs_home' => 'seo_breadcrumbs_show_home', 'breadcrumbs_remove_post_title' => 'seo_breadcrumbs_hide_current', 'breadcrumbs_blog_page' => 'seo_breadcrumbs_blog_page' ) as $from => $to ) if ( isset( $g[ $from ] ) ) $want[ $to ] = self::on( $g[ $from ] ) ? 1 : 0;
+		$types = array();
+		foreach ( $t as $key => $value ) {
+			if ( ! preg_match( '/^pt_([a-z0-9_-]+)_(title|description)$/', (string) $key, $m ) || in_array( $m[1], array( 'post', 'page', 'attachment' ), true ) || '' === trim( (string) $value ) ) continue;
+			list( $text, $unknown ) = self::translate_template( $value, $ctx );
+			if ( $unknown ) $notes[] = 'title_vars';
+			if ( '' !== $text ) $types[ $m[1] ][ $m[2] ] = $text;
+		}
+		if ( $types ) $want['_type_templates'] = $types;
 		if ( isset( $g['attachment_redirect_urls'] ) ) $want['seo_redirect_attachments'] = self::on( $g['attachment_redirect_urls'] ) ? 1 : 0;
 		foreach ( array( 'google_verify' => 'seo_verify_google', 'bing_verify' => 'seo_verify_bing', 'baidu_verify' => 'seo_verify_baidu', 'yandex_verify' => 'seo_verify_yandex', 'pinterest_verify' => 'seo_verify_pinterest', 'norton_verify' => 'seo_verify_norton' ) as $from => $to ) if ( ! empty( $g[ $from ] ) ) $want[ $to ] = (string) $g[ $from ];
 		if ( ! empty( $g['custom_webmaster_tags'] ) ) $notes[] = 'custom_webmaster';
@@ -243,7 +256,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 
 		$set = array();
 		foreach ( $want as $key => $value ) {
-			if ( '_profiles' === $key ) { $set[ $key ] = $value; continue; }
+			if ( in_array( $key, array( '_profiles', '_type_templates' ), true ) ) { $set[ $key ] = $value; continue; }
 			$edited = array_key_exists( $key, $site ) && (string) $site[ $key ] !== (string) ( $defaults[ $key ] ?? '' ) && (string) $site[ $key ] !== (string) $value;
 			if ( $edited ) { $notes[] = 'option_kept'; continue; }
 			$set[ $key ] = $value;
@@ -412,6 +425,11 @@ class Digitalisimo_Integrations_RankMath_Import {
 					}
 					if ( $known ) $out[ Digitalisimo_Integrations_Social_Profiles::KEY ] = Digitalisimo_Integrations_Social_Profiles::sanitize( $known + $current, $current );
 					if ( $extra && '' === trim( (string) ( $site[ Digitalisimo_Integrations_Social_Profiles::LEGACY ] ?? '' ) ) ) $out[ Digitalisimo_Integrations_Social_Profiles::LEGACY ] = Digitalisimo_Integrations_Social_Profiles::sanitize_extras( implode( "\n", $extra ) );
+					break;
+				case '_type_templates':
+					// Sólo los tipos que el sitio aún no tiene: nunca se pisa una plantilla propia.
+					$current = is_array( $site['seo_type_templates'] ?? null ) ? $site['seo_type_templates'] : array();
+					$out['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( $current + $value );
 					break;
 				case 'seo_separator':
 					if ( array_key_exists( $value, Digitalisimo_Integrations_SEO_Suite::separator_choices() ) ) $out[ $key ] = $value;

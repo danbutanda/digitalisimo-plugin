@@ -35,7 +35,7 @@ if ( 'seed' === $step ) {
 	// Datos sintéticos de Rank Math: opciones, metas, términos y su tabla de redirecciones.
 	update_option( 'permalink_structure', '/%postname%/' ); // Con enlaces simples un cambio de slug no cambia la URL.
 	flush_rewrite_rules( false );
-	update_option( 'rank-math-options-titles', array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Acme RM', 'pt_post_title' => '%title% %sep% %sitename% %sep% %currentyear%', 'noindex_search' => 'on', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ), 'social_url_facebook' => 'https://facebook.com/acme' ) );
+	update_option( 'rank-math-options-titles', array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Acme RM', 'pt_post_title' => '%title% %sep% %sitename% %sep% %wc_price%', 'noindex_search' => 'on', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ), 'social_url_facebook' => 'https://facebook.com/acme' ) );
 	update_option( 'rank-math-options-general', array( 'breadcrumbs' => 'on', 'google_verify' => '<meta name="google-site-verification" content="rm-google-123" />', 'robots_txt_content' => "User-agent: *\nDisallow: /privado/", 'redirections_post_redirect' => 'on', '404_monitor_limit' => 500 ) );
 	update_option( 'rank-math-options-sitemap', array( 'include_images' => 'on' ) );
 	update_option( 'rank_math_modules', array( 'redirections', '404-monitor' ) );
@@ -94,7 +94,7 @@ if ( 'import' === $step ) {
 	digi_check( '%term% %sep% %sitename%' === get_term_meta( $ids['term'], 'digitalisimo_seo_title', true ) && '1' === get_term_meta( $ids['term'], 'digitalisimo_seo_noindex', true ), 'Término importado' );
 	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 	digi_check( '-' === ( $o['seo_separator'] ?? '' ) && 'Acme RM' === ( $o['seo_organization_name'] ?? '' ) && 'rm-google-123' === ( $o['seo_verify_google'] ?? '' ) && 1 === ( $o['seo_404_enabled'] ?? 0 ) && 500 === ( $o['seo_404_limit'] ?? 0 ) && 1 === ( $o['noindex_authors'] ?? null ), 'Ajustes importados: ' . json_encode( array_intersect_key( $o, array_flip( array( 'seo_separator', 'seo_organization_name', 'seo_verify_google', 'seo_404_enabled', 'seo_404_limit', 'noindex_authors' ) ) ) ) );
-	digi_check( '%title% %sep% %sitename%' === ( $o['seo_title_post'] ?? '' ), 'La plantilla pierde %currentyear% y su separador' );
+	digi_check( '%title% %sep% %sitename%' === ( $o['seo_title_post'] ?? '' ), 'La plantilla pierde la variable sin destino y su separador' );
 	digi_check( 'https://facebook.com/acme' === ( $o['seo_social_profiles']['facebook'] ?? '' ), 'Perfil de Facebook importado' );
 	if ( is_multisite() ) { $inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() ); digi_check( isset( $inherit['seo_separator'] ) && 0 === $inherit['seo_separator'], 'En la red, lo importado deja de heredar' ); }
 	// Repetir no duplica.
@@ -146,10 +146,56 @@ if ( 'front' === $step ) {
 	return;
 }
 
+if ( 'crumbs' === $step ) {
+	// RM13: categoría principal con antecesores, página del blog y ajustes de visualización.
+	$parent = wp_insert_term( 'Calzado', 'category' );
+	$child  = wp_insert_term( 'Tenis', 'category', array( 'parent' => $parent['term_id'] ) );
+	$other  = wp_insert_term( 'Ofertas', 'category' );
+	$blog   = wp_insert_post( array( 'post_type' => 'page', 'post_title' => 'Blog', 'post_status' => 'publish' ) );
+	$front  = wp_insert_post( array( 'post_type' => 'page', 'post_title' => 'Portada', 'post_status' => 'publish' ) );
+	update_option( 'show_on_front', 'page' ); update_option( 'page_for_posts', $blog ); update_option( 'page_on_front', $front );
+	$post = wp_insert_post( array( 'post_title' => 'Tenis rojos', 'post_status' => 'publish', 'post_category' => array( $other['term_id'], $child['term_id'] ) ) );
+	update_post_meta( $post, 'digitalisimo_seo_primary_category', (string) $child['term_id'] );
+	update_post_meta( $post, 'digitalisimo_seo_breadcrumb_title', 'Rojos' );
+	$names = wp_list_pluck( Digitalisimo_Integrations_Breadcrumbs::for_post( get_post( $post ) ), 'name' );
+	digi_check( array( 'Inicio', 'Blog', 'Calzado', 'Tenis', 'Rojos' ) === $names, 'Ruta de una entrada con categoría principal: ' . implode( ' › ', $names ) );
+	digi_check( 'Tenis' === Digitalisimo_Integrations_SEO_Variables::replace( '%category%', array( 'id' => $post ) ), '%category% usa la categoría principal' );
+	delete_post_meta( $post, 'digitalisimo_seo_primary_category' );
+	digi_check( in_array( Digitalisimo_Integrations_SEO_Variables::replace( '%category%', array( 'id' => $post ) ), array( 'Ofertas', 'Tenis' ), true ), 'Sin elegir, %category% usa la primera asignada' );
+	update_post_meta( $post, 'digitalisimo_seo_primary_category', (string) $child['term_id'] );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => $post ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	$html = do_shortcode( '[digitalisimo_breadcrumbs]' );
+	digi_check( false !== strpos( $html, '<span aria-current="page">Rojos</span>' ) && 4 === substr_count( $html, '<a ' ), 'El shortcode pinta la misma ruta: ' . wp_strip_all_tags( $html ) );
+	ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
+	digi_check( false !== strpos( $graph, '"BreadcrumbList"' ) && false !== strpos( $graph, '"name":"Calzado"' ), 'El BreadcrumbList del schema incluye la categoría' );
+	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_breadcrumbs' => 1, 'seo_breadcrumbs_separator' => '/', 'seo_breadcrumbs_show_home' => 0, 'seo_breadcrumbs_hide_current' => 1, 'seo_breadcrumbs_blog_page' => 0, 'seo_breadcrumbs_prefix' => 'Estás en:' ) ) );
+	if ( is_multisite() ) update_option( 'digitalisimo_seo_network_inherit', array_fill_keys( array( 'seo_breadcrumbs', 'seo_breadcrumbs_separator', 'seo_breadcrumbs_show_home', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_blog_page', 'seo_breadcrumbs_prefix' ), 0 ) + (array) get_option( 'digitalisimo_seo_network_inherit', array() ) );
+	$html = do_shortcode( '[digitalisimo_breadcrumbs]' );
+	digi_check( 'Estás en: Calzado / Tenis' === trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) ) ), 'Ajustes de visualización: ' . wp_strip_all_tags( $html ) );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'cat' => $child['term_id'] ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	digi_check( array( 'Inicio', 'Calzado', 'Tenis' ) === wp_list_pluck( Digitalisimo_Integrations_Breadcrumbs::trail(), 'name' ), 'Ruta de una categoría con su antecesor' );
+	$GLOBALS['wp_query'] = new WP_Query( array( 's' => 'zapato' ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	digi_check( array( 'Inicio', 'Resultados de «zapato»' ) === wp_list_pluck( Digitalisimo_Integrations_Breadcrumbs::trail(), 'name' ), 'Ruta de una búsqueda' );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => 999999 ) ); $GLOBALS['wp_query']->set_404(); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	digi_check( array( 'Inicio', 'Página no encontrada' ) === wp_list_pluck( Digitalisimo_Integrations_Breadcrumbs::trail(), 'name' ), 'Ruta de un 404' );
+	update_option( 'show_on_front', 'posts' ); delete_option( 'page_for_posts' ); delete_option( 'page_on_front' );
+	// RM10: plantilla de un tipo propio y variables en el título de un término.
+	register_post_type( 'servicio', array( 'public' => true, 'label' => 'Servicios' ) );
+	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_type_templates' => array( 'servicio' => array( 'title' => 'Servicio: %title% %sep% %sitename% %wc_price%' ) ) ) ) );
+	if ( is_multisite() ) update_option( 'digitalisimo_seo_network_inherit', array( 'seo_type_templates' => 0 ) + (array) get_option( 'digitalisimo_seo_network_inherit', array() ) );
+	$service = wp_insert_post( array( 'post_type' => 'servicio', 'post_title' => 'Diseño web', 'post_status' => 'publish' ) );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'servicio', 'p' => $service ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query']; $GLOBALS['wp_query']->the_post();
+	$title = Digitalisimo_Integrations_SEO_Suite::title( '' );
+	digi_check( 0 === strpos( $title, 'Servicio: Diseño web ' . Digitalisimo_Integrations_SEO_Resolver::option( 'seo_separator' ) . ' ' ) && false === strpos( $title, '%' ), 'Plantilla del tipo propio y variable desconocida quitada: ' . $title );
+	return;
+}
+
 if ( 'screens' === $step ) {
 	require_once ABSPATH . 'wp-admin/includes/admin.php';
 	do_action( 'admin_init' );
-	foreach ( array( 'digitalisimo-seo-redirections', 'digitalisimo-seo-monitor404', 'digitalisimo-seo-import', 'digitalisimo-seo-indexing', 'digitalisimo-seo-general', 'digitalisimo-seo-sitemap' ) as $page ) {
+	foreach ( array( 'digitalisimo-seo-redirections', 'digitalisimo-seo-monitor404', 'digitalisimo-seo-import', 'digitalisimo-seo-indexing', 'digitalisimo-seo-general', 'digitalisimo-seo-sitemap', 'digitalisimo-seo-breadcrumbs', 'digitalisimo-seo-titles' ) as $page ) {
 		$_GET['page'] = $page;
 		ob_start(); Digitalisimo_Integrations_SEO_Suite::page(); $html = ob_get_clean();
 		digi_check( strlen( $html ) > 500 && false === stripos( $html, 'rankmath.com' ), 'Pantalla ' . $page );
@@ -173,15 +219,16 @@ if ( 'network' === $step ) {
 	set_current_screen( 'dashboard-network' );
 	digi_check( is_network_admin(), 'Pantalla de red' );
 	ob_start(); Digitalisimo_Integrations_SEO_Suite::network_page(); $html = ob_get_clean();
-	foreach ( array( 'seo_redirect_enabled', 'seo_404_enabled', 'seo_verify_google', 'seo_noindex_paginated', 'seo_max_snippet', 'seo_sitemap_images' ) as $key ) digi_check( false !== strpos( $html, 'name="digitalisimo_network[' . $key . ']"' ), 'La red pinta ' . $key );
+	foreach ( array( 'seo_redirect_enabled', 'seo_404_enabled', 'seo_verify_google', 'seo_noindex_paginated', 'seo_max_snippet', 'seo_sitemap_images', 'seo_breadcrumbs_separator', 'seo_breadcrumbs_taxonomy', 'seo_title_taxonomy' ) as $key ) digi_check( false !== strpos( $html, 'name="digitalisimo_network[' . $key . ']"' ), 'La red pinta ' . $key );
 	digi_check( false === strpos( $html, 'Heredar de la red' ), 'La red no muestra Heredar de la red' );
 	digi_check( false !== strpos( $html, 'digitalisimo_seo_rankmath_import_network' ) && false !== strpos( $html, 'digitalisimo_rankmath_nonce' ), 'La red ofrece importar en todos los sitios con su nonce propio' );
 	// Guardado de red: mismas reglas que el sitio.
-	$_POST = array( '_wpnonce' => wp_create_nonce( 'digitalisimo_network_seo' ), '_wp_http_referer' => '/wp-admin/network/', 'digitalisimo_network' => array( 'seo_verify_bing' => '<meta name="msvalidate.01" content="NET-1">', 'seo_max_snippet' => 'abc', 'seo_404_limit' => '5', 'seo_redirect_fallback_url' => 'javascript:alert(1)', 'seo_verify_custom' => "x|<b>\nfacebook-domain-verification|fb1", 'seo_noindex_paginated' => '1' ) );
+	$_POST = array( '_wpnonce' => wp_create_nonce( 'digitalisimo_network_seo' ), '_wp_http_referer' => '/wp-admin/network/', 'digitalisimo_network' => array( 'seo_verify_bing' => '<meta name="msvalidate.01" content="NET-1">', 'seo_max_snippet' => 'abc', 'seo_404_limit' => '5', 'seo_redirect_fallback_url' => 'javascript:alert(1)', 'seo_verify_custom' => "x|<b>\nfacebook-domain-verification|fb1", 'seo_noindex_paginated' => '1', 'seo_breadcrumbs_prefix' => '<b>Ruta</b>', 'seo_type_templates' => array( 'servicio' => array( 'title' => '<i>%title%</i>' ), 'Mal tipo!' => 'x' ) ) );
 	$_REQUEST = $_POST;
 	add_filter( 'wp_redirect', function() { throw new Exception( 'redirect' ); } );
 	try { Digitalisimo_Integrations_SEO_Suite::save_network(); } catch ( Exception $e ) {}
 	$net = (array) get_site_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	digi_check( 'Ruta' === $net['seo_breadcrumbs_prefix'] && array( 'servicio' => array( 'title' => '%title%' ) ) === $net['seo_type_templates'], 'save_network sanea migas y plantillas por tipo: ' . json_encode( array( $net['seo_breadcrumbs_prefix'] ?? null, $net['seo_type_templates'] ?? null ) ) );
 	digi_check( 'NET-1' === $net['seo_verify_bing'] && '' === $net['seo_max_snippet'] && 50 === $net['seo_404_limit'] && '' === $net['seo_redirect_fallback_url'] && 'facebook-domain-verification|fb1' === $net['seo_verify_custom'] && 1 === $net['seo_noindex_paginated'], 'save_network sanea las claves nuevas: ' . json_encode( array_intersect_key( $net, array_flip( array( 'seo_verify_bing', 'seo_max_snippet', 'seo_404_limit', 'seo_redirect_fallback_url', 'seo_verify_custom', 'seo_noindex_paginated' ) ) ) ) );
 	return;
 }

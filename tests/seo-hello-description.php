@@ -83,6 +83,7 @@ function boot( $enable_seo ) {
 }
 function hello_removals() { return array_values( array_filter( $GLOBALS['removed'], function( $row ) { return 'hello_elementor_add_description_meta_tag' === $row['call'][1]; } ) ); }
 
+require __DIR__ . '/../digitalisimo-seo/includes/class-seo-variables.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-suite.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-plugin-catalog.php';
 $seo = Digitalisimo_Integrations_SEO_Suite::class;

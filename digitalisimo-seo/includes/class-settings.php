@@ -153,6 +153,17 @@ class Digitalisimo_Integrations_Settings {
 			'seo_max_video_preview'  => '',
 			'seo_disable_author_archives' => 0,
 			'seo_disable_date_archives'   => 0,
+			'seo_breadcrumbs_separator'   => '›',
+			'seo_breadcrumbs_show_home'   => 1,
+			'seo_breadcrumbs_home_label'  => 'Inicio',
+			'seo_breadcrumbs_prefix'      => '',
+			'seo_breadcrumbs_hide_current'=> 0,
+			'seo_breadcrumbs_taxonomy'    => 1,
+			'seo_breadcrumbs_blog_page'   => 1,
+			'seo_breadcrumbs_archive_format' => 'Archivo de %s',
+			'seo_breadcrumbs_search_format'  => 'Resultados de «%s»',
+			'seo_breadcrumbs_404_label'   => 'Página no encontrada',
+			'seo_type_templates'          => array(),
 			'seo_ai_enabled'         => 1,
 			'seo_ai_search_default'  => 'allow',
 			'seo_ai_training_default'=> 'allow',
@@ -231,7 +242,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function sanitize( $input ) {
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
-		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'seo_redirect_enabled', 'seo_redirect_slug_watch', 'seo_404_enabled', 'seo_404_ignore_query', 'seo_noindex_paginated', 'seo_noindex_password', 'seo_disable_author_archives', 'seo_disable_date_archives', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
+		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'seo_redirect_enabled', 'seo_redirect_slug_watch', 'seo_404_enabled', 'seo_404_ignore_query', 'seo_noindex_paginated', 'seo_noindex_password', 'seo_disable_author_archives', 'seo_disable_date_archives', 'seo_breadcrumbs_show_home', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_taxonomy', 'seo_breadcrumbs_blog_page', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
@@ -257,6 +268,9 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( array_keys( Digitalisimo_Integrations_Verification::engines() ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Verification::sanitize_code( $input[ $key ] );
 		if ( isset( $input['seo_verify_custom'] ) ) $output['seo_verify_custom'] = Digitalisimo_Integrations_Verification::sanitize_custom( $input['seo_verify_custom'] );
 		foreach ( array( 'seo_max_snippet', 'seo_max_video_preview' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_robots_number( $input[ $key ] );
+		// Migas y plantillas por tipo (RM13 y RM10).
+		foreach ( Digitalisimo_Integrations_SEO_Suite::breadcrumb_text_keys() as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
+		if ( isset( $input['seo_type_templates'] ) ) $output['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( $input['seo_type_templates'] );
 		if ( isset( $input['seo_ai_google_extended_policy'] ) ) $output['seo_ai_google_extended_policy'] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy( $input['seo_ai_google_extended_policy'] );
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
 		if ( isset( $input['perf_css_defer_exclusions'] ) ) $output['perf_css_defer_exclusions'] = Digitalisimo_Integrations_Performance_CSS::sanitize_exclusions( $input['perf_css_defer_exclusions'] );

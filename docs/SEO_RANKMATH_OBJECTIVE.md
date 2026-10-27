@@ -709,6 +709,8 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 | RM4 Sitemaps | Imágenes **publicadas** · SEO 1.0.233 · `v2026.10.27.419` (destacada y del contenido, exclusión por adjunto en la destacada). Pendientes: autores, HTML, noticias y vídeo. |
 | RM5 Verificación | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. |
 | RM6 Robots avanzados | **Publicado** · SEO 1.0.233 · `v2026.10.27.419` para contenidos y sitio. Pendiente: las directivas por término. |
-| RM7–RM16 | Pendientes, en el orden de «Orden de trabajo». |
+| RM13 Migas y categoría principal | **Publicado** · SEO 1.0.234. Pendientes: título de miga en términos y que el widget de migas de DIGITALÍSIMO Elements lea la misma ruta. |
+| RM10 Variables | **Publicado** · SEO 1.0.234 (25 variables y plantillas por tipo de contenido). Pendientes: plantillas por taxonomía y por archivo de tipo. |
+| RM7–RM9, RM11, RM12, RM14–RM16 | Pendientes, en el orden de «Orden de trabajo». |
 
-Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` y `tests/playground/seo-rankmath.sh` (96 comprobaciones en red y sitio individual).
+Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php` y `tests/playground/seo-rankmath.sh` (124 comprobaciones en red y sitio individual).

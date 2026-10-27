@@ -33,8 +33,8 @@ run_blueprint() { # $1 archivo, $2 multisite (1/0), resto: pasos «paso:blog»
     --mount="$OUT:/wordpress/wp-content/probe" > "$OUT/${file%.json}.log" 2>&1 || { tail -30 "$OUT/${file%.json}.log"; [ -s "$OUT/fatal.log" ] && cat "$OUT/fatal.log"; exit 1; }
 }
 
-run_blueprint blueprint-network.json 1 setup:1 seed:1 import:1 front:1 screens:1 network:1 inherit:2
-run_blueprint blueprint-single.json 0 single-setup:1 seed:1 import:1 front:1 screens:1
+run_blueprint blueprint-network.json 1 setup:1 seed:1 import:1 front:1 crumbs:1 screens:1 network:1 inherit:2
+run_blueprint blueprint-single.json 0 single-setup:1 seed:1 import:1 front:1 crumbs:1 screens:1
 status=0
 fails=$(grep -c '"ok":false' "$OUT/result.jsonl" || true)
 total=$(wc -l < "$OUT/result.jsonl")
