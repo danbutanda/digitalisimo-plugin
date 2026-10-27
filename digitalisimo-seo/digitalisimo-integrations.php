@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DIGITALÍSIMO SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.237
+ * Version: 1.0.238
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.237' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.238' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -39,6 +39,7 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-404-monitor.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-verification.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-rankmath-import.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-links.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-content-analysis.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-robots.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-crawler-tools.php';
@@ -117,6 +118,7 @@ function digitalisimo_integrations_boot() {
 		Digitalisimo_Integrations_Verification::init();
 		Digitalisimo_Integrations_RankMath_Import::init();
 		Digitalisimo_Integrations_Links::init();
+		Digitalisimo_Integrations_Content_Analysis::init();
 	}
 	Digitalisimo_Integrations_Robots::init();
 	// La política robots pertenece a SEO y funciona aunque AI y Chatbot no esté instalado.

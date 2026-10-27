@@ -290,6 +290,29 @@ if ( 'links' === $step ) {
 	return;
 }
 
+if ( 'analysis' === $step ) {
+	// RM9: puntuación al publicar, caja del editor, columna y canibalización.
+	$content = '<p>Una guía de marketing digital para pymes.</p>' . str_repeat( '<p>' . str_repeat( 'Consejos prácticos para vender más en internet. ', 12 ) . '</p>', 6 ) . '<h2>Marketing digital paso a paso</h2><p>Cierre.</p>';
+	$a = wp_insert_post( array( 'post_title' => 'Marketing digital para pymes', 'post_name' => 'marketing-digital', 'post_status' => 'draft', 'post_content' => $content ) );
+	update_post_meta( $a, 'digitalisimo_seo_keywords', 'marketing digital' );
+	digi_check( '' === get_post_meta( $a, Digitalisimo_Integrations_Content_Analysis::SCORE, true ), 'Un borrador no guarda puntuación' );
+	wp_update_post( array( 'ID' => $a, 'post_status' => 'publish' ) );
+	$score = get_post_meta( $a, Digitalisimo_Integrations_Content_Analysis::SCORE, true );
+	digi_check( '' !== $score && (int) $score >= 50, 'Publicar guarda la puntuación: ' . $score );
+	$b = wp_insert_post( array( 'post_title' => 'Otra sobre Marketing Digital', 'post_status' => 'publish', 'post_content' => '<p>Corta.</p>' ) );
+	update_post_meta( $b, 'digitalisimo_seo_keywords', 'Márketing digital, otra' );
+	ob_start(); Digitalisimo_Integrations_Content_Analysis::metabox_html( get_post( $a ) ); $box = ob_get_clean();
+	digi_check( false !== strpos( $box, 'Otra sobre Marketing Digital' ) && false !== strpos( $box, '/100' ), 'El editor avisa de otra página con la misma keyword (sin tildes ni mayúsculas)' );
+	$snippet = Digitalisimo_Integrations_SEO_Suite::snippet_for( get_post( $a ) );
+	digi_check( 0 === strpos( $snippet['title'], 'Marketing digital para pymes' ), 'El análisis mide el título que se publica: ' . $snippet['title'] );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => $a ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	digi_check( $snippet['title'] === Digitalisimo_Integrations_SEO_Suite::title( '' ), 'snippet_for() y el head dan el mismo título' );
+	Digitalisimo_Integrations_Content_Analysis::columns();
+	ob_start(); do_action( 'manage_post_posts_custom_column', 'digitalisimo_score', $a ); $cell = ob_get_clean();
+	digi_check( false !== strpos( $cell, (string) $score . '/100' ), 'La columna muestra la puntuación guardada' );
+	return;
+}
+
 if ( 'screens' === $step ) {
 	require_once ABSPATH . 'wp-admin/includes/admin.php';
 	Digitalisimo_Integrations_Settings::register_settings(); Digitalisimo_Integrations_Redirections::maybe_install(); Digitalisimo_Integrations_404_Monitor::maybe_install(); // Lo que hace admin_init para SEO, sin los ganchos de otros plugins.
