@@ -166,6 +166,10 @@ class Digitalisimo_Integrations_Settings {
 			'seo_type_templates'          => array(),
 			'seo_schema_type_defaults'    => array(),
 			'seo_product_brand'           => '',
+			'seo_sitemap_news_enabled'    => 0,
+			'seo_sitemap_news_types'      => 'post',
+			'seo_sitemap_news_name'       => '',
+			'seo_sitemap_news_exclude_terms' => '',
 			'seo_ai_enabled'         => 1,
 			'seo_ai_search_default'  => 'allow',
 			'seo_ai_training_default'=> 'allow',
@@ -244,7 +248,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function sanitize( $input ) {
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
-		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'seo_redirect_enabled', 'seo_redirect_slug_watch', 'seo_404_enabled', 'seo_404_ignore_query', 'seo_noindex_paginated', 'seo_noindex_password', 'seo_disable_author_archives', 'seo_disable_date_archives', 'seo_breadcrumbs_show_home', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_taxonomy', 'seo_breadcrumbs_blog_page', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
+		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'seo_redirect_enabled', 'seo_redirect_slug_watch', 'seo_404_enabled', 'seo_404_ignore_query', 'seo_noindex_paginated', 'seo_noindex_password', 'seo_disable_author_archives', 'seo_disable_date_archives', 'seo_breadcrumbs_show_home', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_taxonomy', 'seo_breadcrumbs_blog_page', 'seo_sitemap_news_enabled', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
@@ -255,7 +259,7 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ipinfo_tokens', 'sitemap_exclude_ids', 'keyword_post_types', 'noindex_page_slugs', 'noindex_page_ids', 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_local_address', 'seo_local_hours', 'seo_taxonomies', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_textarea_field( $input[ $key ] );
 		}
-		foreach ( array( 'sitemap_post_types', 'seo_sitemap_taxonomies' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_sitemap_list( $input[ $key ] );
+		foreach ( array( 'sitemap_post_types', 'seo_sitemap_taxonomies', 'seo_sitemap_news_types' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_sitemap_list( $input[ $key ] );
 		if ( isset( $input['seo_organization_type'] ) && ! array_key_exists( $output['seo_organization_type'], Digitalisimo_Integrations_SEO_Suite::entity_type_choices() ) ) $output['seo_organization_type'] = 'Organization';
 		if ( isset( $input['seo_separator'] ) && ! array_key_exists( $output['seo_separator'], Digitalisimo_Integrations_SEO_Suite::separator_choices() ) ) $output['seo_separator'] = '|';
 		// Sólo tipos oficiales de Schema.org: un texto libre publicaría un @type inventado.
@@ -273,6 +277,8 @@ class Digitalisimo_Integrations_Settings {
 		// Migas y plantillas por tipo (RM13 y RM10).
 		foreach ( Digitalisimo_Integrations_SEO_Suite::breadcrumb_text_keys() as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
 		if ( isset( $input['seo_schema_type_defaults'] ) ) $output['seo_schema_type_defaults'] = Digitalisimo_Integrations_Schema_Graph::sanitize_type_defaults( $input['seo_schema_type_defaults'] );
+		if ( isset( $input['seo_sitemap_news_name'] ) ) $output['seo_sitemap_news_name'] = sanitize_text_field( $input['seo_sitemap_news_name'] );
+		if ( isset( $input['seo_sitemap_news_exclude_terms'] ) ) $output['seo_sitemap_news_exclude_terms'] = Digitalisimo_Integrations_Sitemap::sanitize_ids( $input['seo_sitemap_news_exclude_terms'] );
 		if ( isset( $input['seo_product_brand'] ) ) $output['seo_product_brand'] = sanitize_key( $input['seo_product_brand'] );
 		if ( isset( $input['seo_type_templates'] ) ) $output['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( $input['seo_type_templates'] );
 		if ( isset( $input['seo_ai_google_extended_policy'] ) ) $output['seo_ai_google_extended_policy'] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy( $input['seo_ai_google_extended_policy'] );

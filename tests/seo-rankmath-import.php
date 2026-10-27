@@ -47,6 +47,8 @@ check( '50' === $set['max_snippet'] && ! isset( $set['max_video_preview'] ), 'Un
 check( 'on' === $set['pillar'] && 'Social' === $set['social_title'] && 'https://sitio.test/a.jpg' === $set['social_image'] && 'Miga' === $set['breadcrumb_title'], 'Pilar, social y miga se importan.' );
 check( '12' === $set['primary_category'], 'La categoría principal se guarda por taxonomía.' );
 check( 'Article' === $set['schema_type'], 'El schema principal gana y BlogPosting se lleva a Artículo.' );
+$news = $i::map_post( array( 'rank_math_news_sitemap_robots' => 'noindex' ), array(), $ctx );
+check( '1' === $news['set']['news_exclude'], 'La exclusión de Google News se importa.' );
 foreach ( array( 'twitter_differs', 'image_preview', 'schema_other', 'gtin' ) as $note ) check( in_array( $note, $post['notes'], true ), 'Falta la nota ' . $note );
 
 $edited = $i::map_post( $rm, array( 'title' => 'Mío', 'keywords' => 'propia', 'noindex' => '', 'schema_type' => 'WebPage' ), $ctx );
@@ -68,8 +70,8 @@ $site     = array( 'seo_separator' => '|', 'seo_organization_name' => 'Ya editad
 $rmo = array(
 	'titles'  => array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Rank', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'off', 'author_robots' => array( 'noindex' ), 'pt_post_title' => '%title% %sep% %wc_price%', 'pt_product_title' => '%title% %sep% %wc_price%', 'pt_servicio_description' => 'Servicio %title%', 'pt_post_default_rich_snippet' => 'article', 'pt_post_default_article_type' => 'NewsArticle', 'pt_servicio_default_rich_snippet' => 'service', 'pt_receta_default_rich_snippet' => 'recipe', 'pt_curso_default_rich_snippet' => 'off', 'pt_page_default_rich_snippet' => 'article', 'local_address' => array( 'streetAddress' => 'Calle 1', 'addressCountry' => 'mx' ), 'geo' => '19.43, -99.13', 'opening_hours' => array( array( 'day' => 'Monday', 'time' => '09:00-17:00' ) ), 'social_url_facebook' => 'https://facebook.com/acme' ),
 	'general' => array( 'product_brand' => 'pa_marca', 'breadcrumbs_separator' => '»', 'breadcrumbs_archive_format' => 'Archives for %s', 'breadcrumbs_search_format' => 'Buscaste %s', 'breadcrumbs_remove_post_title' => 'on', 'breadcrumbs' => 'off', 'google_verify' => 'gcode', 'robots_txt_content' => "User-agent: *\nDisallow: /", 'redirections_fallback' => 'homepage', 'redirections_post_redirect' => 'on' ),
-	'sitemap' => array( 'include_images' => 'on', 'exclude_posts' => '4, 5' ),
-	'modules' => array( '404-monitor' ),
+	'sitemap' => array( 'include_images' => 'on', 'exclude_posts' => '4, 5', 'news_sitemap_post_type' => array( 'post', 'noticia' ), 'news_sitemap_publication_name' => 'Diario Acme', 'news_sitemap_exclude_post_terms' => array( 'category' => array( 7, '9' ) ), 'html_sitemap' => 'on' ),
+	'modules' => array( '404-monitor', 'news-sitemap' ),
 );
 $opt = $i::map_options( $rmo, $site, $defaults, $ctx );
 $set = $opt['set'];
@@ -85,6 +87,7 @@ check( array( 'https://facebook.com/acme' ) === $set['_profiles'], 'Los perfiles
 check( '»' === $set['seo_breadcrumbs_separator'] && 'Buscaste %s' === $set['seo_breadcrumbs_search_format'] && 1 === $set['seo_breadcrumbs_hide_current'] && ! isset( $set['seo_breadcrumbs_archive_format'] ), 'Las migas se importan sin los textos por defecto en inglés.' );
 check( array( 'product' => array( 'title' => '%title%' ), 'servicio' => array( 'description' => 'Servicio %title%' ) ) === $set['_type_templates'], 'Las plantillas de otros tipos se importan: ' . json_encode( $set['_type_templates'] ) );
 check( array( 'post' => 'NewsArticle', 'servicio' => 'Service', 'curso' => 'none' ) === $set['_schema_defaults'] && in_array( 'schema_default', $opt['notes'], true ), 'Schema por defecto por tipo: ' . json_encode( $set['_schema_defaults'] ) );
+check( 1 === $set['seo_sitemap_news_enabled'] && 'post,noticia' === $set['seo_sitemap_news_types'] && 'Diario Acme' === $set['seo_sitemap_news_name'] && '7,9' === $set['seo_sitemap_news_exclude_terms'] && in_array( 'html_sitemap', $opt['notes'], true ), 'Google News y el mapa HTML se importan o se informan.' );
 check( 'pa_marca' === $set['seo_product_brand'], 'La taxonomía de marca se importa.' );
 foreach ( array( 'local_hours', 'local_review' ) as $note ) check( in_array( $note, $opt['notes'], true ), 'Falta la nota ' . $note );
 $author = $i::map_options( array( 'titles' => array( 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ) ) ), array(), $defaults, $ctx );

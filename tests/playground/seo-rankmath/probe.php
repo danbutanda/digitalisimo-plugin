@@ -225,6 +225,35 @@ if ( 'schema' === $step ) {
 	return;
 }
 
+if ( 'news' === $step ) {
+	// RM4: sitemap de noticias, Googlebot-News y mapa del sitio en HTML.
+	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	$excluded = wp_insert_term( 'Opinión', 'category' );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_sitemap_news_enabled' => 1, 'seo_sitemap_news_name' => 'Diario Acme', 'seo_sitemap_news_exclude_terms' => (string) $excluded['term_id'] ) ) );
+	if ( is_multisite() ) update_option( 'digitalisimo_seo_network_inherit', array_fill_keys( array( 'seo_sitemap_news_enabled', 'seo_sitemap_news_name', 'seo_sitemap_news_exclude_terms' ), 0 ) + (array) get_option( 'digitalisimo_seo_network_inherit', array() ) );
+	$fresh  = wp_insert_post( array( 'post_title' => 'Noticia fresca & <b>nueva</b>', 'post_status' => 'publish' ) );
+	$old    = wp_insert_post( array( 'post_title' => 'Noticia vieja', 'post_status' => 'publish', 'post_date' => gmdate( 'Y-m-d H:i:s', time() - 4 * DAY_IN_SECONDS ) ) );
+	$hidden = wp_insert_post( array( 'post_title' => 'Noticia excluida', 'post_status' => 'publish' ) );
+	update_post_meta( $hidden, 'digitalisimo_seo_news_exclude', '1' );
+	$opinion = wp_insert_post( array( 'post_title' => 'Columna de opinión', 'post_status' => 'publish', 'post_category' => array( $excluded['term_id'] ) ) );
+	ob_start(); Digitalisimo_Integrations_Sitemap::news_xml(); $xml = ob_get_clean();
+	digi_check( false !== @simplexml_load_string( $xml ), 'El sitemap de noticias es XML válido' );
+	digi_check( false !== strpos( $xml, get_permalink( $fresh ) ) && false === strpos( $xml, get_permalink( $old ) ) && false === strpos( $xml, get_permalink( $hidden ) ) && false === strpos( $xml, get_permalink( $opinion ) ), 'Sólo lo reciente, sin excluidos ni categorías excluidas' );
+	digi_check( false !== strpos( $xml, '<news:name>Diario Acme</news:name>' ) && false !== strpos( $xml, '<news:language>en</news:language>' ) && false !== strpos( $xml, 'Noticia fresca &amp; nueva' ), 'Publicación, idioma y título escapado' );
+	digi_check( false !== strpos( Digitalisimo_Integrations_Sitemap::robots( "User-agent: *\n", true ), 'Sitemap: ' . home_url( '/news-sitemap.xml' ) ), 'robots.txt anuncia el sitemap de noticias' );
+	$path = (string) wp_parse_url( home_url( '/news-sitemap.xml' ), PHP_URL_PATH );
+	$_SERVER['REQUEST_URI'] = $path;
+	digi_check( array( 'type' => 'news', 'slash' => false ) === Digitalisimo_Integrations_Sitemap::requested(), 'La ruta del sitemap de noticias se reconoce' );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => $hidden ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	ob_start(); Digitalisimo_Integrations_Sitemap::news_robots(); $meta = ob_get_clean();
+	digi_check( '<meta name="Googlebot-News" content="noindex">' === trim( $meta ), 'Un contenido excluido sólo se oculta a Googlebot-News' );
+	$private = wp_insert_post( array( 'post_title' => 'Privada', 'post_status' => 'publish' ) );
+	update_post_meta( $private, 'digitalisimo_seo_noindex', '1' );
+	$html = do_shortcode( '[digitalisimo_sitemap type="post"]' );
+	digi_check( false !== strpos( $html, 'digitalisimo-html-sitemap' ) && false !== strpos( $html, get_permalink( $old ) ) && false === strpos( $html, get_permalink( $private ) ) && false === strpos( $html, '<h2>Páginas' ), 'El mapa HTML lista sólo el tipo pedido, sin noindex' );
+	return;
+}
+
 if ( 'screens' === $step ) {
 	require_once ABSPATH . 'wp-admin/includes/admin.php';
 	Digitalisimo_Integrations_Settings::register_settings(); Digitalisimo_Integrations_Redirections::maybe_install(); Digitalisimo_Integrations_404_Monitor::maybe_install(); // Lo que hace admin_init para SEO, sin los ganchos de otros plugins.
@@ -252,7 +281,7 @@ if ( 'network' === $step ) {
 	set_current_screen( 'dashboard-network' );
 	digi_check( is_network_admin(), 'Pantalla de red' );
 	ob_start(); Digitalisimo_Integrations_SEO_Suite::network_page(); $html = ob_get_clean();
-	foreach ( array( 'seo_redirect_enabled', 'seo_404_enabled', 'seo_verify_google', 'seo_noindex_paginated', 'seo_max_snippet', 'seo_sitemap_images', 'seo_breadcrumbs_separator', 'seo_breadcrumbs_taxonomy', 'seo_title_taxonomy', 'seo_product_brand' ) as $key ) digi_check( false !== strpos( $html, 'name="digitalisimo_network[' . $key . ']"' ), 'La red pinta ' . $key );
+	foreach ( array( 'seo_redirect_enabled', 'seo_404_enabled', 'seo_verify_google', 'seo_noindex_paginated', 'seo_max_snippet', 'seo_sitemap_images', 'seo_breadcrumbs_separator', 'seo_breadcrumbs_taxonomy', 'seo_title_taxonomy', 'seo_product_brand', 'seo_sitemap_news_enabled', 'seo_sitemap_news_exclude_terms' ) as $key ) digi_check( false !== strpos( $html, 'name="digitalisimo_network[' . $key . ']"' ), 'La red pinta ' . $key );
 	digi_check( false === strpos( $html, 'Heredar de la red' ), 'La red no muestra Heredar de la red' );
 	digi_check( false !== strpos( $html, 'digitalisimo_seo_rankmath_import_network' ) && false !== strpos( $html, 'digitalisimo_rankmath_nonce' ), 'La red ofrece importar en todos los sitios con su nonce propio' );
 	// Guardado de red: mismas reglas que el sitio.

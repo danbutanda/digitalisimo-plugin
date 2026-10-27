@@ -37,8 +37,8 @@ class Digitalisimo_Integrations_RankMath_Import {
 			'image_preview'     => 'Contenidos con max-image-preview distinto de «large»: WordPress publica «large» y no se cambió.',
 			'schema_other'      => 'Schemas sin equivalente directo en el selector de tipo (quedan sin importar; revisa su JSON-LD).',
 			'schema_legacy'     => 'Contenidos con el formato antiguo de rich snippet de Rank Math (no se importan).',
-			'news_robots'       => 'Contenidos excluidos sólo de Google News: llegará con el sitemap de noticias (RM4).',
 			'gtin'              => 'GTIN de Rank Math que no pasó al campo GTIN de WooCommerce: no es un GTIN válido, el producto ya tenía uno, otro producto lo usa o WooCommerce no está activo.',
+			'html_sitemap'      => 'Rank Math publicaba un mapa del sitio en HTML: pon el shortcode [digitalisimo_sitemap] en la página donde estaba.',
 			'schema_default'    => 'Tipos de contenido con un schema por defecto de Rank Math sin equivalente (libro, receta, evento…): quedan en Automático.',
 			'term_canonical'    => 'Términos con canonical propio: los términos aún no tienen canonical editable.',
 			'term_social'       => 'Términos con datos sociales propios: los términos aún no los tienen.',
@@ -154,7 +154,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 		if ( $choice && $empty( 'schema_type' ) ) $set['schema_type'] = $choice;
 		if ( self::filled( $rm['rank_math_rich_snippet'] ?? null ) ) $notes[] = 'schema_legacy';
 		if ( self::filled( $rm['rank_math_exclude_sitemap'] ?? null ) && $empty( 'sitemap_exclude' ) ) $set['sitemap_exclude'] = '1';
-		if ( 'noindex' === ( $rm['rank_math_news_sitemap_robots'] ?? '' ) ) $notes[] = 'news_robots';
+		if ( 'noindex' === ( $rm['rank_math_news_sitemap_robots'] ?? '' ) && $empty( 'news_exclude' ) ) $set['news_exclude'] = '1';
 		// El GTIN pasa al campo nativo de WooCommerce, que ya lo publica; sólo si es un GTIN válido.
 		if ( self::filled( $rm['_rank_math_gtin_code'] ?? null ) ) {
 			$gtin = preg_replace( '/[^0-9]/', '', (string) $rm['_rank_math_gtin_code'] );
@@ -264,6 +264,14 @@ class Digitalisimo_Integrations_RankMath_Import {
 			if ( $exclude ) $want['seo_404_exclude'] = implode( "\n", $exclude );
 			if ( isset( $g['404_monitor_ignore_query_parameters'] ) ) $want['seo_404_ignore_query'] = self::on( $g['404_monitor_ignore_query_parameters'] ) ? 1 : 0;
 		}
+		// Google News: el módulo activo enciende el sitemap; tipos, nombre y categorías excluidas.
+		if ( in_array( 'news-sitemap', $modules, true ) ) $want['seo_sitemap_news_enabled'] = 1;
+		if ( ! empty( $s['news_sitemap_post_type'] ) ) $want['seo_sitemap_news_types'] = implode( ',', array_map( 'strval', (array) self::value( $s['news_sitemap_post_type'] ) ) );
+		if ( ! empty( $s['news_sitemap_publication_name'] ) ) $want['seo_sitemap_news_name'] = (string) $s['news_sitemap_publication_name'];
+		$news_terms = array();
+		foreach ( $s as $key => $value ) if ( preg_match( '/^news_sitemap_exclude_[a-z0-9_-]+_terms$/', (string) $key ) ) array_walk_recursive( $value, function( $id ) use ( &$news_terms ) { if ( absint( $id ) ) $news_terms[] = absint( $id ); } );
+		if ( $news_terms ) $want['seo_sitemap_news_exclude_terms'] = implode( ',', array_unique( $news_terms ) );
+		if ( ! empty( $g['html_sitemap'] ) && self::on( $g['html_sitemap'] ) || ! empty( $s['html_sitemap'] ) && self::on( $s['html_sitemap'] ) ) $notes[] = 'html_sitemap';
 		if ( isset( $s['include_images'] ) ) $want['seo_sitemap_images'] = self::on( $s['include_images'] ) ? 1 : 0;
 		if ( ! empty( $s['exclude_posts'] ) ) $want['sitemap_exclude_ids'] = implode( ',', array_filter( array_map( 'absint', preg_split( '/[\s,;]+/', (string) $s['exclude_posts'] ) ) ) );
 		if ( ! empty( ( (array) ( $rm['instant'] ?? array() ) )['indexnow_api_key'] ) ) $notes[] = 'indexnow_key';
@@ -450,6 +458,12 @@ class Digitalisimo_Integrations_RankMath_Import {
 				case '_schema_defaults':
 					$current = is_array( $site['seo_schema_type_defaults'] ?? null ) ? $site['seo_schema_type_defaults'] : array();
 					$out['seo_schema_type_defaults'] = Digitalisimo_Integrations_Schema_Graph::sanitize_type_defaults( $current + $value );
+					break;
+				case 'seo_sitemap_news_types':
+					$out[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_sitemap_list( $value );
+					break;
+				case 'seo_sitemap_news_exclude_terms':
+					$out[ $key ] = Digitalisimo_Integrations_Sitemap::sanitize_ids( $value );
 					break;
 				case 'seo_product_brand':
 					$out[ $key ] = sanitize_key( $value );
