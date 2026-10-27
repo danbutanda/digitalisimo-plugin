@@ -365,6 +365,32 @@ if ( 'bulk' === $step ) {
 	return;
 }
 
+if ( 'abilities' === $step ) {
+	// RM15: abilities de sólo lectura con permisos por objeto.
+	global $wp_version;
+	if ( ! function_exists( 'wp_get_ability' ) ) { digi_check( ! has_action( 'wp_abilities_api_init', array( 'Digitalisimo_Integrations_SEO_Abilities', 'register' ) ), 'Sin Abilities API (WordPress ' . $wp_version . ') no se registra nada' ); return; }
+	$names = array_keys( Digitalisimo_Integrations_SEO_Abilities::definitions() );
+	foreach ( $names as $name ) digi_check( (bool) wp_get_ability( 'digitalisimo-seo/' . $name ), 'Registrada: digitalisimo-seo/' . $name );
+	$post = $ids['post'];
+	$seo = wp_get_ability( 'digitalisimo-seo/get-post-seo' )->execute( array( 'post_id' => $post ) );
+	digi_check( is_array( $seo ) && $post === $seo['post_id'] && in_array( 'noarchive', $seo['robots'], true ) && array( 'alfa', 'beta' ) === $seo['keywords'] && 'Miga RM' === $seo['breadcrumb_title'], 'get-post-seo devuelve los metadatos efectivos: ' . wp_json_encode( is_wp_error( $seo ) ? $seo->get_error_message() : $seo ) );
+	$analysis = wp_get_ability( 'digitalisimo-seo/analyze-post' )->execute( array( 'post_id' => $post ) );
+	digi_check( is_array( $analysis ) && isset( $analysis['score'], $analysis['checks'][0]['status'] ), 'analyze-post devuelve comprobaciones y puntuación' );
+	$schema = wp_get_ability( 'digitalisimo-seo/get-post-schema' )->execute( array( 'post_id' => $post ) );
+	digi_check( is_array( $schema ) && ! empty( $schema['graph'] ), 'get-post-schema devuelve el @graph' );
+	$status = wp_get_ability( 'digitalisimo-seo/get-site-status' )->execute( array() );
+	digi_check( is_array( $status ) && in_array( 'Google Search Console', $status['verified_with'], true ) && false === strpos( wp_json_encode( $status ), 'rm-google-123' ), 'get-site-status nombra el buscador verificado sin su código' );
+	$redirects = wp_get_ability( 'digitalisimo-seo/get-redirections' )->execute( array( 'search' => 'vieja', 'limit' => 5 ) );
+	digi_check( is_array( $redirects ) && 1 <= count( $redirects['redirections'] ), 'get-redirections busca' );
+	digi_check( is_wp_error( wp_get_ability( 'digitalisimo-seo/get-post-seo' )->execute( array( 'post_id' => 999999 ) ) ), 'Un contenido que no existe devuelve error' );
+	// Permisos: un suscriptor no lee nada; un autor sólo lo suyo.
+	$subscriber = wp_insert_user( array( 'user_login' => 'lector' . wp_rand(), 'user_pass' => wp_generate_password(), 'role' => 'subscriber' ) );
+	wp_set_current_user( $subscriber );
+	digi_check( is_wp_error( wp_get_ability( 'digitalisimo-seo/get-post-seo' )->execute( array( 'post_id' => $post ) ) ) && is_wp_error( wp_get_ability( 'digitalisimo-seo/get-site-status' )->execute( array() ) ), 'Un suscriptor no puede usar las abilities' );
+	wp_set_current_user( 1 );
+	return;
+}
+
 if ( 'screens' === $step ) {
 	require_once ABSPATH . 'wp-admin/includes/admin.php';
 	Digitalisimo_Integrations_Settings::register_settings(); Digitalisimo_Integrations_Redirections::maybe_install(); Digitalisimo_Integrations_404_Monitor::maybe_install(); // Lo que hace admin_init para SEO, sin los ganchos de otros plugins.
