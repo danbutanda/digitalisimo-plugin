@@ -131,6 +131,28 @@ class Digitalisimo_Integrations_Settings {
 			'seo_taxonomies'         => 'category,post_tag',
 			'seo_sitemap_taxonomies' => 'category',
 			'seo_sitemap_images'     => 1,
+			'seo_redirect_enabled'   => 1,
+			'seo_redirect_slug_watch'=> 1,
+			'seo_redirect_default_code' => 301,
+			'seo_redirect_fallback_url' => '',
+			'seo_404_enabled'        => 0,
+			'seo_404_limit'          => 1000,
+			'seo_404_retention'      => 30,
+			'seo_404_exclude'        => '',
+			'seo_404_ignore_query'   => 1,
+			'seo_verify_google'      => '',
+			'seo_verify_bing'        => '',
+			'seo_verify_yandex'      => '',
+			'seo_verify_baidu'       => '',
+			'seo_verify_pinterest'   => '',
+			'seo_verify_norton'      => '',
+			'seo_verify_custom'      => '',
+			'seo_noindex_paginated'  => 0,
+			'seo_noindex_password'   => 0,
+			'seo_max_snippet'        => '',
+			'seo_max_video_preview'  => '',
+			'seo_disable_author_archives' => 0,
+			'seo_disable_date_archives'   => 0,
 			'seo_ai_enabled'         => 1,
 			'seo_ai_search_default'  => 'allow',
 			'seo_ai_training_default'=> 'allow',
@@ -209,7 +231,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function sanitize( $input ) {
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
-		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
+		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'seo_redirect_enabled', 'seo_redirect_slug_watch', 'seo_404_enabled', 'seo_404_ignore_query', 'seo_noindex_paginated', 'seo_noindex_password', 'seo_disable_author_archives', 'seo_disable_date_archives', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
@@ -226,6 +248,15 @@ class Digitalisimo_Integrations_Settings {
 		// Sólo tipos oficiales de Schema.org: un texto libre publicaría un @type inventado.
 		if ( isset( $input['seo_local_type'] ) ) $output['seo_local_type'] = Digitalisimo_Integrations_Schema_Vocabulary::local_type( sanitize_text_field( $input['seo_local_type'] ) );
 		if ( isset( $input['seo_robots_rules'] ) ) $output['seo_robots_rules'] = Digitalisimo_Integrations_Robots::sanitize( $input['seo_robots_rules'] );
+		// Redirecciones, 404, verificación y robots avanzados (docs/SEO_RANKMATH_OBJECTIVE.md): las mismas reglas que save_network().
+		if ( isset( $input['seo_redirect_default_code'] ) ) $output['seo_redirect_default_code'] = Digitalisimo_Integrations_Redirections::sanitize_code( $input['seo_redirect_default_code'] );
+		if ( isset( $input['seo_redirect_fallback_url'] ) ) $output['seo_redirect_fallback_url'] = Digitalisimo_Integrations_Redirections::sanitize_target( $input['seo_redirect_fallback_url'] );
+		if ( isset( $input['seo_404_limit'] ) ) $output['seo_404_limit'] = Digitalisimo_Integrations_404_Monitor::sanitize_limit( $input['seo_404_limit'] );
+		if ( isset( $input['seo_404_retention'] ) ) $output['seo_404_retention'] = Digitalisimo_Integrations_404_Monitor::sanitize_retention( $input['seo_404_retention'] );
+		if ( isset( $input['seo_404_exclude'] ) ) $output['seo_404_exclude'] = Digitalisimo_Integrations_404_Monitor::sanitize_exclusions( $input['seo_404_exclude'] );
+		foreach ( array_keys( Digitalisimo_Integrations_Verification::engines() ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Verification::sanitize_code( $input[ $key ] );
+		if ( isset( $input['seo_verify_custom'] ) ) $output['seo_verify_custom'] = Digitalisimo_Integrations_Verification::sanitize_custom( $input['seo_verify_custom'] );
+		foreach ( array( 'seo_max_snippet', 'seo_max_video_preview' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_robots_number( $input[ $key ] );
 		if ( isset( $input['seo_ai_google_extended_policy'] ) ) $output['seo_ai_google_extended_policy'] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy( $input['seo_ai_google_extended_policy'] );
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
 		if ( isset( $input['perf_css_defer_exclusions'] ) ) $output['perf_css_defer_exclusions'] = Digitalisimo_Integrations_Performance_CSS::sanitize_exclusions( $input['perf_css_defer_exclusions'] );

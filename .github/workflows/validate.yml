@@ -185,6 +185,9 @@ jobs:
           php tests/performance-form-ui.php
           php tests/sitemap.php
           php tests/sitemap-routes.php
+          php tests/seo-sitemap-images.php
+          php tests/seo-redirections.php
+          php tests/seo-rankmath-import.php
           php tests/robots.php
           php tests/seo-ai-robots.php
           # Tema DIGITALÍSIMO: estructura, actualizador, paso desde el tema anterior, índice de la Release y módulos que lo atienden.

@@ -123,22 +123,67 @@ class Digitalisimo_Integrations_Sitemap {
 		echo "</sitemapindex>\n";
 	}
 
+	const MAX_IMAGES = 20;
+
+	/** Hosts propios del sitio en curso: la portada y la biblioteca de medios (puede ser un CDN propio). */
+	private static function own_hosts() {
+		static $hosts = array();
+		$blog = get_current_blog_id();
+		if ( isset( $hosts[ $blog ] ) ) return $hosts[ $blog ];
+		$uploads = wp_get_upload_dir();
+		return $hosts[ $blog ] = array_values( array_unique( array_filter( array( wp_parse_url( home_url( '/' ), PHP_URL_HOST ), wp_parse_url( (string) ( $uploads['baseurl'] ?? '' ), PHP_URL_HOST ) ) ) ) );
+	}
+
+	/**
+	 * URLs de imagen de un HTML que pertenecen a los hosts dados, sin repetir y en orden.
+	 * Pura: la prueba la usa sin WordPress.
+	 */
+	public static function content_images( $html, array $hosts, $limit = self::MAX_IMAGES ) {
+		$found = array();
+		if ( '' === (string) $html || false === stripos( $html, '<img' ) ) return $found;
+		preg_match_all( '/<img\b[^>]*?\ssrc\s*=\s*(["\'])(.*?)\1/is', (string) $html, $matches );
+		foreach ( $matches[2] as $src ) {
+			$src = html_entity_decode( trim( $src ), ENT_QUOTES );
+			if ( 0 === strpos( $src, '//' ) ) $src = 'https:' . $src;
+			if ( ! preg_match( '#^https?://#i', $src ) ) continue;
+			if ( ! in_array( strtolower( (string) parse_url( $src, PHP_URL_HOST ) ), array_map( 'strtolower', $hosts ), true ) ) continue;
+			$found[ $src ] = true;
+			if ( count( $found ) >= $limit ) break;
+		}
+		return array_keys( $found );
+	}
+
+	/** Imagen destacada y del contenido de una entrada; respeta la exclusión por adjunto. */
+	private static function post_images( $post_id ) {
+		$images = array();
+		$thumb  = (int) get_post_meta( $post_id, '_thumbnail_id', true );
+		if ( $thumb && '1' !== get_post_meta( $thumb, 'digitalisimo_seo_sitemap_exclude', true ) ) { $src = wp_get_attachment_url( $thumb ); if ( $src ) $images[] = $src; }
+		$post = get_post( $post_id );
+		if ( $post && empty( $post->post_password ) ) $images = array_merge( $images, self::content_images( $post->post_content, self::own_hosts() ) );
+		return array_slice( array_values( array_unique( $images ) ), 0, self::MAX_IMAGES );
+	}
+
 	/** En Multisite se emite un solo urlset; en un sitio individual, uno por tipo. */
 	public static function urls_xml( $types ) {
 		echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-		echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+		$images = (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_sitemap_images', 1 );
+		echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . ( $images ? ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"' : '' ) . '>' . "\n";
 		$home = 'page' !== get_option( 'show_on_front' );
 		if ( $home && ( is_multisite() || in_array( 'page', $types, true ) ) ) echo '<url><loc>' . esc_xml( home_url( '/' ) ) . "</loc></url>\n";
 		foreach ( $types as $type ) {
 			for ( $page = 1; ; ++$page ) {
 				$posts = get_posts( self::args( $type, $page ) );
+				// Un lote de consultas por página del sitemap, nunca una por URL.
+				if ( $images && $posts && function_exists( '_prime_post_caches' ) ) { $ids = array_map( 'intval', $posts ); _prime_post_caches( $ids, false, true ); $thumbs = array_filter( array_map( function( $id ) { return (int) get_post_meta( $id, '_thumbnail_id', true ); }, $ids ) ); if ( $thumbs ) _prime_post_caches( $thumbs, false, true ); }
 				foreach ( $posts as $post ) {
 					$post_id = is_object( $post ) ? $post->ID : (int) $post;
 					$url = get_permalink( $post_id ); // Nunca reconstruir ni cambiar el slug del contenido.
 					if ( ! $url || ( $home && untrailingslashit( $url ) === untrailingslashit( home_url( '/' ) ) ) ) continue;
 					$entry = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => $url ), get_post( $post_id ), $type );
 					if ( ! is_array( $entry ) || empty( $entry['loc'] ) ) continue;
-					echo '<url><loc>' . esc_xml( $url ) . "</loc></url>\n";
+					echo '<url><loc>' . esc_xml( $url ) . '</loc>';
+					if ( $images ) foreach ( self::post_images( $post_id ) as $image ) echo '<image:image><image:loc>' . esc_xml( $image ) . '</image:loc></image:image>';
+					echo "</url>\n";
 				}
 				if ( count( $posts ) < self::BATCH ) break;
 			}

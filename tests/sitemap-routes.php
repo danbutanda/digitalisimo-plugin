@@ -28,7 +28,8 @@ function esc_xml( $text ) { return htmlspecialchars( $text, ENT_XML1 | ENT_QUOTE
 function apply_filters( $hook, $value, ...$args ) {
 	return $value;
 }
-class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key, $default = null ) { return $default; } }
+// Las imágenes del sitemap tienen su propia prueba (seo-sitemap-images.php): aquí sólo las rutas.
+class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key, $default = null ) { return 'seo_sitemap_images' === $key ? 0 : $default; } }
 class Digitalisimo_Integrations_SEO_Suite { public static function sitemap_posts( $types ) { return $types; } public static function sitemap_query( $args, $type ) { $args['post__not_in'] = array( 11 ); return $args; } }
 require __DIR__ . '/../digitalisimo-seo/includes/class-sitemap.php';
 $sitemap = Digitalisimo_Integrations_Sitemap::class;
