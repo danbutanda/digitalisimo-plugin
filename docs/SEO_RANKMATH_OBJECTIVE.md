@@ -678,7 +678,7 @@ Cada ability declara `input_schema`/`output_schema`, `permission_callback` (`edi
 | RM6 Robots avanzados | — | La importa RM1 |
 | RM3 Monitor 404 | RM2 | Convierte 404 en redirecciones |
 | RM13 Migas y categoría principal | — | La importa RM1; la usan RM8 y RM10 |
-| RM10 Variables | **Publicado** · SEO 1.0.234 · `v2026.10.27.420` (25 variables y plantillas por tipo de contenido) y SEO 1.0.244 (plantillas por taxonomía en `seo_tax_templates` y por archivo de tipo en `seo_type_templates[tipo][archive_*]`, importadas de `tax_{taxonomía}_*` y `pt_{tipo}_archive_*`; saneado que conserva `%description%`, `%date%` y `%category%`). |
+| RM10 Variables | **Publicado** · SEO 1.0.234 · `v2026.10.27.420` (25 variables y plantillas por tipo de contenido) y SEO 1.0.244 · `v2026.10.28.430` (plantillas por taxonomía en `seo_tax_templates` y por archivo de tipo en `seo_type_templates[tipo][archive_*]`, importadas de `tax_{taxonomía}_*` y `pt_{tipo}_archive_*`; saneado que conserva `%description%`, `%date%` y `%category%`). |
 | RM8 Schema | RM10 | |
 | RM4 (noticias, vídeo, autores, HTML) | RM8 | El de vídeo sale del VideoObject |
 | RM7 Enlaces | — | |
