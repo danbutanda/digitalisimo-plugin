@@ -166,6 +166,7 @@ class Digitalisimo_Integrations_Settings {
 			'seo_type_templates'          => array(),
 			'seo_tax_templates'           => array(),
 			'seo_schema_type_defaults'    => array(),
+			'seo_schema_templates'        => array(),
 			'seo_product_brand'           => '',
 			'seo_sitemap_news_enabled'    => 0,
 			'seo_links_counter'           => 1,
@@ -304,6 +305,7 @@ class Digitalisimo_Integrations_Settings {
 		// Migas y plantillas por tipo (RM13 y RM10).
 		foreach ( Digitalisimo_Integrations_SEO_Suite::breadcrumb_text_keys() as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
 		if ( isset( $input['seo_schema_type_defaults'] ) ) $output['seo_schema_type_defaults'] = Digitalisimo_Integrations_Schema_Graph::sanitize_type_defaults( $input['seo_schema_type_defaults'] );
+		if ( isset( $input['seo_schema_templates'] ) ) $output['seo_schema_templates'] = Digitalisimo_Integrations_Schema_Graph::sanitize_templates( $input['seo_schema_templates'] );
 		foreach ( array( 'seo_rss_before', 'seo_rss_after' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Feed::sanitize( $input[ $key ] );
 		if ( isset( $input['seo_sitemap_news_name'] ) ) $output['seo_sitemap_news_name'] = sanitize_text_field( $input['seo_sitemap_news_name'] );
 		if ( isset( $input['seo_sitemap_news_exclude_terms'] ) ) $output['seo_sitemap_news_exclude_terms'] = Digitalisimo_Integrations_Sitemap::sanitize_ids( $input['seo_sitemap_news_exclude_terms'] );

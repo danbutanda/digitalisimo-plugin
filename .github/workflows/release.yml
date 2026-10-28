@@ -214,6 +214,7 @@ jobs:
           php tests/seo-bulk.php
           php tests/seo-abilities.php
           php tests/seo-abilities-write.php
+          php tests/seo-schema-templates.php
           php tests/seo-feed.php
           php tests/seo-template-sanitize.php
           php tests/seo-video.php

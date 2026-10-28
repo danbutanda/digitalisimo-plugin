@@ -482,6 +482,9 @@ class Digitalisimo_Integrations_Schema_Graph {
 		// El tipo real de WooCommerce prevalece sobre una selección antigua del editor.
 		if ( 'product' === $post->post_type ) return $woo && self::o( 'seo_schema_unify', 1 ) ? 'Product' : '';
 		if ( in_array( $chosen, array( 'Article', 'Service' ), true ) ) return $chosen;
+		// Una plantilla con condiciones que coincide manda sobre el tipo por defecto (RM8).
+		$template = '' === $chosen ? self::template_for( $post ) : null;
+		if ( $template ) return $template['type'];
 		// Sin elección en el editor manda el tipo por defecto de su tipo de contenido (RM8); «none» no publica entidad.
 		$default = '' === $chosen ? self::type_default( $post->post_type ) : '';
 		if ( 'none' === $default ) return '';
@@ -506,6 +509,108 @@ class Digitalisimo_Integrations_Schema_Graph {
 		$value    = is_array( $defaults ) ? (string) ( $defaults[ $post_type ] ?? '' ) : '';
 		return array_key_exists( $value, self::type_default_choices() ) ? $value : '';
 	}
+	/* ------------------------------------------------------------------ */
+	/* Plantillas con condiciones (RM8).                                    */
+	/* ------------------------------------------------------------------ */
+
+	/** Entidades que una plantilla puede aportar. Product no: lo describe WooCommerce. */
+	public static function template_type_choices() { return array( 'Article' => 'Artículo', 'BlogPosting' => 'Entrada de blog', 'NewsArticle' => 'Noticia', 'Service' => 'Servicio', 'Event' => 'Evento', 'Recipe' => 'Receta', 'Course' => 'Curso', 'JobPosting' => 'Oferta de empleo', 'SoftwareApplication' => 'Aplicación', 'VideoObject' => 'Vídeo', 'Book' => 'Libro', 'Movie' => 'Película' ); }
+	const TEMPLATES_MAX = 20;
+
+	/** Lista de IDs positivos y únicos, de texto con comas o de un arreglo. */
+	private static function id_list( $value ) {
+		$value = is_array( $value ) ? $value : preg_split( '/[\s,]+/', (string) $value );
+		return array_slice( array_values( array_unique( array_filter( array_map( 'absint', (array) $value ) ) ) ), 0, 200 );
+	}
+
+	/**
+	 * Plantillas válidas. Una fila sin tipo válido, sin tipos de contenido o marcada para quitar se descarta;
+	 * las propiedades son un objeto JSON sin @context, @id, @type ni @graph (los pone el grafo).
+	 */
+	public static function sanitize_templates( $value ) {
+		$out = array();
+		foreach ( is_array( $value ) ? $value : array() as $row ) {
+			if ( ! is_array( $row ) || ! empty( $row['remove'] ) ) continue;
+			$type = (string) ( $row['type'] ?? '' );
+			if ( ! array_key_exists( $type, self::template_type_choices() ) ) continue;
+			$types = array_slice( array_values( array_unique( array_filter( array_map( 'sanitize_key', (array) ( $row['post_types'] ?? array() ) ) ) ) ), 0, 20 );
+			$terms = is_array( $row['terms'] ?? null ) ? $row['terms'] : explode( ',', (string) ( $row['terms'] ?? '' ) );
+			$terms = array_slice( array_values( array_unique( array_filter( array_map( 'sanitize_title', (array) $terms ) ) ) ), 0, 50 );
+			$props = is_array( $row['properties'] ?? null ) ? $row['properties'] : json_decode( trim( (string) ( $row['properties'] ?? '' ) ), true );
+			$props = is_array( $props ) && ! Digitalisimo_Integrations_Schema_Rules::is_list( $props ) ? array_diff_key( $props, array_flip( array( '@context', '@id', '@type', '@graph' ) ) ) : array();
+			$json  = $props ? (string) wp_json_encode( $props, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) : '';
+			$out[] = array(
+				'name'       => mb_substr( sanitize_text_field( (string) ( $row['name'] ?? '' ) ), 0, 80 ),
+				'type'       => $type,
+				'post_types' => $types,
+				'taxonomy'   => $terms ? sanitize_key( (string) ( $row['taxonomy'] ?? '' ) ) : '',
+				'terms'      => $terms,
+				'include'    => self::id_list( $row['include'] ?? '' ),
+				'exclude'    => self::id_list( $row['exclude'] ?? '' ),
+				'properties' => strlen( $json ) <= 20000 ? $json : '',
+			);
+			if ( count( $out ) >= self::TEMPLATES_MAX ) break;
+		}
+		return $out;
+	}
+
+	/**
+	 * ¿La plantilla se aplica? Falla cerrada: sin tipos de contenido no coincide nunca, y con términos
+	 * exige que el contenido tenga uno de ellos en su taxonomía.
+	 *
+	 * @param array $terms Slugs que el contenido tiene en la taxonomía de la plantilla.
+	 */
+	public static function template_matches( array $template, $post_type, $post_id, array $terms ) {
+		if ( empty( $template['post_types'] ) || ! in_array( $post_type, (array) $template['post_types'], true ) ) return false;
+		if ( in_array( (int) $post_id, (array) ( $template['exclude'] ?? array() ), true ) ) return false;
+		if ( ! empty( $template['include'] ) && ! in_array( (int) $post_id, (array) $template['include'], true ) ) return false;
+		if ( ! empty( $template['terms'] ) && ( empty( $template['taxonomy'] ) || ! array_intersect( (array) $template['terms'], $terms ) ) ) return false;
+		return true;
+	}
+
+	/** @var array Plantilla aplicada por contenido en esta petición. */
+	private static $template_cache = array();
+
+	/** Primera plantilla que coincide con el contenido, o null. La elección del editor siempre gana. */
+	public static function template_for( $post ) {
+		if ( ! $post || 'product' === $post->post_type || '' !== self::chosen_type( $post->ID ) ) return null;
+		if ( array_key_exists( $post->ID, self::$template_cache ) ) return self::$template_cache[ $post->ID ];
+		$templates = self::o( 'seo_schema_templates', array() );
+		$found     = null;
+		foreach ( is_array( $templates ) ? $templates : array() as $template ) {
+			if ( ! is_array( $template ) || ! array_key_exists( (string) ( $template['type'] ?? '' ), self::template_type_choices() ) ) continue;
+			$terms = array();
+			if ( ! empty( $template['terms'] ) && ! empty( $template['taxonomy'] ) && taxonomy_exists( $template['taxonomy'] ) ) {
+				$assigned = get_the_terms( $post->ID, $template['taxonomy'] );
+				$terms    = is_array( $assigned ) ? wp_list_pluck( $assigned, 'slug' ) : array();
+			}
+			if ( self::template_matches( $template, $post->post_type, $post->ID, $terms ) ) { $found = $template; break; }
+		}
+		return self::$template_cache[ $post->ID ] = $found;
+	}
+
+	/** Las variables de los títulos (%title%, %excerpt%, %customfield(x)%…) en cada texto del nodo. */
+	public static function template_values( $value, array $context, $depth = 0 ) {
+		if ( is_string( $value ) ) return false === strpos( $value, '%' ) ? $value : Digitalisimo_Integrations_SEO_Variables::replace( $value, $context );
+		if ( ! is_array( $value ) || $depth > 8 ) return is_array( $value ) ? array() : $value;
+		$out = array();
+		foreach ( $value as $key => $item ) {
+			$item = self::template_values( $item, $context, $depth + 1 );
+			if ( '' !== $item && array() !== $item ) $out[ $key ] = $item;
+		}
+		return $out;
+	}
+
+	/** Nodo de la plantilla del contenido: completa la entidad principal, nunca añade otro bloque. */
+	public static function template_nodes( $post ) {
+		$template = self::template_for( $post );
+		if ( ! $template ) return array();
+		$props = json_decode( (string) ( $template['properties'] ?? '' ), true );
+		$props = is_array( $props ) ? array_diff_key( $props, array_flip( array( '@context', '@id', '@type', '@graph' ) ) ) : array();
+		$node  = array( '@type' => $template['type'] ) + self::template_values( $props, array( 'id' => $post->ID, 'title' => get_the_title( $post ) ) );
+		return array_column( Digitalisimo_Integrations_Schema_Rules::nodes( array( array( 'data' => $node ) ) ), 'node' );
+	}
+
 	/** Taxonomía de marcas de los productos: la elegida o, si existe, la de WooCommerce. */
 	public static function brand_taxonomy() {
 		$chosen = sanitize_key( (string) self::o( 'seo_product_brand', '' ) );
@@ -659,7 +764,10 @@ class Digitalisimo_Integrations_Schema_Graph {
 	public static function graph_for( $site, $page, $post_id = 0, $visible = null ) {
 		$graph = self::build( $site, $page );
 		$log   = array();
-		if ( $post_id ) list( $graph, $log ) = self::merge( $graph, self::custom_nodes( $post_id ), $page, $visible );
+		if ( $post_id ) {
+			$template = empty( $page['home'] ) && ! empty( $page['entity'] ) && ( $post = get_post( $post_id ) ) ? self::template_nodes( $post ) : array();
+			list( $graph, $log ) = self::merge( $graph, array_merge( $template, self::custom_nodes( $post_id ) ), $page, $visible );
+		}
 		return array( $graph, $log );
 	}
 

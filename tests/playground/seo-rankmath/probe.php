@@ -241,6 +241,31 @@ if ( 'schema' === $step ) {
 	$GLOBALS['wp_query'] = new WP_Query( array( 'cat' => $cat->term_id ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
 	ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
 	digi_check( false !== strpos( $graph, '"name":"Calzado"' ) && false !== strpos( $graph, '"BreadcrumbList"' ), 'El BreadcrumbList de una categoría incluye su antecesor' );
+	// RM8: plantillas con condiciones, saneadas por el formulario del sitio.
+	$events = wp_insert_term( 'Eventos', 'category' );
+	$input  = array( 'seo_schema_templates' => array(
+		array( 'name' => 'Eventos', 'type' => 'Event', 'post_types' => array( 'post' ), 'taxonomy' => 'category', 'terms' => 'eventos', 'exclude' => '', 'properties' => '{"@type":"Thing","startDate":"%customfield(fecha)%","eventStatus":"https://schema.org/EventScheduled","location":{"@type":"Place","name":"%title%"}}' ),
+		array( 'name' => 'Sin tipos', 'type' => 'Course', 'post_types' => array() ),
+		array( 'name' => '', 'type' => '' ),
+	) );
+	$clean = Digitalisimo_Integrations_Settings::sanitize( $input )['seo_schema_templates'] ?? null;
+	digi_check( is_array( $clean ) && 2 === count( $clean ) && false === strpos( $clean[0]['properties'], 'Thing' ), 'El formulario del sitio sanea las plantillas de schema' );
+	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_schema_templates' => $clean ) ) );
+	if ( is_multisite() ) update_option( 'digitalisimo_seo_network_inherit', array( 'seo_schema_templates' => 0 ) + (array) get_option( 'digitalisimo_seo_network_inherit', array() ) );
+	$event = wp_insert_post( array( 'post_title' => 'Concierto', 'post_status' => 'publish', 'post_category' => array( $events['term_id'] ) ) );
+	update_post_meta( $event, 'fecha', '2026-12-01T20:00' );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => $event ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
+	digi_check( 1 === substr_count( $graph, 'application/ld+json' ) && 1 === substr_count( $graph, '"@type":"Event"' ) && false !== strpos( $graph, '"startDate":"2026-12-01T20:00"' ) && false !== strpos( $graph, '"location":{"@type":"Place","name":"Concierto"}' ) && false === strpos( $graph, 'NewsArticle' ), 'La plantilla aporta la entidad Event con sus propiedades en el mismo @graph: ' . substr( $graph, 0, 300 ) );
+	digi_check( false !== strpos( $graph, '"mainEntity":{"@id":"' ), 'El Event es la entidad principal del WebPage' );
+	update_post_meta( $event, 'digitalisimo_seo_schema_type', 'Article' );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => $event ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
+	digi_check( false === strpos( $graph, '"Event"' ) && false !== strpos( $graph, '"@type":"Article"' ), 'La elección del editor gana a la plantilla' );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => $post ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
+	digi_check( false === strpos( $graph, '"Event"' ) && false !== strpos( $graph, 'NewsArticle' ), 'Sin el término de la plantilla, sigue la entidad por defecto' );
 	if ( ! empty( $ids['product'] ) ) {
 		$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'product', 'p' => $ids['product'] ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
 		ob_start(); Digitalisimo_Integrations_Schema_Graph::head(); $graph = ob_get_clean();
@@ -760,6 +785,11 @@ if ( 'screens' === $step ) {
 	$_GET['page'] = 'digitalisimo-seo-redirections';
 	ob_start(); Digitalisimo_Integrations_SEO_Suite::page(); $html = ob_get_clean();
 	digi_check( false !== strpos( $html, 'vieja-pagina' ) && false !== strpos( $html, 'name="sources"' ), 'El gestor lista las reglas y ofrece el formulario' );
+	$_GET['page'] = 'digitalisimo-seo-schema';
+	ob_start(); Digitalisimo_Integrations_SEO_Suite::page(); $schema = ob_get_clean();
+	digi_check( false !== strpos( $schema, 'name="digitalisimo_integrations_options[seo_schema_templates][0][name]" value="Eventos"' ) && false !== strpos( $schema, 'digitalisimo_integrations_options[seo_schema_templates][3][type]' ) && false === strpos( $schema, 'seo_schema_templates][4]' ), 'El sitio pinta sus plantillas de schema más dos vacías' );
+	digi_check( is_multisite() === ( false !== strpos( $schema, 'data-group="#digitalisimo-schema-templates"' ) ), 'Heredar de la red agrupa todas las plantillas' );
+	$_GET['page'] = 'digitalisimo-seo-redirections';
 	digi_check( 2 === substr_count( $html, 'name="digitalisimo_integrations_options[seo_redirect_enabled]"' ), 'La casilla de redirecciones se pinta una vez (oculta + casilla)' );
 	digi_check( is_multisite() === ( false !== strpos( $html, 'Heredar de la red' ) ), 'Heredar de la red sólo en un sitio de una red' );
 	// Guardar una regla desde el formulario (admin-post) y rechazar una regex rota.
@@ -780,13 +810,15 @@ if ( 'network' === $step ) {
 	digi_check( false === strpos( $html, 'Heredar de la red' ), 'La red no muestra Heredar de la red' );
 	digi_check( false !== strpos( $html, 'digitalisimo_seo_rankmath_import_network' ) && false !== strpos( $html, 'digitalisimo_rankmath_nonce' ), 'La red ofrece importar en todos los sitios con su nonce propio' );
 	// Guardado de red: mismas reglas que el sitio.
-	$_POST = array( '_wpnonce' => wp_create_nonce( 'digitalisimo_network_seo' ), '_wp_http_referer' => '/wp-admin/network/', 'digitalisimo_network' => array( 'seo_description_taxonomy' => '<i>%description%</i> · %date(Y)%', 'seo_tax_templates' => array( 'post_tag' => array( 'title' => '<b>Red</b> %term%', 'otro' => 'x' ), '' => array( 'title' => 'sin nombre' ) ), 'seo_verify_bing' => '<meta name="msvalidate.01" content="NET-1">', 'seo_max_snippet' => 'abc', 'seo_404_limit' => '5', 'seo_redirect_fallback_url' => 'javascript:alert(1)', 'seo_verify_custom' => "x|<b>\nfacebook-domain-verification|fb1", 'seo_noindex_paginated' => '1', 'seo_breadcrumbs_prefix' => '<b>Ruta</b>', 'seo_type_templates' => array( 'servicio' => array( 'title' => '<i>%title%</i>' ), 'Mal tipo!' => 'x' ) ) );
+	$_POST = array( '_wpnonce' => wp_create_nonce( 'digitalisimo_network_seo' ), '_wp_http_referer' => '/wp-admin/network/', 'digitalisimo_network' => array( 'seo_schema_templates' => array( array( 'name' => 'Red', 'type' => 'Recipe', 'post_types' => array( 'post' ), 'properties' => '{"@id":"x","recipeYield":"4"}' ), array( 'type' => 'Bogus', 'post_types' => array( 'post' ) ) ), 'seo_description_taxonomy' => '<i>%description%</i> · %date(Y)%', 'seo_tax_templates' => array( 'post_tag' => array( 'title' => '<b>Red</b> %term%', 'otro' => 'x' ), '' => array( 'title' => 'sin nombre' ) ), 'seo_verify_bing' => '<meta name="msvalidate.01" content="NET-1">', 'seo_max_snippet' => 'abc', 'seo_404_limit' => '5', 'seo_redirect_fallback_url' => 'javascript:alert(1)', 'seo_verify_custom' => "x|<b>\nfacebook-domain-verification|fb1", 'seo_noindex_paginated' => '1', 'seo_breadcrumbs_prefix' => '<b>Ruta</b>', 'seo_type_templates' => array( 'servicio' => array( 'title' => '<i>%title%</i>' ), 'Mal tipo!' => 'x' ) ) );
 	$_REQUEST = $_POST;
 	add_filter( 'wp_redirect', function() { throw new Exception( 'redirect' ); } );
 	try { Digitalisimo_Integrations_SEO_Suite::save_network(); } catch ( Exception $e ) {}
 	$net = (array) get_site_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 	digi_check( false !== strpos( $html, 'digitalisimo_network[seo_schema_type_defaults][post]' ), 'La red pinta la entidad por defecto de cada tipo' );
 	digi_check( false !== strpos( $html, 'digitalisimo_network[seo_tax_templates][post_tag][title]' ), 'La red pinta las plantillas por taxonomía' );
+	digi_check( false !== strpos( $html, 'digitalisimo_network[seo_schema_templates][0][type]' ) && false !== strpos( $html, 'digitalisimo_network[seo_schema_templates][1][post_types][]' ), 'La red pinta las plantillas de schema' );
+	digi_check( array( array( 'name' => 'Red', 'type' => 'Recipe', 'post_types' => array( 'post' ), 'taxonomy' => '', 'terms' => array(), 'include' => array(), 'exclude' => array(), 'properties' => '{"recipeYield":"4"}' ) ) === ( $net['seo_schema_templates'] ?? null ), 'save_network sanea las plantillas de schema: ' . wp_json_encode( $net['seo_schema_templates'] ?? null ) );
 	digi_check( array( 'post_tag' => array( 'title' => 'Red %term%' ) ) === ( $net['seo_tax_templates'] ?? null ), 'save_network sanea las plantillas por taxonomía: ' . wp_json_encode( $net['seo_tax_templates'] ?? null ) );
 	digi_check( '%description% · %date(Y)%' === ( $net['seo_description_taxonomy'] ?? '' ), 'save_network conserva las variables de las plantillas: ' . ( $net['seo_description_taxonomy'] ?? '' ) );
 	digi_check( 'Ruta' === $net['seo_breadcrumbs_prefix'] && array( 'servicio' => array( 'title' => '%title%' ) ) === $net['seo_type_templates'], 'save_network sanea migas y plantillas por tipo: ' . json_encode( array( $net['seo_breadcrumbs_prefix'] ?? null, $net['seo_type_templates'] ?? null ) ) );

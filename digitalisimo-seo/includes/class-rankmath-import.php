@@ -44,6 +44,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 			'schema_default'    => 'Tipos de contenido con un schema por defecto de Rank Math sin equivalente (libro, receta, evento…): quedan en Automático.',
 			'term_canonical'    => 'Términos con canonical propio: los términos aún no tienen canonical editable.',
 			'term_social'       => 'Términos con datos sociales propios: los términos aún no los tienen.',
+			'schema_templates'  => 'Plantillas de schema de Rank Math PRO: no se importan porque sus condiciones tienen otro formato. Rehazlas en SEO → Schema → Plantillas de schema.',
 			'users'             => 'Usuarios con título, descripción o robots propios de su archivo de autor (no se importan).',
 			'local_phone'       => 'Teléfonos de SEO local: revísalos en SEO → Local (el formato es distinto).',
 			'local_hours'       => 'Horario de SEO local: revísalo en SEO → Local (el formato es distinto).',
@@ -621,6 +622,8 @@ class Digitalisimo_Integrations_RankMath_Import {
 			// Los archivos de autor no tienen destino todavía: sólo se informa cuántos había.
 			$users = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key IN ('rank_math_title','rank_math_description','rank_math_robots') AND meta_value <> %s", '' ) );
 			if ( $users ) { $job['notes']['users']['count'] = $users; }
+			$templates = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = %s AND post_status <> %s", 'rank_math_schema', 'trash' ) );
+			if ( $templates ) { $job['notes']['schema_templates']['count'] = $templates; }
 			return true;
 		}
 		update_meta_cache( 'term', $ids );
