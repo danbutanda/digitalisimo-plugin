@@ -49,8 +49,9 @@ class Digitalisimo_Integrations_SEO_Bulk {
 	/** Metas a escribir a partir de una fila o un formulario (clave => valor). Las celdas vacías no se tocan. */
 	public static function changes( array $row, $max_keywords = 5 ) {
 		$out = array();
-		foreach ( array( 'seo_title' => 'title', 'social_title' => 'social_title', 'breadcrumb_title' => 'breadcrumb_title' ) as $from => $to ) if ( isset( $row[ $from ] ) && '' !== trim( (string) $row[ $from ] ) ) $out[ $to ] = sanitize_text_field( self::csv_value( $row[ $from ] ) );
-		foreach ( array( 'seo_description' => 'description', 'social_description' => 'social_description' ) as $from => $to ) if ( isset( $row[ $from ] ) && '' !== trim( (string) $row[ $from ] ) ) $out[ $to ] = sanitize_textarea_field( self::csv_value( $row[ $from ] ) );
+		foreach ( array( 'seo_title' => 'title', 'social_title' => 'social_title' ) as $from => $to ) if ( isset( $row[ $from ] ) && '' !== trim( (string) $row[ $from ] ) ) $out[ $to ] = Digitalisimo_Integrations_Settings::sanitize_template( self::csv_value( $row[ $from ] ) );
+		if ( isset( $row['breadcrumb_title'] ) && '' !== trim( (string) $row['breadcrumb_title'] ) ) $out['breadcrumb_title'] = sanitize_text_field( self::csv_value( $row['breadcrumb_title'] ) );
+		foreach ( array( 'seo_description' => 'description', 'social_description' => 'social_description' ) as $from => $to ) if ( isset( $row[ $from ] ) && '' !== trim( (string) $row[ $from ] ) ) $out[ $to ] = Digitalisimo_Integrations_Settings::sanitize_template( self::csv_value( $row[ $from ] ), true );
 		if ( isset( $row['keywords'] ) && '' !== trim( (string) $row['keywords'] ) ) {
 			$keywords = array_slice( Digitalisimo_Integrations_Keyword_Match::unique( preg_split( '/[,\r\n]+/', self::csv_value( $row['keywords'] ) ) ), 0, max( 1, min( 5, (int) $max_keywords ) ) );
 			if ( $keywords ) $out['keywords'] = implode( ', ', $keywords );

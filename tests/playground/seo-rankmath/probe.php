@@ -405,6 +405,38 @@ if ( 'abilities' === $step ) {
 	return;
 }
 
+if ( 'abilitieswrite' === $step ) {
+	// RM15: abilities de escritura opt-in, con permisos, historial y deshacer.
+	if ( ! function_exists( 'wp_get_ability' ) ) { digi_check( true, 'Sin Abilities API no hay nada que probar' ); return; }
+	$post = $ids['post'];
+	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_abilities_write' => 0 ) ) );
+	$update = wp_get_ability( 'digitalisimo-seo/update-post-seo' );
+	digi_check( $update && is_wp_error( $update->execute( array( 'post_id' => $post, 'title' => 'X' ) ) ), 'Desactivadas, ni un administrador puede escribir' );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_abilities_write' => 1 ) ) );
+	$before = get_post_meta( $post, 'digitalisimo_seo_title', true );
+	$res = $update->execute( array( 'post_id' => $post, 'title' => '%title% %sep% %date(Y)%', 'description' => 'Nueva %description%', 'noindex' => false ) );
+	digi_check( is_array( $res ) && array( 'title', 'description' ) === $res['changed'] && '%title% %sep% %date(Y)%' === get_post_meta( $post, 'digitalisimo_seo_title', true ) && 0 === strpos( $res['seo']['title'], 'Entrada RM' ), 'Cambia sólo lo enviado y devuelve el título efectivo: ' . wp_json_encode( is_wp_error( $res ) ? $res->get_error_message() : $res ) );
+	$again = $update->execute( array( 'post_id' => $post, 'title' => '%title% %sep% %date(Y)%' ) );
+	digi_check( array() === $again['changed'] && 1 === count( get_post_meta( $post, 'digitalisimo_seo_history', true ) ), 'Repetir no cambia ni registra nada' );
+	$revert = wp_get_ability( 'digitalisimo-seo/revert-post-seo' )->execute( array( 'post_id' => $post ) );
+	digi_check( is_array( $revert ) && $before === get_post_meta( $post, 'digitalisimo_seo_title', true ) && 'Descripción desde Rank Math' === get_post_meta( $post, 'digitalisimo_seo_description', true ) && 0 === $revert['remaining'], 'Deshacer restaura los valores anteriores' );
+	digi_check( is_wp_error( wp_get_ability( 'digitalisimo-seo/revert-post-seo' )->execute( array( 'post_id' => $post ) ) ), 'Sin historial no hay nada que deshacer' );
+	$create = wp_get_ability( 'digitalisimo-seo/create-redirection' );
+	$r1 = $create->execute( array( 'source' => '/desde-agente/', 'target' => '/entrada-rm/' ) );
+	$r2 = $create->execute( array( 'source' => 'https://otro.test/desde-agente/', 'target' => '/otra/' ) );
+	digi_check( is_array( $r1 ) && $r1['created'] && is_array( $r2 ) && ! $r2['created'] && $r1['id'] === $r2['id'] && 'ability' === Digitalisimo_Integrations_Redirections::get( $r1['id'] )['origin'], 'Crea una redirección y no la duplica' );
+	digi_check( is_wp_error( $create->execute( array( 'source' => '/bucle/', 'target' => '/bucle/' ) ) ), 'Rechaza un bucle' );
+	// Permisos: un autor sólo cambia lo suyo y no crea redirecciones; un suscriptor nada.
+	$author = wp_insert_user( array( 'user_login' => 'autor' . wp_rand(), 'user_pass' => wp_generate_password(), 'role' => 'author' ) );
+	$mine = wp_insert_post( array( 'post_title' => 'Del autor', 'post_status' => 'publish', 'post_author' => $author ) );
+	wp_set_current_user( $author );
+	digi_check( is_array( $update->execute( array( 'post_id' => $mine, 'title' => 'Mío' ) ) ) && is_wp_error( $update->execute( array( 'post_id' => $post, 'title' => 'Ajeno' ) ) ) && is_wp_error( $create->execute( array( 'source' => '/autor/', 'target' => '/' . 'x/' ) ) ), 'Un autor cambia lo suyo, no lo ajeno ni redirecciones' );
+	wp_set_current_user( 1 );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, $o );
+	return;
+}
+
 if ( 'schedule' === $step ) {
 	// RM2, segunda parte: categoría y programación importadas, índice por periodo y CSV de ida y vuelta.
 	$r     = 'Digitalisimo_Integrations_Redirections';

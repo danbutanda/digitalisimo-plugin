@@ -689,7 +689,7 @@ class Digitalisimo_Integrations_Redirections {
 		wp_nonce_field( 'digitalisimo_seo_redirect_import' );
 		echo '<label>Importar CSV <input type="file" name="digitalisimo_redirect_csv" accept=".csv,text/csv" required></label> <button class="button">Importar</button><p class="description">Columnas: id, source, matching, destination, type, category, status, ignore, starts, ends (fechas en GMT). Acepta el CSV exportado por Rank Math. Un origen exacto que ya existe no se duplica.</p></form>';
 		if ( ! $rows ) { echo '<p class="description">' . ( '' !== $search ? 'Ninguna redirección coincide con la búsqueda.' : 'Aún no hay redirecciones en este sitio.' ) . '</p>'; return; }
-		$origins = array( 'manual' => 'Manual', 'slug' => 'Cambio de enlace', 'rankmath' => 'Importada', '404' => 'Desde 404', 'csv' => 'Desde CSV' );
+		$origins = array( 'manual' => 'Manual', 'slug' => 'Cambio de enlace', 'rankmath' => 'Importada', '404' => 'Desde 404', 'csv' => 'Desde CSV', 'ability' => 'Agente de IA' );
 		echo '<table class="widefat striped"><thead><tr><th>Origen</th><th>Destino</th><th>Respuesta</th><th>Estado</th><th>Visitas</th><th>Último acceso</th><th>Acciones</th></tr></thead><tbody>';
 		foreach ( $rows as $row ) {
 			$sources = json_decode( (string) $row['sources'], true ) ?: array();
