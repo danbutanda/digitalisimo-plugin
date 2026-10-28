@@ -191,6 +191,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 		foreach ( array( 'max-snippet' => 'max_snippet', 'max-video-preview' => 'max_video_preview' ) as $from => $to ) {
 			if ( isset( $advanced[ $from ] ) && '' !== (string) $advanced[ $from ] && -1 !== (int) $advanced[ $from ] && $empty( $to ) ) $set[ $to ] = (string) max( 0, (int) $advanced[ $from ] );
 		}
+		if ( self::filled( $rm['rank_math_breadcrumb_title'] ?? null ) && $empty( 'breadcrumb_title' ) ) $set['breadcrumb_title'] = (string) $rm['rank_math_breadcrumb_title'];
 		if ( self::filled( $rm['rank_math_canonical_url'] ?? null ) ) $notes[] = 'term_canonical';
 		if ( self::filled( $rm['rank_math_facebook_title'] ?? null ) || self::filled( $rm['rank_math_facebook_image'] ?? null ) ) $notes[] = 'term_social';
 		return array( 'set' => $set, 'notes' => array_values( array_unique( $notes ) ) );

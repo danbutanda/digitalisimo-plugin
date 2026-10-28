@@ -204,6 +204,12 @@ if ( 'crumbs' === $step ) {
 	digi_check( 'Estás en: Calzado / Tenis' === trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) ) ), 'Ajustes de visualización: ' . wp_strip_all_tags( $html ) );
 	$GLOBALS['wp_query'] = new WP_Query( array( 'cat' => $child['term_id'] ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
 	digi_check( array( 'Inicio', 'Calzado', 'Tenis' ) === wp_list_pluck( Digitalisimo_Integrations_Breadcrumbs::trail(), 'name' ), 'Ruta de una categoría con su antecesor' );
+	$_POST = array( 'digitalisimo_term_seo_nonce' => wp_create_nonce( 'digitalisimo_term_seo' ), 'digitalisimo_term_breadcrumb_title' => 'Todo el calzado' );
+	Digitalisimo_Integrations_SEO_Suite::save_term( $parent['term_id'] ); $_POST = array();
+	digi_check( array( 'Inicio', 'Todo el calzado', 'Tenis' ) === wp_list_pluck( Digitalisimo_Integrations_Breadcrumbs::trail(), 'name' ), 'El título de miga de un término se guarda y lo usa la ruta' );
+	ob_start(); Digitalisimo_Integrations_SEO_Suite::term_fields( get_term( $parent['term_id'] ) ); $fields = ob_get_clean();
+	digi_check( false !== strpos( $fields, 'name="digitalisimo_term_breadcrumb_title" value="Todo el calzado"' ), 'El campo de miga aparece en el término' );
+	delete_term_meta( $parent['term_id'], 'digitalisimo_seo_breadcrumb_title' );
 	$GLOBALS['wp_query'] = new WP_Query( array( 's' => 'zapato' ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
 	digi_check( array( 'Inicio', 'Resultados de «zapato»' ) === wp_list_pluck( Digitalisimo_Integrations_Breadcrumbs::trail(), 'name' ), 'Ruta de una búsqueda' );
 	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => 999999 ) ); $GLOBALS['wp_query']->set_404(); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];

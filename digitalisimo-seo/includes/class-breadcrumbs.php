@@ -21,6 +21,12 @@ class Digitalisimo_Integrations_Breadcrumbs {
 		return '' !== $custom ? $custom : get_the_title( $id );
 	}
 
+	/** Título de miga propio del término (editado o importado) o su nombre. */
+	public static function term_name( $term ) {
+		$custom = trim( (string) get_term_meta( $term->term_id, 'digitalisimo_seo_breadcrumb_title', true ) );
+		return '' !== $custom ? $custom : $term->name;
+	}
+
 	/** «Archivo de %s»: el formato admite %s; sin él, se añade el nombre al final. */
 	public static function format( $format, $name ) {
 		$format = (string) $format;
@@ -39,10 +45,10 @@ class Digitalisimo_Integrations_Breadcrumbs {
 		$items = array();
 		foreach ( array_reverse( get_ancestors( $term->term_id, $term->taxonomy, 'taxonomy' ) ) as $ancestor ) {
 			$parent = get_term( $ancestor, $term->taxonomy );
-			if ( $parent && ! is_wp_error( $parent ) ) $items[] = self::item( $parent->name, get_term_link( $parent ) );
+			if ( $parent && ! is_wp_error( $parent ) ) $items[] = self::item( self::term_name( $parent ), get_term_link( $parent ) );
 		}
 		$link = get_term_link( $term );
-		if ( ! is_wp_error( $link ) ) $items[] = self::item( $term->name, $link );
+		if ( ! is_wp_error( $link ) ) $items[] = self::item( self::term_name( $term ), $link );
 		return $items;
 	}
 

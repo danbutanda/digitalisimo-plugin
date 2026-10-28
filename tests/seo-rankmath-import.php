@@ -69,6 +69,10 @@ $term = $i::map_term( array( 'rank_math_robots' => array( 'nofollow', 'nosnippet
 check( array( 'nofollow' => '1', 'nosnippet' => '1', 'max_snippet' => '80' ) === $term['set'], 'Los robots avanzados de un término se importan; -1 no publica nada.' );
 $term = $i::map_term( array( 'rank_math_robots' => array( 'nofollow' ), 'rank_math_advanced_robots' => array( 'max-snippet' => '80' ) ), array( 'noindex' => '', 'max_snippet' => '20' ), $ctx );
 check( array() === $term['set'], 'Los robots ya decididos en el término no se pisan.' );
+$term = $i::map_term( array( 'rank_math_breadcrumb_title' => 'Zapatos' ), array(), $ctx );
+check( array( 'breadcrumb_title' => 'Zapatos' ) === $term['set'], 'El título de miga de un término se importa.' );
+$term = $i::map_term( array( 'rank_math_breadcrumb_title' => 'Zapatos' ), array( 'breadcrumb_title' => 'Calzado' ), $ctx );
+check( array() === $term['set'], 'El título de miga editado en el término no se pisa.' );
 
 // Ajustes del sitio.
 $defaults = array( 'seo_separator' => '|', 'noindex_authors' => 1, 'seo_title_post' => '%title% %sep% %sitename%', 'seo_organization_name' => '', 'seo_breadcrumbs' => 1 );

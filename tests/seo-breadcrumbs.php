@@ -50,4 +50,10 @@ check( '' !== $b::render( array( $items[0] ), array( 'show_home' => 0, 'hide_cur
 check( 'Archivo de Ana' === $b::format( 'Archivo de %s', 'Ana' ) && 'Autor Ana' === $b::format( 'Autor', 'Ana' ), 'Formatos con y sin %s.' );
 $schema = $b::schema_items( $items );
 check( 3 === count( $schema ) && 3 === $schema[2]['position'] && 'https://s.test/blog/entrada/' === $schema[2]['item'], 'El schema conserva la ruta completa.' );
+
+// Título de miga de un término (RM13).
+function get_term_meta( $id, $key, $single ) { return 7 === $id && 'digitalisimo_seo_breadcrumb_title' === $key ? ' Calzado ' : ''; }
+$b = Digitalisimo_Integrations_Breadcrumbs::class;
+check( 'Calzado' === $b::term_name( (object) array( 'term_id' => 7, 'name' => 'Zapatos' ) ), 'El título de miga del término sustituye su nombre.' );
+check( 'Tenis' === $b::term_name( (object) array( 'term_id' => 8, 'name' => 'Tenis' ) ), 'Sin título de miga, el nombre del término.' );
 echo "Migas y variables: rutas, HTML, formatos y variables correctos.\n";
