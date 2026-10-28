@@ -23,7 +23,7 @@ class Digitalisimo_Integrations_SEO_Feed {
 
 	public static function content( $content ) {
 		$post = get_post();
-		if ( ! $post ) return $content;
+		if ( ! $post || Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return $content;
 		$before = self::render( (string) self::o( 'seo_rss_before', '' ), $post );
 		$after  = self::render( (string) self::o( 'seo_rss_after', '' ), $post );
 		return ( '' !== $before ? '<p>' . $before . '</p>' : '' ) . $content . ( '' !== $after ? '<p>' . $after . '</p>' : '' );
@@ -66,7 +66,7 @@ class Digitalisimo_Integrations_SEO_Feed {
 	}
 
 	public static function avatar( $html, $id_or_email = null, $size = 0, $default = '', $alt = '', $args = array() ) {
-		if ( '' !== (string) $alt || ! self::o( 'seo_avatar_alt', 0 ) || ! is_string( $html ) || '' === $html ) return $html;
+		if ( '' !== (string) $alt || ! self::o( 'seo_avatar_alt', 0 ) || Digitalisimo_Integrations_SEO_Resolver::foreign_seo() || ! is_string( $html ) || '' === $html ) return $html;
 		$name = self::avatar_name( $id_or_email );
 		return '' === $name ? $html : self::with_alt( $html, $name );
 	}

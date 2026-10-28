@@ -622,6 +622,28 @@ if ( 'feed' === $step ) {
 	return;
 }
 
+if ( 'coexist' === $step ) {
+	// Con otro plugin SEO activo (aquí, la constante de Rank Math sólo en esta petición) no se duplica ninguna señal.
+	$GLOBALS['wp_query'] = new WP_Query( array( 'p' => $ids['post'] ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query']; $GLOBALS['wp_query']->the_post();
+	ob_start(); Digitalisimo_Integrations_SEO_Suite::head(); $before = ob_get_clean();
+	digi_check( false !== strpos( $before, 'rel="canonical"' ), 'Sin otro SEO, el head propio se imprime' );
+	define( 'RANK_MATH_VERSION', '1.0.279' );
+	digi_check( 'Rank Math' === Digitalisimo_Integrations_SEO_Resolver::foreign_seo(), 'Detecta Rank Math aunque cargue después' );
+	ob_start(); Digitalisimo_Integrations_SEO_Suite::head(); Digitalisimo_Integrations_Verification::output(); $head = ob_get_clean();
+	digi_check( '' === $head, 'Con Rank Math activo no imprime title, description, canonical, social, schema ni verificación: ' . $head );
+	digi_check( 'Original' === Digitalisimo_Integrations_SEO_Suite::title( 'Original' ) && array() === Digitalisimo_Integrations_SEO_Suite::robots( array() ), 'Ni título ni robots propios' );
+	digi_check( "User-agent: *\n" === Digitalisimo_Integrations_Sitemap::robots( "User-agent: *\n", true ), 'robots.txt sin el sitemap propio' );
+	$_SERVER['REQUEST_URI'] = '/sitemap.xml';
+	ob_start(); Digitalisimo_Integrations_Sitemap::maybe_serve(); $xml = ob_get_clean();
+	digi_check( '' === $xml, 'El sitemap propio no responde: lo sirve Rank Math' );
+	digi_check( '<p>x</p>' === Digitalisimo_Integrations_SEO_Feed::content( '<p>x</p>' ), 'El feed no añade texto propio' );
+	require_once ABSPATH . 'wp-admin/includes/admin.php';
+	set_current_screen( 'plugins' );
+	ob_start(); Digitalisimo_Integrations_SEO_Suite::foreign_notice(); $notice = ob_get_clean();
+	digi_check( false !== strpos( $notice, 'Rank Math está activo' ) && false !== strpos( $notice, 'digitalisimo-seo-import' ), 'Plugins avisa y enlaza a la importación' );
+	return;
+}
+
 if ( 'screens' === $step ) {
 	require_once ABSPATH . 'wp-admin/includes/admin.php';
 	Digitalisimo_Integrations_Settings::register_settings(); Digitalisimo_Integrations_Redirections::maybe_install(); Digitalisimo_Integrations_404_Monitor::maybe_install(); // Lo que hace admin_init para SEO, sin los ganchos de otros plugins.

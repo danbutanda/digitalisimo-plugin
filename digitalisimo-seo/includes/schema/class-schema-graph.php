@@ -705,7 +705,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 
 	public static function start_buffer() {
 		if ( is_admin() || is_feed() || is_robots() || wp_doing_ajax() || 'GET' !== ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) ) return;
-		if ( ! self::o( 'enable_seo' ) || ! self::o( 'seo_schema_enabled' ) ) return;
+		if ( ! self::o( 'enable_seo' ) || ! self::o( 'seo_schema_enabled' ) || Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return;
 		if ( self::raw_requested() ) { nocache_headers(); return; }
 		$page = self::current_page();
 		if ( ! $page ) return;

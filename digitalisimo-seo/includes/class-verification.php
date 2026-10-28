@@ -64,7 +64,7 @@ class Digitalisimo_Integrations_Verification {
 	}
 
 	public static function output() {
-		if ( is_admin() || ! is_front_page() || is_paged() ) return;
+		if ( is_admin() || ! is_front_page() || is_paged() || Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return;
 		foreach ( self::tags() as $name => $code ) echo '<meta name="' . esc_attr( $name ) . '" content="' . esc_attr( $code ) . '">' . "\n";
 	}
 }

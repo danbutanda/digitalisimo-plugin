@@ -267,7 +267,7 @@ class Digitalisimo_Integrations_Redirections {
 	}
 
 	public static function maybe_redirect() {
-		if ( ! self::o( 'seo_redirect_enabled', 1 ) || self::skip_request() ) return;
+		if ( ! self::o( 'seo_redirect_enabled', 1 ) || self::skip_request() || Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return;
 		$active = self::active_count();
 		$fallback = $active ? '' : (string) self::o( 'seo_redirect_fallback_url', '' );
 		if ( ! $active && ( '' === $fallback || ! is_404() ) ) return;

@@ -29,7 +29,7 @@ function apply_filters( $hook, $value, ...$args ) {
 	return $value;
 }
 // Las imágenes del sitemap tienen su propia prueba (seo-sitemap-images.php): aquí sólo las rutas.
-class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key, $default = null ) { return 'seo_sitemap_images' === $key ? 0 : $default; } }
+class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key, $default = null ) { return 'seo_sitemap_images' === $key ? 0 : $default; } public static function foreign_seo() { return $GLOBALS['digi_foreign'] ?? ''; } }
 class Digitalisimo_Integrations_SEO_Suite { public static function sitemap_posts( $types ) { return $types; } public static function sitemap_query( $args, $type ) { $args['post__not_in'] = array( 11 ); return $args; } }
 require __DIR__ . '/../digitalisimo-seo/includes/class-sitemap.php';
 $sitemap = Digitalisimo_Integrations_Sitemap::class;
@@ -47,6 +47,9 @@ if ( false !== strpos( $xml, 'privada' ) || false !== strpos( $xml, '<sitemapind
 $multisite = false; $site = 'https://individual.test/';
 $robots = $sitemap::robots( "User-agent: *\nDisallow: /wp-admin/\n", true );
 if ( false === strpos( $robots, 'Sitemap: https://individual.test/sitemap.xml' ) || 1 !== substr_count( $robots, 'Sitemap:' ) ) throw new RuntimeException( 'WordPress individual debe anunciar su sitemap único.' );
+$GLOBALS['digi_foreign'] = 'Rank Math';
+if ( "User-agent: *\n" !== $sitemap::robots( "User-agent: *\n", true ) ) throw new RuntimeException( 'Con Rank Math activo, robots.txt no debe anunciar el sitemap propio.' );
+unset( $GLOBALS['digi_foreign'] );
 $_SERVER['REQUEST_URI'] = '/articulos.xml';
 if ( 'post' !== $sitemap::requested()['type'] ) throw new RuntimeException( 'Debe existir el archivo amigable de artículos.' );
 $_SERVER['REQUEST_URI'] = '/post-1.xml';

@@ -72,7 +72,7 @@ class Digitalisimo_Integrations_Sitemap {
 
 	public static function maybe_serve() {
 		$route = self::requested();
-		if ( ! $route ) return;
+		if ( ! $route || Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return;
 		if ( ! self::enabled() ) self::not_found();
 		if ( 'legacy' === $route['type'] ) { wp_redirect( self::endpoint(), 301 ); exit; }
 		if ( 'news' === $route['type'] ) {
@@ -113,7 +113,7 @@ class Digitalisimo_Integrations_Sitemap {
 	}
 
 	public static function robots( $output, $public ) {
-		if ( ! $public || ! self::enabled() ) return $output;
+		if ( ! $public || ! self::enabled() || Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return $output;
 		// Un solo sitemap del sitio actual, aunque otro filtro haya añadido el índice nativo.
 		$output = preg_replace( '/^[ \t]*Sitemap[ \t]*:[^\r\n]*(?:\r?\n|$)/im', '', (string) $output );
 		return rtrim( $output ) . "\nSitemap: " . self::endpoint() . "\n" . ( self::news_enabled() ? 'Sitemap: ' . self::endpoint( self::NEWS_FILE ) . "\n" : '' ) . ( self::video_enabled() ? 'Sitemap: ' . self::endpoint( self::VIDEO_FILE ) . "\n" : '' );
@@ -291,7 +291,7 @@ class Digitalisimo_Integrations_Sitemap {
 
 	/** Un contenido excluido de Google News sigue en la búsqueda normal: sólo Googlebot-News recibe noindex. */
 	public static function news_robots() {
-		if ( is_singular() && '1' === get_post_meta( get_queried_object_id(), 'digitalisimo_seo_news_exclude', true ) ) echo '<meta name="Googlebot-News" content="noindex">' . "\n";
+		if ( ! Digitalisimo_Integrations_SEO_Resolver::foreign_seo() && is_singular() && '1' === get_post_meta( get_queried_object_id(), 'digitalisimo_seo_news_exclude', true ) ) echo '<meta name="Googlebot-News" content="noindex">' . "\n";
 	}
 
 	/* ------------------------------------------------------------------ */
