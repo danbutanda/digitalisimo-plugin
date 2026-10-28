@@ -39,7 +39,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 			'schema_legacy'     => 'Contenidos con el formato antiguo de rich snippet de Rank Math (no se importan).',
 			'gtin'              => 'GTIN de Rank Math que no pasó al campo GTIN de WooCommerce: no es un GTIN válido, el producto ya tenía uno, otro producto lo usa o WooCommerce no está activo.',
 			'html_sitemap'      => 'Rank Math publicaba un mapa del sitio en HTML: pon el shortcode [digitalisimo_sitemap] en la página donde estaba.',
-			'url_base'          => 'Rank Math quitaba la base de las URL (/product/, /product-category/ o /category/): DIGITALÍSIMO SEO no la quita, así que vuelven a llevarla. El importador creó las 301 de las URL sin base a las de ahora (ver «Redirecciones»).',
+			'url_base'          => 'Rank Math quitaba las categorías superiores de las URL de categorías de producto (/hija/ en vez de /madre/hija/). DIGITALÍSIMO SEO conserva la ruta completa, así que esas URL cambian: revisa el monitor 404 de las próximas semanas y crea redirecciones desde ahí (un clic) para las que reciban visitas.',
 			'base_collision'    => 'URL sin base que ya pertenecen a otra página o entrada: no se redirigen (revísalas en Redirecciones).',
 			'schema_default'    => 'Tipos de contenido con un schema por defecto de Rank Math sin equivalente (libro, receta, evento…): quedan en Automático.',
 			'term_canonical'    => 'Términos con canonical propio: los términos aún no tienen canonical editable.',
@@ -277,7 +277,9 @@ class Digitalisimo_Integrations_RankMath_Import {
 			if ( '' !== $text ) $want[ $to ] = Digitalisimo_Integrations_SEO_Feed::sanitize( $text );
 		}
 		if ( isset( $g['wc_remove_generator'] ) ) $want['seo_wc_remove_generator'] = self::on( $g['wc_remove_generator'] ) ? 1 : 0;
-		if ( self::on( $g['wc_remove_product_base'] ?? '' ) || self::on( $g['wc_remove_category_base'] ?? '' ) || self::on( $g['wc_remove_category_parent_slugs'] ?? '' ) || self::on( $g['strip_category_base'] ?? '' ) ) $notes[] = 'url_base';
+		// Rank Math quitaba la base: se quita igual para conservar las URL idénticas, sin redirecciones.
+		foreach ( array( 'wc_remove_product_base' => 'seo_strip_product_base', 'wc_remove_category_base' => 'seo_strip_product_cat_base', 'strip_category_base' => 'seo_strip_category_base' ) as $from => $to ) if ( isset( $g[ $from ] ) ) $want[ $to ] = self::on( $g[ $from ] ) ? 1 : 0;
+		if ( self::on( $g['wc_remove_category_parent_slugs'] ?? '' ) ) $notes[] = 'url_base';
 		$defaults_by_type = array();
 		foreach ( $t as $key => $value ) {
 			if ( ! preg_match( '/^pt_([a-z0-9_-]+)_default_rich_snippet$/', (string) $key, $m ) || in_array( $m[1], array( 'page', 'attachment', 'product' ), true ) ) continue;
@@ -476,9 +478,14 @@ class Digitalisimo_Integrations_RankMath_Import {
 		}
 		self::note( $job, $result['notes'] );
 		$job['robots_txt'] = substr( $result['robots_txt'], 0, 5000 );
-		// Bases de URL que Rank Math quitaba: la fase «bases» crea las 301 de esas URL a las de ahora.
+		// Bases que Rank Math quitaba y este sitio sigue mostrando (no quitó la base aquí): la fase «bases» crea
+		// las 301 de esas URL a las de ahora. Con la base quitada, las URL ya son idénticas y no hace falta.
 		$g = $rm['general'];
-		$job['bases'] = array_keys( array_filter( array( 'product' => self::on( $g['wc_remove_product_base'] ?? '' ), 'product_cat' => self::on( $g['wc_remove_category_base'] ?? '' ), 'category' => self::on( $g['strip_category_base'] ?? '' ) ) ) );
+		$job['bases'] = array_keys( array_filter( array(
+			'product'     => self::on( $g['wc_remove_product_base'] ?? '' ) && ! Digitalisimo_Integrations_SEO_Resolver::option( 'seo_strip_product_base', 0 ),
+			'product_cat' => self::on( $g['wc_remove_category_base'] ?? '' ) && ! Digitalisimo_Integrations_SEO_Resolver::option( 'seo_strip_product_cat_base', 0 ),
+			'category'    => self::on( $g['strip_category_base'] ?? '' ) && ! Digitalisimo_Integrations_SEO_Resolver::option( 'seo_strip_category_base', 0 ),
+		) ) );
 		return true;
 	}
 

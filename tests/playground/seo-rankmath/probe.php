@@ -119,8 +119,10 @@ if ( 'import' === $step ) {
 	digi_check( '%title% %sep% %sitename%' === ( $o['seo_title_post'] ?? '' ), 'La plantilla pierde la variable sin destino y su separador' );
 	digi_check( 'https://facebook.com/acme' === ( $o['seo_social_profiles']['facebook'] ?? '' ), 'Perfil de Facebook importado' );
 	$index = get_option( Digitalisimo_Integrations_Redirections::INDEX );
-	digi_check( isset( $index['exact']['categoria-rm'] ) && ! isset( $index['exact']['entrada-rm'] ) && isset( $job['notes']['base_collision'] ), 'Sin base de categorías: 301 de /categoria-rm/ y ninguna sobre la ruta de una entrada' );
-	if ( ! empty( $ids['product'] ) ) digi_check( isset( $index['exact']['tenis-acme'] ) && '/product/tenis-acme/' === $index['rules'][ $index['exact']['tenis-acme'] ]['u'], 'Sin base de productos: 301 de /tenis-acme/ a /product/tenis-acme/' );
+	$choca = get_term_by( 'slug', 'entrada-rm', 'category' );
+	digi_check( 1 === (int) ( $o['seo_strip_category_base'] ?? 0 ) && home_url( '/categoria-rm/' ) === get_term_link( $ids['term'] ) && false !== strpos( get_term_link( $choca ), '/category/entrada-rm/' ), 'Sin base de categorías como en Rank Math: la URL es idéntica y la que chocaría con una entrada conserva su base' );
+	digi_check( ! isset( $index['exact']['categoria-rm'] ) && ! (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Digitalisimo_Integrations_Redirections::table() . " WHERE import_key LIKE 'rankmath-base:%'" ), 'Con las URL idénticas no hacen falta 301' );
+	if ( ! empty( $ids['product'] ) ) digi_check( home_url( '/tenis-acme/' ) === get_permalink( $ids['product'] ), 'Sin base de productos como en Rank Math: ' . get_permalink( $ids['product'] ) );
 	if ( ! empty( $ids['product'] ) ) digi_check( '4006381333931' === wc_get_product( $ids['product'] )->get_global_unique_id() && 1 === (int) ( $job['done']['gtin'] ?? 0 ), 'El GTIN de Rank Math pasa al campo de WooCommerce' );
 	if ( is_multisite() ) { $inherit = (array) get_option( 'digitalisimo_seo_network_inherit', array() ); digi_check( isset( $inherit['seo_separator'] ) && 0 === $inherit['seo_separator'], 'En la red, lo importado deja de heredar' ); }
 	// Repetir no duplica.
@@ -619,6 +621,71 @@ if ( 'feed' === $step ) {
 	digi_check( false !== strpos( $form, 'name="digitalisimo_term_noarchive" value="1"  checked=\'checked\'' ) && false !== strpos( $form, 'value="120"' ), 'El formulario del término muestra lo guardado' );
 	$imported = get_term_by( 'name', 'Categoría RM', 'category' );
 	digi_check( '1' === get_term_meta( $imported->term_id, 'digitalisimo_seo_nosnippet', true ) && '60' === get_term_meta( $imported->term_id, 'digitalisimo_seo_max_video_preview', true ), 'Los robots avanzados del término de Rank Math se importan' );
+	return;
+}
+
+if ( 'mediarepair' === $step ) {
+	// Adjuntos que perdieron su metadata: la tarea la regenera en cola y no toca los que la tienen.
+	$R = 'Digitalisimo_Integrations_Media_Repair';
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	$upload = wp_upload_dir();
+	$made = array();
+	if ( function_exists( 'imagecreatetruecolor' ) ) {
+		$img = imagecreatetruecolor( 1200, 800 ); $file = $upload['path'] . '/reparar.png'; imagepng( $img, $file );
+		$made['image'] = wp_insert_attachment( array( 'post_title' => 'Reparar', 'post_mime_type' => 'image/png', 'post_status' => 'inherit' ), $file );
+	}
+	$made['lost'] = wp_insert_attachment( array( 'post_title' => 'Sin archivo', 'post_mime_type' => 'image/jpeg', 'post_status' => 'inherit' ), $upload['path'] . '/no-existe.jpg' );
+	$ok = wp_insert_attachment( array( 'post_title' => 'Con metadata', 'post_mime_type' => 'image/jpeg', 'post_status' => 'inherit' ), $upload['path'] . '/ya.jpg' );
+	update_post_meta( $ok, '_wp_attachment_metadata', array( 'width' => 10, 'height' => 10, 'file' => 'ya.jpg' ) );
+	$missing = $R::missing( 0, 500 );
+	digi_check( in_array( $made['lost'], $missing, true ) && ! in_array( $ok, $missing, true ) && ( ! isset( $made['image'] ) || in_array( $made['image'], $missing, true ) ), 'Detecta sólo los adjuntos sin metadata' );
+	$R::start();
+	digi_check( (int) wp_next_scheduled( $R::HOOK ) > 0 && 'running' === $R::job()['status'], 'Iniciar sólo programa la cola' );
+	for ( $i = 0; $i < 20 && 'running' === ( $R::job()['status'] ?? '' ); $i++ ) $R::run_batch();
+	$job = $R::job();
+	digi_check( 'done' === $job['status'] && in_array( $made['lost'], $job['failed'], true ), 'Termina y anota el adjunto sin archivo: ' . wp_json_encode( $job ) );
+	if ( isset( $made['image'] ) ) { $meta = wp_get_attachment_metadata( $made['image'] ); digi_check( 1200 === (int) ( $meta['width'] ?? 0 ) && ! empty( $meta['sizes'] ), 'La imagen recupera ancho, alto y tamaños' ); }
+	digi_check( array( 'width' => 10, 'height' => 10, 'file' => 'ya.jpg' ) === get_post_meta( $ok, '_wp_attachment_metadata', true ), 'Lo que ya tenía metadata no se toca' );
+	require_once ABSPATH . 'wp-admin/includes/admin.php';
+	set_current_screen( 'upload' );
+	ob_start(); $R::notice(); $notice = ob_get_clean();
+	digi_check( false !== strpos( $notice, 'Metadata reparada' ) && false !== strpos( $notice, 'no se pudieron reparar' ), 'Medios informa el resultado: ' . wp_strip_all_tags( $notice ) );
+	foreach ( array_merge( array_values( $made ), array( $ok ) ) as $id ) wp_delete_attachment( $id, true );
+	delete_option( $R::JOB );
+	return;
+}
+
+if ( 'bases' === $step ) {
+	// URL sin base: resolución real con WP::parse_request(), colisiones y 301 importadas de versiones anteriores.
+	$U = 'Digitalisimo_Integrations_URL_Bases';
+	$GLOBALS['wp_rewrite']->flush_rules( false ); // Reglas al día: otros pasos registran tipos sin volver a generarlas.
+	$parse = function( $path ) { $_SERVER['REQUEST_URI'] = $path; $_SERVER['PATH_INFO'] = ''; $wp = new WP(); $wp->parse_request(); return $wp->query_vars; };
+	$cat = get_term( $ids['term'] );
+	digi_check( array( 'category_name' => 'categoria-rm' ) === array_intersect_key( $parse( '/categoria-rm/' ), array( 'category_name' => 1 ) ), 'La categoría sin base se resuelve: ' . wp_json_encode( $parse( '/categoria-rm/' ) ) );
+	$vars = $parse( '/categoria-rm/page/2/' );
+	digi_check( 'categoria-rm' === ( $vars['category_name'] ?? '' ) && 2 === (int) ( $vars['paged'] ?? 0 ), 'Y su página 2' );
+	digi_check( 'entrada-rm' === ( $parse( '/entrada-rm/' )['name'] ?? '' ), 'La entrada con la misma ruta gana a la categoría' );
+	remove_filter( 'term_link', array( $U, 'term_link' ), 20 ); $based = (string) wp_parse_url( get_term_link( $ids['term'] ), PHP_URL_PATH ); add_filter( 'term_link', array( $U, 'term_link' ), 20, 3 );
+	digi_check( 'categoria-rm' === ( $parse( $based )['category_name'] ?? '' ), 'La URL con base (' . $based . ') sigue resolviendo; la redirección canónica la lleva a la nueva: ' . wp_json_encode( $parse( $based ) ) );
+	digi_check( ! isset( $parse( '/no-existe-nada/' )['category_name'] ), 'Una ruta que no es de nadie sigue siendo 404' );
+	if ( ! empty( $ids['product'] ) ) {
+		$vars = $parse( '/tenis-acme/' );
+		digi_check( 'tenis-acme' === ( $vars['product'] ?? '' ) && 'product' === ( $vars['post_type'] ?? '' ), 'El producto sin base se resuelve: ' . wp_json_encode( $vars ) );
+		wp_insert_post( array( 'post_type' => 'page', 'post_title' => 'Choque', 'post_name' => 'choque', 'post_status' => 'publish' ) );
+		$clash = wp_insert_post( array( 'post_type' => 'product', 'post_title' => 'Choque', 'post_name' => 'choque', 'post_status' => 'publish' ) );
+		digi_check( false !== strpos( get_permalink( $clash ), '/product/choque' ) && 'choque' === ( $parse( '/choque/' )['pagename'] ?? '' ), 'Un producto con el nombre de una página conserva su base; la página gana: ' . wp_json_encode( array( get_permalink( $clash ), get_post_field( 'post_name', $clash ), $parse( '/choque/' ) ) ) );
+	}
+	// 301 de una importación anterior (URL sin base → con base): se desactivan mientras la base está quitada.
+	$legacy = Digitalisimo_Integrations_Redirections::save( array( 'sources' => array( array( 'pattern' => 'vieja-cat', 'comparison' => 'exact' ) ), 'url_to' => '/category/vieja-cat/', 'origin' => 'rankmath', 'import_key' => 'rankmath-base:category:999' ) );
+	delete_option( $U::STATE );
+	$U::sync_import_rules();
+	digi_check( 'inactive' === Digitalisimo_Integrations_Redirections::get( $legacy )['status'], 'Las 301 importadas hacia la URL con base se desactivan (harían un bucle)' );
+	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_strip_category_base' => 0 ) ) );
+	$U::sync_import_rules();
+	digi_check( 'active' === Digitalisimo_Integrations_Redirections::get( $legacy )['status'] && false !== strpos( get_term_link( $ids['term'] ), '/category/categoria-rm/' ), 'Al apagarla vuelven la base y esas 301' );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, $o );
+	$U::sync_import_rules();
 	return;
 }
 

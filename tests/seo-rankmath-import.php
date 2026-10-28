@@ -104,8 +104,10 @@ check( 1 === $author['set']['noindex_authors'], 'Con robots propios de autor, ma
 // URL sin la base que Rank Math quitaba.
 check( 'tenis' === $i::without_base( 'product/tenis', '/product/' ) && 'calzado/tenis' === $i::without_base( '/product-category/calzado/tenis/', 'product-category' ), 'Sin base: se quita sólo el primer segmento.' );
 check( '' === $i::without_base( 'tienda/tenis', 'product' ) && '' === $i::without_base( 'shop/ropa/tenis', 'shop/%product_cat%' ) && '' === $i::without_base( 'productos/x', 'product' ), 'Sin base reconocible no se inventa nada.' );
-$bases = $i::map_options( array( 'general' => array( 'wc_remove_product_base' => 'on', 'noindex_hidden_products' => 'on', 'wc_remove_generator' => 'off' ) ), array(), array(), $ctx );
-check( in_array( 'url_base', $bases['notes'], true ) && 1 === $bases['set']['seo_noindex_hidden_products'] && 0 === $bases['set']['seo_wc_remove_generator'], 'Ajustes de WooCommerce y aviso de las bases.' );
+$bases = $i::map_options( array( 'general' => array( 'wc_remove_product_base' => 'on', 'wc_remove_category_base' => 'off', 'strip_category_base' => 'on', 'noindex_hidden_products' => 'on', 'wc_remove_generator' => 'off' ) ), array(), array(), $ctx );
+check( 1 === $bases['set']['seo_strip_product_base'] && 0 === $bases['set']['seo_strip_product_cat_base'] && 1 === $bases['set']['seo_strip_category_base'] && ! in_array( 'url_base', $bases['notes'], true ) && 1 === $bases['set']['seo_noindex_hidden_products'] && 0 === $bases['set']['seo_wc_remove_generator'], 'Las bases que Rank Math quitaba se quitan igual, para conservar las URL.' );
+$parents = $i::map_options( array( 'general' => array( 'wc_remove_category_parent_slugs' => 'on' ) ), array(), array(), $ctx );
+check( in_array( 'url_base', $parents['notes'], true ), 'Quitar las categorías superiores no se reproduce y se informa.' );
 $feed = $i::map_options( array( 'general' => array( 'add_avatar_alt' => 'on', 'rss_before_content' => '', 'rss_after_content' => 'La entrada %POSTLINK% apareció primero en %BLOGLINK%. %FEATUREDIMAGE%<script>x</script>' ) ), array(), array(), $ctx );
 check( 1 === $feed['set']['seo_avatar_alt'] && ! isset( $feed['set']['seo_rss_before'] ), 'El alt de avatares se importa y un texto vacío del RSS no.' );
 check( 'La entrada %post_link% apareció primero en %site_link%.' === $feed['set']['seo_rss_after'] && in_array( 'title_vars', $feed['notes'], true ), 'El texto del RSS traduce sus enlaces, quita lo que no tiene destino y se sanitiza.' );

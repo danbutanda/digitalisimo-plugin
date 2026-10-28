@@ -684,7 +684,7 @@ Cada ability declara `input_schema`/`output_schema`, `permission_callback` (`edi
 | RM7 Enlaces | — | |
 | RM9 Análisis | RM7 | |
 | RM14 Masiva y CSV | RM13 | |
-| RM12 WooCommerce | RM2, RM8 | |
+| RM12 WooCommerce | Primera parte **publicada** · SEO 1.0.240 · `v2026.10.27.426`: noindex y sitemap de productos ocultos y generator. URL sin base **publicadas** · SEO 1.0.248: `seo_strip_product_base`, `seo_strip_product_cat_base` y `seo_strip_category_base` (opt-in, con paridad), con colisiones que fallan cerradas (la página o entrada gana y el enlace conserva su base), resolución sólo cuando la ruta no es de nadie y 301 de la URL anterior por la redirección canónica; el importador las enciende cuando Rank Math quitaba la base (URL idénticas, sin 301) y las 301 de importaciones anteriores se desactivan mientras la base esté quitada. «Quitar las categorías superiores» no se reproduce: se informa. |
 | RM15 Abilities | RM7, RM9 | |
 | RM16 Menores | — | Según demanda |
 
@@ -703,7 +703,7 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 
 | Etapa | Estado |
 |---|---|
-| RM1 Importador | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. Convivencia en SEO 1.0.247: con Rank Math (o Yoast, All in One SEO, SEOPress, The SEO Framework) activo, DIGITALÍSIMO SEO no publica ninguna señal y avisa en SEO y en Plugins; se importa con el otro activo y, al desactivarlo, toma el relevo. Pestaña «Importar» del sitio y botón de red que encola cada sitio. Usuarios: sólo se cuentan (sin destino). |
+| RM1 Importador | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. Convivencia en SEO 1.0.247 · `v2026.10.28.433`: con Rank Math (o Yoast, All in One SEO, SEOPress, The SEO Framework) activo, DIGITALÍSIMO SEO no publica ninguna señal y avisa en SEO y en Plugins; se importa con el otro activo y, al desactivarlo, toma el relevo. Pestaña «Importar» del sitio y botón de red que encola cada sitio. Usuarios: sólo se cuentan (sin destino). |
 | RM2 Redirecciones | **Publicado** · SEO 1.0.233 · `v2026.10.27.419` (primera parte) y SEO 1.0.243 · `v2026.10.28.429` (segunda parte: categoría por regla con filtro, programación desde/hasta con WP-cron y CSV de ida y vuelta compatible con el de Rank Math; el importador trae sus categorías y sus fechas pendientes de Action Scheduler). |
 | RM3 Monitor 404 | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. Exclusiones por fragmento de URL (sin comparaciones). |
 | RM4 Sitemaps | Imágenes **publicadas** · SEO 1.0.233 · `v2026.10.27.419`. Noticias y mapa HTML **publicados** · SEO 1.0.236 · `v2026.10.27.422`. Autores y términos: **no se añaden**, porque el sitemap propio sólo publica documentos (decisión previa que `tests/sitemap.php` exige; por lo mismo, `seo_sitemap_taxonomies` no tiene efecto). Pendiente: vídeo, con el VideoObject de RM8. Vídeo **publicado** · SEO 1.0.246 · `v2026.10.28.432`: `video-sitemap.xml` opt-in (`seo_sitemap_video_enabled`, con paridad) desde la meta `digitalisimo_seo_video` de cada contenido. |
@@ -720,4 +720,4 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 | RM11 Imágenes | **Publicado** · SEO 1.0.242 · `v2026.10.28.428`: `alt` de los avatares con el nombre público, opt-in (`seo_avatar_alt`) e importado de `add_avatar_alt`; nunca el correo y nunca sustituye un alt dado. El resto se descartó. |
 | RM16 Menores | Texto antes y después del contenido en el RSS **publicado** · SEO 1.0.242 · `v2026.10.28.428` (`seo_rss_before`, `seo_rss_after`, HTML de entradas, variables de los títulos y `%post_link%`, `%site_link%`, `%sitedesc_link%`, `%author_link%`; importa los de Rank Math). El resto, según demanda. |
 
-Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php`, `tests/seo-links.php`, `tests/seo-content-analysis.php`, `tests/seo-bulk.php`, `tests/seo-abilities.php`, `tests/seo-feed.php`, `tests/seo-template-sanitize.php`, `tests/seo-video.php`, `tests/seo-filter-hooks.php` y `tests/playground/seo-rankmath.sh` (369 comprobaciones en red y en un sitio individual con WooCommerce 11.2.1).
+Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php`, `tests/seo-links.php`, `tests/seo-content-analysis.php`, `tests/seo-bulk.php`, `tests/seo-abilities.php`, `tests/seo-feed.php`, `tests/seo-template-sanitize.php`, `tests/seo-video.php`, `tests/seo-filter-hooks.php`, `tests/seo-url-bases.php` y `tests/playground/seo-rankmath.sh` (399 comprobaciones en red y en un sitio individual con WooCommerce 11.2.1).

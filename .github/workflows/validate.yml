@@ -197,6 +197,7 @@ jobs:
           php tests/seo-template-sanitize.php
           php tests/seo-video.php
           php tests/seo-filter-hooks.php
+          php tests/seo-url-bases.php
           php tests/robots.php
           php tests/seo-ai-robots.php
           # Tema DIGITALÍSIMO: estructura, actualizador, paso desde el tema anterior, índice de la Release y módulos que lo atienden.
