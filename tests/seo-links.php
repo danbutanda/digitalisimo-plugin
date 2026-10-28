@@ -19,4 +19,6 @@ $found = $l::suggest( $text, array( 14 ), $keywords );
 check( array( 10 => 'diseño web', 11 => 'seo local', 15 => 'webinar' ) === $found, 'Coincidencias de palabra completa, sin las ya enlazadas ni las de menos de 4 letras: ' . json_encode( $found, JSON_UNESCAPED_UNICODE ) );
 check( 1 === count( $l::suggest( $text, array(), $keywords, 1 ) ), 'El límite de sugerencias se respeta.' );
 check( array() === $l::suggest( 'Webinars y webs', array(), array( 1 => 'webinar' ) ), '«webinar» no coincide dentro de «webinars».' );
-echo "Enlaces internos: extracción, clasificación y sugerencias correctas.\n";
+// Enlaces rotos: sólo «No existe» y «Error» son fallos; lo que no deja comprobarse se informa aparte.
+foreach ( array( 200 => 'ok', 301 => 'ok', 404 => 'broken', 410 => 'broken', 400 => 'broken', 0 => 'error', 500 => 'error', 503 => 'error', 403 => 'blocked', 401 => 'blocked', 429 => 'blocked', 999 => 'blocked' ) as $code => $state ) check( $state === $l::classify( $code ), "Respuesta $code: $state" );
+echo "Enlaces internos: extracción, clasificación, sugerencias y estados de enlaces rotos correctos.\n";

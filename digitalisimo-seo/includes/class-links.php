@@ -8,9 +8,12 @@ defined( 'ABSPATH' ) || exit;
  * existente, por lotes en cron. Sólo informa: recuentos en los listados, páginas huérfanas y
  * contenidos secundarios sin enlace a su pilar en Auditoría, y sugerencias en el editor. Nunca
  * inserta ni cambia un enlace del contenido.
+ *
+ * Con `seo_links_check` (opt-in) comprueba además, en cola de WP-cron y por lotes pequeños, el estado
+ * HTTP de cada URL enlazada. Hace peticiones a sitios de terceros, por eso no viene encendido.
  */
 class Digitalisimo_Integrations_Links {
-	const DB_VERSION = 1;
+	const DB_VERSION = 2;
 	const DB_OPTION  = 'digitalisimo_seo_links_db';
 	const META       = 'digitalisimo_seo_links_v';
 	const VERSION    = 1;
@@ -19,8 +22,14 @@ class Digitalisimo_Integrations_Links {
 	const MAX_LINKS  = 300;
 	/** Sin pendientes: el escritorio deja de consultar el backlog en cada carga. */
 	const DONE       = 'digitalisimo_seo_links_done';
+	const CHECK_HOOK  = 'digitalisimo_seo_links_check';
+	const CHECK_BATCH = 10;
+	/** Una URL comprobada se vuelve a comprobar pasada una semana. */
+	const RECHECK     = WEEK_IN_SECONDS;
 
 	public static function table() { global $wpdb; return $wpdb->prefix . 'digitalisimo_links'; }
+	public static function status_table() { global $wpdb; return $wpdb->prefix . 'digitalisimo_link_status'; }
+	public static function check_enabled() { return self::enabled() && (bool) self::o( 'seo_links_check', 0 ); }
 	private static function o( $key, $default = '' ) { return Digitalisimo_Integrations_SEO_Resolver::option( $key, $default ); }
 	public static function enabled() { return (bool) self::o( 'seo_links_counter', 1 ); }
 	public static function installed() { return (int) get_option( self::DB_OPTION ) >= self::DB_VERSION; }
@@ -32,6 +41,8 @@ class Digitalisimo_Integrations_Links {
 		add_action( self::HOOK, array( __CLASS__, 'run_batch' ) );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'metabox' ) );
 		add_action( 'admin_post_digitalisimo_seo_links_rescan', array( __CLASS__, 'handle_rescan' ) );
+		add_action( self::CHECK_HOOK, array( __CLASS__, 'run_check' ) );
+		add_action( 'admin_post_digitalisimo_seo_links_check', array( __CLASS__, 'handle_check' ) );
 	}
 
 	public static function admin_init() {
@@ -42,6 +53,7 @@ class Digitalisimo_Integrations_Links {
 			add_action( "manage_{$type}_posts_custom_column", array( __CLASS__, 'column_value' ), 10, 2 );
 		}
 		if ( ! get_option( self::DONE ) && ! wp_next_scheduled( self::HOOK ) && self::backlog( 1 ) ) wp_schedule_single_event( time() + 30, self::HOOK );
+		if ( self::check_enabled() && ! wp_next_scheduled( self::CHECK_HOOK ) ) wp_schedule_single_event( time() + 60, self::CHECK_HOOK );
 	}
 
 	public static function install() {
@@ -55,7 +67,17 @@ class Digitalisimo_Integrations_Links {
 			type varchar(8) NOT NULL,
 			PRIMARY KEY  (id),
 			KEY post_type (post_id, type),
-			KEY target_post_id (target_post_id)
+			KEY target_post_id (target_post_id),
+			KEY url (url(191))
+		) ' . $wpdb->get_charset_collate() . ';' );
+		dbDelta( 'CREATE TABLE ' . self::status_table() . ' (
+			url_hash char(40) NOT NULL,
+			url varchar(255) NOT NULL,
+			code smallint(5) unsigned NULL default NULL,
+			error varchar(120) NOT NULL default \'\',
+			checked datetime NULL default NULL,
+			PRIMARY KEY  (url_hash),
+			KEY checked (checked)
 		) ' . $wpdb->get_charset_collate() . ';' );
 		update_option( self::DB_OPTION, self::DB_VERSION, false );
 	}
@@ -161,6 +183,105 @@ class Digitalisimo_Integrations_Links {
 		self::run_batch();
 		wp_safe_redirect( Digitalisimo_Integrations_SEO_Audit_Hub::url( 'links' ) );
 		exit;
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Enlaces rotos (en cola, opt-in).                                     */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * Estado de una respuesta: ok, broken (no existe), error (servidor o red) o blocked (el destino
+	 * no deja comprobarlo: pide acceso, limita o rechaza robots). Sólo «broken» y «error» son avisos.
+	 */
+	public static function classify( $code ) {
+		$code = (int) $code;
+		if ( in_array( $code, array( 401, 403, 405, 406, 429, 451, 999 ), true ) ) return 'blocked'; // 999: código propio de redes que rechazan robots.
+		if ( 0 === $code || $code >= 500 ) return 'error';
+		if ( $code >= 400 ) return 'broken';
+		return 'ok';
+	}
+
+	/** Añade las URLs nuevas a la cola y olvida las que ya no enlaza ningún contenido. */
+	public static function sync_status() {
+		global $wpdb;
+		$links  = self::table();
+		$status = self::status_table();
+		$new = (array) $wpdb->get_col( "SELECT DISTINCT l.url FROM {$links} l LEFT JOIN {$status} s ON s.url = l.url WHERE s.url IS NULL LIMIT 1000" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( $new ) $wpdb->query( "INSERT IGNORE INTO {$status} (url_hash, url) VALUES " . implode( ',', array_map( function( $url ) use ( $wpdb ) { return $wpdb->prepare( '(%s,%s)', sha1( $url ), $url ); }, $new ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- cada fila viene de prepare().
+		$wpdb->query( "DELETE FROM {$status} WHERE url NOT IN ( SELECT url FROM {$links} )" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	}
+
+	/** Lo que toca comprobar: lo nunca comprobado primero y después lo más antiguo. */
+	public static function check_queue( $limit = self::CHECK_BATCH ) {
+		global $wpdb;
+		$before = gmdate( 'Y-m-d H:i:s', time() - self::RECHECK );
+		return (array) $wpdb->get_col( $wpdb->prepare( 'SELECT url FROM ' . self::status_table() . ' WHERE checked IS NULL OR checked < %s ORDER BY checked IS NOT NULL, checked ASC LIMIT %d', $before, $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	}
+
+	/** HEAD y, si el servidor no lo admite, GET limitado; sigue hasta 3 redirecciones. */
+	public static function probe( $url ) {
+		$args = array( 'timeout' => 8, 'redirection' => 3, 'user-agent' => 'DIGITALISIMO link check; ' . home_url( '/' ), 'limit_response_size' => 1024 );
+		$response = wp_safe_remote_head( $url, $args );
+		$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+		if ( is_wp_error( $response ) || in_array( $code, array( 403, 405, 501 ), true ) ) {
+			$response = wp_safe_remote_get( $url, $args );
+			$code     = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+		}
+		$error = is_wp_error( $response ) ? substr( wp_strip_all_tags( $response->get_error_message() ), 0, 120 ) : '';
+		return array( 'code' => $code, 'error' => $error );
+	}
+
+	public static function run_check() {
+		global $wpdb;
+		if ( ! self::check_enabled() || ! self::installed() ) return;
+		self::sync_status();
+		$started = time();
+		foreach ( self::check_queue() as $url ) {
+			$result = self::probe( $url );
+			$wpdb->update( self::status_table(), array( 'code' => $result['code'], 'error' => $result['error'], 'checked' => current_time( 'mysql', true ) ), array( 'url_hash' => sha1( $url ) ) );
+			if ( time() - $started > 25 ) break;
+		}
+		wp_clear_scheduled_hook( self::CHECK_HOOK );
+		// Con cola, el siguiente lote en un minuto; sin ella, se revisa de nuevo cada día.
+		wp_schedule_single_event( time() + ( self::check_queue( 1 ) ? MINUTE_IN_SECONDS : DAY_IN_SECONDS ), self::CHECK_HOOK );
+	}
+
+	/** «Comprobar ahora»: adelanta el lote al próximo cron, nunca hace peticiones en esta petición. */
+	public static function handle_check() {
+		global $wpdb;
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'digitalisimo_seo_links_check' ) ) wp_die( 'No autorizado.' );
+		if ( self::installed() ) $wpdb->query( 'UPDATE ' . self::status_table() . ' SET checked = NULL' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		wp_clear_scheduled_hook( self::CHECK_HOOK );
+		if ( self::check_enabled() ) wp_schedule_single_event( time(), self::CHECK_HOOK );
+		wp_safe_redirect( Digitalisimo_Integrations_SEO_Audit_Hub::url( 'links' ) );
+		exit;
+	}
+
+	/**
+	 * Enlaces con problema y los contenidos que los usan.
+	 *
+	 * @return array<int,array{url:string,code:int,error:string,checked:string,state:string,posts:int[]}>
+	 */
+	public static function broken( $limit = 200 ) {
+		global $wpdb;
+		if ( ! self::installed() ) return array();
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT s.url, s.code, s.error, s.checked, GROUP_CONCAT(DISTINCT l.post_id) AS posts FROM ' . self::status_table() . ' s JOIN ' . self::table() . ' l ON l.url = s.url WHERE s.checked IS NOT NULL AND ( s.code = 0 OR s.code >= 400 ) GROUP BY s.url_hash, s.url, s.code, s.error, s.checked ORDER BY s.code = 0, s.code DESC LIMIT %d', $limit ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$out  = array();
+		foreach ( (array) $rows as $row ) {
+			$state = self::classify( $row['code'] );
+			if ( 'ok' === $state ) continue;
+			$out[] = array( 'url' => $row['url'], 'code' => (int) $row['code'], 'error' => (string) $row['error'], 'checked' => (string) $row['checked'], 'state' => $state, 'posts' => array_map( 'intval', explode( ',', (string) $row['posts'] ) ) );
+		}
+		return $out;
+	}
+
+	/** Comprobadas, pendientes y con problema, para el resumen de Auditoría. */
+	public static function check_summary() {
+		global $wpdb;
+		if ( ! self::installed() ) return array( 'total' => 0, 'pending' => 0 );
+		$total   = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::status_table() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$pending = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::status_table() . ' WHERE checked IS NULL' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return array( 'total' => $total, 'pending' => $pending );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -293,5 +414,29 @@ class Digitalisimo_Integrations_Links {
 		$gaps = self::pillar_gaps();
 		echo '<h3>Secundarios sin enlace a su pilar (' . esc_html( count( $gaps ) ) . ')</h3><p class="description">Contenidos de un cluster que no enlazan a su contenido pilar.</p>';
 		if ( $gaps ) { echo '<table class="widefat striped"><thead><tr><th>Contenido</th><th>Pilar</th></tr></thead><tbody>'; foreach ( $gaps as $gap ) echo '<tr><td><a href="' . esc_url( get_edit_post_link( (int) $gap['post_id'] ) ) . '">' . esc_html( get_the_title( (int) $gap['post_id'] ) ) . '</a></td><td>' . esc_html( get_the_title( (int) $gap['pillar'] ) ) . '</td></tr>'; echo '</tbody></table>'; }
+		self::render_broken();
+	}
+
+	private static function render_broken() {
+		echo '<h3>Enlaces rotos</h3>';
+		if ( ! self::check_enabled() ) { echo '<p>' . Digitalisimo_Integrations_Quality_Audit::badge( 'NO APLICABLE', 'SIN ACTIVAR' ) . ' Activa «Comprobar enlaces rotos» en SEO → Indexación. Hace peticiones a los sitios enlazados desde este servidor.</p>'; return; } // phpcs:ignore WordPress.Security.EscapeOutput
+		$summary = self::check_summary();
+		echo '<p class="description">Se comprueban en segundo plano, ' . esc_html( self::CHECK_BATCH ) . ' por minuto, y de nuevo cada semana. ' . esc_html( sprintf( '%1$d URL registradas, %2$d sin comprobar todavía.', $summary['total'], $summary['pending'] ) ) . ' Sólo informa: corrige o retira el enlace en su contenido, o crea una redirección si la URL rota es de este sitio.</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="digitalisimo_seo_links_check">';
+		wp_nonce_field( 'digitalisimo_seo_links_check' );
+		submit_button( 'Comprobar todo de nuevo', 'secondary', 'submit', false );
+		echo '</form>';
+		$broken = self::broken();
+		if ( ! $broken ) { echo '<p>' . Digitalisimo_Integrations_Quality_Audit::badge( 'OK', 'SIN ENLACES ROTOS' ) . ' Ninguno de los enlaces comprobados falla.</p>'; return; } // phpcs:ignore WordPress.Security.EscapeOutput
+		$labels = array( 'broken' => 'No existe', 'error' => 'Error', 'blocked' => 'No verificable' );
+		echo '<table class="widefat striped"><thead><tr><th>Enlace</th><th>Respuesta</th><th>En</th><th>Comprobado</th></tr></thead><tbody>';
+		foreach ( $broken as $row ) {
+			$where = array();
+			foreach ( array_slice( $row['posts'], 0, 5 ) as $id ) $where[] = '<a href="' . esc_url( get_edit_post_link( $id ) ) . '">' . esc_html( get_the_title( $id ) ) . '</a>';
+			if ( count( $row['posts'] ) > 5 ) $where[] = esc_html( sprintf( 'y %d más', count( $row['posts'] ) - 5 ) );
+			$own = 0 === strpos( $row['url'], home_url( '/' ) );
+			echo '<tr><td><code>' . esc_html( $row['url'] ) . '</code>' . ( $own && 'broken' === $row['state'] ? '<br><a href="' . esc_url( admin_url( 'admin.php?page=digitalisimo-seo-redirections&source=' . rawurlencode( (string) wp_parse_url( $row['url'], PHP_URL_PATH ) ) ) ) . '">Crear redirección</a>' : '' ) . '</td><td>' . esc_html( $labels[ $row['state'] ] ) . ' · ' . esc_html( $row['code'] ? (string) $row['code'] : $row['error'] ) . '</td><td>' . implode( ', ', $where ) . '</td><td>' . esc_html( get_date_from_gmt( $row['checked'], 'Y-m-d H:i' ) ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
+		}
+		echo '</tbody></table><p class="description">«No verificable»: el sitio enlazado pide acceso o rechaza las comprobaciones automáticas; ábrelo a mano para confirmarlo.</p>';
 	}
 }

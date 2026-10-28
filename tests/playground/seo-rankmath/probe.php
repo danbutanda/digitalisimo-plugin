@@ -485,6 +485,52 @@ if ( 'templates' === $step ) {
 	return;
 }
 
+if ( 'linkcheck' === $step ) {
+	// RM7: comprobación de enlaces rotos en cola, con respuestas simuladas (sin salir a internet).
+	$l = 'Digitalisimo_Integrations_Links';
+	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_links_counter' => 1, 'seo_links_check' => 0 ) ) );
+	if ( (int) get_option( $l::DB_OPTION ) < $l::DB_VERSION ) $l::install();
+	digi_check( null !== $wpdb->get_var( 'SHOW TABLES LIKE ' . "'" . $l::status_table() . "'" ), 'La tabla de estados existe' );
+	$requests = array();
+	add_filter( 'pre_http_request', function( $pre, $args, $url ) use ( &$requests ) {
+		$requests[] = $args['method'] . ' ' . $url;
+		$codes = array( 'https://roto.test/nada' => 404, 'https://caido.test/' => 503, 'https://privado.test/' => 403, 'https://bien.test/' => 200 );
+		if ( 'https://red.test/' === $url ) return new WP_Error( 'http_request_failed', 'cURL error 6: no se resolvió el host' );
+		if ( 'https://sin-head.test/' === $url ) return array( 'headers' => array(), 'body' => '', 'response' => array( 'code' => 'HEAD' === $args['method'] ? 405 : 200, 'message' => '' ), 'cookies' => array() );
+		return array( 'headers' => array(), 'body' => '', 'response' => array( 'code' => $codes[ $url ] ?? 200, 'message' => '' ), 'cookies' => array() );
+	}, 10, 3 );
+	$html = '<p><a href="https://roto.test/nada">a</a> <a href="https://caido.test/">b</a> <a href="https://privado.test/">c</a> <a href="https://bien.test/">d</a> <a href="https://red.test/">e</a> <a href="https://sin-head.test/">f</a></p>';
+	$post = wp_insert_post( array( 'post_title' => 'Con enlaces externos', 'post_status' => 'publish', 'post_content' => $html ) );
+	$l::run_check();
+	digi_check( ! $requests && ! wp_next_scheduled( $l::CHECK_HOOK ), 'Desactivada, no hace ninguna petición ni programa nada' );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_links_counter' => 1, 'seo_links_check' => 1 ) ) );
+	// Lo de pasos anteriores queda como recién comprobado; sólo se comprueban los seis dominios simulados.
+	$l::sync_status();
+	$wpdb->query( $wpdb->prepare( 'UPDATE ' . $l::status_table() . ' SET checked = %s', gmdate( 'Y-m-d H:i:s' ) ) );
+	$mine = array( 'https://roto.test/nada', 'https://caido.test/', 'https://privado.test/', 'https://bien.test/', 'https://red.test/', 'https://sin-head.test/' );
+	$wpdb->query( 'UPDATE ' . $l::status_table() . " SET checked = NULL WHERE url IN ('" . implode( "','", array_map( 'esc_sql', $mine ) ) . "')" );
+	$l::run_check();
+	digi_check( 6 === count( array_filter( $requests, function( $r ) { return 0 === strpos( $r, 'HEAD ' ); } ) ) && in_array( 'GET https://sin-head.test/', $requests, true ) && in_array( 'GET https://red.test/', $requests, true ), 'HEAD primero y GET sólo si el servidor no lo admite o falla: ' . wp_json_encode( $requests ) );
+	$broken = array(); foreach ( $l::broken() as $row ) $broken[ $row['url'] ] = $row['state'];
+	digi_check( array( 'https://roto.test/nada' => 'broken', 'https://caido.test/' => 'error', 'https://privado.test/' => 'blocked', 'https://red.test/' => 'error' ) == $broken, 'Rotos, errores y no verificables; lo que responde no aparece: ' . wp_json_encode( $broken ) );
+	digi_check( (int) wp_next_scheduled( $l::CHECK_HOOK ) > time() + HOUR_IN_SECONDS, 'Sin cola, la próxima revisión queda para mañana' );
+	$requests = array();
+	$l::run_check();
+	digi_check( ! $requests, 'Lo comprobado no se vuelve a pedir antes de una semana' );
+	wp_update_post( array( 'ID' => $post, 'post_content' => '<p><a href="https://bien.test/">d</a></p>' ) );
+	$l::sync_status();
+	digi_check( ! $l::broken() || ! array_intersect( array( 'https://roto.test/nada' ), wp_list_pluck( $l::broken(), 'url' ) ), 'Un enlace retirado del contenido deja de listarse' );
+	wp_update_post( array( 'ID' => $post, 'post_content' => $html ) );
+	require_once ABSPATH . 'wp-admin/includes/admin.php';
+	$_GET['audit'] = 'links';
+	ob_start(); Digitalisimo_Integrations_Links::render_audit(); $audit = ob_get_clean(); unset( $_GET['audit'] );
+	digi_check( false !== strpos( $audit, 'Enlaces rotos' ) && false !== strpos( $audit, 'Comprobar todo de nuevo' ), 'Auditoría muestra la sección de enlaces rotos' );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_links_check' => 0 ) ) );
+	wp_clear_scheduled_hook( $l::CHECK_HOOK );
+	return;
+}
+
 if ( 'feed' === $step ) {
 	// RM16, RM11 y RM6: texto del RSS, alt de avatares y robots avanzados por término.
 	digi_check( 'La entrada %post_link% apareció primero en %site_link%.' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_rss_after' ) && 1 === (int) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_avatar_alt' ), 'El importador trae el texto del RSS y el alt de avatares' );
