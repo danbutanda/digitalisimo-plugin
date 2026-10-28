@@ -75,7 +75,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 	 * @return array{0:string,1:string[]} Texto traducido y variables quitadas por no tener equivalente.
 	 */
 	public static function translate_template( $template, array $ctx = array() ) {
-		$aliases   = array( 'excerpt_only' => '%excerpt%', 'term_description' => '%description%', 'pagenumber' => '%page%', 'primary_taxonomy_terms' => '%category%', 'post_author' => '%name%' );
+		$aliases   = array( 'excerpt_only' => '%excerpt%', 'term_description' => '%description%', 'pagenumber' => '%page%', 'primary_taxonomy_terms' => '%category%', 'post_author' => '%name%', 'postlink' => '%post_link%', 'bloglink' => '%site_link%', 'blogdesclink' => '%sitedesc_link%', 'authorlink' => '%author_link%' );
 		$supported = array_keys( Digitalisimo_Integrations_SEO_Variables::catalog() );
 		$unknown   = array();
 		$text      = preg_replace_callback( '/%([a-z_]+)(\([^)%]*\))?%/i', function( $m ) use ( $aliases, $supported, &$unknown ) {
@@ -175,7 +175,15 @@ class Digitalisimo_Integrations_RankMath_Import {
 			if ( $unknown ) $notes[] = 'title_vars';
 			if ( '' !== $text ) $set[ $to ] = $text;
 		}
-		if ( isset( $rm['rank_math_robots'] ) && ! array_key_exists( 'noindex', $current ) && in_array( 'noindex', self::robots_list( $rm['rank_math_robots'] ), true ) ) $set['noindex'] = '1';
+		$empty = function( $key ) use ( $current ) { return ! isset( $current[ $key ] ) || '' === $current[ $key ]; };
+		if ( isset( $rm['rank_math_robots'] ) && ! array_key_exists( 'noindex', $current ) ) {
+			$robots = self::robots_list( $rm['rank_math_robots'] );
+			foreach ( array( 'noindex', 'nofollow', 'noarchive', 'noimageindex', 'nosnippet' ) as $flag ) if ( in_array( $flag, $robots, true ) ) $set[ $flag ] = '1';
+		}
+		$advanced = (array) self::value( $rm['rank_math_advanced_robots'] ?? array() );
+		foreach ( array( 'max-snippet' => 'max_snippet', 'max-video-preview' => 'max_video_preview' ) as $from => $to ) {
+			if ( isset( $advanced[ $from ] ) && '' !== (string) $advanced[ $from ] && -1 !== (int) $advanced[ $from ] && $empty( $to ) ) $set[ $to ] = (string) max( 0, (int) $advanced[ $from ] );
+		}
 		if ( self::filled( $rm['rank_math_canonical_url'] ?? null ) ) $notes[] = 'term_canonical';
 		if ( self::filled( $rm['rank_math_facebook_title'] ?? null ) || self::filled( $rm['rank_math_facebook_image'] ?? null ) ) $notes[] = 'term_social';
 		return array( 'set' => $set, 'notes' => array_values( array_unique( $notes ) ) );
@@ -240,6 +248,13 @@ class Digitalisimo_Integrations_RankMath_Import {
 		if ( $types ) $want['_type_templates'] = $types;
 		if ( ! empty( $g['product_brand'] ) ) $want['seo_product_brand'] = (string) $g['product_brand'];
 		if ( isset( $g['noindex_hidden_products'] ) ) $want['seo_noindex_hidden_products'] = self::on( $g['noindex_hidden_products'] ) ? 1 : 0;
+		if ( isset( $g['add_avatar_alt'] ) ) $want['seo_avatar_alt'] = self::on( $g['add_avatar_alt'] ) ? 1 : 0;
+		foreach ( array( 'rss_before_content' => 'seo_rss_before', 'rss_after_content' => 'seo_rss_after' ) as $from => $to ) {
+			if ( ! isset( $g[ $from ] ) || '' === trim( (string) $g[ $from ] ) ) continue;
+			list( $text, $unknown ) = self::translate_template( $g[ $from ], $ctx );
+			if ( $unknown ) $notes[] = 'title_vars';
+			if ( '' !== $text ) $want[ $to ] = Digitalisimo_Integrations_SEO_Feed::sanitize( $text );
+		}
 		if ( isset( $g['wc_remove_generator'] ) ) $want['seo_wc_remove_generator'] = self::on( $g['wc_remove_generator'] ) ? 1 : 0;
 		if ( self::on( $g['wc_remove_product_base'] ?? '' ) || self::on( $g['wc_remove_category_base'] ?? '' ) || self::on( $g['wc_remove_category_parent_slugs'] ?? '' ) || self::on( $g['strip_category_base'] ?? '' ) ) $notes[] = 'url_base';
 		$defaults_by_type = array();

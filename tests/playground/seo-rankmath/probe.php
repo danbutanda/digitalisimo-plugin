@@ -38,7 +38,7 @@ if ( 'seed' === $step ) {
 	$GLOBALS['wp_rewrite']->set_permalink_structure( '/%postname%/' );
 	flush_rewrite_rules( false );
 	update_option( 'rank-math-options-titles', array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Acme RM', 'pt_post_title' => '%title% %sep% %sitename% %sep% %wc_price%', 'noindex_search' => 'on', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ), 'social_url_facebook' => 'https://facebook.com/acme' ) );
-	update_option( 'rank-math-options-general', array( 'breadcrumbs' => 'on', 'google_verify' => '<meta name="google-site-verification" content="rm-google-123" />', 'robots_txt_content' => "User-agent: *\nDisallow: /privado/", 'redirections_post_redirect' => 'on', '404_monitor_limit' => 500, 'strip_category_base' => 'on', 'wc_remove_product_base' => 'on', 'noindex_hidden_products' => 'on', 'wc_remove_generator' => 'on' ) );
+	update_option( 'rank-math-options-general', array( 'breadcrumbs' => 'on', 'google_verify' => '<meta name="google-site-verification" content="rm-google-123" />', 'robots_txt_content' => "User-agent: *\nDisallow: /privado/", 'redirections_post_redirect' => 'on', '404_monitor_limit' => 500, 'strip_category_base' => 'on', 'wc_remove_product_base' => 'on', 'noindex_hidden_products' => 'on', 'wc_remove_generator' => 'on', 'add_avatar_alt' => 'on', 'rss_after_content' => 'La entrada %POSTLINK% apareció primero en %BLOGLINK%.' ) );
 	update_option( 'rank-math-options-sitemap', array( 'include_images' => 'on' ) );
 	update_option( 'rank_math_modules', array( 'redirections', '404-monitor' ) );
 	$upload = wp_upload_dir();
@@ -59,7 +59,8 @@ if ( 'seed' === $step ) {
 	$term = wp_insert_term( 'Categoría RM', 'category' );
 	wp_insert_term( 'Choca', 'category', array( 'slug' => 'entrada-rm' ) ); // Misma ruta que una entrada: sin redirección.
 	update_term_meta( $term['term_id'], 'rank_math_title', '%term% %sep% %sitename%' );
-	update_term_meta( $term['term_id'], 'rank_math_robots', array( 'noindex' ) );
+	update_term_meta( $term['term_id'], 'rank_math_robots', array( 'noindex', 'nosnippet' ) );
+	update_term_meta( $term['term_id'], 'rank_math_advanced_robots', array( 'max-video-preview' => '60' ) );
 	$table = $wpdb->prefix . 'rank_math_redirections';
 	$wpdb->query( "CREATE TABLE {$table} ( id bigint(20) unsigned NOT NULL auto_increment, sources longtext NOT NULL, url_to text NOT NULL, header_code smallint(4) unsigned NOT NULL, hits bigint(20) unsigned NOT NULL default 0, status varchar(25) NOT NULL default 'active', created datetime NOT NULL default '0000-00-00 00:00:00', updated datetime NOT NULL default '0000-00-00 00:00:00', last_accessed datetime NOT NULL default '0000-00-00 00:00:00', PRIMARY KEY (id) )" );
 	$rows = array(
@@ -388,6 +389,36 @@ if ( 'abilities' === $step ) {
 	wp_set_current_user( $subscriber );
 	digi_check( is_wp_error( wp_get_ability( 'digitalisimo-seo/get-post-seo' )->execute( array( 'post_id' => $post ) ) ) && is_wp_error( wp_get_ability( 'digitalisimo-seo/get-site-status' )->execute( array() ) ), 'Un suscriptor no puede usar las abilities' );
 	wp_set_current_user( 1 );
+	return;
+}
+
+if ( 'feed' === $step ) {
+	// RM16, RM11 y RM6: texto del RSS, alt de avatares y robots avanzados por término.
+	digi_check( 'La entrada %post_link% apareció primero en %site_link%.' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_rss_after' ) && 1 === (int) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_avatar_alt' ), 'El importador trae el texto del RSS y el alt de avatares' );
+	$GLOBALS['post'] = get_post( $ids['post'] ); setup_postdata( $GLOBALS['post'] );
+	$feed = apply_filters( 'the_content_feed', '<p>Cuerpo</p>', 'rss2' );
+	digi_check( 0 === strpos( $feed, '<p>Cuerpo</p><p>La entrada <a href="' . get_permalink( $ids['post'] ) . '">Entrada RM</a> apareció primero en <a href="' . home_url( '/' ) . '">' ), 'El feed lleva el texto después del contenido: ' . $feed );
+	$excerpt = apply_filters( 'the_excerpt_rss', 'Resumen' );
+	digi_check( false !== strpos( $excerpt, 'apareció primero en' ), 'También en el resumen del feed' );
+	wp_reset_postdata();
+	$name = get_userdata( 1 )->display_name;
+	digi_check( false !== strpos( get_avatar( 1 ), 'alt="' . esc_attr( $name ) . '"' ), 'El avatar lleva el nombre público como alt' );
+	digi_check( preg_match( '/alt=[\'"]Dado por el tema[\'"]/', get_avatar( 1, 96, '', 'Dado por el tema' ) ), 'Un alt dado se respeta' );
+	digi_check( false === strpos( get_avatar( 'nadie@ejemplo.test' ), 'nadie@' ), 'Un correo sin cuenta nunca aparece en el alt' );
+	// Robots por término desde el formulario de la categoría.
+	$term = wp_insert_term( 'Robots término', 'category' )['term_id'];
+	$_POST = array( 'digitalisimo_term_seo_nonce' => wp_create_nonce( 'digitalisimo_term_seo' ), 'digitalisimo_term_title' => '', 'digitalisimo_term_description' => '', 'digitalisimo_term_nofollow' => '1', 'digitalisimo_term_noarchive' => '1', 'digitalisimo_term_max_snippet' => '120', 'digitalisimo_term_max_video_preview' => 'x' );
+	Digitalisimo_Integrations_SEO_Suite::save_term( $term );
+	$_POST = array();
+	digi_check( '1' === get_term_meta( $term, 'digitalisimo_seo_nofollow', true ) && '' === get_term_meta( $term, 'digitalisimo_seo_nosnippet', true ) && '120' === get_term_meta( $term, 'digitalisimo_seo_max_snippet', true ) && '' === get_term_meta( $term, 'digitalisimo_seo_max_video_preview', true ), 'El término guarda sus robots y descarta un número inválido' );
+	wp_insert_post( array( 'post_title' => 'En la categoría', 'post_status' => 'publish', 'post_category' => array( $term ) ) );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'cat' => $term ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	$robots = apply_filters( 'wp_robots', array() );
+	digi_check( ! empty( $robots['nofollow'] ) && ! empty( $robots['noarchive'] ) && '120' === ( $robots['max-snippet'] ?? '' ) && empty( $robots['noindex'] ), 'La categoría publica sus robots: ' . wp_json_encode( $robots ) );
+	ob_start(); Digitalisimo_Integrations_SEO_Suite::term_fields( get_term( $term ) ); $form = ob_get_clean();
+	digi_check( false !== strpos( $form, 'name="digitalisimo_term_noarchive" value="1"  checked=\'checked\'' ) && false !== strpos( $form, 'value="120"' ), 'El formulario del término muestra lo guardado' );
+	$imported = get_term_by( 'name', 'Categoría RM', 'category' );
+	digi_check( '1' === get_term_meta( $imported->term_id, 'digitalisimo_seo_nosnippet', true ) && '60' === get_term_meta( $imported->term_id, 'digitalisimo_seo_max_video_preview', true ), 'Los robots avanzados del término de Rank Math se importan' );
 	return;
 }
 

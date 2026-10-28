@@ -7,6 +7,8 @@ function absint( $value ) { return abs( (int) $value ); }
 function add_action() {}
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-variables.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-rankmath-import.php';
+require __DIR__ . '/../digitalisimo-seo/includes/class-seo-feed.php';
+function wp_kses_post( $value ) { return preg_replace( '#<script\b[^>]*>.*?</script>#is', '', (string) $value ); }
 class Digitalisimo_Integrations_SEO_Suite { public static function sanitize_type_templates( $v ) { return $v; } }
 function check( $condition, $message ) { if ( ! $condition ) throw new RuntimeException( $message ); }
 $i   = Digitalisimo_Integrations_RankMath_Import::class;
@@ -63,6 +65,10 @@ check( '4006381333931' === $gtin['set']['_gtin'] && ! in_array( 'gtin', $gtin['n
 // Términos.
 $term = $i::map_term( array( 'rank_math_title' => '%term% %sep% %sitename%', 'rank_math_robots' => array( 'noindex' ), 'rank_math_canonical_url' => 'https://x.test/' ), array(), $ctx );
 check( '%term% %sep% %sitename%' === $term['set']['title'] && '1' === $term['set']['noindex'] && in_array( 'term_canonical', $term['notes'], true ), 'Los términos se importan e informan lo que no tiene destino.' );
+$term = $i::map_term( array( 'rank_math_robots' => array( 'nofollow', 'nosnippet' ), 'rank_math_advanced_robots' => array( 'max-snippet' => '80', 'max-video-preview' => '-1' ) ), array( 'max_snippet' => '' ), $ctx );
+check( array( 'nofollow' => '1', 'nosnippet' => '1', 'max_snippet' => '80' ) === $term['set'], 'Los robots avanzados de un término se importan; -1 no publica nada.' );
+$term = $i::map_term( array( 'rank_math_robots' => array( 'nofollow' ), 'rank_math_advanced_robots' => array( 'max-snippet' => '80' ) ), array( 'noindex' => '', 'max_snippet' => '20' ), $ctx );
+check( array() === $term['set'], 'Los robots ya decididos en el término no se pisan.' );
 
 // Ajustes del sitio.
 $defaults = array( 'seo_separator' => '|', 'noindex_authors' => 1, 'seo_title_post' => '%title% %sep% %sitename%', 'seo_organization_name' => '', 'seo_breadcrumbs' => 1 );
@@ -98,6 +104,9 @@ check( 'tenis' === $i::without_base( 'product/tenis', '/product/' ) && 'calzado/
 check( '' === $i::without_base( 'tienda/tenis', 'product' ) && '' === $i::without_base( 'shop/ropa/tenis', 'shop/%product_cat%' ) && '' === $i::without_base( 'productos/x', 'product' ), 'Sin base reconocible no se inventa nada.' );
 $bases = $i::map_options( array( 'general' => array( 'wc_remove_product_base' => 'on', 'noindex_hidden_products' => 'on', 'wc_remove_generator' => 'off' ) ), array(), array(), $ctx );
 check( in_array( 'url_base', $bases['notes'], true ) && 1 === $bases['set']['seo_noindex_hidden_products'] && 0 === $bases['set']['seo_wc_remove_generator'], 'Ajustes de WooCommerce y aviso de las bases.' );
+$feed = $i::map_options( array( 'general' => array( 'add_avatar_alt' => 'on', 'rss_before_content' => '', 'rss_after_content' => 'La entrada %POSTLINK% apareció primero en %BLOGLINK%. %FEATUREDIMAGE%<script>x</script>' ) ), array(), array(), $ctx );
+check( 1 === $feed['set']['seo_avatar_alt'] && ! isset( $feed['set']['seo_rss_before'] ), 'El alt de avatares se importa y un texto vacío del RSS no.' );
+check( 'La entrada %post_link% apareció primero en %site_link%.' === $feed['set']['seo_rss_after'] && in_array( 'title_vars', $feed['notes'], true ), 'El texto del RSS traduce sus enlaces, quita lo que no tiene destino y se sanitiza.' );
 
 // Redirecciones de la tabla de Rank Math.
 $row = array( 'id' => 31, 'sources' => serialize( array( array( 'pattern' => 'vieja', 'comparison' => 'exact', 'ignore' => 'case' ), array( 'pattern' => '^x/(.*)', 'comparison' => 'regex' ) ) ), 'url_to' => 'https://sitio.test/nueva/', 'header_code' => '301', 'hits' => '7', 'status' => 'inactive', 'created' => '2025-01-02 03:04:05', 'updated' => '0000-00-00 00:00:00', 'last_accessed' => '0000-00-00 00:00:00' );
