@@ -678,7 +678,7 @@ Cada ability declara `input_schema`/`output_schema`, `permission_callback` (`edi
 | RM6 Robots avanzados | — | La importa RM1 |
 | RM3 Monitor 404 | RM2 | Convierte 404 en redirecciones |
 | RM13 Migas y categoría principal | — | La importa RM1; la usan RM8 y RM10 |
-| RM10 Variables | RM13 | Necesaria para importar plantillas por tipo |
+| RM10 Variables | **Publicado** · SEO 1.0.234 · `v2026.10.27.420` (25 variables y plantillas por tipo de contenido) y SEO 1.0.244 (plantillas por taxonomía en `seo_tax_templates` y por archivo de tipo en `seo_type_templates[tipo][archive_*]`, importadas de `tax_{taxonomía}_*` y `pt_{tipo}_archive_*`; saneado que conserva `%description%`, `%date%` y `%category%`). |
 | RM8 Schema | RM10 | |
 | RM4 (noticias, vídeo, autores, HTML) | RM8 | El de vídeo sale del VideoObject |
 | RM7 Enlaces | — | |
@@ -720,4 +720,4 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 | RM11 Imágenes | **Publicado** · SEO 1.0.242 · `v2026.10.28.428`: `alt` de los avatares con el nombre público, opt-in (`seo_avatar_alt`) e importado de `add_avatar_alt`; nunca el correo y nunca sustituye un alt dado. El resto se descartó. |
 | RM16 Menores | Texto antes y después del contenido en el RSS **publicado** · SEO 1.0.242 · `v2026.10.28.428` (`seo_rss_before`, `seo_rss_after`, HTML de entradas, variables de los títulos y `%post_link%`, `%site_link%`, `%sitedesc_link%`, `%author_link%`; importa los de Rank Math). El resto, según demanda. |
 
-Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php`, `tests/seo-links.php`, `tests/seo-content-analysis.php`, `tests/seo-bulk.php`, `tests/seo-abilities.php`, `tests/seo-feed.php` y `tests/playground/seo-rankmath.sh` (289 comprobaciones en red y en un sitio individual con WooCommerce 11.2.1).
+Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php`, `tests/seo-links.php`, `tests/seo-content-analysis.php`, `tests/seo-bulk.php`, `tests/seo-abilities.php`, `tests/seo-feed.php`, `tests/seo-template-sanitize.php` y `tests/playground`/seo-rankmath.sh` (309 comprobaciones en red y en un sitio individual con WooCommerce 11.2.1).

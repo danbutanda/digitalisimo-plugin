@@ -37,7 +37,7 @@ if ( 'seed' === $step ) {
 	// Con enlaces simples un cambio de slug no cambia la URL. Como en Ajustes → Enlaces permanentes: estructura y reglas a la vez.
 	$GLOBALS['wp_rewrite']->set_permalink_structure( '/%postname%/' );
 	flush_rewrite_rules( false );
-	update_option( 'rank-math-options-titles', array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Acme RM', 'pt_post_title' => '%title% %sep% %sitename% %sep% %wc_price%', 'noindex_search' => 'on', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ), 'social_url_facebook' => 'https://facebook.com/acme' ) );
+	update_option( 'rank-math-options-titles', array( 'title_separator' => '-', 'knowledgegraph_type' => 'company', 'knowledgegraph_name' => 'Acme RM', 'pt_post_title' => '%title% %sep% %sitename% %sep% %wc_price%', 'noindex_search' => 'on', 'robots_global' => array( 'index' ), 'author_custom_robots' => 'on', 'author_robots' => array( 'noindex' ), 'social_url_facebook' => 'https://facebook.com/acme', 'tax_post_tag_title' => 'Etiqueta %term% %sep% %sitename%', 'tax_post_tag_description' => '%term_description%', 'pt_libro_archive_title' => 'Todos los libros %sep% %sitename%' ) );
 	update_option( 'rank-math-options-general', array( 'breadcrumbs' => 'on', 'google_verify' => '<meta name="google-site-verification" content="rm-google-123" />', 'robots_txt_content' => "User-agent: *\nDisallow: /privado/", 'redirections_post_redirect' => 'on', '404_monitor_limit' => 500, 'strip_category_base' => 'on', 'wc_remove_product_base' => 'on', 'noindex_hidden_products' => 'on', 'wc_remove_generator' => 'on', 'add_avatar_alt' => 'on', 'rss_after_content' => 'La entrada %POSTLINK% apareció primero en %BLOGLINK%.' ) );
 	update_option( 'rank-math-options-sitemap', array( 'include_images' => 'on' ) );
 	update_option( 'rank_math_modules', array( 'redirections', '404-monitor' ) );
@@ -210,7 +210,7 @@ if ( 'crumbs' === $step ) {
 	// RM10: plantilla de un tipo propio y variables en el título de un término.
 	register_post_type( 'servicio', array( 'public' => true, 'label' => 'Servicios' ) );
 	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
-	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_type_templates' => array( 'servicio' => array( 'title' => 'Servicio: %title% %sep% %sitename% %wc_price%' ) ) ) ) );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_type_templates' => array( 'servicio' => array( 'title' => 'Servicio: %title% %sep% %sitename% %wc_price%' ) ) + (array) ( $o['seo_type_templates'] ?? array() ) ) ) );
 	if ( is_multisite() ) update_option( 'digitalisimo_seo_network_inherit', array( 'seo_type_templates' => 0 ) + (array) get_option( 'digitalisimo_seo_network_inherit', array() ) );
 	$service = wp_insert_post( array( 'post_type' => 'servicio', 'post_title' => 'Diseño web', 'post_status' => 'publish' ) );
 	$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'servicio', 'p' => $service ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query']; $GLOBALS['wp_query']->the_post();
@@ -453,6 +453,38 @@ if ( 'schedule' === $step ) {
 	return;
 }
 
+if ( 'templates' === $step ) {
+	// RM10: plantillas por taxonomía y por archivo de tipo, importadas de Rank Math.
+	register_post_type( 'libro', array( 'public' => true, 'has_archive' => true, 'label' => 'Libros' ) );
+	$tax = Digitalisimo_Integrations_SEO_Resolver::option( 'seo_tax_templates' );
+	$types = Digitalisimo_Integrations_SEO_Resolver::option( 'seo_type_templates' );
+	digi_check( 'Etiqueta %term% %sep% %sitename%' === ( $tax['post_tag']['title'] ?? '' ) && '%description%' === ( $tax['post_tag']['description'] ?? '' ) && 'Todos los libros %sep% %sitename%' === ( $types['libro']['archive_title'] ?? '' ), 'El importador trae las plantillas de etiquetas y del archivo de libros: ' . wp_json_encode( array( $tax, $types ) ) );
+	$tag = wp_insert_term( 'Recetas', 'post_tag', array( 'description' => 'Ideas para cocinar.' ) )['term_id'];
+	wp_insert_post( array( 'post_title' => 'Con etiqueta', 'post_status' => 'publish', 'tags_input' => array( 'Recetas' ) ) );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'tag_id' => $tag ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	$c = Digitalisimo_Integrations_SEO_Suite::context();
+	digi_check( 0 === strpos( $c['title'], 'Etiqueta Recetas ' ) && 'Ideas para cocinar.' === $c['description'], 'La etiqueta usa la plantilla de su taxonomía: ' . wp_json_encode( $c ) );
+	update_term_meta( $tag, 'digitalisimo_seo_title', 'Propio del término' );
+	digi_check( 'Propio del término' === Digitalisimo_Integrations_SEO_Suite::title( '' ), 'El título propio del término sigue ganando' );
+	$cat = wp_insert_term( 'Sin plantilla', 'category' )['term_id'];
+	wp_insert_post( array( 'post_title' => 'En categoría', 'post_status' => 'publish', 'post_category' => array( $cat ) ) );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'cat' => $cat ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	$common = Digitalisimo_Integrations_SEO_Resolver::option( 'seo_title_taxonomy' );
+	digi_check( Digitalisimo_Integrations_SEO_Variables::replace( $common, array( 'term' => 'Sin plantilla', 'title' => 'Sin plantilla' ) ) === Digitalisimo_Integrations_SEO_Suite::title( '' ), 'Una taxonomía sin plantilla usa la común' );
+	wp_insert_post( array( 'post_title' => 'Un libro', 'post_type' => 'libro', 'post_status' => 'publish' ) );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'post_type' => 'libro' ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	digi_check( is_post_type_archive( 'libro' ) && 0 === strpos( Digitalisimo_Integrations_SEO_Suite::title( '' ), 'Todos los libros ' ), 'El archivo de libros usa su plantilla: ' . Digitalisimo_Integrations_SEO_Suite::title( '' ) );
+	$saved = Digitalisimo_Integrations_Settings::sanitize( array( 'seo_description_taxonomy' => '%description% %sep% %date(Y)%', 'seo_tax_templates' => array( 'category' => array( 'title' => '%category% · %term%' ) ) ) );
+	digi_check( '%description% %sep% %date(Y)%' === ( $saved['seo_description_taxonomy'] ?? '' ) && array( 'category' => array( 'title' => '%category% · %term%' ) ) === ( $saved['seo_tax_templates'] ?? null ), 'Guardar Títulos conserva %description%, %date% y %category%: ' . wp_json_encode( array( $saved['seo_description_taxonomy'] ?? null, $saved['seo_tax_templates'] ?? null ) ) );
+	require_once ABSPATH . 'wp-admin/includes/admin.php';
+	Digitalisimo_Integrations_Settings::register_settings();
+	$_GET['page'] = 'digitalisimo-seo-titles';
+	ob_start(); Digitalisimo_Integrations_SEO_Suite::page(); $html = ob_get_clean(); unset( $_GET['page'] );
+	digi_check( false !== strpos( $html, '[seo_tax_templates][post_tag][title]' ) && false !== strpos( $html, '[seo_type_templates][libro][archive_title]' ) && false === strpos( $html, '[seo_type_templates][post][archive_title]' ), 'Títulos pinta las plantillas por taxonomía y el archivo sólo de los tipos que lo tienen' );
+	digi_check( is_multisite() === ( false !== strpos( $html, 'data-group="#digitalisimo-seo-tax-templates"' ) ), 'Las plantillas por taxonomía heredan de la red como grupo' );
+	return;
+}
+
 if ( 'feed' === $step ) {
 	// RM16, RM11 y RM6: texto del RSS, alt de avatares y robots avanzados por término.
 	digi_check( 'La entrada %post_link% apareció primero en %site_link%.' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_rss_after' ) && 1 === (int) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_avatar_alt' ), 'El importador trae el texto del RSS y el alt de avatares' );
@@ -514,12 +546,15 @@ if ( 'network' === $step ) {
 	digi_check( false === strpos( $html, 'Heredar de la red' ), 'La red no muestra Heredar de la red' );
 	digi_check( false !== strpos( $html, 'digitalisimo_seo_rankmath_import_network' ) && false !== strpos( $html, 'digitalisimo_rankmath_nonce' ), 'La red ofrece importar en todos los sitios con su nonce propio' );
 	// Guardado de red: mismas reglas que el sitio.
-	$_POST = array( '_wpnonce' => wp_create_nonce( 'digitalisimo_network_seo' ), '_wp_http_referer' => '/wp-admin/network/', 'digitalisimo_network' => array( 'seo_verify_bing' => '<meta name="msvalidate.01" content="NET-1">', 'seo_max_snippet' => 'abc', 'seo_404_limit' => '5', 'seo_redirect_fallback_url' => 'javascript:alert(1)', 'seo_verify_custom' => "x|<b>\nfacebook-domain-verification|fb1", 'seo_noindex_paginated' => '1', 'seo_breadcrumbs_prefix' => '<b>Ruta</b>', 'seo_type_templates' => array( 'servicio' => array( 'title' => '<i>%title%</i>' ), 'Mal tipo!' => 'x' ) ) );
+	$_POST = array( '_wpnonce' => wp_create_nonce( 'digitalisimo_network_seo' ), '_wp_http_referer' => '/wp-admin/network/', 'digitalisimo_network' => array( 'seo_description_taxonomy' => '<i>%description%</i> · %date(Y)%', 'seo_tax_templates' => array( 'post_tag' => array( 'title' => '<b>Red</b> %term%', 'otro' => 'x' ), '' => array( 'title' => 'sin nombre' ) ), 'seo_verify_bing' => '<meta name="msvalidate.01" content="NET-1">', 'seo_max_snippet' => 'abc', 'seo_404_limit' => '5', 'seo_redirect_fallback_url' => 'javascript:alert(1)', 'seo_verify_custom' => "x|<b>\nfacebook-domain-verification|fb1", 'seo_noindex_paginated' => '1', 'seo_breadcrumbs_prefix' => '<b>Ruta</b>', 'seo_type_templates' => array( 'servicio' => array( 'title' => '<i>%title%</i>' ), 'Mal tipo!' => 'x' ) ) );
 	$_REQUEST = $_POST;
 	add_filter( 'wp_redirect', function() { throw new Exception( 'redirect' ); } );
 	try { Digitalisimo_Integrations_SEO_Suite::save_network(); } catch ( Exception $e ) {}
 	$net = (array) get_site_option( Digitalisimo_Integrations_Settings::OPTION, array() );
 	digi_check( false !== strpos( $html, 'digitalisimo_network[seo_schema_type_defaults][post]' ), 'La red pinta la entidad por defecto de cada tipo' );
+	digi_check( false !== strpos( $html, 'digitalisimo_network[seo_tax_templates][post_tag][title]' ), 'La red pinta las plantillas por taxonomía' );
+	digi_check( array( 'post_tag' => array( 'title' => 'Red %term%' ) ) === ( $net['seo_tax_templates'] ?? null ), 'save_network sanea las plantillas por taxonomía: ' . wp_json_encode( $net['seo_tax_templates'] ?? null ) );
+	digi_check( '%description% · %date(Y)%' === ( $net['seo_description_taxonomy'] ?? '' ), 'save_network conserva las variables de las plantillas: ' . ( $net['seo_description_taxonomy'] ?? '' ) );
 	digi_check( 'Ruta' === $net['seo_breadcrumbs_prefix'] && array( 'servicio' => array( 'title' => '%title%' ) ) === $net['seo_type_templates'], 'save_network sanea migas y plantillas por tipo: ' . json_encode( array( $net['seo_breadcrumbs_prefix'] ?? null, $net['seo_type_templates'] ?? null ) ) );
 	digi_check( 'NET-1' === $net['seo_verify_bing'] && '' === $net['seo_max_snippet'] && 50 === $net['seo_404_limit'] && '' === $net['seo_redirect_fallback_url'] && 'facebook-domain-verification|fb1' === $net['seo_verify_custom'] && 1 === $net['seo_noindex_paginated'], 'save_network sanea las claves nuevas: ' . json_encode( array_intersect_key( $net, array_flip( array( 'seo_verify_bing', 'seo_max_snippet', 'seo_404_limit', 'seo_redirect_fallback_url', 'seo_verify_custom', 'seo_noindex_paginated' ) ) ) ) );
 	return;
@@ -529,6 +564,10 @@ if ( 'inherit' === $step ) {
 	// El sitio /sub/ nunca personalizó estas claves: hereda de la red.
 	digi_check( 'NET-1' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_verify_bing' ), 'El sitio hereda la verificación de la red' );
 	digi_check( 1 === (int) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_noindex_paginated' ), 'El sitio hereda noindex en paginados' );
+	$tag = wp_insert_term( 'Heredada', 'post_tag' )['term_id'];
+	wp_insert_post( array( 'post_title' => 'Con etiqueta', 'post_status' => 'publish', 'tags_input' => array( 'Heredada' ) ) );
+	$GLOBALS['wp_query'] = new WP_Query( array( 'tag_id' => $tag ) ); $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+	digi_check( 'Red Heredada' === Digitalisimo_Integrations_SEO_Suite::title( '' ), 'El sitio hereda la plantilla de etiquetas de la red: ' . Digitalisimo_Integrations_SEO_Suite::title( '' ) );
 	digi_check( 0 === (int) get_option( Digitalisimo_Integrations_Redirections::FLAG, 0 ), 'El sitio /sub/ no tiene reglas: el front no consulta nada' );
 	digi_check( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $wpdb->prefix . 'digitalisimo_redirections' ) ) ), 'Ninguna tabla se crea en un sitio sólo por visitarlo' );
 	return;

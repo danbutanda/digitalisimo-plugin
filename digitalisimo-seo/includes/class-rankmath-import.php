@@ -90,6 +90,13 @@ class Digitalisimo_Integrations_RankMath_Import {
 		return array( trim( preg_replace( '/\s+/', ' ', $text ) ), array_keys( $unknown ) );
 	}
 
+	/** Plantillas del sitio con lo importado sólo en los campos vacíos. */
+	public static function merge_templates( $current, array $incoming ) {
+		$current = is_array( $current ) ? $current : array();
+		foreach ( $incoming as $name => $fields ) foreach ( (array) $fields as $field => $text ) if ( empty( $current[ $name ][ $field ] ) ) $current[ $name ][ $field ] = $text;
+		return $current;
+	}
+
 	/** Robots efectivos de Rank Math como lista. */
 	private static function robots_list( $value ) { return array_map( 'strtolower', array_filter( array_map( 'strval', (array) self::value( $value ) ) ) ); }
 	private static function on( $value ) { return in_array( $value, array( 'on', '1', 1, true ), true ); }
@@ -239,13 +246,27 @@ class Digitalisimo_Integrations_RankMath_Import {
 		}
 		foreach ( array( 'breadcrumbs_home' => 'seo_breadcrumbs_show_home', 'breadcrumbs_remove_post_title' => 'seo_breadcrumbs_hide_current', 'breadcrumbs_blog_page' => 'seo_breadcrumbs_blog_page' ) as $from => $to ) if ( isset( $g[ $from ] ) ) $want[ $to ] = self::on( $g[ $from ] ) ? 1 : 0;
 		$types = array();
+		$taxes = array();
 		foreach ( $t as $key => $value ) {
-			if ( ! preg_match( '/^pt_([a-z0-9_-]+)_(title|description)$/', (string) $key, $m ) || in_array( $m[1], array( 'post', 'page', 'attachment' ), true ) || '' === trim( (string) $value ) ) continue;
+			if ( ! is_scalar( $value ) || '' === trim( (string) $value ) ) continue;
+			// pt_{tipo}_archive_title va antes que pt_{tipo}_title: el tipo nunca termina en «_archive».
+			if ( preg_match( '/^pt_([a-z0-9_-]+?)_(archive_title|archive_description|title|description)$/', (string) $key, $m ) ) {
+				if ( in_array( $m[1], array( 'post', 'page', 'attachment' ), true ) && 0 !== strpos( $m[2], 'archive_' ) ) continue;
+				if ( 'attachment' === $m[1] ) continue;
+				$target = &$types;
+			} elseif ( preg_match( '/^tax_([a-z0-9_-]+?)_(title|description)$/', (string) $key, $m ) ) {
+				if ( 'category' === $m[1] ) continue; // Ya va a la plantilla común de taxonomías.
+				$target = &$taxes;
+			} else {
+				continue;
+			}
 			list( $text, $unknown ) = self::translate_template( $value, $ctx );
 			if ( $unknown ) $notes[] = 'title_vars';
-			if ( '' !== $text ) $types[ $m[1] ][ $m[2] ] = $text;
+			if ( '' !== $text ) $target[ $m[1] ][ $m[2] ] = $text;
+			unset( $target );
 		}
 		if ( $types ) $want['_type_templates'] = $types;
+		if ( $taxes ) $want['_tax_templates'] = $taxes;
 		if ( ! empty( $g['product_brand'] ) ) $want['seo_product_brand'] = (string) $g['product_brand'];
 		if ( isset( $g['noindex_hidden_products'] ) ) $want['seo_noindex_hidden_products'] = self::on( $g['noindex_hidden_products'] ) ? 1 : 0;
 		if ( isset( $g['add_avatar_alt'] ) ) $want['seo_avatar_alt'] = self::on( $g['add_avatar_alt'] ) ? 1 : 0;
@@ -300,7 +321,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 
 		$set = array();
 		foreach ( $want as $key => $value ) {
-			if ( in_array( $key, array( '_profiles', '_type_templates', '_schema_defaults' ), true ) ) { $set[ $key ] = $value; continue; }
+			if ( in_array( $key, array( '_profiles', '_type_templates', '_tax_templates', '_schema_defaults' ), true ) ) { $set[ $key ] = $value; continue; }
 			$edited = array_key_exists( $key, $site ) && (string) $site[ $key ] !== (string) ( $defaults[ $key ] ?? '' ) && (string) $site[ $key ] !== (string) $value;
 			if ( $edited ) { $notes[] = 'option_kept'; continue; }
 			$set[ $key ] = $value;
@@ -479,9 +500,11 @@ class Digitalisimo_Integrations_RankMath_Import {
 					if ( $extra && '' === trim( (string) ( $site[ Digitalisimo_Integrations_Social_Profiles::LEGACY ] ?? '' ) ) ) $out[ Digitalisimo_Integrations_Social_Profiles::LEGACY ] = Digitalisimo_Integrations_Social_Profiles::sanitize_extras( implode( "\n", $extra ) );
 					break;
 				case '_type_templates':
-					// Sólo los tipos que el sitio aún no tiene: nunca se pisa una plantilla propia.
-					$current = is_array( $site['seo_type_templates'] ?? null ) ? $site['seo_type_templates'] : array();
-					$out['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( $current + $value );
+					// Sólo los campos que el sitio aún no tiene: nunca se pisa una plantilla propia.
+					$out['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( self::merge_templates( $site['seo_type_templates'] ?? null, $value ) );
+					break;
+				case '_tax_templates':
+					$out['seo_tax_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_tax_templates( self::merge_templates( $site['seo_tax_templates'] ?? null, $value ) );
 					break;
 				case '_schema_defaults':
 					$current = is_array( $site['seo_schema_type_defaults'] ?? null ) ? $site['seo_schema_type_defaults'] : array();

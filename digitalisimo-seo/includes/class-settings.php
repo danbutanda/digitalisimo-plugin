@@ -164,6 +164,7 @@ class Digitalisimo_Integrations_Settings {
 			'seo_breadcrumbs_search_format'  => 'Resultados de «%s»',
 			'seo_breadcrumbs_404_label'   => 'Página no encontrada',
 			'seo_type_templates'          => array(),
+			'seo_tax_templates'           => array(),
 			'seo_schema_type_defaults'    => array(),
 			'seo_product_brand'           => '',
 			'seo_sitemap_news_enabled'    => 0,
@@ -205,6 +206,20 @@ class Digitalisimo_Integrations_Settings {
 		);
 	}
 	/** Plantillas donde un valor vacío significa restaurar el comportamiento inicial. */
+	/** Plantillas de título y descripción globales (RM10). */
+	public static function template_keys() { return array( 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy' ); }
+
+	/**
+	 * Sanea una plantilla sin romper sus variables: sanitize_text_field() quita los «%xx» hexadecimales
+	 * como si fueran octetos y convertiría %description% en «scription%» y %date% en «te%».
+	 */
+	public static function sanitize_template( $value, $multiline = false ) {
+		$vars  = array();
+		$value = preg_replace_callback( '/%[a-z_]+(?:\([^)%<>]*\))?%/i', function( $m ) use ( &$vars ) { $vars[] = $m[0]; return 'DIGITALISIMOVAR' . ( count( $vars ) - 1 ) . 'X'; }, is_scalar( $value ) ? (string) $value : '' );
+		$value = $multiline ? sanitize_textarea_field( $value ) : sanitize_text_field( $value );
+		return preg_replace_callback( '/DIGITALISIMOVAR(\d+)X/', function( $m ) use ( $vars ) { return $vars[ (int) $m[1] ] ?? ''; }, $value );
+	}
+
 	public static function template_default_keys() { return array( 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive' ); }
 
 	public static function init() {
@@ -287,6 +302,7 @@ class Digitalisimo_Integrations_Settings {
 		if ( isset( $input['seo_sitemap_news_name'] ) ) $output['seo_sitemap_news_name'] = sanitize_text_field( $input['seo_sitemap_news_name'] );
 		if ( isset( $input['seo_sitemap_news_exclude_terms'] ) ) $output['seo_sitemap_news_exclude_terms'] = Digitalisimo_Integrations_Sitemap::sanitize_ids( $input['seo_sitemap_news_exclude_terms'] );
 		if ( isset( $input['seo_product_brand'] ) ) $output['seo_product_brand'] = sanitize_key( $input['seo_product_brand'] );
+		if ( isset( $input['seo_tax_templates'] ) ) $output['seo_tax_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_tax_templates( $input['seo_tax_templates'] );
 		if ( isset( $input['seo_type_templates'] ) ) $output['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( $input['seo_type_templates'] );
 		if ( isset( $input['seo_ai_google_extended_policy'] ) ) $output['seo_ai_google_extended_policy'] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy( $input['seo_ai_google_extended_policy'] );
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
@@ -315,6 +331,7 @@ class Digitalisimo_Integrations_Settings {
 		}
 		if ( isset( $input['perf_tracking_mode'] ) ) $output['perf_tracking_mode'] = Digitalisimo_Integrations_Performance_Tracking::sanitize_mode( $input['perf_tracking_mode'] );
 		foreach ( array( 'perf_tracking_delay', 'perf_tracking_fallback' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_seconds( $input[ $key ] );
+		foreach ( self::template_keys() as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = self::sanitize_template( $input[ $key ], 0 === strpos( $key, 'seo_description_' ) );
 		foreach ( self::template_default_keys() as $key ) if ( isset( $input[ $key ] ) && '' === trim( (string) $input[ $key ] ) ) $output[ $key ] = self::defaults()[ $key ];
 		if ( isset( $input['ipinfo_cache_minutes'] ) ) $output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ) );
 		if ( isset( $input['keyword_max_count'] ) ) $output['keyword_max_count'] = min( 5, max( 1, absint( $input['keyword_max_count'] ) ) );
