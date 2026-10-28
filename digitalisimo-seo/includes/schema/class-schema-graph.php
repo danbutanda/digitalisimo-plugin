@@ -192,11 +192,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 		return array_filter( array( '@type' => 'Person', '@id' => $id, 'name' => $person['name'], 'url' => $person['url'] ?? '', 'sameAs' => $person['same_as'] ?? array() ) );
 	}
 
-	/** Sólo un video con miniatura, fecha propia y URL de reproducción reales. */
+	/** Sólo un video con miniatura, fecha propia y URL de reproducción (archivo o reproductor) reales. */
 	private static function video_node( $page ) {
 		$v = $page['video'];
-		if ( empty( $v['name'] ) || empty( $v['thumbnailUrl'] ) || empty( $v['uploadDate'] ) || empty( $v['contentUrl'] ) ) return null;
-		return array_filter( array( '@type' => 'VideoObject', '@id' => $page['url'] . '#video', 'name' => $v['name'], 'description' => $v['description'] ?? '', 'thumbnailUrl' => $v['thumbnailUrl'], 'uploadDate' => $v['uploadDate'], 'contentUrl' => $v['contentUrl'], 'isPartOf' => array( '@id' => $page['url'] . '#webpage' ) ) );
+		if ( empty( $v['name'] ) || empty( $v['thumbnailUrl'] ) || empty( $v['uploadDate'] ) || ( empty( $v['contentUrl'] ) && empty( $v['embedUrl'] ) ) ) return null;
+		return array_filter( array( '@type' => 'VideoObject', '@id' => $page['url'] . '#video', 'name' => $v['name'], 'description' => $v['description'] ?? '', 'thumbnailUrl' => $v['thumbnailUrl'], 'uploadDate' => $v['uploadDate'], 'duration' => $v['duration'] ?? '', 'contentUrl' => $v['contentUrl'] ?? '', 'embedUrl' => $v['embedUrl'] ?? '', 'isPartOf' => array( '@id' => $page['url'] . '#webpage' ) ) );
 	}
 
 	/**
@@ -373,9 +373,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 		foreach ( $graph as $i => $node ) {
 			if ( ! Digitalisimo_Integrations_Schema_Vocabulary::is_a( Digitalisimo_Integrations_Schema_Rules::types( $node ), 'VideoObject' ) || ( $node['@id'] ?? '' ) !== $page['url'] . '#video' ) continue;
 			if ( in_array( $node['contentUrl'] ?? '', $sources, true ) ) continue;
+			// Un reproductor de Vimeo: el iframe (o los datos del widget que lo crea) nombra su ID.
+			if ( empty( $node['contentUrl'] ) && preg_match( '#^https://player\.vimeo\.com/video/(\d+)$#', (string) ( $node['embedUrl'] ?? '' ), $vimeo ) && preg_match( '#vimeo\.com[^"\s<>]{0,40}?\b' . $vimeo[1] . '\b#', $body ) ) continue;
 			$removed[] = $node['@id'] ?? '';
 			unset( $graph[ $i ] );
-			$log[] = 'Retirado VideoObject: el archivo no aparece en un elemento video del HTML final.';
+			$log[] = 'Retirado VideoObject: el vídeo no aparece en el HTML final.';
 		}
 		if ( $removed ) foreach ( $graph as &$node ) if ( in_array( $node['video']['@id'] ?? '', $removed, true ) ) unset( $node['video'] );
 		return array( array_values( $graph ), $log );
@@ -511,8 +513,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 		return taxonomy_exists( 'product_brand' ) ? 'product_brand' : '';
 	}
 
-	/** Encuentra un único video local relevante en bloques o en un widget Elementor. */
-	private static function video_from_post( $post ) {
+	/**
+	 * Encuentra un único video relevante: uno de la biblioteca (bloque o widget Elementor) o uno de
+	 * Vimeo ya resuelto en cola por Digitalisimo_Integrations_Video. Nunca hace peticiones.
+	 */
+	public static function video_for_post( $post ) {
 		$candidates = array();
 		if ( function_exists( 'parse_blocks' ) ) {
 			$walk = function( $blocks ) use ( &$walk, &$candidates ) {
@@ -543,8 +548,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 			};
 			$walk( $elementor );
 		}
+		$vimeo = class_exists( 'Digitalisimo_Integrations_Video' ) ? Digitalisimo_Integrations_Video::vimeo_ids( $post ) : array();
+		foreach ( $vimeo as $vimeo_id ) $candidates[] = array( 'vimeo' => $vimeo_id );
 		if ( 1 !== count( $candidates ) ) return null;
 		$v = $candidates[0];
+		if ( isset( $v['vimeo'] ) ) return Digitalisimo_Integrations_Video::vimeo_video( $post->ID, $v['vimeo'] );
 		$id = absint( $v['id'] ?: ( $v['url'] && function_exists( 'attachment_url_to_postid' ) ? attachment_url_to_postid( $v['url'] ) : 0 ) );
 		if ( ! $id || 0 !== strpos( (string) get_post_mime_type( $id ), 'video/' ) ) return null;
 		$url = wp_get_attachment_url( $id );
@@ -552,7 +560,12 @@ class Digitalisimo_Integrations_Schema_Graph {
 		$date = get_post_time( DATE_W3C, false, $id );
 		$name = trim( wp_strip_all_tags( get_the_title( $id ) ) );
 		if ( ! $url || ! $poster || ! $date || ! $name || ! preg_match( '#^https?://#i', $url ) || ! preg_match( '#^https?://#i', $poster ) ) return null;
-		return array( 'name' => $name, 'thumbnailUrl' => $poster, 'uploadDate' => $date, 'contentUrl' => $url );
+		// Descripción y duración sólo si las dio quien subió el archivo (leyenda o descripción) o WordPress (metadatos).
+		$attachment  = get_post( $id );
+		$description = $attachment ? trim( wp_strip_all_tags( $attachment->post_excerpt ?: $attachment->post_content ) ) : '';
+		$meta        = wp_get_attachment_metadata( $id );
+		$duration    = is_array( $meta ) && ! empty( $meta['length'] ) && class_exists( 'Digitalisimo_Integrations_Video' ) ? Digitalisimo_Integrations_Video::iso_duration( (int) $meta['length'] ) : '';
+		return array_filter( array( 'name' => $name, 'description' => $description, 'thumbnailUrl' => $poster, 'uploadDate' => $date, 'duration' => $duration, 'contentUrl' => $url ) );
 	}
 
 	/** Contexto de un contenido concreto (vista previa del editor o auditoría). */
@@ -612,7 +625,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 			'about_identity' => 'LocalBusiness' === $chosen,
 			'chosen'         => $chosen,
 			'woo_product'    => 'product' === $post->post_type && function_exists( 'wc_get_product' ),
-			'video'          => self::video_from_post( $post ),
+			'video'          => self::video_for_post( $post ),
 			'spatial'        => Digitalisimo_Integrations_Editorial::location_schema( $post->ID ),
 		);
 	}
@@ -664,7 +677,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 			$out[] = array( 'type' => 'ProfilePage', 'why' => 'Página pública dedicada a una persona real.' );
 			$out[] = array( 'type' => 'Person', 'why' => 'Persona descrita por el perfil.' );
 		}
-		if ( ! empty( $page['video'] ) ) $out[] = array( 'type' => 'VideoObject', 'why' => 'Video local único con miniatura y fecha reales.' );
+		if ( ! empty( $page['video'] ) ) $out[] = array( 'type' => 'VideoObject', 'why' => 'Video único (de la biblioteca o de Vimeo) con miniatura y fecha reales.' );
 		if ( 'home' !== $page['kind'] && count( (array) ( $page['breadcrumbs'] ?? array() ) ) >= 2 ) $out[] = array( 'type' => 'BreadcrumbList', 'why' => 'Página interna con ruta de navegación.' );
 		if ( ! empty( $page['entity']['type'] ) ) $out[] = array( 'type' => $page['entity']['type'], 'why' => 'Tipo de contenido de esta URL.' );
 		if ( ! empty( $page['woo_product'] ) ) $out[] = array( 'type' => 'Product', 'why' => 'Producto de WooCommerce.' );

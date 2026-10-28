@@ -531,6 +531,67 @@ if ( 'linkcheck' === $step ) {
 	return;
 }
 
+if ( 'video' === $step ) {
+	// RM4 y RM8: vídeo de la biblioteca y de Vimeo (oEmbed simulado), YouTube sólo contado, sitemap y VideoObject.
+	$V = 'Digitalisimo_Integrations_Video';
+	$S = 'Digitalisimo_Integrations_Sitemap';
+	$o = (array) get_option( Digitalisimo_Integrations_Settings::OPTION, array() );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_sitemap_video_enabled' => 0 ) ) );
+	$requests = array();
+	add_filter( 'pre_http_request', function( $pre, $args, $url ) use ( &$requests ) {
+		$requests[] = $url;
+		if ( false === strpos( $url, 'vimeo.com/api/oembed.json' ) ) return $pre;
+		$body = false !== strpos( $url, '76979871' ) ? array( 'video_id' => 76979871, 'title' => 'Reproductor nuevo', 'description' => 'Presentación del reproductor.', 'thumbnail_url' => 'https://i.vimeocdn.com/video/452001751-640.jpg', 'upload_date' => '2013-10-15 14:08:29', 'duration' => 62 ) : array( 'video_id' => 11111111, 'title' => 'Sin fecha', 'thumbnail_url' => 'https://i.vimeocdn.com/x.jpg' );
+		return array( 'headers' => array(), 'body' => wp_json_encode( $body ), 'response' => array( 'code' => 200, 'message' => 'OK' ), 'cookies' => array() );
+	}, 10, 3 );
+	$vimeo = wp_insert_post( array( 'post_title' => 'Con Vimeo', 'post_status' => 'publish', 'post_content' => '<!-- wp:embed {"url":"https://vimeo.com/76979871","type":"video","providerNameSlug":"vimeo"} --><figure class="wp-block-embed is-provider-vimeo"><div class="wp-block-embed__wrapper">
+https://vimeo.com/76979871
+</div></figure><!-- /wp:embed -->' ) );
+	digi_check( ! $requests && ! get_post_meta( $vimeo, $V::PENDING, true ), 'Con el sitemap de vídeo apagado no se pide nada a Vimeo' );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_sitemap_video_enabled' => 1 ) ) );
+	wp_update_post( array( 'ID' => $vimeo ) );
+	digi_check( ! $requests && '1' === (string) get_post_meta( $vimeo, $V::PENDING, true ) && (int) wp_next_scheduled( $V::HOOK ) > 0, 'Guardar sólo marca pendiente y programa la cola: ninguna petición durante el guardado' );
+	$sinfecha = wp_insert_post( array( 'post_title' => 'Vimeo sin fecha', 'post_status' => 'publish', 'post_content' => '<iframe src="https://player.vimeo.com/video/11111111"></iframe>' ) );
+	$youtube = wp_insert_post( array( 'post_title' => 'Con YouTube', 'post_status' => 'publish', 'post_content' => '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>' ) );
+	$upload = wp_upload_dir();
+	$file = $upload['path'] . '/demo-video.mp4'; file_put_contents( $file, 'x' );
+	$att = wp_insert_attachment( array( 'post_title' => 'Demo local', 'post_excerpt' => 'Recorrido por el producto.', 'post_mime_type' => 'video/mp4', 'post_status' => 'inherit' ), $file );
+	wp_update_attachment_metadata( $att, array( 'length' => 95, 'mime_type' => 'video/mp4' ) );
+	$src = wp_get_attachment_url( $att );
+	$local = wp_insert_post( array( 'post_title' => 'Con vídeo propio', 'post_status' => 'publish', 'post_content' => '<!-- wp:video {"id":' . $att . ',"src":"' . $src . '","poster":"' . $upload['url'] . '/poster.jpg"} --><figure class="wp-block-video"><video controls poster="' . $upload['url'] . '/poster.jpg" src="' . $src . '"></video></figure><!-- /wp:video -->' ) );
+	$V::run_batch();
+	$vv = get_post_meta( $vimeo, $V::META, true );
+	digi_check( is_array( $vv ) && 'https://player.vimeo.com/video/76979871' === $vv['embedUrl'] && '2013-10-15' === $vv['uploadDate'] && 'PT1M2S' === $vv['duration'] && ! get_post_meta( $vimeo, $V::PENDING, true ), 'La cola resuelve Vimeo por oEmbed: ' . wp_json_encode( $vv ) );
+	digi_check( ! get_post_meta( $sinfecha, $V::META, true ) && ! get_post_meta( $sinfecha, $V::PENDING, true ), 'Un vídeo de Vimeo sin fecha no se marca ni se vuelve a pedir enseguida' );
+	digi_check( ! get_post_meta( $youtube, $V::META, true ) && 1 === (int) get_post_meta( $youtube, $V::YOUTUBE, true ), 'YouTube se cuenta pero no se marca' );
+	$lv = get_post_meta( $local, $V::META, true );
+	digi_check( is_array( $lv ) && $src === $lv['contentUrl'] && 'Recorrido por el producto.' === $lv['description'] && 'PT1M35S' === $lv['duration'], 'El vídeo de la biblioteca lleva su descripción y duración: ' . wp_json_encode( $lv ) );
+	digi_check( 95 === (int) ( wp_get_attachment_metadata( $att )['length'] ?? 0 ), 'La metadata de un adjunto se guarda (un filtro enganchado como acción la borraba)' );
+	$n = count( $requests ); $V::run_batch();
+	digi_check( count( $requests ) === $n, 'Lo resuelto no se vuelve a pedir' );
+	ob_start(); $S::video_xml(); $xml = ob_get_clean();
+	digi_check( false !== strpos( $xml, '<video:player_loc>https://player.vimeo.com/video/76979871</video:player_loc>' ) && false !== strpos( $xml, '<video:content_loc>' . esc_xml( $src ) . '</video:content_loc>' ) && false === strpos( $xml, 'dQw4w9WgXcQ' ) && false !== simplexml_load_string( $xml ), 'video-sitemap.xml válido con Vimeo y el vídeo local, sin YouTube' );
+	ob_start(); $S::index_xml(); $index = ob_get_clean();
+	digi_check( is_multisite() || false !== strpos( $index, $S::VIDEO_FILE ), 'El índice anuncia el sitemap de vídeo' );
+	digi_check( false !== strpos( $S::robots( "User-agent: *\n", true ), 'Sitemap: ' . home_url( '/' . $S::VIDEO_FILE ) ), 'robots.txt anuncia el sitemap de vídeo' );
+	update_post_meta( $vimeo, 'digitalisimo_seo_noindex', '1' );
+	ob_start(); $S::video_xml(); $xml = ob_get_clean();
+	digi_check( false === strpos( $xml, '76979871' ), 'Un contenido con noindex sale del sitemap de vídeo' );
+	delete_post_meta( $vimeo, 'digitalisimo_seo_noindex' );
+	// VideoObject: el de Vimeo sólo se queda si el reproductor aparece en el HTML final.
+	$G = 'Digitalisimo_Integrations_Schema_Graph';
+	$page  = $G::post_page( get_post( $vimeo ) );
+	$graph = $G::build( $G::site(), $page );
+	$node  = null; foreach ( $graph as $item ) if ( 'VideoObject' === ( $item['@type'] ?? '' ) ) $node = $item;
+	digi_check( $node && 'https://player.vimeo.com/video/76979871' === $node['embedUrl'] && 'PT1M2S' === $node['duration'], 'El @graph lleva el VideoObject de Vimeo' );
+	list( $kept ) = $G::unify( '<html><head>' . $G::script( $graph ) . '</head><body><iframe src="https://player.vimeo.com/video/76979871"></iframe></body></html>', $page );
+	list( $gone, $log ) = $G::unify( '<html><head>' . $G::script( $graph ) . '</head><body><p>Sin reproductor</p></body></html>', $page );
+	digi_check( false !== strpos( $kept, '"VideoObject"' ) && false === strpos( $gone, '"VideoObject"' ) && $log, 'Sin reproductor en la página, el VideoObject se retira' );
+	update_option( Digitalisimo_Integrations_Settings::OPTION, array_merge( $o, array( 'seo_sitemap_video_enabled' => 0 ) ) );
+	wp_clear_scheduled_hook( $V::HOOK );
+	return;
+}
+
 if ( 'feed' === $step ) {
 	// RM16, RM11 y RM6: texto del RSS, alt de avatares y robots avanzados por término.
 	digi_check( 'La entrada %post_link% apareció primero en %site_link%.' === Digitalisimo_Integrations_SEO_Resolver::option( 'seo_rss_after' ) && 1 === (int) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_avatar_alt' ), 'El importador trae el texto del RSS y el alt de avatares' );

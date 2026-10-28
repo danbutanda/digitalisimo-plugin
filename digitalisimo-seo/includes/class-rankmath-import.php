@@ -307,6 +307,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 		}
 		// Google News: el módulo activo enciende el sitemap; tipos, nombre y categorías excluidas.
 		if ( in_array( 'news-sitemap', $modules, true ) ) $want['seo_sitemap_news_enabled'] = 1;
+		if ( in_array( 'video-sitemap', $modules, true ) ) $want['seo_sitemap_video_enabled'] = 1;
 		if ( ! empty( $s['news_sitemap_post_type'] ) ) $want['seo_sitemap_news_types'] = implode( ',', array_map( 'strval', (array) self::value( $s['news_sitemap_post_type'] ) ) );
 		if ( ! empty( $s['news_sitemap_publication_name'] ) ) $want['seo_sitemap_news_name'] = (string) $s['news_sitemap_publication_name'];
 		$news_terms = array();

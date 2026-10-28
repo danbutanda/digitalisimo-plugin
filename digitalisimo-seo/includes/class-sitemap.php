@@ -9,6 +9,9 @@ class Digitalisimo_Integrations_Sitemap {
 	const NEWS_HOURS = 48;
 	const NEWS_LIMIT = 1000;
 
+	const VIDEO_FILE  = 'video-sitemap.xml';
+	const VIDEO_LIMIT = 1000;
+
 	public static function init() {
 		add_action( 'parse_request', array( __CLASS__, 'maybe_serve' ), 0 );
 		add_filter( 'robots_txt', array( __CLASS__, 'robots' ), 99, 2 );
@@ -59,6 +62,7 @@ class Digitalisimo_Integrations_Sitemap {
 		if ( $path === $directory . 'wp-sitemap.xml' ) return array( 'type' => 'legacy', 'slash' => false );
 		// Noticias: un archivo propio por sitio, también en una red.
 		if ( $path === $directory . self::NEWS_FILE || $path === $directory . self::NEWS_FILE . '/' ) return array( 'type' => 'news', 'slash' => '/' === substr( $path, -1 ) );
+		if ( $path === $directory . self::VIDEO_FILE || $path === $directory . self::VIDEO_FILE . '/' ) return array( 'type' => 'video', 'slash' => '/' === substr( $path, -1 ) );
 		if ( is_multisite() ) return array();
 		foreach ( self::filenames() as $type => $filename ) {
 			if ( $path === $directory . $filename || $path === $directory . $filename . '/' ) return array( 'type' => $type, 'slash' => '/' === substr( $path, -1 ) );
@@ -78,6 +82,15 @@ class Digitalisimo_Integrations_Sitemap {
 			nocache_headers();
 			header( 'Content-Type: application/xml; charset=UTF-8' );
 			self::news_xml();
+			exit;
+		}
+		if ( 'video' === $route['type'] ) {
+			if ( ! self::video_enabled() ) self::not_found();
+			if ( $route['slash'] ) { wp_redirect( self::endpoint( self::VIDEO_FILE ), 301 ); exit; }
+			status_header( 200 );
+			nocache_headers();
+			header( 'Content-Type: application/xml; charset=UTF-8' );
+			self::video_xml();
 			exit;
 		}
 		if ( $route['slash'] ) {
@@ -103,7 +116,7 @@ class Digitalisimo_Integrations_Sitemap {
 		if ( ! $public || ! self::enabled() ) return $output;
 		// Un solo sitemap del sitio actual, aunque otro filtro haya añadido el índice nativo.
 		$output = preg_replace( '/^[ \t]*Sitemap[ \t]*:[^\r\n]*(?:\r?\n|$)/im', '', (string) $output );
-		return rtrim( $output ) . "\nSitemap: " . self::endpoint() . "\n" . ( self::news_enabled() ? 'Sitemap: ' . self::endpoint( self::NEWS_FILE ) . "\n" : '' );
+		return rtrim( $output ) . "\nSitemap: " . self::endpoint() . "\n" . ( self::news_enabled() ? 'Sitemap: ' . self::endpoint( self::NEWS_FILE ) . "\n" : '' ) . ( self::video_enabled() ? 'Sitemap: ' . self::endpoint( self::VIDEO_FILE ) . "\n" : '' );
 	}
 
 	private static function args( $type, $page, $limit = self::BATCH ) {
@@ -138,6 +151,7 @@ class Digitalisimo_Integrations_Sitemap {
 			echo '<sitemap><loc>' . esc_xml( self::endpoint( $filename ) ) . "</loc></sitemap>\n";
 		}
 		if ( self::news_enabled() ) echo '<sitemap><loc>' . esc_xml( self::endpoint( self::NEWS_FILE ) ) . "</loc></sitemap>\n";
+		if ( self::video_enabled() ) echo '<sitemap><loc>' . esc_xml( self::endpoint( self::VIDEO_FILE ) ) . "</loc></sitemap>\n";
 		echo "</sitemapindex>\n";
 	}
 
@@ -227,6 +241,50 @@ class Digitalisimo_Integrations_Sitemap {
 			$url = get_permalink( $post_id );
 			if ( ! $url ) continue;
 			echo '<url><loc>' . esc_xml( $url ) . '</loc><news:news><news:publication><news:name>' . esc_xml( html_entity_decode( wp_strip_all_tags( $name ), ENT_QUOTES, 'UTF-8' ) ) . '</news:name><news:language>' . esc_xml( $language ) . '</news:language></news:publication><news:publication_date>' . esc_xml( get_post_time( DATE_W3C, true, $post_id ) ) . '</news:publication_date><news:title>' . esc_xml( html_entity_decode( wp_strip_all_tags( get_the_title( $post_id ) ), ENT_QUOTES, 'UTF-8' ) ) . "</news:title></news:news></url>\n";
+		}
+		echo "</urlset>\n";
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Vídeo: video-sitemap.xml a partir de la meta de cada contenido.      */
+	/* ------------------------------------------------------------------ */
+
+	public static function video_enabled() { return self::enabled() && (bool) Digitalisimo_Integrations_SEO_Resolver::option( 'seo_sitemap_video_enabled', 0 ); }
+
+	/**
+	 * Un <video:video> o '' si falta algo que el formato exige: miniatura, título, descripción y URL
+	 * del archivo o del reproductor. Puro: recibe el vídeo ya resuelto.
+	 */
+	public static function video_entry( $video ) {
+		if ( ! is_array( $video ) || empty( $video['thumbnailUrl'] ) || empty( $video['name'] ) || empty( $video['description'] ) || ( empty( $video['contentUrl'] ) && empty( $video['embedUrl'] ) ) ) return '';
+		$text = function( $value, $max ) { $value = html_entity_decode( wp_strip_all_tags( (string) $value ), ENT_QUOTES, 'UTF-8' ); return esc_xml( function_exists( 'mb_substr' ) ? mb_substr( $value, 0, $max ) : substr( $value, 0, $max ) ); };
+		$xml = '<video:video><video:thumbnail_loc>' . esc_xml( $video['thumbnailUrl'] ) . '</video:thumbnail_loc><video:title>' . $text( $video['name'], 100 ) . '</video:title><video:description>' . $text( $video['description'], 2048 ) . '</video:description>';
+		$xml .= ! empty( $video['contentUrl'] ) ? '<video:content_loc>' . esc_xml( $video['contentUrl'] ) . '</video:content_loc>' : '<video:player_loc>' . esc_xml( $video['embedUrl'] ) . '</video:player_loc>';
+		if ( ! empty( $video['duration'] ) && preg_match( '/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/', $video['duration'], $d ) ) {
+			$seconds = (int) ( $d[1] ?? 0 ) * 3600 + (int) ( $d[2] ?? 0 ) * 60 + (int) ( $d[3] ?? 0 );
+			if ( $seconds >= 1 && $seconds <= 28800 ) $xml .= '<video:duration>' . $seconds . '</video:duration>';
+		}
+		if ( ! empty( $video['uploadDate'] ) ) $xml .= '<video:publication_date>' . esc_xml( $video['uploadDate'] ) . '</video:publication_date>';
+		return $xml . '</video:video>';
+	}
+
+	public static function video_xml() {
+		echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+		echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">' . "\n";
+		$types = array_keys( Digitalisimo_Integrations_SEO_Suite::sitemap_posts( get_post_types( array( 'public' => true ), 'objects' ) ) );
+		$left  = self::VIDEO_LIMIT;
+		// Por tipo: cada uno conserva sus exclusiones (productos ocultos, páginas de WooCommerce, noindex).
+		foreach ( $types as $type ) {
+			if ( $left <= 0 ) break;
+			$args = Digitalisimo_Integrations_SEO_Suite::sitemap_query( array( 'post_type' => $type, 'post_status' => 'publish', 'posts_per_page' => $left, 'fields' => 'ids', 'orderby' => 'modified', 'order' => 'DESC', 'no_found_rows' => true, 'has_password' => false, 'ignore_sticky_posts' => true, 'suppress_filters' => false ), $type );
+			$args['meta_query'][] = array( 'key' => Digitalisimo_Integrations_Video::META, 'compare' => 'EXISTS' );
+			foreach ( get_posts( $args ) as $post_id ) {
+				$entry = self::video_entry( get_post_meta( $post_id, Digitalisimo_Integrations_Video::META, true ) );
+				$url   = get_permalink( $post_id );
+				if ( '' === $entry || ! $url ) continue;
+				echo '<url><loc>' . esc_xml( $url ) . '</loc>' . $entry . "</url>\n"; // phpcs:ignore WordPress.Security.EscapeOutput -- video_entry() escapa cada valor.
+				$left--;
+			}
 		}
 		echo "</urlset>\n";
 	}
