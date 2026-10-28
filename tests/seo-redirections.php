@@ -11,6 +11,7 @@ function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $compon
 function add_action() {}
 class Digitalisimo_Integrations_SEO_Resolver { public static function option( $key, $default = null ) { return $GLOBALS['options'][ $key ] ?? $default; } }
 require __DIR__ . '/../digitalisimo-seo/includes/class-redirections.php';
+require __DIR__ . '/../digitalisimo-seo/includes/class-seo-bulk.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-404-monitor.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-verification.php';
 function check( $condition, $message ) { if ( ! $condition ) throw new RuntimeException( $message ); }
@@ -73,5 +74,25 @@ check( '' === $v::sanitize_code( '"><script>alert(1)</script>' ), 'Un valor con 
 check( "facebook-domain-verification|abc\np:domain_verify|zz" === $v::sanitize_custom( "Facebook-Domain-Verification|abc\nsin separador\n<b>|x\np:domain_verify|zz" ), 'Las etiquetas propias sólo admiten nombre|código válidos.' );
 $GLOBALS['options'] = array( 'seo_verify_google' => 'g1', 'seo_verify_bing' => '<meta name="msvalidate.01" content="B2">', 'seo_verify_custom' => "google-site-verification|otro\nyandex-verification|y3" );
 check( array( 'google-site-verification' => 'g1', 'msvalidate.01' => 'B2', 'yandex-verification' => 'y3' ) === $v::tags(), 'Los campos propios ganan a una etiqueta repetida en «Otras etiquetas».' );
+
+// RM2, segunda parte: programación, categorías y CSV.
+$now  = strtotime( '2026-06-01 12:00:00 UTC' );
+$rule = function( $id, $pattern, $starts = null, $ends = null ) { return array( 'id' => $id, 'sources' => json_encode( array( array( 'pattern' => $pattern, 'comparison' => 'exact', 'ignore' => '' ) ) ), 'url_to' => '/x/', 'header_code' => 301, 'starts' => $starts, 'ends' => $ends ); };
+$index = $r::build_index( array( $rule( 1, 'siempre' ), $rule( 2, 'futura', '2026-06-02 00:00:00' ), $rule( 3, 'vencida', null, '2026-05-01 00:00:00' ), $rule( 4, 'vigente', '2026-05-01 00:00:00', '2026-06-10 00:00:00' ) ), $now );
+check( array( 'siempre', 'vigente' ) === array_keys( $index['exact'] ), 'Sólo entran las reglas sin programación o dentro de su periodo.' );
+check( strtotime( '2026-06-02 00:00:00 UTC' ) === $index['next'], 'El índice anota el próximo cambio: ' . $index['next'] );
+check( 0 === $r::build_index( array( $rule( 1, 'a' ) ), $now )['next'], 'Sin programación no hay próximo cambio.' );
+check( '2026-06-02 08:05:00' === $r::sanitize_datetime( '2026-06-02T08:05' ) && '2026-06-02 00:00:00' === $r::sanitize_datetime( '2026-06-02' ) && null === $r::sanitize_datetime( '2026-02-30 10:00' ) && null === $r::sanitize_datetime( 'mañana' ) && null === $r::sanitize_datetime( '2026-06-02 25:00' ), 'Las fechas se validan.' );
+check( 0 === $r::timestamp( null ) && 0 === $r::timestamp( '0000-00-00 00:00:00' ), 'Una fecha vacía no programa nada.' );
+check( 100 === strlen( $r::sanitize_category( str_repeat( 'a', 300 ) ) ) && 'Campaña 2026' === $r::sanitize_category( " <b>Campaña</b>\n 2026 " ), 'La categoría se limpia y se acota.' );
+$rows = $r::csv_rows( array( 'id' => 7, 'sources' => array( array( 'pattern' => 'a', 'comparison' => 'exact', 'ignore' => '' ), array( 'pattern' => '^b/(.*)$', 'comparison' => 'regex', 'ignore' => 'case' ) ), 'url_to' => '=HYPERLINK("x")', 'header_code' => 301, 'category' => 'Blog', 'status' => 'active', 'starts' => '2026-06-02 00:00:00', 'ends' => null ) );
+check( 2 === count( $rows ) && array( '7', '/a', 'exact', "'=HYPERLINK(\"x\")", '301', 'Blog', 'active', '', '2026-06-02 00:00:00', '' ) === $rows[0] && '^b/(.*)$' === $rows[1][1] && 'case' === $rows[1][7], 'Una fila por origen, con el destino protegido contra fórmulas.' );
+$csv = array();
+foreach ( $rows as $cells ) $csv[] = array_combine( $r::CSV_COLUMNS, array_map( 'strval', $cells ) );
+$csv[] = array( 'id' => '', 'source' => '', 'destination' => '/nada/' );
+$csv[] = array( 'id' => '', 'source' => '/rm', 'matching' => 'contains', 'destination' => '/y/', 'type' => '302', 'category' => 'Uno, Dos', 'status' => 'inactive' );
+$rules = $r::csv_rules( $csv );
+check( 2 === count( $rules ) && 2 === count( $rules[0]['sources'] ) && '=HYPERLINK("x")' === $rules[0]['url_to'] && 'Blog' === $rules[0]['category'] && '2026-06-02 00:00:00' === $rules[0]['starts'] && 'csv' === $rules[0]['origin'], 'Las filas con el mismo id vuelven a ser una regla, sin la protección de fórmulas.' );
+check( array( 'pattern' => '/rm', 'comparison' => 'contains', 'ignore' => '' ) === $rules[1]['sources'][0] && 302 === $rules[1]['header_code'] && 'inactive' === $rules[1]['status'] && 'Uno' === $rules[1]['category'], 'Una fila de Rank Math: varias categorías se quedan en la primera.' );
 
 echo "Redirecciones, 404 y verificación: coincidencias, saneado y exclusiones correctos.\n";

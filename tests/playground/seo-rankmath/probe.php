@@ -72,6 +72,17 @@ if ( 'seed' === $step ) {
 		array( serialize( array( array( 'pattern' => '(roto', 'comparison' => 'regex' ) ) ), '/z/', 301, 'active' ),
 	);
 	foreach ( $rows as $row ) $wpdb->insert( $table, array( 'sources' => $row[0], 'url_to' => $row[1], 'header_code' => $row[2], 'status' => $row[3], 'hits' => 3, 'created' => '2025-01-01 00:00:00', 'updated' => '2025-01-01 00:00:00' ) );
+	// Rank Math PRO: una categoría en la primera regla y una regla inactiva con activación y fin programados.
+	$wpdb->insert( $table, array( 'sources' => serialize( array( array( 'pattern' => 'programada', 'comparison' => 'exact' ) ) ), 'url_to' => '/entrada-rm/', 'header_code' => 302, 'status' => 'inactive', 'hits' => 0, 'created' => '2025-01-01 00:00:00', 'updated' => '2025-01-01 00:00:00' ) );
+	$scheduled = (int) $wpdb->insert_id;
+	$wpdb->insert( $wpdb->terms, array( 'name' => 'Campaña RM', 'slug' => 'campana-rm' ) );
+	$wpdb->insert( $wpdb->term_taxonomy, array( 'term_id' => $wpdb->insert_id, 'taxonomy' => 'rank_math_redirection_category', 'description' => '' ) );
+	$wpdb->insert( $wpdb->term_relationships, array( 'object_id' => 1, 'term_taxonomy_id' => $wpdb->insert_id ) );
+	$actions = $wpdb->prefix . 'actionscheduler_actions';
+	if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $actions ) ) !== $actions ) $wpdb->query( "CREATE TABLE {$actions} ( action_id bigint(20) unsigned NOT NULL auto_increment, hook varchar(191) NOT NULL, status varchar(20) NOT NULL, scheduled_date_gmt datetime NULL, args varchar(191), PRIMARY KEY (action_id) )" );
+	$wpdb->insert( $actions, array( 'hook' => 'rank_math/redirections/scheduled_activate', 'status' => 'pending', 'scheduled_date_gmt' => gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ), 'args' => '[' . $scheduled . ']' ) );
+	$wpdb->insert( $actions, array( 'hook' => 'rank_math/redirections/scheduled_deactivate', 'status' => 'pending', 'scheduled_date_gmt' => gmdate( 'Y-m-d H:i:s', time() + 2 * DAY_IN_SECONDS ), 'args' => '[' . $scheduled . ']' ) );
+	$wpdb->insert( $actions, array( 'hook' => 'rank_math/redirections/scheduled_activate', 'status' => 'complete', 'scheduled_date_gmt' => '2020-01-01 00:00:00', 'args' => '[1]' ) );
 	$product = 0;
 	if ( class_exists( 'WC_Product_Simple' ) ) {
 		$item = new WC_Product_Simple(); $item->set_name( 'Tenis Acme' ); $item->set_regular_price( '1200' ); $item->set_status( 'publish' ); $product = $item->save();
@@ -80,7 +91,7 @@ if ( 'seed' === $step ) {
 		$hidden = new WC_Product_Simple(); $hidden->set_name( 'Producto oculto' ); $hidden->set_regular_price( '10' ); $hidden->set_status( 'publish' ); $hidden->set_catalog_visibility( 'hidden' ); update_option( 'digi_probe_hidden', $hidden->save() );
 	}
 	update_option( 'digi_probe_ids', array( 'post' => $post, 'edited' => $edited, 'term' => $term['term_id'], 'product' => $product ) );
-	digi_check( 6 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), 'Semilla de Rank Math creada' );
+	digi_check( 7 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), 'Semilla de Rank Math creada' );
 	return;
 }
 
@@ -92,7 +103,7 @@ if ( 'import' === $step ) {
 	Digitalisimo_Integrations_RankMath_Import::run_batch();
 	$job = Digitalisimo_Integrations_RankMath_Import::job();
 	digi_check( 'done' === $job['status'], 'La importación termina en un lote: ' . ( $job['status'] ?? '' ) . ' ' . ( $job['error'] ?? '' ) );
-	digi_check( 3 === (int) ( $job['done']['redirections'] ?? 0 ), 'Se importan 3 redirecciones válidas: ' . json_encode( $job['done'] ) );
+	digi_check( 4 === (int) ( $job['done']['redirections'] ?? 0 ), 'Se importan 4 redirecciones válidas: ' . json_encode( $job['done'] ) );
 	digi_check( isset( $job['notes']['redirect_trashed'], $job['notes']['redirect_invalid'] ) && 2 === $job['notes']['redirect_invalid']['count'], 'La papelera, el objeto serializado y la regex rota quedan en el informe' );
 	digi_check( isset( $job['notes']['robots_txt'] ) && false !== strpos( $job['robots_txt'], '/privado/' ), 'El robots.txt queda para revisión' );
 	$p = $ids['post'];
@@ -116,8 +127,8 @@ if ( 'import' === $step ) {
 	Digitalisimo_Integrations_RankMath_Import::start();
 	Digitalisimo_Integrations_RankMath_Import::run_batch();
 	$again = Digitalisimo_Integrations_RankMath_Import::job();
-	digi_check( 0 === (int) ( $again['done']['redirections'] ?? 0 ) && 3 === (int) ( $again['notes']['redirect_existing']['count'] ?? 0 ), 'Volver a importar no duplica redirecciones' );
-	digi_check( 3 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Digitalisimo_Integrations_Redirections::table() . " WHERE import_key LIKE 'rankmath:%'" ), 'Tres reglas de la tabla de Rank Math' );
+	digi_check( 0 === (int) ( $again['done']['redirections'] ?? 0 ) && 4 === (int) ( $again['notes']['redirect_existing']['count'] ?? 0 ), 'Volver a importar no duplica redirecciones' );
+	digi_check( 4 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Digitalisimo_Integrations_Redirections::table() . " WHERE import_key LIKE 'rankmath:%'" ), 'Cuatro reglas de la tabla de Rank Math' );
 	digi_check( 0 === (int) ( $again['done']['bases'] ?? 0 ), 'Volver a importar no duplica las redirecciones de URL sin base' );
 	return;
 }
@@ -389,6 +400,56 @@ if ( 'abilities' === $step ) {
 	wp_set_current_user( $subscriber );
 	digi_check( is_wp_error( wp_get_ability( 'digitalisimo-seo/get-post-seo' )->execute( array( 'post_id' => $post ) ) ) && is_wp_error( wp_get_ability( 'digitalisimo-seo/get-site-status' )->execute( array() ) ), 'Un suscriptor no puede usar las abilities' );
 	wp_set_current_user( 1 );
+	return;
+}
+
+if ( 'schedule' === $step ) {
+	// RM2, segunda parte: categoría y programación importadas, índice por periodo y CSV de ida y vuelta.
+	$r     = 'Digitalisimo_Integrations_Redirections';
+	$table = $r::table();
+	digi_check( 2 <= (int) get_option( $r::DB_OPTION ) && null !== $wpdb->get_var( "SHOW COLUMNS FROM {$table} LIKE 'starts'" ), 'La tabla tiene categoría y programación' );
+	$first = $wpdb->get_row( "SELECT * FROM {$table} WHERE import_key = 'rankmath:1'", ARRAY_A );
+	$prog  = $wpdb->get_row( "SELECT * FROM {$table} WHERE sources LIKE '%programada%'", ARRAY_A );
+	digi_check( 'Campaña RM' === ( $first['category'] ?? '' ), 'La categoría de Rank Math se importa' );
+	digi_check( $prog && 'active' === $prog['status'] && 302 === (int) $prog['header_code'] && $prog['starts'] && $prog['ends'] > $prog['starts'], 'La regla programada llega activa con su periodo: ' . wp_json_encode( $prog ) );
+	$index = $r::refresh_index();
+	digi_check( ! isset( $index['exact']['programada'] ) && isset( $index['exact']['vieja-pagina'] ), 'Antes de su inicio la regla programada no está en el índice' );
+	digi_check( $r::timestamp( $prog['starts'] ) === (int) $index['next'] && (int) $index['next'] === wp_next_scheduled( $r::TICK ), 'El índice y WP-cron anotan su inicio' );
+	$wpdb->update( $table, array( 'starts' => gmdate( 'Y-m-d H:i:s', time() - 60 ) ), array( 'id' => $prog['id'] ) );
+	do_action( $r::TICK );
+	$index = get_option( $r::INDEX );
+	digi_check( isset( $index['exact']['programada'] ) && $r::timestamp( $prog['ends'] ) === (int) $index['next'], 'Al llegar su inicio entra en el índice y queda anotado su fin' );
+	$match = $r::find( $index, 'programada' );
+	digi_check( $match && 302 === $match['rule']['c'], 'La regla programada redirige dentro de su periodo' );
+	// Sólo reglas futuras: el indicador sigue encendido para que el front note el inicio.
+	$was_active = array_map( 'intval', $wpdb->get_col( "SELECT id FROM {$table} WHERE status = 'active' AND id <> " . (int) $prog['id'] ) );
+	$wpdb->query( "UPDATE {$table} SET status = 'inactive' WHERE id <> " . (int) $prog['id'] );
+	$wpdb->update( $table, array( 'starts' => gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS ) ), array( 'id' => $prog['id'] ) );
+	$index = $r::refresh_index();
+	digi_check( ! $index['rules'] && 1 === (int) get_option( $r::FLAG ), 'Con sólo reglas futuras el front sigue leyendo el índice' );
+	if ( $was_active ) $wpdb->query( "UPDATE {$table} SET status = 'active' WHERE id IN (" . implode( ',', $was_active ) . ')' );
+	$wpdb->update( $table, array( 'starts' => gmdate( 'Y-m-d H:i:s', time() - 60 ) ), array( 'id' => $prog['id'] ) );
+	$r::refresh_index();
+	$saved = $r::save( array( 'sources' => array( array( 'pattern' => '/ventana-rota/' ) ), 'url_to' => '/a/', 'starts' => '2026-06-02 10:00', 'ends' => '2026-06-01 10:00' ) );
+	digi_check( is_wp_error( $saved ) && 'window' === $saved->get_error_code(), 'Un fin anterior al inicio no se guarda' );
+	$id = $r::save( array( 'sources' => array( array( 'pattern' => '/con-categoria/' ) ), 'url_to' => '/b/', 'category' => '<i>Blog</i>' ) );
+	digi_check( 'Blog' === $r::get( $id )['category'] && in_array( 'Blog', $r::categories(), true ), 'La categoría se guarda limpia y se ofrece en el filtro' );
+	// CSV: exportar y volver a importar no duplica nada; un CSV de Rank Math añade lo nuevo.
+	$mem = fopen( 'php://memory', 'w+' ); $r::write_csv( $mem ); rewind( $mem ); $csv = stream_get_contents( $mem );
+	digi_check( 0 === strpos( $csv, "\xEF\xBB\xBFid,source,matching,destination,type,category,status,ignore,starts,ends" ) && false !== strpos( $csv, '/con-categoria,exact,/b/,301,Blog,active' ), 'La exportación lleva cabecera y una fila por origen' );
+	$before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+	rewind( $mem ); $again = $r::import_csv( $mem ); fclose( $mem );
+	digi_check( 0 === $again['added'] && (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ) === $before, 'Reimportar la exportación no duplica reglas: ' . wp_json_encode( $again ) );
+	$mem = fopen( 'php://memory', 'w+' );
+	fwrite( $mem, "id,source,matching,destination,type,category,status,ignore\n9,/desde-csv/,exact,/destino-csv/,301,\"Uno,Dos\",active,\n9,/desde-csv-2/,exact,/destino-csv/,301,,active,\n,/^(roto/,regex,/x/,301,,active,\n,/con-categoria/,exact,/otra/,301,,active,\n" );
+	rewind( $mem ); $res = $r::import_csv( $mem ); fclose( $mem );
+	$new = $wpdb->get_row( "SELECT * FROM {$table} WHERE origin = 'csv'", ARRAY_A );
+	digi_check( 1 === $res['added'] && 1 === $res['skipped'] && 1 === $res['invalid'] && 2 === count( json_decode( $new['sources'], true ) ) && 'Uno' === $new['category'], 'Un CSV de Rank Math: une orígenes por id, omite lo existente y rechaza la regex rota: ' . wp_json_encode( $res ) );
+	digi_check( isset( get_option( $r::INDEX )['exact']['desde-csv-2'] ), 'Lo importado del CSV entra en el índice' );
+	$_GET = array( 'page' => 'digitalisimo-seo-redirections', 'category' => 'Blog' );
+	require_once ABSPATH . 'wp-admin/includes/admin.php';
+	ob_start(); $r::render_manager(); $html = ob_get_clean(); $_GET = array();
+	digi_check( false !== strpos( $html, 'con-categoria' ) && false === strpos( $html, 'vieja-pagina</code>' ) && false !== strpos( $html, 'name="starts"' ) && false !== strpos( $html, 'Exportar CSV' ), 'El gestor filtra por categoría y ofrece programación y CSV' );
 	return;
 }
 

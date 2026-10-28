@@ -704,7 +704,7 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 | Etapa | Estado |
 |---|---|
 | RM1 Importador | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. Pestaña «Importar» del sitio y botón de red que encola cada sitio. Usuarios: sólo se cuentan (sin destino). |
-| RM2 Redirecciones | **Publicado** · SEO 1.0.233 · `v2026.10.27.419` (primera parte). Pendiente la segunda parte: categorías, programación y CSV. |
+| RM2 Redirecciones | **Publicado** · SEO 1.0.233 · `v2026.10.27.419` (primera parte) y SEO 1.0.243 (segunda parte: categoría por regla con filtro, programación desde/hasta con WP-cron y CSV de ida y vuelta compatible con el de Rank Math; el importador trae sus categorías y sus fechas pendientes de Action Scheduler). |
 | RM3 Monitor 404 | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. Exclusiones por fragmento de URL (sin comparaciones). |
 | RM4 Sitemaps | Imágenes **publicadas** · SEO 1.0.233 · `v2026.10.27.419`. Noticias y mapa HTML **publicados** · SEO 1.0.236 · `v2026.10.27.422`. Autores y términos: **no se añaden**, porque el sitemap propio sólo publica documentos (decisión previa que `tests/sitemap.php` exige; por lo mismo, `seo_sitemap_taxonomies` no tiene efecto). Pendiente: vídeo, con el VideoObject de RM8. |
 | RM5 Verificación | **Publicado** · SEO 1.0.233 · `v2026.10.27.419`. |
@@ -720,4 +720,4 @@ Inventario cerrado el 2026-10-26 sobre Rank Math 1.0.279 y PRO 3.0.123.
 | RM11 Imágenes | **Publicado** · SEO 1.0.242 · `v2026.10.28.428`: `alt` de los avatares con el nombre público, opt-in (`seo_avatar_alt`) e importado de `add_avatar_alt`; nunca el correo y nunca sustituye un alt dado. El resto se descartó. |
 | RM16 Menores | Texto antes y después del contenido en el RSS **publicado** · SEO 1.0.242 · `v2026.10.28.428` (`seo_rss_before`, `seo_rss_after`, HTML de entradas, variables de los títulos y `%post_link%`, `%site_link%`, `%sitedesc_link%`, `%author_link%`; importa los de Rank Math). El resto, según demanda. |
 
-Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php`, `tests/seo-links.php`, `tests/seo-content-analysis.php`, `tests/seo-bulk.php`, `tests/seo-abilities.php`, `tests/seo-feed.php` y `tests/playground/seo-rankmath.sh` (259 comprobaciones en red y en un sitio individual con WooCommerce 11.2.1).
+Pruebas de lo publicado: `tests/seo-redirections.php`, `tests/seo-rankmath-import.php`, `tests/seo-sitemap-images.php` `tests/seo-breadcrumbs.php`, `tests/seo-links.php`, `tests/seo-content-analysis.php`, `tests/seo-bulk.php`, `tests/seo-abilities.php`, `tests/seo-feed.php` y `tests/playground/seo-rankmath.sh` (289 comprobaciones en red y en un sitio individual con WooCommerce 11.2.1).

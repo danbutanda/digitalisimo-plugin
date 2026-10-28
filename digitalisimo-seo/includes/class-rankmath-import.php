@@ -325,13 +325,18 @@ class Digitalisimo_Integrations_RankMath_Import {
 			'sources'       => $sources,
 			'url_to'        => (string) ( $row['url_to'] ?? '' ),
 			'header_code'   => (int) ( $row['header_code'] ?? 301 ),
-			'status'        => 'inactive' === ( $row['status'] ?? '' ) ? 'inactive' : 'active',
+			// Rank Math deja inactiva la regla hasta su activación programada; aquí la fecha ya la contiene.
+			'status'        => 'inactive' === ( $row['status'] ?? '' ) && empty( $row['starts'] ) ? 'inactive' : 'active',
 			'origin'        => 'rankmath',
 			'import_key'    => 'rankmath:' . absint( $row['id'] ?? 0 ),
 			'hits'          => absint( $row['hits'] ?? 0 ),
 			'created'       => self::datetime( $row['created'] ?? '' ),
 			'updated'       => self::datetime( $row['updated'] ?? '' ),
 			'last_accessed' => self::datetime( $row['last_accessed'] ?? '', null ),
+			// Rank Math PRO: categorías (taxonomía propia) y programación (acciones pendientes).
+			'category'      => (string) ( ( (array) ( $row['categories'] ?? array() ) )[0] ?? '' ),
+			'starts'        => self::datetime( $row['starts'] ?? '', null ),
+			'ends'          => self::datetime( $row['ends'] ?? '', null ),
 		);
 	}
 
@@ -658,8 +663,10 @@ class Digitalisimo_Integrations_RankMath_Import {
 		if ( ! self::has_redirections_table() ) return true;
 		Digitalisimo_Integrations_Redirections::maybe_install();
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::redirections_table() . ' WHERE id > %d ORDER BY id ASC LIMIT %d', (int) $job['cursor'], self::BATCH ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$extra = self::redirection_extras( wp_list_pluck( (array) $rows, 'id' ) );
 		foreach ( (array) $rows as $row ) {
 			$job['cursor'] = (int) $row['id'];
+			$row += $extra[ (int) $row['id'] ] ?? array();
 			$data = self::map_redirection( $row );
 			if ( ! $data ) { self::note( $job, array( 'trashed' === $row['status'] ? 'redirect_trashed' : 'redirect_invalid' ), (string) $row['id'] ); continue; }
 			if ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Digitalisimo_Integrations_Redirections::table() . ' WHERE import_key = %s', $data['import_key'] ) ) ) { self::note( $job, array( 'redirect_existing' ) ); continue; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -670,6 +677,30 @@ class Digitalisimo_Integrations_RankMath_Import {
 		$finished = count( (array) $rows ) < self::BATCH;
 		if ( $finished ) Digitalisimo_Integrations_Redirections::refresh_index();
 		return $finished;
+	}
+
+	/**
+	 * Categorías y fechas programadas de Rank Math PRO para unas reglas: id => {categories, starts, ends}.
+	 * Se leen de las tablas aunque Rank Math esté desactivado; sin PRO no hay nada que leer.
+	 */
+	private static function redirection_extras( array $ids ) {
+		global $wpdb;
+		$ids = array_values( array_filter( array_map( 'intval', $ids ) ) );
+		$out = array();
+		if ( ! $ids ) return $out;
+		$in   = implode( ',', $ids );
+		$cats = $wpdb->get_results( $wpdb->prepare( "SELECT tr.object_id, t.name FROM {$wpdb->term_relationships} tr JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id AND tt.taxonomy = %s JOIN {$wpdb->terms} t ON t.term_id = tt.term_id WHERE tr.object_id IN ($in) ORDER BY t.name ASC", 'rank_math_redirection_category' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $cats as $cat ) $out[ (int) $cat['object_id'] ]['categories'][] = (string) $cat['name'];
+		$actions = $wpdb->prefix . 'actionscheduler_actions';
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $actions ) ) ) !== $actions ) return $out;
+		$hooks = array( 'rank_math/redirections/scheduled_activate' => 'starts', 'rank_math/redirections/scheduled_deactivate' => 'ends' );
+		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT hook, args, scheduled_date_gmt FROM {$actions} WHERE status = %s AND hook IN (%s, %s)", 'pending', 'rank_math/redirections/scheduled_activate', 'rank_math/redirections/scheduled_deactivate' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $rows as $row ) {
+			$args = json_decode( (string) $row['args'], true );
+			$id   = is_array( $args ) ? (int) reset( $args ) : 0;
+			if ( in_array( $id, $ids, true ) ) $out[ $id ][ $hooks[ $row['hook'] ] ] = (string) $row['scheduled_date_gmt'];
+		}
+		return $out;
 	}
 
 	/* ------------------------------------------------------------------ */

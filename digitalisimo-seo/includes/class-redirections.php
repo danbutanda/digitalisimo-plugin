@@ -7,14 +7,22 @@ defined( 'ABSPATH' ) || exit;
  * Las reglas viven en una tabla por sitio. El front sólo mira el indicador con autoload
  * `digitalisimo_seo_redirect_on`: sin reglas activas no hace ninguna consulta, y con reglas lee
  * un índice precalculado (una opción sin autoload) en lugar de recorrer la tabla.
+ *
+ * Una regla puede llevar categoría y programación (desde/hasta, en GMT). El índice sólo contiene
+ * las reglas vigentes y anota la próxima fecha en que eso cambia: un evento de WP-cron lo
+ * reconstruye entonces y, si el cron se retrasa, lo hace la primera visita que lo note.
  */
 class Digitalisimo_Integrations_Redirections {
-	const DB_VERSION = 1;
+	const DB_VERSION = 2;
 	const DB_OPTION  = 'digitalisimo_seo_redirections_db';
 	const FLAG       = 'digitalisimo_seo_redirect_on';
 	const INDEX      = 'digitalisimo_seo_redirect_index';
 	const CODES      = array( 301, 302, 307, 410, 451 );
 	const PER_PAGE   = 50;
+	const TICK       = 'digitalisimo_seo_redirect_tick';
+	/** Columnas del CSV: las de Rank Math más la programación. */
+	const CSV_COLUMNS = array( 'id', 'source', 'matching', 'destination', 'type', 'category', 'status', 'ignore', 'starts', 'ends' );
+	const CSV_MAX_ROWS = 5000;
 
 	/** @var array<int,string> Enlaces anteriores de los contenidos que se están guardando. */
 	private static $before = array();
@@ -28,6 +36,9 @@ class Digitalisimo_Integrations_Redirections {
 		add_action( 'admin_init', array( __CLASS__, 'maybe_install' ) );
 		add_action( 'admin_post_digitalisimo_seo_redirect_save', array( __CLASS__, 'handle_save' ) );
 		add_action( 'admin_post_digitalisimo_seo_redirect_action', array( __CLASS__, 'handle_action' ) );
+		add_action( 'admin_post_digitalisimo_seo_redirect_export', array( __CLASS__, 'handle_export' ) );
+		add_action( 'admin_post_digitalisimo_seo_redirect_import', array( __CLASS__, 'handle_import' ) );
+		add_action( self::TICK, array( __CLASS__, 'refresh_index' ) );
 		add_action( 'pre_post_update', array( __CLASS__, 'remember_post' ), 10, 1 );
 		add_action( 'post_updated', array( __CLASS__, 'watch_post' ), 10, 3 );
 		add_action( 'edit_terms', array( __CLASS__, 'remember_term' ), 10, 2 );
@@ -55,12 +66,16 @@ class Digitalisimo_Integrations_Redirections {
 			status varchar(20) NOT NULL default 'active',
 			origin varchar(20) NOT NULL default 'manual',
 			import_key varchar(64) NOT NULL default '',
+			category varchar(100) NOT NULL default '',
+			starts datetime NULL default NULL,
+			ends datetime NULL default NULL,
 			created datetime NOT NULL default '0000-00-00 00:00:00',
 			updated datetime NOT NULL default '0000-00-00 00:00:00',
 			last_accessed datetime NULL default NULL,
 			PRIMARY KEY  (id),
 			KEY status (status),
-			KEY import_key (import_key)
+			KEY import_key (import_key),
+			KEY category (category)
 		) $charset;" );
 		update_option( self::DB_OPTION, self::DB_VERSION, false );
 	}
@@ -181,11 +196,19 @@ class Digitalisimo_Integrations_Redirections {
 		return $to;
 	}
 
-	/** Índice compacto de las reglas activas, de la más reciente a la más antigua. */
-	public static function build_index( array $rows ) {
+	/**
+	 * Índice compacto de las reglas activas y vigentes, de la más reciente a la más antigua. `next` es el
+	 * próximo instante (timestamp) en que una regla programada entra o sale; 0 si ninguna cambiará.
+	 */
+	public static function build_index( array $rows, $now = null ) {
+		$now = null === $now ? time() : (int) $now;
 		// Los orígenes exactos se encuentran por clave; sólo las reglas con patrones se recorren (`scan`).
-		$index = array( 'exact' => array(), 'exact_ci' => array(), 'rules' => array(), 'scan' => array() );
+		$index = array( 'exact' => array(), 'exact_ci' => array(), 'rules' => array(), 'scan' => array(), 'next' => 0 );
 		foreach ( $rows as $row ) {
+			$starts = self::timestamp( $row['starts'] ?? null );
+			$ends   = self::timestamp( $row['ends'] ?? null );
+			foreach ( array( $starts, $ends ) as $edge ) if ( $edge > $now && ( ! $index['next'] || $edge < $index['next'] ) ) $index['next'] = $edge;
+			if ( ( $starts && $starts > $now ) || ( $ends && $ends <= $now ) ) continue;
 			$sources = json_decode( (string) $row['sources'], true );
 			if ( ! is_array( $sources ) || ! $sources ) continue;
 			$id      = (int) $row['id'];
@@ -200,6 +223,28 @@ class Digitalisimo_Integrations_Redirections {
 			if ( $pattern ) $index['scan'][] = $id;
 		}
 		return $index;
+	}
+
+	/** Fecha GMT de la tabla ('Y-m-d H:i:s') a timestamp; 0 si no hay. */
+	public static function timestamp( $value ) {
+		$value = (string) $value;
+		if ( '' === $value || 0 === strpos( $value, '0000' ) ) return 0;
+		$time = strtotime( $value . ' UTC' );
+		return false === $time ? 0 : $time;
+	}
+
+	/** Fecha libre (CSV, formulario ya en GMT) a 'Y-m-d H:i:s' GMT, o null. */
+	public static function sanitize_datetime( $value ) {
+		$value = trim( str_replace( 'T', ' ', (string) $value ) );
+		if ( ! preg_match( '/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2})(?::(\d{2}))?)?$/', $value, $m ) || ! checkdate( (int) $m[2], (int) $m[3], (int) $m[1] ) ) return null;
+		$h = (int) ( $m[4] ?? 0 ); $i = (int) ( $m[5] ?? 0 ); $sec = (int) ( $m[6] ?? 0 );
+		if ( $h > 23 || $i > 59 || $sec > 59 ) return null;
+		return sprintf( '%04d-%02d-%02d %02d:%02d:%02d', $m[1], $m[2], $m[3], $h, $i, $sec );
+	}
+
+	public static function sanitize_category( $value ) {
+		$value = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $value ) ) );
+		return function_exists( 'mb_substr' ) ? mb_substr( $value, 0, 100 ) : substr( $value, 0, 100 );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -232,6 +277,8 @@ class Digitalisimo_Integrations_Redirections {
 		$match = null;
 		if ( $active ) {
 			$index = get_option( self::INDEX, array() );
+			// Una regla programada entró o salió y el cron aún no pasó: el índice se rehace ahora.
+			if ( is_array( $index ) && ! empty( $index['next'] ) && time() >= (int) $index['next'] ) $index = self::refresh_index();
 			$match = is_array( $index ) ? self::find( $index, $path, $query ) : null;
 		}
 		if ( ! $match ) {
@@ -283,10 +330,15 @@ class Digitalisimo_Integrations_Redirections {
 	/** Reconstruye el índice y el indicador del front tras cualquier cambio. */
 	public static function refresh_index() {
 		global $wpdb;
-		$rows  = $wpdb->get_results( 'SELECT id, sources, url_to, header_code FROM ' . self::table() . " WHERE status = 'active' ORDER BY updated DESC, id DESC", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		self::maybe_install();
+		$rows  = $wpdb->get_results( 'SELECT id, sources, url_to, header_code, starts, ends FROM ' . self::table() . " WHERE status = 'active' ORDER BY updated DESC, id DESC", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$index = self::build_index( (array) $rows );
 		update_option( self::INDEX, $index, false );
-		update_option( self::FLAG, count( $index['rules'] ), true );
+		// Con sólo reglas futuras el front también debe leer el índice para notar cuándo empiezan.
+		update_option( self::FLAG, count( $index['rules'] ) ?: ( $index['next'] ? 1 : 0 ), true );
+		wp_clear_scheduled_hook( self::TICK );
+		if ( $index['next'] ) wp_schedule_single_event( (int) $index['next'], self::TICK );
+		return $index;
 	}
 
 	/**
@@ -310,8 +362,14 @@ class Digitalisimo_Integrations_Redirections {
 			$own = 0 === strpos( $to, '/' ) || wp_parse_url( $to, PHP_URL_HOST ) === wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 			foreach ( $sources as $source ) if ( $own && 'exact' === $source['comparison'] && trim( $source['pattern'], '/' ) === $target_path ) return new WP_Error( 'loop', 'El destino es el mismo que el origen.' );
 		}
+		$starts = self::sanitize_datetime( $data['starts'] ?? '' );
+		$ends   = self::sanitize_datetime( $data['ends'] ?? '' );
+		if ( $starts && $ends && $ends <= $starts ) return new WP_Error( 'window', 'La fecha de fin debe ser posterior a la de inicio.' );
 		$now  = current_time( 'mysql', true );
 		$row  = array(
+			'category'    => self::sanitize_category( $data['category'] ?? '' ),
+			'starts'      => $starts,
+			'ends'        => $ends,
 			'sources'     => wp_json_encode( $sources, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ),
 			'url_to'      => $to,
 			'header_code' => $code,
@@ -411,7 +469,10 @@ class Digitalisimo_Integrations_Redirections {
 		$ignore     = empty( $_POST['ignore_case'] ) ? '' : 'case';
 		$sources    = array();
 		foreach ( preg_split( '/\r\n|\r|\n/', (string) wp_unslash( $_POST['sources'] ?? '' ) ) as $line ) if ( '' !== trim( $line ) ) $sources[] = array( 'pattern' => trim( $line ), 'comparison' => $comparison, 'ignore' => $ignore );
-		$result = self::save( array( 'sources' => $sources, 'url_to' => wp_unslash( $_POST['url_to'] ?? '' ), 'header_code' => absint( $_POST['header_code'] ?? 301 ), 'status' => sanitize_key( wp_unslash( $_POST['status'] ?? 'active' ) ) ), $id );
+		// Las fechas del formulario están en la zona horaria del sitio; la tabla guarda GMT.
+		$when = array();
+		foreach ( array( 'starts', 'ends' ) as $key ) { $local = self::sanitize_datetime( wp_unslash( $_POST[ $key ] ?? '' ) ); $when[ $key ] = $local ? get_gmt_from_date( $local ) : ''; }
+		$result = self::save( array( 'sources' => $sources, 'url_to' => wp_unslash( $_POST['url_to'] ?? '' ), 'header_code' => absint( $_POST['header_code'] ?? 301 ), 'status' => sanitize_key( wp_unslash( $_POST['status'] ?? 'active' ) ), 'category' => wp_unslash( $_POST['category'] ?? '' ), 'starts' => $when['starts'], 'ends' => $when['ends'] ), $id );
 		if ( is_wp_error( $result ) ) { wp_safe_redirect( self::page_url( array( 'redirect_error' => $result->get_error_code(), 'edit' => $id ?: 'new' ) ) ); exit; }
 		wp_safe_redirect( self::page_url( array( 'redirect_saved' => 1 ) ) );
 		exit;
@@ -428,8 +489,141 @@ class Digitalisimo_Integrations_Redirections {
 		exit;
 	}
 
+	/* ------------------------------------------------------------------ */
+	/* CSV.                                                                 */
+	/* ------------------------------------------------------------------ */
+
+	/** Filas CSV de una regla: una por origen, todas con su ID para volver a unirlas al importar. */
+	public static function csv_rows( array $rule ) {
+		$rows = array();
+		foreach ( (array) $rule['sources'] as $source ) {
+			$cells = array( $rule['id'], 'regex' === $source['comparison'] ? $source['pattern'] : '/' . $source['pattern'], $source['comparison'], $rule['url_to'], $rule['header_code'], $rule['category'] ?? '', $rule['status'], $source['ignore'], (string) ( $rule['starts'] ?? '' ), (string) ( $rule['ends'] ?? '' ) );
+			$rows[] = array_map( array( 'Digitalisimo_Integrations_SEO_Bulk', 'csv_cell' ), $cells );
+		}
+		return $rows;
+	}
+
+	/**
+	 * Reglas a partir de las filas de un CSV (cabecera => celda). Las filas seguidas con el mismo id
+	 * no vacío son orígenes de una misma regla. Una fila sin origen se descarta.
+	 *
+	 * @return array<int,array> Datos para save().
+	 */
+	public static function csv_rules( array $rows ) {
+		$rules = array();
+		$last  = null;
+		$v     = function( $row, $key ) { return trim( Digitalisimo_Integrations_SEO_Bulk::csv_value( (string) ( $row[ $key ] ?? '' ) ) ); };
+		foreach ( $rows as $row ) {
+			$pattern = $v( $row, 'source' );
+			if ( '' === $pattern ) { $last = null; continue; }
+			$matching = strtolower( $v( $row, 'matching' ) ) ?: 'exact';
+			$source   = array( 'pattern' => $pattern, 'comparison' => $matching, 'ignore' => 'case' === strtolower( $v( $row, 'ignore' ) ) ? 'case' : '' );
+			$id       = $v( $row, 'id' );
+			if ( null !== $last && '' !== $id && $id === $rules[ $last ]['_id'] ) { $rules[ $last ]['sources'][] = $source; continue; }
+			$category = $v( $row, 'category' );
+			$rules[]  = array(
+				'_id'         => $id,
+				'sources'     => array( $source ),
+				'url_to'      => $v( $row, 'destination' ),
+				'header_code' => (int) ( $v( $row, 'type' ) ?: 301 ),
+				'status'      => 'inactive' === strtolower( $v( $row, 'status' ) ) ? 'inactive' : 'active',
+				// Rank Math separa varias categorías con comas: aquí cada regla tiene una.
+				'category'    => trim( explode( ',', $category )[0] ),
+				'starts'      => $v( $row, 'starts' ),
+				'ends'        => $v( $row, 'ends' ),
+				'origin'      => 'csv',
+			);
+			$last = count( $rules ) - 1;
+		}
+		return array_map( function( $rule ) { unset( $rule['_id'] ); return $rule; }, $rules );
+	}
+
+	public static function write_csv( $out ) {
+		global $wpdb;
+		fwrite( $out, "\xEF\xBB\xBF" ); // BOM: las hojas de cálculo leen bien las tildes.
+		fputcsv( $out, self::CSV_COLUMNS );
+		for ( $after = 0; ; ) {
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table() . " WHERE id > %d AND status IN ('active','inactive') ORDER BY id ASC LIMIT 500", $after ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( ! $rows ) break;
+			foreach ( $rows as $row ) {
+				$after = (int) $row['id'];
+				$row['sources'] = json_decode( (string) $row['sources'], true ) ?: array();
+				foreach ( self::csv_rows( $row ) as $cells ) fputcsv( $out, $cells );
+			}
+		}
+	}
+
+	public static function handle_export() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'digitalisimo_seo_redirect_export' ) ) wp_die( 'No autorizado.' );
+		self::maybe_install();
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="redirecciones-' . gmdate( 'Y-m-d' ) . '.csv"' );
+		$out = fopen( 'php://output', 'w' );
+		self::write_csv( $out );
+		fclose( $out );
+		exit;
+	}
+
+	/**
+	 * Importa reglas de un CSV ya abierto. Nunca duplica una regla: la que sólo trae orígenes que ya
+	 * existen (activos o no, con la misma comparación) se omite.
+	 *
+	 * @return array{added:int,skipped:int,invalid:int}
+	 */
+	public static function import_csv( $handle ) {
+		global $wpdb;
+		self::maybe_install();
+		$header = fgetcsv( $handle );
+		$header = is_array( $header ) ? array_map( function( $h ) { return strtolower( trim( preg_replace( '/^\xEF\xBB\xBF/', '', (string) $h ) ) ); }, $header ) : array();
+		$result = array( 'added' => 0, 'skipped' => 0, 'invalid' => 0 );
+		if ( ! in_array( 'source', $header, true ) ) { $result['invalid'] = 1; return $result; }
+		$rows = array();
+		while ( count( $rows ) < self::CSV_MAX_ROWS && false !== ( $cells = fgetcsv( $handle ) ) ) {
+			if ( array( null ) === $cells ) continue;
+			$rows[] = array_combine( $header, array_slice( array_pad( $cells, count( $header ), '' ), 0, count( $header ) ) );
+		}
+		$known = array();
+		foreach ( (array) $wpdb->get_col( 'SELECT sources FROM ' . self::table() . " WHERE status IN ('active','inactive')" ) as $json ) foreach ( (array) json_decode( (string) $json, true ) as $source ) if ( is_array( $source ) && isset( $source['pattern'], $source['comparison'] ) ) $known[ self::signature( $source ) ] = true; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$home_path = (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+		foreach ( self::csv_rules( $rows ) as $rule ) {
+			$keys = array();
+			foreach ( $rule['sources'] as $source ) { $clean = self::sanitize_source( $source, $home_path ); if ( $clean ) $keys[] = self::signature( $clean ); }
+			if ( $keys && count( $keys ) === count( $rule['sources'] ) && ! array_diff( $keys, array_keys( $known ) ) ) { $result['skipped']++; continue; }
+			$saved = self::save( $rule, 0, false );
+			if ( is_wp_error( $saved ) ) { $result['invalid']++; continue; }
+			$result['added']++;
+			foreach ( $keys as $key ) $known[ $key ] = true;
+		}
+		self::refresh_index();
+		return $result;
+	}
+
+	/** Identidad de un origen para no duplicarlo: las rutas sin distinguir mayúsculas, las regex tal cual. */
+	public static function signature( array $source ) {
+		$pattern = (string) $source['pattern'];
+		return $source['comparison'] . ':' . ( 'regex' === $source['comparison'] ? $pattern : strtolower( trim( $pattern, '/' ) ) );
+	}
+
+	public static function handle_import() {
+		if ( ! current_user_can( 'manage_options' ) || ! check_admin_referer( 'digitalisimo_seo_redirect_import' ) ) wp_die( 'No autorizado.' );
+		$file = $_FILES['digitalisimo_redirect_csv'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		if ( ! $file || UPLOAD_ERR_OK !== ( $file['error'] ?? 1 ) || (int) $file['size'] > 2 * MB_IN_BYTES || ! preg_match( '/\.csv$/i', (string) $file['name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) { wp_safe_redirect( self::page_url( array( 'redirect_csv' => 'invalid' ) ) ); exit; }
+		$handle = fopen( $file['tmp_name'], 'r' );
+		$result = $handle ? self::import_csv( $handle ) : array( 'added' => 0, 'skipped' => 0, 'invalid' => 1 );
+		if ( $handle ) fclose( $handle );
+		wp_safe_redirect( self::page_url( array( 'redirect_csv' => 'done', 'added' => $result['added'], 'skipped' => $result['skipped'], 'invalid' => $result['invalid'] ) ) );
+		exit;
+	}
+
 	private static function action_url( $id, $task ) {
 		return wp_nonce_url( add_query_arg( array( 'action' => 'digitalisimo_seo_redirect_action', 'id' => $id, 'task' => $task ), admin_url( 'admin-post.php' ) ), 'digitalisimo_seo_redirect_' . $task . '_' . $id );
+	}
+
+	/** Categorías en uso, para sugerirlas y filtrar. */
+	public static function categories() {
+		global $wpdb;
+		return array_values( array_filter( array_map( 'strval', (array) $wpdb->get_col( 'SELECT DISTINCT category FROM ' . self::table() . " WHERE category <> '' AND status IN ('active','inactive') ORDER BY category ASC LIMIT 200" ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	private static function describe_sources( array $sources ) {
@@ -442,9 +636,12 @@ class Digitalisimo_Integrations_Redirections {
 		if ( ! current_user_can( 'manage_options' ) ) return;
 		self::maybe_install();
 		global $wpdb;
-		$errors = array( 'source' => 'El origen está vacío o no es válido (revisa la expresión regular).', 'code' => 'Código de respuesta no admitido.', 'target' => 'El destino debe ser una ruta del sitio o una URL http(s).', 'loop' => 'El destino es el mismo que el origen.' );
+		$errors = array( 'source' => 'El origen está vacío o no es válido (revisa la expresión regular).', 'code' => 'Código de respuesta no admitido.', 'target' => 'El destino debe ser una ruta del sitio o una URL http(s).', 'loop' => 'El destino es el mismo que el origen.', 'window' => 'La fecha de fin debe ser posterior a la de inicio.' );
 		$error  = sanitize_key( $_GET['redirect_error'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( isset( $errors[ $error ] ) ) echo '<div class="notice notice-error inline"><p>' . esc_html( $errors[ $error ] ) . '</p></div>';
+		$csv = sanitize_key( $_GET['redirect_csv'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
+		if ( 'invalid' === $csv ) echo '<div class="notice notice-error inline"><p>El archivo debe ser un CSV de hasta 2 MB.</p></div>';
+		if ( 'done' === $csv ) echo '<div class="notice notice-success inline"><p>' . esc_html( sprintf( 'CSV importado: %1$d añadidas, %2$d ya existían, %3$d no válidas.', absint( $_GET['added'] ?? 0 ), absint( $_GET['skipped'] ?? 0 ), absint( $_GET['invalid'] ?? 0 ) ) ) . '</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
 		if ( isset( $_GET['redirect_saved'] ) ) echo '<div class="notice notice-success inline"><p>Redirección guardada.</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
 		$edit = sanitize_key( $_GET['edit'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification
 		$rule = ctype_digit( $edit ) ? self::get( (int) $edit ) : null;
@@ -461,7 +658,13 @@ class Digitalisimo_Integrations_Redirections {
 		echo '<tr><th scope="row"><label for="digitalisimo_redirect_to">Destino</label></th><td><input class="regular-text" id="digitalisimo_redirect_to" name="url_to" value="' . esc_attr( $rule['url_to'] ?? '' ) . '" placeholder="/pagina-nueva/"><p class="description">Ruta de este sitio o URL completa. Vacío sólo con 410 o 451.</p></td></tr>';
 		echo '<tr><th scope="row"><label for="digitalisimo_redirect_code">Respuesta</label></th><td><select id="digitalisimo_redirect_code" name="header_code">';
 		foreach ( self::code_labels() as $value => $label ) echo '<option value="' . esc_attr( $value ) . '" ' . selected( (int) ( $rule['header_code'] ?? self::o( 'seo_redirect_default_code', 301 ) ), $value, false ) . '>' . esc_html( $label ) . '</option>';
-		echo '</select> <select name="status" aria-label="Estado"><option value="active" ' . selected( $rule['status'] ?? 'active', 'active', false ) . '>Activa</option><option value="inactive" ' . selected( $rule['status'] ?? 'active', 'inactive', false ) . '>Inactiva</option></select></td></tr></table>';
+		echo '</select> <select name="status" aria-label="Estado"><option value="active" ' . selected( $rule['status'] ?? 'active', 'active', false ) . '>Activa</option><option value="inactive" ' . selected( $rule['status'] ?? 'active', 'inactive', false ) . '>Inactiva</option></select></td></tr>';
+		$categories = self::categories();
+		echo '<tr><th scope="row"><label for="digitalisimo_redirect_category">Categoría</label></th><td><input class="regular-text" id="digitalisimo_redirect_category" name="category" maxlength="100" list="digitalisimo_redirect_categories" value="' . esc_attr( $rule['category'] ?? '' ) . '"><datalist id="digitalisimo_redirect_categories">';
+		foreach ( $categories as $category ) echo '<option value="' . esc_attr( $category ) . '">';
+		echo '</datalist><p class="description">Opcional, para ordenar y filtrar las reglas.</p></td></tr>';
+		$local = function( $gmt ) { return $gmt ? get_date_from_gmt( $gmt, 'Y-m-d\\TH:i' ) : ''; };
+		echo '<tr><th scope="row">Programación</th><td><label>Desde <input type="datetime-local" name="starts" value="' . esc_attr( $local( $rule['starts'] ?? '' ) ) . '"></label> <label>Hasta <input type="datetime-local" name="ends" value="' . esc_attr( $local( $rule['ends'] ?? '' ) ) . '"></label><p class="description">Opcional, en la hora del sitio. Fuera de ese periodo la regla no se aplica aunque esté activa.</p></td></tr></table>';
 		submit_button( $rule ? 'Guardar redirección' : 'Añadir redirección', 'primary', 'submit', false );
 		if ( $rule ) echo ' <a class="button" href="' . esc_url( self::page_url() ) . '">Cancelar</a>';
 		echo '</form>';
@@ -471,19 +674,32 @@ class Digitalisimo_Integrations_Redirections {
 		$where  = "status IN ('active','inactive')";
 		$args   = array();
 		if ( '' !== $search ) { $like = '%' . $wpdb->esc_like( $search ) . '%'; $where .= ' AND ( sources LIKE %s OR url_to LIKE %s )'; $args = array( $like, $like ); }
+		$filter = self::sanitize_category( wp_unslash( $_GET['category'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		if ( '' !== $filter ) { $where .= ' AND category = %s'; $args[] = $filter; }
 		$count_sql = 'SELECT COUNT(*) FROM ' . self::table() . ' WHERE ' . $where;
 		$total = (int) ( $args ? $wpdb->get_var( $wpdb->prepare( $count_sql, $args ) ) : $wpdb->get_var( $count_sql ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$list_sql = 'SELECT * FROM ' . self::table() . ' WHERE ' . $where . ' ORDER BY updated DESC, id DESC LIMIT %d OFFSET %d';
 		$rows = $wpdb->get_results( $wpdb->prepare( $list_sql, array_merge( $args, array( self::PER_PAGE, ( $paged - 1 ) * self::PER_PAGE ) ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		echo '<h2>Redirecciones del sitio <span class="count">(' . esc_html( number_format_i18n( $total ) ) . ')</span></h2>';
-		echo '<form method="get" class="search-box"><input type="hidden" name="page" value="digitalisimo-seo-redirections"><input type="search" name="s" value="' . esc_attr( $search ) . '" placeholder="Buscar origen o destino"> <button class="button">Buscar</button></form>';
+		echo '<form method="get" class="search-box"><input type="hidden" name="page" value="digitalisimo-seo-redirections"><input type="search" name="s" value="' . esc_attr( $search ) . '" placeholder="Buscar origen o destino"> ';
+		if ( $categories ) { echo '<select name="category" aria-label="Categoría"><option value="">Todas las categorías</option>'; foreach ( $categories as $category ) echo '<option value="' . esc_attr( $category ) . '" ' . selected( $filter, $category, false ) . '>' . esc_html( $category ) . '</option>'; echo '</select> '; }
+		echo '<button class="button">Buscar</button></form>';
+		echo '<p><a class="button" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=digitalisimo_seo_redirect_export' ), 'digitalisimo_seo_redirect_export' ) ) . '">Exportar CSV</a></p>';
+		echo '<form method="post" enctype="multipart/form-data" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="digitalisimo_seo_redirect_import">';
+		wp_nonce_field( 'digitalisimo_seo_redirect_import' );
+		echo '<label>Importar CSV <input type="file" name="digitalisimo_redirect_csv" accept=".csv,text/csv" required></label> <button class="button">Importar</button><p class="description">Columnas: id, source, matching, destination, type, category, status, ignore, starts, ends (fechas en GMT). Acepta el CSV exportado por Rank Math. Un origen exacto que ya existe no se duplica.</p></form>';
 		if ( ! $rows ) { echo '<p class="description">' . ( '' !== $search ? 'Ninguna redirección coincide con la búsqueda.' : 'Aún no hay redirecciones en este sitio.' ) . '</p>'; return; }
-		$origins = array( 'manual' => 'Manual', 'slug' => 'Cambio de enlace', 'rankmath' => 'Importada', '404' => 'Desde 404' );
+		$origins = array( 'manual' => 'Manual', 'slug' => 'Cambio de enlace', 'rankmath' => 'Importada', '404' => 'Desde 404', 'csv' => 'Desde CSV' );
 		echo '<table class="widefat striped"><thead><tr><th>Origen</th><th>Destino</th><th>Respuesta</th><th>Estado</th><th>Visitas</th><th>Último acceso</th><th>Acciones</th></tr></thead><tbody>';
 		foreach ( $rows as $row ) {
 			$sources = json_decode( (string) $row['sources'], true ) ?: array();
 			$active  = 'active' === $row['status'];
-			echo '<tr><td>' . self::describe_sources( $sources ) . '<br><span class="description">' . esc_html( $origins[ $row['origin'] ] ?? $row['origin'] ) . '</span></td><td>' . ( '' !== $row['url_to'] ? '<code>' . esc_html( $row['url_to'] ) . '</code>' : '—' ) . '</td><td>' . esc_html( $row['header_code'] ) . '</td><td><span class="digitalisimo-effective-state ' . ( $active ? 'is-active' : 'is-inactive' ) . '">' . ( $active ? 'Activa' : 'Inactiva' ) . '</span></td><td>' . esc_html( number_format_i18n( (int) $row['hits'] ) ) . '</td><td>' . esc_html( $row['last_accessed'] ? get_date_from_gmt( $row['last_accessed'], 'Y-m-d H:i' ) : '—' ) . '</td><td>';
+			$label   = $active ? 'Activa' : 'Inactiva';
+			$starts  = self::timestamp( $row['starts'] ); $ends = self::timestamp( $row['ends'] );
+			if ( $active && $starts > time() ) $label = 'Programada';
+			elseif ( $active && $ends && $ends <= time() ) $label = 'Vencida';
+			$when = ( $starts ? 'desde ' . get_date_from_gmt( $row['starts'], 'Y-m-d H:i' ) . ' ' : '' ) . ( $ends ? 'hasta ' . get_date_from_gmt( $row['ends'], 'Y-m-d H:i' ) : '' );
+			echo '<tr><td>' . self::describe_sources( $sources ) . '<br><span class="description">' . esc_html( $origins[ $row['origin'] ] ?? $row['origin'] ) . ( '' !== $row['category'] ? ' · ' . esc_html( $row['category'] ) : '' ) . '</span></td><td>' . ( '' !== $row['url_to'] ? '<code>' . esc_html( $row['url_to'] ) . '</code>' : '—' ) . '</td><td>' . esc_html( $row['header_code'] ) . '</td><td><span class="digitalisimo-effective-state ' . ( 'Activa' === $label ? 'is-active' : 'is-inactive' ) . '">' . esc_html( $label ) . '</span>' . ( '' !== $when ? '<br><span class="description">' . esc_html( trim( $when ) ) . '</span>' : '' ) . '</td><td>' . esc_html( number_format_i18n( (int) $row['hits'] ) ) . '</td><td>' . esc_html( $row['last_accessed'] ? get_date_from_gmt( $row['last_accessed'], 'Y-m-d H:i' ) : '—' ) . '</td><td>';
 			echo '<a href="' . esc_url( self::page_url( array( 'edit' => $row['id'] ) ) ) . '">Editar</a> · <a href="' . esc_url( self::action_url( (int) $row['id'], $active ? 'deactivate' : 'activate' ) ) . '">' . ( $active ? 'Desactivar' : 'Activar' ) . '</a> · <a href="' . esc_url( self::action_url( (int) $row['id'], 'delete' ) ) . '" onclick="return confirm(\'¿Borrar esta redirección?\')">Borrar</a></td></tr>';
 		}
 		echo '</tbody></table>';

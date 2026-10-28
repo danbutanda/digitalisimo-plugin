@@ -114,6 +114,10 @@ $map = $i::map_redirection( $row );
 check( 'rankmath:31' === $map['import_key'] && 'inactive' === $map['status'] && 7 === $map['hits'] && 2 === count( $map['sources'] ) && 'case' === $map['sources'][0]['ignore'], 'Una redirección conserva orígenes, estado y visitas.' );
 check( '2025-01-02 03:04:05' === $map['created'] && null === $map['last_accessed'], 'Las fechas vacías de MySQL no se copian.' );
 check( null === $i::map_redirection( array( 'status' => 'trashed' ) + $row ), 'La papelera de Rank Math no se importa.' );
+$sched = $i::map_redirection( array( 'status' => 'inactive', 'categories' => array( 'Campaña', 'Otra' ), 'starts' => '2026-12-01 10:00:00', 'ends' => '2027-01-01 00:00:00' ) + $row );
+check( 'active' === $sched['status'] && 'Campaña' === $sched['category'] && '2026-12-01 10:00:00' === $sched['starts'] && '2027-01-01 00:00:00' === $sched['ends'], 'Una regla programada de Rank Math llega activa con su periodo y su categoría.' );
+$plain = $i::map_redirection( array( 'status' => 'inactive' ) + $row );
+check( 'inactive' === $plain['status'] && '' === $plain['category'] && null === $plain['starts'], 'Sin programación se conserva el estado.' );
 check( null === $i::map_redirection( array( 'sources' => 'O:8:"stdClass":1:{s:7:"pattern";s:1:"x";}' ) + $row ), 'Un objeto serializado nunca se instancia ni se importa.' );
 check( null === $i::map_redirection( array( 'sources' => 'basura' ) + $row ), 'Unos orígenes ilegibles no se importan.' );
 
