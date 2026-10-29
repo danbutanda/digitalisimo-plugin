@@ -209,7 +209,7 @@ const PAGE = `<div data-elementor-id="10" class="elementor elementor-10">${loopH
 
 // ---------------------------------------------------------------------------------------------------------------
 // Entorno: relojes falsos, fetch controlable, historia, núcleo y módulo de PRO.
-function env({ html = PAGE, edit = false, proComplete = true, search = '', ignoreAbort = false, lateHooks = false } = {}) {
+function env({ html = PAGE, edit = false, proComplete = true, search = '', ignoreAbort = false, lateHooks = false, proLate = false } = {}) {
   const doc = makeDocument(html);
   let now = 0; const timers = [];
   const setTimeout = (fn, ms = 0) => { const t = { fn, at: now + ms, id: timers.length + 1 }; timers.push(t); return t.id; };
@@ -241,12 +241,6 @@ function env({ html = PAGE, edit = false, proComplete = true, search = '', ignor
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext(source.coordinator, ctx);
-  vm.runInContext(source.form, ctx);
-  if (lateHooks) {
-    elementorFrontend.hooks = hooks;
-    (winListeners['elementor/frontend/init'] || []).forEach((fn) => fn(new Ev('elementor/frontend/init')));
-  }
   // PRO: su propio filtro (10) añade el módulo; después crea la instancia (`initModules()`).
   const proCalls = [];
   const forbidden = ['prepareLoopUpdateRequestData', 'getFetchArgumentsForLoopUpdate', 'fetchUpdatedLoopWidgetMarkup', 'getFilterHelperAttributes'];
@@ -258,9 +252,31 @@ function env({ html = PAGE, edit = false, proComplete = true, search = '', ignor
   }
   forbidden.forEach((m) => { LoopFilter.prototype[m] = () => { throw new Error('Ayuda interna de PRO llamada: ' + m); }; });
   if (!proComplete) delete LoopFilter.prototype.getQueryStringInObjectForm;
-  hooks.addFilter('elementor-pro/frontend/handlers', (h) => Object.assign({}, h, { taxonomyFilter: LoopFilter }), 10);
-  const handlers = hooks.applyFilters('elementor-pro/frontend/handlers', {});
-  ctx.elementorProFrontend = { modules: { taxonomyFilter: new handlers.taxonomyFilter() } };
+  const extend = (h) => Object.assign({}, h, { taxonomyFilter: LoopFilter });
+  // Arranque real (`lateHooks`): el script de PRO ya creó `elementorProFrontend` (con `on`/`trigger`) y su paquete se
+  // enganchó a `elementor-pro/modules/init/before`; con `proLate`, PRO llega después de los nuestros (DOM listo).
+  const proEvents = {};
+  const proFrontend = { modules: {}, on(name, fn) { (proEvents[name] = proEvents[name] || []).push(fn); }, trigger(name) { (proEvents[name] || []).forEach((fn) => fn()); } };
+  proFrontend.on('elementor-pro/modules/init/before', () => hooks.addFilter('elementor-pro/frontend/handlers', extend, 10));
+  if (lateHooks && !proLate) ctx.elementorProFrontend = proFrontend;
+  vm.runInContext(source.coordinator, ctx);
+  vm.runInContext(source.form, ctx);
+  if (lateHooks) {
+    if (proLate) {
+      ctx.elementorProFrontend = proFrontend;
+      doc.listeners.filter((l) => l.type === 'DOMContentLoaded').forEach((l) => l.fn(new Ev('DOMContentLoaded')));
+    }
+    // init(): crea `hooks` y despacha elementor/frontend/init. En Chrome, el oyente de PRO (jQuery, registrado antes)
+    // corre primero y crea los módulos; los oyentes nativos de los nuestros, después.
+    elementorFrontend.hooks = hooks;
+    proFrontend.trigger('elementor-pro/modules/init/before');
+    proFrontend.modules.taxonomyFilter = new (hooks.applyFilters('elementor-pro/frontend/handlers', {}).taxonomyFilter)();
+    (winListeners['elementor/frontend/init'] || []).forEach((fn) => fn(new Ev('elementor/frontend/init')));
+  } else {
+    hooks.addFilter('elementor-pro/frontend/handlers', extend, 10);
+    const handlers = hooks.applyFilters('elementor-pro/frontend/handlers', {});
+    ctx.elementorProFrontend = { modules: { taxonomyFilter: new handlers.taxonomyFilter() } };
+  }
   // El núcleo inicia cada widget con su element_ready.
   doc.querySelectorAll('[data-widget_type]').forEach((el) => hooks.doAction('frontend/element_ready/' + el.getAttribute('data-widget_type'), [el]));
   const popstate = () => (winListeners.popstate || []).forEach((fn) => fn(new Ev('popstate')));
@@ -312,11 +328,13 @@ assert.ok(!/<script|innerHTML\s*=\s*[^h]/.test(source.form), 'Los formularios no
 }
 
 // 1b · Arranque real del núcleo: `elementorFrontend.hooks` no existe al evaluar los scripts (init() lo crea en el DOM
-// listo y avisa con elementor/frontend/init antes de que PRO cree sus módulos). La subclase y los formularios entran
-// por ese aviso: el coordinador queda activo y una casilla refresca por AJAX (W9 lo encontró en Chrome).
-{
-  const e = env({ lateHooks: true });
-  assert.ok((e.filters['elementor-pro/frontend/handlers'] || []).some((f) => f.priority === 20), 'Con `hooks` creado en init(), la subclase se registra con prioridad 20.');
+// listo y despacha elementor/frontend/init, cuyo oyente de PRO, registrado antes, crea los módulos antes que ningún
+// otro). La subclase entra por el aviso previo de PRO (`elementor-pro/modules/init/before`), también si PRO se evalúa
+// después de los nuestros, y los formularios por element_ready: el coordinador queda activo y una casilla refresca
+// por AJAX (W9 lo encontró en Chrome).
+for (const proLate of [false, true]) {
+  const e = env({ lateHooks: true, proLate });
+  assert.ok((e.filters['elementor-pro/frontend/handlers'] || []).some((f) => f.priority === 20), `Con \`hooks\` creado en init(), la subclase se registra con prioridad 20 (PRO ${proLate ? 'después' : 'antes'}).`);
   assert.ok(e.mod instanceof e.LoopFilter && e.mod.constructor !== e.LoopFilter, 'PRO crea el módulo con la subclase aunque `hooks` llegue en init().');
   assert.ok(e.ctx.digitalisimoWooFilters.active(), 'El coordinador queda activo.');
   const attr = e.doc.querySelector('.elementor-element-f000002 form');

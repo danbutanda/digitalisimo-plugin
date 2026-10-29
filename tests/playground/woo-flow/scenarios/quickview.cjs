@@ -527,7 +527,17 @@ module.exports = (api) => {
     const st = box && box.querySelector('.digi-ship__state');
     return { exists: !!box, hidden: box ? box.hidden : null, state: st ? st.getAttribute('data-state') : null, initial: !!(st && st.hasAttribute('data-digi-initial')), text: box ? box.textContent.replace(/\s+/g, ' ').trim() : '' };
   });
-  const waitBar = (page, test, arg) => page.waitForFunction(test, { timeout: 60000 }, arg).then(() => true, () => false);
+  const waitBar = (page, test, arg) => page.waitForFunction(test, { timeout: 30000 }, arg).then(() => true, () => false);
+  /** Registro de las peticiones `wc-ajax` de una página (punto final, estado y duración), para el detalle. */
+  function ajaxLog(page) {
+    const list = [];
+    const started = new Map();
+    page.on('request', (r) => { if (/wc-ajax=/.test(r.url())) started.set(r, Date.now()); });
+    const end = (r, status) => { if (started.has(r)) { list.push(`${r.url().replace(/.*wc-ajax=/, '')} ${status} ${Date.now() - started.get(r)}ms`); started.delete(r); } };
+    page.on('requestfinished', (r) => end(r, r.response() ? r.response().status() : '?'));
+    page.on('requestfailed', (r) => end(r, r.failure() ? r.failure().errorText : 'falló'));
+    return list;
+  }
 
   /** Vista rápida → compra → mini carrito con la barra → cupón DIGI10. Devuelve lo visto. */
   const barIs = (page, want) => waitBar(page, (w) => {
@@ -562,6 +572,7 @@ module.exports = (api) => {
    */
   async function cartPart(s, id, site, qv, page, kind, expect) {
     const url = qv.pages[OWN];
+    const ajax = ajaxLog(page);
     await go(page, url);
     await page.click(button(qv, OWN, kind));
     const res = await loaded(page);
@@ -581,18 +592,18 @@ module.exports = (api) => {
     shown = await openMiniCart(page);
     const ok1 = await barIs(page, { state: expect.before.state, has: expect.before.has });
     const b1 = await bar(page);
-    check(s, `${id}c ${site.path}`, `con el destino de la calculadora, el mini carrito muestra la barra: ${expect.before.label}`, shown && ok1, short({ bar: b1, rates: rates.slice(0, 200) }));
+    check(s, `${id}c ${site.path}`, `con el destino de la calculadora, el mini carrito muestra la barra: ${expect.before.label}`, shown && ok1, short({ bar: b1, rates: rates.slice(0, 160), ajax: ajax.slice(-6) }));
     await shot(page, `${id.replace(/\./g, '')}-${site.id}-minicarrito`);
     const couponReady = await page.waitForFunction(() => { const c = document.querySelector('.elementor-menu-cart__main .digi-coupon'); return !!(c && !c.hidden); }, { timeout: 30000 }).then(() => true, () => false);
     if (couponReady) {
       await page.type('.elementor-menu-cart__main .digi-coupon__input', 'DIGI10');
       await page.click('.elementor-menu-cart__main .digi-coupon__apply');
     }
-    const applied = couponReady && await page.waitForFunction(() => /digi10/i.test((document.querySelector('.elementor-menu-cart__main .digi-coupon__list') || {}).textContent || ''), { timeout: 60000 }).then(() => true, () => false);
+    const applied = couponReady && await page.waitForFunction(() => /digi10/i.test((document.querySelector('.elementor-menu-cart__main .digi-coupon__list') || {}).textContent || ''), { timeout: 45000 }).then(() => true, () => false);
     const ok2 = await barIs(page, { state: expect.after.state, has: expect.after.has });
     const b2 = await bar(page);
     const status = await page.$eval('.elementor-menu-cart__main .digi-coupon__status', (e) => e.textContent.trim()).catch(() => '');
-    check(s, `${id}d ${site.path}`, `el cupón DIGI10 se aplica en el mini carrito y la barra se rehace: ${expect.after.label}`, couponReady && applied && ok2, short({ couponReady, applied, bar: b2, status }));
+    check(s, `${id}d ${site.path}`, `el cupón DIGI10 se aplica en el mini carrito y la barra se rehace: ${expect.after.label}`, couponReady && applied && ok2, short({ couponReady, applied, bar: b2, status, ajax: ajax.slice(-6) }));
     await shot(page, `${id.replace(/\./g, '')}-${site.id}-cupon`);
   }
 

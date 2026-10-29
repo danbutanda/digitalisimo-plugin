@@ -385,7 +385,7 @@ async function R1(s) {
     verdict('A4', !diffs.some((d) => /^counts\./.test(d)), diffs.filter((d) => /^counts\./.test(d)).slice(0, 5));
     // A6 «nuevo»: además de lo que crea el contenido, sólo cambian la portada (el kit la trae) y, con WOO=1, las páginas
     // de la tienda; el kit activo conserva su ID y nunca cambian el tema, los plugins ni los experimentos.
-    const a6 = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, ...F7A_OPTIONS, '^page_on_front$', '^show_on_front$', ...(WOO ? ['^woocommerce_.*_page_id$', ...WOO_OPTIONS] : [])], allowTables: { posts: 'libre', postmeta: 'libre', terms: 'libre', termmeta: 'libre', term_taxonomy: 'libre', term_relationships: 'libre', comments: 'libre', commentmeta: 'libre', options: 'libre', ...(WOO ? WOO_TABLES.fresh : {}) }, uploads: 'libre', kit: 'libre', caches: 'libre' });
+    const a6 = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, ...F7A_OPTIONS, '^page_on_front$', '^show_on_front$', ...(WOO ? ['^woocommerce_.*_page_id$', '^elementor_woocommerce_purchase_summary_page_id$', ...WOO_OPTIONS] : [])], allowTables: { posts: 'libre', postmeta: 'libre', terms: 'libre', termmeta: 'libre', term_taxonomy: 'libre', term_relationships: 'libre', comments: 'libre', commentmeta: 'libre', options: 'libre', ...(WOO ? WOO_TABLES.fresh : {}) }, uploads: 'libre', kit: 'libre', caches: 'libre' });
     verdict('A6', !a6.length, a6.slice(0, 10).map((p) => `R1 ${via}: ${p}`));
     const net = networkCheck('b', `R1 ${via}`);
     verdict('A1', !net.toA.length, net.toA.slice(0, 5).map((e) => `${via}: petición al host de A ${e.url} (CV-4)`));
@@ -799,8 +799,9 @@ async function R4v4(s) { await clash(s, true); }
 // («nuevo»), R4 sólo con entradas y filas nuevas de lo que creó la sesión (wooClash), R8 sólo lo editado (wooRevert).
 const WOO_OPTIONS = ['^digitalisimo_elements_swatches$', '^digitalisimo_elements_woo_fragments$'];
 const WOO_TABLES = {
-  fresh: { woocommerce_attribute_taxonomies: 'libre', wc_product_meta_lookup: 'libre', wc_product_attributes_lookup: 'libre' },
-  add: { woocommerce_attribute_taxonomies: 'nuevas', wc_product_meta_lookup: 'nuevas', wc_product_attributes_lookup: 'nuevas' },
+  // wc_category_lookup: WooCommerce la escribe al crear una categoría de producto (la del kit).
+  fresh: { woocommerce_attribute_taxonomies: 'libre', wc_product_meta_lookup: 'libre', wc_product_attributes_lookup: 'libre', wc_category_lookup: 'libre' },
+  add: { woocommerce_attribute_taxonomies: 'nuevas', wc_product_meta_lookup: 'nuevas', wc_product_attributes_lookup: 'nuevas', wc_category_lookup: 'nuevas' },
   revert: { woocommerce_attribute_taxonomies: 'nuevas' },
 };
 // Medios que sólo nombran las variaciones y las metas `image` de los términos de atributo (cases.json, woo.media).

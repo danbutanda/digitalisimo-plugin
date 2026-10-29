@@ -61,9 +61,12 @@ add_filter(
 	PHP_INT_MAX
 );
 
-/** Opciones que cambian solas y nunca cuentan en las instantáneas (A6): transitorios, cron y sesiones. */
+/**
+ * Opciones que cambian solas y nunca cuentan en las instantáneas (A6): transitorios, cron, sesiones y, con WooCommerce,
+ * los cerrojos de su cola (Action Scheduler los reescribe en cualquier petición).
+ */
 function digi_k_volatile_option( $name ) {
-	return (bool) preg_match( '/^(_site)?_transient_|^cron$|^elementor_import_sessions$|^elementor_revert_sessions$|^elementor_import_revert_sessions$|^digitalisimo_elements_kit_session_|^digitalisimo_elements_unconverted$|^digi_k_/', $name );
+	return (bool) preg_match( '/^(_site)?_transient_|^cron$|^elementor_import_sessions$|^elementor_revert_sessions$|^elementor_import_revert_sessions$|^digitalisimo_elements_kit_session_|^digitalisimo_elements_unconverted$|^digi_k_|^action_scheduler_lock_/', $name );
 }
 
 /**

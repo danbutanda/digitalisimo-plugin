@@ -14,7 +14,7 @@
  *   bucle por la ruta REST del refresco (`rest_do_request`, como visitante y con el almacén del módulo `loop-filter`
  *   vacío en cada caso). El escenario la contrasta con peticiones HTTP reales en los casos de referencia.
  * - `filters_config`: fija `woocommerce_attribute_lookup_enabled` (`lookup=yes|no`), `woocommerce_hide_out_of_stock_items`
- *   (`hide=yes|no`) y `woocommerce_catalog_rows` (`rows=N`) y devuelve los valores anteriores.
+ *   (`hide=yes|no`) y `woocommerce_catalog_rows` (`rows=N`; 0 la borra) y devuelve los valores anteriores.
  * - `filters_controls`: la configuración de los controles de los dos filtros como la recibe el editor (sin la carga
  *   optimizada del front, que quita el texto de los avisos): los avisos de los destinos y sus condiciones.
  */
@@ -261,7 +261,12 @@ return array(
 			if ( isset( $_GET[ $param ] ) ) {
 				$value = sanitize_key( wp_unslash( $_GET[ $param ] ) );
 				if ( 'rows' === $param ) {
-					update_option( $option, max( 1, (int) $value ) );
+					// 0: sin la opción, como antes de la prueba (WooCommerce usa su valor por defecto).
+					if ( (int) $value > 0 ) {
+						update_option( $option, (int) $value );
+					} else {
+						delete_option( $option );
+					}
 				} elseif ( in_array( $value, array( 'yes', 'no' ), true ) ) {
 					update_option( $option, $value );
 				}

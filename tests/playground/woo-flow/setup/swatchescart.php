@@ -54,6 +54,20 @@ add_filter(
 	}
 );
 
+// Playground (un solo proceso, máquina cargada) puede tardar más de los 5 s que cart-fragments.js espera a
+// `get_refreshed_fragments`: el mini carrito y la barra se quedarían sin fragmentos por tiempo, no por lo que se prueba.
+add_filter(
+	'woocommerce_get_script_data',
+	static function ( $params, $handle ) {
+		if ( 'wc-cart-fragments' === $handle && is_array( $params ) ) {
+			$params['request_timeout'] = 120000;
+		}
+		return $params;
+	},
+	10,
+	2
+);
+
 // W7: filtros de terceros sobre el envío.
 switch ( (string) get_option( 'digi_wf_sc_case', '' ) ) {
 	case 'rates': // Un tercero quita el envío gratuito de las tarifas.

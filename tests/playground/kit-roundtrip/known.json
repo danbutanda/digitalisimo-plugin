@@ -1,5 +1,5 @@
 {
- "_comentario": "Diferencias aceptadas entre la firma de A y la de B en kit-roundtrip.sh (A1), cada una con su motivo. «ruta» es una expresión regular sobre la ruta de la diferencia (compare.mjs); «escenarios» la limita. Una entrada que no se usa en una corrida que incluye su escenario hace fallar la corrida: así no quedan excepciones muertas. «valor_a» y «valor_b», opcionales, limitan una entrada a esos valores (expresión regular sobre el JSON del valor, o «(no existe)»).",
+ "_comentario": "Diferencias aceptadas entre la firma de A y la de B en kit-roundtrip.sh (A1), cada una con su motivo. «ruta» es una expresión regular sobre la ruta de la diferencia (compare.mjs); «escenarios» la limita. Una entrada que no se usa en una corrida que incluye su escenario hace fallar la corrida: así no quedan excepciones muertas. «valor_a» y «valor_b», opcionales, limitan una entrada a esos valores (expresión regular sobre el JSON del valor, o «(no existe)»). «woo»: true limita la entrada a las corridas con WOO=1 (sin WooCommerce no se usa ni cuenta como sobrante).",
  "diferencias": [
   {
    "ruta": "^attachments\\.media:(LICENSE\\.txt|README\\.txt|demo\\.html):",
@@ -100,6 +100,46 @@
     "R1c"
    ],
    "motivo": "el índice de páginas rastreadas sólo cuenta documentos publicados (V.4.3): en B la página con la referencia sin destino está en borrador, así que ni ella ni la página protegida que nombraba entran"
+  },
+  {
+   "ruta": "^posts\\.page:refund-and-returns-policy$",
+   "valor_b": "^\\(no existe\\)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "woo": true,
+   "motivo": "WooCommerce crea en A la página «Refund and Returns Policy» en borrador al instalarse; lo que no está publicado no viaja (kits/export/class-wp-content.php, KEEP_STATUSES)"
+  },
+  {
+   "ruta": "^(posts\\.product:variable-en-borrador|posts\\.product_variation:variable-en-borrador-unico|woo\\.lookup\\.post:product(_variation)?:variable-en-borrador(-unico)?)$",
+   "valor_b": "^\\(no existe\\)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "woo": true,
+   "motivo": "el variable en borrador no viaja (drafts) y su variación tampoco: es la que cuenta not_exported.variations = 1 (V.11.4); sin ellos no hay sus filas de wc_product_meta_lookup"
+  },
+  {
+   "ruta": "^counts\\.doc_type\\.post_type:product(_variation)?$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "woo": true,
+   "motivo": "el mismo variable en borrador y su variación, que no viajan (ver posts.product:variable-en-borrador)"
+  },
+  {
+   "ruta": "^woo\\.attributes\\.acabado\\.type$",
+   "valor_a": "^\"wc-visual\"$",
+   "valor_b": "^\"select\"$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "woo": true,
+   "motivo": "pa_acabado es wc-visual en A (función «Color swatches for attributes» encendida); B la tiene apagada y ningún wc-visual, y WooCommerce sólo acepta ese tipo con tema de bloques y la función, o con otro wc-visual: vuelve a select (W:includes/wc-attribute-functions.php:272-300, 554-556; docs/fusion/f4woo.md §1.3). Sus metas color e image viajan igual (terms.pa_acabado:*)"
   }
  ],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",

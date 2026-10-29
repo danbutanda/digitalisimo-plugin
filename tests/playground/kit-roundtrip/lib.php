@@ -450,6 +450,19 @@ function digi_k_woo_attribute( array $spec, $refs, array &$ids ) {
 	return $id;
 }
 
+/**
+ * WooCommerce sin «Próximamente» (WooCommerce 9+ lo enciende en una tienda nueva: el visitante sin sesión vería esa
+ * página en lugar del sitio y las capturas y el filtro de precio no medirían nada), sin asistente ni seguimiento. Como
+ * front-budget/activate.php. Se repite en la preparación de cada sitio, por si la instalación la volvió a encender.
+ */
+function digi_k_woo_quiet() {
+	update_option( 'woocommerce_coming_soon', 'no' );
+	update_option( 'woocommerce_store_pages_only', 'no' );
+	update_option( 'woocommerce_onboarding_profile', array( 'skipped' => true ) );
+	update_option( 'woocommerce_show_marketplace_suggestions', 'no' );
+	update_option( 'woocommerce_allow_tracking', 'no' );
+}
+
 /** ID de elemento determinista de 7 hex. */
 function digi_k_eid( $prefix, $seed ) {
 	return $prefix . substr( md5( $seed ), 0, 6 );

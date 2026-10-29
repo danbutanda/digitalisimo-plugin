@@ -110,8 +110,7 @@ schedule(loopId,filterId&&filterId.nodeType?filterId:d.querySelector('[data-id="
 },
 };
 const mine=k=>F.some(f=>!k.indexOf('e-filter-'+f.loop+'-'));
-// Subclase del módulo de PRO por su filtro público, antes de que PRO lo cree. El núcleo crea `hooks` en init() y
-// avisa con elementor/frontend/init: en captura, antes que el oyente de PRO, que crea sus módulos.
+// Subclase del módulo de PRO por su filtro público. `hooks` nace en init(): se engancha al aviso previo de PRO.
 let hooked=0;
 const hook=()=>{if(hooked||!fe||!fe.hooks)return;hooked=1;fe.hooks.addFilter('elementor-pro/frontend/handlers',h=>{
 const B=h&&h.taxonomyFilter,P=B&&B.prototype;
@@ -127,8 +126,9 @@ return q;
 }
 }});
 },20)};
+const pro=()=>{const p=w.elementorProFrontend;if(p&&p.on)p.on('elementor-pro/modules/init/before',hook)};
 hook();
-if(!hooked)w.addEventListener('elementor/frontend/init',hook,true);
+if(!hooked){if(w.elementorProFrontend)pro();else d.addEventListener('DOMContentLoaded',pro)}
 // Atrás y Adelante, sin pushState.
 w.addEventListener('popstate',()=>{
 if(!active()||!F.length)return;

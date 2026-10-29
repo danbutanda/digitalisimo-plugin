@@ -16,7 +16,7 @@ const couponState = (n, codes = []) => `<div class="digi-coupon__state" data-app
 const OK = '<div class="woocommerce-message" role="alert">Cupón aplicado correctamente.</div>';
 const ERR = '<ul class="woocommerce-error" role="alert"><li>El cupón «x» no existe.</li></ul>';
 
-function page(handler, params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%' }) {
+function page(handler, params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%' }, extra = {}) {
   const doc = createDocument();
   doc.body.innerHTML = '<div class="elementor-menu-cart__main"><div class="digi-cart-extras">' + BAR + COUPON + '</div></div>';
   const calls = [];
@@ -29,6 +29,7 @@ function page(handler, params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%' }) {
     wc_cart_fragments_params: params,
     fetch: (url, init = {}) => { calls.push({ url, body: Object.fromEntries(new URLSearchParams(init.body)) }); return Promise.resolve(handler(url, calls)); },
     addEventListener() {},
+    ...extra,
   };
   ctx.window = ctx;
   doc.body.addEventListener('wc_fragment_refresh', () => refreshes.push(1));
@@ -149,6 +150,20 @@ function page(handler, params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%' }) {
   q.fragment('div.digi-coupon__state', couponState(1));
   await sleep(5);
   assert.equal(q.q('.digi-coupon').hidden, true, 'sin wc-cart-fragments, ni cupón ni barra');
+}
+
+// 7. Al cargar: una copia de fragmentos de WooCommerce anterior a la barra (sin sus nodos) provoca un solo refresco; sin
+// copia (WooCommerce ya pidió los fragmentos), con una copia que trae los nodos o sin almacenamiento, ninguno.
+{
+  const params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%', fragment_name: 'wc_fragments_x' };
+  const store = (frag) => ({ sessionStorage: { getItem: (key) => (key === 'wc_fragments_x' && frag ? JSON.stringify(frag) : null) } });
+  const old = page(() => response(200, ''), params, store({ 'div.widget_shopping_cart_content': '<div></div>' }));
+  const none = page(() => response(200, ''), params, store(null));
+  const fresh = page(() => response(200, ''), params, store({ 'div.widget_shopping_cart_content': '<div></div>', 'div.digi-ship__state': shipState('none') }));
+  const blocked = page(() => response(200, ''), params, { sessionStorage: { getItem() { throw new Error('SecurityError'); } } });
+  await sleep(30);
+  assert.equal(old.refreshes.length, 1, 'copia anterior a la barra: un refresco');
+  assert.equal(none.refreshes.length + fresh.refreshes.length + blocked.refreshes.length, 0, 'sin copia, con los nodos o sin almacenamiento: ningún refresco duplicado');
 }
 
 assert.ok(Buffer.byteLength(SOURCE) <= 8192, `cart-extras.js pesa ${Buffer.byteLength(SOURCE)} B (tope 8 KB)`);

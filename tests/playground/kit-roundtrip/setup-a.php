@@ -216,6 +216,7 @@ if ( ! empty( $digi_opts['woo'] ) && class_exists( 'WooCommerce' ) ) {
 		$refs->media[ $name ]    = digi_k_attachment( $name, $spec );
 		$ids[ 'media:' . $name ] = $refs->media[ $name ];
 	}
+	digi_k_woo_quiet();
 	// La función «Color swatches for attributes» de WooCommerce encendida en A (en B, apagada: V.11.5).
 	update_option( 'woocommerce_feature_wc_visual_attribute_enabled', 'yes' );
 	foreach ( (array) ( $cases['woo']['attributes'] ?? array() ) as $attribute_spec ) {

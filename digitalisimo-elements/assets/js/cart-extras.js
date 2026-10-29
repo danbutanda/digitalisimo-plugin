@@ -94,9 +94,16 @@
       if (bar) ship(box); else coupon(box, false);
     });
   }
-  // Una copia de fragmentos anterior a la barra no trae sus nodos: un solo refresco si siguen sin estado tras cargar.
+  // WooCommerce restaura al cargar su copia de fragmentos (sessionStorage) sin pedir nada: si esa copia es anterior a
+  // la barra y al cupón (no trae sus nodos), un solo refresco. Sin copia, o con sus nodos, WooCommerce ya los pidió o
+  // los trae: otro refresco duplicaría la petición más cara del carrito justo en los servidores lentos.
   function late() {
-    setTimeout(function () { if (url('get_refreshed_fragments') && d.querySelector('.digi-ship__state[data-digi-initial],.digi-coupon__state[data-digi-initial]')) refresh(); }, 3000);
+    setTimeout(function () {
+      var p = w.wc_cart_fragments_params, f = null;
+      if (!url('get_refreshed_fragments') || !d.querySelector('.digi-ship__state[data-digi-initial],.digi-coupon__state[data-digi-initial]')) return;
+      try { f = JSON.parse(w.sessionStorage.getItem(p.fragment_name)); } catch (e) { f = null; }
+      if (f && f['div.widget_shopping_cart_content'] && !f['div.digi-ship__state'] && !f['div.digi-coupon__state']) refresh();
+    }, 0);
   }
   function start() {
     if (started) return;

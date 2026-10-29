@@ -107,7 +107,7 @@ module.exports = (api) => {
         try { return await once(method, url, opts); } catch (e) {
           if (i >= 2 || !/socket hang up|ECONNRESET/.test(String(e.message || e))) throw e;
           hiccups.push(`${method} ${String(url).slice(0, 120)} (${e.message})`);
-          log(`   resilience: ${method} ${String(url).slice(0, 80)} sin respuesta (${e.message}); se repite`);
+          log(`   resilience: ${new Date().toISOString().slice(11, 19)} ${method} ${String(url).slice(0, 80)} sin respuesta (${e.message}); se repite`);
           await sleep(3000);
         }
       }
@@ -388,7 +388,7 @@ module.exports = (api) => {
     // Línea base: el mismo editor guarda la página con WooCommerce activo (el editor añade los valores por defecto de
     // los controles y quita los vacíos al guardar: lo que se compara después es lo que el editor guarda con
     // WooCommerce frente a lo que guarda sin él).
-    const ed = await adminChrome();
+    let ed = await adminChrome();
     let base = null;
     try {
       await loadEditor(ed, id);
@@ -399,7 +399,10 @@ module.exports = (api) => {
       await shot(ed.page, 'W0.8-editor-con-woo-falla');
       check(s, 'W0.8a', 'con WooCommerce, el editor guarda la página (línea base)', false, String(e.stack || e.message || e).slice(0, 600));
     }
-    if (!base) { await ed.ctx.close().catch(() => {}); return; }
+    // La pestaña del editor se cierra mientras se desactiva WooCommerce y se mira el front (sin peticiones del editor
+    // de por medio) y se abre otra para el editor sin WooCommerce.
+    await ed.ctx.close().catch(() => {});
+    if (!base) return;
     const before = md5Of(base, 'res0w');
     const htmlWith = (await main('GET', url)).text;
     const rendered = NAMES.filter((n) => hasWidget(htmlWith, n));
@@ -444,6 +447,7 @@ module.exports = (api) => {
 
       // Editor (Chrome): los siete con el aviso, ocultos del panel; guardar desde el editor.
       try {
+        ed = await adminChrome();
         await loadEditor(ed, id);
         const preview = await ed.frame.evaluate((names) => names.map((n) => {
           const els = Array.from(document.querySelectorAll(`.elementor-widget-${n}`));
@@ -508,20 +512,26 @@ module.exports = (api) => {
       check(s, 'W0.9b', 'dos sitios aparte sin WooCommerce (puertos 9494 y 9490) con DIGITALÍSIMO Elements activo', !pa.woocommerce && !pb.woocommerce && pa.k && pb.k, short({ a: { wc: pa.woocommerce, k: pa.k, ms: nowoo.a.ms }, b: { wc: pb.woocommerce, k: pb.k, ms: nowoo.b.ms } }));
       const runs3 = {};
       const facts = {};
-      const [ra, rb] = await Promise.all([importScreen(nowoo.a, zip), importApp(nowoo.b, zip)]);
-      runs3.pantalla = ra;
-      runs3.app = rb;
-      if (ra.ok) facts.pantalla = await sessionFacts(nowoo.a, ra.session);
-      if (rb.ok) facts.app = await sessionFacts(nowoo.b, rb.session);
-      stopNoWoo('b');
-      // WP-CLI en un sitio nuevo: el de la pantalla se vuelve a crear desde cero (mismo puerto, base de datos nueva).
-      stopNoWoo('a');
-      await sleep(1500);
-      startNoWoo('a');
-      await nowoo.a.ready;
-      runs3.cli = await importCli(nowoo.a);
-      if (runs3.cli.ok) facts.cli = await sessionFacts(nowoo.a, runs3.cli.session);
-      stopNoWoo('a');
+      // Pantalla «Kits» en A y App en B a la vez; WP-CLI, en un sitio nuevo: B se vuelve a crear desde cero (mismo
+      // puerto, base de datos nueva) en cuanto termina la App.
+      await Promise.all([
+        importScreen(nowoo.a, zip).then(async (ra) => {
+          runs3.pantalla = ra;
+          if (ra.ok) facts.pantalla = await sessionFacts(nowoo.a, ra.session);
+          stopNoWoo('a');
+        }),
+        importApp(nowoo.b, zip).then(async (rb) => {
+          runs3.app = rb;
+          if (rb.ok) facts.app = await sessionFacts(nowoo.b, rb.session);
+          stopNoWoo('b');
+          await sleep(1500);
+          startNoWoo('b');
+          await nowoo.b.ready;
+          runs3.cli = await importCli(nowoo.b);
+          if (runs3.cli.ok) facts.cli = await sessionFacts(nowoo.b, runs3.cli.session);
+          stopNoWoo('b');
+        }),
+      ]);
       fs.writeFileSync(path.join(OUT, 'res-w09.json'), JSON.stringify({ export: exp, runs: runs3, facts }, null, 1));
       for (const via of ['pantalla', 'app', 'cli']) check(s, `W0.9c ${via}`, `la importación por ${via === 'pantalla' ? 'la pantalla «Kits»' : via === 'app' ? 'la App' : 'WP-CLI'} termina sin WooCommerce`, runs3[via].ok, runs3[via].why || runs3[via].session);
       const ref = facts.pantalla || facts.app || facts.cli;
@@ -565,15 +575,16 @@ module.exports = (api) => {
       return;
     }
     const t = Date.now();
-    const lap = (what) => log(`   resilience ${what}: ${Math.round((Date.now() - t) / 1000)} s`);
+    const lap = (what) => log(`   resilience ${what}: ${Math.round((Date.now() - t) / 1000)} s (${new Date().toISOString().slice(11, 19)})`);
     if (process.env.RES_SKIP_BASE !== '1') lap('W0 de run.cjs');
-    // W0.9 corre en los sitios sin WooCommerce mientras W0.8 usa este: el kit se exporta antes, con WooCommerce activo.
-    let exp = null;
-    try { exp = await op('resilience_export'); } catch (e) { exp = { error: String(e.message || e) }; }
-    const nine = w09(s, exp).catch((e) => check(s, 'W0.9', 'el mismo kit por los tres caminos sin WooCommerce', false, String(e.stack || e.message || e).slice(0, 600))).then(() => lap('W0.9'));
+    // En orden: con W0.9 en paralelo (los otros Playground importando mientras el editor carga en este), el único worker
+    // de este sitio llegó a quedarse sin responder; el kit se exporta después de W0.8, con WooCommerce reactivado.
     try { await w08(s); } catch (e) { check(s, 'W0.8', 'sin WooCommerce en el mismo sitio', false, String(e.stack || e.message || e).slice(0, 600)); }
     lap('W0.8');
-    await nine;
+    let exp = null;
+    try { exp = await op('resilience_export'); } catch (e) { exp = { error: String(e.message || e) }; }
+    try { await w09(s, exp); } catch (e) { check(s, 'W0.9', 'el mismo kit por los tres caminos sin WooCommerce', false, String(e.stack || e.message || e).slice(0, 600)); }
+    lap('W0.9');
     if (NET) {
       try { await w010(s); } catch (e) { check(s, 'W0.10', 'red: primera petición anónima a un sitio nuevo', false, String(e.stack || e.message || e).slice(0, 600)); }
     }
@@ -606,92 +617,101 @@ module.exports = (api) => {
       };
     }, mine, other);
   }
-  async function cacheRound(s, label, ids) {
+  /** Dos visitantes, cada uno con su carrito (con el envío calculado) y su lista de deseos. */
+  async function visitors() {
     const r = res();
     const url = r.pages['digi-wf-res-cache'];
     const cart = setupOf().pages['digi-wf-carrito'];
     const { camiseta, gorra } = r.products;
     const A = await visitor();
     const B = await visitor();
-    try {
-      for (const [v, product, el] of [[A, camiseta, 'res1w03'], [B, gorra, 'res1w04']]) {
-        await v.page.setViewport({ width: 1280, height: 900 });
-        await v.page.goto(`${BASE}${SITE.path}?add-to-cart=${product}`, { waitUntil: 'load' });
-        // Destino conocido (V.7.1): la calculadora de envío del carrito clásico (España, Madrid, 28001), enviada como
-        // formulario, marca el envío del visitante como calculado.
-        await v.page.goto(cart, { waitUntil: 'load' });
-        const sent = await v.page.evaluate(() => {
-          const f = document.querySelector('form.woocommerce-shipping-calculator');
-          if (!f) return false;
-          const set = (n, val) => { const el = f.querySelector(`[name="${n}"]`); if (el) el.value = val; };
-          set('calc_shipping_country', 'ES');
-          set('calc_shipping_state', 'M');
-          set('calc_shipping_city', 'Madrid');
-          set('calc_shipping_postcode', '28001');
-          const flag = document.createElement('input');
-          flag.type = 'hidden';
-          flag.name = 'calc_shipping';
-          flag.value = 'x';
-          f.appendChild(flag);
-          return true;
-        });
-        if (sent) await Promise.all([v.page.waitForNavigation({ waitUntil: 'load' }), v.page.evaluate(() => HTMLFormElement.prototype.submit.call(document.querySelector('form.woocommerce-shipping-calculator')))]);
-        await v.page.goto(url, { waitUntil: 'load' });
-        const btn = `.elementor-element-${el} button[data-digi-wish="${product}"]`;
-        await v.page.waitForSelector(`${btn}:not([hidden])`, { timeout: 60000 });
-        await v.page.click(btn);
-        await v.page.waitForFunction((b) => document.querySelector(b).getAttribute('aria-pressed') === 'true', { timeout: 30000 }, btn);
-      }
-      const ra = await A.page.goto(url, { waitUntil: 'load' });
-      const htmlA = await ra.text();
-      const stateA = await hydrated(A.page, camiseta, gorra);
-      const rb = await B.page.goto(url, { waitUntil: 'load' });
-      const htmlB = await rb.text();
-      // El segundo visitante recibe el HTML del primero: la caché de página simulada.
-      let served = 0;
-      await B.page.setRequestInterception(true);
-      B.page.on('request', (q) => {
-        if (q.isInterceptResolutionHandled()) return;
-        if (!served && q.isNavigationRequest() && q.url().split('#')[0] === url) {
-          served++;
-          q.respond({ status: 200, contentType: 'text/html; charset=UTF-8', body: htmlA });
-        } else q.continue();
+    for (const [v, product, el] of [[A, camiseta, 'res1w03'], [B, gorra, 'res1w04']]) {
+      await v.page.setViewport({ width: 1280, height: 900 });
+      await v.page.goto(`${BASE}${SITE.path}?add-to-cart=${product}`, { waitUntil: 'load' });
+      // Destino conocido (V.7.1): la calculadora de envío del carrito clásico (España, Madrid, 28001), enviada como
+      // formulario, marca el envío del visitante como calculado.
+      await v.page.goto(cart, { waitUntil: 'load' });
+      const sent = await v.page.evaluate(() => {
+        const f = document.querySelector('form.woocommerce-shipping-calculator');
+        if (!f) return false;
+        const set = (n, val) => { const el = f.querySelector(`[name="${n}"]`); if (el) el.value = val; };
+        set('calc_shipping_country', 'ES');
+        set('calc_shipping_state', 'M');
+        set('calc_shipping_city', 'Madrid');
+        set('calc_shipping_postcode', '28001');
+        const flag = document.createElement('input');
+        flag.type = 'hidden';
+        flag.name = 'calc_shipping';
+        flag.value = 'x';
+        f.appendChild(flag);
+        return true;
       });
-      const rc = await B.page.goto(url, { waitUntil: 'load' });
-      const htmlC = rc ? await rc.text() : '';
-      const stateB = await hydrated(B.page, gorra, camiseta);
-      await shot(A.page, `${label}-visitante-a`);
-      await shot(B.page, `${label}-visitante-b-cache`);
-      fs.writeFileSync(path.join(OUT, `res-${label}-a.html`), htmlA);
-      fs.writeFileSync(path.join(OUT, `res-${label}-b.html`), htmlB);
-      const present = NAMES.filter((n) => hasWidget(htmlA, n));
-      const na = denonce(htmlA);
-      const nb = denonce(htmlB);
-      const nonces = (htmlA.match(/nonce[A-Za-z_-]*\\?["']?\s*[:=]\s*\\?["']?[0-9a-f]{10}\b/gi) || []).length;
-      check(s, ids[0], 'los dos visitantes reciben el mismo HTML byte a byte (sin nonces) en la página con los siete widgets de F4-Woo; el segundo recibe el del primero', na === nb && present.length === 7 && served === 1 && htmlC === htmlA, short({ iguales: na === nb, bytes: [htmlA.length, htmlB.length], nonces, tipos: present.length, servido: served, diferencia: na === nb ? '' : firstDiff(na, nb) }, 900));
-      const okA = stateA.mine.length && stateA.mine.every((x) => x === 'true') && stateA.other.every((x) => x === 'false') && JSON.stringify(stateA.list) === JSON.stringify([camiseta]) && stateA.ship && stateA.ship.state === 'done';
-      const okB = stateB.mine.length && stateB.mine.every((x) => x === 'true') && stateB.other.every((x) => x === 'false') && JSON.stringify(stateB.list) === JSON.stringify([gorra]) && stateB.ship && stateB.ship.state === 'progress' && /32/.test(stateB.ship.remaining || stateB.ship.text);
-      check(s, ids[1], 'cada visitante ve su carrito (barra: 60 € con envío gratis, 18 € con 32 € pendientes) y su lista tras los fragmentos, también con el HTML del otro', okA && okB, short({ A: stateA, B: stateB }, 900));
-      const fa = realFacts(A.facts);
-      const fb = realFacts(B.facts);
-      check(s, ids[2], 'sin errores de JavaScript, respuestas de error ni peticiones fuera en los dos visitantes (salvo las fuentes de Google del kit)', !fa.errors.length && !fb.errors.length && !fa.failed.length && !fb.failed.length && !fa.outside.length && !fb.outside.length, short({ A: fa, B: fb }));
-    } finally {
-      await A.ctx.close().catch(() => {});
-      await B.ctx.close().catch(() => {});
+      if (sent) await Promise.all([v.page.waitForNavigation({ waitUntil: 'load' }), v.page.evaluate(() => HTMLFormElement.prototype.submit.call(document.querySelector('form.woocommerce-shipping-calculator')))]);
+      await v.page.goto(url, { waitUntil: 'load' });
+      const btn = `.elementor-element-${el} button[data-digi-wish="${product}"]`;
+      await v.page.waitForSelector(`${btn}:not([hidden])`, { timeout: 60000 });
+      await v.page.click(btn);
+      await v.page.waitForFunction((b) => document.querySelector(b).getAttribute('aria-pressed') === 'true', { timeout: 30000 }, btn);
     }
+    // La caché de página simulada: con `B.serve`, la petición de la página del segundo visitante recibe ese HTML.
+    B.serve = null;
+    B.served = 0;
+    await B.page.setRequestInterception(true);
+    B.page.on('request', (q) => {
+      if (q.isInterceptResolutionHandled()) return;
+      if (B.serve !== null && q.isNavigationRequest() && q.url().split('#')[0] === url) {
+        const body = B.serve;
+        B.serve = null;
+        B.served++;
+        q.respond({ status: 200, contentType: 'text/html; charset=UTF-8', body });
+      } else q.continue();
+    });
+    return { A, B, url, camiseta, gorra };
+  }
+  async function cacheRound(s, label, ids, { A, B, url, camiseta, gorra }) {
+    const ra = await A.page.goto(url, { waitUntil: 'load' });
+    const htmlA = await ra.text();
+    const stateA = await hydrated(A.page, camiseta, gorra);
+    const rb = await B.page.goto(url, { waitUntil: 'load' });
+    const htmlB = await rb.text();
+    const served = B.served;
+    B.serve = htmlA;
+    const rc = await B.page.goto(url, { waitUntil: 'load' });
+    const htmlC = rc ? await rc.text() : '';
+    const stateB = await hydrated(B.page, gorra, camiseta);
+    await shot(A.page, `${label}-visitante-a`);
+    await shot(B.page, `${label}-visitante-b-cache`);
+    fs.writeFileSync(path.join(OUT, `res-${label}-a.html`), htmlA);
+    fs.writeFileSync(path.join(OUT, `res-${label}-b.html`), htmlB);
+    const present = NAMES.filter((n) => hasWidget(htmlA, n));
+    const na = denonce(htmlA);
+    const nb = denonce(htmlB);
+    const nonces = (htmlA.match(/nonce[A-Za-z_-]*\\?["']?\s*[:=]\s*\\?["']?[0-9a-f]{10}\b/gi) || []).length;
+    const intercepted = B.served - served;
+    check(s, ids[0], 'los dos visitantes reciben el mismo HTML byte a byte (sin nonces) en la página con los siete widgets de F4-Woo; el segundo recibe el del primero', na === nb && present.length === 7 && intercepted === 1 && htmlC === htmlA, short({ iguales: na === nb, bytes: [htmlA.length, htmlB.length], nonces, tipos: present.length, servido: intercepted, diferencia: na === nb ? '' : firstDiff(na, nb) }, 900));
+    const okA = stateA.mine.length && stateA.mine.every((x) => x === 'true') && stateA.other.every((x) => x === 'false') && JSON.stringify(stateA.list) === JSON.stringify([camiseta]) && stateA.ship && stateA.ship.state === 'done';
+    const okB = stateB.mine.length && stateB.mine.every((x) => x === 'true') && stateB.other.every((x) => x === 'false') && JSON.stringify(stateB.list) === JSON.stringify([gorra]) && stateB.ship && stateB.ship.state === 'progress' && /32/.test(stateB.ship.remaining || stateB.ship.text);
+    check(s, ids[1], 'cada visitante ve su carrito (barra: 60 € con envío gratis, 18 € con 32 € pendientes) y su lista tras los fragmentos, también con el HTML del otro', okA && okB, short({ A: stateA, B: stateB }, 900));
+    const fa = realFacts(A.facts);
+    const fb = realFacts(B.facts);
+    check(s, ids[2], 'sin errores de JavaScript, respuestas de error ni peticiones fuera en los dos visitantes (salvo las fuentes de Google del kit)', !fa.errors.length && !fb.errors.length && !fa.failed.length && !fb.failed.length && !fa.outside.length && !fb.outside.length, short({ A: fa, B: fb }));
   }
   async function W3(s) {
     const r = res();
     if (!r || !r.pages || !r.pages['digi-wf-res-cache']) { check(s, 'W3.0', 'la preparación deja la página para la caché', false, short(r || setupOf().errors)); return; }
     const runCache = ENV.CACHE === '1';
     await op('resilience_swatches', { type: 'label' });
+    let pair = null;
     try {
+      pair = await visitors();
+      // Primero el modo de la corrida y después el contrario: W3.1–W3.2b sin caché de elementos, W3.3 con ella.
       for (const cacheOn of [runCache, !runCache]) {
         await op('resilience_cache', { on: cacheOn ? 1 : 0 });
-        if (cacheOn) await cacheRound(s, 'W3-cache', ['W3.3a', 'W3.3b', 'W3.3c']);
-        else await cacheRound(s, 'W3', ['W3.1', 'W3.2', 'W3.2b']);
+        if (cacheOn) await cacheRound(s, 'W3-cache', ['W3.3a', 'W3.3b', 'W3.3c'], pair);
+        else await cacheRound(s, 'W3', ['W3.1', 'W3.2', 'W3.2b'], pair);
       }
     } finally {
+      if (pair) { await pair.A.ctx.close().catch(() => {}); await pair.B.ctx.close().catch(() => {}); }
       await op('resilience_cache', { on: runCache ? 1 : 0 }).catch(() => {});
       await op('resilience_swatches', { type: 'select' }).catch(() => {});
     }

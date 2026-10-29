@@ -127,11 +127,12 @@ namespace {
 		);
 		$fields = $args['fields'] ?? '';
 		if ( 'id=>parent' === $fields ) {
-			// Como WP_Query::get_posts(): `ID => padre`, no objetos (kit-roundtrip WOO=1 lo encontró: la parte esperaba
-			// objetos y no exportaba ninguna variación).
+			// Como WP_Query::get_posts() con la consulta en caché (la segunda vez en la misma petición):
+			// `'post_parent:<ID>' => padre`, ni objetos ni IDs como clave (kit-roundtrip WOO=1 lo encontró: con
+			// `id=>parent` la parte no exportaba ninguna variación). Las partes no deben pedir este formato.
 			$out = array();
 			foreach ( $found as $post ) {
-				$out[ (int) $post->ID ] = (int) $post->post_parent;
+				$out[ 'post_parent:' . (int) $post->ID ] = (int) $post->post_parent;
 			}
 			return $out;
 		}

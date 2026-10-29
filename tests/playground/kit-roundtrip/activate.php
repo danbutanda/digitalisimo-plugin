@@ -27,6 +27,7 @@ if ( is_wp_error( $result ) ) {
 if ( ! empty( $digi_opts['woo'] ) ) {
 	if ( file_exists( WP_PLUGIN_DIR . '/woocommerce/woocommerce.php' ) ) {
 		activate_plugin( 'woocommerce/woocommerce.php', '', $network );
+		digi_k_woo_quiet();
 	} else {
 		digi_k_fail( 'WOO=1: el blueprint no instaló WooCommerce' );
 	}

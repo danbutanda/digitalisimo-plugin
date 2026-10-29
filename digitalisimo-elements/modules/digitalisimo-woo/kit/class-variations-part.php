@@ -181,30 +181,28 @@ final class Variations_Part implements Part {
 		if ( ! $parents ) {
 			return array();
 		}
+		// Entradas completas, sin precargar metas ni términos: `fields => 'id=>parent'` no sirve, porque WP_Query devuelve
+		// `ID => padre` y, con la consulta en caché (la segunda vez en la misma petición: Media_Runner y después la
+		// parte), `'post_parent:<ID>' => padre` (WP_Query::get_posts()).
 		$rows = get_posts(
 			array(
-				'post_type'        => 'product_variation',
-				'post_parent__in'  => array_map( 'intval', $parents ),
-				'post_status'      => self::STATUSES,
-				'posts_per_page'   => -1,
-				'fields'           => 'id=>parent',
-				'orderby'          => array(
+				'post_type'              => 'product_variation',
+				'post_parent__in'        => array_map( 'intval', $parents ),
+				'post_status'            => self::STATUSES,
+				'posts_per_page'         => -1,
+				'orderby'                => array(
 					'menu_order' => 'ASC',
 					'ID'         => 'ASC',
 				),
-				'suppress_filters' => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+				'suppress_filters'       => true,
 			)
 		);
-		// `fields => 'id=>parent'` devuelve `ID de la variación => ID del padre` en el orden de la consulta
-		// (WP_Query::get_posts(), `$post_parents`), no objetos.
 		$out = array();
-		foreach ( (array) $rows as $id => $parent ) {
-			if ( is_object( $parent ) && isset( $parent->ID, $parent->post_parent ) ) {
-				$id     = $parent->ID;
-				$parent = $parent->post_parent;
-			}
-			if ( is_numeric( $id ) && (int) $id > 0 && is_numeric( $parent ) && (int) $parent > 0 ) {
-				$out[ (int) $parent ][] = (int) $id;
+		foreach ( (array) $rows as $row ) {
+			if ( is_object( $row ) && isset( $row->ID, $row->post_parent ) && (int) $row->ID > 0 && (int) $row->post_parent > 0 ) {
+				$out[ (int) $row->post_parent ][] = (int) $row->ID;
 			}
 		}
 		foreach ( array_keys( $out ) as $parent ) {

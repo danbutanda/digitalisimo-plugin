@@ -42,7 +42,17 @@ module.exports = (api) => {
       if (!entry.body && typeof r.hasPostData === 'function' && r.hasPostData() && typeof r.fetchPostData === 'function') r.fetchPostData().then((b) => { entry.body = b || ''; }).catch(() => {});
     });
     await v.page.setViewport({ width, height: 900 });
+    timing(v.page, v.facts);
     return v;
+  }
+  /** Duración de las peticiones `wc-ajax` (fragmentos, cupón) para el detalle: el servidor de pruebas es lento. */
+  function timing(page, facts) {
+    const open = new Map();
+    facts.ajax = facts.ajax || [];
+    page.on('request', (r) => { const m = r.url().match(/wc-ajax=([a-z_]+)/); if (m) open.set(r, [m[1], Date.now()]); });
+    const done = (r) => { const o = open.get(r); if (o) { facts.ajax.push(`${o[0]}:${Date.now() - o[1]}`); open.delete(r); } };
+    page.on('requestfinished', done);
+    page.on('requestfailed', done);
   }
   const goto = (page, url) => page.goto(url, { waitUntil: 'load' });
   // La tipografía por defecto del kit pide Google Fonts (núcleo, no F4-Woo): Chrome no resuelve ese dominio. Se anota
@@ -57,10 +67,12 @@ module.exports = (api) => {
     page.on('pageerror', (e) => facts.errors.push(`pageerror: ${String(e.message || e).slice(0, 300)}`));
     page.on('requestfailed', (r) => { const u = r.url(); const why = r.failure() ? r.failure().errorText : 'falló'; if (why === 'net::ERR_ABORTED' && new URL(u).host === api.HOST) return; (new URL(u).host === api.HOST ? facts.failed : facts.outside).push(`${why} ${u.slice(0, 200)}`); });
     page.on('response', (r) => { if (r.status() >= 400 && new URL(r.url()).host === api.HOST) facts.failed.push(`${r.status()} ${r.url().slice(0, 200)}`); });
+    timing(page, facts);
     return page;
   }
   const clean = (facts) => !jsErrors(facts).length && !facts.failed.length && !outside(facts).length;
-  const factsOf = (facts) => json({ errors: jsErrors(facts).slice(0, 4), failed: facts.failed.slice(0, 4), outside: outside(facts).slice(0, 4), kitFonts: fonts(facts) });
+  const slowest = (facts) => { const ms = (facts.ajax || []).map((x) => +x.split(':')[1]).sort((a, b) => a - b); return ms.length ? { n: ms.length, median: ms[Math.floor(ms.length / 2)], max: ms[ms.length - 1] } : null; };
+  const factsOf = (facts) => json({ errors: jsErrors(facts).slice(0, 4), failed: facts.failed.slice(0, 4), outside: outside(facts).slice(0, 4), kitFonts: fonts(facts), wcAjaxMs: slowest(facts) });
 
   // ── W6 · Muestras ──────────────────────────────────────────────────────────────────────────────────────────────
   const fieldInfo = () => [...document.querySelectorAll('.digi-swatch-field')].map((f) => {
@@ -454,7 +466,7 @@ module.exports = (api) => {
   async function bars(page, url = null) {
     if (url) await goto(page, url);
     await page.waitForFunction(() => { const st = [...document.querySelectorAll('[data-digi-ship] .digi-ship__state')]; return st.length === 2 && st.every((n) => !n.hasAttribute('data-digi-initial') && !n.__digiOld); }, { timeout: 60000 }).catch(async (e) => {
-      const dom = await page.evaluate(() => ({ states: [...document.querySelectorAll('.digi-ship__state')].map((n) => (n.__digiOld ? 'VIEJO ' : '') + n.outerHTML.slice(0, 160)), params: !!window.wc_cart_fragments_params, storage: Object.keys(sessionStorage) })).catch(() => null);
+      const dom = await page.evaluate(() => ({ states: [...document.querySelectorAll('.digi-ship__state')].map((n) => (n.__digiOld ? 'VIEJO ' : '') + n.outerHTML.slice(0, 160)), timeout: window.wc_cart_fragments_params && window.wc_cart_fragments_params.request_timeout, storage: Object.keys(sessionStorage), ajax: performance.getEntriesByType('resource').filter((x) => /wc-ajax/.test(x.name)).map((x) => `${x.name.split('wc-ajax=')[1]}:${Math.round(x.duration)}`) })).catch(() => null);
       throw new Error(`${e.message} · ${JSON.stringify(dom)}`);
     });
     await sleep(300);
@@ -520,7 +532,7 @@ module.exports = (api) => {
     const T = (n) => `Te faltan ${money(n)} para el envío gratis`;
     const DONE = 'Tienes envío gratis';
     const facts7 = { errors: [], failed: [], outside: [] };
-    const merge = (f) => { for (const k of Object.keys(facts7)) facts7[k].push(...f[k]); };
+    const merge = (f) => { for (const k of Object.keys(facts7)) facts7[k].push(...(f[k] || [])); facts7.ajax = (facts7.ajax || []).concat(f.ajax || []); };
     const guarded = async (c, fn) => { try { await fn(); } catch (e) { check(s, c.id, c.what, false, String(e.stack || e).slice(0, 600)); } };
 
     // Destino conocido: la calculadora del carrito clásico una sola vez. Después, en la página del mini carrito, cada
@@ -537,6 +549,8 @@ module.exports = (api) => {
       { id: 'W7.2e', setting: 'instance', what: '`min_amount` convertido por `woocommerce_shipping_free_shipping_instance_option` (×2 = 100 €), con 50 €: «Te faltan 50,00 €» y sin envío gratuito ofrecido', expect: 'progress', text: T(50), free: false },
       { id: 'W7.3a', setting: 'packages', what: 'dos paquetes (`woocommerce_cart_shipping_packages`), con 50 €: la barra no dice nada', expect: 'none', packages: 2 },
       { id: 'W7.2f', setting: 'instance', add: 5, what: 'el mismo `min_amount` convertido, con 100 €: «Tienes envío gratis» y el envío gratuito ofrecido', expect: 'done', text: DONE, free: true },
+      { id: 'W7.3e', setting: 'requires_coupon', what: '`requires = coupon`, con 100 € y sin cupón: nada (no se dice cuánto falta) y sin envío gratuito ofrecido', expect: 'none', free: false },
+      { id: 'W7.3f', setting: 'requires_coupon', coupon: 'DIGIENVIO', what: '`requires = coupon` con DIGIENVIO aplicado desde el mini carrito: la barra se rehace con «Tienes envío gratis» y el envío gratuito ofrecido', expect: 'done', text: DONE, free: true },
     ];
     const v = await guest();
     try {
@@ -556,6 +570,16 @@ module.exports = (api) => {
           const cart = await storeRates(v.page, site);
           if (i === 0 && JSON.stringify(cart.rates) !== JSON.stringify(classic.rates)) throw new Error(`tarifas distintas en el carrito clásico ${JSON.stringify(classic.rates)} y en la Store API ${JSON.stringify(cart.rates)}`);
           if (!cart.calculated) throw new Error('la Store API no ve el destino calculado');
+          if (c.coupon) {
+            // El cupón desde el propio mini carrito: su script pide los fragmentos al aplicarlo.
+            await mark(v.page);
+            await openPanel(v.page);
+            await v.page.type('.elementor-menu-cart__main .digi-coupon__input', c.coupon);
+            await v.page.click('.elementor-menu-cart__main .digi-coupon__apply');
+            const got = await bars(v.page);
+            judge(s, c, got, await storeRates(v.page, site), Date.now() - t1);
+            continue;
+          }
           judge(s, c, await refreshBars(v.page), cart, Date.now() - t1);
         } catch (e) {
           await shot(v.page, `W7-${c.id}-falla`);
@@ -569,7 +593,7 @@ module.exports = (api) => {
       await v.ctx.close().catch(() => {});
     }
 
-    // Carrito vacío, destino sin confirmar, sin país y envío gratuito con cupón: un visitante nuevo cada uno.
+    // Carrito vacío y destino sin confirmar (un visitante nuevo) y cliente sin país (otro).
     const alone = async (setting, fn) => {
       const w = await guest();
       try { await op(site, 'swatchescart_set', { case: setting }); await fn(w); } finally { merge(w.facts); await w.ctx.close().catch(() => {}); }
@@ -578,8 +602,6 @@ module.exports = (api) => {
       g: { id: 'W7.3g', what: 'carrito vacío: la barra no aparece', expect: 'none' },
       c: { id: 'W7.3c', what: 'destino sin confirmar (ubicación por defecto de la tienda, sin calculadora), con 50 €: nada, aunque WooCommerce calcule para la tienda', expect: 'none' },
       b: { id: 'W7.3b', what: 'cliente sin país (sin ubicación por defecto ni calculadora), con 30 €: nada, y WooCommerce no ofrece ninguna tarifa', expect: 'none', free: false },
-      e: { id: 'W7.3e', what: '`requires = coupon`, con 30 € y sin cupón: nada (no se dice cuánto falta) y sin envío gratuito ofrecido', expect: 'none', free: false },
-      f: { id: 'W7.3f', what: '`requires = coupon` con DIGIENVIO aplicado desde el mini carrito: la barra se rehace con «Tienes envío gratis» y el envío gratuito ofrecido', expect: 'done', text: DONE, free: true },
     };
     await guarded(cases.g, () => alone('', async (w) => {
       let t0 = Date.now();
@@ -597,20 +619,6 @@ module.exports = (api) => {
       await addItems(w.page, sc, 3);
       const cart = await storeRates(w.page, site);
       judge(s, cases.b, await refreshBars(w.page), cart, Date.now() - t0);
-    }));
-    await guarded(cases.e, () => alone('requires_coupon', async (w) => {
-      let t0 = Date.now();
-      await fill(w.page, cartUrl, sc, 3);
-      await calculate(w.page);
-      await goto(w.page, sc.pages.minicarrito);
-      judge(s, cases.e, await bars(w.page), await storeRates(w.page, site), Date.now() - t0);
-      t0 = Date.now();
-      await mark(w.page);
-      await openPanel(w.page);
-      await w.page.type('.elementor-menu-cart__main .digi-coupon__input', 'DIGIENVIO');
-      await w.page.click('.elementor-menu-cart__main .digi-coupon__apply');
-      const got = await bars(w.page);
-      judge(s, cases.f, got, await storeRates(w.page, site), Date.now() - t0);
     }));
     await op(site, 'swatchescart_set', { case: '' }).catch((e) => check(s, 'W7.reset', 'restablecer el sitio', false, String(e)));
     check(s, 'W7.4', 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio (salvo Google Fonts del kit, que no es F4-Woo)', clean(facts7), factsOf(facts7));

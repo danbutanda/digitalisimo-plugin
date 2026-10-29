@@ -453,9 +453,12 @@ async function visit(context, slug, url, { measure = true } = {}) {
       const doc = dom.docId ? requests.find((r) => new RegExp(`/elementor/css/post-${dom.docId}\\.css`).test(r.url)) : null;
       // Scripts del mismo origen con sus bytes (evidencia del presupuesto de F7a: de dónde sale cada KB de JS).
       const jsFiles = requests.filter((q) => q.same && q.type === 'js').map((q) => `${(() => { try { return new URL(q.url).pathname; } catch (e) { return q.url; } })()} ${q.bytes}`).sort();
+      // Y las demás peticiones del mismo origen que no son hojas, scripts, imágenes, fuentes ni el documento (AJAX,
+      // REST, fragmentos del carrito), con su consulta: de dónde sale una diferencia de `bytes` con las mismas hojas.
+      const otherFiles = requests.filter((q) => q.same && q.type === 'other').map((q) => `${(() => { try { const u = new URL(q.url); return u.pathname + u.search; } catch (e) { return q.url; } })()} ${q.status} ${q.bytes}`).sort();
       for (const [id, bytes] of Object.entries(dom.inlineScripts || {})) extra[`inline:${id}`] = bytes;
       delete dom.inlineScripts;
-      return { ...requestFacts(requests), ...dom, ...fonts, ...own, ...extra, jsFiles, docCss: doc ? doc.bytes : 0, reasons: parsed.reasons || [], gate: !!parsed.gate, queries: typeof parsed.queries === 'number' ? parsed.queries : null, errors: errors.length + failed.length, failed: failed.length, errorList: errors.concat(failed) };
+      return { ...requestFacts(requests), ...dom, ...fonts, ...own, ...extra, jsFiles, otherFiles, docCss: doc ? doc.bytes : 0, reasons: parsed.reasons || [], gate: !!parsed.gate, queries: typeof parsed.queries === 'number' ? parsed.queries : null, errors: errors.length + failed.length, failed: failed.length, errorList: errors.concat(failed) };
     };
     const load = await snap();
     // Huellas de la primera carga (las acciones no cuentan); la página y su CSS normalizados quedan en $OUT/pages.

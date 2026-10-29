@@ -50,6 +50,9 @@ if ( '' === $digi_mode ) {
 	update_option( 'elementor_unfiltered_files_upload', '1' );
 	update_option( 'blogdescription', 'Ida y vuelta de K' );
 	digi_k_clear_defaults();
+	if ( class_exists( 'WooCommerce' ) ) {
+		digi_k_woo_quiet();
+	}
 	$digi_editor();
 	global $wpdb;
 	if ( ! get_post( 100000 ) ) {

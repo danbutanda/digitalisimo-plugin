@@ -382,52 +382,59 @@ module.exports = (api) => {
     }
 
     lap(s, 'W2.1 Añadir');
-    // «Descartar»: borra la copia local sin enviar nada.
-    const c = await guestThenLogin(site, U.c, [P.gorra]);
-    try {
-      c.net.length = 0;
-      await c.page.goto(w.urls.save, { waitUntil: 'load' });
-      await mergeBox(c.page);
-      await sleep(100);
-      const asked = await look(c.page, w.key);
-      await c.page.click('.digi-wish-merge button:not([data-add])');
-      await said(c.page, T.discarded);
-      const after = await look(c.page, w.key);
-      const c1 = await state(site, U.c.id);
-      check(s, 'W2.1e', '«Descartar» (un producto, texto en singular): borra la copia del navegador y no envía nada a la cuenta', asked.merge && asked.merge.text === T.ask1 && after.stored === null && !after.merge && !c1.own.length && !ownRequests(c.net).length, short({ texto: asked.merge && asked.merge.text, stored: after.stored, cuenta: c1.own, peticiones: ownRequests(c.net).length }));
-    } finally {
-      await c.ctx.close().catch(() => {});
+    // En una red, lo que no depende de la red (W2.1e, W2.2 y W2.4i) ya lo prueba la corrida de un sitio: así la corrida
+    // de W2 con NET=1 cabe en el tiempo del arnés (tres tiendas que preparar y el tramo W2.5).
+    if (NET) s.single_only = ['W2.1e «Descartar»', 'W2.2 lista con sesión y «Quitar»', 'W2.4i fusión de un invitado con la Store API'];
+    if (!NET) {
+      // «Descartar»: borra la copia local sin enviar nada.
+      const c = await guestThenLogin(site, U.c, [P.gorra]);
+      try {
+        c.net.length = 0;
+        await c.page.goto(w.urls.save, { waitUntil: 'load' });
+        await mergeBox(c.page);
+        await sleep(100);
+        const asked = await look(c.page, w.key);
+        await c.page.click('.digi-wish-merge button:not([data-add])');
+        await said(c.page, T.discarded);
+        const after = await look(c.page, w.key);
+        const c1 = await state(site, U.c.id);
+        check(s, 'W2.1e', '«Descartar» (un producto, texto en singular): borra la copia del navegador y no envía nada a la cuenta', asked.merge && asked.merge.text === T.ask1 && after.stored === null && !after.merge && !c1.own.length && !ownRequests(c.net).length, short({ texto: asked.merge && asked.merge.text, stored: after.stored, cuenta: c1.own, peticiones: ownRequests(c.net).length }));
+      } finally {
+        await c.ctx.close().catch(() => {});
+      }
+
+      lap(s, 'W2.1 Descartar');
+
+      // 2. La lista de B con sesión (almacén propio): pintar y quitar con nonce.
+      const vb = await visitor();
+      try {
+        vb.net = track(vb.page, []);
+        await login(vb.page, await session(site, U.b.id));
+        await vb.page.setViewport({ width: 1280, height: 900 });
+        await vb.page.goto(w.urls.list, { waitUntil: 'load' });
+        await listed(vb.page, 2);
+        const before = await look(vb.page, w.key);
+        const removed = vb.page.waitForResponse((r) => /\/woo\/wishlist(\?|$)/.test(r.url()) && r.request().method() === 'POST', WAIT);
+        await vb.page.click(`[data-digi-wish-remove="${P.taza}"]`);
+        const rres = await removed;
+        await listed(vb.page, 1);
+        const b3 = await state(site, U.b.id);
+        const rreq = ownRequests(vb.net).find((r) => r.method === 'POST');
+        check(s, 'W2.2a', 'con sesión, la lista sale de la cuenta (fichas por POST) y «Quitar» escribe en ella con `X-WP-Nonce`', same(before.items, [P.camiseta, P.taza]) && rres.status() === 200 && same(b3.own, [P.camiseta]) && !!rreq && !!rreq.headers['x-wp-nonce'] && /"op":"remove"/.test(rreq.body) && before.stored === null, short({ items: before.items, cuenta: b3.own, body: rreq && rreq.body }));
+        check(s, 'W2.2b', 'la lista con sesión, sin errores de JavaScript ni respuestas de error', clean(vb.facts), factsOf(vb.facts));
+      } finally {
+        await vb.ctx.close().catch(() => {});
+      }
+      lap(s, 'W2.2');
     }
 
-    lap(s, 'W2.1 Descartar');
-    // 2. La lista de B con sesión (almacén propio): pintar y quitar con nonce.
-    const vb = await visitor();
-    try {
-      vb.net = track(vb.page, []);
-      await login(vb.page, await session(site, U.b.id));
-      await vb.page.setViewport({ width: 1280, height: 900 });
-      await vb.page.goto(w.urls.list, { waitUntil: 'load' });
-      await listed(vb.page, 2);
-      const before = await look(vb.page, w.key);
-      const removed = vb.page.waitForResponse((r) => /\/woo\/wishlist(\?|$)/.test(r.url()) && r.request().method() === 'POST', WAIT);
-      await vb.page.click(`[data-digi-wish-remove="${P.taza}"]`);
-      const rres = await removed;
-      await listed(vb.page, 1);
-      const b3 = await state(site, U.b.id);
-      const rreq = ownRequests(vb.net).find((r) => r.method === 'POST');
-      check(s, 'W2.2a', 'con sesión, la lista sale de la cuenta (fichas por POST) y «Quitar» escribe en ella con `X-WP-Nonce`', same(before.items, [P.camiseta, P.taza]) && rres.status() === 200 && same(b3.own, [P.camiseta]) && !!rreq && !!rreq.headers['x-wp-nonce'] && /"op":"remove"/.test(rreq.body) && before.stored === null, short({ items: before.items, cuenta: b3.own, body: rreq && rreq.body }));
-      check(s, 'W2.2b', 'la lista con sesión, sin errores de JavaScript ni respuestas de error', clean(vb.facts), factsOf(vb.facts));
-    } finally {
-      await vb.ctx.close().catch(() => {});
-    }
-
-    // 3. Privacidad (modo propio): exportar incluye la lista, borrar la quita.
-    lap(s, 'W2.2');
+    // 3. Privacidad (modo propio): exportar incluye la lista, borrar la quita. B guarda Camiseta (y Taza si no se quitó).
+    const bList = NET ? [P.camiseta, P.taza] : [P.camiseta];
     const exp1 = await exportAll(site, U.b.email);
     const ajax1 = await ajaxOwn(site, 'export', U.b.email);
     const ajaxRows = ajax1.data && Array.isArray(ajax1.data.data) ? ajax1.data.data.filter((d) => d.group_id === OWN_GROUP) : [];
     check(s, 'W2.3a', '«Exportar datos personales» de B incluye su lista: entre todos los exportadores, sólo el propio trae datos de listas, y la acción AJAX de la pantalla lo devuelve',
-      exp1.own && exp1.withList.length === 1 && exp1.withList[0].key === OWN_ID && exp1.withList[0].items === 1 && /Camiseta de prueba/.test(exp1.withList[0].names.join(' ')) && ajaxRows.length === 1 && /Camiseta de prueba/.test(JSON.stringify(ajaxRows[0].data)),
+      exp1.own && exp1.withList.length === 1 && exp1.withList[0].key === OWN_ID && exp1.withList[0].items === bList.length && /Camiseta de prueba/.test(exp1.withList[0].names.join(' ')) && ajaxRows.length === bList.length && /Camiseta de prueba/.test(JSON.stringify(ajaxRows[0].data)),
       short({ exportadores: exp1.keys, conLista: exp1.withList, ajax: { index: ajax1.index, op: ajax1.opIndex, filas: ajaxRows.length, error: ajax1.error } }, 900));
     const era = await ajaxOwn(site, 'erase', U.b.email);
     const fields = era.data ? Object.keys(era.data).sort() : [];
@@ -445,21 +452,17 @@ module.exports = (api) => {
       vd.net = track(vd.page, []);
       await login(vd.page, await session(site, U.d.id));
       await vd.page.setViewport({ width: 1280, height: 900 });
-      await vd.page.goto(w.urls.save, { waitUntil: 'load' });
-      await ready(vd.page, P.camiseta);
-      for (const id of [P.camiseta, P.calcetin, P.sudadera]) {
-        const saved = vd.page.waitForResponse((r) => /\/woo\/wishlist(\?|$)/.test(r.url()) && r.request().method() === 'POST', WAIT);
-        await vd.page.click(`button[data-digi-wish="${id}"]`);
-        await saved;
-        await vd.page.waitForSelector(`button[data-digi-wish="${id}"][aria-pressed="true"]`, WAIT);
-      }
-      const d0 = await state(site, U.d.id, null, true);
-      check(s, 'W2.4a', 'antes de encender la lista de WooCommerce, D guarda tres productos (el variable incluido) en el almacén propio', same(d0.own, [P.camiseta, P.calcetin, P.sudadera]) && d0.mode_rest === 'own' && !d0.woo.length && Number(d0.legacy) >= 1, short(d0));
+      // Lista propia previa de D (el variable incluido), guardada con el almacén del módulo: guardar y quitar desde el
+      // navegador en modo propio ya lo prueban W2.1 y W2.2.
+      await op(site, 'wishlist_seed', { lists: `${U.d.id}:${[P.camiseta, P.calcetin, P.sudadera].join(',')}` });
+      const d0 = await state(site, U.d.id);
+      check(s, 'W2.4a', 'antes de encender la lista de WooCommerce, D tiene una lista propia de tres productos (el variable incluido)', same(d0.own, [P.camiseta, P.calcetin, P.sudadera]) && d0.mode_front === 'own' && !d0.woo.length && Number(d0.legacy) >= 1, short(d0));
 
       featureOn = true;
       const on = await op(site, 'wishlist_feature', { on: 1 });
       const d1 = await state(site, U.d.id, null, true);
       check(s, 'W2.4b', 'con `product_wishlist` encendida en el sitio, la fuente es la Store API en el front y en REST (la ruta `shopper-lists` registrada)', on.feature === 'yes' && d1.mode_front === 'store' && d1.mode_rest === 'store' && d1.own_exporter === true, short({ feature: on.feature, front: d1.mode_front, rest: d1.mode_rest, exportadorPropio: d1.own_exporter, legacy: d1.legacy }));
+      lap(s, 'W2.4 preparación');
 
       vd.net.length = 0;
       const moved = vd.page.waitForResponse((r) => /\/woo\/wishlist(\?|$)/.test(r.url()) && r.request().method() === 'POST', { timeout: 60000 });
@@ -477,6 +480,7 @@ module.exports = (api) => {
           && owns.length === 1 && /"op":"clear"/.test(owns[0].body) && /"moved":true/.test(owns[0].body) && look1.config.mode === 'store' && look1.config.legacy === true,
         short({ woo: d2.woo, propio: d2.own, legacy: d2.legacy, store: stores.map((r) => `${r.method} ${r.body}`), propias: owns.map((r) => r.body), config: look1.config }, 900));
       check(s, 'W2.4d', 'en modo Store API, los guardados quedan pulsados y el botón del variable se oculta (desviación declarada: WooCommerce pide la variación)', look1.buttons[P.camiseta].pressed === 'true' && look1.buttons[P.calcetin].pressed === 'true' && look1.buttons[P.sudadera].hidden === true && look1.buttons[P.taza].pressed === 'false' && !look1.buttons[P.taza].hidden && look1.count.every((x) => x === '2'), short({ buttons: look1.buttons, count: look1.count }));
+      lap(s, 'W2.4 mudanza');
 
       vd.net.length = 0;
       const added = vd.page.waitForResponse((r) => r.url().includes('/wc/store/v1/shopper-lists/wishlist/items') && r.request().method() === 'POST', WAIT);
@@ -490,28 +494,32 @@ module.exports = (api) => {
       const dl = await look(vd.page, w.key);
       check(s, 'W2.4f', 'la página de la lista pinta la lista de WooCommerce', same(dl.items, [P.camiseta, P.calcetin, P.taza]), short(dl.items));
       check(s, 'W2.4g', 'la mudanza y la Store API, sin errores de JavaScript ni respuestas de error', clean(vd.facts), factsOf(vd.facts));
+      lap(s, 'W2.4 Store API');
 
       const exp3 = await exportAll(site, U.d.email);
       check(s, 'W2.4h', 'un solo exportador con datos: el de WooCommerce (`woocommerce-shopper-lists`, con los tres productos); el propio ya no se registra (sin listas propias en el sitio)', exp3.withList.length === 1 && exp3.withList[0].key === 'woocommerce-shopper-lists' && JSON.stringify(exp3.withList[0].groups) === JSON.stringify([WOO_GROUP]) && exp3.withList[0].items === 3 && !exp3.own, short({ conLista: exp3.withList, exportadores: exp3.keys }));
+      lap(s, 'W2.4 exportador');
 
       // Un invitado que entra con la función activa: «Añadir» hace un POST por producto a la Store API.
-      const e = await guestThenLogin(site, U.e, [P.gorra, P.lampara]);
-      try {
-        const guestLook = e.guest;
-        e.net.length = 0;
-        await e.page.goto(w.urls.save, { waitUntil: 'load' });
-        await mergeBox(e.page);
-        await e.page.click('.digi-wish-merge button[data-add]');
-        await said(e.page, T.added);
-        await sleep(150);
-        const e1 = await state(site, U.e.id);
-        const eLook = await look(e.page, w.key);
-        const ePosts = storeRequests(e.net).filter((r) => r.method === 'POST');
-        check(s, 'W2.4i', 'con la función activa, «Añadir» lleva la lista del invitado a la Store API (un POST por producto), nada al almacén propio, y borra la copia del navegador; el invitado tampoco ve el botón del variable',
-          same(e1.woo, [P.gorra, P.lampara]) && !e1.own.length && ePosts.length === 2 && !ownRequests(e.net).length && eLook.stored === null && guestLook.buttons[P.sudadera].hidden === true,
-          short({ woo: e1.woo, propio: e1.own, posts: ePosts.length, propias: ownRequests(e.net).length, stored: eLook.stored, variableInvitado: guestLook.buttons[P.sudadera] }));
-      } finally {
-        await e.ctx.close().catch(() => {});
+      if (!NET) {
+        const e = await guestThenLogin(site, U.e, [P.gorra, P.lampara]);
+        try {
+          const guestLook = e.guest;
+          e.net.length = 0;
+          await e.page.goto(w.urls.save, { waitUntil: 'load' });
+          await mergeBox(e.page);
+          await e.page.click('.digi-wish-merge button[data-add]');
+          await said(e.page, T.added);
+          await sleep(150);
+          const e1 = await state(site, U.e.id);
+          const eLook = await look(e.page, w.key);
+          const ePosts = storeRequests(e.net).filter((r) => r.method === 'POST');
+          check(s, 'W2.4i', 'con la función activa, «Añadir» lleva la lista del invitado a la Store API (un POST por producto), nada al almacén propio, y borra la copia del navegador; el invitado tampoco ve el botón del variable',
+            same(e1.woo, [P.gorra, P.lampara]) && !e1.own.length && ePosts.length === 2 && !ownRequests(e.net).length && eLook.stored === null && guestLook.buttons[P.sudadera].hidden === true,
+            short({ woo: e1.woo, propio: e1.own, posts: ePosts.length, propias: ownRequests(e.net).length, stored: eLook.stored, variableInvitado: guestLook.buttons[P.sudadera] }));
+        } finally {
+          await e.ctx.close().catch(() => {});
+        }
       }
     } catch (err) {
       await shot(vd.page, 'W2-store-falla');
@@ -536,18 +544,17 @@ module.exports = (api) => {
     const G = U.g;
     const w3users = (w3 && w3.users) || {};
     if (!check(s, 'W2.5a', 'F y G son miembros de los sitios 1 y 3 (no del 2)', !!(w3 && w2 && w3users.f && w3users.f.member && w3users.g && w3users.g.member && w2.users.f && !w2.users.f.member), short({ tres: w3users, dos: w2 && w2.users && w2.users.f }))) return;
-    await op(s1, 'wishlist_seed', { user: F.id, ids: [w.products.gorra].join(',') });
-    await op(s3, 'wishlist_seed', { user: F.id, ids: [w3.products.taza].join(',') });
-    await op(s1, 'wishlist_seed', { user: G.id, ids: [w.products.cojin].join(',') });
-    await op(s3, 'wishlist_seed', { user: G.id, ids: [w3.products.lampara].join(',') });
-    const f0 = await state(s1, F.id, [1, 3]);
+    const seed1 = await op(s1, 'wishlist_seed', { lists: `${F.id}:${w.products.gorra}|${G.id}:${w.products.cojin}` });
+    const seed3 = await op(s3, 'wishlist_seed', { lists: `${F.id}:${w3.products.taza}|${G.id}:${w3.products.lampara}` });
+    const before = (u) => ({ 1: seed1.own[String(u.id)] || [], 3: seed3.own[String(u.id)] || [] });
+    const f0 = { own_by_blog: before(F) };
     // Pantalla de la red: Sitios → Editar → Usuarios → «Quitar» (site-users.php, con el nonce `bulk-users`).
     const admin = await session(s1, 1, ['bulk-users']);
     const url = `${w.network}?action=remove&id=3&user=${F.id}&_wpnonce=${admin.nonces['bulk-users']}`;
     const res = await send('GET', url, { headers: { Cookie: cookieHeader(admin) } });
     const f1 = await state(s3, F.id, [1, 3]);
     check(s, 'W2.5b', 'quitar a F del sitio 3 desde la administración de la red borra su lista del 3 y conserva la del 1', same(f0.own_by_blog['1'], [w.products.gorra]) && same(f0.own_by_blog['3'], [w3.products.taza]) && res.status === 302 && /update=remove/.test(String(res.headers.location || '')) && f1.member === false && !f1.own_by_blog['3'].length && same(f1.own_by_blog['1'], [w.products.gorra]), short({ antes: f0.own_by_blog, status: res.status, location: res.headers.location, despues: f1.own_by_blog, miembro3: f1.member }));
-    const g0 = await state(s1, G.id, [1, 3]);
+    const g0 = { own_by_blog: before(G) };
     const removal = await op(s1, 'wishlist_remove_from_blog', { user: G.id, blog: 3 });
     const g1 = await state(s1, G.id, [1, 3]);
     check(s, 'W2.5c', 'quitar a G del sitio 3 desde otra petición del sitio principal (el sitio en curso no es el 3) borra la lista del 3 y no la del 1', removal.current === 1 && removal.member === false && same(g0.own_by_blog['3'], [w3.products.lampara]) && !g1.own_by_blog['3'].length && same(g1.own_by_blog['1'], [w.products.cojin]), short({ antes: g0.own_by_blog, removal, despues: g1.own_by_blog }));

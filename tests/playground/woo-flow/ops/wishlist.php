@@ -11,7 +11,7 @@
  *   el front y, con `rest=1`, con el servidor REST construido), si el exportador propio sigue haciendo falta y la
  *   pertenencia al sitio.
  * - `wishlist_feature` (`on`): enciende o apaga la lista de WooCommerce en este sitio, como la pantalla de funciones.
- * - `wishlist_seed` (`user`, `ids`): guarda una lista propia en este sitio con el almacén del módulo (W2 en red).
+ * - `wishlist_seed` (`lists`): guarda listas propias en este sitio con el almacén del módulo (`<usuario>:<ids>|…`).
  * - `wishlist_privacy` (`email`, `type`, `run`, `request`): los exportadores o borradores que ve la administración; con
  *   `run=1`, lo que devuelve cada exportador para ese correo; con `request=1`, una solicitud confirmada (cierra las que
  *   queden abiertas para ese correo y esa acción) y la sesión del administrador con su nonce, para la acción AJAX.
@@ -114,13 +114,21 @@ return array(
 	},
 
 	'wishlist_seed'             => static function () use ( $digi_wf_wl_arg, $digi_wf_wl_ids ) {
-		$user  = absint( $digi_wf_wl_arg( 'user' ) );
-		$items = array();
-		foreach ( $digi_wf_wl_ids( $digi_wf_wl_arg( 'ids' ) ) as $index => $id ) {
-			$items[ $id ] = time() - 60 + $index;
+		// `lists=<usuario>:<id>,<id>|<usuario>:<id>…`: la lista propia de cada usuario en este sitio.
+		$out = array( 'blog' => (int) get_current_blog_id(), 'own' => array() );
+		foreach ( explode( '|', $digi_wf_wl_arg( 'lists' ) ) as $pair ) {
+			list( $user, $ids ) = array_pad( explode( ':', $pair, 2 ), 2, '' );
+			$user  = absint( $user );
+			$items = array();
+			foreach ( $digi_wf_wl_ids( $ids ) as $index => $id ) {
+				$items[ $id ] = time() - 60 + $index;
+			}
+			if ( $user ) {
+				$out['own'][ (string) $user ] = array_keys( Store::write( $user, $items ) );
+			}
 		}
-		$saved = Store::write( $user, $items );
-		return array( 'blog' => (int) get_current_blog_id(), 'user' => $user, 'own' => array_keys( $saved ), 'legacy' => get_option( Store::LEGACY, null ) );
+		$out['legacy'] = get_option( Store::LEGACY, null );
+		return $out;
 	},
 
 	'wishlist_privacy'          => static function () use ( $digi_wf_wl_arg, $digi_wf_wl_session ) {

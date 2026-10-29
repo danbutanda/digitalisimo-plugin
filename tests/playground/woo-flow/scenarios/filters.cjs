@@ -7,6 +7,8 @@
 //   `digi-wf-filtros`, la base de los bucles. Con la tabla de atributos y sin ella, y con «Ocultar agotados» activo e
 //   inactivo; al recargar (sin JS), por el refresco (REST) y en Chrome.
 // - W10 usa la plantilla «Archivo de productos» del archivo de `digi-wf-calzado` (destino «Tienda»).
+// Depuración: WF_FILTERS_TRACE=1 anota en run.log cada petición con su duración; WF_FILTERS_ONLY=chrome salta la parte
+// de servidor de W9 (las comprobaciones que dependen de la matriz fallan).
 const CASES = [
   { id: 'talla-40', attr: { terms: ['eu-40'], join: 'OR' } },
   { id: 'talla-38-o-42', attr: { terms: ['eu-38', 'eu-42'], join: 'OR' } },
@@ -124,7 +126,7 @@ module.exports = (api) => {
   };
   const configKey = (cfg) => `${cfg.lookup}/${cfg.hide}`;
   const configLabel = (cfg) => `${cfg.lookup === 'yes' ? 'con tabla' : 'sin tabla'}, ${cfg.hide === 'yes' ? 'ocultando agotados' : 'mostrando agotados'}`;
-  const configure = (site, cfg) => op(site, 'filters_config', `&lookup=${cfg.lookup}&hide=${cfg.hide}${cfg.rows ? '&rows=' + cfg.rows : ''}`);
+  const configure = (site, cfg) => op(site, 'filters_config', `&lookup=${cfg.lookup}&hide=${cfg.hide}${cfg.rows !== undefined ? '&rows=' + cfg.rows : ''}`);
 
   // ── Chrome ───────────────────────────────────────────────────────────────────────────────────────────────────
   /** Registra las peticiones y respuestas del refresco del bucle. */
@@ -284,22 +286,7 @@ module.exports = (api) => {
       await page.evaluateOnNewDocument(() => {
         window.__digiBoot = [];
         const note = (what) => window.__digiBoot.push([what, document.readyState, !!(window.elementorFrontend && window.elementorFrontend.hooks), !!window.digitalisimoWooFilters, !!window.elementorProFrontend]);
-        window.addEventListener('elementor/frontend/init', () => {
-          note('init');
-          const hk = window.elementorFrontend && window.elementorFrontend.hooks;
-          if (hk && !hk.__digiTraced) {
-            hk.__digiTraced = 1;
-            const add = hk.addFilter, apply = hk.applyFilters;
-            hk.addFilter = function (name, fn, prio) { if (/elementor-pro/.test(name)) note('addFilter ' + name + ' ' + prio); return add.apply(this, arguments); };
-            hk.applyFilters = function (name) { if (/elementor-pro/.test(name)) note('applyFilters ' + name); const out = apply.apply(this, arguments); if (/elementor-pro\/frontend\/handlers/.test(name)) note('taxonomyFilter own: ' + Object.getOwnPropertyNames((out.taxonomyFilter || function () {}).prototype).join(',')); return out; };
-          }
-        }, true);
-        const ael = window.addEventListener;
-        window.addEventListener = function (type, fn, opt) { if (type === 'elementor/frontend/init') note('listen ' + String(opt) + ' ' + String(fn).slice(0, 60)); return ael.apply(this, arguments); };
-        for (const name of ['elementorFrontend', 'digitalisimoWooFilters', 'elementorProFrontend', 'jQuery']) {
-          let value;
-          Object.defineProperty(window, name, { configurable: true, get() { return value; }, set(v) { value = v; note('set ' + name); } });
-        }
+        window.addEventListener('elementor/frontend/init', () => note('init'), true);
         document.addEventListener('DOMContentLoaded', () => note('dcl'));
         window.addEventListener('load', () => note('load'));
       });
@@ -308,7 +295,7 @@ module.exports = (api) => {
         await page.goto(main.url, { waitUntil: 'load' });
         const active = await ready(page);
         const diag = await diagnose(page);
-        check(s, `W9.2a ${tag}`, 'el coordinador queda activo (sustituye el manejador del filtro de PRO por su filtro público) y registra los dos formularios', active, JSON.stringify({ diag, errors: facts.errors.slice(0, 3), outside: facts.outside.slice(0, 3) }));
+        check(s, `W9.2a ${tag}`, 'el coordinador queda activo (sustituye el manejador del filtro de PRO por su filtro público) y registra los dos formularios', active, JSON.stringify(active ? { boot: diag.boot, forms: diag.ready } : { diag, errors: facts.errors.slice(0, 3), outside: facts.outside.slice(0, 3) }));
         if (!active) throw new Error('el coordinador no quedó activo: ' + JSON.stringify(diag).slice(0, 400));
         const all = await domIds(page, 'wfloop1');
 
@@ -547,11 +534,11 @@ module.exports = (api) => {
         // Hecho anotado (no es una comprobación): sin la tabla de atributos, WooCommerce pone el atributo en el
         // `tax_query` de la consulta principal y un Loop Grid con «Consulta actual» lo copia.
         await configure(site, { lookup: 'no', hide: 'no' });
-        const leak = await get(withQuery(archive, [['filter_talla-zapato', 'eu-40', true], ['query_type_talla-zapato', 'or']]));
+        const leak = await get(withQuery(archive, [['filter_talla-zapato', 'eu-42', true], ['query_type_talla-zapato', 'or']]));
         s.facts = s.facts || {};
-        s.facts[tag] = { loop_current_query_without_lookup_table: { attribute: 'eu-40', loop: nameList(catalog, loopIds(leak.html, 'wfloop5')), products: nameList(catalog, widgetIds(leak.html)), unfiltered_loop: nameList(catalog, lb) } };
+        s.facts[tag] = { loop_current_query_without_lookup_table: { attribute: 'eu-42', loop: nameList(catalog, loopIds(leak.html, 'wfloop5')), products: nameList(catalog, widgetIds(leak.html)), unfiltered_loop: nameList(catalog, lb) } };
       } finally {
-        await configure(site, { lookup: previous.before.woocommerce_attribute_lookup_enabled || 'yes', hide: previous.before.woocommerce_hide_out_of_stock_items || 'no', rows: previous.before.woocommerce_catalog_rows || 4 }).catch(() => {});
+        await configure(site, { lookup: previous.before.woocommerce_attribute_lookup_enabled || 'yes', hide: previous.before.woocommerce_hide_out_of_stock_items || 'no', rows: previous.before.woocommerce_catalog_rows || 0 }).catch(() => {});
       }
     }
   }
