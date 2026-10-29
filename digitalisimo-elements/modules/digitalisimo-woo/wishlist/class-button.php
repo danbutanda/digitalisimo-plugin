@@ -7,8 +7,8 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Marcado del botón «Guardar» y del enlace con contador (v1 §5.1 a). Es el mismo para todos los visitantes: el botón
- * sale oculto y con `aria-pressed="false"`, el contador a 0, y el script los hidrata en el navegador (D21). Lo usan el
- * widget y la parte `wishlist` de Productos (frente G).
+ * sale invisible pero con su hueco y con `aria-pressed="false"`, el contador a 0, y el script los hidrata en el navegador
+ * (D21). Lo usan el widget y la parte `wishlist` de Productos (frente G).
  */
 final class Button {
 	const ICON = '<svg class="digi-wish__icon" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" focusable="false"><path d="M12 20.3 4.6 13a4.7 4.7 0 0 1 6.6-6.7l.8.8.8-.8a4.7 4.7 0 0 1 6.6 6.7z"/></svg>';
@@ -32,11 +32,18 @@ final class Button {
 		$name  = trim( wp_strip_all_tags( (string) $product->get_name() ) );
 		$label = ( '' === $text ? 'Guardar ' : ' ' ) . $name . ' en la lista de deseos';
 		$attrs = ' data-digi-wish="' . (int) $product->get_id() . '"';
+		// Hasta que el script lo hidrata, el botón ocupa su hueco sin verse (`hidden="hidden"`, que la hoja pinta con
+		// `visibility:hidden`): mostrarlo después no mueve lo que hay debajo (CLS). El script lo muestra o lo oculta del
+		// todo (`hidden=""`). Con la lista de WooCommerce, el de un variable nunca se muestra: sale ya oculto del todo.
+		$hidden = ' hidden="hidden"';
 		if ( $product->is_type( 'variable' ) ) {
 			$attrs .= ' data-variable="1"';
+			if ( class_exists( Source::class ) && Source::is_store() ) {
+				$hidden = ' hidden';
+			}
 		}
 		$class = trim( 'digi-wish ' . preg_replace( '/[^A-Za-z0-9_ -]/', '', (string) ( $args['class'] ?? '' ) ) );
-		$html  = '<button type="button" class="' . esc_attr( $class ) . '"' . $attrs . ' aria-pressed="false" hidden>';
+		$html  = '<button type="button" class="' . esc_attr( $class ) . '"' . $attrs . ' aria-pressed="false"' . $hidden . '>';
 		$html .= ( $args['icon'] ?? true ) ? self::ICON : '';
 		$html .= '' === $text ? '' : '<span class="digi-wish__text">' . esc_html( $text ) . '</span>';
 		$html .= '<span class="screen-reader-text">' . esc_html( $label ) . '</span></button>';

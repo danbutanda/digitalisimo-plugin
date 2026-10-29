@@ -571,7 +571,7 @@ module.exports = (api) => {
   }
 
   async function W0(s) {
-    if (process.env.RES_SKIP_BASE !== '1') await api.base.W0(s); // RES_SKIP_BASE: sólo para iterar, nunca en la aceptación.
+    await api.base.W0(s);
     for (let i = s.checks.length - 1; i >= 0; i--) if (s.checks[i].status === 'pendiente' && /^W0\.(8|9)$/.test(s.checks[i].id)) s.checks.splice(i, 1);
     if (!res()) {
       check(s, 'W0.8', 'la preparación de resilience está completa', false, short(setupOf().errors));
@@ -579,7 +579,7 @@ module.exports = (api) => {
     }
     const t = Date.now();
     const lap = (what) => log(`   resilience ${what}: ${Math.round((Date.now() - t) / 1000)} s (${new Date().toISOString().slice(11, 19)})`);
-    if (process.env.RES_SKIP_BASE !== '1') lap('W0 de run.cjs');
+    lap('W0 de run.cjs');
     // W0.9 corre en los sitios sin WooCommerce mientras W0.8 usa este: el kit se exporta antes, con WooCommerce activo.
     let exp = null;
     if (NET) {
@@ -876,7 +876,12 @@ module.exports = (api) => {
     const after = await op('resilience_doc', { id: P3 });
     const m = after.markers.find((x) => x.original === FUT);
     check(s, 'W13.3a', '4.3.0.166: abrir (el editor recibe el marcador) y guardar un documento con un widget `digitalisimo-*` no registrado lo conserva en el marcador de K con su original', sv.ok && loadedMarkers.length === 1 && !!m && m.reason === 'unknown' && m.orig_id === 'res3f01' && m.md5 === orig.md5 && !after.widgets.some((w) => w.type === FUT) && after.headings.res3h00 === 'Guardado con un widget futuro', short({ ok: sv.ok, why: sv.why, cargados: loadedMarkers.length, marcador: m, contador: after.unconverted }));
-    if (!QUICK) {
+    // El editor real tarda varios minutos con un solo worker y la máquina cargada: sólo si queda tiempo dentro de los
+    // 10 minutos de una corrida (si no, queda pendiente y lo cubre W13.3a con las peticiones del editor).
+    const elapsed = Math.round(Date.now() / 1000 - Number(ENV.STARTED || 0));
+    if (QUICK) pending(s, 'W13.3c', 'QUICK=1: el editor real (Chrome) sólo corre sin QUICK');
+    else if (elapsed > 330) pending(s, 'W13.3c', `sin tiempo para abrir el editor real en esta corrida (${elapsed} s desde el arranque): córrase W13 solo`);
+    else {
       let ed = null;
       try {
         ed = await openEditor(P3);

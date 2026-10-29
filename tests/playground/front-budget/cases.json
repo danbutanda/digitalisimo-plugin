@@ -4413,7 +4413,8 @@
   ],
   "assets": {
    "filters-css": "/digitalisimo-elements/assets/css/filters\\.css",
-   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js"
+   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js",
+   "filters-form-js": "/digitalisimo-elements/assets/js/filters-form\\.js"
   },
   "counts": {
    "forms": "form.digi-filter",
@@ -4435,7 +4436,8 @@
     "asset:filters-css": "<=4096",
     "asset:filters-js": "<=8192",
     "count:forms": 1,
-    "count:price": 1
+    "count:price": 1,
+    "asset:filters-form-js": "<=8192"
    }
   }
  },
@@ -4483,7 +4485,8 @@
   ],
   "assets": {
    "filters-css": "/digitalisimo-elements/assets/css/filters\\.css",
-   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js"
+   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js",
+   "filters-form-js": "/digitalisimo-elements/assets/js/filters-form\\.js"
   },
   "counts": {
    "forms": "form.digi-filter",
@@ -4510,7 +4513,8 @@
      "changed": [
       "loopSig"
      ]
-    }
+    },
+    "asset:filters-form-js": "<=8192"
    }
   },
   "actions": [
@@ -4718,7 +4722,8 @@
   ],
   "assets": {
    "filters-css": "/digitalisimo-elements/assets/css/filters\\.css",
-   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js"
+   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js",
+   "filters-form-js": "/digitalisimo-elements/assets/js/filters-form\\.js"
   },
   "counts": {
    "forms": "form.digi-filter",
@@ -4745,7 +4750,8 @@
      "changed": [
       "loopSig"
      ]
-    }
+    },
+    "asset:filters-form-js": "<=8192"
    }
   },
   "actions": [

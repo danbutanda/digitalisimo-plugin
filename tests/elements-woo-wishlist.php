@@ -481,10 +481,17 @@ namespace {
 	// --- Marcado igual para todos y sin estado (D21) ------------------------------------------------------------------
 	wt_reset( array( 'hooks' => $hooks ) );
 	$button = Button::markup( 10 );
-	check( false !== strpos( $button, '<button type="button" class="digi-wish" data-digi-wish="10" aria-pressed="false" hidden>' ) && false !== strpos( $button, '<span class="screen-reader-text"> Camiseta roja en la lista de deseos</span>' ), 'Botón oculto, sin pulsar, con su nombre accesible completo.' );
+	check( false !== strpos( $button, '<button type="button" class="digi-wish" data-digi-wish="10" aria-pressed="false" hidden="hidden">' ) && false !== strpos( $button, '<span class="screen-reader-text"> Camiseta roja en la lista de deseos</span>' ), 'Botón invisible con su hueco hasta hidratarse (`hidden="hidden"`, sin CLS), sin pulsar, con su nombre accesible completo.' );
 	check( false === strpos( $button, 'data-digi-wish-login' ), 'Sin «pedir iniciar sesión», ningún enlace de acceso.' );
 	check( '' === Button::markup( 12 ) && '' === Button::markup( 2147483647 ) && '' === Button::markup( 0 ), 'Un producto no público o la referencia de kit sin destino no pintan nada.' );
-	check( false !== strpos( Button::markup( 11 ), 'data-variable="1"' ), 'Un producto variable se marca: con la lista de WooCommerce el script no lo ofrece.' );
+	check( false !== strpos( Button::markup( 11 ), 'data-variable="1" aria-pressed="false" hidden="hidden">' ), 'Un producto variable se marca: con la lista de WooCommerce el script no lo ofrece.' );
+	// Con la lista de WooCommerce, el botón de un variable nunca se mostrará: sale oculto del todo (`hidden`), sin hueco
+	// que después desaparezca (CLS). El de un simple guarda su hueco igual.
+	\Automattic\WooCommerce\Utilities\FeaturesUtil::$on['product_wishlist'] = true;
+	Source::reset();
+	check( false !== strpos( Button::markup( 11 ), 'data-variable="1" aria-pressed="false" hidden>' ) && false !== strpos( Button::markup( 10 ), 'aria-pressed="false" hidden="hidden">' ), 'Con la Store API, el variable sale oculto del todo y el simple con su hueco.' );
+	\Automattic\WooCommerce\Utilities\FeaturesUtil::$on['product_wishlist'] = false;
+	Source::reset();
 	$login = Button::markup( 10, array( 'guest' => 'login', 'text' => '' ) );
 	check( false !== strpos( $login, 'href="https://a.test/mi-cuenta/" data-digi-wish-login hidden>Inicia sesión para guardar<span class="screen-reader-text"> Camiseta roja en la lista de deseos</span></a>' ) && false !== strpos( $login, '<span class="screen-reader-text">Guardar Camiseta roja en la lista de deseos</span>' ), '«Pedir iniciar sesión»: enlace oculto a «Mi cuenta», igual para todos; sólo icono con nombre completo.' );
 	check( false === strpos( $login, 'acceso-privado' ), 'Nunca se imprime la dirección de wp_login_url(), que puede ser la ruta privada de acceso.' );
@@ -504,6 +511,7 @@ namespace {
 	$member = $render( List_Widget::class, array( 'title' => 'Mis deseos' ), 7 );
 	check( $guest === $member, 'La lista pinta el mismo HTML para un invitado y para un usuario con sesión.' );
 	check( false !== strpos( $guest, 'data-digi-wishlist data-post="10" data-widget="abc1234"' ) && false !== strpos( $guest, '<ul class="digi-wishlist__items" data-digi-wish-items></ul>' ) && false !== strpos( $guest, '<noscript>' ), 'Contenedor vacío con su documento y su instancia, y aviso sin JavaScript.' );
+	check( false !== strpos( $guest, '<p class="digi-wishlist__empty" data-digi-wish-empty hidden="hidden">' ), 'El texto de lista vacía guarda su hueco hasta hidratarse (sin CLS en una lista vacía).' );
 	check( false !== strpos( $guest, 'aria-labelledby="digi-wl-abc1234"' ) && false !== strpos( $guest, '<h2 id="digi-wl-abc1234" class="digi-wishlist__title" tabindex="-1">Mis deseos</h2>' ), 'Región con nombre: el título visible (destino del foco al quitar el último).' );
 	$untitled = $render( List_Widget::class, array(), 0 ) . ( new List_Widget( array() ) )->boot()->html();
 	check( false !== strpos( $untitled, 'class="digi-wishlist__title screen-reader-text" tabindex="-1">Lista de deseos</' ) && false !== strpos( $untitled, 'id="digi-wl-abc1234-2"' ), 'Sin título visible, uno para lectores de pantalla; dos instancias en la página, dos id distintos.' );
@@ -543,6 +551,10 @@ namespace {
 	// --- Recursos -------------------------------------------------------------------------------------------------
 	$js  = (string) file_get_contents( $root . '/assets/js/wishlist.js' );
 	$css = (string) file_get_contents( $root . '/assets/css/wishlist.css' );
+	// CLS (presupuesto del front): `hidden="hidden"` (el del servidor) guarda el hueco sin verse; `hidden=""` (el que pone
+	// el script) quita el elemento. Ganan a `.digi-wish[hidden]` / `.digi-wishlist [hidden]` por orden o especificidad.
+	$reserve = strpos( $css, '.digi-wish[hidden=hidden]{display:inline-flex!important;visibility:hidden}' );
+	check( false !== $reserve && $reserve > strpos( $css, '.digi-wish[hidden],' ) && false !== strpos( $css, '.digi-wishlist [data-digi-wish-empty][hidden=hidden]{display:block!important;visibility:hidden}' ), 'La hoja reserva el hueco del botón y del texto de lista vacía hasta que el script decide.' );
 	check( strlen( $js ) <= 8192 && strlen( $css ) <= 4096, 'wishlist.js (' . strlen( $js ) . ' B) y wishlist.css (' . strlen( $css ) . ' B) en su tope.' );
 	// `POST woo/cards` es una petición REST: no se registran los widgets propios, que son quienes cargan `Image_Markup`.
 	$cards_src = (string) file_get_contents( $root . '/modules/digitalisimo-woo/wishlist/class-cards.php' );

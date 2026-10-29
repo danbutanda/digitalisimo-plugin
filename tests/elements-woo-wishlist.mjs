@@ -12,8 +12,10 @@ const SOURCE = readFileSync(new URL('../digitalisimo-elements/assets/js/wishlist
 const T = { saved: 'Guardado en tu lista de deseos', removed: 'Quitado de tu lista de deseos', full: 'Tu lista de deseos está llena.', cleared: 'Lista vaciada', error: 'No se pudo actualizar tu lista de deseos.' };
 const TA = { ask1: 'Tienes 1 producto guardado en este navegador. ¿Añadirlo a tu lista?', ask: 'Tienes %d productos guardados en este navegador. ¿Añadirlos a tu lista?', add: 'Añadir', discard: 'Descartar', added: 'Añadidos a tu lista de deseos', discarded: 'Se borró la lista de este navegador.', failed: '%d no se pudieron añadir: si tienen opciones, guárdalos desde su ficha.' };
 const NOW = Math.floor(Date.now() / 1000);
-const btn = (id, extra = '') => `<button type="button" class="digi-wish" data-digi-wish="${id}"${extra} aria-pressed="false" hidden><span class="digi-wish__text">Guardar</span><span class="screen-reader-text"> Producto ${id} en la lista de deseos</span></button>`;
-const LIST = '<div data-elementor-id="30"><section class="digi-wishlist" data-digi-wishlist data-post="30" data-widget="abc1234"><h2 id="t" class="digi-wishlist__title" tabindex="-1">Lista</h2><ul class="digi-wishlist__items" data-digi-wish-items></ul><p data-digi-wish-empty hidden>Vacía</p><button type="button" data-digi-wish-clear hidden>Vaciar lista</button></section></div>';
+// Como sale del servidor: `hidden="hidden"` guarda el hueco sin verse hasta hidratarse (CLS); el script lo quita o pone
+// `hidden=""`, que la hoja oculta del todo.
+const btn = (id, extra = '') => `<button type="button" class="digi-wish" data-digi-wish="${id}"${extra} aria-pressed="false" hidden="hidden"><span class="digi-wish__text">Guardar</span><span class="screen-reader-text"> Producto ${id} en la lista de deseos</span></button>`;
+const LIST = '<div data-elementor-id="30"><section class="digi-wishlist" data-digi-wishlist data-post="30" data-widget="abc1234"><h2 id="t" class="digi-wishlist__title" tabindex="-1">Lista</h2><ul class="digi-wishlist__items" data-digi-wish-items></ul><p data-digi-wish-empty hidden="hidden">Vacía</p><button type="button" data-digi-wish-clear hidden>Vaciar lista</button></section></div>';
 const card = (id) => `<li class="digi-wishlist__item" data-digi-wish-item="${id}"><a href="/p/${id}/">Producto ${id}</a><button type="button" class="digi-wishlist__remove" data-digi-wish-remove="${id}">Quitar</button></li>`;
 
 function page(html, config, handler, initial = {}) {
@@ -47,8 +49,9 @@ const guestConfig = (over = {}) => ({ key: 'digi_wishlist', cards: '/wp-json/dig
   await sleep(5);
   assert.equal(p.ls.writes.length, 0, 'localStorage vacío antes del primer clic');
   assert.equal(p.calls.length, 0, 'sin productos, ninguna petición');
-  for (const b of p.qa('button[data-digi-wish]')) { assert.equal(b.hidden, false); assert.equal(b.getAttribute('aria-pressed'), 'false'); }
+  for (const b of p.qa('button[data-digi-wish]')) { assert.equal(b.hidden, false); assert.equal(b.getAttribute('hidden'), null, 'hidratado: el hueco reservado pasa a verse'); assert.equal(b.getAttribute('aria-pressed'), 'false'); }
   assert.equal(p.q('[data-digi-wish-empty]').hidden, false, 'lista vacía: su texto se ve');
+  assert.equal(p.q('[data-digi-wish-empty]').getAttribute('hidden'), null, 'lista vacía: el texto ocupa el hueco que guardaba (sin CLS)');
   p.qa('button[data-digi-wish]')[0].click();
   await sleep(50);
   const saved = JSON.parse(p.ls.getItem('digi_wishlist'));
@@ -66,6 +69,7 @@ const guestConfig = (over = {}) => ({ key: 'digi_wishlist', cards: '/wp-json/dig
   assert.deepEqual(req.body, { post_id: 30, widget_id: 'abc1234', ids: [10] }, 'post_id del documento que contiene el widget');
   assert.equal(p.qa('li').length, 1);
   assert.equal(p.q('[data-digi-wish-empty]').hidden, true);
+  assert.equal(p.q('[data-digi-wish-empty]').getAttribute('hidden'), '', 'con productos, el texto de lista vacía se quita del todo (no guarda hueco)');
   assert.equal(p.q('[data-digi-wish-clear]').hidden, false, '«Vaciar lista» sólo con productos');
   p.qa('button[data-digi-wish]')[0].click();
   await sleep(50);
@@ -193,6 +197,7 @@ const storeConfig = (over = {}) => ownConfig({ mode: 'store', store: '/wp-json/w
   const [b10, b16, b11] = p.qa('button[data-digi-wish]');
   assert.equal(b10.getAttribute('aria-pressed'), 'true');
   assert.equal(b11.hidden, true, 'un producto variable no se ofrece: la Store API exige la variación');
+  assert.equal(b11.getAttribute('hidden'), '', 'el variable se oculta del todo, sin el hueco reservado');
   b16.click();
   await sleep(50);
   assert.equal(p.calls[1].headers.Nonce, 'N1', 'la escritura usa el Nonce del GET');

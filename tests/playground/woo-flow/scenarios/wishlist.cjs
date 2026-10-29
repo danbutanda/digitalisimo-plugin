@@ -203,14 +203,32 @@ module.exports = (api) => {
     let page2 = null;
     try {
       await page.setViewport({ width: 1280, height: 900 });
+      // Saltos de diseño (CLS) de cada carga, con el elemento que se movió o cambió de tamaño.
+      await page.evaluateOnNewDocument(() => {
+        window.digiWfCls = { value: 0, shifts: [] };
+        try {
+          new PerformanceObserver((list) => {
+            for (const e of list.getEntries()) {
+              if (e.hadRecentInput) continue;
+              window.digiWfCls.value += e.value;
+              window.digiWfCls.shifts.push({ value: +e.value.toFixed(4), nodes: (e.sources || []).map((x) => (x.node && x.node.nodeType === 1 ? x.node.tagName.toLowerCase() + (x.node.className && typeof x.node.className === 'string' ? '.' + x.node.className.trim().split(/\s+/).join('.') : '') : '#texto')) });
+            }
+          }).observe({ type: 'layout-shift', buffered: true });
+        } catch (e) { window.digiWfCls.error = String(e); }
+      });
+      const cls = () => page.evaluate(() => window.digiWfCls);
       // 1. Cargar la lista vacía y los botones no escribe nada.
       await page.goto(w.urls.list, { waitUntil: 'load' });
       await page.waitForSelector('[data-digi-wish-empty]:not([hidden])', WAIT);
+      await sleep(700);
       const emptyList = await look(page, w.key);
+      const clsList = await cls();
       await page.goto(w.urls.save, { waitUntil: 'load' });
       await ready(page, P.camiseta);
-      await sleep(300);
+      await sleep(700);
       const before = await look(page, w.key);
+      const clsSave = await cls();
+      check(s, 'W1.1c', 'hidratar no mueve la página (CLS ≤ 0,01): el botón y el texto de lista vacía guardan su hueco desde el servidor', !!clsList && !!clsSave && clsList.value <= 0.01 && clsSave.value <= 0.01, short({ lista: clsList, guardar: clsSave }));
       const cookies0 = await page.cookies();
       const ours = (keys) => keys.filter((k) => /^digi_/.test(k));
       check(s, 'W1.1', '`localStorage` vacío antes del primer clic: abrir la lista y los botones no guarda nada', !ours(emptyList.keys).length && !ours(before.keys).length && before.stored === null && emptyList.empty === true, short({ lista: emptyList.keys, guardar: before.keys, vacia: emptyList.empty }));

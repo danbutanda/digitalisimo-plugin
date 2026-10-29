@@ -73,7 +73,9 @@ class List_Widget extends \Digitalisimo\Elements\Woo\Widget {
 			$html .= '<' . ( 'div' === $tag ? 'h2' : $tag ) . ' id="' . esc_attr( $id ) . '" class="digi-wishlist__title' . ( '' === $title ? ' screen-reader-text' : '' ) . '" tabindex="-1">' . esc_html( '' === $title ? 'Lista de deseos' : $title ) . '</' . ( 'div' === $tag ? 'h2' : $tag ) . '>';
 		}
 		$html .= '<ul class="digi-wishlist__items" data-digi-wish-items></ul>';
-		$html .= '<p class="digi-wishlist__empty" data-digi-wish-empty hidden>' . esc_html( trim( (string) ( $s['empty_text'] ?? '' ) ) ) . '</p>';
+		// El texto de lista vacía guarda su hueco hasta que el script decide (`hidden="hidden"`, invisible en la hoja): una
+		// lista vacía no crece al hidratarse (CLS); con productos, el script lo oculta del todo.
+		$html .= '<p class="digi-wishlist__empty" data-digi-wish-empty hidden="hidden">' . esc_html( trim( (string) ( $s['empty_text'] ?? '' ) ) ) . '</p>';
 		if ( 'yes' === ( $s['clear'] ?? '' ) ) {
 			$html .= '<button type="button" class="digi-wishlist__clear" data-digi-wish-clear hidden>Vaciar lista</button>';
 		}

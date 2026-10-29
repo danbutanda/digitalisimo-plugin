@@ -1,6 +1,8 @@
 .digi-wish,.digi-wish-link{display:inline-flex;align-items:center;gap:.4em;font:inherit;color:inherit;line-height:1.2;text-decoration:none}
 .digi-wish{padding:.45em .8em;border:1px solid currentColor;border-radius:999px;background:none;cursor:pointer}
 .digi-wish[hidden],.digi-wishlist [hidden],.digi-wish-merge[hidden]{display:none!important}
+.digi-wish[hidden=hidden]{display:inline-flex!important;visibility:hidden}
+.digi-wishlist [data-digi-wish-empty][hidden=hidden]{display:block!important;visibility:hidden}
 .digi-wish__icon{width:1em;height:1em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
 .digi-wish[aria-pressed="true"] .digi-wish__icon{fill:currentColor}
 .digi-wish:focus-visible,.digi-wish-link:focus-visible,.digi-wishlist :focus-visible,.digi-wish-merge button:focus-visible{outline:2px solid currentColor;outline-offset:2px}

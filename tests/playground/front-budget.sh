@@ -20,8 +20,16 @@
 #   Modos: CACHE=1 · CORE=plugin · SEO=1|guard · THEME=1 · MIGRATION=1 · LAZY=1 · V4=1 · WOO=1 ·
 #          DEFAULTS=old|old-applied|old-dirty|old-inactive|off (se combinan: DEFAULTS=old-applied CACHE=1)
 #   WOO=1            WooCommerce activo, con productos, categorías y un variable (F4-Woo, V.16.3): sólo los casos con
-#                    «woo» en `modes`; la página de referencia es `woo-empty` y COMPARE_STRICT, por defecto, los cuatro
-#                    casos sin `since` (woo-empty, all-own, woo-loop-filter-pro, woo-pro-existing)
+#                    «woo» en `modes`; la página de referencia es `woo-empty` (se mide en toda combinación, también
+#                    v4+woo) y COMPARE_STRICT, por defecto, los cuatro casos sin `since` (woo-empty, all-own,
+#                    woo-loop-filter-pro, woo-pro-existing). Los doce casos de F4-Woo (`since` 4.3.0.166: un caso por
+#                    widget, partes de Productos, rasgo del Menú del carrito, filtros, ficha con muestras y vista rápida
+#                    con plantilla) usan lo que setup.php crea después de las páginas (pa_color con muestras, el variable
+#                    digi-fb-muestras y la zona con envío gratuito desde 50), así los casos anteriores conservan sus IDs;
+#                    la sonda quita ese producto de las consultas de las páginas sin `since`. WooCommerce queda en su
+#                    estado de recién instalado (`woocommerce_newly_installed` = no: sin mini carrito del tema a mitad
+#                    de corrida). Una corrida completa con WOO=1 tarda unos 8,5 min; con CACHE=1 o CORE=plugin, partirla
+#                    con CASES (con woo-empty en cada parte; la primera página medida paga el favicon)
 #   WOO_ZIP          WooCommerce fijado (tests/playground/woocommerce-pin.sh): por defecto reference/woocommerce.11.2.1.zip,
 #                    comprobado con su sha256 y montado; sin copia local, la última de wordpress.org (anotado en el resumen)
 #   ELEMENTOR_PIN    versión del plugin Elementor de CORE=plugin (por defecto 4.3.5, la del núcleo incluido)
