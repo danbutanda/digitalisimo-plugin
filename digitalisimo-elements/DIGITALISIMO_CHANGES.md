@@ -1,4 +1,6 @@
-# DIGITALÍSIMO Elements 4.3.0.165
+# DIGITALÍSIMO Elements @NEXT_ELEMENTS@
+
+- @NEXT_ELEMENTS@ (formatos de medios, `docs/ELEMENTS_FRONT_OBJECTIVE.md`): sólo código propio, no derivado de PRO. `modules/digitalisimo-widgets/class-image-markup.php`: `size_for()` pide siempre el tamaño completo de un GIF (WordPress crea los tamaños reducidos con un solo fotograma, así que cualquier otro tamaño dejaba quieto un GIF animado; del completo no imprime `srcset`), en `img()` y en `dimensions()`; los demás tipos conservan el tamaño pedido. `class-video-player.php`: la portada se pide en «large» (`POSTER_SIZE`, filtro `digitalisimo_elements_video_poster_size`), no el original. `plugin.php`, los paquetes compilados de PRO y `elementor/` no cambian.
 
 - 4.3.0.165 (RM13 de `docs/SEO_RANKMATH_OBJECTIVE.md`): el widget propio «Ruta de navegación» (`modules/digitalisimo-widgets/class-breadcrumbs.php`, código propio, no derivado de PRO) usa la ruta de DIGITALÍSIMO SEO (`Digitalisimo_Integrations_Breadcrumbs::trail()`) cuando ese plugin está activo y no cede ante otro plugin SEO: la misma categoría principal, pilar y títulos de miga que su `BreadcrumbList`, y las mismas URL. El nombre de inicio del widget sigue mandando en el texto. Sin SEO, o con otro plugin SEO activo, conserva su propia ruta sin cambios. No cambian `plugin.php`, los paquetes compilados de PRO ni `elementor/`.
 
