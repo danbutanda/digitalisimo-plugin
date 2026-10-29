@@ -2320,7 +2320,7 @@
   },
   "theme-switch.sh QUICK=1": {
    "estado": "pass",
-   "detalle": "S1, S2, S3, S3c, S3h y S4 en modo rápido (QUICK=1) sin fallos; S5 en curso al cerrar la evidencia",
+   "detalle": "S1, S2, S3, S3c, S3h, S4, S5 y la fase E en modo rápido (QUICK=1), 0 fallos; corrida parcial, no vale para la aceptación del tema",
    "registro": "/var/tmp/digi-f4/theme-switch-quick.log y /var/tmp/digi-f4/theme-switch-quick2.log"
   },
   "design.sh WOO=1": {
@@ -2346,5 +2346,6 @@
   "kit-roundtrip.sh: A1 falla por controles de consulta de wc-products (PRO) sin declarar en el inventario de K y A13 por la duración de los runners del núcleo en Playground, también con 4.3.0.165: ninguno es de F4-Woo (docs/fusion/f4woo.md §7).",
   "WordPress en Playground: 7.1.4 desde el 22 de octubre; la referencia es una corrida de 4.3.0.165 en las mismas condiciones.",
   "design.sh WOO=1: DS1–DS8 en verde (el servidor de Playground se cayó una vez en DS6 y DS6–DS8 se repitieron); DS13 24/25: la comprobación de presets tras volver a 4.3.0.163 no encuentra los elementos en la página, igual desde main con 4.3.0.165 publicado (previo a F4-Woo; anotado para F7a)."
- ]
+ ],
+ "release": "v2026.10.29.441"
 }
