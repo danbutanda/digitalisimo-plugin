@@ -50,6 +50,10 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
 | K-D20 · IDs de elemento | Se conservan al exportar; si un nodo no coincide, ese documento conserva los IDs nuevos y se informa | 2026-10-20 |
 | F7a · Presets de estilo | **Sólo estilo, definidos en el sitio y en el kit, aplicados en el CSS del documento que los usa.** Viven en la opción `digitalisimo_elements_presets` del sitio (sin carga automática) y viajan en el kit con la parte `presets`; al generar el CSS de un documento, el preset se aplana en cada elemento vinculado con sus propios selectores, así que lo que el elemento guarda gana siempre. Sustituye a «compilados en el CSS del kit»: sin CSS en el kit, sin selector propio y 0 B en las páginas que no los usan | 2026-10-21 |
 | F7a · Condiciones nuevas al volver atrás | **Fallan cerradas:** cada grupo con una condición de F7a lleva un centinela que 4.3.0.163 evalúa como falso; una lista vacía nunca se cumple, y sin WooCommerce las de existencias tampoco. En v4 no se ofrecen | 2026-10-21 |
+| F4-Woo · Una sola fuente cuando WooCommerce ya la tiene | **La lista de deseos y las muestras usan los datos de WooCommerce donde existen:** con `product_wishlist` activa, la cuenta usa la Store API de WooCommerce y la lista propia sólo se muda; en un atributo `wc-visual`, las muestras leen y escriben sus metas `color` e `image`, sin campos propios. Nada de WooCommerce se escribe fuera de eso (ni `attribute_type` ni sus opciones) | 2026-10-29 |
+| F4-Woo · Nada depende del visitante en el HTML | **Sin cookies nuevas y sin HTML por visitante:** lista de invitado en `localStorage` por sitio y sólo tras el clic; carrito por fragmentos de WooCommerce con un HTML común; lo que depende de la sesión va en línea en el pie según el handle encolado. Los widgets conservan `is_dynamic_content()` del núcleo | 2026-10-29 |
+| F4-Woo · Sin motores paralelos ni «venta falsa» | **Filtros sobre el almacén y el refresco de PRO** (tipo propio `digitalisimo_price` en el registro `digitalisimo_elements_loop_filter_types`; coordinador `filters.js` sólo en los bucles con un filtro F4-Woo, excepción declarada), **cupón y barra por `wc-ajax` y fragmentos**, kits por el registro de K. Ningún contador, plazo ni recuento inventado, tampoco como opción | 2026-10-29 |
+| F4-Woo · Playground en CI | No, como K-D10 y F7a: unitarias en los dos workflows; `woo-flow.sh` W0–W13, `front-budget.sh WOO=1`, `kit-roundtrip.sh WOO=1` y `brand-audit.sh WOO=1` a mano, con la evidencia en `docs/fusion/f4woo-evidence.json` | 2026-10-29 |
 
 ## Arquitectura
 
@@ -78,7 +82,7 @@ Todo sin romper lo existente: sin motores paralelos, sin otro sistema de kits y 
    - Absorbe los hashes `elementor-action:`. Lista blanca, listeners idempotentes y manejo de foco. En v3 la animación usa Motion FX o la entrada nativa.
 7. **Consultas y filtros en sus módulos.**
    - Consultas guardadas y referenciadas por ID desde query-control y collection-loop, con «desvincular». Contextos actual, padre y raíz con límites de profundidad y resultados, precarga de cachés y `no_found_rows`.
-   - `loop-filter` suma búsqueda, meta o rango, precio, atributo, orden y por página, en handlers propios con `defer` (los bundles compilados no se tocan). Incluye `popstate`, debounce, descarte de respuestas viejas, foco y destino inequívoco por instancia.
+   - `loop-filter` suma búsqueda, meta o rango, precio, atributo, orden y por página, en handlers propios con `defer` (los bundles compilados no se tocan). Incluye `popstate`, debounce, descarte de respuestas viejas, foco y destino inequívoco por instancia. F4-Woo entregó el precio y el atributo con ese coordinador (`assets/js/filters.js`) y el registro de tipos `digitalisimo_elements_loop_filter_types`; los filtros ampliados de F7b se añaden como tipos de ese registro, con el mismo coordinador.
 8. **Anidados sin cambiar widgets existentes.**
    - Slider: un widget **nuevo** anidado que comparte las hojas y scripts del Slider Optimizado y del motor de carrusel propio. Sin Swiper; slide, fade y scale en CSS; puntero, teclado y pausa WCAG.
    - Pestañas y acordeones: nested-tabs y nested-accordion del núcleo, con la presentación DIGITALÍSIMO añadida por hooks.
@@ -579,9 +583,9 @@ Corrigen `docs/fusion/tema.md`; donde no coincidan, manda este documento.
 | F7b · acciones con destino | `_digitalisimo_actions` | Referencias a la entrada (`post`) y al elemento destino (`element`). En los kits propios los IDs de elemento se conservan (K-D20); en los de terceros llegan regenerados y el informe marca el destino que falte |
 | F7b · consultas guardadas | CPT con UUID | Parte `saved-queries` y `map:queries` |
 | F7b · componentes v3 | Plantilla y `_digitalisimo_slot` | Parte `components` y referencias `template` |
-| F4-Woo · widgets nuevos | Controles por ID | Referencias, o controles `Query` con sufijo `*_post_ids` o `*_term_ids`, que traduce el núcleo |
-| F4-Woo · atributos y muestras | Taxonomías `pa_*` y sus metas | `Early_Part` que registra los atributos antes de las taxonomías, más referencias `term_meta` |
-| F4-Woo · variaciones | `product_variation` | Parte propia; hasta entonces K las anota como no exportadas |
+| F4-Woo · widgets nuevos | Controles por ID (`selected_element`, plantilla de la vista rápida) | Referencias declaradas con `digitalisimo_elements_kit_references` (`element`, `template`); el resto son controles `Query` que traduce el núcleo. Hecho (Elements 4.3.0.166) |
+| F4-Woo · atributos y muestras | Taxonomías `pa_*`, la configuración de muestras de `digitalisimo_elements_swatches` y las metas de término (propias o `color`/`image` de `wc-visual`) | `woo-attributes`, una `Early_Part` que registra los atributos antes de las taxonomías, más referencias `term_meta` acotadas por taxonomía. Hecho (Elements 4.3.0.166) |
+| F4-Woo · variaciones | `product_variation` | Parte propia `woo-variations`; el recuento de «no exportadas» pasa por el punto genérico de `Export_Context::get_not_exported()`, que sólo baja contadores (excepción D27, `docs/fusion/k-kits.md` §16). Hecho (Elements 4.3.0.166) |
 | SEO (K-D18) | `_related_pillar`, `_related_location_id` | `scope = post_meta` con `kind` `post` y `term`; hasta entonces viajan sin traducir y el informe las cuenta |
 
 El único límite del registro: los archivos de un kit sólo pueden ser medios por sha256 y SVG de separadores y máscaras. Otro tipo de archivo exige ampliar esas formas y el guardián en K.
@@ -808,9 +812,99 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 
 ### F4-Woo · WooCommerce visual
 
-- Los widgets Woo nuevos de F4, como widgets propios y clean-room: lista de deseos (con exportación y borrado de datos personales), vista rápida, muestras con term meta propia, barra de envío gratis y cupón en el minicarrito pintados por fragmentos, y filtros de precio y atributo. Se excluye la «venta falsa».
-- **Datos de kit:** los controles por ID se declaran en el registro de K o usan controles `Query` con sufijo `*_post_ids`/`*_term_ids`; los atributos (`pa_*`) y sus metas, con una `Early_Part` y referencias `term_meta`; las variaciones de producto, con una parte propia. Ver «K · Kits de Elementor con las mejoras».
-- **Aceptación** (se precisa en su especificación): flujo Woo en modo de prueba y su caso de kit en `kit-roundtrip.sh` con `WOO=1`.
+**En validación** · Elements 4.3.0.166 (rama `fusion/f4-woo`). Sólo cambia DIGITALÍSIMO Elements, desde 4.3.0.165; el tema, SEO, Tools, Migración, Backups, Hosting e IA Tools no cambian. `plugin.php`, los paquetes compilados de PRO y `elementor/` conservan su sha256. Diseño y evidencia en `docs/fusion/f4woo.md` y `docs/fusion/f4woo-evidence.json`.
+
+**Objetivo.** Dar a las tiendas con WooCommerce lo que Betheme describía y el constructor no tenía, como widgets y rasgos propios, clean-room y opt-in, con coste 0 donde no se usan y **sin motor de filtros, sistema de kits ni mini carrito paralelos**: lista de deseos, vista rápida, muestras de variación, barra de envío gratis, cupón en el Menú del carrito y filtros de precio y de atributo. Sin WooCommerce (o con uno anterior a 10.0) no se registra nada en el front, en REST, en cron ni en WP-CLI; en el editor los widgets quedan ocultos y lo guardado se conserva. Se excluye la «venta falsa», también como opción.
+
+**Qué cambia para el administrador**
+- **Siete widgets** en la categoría DIGITALÍSIMO (`modules/digitalisimo-woo/`, `Woo\Registry::WIDGETS`): Botón de lista de deseos, Lista de deseos, Vista rápida, Muestras de variación (en el bucle), Barra de envío gratis, Filtro de precio y Filtro de atributo.
+- **Lista de deseos:** de invitado en el almacenamiento del navegador (`digi_wishlist`, por sitio), escrita sólo tras el clic; con sesión, en la cuenta del sitio (`update_user_option`), con exportador y borrador de datos personales; al iniciar sesión, un aviso accesible ofrece «Añadir» la del navegador a la cuenta o «Descartar». Con la lista de deseos experimental de WooCommerce activa, la cuenta usa la de WooCommerce (una sola fuente) y la propia sólo se muda. Contador en la cabecera.
+- **Vista rápida:** `<dialog>` nativo, un solo diálogo por página; «Diseño propio» por defecto (imagen y galería, título, valoración, precio, extracto, el formulario de compra de WooCommerce y «Ver la ficha completa») o, opt-in, «Plantilla de producto» (carga los paquetes de PRO en cada página con el botón: el editor lo dice y se mide). Un producto variable elige su combinación dentro del diálogo. Sin JavaScript, el enlace abre la ficha.
+- **Muestras:** por atributo, en la pantalla de atributos de WooCommerce («Tipo de muestra»: desplegable, color, imagen o etiqueta; forma y tamaño), guardadas en la opción del sitio `digitalisimo_elements_swatches` y en metas de término propias (`digitalisimo_swatch_color`, `_image`, `_label`…); en un atributo `wc-visual` de WooCommerce se usan **sus** metas `color` e `image`, sin campos duplicados. El `<select>` del formulario clásico se conserva byte a byte y se oculta tras un `radiogroup` nativo; sección de estilo «Muestras» en los widgets «Añadir al carrito».
+- **Carrito:** la barra de envío gratis sólo con el umbral **real** del método «Envío gratuito» de la zona del cliente y las tarifas que WooCommerce calcula para el paquete; el cupón del Menú del carrito usa `wc-ajax=apply_coupon`/`remove_coupon` con los nonces del fragmento. Los dos van por los fragmentos de WooCommerce, con un HTML común y los textos de cada instancia en `data-*`.
+- **Filtros:** el de atributo es el tipo `taxonomy` del almacén de PRO; el de precio, el tipo propio `digitalisimo_price` (`digi_price_min`/`_max`), con la regla de WooCommerce para «Ocultar productos agotados» y el JOIN de `wc_product_meta_lookup`. Destino «Loop Grid de este documento» (AJAX, con el coordinador) o «Tienda» (parámetros nativos de WooCommerce sobre la consulta principal, con aviso de lo que no filtra).
+- **Widgets de PRO:** tres partes nuevas en Productos (`quickview`, `wishlist`, `swatches`, fuera del valor por defecto) y el rasgo opt-in «Barra de envío gratis» y «Cupón» en el Menú del carrito.
+- **Privacidad:** el texto de Ajustes → Privacidad de Elements gana el elemento de la lista de deseos (`digitalisimo_elements_privacy_items`) y, con la WP Consent API 2.1.0, la clave se declara como almacenamiento local en `functional`.
+- **Kits:** los atributos con sus muestras (`woo-attributes`, `Early_Part`), las variaciones (`woo-variations`) y las referencias de los widgets viajan en el kit; `has_archives` cerrado en «agregar»; la tabla de búsqueda se refresca para cada producto creado.
+
+**Decisiones** (sección V de la especificación; prefijo `F4W-D`)
+
+| # | Tema | Decisión |
+|---|---|---|
+| F4W-D1 | Dónde vive | Módulo propio `modules/digitalisimo-woo/` (`Digitalisimo\Elements\Woo`), con su registro y una línea de arranque en `pro-elements.php` tras `Design\Module`; nada en `class-registry.php` |
+| F4W-D2 | Sin WooCommerce | En el front, REST, cron y WP-CLI no se registra nada (0 consultas); en las peticiones del editor, los widgets se registran ocultos con el aviso «Necesita WooCommerce» y lo guardado se conserva (`Inert`). La importación por REST y WP-CLI deja marcadores de K, no `Inert` |
+| F4W-D3 | Versiones | WooCommerce ≥ 10.0 (`WC_VERSION`) y guardas de símbolos por submódulo; sólo 11.2.1 está probado (`@since` comprobados en el frente 0) |
+| F4W-D4 | Lista de invitado | `localStorage` con `digi_wishlist` (`digi_wishlist_<sitio>` en una red), sólo tras el clic; nunca una cookie: nada viaja al servidor ni cambia la caché. Servicio pedido expresamente, declarado en la política y en la WP Consent API |
+| F4W-D5 | Lista con sesión | `update_user_option( $uid, 'digitalisimo_wishlist' )`, sólo para miembros del sitio; fusión sólo con «Añadir» en un aviso accesible, «Descartar» borra la copia local sin enviarla; hasta 100 productos; `woo/cards` por `POST` |
+| F4W-D6 | Qué no hace la lista | Sin compartir, sin listas públicas, sin recuentos de popularidad ni avisos de bajada de precio |
+| F4W-D7 | Vista rápida | «Diseño propio» por defecto; «Plantilla de producto» opt-in (`digitalisimo_template_id`, que la puerta de PRO ya recorre); `<dialog>` nativo con `showModal()`, uno por página; el botón es un enlace a la ficha con `no-prefetch` |
+| F4W-D9 | Comprar desde la vista rápida | El formulario nativo de WooCommerce, con `woocommerce_add_to_cart_form_action` a la página de origen validada; sin AJAX propio de carrito; `wc_load_cart()` en las rutas REST propias |
+| F4W-D10 | Muestras: activación | Por atributo en la pantalla de atributos de WooCommerce, en `digitalisimo_elements_swatches` (nunca en `attribute_type`); con un `wc-visual`, sus metas y sin campos propios |
+| F4W-D11 | Muestras: valores | Metas de término propias; la imagen es la meta `image` de WooCommerce (ID de adjunto del sitio) elegida en el modal de Medios: excepción declarada en `AGENTS.md` a la regla del campo `media` |
+| F4W-D12 | Muestras: formulario | El `<select>` byte a byte igual, oculto en un envoltorio, y un `radiogroup` de `<input type="radio">`; el estado se lee del `<select>` con `MutationObserver`; puente jQuery sólo en el modo AJAX de WooCommerce |
+| F4W-D13 | Umbral de la barra | Sólo el `min_amount` real del método «Envío gratuito» de la zona del cliente; los estados salen de las tarifas que WooCommerce calcula para el paquete; sin destino, con varios paquetes o con un filtro ajeno, nunca «Te faltan» |
+| F4W-D14 | Fragmentos | Dos nodos de estado comunes (`div.digi-ship__state`, `div.digi-coupon__state`) con el mismo HTML para todas las instancias, servidos por `woocommerce_add_to_cart_fragments` sólo cuando la bandera `digitalisimo_elements_woo_fragments` está encendida (documentos publicados que los usan) |
+| F4W-D15 | Cupón | `wc-ajax=apply_coupon`/`remove_coupon` con los nonces del fragmento (nunca en el HTML de la página); formulario en el envoltorio persistente; sólo con `wc_coupons_enabled()`; opt-in por instancia |
+| F4W-D16 | Filtros: mecanismo | Atributo = tipo `taxonomy` del almacén de PRO; precio = tipo propio `digitalisimo_price` registrado con `digitalisimo_elements_loop_filter_types`, con la regla de `Filterer` sobre `wc_product_attributes_lookup` y el alias `wc_product_meta_lookup` con la guarda de `ProductUtil` copiada |
+| F4W-D17 | Filtros: coordinador | `filters.js` sustituye por herencia `refreshLoopWidget()` del filtro de taxonomía de PRO sólo en los bucles con un filtro F4-Woo (petición propia con `AbortController`, *debounce*, foco, `aria-busy`, `popstate`, destino desde el documento del filtro); se engancha al aviso `elementor-pro/modules/init/before`, porque `hooks` del núcleo nace en `init()`. Excepción declarada en `DIGITALISIMO_CHANGES.md`; nombres vigilados por `tests/elements-pro-inventory.mjs` |
+| F4W-D18 | Opciones con pantalla | Ninguna: todo es por instancia o dato del sitio; las opciones automáticas van en «Opciones nuevas» |
+| F4W-D19 | Playground en CI | No: unitarias en los dos workflows; `woo-flow.sh`, `front-budget.sh WOO=1`, `kit-roundtrip.sh WOO=1` y `brand-audit.sh WOO=1` a mano, con la evidencia en `docs/fusion/f4woo-evidence.json` |
+| F4W-D20 | WooCommerce fijado | 11.2.1 de wordpress.org con su sha256 en `reference/OFFICIAL-SOURCES.txt`, sólo leído y montado en Playground efímero (`WOO_REQUIRE=1`) |
+| F4W-D21 | Caché de elementos | El HTML de los widgets nunca depende del visitante; lo que depende (nonce, lista con sesión, configuración de variaciones) va en línea en el pie según el handle encolado, nunca en `render()`; `assets` en los controles de las partes y del rasgo |
+| F4W-D22 | Texto de privacidad | Uno solo para Elements: encabezado genérico de `Page_Visits::privacy_text()` y el filtro `digitalisimo_elements_privacy_items` |
+| F4W-D23 | «Venta falsa» | Excluida, también como opción; la revisión estática prohíbe esos textos |
+| F4W-D24 / D25 | Productos y Menú del carrito de PRO | Tres partes fuera del valor por defecto; rasgo opt-in `Mini_Cart_Extras` «Arriba» o «Abajo» del panel |
+| F4W-D26 | Volver a 4.3.0.165 | Declarado y probado (W13): los widgets nuevos no pintan nada; al guardar en el editor se borran (límite del núcleo), con recuperación por revisiones; desde 4.3.0.166 la guarda hacia delante (`class-unknown-guard.php`, API de `Preserve`) conserva los widgets futuros |
+| F4W-D27 | Variaciones en K | Punto de extensión genérico en `Export_Context::get_not_exported()`, que sólo puede **bajar** contadores, declarado en `docs/fusion/k-kits.md` §16; la parte `woo-variations` sólo deja las de padres no exportados |
+
+**Frentes.** Rutas relativas a `digitalisimo-elements/modules/digitalisimo-woo/` salvo que se diga otra cosa.
+
+| Frente | Qué entrega | Archivos |
+|---|---|---|
+| 0 · verificación | Hechos de WooCommerce 11.2.1 y de la WP Consent API 2.1.0 con archivo y línea, matriz de V.2 corregida, fixtures de `wc-visual` | `docs/fusion/f4woo.md` §1; `tests/fixtures/woo-visual-11.2.1.json` |
+| A · base y contrato | Arranque, autocarga, guardas, registro tolerante, recursos con `defer`, base REST, banderas que existen siempre, privacidad, `Inert` y la guarda hacia delante | `class-{module,registry,assets,rest,flags,privacy,inert,inert-widget,widget,products}.php`, `modules/digitalisimo-widgets/class-unknown-guard.php`; `tests/elements-woo-module.php`, `elements-unknown-guard.php` |
+| B · lista de deseos | Widgets, almacén propio, modo Store API y mudanza, fusión con confirmación, exportador y borrador | `wishlist/`, `assets/{css,js}/wishlist.*`; `tests/elements-woo-wishlist.{php,mjs}` |
+| C · vista rápida | Widget, diálogo, ruta, variables, plantilla, compra | `quick-view/`, `assets/{css,js}/quick-view.*`; `tests/elements-woo-quick-view.{php,mjs}` |
+| D · muestras | Pantalla de atributos, formulario, bucle, `Atc_Styles`, convivencia con `wc-visual` | `swatches/`, `assets/{css,js}/swatches*.*`; `tests/elements-woo-swatches.{php,mjs}` |
+| E · carrito | Estado, fragmentos, barra, `Mini_Cart_Extras`, cupón | `cart/`, `assets/{css,js}/cart-extras.*`; `tests/elements-woo-cart.{php,mjs}` |
+| F · filtros | Tipos, consulta, widgets, coordinador, formulario, script del editor, «Tienda» y las tres correcciones del derivado | `filters/`, `assets/{css,js}/filters*.*`; `modules/loop-filter/module.php`, `query/query-types/hierarchy-or-query.php`; `tests/elements-woo-filters.{php,mjs}`, `elements-loop-filter-parse.php` |
+| G · Productos y Menú del carrito | Tres partes nuevas con `assets`; el rasgo | `modules/digitalisimo-widgets/class-products-parts.php`, `cart/class-mini-cart-extras.php`; `tests/elements-woo-products-parts.php` |
+| H · kits | `woo-attributes`, `woo-variations`, tabla de búsqueda, referencias, el punto genérico de K y los casos | `kit/`; `modules/digitalisimo-import/kits/{class-export-context,class-references}.php`, `kits/parts/class-term-meta.php`; `tests/elements-woo-kit.php`, `elements-kit-extensions.php`, `tests/playground/kit-roundtrip/cases.json` |
+| I · Playground | `woo-flow.sh` (W0–W13, un archivo por escenario en `woo-flow/{scenarios,setup,ops}/`), `front-budget.sh WOO=1` (12 casos), `kit-roundtrip.sh WOO=1`, `brand-audit.sh WOO=1` | `tests/playground/woo-flow*`, `front-budget/*`, `tests/elements-front-cases.php`, `elements-front-budget.php`; `docs/fusion/f4woo-evidence.json` |
+| J · publicación | Revisión estática, inventario de PRO, páginas de WooCommerce en el kit sin permiso, documentación, versión y paquete | `tests/elements-woo-static.mjs`, `elements-pro-inventory.mjs`, `elements-woo-kit-page-sync.php`, `tests/validate-suite.mjs`, los dos workflows, los documentos, `DIGITALISIMO_CHANGES.md` y `readme.txt` |
+
+**Aceptación** (V.17 de la especificación). Evidencia en `docs/fusion/f4woo-evidence.json`.
+
+| # | Criterio | Estado |
+|---|---|---|
+| B1–B2 | Una sola fuente de lista de deseos; privacidad de la lista (ningún ID de producto en una URL; fusión sólo con «Añadir») | `elements-woo-wishlist.{php,mjs}`; W1, W2 y W12 en verde, también `NET=1` |
+| B3–B4 | Atributos con guion; sin fatal de PHP 8 con sólo `digi_price_min` | `elements-loop-filter-parse.php` (render real de PRO); W9 en verde, también `CORE=plugin` |
+| B5 | Coordinador independiente del paquete: petición propia, `post_id` del documento del filtro, un bucle sin filtros F4-Woo como en 4.3.0.165 | `elements-woo-filters.mjs` (también el arranque real, caso 1b); W9.8a–c |
+| B6 | Vista rápida de un variable en una página sin variables | `elements-woo-quick-view.{php,mjs}`; W5 en verde |
+| 1–2 | Sin regresión y coste cero donde no se usa | `front-budget.sh WOO=1`: `woo-empty`, `all-own`, `woo-loop-filter-pro` y `woo-pro-existing` con el mismo HTML y CSS que 4.3.0.165 en normal, `CACHE=1`, `CORE=plugin` y `V4=1`; los tres primeros también con los mismos bytes, peticiones, handles y consultas. **Diferencia declarada:** en `woo-pro-existing`, la respuesta de `get_refreshed_fragments` lleva +168 B (los dos nodos de estado) porque el sitio de prueba usa la barra en otras páginas y la bandera de fragmentos está encendida; la página en sí no cambia, y un sitio que no usa la barra ni el cupón no la paga |
+| 3–4 | Sin WooCommerce, inocuo; guardas de versión | `elements-woo-module.php`; W0 sin WooCommerce (pendiente del informe) |
+| 5–7 | Lista de invitado, con sesión, en red; privacidad, Consent API y borrado | W1, W2 (`NET=1`), W12 en verde; `elements-page-visits.php` |
+| 8 | Caché de página simulada | W3 (pendiente del informe) |
+| 9–11 | Vista rápida accesible, modo plantilla medido, compra sin reenvío | W4 y W5 en verde; `woo-quick-view-template` mide los 371 769 B de PRO declarados |
+| 12–14 | Muestras con los datos de WooCommerce, sincronizadas, convivencia con `wc-visual` | `elements-woo-swatches.{php,mjs}`; W6 en verde (también con el tema de bloques) |
+| 15–16 | Barra real; cupón | `elements-woo-cart.{php,mjs}`; W7 y W8 (pendientes del informe) |
+| 17–19 | Filtros iguales a la tienda nativa (con y sin tabla, con «Ocultar agotados»); `popstate`, *debounce*, foco, destino; «Tienda» sólo donde filtra | W9 (59 comprobaciones) y W10 en verde, también `CORE=plugin` |
+| 20 | Controles en widgets existentes sin `default` de estilo y con `assets` | `elements-woo-static.mjs` (12 controles), `elements-woo-products-parts.php`; `woo-pro-existing` |
+| 21–22 | Kits con `WOO=1`; el punto genérico de K sin efecto cuando no se usa | `elements-woo-kit.php`, `elements-kit-extensions.php`; `kit-roundtrip.sh WOO=1` (pendiente del informe) |
+| 23 | Vuelta atrás y guarda hacia delante | `elements-unknown-guard.php`; W13 (pendiente del informe) |
+| 24–25 | Flujo Woo en modo de prueba; plugin Elementor original y v4 | W11 (pendiente del informe); W4, W5, W9 y W10 con `CORE=plugin`; `front-budget.sh V4=1 WOO=1` |
+| 26–28 | Seguridad, SEO, marca y sin «venta falsa» | W12 en verde; `elements-woo-static.mjs` (654 frases, 5 `nofollow`); `brand-audit.sh WOO=1` y `shared-ui.sh` (pendientes) |
+| 29 | CI y paquete | Las pruebas nuevas en los dos workflows con listas iguales; sha256 de PRO y de `elementor/` sin cambios; 8 ZIP y el índice en la Release (al publicar) |
+| 30 | Excepción declarada: `migrate.sh` y `legacy-ab.sh` | Pendientes de la copia oficial de Element Pack, como en F-front y F7a |
+
+**Límites declarados**
+- **Experimental en WooCommerce:** la lista de deseos (`product_wishlist`) y `wc-visual` pueden cambiar; se detectan por símbolos y por ruta registrada, y si faltan, el modo propio (lista) o nada (muestras visuales). Sólo 11.2.1 está probado.
+- **Coordinador:** depende de nombres del paquete compilado de PRO (`docs/ELEMENTOR_CORE.md`); si falta uno, los filtros van por GET.
+- **Presupuesto:** los filtros cargan `filters.js` (8 161 B, el coordinador, una vez por página) y `filters-form.js` (5 673 B, el formulario): 13 834 B por página con filtros, por encima de los 8 KB por widget del criterio 7. **Excepción declarada** en `docs/ELEMENTS_FRONT_OBJECTIVE.md`: cada archivo cumple su techo y el coordinador se comparte entre todos los filtros y bucles de la página.
+- **Vista rápida en modo plantilla:** carga PRO en cada página con el botón (opt-in, avisado y medido).
+- **«Tienda» y «Consulta actual»:** un Loop Grid con «Consulta actual» no se filtra de forma fiable con el destino «Tienda» (sin la tabla de atributos WooCommerce mete el atributo en la consulta principal y el bucle lo hereda; el precio, nunca); el editor lo dice.
+- **Vuelta a 4.3.0.165:** abrir y guardar en el editor un documento con los widgets nuevos los borra (límite del núcleo); se recuperan por revisiones. Desde 4.3.0.166 la guarda hacia delante lo evita hacia el futuro.
+- **Playground:** `W0`–`W13` juntos no caben en el tope de 10 min de un escenario con la máquina cargada; se corren por partes. Desde el 22 de octubre Playground sirve WordPress 7.1.4, así que la referencia es una corrida de 4.3.0.165 hecha en las mismas condiciones, no una línea base guardada.
 
 ### F5 · GeneratePress
 
@@ -822,7 +916,7 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 
 ### F7b · Capacidades que Bricks necesita
 
-- Registro de acciones con destino; interacciones PRO habilitadas tras el inventario; consultas guardadas y contextos; filtros ampliados.
+- Registro de acciones con destino; interacciones PRO habilitadas tras el inventario; consultas guardadas y contextos; filtros ampliados (como tipos del registro `digitalisimo_elements_loop_filter_types` que estrenó F4-Woo, con su mismo coordinador `filters.js`: ningún motor nuevo).
 - Sobrescrituras de contenido en Template; vista de usos y bloqueo de borrado.
 - Slider anidado nuevo; presentación DIGITALÍSIMO sobre nested-tabs y nested-accordion.
 - Edición múltiple y «aplicar a todos los de este tipo».
@@ -868,6 +962,9 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 | `image_loading_off` | Desactivar la carga optimizada de imágenes donde el sitio no la eligió. Por defecto apagado; sólo con el núcleo incluido | Valor de red heredable | Booleano en las dos superficies | Publicado (F-front) · Elements 4.3.0.163 |
 | `digitalisimo_elements_front_applied` | Valores en vigor, huella, veredicto de iconos y fecha; carga automática. Es lo único que leen la puerta, los valores por defecto y el cargador en el front | — (automática, sin pantalla: cada sitio transita en sus peticiones) | Sólo la escribe la transición, al final y bajo cerrojo | Publicado (F-front) · Elements 4.3.0.163 |
 | `digitalisimo_elements_icon_scan` | Estado, cursor y hasta 50 hallazgos (fuente, id y extracto ≤ 120 caracteres) del análisis de iconos. **Sin carga automática** | — (automática, sin pantalla) | Sólo la escribe el análisis; los extractos se muestran con `esc_html()` | Publicado (F-front) · Elements 4.3.0.163 |
+| `digitalisimo_elements_swatches` | Tipo, forma y tamaño de muestra por atributo (`pa_*`) de ese sitio; se escribe desde la pantalla de atributos de WooCommerce. **Existe siempre** con WooCommerce (se crea en `admin_init`) y el front sólo la lee si está en `wp_load_alloptions()` | — (dato del sitio, sin pantalla propia; en una red cada sitio tiene la suya) | Lista cerrada de tipos (`select`, `color`, `image`, `label`), formas y tamaños; por `manage_product_terms` y con el nonce de la pantalla de WooCommerce; viaja en el kit dentro de `woo-attributes` | En validación (F4-Woo) · Elements 4.3.0.166 |
+| `digitalisimo_elements_woo_fragments` | Bandera 0/1 con carga automática: algún documento publicado del constructor usa la barra de envío o el cupón. Con 0, `woocommerce_add_to_cart_fragments` no se engancha y la respuesta de fragmentos no cambia | — (automática, sin pantalla) | Sólo la recalculan las transiciones de estado de documentos del constructor y la importación de kits | En validación (F4-Woo) · Elements 4.3.0.166 |
+| Opción de usuario `digitalisimo_wishlist` (con el prefijo del sitio) y metas de término `digitalisimo_swatch_{type,shape,size,color,image,label}` | Lista de deseos de un miembro de ese sitio (hasta 100 productos) y muestras de cada término de ese sitio | — (datos del sitio) | IDs enteros de productos del sitio; color `#rrggbb`/`#rrggbbaa`, imagen = adjunto del sitio, etiqueta ≤ 24 caracteres. Exportador y borrador de datos personales para la lista | En validación (F4-Woo) · Elements 4.3.0.166 |
 | `digitalisimo_elements_front_lock` | Cerrojo de la transición: `INSERT IGNORE` con token; se roba pasados 300 s | — (automático) | Sin entrada del usuario | Publicado (F-front) · Elements 4.3.0.163 |
 | `digitalisimo_elements_front_snippets` | Booleano con carga automática: algún fragmento publicado de Código personalizado nombra los globales de PRO. Se recalcula al guardar, borrar o cambiar de estado un fragmento y en la transición | — (automática, sin pantalla) | Sin entrada del usuario | Publicado (F-front) · Elements 4.3.0.163 |
 | Evento `digitalisimo_elements_front_transition` | Evento único por sitio cuando el valor efectivo difiere del aplicado; en `admin_init` se ejecuta si sigue pendiente (redes con `DISABLE_WP_CRON`) | — | — | Publicado (F-front) · Elements 4.3.0.163 |
@@ -914,6 +1011,7 @@ Desde el 2026-10-20 las filas de Divi, Betheme, GeneratePress, GenerateBlocks y 
 | Template Kit de Envato | Formato de Envato (`manifest_version`) | ZIP de marketplace | R2 en «agregar» y «Aplicar los ajustes del kit» | **Publicado, sintético** (K-D17) · Elements 4.3.0.162 | Sin kits reales: lecturas «a confirmar» en `docs/fusion/k-envato.md` |
 | Plantilla suelta | JSON de plantilla o ZIP de plantillas | Biblioteca → Importar | Marcador para los tipos desconocidos; un ZIP de kit subido ahí va al importador de kits (R10) | **Publicado** (K) · Elements 4.3.0.162 | La biblioteca dentro del editor no se intercepta |
 | Capacidades de Divi y Betheme en Elements (clean-room) | Elements 4.3.0.164 | Ajustes de elemento y de documento, opción de presets del sitio y parte `presets` del kit | Presets, degradados, máscaras, patrones, siete condiciones, prioridad de las plantillas, sticky «al fijarse» y controles de documento: 14 unitarias nuevas con el núcleo y las clases de PRO reales donde se pueden cargar; `design.sh` DS1–DS13 y las ampliaciones de `front-budget.sh`, `conditions.sh`, `kit-roundtrip.sh` y `brand-audit.sh`: en verde | **Publicado** (F7a) · Elements 4.3.0.164 | Nada se importa de los orígenes. Las condiciones de F7a no se ofrecen en v4 y el prop v4 `display-conditions` no se traduce en los kits; hueco de nombres de K con `masks/<sha8>.svg` (ver F7a, «Límites declarados») |
+| Capacidades de WooCommerce en Elements (clean-room) | Elements 4.3.0.166 (en validación) | Widgets `digitalisimo-woo-*`, partes de Productos y rasgo del Menú del carrito; opción de muestras del sitio, metas de término y lista de deseos del usuario; partes `woo-attributes` y `woo-variations` del kit | Lista de deseos, vista rápida, muestras, barra de envío gratis, cupón, filtros de precio y de atributo | `woo-flow.sh` W0–W13 (también `NET=1` y `CORE=plugin`), `front-budget.sh WOO=1` en cuatro modos, `kit-roundtrip.sh WOO=1`, `brand-audit.sh WOO=1` | Sólo WooCommerce 11.2.1 probado; la lista de deseos y `wc-visual` de WooCommerce son experimentales; un Loop Grid con «Consulta actual» no se filtra con el destino «Tienda» (ver F4-Woo, «Límites declarados») |
 
 ### Recorridos
 

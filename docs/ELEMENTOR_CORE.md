@@ -147,7 +147,8 @@ Desde 4.3.0.166, los widgets y rasgos de WooCommerce viven en `modules/digitalis
 - el filtro `elementor-pro/frontend/handlers` y su clave `taxonomyFilter`;
 - los métodos `refreshLoopWidget()`, `getQueryStringInObjectForm()`, `setFilterDataForLoopWidget()` y `removeFilterFromLoopWidget()` del filtro de taxonomía;
 - el marcado `.e-filter-item[data-filter][aria-pressed]`;
-- la ruta REST `elementor-pro/v1/refresh-loop` y `ElementorProFrontendConfig.urls.rest`.
+- la ruta REST `elementor-pro/v1/refresh-loop` y `ElementorProFrontendConfig.urls.rest`;
+- el aviso `elementor-pro/modules/init/before`, que `assets/js/frontend.js` lanza en `initModules()` justo antes de aplicar el filtro `elementor-pro/frontend/handlers` (el propio `elements-handlers.js` se engancha así). `hooks` del núcleo nace en `elementorFrontend.init()`, en el *DOM ready*, así que un script evaluado antes no puede registrar el filtro al cargarse; en Chrome, el oyente jQuery de PRO en `elementor/frontend/init` corre antes que cualquier oyente nativo del mismo aviso. `filters.js` registra su filtro al recibir ese aviso (o de inmediato si `hooks` ya existe), y `filters-form.js` espera a `elementor/frontend/init` para sus `element_ready`. `tests/elements-woo-filters.mjs` (caso 1b) reproduce los dos órdenes de arranque.
 
 `assets/js/filters.js` sustituye por herencia `refreshLoopWidget()`, con prioridad 20, sólo en los bucles que tienen un filtro de F4-Woo. Es la excepción declarada en `DIGITALISIMO_CHANGES.md`. Si falta algo de esta lista, no sustituye nada y los filtros de F4-Woo funcionan por GET.
 

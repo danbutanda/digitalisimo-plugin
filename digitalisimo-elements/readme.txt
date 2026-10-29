@@ -54,6 +54,10 @@ DIGITALÍSIMO Elements no envía datos de los visitantes fuera del sitio. Sólo 
 * digi-visit-count-…: cuántas veces vio el visitante un elemento, para las reglas de visibilidad que lo piden. Se borra al cerrar el navegador.
 * _digi_…: en cuántas sesiones vio el visitante un elemento, para las reglas de visibilidad que lo piden. Dura un año.
 
+Con WooCommerce, la lista de deseos de un visitante sin sesión vive en el almacenamiento del navegador, no en una cookie:
+
+* digi_wishlist (en una red, digi_wishlist_ con el número del sitio): los productos que el visitante pidió guardar, sólo después de pulsar el botón y como mucho 365 días. Para mostrar la lista, el navegador envía los números de producto al sitio, que no los guarda. Si el visitante inicia sesión y acepta añadirla a su cuenta, la lista se guarda en su cuenta de este sitio hasta que la vacíe, deje de ser usuario del sitio o borre la cuenta, y se puede exportar o borrar desde las herramientas de privacidad. Con la lista de deseos de WooCommerce activa, la cuenta usa la de WooCommerce. Con la WP Consent API, la clave se declara como almacenamiento local de la categoría funcional.
+
 La cookie de «Visitó una página» sólo se escribe en las páginas que alguna condición rastrea y con permiso:
 
 * Con un gestor de consentimiento compatible con la WP Consent API, sólo si el visitante aceptó las cookies de preferencias, y se respeta cuando cambia de opinión.

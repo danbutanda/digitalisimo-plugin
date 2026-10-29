@@ -51,6 +51,14 @@ La evidencia de Playground de K se guarda en `k-kits-evidence.json`, el `summary
 
 La evidencia de Playground de F7a irá a `f7a-evidence.json`, con los `summary.json` de `tests/playground/design.sh` y de las ampliaciones de `front-budget.sh`, `conditions.sh`, `kit-roundtrip.sh` y `brand-audit.sh`.
 
+## WooCommerce visual en Elements (F4-Woo)
+
+| Informe | Qué cubre | Incremento |
+|---|---|---|
+| [f4woo.md](f4woo.md) | Diseño y evidencia de F4-Woo: hechos de WooCommerce 11.2.1 y de la WP Consent API verificados con archivo y línea (frente 0), la matriz corregida de V.2, la regla de eventos, el contrato del coordinador de filtros con el paquete de PRO (y su arranque), los formatos y ganchos nuevos, la privacidad de la lista de deseos, el presupuesto medido de los doce casos y las desviaciones de la especificación | F4-Woo (y K, F8) |
+
+La evidencia de Playground de F4-Woo está en `f4woo-evidence.json`: el estado, los recuentos y la duración de `tests/playground/woo-flow.sh` (W0–W13, también `NET=1` y `CORE=plugin`), de `front-budget.sh WOO=1` en sus cuatro modos, de `kit-roundtrip.sh WOO=1` y de los arneses de regresión.
+
 ## Sin rastro de los plugins de origen (F0.2, resuelto)
 
 | Informe | Qué cubre |
