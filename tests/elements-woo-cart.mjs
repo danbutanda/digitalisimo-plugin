@@ -70,7 +70,7 @@ function page(handler, params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%' }) {
   input.value = 'VERA';
   p.fragment('div.digi-coupon__state', couponState(2)); // otra pestaña cambió el carrito
   await sleep(5);
-  assert.equal(p.doc.activeElement, input, 'el foco sigue en el campo');
+  assert.ok(p.doc.activeElement === input, 'el foco sigue en el campo');
   assert.equal(input.value, 'VERA', 'lo escrito sigue');
   input.value = ' verano10 ';
   p.q('.digi-coupon__form').dispatchEvent(event('submit', { bubbles: true }));
@@ -95,7 +95,7 @@ function page(handler, params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%' }) {
   assert.equal(p.q('.digi-coupon__input').value, 'x', 'con error, lo escrito se queda para corregirlo');
   assert.equal(p.refreshes.length, 0);
   assert.equal(globalThis.hacked, undefined);
-  assert.equal(p.q('.digi-coupon__status img'), null, 'el HTML de la respuesta nunca entra en la página');
+  assert.ok(p.q('.digi-coupon__status img') === null, 'el HTML de la respuesta nunca entra en la página');
 }
 
 // 4. Nonce caducado: un wc_fragment_refresh, espera al estado nuevo y un solo reintento con su nonce.
@@ -135,8 +135,8 @@ function page(handler, params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%' }) {
   await sleep(80);
   assert.equal(p.calls[0].url, '/?wc-ajax=remove_coupon');
   assert.deepEqual(p.calls[0].body, { coupon: 'verano10', security: 'r2' }, 'remove_coupon lee `coupon`, no `coupon_code`');
-  assert.equal(p.q('.digi-coupon__remove'), null);
-  assert.equal(p.doc.activeElement, p.q('.digi-coupon__input'), 'el foco que estaba en «Quitar» pasa al campo');
+  assert.ok(p.q('.digi-coupon__remove') === null, 'el botón «Quitar» desaparece con el fragmento');
+  assert.ok(p.doc.activeElement === p.q('.digi-coupon__input'), 'el foco que estaba en «Quitar» pasa al campo');
 }
 
 // 6. Cupones apagados o sin los parámetros de fragmentos: el formulario no aparece (falla cerrado).
@@ -145,14 +145,15 @@ function page(handler, params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%' }) {
   p.fragment('div.digi-coupon__state', '<div class="digi-coupon__state" hidden></div>');
   await sleep(5);
   assert.equal(p.q('.digi-coupon').hidden, true);
-  const q = page(() => response(200, OK), undefined);
+  const q = page(() => response(200, OK), null);
   q.fragment('div.digi-coupon__state', couponState(1));
   await sleep(5);
   assert.equal(q.q('.digi-coupon').hidden, true, 'sin wc-cart-fragments, ni cupón ni barra');
 }
 
 assert.ok(Buffer.byteLength(SOURCE) <= 8192, `cart-extras.js pesa ${Buffer.byteLength(SOURCE)} B (tope 8 KB)`);
-assert.ok(!/jQuery|\$\(/.test(SOURCE), 'sin jQuery: los eventos de WooCommerce se observan con MutationObserver');
+const CODE = SOURCE.replace(/^\s*\/\/[^\n]*$/gm, ''); // los comentarios citan el $( clave ).replaceWith() de WooCommerce
+assert.ok(!/jQuery|\$\(/.test(CODE), 'sin jQuery: los eventos de WooCommerce se observan con MutationObserver');
 assert.ok(!/innerHTML\s*=/.test(SOURCE), 'el script nunca inserta HTML de una respuesta');
 
 console.log('DIGITALÍSIMO Elements: script de la barra de envío gratis y del cupón validado (foco, nonce, quitar y avisos).');

@@ -137,7 +137,7 @@ const ownConfig = (over = {}) => guestConfig({ loggedIn: true, rest: '/wp-json/d
   await sleep(50);
   assert.equal(p.ls.getItem('digi_wishlist'), null, '«Descartar» borra la copia local');
   assert.equal(p.calls.length, 0, '…sin enviarla');
-  assert.equal(p.q('.digi-wish-merge'), null);
+  assert.ok(p.q('.digi-wish-merge') === null, 'el aviso de fusión desaparece');
   assert.equal(status(p), TA.discarded);
 }
 {
@@ -241,10 +241,10 @@ const storeConfig = (over = {}) => ownConfig({ mode: 'store', store: '/wp-json/w
   await sleep(50);
   assert.equal(p.calls.length, 1, 'quitar no vuelve a pedir las fichas');
   assert.equal(p.qa('li').length, 1);
-  assert.equal(p.doc.activeElement, second.querySelector('a'), 'el foco pasa a la ficha siguiente');
+  assert.ok(p.doc.activeElement === second.querySelector('a'), 'el foco pasa a la ficha siguiente');
   second.querySelector('button').click();
   await sleep(50);
-  assert.equal(p.doc.activeElement, p.q('.digi-wishlist__title'), 'sin fichas, el foco va al título');
+  assert.ok(p.doc.activeElement === p.q('.digi-wishlist__title'), 'sin fichas, el foco va al título');
   assert.equal(p.q('[data-digi-wish-empty]').hidden, false);
   assert.equal(p.ls.getItem('digi_wishlist'), null);
 }
@@ -256,7 +256,7 @@ const storeConfig = (over = {}) => ownConfig({ mode: 'store', store: '/wp-json/w
   p.q('[data-digi-wish-clear]').click();
   await sleep(50);
   assert.equal(p.ls.getItem('digi_wishlist'), null);
-  assert.equal(p.doc.activeElement, p.q('.digi-wishlist__title'));
+  assert.ok(p.doc.activeElement === p.q('.digi-wishlist__title'), 'el foco sigue en el título');
   assert.equal(p.q('.digi-wish-status').parentNode.localName, 'dialog', 'con un diálogo abierto, la región va dentro');
   assert.equal(status(p), T.cleared);
 }

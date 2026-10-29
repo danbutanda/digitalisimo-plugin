@@ -254,6 +254,8 @@ jobs:
           node tests/elements-woo-quick-view.mjs
           php tests/elements-woo-swatches.php
           node tests/elements-woo-swatches.mjs
+          php tests/elements-woo-cart.php
+          node tests/elements-woo-cart.mjs
           php tests/elements-loop-filter-parse.php
           php tests/elements-woo-filters.php
           node tests/elements-woo-filters.mjs

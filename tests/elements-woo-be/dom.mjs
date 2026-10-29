@@ -78,7 +78,8 @@ export function createDocument() {
         }
         return !ev.defaultPrevented;
       },
-      focus() { if (owner) owner.activeElement = n; },
+      // Como en un navegador: enfocar otro nodo dispara `focusin`, que burbujea.
+      focus() { if (!owner || owner.activeElement === n) return; owner.activeElement = n; n.dispatchEvent(event('focusin', { bubbles: true })); },
       click() { n.dispatchEvent(event('click', { bubbles: true })); },
     };
     return n;
