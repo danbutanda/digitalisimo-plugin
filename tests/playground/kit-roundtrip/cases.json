@@ -2447,10 +2447,8 @@
                 "elType": "widget",
                 "widgetType": "heading",
                 "settings": {
-                  "title": "Producto",
-                  "__dynamic__": {
-                    "title": "[elementor-tag id=\"e9a0003\" name=\"post-title\" settings=\"%7B%7D\"]"
-                  }
+                  "title": "Ficha de producto",
+                  "header_size": "h3"
                 }
               }
             ]

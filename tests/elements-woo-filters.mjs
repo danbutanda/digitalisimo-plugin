@@ -209,7 +209,7 @@ const PAGE = `<div data-elementor-id="10" class="elementor elementor-10">${loopH
 
 // ---------------------------------------------------------------------------------------------------------------
 // Entorno: relojes falsos, fetch controlable, historia, núcleo y módulo de PRO.
-function env({ html = PAGE, edit = false, proComplete = true, search = '', ignoreAbort = false } = {}) {
+function env({ html = PAGE, edit = false, proComplete = true, search = '', ignoreAbort = false, lateHooks = false } = {}) {
   const doc = makeDocument(html);
   let now = 0; const timers = [];
   const setTimeout = (fn, ms = 0) => { const t = { fn, at: now + ms, id: timers.length + 1 }; timers.push(t); return t.id; };
@@ -231,7 +231,8 @@ function env({ html = PAGE, edit = false, proComplete = true, search = '', ignor
     addAction(name, fn) { (actions[name] = actions[name] || []).push(fn); },
     doAction(name, ...args) { (actions[name] || []).forEach((fn) => fn(...args)); },
   };
-  const elementorFrontend = { hooks, isEditMode: () => edit, config: { post: { id: 99 } }, elementsHandler: { runReadyTrigger: (el) => ready.push(el) } };
+  // `lateHooks`: como el núcleo real, que crea `hooks` en init() (en el DOM listo) y avisa con elementor/frontend/init.
+  const elementorFrontend = { hooks: lateHooks ? undefined : hooks, isEditMode: () => edit, config: { post: { id: 99 } }, elementsHandler: { runReadyTrigger: (el) => ready.push(el) } };
   const winListeners = {};
   const ctx = {
     document: doc, location, history, fetch, AbortController, URLSearchParams, URL, setTimeout, clearTimeout, Event: Ev, FormData: FormDataDouble, JSON, console,
@@ -242,6 +243,10 @@ function env({ html = PAGE, edit = false, proComplete = true, search = '', ignor
   vm.createContext(ctx);
   vm.runInContext(source.coordinator, ctx);
   vm.runInContext(source.form, ctx);
+  if (lateHooks) {
+    elementorFrontend.hooks = hooks;
+    (winListeners['elementor/frontend/init'] || []).forEach((fn) => fn(new Ev('elementor/frontend/init')));
+  }
   // PRO: su propio filtro (10) añade el módulo; después crea la instancia (`initModules()`).
   const proCalls = [];
   const forbidden = ['prepareLoopUpdateRequestData', 'getFetchArgumentsForLoopUpdate', 'fetchUpdatedLoopWidgetMarkup', 'getFilterHelperAttributes'];
@@ -304,6 +309,24 @@ assert.ok(!/<script|innerHTML\s*=\s*[^h]/.test(source.form), 'Los formularios no
   assert.deepEqual(e.pushes, ['/tienda/?e-filter-abc1234-product_cat=ropa']);
   // getQueryStringInObjectForm(): otro bucle no borra los parámetros del coordinado.
   assert.deepEqual(e.mod.getQueryStringInObjectForm(), { 'e-filter-def5678-product_tag': 'b', 'e-filter-abc1234-product_cat': 'ropa' });
+}
+
+// 1b · Arranque real del núcleo: `elementorFrontend.hooks` no existe al evaluar los scripts (init() lo crea en el DOM
+// listo y avisa con elementor/frontend/init antes de que PRO cree sus módulos). La subclase y los formularios entran
+// por ese aviso: el coordinador queda activo y una casilla refresca por AJAX (W9 lo encontró en Chrome).
+{
+  const e = env({ lateHooks: true });
+  assert.ok((e.filters['elementor-pro/frontend/handlers'] || []).some((f) => f.priority === 20), 'Con `hooks` creado en init(), la subclase se registra con prioridad 20.');
+  assert.ok(e.mod instanceof e.LoopFilter && e.mod.constructor !== e.LoopFilter, 'PRO crea el módulo con la subclase aunque `hooks` llegue en init().');
+  assert.ok(e.ctx.digitalisimoWooFilters.active(), 'El coordinador queda activo.');
+  const attr = e.doc.querySelector('.elementor-element-f000002 form');
+  assert.equal(attr.getAttribute('data-digi-ready'), '1', 'El formulario se inicia en element_ready.');
+  assert.ok(attr.classList.contains('digi-filter--live'), 'Con el coordinador activo al iniciarse, el formulario es «en vivo».');
+  const box = attr.querySelector('input[value="rojo"]');
+  box.checked = true;
+  box.dispatchEvent(new Ev('change'));
+  await e.tick(300);
+  assert.equal(e.fetches.length, 1, 'La casilla refresca el bucle por AJAX.');
 }
 
 // 2 · Precio: submit, aria-busy, inserción, región viva, foco; respuesta vieja descartada; abort.

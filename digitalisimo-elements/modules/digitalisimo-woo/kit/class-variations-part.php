@@ -195,10 +195,16 @@ final class Variations_Part implements Part {
 				'suppress_filters' => true,
 			)
 		);
+		// `fields => 'id=>parent'` devuelve `ID de la variación => ID del padre` en el orden de la consulta
+		// (WP_Query::get_posts(), `$post_parents`), no objetos.
 		$out = array();
-		foreach ( (array) $rows as $row ) {
-			if ( is_object( $row ) && isset( $row->ID, $row->post_parent ) ) {
-				$out[ (int) $row->post_parent ][] = (int) $row->ID;
+		foreach ( (array) $rows as $id => $parent ) {
+			if ( is_object( $parent ) && isset( $parent->ID, $parent->post_parent ) ) {
+				$id     = $parent->ID;
+				$parent = $parent->post_parent;
+			}
+			if ( is_numeric( $id ) && (int) $id > 0 && is_numeric( $parent ) && (int) $parent > 0 ) {
+				$out[ (int) $parent ][] = (int) $id;
 			}
 		}
 		foreach ( array_keys( $out ) as $parent ) {

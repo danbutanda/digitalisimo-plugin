@@ -14,6 +14,18 @@ const SHARED = path.join(OUT, 'shared');
 const IN_SITE = '/wordpress/wp-content/digi-shared';
 const WIDTHS = QUICK ? [1280] : [360, 768, 1280];
 const RENDER = process.env.RENDER ? new RegExp(process.env.RENDER) : null;
+// Tipos de contenido que A exporta, como en la App con «Editar contenido» (customization.content.customPostTypes, con el
+// mediaFormat por defecto) y en WP-CLI con --post-types. Vacío: el cuerpo de la App sin personalizar (content null), con el
+// que el núcleo exporta las entradas de todos los tipos registrados pero sólo las taxonomías de los nativos
+// (E:app/modules/import-export-customization/runners/export/taxonomies.php, export_all). Con WOO=1, por defecto,
+// post,product: sin product_cat ni pa_* en el kit, sus metas (imagen de categoría, color e imagen de muestra) no tienen
+// destino (K, Term_Meta: term-meta.no-term).
+const EXPORT_POST_TYPES = (process.env.EXPORT_POST_TYPES !== undefined ? process.env.EXPORT_POST_TYPES : (WOO ? 'post,product' : '')).split(',').map((t) => t.trim()).filter(Boolean);
+const exportBody = () => ({
+  include: ['templates', 'content', 'settings', 'plugins'], kitInfo: { title: 'Kit de A', description: 'Ida y vuelta de K', source: 'local' },
+  customization: { settings: null, templates: null, content: EXPORT_POST_TYPES.length ? { customPostTypes: EXPORT_POST_TYPES, mediaFormat: 'link' } : null, plugins: null },
+  plugins: [], selectedCustomPostTypes: EXPORT_POST_TYPES.length ? EXPORT_POST_TYPES : [],
+});
 const vendors = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/playground/brand-audit/vendors.json'), 'utf8'));
 const VENDOR_HOSTS = [...vendors.hosts, ...(vendors.future || [])];
 const isVendor = (host) => VENDOR_HOSTS.some((h) => host === h || host.endsWith('.' + h)) || host === 'wordpress.org' || host.endsWith('.wordpress.org');
@@ -166,7 +178,7 @@ function restTimes(site, label, { all = false } = {}) {
 // ── Exportación desde A ───────────────────────────────────────────────────────────────────────────────────────
 async function exportFromA() {
   const auth = await adminSession('a');
-  const body = { include: ['templates', 'content', 'settings', 'plugins'], kitInfo: { title: 'Kit de A', description: 'Ida y vuelta de K', source: 'local' }, customization: { settings: null, templates: null, content: null, plugins: null }, plugins: [], selectedCustomPostTypes: [] };
+  const body = exportBody();
   const res = await rest('a', auth, 'POST', 'export', body, { label: 'export' });
   const out = {};
   if (res.status === 200 && res.json && res.json.data && res.json.data.file) {
@@ -177,7 +189,7 @@ async function exportFromA() {
     out.restError = `${res.status} ${res.text.slice(0, 300)}`;
   }
   if (QUICK) { out.cliError = 'QUICK=1: sin exportación por WP-CLI'; return out; }
-  const cli = await R.wpcli('a', ['digitalisimo-elements', 'kit', 'export', `${IN_SITE}/exports/a-cli.zip`, '--user=admin']);
+  const cli = await R.wpcli('a', ['digitalisimo-elements', 'kit', 'export', `${IN_SITE}/exports/a-cli.zip`, '--user=admin', ...(EXPORT_POST_TYPES.length ? [`--post-types=${EXPORT_POST_TYPES.join(',')}`] : [])]);
   if (cli.ok && fs.existsSync(path.join(SHARED, 'exports', 'a-cli.zip'))) out.cli = path.join(SHARED, 'exports', 'a-cli.zip');
   else out.cliError = (cli.stderr || cli.fatal || cli.stdout || '').slice(0, 300);
   return out;
@@ -387,7 +399,7 @@ async function R1(s) {
     // export(A) = export(B) normalizado (CV-15): B vuelve a exportar y su firma de manifiesto coincide.
     if (via === 'pantalla') {
       const auth = await adminSession('b');
-      const res = await rest('b', auth, 'POST', 'export', { include: ['templates', 'content', 'settings', 'plugins'], kitInfo: { title: 'Kit de A', description: 'Ida y vuelta de K', source: 'local' }, customization: { settings: null, templates: null, content: null, plugins: null }, plugins: [], selectedCustomPostTypes: [] }, { label: 'R1 export B' });
+      const res = await rest('b', auth, 'POST', 'export', exportBody(), { label: 'R1 export B' });
       if (res.status === 200 && res.json && res.json.data && res.json.data.manifest) {
         const ma = kits.restManifest || {};
         const mb = res.json.data.manifest;
@@ -1296,7 +1308,8 @@ async function main() {
   // Qué código vieron los sitios: la copia fija ($OUT/src) con los archivos sin confirmar de ese momento, o el árbol vivo.
   summary.src = R.SRC === ROOT ? { live: true } : { live: false, dirty: (fs.existsSync(path.join(R.SRC, 'dirty.txt')) ? fs.readFileSync(path.join(R.SRC, 'dirty.txt'), 'utf8').split('\n').filter(Boolean) : []) };
   const started = Date.now();
-  log(`kit-roundtrip: escenarios ${SCENARIOS.join(', ')} · núcleo ${CORE} · WOO=${WOO ? 1 : 0} · SLOW=${SLOW ? 1 : 0}${QUICK ? ' · QUICK' : ''}`);
+  log(`kit-roundtrip: escenarios ${SCENARIOS.join(', ')} · núcleo ${CORE} · WOO=${WOO ? 1 : 0} · SLOW=${SLOW ? 1 : 0}${QUICK ? ' · QUICK' : ''}${EXPORT_POST_TYPES.length ? ` · tipos exportados ${EXPORT_POST_TYPES.join(',')}` : ''}${RENDER ? ` · RENDER ${RENDER.source}` : ''}`);
+  summary.options.export_post_types = EXPORT_POST_TYPES;
   const unknown = SCENARIOS.filter((id) => !RUN[id]);
   if (unknown.length) throw new Error(`Escenarios desconocidos: ${unknown.join(', ')}`);
 

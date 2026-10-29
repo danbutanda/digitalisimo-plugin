@@ -160,25 +160,26 @@ module.exports = (api) => {
   async function a11y(s, site, qv, slug, label) {
     const url = qv.pages[slug];
     const sel = button(qv, slug, 'simple');
-    const name = qv.products.simple.name;
+    const product = qv.products.simple;
+    const name = product.name;
     const { ctx, page, facts } = await guest();
     const delay = { ms: 1500 };
     try {
       await slowRoute(page, delay);
+      await page.setViewport({ width: WIDTHS[0], height: 900 });
+      await go(page, url);
+      await page.waitForSelector(sel);
+      await watchFocus(page);
+      const attrs = await page.$eval(sel, (a) => ({ haspopup: a.getAttribute('aria-haspopup'), href: a.getAttribute('href') }));
+      const ax = await axName(page, sel);
+      check(s, `W4.2a ${site.path} ${label}`, 'el botón es un enlace a la ficha con `aria-haspopup="dialog"` y el nombre del producto en su nombre accesible', attrs.haspopup === 'dialog' && same(attrs.href, product.url) && !!ax && ax.name.includes(name), short({ attrs, ax }));
+      // La misma página en cada ancho (sin recargar: un solo proceso de PHP).
       for (const width of WIDTHS) {
         const at = `${site.path} ${label} ${width}px`;
         const full = width === WIDE;
         await page.setViewport({ width, height: 900 });
-        await go(page, url);
-        await page.waitForSelector(sel);
-        await watchFocus(page);
-        if (full) {
-          const attrs = await page.$eval(sel, (a) => ({ haspopup: a.getAttribute('aria-haspopup'), href: a.getAttribute('href') }));
-          const ax = await axName(page, sel);
-          check(s, `W4.2a ${at}`, 'el botón es un enlace a la ficha con `aria-haspopup="dialog"` y el nombre del producto en su nombre accesible', attrs.haspopup === 'dialog' && same(attrs.href, qv.products.simple.url) && !!ax && ax.name.includes(name), short({ attrs, ax }));
-        }
 
-        // Teclado: Intro sobre el botón; con la respuesta retrasada se ve el estado «cargando».
+        // Teclado: Intro sobre el botón; con la respuesta retrasada (la primera vez) se ve el estado «cargando».
         await page.focus(sel);
         await page.keyboard.press('Enter');
         await page.waitForSelector(`${DLG}[open]`, { timeout: 30000 });
@@ -191,15 +192,14 @@ module.exports = (api) => {
         let st = await state(page);
         check(s, `W4.1a ${at}`, 'con teclado: el diálogo se abre con el contenido, `aria-busy="false"` y el foco en el título propio (`#digi-qv-title`, dentro del diálogo)', res.ok && st.busy === 'false' && st.activeTitle && st.titleInside && st.titles === 1 && st.labelledby === 'digi-qv-title' && st.status === '', short({ res, st }));
         const dialogName = await axName(page, DLG);
-        check(s, `W4.2c ${at}`, 'nombre accesible del diálogo: el del producto (por `aria-labelledby`), con una región viva dentro', !!dialogName && dialogName.role === 'dialog' && dialogName.name === name && st.live >= 1, short({ dialogName, live: st.live }));
+        const fits = await page.$eval(DLG, (d) => { const r = d.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; });
+        check(s, `W4.2c ${at}`, 'nombre accesible del diálogo: el del producto (por `aria-labelledby`), con una región viva dentro; el diálogo cabe en la ventana', !!dialogName && dialogName.role === 'dialog' && dialogName.name === name && st.live >= 1 && fits, short({ dialogName, live: st.live, fits }));
         await shot(page, `W4-${site.id}-${label}-${width}`);
+        let shut;
         if (full) {
           const fwd = await cycle(page, false);
           const back = await cycle(page, true);
           check(s, `W4.1b ${at}`, 'Tab y Mayús+Tab recorren el diálogo sin llegar a la página (`activeElement` nunca fuera)', fwd.n > 1 && !fwd.outside.length && !back.outside.length && fwd.inside > 1 && back.inside > 1, short({ n: fwd.n, tab: fwd.steps, shiftTab: back.steps }));
-        }
-        let shut;
-        if (full) {
           await page.keyboard.press('Escape');
           shut = await closed(page);
           st = await state(page);
@@ -219,58 +219,39 @@ module.exports = (api) => {
         await page.mouse.click(3, 3);
         shut = await closed(page);
         check(s, `W4.1e ${at}`, 'el clic en el fondo cierra y el foco vuelve al botón', res.ok && shut && await focusOn(page, sel), short({ shut, active: (await state(page)).active }));
-        const away = await outside(page);
-        check(s, `W4.2d ${at}`, 'ningún elemento de la página fuera del diálogo recibió el foco mientras estaba abierto', !away.length, away.slice(0, 5).join(' | '));
       }
+      const away = await outside(page);
+      check(s, `W4.2d ${site.path} ${label}`, 'ningún elemento de la página fuera del diálogo recibió el foco mientras estaba abierto', !away.length, away.slice(0, 5).join(' | '));
+
+      // Ctrl+clic: la ficha en otra pestaña, sin diálogo.
+      const created = ctx.waitForTarget((t) => same(t.url().split('#')[0], product.url), { timeout: 60000 }).catch(() => null);
+      await page.keyboard.down('Control');
+      await page.click(sel);
+      await page.keyboard.up('Control');
+      const target = await created;
+      await sleep(500);
+      const after = await state(page);
+      check(s, `W4.3a ${site.path} ${label}`, 'Ctrl+clic abre la ficha en otra pestaña y no abre el diálogo', !!target && !after.open && same(page.url(), url), short({ tab: target && target.url(), dialog: after.open, here: page.url() }));
+      if (target) { const tab = await target.page().catch(() => null); if (tab) await tab.close().catch(() => {}); }
       check(s, `W4.2e ${site.path} ${label}`, 'sin errores de JavaScript ni respuestas de error del sitio', quiet(clean(facts)), short(clean(facts)));
     } catch (e) {
       await shot(page, `W4-${site.id}-${label}-falla`);
       check(s, `W4.x ${site.path} ${label}`, 'el recorrido accesible termina', false, String(e.stack || e.message || e).slice(0, 600));
+    }
+    // Sin JavaScript (otra pestaña del mismo visitante): el enlace lleva a la ficha.
+    try {
+      const plain = await ctx.newPage();
+      await plain.setJavaScriptEnabled(false);
+      await plain.setViewport({ width: WIDE, height: 900 });
+      await plain.goto(url, { waitUntil: 'load' });
+      await plain.waitForSelector(sel);
+      await Promise.all([plain.waitForNavigation({ waitUntil: 'load' }), plain.click(sel)]);
+      const title = await plain.$eval('.product_title', (e) => e.textContent.trim()).catch(() => '');
+      check(s, `W4.3b ${site.path} ${label}`, 'sin JavaScript, el botón lleva a la ficha del producto', same(plain.url(), product.url) && title === product.name, short({ landed: plain.url(), title }));
+    } catch (e) {
+      check(s, `W4.3b ${site.path} ${label}`, 'sin JavaScript, el botón lleva a la ficha', false, String(e.message || e).slice(0, 400));
     } finally {
       await ctx.close().catch(() => {});
-    }
-  }
-
-  /** Ctrl+clic abre la ficha en otra pestaña sin abrir el diálogo; sin JavaScript, el enlace lleva a la ficha. */
-  async function navigation(s, site, qv, slug, label) {
-    const url = qv.pages[slug];
-    const sel = button(qv, slug, 'simple');
-    const product = qv.products.simple;
-    {
-      const { ctx, page } = await guest();
-      try {
-        await page.setViewport({ width: WIDE, height: 900 });
-        await go(page, url);
-        await page.waitForSelector(sel);
-        const created = ctx.waitForTarget((t) => same(t.url().split('#')[0], product.url), { timeout: 60000 }).catch(() => null);
-        await page.keyboard.down('Control');
-        await page.click(sel);
-        await page.keyboard.up('Control');
-        const target = await created;
-        await sleep(500);
-        const st = await state(page);
-        check(s, `W4.3a ${site.path} ${label}`, 'Ctrl+clic abre la ficha en otra pestaña y no abre el diálogo', !!target && !st.open && same(page.url(), url), short({ tab: target && target.url(), dialog: st.open, here: page.url() }));
-      } catch (e) {
-        check(s, `W4.3a ${site.path} ${label}`, 'Ctrl+clic abre la ficha', false, String(e.message || e).slice(0, 400));
-      } finally {
-        await ctx.close().catch(() => {});
-      }
-    }
-    {
-      const { ctx, page } = await guest();
-      try {
-        await page.setJavaScriptEnabled(false);
-        await page.setViewport({ width: WIDE, height: 900 });
-        await go(page, url);
-        await page.waitForSelector(sel);
-        await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click(sel)]);
-        const title = await page.$eval('.product_title', (e) => e.textContent.trim()).catch(() => '');
-        check(s, `W4.3b ${site.path} ${label}`, 'sin JavaScript, el botón lleva a la ficha del producto', same(page.url(), product.url) && title === product.name, short({ landed: page.url(), title }));
-      } catch (e) {
-        check(s, `W4.3b ${site.path} ${label}`, 'sin JavaScript, el botón lleva a la ficha', false, String(e.message || e).slice(0, 400));
-      } finally {
-        await ctx.close().catch(() => {});
-      }
     }
   }
 
@@ -280,8 +261,6 @@ module.exports = (api) => {
       if (!qv) continue;
       await a11y(s, site, qv, OWN, 'propio');
       await a11y(s, site, qv, TPL, 'plantilla');
-      await navigation(s, site, qv, OWN, 'propio');
-      await navigation(s, site, qv, TPL, 'plantilla');
     }
   }
 
@@ -309,6 +288,8 @@ module.exports = (api) => {
         disabled: !btn || btn.classList.contains('disabled') || btn.disabled,
       };
     });
+    // `wc_variation_form` deshabilita la compra al iniciarse (100 ms después, con `check_variations`).
+    await page.waitForFunction(() => { const b = document.querySelector('dialog.digi-qv .single_add_to_cart_button'); return !!(b && b.classList.contains('disabled')); }, { timeout: 5000 }).catch(() => {});
     const before = await read();
     await page.select(`${DLG} select[name="attribute_pa_color"]`, variation.color);
     await page.select(`${DLG} select[name="attribute_pa_talla"]`, variation.talla);
@@ -501,11 +482,13 @@ module.exports = (api) => {
         }, () => ({ open: false }));
       }
       await shot(page, `W5-${site.id}-plantilla-galeria`);
-      check(s, `W5.2e ${site.path}`, 'la ampliación de la galería (PhotoSwipe de «Imágenes del producto») se abre por encima del diálogo', !!zoom.open && zoom.onTop && zoom.count === 1, short(zoom));
+      let after = null;
       if (zoom.open) {
         await page.click('.pswp__button--close').catch(() => {});
-        await page.waitForFunction(() => !document.querySelector('.pswp.pswp--open'), { timeout: 10000 }).catch(() => {});
+        const shut = await page.waitForFunction(() => !document.querySelector('.pswp.pswp--open'), { timeout: 10000 }).then(() => true, () => false);
+        after = { shut, ...(await state(page)) };
       }
+      check(s, `W5.2e ${site.path}`, 'la ampliación de la galería (PhotoSwipe de «Imágenes del producto») se abre por encima del diálogo y su «Cerrar» vuelve al diálogo abierto', !!zoom.open && zoom.onTop && zoom.count === 1 && !!after && after.shut && after.open && !after.activeOutside, short({ zoom, after: after && { shut: after.shut, open: after.open, active: after.active } }));
       const stillOpen = (await state(page)).open;
       if (!stillOpen) {
         await page.click(button(qv, TPL, 'simple'));

@@ -64,8 +64,11 @@ module.exports = (api) => {
   const setupOf = () => ((summary.sites[SITE.path] || {}).setup) || {};
 
   // ── HTTP con host y cookies (el sitio de la corrida y los sitios sin WooCommerce) ──────────────────────────────
+  /** Peticiones que el servidor cortó sin respuesta y se repitieron (un worker de php-wasm que se reinicia). */
+  const hiccups = [];
+  summary.resilience = { hiccups }; // summary.json las lleva (se escribe tras cada escenario).
   function httpTo(port, host) {
-    return (method, url, { headers = {}, body = null, jar = null } = {}) => {
+    const once = (method, url, { headers = {}, body = null, jar = null } = {}) => {
       const u = new URL(url, `http://${host}/`);
       const h = { Host: host, ...headers };
       if (jar && Object.keys(jar).length) h.Cookie = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
@@ -96,6 +99,18 @@ module.exports = (api) => {
         if (body !== null) req.write(body);
         req.end();
       });
+    };
+    // Un corte sin respuesta («socket hang up», ECONNRESET) se repite dos veces y queda anotado: si lo causa el
+    // código, se repite igual y la comprobación falla.
+    return async (method, url, opts = {}) => {
+      for (let i = 0; ; i++) {
+        try { return await once(method, url, opts); } catch (e) {
+          if (i >= 2 || !/socket hang up|ECONNRESET/.test(String(e.message || e))) throw e;
+          hiccups.push(`${method} ${String(url).slice(0, 120)} (${e.message})`);
+          log(`   resilience: ${method} ${String(url).slice(0, 80)} sin respuesta (${e.message}); se repite`);
+          await sleep(3000);
+        }
+      }
     };
   }
   const main = httpTo(PORT, HOST);
@@ -594,7 +609,7 @@ module.exports = (api) => {
   async function cacheRound(s, label, ids) {
     const r = res();
     const url = r.pages['digi-wf-res-cache'];
-    const pay = setupOf().pages['digi-wf-pago'];
+    const cart = setupOf().pages['digi-wf-carrito'];
     const { camiseta, gorra } = r.products;
     const A = await visitor();
     const B = await visitor();
@@ -602,11 +617,25 @@ module.exports = (api) => {
       for (const [v, product, el] of [[A, camiseta, 'res1w03'], [B, gorra, 'res1w04']]) {
         await v.page.setViewport({ width: 1280, height: 900 });
         await v.page.goto(`${BASE}${SITE.path}?add-to-cart=${product}`, { waitUntil: 'load' });
-        // Destino conocido (V.7.1): el pago clásico calcula el envío del visitante (`update_order_review`).
-        const review = v.page.waitForResponse((x) => x.url().includes('wc-ajax=update_order_review'), { timeout: 90000 }).catch(() => null);
-        await v.page.goto(pay, { waitUntil: 'load' });
-        await review;
-        await settled(v.page).catch(() => {});
+        // Destino conocido (V.7.1): la calculadora de envío del carrito clásico (España, Madrid, 28001), enviada como
+        // formulario, marca el envío del visitante como calculado.
+        await v.page.goto(cart, { waitUntil: 'load' });
+        const sent = await v.page.evaluate(() => {
+          const f = document.querySelector('form.woocommerce-shipping-calculator');
+          if (!f) return false;
+          const set = (n, val) => { const el = f.querySelector(`[name="${n}"]`); if (el) el.value = val; };
+          set('calc_shipping_country', 'ES');
+          set('calc_shipping_state', 'M');
+          set('calc_shipping_city', 'Madrid');
+          set('calc_shipping_postcode', '28001');
+          const flag = document.createElement('input');
+          flag.type = 'hidden';
+          flag.name = 'calc_shipping';
+          flag.value = 'x';
+          f.appendChild(flag);
+          return true;
+        });
+        if (sent) await Promise.all([v.page.waitForNavigation({ waitUntil: 'load' }), v.page.evaluate(() => HTMLFormElement.prototype.submit.call(document.querySelector('form.woocommerce-shipping-calculator')))]);
         await v.page.goto(url, { waitUntil: 'load' });
         const btn = `.elementor-element-${el} button[data-digi-wish="${product}"]`;
         await v.page.waitForSelector(`${btn}:not([hidden])`, { timeout: 60000 });
@@ -643,7 +672,9 @@ module.exports = (api) => {
       const okA = stateA.mine.length && stateA.mine.every((x) => x === 'true') && stateA.other.every((x) => x === 'false') && JSON.stringify(stateA.list) === JSON.stringify([camiseta]) && stateA.ship && stateA.ship.state === 'done';
       const okB = stateB.mine.length && stateB.mine.every((x) => x === 'true') && stateB.other.every((x) => x === 'false') && JSON.stringify(stateB.list) === JSON.stringify([gorra]) && stateB.ship && stateB.ship.state === 'progress' && /32/.test(stateB.ship.remaining || stateB.ship.text);
       check(s, ids[1], 'cada visitante ve su carrito (barra: 60 € con envío gratis, 18 € con 32 € pendientes) y su lista tras los fragmentos, también con el HTML del otro', okA && okB, short({ A: stateA, B: stateB }, 900));
-      check(s, ids[2], 'sin errores de JavaScript ni respuestas de error en los dos visitantes', !A.facts.errors.length && !B.facts.errors.length && !A.facts.failed.length && !B.facts.failed.length, short({ A: [A.facts.errors.slice(0, 2), A.facts.failed.slice(0, 2)], B: [B.facts.errors.slice(0, 2), B.facts.failed.slice(0, 2)] }));
+      const fa = realFacts(A.facts);
+      const fb = realFacts(B.facts);
+      check(s, ids[2], 'sin errores de JavaScript, respuestas de error ni peticiones fuera en los dos visitantes (salvo las fuentes de Google del kit)', !fa.errors.length && !fb.errors.length && !fa.failed.length && !fb.failed.length && !fa.outside.length && !fb.outside.length, short({ A: fa, B: fb }));
     } finally {
       await A.ctx.close().catch(() => {});
       await B.ctx.close().catch(() => {});
@@ -777,7 +808,7 @@ module.exports = (api) => {
         check(s, 'W13.2b', 'se vuelve a 4.3.0.166', false, String(e.message || e));
       }
     }
-    if (base && after165) {
+    if (base && after165) try {
       // Historial → Revisiones: la revisión anterior al guardado de 4.3.0.165, aplicada y guardada como en el editor.
       const R1 = base.revisions[0].id;
       const page = await editorPage(main, jar, P2);
@@ -796,9 +827,12 @@ module.exports = (api) => {
       check(s, 'W13.2d', `nota: las claves nuevas de los widgets de PRO ${survived ? 'sobreviven' : 'NO sobreviven'} al guardado en 4.3.0.165 (\`digitalisimo_wc_parts\` con quickview, wishlist y swatches; \`digitalisimo_cart_bar\` y \`digitalisimo_cart_coupon\`)`, true, short(kept));
       const fBack = await front(r);
       check(s, 'W13.2e', 'tras restaurar, el front de 4.3.0.166 vuelve a pintar los widgets, el filtro de precio y las partes', fBack.widgets.length >= 5 && fBack.loopPrice > 0 && fBack.parts.quickview && fBack.cartExtras, short(fBack));
+    } catch (e) {
+      check(s, 'W13.2c', 'restaurar la revisión anterior en 4.3.0.166', false, String(e.stack || e.message || e).slice(0, 600));
     }
     await op('resilience_swatches', { type: 'select' }).catch(() => {});
-    await w133(s, jar);
+    try { await w133(s, jar); } catch (e) { check(s, 'W13.3', 'guarda hacia delante', false, String(e.stack || e.message || e).slice(0, 600)); }
+    if (hiccups.length) log(`   resilience: peticiones repetidas tras un corte del servidor: ${hiccups.join(' | ')}`);
   }
 
   /** W13.3 · guarda hacia delante: un widget `digitalisimo-*` de una versión futura. */

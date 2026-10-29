@@ -55,7 +55,7 @@ module.exports = (api) => {
     if (res.json.error) throw new Error(`?digi_wf=${name} en ${site.path}: ${res.json.error}`);
     return res.json;
   }
-  const state = (site, user, blogs) => op(site, 'wishlist_state', blogs ? { user, blogs: blogs.join(',') } : { user });
+  const state = (site, user, blogs, rest) => op(site, 'wishlist_state', { user, ...(blogs ? { blogs: blogs.join(',') } : {}), ...(rest ? { rest: 1 } : {}) });
   const session = (site, user, nonces = []) => op(site, 'wishlist_session', { user, nonces: nonces.join(',') });
   const cookieHeader = (sess) => sess.cookies.map((c) => `${c.name}=${encodeURIComponent(c.value)}`).join('; ');
   async function login(page, sess) {
@@ -168,18 +168,28 @@ module.exports = (api) => {
   async function ajaxOwn(site, kind, email) {
     const w = wlOf(site);
     const list = await op(site, 'wishlist_privacy', { email, type: kind });
-    const index = (list.keys || []).indexOf(OWN_ID) + 1;
-    if (!index) return { index: 0, keys: list.keys, error: 'el propio no está registrado' };
+    const first = (list.keys || []).indexOf(OWN_ID) + 1;
+    if (!first) return { index: 0, keys: list.keys, error: 'el propio no está registrado' };
     const req = await op(site, 'wishlist_privacy_request', { email, type: kind });
     const action = kind === 'erase' ? 'wp-privacy-erase-personal-data' : 'wp-privacy-export-personal-data';
     const admin = await session(site, 1, [`${action}-${req.id}`]);
-    const form = { action, id: String(req.id), page: '1', security: admin.nonces[`${action}-${req.id}`], [kind === 'erase' ? 'eraser' : 'exporter']: String(index) };
-    if (kind !== 'erase') form.sendAsEmail = 'false';
-    const res = await send('POST', w.ajax, { headers: { Cookie: cookieHeader(admin) }, form });
-    const j = res.json;
-    if (!j) return { index, error: `HTTP ${res.status} ${res.text.slice(0, 160)}` };
-    if (!j.success) return { index, error: String(typeof j.data === 'string' ? j.data : JSON.stringify(j.data)).slice(0, 300) };
-    return { index, last: index === list.keys.length, data: j.data };
+    const tried = [];
+    // La administración puede registrar alguno más antes que el propio (en `admin_init`): se sigue hacia arriba hasta
+    // reconocerlo (sus filas o su mensaje) o salir de la lista.
+    for (let index = first; index < first + 4; index++) {
+      const form = { action, id: String(req.id), page: '1', security: admin.nonces[`${action}-${req.id}`], [kind === 'erase' ? 'eraser' : 'exporter']: String(index) };
+      if (kind !== 'erase') form.sendAsEmail = 'false';
+      const res = await send('POST', w.ajax, { headers: { Cookie: cookieHeader(admin) }, form });
+      const j = res.json;
+      if (!j) return { index, tried, keys: list.keys, error: `HTTP ${res.status} ${res.text.slice(0, 160)}` };
+      const message = j.success ? '' : String(typeof j.data === 'string' ? j.data : JSON.stringify(j.data));
+      if (!j.success && /out of range/i.test(message)) break;
+      if (!j.success) return { index, tried, keys: list.keys, error: message.slice(0, 300) };
+      const mine = kind === 'erase' ? Array.isArray(j.data.messages) && j.data.messages.includes(T.erased) : Array.isArray(j.data.data) && j.data.data.some((d) => d.group_id === OWN_GROUP);
+      if (mine) return { index, tried, opIndex: first, data: j.data };
+      tried.push({ index, data: j.data });
+    }
+    return { index: 0, tried, keys: list.keys, error: 'no se reconoció el propio en la lista de la administración' };
   }
 
   // ── W1 · invitado ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -419,7 +429,7 @@ module.exports = (api) => {
     const ajaxRows = ajax1.data && Array.isArray(ajax1.data.data) ? ajax1.data.data.filter((d) => d.group_id === OWN_GROUP) : [];
     check(s, 'W2.3a', '«Exportar datos personales» de B incluye su lista: entre todos los exportadores, sólo el propio trae datos de listas, y la acción AJAX de la pantalla lo devuelve',
       exp1.own && exp1.withList.length === 1 && exp1.withList[0].key === OWN_ID && exp1.withList[0].items === 1 && /Camiseta de prueba/.test(exp1.withList[0].names.join(' ')) && ajaxRows.length === 1 && /Camiseta de prueba/.test(JSON.stringify(ajaxRows[0].data)),
-      short({ exportadores: exp1.keys, conLista: exp1.withList, ajax: { index: ajax1.index, ultimo: ajax1.last, filas: ajaxRows.length, error: ajax1.error } }, 900));
+      short({ exportadores: exp1.keys, conLista: exp1.withList, ajax: { index: ajax1.index, op: ajax1.opIndex, filas: ajaxRows.length, error: ajax1.error } }, 900));
     const era = await ajaxOwn(site, 'erase', U.b.email);
     const fields = era.data ? Object.keys(era.data).sort() : [];
     const b4 = await state(site, U.b.id);
@@ -444,12 +454,12 @@ module.exports = (api) => {
         await saved;
         await vd.page.waitForSelector(`button[data-digi-wish="${id}"][aria-pressed="true"]`, WAIT);
       }
-      const d0 = await state(site, U.d.id);
+      const d0 = await state(site, U.d.id, null, true);
       check(s, 'W2.4a', 'antes de encender la lista de WooCommerce, D guarda tres productos (el variable incluido) en el almacén propio', same(d0.own, [P.camiseta, P.calcetin, P.sudadera]) && d0.mode_rest === 'own' && !d0.woo.length && Number(d0.legacy) >= 1, short(d0));
 
       featureOn = true;
       const on = await op(site, 'wishlist_feature', { on: 1 });
-      const d1 = await state(site, U.d.id);
+      const d1 = await state(site, U.d.id, null, true);
       check(s, 'W2.4b', 'con `product_wishlist` encendida en el sitio, la fuente es la Store API en el front y en REST (la ruta `shopper-lists` registrada)', on.feature === 'yes' && d1.mode_front === 'store' && d1.mode_rest === 'store' && d1.own_exporter === true, short({ feature: on.feature, front: d1.mode_front, rest: d1.mode_rest, exportadorPropio: d1.own_exporter, legacy: d1.legacy }));
 
       vd.net.length = 0;

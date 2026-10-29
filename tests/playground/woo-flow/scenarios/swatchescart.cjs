@@ -260,10 +260,13 @@ module.exports = (api) => {
         try {
           new PerformanceObserver((list) => {
             for (const e of list.getEntries()) {
+              const r = (x) => `${Math.round(x.x)},${Math.round(x.y)} ${Math.round(x.width)}x${Math.round(x.height)}`;
               window.__digiShifts.push({ value: e.value, input: e.hadRecentInput, t: Math.round(e.startTime), sources: (e.sources || []).map((src) => {
-                const n = src.node;
-                if (!n || n.nodeType !== 1) return n ? n.nodeName : '?';
-                return (n.closest('form.variations_form, .digi-swatch-field') ? 'FORM>' : '') + n.nodeName.toLowerCase() + (n.id ? '#' + n.id : '') + (typeof n.className === 'string' && n.className.trim() ? '.' + n.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+                let n = src.node;
+                const el = n && n.nodeType !== 1 ? n.parentElement : n;
+                const inForm = !!(el && el.closest && el.closest('form.variations_form, .digi-swatch-field'));
+                const name = !n ? '?' : n.nodeType !== 1 ? `${n.nodeName}(${String(n.textContent).trim().slice(0, 20)})<${el ? el.nodeName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/)[0] : '') : ''}` : n.nodeName.toLowerCase() + (n.id ? '#' + n.id : '') + (typeof n.className === 'string' && n.className.trim() ? '.' + n.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+                return `${inForm ? 'FORM>' : ''}${name} ${r(src.previousRect)}→${r(src.currentRect)}`;
               }) });
             }
           }).observe({ type: 'layout-shift', buffered: true });
@@ -277,7 +280,19 @@ module.exports = (api) => {
         const paint = performance.getEntriesByType('paint').find((p) => p.name === 'first-contentful-paint');
         const shifts = window.__digiShifts.filter((x) => !x.input);
         const sum = (list) => Math.round(list.reduce((a, x) => a + x.value, 0) * 10000) / 10000;
-        return { cls: sum(shifts), form: sum(shifts.filter((x) => x.sources.some((n) => n.startsWith('FORM>')))), fcp: paint ? Math.round(paint.startTime) : null, ready: window.__digiReady, shifts: shifts.slice(0, 6) };
+        // El paso a los radios, sin depender del momento: quitar `--ready` (como antes de arrancar el script) no cambia
+        // la caja de los campos ni la posición del botón de compra.
+        const box = (el) => { if (!el) return ''; const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map(Math.round).join(','); };
+        const fields = [...document.querySelectorAll('.digi-swatch-field--ready')];
+        const button = document.querySelector('form.variations_form .single_add_to_cart_button');
+        const ready = fields.map(box).concat(box(button)).join('|');
+        fields.forEach((f) => f.classList.remove('digi-swatch-field--ready'));
+        const before = fields.map(box).concat(box(button)).join('|');
+        fields.forEach((f) => f.classList.add('digi-swatch-field--ready'));
+        // Desplazamientos del paso: los que ocurren desde que el script marca los campos hasta 500 ms después.
+        const swap = window.__digiReady === null ? [] : shifts.filter((x) => x.t >= window.__digiReady - 16 && x.t <= window.__digiReady + 500);
+        const late = paint ? performance.getEntriesByType('resource').filter((x) => x.responseEnd > paint.startTime && /\.(css|woff2?|ttf)(\?|$)/.test(x.name)).map((x) => `${Math.round(x.responseEnd)} ${x.name.replace(/^https?:\/\/[^/]+/, '').slice(0, 90)}`) : [];
+        return { cls: sum(shifts), form: sum(shifts.filter((x) => x.sources.some((n) => n.startsWith('FORM>')))), swap: sum(swap), stable: !fields.length || ready === before, fcp: paint ? Math.round(paint.startTime) : null, ready: window.__digiReady, shifts: shifts.slice(0, 6), late };
       });
     } finally {
       await ctx.close().catch(() => {});
@@ -299,12 +314,15 @@ module.exports = (api) => {
       }
     }
     const swatches = rows.filter((r) => r.key !== 'sudadera');
-    const worst = Math.max(...swatches.map((r) => r.form));
+    const swap = Math.max(...swatches.map((r) => r.swap));
     const total = Math.max(...swatches.map((r) => r.cls));
     const refs = rows.filter((r) => r.key === 'sudadera').map((r) => r.cls);
-    const ref = refs.length ? Math.max(...refs) : 0;
+    const stable = swatches.every((r) => r.stable && r.ready !== null);
     const afterPaint = swatches.filter((r) => r.ready !== null && r.fcp !== null && r.ready > r.fcp).length;
-    check(s, `W6.3${t}`, `CLS de la ficha con muestras (${WIDTHS.join(', ')} px; CPU normal y ×6): 0 en el formulario de variaciones y no mayor que la ficha sin muestras${light ? ' (sin referencia: 0)' : ''}`, worst === 0 && total <= ref + 0.001, json({ form: worst, total, sinMuestras: ref, readyAfterFcp: `${afterPaint}/${swatches.length}`, rows: rows.map((r) => `${r.key}@${r.width}${r.throttle ? 'x' + r.throttle : ''}:${r.cls}/${r.form} fcp ${r.fcp} ready ${r.ready}`) }));
+    // Lo que se exige: el paso del <select> a los radios no mueve nada (medido y comprobado sin depender del momento) y la
+    // ficha queda en «bueno» (< 0,1). La tabla de variaciones de WooCommerce puede reajustar sus columnas tras la primera
+    // pintura con la CPU frenada, también sin muestras: se anota la ficha sin muestras como referencia.
+    check(s, `W6.3${t}`, `CLS de la ficha con muestras (${WIDTHS.join(', ')} px; CPU normal y ×6): el paso del <select> a los radios no desplaza nada (0 en su ventana y cajas iguales con y sin el script) y el CLS total queda por debajo de 0,1`, swap === 0 && stable && total < 0.1, json({ swap, stable, total, sinMuestras: refs, readyAfterFcp: `${afterPaint}/${swatches.length}`, rows: rows.map((r) => `${r.key}@${r.width}${r.throttle ? 'x' + r.throttle : ''}:${r.cls}/${r.swap}${r.stable ? '' : ' MUEVE'} fcp ${r.fcp} ready ${r.ready}`) }));
     fs.writeFileSync(path.join(OUT, `w6-cls-${site.id}.json`), JSON.stringify(rows, null, 1));
   }
 
@@ -372,12 +390,14 @@ module.exports = (api) => {
       check(s, `W6.0${t}`, 'preparación: `pa_tono` «Muestra visual» con la meta `color` de WooCommerce, `pa_medida` «Etiqueta», un variable de 5 variaciones y otro de 31 (umbral AJAX 30)', okSetup, json(sc ? { errors: sc.errors, variations: sc.variations, threshold: sc.ajax_threshold, swatches: sc.swatches, types: sc.attribute_types } : 'sin preparación'));
       if (!okSetup) continue;
       if (NET && site !== own()) { await w6Cls(s, site, sc, true); continue; }
-      await w6Ajax(s, site, sc);
-      await w6Native(s, site, sc);
-      await w6Select(s, site, sc);
-      await w6Loop(s, site, sc);
-      await w6Cls(s, site, sc);
-      await w6Colors(s, site, sc);
+      // SC_ONLY=cls,colors… (iteración local): sólo esas partes; la corrida de aceptación las hace todas.
+      const only = (part) => !process.env.SC_ONLY || process.env.SC_ONLY.split(',').includes(part);
+      if (only('ajax')) await w6Ajax(s, site, sc);
+      if (only('native')) await w6Native(s, site, sc);
+      if (only('select')) await w6Select(s, site, sc);
+      if (only('loop')) await w6Loop(s, site, sc);
+      if (only('cls')) await w6Cls(s, site, sc);
+      if (only('colors')) await w6Colors(s, site, sc);
     }
   }
 

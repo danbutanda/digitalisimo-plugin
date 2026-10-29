@@ -100,6 +100,10 @@ form.addEventListener('keydown',ev=>{if(ev.key===' '&&ev.target.matches('[role=b
 if(price)money(form);
 };
 const scan=root=>Q(root,'form.digi-filter').forEach(init);
-if(fe&&fe.hooks)['price','attribute'].forEach(n=>fe.hooks.addAction(`frontend/element_ready/digitalisimo-woo-${n}-filter.default`,$s=>scan($s[0]||$s)));
+// Con el núcleo, en element_ready (sus `hooks` existen desde init(), que avisa con elementor/frontend/init) y, por si
+// algún widget no lo recibe, al cargar la página; sin el núcleo, al estar el DOM.
+let bound=0;
+const bind=()=>{if(bound||!fe.hooks)return;bound=1;['price','attribute'].forEach(n=>fe.hooks.addAction(`frontend/element_ready/digitalisimo-woo-${n}-filter.default`,$s=>scan($s[0]||$s)))};
+if(fe){bind();if(!bound)w.addEventListener('elementor/frontend/init',bind);w.addEventListener('load',()=>scan(d))}
 else if(d.readyState==='loading')d.addEventListener('DOMContentLoaded',()=>scan(d));else scan(d);
 })(window,document);

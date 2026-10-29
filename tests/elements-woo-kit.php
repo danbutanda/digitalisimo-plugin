@@ -126,12 +126,18 @@ namespace {
 			}
 		);
 		$fields = $args['fields'] ?? '';
+		if ( 'id=>parent' === $fields ) {
+			// Como WP_Query::get_posts(): `ID => padre`, no objetos (kit-roundtrip WOO=1 lo encontró: la parte esperaba
+			// objetos y no exportaba ninguna variación).
+			$out = array();
+			foreach ( $found as $post ) {
+				$out[ (int) $post->ID ] = (int) $post->post_parent;
+			}
+			return $out;
+		}
 		return array_map(
 			function ( $post ) use ( $fields ) {
-				if ( 'ids' === $fields ) {
-					return (int) $post->ID;
-				}
-				return 'id=>parent' === $fields ? (object) array( 'ID' => (int) $post->ID, 'post_parent' => (int) $post->post_parent ) : $post;
+				return 'ids' === $fields ? (int) $post->ID : $post;
 			},
 			$found
 		);

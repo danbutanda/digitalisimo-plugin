@@ -5,7 +5,8 @@
 //   nunca fuera, Escape y fondo cierran, el foco vuelve al botón, aborto al cerrar.
 // - Navegación (la ficha) sin HTMLDialogElement, con teclas de modificación, en el editor, sin configuración de
 //   variaciones, con `fallback`, con un script que no se puede cargar tarde o con código en línea bloqueado.
-// - Modo plantilla: hojas, parámetros, código en línea, HTML del pie una sola vez, galería y `runReadyTrigger`.
+// - Modo plantilla: hojas, parámetros, código en línea, HTML del pie una sola vez, PhotoSwipe dentro del diálogo
+//   mientras está abierto, galería y `runReadyTrigger`.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -216,6 +217,7 @@ assert.equal(t.w.antes, 1, 'El código `before` corre antes de su archivo…');
 assert.deepEqual(t.log.inline[0], ['wc-single-product-js-before', 'n0nce'], '…con el nonce del script propio (CSP).');
 assert.deepEqual(t.log.loaded, ['wc-single-product-js', 'wc-add-to-cart-variation-js'], 'Lo que la página no tiene, en orden; `elementor-frontend` ya estaba.');
 assert.equal(t.d.querySelectorAll('.pswp').length, 1, 'El HTML del pie (PhotoSwipe) se inserta una vez.');
+assert.ok(t.dialog().contains(t.d.querySelector('.pswp')), 'Con el diálogo abierto, PhotoSwipe vive dentro (si no, queda bajo la capa modal e inerte).');
 assert.equal(t.log.galleries.length, 1, 'La galería de «Imágenes del producto» se inicia.');
 assert.equal(t.log.forms.length, 1, 'El formulario de variaciones de la plantilla, también.');
 assert.ok(t.log.ready.indexOf('wc') < t.log.ready.indexOf('form'), 'También en modo plantilla, después del «listo».');
@@ -223,9 +225,11 @@ assert.ok(t.log.ready.includes('el:a1') && t.log.ready.includes('el:a2'), '`runR
 assert.equal(t.d.getElementById('digi-qv-title').localName, 'h2', 'En modo plantilla, el título propio oculto es el destino del foco.');
 assert.equal(t.d.activeElement, t.d.getElementById('digi-qv-title'));
 t.dialog().close();
+assert.ok(!t.dialog().contains(t.d.querySelector('.pswp')) && t.d.querySelector('.pswp').parentNode === t.d.body, 'Al cerrar, PhotoSwipe vuelve al final de la página (la galería de la página lo usa).');
 t.click();
 await flush(12);
 assert.equal(t.d.querySelectorAll('.pswp').length, 1, 'Al reabrir no se repite el HTML del pie.');
+assert.ok(t.dialog().contains(t.d.querySelector('.pswp')), 'Al reabrir, PhotoSwipe vuelve al diálogo.');
 assert.equal(t.log.links.length, 1);
 
 // Un script que no se puede cargar tarde y falta en la página: la ficha.

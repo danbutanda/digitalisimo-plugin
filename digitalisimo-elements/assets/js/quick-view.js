@@ -11,6 +11,8 @@ const has = (t, h) => !!(d.getElementById(h + '-' + t) || (t === 'css' && d.getE
 const target = () => dlg.querySelector('#digi-qv-title') || head;
 const shut = () => { if (dlg && dlg.open) dlg.close(); };
 const busy = on => { body.setAttribute('aria-busy', String(on)); stat.textContent = on ? 'Cargando…' : ''; };
+// PhotoSwipe, en la capa del diálogo.
+const mv = to => d.querySelectorAll('.pswp').forEach(n => to.appendChild(n));
 
 function build() {
 	dlg = mk('dialog', 'digi-qv');
@@ -104,6 +106,7 @@ function show(o) {
 	clearTimeout(timer);
 	ctl = null;
 	body.innerHTML = o.html || '';
+	mv(dlg);
 	head.textContent = o.title || head.textContent;
 	const vis = body.querySelector('[data-digi-qv-title]');
 	if (vis) { head.removeAttribute('id'); head.hidden = true; vis.id = 'digi-qv-title'; vis.tabIndex = -1; }
@@ -127,6 +130,7 @@ function cleanup() {
 	clearTimeout(timer);
 	if (ctl) { const c = ctl; ctl = null; c.abort(); }
 	body.textContent = '';
+	mv(d.body);
 	d.documentElement.classList.remove('digi-qv-open');
 	const back = [opener, home].find(n => n && d.contains(n));
 	opener = null;

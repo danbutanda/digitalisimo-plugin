@@ -6,11 +6,14 @@
  * - `wishlist_session` (`user`, `nonces`): una sesión real del usuario (token de sesión y cookies `logged_in` y `auth`
  *   firmadas) y sus nonces (`wp_rest` y los que se pidan), creados con esa sesión: el navegador y las peticiones de
  *   Node entran como ese usuario sin pasar por el formulario de acceso.
- * - `wishlist_state` (`user`, `blogs`): la lista propia del usuario en cada sitio pedido (la meta con el prefijo del
- *   sitio), la de WooCommerce, el contador de listas propias, la función `product_wishlist`, el modo de la fuente (en
- *   el front y con el servidor REST construido), si el exportador propio sigue haciendo falta y la pertenencia al sitio.
+ * - `wishlist_state` (`user`, `blogs`, `rest`): la lista propia del usuario en cada sitio pedido (la meta con el prefijo
+ *   del sitio), la de WooCommerce, el contador de listas propias, la función `product_wishlist`, el modo de la fuente (en
+ *   el front y, con `rest=1`, con el servidor REST construido), si el exportador propio sigue haciendo falta y la
+ *   pertenencia al sitio.
  * - `wishlist_feature` (`on`): enciende o apaga la lista de WooCommerce en este sitio, como la pantalla de funciones.
  * - `wishlist_seed` (`user`, `ids`): guarda una lista propia en este sitio con el almacén del módulo (W2 en red).
+ * - `wishlist_privacy` (`email`, `type`, `run`): los exportadores o borradores que ve la administración y, con `run=1`,
+ *   lo que devuelve cada exportador para ese correo.
  * - `wishlist_privacy_request` (`email`, `type`): una solicitud de exportación o borrado confirmada (cierra las que
  *   queden abiertas para ese correo y esa acción) para usarla con las acciones AJAX de la administración.
  * - `wishlist_remove_from_blog` (`user`, `blog`): `remove_user_from_blog()` desde este sitio, con otro sitio de destino
@@ -90,11 +93,14 @@ return array(
 				}
 			}
 		}
-		// Con el servidor REST construido, el modo también comprueba que la ruta de la Store API exista.
-		rest_get_server();
-		Source::reset();
-		$state['mode_rest']    = Source::mode();
 		$state['own_exporter'] = Personal_Data::needed();
+		// Con `rest=1`, el modo también con el servidor REST construido (comprueba que la ruta de la Store API exista).
+		// Construirlo registra todas las rutas del sitio: sólo cuando se pide.
+		if ( '1' === $digi_wf_wl_arg( 'rest' ) ) {
+			rest_get_server();
+			Source::reset();
+			$state['mode_rest'] = Source::mode();
+		}
 		return $state;
 	},
 

@@ -4100,7 +4100,8 @@
   ],
   "assets": {
    "quick-view-css": "/digitalisimo-elements/assets/css/quick-view\\.css",
-   "quick-view-js": "/digitalisimo-elements/assets/js/quick-view\\.js"
+   "quick-view-js": "/digitalisimo-elements/assets/js/quick-view\\.js",
+   "pro": "/digitalisimo-elements/assets/js/(webpack-pro\\.runtime|elements-handlers|frontend)(\\.min)?\\.js"
   },
   "counts": {
    "open": ".digi-qv__open",
@@ -4143,7 +4144,8 @@
     },
     "asset:quick-view-css": "<=4096",
     "asset:quick-view-js": "<=8192",
-    "inlinePart:variation": "<=1024"
+    "inlinePart:variation": "<=1024",
+    "asset:pro": 0
    }
   },
   "inlineParts": {
@@ -4154,7 +4156,7 @@
   }
  },
  "woo-quick-view-template": {
-  "title": "Vista rápida en «Plantilla de producto» (F4-Woo): la página paga los paquetes de PRO que pide la plantilla (coste declarado, V.5.4)",
+  "title": "Vista rápida en «Plantilla de producto» (F4-Woo): la página paga los paquetes de PRO que pide la plantilla (coste declarado, V.5.4: unos 372 KB)",
   "since": "4.3.0.166",
   "isolate": true,
   "widgets": [
@@ -4233,7 +4235,8 @@
      "count:template": 1
     },
     "asset:quick-view-css": "<=4096",
-    "asset:quick-view-js": "<=8192"
+    "asset:quick-view-js": "<=8192",
+    "asset:pro": "<=380928"
    }
   }
  },

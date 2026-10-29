@@ -113,6 +113,15 @@ module.exports = (api) => {
   };
   const names = (catalog, ids) => (ids || []).map((id) => Object.keys(catalog.products).find((slug) => catalog.products[slug] === id) || `#${id}`);
   const nameList = (catalog, ids) => names(catalog, ids).join(', ');
+  // Las fuentes de Google del kit por defecto (Roboto, Roboto Slab) no son de los filtros: el Playground las bloquea y
+  // Chrome lo anota como error de recurso. Se apartan y se anotan; cualquier otra salida o error cuenta.
+  const FONTS = /^net::\S+ https:\/\/fonts\.(googleapis|gstatic)\.com\//;
+  const clean = (facts) => {
+    const fonts = facts.outside.filter((x) => FONTS.test(x));
+    let skip = fonts.length;
+    const errors = facts.errors.filter((x) => !(skip > 0 && /^Failed to load resource: net::ERR_NAME_NOT_RESOLVED$/.test(x) && skip--));
+    return { ok: !errors.length && !facts.failed.length && facts.outside.length === fonts.length, detail: { errors: errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.filter((x) => !FONTS.test(x)).slice(0, 5), fonts: fonts.length } };
+  };
   const configKey = (cfg) => `${cfg.lookup}/${cfg.hide}`;
   const configLabel = (cfg) => `${cfg.lookup === 'yes' ? 'con tabla' : 'sin tabla'}, ${cfg.hide === 'yes' ? 'ocultando agotados' : 'mostrando agotados'}`;
   const configure = (site, cfg) => op(site, 'filters_config', `&lookup=${cfg.lookup}&hide=${cfg.hide}${cfg.rows ? '&rows=' + cfg.rows : ''}`);
@@ -164,6 +173,7 @@ module.exports = (api) => {
       const main = f.pages.main;
       const tagUrl = f.links.tag;
       try {
+        if (process.env.WF_FILTERS_ONLY === 'chrome') { await browserW9(s, site, f, catalog, {}); continue; }
         // W9.1 · Matriz en una sola petición (ops `filters_matrix`): cada caso en la tienda nativa (consulta principal del
         // archivo de la etiqueta con los parámetros de WooCommerce) y en el bucle por la ruta REST del refresco, con las
         // cuatro combinaciones de tabla de atributos y «Ocultar agotados». Después, las mismas respuestas por HTTP en
@@ -262,13 +272,22 @@ module.exports = (api) => {
     const diagnose = (page) => page.evaluate(() => {
       const wf = window.digitalisimoWooFilters;
       const pro = window.elementorProFrontend;
-      return { coordinator: !!wf, active: !!(wf && wf.active && wf.active()), forms: document.querySelectorAll('form.digi-filter').length, ready: document.querySelectorAll('form.digi-filter[data-digi-ready]').length, proConfig: !!(window.ElementorProFrontendConfig && window.ElementorProFrontendConfig.urls), proFrontend: !!pro, proModules: pro && pro.modules ? Object.keys(pro.modules).slice(0, 30) : null, scripts: [...document.scripts].map((x) => x.src).filter((src) => /filters|elements-handlers|frontend/.test(src)).map((src) => src.replace(/^https?:\/\/[^/]+/, '').slice(0, 120)) };
+      const mod = pro && pro.modules ? pro.modules.taxonomyFilter : null;
+      return { boot: window.__digiBoot, edit: !!(wf && wf.edit && wf.edit()), rest: !!(window.ElementorProFrontendConfig && window.ElementorProFrontendConfig.urls && window.ElementorProFrontendConfig.urls.rest), modOwn: mod ? Object.getOwnPropertyNames(Object.getPrototypeOf(mod)).slice(0, 12) : null, coordinator: !!wf, active: !!(wf && wf.active && wf.active()), forms: document.querySelectorAll('form.digi-filter').length, ready: document.querySelectorAll('form.digi-filter[data-digi-ready]').length, proConfig: !!(window.ElementorProFrontendConfig && window.ElementorProFrontendConfig.urls), proFrontend: !!pro, proModules: pro && pro.modules ? Object.keys(pro.modules).slice(0, 30) : null, scripts: [...document.scripts].map((x) => x.src).filter((src) => /filters|elements-handlers|frontend/.test(src)).map((src) => src.replace(/^https?:\/\/[^/]+/, '').slice(0, 120)) };
     }).catch((e) => ({ error: String(e.message || e) }));
 
     // W9.2 · B3 en Chrome, debounce, Atrás y Adelante, el filtro de PRO por el coordinador y un bucle sin F4-Woo.
     {
       const { ctx, page, facts } = await visitor();
       const net = watchRefresh(page);
+      // Traza del arranque (sólo lectura): cuándo llega elementor/frontend/init y si `hooks` y el coordinador existen.
+      await page.evaluateOnNewDocument(() => {
+        window.__digiBoot = [];
+        const note = (what) => window.__digiBoot.push([what, document.readyState, !!(window.elementorFrontend && window.elementorFrontend.hooks), !!window.digitalisimoWooFilters, !!window.elementorProFrontend]);
+        window.addEventListener('elementor/frontend/init', () => note('init'), true);
+        document.addEventListener('DOMContentLoaded', () => note('dcl'));
+        window.addEventListener('load', () => note('load'));
+      });
       try {
         await page.setViewport({ width: 1280, height: 900 });
         await page.goto(main.url, { waitUntil: 'load' });
@@ -381,7 +400,8 @@ module.exports = (api) => {
         const req4 = net.requests.slice(before4).map((r) => { try { return JSON.parse(r.body || '{}'); } catch (e) { return {}; } });
         const path4 = await page.evaluate(() => ({ digi: !!document.querySelector('.elementor-element-wfloop4').__digi }));
         check(s, `W9.8c ${tag}`, 'B5 · en la misma página, un bucle sin filtros F4-Woo pasa por el camino de PRO (sin estado del coordinador) y se filtra', JSON.stringify(names(catalog, ids4).sort()) === JSON.stringify(['digi-wf-sandalia', 'digi-wf-sandalia-dos']) && req4.length >= 1 && req4.every((b) => b.widget_id === 'wfloop4' && b.widget_filters && !b.widget_filters.digitalisimo_price && !b.widget_filters.digitalisimo_attribute) && !path4.digi, JSON.stringify({ ids: nameList(catalog, ids4), requests: req4, path4 }));
-        check(s, `W9.6b ${tag}`, 'sin errores de JavaScript ni respuestas de error del sitio; nada sale del sitio', !facts.errors.length && !facts.failed.length && !facts.outside.length, JSON.stringify({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.slice(0, 5) }));
+        const quiet = clean(facts);
+        check(s, `W9.6b ${tag}`, 'sin errores de JavaScript ni respuestas de error del sitio; nada sale del sitio (salvo las fuentes de Google del kit, anotadas)', quiet.ok, JSON.stringify(quiet.detail));
       } catch (e) {
         await shot(page, `W9-${site.id}-coordinador-falla`);
         check(s, `W9.2 ${tag}`, 'coordinador en Chrome', false, String(e.stack || e.message || e).slice(0, 600));
@@ -427,7 +447,7 @@ module.exports = (api) => {
         const got = await domIds(page, 'wfloop3');
         const value = await param(page, 'e-filter-wfloop3-product_cat');
         const digi = await page.evaluate(() => !!document.querySelector('.elementor-element-wfloop3').__digi);
-        check(s, `W9.8b ${tag}`, 'B5 · una página con sólo el filtro de PRO no carga el coordinador ni sus scripts, y el filtro de PRO refresca el bucle por su camino (una petición, URL con la categoría)', !loaded.coordinator && !loaded.scripts.length && !digi && net.requests.length === 1 && value === 'digi-wf-botas' && JSON.stringify(names(catalog, got).sort()) === JSON.stringify(['digi-wf-bota-agotada', 'digi-wf-bota-alta', 'digi-wf-bota-corta']) && !facts.errors.length, JSON.stringify({ loaded, digi, requests: net.requests.length, value, ids: nameList(catalog, got), errors: facts.errors.slice(0, 3), outside: facts.outside.slice(0, 3) }));
+        check(s, `W9.8b ${tag}`, 'B5 · una página con sólo el filtro de PRO no carga el coordinador ni sus scripts, y el filtro de PRO refresca el bucle por su camino (una petición, URL con la categoría)', !loaded.coordinator && !loaded.scripts.length && !digi && net.requests.length === 1 && value === 'digi-wf-botas' && JSON.stringify(names(catalog, got).sort()) === JSON.stringify(['digi-wf-bota-agotada', 'digi-wf-bota-alta', 'digi-wf-bota-corta']) && clean(facts).ok, JSON.stringify({ loaded, digi, requests: net.requests.length, value, ids: nameList(catalog, got), quiet: clean(facts).detail }));
       } catch (e) {
         check(s, `W9.8b ${tag}`, 'B5 en la página sin F4-Woo', false, String(e.stack || e.message || e).slice(0, 500));
       } finally {
@@ -494,7 +514,8 @@ module.exports = (api) => {
           const url4 = new URL(page.url());
           const p4 = widgetIds(await page.content());
           check(s, `W10.1d ${tag}`, '«Limpiar» (con `rel="nofollow"`) quita los parámetros del atributo y Productos vuelve a la primera página sin filtro', !url4.searchParams.has('filter_talla-zapato') && !url4.searchParams.has('query_type_talla-zapato') && same(p4, pb) && /nofollow/.test(clearHref), JSON.stringify({ url: url4.pathname + url4.search, products: nameList(catalog, p4), clearHref }));
-          check(s, `W10.1e ${tag}`, 'sin errores de JavaScript ni respuestas de error del sitio; nada sale del sitio', !facts.errors.length && !facts.failed.length && !facts.outside.length, JSON.stringify({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.slice(0, 3) }));
+          const quiet = clean(facts);
+          check(s, `W10.1e ${tag}`, 'sin errores de JavaScript ni respuestas de error del sitio; nada sale del sitio (salvo las fuentes de Google del kit, anotadas)', quiet.ok, JSON.stringify(quiet.detail));
         } catch (e) {
           await shot(page, `W10-${site.id}-falla`);
           check(s, `W10.1 ${tag}`, 'la tienda filtrada en Chrome', false, String(e.stack || e.message || e).slice(0, 500));
