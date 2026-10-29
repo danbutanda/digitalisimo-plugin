@@ -29,11 +29,23 @@ final class Image_Markup {
 		return $alt;
 	}
 
+	/**
+	 * Tamaño que se pide de verdad: un GIF va siempre entero. WordPress crea sus tamaños reducidos con un solo
+	 * fotograma, así que cualquier otro tamaño dejaría quieto un GIF animado; con el completo, además, WordPress no
+	 * imprime `srcset` para un GIF. Un WebP animado (el que deja «Optimizar medios» de Tools) no tiene tamaños y
+	 * WordPress ya lo sirve entero.
+	 */
+	public static function size_for( $id, $size ) {
+		$id = absint( $id );
+		if ( $id && function_exists( 'get_post_mime_type' ) && 'image/gif' === get_post_mime_type( $id ) ) { return 'full'; }
+		return $size;
+	}
+
 	/** Ancho y alto de la imagen en ese tamaño: del adjunto, o los guardados en el control; array( 0, 0 ) si no se conocen. */
 	public static function dimensions( array $image, $size = 'full' ) {
 		$id = absint( $image['id'] ?? 0 );
 		if ( $id && function_exists( 'wp_get_attachment_image_src' ) ) {
-			$src = wp_get_attachment_image_src( $id, $size );
+			$src = wp_get_attachment_image_src( $id, self::size_for( $id, $size ) );
 			if ( is_array( $src ) && ! empty( $src[1] ) && ! empty( $src[2] ) ) { return array( (int) $src[1], (int) $src[2] ); }
 		}
 		return array( absint( $image['width'] ?? 0 ), absint( $image['height'] ?? 0 ) );
@@ -76,7 +88,7 @@ final class Image_Markup {
 	public static function img( array $image, array $args = array() ) {
 		$id    = absint( $image['id'] ?? 0 );
 		$url   = (string) ( $image['url'] ?? '' );
-		$size  = (string) ( $args['size'] ?? 'medium' );
+		$size  = self::size_for( $id, (string) ( $args['size'] ?? 'medium' ) );
 		$attrs = array();
 		if ( ! empty( $args['class'] ) ) { $attrs['class'] = (string) $args['class']; }
 		$attrs['alt']      = ! empty( $args['decorative'] ) ? '' : ( array_key_exists( 'alt_exact', $args ) ? trim( (string) $args['alt_exact'] ) : self::alt( $image, (string) ( $args['alt'] ?? '' ), ! empty( $args['title_fallback'] ) ) );
