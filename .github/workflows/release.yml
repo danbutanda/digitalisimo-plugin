@@ -283,6 +283,7 @@ jobs:
           php tests/elements-kit-extensions.php
           php tests/elements-woo-kit.php
           node tests/elements-woo-static.mjs
+          php tests/elements-woo-kit-page-sync.php
       - name: Seleccionar plugins modificados
         id: modules
         env:

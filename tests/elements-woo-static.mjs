@@ -209,8 +209,8 @@ for (const path of files.filter((p) => /\.(css|php|js)$/.test(p))) {
 
 // 8. Derivados de PRO tocados, anotados.
 const changes = read(join(BASE, 'DIGITALISIMO_CHANGES.md'));
-for (const file of ['modules/loop-filter/module.php', 'modules/loop-filter/query/query-types/hierarchy-or-query.php']) {
-  assert.ok(changes.includes(file), `DIGITALISIMO_CHANGES.md anota el cambio de ${file} (V.8.2).`);
+for (const file of ['modules/loop-filter/module.php', 'modules/loop-filter/query/query-types/hierarchy-or-query.php', 'modules/woocommerce/module.php']) {
+  assert.ok(changes.includes(file), `DIGITALISIMO_CHANGES.md anota el cambio del derivado de PRO ${file}.`);
 }
 assert.ok(/digitalisimo-woo/.test(changes), 'DIGITALISIMO_CHANGES.md anota la línea de pro-elements.php que arranca modules/digitalisimo-woo/.');
 

@@ -918,20 +918,57 @@ class Module extends Module_Base {
 	 */
 	public function add_update_kit_settings_hooks() {
 		add_action( 'update_option_woocommerce_cart_page_id', function( $old_value, $value ) {
-			Plugin::elementor()->kits_manager->update_kit_settings_based_on_option( 'woocommerce_cart_page_id', $value );
+			$this->update_kit_setting_from_option( 'woocommerce_cart_page_id', $value );
 		}, 10, 2 );
 
 		add_action( 'update_option_woocommerce_checkout_page_id', function( $old_value, $value ) {
-			Plugin::elementor()->kits_manager->update_kit_settings_based_on_option( 'woocommerce_checkout_page_id', $value );
+			$this->update_kit_setting_from_option( 'woocommerce_checkout_page_id', $value );
 		}, 10, 2 );
 
 		add_action( 'update_option_woocommerce_myaccount_page_id', function( $old_value, $value ) {
-			Plugin::elementor()->kits_manager->update_kit_settings_based_on_option( 'woocommerce_myaccount_page_id', $value );
+			$this->update_kit_setting_from_option( 'woocommerce_myaccount_page_id', $value );
 		}, 10, 2 );
 
 		add_action( 'update_option_woocommerce_terms_page_id', function( $old_value, $value ) {
-			Plugin::elementor()->kits_manager->update_kit_settings_based_on_option( 'woocommerce_terms_page_id', $value );
+			$this->update_kit_setting_from_option( 'woocommerce_terms_page_id', $value );
 		}, 10, 2 );
+	}
+
+	/**
+	 * DIGITALÍSIMO: copia al kit una página de WooCommerce sin depender del permiso de quien la cambió.
+	 *
+	 * WooCommerce también cambia estas opciones sin un usuario que pueda editar el kit: al instalarse en un sitio nuevo
+	 * de una red (en la primera petición, que puede ser de un visitante) y en sus actualizaciones por WP-cron. El
+	 * guardado del kit comprueba `edit_post` y lanzaba «Access denied», una excepción sin capturar que terminaba la
+	 * petición en un error 500. Con permiso (o en WP-CLI) se guarda como siempre; sin él, se escribe el mismo valor que
+	 * WooCommerce ya guardó con el gestor de ajustes de página, que hace la misma escritura sin esa comprobación. Así el
+	 * kit no queda con una página vieja que, al guardar después los ajustes del sitio, volvería a pisar la de WooCommerce.
+	 */
+	private function update_kit_setting_from_option( $key, $value ) {
+		try {
+			$kits_manager = Plugin::elementor()->kits_manager;
+			$kit = $kits_manager->get_active_kit();
+			$kit_id = $kit ? (int) $kit->get_main_id() : 0;
+
+			if ( ! $kit_id || Utils::is_wp_cli() || current_user_can( 'edit_post', $kit_id ) ) {
+				$kits_manager->update_kit_settings_based_on_option( $key, $value );
+				return;
+			}
+
+			if ( $kit->is_saving() ) {
+				return;
+			}
+
+			$settings = $kit->get_meta( \Elementor\Core\Settings\Page\Manager::META_KEY );
+			$settings = is_array( $settings ) ? $settings : [];
+			$settings[ $key ] = $value;
+			\Elementor\Core\Settings\Manager::get_settings_managers( 'page' )->save_settings( $settings, $kit_id );
+		} catch ( \Exception $e ) {
+			// Nunca termina la petición que cambió la opción de WooCommerce; el kit se pondrá al día al guardarlo.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( 'DIGITALÍSIMO Elements: no se pudo copiar ' . $key . ' al kit: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+		}
 	}
 
 	/**
