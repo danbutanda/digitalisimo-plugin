@@ -167,6 +167,20 @@ for (const name of [...EH_LITERAL, ...EH_ARRAY]) if (!EHmin.includes(`"${name}"`
 for (const name of FE_LITERAL) if (!FEmin.includes(`"${name}"`)) problems.push(`${name} no aparece en frontend.min.js`);
 for (const name of FE_ELEMENT_READY) if (!FEmin.includes(`element_ready/${name}`)) problems.push(`element_ready/${name} no aparece en frontend.min.js`);
 
+// Coordinador de filtros de F4-Woo (V.8.3): `assets/js/filters.js` hereda del filtro de taxonomía de PRO por la
+// clave `taxonomyFilter` del filtro `elementor-pro/frontend/handlers` y sólo si existen estos métodos; lee el marcado
+// `.e-filter-item[data-filter][aria-pressed]`. Si el paquete los pierde, el coordinador no sustituye nada.
+const coordinator = read('assets/js/filters.js');
+for (const method of ['refreshLoopWidget', 'getQueryStringInObjectForm', 'setFilterDataForLoopWidget', 'removeFilterFromLoopWidget']) {
+  if (!coordinator.includes(`'${method}'`)) problems.push(`filters.js ya no comprueba ${method}: revisar esta lista`);
+  for (const [name, source] of [['elements-handlers.js', EH], ['elements-handlers.min.js', EHmin]]) {
+    if (!new RegExp(`\\b${method}\\(`).test(source)) problems.push(`${method}() no aparece en ${name} (coordinador de F4-Woo)`);
+  }
+}
+for (const [name, source] of [['elements-handlers.js', EH], ['elements-handlers.min.js', EHmin]]) {
+  for (const token of ['e-filter-item', 'data-filter', 'aria-pressed', 'taxonomyFilter']) if (!source.includes(token)) problems.push(`${token} no aparece en ${name} (coordinador de F4-Woo)`);
+}
+
 // La puerta coincide con el inventario.
 const gate = read('modules/digitalisimo-front/class-pro-gate.php');
 const constant = (name) => {
