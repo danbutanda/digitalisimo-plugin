@@ -50,6 +50,9 @@ const FE_APPLY_FILTERS = ['elementor-pro/frontend/handlers'];
 // Los tres de `window` viven dentro de controladores (tiempos de un popup y el Mega menú en el editor).
 const EH_EVENTS = ['elementorFrontend:components:init', 'elementorProFrontend:elementor-pro/modules/init/before', 'window:elementor/editor/element-destroyed', 'window:elementor/editor/element-rendered', 'window:elementor/popup/hide'];
 const FE_EVENTS = ['window:elementor/frontend/init'];
+// `elementor-pro/modules/init/before` es el aviso con el que filters.js (F4-Woo) se engancha antes de que frontend.js
+// cree los módulos: `hooks` del núcleo nace en init(), así que no puede engancharse al evaluarse.
+const FE_TRIGGERS = ['elementor-pro/modules/init/before', 'elementor-video-playList', 'elementorPlaylistWidget:setVideoData', 'focus', 'resize'];
 const EH_LOCATION = ['theme_template_id'];
 const EH_MAP = ['animatedText', 'carousel', 'contactButtons', 'countdown', 'dynamicTags', 'form', 'gallery', 'hotspot', 'loopBuilder', 'lottie', 'megaMenu', 'nav_menu', 'nestedCarousel', 'offCanvas', 'popup', 'posts', 'search', 'share_buttons', 'slides', 'social', 'tableOfContents', 'taxonomyFilter', 'themeBuilder', 'themeElements', 'woocommerce'];
 const FE_MAP = ['codeHighlight', 'motionFX', 'payments', 'progressTracker', 'sticky', 'videoPlaylist'];
@@ -95,6 +98,7 @@ function inventory(source) {
       ...[...source.matchAll(/window\.addEventListener\(\s*"(elementor[^"]*)"/g)].map((m) => `window:${m[1]}`),
     ],
     location: [...source.matchAll(/location\.search\.match\(\s*\/([a-z_]+)=/g)].map((m) => m[1]),
+    triggers: [...source.matchAll(/\.trigger\(\s*"([^"]+)"/g)].map((m) => m[1]),
   };
 }
 
@@ -139,6 +143,7 @@ same(unique(eh.events), sorted(EH_EVENTS), 'Eventos que escucha elements-handler
 same(unique(fe.events), sorted(FE_EVENTS), 'Eventos que escucha frontend.js');
 same(eh.location, EH_LOCATION, 'Parámetros de URL que lee elements-handlers.js');
 same(fe.location, [], 'Parámetros de URL que lee frontend.js');
+same(unique(fe.triggers), sorted(FE_TRIGGERS), 'Avisos que lanza frontend.js (filters.js arranca con elementor-pro/modules/init/before)');
 // Mapas de módulos: un módulo nuevo puede engancharse de otra forma.
 same(mapKeys(EH, 'var extendDefaultHandlers = (defaultHandlers) => {\n\t\tconst handlers = {'), sorted(EH_MAP), 'Mapa de módulos de elements-handlers.js');
 same(mapKeys(FE, 'initModules() {\n\t\t\tlet handlers = {'), sorted(FE_MAP), 'Mapa de módulos de frontend.js');
