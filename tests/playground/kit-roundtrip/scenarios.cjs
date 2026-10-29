@@ -14,6 +14,7 @@ const SHARED = path.join(OUT, 'shared');
 const IN_SITE = '/wordpress/wp-content/digi-shared';
 const WIDTHS = QUICK ? [1280] : [360, 768, 1280];
 const RENDER = process.env.RENDER ? new RegExp(process.env.RENDER) : null;
+const R1_VIA = ['pantalla', 'wp-cli'].includes(process.env.R1_VIA || '') ? process.env.R1_VIA : '';
 // Tipos de contenido que A exporta, como en la App con «Editar contenido» (customization.content.customPostTypes, con el
 // mediaFormat por defecto) y en WP-CLI con --post-types. Vacío: el cuerpo de la App sin personalizar (content null), con el
 // que el núcleo exporta las entradas de todos los tipos registrados pero sólo las taxonomías de los nativos
@@ -188,7 +189,7 @@ async function exportFromA() {
   } else {
     out.restError = `${res.status} ${res.text.slice(0, 300)}`;
   }
-  if (QUICK) { out.cliError = 'QUICK=1: sin exportación por WP-CLI'; return out; }
+  if (QUICK && R1_VIA !== 'wp-cli') { out.cliError = 'QUICK=1: sin exportación por WP-CLI'; return out; }
   const cli = await R.wpcli('a', ['digitalisimo-elements', 'kit', 'export', `${IN_SITE}/exports/a-cli.zip`, '--user=admin', ...(EXPORT_POST_TYPES.length ? [`--post-types=${EXPORT_POST_TYPES.join(',')}`] : [])]);
   if (cli.ok && fs.existsSync(path.join(SHARED, 'exports', 'a-cli.zip'))) out.cli = path.join(SHARED, 'exports', 'a-cli.zip');
   else out.cliError = (cli.stderr || cli.fatal || cli.stdout || '').slice(0, 300);
@@ -369,7 +370,8 @@ async function withReview(sig, session, site = 'b', blog = 0) {
 async function R1(s) {
   const problems = [];
   if (!kits.rest) { s.problems.push(`A no exportó por REST: ${kits.restError}`); verdict('A1', false, 'sin kit de A'); return; }
-  const variants = QUICK ? [['pantalla', kits.rest]] : [['pantalla', kits.rest], ['wp-cli', kits.cli]];
+  // R1_VIA=pantalla|wp-cli: una sola variante (para que R1 con WOO=1 quepa en una corrida corta; sin la comparación REST = WP-CLI).
+  const variants = (R1_VIA ? [R1_VIA] : QUICK ? ['pantalla'] : ['pantalla', 'wp-cli']).map((via) => [via, via === 'pantalla' ? kits.rest : kits.cli]);
   const sigs = {};
   for (const [via, zip] of variants) {
     if (!zip) { problems.push(`${via}: no hay kit (${kits.cliError || 'exportación fallida'})`); continue; }
@@ -813,7 +815,9 @@ const WOO_TABLES = {
   // cola de WooCommerce, que programa sus tareas al guardar o borrar productos.
   fresh: { woocommerce_attribute_taxonomies: 'libre', wc_product_meta_lookup: 'libre', wc_product_attributes_lookup: 'libre', wc_category_lookup: 'libre', actionscheduler_actions: 'libre', actionscheduler_logs: 'libre' },
   add: { woocommerce_attribute_taxonomies: 'nuevas', wc_product_meta_lookup: 'nuevas', wc_product_attributes_lookup: 'nuevas', wc_category_lookup: 'nuevas', actionscheduler_actions: 'nuevas', actionscheduler_logs: 'nuevas' },
-  revert: { woocommerce_attribute_taxonomies: 'nuevas', actionscheduler_actions: 'nuevas', actionscheduler_logs: 'nuevas' },
+  // Al revertir, la fila de wc_category_lookup de la categoría del kit se queda: WooCommerce sólo la mantiene al crear o
+  // editar una categoría, no al borrarla (W:src/Internal/Admin/CategoryLookup.php:51-56).
+  revert: { woocommerce_attribute_taxonomies: 'nuevas', actionscheduler_actions: 'nuevas', actionscheduler_logs: 'nuevas', wc_category_lookup: 'nuevas' },
 };
 // Medios que sólo nombran las variaciones y las metas `image` de los términos de atributo (cases.json, woo.media).
 const WOO_MEDIA = ['variacion-roja', 'variacion-azul', 'muestra-azul', 'muestra-brillo'];
@@ -1328,7 +1332,7 @@ async function main() {
 
   const needsA = SCENARIOS.some((id) => !['R2', 'R3', 'R3b', 'R7', 'R9', 'R13', 'RX'].includes(id));
   // Con WOO=1 (cada petición de Playground con WooCommerce tarda segundos), el primer B nuevo arranca en paralelo.
-  if (WOO && needsA) {
+  if (WOO && needsA && SCENARIOS[0] !== 'R6') {
     const elements = SCENARIOS[0] === 'R4w' ? (process.env.PREV_ELEMENTS || '') : '';
     earlyB = { elements, ready: R.startSite('b', { elements }).then(() => warmUp('b')).then(() => true, (e) => e) };
   }

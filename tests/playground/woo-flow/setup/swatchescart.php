@@ -7,13 +7,15 @@
  *   («Etiqueta»), configurados en `digitalisimo_elements_swatches` con `Swatches\Data::put()`. Con un tema de bloques
  *   (THEME=block) se activa la función `wc-visual-attribute` y `pa_tono` se crea de tipo `wc-visual`: el bloque «Añadir
  *   al carrito con opciones» pinta sus muestras con esas mismas metas (W6.4).
- * - Productos: `digi-wf-sc-muestras` (tono × medida con una combinación ausente: WooCommerce quita opciones),
+ * - Productos, sólo cuando corre un escenario del grupo (`?digi_wf=swatchescart_prepare`, que llama a esta misma
+ *   función con `$products`): la preparación común deja el catálogo de la tienda como lo describe W0.4 (siete
+ *   productos). `digi-wf-sc-muestras` (tono × medida con una combinación ausente: WooCommerce quita opciones),
  *   `digi-wf-sc-ajax` (31 variaciones: modo AJAX, con `required` en sus desplegables por el mu-plugin) y el simple
  *   `digi-wf-sc-diez` (10 €, para fijar el total del carrito en W7 y W8).
  * - Páginas del constructor: `digi-wf-sc-bucle` (Loop Grid de productos con el widget «Muestras de variación» en su
  *   plantilla) y `digi-wf-sc-minicarrito` (Menú del carrito con la barra y el cupón, y el widget «Barra de envío
- *   gratis»). Con un tema de bloques, además `digi-wf-sc-convivencia`: el bloque «Producto» con «Añadir al carrito con
- *   opciones» y, en la misma página, una plantilla del constructor con el widget «Añadir al carrito» de PRO.
+ *   gratis»). Con un tema de bloques y los productos, además `digi-wf-sc-convivencia`: el bloque «Producto» con «Añadir
+ *   al carrito con opciones» y, en la misma página, una plantilla del constructor con el widget «Añadir al carrito» de PRO.
  * - mu-plugin `digi-wf-swatchescart.php` en WPMU_PLUGIN_DIR: `required` en los desplegables del producto de 31
  *   variaciones y los casos de W7/W8, cada uno activado por una opción del sitio (`ops/swatchescart.php` los cambia y los
  *   restablece). Sin opciones, no cambia nada.
@@ -21,11 +23,15 @@
 
 defined( 'ABSPATH' ) || exit;
 
-return static function ( array $out, callable $fail ): array {
-	$res = array( 'errors' => array() );
-	$err = static function ( $message ) use ( $fail, &$res ) {
+if ( ! function_exists( 'digi_wf_sc_prepare' ) ) :
+/**
+ * @param bool $products También los productos (y lo que depende de ellos).
+ * @return array Lo preparado; `errors` vacío si todo quedó como se pide.
+ */
+function digi_wf_sc_prepare( bool $products ): array {
+	$res = array( 'errors' => array(), 'products' => array(), 'urls' => array() );
+	$err = static function ( $message ) use ( &$res ) {
 		$res['errors'][] = $message;
-		$fail( 'swatchescart: ' . $message );
 	};
 	$data_class = '\\Digitalisimo\\Elements\\Woo\\Swatches\\Data';
 	$res['f4woo'] = class_exists( $data_class );
@@ -205,8 +211,8 @@ MU;
 		$res['swatches'] = $data_class::all();
 	}
 
-	// Productos.
-	$variable = static function ( $slug, $name, $price, array $combos, int $hours ) use ( $terms, $err ) {
+	// Productos (sólo con `$products`).
+	$variable = ! $products ? null : static function ( $slug, $name, $price, array $combos, int $hours ) use ( $terms, $err ) {
 		$existing = get_page_by_path( $slug, OBJECT, 'product' );
 		if ( $existing ) {
 			return (int) $existing->ID;
@@ -253,42 +259,45 @@ MU;
 		wc_delete_product_transients( $id );
 		return $id;
 	};
-	// Tono × medida S/M sin «verde M»: elegir M quita «verde» (V.6.4, modo nativo).
-	$muestras = $variable( 'digi-wf-sc-muestras', 'Camisa con muestras', 20, array( array( 'rojo', 's' ), array( 'rojo', 'm' ), array( 'azul', 's' ), array( 'azul', 'm' ), array( 'verde', 's' ) ), 20 );
-	// 4 tonos × 8 medidas sin «negro 4XL»: 31 variaciones, más que `woocommerce_ajax_variation_threshold` (30).
-	$combos = array();
-	foreach ( array_keys( $attributes['tono'][2] ) as $tono ) {
-		foreach ( array_keys( $attributes['medida'][2] ) as $medida ) {
-			if ( 'negro' !== $tono || '4xl' !== $medida ) {
-				$combos[] = array( $tono, $medida );
+	$muestras = 0;
+	if ( $products ) {
+		// Tono × medida S/M sin «verde M»: elegir M quita «verde» (V.6.4, modo nativo).
+		$muestras = $variable( 'digi-wf-sc-muestras', 'Camisa con muestras', 20, array( array( 'rojo', 's' ), array( 'rojo', 'm' ), array( 'azul', 's' ), array( 'azul', 'm' ), array( 'verde', 's' ) ), 20 );
+		// 4 tonos × 8 medidas sin «negro 4XL»: 31 variaciones, más que `woocommerce_ajax_variation_threshold` (30).
+		$combos = array();
+		foreach ( array_keys( $attributes['tono'][2] ) as $tono ) {
+			foreach ( array_keys( $attributes['medida'][2] ) as $medida ) {
+				if ( 'negro' !== $tono || '4xl' !== $medida ) {
+					$combos[] = array( $tono, $medida );
+				}
 			}
 		}
+		$ajax = $variable( 'digi-wf-sc-ajax', 'Abrigo con 31 variaciones', 25, $combos, 21 );
+		update_option( 'digi_wf_sc_required_product', $ajax, false );
+		$diez = get_page_by_path( 'digi-wf-sc-diez', OBJECT, 'product' );
+		if ( $diez ) {
+			$diez = (int) $diez->ID;
+		} else {
+			$simple = new WC_Product_Simple();
+			$simple->set_name( 'Pañuelo de diez euros' );
+			$simple->set_slug( 'digi-wf-sc-diez' );
+			$simple->set_status( 'publish' );
+			$simple->set_regular_price( '10' );
+			$simple->set_sku( 'DIGI-WF-SC-DIEZ' );
+			$simple->set_date_created( time() - 22 * HOUR_IN_SECONDS );
+			$diez = (int) $simple->save();
+		}
+		$res['products'] = array( 'muestras' => $muestras, 'ajax' => $ajax, 'diez' => $diez, 'sudadera' => (int) ( get_page_by_path( 'digi-wf-sudadera', OBJECT, 'product' )->ID ?? 0 ) );
+		$res['variations'] = array();
+		foreach ( array( 'muestras', 'ajax' ) as $key ) {
+			$product                    = $res['products'][ $key ] ? wc_get_product( $res['products'][ $key ] ) : null;
+			$res['variations'][ $key ] = $product ? count( $product->get_children() ) : 0;
+		}
+		if ( 5 !== $res['variations']['muestras'] || 31 !== $res['variations']['ajax'] ) {
+			$err( 'variaciones: ' . wp_json_encode( $res['variations'] ) . ' (se esperaban 5 y 31)' );
+		}
+		$res['ajax_threshold'] = (int) apply_filters( 'woocommerce_ajax_variation_threshold', 30, wc_get_product( $ajax ) );
 	}
-	$ajax = $variable( 'digi-wf-sc-ajax', 'Abrigo con 31 variaciones', 25, $combos, 21 );
-	update_option( 'digi_wf_sc_required_product', $ajax, false );
-	$diez = get_page_by_path( 'digi-wf-sc-diez', OBJECT, 'product' );
-	if ( $diez ) {
-		$diez = (int) $diez->ID;
-	} else {
-		$simple = new WC_Product_Simple();
-		$simple->set_name( 'Pañuelo de diez euros' );
-		$simple->set_slug( 'digi-wf-sc-diez' );
-		$simple->set_status( 'publish' );
-		$simple->set_regular_price( '10' );
-		$simple->set_sku( 'DIGI-WF-SC-DIEZ' );
-		$simple->set_date_created( time() - 22 * HOUR_IN_SECONDS );
-		$diez = (int) $simple->save();
-	}
-	$res['products'] = array( 'muestras' => $muestras, 'ajax' => $ajax, 'diez' => $diez, 'sudadera' => (int) ( $out['products']['digi-wf-sudadera'] ?? 0 ) );
-	$res['variations'] = array();
-	foreach ( array( 'muestras', 'ajax' ) as $key ) {
-		$product                    = $res['products'][ $key ] ? wc_get_product( $res['products'][ $key ] ) : null;
-		$res['variations'][ $key ] = $product ? count( $product->get_children() ) : 0;
-	}
-	if ( 5 !== $res['variations']['muestras'] || 31 !== $res['variations']['ajax'] ) {
-		$err( 'variaciones: ' . wp_json_encode( $res['variations'] ) . ' (se esperaban 5 y 31)' );
-	}
-	$res['ajax_threshold'] = (int) apply_filters( 'woocommerce_ajax_variation_threshold', 30, wc_get_product( $ajax ) );
 
 	// Envío gratuito de la zona «España» (lo cambian los casos de W7).
 	$zone = WC_Shipping_Zones::get_zone( (int) get_option( 'digi_wf_zone' ) );
@@ -363,7 +372,7 @@ MU;
 	$res['menu_cart_id']  = $eid( 'menu-cart' );
 
 	// THEME=block: el bloque «Añadir al carrito con opciones» y el widget clásico de PRO en la misma página (V.6.5).
-	if ( $res['block'] ) {
+	if ( $res['block'] && $muestras ) {
 		$tpl = $post( 'elementor_library', 'digi-wf-sc-clasico', 'Añadir al carrito clásico' );
 		wp_set_object_terms( $tpl, 'section', 'elementor_library_type' );
 		$save( $tpl, array( $container( 'atc', array( $widget( 'atc', 'wc-add-to-cart', array( 'product_id' => (string) $muestras, 'show_quantity' => 'yes' ) ) ) ) ), 'section' );
@@ -388,9 +397,17 @@ MU;
 	}
 
 	$res['pages'] = $pages;
-	$res['urls']  = array();
 	foreach ( $res['products'] as $key => $id ) {
 		$res['urls'][ $key ] = $id ? get_permalink( $id ) : '';
+	}
+	return $res;
+}
+endif;
+
+return static function ( array $out, callable $fail ): array {
+	$res = digi_wf_sc_prepare( false );
+	foreach ( $res['errors'] as $message ) {
+		$fail( 'swatchescart: ' . $message );
 	}
 	$out['swatchescart'] = $res;
 	return $out;

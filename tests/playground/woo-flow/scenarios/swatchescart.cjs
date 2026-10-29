@@ -4,7 +4,8 @@
 //
 // - W6 se comprueba en cada sitio (NET=1: también /dos/ y /tres/). W6.4 (bloque de WooCommerce y widget clásico en un
 //   tema de bloques) sólo puede existir con THEME=block: en los demás modos se comprueba la mitad clásica (mismos colores
-//   que las metas de WooCommerce) y la del bloque queda pendiente de esa corrida.
+//   que las metas de WooCommerce) y la del bloque queda pendiente de esa corrida. Con NET=1, el formulario, el bucle y el
+//   CLS en /dos/ y sólo el CLS en / y /tres/.
 // - W7 y W8 corren en un sitio (el /dos/ con NET=1: un sitio de la red que no es el principal).
 // - W6_BASELINE=<summary o json de una corrida con ELEMENTS_DIR=4.3.0.165>: compara además los <select> con los que
 //   imprimió 4.3.0.165. Con ELEMENTS_DIR=4.3.0.165, W6 sólo guarda esa línea base ($OUT/w6-baseline.json).
@@ -23,6 +24,18 @@ module.exports = (api) => {
   const json = (v) => JSON.stringify(v).slice(0, 900);
   const own = () => (NET ? SITES[1] : SITES[0]);
 
+  // Los productos del grupo se crean al empezar su primer escenario (`swatchescart_prepare`, idempotente): la
+  // preparación común deja intacto el catálogo de la tienda que comprueba W0.4.
+  const prepared = new Map();
+  async function prepare(site) {
+    if (!prepared.has(site.path)) {
+      const t0 = Date.now();
+      const res = await op(site, 'swatchescart_prepare').catch((e) => ({ errors: [String(e.message || e)] }));
+      log(`   swatchescart: productos de ${site.path} en ${Math.round((Date.now() - t0) / 1000)} s`);
+      prepared.set(site.path, res);
+    }
+    return prepared.get(site.path);
+  }
   async function op(site, name, params = {}) {
     const q = new URLSearchParams({ digi_wf: name, token: TOKEN, ...params });
     const res = await request('GET', `${site.path}?${q}`);
@@ -382,7 +395,7 @@ module.exports = (api) => {
   async function w6Baseline(s) {
     const out = { version: ENV.ELEMENTS_VERSION, sha: ENV.ELEMENTS_SHA, sites: {} };
     for (const site of SITES) {
-      const sc = setupOf(site);
+      const sc = await prepare(site);
       if (!sc) { check(s, `W6.base${sfx(site)}`, 'preparación', false, 'sin preparación'); continue; }
       const sud = await request('GET', sc.urls.sudadera.replace(/^https?:\/\/[^/]+/, ''));
       const mu = await request('GET', sc.urls.muestras.replace(/^https?:\/\/[^/]+/, ''));
@@ -396,14 +409,16 @@ module.exports = (api) => {
   async function W6(s) {
     if (baselineMode()) return w6Baseline(s);
     for (const site of SITES) {
-      const sc = setupOf(site);
+      const sc = await prepare(site);
       const t = sfx(site);
       const okSetup = !!sc && sc.f4woo && !sc.errors.length && sc.variations.muestras === 5 && sc.variations.ajax === 31 && sc.ajax_threshold === 30 && sc.swatches && sc.swatches.tono && sc.swatches.tono.type === 'visual' && sc.swatches.medida && sc.swatches.medida.type === 'label';
       check(s, `W6.0${t}`, 'preparación: `pa_tono` «Muestra visual» con la meta `color` de WooCommerce, `pa_medida` «Etiqueta», un variable de 5 variaciones y otro de 31 (umbral AJAX 30)', okSetup, json(sc ? { errors: sc.errors, variations: sc.variations, threshold: sc.ajax_threshold, swatches: sc.swatches, types: sc.attribute_types } : 'sin preparación'));
       if (!okSetup) continue;
       if (NET && site !== own()) { await w6Cls(s, site, sc, true); continue; }
       // SC_ONLY=cls,colors… (iteración local): sólo esas partes; la corrida de aceptación las hace todas.
-      const only = (part) => !process.env.SC_ONLY || process.env.SC_ONLY.split(',').includes(part);
+      // Con NET=1, en el sitio de la red que no es el principal, lo que depende del sitio (formulario, bucle y CLS); el
+      // <select> intacto y los colores no dependen de él y los cubre la corrida normal.
+      const only = (part) => (!process.env.SC_ONLY || process.env.SC_ONLY.split(',').includes(part)) && !(NET && ['select', 'colors'].includes(part));
       if (only('ajax')) await w6Ajax(s, site, sc);
       if (only('native')) await w6Native(s, site, sc);
       if (only('select')) await w6Select(s, site, sc);
@@ -525,7 +540,7 @@ module.exports = (api) => {
 
   async function W7(s) {
     const site = own();
-    const sc = setupOf(site);
+    const sc = await prepare(site);
     if (!sc || !sc.f4woo) { check(s, 'W7.0', 'preparación del grupo', false, json(sc)); return; }
     check(s, 'W7.0', `preparación en ${site.path}: «Envío gratuito» desde 50 € (instancia ${sc.free_instance}), el producto de 10 € y la bandera de fragmentos activa`, !!sc.free_instance && !!sc.products.diez && sc.fragments_flag === 1, json({ free: sc.free_instance, diez: sc.products.diez, flag: sc.fragments_flag }));
     const cartUrl = (summary.sites[site.path].setup.pages || {})['digi-wf-carrito'];
@@ -648,7 +663,7 @@ module.exports = (api) => {
 
   async function W8(s) {
     const site = own();
-    const sc = setupOf(site);
+    const sc = await prepare(site);
     if (!sc || !sc.f4woo) { check(s, 'W8.0', 'preparación del grupo', false, json(sc)); return; }
     await op(site, 'swatchescart_set', { case: '' });
     const cartUrl = (summary.sites[site.path].setup.pages || {})['digi-wf-carrito'];

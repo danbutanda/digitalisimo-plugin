@@ -141,7 +141,8 @@ return static function ( array $out, callable $fail ): array {
 					'a7c0e01',
 					array(
 						$widget( 'a7c0e02', 'woocommerce-product-images' ),
-						$widget( 'a7c0e03', 'woocommerce-product-title' ),
+						// El título dinámico que el editor pone al soltar el widget (sin él, «Add Your Heading Text Here»).
+						$widget( 'a7c0e03', 'woocommerce-product-title', array( '__dynamic__' => array( 'title' => '[elementor-tag id="a7c0e06" name="woocommerce-product-title-tag" settings="%7B%7D"]' ) ) ),
 						$widget( 'a7c0e04', 'woocommerce-product-price' ),
 						$widget( 'a7c0e05', 'woocommerce-product-add-to-cart' ),
 					)

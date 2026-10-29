@@ -462,7 +462,7 @@ module.exports = (api) => {
         const d = document.querySelector('dialog.digi-qv');
         return { doc: !!d.querySelector(`.elementor-${id}`), images: !!d.querySelector('.elementor-widget-woocommerce-product-images .woocommerce-product-gallery'), title: (d.querySelector('.product_title') || {}).textContent || '' };
       }, qv.template);
-      check(s, `W5.2b ${site.path}`, 'el variable en «Plantilla de producto»: la plantilla con «Imágenes del producto» y `wc_variation_form` iniciado, en una página sin variaciones', res.ok && init && tpl.doc && tpl.images && !pre.variation && !pre.forms, short({ res, init, tpl, pre }));
+      check(s, `W5.2b ${site.path}`, 'el variable en «Plantilla de producto»: la plantilla con «Imágenes del producto», el título del producto y `wc_variation_form` iniciado, en una página sin variaciones', res.ok && init && tpl.doc && tpl.images && tpl.title.trim() === qv.products.variable.name && !pre.variation && !pre.forms, short({ res, init, tpl, pre }));
       if (variation) {
         const r = await choose(page, variation);
         check(s, `W5.2c ${site.path}`, `B6 en la plantilla: elegir verde/S muestra su precio (${money(variation.price)}), su imagen y su disponibilidad y habilita la compra`, b6(r, variation), short(r));
@@ -475,20 +475,26 @@ module.exports = (api) => {
       await page.click(button(qv, TPL, 'simple'));
       res = await loaded(page);
       const ready = await page.waitForFunction(() => document.querySelectorAll('dialog.digi-qv .woocommerce-product-gallery .flex-control-thumbs li').length > 1, { timeout: 30000 }).then(() => true, () => false);
+      let slide = null;
+      // Las miniaturas las crea flexslider sin dimensiones: hay que esperar a que la imagen cargue para pulsarla.
+      const thumb = ready && await page.waitForFunction(() => {
+        const img = document.querySelector('dialog.digi-qv .flex-control-thumbs li:nth-child(2) img');
+        const g = document.querySelector('dialog.digi-qv .woocommerce-product-gallery');
+        return !!(img && img.complete && img.naturalWidth > 0 && img.getBoundingClientRect().width > 0 && g && getComputedStyle(g).opacity === '1');
+      }, { timeout: 30000 }).then(() => true, () => false);
       const gallery = await page.evaluate(() => {
         const d = document.querySelector('dialog.digi-qv');
         const g = d.querySelector('.woocommerce-product-gallery');
         return { thumbs: g ? g.querySelectorAll('.flex-control-thumbs li').length : 0, slides: g ? g.querySelectorAll('.woocommerce-product-gallery__image').length : 0, viewport: !!(g && g.querySelector('.flex-viewport')), trigger: !!(g && g.querySelector('.woocommerce-product-gallery__trigger')), opacity: g ? getComputedStyle(g).opacity : null };
       });
-      let slide = null;
-      if (ready) {
+      if (thumb) {
         await page.click(`${DLG} .flex-control-thumbs li:nth-child(2) img`);
         slide = await page.waitForFunction(() => {
           const s = Array.from(document.querySelectorAll('dialog.digi-qv .woocommerce-product-gallery__image'));
           return s.findIndex((n) => n.classList.contains('flex-active-slide')) === 1;
         }, { timeout: 15000 }).then(() => true, () => false);
       }
-      check(s, `W5.2d ${site.path}`, '«Imágenes del producto» en la plantilla: galería iniciada (tres miniaturas) y una miniatura cambia la imagen activa', res.ok && gallery.thumbs === 3 && gallery.viewport && slide === true, short({ res, gallery, slide }));
+      check(s, `W5.2d ${site.path}`, '«Imágenes del producto» en la plantilla: galería iniciada (tres miniaturas, visible) y una miniatura cambia la imagen activa', res.ok && gallery.thumbs === 3 && gallery.viewport && gallery.opacity === '1' && slide === true, short({ res, gallery, thumb, slide }));
       let zoom = { trigger: gallery.trigger };
       if (gallery.trigger) {
         await page.click(`${DLG} .woocommerce-product-gallery__trigger`);

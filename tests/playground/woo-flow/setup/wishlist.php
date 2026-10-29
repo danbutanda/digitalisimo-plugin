@@ -7,9 +7,9 @@
  *   contador), «Lista» (`digi-wf-wl-lista`: el widget «Lista de deseos» con «Vaciar lista» y el contador) y «Vista»
  *   (`digi-wf-wl-vista`: una vista rápida y una lista, para los permisos de W12);
  * - `widgets`: los IDs de esos elementos; `products`: los de la tienda y un producto privado (`digi-wf-wl-privado`);
- * - `users`: clientes de prueba (`digiwf-b` … `digiwf-w12`), creados en el sitio principal. En una red, `digiwf-f` y
- *   `digiwf-g` son además miembros del sitio 3 (W2: quitar del sitio 3 desde la red) y nadie lo es del sitio 2 (no
- *   miembro);
+ * - `users`: clientes de prueba (`digiwf-b` … `digiwf-w12`), creados en el sitio principal. En una red, `digiwf-d` (W2:
+ *   lista de WooCommerce en el sitio 3), `digiwf-f` y `digiwf-g` (W2: quitar del sitio 3 desde la red) son además
+ *   miembros del sitio 3, y nadie lo es del sitio 2 (no miembro);
  * - `rest`: la base de las rutas propias (`digitalisimo-elements/v1/woo/`) y `ajax`/`network` para la administración.
  */
 
@@ -92,7 +92,7 @@ return static function ( array $out, callable $fail ): array {
 	);
 
 	// Clientes de prueba: se crean en el sitio principal (en una red son de toda la red). En el sitio 3 de una red,
-	// `digiwf-f` y `digiwf-g` también son miembros; del sitio 2 no lo es ninguno.
+	// `digiwf-d`, `digiwf-f` y `digiwf-g` también son miembros; del sitio 2 no lo es ninguno.
 	$users  = array();
 	$logins = array( 'b', 'c', 'd', 'e', 'f', 'g', 'w12' );
 	foreach ( $logins as $key ) {
@@ -109,7 +109,7 @@ return static function ( array $out, callable $fail ): array {
 		if ( ! $user ) {
 			continue;
 		}
-		if ( is_multisite() && 3 === $blog && in_array( $key, array( 'f', 'g' ), true ) && ! is_user_member_of_blog( $user->ID, $blog ) ) {
+		if ( is_multisite() && 3 === $blog && in_array( $key, array( 'd', 'f', 'g' ), true ) && ! is_user_member_of_blog( $user->ID, $blog ) ) {
 			add_user_to_blog( $blog, $user->ID, 'customer' );
 		}
 		$users[ $key ] = array( 'id' => (int) $user->ID, 'email' => $user->user_email, 'member' => ! is_multisite() || is_user_member_of_blog( $user->ID, $blog ) );

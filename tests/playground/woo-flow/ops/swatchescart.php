@@ -10,6 +10,8 @@
  * - `swatchescart_select&product=<id>&attribute=<pa_*>`: el desplegable de WooCommerce de ese atributo, con los
  *   filtros de Elements y sin el de las muestras (lo que imprime 4.3.0.165, que no engancha ese filtro), con los mismos
  *   argumentos que la plantilla `variable.php`.
+ * - `swatchescart_prepare`: la preparación del grupo con sus productos (idempotente), al empezar cada escenario: la común
+ *   no crea productos, para no cambiar el catálogo que comprueba W0.4.
  * - `swatchescart_state`: el estado que lee el escenario (casos, opciones y «Envío gratuito» de la zona).
  */
 
@@ -81,6 +83,12 @@ return array(
 		// Las tarifas guardadas en la sesión llevan la versión de la caché de envío en su hash.
 		WC_Cache_Helper::get_transient_version( 'shipping', true );
 		return digi_wf_sc_state();
+	},
+	'swatchescart_prepare' => static function () {
+		require_once WP_CONTENT_DIR . '/probe/setup/swatchescart.php';
+		$res = digi_wf_sc_prepare( true );
+		flush_rewrite_rules( false );
+		return $res;
 	},
 	'swatchescart_state'  => static function () {
 		return digi_wf_sc_state();

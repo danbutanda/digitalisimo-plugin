@@ -173,6 +173,8 @@ jobs:
           php tests/backups-cloud-verification.php
           php tests/backups-updater.php
           php tests/tools-site-options.php
+          php tests/tools-media-svg.php
+          php tests/tools-media-webp.php
           php tests/tools-php-snippets.php
           php tests/tools-php-guard.php
           php tests/performance-preloads.php

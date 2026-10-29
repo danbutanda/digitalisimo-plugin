@@ -382,9 +382,10 @@ module.exports = (api) => {
     }
 
     lap(s, 'W2.1 Añadir');
-    // En una red, lo que no depende de la red (W2.1e, W2.2 y W2.4i) ya lo prueba la corrida de un sitio: así la corrida
-    // de W2 con NET=1 cabe en el tiempo del arnés (tres tiendas que preparar y el tramo W2.5).
-    if (NET) s.single_only = ['W2.1e «Descartar»', 'W2.2 lista con sesión y «Quitar»', 'W2.4i fusión de un invitado con la Store API'];
+    // En una red, lo que no depende de la red (W2.1e, W2.2, W2.3 y W2.4i) ya lo prueba la corrida de un sitio: así la
+    // corrida de W2 con NET=1 cabe en el tiempo del arnés (tres tiendas que preparar y el tramo W2.5). La lista de
+    // WooCommerce (W2.4) se prueba allí en el sitio 3, con las metas y el contador de un sitio que no es el principal.
+    if (NET) s.single_only = ['W2.1e «Descartar»', 'W2.2 lista con sesión y «Quitar»', 'W2.3 exportar y borrar con las herramientas de privacidad', 'W2.4i fusión de un invitado con la Store API'];
     if (!NET) {
       // «Descartar»: borra la copia local sin enviar nada.
       const c = await guestThenLogin(site, U.c, [P.gorra]);
@@ -428,95 +429,100 @@ module.exports = (api) => {
       lap(s, 'W2.2');
     }
 
-    // 3. Privacidad (modo propio): exportar incluye la lista, borrar la quita. B guarda Camiseta (y Taza si no se quitó).
-    const bList = NET ? [P.camiseta, P.taza] : [P.camiseta];
-    const exp1 = await exportAll(site, U.b.email);
-    const ajax1 = await ajaxOwn(site, 'export', U.b.email);
-    const ajaxRows = ajax1.data && Array.isArray(ajax1.data.data) ? ajax1.data.data.filter((d) => d.group_id === OWN_GROUP) : [];
-    check(s, 'W2.3a', '«Exportar datos personales» de B incluye su lista: entre todos los exportadores, sólo el propio trae datos de listas, y la acción AJAX de la pantalla lo devuelve',
-      exp1.own && exp1.withList.length === 1 && exp1.withList[0].key === OWN_ID && exp1.withList[0].items === bList.length && /Camiseta de prueba/.test(exp1.withList[0].names.join(' ')) && ajaxRows.length === bList.length && /Camiseta de prueba/.test(JSON.stringify(ajaxRows[0].data)),
-      short({ exportadores: exp1.keys, conLista: exp1.withList, ajax: { index: ajax1.index, op: ajax1.opIndex, filas: ajaxRows.length, error: ajax1.error } }, 900));
-    const era = await ajaxOwn(site, 'erase', U.b.email);
-    const fields = era.data ? Object.keys(era.data).sort() : [];
-    const b4 = await state(site, U.b.id);
-    const exp2 = await exportAll(site, U.b.email);
-    check(s, 'W2.3b', '«Borrar datos personales» (acción AJAX de la pantalla) quita la lista: el borrador responde con sus cuatro campos (`items_removed`, `items_retained` falso, `messages`, `done`) y después nada se exporta',
-      !!era.data && JSON.stringify(fields) === JSON.stringify(['done', 'items_removed', 'items_retained', 'messages']) && era.data.items_removed === true && era.data.items_retained === false && era.data.done === true && era.data.messages.includes(T.erased) && !b4.own.length && !exp2.withList.length,
-      short({ borrador: era, cuenta: b4.own, despues: exp2.withList }));
-    lap(s, 'W2.3');
+    // 3. Privacidad (modo propio): exportar incluye la lista, borrar la quita. B guarda Camiseta (Taza se quitó en W2.2).
+    if (!NET) {
+      const bList = [P.camiseta];
+      const exp1 = await exportAll(site, U.b.email);
+      const ajax1 = await ajaxOwn(site, 'export', U.b.email);
+      const ajaxRows = ajax1.data && Array.isArray(ajax1.data.data) ? ajax1.data.data.filter((d) => d.group_id === OWN_GROUP) : [];
+      check(s, 'W2.3a', '«Exportar datos personales» de B incluye su lista: entre todos los exportadores, sólo el propio trae datos de listas, y la acción AJAX de la pantalla lo devuelve',
+        exp1.own && exp1.withList.length === 1 && exp1.withList[0].key === OWN_ID && exp1.withList[0].items === bList.length && /Camiseta de prueba/.test(exp1.withList[0].names.join(' ')) && ajaxRows.length === bList.length && /Camiseta de prueba/.test(JSON.stringify(ajaxRows[0].data)),
+        short({ exportadores: exp1.keys, conLista: exp1.withList, ajax: { index: ajax1.index, op: ajax1.opIndex, filas: ajaxRows.length, error: ajax1.error } }, 900));
+      const era = await ajaxOwn(site, 'erase', U.b.email);
+      const fields = era.data ? Object.keys(era.data).sort() : [];
+      const b4 = await state(site, U.b.id);
+      const exp2 = await exportAll(site, U.b.email);
+      check(s, 'W2.3b', '«Borrar datos personales» (acción AJAX de la pantalla) quita la lista: el borrador responde con sus cuatro campos (`items_removed`, `items_retained` falso, `messages`, `done`) y después nada se exporta',
+        !!era.data && JSON.stringify(fields) === JSON.stringify(['done', 'items_removed', 'items_retained', 'messages']) && era.data.items_removed === true && era.data.items_retained === false && era.data.done === true && era.data.messages.includes(T.erased) && !b4.own.length && !exp2.withList.length,
+        short({ borrador: era, cuenta: b4.own, despues: exp2.withList }));
+      lap(s, 'W2.3');
+    }
 
-    // 4. Lista de WooCommerce encendida: Store API, mudanza, el variable sin botón y un solo exportador.
+    // 4. Lista de WooCommerce encendida: Store API, mudanza, el variable sin botón y un solo exportador (en red, sitio 3).
+    const site4 = NET ? siteById(3) : site;
+    const w4 = wlOf(site4);
+    const P4 = w4.products;
     const vd = await visitor();
     let featureOn = false;
     try {
       vd.net = track(vd.page, []);
-      await login(vd.page, await session(site, U.d.id));
+      await login(vd.page, await session(site4, U.d.id));
       await vd.page.setViewport({ width: 1280, height: 900 });
       // Lista propia previa de D (el variable incluido), guardada con el almacén del módulo: guardar y quitar desde el
       // navegador en modo propio ya lo prueban W2.1 y W2.2.
-      await op(site, 'wishlist_seed', { lists: `${U.d.id}:${[P.camiseta, P.calcetin, P.sudadera].join(',')}` });
-      const d0 = await state(site, U.d.id);
-      check(s, 'W2.4a', 'antes de encender la lista de WooCommerce, D tiene una lista propia de tres productos (el variable incluido)', same(d0.own, [P.camiseta, P.calcetin, P.sudadera]) && d0.mode_front === 'own' && !d0.woo.length && Number(d0.legacy) >= 1, short(d0));
+      await op(site4, 'wishlist_seed', { lists: `${U.d.id}:${[P4.camiseta, P4.calcetin, P4.sudadera].join(',')}` });
+      const d0 = await state(site4, U.d.id);
+      check(s, 'W2.4a', 'antes de encender la lista de WooCommerce, D tiene una lista propia de tres productos (el variable incluido)', same(d0.own, [P4.camiseta, P4.calcetin, P4.sudadera]) && d0.mode_front === 'own' && !d0.woo.length && Number(d0.legacy) >= 1, short(d0));
 
       featureOn = true;
-      const on = await op(site, 'wishlist_feature', { on: 1 });
-      const d1 = await state(site, U.d.id, null, true);
+      const on = await op(site4, 'wishlist_feature', { on: 1 });
+      const d1 = await state(site4, U.d.id, null, true);
       check(s, 'W2.4b', 'con `product_wishlist` encendida en el sitio, la fuente es la Store API en el front y en REST (la ruta `shopper-lists` registrada)', on.feature === 'yes' && d1.mode_front === 'store' && d1.mode_rest === 'store' && d1.own_exporter === true, short({ feature: on.feature, front: d1.mode_front, rest: d1.mode_rest, exportadorPropio: d1.own_exporter, legacy: d1.legacy }));
       lap(s, 'W2.4 preparación');
 
       vd.net.length = 0;
       const moved = vd.page.waitForResponse((r) => /\/woo\/wishlist(\?|$)/.test(r.url()) && r.request().method() === 'POST', { timeout: 60000 });
-      await vd.page.goto(w.urls.save, { waitUntil: 'load' });
+      await vd.page.goto(w4.urls.save, { waitUntil: 'load' });
       const mres = await moved;
-      await ready(vd.page, P.camiseta);
-      await vd.page.waitForSelector(`button[data-digi-wish="${P.calcetin}"][aria-pressed="true"]`, WAIT).catch(() => {});
-      const look1 = await look(vd.page, w.key);
-      const d2 = await state(site, U.d.id);
+      await ready(vd.page, P4.camiseta);
+      await vd.page.waitForSelector(`button[data-digi-wish="${P4.calcetin}"][aria-pressed="true"]`, WAIT).catch(() => {});
+      const look1 = await look(vd.page, w4.key);
+      const d2 = await state(site4, U.d.id);
       const stores = storeRequests(vd.net);
       const posts = stores.filter((r) => r.method === 'POST');
       const owns = ownRequests(vd.net);
       check(s, 'W2.4c', 'mudanza: en la siguiente visita, cada producto no variable va a la Store API (`POST` con su `Nonce`) y después `clear` con `moved` vacía el almacén propio; el contador de listas propias vuelve a 0',
-        mres.status() === 200 && same(d2.woo, [P.camiseta, P.calcetin]) && !d2.own.length && Number(d2.legacy) === 0 && posts.length === 2 && posts.every((r) => !!r.headers.nonce) && !posts.some((r) => new RegExp(`"product_id":${P.sudadera}\\b`).test(r.body))
+        mres.status() === 200 && same(d2.woo, [P4.camiseta, P4.calcetin]) && !d2.own.length && Number(d2.legacy) === 0 && posts.length === 2 && posts.every((r) => !!r.headers.nonce) && !posts.some((r) => new RegExp(`"product_id":${P4.sudadera}\\b`).test(r.body))
           && owns.length === 1 && /"op":"clear"/.test(owns[0].body) && /"moved":true/.test(owns[0].body) && look1.config.mode === 'store' && look1.config.legacy === true,
         short({ woo: d2.woo, propio: d2.own, legacy: d2.legacy, store: stores.map((r) => `${r.method} ${r.body}`), propias: owns.map((r) => r.body), config: look1.config }, 900));
-      check(s, 'W2.4d', 'en modo Store API, los guardados quedan pulsados y el botón del variable se oculta (desviación declarada: WooCommerce pide la variación)', look1.buttons[P.camiseta].pressed === 'true' && look1.buttons[P.calcetin].pressed === 'true' && look1.buttons[P.sudadera].hidden === true && look1.buttons[P.taza].pressed === 'false' && !look1.buttons[P.taza].hidden && look1.count.every((x) => x === '2'), short({ buttons: look1.buttons, count: look1.count }));
+      check(s, 'W2.4d', 'en modo Store API, los guardados quedan pulsados y el botón del variable se oculta (desviación declarada: WooCommerce pide la variación)', look1.buttons[P4.camiseta].pressed === 'true' && look1.buttons[P4.calcetin].pressed === 'true' && look1.buttons[P4.sudadera].hidden === true && look1.buttons[P4.taza].pressed === 'false' && !look1.buttons[P4.taza].hidden && look1.count.every((x) => x === '2'), short({ buttons: look1.buttons, count: look1.count }));
       lap(s, 'W2.4 mudanza');
 
       vd.net.length = 0;
       const added = vd.page.waitForResponse((r) => r.url().includes('/wc/store/v1/shopper-lists/wishlist/items') && r.request().method() === 'POST', WAIT);
-      await vd.page.click(`button[data-digi-wish="${P.taza}"]`);
+      await vd.page.click(`button[data-digi-wish="${P4.taza}"]`);
       const ares = await added;
-      await vd.page.waitForSelector(`button[data-digi-wish="${P.taza}"][aria-pressed="true"]`, WAIT);
-      const d3 = await state(site, U.d.id);
-      check(s, 'W2.4e', 'una sola fuente: guardar con la función activa escribe sólo en la Store API (201) y nunca en el almacén propio', ares.status() === 201 && same(d3.woo, [P.camiseta, P.calcetin, P.taza]) && !d3.own.length && !ownRequests(vd.net).length, short({ status: ares.status(), woo: d3.woo, propio: d3.own, propias: ownRequests(vd.net).length }));
-      await vd.page.goto(w.urls.list, { waitUntil: 'load' });
+      await vd.page.waitForSelector(`button[data-digi-wish="${P4.taza}"][aria-pressed="true"]`, WAIT);
+      const d3 = await state(site4, U.d.id);
+      check(s, 'W2.4e', 'una sola fuente: guardar con la función activa escribe sólo en la Store API (201) y nunca en el almacén propio', ares.status() === 201 && same(d3.woo, [P4.camiseta, P4.calcetin, P4.taza]) && !d3.own.length && !ownRequests(vd.net).length, short({ status: ares.status(), woo: d3.woo, propio: d3.own, propias: ownRequests(vd.net).length }));
+      await vd.page.goto(w4.urls.list, { waitUntil: 'load' });
       await listed(vd.page, 3);
-      const dl = await look(vd.page, w.key);
-      check(s, 'W2.4f', 'la página de la lista pinta la lista de WooCommerce', same(dl.items, [P.camiseta, P.calcetin, P.taza]), short(dl.items));
+      const dl = await look(vd.page, w4.key);
+      check(s, 'W2.4f', 'la página de la lista pinta la lista de WooCommerce', same(dl.items, [P4.camiseta, P4.calcetin, P4.taza]), short(dl.items));
       check(s, 'W2.4g', 'la mudanza y la Store API, sin errores de JavaScript ni respuestas de error', clean(vd.facts), factsOf(vd.facts));
       lap(s, 'W2.4 Store API');
 
-      const exp3 = await exportAll(site, U.d.email);
+      const exp3 = await exportAll(site4, U.d.email);
       check(s, 'W2.4h', 'un solo exportador con datos: el de WooCommerce (`woocommerce-shopper-lists`, con los tres productos); el propio ya no se registra (sin listas propias en el sitio)', exp3.withList.length === 1 && exp3.withList[0].key === 'woocommerce-shopper-lists' && JSON.stringify(exp3.withList[0].groups) === JSON.stringify([WOO_GROUP]) && exp3.withList[0].items === 3 && !exp3.own, short({ conLista: exp3.withList, exportadores: exp3.keys }));
       lap(s, 'W2.4 exportador');
 
       // Un invitado que entra con la función activa: «Añadir» hace un POST por producto a la Store API.
       if (!NET) {
-        const e = await guestThenLogin(site, U.e, [P.gorra, P.lampara]);
+        const e = await guestThenLogin(site4, U.e, [P4.gorra, P4.lampara]);
         try {
           const guestLook = e.guest;
           e.net.length = 0;
-          await e.page.goto(w.urls.save, { waitUntil: 'load' });
+          await e.page.goto(w4.urls.save, { waitUntil: 'load' });
           await mergeBox(e.page);
           await e.page.click('.digi-wish-merge button[data-add]');
           await said(e.page, T.added);
           await sleep(150);
-          const e1 = await state(site, U.e.id);
-          const eLook = await look(e.page, w.key);
+          const e1 = await state(site4, U.e.id);
+          const eLook = await look(e.page, w4.key);
           const ePosts = storeRequests(e.net).filter((r) => r.method === 'POST');
           check(s, 'W2.4i', 'con la función activa, «Añadir» lleva la lista del invitado a la Store API (un POST por producto), nada al almacén propio, y borra la copia del navegador; el invitado tampoco ve el botón del variable',
-            same(e1.woo, [P.gorra, P.lampara]) && !e1.own.length && ePosts.length === 2 && !ownRequests(e.net).length && eLook.stored === null && guestLook.buttons[P.sudadera].hidden === true,
-            short({ woo: e1.woo, propio: e1.own, posts: ePosts.length, propias: ownRequests(e.net).length, stored: eLook.stored, variableInvitado: guestLook.buttons[P.sudadera] }));
+            same(e1.woo, [P4.gorra, P4.lampara]) && !e1.own.length && ePosts.length === 2 && !ownRequests(e.net).length && eLook.stored === null && guestLook.buttons[P4.sudadera].hidden === true,
+            short({ woo: e1.woo, propio: e1.own, posts: ePosts.length, propias: ownRequests(e.net).length, stored: eLook.stored, variableInvitado: guestLook.buttons[P4.sudadera] }));
         } finally {
           await e.ctx.close().catch(() => {});
         }
@@ -525,7 +531,7 @@ module.exports = (api) => {
       await shot(vd.page, 'W2-store-falla');
       throw err;
     } finally {
-      if (featureOn) await op(site, 'wishlist_feature', { on: 0 }).catch(() => {});
+      if (featureOn) await op(site4, 'wishlist_feature', { on: 0 }).catch(() => {});
       await vd.ctx.close().catch(() => {});
     }
 

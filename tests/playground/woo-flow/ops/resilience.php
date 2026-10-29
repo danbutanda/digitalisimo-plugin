@@ -13,8 +13,6 @@
  * - `resilience_version`: vacía OPcache y dice qué DIGITALÍSIMO Elements cargó la petición (W13 cambia la carpeta).
  * - `resilience_future&on=0|1`: mu-plugin que registra el tipo `digitalisimo-futuro-res` (el «widget del futuro»).
  * - `resilience_new_site` (red): crea un sitio sin visitarlo, para la primera petición anónima de W0.10.
- * - `resilience_env&on=0|1`: sin la petición asíncrona de Action Scheduler (con un solo worker, la administración espera a
- *   una petición a sí misma); `resilience_opcache&on=0|1`: sin OPcache tras los mu-plugins (W13).
  * - `resilience_fatal`: tamaño y final de `fatal.log`.
  */
 
@@ -178,34 +176,6 @@ return array(
 			'digitalisimo' => isset( $manifest['digitalisimo'] ) && is_array( $manifest['digitalisimo'] ) ? array_keys( $manifest['digitalisimo'] ) : null,
 			'counts'       => isset( $result['report']['counts'] ) ? $result['report']['counts'] : array(),
 		);
-	},
-	'resilience_env'      => static function () use ( $digi_res_get ) {
-		$file = WPMU_PLUGIN_DIR . '/digi-wf-res-env.php';
-		if ( '1' === $digi_res_get( 'on' ) ) {
-			// Playground con un solo worker: la petición «asíncrona» de Action Scheduler (en `shutdown` de cada petición de la
-			// administración con acciones pendientes, una vez por minuto) vuelve a este mismo servidor y la petición que la
-			// lanza no termina mientras espera turno. Sólo en este sitio y mientras corre el escenario.
-			$log = WP_CONTENT_DIR . '/probe/res-requests.log';
-			file_put_contents( // phpcs:ignore WordPress.WP.AlternativeFunctions
-				$file,
-				"<?php\nadd_filter( 'action_scheduler_allow_async_request_runner', '__return_false' );\n"
-				. "// Registro de peticiones PHP de la corrida (diagnóstico de los cortes del servidor).\n"
-				. '$GLOBALS[\'digi_res_t\'] = microtime( true ); @file_put_contents( ' . var_export( $log, true ) . ', sprintf( "%.3f > %s %s\\n", $GLOBALS[\'digi_res_t\'], $_SERVER[\'REQUEST_METHOD\'] ?? \'\', substr( (string) ( $_SERVER[\'REQUEST_URI\'] ?? \'\' ), 0, 160 ) ), FILE_APPEND );'
-				. "\nregister_shutdown_function( static function () { @file_put_contents( " . var_export( $log, true ) . ', sprintf( "%.3f < %d %dMB\\n", microtime( true ), http_response_code(), memory_get_peak_usage( true ) >> 20 ), FILE_APPEND ); } );' . "\n"
-			);
-		} else {
-			@unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-		}
-		return array( 'file' => is_file( $file ) );
-	},
-	'resilience_opcache'  => static function () use ( $digi_res_get ) {
-		$file = WPMU_PLUGIN_DIR . '/000-digi-wf-res-no-opcache.php';
-		if ( '0' === $digi_res_get( 'on' ) ) {
-			file_put_contents( $file, "<?php\n// woo-flow.sh W13: sin OPcache para lo que se compila después de este mu-plugin (dos versiones del plugin en la misma carpeta).\nini_set( 'opcache.enable', '0' );\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions
-		} else {
-			@unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-		}
-		return array( 'file' => is_file( $file ) );
 	},
 	'resilience_version'  => static function () {
 		$status = function_exists( 'opcache_get_status' ) ? opcache_get_status( false ) : null;

@@ -9,8 +9,9 @@
  *
  * - Plantilla de bucle `digi-wf-res-bucle` (productos): título dinámico, «Muestras de variación», «Botón de lista de
  *   deseos» y «Vista rápida» del producto actual.
- * - `digi-wf-res-sin-woo` (W0.8): un encabezado y los siete widgets de F4-Woo en el primer nivel, con ajustes que no son
- *   los de por defecto (así el editor no los quita al guardar y el md5 compara algo).
+ * - `digi-wf-res-sin-woo` y `digi-wf-res-editor` (W0.8): un encabezado y los siete widgets de F4-Woo en el primer nivel,
+ *   con ajustes que no son los de por defecto; la primera para el md5 con las peticiones del editor y la segunda para el
+ *   editor en Chrome.
  * - `digi-wf-res-cache` (W3): los siete widgets (las muestras, en la plantilla del Loop Grid `resloop`), dos botones de
  *   lista de deseos de productos concretos, los filtros de precio y de atributo sobre el bucle y la barra de envío.
  * - `digi-wf-res-vuelta` (W13): los siete widgets en el primer nivel, un Loop Grid `resl002` con el filtro de precio, el
@@ -107,8 +108,9 @@ return static function ( array $out, callable $fail ): array {
 	};
 
 	$docs = array(
-		// W0.8: los siete en el primer nivel.
+		// W0.8: los siete en el primer nivel; una página para el md5 (peticiones del editor) y otra para el editor en Chrome.
 		'digi-wf-res-sin-woo' => array( 'Sin WooCommerce (resiliencia)', array( $container( 'res0c00', array_merge( array( $heading( 'res0h00', 'Página con los siete widgets' ) ), $seven( '0', '' ) ) ) ) ),
+		'digi-wf-res-editor'  => array( 'Editor sin WooCommerce (resiliencia)', array( $container( 'resec00', array_merge( array( $heading( 'reseh00', 'Página para el editor' ) ), $seven( 'e', '' ) ) ) ) ),
 		// W3: los siete; las muestras en la plantilla del bucle.
 		'digi-wf-res-cache'   => array(
 			'Caché de página (resiliencia)',

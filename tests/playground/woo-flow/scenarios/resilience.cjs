@@ -67,7 +67,6 @@ module.exports = (api) => {
   /** Peticiones que el servidor cortó sin respuesta y se repitieron (un worker de php-wasm que se reinicia). */
   const hiccups = [];
   summary.resilience = { hiccups }; // summary.json las lleva (se escribe tras cada escenario).
-  fs.rmSync(path.join(OUT, 'res-requests.log'), { force: true });
   function httpTo(port, host) {
     const once = (method, url, { headers = {}, body = null, jar = null } = {}) => {
       const u = new URL(url, `http://${host}/`);
@@ -166,33 +165,36 @@ module.exports = (api) => {
   const md5Of = (doc, prefix) => Object.fromEntries((doc.widgets || []).filter((w) => w.id.startsWith(prefix) && NAMES.includes(w.type)).map((w) => [w.id, w.md5]));
 
   // ── Chrome: editor real con sesión de administrador ─────────────────────────────────────────────────────────────
-  /** Contexto de Chrome con la sesión del administrador (se inicia en wp-login.php como una persona). */
-  async function adminChrome() {
+  const editorUrl = (id) => `${BASE}${SITE.path}wp-admin/post.php?post=${id}&action=elementor`;
+  /**
+   * Contexto de Chrome con la sesión del administrador. Se inicia sesión en wp-login.php con `redirect_to` al editor
+   * (sin pasar por el escritorio) y se espera al editor con su panel, no al evento de carga: con la máquina cargada,
+   * la navegación puede no «terminar» aunque el editor ya funcione.
+   */
+  async function adminChrome(id) {
     const v = await visitor();
     const { page } = v;
     v.pageErrors = [];
     page.on('pageerror', (e) => v.pageErrors.push(String(e.message || e).slice(0, 300)));
     await page.setViewport({ width: 1500, height: 950 });
-    await page.goto(`${BASE}${SITE.path}wp-login.php`, { waitUntil: 'load' });
+    await page.goto(`${BASE}${SITE.path}wp-login.php?redirect_to=${encodeURIComponent(editorUrl(id))}`, { waitUntil: 'domcontentloaded', timeout: 240000 });
     await page.type('#user_login', 'admin');
     await page.type('#user_pass', 'password');
-    await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click('#wp-submit')]);
-    return v;
+    v.navigation = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 420000 }).catch((e) => String(e.message || e));
+    await page.click('#wp-submit');
+    return editorReady(v);
   }
-  /** Abre (o vuelve a abrir) el editor de un documento en esa pestaña y espera a la vista previa pintada. */
-  async function loadEditor(v, id) {
+  async function editorReady(v) {
     const { page } = v;
-    v.pageErrors.length = 0;
-    await page.goto(`${BASE}${SITE.path}wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 240000 });
-    await page.waitForSelector('#elementor-panel', { timeout: 180000 });
-    v.frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
-    await v.frame.waitForSelector('.elementor-element', { timeout: 180000 });
+    await page.waitForSelector('#elementor-panel', { timeout: 420000 });
+    v.frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 300000 })).contentFrame();
+    await v.frame.waitForSelector('.elementor-element', { timeout: 300000 });
     await page.waitForFunction(() => { const l = document.querySelector('#elementor-loading'); return window.elementor && window.$e && (!l || getComputedStyle(l).display === 'none'); }, { timeout: 300000 }).catch(() => {});
     await sleep(2500);
     return v;
   }
   async function openEditor(id) {
-    return loadEditor(await adminChrome(), id);
+    return adminChrome(id);
   }
   /** Cambia el título de un encabezado en el editor y guarda («Actualizar»). */
   async function editorUpdate(ed, headingId, title) {
@@ -279,7 +281,7 @@ module.exports = (api) => {
   }
   process.on('exit', () => { for (const e of Object.values(nowoo)) { try { process.kill(-e.child.pid, 'SIGKILL'); } catch (err) { /* nada */ } } });
   // Arrancan ya, en paralelo con la preparación de la tienda y la compra de W0: W0.9 los usa al final de W0.
-  if (runs('W0') && process.env.KEEP !== '1') {
+  if (runs('W0') && process.env.KEEP !== '1' && !NET) {
     try { startNoWoo('a'); startNoWoo('b'); } catch (e) { log(`resilience: no se pudieron arrancar los sitios sin WooCommerce: ${e.message}`); }
   }
 
@@ -381,30 +383,22 @@ module.exports = (api) => {
   }
 
   // ── W0.8 · sin WooCommerce en el mismo sitio ──────────────────────────────────────────────────────────────────
+  // `digi-wf-res-sin-woo`: el md5 con las mismas peticiones que el editor (`get_document_config` y `save_builder`), con
+  // WooCommerce y sin él. `digi-wf-res-editor`: el editor real en Chrome sin WooCommerce (aviso, panel y guardado). El
+  // guardado en Chrome añade los valores por defecto de los controles (lo hace igual con WooCommerce), así que su md5 no
+  // se compara con el de unos datos guardados por otro camino: se comprueba que conserva cada ajuste que tenía.
   async function w08(s) {
     const r = res();
     const id = r && r.ids && r.ids['digi-wf-res-sin-woo'];
-    if (!id) { check(s, 'W0.8', 'la preparación deja la página con los siete widgets', false, short(r || setupOf().errors)); return; }
+    const eid = r && r.ids && r.ids['digi-wf-res-editor'];
+    if (!id || !eid) { check(s, 'W0.8', 'la preparación deja las páginas con los siete widgets', false, short(r || setupOf().errors)); return; }
     const url = r.pages['digi-wf-res-sin-woo'];
-    // Línea base: el mismo editor guarda la página con WooCommerce activo (el editor añade los valores por defecto de
-    // los controles y quita los vacíos al guardar: lo que se compara después es lo que el editor guarda con
-    // WooCommerce frente a lo que guarda sin él).
-    let ed = await adminChrome();
-    let base = null;
-    try {
-      await loadEditor(ed, id);
-      const saved = await editorUpdate(ed, 'res0h00', 'Guardado con WooCommerce');
-      base = saved === 'ok' ? await waitHeading(id, 'res0h00', 'Guardado con WooCommerce') : null;
-      check(s, 'W0.8a', 'con WooCommerce, el editor guarda la página con los siete widgets de F4-Woo (línea base)', !!base && Object.keys(md5Of(base, 'res0w')).length === 7, short({ saved, types: base && base.widgets.map((w) => w.type) }));
-    } catch (e) {
-      await shot(ed.page, 'W0.8-editor-con-woo-falla');
-      check(s, 'W0.8a', 'con WooCommerce, el editor guarda la página (línea base)', false, String(e.stack || e.message || e).slice(0, 600));
-    }
-    // La pestaña del editor se cierra mientras se desactiva WooCommerce y se mira el front (sin peticiones del editor
-    // de por medio) y se abre otra para el editor sin WooCommerce.
-    await ed.ctx.close().catch(() => {});
-    if (!base) return;
+    const jar = await login(main);
+    const s0 = await editorSave(main, jar, id, setHeading('res0h00', 'Guardado con WooCommerce'));
+    const base = await op('resilience_doc', { id });
     const before = md5Of(base, 'res0w');
+    check(s, 'W0.8a', 'con WooCommerce, el editor (sus peticiones) guarda la página con los siete widgets de F4-Woo: línea base del md5', s0.ok && Object.keys(before).length === 7 && base.headings.res0h00 === 'Guardado con WooCommerce', short({ ok: s0.ok, why: s0.why, types: base.widgets.map((w) => w.type) }));
+    const editorBefore = await op('resilience_doc', { id: eid });
     const htmlWith = (await main('GET', url)).text;
     const rendered = NAMES.filter((n) => hasWidget(htmlWith, n));
     const control = await main('GET', '/wp-json/digitalisimo-elements/v1/woo/cards');
@@ -446,38 +440,46 @@ module.exports = (api) => {
       }
       check(s, 'W0.8e', 'sin WooCommerce, woo/* responde 404 (`rest_no_route`); con WooCommerce, `GET woo/cards` existía (405)', Object.values(routes).every((x) => x === '404 rest_no_route') && control.status === 405, short({ routes, conWoo: `${control.status} ${(control.json && control.json.code) || ''}`, rutasConWoo: nsRoutes }, 900));
 
-      // Editor (Chrome): los siete con el aviso, ocultos del panel; guardar desde el editor.
+      // Las peticiones del editor sin WooCommerce: cargar (los siete llegan al editor) y guardar.
+      const s1 = await editorSave(main, jar, id, setHeading('res0h00', 'Guardado sin WooCommerce'));
+      const loaded = types(s1.loaded || []).filter((t) => NAMES.includes(t));
+      check(s, 'W0.8f', 'sin WooCommerce, el editor recibe los siete widgets al abrir el documento y lo guarda', s1.ok && loaded.length === 7, short({ ok: s1.ok, why: s1.why, recibidos: loaded }));
+
+      // Editor real (Chrome): los siete con el aviso, ocultos del panel; guardar desde el editor.
+      let ed = null;
       try {
-        ed = await adminChrome();
-        await loadEditor(ed, id);
+        ed = await openEditor(eid);
         const preview = await ed.frame.evaluate((names) => names.map((n) => {
           const els = Array.from(document.querySelectorAll(`.elementor-widget-${n}`));
-          return { n, count: els.length, notice: els.filter((e) => e.querySelector('.digi-woo-inert')).length, text: els[0] ? els[0].textContent.replace(/\s+/g, ' ').trim().slice(0, 80) : '' };
+          return { n, count: els.length, notice: els.filter((e) => e.querySelector('.digi-woo-inert')).length, text: els[0] ? els[0].textContent.replace(/\s+/g, ' ').trim().slice(0, 60) : '' };
         }), NAMES);
         const panel = await ed.page.evaluate((names) => names.map((n) => { const c = window.elementor && window.elementor.widgetsCache && window.elementor.widgetsCache[n]; return { n, known: !!c, show: c ? c.show_in_panel : null }; }), NAMES);
         await shot(ed.page, 'W0.8-editor-sin-woo');
-        check(s, 'W0.8f', 'editor sin WooCommerce: cada uno de los siete widgets se pinta con el aviso «Necesita WooCommerce»', preview.every((p) => p.count === 1 && p.notice === 1 && /Necesita WooCommerce/.test(p.text)), short(preview, 900));
-        check(s, 'W0.8g', 'editor sin WooCommerce: los siete están registrados y ocultos del panel', panel.every((p) => p.known && p.show === false), short(panel, 700));
-        const saved = await editorUpdate(ed, 'res0h00', 'Guardado sin WooCommerce');
-        const after = saved === 'ok' ? await waitHeading(id, 'res0h00', 'Guardado sin WooCommerce') : null;
-        const kept = after ? md5Of(after, 'res0w') : {};
-        check(s, 'W0.8h', 'el editor guarda sin WooCommerce y el documento conserva los siete widgets', saved === 'ok' && !!after && Object.keys(kept).length === 7, short({ saved, types: after && after.widgets.map((w) => w.type) }));
-        // Como design.sh: los errores de red del editor (AxiosError: una petición REST cortada o con error) se anotan
-        // con sus respuestas; sólo los demás son errores del código.
+        check(s, 'W0.8g', 'editor sin WooCommerce (Chrome): cada uno de los siete widgets se pinta con el aviso «Necesita WooCommerce»', preview.every((p) => p.count === 1 && p.notice === 1 && /Necesita WooCommerce/.test(p.text)), short(preview, 900));
+        check(s, 'W0.8h', 'editor sin WooCommerce (Chrome): los siete están registrados y ocultos del panel', panel.every((p) => p.known && p.show === false), short(panel, 700));
+        const saved = await editorUpdate(ed, 'reseh00', 'Guardado en el editor sin WooCommerce');
+        const after = saved === 'ok' ? await waitHeading(eid, 'reseh00', 'Guardado en el editor sin WooCommerce') : null;
+        const lost = [];
+        for (const w of editorBefore.widgets.filter((x) => NAMES.includes(x.type))) {
+          const now = after && after.widgets.find((x) => x.id === w.id);
+          if (!now) { lost.push(`${w.id}: el widget`); continue; }
+          for (const [k, val] of Object.entries(w.settings)) if (JSON.stringify(now.settings[k]) !== JSON.stringify(val) && !(val === '' && now.settings[k] === undefined)) lost.push(`${w.id}.${k}: ${short(val, 60)} → ${short(now.settings[k], 60)}`);
+        }
+        check(s, 'W0.8i', 'el editor (Chrome) guarda sin WooCommerce y el documento conserva los siete widgets con cada ajuste que tenían', saved === 'ok' && !!after && !lost.length, short({ saved, perdidos: lost.slice(0, 8) }));
         const network = ed.pageErrors.filter((e) => /AxiosError|Network Error|timeout of \d+ms/i.test(e));
         const code = ed.pageErrors.filter((e) => !network.includes(e));
-        check(s, 'W0.8i', 'el editor sin WooCommerce no tiene errores de JavaScript (los de red se anotan con sus respuestas)', !code.length, short({ codigo: code.slice(0, 3), red: network.length, respuestas: ed.facts.failed.slice(0, 6) }, 900));
+        check(s, 'W0.8j', 'el editor sin WooCommerce no tiene errores de JavaScript (los de red se anotan con sus respuestas)', !code.length, short({ codigo: code.slice(0, 3), red: network.length, respuestas: ed.facts.failed.slice(0, 6) }, 900));
       } catch (e) {
-        await shot(ed.page, 'W0.8-editor-falla');
-        check(s, 'W0.8f', 'editor sin WooCommerce (Chrome)', false, String(e.stack || e.message || e).slice(0, 600));
+        if (ed) await shot(ed.page, 'W0.8-editor-falla');
+        check(s, 'W0.8g', 'editor sin WooCommerce (Chrome)', false, String(e.stack || e.message || e).slice(0, 600));
       } finally {
-        await ed.ctx.close().catch(() => {});
+        if (ed) await ed.ctx.close().catch(() => {});
       }
     } finally {
       if (off) {
         const on = await op('resilience_woo', { on: 1 }).catch((e) => ({ error: e.message }));
         const ping = await api.probe(SITE, 'ping').catch(() => ({}));
-        check(s, 'W0.8j', 'WooCommerce vuelve a activarse (la petición siguiente lo carga, 11.2.1)', !on.error && ping.woocommerce === '11.2.1', short({ on, wc: ping.woocommerce }));
+        check(s, 'W0.8k', 'WooCommerce vuelve a activarse (la petición siguiente lo carga, 11.2.1)', !on.error && ping.woocommerce === '11.2.1', short({ on, wc: ping.woocommerce }));
       }
     }
     const back = await op('resilience_doc', { id });
@@ -488,10 +490,10 @@ module.exports = (api) => {
       const b = back.widgets.find((w) => w.id === k);
       return `${k} ${a && a.type}: ${diff(a && a.settings, b && b.settings).join(' · ')}`;
     });
-    check(s, 'W0.8k', 'tras guardar en el editor sin WooCommerce y reactivarlo, los ajustes de cada widget tienen el mismo md5 que los que guardó el editor con WooCommerce', Object.keys(now).length === 7 && !changed.length, changed.length ? detail.join(' | ') : short(now));
+    check(s, 'W0.8l', 'tras guardar sin WooCommerce y reactivarlo, los ajustes de cada widget tienen el mismo md5 que con WooCommerce', Object.keys(now).length === 7 && !changed.length && back.headings.res0h00 === 'Guardado sin WooCommerce', changed.length ? detail.join(' | ') : short(now));
     const htmlBack = await main('GET', url);
     const again = NAMES.filter((n) => hasWidget(htmlBack.text, n));
-    check(s, 'W0.8l', 'con WooCommerce de nuevo, la página pinta los mismos widgets que antes de desactivarlo', htmlBack.status === 200 && JSON.stringify(again) === JSON.stringify(rendered) && rendered.length >= 4, short({ antes: rendered, despues: again }));
+    check(s, 'W0.8m', 'con WooCommerce de nuevo, la página pinta los mismos widgets que antes de desactivarlo', htmlBack.status === 200 && JSON.stringify(again) === JSON.stringify(rendered) && rendered.length >= 4, short({ antes: rendered, despues: again }));
   }
 
   // ── W0.9 · el mismo kit por los tres caminos, en sitios aparte sin WooCommerce ──────────────────────────────────
@@ -578,17 +580,21 @@ module.exports = (api) => {
     const t = Date.now();
     const lap = (what) => log(`   resilience ${what}: ${Math.round((Date.now() - t) / 1000)} s (${new Date().toISOString().slice(11, 19)})`);
     if (process.env.RES_SKIP_BASE !== '1') lap('W0 de run.cjs');
-    // En orden: con W0.9 en paralelo (los otros Playground importando mientras el editor carga en este), el único worker
-    // de este sitio llegó a quedarse sin responder; el kit se exporta después de W0.8, con WooCommerce reactivado.
+    // W0.9 corre en los sitios sin WooCommerce mientras W0.8 usa este: el kit se exporta antes, con WooCommerce activo.
+    let exp = null;
+    if (NET) {
+      // En red, W0 comprueba la compra en los tres sitios y W0.10; W0.8 (desactivar WooCommerce) y W0.9 (sitios aparte)
+      // son de un sitio y se corren sin NET.
+      pending(s, 'W0.8', 'con NET=1 no se repite: lo cubre la corrida de un sitio');
+      pending(s, 'W0.9', 'con NET=1 no se repite: usa sitios aparte sin WooCommerce, los mismos que en la corrida de un sitio');
+      try { await w010(s); } catch (e) { check(s, 'W0.10', 'red: primera petición anónima a un sitio nuevo', false, String(e.stack || e.message || e).slice(0, 600)); }
+      return;
+    }
+    try { exp = await op('resilience_export'); } catch (e) { exp = { error: String(e.message || e) }; }
+    const nine = w09(s, exp).catch((e) => check(s, 'W0.9', 'el mismo kit por los tres caminos sin WooCommerce', false, String(e.stack || e.message || e).slice(0, 600))).then(() => lap('W0.9'));
     try { await w08(s); } catch (e) { check(s, 'W0.8', 'sin WooCommerce en el mismo sitio', false, String(e.stack || e.message || e).slice(0, 600)); }
     lap('W0.8');
-    let exp = null;
-    try { exp = await op('resilience_export'); } catch (e) { exp = { error: String(e.message || e) }; }
-    try { await w09(s, exp); } catch (e) { check(s, 'W0.9', 'el mismo kit por los tres caminos sin WooCommerce', false, String(e.stack || e.message || e).slice(0, 600)); }
-    lap('W0.9');
-    if (NET) {
-      try { await w010(s); } catch (e) { check(s, 'W0.10', 'red: primera petición anónima a un sitio nuevo', false, String(e.stack || e.message || e).slice(0, 600)); }
-    }
+    await nine;
   }
 
   // ── W3 · caché de página simulada ─────────────────────────────────────────────────────────────────────────────
@@ -791,10 +797,6 @@ module.exports = (api) => {
     const old = prepareOld();
     const fatal = async () => (await op('resilience_fatal')).size;
     const fatal0 = await fatal();
-    // Dos versiones del plugin en la misma carpeta dentro de un mismo proceso de php-wasm: sin OPcache para el código
-    // que carga después de un mu-plugin (sin esto, el worker cayó al volver a 4.3.0.166). RES_OPCACHE=1 lo deja.
-    const noOpcache = process.env.RES_OPCACHE !== '1';
-    if (noOpcache) await op('resilience_opcache', { on: 0 });
     await op('resilience_swatches', { type: 'label' });
     const jar = await login(main);
     let base = null;
@@ -857,7 +859,6 @@ module.exports = (api) => {
     }
     await op('resilience_swatches', { type: 'select' }).catch(() => {});
     try { await w133(s, jar); } catch (e) { check(s, 'W13.3', 'guarda hacia delante', false, String(e.stack || e.message || e).slice(0, 600)); }
-    if (noOpcache) await op('resilience_opcache', { on: 1 }).catch(() => {});
     if (hiccups.length) log(`   resilience: peticiones repetidas tras un corte del servidor: ${hiccups.join(' | ')}`);
   }
 
@@ -906,12 +907,7 @@ module.exports = (api) => {
     }
   }
 
-  /** Cada escenario corre sin la petición asíncrona de Action Scheduler (ops/resilience.php, `resilience_env`). */
-  const withEnv = (fn) => async (s) => {
-    await op('resilience_env', { on: 1 }).catch((e) => log(`   resilience: sin resilience_env (${e.message})`));
-    try { return await fn(s); } finally { await op('resilience_env', { on: 0 }).catch(() => {}); }
-  };
-  return { W0: withEnv(W0), W3: withEnv(W3), W13: withEnv(W13) };
+  return { W0, W3, W13 };
 };
 
 // ── PHP de los sitios sin WooCommerce (W0.9), escrito en $OUT/res-nowoo-<x>/ ────────────────────────────────────

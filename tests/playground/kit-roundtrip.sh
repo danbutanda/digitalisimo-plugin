@@ -14,6 +14,7 @@
 #                        R4w (WOO=1, sólo si se pide) es el paso de R4 con la versión anterior a F4-Woo, aparte
 #   QUICK=1              R1 (sólo REST), R4 y R9, o los de SCENARIOS (R1 sólo por REST y en 1280 px; R4 sin el paso de
 #                        4.3.0.163): iteración local, no vale para la aceptación
+#   R1_VIA=pantalla|wp-cli  R1 sólo por esa vía (con WOO=1, para que quepa en una corrida corta; sin REST = WP-CLI)
 #   RENDER=<regex>       R1 sólo captura la portada y las páginas cuya clave (slug del título) cumple la expresión: para
 #                        repetir una parte del render; no vale para la aceptación
 #   CORE=bundled|plugin  núcleo incluido (por defecto) o el plugin Elementor de wordpress.org instalado y activo

@@ -1,6 +1,6 @@
 # DIGITALÍSIMO Tools
 
-`DIGITALÍSIMO Tools` es un plugin independiente para herramientas internas de WordPress. Incluye **Plantillas de red** en Multisite, **Optimizar imágenes WebP** en sitios individuales o instalaciones sin Multisite, **Ajustes del sitio** y **Código PHP** (fragmentos PHP propios por sitio y por red, sin tema hijo). El widget **Slider Optimizado** pasó a **DIGITALÍSIMO Elements** en la versión 4.3.0.6.
+`DIGITALÍSIMO Tools` es un plugin independiente para herramientas internas de WordPress. Incluye **Plantillas de red** en Multisite, **Optimizar medios** (JPG, PNG y GIF a WebP, GIF animado a WebP animado, SVG minimizado) en sitios individuales o instalaciones sin Multisite, **Ajustes del sitio** y **Código PHP** (fragmentos PHP propios por sitio y por red, sin tema hijo). El widget **Slider Optimizado** pasó a **DIGITALÍSIMO Elements** en la versión 4.3.0.6.
 
 ## Uso
 
