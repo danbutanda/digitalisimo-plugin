@@ -358,7 +358,7 @@ namespace {
 
 	// 2. Efectivo según el contexto.
 	tr_reset();
-	$check( array( 'pro_conditional' => true, 'font_swap' => true, 'svg_icons' => false, 'lazy_libs' => false, 'element_cache_off' => false, 'image_loading_off' => false ) === Transition::effective(), 'Efectivo con el núcleo incluido y sin filas del núcleo: los neutros.' );
+	$check( array( 'pro_conditional' => true, 'font_swap' => true, 'svg_icons' => false, 'lazy_libs' => false, 'lazy_videos' => false, 'element_cache_off' => false, 'image_loading_off' => false ) === Transition::effective(), 'Efectivo con el núcleo incluido y sin filas del núcleo: los neutros.' );
 	$GLOBALS['tr']['site'][ $network ] = array( 'element_cache_off' => true, 'image_loading_off' => true, 'lazy_libs' => true, 'svg_icons' => true );
 	$effective = Transition::effective();
 	$check( true === $effective['element_cache_off'] && true === $effective['image_loading_off'] && true === $effective['lazy_libs'] && false === $effective['svg_icons'], 'Lo heredado de la red rige; los iconos heredados esperan al análisis.' );
@@ -421,7 +421,7 @@ namespace {
 	tr_reset();
 	$GLOBALS['tr']['options'][1][ Transition::APPLIED ] = array( 'hash' => 'v0:000000' );
 	$check( Transition::pending(), 'Una huella de otro formato obliga a transitar de nuevo.' );
-	$check( 'v1:110000' === Transition::fingerprint( Transition::effective() ), 'La huella anota el formato y los seis bits del efectivo.' );
+	$check( 'v2:1100000' === Transition::fingerprint( Transition::effective() ), 'La huella anota el formato (2 desde lazy_videos) y los siete bits del efectivo.' );
 
 	// 4. admin_init: si sigue pendiente, se transita ahí; nunca por AJAX.
 	tr_reset( array( 'ajax' => true ) );
@@ -457,7 +457,7 @@ namespace {
 	// 6. Una sola clear_cache() por transición con cambios; ninguna sin ellos.
 	tr_reset();
 	$check( array( 'pro_conditional', 'font_swap' ) === Transition::run_now() && 1 === count( tr_log( 'files:1' ) ), 'Primera transición: una sola llamada a clear_cache() para los dos cambios.' );
-	$check( true === Transition::applied()['pro_conditional'] && 'v1:110000' === Transition::applied()['hash'], 'El aplicado queda con la huella del efectivo (contrato A: pro_conditional === true).' );
+	$check( true === Transition::applied()['pro_conditional'] && 'v2:1100000' === Transition::applied()['hash'], 'El aplicado queda con la huella del efectivo (contrato A: pro_conditional === true).' );
 	$check( array() === Transition::run_now() && 1 === count( tr_log( 'files:1' ) ) && 1 === count( tr_log( 'write:1:' . Transition::APPLIED ) ), 'Sin cambios: ni vaciado ni escritura.' );
 	update_option( $site, Settings::sanitize( array( 'pro_conditional' => '1', 'font_swap' => '1', 'lazy_libs' => '1', 'element_cache_off' => '1', 'own' => array( 'lazy_libs', 'element_cache_off' ) ) ) );
 	$check( array( 'lazy_libs', 'element_cache_off' ) === Transition::run_now() && 2 === count( tr_log( 'files:1' ) ), 'Dos cambios más: una llamada más.' );

@@ -4823,5 +4823,196 @@
     "asset:swatches-js": "<=8192"
    }
   }
+ },
+ "video-bg-lazy": {
+  "title": "Vídeo de fondo (MP4) bajo el pliegue con «Cargar los vídeos … al acercarse» (Fase 3)",
+  "since": "4.3.0.168",
+  "elements": [
+   {
+    "elType": "container",
+    "id": "fbv0000",
+    "settings": {},
+    "elements": [
+     {
+      "type": "spacer",
+      "settings": {
+       "space": {
+        "unit": "px",
+        "size": 2500,
+        "sizes": []
+       }
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbv0001",
+    "settings": {
+     "background_background": "video",
+     "background_video_link": "__VIDEO__",
+     "background_play_on_mobile": "yes",
+     "min_height": {
+      "unit": "px",
+      "size": 320,
+      "sizes": []
+     }
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Fondo de vídeo"
+      }
+     }
+    ]
+   }
+  ],
+  "front_settings": {
+   "lazy_videos": true
+  },
+  "assets": {
+   "mp4": "digi-medicion\\.mp4"
+  },
+  "counts": {
+   "lazy": "video.elementor-background-video-hosted[data-digi-lazy-video][preload=\"none\"]:not([autoplay])"
+  },
+  "actions": [
+   {
+    "do": "scroll",
+    "to": 2400
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "count:lazy": 1,
+    "asset:mp4": "<=0",
+    "after": {
+     "asset:mp4": ">0"
+    }
+   }
+  }
+ },
+ "video-bg-visible": {
+  "title": "Vídeo de fondo (MP4) en la primera pantalla con el interruptor: se carga al abrir (Fase 3)",
+  "since": "4.3.0.168",
+  "elements": [
+   {
+    "elType": "container",
+    "id": "fbv0101",
+    "settings": {
+     "background_background": "video",
+     "background_video_link": "__VIDEO__",
+     "background_play_on_mobile": "yes",
+     "min_height": {
+      "unit": "px",
+      "size": 320,
+      "sizes": []
+     }
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Fondo de vídeo"
+      }
+     }
+    ]
+   }
+  ],
+  "front_settings": {
+   "lazy_videos": true
+  },
+  "assets": {
+   "mp4": "digi-medicion\\.mp4"
+  },
+  "counts": {
+   "lazy": "video.elementor-background-video-hosted[data-digi-lazy-video]"
+  },
+  "expect": {
+   "*": {
+    "errors": 0,
+    "count:lazy": 1,
+    "asset:mp4": ">0"
+   }
+  }
+ },
+ "video-autoplay-lazy": {
+  "title": "Widget Vídeo alojado con reproducción automática bajo el pliegue con el interruptor (Fase 3)",
+  "since": "4.3.0.168",
+  "elements": [
+   {
+    "elType": "container",
+    "id": "fbv0000",
+    "settings": {},
+    "elements": [
+     {
+      "type": "spacer",
+      "settings": {
+       "space": {
+        "unit": "px",
+        "size": 2500,
+        "sizes": []
+       }
+      }
+     }
+    ]
+   },
+   {
+    "elType": "container",
+    "id": "fbv0300",
+    "settings": {},
+    "elements": [
+     {
+      "type": "video",
+      "settings": {
+       "video_type": "hosted",
+       "insert_url": "yes",
+       "external_url": {
+        "url": "__VIDEO__"
+       },
+       "autoplay": "yes",
+       "mute": "yes",
+       "loop": "yes",
+       "play_on_mobile": "yes"
+      }
+     }
+    ]
+   }
+  ],
+  "front_settings": {
+   "lazy_videos": true
+  },
+  "assets": {
+   "mp4": "digi-medicion\\.mp4"
+  },
+  "counts": {
+   "lazy": "video.elementor-video[data-digi-lazy-video][preload=\"none\"]:not([autoplay])"
+  },
+  "actions": [
+   {
+    "do": "scroll",
+    "to": 2400
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "count:lazy": 1,
+    "asset:mp4": "<=0",
+    "after": {
+     "asset:mp4": ">0"
+    }
+   }
+  }
  }
 }

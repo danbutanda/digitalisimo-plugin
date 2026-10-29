@@ -296,6 +296,25 @@ if ( ! $image_id || ! get_post( $image_id ) ) {
 }
 $image_url = $image_id ? (string) wp_get_attachment_url( $image_id ) : ELEMENTOR_ASSETS_URL . 'images/placeholder.png';
 
+// Vídeo de prueba (Fase 3, `lazy_videos`): un MP4 de 1,2 s generado con ffmpeg (tests/playground/front-budget/digi-medicion.mp4),
+// subido a Medios para los casos de vídeo de fondo y del widget Vídeo con reproducción automática.
+$video_id = (int) get_option( 'digi_fb_video' );
+if ( ! $video_id || ! get_post( $video_id ) ) {
+	$source = DIGI_FB_DIR . '/digi-medicion.mp4';
+	if ( is_file( $source ) ) {
+		$upload = wp_upload_bits( 'digi-medicion.mp4', null, (string) file_get_contents( $source ) );
+		if ( empty( $upload['error'] ) ) {
+			$video_id = wp_insert_attachment( array( 'post_mime_type' => 'video/mp4', 'post_title' => 'Vídeo de medición', 'post_status' => 'inherit' ), $upload['file'] );
+			update_option( 'digi_fb_video', $video_id );
+		} else {
+			digi_fb_fail( 'No se pudo subir el vídeo de prueba: ' . $upload['error'] );
+		}
+	} else {
+		digi_fb_fail( 'Falta el vídeo de prueba digi-medicion.mp4 en la carpeta de la sonda' );
+	}
+}
+$video_url = $video_id ? (string) wp_get_attachment_url( $video_id ) : '';
+
 // Entradas para los bucles y el archivo de THEME=1: tres en cada categoría.
 $categories = array();
 foreach ( array( 'digi-fb-uno' => 'Medición uno', 'digi-fb-dos' => 'Medición dos' ) as $slug => $name ) {
@@ -326,7 +345,7 @@ if ( ! empty( $mode['woo'] ) ) {
 }
 
 $raw = (string) file_get_contents( __DIR__ . '/cases.json' );
-$raw = str_replace( array( '"__IMAGE__"', '__SITE__', '__MENU__', '__WC_VARIABLE__' ), array( wp_json_encode( array( 'id' => $image_id, 'url' => $image_url ) ), untrailingslashit( home_url() ), DIGI_FB_MENU, (string) $digi_fb_variable ), $raw );
+$raw = str_replace( array( '"__IMAGE__"', '__VIDEO__', '__SITE__', '__MENU__', '__WC_VARIABLE__' ), array( wp_json_encode( array( 'id' => $image_id, 'url' => $image_url ) ), $video_url, untrailingslashit( home_url() ), DIGI_FB_MENU, (string) $digi_fb_variable ), $raw );
 $cases = json_decode( $raw, true );
 if ( ! is_array( $cases ) ) {
 	digi_fb_fail( 'cases.json no es JSON válido' );

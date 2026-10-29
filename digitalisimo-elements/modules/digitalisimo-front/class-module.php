@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  * - `Settings` (opciones de sitio y red) y `Transition` (valor aplicado, evento y cerrojo) son el contrato que leen
  *   la puerta, los valores por defecto del núcleo y el cargador de librerías: lo único que esos frentes leen en el
  *   front es `Transition::applied()`.
- * - `Transition`, `Core_Defaults`, `Pro_Gate` y `Lazy_Libs` se inician en cada petición; `Core_Defaults` necesita
+ * - `Transition`, `Core_Defaults`, `Pro_Gate`, `Lazy_Libs` y `Lazy_Videos` se inician en cada petición; `Core_Defaults` necesita
  *   engancharse antes de `init` 0, por eso el módulo arranca en `pro_elements_load_plugin_func()` (`plugins_loaded`).
  * - `Settings_Page` (pantalla «Rendimiento» y sus acciones de `admin-post.php`) sólo en la administración.
  * - `Icon_Scan` no tiene ganchos: la cargan la transición y la pantalla cuando la necesitan.
@@ -24,7 +24,7 @@ final class Module {
 	const NAMESPACE_PREFIX = 'Digitalisimo\\Elements\\Front\\';
 
 	/** Clases que se inician en cada petición, en este orden (la transición primero: las demás leen su valor). */
-	const BOOT = array( 'Transition', 'Core_Defaults', 'Pro_Gate', 'Lazy_Libs' );
+	const BOOT = array( 'Transition', 'Core_Defaults', 'Pro_Gate', 'Lazy_Libs', 'Lazy_Videos' );
 
 	/** Clases que sólo se inician en la administración. */
 	const ADMIN = array( 'Settings_Page' );

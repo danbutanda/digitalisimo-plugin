@@ -34,8 +34,8 @@ final class Transition {
 	/** Segundos tras los que un cerrojo abandonado se puede robar. */
 	const STALE = 300;
 
-	/** Cambiarlo obliga a transitar de nuevo todos los sitios (nueva huella). */
-	const FORMAT = 1;
+	/** Cambiarlo obliga a transitar de nuevo todos los sitios (nueva huella). 2: entra `lazy_videos` (Fase 3). */
+	const FORMAT = 2;
 
 	/** Entradas por lote del análisis de iconos. */
 	const BATCH = 200;

@@ -28,6 +28,7 @@ Las páginas sólo cargan lo que usan: una página hecha con el constructor y lo
 * Mejores valores por defecto sólo donde el sitio nunca eligió otra cosa en los ajustes del constructor: el texto se muestra mientras cargan las fuentes de Google. Nunca se cambia un ajuste ya elegido, y la caché de elementos y la carga optimizada de imágenes del constructor se pueden desactivar con un interruptor.
 * Iconos en línea (SVG) sin fuentes de iconos: en un sitio que ya existe nunca se aplican solos. Primero se analiza el sitio, se muestra lo que podría depender de las fuentes de iconos y se aplican con un botón que se puede revertir.
 * Opcional: Lottie y el resaltado de código pueden cargar su librería al acercarse a la pantalla.
+* Opcional: los vídeos de fondo y los del widget Vídeo con reproducción automática (archivos alojados, no YouTube ni Vimeo) pueden esperar a estar a una pantalla de distancia para descargarse; hasta entonces no cuestan ni un byte.
 
 Todo se ajusta en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, en cada sitio y, en una red, también en la administración de la red, cuyos valores heredan los sitios que no los cambian. Al actualizar, cada sitio vacía una vez los archivos generados del constructor para aplicar los cambios.
 

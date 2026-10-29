@@ -45,11 +45,13 @@ jobs:
           node tests/elements-pro-inventory.mjs
           node tests/elements-popup-counter.mjs
           php tests/elements-front-settings.php
+          php tests/elements-lazy-videos.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php
           php tests/elements-icons-svg.php
           node tests/elements-lazy-libs.mjs
+          node tests/elements-lazy-videos.mjs
           php tests/elements-local-libs.php
           php tests/elements-front-cases.php
           php tests/elements-advanced-heading.php
