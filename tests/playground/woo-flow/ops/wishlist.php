@@ -129,6 +129,41 @@ return array(
 		return array( 'id' => (int) $request, 'type' => $type, 'email' => $email );
 	},
 
+	'wishlist_privacy'          => static function () use ( $digi_wf_wl_arg ) {
+		// Los exportadores y borradores que ve la administración: los de WordPress y WooCommerce ya están registrados (filtros
+		// y `init`); el propio se registra en `admin_init`, que esta petición del front no dispara: se llama a ese mismo
+		// gancho, y sólo a él, si está enganchado. Con `run=1` se llama a cada uno con el correo, como la acción AJAX.
+		$email = sanitize_email( $digi_wf_wl_arg( 'email' ) );
+		$erase = 'erase' === $digi_wf_wl_arg( 'type' );
+		$hook  = array( Personal_Data::class, 'register' );
+		if ( false !== has_action( 'admin_init', $hook ) ) {
+			call_user_func( $hook );
+		}
+		$list = $erase ? apply_filters( 'wp_privacy_personal_data_erasers', array() ) : apply_filters( 'wp_privacy_personal_data_exporters', array() );
+		$out  = array( 'keys' => array_keys( (array) $list ), 'own_hooked' => false !== has_action( 'admin_init', $hook ), 'results' => array() );
+		if ( '1' !== $digi_wf_wl_arg( 'run' ) ) {
+			return $out;
+		}
+		foreach ( (array) $list as $key => $item ) {
+			$response = call_user_func( $item['callback'], $email, 1 );
+			if ( $erase ) {
+				$out['results'][ $key ] = $response;
+				continue;
+			}
+			$groups = array();
+			$names  = array();
+			foreach ( (array) ( $response['data'] ?? array() ) as $row ) {
+				$group            = (string) ( $row['group_id'] ?? '' );
+				$groups[ $group ] = ( $groups[ $group ] ?? 0 ) + 1;
+				if ( 'digitalisimo-elements-wishlist' === $group ) {
+					$names[] = implode( ' · ', wp_list_pluck( (array) ( $row['data'] ?? array() ), 'value' ) );
+				}
+			}
+			$out['results'][ $key ] = array( 'groups' => $groups, 'names' => $names, 'done' => $response['done'] ?? null );
+		}
+		return $out;
+	},
+
 	'wishlist_remove_from_blog' => static function () use ( $digi_wf_wl_arg ) {
 		$user = absint( $digi_wf_wl_arg( 'user' ) );
 		$blog = absint( $digi_wf_wl_arg( 'blog' ) );

@@ -434,6 +434,19 @@ namespace {
 	wt_reset( array( 'hooks' => $hooks, 'meta' => $GLOBALS['wt_meta'] ) );
 	$r = wt_call( 'cards', 'GET', array( 'ids' => '10,16' ) );
 	check( 405 === $r->get_status() && 'POST' === $r->headers['Allow'], 'GET woo/cards responde 405: los IDs nunca van en la URL.' );
+	// WordPress rehace `Allow` en `rest_post_dispatch` (10) con los métodos cuyo permiso pasa con esta petición (sin
+	// cuerpo, sólo GET); el filtro propio (11) deja `Allow: POST` en el 405 y no toca otras respuestas ni rutas.
+	$allow = array( \Digitalisimo\Elements\Woo\Wishlist\Routes::class, 'allow_post' );
+	check( 11 === has_filter( 'rest_post_dispatch', $allow ), 'El 405 de woo/cards corrige `Allow` después de WordPress.' );
+	$r->header( 'Allow', 'GET' );
+	$r = call_user_func( $allow, $r, null, new WP_REST_Request( 'GET', Rest::full( 'cards' ) ) );
+	check( 'POST' === $r->headers['Allow'], 'GET woo/cards: 405 con `Allow: POST` aunque WordPress haya puesto GET.' );
+	$other = new WP_REST_Response( array(), 405 );
+	$other->header( 'Allow', 'GET' );
+	check( 'GET' === call_user_func( $allow, $other, null, new WP_REST_Request( 'GET', Rest::full( 'wishlist' ) ) )->headers['Allow'], 'Otra ruta conserva su `Allow`.' );
+	$ok = new WP_REST_Response( array(), 200 );
+	$ok->header( 'Allow', 'POST, GET' );
+	check( 'POST, GET' === call_user_func( $allow, $ok, null, new WP_REST_Request( 'POST', Rest::full( 'cards' ) ) )->headers['Allow'], 'Una respuesta que no es 405 no cambia.' );
 	$cards = function ( $body ) { return wt_call( 'cards', 'POST', array(), is_string( $body ) ? $body : wp_json_encode( $body ) ); };
 	$r = $cards( array( 'post_id' => 30, 'widget_id' => 'abc1234', 'ids' => array( 16, 12, 10, 15 ) ) );
 	check( 200 === $r->get_status() && array( 16, 10, 15 ) === $r->get_data()['ids'], 'Fichas sólo de productos públicos, en el orden pedido.' );
@@ -531,6 +544,9 @@ namespace {
 	$js  = (string) file_get_contents( $root . '/assets/js/wishlist.js' );
 	$css = (string) file_get_contents( $root . '/assets/css/wishlist.css' );
 	check( strlen( $js ) <= 8192 && strlen( $css ) <= 4096, 'wishlist.js (' . strlen( $js ) . ' B) y wishlist.css (' . strlen( $css ) . ' B) en su tope.' );
+	// `POST woo/cards` es una petición REST: no se registran los widgets propios, que son quienes cargan `Image_Markup`.
+	$cards_src = (string) file_get_contents( $root . '/modules/digitalisimo-woo/wishlist/class-cards.php' );
+	check( false !== strpos( $cards_src, "if ( ! class_exists( Image_Markup::class ) ) {\n\t\t\t\trequire_once dirname( __DIR__, 2 ) . '/digitalisimo-widgets/class-image-markup.php';" ) && is_file( $root . '/modules/digitalisimo-widgets/class-image-markup.php' ), 'Las fichas cargan el generador de imágenes cuando falta (petición REST).' );
 	check( false === stripos( $js, 'jquery' ) && false === strpos( $css, '--e-global' ) && false === strpos( $css, 'url(' ), 'Sin jQuery, sin la paleta global ni url() en la hoja.' );
 	check( false !== strpos( $js, "'Nonce'" ) && false !== strpos( $js, 'rest-nonce' ) && false !== strpos( $js, "'digitalisimo:wishlist'" ) && false !== strpos( $js, "'storage'" ), 'El script reutiliza el Nonce de la Store API, renueva una vez el de WordPress y sincroniza widgets y pestañas.' );
 	$php = '';

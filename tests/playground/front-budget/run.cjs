@@ -41,6 +41,7 @@ const cases = JSON.parse(fs.readFileSync(path.join(OUT, 'cases.json'), 'utf8'));
 (() => {
   let markers = {};
   try { markers = JSON.parse(fs.readFileSync(path.join(OUT, 'markers.json'), 'utf8')) || {}; } catch (e) { return; }
+  markers.__TOKEN__ = TOKEN;
   const swap = (v) => (typeof v === 'string' ? Object.entries(markers).reduce((s, [k, id]) => s.split(k).join(String(id)), v) : v);
   for (const c of Object.values(cases)) {
     if (Array.isArray(c.views)) c.views = c.views.map(swap);
@@ -301,6 +302,26 @@ function caseFacts(spec) {
     const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
     out[`hit:${name}`] = !!at && (at === el || el.contains(at));
   }
+  // `inlineParts` (F4-Woo): bytes impresos del valor JSON de una clave dentro de un script en línea (p. ej. `variation`
+  // en la configuración de la vista rápida, V.16.5), tal como llega en el HTML.
+  for (const [name, d] of Object.entries(spec.inlineParts || {})) {
+    const text = (document.getElementById(d.id) || { textContent: '' }).textContent;
+    const at = text.indexOf(`"${d.key}":`);
+    let bytes = null;
+    if (at >= 0) {
+      const start = at + d.key.length + 3;
+      let depth = 0, end = start, quoted = false;
+      for (; end < text.length; end++) {
+        const ch = text[end];
+        if (quoted) { if (ch === '\\') end++; else if (ch === '"') quoted = false; continue; }
+        if (ch === '"') quoted = true;
+        else if (ch === '{' || ch === '[') depth++;
+        else if (ch === '}' || ch === ']') { depth--; if (depth === 0) { end++; break; } }
+      }
+      bytes = new Blob([text.slice(start, end)]).size;
+    }
+    out[`inlinePart:${name}`] = bytes;
+  }
   out.inlineCss = [...document.querySelectorAll('style')].map((s) => s.textContent).join('\n');
   return out;
 }
@@ -332,7 +353,10 @@ async function runActions(page, actions) {
       await page.waitForSelector(a.selector, { timeout: a.ms || 10000 });
       await page.$eval(a.selector, (el) => el.scrollIntoView({ block: 'center' }));
       await sleep(200);
-      await page.click(a.selector);
+      // `js`: `element.click()` sin puntero. Un enlace pulsado con el ratón dispara la precarga especulativa de WordPress
+      // (`speculationrules`, al pulsar), que en el Playground de un solo proceso retrasa la petición del propio clic.
+      if (a.js) await page.$eval(a.selector, (el) => el.click());
+      else await page.click(a.selector);
     } else if (a.do === 'scroll') {
       if (a.to === 'bottom') await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 400) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 60)); } window.scrollTo(0, document.body.scrollHeight); });
       else if (typeof a.to === 'number') await page.evaluate((y) => window.scrollTo(0, y), a.to);
@@ -412,7 +436,7 @@ async function visit(context, slug, url, { measure = true } = {}) {
     if (!measure) { await page.close(); return result; }
     const gate = (html.match(/<!-- digitalisimo-pro-gate (\{.*?\}) -->/) || [])[1];
     const parsed = gate ? JSON.parse(gate) : {};
-    const spec = { styles: c.styles, counts: c.counts, visible: c.visible, hits: c.hits };
+    const spec = { styles: c.styles, counts: c.counts, visible: c.visible, hits: c.hits, inlineParts: c.inlineParts };
     const snap = async () => {
       await Promise.all(pending.splice(0));
       const dom = await page.evaluate(domFacts);

@@ -79,6 +79,32 @@ add_action(
 add_action( 'wp_loaded', 'digi_fb_probe_route', 99 );
 
 /**
+ * WOO=1: `?digi_fb_ship=1&token=…` en la sesión del visitante hace lo que haría la calculadora de envío del carrito
+ * (destino = la dirección de la tienda, `has_calculated_shipping`): la barra de F4-Woo sólo promete algo con un destino
+ * conocido (V.7.1). Corre tras el «Añadir al carrito» de WooCommerce (`wp_loaded` 20), así una visita a
+ * `/?add-to-cart=ID&digi_fb_ship=1` deja el carrito y el destino en la misma petición.
+ */
+add_action(
+	'wp_loaded',
+	static function () {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		if ( empty( $_GET['digi_fb_ship'] ) || ! function_exists( 'WC' ) || ! WC()->customer ) {
+			return;
+		}
+		$mode  = digi_fb_probe_mode();
+		$token = isset( $_GET['token'] ) ? (string) wp_unslash( $_GET['token'] ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		if ( empty( $mode['token'] ) || ! hash_equals( (string) $mode['token'], $token ) ) {
+			return;
+		}
+		WC()->customer->set_shipping_address_to_base();
+		WC()->customer->set_calculated_shipping( true );
+		WC()->customer->save();
+	},
+	30
+);
+
+/**
  * WOO=1: los productos que añaden los casos de F4-Woo (`digi_fb_woo_f4_products`, con carga automática: ninguna
  * consulta) no aparecen en las consultas secundarias de productos de las páginas de los casos sin `since`, que miden
  * el catálogo de siempre (el Loop Grid de `woo-loop-filter-pro` sigue con sus siete productos). Sin WOO=1 no hace nada.

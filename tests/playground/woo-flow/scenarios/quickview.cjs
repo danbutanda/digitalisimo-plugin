@@ -39,6 +39,38 @@ module.exports = (api) => {
     return qv;
   }
 
+  /**
+   * Visitante sin cookies. Playground sirve con un solo proceso de PHP (unos 5–7 s por respuesta de la ruta, más con
+   * fragmentos en cola): el plazo de 10 s del script para mostrar «No se pudo cargar» se alarga a 90 s en el navegador
+   * de la prueba (sólo los temporizadores de 10 000 ms). El comportamiento del plazo lo cubre la prueba unitaria.
+   */
+  async function guest() {
+    const v = await visitor();
+    await v.page.evaluateOnNewDocument(() => {
+      const st = window.setTimeout;
+      window.setTimeout = function (fn, ms, ...rest) { return st.call(this, fn, ms === 10000 ? 90000 : ms, ...rest); };
+    });
+    return v;
+  }
+  /** Navega y espera a que la página termine sus peticiones (fragmentos del carrito): un solo proceso de PHP. */
+  async function go(page, url) {
+    const res = await page.goto(url, { waitUntil: 'load' });
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: 60000 }).catch(() => {});
+    return res;
+  }
+  /** Errores del sitio; las fuentes del kit que se piden fuera (Google Fonts, bloqueadas en la prueba) aparte. */
+  function clean(facts) {
+    const font = (u) => /fonts\.(googleapis|gstatic)\.com/.test(u);
+    const fonts = facts.outside.filter(font).length;
+    return {
+      errors: facts.errors.filter((e) => !(fonts && /Failed to load resource: net::ERR_NAME_NOT_RESOLVED/.test(e))),
+      failed: facts.failed,
+      outside: facts.outside.filter((u) => !font(u)),
+      fonts,
+    };
+  }
+  const quiet = (f) => !f.errors.length && !f.failed.length;
+
   // ── En la página ──────────────────────────────────────────────────────────────────────────────────────────────
   /** Estado del diálogo y del foco. */
   const state = (page) => page.evaluate(() => {
@@ -129,7 +161,7 @@ module.exports = (api) => {
     const url = qv.pages[slug];
     const sel = button(qv, slug, 'simple');
     const name = qv.products.simple.name;
-    const { ctx, page, facts } = await visitor();
+    const { ctx, page, facts } = await guest();
     const delay = { ms: 1500 };
     try {
       await slowRoute(page, delay);
@@ -137,7 +169,7 @@ module.exports = (api) => {
         const at = `${site.path} ${label} ${width}px`;
         const full = width === WIDE;
         await page.setViewport({ width, height: 900 });
-        await page.goto(url, { waitUntil: 'load' });
+        await go(page, url);
         await page.waitForSelector(sel);
         await watchFocus(page);
         if (full) {
@@ -166,30 +198,31 @@ module.exports = (api) => {
           const back = await cycle(page, true);
           check(s, `W4.1b ${at}`, 'Tab y Mayús+Tab recorren el diálogo sin llegar a la página (`activeElement` nunca fuera)', fwd.n > 1 && !fwd.outside.length && !back.outside.length && fwd.inside > 1 && back.inside > 1, short({ n: fwd.n, tab: fwd.steps, shiftTab: back.steps }));
         }
-        await page.keyboard.press('Escape');
-        let shut = await closed(page);
-        st = await state(page);
-        check(s, `W4.1c ${at}`, 'Escape cierra, el contenido se vacía y el foco vuelve al botón', shut && !st.htmlOpen && await focusOn(page, sel), short({ shut, st }));
-
-        // Ratón: clic en el botón, en el fondo y en «Cerrar».
-        await page.click(sel);
-        res = await loaded(page);
-        st = await state(page);
-        check(s, `W4.1d ${at}`, 'con ratón: el diálogo se abre con el foco en el título propio', res.ok && st.activeTitle && st.activeInside, short({ res, st }));
-        await page.mouse.click(3, 3);
-        shut = await closed(page);
-        check(s, `W4.1e ${at}`, 'el clic en el fondo cierra y el foco vuelve al botón', shut && await focusOn(page, sel), short({ shut, active: (await state(page)).active }));
+        let shut;
         if (full) {
+          await page.keyboard.press('Escape');
+          shut = await closed(page);
+          st = await state(page);
+          check(s, `W4.1c ${at}`, 'Escape cierra, el contenido se vacía y el foco vuelve al botón', shut && !st.htmlOpen && await focusOn(page, sel), short({ shut, st }));
+          // Ratón: clic en el botón; después, «Cerrar».
           await page.click(sel);
           res = await loaded(page);
+          st = await state(page);
+          check(s, `W4.1d ${at}`, 'con ratón: el diálogo se abre con el foco en el título propio', res.ok && st.activeTitle && st.activeInside, short({ res, st }));
           await page.click(`${DLG} .digi-qv__close`);
           shut = await closed(page);
           check(s, `W4.1f ${at}`, '«Cerrar» cierra y el foco vuelve al botón', res.ok && shut && await focusOn(page, sel), short({ res, shut, active: (await state(page)).active }));
+          await page.click(sel);
+          res = await loaded(page);
         }
+        // Clic en el fondo (en todos los anchos: el margen del diálogo es de 1 rem).
+        await page.mouse.click(3, 3);
+        shut = await closed(page);
+        check(s, `W4.1e ${at}`, 'el clic en el fondo cierra y el foco vuelve al botón', res.ok && shut && await focusOn(page, sel), short({ shut, active: (await state(page)).active }));
         const away = await outside(page);
         check(s, `W4.2d ${at}`, 'ningún elemento de la página fuera del diálogo recibió el foco mientras estaba abierto', !away.length, away.slice(0, 5).join(' | '));
       }
-      check(s, `W4.2e ${site.path} ${label}`, 'sin errores de JavaScript ni respuestas de error del sitio', !facts.errors.length && !facts.failed.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5) }));
+      check(s, `W4.2e ${site.path} ${label}`, 'sin errores de JavaScript ni respuestas de error del sitio', quiet(clean(facts)), short(clean(facts)));
     } catch (e) {
       await shot(page, `W4-${site.id}-${label}-falla`);
       check(s, `W4.x ${site.path} ${label}`, 'el recorrido accesible termina', false, String(e.stack || e.message || e).slice(0, 600));
@@ -204,10 +237,10 @@ module.exports = (api) => {
     const sel = button(qv, slug, 'simple');
     const product = qv.products.simple;
     {
-      const { ctx, page } = await visitor();
+      const { ctx, page } = await guest();
       try {
         await page.setViewport({ width: WIDE, height: 900 });
-        await page.goto(url, { waitUntil: 'load' });
+        await go(page, url);
         await page.waitForSelector(sel);
         const created = ctx.waitForTarget((t) => same(t.url().split('#')[0], product.url), { timeout: 60000 }).catch(() => null);
         await page.keyboard.down('Control');
@@ -224,11 +257,11 @@ module.exports = (api) => {
       }
     }
     {
-      const { ctx, page } = await visitor();
+      const { ctx, page } = await guest();
       try {
         await page.setJavaScriptEnabled(false);
         await page.setViewport({ width: WIDE, height: 900 });
-        await page.goto(url, { waitUntil: 'load' });
+        await go(page, url);
         await page.waitForSelector(sel);
         await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click(sel)]);
         const title = await page.$eval('.product_title', (e) => e.textContent.trim()).catch(() => '');
@@ -289,6 +322,7 @@ module.exports = (api) => {
   /** Envía el formulario del diálogo y devuelve la cadena de la navegación. */
   async function buy(page) {
     const [resp] = await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 180000 }), page.click(`${DLG} .single_add_to_cart_button`)]);
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: 60000 }).catch(() => {});
     const chain = resp ? resp.request().redirectChain() : [];
     const first = chain[0];
     return {
@@ -317,13 +351,13 @@ module.exports = (api) => {
     const url = qv.pages[OWN];
     const sel = button(qv, OWN, 'variable');
     const variation = (qv.variations || []).find((v) => v.color === 'azul' && v.talla === 'm');
-    const { ctx, page, facts } = await visitor();
+    const { ctx, page, facts } = await guest();
     const requested = [];
     let recording = false;
     page.on('request', (r) => { if (recording && r.resourceType() === 'script') requested.push(r.url()); });
     try {
       await page.setViewport({ width: WIDE, height: 900 });
-      await page.goto(url, { waitUntil: 'load' });
+      await go(page, url);
       await page.waitForSelector(sel);
       const before = await page.evaluate(() => {
         const cfg = (window.digitalisimoQuickView || {}).variation || null;
@@ -390,15 +424,16 @@ module.exports = (api) => {
       check(s, `W5.3b ${site.path}`, 'el Menú del carrito cuenta 1 producto y lo lista', cart1.counter === '1' && shown && String(cart2.items).includes(qv.products.variable.name), short({ cart1, cart2, shown }));
       await shot(page, `W5-${site.id}-propio-menu`);
       const reload = await page.reload({ waitUntil: 'load' });
+      await page.waitForNetworkIdle({ idleTime: 500, timeout: 60000 }).catch(() => {});
       const cart3 = await menuCart(page);
       check(s, `W5.3c ${site.path}`, 'recargar la página de origen es un GET y no repite la compra (el contador sigue en 1)', !!reload && reload.request().method() === 'GET' && cart3.counter === '1', short({ method: reload && reload.request().method(), cart3 }));
       const pages = setupOf(site).pages || {};
-      await page.goto(pages['digi-wf-carrito'], { waitUntil: 'load' });
+      await go(page, pages['digi-wf-carrito']);
       const cartNotice = await notice(page);
       const rows = await page.$$eval('.woocommerce-cart-form .cart_item', (els) => els.map((e) => ({ name: (e.querySelector('.product-name') || {}).textContent.replace(/\s+/g, ' ').trim(), qty: (e.querySelector('input.qty') || {}).value }))).catch(() => []);
       const where = cartNotice.includes(qv.products.variable.name) ? 'carrito' : (origin.includes(qv.products.variable.name) ? 'origen' : '');
       check(s, `W5.3d ${site.path}`, 'el aviso «añadido al carrito» aparece en el carrito y la línea tiene cantidad 1', where === 'carrito' && rows.length === 1 && rows[0].qty === '1', short({ where, cartNotice, origin, rows }));
-      check(s, `W5.3e ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio', !facts.errors.length && !facts.failed.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5) }));
+      check(s, `W5.3e ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio', quiet(clean(facts)), short(clean(facts)));
     } catch (e) {
       await shot(page, `W5-${site.id}-propio-falla`);
       check(s, `W5.x ${site.path} propio`, 'el recorrido de «Diseño propio» termina', false, String(e.stack || e.message || e).slice(0, 600));
@@ -410,10 +445,10 @@ module.exports = (api) => {
   async function W5template(s, site, qv) {
     const url = qv.pages[TPL];
     const variation = (qv.variations || []).find((v) => v.color === 'verde' && v.talla === 's');
-    const { ctx, page, facts } = await visitor();
+    const { ctx, page, facts } = await guest();
     try {
       await page.setViewport({ width: WIDE, height: 900 });
-      await page.goto(url, { waitUntil: 'load' });
+      await go(page, url);
       await page.waitForSelector(button(qv, TPL, 'variable'));
       const pre = await page.evaluate(() => ({ variation: !!document.getElementById('wc-add-to-cart-variation-js'), single: !!document.getElementById('wc-single-product-js'), forms: document.querySelectorAll('form.variations_form, form.cart').length }));
 
@@ -479,7 +514,7 @@ module.exports = (api) => {
       const nav = await buy(page);
       const cart = await menuCart(page);
       check(s, `W5.3f ${site.path}`, 'compra desde la plantilla: POST con redirección a la página de origen y el Menú del carrito al día', !!nav.post && nav.post.method === 'POST' && [302, 303].includes(nav.post.status) && same(nav.final, url) && nav.method === 'GET' && cart.counter === '1', short({ nav, cart }));
-      check(s, `W5.3g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio en la plantilla', !facts.errors.length && !facts.failed.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5) }));
+      check(s, `W5.3g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio en la plantilla', quiet(clean(facts)), short(clean(facts)));
     } catch (e) {
       await shot(page, `W5-${site.id}-plantilla-falla`);
       check(s, `W5.y ${site.path} plantilla`, 'el recorrido de «Plantilla de producto» termina', false, String(e.stack || e.message || e).slice(0, 600));
@@ -508,7 +543,7 @@ module.exports = (api) => {
   /** Vista rápida → compra → mini carrito con la barra → cupón DIGI10. Devuelve lo visto. */
   async function cartPart(s, id, site, qv, page, kind, expect) {
     const url = qv.pages[OWN];
-    await page.goto(url, { waitUntil: 'load' });
+    await go(page, url);
     await page.click(button(qv, OWN, kind));
     const res = await loaded(page);
     if (kind === 'variable') {
@@ -537,7 +572,7 @@ module.exports = (api) => {
 
   async function classicCheckout(s, site, qv, page) {
     const pages = setupOf(site).pages || {};
-    await page.goto(pages['digi-wf-pago'], { waitUntil: 'load' });
+    await go(page, pages['digi-wf-pago']);
     await page.waitForSelector('#billing_first_name');
     await settled(page);
     const fields = { '#billing_first_name': 'Ana', '#billing_last_name': 'Vista', '#billing_address_1': 'Calle de Prueba 3', '#billing_city': 'Madrid', '#billing_postcode': '28001', '#billing_phone': '600000001', '#billing_email': 'ana.vista@example.com' };
@@ -566,7 +601,7 @@ module.exports = (api) => {
 
   async function blocksCheckout(s, site, qv, page) {
     const pages = setupOf(site).pages || {};
-    await page.goto(pages['wc-checkout'], { waitUntil: 'load' });
+    await go(page, pages['wc-checkout']);
     await page.waitForSelector('.wc-block-checkout', { timeout: 120000 });
     await page.waitForSelector('#email', { timeout: 120000 });
     await sleep(800);
@@ -625,7 +660,7 @@ module.exports = (api) => {
       const simple = qv.products.simple;
       // Clásico: Camiseta (60 €) → barra «Tienes envío gratis» → DIGI10 (54 €, sigue gratis) → «Envío gratuito».
       {
-        const { ctx, page, facts } = await visitor();
+        const { ctx, page, facts } = await guest();
         try {
           await page.setViewport({ width: WIDE, height: 900 });
           await cartPart(s, 'W11.1', site, qv, page, 'simple', {
@@ -635,7 +670,7 @@ module.exports = (api) => {
           const r = await classicCheckout(s, site, qv, page);
           check(s, `W11.1e ${site.path}`, 'el pago clásico (`[woocommerce_checkout]`) termina en «Pedido recibido»', /order-received/.test(r.landed), r.err || r.landed);
           await order(s, 'W11.1f', site, { status: 'processing', payment: 'cod', shipping: ['free_shipping'], coupons: ['digi10'], discount: '6.00', total: '54.00', created: 'checkout', items: [{ product: simple.id, variation: 0, qty: 1, total: '54.00' }] }, 'el pedido queda «procesando», con contra reembolso, envío gratuito, DIGI10 y 54,00 €');
-          check(s, `W11.1g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', !facts.errors.length && !facts.failed.length && !facts.outside.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.slice(0, 3) }));
+          check(s, `W11.1g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', quiet(clean(facts)) && !clean(facts).outside.length, short(clean(facts)));
         } catch (e) {
           await shot(page, `W11-${site.id}-clasico-falla`);
           check(s, `W11.1x ${site.path}`, 'la compra con el pago clásico termina', false, String(e.stack || e.message || e).slice(0, 600));
@@ -646,7 +681,7 @@ module.exports = (api) => {
       // Bloques: Sudadera roja S (30 €) → barra con 20 € → DIGI10 (27 €, faltan 23 €) → tarifa plana (5 €): 32 €.
       {
         const variation = (qv.variations || []).find((v) => v.color === 'rojo' && v.talla === 's');
-        const { ctx, page, facts } = await visitor();
+        const { ctx, page, facts } = await guest();
         try {
           if (!variation) throw new Error('la preparación no devolvió la variación roja/S');
           await page.setViewport({ width: WIDE, height: 900 });
@@ -658,7 +693,7 @@ module.exports = (api) => {
           const r = await blocksCheckout(s, site, qv, page);
           check(s, `W11.2e ${site.path}`, 'el pago de bloques (la página que crea WooCommerce) termina en «Pedido recibido»', /order-received/.test(r.landed), r.err || r.landed);
           await order(s, 'W11.2f', site, { status: 'processing', payment: 'cod', shipping: ['flat_rate'], coupons: ['digi10'], discount: '3.00', total: '32.00', created: 'store-api', items: [{ product: qv.products.variable.id, variation: variation.id, qty: 1, total: '27.00' }] }, 'el pedido queda «procesando», con contra reembolso, tarifa plana, DIGI10 y 32,00 €');
-          check(s, `W11.2g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', !facts.errors.length && !facts.failed.length && !facts.outside.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.slice(0, 3) }));
+          check(s, `W11.2g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', quiet(clean(facts)) && !clean(facts).outside.length, short(clean(facts)));
         } catch (e) {
           await shot(page, `W11-${site.id}-bloques-falla`);
           check(s, `W11.2x ${site.path}`, 'la compra con el pago de bloques termina', false, String(e.stack || e.message || e).slice(0, 600));

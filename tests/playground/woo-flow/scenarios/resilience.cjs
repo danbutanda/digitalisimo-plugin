@@ -38,6 +38,16 @@ const OLD_ZIP_SHA = 'ed6f43a2ce1c41b9db6eabe46ff772a7cf1d5a7bb4475f4588789bde618
 const NOWOO_PORTS = { a: 9494, b: 9490 };
 /** ¿Pinta la página ese widget? (`…-wishlist` no debe casar con `…-wishlist-button`). */
 const hasWidget = (html, name) => new RegExp(`elementor-widget-${name}(?![-\\w])`).test(html);
+/** Las fuentes de Google del kit por defecto (núcleo, no F4-Woo): Chrome no resuelve nada fuera del sitio. */
+const FONTS = /^net::ERR_NAME_NOT_RESOLVED https:\/\/fonts\.(?:googleapis|gstatic)\.com\//;
+/** Errores y peticiones de un visitante sin lo que sólo causan esas fuentes bloqueadas. */
+const realFacts = (facts) => {
+  const fonts = facts.outside.filter((x) => FONTS.test(x));
+  const outside = facts.outside.filter((x) => !FONTS.test(x));
+  let skip = fonts.length;
+  const errors = facts.errors.filter((e) => !(/^Failed to load resource: net::ERR_NAME_NOT_RESOLVED$/.test(e) && skip-- > 0));
+  return { errors, outside, failed: facts.failed, fonts: fonts.length };
+};
 const PHP_NOTICE = /<b>(?:Warning|Notice|Deprecated|Fatal error|Parse error)<\/b>:|There has been a critical error|Ha habido un error crítico/i;
 
 module.exports = (api) => {
@@ -49,7 +59,7 @@ module.exports = (api) => {
   const RUNS = process.env.SCENARIOS ? process.env.SCENARIOS.split(',').map((x) => x.trim()) : null;
   const runs = (id) => !RUNS || RUNS.includes(id);
   const SITE = SITES[0];
-  const short = (v, n = 600) => (typeof v === 'string' ? v : JSON.stringify(v)).slice(0, n);
+  const short = (v, n = 600) => String(typeof v === 'string' ? v : JSON.stringify(v)).slice(0, n);
   const res = () => (((summary.sites[SITE.path] || {}).setup) || {}).resilience || null;
   const setupOf = () => ((summary.sites[SITE.path] || {}).setup) || {};
 
@@ -140,23 +150,33 @@ module.exports = (api) => {
   const md5Of = (doc, prefix) => Object.fromEntries((doc.widgets || []).filter((w) => w.id.startsWith(prefix) && NAMES.includes(w.type)).map((w) => [w.id, w.md5]));
 
   // ── Chrome: editor real con sesión de administrador ─────────────────────────────────────────────────────────────
-  async function openEditor(id) {
+  /** Contexto de Chrome con la sesión del administrador (se inicia en wp-login.php como una persona). */
+  async function adminChrome() {
     const v = await visitor();
     const { page } = v;
-    const pageErrors = [];
-    page.on('pageerror', (e) => pageErrors.push(String(e.message || e).slice(0, 300)));
+    v.pageErrors = [];
+    page.on('pageerror', (e) => v.pageErrors.push(String(e.message || e).slice(0, 300)));
     await page.setViewport({ width: 1500, height: 950 });
     await page.goto(`${BASE}${SITE.path}wp-login.php`, { waitUntil: 'load' });
     await page.type('#user_login', 'admin');
     await page.type('#user_pass', 'password');
     await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click('#wp-submit')]);
+    return v;
+  }
+  /** Abre (o vuelve a abrir) el editor de un documento en esa pestaña y espera a la vista previa pintada. */
+  async function loadEditor(v, id) {
+    const { page } = v;
+    v.pageErrors.length = 0;
     await page.goto(`${BASE}${SITE.path}wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 240000 });
     await page.waitForSelector('#elementor-panel', { timeout: 180000 });
-    const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
-    await frame.waitForSelector('.elementor-element', { timeout: 180000 });
+    v.frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
+    await v.frame.waitForSelector('.elementor-element', { timeout: 180000 });
     await page.waitForFunction(() => { const l = document.querySelector('#elementor-loading'); return window.elementor && window.$e && (!l || getComputedStyle(l).display === 'none'); }, { timeout: 300000 }).catch(() => {});
     await sleep(2500);
-    return { ...v, frame, pageErrors };
+    return v;
+  }
+  async function openEditor(id) {
+    return loadEditor(await adminChrome(), id);
   }
   /** Cambia el título de un encabezado en el editor y guarda («Actualizar»). */
   async function editorUpdate(ed, headingId, title) {
@@ -350,10 +370,27 @@ module.exports = (api) => {
     const id = r && r.ids && r.ids['digi-wf-res-sin-woo'];
     if (!id) { check(s, 'W0.8', 'la preparación deja la página con los siete widgets', false, short(r || setupOf().errors)); return; }
     const url = r.pages['digi-wf-res-sin-woo'];
-    const base = await op('resilience_doc', { id });
+    // Línea base: el mismo editor guarda la página con WooCommerce activo (el editor añade los valores por defecto de
+    // los controles y quita los vacíos al guardar: lo que se compara después es lo que el editor guarda con
+    // WooCommerce frente a lo que guarda sin él).
+    const ed = await adminChrome();
+    let base = null;
+    try {
+      await loadEditor(ed, id);
+      const saved = await editorUpdate(ed, 'res0h00', 'Guardado con WooCommerce');
+      base = saved === 'ok' ? await waitHeading(id, 'res0h00', 'Guardado con WooCommerce') : null;
+      check(s, 'W0.8a', 'con WooCommerce, el editor guarda la página con los siete widgets de F4-Woo (línea base)', !!base && Object.keys(md5Of(base, 'res0w')).length === 7, short({ saved, types: base && base.widgets.map((w) => w.type) }));
+    } catch (e) {
+      await shot(ed.page, 'W0.8-editor-con-woo-falla');
+      check(s, 'W0.8a', 'con WooCommerce, el editor guarda la página (línea base)', false, String(e.stack || e.message || e).slice(0, 600));
+    }
+    if (!base) { await ed.ctx.close().catch(() => {}); return; }
     const before = md5Of(base, 'res0w');
-    check(s, 'W0.8a', 'la página tiene los siete widgets de F4-Woo en el primer nivel', Object.keys(before).length === 7, short(base.widgets.map((w) => w.type)));
-    const control = await main('GET', '/wp-json/digitalisimo-elements/v1/woo/quick-view');
+    const htmlWith = (await main('GET', url)).text;
+    const rendered = NAMES.filter((n) => hasWidget(htmlWith, n));
+    const control = await main('GET', '/wp-json/digitalisimo-elements/v1/woo/cards');
+    const ns = await main('GET', '/wp-json/digitalisimo-elements/v1');
+    const nsRoutes = Object.keys((ns.json && ns.json.routes) || {}).filter((x) => /\/woo\//.test(x));
     let off = null;
     try {
       off = await op('resilience_woo', { on: 0 });
@@ -376,7 +413,8 @@ module.exports = (api) => {
         const assets = requests.filter((u) => ASSETS.test(u));
         await shot(v.page, 'W0.8-front-sin-woo');
         check(s, 'W0.8c', 'front sin WooCommerce: la página responde 200, el resto se pinta y los siete widgets no dejan salida, aviso ni recursos', resp && resp.status() === 200 && dom.heading && dom.widgets === 0 && dom.inert === 0 && !assets.length && !/digi-woo-inert|elementor-widget-digitalisimo-woo-/.test(html), short({ status: resp && resp.status(), dom, assets }));
-        check(s, 'W0.8d', 'front sin WooCommerce: sin errores de JavaScript, sin respuestas de error, sin avisos de PHP ni peticiones fuera', !v.facts.errors.length && !v.facts.failed.length && !v.facts.outside.length && !PHP_NOTICE.test(html), short({ errors: v.facts.errors.slice(0, 3), failed: v.facts.failed.slice(0, 3), outside: v.facts.outside.slice(0, 3), php: PHP_NOTICE.test(html) }));
+        const f = realFacts(v.facts);
+        check(s, 'W0.8d', 'front sin WooCommerce: sin errores de JavaScript, sin respuestas de error, sin avisos de PHP ni peticiones fuera (salvo las fuentes de Google del kit, que el núcleo pide con o sin WooCommerce)', !f.errors.length && !f.failed.length && !f.outside.length && !PHP_NOTICE.test(html), short({ errors: f.errors.slice(0, 3), failed: f.failed.slice(0, 3), outside: f.outside.slice(0, 3), fuentes: f.fonts, php: PHP_NOTICE.test(html) }));
       } finally {
         await v.ctx.close().catch(() => {});
       }
@@ -387,12 +425,11 @@ module.exports = (api) => {
         const x = await main(m, `/wp-json/digitalisimo-elements/v1/${p}`, m === 'POST' ? { body: '{}', headers: { 'Content-Type': 'application/json' } } : {});
         routes[`${m} ${p}`] = `${x.status} ${(x.json && x.json.code) || ''}`;
       }
-      check(s, 'W0.8e', 'sin WooCommerce, woo/* responde 404 (`rest_no_route`); con WooCommerce la ruta existía', Object.values(routes).every((x) => x === '404 rest_no_route') && control.status !== 404, short({ routes, conWoo: `${control.status} ${(control.json && control.json.code) || ''}` }));
+      check(s, 'W0.8e', 'sin WooCommerce, woo/* responde 404 (`rest_no_route`); con WooCommerce, `GET woo/cards` existía (405)', Object.values(routes).every((x) => x === '404 rest_no_route') && control.status === 405, short({ routes, conWoo: `${control.status} ${(control.json && control.json.code) || ''}`, rutasConWoo: nsRoutes }, 900));
 
       // Editor (Chrome): los siete con el aviso, ocultos del panel; guardar desde el editor.
-      let ed = null;
       try {
-        ed = await openEditor(id);
+        await loadEditor(ed, id);
         const preview = await ed.frame.evaluate((names) => names.map((n) => {
           const els = Array.from(document.querySelectorAll(`.elementor-widget-${n}`));
           return { n, count: els.length, notice: els.filter((e) => e.querySelector('.digi-woo-inert')).length, text: els[0] ? els[0].textContent.replace(/\s+/g, ' ').trim().slice(0, 80) : '' };
@@ -405,12 +442,16 @@ module.exports = (api) => {
         const after = saved === 'ok' ? await waitHeading(id, 'res0h00', 'Guardado sin WooCommerce') : null;
         const kept = after ? md5Of(after, 'res0w') : {};
         check(s, 'W0.8h', 'el editor guarda sin WooCommerce y el documento conserva los siete widgets', saved === 'ok' && !!after && Object.keys(kept).length === 7, short({ saved, types: after && after.widgets.map((w) => w.type) }));
-        check(s, 'W0.8i', 'el editor sin WooCommerce no tiene errores de JavaScript', !ed.pageErrors.length, short(ed.pageErrors.slice(0, 3)));
+        // Como design.sh: los errores de red del editor (AxiosError: una petición REST cortada o con error) se anotan
+        // con sus respuestas; sólo los demás son errores del código.
+        const network = ed.pageErrors.filter((e) => /AxiosError|Network Error|timeout of \d+ms/i.test(e));
+        const code = ed.pageErrors.filter((e) => !network.includes(e));
+        check(s, 'W0.8i', 'el editor sin WooCommerce no tiene errores de JavaScript (los de red se anotan con sus respuestas)', !code.length, short({ codigo: code.slice(0, 3), red: network.length, respuestas: ed.facts.failed.slice(0, 6) }, 900));
       } catch (e) {
-        if (ed) await shot(ed.page, 'W0.8-editor-falla');
+        await shot(ed.page, 'W0.8-editor-falla');
         check(s, 'W0.8f', 'editor sin WooCommerce (Chrome)', false, String(e.stack || e.message || e).slice(0, 600));
       } finally {
-        if (ed) await ed.ctx.close().catch(() => {});
+        await ed.ctx.close().catch(() => {});
       }
     } finally {
       if (off) {
@@ -427,25 +468,18 @@ module.exports = (api) => {
       const b = back.widgets.find((w) => w.id === k);
       return `${k} ${a && a.type}: ${diff(a && a.settings, b && b.settings).join(' · ')}`;
     });
-    check(s, 'W0.8k', 'tras guardar sin WooCommerce y reactivarlo, los ajustes de cada widget tienen el mismo md5', Object.keys(now).length === 7 && !changed.length, changed.length ? detail.join(' | ') : short(now));
-    const v = await visitor();
-    try {
-      const resp = await v.page.goto(url, { waitUntil: 'load' });
-      const count = await v.page.evaluate((names) => names.filter((n) => document.querySelector(`.elementor-widget-${n}`)).length, NAMES);
-      check(s, 'W0.8l', 'con WooCommerce de nuevo, la página vuelve a pintar sus widgets', resp && resp.status() === 200 && count >= 5, `${count} de 7 tipos con salida (las muestras sin producto y la barra sin carrito pueden no tenerla)`);
-    } finally {
-      await v.ctx.close().catch(() => {});
-    }
+    check(s, 'W0.8k', 'tras guardar en el editor sin WooCommerce y reactivarlo, los ajustes de cada widget tienen el mismo md5 que los que guardó el editor con WooCommerce', Object.keys(now).length === 7 && !changed.length, changed.length ? detail.join(' | ') : short(now));
+    const htmlBack = await main('GET', url);
+    const again = NAMES.filter((n) => hasWidget(htmlBack.text, n));
+    check(s, 'W0.8l', 'con WooCommerce de nuevo, la página pinta los mismos widgets que antes de desactivarlo', htmlBack.status === 200 && JSON.stringify(again) === JSON.stringify(rendered) && rendered.length >= 4, short({ antes: rendered, despues: again }));
   }
 
   // ── W0.9 · el mismo kit por los tres caminos, en sitios aparte sin WooCommerce ──────────────────────────────────
-  async function w09(s) {
-    const r = res();
+  async function w09(s, exp) {
     try {
-      const exp = await op('resilience_export');
       const kitFile = path.join(SHARED, 'kit.zip');
       check(s, 'W0.9a', 'K exporta este sitio (con WooCommerce y los widgets de F4-Woo) como kit', fs.existsSync(kitFile) && exp.size > 0, short(exp));
-      if (!fs.existsSync(kitFile)) return;
+      if (!exp || exp.error || !exp.size || !fs.existsSync(kitFile)) return;
       const zip = fs.readFileSync(kitFile);
       let phar = process.env.WP_CLI_PHAR || '/var/tmp/digi-k/cache/wp-cli.phar';
       if (!fs.existsSync(phar)) {
@@ -485,9 +519,12 @@ module.exports = (api) => {
       }
       const vias = Object.keys(facts);
       const sameMarkers = vias.map((v) => diff(ref.docs, facts[v].docs)).flat();
-      const sameReport = vias.map((v) => diff(ref.report, facts[v].report).map((d) => `${v}${d}`)).flat();
+      // El informe se compara sección a sección con sus avisos ordenados; el orden distinto dentro de una sección se anota.
+      const sorted = (rep) => { const x = JSON.parse(JSON.stringify(rep)); for (const sec of Object.values(x.sections || {})) if (Array.isArray(sec.entries)) sec.entries.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))); return x; };
+      const sameReport = vias.map((v) => diff(sorted(ref.report), sorted(facts[v].report)).map((d) => `${v}${d}`)).flat();
+      const order = vias.filter((v) => diff(ref.report, facts[v].report).length);
       check(s, 'W0.9e', 'mismos marcadores de K por los tres caminos (documento, tipo original, motivo y md5 de los ajustes originales)', vias.length === 3 && !sameMarkers.length && vias.every((v) => facts[v].unconverted === ref.unconverted), short({ vias, diferencias: sameMarkers.slice(0, 6), contadores: vias.map((v) => facts[v].unconverted) }, 900));
-      check(s, 'W0.9f', 'mismo informe de K por los tres caminos (salvo la sesión y la hora)', vias.length === 3 && !sameReport.length, short({ vias, diferencias: sameReport.slice(0, 8) }, 900));
+      check(s, 'W0.9f', 'mismo informe de K por los tres caminos (salvo la sesión y la hora; los avisos de cada sección, en cualquier orden)', vias.length === 3 && !sameReport.length, short({ vias, diferencias: sameReport.slice(0, 8), ordenDistinto: order.map((v) => `${v}: ${diff(ref.report, facts[v].report).slice(0, 2).join(' · ')}`) }, 900));
       check(s, 'W0.9g', 'sin errores fatales en los sitios sin WooCommerce', vias.every((v) => !facts[v].fatal), short(vias.map((v) => facts[v].fatal).filter(Boolean)));
     } finally {
       stopNoWoo('a');
@@ -506,14 +543,22 @@ module.exports = (api) => {
   }
 
   async function W0(s) {
-    await api.base.W0(s);
+    if (process.env.RES_SKIP_BASE !== '1') await api.base.W0(s); // RES_SKIP_BASE: sólo para iterar, nunca en la aceptación.
     for (let i = s.checks.length - 1; i >= 0; i--) if (s.checks[i].status === 'pendiente' && /^W0\.(8|9)$/.test(s.checks[i].id)) s.checks.splice(i, 1);
     if (!res()) {
       check(s, 'W0.8', 'la preparación de resilience está completa', false, short(setupOf().errors));
       return;
     }
+    const t = Date.now();
+    const lap = (what) => log(`   resilience ${what}: ${Math.round((Date.now() - t) / 1000)} s`);
+    if (process.env.RES_SKIP_BASE !== '1') lap('W0 de run.cjs');
+    // W0.9 corre en los sitios sin WooCommerce mientras W0.8 usa este: el kit se exporta antes, con WooCommerce activo.
+    let exp = null;
+    try { exp = await op('resilience_export'); } catch (e) { exp = { error: String(e.message || e) }; }
+    const nine = w09(s, exp).catch((e) => check(s, 'W0.9', 'el mismo kit por los tres caminos sin WooCommerce', false, String(e.stack || e.message || e).slice(0, 600))).then(() => lap('W0.9'));
     try { await w08(s); } catch (e) { check(s, 'W0.8', 'sin WooCommerce en el mismo sitio', false, String(e.stack || e.message || e).slice(0, 600)); }
-    try { await w09(s); } catch (e) { check(s, 'W0.9', 'el mismo kit por los tres caminos sin WooCommerce', false, String(e.stack || e.message || e).slice(0, 600)); }
+    lap('W0.8');
+    await nine;
     if (NET) {
       try { await w010(s); } catch (e) { check(s, 'W0.10', 'red: primera petición anónima a un sitio nuevo', false, String(e.stack || e.message || e).slice(0, 600)); }
     }

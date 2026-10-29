@@ -176,6 +176,7 @@ async function exportFromA() {
   } else {
     out.restError = `${res.status} ${res.text.slice(0, 300)}`;
   }
+  if (QUICK) { out.cliError = 'QUICK=1: sin exportación por WP-CLI'; return out; }
   const cli = await R.wpcli('a', ['digitalisimo-elements', 'kit', 'export', `${IN_SITE}/exports/a-cli.zip`, '--user=admin']);
   if (cli.ok && fs.existsSync(path.join(SHARED, 'exports', 'a-cli.zip'))) out.cli = path.join(SHARED, 'exports', 'a-cli.zip');
   else out.cliError = (cli.stderr || cli.fatal || cli.stdout || '').slice(0, 300);
@@ -272,10 +273,10 @@ async function renderCompare(sigA, sigB, label) {
   const skipped = published.filter(([k]) => sigB.documents[k].status !== 'publish').map(([k]) => `${k.slice(5)} (${sigB.documents[k].status} en B)`);
   const pages = [['portada', '', '']].concat(published.filter(([k]) => sigB.documents[k].status === 'publish').map(([k, d]) => [k.slice(5), d.path, sigB.documents[k].path]));
   // RENDER=<regex>: sólo la portada y esas páginas (repetir una parte del render; no vale para la aceptación). QUICK:
-  // cuatro páginas y, con WOO=1, también las de F4-Woo (filtros y los siete widgets).
+  // cuatro páginas y, con WOO=1, también la de los filtros de F4-Woo.
   const quickPages = ['portada', 'padre', 'widget-digitalisimo-accordion', 'widget-digitalisimo-logos'];
   const pick = RENDER ? pages.filter(([key]) => key === 'portada' || RENDER.test(key))
-    : QUICK ? pages.filter(([key]) => quickPages.includes(key) || (WOO && /^(filtros-de-productos|widget-digitalisimo-woo-)/.test(key))) : pages;
+    : QUICK ? pages.filter(([key]) => quickPages.includes(key) || (WOO && key === 'filtros-de-productos')) : pages;
   const problems = [];
   if (skipped.length) R.log(`   ${label}: sin captura en B (no publicadas): ${skipped.join(', ')}`);
   fs.mkdirSync(path.join(OUT, 'shots', label), { recursive: true });
@@ -322,10 +323,20 @@ async function warmUp(site, base = '') {
   }
 }
 
+// Con WOO=1 (cada petición de Playground con WooCommerce tarda segundos), el primer B nuevo arranca mientras A se
+// prepara y exporta (main); el primer escenario que pide un B nuevo lo usa tal cual, sin tocar.
+let earlyB = null;
 async function freshB(extra = null) {
-  forget('b');
-  await R.startSite('b');
-  await warmUp('b');
+  if (earlyB) {
+    const early = earlyB;
+    earlyB = null;
+    const ready = await early;
+    if (ready instanceof Error) throw ready;
+  } else {
+    forget('b');
+    await R.startSite('b');
+    await warmUp('b');
+  }
   if (extra) {
     const res = await R.control('b', extra);
     if (res.errors) throw new Error(`B (${extra}): ${res.errors}`);
@@ -347,7 +358,8 @@ async function R1(s) {
   const sigs = {};
   for (const [via, zip] of variants) {
     if (!zip) { problems.push(`${via}: no hay kit (${kits.cliError || 'exportación fallida'})`); continue; }
-    await freshB();
+    // Con WOO=1, B sin las páginas que crea WooCommerce: K sólo acepta «nuevo» en un sitio vacío (setup-b.php, woo-empty).
+    await freshB(WOO ? 'woo-empty' : null);
     const before = await snapshot('b', `R1-${via}-antes`);
     const run = via === 'pantalla' ? await importScreen('b', zip, { fresh: true, label: 'R1' }) : await importCli('b', `${IN_SITE}/exports/${path.basename(zip)}`, ['--mode=fresh']);
     if (!run.ok) { problems.push(`${via}: la importación falló: ${run.message || (run.failed || []).join('; ') || run.stderr}`); continue; }
@@ -408,7 +420,7 @@ async function R1(s) {
 /** R1c: el cuerpo exacto de la App (Chrome) y una variante con selección parcial (CV-14). */
 async function R1c(s) {
   if (!kits.rest) { s.problems.push('Sin kit de A'); return; }
-  await freshB();
+  await freshB(WOO ? 'woo-empty' : null);
   const auth = await adminSession('b');
   const b = await chrome();
   const ctx = await b.createBrowserContext();
@@ -442,7 +454,7 @@ async function R1c(s) {
   const diffs = compare.compareSignatures(sigA, sigB, { known: knownAll, scenario: 'R1c' });
   verdict('A1', !diffs.length, diffs.slice(0, 10).map((d) => `R1c (cuerpo de la App): ${d}`));
   // Selección parcial: sin una de las páginas del contenido.
-  await freshB();
+  await freshB(WOO ? 'woo-empty' : null);
   const body = JSON.parse(captured);
   const pages = body.customization && body.customization.content && body.customization.content.page;
   if (Array.isArray(pages) && pages.length > 1) body.customization.content.page = pages.slice(1);
@@ -1291,6 +1303,7 @@ async function main() {
   const needsA = SCENARIOS.some((id) => !['R2', 'R3', 'R3b', 'R7', 'R9', 'R13', 'RX'].includes(id));
   if (needsA) {
     log('A: preparación');
+    if (WOO) earlyB = R.startSite('b').then(() => warmUp('b')).then(() => true, (e) => e);
     await R.startSite('a');
     fs.copyFileSync(path.join(OUT, 'a', 'refs.json'), path.join(SHARED, 'refs-a.json'));
     sigA = await signature('a', 'a', '');

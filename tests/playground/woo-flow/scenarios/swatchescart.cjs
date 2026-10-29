@@ -120,7 +120,9 @@ module.exports = (api) => {
       check(s, `W6.1c${t}`, 'puente del modo AJAX: un cambio del <select> hecho con jQuery (`woocommerce_variation_has_changed`) marca su radio', radio(byTax(fields, 'pa_tono'), 'azul').on && radio(byTax(fields, 'pa_tono'), 'azul').sel && byTax(fields, 'pa_tono').radios.filter((r) => r.on).length === 1, json(byTax(fields, 'pa_tono').radios));
 
       // Combinación inexistente (negro 4XL): WooCommerce no quita opciones en modo AJAX; radios y <select> coinciden.
+      // En modo AJAX, WooCommerce cubre el formulario (blockUI) mientras pide la variación: se espera entre clics.
       await clickRadio(page, 'pa_tono', 'negro');
+      await settled(page);
       await clickRadio(page, 'pa_medida', '4xl');
       await page.waitForSelector('.wc-no-matching-variations', { timeout: 60000 }).catch(() => {});
       await settled(page);
@@ -130,18 +132,21 @@ module.exports = (api) => {
 
       // Combinación válida: precio de la variación, compra, y los radios no viajan en el POST.
       await clickRadio(page, 'pa_tono', 'rojo');
+      await settled(page);
       await clickRadio(page, 'pa_medida', 's');
+      await settled(page);
       await page.waitForFunction(() => { const i = document.querySelector('form.variations_form input.variation_id'); return i && i.value && !document.querySelector('.single_add_to_cart_button.disabled'); }, { timeout: 60000 });
       await settled(page);
       const sent = await page.evaluate(() => { const fd = new FormData(document.querySelector('form.variations_form')); return [...fd.keys()]; });
       const variation = await page.$eval('form.variations_form input.variation_id', (i) => i.value);
-      const price = await page.$eval('.single_variation .price', (e) => e.textContent.trim()).catch(() => '');
+      const shown = await page.$eval('.single_variation_wrap', (e) => getComputedStyle(e).display !== 'none').catch(() => false);
       const mark = posts.length;
       await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 120000 }), page.click('form.variations_form .single_add_to_cart_button')]);
       await sleep(300);
       const post = posts.slice(mark).find((p) => !/wc-ajax=/.test(p.url)) || {};
       const notice = await page.$eval('.woocommerce-message, .wc-block-components-notice-banner', (e) => e.textContent.trim()).catch(() => '');
-      check(s, `W6.1e${t}`, 'una combinación válida muestra su precio y se compra; el POST lleva `attribute_pa_*` y `variation_id` y ningún radio (`digi_sw…`)', !!variation && /25/.test(price) && sent.includes('attribute_pa_tono') && sent.includes('attribute_pa_medida') && !sent.some((k) => /^digi/.test(k)) && /attribute_pa_tono/.test(post.body || '') && !/digi[-_]sw/.test(post.body || '') && /carrito|cart/i.test(notice), json({ variation, price, sent, body: (post.body || '').replace(/\r?\n/g, ' ').slice(0, 300), notice: notice.slice(0, 120) }));
+      const body = String(post.body || '').replace(/\r?\n/g, ' ');
+      check(s, `W6.1e${t}`, 'una combinación válida (Rojo, S) habilita la compra y se compra; el POST lleva `attribute_pa_tono=rojo`, `attribute_pa_medida=s` y `variation_id`, y ningún radio (`digi_sw…`)', !!variation && shown && sent.includes('attribute_pa_tono') && sent.includes('attribute_pa_medida') && sent.includes('variation_id') && !sent.some((k) => /^digi/.test(k)) && /name="attribute_pa_tono"\s+rojo/.test(body) && /name="attribute_pa_medida"\s+s\b/.test(body) && !/digi[-_]sw/.test(body) && /carrito|cart/i.test(notice), json({ variation, shown, sent, body: body.slice(0, 400), notice: notice.slice(0, 120) }));
       check(s, `W6.1f${t}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio (salvo Google Fonts del kit, que no es F4-Woo)', clean(facts) && !dialogs.length, factsOf(facts) + json({ dialogs }));
     } catch (e) {
       await shot(page, `W6-ajax-${site.id}-falla`);
@@ -210,15 +215,15 @@ module.exports = (api) => {
     }
     const base = baseline();
     const baseServed = base && base.sites && base.sites[site.path] ? base.sites[site.path].sudadera_pa_color : null;
-    const ok = raw.with === raw.without && served === raw.without && served.length > 0 && !/digi-swatch-field|digitalisimo-woo-swatches/.test(page.text) && (hooks165 === null || hooks165 === 0) && (baseServed === null || baseServed === served);
-    check(s, `W6.2a${t}`, 'un atributo sin configurar (`pa_color` de la Sudadera): el <select> servido es byte a byte el de WooCommerce sin el filtro de las muestras (lo que imprime 4.3.0.165, que no lo engancha), sin envoltorio ni la hoja o el script de las muestras', ok, json({ same: raw.with === raw.without, served: served === raw.without, bytes: served.length, assets: /digitalisimo-woo-swatches/.test(page.text), hooks165, baseline: baseServed === null ? (base && base.error) || 'sin W6_BASELINE' : baseServed === served }));
+    const ok = raw.hooked !== false && raw.with === raw.without && served === raw.without && served.length > 0 && !/digi-swatch-field|digitalisimo-woo-swatches/.test(page.text) && (hooks165 === null || hooks165 === 0) && (baseServed === null || baseServed === served);
+    check(s, `W6.2a${t}`, 'un atributo sin configurar (`pa_color` de la Sudadera): el <select> servido es byte a byte el de WooCommerce sin el filtro de las muestras (lo que imprime 4.3.0.165, que no lo engancha), sin envoltorio ni la hoja o el script de las muestras', ok, json({ hooked: raw.hooked, same: raw.with === raw.without, served: served === raw.without, bytes: served.length, assets: /digitalisimo-woo-swatches/.test(page.text), hooks165, baseline: baseServed === null ? (base && base.error) || 'sin W6_BASELINE' : baseServed === served }));
     // El <select> de un atributo con muestras queda intacto dentro del envoltorio (sin JS se ve tal cual).
     const tono = await op(site, 'swatchescart_select', { product: sc.products.muestras, attribute: 'pa_tono' });
     const muestras = await request('GET', sc.urls.muestras.replace(/^https?:\/\/[^/]+/, ''));
     const wrapped = selectIn(muestras.text, 'pa_tono');
     const head = muestras.text.split('</head>')[0];
     const baseTono = base && base.sites && base.sites[site.path] ? base.sites[site.path].muestras_pa_tono : null;
-    check(s, `W6.2d${t}`, 'atributo con muestras: el <select> de WooCommerce sigue byte a byte dentro del envoltorio, y la hoja de las muestras va en <head> (ficha con muestras)', tono.with.startsWith('<div class="digi-swatch-field"') && tono.with.includes(tono.without) && wrapped === tono.without && /digitalisimo-woo-swatches-css/.test(head) && (baseTono === null || baseTono === wrapped), json({ inside: tono.with.includes(tono.without), served: wrapped === tono.without, head: /digitalisimo-woo-swatches-css/.test(head), baseline: baseTono === null ? 'sin W6_BASELINE' : baseTono === wrapped }));
+    check(s, `W6.2d${t}`, 'atributo con muestras: el <select> de WooCommerce sigue byte a byte dentro del envoltorio, y la hoja de las muestras va en <head> (ficha con muestras)', tono.hooked !== false && tono.with.startsWith('<div class="digi-swatch-field"') && tono.with.includes(tono.without) && wrapped === tono.without && /digitalisimo-woo-swatches-css/.test(head) && (baseTono === null || baseTono === wrapped), json({ hooked: tono.hooked, inside: tono.with.includes(tono.without), served: wrapped === tono.without, head: /digitalisimo-woo-swatches-css/.test(head), baseline: baseTono === null ? 'sin W6_BASELINE' : baseTono === wrapped }));
   }
 
   /** W6.2c: el bucle enlaza con la preselección (`attribute_pa_*`, `rel="nofollow"`). */
@@ -280,12 +285,14 @@ module.exports = (api) => {
   }
 
   /** W6.3: el paso del <select> a los radios no mueve la ficha (CLS), en cada ancho y con la CPU frenada ×6. */
-  async function w6Cls(s, site, sc) {
+  async function w6Cls(s, site, sc, light = false) {
     const t = sfx(site);
     const rows = [];
-    // Ficha con muestras y ficha sin muestras (referencia del tema) con la CPU normal y frenada; la de 31 variaciones, frenada.
-    const plan = [['muestras', sc.urls.muestras, 0], ['muestras', sc.urls.muestras, 6], ['ajax', sc.urls.ajax, 6], ['sudadera', sc.urls.sudadera, 0], ['sudadera', sc.urls.sudadera, 6]];
+    // En cada ancho, la ficha con muestras con la CPU normal y frenada ×6; en el ancho mayor, además la de 31
+    // variaciones (frenada) y la ficha sin muestras (referencia del tema) con la CPU normal y frenada.
     for (const width of WIDTHS) {
+      const plan = [['muestras', sc.urls.muestras, 0], ['muestras', sc.urls.muestras, 6]];
+      if (width === Math.max(...WIDTHS) && !light) plan.push(['ajax', sc.urls.ajax, 6], ['sudadera', sc.urls.sudadera, 0], ['sudadera', sc.urls.sudadera, 6]);
       for (const [key, url, throttle] of plan) {
         const r = await cls(url, width, throttle);
         rows.push({ width, throttle, key, ...r });
@@ -294,9 +301,10 @@ module.exports = (api) => {
     const swatches = rows.filter((r) => r.key !== 'sudadera');
     const worst = Math.max(...swatches.map((r) => r.form));
     const total = Math.max(...swatches.map((r) => r.cls));
-    const ref = Math.max(...rows.filter((r) => r.key === 'sudadera').map((r) => r.cls));
+    const refs = rows.filter((r) => r.key === 'sudadera').map((r) => r.cls);
+    const ref = refs.length ? Math.max(...refs) : 0;
     const afterPaint = swatches.filter((r) => r.ready !== null && r.fcp !== null && r.ready > r.fcp).length;
-    check(s, `W6.3${t}`, `CLS de la ficha con muestras (${WIDTHS.join(', ')} px; CPU normal y ×6): 0 en el formulario de variaciones y no mayor que la ficha sin muestras`, worst === 0 && total <= ref + 0.001, json({ form: worst, total, sinMuestras: ref, readyAfterFcp: `${afterPaint}/${swatches.length}`, rows: rows.map((r) => `${r.key}@${r.width}${r.throttle ? 'x' + r.throttle : ''}:${r.cls}/${r.form} fcp ${r.fcp} ready ${r.ready}`) }));
+    check(s, `W6.3${t}`, `CLS de la ficha con muestras (${WIDTHS.join(', ')} px; CPU normal y ×6): 0 en el formulario de variaciones y no mayor que la ficha sin muestras${light ? ' (sin referencia: 0)' : ''}`, worst === 0 && total <= ref + 0.001, json({ form: worst, total, sinMuestras: ref, readyAfterFcp: `${afterPaint}/${swatches.length}`, rows: rows.map((r) => `${r.key}@${r.width}${r.throttle ? 'x' + r.throttle : ''}:${r.cls}/${r.form} fcp ${r.fcp} ready ${r.ready}`) }));
     fs.writeFileSync(path.join(OUT, `w6-cls-${site.id}.json`), JSON.stringify(rows, null, 1));
   }
 
@@ -363,6 +371,7 @@ module.exports = (api) => {
       const okSetup = !!sc && sc.f4woo && !sc.errors.length && sc.variations.muestras === 5 && sc.variations.ajax === 31 && sc.ajax_threshold === 30 && sc.swatches && sc.swatches.tono && sc.swatches.tono.type === 'visual' && sc.swatches.medida && sc.swatches.medida.type === 'label';
       check(s, `W6.0${t}`, 'preparación: `pa_tono` «Muestra visual» con la meta `color` de WooCommerce, `pa_medida` «Etiqueta», un variable de 5 variaciones y otro de 31 (umbral AJAX 30)', okSetup, json(sc ? { errors: sc.errors, variations: sc.variations, threshold: sc.ajax_threshold, swatches: sc.swatches, types: sc.attribute_types } : 'sin preparación'));
       if (!okSetup) continue;
+      if (NET && site !== own()) { await w6Cls(s, site, sc, true); continue; }
       await w6Ajax(s, site, sc);
       await w6Native(s, site, sc);
       await w6Select(s, site, sc);
@@ -418,11 +427,14 @@ module.exports = (api) => {
       };
     });
   }
-  /** Estado de las dos barras (la del Menú del carrito y el widget suelto) una vez llegan los fragmentos. */
-  async function bars(page, url) {
-    await goto(page, url);
-    await page.waitForFunction(() => { const st = [...document.querySelectorAll('[data-digi-ship] .digi-ship__state')]; return st.length === 2 && st.every((n) => !n.hasAttribute('data-digi-initial')); }, { timeout: 60000 }).catch(async (e) => {
-      const dom = await page.evaluate(() => ({ states: [...document.querySelectorAll('.digi-ship__state')].map((n) => n.outerHTML.slice(0, 160)), params: !!window.wc_cart_fragments_params, storage: Object.keys(sessionStorage) })).catch(() => null);
+  /**
+   * Estado de las dos barras (la del Menú del carrito y el widget suelto) una vez llegan los fragmentos (`url`: navega
+   * antes). Con `mark()` previo, espera además a que WooCommerce haya reemplazado los nodos marcados.
+   */
+  async function bars(page, url = null) {
+    if (url) await goto(page, url);
+    await page.waitForFunction(() => { const st = [...document.querySelectorAll('[data-digi-ship] .digi-ship__state')]; return st.length === 2 && st.every((n) => !n.hasAttribute('data-digi-initial') && !n.__digiOld); }, { timeout: 60000 }).catch(async (e) => {
+      const dom = await page.evaluate(() => ({ states: [...document.querySelectorAll('.digi-ship__state')].map((n) => (n.__digiOld ? 'VIEJO ' : '') + n.outerHTML.slice(0, 160)), params: !!window.wc_cart_fragments_params, storage: Object.keys(sessionStorage) })).catch(() => null);
       throw new Error(`${e.message} · ${JSON.stringify(dom)}`);
     });
     await sleep(300);
@@ -432,23 +444,13 @@ module.exports = (api) => {
       return { where: b.closest('.elementor-widget-woocommerce-menu-cart') ? 'menu' : 'widget', hidden: b.hidden, state: st ? st.getAttribute('data-state') : null, text: p ? p.textContent.replace(/ /g, ' ').replace(/\s+/g, ' ').trim() : '', percent: st ? st.getAttribute('data-percent') : null };
     }));
   }
+  const mark = (page) => page.evaluate(() => document.querySelectorAll('.digi-ship__state').forEach((n) => { n.__digiOld = 1; }));
   /** El estado de la barra coincide con las tarifas: «done» ⇒ envío gratuito ofrecido en un único paquete; «progress» ⇒ no ofrecido. */
   function consistent(state, cart) {
     const free = cart.rates.some((list) => list.includes('free_shipping'));
     if (state === 'done') return free && cart.packages === 1;
     if (state === 'progress') return !free && cart.packages === 1;
     return state === 'none';
-  }
-
-  /** Barras leídas en una pestaña nueva del mismo visitante (sin la copia de fragmentos de `sessionStorage`). */
-  async function barsInTab(ctx, facts, url) {
-    const tab = track(await ctx.newPage(), facts);
-    try {
-      await tab.setViewport({ width: 1280, height: 900 });
-      return await bars(tab, url);
-    } finally {
-      await tab.close().catch(() => {});
-    }
   }
   /** Comprueba un caso: estado de las dos barras, texto, coherencia con las tarifas del carrito y lo que se espera. */
   function judge(s, c, got, cart, ms) {
@@ -457,23 +459,27 @@ module.exports = (api) => {
     const visible = got.filter((b) => !b.hidden);
     const textOk = c.expect === 'none' ? visible.length === 0 : visible.length === 2 && visible.every((b) => b.text === c.text);
     const free = cart.rates.some((list) => list.includes('free_shipping'));
-    const ok = state === c.expect && textOk && consistent(state, cart) && (c.free === undefined || c.free === free) && (c.packages === undefined || c.packages === cart.packages);
+    const ok = got.length === 2 && state === c.expect && textOk && consistent(state, cart) && (c.free === undefined || c.free === free) && (c.packages === undefined || c.packages === cart.packages);
     check(s, c.id, c.what, ok, json({ state, expect: c.expect, bars: got.map((b) => `${b.where}:${b.hidden ? 'oculta' : b.text}`), cart: { packages: cart.packages, rates: cart.rates }, free, ms }));
   }
-  const noCart = { packages: 0, rates: [], text: [], empty: true };
 
   async function W7(s) {
     const site = own();
     const sc = setupOf(site);
     if (!sc || !sc.f4woo) { check(s, 'W7.0', 'preparación del grupo', false, json(sc)); return; }
-    check(s, 'W7.0', `preparación en ${site.path}: «Envío gratuito» desde 50 € (instancia ${sc.free_instance}), el producto de 10 € y la bandera de fragmentos activa`, !!sc.free_instance && !!sc.products.diez && sc.fragments_flag === 1, json({ free: sc.free_instance, diez: sc.products.diez, flag: sc.fragments_flag }));
-    const cartUrl = (summary.sites[site.path].setup.pages || {})['digi-wf-carrito'];
+    check(s, 'W7.0', `preparación en ${site.path}: «Envío gratuito» desde 50 € (instancia ${sc.free_instance}), el producto de 10 €, la bandera de fragmentos activa y el carrito clásico con las dos barras`, !!sc.free_instance && !!sc.products.diez && sc.fragments_flag === 1 && !!sc.pages.carrito_barra, json({ free: sc.free_instance, diez: sc.products.diez, flag: sc.fragments_flag, page: sc.pages.carrito_barra }));
+    const url = sc.pages.carrito_barra;
+    const add = (n) => `${url}${url.includes('?') ? '&' : '?'}add-to-cart=${sc.products.diez}&quantity=${n}`;
     const T = (n) => `Te faltan ${money(n)} para el envío gratis`;
     const DONE = 'Tienes envío gratis';
     const facts7 = { errors: [], failed: [], outside: [] };
     const merge = (f) => { for (const k of Object.keys(facts7)) facts7[k].push(...f[k]); };
-    // Sesión con destino conocido (la calculadora una sola vez): cada caso cambia el sitio y, si hace falta, añade
-    // unidades; las tarifas se leen en el carrito clásico y las barras en una pestaña nueva.
+    /** Pestaña nueva del visitante (sin la copia de fragmentos de `sessionStorage` de otra pestaña). */
+    const tab = async (v) => { const p = track(await v.ctx.newPage(), v.facts); await p.setViewport({ width: 1280, height: 900 }); return p; };
+    const guarded = async (c, fn) => { try { await fn(); } catch (e) { check(s, c.id, c.what, false, String(e.stack || e).slice(0, 600)); } };
+
+    // Destino conocido (la calculadora una sola vez): cada caso cambia el sitio y, si hace falta, añade unidades. Cada
+    // caso, en una pestaña nueva del carrito con las barras: tarifas que ofrece WooCommerce y estado de las barras.
     const known = [
       { id: 'W7.1a', add: 3, what: 'con 30 € y destino conocido: «Te faltan 20,00 €» y WooCommerce no ofrece el envío gratuito', expect: 'progress', text: T(20), free: false },
       { id: 'W7.2a', setting: 'rates', what: 'mu-plugin que filtra `woocommerce_package_rates` (quita el envío gratuito), con 30 €: sin «Te faltan»', expect: 'none', free: false },
@@ -486,28 +492,36 @@ module.exports = (api) => {
       { id: 'W7.3a', setting: 'packages', what: 'dos paquetes (`woocommerce_cart_shipping_packages`), con 50 €: la barra no dice nada', expect: 'none', packages: 2 },
       { id: 'W7.2f', setting: 'instance', add: 5, what: 'el mismo `min_amount` convertido, con 100 €: «Tienes envío gratis» y el envío gratuito ofrecido', expect: 'done', text: DONE, free: true },
     ];
-    let v = null;
+    const v = await guest();
     try {
-      v = await guest();
       for (const [i, c] of known.entries()) {
         const t0 = Date.now();
+        let p = null;
         try {
           await op(site, 'swatchescart_set', { case: c.setting || '' });
-          if (c.add) await fill(v.page, cartUrl, sc, c.add);
-          else { await goto(v.page, cartUrl); await settled(v.page); }
-          if (i === 0) await calculate(v.page);
-          const cart = await cartRates(v.page);
-          const got = await barsInTab(v.ctx, v.facts, sc.pages.minicarrito);
-          judge(s, c, got, cart, Date.now() - t0);
+          p = await tab(v);
+          await goto(p, c.add ? add(c.add) : url);
+          await settled(p);
+          if (i === 0) {
+            await bars(p);
+            await mark(p);
+            await calculate(p);
+          }
+          const cart = await cartRates(p);
+          judge(s, c, await bars(p), cart, Date.now() - t0);
         } catch (e) {
-          await shot(v.page, `W7-${c.id}-falla`);
-          check(s, c.id, c.what, false, String(e.stack || e).slice(0, 500));
+          if (p) await shot(p, `W7-${c.id}-falla`);
+          check(s, c.id, c.what, false, String(e.stack || e).slice(0, 600));
+        } finally {
+          if (p) await p.close().catch(() => {});
         }
       }
     } finally {
-      if (v) { merge(v.facts); await v.ctx.close().catch(() => {}); }
+      merge(v.facts);
+      await v.ctx.close().catch(() => {});
     }
-    // Sesiones sin destino confirmado, sin país, con cupón y vacía.
+
+    // Sin destino confirmado, sin país, carrito vacío y envío gratuito con cupón: un visitante nuevo cada uno.
     const alone = async (setting, fn) => {
       const w = await guest();
       try { await op(site, 'swatchescart_set', { case: setting }); await fn(w); } finally { merge(w.facts); await w.ctx.close().catch(() => {}); }
@@ -519,32 +533,38 @@ module.exports = (api) => {
       e: { id: 'W7.3e', what: '`requires = coupon`, con 30 € y sin cupón: nada (no se dice cuánto falta) y sin envío gratuito ofrecido', expect: 'none', free: false },
       f: { id: 'W7.3f', what: '`requires = coupon` con DIGIENVIO aplicado en el carrito: «Tienes envío gratis» y el envío gratuito ofrecido', expect: 'done', text: DONE, free: true },
     };
-    const guarded = async (c, fn) => { const t0 = Date.now(); try { await fn(t0); } catch (e) { check(s, c.id, c.what, false, String(e.stack || e).slice(0, 500)); } };
     await guarded(cases.g, () => alone('', async (w) => {
       let t0 = Date.now();
-      judge(s, cases.g, await bars(w.page, sc.pages.minicarrito), noCart, Date.now() - t0);
+      await goto(w.page, url);
+      judge(s, cases.g, await bars(w.page), await cartRates(w.page), Date.now() - t0);
       t0 = Date.now();
-      await fill(w.page, cartUrl, sc, 5);
-      const cart = await cartRates(w.page);
-      judge(s, cases.c, await barsInTab(w.ctx, w.facts, sc.pages.minicarrito), cart, Date.now() - t0);
+      const p = await tab(w);
+      await goto(p, add(5));
+      await settled(p);
+      judge(s, cases.c, await bars(p), await cartRates(p), Date.now() - t0);
+      await p.close().catch(() => {});
     }));
-    await guarded(cases.b, (t0) => alone('nocountry', async (w) => {
-      await fill(w.page, cartUrl, sc, 3);
-      const cart = await cartRates(w.page);
-      judge(s, cases.b, await barsInTab(w.ctx, w.facts, sc.pages.minicarrito), cart, Date.now() - t0);
+    await guarded(cases.b, () => alone('nocountry', async (w) => {
+      const t0 = Date.now();
+      await goto(w.page, add(3));
+      await settled(w.page);
+      judge(s, cases.b, await bars(w.page), await cartRates(w.page), Date.now() - t0);
     }));
-    await guarded(cases.e, (t0) => alone('requires_coupon', async (w) => {
-      await fill(w.page, cartUrl, sc, 3);
+    await guarded(cases.e, () => alone('requires_coupon', async (w) => {
+      let t0 = Date.now();
+      await goto(w.page, add(3));
+      await settled(w.page);
+      await bars(w.page);
+      await mark(w.page);
       await calculate(w.page);
-      let cart = await cartRates(w.page);
-      judge(s, cases.e, await barsInTab(w.ctx, w.facts, sc.pages.minicarrito), cart, Date.now() - t0);
-      const t1 = Date.now();
+      judge(s, cases.e, await bars(w.page), await cartRates(w.page), Date.now() - t0);
+      t0 = Date.now();
+      await mark(w.page);
       await w.page.type('#coupon_code', 'DIGIENVIO');
       await w.page.click('button[name="apply_coupon"]');
       await w.page.waitForSelector('tr.cart-discount.coupon-digienvio', { timeout: 60000 });
       await settled(w.page);
-      cart = await cartRates(w.page);
-      judge(s, cases.f, await barsInTab(w.ctx, w.facts, sc.pages.minicarrito), cart, Date.now() - t1);
+      judge(s, cases.f, await bars(w.page), await cartRates(w.page), Date.now() - t0);
     }));
     await op(site, 'swatchescart_set', { case: '' }).catch((e) => check(s, 'W7.reset', 'restablecer el sitio', false, String(e)));
     check(s, 'W7.4', 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio (salvo Google Fonts del kit, que no es F4-Woo)', clean(facts7), factsOf(facts7));

@@ -164,61 +164,72 @@ module.exports = (api) => {
       const main = f.pages.main;
       const tagUrl = f.links.tag;
       try {
-        // W9.1 · Matriz: cada caso en la tienda nativa y por el refresco; al recargar (sin JS), todos los casos con la
-        // primera configuración y «talla 40» en todas.
+        // W9.1 · Matriz en una sola petición (ops `filters_matrix`): cada caso en la tienda nativa (consulta principal del
+        // archivo de la etiqueta con los parámetros de WooCommerce) y en el bucle por la ruta REST del refresco, con las
+        // cuatro combinaciones de tabla de atributos y «Ocultar agotados». Después, las mismas respuestas por HTTP en
+        // los casos de referencia (la página nativa, el refresco y la página del bucle al recargar).
         const configs = heavy ? CONFIGS : [CONFIGS[0]];
-        const cases = heavy ? (QUICK ? CASES.filter((c) => ['talla-40', 'talla-38-y-42', 'precio-50-75'].includes(c.id)) : CASES) : CASES.slice(0, 1);
+        const B4 = { id: 'precio-desde-70', price: { min: '70' } };
+        const OR = { id: 'categorias-o', cat: { terms: ['digi-wf-botas', 'digi-wf-sandalias'], join: 'OR' }, vars: { post_type: 'product', product_cat: 'digi-wf-botas,digi-wf-sandalias' } };
+        const all = [...CASES, B4, OR];
+        const spec = { page: main.id, loop: 'wfloop1', base: main.url, tag: 'digi-wf-filtros', configs, cases: all.map((c) => ({ id: c.id, get: Object.fromEntries(nativeParams(c).map(([k, v]) => [k, v])), filters: restFilters(c), vars: c.vars })) };
+        const t0 = Date.now();
+        const m = await timed('filters_matrix', () => op(site, 'filters_matrix', '&spec=' + encodeURIComponent(JSON.stringify(spec))));
+        log(`   W9 ${tag}: matriz en ${Date.now() - t0} ms (PHP ${m.ms} ms)`);
+        check(s, `W9.1 ${tag} matriz`, 'la matriz se calcula sin errores (tienda nativa y refresco del bucle en las cuatro combinaciones)', !m.error && Object.keys(m.configs || {}).length === configs.length, String(m.error || '').slice(0, 500));
         const matrix = {};
         for (const cfg of configs) {
-          const t0 = Date.now();
-          await configure(site, cfg);
           const key = configKey(cfg);
-          const first = cfg === configs[0];
-          const run = { config: key, cases: {} };
-          matrix[key] = run;
-          const baseNative = await get(tagUrl);
-          const baseRest = await rest(site, main.id, 'wfloop1', {}, main.url);
-          const baseLoop = first ? await get(main.url) : null;
-          const nb = nativeIds(baseNative.html);
-          const lb = baseLoop ? loopIds(baseLoop.html, 'wfloop1') : baseRest.ids;
-          run.base = { native: names(catalog, nb), rest: names(catalog, baseRest.ids) };
-          check(s, `W9.1 ${tag} ${key} base`, `sin filtros, el bucle y la tienda nativa muestran los mismos productos (${configLabel(cfg)})`, baseNative.status === 200 && baseRest.status === 200 && (!baseLoop || (baseLoop.status === 200 && !baseLoop.fatal)) && nb.length >= 7 && same(nb, baseRest.ids) && same(lb, baseRest.ids), JSON.stringify({ native: nameList(catalog, nb), rest: nameList(catalog, baseRest.ids), loop: baseLoop ? nameList(catalog, lb) : undefined, status: [baseNative.status, baseRest.status, baseLoop && baseLoop.status] }));
-          for (const c of cases) {
-            const native = await get(withQuery(tagUrl, nativeParams(c)));
-            const viaRest = await rest(site, main.id, 'wfloop1', restFilters(c), main.url);
-            const loop = first || c.id === 'talla-40' ? await get(withQuery(main.url, loopParams('wfloop1', c))) : null;
-            const n = nativeIds(native.html);
-            const l = loop ? loopIds(loop.html, 'wfloop1') : null;
-            run.cases[c.id] = { native: names(catalog, n), rest: names(catalog, viaRest.ids), reload: l ? names(catalog, l) : undefined, ids: viaRest.ids };
-            const ok = native.status === 200 && viaRest.status === 200 && !viaRest.fatal && same(n, viaRest.ids) && !same(n, nb) && (!loop || (loop.status === 200 && !loop.fatal && same(l, viaRest.ids)));
-            check(s, `W9.1 ${tag} ${key} ${c.id}`, `«${c.id}» da el mismo conjunto que la tienda nativa por el refresco${loop ? ' y al recargar' : ''} (${configLabel(cfg)})`, ok, JSON.stringify({ native: nameList(catalog, n), rest: nameList(catalog, viaRest.ids), reload: loop ? nameList(catalog, l) : undefined, status: [native.status, viaRest.status, loop && loop.status], restText: viaRest.text || undefined }));
-            if (c.id === 'talla-40') {
-              const want = ORACLE_40[key];
-              check(s, `W9.1b ${tag} ${key}`, `«talla 40» coincide con el catálogo esperado (${configLabel(cfg)}): la tabla, «Ocultar agotados» y las variaciones agotadas cambian el resultado`, JSON.stringify(names(catalog, viaRest.ids).sort()) === JSON.stringify(want), JSON.stringify({ got: names(catalog, viaRest.ids).sort(), want }));
-            }
+          const got = (m.configs || {})[key] || {};
+          const base = got.base || {};
+          matrix[key] = { cases: {} };
+          check(s, `W9.1 ${tag} ${key} base`, `sin filtros, el bucle y la tienda nativa muestran los mismos productos (${configLabel(cfg)})`, Array.isArray(base.native) && base.native.length >= (cfg.hide === 'yes' ? 7 : 8) && same(base.native, base.loop), JSON.stringify({ native: nameList(catalog, base.native), loop: Array.isArray(base.loop) ? nameList(catalog, base.loop) : base.loop }));
+          for (const c of all) {
+            const r = got[c.id] || {};
+            matrix[key].cases[c.id] = { native: names(catalog, r.native), loop: Array.isArray(r.loop) ? names(catalog, r.loop) : r.loop, ids: Array.isArray(r.loop) ? r.loop : null, nativeIds: r.native };
+            const label = c === B4 ? 'sólo `digi_price_min` (el filtro de PRO del bucle sin `taxonomy`)' : c === OR ? 'dos categorías hijas con «O» (`Hierarchy_Or_Query`)' : `«${c.id}»`;
+            check(s, `W9.1 ${tag} ${key} ${c.id}`, `${label} da el mismo conjunto que la tienda nativa (${configLabel(cfg)})`, Array.isArray(r.native) && Array.isArray(r.loop) && same(r.native, r.loop) && !same(r.native, base.native), JSON.stringify({ native: nameList(catalog, r.native), loop: Array.isArray(r.loop) ? nameList(catalog, r.loop) : r.loop }));
           }
-          s.lookup[tag].runs.push({ woocommerce_attribute_lookup_enabled: cfg.lookup, woocommerce_hide_out_of_stock_items: cfg.hide, ms: Date.now() - t0 });
-          log(`   W9 ${tag} ${key}: ${Date.now() - t0} ms`);
+          const t40 = names(catalog, (got['talla-40'] || {}).loop || []).sort();
+          check(s, `W9.1b ${tag} ${key}`, `«talla 40» coincide con el catálogo esperado (${configLabel(cfg)}): la tabla, «Ocultar agotados» y las variaciones agotadas cambian el resultado`, JSON.stringify(t40) === JSON.stringify(ORACLE_40[key]), JSON.stringify({ got: t40, want: ORACLE_40[key] }));
+          s.lookup[tag].runs.push({ woocommerce_attribute_lookup_enabled: cfg.lookup, woocommerce_hide_out_of_stock_items: cfg.hide });
         }
         s.matrix = s.matrix || {};
         s.matrix[tag] = matrix;
+        const ids = (key, id) => (matrix[key] && matrix[key].cases[id] ? matrix[key].cases[id].ids : null);
+        const nids = (key, id) => (matrix[key] && matrix[key].cases[id] ? matrix[key].cases[id].nativeIds : null);
+
+        // W9.1c · contraste por HTTP: la página nativa, el refresco y la página del bucle al recargar dan lo mismo que la
+        // matriz (B3: `pa_talla-zapato` y el «+» de la «Y» al recargar).
         await configure(site, CONFIGS[0]);
+        const t40 = CASES[0];
+        const page40 = await get(withQuery(tagUrl, nativeParams(t40)));
+        const rest40 = await rest(site, main.id, 'wfloop1', restFilters(t40), main.url);
+        const reload40 = await get(withQuery(main.url, loopParams('wfloop1', t40)));
+        const and = CASES[2];
+        const reloadAnd = await get(withQuery(main.url, loopParams('wfloop1', and)));
+        const price = CASES[3];
+        const reloadPrice = await get(withQuery(main.url, loopParams('wfloop1', price)));
+        check(s, `W9.1c ${tag} yes/no`, 'por HTTP, como la matriz: la tienda nativa con `filter_talla-zapato`, el refresco y la página del bucle al recargar (B3: `e-filter-wfloop1-digiattr_pa_talla-zapato=eu-40`, `eu-38+eu-42` y el precio)', page40.status === 200 && same(nativeIds(page40.html), nids('yes/no', 'talla-40')) && rest40.status === 200 && same(rest40.ids, ids('yes/no', 'talla-40')) && reload40.status === 200 && !reload40.fatal && same(loopIds(reload40.html, 'wfloop1'), ids('yes/no', 'talla-40')) && same(loopIds(reloadAnd.html, 'wfloop1'), ids('yes/no', 'talla-38-y-42')) && same(loopIds(reloadPrice.html, 'wfloop1'), ids('yes/no', 'precio-50-75')), JSON.stringify({ page: nameList(catalog, nativeIds(page40.html)), rest: nameList(catalog, rest40.ids), reload: nameList(catalog, loopIds(reload40.html, 'wfloop1')), reloadAnd: nameList(catalog, loopIds(reloadAnd.html, 'wfloop1')), reloadPrice: nameList(catalog, loopIds(reloadPrice.html, 'wfloop1')), status: [page40.status, rest40.status, reload40.status, reloadAnd.status, reloadPrice.status] }));
+        if (heavy) {
+          await configure(site, CONFIGS[1]);
+          const pageHide = await get(withQuery(tagUrl, nativeParams(t40)));
+          const restHide = await rest(site, main.id, 'wfloop1', restFilters(t40), main.url);
+          check(s, `W9.1c ${tag} yes/yes`, 'por HTTP con «Ocultar agotados», como la matriz: la tienda nativa y el refresco', pageHide.status === 200 && same(nativeIds(pageHide.html), nids('yes/yes', 'talla-40')) && restHide.status === 200 && same(restHide.ids, ids('yes/yes', 'talla-40')), JSON.stringify({ page: nameList(catalog, nativeIds(pageHide.html)), rest: nameList(catalog, restHide.ids) }));
+          await configure(site, CONFIGS[0]);
+        }
 
-        // W9.3 · B4: sólo `digi_price_min` con el filtro de PRO en el mismo bucle.
-        const b4 = { price: { min: '70' } };
-        const b4Native = await get(withQuery(tagUrl, nativeParams(b4)));
-        const b4Loop = await get(withQuery(main.url, loopParams('wfloop1', b4)));
-        const b4Rest = await rest(site, main.id, 'wfloop1', restFilters(b4), main.url);
-        const proButtons = (b4Loop.html.slice(b4Loop.html.indexOf('data-id="wftax01"')).match(/class="e-filter-item"/g) || []).length;
-        check(s, `W9.3 ${tag}`, 'B4: una URL con sólo `digi_price_min` en la página con el filtro de taxonomía de PRO del mismo bucle se pinta sin error, con el filtro de PRO y el conjunto de la tienda nativa; el refresco sin `taxonomy` también', b4Loop.status === 200 && !b4Loop.fatal && proButtons >= 3 && same(nativeIds(b4Native.html), loopIds(b4Loop.html, 'wfloop1')) && b4Rest.status === 200 && same(b4Rest.ids, loopIds(b4Loop.html, 'wfloop1')), JSON.stringify({ status: b4Loop.status, fatal: b4Loop.fatal, proButtons, native: nameList(catalog, nativeIds(b4Native.html)), loop: nameList(catalog, loopIds(b4Loop.html, 'wfloop1')), rest: [b4Rest.status, nameList(catalog, b4Rest.ids)] }));
+        // W9.3 · B4 al recargar: sólo `digi_price_min` con el filtro de taxonomía de PRO en el mismo bucle.
+        const b4Loop = await get(withQuery(main.url, loopParams('wfloop1', B4)));
+        const b4Rest = await rest(site, main.id, 'wfloop1', restFilters(B4), main.url);
+        const proButtons = (b4Loop.html.slice(Math.max(0, b4Loop.html.indexOf('data-id="wftax01"'))).match(/class="e-filter-item"/g) || []).length;
+        check(s, `W9.3 ${tag}`, 'B4: una URL con sólo `digi_price_min` en la página con el filtro de taxonomía de PRO del mismo bucle se pinta sin error, con el filtro de PRO y el conjunto de la tienda nativa; el refresco sin `taxonomy` también', b4Loop.status === 200 && !b4Loop.fatal && proButtons >= 3 && same(loopIds(b4Loop.html, 'wfloop1'), nids('yes/no', B4.id)) && b4Rest.status === 200 && same(b4Rest.ids, nids('yes/no', B4.id)), JSON.stringify({ status: [b4Loop.status, b4Rest.status], fatal: b4Loop.fatal, proButtons, native: nameList(catalog, nids('yes/no', B4.id)), loop: nameList(catalog, loopIds(b4Loop.html, 'wfloop1')), rest: nameList(catalog, b4Rest.ids) }));
 
-        // W9.4a · Dos categorías hijas del mismo padre con «O» (Hierarchy_Or_Query).
-        const or = { cat: { terms: ['digi-wf-botas', 'digi-wf-sandalias'], join: 'OR' } };
-        const orNative = await get(withQuery(f.home, [['post_type', 'product'], ['product_cat', 'digi-wf-botas,digi-wf-sandalias', true]]));
-        const orLoop = await get(withQuery(main.url, loopParams('wfloop1', or)));
-        const orRest = await rest(site, main.id, 'wfloop1', restFilters(or), main.url);
+        // W9.4a · Dos categorías hijas del mismo padre con «O» al recargar y por HTTP.
+        const orLoop = await get(withQuery(main.url, loopParams('wfloop1', OR)));
+        const orRest = await rest(site, main.id, 'wfloop1', restFilters(OR), main.url);
         const orWant = ['digi-wf-bota-agotada', 'digi-wf-bota-alta', 'digi-wf-bota-corta', 'digi-wf-sandalia', 'digi-wf-sandalia-dos'];
-        check(s, `W9.4a ${tag}`, 'dos categorías hijas del mismo padre con «O» (`Hierarchy_Or_Query`): sin error al recargar ni por el refresco, y las dos categorías enteras, como la tienda nativa', orLoop.status === 200 && !orLoop.fatal && orRest.status === 200 && !orRest.fatal && JSON.stringify(names(catalog, loopIds(orLoop.html, 'wfloop1')).sort()) === JSON.stringify(orWant) && same(loopIds(orLoop.html, 'wfloop1'), orRest.ids) && same(loopIds(orLoop.html, 'wfloop1'), nativeIds(orNative.html)), JSON.stringify({ status: [orLoop.status, orRest.status, orNative.status], loop: nameList(catalog, loopIds(orLoop.html, 'wfloop1')), rest: nameList(catalog, orRest.ids), native: nameList(catalog, nativeIds(orNative.html)), restText: orRest.text || undefined }));
+        check(s, `W9.4a ${tag}`, 'dos categorías hijas del mismo padre con «O» (`Hierarchy_Or_Query`): sin error al recargar ni por el refresco, y las dos categorías enteras, como la tienda nativa', orLoop.status === 200 && !orLoop.fatal && orRest.status === 200 && !orRest.fatal && JSON.stringify(names(catalog, loopIds(orLoop.html, 'wfloop1')).sort()) === JSON.stringify(orWant) && same(loopIds(orLoop.html, 'wfloop1'), orRest.ids) && same(orRest.ids, nids('yes/no', OR.id)), JSON.stringify({ status: [orLoop.status, orRest.status], loop: nameList(catalog, loopIds(orLoop.html, 'wfloop1')), rest: nameList(catalog, orRest.ids), native: nameList(catalog, nids('yes/no', OR.id)), restText: orRest.text || undefined }));
 
         // W9.5 · Precio con orden por precio: mismo orden que la tienda nativa con `orderby=price`.
         if (heavy) {
@@ -227,11 +238,9 @@ module.exports = (api) => {
           const oNative = await get(withQuery(tagUrl, nativeParams(pr, [['orderby', 'price']])));
           const oLoop = await get(withQuery(order.url, loopParams('wfloop2', pr)));
           const oRest = await rest(site, order.id, 'wfloop2', restFilters(pr), order.url);
-          const oBaseNative = await get(withQuery(tagUrl, [['orderby', 'price']]));
-          const oBaseLoop = await get(order.url);
           const on = nativeIds(oNative.html);
           const ol = loopIds(oLoop.html, 'wfloop2');
-          check(s, `W9.5 ${tag}`, 'precio con orden por precio: el bucle ordenado por precio y filtrado da los productos de la tienda nativa (`orderby=price`, `min_price`, `max_price`) en el mismo orden, al recargar y por el refresco (el JOIN de `wc_product_meta_lookup` no se repite)', oLoop.status === 200 && !oLoop.fatal && ol.length >= 3 && sameOrder(on, ol) && sameOrder(ol, oRest.ids) && sameOrder(nativeIds(oBaseNative.html), loopIds(oBaseLoop.html, 'wfloop2')), JSON.stringify({ native: nameList(catalog, on), loop: nameList(catalog, ol), rest: nameList(catalog, oRest.ids), baseNative: nameList(catalog, nativeIds(oBaseNative.html)), baseLoop: nameList(catalog, loopIds(oBaseLoop.html, 'wfloop2')), restText: oRest.text || undefined }));
+          check(s, `W9.5 ${tag}`, 'precio con orden por precio: el bucle ordenado por precio y filtrado da los productos de la tienda nativa (`orderby=price`, `min_price`, `max_price`) en el mismo orden, al recargar y por el refresco (el JOIN de `wc_product_meta_lookup` no se repite)', oLoop.status === 200 && !oLoop.fatal && ol.length >= 4 && sameOrder(on, ol) && sameOrder(ol, oRest.ids), JSON.stringify({ native: nameList(catalog, on), loop: nameList(catalog, ol), rest: nameList(catalog, oRest.ids), restText: oRest.text || undefined }));
         }
 
         log(`   W9 ${tag}: servidor en ${timing.requests} peticiones, ${timing.ms} ms`);
@@ -247,7 +256,16 @@ module.exports = (api) => {
     const tag = site.path;
     const main = f.pages.main;
     const expected = (key, caseId) => (matrix[key] && matrix[key].cases[caseId] ? matrix[key].cases[caseId].ids : null);
-    // W9.2 · B3: «talla 40» en Chrome (refresco), al recargar y sin JS.
+    const bodyOf = (net, i) => { try { return JSON.parse((net.requests[i] || {}).body || '{}'); } catch (e) { return {}; } };
+    const box = (page, value) => page.$eval(`form[data-digi-filter="attribute"] input[value="${value}"]`, (el) => el.checked).catch(() => null);
+    const here = (page) => page.evaluate(() => location.pathname + location.search);
+    const diagnose = (page) => page.evaluate(() => {
+      const wf = window.digitalisimoWooFilters;
+      const pro = window.elementorProFrontend;
+      return { coordinator: !!wf, active: !!(wf && wf.active && wf.active()), forms: document.querySelectorAll('form.digi-filter').length, ready: document.querySelectorAll('form.digi-filter[data-digi-ready]').length, proConfig: !!(window.ElementorProFrontendConfig && window.ElementorProFrontendConfig.urls), proFrontend: !!pro, proModules: pro && pro.modules ? Object.keys(pro.modules).slice(0, 30) : null, scripts: [...document.scripts].map((x) => x.src).filter((src) => /filters|elements-handlers|frontend/.test(src)).map((src) => src.replace(/^https?:\/\/[^/]+/, '').slice(0, 120)) };
+    }).catch((e) => ({ error: String(e.message || e) }));
+
+    // W9.2 · B3 en Chrome, debounce, Atrás y Adelante, el filtro de PRO por el coordinador y un bucle sin F4-Woo.
     {
       const { ctx, page, facts } = await visitor();
       const net = watchRefresh(page);
@@ -255,63 +273,31 @@ module.exports = (api) => {
         await page.setViewport({ width: 1280, height: 900 });
         await page.goto(main.url, { waitUntil: 'load' });
         const active = await ready(page);
-        check(s, `W9.2a ${tag}`, 'el coordinador queda activo (sustituye el manejador del filtro de PRO por su filtro público) y registra los dos formularios', active, JSON.stringify({ errors: facts.errors.slice(0, 3) }));
+        const diag = await diagnose(page);
+        check(s, `W9.2a ${tag}`, 'el coordinador queda activo (sustituye el manejador del filtro de PRO por su filtro público) y registra los dos formularios', active, JSON.stringify({ diag, errors: facts.errors.slice(0, 3), outside: facts.outside.slice(0, 3) }));
+        if (!active) throw new Error('el coordinador no quedó activo: ' + JSON.stringify(diag).slice(0, 400));
         const all = await domIds(page, 'wfloop1');
-        const n0 = net.responses.length;
-        await page.click(`form[data-digi-filter="attribute"] input[value="eu-40"]`);
+
+        // B3: «talla 40» por el coordinador; la URL; recargar.
+        let n0 = net.responses.length;
+        await page.click('form[data-digi-filter="attribute"] input[value="eu-40"]');
         await settleLoop(page, net, 'wfloop1', n0);
         const ajax = await domIds(page, 'wfloop1');
         const value = await param(page, `e-filter-wfloop1-${ATTR_KEY}`);
         await shot(page, `W9-${site.id}-talla40`);
+        const body = bodyOf(net, net.requests.length - 1);
         const req = net.requests[net.requests.length - 1] || {};
-        let body = {};
-        try { body = JSON.parse(req.body || '{}'); } catch (e) { /* sin cuerpo */ }
         check(s, `W9.2b ${tag}`, 'B3 · `pa_talla-zapato` en Chrome: el refresco filtra el bucle con el conjunto de la tienda nativa y deja `e-filter-wfloop1-digiattr_pa_talla-zapato=eu-40` en la URL', same(ajax, expected('yes/no', 'talla-40')) && !same(ajax, all) && value === 'eu-40', JSON.stringify({ ajax: nameList(catalog, ajax), want: nameList(catalog, expected('yes/no', 'talla-40')), value, requests: net.requests.length }));
-        check(s, `W9.8a ${tag}`, 'B5 · petición propia del coordinador: POST JSON a `elementor-pro/v1/refresh-loop` con el `post_id` del documento del filtro, el bucle y los filtros en el formato del servidor; el bucle guarda su estado propio', req.method === 'POST' && /\/elementor-pro\/v1\/refresh-loop$/.test(new URL(req.url || 'http://x/').pathname) && /application\/json/.test(req.headers ? req.headers['content-type'] || '' : '') && body.post_id === main.id && body.widget_id === 'wfloop1' && !!(body.widget_filters && body.widget_filters.digitalisimo_attribute && body.widget_filters.digitalisimo_attribute[ATTR_KEY]) && await page.evaluate(() => !!document.querySelector('.elementor-element-wfloop1').__digi), JSON.stringify({ method: req.method, url: req.url, body }));
+        const own = await page.evaluate(() => !!document.querySelector('.elementor-element-wfloop1').__digi);
+        check(s, `W9.8a ${tag}`, 'B5 · petición propia del coordinador: POST JSON a `elementor-pro/v1/refresh-loop` con el `post_id` del documento del filtro, el bucle y los filtros en el formato del servidor; el bucle guarda su estado propio', req.method === 'POST' && /\/elementor-pro\/v1\/refresh-loop$/.test(new URL(req.url || 'http://x/').pathname) && /application\/json/.test((req.headers || {})['content-type'] || '') && body.post_id === main.id && body.widget_id === 'wfloop1' && !!(body.widget_filters && body.widget_filters.digitalisimo_attribute && body.widget_filters.digitalisimo_attribute[ATTR_KEY]) && own, JSON.stringify({ method: req.method, url: req.url, body, own }));
         await page.reload({ waitUntil: 'load' });
-        const reloaded = await domIds(page, 'wfloop1');
-        const checked = await page.$eval(`form[data-digi-filter="attribute"] input[value="eu-40"]`, (el) => el.checked).catch(() => null);
-        check(s, `W9.2c ${tag}`, 'B3 · recargar con la URL filtrada da el mismo conjunto que el refresco y la casilla sigue marcada', same(reloaded, ajax) && checked === true, JSON.stringify({ reloaded: nameList(catalog, reloaded), ajax: nameList(catalog, ajax), checked }));
-        check(s, `W9.2e ${tag}`, 'sin errores de JavaScript ni respuestas de error del sitio; nada sale del sitio', !facts.errors.length && !facts.failed.length && !facts.outside.length, JSON.stringify({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.slice(0, 3) }));
-      } catch (e) {
-        await shot(page, `W9-${site.id}-b3-falla`);
-        check(s, `W9.2 ${tag}`, 'B3 en Chrome', false, String(e.stack || e.message || e).slice(0, 500));
-      } finally {
-        await ctx.close().catch(() => {});
-      }
-    }
-    {
-      const { ctx, page } = await visitor();
-      try {
-        await page.setJavaScriptEnabled(false);
-        await page.setViewport({ width: 1280, height: 900 });
-        await page.goto(main.url, { waitUntil: 'load' });
-        await page.click(`form[data-digi-filter="attribute"] input[value="eu-40"]`);
-        const [res] = await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click(`form[data-digi-filter="attribute"] .digi-filter__submit`)]);
-        const html = res ? await res.text() : '';
-        const ids = loopIds(html, 'wfloop1');
-        const url = new URL(page.url());
-        await shot(page, `W9-${site.id}-sin-js`);
-        check(s, `W9.2d ${tag}`, 'B3 · sin JS: el formulario GET lleva `e-filter-wfloop1-digiattr_pa_talla-zapato=eu-40` y el servidor pinta el mismo conjunto que el refresco', url.searchParams.get(`e-filter-wfloop1-${ATTR_KEY}`) === 'eu-40' && same(ids, expected('yes/no', 'talla-40')) && !FATAL.test(html), JSON.stringify({ url: url.pathname + url.search, ids: nameList(catalog, ids) }));
-      } catch (e) {
-        check(s, `W9.2d ${tag}`, 'B3 sin JS', false, String(e.stack || e.message || e).slice(0, 500));
-      } finally {
-        await ctx.close().catch(() => {});
-      }
-    }
-
-    // W9.6 · cinco cambios en 200 ms → una petición; W9.7 · Atrás y Adelante; W9.4b · PRO con «O» por el coordinador.
-    {
-      const { ctx, page, facts } = await visitor();
-      const net = watchRefresh(page);
-      try {
-        await page.setViewport({ width: 1280, height: 900 });
-        await page.goto(main.url, { waitUntil: 'load' });
         await ready(page);
-        const url0 = await page.evaluate(() => location.pathname + location.search);
-        const ids0 = await domIds(page, 'wfloop1');
+        const reloaded = await domIds(page, 'wfloop1');
+        check(s, `W9.2c ${tag}`, 'B3 · recargar con la URL filtrada da el mismo conjunto que el refresco y la casilla sigue marcada', same(reloaded, ajax) && await box(page, 'eu-40') === true, JSON.stringify({ reloaded: nameList(catalog, reloaded), ajax: nameList(catalog, ajax) }));
 
-        // Cinco cambios del mínimo en 160 ms (el campo numérico, «Al cambiar»).
+        // Cinco cambios del mínimo en 160 ms (campo numérico, «Al cambiar») → una petición.
+        const url1 = await here(page);
+        const ids1 = reloaded;
         let r0 = net.requests.length;
         await page.evaluate(async () => {
           const input = document.querySelector('form[data-digi-filter="price"] input[type="number"][data-digi-edge="min"]');
@@ -321,45 +307,44 @@ module.exports = (api) => {
             await new Promise((r) => setTimeout(r, 40));
           }
         });
-        await sleep(1500);
+        await sleep(1200);
         await settleLoop(page, net, 'wfloop1', 0);
         const priceRequests = net.requests.length - r0;
         const minValue = await param(page, 'e-filter-wfloop1-digi_price_min');
-        // Cinco clics en una casilla en 160 ms: queda marcada.
+        const url2 = await here(page);
+        const ids2 = await domIds(page, 'wfloop1');
+        // Cinco clics en una casilla en 160 ms (queda marcada) → una petición.
         r0 = net.requests.length;
         await page.evaluate(async () => {
-          const box = document.querySelector('form[data-digi-filter="attribute"] input[value="eu-38"]');
-          for (let k = 1; k <= 5; k++) { box.click(); await new Promise((r) => setTimeout(r, 40)); }
+          const el = document.querySelector('form[data-digi-filter="attribute"] input[value="eu-38"]');
+          for (let k = 1; k <= 5; k++) { el.click(); await new Promise((r) => setTimeout(r, 40)); }
         });
-        await sleep(1500);
+        await sleep(1200);
         await settleLoop(page, net, 'wfloop1', 0);
         const boxRequests = net.requests.length - r0;
         const attrValue = await param(page, `e-filter-wfloop1-${ATTR_KEY}`);
-        check(s, `W9.6 ${tag}`, 'cinco cambios en 200 ms (campo de precio y casilla) → una sola petición cada vez, con el último valor', priceRequests === 1 && boxRequests === 1 && minValue === '70' && attrValue === 'eu-38', JSON.stringify({ priceRequests, boxRequests, minValue, attrValue }));
+        const url3 = await here(page);
+        const ids3 = await domIds(page, 'wfloop1');
+        check(s, `W9.6 ${tag}`, 'cinco cambios en 200 ms (campo de precio y casilla) → una sola petición cada vez, con el último valor', priceRequests === 1 && boxRequests === 1 && minValue === '70' && String(attrValue).split('~').sort().join('~') === 'eu-38~eu-40', JSON.stringify({ priceRequests, boxRequests, minValue, attrValue }));
 
-        // Atrás y Adelante: estado 1 = talla 38 y mínimo 70; estado 2 = además talla 40 (O).
-        await page.evaluate(() => { const i = document.querySelector('form[data-digi-filter="price"] input[type="number"][data-digi-edge="min"]'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); });
-        await sleep(600);
-        await settleLoop(page, net, 'wfloop1', 0);
-        const url1 = await page.evaluate(() => location.pathname + location.search);
-        const ids1 = await domIds(page, 'wfloop1');
-        let n0 = net.responses.length;
-        await page.click(`form[data-digi-filter="attribute"] input[value="eu-40"]`);
-        await settleLoop(page, net, 'wfloop1', n0);
-        const url2 = await page.evaluate(() => location.pathname + location.search);
-        const ids2 = await domIds(page, 'wfloop1');
+        // Atrás y Adelante: 3 (40 o 38, mínimo 70) → 2 (40, mínimo 70) → 1 (40) → Adelante → 2.
+        const want2 = ['digi-wf-bota-agotada', 'digi-wf-bota-alta', 'digi-wf-deportiva-dos'];
+        const want3 = ['digi-wf-bota-agotada', 'digi-wf-bota-alta', 'digi-wf-deportiva-dos'];
         n0 = net.responses.length;
         await page.evaluate(() => history.back());
         await settleLoop(page, net, 'wfloop1', n0);
-        const back = { url: await page.evaluate(() => location.pathname + location.search), ids: await domIds(page, 'wfloop1'), box40: await page.$eval(`form[data-digi-filter="attribute"] input[value="eu-40"]`, (el) => el.checked), box38: await page.$eval(`form[data-digi-filter="attribute"] input[value="eu-38"]`, (el) => el.checked) };
+        const back2 = { url: await here(page), ids: await domIds(page, 'wfloop1'), b38: await box(page, 'eu-38'), min: await page.$eval('form[data-digi-filter="price"] input[type="number"][data-digi-edge="min"]', (el) => el.value) };
+        n0 = net.responses.length;
+        await page.evaluate(() => history.back());
+        await settleLoop(page, net, 'wfloop1', n0);
+        const back1 = { url: await here(page), ids: await domIds(page, 'wfloop1'), min: await page.$eval('form[data-digi-filter="price"] input[type="number"][data-digi-edge="min"]', (el) => el.value), b40: await box(page, 'eu-40') };
         n0 = net.responses.length;
         await page.evaluate(() => history.forward());
         await settleLoop(page, net, 'wfloop1', n0);
-        const fwd = { url: await page.evaluate(() => location.pathname + location.search), ids: await domIds(page, 'wfloop1'), box40: await page.$eval(`form[data-digi-filter="attribute"] input[value="eu-40"]`, (el) => el.checked) };
-        const oracle38 = ['digi-wf-bota-corta', 'digi-wf-deportiva', 'digi-wf-sandalia'];
-        check(s, `W9.7 ${tag}`, 'Atrás y Adelante rehacen la URL, el bucle y los controles sin recargar', url1 !== url2 && JSON.stringify(names(catalog, ids1).sort()) === JSON.stringify(oracle38) && !same(ids1, ids2) && back.url === url1 && same(back.ids, ids1) && back.box40 === false && back.box38 === true && fwd.url === url2 && same(fwd.ids, ids2) && fwd.box40 === true, JSON.stringify({ url0, url1, url2, ids0: ids0.length, ids1: nameList(catalog, ids1), ids2: nameList(catalog, ids2), back: { ...back, ids: nameList(catalog, back.ids) }, fwd: { ...fwd, ids: nameList(catalog, fwd.ids) } }));
+        const fwd2 = { url: await here(page), ids: await domIds(page, 'wfloop1'), min: await page.$eval('form[data-digi-filter="price"] input[type="number"][data-digi-edge="min"]', (el) => el.value) };
+        check(s, `W9.7 ${tag}`, 'Atrás y Adelante rehacen la URL, el bucle y los controles sin recargar', url1 !== url2 && url2 !== url3 && JSON.stringify(names(catalog, ids2).sort()) === JSON.stringify(want2) && JSON.stringify(names(catalog, ids3).sort()) === JSON.stringify(want3) && back2.url === url2 && same(back2.ids, ids2) && back2.b38 === false && back2.min === '70' && back1.url === url1 && same(back1.ids, ids1) && back1.min === '' && back1.b40 === true && fwd2.url === url2 && same(fwd2.ids, ids2) && fwd2.min === '70', JSON.stringify({ url1, url2, url3, ids1: nameList(catalog, ids1), ids2: nameList(catalog, ids2), ids3: nameList(catalog, ids3), back2: { ...back2, ids: nameList(catalog, back2.ids) }, back1: { ...back1, ids: nameList(catalog, back1.ids) }, fwd2: { ...fwd2, ids: nameList(catalog, fwd2.ids) } }));
 
-        // W9.4b · el filtro de PRO con dos hijas y «O» pasa por el coordinador (combinado con el atributo de la URL).
+        // W9.4b · el filtro de PRO del bucle coordinado con dos hijas y «O».
         await page.goto(main.url, { waitUntil: 'load' });
         await ready(page);
         r0 = net.requests.length;
@@ -371,10 +356,10 @@ module.exports = (api) => {
         await settleLoop(page, net, 'wfloop1', n0);
         const orIds = await domIds(page, 'wfloop1');
         const orValue = await param(page, 'e-filter-wfloop1-product_cat');
-        const lastBody = (() => { try { return JSON.parse((net.requests[net.requests.length - 1] || {}).body || '{}'); } catch (e) { return {}; } })();
+        const orBody = bodyOf(net, net.requests.length - 1);
         const orWant = ['digi-wf-bota-agotada', 'digi-wf-bota-alta', 'digi-wf-bota-corta', 'digi-wf-sandalia', 'digi-wf-sandalia-dos'];
         await shot(page, `W9-${site.id}-pro-o`);
-        check(s, `W9.4b ${tag}`, 'el filtro de PRO del bucle coordinado con dos hijas y «O»: el coordinador manda `taxonomy` con «O», la URL lleva `digi-wf-botas~digi-wf-sandalias` y el bucle, las dos categorías', JSON.stringify(names(catalog, orIds).sort()) === JSON.stringify(orWant) && orValue === 'digi-wf-botas~digi-wf-sandalias' && !!(lastBody.widget_filters && lastBody.widget_filters.taxonomy && lastBody.widget_filters.taxonomy.product_cat && lastBody.widget_filters.taxonomy.product_cat.logicalJoin === 'OR'), JSON.stringify({ ids: nameList(catalog, orIds), orValue, body: lastBody.widget_filters, requests: net.requests.length - r0 }));
+        check(s, `W9.4b ${tag}`, 'el filtro de PRO del bucle coordinado con dos hijas y «O»: el coordinador manda `taxonomy` con «O», la URL lleva `digi-wf-botas~digi-wf-sandalias` y el bucle, las dos categorías', JSON.stringify(names(catalog, orIds).sort()) === JSON.stringify(orWant) && orValue === 'digi-wf-botas~digi-wf-sandalias' && !!(orBody.widget_filters && orBody.widget_filters.taxonomy && orBody.widget_filters.taxonomy.product_cat && orBody.widget_filters.taxonomy.product_cat.logicalJoin === 'OR'), JSON.stringify({ ids: nameList(catalog, orIds), orValue, body: orBody.widget_filters, requests: net.requests.length - r0 }));
 
         // W9.3b · B4 en Chrome: sólo `digi_price_min` en la URL y un clic en el filtro de PRO (combinado).
         await page.goto(withQuery(main.url, [['e-filter-wfloop1-digi_price_min', '70']]), { waitUntil: 'load' });
@@ -383,7 +368,7 @@ module.exports = (api) => {
         await page.click('.elementor-element-wftax01 .e-filter-item[data-filter="digi-wf-botas"]');
         await settleLoop(page, net, 'wfloop1', n0);
         const comboIds = await domIds(page, 'wfloop1');
-        const comboBody = (() => { try { return JSON.parse((net.requests[net.requests.length - 1] || {}).body || '{}'); } catch (e) { return {}; } })();
+        const comboBody = bodyOf(net, net.requests.length - 1);
         const comboUrl = await page.evaluate(() => location.search);
         check(s, `W9.3b ${tag}`, 'B4 en Chrome: con sólo `digi_price_min` en la URL, el filtro de PRO combina su categoría con el precio (petición con `taxonomy` y `digitalisimo_price`, URL con los dos)', JSON.stringify(names(catalog, comboIds).sort()) === JSON.stringify(['digi-wf-bota-agotada', 'digi-wf-bota-alta']) && !!(comboBody.widget_filters && comboBody.widget_filters.taxonomy && comboBody.widget_filters.digitalisimo_price) && /digi_price_min=70/.test(comboUrl) && /product_cat=digi-wf-botas/.test(comboUrl), JSON.stringify({ ids: nameList(catalog, comboIds), body: comboBody.widget_filters, url: comboUrl }));
 
@@ -394,12 +379,33 @@ module.exports = (api) => {
         await settleLoop(page, net, 'wfloop4', n0);
         const ids4 = await domIds(page, 'wfloop4');
         const req4 = net.requests.slice(before4).map((r) => { try { return JSON.parse(r.body || '{}'); } catch (e) { return {}; } });
-        const path4 = await page.evaluate(() => ({ digi: !!document.querySelector('.elementor-element-wfloop4').__digi, loop1: !!document.querySelector('.elementor-element-wfloop1').__digi }));
+        const path4 = await page.evaluate(() => ({ digi: !!document.querySelector('.elementor-element-wfloop4').__digi }));
         check(s, `W9.8c ${tag}`, 'B5 · en la misma página, un bucle sin filtros F4-Woo pasa por el camino de PRO (sin estado del coordinador) y se filtra', JSON.stringify(names(catalog, ids4).sort()) === JSON.stringify(['digi-wf-sandalia', 'digi-wf-sandalia-dos']) && req4.length >= 1 && req4.every((b) => b.widget_id === 'wfloop4' && b.widget_filters && !b.widget_filters.digitalisimo_price && !b.widget_filters.digitalisimo_attribute) && !path4.digi, JSON.stringify({ ids: nameList(catalog, ids4), requests: req4, path4 }));
-        check(s, `W9.6b ${tag}`, 'sin errores de JavaScript ni respuestas de error del sitio; nada sale del sitio', !facts.errors.length && !facts.failed.length && !facts.outside.length, JSON.stringify({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.slice(0, 3) }));
+        check(s, `W9.6b ${tag}`, 'sin errores de JavaScript ni respuestas de error del sitio; nada sale del sitio', !facts.errors.length && !facts.failed.length && !facts.outside.length, JSON.stringify({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.slice(0, 5) }));
       } catch (e) {
         await shot(page, `W9-${site.id}-coordinador-falla`);
-        check(s, `W9.6 ${tag}`, 'coordinador en Chrome', false, String(e.stack || e.message || e).slice(0, 500));
+        check(s, `W9.2 ${tag}`, 'coordinador en Chrome', false, String(e.stack || e.message || e).slice(0, 600));
+      } finally {
+        await ctx.close().catch(() => {});
+      }
+    }
+
+    // W9.2d · B3 sin JS: el formulario GET.
+    {
+      const { ctx, page } = await visitor();
+      try {
+        await page.setJavaScriptEnabled(false);
+        await page.setViewport({ width: 1280, height: 900 });
+        await page.goto(main.url, { waitUntil: 'load' });
+        await page.click('form[data-digi-filter="attribute"] input[value="eu-40"]');
+        const [res] = await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click('form[data-digi-filter="attribute"] .digi-filter__submit')]);
+        const html = res ? await res.text() : '';
+        const got = loopIds(html, 'wfloop1');
+        const url = new URL(page.url());
+        await shot(page, `W9-${site.id}-sin-js`);
+        check(s, `W9.2d ${tag}`, 'B3 · sin JS: el formulario GET lleva `e-filter-wfloop1-digiattr_pa_talla-zapato=eu-40` y el servidor pinta el mismo conjunto que el refresco', url.searchParams.get(`e-filter-wfloop1-${ATTR_KEY}`) === 'eu-40' && same(got, expected('yes/no', 'talla-40')) && !FATAL.test(html), JSON.stringify({ url: url.pathname + url.search, ids: nameList(catalog, got) }));
+      } catch (e) {
+        check(s, `W9.2d ${tag}`, 'B3 sin JS', false, String(e.stack || e.message || e).slice(0, 500));
       } finally {
         await ctx.close().catch(() => {});
       }
@@ -413,15 +419,15 @@ module.exports = (api) => {
         await page.setViewport({ width: 1280, height: 900 });
         await page.goto(f.pages.pro.url, { waitUntil: 'load' });
         await page.waitForSelector('.elementor-element-wftax03 .e-filter-item');
-        await sleep(500);
+        await sleep(800);
         const loaded = await page.evaluate(() => ({ coordinator: !!window.digitalisimoWooFilters, scripts: [...document.scripts].map((x) => x.src).filter((src) => /filters(-form)?\.js/.test(src)) }));
         const n0 = net.responses.length;
         await page.click('.elementor-element-wftax03 .e-filter-item[data-filter="digi-wf-botas"]');
         await settleLoop(page, net, 'wfloop3', n0);
-        const ids = await domIds(page, 'wfloop3');
+        const got = await domIds(page, 'wfloop3');
         const value = await param(page, 'e-filter-wfloop3-product_cat');
         const digi = await page.evaluate(() => !!document.querySelector('.elementor-element-wfloop3').__digi);
-        check(s, `W9.8b ${tag}`, 'B5 · una página con sólo el filtro de PRO no carga el coordinador ni sus scripts, y el filtro de PRO refresca el bucle por su camino (una petición, URL con la categoría)', !loaded.coordinator && !loaded.scripts.length && !digi && net.requests.length === 1 && value === 'digi-wf-botas' && JSON.stringify(names(catalog, ids).sort()) === JSON.stringify(['digi-wf-bota-agotada', 'digi-wf-bota-alta', 'digi-wf-bota-corta']) && !facts.errors.length, JSON.stringify({ loaded, digi, requests: net.requests.length, value, ids: nameList(catalog, ids), errors: facts.errors.slice(0, 3) }));
+        check(s, `W9.8b ${tag}`, 'B5 · una página con sólo el filtro de PRO no carga el coordinador ni sus scripts, y el filtro de PRO refresca el bucle por su camino (una petición, URL con la categoría)', !loaded.coordinator && !loaded.scripts.length && !digi && net.requests.length === 1 && value === 'digi-wf-botas' && JSON.stringify(names(catalog, got).sort()) === JSON.stringify(['digi-wf-bota-agotada', 'digi-wf-bota-alta', 'digi-wf-bota-corta']) && !facts.errors.length, JSON.stringify({ loaded, digi, requests: net.requests.length, value, ids: nameList(catalog, got), errors: facts.errors.slice(0, 3), outside: facts.outside.slice(0, 3) }));
       } catch (e) {
         check(s, `W9.8b ${tag}`, 'B5 en la página sin F4-Woo', false, String(e.stack || e.message || e).slice(0, 500));
       } finally {

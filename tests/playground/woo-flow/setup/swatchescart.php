@@ -348,6 +348,31 @@ MU;
 	$pages['minicarrito'] = get_permalink( $cart );
 	$res['menu_cart_id']  = $eid( 'menu-cart' );
 
+	// Carrito clásico con las dos barras (W7): `[woocommerce_cart]` en el contenido (es una página de carrito para
+	// WooCommerce y carga cart.js con su calculadora) y, con el shortcode de plantillas, el Menú del carrito con la barra
+	// y el widget de la barra. Una sola carga da las tarifas que WooCommerce ofrece y el estado de las barras.
+	$bars = $post( 'elementor_library', 'digi-wf-sc-barras', 'Barras de envío gratis' );
+	wp_set_object_terms( $bars, 'section', 'elementor_library_type' );
+	$save(
+		$bars,
+		array(
+			$container(
+				'bars',
+				array(
+					$widget( 'bars-menu-cart', 'woocommerce-menu-cart', array( 'digitalisimo_cart_bar' => 'yes' ) ),
+					$widget( 'bars-ship-bar', 'digitalisimo-woo-shipping-bar', array() ),
+				)
+			),
+		),
+		'section'
+	);
+	$content = '<!-- wp:shortcode -->' . "\n" . '[elementor-template id="' . (int) $bars . '"]' . "\n" . '<!-- /wp:shortcode -->' . "\n\n" . '<!-- wp:shortcode -->' . "\n" . '[woocommerce_cart]' . "\n" . '<!-- /wp:shortcode -->';
+	$both    = $post( 'page', 'digi-wf-sc-carrito-barra', 'Carrito con barra de envío', $content );
+	if ( get_post_field( 'post_content', $both ) !== $content ) {
+		wp_update_post( array( 'ID' => $both, 'post_content' => $content ) );
+	}
+	$pages['carrito_barra'] = get_permalink( $both );
+
 	// THEME=block: el bloque «Añadir al carrito con opciones» y el widget clásico de PRO en la misma página (V.6.5).
 	if ( $res['block'] ) {
 		$tpl = $post( 'elementor_library', 'digi-wf-sc-clasico', 'Añadir al carrito clásico' );

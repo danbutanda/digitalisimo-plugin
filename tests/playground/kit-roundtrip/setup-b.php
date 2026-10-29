@@ -16,7 +16,8 @@
  *   el SKU de una variación del kit (F4-Woo, V.11.5);
  * - clash-v4: además, variables y clases globales v4 (R4v4);
  * - content: B con contenido propio que no viene del kit (R5);
- * - users: el editor sin manage_options de R9 (también lo crea el paso inicial).
+ * - users: el editor sin manage_options de R9 (también lo crea el paso inicial);
+ * - woo-empty: con WOO=1, B sin las páginas que crea WooCommerce, para que K acepte «nuevo» (R1 y R1c).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -81,6 +82,32 @@ if ( '' === $digi_mode ) {
 if ( 'users' === $digi_mode ) {
 	$digi_editor();
 	digi_k_write( 'ids-users.json', array( 'editora' => (int) get_user_by( 'login', 'editora' )->ID ) );
+	return;
+}
+
+if ( 'woo-empty' === $digi_mode ) {
+	// R1 y R1c con WOO=1: WooCommerce crea sus páginas al instalarse (tienda, carrito, pago, mi cuenta y la política de
+	// devoluciones en borrador) y K sólo importa en «nuevo» en un sitio vacío (D1, Session::site_is_empty(), que las
+	// cuenta como contenido). Como el administrador que las borra antes de importar un kit de tienda: se borran y se
+	// vacían sus opciones; las del kit llegan con sus ajustes (A6 lo admite con WOO=1).
+	$deleted = array();
+	foreach ( array( 'shop', 'cart', 'checkout', 'myaccount', 'refund_returns', 'terms' ) as $page ) {
+		$option = 'woocommerce_' . $page . '_page_id';
+		$id     = (int) get_option( $option );
+		if ( $id && get_post( $id ) ) {
+			wp_delete_post( $id, true );
+			$deleted[] = $page;
+		}
+		if ( false !== get_option( $option, false ) ) {
+			update_option( $option, '' );
+		}
+	}
+	$session = '\\Digitalisimo\\Elements\\Import\\Kits\\Session';
+	$left    = class_exists( $session ) && method_exists( $session, 'site_is_empty' ) ? $session::site_is_empty() : array( 'empty' => true );
+	if ( empty( $left['empty'] ) ) {
+		digi_k_fail( 'B con WooCommerce no quedó vacío para «nuevo»: ' . implode( ' ', (array) $left['reasons'] ) );
+	}
+	digi_k_write( 'ids-woo-empty.json', array( 'deleted' => $deleted ) );
 	return;
 }
 

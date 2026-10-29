@@ -61,6 +61,25 @@ final class Routes {
 				),
 			)
 		);
+		add_filter( 'rest_post_dispatch', array( __CLASS__, 'allow_post' ), 11, 3 );
+	}
+
+	/**
+	 * `rest_post_dispatch` (11): el 405 de `GET woo/cards` anuncia `Allow: POST`. WordPress rehace esa cabecera antes
+	 * (`rest_send_allow_header`, 10) con los métodos cuyo permiso pasa con la petición en curso, y el de POST no pasa sin
+	 * cuerpo: sin esto, el 405 diría `Allow: GET`, el método que acaba de rechazar.
+	 *
+	 * @param mixed  $response Respuesta.
+	 * @param mixed  $server   Servidor REST.
+	 * @param object $request  Petición.
+	 * @return mixed
+	 */
+	public static function allow_post( $response, $server = null, $request = null ) {
+		if ( is_object( $response ) && method_exists( $response, 'get_status' ) && method_exists( $response, 'header' ) && 405 === (int) $response->get_status()
+			&& is_object( $request ) && method_exists( $request, 'get_route' ) && Rest::full( 'cards' ) === (string) $request->get_route() ) {
+			$response->header( 'Allow', 'POST' );
+		}
+		return $response;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------

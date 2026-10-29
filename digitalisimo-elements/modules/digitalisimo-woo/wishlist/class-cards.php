@@ -72,6 +72,10 @@ final class Cards {
 		$parts = array_flip( $s['parts'] );
 		$html  = '<li class="digi-wishlist__item" data-digi-wish-item="' . $id . '">';
 		if ( isset( $parts['image'] ) ) {
+			// En `POST woo/cards` no se registran los widgets propios, que son quienes cargan el generador de imágenes.
+			if ( ! class_exists( Image_Markup::class ) ) {
+				require_once dirname( __DIR__, 2 ) . '/digitalisimo-widgets/class-image-markup.php';
+			}
 			$image = Image_Markup::img( array( 'id' => (int) $product->get_image_id() ), array( 'size' => $s['image_size'], 'decorative' => true, 'class' => 'digi-wishlist__img' ) );
 			if ( '' !== $image ) {
 				$html .= '<a class="digi-wishlist__media" href="' . esc_url( $url ) . '" tabindex="-1" aria-hidden="true">' . $image . '</a>';

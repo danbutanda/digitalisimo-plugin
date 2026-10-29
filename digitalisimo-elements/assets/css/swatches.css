@@ -1,6 +1,8 @@
 /* DIGITALÍSIMO Elements · muestras de variación (F4-Woo). Sin colores propios: borde y texto heredan; el color o la imagen de cada término es su dato. */
 .digi-swatch-field--ready>select{display:none!important}
 .digi-swatch-field:not(.digi-swatch-field--ready)>.digi-swatches{display:none}
+/* Con JS, los radios desde la primera pintura: el paso del <select> a los radios no mueve la ficha (CLS 0, W6). */
+@media (scripting:enabled){.digi-swatch-field>select{display:none!important}.digi-swatch-field:not(.digi-swatch-field--ready)>.digi-swatches{display:flex}}
 .digi-swatches{--_s:var(--digi-swatch-size,var(--digi-swatch-size-attr,32px));display:flex;flex-wrap:wrap;align-items:center;gap:var(--digi-swatch-gap,.5em);margin:0;padding:0;list-style:none}
 .digi-swatch-field>.digi-swatches{margin-block:.25em}
 .digi-swatches>li{margin:0;padding:0;list-style:none}

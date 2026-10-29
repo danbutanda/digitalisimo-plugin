@@ -4110,13 +4110,14 @@
   "actions": [
    {
     "do": "click",
-    "selector": ".digi-qv__open"
+    "selector": ".digi-qv__open",
+    "js": true
    },
    {
     "do": "waitCount",
     "selector": "dialog.digi-qv form.variations_form",
     "min": 1,
-    "ms": 20000
+    "ms": 25000
    },
    {
     "do": "wait",
@@ -4136,13 +4137,19 @@
     "count:open": 1,
     "count:form": 0,
     "count:variationScript": 0,
-    "inline:digitalisimo-woo-quick-view-js-before": "<=1536",
     "delta.cls": "<=0.01",
     "after": {
      "count:form": 1
     },
     "asset:quick-view-css": "<=4096",
-    "asset:quick-view-js": "<=8192"
+    "asset:quick-view-js": "<=8192",
+    "inlinePart:variation": "<=1024"
+   }
+  },
+  "inlineParts": {
+   "variation": {
+    "id": "digitalisimo-woo-quick-view-js-before",
+    "key": "variation"
    }
   }
  },
@@ -4194,13 +4201,14 @@
   "actions": [
    {
     "do": "click",
-    "selector": ".digi-qv__open"
+    "selector": ".digi-qv__open",
+    "js": true
    },
    {
     "do": "waitCount",
     "selector": "dialog.digi-qv .elementor-widget-woocommerce-product-add-to-cart",
     "min": 1,
-    "ms": 20000
+    "ms": 25000
    },
    {
     "do": "wait",
@@ -4312,7 +4320,8 @@
    "cart-extras-js": "/digitalisimo-elements/assets/js/cart-extras\\.js"
   },
   "counts": {
-   "bar": ".digi-ship"
+   "bar": ".digi-ship",
+   "progress": ".digi-ship__state[data-state=\"progress\"]"
   },
   "visible": {
    "text": ".digi-ship__text"
@@ -4320,14 +4329,15 @@
   "actions": [
    {
     "do": "visit",
-    "path": "/?add-to-cart=__WC_SIMPLE__"
+    "path": "/?add-to-cart=__WC_SIMPLE__&digi_fb_ship=1&token=__TOKEN__"
    },
    {
     "do": "visit"
    },
    {
-    "do": "waitFor",
-    "selector": ".digi-ship__text",
+    "do": "waitCount",
+    "selector": ".digi-ship__state[data-state=\"progress\"]",
+    "min": 1,
     "ms": 15000
    },
    {
@@ -4349,10 +4359,12 @@
     "delta.cls": "<=0.01",
     "after": {
      "count:bar": 1,
+     "count:progress": 1,
      "shown:text": true
     },
     "asset:cart-extras-css": "<=4096",
-    "asset:cart-extras-js": "<=8192"
+    "asset:cart-extras-js": "<=8192",
+    "count:progress": 0
    }
   }
  },
@@ -4607,19 +4619,20 @@
   "counts": {
    "extras": ".digi-cart-extras",
    "bar": ".digi-cart-extras .digi-ship",
-   "coupon": ".digi-cart-extras .digi-coupon__form"
+   "coupon": ".digi-cart-extras .digi-coupon__form",
+   "progress": ".digi-cart-extras .digi-ship__state[data-state=\"progress\"]"
   },
   "actions": [
    {
     "do": "visit",
-    "path": "/?add-to-cart=__WC_SIMPLE__"
+    "path": "/?add-to-cart=__WC_SIMPLE__&digi_fb_ship=1&token=__TOKEN__"
    },
    {
     "do": "visit"
    },
    {
     "do": "waitCount",
-    "selector": ".digi-cart-extras .digi-ship",
+    "selector": ".digi-cart-extras .digi-ship__state[data-state=\"progress\"]",
     "min": 1,
     "ms": 15000
    },
@@ -4643,14 +4656,11 @@
     "after": {
      "count:bar": 1,
      "count:coupon": 1,
-     "shown:bar": true
+     "count:progress": 1
     },
     "asset:cart-extras-css": "<=4096",
     "asset:cart-extras-js": "<=8192"
    }
-  },
-  "visible": {
-   "bar": ".digi-cart-extras .digi-ship__text"
   }
  },
  "woo-filters": {

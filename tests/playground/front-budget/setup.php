@@ -317,6 +317,12 @@ for ( $i = 1; $i <= 6; $i++ ) {
 $digi_fb_variable = 0;
 if ( ! empty( $mode['woo'] ) ) {
 	$digi_fb_variable = digi_fb_woo_catalog( $image_id );
+	// El sitio se mide en el estado en que WooCommerce lo deja al instalarse, sin pasar por la administración. Su
+	// `woocommerce_newly_installed` corre en el primer `admin_init`, que en el front llega con el primer `admin-ajax.php`
+	// (el Menú del carrito de PRO con productos lo pide): a mitad de corrida fijaría `woocommerce_hooked_blocks_version` y
+	// el tema de bloques empezaría a pintar el mini carrito y la cuenta de WooCommerce en la cabecera.
+	file_put_contents( DIGI_FB_DIR . '/setup-notes.txt', 'WOO=1: woocommerce_newly_installed ' . wp_json_encode( get_option( 'woocommerce_newly_installed', null ) ) . ' → no; woocommerce_hooked_blocks_version ' . wp_json_encode( get_option( 'woocommerce_hooked_blocks_version', null ) ) . "\n", FILE_APPEND );
+	update_option( 'woocommerce_newly_installed', 'no' );
 }
 
 $raw = (string) file_get_contents( __DIR__ . '/cases.json' );

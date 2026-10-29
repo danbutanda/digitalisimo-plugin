@@ -308,6 +308,7 @@ add_action(
 			case 'clash-v4':
 			case 'content':
 			case 'users':
+			case 'woo-empty':
 				$GLOBALS['digi_k_setup_b_mode'] = $op;
 				require __DIR__ . '/setup-b.php';
 				$out['errors'] = (string) @file_get_contents( DIGI_K_PROBE . '/setup-error.txt' );

@@ -504,6 +504,11 @@ namespace {
 		check_sw( false === strpos( $source, '--e-global-' ) && false === strpos( $source, 'Elementor' ), $file . ': sin paleta del sitio ni el nombre del proveedor.' );
 	}
 	check_sw( false === strpos( file_get_contents( $root . '/assets/js/swatches.js' ), 'jQuery(' ) || 1 === preg_match_all( '/w\.jQuery\(/', file_get_contents( $root . '/assets/js/swatches.js' ) ), 'jQuery sólo como puente opcional (`window.jQuery`), nunca como dependencia.' );
+	// CLS (W6): con JS, los radios desde la primera pintura; sin JS (o sin la consulta `scripting`), el <select> hasta
+	// que el script arranca. La regla va después de la que oculta los radios antes de arrancar, con su mismo selector.
+	$css = file_get_contents( $root . '/assets/css/swatches.css' );
+	$mq  = strpos( $css, '@media (scripting:enabled){.digi-swatch-field>select{display:none!important}.digi-swatch-field:not(.digi-swatch-field--ready)>.digi-swatches{display:flex}}' );
+	check_sw( false !== $mq && $mq > (int) strpos( $css, '.digi-swatch-field:not(.digi-swatch-field--ready)>.digi-swatches{display:none}' ) && false !== strpos( $css, '.digi-swatch-field--ready>select{display:none!important}' ), 'Con JS, la hoja oculta el <select> y muestra los radios desde la primera pintura (`@media (scripting:enabled)`): sin salto de diseño; sin JS, el <select>.' );
 	foreach ( glob( $dir . '*.php' ) as $file ) {
 		$code = '';
 		$strings = array();

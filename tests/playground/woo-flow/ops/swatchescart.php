@@ -100,7 +100,8 @@ return array(
 			wc_dropdown_variation_attribute_options( $args );
 			return (string) ob_get_clean();
 		};
-		$filter   = array( '\\Digitalisimo\\Elements\\Woo\\Swatches\\Form', 'filter' );
+		// Sin barra inicial: el identificador del gancho es el de `__CLASS__` (con ella, has_filter() no lo encuentra).
+		$filter   = array( 'Digitalisimo\\Elements\\Woo\\Swatches\\Form', 'filter' );
 		$hooked   = is_callable( $filter ) ? has_filter( 'woocommerce_dropdown_variation_attribute_options_html', $filter ) : false;
 		$with     = $render();
 		if ( false !== $hooked ) {

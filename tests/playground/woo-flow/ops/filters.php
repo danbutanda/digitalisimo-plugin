@@ -8,6 +8,11 @@
  *   `woocommerce_attribute_lookup_direct_updates = yes`, regenera la tabla de atributos con el regenerador de
  *   WooCommerce (el de «Estado → Herramientas» y `wc palt regenerate`) cuando faltan filas, y devuelve las filas de los
  *   ocho, las acciones pendientes de Action Scheduler de la tabla y los ajustes.
+ * - `filters_matrix`: en una sola petición, para cada configuración de `spec` (tabla de atributos y «Ocultar
+ *   agotados») y cada caso, los productos de la tienda nativa (la consulta principal del archivo de la etiqueta con los
+ *   parámetros de WooCommerce en `$_GET`: `WC_Query::pre_get_posts()` y sus `posts_clauses`, como en la página) y los del
+ *   bucle por la ruta REST del refresco (`rest_do_request`, como visitante y con el almacén del módulo `loop-filter`
+ *   vacío en cada caso). El escenario la contrasta con peticiones HTTP reales en los casos de referencia.
  * - `filters_config`: fija `woocommerce_attribute_lookup_enabled` (`lookup=yes|no`), `woocommerce_hide_out_of_stock_items`
  *   (`hide=yes|no`) y `woocommerce_catalog_rows` (`rows=N`) y devuelve los valores anteriores.
  * - `filters_controls`: la configuración de los controles de los dos filtros como la recibe el editor (sin la carga
@@ -162,6 +167,87 @@ return array(
 			$out['stock'][ $slug ] = $product ? $product->get_stock_status() : null;
 		}
 		$out['published'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'product' AND post_status = 'publish'" ); // phpcs:ignore WordPress.DB
+		return $out;
+	},
+
+	'filters_matrix'   => static function () {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sonda de Playground protegida por token.
+		$spec = isset( $_GET['spec'] ) ? json_decode( (string) wp_unslash( $_GET['spec'] ), true ) : null;
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		if ( ! is_array( $spec ) || empty( $spec['page'] ) || empty( $spec['loop'] ) || empty( $spec['cases'] ) || empty( $spec['configs'] ) ) {
+			return array( 'error' => 'spec' );
+		}
+		if ( ! class_exists( '\ElementorPro\Plugin' ) || ! class_exists( 'WC_Query' ) || ! function_exists( 'rest_do_request' ) ) {
+			return array( 'error' => 'faltan PRO, WooCommerce o la API REST' );
+		}
+		$t0     = microtime( true );
+		$saved  = array( 'get' => $_GET, 'request' => $_REQUEST, 'query' => $GLOBALS['wp_query'], 'the_query' => $GLOBALS['wp_the_query'], 'user' => get_current_user_id() ); // phpcs:ignore WordPress.Security.NonceVerification
+		$module = \ElementorPro\Plugin::instance()->modules_manager->get_modules( 'loop-filter' );
+		$store  = new \ReflectionProperty( get_class( $module ), 'filters' );
+		$store->setAccessible( true );
+		$chosen = new \ReflectionProperty( 'WC_Query', 'chosen_attributes' );
+		$chosen->setAccessible( true );
+		$ids_of = static function ( $html ): array {
+			preg_match_all( '/class="[^"]*\be-loop-item-(\d+)\b/', (string) $html, $m );
+			return array_values( array_unique( array_map( 'intval', $m[1] ) ) );
+		};
+		// La tienda nativa: la consulta principal de un archivo de productos con los parámetros de WooCommerce en
+		// `$_GET` (`WC_Query::pre_get_posts()` y sus `posts_clauses`, como en la página).
+		$native = static function ( array $vars, array $get ) use ( $chosen ): array {
+			$_GET     = $get; // phpcs:ignore WordPress.Security.NonceVerification
+			$_REQUEST = $get; // phpcs:ignore WordPress.Security.NonceVerification
+			$chosen->setValue( null, null );
+			$query                   = new \WP_Query();
+			$GLOBALS['wp_the_query'] = $query; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+			$GLOBALS['wp_query']     = $query; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+			$query->query( $vars );
+			return array_values( array_map( static function ( $post ) { return is_object( $post ) ? (int) $post->ID : (int) $post; }, (array) $query->posts ) );
+		};
+		// El bucle por el refresco: la misma ruta REST que el coordinador, como visitante y con el almacén del módulo vacío.
+		$loop = static function ( array $filters ) use ( $spec, $module, $store, $ids_of ): array {
+			$_GET     = array(); // phpcs:ignore WordPress.Security.NonceVerification
+			$_REQUEST = array(); // phpcs:ignore WordPress.Security.NonceVerification
+			$store->setValue( $module, array() );
+			$query                   = new \WP_Query();
+			$GLOBALS['wp_the_query'] = $query; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+			$GLOBALS['wp_query']     = $query; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+			$request = new \WP_REST_Request( 'POST', '/elementor-pro/v1/refresh-loop' );
+			$request->set_header( 'Content-Type', 'application/json' );
+			$request->set_body( wp_json_encode( array( 'post_id' => (int) $spec['page'], 'widget_id' => (string) $spec['loop'], 'widget_filters' => (object) $filters, 'pagination_base_url' => (string) $spec['base'] ) ) );
+			$response = rest_do_request( $request );
+			$data     = $response->get_data();
+			if ( $response->is_error() || ! is_array( $data ) || ! isset( $data['data'] ) ) {
+				return array( 'error' => $response->get_status() . ' ' . wp_json_encode( $data ) );
+			}
+			return $ids_of( $data['data'] );
+		};
+		wp_set_current_user( 0 );
+		$out = array( 'configs' => array() );
+		try {
+			foreach ( $spec['configs'] as $config ) {
+				update_option( 'woocommerce_attribute_lookup_enabled', 'yes' === ( $config['lookup'] ?? '' ) ? 'yes' : 'no' );
+				update_option( 'woocommerce_hide_out_of_stock_items', 'yes' === ( $config['hide'] ?? '' ) ? 'yes' : 'no' );
+				$key   = get_option( 'woocommerce_attribute_lookup_enabled' ) . '/' . get_option( 'woocommerce_hide_out_of_stock_items' );
+				$cases = array_merge( array( array( 'id' => 'base', 'get' => array(), 'filters' => array() ) ), $spec['cases'] );
+				foreach ( $cases as $case ) {
+					$vars                                    = isset( $case['vars'] ) && is_array( $case['vars'] ) ? $case['vars'] : array( 'product_tag' => (string) $spec['tag'] );
+					$out['configs'][ $key ][ $case['id'] ] = array(
+						'native' => $native( $vars, isset( $case['get'] ) && is_array( $case['get'] ) ? $case['get'] : array() ),
+						'loop'   => $loop( isset( $case['filters'] ) && is_array( $case['filters'] ) ? $case['filters'] : array() ),
+					);
+				}
+			}
+		} catch ( \Throwable $e ) {
+			$out['error'] = get_class( $e ) . ': ' . $e->getMessage() . ' en ' . basename( $e->getFile() ) . ':' . $e->getLine();
+		} finally {
+			$_GET                    = $saved['get']; // phpcs:ignore WordPress.Security.NonceVerification
+			$_REQUEST                = $saved['request']; // phpcs:ignore WordPress.Security.NonceVerification
+			$GLOBALS['wp_query']     = $saved['query']; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+			$GLOBALS['wp_the_query'] = $saved['the_query']; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+			$chosen->setValue( null, null );
+			wp_set_current_user( $saved['user'] );
+		}
+		$out['ms'] = (int) round( ( microtime( true ) - $t0 ) * 1000 );
 		return $out;
 	},
 

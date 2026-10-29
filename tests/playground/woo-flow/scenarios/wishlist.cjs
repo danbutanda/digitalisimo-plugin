@@ -18,7 +18,7 @@
 'use strict';
 
 module.exports = (api) => {
-  const { BASE, HOST, TOKEN, NET, SITES, WIDTHS, summary, sleep, request, check, visitor, shot } = api;
+  const { BASE, HOST, TOKEN, NET, SITES, WIDTHS, summary, sleep, log, request, check, visitor, shot } = api;
   const T = {
     saved: 'Guardado en tu lista de deseos',
     removed: 'Quitado de tu lista de deseos',
@@ -36,6 +36,16 @@ module.exports = (api) => {
   const same = (a, b) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
   const wlOf = (site) => (((summary.sites[site.path] || {}).setup) || {}).wishlist || null;
   const siteById = (id) => SITES.find((x) => x.id === id);
+  /** Duración de cada tramo de un escenario (en `timings` del resumen y en run.log). */
+  const marks = new Map();
+  function lap(s, label) {
+    const now = Date.now();
+    const last = marks.has(s) ? marks.get(s) : now;
+    marks.set(s, now);
+    if (label === null) return;
+    (s.timings = s.timings || {})[label] = Math.round((now - last) / 1000);
+    log(`   ${s.id} · ${label}: ${s.timings[label]} s`);
+  }
 
   // ── Sonda y HTTP ────────────────────────────────────────────────────────────────────────────────────────────────
   async function op(site, name, params = {}) {
@@ -108,8 +118,14 @@ module.exports = (api) => {
   }, key);
   const ownRequests = (net) => net.filter((r) => /\/woo\/wishlist(\?|$)/.test(r.url));
   const storeRequests = (net) => net.filter((r) => r.url.includes('/wc/store/v1/shopper-lists/wishlist/items'));
-  const clean = (facts) => !facts.errors.length && !facts.failed.length && !facts.outside.length;
-  const factsOf = (facts) => short({ errors: facts.errors.slice(0, 4), failed: facts.failed.slice(0, 4), outside: facts.outside.slice(0, 4) }, 500);
+  // Las páginas del constructor piden las fuentes de Google del kit por defecto (Roboto) del núcleo, no de la lista: el
+  // arnés las corta (nada sale del sitio) y se cuentan aparte, como en swatchescart.cjs.
+  const FONTS = /fonts\.(googleapis|gstatic)\.com/;
+  const outside = (facts) => facts.outside.filter((u) => !FONTS.test(u));
+  const kitFonts = (facts) => facts.outside.length - outside(facts).length;
+  const jsErrors = (facts) => facts.errors.filter((e) => !(/net::ERR_NAME_NOT_RESOLVED/.test(e) && kitFonts(facts) > 0 && !outside(facts).length));
+  const clean = (facts) => !jsErrors(facts).length && !facts.failed.length && !outside(facts).length;
+  const factsOf = (facts) => short({ errors: jsErrors(facts).slice(0, 4), failed: facts.failed.slice(0, 4), outside: outside(facts).slice(0, 4), kitFonts: kitFonts(facts) }, 500);
 
   /** Un invitado guarda `ids` en «Guardar» y después entra como `user`: devuelve la pestaña ya con la sesión. */
   async function guestThenLogin(site, user, ids) {
@@ -130,43 +146,45 @@ module.exports = (api) => {
   }
   const mergeBox = (page) => page.waitForSelector('.digi-wish-merge button[data-add]', WAIT);
 
-  // ── Privacidad: las acciones AJAX de «Exportar datos personales» y «Borrar datos personales» ───────────────────────
+  // ── Privacidad: «Exportar datos personales» y «Borrar datos personales» ────────────────────────────────────────────
+  const OWN_ID = 'digitalisimo-elements-wishlist';
   /**
-   * Corre todos los exportadores (o borradores) registrados en la administración para `email`, uno por uno, como lo
-   * hace la pantalla: una solicitud confirmada, el nonce de esa solicitud y `admin-ajax.php` con la sesión del
-   * administrador. Devuelve la respuesta de cada índice.
+   * Todos los exportadores que ve la administración (los de WordPress, los de WooCommerce y, si está enganchado a
+   * `admin_init`, el propio), llamados con el correo en una sola petición de la sonda. Devuelve los que traen datos de
+   * una lista de deseos (la propia o la de WooCommerce).
    */
-  async function privacy(site, kind, email) {
+  async function exportAll(site, email) {
+    const res = await op(site, 'wishlist_privacy', { email, type: 'export', run: 1 });
+    const withList = Object.entries(res.results || {})
+      .filter(([, r]) => r.groups && (r.groups[OWN_GROUP] || r.groups[WOO_GROUP]))
+      .map(([key, r]) => ({ key, groups: Object.keys(r.groups).filter((g) => g === OWN_GROUP || g === WOO_GROUP), items: (r.groups[OWN_GROUP] || 0) + (r.groups[WOO_GROUP] || 0), names: r.names || [] }));
+    return { keys: res.keys || [], withList, own: (res.keys || []).includes(OWN_ID) };
+  }
+  /**
+   * La acción AJAX real de la pantalla (`wp-privacy-export-personal-data` o `wp-privacy-erase-personal-data`) para el
+   * exportador o borrador propio: una solicitud confirmada, el nonce de esa solicitud y `admin-ajax.php` con la sesión
+   * del administrador. El índice es su posición en la lista que ve la administración.
+   */
+  async function ajaxOwn(site, kind, email) {
     const w = wlOf(site);
+    const list = await op(site, 'wishlist_privacy', { email, type: kind });
+    const index = (list.keys || []).indexOf(OWN_ID) + 1;
+    if (!index) return { index: 0, keys: list.keys, error: 'el propio no está registrado' };
     const req = await op(site, 'wishlist_privacy_request', { email, type: kind });
     const action = kind === 'erase' ? 'wp-privacy-erase-personal-data' : 'wp-privacy-export-personal-data';
     const admin = await session(site, 1, [`${action}-${req.id}`]);
-    const nonce = admin.nonces[`${action}-${req.id}`];
-    const out = [];
-    for (let i = 1; i <= 40; i++) {
-      const form = { action, id: String(req.id), page: '1', security: nonce, [kind === 'erase' ? 'eraser' : 'exporter']: String(i) };
-      if (kind !== 'erase') form.sendAsEmail = 'false';
-      const res = await send('POST', w.ajax, { headers: { Cookie: cookieHeader(admin) }, form });
-      const j = res.json;
-      if (!j) { out.push({ index: i, error: `HTTP ${res.status} ${res.text.slice(0, 160)}` }); break; }
-      if (!j.success) {
-        const message = typeof j.data === 'string' ? j.data : JSON.stringify(j.data);
-        if (/out of range/i.test(message)) break;
-        out.push({ index: i, error: String(message).slice(0, 300) });
-        continue;
-      }
-      out.push({ index: i, data: j.data });
-    }
-    return out;
-  }
-  /** Exportadores que devuelven datos de una lista de deseos (la propia o la de WooCommerce). */
-  function wishlistExporters(results) {
-    return results.filter((r) => r.data && Array.isArray(r.data.data) && r.data.data.some((d) => d.group_id === OWN_GROUP || d.group_id === WOO_GROUP))
-      .map((r) => ({ index: r.index, groups: [...new Set(r.data.data.map((d) => d.group_id))].filter((g) => g === OWN_GROUP || g === WOO_GROUP), items: r.data.data.filter((d) => d.group_id === OWN_GROUP || d.group_id === WOO_GROUP).length, names: r.data.data.filter((d) => d.group_id === OWN_GROUP).map((d) => (d.data || []).map((x) => x.value).join(' · ')) }));
+    const form = { action, id: String(req.id), page: '1', security: admin.nonces[`${action}-${req.id}`], [kind === 'erase' ? 'eraser' : 'exporter']: String(index) };
+    if (kind !== 'erase') form.sendAsEmail = 'false';
+    const res = await send('POST', w.ajax, { headers: { Cookie: cookieHeader(admin) }, form });
+    const j = res.json;
+    if (!j) return { index, error: `HTTP ${res.status} ${res.text.slice(0, 160)}` };
+    if (!j.success) return { index, error: String(typeof j.data === 'string' ? j.data : JSON.stringify(j.data)).slice(0, 300) };
+    return { index, last: index === list.keys.length, data: j.data };
   }
 
   // ── W1 · invitado ───────────────────────────────────────────────────────────────────────────────────────────────
   async function W1(s) {
+    lap(s, null);
     const site = SITES[0];
     const w = wlOf(site);
     if (!check(s, 'W1.0', 'la preparación de la lista de deseos dejó sus páginas, productos y widgets', !!(w && w.urls && w.urls.save && w.urls.list), short(w && w.urls))) return;
@@ -262,7 +280,7 @@ module.exports = (api) => {
       const cookiesEnd = await page.cookies();
       const jar = (list) => list.filter((c) => !/^sbjs_/.test(c.name)).map((c) => `${c.name}=${c.value}`).sort();
       check(s, 'W1.4', 'la lista no escribe cookies: las del sitio son las mismas antes del primer clic, tras guardar y al terminar (salvo `sbjs_*`, atribución de pedidos de WooCommerce)', JSON.stringify(jar(cookies0)) === JSON.stringify(jar(cookies1)) && JSON.stringify(jar(cookies0)) === JSON.stringify(jar(cookiesEnd)), short({ antes: jar(cookies0).map((c) => c.split('=')[0]), despues: jar(cookiesEnd).map((c) => c.split('=')[0]) }));
-      check(s, 'W1.5', 'sin errores de JavaScript ni respuestas de error del sitio, y nada sale del sitio', clean(facts), factsOf(facts));
+      check(s, 'W1.5', 'sin errores de JavaScript ni respuestas de error del sitio, y nada sale del sitio (salvo las fuentes de Google del kit por defecto)', clean(facts), factsOf(facts));
     } catch (e) {
       await shot(page, 'W1-falla');
       throw e;
@@ -270,6 +288,7 @@ module.exports = (api) => {
       await ctx.close().catch(() => {});
     }
 
+    lap(s, 'W1.1–W1.5');
     // 7. Red: el sitio 2 no ve la lista del sitio 3.
     if (!NET) {
       s.net_only = ['W1.6: aislamiento entre sitios de una red (corre con NET=1)'];
@@ -303,10 +322,12 @@ module.exports = (api) => {
     } finally {
       await v.ctx.close().catch(() => {});
     }
+    lap(s, 'W1.6');
   }
 
   // ── W2 · con sesión ─────────────────────────────────────────────────────────────────────────────────────────────
   async function W2(s) {
+    lap(s, null);
     const site = SITES[0];
     const w = wlOf(site);
     if (!check(s, 'W2.0', 'la preparación de la lista de deseos dejó sus páginas y clientes de prueba', !!(w && w.users && w.users.b && w.users.e), short(w && w.users))) return;
@@ -351,6 +372,7 @@ module.exports = (api) => {
       await a.ctx.close().catch(() => {});
     }
 
+    lap(s, 'W2.1 Añadir');
     // «Descartar»: borra la copia local sin enviar nada.
     const c = await guestThenLogin(site, U.c, [P.gorra]);
     try {
@@ -368,6 +390,7 @@ module.exports = (api) => {
       await c.ctx.close().catch(() => {});
     }
 
+    lap(s, 'W2.1 Descartar');
     // 2. La lista de B con sesión (almacén propio): pintar y quitar con nonce.
     const vb = await visitor();
     try {
@@ -390,17 +413,21 @@ module.exports = (api) => {
     }
 
     // 3. Privacidad (modo propio): exportar incluye la lista, borrar la quita.
-    const exp1 = await privacy(site, 'export', U.b.email);
-    const with1 = wishlistExporters(exp1);
-    check(s, 'W2.3a', '«Exportar datos personales» de B incluye su lista (un solo exportador con datos de listas: el propio)', with1.length === 1 && JSON.stringify(with1[0].groups) === JSON.stringify([OWN_GROUP]) && with1[0].items === 1 && /Camiseta de prueba/.test(with1[0].names.join(' ')), short({ exportadores: exp1.length, conLista: with1, errores: exp1.filter((r) => r.error) }));
-    const era = await privacy(site, 'erase', U.b.email);
-    const mine = era.filter((r) => r.data && Array.isArray(r.data.messages) && r.data.messages.includes(T.erased));
-    const fields = mine.length === 1 ? Object.keys(mine[0].data).sort() : [];
+    lap(s, 'W2.2');
+    const exp1 = await exportAll(site, U.b.email);
+    const ajax1 = await ajaxOwn(site, 'export', U.b.email);
+    const ajaxRows = ajax1.data && Array.isArray(ajax1.data.data) ? ajax1.data.data.filter((d) => d.group_id === OWN_GROUP) : [];
+    check(s, 'W2.3a', '«Exportar datos personales» de B incluye su lista: entre todos los exportadores, sólo el propio trae datos de listas, y la acción AJAX de la pantalla lo devuelve',
+      exp1.own && exp1.withList.length === 1 && exp1.withList[0].key === OWN_ID && exp1.withList[0].items === 1 && /Camiseta de prueba/.test(exp1.withList[0].names.join(' ')) && ajaxRows.length === 1 && /Camiseta de prueba/.test(JSON.stringify(ajaxRows[0].data)),
+      short({ exportadores: exp1.keys, conLista: exp1.withList, ajax: { index: ajax1.index, ultimo: ajax1.last, filas: ajaxRows.length, error: ajax1.error } }, 900));
+    const era = await ajaxOwn(site, 'erase', U.b.email);
+    const fields = era.data ? Object.keys(era.data).sort() : [];
     const b4 = await state(site, U.b.id);
-    const exp2 = await privacy(site, 'export', U.b.email);
-    check(s, 'W2.3b', '«Borrar datos personales» quita la lista: el borrador responde con sus cuatro campos (`items_removed`, `items_retained` falso, `messages`, `done`) y después nada se exporta',
-      mine.length === 1 && JSON.stringify(fields) === JSON.stringify(['done', 'items_removed', 'items_retained', 'messages']) && mine[0].data.items_removed === true && mine[0].data.items_retained === false && mine[0].data.done === true && !b4.own.length && !wishlistExporters(exp2).length,
-      short({ borrador: mine.map((r) => r.data), cuenta: b4.own, despues: wishlistExporters(exp2), errores: era.filter((r) => r.error) }));
+    const exp2 = await exportAll(site, U.b.email);
+    check(s, 'W2.3b', '«Borrar datos personales» (acción AJAX de la pantalla) quita la lista: el borrador responde con sus cuatro campos (`items_removed`, `items_retained` falso, `messages`, `done`) y después nada se exporta',
+      !!era.data && JSON.stringify(fields) === JSON.stringify(['done', 'items_removed', 'items_retained', 'messages']) && era.data.items_removed === true && era.data.items_retained === false && era.data.done === true && era.data.messages.includes(T.erased) && !b4.own.length && !exp2.withList.length,
+      short({ borrador: era, cuenta: b4.own, despues: exp2.withList }));
+    lap(s, 'W2.3');
 
     // 4. Lista de WooCommerce encendida: Store API, mudanza, el variable sin botón y un solo exportador.
     const vd = await visitor();
@@ -455,10 +482,8 @@ module.exports = (api) => {
       check(s, 'W2.4f', 'la página de la lista pinta la lista de WooCommerce', same(dl.items, [P.camiseta, P.calcetin, P.taza]), short(dl.items));
       check(s, 'W2.4g', 'la mudanza y la Store API, sin errores de JavaScript ni respuestas de error', clean(vd.facts), factsOf(vd.facts));
 
-      const exp3 = await privacy(site, 'export', U.d.email);
-      const with3 = wishlistExporters(exp3);
-      const d4 = await state(site, U.d.id);
-      check(s, 'W2.4h', 'un solo exportador con datos: el de WooCommerce (con los tres productos); el propio ya no se registra (sin listas propias en el sitio)', with3.length === 1 && JSON.stringify(with3[0].groups) === JSON.stringify([WOO_GROUP]) && with3[0].items === 3 && d4.own_exporter === false, short({ conLista: with3, exportadorPropio: d4.own_exporter, exportadores: exp3.length, errores: exp3.filter((r) => r.error) }));
+      const exp3 = await exportAll(site, U.d.email);
+      check(s, 'W2.4h', 'un solo exportador con datos: el de WooCommerce (`woocommerce-shopper-lists`, con los tres productos); el propio ya no se registra (sin listas propias en el sitio)', exp3.withList.length === 1 && exp3.withList[0].key === 'woocommerce-shopper-lists' && JSON.stringify(exp3.withList[0].groups) === JSON.stringify([WOO_GROUP]) && exp3.withList[0].items === 3 && !exp3.own, short({ conLista: exp3.withList, exportadores: exp3.keys }));
 
       // Un invitado que entra con la función activa: «Añadir» hace un POST por producto a la Store API.
       const e = await guestThenLogin(site, U.e, [P.gorra, P.lampara]);
@@ -487,6 +512,7 @@ module.exports = (api) => {
       await vd.ctx.close().catch(() => {});
     }
 
+    lap(s, 'W2.4');
     // 5. Red: quitar al usuario del sitio 3 y un no miembro.
     if (!NET) {
       s.net_only = ['W2.5: quitar del sitio 3 desde la red y no miembro en modo invitado (corren con NET=1; en un sitio único todo usuario con sesión es miembro)'];
@@ -517,6 +543,7 @@ module.exports = (api) => {
     const g1 = await state(s1, G.id, [1, 3]);
     check(s, 'W2.5c', 'quitar a G del sitio 3 desde otra petición del sitio principal (el sitio en curso no es el 3) borra la lista del 3 y no la del 1', removal.current === 1 && removal.member === false && same(g0.own_by_blog['3'], [w3.products.lampara]) && !g1.own_by_blog['3'].length && same(g1.own_by_blog['1'], [w.products.cojin]), short({ antes: g0.own_by_blog, removal, despues: g1.own_by_blog }));
 
+    lap(s, 'W2.5 quitar');
     // Un no miembro (F en el sitio 2, del que nunca fue miembro, y en el 3, del que se le quitó) usa el modo invitado.
     const vf = await visitor();
     try {
@@ -543,10 +570,12 @@ module.exports = (api) => {
     } finally {
       await vf.ctx.close().catch(() => {});
     }
+    lap(s, 'W2.5 no miembro');
   }
 
   // ── W12 · seguridad ─────────────────────────────────────────────────────────────────────────────────────────────
   async function W12(s) {
+    lap(s, null);
     const site = SITES[0];
     const w = wlOf(site);
     if (!check(s, 'W12.0', 'la preparación de la lista de deseos dejó sus páginas, la vista rápida y el producto privado', !!(w && w.pages && w.pages.view && w.products.private), short(w && w.pages))) return;
@@ -568,6 +597,7 @@ module.exports = (api) => {
     const bigCards = await send('POST', `${R}cards`, { json: { post_id: w.pages.list, widget_id: w.widgets.list, ids: [P.camiseta], pad: 'x'.repeat(9000) } });
     check(s, 'W12.1b', '`POST woo/cards`: con su widget pinta sólo lo público (el privado se omite); con un widget ajeno 403; con más de 8 KB 400', okCards.status === 200 && okCards.json && JSON.stringify(okCards.json.ids) === JSON.stringify([P.camiseta]) && /Camiseta de prueba/.test(okCards.json.html || '') && !/privado/i.test(okCards.json.html || '') && foreignCards.status === 403 && bigCards.status === 400, short({ ok: [okCards.status, okCards.json && okCards.json.ids], ajeno: [foreignCards.status, code(foreignCards)], grande: [bigCards.status, code(bigCards)] }));
 
+    lap(s, 'W12.1');
     // woo/wishlist: sesión, nonce y una sola fuente.
     const anon = await send('POST', `${R}wishlist`, { json: { op: 'add', product: P.camiseta } });
     const fake = await send('POST', `${R}wishlist`, { headers: { Cookie: cookieHeader(sess), 'X-WP-Nonce': 'a1b2c3d4e5' }, json: { op: 'add', product: P.camiseta } });
@@ -590,6 +620,7 @@ module.exports = (api) => {
       if (on) await op(site, 'wishlist_feature', { on: 0 }).catch(() => {});
     }
 
+    lap(s, 'W12.2–W12.3');
     // woo/quick-view: permiso por predicado, producto público y `return` del mismo sitio.
     const qv = (params) => send('GET', `${R}quick-view?${new URLSearchParams(params)}`);
     const qvForeign = await qv({ post_id: w.pages.view, widget_id: w.widgets.view_list, product: P.camiseta });
@@ -603,6 +634,7 @@ module.exports = (api) => {
     check(s, 'W12.4b', '`woo/quick-view` con un producto privado responde 404 (y con uno público, 200)', qvPrivate.status === 404 && qvOk.status === 200, short({ privado: [qvPrivate.status, code(qvPrivate)], publico: qvOk.status }));
     check(s, 'W12.5', 'un `return` a otro dominio se rechaza: la acción del formulario vuelve a la ficha del producto (una del mismo sitio se respeta)', qvEvil.status === 200 && !/otro\.example/.test((qvEvil.json && qvEvil.json.html) || '') && action(qvEvil) === w.links.camiseta && action(qvOk) === w.urls.view, short({ evil: action(qvEvil), ok: action(qvOk), ficha: w.links.camiseta }));
 
+    lap(s, 'W12.4–W12.5');
     // Ninguna escritura sin nonce: todas las rutas `woo/*` con métodos de escritura, con la cookie y sin nonce.
     const index = await send('GET', w.index);
     const routes = (index.json && index.json.routes) || {};
@@ -623,6 +655,7 @@ module.exports = (api) => {
     const allowed = results.every((r) => (publicRead.has(r.route) ? r.status === 200 && !r.cookies.some((c) => /^wordpress_/.test(c)) : [401, 403].includes(r.status)));
     check(s, 'W12.6', 'ninguna escritura sin nonce: con la cookie de sesión y sin `X-WP-Nonce`, toda ruta `woo/*` con métodos de escritura responde 401/403 (salvo `cards`, lectura pública por POST, que no escribe) y la cuenta sigue vacía', writes.length >= 2 && allowed && writes.some((x) => /wishlist/.test(x.route)) && !u2.own.length && !u2.woo.length, short({ rutas: results, cuenta: u2.own }));
     check(s, 'W12.7', 'las respuestas de `woo/*`, también los errores (405, 409, 403), llevan `Cache-Control: no-store, private`', nocache(getCards) && nocache(okCards) && nocache(foreignCards) && nocache(okAdd) && nocache(qvForeign) && nocache(qvOk) && /no-store/.test(String(headers.moved || '')), short(headers));
+    lap(s, 'W12.6–W12.7');
   }
 
   return { W1, W2, W12 };

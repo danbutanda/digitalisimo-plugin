@@ -11,7 +11,9 @@ require_once __DIR__ . '/class-data.php';
  * El filtro `woocommerce_dropdown_variation_attribute_options_html` (prioridad 20) devuelve el `<select>` de
  * WooCommerce **byte a byte igual**, dentro de un envoltorio, seguido de un grupo de radios nativos. Sólo actúa si el
  * atributo es global (`pa_*`), su tipo propio no es «Desplegable» y `$html` empieza por `<select` (si otro plugin ya lo
- * cambió, no se toca). El script oculta el `<select>` sólo cuando arranca: sin JS se ve el desplegable de siempre.
+ * cambió, no se toca). Sin JS se ve el desplegable de siempre: la hoja muestra los radios desde la primera pintura sólo
+ * con `@media (scripting: enabled)` (el paso del `<select>` a los radios no mueve la ficha, W6) y, en los navegadores
+ * sin esa consulta, cuando el script arranca.
  *
  * - Los radios llevan `form="digi-sw-form-{uid}"`, un formulario vacío que el script crea fuera del de compra (un
  *   `<form>` no puede ir dentro de otro): siguen agrupados por `name` y no viajan con el pedido.
