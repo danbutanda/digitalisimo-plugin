@@ -1,0 +1,164 @@
+{
+  "_comentario": "F7b, frente J (V.9, C2-12 b): vectores de la única normalización de las reglas de los formularios condicionales. Los leen tests/elements-f7b-forms.php (Digitalisimo\\Elements\\F7b\\Forms\\Rules) y tests/elements-f7b-forms.mjs (modules/digitalisimo-f7b/assets/js/forms-conditions.js): los dos lados deben dar lo mismo con la misma entrada. «normalize»: valor crudo → lista normalizada (recorte de los espacios de String.prototype.trim, minúsculas con mb_strtolower / toLocaleLowerCase('und'), listas para las casillas múltiples, vacíos fuera). «number»: texto normalizado → número (coma o punto decimal; null = no numérico). «rules»: una regla [campo, operador, valor] sobre un valor crudo. «forms»: reglas ya saneadas (las de data-digi-cond) y valores crudos → campos ocultos (punto fijo; un campo oculto cuenta como vacío para las reglas que lo miran).",
+  "normalize": [
+    { "in": "  Hola ", "out": ["hola"] },
+    { "in": ["A", " b ", ""], "out": ["a", "b"] },
+    { "in": " ÁRBOL\t", "out": ["árbol"] },
+    { "in": "", "out": [] },
+    { "in": null, "out": [] },
+    { "in": "0", "out": ["0"] },
+    { "in": "　Ñandú ", "out": ["ñandú"] },
+    { "in": "İ", "out": ["i̇"] },
+    { "in": ["  ", "\n"], "out": [] },
+    { "in": "a  b", "out": ["a  b"] },
+    { "in": "​x", "out": ["​x"] },
+    { "in": "\u0085x", "out": ["\u0085x"] },
+    { "in": "﻿Sí ", "out": ["sí"] }
+  ],
+  "number": [
+    { "in": "10", "out": 10 },
+    { "in": "1,5", "out": 1.5 },
+    { "in": "1.5", "out": 1.5 },
+    { "in": "-3", "out": -3 },
+    { "in": "+.5", "out": 0.5 },
+    { "in": ",5", "out": 0.5 },
+    { "in": "0", "out": 0 },
+    { "in": "1.000,5", "out": null },
+    { "in": "1e3", "out": null },
+    { "in": "abc", "out": null },
+    { "in": "", "out": null },
+    { "in": "10 kg", "out": null },
+    { "in": "1.", "out": null },
+    { "in": "٣", "out": null },
+    { "in": "0x10", "out": null }
+  ],
+  "rules": [
+    { "rule": ["f", "is", "Sí"], "value": "  sí ", "expect": true },
+    { "rule": ["f", "is", "sí"], "value": "si", "expect": false },
+    { "rule": ["f", "is", ""], "value": "", "expect": true },
+    { "rule": ["f", "is", ""], "value": "x", "expect": false },
+    { "rule": ["f", "is_not", "a"], "value": "b", "expect": true },
+    { "rule": ["f", "is_not", "a"], "value": "A", "expect": false },
+    { "rule": ["f", "is_not", "a"], "value": "", "expect": true },
+    { "rule": ["f", "contains", "MAR"], "value": "Amarillo", "expect": true },
+    { "rule": ["f", "contains", ""], "value": "x", "expect": false },
+    { "rule": ["f", "not_contains", "x"], "value": "", "expect": true },
+    { "rule": ["f", "not_contains", ""], "value": "abc", "expect": true },
+    { "rule": ["f", "empty", ""], "value": "   ", "expect": true },
+    { "rule": ["f", "empty", "se ignora"], "value": "0", "expect": false },
+    { "rule": ["f", "empty", ""], "value": [], "expect": true },
+    { "rule": ["f", "not_empty", ""], "value": ["", " "], "expect": false },
+    { "rule": ["f", "not_empty", ""], "value": ["", "b"], "expect": true },
+    { "rule": ["f", "greater", "10"], "value": "10,5", "expect": true },
+    { "rule": ["f", "greater", "10"], "value": "10", "expect": false },
+    { "rule": ["f", "greater", "10"], "value": "abc", "expect": false },
+    { "rule": ["f", "less", "10"], "value": "abc", "expect": false },
+    { "rule": ["f", "less", "1,5"], "value": "1.25", "expect": true },
+    { "rule": ["f", "greater", "diez"], "value": "20", "expect": false },
+    { "rule": ["f", "greater", "1.000"], "value": "2", "expect": false },
+    { "rule": ["f", "less", "0"], "value": " -1 ", "expect": true },
+    { "rule": ["f", "greater", "5"], "value": ["3", "7"], "expect": true },
+    { "rule": ["f", "less", "5"], "value": ["7", "9"], "expect": false },
+    { "rule": ["f", "less", "5"], "value": [], "expect": false },
+    { "rule": ["f", "is", "Rojo"], "value": ["azul", "rojo"], "expect": true },
+    { "rule": ["f", "is_not", "rojo"], "value": ["azul", "ROJO"], "expect": false },
+    { "rule": ["f", "contains", "ul"], "value": ["Azul", "rojo"], "expect": true },
+    { "rule": ["f", "not_contains", "ul"], "value": ["Azul", "rojo"], "expect": false },
+    { "rule": ["f", "is", "10"], "value": "10.0", "expect": false },
+    { "rule": ["f", "between", "1"], "value": "1", "expect": false },
+    { "rule": ["", "", ""], "value": "x", "expect": false },
+    { "rule": ["", "", ""], "value": "", "expect": false }
+  ],
+  "forms": [
+    {
+      "name": "visible si se cumple",
+      "defs": [{ "i": "b", "l": "all", "r": [["a", "is", "sí"]] }],
+      "values": { "a": "Sí", "b": "" },
+      "hidden": []
+    },
+    {
+      "name": "oculto si no se cumple",
+      "defs": [{ "i": "b", "l": "all", "r": [["a", "is", "sí"]] }],
+      "values": { "a": "no", "b": "x" },
+      "hidden": ["b"]
+    },
+    {
+      "name": "cadena: un campo oculto cuenta como vacío",
+      "defs": [{ "i": "b", "l": "all", "r": [["a", "is", "x"]] }, { "i": "c", "l": "all", "r": [["b", "not_empty", ""]] }],
+      "values": { "a": "y", "b": "relleno", "c": "" },
+      "hidden": ["b", "c"]
+    },
+    {
+      "name": "cadena con una regla que mira a un campo posterior",
+      "defs": [{ "i": "c", "l": "all", "r": [["b", "not_empty", ""]] }, { "i": "b", "l": "all", "r": [["a", "is", "x"]] }],
+      "values": { "a": "y", "b": "relleno" },
+      "hidden": ["b", "c"]
+    },
+    {
+      "name": "alguna regla",
+      "defs": [{ "i": "d", "l": "any", "r": [["a", "is", "x"], ["e", "not_empty", ""]] }],
+      "values": { "a": "n", "e": "1" },
+      "hidden": []
+    },
+    {
+      "name": "todas las reglas",
+      "defs": [{ "i": "d", "l": "all", "r": [["a", "is", "x"], ["e", "not_empty", ""]] }],
+      "values": { "a": "n", "e": "1" },
+      "hidden": ["d"]
+    },
+    {
+      "name": "sin reglas: falla cerrado",
+      "defs": [{ "i": "f", "l": "all", "r": [] }],
+      "values": {},
+      "hidden": ["f"]
+    },
+    {
+      "name": "una regla inválida con «todas»",
+      "defs": [{ "i": "g", "l": "all", "r": [["a", "is", "x"], ["", "", ""]] }],
+      "values": { "a": "x" },
+      "hidden": ["g"]
+    },
+    {
+      "name": "una regla inválida con «alguna»",
+      "defs": [{ "i": "h", "l": "any", "r": [["a", "is", "x"], ["", "", ""]] }],
+      "values": { "a": "x" },
+      "hidden": []
+    },
+    {
+      "name": "ciclo, los dos vacíos",
+      "defs": [{ "i": "p", "l": "all", "r": [["q", "empty", ""]] }, { "i": "q", "l": "all", "r": [["p", "empty", ""]] }],
+      "values": { "p": "", "q": "" },
+      "hidden": []
+    },
+    {
+      "name": "ciclo, uno lleno",
+      "defs": [{ "i": "p", "l": "all", "r": [["q", "empty", ""]] }, { "i": "q", "l": "all", "r": [["p", "empty", ""]] }],
+      "values": { "p": "x", "q": "" },
+      "hidden": ["q"]
+    },
+    {
+      "name": "casillas múltiples",
+      "defs": [{ "i": "k", "l": "all", "r": [["colores", "contains", "ro"]] }],
+      "values": { "colores": ["Azul", "Rojo"] },
+      "hidden": []
+    },
+    {
+      "name": "campo inexistente",
+      "defs": [{ "i": "m", "l": "all", "r": [["zz", "not_empty", ""]] }],
+      "values": { "a": "x" },
+      "hidden": ["m"]
+    },
+    {
+      "name": "campo inexistente con «vacío»",
+      "defs": [{ "i": "m", "l": "all", "r": [["zz", "empty", ""]] }],
+      "values": {},
+      "hidden": []
+    },
+    {
+      "name": "número con coma",
+      "defs": [{ "i": "n", "l": "all", "r": [["edad", "greater", "17,5"]] }],
+      "values": { "edad": "18" },
+      "hidden": []
+    }
+  ]
+}

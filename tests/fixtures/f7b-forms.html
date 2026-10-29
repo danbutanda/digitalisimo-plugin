@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>F7b · formulario condicional</title>
+<!-- Generada por tests/elements-f7b-forms/fixture.php con el Formulario real de PRO (no editar a mano); tests/elements-f7b-forms.php comprueba que coincide. -->
+<link rel="stylesheet" href="../../digitalisimo-elements/elementor/assets/css/frontend.min.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/assets/css/widget-form.min.css">
+<style id="digi-hidden-rule">:is(.elementor-element,.elementor-column)[hidden]{display:none!important}</style>
+</head>
+<body>
+<div class="elementor elementor-10">
+<div class="elementor-element elementor-element-f0001 elementor-widget elementor-widget-form" data-id="f0001" data-element_type="widget" data-widget_type="form.default">
+<div class="elementor-widget-container">
+		<form class="elementor-form" method="post" name="Contacto" aria-label="Contacto">
+			<input type="hidden" name="post_id" value="10"/>
+			<input type="hidden" name="form_id" value="f0001"/>
+			<input type="hidden" name="referer_title" value="Contacto" />
+
+							<input type="hidden" name="queried_id" value="10"/>
+			
+			<div class="elementor-form-fields-wrapper elementor-labels-above">
+								<div class="elementor-field-type-radio elementor-field-group elementor-column elementor-field-group-tipo elementor-col-100 elementor-field-required elementor-mark-required">
+												<label for="form-field-tipo" class="elementor-field-label">
+								Tipo							</label>
+						<div class="elementor-field-subgroup  "><span class="elementor-field-option"><input type="radio" value="persona" id="form-field-tipo-0" name="form_fields[tipo]" required="required"> <label for="form-field-tipo-0">Persona</label></span><span class="elementor-field-option"><input type="radio" value="empresa" id="form-field-tipo-1" name="form_fields[tipo]" required="required"> <label for="form-field-tipo-1">Empresa</label></span></div>				</div>
+								<div class="elementor-field-type-text elementor-field-group elementor-column elementor-field-group-rfc elementor-col-100 elementor-field-required elementor-mark-required" data-digi-cond="{&quot;i&quot;:&quot;rfc&quot;,&quot;l&quot;:&quot;all&quot;,&quot;r&quot;:[[&quot;tipo&quot;,&quot;is&quot;,&quot;Empresa&quot;]]}" hidden="hidden">
+												<label for="form-field-rfc" class="elementor-field-label">
+								RFC							</label>
+														<input size="1" type="text" name="form_fields[rfc]" id="form-field-rfc" class="elementor-field elementor-size-sm  elementor-field-textual" required="required" disabled="disabled">
+											</div>
+								<div class="elementor-field-type-radio elementor-field-group elementor-column elementor-field-group-plan elementor-col-100 elementor-field-required elementor-mark-required" data-digi-cond="{&quot;i&quot;:&quot;plan&quot;,&quot;l&quot;:&quot;all&quot;,&quot;r&quot;:[[&quot;tipo&quot;,&quot;is&quot;,&quot;persona&quot;]]}" hidden="hidden">
+												<label for="form-field-plan" class="elementor-field-label">
+								Plan							</label>
+						<div class="elementor-field-subgroup  "><span class="elementor-field-option"><input disabled="disabled" type="radio" value="basico" id="form-field-plan-0" name="form_fields[plan]" required="required"> <label for="form-field-plan-0">Básico</label></span><span class="elementor-field-option"><input disabled="disabled" type="radio" value="completo" id="form-field-plan-1" name="form_fields[plan]" required="required"> <label for="form-field-plan-1">Completo</label></span></div>				</div>
+								<div class="elementor-field-type-html elementor-field-group elementor-column elementor-field-group-nota elementor-col-100" data-digi-cond="{&quot;i&quot;:&quot;nota&quot;,&quot;l&quot;:&quot;all&quot;,&quot;r&quot;:[[&quot;tipo&quot;,&quot;not_empty&quot;,&quot;&quot;]]}" hidden="hidden">
+					<p>Gracias por elegir un tipo.</p>				</div>
+								<div class="elementor-field-type-checkbox elementor-field-group elementor-column elementor-field-group-intereses elementor-col-100">
+												<label for="form-field-intereses" class="elementor-field-label">
+								Intereses							</label>
+						<div class="elementor-field-subgroup  "><span class="elementor-field-option"><input type="checkbox" value="diseno" id="form-field-intereses-0" name="form_fields[intereses][]"> <label for="form-field-intereses-0">Diseño</label></span><span class="elementor-field-option"><input type="checkbox" value="codigo" id="form-field-intereses-1" name="form_fields[intereses][]"> <label for="form-field-intereses-1">Código</label></span><span class="elementor-field-option"><input type="checkbox" value="marketing" id="form-field-intereses-2" name="form_fields[intereses][]"> <label for="form-field-intereses-2">Marketing</label></span></div>				</div>
+								<div class="elementor-field-type-select elementor-field-group elementor-column elementor-field-group-stack elementor-col-100 elementor-field-required elementor-mark-required" data-digi-cond="{&quot;i&quot;:&quot;stack&quot;,&quot;l&quot;:&quot;all&quot;,&quot;r&quot;:[[&quot;intereses&quot;,&quot;contains&quot;,&quot;codigo&quot;]]}" hidden="hidden">
+												<label for="form-field-stack" class="elementor-field-label">
+								Lenguaje							</label>
+								<div class="elementor-field elementor-select-wrapper remove-before ">
+			<div class="select-caret-down-wrapper">
+				<i aria-hidden="true" class="eicon-caret-down"></i>			</div>
+			<select disabled="disabled" name="form_fields[stack]" id="form-field-stack" class="elementor-field-textual elementor-size-sm" required="required">
+									<option value="">Elige uno</option>
+									<option value="php">PHP</option>
+									<option value="js">JavaScript</option>
+							</select>
+		</div>
+						</div>
+								<div class="elementor-field-type-number elementor-field-group elementor-column elementor-field-group-presupuesto elementor-col-100">
+												<label for="form-field-presupuesto" class="elementor-field-label">
+								Presupuesto							</label>
+									<input type="number" name="form_fields[presupuesto]" id="form-field-presupuesto" class="elementor-field elementor-size-sm  elementor-field-textual" min="" max="" >
+						</div>
+								<div class="elementor-field-type-acceptance elementor-field-group elementor-column elementor-field-group-urgente elementor-col-100 elementor-field-required elementor-mark-required" data-digi-cond="{&quot;i&quot;:&quot;urgente&quot;,&quot;l&quot;:&quot;all&quot;,&quot;r&quot;:[[&quot;presupuesto&quot;,&quot;greater&quot;,&quot;1000&quot;]]}" hidden="hidden">
+												<label for="form-field-urgente" class="elementor-field-label">
+								Urgente							</label>
+								<div class="elementor-field-subgroup">
+			<span class="elementor-field-option">
+				<input type="checkbox" name="form_fields[urgente]" id="form-field-urgente" class="elementor-field elementor-size-sm  elementor-acceptance-field" required="required" disabled="disabled">
+				<label for="form-field-urgente">Es urgente</label>			</span>
+		</div>
+						</div>
+								<div class="elementor-field-type-textarea elementor-field-group elementor-column elementor-field-group-comentario elementor-col-100 elementor-field-required elementor-mark-required" data-digi-cond="{&quot;i&quot;:&quot;comentario&quot;,&quot;l&quot;:&quot;any&quot;,&quot;r&quot;:[[&quot;tipo&quot;,&quot;is&quot;,&quot;empresa&quot;],[&quot;presupuesto&quot;,&quot;greater&quot;,&quot;5000&quot;]]}" hidden="hidden">
+												<label for="form-field-comentario" class="elementor-field-label">
+								Comentario							</label>
+						<textarea disabled="disabled" class="elementor-field-textual elementor-field  elementor-size-sm" name="form_fields[comentario]" id="form-field-comentario" rows="3" required="required"></textarea>				</div>
+								<div class="elementor-field-type-select elementor-field-group elementor-column elementor-field-group-pais elementor-col-100">
+												<label for="form-field-pais" class="elementor-field-label">
+								País							</label>
+								<div class="elementor-field elementor-select-wrapper remove-before ">
+			<div class="select-caret-down-wrapper">
+				<i aria-hidden="true" class="eicon-caret-down"></i>			</div>
+			<select name="form_fields[pais]" id="form-field-pais" class="elementor-field-textual elementor-size-sm">
+									<option value="mx" selected="selected">México</option>
+									<option value="cl">Chile</option>
+							</select>
+		</div>
+						</div>
+								<div class="elementor-field-type-text elementor-field-group elementor-column elementor-field-group-estado elementor-col-100 elementor-field-required elementor-mark-required" data-digi-cond="{&quot;i&quot;:&quot;estado&quot;,&quot;l&quot;:&quot;all&quot;,&quot;r&quot;:[[&quot;pais&quot;,&quot;is&quot;,&quot;mx&quot;]]}">
+												<label for="form-field-estado" class="elementor-field-label">
+								Estado							</label>
+														<input size="1" type="text" name="form_fields[estado]" id="form-field-estado" class="elementor-field elementor-size-sm  elementor-field-textual" required="required">
+											</div>
+								<div class="elementor-field-type-email elementor-field-group elementor-column elementor-field-group-email elementor-col-100 elementor-field-required elementor-mark-required">
+												<label for="form-field-email" class="elementor-field-label">
+								Correo							</label>
+														<input size="1" type="email" name="form_fields[email]" id="form-field-email" class="elementor-field elementor-size-sm  elementor-field-textual" required="required">
+											</div>
+								<div class="elementor-field-group elementor-column elementor-field-type-submit elementor-col-100 e-form__buttons">
+					<button class="elementor-button elementor-size-sm" type="submit">
+						<span class="elementor-button-content-wrapper">
+																						<span class="elementor-button-text">Send</span>
+													</span>
+					</button>
+				</div>
+			</div>
+		</form>
+		</div>
+</div>
+</div>
+<script src="../../digitalisimo-elements/modules/digitalisimo-f7b/assets/js/forms-conditions.js" defer></script>
+</body>
+</html>

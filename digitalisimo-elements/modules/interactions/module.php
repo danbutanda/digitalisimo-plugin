@@ -38,7 +38,7 @@ class Module extends Module_Base {
 	public function __construct() {
 		parent::__construct();
 
-		if ( ! $this->is_experiment_active() || ! $this->is_supported_by_current_license() ) {
+		if ( ! $this->is_experiment_active() || ! ( class_exists( '\Digitalisimo\Elements\F7b\Actions\Interactions_State' ) && \Digitalisimo\Elements\F7b\Actions\Interactions_State::enabled() ) ) { // DIGITALÍSIMO (F7b): la licencia se sustituye por el estado del sitio, que sólo se enciende tras el inventario de las interacciones guardadas (V.3).
 			return;
 		}
 

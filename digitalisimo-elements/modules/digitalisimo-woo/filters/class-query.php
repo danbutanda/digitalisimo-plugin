@@ -3,6 +3,10 @@ namespace Digitalisimo\Elements\Woo\Filters;
 
 defined( 'ABSPATH' ) || exit;
 
+if ( ! class_exists( '\Digitalisimo\Elements\Filters\Query', false ) ) {
+	require_once dirname( __DIR__, 2 ) . '/digitalisimo-filters/class-query.php';
+}
+
 /**
  * Consulta de los dos tipos de filtro del Loop Grid (F4-Woo, V.8.4). Clean-room: sólo la API pública de WooCommerce
  * y sus tablas, nunca una clase `Automattic\WooCommerce\Internal\…`.
@@ -22,8 +26,11 @@ defined( 'ABSPATH' ) || exit;
  * COUNT` en los dos ramales `is_variation_attribute`, y `1=0` si ningún término existe. Sin la tabla, el `tax_query` por
  * *slug* de `WC_Query::get_tax_query()` (`:916-933`). En los dos casos, el mismo conjunto que la tienda nativa. Un nombre
  * que no es un atributo deja el bucle vacío (`post__in = 0`): falla cerrado, nunca muestra de más.
+ *
+ * Extiende la consulta neutra de los filtros (F7b, V.5 y C1-13) sin cambiar nada: `first_term()` y `append_join()`
+ * (la guarda del JOIN) son las de siempre y viven en la base, que también las usa para ordenar por precio.
  */
-final class Query {
+final class Query extends \Digitalisimo\Elements\Filters\Query {
 	const PRICE_VAR      = 'digitalisimo_price_range';
 	const ATTRIBUTE_VAR  = 'digitalisimo_attribute_filter';
 	const MAX_PRICE      = 1000000000;
@@ -96,24 +103,6 @@ final class Query {
 	/** Decimales de la tienda (2 sin WooCommerce). */
 	public static function decimals(): int {
 		return function_exists( 'wc_get_price_decimals' ) ? max( 0, min( 8, (int) wc_get_price_decimals() ) ) : 2;
-	}
-
-	/**
-	 * Primer término de un nombre, como lo dejan la URL (`terms: [ '10' ]`) y el refresco.
-	 *
-	 * @param array  $filters Filtros del tipo.
-	 * @param string $name    Nombre.
-	 * @return mixed
-	 */
-	private static function first_term( array $filters, string $name ) {
-		if ( ! isset( $filters[ $name ] ) || ! is_array( $filters[ $name ] ) || ! isset( $filters[ $name ]['terms'] ) ) {
-			return null;
-		}
-		$terms = $filters[ $name ]['terms'];
-		if ( is_array( $terms ) ) {
-			$terms = reset( $terms );
-		}
-		return $terms;
 	}
 
 	/**
@@ -286,24 +275,6 @@ final class Query {
 		if ( defined( 'REST_REQUEST' ) && REST_REQUEST && function_exists( 'WC' ) && null === WC()->customer && function_exists( 'wc_load_cart' ) ) {
 			wc_load_cart();
 		}
-	}
-
-	/**
-	 * JOIN de `wc_product_meta_lookup` con su alias, salvo que la cláusula ya lo nombre: la guarda de
-	 * `ProductUtil::append_product_sorting_table_join()` de 11.2 (`W:src/Internal/Utilities/ProductUtil.php:150-168`).
-	 *
-	 * @param mixed $join Cláusula JOIN.
-	 */
-	public static function append_join( $join ): string {
-		global $wpdb;
-		if ( ! is_string( $join ) ) {
-			$join = is_object( $join ) && method_exists( $join, '__toString' ) ? (string) $join : '';
-		}
-		if ( ! preg_match( '/\bwc_product_meta_lookup\b/', $join ) ) {
-			$table = isset( $wpdb->wc_product_meta_lookup ) ? $wpdb->wc_product_meta_lookup : $wpdb->prefix . 'wc_product_meta_lookup';
-			$join .= " LEFT JOIN {$table} wc_product_meta_lookup ON {$wpdb->posts}.ID = wc_product_meta_lookup.product_id ";
-		}
-		return $join;
 	}
 
 	/**

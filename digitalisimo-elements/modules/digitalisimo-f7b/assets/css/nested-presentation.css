@@ -1,0 +1,14 @@
+.digi-nested-pills.elementor-widget-n-tabs{--n-tabs-title-border-radius:999px}
+.digi-nested-pills.elementor-widget-n-accordion{--n-accordion-border-radius:1.5em}
+.digi-nested-underline.elementor-widget-n-tabs,.digi-nested-minimal.elementor-widget-n-tabs{--n-tabs-title-background-color:transparent}
+.digi-nested-underline.elementor-widget-n-accordion,.digi-nested-minimal.elementor-widget-n-accordion{--n-accordion-border-width:0px}
+:where(:is([class*=" digi-nested-"],[class*=" digi-nested-"]>*)>*>*>.e-n-tab-title,:is([class*=" digi-nested-"],[class*=" digi-nested-"]>*)>*>*>.e-n-accordion-item-title){min-block-size:24px}
+:where(:is([class*=" digi-nested-"],[class*=" digi-nested-"]>*)>*>*>.e-n-tab-title:focus-visible,:is([class*=" digi-nested-"],[class*=" digi-nested-"]>*)>*>*>.e-n-accordion-item-title:focus-visible){outline:2px solid currentColor;outline-offset:-4px}
+:where(:is(.digi-nested-pills,.digi-nested-pills>*)>*>*>.e-n-tab-title[aria-selected=true],:is(.digi-nested-pills,.digi-nested-pills>*)>*>[open]>.e-n-accordion-item-title){box-shadow:inset 0 0 0 2px currentColor}
+:where(:is(.digi-nested-underline,.digi-nested-underline>*)>*>*>.e-n-tab-title,:is(.digi-nested-underline,.digi-nested-underline>*)>*>*>.e-n-accordion-item-title){box-shadow:inset 0 -1px 0 currentColor}
+:where(:is(.digi-nested-underline,.digi-nested-underline>*)>*>*>.e-n-tab-title[aria-selected=true],:is(.digi-nested-underline,.digi-nested-underline>*)>*>[open]>.e-n-accordion-item-title){box-shadow:inset 0 -3px 0 currentColor}
+:where(:is(.digi-nested-boxed,.digi-nested-boxed>*)>*>*>.e-n-tab-title){box-shadow:inset 0 0 0 1px currentColor}
+:where(:is(.digi-nested-boxed,.digi-nested-boxed>*)>*>*>.e-n-tab-title[aria-selected=true]){box-shadow:inset 0 3px 0 currentColor,inset 0 0 0 1px currentColor}
+:where(:is(.digi-nested-boxed,.digi-nested-boxed>*)>*>[open]>.e-n-accordion-item-title){box-shadow:inset 0 3px 0 currentColor}
+:where(:is(.digi-nested-minimal,.digi-nested-minimal>*)>*>*>.e-n-tab-title[aria-selected=true]>.e-n-tab-title-text,:is(.digi-nested-minimal,.digi-nested-minimal>*)>*>[open]>.e-n-accordion-item-title .e-n-accordion-item-title-text){text-decoration-line:underline;text-decoration-thickness:2px;text-underline-offset:.3em}
+@media (forced-colors:active){:where(:is([class*=" digi-nested-"],[class*=" digi-nested-"]>*)>*>*>.e-n-tab-title[aria-selected=true]>.e-n-tab-title-text,:is([class*=" digi-nested-"],[class*=" digi-nested-"]>*)>*>[open]>.e-n-accordion-item-title .e-n-accordion-item-title-text){text-decoration-line:underline}}

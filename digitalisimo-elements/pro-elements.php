@@ -127,9 +127,13 @@ function pro_elements_load_plugin_func() {
 	// Capacidades de diseño (F7a): presets, fondos, sticky, documento y prioridad; cada submódulo sólo si existe.
 	require_once __DIR__ . '/modules/digitalisimo-design/class-module.php';
 	\Digitalisimo\Elements\Design\Module::init();
+	require_once __DIR__ . '/modules/digitalisimo-filters/class-module.php'; \Digitalisimo\Elements\Filters\Module::init(); // Filtros del Loop Grid (F7b): base neutra, antes de F4-Woo.
 	// WooCommerce visual (F4-Woo): sin WooCommerce, sólo el registro oculto del editor y el filtro de partes de kits.
 	require_once __DIR__ . '/modules/digitalisimo-woo/class-module.php';
 	\Digitalisimo\Elements\Woo\Module::init();
+	// Capacidades de F7b (acciones, consultas, anidados…): base de usos y contadores, y cada submódulo sólo si existe.
+	require_once __DIR__ . '/modules/digitalisimo-f7b/class-module.php';
+	\Digitalisimo\Elements\F7b\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

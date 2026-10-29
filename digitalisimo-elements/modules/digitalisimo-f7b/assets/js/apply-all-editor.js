@@ -5,7 +5,7 @@
 	if (!cfg) return;
 	const T = cfg.i18n || {}, KEY = cfg.key || 'digitalisimo-apply-all', PASTE = 'document/elements/paste-style';
 	const E = () => w.elementor;
-	const esc = (s) => String(s).replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';');
+	const esc = (s) => String(s).replace(/[&<>"\x27]/g, (c) => '&#' + c.charCodeAt(0) + ';');
 	const fill = (s, k, v) => String(s || '').replace(k, () => v);
 	const type = (c) => c && c.model && 'widget' === c.model.get('elType') ? c.model.get('widgetType') : '';
 	const atomic = (m) => { const h = E().helpers; return !!(h && h.isAtomicWidget && h.isAtomicWidget(m)); };
@@ -52,7 +52,8 @@
 	}
 	function menu(groups, view) {
 		const m = view && view.options && view.options.model;
-		if (!m || 'widget' !== m.get('elType') || atomic(m)) return groups;
+		// Sin el permiso «design», ni el grupo (un grupo vacío dejaría un separador en el menú).
+		if (!m || 'widget' !== m.get('elType') || atomic(m) || !can()) return groups;
 		const c = () => view.getContainer(), at = groups.findIndex((g) => 'delete' === g.name);
 		groups.splice(at < 0 ? groups.length : at, 0, { name: 'digitalisimo-apply-all', actions: [{
 			name: 'digitalisimo-apply-all',

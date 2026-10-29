@@ -1,4 +1,4 @@
-/* DIGITALÍSIMO Elements F4-Woo V.8.3: coordinador de filtros del Loop Grid (fetch propio, AbortController, popstate, foco). */
+/* DIGITALÍSIMO Elements F4-Woo V.8.3 y F7b V.5: coordinador de filtros del Loop Grid. */
 ((w,d)=>{
 'use strict';
 if(w.digitalisimoWooFilters)return;
@@ -72,7 +72,8 @@ r.last=sig;
 if(o.push)push(id,st.flat,src);
 if(r.ctrl)r.ctrl.abort();
 const ctrl=r.ctrl=new AbortController(),seq=++r.seq,doc=docOf(L),post=fe&&fe.config&&fe.config.post;
-const body={post_id:+(doc&&at(doc,'data-elementor-id'))||(post&&post.id)||0,widget_id:id,widget_filters:st.wf,pagination_base_url:help(src).base||location.href};
+const body={post_id:+(doc&&at(doc,'data-elementor-id'))||(post&&post.id)||0,widget_id:id,widget_filters:st.wf,pagination_base_url:help(src).base||location.href},x=at(L,'data-digi-ctx');
+if(/^\d+$/.test(x))body.digi_ctx=+x;
 busy(L,true);
 return w.fetch(rest()+'elementor-pro/v1/refresh-loop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctrl.signal})
 .then(res=>res.ok?res.json():null).catch(()=>null)
