@@ -1,0 +1,2344 @@
+{
+ "_comentario": "Evidencia depurada de la etapa F4-Woo (Elements 4.3.0.166). Playground a mano (no en CI). Resultados completos en los informes de la especificación; aquí sólo el estado, los recuentos y la duración de cada corrida.",
+ "fecha": "2026-10-29",
+ "woo-flow.sh": {
+  "W0": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "8595516353be7903",
+   "woocommerce": "11.2.1",
+   "git": "6fe01759",
+   "duracion_s": 455,
+   "escenarios": {
+    "W0": {
+     "estado": "ok",
+     "comprobaciones": 38,
+     "ok": 38,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 398243
+    }
+   }
+  },
+  "W1-W12": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "679d86d9526acb8a",
+   "woocommerce": "11.2.1",
+   "git": "d6cfa993",
+   "duracion_s": 241,
+   "escenarios": {
+    "W1": {
+     "estado": "ok",
+     "comprobaciones": 13,
+     "ok": 13,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 63941
+    },
+    "W12": {
+     "estado": "ok",
+     "comprobaciones": 11,
+     "ok": 11,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 134447
+    }
+   }
+  },
+  "W1-W12-net": {
+   "estado": "pass",
+   "modo": "net",
+   "opciones": {
+    "core": "bundled",
+    "net": true,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "8595516353be7903",
+   "woocommerce": "11.2.1",
+   "git": "6fe01759",
+   "duracion_s": 329,
+   "escenarios": {
+    "W1": {
+     "estado": "ok",
+     "comprobaciones": 16,
+     "ok": 16,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 88946
+    },
+    "W12": {
+     "estado": "ok",
+     "comprobaciones": 11,
+     "ok": 11,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 110316
+    }
+   }
+  },
+  "W2": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "8595516353be7903",
+   "woocommerce": "11.2.1",
+   "git": "6fe01759",
+   "duracion_s": 367,
+   "escenarios": {
+    "W2": {
+     "estado": "ok",
+     "comprobaciones": 19,
+     "ok": 19,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 313321
+    }
+   }
+  },
+  "W2-net": {
+   "estado": "pass",
+   "modo": "net",
+   "opciones": {
+    "core": "bundled",
+    "net": true,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "ee67efe8",
+   "duracion_s": 383,
+   "escenarios": {
+    "W2": {
+     "estado": "ok",
+     "comprobaciones": 18,
+     "ok": 18,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 242701
+    }
+   }
+  },
+  "W3": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "8595516353be7903",
+   "woocommerce": "11.2.1",
+   "git": "45e46f73",
+   "duracion_s": 203,
+   "escenarios": {
+    "W3": {
+     "estado": "ok",
+     "comprobaciones": 6,
+     "ok": 6,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 162393
+    }
+   }
+  },
+  "W4-W5": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "8595516353be7903",
+   "woocommerce": "11.2.1",
+   "git": "d6cfa993",
+   "duracion_s": 390,
+   "escenarios": {
+    "W4": {
+     "estado": "ok",
+     "comprobaciones": 38,
+     "ok": 38,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 182406
+    },
+    "W5": {
+     "estado": "ok",
+     "comprobaciones": 16,
+     "ok": 16,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 151545
+    }
+   }
+  },
+  "W4-W5-plugin": {
+   "estado": "pass",
+   "modo": "plugin-4.3.5",
+   "opciones": {
+    "core": "plugin",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "8595516353be7903",
+   "woocommerce": "11.2.1",
+   "git": "ac63fdcc",
+   "duracion_s": 382,
+   "escenarios": {
+    "W4": {
+     "estado": "ok",
+     "comprobaciones": 38,
+     "ok": 38,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 182810
+    },
+    "W5": {
+     "estado": "ok",
+     "comprobaciones": 16,
+     "ok": 16,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 145160
+    }
+   }
+  },
+  "W6": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "8595516353be7903",
+   "woocommerce": "11.2.1",
+   "git": "45e46f73",
+   "duracion_s": 337,
+   "escenarios": {
+    "W6": {
+     "estado": "parcial",
+     "comprobaciones": 17,
+     "ok": 16,
+     "pendientes": 1,
+     "problemas": 0,
+     "ms": 300843
+    }
+   }
+  },
+  "W6-block": {
+   "estado": "pass",
+   "modo": "block",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "block",
+    "quick": true
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "9521ea9f",
+   "duracion_s": 406,
+   "escenarios": {
+    "W6": {
+     "estado": "ok",
+     "comprobaciones": 18,
+     "ok": 18,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 333348
+    }
+   }
+  },
+  "W6-net": {
+   "estado": "pass",
+   "modo": "net",
+   "opciones": {
+    "core": "bundled",
+    "net": true,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "8595516353be7903",
+   "woocommerce": "11.2.1",
+   "git": "98c868ae",
+   "duracion_s": 419,
+   "escenarios": {
+    "W6": {
+     "estado": "ok",
+     "comprobaciones": 17,
+     "ok": 17,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 316503
+    }
+   }
+  },
+  "W6-165-baseline": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": true
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "9b28d3265501620c",
+   "woocommerce": "11.2.1",
+   "git": "ee67efe8",
+   "duracion_s": 105,
+   "escenarios": {
+    "W6": {
+     "estado": "ok",
+     "comprobaciones": 1,
+     "ok": 1,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 43140
+    }
+   }
+  },
+  "W7": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "9914f3801eebda6a",
+   "woocommerce": "11.2.1",
+   "git": "a02562b9",
+   "duracion_s": 416,
+   "escenarios": {
+    "W7": {
+     "estado": "ok",
+     "comprobaciones": 17,
+     "ok": 17,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 362423
+    }
+   }
+  },
+  "W8": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "679d86d9526acb8a",
+   "woocommerce": "11.2.1",
+   "git": "d6cfa993",
+   "duracion_s": 307,
+   "escenarios": {
+    "W8": {
+     "estado": "ok",
+     "comprobaciones": 9,
+     "ok": 9,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 257293
+    }
+   }
+  },
+  "W9": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "ee67efe8",
+   "duracion_s": 506,
+   "escenarios": {
+    "W9": {
+     "estado": "ok",
+     "comprobaciones": 59,
+     "ok": 59,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 424083,
+     "tabla_atributos": {
+      "/": {
+       "woocommerce_attribute_lookup_enabled": "yes",
+       "woocommerce_attribute_lookup_direct_updates": "yes",
+       "after_setup": {
+        "woocommerce_attribute_lookup_enabled": "yes",
+        "woocommerce_attribute_lookup_direct_updates": "yes"
+       },
+       "regenerated": true,
+       "rows": 12,
+       "rows_before": 12,
+       "total_rows": 96,
+       "pending": {
+        "woocommerce_run_product_attribute_lookup_update_callback": 0,
+        "woocommerce_run_product_attribute_lookup_regeneration_callback": 0
+       },
+       "runs": [
+        {
+         "woocommerce_attribute_lookup_enabled": "yes",
+         "woocommerce_hide_out_of_stock_items": "no"
+        },
+        {
+         "woocommerce_attribute_lookup_enabled": "yes",
+         "woocommerce_hide_out_of_stock_items": "yes"
+        },
+        {
+         "woocommerce_attribute_lookup_enabled": "no",
+         "woocommerce_hide_out_of_stock_items": "yes"
+        },
+        {
+         "woocommerce_attribute_lookup_enabled": "no",
+         "woocommerce_hide_out_of_stock_items": "no"
+        }
+       ]
+      }
+     }
+    }
+   }
+  },
+  "W9-plugin": {
+   "estado": "pass",
+   "modo": "plugin-4.3.5",
+   "opciones": {
+    "core": "plugin",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "9521ea9f",
+   "duracion_s": 484,
+   "escenarios": {
+    "W9": {
+     "estado": "ok",
+     "comprobaciones": 59,
+     "ok": 59,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 407067,
+     "tabla_atributos": {
+      "/": {
+       "woocommerce_attribute_lookup_enabled": "yes",
+       "woocommerce_attribute_lookup_direct_updates": "yes",
+       "after_setup": {
+        "woocommerce_attribute_lookup_enabled": "yes",
+        "woocommerce_attribute_lookup_direct_updates": "yes"
+       },
+       "regenerated": true,
+       "rows": 12,
+       "rows_before": 12,
+       "total_rows": 96,
+       "pending": {
+        "woocommerce_run_product_attribute_lookup_update_callback": 0,
+        "woocommerce_run_product_attribute_lookup_regeneration_callback": 0
+       },
+       "runs": [
+        {
+         "woocommerce_attribute_lookup_enabled": "yes",
+         "woocommerce_hide_out_of_stock_items": "no"
+        },
+        {
+         "woocommerce_attribute_lookup_enabled": "yes",
+         "woocommerce_hide_out_of_stock_items": "yes"
+        },
+        {
+         "woocommerce_attribute_lookup_enabled": "no",
+         "woocommerce_hide_out_of_stock_items": "yes"
+        },
+        {
+         "woocommerce_attribute_lookup_enabled": "no",
+         "woocommerce_hide_out_of_stock_items": "no"
+        }
+       ]
+      }
+     }
+    }
+   }
+  },
+  "W10": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "c9654a2d5222380b",
+   "woocommerce": "11.2.1",
+   "git": "5a8dedb9",
+   "duracion_s": 248,
+   "escenarios": {
+    "W10": {
+     "estado": "ok",
+     "comprobaciones": 8,
+     "ok": 8,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 158035
+    }
+   }
+  },
+  "W10-plugin": {
+   "estado": "pass",
+   "modo": "plugin-4.3.5",
+   "opciones": {
+    "core": "plugin",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "9521ea9f",
+   "duracion_s": 232,
+   "escenarios": {
+    "W10": {
+     "estado": "ok",
+     "comprobaciones": 8,
+     "ok": 8,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 158068
+    }
+   }
+  },
+  "W11-clasico": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "fe8a63381c7d8d5e",
+   "woocommerce": "11.2.1",
+   "git": "f0bd9e80",
+   "duracion_s": 185,
+   "escenarios": {
+    "W11": {
+     "estado": "parcial",
+     "comprobaciones": 9,
+     "ok": 8,
+     "pendientes": 1,
+     "problemas": 0,
+     "ms": 142724
+    }
+   }
+  },
+  "W11-bloques": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "fe8a63381c7d8d5e",
+   "woocommerce": "11.2.1",
+   "git": "f0bd9e80",
+   "duracion_s": 330,
+   "escenarios": {
+    "W11": {
+     "estado": "parcial",
+     "comprobaciones": 9,
+     "ok": 8,
+     "pendientes": 1,
+     "problemas": 0,
+     "ms": 287169
+    }
+   }
+  },
+  "W11-plugin-clasico": {
+   "estado": "pass",
+   "modo": "plugin-4.3.5",
+   "opciones": {
+    "core": "plugin",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "fe8a63381c7d8d5e",
+   "woocommerce": "11.2.1",
+   "git": "0ddf35ac",
+   "duracion_s": 274,
+   "escenarios": {
+    "W11": {
+     "estado": "parcial",
+     "comprobaciones": 9,
+     "ok": 8,
+     "pendientes": 1,
+     "problemas": 0,
+     "ms": 221284
+    }
+   }
+  },
+  "W11-plugin-bloques": {
+   "estado": "pass",
+   "modo": "plugin-4.3.5",
+   "opciones": {
+    "core": "plugin",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "fe8a63381c7d8d5e",
+   "woocommerce": "11.2.1",
+   "git": "0ddf35ac",
+   "duracion_s": 219,
+   "escenarios": {
+    "W11": {
+     "estado": "parcial",
+     "comprobaciones": 9,
+     "ok": 8,
+     "pendientes": 1,
+     "problemas": 0,
+     "ms": 165592
+    }
+   }
+  },
+  "W13": {
+   "estado": "pass",
+   "modo": "normal",
+   "opciones": {
+    "core": "bundled",
+    "net": false,
+    "cache": false,
+    "theme": "digitalisimo",
+    "quick": false
+   },
+   "elements": "4.3.0.165",
+   "huella_elements": "8595516353be7903",
+   "woocommerce": "11.2.1",
+   "git": "45e46f73",
+   "duracion_s": 516,
+   "escenarios": {
+    "W13": {
+     "estado": "ok",
+     "comprobaciones": 15,
+     "ok": 15,
+     "pendientes": 0,
+     "problemas": 0,
+     "ms": 480053
+    }
+   }
+  }
+ },
+ "kit-roundtrip.sh": {
+  "R1-pantalla": {
+   "estado": "pass",
+   "opciones": {
+    "core": "bundled",
+    "woo": true,
+    "quick": true,
+    "slow": false
+   },
+   "elements": 1,
+   "sha": "295c21afb624b4906f57601fe2976bc7b3808740",
+   "woocommerce": "11.2.1",
+   "duracion_s": 569,
+   "max_rest_ms": 38627,
+   "escenarios": {
+    "R1": {
+     "ok": true,
+     "problemas": 0,
+     "ms": 331229
+    }
+   },
+   "aceptacion": {
+    "A1": "falla",
+    "A2": "ok",
+    "A3": "no medido",
+    "A4": "ok",
+    "A5": "ok",
+    "A6": "ok",
+    "A7": "no medido",
+    "A8": "no medido",
+    "A9": "no medido",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "falla",
+    "A14": "no medido"
+   }
+  },
+  "R1-wp-cli": {
+   "estado": "pass",
+   "opciones": {
+    "core": "bundled",
+    "woo": true,
+    "quick": true,
+    "slow": false
+   },
+   "elements": 1,
+   "sha": "ee67efe8af544ef14f793c7d97d822490be8047c",
+   "woocommerce": "11.2.1",
+   "duracion_s": 380,
+   "max_rest_ms": 10666,
+   "escenarios": {
+    "R1": {
+     "ok": true,
+     "problemas": 0,
+     "ms": 138355
+    }
+   },
+   "aceptacion": {
+    "A1": "falla",
+    "A2": "ok",
+    "A3": "no medido",
+    "A4": "ok",
+    "A5": "ok",
+    "A6": "ok",
+    "A7": "no medido",
+    "A8": "no medido",
+    "A9": "no medido",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "ok",
+    "A14": "no medido"
+   }
+  },
+  "R4": {
+   "estado": "pass",
+   "opciones": {
+    "core": "bundled",
+    "woo": true,
+    "quick": true,
+    "slow": false
+   },
+   "elements": 1,
+   "sha": "6fe0175922700f9491487af5629f3d9be9437d33",
+   "woocommerce": "11.2.1",
+   "duracion_s": 393,
+   "max_rest_ms": 32453,
+   "escenarios": {
+    "R4": {
+     "ok": true,
+     "problemas": 0,
+     "ms": 387670
+    }
+   },
+   "aceptacion": {
+    "A1": "no medido",
+    "A2": "no medido",
+    "A3": "no medido",
+    "A4": "ok",
+    "A5": "ok",
+    "A6": "ok",
+    "A7": "ok",
+    "A8": "no medido",
+    "A9": "no medido",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "falla",
+    "A14": "ok"
+   }
+  },
+  "R4w": {
+   "estado": "pass",
+   "opciones": {
+    "core": "bundled",
+    "woo": true,
+    "quick": true,
+    "slow": false
+   },
+   "elements": 1,
+   "sha": "9521ea9ff0e1bd9b087483e19a2d4c72614537d2",
+   "woocommerce": "11.2.1",
+   "duracion_s": 232,
+   "max_rest_ms": 29405,
+   "escenarios": {
+    "R4w": {
+     "ok": true,
+     "problemas": 0,
+     "ms": 226025
+    }
+   },
+   "aceptacion": {
+    "A1": "no medido",
+    "A2": "no medido",
+    "A3": "no medido",
+    "A4": "ok",
+    "A5": "no medido",
+    "A6": "no medido",
+    "A7": "no medido",
+    "A8": "no medido",
+    "A9": "no medido",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "no medido",
+    "A14": "no medido"
+   }
+  },
+  "R5": {
+   "estado": "pass",
+   "opciones": {
+    "core": "bundled",
+    "woo": true,
+    "quick": false,
+    "slow": false
+   },
+   "elements": 1,
+   "sha": "9521ea9ff0e1bd9b087483e19a2d4c72614537d2",
+   "woocommerce": "11.2.1",
+   "duracion_s": 402,
+   "max_rest_ms": 41456,
+   "escenarios": {
+    "R5": {
+     "ok": true,
+     "problemas": 0,
+     "ms": 395855
+    }
+   },
+   "aceptacion": {
+    "A1": "no medido",
+    "A2": "no medido",
+    "A3": "no medido",
+    "A4": "no medido",
+    "A5": "no medido",
+    "A6": "no medido",
+    "A7": "no medido",
+    "A8": "ok",
+    "A9": "no medido",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "falla",
+    "A14": "no medido"
+   }
+  },
+  "R6": {
+   "estado": "pass",
+   "opciones": {
+    "core": "bundled",
+    "woo": true,
+    "quick": false,
+    "slow": false
+   },
+   "elements": 1,
+   "sha": "ee67efe8af544ef14f793c7d97d822490be8047c",
+   "woocommerce": "11.2.1",
+   "duracion_s": 398,
+   "max_rest_ms": 45500,
+   "escenarios": {
+    "R6": {
+     "ok": true,
+     "problemas": 0,
+     "ms": 397398
+    }
+   },
+   "aceptacion": {
+    "A1": "no medido",
+    "A2": "no medido",
+    "A3": "no medido",
+    "A4": "no medido",
+    "A5": "ok",
+    "A6": "no medido",
+    "A7": "no medido",
+    "A8": "no medido",
+    "A9": "ok",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "no medido",
+    "A14": "no medido"
+   }
+  },
+  "R8": {
+   "estado": "pass",
+   "opciones": {
+    "core": "bundled",
+    "woo": true,
+    "quick": false,
+    "slow": false
+   },
+   "elements": 1,
+   "sha": "9521ea9ff0e1bd9b087483e19a2d4c72614537d2",
+   "woocommerce": "11.2.1",
+   "duracion_s": 379,
+   "max_rest_ms": 43746,
+   "escenarios": {
+    "R8": {
+     "ok": true,
+     "problemas": 0,
+     "ms": 372654
+    }
+   },
+   "aceptacion": {
+    "A1": "no medido",
+    "A2": "no medido",
+    "A3": "no medido",
+    "A4": "no medido",
+    "A5": "no medido",
+    "A6": "no medido",
+    "A7": "no medido",
+    "A8": "no medido",
+    "A9": "no medido",
+    "A10": "falla",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "falla",
+    "A14": "no medido"
+   }
+  },
+  "R1-sin-woo": {
+   "estado": "pass",
+   "opciones": {
+    "core": "bundled",
+    "woo": false,
+    "quick": true,
+    "slow": false
+   },
+   "elements": 1,
+   "sha": "cf6957f7ed90f19ef5768d59f4512f59fa774fa7",
+   "woocommerce": null,
+   "duracion_s": 410,
+   "max_rest_ms": 27578,
+   "escenarios": {
+    "R1": {
+     "ok": true,
+     "problemas": 0,
+     "ms": 272679
+    }
+   },
+   "aceptacion": {
+    "A1": "ok",
+    "A2": "ok",
+    "A3": "no medido",
+    "A4": "ok",
+    "A5": "ok",
+    "A6": "ok",
+    "A7": "no medido",
+    "A8": "no medido",
+    "A9": "no medido",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "falla",
+    "A14": "no medido"
+   }
+  },
+  "R1-sin-woo-4.3.0.165": {
+   "estado": "pass",
+   "opciones": {
+    "core": "bundled",
+    "woo": false,
+    "quick": true,
+    "slow": false
+   },
+   "elements": 1,
+   "sha": "d6cfa993e979a311706fc34819550a0d3336fca0",
+   "woocommerce": null,
+   "duracion_s": 396,
+   "max_rest_ms": 25596,
+   "escenarios": {
+    "R1": {
+     "ok": true,
+     "problemas": 0,
+     "ms": 271157
+    }
+   },
+   "aceptacion": {
+    "A1": "ok",
+    "A2": "ok",
+    "A3": "no medido",
+    "A4": "ok",
+    "A5": "ok",
+    "A6": "ok",
+    "A7": "no medido",
+    "A8": "no medido",
+    "A9": "no medido",
+    "A10": "no medido",
+    "A11": "no medido",
+    "A12": "no medido",
+    "A13": "falla",
+    "A14": "no medido"
+   }
+  }
+ },
+ "front-budget.sh": {
+  "woo-a-antes-de-las-correcciones": {
+   "estado": "fail",
+   "modo": "woo",
+   "elements": "4.3.0.165",
+   "huella_elements": "f33a7cfc94c1a303",
+   "woocommerce": "11.2.1",
+   "git": "39b6d818",
+   "duracion_s": 350,
+   "casos": 9,
+   "casos_ok": 9,
+   "problemas": [
+    "woo-wishlist-button · delta.cls: 0.018 (se esperaba \"<=0.01\")",
+    "woo-wishlist · delta.cls: 0.029 (se esperaba \"<=0.01\")",
+    "woo-quick-view · inlinePart:variation: 1034 (se esperaba \"<=1024\")",
+    "DISTINTO woo-pro-existing frente a 4.3.0.165 · bytes 1448039 → 1448207 | bytesSame 1280789 → 1280957"
+   ],
+   "comparacion": {
+    "against": 3,
+    "same": 3,
+    "different": 1,
+    "missing": 0,
+    "strict": 4
+   },
+   "por_caso": {
+    "all-own": {
+     "css": 356529,
+     "js": 378777,
+     "requests": 52,
+     "cls": 0
+    },
+    "woo-empty": {
+     "css": 333550,
+     "js": 365427,
+     "requests": 33,
+     "cls": 0
+    },
+    "woo-loop-filter-pro": {
+     "css": 351030,
+     "js": 753614,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-pro-existing": {
+     "css": 445443,
+     "js": 788080,
+     "requests": 47,
+     "cls": 0
+    },
+    "woo-wishlist-button": {
+     "css": 335937,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0.018
+    },
+    "woo-wishlist": {
+     "css": 335937,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0.029
+    },
+    "woo-quick-view": {
+     "css": 336047,
+     "js": 373601,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-quick-view-template": {
+     "css": 336047,
+     "js": 756268,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-swatches": {
+     "css": 350483,
+     "js": 759134,
+     "requests": 42,
+     "cls": 0
+    }
+   }
+  },
+  "woo-b": {
+   "estado": "fail",
+   "modo": "woo",
+   "elements": "4.3.0.165",
+   "huella_elements": "750ccfaa3fe7b273",
+   "woocommerce": "11.2.1",
+   "git": "9b850a85",
+   "duracion_s": 322,
+   "casos": 8,
+   "casos_ok": 8,
+   "problemas": [
+    "DISTINTO woo-empty frente a 4.3.0.165 · bytes 878924 → 882165 | bytesSame 711674 → 714915 | img 0 → 3241 | requests 33 → 35 | queries 180 → 194"
+   ],
+   "comparacion": {
+    "against": 3,
+    "same": 0,
+    "different": 1,
+    "missing": 3,
+    "strict": 1
+   },
+   "por_caso": {
+    "woo-empty": {
+     "css": 333550,
+     "js": 365427,
+     "requests": 35,
+     "cls": 0
+    },
+    "woo-shipping-bar": {
+     "css": 334967,
+     "js": 374789,
+     "requests": 39,
+     "cls": 0
+    },
+    "woo-price-filter": {
+     "css": 351814,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-attribute-filter": {
+     "css": 351814,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-products-parts": {
+     "css": 346629,
+     "js": 387274,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-mini-cart-extras": {
+     "css": 351362,
+     "js": 757456,
+     "requests": 45,
+     "cls": 0
+    },
+    "woo-filters": {
+     "css": 351814,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-swatches-product": {
+     "css": 194400,
+     "js": 355730,
+     "requests": 46,
+     "cls": 0.001
+    }
+   }
+  },
+  "woo-corregidos": {
+   "estado": "pass",
+   "modo": "woo",
+   "elements": "4.3.0.165",
+   "huella_elements": "fe8a63381c7d8d5e",
+   "woocommerce": "11.2.1",
+   "git": "f0bd9e80",
+   "duracion_s": 196,
+   "casos": 5,
+   "casos_ok": 5,
+   "problemas": [],
+   "comparacion": {},
+   "por_caso": {
+    "woo-empty": {
+     "css": 333550,
+     "js": 365427,
+     "requests": 35,
+     "cls": 0
+    },
+    "woo-wishlist-button": {
+     "css": 336108,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-wishlist": {
+     "css": 336108,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-quick-view": {
+     "css": 336047,
+     "js": 373601,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-products-parts": {
+     "css": 346800,
+     "js": 387274,
+     "requests": 41,
+     "cls": 0
+    }
+   }
+  },
+  "woo+cache-corregidos": {
+   "estado": "pass",
+   "modo": "woo+cache",
+   "elements": "4.3.0.165",
+   "huella_elements": "fe8a63381c7d8d5e",
+   "woocommerce": "11.2.1",
+   "git": "f941a513",
+   "duracion_s": 237,
+   "casos": 5,
+   "casos_ok": 5,
+   "problemas": [],
+   "comparacion": {},
+   "por_caso": {
+    "woo-empty": {
+     "css": 333550,
+     "js": 365427,
+     "requests": 33,
+     "cls": 0
+    },
+    "woo-wishlist-button": {
+     "css": 336108,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-wishlist": {
+     "css": 336108,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-quick-view": {
+     "css": 336047,
+     "js": 373601,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-products-parts": {
+     "css": 346800,
+     "js": 387274,
+     "requests": 41,
+     "cls": 0
+    }
+   }
+  },
+  "plugin+woo-corregidos": {
+   "estado": "pass",
+   "modo": "plugin+woo",
+   "elements": "4.3.0.165",
+   "huella_elements": "fe8a63381c7d8d5e",
+   "woocommerce": "11.2.1",
+   "git": "f941a513",
+   "duracion_s": 193,
+   "casos": 5,
+   "casos_ok": 5,
+   "problemas": [],
+   "comparacion": {},
+   "por_caso": {
+    "woo-empty": {
+     "css": 333548,
+     "js": 365427,
+     "requests": 35,
+     "cls": 0
+    },
+    "woo-wishlist-button": {
+     "css": 336106,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-wishlist": {
+     "css": 336106,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-quick-view": {
+     "css": 336045,
+     "js": 373601,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-products-parts": {
+     "css": 346798,
+     "js": 387274,
+     "requests": 41,
+     "cls": 0
+    }
+   }
+  },
+  "v4+woo-corregidos": {
+   "estado": "pass",
+   "modo": "v4+woo",
+   "elements": "4.3.0.165",
+   "huella_elements": "fe8a63381c7d8d5e",
+   "woocommerce": "11.2.1",
+   "git": "f941a513",
+   "duracion_s": 187,
+   "casos": 5,
+   "casos_ok": 5,
+   "problemas": [],
+   "comparacion": {},
+   "por_caso": {
+    "woo-empty": {
+     "css": 333550,
+     "js": 365427,
+     "requests": 35,
+     "cls": 0
+    },
+    "woo-wishlist-button": {
+     "css": 336108,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-wishlist": {
+     "css": 336108,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-quick-view": {
+     "css": 336047,
+     "js": 373601,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-products-parts": {
+     "css": 346800,
+     "js": 387274,
+     "requests": 41,
+     "cls": 0
+    }
+   }
+  },
+  "woo+cache-a-antes": {
+   "estado": "fail",
+   "modo": "woo+cache",
+   "elements": "4.3.0.165",
+   "huella_elements": "c9654a2d5222380b",
+   "woocommerce": "11.2.1",
+   "git": "5a8dedb9",
+   "duracion_s": 478,
+   "casos": 9,
+   "casos_ok": 9,
+   "problemas": [
+    "woo-wishlist-button · delta.cls: 0.018 (se esperaba \"<=0.01\")",
+    "woo-wishlist · delta.cls: 0.029 (se esperaba \"<=0.01\")",
+    "woo-quick-view · inlinePart:variation: 1034 (se esperaba \"<=1024\")"
+   ],
+   "comparacion": {},
+   "por_caso": {
+    "all-own": {
+     "css": 356529,
+     "js": 378777,
+     "requests": 50,
+     "cls": 0
+    },
+    "woo-empty": {
+     "css": 333550,
+     "js": 365427,
+     "requests": 33,
+     "cls": 0
+    },
+    "woo-loop-filter-pro": {
+     "css": 351030,
+     "js": 753614,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-pro-existing": {
+     "css": 445443,
+     "js": 751021,
+     "requests": 44,
+     "cls": 0
+    },
+    "woo-wishlist-button": {
+     "css": 335937,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0.018
+    },
+    "woo-wishlist": {
+     "css": 335937,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0.029
+    },
+    "woo-quick-view": {
+     "css": 336047,
+     "js": 373601,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-quick-view-template": {
+     "css": 336047,
+     "js": 756268,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-swatches": {
+     "css": 350483,
+     "js": 759134,
+     "requests": 42,
+     "cls": 0
+    }
+   }
+  },
+  "woo+cache-b": {
+   "estado": "pass",
+   "modo": "woo+cache",
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "5a8dedb9",
+   "duracion_s": 401,
+   "casos": 8,
+   "casos_ok": 8,
+   "problemas": [],
+   "comparacion": {},
+   "por_caso": {
+    "woo-empty": {
+     "css": 333550,
+     "js": 365427,
+     "requests": 33,
+     "cls": 0
+    },
+    "woo-shipping-bar": {
+     "css": 334967,
+     "js": 375527,
+     "requests": 39,
+     "cls": 0
+    },
+    "woo-price-filter": {
+     "css": 351814,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-attribute-filter": {
+     "css": 351814,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-products-parts": {
+     "css": 346629,
+     "js": 387274,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-mini-cart-extras": {
+     "css": 351362,
+     "js": 758194,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-filters": {
+     "css": 351814,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-swatches-product": {
+     "css": 194400,
+     "js": 355730,
+     "requests": 46,
+     "cls": 0.001
+    }
+   }
+  },
+  "plugin+woo-a-antes": {
+   "estado": "fail",
+   "modo": "plugin+woo",
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "9521ea9f",
+   "duracion_s": 407,
+   "casos": 9,
+   "casos_ok": 9,
+   "problemas": [
+    "woo-wishlist-button · delta.cls: 0.018 (se esperaba \"<=0.01\")",
+    "woo-wishlist · delta.cls: 0.029 (se esperaba \"<=0.01\")",
+    "woo-quick-view · inlinePart:variation: 1034 (se esperaba \"<=1024\")"
+   ],
+   "comparacion": {},
+   "por_caso": {
+    "all-own": {
+     "css": 356527,
+     "js": 378777,
+     "requests": 52,
+     "cls": 0
+    },
+    "woo-empty": {
+     "css": 333548,
+     "js": 365427,
+     "requests": 33,
+     "cls": 0
+    },
+    "woo-loop-filter-pro": {
+     "css": 351028,
+     "js": 753614,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-pro-existing": {
+     "css": 445441,
+     "js": 788080,
+     "requests": 47,
+     "cls": 0
+    },
+    "woo-wishlist-button": {
+     "css": 335935,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0.018
+    },
+    "woo-wishlist": {
+     "css": 335935,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0.029
+    },
+    "woo-quick-view": {
+     "css": 336045,
+     "js": 373601,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-quick-view-template": {
+     "css": 336045,
+     "js": 756268,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-swatches": {
+     "css": 350481,
+     "js": 759134,
+     "requests": 42,
+     "cls": 0
+    }
+   }
+  },
+  "plugin+woo-b": {
+   "estado": "pass",
+   "modo": "plugin+woo",
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "9521ea9f",
+   "duracion_s": 353,
+   "casos": 8,
+   "casos_ok": 8,
+   "problemas": [],
+   "comparacion": {},
+   "por_caso": {
+    "woo-empty": {
+     "css": 333548,
+     "js": 365427,
+     "requests": 35,
+     "cls": 0
+    },
+    "woo-shipping-bar": {
+     "css": 334965,
+     "js": 375527,
+     "requests": 39,
+     "cls": 0
+    },
+    "woo-price-filter": {
+     "css": 351812,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-attribute-filter": {
+     "css": 351812,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-products-parts": {
+     "css": 346627,
+     "js": 387274,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-mini-cart-extras": {
+     "css": 351360,
+     "js": 758194,
+     "requests": 45,
+     "cls": 0
+    },
+    "woo-filters": {
+     "css": 351812,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-swatches-product": {
+     "css": 194400,
+     "js": 355730,
+     "requests": 46,
+     "cls": 0.001
+    }
+   }
+  },
+  "v4+woo-a-antes": {
+   "estado": "fail",
+   "modo": "v4+woo",
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "ee67efe8",
+   "duracion_s": 308,
+   "casos": 6,
+   "casos_ok": 6,
+   "problemas": [
+    "woo-wishlist-button · delta.cls: 0.018 (se esperaba \"<=0.01\")",
+    "woo-wishlist · delta.cls: 0.029 (se esperaba \"<=0.01\")",
+    "woo-quick-view · inlinePart:variation: 1034 (se esperaba \"<=1024\")"
+   ],
+   "comparacion": {},
+   "por_caso": {
+    "woo-empty": {
+     "css": 333550,
+     "js": 365427,
+     "requests": 35,
+     "cls": 0
+    },
+    "woo-wishlist-button": {
+     "css": 335937,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0.018
+    },
+    "woo-wishlist": {
+     "css": 335937,
+     "js": 373580,
+     "requests": 37,
+     "cls": 0.029
+    },
+    "woo-quick-view": {
+     "css": 336047,
+     "js": 373601,
+     "requests": 37,
+     "cls": 0
+    },
+    "woo-quick-view-template": {
+     "css": 336047,
+     "js": 756268,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-swatches": {
+     "css": 350483,
+     "js": 759134,
+     "requests": 42,
+     "cls": 0
+    }
+   }
+  },
+  "v4+woo-b": {
+   "estado": "pass",
+   "modo": "v4+woo",
+   "elements": "4.3.0.165",
+   "huella_elements": "219c5ece2f5a8790",
+   "woocommerce": "11.2.1",
+   "git": "ee67efe8",
+   "duracion_s": 358,
+   "casos": 8,
+   "casos_ok": 8,
+   "problemas": [],
+   "comparacion": {},
+   "por_caso": {
+    "woo-empty": {
+     "css": 333550,
+     "js": 365427,
+     "requests": 35,
+     "cls": 0
+    },
+    "woo-shipping-bar": {
+     "css": 334967,
+     "js": 375527,
+     "requests": 39,
+     "cls": 0
+    },
+    "woo-price-filter": {
+     "css": 351814,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-attribute-filter": {
+     "css": 351814,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-products-parts": {
+     "css": 346629,
+     "js": 387274,
+     "requests": 41,
+     "cls": 0
+    },
+    "woo-mini-cart-extras": {
+     "css": 351362,
+     "js": 758194,
+     "requests": 45,
+     "cls": 0
+    },
+    "woo-filters": {
+     "css": 351814,
+     "js": 767448,
+     "requests": 43,
+     "cls": 0
+    },
+    "woo-swatches-product": {
+     "css": 194400,
+     "js": 355730,
+     "requests": 46,
+     "cls": 0.001
+    }
+   }
+  },
+  "normal-a": {
+   "estado": "pass",
+   "modo": "normal",
+   "elements": "4.3.0.165",
+   "huella_elements": "c9654a2d5222380b",
+   "woocommerce": null,
+   "git": "295c21af",
+   "duracion_s": 416,
+   "casos": 41,
+   "casos_ok": 41,
+   "problemas": [],
+   "comparacion": {
+    "against": 3,
+    "same": 41,
+    "different": 0,
+    "missing": 0,
+    "strict": 2
+   },
+   "por_caso": {
+    "empty": {
+     "css": 187692,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0
+    },
+    "accordion": {
+     "css": 189541,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "advanced-button": {
+     "css": 190183,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "advanced-divider": {
+     "css": 189830,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "advanced-heading": {
+     "css": 188644,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "advanced-icon-box": {
+     "css": 190372,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "animated-heading": {
+     "css": 188343,
+     "js": 331450,
+     "requests": 24,
+     "cls": 0
+    },
+    "animated-link": {
+     "css": 189808,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0
+    },
+    "audio-player": {
+     "css": 188166,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0.001
+    },
+    "breadcrumbs": {
+     "css": 188107,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "business-hours": {
+     "css": 188704,
+     "js": 333911,
+     "requests": 24,
+     "cls": 0
+    },
+    "call-out": {
+     "css": 188673,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "chart": {
+     "css": 188376,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "comparison-list": {
+     "css": 188326,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "custom-gallery": {
+     "css": 188805,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0
+    },
+    "device-slider": {
+     "css": 190709,
+     "js": 331756,
+     "requests": 26,
+     "cls": 0
+    },
+    "document-viewer": {
+     "css": 188037,
+     "js": 329942,
+     "requests": 25,
+     "cls": 0
+    },
+    "dual-button": {
+     "css": 188441,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "fancy-card": {
+     "css": 188961,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0
+    },
+    "fancy-icons": {
+     "css": 188840,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "fancy-list": {
+     "css": 189669,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0
+    },
+    "fancy-slider": {
+     "css": 190850,
+     "js": 331756,
+     "requests": 26,
+     "cls": 0
+    },
+    "fancy-tabs": {
+     "css": 189995,
+     "js": 330279,
+     "requests": 24,
+     "cls": 0
+    },
+    "featured-box": {
+     "css": 190631,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0
+    },
+    "google-reviews": {
+     "css": 189105,
+     "js": 329849,
+     "requests": 24,
+     "cls": 0
+    },
+    "icon-nav": {
+     "css": 189796,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "image-compare": {
+     "css": 189013,
+     "js": 328866,
+     "requests": 25,
+     "cls": 0
+    },
+    "logos": {
+     "css": 190936,
+     "js": 331756,
+     "requests": 26,
+     "cls": 0
+    },
+    "map": {
+     "css": 197098,
+     "js": 1116083,
+     "requests": 36,
+     "cls": 0
+    },
+    "marquee": {
+     "css": 189189,
+     "js": 328539,
+     "requests": 25,
+     "cls": 0
+    },
+    "notification": {
+     "css": 189036,
+     "js": 330147,
+     "requests": 24,
+     "cls": 0
+    },
+    "offcanvas": {
+     "css": 190338,
+     "js": 332779,
+     "requests": 24,
+     "cls": 0
+    },
+    "product-grid": {
+     "css": 189252,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0.004
+    },
+    "progress-bars": {
+     "css": 189248,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "qr-code": {
+     "css": 188369,
+     "js": 351959,
+     "requests": 25,
+     "cls": 0.01
+    },
+    "reading-progress": {
+     "css": 188090,
+     "js": 329080,
+     "requests": 24,
+     "cls": 0
+    },
+    "reading-time": {
+     "css": 187884,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "scroll-button": {
+     "css": 188892,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "table": {
+     "css": 189633,
+     "js": 335252,
+     "requests": 24,
+     "cls": 0.017
+    },
+    "tags-cloud": {
+     "css": 188122,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "all-own": {
+     "css": 210672,
+     "js": 341329,
+     "requests": 39,
+     "cls": 0
+    }
+   }
+  },
+  "normal-b": {
+   "estado": "pass",
+   "modo": "normal",
+   "elements": "4.3.0.165",
+   "huella_elements": "c9654a2d5222380b",
+   "woocommerce": null,
+   "git": "295c21af",
+   "duracion_s": 405,
+   "casos": 41,
+   "casos_ok": 41,
+   "problemas": [],
+   "comparacion": {
+    "against": 3,
+    "same": 34,
+    "different": 0,
+    "missing": 0,
+    "strict": 1
+   },
+   "por_caso": {
+    "empty": {
+     "css": 187692,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0
+    },
+    "timeline": {
+     "css": 189857,
+     "js": 327979,
+     "requests": 24,
+     "cls": 0
+    },
+    "total-count": {
+     "css": 188052,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "user-register": {
+     "css": 188154,
+     "js": 327979,
+     "requests": 23,
+     "cls": 0
+    },
+    "vertical-menu": {
+     "css": 190743,
+     "js": 330785,
+     "requests": 24,
+     "cls": 0.017
+    },
+    "video-player": {
+     "css": 251506,
+     "js": 1307826,
+     "requests": 37,
+     "cls": 0
+    },
+    "slider-optimizado": {
+     "css": 191563,
+     "js": 338427,
+     "requests": 25,
+     "cls": 0
+    },
+    "pro-heavy": {
+     "css": 220069,
+     "js": 1112463,
+     "requests": 39,
+     "cls": 0.036
+    },
+    "core-only": {
+     "css": 205141,
+     "js": 355576,
+     "requests": 27,
+     "cls": 0
+    },
+    "pro-static": {
+     "css": 232581,
+     "js": 327979,
+     "requests": 30,
+     "cls": 0.001
+    },
+    "pro-popup": {
+     "css": 189553,
+     "js": 722268,
+     "requests": 29,
+     "cls": 0
+    },
+    "pro-popup-condition": {
+     "css": 205857,
+     "js": 722268,
+     "requests": 30,
+     "cls": 0
+    },
+    "pro-popup-classic": {
+     "css": 205558,
+     "js": 722268,
+     "requests": 29,
+     "cls": 0
+    },
+    "pro-popup-views": {
+     "css": 205857,
+     "js": 722268,
+     "requests": 32,
+     "cls": 0
+    },
+    "pro-light": {
+     "css": 190351,
+     "js": 710646,
+     "requests": 28,
+     "cls": 0.025
+    },
+    "pro-form": {
+     "css": 199679,
+     "js": 710646,
+     "requests": 27,
+     "cls": 0
+    },
+    "pro-nav": {
+     "css": 216715,
+     "js": 734755,
+     "requests": 28,
+     "cls": 0
+    },
+    "pro-loop": {
+     "css": 202045,
+     "js": 716166,
+     "requests": 29,
+     "cls": 0
+    },
+    "pro-loop-filter": {
+     "css": 205168,
+     "js": 716166,
+     "requests": 30,
+     "cls": 0
+    },
+    "motion": {
+     "css": 191297,
+     "js": 710646,
+     "requests": 29,
+     "cls": 0
+    },
+    "sticky": {
+     "css": 189804,
+     "js": 714367,
+     "requests": 29,
+     "cls": 0
+    },
+    "nested-template": {
+     "css": 192275,
+     "js": 710646,
+     "requests": 30,
+     "cls": 0.019
+    },
+    "nested-shortcode": {
+     "css": 195851,
+     "js": 738243,
+     "requests": 31,
+     "cls": 0.064
+    },
+    "global-widget": {
+     "css": 190309,
+     "js": 710646,
+     "requests": 28,
+     "cls": 0.025
+    },
+    "pro-in-html": {
+     "css": 187692,
+     "js": 710646,
+     "requests": 26,
+     "cls": 0
+    },
+    "hidden-pro": {
+     "css": 190351,
+     "js": 710646,
+     "requests": 27,
+     "cls": 0
+    },
+    "third-party": {
+     "css": 187692,
+     "js": 710646,
+     "requests": 26,
+     "cls": 0
+    },
+    "third-party-free": {
+     "css": 187692,
+     "js": 327979,
+     "requests": 22,
+     "cls": 0
+    },
+    "third-party-script": {
+     "css": 187692,
+     "js": 710808,
+     "requests": 27,
+     "cls": 0
+    },
+    "forced": {
+     "css": 187692,
+     "js": 710646,
+     "requests": 26,
+     "cls": 0
+    },
+    "code": {
+     "css": 206497,
+     "js": 748998,
+     "requests": 37,
+     "cls": 0.045
+    },
+    "code-langs": {
+     "css": 206497,
+     "js": 792387,
+     "requests": 66,
+     "cls": 0.147
+    },
+    "icons": {
+     "css": 219565,
+     "js": 327979,
+     "requests": 27,
+     "cls": 0
+    },
+    "lottie-above": {
+     "css": 188481,
+     "js": 963234,
+     "requests": 29,
+     "cls": 0.122
+    },
+    "design-preset": {
+     "css": 188305,
+     "js": 327979,
+     "requests": 22,
+     "cls": 0
+    },
+    "design-gradient": {
+     "css": 190151,
+     "js": 327979,
+     "requests": 22,
+     "cls": 0
+    },
+    "design-mask": {
+     "css": 190904,
+     "js": 329036,
+     "requests": 23,
+     "cls": 0
+    },
+    "design-pattern": {
+     "css": 203099,
+     "js": 327979,
+     "requests": 22,
+     "cls": 0
+    },
+    "sticky-state": {
+     "css": 190282,
+     "js": 714367,
+     "requests": 30,
+     "cls": 0
+    },
+    "doc-hide": {
+     "css": 188711,
+     "js": 348641,
+     "requests": 25,
+     "cls": 0
+    },
+    "page-visit-tracked": {
+     "css": 187693,
+     "js": 327979,
+     "requests": 22,
+     "cls": 0
+    }
+   }
+  }
+ },
+ "regresion": {
+  "interaction.sh": {
+   "estado": "pass",
+   "detalle": "29 comprobaciones OK, también las fichas de WooCommerce",
+   "registro": "/var/tmp/digi-f4/interaction.log"
+  },
+  "conditions.sh WOO=1": {
+   "estado": "pass",
+   "detalle": "279 comprobaciones correctas",
+   "registro": "/var/tmp/digi-f4/conditions.log"
+  },
+  "shared-ui.sh": {
+   "estado": "pass",
+   "detalle": "18 pantallas, 0 con problemas",
+   "registro": "/var/tmp/digi-f4/shared-ui.log"
+  },
+  "form-submit.sh": {
+   "estado": "pass",
+   "detalle": "los tres formularios heredados envían en los dos sitios",
+   "registro": "/var/tmp/digi-f4/form-submit.log"
+  },
+  "theme-switch.sh QUICK=1": {
+   "estado": "pendiente",
+   "detalle": "",
+   "registro": ""
+  },
+  "design.sh WOO=1": {
+   "estado": "pendiente",
+   "detalle": "",
+   "registro": ""
+  },
+  "brand-audit.sh WOO=1 SCOPE=quick": {
+   "estado": "pendiente",
+   "detalle": "",
+   "registro": ""
+  }
+ },
+ "notas": [
+  "Las corridas marcadas «antes» (front-budget.sh, parte A de cada modo) son anteriores a las correcciones del CLS de la lista de deseos y del recorte de la configuración de variaciones: sus tres problemas son los que esas correcciones resolvieron, y las corridas «corregidos» los vuelven a medir en los cuatro modos.",
+  "front-budget.sh woo-b marca «DISTINTO woo-empty»: en esa parte fue la primera página medida y pagó el favicon y las consultas de la primera visita; la comparación válida de woo-empty es la de la parte A.",
+  "woo-flow.sh: un escenario «parcial» sin problemas tiene comprobaciones que corren en otra corrida (W6.4b sólo con THEME=block; W11.1 y W11.2, el otro pago).",
+  "kit-roundtrip.sh: A1 falla por controles de consulta de wc-products (PRO) sin declarar en el inventario de K y A13 por la duración de los runners del núcleo en Playground, también con 4.3.0.165: ninguno es de F4-Woo (docs/fusion/f4woo.md §7).",
+  "WordPress en Playground: 7.1.4 desde el 22 de octubre; la referencia es una corrida de 4.3.0.165 en las mismas condiciones."
+ ]
+}
