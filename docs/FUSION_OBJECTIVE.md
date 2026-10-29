@@ -883,17 +883,17 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 | B5 | Coordinador independiente del paquete: petición propia, `post_id` del documento del filtro, un bucle sin filtros F4-Woo como en 4.3.0.165 | `elements-woo-filters.mjs` (también el arranque real, caso 1b); W9.8a–c |
 | B6 | Vista rápida de un variable en una página sin variables | `elements-woo-quick-view.{php,mjs}`; W5 en verde |
 | 1–2 | Sin regresión y coste cero donde no se usa | `front-budget.sh WOO=1`: `woo-empty`, `all-own`, `woo-loop-filter-pro` y `woo-pro-existing` con el mismo HTML y CSS que 4.3.0.165 en normal, `CACHE=1`, `CORE=plugin` y `V4=1`; los tres primeros también con los mismos bytes, peticiones, handles y consultas. **Diferencia declarada:** en `woo-pro-existing`, la respuesta de `get_refreshed_fragments` lleva +168 B (los dos nodos de estado) porque el sitio de prueba usa la barra en otras páginas y la bandera de fragmentos está encendida; la página en sí no cambia, y un sitio que no usa la barra ni el cupón no la paga |
-| 3–4 | Sin WooCommerce, inocuo; guardas de versión | `elements-woo-module.php`; W0 sin WooCommerce (pendiente del informe) |
+| 3–4 | Sin WooCommerce, inocuo; guardas de versión | `elements-woo-module.php`; W0 en verde, con los pasos sin WooCommerce (W0.8 editor y guardado, W0.9 kit por los tres caminos) |
 | 5–7 | Lista de invitado, con sesión, en red; privacidad, Consent API y borrado | W1, W2 (`NET=1`), W12 en verde; `elements-page-visits.php` |
-| 8 | Caché de página simulada | W3 (pendiente del informe) |
+| 8 | Caché de página simulada | W3 en verde (6 comprobaciones) |
 | 9–11 | Vista rápida accesible, modo plantilla medido, compra sin reenvío | W4 y W5 en verde; `woo-quick-view-template` mide los 371 769 B de PRO declarados |
 | 12–14 | Muestras con los datos de WooCommerce, sincronizadas, convivencia con `wc-visual` | `elements-woo-swatches.{php,mjs}`; W6 en verde (también con el tema de bloques) |
-| 15–16 | Barra real; cupón | `elements-woo-cart.{php,mjs}`; W7 y W8 (pendientes del informe) |
+| 15–16 | Barra real; cupón | `elements-woo-cart.{php,mjs}`; W7 y W8 en verde (el hash del carrito sigue al destino: corrección de W11) |
 | 17–19 | Filtros iguales a la tienda nativa (con y sin tabla, con «Ocultar agotados»); `popstate`, *debounce*, foco, destino; «Tienda» sólo donde filtra | W9 (59 comprobaciones) y W10 en verde, también `CORE=plugin` |
 | 20 | Controles en widgets existentes sin `default` de estilo y con `assets` | `elements-woo-static.mjs` (12 controles), `elements-woo-products-parts.php`; `woo-pro-existing` |
-| 21–22 | Kits con `WOO=1`; el punto genérico de K sin efecto cuando no se usa | `elements-woo-kit.php`, `elements-kit-extensions.php`; `kit-roundtrip.sh WOO=1` (pendiente del informe) |
-| 23 | Vuelta atrás y guarda hacia delante | `elements-unknown-guard.php`; W13 (pendiente del informe) |
-| 24–25 | Flujo Woo en modo de prueba; plugin Elementor original y v4 | W11 (pendiente del informe); W4, W5, W9 y W10 con `CORE=plugin`; `front-budget.sh V4=1 WOO=1` |
+| 21–22 | Kits con `WOO=1`; el punto genérico de K sin efecto cuando no se usa | `elements-woo-kit.php`, `elements-kit-extensions.php`; `kit-roundtrip.sh WOO=1`: R1 (pantalla y WP-CLI), R4, R4w (B en 4.3.0.165), R5, R6 y R8 en verde en lo propio de F4-Woo; R1 sin WooCommerce igual a 4.3.0.165. Los fallos restantes son de K o del entorno (A1, A13; `docs/fusion/f4woo.md` §7) |
+| 23 | Vuelta atrás y guarda hacia delante | `elements-unknown-guard.php`; W13 en verde (15 comprobaciones) |
+| 24–25 | Flujo Woo en modo de prueba; plugin Elementor original y v4 | W11 en verde con el núcleo incluido, pago clásico y de bloques (`CORE=plugin` en curso); W4, W5, W9 y W10 con `CORE=plugin`; `front-budget.sh V4=1 WOO=1` |
 | 26–28 | Seguridad, SEO, marca y sin «venta falsa» | W12 en verde; `elements-woo-static.mjs` (654 frases, 5 `nofollow`); `brand-audit.sh WOO=1` y `shared-ui.sh` (pendientes) |
 | 29 | CI y paquete | Las pruebas nuevas en los dos workflows con listas iguales; sha256 de PRO y de `elementor/` sin cambios; 8 ZIP y el índice en la Release (al publicar) |
 | 30 | Excepción declarada: `migrate.sh` y `legacy-ab.sh` | Pendientes de la copia oficial de Element Pack, como en F-front y F7a |

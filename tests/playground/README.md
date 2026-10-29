@@ -68,7 +68,7 @@ combinaciones; zona «España» con «Tarifa plana» (5 €) y «Envío gratuito
 y con actualización directa. «Retener existencias» queda vacío: la reserva de WooCommerce usa
 `NOW() + INTERVAL n MINUTE`, que la base SQLite de Playground no traduce, y el pago fallaría sin él.
 
-El conductor `woo-flow/run.cjs` escribe `$OUT/summary.json` (SHA, modo, Elements, `woocommerce`, preparación de cada
+Cada grupo de escenarios vive en su archivo: `woo-flow/scenarios/<grupo>.cjs` (`module.exports = (api) => ({ W1: async (s) => {…} })`, con la API del conductor: `request`, `probe`, `check`, `pending`, `visitor`, `shot`, `settled`, `purchase`…), `woo-flow/setup/<grupo>.php` (preparación de cada sitio, `function( array $out, callable $fail ): array`) y `woo-flow/ops/<grupo>.php` (operaciones de la sonda, `array( op => callable )`); los grupos son `wishlist` (W1, W2, W12), `quickview` (W4, W5, W11), `swatchescart` (W6, W7, W8), `filters` (W9, W10) y `resilience` (W0.8–W0.10, W3, W13). W0–W13 juntos no caben en el tope de un escenario con la máquina cargada: se corren por grupos (`SCENARIOS`), y W11 por pago (`QV_W11=clasico|bloques`). El conductor `woo-flow/run.cjs` escribe `$OUT/summary.json` (SHA, modo, Elements, `woocommerce`, preparación de cada
 sitio y, por escenario, sus comprobaciones con estado `ok`, `falla` o `pendiente`; el del escenario es `falla`,
 `pendiente`, `parcial` u `ok`). Chrome sólo resuelve el sitio de prueba: nada sale a internet. La sonda
 (`woo-flow/probe.php`, mu-plugin con el token de `mode.json`) atiende `?digi_wf=ping|setup|state|orders` y da por enviados
@@ -76,8 +76,20 @@ los correos.
 
 | Escenario | Estado | Qué comprueba |
 |---|---|---|
-| W0 · Preparación y sin WooCommerce | parcial | WooCommerce es la copia fijada y está al día en cada sitio; catálogo, zona, cupones y pago; compra de invitado (Camiseta 60 € → `DIGI10` en el carrito clásico → pago clásico con «Envío gratuito» y «Contra reembolso» → «Pedido recibido», pedido `processing` de 54,00 €), sin errores de JavaScript ni peticiones fuera. Pendiente: sin WooCommerce (desactivarlo con widgets F4-Woo en la página; importar el mismo kit por «Kits», la App y WP-CLI en un sitio sin WooCommerce, puerto 9494) |
-| W1–W13 | pendiente | descritos en `woo-flow/run.cjs` (V.16.4 de la especificación): lista de deseos, caché de página simulada, vista rápida, muestras, barra de envío, cupón, filtros, tienda, compra con el pago de bloques, seguridad de las rutas y vuelta atrás a 4.3.0.164 |
+| W0 · Preparación y sin WooCommerce | ok | WooCommerce es la copia fijada y está al día en cada sitio; catálogo, zona, cupones y pago; compra de invitado; `woo/*` en 404 y nada en el front sin WooCommerce; los siete widgets conservados al guardar desde el editor sin WooCommerce (W0.8); un kit con ellos importado en sitios sin WooCommerce por los tres caminos deja los mismos marcadores (W0.9); con `NET=1`, la primera petición anónima a un sitio nuevo responde 200 (W0.10) |
+| W1 · Lista de deseos de invitado | ok (también `NET=1`) | Nada en `localStorage` antes del clic; guardar, recargar, quitar con foco, otra pestaña sincronizada; ninguna petición con IDs en la URL; sin cookies; en red, un sitio no ve la lista del otro |
+| W2 · Lista con sesión | ok (también `NET=1`) | «A invitado, B inicia sesión» con y sin «Añadir», «Descartar»; exportar y borrar con las acciones reales de privacidad; con `product_wishlist` de WooCommerce: Store API, mudanza, un solo exportador; en red, quitar al usuario del sitio |
+| W3 · Caché de página | ok | Dos visitantes con su carrito y su lista: Chrome sirve al segundo el HTML del primero y cada uno ve su estado tras hidratar |
+| W4 · Vista rápida accesible | ok (también `CORE=plugin`) | Teclado y ratón, foco al título, Tab sin salir, Escape, nombre accesible, `aria-busy` y región viva, en los dos modos y tres anchos; Ctrl+clic y sin JavaScript abren la ficha |
+| W5 · Vista rápida y compra | ok (también `CORE=plugin`) | El variable en una página sin variaciones (B6: precio, imagen, disponibilidad y compra), galería en la plantilla, compra con redirección tras el POST |
+| W6 · Muestras | ok (`THEME=block` para W6.4b; también `NET=1` y la línea base de 4.3.0.165) | Muestras con las metas de WooCommerce, `<select>` byte a byte, sincronía, «Limpiar», modo AJAX, sin CLS; convivencia con `wc-visual` en un tema de bloques |
+| W7 · Barra de envío | ok | Cada estado frente a las tarifas que WooCommerce ofrece (calculadora del carrito clásico y Store API): «Te faltan», «Tienes envío gratis», filtros ajenos, `min_amount` convertido, dos paquetes, `requires = coupon`, sin destino y sin país |
+| W8 · Cupón en el mini carrito | ok | Aplicar y quitar con foco y texto conservados, nonce caducado, avisos de WooCommerce |
+| W9 · Filtros en el Loop Grid | ok (también `CORE=plugin`) | 59 comprobaciones: el mismo conjunto que la tienda nativa con y sin tabla de atributos y con «Ocultar agotados» (matriz en una petición y contrastes por HTTP), atributos con guion, sólo `digi_price_min` con el filtro de PRO, dos categorías con «O», orden por precio, cinco cambios en 200 ms = una petición, Atrás y Adelante, coordinador propio y sólo donde hay un filtro F4-Woo |
+| W10 · Filtros en la tienda | ok (también `CORE=plugin`) | El widget Productos con «Consulta actual» se filtra con los parámetros nativos, la paginación conserva el filtro, «Limpiar» con `nofollow`; un Loop Grid con «Consulta actual» no se filtra y el editor lo dice |
+| W11 · Compra en modo de prueba | ok con el núcleo incluido (`QV_W11=clasico` y `bloques`); `CORE=plugin` en curso | Vista rápida → mini carrito sin barra (sin destino) → calculadora → mini carrito con la barra → cupón → pago con «Contra reembolso» → pedido recibido, con el pago clásico y con el de bloques |
+| W12 · Seguridad | ok (también `NET=1`) | `GET woo/cards` 405; `woo/wishlist` 409, 401 y 403 según el caso sin escribir; `woo/quick-view` 403 con un `widget_id` ajeno y 404 con un producto privado; nonces y permisos |
+| W13 · Vuelta atrás | ok | Con 4.3.0.165 los widgets nuevos no pintan nada, el bucle con `digi_price_*` queda vacío y el editor los borra al guardar; recuperación por revisiones; desde 4.3.0.166 la guarda hacia delante conserva un widget futuro al guardar |
 
 | Variable | Por defecto | Qué hace |
 |---|---|---|

@@ -169,6 +169,25 @@ Los scripts de F4-Woo no dependen de jQuery. Con los eventos de WooCommerce se s
 - **WP Consent API.** Con la 2.1.0, `wp_add_cookie_info()` recibe la clave como almacenamiento local (`$type = 'LOCALSTORAGE'`, noveno argumento, comprobado con `ReflectionFunction`) en la categoría `functional`, como servicio pedido expresamente por el visitante.
 - **Con sesión.** La lista se guarda en la cuenta del sitio sólo si el visitante acepta «Añadir» en el aviso; «Descartar» borra la copia local sin enviarla. Exportador y borrador de datos personales propios (sólo con datos propios; con `product_wishlist` activa, los de WooCommerce). Al quitar a un usuario del sitio, su lista de ese sitio se borra.
 
+## 6. Presupuesto medido (`front-budget.sh WOO=1`, V.16.5)
+
+Comparación con 4.3.0.165 (ZIP publicado, extraído en `ELEMENTS_DIR`, corrida en las mismas condiciones): los casos sin `since` (`woo-empty`, `all-own`, `woo-loop-filter-pro`, `woo-pro-existing`) dan el mismo HTML y CSS en normal, `CACHE=1`, `CORE=plugin` y `V4=1`; los tres primeros también los mismos bytes, peticiones, handles y consultas. En el modo normal, las dos mitades de los casos anteriores (41 y 34) coinciden caso a caso. Sólo `woo-pro-existing` cambia en bytes: +168 B en la respuesta de `get_refreshed_fragments` (§7).
+
+| Caso (`since` 4.3.0.166) | CSS propio | JS propio | Peticiones frente a `woo-empty` | CLS relativo | Handles |
+|---|---:|---:|---:|---:|---|
+| `woo-wishlist-button` | 2 558 B | 8 153 B | +4 | 0 (0,018 antes de reservar el hueco) | `digitalisimo-woo-wishlist` |
+| `woo-wishlist` | 2 558 B | 8 153 B | +4 | 0 (0,029 antes) | `digitalisimo-woo-wishlist` |
+| `woo-quick-view` | 2 497 B | 8 174 B; configuración de variaciones en línea 921 B (1 034 B antes del recorte) | +4 | 0 | `digitalisimo-woo-quick-view`; al abrir, 37 059 B de respuesta REST con variaciones |
+| `woo-quick-view-template` | 2 497 B | 8 174 B | +8 | 0 | ídem; 371 769 B de PRO, el coste declarado del modo plantilla |
+| `woo-swatches` | 2 609 B | 5 520 B | +9 | 0 | `digitalisimo-woo-swatches`; PRO por el Loop Grid |
+| `woo-swatches-product` | 2 609 B | 5 520 B | +11 | 0,001 (hoja en `<head>`) | `digitalisimo-woo-swatches` |
+| `woo-shipping-bar` | 1 417 B | 7 173 B | +4 | 0 | `digitalisimo-woo-cart-extras` |
+| `woo-mini-cart-extras` | 1 417 B | 7 173 B | +10 | 0 | `digitalisimo-woo-cart-extras`; PRO por el Menú del carrito |
+| `woo-price-filter`, `woo-attribute-filter`, `woo-filters` | 3 940 B | 8 161 B + 5 673 B | +8 | 0 | `digitalisimo-woo-filters`, `digitalisimo-woo-filters-form`; PRO por el Loop Grid |
+| `woo-products-parts` | 7 493 B (tres capacidades) | 21 847 B (tres capacidades) | +6 | 0 | `digitalisimo-woo-quick-view`, `-swatches`, `-wishlist` |
+
+Sin tareas largas en ningún caso; las comprobaciones funcionales tras las acciones (producto guardado y en la lista, diálogo con formulario o plantilla, estado `progress` de la barra, el clic en una muestra que filtra el bucle, la muestra que elige su `<option>`) pasan en los cuatro modos. En gzip -9: `wishlist.css` 907 B, `wishlist.js` 3 276 B, `quick-view.css` 1 081 B, `quick-view.js` 3 276 B, `swatches.css` 1 029 B, `swatches.js` 2 356 B, `cart-extras.css` 603 B, `cart-extras.js` 2 659 B, `filters.css` 1 172 B, `filters.js` 3 653 B, `filters-form.js` 2 420 B.
+
 ## 7. Desviaciones de la especificación y hallazgos de la validación
 
 | Punto | Lo que decía V | Lo que hay y por qué |
