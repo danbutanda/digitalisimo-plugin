@@ -17,6 +17,10 @@
 #                       /complete), la pantalla «Kits» con su informe y las páginas importadas. Puerto 9464 por defecto.
 #   ORIGINAL=1          el plugin Elementor de wordpress.org instalado e inactivo (su fila queda fuera, con prueba)
 #   LATENT=fail         los datos localizados y plantillas con URL del proveedor también hacen fallar
+#   WOO=1               WooCommerce fijado (tests/playground/woocommerce-pin.sh: 11.2.1 de reference/, con su sha256) montado
+#                       y activo (F4-Woo): setup-woo.php añade un producto, un atributo con muestras y la página
+#                       digi-marca-woo con los siete widgets de WooCommerce, el widget Productos con sus partes y el Menú
+#                       del carrito con la barra y el cupón; se auditan su editor (cada widget seleccionado) y su frontal
 #   PORT, OUT           puerto del servidor y carpeta de resultados
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -27,6 +31,7 @@ STATE="${STATE:-nuevo}"
 # STATE=kit corre en paralelo con los arneses de K: su puerto es el 9464 (los de kit-roundtrip son 9461 a 9463).
 PORT="${PORT:-$([ "$STATE" = kit ] && echo 9464 || echo 9441)}"
 ORIGINAL="${ORIGINAL:-}"
+WOO="${WOO:-}"
 CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 PUPPETEER_PATH="${PUPPETEER_PATH:-$(ls -d "$HOME"/.npm/_npx/*/node_modules 2>/dev/null | while read -r d; do [ -d "$d/puppeteer-core" ] && echo "$d" && break; done)}"
 [ -n "$PUPPETEER_PATH" ] || { echo "No se encontró puppeteer-core: exportar PUPPETEER_PATH"; exit 1; }
@@ -34,12 +39,24 @@ case "$SCOPE" in quick|full) ;; *) echo "SCOPE debe ser quick o full"; exit 1;; 
 case "$STATE" in nuevo|migrado|kit) ;; *) echo "STATE debe ser nuevo, migrado o kit"; exit 1;; esac
 mkdir -p "$OUT" && rm -rf "$OUT"/*.png "$OUT"/*.bars.html "$OUT/brand-audit.json" "$OUT/vendor-urls.json" "$OUT/setup-error.txt" \
   "$OUT/setup-warnings.txt" "$OUT/ids.json" "$OUT/fatal.log" "$OUT/http.jsonl" "$OUT/netlog.json" "$OUT/cron-"*.json "$OUT/migrado" \
-  "$OUT/kits" "$OUT/kit.json"
+  "$OUT/kits" "$OUT/kit.json" "$OUT/woocommerce.json"
 A="$ROOT/tests/playground/brand-audit"
-cp "$A/setup.php" "$A/setup-f7a.php" "$A/probe-http.php" "$A/cron.php" "$A/migrado.json" "$OUT/"
+cp "$A/setup.php" "$A/setup-f7a.php" "$A/setup-woo.php" "$A/probe-http.php" "$A/cron.php" "$A/migrado.json" "$OUT/"
 # Lista de proveedores con los vídeos de muestra regenerados desde el código (el núcleo cambia en cada versión).
 node "$A/vendors.cjs" "$ROOT" > "$OUT/vendors.json"
-printf '{"scope":"%s","state":"%s","original":%s}\n' "$SCOPE" "$STATE" "$([ "$ORIGINAL" = 1 ] && echo true || echo false)" > "$OUT/audit-options.json"
+printf '{"scope":"%s","state":"%s","original":%s,"woo":%s}\n' "$SCOPE" "$STATE" "$([ "$ORIGINAL" = 1 ] && echo true || echo false)" "$([ "$WOO" = 1 ] && echo true || echo false)" > "$OUT/audit-options.json"
+# WOO=1 (F4-Woo): WooCommerce fijado, montado y activo desde el blueprint; setup-woo.php corre después de setup.php.
+WOO_STEP=''
+WOO_MOUNT=()
+WOO_SETUP=''
+if [ "$WOO" = 1 ]; then
+  . "$ROOT/tests/playground/woocommerce-pin.sh"
+  woo_pin "$OUT/woocommerce" "$OUT/woocommerce.json" || exit 1
+  WOO_STEP="$(woo_step true),"
+  [ -n "$(woo_mount)" ] && WOO_MOUNT=("$(woo_mount)")
+  WOO_SETUP=',
+{"step":"runPHP","code":"<?php require '"'"'/wordpress/wp-content/probe/setup-woo.php'"'"';"}'
+fi
 # STATE=migrado: las cachés remotas se descargan aquí, en el equipo de prueba; el sitio nunca sale a buscarlas.
 if [ "$STATE" = migrado ]; then
   mkdir -p "$OUT/migrado"
@@ -76,11 +93,11 @@ if [ "$STATE" = kit ]; then
   cp "$A/kit-cli.php" "$OUT/kit-cli.php"
 fi
 cat > "$OUT/blueprint.json" <<JSON
-{$LIBRARIES"steps":[$STEPS
+{$LIBRARIES"steps":[$WOO_STEP$STEPS
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"},
-{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup-f7a.php';"}$KIT_STEPS]}
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup-f7a.php';"}$WOO_SETUP$KIT_STEPS]}
 JSON
-MOUNTS=(--mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$OUT:/wordpress/wp-content/probe")
+MOUNTS=(--mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$OUT:/wordpress/wp-content/probe" "${WOO_MOUNT[@]}")
 [ "$SCOPE" = full ] && MOUNTS+=(--mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration")
 fuser -k -n tcp "$PORT" >/dev/null 2>&1 || true
 sleep 1
@@ -106,7 +123,7 @@ fi
 [ -f "$OUT/setup-error.txt" ] && { echo "Preparación incompleta:"; cat "$OUT/setup-error.txt"; exit 1; }
 [ -f "$OUT/setup-warnings.txt" ] && { echo "Avisos de la preparación:"; cat "$OUT/setup-warnings.txt"; }
 status=0
-OUT="$OUT" SCOPE="$SCOPE" STATE="$STATE" ORIGINAL="$ORIGINAL" NODE_PATH="$PUPPETEER_PATH" node "$A/run.cjs" "http://127.0.0.1:$PORT" || status=$?
+OUT="$OUT" SCOPE="$SCOPE" STATE="$STATE" ORIGINAL="$ORIGINAL" WOO="$WOO" NODE_PATH="$PUPPETEER_PATH" node "$A/run.cjs" "http://127.0.0.1:$PORT" || status=$?
 [ -s "$OUT/fatal.log" ] && { echo "Errores fatales:"; cat "$OUT/fatal.log"; status=1; }
 # Red de seguridad, independiente de run.cjs: cualquier salida del servidor, redirección o correo al proveedor falla.
 if [ -s "$OUT/http.jsonl" ]; then

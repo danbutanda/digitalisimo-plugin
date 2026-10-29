@@ -839,6 +839,26 @@ if (require.main === module) (async () => {
         await closeOthers();
       }
     }
+    // WOO=1 (F4-Woo): el editor de la página con los widgets de WooCommerce, con cada widget seleccionado (su panel de
+    // controles y los textos del editor), y su frontal como administrador. El visitante la ve más abajo.
+    if (IDS.woo) {
+      try {
+        const wooFrame = await editorAt(IDS.woo, 'editor-woo');
+        const wooWidgets = await wooFrame.$$eval('.elementor-widget[data-widget_type]', (els) => els.map((e) => e.getAttribute('data-widget_type'))).catch(() => []);
+        for (const [i, type] of wooWidgets.slice(0, 12).entries()) {
+          const label = `editor-woo · ${String(type).replace(/\.default$/, '')}`;
+          await enter(label);
+          const clicked = await wooFrame.evaluate((n) => { const w = document.querySelectorAll('.elementor-widget[data-widget_type]')[n]; if (!w) return false; w.scrollIntoView({ block: 'center' }); w.click(); return true; }, i).catch(() => false);
+          if (!clicked) continue;
+          await sleep(2500);
+          await audit(page, label);
+          visited.push(`${state.locale} ${label}`);
+        }
+      } catch (e) {
+        notes.push(`${state.locale} editor-woo: ${e.message}`);
+      }
+      await screenAt(`${base}/digi-marca-woo/`, 'frontal-woo-admin');
+    }
     // Frontal como administrador (barra de administración, con cada menú desplegado en full).
     await screenAt(`${base}/digi-marca/`, 'frontal-admin', {
       after: SCOPE !== 'full' ? undefined : async () => {
