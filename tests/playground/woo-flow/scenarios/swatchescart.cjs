@@ -635,8 +635,10 @@ module.exports = (api) => {
     await page.waitForFunction(() => { const st = [...document.querySelectorAll('.digi-coupon__state, .digi-ship__state')]; return st.length && st.every((n) => !n.hasAttribute('data-digi-initial')); }, { timeout: 60000 });
   }
   const status = (page) => page.$eval('.elementor-menu-cart__main .digi-coupon__status', (r) => r.textContent.replace(/\s+/g, ' ').trim());
-  async function waitStatus(page, before = '') {
-    await page.waitForFunction((b) => { const r = document.querySelector('.elementor-menu-cart__main .digi-coupon__status'); return r && r.textContent.trim() && r.textContent.trim() !== b; }, { timeout: 60000 }, before);
+  // La región se vacía antes de cada acción: el aviso siguiente puede repetir el texto del anterior.
+  const clearStatus = (page) => page.$eval('.elementor-menu-cart__main .digi-coupon__status', (r) => { r.textContent = ''; });
+  async function waitStatus(page) {
+    await page.waitForFunction(() => { const r = document.querySelector('.elementor-menu-cart__main .digi-coupon__status'); return r && r.textContent.trim(); }, { timeout: 60000 });
     await sleep(100);
     return status(page);
   }
@@ -682,19 +684,19 @@ module.exports = (api) => {
       await page.click('.elementor-menu-cart__main .digi-coupon__input');
       await page.keyboard.type('NOEXISTE');
       mark = posts.length;
-      const before = await status(page);
+      await clearStatus(page);
       await page.click('.elementor-menu-cart__main .digi-coupon__apply');
-      const bad = await waitStatus(page, before);
+      const bad = await waitStatus(page);
       await sleep(800);
       check(s, 'W8.1c', 'cupón inválido: el aviso de error de WooCommerce llega a la región `role="status"`, lo escrito se conserva y la lista sigue con DIGI10', ajaxPosts(posts, mark, 'apply_coupon').length === 1 && /exist|existe|not valid|no es v/i.test(bad) && (await page.$eval('.elementor-menu-cart__main .digi-coupon__input', (i) => i.value)) === 'NOEXISTE' && (await coupons(page)).join() === 'digi10', json({ bad, list: await coupons(page) }));
 
       // Quitar con el teclado: `remove_coupon` con `coupon`; el foco pasa al campo cuando el botón desaparece.
       mark = posts.length;
       await page.focus('.elementor-menu-cart__main .digi-coupon__remove[data-coupon="digi10"]');
-      const prev = await status(page);
+      await clearStatus(page);
       await page.keyboard.press('Enter');
       await page.waitForFunction(() => !document.querySelector('.elementor-menu-cart__main .digi-coupon__remove'), { timeout: 60000 });
-      const removed = await waitStatus(page, prev);
+      const removed = await waitStatus(page);
       await sleep(500);
       const remove = ajaxPosts(posts, mark, 'remove_coupon');
       const focus = await page.evaluate(() => { const a = document.activeElement; return a ? (a.classList.contains('digi-coupon__input') ? 'campo' : a.tagName + '.' + a.className) : null; });
@@ -730,20 +732,20 @@ module.exports = (api) => {
       // W8.3 · nonce caducado: el reloj de los nonces del servidor avanza; un solo reintento tras `wc_fragment_refresh`.
       await op(site, 'swatchescart_set', { case: 'clock' });
       mark = posts.length;
-      let prevStatus = await status(page);
+      await clearStatus(page);
       await page.$eval('.elementor-menu-cart__main .digi-coupon__input', (i) => { i.value = ''; });
       await page.click('.elementor-menu-cart__main .digi-coupon__input');
       await page.keyboard.type('DIGIENVIO');
       await page.click('.elementor-menu-cart__main .digi-coupon__apply');
       await page.waitForFunction(() => [...document.querySelectorAll('.elementor-menu-cart__main .digi-coupon__code')].some((c) => /digienvio/i.test(c.textContent)), { timeout: 60000 });
-      const renewed = await waitStatus(page, prevStatus);
+      const renewed = await waitStatus(page);
       apply = ajaxPosts(posts, mark, 'apply_coupon');
       const refreshes = ajaxPosts(posts, mark, 'get_refreshed_fragments').length;
       check(s, 'W8.3a', 'nonce caducado (el reloj de los nonces del servidor avanza): el primer `apply_coupon` recibe -1/403, se pide `wc_fragment_refresh` y se repite una sola vez con el nonce nuevo, que aplica DIGIENVIO', apply.length === 2 && apply[0].body !== apply[1].body && refreshes >= 1 && /applied|aplicado/i.test(renewed), json({ apply: apply.length, refreshes, renewed, nonces: apply.map((p) => (p.body.match(/security=([^&]+)/) || [])[1]) }));
 
       await op(site, 'swatchescart_set', { case: 'nonce_fail' });
       mark = posts.length;
-      prevStatus = await status(page);
+      await clearStatus(page);
       await page.click('.elementor-menu-cart__main .digi-coupon__input');
       await page.keyboard.type('DIGI10');
       await page.click('.elementor-menu-cart__main .digi-coupon__apply');
@@ -753,14 +755,19 @@ module.exports = (api) => {
       check(s, 'W8.3b', 'si el nonce nuevo también falla: dos `apply_coupon` en total (un solo reintento) y «No se pudo aplicar el cupón. Recarga la página.» en la región', apply.length === 2 && /No se pudo aplicar el cupón\. Recarga la página/.test(failed), json({ apply: apply.length, failed }));
       await op(site, 'swatchescart_set', { case: '' });
 
-      // Cupones apagados: sin formulario.
+      // Cupones apagados: sin formulario. En una pestaña nueva: la de antes conserva la copia de fragmentos de
+      // WooCommerce (sessionStorage) hasta que cambie el carrito, como el propio mini carrito.
       await op(site, 'swatchescart_set', { case: 'coupons_off' });
-      await goto(page, sc.pages.minicarrito);
-      await waitState(page);
-      await page.click('#elementor-menu-cart__toggle_button');
-      await page.waitForSelector('.elementor-menu-cart--shown', { timeout: 30000 });
+      other = track(await ctx.newPage(), facts);
+      await other.setViewport({ width: 1280, height: 900 });
+      await goto(other, sc.pages.minicarrito);
+      await waitState(other);
+      await other.click('#elementor-menu-cart__toggle_button');
+      await other.waitForSelector('.elementor-menu-cart--shown', { timeout: 30000 });
       await sleep(800);
-      const off = await page.evaluate(() => { const box = document.querySelector('.elementor-menu-cart__main .digi-coupon'); const form = box && box.querySelector('.digi-coupon__form'); const st = box && box.querySelector('.digi-coupon__state'); return { hidden: box ? box.hidden : null, visible: !!(form && form.offsetParent), nonce: st ? st.hasAttribute('data-apply') : null }; });
+      const off = await other.evaluate(() => { const box = document.querySelector('.elementor-menu-cart__main .digi-coupon'); const form = box && box.querySelector('.digi-coupon__form'); const st = box && box.querySelector('.digi-coupon__state'); return { hidden: box ? box.hidden : null, visible: !!(form && form.offsetParent), nonce: st ? st.hasAttribute('data-apply') : null }; });
+      await other.close().catch(() => {});
+      other = null;
       const cartForm = await (async () => { const p = await ctx.newPage(); await goto(p, cartUrl); const has = !!(await p.$('#coupon_code')); await p.close(); return has; })();
       check(s, 'W8.3c', 'con los cupones apagados en WooCommerce no hay formulario de cupón (oculto, sin nonces), igual que en el carrito clásico', off.hidden === true && !off.visible && off.nonce === false && !cartForm, json({ off, cartForm }));
       check(s, 'W8.4', 'sin errores de JavaScript (salvo los 403 esperados del nonce caducado) ni peticiones fuera del sitio (salvo Google Fonts del kit)', !jsErrors(facts).length && facts.failed.every((f) => /^403 .*wc-ajax=apply_coupon/.test(f)) && !outside(facts).length, json({ errors: jsErrors(facts).slice(0, 4), failed: facts.failed.slice(0, 6), outside: outside(facts).slice(0, 4), kitFonts: fonts(facts) }));

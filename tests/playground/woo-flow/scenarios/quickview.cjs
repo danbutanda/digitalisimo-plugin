@@ -537,7 +537,7 @@ module.exports = (api) => {
     const st = box && box.querySelector('.digi-ship__state');
     return { exists: !!box, hidden: box ? box.hidden : null, state: st ? st.getAttribute('data-state') : null, initial: !!(st && st.hasAttribute('data-digi-initial')), text: box ? box.textContent.replace(/\s+/g, ' ').trim() : '' };
   });
-  const waitBar = (page, test, arg) => page.waitForFunction(test, { timeout: 25000 }, arg).then(() => true, () => false);
+  const waitBar = (page, test, arg) => page.waitForFunction(test, { timeout: (arg && arg.ms) || 25000 }, arg).then(() => true, () => false);
   /** Registro de las peticiones `wc-ajax` de una página (punto final, estado y duración), para el detalle. */
   function ajaxLog(page) {
     const list = [];
@@ -600,7 +600,12 @@ module.exports = (api) => {
     const rates = await calculator(page, site);
     await go(page, url);
     shown = await openMiniCart(page);
-    const ok1 = await barIs(page, { state: expect.before.state, has: expect.before.has });
+    // Sin cambios en el carrito, WooCommerce reutiliza los fragmentos guardados (mismo hash): no hay que esperar más.
+    const ok1 = await waitBar(page, (w) => {
+      const b = document.querySelector('.elementor-menu-cart__main .digi-ship');
+      const st = b && b.querySelector('.digi-ship__state');
+      return !!(b && st && !b.hidden && st.getAttribute('data-state') === w.state && b.textContent.includes(w.has));
+    }, { state: expect.before.state, has: expect.before.has, ms: 8000 });
     const b1 = await bar(page);
     check(s, `${id}c ${site.path}`, `con el destino de la calculadora, el mini carrito muestra la barra: ${expect.before.label}`, shown && ok1, short({ bar: b1, rates: rates.slice(0, 160), ajax: ajax.slice(-6) }));
     await shot(page, `${id.replace(/\./g, '')}-${site.id}-minicarrito`);
@@ -623,10 +628,8 @@ module.exports = (api) => {
     await page.waitForSelector('#billing_first_name');
     await settled(page);
     const fields = { '#billing_first_name': 'Ana', '#billing_last_name': 'Vista', '#billing_address_1': 'Calle de Prueba 3', '#billing_city': 'Madrid', '#billing_postcode': '28001', '#billing_phone': '600000001', '#billing_email': 'ana.vista@example.com' };
-    for (const [selector, value] of Object.entries(fields)) {
-      await page.$eval(selector, (el) => { el.value = ''; });
-      await page.type(selector, value);
-    }
+    // Valores puestos de una vez y un solo `change`: cada tecla en un campo de dirección pediría `update_order_review`.
+    await page.evaluate((f) => { for (const [sel, value] of Object.entries(f)) { const el = document.querySelector(sel); if (el) el.value = value; } }, fields);
     if (await page.$('select#billing_state')) await page.select('select#billing_state', 'M');
     await page.$eval('#billing_postcode', (el) => el.dispatchEvent(new Event('change', { bubbles: true })));
     await settled(page);

@@ -10,13 +10,15 @@
 # lo demás a NOTFOUND. En PHP, net-sim.php responde detrás del proxy de K: nada sale a internet.
 #
 # Uso: bash tests/playground/kit-roundtrip.sh
-#   SCENARIOS=R1,R4      escenarios (por defecto todos: R1,R1c,R2,R3,R3b,R4,R4v4,R5,R6,R7,R8,R9,R10; con SLOW=1, R13)
+#   SCENARIOS=R1,R4      escenarios (por defecto todos: R1,R1c,R2,R3,R3b,R4,R4v4,R5,R6,R7,R8,R9,R10; con SLOW=1, R13);
+#                        R4w (WOO=1, sólo si se pide) es el paso de R4 con la versión anterior a F4-Woo, aparte
 #   QUICK=1              R1 (sólo REST), R4 y R9, o los de SCENARIOS (R1 sólo por REST y en 1280 px; R4 sin el paso de
 #                        4.3.0.163): iteración local, no vale para la aceptación
 #   RENDER=<regex>       R1 sólo captura la portada y las páginas cuya clave (slug del título) cumple la expresión: para
 #                        repetir una parte del render; no vale para la aceptación
 #   CORE=bundled|plugin  núcleo incluido (por defecto) o el plugin Elementor de wordpress.org instalado y activo
-#   WOO=0|1              WooCommerce en A y B (plantillas de producto, productos, variaciones e imagen de categoría): el
+#   WOO=0|1              WooCommerce en A y B (plantillas de producto, productos, variaciones, imagen de categoría y, de F4-Woo,
+#                        atributos globales con muestras, variaciones con imagen y SKU, widgets y filtros; V.11.5): el
 #                        fijado de tests/playground/woocommerce-pin.sh (11.2.1 de reference/, con su sha256, montado en los
 #                        tres sitios; WOO_ZIP para otra copia anotada); sin copia local, la última de wordpress.org
 #   SLOW=0|1             host de demostración lento y kit de 100 imágenes (A13: ninguna petición REST dura más de 25 s)
@@ -30,6 +32,11 @@
 #   PREV_ZIP, PREV_ELEMENTS  con WOO=1, ZIP o carpeta de DIGITALÍSIMO Elements 4.3.0.165 (la publicada antes de F4-Woo)
 #                        para el paso de R4 en un B sin F4-Woo; por defecto, dist/digitalisimo-elements-4.3.0.165.zip
 #                        del repositorio (o del principal, desde un worktree)
+#   EXPORT_POST_TYPES    tipos que exporta A, como la App con «Editar contenido» y WP-CLI con --post-types (con WOO=1, por
+#                        defecto post,product; vacío: el cuerpo de la App sin personalizar, que no lleva las taxonomías de
+#                        los tipos propios)
+#   REUSE_A=<OUT>        el kit, la firma y las referencias de A de otra corrida del mismo árbol, sin preparar A (no para
+#                        R1 ni R1c): para repartir R4, R4w, R5, R6 y R8 con WOO=1 en corridas cortas
 #   ELEMENTS_DIR         otra carpeta de DIGITALÍSIMO Elements para A, B y la red (p. ej. un ZIP publicado, extraído):
 #                        la corrida de R1 sin WooCommerce con la versión anterior, para compararla con la de hoy
 #   LIVE=1               monta digitalisimo-elements/ y digitalisimo-theme/ del árbol de trabajo; por defecto se monta una
@@ -137,7 +144,7 @@ export OLD_ELEMENTS="${OLD_ELEMENTS:-}"
 # modules/digitalisimo-woo/): las partes woo-* se ignoran y los widgets de F4-Woo quedan como marcadores (V.11.5).
 # PREV_ZIP = ZIP local (por defecto el de dist/ del repositorio o del principal); PREV_ELEMENTS = carpeta ya extraída.
 PREV_VERSION=4.3.0.165
-if [ "$WOO" = 1 ] && [ -z "${PREV_ELEMENTS:-}" ] && { [ -z "$SCENARIOS" ] || [[ ",$SCENARIOS," == *",R4,"* ]]; }; then
+if [ "$WOO" = 1 ] && [ -z "${PREV_ELEMENTS:-}" ] && { [ -z "$SCENARIOS" ] || [[ ",$SCENARIOS," == *",R4,"* || ",$SCENARIOS," == *",R4w,"* ]]; }; then
   if [ -z "${PREV_ZIP:-}" ]; then
     common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
     for dir in "$ROOT" "${common%/.git}"; do

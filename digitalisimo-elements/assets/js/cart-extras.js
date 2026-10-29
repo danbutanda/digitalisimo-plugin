@@ -34,9 +34,11 @@
     if (replaced && box._digiWait) box._digiWait();
   }
   // Nonce caducado (-1 o 403): un wc_fragment_refresh, esperar el estado nuevo y repetir una sola vez.
+  // Se espera lo que WooCommerce espera a sus fragmentos (`request_timeout`, 5 s por defecto) y un margen, nunca menos de 8 s.
   function renew(box) {
+    var p = w.wc_cart_fragments_params || {}, ms = Math.max(8000, (+p.request_timeout || 0) + 3000);
     return new Promise(function (ok, ko) {
-      var t = setTimeout(function () { box._digiWait = null; ko(new Error('timeout')); }, 8000);
+      var t = setTimeout(function () { box._digiWait = null; ko(new Error('timeout')); }, ms);
       box._digiWait = function () { clearTimeout(t); box._digiWait = null; ok(); };
       refresh();
     });

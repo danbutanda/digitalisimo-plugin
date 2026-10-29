@@ -13,6 +13,8 @@
  * - `resilience_version`: vacía OPcache y dice qué DIGITALÍSIMO Elements cargó la petición (W13 cambia la carpeta).
  * - `resilience_future&on=0|1`: mu-plugin que registra el tipo `digitalisimo-futuro-res` (el «widget del futuro»).
  * - `resilience_new_site` (red): crea un sitio sin visitarlo, para la primera petición anónima de W0.10.
+ * - `resilience_env&on=0|1`: sin la petición asíncrona de Action Scheduler (con un solo worker, la administración espera a
+ *   una petición a sí misma); `resilience_opcache&on=0|1`: sin OPcache tras los mu-plugins (W13).
  * - `resilience_fatal`: tamaño y final de `fatal.log`.
  */
 
@@ -176,6 +178,18 @@ return array(
 			'digitalisimo' => isset( $manifest['digitalisimo'] ) && is_array( $manifest['digitalisimo'] ) ? array_keys( $manifest['digitalisimo'] ) : null,
 			'counts'       => isset( $result['report']['counts'] ) ? $result['report']['counts'] : array(),
 		);
+	},
+	'resilience_env'      => static function () use ( $digi_res_get ) {
+		$file = WPMU_PLUGIN_DIR . '/digi-wf-res-env.php';
+		if ( '1' === $digi_res_get( 'on' ) ) {
+			// Playground con un solo worker: la petición «asíncrona» de Action Scheduler (en `shutdown` de cada petición de la
+			// administración con acciones pendientes, una vez por minuto) vuelve a este mismo servidor y la petición que la
+			// lanza no termina mientras espera turno. Sólo en este sitio y mientras corre el escenario.
+			file_put_contents( $file, "<?php\nadd_filter( 'action_scheduler_allow_async_request_runner', '__return_false' );\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		} else {
+			@unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		}
+		return array( 'file' => is_file( $file ) );
 	},
 	'resilience_opcache'  => static function () use ( $digi_res_get ) {
 		$file = WPMU_PLUGIN_DIR . '/000-digi-wf-res-no-opcache.php';

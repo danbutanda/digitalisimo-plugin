@@ -124,6 +124,21 @@ function page(handler, params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%' }, extra
   assert.equal(p.q('.digi-coupon__status').textContent, 'No se pudo aplicar el cupón. Recarga la página.');
 }
 
+// 4b. La espera del estado nuevo sigue a la de WooCommerce (`request_timeout` + 3 s), nunca menos de 8 s.
+for (const [timeout, expected] of [[undefined, 8000], [5000, 8000], [60000, 63000]]) {
+  const delays = [];
+  const params = { wc_ajax_url: '/?wc-ajax=%%endpoint%%', ...(timeout ? { request_timeout: timeout } : {}) };
+  const p = page(() => response(403, '-1'), params, { setTimeout: (fn, ms) => { delays.push(ms); return setTimeout(fn, ms >= 8000 ? 20 : ms); } });
+  p.fragment('div.digi-coupon__state', couponState(1));
+  await sleep(5);
+  p.q('.digi-coupon__input').value = 'verano10';
+  p.q('.digi-coupon__form').dispatchEvent(event('submit', { bubbles: true }));
+  await sleep(80);
+  assert.ok(delays.includes(expected), `con request_timeout ${timeout}, se esperan ${expected} ms (${delays.join(', ')})`);
+  assert.equal(p.calls.length, 1, 'sin estado nuevo a tiempo, no se repite');
+  assert.equal(p.q('.digi-coupon__status').textContent, 'No se pudo aplicar el cupón. Recarga la página.');
+}
+
 // 5. Quitar un cupón: `remove_coupon` con `coupon`; el foco pasa al campo cuando el botón desaparece.
 {
   const p = page(() => response(200, '<div class="woocommerce-message" role="alert">Se quitó el cupón.</div>'));

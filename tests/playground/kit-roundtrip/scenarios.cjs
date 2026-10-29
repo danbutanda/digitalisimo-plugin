@@ -339,16 +339,17 @@ async function warmUp(site, base = '') {
 
 // Con WOO=1 (cada petición de Playground con WooCommerce tarda segundos), el primer B nuevo arranca mientras A se
 // prepara y exporta (main); el primer escenario que pide un B nuevo lo usa tal cual, sin tocar.
+// `elements`: otra carpeta de DIGITALÍSIMO Elements para B (R4w: la versión anterior a F4-Woo).
 let earlyB = null;
-async function freshB(extra = null) {
-  if (earlyB) {
-    const early = earlyB;
-    earlyB = null;
-    const ready = await early;
+async function freshB(extra = null, { elements = '' } = {}) {
+  const early = earlyB;
+  earlyB = null;
+  const ready = early ? await early.ready : null;
+  if (early && early.elements === elements) {
     if (ready instanceof Error) throw ready;
   } else {
     forget('b');
-    await R.startSite('b');
+    await R.startSite('b', { elements });
     await warmUp('b');
   }
   if (extra) {
@@ -775,8 +776,15 @@ async function clash(s, v4) {
   networkCheck('b', s.id);
   // Con QUICK=1, kit-roundtrip.sh no prepara 4.3.0.163: el paso sólo corre si se pasa OLD_ELEMENTS.
   if (!v4 && (!QUICK || process.env.OLD_ELEMENTS)) await f7aOldVersion(s);
-  // WOO=1: el mismo kit en un B con la versión publicada antes de F4-Woo (PREV_ELEMENTS, 4.3.0.165).
-  if (!v4 && WOO) await wooPrevVersion(s);
+  // WOO=1: el mismo kit en un B con la versión publicada antes de F4-Woo (PREV_ELEMENTS, 4.3.0.165). Con QUICK=1, el paso
+  // va aparte, en R4w.
+  if (!v4 && WOO && !QUICK) await wooPrevVersion(s);
+}
+/** R4w (WOO=1): sólo el paso de R4 con la versión anterior a F4-Woo, para correrlo aparte (QUICK=1, o tras un corte). */
+async function R4w(s) {
+  if (!WOO) { s.problems.push('R4w necesita WOO=1'); return; }
+  if (!kits.rest) { s.problems.push('Sin kit de A'); return; }
+  await wooPrevVersion(s);
 }
 async function publish(site, session) {
   const auth = await adminSession(site);
@@ -973,10 +981,7 @@ async function wooRevert(run, imported, edit) {
 async function wooPrevVersion(s) {
   const prev = process.env.PREV_ELEMENTS || '';
   if (!prev || !fs.existsSync(path.join(prev, 'pro-elements.php'))) { verdict('A4', false, 'R4 · 4.3.0.165: falta la copia de la versión anterior (PREV_ELEMENTS)'); s.problems.push('R4 · 4.3.0.165: sin PREV_ELEMENTS'); return; }
-  forget('b');
-  await R.startSite('b', { elements: prev });
-  await warmUp('b');
-  resetLogs('b');
+  await freshB(null, { elements: prev });
   const run = await importApp('b', kits.rest, { label: 'R4 4.3.0.165' });
   const problems = [];
   if (!run.ok) problems.push(`la importación falló: ${run.message || (run.failed || []).join('; ')}`);
@@ -1303,7 +1308,7 @@ async function RX(s) {
   if (!run.ok) s.problems.push(`${run.step || 'runner'}: ${run.message || (run.failed || []).join('; ')}`.slice(0, 600));
 }
 
-const RUN = { R1, R1c, R2, R3, R3b, R4, R4v4, R5, R6, R7, R8, R9, R10, R13, RX };
+const RUN = { R1, R1c, R2, R3, R3b, R4, R4v4, R4w, R5, R6, R7, R8, R9, R10, R13, RX };
 
 async function main() {
   compare = await import(pathToFileURL(path.join(K, 'compare.mjs')).href);
@@ -1319,9 +1324,34 @@ async function main() {
   if (unknown.length) throw new Error(`Escenarios desconocidos: ${unknown.join(', ')}`);
 
   const needsA = SCENARIOS.some((id) => !['R2', 'R3', 'R3b', 'R7', 'R9', 'R13', 'RX'].includes(id));
-  if (needsA) {
+  // Con WOO=1 (cada petición de Playground con WooCommerce tarda segundos), el primer B nuevo arranca en paralelo.
+  if (WOO && needsA) {
+    const elements = SCENARIOS[0] === 'R4w' ? (process.env.PREV_ELEMENTS || '') : '';
+    earlyB = { elements, ready: R.startSite('b', { elements }).then(() => warmUp('b')).then(() => true, (e) => e) };
+  }
+  const REUSE_A = process.env.REUSE_A || '';
+  if (needsA && REUSE_A) {
+    // REUSE_A=<OUT de otra corrida del mismo árbol>: su kit (REST y WP-CLI), la firma de A y sus referencias, sin
+    // preparar ni exportar A otra vez. Para repartir los escenarios en corridas cortas; R1 y R1c visitan A y no lo admiten.
+    if (SCENARIOS.some((id) => ['R1', 'R1c'].includes(id))) throw new Error('REUSE_A no sirve para R1 ni R1c, que visitan A');
+    for (const file of ['a-rest.zip', 'a-cli.zip']) {
+      const from = path.join(REUSE_A, 'shared', 'exports', file);
+      if (fs.existsSync(from)) fs.copyFileSync(from, path.join(SHARED, 'exports', file));
+    }
+    fs.copyFileSync(path.join(REUSE_A, 'shared', 'refs-a.json'), path.join(SHARED, 'refs-a.json'));
+    fs.mkdirSync(path.join(OUT, 'a'), { recursive: true });
+    fs.copyFileSync(path.join(REUSE_A, 'a', 'sig-a.json'), path.join(OUT, 'a', 'sig-a.json'));
+    sigA = R.readJson('a', 'sig-a.json');
+    const rest = path.join(SHARED, 'exports', 'a-rest.zip');
+    const cli = path.join(SHARED, 'exports', 'a-cli.zip');
+    kits = { rest: fs.existsSync(rest) ? rest : undefined, cli: fs.existsSync(cli) ? cli : undefined, restError: fs.existsSync(rest) ? '' : `REUSE_A sin a-rest.zip` };
+    if (kits.rest) kits.restManifest = JSON.parse(zipEntries(kits.rest)['manifest.json'] || '{}');
+    let previous = {};
+    try { previous = JSON.parse(fs.readFileSync(path.join(REUSE_A, 'summary.json'), 'utf8')); } catch (e) { previous = {}; }
+    summary.reuse_a = { dir: REUSE_A, date: previous.date || '', sha: previous.sha || '', src: previous.src || null, kit_sha256: kits.rest ? require('crypto').createHash('sha256').update(fs.readFileSync(kits.rest)).digest('hex') : '' };
+    log(`A: kit, firma y referencias de ${REUSE_A} (REUSE_A, sin preparar A)`);
+  } else if (needsA) {
     log('A: preparación');
-    if (WOO) earlyB = R.startSite('b').then(() => warmUp('b')).then(() => true, (e) => e);
     await R.startSite('a');
     fs.copyFileSync(path.join(OUT, 'a', 'refs.json'), path.join(SHARED, 'refs-a.json'));
     sigA = await signature('a', 'a', '');

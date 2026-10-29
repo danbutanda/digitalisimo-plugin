@@ -905,7 +905,12 @@ module.exports = (api) => {
     }
   }
 
-  return { W0, W3, W13 };
+  /** Cada escenario corre sin la petición asíncrona de Action Scheduler (ops/resilience.php, `resilience_env`). */
+  const withEnv = (fn) => async (s) => {
+    await op('resilience_env', { on: 1 }).catch((e) => log(`   resilience: sin resilience_env (${e.message})`));
+    try { return await fn(s); } finally { await op('resilience_env', { on: 0 }).catch(() => {}); }
+  };
+  return { W0: withEnv(W0), W3: withEnv(W3), W13: withEnv(W13) };
 };
 
 // ── PHP de los sitios sin WooCommerce (W0.9), escrito en $OUT/res-nowoo-<x>/ ────────────────────────────────────
