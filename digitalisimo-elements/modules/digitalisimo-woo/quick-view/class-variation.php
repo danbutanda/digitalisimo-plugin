@@ -28,7 +28,8 @@ final class Variation {
 	const PARAMS = 'wc_add_to_cart_variation_params';
 
 	/**
-	 * `{ scripts: [ { handle, src, ver } ], params: { wc_add_to_cart_variation_params: {…}, … } }`, o `null`.
+	 * `{ scripts: [ { handle, src } ], params: { wc_add_to_cart_variation_params: {…}, … } }`, o `null`. `src` lleva
+	 * `?ver=` y es relativa a la raíz cuando el archivo está en este sitio.
 	 */
 	public static function footer_config(): ?array {
 		if ( ! function_exists( 'wp_scripts' ) || ! class_exists( 'WC_Frontend_Scripts' ) || ! method_exists( 'WC_Frontend_Scripts', 'localize_printed_scripts' ) ) {
@@ -68,9 +69,16 @@ final class Variation {
 		$params = $list['params'];
 		unset( $params[ self::PARAMS ] );
 		$params[ self::PARAMS ] = $captured;
-		$out = array();
+		// Va en línea en cada página con la vista rápida: sin `ver` (ya viaja en `src`) y sin origen cuando el archivo
+		// está en este mismo sitio, para que quepa en 1 KB (V.16.5) con cualquier dominio. Un CDN conserva su URL.
+		$host = function_exists( 'home_url' ) ? (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) : '';
+		$out  = array();
 		foreach ( $list['scripts'] as $entry ) {
-			$out[] = array( 'handle' => $entry['handle'], 'src' => $entry['src'], 'ver' => $entry['ver'] );
+			$src = (string) $entry['src'];
+			if ( '' !== $host && $host === (string) wp_parse_url( $src, PHP_URL_HOST ) ) {
+				$src = wp_make_link_relative( $src );
+			}
+			$out[] = array( 'handle' => $entry['handle'], 'src' => $src );
 		}
 		return array( 'scripts' => $out, 'params' => $params );
 	}

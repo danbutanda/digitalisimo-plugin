@@ -96,6 +96,9 @@ namespace {
 	function esc_html__( $t ) { return esc_html( $t ); }
 	function esc_url( $u ) { return esc_html( $u ); }
 	function esc_url_raw( $u ) { return (string) $u; }
+	function home_url( $p = '' ) { return 'https://sitio.test' . $p; }
+	function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
+	function wp_make_link_relative( $l ) { return preg_replace( '|^(https?:)?//[^/]+(/?.*)|i', '$2', $l ); }
 	function wp_kses_post( $t ) { return (string) $t; }
 	function wp_strip_all_tags( $t ) { return trim( strip_tags( (string) $t ) ); }
 	function wp_json_encode( $v ) { return json_encode( $v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ); }
@@ -321,6 +324,14 @@ namespace {
 	check_qv( '' === $printed, 'La plantilla que imprime la localización se descarta en la página (viaja en la respuesta).' );
 	check_qv( is_array( $config ) && array( 'underscore', 'wp-util', 'wc-jquery-blockui', 'wc-add-to-cart-variation' ) === array_column( $config['scripts'], 'handle' ), 'Dependencias resueltas y sin lo impreso: ' . wp_json_encode( $config ) );
 	check_qv( array( 'wc_ajax_url' => '/?wc-ajax=%%endpoint%%', 'i18n_no_matching_variations_text' => 'Sin coincidencias' ) === $config['params']['wc_add_to_cart_variation_params'], 'Parámetros capturados por `wc_add_to_cart_variation_params`.' );
+	$srcs = array_column( $config['scripts'], 'src' );
+	check_qv( 4 === count( $srcs ) && array() === array_filter( $srcs, static function ( $s ) { return 0 !== strpos( $s, '/' ) || 0 === strpos( $s, '//' ); } ) && '/wp-content/plugins/woocommerce/assets/js/frontend/add-to-cart-variation.min.js?ver=11.2.1' === end( $srcs ) && array() === array_filter( $config['scripts'], static function ( $e ) { return isset( $e['ver'] ) || array( 'handle', 'src' ) !== array_keys( $e ); } ), 'En línea, cada `src` sin origen (mismo sitio) y con `?ver=`, sin clave `ver`: cabe en 1 KB con cualquier dominio (V.16.5): ' . wp_json_encode( $srcs ) );
+	wp_scripts()->registered['wc-jquery-blockui']->src = 'https://cdn.ejemplo.net/blockui.min.js';
+	WC_Frontend_Scripts::$localized = array();
+	$cdn = \Digitalisimo\Elements\Woo\Quick_View\Variation::footer_config();
+	check_qv( is_array( $cdn ) && 'https://cdn.ejemplo.net/blockui.min.js?ver=2.7.0-wc.11.2.1' === $cdn['scripts'][2]['src'], 'Un archivo en otro origen (CDN) conserva su URL completa: ' . wp_json_encode( $cdn['scripts'] ) );
+	wp_scripts()->registered['wc-jquery-blockui']->src = 'https://sitio.test/wp-content/plugins/woocommerce/assets/js/jquery-blockui/jquery.blockUI.min.js';
+	WC_Frontend_Scripts::$localized = array();
 	check_qv( ! wp_script_is( 'wc-add-to-cart-variation' ) && ! has_filter( 'wc_add_to_cart_variation_params' ), 'El script vuelve a quedar sin encolar y el filtro, quitado.' );
 	WC_Frontend_Scripts::$localized = array();
 	wp_enqueue_script( 'wc-add-to-cart-variation' );
