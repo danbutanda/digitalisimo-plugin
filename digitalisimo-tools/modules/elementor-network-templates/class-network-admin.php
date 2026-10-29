@@ -26,7 +26,7 @@ final class Network_Admin {
 		if ( 'php' === $tab && ! $can_php ) $tab = 'webp';
 		echo '<div class="wrap"><h1>DIGITALÍSIMO Tools</h1><p>';
 		if ( $can_templates ) echo '<a class="button' . ( 'elementor' === $tab ? ' button-primary' : '' ) . '" href="' . esc_url( self::url() ) . '">Plantillas de red</a> ';
-		echo '<a class="button' . ( 'webp' === $tab ? ' button-primary' : '' ) . '" href="' . esc_url( self::url( array( 'tab' => 'webp' ) ) ) . '">Optimizar imágenes WebP</a> ';
+		echo '<a class="button' . ( 'webp' === $tab ? ' button-primary' : '' ) . '" href="' . esc_url( self::url( array( 'tab' => 'webp' ) ) ) . '">Optimizar medios</a> ';
 		echo '<a class="button' . ( 'site' === $tab ? ' button-primary' : '' ) . '" href="' . esc_url( self::url( array( 'tab' => 'site' ) ) ) . '">Ajustes del sitio</a>';
 		if ( $can_php ) echo ' <a class="button' . ( 'php' === $tab ? ' button-primary' : '' ) . '" href="' . esc_url( self::url( array( 'tab' => 'php' ) ) ) . '">Código PHP</a>';
 		echo '</p>';

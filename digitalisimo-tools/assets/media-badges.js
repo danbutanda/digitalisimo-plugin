@@ -14,7 +14,7 @@
       if (!preview) return;
       var badge = document.createElement('span');
       badge.className = 'digitalisimo-webp-badge';
-      badge.textContent = 'Optimizada · WebP';
+      badge.textContent = model.get('digitalisimoOptimizedLabel') || 'Optimizada · WebP';
       preview.appendChild(badge);
     });
   }
