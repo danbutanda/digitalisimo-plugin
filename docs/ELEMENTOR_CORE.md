@@ -132,6 +132,25 @@ Desde 4.3.0.164, presets de estilo, degradados, máscaras, patrones, sticky «al
   - el formato del prop v4 `display-conditions`: condiciones como cadenas JSON dentro de un `condition-group`.
 - **Theme Builder y bucles** (derivado de PRO): el `asort( $conditions_priority )` de `Conditions_Manager::get_location_templates()` con la línea del filtro `digitalisimo_elements_theme_builder_priorities` justo detrás; `$wp_query->is_loop_widget` y el tipo de documento `loop-item`.
 
+## WooCommerce visual (F4-Woo)
+
+Desde 4.3.0.166, los widgets y rasgos de WooCommerce viven en `modules/digitalisimo-woo/`: lista de deseos, vista rápida, muestras de variación, barra de envío gratis, cupón en el Menú del carrito, y filtros de precio y de atributo. El diseño está en [fusion/f4woo.md](fusion/f4woo.md). Sin WooCommerce, sólo se registran en el editor, ocultos, para que guardar no borre sus datos.
+
+**Dependencias del núcleo:**
+- `elementor/document/load/data` (prioridad 15, antes de la 20 de K) y `elementor/ajax/register_actions`, para la guarda hacia delante de `modules/digitalisimo-widgets/class-unknown-guard.php`. Sólo usa la API pública de K (`Preserve::wrap()`, `Preserve::expect()` y `Preserve::ensure_widget()`).
+- La declaración `assets` de los controles (`_elementor_page_assets`), con la que las partes de Productos, el Menú del carrito y «Añadir al carrito» encolan sus recursos también con la caché de elementos.
+- Que el núcleo guarda el `default` de todos los controles y genera el CSS con ellos (`includes/base/controls-stack.php`, `core/files/css/post.php`). Por eso los controles de estilo añadidos a widgets existentes no llevan `default` (`tests/elements-woo-static.mjs`).
+- `Performance::should_optimize_controls()` y la pila optimizada, que quita `options` en el front. Las opciones que dependen de WooCommerce sólo se construyen fuera de ella.
+- `elementorFrontend.elementsHandler.runReadyTrigger()`, que el coordinador de filtros llama tras insertar el HTML de un bucle.
+
+**Dependencias del paquete compilado de PRO** (`assets/js/elements-handlers.js` y su `.min.js`, que no se editan), vigiladas por `tests/elements-pro-inventory.mjs` junto a su sha256:
+- el filtro `elementor-pro/frontend/handlers` y su clave `taxonomyFilter`;
+- los métodos `refreshLoopWidget()`, `getQueryStringInObjectForm()`, `setFilterDataForLoopWidget()` y `removeFilterFromLoopWidget()` del filtro de taxonomía;
+- el marcado `.e-filter-item[data-filter][aria-pressed]`;
+- la ruta REST `elementor-pro/v1/refresh-loop` y `ElementorProFrontendConfig.urls.rest`.
+
+`assets/js/filters.js` sustituye por herencia `refreshLoopWidget()`, con prioridad 20, sólo en los bucles que tienen un filtro de F4-Woo. Es la excepción declarada en `DIGITALISIMO_CHANGES.md`. Si falta algo de esta lista, no sustituye nada y los filtros de F4-Woo funcionan por GET.
+
 ## Pasar un sitio o una red al núcleo incluido
 
 Con DIGITALÍSIMO Migración activo, **Migrar** (Herramientas → Migrar a DIGITALÍSIMO Elements, o Red → Ajustes → Migrar a DIGITALÍSIMO Elements → Migrar toda la red) hace todo esto en un clic: desactiva Elementor (sólo si el núcleo incluido puede sustituirlo), Elementor Pro, PRO Elements y Element Pack, convierte el contenido y deja el informe ([ELEMENT_PACK_RETIREMENT.md](ELEMENT_PACK_RETIREMENT.md)). A mano:

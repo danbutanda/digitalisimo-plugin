@@ -131,3 +131,12 @@ Las citas de V.2 se revisaron archivo por archivo (que existe y que la línea di
 - Variaciones en REST: `localize_printed_scripts()` en `wp_print_scripts` y `wp_print_footer_scripts` con prioridad 5 (`W:includes/class-wc-frontend-scripts.php:55-58`); plantillas `tmpl-variation-template` y `tmpl-unavailable-variation-template` (`W:templates/single-product/add-to-cart/variation.php:16-23`); `wc_variation_gallery_defaults` (`W:includes/wc-template-functions.php:2226-2256`): se sostienen.
 - Carrito y envío (`W:includes/class-wc-cart.php:1647-1660,1858-1880`; `W:includes/class-wc-shipping.php:311-330,458-460`; `W:includes/class-wc-customer.php:259-261`): se sostienen. `get_packages()` no tiene `@since` propio (el `11.0.0` cercano es de otro método).
 - `has_archives` (`W:includes/class-wc-post-types.php:266-314`) y el pago de bloques (`W:includes/class-wc-install.php:3260`): se sostienen.
+
+## 2. Regla de eventos (V.12.3)
+
+Los scripts de F4-Woo no dependen de jQuery. Con los eventos de WooCommerce se sigue esta regla fija, que también aplica la revisión estática:
+
+- Un `dispatchEvent( new Event( 'x' ) )` nativo **sí** llega a un manejador de jQuery (`.on( 'x' )`), porque jQuery escucha con `addEventListener`. Así piden `cart-extras.js` y la lista de deseos un `wc_fragment_refresh`.
+- Lo que WooCommerce dispara con `.trigger()` (`wc_fragments_refreshed`, `added_to_cart`, `found_variation`, `reset_data`) **nunca** llega a un `addEventListener` propio. Se observa con `MutationObserver`; por ejemplo, la barra y el cupón miran los nodos que WooCommerce reemplaza con `$( clave ).replaceWith()`. Sólo donde es imprescindible se usa el puente `window.jQuery`, sin declararlo como dependencia: el formulario de variaciones de la vista rápida (V.5.3) y el modo AJAX de las muestras (V.6.4).
+- `wc_fragment_refresh` sólo tiene manejador si el navegador tiene almacenamiento (`W:assets/js/frontend/cart-fragments.js:75-82`). Sin él, la barra y el cupón se quedan como los pintó el servidor.
+- La configuración en línea va siempre con `wp_add_inline_script( <handle propio>, …, 'before' )`, nunca con un `<script>` escrito a mano, para que una CSP con `nonce` pueda ponérselo.
