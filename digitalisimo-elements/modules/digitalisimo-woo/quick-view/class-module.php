@@ -24,8 +24,12 @@ defined( 'ABSPATH' ) || exit;
 final class Module {
 	const FEATURE = 'quick-view';
 
-	/** Lo que usa de WooCommerce sin detección propia (D3). */
-	const SYMBOLS = array( 'wc_get_product()', 'woocommerce_template_single_add_to_cart()', 'wc_get_template()', 'WC_Product' );
+	/**
+	 * Lo que usa de WooCommerce sin detección propia (D3). Se comprueba al arrancar (`plugins_loaded`), antes de que
+	 * WooCommerce cargue sus funciones de plantilla (`wc-template-functions.php`, en `after_setup_theme`): por eso no se
+	 * exige `woocommerce_template_single_add_to_cart()`, sino el método que las carga; el render comprueba la función.
+	 */
+	const SYMBOLS = array( 'wc_get_product()', 'wc_get_template()', 'WC_Product', 'WooCommerce::include_template_functions' );
 
 	/** @var bool */
 	private static $initialized = false;

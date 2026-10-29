@@ -248,6 +248,18 @@ const storeConfig = (over = {}) => ownConfig({ mode: 'store', store: '/wp-json/w
   assert.equal(p.q('[data-digi-wish-empty]').hidden, false);
   assert.equal(p.ls.getItem('digi_wishlist'), null);
 }
+// 10b. Con imagen, la ficha empieza por el enlace de la imagen (`tabindex="-1"`, `aria-hidden`): el foco va al nombre.
+{
+  const cardImg = (id) => `<li class="digi-wishlist__item" data-digi-wish-item="${id}"><a class="digi-wishlist__media" href="/p/${id}/" tabindex="-1" aria-hidden="true"><img alt=""></a><div class="digi-wishlist__body"><h3 class="digi-wishlist__name"><a href="/p/${id}/">Producto ${id}</a></h3><button type="button" class="digi-wishlist__remove" data-digi-wish-remove="${id}">Quitar</button></div></li>`;
+  const local = { digi_wishlist: JSON.stringify({ v: 1, items: [[10, NOW - 5], [16, NOW]] }) };
+  const p = page(LIST, guestConfig(), (url, init) => { const ids = JSON.parse(init.body).ids; return response(200, { html: ids.map(cardImg).join(''), ids }); }, local);
+  await sleep(20);
+  const [first, second] = p.qa('li');
+  first.querySelector('button').click();
+  await sleep(50);
+  assert.ok(p.doc.activeElement === second.querySelector('h3 a'), 'el foco va al nombre de la ficha siguiente, no al enlace oculto de su imagen');
+}
+
 // 11. Vaciar la lista y la región dentro de un diálogo abierto.
 {
   const local = { digi_wishlist: JSON.stringify({ v: 1, items: [[10, NOW]] }) };

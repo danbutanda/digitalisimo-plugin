@@ -3945,5 +3945,864 @@
     "errors": 0
    }
   }
+ },
+ "woo-wishlist-button": {
+  "title": "Botón de lista de deseos (F4-Woo): «Guardar» de un producto concreto y el enlace con contador",
+  "since": "4.3.0.166",
+  "isolate": true,
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-wishlist-button",
+    "id": "fbwb001",
+    "settings": {
+     "mode": "save",
+     "product_source": "custom",
+     "product_id": "__WC_SIMPLE__"
+    }
+   },
+   {
+    "type": "digitalisimo-woo-wishlist-button",
+    "id": "fbwb002",
+    "settings": {
+     "mode": "link",
+     "wishlist_page": "__SELF__"
+    }
+   }
+  ],
+  "assets": {
+   "wishlist-css": "/digitalisimo-elements/assets/css/wishlist\\.css",
+   "wishlist-js": "/digitalisimo-elements/assets/js/wishlist\\.js"
+  },
+  "counts": {
+   "save": ".elementor-element-fbwb001 .digi-wish",
+   "pressed": ".elementor-element-fbwb001 .digi-wish[aria-pressed=\"true\"]",
+   "link": ".elementor-element-fbwb002 .digi-wish-link"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".elementor-element-fbwb001 .digi-wish"
+   },
+   {
+    "do": "waitCount",
+    "selector": ".elementor-element-fbwb001 .digi-wish[aria-pressed=\"true\"]",
+    "min": 1,
+    "ms": 10000
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "count:save": 1,
+    "count:link": 1,
+    "count:pressed": 0,
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:pressed": 1
+    },
+    "asset:wishlist-css": "<=4096",
+    "asset:wishlist-js": "<=8192"
+   }
+  }
+ },
+ "woo-wishlist": {
+  "title": "Lista de deseos (F4-Woo) con un producto guardado por el visitante (botón y recarga)",
+  "since": "4.3.0.166",
+  "isolate": true,
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-wishlist-button",
+    "id": "fbwl001",
+    "settings": {
+     "mode": "save",
+     "product_source": "custom",
+     "product_id": "__WC_SIMPLE__"
+    }
+   },
+   {
+    "type": "digitalisimo-woo-wishlist",
+    "id": "fbwl002",
+    "settings": {
+     "title": "Tu lista"
+    }
+   }
+  ],
+  "assets": {
+   "wishlist-css": "/digitalisimo-elements/assets/css/wishlist\\.css",
+   "wishlist-js": "/digitalisimo-elements/assets/js/wishlist\\.js"
+  },
+  "counts": {
+   "list": ".digi-wishlist",
+   "items": ".digi-wishlist__item"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".elementor-element-fbwl001 .digi-wish"
+   },
+   {
+    "do": "waitCount",
+    "selector": ".elementor-element-fbwl001 .digi-wish[aria-pressed=\"true\"]",
+    "min": 1,
+    "ms": 10000
+   },
+   {
+    "do": "reload"
+   },
+   {
+    "do": "waitCount",
+    "selector": ".digi-wishlist__item",
+    "min": 1,
+    "ms": 20000
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "count:list": 1,
+    "count:items": 0,
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:items": 1
+    },
+    "asset:wishlist-css": "<=4096",
+    "asset:wishlist-js": "<=8192"
+   }
+  }
+ },
+ "woo-quick-view": {
+  "title": "Vista rápida en «Diseño propio» (F4-Woo) de un producto variable en una página sin el script de variaciones",
+  "since": "4.3.0.166",
+  "isolate": true,
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-quick-view",
+    "id": "fbwq001",
+    "settings": {
+     "product_source": "custom",
+     "product_id": "__WC_VARIABLE__"
+    }
+   }
+  ],
+  "assets": {
+   "quick-view-css": "/digitalisimo-elements/assets/css/quick-view\\.css",
+   "quick-view-js": "/digitalisimo-elements/assets/js/quick-view\\.js"
+  },
+  "counts": {
+   "open": ".digi-qv__open",
+   "form": "dialog.digi-qv form.variations_form",
+   "variationScript": "script#wc-add-to-cart-variation-js"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".digi-qv__open"
+   },
+   {
+    "do": "waitCount",
+    "selector": "dialog.digi-qv form.variations_form",
+    "min": 1,
+    "ms": 20000
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "count:open": 1,
+    "count:form": 0,
+    "count:variationScript": 0,
+    "inline:digitalisimo-woo-quick-view-js-before": "<=1536",
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:form": 1
+    },
+    "asset:quick-view-css": "<=4096",
+    "asset:quick-view-js": "<=8192"
+   }
+  }
+ },
+ "woo-quick-view-template": {
+  "title": "Vista rápida en «Plantilla de producto» (F4-Woo): la página paga los paquetes de PRO que pide la plantilla (coste declarado, V.5.4)",
+  "since": "4.3.0.166",
+  "isolate": true,
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-quick-view",
+    "id": "fbwt001",
+    "settings": {
+     "product_source": "custom",
+     "product_id": "__WC_SIMPLE__",
+     "content_mode": "template",
+     "digitalisimo_template_id": "__TEMPLATE__"
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "tpl",
+    "type": "product",
+    "widgets": [
+     {
+      "type": "woocommerce-product-title",
+      "settings": {}
+     },
+     {
+      "type": "woocommerce-product-price",
+      "settings": {}
+     },
+     {
+      "type": "woocommerce-product-add-to-cart",
+      "settings": {}
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "quick-view-css": "/digitalisimo-elements/assets/css/quick-view\\.css",
+   "quick-view-js": "/digitalisimo-elements/assets/js/quick-view\\.js",
+   "pro": "/digitalisimo-elements/assets/js/(webpack-pro\\.runtime|elements-handlers|frontend)(\\.min)?\\.js"
+  },
+  "counts": {
+   "open": ".digi-qv__open",
+   "template": "dialog.digi-qv .elementor-widget-woocommerce-product-add-to-cart"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".digi-qv__open"
+   },
+   {
+    "do": "waitCount",
+    "selector": "dialog.digi-qv .elementor-widget-woocommerce-product-add-to-cart",
+    "min": 1,
+    "ms": 20000
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "proFrontend": true,
+    "errors": 0,
+    "count:open": 1,
+    "count:template": 0,
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:template": 1
+    },
+    "asset:quick-view-css": "<=4096",
+    "asset:quick-view-js": "<=8192"
+   }
+  }
+ },
+ "woo-swatches": {
+  "title": "Muestras de variación (F4-Woo) en la plantilla de un Loop Grid de productos, con un variable con muestras de color",
+  "since": "4.3.0.166",
+  "widgets": [
+   {
+    "type": "loop-grid",
+    "id": "fbwsl01",
+    "settings": {
+     "_skin": "product",
+     "template_id": "__LOOP__",
+     "posts_per_page": 12
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "loop",
+    "type": "loop-item",
+    "source": "product",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Producto",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p002\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     },
+     {
+      "type": "digitalisimo-woo-swatches",
+      "settings": {
+       "attribute": "pa_color"
+      }
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "swatches-css": "/digitalisimo-elements/assets/css/swatches\\.css",
+   "swatches-js": "/digitalisimo-elements/assets/js/swatches\\.js"
+  },
+  "counts": {
+   "items": ".e-loop-item",
+   "swatches": ".e-loop-item .digi-swatches",
+   "swatch": ".e-loop-item .digi-swatch"
+  },
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:loop-grid",
+    "errors": 0,
+    "count:swatches": 1,
+    "count:swatch": 3,
+    "delta.cls": "<=0.01",
+    "asset:swatches-css": "<=4096",
+    "asset:swatches-js": "<=8192"
+   }
+  }
+ },
+ "woo-shipping-bar": {
+  "title": "Barra de envío gratis (F4-Woo) con la zona de la tienda (envío gratuito desde 50) y un producto en el carrito",
+  "since": "4.3.0.166",
+  "isolate": true,
+  "save": "document",
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-shipping-bar",
+    "id": "fbws001",
+    "settings": {}
+   }
+  ],
+  "assets": {
+   "cart-extras-css": "/digitalisimo-elements/assets/css/cart-extras\\.css",
+   "cart-extras-js": "/digitalisimo-elements/assets/js/cart-extras\\.js"
+  },
+  "counts": {
+   "bar": ".digi-ship"
+  },
+  "visible": {
+   "text": ".digi-ship__text"
+  },
+  "actions": [
+   {
+    "do": "visit",
+    "path": "/?add-to-cart=__WC_SIMPLE__"
+   },
+   {
+    "do": "visit"
+   },
+   {
+    "do": "waitFor",
+    "selector": ".digi-ship__text",
+    "ms": 15000
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "count:bar": 1,
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:bar": 1,
+     "shown:text": true
+    },
+    "asset:cart-extras-css": "<=4096",
+    "asset:cart-extras-js": "<=8192"
+   }
+  }
+ },
+ "woo-price-filter": {
+  "title": "Filtro de precio (F4-Woo) con límites automáticos sobre un Loop Grid de productos",
+  "since": "4.3.0.166",
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-price-filter",
+    "id": "fbwfp01",
+    "settings": {
+     "destination": "loop",
+     "selected_element": "fbwfl01"
+    }
+   },
+   {
+    "type": "loop-grid",
+    "id": "fbwfl01",
+    "settings": {
+     "_skin": "product",
+     "template_id": "__LOOP__",
+     "posts_per_page": 12
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "loop",
+    "type": "loop-item",
+    "source": "product",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Producto",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p002\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "filters-css": "/digitalisimo-elements/assets/css/filters\\.css",
+   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js"
+  },
+  "counts": {
+   "forms": "form.digi-filter",
+   "items": ".e-loop-item",
+   "price": "form.digi-filter--price"
+  },
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:loop-grid",
+    "errors": 0,
+    "delta.cls": "<=0.01",
+    "asset:filters-css": "<=4096",
+    "asset:filters-js": "<=8192",
+    "count:forms": 1,
+    "count:price": 1
+   }
+  }
+ },
+ "woo-attribute-filter": {
+  "title": "Filtro de atributo (F4-Woo) con muestras de pa_color sobre un Loop Grid de productos: el clic filtra el bucle",
+  "since": "4.3.0.166",
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-attribute-filter",
+    "id": "fbwfa01",
+    "settings": {
+     "destination": "loop",
+     "selected_element": "fbwfl01",
+     "attribute": "pa_color",
+     "display": "swatches"
+    }
+   },
+   {
+    "type": "loop-grid",
+    "id": "fbwfl01",
+    "settings": {
+     "_skin": "product",
+     "template_id": "__LOOP__",
+     "posts_per_page": 12
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "loop",
+    "type": "loop-item",
+    "source": "product",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Producto",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p002\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "filters-css": "/digitalisimo-elements/assets/css/filters\\.css",
+   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js"
+  },
+  "counts": {
+   "forms": "form.digi-filter",
+   "items": ".e-loop-item",
+   "terms": "form.digi-filter--attribute .digi-filter__term"
+  },
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:loop-grid",
+    "errors": 0,
+    "delta.cls": "<=0.01",
+    "asset:filters-css": "<=4096",
+    "asset:filters-js": "<=8192",
+    "count:forms": 1,
+    "count:terms": 3,
+    "after": {
+     "changed": [
+      "loopSig"
+     ]
+    }
+   }
+  },
+  "actions": [
+   {
+    "do": "mark",
+    "selector": ".e-loop-item"
+   },
+   {
+    "do": "click",
+    "selector": ".digi-filter--attribute .digi-filter__term[href*=\"rojo\"]"
+   },
+   {
+    "do": "waitChange",
+    "selector": ".e-loop-item",
+    "ms": 20000
+   },
+   {
+    "do": "wait",
+    "ms": 500
+   }
+  ]
+ },
+ "woo-products-parts": {
+  "title": "Productos con las tres partes nuevas (F4-Woo): vista rápida, lista de deseos y muestras de variación",
+  "since": "4.3.0.166",
+  "widgets": [
+   {
+    "type": "woocommerce-products",
+    "settings": {
+     "columns": 3,
+     "rows": 1,
+     "paginate": "",
+     "query_post_type": "by_id",
+     "query_posts_ids": [
+      "__WC_SWATCH__",
+      "__WC_VARIABLE__",
+      "__WC_SIMPLE__"
+     ],
+     "digitalisimo_wc_custom": "yes",
+     "digitalisimo_wc_parts": [
+      "image",
+      "title",
+      "price",
+      "cart",
+      "quickview",
+      "wishlist",
+      "swatches"
+     ]
+    }
+   }
+  ],
+  "assets": {
+   "quick-view-css": "/digitalisimo-elements/assets/css/quick-view\\.css",
+   "quick-view-js": "/digitalisimo-elements/assets/js/quick-view\\.js",
+   "wishlist-css": "/digitalisimo-elements/assets/css/wishlist\\.css",
+   "wishlist-js": "/digitalisimo-elements/assets/js/wishlist\\.js",
+   "swatches-css": "/digitalisimo-elements/assets/css/swatches\\.css",
+   "swatches-js": "/digitalisimo-elements/assets/js/swatches\\.js"
+  },
+  "counts": {
+   "products": "li.product",
+   "quickview": "li.product .digi-qv__open",
+   "wishlist": "li.product .digi-wish",
+   "swatches": "li.product .digi-swatches"
+  },
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "count:products": 3,
+    "count:quickview": 3,
+    "count:wishlist": 3,
+    "count:swatches": 1,
+    "delta.cls": "<=0.01",
+    "asset:quick-view-css": "<=4096",
+    "asset:quick-view-js": "<=8192",
+    "asset:wishlist-css": "<=4096",
+    "asset:wishlist-js": "<=8192",
+    "asset:swatches-css": "<=4096",
+    "asset:swatches-js": "<=8192"
+   }
+  }
+ },
+ "woo-mini-cart-extras": {
+  "title": "Menú del carrito con la barra de envío gratis y el cupón (F4-Woo, rasgo Mini_Cart_Extras) y un producto en el carrito",
+  "since": "4.3.0.166",
+  "isolate": true,
+  "save": "document",
+  "widgets": [
+   {
+    "type": "woocommerce-menu-cart",
+    "id": "fbwm001",
+    "settings": {
+     "digitalisimo_cart_bar": "yes",
+     "digitalisimo_cart_coupon": "yes"
+    }
+   }
+  ],
+  "assets": {
+   "cart-extras-css": "/digitalisimo-elements/assets/css/cart-extras\\.css",
+   "cart-extras-js": "/digitalisimo-elements/assets/js/cart-extras\\.js"
+  },
+  "counts": {
+   "extras": ".digi-cart-extras",
+   "bar": ".digi-cart-extras .digi-ship",
+   "coupon": ".digi-cart-extras .digi-coupon__form"
+  },
+  "actions": [
+   {
+    "do": "visit",
+    "path": "/?add-to-cart=__WC_SIMPLE__"
+   },
+   {
+    "do": "visit"
+   },
+   {
+    "do": "waitCount",
+    "selector": ".digi-cart-extras .digi-ship",
+    "min": 1,
+    "ms": 15000
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:woocommerce-menu-cart",
+    "errors": 0,
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:bar": 1,
+     "count:coupon": 1,
+     "shown:bar": true
+    },
+    "asset:cart-extras-css": "<=4096",
+    "asset:cart-extras-js": "<=8192"
+   }
+  },
+  "visible": {
+   "bar": ".digi-cart-extras .digi-ship__text"
+  }
+ },
+ "woo-filters": {
+  "title": "Filtros de F4-Woo (precio y atributo pa_color con muestras) sobre un Loop Grid de productos: el clic filtra el bucle",
+  "since": "4.3.0.166",
+  "widgets": [
+   {
+    "type": "digitalisimo-woo-price-filter",
+    "id": "fbwfp01",
+    "settings": {
+     "destination": "loop",
+     "selected_element": "fbwfl01"
+    }
+   },
+   {
+    "type": "digitalisimo-woo-attribute-filter",
+    "id": "fbwfa01",
+    "settings": {
+     "destination": "loop",
+     "selected_element": "fbwfl01",
+     "attribute": "pa_color",
+     "display": "swatches"
+    }
+   },
+   {
+    "type": "loop-grid",
+    "id": "fbwfl01",
+    "settings": {
+     "_skin": "product",
+     "template_id": "__LOOP__",
+     "posts_per_page": 12
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "loop",
+    "type": "loop-item",
+    "source": "product",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Producto",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p002\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "filters-css": "/digitalisimo-elements/assets/css/filters\\.css",
+   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js"
+  },
+  "counts": {
+   "forms": "form.digi-filter",
+   "items": ".e-loop-item",
+   "terms": "form.digi-filter--attribute .digi-filter__term"
+  },
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": true,
+    "reason": "class:loop-grid",
+    "errors": 0,
+    "delta.cls": "<=0.01",
+    "asset:filters-css": "<=4096",
+    "asset:filters-js": "<=8192",
+    "count:forms": 2,
+    "count:terms": 3,
+    "after": {
+     "changed": [
+      "loopSig"
+     ]
+    }
+   }
+  },
+  "actions": [
+   {
+    "do": "mark",
+    "selector": ".e-loop-item"
+   },
+   {
+    "do": "click",
+    "selector": ".digi-filter--attribute .digi-filter__term[href*=\"rojo\"]"
+   },
+   {
+    "do": "waitChange",
+    "selector": ".e-loop-item",
+    "ms": 20000
+   },
+   {
+    "do": "wait",
+    "ms": 500
+   }
+  ]
+ },
+ "woo-swatches-product": {
+  "title": "Ficha de un producto variable con muestras de color (F4-Woo): hoja y script en <head>, radios sincronizados con el <select> y CLS",
+  "since": "4.3.0.166",
+  "classic": true,
+  "views": [
+   "/product/digi-fb-muestras/"
+  ],
+  "assets": {
+   "swatches-css": "/digitalisimo-elements/assets/css/swatches\\.css",
+   "swatches-js": "/digitalisimo-elements/assets/js/swatches\\.js"
+  },
+  "counts": {
+   "swatches": "form.variations_form .digi-swatches",
+   "radios": "form.variations_form .digi-swatches input[type=\"radio\"]",
+   "headCss": "head link#digitalisimo-woo-swatches-css",
+   "picked": "select[name=\"attribute_pa_color\"] option[value=\"azul\"]:checked"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": "form.variations_form label.digi-swatch:has(input[value=\"azul\"])"
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   }
+  ],
+  "modes": [
+   "woo",
+   "woo+cache",
+   "plugin+woo",
+   "v4+woo"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "errors": 0,
+    "count:swatches": 1,
+    "count:radios": 3,
+    "count:headCss": 1,
+    "count:picked": 0,
+    "cls": "<=0.01",
+    "after": {
+     "count:picked": 1
+    },
+    "asset:swatches-css": "<=4096",
+    "asset:swatches-js": "<=8192"
+   }
+  }
  }
 }

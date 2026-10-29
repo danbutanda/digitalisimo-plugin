@@ -76,7 +76,7 @@ module.exports = (api) => {
   });
   const outside = (page) => page.evaluate(() => window.digiWfOutside || []);
   /** Espera el contenido (o el error) del diálogo. */
-  async function loaded(page, ms = 90000) {
+  async function loaded(page, ms = 45000) {
     try {
       await page.waitForFunction(() => {
         const d = document.querySelector('dialog.digi-qv');

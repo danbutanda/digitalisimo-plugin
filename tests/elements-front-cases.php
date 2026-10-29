@@ -100,7 +100,7 @@ namespace {
 	$sources     = array(
 		'pro'      => array( glob( $elements . '/modules/*/widgets/*.php' ), $get_name ),
 		'pro-sub'  => array( glob( $elements . '/modules/*/widgets/*/*.php' ), $get_name ),
-		'own'      => array( array_merge( glob( $elements . '/modules/digitalisimo-widgets/*.php' ), glob( $elements . '/modules/digitalisimo-*/class-widget*.php' ) ), $get_name ),
+		'own'      => array( array_merge( glob( $elements . '/modules/digitalisimo-widgets/*.php' ), glob( $elements . '/modules/digitalisimo-*/class-widget*.php' ), glob( $elements . '/modules/digitalisimo-woo/*/class-*widget*.php' ) ), $get_name ),
 		'core'     => array( glob( $elements . '/elementor/includes/widgets/*.php' ), $get_name ),
 		'atomic'   => array( glob( $elements . '/elementor/modules/atomic-widgets/elements/*/*.php' ), $get_type ),
 	);
@@ -215,8 +215,9 @@ namespace {
 	// Combinaciones que un caso nombra tal cual: los casos de WOO=1 sólo corren con WooCommerce (F4-Woo, V.16.3).
 	$combos      = array( 'old-applied+cache', 'woo+cache', 'plugin+woo', 'v4+woo' );
 	$expect_keys = array_merge( array( '*', 'pre', 'warm', 'before', 'after', 'guard+old' ), $combos, $modes );
-	$actions     = array( 'click', 'scroll', 'wait', 'waitFor', 'waitCount', 'mark', 'waitChange', 'hover', 'openSubmenu', 'viewport', 'fill', 'fillAll', 'reload' );
-	$extra_types = array( 'popup', 'section', 'page', 'container', 'widget', 'loop-item', 'header', 'footer' );
+	$actions     = array( 'click', 'scroll', 'wait', 'waitFor', 'waitCount', 'mark', 'waitChange', 'hover', 'openSubmenu', 'viewport', 'fill', 'fillAll', 'reload', 'visit' );
+	// `product`: plantilla de «Producto individual» (la vista rápida de F4-Woo en «Plantilla de producto»).
+	$extra_types = array( 'popup', 'section', 'page', 'container', 'widget', 'loop-item', 'header', 'footer', 'product' );
 	foreach ( $cases as $slug => $case ) {
 		check_cases( preg_match( '/^[a-z0-9-]+$/', (string) $slug ) && is_array( $case ) && isset( $case['title'] ), "$slug: nombre o título inválidos" );
 		check_cases( isset( $case['widgets'] ) || isset( $case['elements'] ) || ! empty( $case['classic'] ), "$slug: necesita widgets, elements o classic" );

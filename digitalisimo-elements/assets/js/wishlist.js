@@ -149,7 +149,7 @@ const start = () => {
 		const t = e.target.closest('button[data-digi-wish],[data-digi-wish-remove],[data-digi-wish-clear]');
 		if (!t || !ids) return;
 		const el = t.closest('[data-digi-wishlist]'), li = t.closest('li'), next = li && (li.nextElementSibling || li.previousElementSibling);
-		const back = n => { const f = n && n.isConnected && q('a[href],button', n); (f || q('.digi-wishlist__title', el)).focus(); };
+		const back = n => { const f = n && n.isConnected && qa('a[href],button', n).find(x => at(x, 'tabindex') != -1); (f || q('.digi-wishlist__title', el)).focus(); };
 		if (t.hasAttribute('data-digi-wish-clear')) return void clear().then(() => back());
 		toggle(+(at(t, 'data-digi-wish') || at(t, 'data-digi-wish-remove'))).then(() => { if (el) back(next); });
 	});

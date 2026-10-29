@@ -366,6 +366,68 @@ add_action(
 				$kit = \Elementor\Plugin::$instance->kits_manager->get_active_kit();
 				$out += array( 'id' => (int) $kit->get_id(), 'settings' => $kit->get_settings(), 'defaults' => $kit->get_json_meta( '_elementor_elements_default_values' ), 'meta' => get_post_meta( $kit->get_id() ) );
 				break;
+			case 'woo':
+				// Estado de WooCommerce de F4-Woo (WOO=1): el de la firma (atributos, muestras y tabla de búsqueda, con
+				// nombres) más los IDs de los atributos, los SKU y precios de las variaciones y su número por estado.
+				require_once __DIR__ . '/signature.php';
+				if ( ! function_exists( 'wc_get_attribute_taxonomies' ) ) {
+					$out['active'] = false;
+					break;
+				}
+				$sig            = new Digi_K_Signature( '', array() );
+				$out['active']  = true;
+				$out['state']   = digi_k_woo_state( $sig );
+				$out['visual']  = get_option( 'woocommerce_feature_wc_visual_attribute_enabled', '' );
+				$out['types']   = array_keys( (array) wc_get_attribute_types() );
+				$out['ids']     = array();
+				foreach ( (array) wc_get_attribute_taxonomies() as $attribute ) {
+					$out['ids'][ (string) $attribute->attribute_name ] = (int) $attribute->attribute_id;
+				}
+				$out['variations'] = array();
+				$out['by_status']  = array();
+				foreach ( get_posts( array( 'post_type' => 'product_variation', 'post_status' => 'any', 'posts_per_page' => -1, 'orderby' => 'ID', 'order' => 'ASC' ) ) as $post ) {
+					$variation = wc_get_product( $post->ID );
+					$parent    = get_post( $post->post_parent );
+					$out['by_status'][ $post->post_status ] = ( $out['by_status'][ $post->post_status ] ?? 0 ) + 1;
+					$out['variations'][ Digi_K_Signature::post_key( $post ) ] = array(
+						'status'     => $post->post_status,
+						'parent'     => $parent ? Digi_K_Signature::post_key( $parent ) : '',
+						'parent_status' => $parent ? $parent->post_status : '',
+						'sku'        => $variation ? (string) $variation->get_sku( 'edit' ) : '',
+						'price'      => $variation ? (string) $variation->get_regular_price( 'edit' ) : '',
+						'attributes' => $variation ? (array) $variation->get_attributes( 'edit' ) : array(),
+						'image'      => $variation && $variation->get_image_id( 'edit' ) ? $sig->media( $variation->get_image_id( 'edit' ) ) : '',
+					);
+				}
+				$out['products'] = array();
+				foreach ( get_posts( array( 'post_type' => 'product', 'post_status' => 'any', 'posts_per_page' => -1, 'orderby' => 'ID', 'order' => 'ASC' ) ) as $post ) {
+					$product = wc_get_product( $post->ID );
+					$out['products'][ Digi_K_Signature::post_key( $post ) ] = array(
+						'status' => $post->post_status,
+						'type'   => $product ? $product->get_type() : '',
+						'sku'    => $product ? (string) $product->get_sku( 'edit' ) : '',
+						'path'   => (string) wp_make_link_relative( (string) get_permalink( $post ) ),
+						'session' => (string) get_post_meta( $post->ID, '_elementor_import_session_id', true ),
+					);
+				}
+				break;
+			case 'woo-edit':
+				// R8 (F4-Woo, V.11.1 y V.11.2): lo que un administrador cambia después de importar y la reversión no pisa.
+				$changed = array();
+				$id      = function_exists( 'wc_attribute_taxonomy_id_by_name' ) ? (int) wc_attribute_taxonomy_id_by_name( 'talla-zapato' ) : 0;
+				if ( $id ) {
+					$attribute = wc_get_attribute( $id );
+					$result    = wc_update_attribute( $id, array( 'name' => 'Talla editada', 'slug' => 'talla-zapato', 'type' => $attribute->type, 'order_by' => $attribute->order_by, 'has_archives' => $attribute->has_archives ) );
+					$changed['attribute'] = is_wp_error( $result ) ? $result->get_error_message() : (int) $result;
+				}
+				$variation_id = function_exists( 'wc_get_product_id_by_sku' ) ? (int) wc_get_product_id_by_sku( 'DIGI-K-CC-ROJO' ) : 0;
+				if ( $variation_id ) {
+					$variation = wc_get_product( $variation_id );
+					$variation->set_regular_price( '21' );
+					$changed['variation'] = (int) $variation->save();
+				}
+				$out['changed'] = $changed;
+				break;
 			case 'unconverted':
 				$out['count'] = (int) get_option( 'digitalisimo_elements_unconverted' );
 				break;

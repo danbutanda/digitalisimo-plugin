@@ -13,6 +13,7 @@ const { OUT, ROOT, K, CORE, WOO, SLOW, QUICK, GOLDEN, SCENARIOS, REST, REST_LIMI
 const SHARED = path.join(OUT, 'shared');
 const IN_SITE = '/wordpress/wp-content/digi-shared';
 const WIDTHS = QUICK ? [1280] : [360, 768, 1280];
+const RENDER = process.env.RENDER ? new RegExp(process.env.RENDER) : null;
 const vendors = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/playground/brand-audit/vendors.json'), 'utf8'));
 const VENDOR_HOSTS = [...vendors.hosts, ...(vendors.future || [])];
 const isVendor = (host) => VENDOR_HOSTS.some((h) => host === h || host.endsWith('.' + h)) || host === 'wordpress.org' || host.endsWith('.wordpress.org');
@@ -270,7 +271,11 @@ async function renderCompare(sigA, sigB, label) {
   const published = Object.entries(sigA.documents).filter(([k, d]) => /^page:/.test(k) && d.status === 'publish' && sigB.documents[k]);
   const skipped = published.filter(([k]) => sigB.documents[k].status !== 'publish').map(([k]) => `${k.slice(5)} (${sigB.documents[k].status} en B)`);
   const pages = [['portada', '', '']].concat(published.filter(([k]) => sigB.documents[k].status === 'publish').map(([k, d]) => [k.slice(5), d.path, sigB.documents[k].path]));
-  const pick = QUICK ? pages.filter(([key]) => ['portada', 'padre', 'widget-digitalisimo-accordion', 'widget-digitalisimo-logos'].includes(key)) : pages;
+  // RENDER=<regex>: sólo la portada y esas páginas (repetir una parte del render; no vale para la aceptación). QUICK:
+  // cuatro páginas y, con WOO=1, también las de F4-Woo (filtros y los siete widgets).
+  const quickPages = ['portada', 'padre', 'widget-digitalisimo-accordion', 'widget-digitalisimo-logos'];
+  const pick = RENDER ? pages.filter(([key]) => key === 'portada' || RENDER.test(key))
+    : QUICK ? pages.filter(([key]) => quickPages.includes(key) || (WOO && /^(filtros-de-productos|widget-digitalisimo-woo-)/.test(key))) : pages;
   const problems = [];
   if (skipped.length) R.log(`   ${label}: sin captura en B (no publicadas): ${skipped.join(', ')}`);
   fs.mkdirSync(path.join(OUT, 'shots', label), { recursive: true });
@@ -292,7 +297,7 @@ async function renderCompare(sigA, sigB, label) {
       }
     }
   }
-  if (!QUICK) for (const m of MASKS.filter((x) => !x.used)) problems.push(`known.json: la captura oculta «${m.selector}» en «${m.pagina}», que no se comparó: sobra`);
+  if (!QUICK && !RENDER) for (const m of MASKS.filter((x) => !x.used)) problems.push(`known.json: la captura oculta «${m.selector}» en «${m.pagina}», que no se comparó: sobra`);
   return { pages: pick.length, skipped, problems };
 }
 
@@ -354,7 +359,7 @@ async function R1(s) {
     verdict('A4', !diffs.some((d) => /^counts\./.test(d)), diffs.filter((d) => /^counts\./.test(d)).slice(0, 5));
     // A6 «nuevo»: además de lo que crea el contenido, sólo cambian la portada (el kit la trae) y, con WOO=1, las páginas
     // de la tienda; el kit activo conserva su ID y nunca cambian el tema, los plugins ni los experimentos.
-    const a6 = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, ...F7A_OPTIONS, '^page_on_front$', '^show_on_front$', ...(WOO ? ['^woocommerce_.*_page_id$'] : [])], allowTables: { posts: 'libre', postmeta: 'libre', terms: 'libre', termmeta: 'libre', term_taxonomy: 'libre', term_relationships: 'libre', comments: 'libre', commentmeta: 'libre', options: 'libre' }, uploads: 'libre', kit: 'libre', caches: 'libre' });
+    const a6 = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, ...F7A_OPTIONS, '^page_on_front$', '^show_on_front$', ...(WOO ? ['^woocommerce_.*_page_id$', ...WOO_OPTIONS] : [])], allowTables: { posts: 'libre', postmeta: 'libre', terms: 'libre', termmeta: 'libre', term_taxonomy: 'libre', term_relationships: 'libre', comments: 'libre', commentmeta: 'libre', options: 'libre', ...(WOO ? WOO_TABLES.fresh : {}) }, uploads: 'libre', kit: 'libre', caches: 'libre' });
     verdict('A6', !a6.length, a6.slice(0, 10).map((p) => `R1 ${via}: ${p}`));
     const net = networkCheck('b', `R1 ${via}`);
     verdict('A1', !net.toA.length, net.toA.slice(0, 5).map((e) => `${via}: petición al host de A ${e.url} (CV-4)`));
@@ -362,6 +367,11 @@ async function R1(s) {
     const report = await R.control('b', 'report', { session: run.session || (run.data && run.data.session) || '' }).catch(() => null);
     s.reports = s.reports || {};
     s.reports[via] = report && report.session ? { media: report.session.report && report.session.report.counts } : null;
+    if (WOO) {
+      const woo = await wooRoundtrip(via, run, sigB, via === 'pantalla' ? kits.rest : zip);
+      for (const [id, list] of Object.entries(woo.problems)) verdict(id, !list.length, list.map((p) => `R1 ${via} (F4-Woo): ${p}`));
+      s.woo = Object.assign(s.woo || {}, { [via]: woo.info });
+    }
     // export(A) = export(B) normalizado (CV-15): B vuelve a exportar y su firma de manifiesto coincide.
     if (via === 'pantalla') {
       const auth = await adminSession('b');
@@ -695,6 +705,7 @@ async function clash(s, v4) {
   const before = await snapshot('b', `${s.id}-antes`);
   const sigBefore = await signature('b', `${s.id}-antes`);
   const kitBefore = await R.control('b', 'kit');
+  const wooBefore = WOO ? await wooState('b') : null;
   const run = await importApp('b', kits.rest, { label: s.id });
   if (!run.ok) { s.problems.push(`${s.id}: ${run.message || run.failed.join('; ')}`); verdict('A7', false, `${s.id}: la importación falló`); return; }
   const after = await snapshot('b', `${s.id}-despues`);
@@ -714,8 +725,15 @@ async function clash(s, v4) {
   problems.push(...kitAddProblems(kitBefore, kitAfter, v4 ? ', R4v4' : ''));
   if (!compare.same(sigBefore.options, sigAfter.options)) problems.push(`opciones de portada cambiaron: ${JSON.stringify(sigAfter.options)}`);
   verdict('A7', !problems.length, problems.map((p) => `${s.id}: ${p}`));
-  const a6 = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, ...F7A_OPTIONS], allowTables: { posts: 'nuevas', postmeta: 'nuevas', terms: 'nuevas', termmeta: 'nuevas', term_taxonomy: 'nuevas', term_relationships: 'nuevas' }, uploads: 'libre', kit: 'libre', caches: 'nuevas' });
+  const a6 = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, ...F7A_OPTIONS, ...(WOO ? WOO_OPTIONS : [])], allowTables: { posts: 'nuevas', postmeta: 'nuevas', terms: 'nuevas', termmeta: 'nuevas', term_taxonomy: 'nuevas', term_relationships: 'nuevas', ...(WOO ? WOO_TABLES.add : {}) }, uploads: 'libre', kit: 'libre', caches: 'nuevas' });
   verdict('A6', !a6.length, a6.slice(0, 10).map((p) => `${s.id}: ${p}`));
+  // F4-Woo (V.11.5): pa_color de B reutilizado sin cambios ni muestras, creados con has_archives 0, SKU repetido vacío y
+  // sólo entradas y filas nuevas de lo que creó la sesión (las opciones y tablas de WooCommerce de arriba se miden aquí).
+  if (WOO) {
+    const woo = await wooClash(run, sigBefore, sigAfter, wooBefore);
+    for (const [id, list] of Object.entries(woo.problems)) verdict(id, !list.length, list.map((p) => `${s.id} (F4-Woo): ${p}`));
+    s.woo = woo.info;
+  }
   // F7a (V.13 #6): presets, globales de un preset, máscara del sitio, prioridad en borrador y referencia sin destino.
   await withReview(sigAfter, run.session);
   const f7a = await f7aClash(sigAfter, kitAfter, run.session);
@@ -731,6 +749,8 @@ async function clash(s, v4) {
   networkCheck('b', s.id);
   // Con QUICK=1, kit-roundtrip.sh no prepara 4.3.0.163: el paso sólo corre si se pasa OLD_ELEMENTS.
   if (!v4 && (!QUICK || process.env.OLD_ELEMENTS)) await f7aOldVersion(s);
+  // WOO=1: el mismo kit en un B con la versión publicada antes de F4-Woo (PREV_ELEMENTS, 4.3.0.165).
+  if (!v4 && WOO) await wooPrevVersion(s);
 }
 async function publish(site, session) {
   const auth = await adminSession(site);
@@ -747,6 +767,218 @@ async function publish(site, session) {
 }
 async function R4(s) { await clash(s, false); }
 async function R4v4(s) { await clash(s, true); }
+
+// ── F4-Woo (WOO=1, V.11): atributos, muestras, variaciones y tabla de búsqueda en los kits ─────────────────────────
+// Opciones y tablas de WooCommerce que una importación cambia a propósito. Cada escenario las mide aparte: R1 libres
+// («nuevo»), R4 sólo con entradas y filas nuevas de lo que creó la sesión (wooClash), R8 sólo lo editado (wooRevert).
+const WOO_OPTIONS = ['^digitalisimo_elements_swatches$', '^digitalisimo_elements_woo_fragments$'];
+const WOO_TABLES = {
+  fresh: { woocommerce_attribute_taxonomies: 'libre', wc_product_meta_lookup: 'libre', wc_product_attributes_lookup: 'libre' },
+  add: { woocommerce_attribute_taxonomies: 'nuevas', wc_product_meta_lookup: 'nuevas', wc_product_attributes_lookup: 'nuevas' },
+  revert: { woocommerce_attribute_taxonomies: 'nuevas' },
+};
+// Medios que sólo nombran las variaciones y las metas `image` de los términos de atributo (cases.json, woo.media).
+const WOO_MEDIA = ['variacion-roja', 'variacion-azul', 'muestra-azul', 'muestra-brillo'];
+// Códigos que nunca deben salir en una importación sana del kit de A.
+const WOO_BAD = ['woocommerce.inactive', 'woocommerce.attribute-failed', 'woocommerce.attribute-invalid', 'woocommerce.swatches-failed', 'woocommerce.swatches-unavailable', 'woocommerce.variations-orphan', 'woocommerce.variations-parent', 'woocommerce.variations-limit', 'woocommerce.variation-attribute', 'woocommerce.variation-failed', 'woocommerce.shipping-class', 'reference.attachment', 'part.error'];
+const wooCodes = (counts) => Object.fromEntries(Object.entries(counts || {}).filter(([c]) => /^(woocommerce\.|reference\.attachment$|part\.|taxonomies\.|not-exported\.)/.test(c)).sort());
+async function wooState(site, blog = 0) {
+  const res = await R.control(site, 'woo', blog ? { blog } : {});
+  if (!res.active) throw new Error(`WooCommerce no está activo en ${site}${blog ? ` (sitio ${blog})` : ''}`);
+  return res;
+}
+async function reportCodes(site, session, blog = 0) {
+  const res = await R.control(site, 'report', { session: session || '', ...(blog ? { blog } : {}) }).catch(() => null);
+  const report = ((res || {}).session || {}).report || {};
+  return { all: report.counts || {}, entries: report.entries || [] };
+}
+
+/**
+ * El filtro de precio de WooCommerce en el archivo de productos (`WC_Query::price_filter_post_clauses()`, que sólo mira
+ * `wc_product_meta_lookup`): entre 14 y 16 sólo cabe la Camiseta (15). Sin filtro, la Sudadera aparece (control).
+ */
+async function priceFilter(site, woo) {
+  const products = woo.products || {};
+  const link = (key) => ((products[key] || {}).path || '');
+  const has = (html, key) => !!link(key) && html.includes(link(key));
+  const filtered = await R.request(site, 'GET', '/?post_type=product&min_price=14&max_price=16', { jar: '__anon' });
+  const all = await R.request(site, 'GET', '/?post_type=product', { jar: '__anon' });
+  return { http: filtered.status, camiseta: has(filtered.text, 'product:camiseta'), sudadera: has(filtered.text, 'product:sudadera'), control: has(all.text, 'product:sudadera') };
+}
+
+/** R1 (V.11, v1 §6.5): lo de WooCommerce de A llega a B en «nuevo», por la pantalla «Kits» y por WP-CLI. */
+async function wooRoundtrip(via, run, sigB, kitFile) {
+  const problems = { A1: [], A4: [], A6: [] };
+  const a = await wooState('a');
+  const b = await wooState('b');
+  const aa = a.state.attributes;
+  const ba = b.state.attributes;
+  for (const slug of ['color', 'talla-zapato', 'acabado']) if (!aa[slug]) problems.A1.push(`preparación de A: falta el atributo ${slug}`);
+  if (aa.acabado && aa.acabado.type !== 'wc-visual') problems.A1.push(`preparación de A: pa_acabado es ${aa.acabado.type}, no wc-visual`);
+  if (a.visual !== 'yes') problems.A1.push('preparación de A: la función wc-visual de WooCommerce no está encendida');
+  for (const slug of Object.keys(aa)) if (!ba[slug]) problems.A1.push(`falta el atributo ${slug} en B`);
+  // has_archives = 1 en «nuevo», como en A (V.11.1); el wc-visual de A vuelve a select en B, sin la función ni otro
+  // wc-visual (docs/fusion/f4woo.md §1.3).
+  for (const slug of ['color', 'talla-zapato']) if (ba[slug] && ba[slug].has_archives !== 1) problems.A6.push(`«nuevo»: pa_${slug} quedó con has_archives ${ba[slug].has_archives} (A: 1)`);
+  if (ba.acabado && ba.acabado.type !== 'select') problems.A1.push(`pa_acabado es ${ba.acabado.type} en B: sin la función ni otro wc-visual debía volver a select`);
+  if (b.visual === 'yes' || (b.types || []).includes('wc-visual')) problems.A1.push(`B no es un destino sin wc-visual (función ${b.visual || 'apagada'}, tipos ${JSON.stringify(b.types)})`);
+  // Variaciones (de los variables publicados) con atributos, precio, SKU e imagen.
+  const want = Object.entries(a.variations).filter(([, v]) => v.parent_status === 'publish');
+  for (const [key, v] of want) {
+    const got = b.variations[key];
+    if (!got) { problems.A1.push(`falta la variación ${key}`); continue; }
+    for (const field of ['status', 'parent', 'sku', 'price', 'image', 'attributes']) if (!compare.same(v[field], got[field])) problems.A1.push(`${key}.${field}: A ${JSON.stringify(v[field])} · B ${JSON.stringify(got[field])}`);
+  }
+  if (Object.keys(b.variations).length !== want.length) problems.A1.push(`B tiene ${Object.keys(b.variations).length} variación(es); A, ${want.length} de variables publicados`);
+  if (want.length !== 4) problems.A1.push(`preparación de A: ${want.length} variación(es) de variables publicados (esperadas 4)`);
+  // Imágenes de muestra y de variación: en B (el host de A está bloqueado, A2) y en el kit.
+  const names = Object.keys(sigB.attachments || {});
+  for (const m of WOO_MEDIA) if (!names.some((n) => n.startsWith(`media:digi-k-${m}.png:`))) problems.A4.push(`la imagen ${m} no llegó a B`);
+  const info = { atributos: ba, variaciones: Object.keys(b.variations).length };
+  if (kitFile) {
+    const entries = zipEntries(kitFile);
+    let manifest = {};
+    try { manifest = JSON.parse(entries['manifest.json'] || '{}'); } catch (e) { manifest = {}; }
+    const d = manifest.digitalisimo || {};
+    info.manifiesto = { parts: d.parts, not_exported: d.not_exported, media: d.media, needs: d.needs };
+    for (const part of ['woo-attributes', 'woo-variations']) {
+      if (!(d.parts || {})[part]) problems.A1.push(`el manifiesto del kit no lista la parte ${part}`);
+      if (!(`digitalisimo/${part}.json` in entries)) problems.A1.push(`el kit no tiene digitalisimo/${part}.json`);
+    }
+    // Contadores sin contradicciones (V.11.4): sólo la variación del variable en borrador queda sin exportar.
+    if (((d.not_exported || {}).variations) !== 1) problems.A1.push(`not_exported.variations = ${JSON.stringify((d.not_exported || {}).variations)} (esperado 1: la del variable en borrador)`);
+    let variations = {};
+    try { variations = JSON.parse(entries['digitalisimo/woo-variations.json'] || '{}').variations || {}; } catch (e) { variations = {}; }
+    const rows = Object.values(variations).reduce((n, list) => n + (Array.isArray(list) ? list.length : 0), 0);
+    if (rows !== 4) problems.A1.push(`digitalisimo/woo-variations.json lleva ${rows} variación(es) (esperadas 4)`);
+    if (!(d.needs || {}).woocommerce) problems.A1.push('el manifiesto no dice que el kit necesita WooCommerce (needs.woocommerce)');
+    const media = Object.keys(entries).filter((n) => /^digitalisimo\/media\/[0-9a-f]{64}\.png$/.test(n)).length;
+    info.png_incrustados = media;
+  }
+  // Tabla de búsqueda (V.11.3): el filtro de precio de WooCommerce encuentra la Camiseta importada.
+  const pa = await priceFilter('a', a);
+  const pb = await priceFilter('b', b);
+  info.filtro_precio = { a: pa, b: pb };
+  if (!pa.camiseta || pa.sudadera || !pa.control) problems.A1.push(`control en A: el filtro de precio no da sólo la Camiseta (${JSON.stringify(pa)})`);
+  if (!pb.control) problems.A1.push(`el archivo de productos de B no lista la Sudadera sin filtro: el filtro no se pudo medir (${JSON.stringify(pb)})`);
+  else if (!pb.camiseta) problems.A1.push('el filtro de precio (14–16) no encuentra la Camiseta importada: su fila de wc_product_meta_lookup falta (V.11.3)');
+  else if (pb.sudadera) problems.A1.push('el filtro de precio (14–16) muestra la Sudadera (30–32)');
+  const session = run.session || (run.data && run.data.session) || '';
+  const codes = await reportCodes('b', session);
+  info.codigos = wooCodes(codes.all);
+  if (!codes.all['woocommerce.lookup-refreshed']) problems.A1.push('el informe no dice woocommerce.lookup-refreshed');
+  for (const c of [...WOO_BAD, 'woocommerce.sku-conflict', 'woocommerce.attribute-differs', 'woocommerce.swatches-skipped', 'woocommerce.attribute-archives-off', 'woocommerce.variations-kept']) {
+    if (codes.all[c]) problems.A1.push(`el informe dice ${c} en «nuevo» sobre un B vacío: ${JSON.stringify(codes.entries.filter((e) => e.code === c).slice(0, 2))}`);
+  }
+  return { problems, info };
+}
+
+/** R4 (V.11.5): «agregar» sobre B con pa_color, su «rojo», un atributo con muestras y un SKU de la sesión. */
+async function wooClash(run, sigBefore, sigAfter, wooBefore) {
+  const problems = { A6: [], A7: [] };
+  const b = await wooState('b');
+  const before = wooBefore.state.attributes;
+  const now = b.state.attributes;
+  if (!before.color || !before['material-b']) problems.A7.push(`preparación de B: faltan pa_color o pa_material-b (${JSON.stringify(Object.keys(before))})`);
+  for (const slug of Object.keys(before)) {
+    if (!compare.same(before[slug], now[slug]) || wooBefore.ids[slug] !== b.ids[slug]) problems.A7.push(`el atributo ${slug} de B cambió: ${JSON.stringify(before[slug])} → ${JSON.stringify(now[slug] || null)}`);
+  }
+  for (const slug of ['talla-zapato', 'acabado']) {
+    if (!now[slug]) { problems.A7.push(`no se creó el atributo ${slug}`); continue; }
+    if (now[slug].has_archives !== 0) problems.A6.push(`«agregar»: pa_${slug} se creó con has_archives ${now[slug].has_archives}: importar nunca abre URL públicas nuevas`);
+  }
+  if (now.acabado && now.acabado.type !== 'select') problems.A7.push(`pa_acabado es ${now.acabado.type}: B no tiene wc-visual y debía volver a select`);
+  // Muestras: las de B igual; sólo entra la del atributo creado con muestras (pa_color, reutilizado, no recibe).
+  const sb = wooBefore.state.swatches || {};
+  const sa = b.state.swatches || {};
+  for (const [slug, entry] of Object.entries(sb)) if (!compare.same(entry, sa[slug])) problems.A7.push(`la configuración de muestras de ${slug} cambió: ${JSON.stringify(entry)} → ${JSON.stringify(sa[slug] || null)}`);
+  const added = Object.keys(sa).filter((k) => !(k in sb)).sort();
+  if (!compare.same(added, ['talla-zapato'])) problems.A7.push(`muestras añadidas ${JSON.stringify(added)}: sólo debía entrar talla-zapato, que creó la sesión`);
+  // El «rojo» de B (otro nombre, otra meta color) no cambia.
+  if (!compare.same(sigBefore.terms['pa_color:rojo'], sigAfter.terms['pa_color:rojo'])) problems.A7.push(`el término rojo de B cambió: ${JSON.stringify(sigBefore.terms['pa_color:rojo'])} → ${JSON.stringify(sigAfter.terms['pa_color:rojo'])}`);
+  // SKU repetido: la variación entra sin SKU; el producto de B conserva el suyo.
+  const azul = b.variations['product_variation:camiseta-color-azul'];
+  const rojo = b.variations['product_variation:camiseta-color-rojo'];
+  if (!azul || !rojo) problems.A7.push(`faltan las variaciones de Camiseta color (${JSON.stringify(Object.keys(b.variations))})`);
+  if (azul && azul.sku !== '') problems.A7.push(`la variación azul tiene el SKU ${azul.sku}, que ya usa un producto de B`);
+  if (rojo && rojo.sku !== 'DIGI-K-CC-ROJO') problems.A7.push(`la variación roja tiene el SKU ${JSON.stringify(rojo.sku)}`);
+  const own = b.products['product:producto-de-b'];
+  if (!own || own.sku !== 'DIGI-K-CC-AZUL') problems.A7.push(`el producto de B cambió de SKU: ${JSON.stringify(own || null)}`);
+  // Tabla de búsqueda: las filas de B igual y las nuevas sólo de lo que creó la sesión.
+  const lb = wooBefore.state.lookup;
+  const la = b.state.lookup;
+  for (const [key, row] of Object.entries(lb)) if (!compare.same(row, la[key])) problems.A7.push(`la fila de ${key} en wc_product_meta_lookup cambió`);
+  const fresh = Object.keys(la).filter((k) => !(k in lb));
+  for (const key of fresh) if (sigBefore.posts[key.replace(/^post:/, '')]) problems.A6.push(`fila nueva en wc_product_meta_lookup de ${key}, que B ya tenía`);
+  if (!fresh.includes('post:product:camiseta')) problems.A7.push('la Camiseta importada no tiene fila en wc_product_meta_lookup (V.11.3)');
+  const codes = await reportCodes('b', run.session);
+  for (const c of ['woocommerce.attribute-differs', 'woocommerce.swatches-skipped', 'woocommerce.attribute-archives-off', 'woocommerce.sku-conflict', 'woocommerce.lookup-refreshed']) if (!codes.all[c]) problems.A7.push(`el informe no dice ${c}`);
+  for (const c of WOO_BAD) if (codes.all[c]) problems.A7.push(`el informe dice ${c}: ${JSON.stringify(codes.entries.filter((e) => e.code === c).slice(0, 2))}`);
+  return { problems, info: { codigos: wooCodes(codes.all), atributos: now, muestras_nuevas: added, filas_nuevas: fresh.length } };
+}
+
+/** R8 (V.11.1, V.11.2): lo creado sale; la etiqueta cambiada se conserva; la variación cambiada, como su producto. */
+async function wooRevert(run, imported, edit) {
+  const problems = [];
+  const b = await wooState('b');
+  const attrs = b.state.attributes;
+  if (!imported || Object.keys(imported.state.attributes).length < 3) problems.push(`la importación no creó los atributos: ${JSON.stringify(Object.keys((imported || { state: { attributes: {} } }).state.attributes))}`);
+  if (!edit || !edit.changed || typeof edit.changed.attribute !== 'number' || typeof edit.changed.variation !== 'number') problems.push(`no se pudo editar lo importado: ${JSON.stringify(edit)}`);
+  if (!compare.same(Object.keys(attrs), ['talla-zapato'])) problems.push(`atributos tras revertir: ${JSON.stringify(Object.keys(attrs))} (sólo debía quedar talla-zapato, editado después)`);
+  if (attrs['talla-zapato'] && attrs['talla-zapato'].label !== 'Talla editada') problems.push(`talla-zapato quedó con la etiqueta ${attrs['talla-zapato'].label}`);
+  const swatches = b.state.swatches || {};
+  if (!compare.same(Object.keys(swatches), ['talla-zapato'])) problems.push(`muestras tras revertir: ${JSON.stringify(Object.keys(swatches))} (sólo las del atributo conservado)`);
+  // El núcleo borra del todo los productos que creó la sesión (runners/revert/wp-content.php) y WooCommerce borra con
+  // ellos sus variaciones (WC_Post_Data::delete_post_data()): también la editada, antes de que corra la parte.
+  if (Object.keys(b.variations).length) problems.push(`quedan variaciones tras revertir: ${JSON.stringify(b.variations)}`);
+  if (Object.keys(b.state.lookup).length) problems.push(`quedan filas en wc_product_meta_lookup: ${JSON.stringify(Object.keys(b.state.lookup))}`);
+  const codes = await reportCodes('b', run.session);
+  if (!codes.all['woocommerce.attribute-edited']) problems.push('el informe no dice woocommerce.attribute-edited');
+  return { problems: problems.map((p) => `F4-Woo: ${p}`), info: { codigos: wooCodes(codes.all), atributos: attrs, variaciones_tras_revertir: Object.keys(b.variations).length, variacion_editada: codes.all['woocommerce.variation-edited'] ? 'conservada' : 'borrada con su producto por el núcleo' } };
+}
+
+/**
+ * R4 · versión anterior (V.11.5): el kit de A en un B con 4.3.0.165, sin F4-Woo. Las partes woo-* se ignoran (ni
+ * atributos, ni variaciones, ni muestras) y cada widget de F4-Woo queda como marcador con su original completo.
+ */
+async function wooPrevVersion(s) {
+  const prev = process.env.PREV_ELEMENTS || '';
+  if (!prev || !fs.existsSync(path.join(prev, 'pro-elements.php'))) { verdict('A4', false, 'R4 · 4.3.0.165: falta la copia de la versión anterior (PREV_ELEMENTS)'); s.problems.push('R4 · 4.3.0.165: sin PREV_ELEMENTS'); return; }
+  forget('b');
+  await R.startSite('b', { elements: prev });
+  await warmUp('b');
+  resetLogs('b');
+  const run = await importApp('b', kits.rest, { label: 'R4 4.3.0.165' });
+  const problems = [];
+  if (!run.ok) problems.push(`la importación falló: ${run.message || (run.failed || []).join('; ')}`);
+  const sig = await signature('b', 'R4-165');
+  const woo = await wooState('b');
+  if (Object.keys(woo.state.attributes).length) problems.push(`se crearon atributos: ${JSON.stringify(Object.keys(woo.state.attributes))}`);
+  if (Object.keys(woo.variations).length) problems.push(`se crearon variaciones: ${JSON.stringify(Object.keys(woo.variations))}`);
+  if (woo.state.swatches !== null) problems.push(`se escribió digitalisimo_elements_swatches: ${JSON.stringify(woo.state.swatches)}`);
+  // Cada documento de A con widgets de F4-Woo: en B, los mismos recuentos (el marcador cuenta como su original) y
+  // ningún widget de F4-Woo suelto (el tipo no existe en 4.3.0.165).
+  let markers = 0;
+  for (const [key, doc] of Object.entries(sigA.documents)) {
+    const types = Object.keys(doc.counts || {}).filter((t) => t.startsWith('digitalisimo-woo-'));
+    if (!types.length) continue;
+    const got = sig.documents[key];
+    if (!got) { problems.push(`${key} no llegó`); continue; }
+    for (const type of types) if ((got.counts || {})[type] !== doc.counts[type]) problems.push(`${key}: ${type} ${doc.counts[type]} en A, ${(got.counts || {})[type] || 0} en B`);
+    const raw = JSON.stringify(got.data);
+    const loose = (raw.match(/"widgetType":"digitalisimo-woo-[a-z-]+"/g) || []).length;
+    const wrapped = (raw.match(/"widgetType":"digitalisimo-unconverted"/g) || []).length;
+    if (wrapped < types.reduce((n, t) => n + doc.counts[t], 0)) problems.push(`${key}: ${wrapped} marcador(es) para ${types.join(', ')}`);
+    markers += wrapped;
+    // Los originales van dentro del marcador (`digitalisimo_unconverted.element`), no como widgets del árbol.
+    if (loose > wrapped) problems.push(`${key}: ${loose - wrapped} widget(s) de F4-Woo fuera de un marcador`);
+  }
+  if (!markers) problems.push('ningún widget de F4-Woo quedó como marcador (¿A no los tiene?)');
+  const codes = await reportCodes('b', run.session);
+  s.prev = { version: '4.3.0.165', marcadores: markers, codigos: Object.fromEntries(Object.entries(codes.all).sort()) };
+  verdict('A4', !problems.length, problems.map((p) => `R4 · 4.3.0.165: ${p}`).concat(`R4 · 4.3.0.165: ${markers} widget(s) de F4-Woo como marcadores, sin atributos ni variaciones`));
+  s.problems.push(...problems.map((p) => `4.3.0.165: ${p}`));
+}
 
 /** R5: reimportar sobre B con contenido: la segunda vez no crea filas ni archivos (A8, CV-1, CV-10). */
 async function R5(s) {
@@ -772,6 +1004,16 @@ async function R5(s) {
   const report = await R.control('b', 'report', { session: second.session });
   const counts = (((report || {}).session || {}).report || {}).counts || {};
   s.reutilizados = counts['origin.reuse'] || counts.reused || null;
+  if (WOO) {
+    // F4-Woo (V.11.5): las tablas de WooCommerce (atributos y búsqueda) ya están en la instantánea, que no admite filas
+    // nuevas; aquí, que la primera importación creó lo de WooCommerce y la segunda no tocó sus variaciones.
+    const woo = await wooState('b');
+    const first1 = await reportCodes('b', first.session);
+    if (Object.keys(woo.state.attributes).length < 3) problems.push(`la primera importación no creó los atributos de WooCommerce: ${JSON.stringify(Object.keys(woo.state.attributes))}`);
+    if (Object.keys(woo.variations).length !== 4) problems.push(`B tiene ${Object.keys(woo.variations).length} variación(es) tras dos importaciones (esperadas 4)`);
+    if (!counts['woocommerce.variations-kept']) problems.push('la segunda importación no informa woocommerce.variations-kept');
+    s.woo = { primera: wooCodes(first1.all), segunda: wooCodes(counts) };
+  }
   verdict('A8', !problems.length, problems.map((p) => `R5: ${p}`));
 }
 
@@ -799,6 +1041,20 @@ async function R6(s) {
     const n = Object.keys((value && value.presets) || {}).length;
     if (blog === 2 && run.ok && !n) problems.push('el sitio 2 no recibió los presets del kit (F7a)');
     if (blog !== 2 && value !== false) problems.push(`el sitio ${blog} tiene presets (${n}) tras importar en el sitio 2 (F7a)`);
+  }
+  if (WOO) {
+    // F4-Woo: atributos, muestras y variaciones sólo en el sitio 2 (las tablas de los sitios 1 y 3 ya están en la
+    // instantánea, que debe quedar igual).
+    s.woo = {};
+    for (const blog of [1, 2, 3]) {
+      const woo = await wooState('net', blog);
+      const n = { atributos: Object.keys((woo.state || {}).attributes || {}).length, variaciones: Object.keys(woo.variations || {}).length, muestras: Object.keys((woo.state || {}).swatches || {}).length };
+      s.woo[blog] = n;
+      if (blog === 2 && run.ok && (n.atributos < 3 || n.variaciones !== 4 || n.muestras < 2)) problems.push(`el sitio 2 no recibió lo de WooCommerce: ${JSON.stringify(n)}`);
+      if (blog !== 2 && (n.atributos || n.variaciones || n.muestras)) problems.push(`el sitio ${blog} tiene datos de WooCommerce tras importar en el sitio 2: ${JSON.stringify(n)}`);
+    }
+    const codes = await reportCodes('net', run.session, 2);
+    s.woo.codes = wooCodes(codes.all);
   }
   verdict('A9', !problems.length && run.ok, problems.map((p) => `R6: ${p}`));
   networkCheck('net', 'R6');
@@ -835,12 +1091,21 @@ async function R8(s) {
   // Lo que creó la sesión: lo que hay después de importar y no estaba antes (B ya traía su contenido).
   const sigImported = await signature('b', 'R8-importado', 'a.test');
   const created = Object.keys(sigImported.documents).filter((k) => !sigBefore.documents[k]);
+  // F4-Woo (V.11.1, V.11.2): después de importar, un administrador cambia la etiqueta de un atributo creado y el precio
+  // de una variación creada; la reversión no los pisa.
+  const wooImported = WOO ? await wooState('b') : null;
+  const wooEdit = WOO ? await R.control('b', 'woo-edit') : null;
   const auth = await adminSession('b');
   const rev = await rest('b', auth, 'POST', 'revert', {}, { label: 'R8 revert' });
   if (rev.status !== 200) s.problems.push(`revert → ${rev.status} ${rev.text.slice(0, 200)}`);
   const after = await snapshot('b', 'R8-despues');
   const kitAfter = await R.control('b', 'kit');
-  const problems = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, '^digitalisimo_elements_kit_session_'], allowTables: { posts: 'libre', postmeta: 'libre' }, uploads: 'igual' });
+  const problems = compare.compareSnapshots(before, after, { allowOptions: [...CONTENT_OPTIONS, '^digitalisimo_elements_kit_session_', ...(WOO ? WOO_OPTIONS : [])], allowTables: { posts: 'libre', postmeta: 'libre', ...(WOO ? WOO_TABLES.revert : {}) }, uploads: 'igual' });
+  if (WOO) {
+    const woo = await wooRevert(run, wooImported, wooEdit);
+    problems.push(...woo.problems);
+    s.woo = woo.info;
+  }
   const sig = await signature('b', 'R8-despues', 'a.test');
   const trashed = Object.values(sig.documents).filter((d) => d.status === 'trash').length + Object.values(sig.posts).filter((p) => p.status === 'trash').length;
   // Cada documento de la sesión sale de B: a la papelera (D16, «como el núcleo») las páginas y entradas, y del todo lo
@@ -1014,7 +1279,7 @@ const RUN = { R1, R1c, R2, R3, R3b, R4, R4v4, R5, R6, R7, R8, R9, R10, R13, RX }
 async function main() {
   compare = await import(pathToFileURL(path.join(K, 'compare.mjs')).href);
   build = await import(pathToFileURL(path.join(ROOT, 'tests/sources/kits/build.mjs')).href);
-  knownAll = known();
+  knownAll = known().filter((k) => !k.woo || WOO);
   try { summary.sha = execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD']).toString().trim(); summary.branch = execFileSync('git', ['-C', ROOT, 'rev-parse', '--abbrev-ref', 'HEAD']).toString().trim(); } catch (e) { /* sin git */ }
   // Qué código vieron los sitios: la copia fija ($OUT/src) con los archivos sin confirmar de ese momento, o el árbol vivo.
   summary.src = R.SRC === ROOT ? { live: true } : { live: false, dirty: (fs.existsSync(path.join(R.SRC, 'dirty.txt')) ? fs.readFileSync(path.join(R.SRC, 'dirty.txt'), 'utf8').split('\n').filter(Boolean) : []) };

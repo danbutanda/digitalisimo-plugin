@@ -7,7 +7,10 @@
  * - Medios, usuaria, términos con metas, entradas, menús, separadores digi-* y máscaras, fuente e iconos propios,
  *   ajustes y valores por defecto del kit, plantillas (sección, loop, popup y Theme Builder en cinco ubicaciones),
  *   páginas con los tres motores de condiciones, una página por widget propio (44, el Slider Optimizado y los 7 alias)
- *   y una por rasgo. Con WOO=1, categoría con imagen, productos simple y variable y plantilla de producto.
+ *   y una por rasgo. Con WOO=1 (F4-Woo, V.11.5): categoría con imagen; atributos globales pa_color, pa_talla-zapato y
+ *   pa_acabado (wc-visual, con la función encendida) con sus metas de muestra y su configuración de muestras;
+ *   productos simples, variables con atributo local y global (variaciones con imagen y SKU) y un variable en
+ *   borrador; plantillas de producto y de bucle de productos, los siete widgets de F4-Woo y la página de filtros.
  * - Vuelca get_controls() de todo widget registrado (propios, PRO y núcleo), de los elementos y de las condiciones,
  *   para el inventario en tiempo de ejecución (§9.2), y las referencias que anotó al resolver las fichas (refs.json).
  */
@@ -204,8 +207,20 @@ foreach ( (array) ( $cases['options'] ?? array() ) as $name => $value ) {
 }
 
 // WooCommerce (WOO=1), antes de los documentos que nombran sus términos y productos: categoría con imagen (meta de
-// término), productos simple y variable (sus variaciones no viajan hasta F4-Woo: B21).
+// término), atributos globales con sus términos, metas de muestra y configuración de muestras (F4-Woo, V.11.1), y
+// productos simples y variables con sus variaciones (parte woo-variations, V.11.2).
 if ( ! empty( $digi_opts['woo'] ) && class_exists( 'WooCommerce' ) ) {
+	// Medios que sólo nombran las variaciones y las metas `image` de los términos de atributo: viajan sólo por
+	// Media_Runner (woo-variations) y por la referencia term_meta acotada a pa_* (V.11.4).
+	foreach ( (array) ( $cases['woo']['media'] ?? array() ) as $name => $spec ) {
+		$refs->media[ $name ]    = digi_k_attachment( $name, $spec );
+		$ids[ 'media:' . $name ] = $refs->media[ $name ];
+	}
+	// La función «Color swatches for attributes» de WooCommerce encendida en A (en B, apagada: V.11.5).
+	update_option( 'woocommerce_feature_wc_visual_attribute_enabled', 'yes' );
+	foreach ( (array) ( $cases['woo']['attributes'] ?? array() ) as $attribute_spec ) {
+		$ids[ 'attribute:' . $attribute_spec['slug'] ] = digi_k_woo_attribute( $attribute_spec, $refs, $ids );
+	}
 	foreach ( (array) $cases['woo']['product_categories'] as $cat ) {
 		$found = get_term_by( 'slug', $cat['slug'], 'product_cat' );
 		$id    = $found ? (int) $found->term_id : (int) ( wp_insert_term( $cat['name'], 'product_cat', array( 'slug' => $cat['slug'] ) )['term_id'] ?? 0 );
@@ -219,19 +234,43 @@ if ( ! empty( $digi_opts['woo'] ) && class_exists( 'WooCommerce' ) ) {
 		$product = 'variable' === $spec['type'] ? new WC_Product_Variable() : new WC_Product_Simple();
 		$product->set_name( $spec['title'] );
 		$product->set_slug( $spec['slug'] );
-		$product->set_status( 'publish' );
+		// «status»: un variable en borrador no viaja y sus variaciones cuentan en not_exported.variations (V.11.4).
+		$product->set_status( $spec['status'] ?? 'publish' );
 		$product->set_category_ids( array( (int) $ids[ 'term:product_cat:' . $spec['category'] ] ) );
 		if ( ! empty( $spec['image'] ) ) {
 			$product->set_image_id( $refs->media_id( $spec['image'] ) );
 		}
-		if ( 'variable' === $spec['type'] ) {
+		$attributes = array();
+		if ( ! empty( $spec['attribute'] ) ) {
+			// Atributo local (sin taxonomía), usado para variaciones.
 			$attribute = new WC_Product_Attribute();
 			$attribute->set_name( $spec['attribute']['name'] );
 			$attribute->set_options( $spec['attribute']['options'] );
 			$attribute->set_visible( true );
 			$attribute->set_variation( true );
-			$product->set_attributes( array( $attribute ) );
-		} else {
+			$attributes[] = $attribute;
+		}
+		foreach ( (array) ( $spec['attributes'] ?? array() ) as $global ) {
+			// Atributo global (pa_*): sus términos por slug, como los guarda la pantalla de producto.
+			$term_ids = array();
+			foreach ( (array) $global['terms'] as $term_slug ) {
+				$term_ids[] = $refs->term_id( $global['taxonomy'], $term_slug );
+			}
+			$attribute = new WC_Product_Attribute();
+			$attribute->set_id( (int) wc_attribute_taxonomy_id_by_name( $global['taxonomy'] ) );
+			$attribute->set_name( $global['taxonomy'] );
+			$attribute->set_options( array_filter( $term_ids ) );
+			$attribute->set_visible( true );
+			$attribute->set_variation( ! empty( $global['variation'] ) );
+			$attributes[] = $attribute;
+			if ( in_array( 0, $term_ids, true ) || ! wc_attribute_taxonomy_id_by_name( $global['taxonomy'] ) ) {
+				digi_k_fail( "WooCommerce: el producto {$spec['slug']} nombra un término o un atributo que no existe en {$global['taxonomy']}" );
+			}
+		}
+		if ( $attributes ) {
+			$product->set_attributes( $attributes );
+		}
+		if ( 'variable' !== $spec['type'] ) {
 			$product->set_regular_price( $spec['price'] );
 		}
 		$product_id = $product->save();
@@ -240,7 +279,16 @@ if ( ! empty( $digi_opts['woo'] ) && class_exists( 'WooCommerce' ) ) {
 			$variation->set_parent_id( $product_id );
 			$variation->set_attributes( $variation_spec['attributes'] );
 			$variation->set_regular_price( $variation_spec['price'] );
+			if ( ! empty( $variation_spec['sku'] ) ) {
+				$variation->set_sku( $variation_spec['sku'] );
+			}
+			if ( ! empty( $variation_spec['image'] ) ) {
+				$variation->set_image_id( $refs->media_id( $variation_spec['image'] ) );
+			}
 			$variation->save();
+		}
+		if ( ! empty( $spec['variations'] ) ) {
+			WC_Product_Variable::sync( $product_id );
 		}
 		$ids[ 'post:product:' . $spec['slug'] ] = $product_id;
 	}

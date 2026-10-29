@@ -1,5 +1,5 @@
 {
-  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias) tiene su caso, y cada parte de K el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs.",
+  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo») tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce.",
   "media": {
     "imagen-a": {
       "png": [
@@ -1674,6 +1674,54 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "digi-k-filtros",
+      "title": "Filtros de productos",
+      "woo": true,
+      "elements": [
+        {
+          "id": "c9b0001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e9b0001",
+              "elType": "widget",
+              "widgetType": "digitalisimo-woo-price-filter",
+              "settings": {
+                "destination": "loop",
+                "selected_element": "e9b0003",
+                "bounds": "fixed",
+                "bound_min": 0,
+                "bound_max": 100,
+                "step": 1
+              }
+            },
+            {
+              "id": "e9b0002",
+              "elType": "widget",
+              "widgetType": "digitalisimo-woo-attribute-filter",
+              "settings": {
+                "destination": "loop",
+                "selected_element": "e9b0003",
+                "attribute": "pa_color",
+                "display": "checkboxes"
+              }
+            },
+            {
+              "id": "e9b0003",
+              "elType": "widget",
+              "widgetType": "loop-grid",
+              "settings": {
+                "_skin": "product",
+                "template_id": "@template:digi-k-loop-producto",
+                "posts_per_page": 12
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "widgets": {
@@ -2024,6 +2072,65 @@
           }
         ]
       }
+    },
+    "digitalisimo-woo-wishlist-button": {
+      "woo": true,
+      "settings": {
+        "mode": "save",
+        "product_source": "custom",
+        "product_id": "@post:product:digi-k-camiseta",
+        "wishlist_page": "@post:page:digi-k-w-woo-wishlist",
+        "text": "Guardar"
+      }
+    },
+    "digitalisimo-woo-wishlist": {
+      "woo": true,
+      "settings": {
+        "layout": "grid",
+        "title": "Mi lista del kit"
+      }
+    },
+    "digitalisimo-woo-quick-view": {
+      "woo": true,
+      "settings": {
+        "product_source": "custom",
+        "product_id": "@post:product:digi-k-camiseta-color",
+        "content_mode": "template",
+        "digitalisimo_template_id": "@template:digi-k-producto",
+        "button_text": "Vista rápida"
+      }
+    },
+    "digitalisimo-woo-swatches": {
+      "woo": true,
+      "settings": {
+        "attribute": "pa_color",
+        "max_visible": 4,
+        "shape": "circle"
+      }
+    },
+    "digitalisimo-woo-shipping-bar": {
+      "woo": true,
+      "settings": {
+        "text_done": "Envío gratis conseguido"
+      }
+    },
+    "digitalisimo-woo-price-filter": {
+      "woo": true,
+      "settings": {
+        "destination": "shop",
+        "bounds": "fixed",
+        "bound_min": 0,
+        "bound_max": 100,
+        "step": 1
+      }
+    },
+    "digitalisimo-woo-attribute-filter": {
+      "woo": true,
+      "settings": {
+        "destination": "shop",
+        "attribute": "pa_color",
+        "display": "swatches"
+      }
     }
   },
   "traits": {
@@ -2215,6 +2322,86 @@
             "price": "32"
           }
         ]
+      },
+      {
+        "slug": "digi-k-camiseta-color",
+        "title": "Camiseta color",
+        "type": "variable",
+        "category": "ropa",
+        "attributes": [
+          {
+            "taxonomy": "pa_color",
+            "terms": [
+              "rojo",
+              "azul"
+            ],
+            "variation": true
+          }
+        ],
+        "variations": [
+          {
+            "attributes": {
+              "pa_color": "rojo"
+            },
+            "price": "20",
+            "sku": "DIGI-K-CC-ROJO",
+            "image": "variacion-roja"
+          },
+          {
+            "attributes": {
+              "pa_color": "azul"
+            },
+            "price": "22",
+            "sku": "DIGI-K-CC-AZUL",
+            "image": "variacion-azul"
+          }
+        ]
+      },
+      {
+        "slug": "digi-k-zapato",
+        "title": "Zapato",
+        "type": "simple",
+        "price": "50",
+        "category": "ropa",
+        "attributes": [
+          {
+            "taxonomy": "pa_talla-zapato",
+            "terms": [
+              "t38",
+              "t40"
+            ],
+            "variation": false
+          },
+          {
+            "taxonomy": "pa_acabado",
+            "terms": [
+              "mate",
+              "brillo"
+            ],
+            "variation": false
+          }
+        ]
+      },
+      {
+        "slug": "digi-k-borrador",
+        "title": "Variable en borrador",
+        "type": "variable",
+        "category": "ropa",
+        "status": "draft",
+        "attribute": {
+          "name": "Tamaño",
+          "options": [
+            "Único"
+          ]
+        },
+        "variations": [
+          {
+            "attributes": {
+              "tamano": "Único"
+            },
+            "price": "12"
+          }
+        ]
       }
     ],
     "templates": [
@@ -2240,11 +2427,163 @@
             ]
           }
         ]
+      },
+      {
+        "slug": "digi-k-loop-producto",
+        "type": "loop-item",
+        "title": "Ficha de producto del kit",
+        "settings": {
+          "source": "product",
+          "preview_type": "single/product"
+        },
+        "elements": [
+          {
+            "id": "c9a0002",
+            "elType": "container",
+            "settings": {},
+            "elements": [
+              {
+                "id": "e9a0002",
+                "elType": "widget",
+                "widgetType": "heading",
+                "settings": {
+                  "title": "Producto",
+                  "__dynamic__": {
+                    "title": "[elementor-tag id=\"e9a0003\" name=\"post-title\" settings=\"%7B%7D\"]"
+                  }
+                }
+              }
+            ]
+          }
+        ]
       }
     ],
     "pages": {
       "shop": "digi-k-tienda"
-    }
+    },
+    "media": {
+      "variacion-roja": {
+        "png": [
+          190,
+          30,
+          45
+        ],
+        "w": 40,
+        "h": 40,
+        "title": "Variación roja",
+        "alt": "Camiseta roja"
+      },
+      "variacion-azul": {
+        "png": [
+          30,
+          60,
+          190
+        ],
+        "w": 40,
+        "h": 40,
+        "title": "Variación azul",
+        "alt": "Camiseta azul"
+      },
+      "muestra-azul": {
+        "png": [
+          20,
+          90,
+          220
+        ],
+        "w": 24,
+        "h": 24,
+        "title": "Muestra azul"
+      },
+      "muestra-brillo": {
+        "png": [
+          235,
+          225,
+          160
+        ],
+        "w": 24,
+        "h": 24,
+        "title": "Muestra brillo"
+      }
+    },
+    "attributes": [
+      {
+        "slug": "color",
+        "label": "Color",
+        "type": "select",
+        "orderby": "menu_order",
+        "has_archives": true,
+        "swatches": {
+          "type": "visual",
+          "shape": "circle",
+          "size": 32
+        },
+        "terms": [
+          {
+            "slug": "rojo",
+            "name": "Rojo",
+            "meta": {
+              "color": "#cc0000"
+            }
+          },
+          {
+            "slug": "azul",
+            "name": "Azul",
+            "meta": {
+              "image": "@media-id:muestra-azul"
+            }
+          },
+          {
+            "slug": "verde",
+            "name": "Verde oliva"
+          }
+        ]
+      },
+      {
+        "slug": "talla-zapato",
+        "label": "Talla de zapato",
+        "type": "select",
+        "orderby": "name_num",
+        "has_archives": true,
+        "swatches": {
+          "type": "label",
+          "shape": "pill",
+          "size": 28
+        },
+        "terms": [
+          {
+            "slug": "t38",
+            "name": "38"
+          },
+          {
+            "slug": "t40",
+            "name": "40"
+          }
+        ]
+      },
+      {
+        "slug": "acabado",
+        "label": "Acabado",
+        "type": "wc-visual",
+        "orderby": "menu_order",
+        "has_archives": false,
+        "terms": [
+          {
+            "slug": "mate",
+            "name": "Mate",
+            "meta": {
+              "color": "#333333"
+            }
+          },
+          {
+            "slug": "brillo",
+            "name": "Brillo",
+            "meta": {
+              "image": "@media-id:muestra-brillo"
+            }
+          }
+        ]
+      }
+    ]
   },
   "parts": {
     "origin": {
@@ -2278,6 +2617,14 @@
     "presets": {
       "case": "kit.presets",
       "motivo": "presets de estilo del sitio (heading con color global y tipografía responsiva, contenedor con un color global que sólo usa el preset, divisor en los valores por defecto del kit y uno inerte de un tipo ausente); en R4, choque de tarjeta con otro contenido renombrado a tarjeta-k<hex> y vínculos reescritos"
+    },
+    "woo-attributes": {
+      "case": "R1",
+      "motivo": "atributos globales creados antes del runner de taxonomías: pa_color (muestras de color, imagen y etiqueta, has_archives 1), pa_talla-zapato (slug con guion, muestras de etiqueta) y pa_acabado (wc-visual con la función encendida en A; en B, apagada y sin ningún wc-visual, vuelve a select y sus metas viajan); en R4, pa_color ya existe en B con otra etiqueta y se reutiliza sin cambios ni muestras, y los creados quedan con has_archives 0"
+    },
+    "woo-variations": {
+      "case": "R1",
+      "motivo": "variaciones con imagen y SKU de Camiseta color (pa_color) y de Sudadera (atributo local), imágenes incrustadas en el kit, not_exported.variations sólo con la variación de un variable en borrador y tabla de búsqueda refrescada (el filtro de precio encuentra la Camiseta importada); en R4, un SKU repetido queda vacío"
     }
   },
   "options": {

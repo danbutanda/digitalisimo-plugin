@@ -12,6 +12,8 @@
  * - clash: el contenido de choque de R4 (colores con el mismo _id y otro valor, menú y términos con el mismo slug,
  *   separador digi-onda con otro sha256, cabecera publicada con include/general, botón flotante con condiciones,
  *   portada estática, fuente e icono propios, plantilla con el mismo título y adjunto con el mismo nombre de archivo);
+ *   con WOO=1, además, pa_color con otra etiqueta y su propio «rojo», un atributo propio con muestras y un producto con
+ *   el SKU de una variación del kit (F4-Woo, V.11.5);
  * - clash-v4: además, variables y clases globales v4 (R4v4);
  * - content: B con contenido propio que no viene del kit (R5);
  * - users: el editor sin manage_options de R9 (también lo crea el paso inicial).
@@ -175,6 +177,28 @@ if ( class_exists( $digi_store ) && method_exists( $digi_perf, 'set_use_style_co
 	digi_k_fail( 'R4: falta Store de presets (F7a) o Performance::set_use_style_controls()' );
 }
 update_option( 'elementor_unfiltered_files_upload', '0' );
+
+// F4-Woo (WOO=1, V.11.5): pa_color ya existe en B con otra etiqueta, sin muestras y con su propio «rojo» (otro nombre y
+// otra meta color: «agregar» lo reutiliza sin cambiarlo); un atributo propio con muestras (su entrada no cambia: sólo
+// se añaden las de los atributos que crea la sesión) y un producto con el SKU de una variación del kit
+// (woocommerce.sku-conflict). Ningún atributo wc-visual y la función apagada (docs/fusion/f4woo.md §1.3): el
+// wc-visual del kit vuelve a select.
+if ( class_exists( 'WooCommerce' ) && function_exists( 'wc_create_attribute' ) ) {
+	$digi_ids['woo_color']    = digi_k_woo_attribute( array( 'slug' => 'color', 'label' => 'Color de B', 'type' => 'select', 'orderby' => 'name', 'has_archives' => false, 'terms' => array( array( 'slug' => 'rojo', 'name' => 'Rojo de B', 'meta' => array( 'color' => '#ff0000' ) ) ) ), null, $digi_ids );
+	$digi_ids['woo_material'] = digi_k_woo_attribute( array( 'slug' => 'material-b', 'label' => 'Material de B', 'type' => 'select', 'orderby' => 'menu_order', 'has_archives' => false, 'swatches' => array( 'type' => 'label', 'shape' => 'rounded', 'size' => 40 ), 'terms' => array( array( 'slug' => 'lana', 'name' => 'Lana' ) ) ), null, $digi_ids );
+	if ( ! wc_get_product_id_by_sku( 'DIGI-K-CC-AZUL' ) ) {
+		$product = new WC_Product_Simple();
+		$product->set_name( 'Producto de B' );
+		$product->set_slug( 'digi-b-producto' );
+		$product->set_status( 'publish' );
+		$product->set_regular_price( '9' );
+		$product->set_sku( 'DIGI-K-CC-AZUL' );
+		$digi_ids['woo_product'] = (int) $product->save();
+	}
+	if ( 'yes' === get_option( 'woocommerce_feature_wc_visual_attribute_enabled' ) ) {
+		digi_k_fail( 'R4: la función wc-visual de WooCommerce está encendida en B' );
+	}
+}
 
 if ( 'clash-v4' === $digi_mode ) {
 	update_post_meta( $kit->get_id(), '_elementor_global_variables', wp_slash( wp_json_encode( array( 'format_version' => 1, 'data' => array( 'e-gv-b000001' => array( 'type' => 'global-color-variable', 'label' => 'color-de-b', 'value' => '#00AA55' ) ), 'watermark' => 1 ) ) ) );

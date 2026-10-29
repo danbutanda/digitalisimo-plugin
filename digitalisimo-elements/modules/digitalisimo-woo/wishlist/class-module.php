@@ -20,8 +20,13 @@ defined( 'ABSPATH' ) || exit;
 final class Module {
 	const FEATURE = 'wishlist';
 
-	/** Lo que usa de WooCommerce, comprobado al arrancar (D3). */
-	const SYMBOLS = array( 'wc_get_product()', 'wc_get_stock_html()', 'woocommerce_template_loop_add_to_cart()' );
+	/**
+	 * Lo que usa de WooCommerce, comprobado al arrancar (D3, en `plugins_loaded`). Sólo símbolos que ya existen entonces:
+	 * las funciones de plantilla (`wc_get_stock_html()`, `woocommerce_template_loop_add_to_cart()`) las carga WooCommerce
+	 * después, en `after_setup_theme`, y exigirlas aquí apagaba la lista en todos los sitios; `Cards` las comprueba al
+	 * pintar cada ficha.
+	 */
+	const SYMBOLS = array( 'wc_get_product()' );
 
 	/** Textos del navegador (todos los visitantes). */
 	const TEXTS = array(

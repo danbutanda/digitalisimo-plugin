@@ -128,6 +128,144 @@ function digi_fb_woo_catalog( $image_id ) {
 	return $variable_id;
 }
 
+/**
+ * Lo que necesitan los casos de F4-Woo (`since` 4.3.0.166) para pintar algo real. Se crea **después** de las páginas,
+ * sus documentos y el menú, así el catálogo de `digi_fb_woo_catalog()`, las páginas y los documentos de los casos
+ * anteriores conservan sus IDs (comparación con 4.3.0.165 y con la línea base de 4.3.0.164). Todo se escribe con las
+ * funciones de WordPress y WooCommerce, sin clases de Elements: la corrida de 4.3.0.165 prepara el mismo sitio.
+ *
+ * - Atributo global `pa_color` (tipo «select», como lo deja la pantalla de WooCommerce) con tres términos y la meta
+ *   `color` de WooCommerce 11.2.1, y su entrada «Muestra visual» en `digitalisimo_elements_swatches` (formato `v` 1,
+ *   con carga automática: el front sólo la lee si está en `wp_load_alloptions()`).
+ * - `digi-fb-muestras`: variable con `pa_color` (tres variaciones), en `digi-fb-cat-uno` y más antiguo que el resto
+ *   (no entra en los tres primeros del widget Productos de `woo-pro-existing`). La sonda lo quita de las consultas de
+ *   productos de las páginas de los casos sin `since` (`digi_fb_woo_f4_products`), que miden el catálogo de siempre.
+ * - Zona del país de la tienda con «Tarifa plana» y «Envío gratuito» desde 50: la barra sabe cuánto falta.
+ *
+ * Devuelve los marcadores `__WC_SIMPLE__` (el simple «Producto de medición 1», que ya existía) y `__WC_SWATCH__`.
+ *
+ * @param int $image_id    Adjunto de prueba.
+ * @param int $variable_id Variable del catálogo de siempre.
+ */
+function digi_fb_woo_f4( $image_id, $variable_id ) {
+	$markers = digi_fb_woo_markers();
+	$simple  = get_page_by_path( 'digi-fb-producto-1', OBJECT, 'product' );
+	if ( ! $simple ) {
+		digi_fb_fail( 'WOO=1: falta el producto digi-fb-producto-1' );
+		return $markers;
+	}
+	$markers['__WC_SIMPLE__']   = (string) $simple->ID;
+	$markers['__WC_VARIABLE__'] = (string) $variable_id;
+	$notes                      = array();
+
+	// La tabla de atributos de WooCommerce se actualiza al guardar (sin Action Scheduler): el filtro de atributo la usa.
+	update_option( 'woocommerce_attribute_lookup_direct_updates', 'yes' );
+	$taxonomy = 'pa_color';
+	if ( ! wc_attribute_taxonomy_id_by_name( $taxonomy ) ) {
+		$created = wc_create_attribute( array( 'name' => 'Color', 'slug' => 'color', 'type' => 'select', 'order_by' => 'menu_order', 'has_archives' => false ) );
+		if ( is_wp_error( $created ) ) {
+			digi_fb_fail( 'WOO=1: no se pudo crear pa_color: ' . $created->get_error_message() );
+			return $markers;
+		}
+	}
+	if ( ! taxonomy_exists( $taxonomy ) ) {
+		register_taxonomy( $taxonomy, array( 'product' ), array( 'hierarchical' => false, 'show_ui' => false, 'query_var' => false, 'rewrite' => false ) );
+	}
+	$terms = array();
+	$order = 0;
+	foreach ( array( 'rojo' => array( 'Rojo', '#c0392b' ), 'azul' => array( 'Azul', '#2155cf' ), 'verde' => array( 'Verde', '#1e8449' ) ) as $slug => $def ) {
+		$term = term_exists( $slug, $taxonomy );
+		if ( ! $term ) {
+			$term = wp_insert_term( $def[0], $taxonomy, array( 'slug' => $slug ) );
+		}
+		if ( is_wp_error( $term ) ) {
+			digi_fb_fail( 'WOO=1: no se pudo crear el término ' . $slug . ': ' . $term->get_error_message() );
+			return $markers;
+		}
+		$terms[ $slug ] = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
+		// Formato de `VisualAttributeTermMeta::save_term_visual()` de WooCommerce 11.2.1: `color` hexadecimal, sin `image`.
+		update_term_meta( $terms[ $slug ], 'color', $def[1] );
+		update_term_meta( $terms[ $slug ], 'order', $order++ );
+	}
+	update_option( 'digitalisimo_elements_swatches', array( 'v' => 1, 'attributes' => array( 'color' => array( 'type' => 'visual', 'shape' => 'circle', 'size' => 32 ) ) ), true );
+
+	$existing = get_page_by_path( 'digi-fb-muestras', OBJECT, 'product' );
+	if ( $existing ) {
+		$swatch_id = (int) $existing->ID;
+	} else {
+		$attribute = new WC_Product_Attribute();
+		$attribute->set_id( (int) wc_attribute_taxonomy_id_by_name( $taxonomy ) );
+		$attribute->set_name( $taxonomy );
+		$attribute->set_options( array_values( $terms ) );
+		$attribute->set_position( 0 );
+		$attribute->set_visible( true );
+		$attribute->set_variation( true );
+		$product = new WC_Product_Variable();
+		$product->set_name( 'Producto con muestras de medición' );
+		$product->set_slug( 'digi-fb-muestras' );
+		$product->set_status( 'publish' );
+		$product->set_sku( 'DIGI-FB-MUESTRAS' );
+		$product->set_short_description( 'Producto variable con muestras de color para medir el front.' );
+		$product->set_category_ids( array( (int) get_term_by( 'slug', 'digi-fb-cat-uno', 'product_cat' )->term_id ) );
+		$product->set_attributes( array( $attribute ) );
+		$product->set_date_created( time() - 30 * DAY_IN_SECONDS );
+		if ( $image_id ) {
+			$product->set_image_id( $image_id );
+		}
+		$swatch_id = (int) $product->save();
+		$price     = 30;
+		foreach ( array_keys( $terms ) as $slug ) {
+			$variation = new WC_Product_Variation();
+			$variation->set_parent_id( $swatch_id );
+			$variation->set_attributes( array( $taxonomy => $slug ) );
+			$variation->set_regular_price( (string) $price++ );
+			$variation->set_sku( 'DIGI-FB-MUESTRAS-' . strtoupper( $slug ) );
+			$variation->set_status( 'publish' );
+			$variation->save();
+		}
+		WC_Product_Variable::sync( $swatch_id );
+		wc_delete_product_transients( $swatch_id );
+	}
+	if ( ! $swatch_id || count( wc_get_product( $swatch_id )->get_children() ) !== 3 ) {
+		digi_fb_fail( 'WOO=1: digi-fb-muestras no quedó con sus tres variaciones' );
+	}
+	$markers['__WC_SWATCH__'] = (string) $swatch_id;
+	update_option( 'digi_fb_woo_f4_products', array( $swatch_id ), true );
+
+	// Zona del país de la tienda: «Tarifa plana» de 5 y «Envío gratuito» desde 50 (sin descuentos).
+	$country = WC()->countries->get_base_country();
+	$zone_id = (int) get_option( 'digi_fb_woo_zone' );
+	$zone    = $zone_id ? WC_Shipping_Zones::get_zone( $zone_id ) : null;
+	if ( ! $zone || ! $zone->get_id() ) {
+		$zone = new WC_Shipping_Zone();
+		$zone->set_zone_name( 'Zona de medición' );
+		$zone->set_zone_order( 1 );
+		$zone->add_location( $country, 'country' );
+		$zone->save();
+		$flat = $zone->add_shipping_method( 'flat_rate' );
+		$free = $zone->add_shipping_method( 'free_shipping' );
+		update_option( 'woocommerce_flat_rate_' . $flat . '_settings', array( 'title' => 'Tarifa plana', 'tax_status' => 'none', 'cost' => '5' ) );
+		update_option( 'woocommerce_free_shipping_' . $free . '_settings', array( 'title' => 'Envío gratuito', 'requires' => 'min_amount', 'min_amount' => '50', 'ignore_discounts' => 'no' ) );
+		update_option( 'digi_fb_woo_zone', $zone->get_id() );
+	}
+	$notes[] = sprintf(
+		'WOO=1 F4-Woo: simple %d, variable %d, muestras %d; pa_color %s; zona %d (%s) con %d métodos; envío %s, ubicación del cliente %s, cupones %s, tabla de atributos %s',
+		$simple->ID,
+		$variable_id,
+		$swatch_id,
+		wp_json_encode( $terms ),
+		$zone->get_id(),
+		$country,
+		count( $zone->get_shipping_methods( true ) ),
+		function_exists( 'wc_shipping_enabled' ) && wc_shipping_enabled() ? 'activo' : 'inactivo',
+		(string) get_option( 'woocommerce_default_customer_address' ),
+		(string) get_option( 'woocommerce_enable_coupons' ),
+		(string) get_option( 'woocommerce_attribute_lookup_enabled' )
+	);
+	file_put_contents( DIGI_FB_DIR . '/setup-notes.txt', implode( "\n", $notes ) . "\n", FILE_APPEND );
+	return $markers;
+}
+
 $mode = json_decode( (string) file_get_contents( DIGI_FB_DIR . '/mode.json' ), true );
 $mode = is_array( $mode ) ? $mode : array();
 
@@ -259,6 +397,12 @@ if ( ! $menu ) {
 	wp_update_nav_menu_item( $menu_id, 0, array( 'menu-item-title' => 'Doce widgets', 'menu-item-type' => 'post_type', 'menu-item-object' => 'page', 'menu-item-object-id' => $pages['all-own'], 'menu-item-parent-id' => $parent, 'menu-item-status' => 'publish' ) );
 	wp_update_nav_menu_item( $menu_id, 0, array( 'menu-item-title' => 'Categoría', 'menu-item-type' => 'taxonomy', 'menu-item-object' => 'category', 'menu-item-object-id' => $categories['digi-fb-uno'], 'menu-item-status' => 'publish' ) );
 }
+
+// WOO=1, casos de F4-Woo: lo nuevo, después de todo lo anterior (mismos IDs), y sus marcadores `__WC_*__` (0 sin
+// WooCommerce). `markers.json` los deja a run.cjs para las URL de `views` y de las acciones.
+$digi_fb_woo_markers = ! empty( $mode['woo'] ) && $digi_fb_variable ? digi_fb_woo_f4( $image_id, $digi_fb_variable ) : digi_fb_woo_markers();
+$cases               = digi_fb_replace( $cases, $digi_fb_woo_markers );
+file_put_contents( DIGI_FB_DIR . '/markers.json', wp_json_encode( $digi_fb_woo_markers ) );
 
 $save_data = static function ( $id, array $tree ) {
 	update_post_meta( $id, '_elementor_edit_mode', 'builder' );

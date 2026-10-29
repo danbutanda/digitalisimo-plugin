@@ -18,6 +18,15 @@
  * de bucle), `__DOC:<key>__`, `__MENU__`, `__IMAGE__` y `__SITE__`.
  */
 
+/**
+ * Marcadores de WooCommerce de los casos (WOO=1) con su valor sin WooCommerce: `__WC_VARIABLE__` (variable sin
+ * muestras del catálogo de siempre), `__WC_SIMPLE__` (su primer producto simple) y `__WC_SWATCH__` (variable con
+ * muestras de `pa_color`, F4-Woo). `setup.php` los sustituye por los IDs del sitio; sin WooCommerce valen 0.
+ */
+function digi_fb_woo_markers() {
+	return array( '__WC_VARIABLE__' => '0', '__WC_SIMPLE__' => '0', '__WC_SWATCH__' => '0' );
+}
+
 /** ID de elemento determinista de 7 caracteres (los mismos que usaba la medición de 2026-10-16). */
 function digi_fb_eid( $prefix, $seed ) {
 	return $prefix . substr( md5( $seed ), 0, 6 );

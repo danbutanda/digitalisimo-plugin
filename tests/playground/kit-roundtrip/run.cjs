@@ -32,7 +32,8 @@ const PREPARE = process.env.PREPARE || '';
 const PORTS = { a: +process.env.PORT_A || 9461, b: +process.env.PORT_B || 9462, net: +process.env.PORT_NET || 9463 };
 const HOSTS = { a: 'a.test', b: 'b.test', net: 'playground.test' };
 const ALL = ['R1', 'R1c', 'R2', 'R3', 'R3b', 'R4', 'R4v4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10'].concat(SLOW ? ['R13'] : []);
-const SCENARIOS = QUICK ? ['R1', 'R4', 'R9'] : (process.env.SCENARIOS ? process.env.SCENARIOS.split(',').map((s) => s.trim()).filter(Boolean) : ALL);
+// QUICK=1 sin SCENARIOS: R1, R4 y R9; con SCENARIOS, esos escenarios en su forma rápida (R1 sólo por REST y en 1280 px).
+const SCENARIOS = process.env.SCENARIOS ? process.env.SCENARIOS.split(',').map((s) => s.trim()).filter(Boolean) : (QUICK ? ['R1', 'R4', 'R9'] : ALL);
 const REST = '/wp-json/elementor/v1/import-export-customization';
 const REST_LIMIT_MS = 25000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -515,6 +515,54 @@ final class Digi_K_Signature {
 	}
 }
 
+/**
+ * Estado de WooCommerce que viaja en un kit (F4-Woo, V.11), con nombres y nunca con IDs:
+ * - `attributes`: cada atributo global por slug, con etiqueta, tipo, orden y archivos públicos (`attribute_public`);
+ * - `swatches`: la opción `digitalisimo_elements_swatches` (entradas por slug), o null si no existe;
+ * - `lookup`: las filas de `{prefijo}wc_product_meta_lookup` por producto o variación (`post:<tipo>:<título>`), con lo
+ *   que usan el filtro y la ordenación por precio (V.11.3). Una fila de un producto que ya no existe es `unresolved`.
+ */
+function digi_k_woo_state( Digi_K_Signature $sig ) {
+	global $wpdb;
+	$out = array( 'attributes' => array(), 'swatches' => null, 'lookup' => array() );
+	delete_transient( 'wc_attribute_taxonomies' );
+	foreach ( (array) wc_get_attribute_taxonomies() as $attribute ) {
+		$out['attributes'][ (string) $attribute->attribute_name ] = array(
+			'label'        => (string) $attribute->attribute_label,
+			'type'         => (string) $attribute->attribute_type,
+			'orderby'      => (string) $attribute->attribute_orderby,
+			'has_archives' => (int) $attribute->attribute_public,
+		);
+	}
+	ksort( $out['attributes'] );
+	wp_cache_delete( 'digitalisimo_elements_swatches', 'options' );
+	$swatches = get_option( 'digitalisimo_elements_swatches', null );
+	if ( is_array( $swatches ) ) {
+		$entries = isset( $swatches['attributes'] ) && is_array( $swatches['attributes'] ) ? $swatches['attributes'] : array();
+		ksort( $entries );
+		$out['swatches'] = $entries;
+	}
+	$table = $wpdb->prefix . 'wc_product_meta_lookup';
+	if ( $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+		foreach ( (array) $wpdb->get_results( "SELECT * FROM `{$table}`", ARRAY_A ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$key = (string) $sig->sym( 'post', (int) $row['product_id'] );
+			$out['lookup'][ $key ] = array(
+				'sku'          => (string) $row['sku'],
+				'min_price'    => (string) $row['min_price'],
+				'max_price'    => (string) $row['max_price'],
+				'onsale'       => (int) $row['onsale'],
+				'stock_status' => (string) $row['stock_status'],
+				'virtual'      => (int) $row['virtual'],
+				'downloadable' => (int) $row['downloadable'],
+				'tax_status'   => (string) $row['tax_status'],
+				'tax_class'    => (string) $row['tax_class'],
+			);
+		}
+		ksort( $out['lookup'] );
+	}
+	return $out;
+}
+
 /** Firma completa del sitio actual. */
 function digi_k_signature() {
 	$origin = sanitize_text_field( wp_unslash( $_GET['origin'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -569,8 +617,9 @@ function digi_k_signature() {
 			'status'    => $post->post_status,
 			'title'     => $post->post_title,
 			// La fecha viaja en el WXR (<wp:post_date>); los tipos del constructor (fuentes, iconos, fragmentos) llegan
-			// por sus propios runners, sin fecha.
-			'date'      => 0 === strpos( $post->post_type, 'elementor_' ) ? '' : $post->post_date,
+			// por sus propios runners, sin fecha, y las variaciones de WooCommerce, por la parte woo-variations, que
+			// las crea con WC_Product_Variation::save() al importar (V.11.2: la fila no lleva fecha).
+			'date'      => 0 === strpos( $post->post_type, 'elementor_' ) || 'product_variation' === $post->post_type ? '' : $post->post_date,
 			'content'   => $sig->text( $post->post_content, $key . ' · contenido' ),
 			'excerpt'   => $post->post_excerpt,
 			'parent'    => $post->post_parent ? $sig->sym( 'post', $post->post_parent ) : '',
@@ -609,8 +658,11 @@ function digi_k_signature() {
 				if ( in_array( $meta_key, array( '_digitalisimo_import_origin', '_elementor_import_session_id' ), true ) ) {
 					continue;
 				}
-				$value             = maybe_unserialize( $values[0] );
-				$meta[ $meta_key ] = 'thumbnail_id' === $meta_key ? $sig->media( $value ) : ( is_array( $value ) ? $sig->generic( $value, $key ) : $sig->text( (string) $value, $key ) );
+				$value = maybe_unserialize( $values[0] );
+				// `image` de un término de atributo (pa_*) es la imagen de su muestra (F4-Woo, V.6.6): un adjunto. En otras
+				// taxonomías la referencia acotada de F4-Woo no existe (V.11.4) y la meta se compara tal cual.
+				$media             = 'thumbnail_id' === $meta_key || ( 'image' === $meta_key && 0 === strpos( $taxonomy, 'pa_' ) );
+				$meta[ $meta_key ] = $media ? $sig->media( $value ) : ( is_array( $value ) ? $sig->generic( $value, $key ) : $sig->text( (string) $value, $key ) );
 			}
 			ksort( $meta );
 			$out['terms'][ $key ]                        = array( 'name' => $term->name, 'parent' => $term->parent ? $sig->sym( 'term', $term->parent ) : '', 'meta' => $meta );
@@ -718,6 +770,11 @@ function digi_k_signature() {
 		}
 		ksort( $named );
 		$out['indexes']['tb_priority'] = $named;
+	}
+
+	// WooCommerce (F4-Woo, V.11): atributos globales, configuración de muestras y tabla de búsqueda, con nombres.
+	if ( function_exists( 'wc_get_attribute_taxonomies' ) ) {
+		$out['woo'] = digi_k_woo_state( $sig );
 	}
 
 	$out['options'] = array(

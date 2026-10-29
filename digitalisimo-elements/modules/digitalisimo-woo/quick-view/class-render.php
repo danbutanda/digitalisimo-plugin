@@ -215,6 +215,9 @@ final class Render {
 				$excerpt = (string) apply_filters( 'woocommerce_short_description', (string) get_post_field( 'post_excerpt', $product->get_id() ) );
 				return '' !== trim( wp_strip_all_tags( $excerpt ) ) ? '<div class="digi-qv__excerpt woocommerce-product-details__short-description">' . wp_kses_post( $excerpt ) . '</div>' : '';
 			case 'cart':
+				if ( ! function_exists( 'woocommerce_template_single_add_to_cart' ) ) {
+					return '';
+				}
 				ob_start();
 				woocommerce_template_single_add_to_cart();
 				return (string) ob_get_clean();

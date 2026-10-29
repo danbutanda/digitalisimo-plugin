@@ -11,7 +11,10 @@
 #
 # Uso: bash tests/playground/kit-roundtrip.sh
 #   SCENARIOS=R1,R4      escenarios (por defecto todos: R1,R1c,R2,R3,R3b,R4,R4v4,R5,R6,R7,R8,R9,R10; con SLOW=1, R13)
-#   QUICK=1              R1 (sólo REST), R4 y R9: iteración local, no vale para la aceptación
+#   QUICK=1              R1 (sólo REST), R4 y R9, o los de SCENARIOS (R1 sólo por REST y en 1280 px; R4 sin el paso de
+#                        4.3.0.163): iteración local, no vale para la aceptación
+#   RENDER=<regex>       R1 sólo captura la portada y las páginas cuya clave (slug del título) cumple la expresión: para
+#                        repetir una parte del render; no vale para la aceptación
 #   CORE=bundled|plugin  núcleo incluido (por defecto) o el plugin Elementor de wordpress.org instalado y activo
 #   WOO=0|1              WooCommerce en A y B (plantillas de producto, productos, variaciones e imagen de categoría): el
 #                        fijado de tests/playground/woocommerce-pin.sh (11.2.1 de reference/, con su sha256, montado en los
@@ -24,6 +27,11 @@
 #                              9481–9489 y 9490–9499)
 #   WP_CLI_PHAR          wp-cli.phar local; si no, se descarga una vez a $KIT_CACHE (la misma copia que usa Playground)
 #   OLD_ZIP, OLD_ELEMENTS  ZIP o carpeta de DIGITALÍSIMO Elements 4.3.0.163 para el paso de R4 con la versión anterior
+#   PREV_ZIP, PREV_ELEMENTS  con WOO=1, ZIP o carpeta de DIGITALÍSIMO Elements 4.3.0.165 (la publicada antes de F4-Woo)
+#                        para el paso de R4 en un B sin F4-Woo; por defecto, dist/digitalisimo-elements-4.3.0.165.zip
+#                        del repositorio (o del principal, desde un worktree)
+#   ELEMENTS_DIR         otra carpeta de DIGITALÍSIMO Elements para A, B y la red (p. ej. un ZIP publicado, extraído):
+#                        la corrida de R1 sin WooCommerce con la versión anterior, para compararla con la de hoy
 #   LIVE=1               monta digitalisimo-elements/ y digitalisimo-theme/ del árbol de trabajo; por defecto se monta una
 #                        copia fija en $OUT/src, tomada al empezar, para que un cambio a mitad de corrida no mezcle versiones
 set -euo pipefail
@@ -102,9 +110,13 @@ else
   SRC="$OUT/src"
   rm -rf "$SRC"
   mkdir -p "$SRC"
-  cp -a "$ROOT/digitalisimo-elements" "$ROOT/digitalisimo-theme" "$SRC/"
+  cp -a "${ELEMENTS_DIR:-$ROOT/digitalisimo-elements}" "$SRC/digitalisimo-elements"
+  cp -a "$ROOT/digitalisimo-theme" "$SRC/"
   git -C "$ROOT" status --porcelain -- digitalisimo-elements digitalisimo-theme > "$SRC/dirty.txt" 2>/dev/null || true
+  [ -z "${ELEMENTS_DIR:-}" ] || echo "ELEMENTS_DIR=$ELEMENTS_DIR" >> "$SRC/dirty.txt"
 fi
+[ -z "${ELEMENTS_DIR:-}" ] || [ "${LIVE:-0}" != 1 ] || { echo 'ELEMENTS_DIR no se combina con LIVE=1'; exit 1; }
+[ -z "${ELEMENTS_DIR:-}" ] || [ -f "$ELEMENTS_DIR/pro-elements.php" ] || { echo "ELEMENTS_DIR no es una carpeta de DIGITALÍSIMO Elements: $ELEMENTS_DIR"; exit 1; }
 
 # R4 importa también el kit de A en un B con DIGITALÍSIMO Elements 4.3.0.163 (el asset de la Release v2026.10.21.417):
 # lo condicionado por una condición de F7a no debe verse allí (V.13 #10, centinela). OLD_ZIP = ZIP local; si no, se
@@ -120,6 +132,28 @@ if [ -z "${OLD_ELEMENTS:-}" ] && { [ -z "$SCENARIOS" ] || [[ ",$SCENARIOS," == *
   OLD_ELEMENTS="$OUT/old/digitalisimo-elements"
 fi
 export OLD_ELEMENTS="${OLD_ELEMENTS:-}"
+
+# R4 con WOO=1 importa además el kit de A en un B con la versión publicada antes de F4-Woo (4.3.0.165, sin
+# modules/digitalisimo-woo/): las partes woo-* se ignoran y los widgets de F4-Woo quedan como marcadores (V.11.5).
+# PREV_ZIP = ZIP local (por defecto el de dist/ del repositorio o del principal); PREV_ELEMENTS = carpeta ya extraída.
+PREV_VERSION=4.3.0.165
+if [ "$WOO" = 1 ] && [ -z "${PREV_ELEMENTS:-}" ] && { [ -z "$SCENARIOS" ] || [[ ",$SCENARIOS," == *",R4,"* ]]; }; then
+  if [ -z "${PREV_ZIP:-}" ]; then
+    common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    for dir in "$ROOT" "${common%/.git}"; do
+      [ -n "$dir" ] && [ -s "$dir/dist/digitalisimo-elements-$PREV_VERSION.zip" ] && { PREV_ZIP="$dir/dist/digitalisimo-elements-$PREV_VERSION.zip"; break; }
+    done
+  fi
+  [ -s "${PREV_ZIP:-}" ] || { echo "WOO=1 con R4: falta el ZIP de DIGITALÍSIMO Elements $PREV_VERSION (PREV_ZIP o PREV_ELEMENTS)"; exit 1; }
+  rm -rf "$OUT/prev" && mkdir -p "$OUT/prev" && unzip -q "$PREV_ZIP" -d "$OUT/prev"
+  PREV_ELEMENTS="$OUT/prev/digitalisimo-elements"
+  echo "PREV_ZIP=$PREV_ZIP sha256 $(sha256sum "$PREV_ZIP" | cut -d' ' -f1)" > "$OUT/prev/source.txt"
+fi
+if [ -n "${PREV_ELEMENTS:-}" ]; then
+  grep -q "^ \* Version: $PREV_VERSION\$" "$PREV_ELEMENTS/pro-elements.php" || { echo "PREV_ELEMENTS no es DIGITALÍSIMO Elements $PREV_VERSION"; exit 1; }
+  [ ! -d "$PREV_ELEMENTS/modules/digitalisimo-woo" ] || { echo "PREV_ELEMENTS ya trae F4-Woo (modules/digitalisimo-woo/): no es la versión anterior"; exit 1; }
+fi
+export PREV_ELEMENTS="${PREV_ELEMENTS:-}"
 
 # WOO=1: WooCommerce fijado, extraído una vez en $OUT/woocommerce y montado en A, B y la red (run.cjs lee WOO_DIR).
 export WOO_DIR=''

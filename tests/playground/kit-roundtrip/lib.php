@@ -372,6 +372,84 @@ function digi_k_widget_settings( array $case, array $budget ) {
 	return array_replace( $settings, (array) ( $case['settings'] ?? array() ) );
 }
 
+/**
+ * Atributo global de WooCommerce (WOO=1, F4-Woo) con sus términos, sus metas (`color`, `image`) y su configuración de
+ * muestras, como lo dejan las pantallas de WooCommerce y de DIGITALÍSIMO Elements. Idempotente: reutiliza el atributo
+ * y los términos que ya existen por slug.
+ *
+ * - `type: wc-visual`: el tipo de la función «Color swatches for attributes» de WooCommerce. WooCommerce sólo lo
+ *   ofrece con un tema de bloques y la función encendida, o si ya hay un atributo wc-visual
+ *   (W:includes/wc-attribute-functions.php:272-300); el arnés usa el tema clásico DIGITALÍSIMO, así que lo ofrece con
+ *   `product_attributes_type_selector` sólo mientras lo crea, como lo haría la pantalla con la función encendida.
+ * - `swatches`: la entrada de `digitalisimo_elements_swatches` (Swatches\Data::put(), bajo su cerrojo).
+ *
+ * @param array        $spec Atributo de cases.json (`slug`, `label`, `type`, `orderby`, `has_archives`, `terms`, `swatches`).
+ * @param Digi_K_Refs  $refs Fichas (las metas pueden nombrar medios).
+ * @param array        $ids  IDs creados (se añaden los términos como `term:<taxonomía>:<slug>`).
+ * @return int ID del atributo, o 0.
+ */
+function digi_k_woo_attribute( array $spec, $refs, array &$ids ) {
+	$slug = (string) $spec['slug'];
+	$id   = (int) wc_attribute_taxonomy_id_by_name( $slug );
+	if ( ! $id ) {
+		$visual = static function ( $types ) {
+			return (array) $types + array( 'wc-visual' => 'Color / image' );
+		};
+		if ( 'wc-visual' === ( $spec['type'] ?? '' ) ) {
+			add_filter( 'product_attributes_type_selector', $visual );
+		}
+		$made = wc_create_attribute(
+			array(
+				'name'         => (string) $spec['label'],
+				'slug'         => $slug,
+				'type'         => (string) ( $spec['type'] ?? 'select' ),
+				'order_by'     => (string) ( $spec['orderby'] ?? 'menu_order' ),
+				'has_archives' => ! empty( $spec['has_archives'] ),
+			)
+		);
+		remove_filter( 'product_attributes_type_selector', $visual );
+		if ( is_wp_error( $made ) || ! $made ) {
+			digi_k_fail( "WooCommerce: no se pudo crear el atributo {$slug}: " . ( is_wp_error( $made ) ? $made->get_error_message() : 'sin ID' ) );
+			return 0;
+		}
+		$id = (int) $made;
+	}
+	$attribute = wc_get_attribute( $id );
+	if ( ! $attribute || ( (string) ( $spec['type'] ?? 'select' ) !== (string) $attribute->type ) ) {
+		digi_k_fail( "WooCommerce: el atributo {$slug} no quedó con el tipo " . ( $spec['type'] ?? 'select' ) . ' (' . ( $attribute ? $attribute->type : 'no existe' ) . ')' );
+	}
+	// En esta misma petición, como el importador CSV de WooCommerce: la taxonomía aún no está registrada.
+	$taxonomy = wc_attribute_taxonomy_name( $slug );
+	if ( ! taxonomy_exists( $taxonomy ) ) {
+		register_taxonomy( $taxonomy, array( 'product' ), array( 'hierarchical' => false, 'show_ui' => false, 'query_var' => ! empty( $spec['has_archives'] ), 'rewrite' => false, 'public' => ! empty( $spec['has_archives'] ) ) );
+	}
+	foreach ( (array) ( $spec['terms'] ?? array() ) as $term ) {
+		$found   = get_term_by( 'slug', $term['slug'], $taxonomy );
+		$term_id = $found ? (int) $found->term_id : 0;
+		if ( ! $term_id ) {
+			$made    = wp_insert_term( $term['name'], $taxonomy, array( 'slug' => $term['slug'] ) );
+			$term_id = is_wp_error( $made ) ? 0 : (int) $made['term_id'];
+		}
+		if ( ! $term_id ) {
+			digi_k_fail( "WooCommerce: no se pudo crear el término {$term['slug']} de {$taxonomy}" );
+			continue;
+		}
+		foreach ( (array) ( $term['meta'] ?? array() ) as $key => $value ) {
+			update_term_meta( $term_id, $key, null === $refs ? $value : $refs->resolve( $value, 'term_meta.' . $key ) );
+		}
+		$ids[ 'term:' . $taxonomy . ':' . $term['slug'] ] = $term_id;
+	}
+	if ( ! empty( $spec['swatches'] ) ) {
+		$data = '\\Digitalisimo\\Elements\\Woo\\Swatches\\Data';
+		if ( ! class_exists( $data ) || ! method_exists( $data, 'put' ) ) {
+			digi_k_fail( "WooCommerce: falta Swatches\\Data (F4-Woo, frente D) para las muestras de {$slug}" );
+		} elseif ( ! $data::put( $slug, (array) $spec['swatches'] ) ) {
+			digi_k_fail( "WooCommerce: Swatches\\Data::put() no guardó las muestras de {$slug}" );
+		}
+	}
+	return $id;
+}
+
 /** ID de elemento determinista de 7 hex. */
 function digi_k_eid( $prefix, $seed ) {
 	return $prefix . substr( md5( $seed ), 0, 6 );

@@ -37,6 +37,16 @@ const MODE = JSON.parse(fs.readFileSync(path.join(OUT, 'mode.json'), 'utf8'));
 const DEFAULTS = MODE.defaults || '';
 const CACHE = !!MODE.cache;
 const cases = JSON.parse(fs.readFileSync(path.join(OUT, 'cases.json'), 'utf8'));
+// WOO=1: IDs de WooCommerce del sitio (`markers.json`, de setup.php) en las URL de `views` y de las acciones.
+(() => {
+  let markers = {};
+  try { markers = JSON.parse(fs.readFileSync(path.join(OUT, 'markers.json'), 'utf8')) || {}; } catch (e) { return; }
+  const swap = (v) => (typeof v === 'string' ? Object.entries(markers).reduce((s, [k, id]) => s.split(k).join(String(id)), v) : v);
+  for (const c of Object.values(cases)) {
+    if (Array.isArray(c.views)) c.views = c.views.map(swap);
+    for (const a of c.actions || []) for (const k of Object.keys(a)) a[k] = swap(a[k]);
+  }
+})();
 const KB = (n) => Math.round(n / 102.4) / 10;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const SNAPSHOTS = ['pre', 'warm', 'before', 'after'];
@@ -49,6 +59,8 @@ function runsHere(slug) {
   const c = cases[slug];
   if (ONLY.length) return ONLY.includes(slug);
   if (c.pending) return false;
+  // WOO=1: la página de referencia se mide en cualquier combinación (también v4+woo, que sólo nombran los casos nuevos).
+  if (WOO && slug === EMPTY) return true;
   if (!Array.isArray(c.modes)) return NORMAL;
   if (c.modes.includes(LABEL)) return true;
   return PARTS.length > 1 && PARTS.every((p) => c.modes.includes(p));
@@ -90,6 +102,8 @@ function compare(actual, expected) {
   }
   return JSON.stringify(actual) === JSON.stringify(expected);
 }
+// Valor de un hecho; `delta.<campo>` es la diferencia con la página vacía de la corrida (F4-Woo: CLS relativo).
+const fact = (snap, key) => (key.startsWith('delta.') ? (snap.delta || {})[key.slice(6)] : snap[key]);
 // Comprueba una expectativa contra una instantánea; `base` es la instantánea de carga (para changed y grew).
 function check(label, exp, snap, base) {
   const fails = [];
@@ -103,8 +117,8 @@ function check(label, exp, snap, base) {
       for (const f of want) if (!(Number(snap[f]) > Number(base[f]))) fails.push(`${f} no creció (${base[f]} → ${snap[f]})`);
     } else if (key === 'deferred') {
       for (const [handle, on] of Object.entries(want)) if (!!(snap.deferred || {})[handle] !== on) fails.push(`defer de ${handle}: ${!!(snap.deferred || {})[handle]} (se esperaba ${on})`);
-    } else if (!compare(snap[key], want)) {
-      fails.push(`${key}: ${JSON.stringify(snap[key])} (se esperaba ${JSON.stringify(want)})`);
+    } else if (!compare(fact(snap, key), want)) {
+      fails.push(`${key}: ${JSON.stringify(fact(snap, key))} (se esperaba ${JSON.stringify(want)})`);
     }
   }
   if (fails.length) problem(`${label} · ${fails.join('; ')}`);
@@ -231,6 +245,8 @@ function domFacts() {
     longTasks: window.__digi.longTasks,
     longTaskMs: Math.round(window.__digi.longTaskMs),
     inlineStyleBytes: [...document.querySelectorAll('style')].reduce((s, el) => s + el.textContent.length, 0),
+    // Scripts en línea con id (configuración de los handles, `…-js-before`/`-after`/`-extra`): bytes de cada uno.
+    inlineScripts: Object.fromEntries([...document.querySelectorAll('script[id]:not([src])')].filter((el) => !/^(application|text)\/(ld\+json|template|html)$/.test(el.type)).map((el) => [el.id, new Blob([el.textContent]).size])),
     config: typeof window.ElementorProFrontendConfig,
     elementorFrontend: typeof window.elementorFrontend !== 'undefined',
     popupShown: [...document.querySelectorAll('.elementor-popup-modal')].some(shown),
@@ -340,6 +356,9 @@ async function runActions(page, actions) {
     else if (a.do === 'fillAll') await page.$$eval(a.selector, (els, v) => els.forEach((el) => { if (!el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } }), a.value);
     // Segunda visita a la misma URL en el mismo perfil (cookies de la primera): «Visitó la página» de F7a.
     else if (a.do === 'reload') { await page.reload({ waitUntil: 'networkidle0', timeout: 180000 }); await sleep(a.ms || 800); }
+    // Otra URL del sitio en la misma pestaña (`path`, p. ej. `/?add-to-cart=ID`: el carrito de F4-Woo) o, sin `path`, la
+    // del caso otra vez, con las cookies de lo visitado.
+    else if (a.do === 'visit') { await page.goto(a.path ? new URL(a.path, BASE).href : page.__digiUrl, { waitUntil: 'networkidle0', timeout: 180000 }); await sleep(a.ms || 800); }
     else throw new Error(`acción desconocida ${a.do}`);
   }
 }
@@ -380,6 +399,7 @@ async function visit(context, slug, url, { measure = true } = {}) {
     } catch (e) { /* sin observadores */ }
   });
   const result = { slug, url, title: c.title || slug, ok: true };
+  page.__digiUrl = url;
   try {
     const response = await page.goto(url, { waitUntil: 'networkidle0', timeout: 180000 });
     const status = response ? response.status() : 0;
@@ -409,6 +429,8 @@ async function visit(context, slug, url, { measure = true } = {}) {
       const doc = dom.docId ? requests.find((r) => new RegExp(`/elementor/css/post-${dom.docId}\\.css`).test(r.url)) : null;
       // Scripts del mismo origen con sus bytes (evidencia del presupuesto de F7a: de dónde sale cada KB de JS).
       const jsFiles = requests.filter((q) => q.same && q.type === 'js').map((q) => `${(() => { try { return new URL(q.url).pathname; } catch (e) { return q.url; } })()} ${q.bytes}`).sort();
+      for (const [id, bytes] of Object.entries(dom.inlineScripts || {})) extra[`inline:${id}`] = bytes;
+      delete dom.inlineScripts;
       return { ...requestFacts(requests), ...dom, ...fonts, ...own, ...extra, jsFiles, docCss: doc ? doc.bytes : 0, reasons: parsed.reasons || [], gate: !!parsed.gate, queries: typeof parsed.queries === 'number' ? parsed.queries : null, errors: errors.length + failed.length, failed: failed.length, errorList: errors.concat(failed) };
     };
     const load = await snap();
@@ -465,10 +487,12 @@ async function measureCase(browser, slug, snapshot) {
     let context = browser.defaultBrowserContext();
     let own = null;
     // Una secuencia (pro-popup-views) se visita en un perfil limpio: sus contadores no dependen de otros casos.
-    if (c.sequence) {
+    // `isolate` (F4-Woo): los casos que cambian el carrito o el almacenamiento del navegador van en su propio perfil,
+    // así no alteran los casos que se miden después.
+    if (c.sequence || c.isolate) {
       own = await browser.createBrowserContext();
       context = own;
-      for (const s of c.sequence) await visit(context, s, pageUrl(s), { measure: false });
+      for (const s of c.sequence || []) await visit(context, s, pageUrl(s), { measure: false });
     }
     // CACHE=1: la primera visita llena la caché de elementos; se mide la segunda.
     if (CACHE) await visit(context, slug, url, { measure: false });

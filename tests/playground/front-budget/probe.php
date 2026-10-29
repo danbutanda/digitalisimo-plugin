@@ -78,6 +78,44 @@ add_action(
 
 add_action( 'wp_loaded', 'digi_fb_probe_route', 99 );
 
+/**
+ * WOO=1: los productos que añaden los casos de F4-Woo (`digi_fb_woo_f4_products`, con carga automática: ninguna
+ * consulta) no aparecen en las consultas secundarias de productos de las páginas de los casos sin `since`, que miden
+ * el catálogo de siempre (el Loop Grid de `woo-loop-filter-pro` sigue con sus siete productos). Sin WOO=1 no hace nada.
+ */
+function digi_fb_probe_legacy_page() {
+	static $legacy = null;
+	if ( null !== $legacy ) {
+		return $legacy;
+	}
+	$object = get_queried_object();
+	if ( ! $object instanceof WP_Post ) {
+		return false; // Aún sin consulta principal: se vuelve a mirar en la consulta siguiente.
+	}
+	$legacy = false;
+	if ( 'page' === $object->post_type && 0 === strpos( $object->post_name, 'digi-fb-' ) ) {
+		$cases  = json_decode( (string) @file_get_contents( WP_CONTENT_DIR . '/probe/cases.json' ), true ); // phpcs:ignore
+		$slug   = substr( $object->post_name, strlen( 'digi-fb-' ) );
+		$legacy = is_array( $cases ) && isset( $cases[ $slug ] ) && empty( $cases[ $slug ]['since'] );
+	}
+	return $legacy;
+}
+
+add_action(
+	'pre_get_posts',
+	static function ( $query ) {
+		$mode = digi_fb_probe_mode();
+		if ( empty( $mode['woo'] ) || $query->is_main_query() || ! in_array( 'product', (array) $query->get( 'post_type' ), true ) ) {
+			return;
+		}
+		$ids = get_option( 'digi_fb_woo_f4_products' );
+		if ( ! is_array( $ids ) || ! $ids || ! digi_fb_probe_legacy_page() ) {
+			return;
+		}
+		$query->set( 'post__not_in', array_values( array_unique( array_merge( array_filter( array_map( 'intval', (array) $query->get( 'post__not_in' ) ) ), array_map( 'intval', $ids ) ) ) ) );
+	}
+);
+
 function digi_fb_probe_route() {
 	// phpcs:disable WordPress.Security.NonceVerification.Recommended
 	if ( empty( $_GET['digi_probe'] ) ) {
@@ -140,6 +178,12 @@ function digi_fb_probe_state() {
 			'autoload' => array_key_exists( $option, $alloptions ),
 			'value'    => 'digitalisimo_elements_presets' === $option && is_array( $value ) ? array( 'slugs' => array_keys( (array) ( $value['presets'] ?? array() ) ) ) : $value,
 		);
+	}
+	// F4-Woo: bandera de fragmentos y muestras por atributo (con carga automática: el front sólo las lee de ahí).
+	if ( ! empty( digi_fb_probe_mode()['woo'] ) ) {
+		foreach ( array( 'digitalisimo_elements_woo_fragments', 'digitalisimo_elements_swatches', 'digi_fb_woo_f4_products' ) as $option ) {
+			$state['woo_options'][ $option ] = array( 'row' => digi_fb_probe_row( $option ), 'autoload' => array_key_exists( $option, $alloptions ), 'value' => get_option( $option, null ) );
+		}
 	}
 	$state['rows']['elementor_experiment-e_font_icon_svg'] = digi_fb_probe_row( 'elementor_experiment-e_font_icon_svg' );
 	if ( class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->experiments ) ) {

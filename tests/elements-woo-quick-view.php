@@ -161,7 +161,7 @@ namespace {
 		public function have_posts() { return ! $this->done; }
 		public function the_post() { $this->done = true; $GLOBALS['post'] = get_post( $this->args['p'] ); setup_postdata( $GLOBALS['post'] ); }
 	}
-	class WooCommerce {}
+	class WooCommerce { public function include_template_functions() {} }
 	$GLOBALS['qv_wc'] = (object) array( 'cart' => null );
 	function WC() { return $GLOBALS['qv_wc']; }
 	function wc_load_cart() { $GLOBALS['qv_wc']->cart = new \stdClass(); }
@@ -283,6 +283,12 @@ namespace {
 	$_POST = array();
 	require $root . '/modules/digitalisimo-woo/quick-view/class-module.php';
 	\Digitalisimo\Elements\Woo\Quick_View\Module::init();
+	// Los símbolos se comprueban en `plugins_loaded`, antes de que WooCommerce cargue `wc-template-functions.php`
+	// (`after_setup_theme`): exigir una función de plantilla (`woocommerce_*()`) dejaba la vista rápida sin ruta ni
+	// configuración en todos los sitios (woo-flow W4/W5). Se exige el método que las carga.
+	$qv_symbols = \Digitalisimo\Elements\Woo\Quick_View\Module::SYMBOLS;
+	check_qv( ! preg_grep( '/^woocommerce_[a-z_]+\(\)$/', $qv_symbols ) && in_array( 'WooCommerce::include_template_functions', $qv_symbols, true ), 'Ningún símbolo exigido al arrancar es una función de plantilla de WooCommerce: ' . implode( ', ', $qv_symbols ) );
+	check_qv( array() === ( \Digitalisimo\Elements\Woo\Module::missing()['quick-view'] ?? array() ), 'La vista rápida arranca con WooCommerce: ' . wp_json_encode( \Digitalisimo\Elements\Woo\Module::missing() ) );
 	$qv       = 'Digitalisimo\\Elements\\Woo\\Quick_View\\';
 	$list     = $qv . 'Asset_List';
 	$route    = $qv . 'Route';

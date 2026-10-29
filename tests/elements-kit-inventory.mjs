@@ -1,7 +1,8 @@
 // Kits (etapa K, §13.1 «inventory» y §9.2): inventario estático de lo que debe viajar en un kit.
 // - Cada widget propio del registro (los 44 visibles y los 7 alias ocultos de modules/digitalisimo-widgets/
-//   class-registry.php) y el Slider Optimizado tienen su caso en tests/playground/kit-roundtrip/cases.json, con la
-//   marca de alias igual a la del registro; ningún caso nombra un widget propio que no existe.
+//   class-registry.php), el Slider Optimizado y los 7 de WooCommerce de F4-Woo (modules/digitalisimo-woo/
+//   class-registry.php, con «woo») tienen su caso en tests/playground/kit-roundtrip/cases.json, con la marca de alias
+//   igual a la del registro; ningún caso nombra un widget propio que no existe.
 // - Cada rasgo propio que inicia el registro tiene su caso, y cada «base» de front-budget existe.
 // - Cada parte de K (Parts::BUILTIN) tiene su caso con motivo (§11.2: obligación de cada etapa). Las partes de fuera de
 //   kits/ (clases que implementan Part o Early_Part con `const KEY`, F7a y F4-Woo) se aceptan en cases.parts y se
@@ -48,8 +49,25 @@ for (const [name, w] of Object.entries(own)) {
     else if (!budget[m[1]].widgets.some((x) => x.type === name)) problems.push(`${name}: el caso ${c.base} de front-budget no tiene ese widget`);
   }
 }
+// Widgets de WooCommerce de F4-Woo (modules/digitalisimo-woo/class-registry.php, mismo formato que el registro): cada
+// uno con su caso marcado «woo» (setup-a.php sólo lo crea con WOO=1, porque sin WooCommerce su tipo no existe).
+const wooRegistryFile = join(E, 'modules/digitalisimo-woo/class-registry.php');
+const woo = {};
+if (existsSync(wooRegistryFile)) {
+  const wooRegistry = readFileSync(wooRegistryFile, 'utf8');
+  const wooBlock = wooRegistry.slice(wooRegistry.indexOf('const WIDGETS = array('), wooRegistry.indexOf('const TITLES'));
+  for (const m of wooBlock.matchAll(/^\t\t'(digitalisimo-woo-[a-z0-9-]+)' => array\(/gm)) woo[m[1]] = true;
+  assert.ok(Object.keys(woo).length >= 7, `El registro de widgets de WooCommerce debería tener al menos 7 entradas (tiene ${Object.keys(woo).length})`);
+}
+for (const name of Object.keys(woo)) {
+  const c = cases.widgets[name];
+  if (!c) { problems.push(`${name}: sin caso en kit-roundtrip/cases.json`); continue; }
+  if (!c.woo) problems.push(`${name}: el caso de un widget de WooCommerce debe llevar «woo»: true`);
+  if (c.alias) problems.push(`${name}: un widget de WooCommerce no es un alias`);
+  if (!c.base && !c.settings) problems.push(`${name}: el caso no tiene ajustes ni «base»`);
+}
 for (const name of Object.keys(cases.widgets)) {
-  if (!own[name]) problems.push(`${name}: caso de un widget propio que no está en el registro`);
+  if (!own[name] && !woo[name]) problems.push(`${name}: caso de un widget propio que no está en el registro`);
 }
 
 // Rasgos que inicia el registro (archivos class-*.php de Registry::init()).
@@ -108,6 +126,6 @@ for (const entry of noRef.controles || []) {
 
 assert.deepEqual(problems, [], `Inventario de kits incompleto:\n  ${problems.join('\n  ')}`);
 const externalNote = Object.keys(external).length ? `, ${Object.keys(external).length} parte(s) de fuera de K (${Object.keys(external).join(', ')})` : '';
-console.log(`Kits: inventario con ${visible} widgets propios visibles (con el Slider Optimizado) y ${aliases} alias en kit-roundtrip, ${Object.keys(cases.traits).length} rasgos, ${parts.length} partes de K con caso${externalNote} y ${(noRef.controles || []).length} controles sin referencia justificados.`);
+console.log(`Kits: inventario con ${visible} widgets propios visibles (con el Slider Optimizado), ${aliases} alias y ${Object.keys(woo).length} de WooCommerce en kit-roundtrip, ${Object.keys(cases.traits).length} rasgos, ${parts.length} partes de K con caso${externalNote} y ${(noRef.controles || []).length} controles sin referencia justificados.`);
 // El caso de cada parte de fuera de K lo añade el frente de Playground de su etapa (para F7a, el frente M).
 if (pending.length) console.log(`Kits: sin caso en kit-roundtrip/cases.json todavía: ${pending.map((part) => `${part} (${external[part]})`).join(', ')}.`);

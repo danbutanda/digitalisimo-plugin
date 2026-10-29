@@ -313,6 +313,7 @@ async function W13(s) {
 const RUN = { W0, W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13 };
 // Cada archivo de woo-flow/scenarios/ exporta `(api) => ({ W<n>: async (s) => … })` y sustituye a los pendientes.
 const API = { ENV, OUT, BASE, PORT, HOST, TOKEN, NET, QUICK, SITES, WIDTHS, summary, sleep, log, readJson, request, probe, check, pending, visitor, shot, settled, startBrowser, purchase };
+API.base = { W0 }; // Escenarios de aquí que un archivo de scenarios/ amplía en vez de sustituir (resilience.cjs: W0.8 y W0.9).
 const SCENARIO_DIR = path.join(__dirname, 'scenarios');
 for (const file of (fs.existsSync(SCENARIO_DIR) ? fs.readdirSync(SCENARIO_DIR) : []).filter((f) => f.endsWith('.cjs')).sort()) {
   const provided = require(path.join(SCENARIO_DIR, file))(API);

@@ -224,8 +224,8 @@ namespace {
 	}
 	function _prime_post_caches( $ids, $terms = true, $meta = true ) { $GLOBALS['wt']['primed'][] = $ids; }
 	function update_meta_cache( $type, $ids ) {}
-	function wc_get_stock_html( $product ) { return '<p class="stock in-stock">Hay existencias</p>'; }
-	function woocommerce_template_loop_add_to_cart() { global $product; echo '<a href="?add-to-cart=' . $product->get_id() . '" class="button add_to_cart_button" rel="nofollow">Añadir al carrito</a>'; }
+	// `wc_get_stock_html()` y `woocommerce_template_loop_add_to_cart()` se definen después de `Wishlist::init()`, como
+	// WooCommerce, que carga sus funciones de plantilla en `after_setup_theme`, tras `plugins_loaded`.
 	function wc_get_page_id( $page ) { return $GLOBALS['wt']['myaccount']; }
 	function wc_get_page_permalink( $page ) { return 'https://a.test/mi-cuenta/'; }
 	function wp_login_url() { return 'https://a.test/acceso-privado/'; }
@@ -317,10 +317,16 @@ namespace {
 	wt_reset();
 	Rest::init();
 	Privacy::init();
+	// Al arrancar (`plugins_loaded`) WooCommerce aún no cargó sus funciones de plantilla: la guarda no puede exigirlas.
+	check( ! function_exists( 'wc_get_stock_html' ) && ! function_exists( 'woocommerce_template_loop_add_to_cart' ), 'Las funciones de plantilla de WooCommerce aún no existen al arrancar.' );
 	Wishlist::init();
 	check( false !== has_action( 'remove_user_from_blog', array( Personal_Data::class, 'remove_user_from_blog' ) ), 'La limpieza al quitar a un usuario de un sitio está enganchada.' );
 	check( false !== has_action( 'wp_print_footer_scripts', array( Wishlist::class, 'footer_config' ) ), 'La configuración se decide en el pie.' );
-	check( isset( Rest::routes()['wishlist'], Rest::routes()['cards'] ), 'Las dos rutas de la lista existen.' );
+	check( isset( Rest::routes()['wishlist'], Rest::routes()['cards'] ), 'Las dos rutas de la lista existen aunque las funciones de plantilla lleguen después (`after_setup_theme`).' );
+	if ( ! function_exists( 'wc_get_stock_html' ) ) {
+		function wc_get_stock_html( $product ) { return '<p class="stock in-stock">Hay existencias</p>'; }
+		function woocommerce_template_loop_add_to_cart() { global $product; echo '<a href="?add-to-cart=' . $product->get_id() . '" class="button add_to_cart_button" rel="nofollow">Añadir al carrito</a>'; }
+	}
 	$hooks_after_init = $GLOBALS['wt']['hooks'];
 
 	// --- Fuente única (V.4.1) ---------------------------------------------------------------------------------------

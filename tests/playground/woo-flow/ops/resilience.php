@@ -168,12 +168,13 @@ return array(
 		}
 		$manifest = isset( $result['manifest'] ) && is_array( $result['manifest'] ) ? $result['manifest'] : array();
 		return array(
-			'file'     => $target,
-			'size'     => is_file( $target ) ? filesize( $target ) : 0,
-			'sha256'   => is_file( $target ) ? hash_file( 'sha256', $target ) : '',
-			'plugins'  => isset( $manifest['plugins'] ) ? wp_list_pluck( (array) $manifest['plugins'], 'plugin' ) : array(),
-			'parts'    => isset( $manifest['digitalisimo']['parts'] ) ? array_keys( (array) $manifest['digitalisimo']['parts'] ) : ( isset( $manifest['digitalisimo'] ) ? array_keys( (array) $manifest['digitalisimo'] ) : array() ),
-			'counts'   => isset( $result['report']['counts'] ) ? $result['report']['counts'] : array(),
+			'file'         => $target,
+			'size'         => is_file( $target ) ? filesize( $target ) : 0,
+			'sha256'       => is_file( $target ) ? hash_file( 'sha256', $target ) : '',
+			'manifest'     => array_keys( $manifest ),
+			'plugins'      => isset( $manifest['plugins'] ) ? substr( (string) wp_json_encode( $manifest['plugins'] ), 0, 400 ) : null,
+			'digitalisimo' => isset( $manifest['digitalisimo'] ) && is_array( $manifest['digitalisimo'] ) ? array_keys( $manifest['digitalisimo'] ) : null,
+			'counts'       => isset( $result['report']['counts'] ) ? $result['report']['counts'] : array(),
 		);
 	},
 	'resilience_version'  => static function () {
@@ -186,6 +187,7 @@ return array(
 			'loaded'  => defined( 'ELEMENTOR_PRO_VERSION' ) ? ELEMENTOR_PRO_VERSION : null,
 			'on_disk' => isset( $m[1] ) ? $m[1] : null,
 			'woo'     => class_exists( '\\Digitalisimo\\Elements\\Woo\\Module', false ),
+			'woo_dir' => is_dir( WP_PLUGIN_DIR . '/digitalisimo-elements/modules/digitalisimo-woo' ),
 			'opcache' => array( 'reset' => $reset, 'enabled' => (string) ini_get( 'opcache.enable' ) ),
 		);
 	},

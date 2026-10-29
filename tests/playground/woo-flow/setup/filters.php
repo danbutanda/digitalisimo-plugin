@@ -203,6 +203,7 @@ return static function ( array $out, callable $fail ): array {
 	$f['tag']      = $tag;
 	$f['sizes']    = $sizes;
 	$f['taxonomy'] = $taxonomy;
+	$f['home']     = home_url( '/' );
 	$f['links']    = array();
 	foreach ( array( 'tag' => array( (int) $tag['id'], 'product_tag' ), 'calzado' => array( (int) $cats['calzado']['id'], 'product_cat' ) ) as $key => $data ) {
 		$link             = $data[0] ? get_term_link( $data[0], $data[1] ) : '';
