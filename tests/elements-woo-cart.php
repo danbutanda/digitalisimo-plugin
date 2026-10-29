@@ -190,6 +190,16 @@ namespace {
 	wt_reset();
 	Cart::init();
 	check( isset( $GLOBALS['wt']['hooks']['woocommerce_add_to_cart_fragments'] ), 'Los fragmentos se enganchan con WooCommerce.' );
+	// El hash del carrito decide si cart-fragments.js reutiliza los fragmentos guardados: debe cambiar al conocerse el destino (W11).
+	check( isset( $GLOBALS['wt']['hooks']['woocommerce_cart_hash'] ), 'El hash del carrito se filtra con WooCommerce (los fragmentos guardados caducan al conocerse el destino).' );
+	WC()->customer->calculated = false;
+	$hash_unknown = Cart::cart_hash( 'abc' );
+	WC()->customer->calculated = true;
+	$hash_known = Cart::cart_hash( 'abc' );
+	check( '' === Cart::cart_hash( '' ) && 32 === strlen( $hash_unknown ) && 'abc' !== $hash_unknown && $hash_unknown !== $hash_known && $hash_known === Cart::cart_hash( 'abc' ) && null === Cart::cart_hash( null ), 'El hash cambia al conocerse el destino, es estable, y sin hash (carrito vacío) o con otro tipo no se toca.' );
+	$GLOBALS['wt']['options'] = array( 'digitalisimo_elements_woo_fragments' => 0 );
+	check( 'abc' === Cart::cart_hash( 'abc' ), 'Sin la bandera de fragmentos, el hash de WooCommerce no se toca.' );
+	$GLOBALS['wt']['options'] = array( 'digitalisimo_elements_woo_fragments' => 1 );
 	check( isset( $GLOBALS['wt']['hooks']['elementor/widget/render_content'][0] ) && 11 === $GLOBALS['wt']['hooks']['elementor/widget/render_content'][0][1], 'El rasgo inserta tras Cart_Title (prioridad 11).' );
 	$base_hooks = $GLOBALS['wt']['hooks'];
 

@@ -36,6 +36,33 @@ final class Module {
 		}
 		Mini_Cart_Extras::init();
 		add_filter( 'woocommerce_add_to_cart_fragments', array( __CLASS__, 'fragments' ) );
+		add_filter( 'woocommerce_cart_hash', array( __CLASS__, 'cart_hash' ) );
+	}
+
+	/**
+	 * `woocommerce_cart_hash`: el *hash* con el que `cart-fragments.js` decide si reutiliza los fragmentos guardados en
+	 * `sessionStorage` o los vuelve a pedir. WooCommerce lo calcula con el contenido y el total del carrito, y el estado de
+	 * la barra depende además del destino (V.7.1.2: sin destino conocido no se muestra nada). Dar la dirección en la
+	 * calculadora del carrito o en el pago no cambia el total cuando la ubicación por defecto ya tenía la misma tarifa, así
+	 * que, sin esto, el mini carrito de las demás páginas seguía mostrando los fragmentos de antes (sin barra) hasta el
+	 * siguiente cambio del carrito (W11). Sólo con la bandera activa, y sólo si hay hash (un carrito vacío no tiene).
+	 *
+	 * @param mixed $hash Hash de WooCommerce.
+	 * @return mixed
+	 */
+	public static function cart_hash( $hash ) {
+		if ( ! is_string( $hash ) || '' === $hash || ! Flags::uses_fragments() || ! function_exists( 'WC' ) ) {
+			return $hash;
+		}
+		$customer = WC()->customer ?? null;
+		if ( ! is_object( $customer ) ) {
+			return $hash;
+		}
+		$parts = array( method_exists( $customer, 'has_calculated_shipping' ) && $customer->has_calculated_shipping() ? '1' : '0' );
+		foreach ( array( 'get_shipping_country', 'get_shipping_state', 'get_shipping_postcode', 'get_shipping_city' ) as $getter ) {
+			$parts[] = method_exists( $customer, $getter ) ? (string) $customer->$getter() : '';
+		}
+		return md5( $hash . '|digi|' . implode( '|', $parts ) );
 	}
 
 	/**
