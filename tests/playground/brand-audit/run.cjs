@@ -713,15 +713,18 @@ if (require.main === module) (async () => {
       });
     }
     // Editor: panel, barra superior y su menú, y la biblioteca de plantillas.
+    // Con WooCommerce (WOO=1) el editor tarda varios minutos en el único worker de Playground: los mismos topes que
+    // usa woo-flow.sh para abrir el editor real (W13).
+    const EDITOR_MS = process.env.WOO === '1' ? 420000 : 180000;
     const editorAt = async (id, prefix) => {
       await enter(`${prefix}-cargando`);
-      await page.goto(`${base}/wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 180000 });
+      await page.goto(`${base}/wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: EDITOR_MS });
       await sleep(800);
       await audit(page, `${prefix}-cargando`);
-      await page.waitForSelector('#elementor-panel', { timeout: 180000 });
-      const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
+      await page.waitForSelector('#elementor-panel', { timeout: EDITOR_MS });
+      const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: EDITOR_MS })).contentFrame();
       try {
-        await frame.waitForSelector('.elementor-widget', { timeout: id === pageId ? 180000 : 60000 });
+        await frame.waitForSelector('.elementor-widget', { timeout: id === pageId ? EDITOR_MS : 60000 });
       } catch (e) {
         if (id === pageId) throw e;
         notes.push(`${state.locale} ${prefix}: la vista previa no pintó el documento; se audita el panel y la barra`);
