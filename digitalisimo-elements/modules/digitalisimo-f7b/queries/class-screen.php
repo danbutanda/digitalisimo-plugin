@@ -56,6 +56,7 @@ final class Screen {
 			'not_found' => array( 'error', __( 'Esa consulta no existe.', 'pro-elements' ) ),
 			'title'     => array( 'error', __( 'Escribe un nombre para la consulta.', 'pro-elements' ) ),
 			'post_type' => array( 'error', __( 'Elige un tipo de contenido público.', 'pro-elements' ) ),
+			'context'   => array( 'error', __( 'Elige un contexto válido para la relación: actual o raíz.', 'pro-elements' ) ),
 			'save'      => array( 'error', __( 'La consulta no se pudo guardar.', 'pro-elements' ) ),
 			'in_use'    => array( 'error', __( 'La consulta está en uso: desvincúlala de esos documentos antes de borrarla.', 'pro-elements' ) ),
 			'delete'    => array( 'error', __( 'La consulta no se pudo borrar.', 'pro-elements' ) ),
@@ -375,7 +376,6 @@ final class Screen {
 		$contexts = array(
 			'none'    => __( 'Ninguno', 'pro-elements' ),
 			'current' => __( 'Actual: la entrada que se está mostrando (o la del bucle que contiene este widget)', 'pro-elements' ),
-			'parent'  => __( 'Padre: la entrada del bucle exterior', 'pro-elements' ),
 			'root'    => __( 'Raíz: la entrada de la página', 'pro-elements' ),
 		);
 		$relations = array(
@@ -390,7 +390,7 @@ final class Screen {
 		$rel .= '<p><label for="digi-sq-relation-meta">' . esc_html__( 'Clave del campo (para «mismo valor»)', 'pro-elements' ) . '</label><br><input type="text" id="digi-sq-relation-meta" name="q[relation_meta]" class="regular-text" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_\-]{0,63}" value="' . esc_attr( 'meta' === $kind ? $arg : '' ) . '" aria-describedby="digi-sq-relation-meta-help"></p>';
 		$rel .= '<p class="description" id="digi-sq-relation-meta-help">' . esc_html__( 'Sólo campos públicos: sin «_» al principio y sin nombres de datos personales o secretos (contraseña, correo, teléfono, clave…).', 'pro-elements' ) . '</p>';
 		$rel .= '<p><label for="digi-sq-context">' . esc_html__( 'Contexto', 'pro-elements' ) . '</label><br><select id="digi-sq-context" name="q[context]">' . self::options( $contexts, $context ) . '</select></p>';
-		$rel .= '<p class="description">' . esc_html__( 'La relación se calcula con la entrada de contexto, que nunca aparece en los resultados. Sin contexto en la página, la consulta no muestra nada. Un bucle con contexto «padre» no admite filtros por AJAX.', 'pro-elements' ) . '</p>';
+		$rel .= '<p class="description">' . esc_html__( 'La relación se calcula con la entrada de contexto, que nunca aparece en los resultados. Sin contexto en la página, la consulta no muestra nada.', 'pro-elements' ) . '</p>';
 		self::row( 'digi-sq-relation', __( 'Relacionar con', 'pro-elements' ), $rel );
 
 		$depth = '<select id="digi-sq-depth" name="q[limits][depth]">' . self::options( array( '1' => __( 'Sólo en el nivel superior', 'pro-elements' ), '2' => __( 'También dentro de otro bucle', 'pro-elements' ) ), (string) $limits['depth'] ) . '</select>';

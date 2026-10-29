@@ -2,7 +2,7 @@
  * DIGITALÍSIMO Elements · F7b · Consultas guardadas en el editor (V.4; C2-17, C2-18, C2-26). Sólo en el editor.
  *
  * - Resumen de sólo lectura bajo el select «Consulta guardada» (`[data-digi-sq-summary]`), con «Editar en Consultas
- *   (N usos)» y el aviso del contexto «padre» con filtros por AJAX. La lista llega una vez por sesión con la acción
+ *   (N usos)». La lista llega una vez por sesión con la acción
  *   `digitalisimo_f7b_queries` (sólo lectura, `edit_post` sobre el documento).
  * - «Desvincular»: lee los ajustes con `digitalisimo_f7b_query_settings` (sólo lectura), confirma (y avisa si la
  *   consulta usa contexto o relación) y los copia con `$e.run( 'document/elements/settings' )`: un registro del
@@ -104,9 +104,6 @@
 				box.appendChild( p );
 			} else {
 				box.appendChild( el( 'p', t.uses.replace( '%d', String( q.uses ) ) ) );
-			}
-			if ( 'parent' === q.context ) {
-				box.appendChild( el( 'p', t.parent, 'elementor-panel-alert elementor-panel-alert-info' ) );
 			}
 		} );
 	}

@@ -182,7 +182,68 @@ namespace {
 	}
 	check_budget( 7 === $woo_count, 'Deben revisarse los siete widgets de F4-Woo (' . $woo_count . ').' );
 	$count += $woo_count;
-	check_budget( $count >= 52, 'Deben revisarse los 52 widgets propios (' . $count . ').' );
+	// F7b (frente F): el slider anidado ligero de modules/digitalisimo-f7b/nested/ con las mismas reglas; sus recursos los
+	// registra Nested\Module (`digitalisimo-nested-slider`, con defer y sin dependencias) y el widget sólo declara los suyos.
+	$f7b_dir      = $root . '/modules/digitalisimo-f7b/';
+	$f7b_registry = is_file( $f7b_dir . 'nested/class-module.php' ) ? (string) file_get_contents( $f7b_dir . 'nested/class-module.php' ) : '';
+	preg_match_all( '/wp_register_script\(.*?\);/s', $f7b_registry, $f7b_scripts );
+	foreach ( $f7b_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Nested\Module: script sin defer o con jQuery.' ); }
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(([^()]*)\)/", $f7b_registry, $f7b_entries, PREG_SET_ORDER );
+	$f7b_count = 0;
+	foreach ( $f7b_entries as $m ) {
+		if ( ! preg_match( "/'file'\s*=>\s*'([^']+)'/", $m[2], $f ) || ! preg_match( "/'css'\s*=>\s*'([^']+)'/", $m[2], $c ) || ! preg_match( "/'js'\s*=>\s*'([^']+)'/", $m[2], $j ) ) { continue; }
+		$name   = $m[1];
+		$source = (string) file_get_contents( $f7b_dir . $f[1] );
+		$php    = preg_replace( '/protected function content_template\(\).*$/s', '', $source );
+		$f7b_count++;
+		check_budget( ! preg_match( '/<img[\s>]/', $php ) && ! str_contains( $php, 'wp_get_attachment_image(' ), $name . ': sin <img> a mano.' );
+		check_budget( ! preg_match( '/loading="(lazy|eager)"|\'loading\'\s*=>|fetchpriority/', $php ), $name . ': ninguna imagen fuerza su carga.' );
+		check_budget( ! str_contains( $php, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $php ), $name . ': sin JSON-LD ni <script> propios en la salida.' );
+		$declared = budget_method( $php, 'get_style_depends' ) . budget_method( $php, 'get_script_depends' );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", $declared, $handles );
+		check_budget( array( $name ) === array_values( array_unique( $handles[1] ) ), $name . ': declara sólo su hoja y su script.' );
+		check_budget( filesize( $root . '/' . $c[1] ) <= 4096 && filesize( $root . '/' . $j[1] ) <= 6144, $name . ': hoja ≤ 4 KB y script ≤ 6 KB (V.13).' );
+		check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', (string) file_get_contents( $root . '/' . $c[1] ) ) && str_contains( (string) file_get_contents( $root . '/' . $c[1] ), 'prefers-reduced-motion' ), $name . ': sin url() y con movimiento reducido.' );
+	}
+	check_budget( 1 === $f7b_count, 'Debe revisarse el slider anidado de F7b (' . $f7b_count . ').' );
+	$count += $f7b_count;
+	// Filtros ampliados (F7b, V.5): los cuatro widgets de modules/digitalisimo-filters/ con las mismas reglas. Heredan
+	// sus recursos de la base de su carpeta: la hoja propia (`digitalisimo-filters`) y el coordinador, la hoja y los
+	// formularios de F4-Woo (`digitalisimo-woo-filters`, `digitalisimo-woo-filters-form`), que registra Filters\Module.
+	$filters_dir      = $root . '/modules/digitalisimo-filters/';
+	$filters_registry = file_get_contents( $filters_dir . 'class-registry.php' );
+	$filters_module   = file_get_contents( $filters_dir . 'class-module.php' );
+	preg_match_all( '/wp_register_script\(.*?\);/s', $filters_module, $filters_scripts );
+	check_budget( count( $filters_scripts[0] ) >= 2, 'Filters\Module registra el coordinador y los formularios.' );
+	foreach ( $filters_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Filters\Module: script sin defer o con jQuery.' ); }
+	$filters_files = array( 'digitalisimo-filters' => 'modules/digitalisimo-filters/assets/f7b-filters.css', 'digitalisimo-woo-filters' => 'assets/css/filters.css', 'digitalisimo-woo-filters.js' => 'assets/js/filters.js', 'digitalisimo-woo-filters-form' => 'assets/js/filters-form.js' );
+	preg_match_all( "/'(digitalisimo-loop-[a-z0-9-]+)'\s*=>\s*array\(([^()]*)\)/", $filters_registry, $filters_entries, PREG_SET_ORDER );
+	$filters_count = 0;
+	foreach ( $filters_entries as $m ) {
+		if ( ! preg_match( "/'file'\s*=>\s*'([^']+)'/", $m[2], $f ) ) { continue; }
+		$name   = $m[1];
+		$source = (string) file_get_contents( $filters_dir . $f[1] );
+		$filters_count++;
+		check_budget( ! preg_match( '/<img[\s>]/', $source ) && ! str_contains( $source, 'wp_get_attachment_image(' ), $name . ': sin <img> a mano.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ), $name . ': sin JSON-LD ni <script> propios en la salida.' );
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		if ( '' === $declared && preg_match( '/class \w+ extends (\w+)/', $source, $parent ) ) {
+			$parent_src = (string) file_get_contents( $filters_dir . 'class-' . strtolower( str_replace( '_', '-', $parent[1] ) ) . '.php' );
+			$declared   = budget_method( $parent_src, 'get_style_depends' ) . budget_method( $parent_src, 'get_script_depends' );
+		}
+		preg_match_all( '/array\(([^()]*)\)/', $declared, $lists );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", implode( ',', $lists[1] ), $handles );
+		check_budget( array( 'digitalisimo-woo-filters', 'digitalisimo-filters', 'digitalisimo-woo-filters-form' ) === array_values( array_unique( $handles[1] ) ), $name . ': sólo la hoja propia y los recursos de F4-Woo.' );
+	}
+	foreach ( $filters_files as $handle => $file ) {
+		$path = $root . '/' . $file;
+		$cap  = 'digitalisimo-filters' === $handle ? 2048 : ( 'digitalisimo-woo-filters-form' === $handle ? 6144 : ( str_ends_with( $file, '.css' ) ? $css_cap : $js_cap ) );
+		check_budget( is_file( $path ) && filesize( $path ) <= $cap, $file . ' pesa ' . ( is_file( $path ) ? filesize( $path ) : 0 ) . ' B, más de ' . $cap . '.' );
+		if ( str_ends_with( $file, '.css' ) ) { check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', (string) file_get_contents( $path ) ), $file . ': sin url().' ); }
+	}
+	check_budget( 4 === $filters_count, 'Deben revisarse los cuatro filtros ampliados (' . $filters_count . ').' );
+	$count += $filters_count;
+	check_budget( $count >= 57, 'Deben revisarse los 57 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );

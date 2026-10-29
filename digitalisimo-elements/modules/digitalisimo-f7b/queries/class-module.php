@@ -30,6 +30,7 @@ final class Module {
 		$symbols = array(
 			'ElementorPro\Modules\QueryControl\Classes\Elementor_Post_Query',
 			'Digitalisimo\Elements\F7b\Flags',
+			'Digitalisimo\Elements\Filters\Query::denied',
 			__NAMESPACE__ . '\Store',
 			__NAMESPACE__ . '\Args',
 			__NAMESPACE__ . '\Runtime',

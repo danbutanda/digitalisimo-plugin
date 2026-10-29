@@ -10,7 +10,7 @@
  *
  * Comprueba: el tipo y sus metas; el saneado por listas cerradas de claves y de valores; la fusión frente al grupo de
  * PRO con los mismos ajustes (mismos argumentos de selección y mismos resultados, también con el origen oculto en
- * «Relacionadas» o «Consulta actual»); cada contexto (`current`, `parent`, `root`) y relación (`author`, `terms`,
+ * «Relacionadas» o «Consulta actual»); cada contexto (`current`, `root`; `parent` retirado falla cerrado) y relación (`author`, `terms`,
  * `children`, `meta`); los límites y el presupuesto; fallar cerrado; `digi_ctx` público y privado y `data-digi-ctx`;
  * «Desvincular» sólo lee; permisos de las acciones AJAX con un suscriptor y un autor ajeno; la pantalla y «Probar»;
  * y que con la bandera apagada nada se engancha en el front.
@@ -38,7 +38,9 @@ namespace Digitalisimo\Elements\F7b {
 		public static function requires( array $symbols, string $who ): bool {
 			foreach ( $symbols as $symbol ) {
 				$function = '()' === substr( $symbol, -2 ) ? substr( $symbol, 0, -2 ) : '';
-				if ( '' !== $function ? ! function_exists( $function ) : ! class_exists( $symbol ) ) {
+				$parts    = explode( '::', $symbol, 2 );
+				$exists   = '' !== $function ? function_exists( $function ) : ( isset( $parts[1] ) ? method_exists( $parts[0], $parts[1] ) : class_exists( $symbol ) );
+				if ( ! $exists ) {
 					self::$missing[ $who ][] = $symbol;
 					return false;
 				}
@@ -987,6 +989,8 @@ namespace {
 	$root = realpath( __DIR__ . '/../digitalisimo-elements' );
 	require $root . '/modules/query-control/classes/elementor-post-query.php';
 	require $root . '/modules/query-control/classes/elementor-related-query.php';
+	// Lista negra de metas: una sola fuente, la del módulo neutro de filtros (carga siempre antes que F7b).
+	require $root . '/modules/digitalisimo-filters/class-query.php';
 	$dir = $root . '/modules/digitalisimo-f7b/queries/';
 	foreach ( array( 'store', 'args', 'runtime', 'controls', 'screen', 'module' ) as $file ) {
 		require $dir . 'class-' . $file . '.php';
@@ -1093,11 +1097,24 @@ namespace {
 	$strict = Store::sanitize_settings( array( 'post_type' => 'post', 'include' => array( 'terms', 'authors' ), 'include_term_ids' => array( 11, 999 ), 'include_authors' => array( 77 ), 'exclude' => array( 'manual_selection' ), 'exclude_ids' => array( 1, 9999 ), 'select_date' => 'exact' ), true );
 	check( array( 11 ) === $strict['include_term_ids'] && array() === $strict['include_authors'] && array( 1 ) === $strict['exclude_ids'], 'Al guardar, términos, autores y entradas deben existir.' );
 	check( array( 'terms' ) === $strict['include'] && 'anytime' === $strict['select_date'], 'Al guardar, un «incluir por» sin IDs se quita, y «entre fechas» sin fechas vuelve a «todas».' );
-	check( 'current' === Store::sanitize_context( 'current' ) && 'none' === Store::sanitize_context( 'abuelo' ) && 'none' === Store::sanitize_context( array() ), 'Contexto de la lista.' );
+	check( 'current' === Store::sanitize_context( 'current' ) && 'root' === Store::sanitize_context( 'root' ) && 'none' === Store::sanitize_context( 'abuelo' ) && 'none' === Store::sanitize_context( array() ), 'Contexto de la lista.' );
+	check( array( 'none', 'current', 'root' ) === Store::CONTEXTS && 'none' === Store::sanitize_context( 'parent' ), 'Lista cerrada none|current|root: «parent» se retiró y se lee como desconocido.' );
 	check( 'author' === Store::sanitize_relation( 'author' ) && 'children' === Store::sanitize_relation( 'children' ) && 'none' === Store::sanitize_relation( 'author:1' ) && 'none' === Store::sanitize_relation( 'friends' ), 'Relaciones de la lista.' );
 	check( 'terms:category' === Store::sanitize_relation( 'terms:category' ) && 'none' === Store::sanitize_relation( 'terms:secret_tax' ) && 'none' === Store::sanitize_relation( 'terms:nope' ), 'terms:<tax> sólo con taxonomías públicas existentes.' );
 	check( 'meta:color' === Store::sanitize_relation( 'meta:color' ) && 'meta:keywords' === Store::sanitize_relation( 'meta:keywords' ), 'meta:<clave> pública.' );
 	check( 'none' === Store::sanitize_relation( 'meta:_secret' ) && 'none' === Store::sanitize_relation( 'meta:api_key' ) && 'none' === Store::sanitize_relation( 'meta:user-email' ) && 'none' === Store::sanitize_relation( 'meta:a b' ), 'Sin metas protegidas ni de la lista negra (por fragmentos: api_key sí, keywords no).' );
+	check( Store::DENIED === \Digitalisimo\Elements\Filters\Query::DENIED, 'Una sola fuente de la lista negra: Filters\\Query::DENIED.' );
+	check( 'none' === Store::sanitize_relation( 'meta:correo_cliente' ) && 'none' === Store::sanitize_relation( 'meta:clave-api' ) && 'none' === Store::sanitize_relation( 'meta:telefono' ), 'La lista negra compartida también bloquea las palabras en español.' );
+	add_filter(
+		'digitalisimo_elements_inline_tags_denied',
+		function ( $list ) {
+			$list[] = 'color';
+			return $list;
+		}
+	);
+	check( 'none' === Store::sanitize_relation( 'meta:color' ) && Store::denied( 'Color_Favorito' ), 'Se amplía con el mismo filtro, digitalisimo_elements_inline_tags_denied.' );
+	unset( $GLOBALS['t']['hooks']['digitalisimo_elements_inline_tags_denied'] );
+	check( 'meta:color' === Store::sanitize_relation( 'meta:color' ), 'Sin el filtro, color vuelve a valer.' );
 	check( array( 'per_page' => 100, 'depth' => 2 ) === Store::sanitize_limits( array( 'per_page' => 500, 'depth' => 3 ) ) && array( 'per_page' => 1, 'depth' => 1 ) === Store::sanitize_limits( array( 'per_page' => 0, 'depth' => 0 ) ), 'Topes: per_page 1–100, depth 1–2.' );
 	Store::register();
 	// Lo que escribe un kit pasa por el mismo saneado (`sanitize_callback`).
@@ -1308,10 +1325,17 @@ namespace {
 	t_front();
 	$author  = t_query( array( 'post_type' => 'post', 'orderby' => 'post_title', 'order' => 'asc' ), 'current', 'author' );
 	$terms   = t_query( array( 'post_type' => 'post', 'orderby' => 'post_title', 'order' => 'asc' ), 'current', 'terms:category' );
-	$parent  = t_query( array( 'post_type' => 'post', 'orderby' => 'post_title', 'order' => 'asc' ), 'parent', 'author' );
 	$rootq   = t_query( array( 'post_type' => 'post', 'orderby' => 'post_title', 'order' => 'asc' ), 'root', 'meta:color' );
 	$kids    = t_query( array( 'post_type' => 'page', 'orderby' => 'post_title', 'order' => 'asc' ), 'current', 'children' );
 	$depth1  = t_query( array( 'post_type' => 'post' ), 'current', 'author', array( 'depth' => 1 ) );
+	// «parent» guardado como lo dejaría un kit o un dato manipulado: por la meta saneada y escrito a mano en la base.
+	Store::register();
+	$parent = wp_insert_post( array( 'post_type' => 'digitalisimo_query', 'post_status' => 'publish', 'post_title' => 'Padre', 'meta_input' => array( '_digitalisimo_query' => array( 'post_type' => 'post' ), '_digitalisimo_query_context' => 'parent', '_digitalisimo_query_relation' => 'author', '_digitalisimo_query_limits' => array( 'per_page' => 50 ) ) ) );
+	check( 'none' === $GLOBALS['t']['meta'][ $parent ]['_digitalisimo_query_context'][0], 'Un «parent» que escribe un kit se sanea a none.' );
+	$forged = wp_insert_post( array( 'post_type' => 'digitalisimo_query', 'post_status' => 'publish', 'post_title' => 'Forjada', 'meta_input' => array( '_digitalisimo_query' => array( 'post_type' => 'post' ), '_digitalisimo_query_relation' => 'author', '_digitalisimo_query_limits' => array( 'per_page' => 50 ) ) ) );
+	$GLOBALS['t']['meta'][ $forged ]['_digitalisimo_query_context'] = array( 'parent' );
+	Store::forget();
+	check( false === Store::get( $parent )['valid'] && false === Store::get( $forged )['valid'] && 'none' === Store::get( $forged )['context'], '«parent» con relación (saneado o escrito a mano): consulta no válida.' );
 
 	// current en el nivel superior: la entrada consultada (2, de Beto).
 	$GLOBALS['t']['queried'] = get_post( 2 );
@@ -1345,23 +1369,23 @@ namespace {
 	check( array( 10, 11 ) === t_ids( t_run( $w ) ) && 9 === t_last()['post_parent'], 'current + children: las hijas (post_parent).' );
 	do_action( 'elementor/frontend/widget/after_render', $w );
 
-	// Bucle en bucle: parent = la entrada del nivel anterior; current = la entrada del bucle exterior que se pinta.
+	// Bucle en bucle: current = la entrada del bucle exterior que se pinta; «parent» falla cerrado en cualquier nivel.
 	$GLOBALS['t']['queried'] = get_post( 7 );
 	$GLOBALS['t']['the_id']  = 7;
 	$outer = t_widget( 'loop-grid', 'outer01', array( 'posts_per_page' => 5 ) );
 	do_action( 'elementor/widget/before_render_content', $outer );
 	ob_start(); // Lo de dentro de un bucle se pinta en un búfer más hondo.
 	$GLOBALS['t']['the_id'] = 3; // Entrada del bucle exterior (Gamma, de Beto).
-	$inner = t_linked( 'loop-grid', 'inner01', $parent, array( 'posts_per_page' => 10 ) );
+	$inner = t_linked( 'loop-grid', 'inner01', $author, array( 'posts_per_page' => 10 ) );
 	do_action( 'elementor/widget/before_render_content', $inner );
 	$stack = Runtime::budget()['stack'];
 	check( 2 === count( $stack ) && 7 === $stack[0]['ctx'] && 3 === $stack[1]['ctx'], 'La pila: la página (7) y la entrada del bucle exterior (3).' );
-	check( array( 1, 4, 5 ) === t_ids( t_run( $inner ) ) && array( 1 ) === t_last()['author__in'], 'parent + author: el autor de la entrada del nivel anterior (7, de Ana), sin ella.' );
-	$cur = t_linked( 'loop-grid', 'inner02', $author, array( 'posts_per_page' => 10 ) );
-	do_action( 'elementor/widget/before_render_content', $cur );
+	check( array( 2, 8, 6 ) === t_ids( t_run( $inner ) ) && array( 2 ) === t_last()['author__in'], 'current dentro de un bucle: la entrada que se pinta (3, de Beto), sin ella.' );
+	$nested_parent = t_linked( 'loop-grid', 'inner02', $parent, array( 'posts_per_page' => 10 ) );
+	do_action( 'elementor/widget/before_render_content', $nested_parent );
 	check( 2 === count( Runtime::budget()['stack'] ), 'Un bucle hermano al mismo nivel sustituye al anterior en la pila.' );
-	t_run( $cur );
-	check( array( 2 ) === t_last()['author__in'], 'current dentro de un bucle: la entrada que se pinta (3, de Beto).' );
+	check( array() === t_ids( t_run( $nested_parent ) ) && array( 0 ) === t_last()['post__in'], '«parent» dentro de un bucle: vacía (post__in [0]).' );
+	check( 0 === Runtime::context( 'parent', array( 'ctx' => 3, 'depth' => 2 ) ) && 3 === Runtime::context( 'current', array( 'ctx' => 3, 'depth' => 2 ) ), 'Runtime::context(): «parent» (o cualquier otro) da 0; current, la entrada del bucle.' );
 	$deep = t_linked( 'loop-grid', 'inner03', $depth1, array( 'posts_per_page' => 10 ) );
 	do_action( 'elementor/widget/before_render_content', $deep );
 	check( array() === t_ids( t_run( $deep ) ), 'Una consulta de profundidad 1 dentro de otro bucle: vacía.' );
@@ -1384,11 +1408,14 @@ namespace {
 		check( array() === t_ids( t_run( $w ) ) && array( 0 ) === t_last()['post__in'], "Sin entrada consultada, la consulta $q con contexto falla cerrada." );
 		do_action( 'elementor/frontend/widget/after_render', $w );
 	}
-	$top = t_linked( 'posts', 'nopar01', $parent, array( 'posts_per_page' => 10 ) );
 	$GLOBALS['t']['queried'] = get_post( 2 );
-	do_action( 'elementor/widget/before_render_content', $top );
-	check( array() === t_ids( t_run( $top ) ), 'parent en el nivel superior (sin bucle exterior): vacía.' );
-	do_action( 'elementor/frontend/widget/after_render', $top );
+	foreach ( array( $parent, $forged ) as $n => $q ) {
+		$top = t_linked( 'posts', 'nopar0' . $n, $q, array( 'posts_per_page' => 10 ) );
+		do_action( 'elementor/widget/before_render_content', $top );
+		check( array() === t_ids( t_run( $top ) ) && array( 0 ) === t_last()['post__in'], '«parent» en el nivel superior, con entrada consultada: vacía (post__in [0]).' );
+		check( ! isset( $top->attrs['_wrapper'] ), '«parent» no lleva data-digi-ctx.' );
+		do_action( 'elementor/frontend/widget/after_render', $top );
+	}
 	// El contexto no tiene el dato de la relación.
 	$GLOBALS['t']['queried'] = get_post( 7 );
 	$w = t_linked( 'posts', 'nodat01', $terms, array( 'posts_per_page' => 10 ) );
@@ -1649,6 +1676,11 @@ namespace {
 	check( 'title' === Screen::process_save()['notice'], 'Sin nombre: error.' );
 	$_POST['q'] = array( 'title' => 'x', 'settings' => array( 'post_type' => 'shop_order' ) );
 	check( 'post_type' === Screen::process_save()['notice'], 'Tipo no público: error.' );
+	$_POST['q'] = array( 'title' => 'x', 'settings' => array( 'post_type' => 'post' ), 'relation_kind' => 'author', 'context' => 'parent' );
+	check( 'context' === Screen::process_save()['notice'], 'Un «parent» enviado desde el formulario (manipulado): error, nunca se cambia por otro contexto.' );
+	$_POST['q']['context'] = 'none';
+	$saved = Screen::process_save();
+	check( 'created' === $saved['notice'] && 'current' === Store::get( $saved['id'] )['context'], 'Relación sin contexto elegido: el actual.' );
 	check( array( 'title' => 'a', 'settings' => array(), 'context' => 'root', 'relation' => 'meta:color', 'limits' => array() ) === Screen::input( array( 'title' => 'a', 'context' => 'root', 'relation_kind' => 'meta', 'relation_meta' => ' color ' ) ), 'El formulario se traduce a la relación meta:<clave>.' );
 
 	// Probar.
@@ -1706,7 +1738,7 @@ namespace {
 	Screen::render();
 	$html = ob_get_clean();
 	check( false !== strpos( $html, 'class="wrap digitalisimo-elements-queries"' ) && false !== strpos( $html, '<table class="widefat striped">' ), 'La lista usa el marcado de digitalisimo-ui.' );
-	check( false !== strpos( $html, 'En uso (1)' ) && 2 === substr_count( $html, 'name="action" value="digitalisimo_f7b_query_delete"' ), 'Con usos, «En uso (N)» en lugar de «Borrar»; sin usos (las otras dos), «Borrar».' );
+	check( false !== strpos( $html, 'En uso (1)' ) && 3 === substr_count( $html, 'name="action" value="digitalisimo_f7b_query_delete"' ), 'Con usos, «En uso (N)» en lugar de «Borrar»; sin usos (las otras tres), «Borrar».' );
 	check( false !== strpos( $html, '(y 1 borrador)' ) && false !== strpos( $html, 'post.php?post=1&amp;action=edit' ), 'Los usos listan los documentos y los borradores aparte.' );
 	$_GET = array( 'action' => 'edit', 'id' => (string) $used );
 	ob_start();
@@ -1714,6 +1746,7 @@ namespace {
 	$html = ob_get_clean();
 	check( false !== strpos( $html, 'value="digitalisimo_f7b_query_save"' ) && false !== strpos( $html, 'value="digitalisimo_f7b_query_test"' ) && false !== strpos( $html, wp_create_nonce( Screen::ACTION_TEST . '-' . $used ) ), 'Editar: formulario de guardado y «Probar» por POST con nonce.' );
 	check( false !== strpos( $html, 'data-object="term"' ) && false !== strpos( $html, 'data-object="author"' ) && false !== strpos( $html, 'data-object="post"' ), 'Selectores de términos, autores y entradas.' );
+	check( false !== strpos( $html, '<option value="current"' ) && false !== strpos( $html, '<option value="root"' ) && false === strpos( $html, 'value="parent"' ) && false === stripos( $html, 'padre' ), 'Contextos de la pantalla: actual y raíz, sin «padre».' );
 	check( false === stripos( $html, 'elementor.com' ) && false === stripos( $html, 'bricks' ) && false === stripos( $html, 'http://' ), 'Sin enlaces ni nombres de proveedores.' );
 	$_GET = array( 'action' => 'edit', 'id' => '99999' );
 	ob_start();

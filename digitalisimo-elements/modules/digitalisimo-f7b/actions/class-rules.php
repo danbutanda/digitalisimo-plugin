@@ -13,6 +13,9 @@ defined( 'ABSPATH' ) || exit;
  * Formato compacto de `data-digi-actions` (un arreglo JSON, como mucho `MAX_ROWS` filas):
  * `t` disparador, `a` acción, `g` ID del elemento destino, `p` ID del popup, `c` clase, `n` atributo, `v` valor,
  * `d` retraso en ms, `m` animación, `o` «sólo la primera vez». Sólo se escriben las claves con valor.
+ *
+ * En `actions.js`, la tabla `K` resume cada acción en bits: 1 necesita destino (`TARGETED`), 2 no cambia el flujo
+ * (`FLOW_FREE`) y 4 muestra u oculta (`VISIBILITY`). Un cambio en estas listas se hace en los dos archivos.
  */
 final class Rules {
 	const TRIGGERS = array( 'click', 'hover', 'scroll_in', 'load' );

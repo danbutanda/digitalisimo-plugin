@@ -270,13 +270,15 @@ for (const path of php) {
   const source = code(read(path));
   for (const m of source.matchAll(/'prefix_class'\s*=>\s*'([^']*)'/g)) ok(m[1].startsWith('digi-'), `${rel(path)}: prefix_class con prefijo digi- (${m[1]}).`);
 }
-const ADMIN = /^(digitalisimo-[a-z0-9-]+|wrap|widefat|striped|fixed|notice|notice-[a-z-]+|is-dismissible|button|button-[a-z-]+|dashicons|dashicons-[a-z-]+|description|regular-text|form-table|page-title-action|hidden|wp-heading-inline|alignleft|alignright|subsubsub|count|current|tablenav|actions|row-actions|column-[a-z_-]+)$/;
+const ADMIN = /^(wrap|widefat|striped|fixed|notice|notice-[a-z-]*|is-dismissible|is-active|is-inactive|button|button-[a-z-]+|dashicons|dashicons-[a-z-]+|description|regular-text|small-text|large-text|ul-disc|code|spinner|card|form-table|page-title-action|hidden|wp-heading-inline|alignleft|alignright|subsubsub|count|current|tablenav|actions|row-actions|column-[a-z_-]+)$/;
+// En el marcado PHP (panel del editor y pantallas), además de digi-, el prefijo de digitalisimo-ui: digitalisimo-.
+const markupOk = (token) => classOk(token) || /^digitalisimo-/.test(token);
 for (const path of [...php, ...js]) {
   const source = read(path);
   const admin = /admin_menu|add_submenu_page|admin_notices|manage_[a-z_]+_columns|row_actions/.test(source);
   for (const literal of literals(source, path.endsWith('.js'))) {
     for (const m of literal.matchAll(/class=\\?["']([^"'\\]*)/g)) {
-      for (const token of m[1].split(/\s+/).filter(Boolean)) ok(classOk(token) || (admin && ADMIN.test(token)), `${rel(path)}: clase sin prefijo digi-: ${token}`);
+      for (const token of m[1].split(/\s+/).filter(Boolean)) ok((path.endsWith('.php') ? markupOk(token) : classOk(token)) || (admin && ADMIN.test(token)), `${rel(path)}: clase sin prefijo digi-: ${token}`);
     }
   }
   if (path.endsWith('.js')) {
@@ -329,8 +331,10 @@ const lateGuards = [];
 for (const path of php) {
   const source = code(read(path));
   const consts = constants(source);
+  // Una guarda en `init()` corre en plugins_loaded; en otro método (p. ej. el de `elementor/widgets/register`), ya en init.
+  const enclosing = (index) => [...source.slice(0, index).matchAll(/function\s+(\w+)\s*\(/g)].pop()?.[1] ?? '';
   const lists = [
-    ...[...source.matchAll(/requires\(\s*array\(([\s\S]*?)\)\s*,/g)].map((m) => m[1]),
+    ...[...source.matchAll(/requires\(\s*array\(([\s\S]*?)\)\s*,/g)].filter((m) => enclosing(m.index) === 'init').map((m) => m[1]),
     ...[...source.matchAll(/(?:const SYMBOLS|\$symbols)\s*=\s*array\(([\s\S]*?)\);/g)].map((m) => m[1]),
   ];
   for (const list of lists) {
@@ -351,9 +355,11 @@ ok(lateGuards.length === 0, `Guardas con clases que el núcleo declara en init (
 for (const path of php) {
   const source = code(read(path));
   ok(!/wp_ajax_nopriv_/.test(source), `${rel(path)}: ninguna acción AJAX sin sesión.`);
-  ok(!/SELECT\s+DISTINCT/i.test(source), `${rel(path)}: ningún SELECT DISTINCT.`);
-  if (/register_ajax_action\s*\(/.test(source)) ok(/elementor\/ajax\/register_actions/.test(source) && /current_user_can\s*\(/.test(source), `${rel(path)}: AJAX del editor por elementor/ajax/register_actions y con current_user_can().`);
-  if (/add_action\(\s*'wp_ajax_/.test(source)) ok(/check_ajax_referer|wp_verify_nonce/.test(source) && /current_user_can\s*\(/.test(source), `${rel(path)}: wp_ajax_ con nonce y capacidad.`);
+  // SELECT DISTINCT sólo acotado a una lista de entradas (`post_id IN (…)`), nunca sobre la tabla entera (C2-18).
+  for (const m of source.matchAll(/SELECT\s+DISTINCT[^;]*/gi)) ok(/\b(post_id|ID)\s+IN\s*\(/.test(m[0]), `${rel(path)}: SELECT DISTINCT sobre una tabla entera: ${m[0].slice(0, 120)}`);
+  const capability = /current_user_can\s*\(|::can_\w+\s*\(|::can\s*\(/;
+  if (/register_ajax_action\s*\(/.test(source)) ok(/elementor\/ajax\/register_actions/.test(source) && capability.test(source), `${rel(path)}: AJAX del editor por elementor/ajax/register_actions y con current_user_can().`);
+  if (/add_action\(\s*'wp_ajax_/.test(source)) ok(/check_ajax_referer|wp_verify_nonce/.test(source) && capability.test(source), `${rel(path)}: wp_ajax_ con nonce y capacidad.`);
 }
 const deletion = join(F7B, 'class-deletion.php');
 if (existsSync(deletion)) ok(!/\bwp_die\s*\(/.test(code(read(deletion))), 'El bloqueo del borrado nunca llama a wp_die().');

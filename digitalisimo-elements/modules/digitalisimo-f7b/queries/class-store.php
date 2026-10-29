@@ -16,7 +16,9 @@ defined( 'ABSPATH' ) || exit;
  *     públicos de `ElementorPro\Core\Utils::get_public_post_types()`, términos por `term_taxonomy_id` (como el grupo),
  *     autores y entradas por ID, fechas `Y-m-d[ H:i]`, `orderby` de la lista del grupo, sin `by_id`, `current_query`
  *     ni `related` (para eso están el contexto y la relación);
- *   - `_digitalisimo_query_context`: `none|current|parent|root`;
+ *   - `_digitalisimo_query_context`: `none|current|root` (sin `parent`: con profundidad ≤ 2 coincidiría siempre con
+ *     `current` o con `root`; un `parent` que llegue de un kit o de un dato manipulado se lee como `none` y, con
+ *     relación, deja la consulta no válida: falla cerrada);
  *   - `_digitalisimo_query_relation`: `none|author|terms:<taxonomía>|children|meta:<clave>`;
  *   - `_digitalisimo_query_limits`: `per_page` (1–100) y `depth` (1–2).
  * - **Saneado** al guardar (`strict`: además, los términos, autores y entradas deben existir) y al consultar (forma:
@@ -45,7 +47,7 @@ final class Store {
 		self::META_LIMITS   => 'array',
 	);
 
-	const CONTEXTS  = array( 'none', 'current', 'parent', 'root' );
+	const CONTEXTS  = array( 'none', 'current', 'root' );
 	const RELATIONS = array( 'none', 'author', 'terms', 'children', 'meta' );
 	const INCLUDE_BY = array( 'terms', 'authors' );
 	const EXCLUDE_BY = array( 'current_post', 'manual_selection', 'terms', 'authors' );
@@ -84,8 +86,12 @@ final class Store {
 		'depth'    => self::MAX_DEPTH,
 	);
 
-	/** Lista negra de nombres de metas (la de V.8; filtro `digitalisimo_elements_inline_tags_denied`). */
-	const DENIED = array( 'pass', 'password', 'pwd', 'token', 'secret', 'key', 'hash', 'salt', 'nonce', 'email', 'mail', 'phone', 'tel', 'address', 'dni', 'rfc', 'curp', 'ssn', 'iban', 'card', 'name', 'apellido', 'nombre' );
+	/**
+	 * Lista negra de nombres de metas: una sola fuente, la de V.8 en el módulo neutro de filtros (que carga siempre
+	 * antes que F7b), ampliable con `digitalisimo_elements_inline_tags_denied`. La usan también los filtros y
+	 * `F7b\Inline_Tags\Engine`.
+	 */
+	const DENIED = \Digitalisimo\Elements\Filters\Query::DENIED;
 
 	/** @var bool */
 	private static $registered = false;
@@ -327,16 +333,12 @@ final class Store {
 		return vsprintf( '%s%s-%s-%s-%s-%s%s%s', str_split( bin2hex( $bytes ), 4 ) );
 	}
 
-	/** ¿Bloquea la lista negra este nombre? Por fragmentos separados por `_` o `-`, sin distinguir mayúsculas (C2-28). */
+	/**
+	 * ¿Bloquea la lista negra este nombre? Por fragmentos separados por `_` o `-`, sin distinguir mayúsculas (C2-28):
+	 * `Filters\Query::denied()`, la misma regla y el mismo filtro que los filtros y las etiquetas en el texto.
+	 */
 	public static function denied( string $name ): bool {
-		$list = function_exists( 'apply_filters' ) ? apply_filters( 'digitalisimo_elements_inline_tags_denied', self::DENIED ) : self::DENIED;
-		$list = array_map( 'strtolower', array_filter( (array) $list, 'is_string' ) );
-		foreach ( preg_split( '/[_-]+/', strtolower( $name ) ) as $fragment ) {
-			if ( '' !== $fragment && in_array( $fragment, $list, true ) ) {
-				return true;
-			}
-		}
-		return false;
+		return \Digitalisimo\Elements\Filters\Query::denied( $name );
 	}
 
 	public static function meta_key_ok( string $key ): bool {
@@ -591,7 +593,6 @@ final class Store {
 		$labels = array(
 			'none'    => __( 'sin contexto', 'pro-elements' ),
 			'current' => __( 'contexto actual', 'pro-elements' ),
-			'parent'  => __( 'contexto padre', 'pro-elements' ),
 			'root'    => __( 'contexto raíz', 'pro-elements' ),
 		);
 		return $labels[ $context ] ?? $labels['none'];
@@ -624,7 +625,7 @@ final class Store {
 	 * crea WordPress lleva los ajustes nuevos.
 	 *
 	 * @param array $input `{ title, settings, context, relation, limits }`.
-	 * @return int|\WP_Error ID o error (`forbidden`, `title`, `post_type`, `not_found`, `save`).
+	 * @return int|\WP_Error ID o error (`forbidden`, `title`, `post_type`, `context`, `not_found`, `save`).
 	 */
 	public static function save( array $input, int $id = 0 ) {
 		if ( ! self::can_manage() ) {
@@ -640,10 +641,15 @@ final class Store {
 			return new \WP_Error( 'post_type', __( 'Elige un tipo de contenido público.', 'pro-elements' ) );
 		}
 		$relation = self::sanitize_relation( $input['relation'] ?? 'none' );
-		$context  = self::sanitize_context( $input['context'] ?? 'none' );
+		$raw      = $input['context'] ?? 'none';
+		$context  = self::sanitize_context( $raw );
 		if ( 'none' === $relation ) {
 			$context = 'none';
 		} elseif ( 'none' === $context ) {
+			// Sin contexto elegido, el actual; un contexto desconocido (`parent`, manipulado) nunca se cambia por otro.
+			if ( '' !== $raw && 'none' !== $raw ) {
+				return new \WP_Error( 'context', __( 'Elige un contexto válido para la relación: actual o raíz.', 'pro-elements' ) );
+			}
 			$context = 'current';
 		}
 		$meta = array(

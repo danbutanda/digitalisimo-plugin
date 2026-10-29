@@ -288,6 +288,30 @@ jobs:
           php tests/elements-woo-kit.php
           node tests/elements-woo-static.mjs
           php tests/elements-woo-kit-page-sync.php
+          php tests/elements-f7b-module.php
+          php tests/elements-f7b-usages.php
+          php tests/elements-f7b-presentation.php
+          node tests/elements-f7b-presentation.mjs
+          node tests/elements-f7b-presentation-chrome.mjs
+          node tests/elements-f7b-static.mjs
+          php tests/elements-f7b-actions.php
+          node tests/elements-f7b-actions.mjs
+          node tests/elements-f7b-actions-chrome.mjs
+          php tests/elements-f7b-interactions.php
+          php tests/elements-f7b-queries.php
+          node tests/elements-f7b-queries.mjs
+          php tests/elements-f7b-filters.php
+          node tests/elements-f7b-filters.mjs
+          php tests/elements-f7b-overrides.php
+          node tests/elements-f7b-overrides.mjs
+          php tests/elements-f7b-nested.php
+          node tests/elements-f7b-nested-slider.mjs
+          node tests/elements-f7b-nested-slider-chrome.mjs
+          node tests/elements-f7b-apply-all.mjs
+          php tests/elements-f7b-inline-tags.php
+          php tests/elements-f7b-forms.php
+          node tests/elements-f7b-forms.mjs
+          node tests/elements-f7b-forms-chrome.mjs
       - name: Seleccionar plugins modificados
         id: modules
         env:

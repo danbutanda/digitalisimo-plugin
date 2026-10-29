@@ -302,7 +302,6 @@ final class Controls {
 				'edit'         => __( 'Editar en Consultas (%d usos)', 'pro-elements' ),
 				/* translators: %d: número de documentos. */
 				'uses'         => __( '%d usos', 'pro-elements' ),
-				'parent'       => __( 'Con contexto «padre» no hay entrada de contexto en los filtros por AJAX: no combines este bucle con filtros que lo recarguen, o quedará vacío al filtrar.', 'pro-elements' ),
 				'title'        => __( 'Desvincular la consulta', 'pro-elements' ),
 				'confirm'      => __( 'Se copiarán los ajustes de la consulta a este widget y dejará de usarla. Puedes deshacerlo.', 'pro-elements' ),
 				'changes'      => __( 'Esta consulta usa contexto o relación, que el widget no tiene: los resultados cambiarán.', 'pro-elements' ),

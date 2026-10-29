@@ -29,6 +29,9 @@ defined( 'ABSPATH' ) || exit;
  * - `rest_request_before_callbacks`: en `elementor-pro/v1/refresh-loop`, `digi_ctx` se acepta sólo si
  *   `is_post_publicly_viewable()`; si no, el contexto es 0 y las consultas con contexto fallan cerradas (C2-13).
  *
+ * Contextos: `current` y `root` (`parent` se retiró: con profundidad ≤ 2 coincidía siempre con uno de los dos; un
+ * `parent` guardado deja la consulta no válida en `Store` y falla cerrada).
+ *
  * Fallar cerrado (`post__in => [0]`): consulta borrada, en borrador o no válida; sin contexto; relación sin valor en
  * el contexto; profundidad mayor que la de la consulta (≤ 2); más de 50 ejecuciones o 300 entradas pintadas por
  * consultas guardadas en la petición. En el editor, el widget lo explica con un aviso.
@@ -258,16 +261,16 @@ final class Runtime {
 	}
 
 	/**
-	 * Contexto de la consulta para el widget que la pinta.
+	 * Contexto de la consulta para el widget que la pinta: `current` (la entrada del bucle que lo contiene, o la de la
+	 * página en el nivel superior) o `root` (la de la página). Cualquier otro valor (`parent`, que se retiró, o uno
+	 * manipulado) da 0: la relación falla cerrada.
 	 *
-	 * @param array $entry `{ ctx, parent }` de `entry()`.
+	 * @param array $entry `{ ctx, depth }` de `entry()`.
 	 */
 	public static function context( string $context, array $entry ): int {
 		switch ( $context ) {
 			case 'current':
 				return $entry['ctx'];
-			case 'parent':
-				return $entry['parent'];
 			case 'root':
 				return self::top();
 		}
@@ -482,24 +485,22 @@ final class Runtime {
 	}
 
 	/**
-	 * Entrada de la pila del widget: `{ ctx, parent, depth }`. Si no está (un render sin `before_render_content`),
-	 * se calcula como si se apilara ahora.
+	 * Entrada de la pila del widget: `{ ctx, depth }`. Si no está (un render sin `before_render_content`), se calcula
+	 * como si se apilara ahora. La pila sólo sirve para el `current` de un bucle anidado y para la profundidad.
 	 */
 	private static function entry( string $wid ): array {
 		for ( $i = count( self::$stack ) - 1; $i >= 0; $i-- ) {
 			if ( self::$stack[ $i ]['id'] === $wid ) {
 				return array(
-					'ctx'    => self::$stack[ $i ]['ctx'],
-					'parent' => $i > 0 ? self::$stack[ $i - 1 ]['ctx'] : 0,
-					'depth'  => $i + 1,
+					'ctx'   => self::$stack[ $i ]['ctx'],
+					'depth' => $i + 1,
 				);
 			}
 		}
 		$nested = ! empty( self::$stack );
 		return array(
-			'ctx'    => $nested ? max( 0, (int) get_the_ID() ) : self::top(),
-			'parent' => $nested ? end( self::$stack )['ctx'] : 0,
-			'depth'  => count( self::$stack ) + 1,
+			'ctx'   => $nested ? max( 0, (int) get_the_ID() ) : self::top(),
+			'depth' => count( self::$stack ) + 1,
 		);
 	}
 

@@ -16,6 +16,7 @@ ok(statSync(file).size <= 8192, `El script cabe en 8 KB (${statSync(file).size} 
 ok(!/jQuery|\$\(/.test(source), 'El script no usa jQuery.');
 ok(!/https?:\/\//.test(source), 'El script no nombra ninguna URL.');
 ok(!/innerHTML\s*=/.test(source), 'Nunca asigna innerHTML.');
+ok(!/parent'|\.parent\b|padre/.test(source), 'Sin el contexto «parent» (retirado) ni su aviso.');
 
 class Node {
   constructor(tag) { this.tagName = String(tag).toUpperCase(); this.children = []; this.text = ''; this.className = ''; }
@@ -57,7 +58,6 @@ const config = {
     missing: 'Esta consulta ya no existe o no está publicada: el bucle queda vacío.',
     edit: 'Editar en Consultas (%d usos)',
     uses: '%d usos',
-    parent: 'Con contexto «padre» no hay entrada de contexto en los filtros por AJAX.',
     title: 'Desvincular la consulta',
     confirm: 'Se copiarán los ajustes <b>de la consulta</b> a este widget.',
     changes: 'Los resultados cambiarán.',
@@ -109,7 +109,8 @@ function panelFor() {
 const list = {
   queries: {
     5: { title: 'Relacionadas', summary: 'Entradas · Noticias · 6 · contexto actual · mismos términos de «Categorías»', context: 'current', relation: 'terms', valid: true, uses: 3, drafts: 1, edit: 'admin.php?page=digitalisimo-elements-queries&action=edit&id=5' },
-    7: { title: 'Padre', summary: 'Entradas · 4 · contexto padre · mismo autor', context: 'parent', relation: 'author', valid: true, uses: 0, drafts: 0, edit: '' },
+    7: { title: 'Raíz', summary: 'Entradas · 4 · contexto raíz · mismo autor', context: 'root', relation: 'author', valid: true, uses: 0, drafts: 0, edit: '' },
+    8: { title: 'Kit', summary: 'Entradas · 4 · sin contexto · mismo autor', context: 'none', relation: 'author', valid: false, uses: 0, drafts: 0, edit: '' },
   },
   screen: 'admin.php?page=digitalisimo-elements-queries',
   can_manage: true,
@@ -142,7 +143,10 @@ const list = {
   env.flush();
   ok(env.requests.length === 1, 'Cambiar de consulta no vuelve a pedir la lista.');
   ok(box.textContent.includes('mismo autor') && box.textContent.includes('0 usos') && !box.find((node) => node.tagName === 'A'), 'Sin permiso de la pantalla, sólo «N usos», sin enlace.');
-  ok(box.textContent.includes('Con contexto «padre»'), 'Con contexto «padre», el aviso de los filtros por AJAX.');
+  ok(box.children.length === 2 && !box.textContent.includes('padre'), 'Sin aviso de contexto «padre»: sólo resumen y usos.');
+  settings.set('digitalisimo_saved_query', '8');
+  env.flush();
+  ok(box.textContent === config.i18n.missing, 'Una consulta no válida (p. ej. «parent» de un kit): el aviso de que el bucle queda vacío.');
   settings.set('digitalisimo_saved_query', '99');
   env.flush();
   ok(box.textContent === config.i18n.missing, 'Consulta inexistente: el aviso de que el bucle queda vacío.');

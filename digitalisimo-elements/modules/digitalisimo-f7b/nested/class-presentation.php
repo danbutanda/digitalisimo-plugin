@@ -12,13 +12,16 @@ defined( 'ABSPATH' ) || exit;
  *   propia detrás de la primera de estilo del widget: `section_tabs_style` («Pestañas»,
  *   `elementor/modules/nested-tabs/widgets/nested-tabs.php:448`) y su equivalente del acordeón,
  *   `section_accordion_style` («Acordeón», `elementor/modules/nested-accordion/widgets/nested-accordion.php:399`).
- *   Valores: «Ninguna» (vacío, el valor que el control tiene sin `default`), `pills`, `underline`, `boxed`, `minimal`;
- *   un `none` guardado por otra vía equivale a «Ninguna» (`classes_dictionary`).
+ *   Valores: «Ninguno» (vacío, el valor que el control tiene sin `default`), `pills`, `underline`, `boxed`, `minimal`;
+ *   un `none` guardado por otra vía equivale a «Ninguno» (`classes_dictionary`).
  * - **Clase** `digi-nested-<estilo>` en el envoltorio del widget con `prefix_class`: el núcleo la pinta desde los
  *   ajustes del propio elemento (`elementor/includes/base/element-base.php:806-824`, también desde la caché de
  *   elementos) y el editor la cambia en vivo (`render_type` `ui`). Sin estilo elegido no sale ninguna clase.
  * - **Hoja** `assets/css/nested-presentation.css` (≤ 4 KB, objetivo 2,5 KB), declarada en `assets` del control con
  *   su condición: sólo llega a las páginas que eligen un estilo. En la vista previa del editor se encola siempre.
+ *   Los controles de Estilo del usuario ganan siempre: las variables del núcleo se fijan en el envoltorio con
+ *   especificidad 0,2,0 (más que sus valores por defecto, `.elementor-widget-n-tabs` 0,1,0, y menos que `{{WRAPPER}}`,
+ *   0,3,0) y todo lo demás va dentro de `:where()`; indicadores con `currentColor`, sin paleta propia.
  * - Sin `selectors` ni `default`: un widget existente genera el mismo HTML y el mismo CSS que en 4.3.0.168. Es un control
  *   de estilo (`style_transfer` verdadero): «Pegar estilo» y «Aplicar a todos» lo copian.
  */
