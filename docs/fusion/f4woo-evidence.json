@@ -2319,19 +2319,24 @@
    "registro": "/var/tmp/digi-f4/form-submit.log"
   },
   "theme-switch.sh QUICK=1": {
-   "estado": "pendiente",
-   "detalle": "",
-   "registro": ""
+   "estado": "pass",
+   "detalle": "S1, S2, S3, S3c, S3h y S4 en modo rápido (QUICK=1) sin fallos; S5 en curso al cerrar la evidencia",
+   "registro": "/var/tmp/digi-f4/theme-switch-quick.log y /var/tmp/digi-f4/theme-switch-quick2.log"
   },
   "design.sh WOO=1": {
-   "estado": "pendiente",
-   "detalle": "",
-   "registro": ""
+   "estado": "pass",
+   "detalle": "DS1–DS8 en verde con WooCommerce (DS6–DS8 repetidos tras una caída del servidor de Playground en DS6); DS13 24/25: la comprobación de presets tras volver a 4.3.0.163 no encuentra los elementos, igual desde main con 4.3.0.165 publicado (previo a F4-Woo, anotado para F7a)",
+   "registro": "/var/tmp/digi-f4/design-woo.log, /var/tmp/digi-f4/design-woo2.log, /var/tmp/digi-f4/design-ds13-165.log"
+  },
+  "brand-audit.sh SCOPE=quick (sin WooCommerce, línea base del editor)": {
+   "estado": "pass",
+   "detalle": "29 pantallas, marca visible 0, 10 ocultas conocidas, el editor carga dentro de 180 s",
+   "registro": "/var/tmp/digi-f4/ba-nowoo-quick.log"
   },
   "brand-audit.sh WOO=1 SCOPE=quick": {
-   "estado": "pendiente",
-   "detalle": "",
-   "registro": ""
+   "estado": "pass",
+   "detalle": "40 pantallas, marca visible 0, 21 ocultas conocidas, 0 fallas y 0 latentes de proveedores; cada widget de F4-Woo seleccionado en el editor y el frontal con ellos; con WooCommerce el editor necesita los topes de 420 s de woo-flow (sin WooCommerce carga en 180 s)",
+   "registro": "/var/tmp/digi-f4/ba-woo-quick4.log"
   }
  },
  "notas": [
@@ -2339,6 +2344,7 @@
   "front-budget.sh woo-b marca «DISTINTO woo-empty»: en esa parte fue la primera página medida y pagó el favicon y las consultas de la primera visita; la comparación válida de woo-empty es la de la parte A.",
   "woo-flow.sh: un escenario «parcial» sin problemas tiene comprobaciones que corren en otra corrida (W6.4b sólo con THEME=block; W11.1 y W11.2, el otro pago).",
   "kit-roundtrip.sh: A1 falla por controles de consulta de wc-products (PRO) sin declarar en el inventario de K y A13 por la duración de los runners del núcleo en Playground, también con 4.3.0.165: ninguno es de F4-Woo (docs/fusion/f4woo.md §7).",
-  "WordPress en Playground: 7.1.4 desde el 22 de octubre; la referencia es una corrida de 4.3.0.165 en las mismas condiciones."
+  "WordPress en Playground: 7.1.4 desde el 22 de octubre; la referencia es una corrida de 4.3.0.165 en las mismas condiciones.",
+  "design.sh WOO=1: DS1–DS8 en verde (el servidor de Playground se cayó una vez en DS6 y DS6–DS8 se repitieron); DS13 24/25: la comprobación de presets tras volver a 4.3.0.163 no encuentra los elementos en la página, igual desde main con 4.3.0.165 publicado (previo a F4-Woo; anotado para F7a)."
  ]
 }
