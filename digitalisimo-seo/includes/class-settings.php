@@ -67,6 +67,10 @@ class Digitalisimo_Integrations_Settings {
 			'seo_description_page'   => '%excerpt%',
 			'seo_title_archive'      => '%title%',
 			'seo_description_archive'=> '%excerpt%',
+			'seo_title_home'         => '',
+			'seo_description_home'   => '',
+			'seo_title_author'       => '',
+			'seo_description_author' => '',
 			'seo_title_taxonomy'     => '%term% %sep% %sitename%',
 			'seo_description_taxonomy'=> '%description%',
 			'seo_schema_enabled'     => 1,
@@ -214,7 +218,7 @@ class Digitalisimo_Integrations_Settings {
 	}
 	/** Plantillas donde un valor vacío significa restaurar el comportamiento inicial. */
 	/** Plantillas de título y descripción globales (RM10). */
-	public static function template_keys() { return array( 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy' ); }
+	public static function template_keys() { return array( 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_title_home', 'seo_description_home', 'seo_title_author', 'seo_description_author' ); }
 
 	/**
 	 * Sanea una plantilla sin romper sus variables: sanitize_text_field() quita los «%xx» hexadecimales

@@ -220,7 +220,7 @@ class Digitalisimo_Integrations_RankMath_Import {
 		foreach ( array( 'knowledgegraph_name' => 'seo_organization_name', 'knowledgegraph_logo' => 'seo_logo', 'url' => 'seo_organization_url', 'email' => 'seo_organization_email', 'open_graph_image' => 'seo_default_image' ) as $from => $to ) if ( ! empty( $t[ $from ] ) ) $want[ $to ] = (string) $t[ $from ];
 		if ( in_array( $t['twitter_card_type'] ?? '', array( 'summary', 'summary_large_image' ), true ) ) $want['seo_twitter_card'] = $t['twitter_card_type'];
 		if ( ! empty( $t['twitter_author_names'] ) ) $want['seo_twitter_user'] = '@' . ltrim( (string) $t['twitter_author_names'], '@' );
-		foreach ( array( 'pt_post_title' => 'seo_title_post', 'pt_post_description' => 'seo_description_post', 'pt_page_title' => 'seo_title_page', 'pt_page_description' => 'seo_description_page', 'tax_category_title' => 'seo_title_taxonomy', 'tax_category_description' => 'seo_description_taxonomy' ) as $from => $to ) {
+		foreach ( array( 'pt_post_title' => 'seo_title_post', 'pt_post_description' => 'seo_description_post', 'pt_page_title' => 'seo_title_page', 'pt_page_description' => 'seo_description_page', 'tax_category_title' => 'seo_title_taxonomy', 'tax_category_description' => 'seo_description_taxonomy', 'homepage_title' => 'seo_title_home', 'homepage_description' => 'seo_description_home', 'author_archive_title' => 'seo_title_author', 'author_archive_description' => 'seo_description_author' ) as $from => $to ) {
 			if ( empty( $t[ $from ] ) ) continue;
 			list( $text, $unknown ) = self::translate_template( $t[ $from ], $ctx );
 			if ( $unknown ) $notes[] = 'title_vars';

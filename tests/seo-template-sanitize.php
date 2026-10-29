@@ -19,5 +19,5 @@ check( '%description% %sep% %date(Y)% · %category%' === $s::sanitize_template( 
 check( "%term%\n%description%" === $s::sanitize_template( "%term%\n%description%", true ) && '%term% %description%' === $s::sanitize_template( "%term%\n%description%" ), 'Saltos de línea sólo en descripciones.' );
 check( false === strpos( $s::sanitize_template( '50 %de descuento %title%' ), '%de' ) && '%title%' === substr( $s::sanitize_template( '50 %de descuento %title%' ), -7 ), 'Un octeto suelto sigue quitándose.' );
 check( '' === $s::sanitize_template( array( 'x' ) ), 'Un valor que no es texto queda vacío.' );
-check( in_array( 'seo_description_taxonomy', $s::template_keys(), true ) && 8 === count( $s::template_keys() ), 'Las ocho plantillas globales.' );
+check( in_array( 'seo_description_author', $s::template_keys(), true ) && 12 === count( $s::template_keys() ), 'Las doce plantillas globales.' );
 echo "Plantillas: las variables sobreviven al saneado de WordPress.\n";

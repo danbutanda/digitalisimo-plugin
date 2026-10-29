@@ -29,6 +29,7 @@ class Digitalisimo_Integrations_SEO_Variables {
 			'pt_single'        => 'Nombre en singular del tipo de contenido.',
 			'pt_plural'        => 'Nombre en plural del tipo de contenido.',
 			'name'             => 'Nombre público del autor.',
+			'user_description' => 'Biografía del autor, en su archivo.',
 			'date'             => 'Fecha de publicación; admite formato: %date(Y)%.',
 			'modified'         => 'Fecha de la última modificación; admite formato: %modified(j F Y)%.',
 			'currentdate'      => 'Fecha de hoy; admite formato.',
@@ -75,6 +76,7 @@ class Digitalisimo_Integrations_SEO_Variables {
 			case 'term': return $context['term'] ?? '';
 			case 'excerpt': return $context['excerpt'] ?? '';
 			case 'description': return $context['description'] ?? '';
+			case 'user_description': return $context['user_description'] ?? '';
 			case 'sitename': return self::o( 'seo_site_name' ) ?: get_bloginfo( 'name' );
 			case 'sitedesc': return get_bloginfo( 'description' );
 			case 'sep': return self::o( 'seo_separator' ) ?: '|';
@@ -85,6 +87,7 @@ class Digitalisimo_Integrations_SEO_Variables {
 			case 'currentmonth': return wp_date( 'F' );
 			case 'currentdate': return wp_date( '' !== $arg ? $arg : get_option( 'date_format' ) );
 		}
+		if ( 'name' === $name && isset( $context['name'] ) ) return $context['name'];
 		$post = self::post( $context );
 		if ( ! $post ) return '';
 		switch ( $name ) {
