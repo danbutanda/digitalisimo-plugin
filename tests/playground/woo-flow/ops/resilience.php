@@ -185,7 +185,14 @@ return array(
 			// Playground con un solo worker: la petición «asíncrona» de Action Scheduler (en `shutdown` de cada petición de la
 			// administración con acciones pendientes, una vez por minuto) vuelve a este mismo servidor y la petición que la
 			// lanza no termina mientras espera turno. Sólo en este sitio y mientras corre el escenario.
-			file_put_contents( $file, "<?php\nadd_filter( 'action_scheduler_allow_async_request_runner', '__return_false' );\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+			$log = WP_CONTENT_DIR . '/probe/res-requests.log';
+			file_put_contents( // phpcs:ignore WordPress.WP.AlternativeFunctions
+				$file,
+				"<?php\nadd_filter( 'action_scheduler_allow_async_request_runner', '__return_false' );\n"
+				. "// Registro de peticiones PHP de la corrida (diagnóstico de los cortes del servidor).\n"
+				. '$GLOBALS[\'digi_res_t\'] = microtime( true ); @file_put_contents( ' . var_export( $log, true ) . ', sprintf( "%.3f > %s %s\\n", $GLOBALS[\'digi_res_t\'], $_SERVER[\'REQUEST_METHOD\'] ?? \'\', substr( (string) ( $_SERVER[\'REQUEST_URI\'] ?? \'\' ), 0, 160 ) ), FILE_APPEND );'
+				. "\nregister_shutdown_function( static function () { @file_put_contents( " . var_export( $log, true ) . ', sprintf( "%.3f < %d %dMB\\n", microtime( true ), http_response_code(), memory_get_peak_usage( true ) >> 20 ), FILE_APPEND ); } );' . "\n"
+			);
 		} else {
 			@unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 		}

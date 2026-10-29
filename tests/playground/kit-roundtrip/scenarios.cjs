@@ -771,7 +771,8 @@ async function clash(s, v4) {
   if (!pub.ok) s.problems.push(`«Publicar páginas y plantillas»: ${pub.message}`);
   // Lo condicionado por una condición de F7a que no se cumple para un visitante tampoco se ve aquí (A14).
   s.condiciones = await conditionsSeen('b', await signature('b', `${s.id}-publicado`));
-  const shown = Object.entries(s.condiciones).filter(([t, r]) => r.condicionado && !['Condición campo', 'Condición autor'].includes(t)).map(([t]) => t);
+  // «Condición existencias» (WOO=1) nombra la Camiseta del kit, que llega con existencias como en A: se cumple.
+  const shown = Object.entries(s.condiciones).filter(([t, r]) => r.condicionado && !['Condición campo', 'Condición autor', ...(WOO ? ['Condición existencias'] : [])].includes(t)).map(([t]) => t);
   verdict('A14', !shown.length, shown.map((t) => `${s.id}: un visitante ve «Condicionado: ${t}»`));
   networkCheck('b', s.id);
   // Con QUICK=1, kit-roundtrip.sh no prepara 4.3.0.163: el paso sólo corre si se pasa OLD_ELEMENTS.
@@ -934,8 +935,10 @@ async function wooClash(run, sigBefore, sigAfter, wooBefore) {
   // El «rojo» de B (otro nombre, otra meta color) no cambia.
   if (!compare.same(sigBefore.terms['pa_color:rojo'], sigAfter.terms['pa_color:rojo'])) problems.A7.push(`el término rojo de B cambió: ${JSON.stringify(sigBefore.terms['pa_color:rojo'])} → ${JSON.stringify(sigAfter.terms['pa_color:rojo'])}`);
   // SKU repetido: la variación entra sin SKU; el producto de B conserva el suyo.
-  const azul = b.variations['product_variation:camiseta-color-azul'];
-  const rojo = b.variations['product_variation:camiseta-color-rojo'];
+  // Por su atributo: el título de una variación lleva el nombre del término, y el «rojo» de B se llama «Rojo de B».
+  const byColor = (slug) => Object.values(b.variations).find((v) => v.parent === 'product:camiseta-color' && (v.attributes || {}).pa_color === slug);
+  const azul = byColor('azul');
+  const rojo = byColor('rojo');
   if (!azul || !rojo) problems.A7.push(`faltan las variaciones de Camiseta color (${JSON.stringify(Object.keys(b.variations))})`);
   if (azul && azul.sku !== '') problems.A7.push(`la variación azul tiene el SKU ${azul.sku}, que ya usa un producto de B`);
   if (rojo && rojo.sku !== 'DIGI-K-CC-ROJO') problems.A7.push(`la variación roja tiene el SKU ${JSON.stringify(rojo.sku)}`);

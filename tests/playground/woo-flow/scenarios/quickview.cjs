@@ -10,12 +10,17 @@
 //   `wc_variation_form`), B6 (precio, imagen, disponibilidad y compra habilitada) en los dos modos, galería funcional
 //   en la plantilla y la compra con redirección tras el POST (recargar no repite), con el Menú del carrito y el aviso
 //   en el carrito.
-// - W11 · compra en modo de prueba: vista rápida → mini carrito con barra → cupón → pago con «Contra reembolso» →
-//   pedido recibido, con el pago clásico (`[woocommerce_checkout]`) y con el de bloques que crea WooCommerce.
+// - W11 · compra en modo de prueba: vista rápida → mini carrito (sin destino, sin barra) → calculadora del carrito →
+//   mini carrito con barra → cupón → pago con «Contra reembolso» → pedido recibido, con el pago clásico
+//   (`[woocommerce_checkout]`) y con el de bloques que crea WooCommerce (QV_W11=clasico|bloques para correr una).
 'use strict';
 
 module.exports = (api) => {
-  const { SITES, WIDTHS, summary, sleep, log, probe, check, visitor, shot, settled } = api;
+  const { SITES, WIDTHS, summary, sleep, log, probe, check, pending, visitor, shot, settled } = api;
+  // W11 tiene dos compras completas (pago clásico y de bloques). Con Playground de un solo proceso y la máquina
+  // compartida, juntas pasan de los 10 minutos de una corrida: QV_W11=clasico o QV_W11=bloques corre sólo una (la
+  // otra queda «pendiente»). Por defecto, las dos.
+  const FLOWS = String(process.env.QV_W11 || 'clasico,bloques').split(',').map((x) => x.trim());
   const DLG = 'dialog.digi-qv';
   const OWN = 'digi-wf-qv';
   const TPL = 'digi-wf-qv-plantilla';
@@ -712,7 +717,8 @@ module.exports = (api) => {
       if (!qv) continue;
       const simple = qv.products.simple;
       // Clásico: Camiseta (60 €) → barra «Tienes envío gratis» → DIGI10 (54 €, sigue gratis) → «Envío gratuito».
-      {
+      if (!FLOWS.includes('clasico')) pending(s, `W11.1 ${site.path}`, 'compra con el pago clásico: en otra corrida (QV_W11=clasico)');
+      else {
         const { ctx, page, facts } = await guest();
         try {
           await page.setViewport({ width: WIDE, height: 900 });
@@ -732,7 +738,8 @@ module.exports = (api) => {
         }
       }
       // Bloques: Sudadera roja S (30 €) → barra con 20 € → DIGI10 (27 €, faltan 23 €) → tarifa plana (5 €): 32 €.
-      {
+      if (!FLOWS.includes('bloques')) pending(s, `W11.2 ${site.path}`, 'compra con el pago de bloques: en otra corrida (QV_W11=bloques)');
+      else {
         const variation = (qv.variations || []).find((v) => v.color === 'rojo' && v.talla === 's');
         const { ctx, page, facts } = await guest();
         try {

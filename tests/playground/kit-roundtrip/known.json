@@ -175,6 +175,10 @@
   {
    "nombre": "^digitalisimo_elements_kit_flash_",
    "motivo": "mensaje de un solo uso de la pantalla «Kits» (5 minutos)"
+  },
+  {
+   "nombre": "^woocommerce_checkout_(phone|company|address_2)_field$",
+   "motivo": "WooCommerce (WOO=1) las crea la primera vez que lee la visibilidad de los campos del pago, a partir del bloque de pago de la página de pago del propio sitio (CartCheckoutUtils::migrate_checkout_block_field_visibility_attributes(), W:src/Blocks/Utils/CartCheckoutUtils.php:184-230); sin WooCommerce no existen"
   }
  ],
  "_comentario_capturas": "«capturas»: zonas que la comparación de píxeles de R1 oculta (display: none en A y en B, porque su alto también depende de ese dato) en las páginas cuya clave casa con «pagina». Sólo lo que depende del host o de algo que nunca viaja y que la firma compara por dato; una entrada cuya página no se compara hace fallar la corrida.",

@@ -135,7 +135,12 @@ module.exports = (api) => {
   const watchRefresh = (page) => {
     const log = { requests: [], responses: [], failed: [] };
     page.on('request', (r) => { if (r.url().includes('refresh-loop')) log.requests.push({ url: r.url(), method: r.method(), headers: r.headers(), body: r.postData() || '' }); });
-    page.on('response', (r) => { if (r.url().includes('refresh-loop')) log.responses.push({ status: r.status() }); });
+    page.on('response', (r) => {
+      if (!r.url().includes('refresh-loop')) return;
+      const entry = { status: r.status(), ids: null };
+      log.responses.push(entry);
+      r.json().then((j) => { entry.ids = j && typeof j.data === 'string' ? loopIdsIn(j.data) : null; }).catch(() => {});
+    });
     page.on('requestfailed', (r) => { if (r.url().includes('refresh-loop')) log.failed.push(r.failure() ? r.failure().errorText : 'falló'); });
     return log;
   };
@@ -398,12 +403,16 @@ module.exports = (api) => {
         // W9.8c · en la misma página, un bucle sin filtros F4-Woo (`wfloop4`) sigue el camino de PRO.
         const before4 = net.requests.length;
         n0 = net.responses.length;
+        const all4 = await domIds(page, 'wfloop4');
         await page.click('.elementor-element-wftax04 .e-filter-item[data-filter="digi-wf-sandalias"]');
         await settleLoop(page, net, 'wfloop4', n0);
+        // El camino de PRO inserta la respuesta tras leerla, sin `aria-busy`: se espera a que cambien las fichas.
+        await page.waitForFunction((id, n) => document.querySelectorAll('.elementor-element-' + id + ' .e-loop-item').length !== n, { timeout: 30000 }, 'wfloop4', all4.length).catch(() => {});
         const ids4 = await domIds(page, 'wfloop4');
+        const resp4 = net.responses.slice(n0).map((r) => names(catalog, r.ids || []).join(', '));
         const req4 = net.requests.slice(before4).map((r) => { try { return JSON.parse(r.body || '{}'); } catch (e) { return {}; } });
         const path4 = await page.evaluate(() => ({ digi: !!document.querySelector('.elementor-element-wfloop4').__digi }));
-        check(s, `W9.8c ${tag}`, 'B5 · en la misma página, un bucle sin filtros F4-Woo pasa por el camino de PRO (sin estado del coordinador) y se filtra', JSON.stringify(names(catalog, ids4).sort()) === JSON.stringify(['digi-wf-sandalia', 'digi-wf-sandalia-dos']) && req4.length >= 1 && req4.every((b) => b.widget_id === 'wfloop4' && b.widget_filters && !b.widget_filters.digitalisimo_price && !b.widget_filters.digitalisimo_attribute) && !path4.digi, JSON.stringify({ ids: nameList(catalog, ids4), requests: req4, path4 }));
+        check(s, `W9.8c ${tag}`, 'B5 · en la misma página, un bucle sin filtros F4-Woo pasa por el camino de PRO (sin estado del coordinador) y se filtra', JSON.stringify(names(catalog, ids4).sort()) === JSON.stringify(['digi-wf-sandalia', 'digi-wf-sandalia-dos']) && req4.length >= 1 && req4.every((b) => b.widget_id === 'wfloop4' && b.widget_filters && !b.widget_filters.digitalisimo_price && !b.widget_filters.digitalisimo_attribute) && !path4.digi, JSON.stringify({ ids: nameList(catalog, ids4), responses: resp4, requests: req4, path4 }));
         const quiet = clean(facts);
         check(s, `W9.6b ${tag}`, 'sin errores de JavaScript ni respuestas de error del sitio; nada sale del sitio (salvo las fuentes de Google del kit, anotadas)', quiet.ok, JSON.stringify(quiet.detail));
       } catch (e) {
@@ -446,8 +455,10 @@ module.exports = (api) => {
         await sleep(800);
         const loaded = await page.evaluate(() => ({ coordinator: !!window.digitalisimoWooFilters, scripts: [...document.scripts].map((x) => x.src).filter((src) => /filters(-form)?\.js/.test(src)) }));
         const n0 = net.responses.length;
+        const all3 = await domIds(page, 'wfloop3');
         await page.click('.elementor-element-wftax03 .e-filter-item[data-filter="digi-wf-botas"]');
         await settleLoop(page, net, 'wfloop3', n0);
+        await page.waitForFunction((id, n) => document.querySelectorAll('.elementor-element-' + id + ' .e-loop-item').length !== n, { timeout: 30000 }, 'wfloop3', all3.length).catch(() => {});
         const got = await domIds(page, 'wfloop3');
         const value = await param(page, 'e-filter-wfloop3-product_cat');
         const digi = await page.evaluate(() => !!document.querySelector('.elementor-element-wfloop3').__digi);

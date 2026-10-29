@@ -749,11 +749,10 @@ module.exports = (api) => {
       await page.click('.elementor-menu-cart__main .digi-coupon__input');
       await page.keyboard.type('DIGI10');
       await page.click('.elementor-menu-cart__main .digi-coupon__apply');
-      const failed = await page.waitForFunction(() => /Recarga la página/.test((document.querySelector('.elementor-menu-cart__main .digi-coupon__status') || {}).textContent || ''), { timeout: 60000 }).then(() => status(page)).catch(() => status(page));
+      const failed = await page.waitForFunction(() => /Recarga la página/.test((document.querySelector('.elementor-menu-cart__main .digi-coupon__status') || {}).textContent || ''), { timeout: 150000 }).then(() => status(page)).catch(() => status(page));
       await sleep(2500);
       apply = ajaxPosts(posts, mark, 'apply_coupon');
       check(s, 'W8.3b', 'si el nonce nuevo también falla: dos `apply_coupon` en total (un solo reintento) y «No se pudo aplicar el cupón. Recarga la página.» en la región', apply.length === 2 && /No se pudo aplicar el cupón\. Recarga la página/.test(failed), json({ apply: apply.length, failed }));
-      await op(site, 'swatchescart_set', { case: '' });
 
       // Cupones apagados: sin formulario. En una pestaña nueva: la de antes conserva la copia de fragmentos de
       // WooCommerce (sessionStorage) hasta que cambie el carrito, como el propio mini carrito.

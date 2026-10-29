@@ -67,6 +67,7 @@ module.exports = (api) => {
   /** Peticiones que el servidor cortó sin respuesta y se repitieron (un worker de php-wasm que se reinicia). */
   const hiccups = [];
   summary.resilience = { hiccups }; // summary.json las lleva (se escribe tras cada escenario).
+  fs.rmSync(path.join(OUT, 'res-requests.log'), { force: true });
   function httpTo(port, host) {
     const once = (method, url, { headers = {}, body = null, jar = null } = {}) => {
       const u = new URL(url, `http://${host}/`);
