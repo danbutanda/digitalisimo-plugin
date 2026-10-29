@@ -151,8 +151,15 @@ final class Controls {
 		);
 		$element->end_injection();
 
-		foreach ( self::GROUP_FIELDS as $field ) {
-			$id      = $prefix . $field;
+		$ids = array_map(
+			static function ( $field ) use ( $prefix ) {
+				return $prefix . $field;
+			},
+			self::GROUP_FIELDS
+		);
+		// La nota de PRO sobre «Consulta actual» en plantillas de archivo (`Query_Note_Trait`) tampoco aplica.
+		$ids[] = 'archive_query_note';
+		foreach ( $ids as $id ) {
 			$control = $element->get_controls( $id );
 			if ( ! is_array( $control ) ) {
 				continue;
@@ -200,6 +207,7 @@ final class Controls {
 		self::authorize( $data );
 		$manage  = Store::can_manage();
 		$queries = array();
+		Store::prime_uses( array_keys( Store::all() ) );
 		foreach ( Store::all() as $id => $row ) {
 			$query = Store::get( (int) $id );
 			if ( null === $query ) {

@@ -3,7 +3,9 @@
      `elementor/nested-element-type-loaded`, o al momento si el núcleo ya lo definió).
    - Su vista etiqueta cada contenedor hijo como diapositiva («N de M»), lo mismo que el servidor.
    - Al elegir una diapositiva en el panel o en el navegador (`activeItemIndex`), la muestra en el lienzo con el evento
-     `digi-nslider-go` que escucha `nested-slider.js`. */
+     `digi-nslider-go` que escucha `nested-slider.js`.
+   - Tras cada cambio del repetidor (`elementor/nested-container/atomic-repeater` en la vista previa), el slider repinta
+     su estado y renumera los puntos con `root.digiNslider.paint()`. */
 (() => {
 const W = window, TYPE = 'digitalisimo-nested-slider', T = W.digitalisimoNestedSlider || {};
 let done = false;
@@ -42,14 +44,30 @@ const register = () => {
 		}
 	}
 	elementor.elementsManager.registerElementType(new NestedSlider());
-	if (elementor.channels && elementor.channels.editor) {
-		elementor.channels.editor.on('change:editSettings', (model, view) => {
-			const index = model && model.changed && model.changed.activeItemIndex;
-			if (!index || !view || !view.model || TYPE !== view.model.get('widgetType') || !view.el) return;
-			const root = view.el.querySelector('.digi-nslider');
-			if (root) root.dispatchEvent(new root.ownerDocument.defaultView.CustomEvent('digi-nslider-go', { detail: index - 1 }));
+	let bridged = false;
+	const preview = () => {
+		// Panel o navegador → lienzo: la diapositiva que se edita (`activeItemIndex`, desde 1) se muestra en la vista previa.
+		if (!bridged && elementor.channels && elementor.channels.editor) {
+			bridged = true;
+			elementor.channels.editor.on('change:editSettings', (model, view) => {
+				const index = model && model.changed && model.changed.activeItemIndex;
+				if (!index || !view || !view.model || TYPE !== view.model.get('widgetType') || !view.el) return;
+				const root = view.el.querySelector('.digi-nslider');
+				if (root) root.dispatchEvent(new root.ownerDocument.defaultView.CustomEvent('digi-nslider-go', { detail: index - 1 }));
+			});
+		}
+		// Repetidor: al añadir, quitar, mover o duplicar diapositivas, el slider renumera sus puntos y repinta.
+		const win = elementor.$preview && elementor.$preview[0] && elementor.$preview[0].contentWindow;
+		if (!win || win.digitalisimoNestedSliderRepeater) return;
+		win.digitalisimoNestedSliderRepeater = true;
+		win.addEventListener('elementor/nested-container/atomic-repeater', e => {
+			const container = e.detail && e.detail.container, el = container && container.view && container.view.el;
+			const root = el && el.querySelector('.digi-nslider');
+			if (root && root.digiNslider) root.digiNslider.paint();
 		});
-	}
+	};
+	if (elementor.on) elementor.on('preview:loaded', preview);
+	preview();
 };
 const types = W.elementor && elementor.modules && elementor.modules.elements && elementor.modules.elements.types;
 if (types && 'function' === typeof types.NestedElementBase) register();

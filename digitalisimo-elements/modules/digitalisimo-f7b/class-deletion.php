@@ -196,7 +196,8 @@ final class Deletion {
 		}
 		foreach ( self::AJAX_ACTIONS as $name ) {
 			$original = self::original( $ajax, $name );
-			if ( ! is_callable( $original ) ) {
+			// Si el gancho corre dos veces, la registrada ya es la propia: nunca se delega en sí misma.
+			if ( ! is_callable( $original ) || ( is_array( $original ) && isset( $original[0] ) && is_string( $original[0] ) && __CLASS__ === ltrim( $original[0], '\\' ) ) ) {
 				continue;
 			}
 			self::$originals[ $name ] = $original;

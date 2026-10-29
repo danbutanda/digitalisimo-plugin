@@ -55,7 +55,7 @@
     { "rule": ["f", "less", "10"], "value": "abc", "expect": false },
     { "rule": ["f", "less", "1,5"], "value": "1.25", "expect": true },
     { "rule": ["f", "greater", "diez"], "value": "20", "expect": false },
-    { "rule": ["f", "greater", "1.000"], "value": "2", "expect": false },
+    { "rule": ["f", "greater", "1.000"], "value": "2", "expect": true },
     { "rule": ["f", "less", "0"], "value": " -1 ", "expect": true },
     { "rule": ["f", "greater", "5"], "value": ["3", "7"], "expect": true },
     { "rule": ["f", "less", "5"], "value": ["7", "9"], "expect": false },

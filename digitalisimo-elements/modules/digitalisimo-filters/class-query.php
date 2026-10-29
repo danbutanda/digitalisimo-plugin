@@ -86,8 +86,8 @@ class Query {
 		'DATE'    => 'DATE',
 	);
 
-	/** Lista negra de V.8 (fragmentos de una clave separados por `_` o `-`); se amplía con `digitalisimo_elements_inline_tags_denied`. */
-	const DENIED = array( 'pass', 'password', 'pwd', 'token', 'secret', 'key', 'hash', 'salt', 'nonce', 'email', 'mail', 'phone', 'tel', 'address', 'dni', 'rfc', 'curp', 'ssn', 'iban', 'card', 'name', 'apellido', 'nombre' );
+	/** Lista negra de V.8 (fragmentos de una clave separados por `_` o `-`), fuente única también de `F7b\Inline_Tags\Engine`; se amplía con `digitalisimo_elements_inline_tags_denied`. */
+	const DENIED = array( 'pass', 'password', 'pwd', 'token', 'secret', 'key', 'hash', 'salt', 'nonce', 'email', 'mail', 'phone', 'tel', 'address', 'dni', 'rfc', 'curp', 'ssn', 'iban', 'card', 'name', 'apellido', 'nombre', 'telefono', 'celular', 'movil', 'correo', 'contrasena', 'clave', 'direccion', 'domicilio', 'tarjeta', 'nss' );
 
 	/** Variable de consulta del orden por precio. */
 	const ORDER_PRICE_VAR = 'digitalisimo_order_price';

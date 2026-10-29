@@ -21,15 +21,19 @@ defined( 'ABSPATH' ) || exit;
 final class Module {
 	const FLAG = 'overrides';
 
-	const SYMBOLS = array( 'Elementor\\Plugin', 'Elementor\\Controls_Manager', 'Elementor\\Widget_Base' );
+	/**
+	 * Guardas en `plugins_loaded`: sólo clases que se pueden cargar ya. `Widget_Base`, `Repeater` y el Plantilla
+	 * heredan de clases que el núcleo declara en `init` (ver `F7b\Module::requires()`): se comprueban donde se usan.
+	 */
+	const SYMBOLS = array( 'Elementor\\Plugin', 'Elementor\\Controls_Manager' );
 
 	const HANDLE  = 'digitalisimo-f7b-overrides-editor';
 	const SCRIPT  = 'assets/js/overrides-editor.js';
 	const OBJECT  = 'digitalisimoOverrides';
 	const DOC_KEY = 'digitalisimoOverrides';
 
-	const F7B   = '\\Digitalisimo\\Elements\\F7b\\Module';
-	const FLAGS = '\\Digitalisimo\\Elements\\F7b\\Flags';
+	const F7B   = 'Digitalisimo\\Elements\\F7b\\Module';
+	const FLAGS = 'Digitalisimo\\Elements\\F7b\\Flags';
 
 	/** @var bool */
 	private static $initialized = false;

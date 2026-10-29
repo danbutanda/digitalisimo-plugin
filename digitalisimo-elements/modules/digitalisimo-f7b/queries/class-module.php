@@ -35,7 +35,8 @@ final class Module {
 			__NAMESPACE__ . '\Runtime',
 			__NAMESPACE__ . '\Controls',
 			__NAMESPACE__ . '\Screen',
-			'add_action',
+			'add_action()',
+			'register_post_type()',
 		);
 		if ( ! F7b::requires( $symbols, 'queries' ) ) {
 			return;

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>F7b · acciones con destino</title>
+<!-- Marcado del núcleo 4.3.5 (contenedor flex, contenedor grid, sección con columnas y widgets) tal como lo deja
+     Actions\Render::process(); la hoja del núcleo sin cambios y, en el CSS del documento, las variables que el núcleo
+     escribe para cada contenedor y la regla [hidden] de F7b\Hidden_Rule. Lo usa tests/elements-f7b-actions-chrome.mjs. -->
+<link rel="stylesheet" href="../../digitalisimo-elements/elementor/assets/css/frontend.min.css">
+<style id="post-css">
+.elementor-10 .elementor-element.elementor-element-a1b2c3d{--display:flex;--flex-direction:row;--padding-top:10px;--padding-bottom:10px}
+.elementor-10 .elementor-element.elementor-element-f1e2d3c{--display:flex;--flex-direction:column;--gap:8px}
+.elementor-10 .elementor-element.elementor-element-g2g2g2g{--display:grid;--e-con-grid-template-columns:repeat(2,1fr);--e-con-grid-template-rows:repeat(1,1fr)}
+.elementor-10 .elementor-element.elementor-element-x9x9x9x{--display:flex;--flex-direction:column}
+.elementor-10 .elementor-element.elementor-element-z5z5z5z{--display:flex;--flex-direction:column;--margin-top:1600px}
+</style>
+<style id="hidden-rule">:is(.elementor-element,.elementor-column)[hidden]{display:none!important}</style>
+<style>
+body{margin:0;font:16px/1.4 sans-serif}
+.revelado{outline:3px solid currentColor}
+</style>
+<script>
+// Doble mínimo del núcleo del front: `urlActions` con el mismo formato de hash que el núcleo, y `hooks` que llegan con
+// `elementor/frontend/init` (después de actions.js, que es `defer`), como en una página real.
+window.F7B = { actions: [], ready: [] };
+window.elementorFrontend = {
+	isEditMode: function () { return false; },
+	utils: { urlActions: {
+		createActionHash: function (action, settings) { return encodeURIComponent('#elementor-action:action=' + action + '&settings=' + btoa(JSON.stringify(settings))); },
+		runAction: function (url) {
+			url = decodeURIComponent(decodeURI(url));
+			window.F7B.actions.push({ action: url.match(/action=(.+?)&/)[1], settings: JSON.parse(atob(url.match(/settings=(.+)/)[1])) });
+		}
+	} }
+};
+document.addEventListener('DOMContentLoaded', function () {
+	window.elementorFrontend.hooks = { addAction: function (name, fn) { window.F7B.ready.push([name, fn]); } };
+	window.dispatchEvent(new CustomEvent('elementor/frontend/init'));
+});
+</script>
+<script src="../../digitalisimo-elements/modules/digitalisimo-f7b/assets/js/actions.js" defer></script>
+</head>
+<body>
+<div data-elementor-type="wp-page" data-elementor-id="10" class="elementor elementor-10">
+
+	<!-- 1. Contenedor flex sin descendientes interactivos: el servidor lo convirtió en botón. Muestra u oculta un contenedor flex. -->
+	<div class="elementor-element elementor-element-a1b2c3d e-flex e-con-boxed e-con e-parent" data-id="a1b2c3d" data-element_type="container" data-settings="{&quot;content_width&quot;:&quot;boxed&quot;}" role="button" tabindex="0" data-digi-actions="[{&quot;t&quot;:&quot;click&quot;,&quot;a&quot;:&quot;toggle&quot;,&quot;g&quot;:&quot;f1e2d3c&quot;}]">
+		<div class="e-con-inner">
+			<div class="elementor-element elementor-element-h1h1h1h elementor-widget elementor-widget-heading" data-id="h1h1h1h" data-element_type="widget" data-widget_type="heading.default">
+				<h2 class="elementor-heading-title elementor-size-default">Abrir panel</h2>
+			</div>
+		</div>
+	</div>
+	<div class="elementor-element elementor-element-f1e2d3c e-flex e-con-boxed e-con e-parent" data-id="f1e2d3c" data-element_type="container" data-settings="{&quot;content_width&quot;:&quot;boxed&quot;}" hidden>
+		<div class="e-con-inner">
+			<div class="elementor-element elementor-element-t1t1t1t elementor-widget elementor-widget-text-editor" data-id="t1t1t1t" data-element_type="widget" data-widget_type="text-editor.default">
+				<p>Contenido del panel.</p>
+			</div>
+			<div class="elementor-element elementor-element-c1c1c1c elementor-widget elementor-widget-button" data-id="c1c1c1c" data-element_type="widget" data-widget_type="button.default" data-digi-actions="[{&quot;t&quot;:&quot;click&quot;,&quot;a&quot;:&quot;hide&quot;,&quot;g&quot;:&quot;f1e2d3c&quot;}]">
+				<div class="elementor-button-wrapper">
+					<a class="elementor-button elementor-button-link elementor-size-sm" href="#" id="cerrar"><span class="elementor-button-content-wrapper"><span class="elementor-button-text">Cerrar panel</span></span></a>
+				</div>
+			</div>
+		</div>
+	<noscript><style>.elementor-element.elementor-element-f1e2d3c[hidden]{display:var(--display)!important}</style></noscript></div>
+
+	<!-- 2. Botón sin enlace: el «a» recibió tabindex. Muestra un contenedor grid. -->
+	<div class="elementor-element elementor-element-b2b2b2b elementor-widget elementor-widget-button" data-id="b2b2b2b" data-element_type="widget" data-widget_type="button.default" data-digi-actions="[{&quot;t&quot;:&quot;click&quot;,&quot;a&quot;:&quot;show&quot;,&quot;g&quot;:&quot;g2g2g2g&quot;,&quot;m&quot;:&quot;fadeIn&quot;}]">
+		<div class="elementor-button-wrapper">
+			<a tabindex="0" class="elementor-button elementor-size-sm" role="button" id="ver-rejilla"><span class="elementor-button-content-wrapper"><span class="elementor-button-text">Ver la rejilla</span></span></a>
+		</div>
+	</div>
+	<div class="elementor-element elementor-element-g2g2g2g e-grid e-con-full e-con e-parent" data-id="g2g2g2g" data-element_type="container" hidden>
+		<div class="elementor-element elementor-element-g1g1g1g elementor-widget elementor-widget-text-editor" data-id="g1g1g1g" data-element_type="widget" data-widget_type="text-editor.default"><p>Celda 1</p></div>
+		<div class="elementor-element elementor-element-g3g3g3g elementor-widget elementor-widget-text-editor" data-id="g3g3g3g" data-element_type="widget" data-widget_type="text-editor.default"><p>Celda 2</p></div>
+	<noscript><style>.elementor-element.elementor-element-g2g2g2g[hidden]{display:var(--display)!important}</style></noscript></div>
+
+	<!-- 3. Sección con dos columnas: el encabezado con enlace "#" de la primera muestra la segunda. -->
+	<section class="elementor-section elementor-top-section elementor-element elementor-element-s3s3s3s elementor-section-boxed elementor-section-height-default elementor-section-height-default" data-id="s3s3s3s" data-element_type="section">
+		<div class="elementor-container elementor-column-gap-default">
+			<div class="elementor-column elementor-col-50 elementor-top-column elementor-element elementor-element-k3k3k3k" data-id="k3k3k3k" data-element_type="column">
+				<div class="elementor-widget-wrap elementor-element-populated">
+					<div class="elementor-element elementor-element-q3q3q3q elementor-widget elementor-widget-heading" data-id="q3q3q3q" data-element_type="widget" data-widget_type="heading.default" data-digi-actions="[{&quot;t&quot;:&quot;click&quot;,&quot;a&quot;:&quot;show&quot;,&quot;g&quot;:&quot;m3m3m3m&quot;}]">
+						<h2 class="elementor-heading-title elementor-size-default"><a href="#" id="ver-columna">Ver la columna</a></h2>
+					</div>
+				</div>
+			</div>
+			<div class="elementor-column elementor-col-50 elementor-top-column elementor-element elementor-element-m3m3m3m" data-id="m3m3m3m" data-element_type="column" hidden>
+				<div class="elementor-widget-wrap elementor-element-populated">
+					<div class="elementor-element elementor-element-p3p3p3p elementor-widget elementor-widget-text-editor" data-id="p3p3p3p" data-element_type="widget" data-widget_type="text-editor.default"><p>Columna oculta.</p></div>
+				</div>
+			<noscript><style>.elementor-element.elementor-element-m3m3m3m[hidden]{display:flex!important}</style></noscript></div>
+		</div>
+	</section>
+
+	<!-- 4. Encabezado con un enlace: al pasar el puntero o enfocarlo muestra un widget, que se puede recorrer. -->
+	<div class="elementor-element elementor-element-x9x9x9x e-flex e-con-full e-con e-parent" data-id="x9x9x9x" data-element_type="container">
+		<div class="elementor-element elementor-element-n4n4n4n elementor-widget elementor-widget-heading" data-id="n4n4n4n" data-element_type="widget" data-widget_type="heading.default" data-digi-actions="[{&quot;t&quot;:&quot;hover&quot;,&quot;a&quot;:&quot;show&quot;,&quot;g&quot;:&quot;w4w4w4w&quot;},{&quot;t&quot;:&quot;hover&quot;,&quot;a&quot;:&quot;toggle_class&quot;,&quot;g&quot;:&quot;n4n4n4n&quot;,&quot;c&quot;:&quot;revelado&quot;}]">
+			<h2 class="elementor-heading-title elementor-size-default"><a href="/servicios" id="servicios">Servicios</a></h2>
+		</div>
+		<div class="elementor-element elementor-element-w4w4w4w elementor-widget elementor-widget-text-editor" data-id="w4w4w4w" data-element_type="widget" data-widget_type="text-editor.default" hidden>
+			<p>Submenú: <a href="/web" id="sub-web">Web</a> · <a href="/tiendas" id="sub-tiendas">Tiendas</a></p>
+		<noscript><style>.elementor-element.elementor-element-w4w4w4w[hidden]{display:block!important}</style></noscript></div>
+		<div class="elementor-element elementor-element-o5o5o5o elementor-widget elementor-widget-button" data-id="o5o5o5o" data-element_type="widget" data-widget_type="button.default" data-digi-actions="[{&quot;t&quot;:&quot;click&quot;,&quot;a&quot;:&quot;popup_open&quot;,&quot;p&quot;:77},{&quot;t&quot;:&quot;click&quot;,&quot;a&quot;:&quot;set_attribute&quot;,&quot;g&quot;:&quot;o5o5o5o&quot;,&quot;n&quot;:&quot;aria-hidden&quot;,&quot;v&quot;:&quot;true&quot;}]">
+			<div class="elementor-button-wrapper"><a class="elementor-button elementor-button-link elementor-size-sm" href="#" id="popup"><span class="elementor-button-content-wrapper"><span class="elementor-button-text">Abrir el popup</span></span></a></div>
+		</div>
+	</div>
+
+	<!-- 5. Al aparecer en pantalla (una vez), más abajo. -->
+	<div class="elementor-element elementor-element-z5z5z5z e-flex e-con-full e-con e-parent" data-id="z5z5z5z" data-element_type="container" data-digi-actions="[{&quot;t&quot;:&quot;scroll_in&quot;,&quot;a&quot;:&quot;toggle_class&quot;,&quot;g&quot;:&quot;z5z5z5z&quot;,&quot;c&quot;:&quot;visto&quot;}]">
+		<div class="elementor-element elementor-element-y5y5y5y elementor-widget elementor-widget-text-editor" data-id="y5y5y5y" data-element_type="widget" data-widget_type="text-editor.default"><p>Al final.</p></div>
+	</div>
+</div>
+</body>
+</html>

@@ -101,7 +101,7 @@ final class Controls {
 	 * @param mixed $args    Argumentos de la sección.
 	 */
 	public static function overrides( $element, $args = array() ): void {
-		if ( ! $element instanceof \Elementor\Controls_Stack || null !== $element->get_controls( Apply::REPEATER ) || ! class_exists( '\\Elementor\\Repeater' ) ) {
+		if ( ! $element instanceof \Elementor\Controls_Stack || null !== $element->get_controls( Apply::REPEATER ) || ! class_exists( 'Elementor\\Repeater' ) ) {
 			return;
 		}
 		$labels   = self::kind_labels();
@@ -112,7 +112,6 @@ final class Controls {
 				'label'          => __( 'Clave', 'pro-elements' ),
 				'type'           => \Elementor\Controls_Manager::SELECT,
 				'options'        => array( '' => __( 'Elige una clave', 'pro-elements' ) ),
-				'default'        => '',
 				'style_transfer' => false,
 			)
 		);

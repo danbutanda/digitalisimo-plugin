@@ -22,9 +22,9 @@ abstract class Filter_Widget extends \Elementor\Widget_Base {
 	use \ElementorPro\Modules\Posts\Traits\Pagination_Trait;
 	use Filter_Form;
 
-	const COORDINATOR = 'digitalisimo-woo-filters';
-	const FORM_HANDLE = 'digitalisimo-woo-filters-form';
-	const STYLE       = 'digitalisimo-filters';
+	const COORDINATOR = Module::COORDINATOR;
+	const FORM_HANDLE = Module::FORM_HANDLE;
+	const STYLE       = Module::STYLE;
 
 	/** Parámetros de paginación que un filtro nuevo descarta. */
 	const PAGINATION = array( 'paged', 'page' );
@@ -58,8 +58,8 @@ abstract class Filter_Widget extends \Elementor\Widget_Base {
 		$c = '\\Elementor\\Controls_Manager';
 		$this->add_control( 'destination', array( 'label' => 'Destino', 'type' => $c::SELECT, 'default' => 'loop', 'options' => array( 'loop' => 'Loop Grid de este documento', 'archive' => $archive_label ), 'style_transfer' => false ) );
 		$this->add_control( 'selected_element', array( 'label' => 'Loop Grid', 'type' => $c::SELECT, 'options' => array( '' => 'Elige un Loop Grid' ), 'label_block' => true, 'condition' => array( 'destination' => 'loop' ), 'style_transfer' => false ) );
-		$this->add_control( 'loop_note', array( 'type' => $c::RAW_HTML, 'raw' => 'Filtra un Loop Grid de este mismo documento sin recargar la página. El Loop Carousel no se puede filtrar, y un Loop Grid con «Consulta actual» tampoco: dale su propia consulta.', 'content_classes' => 'elementor-descriptor', 'condition' => array( 'destination' => 'loop' ) ) );
-		$this->add_control( 'archive_note', array( 'type' => $c::RAW_HTML, 'raw' => $archive_note, 'content_classes' => 'elementor-descriptor', 'condition' => array( 'destination' => 'archive' ) ) );
+		$this->add_control( 'loop_note', array( 'type' => $c::RAW_HTML, 'raw' => 'Filtra un Loop Grid de este mismo documento sin recargar la página. El Loop Carousel no se puede filtrar, y un Loop Grid con «Consulta actual» tampoco: dale su propia consulta.', 'content_classes' => 'elementor-descriptor', 'condition' => array( 'destination' => 'loop' ), 'style_transfer' => false ) );
+		$this->add_control( 'archive_note', array( 'type' => $c::RAW_HTML, 'raw' => $archive_note, 'content_classes' => 'elementor-descriptor', 'condition' => array( 'destination' => 'archive' ), 'style_transfer' => false ) );
 	}
 
 	/** Texto con su valor por defecto. */

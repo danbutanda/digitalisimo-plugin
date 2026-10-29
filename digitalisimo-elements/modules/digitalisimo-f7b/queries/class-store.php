@@ -714,6 +714,18 @@ final class Store {
 	}
 
 	/**
+	 * Resuelve de una vez los usos de varias consultas (`Usages::prime()`, una sola consulta SQL para una lista).
+	 *
+	 * @param int[] $ids
+	 */
+	public static function prime_uses( array $ids ): void {
+		$usages = '\Digitalisimo\Elements\F7b\Usages';
+		if ( $ids && class_exists( $usages ) && method_exists( $usages, 'prime' ) ) {
+			$usages::prime( array_map( 'intval', $ids ), defined( $usages . '::KIND_QUERY' ) ? constant( $usages . '::KIND_QUERY' ) : 'q' );
+		}
+	}
+
+	/**
 	 * Usos de una consulta (`F7b\Usages::of( $id, 'q' )` del frente A). Sin `Usages`, cero.
 	 *
 	 * @return array{count:int,posts:int[],drafts:int[]}

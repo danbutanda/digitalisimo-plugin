@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Una instancia sin filas no apila nada: pinta como hoy, con la caché de su plantilla. Sin sufijos en los IDs (C1-7).
  * También se engancha `elementor/markdown/element_output` (experimento «markdown_rendering», inactivo por defecto):
- * el Markdown del Plantilla (`template.php:113-127`) no pasa por `builder_content_data`, así que se rehace con los datos
+ * el Markdown del Plantilla (`template.php:110-125`) no pasa por `builder_content_data`, así que se rehace con los datos
  * sobrescritos para que no muestre lo ocultado.
  */
 final class Render {
@@ -159,8 +159,8 @@ final class Render {
 	 * @return mixed
 	 */
 	public static function markdown( $markdown, $element = null, $data = null ) {
-		$renderer = '\\Elementor\\Modules\\MarkdownRender\\Markdown_Renderer';
-		if ( ! self::is_template( $element ) || ! class_exists( $renderer ) || ! class_exists( '\\Elementor\\Plugin', false ) ) {
+		$renderer = 'Elementor\\Modules\\MarkdownRender\\Markdown_Renderer';
+		if ( ! self::is_template( $element ) || ! class_exists( $renderer ) || ! class_exists( 'Elementor\\Plugin', false ) ) {
 			return $markdown;
 		}
 		$template = self::template_id( $element );
@@ -208,7 +208,7 @@ final class Render {
 	}
 
 	private static function current_document(): int {
-		if ( ! class_exists( '\\Elementor\\Plugin', false ) ) {
+		if ( ! class_exists( 'Elementor\\Plugin', false ) ) {
 			return 0;
 		}
 		$plugin   = \Elementor\Plugin::$instance;

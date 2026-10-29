@@ -189,6 +189,7 @@ namespace {
 	$GLOBALS['post'] = $GLOBALS['t']['posts'][12];
 
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-conditions/class-visitor-content.php';
+	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-filters/class-query.php';
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-f7b/inline-tags/class-engine.php';
 	require __DIR__ . '/../digitalisimo-elements/modules/digitalisimo-f7b/inline-tags/class-module.php';
 

@@ -80,7 +80,6 @@ final class Controls {
 			'tab'            => 'content',
 			'inner_tab'      => 'form_fields_content_tab',
 			'tabs_wrapper'   => 'form_fields_tabs',
-			'style_transfer' => false,
 		);
 		$type = array(
 			'name'     => 'field_type',
@@ -100,24 +99,26 @@ final class Controls {
 
 		return array(
 			self::TOGGLE => array(
-				'name'         => self::TOGGLE,
-				'label'        => __( 'Mostrar sólo si…', 'pro-elements' ),
-				'type'         => $c::SWITCHER,
-				'return_value' => 'yes',
-				'label_on'     => __( 'Sí', 'pro-elements' ),
-				'label_off'    => __( 'No', 'pro-elements' ),
-				'separator'    => 'before',
-				'conditions'   => array( 'terms' => array( $type ) ),
+				'name'           => self::TOGGLE,
+				'label'          => __( 'Mostrar sólo si…', 'pro-elements' ),
+				'type'           => $c::SWITCHER,
+				'return_value'   => 'yes',
+				'label_on'       => __( 'Sí', 'pro-elements' ),
+				'label_off'      => __( 'No', 'pro-elements' ),
+				'separator'      => 'before',
+				'conditions'     => array( 'terms' => array( $type ) ),
+				'style_transfer' => false,
 			) + $tabs,
 			self::LOGIC  => array(
-				'name'       => self::LOGIC,
-				'label'      => __( 'Se muestra si se cumplen', 'pro-elements' ),
-				'type'       => $c::SELECT,
-				'options'    => array(
+				'name'           => self::LOGIC,
+				'label'          => __( 'Se muestra si se cumplen', 'pro-elements' ),
+				'type'           => $c::SELECT,
+				'options'        => array(
 					''    => __( 'Todas las reglas', 'pro-elements' ),
 					'any' => __( 'Alguna regla', 'pro-elements' ),
 				),
-				'conditions' => $on,
+				'conditions'     => $on,
+				'style_transfer' => false,
 			) + $tabs,
 			self::RULES  => array(
 				'name'          => self::RULES,
@@ -135,7 +136,8 @@ final class Controls {
 					'remove'    => true,
 					'sort'      => true,
 				),
-				'conditions'    => $on,
+				'conditions'     => $on,
+				'style_transfer' => false,
 			) + $tabs,
 			self::NOTICE => array(
 				'name'            => self::NOTICE,
@@ -143,6 +145,7 @@ final class Controls {
 				'raw'             => self::notice(),
 				'content_classes' => 'elementor-panel-alert elementor-panel-alert-info',
 				'conditions'      => $on,
+				'style_transfer'  => false,
 			) + $tabs,
 		);
 	}

@@ -72,7 +72,7 @@ final class Runtime {
 	/** @var int|null Contexto de `refresh-loop` (`null`: no es esa petición). */
 	private static $rest_ctx = null;
 
-	/** @var int Documento de `refresh-loop` (sólo para la vista previa del editor). */
+	/** @var int Documento de `refresh-loop` si quien pide puede editarlo (vista previa del editor), o 0. */
 	private static $rest_doc = 0;
 
 	/** @var array<int,array{meta:bool,terms:bool}> */
@@ -161,17 +161,20 @@ final class Runtime {
 		}
 	}
 
-	/** Contexto del nivel superior y de `root`: `digi_ctx` validado en REST; si no, la entrada consultada. */
+	/**
+	 * Contexto del nivel superior y de `root`: en `refresh-loop`, `digi_ctx` validado (o, para quien puede editar el
+	 * documento, el documento: la vista previa de los filtros en el editor); si no, la entrada consultada; y en el
+	 * editor (render por AJAX, sin consulta principal), la entrada del documento que se edita. Nada más: sin eso, 0.
+	 */
 	public static function top(): int {
 		if ( null !== self::$rest_ctx ) {
-			return self::$rest_ctx > 0 ? self::$rest_ctx : ( self::editing() ? self::$rest_doc : 0 );
+			return self::$rest_ctx > 0 ? self::$rest_ctx : self::$rest_doc;
 		}
 		$object = function_exists( 'get_queried_object' ) ? get_queried_object() : null;
 		if ( $object instanceof \WP_Post ) {
 			return (int) $object->ID;
 		}
-		// En el editor (render por AJAX, sin consulta principal), la entrada del documento que se edita.
-		return self::editing() ? (int) get_the_ID() : 0;
+		return self::preview() ? max( 0, (int) get_the_ID() ) : 0;
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -190,7 +193,7 @@ final class Runtime {
 			return $args;
 		}
 		$id = self::linked( $widget );
-		if ( $id <= 0 ) {
+		if ( 0 === $id ) {
 			return $args;
 		}
 		$wid   = (string) $widget->get_id();
@@ -361,7 +364,7 @@ final class Runtime {
 			$query->found_posts   = count( $posts );
 			$query->max_num_pages = $posts ? 1 : 0;
 		}
-		if ( ! is_object( $widget ) || ! method_exists( $widget, 'get_id' ) || ! self::editing() ) {
+		if ( ! is_object( $widget ) || ! method_exists( $widget, 'get_id' ) || ! self::preview() ) {
 			return;
 		}
 		$wid = (string) $widget->get_id();
@@ -445,7 +448,8 @@ final class Runtime {
 		$id             = ( is_int( $raw ) || ( is_string( $raw ) && ctype_digit( $raw ) ) ) ? (int) $raw : 0;
 		self::$rest_ctx = ( $id > 0 && self::public_post( $id ) ) ? $id : 0;
 		$doc            = $request->get_param( 'post_id' );
-		self::$rest_doc = is_numeric( $doc ) ? max( 0, (int) $doc ) : 0;
+		$doc            = is_numeric( $doc ) ? max( 0, (int) $doc ) : 0;
+		self::$rest_doc = ( $doc > 0 && current_user_can( 'edit_post', $doc ) ) ? $doc : 0;
 		return $response;
 	}
 
@@ -458,8 +462,10 @@ final class Runtime {
 	}
 
 	/**
-	 * ID de la consulta guardada del widget (0 si no tiene). Se lee de los ajustes para mostrar: con otro skin del Loop
-	 * Grid (taxonomías, productos) el control está oculto y no se aplica.
+	 * ID de la consulta guardada del widget: 0 si no tiene (vacío: usa sus propios ajustes); -1 si el valor no es un ID
+	 * válido (`'0'`, texto: por ejemplo, el valor que nunca coincide de un kit), que falla cerrado como una consulta
+	 * que no existe, porque los ajustes propios del widget siguen ocultos. Se lee de los ajustes para mostrar: con otro
+	 * skin del Loop Grid (taxonomías, productos) el control está oculto y no se aplica.
 	 *
 	 * @param object $widget
 	 */
@@ -468,7 +474,11 @@ final class Runtime {
 			return 0;
 		}
 		$value = $widget->get_settings_for_display( Controls::CONTROL );
-		return ( is_int( $value ) || ( is_string( $value ) && ctype_digit( $value ) ) ) ? (int) $value : 0;
+		if ( null === $value || '' === $value || array() === $value ) {
+			return 0;
+		}
+		$id = ( is_int( $value ) || ( is_string( $value ) && ctype_digit( $value ) ) ) ? (int) $value : 0;
+		return $id > 0 ? $id : -1;
 	}
 
 	/**
@@ -550,5 +560,25 @@ final class Runtime {
 	private static function editing(): bool {
 		$module = '\Digitalisimo\Elements\F7b\Module';
 		return class_exists( $module ) && method_exists( $module, 'editing' ) && $module::editing();
+	}
+
+	/**
+	 * ¿Editor o vista previa **de quien puede editar**? `F7b\Module::editing()` sólo mira la petición (un visitante
+	 * puede añadir `?elementor-preview=`); el núcleo comprueba además el permiso (`Editor::is_edit_mode()`,
+	 * `Preview::is_preview_mode()`). Sin el núcleo cargado (pruebas), decide `editing()`.
+	 */
+	private static function preview(): bool {
+		if ( ! self::editing() ) {
+			return false;
+		}
+		$plugin = class_exists( '\Elementor\Plugin', false ) && isset( \Elementor\Plugin::$instance ) ? \Elementor\Plugin::$instance : null;
+		if ( ! is_object( $plugin ) ) {
+			return true;
+		}
+		if ( isset( $plugin->editor ) && is_object( $plugin->editor ) && method_exists( $plugin->editor, 'is_edit_mode' ) && $plugin->editor->is_edit_mode() ) {
+			return true;
+		}
+		$id = isset( $_GET['elementor-preview'] ) ? absint( $_GET['elementor-preview'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- el núcleo comprueba el permiso.
+		return $id > 0 && isset( $plugin->preview ) && is_object( $plugin->preview ) && method_exists( $plugin->preview, 'is_preview_mode' ) && $plugin->preview->is_preview_mode( $id );
 	}
 }

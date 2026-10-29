@@ -1,4 +1,4 @@
-/* DIGITALÍSIMO Elements F7b: acciones con destino (V.3; reglas en actions/class-rules.php). K: 1 destino, 2 sin flujo, 4 visibilidad. */
+/* DIGITALÍSIMO Elements F7b: acciones con destino (V.3); reglas y formato en actions/class-rules.php. */
 (w=>{'use strict';let io,st;
 const d=w.document,R='data-digi-actions',RD='['+R+'-ready]',RM='(prefers-reduced-motion:reduce)',NAT='a[href],button,input,select,textarea,summary',
 K={show:5,hide:5,toggle:5,toggle_class:3,set_attribute:3,scroll_to:3,offcanvas_toggle:3,load_more:1,popup_open:2,popup_close:2},
@@ -7,11 +7,11 @@ S=v=>typeof v=='string'?v:'',mq=q=>!!w.matchMedia?.(q).matches,ga=(n,k)=>n.getAt
 on=(n,t,f)=>n.addEventListener(t,f),cf=new WeakMap,cs=new WeakMap,op=new Set,fl=a=>+K[S(a.a)]||0,
 ok=a=>{const f=a&&fl(a),c=f&&/^(click|hover)$/.test(a.t),r=f&&AT[S(a.n)];
 return f&&(c||f&2&&/^(scroll_in|load)$/.test(a.t))&&(a.a!='toggle'||c)&&(!(f&1)||/^[a-z0-9]{1,24}$/i.test(S(a.g)))&&
-(a.a!='toggle_class'||/^(?!elementor-|e-|digi-|wp-)[a-z0-9_-]{1,40}$/.test(S(a.c)))&&(a.a!='set_attribute'||r instanceof RegExp&&r.test(S(a.v)))&&
+(a.a!='toggle_class'||/^(?!elementor-|e-|digi-|wp-)[a-z0-9_-]{1,40}$/.test(S(a.c)))&&(a.a!='set_attribute'||r?.test?.(S(a.v)))&&
 (a.a!='popup_open'||a.p>0)&&(!a.m||/^[a-zA-Z]{2,40}$/.test(S(a.m)))},
 it=n=>{const t=n.localName,e=ga(n,'contenteditable');return/^(a|button|select|textarea|summary|iframe)$/.test(t)||t=='input'&&S(ga(n,'type')).toLowerCase()!='hidden'||
 /^(video|audio)$/.test(t)&&n.hasAttribute('controls')||/^\s*\d/.test(S(ga(n,'tabindex')))||e!=null&&e!='false'},
-ctl=el=>{if(el.matches('a[href],button'))return el;const c=[...el.querySelectorAll('a,button,input,select,textarea,summary,iframe,video,audio,[tabindex],[contenteditable]')].filter(it);
+ctl=el=>{if(el.matches('a[href],button'))return el;const c=[...el.querySelectorAll('*')].filter(it);
 if(ga(el,'role')=='button'){if(!c.length)return el;el.removeAttribute('role');el.removeAttribute('tabindex')}
 return c.length==1&&/^(a|button)$/.test(c[0].localName)?c[0]:null},
 tg=(c,a)=>a.g==ga(c.el,'data-id')?c.el:c.r.querySelector('[data-id="'+a.g+'"]'),
@@ -37,8 +37,8 @@ a.m&&t&&!u&&!t.hidden&&x!='hide'&&pl(t,a.m)},
 hv=c=>c.l.forEach(a=>a.t=='hover'&&run(c.el,a,null,!c.h)),
 en=c=>{clearTimeout(c.tm);if(!c.h){c.h=1;op.add(c);hv(c)}},
 lv=(c,n)=>{clearTimeout(c.tm);c.tm=setTimeout(()=>{if(c.h){c.h=0;op.delete(c);hv(c)}},n?0:300)},
-fn=e=>e.pointerType!='touch'&&mq('(pointer:fine)'),
-hb=c=>{const el=c.el,b=(n,f)=>{on(n,'pointerenter',e=>fn(e)&&(f?en(c):clearTimeout(c.tm)));on(n,'pointerleave',e=>fn(e)&&lv(c));
+tc=e=>e.pointerType=='touch'||e.pointerType==null&&mq('(hover:none)'),
+hb=c=>{const el=c.el,b=(n,f)=>{on(n,'pointerenter',e=>tc(e)||(f?en(c):clearTimeout(c.tm)));on(n,'pointerleave',e=>tc(e)||lv(c));
 on(n,'focusin',()=>f?c.x||en(c):clearTimeout(c.tm));on(n,'focusout',e=>{const r=e.relatedTarget;if(!r||!(el.contains(r)||c.ht.some(t=>t.contains(r)))){c.x=0;lv(c,1)}})};
 c.ht=c.l.filter(a=>a.t=='hover'&&a.g).map(a=>tg(c,a)).filter(t=>t&&!el.contains(t));b(el,c.hb=1);c.ht.forEach(t=>b(t,0))},
 fi=el=>{const c=cf.get(el);c&&c.l.forEach(a=>a.t=='scroll_in'&&run(el,a))},
@@ -52,7 +52,7 @@ if(has('scroll_in'))w.IntersectionObserver?(io=io||new w.IntersectionObserver(l=
 up=(n,f)=>{for(let el=n;el=el?.closest?.(RD);el=el.parentNode){const c=cf.get(el);if(c&&f(el,c))return 1}},
 boot=()=>{const F=w.elementorFrontend;if(st||!F||F.isEditMode?.())return;st=1;
 on(d,'click',e=>up(e.target,(el,c)=>{let h=0;if(c.k&&c.k.contains(e.target))c.l.forEach(a=>{if(a.t=='click'){h=1;run(el,a,e)}});
-if(c.hb&&!fn(e)){h=1;c.h?lv(c,1):en(c)}
+if(c.hb&&tc(e)){h=1;c.h?lv(c,1):en(c)}
 h&&c.k&&c.k.localName=='a'&&/^#?$/.test(S(ga(c.k,'href')))&&e.preventDefault();return h}));
 on(d,'keydown',e=>{const k=e.target,y=e.key;if(y=='Escape')op.forEach(c=>{c.x=1;clearTimeout(c.tm);c.h=0;op.delete(c);hv(c)});
 else if((y=='Enter'||y==' ')&&k.matches&&!k.matches(NAT)&&up(k,(el,c)=>c.k==k)){e.preventDefault();k.click()}});

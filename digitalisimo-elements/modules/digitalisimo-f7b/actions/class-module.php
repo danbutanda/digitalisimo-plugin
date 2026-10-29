@@ -90,8 +90,11 @@ final class Module {
 		return defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
 	}
 
-	/** Para las pruebas. */
+	/** Para las pruebas: vuelve al estado anterior a `init()` (también el de sus piezas). */
 	public static function reset(): void {
 		self::$initialized = false;
+		Controls::reset();
+		Render::reset( true );
+		Interactions_State::reset();
 	}
 }

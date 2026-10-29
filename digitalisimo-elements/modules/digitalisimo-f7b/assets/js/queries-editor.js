@@ -62,8 +62,17 @@
 		return node;
 	}
 
+	function panelRoot( panel ) {
+		var view = window.elementor.getPanelView ? window.elementor.getPanelView() : null;
+		var page = view && view.getCurrentPageView ? view.getCurrentPageView() : null;
+		if ( page && page.el ) {
+			return page.el;
+		}
+		return panel && panel.$el ? panel.$el[ 0 ] : null;
+	}
+
 	function render( panel, settings ) {
-		var root = panel && panel.$el && panel.$el[ 0 ];
+		var root = panelRoot( panel );
 		var box = root ? root.querySelector( '[data-digi-sq-summary]' ) : null;
 		if ( ! box ) {
 			return;

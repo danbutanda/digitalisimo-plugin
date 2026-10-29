@@ -79,11 +79,18 @@ final class Render {
 		}
 	}
 
-	/** Estado por petición (pruebas). */
-	public static function reset(): void {
+	/**
+	 * Estado por petición (pruebas).
+	 *
+	 * @param bool $hooks También el arranque (otra vez `init()`).
+	 */
+	public static function reset( bool $hooks = false ): void {
 		self::$frames = array();
 		self::$ids    = array();
 		self::$seen   = array();
+		if ( $hooks ) {
+			self::$initialized = false;
+		}
 	}
 
 	/**

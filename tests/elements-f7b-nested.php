@@ -4,8 +4,10 @@
  * WordPress, del núcleo y de `F7b\Module` (frente A), y la base real del núcleo
  * (`elementor/modules/nested-elements/base/widget-nested-base.php`).
  *
- * - Guardas: sin `Widget_Nested_Base` no se engancha nada; sin el experimento de anidados (o sin su repetidor) el
- *   widget no se registra ni se encola el script del editor; la presentación del frente G se arranca si existe.
+ * - Arranque y guardas: `init()` (en `plugins_loaded`) sólo engancha y arranca la presentación del frente G, sin cargar
+ *   clases del núcleo; la guarda corre al registrar los widgets y al encolar el script del editor: sin el experimento de
+ *   anidados, sin `Widget_Nested_Base` o sin su repetidor, ni widget ni script (y `F7b\Module::requires()` anota lo
+ *   que falta).
  * - Registro como F4-Woo: idempotente, tolerante y sin repetir un tipo que el núcleo ya tenga; `WIDGETS` en el formato
  *   de `Widget_Registry::WIDGETS`.
  * - Recursos sólo donde se usa: hoja y script sólo se registran (`defer`, sin dependencias ni jQuery) y los declara el
@@ -172,22 +174,18 @@ namespace {
 	require $module_file;
 	$M = '\Digitalisimo\Elements\F7b\Nested\Module';
 
-	// 1. Guarda: sin la base de anidados del núcleo no se engancha nada (ni la presentación).
-	$M::init();
-	check_nested( ! $M::started() && array() === $GLOBALS['wp_filters'], 'Sin Widget_Nested_Base, el submódulo no engancha nada.' );
-	check_nested( array( array( 'nested', array( 'Elementor\Modules\NestedElements\Base\Widget_Nested_Base' ) ) ) === \Digitalisimo\Elements\F7b\Module::$calls, 'La guarda pasa por F7b\Module::requires() con la base de anidados.' );
-	check_nested( 0 === \Digitalisimo\Elements\F7b\Nested\Presentation::$inits, 'Sin la base tampoco arranca la presentación.' );
-
-	// 2. Con la base real del núcleo: recursos, registro y editor; la presentación arranca una vez.
-	require $root . '/elementor/modules/nested-elements/base/widget-nested-base.php';
-	$M::reset();
+	// 1. Arranque en plugins_loaded: sólo engancha. No toca Widget_Nested_Base (hereda de Widget_Base, que el núcleo
+	// declara en `init`: su autocarga fallaría) ni llama a la guarda; la presentación del frente G arranca una vez.
+	$autoloaded = array();
+	spl_autoload_register( function ( $class ) use ( &$autoloaded ) { $autoloaded[] = $class; } );
 	$M::init();
 	$M::init();
-	check_nested( $M::started() && 1 === \Digitalisimo\Elements\F7b\Nested\Presentation::$inits, 'Con la base arranca, una sola vez, y arranca la presentación del frente G.' );
-	foreach ( array( 'elementor/frontend/after_register_styles', 'elementor/frontend/after_register_scripts', 'wp_enqueue_scripts', 'elementor/widgets/register', 'elementor/editor/after_enqueue_scripts' ) as $hook ) {
+	check_nested( array() === \Digitalisimo\Elements\F7b\Module::$calls && ! array_intersect( array( 'Elementor\Modules\NestedElements\Base\Widget_Nested_Base', 'Elementor\Modules\NestedElements\Controls\Control_Nested_Repeater', 'Elementor\Widget_Base' ), $autoloaded ), 'El arranque no carga clases del núcleo ni pasa la guarda (todavía no puede responder).' );
+	check_nested( 1 === \Digitalisimo\Elements\F7b\Nested\Presentation::$inits, 'La presentación del frente G arranca una sola vez desde aquí.' );
+	foreach ( array( 'elementor/frontend/after_register_styles', 'elementor/frontend/after_register_scripts', 'elementor/widgets/register', 'elementor/editor/after_enqueue_scripts' ) as $hook ) {
 		check_nested( 1 === hooked( $hook ), 'Un solo enganche en ' . $hook . '.' );
 	}
-	check_nested( 0 === hooked( 'the_content' ) && 0 === hooked( 'wp_head' ) && 0 === hooked( 'elementor/frontend/widget/before_render' ), 'Nada se engancha al contenido ni al render de otros widgets.' );
+	check_nested( array( 'elementor/frontend/after_register_styles', 'elementor/frontend/after_register_scripts', 'elementor/widgets/register', 'elementor/editor/after_enqueue_scripts' ) === array_keys( $GLOBALS['wp_filters'] ), 'Nada más: ni wp_enqueue_scripts, ni el contenido, ni el render de otros elementos (coste cero donde no se usa).' );
 	check_nested( isset( $GLOBALS['wp_filters']['elementor/widgets/register'][20] ), 'Registra los widgets a prioridad 20, como Widget_Registry y Woo\Registry.' );
 
 	// Formato del registro, el de Widget_Registry::WIDGETS (lo leen front-budget y kit-inventory con la misma expresión).
@@ -209,17 +207,24 @@ namespace {
 	check_nested( array() === $GLOBALS['enqueued'], 'Registrar no encola nada: lo encola el núcleo donde se pinta el widget.' );
 	check_nested( ! preg_match( '/wp_enqueue_style\(/', $module_src ) && 1 === preg_match_all( '/wp_enqueue_script\(/', $module_src ), 'El módulo sólo encola el script del editor.' );
 
-	// Experimento de anidados: sin él, ni widget ni script del editor.
+	// 2. Guarda en elementor/widgets/register y en el editor: experimento, base de anidados y repetidor.
 	\Elementor\Plugin::$instance              = new \stdClass();
 	\Elementor\Plugin::$instance->experiments = new \Elementor\Experiments_Double();
 	$manager = new \Elementor\Widgets_Manager_Double();
-	check_nested( array() === $M::widgets( $manager ) && array() === $manager->types, 'Sin el experimento de anidados (y su repetidor) no se registra el widget.' );
+	check_nested( array() === $M::widgets( $manager ) && array() === $manager->types && array() === \Digitalisimo\Elements\F7b\Module::$calls, 'Sin el experimento de anidados no se registra el widget (ni se anota como símbolo que falta).' );
 	$M::editor_script();
 	check_nested( array() === $GLOBALS['enqueued'], 'Sin el experimento no se encola el script del editor.' );
 	\Elementor\Plugin::$instance->experiments->active['nested-elements'] = true;
-	check_nested( array() === $M::widgets( $manager ), 'Con el experimento pero sin Control_Nested_Repeater (sólo existe con él), tampoco.' );
+	$M::reset();
+	check_nested( array() === $M::widgets( $manager ) && array( array( 'nested', array( 'Elementor\Modules\NestedElements\Base\Widget_Nested_Base', 'Elementor\Modules\NestedElements\Controls\Control_Nested_Repeater' ) ) ) === \Digitalisimo\Elements\F7b\Module::$calls, 'Con el experimento pero sin la base de anidados: F7b\Module::requires() anota lo que falta y no se registra nada.' );
+	$M::editor_script();
+	check_nested( array() === $GLOBALS['enqueued'] && 1 === count( \Digitalisimo\Elements\F7b\Module::$calls ), 'Tampoco el script del editor, con la guarda memorizada en la petición.' );
+	require $root . '/elementor/modules/nested-elements/base/widget-nested-base.php';
+	$M::reset();
+	check_nested( array() === $M::widgets( $manager ), 'Con la base pero sin Control_Nested_Repeater, tampoco.' );
 	eval( 'namespace Elementor\Modules\NestedElements\Controls; class Control_Nested_Repeater { const CONTROL_TYPE = "nested-elements-repeater"; }' );
-	check_nested( array( 'digitalisimo-nested-slider' ) === $M::widgets( $manager ) && array( 'digitalisimo-nested-slider' ) === array_keys( $manager->types ), 'Con el experimento y su repetidor se registra el slider anidado.' );
+	$M::reset();
+	check_nested( array( 'digitalisimo-nested-slider' ) === $M::widgets( $manager ) && array( 'digitalisimo-nested-slider' ) === array_keys( $manager->types ), 'Con el experimento, la base y su repetidor se registra el slider anidado.' );
 	check_nested( array() === $M::widgets( $manager ), 'Un tipo ya registrado no se registra otra vez.' );
 	check_nested( array() === $M::widgets( null ) && array() === $M::widgets( new \stdClass() ), 'Un gestor que no es el del núcleo no rompe nada.' );
 	$M::editor_script();
@@ -356,7 +361,7 @@ namespace {
 		. "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/elementor/assets/css/frontend.min.css\">\n"
 		. "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-f7b/assets/css/nested-slider.css\">\n"
 		. "<style>body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#1a1a1a;background:#fff}.e-con{--display:flex;--flex-direction:column;--padding-top:16px;--padding-bottom:16px;--padding-left:16px;--padding-right:16px;flex-direction:var(--flex-direction)}.elementor-widget-digitalisimo-nested-slider{margin:24px 16px}.digi-test-grid{--display:grid}.digi-after{padding:16px}</style>\n</head>\n<body>\n"
-		. $blocks
+		. "<div class=\"elementor elementor-1\" data-elementor-type=\"wp-page\" data-elementor-id=\"1\">\n" . $blocks . "</div>\n"
 		. "<p class=\"digi-after\"><a href=\"#fin\" id=\"fin\">Enlace después de los sliders</a></p>\n"
 		. "<div class=\"digi-test-hidden\"><div class=\"elementor-element e-con e-flex\" hidden>Contenedor flex oculto</div><div class=\"elementor-element e-con e-grid digi-test-grid\" hidden>Contenedor grid oculto</div><div class=\"elementor-column\" hidden>Columna oculta</div></div>\n"
 		. $expected_template . "\n"

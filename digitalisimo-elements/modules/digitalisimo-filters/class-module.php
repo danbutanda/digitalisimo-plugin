@@ -24,6 +24,11 @@ defined( 'ABSPATH' ) || exit;
 final class Module {
 	const NAMESPACE_PREFIX = 'Digitalisimo\\Elements\\Filters\\';
 
+	/** Handles: los del coordinador y los formularios de F4-Woo (compartidos) y la hoja propia. */
+	const COORDINATOR = 'digitalisimo-woo-filters';
+	const FORM_HANDLE = 'digitalisimo-woo-filters-form';
+	const STYLE       = 'digitalisimo-filters';
+
 	/** Coordinador y hoja de F4-Woo, formularios y hoja propia (rutas relativas a la raíz del plugin). */
 	const COORDINATOR_JS  = 'assets/js/filters.js';
 	const COORDINATOR_CSS = 'assets/css/filters.css';
@@ -77,17 +82,17 @@ final class Module {
 		}
 		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
 		$root    = dirname( DIGITALISIMO_ELEMENTS_FILE ) . '/';
-		if ( ! wp_style_is( Filter_Widget::COORDINATOR, 'registered' ) && is_file( $root . self::COORDINATOR_CSS ) ) {
-			wp_register_style( Filter_Widget::COORDINATOR, plugins_url( self::COORDINATOR_CSS, DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
+		if ( ! wp_style_is( self::COORDINATOR, 'registered' ) && is_file( $root . self::COORDINATOR_CSS ) ) {
+			wp_register_style( self::COORDINATOR, plugins_url( self::COORDINATOR_CSS, DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
 		}
-		if ( ! wp_script_is( Filter_Widget::COORDINATOR, 'registered' ) && is_file( $root . self::COORDINATOR_JS ) ) {
-			wp_register_script( Filter_Widget::COORDINATOR, plugins_url( self::COORDINATOR_JS, DIGITALISIMO_ELEMENTS_FILE ), array( 'elementor-frontend' ), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+		if ( ! wp_script_is( self::COORDINATOR, 'registered' ) && is_file( $root . self::COORDINATOR_JS ) ) {
+			wp_register_script( self::COORDINATOR, plugins_url( self::COORDINATOR_JS, DIGITALISIMO_ELEMENTS_FILE ), array( 'elementor-frontend' ), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
-		if ( ! wp_script_is( Filter_Widget::FORM_HANDLE, 'registered' ) && is_file( $root . self::FORM_JS ) ) {
-			wp_register_script( Filter_Widget::FORM_HANDLE, plugins_url( self::FORM_JS, DIGITALISIMO_ELEMENTS_FILE ), array( Filter_Widget::COORDINATOR ), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+		if ( ! wp_script_is( self::FORM_HANDLE, 'registered' ) && is_file( $root . self::FORM_JS ) ) {
+			wp_register_script( self::FORM_HANDLE, plugins_url( self::FORM_JS, DIGITALISIMO_ELEMENTS_FILE ), array( self::COORDINATOR ), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 		}
-		if ( ! wp_style_is( Filter_Widget::STYLE, 'registered' ) && is_file( $root . self::STYLE_CSS ) ) {
-			wp_register_style( Filter_Widget::STYLE, plugins_url( self::STYLE_CSS, DIGITALISIMO_ELEMENTS_FILE ), array( Filter_Widget::COORDINATOR ), $version );
+		if ( ! wp_style_is( self::STYLE, 'registered' ) && is_file( $root . self::STYLE_CSS ) ) {
+			wp_register_style( self::STYLE, plugins_url( self::STYLE_CSS, DIGITALISIMO_ELEMENTS_FILE ), array( self::COORDINATOR ), $version );
 		}
 	}
 

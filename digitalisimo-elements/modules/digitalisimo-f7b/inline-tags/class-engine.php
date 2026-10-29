@@ -40,8 +40,8 @@ final class Engine {
 	/** Filtro de la lista negra. */
 	const FILTER_DENIED = 'digitalisimo_elements_inline_tags_denied';
 
-	/** Fragmentos prohibidos en claves de metas, campos de ACF y parámetros de la URL (V.8). */
-	const DENIED = array( 'pass', 'password', 'pwd', 'token', 'secret', 'key', 'hash', 'salt', 'nonce', 'email', 'mail', 'phone', 'tel', 'address', 'dni', 'rfc', 'curp', 'ssn', 'iban', 'card', 'name', 'apellido', 'nombre', 'telefono', 'celular', 'movil', 'correo', 'contrasena', 'clave', 'direccion', 'domicilio', 'tarjeta', 'nss' );
+	/** Fragmentos prohibidos en claves de metas, campos de ACF y parámetros de la URL (V.8); la fuente es el módulo neutro de filtros, que carga siempre antes. */
+	const DENIED = \Digitalisimo\Elements\Filters\Query::DENIED;
 
 	/** Datos del usuario permitidos y los ajustes de `user-info` que los leen (`nickname` no es un `type`: es una meta). */
 	const USER_FIELDS = array(

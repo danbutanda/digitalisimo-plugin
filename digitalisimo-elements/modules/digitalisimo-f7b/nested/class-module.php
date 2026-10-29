@@ -6,17 +6,21 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Anidados de F7b (frentes F y G): el slider anidado ligero (C5) y la presentación de pestañas y acordeón (C6).
  *
- * - **Guardas** (D3 de F7a): sin `Widget_Nested_Base` no se registra nada (`F7b\Module::requires()` lo anota); sin el
- *   experimento `nested-elements` del núcleo (o sin `Control_Nested_Repeater`, que existe sólo con él), el widget no se
- *   registra, como los anidados del núcleo, y el script del editor no se encola.
+ * - **Guardas** (D3 de F7a), cuando el núcleo ya puede responder: `Widget_Nested_Base` hereda de `Widget_Base`, que el
+ *   núcleo declara en `init` (`elementor/includes/managers/widgets.php:213-215`, desde `Plugin::init_components()`), así
+ *   que en `plugins_loaded`, donde arranca F7b, comprobarla haría fallar su autocarga. Por eso `init()` sólo engancha y la
+ *   guarda corre en `elementor/widgets/register` y al encolar el script del editor (`ready()`): sin el experimento
+ *   `nested-elements` del núcleo no se registra nada, como los anidados del núcleo; sin `Widget_Nested_Base` o sin
+ *   `Control_Nested_Repeater`, `F7b\Module::requires()` lo anota para el aviso del editor y tampoco.
  * - **Presentación** (frente G): si existe `Nested\Presentation`, se arranca aquí (su `init()` comprueba sus símbolos).
  * - **Registro** como F4-Woo (`Woo\Registry`): `WIDGETS` tiene el mismo formato que `Widget_Registry::WIDGETS`
  *   (`nombre => array( 'file', 'class', 'css', 'js' )`, sin paréntesis anidados) para que `tests/elements-front-budget.php`
  *   y `tests/elements-kit-inventory.mjs` lo lean con la misma expresión. `file` es relativo a `modules/digitalisimo-f7b/`;
  *   `css` y `js`, a la raíz del plugin. Registro tolerante: un archivo que falta o que falla se omite sin error.
  * - **Recursos** (V.13): `nested-slider.css` (≤ 4 KB) y `nested-slider.js` (≤ 6 KB, `defer`, sin jQuery ni dependencias)
- *   sólo se registran; los encola el núcleo por `get_style_depends()`/`get_script_depends()` del widget, es decir, sólo
- *   donde se pinta (y la caché de elementos guarda los handles). `nested-slider-editor.js` sólo en el editor.
+ *   sólo se registran, cuando el núcleo registra los suyos (`elementor/frontend/after_register_*`, desde su
+ *   `wp_enqueue_scripts`); los encola el núcleo por `get_style_depends()`/`get_script_depends()` del widget, es decir,
+ *   sólo donde se pinta (y la caché de elementos guarda los handles). `nested-slider-editor.js` sólo en el editor.
  *
  * Nada de esto lee opciones ni engancha filtros de contenido en el front: con el widget ausente, 0 bytes y 0 consultas.
  */
@@ -49,36 +53,40 @@ final class Module {
 	/** @var bool */
 	private static $initialized = false;
 
-	/** @var bool */
-	private static $started = false;
+	/** @var bool|null Resultado de la guarda en esta petición. */
+	private static $ready = null;
 
 	/** @var array<string,string> Clase cargada por widget ('' si no se pudo). */
 	private static $loaded = array();
 
-	/** Arranque desde `F7b\Module::BOOT`. Idempotente. */
+	/**
+	 * Arranque desde `F7b\Module::BOOT` (en `plugins_loaded`). Idempotente. Sólo engancha: no carga nada del núcleo ni
+	 * lee opciones. La presentación del frente G arranca aquí con sus propias guardas.
+	 */
 	public static function init(): void {
 		if ( self::$initialized ) {
 			return;
 		}
 		self::$initialized = true;
-		if ( ! \Digitalisimo\Elements\F7b\Module::requires( array( self::BASE ), 'nested' ) ) {
-			return;
-		}
-		self::$started = true;
 		self::presentation();
 		if ( ! function_exists( 'add_action' ) ) {
 			return;
 		}
 		add_action( 'elementor/frontend/after_register_styles', array( __CLASS__, 'register_assets' ) );
 		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'register_assets' ) );
-		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ), 5 );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), self::PRIORITY );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'editor_script' ) );
 	}
 
-	/** ¿Pasó la guarda de símbolos? */
-	public static function started(): bool {
-		return self::$started;
+	/**
+	 * Guarda del slider, memorizada por petición: el experimento de anidados activo y, después, `Widget_Nested_Base` y
+	 * `Control_Nested_Repeater` (por `F7b\Module::requires()`, que anota lo que falte). Sólo desde `init` en adelante.
+	 */
+	public static function ready(): bool {
+		if ( null === self::$ready ) {
+			self::$ready = self::feature( self::EXPERIMENT ) && \Digitalisimo\Elements\F7b\Module::requires( array( self::BASE, self::REPEATER ), 'nested' );
+		}
+		return self::$ready;
 	}
 
 	/** Presentación de pestañas y acordeón (frente G), si su clase existe. */
@@ -90,11 +98,6 @@ final class Module {
 		if ( class_exists( $class, false ) && method_exists( $class, 'init' ) ) {
 			$class::init();
 		}
-	}
-
-	/** El experimento de anidados del núcleo está activo y existe su repetidor. */
-	public static function nested_active(): bool {
-		return class_exists( self::REPEATER ) && self::feature( self::EXPERIMENT );
 	}
 
 	/** Experimento del núcleo activo (sin el gestor de experimentos, `false`). */
@@ -146,7 +149,7 @@ final class Module {
 			return self::$loaded[ $name ];
 		}
 		self::$loaded[ $name ] = '';
-		if ( ! self::available( $name ) || ! class_exists( self::BASE ) ) {
+		if ( ! self::available( $name ) || ! self::ready() ) {
 			return '';
 		}
 		$class = ltrim( (string) self::WIDGETS[ $name ]['class'], '\\' );
@@ -164,15 +167,15 @@ final class Module {
 	}
 
 	/**
-	 * `elementor/widgets/register` (20): registra cada widget disponible que el núcleo aún no tenga, sólo con el
-	 * experimento de anidados activo (como `nested-tabs`, cuyo módulo no se carga sin él).
+	 * `elementor/widgets/register` (20): registra cada widget disponible que el núcleo aún no tenga, sólo si pasa la
+	 * guarda (`ready()`): sin el experimento de anidados, como `nested-tabs`, cuyo módulo no se carga sin él.
 	 *
 	 * @param object $manager `Widgets_Manager` del núcleo.
 	 * @return string[] Widgets registrados en esta llamada.
 	 */
 	public static function widgets( $manager ): array {
 		$registered = array();
-		if ( ! is_object( $manager ) || ! method_exists( $manager, 'register' ) || ! self::nested_active() ) {
+		if ( ! is_object( $manager ) || ! method_exists( $manager, 'register' ) || ! self::ready() ) {
 			return $registered;
 		}
 		foreach ( array_keys( self::WIDGETS ) as $name ) {
@@ -198,7 +201,7 @@ final class Module {
 	 * (el script del núcleo que define `NestedElementBase`): sin él, WordPress no lo imprime.
 	 */
 	public static function editor_script(): void {
-		if ( ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) || ! self::nested_active() || ! is_file( self::path( self::EDITOR_SCRIPT ) ) ) {
+		if ( ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) || ! is_file( self::path( self::EDITOR_SCRIPT ) ) || ! self::ready() ) {
 			return;
 		}
 		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
@@ -208,10 +211,10 @@ final class Module {
 		}
 	}
 
-	/** Para las pruebas: olvida el arranque y las clases cargadas. */
+	/** Para las pruebas: olvida el arranque, la guarda y las clases cargadas. */
 	public static function reset(): void {
 		self::$initialized = false;
-		self::$started     = false;
+		self::$ready       = null;
 		self::$loaded      = array();
 	}
 }

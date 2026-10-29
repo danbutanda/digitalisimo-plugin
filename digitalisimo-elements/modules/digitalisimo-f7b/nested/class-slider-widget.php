@@ -586,7 +586,8 @@ class Slider_Widget extends Widget_Nested_Base {
 			digiDelay = Math.max( <?php echo (int) self::DELAY_MIN; ?>, Math.min( <?php echo (int) self::DELAY_MAX; ?>, parseInt( settings.autoplay_delay, 10 ) || <?php echo (int) self::DELAY_DEFAULT; ?> ) ),
 			digiLabel = _.isString( settings.carousel_label ) && settings.carousel_label.trim() ? settings.carousel_label.trim() : '<?php echo esc_js( self::default_label() ); ?>',
 			digiTrack = 'digi-nslider-' + view.getID(),
-			digiEdit = view.getEditModel ? view.getEditModel().get( 'editSettings' ) : null,
+			digiModel = view.getEditModel ? view.getEditModel() : null,
+			digiEdit = digiModel ? digiModel.get( 'editSettings' ) : null,
 			digiStart = digiEdit && digiEdit.get( 'activeItemIndex' ) ? digiEdit.get( 'activeItemIndex' ) : 1;
 		#>
 		<section class="digi-nslider<# if ( digiSides ) { #> digi-nslider--sides<# } #>" aria-roledescription="<?php echo esc_attr__( 'carrusel', 'pro-elements' ); ?>" aria-label="{{ digiLabel }}" data-digi-effect="{{ digiEffect }}"<# if ( 'yes' === settings.loop ) { #> data-digi-loop="1"<# } #><# if ( digiAuto ) { #> data-digi-autoplay="{{ digiDelay }}"<# if ( 'yes' === settings.pause_on_hover ) { #> data-digi-hover="1"<# } #><# } #> data-digi-start="{{ digiStart }}">

@@ -186,6 +186,37 @@ for (const [name, source] of [['elements-handlers.js', EH], ['elements-handlers.
   for (const token of ['e-filter-item', 'data-filter', 'aria-pressed', 'taxonomyFilter']) if (!source.includes(token)) problems.push(`${token} no aparece en ${name} (coordinador de F4-Woo)`);
 }
 
+// Acciones con destino de F7b (`modules/digitalisimo-f7b/assets/js/actions.js`, V.3): popups y paneles laterales se
+// llaman con `createActionHash()` + `runAction()` de `elementorFrontend.utils.urlActions` del núcleo, nunca con un
+// hash armado a mano; PRO lee `id` y `toggle` del popup, el popup que contiene el evento al cerrar, e `id` y
+// `displayMode` del panel. Si el núcleo o los paquetes cambian estas formas, actions.js deja de abrir popups.
+for (const [name, source, forms] of [
+  ['elementor/assets/js/frontend.js', read('elementor/assets/js/frontend.js'), [
+    /createActionHash\(action, settings\) \{\s*return encodeURIComponent\(`#elementor-action:action=\$\{action\}&settings=\$\{btoa\(JSON\.stringify\(settings\)\)\}`\);/,
+    /runAction\(url, \.\.\.restArgs\) \{\s*url = decodeURI\(url\);\s*url = decodeURIComponent\(url\);\s*const actionMatch = url\.match\(\/action=\(\.\+\?\)&\/\);/,
+    /settings = JSON\.parse\(atob\(settingsMatch\[1\]\)\);[\s\S]{0,80}action\(settings, \.\.\.restArgs\);/,
+    /urlActions: new _urlActions\.default\(\)/,
+  ]],
+  ['elementor/assets/js/frontend.min.js', read('elementor/assets/js/frontend.min.js'), [
+    /createActionHash\((\w),(\w)\)\{return encodeURIComponent\(`#elementor-action:action=\$\{\1\}&settings=\$\{btoa\(JSON\.stringify\(\2\)\)\}`\)\}/,
+    /runAction\((\w),\.\.\.(\w)\)\{\1=decodeURI\(\1\),\1=decodeURIComponent\(\1\);let \w=\1\.match\(\/action=\(\.\+\?\)&\/\)/,
+    /urlActions:new \w\.default/,
+  ]],
+  ['assets/js/elements-handlers.min.js', EHmin, [
+    /showPopup\((\w),(\w)\)\{const (\w)=elementorFrontend\.documentsManager\.documents\[\1\.id\];if\(!\3\)return;const \w=\3\.getModal\(\);\1\.toggle&&/,
+    /closePopup\(\w,(\w)\)\{const \w=jQuery\(\1\.target\)\.parents\('\[data-elementor-type="popup"\]'\)/,
+    /handleDisplayToggle\((\w)\)\{var \w;if\(\1\.originalEvent\.detail\.id!==this\.getWidgetId\(\)\)return;const \w=\1\.originalEvent\.detail\.displayMode/,
+    /addAction\("off_canvas:toggle"/,
+  ]],
+]) {
+  forms.forEach((form, i) => { if (!form.test(source)) problems.push(`${name}: la forma ${i + 1} que usa actions.js (F7b) ya no aparece (${form.source.slice(0, 60)}…)`); });
+}
+const actionsJs = read('modules/digitalisimo-f7b/assets/js/actions.js');
+for (const token of ['createActionHash(', 'runAction(', "'off_canvas:toggle'", "'popup:'", "displayMode:'toggle'"]) {
+  if (!actionsJs.includes(token)) problems.push(`actions.js (F7b) ya no usa ${token}: revisar esta lista`);
+}
+if (/#elementor-action:/.test(actionsJs)) problems.push('actions.js (F7b) arma el hash a mano: debe usar createActionHash()');
+
 // La puerta coincide con el inventario.
 const gate = read('modules/digitalisimo-front/class-pro-gate.php');
 const constant = (name) => {

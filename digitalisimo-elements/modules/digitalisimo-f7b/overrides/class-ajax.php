@@ -24,7 +24,7 @@ final class Ajax {
 
 	const MAX_DOCUMENTS = 100;
 
-	const USAGES = '\\Digitalisimo\\Elements\\F7b\\Usages';
+	const USAGES = 'Digitalisimo\\Elements\\F7b\\Usages';
 
 	/** @var bool */
 	private static $initialized = false;

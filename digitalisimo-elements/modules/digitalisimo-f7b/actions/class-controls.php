@@ -65,6 +65,11 @@ final class Controls {
 		return __( 'Con una versión de DIGITALÍSIMO Elements anterior a 4.3.0.169, lo que se oculta así vuelve a verse siempre.', 'pro-elements' );
 	}
 
+	/** Para las pruebas. */
+	public static function reset(): void {
+		self::$initialized = false;
+	}
+
 	public static function init(): void {
 		if ( self::$initialized ) {
 			return;

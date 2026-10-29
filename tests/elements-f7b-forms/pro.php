@@ -75,6 +75,8 @@ namespace ElementorPro\Modules\Forms {
 		public function __construct( string $name ) { $this->name = $name; }
 		public function get_name() { return $this->name; }
 		public function get_label() { return $this->name; }
+		public function register_settings_section( $widget ) {}
+		public function on_export( $element ) { return null; }
 		public function run( $record, $ajax_handler ) {
 			$this->runs[] = array(
 				'fields'    => $record->get( 'fields' ),
@@ -258,10 +260,15 @@ namespace {
 		$_POST  = array( 'action' => 'elementor_pro_forms_send_form', 'post_id' => '10', 'form_id' => 'f0001', 'form_fields' => $sent );
 		$_FILES = $files;
 		$handler = new \ElementorPro\Modules\Forms\Classes\Ajax_Handler();
+		// PRO llama a `add_error( $record->get( 'errors' ) )` con null al fallar (`ajax-handler.php:122-123`), que PHP 8.5
+		// anuncia como obsoleto: es del derivado y no cambia nada aquí.
+		$level = error_reporting( E_ALL & ~E_DEPRECATED );
 		try {
 			$handler->ajax_send_form();
 		} catch ( Forms_Sent $sent_response ) {
 			return array( 'success' => $sent_response->success, 'data' => $sent_response->data, 'runs' => $action->runs, 'handler' => $handler );
+		} finally {
+			error_reporting( $level );
 		}
 		throw new RuntimeException( 'El envío no respondió.' );
 	}

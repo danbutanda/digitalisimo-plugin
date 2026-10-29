@@ -189,6 +189,7 @@ final class Screen {
 			return;
 		}
 		$scanning = self::scanning();
+		Store::prime_uses( array_keys( $rows ) );
 		echo '<table class="widefat striped"><thead><tr>';
 		foreach ( array( __( 'Nombre', 'pro-elements' ), __( 'Consulta', 'pro-elements' ), __( 'Estado', 'pro-elements' ), __( 'Usos', 'pro-elements' ), __( 'Modificada', 'pro-elements' ) ) as $heading ) {
 			echo '<th scope="col">' . esc_html( $heading ) . '</th>';
@@ -209,7 +210,9 @@ final class Screen {
 			echo '<td>';
 			if ( $uses['count'] > 0 ) {
 				/* translators: %d: número de documentos. */
-				echo '<span>' . esc_html( sprintf( __( 'En uso (%d)', 'pro-elements' ), $uses['count'] ) ) . '</span>';
+				$label = esc_html( sprintf( __( 'En uso (%d)', 'pro-elements' ), $uses['count'] ) );
+				$link  = self::uses_url( (int) $id );
+				echo '' !== $link ? '<a href="' . esc_url( $link ) . '">' . $label . '</a>' : '<span>' . $label . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
 			} else {
 				self::render_delete_form( (int) $id, $query['title'] );
 			}
@@ -260,6 +263,12 @@ final class Screen {
 		$label = sprintf( __( 'Borrar «%s»', 'pro-elements' ), '' !== $title ? $title : '#' . $id );
 		echo '<button type="submit" class="button button-secondary" aria-label="' . esc_attr( $label ) . '" data-confirm="' . esc_attr__( '¿Borrar esta consulta? No se puede deshacer.', 'pro-elements' ) . '">' . esc_html__( 'Borrar', 'pro-elements' ) . '</button>';
 		echo '</form>';
+	}
+
+	/** Pantalla de usos del frente A (`Deletion::uses_url()`), si existe. */
+	private static function uses_url( int $id ): string {
+		$deletion = '\Digitalisimo\Elements\F7b\Deletion';
+		return class_exists( $deletion ) && method_exists( $deletion, 'uses_url' ) ? (string) $deletion::uses_url( $id, 'q' ) : '';
 	}
 
 	/** ¿Sigue el recorrido de usos del frente A (`Scan::running()`, si existe)? */

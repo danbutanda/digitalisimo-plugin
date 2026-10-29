@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>F7b · presentación de anidados</title>
+<!-- Hojas del núcleo de los dos widgets y la hoja de la presentación (tests/elements-f7b-presentation-chrome.mjs). -->
+<link rel="stylesheet" href="../../digitalisimo-elements/elementor/assets/css/widget-nested-tabs.min.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/elementor/assets/css/widget-nested-accordion.min.css">
+<link rel="stylesheet" id="digi-presentation" href="../../digitalisimo-elements/modules/digitalisimo-f7b/assets/css/nested-presentation.css">
+<style id="kit"></style>
+<style id="user"></style>
+<!-- Sólo para medir estados finales: sin las transiciones del núcleo (0,3 s en la sombra y el fondo). -->
+<style>.elementor-widget-n-tabs .e-n-tab-title,.elementor-widget-n-tabs .e-n-tab-title span{transition:none}</style>
+<style>body{margin:0;padding:16px;background:#fff;font:16px/1.5 sans-serif;color:#111}.e-con{display:flex;flex-direction:column;padding:8px}</style>
+</head>
+<body>
+<div class="elementor elementor-1">
+<!-- Pestañas con el marcado optimizado (sin .elementor-widget-container), como render() de nested-tabs.php. -->
+<div class="elementor-element elementor-element-t1 elementor-widget elementor-widget-n-tabs" data-id="t1" data-element_type="widget" data-widget_type="nested-tabs.default">
+	<div class="e-n-tabs" data-widget-number="1" aria-label="Pestañas" data-touch-mode="false">
+		<div class="e-n-tabs-heading" role="tablist">
+			<button id="e-n-tab-title-11" data-tab-title-id="e-n-tab-title-11" class="e-n-tab-title" aria-selected="true" data-tab-index="1" role="tab" tabindex="0" aria-controls="e-n-tab-content-11" style="--n-tabs-title-order: 1;"><span class="e-n-tab-title-text">Uno</span></button>
+			<button id="e-n-tab-title-12" data-tab-title-id="e-n-tab-title-12" class="e-n-tab-title" aria-selected="false" data-tab-index="2" role="tab" tabindex="-1" aria-controls="e-n-tab-content-12" style="--n-tabs-title-order: 2;"><span class="e-n-tab-title-text">Dos</span></button>
+		</div>
+		<div class="e-n-tabs-content">
+			<div id="e-n-tab-content-11" role="tabpanel" aria-labelledby="e-n-tab-title-11" data-tab-index="1" style="--n-tabs-title-order: 1;" class="e-active elementor-element elementor-element-c1 e-con e-flex e-child">
+				<!-- Pestañas anidadas dentro, sin presentación: no deben heredar nada. -->
+				<div class="elementor-element elementor-element-t9 elementor-widget elementor-widget-n-tabs" data-id="t9" data-element_type="widget" data-widget_type="nested-tabs.default">
+					<div class="e-n-tabs" data-widget-number="9" aria-label="Pestañas" data-touch-mode="false">
+						<div class="e-n-tabs-heading" role="tablist">
+							<button id="e-n-tab-title-91" class="e-n-tab-title" aria-selected="true" data-tab-index="1" role="tab" tabindex="0" aria-controls="e-n-tab-content-91" style="--n-tabs-title-order: 1;"><span class="e-n-tab-title-text">Interior uno</span></button>
+							<button id="e-n-tab-title-92" class="e-n-tab-title" aria-selected="false" data-tab-index="2" role="tab" tabindex="-1" aria-controls="e-n-tab-content-92" style="--n-tabs-title-order: 2;"><span class="e-n-tab-title-text">Interior dos</span></button>
+						</div>
+						<div class="e-n-tabs-content">
+							<div id="e-n-tab-content-91" role="tabpanel" aria-labelledby="e-n-tab-title-91" class="e-active elementor-element e-con e-flex e-child">Contenido interior</div>
+							<div id="e-n-tab-content-92" role="tabpanel" aria-labelledby="e-n-tab-title-92" class="elementor-element e-con e-flex e-child">Contenido interior dos</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="e-n-tab-content-12" role="tabpanel" aria-labelledby="e-n-tab-title-12" data-tab-index="2" style="--n-tabs-title-order: 2;" class="elementor-element elementor-element-c2 e-con e-flex e-child">Contenido dos</div>
+		</div>
+	</div>
+</div>
+<!-- Pestañas con el marcado clásico (con .elementor-widget-container). -->
+<div class="elementor-element elementor-element-t2 elementor-widget elementor-widget-n-tabs" data-id="t2" data-element_type="widget" data-widget_type="nested-tabs.default">
+	<div class="elementor-widget-container">
+		<div class="e-n-tabs" data-widget-number="2" aria-label="Pestañas" data-touch-mode="false">
+			<div class="e-n-tabs-heading" role="tablist">
+				<button id="e-n-tab-title-21" class="e-n-tab-title" aria-selected="true" data-tab-index="1" role="tab" tabindex="0" aria-controls="e-n-tab-content-21" style="--n-tabs-title-order: 1;"><span class="e-n-tab-title-text">Uno</span></button>
+				<button id="e-n-tab-title-22" class="e-n-tab-title" aria-selected="false" data-tab-index="2" role="tab" tabindex="-1" aria-controls="e-n-tab-content-22" style="--n-tabs-title-order: 2;"><span class="e-n-tab-title-text">Dos</span></button>
+			</div>
+			<div class="e-n-tabs-content">
+				<div id="e-n-tab-content-21" role="tabpanel" aria-labelledby="e-n-tab-title-21" class="e-active elementor-element e-con e-flex e-child">Contenido uno</div>
+				<div id="e-n-tab-content-22" role="tabpanel" aria-labelledby="e-n-tab-title-22" class="elementor-element e-con e-flex e-child">Contenido dos</div>
+			</div>
+		</div>
+	</div>
+</div>
+<!-- Acordeón, como render() de nested-accordion.php. -->
+<div class="elementor-element elementor-element-a1 elementor-widget elementor-widget-n-accordion" data-id="a1" data-element_type="widget" data-widget_type="nested-accordion.default">
+	<div class="e-n-accordion" aria-label="Acordeón">
+		<details id="e-n-accordion-item-1" class="e-n-accordion-item" open>
+			<summary class="e-n-accordion-item-title" data-accordion-index="1" tabindex="0" aria-expanded="true" aria-controls="e-n-accordion-item-1">
+				<span class="e-n-accordion-item-title-header"><div class="e-n-accordion-item-title-text"> Abierto </div></span>
+				<span class="e-n-accordion-item-title-icon"><span class="e-opened"><i aria-hidden="true">−</i></span><span class="e-closed"><i aria-hidden="true">+</i></span></span>
+			</summary>
+			<div role="region" aria-labelledby="e-n-accordion-item-1" class="elementor-element e-con e-flex e-child">Contenido abierto</div>
+		</details>
+		<details id="e-n-accordion-item-2" class="e-n-accordion-item">
+			<summary class="e-n-accordion-item-title" data-accordion-index="2" tabindex="-1" aria-expanded="false" aria-controls="e-n-accordion-item-2">
+				<span class="e-n-accordion-item-title-header"><div class="e-n-accordion-item-title-text"> Cerrado </div></span>
+				<span class="e-n-accordion-item-title-icon"><span class="e-opened"><i aria-hidden="true">−</i></span><span class="e-closed"><i aria-hidden="true">+</i></span></span>
+			</summary>
+			<div role="region" aria-labelledby="e-n-accordion-item-2" class="elementor-element e-con e-flex e-child">Contenido cerrado</div>
+		</details>
+	</div>
+</div>
+</div>
+</body>
+</html>
