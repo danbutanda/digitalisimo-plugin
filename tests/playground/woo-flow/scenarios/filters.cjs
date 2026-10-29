@@ -4,8 +4,10 @@
 //
 // - W9 compara cada filtro del Loop Grid con la tienda nativa: los mismos parámetros de WooCommerce (`filter_*`,
 //   `query_type_*`, `min_price`, `max_price`, `orderby`) sobre la consulta principal del archivo de la etiqueta
-//   `digi-wf-filtros`, la base de los bucles. Con la tabla de atributos y sin ella, y con «Ocultar agotados» activo e
-//   inactivo; al recargar (sin JS), por el refresco (REST) y en Chrome.
+//   `digi-wf-filtros`, la base de los bucles. La matriz (con la tabla de atributos y sin ella, con «Ocultar agotados»
+//   activo e inactivo) se calcula en una sola petición (ops `filters_matrix`) y se contrasta por HTTP en los casos de
+//   referencia: la página nativa, el refresco (REST) y la página del bucle al recargar (sin JS). Después, Chrome.
+//   Con NET=1, todo en el primer sitio y la matriz de la primera configuración con sus contrastes en los demás.
 // - W10 usa la plantilla «Archivo de productos» del archivo de `digi-wf-calzado` (destino «Tienda»).
 // Depuración: WF_FILTERS_TRACE=1 anota en run.log cada petición con su duración; WF_FILTERS_ONLY=chrome salta la parte
 // de servidor de W9 (las comprobaciones que dependen de la matriz fallan).
@@ -23,8 +25,8 @@ const CONFIGS = [
   { lookup: 'no', hide: 'yes' },
   { lookup: 'no', hide: 'no' },
 ];
-// Oráculo independiente de «talla 40» (el catálogo de ops/filters.php): con la tabla y «Ocultar agotados», la
-// variación agotada de la Deportiva la saca; sin la tabla, sólo sale la Bota agotada (la base de la tienda).
+// Oráculo independiente de «talla 40» (el catálogo de ops/filters.php): con «Ocultar agotados» la Bota agotada sale
+// siempre (la base de la tienda) y, con la tabla, también la Deportiva (su variación 40 está agotada).
 const ORACLE_40 = {
   'yes/no': ['digi-wf-bota-agotada', 'digi-wf-bota-alta', 'digi-wf-bota-corta', 'digi-wf-deportiva', 'digi-wf-deportiva-dos'],
   'yes/yes': ['digi-wf-bota-alta', 'digi-wf-bota-corta', 'digi-wf-deportiva-dos'],
@@ -35,7 +37,7 @@ const ATTR_KEY = 'digiattr_pa_talla-zapato';
 const FATAL = /Fatal error|There has been a critical error|Ha habido un error crítico|Uncaught (?:Type)?Error/i;
 
 module.exports = (api) => {
-  const { TOKEN, SITES, QUICK, summary, sleep, log, request, check, visitor, shot } = api;
+  const { TOKEN, SITES, summary, sleep, log, request, check, visitor, shot } = api;
   const timing = { requests: 0, ms: 0 };
 
   // ── Utilidades ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -137,7 +139,7 @@ module.exports = (api) => {
     page.on('requestfailed', (r) => { if (r.url().includes('refresh-loop')) log.failed.push(r.failure() ? r.failure().errorText : 'falló'); });
     return log;
   };
-  /** Espera a que termine un refresco del bucle posterior a `n0` respuestas (o a que no haya ninguno en `quiet` ms). */
+  /** Espera a que llegue una respuesta del refresco posterior a `n0`, sin peticiones en curso ni `aria-busy`. */
   const settleLoop = async (page, net, loopId, n0, ms = 60000) => {
     const t0 = Date.now();
     while (Date.now() - t0 < ms) {

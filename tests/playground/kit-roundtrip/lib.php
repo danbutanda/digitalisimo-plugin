@@ -418,10 +418,17 @@ function digi_k_woo_attribute( array $spec, $refs, array &$ids ) {
 	if ( ! $attribute || ( (string) ( $spec['type'] ?? 'select' ) !== (string) $attribute->type ) ) {
 		digi_k_fail( "WooCommerce: el atributo {$slug} no quedó con el tipo " . ( $spec['type'] ?? 'select' ) . ' (' . ( $attribute ? $attribute->type : 'no existe' ) . ')' );
 	}
-	// En esta misma petición, como el importador CSV de WooCommerce: la taxonomía aún no está registrada.
+	// En esta misma petición, como el importador CSV de WooCommerce: la taxonomía aún no está registrada y
+	// `$wc_product_attributes` no la tiene (sin ella, wc_attribute_label() da «pa_color» y el extracto de las variaciones
+	// que se guarden en esta petición diría «pa_color: Rojo» en lugar de «Color: Rojo»).
 	$taxonomy = wc_attribute_taxonomy_name( $slug );
 	if ( ! taxonomy_exists( $taxonomy ) ) {
-		register_taxonomy( $taxonomy, array( 'product' ), array( 'hierarchical' => false, 'show_ui' => false, 'query_var' => ! empty( $spec['has_archives'] ), 'rewrite' => false, 'public' => ! empty( $spec['has_archives'] ) ) );
+		register_taxonomy( $taxonomy, array( 'product' ), array( 'labels' => array( 'name' => (string) $spec['label'], 'singular_name' => (string) $spec['label'] ), 'hierarchical' => false, 'show_ui' => false, 'query_var' => ! empty( $spec['has_archives'] ), 'rewrite' => false, 'public' => ! empty( $spec['has_archives'] ) ) );
+	}
+	global $wc_product_attributes;
+	$wc_product_attributes = array();
+	foreach ( (array) wc_get_attribute_taxonomies() as $registered ) {
+		$wc_product_attributes[ wc_attribute_taxonomy_name( $registered->attribute_name ) ] = $registered;
 	}
 	foreach ( (array) ( $spec['terms'] ?? array() ) as $term ) {
 		$found   = get_term_by( 'slug', $term['slug'], $taxonomy );

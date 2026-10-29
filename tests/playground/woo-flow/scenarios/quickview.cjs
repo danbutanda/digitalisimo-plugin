@@ -40,15 +40,25 @@ module.exports = (api) => {
   }
 
   /**
-   * Visitante sin cookies. Playground sirve con un solo proceso de PHP (unos 5–7 s por respuesta de la ruta, más con
-   * fragmentos en cola): el plazo de 10 s del script para mostrar «No se pudo cargar» se alarga a 90 s en el navegador
-   * de la prueba (sólo los temporizadores de 10 000 ms). El comportamiento del plazo lo cubre la prueba unitaria.
+   * Visitante sin cookies. Playground sirve con un solo proceso de PHP (4–7 s por respuesta, más con peticiones en
+   * cola), así que en el navegador de la prueba se alargan dos plazos pensados para un servidor real:
+   * - el de 10 s de la vista rápida para mostrar «No se pudo cargar» (temporizadores de 10 000 ms → 90 s; el
+   *   comportamiento del plazo lo cubre la prueba unitaria);
+   * - el de 5 s de `wc-cart-fragments` (`wc_cart_fragments_params.request_timeout` → 60 s): con 5 s, WooCommerce aborta
+   *   el refresco de los fragmentos y el mini carrito no se rehace tras el cupón.
    */
   async function guest() {
     const v = await visitor();
     await v.page.evaluateOnNewDocument(() => {
       const st = window.setTimeout;
       window.setTimeout = function (fn, ms, ...rest) { return st.call(this, fn, ms === 10000 ? 90000 : ms, ...rest); };
+      let params;
+      Object.defineProperty(window, 'wc_cart_fragments_params', {
+        configurable: true,
+        enumerable: true,
+        get() { return params; },
+        set(value) { if (value && typeof value === 'object' && +value.request_timeout > 0) value.request_timeout = 60000; params = value; },
+      });
     });
     return v;
   }
@@ -527,7 +537,7 @@ module.exports = (api) => {
     const st = box && box.querySelector('.digi-ship__state');
     return { exists: !!box, hidden: box ? box.hidden : null, state: st ? st.getAttribute('data-state') : null, initial: !!(st && st.hasAttribute('data-digi-initial')), text: box ? box.textContent.replace(/\s+/g, ' ').trim() : '' };
   });
-  const waitBar = (page, test, arg) => page.waitForFunction(test, { timeout: 30000 }, arg).then(() => true, () => false);
+  const waitBar = (page, test, arg) => page.waitForFunction(test, { timeout: 25000 }, arg).then(() => true, () => false);
   /** Registro de las peticiones `wc-ajax` de una página (punto final, estado y duración), para el detalle. */
   function ajaxLog(page) {
     const list = [];
@@ -639,9 +649,8 @@ module.exports = (api) => {
   async function blocksCheckout(s, site, qv, page) {
     const pages = setupOf(site).pages || {};
     await go(page, pages['wc-checkout']);
-    await page.waitForSelector('.wc-block-checkout', { timeout: 120000 });
-    await page.waitForSelector('#email', { timeout: 120000 });
-    await sleep(800);
+    await page.waitForSelector('.wc-block-checkout #email', { timeout: 120000 });
+    await sleep(1000);
     const type = async (selector, value) => {
       const el = await page.$(selector);
       if (!el) return false;
@@ -659,23 +668,27 @@ module.exports = (api) => {
     if (await page.$('select#shipping-state')) await page.select('select#shipping-state', 'M');
     await page.keyboard.press('Tab');
     await sleep(1500);
-    await page.waitForFunction(() => !document.querySelector('.wc-block-components-loading-mask, .wc-block-components-shipping-rates-control__package--disabled'), { timeout: 60000 }).catch(() => {});
-    const flat = await page.$('input[type="radio"][value^="flat_rate"]');
-    if (flat && await flat.evaluate((el) => !el.checked)) { await flat.click(); await sleep(1500); }
+    await page.waitForNetworkIdle({ idleTime: 1000, timeout: 90000 }).catch(() => {});
+    const flat = await page.$('.wc-block-checkout input[type="radio"][value^="flat_rate"]');
+    if (flat && await flat.evaluate((el) => !el.checked)) { await flat.click(); await page.waitForNetworkIdle({ idleTime: 1000, timeout: 60000 }).catch(() => {}); }
     const cod = await page.$('#radio-control-wc-payment-method-options-cod');
     if (cod && await cod.evaluate((el) => !el.checked)) { await cod.click(); await sleep(500); }
-    const view = await page.evaluate(() => ({
-      rates: Array.from(document.querySelectorAll('.wc-block-components-shipping-rates-control input[type="radio"], .wc-block-components-totals-shipping input[type="radio"]')).map((e) => e.value),
-      text: (document.querySelector('.wc-block-components-totals-shipping') || {}).textContent || '',
-      payment: (document.querySelector('.wc-block-checkout__payment-method') || {}).textContent || '',
-      coupon: /digi10/i.test((document.querySelector('.wc-block-components-totals-discount, .wc-block-components-totals-coupon') || document.body).textContent),
-      total: ((document.querySelector('.wc-block-components-totals-footer-item .wc-block-components-totals-item__value') || {}).textContent || '').trim(),
-    }));
-    const noFree = !view.rates.some((r) => r.startsWith('free_shipping')) && !/gratuito|free shipping/i.test(view.text);
-    check(s, `W11.2e ${site.path}`, 'el pago de bloques conserva DIGI10, ofrece sólo la tarifa plana (como dijo la barra) y «Contra reembolso»', view.coupon && noFree && /Contra reembolso/i.test(view.payment) && /32,00/.test(view.total), short({ ...view, filled, flat: !!flat }));
+    const view = await page.evaluate(() => {
+      const text = (sel) => Array.from(document.querySelectorAll(sel)).map((e) => e.textContent.replace(/\s+/g, ' ').trim()).join(' | ');
+      return {
+        rates: Array.from(document.querySelectorAll('.wc-block-checkout input[type="radio"]')).map((e) => e.value).filter((v) => /^[a-z_]+:\d+$/.test(v)),
+        totals: text('.wc-block-checkout__sidebar .wc-block-components-totals-item'),
+        coupon: /digi10/i.test(text('.wc-block-components-totals-discount')),
+        total: text('.wc-block-checkout__sidebar .wc-block-components-totals-footer-item'),
+        payment: text('.wc-block-checkout__payment-method'),
+      };
+    });
+    const noFree = !view.rates.some((r) => r.startsWith('free_shipping')) && !/gratuito|free shipping/i.test(view.totals);
+    check(s, `W11.2e ${site.path}`, 'el pago de bloques conserva DIGI10, ofrece sólo la tarifa plana (como dijo la barra), «Contra reembolso» y 32,00 €', view.coupon && noFree && /Tarifa plana/.test(view.totals) && /Contra reembolso/i.test(view.payment) && /32,00/.test(view.total), short({ ...view, filled }));
     await shot(page, `W11-${site.id}-bloques-pago`);
     await page.click('.wc-block-components-checkout-place-order-button');
-    await page.waitForFunction(() => /order-received/.test(location.href) || !!document.querySelector('.wc-block-components-notice-banner.is-error, .wc-block-store-notice.is-error'), { timeout: 180000 });
+    await page.waitForFunction(() => /order-received/.test(location.href) || !!document.querySelector('.wc-block-components-notice-banner.is-error, .wc-block-store-notice.is-error'), { timeout: 180000 }).catch(() => {});
+    await page.waitForFunction(() => document.readyState === 'complete', { timeout: 60000 }).catch(() => {});
     const err = await page.$eval('.wc-block-components-notice-banner.is-error, .wc-block-store-notice.is-error', (el) => el.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
     await page.waitForSelector('.woocommerce-order, .wc-block-order-confirmation-status, .woocommerce-thankyou-order-received', { timeout: 60000 }).catch(() => {});
     await shot(page, `W11-${site.id}-bloques-recibido`);

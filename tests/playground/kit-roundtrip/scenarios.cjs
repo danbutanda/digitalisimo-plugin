@@ -797,12 +797,14 @@ async function R4v4(s) { await clash(s, true); }
 // ── F4-Woo (WOO=1, V.11): atributos, muestras, variaciones y tabla de búsqueda en los kits ─────────────────────────
 // Opciones y tablas de WooCommerce que una importación cambia a propósito. Cada escenario las mide aparte: R1 libres
 // («nuevo»), R4 sólo con entradas y filas nuevas de lo que creó la sesión (wooClash), R8 sólo lo editado (wooRevert).
-const WOO_OPTIONS = ['^digitalisimo_elements_swatches$', '^digitalisimo_elements_woo_fragments$'];
+// woocommerce_task_list_tracked_completed_tasks: la lista de tareas de WooCommerce marca «productos» al crear el primero.
+const WOO_OPTIONS = ['^digitalisimo_elements_swatches$', '^digitalisimo_elements_woo_fragments$', '^woocommerce_task_list_tracked_completed_tasks$'];
 const WOO_TABLES = {
-  // wc_category_lookup: WooCommerce la escribe al crear una categoría de producto (la del kit).
-  fresh: { woocommerce_attribute_taxonomies: 'libre', wc_product_meta_lookup: 'libre', wc_product_attributes_lookup: 'libre', wc_category_lookup: 'libre' },
-  add: { woocommerce_attribute_taxonomies: 'nuevas', wc_product_meta_lookup: 'nuevas', wc_product_attributes_lookup: 'nuevas', wc_category_lookup: 'nuevas' },
-  revert: { woocommerce_attribute_taxonomies: 'nuevas' },
+  // wc_category_lookup: WooCommerce la escribe al crear una categoría de producto (la del kit). actionscheduler_*: la
+  // cola de WooCommerce, que programa sus tareas al guardar o borrar productos.
+  fresh: { woocommerce_attribute_taxonomies: 'libre', wc_product_meta_lookup: 'libre', wc_product_attributes_lookup: 'libre', wc_category_lookup: 'libre', actionscheduler_actions: 'libre', actionscheduler_logs: 'libre' },
+  add: { woocommerce_attribute_taxonomies: 'nuevas', wc_product_meta_lookup: 'nuevas', wc_product_attributes_lookup: 'nuevas', wc_category_lookup: 'nuevas', actionscheduler_actions: 'nuevas', actionscheduler_logs: 'nuevas' },
+  revert: { woocommerce_attribute_taxonomies: 'nuevas', actionscheduler_actions: 'nuevas', actionscheduler_logs: 'nuevas' },
 };
 // Medios que sólo nombran las variaciones y las metas `image` de los términos de atributo (cases.json, woo.media).
 const WOO_MEDIA = ['variacion-roja', 'variacion-azul', 'muestra-azul', 'muestra-brillo'];
@@ -1346,11 +1348,11 @@ async function main() {
     await warmUp('a');
     for (const slug of ['digi-k-padre', 'digi-k-hija', 'digi-k-cierre']) await R.request('a', 'GET', `/${slug}/`, { jar: '__control' }).catch(() => null);
     kits = await exportFromA();
-    if (WOO) fs.writeFileSync(path.join(OUT, 'scenarios', 'woo-debug-export.json'), JSON.stringify(await R.control('a', 'woo-debug-export').catch((e) => ({ error: String(e) })), null, 1)); // TEMPORAL
     if (kits.restError) log(`   exportación REST: ${kits.restError}`);
     if (kits.cliError) log(`   exportación WP-CLI: ${kits.cliError}`);
     const files = Object.fromEntries(Object.entries({ rest: kits.rest, cli: kits.cli }).filter(([, f]) => f));
-    if (Object.keys(files).length) {
+    // QUICK: sin not-exported.json (una consulta a A por entrada, un minuto con WooCommerce).
+    if (Object.keys(files).length && !QUICK) {
       const ne = await notExportedCheck(files);
       summary.not_exported = ne;
       verdict('A1', !ne.length, ne);
