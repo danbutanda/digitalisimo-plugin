@@ -64,5 +64,15 @@ namespace {
 	$GLOBALS['digi_context'] = 'category';
 	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
 	check_breadcrumbs( str_contains( $html, 'Categoría padre' ) && str_contains( $html, 'Noticias' ), 'La taxonomía debe mostrar su jerarquía.' );
+	// Con DIGITALÍSIMO SEO activo, la misma ruta que su BreadcrumbList; con otro plugin SEO, la propia.
+	eval( 'class Digitalisimo_Integrations_SEO_Resolver { public static $foreign = false; public static function foreign_seo() { return self::$foreign; } }
+	class Digitalisimo_Integrations_Breadcrumbs { public static function trail() { return array( array( "name" => "Portada", "url" => "https://site.example.test/subsite/" ), array( "name" => "Calzado <b>", "url" => "https://site.example.test/subsite/calzado/" ), array( "name" => "Tenis rojos", "url" => "https://site.example.test/subsite/tenis/" ) ); } }' );
+	$GLOBALS['digi_context'] = 'post';
+	$widget->settings = array( 'home_text' => 'Casa', 'separator' => 'chevron' );
+	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
+	check_breadcrumbs( str_contains( $html, '>Casa</a>' ) && str_contains( $html, 'href="https://site.example.test/subsite/calzado/">Calzado</a>' ) && str_contains( $html, '<span aria-current="page">Tenis rojos</span>' ) && ! str_contains( $html, 'Noticias' ), 'Con SEO, el widget usa su ruta (categoría principal y títulos de miga) y su nombre de inicio.' );
+	Digitalisimo_Integrations_SEO_Resolver::$foreign = true;
+	ob_start(); $render->invoke( $widget ); $html = ob_get_clean();
+	check_breadcrumbs( str_contains( $html, 'Noticias' ) && ! str_contains( $html, 'Calzado' ), 'Con otro plugin SEO activo, el widget vuelve a su propia ruta.' );
 	echo "DIGITALÍSIMO Elements: Ruta de navegación por sitio validada.\n";
 }

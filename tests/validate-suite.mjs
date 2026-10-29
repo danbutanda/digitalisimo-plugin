@@ -11,7 +11,7 @@ const modules = [
   { dir: 'digitalisimo-backups', file: 'digitalisimo-backups.php', zip: 'digitalisimo-backups-1.0.58.zip', version: '1.0.58' },
 ];
 const toolsModule = { dir: 'digitalisimo-tools', file: 'digitalisimo-tools.php', zip: 'digitalisimo-tools-1.0.36.zip', version: '1.0.36' };
-const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.164.zip', version: '4.3.0.164' };
+const elementsModule = { dir: 'digitalisimo-elements', file: 'pro-elements.php', zip: 'digitalisimo-elements-4.3.0.165.zip', version: '4.3.0.165' };
 const migrationModule = { dir: 'digitalisimo-migration', file: 'digitalisimo-migration.php', zip: 'digitalisimo-migration-1.0.20.zip', version: '1.0.20' };
 const themeModule = { dir: 'digitalisimo-theme', file: 'style.css', zip: 'digitalisimo-theme-1.0.0.zip', version: '1.0.0' };
 const webpModule = readFileSync('digitalisimo-tools/modules/class-media-webp.php', 'utf8');

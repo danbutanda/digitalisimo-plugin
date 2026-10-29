@@ -3,7 +3,7 @@ namespace Digitalisimo\Elements;
 
 defined( 'ABSPATH' ) || exit;
 
-/** Ruta de navegación del sitio actual. El schema lo publica el motor SEO, si existe. */
+/** Ruta de navegación del sitio actual: la de DIGITALÍSIMO SEO si está activo. El schema lo publica SEO, si existe. */
 class Breadcrumbs_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-breadcrumbs'; }
 	public function get_title() { return 'Ruta de navegación'; }
@@ -43,7 +43,24 @@ class Breadcrumbs_Widget extends \Elementor\Widget_Base {
 		}
 	}
 
+	/**
+	 * La ruta de DIGITALÍSIMO SEO, si está activo y publica sus señales: la misma categoría principal, pilar
+	 * y títulos de miga que su BreadcrumbList. Null sin SEO (o con otro plugin SEO), y se usa la propia.
+	 */
+	private static function seo_crumbs( $home_text ) {
+		if ( ! class_exists( '\\Digitalisimo_Integrations_Breadcrumbs' ) || ! method_exists( '\\Digitalisimo_Integrations_Breadcrumbs', 'trail' ) ) { return null; }
+		if ( class_exists( '\\Digitalisimo_Integrations_SEO_Resolver' ) && method_exists( '\\Digitalisimo_Integrations_SEO_Resolver', 'foreign_seo' ) && \Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) { return null; }
+		$crumbs = array();
+		foreach ( (array) \Digitalisimo_Integrations_Breadcrumbs::trail() as $index => $item ) {
+			// El nombre de inicio del widget es una elección visual; la URL sigue siendo la de SEO.
+			self::add( $crumbs, 0 === $index && '' !== trim( (string) $home_text ) ? $home_text : ( $item['name'] ?? '' ), $item['url'] ?? '' );
+		}
+		return $crumbs ?: null;
+	}
+
 	private static function crumbs( $home_text ) {
+		$seo = self::seo_crumbs( $home_text );
+		if ( null !== $seo ) { return $seo; }
 		$crumbs = array();
 		self::add( $crumbs, $home_text ?: 'Inicio', home_url( '/' ) );
 		if ( is_front_page() ) { return $crumbs; }
