@@ -905,6 +905,7 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 - **Vista rápida en modo plantilla:** carga PRO en cada página con el botón (opt-in, avisado y medido).
 - **«Tienda» y «Consulta actual»:** un Loop Grid con «Consulta actual» no se filtra de forma fiable con el destino «Tienda» (sin la tabla de atributos WooCommerce mete el atributo en la consulta principal y el bucle lo hereda; el precio, nunca); el editor lo dice.
 - **Vuelta a 4.3.0.165:** abrir y guardar en el editor un documento con los widgets nuevos los borra (límite del núcleo); se recuperan por revisiones. Desde 4.3.0.166 la guarda hacia delante lo evita hacia el futuro.
+- **DS13 de `design.sh` (F7a):** tras la vuelta a 4.3.0.163, la comprobación de presets no encuentra los elementos en la página (24/25); falla igual desde `main` con 4.3.0.165 publicado, así que es previo a F4-Woo y queda anotado para F7a (sospechoso: WordPress 7.1.4 en Playground).
 - **Playground:** `W0`–`W13` juntos no caben en el tope de 10 min de un escenario con la máquina cargada; se corren por partes. Desde el 22 de octubre Playground sirve WordPress 7.1.4, así que la referencia es una corrida de 4.3.0.165 hecha en las mismas condiciones, no una línea base guardada.
 
 ### F5 · GeneratePress

@@ -1068,7 +1068,8 @@ async function DS13() {
   const pr = await control('tree', { doc: 'ds1-presets' }).catch(() => null);
   if (pr) {
     const list = pr.meta.filter((e) => e.slug !== 'rojo');
-    const res = await visit(url('ds1-presets'), async (v) => { const out = []; for (const e of list) out.push([e.slug, diff(await fingerprint(v.page, sel(e.L)), await fingerprint(v.page, sel(e.N))).length]); return out; }, { twice: false });
+    // El detalle lleva las diferencias (nodo y propiedad), no sólo cuántas: una sola propiedad por par apunta a un valor que sobrevive a la vuelta.
+    const res = await visit(url('ds1-presets'), async (v) => { const out = []; for (const e of list) { const d = diff(await fingerprint(v.page, sel(e.L)), await fingerprint(v.page, sel(e.N))); out.push([e.slug, d.length, d.slice(0, 3)]); } return out; }, { twice: false });
     check('DS13 · presets: los vinculados vuelven a sus valores locales (= sólo lo local)', res.every(([, n]) => n === 0), JSON.stringify(res.filter(([, n]) => n)));
   }
   const ed = await R.login('admin', 'password', 'admin').then(() => editor(I['ds5-cond'])).catch((e) => ({ error: e.message }));
