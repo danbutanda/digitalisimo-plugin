@@ -330,7 +330,8 @@ module.exports = (api) => {
     const rows = [];
     // En cada ancho, la ficha con muestras con la CPU normal y frenada ×6; en el ancho mayor, además la de 31
     // variaciones (frenada) y la ficha sin muestras (referencia del tema) con la CPU normal y frenada.
-    for (const width of WIDTHS) {
+    // `light` (NET=1, sitios que no son el /dos/): sólo el ancho mayor, para que la corrida de la red quepa en su tiempo.
+    for (const width of light ? [Math.max(...WIDTHS)] : WIDTHS) {
       const plan = [['muestras', sc.urls.muestras, 0], ['muestras', sc.urls.muestras, 6]];
       if (width === Math.max(...WIDTHS) && !light) plan.push(['ajax', sc.urls.ajax, 6], ['sudadera', sc.urls.sudadera, 0], ['sudadera', sc.urls.sudadera, 6]);
       for (const [key, url, throttle] of plan) {
@@ -347,7 +348,7 @@ module.exports = (api) => {
     // Lo que se exige: el paso del <select> a los radios no mueve nada (medido y comprobado sin depender del momento) y la
     // ficha queda en «bueno» (< 0,1). La tabla de variaciones de WooCommerce puede reajustar sus columnas tras la primera
     // pintura con la CPU frenada, también sin muestras: se anota la ficha sin muestras como referencia.
-    check(s, `W6.3${t}`, `CLS de la ficha con muestras (${WIDTHS.join(', ')} px; CPU normal y ×6): el paso del <select> a los radios no desplaza nada (0 en su ventana y cajas iguales con y sin el script) y el CLS total queda por debajo de 0,1`, swap === 0 && stable && total < 0.1, json({ swap, stable, total, sinMuestras: refs, readyAfterFcp: `${afterPaint}/${swatches.length}`, rows: rows.map((r) => `${r.key}@${r.width}${r.throttle ? 'x' + r.throttle : ''}:${r.cls}/${r.swap}${r.stable ? '' : ' MUEVE'} fcp ${r.fcp} ready ${r.ready}`) }));
+    check(s, `W6.3${t}`, `CLS de la ficha con muestras (${(light ? [Math.max(...WIDTHS)] : WIDTHS).join(', ')} px; CPU normal y ×6): el paso del <select> a los radios no desplaza nada (0 en su ventana y cajas iguales con y sin el script) y el CLS total queda por debajo de 0,1`, swap === 0 && stable && total < 0.1, json({ swap, stable, total, sinMuestras: refs, readyAfterFcp: `${afterPaint}/${swatches.length}`, rows: rows.map((r) => `${r.key}@${r.width}${r.throttle ? 'x' + r.throttle : ''}:${r.cls}/${r.swap}${r.stable ? '' : ' MUEVE'} fcp ${r.fcp} ready ${r.ready}`) }));
     fs.writeFileSync(path.join(OUT, `w6-cls-${site.id}.json`), JSON.stringify(rows, null, 1));
   }
 
