@@ -461,7 +461,7 @@ namespace {
 	// ---------------------------------------------------------------- Botón y widget.
 	check_qv( '' === $trigger::markup( 11, array( 'post' => 5, 'widget' => 'qv12345' ) ) && '' === $trigger::markup( 10, array( 'post' => 5, 'widget' => '<x>' ) ), 'Sin producto público o sin elemento válido, nada.' );
 	$button = $trigger::markup( 10, array( 'post' => 5, 'widget' => 'qv12345', 'text' => '' ) );
-	check_qv( '<a class="digi-qv__open" href="https://sitio.test/producto/camiseta/" data-digi-qv="10" data-post="5" data-widget="qv12345" aria-haspopup="dialog" data-variable><span class="digi-qv__text">Vista rápida</span><span class="screen-reader-text"> de Camiseta lisa</span></a>' === $button, 'Enlace a la ficha con lo que necesita el script, igual para todos: ' . $button );
+	check_qv( '<a class="digi-qv__open no-prefetch" href="https://sitio.test/producto/camiseta/" data-digi-qv="10" data-post="5" data-widget="qv12345" aria-haspopup="dialog" data-variable><span class="digi-qv__text">Vista rápida</span><span class="screen-reader-text"> de Camiseta lisa</span></a>' === $button, 'Enlace a la ficha con lo que necesita el script, igual para todos y fuera de la carga especulativa de WordPress (`no-prefetch`): ' . $button );
 	check_qv( false !== strpos( $trigger::markup( 12, array( 'post' => 5, 'widget' => 'qv12345', 'template' => true ) ), ' data-digi-qv-template>' ), 'El modo plantilla se marca en el botón.' );
 	$widget_class = $qv . 'Widget';
 	class_exists( $widget_class );

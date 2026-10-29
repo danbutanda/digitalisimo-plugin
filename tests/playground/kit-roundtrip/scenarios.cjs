@@ -285,10 +285,12 @@ async function renderCompare(sigA, sigB, label) {
   const skipped = published.filter(([k]) => sigB.documents[k].status !== 'publish').map(([k]) => `${k.slice(5)} (${sigB.documents[k].status} en B)`);
   const pages = [['portada', '', '']].concat(published.filter(([k]) => sigB.documents[k].status === 'publish').map(([k, d]) => [k.slice(5), d.path, sigB.documents[k].path]));
   // RENDER=<regex>: sólo la portada y esas páginas (repetir una parte del render; no vale para la aceptación). QUICK:
-  // cuatro páginas y, con WOO=1, también la de los filtros de F4-Woo.
+  // cuatro páginas; con WOO=1 (Playground con WooCommerce tarda segundos por petición), la portada y la de los filtros
+  // de F4-Woo, para que R1 quepa en una corrida de 10 minutos.
   const quickPages = ['portada', 'padre', 'widget-digitalisimo-accordion', 'widget-digitalisimo-logos'];
   const pick = RENDER ? pages.filter(([key]) => key === 'portada' || RENDER.test(key))
-    : QUICK ? pages.filter(([key]) => quickPages.includes(key) || (WOO && key === 'filtros-de-productos')) : pages;
+    : QUICK && WOO ? pages.filter(([key]) => key === 'portada' || key === 'filtros-de-productos')
+      : QUICK ? pages.filter(([key]) => quickPages.includes(key)) : pages;
   const problems = [];
   if (skipped.length) R.log(`   ${label}: sin captura en B (no publicadas): ${skipped.join(', ')}`);
   fs.mkdirSync(path.join(OUT, 'shots', label), { recursive: true });
@@ -1343,6 +1345,7 @@ async function main() {
     await warmUp('a');
     for (const slug of ['digi-k-padre', 'digi-k-hija', 'digi-k-cierre']) await R.request('a', 'GET', `/${slug}/`, { jar: '__control' }).catch(() => null);
     kits = await exportFromA();
+    if (WOO) fs.writeFileSync(path.join(OUT, 'scenarios', 'woo-debug-export.json'), JSON.stringify(await R.control('a', 'woo-debug-export').catch((e) => ({ error: String(e) })), null, 1)); // TEMPORAL
     if (kits.restError) log(`   exportación REST: ${kits.restError}`);
     if (kits.cliError) log(`   exportación WP-CLI: ${kits.cliError}`);
     const files = Object.fromEntries(Object.entries({ rest: kits.rest, cli: kits.cli }).filter(([, f]) => f));
@@ -1382,6 +1385,8 @@ async function main() {
     s.ms = Date.now() - t0;
     s.ok = !s.problems.length;
     summary.scenarios[id] = s;
+    // Resumen parcial tras cada escenario: si la corrida se corta, lo medido queda.
+    fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ ...summary, parcial: true }, null, 1) + '\n');
     for (const site of ['b', 'net']) if (fs.existsSync(path.join(OUT, site, 'fatal.log'))) s.problems.push(`fatal.log en ${site}: ${fs.readFileSync(path.join(OUT, site, 'fatal.log'), 'utf8').slice(0, 400)}`);
     log(`${id}: ${s.problems.length ? 'FALLA' : 'ok'} en ${Math.round(s.ms / 1000)} s${s.problems.length ? '\n   - ' + s.problems.slice(0, 8).join('\n   - ') : ''}`);
   }

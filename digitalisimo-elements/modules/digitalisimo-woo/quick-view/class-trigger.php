@@ -8,13 +8,15 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Botón de la vista rápida: un enlace a la ficha del producto con lo que necesita el script (V.5.2 y §5.2 a de la v1).
  *
- * `<a class="digi-qv__open" href="{ficha}" data-digi-qv="{producto}" data-post="{documento}" data-widget="{elemento}"
- * aria-haspopup="dialog">Vista rápida<span class="screen-reader-text"> de {nombre}</span></a>`
+ * `<a class="digi-qv__open no-prefetch" href="{ficha}" data-digi-qv="{producto}" data-post="{documento}"
+ * data-widget="{elemento}" aria-haspopup="dialog">Vista rápida<span class="screen-reader-text"> de {nombre}</span></a>`
  *
  * - El HTML es igual para todos los visitantes: no lleva nonce, usuario, carrito ni precio.
  * - `data-post` es el documento que contiene el widget (dentro de un bucle, su plantilla): el que la ruta revisa.
  * - `data-variable` deja abrir la ficha sin pedir nada si la página no puede cargar el formulario de variaciones;
  *   `data-digi-qv-template`, que el contenido es una plantilla (trae sus propios scripts).
+ * - `no-prefetch`: la carga especulativa de WordPress (reglas `conservative`, al pulsar) pediría la ficha entera en cada
+ *   apertura del diálogo, en paralelo con la ruta; con JS esa ficha nunca se usa (woo-flow W5).
  * - Es el renderizador que usan el widget `digitalisimo-woo-quick-view` y la parte `quickview` de Productos (frente G).
  */
 final class Trigger {
@@ -42,7 +44,7 @@ final class Trigger {
 		$text = isset( $args['text'] ) ? trim( (string) $args['text'] ) : '';
 		$text = '' !== $text ? $text : self::DEFAULT_TEXT;
 		$icon = isset( $args['icon'] ) ? (string) $args['icon'] : '';
-		$html = '<a class="digi-qv__open" href="' . esc_url( $product->get_permalink() ) . '" data-digi-qv="' . (int) $product->get_id() . '" data-post="' . $post . '" data-widget="' . esc_attr( $widget ) . '" aria-haspopup="dialog"'
+		$html = '<a class="digi-qv__open no-prefetch" href="' . esc_url( $product->get_permalink() ) . '" data-digi-qv="' . (int) $product->get_id() . '" data-post="' . $post . '" data-widget="' . esc_attr( $widget ) . '" aria-haspopup="dialog"'
 			. ( $product->is_type( 'variable' ) ? ' data-variable' : '' )
 			. ( ! empty( $args['template'] ) ? ' data-digi-qv-template' : '' ) . '>';
 		if ( '' !== $icon ) {

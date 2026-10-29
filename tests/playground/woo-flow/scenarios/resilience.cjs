@@ -770,6 +770,10 @@ module.exports = (api) => {
     const old = prepareOld();
     const fatal = async () => (await op('resilience_fatal')).size;
     const fatal0 = await fatal();
+    // Dos versiones del plugin en la misma carpeta dentro de un mismo proceso de php-wasm: sin OPcache para el código
+    // que carga después de un mu-plugin (sin esto, el worker cayó al volver a 4.3.0.166). RES_OPCACHE=1 lo deja.
+    const noOpcache = process.env.RES_OPCACHE !== '1';
+    if (noOpcache) await op('resilience_opcache', { on: 0 });
     await op('resilience_swatches', { type: 'label' });
     const jar = await login(main);
     let base = null;
@@ -832,6 +836,7 @@ module.exports = (api) => {
     }
     await op('resilience_swatches', { type: 'select' }).catch(() => {});
     try { await w133(s, jar); } catch (e) { check(s, 'W13.3', 'guarda hacia delante', false, String(e.stack || e.message || e).slice(0, 600)); }
+    if (noOpcache) await op('resilience_opcache', { on: 1 }).catch(() => {});
     if (hiccups.length) log(`   resilience: peticiones repetidas tras un corte del servidor: ${hiccups.join(' | ')}`);
   }
 

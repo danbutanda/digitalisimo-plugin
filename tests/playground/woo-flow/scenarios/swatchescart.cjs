@@ -483,25 +483,51 @@ module.exports = (api) => {
     check(s, c.id, c.what, ok, json({ state, expect: c.expect, bars: got.map((b) => `${b.where}:${b.hidden ? 'oculta' : b.text}`), cart: { packages: cart.packages, rates: cart.rates }, free, ms }));
   }
 
+  /** Añade unidades del producto de 10 € por `wc-ajax=add_to_cart` (sin recargar la página). */
+  async function addItems(page, sc, qty) {
+    const ok = await page.evaluate(async (id, n) => {
+      const u = window.wc_cart_fragments_params.wc_ajax_url.toString().replace('%%endpoint%%', 'add_to_cart');
+      const r = await fetch(u, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body: `product_id=${id}&quantity=${n}` });
+      const d = await r.json().catch(() => null);
+      return r.ok && !!(d && d.fragments);
+    }, sc.products.diez, qty);
+    if (!ok) throw new Error(`no se pudieron añadir ${qty} unidades`);
+  }
+  /** Tarifas que WooCommerce ofrece para el carrito del visitante, por la Store API (la API del carrito de bloques). */
+  async function storeRates(page, site) {
+    const d = await page.evaluate(async (path) => {
+      const r = await fetch(`${path}?rest_route=/wc/store/v1/cart`, { credentials: 'same-origin' });
+      const j = await r.json().catch(() => null);
+      return { status: r.status, j };
+    }, site.path);
+    if (d.status !== 200 || !d.j) throw new Error(`Store API: ${d.status}`);
+    const packages = d.j.shipping_rates || [];
+    return { packages: packages.length, rates: packages.map((pk) => (pk.shipping_rates || []).map((x) => x.method_id)), calculated: d.j.has_calculated_shipping, needs: d.j.needs_shipping, items: d.j.items_count };
+  }
+  /** Pide los fragmentos (como tras cualquier cambio del carrito) y lee las barras rehechas. */
+  async function refreshBars(page) {
+    await mark(page);
+    await page.evaluate(() => window.jQuery(document.body).trigger('wc_fragment_refresh'));
+    return bars(page);
+  }
+
   async function W7(s) {
     const site = own();
     const sc = setupOf(site);
     if (!sc || !sc.f4woo) { check(s, 'W7.0', 'preparación del grupo', false, json(sc)); return; }
-    check(s, 'W7.0', `preparación en ${site.path}: «Envío gratuito» desde 50 € (instancia ${sc.free_instance}), el producto de 10 €, la bandera de fragmentos activa y el carrito clásico con las dos barras`, !!sc.free_instance && !!sc.products.diez && sc.fragments_flag === 1 && !!sc.pages.carrito_barra, json({ free: sc.free_instance, diez: sc.products.diez, flag: sc.fragments_flag, page: sc.pages.carrito_barra }));
-    const url = sc.pages.carrito_barra;
-    const add = (n) => `${url}${url.includes('?') ? '&' : '?'}add-to-cart=${sc.products.diez}&quantity=${n}`;
+    check(s, 'W7.0', `preparación en ${site.path}: «Envío gratuito» desde 50 € (instancia ${sc.free_instance}), el producto de 10 € y la bandera de fragmentos activa`, !!sc.free_instance && !!sc.products.diez && sc.fragments_flag === 1, json({ free: sc.free_instance, diez: sc.products.diez, flag: sc.fragments_flag }));
+    const cartUrl = (summary.sites[site.path].setup.pages || {})['digi-wf-carrito'];
     const T = (n) => `Te faltan ${money(n)} para el envío gratis`;
     const DONE = 'Tienes envío gratis';
     const facts7 = { errors: [], failed: [], outside: [] };
     const merge = (f) => { for (const k of Object.keys(facts7)) facts7[k].push(...f[k]); };
-    /** Pestaña nueva del visitante (sin la copia de fragmentos de `sessionStorage` de otra pestaña). */
-    const tab = async (v) => { const p = track(await v.ctx.newPage(), v.facts); await p.setViewport({ width: 1280, height: 900 }); return p; };
     const guarded = async (c, fn) => { try { await fn(); } catch (e) { check(s, c.id, c.what, false, String(e.stack || e).slice(0, 600)); } };
 
-    // Destino conocido (la calculadora una sola vez): cada caso cambia el sitio y, si hace falta, añade unidades. Cada
-    // caso, en una pestaña nueva del carrito con las barras: tarifas que ofrece WooCommerce y estado de las barras.
+    // Destino conocido: la calculadora del carrito clásico una sola vez. Después, en la página del mini carrito, cada
+    // caso cambia el sitio (y, si hace falta, añade unidades), lee las tarifas que ofrece WooCommerce para ese carrito
+    // y pide los fragmentos, como tras cualquier cambio del carrito.
     const known = [
-      { id: 'W7.1a', add: 3, what: 'con 30 € y destino conocido: «Te faltan 20,00 €» y WooCommerce no ofrece el envío gratuito', expect: 'progress', text: T(20), free: false },
+      { id: 'W7.1a', what: 'con 30 € y destino conocido: «Te faltan 20,00 €» y WooCommerce no ofrece el envío gratuito (en el carrito clásico y en la Store API)', expect: 'progress', text: T(20), free: false },
       { id: 'W7.2a', setting: 'rates', what: 'mu-plugin que filtra `woocommerce_package_rates` (quita el envío gratuito), con 30 €: sin «Te faltan»', expect: 'none', free: false },
       { id: 'W7.2c', setting: 'available', what: 'mu-plugin que filtra `woocommerce_shipping_free_shipping_is_available` a falso, con 30 €: sin «Te faltan»', expect: 'none', free: false },
       { id: 'W7.3d', setting: 'requires_empty', what: '`requires = ""` (envío gratuito sin requisito), con 30 €: «Tienes envío gratis» sólo porque WooCommerce ofrece la tarifa', expect: 'done', text: DONE, free: true },
@@ -514,34 +540,36 @@ module.exports = (api) => {
     ];
     const v = await guest();
     try {
+      const t0 = Date.now();
+      await op(site, 'swatchescart_set', { case: '' });
+      await fill(v.page, cartUrl, sc, 3);
+      await calculate(v.page);
+      const classic = await cartRates(v.page);
+      await goto(v.page, sc.pages.minicarrito);
+      await bars(v.page);
+      log(`   W7: calculadora y mini carrito en ${Math.round((Date.now() - t0) / 1000)} s`);
       for (const [i, c] of known.entries()) {
-        const t0 = Date.now();
-        let p = null;
+        const t1 = Date.now();
         try {
           await op(site, 'swatchescart_set', { case: c.setting || '' });
-          p = await tab(v);
-          await goto(p, c.add ? add(c.add) : url);
-          await settled(p);
-          if (i === 0) {
-            await bars(p);
-            await mark(p);
-            await calculate(p);
-          }
-          const cart = await cartRates(p);
-          judge(s, c, await bars(p), cart, Date.now() - t0);
+          if (c.add) await addItems(v.page, sc, c.add);
+          const cart = await storeRates(v.page, site);
+          if (i === 0 && JSON.stringify(cart.rates) !== JSON.stringify(classic.rates)) throw new Error(`tarifas distintas en el carrito clásico ${JSON.stringify(classic.rates)} y en la Store API ${JSON.stringify(cart.rates)}`);
+          if (!cart.calculated) throw new Error('la Store API no ve el destino calculado');
+          judge(s, c, await refreshBars(v.page), cart, Date.now() - t1);
         } catch (e) {
-          if (p) await shot(p, `W7-${c.id}-falla`);
+          await shot(v.page, `W7-${c.id}-falla`);
           check(s, c.id, c.what, false, String(e.stack || e).slice(0, 600));
-        } finally {
-          if (p) await p.close().catch(() => {});
         }
       }
+    } catch (e) {
+      check(s, 'W7.1', 'destino conocido con la calculadora del carrito clásico', false, String(e.stack || e).slice(0, 600));
     } finally {
       merge(v.facts);
       await v.ctx.close().catch(() => {});
     }
 
-    // Sin destino confirmado, sin país, carrito vacío y envío gratuito con cupón: un visitante nuevo cada uno.
+    // Carrito vacío, destino sin confirmar, sin país y envío gratuito con cupón: un visitante nuevo cada uno.
     const alone = async (setting, fn) => {
       const w = await guest();
       try { await op(site, 'swatchescart_set', { case: setting }); await fn(w); } finally { merge(w.facts); await w.ctx.close().catch(() => {}); }
@@ -551,40 +579,38 @@ module.exports = (api) => {
       c: { id: 'W7.3c', what: 'destino sin confirmar (ubicación por defecto de la tienda, sin calculadora), con 50 €: nada, aunque WooCommerce calcule para la tienda', expect: 'none' },
       b: { id: 'W7.3b', what: 'cliente sin país (sin ubicación por defecto ni calculadora), con 30 €: nada, y WooCommerce no ofrece ninguna tarifa', expect: 'none', free: false },
       e: { id: 'W7.3e', what: '`requires = coupon`, con 30 € y sin cupón: nada (no se dice cuánto falta) y sin envío gratuito ofrecido', expect: 'none', free: false },
-      f: { id: 'W7.3f', what: '`requires = coupon` con DIGIENVIO aplicado en el carrito: «Tienes envío gratis» y el envío gratuito ofrecido', expect: 'done', text: DONE, free: true },
+      f: { id: 'W7.3f', what: '`requires = coupon` con DIGIENVIO aplicado desde el mini carrito: la barra se rehace con «Tienes envío gratis» y el envío gratuito ofrecido', expect: 'done', text: DONE, free: true },
     };
     await guarded(cases.g, () => alone('', async (w) => {
       let t0 = Date.now();
-      await goto(w.page, url);
-      judge(s, cases.g, await bars(w.page), await cartRates(w.page), Date.now() - t0);
+      await goto(w.page, sc.pages.minicarrito);
+      judge(s, cases.g, await bars(w.page), await storeRates(w.page, site), Date.now() - t0);
       t0 = Date.now();
-      const p = await tab(w);
-      await goto(p, add(5));
-      await settled(p);
-      judge(s, cases.c, await bars(p), await cartRates(p), Date.now() - t0);
-      await p.close().catch(() => {});
+      await addItems(w.page, sc, 5);
+      const cart = await storeRates(w.page, site);
+      judge(s, cases.c, await refreshBars(w.page), cart, Date.now() - t0);
     }));
     await guarded(cases.b, () => alone('nocountry', async (w) => {
       const t0 = Date.now();
-      await goto(w.page, add(3));
-      await settled(w.page);
-      judge(s, cases.b, await bars(w.page), await cartRates(w.page), Date.now() - t0);
+      await goto(w.page, sc.pages.minicarrito);
+      await bars(w.page);
+      await addItems(w.page, sc, 3);
+      const cart = await storeRates(w.page, site);
+      judge(s, cases.b, await refreshBars(w.page), cart, Date.now() - t0);
     }));
     await guarded(cases.e, () => alone('requires_coupon', async (w) => {
       let t0 = Date.now();
-      await goto(w.page, add(3));
-      await settled(w.page);
-      await bars(w.page);
-      await mark(w.page);
+      await fill(w.page, cartUrl, sc, 3);
       await calculate(w.page);
-      judge(s, cases.e, await bars(w.page), await cartRates(w.page), Date.now() - t0);
+      await goto(w.page, sc.pages.minicarrito);
+      judge(s, cases.e, await bars(w.page), await storeRates(w.page, site), Date.now() - t0);
       t0 = Date.now();
       await mark(w.page);
-      await w.page.type('#coupon_code', 'DIGIENVIO');
-      await w.page.click('button[name="apply_coupon"]');
-      await w.page.waitForSelector('tr.cart-discount.coupon-digienvio', { timeout: 60000 });
-      await settled(w.page);
-      judge(s, cases.f, await bars(w.page), await cartRates(w.page), Date.now() - t0);
+      await openPanel(w.page);
+      await w.page.type('.elementor-menu-cart__main .digi-coupon__input', 'DIGIENVIO');
+      await w.page.click('.elementor-menu-cart__main .digi-coupon__apply');
+      const got = await bars(w.page);
+      judge(s, cases.f, got, await storeRates(w.page, site), Date.now() - t0);
     }));
     await op(site, 'swatchescart_set', { case: '' }).catch((e) => check(s, 'W7.reset', 'restablecer el sitio', false, String(e)));
     check(s, 'W7.4', 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio (salvo Google Fonts del kit, que no es F4-Woo)', clean(facts7), factsOf(facts7));

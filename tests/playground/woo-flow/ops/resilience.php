@@ -177,8 +177,18 @@ return array(
 			'counts'       => isset( $result['report']['counts'] ) ? $result['report']['counts'] : array(),
 		);
 	},
+	'resilience_opcache'  => static function () use ( $digi_res_get ) {
+		$file = WPMU_PLUGIN_DIR . '/000-digi-wf-res-no-opcache.php';
+		if ( '0' === $digi_res_get( 'on' ) ) {
+			file_put_contents( $file, "<?php\n// woo-flow.sh W13: sin OPcache para lo que se compila después de este mu-plugin (dos versiones del plugin en la misma carpeta).\nini_set( 'opcache.enable', '0' );\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		} else {
+			@unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		}
+		return array( 'file' => is_file( $file ) );
+	},
 	'resilience_version'  => static function () {
-		$reset = function_exists( 'opcache_reset' ) ? opcache_reset() : null;
+		$status = function_exists( 'opcache_get_status' ) ? opcache_get_status( false ) : null;
+		$reset  = function_exists( 'opcache_reset' ) ? opcache_reset() : null;
 		clearstatcache( true );
 		$file = WP_PLUGIN_DIR . '/digitalisimo-elements/pro-elements.php';
 		$head = is_file( $file ) ? (string) file_get_contents( $file, false, null, 0, 4096 ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions
@@ -188,7 +198,15 @@ return array(
 			'on_disk' => isset( $m[1] ) ? $m[1] : null,
 			'woo'     => class_exists( '\\Digitalisimo\\Elements\\Woo\\Module', false ),
 			'woo_dir' => is_dir( WP_PLUGIN_DIR . '/digitalisimo-elements/modules/digitalisimo-woo' ),
-			'opcache' => array( 'reset' => $reset, 'enabled' => (string) ini_get( 'opcache.enable' ) ),
+			'opcache' => array(
+				'reset'   => $reset,
+				'enabled' => (string) ini_get( 'opcache.enable' ),
+				'memory'  => is_array( $status ) && isset( $status['memory_usage'] ) ? array_map( 'intval', (array) $status['memory_usage'] ) : null,
+				'scripts' => is_array( $status ) && isset( $status['opcache_statistics']['num_cached_scripts'] ) ? (int) $status['opcache_statistics']['num_cached_scripts'] : null,
+				'full'    => is_array( $status ) ? ! empty( $status['cache_full'] ) : null,
+				'restart' => is_array( $status ) ? ! empty( $status['restart_pending'] ) || ! empty( $status['restart_in_progress'] ) : null,
+			),
+			'memory'  => memory_get_peak_usage( true ),
 		);
 	},
 	'resilience_future'   => static function () use ( $digi_res_get ) {

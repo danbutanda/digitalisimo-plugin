@@ -167,17 +167,16 @@ module.exports = (api) => {
    */
   async function ajaxOwn(site, kind, email) {
     const w = wlOf(site);
-    const list = await op(site, 'wishlist_privacy', { email, type: kind });
+    const list = await op(site, 'wishlist_privacy', { email, type: kind, request: 1 });
     const first = (list.keys || []).indexOf(OWN_ID) + 1;
     if (!first) return { index: 0, keys: list.keys, error: 'el propio no está registrado' };
-    const req = await op(site, 'wishlist_privacy_request', { email, type: kind });
     const action = kind === 'erase' ? 'wp-privacy-erase-personal-data' : 'wp-privacy-export-personal-data';
-    const admin = await session(site, 1, [`${action}-${req.id}`]);
+    const admin = list.admin;
     const tried = [];
     // La administración puede registrar alguno más antes que el propio (en `admin_init`): se sigue hacia arriba hasta
     // reconocerlo (sus filas o su mensaje) o salir de la lista.
     for (let index = first; index < first + 4; index++) {
-      const form = { action, id: String(req.id), page: '1', security: admin.nonces[`${action}-${req.id}`], [kind === 'erase' ? 'eraser' : 'exporter']: String(index) };
+      const form = { action, id: String(list.request), page: '1', security: list.nonce, [kind === 'erase' ? 'eraser' : 'exporter']: String(index) };
       if (kind !== 'erase') form.sendAsEmail = 'false';
       const res = await send('POST', w.ajax, { headers: { Cookie: cookieHeader(admin) }, form });
       const j = res.json;
@@ -253,10 +252,10 @@ module.exports = (api) => {
       const focus = await page.evaluate(() => {
         const a = document.activeElement;
         const li = a && a.closest('[data-digi-wish-item]');
-        return { tag: a ? a.tagName : null, text: a ? a.textContent.replace(/\s+/g, ' ').trim().slice(0, 60) : '', item: li ? +li.getAttribute('data-digi-wish-item') : 0, hidden: !!(a && a.closest('[aria-hidden="true"]')), tabindex: a ? a.getAttribute('tabindex') : null };
+        return { tag: a ? a.tagName : null, text: a ? a.textContent.replace(/\s+/g, ' ').trim().slice(0, 60) : '', item: li ? +li.getAttribute('data-digi-wish-item') : 0, hidden: !!(a && a.closest('[aria-hidden="true"]')), tabindex: a ? a.getAttribute('tabindex') : null, media: !!(li && li.querySelector('.digi-wishlist__media')) };
       });
       const removed = await look(page, w.key);
-      check(s, 'W1.2d', 'quitar una ficha: el foco pasa a la ficha siguiente (a un enlace o botón enfocable y no oculto), el navegador la olvida y la región de estado lo anuncia', focus.item === P.camiseta && !focus.hidden && focus.tabindex !== '-1' && JSON.stringify(removed.stored) === JSON.stringify([P.camiseta]) && removed.status === T.removed, short({ focus, stored: removed.stored, status: removed.status }));
+      check(s, 'W1.2d', 'quitar una ficha: el foco pasa a la ficha siguiente (a un enlace o botón enfocable y no oculto; con imagen, no a su enlace oculto), el navegador la olvida y la región de estado lo anuncia', focus.item === P.camiseta && !focus.hidden && focus.tabindex !== '-1' && JSON.stringify(removed.stored) === JSON.stringify([P.camiseta]) && removed.status === T.removed, short({ focus, stored: removed.stored, status: removed.status }));
       const synced = await page2.waitForFunction((id) => {
         const items = [...document.querySelectorAll('[data-digi-wish-item]')];
         return items.length === 1 && +items[0].getAttribute('data-digi-wish-item') === id && [...document.querySelectorAll('[data-digi-wish-count]')].every((n) => n.textContent === '1');

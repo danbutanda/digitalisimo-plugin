@@ -273,7 +273,7 @@ module.exports = (api) => {
       const wf = window.digitalisimoWooFilters;
       const pro = window.elementorProFrontend;
       const mod = pro && pro.modules ? pro.modules.taxonomyFilter : null;
-      return { boot: window.__digiBoot, edit: !!(wf && wf.edit && wf.edit()), rest: !!(window.ElementorProFrontendConfig && window.ElementorProFrontendConfig.urls && window.ElementorProFrontendConfig.urls.rest), modOwn: mod ? Object.getOwnPropertyNames(Object.getPrototypeOf(mod)).slice(0, 12) : null, coordinator: !!wf, active: !!(wf && wf.active && wf.active()), forms: document.querySelectorAll('form.digi-filter').length, ready: document.querySelectorAll('form.digi-filter[data-digi-ready]').length, proConfig: !!(window.ElementorProFrontendConfig && window.ElementorProFrontendConfig.urls), proFrontend: !!pro, proModules: pro && pro.modules ? Object.keys(pro.modules).slice(0, 30) : null, scripts: [...document.scripts].map((x) => x.src).filter((src) => /filters|elements-handlers|frontend/.test(src)).map((src) => src.replace(/^https?:\/\/[^/]+/, '').slice(0, 120)) };
+      return { boot: window.__digiBoot, edit: !!(wf && wf.edit && wf.edit()), rest: !!(window.ElementorProFrontendConfig && window.ElementorProFrontendConfig.urls && window.ElementorProFrontendConfig.urls.rest), modOwn: mod ? Object.getOwnPropertyNames(Object.getPrototypeOf(mod)).slice(0, 12) : null, coordinator: !!wf, active: !!(wf && wf.active && wf.active()), forms: document.querySelectorAll('form.digi-filter').length, ready: document.querySelectorAll('form.digi-filter[data-digi-ready]').length, proConfig: !!(window.ElementorProFrontendConfig && window.ElementorProFrontendConfig.urls), proFrontend: !!pro, proModules: pro && pro.modules ? Object.keys(pro.modules).slice(0, 30) : null, scripts: [...document.scripts].filter((x) => /filters|elements-handlers|frontend|jquery/.test(x.src)).map((x) => [x.src.replace(/^https?:\/\/[^/]+/, '').replace(/\?.*/, '').slice(0, 90), x.defer ? 'defer' : '', x.async ? 'async' : '', x.type || '', x.parentNode ? x.parentNode.tagName : ''].filter(Boolean).join(' ')) };
     }).catch((e) => ({ error: String(e.message || e) }));
 
     // W9.2 · B3 en Chrome, debounce, Atrás y Adelante, el filtro de PRO por el coordinador y un bucle sin F4-Woo.
@@ -284,7 +284,22 @@ module.exports = (api) => {
       await page.evaluateOnNewDocument(() => {
         window.__digiBoot = [];
         const note = (what) => window.__digiBoot.push([what, document.readyState, !!(window.elementorFrontend && window.elementorFrontend.hooks), !!window.digitalisimoWooFilters, !!window.elementorProFrontend]);
-        window.addEventListener('elementor/frontend/init', () => note('init'), true);
+        window.addEventListener('elementor/frontend/init', () => {
+          note('init');
+          const hk = window.elementorFrontend && window.elementorFrontend.hooks;
+          if (hk && !hk.__digiTraced) {
+            hk.__digiTraced = 1;
+            const add = hk.addFilter, apply = hk.applyFilters;
+            hk.addFilter = function (name, fn, prio) { if (/elementor-pro/.test(name)) note('addFilter ' + name + ' ' + prio); return add.apply(this, arguments); };
+            hk.applyFilters = function (name) { if (/elementor-pro/.test(name)) note('applyFilters ' + name); const out = apply.apply(this, arguments); if (/elementor-pro\/frontend\/handlers/.test(name)) note('taxonomyFilter own: ' + Object.getOwnPropertyNames((out.taxonomyFilter || function () {}).prototype).join(',')); return out; };
+          }
+        }, true);
+        const ael = window.addEventListener;
+        window.addEventListener = function (type, fn, opt) { if (type === 'elementor/frontend/init') note('listen ' + String(opt) + ' ' + String(fn).slice(0, 60)); return ael.apply(this, arguments); };
+        for (const name of ['elementorFrontend', 'digitalisimoWooFilters', 'elementorProFrontend', 'jQuery']) {
+          let value;
+          Object.defineProperty(window, name, { configurable: true, get() { return value; }, set(v) { value = v; note('set ' + name); } });
+        }
         document.addEventListener('DOMContentLoaded', () => note('dcl'));
         window.addEventListener('load', () => note('load'));
       });

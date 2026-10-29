@@ -412,6 +412,21 @@ add_action(
 					);
 				}
 				break;
+			case 'woo-debug-export':
+				// TEMPORAL (diagnóstico): exporta woo-variations con un contexto propio y devuelve el resultado o el error.
+				try {
+					apply_filters( 'digitalisimo_elements_kit_parts', array() );
+					$ctx = new \Digitalisimo\Elements\Import\Kits\Export_Context( array( 'include' => array( 'content' ) ) );
+					$ctx->add_exported( 'post', array_map( 'intval', get_posts( array( 'post_type' => 'product', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids' ) ) ) );
+					$out['exported'] = $ctx->exported( 'post' );
+					$out['images']   = \Digitalisimo\Elements\Woo\Kit\Variations_Part::image_ids( $ctx );
+					$out['export']   = ( new \Digitalisimo\Elements\Woo\Kit\Variations_Part() )->export( $ctx );
+					$out['json']     = false !== wp_json_encode( $out['export'] );
+					$out['report']   = $ctx->get_report();
+				} catch ( \Throwable $e ) {
+					$out['error'] = get_class( $e ) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine();
+				}
+				break;
 			case 'woo-edit':
 				// R8 (F4-Woo, V.11.1 y V.11.2): lo que un administrador cambia después de importar y la reversión no pisa.
 				$changed = array();

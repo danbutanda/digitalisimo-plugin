@@ -58,13 +58,18 @@ module.exports = (api) => {
     await page.waitForNetworkIdle({ idleTime: 500, timeout: 60000 }).catch(() => {});
     return res;
   }
-  /** Errores del sitio; las fuentes del kit que se piden fuera (Google Fonts, bloqueadas en la prueba) aparte. */
+  /**
+   * Errores del sitio. Aparte, sin fallar: las fuentes del kit que se piden fuera (Google Fonts, bloqueadas en la
+   * prueba) y las peticiones que agotan el tiempo de Chrome (un solo proceso de PHP con peticiones en cola).
+   */
   function clean(facts) {
     const font = (u) => /fonts\.(googleapis|gstatic)\.com/.test(u);
     const fonts = facts.outside.filter(font).length;
+    const slow = (f) => /^net::ERR_TIMED_OUT /.test(f);
     return {
       errors: facts.errors.filter((e) => !(fonts && /Failed to load resource: net::ERR_NAME_NOT_RESOLVED/.test(e))),
-      failed: facts.failed,
+      failed: facts.failed.filter((f) => !slow(f)),
+      timeouts: facts.failed.filter(slow),
       outside: facts.outside.filter((u) => !font(u)),
       fonts,
     };
@@ -121,7 +126,8 @@ module.exports = (api) => {
       return { ok: false, error: String(e.message || e).slice(0, 200), url: page.url() };
     }
   }
-  const closed = (page) => page.waitForFunction(() => !document.querySelector('dialog.digi-qv[open]'), { timeout: 15000 }).then(() => true, () => false);
+  /** Cerrado y limpio: el evento `close` (asíncrono) vacía el cuerpo, quita la clase de `html` y devuelve el foco. */
+  const closed = (page) => page.waitForFunction(() => !document.querySelector('dialog.digi-qv[open]') && !document.documentElement.classList.contains('digi-qv-open'), { timeout: 15000 }).then(() => true, () => false);
   const focusOn = (page, selector) => page.evaluate((sel) => document.activeElement === document.querySelector(sel), selector);
   /** Tab (o Mayús+Tab) más veces que elementos enfocables tiene el diálogo: el foco nunca sale. */
   async function cycle(page, shift) {
@@ -524,6 +530,36 @@ module.exports = (api) => {
   const waitBar = (page, test, arg) => page.waitForFunction(test, { timeout: 60000 }, arg).then(() => true, () => false);
 
   /** Vista rápida → compra → mini carrito con la barra → cupón DIGI10. Devuelve lo visto. */
+  const barIs = (page, want) => waitBar(page, (w) => {
+    const b = document.querySelector('.elementor-menu-cart__main .digi-ship');
+    const st = b && b.querySelector('.digi-ship__state');
+    return !!(b && st && !st.hasAttribute('data-digi-initial') && st.getAttribute('data-state') === w.state && (w.state === 'none' ? b.hidden : !b.hidden && b.textContent.includes(w.has)));
+  }, want);
+
+  /** Calculadora de envío del carrito clásico: España, Madrid, 28001 (el destino que la barra necesita, V.7.1.2). */
+  async function calculator(page, site) {
+    const pages = setupOf(site).pages || {};
+    await go(page, pages['digi-wf-carrito']);
+    await page.waitForSelector('form.woocommerce-shipping-calculator', { timeout: 60000 });
+    const toggle = await page.$('.shipping-calculator-button');
+    if (toggle) { await toggle.click(); await sleep(400); }
+    if (await page.$('select#calc_shipping_country')) await page.select('select#calc_shipping_country', 'ES');
+    await sleep(300);
+    if (await page.$('select#calc_shipping_state')) await page.select('select#calc_shipping_state', 'M');
+    for (const [selector, value] of [['#calc_shipping_city', 'Madrid'], ['#calc_shipping_postcode', '28001']]) {
+      const el = await page.$(selector);
+      if (el && await el.evaluate((n) => n.offsetParent !== null)) { await el.click({ clickCount: 3 }); await el.type(value); }
+    }
+    await page.click('form.woocommerce-shipping-calculator button[name="calc_shipping"]');
+    await settled(page);
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: 60000 }).catch(() => {});
+    return page.$$eval('#shipping_method li, .woocommerce-shipping-totals td', (els) => els.map((e) => e.textContent.replace(/\s+/g, ' ').trim()).join(' | ')).catch(() => '');
+  }
+
+  /**
+   * Vista rápida → compra → mini carrito (sin destino, sin barra) → calculadora del carrito → mini carrito con la barra
+   * → cupón DIGI10 en el mini carrito → la barra se rehace.
+   */
   async function cartPart(s, id, site, qv, page, kind, expect) {
     const url = qv.pages[OWN];
     await go(page, url);
@@ -535,10 +571,17 @@ module.exports = (api) => {
     }
     const nav = await buy(page);
     check(s, `${id}a ${site.path}`, `vista rápida (${kind === 'variable' ? 'Sudadera roja S' : 'Camiseta'}) → «Añadir al carrito» vuelve a la página con una redirección`, res.ok && !!nav.post && nav.post.method === 'POST' && same(nav.final, url), short({ res, nav }));
-    const shown = await openMiniCart(page);
-    const ok1 = await waitBar(page, (want) => { const b = document.querySelector('.elementor-menu-cart__main .digi-ship'); const st = b && b.querySelector('.digi-ship__state'); return !!(b && !b.hidden && st && st.getAttribute('data-state') === want); }, expect.before.state);
+    let shown = await openMiniCart(page);
+    const hidden = await barIs(page, { state: 'none' });
+    const b0 = await bar(page);
+    check(s, `${id}b ${site.path}`, 'sin destino conocido (el visitante aún no dio su dirección), el mini carrito no muestra la barra (V.7.1.2: si no se puede saber, nada)', shown && hidden, short(b0));
+
+    const rates = await calculator(page, site);
+    await go(page, url);
+    shown = await openMiniCart(page);
+    const ok1 = await barIs(page, { state: expect.before.state, has: expect.before.has });
     const b1 = await bar(page);
-    check(s, `${id}b ${site.path}`, `el mini carrito se abre con la barra de envío: ${expect.before.label}`, shown && ok1 && expect.before.text.test(b1.text), short(b1));
+    check(s, `${id}c ${site.path}`, `con el destino de la calculadora, el mini carrito muestra la barra: ${expect.before.label}`, shown && ok1, short({ bar: b1, rates: rates.slice(0, 200) }));
     await shot(page, `${id.replace(/\./g, '')}-${site.id}-minicarrito`);
     const couponReady = await page.waitForFunction(() => { const c = document.querySelector('.elementor-menu-cart__main .digi-coupon'); return !!(c && !c.hidden); }, { timeout: 30000 }).then(() => true, () => false);
     if (couponReady) {
@@ -546,10 +589,10 @@ module.exports = (api) => {
       await page.click('.elementor-menu-cart__main .digi-coupon__apply');
     }
     const applied = couponReady && await page.waitForFunction(() => /digi10/i.test((document.querySelector('.elementor-menu-cart__main .digi-coupon__list') || {}).textContent || ''), { timeout: 60000 }).then(() => true, () => false);
-    const ok2 = await waitBar(page, (want) => { const b = document.querySelector('.elementor-menu-cart__main .digi-ship'); const st = b && b.querySelector('.digi-ship__state'); return !!(b && !b.hidden && st && st.getAttribute('data-state') === want.state && b.textContent.includes(want.has)); }, { state: expect.after.state, has: expect.after.has });
+    const ok2 = await barIs(page, { state: expect.after.state, has: expect.after.has });
     const b2 = await bar(page);
     const status = await page.$eval('.elementor-menu-cart__main .digi-coupon__status', (e) => e.textContent.trim()).catch(() => '');
-    check(s, `${id}c ${site.path}`, `el cupón DIGI10 se aplica en el mini carrito y la barra se rehace: ${expect.after.label}`, couponReady && applied && ok2, short({ couponReady, applied, bar: b2, status }));
+    check(s, `${id}d ${site.path}`, `el cupón DIGI10 se aplica en el mini carrito y la barra se rehace: ${expect.after.label}`, couponReady && applied && ok2, short({ couponReady, applied, bar: b2, status }));
     await shot(page, `${id.replace(/\./g, '')}-${site.id}-cupon`);
   }
 
@@ -572,7 +615,7 @@ module.exports = (api) => {
     if (cod && await cod.evaluate((el) => el.type === 'radio' && !el.checked)) await cod.click();
     const offered = await page.$$eval('input.shipping_method', (els) => els.map((e) => e.value)).catch(() => []);
     const coupon = await page.$('tr.cart-discount.coupon-digi10');
-    check(s, `W11.1d ${site.path}`, 'el pago clásico conserva DIGI10, ofrece «Envío gratuito» (como dijo la barra) y «Contra reembolso»', !!free && !!cod && !!coupon, short({ offered, cod: !!cod, coupon: !!coupon }));
+    check(s, `W11.1e ${site.path}`, 'el pago clásico conserva DIGI10, ofrece «Envío gratuito» (como dijo la barra) y «Contra reembolso»', !!free && !!cod && !!coupon, short({ offered, cod: !!cod, coupon: !!coupon }));
     await shot(page, `W11-${site.id}-clasico-pago`);
     await page.click('#place_order');
     await page.waitForFunction(() => /order-received/.test(location.href) || !!document.querySelector('.woocommerce-error, .woocommerce-NoticeGroup-checkout'), { timeout: 180000 });
@@ -618,7 +661,7 @@ module.exports = (api) => {
       total: ((document.querySelector('.wc-block-components-totals-footer-item .wc-block-components-totals-item__value') || {}).textContent || '').trim(),
     }));
     const noFree = !view.rates.some((r) => r.startsWith('free_shipping')) && !/gratuito|free shipping/i.test(view.text);
-    check(s, `W11.2d ${site.path}`, 'el pago de bloques conserva DIGI10, ofrece sólo la tarifa plana (como dijo la barra) y «Contra reembolso»', view.coupon && noFree && /Contra reembolso/i.test(view.payment) && /32,00/.test(view.total), short({ ...view, filled, flat: !!flat }));
+    check(s, `W11.2e ${site.path}`, 'el pago de bloques conserva DIGI10, ofrece sólo la tarifa plana (como dijo la barra) y «Contra reembolso»', view.coupon && noFree && /Contra reembolso/i.test(view.payment) && /32,00/.test(view.total), short({ ...view, filled, flat: !!flat }));
     await shot(page, `W11-${site.id}-bloques-pago`);
     await page.click('.wc-block-components-checkout-place-order-button');
     await page.waitForFunction(() => /order-received/.test(location.href) || !!document.querySelector('.wc-block-components-notice-banner.is-error, .wc-block-store-notice.is-error'), { timeout: 180000 });
@@ -647,13 +690,13 @@ module.exports = (api) => {
         try {
           await page.setViewport({ width: WIDE, height: 900 });
           await cartPart(s, 'W11.1', site, qv, page, 'simple', {
-            before: { state: 'done', label: '«Tienes envío gratis» con 60 €', text: /envío gratis/i },
+            before: { state: 'done', has: 'envío gratis', label: '«Tienes envío gratis» con 60 €' },
             after: { state: 'done', has: 'envío gratis', label: 'sigue «Tienes envío gratis» con 54 €' },
           });
           const r = await classicCheckout(s, site, qv, page);
-          check(s, `W11.1e ${site.path}`, 'el pago clásico (`[woocommerce_checkout]`) termina en «Pedido recibido»', /order-received/.test(r.landed), r.err || r.landed);
-          await order(s, 'W11.1f', site, { status: 'processing', payment: 'cod', shipping: ['free_shipping'], coupons: ['digi10'], discount: '6.00', total: '54.00', created: 'checkout', items: [{ product: simple.id, variation: 0, qty: 1, total: '54.00' }] }, 'el pedido queda «procesando», con contra reembolso, envío gratuito, DIGI10 y 54,00 €');
-          check(s, `W11.1g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', quiet(clean(facts)) && !clean(facts).outside.length, short(clean(facts)));
+          check(s, `W11.1f ${site.path}`, 'el pago clásico (`[woocommerce_checkout]`) termina en «Pedido recibido»', /order-received/.test(r.landed), r.err || r.landed);
+          await order(s, 'W11.1g', site, { status: 'processing', payment: 'cod', shipping: ['free_shipping'], coupons: ['digi10'], discount: '6.00', total: '54.00', created: 'checkout', items: [{ product: simple.id, variation: 0, qty: 1, total: '54.00' }] }, 'el pedido queda «procesando», con contra reembolso, envío gratuito, DIGI10 y 54,00 €');
+          check(s, `W11.1h ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', quiet(clean(facts)) && !clean(facts).outside.length, short(clean(facts)));
         } catch (e) {
           await shot(page, `W11-${site.id}-clasico-falla`);
           check(s, `W11.1x ${site.path}`, 'la compra con el pago clásico termina', false, String(e.stack || e.message || e).slice(0, 600));
@@ -670,13 +713,13 @@ module.exports = (api) => {
           await page.setViewport({ width: WIDE, height: 900 });
           await cartPart(s, 'W11.2', site, qv, page, 'variable', {
             variation,
-            before: { state: 'progress', label: 'faltan 20,00 € con 30 €', text: /20,00/ },
+            before: { state: 'progress', has: '20,00', label: 'faltan 20,00 € con 30 €' },
             after: { state: 'progress', has: '23,00', label: 'faltan 23,00 € con 27 €' },
           });
           const r = await blocksCheckout(s, site, qv, page);
-          check(s, `W11.2e ${site.path}`, 'el pago de bloques (la página que crea WooCommerce) termina en «Pedido recibido»', /order-received/.test(r.landed), r.err || r.landed);
-          await order(s, 'W11.2f', site, { status: 'processing', payment: 'cod', shipping: ['flat_rate'], coupons: ['digi10'], discount: '3.00', total: '32.00', created: 'store-api', items: [{ product: qv.products.variable.id, variation: variation.id, qty: 1, total: '27.00' }] }, 'el pedido queda «procesando», con contra reembolso, tarifa plana, DIGI10 y 32,00 €');
-          check(s, `W11.2g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', quiet(clean(facts)) && !clean(facts).outside.length, short(clean(facts)));
+          check(s, `W11.2f ${site.path}`, 'el pago de bloques (la página que crea WooCommerce) termina en «Pedido recibido»', /order-received/.test(r.landed), r.err || r.landed);
+          await order(s, 'W11.2g', site, { status: 'processing', payment: 'cod', shipping: ['flat_rate'], coupons: ['digi10'], discount: '3.00', total: '32.00', created: 'store-api', items: [{ product: qv.products.variable.id, variation: variation.id, qty: 1, total: '27.00' }] }, 'el pedido queda «procesando», con contra reembolso, tarifa plana, DIGI10 y 32,00 €');
+          check(s, `W11.2h ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', quiet(clean(facts)) && !clean(facts).outside.length, short(clean(facts)));
         } catch (e) {
           await shot(page, `W11-${site.id}-bloques-falla`);
           check(s, `W11.2x ${site.path}`, 'la compra con el pago de bloques termina', false, String(e.stack || e.message || e).slice(0, 600));

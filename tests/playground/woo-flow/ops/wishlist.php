@@ -12,10 +12,9 @@
  *   pertenencia al sitio.
  * - `wishlist_feature` (`on`): enciende o apaga la lista de WooCommerce en este sitio, como la pantalla de funciones.
  * - `wishlist_seed` (`user`, `ids`): guarda una lista propia en este sitio con el almacén del módulo (W2 en red).
- * - `wishlist_privacy` (`email`, `type`, `run`): los exportadores o borradores que ve la administración y, con `run=1`,
- *   lo que devuelve cada exportador para ese correo.
- * - `wishlist_privacy_request` (`email`, `type`): una solicitud de exportación o borrado confirmada (cierra las que
- *   queden abiertas para ese correo y esa acción) para usarla con las acciones AJAX de la administración.
+ * - `wishlist_privacy` (`email`, `type`, `run`, `request`): los exportadores o borradores que ve la administración; con
+ *   `run=1`, lo que devuelve cada exportador para ese correo; con `request=1`, una solicitud confirmada (cierra las que
+ *   queden abiertas para ese correo y esa acción) y la sesión del administrador con su nonce, para la acción AJAX.
  * - `wishlist_remove_from_blog` (`user`, `blog`): `remove_user_from_blog()` desde este sitio, con otro sitio de destino
  *   (en la red, el sitio en curso no es el que pierde al usuario).
  */
@@ -34,34 +33,38 @@ $digi_wf_wl_ids = static function ( string $raw ): array {
 	return array_values( array_filter( array_map( 'absint', explode( ',', $raw ) ) ) );
 };
 
+/** Una sesión real de `$user` (token y cookies firmadas) y sus nonces (`wp_rest` y `$actions`), creados con esa sesión. */
+$digi_wf_wl_session = static function ( int $user, array $actions = array() ): array {
+	if ( ! $user || ! get_userdata( $user ) ) {
+		return array( 'error' => 'usuario' );
+	}
+	$expiration = time() + DAY_IN_SECONDS;
+	$token      = WP_Session_Tokens::get_instance( $user )->create( $expiration );
+	$logged_in  = wp_generate_auth_cookie( $user, $expiration, 'logged_in', $token );
+	$auth       = wp_generate_auth_cookie( $user, $expiration, 'auth', $token );
+	// Los nonces dependen del token de la sesión: se crean con la cookie que el navegador enviará.
+	$_COOKIE[ LOGGED_IN_COOKIE ] = $logged_in;
+	wp_set_current_user( $user );
+	$nonces = array( 'wp_rest' => wp_create_nonce( 'wp_rest' ) );
+	foreach ( $actions as $action ) {
+		$action = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $action );
+		if ( '' !== $action ) {
+			$nonces[ $action ] = wp_create_nonce( $action );
+		}
+	}
+	return array(
+		'user'    => $user,
+		'cookies' => array(
+			array( 'name' => LOGGED_IN_COOKIE, 'value' => $logged_in ),
+			array( 'name' => AUTH_COOKIE, 'value' => $auth ),
+		),
+		'nonces'  => $nonces,
+	);
+};
+
 return array(
-	'wishlist_session'          => static function () use ( $digi_wf_wl_arg ) {
-		$user = absint( $digi_wf_wl_arg( 'user' ) );
-		if ( ! $user || ! get_userdata( $user ) ) {
-			return array( 'error' => 'usuario' );
-		}
-		$expiration = time() + DAY_IN_SECONDS;
-		$token      = WP_Session_Tokens::get_instance( $user )->create( $expiration );
-		$logged_in  = wp_generate_auth_cookie( $user, $expiration, 'logged_in', $token );
-		$auth       = wp_generate_auth_cookie( $user, $expiration, 'auth', $token );
-		// Los nonces dependen del token de la sesión: se crean con la cookie que el navegador enviará.
-		$_COOKIE[ LOGGED_IN_COOKIE ] = $logged_in;
-		wp_set_current_user( $user );
-		$nonces = array( 'wp_rest' => wp_create_nonce( 'wp_rest' ) );
-		foreach ( explode( ',', $digi_wf_wl_arg( 'nonces' ) ) as $action ) {
-			$action = preg_replace( '/[^A-Za-z0-9_-]/', '', $action );
-			if ( '' !== $action ) {
-				$nonces[ $action ] = wp_create_nonce( $action );
-			}
-		}
-		return array(
-			'user'    => $user,
-			'cookies' => array(
-				array( 'name' => LOGGED_IN_COOKIE, 'value' => $logged_in ),
-				array( 'name' => AUTH_COOKIE, 'value' => $auth ),
-			),
-			'nonces'  => $nonces,
-		);
+	'wishlist_session'          => static function () use ( $digi_wf_wl_arg, $digi_wf_wl_session ) {
+		return $digi_wf_wl_session( absint( $digi_wf_wl_arg( 'user' ) ), explode( ',', $digi_wf_wl_arg( 'nonces' ) ) );
 	},
 
 	'wishlist_state'            => static function () use ( $digi_wf_wl_arg, $digi_wf_wl_ids ) {
@@ -120,22 +123,7 @@ return array(
 		return array( 'blog' => (int) get_current_blog_id(), 'user' => $user, 'own' => array_keys( $saved ), 'legacy' => get_option( Store::LEGACY, null ) );
 	},
 
-	'wishlist_privacy_request'  => static function () use ( $digi_wf_wl_arg ) {
-		$email = sanitize_email( $digi_wf_wl_arg( 'email' ) );
-		$type  = 'erase' === $digi_wf_wl_arg( 'type' ) ? 'remove_personal_data' : 'export_personal_data';
-		// Una solicitud abierta para el mismo correo y la misma acción impide crear otra: se da por terminada.
-		$open = get_posts( array( 'post_type' => 'user_request', 'post_name__in' => array( $type ), 'title' => $email, 'post_status' => array( 'request-pending', 'request-confirmed' ), 'numberposts' => -1, 'fields' => 'ids' ) );
-		foreach ( $open as $id ) {
-			wp_update_post( array( 'ID' => $id, 'post_status' => 'request-completed' ) );
-		}
-		$request = wp_create_user_request( $email, $type, array(), 'confirmed' );
-		if ( is_wp_error( $request ) ) {
-			return array( 'error' => $request->get_error_message() );
-		}
-		return array( 'id' => (int) $request, 'type' => $type, 'email' => $email );
-	},
-
-	'wishlist_privacy'          => static function () use ( $digi_wf_wl_arg ) {
+	'wishlist_privacy'          => static function () use ( $digi_wf_wl_arg, $digi_wf_wl_session ) {
 		// Los exportadores y borradores que ve la administración: los de WordPress y WooCommerce ya están registrados (filtros
 		// y `init`); el propio se registra en `admin_init`, que esta petición del front no dispara: se llama a ese mismo
 		// gancho, y sólo a él, si está enganchado. Con `run=1` se llama a cada uno con el correo, como la acción AJAX.
@@ -147,6 +135,23 @@ return array(
 		}
 		$list = $erase ? apply_filters( 'wp_privacy_personal_data_erasers', array() ) : apply_filters( 'wp_privacy_personal_data_exporters', array() );
 		$out  = array( 'keys' => array_keys( (array) $list ), 'own_hooked' => false !== has_action( 'admin_init', $hook ), 'results' => array() );
+		// Con `request=1`, una solicitud confirmada (cierra las abiertas para ese correo y esa acción) y la sesión del
+		// administrador con el nonce de esa solicitud, para la acción AJAX de la pantalla.
+		if ( '1' === $digi_wf_wl_arg( 'request' ) ) {
+			$type = $erase ? 'remove_personal_data' : 'export_personal_data';
+			$open = get_posts( array( 'post_type' => 'user_request', 'post_name__in' => array( $type ), 'title' => $email, 'post_status' => array( 'request-pending', 'request-confirmed' ), 'numberposts' => -1, 'fields' => 'ids' ) );
+			foreach ( $open as $id ) {
+				wp_update_post( array( 'ID' => $id, 'post_status' => 'request-completed' ) );
+			}
+			$request = wp_create_user_request( $email, $type, array(), 'confirmed' );
+			if ( is_wp_error( $request ) ) {
+				return array( 'error' => $request->get_error_message() );
+			}
+			$action         = ( $erase ? 'wp-privacy-erase-personal-data-' : 'wp-privacy-export-personal-data-' ) . (int) $request;
+			$out['request'] = (int) $request;
+			$out['admin']   = $digi_wf_wl_session( 1, array( $action ) );
+			$out['nonce']   = $out['admin']['nonces'][ $action ] ?? '';
+		}
 		if ( '1' !== $digi_wf_wl_arg( 'run' ) ) {
 			return $out;
 		}
