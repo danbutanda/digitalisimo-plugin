@@ -9,8 +9,9 @@ namespace {
 	function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
 	function get_post_meta( $id, $key, $single ) { return 12 === $id ? 'ALT de Medios' : ''; }
 	function get_the_title( $id ) { return 'Adjunto ' . $id; }
+	function get_post_mime_type( $id ) { return 13 === $id ? 'image/gif' : 'image/webp'; }
 	function wp_get_attachment_url( $id ) { return 'https://site.test/media/' . $id . '.webp'; }
-	function wp_get_attachment_image_src( $id, $size ) { return 12 === $id ? array( 'https://site.test/media/12.webp', 'large' === $size ? 1024 : 800, 'large' === $size ? 512 : 400 ) : false; }
+	function wp_get_attachment_image_src( $id, $size ) { $GLOBALS['dimension_sizes'][] = $size; return 12 === $id ? array( 'https://site.test/media/12.webp', 'large' === $size ? 1024 : 800, 'large' === $size ? 512 : 400 ) : false; }
 	function wp_get_attachment_image( $id, $size, $icon, $attrs ) { $GLOBALS['image_markup_calls'][] = array( $id, $size, $attrs ); if ( 99 === $id ) { return ''; } $out = '<img'; foreach ( $attrs as $k => $v ) { $out .= ' ' . $k . '="' . esc_attr( $v ) . '"'; } return $out . ' src="https://site.test/media/' . $id . '.webp" srcset="https://site.test/media/' . $id . '.webp 800w" width="800" height="400" loading="lazy">'; }
 	function wp_get_loading_optimization_attributes( $tag, $attrs, $context ) { $GLOBALS['image_markup_context'] = $context; return isset( $attrs['width'], $attrs['height'] ) ? array( 'loading' => 'lazy', 'decoding' => 'async' ) : array( 'decoding' => 'async' ); }
 	function check_image_markup( $ok, $message ) { if ( ! $ok ) { throw new \RuntimeException( $message ); } }
@@ -51,5 +52,15 @@ namespace {
 	check_image_markup( '200px' === $call[2]['sizes'], 'Un sizes explícito gana a las columnas.' );
 	// Preconexión: una vez por host.
 	check_image_markup( '<link rel="preconnect" href="https://www.youtube-nocookie.com" crossorigin>' === $m::preconnect( 'https://www.youtube-nocookie.com/embed/x' ) && '' === $m::preconnect( 'https://www.youtube-nocookie.com/embed/y' ) && '' === $m::preconnect( '' ), 'La preconexión se imprime una vez por host.' );
-	echo "DIGITALÍSIMO Elements: generador de imágenes validado.\n";
+	// GIF: siempre entero (los tamaños reducidos pierden la animación y WordPress no imprime srcset del completo).
+	$m::img( array( 'id' => 13 ), array( 'size' => 'medium', 'columns' => array( 3 ) ) );
+	$call = end( $GLOBALS['image_markup_calls'] );
+	check_image_markup( 13 === $call[0] && 'full' === $call[1], 'Un GIF se pide siempre en tamaño completo, aunque el widget pida otro.' );
+	$m::img( array( 'id' => 12 ), array( 'size' => 'large' ) );
+	$call = end( $GLOBALS['image_markup_calls'] );
+	check_image_markup( 'large' === $call[1] && 'large' === $m::size_for( 12, 'large' ) && 'full' === $m::size_for( 13, 'thumbnail' ) && 'medium' === $m::size_for( 0, 'medium' ), 'Los demás tipos y las imágenes sin adjunto conservan su tamaño.' );
+	$GLOBALS['dimension_sizes'] = array();
+	$m::dimensions( array( 'id' => 13 ), 'medium' );
+	check_image_markup( array( 'full' ) === $GLOBALS['dimension_sizes'], 'Las dimensiones de un GIF son las del archivo completo.' );
+	echo "DIGITALÍSIMO Elements: generador de imágenes validado (GIF siempre entero).\n";
 }

@@ -18,7 +18,8 @@ namespace {
 	function absint( $value ) { return abs( (int) $value ); }
 	function get_post_mime_type( $id ) { return 7 === $id ? 'video/mp4' : 'image/png'; }
 	function wp_get_attachment_url( $id ) { return 'https://sitio.test/uploads/video.mp4'; }
-	function wp_get_attachment_image_url( $id, $size ) { return 'https://sitio.test/uploads/poster.jpg'; }
+	function wp_get_attachment_image_url( $id, $size ) { $GLOBALS['poster_sizes'][] = $size; return 'https://sitio.test/uploads/poster.jpg'; }
+	function apply_filters( $tag, $value ) { return 'digitalisimo_elements_video_poster_size' === $tag && isset( $GLOBALS['poster_size'] ) ? $GLOBALS['poster_size'] : $value; }
 	function wp_parse_url( $url, $component ) { return parse_url( $url, $component ); }
 	function wp_strip_all_tags( $value ) { return strip_tags( $value ); }
 	function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
@@ -78,5 +79,15 @@ namespace {
 	$type->type_instance = true;
 	$type->settings = null;
 	check_video( array( 'digitalisimo-video-player' ) === $type->get_script_depends(), 'La instancia de registro del editor carga el script sin leer ajustes.' );
-	echo "DIGITALÍSIMO Elements: reproductor nativo validado.\n";
+	// Portada en «large» (no el original), con el filtro para cambiarlo; un filtro vacío vuelve a «large».
+	check_video( in_array( 'large', (array) ( $GLOBALS['poster_sizes'] ?? array() ), true ) && ! in_array( 'full', (array) ( $GLOBALS['poster_sizes'] ?? array() ), true ), 'La portada se pide en tamaño large, nunca el original.' );
+	$GLOBALS['poster_sizes'] = array();
+	$GLOBALS['poster_size'] = 'medium_large';
+	$widget->settings = array( 'source' => 'media', 'video' => array( 'id' => 7 ), 'poster' => array( 'id' => 8 ), 'title' => 'Con filtro' );
+	ob_start(); $render->invoke( $widget ); ob_get_clean();
+	check_video( array( 'medium_large' ) === $GLOBALS['poster_sizes'], 'El filtro digitalisimo_elements_video_poster_size cambia el tamaño de la portada.' );
+	$GLOBALS['poster_sizes'] = array(); $GLOBALS['poster_size'] = '';
+	ob_start(); $render->invoke( $widget ); ob_get_clean();
+	check_video( array( 'large' ) === $GLOBALS['poster_sizes'], 'Un filtro vacío vuelve a large.' );
+	echo "DIGITALÍSIMO Elements: reproductor nativo validado (portada en large).\n";
 }

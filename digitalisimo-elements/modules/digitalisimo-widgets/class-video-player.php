@@ -111,9 +111,17 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 		return '' !== $url ? array( 'kind' => 'video', 'url' => $url ) : null;
 	}
 
+	/**
+	 * Tamaño de la portada: «large» (1024 px por defecto, y WebP si Tools ya convirtió la imagen), no el original, que
+	 * puede ser una foto de varios miles de píxeles y pesar más que el propio vídeo. Sin ese tamaño, WordPress devuelve
+	 * el completo. Filtro `digitalisimo_elements_video_poster_size`.
+	 */
+	const POSTER_SIZE = 'large';
+
 	private static function poster( $poster ) {
 		$id = absint( $poster['id'] ?? 0 );
-		$url = $id ? (string) wp_get_attachment_image_url( $id, 'full' ) : (string) ( $poster['url'] ?? '' );
+		$size = (string) apply_filters( 'digitalisimo_elements_video_poster_size', self::POSTER_SIZE );
+		$url = $id ? (string) wp_get_attachment_image_url( $id, '' !== $size ? $size : self::POSTER_SIZE ) : (string) ( $poster['url'] ?? '' );
 		$scheme = strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) );
 		return in_array( $scheme, array( 'http', 'https' ), true ) ? $url : '';
 	}
