@@ -20,7 +20,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function get( $key, $fallback = '' ) { return array_key_exists( $key, $GLOBALS['settings'] ) ? $GLOBALS['settings'][ $key ] : $fallback; }
 	public static function tools_handles_site_options() { return true; }
 }
-class Digitalisimo_Integrations_SEO_Resolver { public static function post( $id, $key, $default = '' ) { return $default; } }
+class Digitalisimo_Integrations_SEO_Resolver { public static function post( $id, $key, $default = '' ) { return $default; } public static function foreign_seo() { return $GLOBALS['digi_foreign'] ?? ''; } }
 
 // Ganchos como WP_Hook: cada prioridad se lee al llegar a ella, así que lo retirado en una prioridad anterior ya no corre.
 function add_action( $hook, $callback, $priority = 10, $args = 1 ) { $GLOBALS['hooks'][ $hook ][ $priority ][] = $callback; return true; }
@@ -83,6 +83,7 @@ function boot( $enable_seo ) {
 }
 function hello_removals() { return array_values( array_filter( $GLOBALS['removed'], function( $row ) { return 'hello_elementor_add_description_meta_tag' === $row['call'][1]; } ) ); }
 
+require __DIR__ . '/../digitalisimo-seo/includes/class-seo-variables.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-seo-suite.php';
 require __DIR__ . '/../digitalisimo-seo/includes/class-plugin-catalog.php';
 $seo = Digitalisimo_Integrations_SEO_Suite::class;
@@ -111,6 +112,14 @@ $GLOBALS['post']->post_excerpt = ''; $GLOBALS['post']->post_content = ''; $GLOBA
 $html = front_head();
 check( 0 === substr_count( $html, '<meta name="description"' ) && ! hello_removals() && has_hello(), 'Si SEO no imprime descripción, no retira la de Hello.' );
 list( $GLOBALS['post']->post_excerpt, $GLOBALS['post']->post_content, $GLOBALS['tagline'] ) = $saved;
+
+// 3b. Con otro plugin SEO activo (Rank Math), DIGITALÍSIMO SEO no imprime nada y no retira la de Hello.
+boot( 1 );
+$GLOBALS['meta'] = array( 'digitalisimo_seo_description' => 'Descripción SEO.' );
+$GLOBALS['digi_foreign'] = 'Rank Math';
+$html = front_head();
+check( false === strpos( $html, 'Descripción SEO.' ) && ! hello_removals() && has_hello(), 'Con Rank Math activo, SEO no publica su descripción: ' . $html );
+unset( $GLOBALS['digi_foreign'] );
 
 // 4. Con SEO apagado, Hello sigue siendo la única fuente.
 boot( 0 );

@@ -67,6 +67,10 @@ class Digitalisimo_Integrations_Settings {
 			'seo_description_page'   => '%excerpt%',
 			'seo_title_archive'      => '%title%',
 			'seo_description_archive'=> '%excerpt%',
+			'seo_title_home'         => '',
+			'seo_description_home'   => '',
+			'seo_title_author'       => '',
+			'seo_description_author' => '',
 			'seo_title_taxonomy'     => '%term% %sep% %sitename%',
 			'seo_description_taxonomy'=> '%description%',
 			'seo_schema_enabled'     => 1,
@@ -131,6 +135,59 @@ class Digitalisimo_Integrations_Settings {
 			'seo_taxonomies'         => 'category,post_tag',
 			'seo_sitemap_taxonomies' => 'category',
 			'seo_sitemap_images'     => 1,
+			'seo_redirect_enabled'   => 1,
+			'seo_redirect_slug_watch'=> 1,
+			'seo_redirect_default_code' => 301,
+			'seo_redirect_fallback_url' => '',
+			'seo_404_enabled'        => 0,
+			'seo_404_limit'          => 1000,
+			'seo_404_retention'      => 30,
+			'seo_404_exclude'        => '',
+			'seo_404_ignore_query'   => 1,
+			'seo_verify_google'      => '',
+			'seo_verify_bing'        => '',
+			'seo_verify_yandex'      => '',
+			'seo_verify_baidu'       => '',
+			'seo_verify_pinterest'   => '',
+			'seo_verify_norton'      => '',
+			'seo_verify_custom'      => '',
+			'seo_noindex_paginated'  => 0,
+			'seo_noindex_password'   => 0,
+			'seo_max_snippet'        => '',
+			'seo_max_video_preview'  => '',
+			'seo_disable_author_archives' => 0,
+			'seo_disable_date_archives'   => 0,
+			'seo_breadcrumbs_separator'   => '›',
+			'seo_breadcrumbs_show_home'   => 1,
+			'seo_breadcrumbs_home_label'  => 'Inicio',
+			'seo_breadcrumbs_prefix'      => '',
+			'seo_breadcrumbs_hide_current'=> 0,
+			'seo_breadcrumbs_taxonomy'    => 1,
+			'seo_breadcrumbs_blog_page'   => 1,
+			'seo_breadcrumbs_archive_format' => 'Archivo de %s',
+			'seo_breadcrumbs_search_format'  => 'Resultados de «%s»',
+			'seo_breadcrumbs_404_label'   => 'Página no encontrada',
+			'seo_type_templates'          => array(),
+			'seo_tax_templates'           => array(),
+			'seo_schema_type_defaults'    => array(),
+			'seo_schema_templates'        => array(),
+			'seo_product_brand'           => '',
+			'seo_sitemap_news_enabled'    => 0,
+			'seo_links_counter'           => 1,
+			'seo_links_check'             => 0,
+			'seo_noindex_hidden_products' => 0,
+			'seo_wc_remove_generator'     => 0,
+			'seo_strip_product_base'      => 0,
+			'seo_strip_product_cat_base'  => 0,
+			'seo_strip_category_base'     => 0,
+			'seo_abilities_write'         => 0,
+			'seo_avatar_alt'              => 0,
+			'seo_rss_before'              => '',
+			'seo_rss_after'               => '',
+			'seo_sitemap_news_types'      => 'post',
+			'seo_sitemap_news_name'       => '',
+			'seo_sitemap_video_enabled'   => 0,
+			'seo_sitemap_news_exclude_terms' => '',
 			'seo_ai_enabled'         => 1,
 			'seo_ai_search_default'  => 'allow',
 			'seo_ai_training_default'=> 'allow',
@@ -160,6 +217,20 @@ class Digitalisimo_Integrations_Settings {
 		);
 	}
 	/** Plantillas donde un valor vacío significa restaurar el comportamiento inicial. */
+	/** Plantillas de título y descripción globales (RM10). */
+	public static function template_keys() { return array( 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_title_home', 'seo_description_home', 'seo_title_author', 'seo_description_author' ); }
+
+	/**
+	 * Sanea una plantilla sin romper sus variables: sanitize_text_field() quita los «%xx» hexadecimales
+	 * como si fueran octetos y convertiría %description% en «scription%» y %date% en «te%».
+	 */
+	public static function sanitize_template( $value, $multiline = false ) {
+		$vars  = array();
+		$value = preg_replace_callback( '/%[a-z_]+(?:\([^)%<>]*\))?%/i', function( $m ) use ( &$vars ) { $vars[] = $m[0]; return 'DIGITALISIMOVAR' . ( count( $vars ) - 1 ) . 'X'; }, is_scalar( $value ) ? (string) $value : '' );
+		$value = $multiline ? sanitize_textarea_field( $value ) : sanitize_text_field( $value );
+		return preg_replace_callback( '/DIGITALISIMOVAR(\d+)X/', function( $m ) use ( $vars ) { return $vars[ (int) $m[1] ] ?? ''; }, $value );
+	}
+
 	public static function template_default_keys() { return array( 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive' ); }
 
 	public static function init() {
@@ -209,7 +280,7 @@ class Digitalisimo_Integrations_Settings {
 	public static function sanitize( $input ) {
 		$current = (array) get_option( self::OPTION, array() );
 		$output  = $current;
-		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
+		foreach ( array( 'enable_seo', 'enable_woocommerce', 'enable_ipinfo', 'sitemap_enabled', 'keyword_auto_from_title', 'noindex_search', 'noindex_authors', 'noindex_empty_tags', 'noindex_date_archives', 'noindex_attachments', 'noindex_elementor', 'noindex_woo_pages', 'require_domain_hosting', 'replace_hosting', 'simplify_checkout', 'seo_schema_enabled', 'seo_schema_unify', 'seo_breadcrumbs', 'seo_open_graph', 'seo_twitter_enabled', 'seo_local_enabled', 'seo_redirect_attachments', 'seo_mobile_prevent_horizontal_scroll', 'seo_sitemap_images', 'seo_redirect_enabled', 'seo_redirect_slug_watch', 'seo_404_enabled', 'seo_404_ignore_query', 'seo_noindex_paginated', 'seo_noindex_password', 'seo_disable_author_archives', 'seo_disable_date_archives', 'seo_breadcrumbs_show_home', 'seo_breadcrumbs_hide_current', 'seo_breadcrumbs_taxonomy', 'seo_breadcrumbs_blog_page', 'seo_sitemap_news_enabled', 'seo_sitemap_video_enabled', 'seo_links_counter', 'seo_links_check', 'seo_noindex_hidden_products', 'seo_wc_remove_generator', 'seo_strip_product_base', 'seo_strip_product_cat_base', 'seo_strip_category_base', 'seo_abilities_write', 'seo_avatar_alt', 'perf_safe_mode', 'perf_gutenberg', 'perf_emojis', 'perf_embeds', 'perf_dashicons', 'perf_font_swap', 'perf_css_defer', 'perf_hero_critical', 'perf_caption_normal', 'perf_custom_css_paused', 'perf_tracking_enabled', 'perf_img_enabled', 'perf_img_srcset', 'perf_img_sizes', 'perf_img_dimensions', 'perf_img_lazy', 'perf_img_backgrounds', 'perf_touch_guard', 'seo_ai_llms_enabled', 'seo_alt_optimize' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = empty( $input[ $key ] ) ? 0 : 1;
 		}
 		// Cada pestaña envía solo sus propios campos: un campo ausente conserva su valor,
@@ -220,12 +291,31 @@ class Digitalisimo_Integrations_Settings {
 		foreach ( array( 'domain_products', 'hosting_product_ids', 'hosting_category_ids', 'ipinfo_tokens', 'sitemap_exclude_ids', 'keyword_post_types', 'noindex_page_slugs', 'noindex_page_ids', 'seo_title_post', 'seo_description_post', 'seo_title_page', 'seo_description_page', 'seo_title_archive', 'seo_description_archive', 'seo_title_taxonomy', 'seo_description_taxonomy', 'seo_local_address', 'seo_local_hours', 'seo_taxonomies', 'content_editorial_voice', 'content_editorial_context', 'content_editorial_cta', 'content_editorial_method' ) as $key ) {
 			if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_textarea_field( $input[ $key ] );
 		}
-		foreach ( array( 'sitemap_post_types', 'seo_sitemap_taxonomies' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_sitemap_list( $input[ $key ] );
+		foreach ( array( 'sitemap_post_types', 'seo_sitemap_taxonomies', 'seo_sitemap_news_types' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_sitemap_list( $input[ $key ] );
 		if ( isset( $input['seo_organization_type'] ) && ! array_key_exists( $output['seo_organization_type'], Digitalisimo_Integrations_SEO_Suite::entity_type_choices() ) ) $output['seo_organization_type'] = 'Organization';
 		if ( isset( $input['seo_separator'] ) && ! array_key_exists( $output['seo_separator'], Digitalisimo_Integrations_SEO_Suite::separator_choices() ) ) $output['seo_separator'] = '|';
 		// Sólo tipos oficiales de Schema.org: un texto libre publicaría un @type inventado.
 		if ( isset( $input['seo_local_type'] ) ) $output['seo_local_type'] = Digitalisimo_Integrations_Schema_Vocabulary::local_type( sanitize_text_field( $input['seo_local_type'] ) );
 		if ( isset( $input['seo_robots_rules'] ) ) $output['seo_robots_rules'] = Digitalisimo_Integrations_Robots::sanitize( $input['seo_robots_rules'] );
+		// Redirecciones, 404, verificación y robots avanzados (docs/SEO_RANKMATH_OBJECTIVE.md): las mismas reglas que save_network().
+		if ( isset( $input['seo_redirect_default_code'] ) ) $output['seo_redirect_default_code'] = Digitalisimo_Integrations_Redirections::sanitize_code( $input['seo_redirect_default_code'] );
+		if ( isset( $input['seo_redirect_fallback_url'] ) ) $output['seo_redirect_fallback_url'] = Digitalisimo_Integrations_Redirections::sanitize_target( $input['seo_redirect_fallback_url'] );
+		if ( isset( $input['seo_404_limit'] ) ) $output['seo_404_limit'] = Digitalisimo_Integrations_404_Monitor::sanitize_limit( $input['seo_404_limit'] );
+		if ( isset( $input['seo_404_retention'] ) ) $output['seo_404_retention'] = Digitalisimo_Integrations_404_Monitor::sanitize_retention( $input['seo_404_retention'] );
+		if ( isset( $input['seo_404_exclude'] ) ) $output['seo_404_exclude'] = Digitalisimo_Integrations_404_Monitor::sanitize_exclusions( $input['seo_404_exclude'] );
+		foreach ( array_keys( Digitalisimo_Integrations_Verification::engines() ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Verification::sanitize_code( $input[ $key ] );
+		if ( isset( $input['seo_verify_custom'] ) ) $output['seo_verify_custom'] = Digitalisimo_Integrations_Verification::sanitize_custom( $input['seo_verify_custom'] );
+		foreach ( array( 'seo_max_snippet', 'seo_max_video_preview' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Suite::sanitize_robots_number( $input[ $key ] );
+		// Migas y plantillas por tipo (RM13 y RM10).
+		foreach ( Digitalisimo_Integrations_SEO_Suite::breadcrumb_text_keys() as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = sanitize_text_field( $input[ $key ] );
+		if ( isset( $input['seo_schema_type_defaults'] ) ) $output['seo_schema_type_defaults'] = Digitalisimo_Integrations_Schema_Graph::sanitize_type_defaults( $input['seo_schema_type_defaults'] );
+		if ( isset( $input['seo_schema_templates'] ) ) $output['seo_schema_templates'] = Digitalisimo_Integrations_Schema_Graph::sanitize_templates( $input['seo_schema_templates'] );
+		foreach ( array( 'seo_rss_before', 'seo_rss_after' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_SEO_Feed::sanitize( $input[ $key ] );
+		if ( isset( $input['seo_sitemap_news_name'] ) ) $output['seo_sitemap_news_name'] = sanitize_text_field( $input['seo_sitemap_news_name'] );
+		if ( isset( $input['seo_sitemap_news_exclude_terms'] ) ) $output['seo_sitemap_news_exclude_terms'] = Digitalisimo_Integrations_Sitemap::sanitize_ids( $input['seo_sitemap_news_exclude_terms'] );
+		if ( isset( $input['seo_product_brand'] ) ) $output['seo_product_brand'] = sanitize_key( $input['seo_product_brand'] );
+		if ( isset( $input['seo_tax_templates'] ) ) $output['seo_tax_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_tax_templates( $input['seo_tax_templates'] );
+		if ( isset( $input['seo_type_templates'] ) ) $output['seo_type_templates'] = Digitalisimo_Integrations_SEO_Suite::sanitize_type_templates( $input['seo_type_templates'] );
 		if ( isset( $input['seo_ai_google_extended_policy'] ) ) $output['seo_ai_google_extended_policy'] = Digitalisimo_Integrations_SEO_AI::sanitize_google_extended_policy( $input['seo_ai_google_extended_policy'] );
 		if ( isset( $input['perf_css_defer_handles'] ) ) $output['perf_css_defer_handles'] = Digitalisimo_Integrations_Performance_CSS::sanitize_handles( $input['perf_css_defer_handles'] );
 		if ( isset( $input['perf_css_defer_exclusions'] ) ) $output['perf_css_defer_exclusions'] = Digitalisimo_Integrations_Performance_CSS::sanitize_exclusions( $input['perf_css_defer_exclusions'] );
@@ -253,6 +343,7 @@ class Digitalisimo_Integrations_Settings {
 		}
 		if ( isset( $input['perf_tracking_mode'] ) ) $output['perf_tracking_mode'] = Digitalisimo_Integrations_Performance_Tracking::sanitize_mode( $input['perf_tracking_mode'] );
 		foreach ( array( 'perf_tracking_delay', 'perf_tracking_fallback' ) as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = Digitalisimo_Integrations_Performance_Tracking::sanitize_seconds( $input[ $key ] );
+		foreach ( self::template_keys() as $key ) if ( isset( $input[ $key ] ) ) $output[ $key ] = self::sanitize_template( $input[ $key ], 0 === strpos( $key, 'seo_description_' ) );
 		foreach ( self::template_default_keys() as $key ) if ( isset( $input[ $key ] ) && '' === trim( (string) $input[ $key ] ) ) $output[ $key ] = self::defaults()[ $key ];
 		if ( isset( $input['ipinfo_cache_minutes'] ) ) $output['ipinfo_cache_minutes'] = max( 0, absint( $input['ipinfo_cache_minutes'] ) );
 		if ( isset( $input['keyword_max_count'] ) ) $output['keyword_max_count'] = min( 5, max( 1, absint( $input['keyword_max_count'] ) ) );

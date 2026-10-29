@@ -49,7 +49,9 @@ class Digitalisimo_Integrations_Performance_Images {
 		add_filter( 'digitalisimo_performance_probe_image_report', array( __CLASS__, 'probe_report' ) );
 		add_filter( 'digitalisimo_performance_probe_alt_report', array( __CLASS__, 'probe_alt_report' ) );
 		add_action( 'shutdown', array( __CLASS__, 'save_map' ), 20 );
-		foreach ( array( 'delete_attachment', 'edit_attachment', 'wp_update_attachment_metadata' ) as $hook ) add_action( $hook, array( __CLASS__, 'invalidate' ) );
+		foreach ( array( 'delete_attachment', 'edit_attachment' ) as $hook ) add_action( $hook, array( __CLASS__, 'invalidate' ) );
+		// Es un filtro: lo que devuelva se guarda como metadata. Una acción devolvería null y WordPress la borraría.
+		add_filter( 'wp_update_attachment_metadata', array( __CLASS__, 'invalidate_metadata' ) );
 		add_action( 'update_option_' . Digitalisimo_Integrations_Settings::OPTION, array( __CLASS__, 'settings_changed' ), 10, 2 );
 	}
 
@@ -717,6 +719,12 @@ class Digitalisimo_Integrations_Performance_Images {
 	}
 
 	/** Cambiar un adjunto invalida todo lo derivado del sitio, nunca el de otros sitios. */
+	/** Invalida el mapa de imágenes y devuelve la metadata intacta. */
+	public static function invalidate_metadata( $data ) {
+		self::invalidate();
+		return $data;
+	}
+
 	public static function invalidate() {
 		update_option( self::GENERATION, self::generation() + 1, true );
 		self::$resolved = array();

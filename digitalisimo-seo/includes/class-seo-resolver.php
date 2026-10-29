@@ -3,6 +3,21 @@ defined( 'ABSPATH' ) || exit;
 
 /** Resuelve valores SEO: contenido/termino → sitio → red Multisite → fallback. */
 class Digitalisimo_Integrations_SEO_Resolver {
+	/** Plugins SEO que publican las mismas señales: su constante => su nombre. */
+	const FOREIGN = array( 'RANK_MATH_VERSION' => 'Rank Math', 'WPSEO_VERSION' => 'Yoast SEO', 'AIOSEO_VERSION' => 'All in One SEO', 'SEOPRESS_VERSION' => 'SEOPress', 'THE_SEO_FRAMEWORK_VERSION' => 'The SEO Framework' );
+
+	/**
+	 * Nombre del otro plugin SEO activo, o ''. Mientras haya uno, DIGITALÍSIMO SEO no publica title,
+	 * description, canonical, robots, schema, sitemap, verificación ni redirecciones: dos motores
+	 * duplicarían cada señal. Sí deja importar, editar y auditar, para migrar sin prisa y desactivar
+	 * el otro cuando todo esté listo. Se consulta en cada salida, no al cargar: los otros plugins
+	 * pueden definir su constante después de éste.
+	 */
+	public static function foreign_seo() {
+		$name = '';
+		foreach ( self::FOREIGN as $constant => $label ) if ( defined( $constant ) ) { $name = $label; break; }
+		return (string) apply_filters( 'digitalisimo_seo_foreign_plugin', $name );
+	}
 	/** Identidad e imágenes que pertenecen exclusivamente a cada sitio de la red. */
 	public static function site_only_keys() { return array( 'seo_site_name', 'seo_default_image', 'seo_default_image_alt', 'seo_alt_keyword', 'seo_favicon_source' ); }
 	public static function option( $key, $fallback = null ) {

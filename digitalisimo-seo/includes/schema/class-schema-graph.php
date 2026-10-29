@@ -151,7 +151,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 			$id   = $page['url'] . '#' . strtolower( $e['type'] );
 			$base = array( '@type' => $e['type'], '@id' => $id, 'mainEntityOfPage' => array( '@id' => $ids['webpage'] ) );
 			if ( Digitalisimo_Integrations_Schema_Vocabulary::is_a( $e['type'], 'Article' ) ) {
-				$entity = $base + array_filter( array( 'headline' => self::cut( $page['headline'] ?? $page['title'], 110 ), 'description' => $page['description'], 'datePublished' => $page['published'] ?? '', 'dateModified' => $page['modified'] ?? '', 'inLanguage' => $site['language'] ?? '', 'publisher' => array( '@id' => $ids['identity'] ) ) );
+				$entity = $base + array_filter( array( 'headline' => self::cut( $page['headline'] ?? $page['title'], 110 ), 'description' => $page['description'], 'datePublished' => $page['published'] ?? '', 'dateModified' => $page['modified'] ?? '', 'inLanguage' => $site['language'] ?? '', 'publisher' => array( '@id' => $ids['identity'] ), 'articleSection' => $e['section'] ?? '', 'keywords' => $e['keywords'] ?? '' ) );
 				if ( ! empty( $page['image'] ) ) $entity['image'] = array( '@id' => $ids['image'] );
 				if ( ! empty( $page['author']['name'] ) ) {
 					$author = self::person_node( $site, $page['author'] );
@@ -162,6 +162,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 				if ( isset( $e['offers']['price'], $e['offers']['priceCurrency'] ) && is_numeric( $e['offers']['price'] ) && preg_match( '/^[A-Z]{3}$/', $e['offers']['priceCurrency'] ) ) $entity['offers'] = array( '@type' => 'Offer', 'price' => $e['offers']['price'], 'priceCurrency' => $e['offers']['priceCurrency'], 'url' => $page['url'], 'seller' => array( '@id' => $ids['identity'] ) );
 			} elseif ( 'Product' === $e['type'] ) {
 				$entity = $base + array_filter( array( 'name' => $page['headline'] ?? $page['title'], 'description' => $page['description'], 'url' => $page['url'], 'image' => $page['image'] ?? '', 'sku' => $e['sku'] ?? '' ) );
+				if ( ! empty( $e['brand'] ) ) $entity['brand'] = array( '@type' => 'Brand', 'name' => $e['brand'] );
 				if ( isset( $e['offers']['priceCurrency'], $e['offers']['price'] ) && is_numeric( $e['offers']['price'] ) && preg_match( '/^[A-Z]{3}$/', $e['offers']['priceCurrency'] ) ) {
 					$entity['offers'] = array( '@type' => 'Offer', 'price' => $e['offers']['price'], 'priceCurrency' => $e['offers']['priceCurrency'], 'url' => $page['url'], 'seller' => array( '@id' => $ids['identity'] ) );
 					if ( ! empty( $e['offers']['availability'] ) ) $entity['offers']['availability'] = $e['offers']['availability'];
@@ -191,11 +192,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 		return array_filter( array( '@type' => 'Person', '@id' => $id, 'name' => $person['name'], 'url' => $person['url'] ?? '', 'sameAs' => $person['same_as'] ?? array() ) );
 	}
 
-	/** Sólo un video con miniatura, fecha propia y URL de reproducción reales. */
+	/** Sólo un video con miniatura, fecha propia y URL de reproducción (archivo o reproductor) reales. */
 	private static function video_node( $page ) {
 		$v = $page['video'];
-		if ( empty( $v['name'] ) || empty( $v['thumbnailUrl'] ) || empty( $v['uploadDate'] ) || empty( $v['contentUrl'] ) ) return null;
-		return array_filter( array( '@type' => 'VideoObject', '@id' => $page['url'] . '#video', 'name' => $v['name'], 'description' => $v['description'] ?? '', 'thumbnailUrl' => $v['thumbnailUrl'], 'uploadDate' => $v['uploadDate'], 'contentUrl' => $v['contentUrl'], 'isPartOf' => array( '@id' => $page['url'] . '#webpage' ) ) );
+		if ( empty( $v['name'] ) || empty( $v['thumbnailUrl'] ) || empty( $v['uploadDate'] ) || ( empty( $v['contentUrl'] ) && empty( $v['embedUrl'] ) ) ) return null;
+		return array_filter( array( '@type' => 'VideoObject', '@id' => $page['url'] . '#video', 'name' => $v['name'], 'description' => $v['description'] ?? '', 'thumbnailUrl' => $v['thumbnailUrl'], 'uploadDate' => $v['uploadDate'], 'duration' => $v['duration'] ?? '', 'contentUrl' => $v['contentUrl'] ?? '', 'embedUrl' => $v['embedUrl'] ?? '', 'isPartOf' => array( '@id' => $page['url'] . '#webpage' ) ) );
 	}
 
 	/**
@@ -372,9 +373,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 		foreach ( $graph as $i => $node ) {
 			if ( ! Digitalisimo_Integrations_Schema_Vocabulary::is_a( Digitalisimo_Integrations_Schema_Rules::types( $node ), 'VideoObject' ) || ( $node['@id'] ?? '' ) !== $page['url'] . '#video' ) continue;
 			if ( in_array( $node['contentUrl'] ?? '', $sources, true ) ) continue;
+			// Un reproductor de Vimeo: el iframe (o los datos del widget que lo crea) nombra su ID.
+			if ( empty( $node['contentUrl'] ) && preg_match( '#^https://player\.vimeo\.com/video/(\d+)$#', (string) ( $node['embedUrl'] ?? '' ), $vimeo ) && preg_match( '#vimeo\.com[^"\s<>]{0,40}?\b' . $vimeo[1] . '\b#', $body ) ) continue;
 			$removed[] = $node['@id'] ?? '';
 			unset( $graph[ $i ] );
-			$log[] = 'Retirado VideoObject: el archivo no aparece en un elemento video del HTML final.';
+			$log[] = 'Retirado VideoObject: el vídeo no aparece en el HTML final.';
 		}
 		if ( $removed ) foreach ( $graph as &$node ) if ( in_array( $node['video']['@id'] ?? '', $removed, true ) ) unset( $node['video'] );
 		return array( array_values( $graph ), $log );
@@ -479,13 +482,147 @@ class Digitalisimo_Integrations_Schema_Graph {
 		// El tipo real de WooCommerce prevalece sobre una selección antigua del editor.
 		if ( 'product' === $post->post_type ) return $woo && self::o( 'seo_schema_unify', 1 ) ? 'Product' : '';
 		if ( in_array( $chosen, array( 'Article', 'Service' ), true ) ) return $chosen;
+		// Una plantilla con condiciones que coincide manda sobre el tipo por defecto (RM8).
+		$template = '' === $chosen ? self::template_for( $post ) : null;
+		if ( $template ) return $template['type'];
+		// Sin elección en el editor manda el tipo por defecto de su tipo de contenido (RM8); «none» no publica entidad.
+		$default = '' === $chosen ? self::type_default( $post->post_type ) : '';
+		if ( 'none' === $default ) return '';
+		if ( '' !== $default ) return $default;
 		if ( '' === $chosen && 'post' === $post->post_type ) return 'BlogPosting';
 		if ( '' === $chosen && preg_match( '/^(?:services?|servicios?)$/i', $post->post_type ) ) return 'Service';
 		return '';
 	}
 
-	/** Encuentra un único video local relevante en bloques o en un widget Elementor. */
-	private static function video_from_post( $post ) {
+	/** Entidades que un tipo de contenido puede declarar por defecto. */
+	public static function type_default_choices() { return array( '' => 'Automático', 'Article' => 'Artículo', 'BlogPosting' => 'Entrada de blog', 'NewsArticle' => 'Noticia', 'Service' => 'Servicio', 'none' => 'Ninguna (sólo WebPage)' ); }
+	public static function sanitize_type_defaults( $value ) {
+		$out = array();
+		foreach ( is_array( $value ) ? $value : array() as $type => $choice ) {
+			$type = sanitize_key( $type );
+			if ( '' !== $type && '' !== $choice && array_key_exists( (string) $choice, self::type_default_choices() ) ) $out[ $type ] = (string) $choice;
+		}
+		return array_slice( $out, 0, 50, true );
+	}
+	public static function type_default( $post_type ) {
+		$defaults = self::o( 'seo_schema_type_defaults', array() );
+		$value    = is_array( $defaults ) ? (string) ( $defaults[ $post_type ] ?? '' ) : '';
+		return array_key_exists( $value, self::type_default_choices() ) ? $value : '';
+	}
+	/* ------------------------------------------------------------------ */
+	/* Plantillas con condiciones (RM8).                                    */
+	/* ------------------------------------------------------------------ */
+
+	/** Entidades que una plantilla puede aportar. Product no: lo describe WooCommerce. */
+	public static function template_type_choices() { return array( 'Article' => 'Artículo', 'BlogPosting' => 'Entrada de blog', 'NewsArticle' => 'Noticia', 'Service' => 'Servicio', 'Event' => 'Evento', 'Recipe' => 'Receta', 'Course' => 'Curso', 'JobPosting' => 'Oferta de empleo', 'SoftwareApplication' => 'Aplicación', 'VideoObject' => 'Vídeo', 'Book' => 'Libro', 'Movie' => 'Película' ); }
+	const TEMPLATES_MAX = 20;
+
+	/** Lista de IDs positivos y únicos, de texto con comas o de un arreglo. */
+	private static function id_list( $value ) {
+		$value = is_array( $value ) ? $value : preg_split( '/[\s,]+/', (string) $value );
+		return array_slice( array_values( array_unique( array_filter( array_map( 'absint', (array) $value ) ) ) ), 0, 200 );
+	}
+
+	/**
+	 * Plantillas válidas. Una fila sin tipo válido, sin tipos de contenido o marcada para quitar se descarta;
+	 * las propiedades son un objeto JSON sin @context, @id, @type ni @graph (los pone el grafo).
+	 */
+	public static function sanitize_templates( $value ) {
+		$out = array();
+		foreach ( is_array( $value ) ? $value : array() as $row ) {
+			if ( ! is_array( $row ) || ! empty( $row['remove'] ) ) continue;
+			$type = (string) ( $row['type'] ?? '' );
+			if ( ! array_key_exists( $type, self::template_type_choices() ) ) continue;
+			$types = array_slice( array_values( array_unique( array_filter( array_map( 'sanitize_key', (array) ( $row['post_types'] ?? array() ) ) ) ) ), 0, 20 );
+			$terms = is_array( $row['terms'] ?? null ) ? $row['terms'] : explode( ',', (string) ( $row['terms'] ?? '' ) );
+			$terms = array_slice( array_values( array_unique( array_filter( array_map( 'sanitize_title', (array) $terms ) ) ) ), 0, 50 );
+			$props = is_array( $row['properties'] ?? null ) ? $row['properties'] : json_decode( trim( (string) ( $row['properties'] ?? '' ) ), true );
+			$props = is_array( $props ) && ! Digitalisimo_Integrations_Schema_Rules::is_list( $props ) ? array_diff_key( $props, array_flip( array( '@context', '@id', '@type', '@graph' ) ) ) : array();
+			$json  = $props ? (string) wp_json_encode( $props, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) : '';
+			$out[] = array(
+				'name'       => mb_substr( sanitize_text_field( (string) ( $row['name'] ?? '' ) ), 0, 80 ),
+				'type'       => $type,
+				'post_types' => $types,
+				'taxonomy'   => $terms ? sanitize_key( (string) ( $row['taxonomy'] ?? '' ) ) : '',
+				'terms'      => $terms,
+				'include'    => self::id_list( $row['include'] ?? '' ),
+				'exclude'    => self::id_list( $row['exclude'] ?? '' ),
+				'properties' => strlen( $json ) <= 20000 ? $json : '',
+			);
+			if ( count( $out ) >= self::TEMPLATES_MAX ) break;
+		}
+		return $out;
+	}
+
+	/**
+	 * ¿La plantilla se aplica? Falla cerrada: sin tipos de contenido no coincide nunca, y con términos
+	 * exige que el contenido tenga uno de ellos en su taxonomía.
+	 *
+	 * @param array $terms Slugs que el contenido tiene en la taxonomía de la plantilla.
+	 */
+	public static function template_matches( array $template, $post_type, $post_id, array $terms ) {
+		if ( empty( $template['post_types'] ) || ! in_array( $post_type, (array) $template['post_types'], true ) ) return false;
+		if ( in_array( (int) $post_id, (array) ( $template['exclude'] ?? array() ), true ) ) return false;
+		if ( ! empty( $template['include'] ) && ! in_array( (int) $post_id, (array) $template['include'], true ) ) return false;
+		if ( ! empty( $template['terms'] ) && ( empty( $template['taxonomy'] ) || ! array_intersect( (array) $template['terms'], $terms ) ) ) return false;
+		return true;
+	}
+
+	/** @var array Plantilla aplicada por contenido en esta petición. */
+	private static $template_cache = array();
+
+	/** Primera plantilla que coincide con el contenido, o null. La elección del editor siempre gana. */
+	public static function template_for( $post ) {
+		if ( ! $post || 'product' === $post->post_type || '' !== self::chosen_type( $post->ID ) ) return null;
+		if ( array_key_exists( $post->ID, self::$template_cache ) ) return self::$template_cache[ $post->ID ];
+		$templates = self::o( 'seo_schema_templates', array() );
+		$found     = null;
+		foreach ( is_array( $templates ) ? $templates : array() as $template ) {
+			if ( ! is_array( $template ) || ! array_key_exists( (string) ( $template['type'] ?? '' ), self::template_type_choices() ) ) continue;
+			$terms = array();
+			if ( ! empty( $template['terms'] ) && ! empty( $template['taxonomy'] ) && taxonomy_exists( $template['taxonomy'] ) ) {
+				$assigned = get_the_terms( $post->ID, $template['taxonomy'] );
+				$terms    = is_array( $assigned ) ? wp_list_pluck( $assigned, 'slug' ) : array();
+			}
+			if ( self::template_matches( $template, $post->post_type, $post->ID, $terms ) ) { $found = $template; break; }
+		}
+		return self::$template_cache[ $post->ID ] = $found;
+	}
+
+	/** Las variables de los títulos (%title%, %excerpt%, %customfield(x)%…) en cada texto del nodo. */
+	public static function template_values( $value, array $context, $depth = 0 ) {
+		if ( is_string( $value ) ) return false === strpos( $value, '%' ) ? $value : Digitalisimo_Integrations_SEO_Variables::replace( $value, $context );
+		if ( ! is_array( $value ) || $depth > 8 ) return is_array( $value ) ? array() : $value;
+		$out = array();
+		foreach ( $value as $key => $item ) {
+			$item = self::template_values( $item, $context, $depth + 1 );
+			if ( '' !== $item && array() !== $item ) $out[ $key ] = $item;
+		}
+		return $out;
+	}
+
+	/** Nodo de la plantilla del contenido: completa la entidad principal, nunca añade otro bloque. */
+	public static function template_nodes( $post ) {
+		$template = self::template_for( $post );
+		if ( ! $template ) return array();
+		$props = json_decode( (string) ( $template['properties'] ?? '' ), true );
+		$props = is_array( $props ) ? array_diff_key( $props, array_flip( array( '@context', '@id', '@type', '@graph' ) ) ) : array();
+		$node  = array( '@type' => $template['type'] ) + self::template_values( $props, array( 'id' => $post->ID, 'title' => get_the_title( $post ) ) );
+		return array_column( Digitalisimo_Integrations_Schema_Rules::nodes( array( array( 'data' => $node ) ) ), 'node' );
+	}
+
+	/** Taxonomía de marcas de los productos: la elegida o, si existe, la de WooCommerce. */
+	public static function brand_taxonomy() {
+		$chosen = sanitize_key( (string) self::o( 'seo_product_brand', '' ) );
+		if ( '' !== $chosen ) return taxonomy_exists( $chosen ) ? $chosen : '';
+		return taxonomy_exists( 'product_brand' ) ? 'product_brand' : '';
+	}
+
+	/**
+	 * Encuentra un único video relevante: uno de la biblioteca (bloque o widget Elementor) o uno de
+	 * Vimeo ya resuelto en cola por Digitalisimo_Integrations_Video. Nunca hace peticiones.
+	 */
+	public static function video_for_post( $post ) {
 		$candidates = array();
 		if ( function_exists( 'parse_blocks' ) ) {
 			$walk = function( $blocks ) use ( &$walk, &$candidates ) {
@@ -516,8 +653,11 @@ class Digitalisimo_Integrations_Schema_Graph {
 			};
 			$walk( $elementor );
 		}
+		$vimeo = class_exists( 'Digitalisimo_Integrations_Video' ) ? Digitalisimo_Integrations_Video::vimeo_ids( $post ) : array();
+		foreach ( $vimeo as $vimeo_id ) $candidates[] = array( 'vimeo' => $vimeo_id );
 		if ( 1 !== count( $candidates ) ) return null;
 		$v = $candidates[0];
+		if ( isset( $v['vimeo'] ) ) return Digitalisimo_Integrations_Video::vimeo_video( $post->ID, $v['vimeo'] );
 		$id = absint( $v['id'] ?: ( $v['url'] && function_exists( 'attachment_url_to_postid' ) ? attachment_url_to_postid( $v['url'] ) : 0 ) );
 		if ( ! $id || 0 !== strpos( (string) get_post_mime_type( $id ), 'video/' ) ) return null;
 		$url = wp_get_attachment_url( $id );
@@ -525,7 +665,12 @@ class Digitalisimo_Integrations_Schema_Graph {
 		$date = get_post_time( DATE_W3C, false, $id );
 		$name = trim( wp_strip_all_tags( get_the_title( $id ) ) );
 		if ( ! $url || ! $poster || ! $date || ! $name || ! preg_match( '#^https?://#i', $url ) || ! preg_match( '#^https?://#i', $poster ) ) return null;
-		return array( 'name' => $name, 'thumbnailUrl' => $poster, 'uploadDate' => $date, 'contentUrl' => $url );
+		// Descripción y duración sólo si las dio quien subió el archivo (leyenda o descripción) o WordPress (metadatos).
+		$attachment  = get_post( $id );
+		$description = $attachment ? trim( wp_strip_all_tags( $attachment->post_excerpt ?: $attachment->post_content ) ) : '';
+		$meta        = wp_get_attachment_metadata( $id );
+		$duration    = is_array( $meta ) && ! empty( $meta['length'] ) && class_exists( 'Digitalisimo_Integrations_Video' ) ? Digitalisimo_Integrations_Video::iso_duration( (int) $meta['length'] ) : '';
+		return array_filter( array( 'name' => $name, 'description' => $description, 'thumbnailUrl' => $poster, 'uploadDate' => $date, 'duration' => $duration, 'contentUrl' => $url ) );
 	}
 
 	/** Contexto de un contenido concreto (vista previa del editor o auditoría). */
@@ -550,8 +695,19 @@ class Digitalisimo_Integrations_Schema_Graph {
 			if ( is_array( $offer ) && isset( $offer['price'], $offer['priceCurrency'] ) ) $entity['offers'] = $offer;
 		}
 		$profile = ! $home && 'Person' === $chosen && 'product' !== $post->post_type ? array( 'name' => wp_strip_all_tags( get_the_title( $post ) ), 'slug' => $post->post_name ?: (string) $post->ID, 'url' => $url ) : array();
+		if ( $type && Digitalisimo_Integrations_Schema_Vocabulary::is_a( $type, 'Article' ) ) {
+			// Sólo datos que el sitio ya tiene: su categoría principal y las keywords que eligió el editor.
+			$taxonomy = Digitalisimo_Integrations_Breadcrumbs::taxonomy_for( $post->post_type );
+			$section  = $taxonomy ? Digitalisimo_Integrations_SEO_Variables::primary_term( $post->ID, $taxonomy ) : null;
+			if ( $section ) $entity['section'] = wp_strip_all_tags( $section->name );
+			$keywords = implode( ', ', array_filter( array_map( 'trim', explode( ',', (string) get_post_meta( $post->ID, Digitalisimo_Integrations_SEO_Suite::P . 'keywords', true ) ) ) ) );
+			if ( '' !== $keywords ) $entity['keywords'] = $keywords;
+		}
 		if ( 'Product' === $type && function_exists( 'wc_get_product' ) && ( $product = wc_get_product( $post->ID ) ) ) {
 			$entity['sku'] = $product->get_sku();
+			$brand_taxonomy = self::brand_taxonomy();
+			$brands = $brand_taxonomy ? get_the_terms( $post->ID, $brand_taxonomy ) : array();
+			if ( is_array( $brands ) && $brands ) $entity['brand'] = wp_strip_all_tags( $brands[0]->name );
 			$price = function_exists( 'wc_get_price_to_display' ) ? wc_get_price_to_display( $product ) : $product->get_price();
 			if ( ! $product->is_type( 'variable' ) && is_numeric( $price ) && function_exists( 'get_woocommerce_currency' ) ) {
 				$entity['offers'] = array( 'price' => $price, 'priceCurrency' => get_woocommerce_currency(), 'availability' => $product->is_in_stock() ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' );
@@ -574,7 +730,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 			'about_identity' => 'LocalBusiness' === $chosen,
 			'chosen'         => $chosen,
 			'woo_product'    => 'product' === $post->post_type && function_exists( 'wc_get_product' ),
-			'video'          => self::video_from_post( $post ),
+			'video'          => self::video_for_post( $post ),
 			'spatial'        => Digitalisimo_Integrations_Editorial::location_schema( $post->ID ),
 		);
 	}
@@ -591,7 +747,8 @@ class Digitalisimo_Integrations_Schema_Graph {
 		$profile = array();
 		if ( $author_archive && ( $user = get_queried_object() ) instanceof WP_User && $user->display_name ) { $url = get_author_posts_url( $user->ID ); $profile = array( 'name' => $user->display_name, 'slug' => $user->user_nicename, 'url' => $url, 'same_as' => $user->user_url ? array( $user->user_url ) : array() ); }
 		$crumbs = array();
-		if ( 'term' === $kind && self::o( 'seo_breadcrumbs' ) && ( $term = get_queried_object() ) ) $crumbs = array( array( 'name' => 'Inicio', 'url' => home_url( '/' ) ), array( 'name' => $term->name, 'url' => $url ) );
+		// La misma ruta que las migas visibles: la categoría con sus antecesores.
+		if ( 'term' === $kind && self::o( 'seo_breadcrumbs' ) && get_queried_object() ) $crumbs = Digitalisimo_Integrations_Breadcrumbs::trail();
 		return array( 'kind' => $kind, 'home' => $home, 'url' => $home ? home_url( '/' ) : $url, 'title' => wp_strip_all_tags( (string) ( $c['title'] ?? '' ) ), 'description' => wp_strip_all_tags( (string) ( $c['description'] ?? '' ) ), 'breadcrumbs' => $crumbs, 'entity' => null, 'profile' => $profile );
 	}
 
@@ -607,7 +764,10 @@ class Digitalisimo_Integrations_Schema_Graph {
 	public static function graph_for( $site, $page, $post_id = 0, $visible = null ) {
 		$graph = self::build( $site, $page );
 		$log   = array();
-		if ( $post_id ) list( $graph, $log ) = self::merge( $graph, self::custom_nodes( $post_id ), $page, $visible );
+		if ( $post_id ) {
+			$template = empty( $page['home'] ) && ! empty( $page['entity'] ) && ( $post = get_post( $post_id ) ) ? self::template_nodes( $post ) : array();
+			list( $graph, $log ) = self::merge( $graph, array_merge( $template, self::custom_nodes( $post_id ) ), $page, $visible );
+		}
 		return array( $graph, $log );
 	}
 
@@ -625,7 +785,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 			$out[] = array( 'type' => 'ProfilePage', 'why' => 'Página pública dedicada a una persona real.' );
 			$out[] = array( 'type' => 'Person', 'why' => 'Persona descrita por el perfil.' );
 		}
-		if ( ! empty( $page['video'] ) ) $out[] = array( 'type' => 'VideoObject', 'why' => 'Video local único con miniatura y fecha reales.' );
+		if ( ! empty( $page['video'] ) ) $out[] = array( 'type' => 'VideoObject', 'why' => 'Video único (de la biblioteca o de Vimeo) con miniatura y fecha reales.' );
 		if ( 'home' !== $page['kind'] && count( (array) ( $page['breadcrumbs'] ?? array() ) ) >= 2 ) $out[] = array( 'type' => 'BreadcrumbList', 'why' => 'Página interna con ruta de navegación.' );
 		if ( ! empty( $page['entity']['type'] ) ) $out[] = array( 'type' => $page['entity']['type'], 'why' => 'Tipo de contenido de esta URL.' );
 		if ( ! empty( $page['woo_product'] ) ) $out[] = array( 'type' => 'Product', 'why' => 'Producto de WooCommerce.' );
@@ -653,7 +813,7 @@ class Digitalisimo_Integrations_Schema_Graph {
 
 	public static function start_buffer() {
 		if ( is_admin() || is_feed() || is_robots() || wp_doing_ajax() || 'GET' !== ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) ) return;
-		if ( ! self::o( 'enable_seo' ) || ! self::o( 'seo_schema_enabled' ) ) return;
+		if ( ! self::o( 'enable_seo' ) || ! self::o( 'seo_schema_enabled' ) || Digitalisimo_Integrations_SEO_Resolver::foreign_seo() ) return;
 		if ( self::raw_requested() ) { nocache_headers(); return; }
 		$page = self::current_page();
 		if ( ! $page ) return;

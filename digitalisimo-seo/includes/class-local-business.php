@@ -252,7 +252,8 @@ class Digitalisimo_Integrations_Local_Business {
 		echo '</p>';
 
 		foreach ( self::days() as $day => $meta ) {
-			$row   = $schedule[ $day ] ?? array( 'state' => 'closed', 'from' => '09:00', 'to' => '18:00', 'from2' => '', 'to2' => '' );
+			// Un día cerrado se guarda sólo con su estado: las horas toman el valor inicial.
+			$row   = ( is_array( $schedule[ $day ] ?? null ) ? $schedule[ $day ] : array() ) + array( 'state' => 'closed', 'from' => '09:00', 'to' => '18:00', 'from2' => '', 'to2' => '' );
 			$field = $name . '[' . $day . ']';
 			$split = ! empty( $row['from2'] ) && ! empty( $row['to2'] );
 

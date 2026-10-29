@@ -17,7 +17,7 @@ class Digitalisimo_Integrations_SEO_Audit_Hub {
 
 	/** Auditorías disponibles; cada una se muestra sola en su propia vista. */
 	private static function sections() {
-		$sections = array( 'schema' => 'Schema', 'front' => 'SEO Front', 'llms' => 'llms.txt', 'quality' => 'Rendimiento y calidad', 'files' => 'Archivos públicos' );
+		$sections = array( 'schema' => 'Schema', 'front' => 'SEO Front', 'links' => 'Enlaces internos', 'llms' => 'llms.txt', 'quality' => 'Rendimiento y calidad', 'files' => 'Archivos públicos' );
 		if ( class_exists( 'Digitalisimo_AI' ) ) $sections['ai'] = 'SEO AI';
 		return $sections;
 	}
@@ -55,6 +55,9 @@ class Digitalisimo_Integrations_SEO_Audit_Hub {
 		switch ( $current ) {
 			case 'front':
 				Digitalisimo_Integrations_SEO_Front_Inspector::render();
+				break;
+			case 'links':
+				Digitalisimo_Integrations_Links::render_audit();
 				break;
 			case 'llms':
 				if ( Digitalisimo_Integrations_LLMS::status()['enabled'] ) Digitalisimo_Integrations_LLMS::render_status( false );

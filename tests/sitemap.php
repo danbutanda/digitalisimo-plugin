@@ -55,4 +55,5 @@ if ( $seo::sitemap_enabled( true ) ) throw new RuntimeException( 'El interruptor
 $site_options[3]['enable_seo'] = 0;
 $seo::init();
 if ( ! isset( $filters['wp_sitemaps_enabled'] ) ) throw new RuntimeException( 'El sitemap nativo debe permanecer desactivado aunque SEO esté apagado.' );
+foreach ( array( '' => '', 'abc' => '', '50' => '50', '-1' => '-1', '-9' => '-1', '999999' => '100000' ) as $in => $out ) if ( $out !== $seo::sanitize_robots_number( (string) $in ) ) throw new RuntimeException( 'Límite de robots mal saneado: ' . $in );
 echo "Sitemap: páginas, noindex, herencia y sitios independientes correctos.\n";

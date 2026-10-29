@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DIGITALÍSIMO SEO
  * Description: SEO técnico, estrategia de contenidos y SEO AI para Digitalisimo.
- * Version: 1.0.232
+ * Version: 1.0.252
  * Update URI: https://github.com/danbutanda/digitalisimo-plugin/digitalisimo-seo
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.232' );
+define( 'DIGITALISIMO_INTEGRATIONS_VERSION', '1.0.252' );
 define( 'DIGITALISIMO_INTEGRATIONS_FILE', __FILE__ );
 define( 'DIGITALISIMO_INTEGRATIONS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DIGITALISIMO_INTEGRATIONS_URL', plugin_dir_url( __FILE__ ) );
@@ -27,11 +27,26 @@ require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-resolver.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-hide-login.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-suite.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-variables.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-breadcrumbs.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/schema/class-schema-vocabulary.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/schema/class-schema-rules.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/schema/class-schema-graph.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/schema/class-schema-audit.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-sitemap.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-redirections.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-404-monitor.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-verification.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-rankmath-import.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-links.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-content-analysis.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-bulk.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-abilities.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-abilities-write.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-feed.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-video.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-media-repair.php';
+require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-url-bases.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-robots.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai.php';
 require_once DIGITALISIMO_INTEGRATIONS_DIR . 'includes/class-seo-ai-crawler-tools.php';
@@ -89,6 +104,7 @@ function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Performance_Font_Inline::init();
 	Digitalisimo_Integrations_Performance_Preloads::init();
 	Digitalisimo_Integrations_Performance_Images::init();
+	Digitalisimo_Integrations_Media_Repair::init();
 	Digitalisimo_Integrations_Performance_JavaScript::init();
 	Digitalisimo_Integrations_Quality_Audit::init();
 	Digitalisimo_Integrations_LLMS::init();
@@ -103,6 +119,21 @@ function digitalisimo_integrations_boot() {
 	Digitalisimo_Integrations_Schema_Graph::init();
 	Digitalisimo_Integrations_Schema_Audit::init();
 	Digitalisimo_Integrations_Sitemap::init();
+	// Lo que SEO incorpora de Rank Math (docs/SEO_RANKMATH_OBJECTIVE.md): sólo con el SEO activo.
+	if ( Digitalisimo_Integrations_Settings::get( 'enable_seo' ) ) {
+		Digitalisimo_Integrations_Redirections::init();
+		Digitalisimo_Integrations_404_Monitor::init();
+		Digitalisimo_Integrations_Verification::init();
+		Digitalisimo_Integrations_RankMath_Import::init();
+		Digitalisimo_Integrations_Links::init();
+		Digitalisimo_Integrations_Content_Analysis::init();
+		Digitalisimo_Integrations_SEO_Bulk::init();
+		Digitalisimo_Integrations_SEO_Feed::init();
+		Digitalisimo_Integrations_Video::init();
+		Digitalisimo_Integrations_URL_Bases::init();
+		Digitalisimo_Integrations_SEO_Abilities::init();
+		Digitalisimo_Integrations_SEO_Abilities_Write::init();
+	}
 	Digitalisimo_Integrations_Robots::init();
 	// La política robots pertenece a SEO y funciona aunque AI y Chatbot no esté instalado.
 	add_filter( 'robots_txt', array( 'Digitalisimo_Integrations_SEO_AI', 'robots' ), 70, 2 );
