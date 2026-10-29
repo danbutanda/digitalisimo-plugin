@@ -1,0 +1,674 @@
+// Escenarios W4, W5 y W11 de woo-flow.sh (F4-Woo, frente C: vista rápida; V.5, V.16.4 y V.17 B6, 9, 10, 11, 24 y 25).
+// La preparación (setup/quickview.php) deja en cada sitio dos páginas sin el formulario de variaciones, con el Menú del
+// carrito (barra de envío y cupón) y dos botones (Camiseta, simple; Sudadera, variable): `digi-wf-qv` («Diseño
+// propio») y `digi-wf-qv-plantilla` («Plantilla de producto», con «Imágenes del producto» de PRO).
+//
+// - W4 · accesible: teclado y ratón, foco al título propio, Tab y Mayús+Tab sin salir, Escape, fondo y «Cerrar», foco de
+//   vuelta al botón, nombre accesible, `aria-haspopup`, `aria-busy` y región viva (con la respuesta retrasada), en los
+//   dos modos y en cada ancho; Ctrl+clic y sin JavaScript abren la ficha.
+// - W5 · compra: el variable en una página sin variaciones (parámetros, plantillas una vez, carga en orden,
+//   `wc_variation_form`), B6 (precio, imagen, disponibilidad y compra habilitada) en los dos modos, galería funcional
+//   en la plantilla y la compra con redirección tras el POST (recargar no repite), con el Menú del carrito y el aviso
+//   en el carrito.
+// - W11 · compra en modo de prueba: vista rápida → mini carrito con barra → cupón → pago con «Contra reembolso» →
+//   pedido recibido, con el pago clásico (`[woocommerce_checkout]`) y con el de bloques que crea WooCommerce.
+'use strict';
+
+module.exports = (api) => {
+  const { SITES, WIDTHS, summary, sleep, log, probe, check, visitor, shot, settled } = api;
+  const DLG = 'dialog.digi-qv';
+  const OWN = 'digi-wf-qv';
+  const TPL = 'digi-wf-qv-plantilla';
+  const WIDE = WIDTHS[WIDTHS.length - 1];
+
+  const setupOf = (site) => ((summary.sites[site.path] || {}).setup) || {};
+  const qvOf = (site) => setupOf(site).quickview || null;
+  const button = (qv, slug, kind) => `a[data-digi-qv][data-widget="${qv.buttons[slug][kind]}"]`;
+  const short = (v) => JSON.stringify(v).slice(0, 700);
+  const money = (n) => Number(n).toFixed(2).replace('.', ',');
+  const same = (a, b) => String(a || '').replace(/\/$/, '') === String(b || '').replace(/\/$/, '');
+
+  /** Sin preparación no hay nada que comprobar: una sola falla con los errores de la tienda. */
+  function prepared(s, id, site) {
+    const qv = qvOf(site);
+    const errors = (qv && qv.errors) || setupOf(site).errors || [];
+    if (!qv || !qv.pages || !qv.pages[OWN] || !qv.pages[TPL] || errors.length) {
+      check(s, `${id}.0 ${site.path}`, 'la preparación de la vista rápida (imágenes, plantilla y páginas) está completa', false, short({ errors, pages: qv && qv.pages }));
+      return null;
+    }
+    return qv;
+  }
+
+  // ── En la página ──────────────────────────────────────────────────────────────────────────────────────────────
+  /** Estado del diálogo y del foco. */
+  const state = (page) => page.evaluate(() => {
+    const d = document.querySelector('dialog.digi-qv');
+    const a = document.activeElement;
+    const body = d && d.querySelector('.digi-qv__body');
+    const title = document.getElementById('digi-qv-title');
+    const live = d ? Array.from(d.querySelectorAll('[role="status"], [aria-live]')) : [];
+    const name = (n) => (n ? (n.id ? '#' + n.id : n.tagName.toLowerCase() + (n.className && typeof n.className === 'string' ? '.' + n.className.split(' ')[0] : '')) : null);
+    return {
+      exists: !!d,
+      open: !!(d && d.open),
+      labelledby: d ? d.getAttribute('aria-labelledby') : null,
+      titles: document.querySelectorAll('#digi-qv-title').length,
+      titleInside: !!(d && title && d.contains(title)),
+      titleText: title ? title.textContent.replace(/\s+/g, ' ').trim() : '',
+      busy: body ? body.getAttribute('aria-busy') : null,
+      live: live.length,
+      status: live.length ? live[0].textContent : null,
+      error: !!(d && d.querySelector('.digi-qv__error')),
+      active: name(a),
+      activeTitle: !!(a && a.id === 'digi-qv-title'),
+      activeInside: !!(d && a && d.contains(a)),
+      activeOutside: !!(a && a !== document.body && a !== document.documentElement && !(d && d.contains(a))),
+      htmlOpen: document.documentElement.classList.contains('digi-qv-open'),
+    };
+  });
+  /** Registra cualquier elemento de fuera del diálogo que reciba el foco mientras está abierto (fase de captura). */
+  const watchFocus = (page) => page.evaluate(() => {
+    window.digiWfOutside = [];
+    document.addEventListener('focusin', (e) => {
+      const d = document.querySelector('dialog.digi-qv');
+      if (d && d.open && !d.contains(e.target)) window.digiWfOutside.push((e.target.tagName || '') + '.' + String(e.target.className || '').split(' ')[0]);
+    }, true);
+  });
+  const outside = (page) => page.evaluate(() => window.digiWfOutside || []);
+  /** Espera el contenido (o el error) del diálogo. */
+  async function loaded(page, ms = 90000) {
+    try {
+      await page.waitForFunction(() => {
+        const d = document.querySelector('dialog.digi-qv');
+        const b = d && d.querySelector('.digi-qv__body');
+        return !!(d && d.open && b && b.getAttribute('aria-busy') === 'false' && b.childElementCount);
+      }, { timeout: ms });
+      const error = await page.$eval(`${DLG} .digi-qv__error`, (e) => e.textContent.trim()).catch(() => '');
+      return { ok: !error, error };
+    } catch (e) {
+      return { ok: false, error: String(e.message || e).slice(0, 200), url: page.url() };
+    }
+  }
+  const closed = (page) => page.waitForFunction(() => !document.querySelector('dialog.digi-qv[open]'), { timeout: 15000 }).then(() => true, () => false);
+  const focusOn = (page, selector) => page.evaluate((sel) => document.activeElement === document.querySelector(sel), selector);
+  /** Tab (o Mayús+Tab) más veces que elementos enfocables tiene el diálogo: el foco nunca sale. */
+  async function cycle(page, shift) {
+    const n = await page.evaluate(() => {
+      const d = document.querySelector('dialog.digi-qv');
+      return d ? Array.from(d.querySelectorAll('a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])')).filter((n) => n.getClientRects().length).length : 0;
+    });
+    const steps = [];
+    for (let i = 0; i < n + 3; i++) {
+      if (shift) await page.keyboard.down('Shift');
+      await page.keyboard.press('Tab');
+      if (shift) await page.keyboard.up('Shift');
+      const st = await state(page);
+      steps.push(st.activeOutside ? `FUERA:${st.active}` : st.active);
+    }
+    return { n, steps, outside: steps.filter((x) => String(x).startsWith('FUERA:')), inside: new Set(steps.filter((x) => x && !String(x).startsWith('FUERA:') && x !== 'body')).size };
+  }
+  /** Nombre accesible calculado por Chrome. */
+  async function axName(page, selector) {
+    const handle = await page.$(selector);
+    if (!handle) return null;
+    const node = await page.accessibility.snapshot({ root: handle, interestingOnly: false }).catch(() => null);
+    return node ? { role: node.role, name: node.name } : null;
+  }
+  /** Retrasa las respuestas de la ruta para ver el estado «cargando». */
+  async function slowRoute(page, delay) {
+    await page.setRequestInterception(true);
+    page.on('request', (r) => {
+      if (r.isInterceptResolutionHandled()) return;
+      if (/woo(\/|%2F)quick-view/i.test(r.url()) && delay.ms > 0) setTimeout(() => r.continue().catch(() => {}), delay.ms);
+      else r.continue().catch(() => {});
+    });
+  }
+
+  // ── W4 · Vista rápida accesible ───────────────────────────────────────────────────────────────────────────────
+  async function a11y(s, site, qv, slug, label) {
+    const url = qv.pages[slug];
+    const sel = button(qv, slug, 'simple');
+    const name = qv.products.simple.name;
+    const { ctx, page, facts } = await visitor();
+    const delay = { ms: 1500 };
+    try {
+      await slowRoute(page, delay);
+      for (const width of WIDTHS) {
+        const at = `${site.path} ${label} ${width}px`;
+        const full = width === WIDE;
+        await page.setViewport({ width, height: 900 });
+        await page.goto(url, { waitUntil: 'load' });
+        await page.waitForSelector(sel);
+        await watchFocus(page);
+        if (full) {
+          const attrs = await page.$eval(sel, (a) => ({ haspopup: a.getAttribute('aria-haspopup'), href: a.getAttribute('href') }));
+          const ax = await axName(page, sel);
+          check(s, `W4.2a ${at}`, 'el botón es un enlace a la ficha con `aria-haspopup="dialog"` y el nombre del producto en su nombre accesible', attrs.haspopup === 'dialog' && same(attrs.href, qv.products.simple.url) && !!ax && ax.name.includes(name), short({ attrs, ax }));
+        }
+
+        // Teclado: Intro sobre el botón; con la respuesta retrasada se ve el estado «cargando».
+        await page.focus(sel);
+        await page.keyboard.press('Enter');
+        await page.waitForSelector(`${DLG}[open]`, { timeout: 30000 });
+        if (delay.ms) {
+          const busy = await state(page);
+          check(s, `W4.2b ${at}`, 'mientras carga: `aria-busy="true"`, «Cargando…» en la región viva del diálogo y el foco en el título propio', busy.busy === 'true' && busy.live >= 1 && /Cargando/.test(busy.status || '') && busy.activeTitle && busy.activeInside && busy.htmlOpen, short(busy));
+        }
+        let res = await loaded(page);
+        delay.ms = 0;
+        let st = await state(page);
+        check(s, `W4.1a ${at}`, 'con teclado: el diálogo se abre con el contenido, `aria-busy="false"` y el foco en el título propio (`#digi-qv-title`, dentro del diálogo)', res.ok && st.busy === 'false' && st.activeTitle && st.titleInside && st.titles === 1 && st.labelledby === 'digi-qv-title' && st.status === '', short({ res, st }));
+        const dialogName = await axName(page, DLG);
+        check(s, `W4.2c ${at}`, 'nombre accesible del diálogo: el del producto (por `aria-labelledby`), con una región viva dentro', !!dialogName && dialogName.role === 'dialog' && dialogName.name === name && st.live >= 1, short({ dialogName, live: st.live }));
+        await shot(page, `W4-${site.id}-${label}-${width}`);
+        if (full) {
+          const fwd = await cycle(page, false);
+          const back = await cycle(page, true);
+          check(s, `W4.1b ${at}`, 'Tab y Mayús+Tab recorren el diálogo sin llegar a la página (`activeElement` nunca fuera)', fwd.n > 1 && !fwd.outside.length && !back.outside.length && fwd.inside > 1 && back.inside > 1, short({ n: fwd.n, tab: fwd.steps, shiftTab: back.steps }));
+        }
+        await page.keyboard.press('Escape');
+        let shut = await closed(page);
+        st = await state(page);
+        check(s, `W4.1c ${at}`, 'Escape cierra, el contenido se vacía y el foco vuelve al botón', shut && !st.htmlOpen && await focusOn(page, sel), short({ shut, st }));
+
+        // Ratón: clic en el botón, en el fondo y en «Cerrar».
+        await page.click(sel);
+        res = await loaded(page);
+        st = await state(page);
+        check(s, `W4.1d ${at}`, 'con ratón: el diálogo se abre con el foco en el título propio', res.ok && st.activeTitle && st.activeInside, short({ res, st }));
+        await page.mouse.click(3, 3);
+        shut = await closed(page);
+        check(s, `W4.1e ${at}`, 'el clic en el fondo cierra y el foco vuelve al botón', shut && await focusOn(page, sel), short({ shut, active: (await state(page)).active }));
+        if (full) {
+          await page.click(sel);
+          res = await loaded(page);
+          await page.click(`${DLG} .digi-qv__close`);
+          shut = await closed(page);
+          check(s, `W4.1f ${at}`, '«Cerrar» cierra y el foco vuelve al botón', res.ok && shut && await focusOn(page, sel), short({ res, shut, active: (await state(page)).active }));
+        }
+        const away = await outside(page);
+        check(s, `W4.2d ${at}`, 'ningún elemento de la página fuera del diálogo recibió el foco mientras estaba abierto', !away.length, away.slice(0, 5).join(' | '));
+      }
+      check(s, `W4.2e ${site.path} ${label}`, 'sin errores de JavaScript ni respuestas de error del sitio', !facts.errors.length && !facts.failed.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5) }));
+    } catch (e) {
+      await shot(page, `W4-${site.id}-${label}-falla`);
+      check(s, `W4.x ${site.path} ${label}`, 'el recorrido accesible termina', false, String(e.stack || e.message || e).slice(0, 600));
+    } finally {
+      await ctx.close().catch(() => {});
+    }
+  }
+
+  /** Ctrl+clic abre la ficha en otra pestaña sin abrir el diálogo; sin JavaScript, el enlace lleva a la ficha. */
+  async function navigation(s, site, qv, slug, label) {
+    const url = qv.pages[slug];
+    const sel = button(qv, slug, 'simple');
+    const product = qv.products.simple;
+    {
+      const { ctx, page } = await visitor();
+      try {
+        await page.setViewport({ width: WIDE, height: 900 });
+        await page.goto(url, { waitUntil: 'load' });
+        await page.waitForSelector(sel);
+        const created = ctx.waitForTarget((t) => same(t.url().split('#')[0], product.url), { timeout: 60000 }).catch(() => null);
+        await page.keyboard.down('Control');
+        await page.click(sel);
+        await page.keyboard.up('Control');
+        const target = await created;
+        await sleep(500);
+        const st = await state(page);
+        check(s, `W4.3a ${site.path} ${label}`, 'Ctrl+clic abre la ficha en otra pestaña y no abre el diálogo', !!target && !st.open && same(page.url(), url), short({ tab: target && target.url(), dialog: st.open, here: page.url() }));
+      } catch (e) {
+        check(s, `W4.3a ${site.path} ${label}`, 'Ctrl+clic abre la ficha', false, String(e.message || e).slice(0, 400));
+      } finally {
+        await ctx.close().catch(() => {});
+      }
+    }
+    {
+      const { ctx, page } = await visitor();
+      try {
+        await page.setJavaScriptEnabled(false);
+        await page.setViewport({ width: WIDE, height: 900 });
+        await page.goto(url, { waitUntil: 'load' });
+        await page.waitForSelector(sel);
+        await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click(sel)]);
+        const title = await page.$eval('.product_title', (e) => e.textContent.trim()).catch(() => '');
+        check(s, `W4.3b ${site.path} ${label}`, 'sin JavaScript, el botón lleva a la ficha del producto', same(page.url(), product.url) && title === product.name, short({ landed: page.url(), title }));
+      } catch (e) {
+        check(s, `W4.3b ${site.path} ${label}`, 'sin JavaScript, el botón lleva a la ficha', false, String(e.message || e).slice(0, 400));
+      } finally {
+        await ctx.close().catch(() => {});
+      }
+    }
+  }
+
+  async function W4(s) {
+    for (const site of SITES) {
+      const qv = prepared(s, 'W4', site);
+      if (!qv) continue;
+      await a11y(s, site, qv, OWN, 'propio');
+      await a11y(s, site, qv, TPL, 'plantilla');
+      await navigation(s, site, qv, OWN, 'propio');
+      await navigation(s, site, qv, TPL, 'plantilla');
+    }
+  }
+
+  // ── W5 · Vista rápida y compra ────────────────────────────────────────────────────────────────────────────────
+  /** Formulario de variaciones iniciado por `wc_variation_form` (sus eventos de jQuery) en el diálogo. */
+  const variationForm = (page) => page.waitForFunction(() => {
+    const f = document.querySelector('dialog.digi-qv form.variations_form');
+    const $ = window.jQuery;
+    const ev = f && $ && $._data ? $._data(f, 'events') : null;
+    return !!(ev && ev.check_variations && ev.found_variation);
+  }, { timeout: 30000 }).then(() => true, () => false);
+
+  /** B6: elegir una combinación en el diálogo; devuelve lo que muestra antes y después. */
+  async function choose(page, variation) {
+    const read = () => page.evaluate(() => {
+      const d = document.querySelector('dialog.digi-qv');
+      const img = d.querySelector('.product .images img.wp-post-image, .product .woocommerce-product-gallery img');
+      const btn = d.querySelector('.single_add_to_cart_button');
+      const text = (q) => { const n = d.querySelector(q); return n ? n.textContent.replace(/\s+/g, ' ').trim() : ''; };
+      return {
+        variation: +((d.querySelector('input[name="variation_id"]') || {}).value || 0),
+        price: text('.woocommerce-variation-price'),
+        availability: text('.woocommerce-variation-availability'),
+        img: img ? img.getAttribute('src') : null,
+        disabled: !btn || btn.classList.contains('disabled') || btn.disabled,
+      };
+    });
+    const before = await read();
+    await page.select(`${DLG} select[name="attribute_pa_color"]`, variation.color);
+    await page.select(`${DLG} select[name="attribute_pa_talla"]`, variation.talla);
+    await page.waitForFunction((id) => +((document.querySelector('dialog.digi-qv input[name="variation_id"]') || {}).value || 0) === id, { timeout: 30000 }, variation.id).catch(() => {});
+    await sleep(600);
+    return { before, after: await read() };
+  }
+  const b6 = (r, v) => r.after.variation === v.id && r.after.price.includes(money(v.price)) && !!r.after.availability && !r.after.disabled && r.before.disabled
+    && !!r.after.img && r.after.img !== r.before.img && r.after.img.includes(`sudadera-${v.color}`);
+
+  /** Envía el formulario del diálogo y devuelve la cadena de la navegación. */
+  async function buy(page) {
+    const [resp] = await Promise.all([page.waitForNavigation({ waitUntil: 'load', timeout: 180000 }), page.click(`${DLG} .single_add_to_cart_button`)]);
+    const chain = resp ? resp.request().redirectChain() : [];
+    const first = chain[0];
+    return {
+      final: page.url(),
+      method: resp ? resp.request().method() : null,
+      status: resp ? resp.status() : null,
+      post: first ? { method: first.method(), status: first.response() ? first.response().status() : null, url: first.url(), location: first.response() ? first.response().headers().location : null } : null,
+    };
+  }
+  /** Contador y contenido del Menú del carrito. */
+  const menuCart = (page) => page.evaluate(() => {
+    const q = document.querySelector('#elementor-menu-cart__toggle_button .elementor-button-icon-qty');
+    const c = document.querySelector('.elementor-menu-cart__main .widget_shopping_cart_content');
+    return { counter: q ? q.getAttribute('data-counter') : null, items: c ? c.textContent.replace(/\s+/g, ' ').trim().slice(0, 300) : null };
+  });
+  async function openMiniCart(page) {
+    await page.click('#elementor-menu-cart__toggle_button');
+    return page.waitForFunction(() => {
+      const w = document.querySelector('.elementor-menu-cart--shown');
+      return !!(w && w.querySelector('.elementor-menu-cart__main'));
+    }, { timeout: 30000 }).then(() => true, () => false);
+  }
+  const notice = (page) => page.$$eval('.woocommerce-message, .wc-block-components-notice-banner', (els) => els.map((e) => e.textContent.replace(/\s+/g, ' ').trim()).join(' | ')).catch(() => '');
+
+  async function W5own(s, site, qv) {
+    const url = qv.pages[OWN];
+    const sel = button(qv, OWN, 'variable');
+    const variation = (qv.variations || []).find((v) => v.color === 'azul' && v.talla === 'm');
+    const { ctx, page, facts } = await visitor();
+    const requested = [];
+    let recording = false;
+    page.on('request', (r) => { if (recording && r.resourceType() === 'script') requested.push(r.url()); });
+    try {
+      await page.setViewport({ width: WIDE, height: 900 });
+      await page.goto(url, { waitUntil: 'load' });
+      await page.waitForSelector(sel);
+      const before = await page.evaluate(() => {
+        const cfg = (window.digitalisimoQuickView || {}).variation || null;
+        return {
+          params: typeof window.wc_add_to_cart_variation_params,
+          script: !!document.getElementById('wc-add-to-cart-variation-js'),
+          forms: document.querySelectorAll('form.variations_form').length,
+          templates: document.querySelectorAll('#tmpl-variation-template, #tmpl-unavailable-variation-template').length,
+          config: cfg ? { handles: (cfg.scripts || []).map((x) => x.handle), srcs: (cfg.scripts || []).map((x) => x.src), params: Object.keys(cfg.params || {}) } : null,
+          present: Array.from(document.querySelectorAll('script[id$="-js"]')).map((x) => x.id.replace(/-js$/, '')),
+        };
+      });
+      const cfg = before.config;
+      check(s, `W5.1a ${site.path}`, 'la página no trae el formulario, el script, los parámetros ni las plantillas de variaciones; la configuración del pie trae los scripts (el de variaciones al final) y `wc_add_to_cart_variation_params`', before.params === 'undefined' && !before.script && !before.forms && !before.templates && !!cfg && cfg.handles[cfg.handles.length - 1] === 'wc-add-to-cart-variation' && cfg.params.includes('wc_add_to_cart_variation_params') && !cfg.handles.some((h) => before.present.includes(h)), short(before));
+
+      recording = true;
+      await page.click(sel);
+      const res = await loaded(page);
+      const init = await variationForm(page);
+      recording = false;
+      const after = await page.evaluate(() => {
+        const cfg = (window.digitalisimoQuickView || {}).variation || {};
+        return {
+          params: JSON.stringify(window.wc_add_to_cart_variation_params || null) === JSON.stringify((cfg.params || {}).wc_add_to_cart_variation_params || {}),
+          keys: Object.keys(window.wc_add_to_cart_variation_params || {}).slice(0, 12),
+          templates: [document.querySelectorAll('#tmpl-variation-template').length, document.querySelectorAll('#tmpl-unavailable-variation-template').length],
+          inserted: Array.from(document.querySelectorAll('body > script[id$="-js"]')).map((x) => x.id.replace(/-js$/, '')),
+          form: !!document.querySelector('dialog.digi-qv form.variations_form'),
+        };
+      });
+      const path = (u) => { try { return new URL(u, 'http://x').pathname; } catch (e) { return u; } };
+      const order = requested.map((u) => cfg ? cfg.srcs.findIndex((src) => path(src) === path(u)) : -1).filter((i) => i >= 0);
+      const wanted = cfg ? cfg.handles.filter((h) => !before.present.includes(h)) : [];
+      const inOrder = order.length === wanted.length && order.every((v, i) => i === 0 || v > order[i - 1]);
+      check(s, `W5.1b ${site.path}`, 'al abrir el variable: parámetros fijados (los de la configuración), plantillas `tmpl-variation-*` una vez y scripts cargados en orden, una vez cada uno', res.ok && after.params && after.templates[0] === 1 && after.templates[1] === 1 && inOrder && wanted.every((h) => after.inserted.filter((x) => x === h).length === 1), short({ res, after, wanted, requested: requested.map(path), order }));
+      check(s, `W5.1c ${site.path}`, '`wc_variation_form` inicia el formulario del diálogo', after.form && init, short({ form: after.form, init }));
+
+      if (!variation) throw new Error('la preparación no devolvió la variación azul/M');
+      const r = await choose(page, variation);
+      check(s, `W5.2a ${site.path}`, `B6 en «Diseño propio»: elegir azul/M muestra su precio (${money(variation.price)}), su imagen y su disponibilidad y habilita la compra`, b6(r, variation), short(r));
+      await shot(page, `W5-${site.id}-propio-variable`);
+
+      // Cerrar y volver a abrir: nada se repite.
+      await page.keyboard.press('Escape');
+      await closed(page);
+      const count = requested.length;
+      recording = true;
+      await page.click(sel);
+      const again = await loaded(page);
+      await variationForm(page);
+      recording = false;
+      const twice = await page.evaluate(() => [document.querySelectorAll('#tmpl-variation-template').length, document.querySelectorAll('#tmpl-unavailable-variation-template').length]);
+      check(s, `W5.1d ${site.path}`, 'al volver a abrirlo, ni las plantillas ni los scripts se repiten', again.ok && twice[0] === 1 && twice[1] === 1 && requested.length === count, short({ again, twice, extra: requested.slice(count) }));
+
+      // Compra: POST → redirección a la página de origen; recargar no repite.
+      const r2 = await choose(page, variation);
+      const nav = await buy(page);
+      check(s, `W5.3a ${site.path}`, 'añadir al carrito envía un POST que responde con una redirección a la página de origen', !!nav.post && nav.post.method === 'POST' && [302, 303].includes(nav.post.status) && same(nav.final, url) && nav.method === 'GET' && b6(r2, variation), short(nav));
+      const cart1 = await menuCart(page);
+      const shown = await openMiniCart(page);
+      await page.waitForFunction((n) => (document.querySelector('.elementor-menu-cart__main .widget_shopping_cart_content') || {}).textContent.includes(n), { timeout: 30000 }, qv.products.variable.name).catch(() => {});
+      const cart2 = await menuCart(page);
+      const origin = await notice(page);
+      check(s, `W5.3b ${site.path}`, 'el Menú del carrito cuenta 1 producto y lo lista', cart1.counter === '1' && shown && String(cart2.items).includes(qv.products.variable.name), short({ cart1, cart2, shown }));
+      await shot(page, `W5-${site.id}-propio-menu`);
+      const reload = await page.reload({ waitUntil: 'load' });
+      const cart3 = await menuCart(page);
+      check(s, `W5.3c ${site.path}`, 'recargar la página de origen es un GET y no repite la compra (el contador sigue en 1)', !!reload && reload.request().method() === 'GET' && cart3.counter === '1', short({ method: reload && reload.request().method(), cart3 }));
+      const pages = setupOf(site).pages || {};
+      await page.goto(pages['digi-wf-carrito'], { waitUntil: 'load' });
+      const cartNotice = await notice(page);
+      const rows = await page.$$eval('.woocommerce-cart-form .cart_item', (els) => els.map((e) => ({ name: (e.querySelector('.product-name') || {}).textContent.replace(/\s+/g, ' ').trim(), qty: (e.querySelector('input.qty') || {}).value }))).catch(() => []);
+      const where = cartNotice.includes(qv.products.variable.name) ? 'carrito' : (origin.includes(qv.products.variable.name) ? 'origen' : '');
+      check(s, `W5.3d ${site.path}`, 'el aviso «añadido al carrito» aparece en el carrito y la línea tiene cantidad 1', where === 'carrito' && rows.length === 1 && rows[0].qty === '1', short({ where, cartNotice, origin, rows }));
+      check(s, `W5.3e ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio', !facts.errors.length && !facts.failed.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5) }));
+    } catch (e) {
+      await shot(page, `W5-${site.id}-propio-falla`);
+      check(s, `W5.x ${site.path} propio`, 'el recorrido de «Diseño propio» termina', false, String(e.stack || e.message || e).slice(0, 600));
+    } finally {
+      await ctx.close().catch(() => {});
+    }
+  }
+
+  async function W5template(s, site, qv) {
+    const url = qv.pages[TPL];
+    const variation = (qv.variations || []).find((v) => v.color === 'verde' && v.talla === 's');
+    const { ctx, page, facts } = await visitor();
+    try {
+      await page.setViewport({ width: WIDE, height: 900 });
+      await page.goto(url, { waitUntil: 'load' });
+      await page.waitForSelector(button(qv, TPL, 'variable'));
+      const pre = await page.evaluate(() => ({ variation: !!document.getElementById('wc-add-to-cart-variation-js'), single: !!document.getElementById('wc-single-product-js'), forms: document.querySelectorAll('form.variations_form, form.cart').length }));
+
+      // Variable en la plantilla: B6 con «Imágenes del producto».
+      await page.click(button(qv, TPL, 'variable'));
+      let res = await loaded(page);
+      const init = await variationForm(page);
+      const tpl = await page.evaluate((id) => {
+        const d = document.querySelector('dialog.digi-qv');
+        return { doc: !!d.querySelector(`.elementor-${id}`), images: !!d.querySelector('.elementor-widget-woocommerce-product-images .woocommerce-product-gallery'), title: (d.querySelector('.product_title') || {}).textContent || '' };
+      }, qv.template);
+      check(s, `W5.2b ${site.path}`, 'el variable en «Plantilla de producto»: la plantilla con «Imágenes del producto» y `wc_variation_form` iniciado, en una página sin variaciones', res.ok && init && tpl.doc && tpl.images && !pre.variation && !pre.forms, short({ res, init, tpl, pre }));
+      if (variation) {
+        const r = await choose(page, variation);
+        check(s, `W5.2c ${site.path}`, `B6 en la plantilla: elegir verde/S muestra su precio (${money(variation.price)}), su imagen y su disponibilidad y habilita la compra`, b6(r, variation), short(r));
+      }
+      await shot(page, `W5-${site.id}-plantilla-variable`);
+      await page.keyboard.press('Escape');
+      await closed(page);
+
+      // Simple en la plantilla: galería funcional (miniaturas y ampliación) y compra con redirección.
+      await page.click(button(qv, TPL, 'simple'));
+      res = await loaded(page);
+      const ready = await page.waitForFunction(() => document.querySelectorAll('dialog.digi-qv .woocommerce-product-gallery .flex-control-thumbs li').length > 1, { timeout: 30000 }).then(() => true, () => false);
+      const gallery = await page.evaluate(() => {
+        const d = document.querySelector('dialog.digi-qv');
+        const g = d.querySelector('.woocommerce-product-gallery');
+        return { thumbs: g ? g.querySelectorAll('.flex-control-thumbs li').length : 0, slides: g ? g.querySelectorAll('.woocommerce-product-gallery__image').length : 0, viewport: !!(g && g.querySelector('.flex-viewport')), trigger: !!(g && g.querySelector('.woocommerce-product-gallery__trigger')), opacity: g ? getComputedStyle(g).opacity : null };
+      });
+      let slide = null;
+      if (ready) {
+        await page.click(`${DLG} .flex-control-thumbs li:nth-child(2) img`);
+        slide = await page.waitForFunction(() => {
+          const s = Array.from(document.querySelectorAll('dialog.digi-qv .woocommerce-product-gallery__image'));
+          return s.findIndex((n) => n.classList.contains('flex-active-slide')) === 1;
+        }, { timeout: 15000 }).then(() => true, () => false);
+      }
+      check(s, `W5.2d ${site.path}`, '«Imágenes del producto» en la plantilla: galería iniciada (tres miniaturas) y una miniatura cambia la imagen activa', res.ok && gallery.thumbs === 3 && gallery.viewport && slide === true, short({ res, gallery, slide }));
+      let zoom = { trigger: gallery.trigger };
+      if (gallery.trigger) {
+        await page.click(`${DLG} .woocommerce-product-gallery__trigger`);
+        zoom = await page.waitForFunction(() => document.querySelector('.pswp.pswp--open'), { timeout: 15000 }).then(async () => {
+          await sleep(500);
+          return page.evaluate(() => {
+            const p = document.querySelector('.pswp.pswp--open');
+            const r = p.getBoundingClientRect();
+            const top = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+            return { open: true, count: document.querySelectorAll('.pswp').length, onTop: !!(top && top.closest('.pswp')), top: top ? top.tagName + '.' + String(top.className).split(' ')[0] : null, inert: !!p.closest('[inert]') || (typeof p.checkVisibility === 'function' && !p.checkVisibility()) };
+          });
+        }, () => ({ open: false }));
+      }
+      await shot(page, `W5-${site.id}-plantilla-galeria`);
+      check(s, `W5.2e ${site.path}`, 'la ampliación de la galería (PhotoSwipe de «Imágenes del producto») se abre por encima del diálogo', !!zoom.open && zoom.onTop && zoom.count === 1, short(zoom));
+      if (zoom.open) {
+        await page.click('.pswp__button--close').catch(() => {});
+        await page.waitForFunction(() => !document.querySelector('.pswp.pswp--open'), { timeout: 10000 }).catch(() => {});
+      }
+      const stillOpen = (await state(page)).open;
+      if (!stillOpen) {
+        await page.click(button(qv, TPL, 'simple'));
+        await loaded(page);
+      }
+      const nav = await buy(page);
+      const cart = await menuCart(page);
+      check(s, `W5.3f ${site.path}`, 'compra desde la plantilla: POST con redirección a la página de origen y el Menú del carrito al día', !!nav.post && nav.post.method === 'POST' && [302, 303].includes(nav.post.status) && same(nav.final, url) && nav.method === 'GET' && cart.counter === '1', short({ nav, cart }));
+      check(s, `W5.3g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio en la plantilla', !facts.errors.length && !facts.failed.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5) }));
+    } catch (e) {
+      await shot(page, `W5-${site.id}-plantilla-falla`);
+      check(s, `W5.y ${site.path} plantilla`, 'el recorrido de «Plantilla de producto» termina', false, String(e.stack || e.message || e).slice(0, 600));
+    } finally {
+      await ctx.close().catch(() => {});
+    }
+  }
+
+  async function W5(s) {
+    for (const site of SITES) {
+      const qv = prepared(s, 'W5', site);
+      if (!qv) continue;
+      await W5own(s, site, qv);
+      await W5template(s, site, qv);
+    }
+  }
+
+  // ── W11 · Compra en modo de prueba ────────────────────────────────────────────────────────────────────────────
+  const bar = (page) => page.evaluate(() => {
+    const box = document.querySelector('.elementor-menu-cart__main .digi-ship');
+    const st = box && box.querySelector('.digi-ship__state');
+    return { exists: !!box, hidden: box ? box.hidden : null, state: st ? st.getAttribute('data-state') : null, initial: !!(st && st.hasAttribute('data-digi-initial')), text: box ? box.textContent.replace(/\s+/g, ' ').trim() : '' };
+  });
+  const waitBar = (page, test, arg) => page.waitForFunction(test, { timeout: 60000 }, arg).then(() => true, () => false);
+
+  /** Vista rápida → compra → mini carrito con la barra → cupón DIGI10. Devuelve lo visto. */
+  async function cartPart(s, id, site, qv, page, kind, expect) {
+    const url = qv.pages[OWN];
+    await page.goto(url, { waitUntil: 'load' });
+    await page.click(button(qv, OWN, kind));
+    const res = await loaded(page);
+    if (kind === 'variable') {
+      await variationForm(page);
+      await choose(page, expect.variation);
+    }
+    const nav = await buy(page);
+    check(s, `${id}a ${site.path}`, `vista rápida (${kind === 'variable' ? 'Sudadera roja S' : 'Camiseta'}) → «Añadir al carrito» vuelve a la página con una redirección`, res.ok && !!nav.post && nav.post.method === 'POST' && same(nav.final, url), short({ res, nav }));
+    const shown = await openMiniCart(page);
+    const ok1 = await waitBar(page, (want) => { const b = document.querySelector('.elementor-menu-cart__main .digi-ship'); const st = b && b.querySelector('.digi-ship__state'); return !!(b && !b.hidden && st && st.getAttribute('data-state') === want); }, expect.before.state);
+    const b1 = await bar(page);
+    check(s, `${id}b ${site.path}`, `el mini carrito se abre con la barra de envío: ${expect.before.label}`, shown && ok1 && expect.before.text.test(b1.text), short(b1));
+    await shot(page, `${id.replace(/\./g, '')}-${site.id}-minicarrito`);
+    const couponReady = await page.waitForFunction(() => { const c = document.querySelector('.elementor-menu-cart__main .digi-coupon'); return !!(c && !c.hidden); }, { timeout: 30000 }).then(() => true, () => false);
+    if (couponReady) {
+      await page.type('.elementor-menu-cart__main .digi-coupon__input', 'DIGI10');
+      await page.click('.elementor-menu-cart__main .digi-coupon__apply');
+    }
+    const applied = couponReady && await page.waitForFunction(() => /digi10/i.test((document.querySelector('.elementor-menu-cart__main .digi-coupon__list') || {}).textContent || ''), { timeout: 60000 }).then(() => true, () => false);
+    const ok2 = await waitBar(page, (want) => { const b = document.querySelector('.elementor-menu-cart__main .digi-ship'); const st = b && b.querySelector('.digi-ship__state'); return !!(b && !b.hidden && st && st.getAttribute('data-state') === want.state && b.textContent.includes(want.has)); }, { state: expect.after.state, has: expect.after.has });
+    const b2 = await bar(page);
+    const status = await page.$eval('.elementor-menu-cart__main .digi-coupon__status', (e) => e.textContent.trim()).catch(() => '');
+    check(s, `${id}c ${site.path}`, `el cupón DIGI10 se aplica en el mini carrito y la barra se rehace: ${expect.after.label}`, couponReady && applied && ok2, short({ couponReady, applied, bar: b2, status }));
+    await shot(page, `${id.replace(/\./g, '')}-${site.id}-cupon`);
+  }
+
+  async function classicCheckout(s, site, qv, page) {
+    const pages = setupOf(site).pages || {};
+    await page.goto(pages['digi-wf-pago'], { waitUntil: 'load' });
+    await page.waitForSelector('#billing_first_name');
+    await settled(page);
+    const fields = { '#billing_first_name': 'Ana', '#billing_last_name': 'Vista', '#billing_address_1': 'Calle de Prueba 3', '#billing_city': 'Madrid', '#billing_postcode': '28001', '#billing_phone': '600000001', '#billing_email': 'ana.vista@example.com' };
+    for (const [selector, value] of Object.entries(fields)) {
+      await page.$eval(selector, (el) => { el.value = ''; });
+      await page.type(selector, value);
+    }
+    if (await page.$('select#billing_state')) await page.select('select#billing_state', 'M');
+    await page.$eval('#billing_postcode', (el) => el.dispatchEvent(new Event('change', { bubbles: true })));
+    await settled(page);
+    const free = await page.$('input.shipping_method[value^="free_shipping"]');
+    if (free && await free.evaluate((el) => el.type === 'radio')) { await free.click(); await settled(page); }
+    const cod = await page.$('#payment_method_cod');
+    if (cod && await cod.evaluate((el) => el.type === 'radio' && !el.checked)) await cod.click();
+    const offered = await page.$$eval('input.shipping_method', (els) => els.map((e) => e.value)).catch(() => []);
+    const coupon = await page.$('tr.cart-discount.coupon-digi10');
+    check(s, `W11.1d ${site.path}`, 'el pago clásico conserva DIGI10, ofrece «Envío gratuito» (como dijo la barra) y «Contra reembolso»', !!free && !!cod && !!coupon, short({ offered, cod: !!cod, coupon: !!coupon }));
+    await shot(page, `W11-${site.id}-clasico-pago`);
+    await page.click('#place_order');
+    await page.waitForFunction(() => /order-received/.test(location.href) || !!document.querySelector('.woocommerce-error, .woocommerce-NoticeGroup-checkout'), { timeout: 180000 });
+    const err = await page.$eval('.woocommerce-error, .woocommerce-NoticeGroup-checkout', (el) => el.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
+    await page.waitForSelector('.woocommerce-order, .woocommerce-thankyou-order-received', { timeout: 60000 }).catch(() => {});
+    await shot(page, `W11-${site.id}-clasico-recibido`);
+    return { landed: page.url(), err };
+  }
+
+  async function blocksCheckout(s, site, qv, page) {
+    const pages = setupOf(site).pages || {};
+    await page.goto(pages['wc-checkout'], { waitUntil: 'load' });
+    await page.waitForSelector('.wc-block-checkout', { timeout: 120000 });
+    await page.waitForSelector('#email', { timeout: 120000 });
+    await sleep(800);
+    const type = async (selector, value) => {
+      const el = await page.$(selector);
+      if (!el) return false;
+      await el.click({ clickCount: 3 });
+      await page.keyboard.press('Backspace');
+      await el.type(value);
+      return true;
+    };
+    await type('#email', 'luis.vista@example.com');
+    if (await page.$('select#shipping-country')) await page.select('select#shipping-country', 'ES');
+    const filled = {};
+    for (const [selector, value] of Object.entries({ '#shipping-first_name': 'Luis', '#shipping-last_name': 'Vista', '#shipping-address_1': 'Calle de Prueba 4', '#shipping-city': 'Madrid', '#shipping-postcode': '28001', '#shipping-phone': '600000002' })) {
+      filled[selector] = await type(selector, value);
+    }
+    if (await page.$('select#shipping-state')) await page.select('select#shipping-state', 'M');
+    await page.keyboard.press('Tab');
+    await sleep(1500);
+    await page.waitForFunction(() => !document.querySelector('.wc-block-components-loading-mask, .wc-block-components-shipping-rates-control__package--disabled'), { timeout: 60000 }).catch(() => {});
+    const flat = await page.$('input[type="radio"][value^="flat_rate"]');
+    if (flat && await flat.evaluate((el) => !el.checked)) { await flat.click(); await sleep(1500); }
+    const cod = await page.$('#radio-control-wc-payment-method-options-cod');
+    if (cod && await cod.evaluate((el) => !el.checked)) { await cod.click(); await sleep(500); }
+    const view = await page.evaluate(() => ({
+      rates: Array.from(document.querySelectorAll('.wc-block-components-shipping-rates-control input[type="radio"], .wc-block-components-totals-shipping input[type="radio"]')).map((e) => e.value),
+      text: (document.querySelector('.wc-block-components-totals-shipping') || {}).textContent || '',
+      payment: (document.querySelector('.wc-block-checkout__payment-method') || {}).textContent || '',
+      coupon: /digi10/i.test((document.querySelector('.wc-block-components-totals-discount, .wc-block-components-totals-coupon') || document.body).textContent),
+      total: ((document.querySelector('.wc-block-components-totals-footer-item .wc-block-components-totals-item__value') || {}).textContent || '').trim(),
+    }));
+    const noFree = !view.rates.some((r) => r.startsWith('free_shipping')) && !/gratuito|free shipping/i.test(view.text);
+    check(s, `W11.2d ${site.path}`, 'el pago de bloques conserva DIGI10, ofrece sólo la tarifa plana (como dijo la barra) y «Contra reembolso»', view.coupon && noFree && /Contra reembolso/i.test(view.payment) && /32,00/.test(view.total), short({ ...view, filled, flat: !!flat }));
+    await shot(page, `W11-${site.id}-bloques-pago`);
+    await page.click('.wc-block-components-checkout-place-order-button');
+    await page.waitForFunction(() => /order-received/.test(location.href) || !!document.querySelector('.wc-block-components-notice-banner.is-error, .wc-block-store-notice.is-error'), { timeout: 180000 });
+    const err = await page.$eval('.wc-block-components-notice-banner.is-error, .wc-block-store-notice.is-error', (el) => el.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
+    await page.waitForSelector('.woocommerce-order, .wc-block-order-confirmation-status, .woocommerce-thankyou-order-received', { timeout: 60000 }).catch(() => {});
+    await shot(page, `W11-${site.id}-bloques-recibido`);
+    return { landed: page.url(), err };
+  }
+
+  /** El pedido más reciente del sitio con lo que se espera. */
+  async function order(s, id, site, want, what) {
+    const orders = await probe(site, 'orders');
+    const got = orders[0] || {};
+    const pick = Object.fromEntries(Object.keys(want).map((k) => [k, got[k]]));
+    check(s, `${id} ${site.path}`, what, JSON.stringify(pick) === JSON.stringify(want), short({ got: pick, want, items: got.items }));
+  }
+
+  async function W11(s) {
+    for (const site of SITES) {
+      const qv = prepared(s, 'W11', site);
+      if (!qv) continue;
+      const simple = qv.products.simple;
+      // Clásico: Camiseta (60 €) → barra «Tienes envío gratis» → DIGI10 (54 €, sigue gratis) → «Envío gratuito».
+      {
+        const { ctx, page, facts } = await visitor();
+        try {
+          await page.setViewport({ width: WIDE, height: 900 });
+          await cartPart(s, 'W11.1', site, qv, page, 'simple', {
+            before: { state: 'done', label: '«Tienes envío gratis» con 60 €', text: /envío gratis/i },
+            after: { state: 'done', has: 'envío gratis', label: 'sigue «Tienes envío gratis» con 54 €' },
+          });
+          const r = await classicCheckout(s, site, qv, page);
+          check(s, `W11.1e ${site.path}`, 'el pago clásico (`[woocommerce_checkout]`) termina en «Pedido recibido»', /order-received/.test(r.landed), r.err || r.landed);
+          await order(s, 'W11.1f', site, { status: 'processing', payment: 'cod', shipping: ['free_shipping'], coupons: ['digi10'], discount: '6.00', total: '54.00', created: 'checkout', items: [{ product: simple.id, variation: 0, qty: 1, total: '54.00' }] }, 'el pedido queda «procesando», con contra reembolso, envío gratuito, DIGI10 y 54,00 €');
+          check(s, `W11.1g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', !facts.errors.length && !facts.failed.length && !facts.outside.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.slice(0, 3) }));
+        } catch (e) {
+          await shot(page, `W11-${site.id}-clasico-falla`);
+          check(s, `W11.1x ${site.path}`, 'la compra con el pago clásico termina', false, String(e.stack || e.message || e).slice(0, 600));
+        } finally {
+          await ctx.close().catch(() => {});
+        }
+      }
+      // Bloques: Sudadera roja S (30 €) → barra con 20 € → DIGI10 (27 €, faltan 23 €) → tarifa plana (5 €): 32 €.
+      {
+        const variation = (qv.variations || []).find((v) => v.color === 'rojo' && v.talla === 's');
+        const { ctx, page, facts } = await visitor();
+        try {
+          if (!variation) throw new Error('la preparación no devolvió la variación roja/S');
+          await page.setViewport({ width: WIDE, height: 900 });
+          await cartPart(s, 'W11.2', site, qv, page, 'variable', {
+            variation,
+            before: { state: 'progress', label: 'faltan 20,00 € con 30 €', text: /20,00/ },
+            after: { state: 'progress', has: '23,00', label: 'faltan 23,00 € con 27 €' },
+          });
+          const r = await blocksCheckout(s, site, qv, page);
+          check(s, `W11.2e ${site.path}`, 'el pago de bloques (la página que crea WooCommerce) termina en «Pedido recibido»', /order-received/.test(r.landed), r.err || r.landed);
+          await order(s, 'W11.2f', site, { status: 'processing', payment: 'cod', shipping: ['flat_rate'], coupons: ['digi10'], discount: '3.00', total: '32.00', created: 'store-api', items: [{ product: qv.products.variable.id, variation: variation.id, qty: 1, total: '27.00' }] }, 'el pedido queda «procesando», con contra reembolso, tarifa plana, DIGI10 y 32,00 €');
+          check(s, `W11.2g ${site.path}`, 'sin errores de JavaScript ni respuestas de error del sitio; ninguna petición sale del sitio', !facts.errors.length && !facts.failed.length && !facts.outside.length, short({ errors: facts.errors.slice(0, 5), failed: facts.failed.slice(0, 5), outside: facts.outside.slice(0, 3) }));
+        } catch (e) {
+          await shot(page, `W11-${site.id}-bloques-falla`);
+          check(s, `W11.2x ${site.path}`, 'la compra con el pago de bloques termina', false, String(e.stack || e.message || e).slice(0, 600));
+        } finally {
+          await ctx.close().catch(() => {});
+        }
+      }
+      log(`   W11 ${site.path}: núcleo ${summary.options.core}`);
+    }
+  }
+
+  return { W4, W5, W11 };
+};
