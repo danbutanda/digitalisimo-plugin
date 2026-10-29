@@ -306,11 +306,21 @@ async function W12(s) {
   pending(s, 'W12.2', '`woo/quick-view` con un `widget_id` ajeno 403 y con un producto privado 404; `return` a otro dominio rechazada; ninguna escritura sin nonce');
 }
 async function W13(s) {
-  pending(s, 'W13.1', 'con contenido de 4.3.0.165 se instala el ZIP de 4.3.0.164: sin fatales, los widgets no pintan nada, el bucle con precio sale vacío y las muestras vuelven al <select>');
-  pending(s, 'W13.2', 'abrir y guardar en el editor de 4.3.0.164 borra los widgets; de vuelta en 4.3.0.165, restaurar la revisión anterior los devuelve con el mismo md5 de ajustes; se anota si sobrevivieron las claves nuevas de los widgets de PRO');
-  pending(s, 'W13.3', 'con 4.3.0.165 y un widget `digitalisimo-*` de una versión futura (tipo no registrado), abrir y guardar lo conserva en el marcador');
+  pending(s, 'W13.1', 'con contenido de 4.3.0.166 se instala el ZIP de 4.3.0.165: sin fatales, los widgets no pintan nada, el bucle con precio sale vacío y las muestras vuelven al <select>');
+  pending(s, 'W13.2', 'abrir y guardar en el editor de 4.3.0.165 borra los widgets; de vuelta en 4.3.0.166, restaurar la revisión anterior los devuelve con el mismo md5 de ajustes; se anota si sobrevivieron las claves nuevas de los widgets de PRO');
+  pending(s, 'W13.3', 'con 4.3.0.166 y un widget `digitalisimo-*` de una versión futura (tipo no registrado), abrir y guardar lo conserva en el marcador');
 }
 const RUN = { W0, W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13 };
+// Cada archivo de woo-flow/scenarios/ exporta `(api) => ({ W<n>: async (s) => … })` y sustituye a los pendientes.
+const API = { ENV, OUT, BASE, PORT, HOST, TOKEN, NET, QUICK, SITES, WIDTHS, summary, sleep, log, readJson, request, probe, check, pending, visitor, shot, settled, startBrowser, purchase };
+const SCENARIO_DIR = path.join(__dirname, 'scenarios');
+for (const file of (fs.existsSync(SCENARIO_DIR) ? fs.readdirSync(SCENARIO_DIR) : []).filter((f) => f.endsWith('.cjs')).sort()) {
+  const provided = require(path.join(SCENARIO_DIR, file))(API);
+  for (const [id, fn] of Object.entries(provided)) {
+    if (!ALL.includes(id) || typeof fn !== 'function') { console.error(`${file}: escenario desconocido ${id}`); process.exit(1); }
+    RUN[id] = fn;
+  }
+}
 const TITLES = {
   W0: 'Preparación y sin WooCommerce', W1: 'Lista de deseos de invitado', W2: 'Lista con sesión', W3: 'Caché de página', W4: 'Vista rápida accesible',
   W5: 'Vista rápida y compra', W6: 'Muestras', W7: 'Barra de envío', W8: 'Cupón en el mini carrito', W9: 'Filtros en el Loop Grid', W10: 'Filtros en la tienda',

@@ -11,7 +11,7 @@
 #   W3  Caché de página simulada               W10 Filtros en la tienda («Consulta actual»)
 #   W4  Vista rápida accesible                 W11 Compra en modo de prueba (pago de bloques y clásico)
 #   W5  Vista rápida y compra                  W12 Seguridad de las rutas REST
-#   W6  Muestras de variación                  W13 Vuelta atrás a 4.3.0.164 y guarda hacia delante
+#   W6  Muestras de variación                  W13 Vuelta atrás a 4.3.0.165 y guarda hacia delante
 # Hoy sólo W0 comprueba algo (la preparación: WooCommerce 11.2.1 activo y una compra completa como invitado con cupón,
 # envío gratuito y «Contra reembolso»); los demás están descritos en woo-flow/run.cjs y salen «pendiente» hasta que
 # existan sus widgets.
@@ -86,6 +86,9 @@ done
 rm -f "$OUT"/{setup-error.txt,fatal.log,server.log,summary.json,run.log,env.json,woocommerce.json}
 rm -rf "$OUT/shots" && mkdir -p "$OUT/shots"
 cp "$W"/{activate.php,probe.php,store.php} "$OUT/"
+# Preparación y operaciones de sonda de cada escenario (woo-flow/setup/*.php y woo-flow/ops/*.php).
+rm -rf "$OUT/setup" "$OUT/ops"
+for dir in setup ops; do [ -d "$W/$dir" ] && cp -r "$W/$dir" "$OUT/$dir"; done
 
 # WooCommerce 11.2.1 fijado y obligatorio: sin la copia o con otra suma, el arnés se detiene (V.16.1).
 . "$ROOT/tests/playground/woocommerce-pin.sh"

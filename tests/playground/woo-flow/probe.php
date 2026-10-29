@@ -75,6 +75,13 @@ add_action(
 		if ( 'orders' === $op ) {
 			wp_send_json( digi_wf_probe_orders() );
 		}
+		// Operaciones de cada escenario (woo-flow/ops/*.php): cada archivo devuelve array( op => callable ).
+		foreach ( glob( WP_CONTENT_DIR . '/probe/ops/*.php' ) ?: array() as $file ) {
+			$ops = require $file;
+			if ( is_array( $ops ) && isset( $ops[ $op ] ) && is_callable( $ops[ $op ] ) ) {
+				wp_send_json( call_user_func( $ops[ $op ] ) );
+			}
+		}
 		wp_send_json( array( 'error' => 'desconocido' ), 404 );
 	},
 	1

@@ -6,7 +6,7 @@ use Digitalisimo\Elements\Import\Kits\Preserve;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Guarda hacia delante de los widgets propios (D28 y V.10.2 de F4-Woo), desde 4.3.0.165.
+ * Guarda hacia delante de los widgets propios (D28 y V.10.2 de F4-Woo), desde 4.3.0.166.
  *
  * El núcleo descarta al cargar y al guardar todo widget que no puede instanciar. Si un documento lleva un widget
  * `digitalisimo-*` de una versión posterior de Elements (o de un módulo que este sitio no tiene), abrirlo y guardarlo

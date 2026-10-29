@@ -285,6 +285,14 @@ function digi_wf_store_setup() {
 		$fail( 'la tabla de búsqueda de atributos no tiene filas del producto variable' );
 	}
 
+	// Lo que cada escenario necesita (woo-flow/setup/*.php): cada archivo devuelve function( array $out, callable $fail ): array.
+	foreach ( glob( WP_CONTENT_DIR . '/probe/setup/*.php' ) ?: array() as $file ) {
+		$part = require $file;
+		if ( is_callable( $part ) ) {
+			$out = $part( $out, $fail );
+		}
+	}
+
 	flush_rewrite_rules( false );
 	$out['urls'] = array();
 	foreach ( $out['products'] as $slug => $id ) {
