@@ -370,7 +370,7 @@ namespace {
 	use Digitalisimo\Elements\Front\Settings_Page;
 	use Digitalisimo\Elements\Front\Transition;
 
-	$keys     = array( 'pro_conditional', 'font_swap', 'svg_icons', 'lazy_libs', 'element_cache_off', 'image_loading_off' );
+	$keys     = array( 'pro_conditional', 'font_swap', 'svg_icons', 'lazy_libs', 'lazy_videos', 'element_cache_off', 'image_loading_off' );
 	$privacy  = array( 'page_visits_no_consent' );
 	$all      = array_merge( $keys, $privacy );
 	$site     = Settings::OPTION;
@@ -383,7 +383,7 @@ namespace {
 
 	// 1. Paridad: las seis claves en los cuatro puntos y en la pantalla.
 	fs_reset();
-	$check( $keys === Settings::KEYS, 'Settings::KEYS son las seis claves de §3.2, en su orden.' );
+	$check( $keys === Settings::KEYS, 'Settings::KEYS son las seis claves de §3.2 más lazy_videos (Fase 3), en su orden.' );
 	$check( $privacy === Settings::PRIVACY_KEYS && $all === Settings::keys(), 'F7a: page_visits_no_consent es la clave de «Privacidad» y keys() suma las seis y ella.' );
 	$check( 'digitalisimo_elements_front' === $site && 'digitalisimo_elements_front_defaults' === $network, 'Nombres de las opciones de sitio y de red (§4).' );
 	$check(
@@ -392,11 +392,12 @@ namespace {
 			'font_swap'         => true,
 			'svg_icons'         => false,
 			'lazy_libs'         => false,
+			'lazy_videos'       => false,
 			'element_cache_off' => false,
 			'image_loading_off' => false,
 			'page_visits_no_consent' => false,
 		) === Settings::defaults(),
-		'defaults(): las siete claves con su valor neutro (la de privacidad, apagada).'
+		'defaults(): las ocho claves con su valor neutro (la de privacidad, apagada).'
 	);
 	$check( array_merge( $all, array( 'own' ) ) === array_keys( Settings::sanitize( array() ) ), 'sanitize(): las siete claves y own.' );
 	$check( $all === array_keys( Settings::save_network( array() ) ), 'save_network(): las siete claves.' );
@@ -411,7 +412,7 @@ namespace {
 	$check( false !== strpos( $network_html, Settings::NETWORK_SVG_LABEL ), 'En la red, svg_icons dice que sólo se aplica donde el análisis salga limpio.' );
 
 	// 2. «Heredar de la red» sólo en el sitio de una red.
-	$check( 6 === substr_count( $site_html, 'Heredar de la red' ), 'El sitio de una red tiene «Heredar de la red» en los seis interruptores.' );
+	$check( 7 === substr_count( $site_html, 'Heredar de la red' ), 'El sitio de una red tiene «Heredar de la red» en los siete interruptores.' );
 	$check( false === strpos( $network_html, 'Heredar de la red' ) && false === strpos( $network_html, '[inherit]' ), 'network_fields() nunca muestra «Heredar de la red».' );
 	fs_reset( array( 'network' => true, 'caps' => array( 'manage_network_options' ) ) );
 	$network_page = $capture( array( Settings_Page::class, 'render_network' ) );
@@ -434,7 +435,7 @@ namespace {
 			'inherit'           => array( 'pro_conditional' => '0', 'font_swap' => '1', 'lazy_libs' => '0', 'evil' => '0', 'own' => '0' ),
 		)
 	);
-	$check( true === $clean['pro_conditional'] && false === $clean['font_swap'] && true === $clean['svg_icons'] && false === $clean['lazy_libs'] && false === $clean['element_cache_off'] && false === $clean['image_loading_off'], 'sanitize(): cada clave con ! empty(), siempre booleana.' );
+	$check( true === $clean['pro_conditional'] && false === $clean['font_swap'] && true === $clean['svg_icons'] && false === $clean['lazy_libs'] && false === $clean['lazy_videos'] && false === $clean['element_cache_off'] && false === $clean['image_loading_off'], 'sanitize(): cada clave con ! empty(), siempre booleana.' );
 	$check( ! isset( $clean['evil'] ) && ! isset( $clean['inherit'] ) && array( 'pro_conditional', 'lazy_libs' ) === $clean['own'], 'sanitize(): own sale del mapa inherit, sólo con las seis y en su orden; lo demás se descarta.' );
 	$check( array( 'font_swap', 'svg_icons' ) === Settings::sanitize( array( 'own' => array( 'svg_icons', 'bogus', 'svg_icons', 5, array( 'x' ), 'font_swap', '__proto__' ) ) )['own'], 'sanitize(): una lista own explícita queda acotada a las seis, sin repetir.' );
 	$check( array() === Settings::sanitize( array( 'font_swap' => '1' ) )['own'] && array() === Settings::sanitize( array( 'inherit' => 'x', 'own' => 'svg_icons' ) )['own'], 'sanitize(): sin mapa ni lista válidos, en una red todo hereda.' );
@@ -444,7 +445,7 @@ namespace {
 	// 4. save_network(): la misma regla, clave por clave, sin saneado genérico.
 	fs_reset();
 	$saved = Settings::save_network( array( 'pro_conditional' => '0', 'font_swap' => '<script>', 'svg_icons' => '1', 'evil' => 'x', 'inherit' => array( 'font_swap' => '1' ) ) );
-	$check( array( 'pro_conditional' => false, 'font_swap' => true, 'svg_icons' => true, 'lazy_libs' => false, 'element_cache_off' => false, 'image_loading_off' => false, 'page_visits_no_consent' => false ) === $saved && $saved === $GLOBALS['fs']['site'][ $network ], 'save_network(): siete booleanos en sitemeta; lo demás se descarta.' );
+	$check( array( 'pro_conditional' => false, 'font_swap' => true, 'svg_icons' => true, 'lazy_libs' => false, 'lazy_videos' => false, 'element_cache_off' => false, 'image_loading_off' => false, 'page_visits_no_consent' => false ) === $saved && $saved === $GLOBALS['fs']['site'][ $network ], 'save_network(): ocho booleanos en sitemeta; lo demás se descarta.' );
 	$check( array( array( 'network', $network, null ) ) === $GLOBALS['fs']['writes'], 'save_network() sólo escribe la opción de red: ningún sitio cambia.' );
 	fs_reset( array( 'multisite' => false ) );
 	Settings::save_network( array( 'font_swap' => '0' ) );

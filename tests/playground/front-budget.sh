@@ -106,7 +106,7 @@ free_port "$PORT"
 mkdir -p "$OUT" "$TMPDIR"
 rm -f "$OUT"/*.png "$OUT/setup-error.txt" "$OUT/setup-notes.txt" "$OUT/fatal.log" "$OUT/ready.txt" "$OUT/server.log" "$OUT/queries.jsonl" "$OUT/markers.json"
 rm -rf "$OUT/pages"
-cp "$ROOT/tests/playground/front-budget/"{cases.json,setup.php,activate.php,lib.php,probe.php} "$OUT/"
+cp "$ROOT/tests/playground/front-budget/"{cases.json,setup.php,activate.php,lib.php,probe.php,digi-medicion.mp4} "$OUT/"
 
 # Copia fija de lo que se mide (como kit-roundtrip.sh): un cambio a mitad de corrida no mezcla versiones.
 if [ "${LIVE:-0}" = 1 ]; then

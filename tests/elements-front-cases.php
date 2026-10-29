@@ -256,7 +256,7 @@ namespace {
 			$extras[ (string) $extra['key'] ] = array( 'id' => ++$extra_id, 'type' => (string) $extra['type'], 'def' => $extra );
 		}
 		$markers = digi_fb_markers( $self, $extras );
-		$markers += array( '__MENU__' => 'digi-fb-menu', '__SITE__' => 'https://example.test' );
+		$markers += array( '__MENU__' => 'digi-fb-menu', '__SITE__' => 'https://example.test', '__VIDEO__' => 'https://example.test/wp-content/uploads/digi-medicion.mp4' );
 		$tree    = digi_fb_page_tree( $slug, $case );
 		$tree    = null === $tree ? null : json_decode( json_encode( digi_fb_replace( $tree, $markers ) ), true );
 		foreach ( $extras as $key => $extra ) {
