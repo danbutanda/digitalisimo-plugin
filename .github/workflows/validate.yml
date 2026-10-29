@@ -235,6 +235,10 @@ jobs:
           php tests/elements-unknown-guard.php
           php tests/elements-woo-wishlist.php
           node tests/elements-woo-wishlist.mjs
+          php tests/elements-woo-quick-view.php
+          node tests/elements-woo-quick-view.mjs
+          php tests/elements-woo-swatches.php
+          node tests/elements-woo-swatches.mjs
           php tests/elements-loop-filter-parse.php
           php tests/elements-woo-filters.php
           node tests/elements-woo-filters.mjs
