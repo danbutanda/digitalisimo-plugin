@@ -608,7 +608,8 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 - **SVG con la subida sin filtrar apagada:** los de la biblioteca se omiten (K-D15).
 - **Envato:** sin kits reales, la conversión sólo está probada con un formato sintético (K-D17).
 - **Plugin Elementor original activo:** sus flujos 2.0 siguen como él los hace (K-D19).
-- **Pendientes de otras etapas:** metas de SEO con IDs (K-D18), variaciones de producto (F4-Woo), plantillas de red de Tools con su propio remapeo (K-D14). Un kit de K en un sitio sin Elements pierde los widgets propios.
+- **Pendientes de otras etapas:** metas de SEO con IDs (K-D18), plantillas de red de Tools con su propio remapeo (K-D14). Un kit de K en un sitio sin Elements pierde los widgets propios. Las variaciones de producto las trajo F4-Woo (`woo-variations`).
+- **Defectos de K que destapó la validación de F4-Woo** (`docs/fusion/f4woo.md` §7; se corrigen en un incremento propio de K, sin tocar F4-Woo): la exportación por defecto (App sin «Editar contenido», WP-CLI sin `--post-types`) exporta los tipos propios pero sólo las taxonomías de los tipos nativos, así que un kit con productos pierde `product_cat`, `pa_*` y sus metas; en «nuevo», los seis `woocommerce_*_page_id` del kit llegan sin traducir; «nuevo» se rechaza si WooCommerce ya creó sus páginas; y `wc-products` de PRO tiene controles de consulta (`posts_posts_ids`, `posts_authors`, `posts_<taxonomía>_ids`) sin declarar en el inventario.
 
 ### F2 · Base común de conversión
 
