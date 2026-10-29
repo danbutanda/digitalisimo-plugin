@@ -123,6 +123,66 @@ namespace {
 		}
 	}
 	check_budget( $count >= 45, 'Deben revisarse los 45 widgets propios (' . $count . ').' );
+
+	// WooCommerce visual (F4-Woo, V.9): los siete widgets de modules/digitalisimo-woo/ con las mismas reglas. Sus
+	// recursos los registra Woo\Assets (`digitalisimo-woo-<capacidad>`, con defer) y sólo pueden depender de los
+	// handles de WooCommerce y del núcleo que admite Assets::FOREIGN (§4.2).
+	$woo_dir      = $root . '/modules/digitalisimo-woo/';
+	$woo_registry = file_get_contents( $woo_dir . 'class-registry.php' );
+	$woo_assets   = file_get_contents( $woo_dir . 'class-assets.php' );
+	preg_match( "/const FOREIGN = array\(([^)]*)\)/", $woo_assets, $foreign_list );
+	preg_match_all( "/'([a-z-]+)'/", $foreign_list[1] ?? '', $foreign );
+	$foreign = $foreign[1];
+	check_budget( array( 'wc-cart-fragments', 'wc-add-to-cart-variation', 'elementor-frontend' ) === $foreign, 'Assets::FOREIGN sólo admite las dependencias de §4.2.' );
+	preg_match( "/const SCRIPT_DEPS = array\((.*?)\n\t\);/s", $woo_assets, $deps_list );
+	preg_match_all( "/'([a-z-]+)'\s*\)/", $deps_list[1] ?? '', $deps );
+	foreach ( $deps[1] as $dep ) { check_budget( in_array( $dep, $foreign, true ) && 'jquery' !== $dep, 'Un script de F4-Woo depende de ' . $dep . ', que no está en Assets::FOREIGN.' ); }
+	preg_match_all( '/wp_register_script\(.*?\);/s', $woo_assets, $woo_scripts );
+	check_budget( count( $woo_scripts[0] ) >= 1, 'Woo\Assets registra los scripts de F4-Woo.' );
+	foreach ( $woo_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ), 'Woo\Assets: script sin defer.' ); }
+	preg_match_all( "/'(digitalisimo-woo-[a-z0-9-]+)'\s*=>\s*array\(([^()]*)\)/", $woo_registry, $woo_entries, PREG_SET_ORDER );
+	$woo_count = 0;
+	foreach ( $woo_entries as $m ) {
+		if ( ! preg_match( "/'file'\s*=>\s*'([^']+)'/", $m[2], $f ) ) { continue; }
+		$name   = $m[1];
+		$source = (string) file_get_contents( $woo_dir . $f[1] );
+		$woo_count++;
+		check_budget( ! str_contains( $source, 'function content_template' ), $name . ': sin plantilla del editor (contrato de Woo\Widget).' );
+		check_budget( ! preg_match( '/<img[\s>]/', $source ) && ! str_contains( $source, 'wp_get_attachment_image(' ), $name . ': las imágenes se pintan por Image_Markup, no con <img> a mano.' );
+		check_budget( ! preg_match( '/loading="(lazy|eager)"|\'loading\'\s*=>|fetchpriority/', $source ), $name . ': ninguna imagen fuerza su carga; lo decide WordPress.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ), $name . ': sin JSON-LD ni <script> propios en la salida.' );
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		// Los filtros heredan sus recursos de una base propia de su carpeta (`class Price_Widget extends Filter_Widget`).
+		if ( '' === $declared && preg_match( '/class \w+ extends (\w+)/', $source, $parent ) && 'Widget' !== $parent[1] ) {
+			$parent_file = dirname( $woo_dir . $f[1] ) . '/class-' . strtolower( str_replace( '_', '-', $parent[1] ) ) . '.php';
+			$parent_src  = is_file( $parent_file ) ? (string) file_get_contents( $parent_file ) : '';
+			$declared    = budget_method( $parent_src, 'get_style_depends' ) . budget_method( $parent_src, 'get_script_depends' );
+		}
+		// Sólo las cadenas de los array( … ) que devuelven (no los nombres de métodos o de ajustes que consultan).
+		preg_match_all( '/array\(([^()]*)\)/', $declared, $lists );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", implode( ',', $lists[1] ), $handles );
+		check_budget( count( $handles[1] ) >= 1, $name . ': declara sus recursos.' );
+		foreach ( array_unique( $handles[1] ) as $handle ) {
+			if ( in_array( $handle, $foreign, true ) ) { continue; }
+			check_budget( 0 === strpos( $handle, 'digitalisimo-woo-' ), $name . ': sólo recursos propios o de Assets::FOREIGN (' . $handle . ').' );
+			$base = substr( $handle, strlen( 'digitalisimo-woo-' ) );
+			$css  = $root . '/assets/css/' . $base . '.css';
+			$js   = $root . '/assets/js/' . $base . '.js';
+			check_budget( is_file( $css ) || is_file( $js ), $name . ': recurso sin archivo ' . $handle );
+			if ( is_file( $css ) ) {
+				check_budget( filesize( $css ) <= $css_cap, $name . ': la hoja ' . $handle . ' pesa ' . filesize( $css ) . ' bytes, más de ' . $css_cap . '.' );
+				check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', (string) file_get_contents( $css ) ), $name . ': sin url() en la hoja ' . $handle . '.' );
+				$sheet = (string) file_get_contents( $css );
+				if ( preg_match( '/@keyframes|animation:|transition:/', $sheet ) ) { check_budget( str_contains( $sheet, 'prefers-reduced-motion' ), $name . ': la hoja ' . $handle . ' anima sin respetar prefers-reduced-motion.' ); }
+			}
+			if ( is_file( $js ) ) {
+				check_budget( filesize( $js ) <= $js_cap, $name . ': el script ' . $handle . ' pesa ' . filesize( $js ) . ' bytes, más de ' . $js_cap . '.' );
+			}
+		}
+	}
+	check_budget( 7 === $woo_count, 'Deben revisarse los siete widgets de F4-Woo (' . $woo_count . ').' );
+	$count += $woo_count;
+	check_budget( $count >= 52, 'Deben revisarse los 52 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );
