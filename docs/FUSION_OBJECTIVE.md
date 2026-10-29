@@ -893,7 +893,7 @@ El único límite del registro: los archivos de un kit sólo pueden ser medios p
 | 20 | Controles en widgets existentes sin `default` de estilo y con `assets` | `elements-woo-static.mjs` (12 controles), `elements-woo-products-parts.php`; `woo-pro-existing` |
 | 21–22 | Kits con `WOO=1`; el punto genérico de K sin efecto cuando no se usa | `elements-woo-kit.php`, `elements-kit-extensions.php`; `kit-roundtrip.sh WOO=1`: R1 (pantalla y WP-CLI), R4, R4w (B en 4.3.0.165), R5, R6 y R8 en verde en lo propio de F4-Woo; R1 sin WooCommerce igual a 4.3.0.165. Los fallos restantes son de K o del entorno (A1, A13; `docs/fusion/f4woo.md` §7) |
 | 23 | Vuelta atrás y guarda hacia delante | `elements-unknown-guard.php`; W13 en verde (15 comprobaciones) |
-| 24–25 | Flujo Woo en modo de prueba; plugin Elementor original y v4 | W11 en verde con el núcleo incluido, pago clásico y de bloques (`CORE=plugin` en curso); W4, W5, W9 y W10 con `CORE=plugin`; `front-budget.sh V4=1 WOO=1` |
+| 24–25 | Flujo Woo en modo de prueba; plugin Elementor original y v4 | W11 en verde con el núcleo incluido y con `CORE=plugin`, pago clásico y de bloques; W4, W5, W9 y W10 con `CORE=plugin`; `front-budget.sh V4=1 WOO=1` |
 | 26–28 | Seguridad, SEO, marca y sin «venta falsa» | W12 en verde; `elements-woo-static.mjs` (654 frases, 5 `nofollow`); `brand-audit.sh WOO=1` y `shared-ui.sh` (pendientes) |
 | 29 | CI y paquete | Las pruebas nuevas en los dos workflows con listas iguales; sha256 de PRO y de `elementor/` sin cambios; 8 ZIP y el índice en la Release (al publicar) |
 | 30 | Excepción declarada: `migrate.sh` y `legacy-ab.sh` | Pendientes de la copia oficial de Element Pack, como en F-front y F7a |
