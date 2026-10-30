@@ -156,14 +156,16 @@ module.exports = (api) => {
       const before = (await editorSettings(ed, 'b9hd002')).title;
       await ed.page.select('#elementor-panel [data-digi-inline-tag]', 'site:name');
       await ed.page.click('#elementor-panel [data-digi-inline-insert]');
-      await ed.page.waitForFunction(() => { const p = document.querySelector('#elementor-panel [data-digi-inline-preview]'); return p && p.textContent.trim(); }, { timeout: 30000 }).catch(() => {});
+      await ed.page.waitForFunction(() => { const p = document.querySelector('#elementor-panel [data-digi-inline-preview]'); return p && p.textContent.trim() && !/Calculando/.test(p.textContent); }, { timeout: 60000 }).catch(() => {});
       const after = (await editorSettings(ed, 'b9hd002')).title;
       const preview = await ed.page.$eval('#elementor-panel [data-digi-inline-preview]', (p) => p.textContent.trim()).catch(() => '');
       check(s, 'B9.4b', 'insertar «Nombre del sitio» añade `{site:name}` al título y la vista previa dice su valor', after === before + '{site:name}' || (after.includes('{site:name}') && after.length > before.length), JSON.stringify({ before, after, preview }));
       check(s, 'B9.4c', 'la vista previa (role=status) muestra el valor resuelto', /Sitio F7b/.test(preview), preview);
+      const history = await ed.page.evaluate(() => { const items = window.elementor.documents.getCurrent().history.getItems(); return items.map((i) => `${i.get('title')} · ${i.get('subTitle') || ''} · ${i.get('type')}`).slice(0, 4); }).catch((e) => String(e));
       await ed.page.evaluate(() => window.$e.run('document/history/undo'));
-      await sleep(800);
-      check(s, 'B9.4d', 'un «Deshacer» devuelve el título', (await editorSettings(ed, 'b9hd002')).title === before);
+      await sleep(1200);
+      const undone = (await editorSettings(ed, 'b9hd002')).title;
+      check(s, 'B9.4d', 'un «Deshacer» devuelve el título', undone === before, JSON.stringify({ before, undone, history }));
       check(s, 'B9.4e', 'sin errores de JavaScript en el editor', !ed.facts.errors.length, JSON.stringify(ed.facts.errors.slice(0, 3)));
     } catch (e) {
       check(s, 'B9.4x', '«Insertar dato» en el editor real', false, String(e.stack || e).slice(0, 500));

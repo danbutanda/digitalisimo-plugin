@@ -28,7 +28,8 @@ const TITLES = {
   B9: 'Etiquetas dentro del texto', B10: 'Formulario condicional', B11: 'Slider anidado y presentación', B12: 'Vuelta a 4.3.0.168',
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const log = (...a) => { const line = a.join(' '); console.log(line); fs.appendFileSync(path.join(OUT, 'run.log'), line + '\n'); };
+const T0 = Date.now();
+const log = (...a) => { const line = `[${String(Math.round((Date.now() - T0) / 1000)).padStart(4)} s] ` + a.join(' '); console.log(line); fs.appendFileSync(path.join(OUT, 'run.log'), line + '\n'); };
 
 // ── Resultados ─────────────────────────────────────────────────────────────────────────────────────────────────
 const summary = {
@@ -42,6 +43,12 @@ const summary = {
   scenarios: {},
 };
 if (MODE.woo) { try { summary.woocommerce = JSON.parse(fs.readFileSync(path.join(OUT, 'woocommerce.json'), 'utf8')); } catch (e) { summary.woocommerce = null; } }
+// APPEND=1: la corrida completa se parte en tandas (cada una con su sitio recién preparado) y el resumen las suma.
+const previous = process.env.APPEND === '1' ? (() => { try { return JSON.parse(fs.readFileSync(path.join(OUT, 'summary.json'), 'utf8')); } catch (e) { return null; } })() : null;
+summary.runs = previous && Array.isArray(previous.runs) ? previous.runs : [];
+if (previous && previous.scenarios) Object.assign(summary.scenarios, previous.scenarios);
+if (previous && previous.limits) summary.limits = previous.limits;
+if (previous && previous.started) summary.started = previous.started;
 const write = () => fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(summary, null, 1) + '\n');
 
 function scenario(id) {
@@ -402,7 +409,8 @@ for (const file of (fs.existsSync(SCENARIO_DIR) ? fs.readdirSync(SCENARIO_DIR) :
     summary.duration_s = Math.round(Date.now() / 1000 - +ENV.STARTED);
     write();
   }
-  summary.php_notices = serverLog('php-errors.log').split('\n').filter(Boolean).length;
+  summary.php_notices = (previous && previous.php_notices || 0) + serverLog('php-errors.log').split('\n').filter(Boolean).length;
+  summary.runs.push({ scenarios: order, git: ENV.GIT_SHA, elements_sha: ENV.ELEMENTS_SHA, started: new Date(+ENV.STARTED * 1000).toISOString(), duration_s: Math.round(Date.now() / 1000 - +ENV.STARTED) });
   const failed = Object.values(summary.scenarios).filter((x) => x.status === 'falla');
   summary.status = failed.length ? 'falla' : 'ok';
   summary.finished = new Date().toISOString();

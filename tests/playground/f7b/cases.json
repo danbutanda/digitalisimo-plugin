@@ -199,7 +199,7 @@
 
   "b10-form": { "type": "page", "title": "B10 · formulario condicional", "elements": [
    { "c": "b10c001", "s": {}, "e": [
-    { "w": "form", "id": "b10frm1", "s": { "form_name": "Condicional F7b", "submit_actions": [ "email", "webhook" ], "email_to": "dueno@example.invalid", "email_subject": "Formulario F7b", "email_content": "[all-fields]", "webhooks": "https://hooks.example.com/f7b", "form_fields": [
+    { "w": "form", "id": "b10frm1", "s": { "form_name": "Condicional F7b", "mark_required": "yes", "submit_actions": [ "email", "webhook" ], "email_to": "dueno@example.invalid", "email_subject": "Formulario F7b", "email_content": "[all-fields]", "webhooks": "https://hooks.example.com/f7b", "form_fields": [
      { "_id": "fc00001", "custom_id": "tipo", "field_type": "radio", "field_label": "Tipo", "field_options": "Persona|persona\nEmpresa|empresa", "required": "true" },
      { "_id": "fc00002", "custom_id": "rfc", "field_type": "text", "field_label": "RFC", "required": "true", "digitalisimo_conditional": "yes", "digitalisimo_rules": [ { "_id": "fr00001", "field": "tipo", "operator": "is", "value": "empresa" } ] },
      { "_id": "fc00003", "custom_id": "razon", "field_type": "text", "field_label": "Razón social", "digitalisimo_conditional": "yes", "digitalisimo_logic": "any", "digitalisimo_rules": [ { "_id": "fr00002", "field": "tipo", "operator": "is", "value": "empresa" }, { "_id": "fr00003", "field": "rfc", "operator": "contains", "value": "xaxx" } ] },

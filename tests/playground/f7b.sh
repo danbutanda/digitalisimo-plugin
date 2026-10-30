@@ -32,6 +32,9 @@
 #   WOO_ZIP            WooCommerce de WOO=1 (tests/playground/woocommerce-pin.sh: 11.2.1 de reference/, montado)
 #   OUT, TMPDIR        resultados (por defecto /var/tmp/digi-f7b/pg-f7b-<modo>) y temporales (/var/tmp/digi-f7b/tmp)
 #   PORT               9501 (sitio) o 9502 (WOO=1); el bloque 9500–9509 es de F7b y cualquier otro puerto se rechaza
+#   APPEND=1           conserva $OUT/summary.json y le añade los escenarios de esta corrida (una corrida completa no cabe
+#                      en 10 min: se parte en tandas con SCENARIOS y el mismo OUT; cada tanda prepara su sitio)
+#   B0_PAGES=0         B0 sólo visita b1-actions (iteración; B0.5 queda pendiente)
 #   LIVE=1             monta el árbol de trabajo (B12 queda fuera: reemplaza la copia montada)
 #   KEEP=1             sólo prepara el sitio y lo deja arrancado ($OUT/env.json sirve para correr run.cjs a mano)
 set -euo pipefail
@@ -74,7 +77,9 @@ for dir in "$TMPDIR" "$OUT"; do
   free_kb="$(df -Pk "$dir" 2>/dev/null | awk 'NR == 2 { print $4 }')"
   [ -z "$free_kb" ] || [ "$free_kb" -ge 2097152 ] || { echo "$dir tiene $((free_kb / 1024)) MB libres: hacen falta 2 GB"; exit 1; }
 done
-rm -f "$OUT"/{setup-error.txt,ready.txt,fatal.log,php-errors.log,server.log,summary.json,run.log,env.json,woocommerce.json}
+rm -f "$OUT"/{setup-error.txt,ready.txt,fatal.log,php-errors.log,server.log,run.log,env.json,woocommerce.json}
+# APPEND=1 (corrida completa partida en tandas de menos de 10 min): conserva summary.json y añade los escenarios de esta.
+[ "${APPEND:-0}" = 1 ] || rm -f "$OUT/summary.json"
 rm -rf "$OUT/shots" "$OUT/pages" "$OUT/ops" && mkdir -p "$OUT/shots" "$OUT/pages"
 cp "$F"/{setup.php,lib.php,probe.php,cases.json} "$OUT/"
 cp -r "$F/ops" "$OUT/ops"
@@ -168,7 +173,7 @@ fi
 PUPPETEER_PATH="${PUPPETEER_PATH:-$(ls -d "$HOME"/.npm/_npx/*/node_modules 2>/dev/null | while read -r d; do [ -d "$d/puppeteer-core" ] && echo "$d" && break; done)}"
 [ -n "$PUPPETEER_PATH" ] || { echo "No se encontró puppeteer-core: exportar PUPPETEER_PATH"; exit 1; }
 status=0
-ENV_FILE="$OUT/env.json" SCENARIOS="${SCENARIOS:-}" QUICK="$QUICK" B0_PAGES="${B0_PAGES:-1}" NODE_PATH="$PUPPETEER_PATH" node "$F/run.cjs" || status=$?
+ENV_FILE="$OUT/env.json" SCENARIOS="${SCENARIOS:-}" QUICK="$QUICK" B0_PAGES="${B0_PAGES:-1}" APPEND="${APPEND:-0}" NODE_PATH="$PUPPETEER_PATH" node "$F/run.cjs" || status=$?
 [ -s "$OUT/fatal.log" ] && { echo "Errores fatales:"; cat "$OUT/fatal.log"; status=1; }
 [ -s "$OUT/php-errors.log" ] && { echo "Avisos de PHP de DIGITALÍSIMO Elements (ver $OUT/php-errors.log):"; sort "$OUT/php-errors.log" | uniq -c | sort -rn | head -10; }
 echo "Resumen: $OUT/summary.json · duración: $(( $(date +%s) - STARTED )) s"
