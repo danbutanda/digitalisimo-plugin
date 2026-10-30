@@ -1,0 +1,234 @@
+{
+ "description": "Documentos de tests/playground/f7b.sh (F7b, escenarios B1–B12). Forma compacta y marcadores en f7b/lib.php. «raw» = se escribe tal cual en _elementor_data (v4 con el experimento apagado); «woo» = sólo con WOO=1; «meta» = metas del documento; «conditions» = condiciones del Theme Builder (type/name/sub_name/sub_id).",
+ "terms": { "digi-f7b-a": "Noticias F7b", "digi-f7b-b": "Guías F7b" },
+ "posts": {
+  "p1": { "title": "Alfa F7b", "author": "admin", "cats": [ "digi-f7b-a" ], "date": "2026-01-01 10:00:00", "meta": { "precio": "5", "color": "rojo" } },
+  "p2": { "title": "Beta F7b", "author": "f7b-autor", "cats": [ "digi-f7b-b" ], "date": "2026-01-02 10:00:00", "meta": { "precio": "12", "color": "azul" } },
+  "p3": { "title": "Gamma F7b", "author": "admin", "cats": [ "digi-f7b-a" ], "date": "2026-01-03 10:00:00", "meta": { "precio": "20", "color": "verde" } },
+  "p4": { "title": "Delta F7b", "author": "f7b-autor", "cats": [ "digi-f7b-a" ], "date": "2026-01-04 10:00:00", "meta": { "precio": "35", "color": "rojo" } },
+  "p5": { "title": "Épsilon F7b", "author": "admin", "cats": [ "digi-f7b-b" ], "date": "2026-01-05 10:00:00", "meta": { "precio": "50", "color": "azul" } },
+  "p6": { "title": "Zeta F7b", "author": "f7b-autor", "cats": [ "digi-f7b-b" ], "date": "2026-01-06 10:00:00", "meta": { "precio": "75", "color": "verde" } },
+  "p7": { "title": "Eta F7b", "author": "admin", "cats": [ "digi-f7b-a" ], "date": "2026-01-07 10:00:00", "meta": { "precio": "90", "color": "rojo" } },
+  "p8": { "title": "Theta F7b", "author": "f7b-autor", "cats": [ "digi-f7b-a", "digi-f7b-b" ], "date": "2026-01-08 10:00:00", "meta": { "precio": "120", "color": "azul" } },
+  "pp": { "title": "Privada F7b", "author": "admin", "cats": [ "digi-f7b-a" ], "date": "2026-01-09 10:00:00", "status": "private", "meta": { "precio": "60", "color": "rojo" } },
+  "pd": { "title": "Borrador F7b", "author": "admin", "cats": [ "digi-f7b-a" ], "date": "2026-01-10 10:00:00", "status": "draft", "meta": { "precio": "61", "color": "rojo" } }
+ },
+ "queries": {
+  "q-basic": { "title": "Noticias por título (F7b)", "settings": { "post_type": "post", "include": [ "terms" ], "include_term_ids": [ "__TT:digi-f7b-a__" ], "orderby": "post_title", "order": "asc" }, "relation": "none", "limits": { "per_page": 6 } },
+  "q-exclude": { "title": "Sin la autora (F7b)", "settings": { "post_type": "post", "exclude": [ "authors" ], "exclude_authors": [ "__USER:f7b-autor__" ], "orderby": "post_date", "order": "desc" }, "relation": "none", "limits": { "per_page": 10 } },
+  "q-author": { "title": "Del mismo autor (F7b)", "settings": { "post_type": "post", "orderby": "post_date", "order": "desc" }, "relation": "author", "context": "current", "limits": { "per_page": 5 } },
+  "q-cat": { "title": "De la misma categoría (F7b)", "settings": { "post_type": "post", "orderby": "post_date", "order": "desc" }, "relation": "terms:category", "context": "current", "limits": { "per_page": 5 } },
+  "q-root": { "title": "Del autor de la página (F7b)", "settings": { "post_type": "post", "orderby": "post_title", "order": "asc" }, "relation": "author", "context": "root", "limits": { "per_page": 10 } },
+  "q-meta": { "title": "Del mismo color (F7b)", "settings": { "post_type": "post", "orderby": "post_date", "order": "desc" }, "relation": "meta:color", "context": "current", "limits": { "per_page": 5 } },
+  "q-unused": { "title": "Consulta sin usos (F7b)", "settings": { "post_type": "post", "orderby": "post_date", "order": "desc" }, "relation": "none", "limits": { "per_page": 3 } }
+ },
+ "docs": {
+  "f7b-loop": { "type": "loop-item", "title": "F7b · bucle", "elements": [
+   { "c": "lpc0001", "s": {}, "e": [ { "w": "theme-post-title", "id": "lpt0001", "s": { "header_size": "h3" } } ] } ] },
+  "f7b-loop-mini": { "type": "loop-item", "title": "F7b · bucle interior", "elements": [
+   { "c": "lmc0001", "s": {}, "e": [ { "w": "theme-post-title", "id": "lmt0001", "s": { "header_size": "h4" } } ] } ] },
+  "f7b-loop-nested": { "type": "loop-item", "title": "F7b · bucle con bucle", "elements": [
+   { "c": "lnc0001", "s": {}, "e": [
+    { "w": "theme-post-title", "id": "lnt0001", "s": { "header_size": "h3" } },
+    { "w": "loop-grid", "id": "b3innr1", "s": { "template_id": "__ID:f7b-loop-mini__", "posts_per_page": 5, "columns": 1, "digitalisimo_saved_query": "__QID:q-author__" } }
+   ] } ] },
+
+  "b1-popup": { "type": "popup", "title": "B1 · popup sin condiciones", "elements": [
+   { "c": "b1ppc01", "s": {}, "e": [
+    { "w": "heading", "id": "b1pph01", "s": { "title": "Popup F7b" } },
+    { "w": "button", "id": "b1ppcl1", "s": { "text": "Cerrar popup", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "popup_close" } ] } }
+   ] } ] },
+  "b1-actions": { "type": "page", "title": "B1 · acciones", "elements": [
+   { "c": "b1c0001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "button", "id": "b1btn01", "s": { "text": "Mostrar panel", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "toggle", "target_kind": "element", "target": "b1pan01" } ] } },
+    { "c": "b1pan01", "s": { "_digitalisimo_hidden_initial": "yes" }, "e": [
+     { "w": "heading", "id": "b1panh1", "s": { "title": "Panel oculto" } },
+     { "w": "button", "id": "b1cls01", "s": { "text": "Cerrar panel", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "hide", "target_kind": "element", "target": "b1pan01" } ] } }
+    ] },
+    { "c": "b1hov01", "s": { "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "hover", "action": "show", "target_kind": "element", "target": "b1tip01" } ] }, "e": [
+     { "w": "heading", "id": "b1hovh1", "s": { "title": "Pasa el puntero o enfoca", "header_size": "h3" } } ] },
+    { "c": "b1tip01", "s": { "_digitalisimo_hidden_initial": "yes" }, "e": [ { "w": "heading", "id": "b1tiph1", "s": { "title": "Ayuda emergente", "header_size": "h4" } } ] },
+    { "w": "heading", "id": "b1hd001", "s": { "title": "Resaltar", "header_size": "h3", "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "toggle_class", "target_kind": "self", "class_name": "resaltado" }, { "_id": "a2", "trigger": "click", "action": "set_attribute", "target_kind": "self", "attribute": "aria-pressed", "attribute_value": "true" } ] } },
+    { "w": "heading", "id": "b1bad01", "s": { "title": "Atributo prohibido", "header_size": "h4", "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "set_attribute", "target_kind": "self", "attribute": "aria-hidden", "attribute_value": "true" }, { "_id": "a2", "trigger": "click", "action": "toggle_class", "target_kind": "self", "class_name": "elementor-x" }, { "_id": "a3", "trigger": "load", "action": "show", "target_kind": "element", "target": "b1tip01" } ] } },
+    { "c": "b1mul01", "s": { "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "show", "target_kind": "element", "target": "b1tip01" } ] }, "e": [
+     { "w": "button", "id": "b1mula1", "s": { "text": "Uno", "link": { "url": "#uno" } } },
+     { "w": "button", "id": "b1mulb1", "s": { "text": "Dos", "link": { "url": "#dos" } } } ] },
+    { "w": "button", "id": "b1pop01", "s": { "text": "Abrir popup", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "popup_open", "popup_id": "__ID:b1-popup__" } ] } },
+    { "w": "button", "id": "b1off01", "s": { "text": "Abrir panel lateral", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "offcanvas_toggle", "target_kind": "element", "target": "b1ofc01" } ] } },
+    { "w": "off-canvas", "id": "b1ofc01", "s": { "off_canvas_name": "Panel lateral F7b" }, "e": [
+     { "c": "b1ofcc1", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b1ofch1", "s": { "title": "Contenido lateral" } } ] } ] },
+    { "w": "button", "id": "b1btg01", "s": { "text": "Mostrar rejilla", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "toggle", "target_kind": "element", "target": "b1grd01" } ] } },
+    { "c": "b1grd01", "s": { "container_type": "grid", "_digitalisimo_hidden_initial": "yes" }, "e": [ { "w": "heading", "id": "b1grdh1", "s": { "title": "Rejilla oculta" } } ] },
+    { "w": "button", "id": "b1btw01", "s": { "text": "Mostrar widget", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "toggle", "target_kind": "element", "target": "b1wid01" } ] } },
+    { "w": "heading", "id": "b1wid01", "s": { "title": "Widget oculto", "_digitalisimo_hidden_initial": "yes" } },
+    { "w": "button", "id": "b1btc01", "s": { "text": "Mostrar columna", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "toggle", "target_kind": "element", "target": "b1col01" } ] } },
+    { "w": "button", "id": "b1more1", "s": { "text": "Más entradas", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "load_more", "target_kind": "element", "target": "b1loop1" } ] } },
+    { "w": "loop-grid", "id": "b1loop1", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 2, "columns": 2, "pagination_type": "load_more_on_click", "post_query_post_type": "post" } },
+    { "w": "button", "id": "b1scr01", "s": { "text": "Ir al final", "link": { "url": "#" }, "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "click", "action": "scroll_to", "target_kind": "element", "target": "b1end01" } ] } },
+    { "w": "heading", "id": "b1lod01", "s": { "title": "Al cargar", "header_size": "h4", "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "load", "action": "set_attribute", "target_kind": "self", "attribute": "data-digi-state", "attribute_value": "cargado", "delay": 300 } ] } }
+   ] },
+   { "sec": "b1sec01", "s": {}, "e": [
+    { "col": "b1col01", "s": { "_column_size": 50, "_digitalisimo_hidden_initial": "yes" }, "e": [ { "w": "heading", "id": "b1colh1", "s": { "title": "Columna oculta" } } ] },
+    { "col": "b1col02", "s": { "_column_size": 50 }, "e": [ { "w": "heading", "id": "b1colh2", "s": { "title": "Columna visible" } } ] } ] },
+   { "c": "b1spc00", "s": {}, "e": [ { "w": "spacer", "id": "b1spc01", "s": { "space": { "unit": "px", "size": 1600, "sizes": [] } } } ] },
+   { "c": "b1end01", "s": { "_digitalisimo_actions_on": "yes", "_digitalisimo_actions": [ { "_id": "a1", "trigger": "scroll_in", "action": "toggle_class", "target_kind": "self", "class_name": "visto" } ] }, "e": [ { "w": "heading", "id": "b1endh1", "s": { "title": "Final de la página" } } ] }
+  ] },
+
+  "b2-v4": { "type": "page", "title": "B2 · interacciones v4", "raw": true, "elements": [
+   { "div4": "b2div01", "x": { "interactions": "{\"items\":[{\"$$type\":\"interaction-item\",\"value\":{\"interaction_id\":{\"$$type\":\"string\",\"value\":\"b2div01-a-1\"},\"trigger\":{\"$$type\":\"string\",\"value\":\"hover\"},\"animation\":{\"$$type\":\"animation-preset-props\",\"value\":{\"effect\":{\"$$type\":\"string\",\"value\":\"fade\"},\"type\":{\"$$type\":\"string\",\"value\":\"in\"},\"direction\":{\"$$type\":\"string\",\"value\":\"\"},\"timing_config\":{\"$$type\":\"timing-config\",\"value\":{\"duration\":{\"$$type\":\"number\",\"value\":300},\"delay\":{\"$$type\":\"number\",\"value\":0}}}}}}}],\"version\":1}" }, "e": [ { "v4": "e-heading", "id": "b2hd001" } ] },
+   { "div4": "b2div02", "x": { "interactions": "{\"items\":[{\"$$type\":\"interaction-item\",\"value\":{\"interaction_id\":{\"$$type\":\"string\",\"value\":\"b2div02-a-1\"},\"trigger\":{\"$$type\":\"string\",\"value\":\"load\"},\"animation\":{\"$$type\":\"animation-preset-props\",\"value\":{\"effect\":{\"$$type\":\"string\",\"value\":\"fade\"},\"type\":{\"$$type\":\"string\",\"value\":\"in\"},\"direction\":{\"$$type\":\"string\",\"value\":\"\"},\"timing_config\":{\"$$type\":\"timing-config\",\"value\":{\"duration\":{\"$$type\":\"number\",\"value\":300},\"delay\":{\"$$type\":\"number\",\"value\":0}}}}}}}],\"version\":1}" }, "e": [ { "v4": "e-heading", "id": "b2hd002" } ] }
+  ] },
+
+  "b3-single": { "type": "single-post", "title": "B3 · entrada individual", "conditions": [ "include/singular/post" ], "elements": [
+   { "c": "b3sc001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "theme-post-title", "id": "b3stit1", "s": { "header_size": "h1" } },
+    { "w": "loop-grid", "id": "b3sauth", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "digitalisimo_saved_query": "__QID:q-author__" } },
+    { "w": "loop-grid", "id": "b3scat1", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "digitalisimo_saved_query": "__QID:q-cat__" } },
+    { "w": "loop-grid", "id": "b3smeta", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "digitalisimo_saved_query": "__QID:q-meta__" } },
+    { "w": "posts", "id": "b3spost", "s": { "_skin": "classic", "classic_posts_per_page": 10, "classic_show_excerpt": "", "classic_thumbnail": "none", "classic_meta_data": [], "digitalisimo_saved_query": "__QID:q-cat__" } }
+   ] } ] },
+  "b3-compare": { "type": "page", "title": "B3 · consulta guardada frente al grupo de PRO", "elements": [
+   { "c": "b3cc001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "loop-grid", "id": "b3lsav1", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 6, "digitalisimo_saved_query": "__QID:q-basic__" } },
+    { "w": "loop-grid", "id": "b3lpro1", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 6, "post_query_post_type": "post", "post_query_include": [ "terms" ], "post_query_include_term_ids": [ "__TT:digi-f7b-a__" ], "post_query_orderby": "post_title", "post_query_order": "asc" } },
+    { "w": "loop-grid", "id": "b3lsav2", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "digitalisimo_saved_query": "__QID:q-exclude__" } },
+    { "w": "loop-grid", "id": "b3lpro2", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "post_query_post_type": "post", "post_query_exclude": [ "authors" ], "post_query_exclude_authors": [ "__USER:f7b-autor__" ], "post_query_orderby": "post_date", "post_query_order": "desc" } },
+    { "w": "posts", "id": "b3psav1", "s": { "_skin": "classic", "classic_posts_per_page": 6, "classic_show_excerpt": "", "classic_thumbnail": "none", "classic_meta_data": [], "digitalisimo_saved_query": "__QID:q-basic__" } },
+    { "w": "posts", "id": "b3ppro1", "s": { "_skin": "classic", "classic_posts_per_page": 6, "classic_show_excerpt": "", "classic_thumbnail": "none", "classic_meta_data": [], "posts_post_type": "post", "posts_include": [ "terms" ], "posts_include_term_ids": [ "__TT:digi-f7b-a__" ], "posts_orderby": "post_title", "posts_order": "asc" } },
+    { "w": "loop-grid", "id": "b3lnone", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 4, "post_query_post_type": "post" } }
+   ] } ] },
+  "b3-nested": { "type": "page", "title": "B3 · bucle en bucle", "elements": [
+   { "c": "b3nc001", "s": {}, "e": [ { "w": "loop-grid", "id": "b3outer", "s": { "template_id": "__ID:f7b-loop-nested__", "posts_per_page": 4, "columns": 1, "post_query_post_type": "post", "post_query_orderby": "post_date", "post_query_order": "desc" } } ] } ] },
+  "b3-ctx": { "type": "page", "title": "B3 · contexto raíz con filtro", "author": "admin", "elements": [
+   { "c": "b3xc001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "digitalisimo-loop-search", "id": "b3xsrc1", "s": { "destination": "loop", "selected_element": "b3xloop", "label": "Buscar en las entradas" } },
+    { "w": "digitalisimo-loop-orderby", "id": "b3xord1", "s": { "destination": "loop", "selected_element": "b3xloop", "orders": [ { "_id": "o1", "order_key": "title_asc" }, { "_id": "o2", "order_key": "title_desc" } ] } },
+    { "w": "loop-grid", "id": "b3xloop", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "digitalisimo_saved_query": "__QID:q-root__" } }
+   ] } ] },
+
+  "b4-unlink": { "type": "page", "title": "B4 · desvincular", "elements": [
+   { "c": "b4c0001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "loop-grid", "id": "b4loop1", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "digitalisimo_saved_query": "__QID:q-basic__" } },
+    { "w": "loop-grid", "id": "b4loop2", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "digitalisimo_saved_query": "__QID:q-cat__" } }
+   ] } ] },
+
+  "b5-filters": { "type": "page", "title": "B5 · filtros nuevos", "elements": [
+   { "c": "b5c0001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "digitalisimo-loop-search", "id": "b5srch1", "s": { "destination": "loop", "selected_element": "b5loop1", "label": "Buscar entradas" } },
+    { "w": "digitalisimo-loop-meta-filter", "id": "b5prec1", "s": { "destination": "loop", "selected_element": "b5loop1", "meta_key": "__custom", "meta_key_custom": "precio", "value_type": "DECIMAL", "mode": "range", "range_min": "0", "range_max": "200", "legend": "Precio" } },
+    { "w": "digitalisimo-loop-meta-filter", "id": "b5colr1", "s": { "destination": "loop", "selected_element": "b5loop1", "meta_key": "__custom", "meta_key_custom": "color", "value_type": "CHAR", "mode": "in", "display": "buttons", "legend": "Color", "values": [ { "_id": "v1", "value": "rojo", "label": "Rojo" }, { "_id": "v2", "value": "azul", "label": "Azul" }, { "_id": "v3", "value": "verde", "label": "Verde" } ] } },
+    { "w": "digitalisimo-loop-orderby", "id": "b5ordr1", "s": { "destination": "loop", "selected_element": "b5loop1", "orders": [ { "_id": "o1", "order_key": "date_desc" }, { "_id": "o2", "order_key": "title_asc" }, { "_id": "o3", "order_key": "title_desc" }, { "_id": "o4", "order_key": "meta_asc" } ], "order_meta_key": "__custom", "order_meta_key_custom": "precio" } },
+    { "w": "digitalisimo-loop-per-page", "id": "b5pp001", "s": { "destination": "loop", "selected_element": "b5loop1", "values": "3, 6, 12" } },
+    { "w": "loop-grid", "id": "b5loop1", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 6, "columns": 3, "post_query_post_type": "post", "post_query_orderby": "post_date", "post_query_order": "desc" } }
+   ] } ] },
+  "b5-other": { "type": "page", "title": "B5 · otro documento con filtros", "elements": [
+   { "c": "b5oc001", "s": {}, "e": [
+    { "w": "digitalisimo-loop-orderby", "id": "b5oord1", "s": { "destination": "loop", "selected_element": "b5oloop", "orders": [ { "_id": "o1", "order_key": "title_desc" } ] } },
+    { "w": "loop-grid", "id": "b5oloop", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 6, "post_query_post_type": "post" } }
+   ] } ] },
+
+  "b6-archive": { "type": "archive", "title": "B6 · archivo con filtros", "conditions": [ "include/archive/category" ], "elements": [
+   { "c": "b6c0001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "digitalisimo-loop-orderby", "id": "b6ordr1", "s": { "destination": "archive", "orders": [ { "_id": "o1", "order_key": "date_desc" }, { "_id": "o2", "order_key": "title_asc" } ] } },
+    { "w": "digitalisimo-loop-per-page", "id": "b6pp001", "s": { "destination": "archive", "values": "2, 4" } },
+    { "w": "digitalisimo-loop-meta-filter", "id": "b6colr1", "s": { "destination": "archive", "meta_key": "__custom", "meta_key_custom": "color", "fields_post_type": "post", "value_type": "CHAR", "mode": "in", "values": [ { "_id": "v1", "value": "rojo", "label": "Rojo" }, { "_id": "v2", "value": "azul", "label": "Azul" } ] } },
+    { "w": "digitalisimo-loop-search", "id": "b6srch1", "s": { "destination": "archive", "label": "Buscar en el sitio" } },
+    { "w": "archive-posts", "id": "b6post1", "s": { "_skin": "archive_classic", "archive_classic_show_excerpt": "", "archive_classic_thumbnail": "none", "archive_classic_meta_data": [], "pagination_type": "numbers" } }
+   ] } ] },
+  "b6-draft": { "type": "section", "title": "B6 · plantilla en borrador con filtro", "status": "draft", "elements": [
+   { "c": "b6dc001", "s": {}, "e": [ { "w": "digitalisimo-loop-orderby", "id": "b6drft1", "s": { "destination": "archive", "orders": [ { "_id": "o1", "order_key": "title_asc" } ] } } ] } ] },
+
+  "b8-tpl": { "type": "section", "title": "B8 · plantilla con claves", "elements": [
+   { "c": "b8t0001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "heading", "id": "b8thd01", "s": { "title": "Título original", "_digitalisimo_slot": "titulo" } },
+    { "w": "text-editor", "id": "b8ttx01", "s": { "editor": "<p>Texto original</p>", "_digitalisimo_slot": "texto" } },
+    { "w": "button", "id": "b8tbt01", "s": { "text": "Botón original", "link": { "url": "https://example.com/original", "is_external": "", "nofollow": "", "custom_attributes": "data-x|1" }, "_digitalisimo_slot": "boton" } },
+    { "w": "image", "id": "b8tim01", "s": { "image": "__IMAGE__", "_digitalisimo_slot": "foto" } },
+    { "w": "video", "id": "b8tvd01", "s": { "video_type": "hosted", "insert_url": "yes", "external_url": { "url": "__SITE__/wp-content/probe/digi-medicion.mp4" }, "_digitalisimo_slot": "video" } },
+    { "w": "icon-box", "id": "b8tib01", "s": { "title_text": "Caja original", "description_text": "Descripción original", "_digitalisimo_slot": "caja" } },
+    { "w": "heading", "id": "b8thd02", "s": { "title": "Se oculta con hide", "_digitalisimo_slot": "oculto" } }
+   ] } ] },
+  "b8-page": { "type": "page", "title": "B8 · dos instancias", "elements": [
+   { "c": "b8pc001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "template", "id": "b8tpl01", "s": { "template_id": "__ID:b8-tpl__", "digitalisimo_overrides": [
+     { "_id": "o1", "slot": "titulo", "kind": "text", "text": "Nuevo <título>" },
+     { "_id": "o2", "slot": "texto", "kind": "html", "html": "<p><strong>Rico</strong></p>" },
+     { "_id": "o3", "slot": "boton", "kind": "link", "link": { "url": "https://example.com/nuevo", "is_external": "on", "nofollow": "" } },
+     { "_id": "o4", "slot": "foto", "kind": "image", "image": "__IMAGE2__" },
+     { "_id": "o5", "slot": "video", "kind": "link", "link": { "url": "__SITE__/wp-content/probe/digi-medicion.mp4?otra=1" } },
+     { "_id": "o6", "slot": "caja", "kind": "text", "text": "Caja nueva" },
+     { "_id": "o7", "slot": "oculto", "kind": "hide" }
+    ] } },
+    { "w": "template", "id": "b8tpl02", "s": { "template_id": "__ID:b8-tpl__" } }
+   ] } ] },
+  "b8-plain": { "type": "page", "title": "B8 · una instancia sin sobrescrituras", "elements": [
+   { "c": "b8qc001", "s": {}, "e": [ { "w": "template", "id": "b8tpl02", "s": { "template_id": "__ID:b8-tpl__" } } ] } ] },
+  "b8-outer": { "type": "section", "title": "B8 · plantilla Q con una instancia de P", "elements": [
+   { "c": "b8oc001", "s": {}, "e": [ { "w": "template", "id": "b8otp01", "s": { "template_id": "__ID:b8-tpl__", "digitalisimo_overrides": [ { "_id": "o1", "slot": "titulo", "kind": "text", "text": "Desde la plantilla Q" } ] } } ] } ] },
+  "b8-nested": { "type": "page", "title": "B8 · plantilla dentro de plantilla", "elements": [
+   { "c": "b8nc001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "template", "id": "b8ntp01", "s": { "template_id": "__ID:b8-outer__" } },
+    { "w": "template", "id": "b8ntp02", "s": { "template_id": "__ID:b8-tpl__", "digitalisimo_overrides": [ { "_id": "o1", "slot": "titulo", "kind": "text", "text": "Instancia directa" } ] } }
+   ] } ] },
+
+  "b9-tags": { "type": "page", "title": "Etiquetas <i>F7b</i> & “comillas”", "meta": { "api_key": "secreto-api-123", "keywords": "uno-dos-tres" }, "elements": [
+   { "c": "b9c0001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "heading", "id": "b9hd001", "s": { "title": "Hola {post:title}", "digitalisimo_inline_tags": "yes" } },
+    { "w": "heading", "id": "b9hd002", "s": { "title": "Plan: {query:plan|basico,pro}", "digitalisimo_inline_tags": "yes" } },
+    { "w": "heading", "id": "b9hd003", "s": { "title": "Meta [{post:meta:api_key}] [{post:meta:keywords}]", "digitalisimo_inline_tags": "yes" } },
+    { "w": "text-editor", "id": "b9tx001", "s": { "editor": "<p>Sitio {site:name} · {site:tagline} · {desconocido:x} · {acf:campo}</p>", "digitalisimo_inline_tags": "yes" } },
+    { "w": "button", "id": "b9bt001", "s": { "text": "Ir a {post:title}", "link": { "url": "https://example.com/?q={query:plan|basico,pro}" }, "digitalisimo_inline_tags": "yes" } },
+    { "w": "heading", "id": "b9hd004", "s": { "title": "Sin interruptor {post:title}" } },
+    { "w": "heading", "id": "b9hd005", "s": { "title": "Campaña [{query:utm_source|google}]", "digitalisimo_inline_tags": "yes" } }
+   ] } ] },
+  "b9-user": { "type": "page", "title": "B9 · usuario en la cabecera", "elements": [
+   { "c": "b9uc001", "s": {}, "e": [ { "w": "heading", "id": "b9uhd02", "s": { "title": "Página de B9 con cabecera" } } ] } ] },
+  "b9-header": { "type": "header", "title": "B9 · cabecera con {user:…}", "conditions": [ "include/singular/page/__SID:b9-user__" ], "elements": [
+   { "c": "b9hc001", "s": {}, "e": [ { "w": "heading", "id": "b9uhd01", "s": { "title": "Hola {user:first_name|visitante}", "digitalisimo_inline_tags": "yes" } } ] } ] },
+
+  "b10-form": { "type": "page", "title": "B10 · formulario condicional", "elements": [
+   { "c": "b10c001", "s": {}, "e": [
+    { "w": "form", "id": "b10frm1", "s": { "form_name": "Condicional F7b", "submit_actions": [ "email", "webhook" ], "email_to": "dueno@example.invalid", "email_subject": "Formulario F7b", "email_content": "[all-fields]", "webhooks": "https://hooks.example.com/f7b", "form_fields": [
+     { "_id": "fc00001", "custom_id": "tipo", "field_type": "radio", "field_label": "Tipo", "field_options": "Persona|persona\nEmpresa|empresa", "required": "true" },
+     { "_id": "fc00002", "custom_id": "rfc", "field_type": "text", "field_label": "RFC", "required": "true", "digitalisimo_conditional": "yes", "digitalisimo_rules": [ { "_id": "fr00001", "field": "tipo", "operator": "is", "value": "empresa" } ] },
+     { "_id": "fc00003", "custom_id": "razon", "field_type": "text", "field_label": "Razón social", "digitalisimo_conditional": "yes", "digitalisimo_logic": "any", "digitalisimo_rules": [ { "_id": "fr00002", "field": "tipo", "operator": "is", "value": "empresa" }, { "_id": "fr00003", "field": "rfc", "operator": "contains", "value": "xaxx" } ] },
+     { "_id": "fc00004", "custom_id": "email", "field_type": "email", "field_label": "Correo", "required": "true" }
+    ] } }
+   ] } ] },
+  "b10-plain": { "type": "page", "title": "B10 · formulario sin reglas", "elements": [
+   { "c": "b10c002", "s": {}, "e": [
+    { "w": "form", "id": "b10frm2", "s": { "form_name": "Sin reglas", "submit_actions": [], "form_fields": [
+     { "_id": "fc00011", "custom_id": "nombre", "field_type": "text", "field_label": "Nombre", "required": "true" },
+     { "_id": "fc00012", "custom_id": "email", "field_type": "email", "field_label": "Correo", "required": "true" } ] } } ] } ] },
+
+  "b11-slider": { "type": "page", "title": "B11 · slider anidado", "elements": [
+   { "c": "b11c001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "digitalisimo-nested-slider", "id": "w1slide", "s": { "loop": "", "carousel_label": "Novedades", "slides": [ { "_id": "s1", "slide_title": "Uno" }, { "_id": "s2", "slide_title": "Dos" }, { "_id": "s3", "slide_title": "Tres" } ] }, "e": [
+     { "c": "w1s0001", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "w1h0001", "s": { "title": "Novedad uno" } }, { "w": "button", "id": "w1b0001", "s": { "text": "Enlace uno", "link": { "url": "#uno" } } } ] },
+     { "c": "w1s0002", "s": { "content_width": "full", "min_height": { "unit": "px", "size": 240, "sizes": [] } }, "e": [ { "w": "heading", "id": "w1h0002", "s": { "title": "Novedad dos" } }, { "w": "button", "id": "w1b0002", "s": { "text": "Enlace dos", "link": { "url": "#dos" } } } ] },
+     { "c": "w1s0003", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "w1h0003", "s": { "title": "Novedad tres" } }, { "w": "button", "id": "w1b0003", "s": { "text": "Enlace tres", "link": { "url": "#tres" } } } ] } ] },
+    { "w": "digitalisimo-nested-slider", "id": "w2fade1", "s": { "effect": "fade", "autoplay": "yes", "autoplay_delay": 2000, "carousel_label": "Destacados", "slides": [ { "_id": "s1", "slide_title": "Uno" }, { "_id": "s2", "slide_title": "Dos" }, { "_id": "s3", "slide_title": "Tres" } ] }, "e": [
+     { "c": "w2s0001", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "w2h0001", "s": { "title": "Destacado uno" } }, { "w": "button", "id": "w2b0001", "s": { "text": "Ver uno", "link": { "url": "#d1" } } } ] },
+     { "c": "w2s0002", "s": { "content_width": "full", "min_height": { "unit": "px", "size": 240, "sizes": [] } }, "e": [ { "w": "heading", "id": "w2h0002", "s": { "title": "Destacado dos" } }, { "w": "button", "id": "w2b0002", "s": { "text": "Ver dos", "link": { "url": "#d2" } } } ] },
+     { "c": "w2s0003", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "w2h0003", "s": { "title": "Destacado tres" } }, { "w": "button", "id": "w2b0003", "s": { "text": "Ver tres", "link": { "url": "#d3" } } } ] } ] },
+    { "w": "digitalisimo-nested-slider", "id": "w3scale", "s": { "effect": "scale", "navigation": "arrows", "arrows_position": "sides", "carousel_label": "Opiniones", "slides": [ { "_id": "s1", "slide_title": "Uno" }, { "_id": "s2", "slide_title": "Dos" }, { "_id": "s3", "slide_title": "Tres" } ] }, "e": [
+     { "c": "w3s0001", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "w3h0001", "s": { "title": "Opinión uno" } }, { "w": "button", "id": "w3b0001", "s": { "text": "Leer uno", "link": { "url": "#o1" } } } ] },
+     { "c": "w3s0002", "s": { "content_width": "full", "min_height": { "unit": "px", "size": 240, "sizes": [] } }, "e": [ { "w": "heading", "id": "w3h0002", "s": { "title": "Opinión dos" } }, { "w": "button", "id": "w3b0002", "s": { "text": "Leer dos", "link": { "url": "#o2" } } } ] },
+     { "c": "w3s0003", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "w3h0003", "s": { "title": "Opinión tres" } }, { "w": "button", "id": "w3b0003", "s": { "text": "Leer tres", "link": { "url": "#o3" } } } ] } ] },
+    { "w": "heading", "id": "b11aft1", "s": { "title": "Después de los sliders" } }
+   ] } ] },
+  "b11-nested": { "type": "page", "title": "B11 · pestañas y acordeón con presentación", "elements": [
+   { "c": "b11c002", "s": { "flex_direction": "column" }, "e": [
+    { "w": "nested-tabs", "id": "b11tab1", "s": { "digitalisimo_presentation": "pills", "tabs": [ { "_id": "t1", "tab_title": "Primera" }, { "_id": "t2", "tab_title": "Segunda" }, { "_id": "t3", "tab_title": "Tercera" } ] }, "e": [
+     { "c": "b11tc01", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11th01", "s": { "title": "Panel uno" } } ] },
+     { "c": "b11tc02", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11th02", "s": { "title": "Panel dos" } } ] },
+     { "c": "b11tc03", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11th03", "s": { "title": "Panel tres" } } ] } ] },
+    { "w": "nested-accordion", "id": "b11acc1", "s": { "digitalisimo_presentation": "boxed", "items": [ { "_id": "i1", "item_title": "Pregunta uno" }, { "_id": "i2", "item_title": "Pregunta dos" } ] }, "e": [
+     { "c": "b11ac01", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11ah01", "s": { "title": "Respuesta uno" } } ] },
+     { "c": "b11ac02", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11ah02", "s": { "title": "Respuesta dos" } } ] } ] },
+    { "w": "nested-tabs", "id": "b11tab2", "s": { "tabs": [ { "_id": "t1", "tab_title": "Sin estilo uno" }, { "_id": "t2", "tab_title": "Sin estilo dos" } ] }, "e": [
+     { "c": "b11tc11", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11th11", "s": { "title": "Panel sin estilo uno" } } ] },
+     { "c": "b11tc12", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11th12", "s": { "title": "Panel sin estilo dos" } } ] } ] }
+   ] } ] }
+ }
+}

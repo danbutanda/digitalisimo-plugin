@@ -78,6 +78,8 @@ rm -f "$OUT"/{setup-error.txt,ready.txt,fatal.log,php-errors.log,server.log,summ
 rm -rf "$OUT/shots" "$OUT/pages" "$OUT/ops" && mkdir -p "$OUT/shots" "$OUT/pages"
 cp "$F"/{setup.php,lib.php,probe.php,cases.json} "$OUT/"
 cp -r "$F/ops" "$OUT/ops"
+# Vídeo alojado de B8 (el mismo MP4 mínimo que mide front-budget.sh), servido desde la carpeta de la sonda.
+cp "$ROOT/tests/playground/front-budget/digi-medicion.mp4" "$OUT/digi-medicion.mp4"
 
 # WOO=1 (B7): WooCommerce fijado, extraído en $OUT/woocommerce y montado (setup.php lo activa).
 WOO_MOUNT=''

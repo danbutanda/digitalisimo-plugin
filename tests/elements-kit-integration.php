@@ -7,7 +7,7 @@
  *  2. Una sola fuente: huellas y procedencia en `Parts\Origin`, lista negra en `Export\Meta_Blacklist`, condiciones
  *     en `Remapper`, recuento de marcadores en `Preserve`; la búsqueda de procedencia ve la biblioteca de plantillas.
  *  3. Cada código que emiten K, los derivados de PRO y las partes y referencias de fuera de K (F7a: presets de estilo y
- *     condiciones) cae en una sección del informe (salvo los de diagnóstico).
+ *     condiciones; F4-Woo; F7b: consultas guardadas) cae en una sección del informe (salvo los de diagnóstico).
  *  4. «Publicar páginas y plantillas»: `Session::publishable()` existe y publica lo visible, nunca el Theme Builder;
  *     una sección (sin ubicación) no es plantilla «que se aplica sola» (D8).
  *  5. Datos personales: el `author` del manifiesto sale vacío y el `<guid>` del WXR no lleva el login.
@@ -147,7 +147,9 @@ namespace {
 		glob( $E . '/modules/digitalisimo-design/{,*/}*.php', GLOB_BRACE ),
 		glob( $E . '/modules/digitalisimo-conditions/*.php' ),
 		// Partes y referencias de F4-Woo (WooCommerce visual): `kit/` y los demás submódulos.
-		glob( $E . '/modules/digitalisimo-woo/{,*/}*.php', GLOB_BRACE )
+		glob( $E . '/modules/digitalisimo-woo/{,*/}*.php', GLOB_BRACE ),
+		// Parte `saved-queries` y referencias de F7b (`modules/digitalisimo-f7b/kit/`) y los demás submódulos.
+		glob( $E . '/modules/digitalisimo-f7b/{,*/}*.php', GLOB_BRACE )
 	);
 	$codes = array();
 	foreach ( $sources as $file ) {
@@ -163,6 +165,8 @@ namespace {
 		$check( 'other' !== $section || in_array( $code, $diagnostic, true ), "3: el código {$code} ({$file}) tiene sección en el informe." );
 	}
 	$check( 'requested' === Report::section_for( 'custom_code.skipped' ) && 'unresolved' === Report::section_for( 'theme-builder.closed' ) && 'media' === Report::section_for( 'assets.attachment_failed' ) && 'preserved' === Report::section_for( 'original-type' ) && 'drafts' === Report::section_for( 'origin.update' ), '3: secciones de los códigos de los derivados de PRO y de la procedencia.' );
+	$f7b_codes = array_keys( array_filter( $codes, function ( $file ) { return 'class-queries-part.php' === $file; } ) );
+	$check( count( $f7b_codes ) >= 7 && in_array( 'draft.saved-query', $f7b_codes, true ) && 'drafts' === Report::section_for( 'draft.saved-query' ) && 'requested' === Report::section_for( 'requested.saved-query' ) && 'unresolved' === Report::section_for( 'reference.saved-query-failed' ) && 'trash' === Report::section_for( 'revert.saved-queries' ), '3: los códigos de la parte saved-queries de F7b tienen sección (' . implode( ', ', $f7b_codes ) . ').' );
 
 	// 4. «Publicar páginas y plantillas» y D8.
 	kt_reset();

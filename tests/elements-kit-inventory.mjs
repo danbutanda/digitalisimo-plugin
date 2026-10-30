@@ -1,8 +1,10 @@
 // Kits (etapa K, §13.1 «inventory» y §9.2): inventario estático de lo que debe viajar en un kit.
 // - Cada widget propio del registro (los 44 visibles y los 7 alias ocultos de modules/digitalisimo-widgets/
-//   class-registry.php), el Slider Optimizado y los 7 de WooCommerce de F4-Woo (modules/digitalisimo-woo/
-//   class-registry.php, con «woo») tienen su caso en tests/playground/kit-roundtrip/cases.json, con la marca de alias
-//   igual a la del registro; ningún caso nombra un widget propio que no existe.
+//   class-registry.php), el Slider Optimizado, los 7 de WooCommerce de F4-Woo (modules/digitalisimo-woo/
+//   class-registry.php, con «woo») y los 5 de F7b (los filtros de modules/digitalisimo-filters/class-registry.php y el
+//   slider anidado de modules/digitalisimo-f7b/nested/class-module.php) tienen su caso en
+//   tests/playground/kit-roundtrip/cases.json, con la marca de alias igual a la del registro; ningún caso nombra un
+//   widget propio que no existe.
 // - Cada rasgo propio que inicia el registro tiene su caso, y cada «base» de front-budget existe.
 // - Cada parte de K (Parts::BUILTIN) tiene su caso con motivo (§11.2: obligación de cada etapa). Las partes de fuera de
 //   kits/ (clases que implementan Part o Early_Part con `const KEY`, F7a y F4-Woo) se aceptan en cases.parts y se
@@ -66,8 +68,28 @@ for (const name of Object.keys(woo)) {
   if (c.alias) problems.push(`${name}: un widget de WooCommerce no es un alias`);
   if (!c.base && !c.settings) problems.push(`${name}: el caso no tiene ajustes ni «base»`);
 }
+// Widgets de F7b con su propio registro (mismo formato): los cuatro filtros ampliados de modules/digitalisimo-filters/
+// (Filters\Registry::WIDGETS) y el slider anidado de modules/digitalisimo-f7b/nested/ (Nested\Module::WIDGETS). Cada uno
+// con su caso sin «woo» (no dependen de WooCommerce) y sin alias.
+const f7b = {};
+for (const file of ['modules/digitalisimo-filters/class-registry.php', 'modules/digitalisimo-f7b/nested/class-module.php']) {
+  const path = join(E, file);
+  if (!existsSync(path)) continue;
+  const text = readFileSync(path, 'utf8');
+  const start = text.indexOf('const WIDGETS = array(');
+  assert.ok(start >= 0, `${file}: falta const WIDGETS`);
+  const f7bBlock = text.slice(start, text.indexOf(');', text.indexOf("\n\t);", start)) + 2);
+  for (const m of f7bBlock.matchAll(/^\t\t'(digitalisimo-[a-z0-9-]+)' => array\(/gm)) f7b[m[1]] = file;
+}
+for (const [name, file] of Object.entries(f7b)) {
+  const c = cases.widgets[name];
+  if (!c) { problems.push(`${name} (${file}): sin caso en kit-roundtrip/cases.json`); continue; }
+  if (c.woo) problems.push(`${name}: un widget de F7b no depende de WooCommerce («woo» sobra)`);
+  if (c.alias) problems.push(`${name}: un widget de F7b no es un alias`);
+  if (!c.base && !c.settings) problems.push(`${name}: el caso no tiene ajustes ni «base»`);
+}
 for (const name of Object.keys(cases.widgets)) {
-  if (!own[name] && !woo[name]) problems.push(`${name}: caso de un widget propio que no está en el registro`);
+  if (!own[name] && !woo[name] && !f7b[name]) problems.push(`${name}: caso de un widget propio que no está en el registro`);
 }
 
 // Rasgos que inicia el registro (archivos class-*.php de Registry::init()).
@@ -126,6 +148,6 @@ for (const entry of noRef.controles || []) {
 
 assert.deepEqual(problems, [], `Inventario de kits incompleto:\n  ${problems.join('\n  ')}`);
 const externalNote = Object.keys(external).length ? `, ${Object.keys(external).length} parte(s) de fuera de K (${Object.keys(external).join(', ')})` : '';
-console.log(`Kits: inventario con ${visible} widgets propios visibles (con el Slider Optimizado), ${aliases} alias y ${Object.keys(woo).length} de WooCommerce en kit-roundtrip, ${Object.keys(cases.traits).length} rasgos, ${parts.length} partes de K con caso${externalNote} y ${(noRef.controles || []).length} controles sin referencia justificados.`);
+console.log(`Kits: inventario con ${visible} widgets propios visibles (con el Slider Optimizado), ${aliases} alias, ${Object.keys(woo).length} de WooCommerce y ${Object.keys(f7b).length} de F7b en kit-roundtrip, ${Object.keys(cases.traits).length} rasgos, ${parts.length} partes de K con caso${externalNote} y ${(noRef.controles || []).length} controles sin referencia justificados.`);
 // El caso de cada parte de fuera de K lo añade el frente de Playground de su etapa (para F7a, el frente M).
 if (pending.length) console.log(`Kits: sin caso en kit-roundtrip/cases.json todavía: ${pending.map((part) => `${part} (${external[part]})`).join(', ')}.`);
