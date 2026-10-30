@@ -397,36 +397,6 @@ if ( $digi_fb_front ) {
 	update_option( 'digitalisimo_elements_front', $stored, true );
 }
 
-// F7b: consultas guardadas de los casos (`queries`, slug → entrada de `Queries\Store::save()`), creadas como las guarda
-// la pantalla «Consultas»; `__QUERY:<slug>__` es su ID como cadena (lo que guarda el select). Con una versión sin F7b
-// (4.3.0.168) el marcador vale «0» y el ajuste no hace nada.
-$digi_fb_queries = array();
-foreach ( $cases as $case ) {
-	foreach ( (array) ( $case['queries'] ?? array() ) as $query_slug => $query ) {
-		$digi_fb_queries[ (string) $query_slug ] = (array) $query;
-	}
-}
-if ( $digi_fb_queries ) {
-	$store         = '\\Digitalisimo\\Elements\\F7b\\Queries\\Store';
-	$query_markers = array();
-	foreach ( $digi_fb_queries as $query_slug => $query ) {
-		$query_id = 0;
-		if ( class_exists( $store ) ) {
-			wp_set_current_user( 1 );
-			$store::register();
-			$found    = get_posts( array( 'post_type' => 'digitalisimo_query', 'title' => (string) ( $query['title'] ?? '' ), 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) );
-			$saved    = $store::save( $query, $found ? (int) $found[0] : 0 );
-			$query_id = is_wp_error( $saved ) ? 0 : (int) $saved;
-			if ( is_wp_error( $saved ) ) {
-				digi_fb_fail( 'Consulta guardada ' . $query_slug . ': ' . $saved->get_error_message() );
-			}
-			wp_set_current_user( 0 );
-		}
-		$query_markers[ '__QUERY:' . $query_slug . '__' ] = (string) $query_id;
-	}
-	$cases = digi_fb_replace( $cases, $query_markers );
-}
-
 // Páginas y documentos: primero se reservan todos (para resolver los marcadores), después se guardan sus datos.
 $pages  = array();
 $extras = array();
@@ -458,6 +428,37 @@ if ( ! $menu ) {
 $digi_fb_woo_markers = ! empty( $mode['woo'] ) && $digi_fb_variable ? digi_fb_woo_f4( $image_id, $digi_fb_variable ) : digi_fb_woo_markers();
 $cases               = digi_fb_replace( $cases, $digi_fb_woo_markers );
 file_put_contents( DIGI_FB_DIR . '/markers.json', wp_json_encode( $digi_fb_woo_markers ) );
+
+// F7b: consultas guardadas de los casos (`queries`, slug → entrada de `Queries\Store::save()`), creadas como las guarda
+// la pantalla «Consultas» y después de reservar páginas, documentos y menú: los IDs de los casos anteriores no cambian.
+// `__QUERY:<slug>__` es su ID como cadena (lo que guarda el select); con una versión sin F7b (4.3.0.168) vale «0» y el
+// ajuste no hace nada.
+$digi_fb_queries = array();
+foreach ( $cases as $case ) {
+	foreach ( (array) ( $case['queries'] ?? array() ) as $query_slug => $query ) {
+		$digi_fb_queries[ (string) $query_slug ] = (array) $query;
+	}
+}
+if ( $digi_fb_queries ) {
+	$store         = '\\Digitalisimo\\Elements\\F7b\\Queries\\Store';
+	$query_markers = array();
+	foreach ( $digi_fb_queries as $query_slug => $query ) {
+		$query_id = 0;
+		if ( class_exists( $store ) ) {
+			wp_set_current_user( 1 );
+			$store::register();
+			$found    = get_posts( array( 'post_type' => 'digitalisimo_query', 'title' => (string) ( $query['title'] ?? '' ), 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) );
+			$saved    = $store::save( $query, $found ? (int) $found[0] : 0 );
+			$query_id = is_wp_error( $saved ) ? 0 : (int) $saved;
+			if ( is_wp_error( $saved ) ) {
+				digi_fb_fail( 'Consulta guardada ' . $query_slug . ': ' . $saved->get_error_message() );
+			}
+			wp_set_current_user( 0 );
+		}
+		$query_markers[ '__QUERY:' . $query_slug . '__' ] = (string) $query_id;
+	}
+	$cases = digi_fb_replace( $cases, $query_markers );
+}
 
 $save_data = static function ( $id, array $tree ) {
 	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
