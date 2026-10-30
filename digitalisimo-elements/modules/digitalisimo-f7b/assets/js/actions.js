@@ -42,7 +42,7 @@ hb=c=>{const el=c.el,b=(n,f)=>{on(n,'pointerenter',e=>tc(e)||(f?en(c):clearTimeo
 on(n,'focusin',()=>f?c.x||en(c):clearTimeout(c.tm));on(n,'focusout',e=>{const r=e.relatedTarget;if(!r||!(el.contains(r)||c.ht.some(t=>t.contains(r)))){c.x=0;lv(c,1)}})};
 c.ht=c.l.filter(a=>a.t=='hover'&&a.g).map(a=>tg(c,a)).filter(t=>t&&!el.contains(t));b(el,c.hb=1);c.ht.forEach(t=>b(t,0))},
 fi=el=>{const c=cf.get(el);c&&c.l.forEach(a=>a.t=='scroll_in'&&run(el,a))},
-bd=el=>{if(!el||el.nodeType!=1||!el.hasAttribute(R)||el.matches(RD))return;sa(el,R+'-ready','');let l;try{l=JSON.parse(ga(el,R))}catch(e){}
+bd=el=>{if(!el||el.nodeType!=1||!el.hasAttribute(R)||cf.has(el))return;sa(el,R+'-ready','');let l;try{l=JSON.parse(ga(el,R))}catch(e){}
 const k=ctl(el),c={el,k,r:el.closest('[data-elementor-id]')||d,ht:[]},has=t=>c.l.some(a=>a.t==t);
 c.l=(Array.isArray(l)?l:[]).filter(a=>ok(a)&&(a.t!='click'||k)).slice(0,20);
 if(!c.l.length)return;cf.set(el,c);

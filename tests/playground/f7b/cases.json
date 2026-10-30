@@ -127,7 +127,7 @@
    { "c": "b5c0001", "s": { "flex_direction": "column" }, "e": [
     { "w": "digitalisimo-loop-search", "id": "b5srch1", "s": { "destination": "loop", "selected_element": "b5loop1", "label": "Buscar entradas" } },
     { "w": "digitalisimo-loop-meta-filter", "id": "b5prec1", "s": { "destination": "loop", "selected_element": "b5loop1", "meta_key": "__custom", "meta_key_custom": "precio", "value_type": "DECIMAL", "mode": "range", "range_min": "0", "range_max": "200", "legend": "Precio" } },
-    { "w": "digitalisimo-loop-meta-filter", "id": "b5colr1", "s": { "destination": "loop", "selected_element": "b5loop1", "meta_key": "__custom", "meta_key_custom": "color", "value_type": "CHAR", "mode": "in", "display": "buttons", "legend": "Color", "values": [ { "_id": "v1", "value": "rojo", "label": "Rojo" }, { "_id": "v2", "value": "azul", "label": "Azul" }, { "_id": "v3", "value": "verde", "label": "Verde" } ] } },
+    { "w": "digitalisimo-loop-meta-filter", "id": "b5colr1", "s": { "destination": "loop", "selected_element": "b5loop1", "meta_key": "__custom", "meta_key_custom": "color", "value_type": "CHAR", "mode": "in", "display": "buttons", "legend": "Color", "options": [ { "_id": "v1", "value": "rojo", "label": "Rojo" }, { "_id": "v2", "value": "azul", "label": "Azul" }, { "_id": "v3", "value": "verde", "label": "Verde" } ] } },
     { "w": "digitalisimo-loop-orderby", "id": "b5ordr1", "s": { "destination": "loop", "selected_element": "b5loop1", "orders": [ { "_id": "o1", "order_key": "date_desc" }, { "_id": "o2", "order_key": "title_asc" }, { "_id": "o3", "order_key": "title_desc" }, { "_id": "o4", "order_key": "meta_asc" } ], "order_meta_key": "__custom", "order_meta_key_custom": "precio" } },
     { "w": "digitalisimo-loop-per-page", "id": "b5pp001", "s": { "destination": "loop", "selected_element": "b5loop1", "values": "3, 6, 12" } },
     { "w": "loop-grid", "id": "b5loop1", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 6, "columns": 3, "post_query_post_type": "post", "post_query_orderby": "post_date", "post_query_order": "desc" } }
@@ -142,7 +142,7 @@
    { "c": "b6c0001", "s": { "flex_direction": "column" }, "e": [
     { "w": "digitalisimo-loop-orderby", "id": "b6ordr1", "s": { "destination": "archive", "orders": [ { "_id": "o1", "order_key": "date_desc" }, { "_id": "o2", "order_key": "title_asc" } ] } },
     { "w": "digitalisimo-loop-per-page", "id": "b6pp001", "s": { "destination": "archive", "values": "2, 4" } },
-    { "w": "digitalisimo-loop-meta-filter", "id": "b6colr1", "s": { "destination": "archive", "meta_key": "__custom", "meta_key_custom": "color", "fields_post_type": "post", "value_type": "CHAR", "mode": "in", "values": [ { "_id": "v1", "value": "rojo", "label": "Rojo" }, { "_id": "v2", "value": "azul", "label": "Azul" } ] } },
+    { "w": "digitalisimo-loop-meta-filter", "id": "b6colr1", "s": { "destination": "archive", "meta_key": "__custom", "meta_key_custom": "color", "fields_post_type": "post", "value_type": "CHAR", "mode": "in", "options": [ { "_id": "v1", "value": "rojo", "label": "Rojo" }, { "_id": "v2", "value": "azul", "label": "Azul" } ] } },
     { "w": "digitalisimo-loop-search", "id": "b6srch1", "s": { "destination": "archive", "label": "Buscar en el sitio" } },
     { "w": "archive-posts", "id": "b6post1", "s": { "_skin": "archive_classic", "archive_classic_show_excerpt": "", "archive_classic_thumbnail": "none", "archive_classic_meta_data": [], "pagination_type": "numbers" } }
    ] } ] },

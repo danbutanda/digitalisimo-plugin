@@ -290,14 +290,27 @@ function normalize(html) {
     .replace(/data-nonce="[0-9a-f]{10}"/g, 'data-nonce="N"')
     .replace(/\s+/g, ' ');
 }
-/** IDs de las entradas de un bucle (Loop Grid: `e-loop-item-<ID>`; Posts y archivo: `post-<ID>` en `article`). */
+/** HTML del elemento con ese ID (la etiqueta de apertura con `elementor-element-<id>` hasta su `</div>` de cierre). */
+function elementHtml(html, id) {
+  const re = new RegExp(`<div[^>]*\\belementor-element-${id}\\b[^>]*>`);
+  const m = re.exec(html);
+  if (!m) return null;
+  const tag = /<(\/?)div\b[^>]*>/g;
+  tag.lastIndex = m.index + m[0].length;
+  let depth = 1;
+  let t;
+  while ((t = tag.exec(html))) {
+    depth += t[1] ? -1 : 1;
+    if (!depth) return html.slice(m.index, t.index + t[0].length);
+  }
+  return html.slice(m.index);
+}
+/** IDs de las entradas de un bucle (Loop Grid: `e-loop-item-<ID>`; Posts y archivo: `post-<ID>` en `article`), sin los de bucles anidados. */
 function loopIds(html, widgetId) {
-  const start = html.indexOf(`elementor-element-${widgetId}`);
-  if (start < 0) return null;
-  // Hasta el siguiente widget hermano de nivel superior: se corta en el final del bloque del widget con un margen.
-  const slice = html.slice(start, start + 200000);
+  const slice = elementHtml(html, widgetId);
+  if (null === slice) return null;
   const out = [];
-  const re = /e-loop-item-(\d+)|<article[^>]*\bpost-(\d+)\b/g;
+  const re = /<div data-elementor-type="loop-item"[^>]*\be-loop-item-(\d+)\b|<article[^>]*\bpost-(\d+)\b/g;
   let m;
   while ((m = re.exec(slice))) {
     const id = Number(m[1] || m[2]);
@@ -321,7 +334,7 @@ const domLoopIds = (page, widgetId) => page.evaluate((wid) => {
 const API = {
   ENV, OUT, BASE, PORT, HOST, TOKEN, MODE, QUICK, WIDTHS, summary, sleep, log, check, pending, note, request, form, FORM, control,
   login, editorNonce, eajax, codeOf, ids, docId, url, startBrowser, context, newPage, open, probeOf, shot, openEditor, selectElement,
-  activateSection, editorSave, editorSettings, serverLog, logSize, normalize, loopIds, domLoopIds, jars,
+  activateSection, editorSave, editorSettings, serverLog, logSize, normalize, elementHtml, loopIds, domLoopIds, jars,
 };
 
 // ── B0 · preparación ───────────────────────────────────────────────────────────────────────────────────────────
@@ -337,7 +350,7 @@ async function B0(s) {
   await control('clearcss');
   const bad = [];
   for (const key of Object.keys(m.docs)) {
-    if (/^(f7b-loop|b1-popup|b3-single|b6-|b8-tpl|b8-outer|b9-header)/.test(key)) continue;
+    if (/^(f7b-loop|b1-popup|b3-single|b4-free|b6-|b8-tpl|b8-outer|b9-header)/.test(key)) continue;
     const res = await request('GET', m.urls[key]);
     fs.writeFileSync(path.join(OUT, 'pages', `${key}.html`), res.text);
     if (res.status !== 200 || /critical error|Fatal error|Parse error/i.test(res.text)) bad.push(`${key}: ${res.status}`);

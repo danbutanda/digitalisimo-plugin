@@ -6,8 +6,8 @@ module.exports = (api) => {
   const { check, pending, note, control, request, open, ids, url, login, eajax, editorNonce, openEditor, selectElement, activateSection, editorSave, editorSettings, loopIds, domLoopIds, sleep, jars, BASE, context, newPage, shot } = api;
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const byDateDesc = (list) => [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
-  const byTitleAsc = (list) => [...list].sort((a, b) => a.title.localeCompare(b.title, 'es'));
   let POSTS = null;
+  const summary_limits = api.summary.limits = api.summary.limits || {};
   const published = () => Object.values(POSTS).filter((p) => p.status === 'publish');
 
   async function B3(s) {
@@ -54,8 +54,11 @@ module.exports = (api) => {
         return { id, template: el.getAttribute('data-elementor-id'), inner: innerIds };
       });
     });
-    const okNested = outer.length === 4 && outer.every((o) => { const p = Object.values(POSTS).find((x) => x.id === o.id); const w = p ? byDateDesc(pub.filter((x) => x.author === p.author && x.id !== p.id)).slice(0, 5).map((x) => x.id) : null; o.want = w; return w && same(o.inner, w); });
-    check(s, 'B3.3', 'bucle en bucle: cada elemento del bucle exterior pinta su bucle interior con su propio contexto (mismo autor, sin él)', okNested, JSON.stringify(outer));
+    for (const o of outer) { const p = Object.values(POSTS).find((x) => x.id === o.id); o.want = p ? byDateDesc(pub.filter((x) => x.author === p.author && x.id !== p.id)).slice(0, 5).map((x) => x.id) : null; }
+    check(s, 'B3.3a', 'bucle en bucle: el bucle interior del primer elemento toma su contexto (la entrada del bucle exterior: mismo autor, sin ella)', outer.length > 0 && same(outer[0].inner, outer[0].want), JSON.stringify(outer[0]));
+    const allNested = outer.length === 4 && outer.every((o) => same(o.inner, o.want));
+    if (allNested) check(s, 'B3.3b', 'y cada elemento siguiente pinta el suyo', true);
+    else pending(s, 'B3.3b', 'cada elemento siguiente del bucle exterior pinta su bucle interior', `limitación del Loop Grid de PRO, no de F7b: tras el primer bucle interior, el bucle exterior pinta los elementos siguientes con la plantilla del interior y sin bucle; lo mismo sin consulta guardada (B3.3c) y con 4.3.0.168 (B12) · ${JSON.stringify(outer.map((o) => ({ id: o.id, plantilla: o.template, interior: o.inner })))}`);
     await n.close();
     // Control: el mismo bucle en bucle sin consulta guardada (grupo de PRO) en 4.3.0.168 y aquí.
     const ctrl = await open(await url('b3-nested-pro'));
@@ -64,22 +67,25 @@ module.exports = (api) => {
       const items = [...root.querySelectorAll('.e-loop-item')].filter((el) => !el.parentElement.closest('.e-loop-item'));
       return items.map((el) => ({ id: Number((String(el.className).match(/e-loop-item-(\d+)/) || [])[1]), template: el.getAttribute('data-elementor-id'), inner: !!el.querySelector('.elementor-element-b3innp1 .e-loop-item') }));
     });
+    const nestedTemplate = String(m.docs['f7b-loop-nested-pro']);
+    const proOk = outerPro.length === 4 && outerPro.every((o) => o.inner && o.template === nestedTemplate);
     note(s, `control sin consulta guardada (bucle en bucle con el grupo de PRO): ${JSON.stringify(outerPro)}`);
-    check(s, 'B3.3b', 'control: el bucle en bucle del grupo de PRO (sin F7b) pinta sus cuatro elementos exteriores con su plantilla', outerPro.length === 4 && outerPro.every((o) => o.inner), JSON.stringify(outerPro));
+    check(s, 'B3.3c', 'control sin F7b: el mismo bucle en bucle con el grupo de PRO se comporta igual que con la consulta guardada (F7b no cambia el bucle en bucle)', proOk === allNested && outerPro.length === outer.length && outerPro.map((o) => o.template === nestedTemplate).join() === outer.map((o) => o.template === String(m.docs['f7b-loop-nested'])).join(), JSON.stringify({ pro: outerPro, f7b: outer.map((o) => ({ id: o.id, template: o.template })) }));
+    summary_limits.nested = { f7b: outer, pro: outerPro };
     await ctrl.close();
 
     // B3.4 · Contexto `root` en el nivel superior y `data-digi-ctx` en el envoltorio.
     const page = m.docs['b3-ctx'];
     const c = await open(await url('b3-ctx'));
     const ctxAttr = (c.html.match(/data-digi-ctx="(\d+)"[^>]*elementor-element-b3xloop|elementor-element-b3xloop[^>]*data-digi-ctx="(\d+)"/) || []).slice(1).find(Boolean);
-    const wantRoot = byTitleAsc(pub.filter((p) => p.author === 1)).slice(0, 10).map((p) => p.id);
+    const wantRoot = (await control('wpquery', { args: JSON.stringify({ post_type: 'post', author: 1, orderby: 'title', order: 'ASC', posts_per_page: 10 }) })).ids;
     const seenRoot = await domLoopIds(c.page, 'b3xloop');
     check(s, 'B3.4a', 'el bucle con contexto `root` pinta `data-digi-ctx` con el ID de la página', Number(ctxAttr) === page, String(ctxAttr));
     check(s, 'B3.4b', 'contexto raíz = la página consultada: entradas de su autor', same(seenRoot, wantRoot), JSON.stringify({ seen: seenRoot, want: wantRoot }));
 
     // B3+B5 · El filtro por REST envía `digi_ctx` y el bucle sigue con su contexto.
     const posts = [];
-    c.page.on('request', (rq) => { if (/refresh-loop/.test(rq.url())) posts.push({ url: rq.url(), body: rq.postData() || '' }); });
+    c.page.on('request', (rq) => { if (/refresh-loop/.test(rq.url())) posts.push({ url: rq.url(), body: rq.postData() || '', headers: rq.headers() }); });
     const gamma = POSTS.p3;
     await c.page.type('.elementor-element-b3xsrc1 input[type="search"]', 'Gamma');
     await c.page.click('.elementor-element-b3xsrc1 button[type="submit"]');
@@ -93,21 +99,23 @@ module.exports = (api) => {
     check(s, 'B3+B5b', 'con la búsqueda el bucle conserva su contexto raíz (sólo «Gamma F7b», del autor de la página)', same(afterSearch, [gamma.id]), JSON.stringify({ afterSearch, gamma: gamma.id }));
     // Petición forjada: `digi_ctx` de una entrada privada → falla cerrado (vacío).
     if (posts[0]) {
-      const forged = await c.page.evaluate(async (req, priv) => {
+      const replay = (ctxValue) => c.page.evaluate(async (req, value) => {
         let body;
         try { body = JSON.parse(req.body); } catch (e) { return { error: 'cuerpo no JSON' }; }
-        body.digi_ctx = priv;
-        const headers = { 'Content-Type': 'application/json' };
-        const nonce = window.elementorFrontendConfig && window.elementorFrontendConfig.nonces && window.elementorFrontendConfig.nonces.wpRest || (window.ElementorProFrontendConfig && ElementorProFrontendConfig.nonce);
-        if (nonce) headers['X-WP-Nonce'] = nonce;
+        if (value !== undefined) body.digi_ctx = value;
+        const headers = {};
+        for (const [k, v] of Object.entries(req.headers || {})) if (/^(content-type|x-wp-nonce)$/i.test(k)) headers[k] = v;
         const res = await fetch(req.url, { method: 'POST', headers, body: JSON.stringify(body), credentials: 'same-origin' });
         const text = await res.text();
         let data = null;
         try { data = JSON.parse(text); } catch (e) { /* */ }
         const html = data && (data.data || data.html || '') || text;
         return { status: res.status, ids: [...String(typeof html === 'string' ? html : JSON.stringify(html)).matchAll(/e-loop-item-(\d+)/g)].map((x) => Number(x[1])) };
-      }, posts[0], POSTS.pp.id);
-      check(s, 'B3.5', '`digi_ctx` de una entrada privada en una petición forjada: falla cerrado (sin entradas)', forged.status === 200 && forged.ids && forged.ids.length === 0, JSON.stringify(forged));
+      }, posts[0], ctxValue);
+      const same0 = await replay(undefined);
+      const forged = await replay(POSTS.pp.id);
+      const draft = await replay(POSTS.pd.id);
+      check(s, 'B3.5', '`digi_ctx` de una entrada privada o de un borrador en una petición forjada: falla cerrado (sin entradas); la misma petición sin tocar sí trae la suya', same0.status === 200 && same0.ids.length > 0 && forged.status === 200 && forged.ids.length === 0 && draft.ids.length === 0, JSON.stringify({ same0, forged, draft }));
     } else pending(s, 'B3.5', '`digi_ctx` privado en una petición forjada', 'el filtro no envió ninguna petición refresh-loop');
     check(s, 'B3.6', 'sin errores de JavaScript', !c.facts.errors.length, JSON.stringify(c.facts.errors.slice(0, 3)));
     await c.close();
@@ -124,7 +132,10 @@ module.exports = (api) => {
       ed = await openEditor('admin', page);
       await selectElement(ed, 'b4loop1');
       await activateSection(ed, 'section_query', 'content');
-      await sleep(1500);
+      await ed.page.waitForFunction(() => { const b = document.querySelector('#elementor-panel [data-digi-sq-summary]'); return b && b.textContent.trim() && !/Cargando/.test(b.textContent); }, { timeout: 60000 }).catch(() => {});
+      const nonceEd = await ed.page.evaluate(() => window.elementorCommon && elementorCommon.config && elementorCommon.config.ajax && elementorCommon.config.ajax.nonce);
+      const read = await eajax('admin', nonceEd, page, { r: { action: 'digitalisimo_f7b_query_settings', data: { id: m.queries['q-basic'] } } });
+      note(s, `lectura de «Desvincular» (digitalisimo_f7b_query_settings): ${JSON.stringify(read.responses.r).slice(0, 600)}`);
       const panel = await ed.page.evaluate(() => {
         const root = document.querySelector('#elementor-panel');
         const select = root.querySelector('.elementor-control-digitalisimo_saved_query select');
@@ -134,15 +145,17 @@ module.exports = (api) => {
         return { select: select ? select.value : null, options: select ? select.options.length : 0, summary: summary ? summary.textContent.trim() : null, button: button ? button.textContent.trim() : null, groupHidden: !group || group.classList.contains('elementor-hidden-control') || getComputedStyle(group).display === 'none' };
       });
       check(s, 'B4.1a', 'panel: select «Consulta guardada» con la consulta, resumen de sólo lectura con «Editar en Consultas (N usos)», botón «Desvincular» y el grupo de PRO oculto', panel.select === String(m.queries['q-basic']) && /Entradas/.test(panel.summary || '') && /usos?\)/.test(panel.summary || '') && panel.button === 'Desvincular' && panel.groupHidden, JSON.stringify(panel));
+      const visibleDialog = () => ed.page.waitForFunction(() => [...document.querySelectorAll('#digitalisimo-saved-query-unlink')].find((d) => d.offsetParent !== null || getComputedStyle(d).display !== 'none'), { timeout: 20000 }).then((h) => h.evaluate((d) => d.textContent.replace(/\s+/g, ' ').trim())).catch(() => '');
+      const clickVisible = (selector) => ed.page.evaluate((sl) => { const b = [...document.querySelectorAll(sl)].find((x) => x.offsetParent !== null); if (b) b.click(); return !!b; }, selector);
       await ed.page.click('.elementor-control-digitalisimo_saved_query_unlink button');
-      const dialog = await ed.page.waitForSelector('#digitalisimo-saved-query-unlink', { visible: true, timeout: 20000 }).then(() => ed.page.$eval('#digitalisimo-saved-query-unlink', (d) => d.textContent.replace(/\s+/g, ' ').trim())).catch(() => '');
+      const dialog = await visibleDialog();
       check(s, 'B4.1b', 'confirmación con el texto de «Desvincular» (sin aviso de cambios: la consulta no usa contexto)', /dejará de usarla/.test(dialog) && !/resultados cambiarán/.test(dialog), dialog.slice(0, 300));
-      await ed.page.click('#digitalisimo-saved-query-unlink .dialog-confirm-ok, #digitalisimo-saved-query-unlink .dialog-ok');
+      await clickVisible('#digitalisimo-saved-query-unlink .dialog-confirm-ok, #digitalisimo-saved-query-unlink .dialog-ok');
       await sleep(1500);
       const after = await editorSettings(ed, 'b4loop1');
       const copied = after && after.digitalisimo_saved_query === '' && after.post_query_post_type === 'post' && JSON.stringify(after.post_query_include) === '["terms"]' && (after.post_query_include_term_ids || []).map(String).includes(String(m.tt['digi-f7b-a'])) && after.post_query_orderby === 'post_title' && after.post_query_order === 'asc' && Number(after.posts_per_page) <= 6;
       check(s, 'B4.1c', 'tras confirmar: el select en «Ninguna» y los ajustes de la consulta copiados al grupo de PRO (con su tope de cantidad)', copied, JSON.stringify(after && { q: after.digitalisimo_saved_query, pt: after.post_query_post_type, inc: after.post_query_include, terms: after.post_query_include_term_ids, ob: after.post_query_orderby, o: after.post_query_order, ppp: after.posts_per_page }));
-      const history = await ed.page.evaluate(() => { const h = window.elementor.documents.getCurrent().history.getItems(); return h.length; }).catch(() => -1);
+      const history = await ed.page.evaluate(() => { const items = window.elementor.documents.getCurrent().history.getItems(); return items.map ? items.map((i) => `${i.get('title')} · ${i.get('subTitle') || ''} · ${i.get('type')}`) : String(items); }).catch((e) => String(e));
       await ed.page.evaluate(() => window.$e.run('document/history/undo'));
       await sleep(1200);
       const undone = await editorSettings(ed, 'b4loop1');
@@ -153,10 +166,12 @@ module.exports = (api) => {
       await selectElement(ed, 'b4loop2');
       await activateSection(ed, 'section_query', 'content');
       await sleep(1200);
+      await ed.page.waitForFunction(() => { const b = document.querySelector('#elementor-panel [data-digi-sq-summary]'); return b && b.textContent.trim() && !/Cargando/.test(b.textContent); }, { timeout: 60000 }).catch(() => {});
       await ed.page.click('.elementor-control-digitalisimo_saved_query_unlink button');
-      const dialog2 = await ed.page.waitForSelector('#digitalisimo-saved-query-unlink', { visible: true, timeout: 20000 }).then(() => ed.page.$eval('#digitalisimo-saved-query-unlink', (d) => d.textContent.replace(/\s+/g, ' ').trim())).catch(() => '');
+      await sleep(500);
+      const dialog2 = await visibleDialog();
       check(s, 'B4.1e', 'con una consulta de contexto o relación, la confirmación dice que los resultados cambiarán', /resultados cambiarán/.test(dialog2), dialog2.slice(0, 300));
-      await ed.page.click('#digitalisimo-saved-query-unlink .dialog-cancel, #digitalisimo-saved-query-unlink .dialog-confirm-cancel').catch(() => {});
+      await clickVisible('#digitalisimo-saved-query-unlink .dialog-cancel, #digitalisimo-saved-query-unlink .dialog-confirm-cancel');
       await sleep(500);
       const saved = await editorSave(ed);
       await sleep(1500);

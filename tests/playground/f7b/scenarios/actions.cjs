@@ -55,11 +55,12 @@ module.exports = (api) => {
     await v.close();
 
     // B1.2 · Regla [hidden] en el CSS del documento, una vez.
-    const cssUrl = (html.match(/href="([^"]*\/uploads\/elementor\/css\/post-(\d+)\.css[^"]*)"/g) || []).map((x) => x.match(/href="([^"]*)"/)[1]).find((u) => u.includes(`post-${m.docs['b1-actions']}.css`));
+    const cssLinks = (h) => (h.match(/href=['"]([^'"]*\/uploads\/elementor\/css\/post-\d+\.css[^'"]*)['"]/g) || []).map((x) => x.match(/href=['"]([^'"]*)['"]/)[1]);
+    const cssUrl = cssLinks(html).find((u) => u.includes(`post-${m.docs['b1-actions']}.css`));
     const css = cssUrl ? (await request('GET', cssUrl)).text : '';
     check(s, 'B1.2', 'la regla `[hidden]` está una sola vez en el CSS del documento (0 peticiones extra)', css.split(RULE).length - 1 === 1, cssUrl || 'sin hoja del documento');
     const other = await request('GET', await url('b3-compare'));
-    const otherCss = (other.text.match(/href="([^"]*\/uploads\/elementor\/css\/post-\d+\.css[^"]*)"/g) || []).map((x) => x.match(/href="([^"]*)"/)[1]);
+    const otherCss = cssLinks(other.text);
     let leaked = false;
     for (const u of otherCss) if ((await request('GET', u)).text.includes(RULE)) leaked = true;
     check(s, 'B1.2b', 'un documento sin ocultar ni formularios condicionales no lleva la regla', !leaked, otherCss.join(' '));

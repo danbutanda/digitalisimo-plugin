@@ -91,6 +91,26 @@ const FINE = {};
   ok(t.$('[data-id="tgt0001"]').getAttribute('data-digi-actions-ready') === null, 'Sólo el disparador lleva la marca.');
 }
 
+// ---------------------------------------------------------------- Contenido clonado con la marca (popup de PRO).
+// PRO vuelve a crear el popup desde su HTML guardado en cada apertura (`jQuery( this.elementHTML )`, elements-handlers.js
+// `showModal()`): el clon trae `data-digi-actions-ready` pero no está enlazado. `element_ready/global` lo enlaza (f7b.sh, B1.7b).
+{
+  const rows = [{ t: 'click', a: 'popup_close' }];
+  const inner = `<div class="elementor-element elementor-element-cls0001 elementor-widget elementor-widget-button" data-id="cls0001" data-digi-actions="${attr(rows)}" data-digi-actions-ready=""><a class="elementor-button" href="#"><span>Cerrar</span></a></div>`;
+  const t = boot({ html: '<div id="modal"></div>' });
+  // Después del arranque, como `modal.setMessage( jQuery( this.elementHTML ) )`.
+  t.$('#modal').innerHTML = `<div data-elementor-type="popup" data-elementor-id="27" class="elementor elementor-27">${inner}</div>`;
+  const clone = t.$('[data-id="cls0001"]');
+  t.ev(clone.querySelector('span'), 'click');
+  ok(t.calls.actions.length === 0, 'Un clon con la marca que nadie enlazó no actúa todavía.');
+  t.calls.hooks['frontend/element_ready/global'][0]([clone]);
+  t.ev(clone.querySelector('span'), 'click');
+  ok(t.calls.actions.length === 1 && t.calls.actions[0][0].action === 'popup:close', 'element_ready/global enlaza el clon aunque traiga la marca: «Cerrar popup» funciona.');
+  t.calls.hooks['frontend/element_ready/global'][0]([clone]);
+  t.ev(clone.querySelector('span'), 'click');
+  ok(t.calls.actions.length === 2, 'Y un segundo element_ready no lo enlaza dos veces (una acción por clic).');
+}
+
 // ---------------------------------------------------------------- Envoltorio-botón: clic, Intro, Espacio, aria y foco.
 {
   const rows = [{ t: 'click', a: 'toggle', g: 'tgt0001' }];
