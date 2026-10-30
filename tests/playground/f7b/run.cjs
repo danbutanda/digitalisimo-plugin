@@ -230,9 +230,15 @@ async function shot(page, name) {
 async function openEditor(jar, id, { width = 1640, height = 1000 } = {}) {
   const ctx = await context(jar);
   const page = await newPage(ctx, { width, height });
+  const t0 = Date.now();
+  const lap = (what) => log(`       · editor ${id}: ${what} a los ${Math.round((Date.now() - t0) / 1000)} s`);
+  const slow = [];
+  page.on('response', (r) => { const t = r.timing && r.timing(); const ms = t ? Math.round(t.receiveHeadersEnd) : 0; if (ms > 20000) slow.push(`${ms} ms ${r.url().replace(BASE, '').slice(0, 120)}`); });
   try {
     await page.goto(`${BASE}/wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+    lap('HTML del editor');
     await page.waitForSelector('#elementor-panel', { timeout: 180000 });
+    lap('panel');
   } catch (e) {
     await shot(page, `editor-${id}-error`);
     const where = page.url();
@@ -241,7 +247,10 @@ async function openEditor(jar, id, { width = 1640, height = 1000 } = {}) {
   }
   const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
   await frame.waitForSelector('.elementor-element', { timeout: 180000 }).catch(() => {});
+  lap('vista previa');
   await page.waitForFunction(() => { const l = document.querySelector('#elementor-loading'); return window.elementor && window.$e && (!l || getComputedStyle(l).display === 'none'); }, { timeout: 300000 }).catch(() => {});
+  lap('listo');
+  if (slow.length) log(`       · peticiones lentas del editor ${id}: ${slow.slice(0, 5).join(' | ')}`);
   await sleep(2500);
   return { ctx, page, frame, facts: page.facts, close: () => ctx.close().catch(() => {}) };
 }
