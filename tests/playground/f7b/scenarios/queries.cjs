@@ -160,8 +160,16 @@ module.exports = (api) => {
       await sleep(1200);
       const undone = await editorSettings(ed, 'b4loop1');
       check(s, 'B4.1d', 'un solo «Deshacer» devuelve el vínculo y los ajustes anteriores', undone && undone.digitalisimo_saved_query === String(m.queries['q-basic']) && undone.post_query_orderby !== 'post_title', JSON.stringify({ history, q: undone && undone.digitalisimo_saved_query, ob: undone && undone.post_query_orderby }));
-      await ed.page.evaluate(() => window.$e.run('document/history/redo'));
-      await sleep(800);
+      // Otra vez «Desvincular» (y no «Rehacer»: el «Rehacer» del núcleo refresca el panel y es otra comprobación, B4.1i).
+      await selectElement(ed, 'b4loop1');
+      await activateSection(ed, 'section_query', 'content');
+      await ed.page.waitForFunction(() => { const b = document.querySelector('#elementor-panel [data-digi-sq-summary]'); return b && b.textContent.trim() && !/Cargando/.test(b.textContent); }, { timeout: 60000 }).catch(() => {});
+      await ed.page.click('.elementor-control-digitalisimo_saved_query_unlink button');
+      await visibleDialog();
+      await clickVisible('#digitalisimo-saved-query-unlink .dialog-confirm-ok, #digitalisimo-saved-query-unlink .dialog-ok');
+      await sleep(2500);
+      const again = await editorSettings(ed, 'b4loop1');
+      check(s, 'B4.1i', 'desvincular otra vez tras deshacer deja los términos copiados (el panel se vuelve a abrir y los carga)', again && again.digitalisimo_saved_query === '' && (again.post_query_include_term_ids || []).map(String).includes(String(m.tt['digi-f7b-a'])), JSON.stringify(again && { q: again.digitalisimo_saved_query, terms: again.post_query_include_term_ids }));
       // La consulta con relación avisa de que los resultados cambiarán.
       await selectElement(ed, 'b4loop2');
       await activateSection(ed, 'section_query', 'content');
@@ -179,7 +187,7 @@ module.exports = (api) => {
       const find = (els, id) => { for (const e of els || []) { if (e.id === id) return e; const f = find(e.elements, id); if (f) return f; } return null; };
       const l1 = find(data.elements, 'b4loop1');
       const l2 = find(data.elements, 'b4loop2');
-      check(s, 'B4.1f', 'guardar y recargar: el primero queda desvinculado con sus ajustes; el segundo (cancelado) sigue vinculado', saved.ok && l1 && !l1.settings.digitalisimo_saved_query && l1.settings.post_query_orderby === 'post_title' && l2 && l2.settings.digitalisimo_saved_query === String(m.queries['q-cat']), JSON.stringify({ saved, l1: l1 && l1.settings, l2: l2 && l2.settings.digitalisimo_saved_query }));
+      check(s, 'B4.1f', 'guardar y recargar: el primero queda desvinculado con sus ajustes; el segundo (cancelado) sigue vinculado', saved.ok && l1 && !l1.settings.digitalisimo_saved_query && l1.settings.post_query_orderby === 'post_title' && (l1.settings.post_query_include_term_ids || []).map(String).includes(String(m.tt['digi-f7b-a'])) && l2 && l2.settings.digitalisimo_saved_query === String(m.queries['q-cat']), JSON.stringify({ saved, l1: l1 && l1.settings, l2: l2 && l2.settings.digitalisimo_saved_query }));
       const front = await open(await url('b4-unlink'));
       const ids1 = loopIds(front.html, 'b4loop1');
       const base = await open(await url('b3-compare'));

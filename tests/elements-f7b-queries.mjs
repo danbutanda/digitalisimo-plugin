@@ -192,7 +192,7 @@ const list = {
 {
   const env = setup();
   const settings = settingsModel({ digitalisimo_saved_query: '5', _skin: 'cards', cards_posts_per_page: 12 });
-  const container = { settings, model: { get: (key) => (key === 'widgetType' ? 'posts' : null) } };
+  const container = { settings, model: { get: (key) => (key === 'widgetType' ? 'posts' : null) }, view: { el: 'vista' } };
   env.channel['digitalisimo:queries:unlink'][0]({ container });
   ok(env.requests.length === 1 && env.requests[0].action === 'digitalisimo_f7b_query_settings' && env.requests[0].options.data.id === '5', 'Lee los ajustes con digitalisimo_f7b_query_settings { id }.');
   ok(env.runs.length === 0 && env.dialogs.length === 0, 'Nada cambia antes de la respuesta.');
@@ -208,9 +208,12 @@ const list = {
   ok(message.includes('Los resultados cambiarán.') && message.includes('&lt;b&gt;') && !message.includes('<b>'), 'Avisa de que los resultados cambian (contexto o relación) y escapa el texto.');
   ok(env.runs.length === 0, 'Sin confirmar, nada.');
   env.dialogs[0].options.onConfirm();
-  ok(env.runs.length === 1 && env.runs[0].command === 'document/elements/settings', 'Confirmar: un único $e.run( document/elements/settings ).');
+  ok(env.runs.filter((r) => r.command === 'document/elements/settings').length === 1 && env.runs[0].command === 'document/elements/settings', 'Confirmar: un único $e.run( document/elements/settings ) (un solo registro de historial).');
   const args = env.runs[0].args;
-  ok(args.container === container && args.options.external === true, 'Sobre el contenedor del widget, refrescando el panel.');
+  // Sin `external`: refrescar los controles abiertos hacía que los de consulta de PRO (select2) descartaran los IDs y
+  // guardaran la lista vacía con un registro por control (f7b.sh, B4.1c/B4.1d). El panel se vuelve a abrir.
+  ok(args.container === container && !(args.options && args.options.external), 'Sobre el contenedor del widget, sin refrescar los controles abiertos.');
+  ok(env.runs.length === 2 && env.runs[1].command === 'panel/editor/open' && env.runs[1].args.model === container.model && env.runs[1].args.view === container.view, 'Después vuelve a abrir el panel del widget (carga los controles de consulta como al abrirlo).');
   const copied = args.settings;
   ok(copied.posts_post_type === 'post' && copied.posts_orderby === 'post_title' && copied.posts_order === 'asc', 'Copia el tipo y el orden con el prefijo del grupo.');
   ok(Array.isArray(copied.posts_include_term_ids) && copied.posts_include_term_ids.join() === '11,12' && typeof copied.posts_include_term_ids[0] === 'string', 'Las listas de IDs como texto (lo que guarda el control de consulta).');
