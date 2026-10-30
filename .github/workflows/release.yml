@@ -312,6 +312,7 @@ jobs:
           php tests/elements-f7b-forms.php
           node tests/elements-f7b-forms.mjs
           node tests/elements-f7b-forms-chrome.mjs
+          php tests/elements-f7b-kit.php
       - name: Seleccionar plugins modificados
         id: modules
         env:

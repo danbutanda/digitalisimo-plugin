@@ -226,7 +226,11 @@
      { "c": "w3s0001", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "w3h0001", "s": { "title": "Opinión uno" } }, { "w": "button", "id": "w3b0001", "s": { "text": "Leer uno", "link": { "url": "#o1" } } } ] },
      { "c": "w3s0002", "s": { "content_width": "full", "min_height": { "unit": "px", "size": 240, "sizes": [] } }, "e": [ { "w": "heading", "id": "w3h0002", "s": { "title": "Opinión dos" } }, { "w": "button", "id": "w3b0002", "s": { "text": "Leer dos", "link": { "url": "#o2" } } } ] },
      { "c": "w3s0003", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "w3h0003", "s": { "title": "Opinión tres" } }, { "w": "button", "id": "w3b0003", "s": { "text": "Leer tres", "link": { "url": "#o3" } } } ] } ] },
-    { "w": "heading", "id": "b11aft1", "s": { "title": "Después de los sliders" } }
+    { "w": "heading", "id": "b11aft1", "s": { "title": "Después de los sliders" } },
+    { "w": "nested-tabs", "id": "b11ctl1", "s": { "tabs": [ { "_id": "c1", "tab_title": "Control uno" }, { "_id": "c2", "tab_title": "Control dos" }, { "_id": "c3", "tab_title": "Control tres" } ] }, "e": [
+     { "c": "b11cc01", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11ch01", "s": { "title": "Control panel uno" } } ] },
+     { "c": "b11cc02", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11ch02", "s": { "title": "Control panel dos" } } ] },
+     { "c": "b11cc03", "s": { "content_width": "full" }, "e": [ { "w": "heading", "id": "b11ch03", "s": { "title": "Control panel tres" } } ] } ] }
    ] } ] },
   "b11-nested": { "type": "page", "title": "B11 · pestañas y acordeón con presentación", "elements": [
    { "c": "b11c002", "s": { "flex_direction": "column" }, "e": [

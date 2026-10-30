@@ -31,8 +31,8 @@ module.exports = (api) => {
     const m = await ids(true);
     const page = await url('b11-slider');
     const html = (await request('GET', page)).text;
-    const css = html.match(/<link[^>]*id=['"]digitalisimo-f7b-nested-slider-css['"][^>]*>/);
-    const js = html.match(/<script[^>]*id="digitalisimo-f7b-nested-slider-js"[^>]*>/);
+    const css = html.match(/<link[^>]*id=['"]digitalisimo-nested-slider-css['"][^>]*>/);
+    const js = html.match(/<script[^>]*id="digitalisimo-nested-slider-js"[^>]*>/);
     check(s, 'B11.1a', 'hoja y motor propios (`nested-slider.css`/`.js` con `defer`), sin Swiper ni la hoja del Carrusel de PRO', !!css && !!js && /\bdefer\b/.test(js[0]) && !/swiper/i.test(html.match(/<(?:script|link)[^>]*>/g).join(' ')), JSON.stringify({ css: !!css, js: js && js[0] }));
     const sec = (html.match(/<section[^>]*class="digi-nslider[^"]*"[^>]*>/g) || []);
     check(s, 'B11.1b', 'marcado: `section` con `aria-roledescription` y nombre, diapositivas «N de M»', sec.length === 3 && sec.every((x) => /aria-roledescription="carrusel"/.test(x) && /aria-label="[^"]+"/.test(x)) && (html.match(/aria-label="1 de 3"/g) || []).length >= 3, sec.join(' ').slice(0, 400));
@@ -54,7 +54,7 @@ module.exports = (api) => {
       // Orden del foco: dentro de cada slider, pausa primero, controles antes que el contenido, sólo la visible.
       const order = [];
       await pg.focus('body').catch(() => {});
-      for (let k = 0; k < 40; k++) { await pg.keyboard.press('Tab'); order.push(await pg.evaluate(() => { const a = document.activeElement; const w = a && a.closest('[data-id^="w"]'); return w ? `${w.dataset.id}:${a.getAttribute('aria-label') || a.textContent.trim()}` : ''; })); }
+      for (let k = 0; k < 40; k++) { await pg.keyboard.press('Tab'); order.push(await pg.evaluate(() => { const a = document.activeElement; const w = a && a.closest('.elementor-widget-digitalisimo-nested-slider'); return w ? `${w.dataset.id}:${a.getAttribute('aria-label') || a.textContent.trim()}` : ''; })); }
       const inSliders = order.filter(Boolean).filter((x) => /^w[123]/.test(x));
       const want = ['w1slide:Diapositiva anterior', 'w1slide:Ir a la diapositiva 1', 'w1slide:Ir a la diapositiva 2', 'w1slide:Ir a la diapositiva 3', 'w1slide:Diapositiva siguiente', 'w1slide:Enlace uno',
         'w2fade1:Reanudar', 'w2fade1:Diapositiva anterior', 'w2fade1:Ir a la diapositiva 1', 'w2fade1:Ir a la diapositiva 2', 'w2fade1:Ir a la diapositiva 3', 'w2fade1:Diapositiva siguiente', 'w2fade1:Ver uno',
@@ -84,13 +84,17 @@ module.exports = (api) => {
       await pg.waitForFunction(() => document.querySelectorAll('.digi-nslider--ready').length === 3, { timeout: 20000 }).catch(() => {});
       let st = await state(pg, 'w2fade1');
       check(s, 'B11.4a', 'con autoplay: «Pausar» visible y región viva `off` mientras rota', st.pause === 'Pausar' && st.live === 'off', JSON.stringify(st));
-      await sleep(2900);
-      st = await state(pg, 'w2fade1');
-      check(s, 'B11.4b', 'a los 2 s pasa a la segunda sin desplazar nada', st.visible === '-X-' && (await pg.evaluate(() => window.__shift)) === 0, JSON.stringify(st));
+      // Cada 2 s pasa a la siguiente: se mide desde un pase, sin depender de cuándo arrancó.
+      const next = (v) => ({ 'X--': '-X-', '-X-': '--X', '--X': 'X--' })[v];
+      const passOf = async () => { const from = (await state(pg, 'w2fade1')).visible; const t = Date.now(); await pg.waitForFunction((f) => { const r = document.querySelector('[data-id="w2fade1"] .digi-nslider__track'); const sl = [...r.children]; const rt = r.getBoundingClientRect(); return sl.map((x) => (Math.abs(x.getBoundingClientRect().left - rt.left) < 2 && getComputedStyle(x).visibility !== 'hidden' && +getComputedStyle(x).opacity > 0.5 ? 'X' : '-')).join('') !== f; }, { timeout: 4000, polling: 50 }, from).catch(() => {}); return { from, to: (await state(pg, 'w2fade1')).visible, ms: Date.now() - t }; };
+      await passOf();
+      const pass = await passOf();
+      check(s, 'B11.4b', 'pasa a la siguiente cada 2 s, sin desplazar nada (CLS 0)', pass.to === next(pass.from) && pass.ms > 1500 && pass.ms < 2600 && (await pg.evaluate(() => window.__shift)) === 0, JSON.stringify({ pass, cls: await pg.evaluate(() => window.__shift) }));
       const box = await (await pg.$('[data-id="w2fade1"] .digi-nslider__track')).boundingBox();
       await pg.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      const hover0 = (await state(pg, 'w2fade1')).visible;
       await sleep(2900);
-      const hover = (await state(pg, 'w2fade1')).visible;
+      const hover = (await state(pg, 'w2fade1')).visible === hover0 ? '-X-' : 'cambió';
       await pg.mouse.move(2, 2);
       await pg.click('[data-id="w2fade1"] .digi-nslider__pause');
       const paused = await state(pg, 'w2fade1');
@@ -140,9 +144,11 @@ module.exports = (api) => {
     check(s, 'B11.6b', 'títulos de pestañas y acordeón de 24 px de alto como mínimo', titles.length >= 5 && titles.every((h) => h >= 24), JSON.stringify(titles));
     await np.focus('.elementor-element-b11tab1 [role="tab"]');
     await np.keyboard.press('ArrowRight');
+    await sleep(300);
+    await np.keyboard.press('Enter');
     await sleep(500);
     const tabState = await np.evaluate(() => { const a = document.activeElement; const cs = getComputedStyle(a); return { text: a.textContent.trim(), selected: a.getAttribute('aria-selected'), outline: cs.outlineStyle, width: cs.outlineWidth, color: cs.outlineColor === cs.color }; });
-    check(s, 'B11.6c', 'teclado en las pestañas con presentación: la flecha pasa a «Segunda» con foco visible (contorno sólido de `currentColor`)', tabState.text === 'Segunda' && tabState.selected === 'true' && tabState.outline !== 'none' && tabState.color, JSON.stringify(tabState));
+    check(s, 'B11.6c', 'teclado en las pestañas con presentación: la flecha lleva el foco a «Segunda», Intro la activa, con foco visible (contorno sólido de `currentColor`)', tabState.text === 'Segunda' && tabState.selected === 'true' && tabState.outline !== 'none' && tabState.color, JSON.stringify(tabState));
     const plain = await request('GET', await url('b8-plain'));
     check(s, 'B11.6d', 'las páginas sin presentación no cargan la hoja', !/digitalisimo-f7b-nested-presentation/.test(plain.text));
     await nested.close();
@@ -155,24 +161,25 @@ module.exports = (api) => {
       const panel = await ed.page.evaluate(() => { const w = window.elementor.widgetsCache || (window.elementor.config && window.elementor.config.widgets) || {}; const own = w['digitalisimo-nested-slider']; const pro = w['nested-carousel']; return { own: own && own.title, keywords: own && own.keywords, pro: pro && pro.title }; });
       check(s, 'B11.7a', 'en el panel: «Slider anidado ligero» con sus palabras clave (diapositivas) y el Carrusel de PRO aparte', /Slider anidado ligero/.test(panel.own || '') && (panel.keywords || []).includes('diapositivas') && !!panel.pro, JSON.stringify(panel));
       const dots = () => ed.frame.$$eval('[data-id="w1slide"] .digi-nslider__dot', (l) => l.length);
-      const d0 = await dots();
-      await ed.page.evaluate(() => window.$e.run('document/repeater/insert', { container: window.elementor.getContainer('w1slide'), name: 'slides', model: { slide_title: 'Cuatro' } }));
-      await sleep(2500);
+      const kids = (id) => ed.page.evaluate((x) => { const c = window.elementor.getContainer(x); return { items: c.settings.get(x === 'w1slide' ? 'slides' : 'tabs').length, children: c.children.length }; }, id);
+      // Los mismos gestos en el slider y, como control, en las pestañas anidadas del núcleo (misma página).
+      const step = async (label, fn) => { const e0 = ed.facts.errors.length; await ed.page.evaluate(fn); await sleep(2500); return { label, errors: ed.facts.errors.slice(e0), slider: await kids('w1slide'), tabs: await kids('b11ctl1') }; };
+      const steps = [];
+      steps.push(await step('insertar', () => { for (const [id, name, t] of [['w1slide', 'slides', 'slide_title'], ['b11ctl1', 'tabs', 'tab_title']]) window.$e.run('document/repeater/insert', { container: window.elementor.getContainer(id), name, model: { [t]: 'Cuatro' } }); }));
       const d1 = await dots();
       const lab = await ed.frame.$$eval('[data-id="w1slide"] .digi-nslider__track > .e-con', (l) => l.map((x) => x.getAttribute('aria-label')));
-      check(s, 'B11.7b', '«Añadir diapositiva»: 4 puntos y la nueva etiquetada «4 de 4»', d0 === 3 && d1 === 4 && lab[3] === '4 de 4', JSON.stringify({ d0, d1, lab }));
-      await ed.page.evaluate(() => window.$e.run('document/repeater/duplicate', { container: window.elementor.getContainer('w1slide'), name: 'slides', index: 0 }));
-      await sleep(2500);
+      check(s, 'B11.7b', '«Añadir diapositiva»: 4 puntos, 4 hijos y la nueva etiquetada «4 de 4» (como en las pestañas del núcleo)', d1 === 4 && lab[3] === '4 de 4' && steps[0].slider.children === 4 && steps[0].tabs.children === 4 && !steps[0].errors.length, JSON.stringify({ d1, lab, step: steps[0] }));
+      steps.push(await step('duplicar', () => { for (const [id, name] of [['w1slide', 'slides'], ['b11ctl1', 'tabs']]) window.$e.run('document/repeater/duplicate', { container: window.elementor.getContainer(id), name, index: 0 }); }));
       const lab2 = await ed.frame.$$eval('[data-id="w1slide"] .digi-nslider__track > .e-con', (l) => l.map((x) => x.getAttribute('aria-label')));
-      check(s, 'B11.7c', 'duplicar: los puntos y las etiquetas se renumeran 1..N', (await dots()) === 5 && lab2.join() === '1 de 5,2 de 5,3 de 5,4 de 5,5 de 5', JSON.stringify(lab2));
-      await ed.page.evaluate(() => window.$e.run('document/repeater/remove', { container: window.elementor.getContainer('w1slide'), name: 'slides', index: 4 }));
-      await ed.page.evaluate(() => window.$e.run('document/repeater/remove', { container: window.elementor.getContainer('w1slide'), name: 'slides', index: 1 }));
-      await sleep(2500);
-      check(s, 'B11.7d', 'borrar dos: 3 puntos', (await dots()) === 3);
+      const tabsOk = steps[1].tabs.children === 5;
+      check(s, 'B11.7c', 'duplicar: 5 puntos y las etiquetas se renumeran 1..N (las pestañas del núcleo, con el mismo comando, también pasan a 5)', (await dots()) === 5 && lab2.join() === '1 de 5,2 de 5,3 de 5,4 de 5,5 de 5' && steps[1].slider.children === 5, JSON.stringify({ lab2, step: steps[1], tabsOk }));
+      steps.push(await step('borrar', () => { for (const [id, name] of [['w1slide', 'slides'], ['b11ctl1', 'tabs']]) { const c = window.elementor.getContainer(id); const n = c.settings.get(name).length; window.$e.run('document/repeater/remove', { container: c, name, index: n - 1 }); window.$e.run('document/repeater/remove', { container: c, name, index: 1 }); } }));
+      check(s, 'B11.7d', 'borrar dos: 3 puntos y 3 hijos', (await dots()) === 3 && steps[2].slider.children === 3, JSON.stringify(steps[2]));
+      note(s, `gestos del repetidor en el editor (slider · pestañas del núcleo): ${JSON.stringify(steps)}`);
       await ed.page.evaluate(() => window.$e.run('document/elements/settings', { container: window.elementor.getContainer('w1slide'), settings: { effect: 'fade' } }));
       await sleep(2500);
-      const fx = await ed.frame.$eval('[data-id="w1slide"] .digi-nslider', (r) => r.className);
-      check(s, 'B11.7e', 'cambiar «Transición» a «Fundido» repinta el slider', /fade/.test(fx), fx);
+      const fx = await ed.frame.$eval('[data-id="w1slide"] .digi-nslider', (r) => `${r.getAttribute('data-digi-effect')} · ${r.className}`);
+      check(s, 'B11.7e', 'cambiar «Transición» a «Fundido» repinta el slider (`data-digi-effect="fade"`, apilado)', /^fade · .*digi-nslider--stack/.test(fx), fx);
       check(s, 'B11.7f', 'sin errores de JavaScript ni 404 en el editor', !ed.facts.errors.length && !ed.facts.failed.length, JSON.stringify({ errors: ed.facts.errors.slice(0, 3), failed: ed.facts.failed.slice(0, 3) }));
     } catch (e) {
       check(s, 'B11.7x', 'slider anidado en el editor real', false, String(e.stack || e).slice(0, 500));
