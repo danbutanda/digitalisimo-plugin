@@ -2761,10 +2761,823 @@
   ]
  },
  "f7b-action": {
-  "title": "Acción «abrir popup» de _digitalisimo_actions (contrato para F7b)",
+  "title": "Acciones con destino (F7b, frente B): «abrir popup» de _digitalisimo_actions con la puerta de PRO activa y un popup sin condiciones; con CACHE=1, la visita servida desde la caché de elementos",
+  "since": "4.3.0.169",
+  "runtime": "La acción pide los paquetes de PRO al pintar el elemento (Pro_Gate::require( 'f7b-action' )) y al imprimir cada documento, también desde la caché de elementos: no es una cadena de los datos que Pro_Gate::walk() pueda ver.",
+  "widgets": [
+   {
+    "type": "button",
+    "id": "fba0001",
+    "settings": {
+     "text": "Abrir popup",
+     "link": {
+      "url": "#"
+     },
+     "_digitalisimo_actions_on": "yes",
+     "_digitalisimo_actions": [
+      {
+       "_id": "a1",
+       "trigger": "click",
+       "action": "popup_open",
+       "popup_id": "__POPUP__"
+      }
+     ]
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "popup",
+    "type": "popup",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Popup de medición F7b"
+      }
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "actions-js": "/digitalisimo-f7b/assets/js/actions\\.js"
+  },
+  "counts": {
+   "popupDoc": "[data-elementor-type=\"popup\"]",
+   "ready": "[data-digi-actions-ready]"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".elementor-element-fba0001 a"
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": true,
+    "proFrontend": true,
+    "reason": "require:f7b-action",
+    "count:popupDoc": 1,
+    "count:ready": 1,
+    "asset:actions-js": "<=6144",
+    "after": {
+     "popupShown": true
+    }
+   }
+  }
+ },
+ "f7b-hidden-initial": {
+  "title": "«Oculto al cargar» (F7b, frente B): el destino sale oculto del servidor con su <noscript> y la regla [hidden] en el CSS del documento; mostrarlo no desplaza nada",
+  "since": "4.3.0.169",
+  "widgets": [
+   {
+    "type": "button",
+    "id": "fbh0001",
+    "settings": {
+     "text": "Mostrar",
+     "link": {
+      "url": "#"
+     },
+     "_digitalisimo_actions_on": "yes",
+     "_digitalisimo_actions": [
+      {
+       "_id": "a1",
+       "trigger": "click",
+       "action": "toggle",
+       "target_kind": "element",
+       "target": "fbh0002"
+      }
+     ]
+    }
+   },
+   {
+    "elType": "container",
+    "id": "fbh0002",
+    "settings": {
+     "_digitalisimo_hidden_initial": "yes"
+    },
+    "elements": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Contenido oculto al cargar"
+      }
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "actions-js": "/digitalisimo-f7b/assets/js/actions\\.js"
+  },
+  "counts": {
+   "hidden": ".elementor-element-fbh0002[hidden]",
+   "noscript": ".elementor-element-fbh0002 > noscript"
+  },
+  "cssCount": {
+   "hiddenRule": ":is\\(\\.elementor-element,\\.elementor-column\\)\\[hidden\\]\\{display:none!important\\}"
+  },
+  "visible": {
+   "target": ".elementor-element-fbh0002"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".elementor-element-fbh0001 a"
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "count:hidden": 1,
+    "count:noscript": 1,
+    "shown:target": false,
+    "css:hiddenRule": 1,
+    "delta.cls": "<=0.01",
+    "asset:actions-js": "<=6144",
+    "after": {
+     "count:hidden": 0,
+     "shown:target": true
+    }
+   }
+  }
+ },
+ "f7b-loop-in-loop": {
+  "title": "Bucle en bucle (F7b, frente C): Loop Grid cuya plantilla lleva otro Loop Grid con una consulta guardada «mismo autor» y contexto actual (0 bytes y 0 handles nuevos; consultas SQL frente a f7b-loop-in-loop-base)",
+  "since": "4.3.0.169",
+  "queries": {
+   "fb-autor": {
+    "title": "Medición · del mismo autor",
+    "settings": {
+     "post_type": "post",
+     "orderby": "post_date",
+     "order": "desc"
+    },
+    "relation": "author",
+    "context": "current",
+    "limits": {
+     "per_page": 3
+    }
+   }
+  },
+  "widgets": [
+   {
+    "type": "loop-grid",
+    "id": "fbll001",
+    "settings": {
+     "template_id": "__DOC:outer__",
+     "posts_per_page": 3,
+     "columns": 1
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "inner",
+    "type": "loop-item",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Interior",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "key": "outer",
+    "type": "loop-item",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Exterior",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     },
+     {
+      "type": "loop-grid",
+      "id": "fbll002",
+      "settings": {
+       "template_id": "__DOC:inner__",
+       "posts_per_page": 3,
+       "columns": 1,
+       "digitalisimo_saved_query": "__QUERY:fb-autor__"
+      }
+     }
+    ]
+   }
+  ],
+  "counts": {
+   "items": ".e-loop-item"
+  },
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proFrontend": true
+   }
+  }
+ },
+ "f7b-loop-in-loop-base": {
+  "title": "Bucle en bucle sin consulta guardada (control de f7b-loop-in-loop: el mismo árbol con el grupo de PRO en el bucle interior)",
+  "since": "4.3.0.169",
+  "widgets": [
+   {
+    "type": "loop-grid",
+    "id": "fblb001",
+    "settings": {
+     "template_id": "__DOC:outer__",
+     "posts_per_page": 3,
+     "columns": 1
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "inner",
+    "type": "loop-item",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Interior",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "key": "outer",
+    "type": "loop-item",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Exterior",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     },
+     {
+      "type": "loop-grid",
+      "id": "fblb002",
+      "settings": {
+       "template_id": "__DOC:inner__",
+       "posts_per_page": 3,
+       "columns": 1
+      }
+     }
+    ]
+   }
+  ],
+  "counts": {
+   "items": ".e-loop-item"
+  },
+  "expect": {
+   "*": {
+    "errors": 0
+   }
+  }
+ },
+ "f7b-user-tag-header": {
+  "title": "Cabecera del Theme Builder con {user:first_name|visitante} (F7b, frente I): un visitante anónimo, sin peticiones ni handles nuevos frente a tb-header-core",
+  "since": "4.3.0.169",
   "widgets": [],
-  "pending": "F7b: la acción con destino que abre un popup o un panel lateral llamará Pro_Gate::require(); hasta entonces el caso se omite.",
-  "modes": []
+  "header": true,
+  "extra": [
+   {
+    "key": "header",
+    "type": "header",
+    "conditions": [
+     "include/general"
+    ],
+    "widgets": [
+     {
+      "type": "heading",
+      "id": "fbut001",
+      "settings": {
+       "title": "Hola {user:first_name|visitante}",
+       "digitalisimo_inline_tags": "yes"
+      }
+     }
+    ]
+   }
+  ],
+  "views": [
+   "/digi-fb-empty/"
+  ],
+  "expect": {
+   "*": {
+    "proHandlers": false,
+    "proFrontend": false,
+    "headerShown": true,
+    "errors": 0
+   }
+  },
+  "modes": [
+   "theme"
+  ]
+ },
+ "f7b-inline-tags": {
+  "title": "Etiquetas dentro del texto (F7b, frente I): {post:title} y {query:plan|basico,pro} en encabezados: 0 bytes y 0 peticiones en el front",
+  "since": "4.3.0.169",
+  "widgets": [
+   {
+    "type": "heading",
+    "settings": {
+     "title": "Página: {post:title}",
+     "digitalisimo_inline_tags": "yes"
+    }
+   },
+   {
+    "type": "heading",
+    "settings": {
+     "title": "Plan: {query:plan|basico,pro}",
+     "digitalisimo_inline_tags": "yes"
+    }
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "delta.requests": "=0",
+    "delta.js": "=0"
+   }
+  }
+ },
+ "f7b-presentation": {
+  "title": "Presentación de pestañas y acordeón anidados (F7b, frente G): un solo handle más (nested-presentation.css) y la clase digi-nested-<estilo>",
+  "since": "4.3.0.169",
+  "widgets": [
+   {
+    "type": "nested-tabs",
+    "id": "fbpt001",
+    "settings": {
+     "digitalisimo_presentation": "pills",
+     "tabs": [
+      {
+       "_id": "t1",
+       "tab_title": "Uno"
+      },
+      {
+       "_id": "t2",
+       "tab_title": "Dos"
+      }
+     ]
+    },
+    "elements": [
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full"
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Panel uno"
+        }
+       }
+      ]
+     },
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full"
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Panel dos"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "nested-accordion",
+    "id": "fbpa001",
+    "settings": {
+     "digitalisimo_presentation": "boxed",
+     "items": [
+      {
+       "_id": "i1",
+       "item_title": "Pregunta uno"
+      },
+      {
+       "_id": "i2",
+       "item_title": "Pregunta dos"
+      }
+     ]
+    },
+    "elements": [
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full"
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Respuesta uno"
+        }
+       }
+      ]
+     },
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full"
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Respuesta dos"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "presentation-css": "/digitalisimo-f7b/assets/css/nested-presentation\\.css"
+  },
+  "counts": {
+   "pills": ".elementor-element-fbpt001.digi-nested-pills",
+   "boxed": ".elementor-element-fbpa001.digi-nested-boxed"
+  },
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "count:pills": 1,
+    "count:boxed": 1,
+    "asset:presentation-css": "<=4096"
+   }
+  }
+ },
+ "nested-slider": {
+  "title": "Slider anidado ligero (F7b, frente F) con tres contenedores hijos y reproducción automática: hoja y motor propios, sin Swiper, sin desplazamiento",
+  "since": "4.3.0.169",
+  "widgets": [
+   {
+    "type": "digitalisimo-nested-slider",
+    "id": "fbns001",
+    "settings": {
+     "effect": "fade",
+     "autoplay": "yes",
+     "autoplay_delay": 2000,
+     "carousel_label": "Medición",
+     "slides": [
+      {
+       "_id": "s1",
+       "slide_title": "Uno"
+      },
+      {
+       "_id": "s2",
+       "slide_title": "Dos"
+      },
+      {
+       "_id": "s3",
+       "slide_title": "Tres"
+      }
+     ]
+    },
+    "elements": [
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full"
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Diapositiva uno"
+        }
+       }
+      ]
+     },
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full",
+       "min_height": {
+        "unit": "px",
+        "size": 200,
+        "sizes": []
+       }
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Diapositiva dos"
+        }
+       }
+      ]
+     },
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full"
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Diapositiva tres"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "slider-css": "/digitalisimo-f7b/assets/css/nested-slider\\.css",
+   "slider-js": "/digitalisimo-f7b/assets/js/nested-slider\\.js"
+  },
+  "counts": {
+   "ready": ".digi-nslider--ready",
+   "slides": ".digi-nslider__track > .e-con"
+  },
+  "actions": [
+   {
+    "do": "wait",
+    "ms": 4500
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "swiper": false,
+    "proHandlers": false,
+    "count:ready": 1,
+    "count:slides": 3,
+    "asset:slider-css": "<=4096",
+    "asset:slider-js": "<=6144",
+    "delta.cls": "<=0.01",
+    "after": {
+     "cls": "<=0.01"
+    }
+   }
+  }
+ },
+ "f7b-form-conditions": {
+  "title": "Formulario con un campo condicional (F7b, frente J): estado inicial del servidor, regla [hidden] en el CSS del documento y forms-conditions.js",
+  "since": "4.3.0.169",
+  "widgets": [
+   {
+    "type": "form",
+    "id": "fbfc001",
+    "settings": {
+     "form_fields": [
+      {
+       "_id": "q1",
+       "custom_id": "tipo",
+       "field_type": "radio",
+       "field_label": "Tipo",
+       "field_options": "Persona|persona\nEmpresa|empresa",
+       "required": "true"
+      },
+      {
+       "_id": "q2",
+       "custom_id": "rfc",
+       "field_type": "text",
+       "field_label": "RFC",
+       "required": "true",
+       "digitalisimo_conditional": "yes",
+       "digitalisimo_rules": [
+        {
+         "_id": "r1",
+         "field": "tipo",
+         "operator": "is",
+         "value": "empresa"
+        }
+       ]
+      }
+     ],
+     "submit_actions": []
+    }
+   }
+  ],
+  "assets": {
+   "forms-conditions-js": "/digitalisimo-elements/modules/digitalisimo-f7b/assets/js/forms-conditions\\.js"
+  },
+  "counts": {
+   "cond": "[data-digi-cond]",
+   "hiddenGroup": ".elementor-field-group-rfc[hidden]",
+   "disabled": ".elementor-field-group-rfc input[disabled]"
+  },
+  "cssCount": {
+   "hiddenRule": ":is\\(\\.elementor-element,\\.elementor-column\\)\\[hidden\\]\\{display:none!important\\}"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": "#form-field-tipo-1"
+   },
+   {
+    "do": "wait",
+    "ms": 500
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "count:cond": 1,
+    "count:hiddenGroup": 1,
+    "count:disabled": 1,
+    "css:hiddenRule": 1,
+    "asset:forms-conditions-js": "<=3072",
+    "delta.cls": "<=0.01",
+    "after": {
+     "count:hiddenGroup": 0
+    }
+   }
+  }
+ },
+ "f7b-filters": {
+  "title": "Filtros nuevos sobre un Loop Grid de entradas (F7b, frente D): búsqueda, campo, orden y por página con la hoja propia y el coordinador de F4-Woo",
+  "since": "4.3.0.169",
+  "widgets": [
+   {
+    "type": "digitalisimo-loop-search",
+    "id": "fbfs001",
+    "settings": {
+     "destination": "loop",
+     "selected_element": "fbfl001",
+     "label": "Buscar"
+    }
+   },
+   {
+    "type": "digitalisimo-loop-meta-filter",
+    "id": "fbfm001",
+    "settings": {
+     "destination": "loop",
+     "selected_element": "fbfl001",
+     "meta_key": "__custom",
+     "meta_key_custom": "precio",
+     "value_type": "DECIMAL",
+     "mode": "range",
+     "range_min": "0",
+     "range_max": "1000"
+    }
+   },
+   {
+    "type": "digitalisimo-loop-orderby",
+    "id": "fbfo001",
+    "settings": {
+     "destination": "loop",
+     "selected_element": "fbfl001",
+     "orders": [
+      {
+       "_id": "o1",
+       "order_key": "title_asc"
+      },
+      {
+       "_id": "o2",
+       "order_key": "date_desc"
+      }
+     ]
+    }
+   },
+   {
+    "type": "digitalisimo-loop-per-page",
+    "id": "fbfp001",
+    "settings": {
+     "destination": "loop",
+     "selected_element": "fbfl001",
+     "values": "3, 6"
+    }
+   },
+   {
+    "type": "loop-grid",
+    "id": "fbfl001",
+    "settings": {
+     "template_id": "__LOOP__",
+     "posts_per_page": 6
+    }
+   }
+  ],
+  "extra": [
+   {
+    "key": "loop",
+    "type": "loop-item",
+    "widgets": [
+     {
+      "type": "heading",
+      "settings": {
+       "title": "Entrada",
+       "__dynamic__": {
+        "title": "[elementor-tag id=\"l00p001\" name=\"post-title\" settings=\"%7B%7D\"]"
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "f7b-filters-css": "/digitalisimo-filters/assets/f7b-filters\\.css",
+   "filters-js": "/digitalisimo-elements/assets/js/filters\\.js",
+   "filters-form-js": "/digitalisimo-elements/assets/js/filters-form\\.js"
+  },
+  "counts": {
+   "forms": "form.digi-filter",
+   "search": "form[role=\"search\"]"
+  },
+  "actions": [
+   {
+    "do": "mark",
+    "selector": ".e-loop-item"
+   },
+   {
+    "do": "fill",
+    "selector": ".elementor-element-fbfs001 input[type=\"search\"]",
+    "value": "medición 2"
+   },
+   {
+    "do": "click",
+    "selector": ".elementor-element-fbfs001 button[type=\"submit\"]"
+   },
+   {
+    "do": "waitChange",
+    "selector": ".e-loop-item",
+    "ms": 20000
+   },
+   {
+    "do": "wait",
+    "ms": 500
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "jquery": false,
+    "count:forms": 4,
+    "count:search": 1,
+    "asset:f7b-filters-css": "<=2048",
+    "asset:filters-js": "<=8192",
+    "asset:filters-form-js": "<=6144",
+    "after": {
+     "changed": [
+      "loopSig"
+     ]
+    }
+   }
+  }
  },
  "design-preset": {
   "title": "Presets de estilo aplanados en el CSS del documento que los usa (F7a): lo local gana",

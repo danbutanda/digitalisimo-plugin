@@ -82,6 +82,10 @@ namespace {
 		$out = array();
 		if ( preg_match_all( '/^\s*(?:abstract\s+|final\s+)*class\s+(\w+)(?:\s+extends\s+([\\\\\w]+))?/m', $code, $cm, PREG_SET_ORDER ) ) {
 			$name = preg_match( $name_pattern, $code, $nm ) ? $nm[1] : '';
+			// `get_name()` que devuelve una constante de la clase (`return self::NAME;`, el slider anidado de F7b).
+			if ( '' === $name && preg_match( '/function\s+get_name\s*\(\s*\)[^{]*\{\s*return\s+(?:self|static)::(\w+)\s*;/', $code, $cn ) && preg_match( '/const\s+' . $cn[1] . '\s*=\s*\'([^\']+)\'/', $code, $cv ) ) {
+				$name = $cv[1];
+			}
 			foreach ( $cm as $index => $class ) {
 				$out[ ( '' !== $ns ? $ns . '\\' : '' ) . $class[1] ] = array(
 					'parent' => isset( $class[2] ) && '' !== $class[2] ? $resolve( $class[2] ) : '',
@@ -100,8 +104,9 @@ namespace {
 	$sources     = array(
 		'pro'      => array( glob( $elements . '/modules/*/widgets/*.php' ), $get_name ),
 		'pro-sub'  => array( glob( $elements . '/modules/*/widgets/*/*.php' ), $get_name ),
-		'own'      => array( array_merge( glob( $elements . '/modules/digitalisimo-widgets/*.php' ), glob( $elements . '/modules/digitalisimo-*/class-widget*.php' ), glob( $elements . '/modules/digitalisimo-woo/*/class-*widget*.php' ) ), $get_name ),
-		'core'     => array( glob( $elements . '/elementor/includes/widgets/*.php' ), $get_name ),
+		'own'      => array( array_merge( glob( $elements . '/modules/digitalisimo-widgets/*.php' ), glob( $elements . '/modules/digitalisimo-*/class-widget*.php' ), glob( $elements . '/modules/digitalisimo-woo/*/class-*widget*.php' ), glob( $elements . '/modules/digitalisimo-filters/class-*widget*.php' ), glob( $elements . '/modules/digitalisimo-f7b/*/class-*widget*.php' ) ), $get_name ),
+		// Núcleo: los widgets de `includes/widgets/` y los de sus módulos (pestañas y acordeón anidados, F7b).
+		'core'     => array( array_merge( glob( $elements . '/elementor/includes/widgets/*.php' ), glob( $elements . '/elementor/modules/*/widgets/*.php' ) ), $get_name ),
 		'atomic'   => array( glob( $elements . '/elementor/modules/atomic-widgets/elements/*/*.php' ), $get_type ),
 	);
 	foreach ( $sources as $origin => $source ) {
