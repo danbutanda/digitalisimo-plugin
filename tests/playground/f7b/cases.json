@@ -33,6 +33,12 @@
     { "w": "loop-grid", "id": "b3innr1", "s": { "template_id": "__ID:f7b-loop-mini__", "posts_per_page": 5, "columns": 1, "digitalisimo_saved_query": "__QID:q-author__" } }
    ] } ] },
 
+  "f7b-loop-nested-pro": { "type": "loop-item", "title": "F7b · bucle con bucle del grupo de PRO", "elements": [
+   { "c": "lnp0001", "s": {}, "e": [
+    { "w": "theme-post-title", "id": "lnpt001", "s": { "header_size": "h3" } },
+    { "w": "loop-grid", "id": "b3innp1", "s": { "template_id": "__ID:f7b-loop-mini__", "posts_per_page": 2, "columns": 1, "post_query_post_type": "post", "post_query_orderby": "post_title", "post_query_order": "asc" } }
+   ] } ] },
+
   "b1-popup": { "type": "popup", "title": "B1 · popup sin condiciones", "elements": [
    { "c": "b1ppc01", "s": {}, "e": [
     { "w": "heading", "id": "b1pph01", "s": { "title": "Popup F7b" } },
@@ -99,6 +105,8 @@
    ] } ] },
   "b3-nested": { "type": "page", "title": "B3 · bucle en bucle", "elements": [
    { "c": "b3nc001", "s": {}, "e": [ { "w": "loop-grid", "id": "b3outer", "s": { "template_id": "__ID:f7b-loop-nested__", "posts_per_page": 4, "columns": 1, "post_query_post_type": "post", "post_query_orderby": "post_date", "post_query_order": "desc" } } ] } ] },
+  "b3-nested-pro": { "type": "page", "title": "B3 · bucle en bucle sin consulta guardada (control)", "elements": [
+   { "c": "b3np001", "s": {}, "e": [ { "w": "loop-grid", "id": "b3outp1", "s": { "template_id": "__ID:f7b-loop-nested-pro__", "posts_per_page": 4, "columns": 1, "post_query_post_type": "post", "post_query_orderby": "post_date", "post_query_order": "desc" } } ] } ] },
   "b3-ctx": { "type": "page", "title": "B3 · contexto raíz con filtro", "author": "admin", "elements": [
    { "c": "b3xc001", "s": { "flex_direction": "column" }, "e": [
     { "w": "digitalisimo-loop-search", "id": "b3xsrc1", "s": { "destination": "loop", "selected_element": "b3xloop", "label": "Buscar en las entradas" } },
@@ -111,6 +119,9 @@
     { "w": "loop-grid", "id": "b4loop1", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "digitalisimo_saved_query": "__QID:q-basic__" } },
     { "w": "loop-grid", "id": "b4loop2", "s": { "template_id": "__ID:f7b-loop__", "posts_per_page": 10, "digitalisimo_saved_query": "__QID:q-cat__" } }
    ] } ] },
+
+  "b4-free": { "type": "section", "title": "B4 · plantilla sin usos (se borra)", "elements": [
+   { "c": "b4fc001", "s": {}, "e": [ { "w": "heading", "id": "b4fh001", "s": { "title": "Plantilla libre" } } ] } ] },
 
   "b5-filters": { "type": "page", "title": "B5 · filtros nuevos", "elements": [
    { "c": "b5c0001", "s": { "flex_direction": "column" }, "e": [

@@ -101,10 +101,10 @@ module.exports = (api) => {
       check(s, 'B1.5b', 'Intro abre el panel; `aria-expanded` y `aria-controls` en el control (no en un div), con `id` asignado al destino', aria0.exp === 'false' && aria1.exp === 'true' && aria1.target === 'b1pan01' && await visible(pg, 'b1pan01'), JSON.stringify({ aria0, aria1 }));
       const t2 = await tabTo(pg, /^a@b1cls01$/, 3);
       check(s, 'B1.5c', 'el siguiente Tab entra en el panel abierto («Cerrar panel»)', t2.ok, JSON.stringify(t2));
-      await pg.keyboard.press(' ');
+      await pg.keyboard.press('Enter');
       await sleep(150);
       const back = await active(pg);
-      check(s, 'B1.5d', 'Espacio en «Cerrar panel» oculta el panel y el foco vuelve al control que lo abre', !(await visible(pg, 'b1pan01')) && back === 'a@b1btn01', back);
+      check(s, 'B1.5d', 'Intro en «Cerrar panel» (dentro de lo que oculta) oculta el panel y el foco vuelve al control que lo abre', !(await visible(pg, 'b1pan01')) && back === 'a@b1btn01', back);
       const t3 = await tabTo(pg, /^div@b1hov01$/, 5);
       check(s, 'B1.5e', 'el contenedor con `hover` recibe el foco y muestra su destino (foco = puntero)', t3.ok && await visible(pg, 'b1tip01'), JSON.stringify(t3));
       await pg.keyboard.press('Escape');
@@ -162,9 +162,18 @@ module.exports = (api) => {
       const popupShown = await pg.waitForFunction((id) => { const m = document.querySelector(`#elementor-popup-modal-${id}`); return m && getComputedStyle(m).display !== 'none' && /Popup F7b/.test(m.textContent); }, { timeout: 8000 }, popupId).then(() => true).catch(() => false);
       check(s, 'B1.7a', '«Abrir popup» abre el popup sin condiciones (urlActions del núcleo)', popupShown);
       if (popupShown) {
+        await sleep(1200);
+        const diag = await pg.evaluate((id) => {
+          const btn = document.querySelector(`#elementor-popup-modal-${id} .elementor-element-b1ppcl1`);
+          const a = btn && btn.querySelector('a');
+          const r = a && a.getBoundingClientRect();
+          const hit = r && document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return { btn: !!btn, ready: btn && btn.hasAttribute('data-digi-actions-ready'), inPopup: !!(a && a.closest('[data-elementor-type="popup"]')), hit: hit ? hit.outerHTML.slice(0, 120) : null, doc: !!(window.elementorFrontend && elementorFrontend.documentsManager.documents[id]) };
+        }, popupId);
         await pg.click(`#elementor-popup-modal-${popupId} ${sel('b1ppcl1')} a`);
         const closed = await pg.waitForFunction((id) => { const m = document.querySelector(`#elementor-popup-modal-${id}`); return !m || getComputedStyle(m).display === 'none'; }, { timeout: 8000 }, popupId).then(() => true).catch(() => false);
-        check(s, 'B1.7b', '«Cerrar popup» (acción dentro del popup) lo cierra', closed);
+        check(s, 'B1.7b', '«Cerrar popup» (acción dentro del popup) lo cierra', closed, JSON.stringify({ diag, errors: p.facts.errors.slice(0, 3) }));
+        if (!closed) { await pg.keyboard.press('Escape'); await sleep(800); }
       }
       await pg.click(`${sel('b1off01')} a`);
       const ocOpen = await pg.waitForFunction(() => { const o = document.querySelector('#off-canvas-b1ofc01'); return o && o.getAttribute('aria-hidden') === 'false' && !o.hasAttribute('inert'); }, { timeout: 8000 }).then(() => true).catch(() => false);
@@ -195,10 +204,13 @@ module.exports = (api) => {
     {
       const p = await open(page1, { before: (pg) => pg.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]) });
       const pg = p.page;
-      await pg.click(`${sel('b1scr01')} a`);
-      await sleep(60);
-      const top = await pg.$eval(sel('b1end01'), (t) => Math.round(t.getBoundingClientRect().top));
-      check(s, 'B1.8', 'con `prefers-reduced-motion` el desplazamiento es inmediato (`behavior: auto`)', top >= -2 && top < 50, `top ${top} px a los 60 ms`);
+      const y0 = await pg.evaluate(() => window.scrollY);
+      await pg.$eval(`${sel('b1scr01')} a`, (a) => a.click());
+      const y1 = await pg.evaluate(() => window.scrollY);
+      await sleep(1500);
+      const y2 = await pg.evaluate(() => window.scrollY);
+      const sb = await pg.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior);
+      check(s, 'B1.8', 'con `prefers-reduced-motion` el desplazamiento es inmediato (`behavior: auto`, sin `scroll-behavior: smooth`)', y1 > y0 && y1 === y2, JSON.stringify({ y0, y1, y2, scrollBehavior: sb }));
       await p.close();
     }
 
@@ -248,13 +260,13 @@ module.exports = (api) => {
       await login('admin');
       const ctx = await context('admin');
       const pg = await newPage(ctx, { width: 1280 });
-      await pg.goto(`${BASE}/wp-admin/admin.php?page=digitalisimo-elements-front`, { waitUntil: 'networkidle0', timeout: 180000 });
+      await pg.goto(`${BASE}/wp-admin/admin.php?page=digitalisimo-elements-front`, { waitUntil: 'load', timeout: 180000 });
       const notice = await pg.$eval('.digitalisimo-interactions-notice', (n) => ({ text: n.textContent.replace(/\s+/g, ' ').trim(), links: [...n.querySelectorAll('a')].map((a) => a.getAttribute('href')), button: !!n.querySelector('form[action*="admin-post.php"] button[type="submit"]'), nonce: !!n.querySelector('input[name="_wpnonce"]') })).catch(() => null);
       check(s, 'B2.3', 'aviso persistente en la pantalla de DIGITALÍSIMO con la lista de documentos (enlace al editor) y el botón con nonce', !!notice && notice.button && notice.nonce && notice.links.some((h) => h.includes(`post=${b2}`) && h.includes('action=elementor')), JSON.stringify(notice));
       const other = await (await newPage(ctx)).goto(`${BASE}/wp-admin/index.php`, { waitUntil: 'load' }).then((r) => r.text());
       check(s, 'B2.3b', 'el aviso no sale fuera de las pantallas de DIGITALÍSIMO (escritorio)', !other.includes('digitalisimo-interactions-notice'));
       if (notice) {
-        await Promise.all([pg.waitForNavigation({ waitUntil: 'networkidle0', timeout: 180000 }), pg.click('.digitalisimo-interactions-notice button[type="submit"]')]);
+        await Promise.all([pg.waitForNavigation({ waitUntil: 'load', timeout: 180000 }), pg.click('.digitalisimo-interactions-notice button[type="submit"]')]);
         const done = await pg.$eval('.notice-success', (n) => n.textContent.trim()).catch(() => '');
         ping = await control('ping');
         check(s, 'B2.4', '«Reproducir las interacciones guardadas» pasa el sitio a `ack` y avisa del resultado', ping.interactions === 'ack' && /ya se reproducen/.test(done), JSON.stringify({ state: ping.interactions, done, url: pg.url() }));

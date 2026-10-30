@@ -108,6 +108,15 @@
     "meta_contiene": "dueno@example.com"
    },
    "motivo": "el núcleo vacía email_to al exportar (B14); queda «Configurar después»"
+  },
+  {
+   "clave": "_digitalisimo_uses",
+   "tipo": "meta",
+   "buscar": "_digitalisimo_uses",
+   "origen": {
+    "meta": "_digitalisimo_uses"
+   },
+   "motivo": "usos de plantillas y consultas guardadas de F7b (V.6): índice del sitio que el destino recalcula al guardar cada documento importado y con el recorrido por lotes"
   }
  ]
 }

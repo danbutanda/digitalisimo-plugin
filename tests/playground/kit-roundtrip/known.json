@@ -140,6 +140,14 @@
    ],
    "woo": true,
    "motivo": "pa_acabado es wc-visual en A (función «Color swatches for attributes» encendida); B la tiene apagada y ningún wc-visual, y WooCommerce sólo acepta ese tipo con tema de bloques y la función, o con otro wc-visual: vuelve a select (W:includes/wc-attribute-functions.php:272-300, 554-556; docs/fusion/f4woo.md §1.3). Sus metas color e image viajan igual (terms.pa_acabado:*)"
+  },
+  {
+   "ruta": "^posts\\.digitalisimo_query:consulta-con-autora\\.(status|meta\\._digitalisimo_query\\.exclude_authors)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "F7b (V.10): los usuarios nunca viajan; la autora excluida de una consulta guardada no tiene destino, su lista queda vacía y la consulta entra en borrador para revisarla (una exclusión perdida mostraría de más). Ningún documento la usa, así que nada más cambia"
   }
  ],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",
@@ -179,6 +187,10 @@
   {
    "nombre": "^woocommerce_checkout_(phone|company|address_2)_field$",
    "motivo": "WooCommerce (WOO=1) las crea la primera vez que lee la visibilidad de los campos del pago, a partir del bloque de pago de la página de pago del propio sitio (CartCheckoutUtils::migrate_checkout_block_field_visibility_attributes(), W:src/Blocks/Utils/CartCheckoutUtils.php:184-230); sin WooCommerce no existen"
+  },
+  {
+   "nombre": "^digitalisimo_elements_f7b_(counts|scan)$",
+   "motivo": "F7b (V.6): contadores de uso del sitio (Flags) y estado del recorrido por lotes (Scan), que se recalculan al guardar documentos y al terminar una importación (digitalisimo_elements_kit_imported); son índices del contenido, no ajustes"
   }
  ],
  "_comentario_capturas": "«capturas»: zonas que la comparación de píxeles de R1 oculta (display: none en A y en B, porque su alto también depende de ese dato) en las páginas cuya clave casa con «pagina». Sólo lo que depende del host o de algo que nunca viaja y que la firma compara por dato; una entrada cuya página no se compara hace fallar la corrida.",

@@ -1,5 +1,5 @@
 {
-  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo») tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce.",
+  "_comentario": "Contenido del sitio A de kit-roundtrip.sh (etapa K, §13.3). setup-a.php lo crea guardando cada documento con Document::save(), no escribiendo metas. Fichas: «@media:<n>» → {id,url} del adjunto; «@media-id:<n>» y «@media-url:<n>»; «@post:<tipo>:<slug>», «@template:<slug>», «@term:<tax>:<slug>», «@menu:<slug>» y «@user:<login>» → ID como cadena (con «-int» al final del prefijo, como entero: «@post-int:»); «@url:<ruta>» → home_url(ruta); «{{home}}» y «{{uploads}}» dentro de un texto. signature.php hace el camino inverso. «base» toma los ajustes de un caso de tests/playground/front-budget/cases.json («__IMAGE__» → @media:imagen-a) y «settings» los completa. Cada widget propio (44 visibles, el Slider Optimizado y los 7 alias, más los 7 de WooCommerce de F4-Woo con «woo» y los 5 de F7b: cuatro filtros ampliados y el slider anidado) tiene su caso, y cada parte de K (también las de F7a y F4-Woo) el suyo en «parts»: lo exige tests/elements-kit-inventory.mjs. «woo» (sólo con WOO=1): medios, atributos globales con sus términos y muestras, productos, plantillas, widgets y páginas de WooCommerce. «queries» (F7b, parte saved-queries): consultas guardadas (tipo digitalisimo_query) con las metas de Queries\\Store y un UUID fijo, creadas antes de los documentos; sus términos se dan con «@term:» y setup-a.php los guarda por term_taxonomy_id, como el grupo de consulta de PRO.",
   "media": {
     "imagen-a": {
       "png": [
@@ -728,6 +728,70 @@
               "settings": {
                 "title": "Cabecera prioritaria",
                 "title_color": "#1D1D1F"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-f7b-plantilla",
+      "type": "section",
+      "title": "Plantilla con claves",
+      "elements": [
+        {
+          "id": "cf7f001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "ef7f001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Título de la plantilla",
+                "_digitalisimo_slot": "titulo"
+              }
+            },
+            {
+              "id": "ef7f002",
+              "elType": "widget",
+              "widgetType": "image",
+              "settings": {
+                "image": "@media:imagen-a",
+                "_digitalisimo_slot": "foto"
+              }
+            },
+            {
+              "id": "ef7f003",
+              "elType": "widget",
+              "widgetType": "button",
+              "settings": {
+                "text": "Botón de la plantilla",
+                "link": {
+                  "url": "{{home}}/digi-k-padre/",
+                  "is_external": "",
+                  "nofollow": ""
+                },
+                "_digitalisimo_slot": "boton"
+              }
+            },
+            {
+              "id": "ef7f004",
+              "elType": "widget",
+              "widgetType": "text-editor",
+              "settings": {
+                "editor": "<p>Texto de la plantilla.</p>",
+                "_digitalisimo_slot": "texto"
+              }
+            },
+            {
+              "id": "ef7f005",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Encabezado que se oculta",
+                "_digitalisimo_slot": "oculto"
               }
             }
           ]
@@ -1722,6 +1786,360 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "digi-k-f7b-acciones",
+      "title": "Acciones con destino",
+      "elements": [
+        {
+          "id": "cf7a001",
+          "elType": "container",
+          "settings": {
+            "_digitalisimo_actions_on": "yes",
+            "_digitalisimo_actions": [
+              {
+                "_id": "af7a001",
+                "trigger": "click",
+                "action": "show",
+                "target_kind": "element",
+                "target": "cf7a002"
+              },
+              {
+                "_id": "af7a002",
+                "trigger": "click",
+                "action": "popup_open",
+                "popup_id": "@template:digi-k-popup"
+              },
+              {
+                "_id": "af7a003",
+                "trigger": "click",
+                "action": "toggle_class",
+                "target_kind": "self",
+                "class_name": "abierto"
+              }
+            ]
+          },
+          "elements": [
+            {
+              "id": "ef7a001",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Mostrar el contenido"
+              }
+            }
+          ]
+        },
+        {
+          "id": "cf7a002",
+          "elType": "container",
+          "settings": {
+            "_digitalisimo_hidden_initial": "yes"
+          },
+          "elements": [
+            {
+              "id": "ef7a002",
+              "elType": "widget",
+              "widgetType": "heading",
+              "settings": {
+                "title": "Contenido que muestra la acción"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-f7b-consultas",
+      "title": "Consultas guardadas",
+      "elements": [
+        {
+          "id": "cf7b001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "ef7b001",
+              "elType": "widget",
+              "widgetType": "loop-grid",
+              "settings": {
+                "template_id": "@template:digi-k-loop",
+                "posts_per_page": 6,
+                "digitalisimo_saved_query": "@post:digitalisimo_query:consulta-del-kit"
+              }
+            },
+            {
+              "id": "ef7b002",
+              "elType": "widget",
+              "widgetType": "posts",
+              "settings": {
+                "classic_show_excerpt": "",
+                "classic_show_read_more": "",
+                "classic_meta_data": [],
+                "classic_thumbnail": "none",
+                "digitalisimo_saved_query": "@post:digitalisimo_query:consulta-del-kit"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-f7b-sobrescrituras",
+      "title": "Sobrescrituras de plantilla",
+      "elements": [
+        {
+          "id": "cf7c001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "ef7c001",
+              "elType": "widget",
+              "widgetType": "template",
+              "settings": {
+                "template_id": "@template:digi-k-f7b-plantilla",
+                "digitalisimo_overrides": [
+                  {
+                    "_id": "of7c001",
+                    "slot": "titulo",
+                    "kind": "text",
+                    "text": "Título sobrescrito"
+                  },
+                  {
+                    "_id": "of7c002",
+                    "slot": "foto",
+                    "kind": "image",
+                    "image": "@media:imagen-b"
+                  },
+                  {
+                    "_id": "of7c003",
+                    "slot": "boton",
+                    "kind": "link",
+                    "link": {
+                      "url": "{{home}}/digi-k-hija/",
+                      "is_external": "on",
+                      "nofollow": ""
+                    }
+                  },
+                  {
+                    "_id": "of7c004",
+                    "slot": "texto",
+                    "kind": "html",
+                    "html": "<p>Texto <strong>sobrescrito</strong> con <a href=\"{{home}}/digi-k-padre/\">enlace</a> e <img src=\"@media-url:imagen-a\" alt=\"\"></p>"
+                  },
+                  {
+                    "_id": "of7c005",
+                    "slot": "oculto",
+                    "kind": "hide"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ef7c002",
+              "elType": "widget",
+              "widgetType": "template",
+              "settings": {
+                "template_id": "@template:digi-k-f7b-plantilla"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-f7b-filtros",
+      "title": "Filtros ampliados",
+      "elements": [
+        {
+          "id": "cf7d001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "ef7d001",
+              "elType": "widget",
+              "widgetType": "digitalisimo-loop-search",
+              "settings": {
+                "destination": "loop",
+                "selected_element": "ef7d009",
+                "label": "Buscar"
+              }
+            },
+            {
+              "id": "ef7d002",
+              "elType": "widget",
+              "widgetType": "digitalisimo-loop-meta-filter",
+              "settings": {
+                "destination": "loop",
+                "selected_element": "ef7d009",
+                "meta_key": "__custom",
+                "meta_key_custom": "precio",
+                "value_type": "DECIMAL",
+                "mode": "range",
+                "range_min": "0",
+                "range_max": "1000"
+              }
+            },
+            {
+              "id": "ef7d003",
+              "elType": "widget",
+              "widgetType": "digitalisimo-loop-orderby",
+              "settings": {
+                "destination": "loop",
+                "selected_element": "ef7d009",
+                "orders": [
+                  {
+                    "_id": "of7d001",
+                    "order_key": "title_asc"
+                  },
+                  {
+                    "_id": "of7d002",
+                    "order_key": "date_desc"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ef7d004",
+              "elType": "widget",
+              "widgetType": "digitalisimo-loop-per-page",
+              "settings": {
+                "destination": "loop",
+                "selected_element": "ef7d009",
+                "values": "6, 12"
+              }
+            },
+            {
+              "id": "ef7d005",
+              "elType": "widget",
+              "widgetType": "digitalisimo-loop-orderby",
+              "settings": {
+                "destination": "archive"
+              }
+            },
+            {
+              "id": "ef7d009",
+              "elType": "widget",
+              "widgetType": "loop-grid",
+              "settings": {
+                "template_id": "@template:digi-k-loop",
+                "posts_per_page": 6
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "digi-k-nested-slider",
+      "title": "Slider anidado",
+      "elements": [
+        {
+          "id": "cf7e001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "ef7e001",
+              "elType": "widget",
+              "widgetType": "digitalisimo-nested-slider",
+              "settings": {
+                "slides": [
+                  {
+                    "_id": "sf7e001",
+                    "slide_title": "Uno"
+                  },
+                  {
+                    "_id": "sf7e002",
+                    "slide_title": "Dos"
+                  },
+                  {
+                    "_id": "sf7e003",
+                    "slide_title": "Tres"
+                  }
+                ],
+                "effect": "fade",
+                "navigation": "both",
+                "arrows_position": "sides",
+                "loop": "yes",
+                "autoplay": "",
+                "autoplay_delay": 4000,
+                "pause_on_hover": "yes",
+                "carousel_label": "Novedades del kit",
+                "speed": 400,
+                "nav_size": {
+                  "unit": "px",
+                  "size": 44,
+                  "sizes": []
+                }
+              },
+              "elements": [
+                {
+                  "id": "cf7e002",
+                  "elType": "container",
+                  "settings": {
+                    "_title": "Diapositiva n.º 1",
+                    "content_width": "full"
+                  },
+                  "elements": [
+                    {
+                      "id": "ef7e002",
+                      "elType": "widget",
+                      "widgetType": "heading",
+                      "settings": {
+                        "title": "Primera",
+                        "link": {
+                          "url": "@url:/digi-k-padre/"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "cf7e003",
+                  "elType": "container",
+                  "settings": {
+                    "_title": "Diapositiva n.º 2",
+                    "content_width": "full",
+                    "background_background": "classic",
+                    "background_image": "@media:imagen-a"
+                  },
+                  "elements": [
+                    {
+                      "id": "ef7e003",
+                      "elType": "widget",
+                      "widgetType": "image",
+                      "settings": {
+                        "image": "@media:imagen-b"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "cf7e004",
+                  "elType": "container",
+                  "settings": {
+                    "_title": "Diapositiva n.º 3",
+                    "content_width": "full"
+                  },
+                  "elements": [
+                    {
+                      "id": "ef7e004",
+                      "elType": "widget",
+                      "widgetType": "heading",
+                      "settings": {
+                        "title": "Tercera"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "widgets": {
@@ -2131,6 +2549,46 @@
         "attribute": "pa_color",
         "display": "swatches"
       }
+    },
+    "digitalisimo-loop-search": {
+      "settings": {
+        "destination": "archive",
+        "label": "Buscar en el archivo"
+      }
+    },
+    "digitalisimo-loop-meta-filter": {
+      "settings": {
+        "destination": "archive",
+        "meta_key": "__custom",
+        "meta_key_custom": "precio",
+        "value_type": "NUMERIC",
+        "mode": "list",
+        "values": "10, 20"
+      }
+    },
+    "digitalisimo-loop-orderby": {
+      "settings": {
+        "destination": "archive",
+        "orders": [
+          {
+            "_id": "owf7001",
+            "order_key": "title_asc"
+          }
+        ]
+      }
+    },
+    "digitalisimo-loop-per-page": {
+      "settings": {
+        "destination": "archive",
+        "values": "6, 12"
+      }
+    },
+    "digitalisimo-nested-slider": {
+      "settings": {
+        "effect": "slide",
+        "navigation": "dots",
+        "carousel_label": "Slider del kit"
+      }
     }
   },
   "traits": {
@@ -2276,6 +2734,59 @@
       "widget": "woocommerce-menu-cart",
       "settings": {
         "digitalisimo_cart_title": "Tu carrito"
+      }
+    },
+    "form-conditions": {
+      "widget": "form",
+      "settings": {
+        "form_name": "Condicional",
+        "form_fields": [
+          {
+            "_id": "fc00001",
+            "custom_id": "tipo",
+            "field_type": "radio",
+            "field_label": "Tipo",
+            "field_options": "Persona|persona\nEmpresa|empresa",
+            "required": "true"
+          },
+          {
+            "_id": "fc00002",
+            "custom_id": "rfc",
+            "field_type": "text",
+            "field_label": "RFC",
+            "required": "true",
+            "digitalisimo_conditional": "yes",
+            "digitalisimo_logic": "any",
+            "digitalisimo_rules": [
+              {
+                "_id": "fr00001",
+                "field": "tipo",
+                "operator": "is",
+                "value": "empresa"
+              },
+              {
+                "_id": "fr00002",
+                "field": "tipo",
+                "operator": "greater",
+                "value": "1,5"
+              }
+            ]
+          },
+          {
+            "_id": "fc00003",
+            "custom_id": "email",
+            "field_type": "email",
+            "field_label": "Correo",
+            "required": "true"
+          }
+        ]
+      }
+    },
+    "inline-tags": {
+      "widget": "heading",
+      "settings": {
+        "title": "Página: {post:title}",
+        "digitalisimo_inline_tags": "yes"
       }
     }
   },
@@ -2623,6 +3134,10 @@
     "woo-variations": {
       "case": "R1",
       "motivo": "variaciones con imagen y SKU de Camiseta color (pa_color) y de Sudadera (atributo local), imágenes incrustadas en el kit, not_exported.variations sólo con la variación de un variable en borrador y tabla de búsqueda refrescada (el filtro de precio encuentra la Camiseta importada); en R4, un SKU repetido queda vacío"
+    },
+    "saved-queries": {
+      "case": "pages.digi-k-f7b-consultas",
+      "motivo": "consultas guardadas (F7b, V.10) con su UUID: «Consulta del kit» (términos incluidos y excluidos por term_taxonomy_id y una entrada excluida) vinculada a un Loop Grid y a un Posts, y «Consulta con autora» sin usos (autora excluida, relación terms:category y contexto current), que en B entra en borrador porque los usuarios no viajan; en R5, 0 filas nuevas (reutiliza por UUID)"
     }
   },
   "options": {
@@ -2642,5 +3157,59 @@
   "site": {
     "blogname": "Sitio del kit",
     "blogdescription": "Ida y vuelta de K"
-  }
+  },
+  "queries": [
+    {
+      "slug": "consulta-del-kit",
+      "title": "Consulta del kit",
+      "uid": "5a0f7b11-3c2d-4e8f-9a1b-2c3d4e5f6a7b",
+      "settings": {
+        "post_type": "post",
+        "include": [
+          "terms"
+        ],
+        "include_term_ids": [
+          "@term:category:noticias"
+        ],
+        "exclude": [
+          "terms",
+          "manual_selection"
+        ],
+        "exclude_term_ids": [
+          "@term:post_tag:destacado"
+        ],
+        "exclude_ids": [
+          "@post-int:post:digi-k-entrada-2"
+        ],
+        "orderby": "post_title",
+        "order": "asc"
+      },
+      "context": "none",
+      "relation": "none",
+      "limits": {
+        "per_page": 6,
+        "depth": 2
+      }
+    },
+    {
+      "slug": "consulta-con-autora",
+      "title": "Consulta con autora",
+      "uid": "5a0f7b12-3c2d-4e8f-9a1b-2c3d4e5f6a7c",
+      "settings": {
+        "post_type": "post",
+        "exclude": [
+          "authors"
+        ],
+        "exclude_authors": [
+          "@user-int:autora"
+        ]
+      },
+      "context": "current",
+      "relation": "terms:category",
+      "limits": {
+        "per_page": 3,
+        "depth": 1
+      }
+    }
+  ]
 }

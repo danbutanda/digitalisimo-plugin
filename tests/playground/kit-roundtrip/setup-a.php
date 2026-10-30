@@ -11,6 +11,7 @@
  *   pa_acabado (wc-visual, con la función encendida) con sus metas de muestra y su configuración de muestras;
  *   productos simples, variables con atributo local y global (variaciones con imagen y SKU) y un variable en
  *   borrador; plantillas de producto y de bucle de productos, los siete widgets de F4-Woo y la página de filtros.
+ *   De F7b (V.10): las consultas guardadas de «queries», antes de los documentos que las vinculan.
  * - Vuelca get_controls() de todo widget registrado (propios, PRO y núcleo), de los elementos y de las condiciones,
  *   para el inventario en tiempo de ejecución (§9.2), y las referencias que anotó al resolver las fichas (refs.json).
  */
@@ -199,6 +200,65 @@ foreach ( (array) ( $cases['snippets'] ?? array() ) as $snippet ) {
 	update_post_meta( $id, '_elementor_code', wp_slash( $snippet['code'] ) );
 	update_post_meta( $id, '_elementor_conditions', $snippet['conditions'] );
 	$ids[ 'snippet:' . $snippet['title'] ] = $id;
+}
+
+// Consultas guardadas (F7b, parte saved-queries de V.10): entradas del tipo privado digitalisimo_query con las metas de
+// Queries\Store y su UUID, como las deja la pantalla «Consultas», antes de los documentos que las vinculan
+// («@post:digitalisimo_query:<slug>»). El grupo de consulta guarda los términos por term_taxonomy_id: las fichas «@term:»
+// dan el term_id y aquí se pasan.
+if ( ! empty( $cases['queries'] ) ) {
+	$store = '\\Digitalisimo\\Elements\\F7b\\Queries\\Store';
+	if ( ! class_exists( $store ) ) {
+		digi_k_fail( 'Consultas guardadas: falta Digitalisimo\\Elements\\F7b\\Queries\\Store (frente C de F7b)' );
+	} else {
+		$store::register();
+		foreach ( (array) $cases['queries'] as $query ) {
+			$found = get_posts( array( 'post_type' => $store::POST_TYPE, 'name' => $query['slug'], 'post_status' => array( 'publish', 'draft' ), 'fields' => 'ids', 'suppress_filters' => true ) );
+			if ( $found ) {
+				$ids[ 'post:' . $store::POST_TYPE . ':' . $query['slug'] ] = (int) $found[0];
+				continue;
+			}
+			$refs->doc = $store::POST_TYPE . ':' . sanitize_title( $query['title'] );
+			$settings  = (array) $refs->resolve( (array) $query['settings'], 'query' );
+			foreach ( array( 'include_term_ids', 'exclude_term_ids' ) as $field ) {
+				$tt_ids = array();
+				foreach ( (array) ( $settings[ $field ] ?? array() ) as $term_id ) {
+					$term     = get_term( (int) $term_id );
+					$tt_ids[] = $term && ! is_wp_error( $term ) ? (int) $term->term_taxonomy_id : 0;
+				}
+				$settings[ $field ] = $tt_ids;
+			}
+			$id = wp_insert_post(
+				array(
+					'post_type'   => $store::POST_TYPE,
+					'post_status' => $query['status'] ?? 'publish',
+					'post_title'  => $query['title'],
+					'post_name'   => $query['slug'],
+					'meta_input'  => array(
+						$store::META_UID      => $query['uid'],
+						$store::META_SETTINGS => $settings,
+						$store::META_CONTEXT  => $query['context'] ?? 'none',
+						$store::META_RELATION => $query['relation'] ?? 'none',
+						$store::META_LIMITS   => (array) ( $query['limits'] ?? array() ),
+					),
+				),
+				true
+			);
+			if ( is_wp_error( $id ) || ! $id ) {
+				digi_k_fail( "Consultas guardadas: no se pudo crear {$query['slug']}" );
+				continue;
+			}
+			$saved = $store::get( (int) $id, true );
+			$lost = false;
+			foreach ( array( 'include_term_ids', 'exclude_term_ids', 'include_authors', 'exclude_authors', 'exclude_ids' ) as $field ) {
+				$lost = $lost || ( $saved && count( (array) ( $query['settings'][ $field ] ?? array() ) ) !== count( $saved['settings'][ $field ] ) );
+			}
+			if ( ! $saved || ! $saved['valid'] || $saved['uid'] !== $query['uid'] || $lost ) {
+				digi_k_fail( "Consultas guardadas: {$query['slug']} no quedó válida con su UUID y sus términos: " . wp_json_encode( $saved ) );
+			}
+			$ids[ 'post:' . $store::POST_TYPE . ':' . $query['slug'] ] = (int) $id;
+		}
+	}
 }
 
 // Opciones que nunca viajan en un kit (not-exported.json): deben existir en A para que la comprobación no sea vacía.

@@ -67,6 +67,8 @@ $GLOBALS["digi_f7b_prev_handler"] = set_error_handler( static function ( $no, $s
 	update_option( 'blogdescription', 'Pruebas de F7b' );
 	update_option( 'elementor_element_cache_ttl', 'disable' );
 	update_option( 'date_format', 'Y-m-d' );
+	// Sin Google Fonts: Chrome sólo resuelve el sitio de prueba y cualquier petición fuera cuenta como fallo.
+	update_option( 'elementor_google_font', '0' );
 	foreach ( array( 'f7b-autor' => array( 'author', 'Ana', 'Autora' ), 'f7b-sub' => array( 'subscriber', 'Sofía', 'Suscriptora' ), 'f7b-editor' => array( 'editor', 'Elena', 'Editora' ) ) as $login => $data ) {
 		if ( ! username_exists( $login ) ) {
 			$user = wp_insert_user( array( 'user_login' => $login, 'user_pass' => 'password', 'user_email' => $login . '@example.invalid', 'role' => $data[0], 'first_name' => $data[1], 'last_name' => $data[2], 'display_name' => $data[1] . ' ' . $data[2] ) );
@@ -122,7 +124,11 @@ foreach ( array( 'image' => 'Imagen F7b', 'image2' => 'Imagen F7b dos' ) as $key
 	$map['media'][ $key ] = array( 'id' => $id, 'url' => (string) wp_get_attachment_url( $id ) );
 }
 
-// Categorías y entradas de prueba.
+// Categorías y entradas de prueba (sin la entrada de ejemplo de WordPress: los conjuntos esperados son sólo los suyos).
+$sample = get_post( 1 );
+if ( $sample && 'post' === $sample->post_type ) {
+	wp_delete_post( 1, true );
+}
 foreach ( (array) ( $cases['terms'] ?? array() ) as $slug => $name ) {
 	$term = term_exists( $slug, 'category' );
 	if ( ! $term ) {

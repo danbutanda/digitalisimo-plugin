@@ -478,11 +478,48 @@ final class Digi_K_Signature {
 			if ( 0 !== strpos( $key, '_digitalisimo_' ) || '_digitalisimo_import_origin' === $key ) {
 				continue;
 			}
+			if ( '_digitalisimo_uses' === $key ) {
+				// Usos de F7b (V.6): meta multivalor, una fila por plantilla o consulta guardada que el documento usa.
+				$out[ $key ] = $this->uses( (array) $values );
+				continue;
+			}
 			$value       = maybe_unserialize( $values[0] );
 			$out[ $key ] = is_array( $value ) ? $this->generic( $value, $doc . ' · ' . $key ) : $this->text( (string) $value, $doc . ' · ' . $key );
 		}
 		ksort( $out );
 		return $out;
+	}
+
+	/**
+	 * `_digitalisimo_uses` de F7b (V.6): todas sus filas (`t:<id>` de una plantilla, `q:<id>` de una consulta guardada)
+	 * con el ID nombrado y en orden. No viaja en el kit: B la recalcula al guardar cada documento importado.
+	 */
+	public function uses( array $values ) {
+		$out = array();
+		foreach ( $values as $value ) {
+			$out[] = preg_match( '/^([tq]):(\d+)$/', (string) $value, $m ) ? $m[1] . ':' . $this->sym( 't' === $m[1] ? 'template' : 'post', (int) $m[2] ) : (string) $value;
+		}
+		sort( $out );
+		return $out;
+	}
+
+	/**
+	 * Ajustes de una consulta guardada de F7b (meta `_digitalisimo_query`): términos por `term_taxonomy_id`, autores y
+	 * entradas, con sus IDs nombrados.
+	 */
+	public function saved_query( array $settings ) {
+		foreach ( array( 'include_term_ids', 'exclude_term_ids' ) as $field ) {
+			$named = array();
+			foreach ( (array) ( $settings[ $field ] ?? array() ) as $tt_id ) {
+				$term    = get_term_by( 'term_taxonomy_id', (int) $tt_id );
+				$named[] = $term && ! is_wp_error( $term ) ? 'term:' . $term->taxonomy . ':' . $term->slug : $this->unresolved( 'term', $tt_id );
+			}
+			$settings[ $field ] = $named;
+		}
+		foreach ( array( 'include_authors' => 'user', 'exclude_authors' => 'user', 'exclude_ids' => 'post' ) as $field => $kind ) {
+			$settings[ $field ] = $this->sym( $kind, array_values( (array) ( $settings[ $field ] ?? array() ) ) );
+		}
+		return $settings;
 	}
 
 	/** Metas públicas (sin guion bajo) de una entrada: las que trae `metadata` de un documento del kit. */
@@ -570,6 +607,10 @@ function digi_k_signature() {
 	$sig    = new Digi_K_Signature( $origin, $refs );
 	$out    = array( 'documents' => array(), 'posts' => array(), 'snippets' => array(), 'attachments' => array(), 'terms' => array(), 'menus' => array(), 'counts' => array( 'doc_type' => array(), 'taxonomy' => array(), 'elements' => array() ) );
 
+	// Consultas guardadas de F7b: su tipo sólo se registra donde se usan; la firma las lee siempre.
+	if ( class_exists( '\\Digitalisimo\\Elements\\F7b\\Queries\\Store' ) ) {
+		\Digitalisimo\Elements\F7b\Queries\Store::register();
+	}
 	$types = array_values( array_diff( get_post_types( array(), 'names' ), array( 'revision', 'nav_menu_item', 'customize_changeset', 'oembed_cache', 'user_request', 'wp_global_styles', 'wp_navigation', 'wp_template', 'wp_template_part', 'wp_font_family', 'wp_font_face', 'custom_css', 'attachment' ) ) );
 	// También la papelera: R8 cuenta lo que la reversión manda allí (D16); `any` la deja fuera.
 	$posts = get_posts( array( 'post_type' => $types, 'post_status' => array( 'publish', 'draft', 'pending', 'private', 'future', 'trash' ), 'posts_per_page' => -1, 'orderby' => 'ID', 'order' => 'ASC' ) );
@@ -610,16 +651,17 @@ function digi_k_signature() {
 				continue;
 			}
 			$value             = maybe_unserialize( $values[0] );
-			$meta[ $meta_key ] = is_array( $value ) ? $sig->generic( $value, $key . ' · ' . $meta_key ) : $sig->text( (string) $value, $key . ' · ' . $meta_key );
+			$meta[ $meta_key ] = '_digitalisimo_query' === $meta_key && is_array( $value ) ? $sig->saved_query( $value ) : ( is_array( $value ) ? $sig->generic( $value, $key . ' · ' . $meta_key ) : $sig->text( (string) $value, $key . ' · ' . $meta_key ) );
 		}
 		ksort( $meta );
 		$out['posts'][ $key ] = array(
 			'status'    => $post->post_status,
 			'title'     => $post->post_title,
 			// La fecha viaja en el WXR (<wp:post_date>); los tipos del constructor (fuentes, iconos, fragmentos) llegan
-			// por sus propios runners, sin fecha, y las variaciones de WooCommerce, por la parte woo-variations, que
-			// las crea con WC_Product_Variation::save() al importar (V.11.2: la fila no lleva fecha).
-			'date'      => 0 === strpos( $post->post_type, 'elementor_' ) || 'product_variation' === $post->post_type ? '' : $post->post_date,
+			// por sus propios runners, sin fecha, las variaciones de WooCommerce, por la parte woo-variations, que
+			// las crea con WC_Product_Variation::save() al importar (V.11.2: la fila no lleva fecha), y las consultas
+			// guardadas de F7b, por la parte saved-queries (V.10: viajan su UUID y sus metas, no la fecha).
+			'date'      => 0 === strpos( $post->post_type, 'elementor_' ) || in_array( $post->post_type, array( 'product_variation', 'digitalisimo_query' ), true ) ? '' : $post->post_date,
 			'content'   => $sig->text( $post->post_content, $key . ' · contenido' ),
 			'excerpt'   => $post->post_excerpt,
 			'parent'    => $post->post_parent ? $sig->sym( 'post', $post->post_parent ) : '',

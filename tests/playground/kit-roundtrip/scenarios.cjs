@@ -422,6 +422,8 @@ async function R1(s) {
       s.render = { pages: render.pages, widths: WIDTHS };
       const f7a = await f7aRoundtrip(sigB);
       verdict('A1', !f7a.length, f7a.map((p) => `R1 (F7a): ${p}`));
+      const f7b = await f7bRoundtrip(sigB, run.session || (run.data && run.data.session) || '');
+      verdict('A1', !f7b.length, f7b.map((p) => `R1 (F7b): ${p}`));
     }
   }
   if (sigs.pantalla && sigs['wp-cli']) {
@@ -652,6 +654,88 @@ async function f7aRoundtrip(sigB) {
       if (/\/digitalisimo-elements\/masks\//.test(p2.css)) problems.push(`${site}: el CSS de ${design.path} nombra la copia en uploads (V.5: sólo data:)`);
     }
   }
+  return problems;
+}
+
+// ── F7b: consultas guardadas, acciones, sobrescrituras, formularios condicionales y etiquetas en los kits (V.10) ───
+// Lo que la firma no ve: el UUID de cada consulta, los contadores de Flags que encienden F7b en el front de B y lo que un
+// visitante recibe en A y en B (destino oculto al cargar, popup traducido y añadido, sobrescrituras, consulta aplicada,
+// grupo condicional oculto, etiqueta en el texto y la regla [hidden] en el CSS del documento).
+const F7B = {
+  queries: ['digitalisimo_query:consulta-del-kit', 'digitalisimo_query:consulta-con-autora'],
+  acciones: 'page:acciones-con-destino',
+  consultas: 'page:consultas-guardadas',
+  sobrescrituras: 'page:sobrescrituras-de-plantilla',
+  formulario: 'page:rasgo-form-conditions',
+  etiquetas: 'page:rasgo-inline-tags',
+  counts: ['actions', 'hidden', 'overrides', 'saved_queries', 'inline_tags', 'form_conditions'],
+  hiddenRule: ':is(.elementor-element,.elementor-column)[hidden]{display:none!important}',
+};
+const countOf = (text, needle) => text.split(needle).length - 1;
+
+/** R1: lo que F7b añade a la ida y vuelta (V.10). */
+async function f7bRoundtrip(sigB, session = '') {
+  const problems = [];
+  // Informe de B: sólo la consulta con la autora entra en borrador por la parte saved-queries.
+  const report = session ? await R.control('b', 'report', { session }).catch(() => null) : null;
+  const entries = (((report || {}).session || {}).report || {}).entries || [];
+  const drafted = entries.filter((e) => e.code === 'draft.saved-query').map((e) => `${(e.data || {}).title}: ${((e.data || {}).reasons || []).join(',')}`);
+  if (JSON.stringify(drafted) !== JSON.stringify(['Consulta con autora: authors'])) problems.push(`informe de B: draft.saved-query ${JSON.stringify(drafted)} (esperado sólo «Consulta con autora: authors»)`);
+  const f7bCodes = entries.filter((e) => /saved-quer/.test(e.code) && e.code !== 'draft.saved-query').map((e) => e.code);
+  if (f7bCodes.length) problems.push(`informe de B: códigos de la parte saved-queries inesperados: ${f7bCodes.join(', ')}`);
+  for (const key of F7B.queries) {
+    const a = (sigA.posts || {})[key];
+    const b = (sigB.posts || {})[key];
+    if (!a) { problems.push(`A no tiene la consulta guardada ${key}`); continue; }
+    if (!b) { problems.push(`B no tiene la consulta guardada ${key} (parte saved-queries)`); continue; }
+    if (!a.meta._digitalisimo_query_uid || a.meta._digitalisimo_query_uid !== b.meta._digitalisimo_query_uid) problems.push(`${key}: el UUID no viajó (${a.meta._digitalisimo_query_uid} → ${b.meta._digitalisimo_query_uid})`);
+  }
+  const autora = (sigB.posts || {})[F7B.queries[1]];
+  if (autora && autora.status !== 'draft') problems.push(`${F7B.queries[1]}: la autora excluida no tiene destino y la consulta debía entrar en borrador; está en ${autora.status}`);
+  const counts = (await R.control('b', 'option', { name: 'digitalisimo_elements_f7b_counts' })).value || {};
+  for (const k of F7B.counts) if (!(Number(counts[k]) > 0)) problems.push(`B: digitalisimo_elements_f7b_counts.${k} = ${JSON.stringify(counts[k])} tras importar (Flags no enciende F7b en el front)`);
+  const seen = {};
+  for (const [site, sig] of [['a', sigA], ['b', sigB]]) {
+    const doc = (k) => (sig.documents || {})[k];
+    const out = {};
+    const acciones = doc(F7B.acciones);
+    if (!acciones) { problems.push(`${site}: falta ${F7B.acciones}`); } else {
+      const page = await visit(site, acciones.path);
+      const popup = (page.html.match(/&quot;p&quot;:(\d+)/) || [])[1];
+      out.oculto = page.html.includes('.elementor-element.elementor-element-cf7a002[hidden]');
+      out.acciones = page.html.includes('data-digi-actions=');
+      out.popup = !!popup && new RegExp(`data-elementor-type="popup"[^>]*data-elementor-id="${popup}"|data-elementor-id="${popup}"[^>]*data-elementor-type="popup"`).test(page.html);
+      out.regla = page.css.includes(F7B.hiddenRule);
+    }
+    const sobre = doc(F7B.sobrescrituras);
+    if (sobre) {
+      const page = await visit(site, sobre.path);
+      out.sobrescrito = countOf(page.html, 'Título sobrescrito');
+      out.plantilla = countOf(page.html, 'Título de la plantilla');
+      out.ocultoPlantilla = countOf(page.html, 'Encabezado que se oculta');
+    } else problems.push(`${site}: falta ${F7B.sobrescrituras}`);
+    const consultas = doc(F7B.consultas);
+    if (consultas) {
+      const page = await visit(site, consultas.path);
+      out.entradas = ['Primera entrada', 'Segunda entrada', 'Tercera entrada'].map((t) => countOf(page.html, t));
+    } else problems.push(`${site}: falta ${F7B.consultas}`);
+    const form = doc(F7B.formulario);
+    if (form) {
+      const page = await visit(site, form.path);
+      out.campoOculto = /<div\b[^>]*\belementor-field-group-rfc\b[^>]*\bhidden="hidden"/.test(page.html);
+      out.reglaFormulario = page.css.includes(F7B.hiddenRule);
+    } else problems.push(`${site}: falta ${F7B.formulario}`);
+    const tags = doc(F7B.etiquetas);
+    if (tags) out.etiqueta = (await visit(site, tags.path)).html.includes('Página: Rasgo inline-tags');
+    else problems.push(`${site}: falta ${F7B.etiquetas}`);
+    seen[site] = out;
+    if (!out.oculto || !out.acciones || !out.popup || !out.regla) problems.push(`${site}: acciones: destino oculto al cargar ${out.oculto}, data-digi-actions ${out.acciones}, popup traducido y añadido ${out.popup}, regla [hidden] ${out.regla}`);
+    if (out.sobrescrito !== 1 || out.plantilla !== 1 || out.ocultoPlantilla !== 1) problems.push(`${site}: sobrescrituras: «Título sobrescrito» ${out.sobrescrito}, «Título de la plantilla» ${out.plantilla}, «Encabezado que se oculta» ${out.ocultoPlantilla} (esperado 1, 1 y 1)`);
+    if (!out.entradas || out.entradas[2] - out.entradas[0] < 2 || out.entradas[2] - out.entradas[1] < 2) problems.push(`${site}: la consulta guardada no se aplica (Primera, Segunda, Tercera: ${JSON.stringify(out.entradas)}; esperada sólo la tercera en el Loop Grid y en Posts)`);
+    if (!out.campoOculto || !out.reglaFormulario) problems.push(`${site}: formulario condicional: grupo «rfc» oculto ${out.campoOculto}, regla [hidden] ${out.reglaFormulario}`);
+    if (!out.etiqueta) problems.push(`${site}: la etiqueta {post:title} no se sustituye`);
+  }
+  if (seen.a && seen.b && JSON.stringify(seen.a) !== JSON.stringify(seen.b)) problems.push(`A y B no muestran lo mismo de F7b: A ${JSON.stringify(seen.a)} · B ${JSON.stringify(seen.b)}`);
   return problems;
 }
 
@@ -1159,6 +1243,11 @@ async function R8(s) {
   if (goneTrashable.length) problems.push(`la reversión borró del todo ${goneTrashable.length} página(s) o entrada(s) en vez de mandarlas a la papelera (D16): ${goneTrashable.slice(0, 5).join(', ')}`);
   s.borrados = gone.length - goneTrashable.length;
   if (!created.length) problems.push('la importación no creó documentos: la reversión no se pudo medir');
+  // F7b (V.10): la parte saved-queries borra al revertir las consultas que creó (nadie las editó ni las usa).
+  const queriesLeft = Object.keys(sig.posts).filter((k) => /^digitalisimo_query:/.test(k) && !sigBefore.posts[k]);
+  const queriesMade = Object.keys(sigImported.posts).filter((k) => /^digitalisimo_query:/.test(k) && !sigBefore.posts[k]);
+  if (!queriesMade.length) problems.push('la importación no creó consultas guardadas (parte saved-queries)');
+  if (queriesLeft.length) problems.push(`quedan consultas guardadas de la sesión: ${queriesLeft.join(', ')}`);
   for (const [k, d] of Object.entries(sigBefore.documents)) if (!sig.documents[k] || sig.documents[k].status !== d.status) problems.push(`${k}, que ya estaba en B, cambió con la reversión`);
   if (!compare.same(kitBefore.settings, kitAfter.settings)) problems.push('los ajustes del kit no volvieron a los de antes');
   // F7a: la parte `presets` revierte su opción y los valores por defecto que reescribió.
