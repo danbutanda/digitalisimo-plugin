@@ -192,11 +192,16 @@
 			}
 			var changes = 'none' !== q.context || 'none' !== q.relation;
 			confirmBox( t.confirm + ( changes ? ' ' + t.changes : '' ), function () {
+				// Sin `external`: refrescar los controles abiertos hace que los de consulta de PRO (select2 con búsqueda)
+				// descarten los IDs cuyo nombre aún no cargaron y guarden la lista vacía, con un registro de historial
+				// por control (f7b.sh, B4). Se vuelve a abrir el panel, que los carga como al abrirlo.
 				window.$e.run( 'document/elements/settings', {
 					container: container,
 					settings: values( container, prefix, q ),
-					options: { external: true },
 				} );
+				if ( container.view && container.model ) {
+					window.$e.run( 'panel/editor/open', { model: container.model, view: container.view } );
+				}
 			} );
 		}, function () {
 			if ( window.elementor.notifications && window.elementor.notifications.showToast ) {

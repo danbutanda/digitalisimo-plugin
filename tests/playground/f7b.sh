@@ -168,7 +168,7 @@ fi
 PUPPETEER_PATH="${PUPPETEER_PATH:-$(ls -d "$HOME"/.npm/_npx/*/node_modules 2>/dev/null | while read -r d; do [ -d "$d/puppeteer-core" ] && echo "$d" && break; done)}"
 [ -n "$PUPPETEER_PATH" ] || { echo "No se encontró puppeteer-core: exportar PUPPETEER_PATH"; exit 1; }
 status=0
-ENV_FILE="$OUT/env.json" SCENARIOS="${SCENARIOS:-}" QUICK="$QUICK" NODE_PATH="$PUPPETEER_PATH" node "$F/run.cjs" || status=$?
+ENV_FILE="$OUT/env.json" SCENARIOS="${SCENARIOS:-}" QUICK="$QUICK" B0_PAGES="${B0_PAGES:-1}" NODE_PATH="$PUPPETEER_PATH" node "$F/run.cjs" || status=$?
 [ -s "$OUT/fatal.log" ] && { echo "Errores fatales:"; cat "$OUT/fatal.log"; status=1; }
 [ -s "$OUT/php-errors.log" ] && { echo "Avisos de PHP de DIGITALÍSIMO Elements (ver $OUT/php-errors.log):"; sort "$OUT/php-errors.log" | uniq -c | sort -rn | head -10; }
 echo "Resumen: $OUT/summary.json · duración: $(( $(date +%s) - STARTED )) s"

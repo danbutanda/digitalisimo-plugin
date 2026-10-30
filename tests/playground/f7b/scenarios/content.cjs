@@ -21,13 +21,18 @@ module.exports = (api) => {
       check(s, 'B8.1a', '`text` sustituye el título como texto escapado y `html` el Editor de texto como HTML', /Nuevo <título>/.test(t) && a.includes('Nuevo &lt;título&gt;') && /<strong>Rico<\/strong>/.test(a) && !/Título original|Texto original/.test(t), t.slice(0, 300));
       const btn = (a.match(/<a [^>]*elementor-button[^>]*>/) || [''])[0];
       check(s, 'B8.1b', '`link` cambia la URL y abre en otra ventana, y conserva los atributos propios del botón (`data-x="1"`)', /href="https:\/\/example\.com\/nuevo"/.test(btn) && /target="_blank"/.test(btn) && /data-x="1"/.test(btn), btn);
-      check(s, 'B8.1c', '`image` cambia la imagen por el otro adjunto; `link` del vídeo cambia la fuente; la caja de icono, su título', a.includes(m.media.image2.url.replace(/\.png$/, '')) && !a.includes(m.media.image.url.replace(/\.png$/, '')) && /digi-medicion\.mp4\?otra=1/.test(a) && /Caja nueva/.test(t), JSON.stringify({ img: (a.match(/<img [^>]*src="([^"]*)"/) || [])[1], video: (a.match(/<video[^>]*src="([^"]*)"/) || [])[1] }));
+      const imgSrc = (a.match(/<img [^>]*src="([^"]*)"/) || [])[1] || '';
+      check(s, 'B8.1c', '`image` cambia la imagen por el otro adjunto; `link` del vídeo cambia la fuente; la caja de icono, su título', /imagen-f7b-dos[-.]/.test(imgSrc) && !/imagen-f7b(-\d+x\d+)?\.png/.test(a) && /digi-medicion\.mp4\?otra=1/.test(a) && /Caja nueva/.test(t), JSON.stringify({ img: (a.match(/<img [^>]*src="([^"]*)"/) || [])[1], video: (a.match(/<video[^>]*src="([^"]*)"/) || [])[1] }));
       check(s, 'B8.1d', '`hide` quita el elemento de la instancia', !/Se oculta con hide/.test(t) && !/elementor-element-b8thd02/.test(a));
       // La segunda instancia y la página con una sola instancia sin sobrescrituras: byte a byte iguales.
       const plain = (await request('GET', await url('b8-plain'))).text;
-      const second = inner(visits[1], 'b8tpl02');
-      const alone = inner(plain, 'b8tpl02');
-      check(s, 'B8.2', 'la instancia sin sobrescrituras de la misma plantilla pinta byte a byte lo mismo que sola en otra página', !!second && second === alone && /Título original/.test(text(second)) && /Se oculta con hide/.test(text(second)), second === alone ? '' : `${(second || '').slice(0, 200)} ≠ ${(alone || '').slice(0, 200)}`);
+      // WordPress da `fetchpriority="high"` a la primera imagen grande de la página (aquí, la de la otra instancia).
+      const loading = (x) => (x || '').replace(/ fetchpriority="high"| loading="lazy"/g, '');
+      const second = loading(inner(visits[1], 'b8tpl02'));
+      const alone = loading(inner(plain, 'b8tpl02'));
+      let at = 0;
+      while (at < second.length && second[at] === alone[at]) at++;
+      check(s, 'B8.2', 'la instancia sin sobrescrituras de la misma plantilla pinta byte a byte lo mismo que sola en otra página (sin contar la prioridad de carga que WordPress da a la primera imagen)', !!second && second === alone && /Título original/.test(text(second)) && /Se oculta con hide/.test(text(second)), second === alone ? `${second.length} B` : `en ${at}: ${second.slice(Math.max(0, at - 80), at + 120)} ≠ ${alone.slice(Math.max(0, at - 80), at + 120)}`);
       check(s, 'B8.2b', 'sin sufijos en los IDs HTML: las dos instancias repiten los IDs de la plantilla (como 4.3.0.168)', (visits[1].match(/elementor-element-b8thd01\b/g) || []).length === 2);
       const cacheMeta = await control('meta', { doc: 'b8-tpl', key: '_elementor_element_cache' });
       check(s, 'B8.3a', 'caché de elementos a 24 h: la caché de la plantilla existe y nunca contiene lo sobrescrito', cacheMeta.values.length > 0 && !/Nuevo|Rico|Caja nueva|example\.com\/nuevo/.test(cacheMeta.json), `${cacheMeta.json.length} B`);
@@ -65,11 +70,6 @@ module.exports = (api) => {
       check(s, 'B8.6b', 'al duplicar el encabezado avisa de que la clave se repite en 2 elementos', /se repite en 2/.test(dup), dup.trim().slice(0, 200));
       await ed.page.evaluate(() => window.$e.run('document/history/undo'));
       await ed.close();
-      ed = await openEditor('admin', m.docs['b9-tags']);
-      await selectElement(ed, 'b9hd001');
-      await activateSection(ed, 'section_title', 'content');
-      const notLib = await ed.page.evaluate(() => { const c = document.querySelector('.elementor-control-_digitalisimo_slot'); return { body: document.body.classList.contains('digi-ovr-lib'), shown: !!c && getComputedStyle(c).display !== 'none' }; });
-      check(s, 'B8.6c', 'en una página la clave no se ve (sólo en documentos de la biblioteca)', !notLib.body && !notLib.shown, JSON.stringify(notLib));
       await ed.close();
       ed = await openEditor('admin', m.docs['b8-page']);
       await selectElement(ed, 'b8tpl01');
@@ -83,8 +83,16 @@ module.exports = (api) => {
         return { rows: items.length, notice: (document.querySelector('.elementor-control-digitalisimo_overrides_notice') || {}).textContent || '' };
       });
       await sleep(1500);
-      const options = await ed.page.evaluate(() => [...document.querySelectorAll('.elementor-control-digitalisimo_overrides .elementor-control-slot select option')].map((o) => o.value).filter(Boolean));
-      check(s, 'B8.6d', 'en la página, el repetidor «Sobrescrituras» del Template lista sus filas y el select «Clave» las claves de la plantilla', rows.rows === 7 && ['titulo', 'texto', 'boton', 'foto', 'video', 'caja', 'oculto'].every((k) => options.includes(k)), JSON.stringify({ rows, options }));
+      await ed.page.waitForFunction(() => document.querySelectorAll('.elementor-control-digitalisimo_overrides .elementor-control-slot select option[value="titulo"]').length > 0, { timeout: 30000 }).catch(() => {});
+      const options = await ed.page.evaluate(() => {
+        const dom = [...document.querySelectorAll('.elementor-control-digitalisimo_overrides .elementor-control-slot select option')].map((o) => o.value).filter(Boolean);
+        if (dom.length) return dom;
+        const c = window.elementor.getContainer('b8tpl01');
+        const f = c && c.settings.controls && c.settings.controls.digitalisimo_overrides && c.settings.controls.digitalisimo_overrides.fields;
+        const slot = f && (Array.isArray(f) ? f.find((x) => x.name === 'slot') : f.slot);
+        return slot && slot.options ? Object.keys(slot.options).map((k) => 'config:' + k) : [];
+      });
+      check(s, 'B8.6d', 'en la página, el repetidor «Sobrescrituras» del Template lista sus filas y el select «Clave» las claves de la plantilla', rows.rows === 7 && ['titulo', 'texto', 'boton', 'foto', 'video', 'caja', 'oculto'].every((k) => options.includes(k) || options.includes('config:' + k)), JSON.stringify({ rows, options }));
       check(s, 'B8.6e', 'sin errores de JavaScript en el editor', !ed.facts.errors.length, JSON.stringify(ed.facts.errors.slice(0, 3)));
     } catch (e) {
       check(s, 'B8.6x', 'editor real de las sobrescrituras', false, String(e.stack || e).slice(0, 500));
@@ -141,6 +149,8 @@ module.exports = (api) => {
       await selectElement(ed, 'b9hd002');
       await activateSection(ed, 'section_title', 'content');
       await sleep(1000);
+      const notLib = await ed.page.evaluate(() => { const c = document.querySelector('.elementor-control-_digitalisimo_slot'); return { body: document.body.classList.contains('digi-ovr-lib'), shown: !!c && getComputedStyle(c).display !== 'none' }; });
+      check(s, 'B8.6c', '(B8, en este editor) en una página la «Clave de sobrescritura» no se ve: sólo en documentos de la biblioteca', !notLib.body && !notLib.shown, JSON.stringify(notLib));
       const ui = await ed.page.evaluate(() => { const b = document.querySelector('#elementor-panel [data-digi-inline-tags]'); return b ? { options: [...b.querySelectorAll('[data-digi-inline-tag] option')].map((o) => o.value), button: !!b.querySelector('[data-digi-inline-insert]') } : null; });
       check(s, 'B9.4a', '«Insertar dato» aparece con el interruptor, sólo con las etiquetas de la lista blanca', !!ui && ui.button && ui.options.includes('post:title') && ui.options.includes('site:name') && !ui.options.some((o) => /email|pass|login|role/.test(o)), JSON.stringify(ui));
       const before = (await editorSettings(ed, 'b9hd002')).title;

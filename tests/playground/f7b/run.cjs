@@ -351,11 +351,13 @@ async function B0(s) {
   const bad = [];
   for (const key of Object.keys(m.docs)) {
     if (/^(f7b-loop|b1-popup|b3-single|b4-free|b6-|b8-tpl|b8-outer|b9-header)/.test(key)) continue;
+    if (process.env.B0_PAGES === '0' && key !== 'b1-actions') continue;
     const res = await request('GET', m.urls[key]);
     fs.writeFileSync(path.join(OUT, 'pages', `${key}.html`), res.text);
     if (res.status !== 200 || /critical error|Fatal error|Parse error/i.test(res.text)) bad.push(`${key}: ${res.status}`);
   }
-  check(s, 'B0.5', 'cada página de prueba responde 200 sin error de PHP (HTML en pages/)', !bad.length, bad.join(', '));
+  if (process.env.B0_PAGES === '0') pending(s, 'B0.5', 'cada página de prueba responde 200 sin error de PHP', 'B0_PAGES=0 (iteración): sólo b1-actions');
+  else check(s, 'B0.5', 'cada página de prueba responde 200 sin error de PHP (HTML en pages/)', !bad.length, bad.join(', '));
   const fatal = serverLog('fatal.log');
   check(s, 'B0.6', 'sin errores fatales de PHP', !fatal, fatal.slice(0, 400));
 }

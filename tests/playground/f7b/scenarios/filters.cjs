@@ -51,9 +51,9 @@ module.exports = (api) => {
     await v.page.waitForFunction(() => document.querySelectorAll('.elementor-element-b5loop1 .e-loop-item').length === 1, { timeout: 30000 }).catch(() => {});
     await sleep(800);
     const afterSearch = await domLoopIds(v.page, L);
-    const live = await v.page.evaluate(() => [...document.querySelectorAll('[aria-live]')].map((n) => n.textContent.trim()).filter(Boolean));
+    const live = await v.page.evaluate(() => [...document.querySelectorAll('[aria-live], [role="status"]')].map((n) => n.textContent.trim()).filter(Boolean));
     const busy = await v.page.$eval('.elementor-element-b5loop1', (el) => el.getAttribute('aria-busy')).catch(() => null);
-    check(s, 'B5.9b', 'Intro envía: una petición `refresh-loop`, el bucle = «Gamma F7b» y la región viva lo anuncia («1 resultado»), sin `aria-busy`', typed === 0 && posts.length === 1 && same(afterSearch, await wp({ ...base, s: 'Gamma' })) && live.some((t) => /1 resultado/.test(t)) && busy !== 'true', JSON.stringify({ typed, posts: posts.length, afterSearch, live, busy }));
+    check(s, 'B5.9b', 'Intro envía: una petición `refresh-loop`, el bucle = «Gamma F7b» y la región viva (`role=status`) lo anuncia («1 resultado»), sin `aria-busy`', typed === 0 && posts.length === 1 && same(afterSearch, await wp({ ...base, s: 'Gamma' })) && live.some((t) => /1 resultado/.test(t)) && busy !== 'true', JSON.stringify({ typed, posts: posts.length, afterSearch, live, busy }));
     const search = await v.page.evaluate(() => { const f = document.querySelector('.elementor-element-b5srch1 form'); const i = f.querySelector('input[type=search]'); return { role: f.getAttribute('role'), label: f.getAttribute('aria-label'), labelled: !!document.querySelector(`label[for="${i.id}"]`), clear: f.querySelector('.digi-filter__clear')?.getAttribute('aria-label') }; });
     check(s, 'B5.9c', 'buscador accesible: `form[role=search]` con nombre, etiqueta visible ligada y «Limpiar» con nombre propio', search.role === 'search' && !!search.label && search.labelled && /Limpiar/.test(search.clear || ''), JSON.stringify(search));
     // Botones de color con aria-pressed (árbol de accesibilidad).
