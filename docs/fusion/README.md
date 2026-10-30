@@ -59,6 +59,14 @@ La evidencia de Playground de F7a irá a `f7a-evidence.json`, con los `summary.j
 
 La evidencia de Playground de F4-Woo está en `f4woo-evidence.json`: el estado, los recuentos y la duración de `tests/playground/woo-flow.sh` (W0–W13, también `NET=1` y `CORE=plugin`), de `front-budget.sh WOO=1` en sus cuatro modos, de `kit-roundtrip.sh WOO=1` y de los arneses de regresión.
 
+## Capacidades de Bricks en Elements (F7b)
+
+| Informe | Qué cubre | Incremento |
+|---|---|---|
+| [f7b.md](f7b.md) | Diseño y evidencia de F7b: hechos del núcleo y de PRO verificados con archivo y línea (frente 0) y lo construido por cada frente, con sus contratos y formatos: base de contadores, usos y borrado bloqueado; acciones con destino e interacciones PRO; consultas guardadas y contextos; filtros ampliados en el módulo neutro; sobrescrituras del Template; slider anidado; presentación de anidados; «Aplicar a todos»; etiquetas dentro del texto; formularios condicionales; la parte `saved-queries` y las referencias de K; presupuesto medido, pruebas y desviaciones | F7b (y K) |
+
+La evidencia de Playground de F7b está en `f7b-evidence.json`: el estado, los recuentos y la duración de `tests/playground/f7b.sh` (B1–B12) y de las ampliaciones de `front-budget.sh`, `kit-roundtrip.sh`, `interaction.sh` y `brand-audit.sh`.
+
 ## Sin rastro de los plugins de origen (F0.2, resuelto)
 
 | Informe | Qué cubre |

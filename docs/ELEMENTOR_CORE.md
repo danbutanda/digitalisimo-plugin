@@ -152,6 +152,67 @@ Desde 4.3.0.166, los widgets y rasgos de WooCommerce viven en `modules/digitalis
 
 `assets/js/filters.js` sustituye por herencia `refreshLoopWidget()`, con prioridad 20, sólo en los bucles que tienen un filtro de F4-Woo. Es la excepción declarada en `DIGITALISIMO_CHANGES.md`. Si falta algo de esta lista, no sustituye nada y los filtros de F4-Woo funcionan por GET.
 
+## Capacidades de Bricks (F7b)
+
+Desde 4.3.0.169, acciones con destino, interacciones PRO, consultas guardadas, sobrescrituras del Template, slider anidado, presentación de anidados, «Aplicar a todos», etiquetas en el texto y formularios condicionales viven en `modules/digitalisimo-f7b/`; los filtros ampliados, en el módulo neutro `modules/digitalisimo-filters/`, que también usan los de F4-Woo. Diseño completo en [fusion/f7b.md](fusion/f7b.md) y estado en [FUSION_OBJECTIVE.md](FUSION_OBJECTIVE.md), sección F7b.
+
+**Guardas.** Cada submódulo comprueba sus símbolos con `F7b\Module::requires()`. Si falta uno, ese submódulo no registra nada, lo guardado queda inerte y nunca hay un error fatal (la base captura `\Throwable` al comprobar y al arrancar); el editor avisa a quien puede administrar. Una clase que hereda de `Widget_Base` no se comprueba en `plugins_loaded`, porque el núcleo la declara en `init`.
+
+| Submódulo | Símbolos (sin el prefijo `Elementor\` salvo los de PRO) |
+|---|---|
+| Acciones | `Controls_Manager` y `Plugin` |
+| Consultas guardadas | `ElementorPro\Modules\QueryControl\Classes\Elementor_Post_Query` (que `Queries\Args` extiende) y `Digitalisimo\Elements\Filters\Query::denied` |
+| Sobrescrituras y etiquetas en el texto | `Plugin` y `Controls_Manager` |
+| Slider anidado (en `elementor/widgets/register`) | El experimento `nested-elements`, `Modules\NestedElements\Base\Widget_Nested_Base` y `Modules\NestedElements\Controls\Control_Nested_Repeater` |
+| Presentación | `Controls_Manager` |
+| Formularios condicionales | `Controls_Manager` y `Plugin`; al enviar, `ElementorPro\Modules\Forms\Classes\Form_Record::remove_field` y `Ajax_Handler::set_success` |
+| Kit | La interfaz `Part` de K y `Queries\Store` |
+
+**Ganchos y comportamientos del núcleo de los que depende F7b:**
+- **Render y caché:**
+  - `elementor/widget/before_render_content` (`includes/base/widget-base.php`), `elementor/widget/render_content` y `elementor/frontend/widget/after_render` (`includes/base/element-base.php`); `elementor/widget/after_render_content` no existe;
+  - `elementor/frontend/builder_content_data` con `( $data, $post_id )` (`includes/frontend.php`) y que `get_builder_content()` cambia al documento que pinta antes de llamarlo;
+  - que `Document::print_elements()` no lee ni escribe `_elementor_element_cache` cuando `get_option( 'elementor_element_cache_ttl' )` vale `'disable'`, y que la caché del documento guarda los handles encolados al pintar (`core/base/document.php`);
+  - que `Document::render_element()` y `Widget_Base::get_raw_data( true )` llaman a `render_content()` sin `print_element()` (editor y `htmlCache`);
+  - `Element_Base::is_dynamic_content()` verdadero por defecto, el filtro `elementor/element/is_dynamic_content` y `_element_cache`;
+  - `elementor/frontend/before_render`, `elementor/frontend/after_render`, `elementor/frontend/container/should_render` y `elementor/element/parse_css`;
+  - que el núcleo conserva al pintar los ajustes sin control y que `get_settings_for_display()` memoriza, con `reset_render_state()` como única forma pública de vaciarlo (`includes/base/controls-stack.php`);
+  - `elementor/markdown/element_output` (`markdown-renderer.php`), y que el Markdown del Plantilla no pasa por `builder_content_data`;
+  - `parse_text_editor()` del Editor de texto, que ejecuta shortcodes.
+- **Controles:**
+  - `elementor/element/{common,container,section,column}/_section_responsive/after_section_end` (y que el núcleo repite el de `common` para `common-optimized`);
+  - `…/{heading/section_title,text-editor/section_editor,image/section_image,button/section_button,icon/section_icon,video/section_video,icon-box/section_icon}/before_section_end` (clave de sobrescritura y etiquetas en el texto) y `call-to-action/section_content/before_section_end` (PRO, etiquetas en el texto), con los nombres de sus controles de texto (`title`, `editor`, `text`, `title_text`, `description_text`, `description`, `button`);
+  - `elementor/element/nested-tabs/section_tabs_style/after_section_end` y `elementor/element/nested-accordion/section_accordion_style/after_section_end`;
+  - `prefix_class` con `classes_dictionary` en `Element_Base` y su repintado en vivo con `render_type => 'ui'`;
+  - un repetidor dentro de las filas de otro (`Control_Repeater::get_value()`, `get_active_settings()`, `parse_dynamic_settings()`, `sanitize_settings()`), y que la declaración `assets` sólo se lee en los controles de primer nivel (`core/base/elements-iteration-actions/assets.php`);
+  - la API de `Widget_Nested_Base` (`get_default_children_elements()`, `get_default_repeater_title_setting_key()`, `print_child()`, `content_template_single_repeater_item()`, `get_initial_config()` con `support_improved_repeaters`, `target_container` y `node`).
+- **Documentos, AJAX y editor PHP:**
+  - `elementor/document/before_save`, `elementor/document/after_save` y `elementor/document/config`;
+  - `elementor/ajax/register_actions` y el registro **privado** de acciones del gestor AJAX (`core/common/modules/ajax/module.php`), del que se lee la función original de `delete_template` y `bulk_delete_templates` (`includes/template-library/manager.php`);
+  - `elementor/editor/after_enqueue_scripts`, `elementor/preview/enqueue_styles`, `elementor/frontend/after_register_styles` y `elementor/frontend/after_register_scripts`;
+  - `Utils::kses_post_deep()` al guardar para quien no tiene `unfiltered_html`, y que los metadatos del documento omiten las metas protegidas al exportar;
+  - `Plugin::$instance->dynamic_tags->get_tag_data_content()` (`core/dynamic-tags/manager.php`).
+- **JS del editor:**
+  - `isStyleTransferControl()`, `document/elements/paste-style` con `containers` y `storageKey`, su `getHistory()`, y el formato de `document/elements/copy`;
+  - el filtro `elements/widget/contextMenuGroups` (con la vista), `elementor.userCan( 'design' )` y `elementorCommon.storage` (`get`, `set`, `save`);
+  - `document/elements/settings`, `document/repeater/insert` y `remove`, y `removeDataDefaults()`, que no guarda los valores por defecto ni en las filas de un repetidor;
+  - `NestedElementBase`, `NestedView`, `elementor/nested-element-type-loaded` y `elementor/nested-container/atomic-repeater` (slider anidado);
+  - la configuración `fields` de un repetidor, que `mergeControlsSettings()` sustituye al crear cada fila, y `getChildControlView()` (select de las sobrescrituras: si cambia, sólo se pierde la lista del editor).
+- **JS y CSS del front:**
+  - `elementorFrontend.utils.urlActions.createActionHash()` y `runAction()` (`assets/js/frontend.js`), `elementor/frontend/init`, `frontend/element_ready/*` y `elementsHandler.runReadyTrigger()`;
+  - que `frontend.min.css` no tiene ninguna regla `[hidden]` y que `.e-con{display:var(--display)}` y `.elementor-column{display:flex}` le ganan a la hoja del navegador (por eso la regla propia); que el orden invertido de columnas usa `:nth-child()` y el espaciado de widgets `:last-child` (por eso el `<noscript>` va dentro del envoltorio);
+  - las variables de `widget-nested-tabs.min.css` y de su par del acordeón, en el propio envoltorio con especificidad 0,1,0;
+  - `MotionGlobalConfig.skipAnimations` de `assets/lib/motion/motion.js` y el handle `motion-js`.
+
+**Dependencias del código derivado de PRO** (se comprueban igual en cada sincronización, porque PRO se sincroniza con el núcleo):
+- **Consultas:** `elementor/query/query_args` al final de `Elementor_Post_Query::get_query_args()` (y que «Consulta actual» sale antes), `elementor/query/query_results`, `fix_query_offset()` y `fix_query_found_posts()`, la sección `section_query` de Posts, Portfolio y la base del Loop Grid, y que los skins de Posts y Portfolio no pintan nada con `found_posts = 0`.
+- **Bucles y filtros:** `refresh-loop` (`modules/loop-filter/data/endpoints/refresh-loop.php`) y su `permission_callback` (`core/data/endpoints/refresh-base.php`); los tres filtros del derivado `loop-filter` (`digitalisimo_elements_loop_filter_types`, `…_query`, `…_param_type`) y su corte por el primer guion.
+- **Plantilla:** `modules/library/widgets/template.php` (`render()` sólo con una plantilla publicada, `on_import()` de `template_id`, el Markdown).
+- **Formularios:** el gancho `elementor/element/form/section_form_fields/before_section_end` con `update_control( 'form_fields' )`, `elementor_pro/forms/render/item`, `elementor_pro/forms/validation` **después** del error de obligatorio de `Form_Record::validate()`, `Ajax_Handler::$errors` pública, `add_error()` y `set_success()`, `required` en cada opción de radios, la respuesta al remitente que lee `sent_data`, y el `reset` tras un envío correcto.
+- **Popups:** `Popup\Module::add_popup_to_location()` y las acciones de URL `popup:open`, `popup:close` y `off_canvas:*`, con `showPopup`, `closePopup` y `handleDisplayToggle` en `elements-handlers.min.js` (vigilados por `tests/elements-pro-inventory.mjs`).
+- **Etiquetas dinámicas:** los nombres `post-title`, `post-excerpt`, `author-name`, `post-date`, `post-custom-field`, `acf-text`, `user-info`, `site-title`, `site-tagline` y `current-date-time`; la carga del módulo ACF; y que el rasgo `on_import` sólo traduce controles de primer nivel (por eso K declara `popup_id`).
+- **Interacciones:** `modules/interactions/module.php`, con la línea declarada en `DIGITALISIMO_CHANGES.md` (`tests/elements-f7b-interactions.php` comprueba la sha256 del resto), sus `hooks.php` y el formato `interactions` de los elementos atómicos con sus disparadores y efectos de `elementor/modules/interactions/presets.php`.
+
 ## Pasar un sitio o una red al núcleo incluido
 
 Con DIGITALÍSIMO Migración activo, **Migrar** (Herramientas → Migrar a DIGITALÍSIMO Elements, o Red → Ajustes → Migrar a DIGITALÍSIMO Elements → Migrar toda la red) hace todo esto en un clic: desactiva Elementor (sólo si el núcleo incluido puede sustituirlo), Elementor Pro, PRO Elements y Element Pack, convierte el contenido y deja el informe ([ELEMENT_PACK_RETIREMENT.md](ELEMENT_PACK_RETIREMENT.md)). A mano:
@@ -185,5 +246,9 @@ Elementor publica versiones con frecuencia, a veces con correcciones de segurida
      - las unitarias de F7a (con php-wasm, juzgando por la salida completa), que usan el núcleo incluido real: `tests/elements-design-{css,presets,presets-kit,gradient,backgrounds}.php`, `tests/elements-design-{presets-editor,gradient}.mjs`, `tests/elements-conditions-more.php`, `tests/elements-page-visits.{php,mjs}`, `tests/elements-tb-priority.php`, `tests/elements-sticky-state.php`, `tests/elements-document-controls.php` y `tests/elements-design-static.mjs`;
      - con un símbolo de la tabla de «Diseño y condiciones (F7a)» que ya no existe, se adapta el submódulo antes de publicar, nunca el núcleo;
      - `bash tests/playground/design.sh` (DS1–DS13, también con `CACHE=1`, `CORE=plugin`, `V4=1` y `NET=1`), a mano porque Playground no corre en CI.
+   - **Capacidades de Bricks (F7b):**
+     - las unitarias de F7b (con php-wasm, juzgando por la salida completa), que usan el núcleo y los derivados reales de PRO: `tests/elements-f7b-{module,usages,actions,interactions,queries,filters,overrides,nested,presentation,inline-tags,forms,kit}.php`, `tests/elements-f7b-{static,actions,queries,filters,overrides,nested-slider,presentation,apply-all,forms}.mjs` y, con Chrome, `tests/elements-f7b-{actions,nested-slider,presentation,forms}-chrome.mjs`. `elements-f7b-apply-all.mjs` extrae de `elementor/assets/js/editor.js` el código de «Pegar estilo» y falla si se movió; `elements-f7b-presentation.php` compara los archivos de las pestañas y el acordeón anidados con los de la versión anterior;
+     - con un símbolo, un gancho o un comportamiento de la lista de «Capacidades de Bricks (F7b)» que cambió, se adapta el submódulo antes de publicar, nunca el núcleo; si cambian `builder_content_data` o la caché por documento, las sobrescrituras dejan de aplicarse (el Plantilla pinta la plantilla sin sobrescribir);
+     - `bash tests/playground/f7b.sh` (B1–B12, también con `WOO=1` para B7), a mano porque Playground no corre en CI.
    - Las pruebas habituales de la publicación.
 4. Publica DIGITALÍSIMO Elements como cualquier otra versión.

@@ -133,7 +133,7 @@ Todos con `style_transfer => false`, sin `default`, sin `selectors`, `prefix_cla
 | No cambian el flujo (las únicas con `scroll_in` y `load`) | `toggle_class`, `set_attribute`, `scroll_to`, `popup_open`, `popup_close`, `offcanvas_toggle` |
 | `toggle` | Sólo con `click` y `hover` |
 | Clase | `[a-z0-9_-]{1,40}`, sin `elementor-`, `e-`, `digi-` ni `wp-` al principio |
-| `set_attribute` | `aria-pressed` (`true|false|mixed`), `aria-current` (`true|false|page|step|location|date|time`), `aria-label` (1–150 caracteres sin `<`, `>` ni controles) y `data-digi-state` (`[a-z0-9_-]{1,40}`). `hidden` y `aria-expanded` los gestionan mostrar y ocultar |
+| `set_attribute` | `aria-pressed` (`true\|false\|mixed`), `aria-current` (`true\|false\|page\|step\|location\|date\|time`), `aria-label` (1–150 caracteres sin `<`, `>` ni controles) y `data-digi-state` (`[a-z0-9_-]{1,40}`). `hidden` y `aria-expanded` los gestionan mostrar y ocultar |
 | Destino | Un elemento **del documento que se pinta** o el propio elemento; un popup publicado de tipo `popup`. Sin destino válido, la fila no se registra |
 
 **`data-digi-actions`** es un arreglo JSON compacto, escapado, de hasta 20 filas: `t` disparador, `a` acción, `g` ID del elemento destino, `p` ID del popup, `c` clase, `n` atributo, `v` valor, `d` retraso en ms, `m` animación y `o` «sólo la primera vez»; sólo se escriben las claves con valor. El `data-settings` del núcleo no se toca.
@@ -384,9 +384,9 @@ El servidor busca `<fid>` en el `_elementor_data` del **documento del bucle** (�
   | `{post:title}`, `{post:excerpt}`, `{post:author}`, `{post:date}` y `{post:date:<formato>}` | `post-title`, `post-excerpt`, `author-name`, `post-date` | Sin formato, el del sitio |
   | `{post:meta:<clave>}` | `post-custom-field` | Sin `_` inicial, fuera de la lista negra y nunca un campo de ACF de un tipo no permitido |
   | `{acf:<campo>}` | `acf-text` | Sólo la entrada del contexto, nunca `options:` (ni ningún `:`); tipos `text`, `textarea`, `number`, `url`, `select`, `radio`, `true_false` y `date_picker`; la lista negra también para el nombre escrito y el real |
-  | `{user:display_name|first_name|last_name|nickname|description|url}` y `{user:first_name|visitante}` | `user-info` (`nickname`, como meta) | Respaldo de hasta 60 caracteres sin `|`; nunca correo, login ni roles |
+  | `{user:display_name\|first_name\|last_name\|nickname\|description\|url}` y `{user:first_name\|visitante}` | `user-info` (`nickname`, como meta) | Respaldo de hasta 60 caracteres sin `\|`; nunca correo, login ni roles |
   | `{site:name}`, `{site:tagline}`, `{date:<formato>}` | `site-title`, `site-tagline`, `current-date-time` | — |
-  | `{query:<parámetro>|<valor1>,<valor2>…}` | Ninguna (no usa `request-arg`) | Imprime el valor de la lista que coincide exactamente con el parámetro GET (tras `wp_unslash`), o nada; sin lista queda literal; prohibidos `utm_*`, `mc_*`, `gclid`, `fbclid` y los de la lista negra |
+  | `{query:<parámetro>\|<valor1>,<valor2>…}` | Ninguna (no usa `request-arg`) | Imprime el valor de la lista que coincide exactamente con el parámetro GET (tras `wp_unslash`), o nada; sin lista queda literal; prohibidos `utm_*`, `mc_*`, `gclid`, `fbclid` y los de la lista negra |
 
   Lo que no encaja, lo bloqueado y lo que el sitio no tiene (ACF inactivo) queda **literal**: nunca se borra texto del usuario. `{term:name}` no existe.
 - **Escape:** el valor de cada etiqueta sale con `esc_html( wp_strip_all_tags( … ) )` (las etiquetas de PRO devuelven HTML con `wp_kses_post`, que con sólo `esc_html` se vería literal) y con `[ ] { }` como entidades, porque el Editor de texto ejecuta shortcodes (`parse_text_editor()`, `elementor/includes/widgets/text-editor.php:594`). El texto del usuario conserva su contexto: el núcleo ya lo saneó al guardar.

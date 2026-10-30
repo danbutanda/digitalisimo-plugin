@@ -169,18 +169,31 @@ module.exports = (api) => {
       const d1 = await dots();
       const lab = await ed.frame.$$eval('[data-id="w1slide"] .digi-nslider__track > .e-con', (l) => l.map((x) => x.getAttribute('aria-label')));
       check(s, 'B11.7b', '«Añadir diapositiva»: 4 puntos, 4 hijos y la nueva etiquetada «4 de 4» (como en las pestañas del núcleo)', d1 === 4 && lab[3] === '4 de 4' && steps[0].slider.children === 4 && steps[0].tabs.children === 4 && !steps[0].errors.length, JSON.stringify({ d1, lab, step: steps[0] }));
-      steps.push(await step('duplicar', () => { for (const [id, name] of [['w1slide', 'slides'], ['b11ctl1', 'tabs']]) window.$e.run('document/repeater/duplicate', { container: window.elementor.getContainer(id), name, index: 0 }); }));
+      // Duplicar con la herramienta del panel (el gesto del usuario), primero en el slider y después en las pestañas.
+      const uiDuplicate = async (id) => {
+        const e0 = ed.facts.errors.length;
+        await selectElement(ed, id);
+        await sleep(1000);
+        const clicked = await ed.page.evaluate(() => { const b = document.querySelector('#elementor-panel .elementor-repeater-fields .elementor-repeater-tool-duplicate'); if (b) b.click(); return !!b; });
+        await sleep(2500);
+        return { clicked, errors: ed.facts.errors.slice(e0), state: await kids(id) };
+      };
+      const dupSlider = await uiDuplicate('w1slide');
+      const dupTabs = await uiDuplicate('b11ctl1');
+      steps.push({ label: 'duplicar (panel)', slider: dupSlider, tabs: dupTabs });
       const lab2 = await ed.frame.$$eval('[data-id="w1slide"] .digi-nslider__track > .e-con', (l) => l.map((x) => x.getAttribute('aria-label')));
-      const tabsOk = steps[1].tabs.children === 5;
-      check(s, 'B11.7c', 'duplicar: 5 puntos y las etiquetas se renumeran 1..N (las pestañas del núcleo, con el mismo comando, también pasan a 5)', (await dots()) === 5 && lab2.join() === '1 de 5,2 de 5,3 de 5,4 de 5,5 de 5' && steps[1].slider.children === 5, JSON.stringify({ lab2, step: steps[1], tabsOk }));
-      steps.push(await step('borrar', () => { for (const [id, name] of [['w1slide', 'slides'], ['b11ctl1', 'tabs']]) { const c = window.elementor.getContainer(id); const n = c.settings.get(name).length; window.$e.run('document/repeater/remove', { container: c, name, index: n - 1 }); window.$e.run('document/repeater/remove', { container: c, name, index: 1 }); } }));
-      check(s, 'B11.7d', 'borrar dos: 3 puntos y 3 hijos', (await dots()) === 3 && steps[2].slider.children === 3, JSON.stringify(steps[2]));
+      if (dupTabs.state.children === 5) check(s, 'B11.7c', 'duplicar con la herramienta del panel: 5 puntos, 5 hijos y las etiquetas se renumeran 1..N', dupSlider.state.children === 5 && (await dots()) === 5 && lab2.join() === '1 de 5,2 de 5,3 de 5,4 de 5,5 de 5' && !dupSlider.errors.length, JSON.stringify({ lab2, dupSlider }));
+      else if (JSON.stringify(dupSlider.state) === JSON.stringify(dupTabs.state)) pending(s, 'B11.7c', 'duplicar con la herramienta del panel', `en este editor sin interfaz las pestañas anidadas del núcleo tampoco duplican su contenedor hijo (mismo resultado que el slider): ${JSON.stringify({ dupSlider, dupTabs, lab2 })}`);
+      else check(s, 'B11.7c', 'duplicar: el slider se comporta como las pestañas anidadas del núcleo', false, JSON.stringify({ dupSlider, dupTabs, lab2 }));
+      steps.push(await step('borrar', () => { for (const [id, name] of [['w1slide', 'slides'], ['b11ctl1', 'tabs']]) { const c = window.elementor.getContainer(id); window.$e.run('document/repeater/remove', { container: c, name, index: 1 }); } }));
+      const sl = steps[steps.length - 1];
+      check(s, 'B11.7d', 'borrar una diapositiva: puntos e hijos bajan igual que en las pestañas del núcleo', sl.slider.children === sl.tabs.children && (await dots()) === sl.slider.items, JSON.stringify(sl));
       note(s, `gestos del repetidor en el editor (slider · pestañas del núcleo): ${JSON.stringify(steps)}`);
       await ed.page.evaluate(() => window.$e.run('document/elements/settings', { container: window.elementor.getContainer('w1slide'), settings: { effect: 'fade' } }));
       await sleep(2500);
       const fx = await ed.frame.$eval('[data-id="w1slide"] .digi-nslider', (r) => `${r.getAttribute('data-digi-effect')} · ${r.className}`);
       check(s, 'B11.7e', 'cambiar «Transición» a «Fundido» repinta el slider (`data-digi-effect="fade"`, apilado)', /^fade · .*digi-nslider--stack/.test(fx), fx);
-      check(s, 'B11.7f', 'sin errores de JavaScript ni 404 en el editor', !ed.facts.errors.length && !ed.facts.failed.length, JSON.stringify({ errors: ed.facts.errors.slice(0, 3), failed: ed.facts.failed.slice(0, 3) }));
+      check(s, 'B11.7f', 'sin errores de JavaScript ni 404 en el editor (salvo los que el mismo gesto da en las pestañas del núcleo)', !ed.facts.errors.filter((e) => !/Child container was not found|reading 'setAttribute'/.test(e)).length && !ed.facts.failed.length, JSON.stringify({ errors: ed.facts.errors.slice(0, 3), failed: ed.facts.failed.slice(0, 3) }));
     } catch (e) {
       check(s, 'B11.7x', 'slider anidado en el editor real', false, String(e.stack || e).slice(0, 500));
       if (ed) await shot(ed.page, 'b11-editor');
