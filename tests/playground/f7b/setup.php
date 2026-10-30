@@ -167,6 +167,32 @@ foreach ( (array) ( $cases['posts'] ?? array() ) as $key => $p ) {
 }
 update_option( 'digi_f7b_ids', $map );
 
+// WOO=1 (B7): la tienda visible y seis productos simples con precio (la tabla de búsqueda se llena al guardar).
+$map['products'] = array();
+if ( ! empty( $mode['woo'] ) ) {
+	update_option( 'woocommerce_coming_soon', 'no' );
+	update_option( 'woocommerce_store_pages_only', 'no' );
+	if ( ! class_exists( 'WC_Product_Simple' ) ) {
+		digi_f7b_fail( 'WOO=1 sin WooCommerce activo' );
+	} else {
+		foreach ( array( 'a' => 12, 'b' => 18, 'c' => 25, 'd' => 33, 'e' => 41, 'f' => 58 ) as $key => $price ) {
+			$found = get_page_by_path( 'f7b-producto-' . $key, OBJECT, 'product' );
+			if ( $found ) {
+				$map['products'][ $key ] = (int) $found->ID;
+				continue;
+			}
+			$product = new WC_Product_Simple();
+			$product->set_name( 'Producto F7b ' . strtoupper( $key ) );
+			$product->set_slug( 'f7b-producto-' . $key );
+			$product->set_regular_price( (string) $price );
+			$product->set_status( 'publish' );
+			$product->set_date_created( '2026-02-0' . ( ord( $key ) - 96 ) . ' 10:00:00' );
+			$map['products'][ $key ] = (int) $product->save();
+		}
+	}
+}
+update_option( 'digi_f7b_ids', $map );
+
 // Consultas guardadas (C2): como las guarda la pantalla «Consultas».
 $store = '\\Digitalisimo\\Elements\\F7b\\Queries\\Store';
 if ( class_exists( $store ) ) {

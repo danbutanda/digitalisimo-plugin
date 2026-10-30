@@ -152,7 +152,42 @@ module.exports = (api) => {
 
   async function B7(s) {
     if (!api.MODE.woo) { pending(s, 'B7.0', 'filtros de F4-Woo y de F7b en el mismo bucle de productos', 'sólo con WOO=1'); return; }
-    pending(s, 'B7.1', 'precio y atributo de F4-Woo junto a búsqueda y orden por precio de F7b en un bucle de productos', 'cubierto por woo-flow.sh W9 y W10 con el registro ampliado (regresión); el caso combinado en f7b.sh queda para la siguiente iteración');
+    const m = await ids(true);
+    const page = await url('b7-woo');
+    const L = 'b7loop1';
+    const p = (name) => `e-filter-${L}-${name}`;
+    const wpp = async (args) => (await control('wpquery', { args: JSON.stringify({ post_type: 'product', posts_per_page: 20, ...args }) })).ids;
+    const all = loopIds((await request('GET', page)).text, L);
+    check(s, 'B7.1', 'el bucle de productos pinta los seis productos', all && all.length === 6, JSON.stringify(all));
+    const price = loopIds((await request('GET', page + q({ [p('digi_price_min')]: '15', [p('digi_price_max')]: '40' }))).text, L);
+    const wantPrice = await wpp({ orderby: 'date', order: 'DESC', meta_query: [{ key: '_price', value: [15, 40], compare: 'BETWEEN', type: 'DECIMAL(10,2)' }] });
+    check(s, 'B7.2', 'precio 15–40 de F4-Woo = WP_Query por `_price`', JSON.stringify(price) === JSON.stringify(wantPrice), JSON.stringify({ price, wantPrice }));
+    const asc = loopIds((await request('GET', page + q({ [p('digi_o_b7ordr1')]: 'price_asc' }))).text, L);
+    const wantAsc = await wpp({ meta_key: '_price', orderby: 'meta_value_num', order: 'ASC' });
+    check(s, 'B7.3', 'orden «Precio: de menor a mayor» de F7b (tabla de búsqueda de WooCommerce) = WP_Query por `_price`', JSON.stringify(asc) === JSON.stringify(wantAsc), JSON.stringify({ asc, wantAsc }));
+    const combo = loopIds((await request('GET', page + q({ [p('digi_price_min')]: '15', [p('digi_price_max')]: '40', [p('digi_s_b7srch1')]: 'Producto', [p('digi_o_b7ordr1')]: 'price_desc' }))).text, L);
+    const wantCombo = await wpp({ s: 'Producto', meta_key: '_price', orderby: 'meta_value_num', order: 'DESC', meta_query: [{ key: '_price', value: [15, 40], compare: 'BETWEEN', type: 'DECIMAL(10,2)' }] });
+    check(s, 'B7.4', 'precio de F4-Woo + búsqueda + orden por precio de F7b en el mismo bucle: el JOIN no se repite y el conjunto = WP_Query', JSON.stringify(combo) === JSON.stringify(wantCombo) && combo.length === 3, JSON.stringify({ combo, wantCombo }));
+    // Chrome: una sola petición con los dos registros (F4-Woo y F7b) en el mismo coordinador.
+    const v = await open(page);
+    const posts = [];
+    v.page.on('request', (rq) => { if (/refresh-loop/.test(rq.url())) posts.push(rq.postData() || ''); });
+    await v.page.select('.elementor-element-b7ordr1 select', 'price_desc');
+    await v.page.click('.elementor-element-b7ordr1 button[type="submit"]').catch(() => {});
+    await sleep(3000);
+    const min = await v.page.$('.elementor-element-b7prce1 input[type="number"]');
+    const answered = v.page.waitForResponse((r) => /refresh-loop/.test(r.url()), { timeout: 30000 }).catch(() => null);
+    if (min) { await min.click({ clickCount: 3 }); await min.type('15'); await v.page.keyboard.press('Tab'); }
+    await answered;
+    await sleep(2500);
+    const last = posts[posts.length - 1] || '';
+    let body = null;
+    try { body = JSON.parse(last); } catch (e) { /* */ }
+    const types = body ? Object.keys(body.widget_filters || {}) : [];
+    const shown = await domLoopIds(v.page, L);
+    check(s, 'B7.5', 'en Chrome, el coordinador manda en una petición el orden de F7b y el precio de F4-Woo, y el bucle queda filtrado y ordenado', types.includes('digitalisimo_orderby') && types.some((t) => /price/.test(t)) && shown.length > 0 && shown.length < 6, JSON.stringify({ requests: posts.length, types, shown, body: last.slice(0, 400), inputs: await v.page.$$eval('.elementor-element-b7prce1 input', (l) => l.map((i) => `${i.type}:${i.name}=${i.value}`)) }));
+    check(s, 'B7.6', 'sin errores de JavaScript ni respuestas de error', !v.facts.errors.length && !v.facts.failed.length, JSON.stringify({ errors: v.facts.errors.slice(0, 3), failed: v.facts.failed.slice(0, 3) }));
+    await v.close();
   }
 
   return { B5, B6, B7 };

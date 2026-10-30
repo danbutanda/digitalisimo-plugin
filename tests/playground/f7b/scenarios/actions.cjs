@@ -267,7 +267,10 @@ module.exports = (api) => {
       const other = await (await newPage(ctx)).goto(`${BASE}/wp-admin/index.php`, { waitUntil: 'load' }).then((r) => r.text());
       check(s, 'B2.3b', 'el aviso no sale fuera de las pantallas de DIGITALÍSIMO (escritorio)', !other.includes('digitalisimo-interactions-notice'));
       if (notice) {
-        await Promise.all([pg.waitForNavigation({ waitUntil: 'load', timeout: 180000 }), pg.click('.digitalisimo-interactions-notice button[type="submit"]')]);
+        pg.on('dialog', (d) => { note(s, `diálogo al enviar: ${d.type()} «${d.message()}»`); d.accept().catch(() => {}); });
+        const nav = pg.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).then(() => 'navegó').catch((e) => `sin navegar: ${e.message.slice(0, 80)}`);
+        await pg.$eval('.digitalisimo-interactions-notice form', (f) => { const b = f.querySelector('button[type="submit"]'); if (f.requestSubmit) f.requestSubmit(b); else b.click(); });
+        note(s, `envío del aviso: ${await nav} → ${pg.url()}`);
         const done = await pg.$eval('.notice-success', (n) => n.textContent.trim()).catch(() => '');
         ping = await control('ping');
         check(s, 'B2.4', '«Reproducir las interacciones guardadas» pasa el sitio a `ack` y avisa del resultado', ping.interactions === 'ack' && /ya se reproducen/.test(done), JSON.stringify({ state: ping.interactions, done, url: pg.url() }));
@@ -277,9 +280,9 @@ module.exports = (api) => {
       check(s, 'B2.4b', 'la acción sin sesión ni nonce no cambia nada', forged.status !== 200 || !/played/.test(forged.headers.location || ''), `${forged.status} ${forged.headers.location || ''}`);
       v = await open(await url('b2-v4'));
       const s1 = (v.probe || {}).scripts || [];
-      const inline = /<script[^>]*id="motion-js-after"[^>]*>[^<]*skipAnimations=true/.test(v.html);
+      const inline = /<script[^>]*id="motion-js(?:-js)?-after"[^>]*>[^<]*skipAnimations=true/.test(v.html);
       check(s, 'B2.5', 'en `ack` se reproducen: `elementor-interactions-pro` y `motion-js` con el script de movimiento reducido en línea (≈ 150 B)', s1.includes('elementor-interactions-pro') && inline, JSON.stringify({ scripts: s1.filter((x) => /motion|interaction/.test(x)), inline }));
-      const bytes = (v.html.match(/<script[^>]*id="motion-js-after"[^>]*>([\s\S]*?)<\/script>/) || ['', ''])[1].trim().length;
+      const bytes = (v.html.match(/<script[^>]*id="motion-js(?:-js)?-after"[^>]*>([\s\S]*?)<\/script>/) || ['', ''])[1].trim().length;
       check(s, 'B2.5b', 'el script en línea pesa ≤ 150 B', bytes > 0 && bytes <= 150, `${bytes} B`);
       const skipNormal = await v.page.evaluate(() => !!(window.Motion && window.Motion.MotionGlobalConfig && window.Motion.MotionGlobalConfig.skipAnimations));
       await v.close();

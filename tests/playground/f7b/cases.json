@@ -149,6 +149,16 @@
   "b6-draft": { "type": "section", "title": "B6 · plantilla en borrador con filtro", "status": "draft", "elements": [
    { "c": "b6dc001", "s": {}, "e": [ { "w": "digitalisimo-loop-orderby", "id": "b6drft1", "s": { "destination": "archive", "orders": [ { "_id": "o1", "order_key": "title_asc" } ] } } ] } ] },
 
+  "f7b-loop-product": { "type": "loop-item", "title": "F7b · bucle de productos", "source": "product", "woo": true, "elements": [
+   { "c": "lpp0001", "s": {}, "e": [ { "w": "theme-post-title", "id": "lppt001", "s": { "header_size": "h3" } } ] } ] },
+  "b7-woo": { "type": "page", "title": "B7 · filtros de F4-Woo y F7b en el mismo bucle", "woo": true, "elements": [
+   { "c": "b7c0001", "s": { "flex_direction": "column" }, "e": [
+    { "w": "digitalisimo-woo-price-filter", "id": "b7prce1", "s": { "destination": "loop", "selected_element": "b7loop1", "bounds": "fixed", "bound_min": 0, "bound_max": 100, "step": 1, "display": "both", "apply": "change" } },
+    { "w": "digitalisimo-loop-search", "id": "b7srch1", "s": { "destination": "loop", "selected_element": "b7loop1", "label": "Buscar productos" } },
+    { "w": "digitalisimo-loop-orderby", "id": "b7ordr1", "s": { "destination": "loop", "selected_element": "b7loop1", "orders": [ { "_id": "o1", "order_key": "price_asc" }, { "_id": "o2", "order_key": "price_desc" }, { "_id": "o3", "order_key": "title_asc" } ] } },
+    { "w": "loop-grid", "id": "b7loop1", "s": { "_skin": "product", "template_id": "__ID:f7b-loop-product__", "posts_per_page": 20, "columns": 3, "product_query_post_type": "product", "product_query_orderby": "date", "product_query_order": "desc" } }
+   ] } ] },
+
   "b8-tpl": { "type": "section", "title": "B8 · plantilla con claves", "elements": [
    { "c": "b8t0001", "s": { "flex_direction": "column" }, "e": [
     { "w": "heading", "id": "b8thd01", "s": { "title": "Título original", "_digitalisimo_slot": "titulo" } },
