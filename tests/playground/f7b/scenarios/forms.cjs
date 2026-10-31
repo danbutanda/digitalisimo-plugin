@@ -105,8 +105,15 @@ module.exports = (api) => {
     // Editor real: reglas dentro del repetidor de campos.
     await login('admin');
     let ed = null;
+    // Control: el editor de un formulario sin reglas (los mismos controles de F7b registrados, sin datos de reglas).
+    if (process.env.B10_CONTROL === '1') {
+      const plainEd = await openEditor('admin', m.docs['b10-plain']).catch((e) => ({ error: String(e.message || e) }));
+      note(s, `editor del formulario sin reglas: ${JSON.stringify({ error: plainEd.error, errors: plainEd.facts && plainEd.facts.errors, stacks: plainEd.facts && (plainEd.facts.stacks || []).slice(0, 2) })}`);
+      if (plainEd.close) await plainEd.close();
+    }
     try {
       ed = await openEditor('admin', m.docs['b10-form']);
+      if ((ed.facts.stacks || []).length) note(s, `pilas de los errores del editor del formulario con reglas: ${JSON.stringify(ed.facts.stacks.slice(0, 2))}`);
       await selectElement(ed, 'b10frm1');
       await activateSection(ed, 'section_form_fields', 'content');
       await sleep(1500);

@@ -193,7 +193,7 @@ async function newPage(ctx, { width = 1280, height = 900 } = {}) {
   page.setDefaultTimeout(120000);
   const facts = { errors: [], failed: [], outside: [], requests: [] };
   page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) facts.errors.push(m.text().slice(0, 300)); });
-  page.on('pageerror', (e) => facts.errors.push(`pageerror: ${String(e.message || e).slice(0, 300)}`));
+  page.on('pageerror', (e) => { facts.errors.push(`pageerror: ${String(e.message || e).slice(0, 300)}`); if (e && e.stack) (facts.stacks = facts.stacks || []).push(String(e.stack).slice(0, 1500)); });
   page.on('request', (r) => facts.requests.push({ url: r.url(), method: r.method(), post: r.postData() || '' }));
   page.on('requestfailed', (r) => {
     const f = r.failure();
