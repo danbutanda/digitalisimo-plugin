@@ -25,6 +25,8 @@
 #                       nuevos, sobrescrituras, datos en el texto, formulario condicional, slider anidado y presentación),
 #                       su plantilla con una clave y una consulta guardada: se recorre su editor con cada control nuevo
 #                       seleccionado, el menú contextual («Aplicar a todos»), «Consultas», «Dónde se usa» y su frontal
+#   ONLY=f7b            sólo el recorrido de F7b y los frontales (sin las pantallas de administración ni el editor de
+#                       digi-marca, que ya audita la corrida completa): cabe en una llamada de 10 min
 #   PORT, OUT           puerto del servidor y carpeta de resultados
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -128,7 +130,7 @@ fi
 [ -f "$OUT/setup-error.txt" ] && { echo "Preparación incompleta:"; cat "$OUT/setup-error.txt"; exit 1; }
 [ -f "$OUT/setup-warnings.txt" ] && { echo "Avisos de la preparación:"; cat "$OUT/setup-warnings.txt"; }
 status=0
-OUT="$OUT" SCOPE="$SCOPE" STATE="$STATE" ORIGINAL="$ORIGINAL" WOO="$WOO" NODE_PATH="$PUPPETEER_PATH" node "$A/run.cjs" "http://127.0.0.1:$PORT" || status=$?
+OUT="$OUT" SCOPE="$SCOPE" STATE="$STATE" ORIGINAL="$ORIGINAL" WOO="$WOO" ONLY="${ONLY:-}" NODE_PATH="$PUPPETEER_PATH" node "$A/run.cjs" "http://127.0.0.1:$PORT" || status=$?
 [ -s "$OUT/fatal.log" ] && { echo "Errores fatales:"; cat "$OUT/fatal.log"; status=1; }
 # Red de seguridad, independiente de run.cjs: cualquier salida del servidor, redirección o correo al proveedor falla.
 if [ -s "$OUT/http.jsonl" ]; then

@@ -25,6 +25,7 @@ const V = fs.existsSync(`${OUT}/vendors.json`) ? JSON.parse(fs.readFileSync(`${O
 const ALLOW = (JSON.parse(fs.readFileSync(path.join(__dirname, 'allow.json'), 'utf8')).excepciones || []).map((a) => ({
   ...a, used: 0, reUrl: new RegExp(a.url), reScreen: a.pantalla ? new RegExp(a.pantalla) : null, reSource: a.origen ? new RegExp(a.origen) : null,
 }));
+const F7B_ONLY = process.env.ONLY === 'f7b';
 const IDS = fs.existsSync(`${OUT}/ids.json`) ? JSON.parse(fs.readFileSync(`${OUT}/ids.json`, 'utf8')) : {};
 // STATE=kit (etapa K): la sesión de «wp digitalisimo-elements kit import» y lo que importó (setup.php, fase kit).
 const STATE = process.env.STATE || 'nuevo';
@@ -679,7 +680,8 @@ if (require.main === module) (async () => {
       'wp-admin/admin.php?page=elementor-app#/import-customization/complete', 'wp-admin/admin.php?page=digitalisimo-elements-kits',
     ] : [];
     if (STATE === 'kit' && !KIT) brand.push({ locale, screen: 'kit', kind: 'error', text: 'STATE=kit sin kit.json: la importación del kit no terminó', shown: true, where: '' });
-    const planned = [...new Set([...fixed, ...extra, ...kitScreens].map((p) => `${base}/${p}`).concat(screens).concat(KIT && KIT.screen ? [KIT.screen.replace(/^https?:\/\/[^/]+/, base)] : []))];
+    // ONLY=f7b: sólo lo de F7b (más los frontales): las demás pantallas ya las audita la corrida completa.
+    const planned = F7B_ONLY ? [] : [...new Set([...fixed, ...extra, ...kitScreens].map((p) => `${base}/${p}`).concat(screens).concat(KIT && KIT.screen ? [KIT.screen.replace(/^https?:\/\/[^/]+/, base)] : []))];
     // Lo que se va a visitar no se sondea aparte: el sondeo es para los enlaces que el recorrido no abre.
     for (const url of planned) visitedUrls.add(url.split('#')[0]);
     for (const url of planned) {
@@ -705,8 +707,8 @@ if (require.main === module) (async () => {
     }
     // Rutas del núcleo que redirigen al proveedor aunque ningún enlace visible las nombre (una regresión de la guarda
     // las reabriría): se sondean siempre.
-    await probeLinks(page, 'sondeo · rutas conocidas', visitedUrls, ['go_elementor_pro', 'elementor-one-upgrade', 'elementor-connect&app=library&action=authorize', 'elementor-connect&app=activate&action=authorize'].map((p) => `${base}/wp-admin/admin.php?page=${p}`));
-    if (SCOPE === 'full') {
+    if (!F7B_ONLY) await probeLinks(page, 'sondeo · rutas conocidas', visitedUrls, ['go_elementor_pro', 'elementor-one-upgrade', 'elementor-connect&app=library&action=authorize', 'elementor-connect&app=activate&action=authorize'].map((p) => `${base}/wp-admin/admin.php?page=${p}`));
+    if (SCOPE === 'full' && !F7B_ONLY) {
       // Barra superior de Editor One en la pantalla de inicio del constructor: cada botón (ayuda, novedades, cuenta…).
       await screenAt(`${base}/wp-admin/admin.php?page=elementor-home`, 'barra superior', {
         after: () => clickEach('#editor-one-top-bar button, #editor-one-top-bar a[href], #editor-one-top-bar [role="button"]', 'barra superior', { max: 16 }),
@@ -748,7 +750,7 @@ if (require.main === module) (async () => {
       await audit(page, label);
       visited.push(`${state.locale} ${label}`);
     };
-    try {
+    if (!F7B_ONLY) try {
       const frame = await editorAt(pageId, 'editor');
       // Menú principal del editor (botón con el logotipo en la barra superior).
       await enter('editor-menu');
@@ -914,6 +916,11 @@ if (require.main === module) (async () => {
         notes.push(`${state.locale} editor-f7b: ${e.message}`);
         f7aError('editor-f7b', `el editor no se pudo recorrer: ${String(e.message).slice(0, 160)}`);
       }
+      // «Insertar dato» y su «Deshacer» dejan el documento con cambios: salir del editor abriría el aviso de
+      // «beforeunload», que detiene la navegación. Se marca sin cambios y se acepta el aviso si aun así aparece.
+      await page.evaluate(() => { try { window.onbeforeunload = null; if (elementor.saver && elementor.saver.setFlagEditorChange) elementor.saver.setFlagEditorChange(false); } catch (e) { /* nada */ } }).catch(() => {});
+      const acceptLeave = (d) => { notes.push(`${state.locale} editor-f7b: aviso al salir del editor aceptado (${d.type()})`); d.accept().catch(() => {}); };
+      page.on('dialog', acceptLeave);
       if (IDS.f7bTemplate) {
         try {
           await editorAt(IDS.f7bTemplate, 'editor-f7b-plantilla');
@@ -924,7 +931,9 @@ if (require.main === module) (async () => {
       if (IDS.f7bQuery) await screenAt(`${base}/wp-admin/admin.php?page=digitalisimo-elements-queries&action=edit&id=${IDS.f7bQuery}`, 'f7b · Consultas · editar');
       if (IDS.f7bTemplate) await screenAt(`${base}/wp-admin/admin.php?page=digitalisimo-elements-uses&kind=t&id=${IDS.f7bTemplate}`, 'f7b · Dónde se usa');
       await screenAt(`${base}/wp-admin/edit.php?post_type=elementor_library`, 'f7b · plantillas con «En uso (N)»');
+      await page.evaluate(() => { try { window.onbeforeunload = null; if (window.elementor && elementor.saver && elementor.saver.setFlagEditorChange) elementor.saver.setFlagEditorChange(false); } catch (e) { /* nada */ } }).catch(() => {});
       await screenAt(`${base}/digi-marca-f7b/`, 'frontal-f7b-admin');
+      page.off('dialog', acceptLeave);
     }
     // Frontal como administrador (barra de administración, con cada menú desplegado en full).
     await screenAt(`${base}/digi-marca/`, 'frontal-admin', {
