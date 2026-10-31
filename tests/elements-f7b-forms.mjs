@@ -260,6 +260,37 @@ for (const [i, c] of vectors.rules.entries()) {
 	ok(JSON.stringify(warnings(rows, 1)) === JSON.stringify(['DESPUES c', 'MISMO', 'FALTA zz', 'SIN-ID']), 'Avisos: campo posterior (C2-12 e), el propio campo, un ID que no existe, una regla sin ID; sin repetir: ' + JSON.stringify(warnings(rows, 1)));
 	ok(JSON.stringify(warnings(rows, 2)) === JSON.stringify(['NINGUNA']), 'Sin reglas: el campo no se mostrará.');
 	ok(warnings(rows, 0).length === 0 && warnings(rows, 3).length === 0, 'Sin el interruptor, ningún aviso.');
+
+	// Repetidor dentro del repetidor (f7b.sh, B10): la conversión del núcleo (`convertRepeaterValueToCollection()` crea
+	// cada fila con su objeto crudo y `handleRepeaterData()` le escribe la colección) no debe tocar los datos crudos del
+	// documento, que `editor-templates-extended` de PRO recorre con `Object.values()` (con una colección dentro, sin fin).
+	class Collection { constructor(list) { this.models = list.map((a) => { const m = { cid: Math.random(), attributes: a, collection: this }; return m; }); } }
+	function BaseSettings() {}
+	BaseSettings.prototype.handleRepeaterData = function (attrs, fields) { for (const f of fields) if (f.is_repeater && !(attrs[f.name] instanceof Collection)) attrs[f.name] = new Collection(attrs[f.name] || []); };
+	BaseSettings.prototype.convertRepeaterValueToCollection = function (attrs, control) {
+		const inner = Object.values(control.fields);
+		return new Collection(attrs[control.name].map((row) => { this.handleRepeaterData(row, inner); return row; }));
+	};
+	const nested = { name: 'form_fields', fields: { a: { name: 'custom_id' }, b: { name: 'digitalisimo_rules', is_repeater: true } } };
+	const flat = { name: 'tabs', fields: { a: { name: 'tab_title' } } };
+	const raw = { form_fields: [{ custom_id: 'rfc', digitalisimo_rules: [{ field: 'tipo' }] }], tabs: [{ tab_title: 'Uno' }] };
+	const w2 = { addEventListener() {}, elementorModules: { editor: { elements: { models: { BaseSettings } } } }, digitalisimoFormConditions: { i18n: {} } };
+	w2.window = w2;
+	vm.createContext(w2);
+	vm.runInContext(editorSource, w2);
+	vm.runInContext(editorSource, w2);
+	const model = new BaseSettings();
+	const col = model.convertRepeaterValueToCollection(raw, nested);
+	ok(Array.isArray(raw.form_fields[0].digitalisimo_rules) && !(raw.form_fields[0].digitalisimo_rules instanceof Collection), 'La fila cruda del documento conserva sus reglas como lista: nada circular para el recorrido de PRO.');
+	ok(col.models[0].attributes.digitalisimo_rules instanceof Collection && col.models[0].attributes.custom_id === 'rfc', 'La fila del modelo sí recibe su colección de reglas (el repetidor anidado del panel funciona).');
+	const walk = (v, seen = 0) => { if (seen > 200) throw new Error('sin fin'); if (Array.isArray(v)) return v.forEach((x) => walk(x, seen + 1)); if (v && typeof v === 'object') return Object.values(v).forEach((x) => walk(x, seen + 1)); };
+	let walked = true;
+	try { walk(raw); } catch (e) { walked = false; }
+	ok(walked, 'El recorrido de PRO (Object.values recursivo) termina sobre los datos crudos.');
+	const tabsRow = raw.tabs[0];
+	model.convertRepeaterValueToCollection(raw, flat);
+	ok(raw.tabs[0] === tabsRow, 'Un repetidor sin repetidor dentro no cambia (mismas filas).');
+	ok(w2.elementorModules.editor.elements.models.BaseSettings.prototype.convertRepeaterValueToCollection.digi === 1, 'El arreglo se instala una sola vez aunque el script corra dos veces.');
 }
 
 console.log(`DIGITALÍSIMO Elements F7b · forms-conditions.js (${size} B): ${checks} comprobaciones en verde (vectores, marcado real, cascada, reglas rotas y arranque).`);

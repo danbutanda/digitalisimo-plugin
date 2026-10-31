@@ -50,6 +50,7 @@
 		const e = w.elementor;
 		if (!e || !e.hooks || boot.on) return;
 		boot.on = 1;
+		guard();
 		e.hooks.addAction('panel/open_editor/widget', (panel, model) => {
 			current = model && 'form' === model.get('widgetType') ? model : null;
 			if (current) later();
@@ -57,6 +58,24 @@
 		if (e.channels && e.channels.editor) e.channels.editor.on('section:activated', later);
 		if ($) $(w.document).on('input change click sortupdate', '#elementor-panel', () => current && later());
 	}
+
+	// Repetidor en repetidor: el núcleo escribe la colección de reglas en la fila cruda de `config.elements` y el recorrido
+	// de `editor-templates-extended` de PRO agota la pila (f7b.sh, B10). Se convierte una copia de cada fila.
+	function guard() {
+		const B = w.elementorModules && w.elementorModules.editor && w.elementorModules.editor.elements && w.elementorModules.editor.elements.models && w.elementorModules.editor.elements.models.BaseSettings;
+		const p = B && B.prototype;
+		if (!p || !p.convertRepeaterValueToCollection || p.convertRepeaterValueToCollection.digi) return;
+		const orig = p.convertRepeaterValueToCollection;
+		p.convertRepeaterValueToCollection = function (attrs, control) {
+			const rows = attrs && attrs[control.name];
+			if (Array.isArray(rows) && Object.values(control.fields || {}).some((f) => f && f.is_repeater)) {
+				attrs = Object.assign({}, attrs, { [control.name]: rows.map((r) => (r && 'object' === typeof r && !r.cid ? Object.assign({}, r) : r)) });
+			}
+			return orig.call(this, attrs, control);
+		};
+		p.convertRepeaterValueToCollection.digi = 1;
+	}
+	guard();
 
 	w.digitalisimoFormConditionsEditor = { warnings };
 	if (w.elementor && w.elementor.hooks) boot();
