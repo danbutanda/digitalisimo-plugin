@@ -21,6 +21,9 @@ require_once ABSPATH . 'wp-admin/includes/image.php';
 require_once ABSPATH . 'wp-admin/includes/file.php';
 require_once ABSPATH . 'wp-admin/includes/media.php';
 require_once __DIR__ . '/lib.php';
+// Todo el sitio A se prepara en esta sola petición y termina volcando el inventario de controles (≈8 MB de JSON sin
+// WooCommerce): con WOO=1 eso pasa de los 256 MB de Playground. memory.json anota el pico, por si vuelve a crecer.
+ini_set( 'memory_limit', '768M' ); // phpcs:ignore WordPress.PHP.IniSet.memory_limit_Disallowed
 
 $digi_opts = digi_k_options();
 wp_set_current_user( 1 );
@@ -564,6 +567,7 @@ $import_of = static function ( $object ) {
 	}
 	return preg_match( '#/elementor/includes/base/(element-base|controls-stack)\.php$#', $file ) ? 'ninguno' : 'propio';
 };
+$memory_before_inventory = memory_get_usage();
 $inventory = array( 'widgets' => array(), 'elements' => array(), 'conditions' => array() );
 foreach ( \Elementor\Plugin::$instance->widgets_manager->get_widget_types() as $name => $widget ) {
 	try {
@@ -607,6 +611,7 @@ if ( class_exists( '\Digitalisimo\Elements\Import\Kits\References' ) ) {
 if ( $refs->missing ) {
 	digi_k_fail( 'Fichas de cases.json sin resolver: ' . implode( ', ', array_unique( $refs->missing ) ) );
 }
+digi_k_write( 'memory.json', array( 'before_inventory' => $memory_before_inventory, 'peak' => memory_get_peak_usage() ) );
 digi_k_write( 'refs.json', $refs->refs );
 digi_k_write( 'ids.json', $ids );
 if ( ! is_plugin_active( 'digitalisimo-elements/pro-elements.php' ) ) {
