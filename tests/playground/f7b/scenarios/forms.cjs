@@ -182,7 +182,7 @@ module.exports = (api) => {
       await ed.close();
       ed = await openEditor('admin', m.docs['b10-form']);
       const reloaded = await ed.page.evaluate(() => { const c = window.elementor.getContainer('b10frm1'); const f = c.settings.get('form_fields'); const row = f.models[1]; const r = row.get('digitalisimo_rules'); return r.models.map((x) => ({ field: x.get('field'), operator: x.get('operator'), value: x.get('value') })); });
-      check(s, 'B10.4e', 'al recargar el editor las reglas vuelven iguales', JSON.stringify(reloaded.map((r) => [r.field, r.value])) === JSON.stringify(rules.map((r) => [r.field, r.value])), JSON.stringify(reloaded));
+      check(s, 'B10.4e', 'al recargar el editor las reglas vuelven iguales (una regla vacía se guarda sin sus valores por defecto, como el núcleo)', JSON.stringify(reloaded.map((r) => [r.field || '', r.value || ''])) === JSON.stringify(rules.map((r) => [r.field || '', r.value || ''])), JSON.stringify(reloaded));
       check(s, 'B10.4f', 'sin errores de JavaScript en el editor', !ed.facts.errors.length, JSON.stringify(ed.facts.errors.slice(0, 3)));
     } catch (e) {
       check(s, 'B10.4x', 'reglas en el editor real', false, String(e.stack || e).slice(0, 500));
