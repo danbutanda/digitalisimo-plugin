@@ -47,10 +47,20 @@ foreach ( $cases as $widget => $settings ) {
 	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
 	update_post_meta( $id, '_elementor_template_type', 'wp-page' );
 	update_post_meta( $id, '_elementor_version', ELEMENTOR_VERSION );
-	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( array( array( 'id' => 's' . substr( md5( $slug ), 0, 6 ), 'elType' => 'section', 'settings' => (object) array(), 'elements' => array( array( 'id' => 'c' . substr( md5( $slug ), 0, 6 ), 'elType' => 'column', 'settings' => array( '_column_size' => 100 ), 'elements' => array(
-		array( 'id' => 'w' . substr( md5( $slug ), 0, 6 ), 'elType' => 'widget', 'widgetType' => $widget, 'settings' => (object) $settings, 'elements' => array() ),
-	) ) ) ) ) ) ) );
+	// F7b: `$widget` es el tipo cuando la clave del caso no lo es (varios casos del mismo widget) y `$elements`, los
+	// hijos de un widget anidado (slider anidado, pestañas, acordeón), que va dentro de un contenedor.
+	$type     = isset( $settings['$widget'] ) ? (string) $settings['$widget'] : $widget;
+	$children = isset( $settings['$elements'] ) && is_array( $settings['$elements'] ) ? $settings['$elements'] : array();
+	unset( $settings['$widget'], $settings['$elements'] );
+	$item = array( 'id' => 'w' . substr( md5( $slug ), 0, 6 ), 'elType' => 'widget', 'widgetType' => $type, 'settings' => (object) $settings, 'elements' => $children );
+	if ( $children ) {
+		$tree = array( array( 'id' => 'k' . substr( md5( $slug ), 0, 6 ), 'elType' => 'container', 'settings' => (object) array(), 'elements' => array( $item ) ) );
+	} else {
+		$tree = array( array( 'id' => 's' . substr( md5( $slug ), 0, 6 ), 'elType' => 'section', 'settings' => (object) array(), 'elements' => array( array( 'id' => 'c' . substr( md5( $slug ), 0, 6 ), 'elType' => 'column', 'settings' => array( '_column_size' => 100 ), 'elements' => array( $item ) ) ) ) );
+	}
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( $tree ) ) );
 }
+
 update_option( 'digi_ix_ready', count( $cases ) );
 update_option( 'digi_ix_core', defined( 'DIGITALISIMO_ELEMENTS_CORE' ) ? 'bundled' : 'plugin' );
 // Sin estos dos plugins activos no hay nada que probar: se avisa en vez de fallar caso por caso.

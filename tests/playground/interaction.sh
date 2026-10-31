@@ -5,6 +5,8 @@
 # que la tabla pagina, ordena y filtra, que las listas de vídeos cambian de vídeo y que el carrusel de productos de
 # WooCommerce (instalado con seis productos de prueba) avanza en una sola fila y que su tabla ordena, filtra y pasa la cantidad
 # al botón de compra, sin errores de JavaScript ni recursos 404.
+# F7b: el slider anidado ligero (teclado, inert, aria-current, 24 px), las pestañas y el acordeón anidados con
+# presentación (clase, foco visible, 24 px) y el formulario condicional; en el editor, la búsqueda «diapositivas».
 # Uso: bash tests/playground/interaction.sh   (PUPPETEER_PATH apunta al node_modules con puppeteer-core)
 # CORE=bundled no instala el plugin Elementor: todo corre sobre el núcleo incluido en DIGITALÍSIMO Elements, que se
 # activa con él, y además se abre el editor de Elementor como administrador (sin errores ni recursos 404).

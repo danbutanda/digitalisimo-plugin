@@ -282,6 +282,65 @@ checks['digitalisimo-fancy-tabs'] = async (page) => {
   await page.waitForFunction(() => { const p = document.querySelectorAll('[role="tabpanel"]')[1]; return p && !p.hidden && p.querySelector('.elementor-widget-heading'); }, { timeout: 4000 });
   return 'las pestañas en línea muestran una plantilla publicada en su panel';
 };
+// F7b: slider anidado ligero (teclado sobre los puntos, inert y aria-current), pestañas y acordeón con presentación
+// (clase, foco visible, 24 px) y formulario condicional (ocultar, mostrar con required, Tab sin entrar en lo oculto).
+checks['f7b-nested-slider'] = async (page) => {
+  await page.waitForSelector('.digi-nslider--ready', { timeout: 8000 });
+  const state = () => page.evaluate(() => {
+    const r = document.querySelector('.digi-nslider'); const t = r.querySelector(':scope>.digi-nslider__track');
+    const slides = [...t.children]; const dots = [...r.querySelectorAll(':scope>.digi-nslider__dots>*')];
+    return { inert: slides.map((x) => (x.inert ? '-' : 'X')).join(''), current: dots.map((d) => (d.getAttribute('aria-current') === 'true' ? 'X' : '-')).join(''), label: r.getAttribute('aria-roledescription') };
+  });
+  const s0 = await state();
+  if (s0.inert !== 'X--' || s0.current !== 'X--' || s0.label !== 'carrusel') throw new Error(`estado inicial ${JSON.stringify(s0)}`);
+  await page.focus('.digi-nslider__dot');
+  await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() => document.querySelectorAll('.digi-nslider__dot')[1].getAttribute('aria-current') === 'true', { timeout: 4000 });
+  await new Promise((r) => setTimeout(r, 400));
+  const s1 = await state();
+  if (s1.inert !== '-X-') throw new Error(`tras la flecha ${JSON.stringify(s1)}`);
+  const sizes = await page.$$eval('.digi-nslider button', (l) => l.filter((b) => b.offsetParent).map((b) => { const r = b.getBoundingClientRect(); return Math.min(r.width, r.height); }));
+  if (!sizes.length || sizes.some((x) => x < 24)) throw new Error(`botones de menos de 24 px: ${sizes}`);
+  return 'el slider anidado ligero cambia de diapositiva con las flechas sobre los puntos (aria-current, inert) y sus botones miden 24 px o más';
+};
+const presentation = (key, wrapper, title, cls) => async (page) => {
+  const got = await page.$eval(wrapper, (el, c) => el.classList.contains(c), cls).catch(() => false);
+  if (!got) throw new Error(`el envoltorio no lleva ${cls}`);
+  const heights = await page.$$eval(title, (l) => l.map((t) => Math.round(t.getBoundingClientRect().height)));
+  if (!heights.length || heights.some((h) => h < 24)) throw new Error(`títulos de menos de 24 px: ${heights}`);
+  await page.focus(title);
+  await page.keyboard.press('Tab');
+  await page.keyboard.down('Shift'); await page.keyboard.press('Tab'); await page.keyboard.up('Shift');
+  const ring = await page.evaluate(() => { const a = document.activeElement; const cs = getComputedStyle(a); return { style: cs.outlineStyle, width: parseFloat(cs.outlineWidth), same: cs.outlineColor === cs.color }; });
+  if (ring.style === 'none' || ring.width < 2 || !ring.same) throw new Error(`foco visible ${JSON.stringify(ring)}`);
+  return `${key}: clase de presentación, títulos de 24 px o más y foco visible con currentColor`;
+};
+checks['f7b-tabs-pills'] = async (page) => {
+  const note = await presentation('pestañas «pills»', '.elementor-widget-n-tabs', '.e-n-tab-title', 'digi-nested-pills')(page);
+  await page.focus('.e-n-tab-title');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.querySelectorAll('.e-n-tab-title')[1].getAttribute('aria-selected') === 'true', { timeout: 3000 });
+  return note + '; la flecha y Enter activan la segunda';
+};
+checks['f7b-accordion-boxed'] = async (page) => {
+  const note = await presentation('acordeón «boxed»', '.elementor-widget-n-accordion', '.e-n-accordion-item-title', 'digi-nested-boxed')(page);
+  await page.click('.e-n-accordion-item:nth-of-type(2) > .e-n-accordion-item-title');
+  await page.waitForFunction(() => document.querySelectorAll('.e-n-accordion-item')[1].open, { timeout: 3000 });
+  return note + '; el segundo elemento se abre al pulsar';
+};
+checks['f7b-form-conditions'] = async (page) => {
+  const st = () => page.$eval('.elementor-field-group-rfc', (g) => ({ display: getComputedStyle(g).display, disabled: g.querySelector('input').disabled, required: g.querySelector('input').required }));
+  const a = await st();
+  if (a.display !== 'none' || !a.disabled) throw new Error(`RFC debería empezar oculto: ${JSON.stringify(a)}`);
+  await page.click('#form-field-tipo-1');
+  const b = await st();
+  if (b.display === 'none' || b.disabled || !b.required) throw new Error(`«Empresa» debería mostrar RFC obligatorio: ${JSON.stringify(b)}`);
+  await page.click('#form-field-tipo-0');
+  const c = await st();
+  if (c.display !== 'none' || !c.disabled || c.required) throw new Error(`«Persona» debería ocultarlo: ${JSON.stringify(c)}`);
+  return 'el formulario condicional oculta y muestra el RFC (obligatorio sólo visible) sin recargar';
+};
 (async () => {
   const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'] });
   const results = {};
@@ -350,6 +409,16 @@ checks['digitalisimo-fancy-tabs'] = async (page) => {
       const core = await page.evaluate(() => (window.elementorCommon && window.elementorCommon.config && window.elementorCommon.config.version) || (window.ElementorConfig && window.ElementorConfig.version) || '');
       if (failedRequests.length) throw new Error('recursos no encontrados: ' + failedRequests.join(' | '));
       if (errors.length) throw new Error('errores de JavaScript: ' + errors.join(' | '));
+      // F7b: en el panel, «diapositivas» encuentra el slider anidado ligero y no el Carrusel de PRO (palabras clave propias).
+      const found = await page.evaluate(async () => {
+        const input = document.querySelector('#elementor-panel-elements-search-input');
+        if (!input) return null;
+        const search = async (q) => { input.value = q; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true })); await new Promise((r) => setTimeout(r, 1200)); return [...document.querySelectorAll('#elementor-panel-elements .elementor-element .title')].map((t) => t.textContent.trim()); };
+        return { slides: await search('diapositivas'), carousel: await search('carousel') };
+      });
+      if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
+      results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
+      console.log(`OK     editor-f7b · ${results.editorF7b.note}`);
       results.editor = { ok: true, note: `el editor de Elementor ${core} carga con panel y vista previa` };
       console.log(`OK     editor · ${results.editor.note}`);
     } catch (e) {

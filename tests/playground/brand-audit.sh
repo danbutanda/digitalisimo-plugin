@@ -21,6 +21,10 @@
 #                       y activo (F4-Woo): setup-woo.php añade un producto, un atributo con muestras y la página
 #                       digi-marca-woo con los siete widgets de WooCommerce, el widget Productos con sus partes y el Menú
 #                       del carrito con la barra y el cupón; se auditan su editor (cada widget seleccionado) y su frontal
+#   (F7b) setup-f7b.php añade siempre la página digi-marca-f7b (acciones, «Oculto al cargar», consulta guardada, filtros
+#                       nuevos, sobrescrituras, datos en el texto, formulario condicional, slider anidado y presentación),
+#                       su plantilla con una clave y una consulta guardada: se recorre su editor con cada control nuevo
+#                       seleccionado, el menú contextual («Aplicar a todos»), «Consultas», «Dónde se usa» y su frontal
 #   PORT, OUT           puerto del servidor y carpeta de resultados
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -41,7 +45,7 @@ mkdir -p "$OUT" && rm -rf "$OUT"/*.png "$OUT"/*.bars.html "$OUT/brand-audit.json
   "$OUT/setup-warnings.txt" "$OUT/ids.json" "$OUT/fatal.log" "$OUT/http.jsonl" "$OUT/netlog.json" "$OUT/cron-"*.json "$OUT/migrado" \
   "$OUT/kits" "$OUT/kit.json" "$OUT/woocommerce.json"
 A="$ROOT/tests/playground/brand-audit"
-cp "$A/setup.php" "$A/setup-f7a.php" "$A/setup-woo.php" "$A/probe-http.php" "$A/cron.php" "$A/migrado.json" "$OUT/"
+cp "$A/setup.php" "$A/setup-f7a.php" "$A/setup-f7b.php" "$A/setup-woo.php" "$A/probe-http.php" "$A/cron.php" "$A/migrado.json" "$OUT/"
 # Lista de proveedores con los vídeos de muestra regenerados desde el código (el núcleo cambia en cada versión).
 node "$A/vendors.cjs" "$ROOT" > "$OUT/vendors.json"
 printf '{"scope":"%s","state":"%s","original":%s,"woo":%s}\n' "$SCOPE" "$STATE" "$([ "$ORIGINAL" = 1 ] && echo true || echo false)" "$([ "$WOO" = 1 ] && echo true || echo false)" > "$OUT/audit-options.json"
@@ -95,7 +99,8 @@ fi
 cat > "$OUT/blueprint.json" <<JSON
 {$LIBRARIES"steps":[$WOO_STEP$STEPS
 {"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup.php';"},
-{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup-f7a.php';"}$WOO_SETUP$KIT_STEPS]}
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup-f7a.php';"},
+{"step":"runPHP","code":"<?php require '/wordpress/wp-content/probe/setup-f7b.php';"}$WOO_SETUP$KIT_STEPS]}
 JSON
 MOUNTS=(--mount="$ROOT/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$OUT:/wordpress/wp-content/probe" "${WOO_MOUNT[@]}")
 [ "$SCOPE" = full ] && MOUNTS+=(--mount="$ROOT/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration")

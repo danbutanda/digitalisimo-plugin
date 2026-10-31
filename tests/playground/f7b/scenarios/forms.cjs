@@ -65,6 +65,21 @@ module.exports = (api) => {
     check(s, 'B10.2g', 'sin errores de JavaScript ni respuestas de error', !v.facts.errors.length && !v.facts.failed.length, JSON.stringify({ errors: v.facts.errors.slice(0, 3), failed: v.facts.failed.slice(0, 3) }));
     await v.close();
 
+    // Caché de elementos (24 h, el valor del núcleo): la visita servida desde la caché del documento encola el script.
+    await control('option', { name: 'elementor_element_cache_ttl', value: '24' });
+    try {
+      await request('GET', page);
+      const c = await open(page);
+      const has = /id="digitalisimo-f7b-forms-conditions-js"/.test(c.html);
+      await c.page.click('#form-field-tipo-1');
+      await sleep(300);
+      const shownC = await c.page.$eval('.elementor-field-group-rfc', (g) => getComputedStyle(g).display !== 'none' && !g.querySelector('input').disabled);
+      check(s, 'B10.2h', 'con la caché de elementos llena, la visita servida desde la caché trae `forms-conditions.js` y «Empresa» muestra el RFC', has && shownC, JSON.stringify({ script: has, shown: shownC }));
+      await c.close();
+    } finally {
+      await control('option', { name: 'elementor_element_cache_ttl', value: 'disable' });
+    }
+
     // Envíos colados (como un navegador que ignora el script): el servidor recalcula las reglas.
     await control('outbox', { clear: '1' });
     const colado = await send(m, { tipo: 'persona', rfc: 'XAXX010101000', razon: 'Empresa colada', email: 'ana@example.invalid' });

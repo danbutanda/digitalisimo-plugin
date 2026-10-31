@@ -520,5 +520,259 @@
         "template_id": "__TEMPLATE__"
       }
     ]
+  },
+  "f7b-nested-slider": {
+    "$widget": "digitalisimo-nested-slider",
+    "effect": "slide",
+    "carousel_label": "Novedades",
+    "slides": [
+      {
+        "_id": "s1",
+        "slide_title": "Uno"
+      },
+      {
+        "_id": "s2",
+        "slide_title": "Dos"
+      },
+      {
+        "_id": "s3",
+        "slide_title": "Tres"
+      }
+    ],
+    "$elements": [
+      {
+        "id": "ixs0001",
+        "elType": "container",
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixs000h",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Diapositiva uno"
+            },
+            "elements": []
+          },
+          {
+            "id": "ixs000b",
+            "elType": "widget",
+            "widgetType": "button",
+            "settings": {
+              "text": "Enlace uno",
+              "link": {
+                "url": "#ixs0001"
+              }
+            },
+            "elements": []
+          }
+        ]
+      },
+      {
+        "id": "ixs0002",
+        "elType": "container",
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixs000h",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Diapositiva dos"
+            },
+            "elements": []
+          },
+          {
+            "id": "ixs000b",
+            "elType": "widget",
+            "widgetType": "button",
+            "settings": {
+              "text": "Enlace dos",
+              "link": {
+                "url": "#ixs0002"
+              }
+            },
+            "elements": []
+          }
+        ]
+      },
+      {
+        "id": "ixs0003",
+        "elType": "container",
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixs000h",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Diapositiva tres"
+            },
+            "elements": []
+          },
+          {
+            "id": "ixs000b",
+            "elType": "widget",
+            "widgetType": "button",
+            "settings": {
+              "text": "Enlace tres",
+              "link": {
+                "url": "#ixs0003"
+              }
+            },
+            "elements": []
+          }
+        ]
+      }
+    ]
+  },
+  "f7b-tabs-pills": {
+    "$widget": "nested-tabs",
+    "digitalisimo_presentation": "pills",
+    "tabs": [
+      {
+        "_id": "t1",
+        "tab_title": "Primera"
+      },
+      {
+        "_id": "t2",
+        "tab_title": "Segunda"
+      }
+    ],
+    "$elements": [
+      {
+        "id": "ixt0001",
+        "elType": "container",
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixt000h",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Panel uno"
+            },
+            "elements": []
+          }
+        ]
+      },
+      {
+        "id": "ixt0002",
+        "elType": "container",
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixt000h",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Panel dos"
+            },
+            "elements": []
+          }
+        ]
+      }
+    ]
+  },
+  "f7b-accordion-boxed": {
+    "$widget": "nested-accordion",
+    "digitalisimo_presentation": "boxed",
+    "items": [
+      {
+        "_id": "i1",
+        "item_title": "Pregunta uno"
+      },
+      {
+        "_id": "i2",
+        "item_title": "Pregunta dos"
+      }
+    ],
+    "$elements": [
+      {
+        "id": "ixa0001",
+        "elType": "container",
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixa000h",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Respuesta uno"
+            },
+            "elements": []
+          }
+        ]
+      },
+      {
+        "id": "ixa0002",
+        "elType": "container",
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixa000h",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Respuesta dos"
+            },
+            "elements": []
+          }
+        ]
+      }
+    ]
+  },
+  "f7b-form-conditions": {
+    "$widget": "form",
+    "form_name": "Condicional",
+    "mark_required": "yes",
+    "submit_actions": [],
+    "form_fields": [
+      {
+        "_id": "ixf0001",
+        "custom_id": "tipo",
+        "field_type": "radio",
+        "field_label": "Tipo",
+        "field_options": "Persona|persona\nEmpresa|empresa",
+        "required": "true"
+      },
+      {
+        "_id": "ixf0002",
+        "custom_id": "rfc",
+        "field_type": "text",
+        "field_label": "RFC",
+        "required": "true",
+        "digitalisimo_conditional": "yes",
+        "digitalisimo_rules": [
+          {
+            "_id": "ixr0001",
+            "field": "tipo",
+            "operator": "is",
+            "value": "empresa"
+          }
+        ]
+      },
+      {
+        "_id": "ixf0003",
+        "custom_id": "email",
+        "field_type": "email",
+        "field_label": "Correo",
+        "required": "true"
+      }
+    ]
   }
 }

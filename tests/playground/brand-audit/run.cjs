@@ -862,6 +862,70 @@ if (require.main === module) (async () => {
       }
       await screenAt(`${base}/digi-marca-woo/`, 'frontal-woo-admin');
     }
+    // F7b: el editor de la página con un elemento por capacidad, cada control nuevo seleccionado en su sección (con
+    // cualquier SCOPE: un control o una sección que falta es un error), el menú contextual con «Aplicar a todos», la
+    // plantilla con su clave de sobrescritura, las pantallas «Consultas» y «Dónde se usa», y su frontal.
+    if (IDS.f7b) {
+      try {
+        await editorAt(IDS.f7b, 'editor-f7b');
+        const f7b = [
+          ['acciones con destino', 'mf7b001', 'advanced', 'digitalisimo_actions_section', ['.elementor-control-_digitalisimo_actions_on', '.elementor-control-_digitalisimo_actions']],
+          ['«Oculto al cargar»', 'mf7b002', 'advanced', 'digitalisimo_actions_section', ['.elementor-control-_digitalisimo_hidden_initial']],
+          ['datos dentro del texto', 'mf7b003', 'content', 'section_title', ['.elementor-control-digitalisimo_inline_tags', '[data-digi-inline-tags]']],
+          ['consulta guardada', 'mf7b004', 'content', 'section_query', ['.elementor-control-digitalisimo_saved_query', '.elementor-control-digitalisimo_saved_query_unlink']],
+          ['buscador del bucle', 'mf7b005', 'content', 'section_filter', ['.elementor-control-destination', '.elementor-control-selected_element']],
+          ['filtro por campo', 'mf7b015', 'content', 'section_filter', ['.elementor-control-meta_key', '.elementor-control-value_type']],
+          ['orden del bucle', 'mf7b025', 'content', 'section_filter', ['.elementor-control-orders']],
+          ['por página', 'mf7b035', 'content', 'section_filter', ['.elementor-control-values']],
+          ['sobrescrituras del Template', 'mf7b006', 'content', 'section_template', ['.elementor-control-digitalisimo_overrides']],
+          ['formulario condicional', 'mf7b007', 'content', 'section_form_fields', ['.elementor-control-form_fields']],
+          ['slider anidado', 'mf7b008', 'content', 'section_slides', ['.elementor-control-slides']],
+          ['slider anidado · ajustes', 'mf7b008', 'content', 'section_options', ['.elementor-control-autoplay']],
+          ['presentación de las pestañas', 'mf7b009', 'style', 'digitalisimo_presentation_section', ['.elementor-control-digitalisimo_presentation']],
+        ];
+        for (const [what, id, t, sec, need] of f7b) {
+          await f7aStep(`editor-f7b · ${what}`, [[settle, null], [reset, null], [settle, null], [pick, id], [tab, t], [section, sec]], { need: need.map((x) => `#elementor-panel ${x}`) });
+        }
+        // El campo «RFC» del formulario abierto: el interruptor, la lógica, el repetidor de reglas y su aviso.
+        await f7aStep('editor-f7b · reglas del campo', [[settle, null], [reset, null], [settle, null], [pick, 'mf7b007'], [tab, 'content'], [section, 'section_form_fields'], [click, '#elementor-panel .elementor-control-form_fields .elementor-repeater-fields:nth-child(2) .elementor-repeater-row-item-title']], { need: ['#elementor-panel .elementor-control-digitalisimo_conditional', '#elementor-panel .elementor-control-digitalisimo_rules'] });
+        // «Insertar dato» con su vista previa.
+        await f7aStep('editor-f7b · insertar dato', [[settle, null], [reset, null], [settle, null], [pick, 'mf7b003'], [tab, 'content'], [section, 'section_title'], [click, '#elementor-panel [data-digi-inline-insert]']], { need: ['#elementor-panel [data-digi-inline-preview]'], wait: 4000 });
+        await page.evaluate(() => { try { $e.run('document/history/undo'); } catch (e) { /* nada */ } }).catch(() => {});
+        // «Desvincular» la consulta: la confirmación (se cancela).
+        await f7aStep('editor-f7b · desvincular (diálogo)', [[settle, null], [reset, null], [settle, null], [pick, 'mf7b004'], [tab, 'content'], [section, 'section_query'], [click, '#elementor-panel .elementor-control-digitalisimo_saved_query_unlink button']], { need: ['#digitalisimo-saved-query-unlink'], wait: 4000 });
+        await page.evaluate(closeDialog).catch(() => {});
+        // Menú contextual del encabezado: «Aplicar este estilo a todos los de este tipo».
+        await enter('editor-f7b · menú contextual (Aplicar a todos)');
+        await settleNow('editor-f7b · menú contextual');
+        await page.evaluate(reset).catch(() => {});
+        const frame = await (await page.$('#elementor-preview-iframe')).contentFrame();
+        const heading = frame && await frame.$('.elementor-element-mf7b003');
+        if (heading) {
+          await frame.evaluate(() => { const el = document.querySelector('.elementor-element-mf7b003'); const r = el.getBoundingClientRect(); el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 })); });
+          await sleep(1500);
+          if (!(await page.$('.elementor-context-menu-list__group-digitalisimo-apply-all'))) await heading.click({ button: 'right' }).catch(() => {});
+          await sleep(1200);
+          if (!(await page.$('.elementor-context-menu-list__group-digitalisimo-apply-all'))) f7aError('editor-f7b · menú contextual (Aplicar a todos)', 'el menú contextual no tiene el grupo «Aplicar a todos»');
+          await audit(page, 'editor-f7b · menú contextual (Aplicar a todos)');
+          visited.push(`${state.locale} editor-f7b · menú contextual`);
+          await page.keyboard.press('Escape').catch(() => {});
+        } else f7aError('editor-f7b · menú contextual (Aplicar a todos)', 'la vista previa no tiene mf7b003');
+      } catch (e) {
+        notes.push(`${state.locale} editor-f7b: ${e.message}`);
+        f7aError('editor-f7b', `el editor no se pudo recorrer: ${String(e.message).slice(0, 160)}`);
+      }
+      if (IDS.f7bTemplate) {
+        try {
+          await editorAt(IDS.f7bTemplate, 'editor-f7b-plantilla');
+          await f7aStep('editor-f7b-plantilla · clave de sobrescritura', [[settle, null], [reset, null], [settle, null], [pick, 'mf7bt02'], [tab, 'content'], [section, 'section_title']], { need: ['#elementor-panel .elementor-control-_digitalisimo_slot'] });
+        } catch (e) { notes.push(`${state.locale} editor-f7b-plantilla: ${e.message}`); }
+      }
+      await screenAt(`${base}/wp-admin/admin.php?page=digitalisimo-elements-queries`, 'f7b · Consultas');
+      if (IDS.f7bQuery) await screenAt(`${base}/wp-admin/admin.php?page=digitalisimo-elements-queries&action=edit&id=${IDS.f7bQuery}`, 'f7b · Consultas · editar');
+      if (IDS.f7bTemplate) await screenAt(`${base}/wp-admin/admin.php?page=digitalisimo-elements-uses&kind=t&id=${IDS.f7bTemplate}`, 'f7b · Dónde se usa');
+      await screenAt(`${base}/wp-admin/edit.php?post_type=elementor_library`, 'f7b · plantillas con «En uso (N)»');
+      await screenAt(`${base}/digi-marca-f7b/`, 'frontal-f7b-admin');
+    }
     // Frontal como administrador (barra de administración, con cada menú desplegado en full).
     await screenAt(`${base}/digi-marca/`, 'frontal-admin', {
       after: SCOPE !== 'full' ? undefined : async () => {
