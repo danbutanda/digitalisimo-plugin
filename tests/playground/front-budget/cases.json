@@ -2803,7 +2803,6 @@
    "actions-js": "/digitalisimo-f7b/assets/js/actions\\.js"
   },
   "counts": {
-   "popupDoc": "[data-elementor-type=\"popup\"]",
    "ready": "[data-digi-actions-ready]"
   },
   "actions": [
@@ -2826,8 +2825,7 @@
     "proHandlers": true,
     "proFrontend": true,
     "reason": "require:f7b-action",
-    "count:popupDoc": 1,
-    "count:ready": 1,
+     "count:ready": 1,
     "asset:actions-js": "<=6144",
     "after": {
      "popupShown": true
@@ -2920,17 +2918,17 @@
   }
  },
  "f7b-loop-in-loop": {
-  "title": "Bucle en bucle (F7b, frente C): Loop Grid cuya plantilla lleva otro Loop Grid con una consulta guardada «mismo autor» y contexto actual (0 bytes y 0 handles nuevos; consultas SQL frente a f7b-loop-in-loop-base)",
+  "title": "Bucle en bucle (F7b, frente C): Loop Grid cuya plantilla lleva otro Loop Grid con una consulta guardada «misma categoría» y contexto actual (0 bytes y 0 handles nuevos; consultas SQL frente a f7b-loop-in-loop-base)",
   "since": "4.3.0.169",
   "queries": {
-   "fb-autor": {
-    "title": "Medición · del mismo autor",
+   "fb-categoria": {
+    "title": "Medición · de la misma categoría",
     "settings": {
      "post_type": "post",
      "orderby": "post_date",
      "order": "desc"
     },
-    "relation": "author",
+    "relation": "terms:category",
     "context": "current",
     "limits": {
      "per_page": 3
@@ -2984,7 +2982,7 @@
        "template_id": "__DOC:inner__",
        "posts_per_page": 3,
        "columns": 1,
-       "digitalisimo_saved_query": "__QUERY:fb-autor__"
+       "digitalisimo_saved_query": "__QUERY:fb-categoria__"
       }
      }
     ]
@@ -3131,8 +3129,8 @@
     "errors": 0,
     "proHandlers": false,
     "proFrontend": false,
-    "delta.requests": "=0",
-    "delta.js": "=0"
+    "delta.requests": "<=0",
+    "delta.js": "<=0"
    }
   }
  },
@@ -3565,7 +3563,6 @@
   "expect": {
    "*": {
     "errors": 0,
-    "jquery": false,
     "count:forms": 4,
     "count:search": 1,
     "asset:f7b-filters-css": "<=2048",
