@@ -282,8 +282,10 @@ module.exports = (api) => {
       const s1 = (v.probe || {}).scripts || [];
       const inline = /<script[^>]*id="motion-js(?:-js)?-after"[^>]*>[^<]*skipAnimations=true/.test(v.html);
       check(s, 'B2.5', 'en `ack` se reproducen: `elementor-interactions-pro` y `motion-js` con el script de movimiento reducido en línea (≈ 150 B)', s1.includes('elementor-interactions-pro') && inline, JSON.stringify({ scripts: s1.filter((x) => /motion|interaction/.test(x)), inline }));
-      const bytes = (v.html.match(/<script[^>]*id="motion-js(?:-js)?-after"[^>]*>([\s\S]*?)<\/script>/) || ['', ''])[1].trim().length;
-      check(s, 'B2.5b', 'el script en línea pesa ≤ 150 B', bytes > 0 && bytes <= 150, `${bytes} B`);
+      // WordPress añade a cada script en línea su comentario `//# sourceURL=…` (no es de F7b): se cuenta aparte.
+      const inlineRaw = (v.html.match(/<script[^>]*id="motion-js(?:-js)?-after"[^>]*>([\s\S]*?)<\/script>/) || ['', ''])[1];
+      const bytes = Buffer.byteLength(inlineRaw.replace(/\/\/# sourceURL=\S*/g, '').trim());
+      check(s, 'B2.5b', 'el script en línea de F7b pesa ≤ 150 B (sin el comentario `sourceURL` que WordPress añade a todo script en línea)', bytes > 0 && bytes <= 150, `${bytes} B de F7b; ${Buffer.byteLength(inlineRaw.trim())} B con el comentario de WordPress`);
       const skipNormal = await v.page.evaluate(() => !!(window.Motion && window.Motion.MotionGlobalConfig && window.Motion.MotionGlobalConfig.skipAnimations));
       await v.close();
       const r = await open(await url('b2-v4'), { before: (p) => p.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]) });
