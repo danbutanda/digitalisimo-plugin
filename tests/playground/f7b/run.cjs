@@ -248,7 +248,7 @@ async function openEditor(jar, id, { width = 1640, height = 1000 } = {}) {
   const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
   await frame.waitForSelector('.elementor-element', { timeout: 180000 }).catch(() => {});
   lap('vista previa');
-  const ready = await page.waitForFunction(() => { const l = document.querySelector('#elementor-loading'); return window.elementor && window.$e && (!l || getComputedStyle(l).display === 'none'); }, { timeout: 90000 }).then(() => true).catch(() => false);
+  const ready = await page.waitForFunction(() => { const l = document.querySelector('#elementor-loading'); return window.elementor && window.$e && (!l || getComputedStyle(l).display === 'none'); }, { timeout: 240000 }).then(() => true).catch(() => false);
   lap(ready ? 'listo' : `sin terminar de cargar (${JSON.stringify(await page.evaluate(() => { const l = document.querySelector('#elementor-loading'); return { elementor: !!window.elementor, e: !!window.$e, loading: l ? getComputedStyle(l).display : null, loaded: !!(window.elementor && window.elementor.loaded) }; }).catch((e) => String(e)))}; errores: ${JSON.stringify(page.facts.errors.slice(0, 3))})`);
   if (slow.length) log(`       · peticiones lentas del editor ${id}: ${slow.slice(0, 5).join(' | ')}`);
   await sleep(2500);
