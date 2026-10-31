@@ -104,6 +104,20 @@ final class Render {
 		if ( ! function_exists( 'wp_enqueue_script' ) || ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ) {
 			return;
 		}
+		self::register();
+		wp_enqueue_script( self::HANDLE );
+	}
+
+	/**
+	 * Sólo registra el script (`elementor/frontend/after_register_scripts`). Con la caché de elementos, una visita servida
+	 * desde la caché del documento no vuelve a pintar el formulario: el núcleo encola los handles que guardó al pintarlo
+	 * (`elementor/core/base/document.php`, `print_elements()`), y un handle sin registrar no se imprime (f7b.sh y
+	 * front-budget.sh con CACHE=1).
+	 */
+	public static function register(): void {
+		if ( ! function_exists( 'wp_register_script' ) || ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ) {
+			return;
+		}
 		if ( ! wp_script_is( self::HANDLE, 'registered' ) ) {
 			wp_register_script(
 				self::HANDLE,
@@ -116,7 +130,6 @@ final class Render {
 				)
 			);
 		}
-		wp_enqueue_script( self::HANDLE );
 	}
 
 	/**

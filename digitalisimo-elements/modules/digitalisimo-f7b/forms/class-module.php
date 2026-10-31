@@ -57,6 +57,8 @@ final class Module {
 		}
 		add_filter( 'elementor_pro/forms/render/item', array( Render::class, 'item' ), self::PRIORITY, 3 );
 		add_action( 'elementor/element/parse_css', array( Render::class, 'parse_css' ), 10, 2 );
+		// Registrado de antemano: la caché de elementos vuelve a encolar el handle sin pintar el formulario.
+		add_action( 'elementor/frontend/after_register_scripts', array( Render::class, 'register' ) );
 		if ( F7b::editing() ) {
 			add_action( 'elementor/element/form/section_form_fields/before_section_end', array( Controls::class, 'register' ), self::PRIORITY );
 			add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'editor_script' ) );

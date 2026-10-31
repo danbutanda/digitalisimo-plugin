@@ -103,7 +103,14 @@ forms_boot( false, true );
 $before = forms_hooks();
 Forms::init();
 $added = array_diff_assoc( forms_hooks(), $before );
-$check( array( 'elementor_pro/forms/render/item' => 1, 'elementor/element/parse_css' => 1 ) === $added, 'Front con la bandera: sólo el pintado y la regla [hidden]: ' . json_encode( $added ) );
+$check( array( 'elementor_pro/forms/render/item' => 1, 'elementor/element/parse_css' => 1, 'elementor/frontend/after_register_scripts' => 1 ) === $added, 'Front con la bandera: sólo el pintado, la regla [hidden] y el registro del script: ' . json_encode( $added ) );
+// Caché de elementos (f7b.sh, front-budget.sh CACHE=1): una visita servida desde la caché del documento no pinta el
+// formulario y el núcleo vuelve a encolar el handle guardado; sólo se imprime si ya está registrado.
+$check( 10 === has_action( 'elementor/frontend/after_register_scripts', array( Render::class, 'register' ) ), 'El script se registra en elementor/frontend/after_register_scripts (la caché de elementos lo encola sin pintar el formulario).' );
+unset( $GLOBALS['dh']['scripts'][ Render::HANDLE ] );
+Render::register();
+$check( isset( $GLOBALS['dh']['scripts'][ Render::HANDLE ] ) && empty( $GLOBALS['dh']['scripts'][ Render::HANDLE ]['enqueued'] ), 'Render::register() sólo registra: no encola.' );
+unset( $GLOBALS['dh']['scripts'][ Render::HANDLE ] );
 $check( 20 === has_filter( 'elementor_pro/forms/render/item', array( Render::class, 'item' ) ), 'El pintado corre con prioridad 20, después de PRO.' );
 $check( false === has_action( 'elementor/element/form/section_form_fields/before_section_end', array( Controls::class, 'register' ) ), 'Fuera del editor no se registran los controles.' );
 
