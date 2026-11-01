@@ -65,7 +65,7 @@ La evidencia de Playground de F4-Woo está en `f4woo-evidence.json`: el estado, 
 |---|---|---|
 | [f7b.md](f7b.md) | Diseño y evidencia de F7b: hechos del núcleo y de PRO verificados con archivo y línea (frente 0) y lo construido por cada frente, con sus contratos y formatos: base de contadores, usos y borrado bloqueado; acciones con destino e interacciones PRO; consultas guardadas y contextos; filtros ampliados en el módulo neutro; sobrescrituras del Template; slider anidado; presentación de anidados; «Aplicar a todos»; etiquetas dentro del texto; formularios condicionales; la parte `saved-queries` y las referencias de K; presupuesto medido, pruebas y desviaciones | F7b (y K) |
 
-La evidencia de Playground de F7b está en `f7b-evidence.json`: el estado, los recuentos y la duración de `tests/playground/f7b.sh` (B1–B12) y de las ampliaciones de `front-budget.sh`, `kit-roundtrip.sh`, `interaction.sh` y `brand-audit.sh`.
+La evidencia de Playground de F7b está en `f7b-evidence.json`: el estado, los recuentos y la duración de `tests/playground/f7b.sh` (B1–B12) y de las ampliaciones de `front-budget.sh`, `kit-roundtrip.sh`, `interaction.sh` y `brand-audit.sh`, más las regresiones; lo que encontró esa validación y cómo se corrigió está en `f7b.md` §16.
 
 ## Sin rastro de los plugins de origen (F0.2, resuelto)
 
