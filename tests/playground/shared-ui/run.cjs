@@ -19,7 +19,8 @@ const SCREENS = {
   backups: ['admin.php?page=digitalisimo-backups'],
   tools: ['admin.php?page=digitalisimo-tools-elementor-templates', 'admin.php?page=digitalisimo-tools-elementor-templates&tab=php'],
   // «Rendimiento» (F-front): la pantalla de sitio; la de red la cubre front-network.sh (este arnés es de sitio único).
-  elements: ['admin.php?page=digitalisimo-elements-about', 'admin.php?page=digitalisimo-elements-front'],
+  // «Consultas» (F7b, V.4: lista y formulario nuevo) y «Dónde se usa» (F7b, V.6), con digitalisimo-ui (criterio 14).
+  elements: ['admin.php?page=digitalisimo-elements-about', 'admin.php?page=digitalisimo-elements-front', 'admin.php?page=digitalisimo-elements-queries', 'admin.php?page=digitalisimo-elements-queries&action=new', 'admin.php?page=digitalisimo-elements-uses&kind=t&id=1'],
   migration: ['tools.php?page=digitalisimo-ep-migration'],
 };
 // Migración requiere Elements (Requires Plugins); los demás se prueban solos.
