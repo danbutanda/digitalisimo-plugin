@@ -1,0 +1,646 @@
+{
+ "_comentario": "Evidencia depurada de la etapa F7b (Elements 4.3.0.169). Playground a mano (no en CI). Resultados completos en los informes de la especificación; aquí sólo el estado, los recuentos y la duración de cada corrida. Las corridas se hicieron con la cabecera aún en 4.3.0.168 (la versión sube al publicar); la huella identifica el árbol medido.",
+ "fecha": "2026-10-31",
+ "f7b.sh": {
+  "normal": {
+   "estado": "ok",
+   "nota": "Segunda pasada completa por tandas (APPEND=1) sobre el árbol que se publica, para conservar los avisos de PHP de cada tanda; da los mismos recuentos que la corrida final del frente L (/var/tmp/digi-f7b/pg-f7b-final).",
+   "nucleo": "4.3.5",
+   "incluido": true,
+   "anchos": [
+    360,
+    768,
+    1280
+   ],
+   "escenarios": {
+    "B0": {
+     "estado": "ok",
+     "comprobaciones": 6
+    },
+    "B1": {
+     "estado": "ok",
+     "comprobaciones": 40
+    },
+    "B3": {
+     "estado": "parcial",
+     "comprobaciones": 18,
+     "pendientes": {
+      "B3.3b": "limitación del Loop Grid de PRO, no de F7b: tras el primer bucle interior, el bucle exterior pinta los elementos siguientes con la plantilla del interior y sin bucle; lo mismo sin consulta guardada (B3.3c) y con 4.3.0.168 (B12)"
+     }
+    },
+    "B2": {
+     "estado": "ok",
+     "comprobaciones": 12
+    },
+    "B4": {
+     "estado": "ok",
+     "comprobaciones": 18
+    },
+    "B5": {
+     "estado": "ok",
+     "comprobaciones": 16
+    },
+    "B6": {
+     "estado": "ok",
+     "comprobaciones": 13
+    },
+    "B8": {
+     "estado": "ok",
+     "comprobaciones": 15
+    },
+    "B9": {
+     "estado": "ok",
+     "comprobaciones": 17
+    },
+    "B10": {
+     "estado": "ok",
+     "comprobaciones": 24
+    },
+    "B11": {
+     "estado": "parcial",
+     "comprobaciones": 34,
+     "pendientes": {
+      "B11.7c": "en este editor sin interfaz las pestañas anidadas del núcleo tampoco duplican su contenedor hijo (mismo resultado que el slider): {\"dupSlider\":{\"clicked\":true,\"errors\":[],\"state\":{\"items\":5,\"children\":4}},\"dupTabs\":{\"clicked\":true,\"errors\":[\"pageerror: Cannot read properties of undefined (reading 'setAttribute')\"],\"state\":{\"items\":5,\"children\":4}},\"lab2\":[\"1 de 4\",\"2 de 4\",\"3 de 4\",\"4 de 4\"]}"
+     }
+    },
+    "B12": {
+     "estado": "ok",
+     "comprobaciones": 16
+    }
+   },
+   "tandas": [
+    {
+     "escenarios": [
+      "B0",
+      "B1",
+      "B3"
+     ],
+     "git": "f59c170c",
+     "huella_elements": "b77e27fec15e91a8",
+     "duracion_s": 217
+    },
+    {
+     "escenarios": [
+      "B0",
+      "B2",
+      "B4"
+     ],
+     "git": "f59c170c",
+     "huella_elements": "b77e27fec15e91a8",
+     "duracion_s": 339
+    },
+    {
+     "escenarios": [
+      "B0",
+      "B5",
+      "B6"
+     ],
+     "git": "f59c170c",
+     "huella_elements": "b77e27fec15e91a8",
+     "duracion_s": 193
+    },
+    {
+     "escenarios": [
+      "B0",
+      "B8",
+      "B9"
+     ],
+     "git": "f59c170c",
+     "huella_elements": "b77e27fec15e91a8",
+     "duracion_s": 405
+    },
+    {
+     "escenarios": [
+      "B0",
+      "B10"
+     ],
+     "git": "6001179f",
+     "huella_elements": "b77e27fec15e91a8",
+     "duracion_s": 310
+    },
+    {
+     "escenarios": [
+      "B0",
+      "B11"
+     ],
+     "git": "6001179f",
+     "huella_elements": "b77e27fec15e91a8",
+     "duracion_s": 257
+    },
+    {
+     "escenarios": [
+      "B0",
+      "B12"
+     ],
+     "git": "6001179f",
+     "huella_elements": "b77e27fec15e91a8",
+     "duracion_s": 493
+    }
+   ],
+   "avisos_php": {
+    "total": 1,
+    "detalle": "B10, /wp-admin/admin-ajax.php: «Using null as an array offset is deprecated» en modules/forms/classes/ajax-handler.php:252. Es de PRO derivado y previo a F7b: al fallar la validación, Ajax_Handler llama a add_error( $record->get( 'errors' ) ) y Form_Record no tiene esa propiedad, así que pasa null. Salta con cualquier envío que no valida (en B10, «Empresa» sin RFC, el error esperado). Las cuatro de la corrida del frente L son las cuatro repeticiones de B10."
+   }
+  },
+  "woo": {
+   "estado": "ok",
+   "woocommerce": "11.2.1",
+   "escenarios": {
+    "B0": {
+     "estado": "ok",
+     "comprobaciones": 6
+    },
+    "B7": {
+     "estado": "ok",
+     "comprobaciones": 6
+    }
+   },
+   "tandas": [
+    {
+     "escenarios": [
+      "B0",
+      "B7"
+     ],
+     "git": "fb3e5e02",
+     "huella_elements": "895aecddf2184cba",
+     "duracion_s": 178
+    }
+   ],
+   "avisos_php": 0
+  },
+  "limite_bucle_en_bucle": {
+   "nested": {
+    "f7b": [
+     {
+      "id": 14,
+      "template": "26",
+      "inner": [
+       12,
+       10,
+       8
+      ],
+      "want": [
+       12,
+       10,
+       8
+      ]
+     },
+     {
+      "id": 13,
+      "template": "25",
+      "inner": null,
+      "want": [
+       11,
+       9,
+       7
+      ]
+     },
+     {
+      "id": 12,
+      "template": "25",
+      "inner": null,
+      "want": [
+       14,
+       10,
+       8
+      ]
+     },
+     {
+      "id": 11,
+      "template": "25",
+      "inner": null,
+      "want": [
+       13,
+       9,
+       7
+      ]
+     }
+    ],
+    "pro": [
+     {
+      "id": 14,
+      "template": "27",
+      "inner": true
+     },
+     {
+      "id": 13,
+      "template": "25",
+      "inner": false
+     },
+     {
+      "id": 12,
+      "template": "25",
+      "inner": false
+     },
+     {
+      "id": 11,
+      "template": "25",
+      "inner": false
+     }
+    ]
+   }
+  }
+ },
+ "front-budget.sh": {
+  "normal-A": {
+   "modo": "normal",
+   "huella_elements": "895aecddf2184cba",
+   "git": "fb3e5e02",
+   "duracion_s": 315,
+   "problemas": 0,
+   "comparacion": {
+    "contra": "4.3.0.168 (4af37279ac320083)",
+    "iguales": 47,
+    "distintos": 0,
+    "faltan": 0
+   },
+   "casos": {
+    "empty": {
+     "ok": true,
+     "peticiones": 24,
+     "cls": 0,
+     "delta": {}
+    },
+    "all-own": {
+     "ok": true,
+     "peticiones": 39,
+     "cls": 0,
+     "delta": {
+      "requests": 15,
+      "css": 22980,
+      "js": 13350,
+      "nodes": 189
+     }
+    }
+   }
+  },
+  "normal-B": {
+   "modo": "normal",
+   "huella_elements": "895aecddf2184cba",
+   "git": "fb3e5e02",
+   "duracion_s": 361,
+   "problemas": 0,
+   "comparacion": {
+    "contra": "4.3.0.168 (4af37279ac320083)",
+    "iguales": 28,
+    "distintos": 0,
+    "faltan": 0
+   },
+   "casos": {
+    "f7b-action": {
+     "ok": true,
+     "peticiones": 30,
+     "cls": 0,
+     "delta": {
+      "requests": 6,
+      "css": 1867,
+      "js": 400249,
+      "nodes": 15
+     }
+    },
+    "f7b-hidden-initial": {
+     "ok": true,
+     "peticiones": 23,
+     "cls": 0,
+     "delta": {
+      "requests": -1,
+      "css": 374,
+      "js": 5960,
+      "nodes": 10
+     }
+    },
+    "f7b-loop-in-loop": {
+     "ok": true,
+     "peticiones": 29,
+     "cls": 0,
+     "delta": {
+      "requests": 5,
+      "css": 14325,
+      "js": 388187,
+      "nodes": 33
+     }
+    },
+    "f7b-loop-in-loop-base": {
+     "ok": true,
+     "peticiones": 29,
+     "cls": 0,
+     "delta": {
+      "requests": 5,
+      "css": 14325,
+      "js": 388187,
+      "nodes": 48
+     }
+    },
+    "f7b-inline-tags": {
+     "ok": true,
+     "peticiones": 22,
+     "cls": 0,
+     "delta": {
+      "requests": -2,
+      "css": 1,
+      "js": 0,
+      "nodes": 4
+     }
+    },
+    "f7b-presentation": {
+     "ok": true,
+     "peticiones": 27,
+     "cls": 0,
+     "delta": {
+      "requests": 3,
+      "css": 24063,
+      "js": 82122,
+      "nodes": 49
+     }
+    },
+    "nested-slider": {
+     "ok": true,
+     "peticiones": 24,
+     "cls": 0,
+     "delta": {
+      "requests": 0,
+      "css": 3314,
+      "js": 5119,
+      "nodes": 28
+     }
+    },
+    "f7b-form-conditions": {
+     "ok": true,
+     "peticiones": 28,
+     "cls": 0,
+     "delta": {
+      "requests": 4,
+      "css": 12080,
+      "js": 385222,
+      "nodes": 32
+     }
+    },
+    "f7b-filters": {
+     "ok": true,
+     "peticiones": 33,
+     "cls": 0,
+     "delta": {
+      "requests": 9,
+      "css": 18835,
+      "js": 402255,
+      "nodes": 101
+     }
+    }
+   }
+  },
+  "cache": {
+   "modo": "cache",
+   "huella_elements": "f8279d9a2ced659b",
+   "git": "44d6ec17",
+   "duracion_s": 159,
+   "problemas": 0,
+   "casos": {
+    "f7b-action": {
+     "ok": true,
+     "peticiones": 30,
+     "cls": 0,
+     "delta": {
+      "requests": 8,
+      "css": 1867,
+      "js": 400249,
+      "nodes": 15
+     }
+    },
+    "f7b-hidden-initial": {
+     "ok": true,
+     "peticiones": 23,
+     "cls": 0,
+     "delta": {
+      "requests": 1,
+      "css": 374,
+      "js": 5960,
+      "nodes": 10
+     }
+    },
+    "f7b-inline-tags": {
+     "ok": true,
+     "peticiones": 22,
+     "cls": 0,
+     "delta": {
+      "requests": 0,
+      "css": 1,
+      "js": 0,
+      "nodes": 4
+     }
+    },
+    "f7b-presentation": {
+     "ok": true,
+     "peticiones": 27,
+     "cls": 0,
+     "delta": {
+      "requests": 5,
+      "css": 24063,
+      "js": 82122,
+      "nodes": 49
+     }
+    },
+    "nested-slider": {
+     "ok": true,
+     "peticiones": 24,
+     "cls": 0,
+     "delta": {
+      "requests": 2,
+      "css": 3314,
+      "js": 5119,
+      "nodes": 28
+     }
+    },
+    "f7b-form-conditions": {
+     "ok": true,
+     "peticiones": 28,
+     "cls": 0,
+     "delta": {
+      "requests": 6,
+      "css": 12080,
+      "js": 385222,
+      "nodes": 32
+     }
+    },
+    "f7b-filters": {
+     "ok": true,
+     "peticiones": 33,
+     "cls": 0,
+     "delta": {
+      "requests": 11,
+      "css": 18835,
+      "js": 402255,
+      "nodes": 101
+     }
+    }
+   }
+  },
+  "theme": {
+   "modo": "theme",
+   "huella_elements": "f8279d9a2ced659b",
+   "git": "44d6ec17",
+   "duracion_s": 112,
+   "problemas": 0,
+   "casos": {
+    "tb-header-core@0": {
+     "ok": true,
+     "peticiones": 21,
+     "cls": 0,
+     "delta": {
+      "requests": -1,
+      "css": 458,
+      "js": 0,
+      "nodes": 1
+     }
+    },
+    "f7b-user-tag-header": {
+     "ok": true,
+     "peticiones": 21,
+     "cls": 0,
+     "delta": {
+      "requests": -1,
+      "css": 458,
+      "js": 0,
+      "nodes": 1
+     }
+    }
+   }
+  }
+ },
+ "kit-roundtrip.sh": {
+  "completa-slow": {
+   "sha": "6def10d85a2888df16306088c34be62df32a8844",
+   "fecha": "2026-10-31T17:26:34.173Z",
+   "opciones": {
+    "core": "bundled",
+    "woo": false,
+    "slow": true
+   },
+   "escenarios": {
+    "R1": true,
+    "R1c": true,
+    "R2": true,
+    "R3": true,
+    "R3b": true,
+    "R4": true,
+    "R4v4": true,
+    "R5": true,
+    "R6": true,
+    "R7": true,
+    "R8": true,
+    "R9": true,
+    "R10": true,
+    "R13": true
+   },
+   "aceptacion": {
+    "A1": "ok",
+    "A2": "ok",
+    "A3": "ok",
+    "A4": "ok",
+    "A5": "ok",
+    "A6": "ok",
+    "A7": "ok",
+    "A8": "ok",
+    "A9": "ok",
+    "A10": "ok",
+    "A11": "ok",
+    "A12": "no medido",
+    "A13": "ok",
+    "A14": "ok"
+   },
+   "peticion_rest_mas_lenta_ms": 24824,
+   "duracion_s": 6268,
+   "nota": "Con capturas y el host lento de R13. A12 se mide con brand-audit.sh, front-budget.sh, conditions.sh e interaction.sh."
+  },
+  "woo": {
+   "sha": "6def10d85a2888df16306088c34be62df32a8844",
+   "fecha": "2026-10-31T20:02:45.202Z",
+   "opciones": {
+    "core": "bundled",
+    "woo": true,
+    "slow": false
+   },
+   "escenarios": {
+    "R1": true,
+    "R1c": true,
+    "R2": true,
+    "R3": true,
+    "R3b": true,
+    "R4": true,
+    "R4v4": true,
+    "R5": true,
+    "R6": true,
+    "R7": true,
+    "R8": true,
+    "R9": true,
+    "R10": true
+   },
+   "aceptacion": {
+    "A1": "falla",
+    "A2": "ok",
+    "A3": "ok",
+    "A4": "ok",
+    "A5": "ok",
+    "A6": "ok",
+    "A7": "ok",
+    "A8": "ok",
+    "A9": "ok",
+    "A10": "ok",
+    "A11": "ok",
+    "A12": "no medido",
+    "A13": "falla",
+    "A14": "ok"
+   },
+   "peticion_rest_mas_lenta_ms": 25320,
+   "duracion_s": 9921,
+   "nota": "A1 y A13 repiten las fallas previas a F4-Woo (docs/fusion/f4woo.md §7): controles de consulta de wc-products sin declarar en el inventario de K y el runner elementor-content del núcleo a 25,3 s (31–39 s en F4-Woo). La preparación del sitio A llegó a 243 MB de pico con WooCommerce: setup-a.php sube el límite a 768 MB."
+  }
+ },
+ "interaction.sh": {
+  "core": "bundled",
+  "ok": 34,
+  "fallan": 0
+ },
+ "brand-audit.sh": {
+  "f7b": {
+   "pantallas": 27,
+   "marca_visible": 0,
+   "errores_de_pagina": [
+    "wpLink.textarea.focus is not a function"
+   ]
+  },
+  "f7b-en": {
+   "pantallas": 27,
+   "marca_visible": 0,
+   "errores_de_pagina": [
+    "wpLink.textarea.focus is not a function"
+   ]
+  },
+  "base": {
+   "pantallas": 30,
+   "marca_visible": 0,
+   "errores_de_pagina": [
+    "elementorAdmin is not defined"
+   ]
+  }
+ },
+ "regresion": {
+  "conditions.sh": "278 comprobaciones correctas",
+  "design.sh": "DS1–DS8 y DS13 en verde (cinco corridas; DS13 necesita a DS1 en la misma corrida)",
+  "shared-ui.sh": "Pantallas: 24. Con problemas: 0 (con «Consultas» y «Dónde se usa»)",
+  "form-submit.sh": "CORE=bundled: los tres formularios en los dos sitios",
+  "woo-flow.sh": "W9 ok (59), W10 ok (8)",
+  "theme-switch.sh": "S1 con WOO=0 QUICK=1 SKIP_E=1: pasa (26 diferencias declaradas); con WooCommerce S1 no cabe en 10 min. F7b no toca el tema"
+ },
+ "defectos_corregidos_en_la_validacion": [
+  "«Cerrar popup» dentro de un popup: PRO recrea el popup desde su HTML; actions.js decide por el elemento enlazado",
+  "«Desvincular» perdía los términos incluidos y dejaba seis registros de historial: queries-editor.js sin external y con el panel reabierto",
+  "Campo condicional oculto para siempre en la visita servida desde la caché de elementos: el script se registra en elementor/frontend/after_register_scripts",
+  "Editor sin terminar de cargar con un formulario condicional (colección circular del repetidor anidado): forms-conditions-editor.js copia cada fila"
+ ],
+ "pruebas_unitarias": "261/261 (run-tests de validate.yml y release.yml, listas iguales)",
+ "notas": [
+  "brand-audit.sh: «elementorAdmin is not defined» (ONLY=base) aparece igual en las auditorías de F7a y F4-Woo; «wpLink.textarea.focus is not a function» (ONLY=f7b) es de wplink de WordPress, que responde al Escape que el arnés pulsa tras cada paso. Ninguno hace fallar el arnés.",
+  "front-budget.sh se midió en dos mitades (/var/tmp/digi-f7b/fb-{A,B}.txt), cada una frente a su propia corrida de 4.3.0.168 con el mismo reparto; empty está en las dos y all-own en la A. Los casos de F7b de las corridas CACHE=1 y THEME=1 se midieron antes del arreglo del editor de formularios, que sólo cambia un script del editor.",
+  "theme-switch.sh y brand-audit.sh SCOPE=full no caben en una llamada de diez minutos en esta máquina: se corrieron por partes. F7b no toca el tema ni las pantallas generales."
+ ]
+}
