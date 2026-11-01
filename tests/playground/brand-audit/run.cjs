@@ -867,7 +867,7 @@ if (require.main === module) (async () => {
     // F7b: el editor de la página con un elemento por capacidad, cada control nuevo seleccionado en su sección (con
     // cualquier SCOPE: un control o una sección que falta es un error), el menú contextual con «Aplicar a todos», la
     // plantilla con su clave de sobrescritura, las pantallas «Consultas» y «Dónde se usa», y su frontal.
-    if (IDS.f7b) {
+    if (IDS.f7b && process.env.ONLY !== 'base') {
       try {
         await editorAt(IDS.f7b, 'editor-f7b');
         const f7b = [

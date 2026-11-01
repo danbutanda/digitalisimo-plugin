@@ -26,7 +26,8 @@
 #                       su plantilla con una clave y una consulta guardada: se recorre su editor con cada control nuevo
 #                       seleccionado, el menú contextual («Aplicar a todos»), «Consultas», «Dónde se usa» y su frontal
 #   ONLY=f7b            sólo el recorrido de F7b y los frontales (sin las pantallas de administración ni el editor de
-#                       digi-marca, que ya audita la corrida completa): cabe en una llamada de 10 min
+#                       digi-marca, que ya audita la corrida completa): cabe en una llamada de 10 min; ONLY=base, al
+#                       revés (todo menos el recorrido de F7b)
 #   PORT, OUT           puerto del servidor y carpeta de resultados
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
