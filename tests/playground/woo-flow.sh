@@ -27,7 +27,8 @@
 #   ELEMENTS_DIR       DIGITALÍSIMO Elements a probar (por defecto digitalisimo-elements/ del repositorio)
 #   OUT, TMPDIR        resultados (/var/tmp/digi-f4/woo-flow-<modo>) y temporales de Playground (/var/tmp/digi-f4/tmp)
 #   PORT               9491 (sitio), 9492 (NET=1), 9493 (CORE=plugin); 9494 queda para el sitio sin WooCommerce de W0.
-#                      El bloque 9490–9499 es de este arnés: cualquier otro puerto se rechaza.
+#                      El bloque 9490–9499 es de este arnés; también acepta el de F7b (9500–9509, frente L, para W9 y
+#                      W10). Cualquier otro puerto se rechaza.
 #   LIVE=1             monta las carpetas del árbol de trabajo; por defecto, una copia fija tomada al empezar ($OUT/src)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -60,7 +61,8 @@ if [ "$CORE" = plugin ]; then PORT="${PORT:-9493}"; elif [ -n "$NET" ]; then POR
 if [ -n "$NET" ]; then SITE_HOST="playground.test"; else SITE_HOST="127.0.0.1:$PORT"; fi
 
 # Puertos: sólo los del bloque 9490–9499 (V.16.4), y sólo se libera uno ocupado por una corrida anterior de este arnés.
-case "$PORT" in 949[0-9]) ;; *) echo "woo-flow.sh usa el bloque 9490–9499 (9491 sitio, 9492 NET=1, 9493 CORE=plugin): $PORT es de otro arnés"; exit 1;; esac
+# 9500–9509: el bloque de F7b (frente L), para las regresiones W9 y W10 mientras otro arnés usa 9490–9499.
+case "$PORT" in 949[0-9]|950[0-9]) ;; *) echo "woo-flow.sh usa el bloque 9490–9499 (9491 sitio, 9492 NET=1, 9493 CORE=plugin) o, para F7b, 9500–9509: $PORT es de otro arnés"; exit 1;; esac
 free_port() {
   local port="$1" pids pid cmd
   pids="$(fuser -n tcp "$port" 2>/dev/null | tr -s ' ' || true)"

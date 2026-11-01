@@ -18,6 +18,7 @@ tiene en los sitios). No forman parte de los workflows: se corren a mano antes d
 | `design.sh` | Capacidades de diseño de DIGITALÍSIMO Elements (F7a, DS1–DS13): presets, degradados, máscaras y patrones, «Visitó la página», prioridad del Theme Builder, controles de documento, sticky «al fijarse», caché de elementos, plugin original, v4, red y vuelta a 4.3.0.163. |
 | `kit-roundtrip.sh`, `brand-audit.sh STATE=kit` | Kits de Elementor con DIGITALÍSIMO Elements (etapa K): ida y vuelta, terceros, «sólo agregar», red, reversión, entradas hostiles y marca. Obligatorias antes de publicar K y después de cada `sync-elementor-core.sh`. |
 | `woo-flow.sh` | WooCommerce visual de DIGITALÍSIMO Elements (F4-Woo, W0–W13) con WooCommerce 11.2.1 fijado: tienda de prueba, compra en modo de prueba y, cuando existan los widgets, lista de deseos, vista rápida, muestras, barra de envío, cupón, filtros y vuelta atrás. |
+| `f7b.sh` | Capacidades de F7b en DIGITALÍSIMO Elements (B0–B12): acciones con destino, interacciones PRO, consultas guardadas y contextos, «Desvincular» y borrado bloqueado, filtros nuevos (también con F4-Woo, `WOO=1`), destino «Archivo», sobrescrituras del Template, datos dentro del texto, formulario condicional, slider anidado y presentación, y vuelta a 4.3.0.168. Bloque de puertos 9500–9509. |
 
 ## WooCommerce en los arneses (F4-Woo)
 
@@ -347,9 +348,29 @@ OUT=/var/tmp/digi-f4/fb-woo PORT=9472 WOO=1 COMPARE_FILE=/var/tmp/digi-f4/fb-woo
 OUT=/var/tmp/digi-front-network bash tests/playground/front-network.sh
 ```
 
+### Casos de F7b
+
+Los casos con `since` 4.3.0.169 miden F7b: `f7b-action` (acción «abrir popup» con la puerta de PRO activa y un popup sin
+condiciones; `runtime` en `tests/elements-front-cases.php`, porque la acción pide los paquetes al pintar), `f7b-hidden-initial`
+(«Oculto al cargar»: `hidden`, `<noscript>`, la regla `[hidden]` una vez en el CSS del documento y CLS ≤ 0,01),
+`f7b-loop-in-loop` y su control `f7b-loop-in-loop-base` (bucle en bucle con y sin consulta guardada: consultas SQL de los
+dos en el mismo resultado), `f7b-inline-tags` (0 peticiones y 0 bytes de JS frente a `empty`), `f7b-presentation`,
+`nested-slider`, `f7b-form-conditions` y `f7b-filters`, en `normal` y `cache`, y `f7b-user-tag-header` en `theme` (junto a
+`tb-header-core`). Un caso puede declarar `queries` (slug → entrada de `Queries\Store::save()`): `setup.php` crea esas
+consultas después de reservar páginas, documentos y menú (los IDs de los casos anteriores no cambian, así la comparación con
+4.3.0.168 es posible) y sustituye `__QUERY:<slug>__` por su ID; sin F7b vale «0». Una corrida normal completa no cabe en
+10 min con la máquina cargada: la comparación con 4.3.0.168 se hace en dos mitades (`CASES`, cada una con `empty`; la
+segunda con `COMPARE_STRICT=empty`):
+
+```bash
+unzip -q dist/digitalisimo-elements-4.3.0.168.zip -d /var/tmp/digi-f7b/rel168
+OUT=/var/tmp/digi-f7b/pg-fb-168-A PORT=9503 EXPECT=0 ELEMENTS_DIR=/var/tmp/digi-f7b/rel168/digitalisimo-elements CASES=<mitad A> bash tests/playground/front-budget.sh
+OUT=/var/tmp/digi-f7b/pg-fb-169-A PORT=9503 COMPARE_FILE=/var/tmp/digi-f7b/pg-fb-168-A/front-budget.json CASES=<mitad A> bash tests/playground/front-budget.sh
+```
+
 ## Diseño compartido
 
-`shared-ui.sh` monta los siete plugins en un sitio y, con un mu-plugin que filtra los plugins activos por petición (cookie `digi_ui_plugins`), abre la pantalla de cada uno con ese plugin solo (Migración junto a Elements, que necesita; de Elements, «Acerca de» y «Rendimiento») y después con los siete activos. En cada una comprueba que haya una sola hoja compartida `digitalisimo-ui`, la clase de body `digitalisimo-admin`, el token `--digi-gradient` válido, el botón primario con el degradado propio y ningún color de la paleta de Elementor; en «Rendimiento», además, la sección «Privacidad» visible con su casilla (F7a), con captura de página entera. Guarda capturas en `$OUT`.
+`shared-ui.sh` monta los siete plugins en un sitio y, con un mu-plugin que filtra los plugins activos por petición (cookie `digi_ui_plugins`), abre la pantalla de cada uno con ese plugin solo (Migración junto a Elements, que necesita; de Elements, «Acerca de», «Rendimiento» y, desde F7b, «Consultas» con su formulario nuevo y «Dónde se usa») y después con los siete activos. En cada una comprueba que haya una sola hoja compartida `digitalisimo-ui`, la clase de body `digitalisimo-admin`, el token `--digi-gradient` válido, el botón primario con el degradado propio y ningún color de la paleta de Elementor; en «Rendimiento», además, la sección «Privacidad» visible con su casilla (F7a), con captura de página entera. Guarda capturas en `$OUT`.
 
 ## Código PHP de DIGITALÍSIMO Tools
 
@@ -487,3 +508,54 @@ ONLY=setup,n5 bash tests/playground/theme-network.sh   # depuración de un paso 
 | **N6** | Con el tema activo en el sitio principal su actualizador escribe la entrada y Tools no la cambia; con los filtros del tema retirados (actualizador roto), Tools escribe la de respaldo (RL-3) |
 
 En N2 y N5, además, ninguna URL de la pantalla va a un plugin de origen (`brand-audit/vendors.cjs`) y los avisos de PHP nuevos (o nacidos en Tools o en el tema) hacen fallar; un error fatal en cualquier paso (`fatal.log`) también. Resultado en `$OUT/result.json` (por defecto `/tmp/digi-theme-network`), con `http.jsonl`, `php.jsonl`, `upgrade.jsonl` y las pantallas guardadas.
+
+## F7b (`f7b.sh`)
+
+`f7b.sh` arranca Playground en modo servidor (un worker) con una **copia fija** de `digitalisimo-elements/` y
+`digitalisimo-theme/` (`$OUT/src`; `LIVE=1` monta el árbol), el tema DIGITALÍSIMO activo, la sonda `f7b/probe.php`
+(mu-plugin con el token de `mode.json`: `?digi_f7b=ping|ids|tree|data|save|option|scan|clearcss|meta|wpquery|outbox|posts`
+y las operaciones de `f7b/ops/*.php`; captura correos y peticiones salientes y apaga WP-Cron) y los documentos de
+`f7b/cases.json` (forma compacta de `f7b/lib.php`), guardados con `Document::save()` (banderas y usos al día); las consultas
+guardadas, con `Queries\Store::save()` como la pantalla «Consultas». La preparación aplica la transición de «Rendimiento» (puerta
+de PRO activa) y corre el recorrido por lotes de V.6 hasta el final. El conductor `f7b/run.cjs` (con `f7b/scenarios/*.cjs`)
+habla con el sitio por HTTP con tarros de cookies por usuario (administrador, autora, suscriptora y editora), mide en Chrome
+sin interfaz (front y editor real) y escribe `$OUT/summary.json` con cada comprobación (`ok`, `falla` o `pendiente` con su
+motivo). B0 (preparación) corre siempre primero y vuelca el HTML de cada página en `$OUT/pages/`.
+
+| Escenario | Qué comprueba |
+|---|---|
+| B1 | Acciones con destino: marcado del servidor y listas cerradas, `[hidden]` una vez en el CSS del documento, `display:none` en flex, grid, columna y widget en tres anchos y `<noscript>` sin JavaScript, recorrido sólo con teclado (foco devuelto, Intro y Espacio, `aria-expanded`/`aria-controls`, árbol de accesibilidad), `hover` con foco, Escape y 300 ms, popup y Off-Canvas por `runAction()` con la puerta de PRO, «Cargar más», «Ir a» con movimiento reducido, «al entrar» y «al cargar», y la segunda visita con la caché de elementos llena |
+| B2 | Interacciones PRO con v4 activado sólo en este Playground: `pending` tras el recorrido, aviso con documentos y botón con nonce, `ack`, el script de PRO y el de movimiento reducido (≤ 150 B sin el `sourceURL` de WordPress), `skipAnimations` emulado, `clear` sin interacciones |
+| B3 | Consultas guardadas = grupo de PRO (Loop Grid y Posts) y WP_Query directo; contexto actual y relaciones en «Entrada individual»; bucle en bucle (con su control sin F7b); contexto raíz con `data-digi-ctx` y B3+B5: `digi_ctx` en `refresh-loop` y forjado con una entrada privada o un borrador |
+| B4 | «Desvincular» en el editor real (copia, un «Deshacer», aviso con contexto, guardar y front igual); «En uso (N)» en `edit.php`, «Consultas», «Dónde se usa» y la biblioteca del editor (`delete_template`); permisos de un suscriptor |
+| B5–B7 | Filtros nuevos por GET = WP_Query, valores fuera de lista, teclado y región viva, `aria-pressed`, REST forjada; destino «Archivo» con `digi_f` y sus rechazos; con `WOO=1`, precio de F4-Woo con búsqueda y orden por precio de F7b |
+| B8 | Sobrescrituras: cada `kind`, instancia sin sobrescrituras byte a byte igual, caché de la plantilla, plantilla dentro de plantilla, AJAX 403, y el editor (clave sólo en plantillas, aviso de duplicado, lista de claves) |
+| B9 | Datos dentro del texto: escape, listas, lista negra, enlaces intactos, caché de elementos, `{user:…}` con y sin sesión (`DONOTCACHEPAGE`), «Insertar dato» con vista previa y «Deshacer» |
+| B10 | Formulario condicional: estado inicial del servidor, regla `[hidden]`, Chrome (asterisco, Tab, envío real y reinicio), la visita servida desde la caché de elementos, envíos colados (correo y webhook capturados), contador a 0, y reglas en el editor real (añadir, borrar, deshacer, guardar y recargar) |
+| B11 | Slider anidado en tres anchos (orden del foco, teclado, `inert`, `aria-current`, 24 px, CLS), autoplay y sus pausas, árbol de accesibilidad, caché de elementos, presentación de pestañas y acordeón, y el editor real (con las pestañas anidadas del núcleo como control) |
+| B12 | Vuelta a 4.3.0.168 (`dist/`, sha256 comprobada) instalada sobre el resultado: las tres regresiones de V.11, nada roto, la limitación del bucle en bucle ya presente, y guardar desde su editor conserva lo nuevo (en el marcador de la guarda hacia delante) |
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `SCENARIOS` | B1–B6 y B8–B12 (B7 con `WOO=1`) | escenarios; B12 siempre al final (reemplaza la copia montada) |
+| `APPEND=1` | — | conserva `$OUT/summary.json` y le suma los escenarios de esta corrida: la corrida completa no cabe en 10 min y se parte en tandas con el mismo `OUT` |
+| `QUICK=1`, `B0_PAGES=0` | — | un solo ancho; B0 sólo visita `b1-actions` (iteración, no valen para la aceptación) |
+| `WOO=1`, `WOO_ZIP` | — | WooCommerce 11.2.1 fijado y obligatorio (B7) |
+| `OLD_ZIP` | `dist/digitalisimo-elements-4.3.0.168.zip` del repositorio principal | ZIP de B12 (sha256 comprobada) |
+| `PORT` | 9501 (9502 con `WOO=1`) | el bloque 9500–9509 es de F7b: cualquier otro puerto se rechaza |
+| `OUT`, `TMPDIR` | `/var/tmp/digi-f7b/pg-f7b-<modo>`, `/var/tmp/digi-f7b/tmp` | resultados y temporales (2 GB libres) |
+| `KEEP=1`, `LIVE=1` | — | deja el sitio arrancado; monta el árbol de trabajo (sin B12) |
+
+```bash
+OUT=/var/tmp/digi-f7b/pg-f7b-final SCENARIOS=B1,B3 bash tests/playground/f7b.sh
+OUT=/var/tmp/digi-f7b/pg-f7b-final APPEND=1 SCENARIOS=B2,B4 bash tests/playground/f7b.sh      # y B5,B6 · B8,B9 · B10 · B11 · B12
+WOO=1 OUT=/var/tmp/digi-f7b/pg-f7b-final-woo bash tests/playground/f7b.sh
+```
+
+Ampliaciones de F7b en los demás arneses (todas en el bloque 9500–9509 cuando admiten `PORT`): `front-budget.sh` (casos
+`since` 4.3.0.169 y `queries`, arriba), `interaction.sh` (casos `f7b-nested-slider`, `f7b-tabs-pills`, `f7b-accordion-boxed`
+y `f7b-form-conditions`; `$widget` y `$elements` en `interaction/cases.json` crean un widget anidado con sus hijos dentro de
+un contenedor; en el editor, la búsqueda «diapositivas» del panel), `brand-audit.sh` (`setup-f7b.php` y el recorrido del
+editor de `digi-marca-f7b` con cada control nuevo seleccionado, el menú contextual «Aplicar a todos», la plantilla con su clave,
+«Consultas», «Dónde se usa» y su frontal; `ONLY=f7b` sólo eso y los frontales, `ONLY=base` todo menos eso: cada mitad cabe en
+10 min), `shared-ui.sh` («Consultas» y «Dónde se usa») y `woo-flow.sh` (acepta también 9500–9509 para W9 y W10).
