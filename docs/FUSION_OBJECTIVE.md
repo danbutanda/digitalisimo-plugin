@@ -161,7 +161,7 @@ En orden de dependencias. Cada uno tiene su rama, su aceptación propia y se pub
 | F5 | GeneratePress | Eliminado (2026-10-20) |
 | F7b | Capacidades que Bricks necesita: acciones con destino e interacciones PRO, consultas guardadas, filtros ampliados, sobrescrituras del Template con usos y borrado bloqueado, slider anidado, presentación de anidados, «Aplicar a todos», etiquetas dentro del texto y formularios condicionales | **Publicado** · Elements 4.3.0.169 · `v2026.11.01.444` |
 | F6 | Bricks (con las exportaciones del usuario) | Eliminado (2026-10-20) |
-| F8 | Element Pack 10.x y Prime Slider en Migración | Pendiente |
+| F8 | Element Pack 10.x y Prime Slider en Migración | En curso (rama `fusion/f8`, desde el 2026-11-01) |
 
 ### F0 · Base
 
