@@ -350,6 +350,10 @@ if ( 'P0' === ( digi_f8_mode()['scenario'] ?? '' ) ) {
 			WC_Install::create_pages();
 		}
 		digi_f8_ps_documents( digi_f8_ps_inventory( 'lite' ), array( 'defaults', 'custom' ), 'lite', $mode );
+		// «dragon» guardado sin ajustes (como al pegarlo o importarlo): Migración lo rellena con los valores registrados de
+		// Lite, cuyas imágenes son SVG (img-1…3.svg). Los casos `defaults` de los fixtures llevan PNG explícitos, así que
+		// sin este documento ninguna página de P0 tiene imágenes SVG de demostración (C4 de la primera vuelta).
+		digi_f8_document( 'digi-f8-ps-registrados', array( digi_f8_wrap( 'prime-slider-dragon', array(), 'registrados' ) ), array( 'title' => 'Prime Slider con sus valores registrados' ) );
 		// Kit por defecto, como lo tiene todo sitio que viene del constructor: sin él, el editor se detiene en «Your site
 		// doesn't have a default kit» (P0.C2 de la primera vuelta).
 		if ( ! (int) get_option( 'elementor_active_kit' ) && class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->kits_manager ) ) {

@@ -2,7 +2,7 @@
 // las partes mapeadas (F8, P10; frente B): Chrome abre la página de cada caso y `collectStyles()` (legacy-compare.mjs)
 // guarda el estilo de cada parte de `classes` del mapa: la clase de Element Pack en la fase A y la propia en B, C y E.
 // legacy-compare.mjs compara después A con B y con C. Deja $OUT/run.json con cada paso, su duración y sus problemas.
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import http from 'node:http';
 import { stylePairs, collectStyles, STYLE_PROPS } from './legacy-compare.mjs';
@@ -85,6 +85,8 @@ async function styles(id, side) {
         const res = await page.goto(entry.url, { waitUntil: 'networkidle0', timeout: 120000 }).catch((e) => ({ status: () => `error ${e.message}` }));
         await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});
         entry.signature.styles = await page.evaluate(collectStyles, pairs, side, STYLE_PROPS);
+        // Diagnóstico (SAVE_HTML=1): el HTML pintado de cada página medida, para ver qué hojas y reglas aplican.
+        if (process.env.SAVE_HTML === '1') { mkdirSync(`${OUT}/html-${id}`, { recursive: true }); writeFileSync(`${OUT}/html-${id}/${widget}-${name}-${blog}.html`, await page.content()); }
         entry.styles_http = res && res.status ? res.status() : 0;
         const found = Object.values(entry.signature.styles).filter(Boolean).length;
         (run.styles[`${widget}·${name}`] = run.styles[`${widget}·${name}`] || {})[id] = { parts: pairs.length, found, http: entry.styles_http };

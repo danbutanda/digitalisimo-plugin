@@ -395,7 +395,10 @@ final class Static_Families {
 			$w   = $w > 0 && $h > 0 ? $w : 16;
 			$h   = $w > 0 && $h > 0 && (int) ( $s['slider_size_ratio']['height'] ?? 0 ) > 0 ? $h : 9;
 			$min = $min > 0 ? $min : (int) ( $spec['min'] ?? 0 );
-			$css = 'selector .digi-nslider__track{aspect-ratio:' . $w . '/' . $h . ( $min > 0 ? ';min-height:' . $min . 'px' : '' ) . '}';
+			// Con `min-height`, la proporción traslada esa altura mínima al ancho (en 360 px, 440 px de alto daban una pista de
+			// 782 px que desbordaba la página: Playground P0.C3, frente J); `max-width:100%` lo impide y la altura queda
+			// max(min-height, ancho × proporción), como la calculaba el origen.
+			$css = 'selector .digi-nslider__track{aspect-ratio:' . $w . '/' . $h . ( $min > 0 ? ';min-height:' . $min . 'px;max-width:100%' : '' ) . '}';
 			if ( ! class_exists( Css_Value::class ) || Css_Value::block( $css ) ) {
 				$out['custom_css'] = $css;
 			}

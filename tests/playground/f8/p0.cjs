@@ -22,8 +22,8 @@ module.exports = (api) => async (s) => {
   const { OUT, RUN, check, pending, note, control, login, migrate, request, open, shot, vendorTrace, sleep, text } = api;
   // Tandas: a, b1 (B de la primera mitad), b2 (B de la segunda mitad) y c; P0_PART=a,b1 o una sola.
   // `ed` (diagnóstico de C2): el editor real de cada documento convertido de P0_ED_KEYS, uno a uno, con la traza de errores.
-  const PARTS = (process.env.P0_PART || 'a,b1,b2,c').split(',').map((x) => x.trim()).filter((p) => ['a', 'b1', 'b2', 'c', 'ed'].includes(p));
-  const PREFIX = { a: 'P0.A', b1: 'P0.B1.', b2: 'P0.B2.', c: 'P0.C', ed: 'P0.ED' };
+  const PARTS = (process.env.P0_PART || 'a,b1,b2,c').split(',').map((x) => x.trim()).filter((p) => ['a', 'b1', 'b2', 'c', 'ed', 'svg'].includes(p));
+  const PREFIX = { a: 'P0.A', b1: 'P0.B1.', b2: 'P0.B2.', c: 'P0.C', ed: 'P0.ED', svg: 'P0.SVG' };
   const DATA = path.join(OUT, 'P0-data');
   fs.mkdirSync(DATA, { recursive: true });
   const WIDTHS = [360, 768, 1280];
@@ -190,6 +190,22 @@ module.exports = (api) => async (s) => {
     }
   }
 
+  // ── svg · Imágenes de demostración con la subida sin filtrar encendida (diagnóstico de P0.C4) ─────────────────
+  if (PARTS.includes('svg')) {
+    await control('unfiltered', { on: '1' });
+    await doMigrate('P0.SVG');
+    const st = await control('state', { registry: '1' });
+    const demoCodes = {};
+    for (const [doc, row] of Object.entries((st.report_f8 || {}).docs || {})) for (const it of row.items || []) if (/^ps\.demo/.test(it.code)) (demoCodes[it.code] = demoCodes[it.code] || []).push(JSON.stringify(it.detail).slice(0, 160));
+    const media = (await control('psmedia')).media;
+    fs.writeFileSync(path.join(RUN, 'svg-diagnostico.json'), JSON.stringify({ demoCodes, registry: (st.registry || {}).demo, media }, null, 1));
+    const svg = media.filter((x) => x.mime === 'image/svg+xml');
+    const reg = await control('doc', { key: 'digi-f8-ps-registrados', full: '1' });
+    const regJson = JSON.stringify((reg.doc || {}).data || []);
+    check(s, 'P0.SVG2', 'el «dragon» con sus valores registrados apunta a las copias de Medios (uploads) y no a la carpeta de Lite', /\/uploads\/[^"]+\.svg/.test(regJson.replace(/\\\//g, '/')) && !/bdthemes-prime-slider/.test(regJson), regJson.slice(0, 600));
+    check(s, 'P0.SVG3', `con la subida sin filtrar, las imágenes de demostración SVG se copian a Medios saneadas (${svg.length})`, svg.length > 0 && svg.every((x) => x.exists && !x.script), JSON.stringify({ demoCodes, media: media.map((x) => `${x.mime} ${x.exists}`).slice(0, 12), registry: Object.values((st.registry || {}).demo || {}).slice(0, 6) }).slice(0, 1800));
+  }
+
   // ── ed · Editor real de cada documento, solo y con su traza (diagnóstico de P0.C2) ─────────────────────────────
   if (PARTS.includes('ed')) {
     await doMigrate('P0.ED');
@@ -277,7 +293,7 @@ module.exports = (api) => async (s) => {
     // Copias SVG de las imágenes de demostración (subida sin filtrar encendida).
     const media = (await control('psmedia')).media;
     const svg = media.filter((x) => x.mime === 'image/svg+xml');
-    check(s, 'P0.C4', `las imágenes de demostración SVG pasan wp_check_filetype_and_ext() real y quedan en Medios saneadas (${svg.length})`, svg.length > 0 && svg.every((x) => x.exists && !x.script), JSON.stringify(svg.slice(0, 5)));
+    check(s, 'P0.C4', `las imágenes de demostración SVG (del «dragon» con sus valores registrados) pasan wp_check_filetype_and_ext() real y quedan en Medios saneadas (${svg.length})`, svg.length > 0 && svg.every((x) => x.exists && !x.script), JSON.stringify(svg.slice(0, 5)));
     // Loop Carousel generado (familias E, F y G).
     const loopKeys = keys.filter((k) => info[k] && info[k].widgets['loop-carousel'] && docs[k].case === 'defaults');
     const loopBad = {};
@@ -370,6 +386,10 @@ function explain(kind, value, side, doc, a) {
     if (dyn && /^(january|february|march|april|may|june|july|august|september|october|november|december|\d{4}|admin)$/.test(value)) return 'fecha o autor del origen con otro formato en Información de la entrada (§3.E.4)';
   }
   if (kind === 'palabra' && side === 'B') {
+    // Segunda vuelta de J: lo que el origen pinta y deja oculto (diapositivas no actuales de UIkit o Swiper, o el texto
+    // antes de su animación de entrada) está en `a.hidden`; el destino lo deja en el DOM fuera de la vista. Es el mismo
+    // contenido, no un añadido: B1.9/B2.9 de la primera vuelta.
+    if (a && Array.isArray(a.hidden) && new Set(a.hidden.join(' ').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean)).has(value)) return 'texto que el origen pinta oculto (diapositiva no actual o antes de su animación de entrada) y el destino deja en el DOM fuera de la vista: el mismo contenido';
     if (['facebook', 'f', 'link', 'instagram', 'twitter'].includes(value)) return 'nombre accesible de Iconos sociales (texto sólo para lectores de pantalla, F8-D16)';
     if (['scroll', 'down'].includes(value)) return 'botón de desplazamiento del origen (sólo icono en isolate) → Botón de desplazamiento con su texto por defecto (F8-D16)';
     if (dyn && ['no', 'comments', 'one', 'comment', 'by', 'admin'].includes(value)) return 'metadatos de Información de la entrada de PRO en el Loop Item (§3.E.4)';

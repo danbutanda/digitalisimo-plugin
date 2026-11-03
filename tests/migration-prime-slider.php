@@ -319,6 +319,62 @@ namespace {
 		return array( $out, $codes );
 	}
 
+	/**
+	 * Problemas de estructura de un resultado, como los vería el editor (segunda vuelta de J, P0.C2): IDs no vacíos y
+	 * únicos, `elType` conocido, `widgetType` en los widgets, `settings` objeto (array asociativo o vacío) y `elements`
+	 * lista; los hijos del slider anidado, contenedores; `isInner` sólo en contenedores.
+	 *
+	 * @return string[]
+	 */
+	function ps_structure( $out ) {
+		$problems = array();
+		$seen     = array();
+		$walk     = static function ( array $elements, string $parent ) use ( &$walk, &$problems, &$seen ) {
+			if ( array_keys( $elements ) !== range( 0, count( $elements ) - 1 ) && $elements ) {
+				$problems[] = 'elements no es una lista bajo ' . $parent;
+			}
+			foreach ( $elements as $element ) {
+				$id   = is_array( $element ) ? (string) ( $element['id'] ?? '' ) : '';
+				$type = is_array( $element ) ? (string) ( $element['elType'] ?? '' ) : '';
+				if ( '' === $id ) {
+					$problems[] = 'elemento sin id bajo ' . $parent;
+				} elseif ( isset( $seen[ $id ] ) ) {
+					$problems[] = 'id repetido ' . $id;
+				}
+				$seen[ $id ] = true;
+				if ( ! in_array( $type, array( 'widget', 'container', 'section', 'column' ), true ) ) {
+					$problems[] = 'elType «' . $type . '» en ' . $id;
+				}
+				if ( 'widget' === $type && '' === (string) ( $element['widgetType'] ?? '' ) ) {
+					$problems[] = 'widget sin widgetType ' . $id;
+				}
+				$settings = $element['settings'] ?? null;
+				if ( ! is_array( $settings ) || ( $settings && array_keys( $settings ) === range( 0, count( $settings ) - 1 ) ) ) {
+					$problems[] = 'settings no es un objeto en ' . $id;
+				}
+				if ( ! isset( $element['elements'] ) || ! is_array( $element['elements'] ) ) {
+					$problems[] = 'elements falta en ' . $id;
+				}
+				if ( ! empty( $element['isInner'] ) && 'container' !== $type && 'section' !== $type ) {
+					$problems[] = 'isInner en un ' . $type . ' ' . $id;
+				}
+				if ( 'digitalisimo-nested-slider' === ( $element['widgetType'] ?? '' ) ) {
+					foreach ( (array) ( $element['elements'] ?? array() ) as $child ) {
+						if ( 'container' !== ( $child['elType'] ?? '' ) ) {
+							$problems[] = 'hijo del slider anidado que no es un contenedor en ' . $id;
+						}
+					}
+				}
+				$walk( (array) ( $element['elements'] ?? array() ), $id );
+			}
+		};
+		if ( ! is_array( $out ) ) {
+			return array( 'sin resultado' );
+		}
+		$walk( '__fragment' === ( $out['elType'] ?? '' ) ? (array) $out['elements'] : array( $out ), 'raíz' );
+		return $problems;
+	}
+
 	/** Elemento principal y hermanos de un resultado. */
 	function ps_parts( $out, $id = 'a1b2c3d' ) {
 		$parts = '__fragment' === ( $out['elType'] ?? '' ) ? $out['elements'] : array( $out );
@@ -399,6 +455,8 @@ namespace {
 				continue;
 			}
 			$check( is_array( $out ), $label . ': convertido' );
+			$structure = ps_structure( $out );
+			$check( ! $structure, $label . ': estructura que el editor admite (ids únicos, settings objeto, elements lista): ' . implode( '; ', $structure ) );
 			list( $main, $parts ) = ps_parts( $out );
 			$check( is_array( $main ), $label . ': el principal conserva el ID del original' );
 			$expect = array(
@@ -561,7 +619,7 @@ namespace {
 	$check( '#193d4c' === ( $main['elements'][0]['settings']['background_color'] ?? '' ) && 'classic' === $main['elements'][0]['settings']['background_background'], 'fondo de color por defecto de cada fila' );
 	$check( ! ps_widgets( $main['elements'][0], 'button' ), 'botón «#» por defecto → sin botón (sólo con texto y enlace)' );
 	$check( 'Texto de relleno por defecto.' === ps_widgets( $main['elements'][0], 'text-editor' )[0]['settings']['editor'], 'campo ausente de la fila → su valor por defecto' );
-	$check( 'selector .digi-nslider__track{aspect-ratio:16/9;min-height:480px}' === $main['settings']['custom_css'], 'proporción 16:9 y altura mínima del widget en el CSS del slider' );
+	$check( 'selector .digi-nslider__track{aspect-ratio:16/9;min-height:480px;max-width:100%}' === $main['settings']['custom_css'], 'proporción 16:9 y altura mínima del widget en el CSS del slider, sin desbordar el ancho (max-width, P0.C3)' );
 	$check( 'Portada principal' === $main['settings']['carousel_label'], 'nombre accesible ← título del documento, sin etiquetas' );
 	$check( ! is_array( $out ) || '__fragment' !== $out['elType'], 'sin redes ni «my-header»: sin hermanos' );
 	$check( '' === ps_trace( $out ), 'estáticos: sin rastro del proveedor' );
@@ -744,9 +802,9 @@ namespace {
 	list( $out ) = ps_run( 'prime-slider-dragon', array( 'enable_height' => 'yes', 'viewport_height' => array( 'unit' => 'vh', 'size' => 70 ), 'viewport_height_tablet' => array( 'unit' => 'px', 'size' => 500 ), 'viewport_height_mobile' => array( 'unit' => 'bogus', 'size' => 300 ) ), 'container', $post );
 	$check( 70 === $out['settings']['slider_height']['size'] && 'vh' === $out['settings']['slider_height']['unit'] && 500 === $out['settings']['slider_height_tablet']['size'] && 'px' === $out['settings']['slider_height_mobile']['unit'] && ! isset( $out['settings']['custom_css'] ), 'altura en vh responsiva (unidad desconocida → px), sin proporción' );
 	list( $out ) = ps_run( 'prime-slider-dragon', array( 'slider_size_ratio' => array( 'width' => '4', 'height' => '3' ), 'slider_min_height' => array( 'size' => 320 ) ), 'container', $post );
-	$check( 'selector .digi-nslider__track{aspect-ratio:4/3;min-height:320px}' === $out['settings']['custom_css'], 'proporción y altura mínima guardadas → CSS del slider' );
+	$check( 'selector .digi-nslider__track{aspect-ratio:4/3;min-height:320px;max-width:100%}' === $out['settings']['custom_css'], 'proporción y altura mínima guardadas → CSS del slider' );
 	list( $out ) = ps_run( 'prime-slider-dragon', array( 'slider_size_ratio' => array( 'width' => '4;}body{x', 'height' => '3' ) ), 'container', $post );
-	$check( 'selector .digi-nslider__track{aspect-ratio:4/3;min-height:440px}' === $out['settings']['custom_css'], 'proporción con texto malicioso → número entero; altura mínima del widget (440)' );
+	$check( 'selector .digi-nslider__track{aspect-ratio:4/3;min-height:440px;max-width:100%}' === $out['settings']['custom_css'], 'proporción con texto malicioso → número entero; altura mínima del widget (440)' );
 	list( $out ) = ps_run( 'prime-slider-sniper', array( 'item_height' => array( 'unit' => 'px', 'size' => 600 ), 'item_height_mobile' => array( 'unit' => 'px', 'size' => 300 ) ), 'container', $post );
 	$check( 600 === $out['settings']['slider_height']['size'] && 300 === $out['settings']['slider_height_mobile']['size'], 'item_height → slider_height responsivo' );
 

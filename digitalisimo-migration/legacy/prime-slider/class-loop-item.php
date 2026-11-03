@@ -366,7 +366,10 @@ final class Loop_Item {
 		if ( $parts['meta'] ) {
 			$rows = array();
 			foreach ( $parts['meta'] as $type ) {
-				$rows[] = array( '_id' => $id(), 'type' => $type, 'show_icon' => 'none' );
+				// El origen sólo enlaza al autor: la fecha y los comentarios son texto (ningún módulo usa get_day_link() ni
+				// get_comments_link()). `link` vale «yes» por defecto en Información de la entrada, así que se fija en cada
+				// fila; antes, la fecha enlazaba a su archivo y los comentarios a #comments (Playground P0.B1.9, frente J).
+				$rows[] = array( '_id' => $id(), 'type' => $type, 'show_icon' => 'none', 'link' => 'author' === $type ? 'yes' : '' );
 			}
 			$children[] = self::widget( $id(), 'post-info', array( 'icon_list' => $rows, 'text_color' => $colors['meta'] ) + ( '' !== $parts['align'] ? array( 'icon_align' => $parts['align'] ) : array() ) );
 		}

@@ -428,6 +428,8 @@ namespace {
 	$check( array( 'post-info', 'theme-post-title', 'post-info', 'theme-post-excerpt', 'button' ) === widgets_of( $tree[0]['elements'] ), 'blog: términos, título, metadatos, extracto y botón' );
 	$check( 'h1' === $tree[0]['elements'][1]['settings']['header_size'] && 'Read More' === $tree[0]['elements'][4]['settings']['text'], 'título h1 y «Read More» de los valores por defecto' );
 	$check( array( 'author', 'date', 'comments' ) === array_column( $tree[0]['elements'][2]['settings']['icon_list'], 'type' ), 'autor, fecha y comentarios' );
+	// Segunda vuelta de J (P0.B1.9): el origen sólo enlaza al autor; la fecha y los comentarios, sin enlace.
+	$check( array( 'yes', '', '' ) === array_column( $tree[0]['elements'][2]['settings']['icon_list'], 'link' ), 'sólo el autor enlaza (la fecha y los comentarios del origen son texto)' );
 	$check( 'selector{aspect-ratio:16/9}' === $tree[0]['settings']['custom_css'] && 440 === $tree[0]['settings']['min_height']['size'], 'proporción 16:9 con el mínimo de 440 px de blog' );
 	$c = codes( $page );
 	$check( in_array( 'ps.dyn.loop', $c, true ) && in_array( 'ps.dyn.loss.effect', $c, true ) && in_array( 'ps.dyn.h1', $c, true ), 'informe: carrusel, efecto fundido perdido y h1' );
@@ -812,6 +814,62 @@ namespace {
 	$check( 'posts' === $main['widgetType'] && 'tribe_events' === $main['settings']['posts_post_type'] && 4 === $main['settings']['classic_posts_per_page'], 'eventos sin contenedores: rejilla de Entradas sobre tribe_events' );
 	env();
 
+	/**
+	 * Problemas de estructura de un resultado, como los vería el editor (segunda vuelta de J, P0.C2): IDs no vacíos y
+	 * únicos, `elType` conocido, `widgetType` en los widgets, `settings` objeto (array asociativo o vacío) y `elements`
+	 * lista; los hijos del slider anidado, contenedores; `isInner` sólo en contenedores.
+	 *
+	 * @return string[]
+	 */
+	function dyn_structure( $out ) {
+		$problems = array();
+		$seen     = array();
+		$walk     = static function ( array $elements, string $parent ) use ( &$walk, &$problems, &$seen ) {
+			if ( array_keys( $elements ) !== range( 0, count( $elements ) - 1 ) && $elements ) {
+				$problems[] = 'elements no es una lista bajo ' . $parent;
+			}
+			foreach ( $elements as $element ) {
+				$id   = is_array( $element ) ? (string) ( $element['id'] ?? '' ) : '';
+				$type = is_array( $element ) ? (string) ( $element['elType'] ?? '' ) : '';
+				if ( '' === $id ) {
+					$problems[] = 'elemento sin id bajo ' . $parent;
+				} elseif ( isset( $seen[ $id ] ) ) {
+					$problems[] = 'id repetido ' . $id;
+				}
+				$seen[ $id ] = true;
+				if ( ! in_array( $type, array( 'widget', 'container', 'section', 'column' ), true ) ) {
+					$problems[] = 'elType «' . $type . '» en ' . $id;
+				}
+				if ( 'widget' === $type && '' === (string) ( $element['widgetType'] ?? '' ) ) {
+					$problems[] = 'widget sin widgetType ' . $id;
+				}
+				$settings = $element['settings'] ?? null;
+				if ( ! is_array( $settings ) || ( $settings && array_keys( $settings ) === range( 0, count( $settings ) - 1 ) ) ) {
+					$problems[] = 'settings no es un objeto en ' . $id;
+				}
+				if ( ! isset( $element['elements'] ) || ! is_array( $element['elements'] ) ) {
+					$problems[] = 'elements falta en ' . $id;
+				}
+				if ( ! empty( $element['isInner'] ) && 'container' !== $type && 'section' !== $type ) {
+					$problems[] = 'isInner en un ' . $type . ' ' . $id;
+				}
+				if ( 'digitalisimo-nested-slider' === ( $element['widgetType'] ?? '' ) ) {
+					foreach ( (array) ( $element['elements'] ?? array() ) as $child ) {
+						if ( 'container' !== ( $child['elType'] ?? '' ) ) {
+							$problems[] = 'hijo del slider anidado que no es un contenedor en ' . $id;
+						}
+					}
+				}
+				$walk( (array) ( $element['elements'] ?? array() ), $id );
+			}
+		};
+		if ( ! is_array( $out ) ) {
+			return array( 'sin resultado' );
+		}
+		$walk( '__fragment' === ( $out['elType'] ?? '' ) ? (array) $out['elements'] : array( $out ), 'raíz' );
+		return $problems;
+	}
+
 	/* ============================================================== 8. Los 19, todos los casos */
 
 	reset_all();
@@ -824,6 +882,10 @@ namespace {
 				continue;
 			}
 			$out = build( $id, $settings, $page );
+			if ( is_array( $out ) ) {
+				$structure = dyn_structure( $out );
+				$check( ! $structure, $id . ' (' . $case . '): estructura que el editor admite (ids únicos, settings objeto, elements lista): ' . implode( '; ', $structure ) );
+			}
 			// El CSS propio del usuario se copia tal cual y, si nombra clases del original, va a «Pendiente de revisar».
 			$scan = $out;
 			if ( is_array( $scan ) && isset( $settings['custom_css'] ) ) {
