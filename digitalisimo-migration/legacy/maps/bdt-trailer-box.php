@@ -88,8 +88,10 @@ return array(
 		if ( '' !== $global && preg_match( '/^globals\/colors\?id=([a-z0-9_-]+)$/i', $global, $m ) ) {
 			$bg = 'var(--e-global-color-' . $m[1] . ')';
 		}
-		if ( '' !== $bg && preg_match( '/^(#[0-9a-f]{3,8}|rgba?\([0-9.,\s%]+\)|hsla?\([0-9.,\s%deg]+\)|var\(--e-global-color-[a-z0-9_-]+\))$/i', $bg ) ) {
-			$set['custom_css'] = trim( (string) ( $out['custom_css'] ?? '' ) . "\nselector a.digi-fancy-card__link{background-color:" . $bg . '}' );
+		$rule = 'selector a.digi-fancy-card__link{background-color:' . $bg . '}';
+		$safe = ! class_exists( '\Digitalisimo\Elements\Legacy\Effects\Css_Value' ) || \Digitalisimo\Elements\Legacy\Effects\Css_Value::block( $rule );
+		if ( '' !== $bg && $safe && preg_match( '/^(#[0-9a-f]{3,8}|rgba?\([0-9.,\s%]+\)|hsla?\([0-9.,\s%deg]+\)|var\(--e-global-color-[a-z0-9_-]+\))$/i', $bg ) ) {
+			$set['custom_css'] = trim( (string) ( $out['custom_css'] ?? '' ) . "\n" . $rule );
 			unset( $out['custom_css'] );
 		}
 		foreach ( array_keys( $out ) as $key ) {

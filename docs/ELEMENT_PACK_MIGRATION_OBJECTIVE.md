@@ -150,12 +150,12 @@ La etapa F8 de [FUSION_OBJECTIVE.md](FUSION_OBJECTIVE.md) cerró lo que la migra
 
 | Mapa | Estado |
 |---|---|
-| Fancy Slider, Trailer Box, Advanced Progress Bar, Animated Card, Interactive Card y Profile Card | **Corregidos:** `classes` según el marcado del destino y regenerados con `--merge` (los controles vivos más los de 10.0.1, sobre su selector de 10.0.1). Estilo computado comprobado control a control en Chrome (`tests/migration-legacy-styles-chrome.mjs`) |
+| Fancy Slider, Trailer Box, Advanced Progress Bar, Animated Card, Interactive Card y Profile Card | **Corregidos:** `classes` según el marcado del destino y regenerados con `--merge` (los controles vivos más los de 10.0.1, sobre su selector de 10.0.1). Estilo computado comprobado control a control en Chrome (`tests/migration-legacy-styles-chrome.mjs`) y en el A/B con Element Pack Lite 10.0.1 (P10 de `tests/playground/f8.sh`), que encontró el fondo del botón de Trailer Box aplicado a la tarjeta: ahora pasa al botón |
 | Advanced Icon Box | Igual, más los 4 controles hover del distintivo y la posición del icono con el modificador propio `--<pos>` |
 | Mega Menu (`bdt-mega-menu`) | Nuevo, hacia `nav-menu`: 39 controles de estilo; pasa de COMPARTIR a **ADAPTAR** |
 | Otros 48 mapas | **Podados:** sólo se retiraron los selectores que no aplicaban a nada (728 controles y 26 recortados); su corrección fina queda listada en [fusion/f8.md](fusion/f8.md), anexo A |
 
-Lo que sigue pendiente: el A/B de Element Pack Pro, del Addon y de Prime Slider Pro, cuyas copias de `reference/` tienen la licencia anulada (se validaron con datos sintéticos; Element Pack Lite 10.0.1 y Prime Slider Lite 4.7.0 oficiales sí se probaron en Playground), y la corrección fina de los 48 mapas podados.
+Lo que sigue pendiente: el A/B de Element Pack Pro, del Addon y de Prime Slider Pro, cuyas copias de `reference/` tienen la licencia anulada (se validaron con datos sintéticos y plugins falsos en Playground; Element Pack Lite 10.0.1 y Prime Slider Lite 4.7.0 oficiales sí tienen A/B real, en verde), y la corrección fina de los 48 mapas podados.
 
 ## Estado de cierre (4.3.0.125, separación en 4.3.0.131)
 

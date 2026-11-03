@@ -15,7 +15,7 @@ return array(
 	/* ------------------------------------------------------------------ Destinos */
 	'ps.dyn.loop'              => array( 'section' => 'approx', 'label' => __( 'Carrusel de Prime Slider convertido al carrusel de bucle (Loop Carousel) con un elemento de bucle generado', 'digitalisimo-migration' ) ),
 	'ps.dyn.events'            => array( 'section' => 'approx', 'label' => __( 'Calendario de eventos convertido al carrusel de bucle sobre los eventos de The Events Calendar', 'digitalisimo-migration' ) ),
-	'ps.dyn.products_carousel' => array( 'section' => 'approx', 'label' => __( 'Productos convertidos al widget Productos en carrusel, con las partes que mostraba el original', 'digitalisimo-migration' ) ),
+	'ps.dyn.products_carousel' => array( 'section' => 'approx', 'label' => __( 'Productos convertidos al widget Productos en carrusel, con las partes que mostraba el original; la imagen y el título enlazan siempre a la ficha del producto', 'digitalisimo-migration' ) ),
 	'ps.dyn.hotspot'           => array( 'section' => 'approx', 'label' => __( 'Diapositivas con puntos de producto convertidas al slider anidado con el widget Puntos de interés', 'digitalisimo-migration' ) ),
 	'ps.dyn.social'            => array( 'section' => 'approx', 'label' => __( 'Redes sociales del slider como widget de iconos sociales junto al carrusel (ya no van superpuestas)', 'digitalisimo-migration' ) ),
 	'ps.dyn.scroll'            => array( 'section' => 'approx', 'label' => __( 'Botón «Scroll Down» del slider como botón de desplazamiento junto al carrusel (ya no va superpuesto)', 'digitalisimo-migration' ) ),

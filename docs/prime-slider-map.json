@@ -780,7 +780,8 @@
             "fallback": "",
             "reason": "Fichas de producto: el widget Productos de PRO en la presentación «Carrusel» propia (sin Swiper), con las partes del producto que mostraba el origen. Se pierde la disposición circular animada.",
             "loss_codes": [
-                "ps.dyn.loss.circular"
+                "ps.dyn.loss.circular",
+                "ps.dyn.loss.quantity"
             ],
             "owner": "F"
         },

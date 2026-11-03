@@ -416,6 +416,10 @@ function explain(kind, value, side, doc, a) {
   // selector de cantidad se pierde y el informe lo declara (ps.dyn.loss.quantity).
   if (kind === 'enlace' && side === 'B' && doc.family === 'G' && /\?add-to-cart=\d+$/.test(value)) return 'botón de compra del bucle (?add-to-cart): la misma acción que el formulario de compra del origen';
   if (kind === 'palabra' && side === 'A' && doc.widget === 'prime-slider-woocircle' && value === 'quantity') return 'selector de cantidad del origen sin equivalente en Productos en carrusel (ps.dyn.loss.quantity, declarado en el informe)';
+  // Decisión del coordinador (2026-11-03): el marcado de bucle de WooCommerce del widget Productos enlaza siempre la imagen
+  // y el título a la ficha; el origen no los enlaza. Añade un enlace, nunca quita contenido, y el informe lo anuncia
+  // (ps.dyn.products_carousel). Un interruptor para quitarlo sería un control nuevo de Elements, fuera de F8.
+  if (kind === 'enlace' && side === 'B' && doc.widget === 'prime-slider-woocircle' && /\/product\/[a-z0-9-]+\/?$/.test(value)) return 'imagen y título enlazados a la ficha del producto por el widget Productos (aproximación informada en ps.dyn.products_carousel)';
   if (kind === 'enlace' && side === 'A') {
     if (/^https?:\/\/(www\.)?(facebook|twitter|instagram|linkedin|youtube)\.com\/[a-z]+\/?$/i.test(value)) return 'perfil del proveedor retirado (§3.E.0.3, Sanitizer)';
     if (/youtu\.?be|vimeo/i.test(value)) return 'vídeo de demostración del proveedor retirado (§3.E.0.3, Sanitizer)';
