@@ -1,5 +1,13 @@
 # Informe: Element Pack Pro 10.0.1 y Prime Slider Pro 4.7.0 frente a DIGITALÍSIMO Elements
 
+> **Superado por [f8.md](f8.md) (2026-11-01).** F8 se diseñó con tres informes posteriores verificados contra el código y las copias de `reference/`, y donde chocan manda `f8.md`. Lo que este informe decía y resultó falso o cambió:
+> - Prime Slider tiene **57** widgets (35 en Pro y 22 en Lite, con 8 *skins*), no 34 o 56; Adaptive BG cita 8 widgets; Lite define `BDTPS_CORE_VER` y su versión 4.7.0 oficial está en `reference/`.
+> - Prime Slider no va al Slider Optimizado «ampliado»: va al slider anidado de F7b, ampliado sólo con un contador opcional, y las varias por vista al carrusel de Logotipos o al Carrusel multimedia (§6.2 y §6.3 de este informe quedan superados).
+> - Los mapas de estilo no se arreglaban corrigiendo `classes` de 6 mapas: el error era del generador (`rewrite()` sin límite de clase), y F8 lo reescribió y dejó 0 selectores muertos en los 202 `.styles.php`.
+> - background-overlay no tiene una superposición nativa en los widgets: va a `custom_css`.
+> - No hay `phase` en `Retire::PLUGINS`, ni `state['v']`, ni drivers de Migración v2 (`:325-327`): Prime Slider se retira al final con `late`.
+> - Las líneas citadas de `build-packages.sh`, `class-retire.php` y `class-runner.php` se movieron.
+
 > Revisión del 16 de octubre de 2026, depurada para el repositorio público. Ambos son GPLv3, pero su compatibilidad vive sólo en DIGITALÍSIMO Migración: el ZIP de Elements no puede contenerlos ni nombrarlos. Las copias de `reference/` se leen sin instalarlas (las reglas de uso están en `AGENTS.md`, «Fusión de constructores»). Donde el plan aprobado decidió otra cosa, manda `docs/FUSION_OBJECTIVE.md`; las diferencias están al final.
 
 Lo más importante:

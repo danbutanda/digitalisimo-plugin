@@ -20,7 +20,7 @@ Cada informe empieza con una nota de estado y termina con «Decisiones posterior
 | [betheme.md](betheme.md) | Betheme 29.0.3 / BeBuilder: tres generaciones de `mfn-page-items`, plantillas y condiciones, opciones del tema, demos locales, WooCommerce | F4 (y F7a) |
 | [gp.md](gp.md) | GP Premium 2.5.6: `gp_elements`, condiciones, layout por página, Site Library local, módulos | F5 |
 | [bricks.md](bricks.md) | Bricks 2.x (sólo documentación pública): árbol plano, clases, variables, componentes, interacciones, consultas y filtros; qué exige muestras | F6 (y F7b) |
-| [ep-prime.md](ep-prime.md) | Element Pack Pro 10.0.1 (88 IDs ausentes en 10.0.1, de los que el changelog declara 85 movidos al Addon; 28 extensiones sin tratar) y Prime Slider Pro 4.7.0 | F0.1 y F8 |
+| [ep-prime.md](ep-prime.md) | Element Pack Pro 10.0.1 (88 IDs ausentes en 10.0.1, de los que el changelog declara 85 movidos al Addon; 28 extensiones sin tratar) y Prime Slider Pro 4.7.0. **Superado por [f8.md](f8.md)** donde chocan | F0.1 (y F8) |
 
 ## Destino y orquestación
 
@@ -66,6 +66,14 @@ La evidencia de Playground de F4-Woo está en `f4woo-evidence.json`: el estado, 
 | [f7b.md](f7b.md) | Diseño y evidencia de F7b: hechos del núcleo y de PRO verificados con archivo y línea (frente 0) y lo construido por cada frente, con sus contratos y formatos: base de contadores, usos y borrado bloqueado; acciones con destino e interacciones PRO; consultas guardadas y contextos; filtros ampliados en el módulo neutro; sobrescrituras del Template; slider anidado; presentación de anidados; «Aplicar a todos»; etiquetas dentro del texto; formularios condicionales; la parte `saved-queries` y las referencias de K; presupuesto medido, pruebas y desviaciones | F7b (y K) |
 
 La evidencia de Playground de F7b está en `f7b-evidence.json`: el estado, los recuentos y la duración de `tests/playground/f7b.sh` (B1–B12) y de las ampliaciones de `front-budget.sh`, `kit-roundtrip.sh`, `interaction.sh` y `brand-audit.sh`, más las regresiones; lo que encontró esa validación y cómo se corrigió está en `f7b.md` §16.
+
+## Element Pack 10.x y Prime Slider en Migración (F8)
+
+| Informe | Qué cubre | Incremento |
+|---|---|---|
+| [f8.md](f8.md) | Diseño y evidencia de F8: hechos del código verificados con archivo y línea, lo que el plan decía y resultó falso, decisiones del propietario y lo construido por cada frente con sus contratos y formatos (etapas y protocolo de avance, retirada por grupos y ámbitos, barrera de red, informe, registro, modo restringido y reversión; generador y mapas de estilo; las 28 extensiones; información emergente, distintivo, contador y `Export_Skip` en Elements; Prime Slider estático y dinámico; Theme Builder con publicación perezosa; fuentes, iconos, Mega Menu, kit, código, barra lateral, muestras y etiquetas; marcadores de K), datos nuevos, presupuesto, pruebas, límites y la lista de los 48 mapas podados | F8 (y K) |
+
+La evidencia de Playground de F8 está en `f8-evidence.json`: el estado, los recuentos y la duración de `tests/playground/f8.sh` (P0–P10, con Prime Slider Lite 4.7.0 y Element Pack Lite 10.0.1 oficiales) y de las ampliaciones de `front-budget.sh`, `kit-roundtrip.sh`, `interaction.sh` y `brand-audit.sh`. La decisión de cada widget de Prime Slider está en `docs/prime-slider-map.json` (generado desde sus mapas) y su inventario en `docs/prime-slider-inventory.json`.
 
 ## Sin rastro de los plugins de origen (F0.2, resuelto)
 

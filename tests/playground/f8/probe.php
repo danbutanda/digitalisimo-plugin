@@ -42,6 +42,10 @@ function digi_f8_vendor_host( $host ) {
 add_filter(
 	'pre_http_request',
 	static function ( $pre, $args, $url ) {
+		// Otro filtro (el escudo del proveedor de Elements, prioridad 1) ya respondió: la petición no sale.
+		if ( false !== $pre ) {
+			return $pre;
+		}
 		$host = strtolower( (string) wp_parse_url( (string) $url, PHP_URL_HOST ) );
 		$home = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 		if ( '' === $host || $host === $home || '127.0.0.1' === $host || 'localhost' === $host ) {
@@ -55,6 +59,14 @@ add_filter(
 	3
 );
 add_filter( 'pre_wp_mail', '__return_true' );
+// Presupuesto de cada paso de «Migrar» (`digi_f8_step_seconds`, mínimo 5 s en Migración): más pasos, más sondeos.
+add_filter(
+	'digitalisimo_migration_step_seconds',
+	static function ( $seconds ) {
+		$own = (int) get_option( 'digi_f8_step_seconds', 0 );
+		return $own > 0 ? $own : $seconds;
+	}
+);
 
 /** Datos de la petición para el conductor, al final de cada página del front. */
 add_action(

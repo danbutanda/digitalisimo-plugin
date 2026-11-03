@@ -197,7 +197,7 @@ run_scenario() {
     return 0
   fi
   free_port "$PORT" || return 1
-  cp "$F"/{probe.php,lib.php,setup.php,mu-ep-header.php,cli.php} "$F/$p.php" "$run/"
+  cp "$F"/{probe.php,lib.php,setup.php,mu-ep-header.php,cli.php} "$F"/p[0-9]*.php "$run/"
   cp "$VENDOR/vendors.json" "$run/vendors.json"
   cp /var/tmp/digi-f8/pg/cache/wp-cli.phar "$run/wp-cli.phar" 2>/dev/null || cp "${WP_CLI_PHAR:-/var/tmp/digi-k/cache/wp-cli.phar}" "$run/wp-cli.phar" 2>/dev/null || true
   token="$(head -c 18 /dev/urandom | od -An -tx1 | tr -d ' \n')"
