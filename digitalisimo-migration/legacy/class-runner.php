@@ -473,9 +473,12 @@ final class Runner {
 	 * IDs de la etapa, calculados una vez (la consulta LIKE corre una vez por etapa) y guardados en trozos de
 	 * IDS_CHUNK sin carga automática. Se borran al cerrar la etapa.
 	 *
+	 * Pública sólo para la etapa `markers` (`Markers::stage()`, frente I), que guarda su lista con el mismo formato para
+	 * que `next()` la borre igual.
+	 *
 	 * @return int[]
 	 */
-	private static function ids( $stage, callable $compute ) {
+	public static function ids( $stage, callable $compute ) {
 		$meta = get_option( self::IDS . $stage, null );
 		if ( is_array( $meta ) && isset( $meta['chunks'] ) ) {
 			$ids = array();

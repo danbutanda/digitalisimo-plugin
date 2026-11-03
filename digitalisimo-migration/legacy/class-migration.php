@@ -40,6 +40,7 @@ final class Migration {
 	const ANALYZE        = 'digitalisimo_migration_analyze';
 	const ANALYSIS       = 'digitalisimo_migration_analysis';
 	const ANALYZE_BUDGET = 5;
+	const ANALYSIS_BATCH = 500;
 	/** Agujas de los documentos con contenido heredado (`_elementor_data`, JSON guardado tal cual). */
 	const NEEDLES = array(
 		'"widgetType":"bdt-',
@@ -545,7 +546,15 @@ final class Migration {
 				}
 				return array( 'native' => 0, 'page' => $page );
 			}
-			list( $data, $changes ) = self::convert_data( self::decode( $raw ), $post_id );
+			$elements = self::decode( $raw );
+			$marked   = 0;
+			// Frente I (V.12): los marcadores de K con Element Pack o Prime Slider dentro se convierten antes que el resto,
+			// con este documento en `Context` (run); sin `Markers` cargado, como en 1.0.20.
+			if ( class_exists( __NAMESPACE__ . '\\Markers', false ) && method_exists( __NAMESPACE__ . '\\Markers', 'expand' ) ) {
+				list( $elements, $marked ) = Markers::expand( $elements, $post_id );
+			}
+			list( $data, $changes ) = self::convert_data( $elements, $post_id );
+			$changes               += (int) $marked;
 			if ( ! $changes ) {
 				if ( $page ) {
 					self::mark( $post_id, $restricted );
@@ -1020,6 +1029,7 @@ final class Migration {
 		if ( empty( $cache['done'] ) ) {
 			Report::begin( 'analysis' );
 			$moved = self::moved_to_addon();
+			$batch = 0;
 			foreach ( $ids as $post_id ) {
 				if ( $post_id <= (int) $cache['cursor'] ) {
 					continue;
@@ -1027,7 +1037,9 @@ final class Migration {
 				self::analyze_document( (int) $post_id, $moved );
 				$cache['cursor'] = (int) $post_id;
 				++$cache['processed'];
-				if ( $deadline && microtime( true ) >= $deadline ) {
+				++$batch;
+				// Por plazo y, en una máquina rápida, también por recuento: los trozos no dependen del reloj.
+				if ( ( $deadline && microtime( true ) >= $deadline ) || $batch >= self::ANALYSIS_BATCH ) {
 					break;
 				}
 			}
