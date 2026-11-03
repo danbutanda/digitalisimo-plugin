@@ -377,5 +377,14 @@ namespace {
 	$fresh = Migration::analyze_step( 0 );
 	f8_check( $fresh['done'] && $fresh['total'] === $all_done['total'] + 1, 'Un documento nuevo cambia la huella y el análisis se rehace.' );
 
+	// Segunda vuelta de J (P10 w2): el fondo del botón de Trailer Box (`background_color`, el mismo nombre que el fondo de
+	// la tarjeta de destino) pasa al enlace como CSS del elemento, también con un color global; un valor raro, no.
+	$tb = Translator::translate( 'bdt-trailer-box', array( 'link_type' => 'button', 'button_text' => 'Ver', 'button' => array( 'url' => 'https://example.test/' ), 'background_color' => '#e17055' ) );
+	f8_check( ! isset( $tb['background_color'] ) && str_contains( (string) ( $tb['custom_css'] ?? '' ), 'selector a.digi-fancy-card__link{background-color:#e17055}' ), 'Trailer Box: el fondo del botón va al enlace, no a la tarjeta.' );
+	$tb = Translator::translate( 'bdt-trailer-box', array( 'custom_css' => 'selector{gap:1px}', '__globals__' => array( 'background_color' => 'globals/colors?id=accent' ) ) );
+	f8_check( ! isset( $tb['__globals__']['background_color'] ) && str_contains( (string) $tb['custom_css'], 'selector{gap:1px}' ) && str_contains( (string) $tb['custom_css'], 'background-color:var(--e-global-color-accent)' ), 'Trailer Box: con un color global, la variable del kit, conservando el CSS propio.' );
+	$tb = Translator::translate( 'bdt-trailer-box', array( 'background_color' => 'red;}body{display:none' ) );
+	f8_check( ! isset( $tb['background_color'] ) && ! str_contains( (string) ( $tb['custom_css'] ?? '' ), 'display:none' ), 'Trailer Box: un valor que no es un color no llega al CSS.' );
+
 	f8_done( 'DIGITALÍSIMO Migración: detección y conversión de F8', 70 );
 }

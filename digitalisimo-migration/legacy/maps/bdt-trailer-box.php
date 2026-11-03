@@ -79,6 +79,19 @@ return array(
 			'button_text'      => 'button' === ( $out['link_type'] ?? '' ) ? trim( wp_strip_all_tags( (string) ( $out['button_text'] ?? '' ) ) ) : '',
 			'link'             => is_array( $out['button'] ?? null ) ? $out['button'] : array( 'url' => '' ),
 		);
+		// `background_color` es el fondo del botón en el origen y el de la tarjeta en el destino (mismo nombre): el
+		// adaptador y la conversión pintaban la tarjeta y dejaban el botón transparente (Playground P10 w2, frente J).
+		// Pasa al enlace como CSS del elemento (un color o un color global) y deja de ser el fondo de la tarjeta.
+		$bg     = isset( $out['background_color'] ) ? trim( (string) $out['background_color'] ) : '';
+		$global = (string) ( $out['__globals__']['background_color'] ?? '' );
+		unset( $out['background_color'], $out['__globals__']['background_color'] );
+		if ( '' !== $global && preg_match( '/^globals\/colors\?id=([a-z0-9_-]+)$/i', $global, $m ) ) {
+			$bg = 'var(--e-global-color-' . $m[1] . ')';
+		}
+		if ( '' !== $bg && preg_match( '/^(#[0-9a-f]{3,8}|rgba?\([0-9.,\s%]+\)|hsla?\([0-9.,\s%deg]+\)|var\(--e-global-color-[a-z0-9_-]+\))$/i', $bg ) ) {
+			$set['custom_css'] = trim( (string) ( $out['custom_css'] ?? '' ) . "\nselector a.digi-fancy-card__link{background-color:" . $bg . '}' );
+			unset( $out['custom_css'] );
+		}
 		foreach ( array_keys( $out ) as $key ) {
 			if ( preg_match( '/^(pre_title|title|content|origin|align|link_type|button|title_tags|button_text|button_icon|icon_align|button_position|button_css_id|item_animation|pre_title_hide|title_advanced_style|button_hover_animation)$/', $key ) ) {
 				unset( $out[ $key ] );
