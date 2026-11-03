@@ -103,6 +103,31 @@ final class Static_Families {
 		return array();
 	}
 
+	/**
+	 * Quita de las filas lo que el destino no va a usar, antes de resolver las imágenes: en `general`, la imagen, el
+	 * vídeo y el YouTube de las filas cuyo fondo es otro (los valores por defecto los traen todos). Así nunca se copia
+	 * a Medios una imagen de demostración que no se ve.
+	 */
+	public static function prune( array $map, array $s ): array {
+		$key = (string) ( $map['rows'] ?? 'slides' );
+		if ( empty( $map['background'] ) || ! is_array( $s[ $key ] ?? null ) ) {
+			return $s;
+		}
+		$uses = array( 'image' => 'image', 'video_link' => 'video', 'youtube_link' => 'youtube' );
+		foreach ( $s[ $key ] as $index => $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$type = (string) ( $row['background'] ?? 'color' );
+			foreach ( $uses as $field => $needs ) {
+				if ( $needs !== $type ) {
+					unset( $s[ $key ][ $index ][ $field ] );
+				}
+			}
+		}
+		return $s;
+	}
+
 	/* ---------------------------------------------------------------- Construcción */
 
 	/**
@@ -463,13 +488,13 @@ final class Static_Families {
 		$out   = array();
 		$align = self::align( $s[ $map['align'] ?? 'content_alignment' ] ?? '' );
 		foreach ( array( 'sub_title', 'title' ) as $part ) {
-			$text = trim( (string) ( is_scalar( $row[ $part ] ?? null ) ? $row[ $part ] : '' ) );
+			$text = self::html( $row[ $part ] ?? '' );
 			if ( '' === $text ) {
 				continue;
 			}
 			$tag      = self::tag( $map, $s, $part );
 			$settings = array( 'title' => $text, 'header_size' => $tag );
-			if ( 'title' === $part && '' !== self::url( $row['title_link'] ?? null ) ) {
+			if ( 'title' === $part && '' !== self::href( $row['title_link'] ?? null ) ) {
 				$settings['link'] = self::link( $row['title_link'] );
 			}
 			if ( '' !== $align ) {
@@ -480,8 +505,8 @@ final class Static_Families {
 			}
 			$out[] = Builder::widget( 'heading', self::hidden( $map, $s, $part, $settings + self::copy_styles( $part, $s ) ) );
 		}
-		$text = (string) ( is_scalar( $row['text'] ?? null ) ? $row['text'] : '' );
-		if ( '' !== trim( $text ) ) {
+		$text = self::html( $row['text'] ?? '' );
+		if ( '' !== $text ) {
 			$settings = array( 'editor' => $text );
 			if ( '' !== $align ) {
 				$settings['align'] = $align;
@@ -494,8 +519,8 @@ final class Static_Families {
 			}
 			$out[] = Builder::widget( 'text-editor', $settings );
 		}
-		$label = trim( (string) ( is_scalar( $row['button_text'] ?? null ) ? $row['button_text'] : '' ) );
-		if ( '' !== $label && '' !== self::url( $row['button_link'] ?? null ) ) {
+		$label = self::html( $row['button_text'] ?? '' );
+		if ( '' !== $label && '' !== self::href( $row['button_link'] ?? null ) ) {
 			$settings = array( 'text' => $label, 'link' => self::link( $row['button_link'] ) );
 			if ( '' !== $align ) {
 				$settings['align'] = array( 'start' => 'left', 'center' => 'center', 'end' => 'right' )[ $align ];
@@ -568,7 +593,7 @@ final class Static_Families {
 		$items = array();
 		$texts = false;
 		foreach ( self::rows( $map, $s ) as $row ) {
-			$link        = '' !== self::url( $row['title_link'] ?? null ) ? $row['title_link'] : ( $row['button_link'] ?? array() );
+			$link        = '' !== self::href( $row['title_link'] ?? null ) ? $row['title_link'] : ( '' !== self::href( $row['button_link'] ?? null ) ? $row['button_link'] : array() );
 			$description = self::plain( $row['text'] ?? '' );
 			$description = '' !== $description ? $description : self::plain( $row['sub_title'] ?? '' );
 			$item        = array(
@@ -631,7 +656,7 @@ final class Static_Families {
 				continue;
 			}
 			$slide = array( '_id' => Builder::id(), 'type' => 'image', 'image' => $image, 'image_link_to_type' => '' );
-			$link  = '' !== self::url( $row['title_link'] ?? null ) ? $row['title_link'] : null;
+			$link  = '' !== self::href( $row['title_link'] ?? null ) ? $row['title_link'] : null;
 			if ( $link ) {
 				$slide['image_link_to_type'] = 'custom';
 				$slide['image_link_to']      = self::link( $link );
@@ -681,7 +706,7 @@ final class Static_Families {
 		foreach ( self::rows( $map, $s ) as $index => $row ) {
 			$image   = self::media_value( $row['image'] ?? null );
 			$content = $image ? '<p><img src="' . esc_url( $image['url'] ) . '" alt=""' . ( ! empty( $image['id'] ) ? ' class="wp-image-' . absint( $image['id'] ) . '"' : '' ) . ' /></p>' : '';
-			$content .= (string) ( is_scalar( $row['text'] ?? null ) ? $row['text'] : '' );
+			$content .= self::html( $row['text'] ?? '' );
 			$tab      = array(
 				'_id'          => Builder::id(),
 				'tab_title'    => self::plain( $row['title'] ?? '' ),
@@ -692,7 +717,7 @@ final class Static_Families {
 			if ( '' !== self::plain( $row['sub_title'] ?? '' ) ) {
 				$tab['tab_sub_title'] = self::plain( $row['sub_title'] );
 			}
-			if ( '' !== self::url( $row['title_link'] ?? null ) && '' !== $tab['tab_title'] ) {
+			if ( '' !== self::href( $row['title_link'] ?? null ) && '' !== $tab['tab_title'] ) {
 				$tab['tabs_button'] = $tab['tab_title'];
 				$tab['button_link'] = self::link( $row['title_link'] );
 			}
@@ -767,12 +792,12 @@ final class Static_Families {
 		if ( ! $static || ! self::flag( $s, (string) ( $static['show'] ?? '' ) ) ) {
 			return $out;
 		}
-		$title = trim( (string) ( $s[ $static['title'] ?? '' ] ?? '' ) );
-		$text  = (string) ( $s[ $static['text'] ?? '' ] ?? '' );
+		$title = self::html( $s[ $static['title'] ?? '' ] ?? '' );
+		$text  = self::html( $s[ $static['text'] ?? '' ] ?? '' );
 		if ( '' !== $title ) {
 			$out[] = Builder::widget( 'heading', array( 'title' => $title, 'header_size' => 'h2' ) );
 		}
-		if ( '' !== trim( $text ) ) {
+		if ( '' !== $text ) {
 			$out[] = Builder::widget( 'text-editor', array( 'editor' => $text ) );
 		}
 		if ( $out ) {
@@ -809,7 +834,7 @@ final class Static_Families {
 			$section = ltrim( $section, '#' );
 			if ( '' !== $section && 'my-header' !== $section && 1 === preg_match( '/^[A-Za-z][A-Za-z0-9_-]{0,80}$/', $section ) ) {
 				$settings = array( 'section_id' => $section );
-				$text     = trim( (string) ( $s[ $scroll['text'] ?? 'scroll_button_text' ] ?? '' ) );
+				$text     = self::plain( $s[ $scroll['text'] ?? 'scroll_button_text' ] ?? '' );
 				if ( '' !== $text ) {
 					$settings['scroll_button_text'] = $text;
 				}
@@ -877,7 +902,7 @@ final class Static_Families {
 					if ( null === $value ) {
 						continue;
 					}
-				} elseif ( is_string( $value ) && class_exists( Css_Value::class ) && '' !== $value && ! Css_Value::safe( $value ) ) {
+				} elseif ( ! self::css_safe( $value ) ) {
 					continue;
 				}
 				$out[ $target ]          = $value;
@@ -896,9 +921,48 @@ final class Static_Families {
 		return $out;
 	}
 
+	/**
+	 * ¿Puede ir el valor de un control de estilo al CSS que genera Elementor? Cada parte escalar (también las de una
+	 * medida o una tipografía) sin llaves, punto y coma, `url(`, `expression(`… (`Css_Value::safe()`).
+	 */
+	private static function css_safe( $value ): bool {
+		if ( is_array( $value ) ) {
+			foreach ( $value as $part ) {
+				if ( ! self::css_safe( $part ) ) {
+					return false;
+				}
+			}
+			return true;
+		}
+		if ( null === $value || '' === $value || is_bool( $value ) || is_int( $value ) || is_float( $value ) ) {
+			return true;
+		}
+		if ( ! is_string( $value ) ) {
+			return false;
+		}
+		if ( class_exists( Css_Value::class ) ) {
+			return Css_Value::safe( $value );
+		}
+		return 1 !== preg_match( '/[<>{};\\\\@]|url\(|expression\(/i', $value );
+	}
+
 	/** ¿La clave es `$base` o una variante responsiva suya? */
 	private static function same_base( string $key, string $base ): bool {
 		return $key === $base || 1 === preg_match( '/^' . preg_quote( $base, '/' ) . '_(?:widescreen|laptop|tablet_extra|tablet|mobile_extra|mobile)$/', $key );
+	}
+
+	/**
+	 * Claves del original que la conversión lee (no cuentan como estilos perdidos): las que nombra el mapa y las de
+	 * altura, superposición y Ken Burns.
+	 */
+	public static function used_keys( array $map ): array {
+		$keys = array( 'enable_height', 'viewport_height', 'slider_size_ratio', 'slider_min_height', 'overlay', 'overlay_type', 'overlay_color', 'blend_type', 'kenburns_animation', 'kenburns_reverse', 'text_hide_on', 'content_alignment', 'speed', 'columns', 'item_gap', 'space_between' );
+		array_walk_recursive( $map, static function ( $value, $key ) use ( &$keys ) {
+			if ( is_string( $value ) && 1 === preg_match( '/^[a-z][a-z0-9_]{1,60}$/', $value ) && ! in_array( (string) $key, array( 'family', 'decision', 'target', 'fallback', 'alt_target', 'plugin', 'image', 'effect', 'skin', 'drop_code', 'arrows' ), true ) ) {
+				$keys[] = $value;
+			}
+		} );
+		return array_values( array_unique( $keys ) );
 	}
 
 	/* ---------------------------------------------------------------- Utilidades */
@@ -925,6 +989,12 @@ final class Static_Families {
 	public static function url( $value ): string {
 		$url = is_array( $value ) ? ( $value['url'] ?? '' ) : $value;
 		return is_string( $url ) ? trim( $url ) : '';
+	}
+
+	/** Destino de un enlace: '' si no hay o si es `#` (el valor por defecto de Prime Slider: sin enlace). */
+	private static function href( $value ): string {
+		$url = self::url( $value );
+		return '#' === $url ? '' : $url;
 	}
 
 	/** Enlace de Elementor con sus partes (sin atributos personalizados que no sean texto). */
@@ -977,6 +1047,18 @@ final class Static_Families {
 			$value = $value['size'] ?? null;
 		}
 		return null !== $value && '' !== $value && is_numeric( $value ) ? (float) $value : null;
+	}
+
+	/**
+	 * Texto con el HTML que admite una entrada (`wp_kses_post`, como lo pintaba Prime Slider): la migración escribe el
+	 * documento sin pasar por el saneado del editor, así que no puede dejar pasar lo que el origen no imprimía.
+	 */
+	private static function html( $value ): string {
+		if ( ! is_scalar( $value ) ) {
+			return '';
+		}
+		$value = trim( (string) $value );
+		return function_exists( 'wp_kses_post' ) ? trim( (string) wp_kses_post( $value ) ) : trim( wp_strip_all_tags( $value ) );
 	}
 
 	/** Texto plano (sin etiquetas). */

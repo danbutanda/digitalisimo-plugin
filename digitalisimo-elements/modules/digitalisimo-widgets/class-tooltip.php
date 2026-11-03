@@ -360,7 +360,8 @@ final class Tooltip {
 			return '';
 		}
 		$text = trim( wp_kses( str_replace( array( "\r\n", "\r", "\n" ), '<br>', $text ), self::TAGS ) );
-		return '' === trim( preg_replace( '/<br\s*\/?>|&nbsp;|\s/i', '', $text ) ) ? '' : $text;
+		// Vacío también si sólo quedan etiquetas o espacios (`<strong> </strong>`, `<br>`): nunca un globo vacío.
+		return '' === trim( str_replace( '&nbsp;', '', strip_tags( $text ) ) ) ? '' : $text;
 	}
 
 	/** ¿Se está pintando el lienzo del editor? Allí no se añade nada (como `Element_Link`). */

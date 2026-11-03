@@ -1,0 +1,9 @@
+{
+  "defaults": {
+    "_widget": "button",
+    "text": "Fiesta",
+    "ep_widget_cf_confetti": "yes",
+    "ep_widget_cf_type": "fireworks",
+    "_expect_codes": []
+  }
+}

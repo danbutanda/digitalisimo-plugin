@@ -282,7 +282,6 @@ final class Snippets {
 	/** Etapa `platform_prepare` (Element Pack cargado): crea los borradores y apunta el CSS publicable. */
 	public static function prepare( array &$cursor, float $deadline ): bool {
 		$allowed = self::can_publish_css();
-		$created = false;
 		foreach ( self::SOURCES as $option => $spec ) {
 			$code = self::source_code( $option );
 			if ( '' === $code || self::done( $option ) ) {
@@ -301,8 +300,8 @@ final class Snippets {
 			if ( ! $id ) {
 				continue;
 			}
-			$created = true;
-			$detail += array( 'id' => $id );
+			$cursor['created'] = 1;
+			$detail           += array( 'id' => $id );
 			if ( 'js' === $spec['kind'] ) {
 				self::register( $option, $id, 'draft', array() );
 				Inventory::site_code( 'plat.code.js', $detail );
@@ -326,7 +325,8 @@ final class Snippets {
 			self::register( $option, $id, 'draft', $extra );
 			Inventory::site_code( $code_status, $detail );
 		}
-		if ( $created ) {
+		// La caché de condiciones (que incluye los borradores) se regenera una vez, aunque la etapa ocupe varias peticiones.
+		if ( ! empty( $cursor['created'] ) ) {
 			self::regenerate_conditions();
 		}
 		return true;

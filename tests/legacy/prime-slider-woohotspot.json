@@ -1,0 +1,156 @@
+{
+  "_widget": "prime-slider-woohotspot",
+  "_family": "G",
+  "_comentario": "Datos sintéticos con la forma que guarda el editor (research-ps.md §3.1): sin los valores por defecto, que rellena la conversión. Los marcadores {{…}} los expande la prueba: perfiles del proveedor con los patrones de vendors.json y {{ps_assets}} con la carpeta de Lite del sitio simulado. Términos por term_taxonomy_id (52 es el de «Noticias» en la prueba; 999 no existe).",
+  "defaults": {
+    "markers": [
+      {
+        "_id": "m1",
+        "product_title": "Product 01",
+        "marker_x_position": {
+          "size": 50,
+          "unit": "%"
+        },
+        "marker_y_position": {
+          "size": 75,
+          "unit": "%"
+        }
+      },
+      {
+        "_id": "m2",
+        "product_title": "Product 02",
+        "marker_x_position": {
+          "size": 20,
+          "unit": "%"
+        },
+        "marker_y_position": {
+          "size": 30,
+          "unit": "%"
+        }
+      },
+      {
+        "_id": "m3",
+        "product_title": "Product 03",
+        "marker_x_position": {
+          "size": 65,
+          "unit": "%"
+        },
+        "marker_y_position": {
+          "size": 20,
+          "unit": "%"
+        }
+      }
+    ],
+    "two_markers": [
+      {
+        "_id": "n1",
+        "product_title": "Product 01",
+        "marker_x_position": {
+          "size": 50,
+          "unit": "%"
+        },
+        "marker_y_position": {
+          "size": 75,
+          "unit": "%"
+        }
+      }
+    ],
+    "three_markers": [
+      {
+        "_id": "o1",
+        "product_title": "Product 01",
+        "marker_x_position": {
+          "size": 50,
+          "unit": "%"
+        },
+        "marker_y_position": {
+          "size": 75,
+          "unit": "%"
+        }
+      }
+    ]
+  },
+  "custom": {
+    "image": {
+      "url": "https://s1.test/wp-content/uploads/2026/10/sala.jpg",
+      "id": 501
+    },
+    "two_image": {
+      "url": "https://s1.test/wp-content/uploads/2026/10/cocina.jpg",
+      "id": 502
+    },
+    "three_image": {
+      "url": "https://s1.test/wp-content/uploads/2026/10/patio.jpg",
+      "id": 503
+    },
+    "markers": [
+      {
+        "_id": "m1",
+        "select_type": "text",
+        "text": "Sofá",
+        "product_title": "<img src=x onerror=alert(1)>Sofá",
+        "product_text": "<p>Tres plazas</p><script>alert(1)</script>",
+        "product_price": "$1,200.00",
+        "product_link_text": "Comprar",
+        "product_link": {
+          "url": "javascript:alert(1)"
+        },
+        "marker_tooltip_placement": "bottom-start",
+        "marker_x_position": {
+          "size": 40,
+          "unit": "%"
+        },
+        "marker_y_position": {
+          "size": 60,
+          "unit": "%"
+        },
+        "marker_x_position_mobile": {
+          "size": 35,
+          "unit": "%"
+        }
+      },
+      {
+        "_id": "m2",
+        "select_type": "icon",
+        "marker_select_icon": {
+          "value": "fas fa-plus",
+          "library": "fa-solid"
+        },
+        "product_title": "Lámpara",
+        "product_link_text": "Ver",
+        "product_link": {
+          "url": "/tienda/lampara/",
+          "is_external": "on"
+        },
+        "marker_x_position": {
+          "size": 70,
+          "unit": "%"
+        },
+        "marker_y_position": {
+          "size": 20,
+          "unit": "%"
+        }
+      }
+    ],
+    "two_markers": [],
+    "three_markers": [
+      {
+        "_id": "o1",
+        "select_type": "image",
+        "product_title": "Mesa",
+        "marker_x_position": {
+          "size": 10,
+          "unit": "%"
+        },
+        "marker_y_position": {
+          "size": 90,
+          "unit": "%"
+        }
+      }
+    ],
+    "show_price": "",
+    "title_tag": "h4",
+    "transition": "fade",
+    "autoplay": ""
+  }
+}

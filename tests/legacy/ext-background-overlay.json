@@ -1,0 +1,45 @@
+{
+  "color": {
+    "_widget": "text-editor",
+    "editor": "<p>Texto</p>",
+    "element_pack_background_overlay": "yes",
+    "ep_background_overlay_background": "classic",
+    "ep_background_overlay_color": "rgba(0,0,0,0.4)",
+    "ep_overlay_blend_mode": "multiply",
+    "_expect_css": [
+      "background-color:rgba(0,0,0,0.4)"
+    ],
+    "_expect_css_converted": [
+      "background-color:rgba(0,0,0,0.4)",
+      "mix-blend-mode:multiply"
+    ],
+    "_expect_json": [
+      "selector::before{",
+      "opacity:0.5",
+      "mix-blend-mode:multiply"
+    ],
+    "_expect_codes": [
+      "ext.converted.background_overlay"
+    ]
+  },
+  "degradado-imagen": {
+    "_widget": "heading",
+    "title": "Con imagen",
+    "element_pack_background_overlay": "yes",
+    "ep_background_overlay_background": "gradient",
+    "ep_background_overlay_color": "#ff0000",
+    "ep_background_overlay_color_b": "#0000ff",
+    "ep_background_overlay_hover_background": "classic",
+    "ep_background_overlay_hover_image": {
+      "id": 0,
+      "url": "https://example.com/wp-content/uploads/x.png"
+    },
+    "_expect_json": [
+      "linear-gradient(180deg, #ff0000 0%, #0000ff 100%)"
+    ],
+    "_expect_codes": [
+      "ext.converted.background_overlay",
+      "ext.review.overlay_image"
+    ]
+  }
+}

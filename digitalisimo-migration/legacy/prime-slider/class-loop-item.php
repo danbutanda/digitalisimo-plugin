@@ -1,9 +1,6 @@
 <?php
 namespace Digitalisimo\Elements\Legacy\Prime_Slider;
 
-use Digitalisimo\Elements\Legacy\Context;
-use Digitalisimo\Elements\Legacy\Report;
-
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -319,7 +316,7 @@ final class Loop_Item {
 			'content_width'         => 'full',
 			'flex_direction'        => 'column',
 			'flex_justify_content'  => 'center',
-			'flex_gap'              => array( 'column' => '12', 'row' => '12', 'unit' => 'px', 'isLinked' => true, 'size' => 12 ),
+			'flex_gap'              => array( 'column' => '12', 'row' => '12', 'unit' => 'px', 'isLinked' => true ),
 			'padding'               => array( 'unit' => 'px', 'top' => '40', 'right' => '40', 'bottom' => '40', 'left' => '40', 'isLinked' => true ),
 			'background_background' => 'classic',
 			'background_color'      => '#222222',
@@ -384,7 +381,7 @@ final class Loop_Item {
 			$children[] = self::widget( $id(), 'theme-post-excerpt', $excerpt );
 		}
 		if ( $parts['price'] ) {
-			$children[] = self::widget( $id(), 'woocommerce-product-price', array( 'price_color' => $colors['text'] ) + ( '' !== $parts['align'] ? array( 'text_align' => $parts['align'] ) : array() ) );
+			$children[] = self::widget( $id(), 'woocommerce-product-price', array( 'price_color' => $colors['text'] ) + ( '' !== $align ? array( 'text_align' => $align ) : array() ) );
 		}
 		if ( $parts['cart'] ) {
 			$children[] = self::widget( $id(), 'woocommerce-product-add-to-cart', array() );
@@ -443,8 +440,12 @@ final class Loop_Item {
 		if ( defined( 'ELEMENTOR_VERSION' ) ) {
 			$meta['_elementor_version'] = ELEMENTOR_VERSION;
 		}
-		self::registry( 'put', $key, array( 'dest' => 0, 'hash' => '', 'state' => 'pending', 'extra' => array( 'source' => $source ) ) );
-		$id = self::insert( $title, $meta, $key );
+		// Una petición anterior que murió entre la inserción y la publicación dejó un borrador íntegro: se reutiliza.
+		$id = self::orphan( $key, md5( $json ) );
+		if ( ! $id ) {
+			self::registry( 'put', $key, array( 'dest' => 0, 'hash' => '', 'state' => 'pending', 'extra' => array( 'source' => $source ) ) );
+			$id = self::insert( $title, $meta, $key );
+		}
 		if ( ! $id ) {
 			return 0;
 		}
@@ -489,6 +490,32 @@ final class Loop_Item {
 	}
 
 	/* ---------------------------------------------------------------- Auxiliares */
+
+	/** Borrador propio con esa huella y el contenido íntegro (de una petición que no terminó), o 0. */
+	private static function orphan( string $key, string $md5 ): int {
+		if ( ! function_exists( 'get_posts' ) ) {
+			return 0;
+		}
+		$ids = get_posts(
+			array(
+				'post_type'        => 'elementor_library',
+				'post_status'      => 'draft',
+				'meta_key'         => self::META, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- sólo al crear.
+				'meta_value'       => $key, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+				'fields'           => 'ids',
+				'posts_per_page'   => 5,
+				'no_found_rows'    => true,
+				'suppress_filters' => true,
+			)
+		);
+		foreach ( is_array( $ids ) ? $ids : array() as $id ) {
+			$id = is_object( $id ) ? (int) $id->ID : (int) $id;
+			if ( $id && self::hash( $id ) === $md5 && 'loop-item' === get_post_meta( $id, '_elementor_template_type', true ) ) {
+				return $id;
+			}
+		}
+		return 0;
+	}
 
 	/** md5 de `_elementor_data` releído (con `Documents::hash()` si existe). */
 	private static function hash( int $id ): string {

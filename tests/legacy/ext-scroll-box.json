@@ -1,0 +1,44 @@
+{
+  "defaults": {
+    "_widget": "text-editor",
+    "editor": "<p>Mucho texto</p>",
+    "ep_scroll_box_enable": "yes",
+    "_expect_css": [
+      "max-height:100px"
+    ],
+    "_expect_css_converted": [
+      "max-height:100px",
+      "::-webkit-scrollbar{width:12px}"
+    ],
+    "_expect_json": [
+      "overflow-y:scroll!important",
+      "scrollbar-color:#babac0 transparent",
+      "::-webkit-scrollbar-thumb{background-color:#babac0;border-radius:16px}"
+    ],
+    "_expect_codes": [
+      "ext.converted.scroll_box"
+    ]
+  },
+  "seccion": {
+    "_widget": "heading",
+    "title": "Caja",
+    "_section": {
+      "ep_scroll_box_enable": "yes",
+      "ep_scroll_box_max_height": {
+        "unit": "px",
+        "size": 300
+      },
+      "ep_scroll_box_max_height_mobile": {
+        "unit": "px",
+        "size": 150
+      }
+    },
+    "_expect_json": [
+      "max-height:300px",
+      "@media (max-width:767px){selector{max-height:150px}}"
+    ],
+    "_expect_codes": [
+      "ext.converted.scroll_box"
+    ]
+  }
+}

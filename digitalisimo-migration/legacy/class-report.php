@@ -36,6 +36,8 @@ final class Report {
 	const VERSION     = 1;
 	const MAX_ITEMS   = 12;
 	const MAX_DOCS    = 100;
+	/** Tope de los elementos del sitio (plantillas, fuentes, iconos, fragmentos…: la plataforma lo llena antes). */
+	const MAX_SITE_ITEMS = 60;
 	const FLUSH_EVERY = 20;
 	const DETAIL_KEYS = array( 'widget', 'element', 'count', 'name', 'target', 'id', 'type', 'note' );
 	const NOTE_MAX    = 200;
@@ -107,7 +109,7 @@ final class Report {
 		if ( null === self::$memory ) {
 			self::$memory = self::none();
 		}
-		self::$memory['site'] = self::add_items( self::$memory['site'], array( self::item( $code, $detail, (int) ( $detail['id'] ?? 0 ) ) ), 0 );
+		self::$memory['site'] = self::add_items( self::$memory['site'], array( self::item( $code, $detail, (int) ( $detail['id'] ?? 0 ) ) ), 0, self::MAX_SITE_ITEMS );
 	}
 
 	/**
@@ -168,7 +170,7 @@ final class Report {
 			$a = self::add_doc_items( $a, (int) $post_id, (array) ( $doc['items'] ?? array() ), (int) ( $doc['more'] ?? 0 ) );
 		}
 		$a['omitted'] = max( (int) $a['omitted'], (int) $b['omitted'] );
-		$a['site']    = self::add_items( (array) $a['site'] + array( 'items' => array(), 'more' => 0 ), (array) ( $b['site']['items'] ?? array() ), (int) ( $b['site']['more'] ?? 0 ) );
+		$a['site']    = self::add_items( (array) $a['site'] + array( 'items' => array(), 'more' => 0 ), (array) ( $b['site']['items'] ?? array() ), (int) ( $b['site']['more'] ?? 0 ), self::MAX_SITE_ITEMS );
 		return $a;
 	}
 
@@ -189,7 +191,7 @@ final class Report {
 	}
 
 	/** Añade elementos a una lista con tope, sin repetir; lo que no cabe se cuenta (lo mayor, nunca la suma). */
-	private static function add_items( array $list, array $items, int $more ): array {
+	private static function add_items( array $list, array $items, int $more, int $max = self::MAX_ITEMS ): array {
 		$list += array( 'items' => array(), 'more' => 0 );
 		$seen  = array();
 		foreach ( $list['items'] as $item ) {
@@ -205,7 +207,7 @@ final class Report {
 				continue;
 			}
 			$seen[ $signature ] = true;
-			if ( count( $list['items'] ) < self::MAX_ITEMS ) {
+			if ( count( $list['items'] ) < $max ) {
 				$list['items'][] = $item;
 			} else {
 				++$overflow;
@@ -286,7 +288,12 @@ final class Report {
 			if ( ! is_file( $file ) ) {
 				continue;
 			}
-			$codes = include $file;
+			try {
+				$codes = include $file;
+			} catch ( \Throwable $e ) {
+				// Un catálogo que no carga (por ejemplo, sin `namespace` en un entorno sin __()) no tumba el informe.
+				$codes = array();
+			}
 			foreach ( is_array( $codes ) ? $codes : array() as $code => $spec ) {
 				$code = (string) $code;
 				if ( 0 !== strpos( $code, $prefix ) || ! is_array( $spec ) || ! in_array( $spec['section'] ?? '', self::SECTIONS, true ) || isset( $out[ $code ] ) ) {

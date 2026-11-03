@@ -386,7 +386,7 @@ final class Defaults {
 			$file = (string) $file;
 			$name = is_array( $data ) ? (string) ( $data['Name'] ?? '' ) : '';
 			$slug = dirname( $file );
-			if ( '.' === $slug || 1 !== preg_match( '/^[A-Za-z0-9._-]+$/', $slug ) ) {
+			if ( 1 !== preg_match( '/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/', $slug ) ) {
 				continue;
 			}
 			if ( 'bdthemes-prime-slider.php' !== basename( $file ) && 1 !== preg_match( '/^Prime Slider\b/i', $name ) ) {

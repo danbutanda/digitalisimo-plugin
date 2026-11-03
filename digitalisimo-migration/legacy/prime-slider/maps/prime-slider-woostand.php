@@ -36,11 +36,7 @@ return array(
 			'button'    => array( 'slide_button_text_color', 'button_text_color' ),
 			'button_bg' => array( 'slide_button_background_color', 'button_background_color' ),
 		),
-		'loss'       => array(
-			'ps.dyn.loss.glass'    => 'glassmorphism_effect',
-			'ps.dyn.loss.layout'   => true,
-			'ps.dyn.loss.kenburns' => 'kenburns_animation',
-		),
+		'loss'       => array( 'ps.dyn.loss.glass' => 'glassmorphism_effect', 'ps.dyn.loss.layout' => true ),
 		'defaults'   => array(
 			'posts_source'               => 'product',
 			'posts_limit'                => 3,

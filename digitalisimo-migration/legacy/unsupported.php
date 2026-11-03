@@ -47,7 +47,6 @@ return array(
 	'bdt-instagram' => 'Lee la API de Instagram con token propio; la API Basic Display fue retirada. Usar Instagram Feed (adaptado por shortcode).',
 	'bdt-learnpress-carousel' => 'Carrusel de cursos de LearnPress con consulta propia; usar los bloques o shortcodes de LearnPress.',
 	'bdt-learnpress-grid' => 'Rejilla de cursos de LearnPress con consulta propia; usar los bloques de LearnPress.',
-	'bdt-mega-menu' => 'Mega menú con plantillas por elemento de menú; el Mega Menu de DIGITALÍSIMO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento.',
 	'bdt-protected-content' => 'Contenido protegido por contraseña o rol en el cliente; la protección real es la de WordPress o Display Conditions por rol.',
 	'bdt-remote-arrows' => 'Controla carruseles de Element Pack desde otro widget; sin esos carruseles no tiene función.',
 	'bdt-remote-fraction' => 'Igual que Remote Arrows.',

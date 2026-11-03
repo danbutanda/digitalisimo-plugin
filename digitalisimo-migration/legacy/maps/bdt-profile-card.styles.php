@@ -239,7 +239,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-author-box__social-link' => 'color: {{VALUE}}',
-			'{{WRAPPER}} .digi-author-box__social-link svg' => 'fill: {{VALUE}}',
 		),
 	), array(
 		'name' => 'icon_background',
@@ -276,19 +275,11 @@ return array( array(
 			'{{WRAPPER}} .digi-author-box__social-link' => 'font-size: {{SIZE}}{{UNIT}};',
 		),
 	), array(
-		'name' => 'social_icon_indent',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-author-box__social-link + a' => 'margin-left: {{SIZE}}{{UNIT}};',
-		),
-	), array(
 		'name' => 'icon_hover_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-author-box__social-link:hover' => 'color: {{VALUE}}',
-			'{{WRAPPER}} .digi-author-box__social-link:hover svg' => 'fill: {{VALUE}}',
 		),
 	), array(
 		'name' => 'icon_hover_background',
@@ -313,7 +304,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-author-box__menu-link' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-author-box__menu-link svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'settings_dropdown_hover_color',
@@ -327,7 +317,7 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box__name, {{WRAPPER}} .elementor-author-box__name a' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .elementor-author-box__name' => 'color: {{VALUE}};',
 		),
 		'default' => '',
 	), array(

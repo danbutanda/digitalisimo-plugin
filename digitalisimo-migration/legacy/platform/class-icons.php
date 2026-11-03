@@ -114,28 +114,69 @@ final class Icons {
 	 * un documento en curso.
 	 */
 	public static function rewrite( array $element ): array {
-		if ( ! isset( $element['settings'] ) || ! is_array( $element['settings'] ) || ! self::has_legacy( $element['settings'] ) ) {
-			return $element;
-		}
-		$stats               = array( 'n' => 0, 'duo' => 0, 'unknown' => 0 );
-		$element['settings'] = self::rewrite_value( $element['settings'], $stats );
-		self::report( $stats, (string) ( $element['widgetType'] ?? $element['elType'] ?? '' ) );
+		$stats   = self::stats();
+		$element = self::rewrite_one( $element, $stats );
+		self::report( $stats );
 		return $element;
 	}
 
-	/** Lo mismo en un árbol de elementos (documento, revisión o plantilla). */
+	/**
+	 * Lo mismo en un árbol de elementos (documento, revisión o plantilla), con un solo recuento por documento: es la
+	 * llamada recomendada para la conversión de un documento entero.
+	 */
 	public static function rewrite_elements( array $elements ): array {
+		// Una sola búsqueda por documento: sin iconos del origen no se recorre nada.
+		if ( false === strpos( (string) wp_json_encode( $elements ), '"library":"bdt-custom-' ) ) {
+			return $elements;
+		}
+		$stats    = self::stats();
+		$elements = self::rewrite_tree( $elements, $stats );
+		self::report( $stats );
+		return $elements;
+	}
+
+	/** Análisis de un documento, sin informe: `{ rewritten, duotone, unknown }`. */
+	public static function describe( array $elements ): array {
+		$stats = self::stats();
+		if ( false !== strpos( (string) wp_json_encode( $elements ), '"library":"bdt-custom-' ) ) {
+			self::rewrite_tree( $elements, $stats );
+		}
+		return array( 'rewritten' => $stats['n'], 'duotone' => array_sum( $stats['duo'] ), 'unknown' => array_sum( $stats['unknown'] ) );
+	}
+
+	/** Recuento de una reescritura: iconos reescritos y, por elemento, los de dos tonos y los desconocidos. */
+	private static function stats(): array {
+		return array( 'n' => 0, 'duo' => array(), 'unknown' => array(), 'label' => '' );
+	}
+
+	/** Cómo se nombra un elemento en el informe: `tipo #id`. */
+	public static function element_label( array $element ): string {
+		$type = (string) ( 'widget' === ( $element['elType'] ?? '' ) ? ( $element['widgetType'] ?? 'widget' ) : ( $element['elType'] ?? '' ) );
+		return trim( $type . ( isset( $element['id'] ) ? ' #' . (string) $element['id'] : '' ) );
+	}
+
+	private static function rewrite_tree( array $elements, array &$stats ): array {
 		foreach ( $elements as $index => $element ) {
 			if ( ! is_array( $element ) ) {
 				continue;
 			}
-			$element = self::rewrite( $element );
+			$element = self::rewrite_one( $element, $stats );
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
-				$element['elements'] = self::rewrite_elements( $element['elements'] );
+				$element['elements'] = self::rewrite_tree( $element['elements'], $stats );
 			}
 			$elements[ $index ] = $element;
 		}
 		return $elements;
+	}
+
+	private static function rewrite_one( array $element, array &$stats ): array {
+		if ( ! isset( $element['settings'] ) || ! is_array( $element['settings'] ) || ! self::has_legacy( $element['settings'] ) ) {
+			return $element;
+		}
+		$stats['label']      = self::element_label( $element );
+		$element['settings'] = self::rewrite_value( $element['settings'], $stats );
+		$stats['label']      = '';
+		return $element;
 	}
 
 	/** Lo mismo en ajustes sueltos (los de una página o del kit). */
@@ -143,9 +184,9 @@ final class Icons {
 		if ( ! self::has_legacy( $settings ) ) {
 			return $settings;
 		}
-		$stats = array( 'n' => 0, 'duo' => 0, 'unknown' => 0 );
+		$stats = self::stats();
 		$out   = self::rewrite_value( $settings, $stats );
-		self::report( $stats, '' );
+		self::report( $stats );
 		return $out;
 	}
 
@@ -165,11 +206,11 @@ final class Icons {
 		}
 		$map = self::map();
 		if ( ! isset( $map[ $library ] ) ) {
-			++$stats['unknown'];
+			$stats['unknown'][ $stats['label'] ] = ( $stats['unknown'][ $stats['label'] ] ?? 0 ) + 1;
 			return $value;
 		}
 		if ( self::is_duotone( $library, (string) ( is_string( $value['value'] ) ? $value['value'] : '' ) ) ) {
-			++$stats['duo'];
+			$stats['duo'][ $stats['label'] ] = ( $stats['duo'][ $stats['label'] ] ?? 0 ) + 1;
 		}
 		$value['library'] = $map[ $library ];
 		++$stats['n'];
@@ -197,19 +238,20 @@ final class Icons {
 		return isset( self::$duotone[ $library ][ $name ] );
 	}
 
-	private static function report( array $stats, string $element ): void {
+	private static function report( array $stats ): void {
 		$post_id = Inventory::context_post();
 		if ( $post_id <= 0 ) {
 			return;
 		}
+		// Lo convertido se anota una vez por documento (sin recuento: la conversión puede ir elemento a elemento); lo que
+		// pide revisión, por elemento.
 		if ( $stats['n'] ) {
-			Inventory::doc_code( $post_id, 'plat.icons.rewritten', array( 'count' => $stats['n'] ) );
+			Inventory::doc_code( $post_id, 'plat.icons.rewritten' );
 		}
-		if ( $stats['duo'] ) {
-			Inventory::doc_code( $post_id, 'plat.icons.duotone', array( 'count' => $stats['duo'] ) );
-		}
-		if ( $stats['unknown'] ) {
-			Inventory::doc_code( $post_id, 'plat.icons.unknown', array( 'count' => $stats['unknown'] ) + ( '' !== $element ? array( 'element' => $element ) : array() ) );
+		foreach ( array( 'duo' => 'plat.icons.duotone', 'unknown' => 'plat.icons.unknown' ) as $key => $code ) {
+			foreach ( $stats[ $key ] as $label => $count ) {
+				Inventory::doc_code( $post_id, $code, array( 'count' => $count ) + ( '' !== (string) $label ? array( 'element' => (string) $label ) : array() ) );
+			}
 		}
 	}
 
@@ -418,6 +460,13 @@ final class Icons {
 			Inventory::site_code( 'plat.icons.unsafe', array( 'name' => $label ) );
 			return false;
 		}
+		// Primero se lee y valida todo el árbol: un conjunto inseguro no deja ni una carpeta en el destino.
+		$skipped = array();
+		$plan    = self::scan_tree( $from, $skipped );
+		if ( null === $plan || ! isset( $plan['style.css'] ) ) {
+			Inventory::site_code( 'plat.icons.unsafe', array( 'name' => $label ) );
+			return false;
+		}
 		// Se anota antes de escribir: una petición que muera reanuda con el mismo nombre y su carpeta.
 		Inventory::reg_put( self::KIND, (string) $id, array( 'state' => 'pending', 'extra' => array( 'old' => $old, 'name' => $name ) ) );
 		if ( ! wp_mkdir_p( rtrim( $root['dir'], '/' ) . '/' . $name ) ) {
@@ -429,10 +478,9 @@ final class Icons {
 			Inventory::site_code( 'plat.icons.unsafe', array( 'name' => $label ) );
 			return false;
 		}
-		$skipped = array();
-		$copied  = self::copy_tree( $from, $to, $skipped );
+		$copied = self::write_tree( $plan, $to );
 		if ( null === $copied || ! is_file( $to . '/style.css' ) ) {
-			Inventory::site_code( 'plat.icons.unsafe', array( 'name' => $label ) );
+			Inventory::site_code( 'plat.icons.conflict', array( 'name' => $label ) );
 			return false;
 		}
 		if ( $built['count'] > 25 ) {
@@ -550,10 +598,11 @@ final class Icons {
 	}
 
 	/**
-	 * Copia recursiva sin enlaces simbólicos ni sobrescrituras. Devuelve `[ [relativa, destino], … ]`, o null si algo
-	 * impide el conjunto entero (una hoja insegura, un archivo distinto ya en el destino, topes superados).
+	 * Lee y valida el árbol de origen sin escribir nada: `relativa => [ real, contenido ]`, o null si algo impide el
+	 * conjunto entero (una hoja insegura, topes superados). Los enlaces simbólicos, los tipos no admitidos y las rutas
+	 * raras se saltan y se anotan.
 	 */
-	private static function copy_tree( string $from, string $to, array &$skipped ): ?array {
+	private static function scan_tree( string $from, array &$skipped ): ?array {
 		$root  = self::norm( $from );
 		$files = array();
 		$bytes = 0;
@@ -566,10 +615,9 @@ final class Icons {
 				$skipped[] = $rel;
 				continue;
 			}
-			$segments = explode( '/', $rel );
-			$valid    = true;
-			foreach ( $segments as $segment ) {
-				$valid = $valid && 1 === preg_match( '/^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$/', $segment ) && '..' !== $segment;
+			$valid = true;
+			foreach ( explode( '/', $rel ) as $segment ) {
+				$valid = $valid && 1 === preg_match( '/^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$/', $segment );
 			}
 			if ( ! $valid ) {
 				$skipped[] = $rel;
@@ -584,8 +632,7 @@ final class Icons {
 				$skipped[] = $rel;
 				continue;
 			}
-			$size   = (int) filesize( $real );
-			$bytes += $size;
+			$bytes += (int) filesize( $real );
 			if ( count( $files ) >= self::MAX_FILES || $bytes > self::MAX_BYTES ) {
 				return null;
 			}
@@ -597,9 +644,20 @@ final class Icons {
 				$skipped[] = $rel;
 				continue;
 			}
+			$files[ $rel ] = $content;
+		}
+		return $files;
+	}
+
+	/**
+	 * Escribe el árbol validado sin sobrescribir nunca: `[ [relativa, destino], … ]`, o null si un archivo distinto ya
+	 * ocupa su lugar (al reanudar, el mismo archivo ya copiado vale).
+	 */
+	private static function write_tree( array $plan, string $to ): ?array {
+		$files = array();
+		foreach ( $plan as $rel => $content ) {
 			$target = $to . '/' . $rel;
 			if ( file_exists( $target ) || is_link( $target ) ) {
-				// Reanudación: el mismo archivo ya copiado vale; otro distinto nunca se sobrescribe.
 				if ( is_link( $target ) || md5_file( $target ) !== md5( $content ) ) {
 					return null;
 				}

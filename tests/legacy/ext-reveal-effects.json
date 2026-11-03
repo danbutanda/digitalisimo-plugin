@@ -1,0 +1,29 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Revelado",
+    "element_pack_reveal_effects_enable": "yes",
+    "_expect_json": [
+      "\"_animation\":\"fadeInLeft\"",
+      "\"animation_duration\":\"fast\""
+    ],
+    "_expect_codes": [
+      "ext.converted.reveal_effects"
+    ]
+  },
+  "lento": {
+    "_widget": "image",
+    "element_pack_reveal_effects_enable": "yes",
+    "element_pack_reveal_effects_direction": "bt",
+    "element_pack_reveal_effects_speed": {
+      "unit": "px",
+      "size": 10
+    },
+    "_expect_json": [
+      "\"_animation\":\"fadeInUp\""
+    ],
+    "_expect_codes": [
+      "ext.converted.reveal_effects"
+    ]
+  }
+}

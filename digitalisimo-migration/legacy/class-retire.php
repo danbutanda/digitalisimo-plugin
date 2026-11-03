@@ -261,7 +261,8 @@ final class Retire {
 				continue;
 			}
 			// Una sola escritura por grupo y ámbito: WordPress guarda la opción una vez.
-			deactivate_plugins( array_keys( $files ), false, (bool) $network );
+			$list = array_keys( $files );
+			deactivate_plugins( 1 === count( $list ) ? $list[0] : $list, false, (bool) $network );
 			foreach ( $files as $file => $info ) {
 				$done[ $file ] = $info['label'];
 			}

@@ -105,42 +105,122 @@ final class Dropped {
 
 	/* ---------------------------------------------------------------- Detección (pura) */
 
-	/** ¿Tiene valor el ajuste? Un interruptor encendido, un código o un repetidor con filas; nunca vacío ni «no». */
+	/**
+	 * ¿Tiene valor el ajuste? Un interruptor encendido, un código o un repetidor con filas; nunca vacío, «no» ni un
+	 * interruptor atómico apagado (`{"$$type":"boolean","value":false}`).
+	 */
 	private static function used( $value ) {
+		while ( is_array( $value ) && array_key_exists( '$$type', $value ) && array_key_exists( 'value', $value ) ) {
+			$value = $value['value'];
+		}
 		if ( is_array( $value ) ) {
 			return (bool) $value;
 		}
+		if ( is_bool( $value ) || null === $value ) {
+			return (bool) $value;
+		}
 		$value = trim( (string) $value );
-		return '' !== $value && 'no' !== $value;
+		return '' !== $value && 'no' !== $value && 'false' !== $value;
+	}
+
+	/** ¿Alguna clave con prefijo heredado en el elemento? (señal de Element Pack en el propio elemento) */
+	private static function prefixed( array $settings ) {
+		foreach ( array_keys( $settings ) as $key ) {
+			if ( preg_match( '/^(ep_|element_pack_|bdt_)/', (string) $key ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
 	 * Extensiones descartadas de una lista de elementos y sus hijos, en el orden del documento: una por extensión y
-	 * elemento, con la primera clave que la delata.
+	 * elemento, con la primera clave que la delata. `$signal`: el documento tiene otra señal de Element Pack (sin ella,
+	 * un interruptor sin prefijo sólo cuenta si el propio elemento tiene una clave con prefijo heredado).
 	 *
 	 * @return array<int, array{ext:string, key:string, el:string, id:string}>
 	 */
-	public static function scan_elements( array $elements ) {
+	public static function scan_elements( array $elements, $signal = true ) {
 		$out = array();
 		foreach ( $elements as $element ) {
 			if ( ! is_array( $element ) ) {
 				continue;
 			}
+			$payload = self::marker_payload( $element );
+			if ( null !== $payload ) {
+				// Marcador de K (`digitalisimo-unconverted`): lo heredado está en su carga y la conversión lo tratará.
+				$out = array_merge( $out, self::scan_elements( array( $payload ), $signal ) );
+				continue;
+			}
 			$settings = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
-			$type     = 'widget' === ( $element['elType'] ?? '' ) ? (string) ( $element['widgetType'] ?? 'widget' ) : (string) ( $element['elType'] ?? '' );
-			foreach ( self::EXTENSIONS as $ext => $spec ) {
-				if ( ! empty( $spec['page'] ) ) {
+			$type     = self::type_of( $element );
+			$bare_ok  = $signal || self::prefixed( $settings );
+			foreach ( self::extensions() as $ext => $spec ) {
+				if ( ! empty( $spec['page'] ) || ( ! empty( $spec['bare'] ) && ! $bare_ok ) ) {
 					continue;
 				}
 				foreach ( $spec['keys'] as $key ) {
 					if ( array_key_exists( $key, $settings ) && self::used( $settings[ $key ] ) ) {
-						$out[] = array( 'ext' => $ext, 'key' => $key, 'el' => '' !== $type ? $type : 'elemento', 'id' => (string) ( $element['id'] ?? '' ) );
+						$out[] = array( 'ext' => $ext, 'key' => $key, 'el' => $type, 'id' => (string) ( $element['id'] ?? '' ) );
 						break;
 					}
 				}
 			}
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
-				$out = array_merge( $out, self::scan_elements( $element['elements'] ) );
+				$out = array_merge( $out, self::scan_elements( $element['elements'], $signal ) );
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Elemento original guardado en un marcador de K (`digitalisimo-unconverted`, carga
+	 * `settings.digitalisimo_unconverted.element`: `Preserve::marker()`), o null si no es un marcador.
+	 */
+	private static function marker_payload( array $element ) {
+		if ( 'widget' !== ( $element['elType'] ?? '' ) || 'digitalisimo-unconverted' !== ( $element['widgetType'] ?? '' ) ) {
+			return null;
+		}
+		$preserve = 'Digitalisimo\\Elements\\Import\\Kits\\Preserve';
+		$setting  = class_exists( $preserve, false ) && defined( $preserve . '::SETTING' ) ? (string) constant( $preserve . '::SETTING' ) : 'digitalisimo_unconverted';
+		$payload  = $element['settings'][ $setting ]['element'] ?? null;
+		return is_array( $payload ) ? $payload : null;
+	}
+
+	/** Tipo visible de un elemento (el widget, o el tipo de elemento). */
+	private static function type_of( array $element ) {
+		$type = 'widget' === ( $element['elType'] ?? '' ) ? (string) ( $element['widgetType'] ?? 'widget' ) : (string) ( $element['elType'] ?? '' );
+		return '' !== $type ? $type : 'elemento';
+	}
+
+	/**
+	 * Interruptores sin prefijo de las extensiones que sí se convierten (`section_sticky_on`…) en elementos sin ninguna
+	 * señal de Element Pack: pueden ser de otro plugin y la conversión no los toca (`ext.ambiguous`).
+	 *
+	 * @return array<int, array{ext:string, key:string, el:string, id:string}>
+	 */
+	public static function scan_ambiguous( array $elements ) {
+		$out      = array();
+		$switches = self::ambiguous_switches();
+		foreach ( $elements as $element ) {
+			if ( ! is_array( $element ) ) {
+				continue;
+			}
+			$payload = self::marker_payload( $element );
+			if ( null !== $payload ) {
+				$out = array_merge( $out, self::scan_ambiguous( array( $payload ) ) );
+				continue;
+			}
+			$settings = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
+			if ( ! self::prefixed( $settings ) ) {
+				foreach ( $switches as $key => $ext ) {
+					if ( array_key_exists( $key, $settings ) && self::used( $settings[ $key ] ) ) {
+						$out[] = array( 'ext' => $ext, 'key' => $key, 'el' => self::type_of( $element ), 'id' => (string) ( $element['id'] ?? '' ) );
+					}
+				}
+			}
+			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
+				$out = array_merge( $out, self::scan_ambiguous( $element['elements'] ) );
 			}
 		}
 		return $out;
@@ -153,7 +233,7 @@ final class Dropped {
 	 */
 	public static function scan_page( array $settings ) {
 		$out = array();
-		foreach ( self::EXTENSIONS as $ext => $spec ) {
+		foreach ( self::extensions() as $ext => $spec ) {
 			if ( empty( $spec['page'] ) ) {
 				continue;
 			}
@@ -167,19 +247,34 @@ final class Dropped {
 		return $out;
 	}
 
+	/** ¿Tiene el documento una señal de Element Pack para las claves sin prefijo? (C2-18) */
+	private static function signal( $post_id ) {
+		if ( class_exists( __NAMESPACE__ . '\\Effects\\Dispatcher' ) ) {
+			return Effects\Dispatcher::signal( (int) $post_id );
+		}
+		return false;
+	}
+
 	/**
-	 * Extensiones descartadas del documento indicado: sus ajustes de página, lo que su copia original tenía antes de
-	 * convertir (en el orden del documento) y lo que guarda hoy, sin repetir.
+	 * Extensiones descartadas del documento indicado: sus ajustes de página (los de hoy y su copia), lo que su copia
+	 * original tenía antes de convertir (en el orden del documento) y lo que guarda hoy, sin repetir.
 	 */
 	public static function scan_post( $post_id ) {
 		$post_id = (int) $post_id;
 		$page    = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
 		$saved   = self::saved( $post_id );
+		$signal  = self::signal( $post_id );
 		$found   = array_merge(
 			is_array( $page ) ? self::scan_page( $page ) : array(),
-			null !== $saved ? self::scan_elements( $saved ) : array(),
-			self::scan_elements( self::decode( get_metadata( 'post', $post_id, '_elementor_data', true ) ) )
+			self::scan_page( self::saved_page( $post_id ) ),
+			null !== $saved ? self::scan_elements( $saved, $signal ) : array(),
+			self::scan_elements( self::decode( get_metadata( 'post', $post_id, '_elementor_data', true ) ), $signal )
 		);
+		return self::unique( $found );
+	}
+
+	/** Sin repetir (misma extensión, clave y elemento), en el orden de llegada. */
+	private static function unique( array $found ) {
 		$out  = array();
 		$seen = array();
 		foreach ( $found as $item ) {
@@ -195,7 +290,7 @@ final class Dropped {
 	/**
 	 * Lo que la conversión de ahora retirará y la copia original del documento no recoge: con una copia ya guardada por
 	 * una conversión anterior, lo añadido después. Sin copia, nada: la conversión la crea con estos mismos datos, y una
-	 * conversión que no cambia nada deja las claves donde están. Es lo único que la tarea tiene que anotar.
+	 * conversión que no cambia nada deja las claves donde están.
 	 *
 	 * @return array<int, array{ext:string, key:string, el:string, id:string}>
 	 */
@@ -204,12 +299,13 @@ final class Dropped {
 		if ( null === $saved ) {
 			return array();
 		}
-		$known = array();
-		foreach ( self::scan_elements( $saved ) as $item ) {
+		$signal = self::signal( (int) $post_id );
+		$known  = array();
+		foreach ( self::scan_elements( $saved, $signal ) as $item ) {
 			$known[ self::signature( $item ) ] = true;
 		}
 		$out = array();
-		foreach ( self::scan_elements( self::decode( get_metadata( 'post', (int) $post_id, '_elementor_data', true ) ) ) as $item ) {
+		foreach ( self::scan_elements( self::decode( get_metadata( 'post', (int) $post_id, '_elementor_data', true ) ), $signal ) as $item ) {
 			if ( ! isset( $known[ self::signature( $item ) ] ) ) {
 				$out[] = $item;
 			}
@@ -227,10 +323,77 @@ final class Dropped {
 		return is_array( $backup ) && isset( $backup['data'] ) ? self::decode( $backup['data'] ) : null;
 	}
 
+	/**
+	 * Ajustes de la página de su copia (`_digitalisimo_ep_backup_page`: `{time, data}` en JSON con `data` como objeto;
+	 * también se acepta `data` como texto JSON). Vacío sin copia.
+	 */
+	private static function saved_page( $post_id ) {
+		$raw = get_metadata( 'post', (int) $post_id, self::BACKUP_PAGE, true );
+		if ( is_string( $raw ) && '' !== $raw ) {
+			$raw = json_decode( $raw, true );
+		}
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+		$data = array_key_exists( 'data', $raw ) ? $raw['data'] : $raw;
+		if ( is_string( $data ) ) {
+			$data = json_decode( $data, true );
+		}
+		return is_array( $data ) ? $data : array();
+	}
+
 	/** `_elementor_data` (texto JSON o ya decodificado) como lista de elementos. */
 	private static function decode( $raw ) {
 		$data = is_string( $raw ) && '' !== $raw ? json_decode( $raw, true ) : ( is_array( $raw ) ? $raw : null );
 		return is_array( $data ) ? $data : array();
+	}
+
+	/* ---------------------------------------------------------------- Informe de F8 */
+
+	/**
+	 * Anota en el informe de F8 lo que este documento tenía y no se convierte: los descartes (`ext.dropped.<extensión>`,
+	 * de los datos de hoy y de sus copias) y las claves sin prefijo sin señal de Element Pack (`ext.ambiguous`). El
+	 * mismo detalle que `Effects\Dispatcher` (elemento, clave), así que el informe nunca lo cuenta dos veces.
+	 *
+	 * @return int anotaciones.
+	 */
+	public static function report( $post_id ) {
+		$post_id = (int) $post_id;
+		$items   = self::report_items( $post_id );
+		if ( $items && class_exists( __NAMESPACE__ . '\\Report' ) ) {
+			foreach ( $items as $item ) {
+				Report::add( $post_id, $item[0], $item[1] );
+			}
+		}
+		return count( $items );
+	}
+
+	/**
+	 * Lo que report() anotaría: `[código, detalle]`.
+	 *
+	 * @return array<int, array{0:string,1:array}>
+	 */
+	public static function report_items( $post_id ) {
+		$post_id = (int) $post_id;
+		$out     = array();
+		foreach ( self::scan_post( $post_id ) as $item ) {
+			$out[] = array( 'ext.dropped.' . str_replace( '-', '_', $item['ext'] ), array( 'element' => self::item_where( $item ), 'name' => $item['key'] ) );
+		}
+		if ( ! self::signal( $post_id ) ) {
+			$labels = self::table();
+			foreach ( self::unique( self::scan_ambiguous( self::decode( get_metadata( 'post', $post_id, '_elementor_data', true ) ) ) ) as $item ) {
+				$out[] = array( 'ext.ambiguous', array( 'element' => self::item_where( $item ), 'type' => (string) ( $labels[ $item['ext'] ]['label'] ?? $item['ext'] ), 'name' => $item['key'] ) );
+			}
+		}
+		return $out;
+	}
+
+	/** «heading #abc» o «Ajustes de la página». */
+	private static function item_where( array $item ) {
+		if ( '' === (string) $item['el'] ) {
+			return function_exists( '__' ) ? __( 'Ajustes de la página', 'digitalisimo-migration' ) : 'Ajustes de la página';
+		}
+		return trim( (string) $item['el'] . ( '' !== (string) $item['id'] ? ' #' . $item['id'] : '' ) );
 	}
 
 	/* ---------------------------------------------------------------- Conjuntos por documento */
@@ -298,26 +461,33 @@ final class Dropped {
 	/* ---------------------------------------------------------------- Sitio en curso */
 
 	/**
-	 * Documentos del sitio (no revisiones) cuyos datos, ajustes de página o copia original nombran alguna extensión
-	 * descartada.
+	 * Documentos del sitio (no revisiones) cuyos datos, ajustes de página o copias nombran alguna extensión descartada
+	 * o un interruptor sin prefijo de las que se convierten (para `ext.ambiguous`). Por trozos: los IDs mayores que
+	 * `$after`, como mucho `$limit` (0: todos). Sin `SELECT DISTINCT`: una fila por entrada con `EXISTS`.
+	 *
+	 * @return int[]
 	 */
-	public static function documents() {
+	public static function documents( $after = 0, $limit = 0 ) {
 		global $wpdb;
+		$keys = array();
+		foreach ( self::extensions() as $spec ) {
+			$keys = array_merge( $keys, $spec['keys'] );
+		}
+		$keys  = array_values( array_unique( array_merge( $keys, array_keys( self::ambiguous_switches() ) ) ) );
 		$live  = array();
 		$saved = array();
-		foreach ( self::EXTENSIONS as $spec ) {
-			foreach ( $spec['keys'] as $key ) {
-				// Las claves van entre comillas tanto en el JSON de los elementos como en los ajustes serializados; en la
-				// copia original, ese JSON va dentro de otro y sus comillas llevan barra invertida.
-				$live[]  = '%' . $wpdb->esc_like( '"' . $key . '"' ) . '%';
-				$saved[] = '%' . $wpdb->esc_like( '\\"' . $key . '\\"' ) . '%';
-			}
+		foreach ( $keys as $key ) {
+			// Las claves van entre comillas en el JSON de los elementos, en los ajustes serializados y en la copia de la
+			// página (JSON codificado una vez); en la copia original, ese JSON va dentro de otro y sus comillas llevan
+			// barra invertida.
+			$live[]  = '%' . $wpdb->esc_like( '"' . $key . '"' ) . '%';
+			$saved[] = '%' . $wpdb->esc_like( '\\"' . $key . '\\"' ) . '%';
 		}
 		$any = static function ( $count ) {
 			return '( ' . implode( ' OR ', array_fill( 0, $count, 'm.meta_value LIKE %s' ) ) . ' )';
 		};
-		$sql = "SELECT DISTINCT m.post_id FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE p.post_type <> 'revision' AND ( ( m.meta_key IN ( '_elementor_data', '_elementor_page_settings' ) AND " . $any( count( $live ) ) . " ) OR ( m.meta_key = '" . self::BACKUP . "' AND " . $any( count( $saved ) ) . ' ) ) ORDER BY m.post_id';
-		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $sql, array_merge( $live, $saved ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$sql = "SELECT p.ID FROM {$wpdb->posts} p WHERE p.post_type <> 'revision' AND p.ID > %d AND EXISTS ( SELECT 1 FROM {$wpdb->postmeta} m WHERE m.post_id = p.ID AND ( ( m.meta_key IN ( '_elementor_data', '_elementor_page_settings', '" . self::BACKUP_PAGE . "' ) AND " . $any( count( $live ) ) . " ) OR ( m.meta_key = '" . self::BACKUP . "' AND " . $any( count( $saved ) ) . ' ) ) ) ORDER BY p.ID' . ( $limit ? ' LIMIT ' . absint( $limit ) : '' );
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $sql, array_merge( array( (int) $after ), $live, $saved ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/** Análisis del sitio en curso: lo que guarda cada documento y lo que la conversión le retiró. */
@@ -362,7 +532,7 @@ final class Dropped {
 	/** Inventario de widgets de Prime Slider del sitio: por tipo, elementos y documentos (sin revisiones). */
 	public static function prime_slider() {
 		global $wpdb;
-		$ids   = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT m.post_id FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE m.meta_key = '_elementor_data' AND p.post_type <> 'revision' AND m.meta_value LIKE %s ORDER BY m.post_id", '%' . $wpdb->esc_like( '"widgetType":"prime-slider-' ) . '%' ) ) );
+		$ids   = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT p.ID FROM {$wpdb->posts} p WHERE p.post_type <> 'revision' AND EXISTS ( SELECT 1 FROM {$wpdb->postmeta} m WHERE m.post_id = p.ID AND m.meta_key = '_elementor_data' AND m.meta_value LIKE %s ) ORDER BY p.ID", '%' . $wpdb->esc_like( '"widgetType":"prime-slider-' ) . '%' ) ) );
 		$types = array();
 		$docs  = 0;
 		foreach ( $ids as $post_id ) {
@@ -397,52 +567,31 @@ final class Dropped {
 	}
 
 	/**
-	 * Plugins de la familia que la migración detecta y todavía no desactiva, con su estado en este sitio y, para Prime
-	 * Slider, cuántos widgets suyos hay (también si el plugin ya no está instalado y quedan widgets que no se ven).
+	 * Plugins de la familia que la migración detectaba sin desactivarlos (hasta 1.0.20). Desde F8 el Element Pack Addon
+	 * y Prime Slider se retiran con los demás (`Retire`, frente A) y sus widgets se convierten: no queda ninguno. Se
+	 * conservan las firmas para los informes guardados por versiones anteriores.
 	 *
-	 * @return array<int, array{slug:string, label:string, version:string, installed:bool, site:bool, network:bool, elements:int, documents:int}>
+	 * @return array
 	 */
 	public static function kept() {
-		$rows = array();
-		foreach ( Retire::kept_status() as $info ) {
-			$rows[] = array( 'slug' => $info['slug'], 'label' => $info['label'], 'version' => $info['version'], 'installed' => true, 'site' => $info['site'], 'network' => $info['network'], 'elements' => 0, 'documents' => 0 );
-		}
-		$slider = self::prime_slider();
-		if ( $slider['elements'] ) {
-			$found = false;
-			foreach ( $rows as $index => $row ) {
-				if ( 'prime-slider' === $row['slug'] && ! $found ) {
-					$rows[ $index ]['elements']  = (int) $slider['elements'];
-					$rows[ $index ]['documents'] = (int) $slider['documents'];
-					$found                       = true;
-				}
-			}
-			if ( ! $found ) {
-				$rows[] = array( 'slug' => 'prime-slider', 'label' => 'Prime Slider', 'version' => '', 'installed' => false, 'site' => false, 'network' => false, 'elements' => (int) $slider['elements'], 'documents' => (int) $slider['documents'] );
-			}
-		}
-		return $rows;
+		return array();
 	}
 
-	/** ¿Hay algo que decir de esta fila? Un plugin activo, o widgets de Prime Slider. */
+	/** Sin plugins de la familia pendientes (ver kept()). */
 	public static function kept_pending( array $row ) {
-		return ! empty( $row['site'] ) || ! empty( $row['network'] ) || ! empty( $row['elements'] );
+		return false;
 	}
 
-	/**
-	 * ¿Deja esta fila contenido que hoy no se ve? Widgets de Prime Slider con el plugin sin activar en el sitio ni en la
-	 * red: es lo único de esta clase que cuenta como asunto pendiente, porque una persona puede resolverlo (activar el
-	 * plugin o sustituir los widgets). Un plugin activo, con o sin widgets, es sólo información.
-	 */
+	/** Sin contenido oculto por plugins de la familia (ver kept()). */
 	public static function kept_hidden( array $row ) {
-		return ! empty( $row['elements'] ) && empty( $row['site'] ) && empty( $row['network'] );
+		return false;
 	}
 
 	/* ---------------------------------------------------------------- Presentación (análisis, informe, red y terminal) */
 
 	/** Nombre visible de una extensión heredada. */
 	public static function label( $ext ) {
-		return (string) ( self::EXTENSIONS[ $ext ]['label'] ?? $ext );
+		return (string) ( self::extensions()[ $ext ]['label'] ?? $ext );
 	}
 
 	/**
@@ -473,81 +622,24 @@ final class Dropped {
 		return $html;
 	}
 
-	/** Dónde está activo un plugin de la familia, en palabras. */
-	private static function where( array $row ) {
-		if ( ! empty( $row['network'] ) ) {
-			return 'activo en toda la red';
-		}
-		if ( ! empty( $row['site'] ) ) {
-			return 'activo en este sitio';
-		}
-		return empty( $row['installed'] ) ? 'no instalado' : 'instalado y desactivado';
-	}
-
-	/**
-	 * Avisos de los plugins de la familia que la migración no desactiva todavía: `pending` el contenido que hoy no se ve
-	 * (kept_hidden()), `info` los plugins activos y `idle` los instalados, desactivados y sin uso.
-	 *
-	 * @return array{pending:string[], info:string[], idle:string[]}
-	 */
+	/** Sin avisos de plugins de la familia (ver kept()). */
 	public static function kept_messages( array $rows ) {
-		$out = array( 'pending' => array(), 'info' => array(), 'idle' => array() );
-		foreach ( $rows as $row ) {
-			$name = trim( (string) $row['label'] . ( '' !== (string) ( $row['version'] ?? '' ) ? ' ' . $row['version'] : '' ) );
-			if ( ! self::kept_pending( $row ) ) {
-				$out['idle'][] = $name;
-				continue;
-			}
-			if ( self::kept_hidden( $row ) ) {
-				$out['pending'][] = sprintf( 'Hay %d widgets de Prime Slider en %d documentos y el plugin está %s: no se muestran. Migrar todavía no los convierte; actívalo de nuevo o sustitúyelos en el editor.', (int) $row['elements'], (int) $row['documents'], empty( $row['installed'] ) ? 'sin instalar' : 'desactivado' );
-				continue;
-			}
-			if ( 'prime-slider' === $row['slug'] ) {
-				$out['info'][] = $row['elements']
-					? sprintf( '%s (%s): Migrar todavía no lo desactiva ni convierte sus widgets (%d elementos en %d documentos), que se siguen viendo con él. No lo desactives ni lo borres mientras los uses.', $name, self::where( $row ), (int) $row['elements'], (int) $row['documents'] )
-					: sprintf( '%s (%s): Migrar todavía no lo desactiva. Ningún documento usa sus widgets, así que puedes desactivarlo y borrarlo desde Plugins cuando hayas comprobado el sitio.', $name, self::where( $row ) );
-				continue;
-			}
-			$out['info'][] = sprintf( '%s (%s): Migrar todavía no lo desactiva. Reúne widgets que Element Pack 10 separó del plugin principal y depende de Element Pack Pro, que la migración sí desactiva. Sus widgets con adaptador se convierten como los de Element Pack, y los que no lo tienen figuran en la tabla de widgets: comprueba las páginas que los usan antes de desactivarlo o borrarlo desde Plugins.', $name, self::where( $row ) );
-		}
-		return $out;
+		return array( 'pending' => array(), 'info' => array(), 'idle' => array() );
 	}
 
-	/** Los plugins de la familia instalados, desactivados y sin uso. */
+	/** Sin plugins de la familia instalados y sin uso que anunciar (ver kept()). */
 	public static function idle_message( array $names ) {
-		return 'También instalados y desactivados (Migrar no cambia su estado): ' . implode( ', ', $names ) . '.';
+		return '';
 	}
 
-	/**
-	 * Aviso de red de los plugins de la familia que la migración no desactiva. $lines: «Etiqueta (estado)», de
-	 * Runner::kept_network(). Dice qué se convierte de cada uno.
-	 */
+	/** Sin aviso de red de plugins de la familia (ver kept()). */
 	public static function kept_notice( array $lines, $more ) {
-		$text   = implode( ' ', $lines );
-		$addon  = false !== strpos( $text, 'Element Pack Addon' );
-		$slider = false !== strpos( $text, 'Prime Slider' );
-		$what   = array();
-		if ( $addon ) {
-			$what[] = 'los widgets del Element Pack Addon con adaptador se convierten como los de Element Pack';
-		}
-		if ( $slider ) {
-			$what[] = 'los de Prime Slider todavía no se convierten';
-		}
-		return 'Detectados y sin desactivar (Migrar todavía no los desactiva' . ( $what ? '; ' . implode( ', y ', $what ) : '' ) . '): ' . implode( ', ', $lines ) . '. ' . (string) $more;
+		return '';
 	}
 
-	/** Una línea por sitio para la pantalla de red y la terminal: efectos descartados y plugins de la familia. */
-	public static function summary( array $set, array $kept ) {
-		$parts  = array();
+	/** Una línea por sitio para la pantalla de red y la terminal: efectos descartados. */
+	public static function summary( array $set, array $kept = array() ) {
 		$totals = self::totals( $set );
-		if ( $totals['documents'] ) {
-			$parts[] = sprintf( 'efectos heredados sin equivalente: %d en %d documentos', $totals['settings'], $totals['documents'] );
-		}
-		foreach ( $kept as $row ) {
-			if ( self::kept_pending( $row ) ) {
-				$parts[] = $row['label'] . ' (' . self::where( $row ) . ( ! empty( $row['elements'] ) ? sprintf( ', %d widgets', (int) $row['elements'] ) : '' ) . ')';
-			}
-		}
-		return implode( '; ', $parts );
+		return $totals['documents'] ? sprintf( 'efectos heredados sin equivalente: %d en %d documentos', $totals['settings'], $totals['documents'] ) : '';
 	}
 }

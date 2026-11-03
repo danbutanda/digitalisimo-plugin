@@ -15,5 +15,9 @@
       "left": "0",
       "isLinked": ""
     }
+  },
+  "styled": {
+    "remote_id": "#otro-slider",
+    "arrows_color": "#abcdef"
   }
 }

@@ -1,0 +1,26 @@
+{
+  "widgets": {
+    "_widget": "heading",
+    "title": "Iguales",
+    "_section": {
+      "section_equal_height_on": "yes"
+    },
+    "_expect_json": [
+      ":has(> .elementor-widget:only-child)"
+    ],
+    "_expect_codes": [
+      "ext.converted.equal_height"
+    ]
+  },
+  "personalizado-vacio": {
+    "_widget": "heading",
+    "title": "Vacío",
+    "_section": {
+      "section_equal_height_on": "yes",
+      "section_equal_height_selector": "custom"
+    },
+    "_expect_codes": [
+      "ext.inert"
+    ]
+  }
+}

@@ -36,6 +36,10 @@ final class Migration {
 	/** Marca de F8 tras cada escritura: `{v, time, hash, page_hash, restricted}` (md5 de lo escrito). */
 	const F8_MARK = '_digitalisimo_ep_f8';
 	const BATCH   = 20;
+	/** Análisis previo (V.3.5): acción AJAX, caché sin carga automática y documentos por vuelta. */
+	const ANALYZE        = 'digitalisimo_migration_analyze';
+	const ANALYSIS       = 'digitalisimo_migration_analysis';
+	const ANALYZE_BUDGET = 5;
 	/** Agujas de los documentos con contenido heredado (`_elementor_data`, JSON guardado tal cual). */
 	const NEEDLES = array(
 		'"widgetType":"bdt-',
@@ -79,6 +83,8 @@ final class Migration {
 		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'handle' ) );
 		add_action( 'admin_init', array( __CLASS__, 'repair_once' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'repair_notice' ) );
+		// Análisis previo por trozos al abrir la herramienta (no es un botón: mismo nonce y capacidad que el paso).
+		add_action( 'wp_ajax_' . self::ANALYZE, array( __CLASS__, 'analyze_ajax' ) );
 	}
 
 	/**
@@ -546,17 +552,23 @@ final class Migration {
 				}
 				return array( 'native' => 0, 'page' => $page );
 			}
+			$json = (string) wp_json_encode( $data );
+			$mark = self::mark_data( $post_id, $restricted, $json );
 			if ( '' === (string) get_metadata( 'post', $post_id, self::BACKUP, true ) ) {
-				add_metadata( 'post', $post_id, self::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ), true );
+				// La primera conversión lleva la marca F8 dentro de su copia: una escritura menos por documento.
+				add_metadata( 'post', $post_id, self::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw, 'f8' => $mark ) ) ), true );
+				$mark = null;
 			} elseif ( $restricted && '' === (string) get_metadata( 'post', $post_id, self::BACKUP_F8, true ) ) {
 				add_metadata( 'post', $post_id, self::BACKUP_F8, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ), true );
 			}
-			update_metadata( 'post', $post_id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+			update_metadata( 'post', $post_id, '_elementor_data', wp_slash( $json ) );
 			self::clear_css( $post_id );
 			if ( ! $revision ) {
 				self::recount_markers( $post_id, $data );
 			}
-			self::mark( $post_id, $restricted );
+			if ( null !== $mark ) {
+				update_metadata( 'post', $post_id, self::F8_MARK, wp_slash( wp_json_encode( $mark ) ) );
+			}
 			return array( 'native' => $changes, 'page' => $page );
 		} finally {
 			Native::$restricted = false;
@@ -573,25 +585,36 @@ final class Migration {
 		return ! $mark || ! empty( $mark['restricted'] );
 	}
 
-	/** Marca F8 del documento, o null. */
+	/**
+	 * Marca F8 del documento, o null: la meta F8_MARK o, si no la hay, la que lleva la copia original de la primera
+	 * conversión (`f8`).
+	 */
 	public static function f8_mark( $post_id ) {
 		$raw  = get_metadata( 'post', (int) $post_id, self::F8_MARK, true );
 		$mark = is_string( $raw ) && '' !== $raw ? json_decode( $raw, true ) : ( is_array( $raw ) ? $raw : null );
-		return is_array( $mark ) ? $mark : null;
+		if ( is_array( $mark ) ) {
+			return $mark;
+		}
+		$backup = json_decode( (string) get_metadata( 'post', (int) $post_id, self::BACKUP, true ), true );
+		return is_array( $backup ) && isset( $backup['f8'] ) && is_array( $backup['f8'] ) ? $backup['f8'] : null;
 	}
 
-	/** Deja la marca F8 con la huella de lo escrito (datos y página). */
-	private static function mark( $post_id, $restricted ) {
-		$raw  = (string) get_metadata( 'post', $post_id, '_elementor_data', true );
+	/** Marca F8 con la huella de lo que se escribe (datos y página). */
+	private static function mark_data( $post_id, $restricted, $json = null ) {
+		$raw  = null === $json ? (string) get_metadata( 'post', $post_id, '_elementor_data', true ) : (string) $json;
 		$page = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
-		$mark = array(
+		return array(
 			'v'          => 1,
 			'time'       => time(),
 			'hash'       => '' !== $raw ? md5( $raw ) : '',
 			'page_hash'  => is_array( $page ) ? md5( serialize( $page ) ) : '', // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- sólo huella.
 			'restricted' => $restricted ? 1 : 0,
 		);
-		update_metadata( 'post', $post_id, self::F8_MARK, wp_slash( wp_json_encode( $mark ) ) );
+	}
+
+	/** Deja la marca F8 en su meta. */
+	private static function mark( $post_id, $restricted ) {
+		update_metadata( 'post', $post_id, self::F8_MARK, wp_slash( wp_json_encode( self::mark_data( $post_id, $restricted ) ) ) );
 	}
 
 	/** ¿Tienen los ajustes de la página claves heredadas de Element Pack? */
@@ -626,6 +649,13 @@ final class Migration {
 		}
 		if ( class_exists( __NAMESPACE__ . '\\Platform\\Kit' ) && method_exists( __NAMESPACE__ . '\\Platform\\Kit', 'clean_page' ) ) {
 			$new = (array) Platform\Kit::clean_page( $new, $post_id );
+		}
+		// Iconos o etiquetas dinámicas de Element Pack en los ajustes de la página (raro).
+		foreach ( array( 'Icons', 'Dynamic_Tags' ) as $step ) {
+			$class = __NAMESPACE__ . '\\Platform\\' . $step;
+			if ( class_exists( $class ) && method_exists( $class, 'rewrite_settings' ) ) {
+				$new = (array) $class::rewrite_settings( $new );
+			}
 		}
 		if ( $new === $settings ) {
 			return false;
@@ -898,7 +928,7 @@ final class Migration {
 		$state   = Runner::state();
 		$running = $state && empty( $state['done'] );
 		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements</h1>';
-		echo '<p>Un solo paso. <strong>Migrar</strong> desactiva en este sitio los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro, PRO Elements y Element Pack), convierte al formato propio el contenido de Element Pack y el de los widgets fusionados, vacía las cachés y deja aquí el informe. Guarda una copia de cada documento antes de tocarlo y no borra ningún plugin: los deja desactivados para que los elimines desde Plugins cuando hayas comprobado el sitio. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver. Sólo afecta a este sitio' . ( is_multisite() ? '; Red → Ajustes → Migrar a DIGITALÍSIMO Elements hace lo mismo en todos los sitios de la red' : '' ) . '.</p>';
+		echo '<p>Un solo paso. <strong>Migrar</strong> desactiva en este sitio los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider), convierte al formato propio el contenido de Element Pack y de Prime Slider, sus plantillas, fuentes e iconos y el de los widgets fusionados, vacía las cachés y deja aquí el informe. Guarda una copia de cada documento antes de tocarlo y no borra ningún plugin: los deja desactivados para que los elimines desde Plugins cuando hayas comprobado el sitio. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver. Sólo afecta a este sitio' . ( is_multisite() ? '; Red → Ajustes → Migrar a DIGITALÍSIMO Elements hace lo mismo en todos los sitios de la red' : '' ) . '.</p>';
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sólo muestra el resultado de la acción.
 		if ( isset( $_GET['done'] ) && 'acknowledge' === sanitize_key( wp_unslash( $_GET['done'] ) ) ) {
 			echo '<div class="notice notice-success"><p>' . esc_html( absint( $_GET['count'] ?? 0 ) ? 'Página dada por revisada: deja de listarse mientras su contenido no cambie.' : 'No se indicó ninguna página.' ) . '</p></div>';
@@ -911,7 +941,188 @@ final class Migration {
 		echo '</div>';
 		echo '<h2>Qué hay en este sitio</h2>';
 		self::site_summary();
+		echo self::retire_plan(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
+		// Contraseñas de aplicación de la IA de Element Pack (sólo informe; nombres sólo para quien puede verlos, V.7).
+		if ( class_exists( __NAMESPACE__ . '\\Platform\\Inventory' ) && method_exists( __NAMESPACE__ . '\\Platform\\Inventory', 'app_passwords_html' ) ) {
+			echo Platform\Inventory::app_passwords_html( (array) Platform\Inventory::app_passwords() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Inventory.
+		}
+		// El análisis de F8 se completa por trozos con la acción AJAX de la herramienta (no hay botón).
+		$cached = get_option( self::ANALYSIS, null );
+		$html   = is_array( $cached ) && ! empty( $cached['done'] ) ? self::analysis_html( array( 'done' => true, 'report' => (array) $cached['report'] ) ) : self::analysis_html( array( 'done' => false, 'processed' => 0, 'total' => 0 ) );
+		echo '<div class="digi-migrate__analysis" data-action="' . esc_attr( self::ANALYZE ) . '" data-done="' . ( is_array( $cached ) && ! empty( $cached['done'] ) ? '1' : '0' ) . '">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Report.
 		echo '</div>';
+	}
+
+	/* ---------------------------------------------------------------- Análisis previo por trozos (V.3.5, §3.G) */
+
+	/** Paso AJAX del análisis previo: mismo nonce y capacidad que el paso de Migrar. */
+	public static function analyze_ajax() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'No autorizado.', 403 );
+		}
+		check_ajax_referer( Runner::AJAX . '_' . get_current_blog_id() );
+		Runner::load();
+		$result = self::analyze_step( (float) apply_filters( 'digitalisimo_migration_analyze_seconds', self::ANALYZE_BUDGET ) );
+		wp_send_json_success( $result + array( 'html' => self::analysis_html( $result ) ) );
+	}
+
+	/**
+	 * Huella de lo que el análisis mira: número y fecha de modificación más reciente de los documentos con agujas.
+	 * Mientras no cambie, el análisis guardado vale.
+	 */
+	public static function analysis_fingerprint( array $ids ) {
+		global $wpdb;
+		$modified = '';
+		if ( $ids ) {
+			$modified = (string) $wpdb->get_var( 'SELECT MAX(post_modified_gmt) FROM ' . $wpdb->posts . ' WHERE ID IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- enteros.
+		}
+		return md5( count( $ids ) . '|' . $modified . '|' . md5( implode( ',', $ids ) ) );
+	}
+
+	/**
+	 * Una vuelta del análisis previo: describe documentos desde el cursor hasta agotar el plazo, sin escribir nada salvo
+	 * su caché (`digitalisimo_migration_analysis`, sin carga automática). Con $budget 0, entero (WP-CLI).
+	 *
+	 * @return array{done:bool, processed:int, total:int, report:array}
+	 */
+	public static function analyze_step( $budget = 0 ) {
+		$deadline = $budget > 0 ? microtime( true ) + (float) $budget : 0;
+		$ids      = self::all_documents();
+		$print    = self::analysis_fingerprint( $ids );
+		$cache    = get_option( self::ANALYSIS, null );
+		if ( ! is_array( $cache ) || ( $cache['fingerprint'] ?? '' ) !== $print ) {
+			$cache = array( 'v' => 1, 'fingerprint' => $print, 'cursor' => 0, 'processed' => 0, 'total' => count( $ids ), 'done' => false, 'report' => Report::none() );
+			// Lo que no depende de cada documento, una vez: pasos de plataforma (sólo lectura).
+			Report::begin( 'analysis' );
+			Context::begin( 0, 'analysis' );
+			try {
+				foreach ( array_values( array_unique( array_merge( Runner::PREPARE_STEPS, Runner::PLATFORM_STEPS ) ) ) as $step ) {
+					$class = __NAMESPACE__ . '\\Platform\\' . $step;
+					if ( class_exists( $class ) && method_exists( $class, 'analyze' ) ) {
+						foreach ( (array) $class::analyze() as $code ) {
+							if ( ! is_array( $code ) || ! isset( $code[0] ) ) {
+								continue;
+							}
+							// Un tercer elemento es el documento al que se refiere (shortcodes del inventario).
+							if ( ! empty( $code[2] ) ) {
+								Report::add( (int) $code[2], (string) $code[0], (array) ( $code[1] ?? array() ) );
+							} else {
+								Report::site( (string) $code[0], (array) ( $code[1] ?? array() ) );
+							}
+						}
+					}
+				}
+			} finally {
+				Context::end();
+			}
+			$cache['report'] = Report::take();
+		}
+		if ( empty( $cache['done'] ) ) {
+			Report::begin( 'analysis' );
+			$moved = self::moved_to_addon();
+			foreach ( $ids as $post_id ) {
+				if ( $post_id <= (int) $cache['cursor'] ) {
+					continue;
+				}
+				self::analyze_document( (int) $post_id, $moved );
+				$cache['cursor'] = (int) $post_id;
+				++$cache['processed'];
+				if ( $deadline && microtime( true ) >= $deadline ) {
+					break;
+				}
+			}
+			$cache['report'] = Report::merge( (array) $cache['report'], Report::take() );
+			$cache['done']   = (int) $cache['processed'] >= count( $ids );
+			update_option( self::ANALYSIS, $cache, false );
+		}
+		return array( 'done' => ! empty( $cache['done'] ), 'processed' => (int) $cache['processed'], 'total' => (int) $cache['total'], 'report' => (array) $cache['report'] );
+	}
+
+	/**
+	 * Descripción estática de un documento, sin escribir: efectos y Prime Slider (Runner::describe), marcadores
+	 * (Markers::classify) y widgets que Element Pack 10 pasó al Addon cuando el Addon no está.
+	 */
+	private static function analyze_document( $post_id, array $moved ) {
+		$data = self::data( $post_id );
+		if ( ! $data ) {
+			return;
+		}
+		Context::begin( $post_id, 'analysis' );
+		try {
+			foreach ( Runner::describe( $data ) as $code => $count ) {
+				Report::add( $post_id, (string) $code, array( 'count' => (int) $count ) );
+			}
+			$markers = array();
+			$addon   = array();
+			self::walk( $data, static function ( $element ) use ( &$markers, &$addon, $moved ) {
+				$type = (string) ( $element['widgetType'] ?? '' );
+				if ( Native::MARKER_WIDGET === $type ) {
+					$markers[] = $element;
+				} elseif ( $moved && in_array( $type, $moved, true ) ) {
+					$addon[ $type ] = ( $addon[ $type ] ?? 0 ) + 1;
+				}
+				return $element;
+			} );
+			foreach ( $addon as $type => $count ) {
+				Report::add( $post_id, 'core.addon_missing', array( 'widget' => $type, 'count' => $count ) );
+			}
+			if ( $markers && class_exists( __NAMESPACE__ . '\\Markers' ) && method_exists( __NAMESPACE__ . '\\Markers', 'classify' ) ) {
+				$groups = (array) Markers::classify( $markers );
+				foreach ( array( 'convertible' => 'mk.convertible', 'blocked' => 'mk.blocked', 'declared' => 'mk.declared' ) as $group => $code ) {
+					foreach ( array_count_values( array_map( 'strval', (array) ( $groups[ $group ] ?? array() ) ) ) as $type => $count ) {
+						Report::add( $post_id, $code, array( 'type' => $type, 'count' => $count ) );
+					}
+				}
+			}
+		} finally {
+			Context::end();
+		}
+	}
+
+	/**
+	 * IDs que Element Pack 10 pasó al Addon, sólo si Element Pack ≥ 10 está instalado sin el Addon (si no, esos
+	 * widgets se siguen viendo y no hay nada que decir).
+	 *
+	 * @return string[]
+	 */
+	public static function moved_to_addon() {
+		$ep    = false;
+		$addon = false;
+		foreach ( Retire::installed() as $file => $info ) {
+			if ( 'element-pack' !== $info['group'] ) {
+				continue;
+			}
+			if ( '' !== $info['requires'] ) {
+				$addon = true;
+			} elseif ( '' !== $info['version'] && version_compare( $info['version'], '10', '>=' ) ) {
+				$ep = true;
+			}
+		}
+		$file = __DIR__ . '/moved-to-addon.php';
+		return $ep && ! $addon && is_file( $file ) ? array_values( array_map( 'strval', (array) require $file ) ) : array();
+	}
+
+	/** HTML del análisis: avance mientras dura y, al terminar, el informe previsto (escapado por Report). */
+	public static function analysis_html( array $result ) {
+		if ( empty( $result['done'] ) ) {
+			return '<p class="digi-migrate__analyzing">' . esc_html( sprintf( 'Analizando… (%d de %d)', (int) $result['processed'], (int) $result['total'] ) ) . '</p>';
+		}
+		$report = (array) ( $result['report'] ?? array() );
+		$html   = Report::render( $report, 'site' );
+		return '' !== $html ? '<h3>' . esc_html( 'Lo que hará Migrar' ) . '</h3>' . $html : '<p>' . esc_html( 'Nada más que convertir en plantillas, efectos, Prime Slider ni contenido conservado.' ) . '</p>';
+	}
+
+	/** Plugins que se retiran, con su grupo y su momento (al inicio o al final). */
+	private static function retire_plan() {
+		$groups = array( 'element-pack' => 'Element Pack', 'pro' => 'Elementor Pro / PRO Elements', 'core' => 'Elementor', 'prime-slider' => 'Prime Slider' );
+		$rows   = array();
+		foreach ( Retire::status() as $info ) {
+			if ( ! $info['site'] && ! $info['network'] ) {
+				continue;
+			}
+			$rows[] = sprintf( '%s (%s; %s)', $info['label'], $groups[ $info['group'] ] ?? $info['group'], $info['late'] ? 'al final, cuando sus widgets estén convertidos' : 'al empezar, en una sola escritura con su grupo' );
+		}
+		return $rows ? '<p>' . esc_html( 'Se desactivarán, sin borrarse: ' . implode( '; ', $rows ) . '.' ) . '</p>' : '';
 	}
 
 	/**
@@ -983,7 +1194,7 @@ final class Migration {
 		$running = $job && empty( $job['done'] );
 		$sites   = get_sites( array( 'number' => 500, 'fields' => 'ids' ) );
 		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements en la red</h1>';
-		echo '<p>Un solo paso para toda la red. <strong>Migrar toda la red</strong> desactiva en toda la red los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro, PRO Elements y Element Pack) y después hace en cada uno de los ' . count( $sites ) . ' sitios lo mismo que el botón de su herramienta: desactiva los que tenga activos por sitio, convierte su contenido de Element Pack y sus widgets fusionados, vacía sus cachés y deja su informe en Herramientas → Migrar a DIGITALÍSIMO Elements. <strong>Modifica todos los sitios de la red.</strong> No borra ningún plugin: cuando hayas comprobado los sitios, los eliminas desde Red → Plugins.</p>';
+		echo '<p>Un solo paso para toda la red. <strong>Migrar toda la red</strong> desactiva en toda la red los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro y PRO Elements al empezar; Element Pack y su Addon cuando cada sitio tiene listas sus plantillas; Prime Slider al final) y después hace en cada uno de los ' . count( $sites ) . ' sitios lo mismo que el botón de su herramienta: desactiva los que tenga activos por sitio, convierte su contenido de Element Pack y sus widgets fusionados, vacía sus cachés y deja su informe en Herramientas → Migrar a DIGITALÍSIMO Elements. <strong>Modifica todos los sitios de la red.</strong> No borra ningún plugin: cuando hayas comprobado los sitios, los eliminas desde Red → Plugins.</p>';
 		self::assets();
 		echo '<div id="digi-migrate" class="digi-migrate" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( Runner::AJAX . '_network' ) ) . '" data-network="1" data-running="' . ( $running ? '1' : '0' ) . '">';
 		echo '<p><button type="button" class="button button-primary button-hero digi-migrate__button"' . ( $running ? ' disabled' : '' ) . '>Migrar toda la red</button></p>';
@@ -1035,6 +1246,10 @@ final class Migration {
 		$kept = Runner::kept_network();
 		if ( $kept ) {
 			echo '<div class="notice notice-info inline"><p>' . esc_html( Dropped::kept_notice( $kept, 'La columna «Sin equivalente» y la herramienta de cada sitio dicen qué usa cada uno.' ) ) . '</p></div>';
+		}
+		// Contraseñas de aplicación, una vez por usuario de la red (sólo un superadministrador ve los nombres).
+		if ( class_exists( __NAMESPACE__ . '\\Platform\\Inventory' ) && method_exists( __NAMESPACE__ . '\\Platform\\Inventory', 'network_app_passwords' ) ) {
+			echo Platform\Inventory::app_passwords_html( (array) Platform\Inventory::network_app_passwords(), 'network' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Inventory.
 		}
 		echo '</div>';
 	}

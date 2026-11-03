@@ -1,0 +1,59 @@
+{
+  "normal-hover": {
+    "_widget": "image",
+    "element_pack_widget_transform": "yes",
+    "element_pack_translate_toggle_normal": "yes",
+    "element_pack_widget_effect_transy_normal": {
+      "unit": "px",
+      "size": -10
+    },
+    "element_pack_scale_hover": "yes",
+    "element_pack_widget_effect_scalex_hover": {
+      "unit": "px",
+      "size": 1.1
+    },
+    "element_pack_widget_effect_scaley_hover": {
+      "unit": "px",
+      "size": 1.1
+    },
+    "element_pack_rotate_toggle_hover": "yes",
+    "element_pack_widget_effect_rotatey_hover": {
+      "unit": "px",
+      "size": 20
+    },
+    "_expect_css": [
+      "--ep-effect-trans-y-normal:-10px"
+    ],
+    "_expect_json": [
+      "\"_transform_translateY_effect\":{\"unit\":\"px\",\"size\":-10",
+      "\"_transform_scale_effect_hover\":{\"unit\":\"px\",\"size\":1.1",
+      "\"_transform_rotate_3d_hover\":\"yes\"",
+      "\"_transform_transition_hover\":{\"unit\":\"ms\",\"size\":300"
+    ],
+    "_expect_codes": [
+      "ext.converted.transform_effects"
+    ]
+  },
+  "parent": {
+    "_widget": "heading",
+    "title": "Hijo",
+    "element_pack_widget_transform": "yes",
+    "element_pack_translate_toggle_hover": "yes",
+    "element_pack_widget_effect_transx_hover": {
+      "unit": "px",
+      "size": 8
+    },
+    "_section": {
+      "element_pack_section_transform": "wrapper",
+      "element_pack_section_overflow": "hidden"
+    },
+    "_expect_json": [
+      "\"overflow\":\"hidden\"",
+      ":hover .elementor-element-w",
+      "--e-transform-translateX:8px"
+    ],
+    "_expect_codes": [
+      "ext.converted.transform_effects"
+    ]
+  }
+}

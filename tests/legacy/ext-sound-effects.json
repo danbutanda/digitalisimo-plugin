@@ -1,0 +1,8 @@
+{
+  "defaults": {
+    "_widget": "button",
+    "text": "Sonido",
+    "ep_sound_effects_active": "yes",
+    "_expect_codes": []
+  }
+}

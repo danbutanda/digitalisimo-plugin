@@ -168,7 +168,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-fancy-card__link' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-fancy-card__link svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'readmore_background',
@@ -208,7 +207,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-fancy-card__link:hover' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-fancy-card__link:hover svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'readmore_hover_background',

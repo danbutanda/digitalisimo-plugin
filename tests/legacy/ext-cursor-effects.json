@@ -1,0 +1,9 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Cursor",
+    "element_pack_cursor_effects_show": "yes",
+    "element_pack_cursor_effects_source": "text",
+    "_expect_codes": []
+  }
+}

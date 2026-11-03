@@ -7,7 +7,8 @@ $placeholder_url = class_exists( '\Elementor\Utils' ) ? \Elementor\Utils::get_pl
 return array(
 	'target'    => 'digitalisimo-fancy-slider',
 	// Clases del render de Element Pack 9.9.1 y 10.0.1 (idéntico) → marcado propio. Las usa scripts/legacy-styles.py
-	// con límite de clase: `-img` no toca `-img-wrap`, y `-button a` va al enlace, que en el propio es el botón.
+	// con límite de clase: `-img` no toca `-img-wrap`, `-button a` va al enlace, que en el propio es el botón, y el icono
+	// de cada flecha (`i`) es el texto del botón propio.
 	'classes'   => array(
 		'.bdt-ep-fancy-slider-title'    => '.digi-fancy-slider__title',
 		'.bdt-ep-fancy-slider-subtitle' => '.digi-fancy-slider__subtitle',
@@ -18,6 +19,10 @@ return array(
 		'.bdt-ep-fancy-slider-item'     => '.digi-fancy-slider__slide',
 		'.bdt-ep-fancy-slider-img'      => '.digi-fancy-slider__media',
 		'.bdt-ep-fancy-slider-image'    => '.digi-fancy-slider__media',
+		'.bdt-navigation-prev:hover i'  => '.digi-carousel__button[data-digi-carousel-prev]:hover',
+		'.bdt-navigation-next:hover i'  => '.digi-carousel__button[data-digi-carousel-next]:hover',
+		'.bdt-navigation-prev i'        => '.digi-carousel__button[data-digi-carousel-prev]',
+		'.bdt-navigation-next i'        => '.digi-carousel__button[data-digi-carousel-next]',
 		'.bdt-navigation-prev'          => '.digi-carousel__button[data-digi-carousel-prev]',
 		'.bdt-navigation-next'          => '.digi-carousel__button[data-digi-carousel-next]',
 	),

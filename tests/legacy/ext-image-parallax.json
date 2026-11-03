@@ -1,0 +1,52 @@
+{
+  "una-capa": {
+    "_widget": "heading",
+    "title": "Capas",
+    "_section": {
+      "section_parallax_elements": [
+        {
+          "_id": "a1",
+          "section_parallax_title": "Capa",
+          "section_parallax_image": {
+            "id": 0,
+            "url": "https://example.com/wp-content/uploads/capa.png"
+          },
+          "section_parallax_depth": 0.3
+        }
+      ]
+    },
+    "_expect_json": [
+      "\"background_motion_fx_motion_fx_mouse\":\"yes\"",
+      "\"background_motion_fx_mouseTrack_speed\":{\"unit\":\"px\",\"size\":3",
+      "capa.png"
+    ],
+    "_expect_codes": [
+      "ext.converted.image_parallax"
+    ]
+  },
+  "dos-capas": {
+    "_widget": "heading",
+    "title": "Dos capas",
+    "_section": {
+      "section_parallax_elements": [
+        {
+          "_id": "a1",
+          "section_parallax_image": {
+            "id": 0,
+            "url": "https://example.com/wp-content/uploads/a.png"
+          }
+        },
+        {
+          "_id": "a2",
+          "section_parallax_image": {
+            "id": 0,
+            "url": "https://example.com/wp-content/uploads/b.png"
+          }
+        }
+      ]
+    },
+    "_expect_codes": [
+      "ext.review.layers"
+    ]
+  }
+}

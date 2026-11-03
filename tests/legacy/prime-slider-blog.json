@@ -1,0 +1,146 @@
+{
+  "_widget": "prime-slider-blog",
+  "_family": "E",
+  "_comentario": "Datos sintéticos con la forma que guarda el editor (research-ps.md §3.1): sin los valores por defecto, que rellena la conversión. Los marcadores {{…}} los expande la prueba: perfiles del proveedor con los patrones de vendors.json y {{ps_assets}} con la carpeta de Lite del sitio simulado. Términos por term_taxonomy_id (52 es el de «Noticias» en la prueba; 999 no existe).",
+  "defaults": {
+    "social_link_list": [
+      {
+        "_id": "v1",
+        "social_link_title": "Facebook",
+        "social_icon_link": {
+          "url": "{{vendor_profile:facebook}}"
+        },
+        "social_icon": {
+          "value": "fab fa-facebook",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "v2",
+        "social_link_title": "Twitter",
+        "social_icon_link": {
+          "url": "{{vendor_profile:twitter}}"
+        },
+        "social_icon": {
+          "value": "fab fa-twitter",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "v3",
+        "social_link_title": "Instagram",
+        "social_icon_link": {
+          "url": "{{vendor_profile:instagram}}"
+        },
+        "social_icon": {
+          "value": "fab fa-instagram",
+          "library": "fa-brands"
+        }
+      }
+    ],
+    "section_id": "my-header",
+    "scroll_button_text": "Scroll Down"
+  },
+  "custom": {
+    "_margin": {
+      "unit": "px",
+      "top": "10",
+      "right": "0",
+      "bottom": "10",
+      "left": "0",
+      "isLinked": false
+    },
+    "_css_classes": "mi-carrusel",
+    "_element_id": "portada",
+    "_title": "Carrusel de portada",
+    "hide_mobile": "hidden-mobile",
+    "_skin": "coral",
+    "posts_limit": 6,
+    "posts_include_by": [
+      "terms"
+    ],
+    "posts_include_term_ids": [
+      "52"
+    ],
+    "posts_orderby": "title",
+    "posts_order": "asc",
+    "show_comments": "",
+    "button_text": "Leer la nota",
+    "content_alignment": "center",
+    "enable_height": "yes",
+    "viewport_height": {
+      "unit": "vh",
+      "size": 80,
+      "sizes": []
+    },
+    "viewport_height_mobile": {
+      "unit": "vh",
+      "size": 60,
+      "sizes": []
+    },
+    "autoplay": "",
+    "finite": "",
+    "kenburns_animation": "yes",
+    "social_link_list": [
+      {
+        "_id": "v1",
+        "social_link_title": "Facebook",
+        "social_icon_link": {
+          "url": "{{vendor_profile:facebook}}"
+        },
+        "social_icon": {
+          "value": "fab fa-facebook",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "u1",
+        "social_link_title": "Facebook",
+        "social_icon_link": {
+          "url": "https://www.facebook.com/negocio-de-prueba",
+          "is_external": "on",
+          "nofollow": ""
+        },
+        "social_icon": {
+          "value": "fab fa-facebook",
+          "library": "fa-brands"
+        }
+      }
+    ],
+    "section_id": "contenido",
+    "scroll_button_text": "Bajar",
+    "duration": {
+      "unit": "px",
+      "size": 600,
+      "sizes": []
+    }
+  },
+  "styled": {
+    "title_color": "#FF0000",
+    "excerpt_color": "rgba(255,255,255,0.8)",
+    "title_typography_typography": "custom",
+    "title_typography_font_size": {
+      "unit": "px",
+      "size": 40,
+      "sizes": []
+    },
+    "overlay": "blend",
+    "overlay_color": "red;}body{display:none}",
+    "slide_button_background_color": "#0000FF",
+    "slide_button_text_color": "expression(alert(1))",
+    "slider_size_ratio": {
+      "width": "21",
+      "height": "9"
+    },
+    "slider_min_height": {
+      "unit": "px",
+      "size": 500,
+      "sizes": []
+    },
+    "custom_css": "selector .bdt-title-tag{color:red}",
+    "category_icon_color": "#123456",
+    "meta_icon_color": "#654321",
+    "show_social_icon": "",
+    "show_scroll_button": ""
+  }
+}

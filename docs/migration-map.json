@@ -161,7 +161,7 @@
       "decision": "DESCARTAR",
       "decision_target": "",
       "legacy_documents": "no se reproduce",
-      "decision_reason": "Calculadora basada en fórmulas propias de Element Pack evaluadas con su script; no hay un motor equivalente seguro sin reimplementar el evaluador. Para contenido nuevo: formulario de PRO Elements con campos calculados o un plugin de calculadoras."
+      "decision_reason": "Calculadora basada en fórmulas propias de Element Pack evaluadas con su script; no hay un motor equivalente seguro sin reimplementar el evaluador. Para contenido nuevo: formulario de DIGITALÍSIMO Elements con campos calculados o un plugin de calculadoras."
     },
     "bdt-advanced-counter": {
       "target": "counter",
@@ -2233,7 +2233,7 @@
       "decision": "DESCARTAR",
       "decision_target": "",
       "legacy_documents": "no se reproduce",
-      "decision_reason": "Botones flotantes de contacto (WhatsApp, Messenger, etc.); PRO Elements incluye botones flotantes para contenido nuevo."
+      "decision_reason": "Botones flotantes de contacto (WhatsApp, Messenger, etc.); DIGITALÍSIMO Elements incluye botones flotantes para contenido nuevo."
     },
     "bdt-honeycombs": {
       "target": null,
@@ -2732,11 +2732,12 @@
       "setting_mappings": {},
       "responsive_conversions": {},
       "skin_conversions": {},
-      "status": "pending",
-      "decision": "COMPARTIR",
-      "decision_target": "mega-menu",
-      "legacy_documents": "no se reproduce",
-      "decision_reason": "Mega menú con plantillas por elemento de menú; el Mega Menu de PRO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento."
+      "status": "F8: navigation kept on nav-menu with the same WordPress menu; content panels reported for rebuild",
+      "decision": "ADAPTAR",
+      "decision_target": "nav-menu",
+      "legacy_documents": "adaptador publicado",
+      "decision_reason": "El mega menú pasa al widget de menú de DIGITALÍSIMO Elements con el mismo menú de WordPress: la navegación se conserva; los paneles con contenido de cada elemento quedan como plantillas sin condiciones para rehacerlos (plat.mega.rebuild).",
+      "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-mega-menu.php (+ .styles.php); F8 (Migración 1.0.21)"
     },
     "bdt-member": {
       "target": "digitalisimo-fancy-card",
@@ -4538,6 +4539,390 @@
       "decision": "ADAPTAR",
       "legacy_adapter": "digitalisimo-migration/legacy/class-masks.php + digitalisimo-elements/modules/digitalisimo-widgets/class-divider-shapes.php; lote 45",
       "status": "Element Pack adds eight ep-* shape dividers whose SVGs it copies into Elementor's folder. During the migration they keep rendering from the original or the own copy; conversion copies the divider and its negative version to uploads/digitalisimo-elements/shapes/ of the site and renames the setting to digi-<name> (mezquita, navidad, colinas…), which DIGITALÍSIMO Elements registers from the site files. Multisite A/B with Element Pack 9.9.1."
+    },
+    "tooltip": {
+      "decision": "MIGRAR",
+      "treatment": "trait",
+      "target": "digitalisimo_tooltip* (rasgo «Información emergente» de DIGITALÍSIMO Elements)",
+      "losses": [
+        "seguir el cursor",
+        "animaciones que no son fundido",
+        "disparador por selector",
+        "alineación inicio/fin/automática del globo",
+        "HTML fuera de strong, em, b, i y br (los enlaces se quitan)"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "element_pack_widget_tooltip"
+        ],
+        "prefixes": [
+          "element_pack_widget_tooltip"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict). Requires DIGITALÍSIMO Elements 4.3.0.170 (trait «Información emergente»)."
+    },
+    "transform-effects": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "_transform_* y _transform_*_hover del núcleo, _transform_transition_hover, overflow y custom_css (retardo, curva y hover del padre)",
+      "losses": [
+        "orden de composición de las funciones",
+        "perspectiva 3D (se aproxima con 1000 px)"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "element_pack_widget_transform",
+          "element_pack_section_transform",
+          "element_pack_column_transform"
+        ],
+        "prefixes": [
+          "element_pack_widget_transform",
+          "element_pack_widget_effect_",
+          "element_pack_widget_motion_effect_",
+          "element_pack_translate_toggle_",
+          "element_pack_rotate_toggle_",
+          "element_pack_scale_",
+          "element_pack_skew_",
+          "element_pack_section_transform",
+          "element_pack_section_overflow",
+          "element_pack_column_transform",
+          "element_pack_column_overflow"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "parallax-effects": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "motion_fx_* de desplazamiento + desfase en _transform_*",
+      "losses": [
+        "tono",
+        "sepia",
+        "curva",
+        "destino «sección»",
+        "valores en vw y paradas múltiples",
+        "transición CSS",
+        "en columnas nunca corría"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "ep_parallax_effects_show"
+        ],
+        "prefixes": [
+          "ep_parallax_effects_"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "background-parallax": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "background_motion_fx_* de desplazamiento",
+      "losses": [
+        "amplitud exacta en px (se supone una altura de 600 px)",
+        "colores de fondo y borde al desplazar"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "section_parallax_on"
+        ],
+        "prefixes": [
+          "ep_parallax_bg_"
+        ],
+        "bare": [
+          "section_parallax_on",
+          "section_parallax_value",
+          "section_parallax_x_value"
+        ]
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "image-parallax": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "contenedor: un hijo absoluto por capa con fondo y motion_fx de ratón; sección con una capa: fondo con background_motion_fx de ratón",
+      "losses": [
+        "modos recorte y sólo al pasar el puntero",
+        "giroscopio",
+        "fricción",
+        "colores al desplazar"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "section_parallax_elements",
+          "element_pack_sbgc_parallax_show",
+          "element_pack_sbc_parallax_show"
+        ],
+        "prefixes": [
+          "element_pack_sbgc_parallax_",
+          "element_pack_sbc_parallax_"
+        ],
+        "bare": [
+          "section_parallax_elements",
+          "section_parallax_mode"
+        ]
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "background-overlay": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "custom_css con selector::before",
+      "losses": [
+        "edición con controles",
+        "índice z dinámico",
+        "imagen de la superposición (nunca una URL absoluta en el CSS)"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "element_pack_background_overlay"
+        ],
+        "prefixes": [
+          "element_pack_background_overlay",
+          "ep_background_overlay_",
+          "ep_css_filters_",
+          "ep_overlay_blend_mode"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "background-expand": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "acción con destino de F7b (al aparecer, poner la clase bx-active) + custom_css",
+      "losses": [
+        "volver a encogerse al subir",
+        "arranque en el centro de la pantalla (ahora en el primer píxel visible)"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "ep_bg_expand_enable"
+        ],
+        "prefixes": [
+          "ep_bg_expand_"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "section-sticky": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "sticky, sticky_on, sticky_offset y sticky_parent de PRO + custom_css sobre .elementor-sticky--active",
+      "losses": [
+        "mostrar al subir",
+        "animación",
+        "posición automática",
+        "«hasta» un selector distinto de la columna padre",
+        "corte de 960 px aproximado"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "section_sticky_on"
+        ],
+        "prefixes": [],
+        "bare": [
+          "section_sticky_"
+        ]
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "equal-height": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "flex_align_items = stretch (contenedor) o custom_css (un widget por columna)",
+      "losses": [
+        "igualar por filas con varios widgets",
+        "modos de primer, segundo y tercer hijo",
+        "selector propio"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "section_equal_height_on"
+        ],
+        "prefixes": [],
+        "bare": [
+          "section_equal_height_",
+          "equal_height_important_note"
+        ]
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "reveal-effects": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "_animation y animation_duration del núcleo",
+      "losses": [
+        "barrido con bloque de color",
+        "curva",
+        "umbral de aparición"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "element_pack_reveal_effects_enable"
+        ],
+        "prefixes": [
+          "element_pack_reveal_effects_"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "scroll-fill-effect": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "custom_css con animation-timeline (relleno y máscara) o motion_fx de escala y opacidad",
+      "losses": [
+        "animación letra a letra y cambio de color",
+        "disparadores escritos a mano",
+        "sin animation-timeline (Firefox), el estado final"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "ep_widget_sf_fx_enable"
+        ],
+        "prefixes": [
+          "ep_widget_sf_fx_"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "scroll-box": {
+      "decision": "MIGRAR",
+      "treatment": "exact",
+      "target": "custom_css (barras de desplazamiento con estilo, también scrollbar-color para Firefox)",
+      "losses": [],
+      "legacy_keys": {
+        "switch": [
+          "ep_scroll_box_enable"
+        ],
+        "prefixes": [
+          "ep_scroll_box_"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "threed-text": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "custom_css (text-shadow en capas) + motion_fx de inclinación con el ratón",
+      "losses": [
+        "3D real con perspectiva",
+        "giro al desplazar"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "ep_threed_text_active"
+        ],
+        "prefixes": [
+          "ep_threed_text_"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "grid-line": {
+      "decision": "MIGRAR",
+      "treatment": "exact",
+      "target": "custom_css de los ajustes del documento (body::before y body::after)",
+      "losses": [],
+      "legacy_keys": {
+        "switch": [
+          "ep_grid_line_enable"
+        ],
+        "prefixes": [
+          "ep_grid_line_"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "global-badge": {
+      "decision": "MIGRAR",
+      "treatment": "trait",
+      "target": "digitalisimo_badge* (rasgo «Distintivo» de DIGITALÍSIMO Elements)",
+      "losses": [
+        "icono animado (Lottie)",
+        "capa SVG en código",
+        "flotación con giro, opacidad o desenfoque",
+        "color, tamaño y separación del icono"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "ep_global_badge_enable"
+        ],
+        "prefixes": [
+          "ep_global_badge_"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict). Requires DIGITALÍSIMO Elements 4.3.0.170 (trait «Distintivo»)."
+    },
+    "image-hover-effects": {
+      "decision": "MIGRAR",
+      "treatment": "exact",
+      "target": "custom_css con el CSS del efecto (GPL, atribuido) y movimiento reducido",
+      "losses": [],
+      "legacy_keys": {
+        "switch": [
+          "ep_image_hover_effects_on"
+        ],
+        "prefixes": [
+          "ep_image_hover_effects_"
+        ],
+        "bare": [
+          "hover_effects",
+          "effects_color",
+          "effets_width",
+          "effects_duration"
+        ]
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "animated-gradient-background": {
+      "decision": "MIGRAR",
+      "treatment": "approx",
+      "target": "custom_css con selector::after y @keyframes (movimiento reducido respetado)",
+      "losses": [
+        "interpolación de color entre pares",
+        "pausa fuera de pantalla"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "element_pack_agbg_show"
+        ],
+        "prefixes": [
+          "element_pack_agbg_"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8) from digitalisimo-migration/legacy/effects/ (Effects\\Dispatcher, keys.php); no runtime adapter: between the deactivation of Element Pack and the conversion of each document the effect is not applied. Interpolated CSS values validated by Effects\\Css_Value; never overwrites an own value (ext.conflict)."
+    },
+    "custom-js": {
+      "decision": "MIGRAR",
+      "treatment": "draft",
+      "target": "borrador de Código personalizado (elementor_snippet) con la condición del documento; nunca se ejecuta solo",
+      "losses": [
+        "ejecución automática (a propósito: una persona lo revisa y lo publica)"
+      ],
+      "legacy_keys": {
+        "switch": [
+          "ep_custom_header_script",
+          "ep_custom_footer_script"
+        ],
+        "prefixes": [
+          "ep_custom_header_script",
+          "ep_custom_footer_script"
+        ],
+        "bare": []
+      },
+      "status": "Converted by Migrar since Migración 1.0.21 (F8): one Custom Code (elementor_snippet) draft per field, limited to the document, only if whoever launched the task has unfiltered_html; never published automatically (ext.review.customjs). In templates, headers, footers and popups it never ran: reported only."
     }
   }
 }

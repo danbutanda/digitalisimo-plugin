@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Información emergente</title>
+<!-- Generado por tests/elements-tooltip.php --write-fixture: no editar a mano. Lo usa elements-tooltip-chrome.mjs. -->
+<link rel="stylesheet" href="../../digitalisimo-elements/elementor/assets/css/frontend.min.css">
+<link rel="stylesheet" href="../../digitalisimo-elements/modules/digitalisimo-widgets/assets/css/tooltip.css">
+<style>body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#1a1a1a;background:#fff}.digi-test-page{padding:0 16px 1200px}.elementor-widget{margin-bottom:96px}.digi-test-chip{display:inline-block;margin:0;padding:4px 8px}.elementor-element-t6edge{margin-left:-16px;width:24px}.elementor-element-t4click{margin-left:min(400px,50vw);width:120px}.elementor-element-t3two{width:300px}.digi-test-gap{height:96px}.digi-element-link{position:absolute;inset:0;z-index:1}
+.elementor-element-t10styled > .elementor-widget-container > .digi-tooltip, .elementor-element-t10styled > .digi-tooltip{--digi-tt-gap: 20px;max-width: 140px;color: #ffffff;background-color: #1d3a8a;padding: 10px 14px 10px 14px;}</style>
+</head>
+<body>
+<div class="digi-test-page">
+<div class="elementor-element elementor-element-t5top elementor-widget elementor-widget-text-editor" data-id="t5top" data-element_type="widget" data-widget_type="text-editor.default" data-digi-tooltip="1"><div class="elementor-widget-container"><p class="digi-test-chip">Pegado arriba</p><span class="digi-tooltip digi-tooltip--top digi-tooltip--arrow" role="tooltip">Arriba no cabe: se voltea</span></div></div>
+<div class="digi-test-gap"></div>
+<div class="elementor-element elementor-element-t1text elementor-widget elementor-widget-heading" data-id="t1text" data-element_type="widget" data-widget_type="heading.default" data-digi-tooltip="1"><div class="elementor-widget-container"><h2 class="digi-test-chip">Encabezado sin enlaces</h2><span class="digi-tooltip digi-tooltip--top digi-tooltip--arrow" role="tooltip">Sólo texto: <strong>se lee</strong><br>sin foco vacío</span></div></div>
+<div class="elementor-element elementor-element-t2link elementor-widget elementor-widget-button" data-id="t2link" data-element_type="widget" data-widget_type="button.default" data-digi-tooltip="1"><div class="elementor-widget-container"><a class="digi-test-chip" href="#destino">Un botón</a><span class="digi-tooltip digi-tooltip--bottom" role="tooltip">Describe el botón</span></div></div>
+<div class="elementor-element elementor-element-t3two elementor-widget elementor-widget-text-editor" data-id="t3two" data-element_type="widget" data-widget_type="text-editor.default" data-digi-tooltip="1"><p class="digi-test-chip"><a href="#uno">Uno</a> y <a href="#dos" aria-describedby="digi-test-previa">dos</a></p><span id="digi-test-previa" hidden>Descripción previa</span><span class="digi-tooltip digi-tooltip--right" role="tooltip">Dos enlaces, marcado optimizado</span></div>
+<div class="elementor-element elementor-element-t4click elementor-widget elementor-widget-text-editor" data-id="t4click" data-element_type="widget" data-widget_type="text-editor.default" data-digi-tooltip="1" data-digi-tooltip-trigger="click"><div class="elementor-widget-container"><button class="digi-test-chip" type="button">Ayuda</button><span class="digi-tooltip digi-tooltip--left digi-tooltip--arrow" role="tooltip">Se abre con un clic</span></div></div>
+<div class="elementor-element elementor-element-t6edge elementor-widget elementor-widget-icon" data-id="t6edge" data-element_type="widget" data-widget_type="icon.default" data-digi-tooltip="1"><div class="elementor-widget-container"><a class="digi-test-chip" href="#borde">i</a><span class="digi-tooltip digi-tooltip--top" role="tooltip">Un texto de ayuda bastante largo que ocupa varias líneas en un teléfono y no debe salirse de la ventana por ningún lado.</span></div></div>
+<div class="elementor-element elementor-element-t7nested elementor-widget elementor-widget-nested-tabs" data-id="t7nested" data-element_type="widget" data-widget_type="nested-tabs.default" data-digi-tooltip="1"><div class="elementor-widget-container"><div class="digi-test-chip"><a href="#fuera">Fuera</a><div class="elementor-element elementor-element-t7inner elementor-widget elementor-widget-text-editor" data-id="t7inner" data-element_type="widget" data-widget_type="text-editor.default" data-digi-tooltip="1"><div class="elementor-widget-container"><a href="#dentro">Dentro</a><span class="digi-tooltip digi-tooltip--bottom" role="tooltip">El de dentro</span></div></div></div><span class="digi-tooltip digi-tooltip--top" role="tooltip">El de fuera</span></div></div>
+<div class="elementor-element elementor-element-t9overlay elementor-widget elementor-widget-text-editor" data-id="t9overlay" data-element_type="widget" data-widget_type="text-editor.default" data-digi-tooltip="1"><a class="digi-element-link" href="#tarjeta" aria-label="Abrir la tarjeta"></a><div class="elementor-widget-container"><p class="digi-test-chip">Tarjeta enlazada</p><span class="digi-tooltip digi-tooltip--top" role="tooltip">Todo el elemento es un enlace</span></div></div>
+<div class="elementor-element elementor-element-t10styled elementor-widget elementor-widget-text-editor" data-id="t10styled" data-element_type="widget" data-widget_type="text-editor.default" data-digi-tooltip="1"><div class="elementor-widget-container"><a class="digi-test-chip" href="#estilo">Con estilo</a><span class="digi-tooltip digi-tooltip--top digi-tooltip--arrow" role="tooltip">Estilo propio</span></div></div>
+<p><a href="#fin" id="fin">Enlace final</a></p>
+</div>
+<script src="../../digitalisimo-elements/modules/digitalisimo-widgets/assets/js/tooltip.js" defer></script>
+</body>
+</html>

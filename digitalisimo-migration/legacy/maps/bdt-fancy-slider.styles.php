@@ -113,7 +113,7 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-carousel__button[data-digi-carousel-prev] i, {{WRAPPER}} .digi-carousel__button[data-digi-carousel-next] i' => 'color: {{VALUE}}',
+			'{{WRAPPER}} .digi-carousel__button[data-digi-carousel-prev], {{WRAPPER}} .digi-carousel__button[data-digi-carousel-next]' => 'color: {{VALUE}}',
 		),
 		'condition' => array(
 			'navigation!' => array( 'dots', 'progressbar', 'none' ),
@@ -159,7 +159,7 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-carousel__button[data-digi-carousel-prev] i, {{WRAPPER}} .digi-carousel__button[data-digi-carousel-next] i' => 'font-size: {{SIZE || 24}}{{UNIT}};',
+			'{{WRAPPER}} .digi-carousel__button[data-digi-carousel-prev], {{WRAPPER}} .digi-carousel__button[data-digi-carousel-next]' => 'font-size: {{SIZE || 24}}{{UNIT}};',
 		),
 		'condition' => array(
 			'navigation!' => array( 'dots', 'progressbar', 'none' ),
@@ -184,7 +184,7 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-carousel__button[data-digi-carousel-prev]:hover i, {{WRAPPER}} .digi-carousel__button[data-digi-carousel-next]:hover i' => 'color: {{VALUE}}',
+			'{{WRAPPER}} .digi-carousel__button[data-digi-carousel-prev]:hover, {{WRAPPER}} .digi-carousel__button[data-digi-carousel-next]:hover' => 'color: {{VALUE}}',
 		),
 		'condition' => array(
 			'navigation!' => array( 'dots', 'progressbar', 'none' ),
@@ -270,80 +270,6 @@ return array( array(
 				'title' => 'Bottom',
 				'icon' => 'eicon-v-align-bottom',
 			),
-		),
-	), array(
-		'name' => 'fraction_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-pagination-fraction' => 'color: {{VALUE}}',
-		),
-		'condition' => array(
-			'navigation' => 'arrows-fraction',
-		),
-	), array(
-		'name' => 'active_fraction_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-pagination-current' => 'color: {{VALUE}}',
-		),
-		'condition' => array(
-			'navigation' => 'arrows-fraction',
-		),
-	), array(
-		'name' => 'fraction_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .swiper-pagination-fraction',
-	), array(
-		'name' => 'progresbar_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-pagination-progressbar' => 'background-color: {{VALUE}}',
-		),
-		'condition' => array(
-			'navigation' => 'progressbar',
-		),
-	), array(
-		'name' => 'progres_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-pagination-progressbar .swiper-pagination-progressbar-fill' => 'background: {{VALUE}}',
-		),
-		'condition' => array(
-			'navigation' => 'progressbar',
-		),
-	), array(
-		'name' => 'scrollbar_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-scrollbar' => 'background: {{VALUE}}',
-		),
-		'condition' => array(
-			'show_scrollbar' => 'yes',
-		),
-	), array(
-		'name' => 'scrollbar_drag_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-scrollbar .swiper-scrollbar-drag' => 'background: {{VALUE}}',
-		),
-		'condition' => array(
-			'show_scrollbar' => 'yes',
-		),
-	), array(
-		'name' => 'scrollbar_height',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-horizontal > .swiper-scrollbar' => 'height: {{SIZE}}px;',
-		),
-		'condition' => array(
-			'show_scrollbar' => 'yes',
 		),
 	), array(
 		'name' => 'arrows_ncx_position',
@@ -472,39 +398,6 @@ return array( array(
 		),
 		'mobile_default' => array(
 			'size' => 40,
-		),
-	), array(
-		'name' => 'arrows_fraction_cy_position',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-pagination-fraction' => 'transform: translateY({{SIZE}}px);',
-		),
-		'default' => array(
-			'size' => 30,
-		),
-	), array(
-		'name' => 'progress_y_position',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-pagination-progressbar' => 'transform: translateY({{SIZE}}px);',
-		),
-		'default' => array(
-			'size' => 15,
-		),
-		'condition' => array(
-			'navigation' => 'progressbar',
-		),
-	), array(
-		'name' => 'scrollbar_vertical_offset',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .swiper-horizontal > .swiper-scrollbar' => 'bottom: {{SIZE}}px;',
-		),
-		'condition' => array(
-			'show_scrollbar' => 'yes',
 		),
 	), array(
 		'name' => 'slide_text_align',

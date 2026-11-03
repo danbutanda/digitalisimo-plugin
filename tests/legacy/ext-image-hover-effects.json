@@ -1,0 +1,51 @@
+{
+  "efecto-3": {
+    "_widget": "image",
+    "image": {
+      "id": 0,
+      "url": "https://example.com/wp-content/uploads/foto.jpg"
+    },
+    "ep_image_hover_effects_on": "yes",
+    "hover_effects": "3",
+    "effects_color": "#ff0000",
+    "effets_width": {
+      "unit": "px",
+      "size": 4
+    },
+    "effects_duration": {
+      "unit": "ms",
+      "size": 800
+    },
+    "_expect_css": [
+      "border-width:4px",
+      "transition-duration:800ms"
+    ],
+    "_expect_css_converted": [
+      "border-width:4px",
+      "transition-duration:800ms"
+    ],
+    "_expect_json": [
+      "selector::before{transform:scaleX(0)",
+      "border-color:#ff0000",
+      "prefers-reduced-motion:reduce"
+    ],
+    "_expect_codes": [
+      "ext.converted.image_hover_effects"
+    ]
+  },
+  "defaults": {
+    "_widget": "image",
+    "image": {
+      "id": 0,
+      "url": "https://example.com/wp-content/uploads/foto.jpg"
+    },
+    "ep_image_hover_effects_on": "yes",
+    "_expect_json": [
+      "selector:hover::before{inset-block-start:0;inset-block-end:0}",
+      "background:rgba(0, 0, 0, .1)"
+    ],
+    "_expect_codes": [
+      "ext.converted.image_hover_effects"
+    ]
+  }
+}

@@ -62,6 +62,35 @@ namespace {
 		check_budget( str_contains( $class, 'wp_register_style(' ) && str_contains( $class, "'assets'" ) && str_contains( $class, "'styles'" ) && ! str_contains( $class, 'wp_enqueue_style(' ), $handle . ': sólo se registra y se declara en `assets` del control.' );
 		check_budget( ! str_contains( $class, 'wp_register_script(' ) && ! str_contains( $class, 'wp_enqueue_script(' ), $handle . ': 0 JS.' );
 	}
+	// Rasgos de F8 (§5): la información emergente, el distintivo y el contador del slider anidado, cada uno en su tope, sin
+	// url() ni jQuery, con movimiento reducido si anima, y sólo registrados: los encola el cargador del núcleo por la
+	// declaración `assets` de su control, en las páginas que los usan (la vista previa del editor encola el contador).
+	$f8_assets = array(
+		'digitalisimo-tooltip'               => array( 'class' => 'modules/digitalisimo-widgets/class-tooltip.php', 'css' => array( 'modules/digitalisimo-widgets/assets/css/tooltip.css', 1536 ), 'js' => array( 'modules/digitalisimo-widgets/assets/js/tooltip.js', 1024 ) ),
+		'digitalisimo-badge'                 => array( 'class' => 'modules/digitalisimo-widgets/class-badge.php', 'css' => array( 'modules/digitalisimo-widgets/assets/css/badge.css', 1024 ), 'js' => null ),
+		'digitalisimo-nested-slider-counter' => array( 'class' => 'modules/digitalisimo-f7b/nested/class-slider-widget.php', 'register' => 'modules/digitalisimo-f7b/nested/class-module.php', 'css' => array( 'modules/digitalisimo-f7b/assets/css/nested-slider-counter.css', 256 ), 'js' => array( 'modules/digitalisimo-f7b/assets/js/nested-slider-counter.js', 512 ) ),
+	);
+	foreach ( $f8_assets as $handle => $asset ) {
+		$class    = (string) file_get_contents( $root . '/' . $asset['class'] );
+		$register = isset( $asset['register'] ) ? (string) file_get_contents( $root . '/' . $asset['register'] ) : $class;
+		$sheet    = (string) file_get_contents( $root . '/' . $asset['css'][0] );
+		check_budget( '' !== $sheet && strlen( $sheet ) <= $asset['css'][1], $handle . ': la hoja pesa ' . strlen( $sheet ) . ' B, más de ' . $asset['css'][1] . ' (§5).' );
+		check_budget( ! preg_match( '/url\(/i', $sheet ), $handle . ': sin url() en la hoja.' );
+		if ( preg_match( '/@keyframes|animation:|transition:/', $sheet ) ) { check_budget( str_contains( $sheet, 'prefers-reduced-motion' ), $handle . ': la hoja anima sin respetar el movimiento reducido.' ); }
+		check_budget( str_contains( $class, "'assets'" ) && str_contains( $class, "'styles'" ) && ( null === $asset['js'] || str_contains( $class, "'scripts'" ) ), $handle . ': se declara en `assets` de su control.' );
+		$outside = preg_replace( '/function preview_counter_(style|script)\(\).*?\n\t\}/s', '', $register . $class );
+		check_budget( ! preg_match( '/wp_enqueue_(style|script)\(\s*(self::COUNTER_HANDLE|self::HANDLE|\'' . preg_quote( $handle, '/' ) . '\')/', $outside ), $handle . ': sólo se registra (lo encola el núcleo), salvo en la vista previa del editor.' );
+		if ( null === $asset['js'] ) {
+			check_budget( ! str_contains( $class, 'wp_register_script(' ) && ! is_file( $root . '/' . str_replace( '.css', '.js', str_replace( '/css/', '/js/', $asset['css'][0] ) ) ), $handle . ': 0 JS.' );
+			continue;
+		}
+		$script = (string) file_get_contents( $root . '/' . $asset['js'][0] );
+		check_budget( '' !== $script && strlen( $script ) <= $asset['js'][1] && ! preg_match( '/jQuery|\$\(/', $script ), $handle . ': el script pesa ' . strlen( $script ) . ' B (tope ' . $asset['js'][1] . ') y no usa jQuery.' );
+		preg_match_all( '/wp_register_script\(.*?\);/s', $register, $found );
+		$mine = array_filter( $found[0], function ( $r ) use ( $handle ) { return str_contains( $r, 'COUNTER_HANDLE' ) || str_contains( $r, 'self::HANDLE' ) || str_contains( $r, "'" . $handle . "'" ); } );
+		check_budget( 1 === count( $mine ) && str_contains( reset( $mine ), "'strategy' => 'defer'" ) && ! str_contains( reset( $mine ), "'jquery'" ), $handle . ': el script se registra con defer y sin jQuery.' );
+	}
+	check_budget( 3066 === filesize( $root . '/modules/digitalisimo-f7b/assets/css/nested-slider.css' ) && 5119 === filesize( $root . '/modules/digitalisimo-f7b/assets/js/nested-slider.js' ), 'El contador no cambia nested-slider.css ni nested-slider.js (3 066 B y 5 119 B, §5).' );
 	// Entradas del registro: nombre => array( 'file' => ..., 'class' => ..., 'css' => ... ) sin paréntesis anidados.
 	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(([^()]*)\)/", $registry, $entries, PREG_SET_ORDER );
 	$files = array();

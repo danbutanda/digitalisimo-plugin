@@ -1,9 +1,68 @@
 // Compara las firmas de contenido de las fases A (Element Pack) y B (adaptador propio).
+//
+// Firma de estilos (F8, frente B): además de texto, enlaces e imágenes, `signature.styles` guarda el estilo computado de
+// las partes que el mapa traduce (`classes` de maps/<id>.php: la clase de Element Pack en la fase A, la propia en las
+// demás). Se compara si las dos fases la traen; así un selector muerto deja de pasar inadvertido. La recoge en el
+// navegador quien pinta las fases (Playground con Element Pack Lite oficial, P10) con `stylePairs()` y
+// `page.evaluate( collectStyles, pairs, 'legacy' | 'own' )`; sin ella todo sigue como antes.
 import { readFileSync } from 'node:fs';
-const [a, b, c, d, e] = process.argv.slice(2).map((f) => JSON.parse(readFileSync(f, 'utf8')));
+import { pathToFileURL } from 'node:url';
+
+export const STYLE_PROPS = [
+  'color', 'background-color', 'background-image', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'text-transform',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width', 'border-top-style', 'border-top-color',
+  'border-top-left-radius', 'border-top-right-radius', 'border-bottom-right-radius', 'border-bottom-left-radius', 'box-shadow', 'text-shadow',
+];
+
+// Pares { key, legacy, own } de un mapa: la clase de Element Pack y su destino propio. Las entradas sin destino ('')
+// no tienen parte que medir. El bloque `classes` es un literal (los mapas llevan closures, así que no se ejecutan).
+export function stylePairs(mapPhp) {
+  const block = /^\t'classes'\s*=>\s*(?:\$\w+\s*\+\s*)?array\(([\s\S]*?)\n?\t\),$/m.exec(mapPhp);
+  if (!block) return [];
+  return [...block[1].matchAll(/'((?:[^'\\]|\\.)*)'\s*=>\s*'((?:[^'\\]|\\.)*)'/g)]
+    .map(([, legacy, own]) => ({ key: legacy, legacy: legacy.replace('{{WRAPPER}}', ''), own: own.replace('{{WRAPPER}}', '') }))
+    .filter((pair) => pair.own.trim() && pair.legacy.trim());
+}
+
+// Se ejecuta en la página (page.evaluate): estilo computado del primer elemento de cada parte, dentro de cada widget.
+export function collectStyles(pairs, side, props = null) {
+  const list = props || ['color', 'background-color', 'background-image', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'text-transform', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width', 'border-top-style', 'border-top-color', 'border-top-left-radius', 'border-top-right-radius', 'border-bottom-right-radius', 'border-bottom-left-radius', 'box-shadow', 'text-shadow'];
+  const out = {};
+  for (const widget of document.querySelectorAll('.elementor-widget')) {
+    for (const pair of pairs) {
+      if (out[pair.key]) continue;
+      const selector = (side === 'legacy' ? pair.legacy : pair.own).trim();
+      let el = null;
+      try { el = widget.matches(selector) ? widget : widget.querySelector(selector); } catch (error) { el = null; }
+      if (!el) { out[pair.key] = null; continue; }
+      const cs = getComputedStyle(el);
+      out[pair.key] = Object.fromEntries(list.map((p) => [p, cs.getPropertyValue(p)]));
+    }
+  }
+  return out;
+}
+
+// Diferencias de la firma de estilos entre dos fases: [ 'clave propiedad: A → B' ]. Una parte que falta en una fase
+// se informa aparte (missing), porque puede ser un estado que esa fase no pinta.
+export function compareStyles(stylesA, stylesB) {
+  const diffs = [];
+  const missing = [];
+  for (const [key, valuesA] of Object.entries(stylesA || {})) {
+    const valuesB = (stylesB || {})[key];
+    if (!valuesA || !valuesB) { if (valuesA || valuesB) missing.push(key); continue; }
+    for (const [prop, value] of Object.entries(valuesA)) {
+      if (prop in valuesB && valuesB[prop] !== value) diffs.push(`${key} ${prop}: ${value} → ${valuesB[prop]}`);
+    }
+  }
+  return { diffs, missing };
+}
+
+const main = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const [a, b, c, d, e] = main ? process.argv.slice(2).map((f) => JSON.parse(readFileSync(f, 'utf8'))) : [];
 let failed = 0;
 const norm = (list) => list.map((s) => s.normalize('NFC'));
-for (const [widget, cases] of Object.entries(a.widgets)) {
+for (const [widget, cases] of Object.entries(main ? a.widgets : {})) {
   for (const [name, blogs] of Object.entries(cases)) {
     for (const [blog, entryA] of Object.entries(blogs)) {
       const entryB = b.widgets?.[widget]?.[name]?.[blog];
@@ -20,6 +79,15 @@ for (const [widget, cases] of Object.entries(a.widgets)) {
         if (extra.length) target.push(`${key} adicional: ${JSON.stringify(extra)}${why}`);
       }
       if (entryB?.editor_resave && !entryB.editor_resave.ok) problems.push(`tras guardar desde el editor: ${JSON.stringify(entryB.editor_resave)}`);
+      // Firma de estilos de las partes mapeadas: A (Element Pack) frente a B (adaptador) y, si la hay, C (convertido).
+      for (const [phase, entry] of [['B', entryB], ['C', c?.widgets?.[widget]?.[name]?.[blog]]]) {
+        if (!entryA.signature?.styles || !entry?.signature?.styles) continue;
+        const { diffs, missing } = compareStyles(entryA.signature.styles, entry.signature.styles);
+        const target = entryA.known?.styles ? notes : problems;
+        const why = entryA.known?.styles ? ` (conocido: ${entryA.known.styles})` : '';
+        if (diffs.length) target.push(`estilos (${phase}) distintos: ${JSON.stringify(diffs.slice(0, 8))}${diffs.length > 8 ? ` y ${diffs.length - 8} más` : ''}${why}`);
+        if (missing.length) notes.push(`estilos (${phase}) sin la parte: ${missing.join(', ')}`);
+      }
       const entryC = c?.widgets?.[widget]?.[name]?.[blog];
       const entryD = d?.widgets?.[widget]?.[name]?.[blog];
       if (entryC) {
@@ -56,5 +124,7 @@ for (const [widget, cases] of Object.entries(a.widgets)) {
     }
   }
 }
-console.log(failed ? `\n${failed} combinaciones con diferencias.` : '\nTodas las combinaciones coinciden.');
-process.exitCode = failed ? 1 : 0;
+if (main) {
+  console.log(failed ? `\n${failed} combinaciones con diferencias.` : '\nTodas las combinaciones coinciden.');
+  process.exitCode = failed ? 1 : 0;
+}

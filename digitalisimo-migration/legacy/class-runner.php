@@ -91,6 +91,8 @@ final class Runner {
 	/** Espera del WP-Cron que continúa una tarea abandonada, y documentos por consulta en la etapa de alias. */
 	const CRON_DELAY = 120;
 	const BATCH      = 200;
+	/** Tipo de los marcadores de K (como Native::MARKER_WIDGET, sin cargar la conversión). */
+	const MARKER_WIDGET = 'digitalisimo-unconverted';
 	/** Tope del cursor de un paso de plataforma (V.14 C5). */
 	const CURSOR_MAX = 4096;
 
@@ -108,11 +110,10 @@ final class Runner {
 
 	/** Carga el motor de conversión sólo cuando hace falta (AJAX, cron, CLI y las pantallas). */
 	public static function load() {
-		require_once __DIR__ . '/class-migration.php';
-		require_once __DIR__ . '/class-retire.php';
-		require_once __DIR__ . '/class-aliases.php';
-		if ( is_readable( __DIR__ . '/class-markers.php' ) ) {
-			require_once __DIR__ . '/class-markers.php';
+		foreach ( array( 'Migration' => 'migration', 'Retire' => 'retire', 'Aliases' => 'aliases', 'Markers' => 'markers' ) as $class => $file ) {
+			if ( ! class_exists( __NAMESPACE__ . '\\' . $class, false ) && is_readable( __DIR__ . '/class-' . $file . '.php' ) ) {
+				require_once __DIR__ . '/class-' . $file . '.php';
+			}
 		}
 		self::dropped();
 	}
@@ -570,7 +571,9 @@ final class Runner {
 			Context::begin( 0, 'run' );
 			try {
 				$done = (bool) $class::$method( $cursor, (float) $deadline );
-			} catch ( \Throwable $e ) {
+			} catch ( \Exception $e ) {
+				// Una excepción se informa y el paso se da por terminado; un error de PHP tumba la petición como un fallo
+				// fatal, y el protocolo de intentos la salta tras dos caídas (V.3.1).
 				$done = true;
 				Report::site( 'core.step_failed', array( 'name' => $step, 'note' => $e->getMessage() ) );
 				if ( 'Theme_Builder' === $step && 'prepare' === $method ) {
@@ -757,7 +760,8 @@ final class Runner {
 
 	/**
 	 * Tarea de red con barrera que incluye este sitio (V.6), o null. Sólo dentro de una tarea de red: «Migrar» de un
-	 * sitio con Element Pack activado en toda la red sigue como siempre (aviso).
+	 * sitio con Element Pack activado en toda la red sigue como siempre (aviso). Un sitio de la tarea sin nada que
+	 * preparar también espera (para convertir después, sin Element Pack), pero no retiene la liberación.
 	 */
 	private static function barrier_job( array $state ) {
 		if ( ! is_multisite() || empty( $state['network'] ) ) {
@@ -767,7 +771,7 @@ final class Runner {
 		if ( ! $job || ! empty( $job['done'] ) || empty( $job['barrier'] ) || (int) $job['started'] !== (int) $state['network'] ) {
 			return null;
 		}
-		return in_array( self::blog(), array_map( 'intval', (array) ( $job['barrier_sites'] ?? array() ) ), true ) ? $job : null;
+		return in_array( self::blog(), array_map( 'intval', (array) ( $job['sites'] ?? array() ) ), true ) ? $job : null;
 	}
 
 	/**
@@ -1113,7 +1117,7 @@ final class Runner {
 					continue;
 				}
 				$type = (string) ( $element['widgetType'] ?? '' );
-				if ( Native::MARKER_WIDGET === $type ) {
+				if ( self::MARKER_WIDGET === $type ) {
 					if ( Translator::is_prime_slider_id( Migration::marker_type( $element ) ) ) {
 						$markers[] = $element;
 					}
@@ -1182,6 +1186,13 @@ final class Runner {
 		if ( self::has( 'Effects\\Dispatcher', 'describe' ) ) {
 			foreach ( (array) Effects\Dispatcher::describe( $elements ) as $code => $count ) {
 				$out[ (string) $code ] = (int) ( $out[ (string) $code ] ?? 0 ) + (int) $count;
+			}
+		}
+		foreach ( array( 'Platform\\Icons', 'Platform\\Dynamic_Tags' ) as $class ) {
+			if ( self::has( $class, 'describe' ) ) {
+				foreach ( (array) call_user_func( array( __NAMESPACE__ . '\\' . $class, 'describe' ), $elements ) as $code => $count ) {
+					$out[ (string) $code ] = (int) ( $out[ (string) $code ] ?? 0 ) + (int) $count;
+				}
 			}
 		}
 		if ( self::has( 'Prime_Slider\\Converter', 'describe' ) ) {
@@ -1879,14 +1890,14 @@ final class Runner {
 		Report::begin( 'run' );
 		$steps = array_values( array_unique( array_merge( self::PREPARE_STEPS, self::PLATFORM_STEPS ) ) );
 		foreach ( array_reverse( $steps ) as $step ) {
-			$codes = self::platform_call( $step, 'revert' );
+			$codes = self::platform_call( $step, 'revert', array( $force ) );
 			foreach ( is_array( $codes ) ? $codes : array() as $code ) {
 				$out['codes'][] = $code;
 			}
 		}
 		foreach ( self::REVERT_EXTRA as $class ) {
 			if ( self::has( $class, 'revert' ) ) {
-				foreach ( (array) call_user_func( array( __NAMESPACE__ . '\\' . $class, 'revert' ) ) as $code ) {
+				foreach ( (array) call_user_func( array( __NAMESPACE__ . '\\' . $class, 'revert' ), $force ) as $code ) {
 					$out['codes'][] = $code;
 				}
 			}

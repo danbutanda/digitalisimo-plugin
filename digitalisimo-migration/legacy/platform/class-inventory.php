@@ -287,7 +287,7 @@ final class Inventory {
 			$out[] = array( 'plat.shortcodes.widgets', array( 'count' => $widgets ) );
 		}
 		$core = array();
-		foreach ( array( 'element_pack_shape_divider_copied' => 'separadores', 'element_pack_mask_shapes_copied' => 'máscaras' ) as $option => $label ) {
+		foreach ( array( 'element_pack_shape_divider_copied' => __( 'separadores', 'digitalisimo-migration' ), 'element_pack_mask_shapes_copied' => __( 'máscaras', 'digitalisimo-migration' ) ) as $option => $label ) {
 			if ( self::filled( get_option( $option, '' ) ) ) {
 				$core[] = $label;
 			}
@@ -322,7 +322,7 @@ final class Inventory {
 		};
 		$parts = array();
 		foreach ( $row['items'] as $item ) {
-			$parts[] = sprintf( 'creada %1$s, último uso %2$s', $fmt( $item['created'] ), $fmt( $item['last_used'] ) );
+			$parts[] = sprintf( __( 'creada %1$s, último uso %2$s', 'digitalisimo-migration' ), $fmt( $item['created'] ), $fmt( $item['last_used'] ) );
 		}
 		return self::plain( implode( '; ', $parts ), 200 );
 	}
@@ -369,7 +369,8 @@ final class Inventory {
 		if ( ! $names ) {
 			return null;
 		}
-		return array( 'user_id' => $user_id, 'user' => self::plain( '' !== $display ? $display : '#' . $user_id, 60 ), 'names' => $names, 'items' => $items );
+		$user = self::plain( $display, 60 );
+		return array( 'user_id' => $user_id, 'user' => '' !== $user ? $user : '#' . $user_id, 'names' => $names, 'items' => $items );
 	}
 
 	/**
@@ -414,7 +415,7 @@ final class Inventory {
 			foreach ( $rows as $row ) {
 				$count += count( (array) $row['names'] );
 			}
-			return '<p class="digi-migrate__app-passwords">' . esc_html( sprintf( 'Contraseñas de aplicación de la IA de Element Pack en este sitio: %d. Pide a quien administra la red que las revise.', $count ) ) . '</p>';
+			return '<p class="digi-migrate__app-passwords">' . esc_html( sprintf( __( 'Contraseñas de aplicación de la IA de Element Pack en este sitio: %d. Pide a quien administra la red que las revise.', 'digitalisimo-migration' ), $count ) ) . '</p>';
 		}
 		$link = 'network' === $where || ( is_multisite() && is_super_admin() ) ? 'network' : 'site';
 		$html = '<ul class="digi-migrate__app-passwords">';
@@ -429,7 +430,7 @@ final class Inventory {
 		$settings = get_option( 'element_pack_api_settings', array() );
 		$names    = array();
 		foreach ( is_array( $settings ) ? $settings : array() as $key => $value ) {
-			$key = (string) preg_replace( '/[^a-z0-9_]/', '', strtolower( (string) $key ) );
+			$key = (string) preg_replace( '/[^a-z0-9_]/', '', strtolower( strip_tags( (string) $key ) ) );
 			if ( '' !== $key && self::filled( $value ) ) {
 				$names[] = $key;
 			}
@@ -469,26 +470,26 @@ final class Inventory {
 		$out = array();
 		$like = $wpdb->esc_like( $wpdb->prefix . 'ep_template_library_' ) . '%';
 		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ) ) {
-			$out[] = 'tablas de la biblioteca de plantillas';
+			$out[] = __( 'tablas de la biblioteca de plantillas', 'digitalisimo-migration' );
 		}
 		$uploads = wp_upload_dir( null, false );
 		$base    = empty( $uploads['error'] ) && ! empty( $uploads['basedir'] ) ? trailingslashit( (string) $uploads['basedir'] ) : '';
 		if ( '' !== $base ) {
-			foreach ( array( 'element-pack' => 'archivos en uploads/element-pack', 'element-pack-backups' => 'copias en uploads/element-pack-backups', 'prime-slider/sets' => 'archivos en uploads/prime-slider/sets' ) as $dir => $label ) {
+			foreach ( array( 'element-pack' => __( 'archivos en uploads/element-pack', 'digitalisimo-migration' ), 'element-pack-backups' => __( 'copias en uploads/element-pack-backups', 'digitalisimo-migration' ), 'prime-slider/sets' => __( 'archivos en uploads/prime-slider/sets', 'digitalisimo-migration' ) ) as $dir => $label ) {
 				if ( is_dir( $base . $dir ) ) {
 					$out[] = $label;
 				}
 			}
 		}
 		if ( self::filled( get_option( 'element_pack_license_key', '' ) ) ) {
-			$out[] = 'licencia';
+			$out[] = __( 'licencia', 'digitalisimo-migration' );
 		}
 		if ( self::filled( get_option( 'ep_white_label_title', '' ) ) || self::filled( get_option( 'element_pack_white_label', '' ) ) ) {
-			$out[] = 'marca blanca';
+			$out[] = __( 'marca blanca', 'digitalisimo-migration' );
 		}
 		$rooten = get_posts( array( 'post_type' => 'bdt-custom-template', 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids', 'suppress_filters' => true ) );
 		if ( $rooten ) {
-			$out[] = 'plantillas del tema Rooten';
+			$out[] = __( 'plantillas del tema Rooten', 'digitalisimo-migration' );
 		}
 		return $out;
 	}

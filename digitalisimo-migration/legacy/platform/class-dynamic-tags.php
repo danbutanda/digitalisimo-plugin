@@ -44,42 +44,69 @@ final class Dynamic_Tags {
 		if ( ! isset( $element['settings'] ) || ! is_array( $element['settings'] ) ) {
 			return $element;
 		}
-		$element['settings'] = self::rewrite_settings( $element['settings'], (string) ( $element['widgetType'] ?? $element['elType'] ?? '' ) );
+		$element['settings'] = self::rewrite_settings( $element['settings'], Icons::element_label( $element ) );
 		return $element;
 	}
 
-	/** Lo mismo en un árbol de elementos. */
+	/** Lo mismo en un árbol de elementos, con un solo recuento por documento (la llamada recomendada). */
 	public static function rewrite_elements( array $elements ): array {
+		// Una sola búsqueda por documento: sin etiquetas del origen no se recorre nada.
+		if ( false === strpos( (string) wp_json_encode( $elements ), 'name=\\"' . self::PREFIX ) ) {
+			return $elements;
+		}
+		$stats    = self::stats();
+		$elements = self::tree( $elements, $stats );
+		self::report( $stats );
+		return $elements;
+	}
+
+	private static function tree( array $elements, array &$stats ): array {
 		foreach ( $elements as $index => $element ) {
 			if ( ! is_array( $element ) ) {
 				continue;
 			}
-			$element = self::rewrite( $element );
+			if ( isset( $element['settings'] ) && is_array( $element['settings'] ) && false !== strpos( (string) wp_json_encode( $element['settings'] ), self::PREFIX ) ) {
+				$stats['label']      = Icons::element_label( $element );
+				$element['settings'] = self::walk( $element['settings'], $stats );
+				$stats['label']      = '';
+			}
 			if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
-				$element['elements'] = self::rewrite_elements( $element['elements'] );
+				$element['elements'] = self::tree( $element['elements'], $stats );
 			}
 			$elements[ $index ] = $element;
 		}
 		return $elements;
 	}
 
-	/** Lo mismo en ajustes sueltos (página, kit). */
+	/** Lo mismo en ajustes sueltos (página, kit, o los de un elemento). */
 	public static function rewrite_settings( array $settings, string $element = '' ): array {
 		if ( false === strpos( (string) wp_json_encode( $settings ), self::PREFIX ) ) {
 			return $settings;
 		}
-		$stats    = array( 'converted' => 0, 'dropped' => 0, 'names' => array() );
-		$settings = self::walk( $settings, $stats );
-		$post_id  = Inventory::context_post();
-		if ( $post_id > 0 ) {
-			if ( $stats['converted'] ) {
-				Inventory::doc_code( $post_id, 'plat.tags.converted', array( 'count' => $stats['converted'] ) );
-			}
-			if ( $stats['dropped'] ) {
-				Inventory::doc_code( $post_id, 'plat.tags.dropped', array( 'count' => $stats['dropped'], 'note' => Inventory::plain( implode( ', ', array_unique( $stats['names'] ) ), 200 ) ) + ( '' !== $element ? array( 'element' => $element ) : array() ) );
-			}
-		}
+		$stats          = self::stats();
+		$stats['label'] = $element;
+		$settings       = self::walk( $settings, $stats );
+		self::report( $stats );
 		return $settings;
+	}
+
+	private static function stats(): array {
+		return array( 'converted' => 0, 'dropped' => array(), 'label' => '' );
+	}
+
+	/** Informe por documento (si hay uno en curso). */
+	private static function report( array $stats ): void {
+		$post_id = Inventory::context_post();
+		if ( $post_id <= 0 ) {
+			return;
+		}
+		// Lo convertido, una vez por documento; lo quitado, por elemento (la conversión puede ir elemento a elemento).
+		if ( $stats['converted'] ) {
+			Inventory::doc_code( $post_id, 'plat.tags.converted' );
+		}
+		foreach ( $stats['dropped'] as $label => $row ) {
+			Inventory::doc_code( $post_id, 'plat.tags.dropped', array( 'count' => $row['count'], 'note' => Inventory::plain( implode( ', ', array_unique( $row['names'] ) ), 200 ) ) + ( '' !== (string) $label ? array( 'element' => (string) $label ) : array() ) );
+		}
 	}
 
 	private static function walk( array $value, array &$stats ): array {
@@ -106,8 +133,10 @@ final class Dynamic_Tags {
 			$new = $tag ? self::translate( $tag ) : null;
 			if ( null === $new ) {
 				unset( $dynamic[ $control ] );
-				++$stats['dropped'];
-				$stats['names'][] = $tag ? substr( $tag['name'], strlen( self::PREFIX ) ) : '?';
+				$row                                  = $stats['dropped'][ $stats['label'] ] ?? array( 'count' => 0, 'names' => array() );
+				$row['count']                        += 1;
+				$row['names'][]                       = $tag ? substr( $tag['name'], strlen( self::PREFIX ) ) : '?';
+				$stats['dropped'][ $stats['label'] ] = $row;
 				continue;
 			}
 			$dynamic[ $control ] = $new;

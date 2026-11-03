@@ -81,9 +81,7 @@ final class Sidebar {
 			return array();
 		}
 		if ( ! Inventory::ep_loaded() ) {
-			$pair = array( 'plat.sidebar.inactive', array( 'count' => count( $placed ) ) );
-			Inventory::site_code( $pair[0], $pair[1] );
-			return array( $pair );
+			return array( array( 'plat.sidebar.inactive', array( 'count' => count( $placed ) ) ) );
 		}
 		self::backup();
 		$backup   = get_option( self::BACKUP, array() );
@@ -134,9 +132,8 @@ final class Sidebar {
 				'extra' => array( 'written' => (array) ( $previous['extra']['written'] ?? array() ) + $written ),
 			)
 		);
-		$pair = array( 'plat.sidebar', array( 'count' => count( $map ) ) );
-		Inventory::site_code( $pair[0], $pair[1] );
-		return array( $pair );
+		// El runner añade estos códigos al informe (contrato C5: before_deactivate() los devuelve).
+		return array( array( 'plat.sidebar', array( 'count' => count( $map ) ) ) );
 	}
 
 	public static function finish( array &$cursor, float $deadline ): bool {

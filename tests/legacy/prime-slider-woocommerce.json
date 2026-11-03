@@ -1,0 +1,58 @@
+{
+  "_widget": "prime-slider-woocommerce",
+  "_family": "G",
+  "_comentario": "Datos sintéticos con la forma que guarda el editor (research-ps.md §3.1): sin los valores por defecto, que rellena la conversión. Los marcadores {{…}} los expande la prueba: perfiles del proveedor con los patrones de vendors.json y {{ps_assets}} con la carpeta de Lite del sitio simulado. Términos por term_taxonomy_id (52 es el de «Noticias» en la prueba; 999 no existe).",
+  "defaults": {
+    "social_link_list": [
+      {
+        "_id": "v1",
+        "social_link_title": "Facebook",
+        "social_icon_link": {
+          "url": "{{vendor_profile:facebook}}"
+        }
+      },
+      {
+        "_id": "v2",
+        "social_link_title": "Twitter",
+        "social_icon_link": {
+          "url": "{{vendor_profile:twitter}}"
+        }
+      },
+      {
+        "_id": "v3",
+        "social_link_title": "Instagram",
+        "social_icon_link": {
+          "url": "{{vendor_profile:instagram}}"
+        }
+      }
+    ],
+    "section_id": "my-header",
+    "scroll_button_text": "Scroll Down"
+  },
+  "custom": {
+    "posts_limit": 8,
+    "posts_include_by": [
+      "terms"
+    ],
+    "posts_include_term_ids": [
+      "52",
+      "999"
+    ],
+    "product_show_product_type": "onsale",
+    "product_orderby": "sales",
+    "product_hide_out_stock": "yes",
+    "excerpt_word_limit": 12,
+    "social_link_list": [
+      {
+        "_id": "u1",
+        "social_link_title": "Instagram",
+        "social_icon_link": {
+          "url": "https://www.instagram.com/tienda-de-prueba",
+          "is_external": "on",
+          "nofollow": ""
+        }
+      }
+    ],
+    "show_scroll_button": ""
+  }
+}

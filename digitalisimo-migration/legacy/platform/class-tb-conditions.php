@@ -346,6 +346,7 @@ final class Tb_Conditions {
 		$old      = self::is_old( $version );
 		$includes = array();
 		$excludes = array();
+		$also     = array(); // Exclusiones que una regla de ámbito necesita (adjuntos de `child_of`).
 		$pending  = array(); // by_author con adjuntos: se decide al final, con las demás inclusiones.
 		foreach ( $rows as $row ) {
 			$a        = '' === (string) $row['a'] ? 'entire_site' : (string) $row['a'];
@@ -428,6 +429,14 @@ final class Tb_Conditions {
 					$out['full'] = true;
 				}
 				$includes = array_merge( $includes, $generic['conditions'] );
+				foreach ( (array) ( $rule['also'] ?? array() ) as $condition ) {
+					if ( ! self::registered_condition( $condition ) ) {
+						$out['items'][] = self::item( 'tb.review.scope', 'exclude', $label, 'exclusión sin condición en el destino' );
+						$out['fail']    = 'scope';
+						continue 2;
+					}
+					$also[] = $condition;
+				}
 				continue;
 			}
 			// Exclusión: igual o mayor.
@@ -480,6 +489,7 @@ final class Tb_Conditions {
 			$out['items'][] = self::item( 'tb.review.scope', 'exclude', $kind['scope'], $scope['note'] );
 			return $out;
 		}
+		$scope['conditions'] = array_values( array_unique( array_merge( $also, $scope['conditions'] ) ) );
 		if ( $scope['conditions'] ) {
 			$out['scope']   = $scope['conditions'];
 			$out['items'][] = self::item( 'tb.scope.added', 'exclude', $kind['scope'], '', count( $scope['conditions'] ) );
@@ -487,7 +497,7 @@ final class Tb_Conditions {
 				$out['items'][] = self::item( 'tb.scope.snapshot', 'exclude', $kind['scope'], '', $scope['snapshot'] );
 			}
 		}
-		$excludes            = array_values( array_unique( array_merge( $excludes, $scope['conditions'] ) ) );
+		$excludes = array_values( array_unique( array_merge( $excludes, $scope['conditions'] ) ) );
 		$out['includes']     = $includes;
 		$out['excludes']     = $excludes;
 		$out['conditions']   = array_merge(
@@ -569,10 +579,12 @@ final class Tb_Conditions {
 					case 'by_author':
 						return $generic + array( 'sub' => 'page_by_author' );
 					case 'selective':
-					case 'any_child_of':
 						return self::keep_ids( $ids, 'page' );
+					case 'any_child_of':
+						// Los descendientes de una página son páginas o adjuntos: fuera los adjuntos, igual.
+						return self::keep_ids( $ids, 'page' ) + array( 'also' => array( 'singular/attachment' ) );
 					case 'child_of':
-						return self::only_hierarchical( 'page' ) ? $generic : array( 'do' => 'drop', 'note' => 'el destino también la aplicaría a otros tipos jerárquicos' );
+						return self::only_hierarchical( 'page' ) ? $generic + array( 'also' => array( 'singular/attachment' ) ) : array( 'do' => 'drop', 'note' => 'el destino también la aplicaría a otros tipos jerárquicos' );
 					case 'in_category':
 					case 'in_category_children':
 						return self::in_taxonomy( 'page', 'category' ) ? array( 'do' => 'drop', 'note' => 'el destino también la aplicaría a entradas' ) : self::never( 'las páginas no tienen categorías' );
@@ -608,8 +620,9 @@ final class Tb_Conditions {
 				}
 				switch ( $sub ) {
 					case 'selective':
-					case 'any_child_of':
 						return self::keep_ids( $ids, $cpt );
+					case 'any_child_of':
+						return self::keep_ids( $ids, $cpt ) + array( 'also' => array( 'singular/attachment' ) );
 					case 'by_author':
 						$base = $product ? 'woocommerce/product_by_author' : 'singular/' . $cpt . '_by_author';
 						$pro  = array();
@@ -623,7 +636,7 @@ final class Tb_Conditions {
 						if ( ! self::is_hierarchical_type( $cpt ) ) {
 							return self::never( 'tipo de entrada no jerárquico' );
 						}
-						return self::only_hierarchical( $cpt ) ? $generic : array( 'do' => 'drop', 'note' => 'el destino también la aplicaría a otros tipos jerárquicos' );
+						return self::only_hierarchical( $cpt ) ? $generic + array( 'also' => array( 'singular/attachment' ) ) : array( 'do' => 'drop', 'note' => 'el destino también la aplicaría a otros tipos jerárquicos' );
 					case 'in_category':
 					case 'in_category_children':
 						return self::in_taxonomy( $cpt, 'category' ) ? array( 'do' => 'drop', 'note' => 'el destino también la aplicaría a entradas' ) : self::never( 'el tipo no usa categorías' );
@@ -659,7 +672,7 @@ final class Tb_Conditions {
 					return $pro ? array( 'do' => 'pro', 'pro' => $pro, 'full' => true ) : self::never( 'el tipo no tiene archivo' );
 				}
 				if ( $cpt . '_archive' === $sub ) {
-					return $generic;
+					return $generic + array( 'full' => true );
 				}
 				return self::never( 'no es un archivo de este tipo' );
 

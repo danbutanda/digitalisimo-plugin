@@ -25,6 +25,15 @@ final class Swatches {
 	const SHAPES    = array( 'round' => 'circle', 'rounded' => 'rounded', 'square' => 'rounded', 'default' => 'circle' );
 	const MAX_TERMS = 1000;
 
+	/** @var array<string, array{count:int, names:string[]}> un elemento del informe por código, no por atributo. */
+	private static $tally = array();
+
+	private static function tally( string $code, string $name, int $count ): void {
+		self::$tally[ $code ]            = self::$tally[ $code ] ?? array( 'count' => 0, 'names' => array() );
+		self::$tally[ $code ]['count']  += $count;
+		self::$tally[ $code ]['names'][] = $name;
+	}
+
 	/** Ajuste global de las muestras de Element Pack (el de sus ajustes generales manda, como en el origen). */
 	private static function setting( string $name ) {
 		$other = get_option( 'element_pack_other_settings', array() );
@@ -120,11 +129,7 @@ final class Swatches {
 		if ( self::other_plugin() ) {
 			return array( array( 'plat.swatch.other_plugin', array( 'count' => count( $plan ) ) ) );
 		}
-		$out = array();
-		foreach ( $plan as $attribute ) {
-			$out[] = array( 'plat.swatch.attribute', array( 'name' => $attribute['slug'], 'count' => count( $attribute['terms'] ) ) );
-		}
-		return $out;
+		return array( array( 'plat.swatch.attribute', array( 'count' => count( $plan ), 'note' => Inventory::plain( implode( ', ', array_column( $plan, 'slug' ) ), 200 ) ) ) );
 	}
 
 	public static function prepare( array &$cursor, float $deadline ): bool {
@@ -164,6 +169,10 @@ final class Swatches {
 			self::attribute( $attribute, $entry['entry'] );
 			self::terms( $attribute );
 		}
+		foreach ( self::$tally as $code => $row ) {
+			Inventory::site_code( $code, array( 'count' => $row['count'], 'note' => Inventory::plain( implode( ', ', array_unique( $row['names'] ) ), 200 ) ) );
+		}
+		self::$tally = array();
 		if ( $shape ) {
 			Inventory::site_code( 'plat.swatch.shape' );
 		}
@@ -180,18 +189,18 @@ final class Swatches {
 		$current = $data::attribute( $attribute['taxonomy'] );
 		if ( 'select' !== ( $current['type'] ?? 'select' ) ) {
 			if ( null === Inventory::reg_get( self::KIND, 'attr:' . $attribute['slug'] ) ) {
-				Inventory::site_code( 'plat.swatch.kept', array( 'name' => $attribute['slug'] ) );
+				self::tally( 'plat.swatch.kept', $attribute['slug'], 1 );
 			}
 			return;
 		}
 		$data::put( $attribute['slug'], $entry );
 		$saved = $data::attribute( $attribute['taxonomy'] );
 		if ( ( $saved['type'] ?? 'select' ) !== $entry['type'] ) {
-			Inventory::site_code( 'plat.swatch.limit', array( 'name' => $attribute['slug'] ) );
+			self::tally( 'plat.swatch.limit', $attribute['slug'], 1 );
 			return;
 		}
 		Inventory::reg_put( self::KIND, 'attr:' . $attribute['slug'], array( 'hash' => md5( (string) wp_json_encode( $saved ) ), 'state' => 'done', 'extra' => array( 'entry' => $saved ) ) );
-		Inventory::site_code( 'plat.swatch.attribute', array( 'name' => $attribute['slug'], 'count' => count( $attribute['terms'] ) ) );
+		self::tally( 'plat.swatch.attribute', $attribute['slug'], 1 );
 	}
 
 	/** Metas `color`/`image` de WooCommerce de cada término, sólo donde no hay ninguna. */
@@ -232,16 +241,16 @@ final class Swatches {
 			++$written;
 		}
 		if ( $written ) {
-			Inventory::site_code( 'plat.swatch.term', array( 'name' => $attribute['slug'], 'count' => $written ) );
+			self::tally( 'plat.swatch.term', $attribute['slug'], $written );
 		}
 		if ( $kept ) {
-			Inventory::site_code( 'plat.swatch.kept', array( 'name' => $attribute['slug'], 'count' => $kept ) );
+			self::tally( 'plat.swatch.kept', $attribute['slug'], $kept );
 		}
 		if ( $invalid ) {
-			Inventory::site_code( 'plat.swatch.color_invalid', array( 'name' => $attribute['slug'], 'count' => $invalid ) );
+			self::tally( 'plat.swatch.color_invalid', $attribute['slug'], $invalid );
 		}
 		if ( $labels ) {
-			Inventory::site_code( 'plat.swatch.label_lost', array( 'name' => $attribute['slug'], 'count' => $labels ) );
+			self::tally( 'plat.swatch.label_lost', $attribute['slug'], $labels );
 		}
 	}
 

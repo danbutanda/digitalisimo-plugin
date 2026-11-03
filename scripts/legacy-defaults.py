@@ -5,7 +5,7 @@ Elementor no guarda los valores que coinciden con el default, así que el traduc
 de la referencia. Salida: fragmento PHP con 'defaults' y, por repetidor, 'defaults' y
 'default_rows', para pegar y revisar en maps/bdt-*.php.
 
-Uso: python3 scripts/legacy-defaults.py bdt-accordion
+Uso: python3 -I scripts/legacy-defaults.py bdt-accordion
 """
 import importlib.util
 import json
@@ -14,7 +14,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from legacy_controls import detail, ROOT  # noqa: E402
+from legacy_controls import detail, require_source, ROOT  # noqa: E402
 
 spec = importlib.util.spec_from_file_location('legacy_styles', HERE / 'legacy-styles.py')
 styles = importlib.util.module_from_spec(spec)
@@ -31,8 +31,7 @@ def value(raw):
 
 
 def main(legacy_id):
-    inventory = {w['legacy_widget_id']: w for w in json.loads((ROOT / 'docs/element-pack-inventory.json').read_text())['widgets']}
-    controls = detail(ROOT / inventory[legacy_id]['source_file'])
+    controls = detail(require_source(legacy_id))
     top, repeaters, fields = {}, {}, {}
     for c in controls:
         if c['kind'] == 'group':

@@ -1,0 +1,34 @@
+{
+  "relleno": {
+    "_widget": "heading",
+    "title": "Relleno",
+    "ep_widget_sf_fx_enable": "yes",
+    "ep_widget_sf_fx_fill_bg_background": "gradient",
+    "ep_widget_sf_fx_fill_bg_color": "#08aeec",
+    "ep_widget_sf_fx_fill_bg_color_b": "#2af598",
+    "_expect_json": [
+      "-webkit-text-fill-color:rgba(156, 156, 156, 0.5)",
+      "linear-gradient(180deg, #08aeec 0%, #2af598 100%)",
+      "animation-timeline:view()",
+      "prefers-reduced-motion:no-preference"
+    ],
+    "_expect_codes": [
+      "ext.converted.scroll_fill_effect"
+    ]
+  },
+  "escala": {
+    "_widget": "heading",
+    "title": "Escala",
+    "ep_widget_sf_fx_enable": "yes",
+    "ep_widget_sf_fx_animation_type": "scaling_gradient_text",
+    "_expect_json": [
+      "\"motion_fx_scale_effect\":\"yes\"",
+      "\"motion_fx_scale_direction\":\"in-out\"",
+      "\"motion_fx_opacity_direction\":\"out-in\""
+    ],
+    "_expect_codes": [
+      "ext.converted.scroll_fill_effect",
+      "ext.loss.scroll_fill_effect"
+    ]
+  }
+}

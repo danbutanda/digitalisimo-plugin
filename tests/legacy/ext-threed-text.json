@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Tres de",
+    "ep_threed_text_active": "yes",
+    "_expect_json": [
+      "text-shadow:0 3.75px 0 currentColor"
+    ],
+    "_expect_codes": [
+      "ext.converted.threed_text",
+      "ext.loss.threed_text"
+    ]
+  },
+  "puntero": {
+    "_widget": "heading",
+    "title": "Inclinado",
+    "ep_threed_text_active": "yes",
+    "ep_threed_text_event": "pointer",
+    "ep_threed_text_event_direction": "reverse",
+    "ep_threed_text_depth_color": "#333333",
+    "_expect_json": [
+      "\"motion_fx_tilt_effect\":\"yes\"",
+      "\"motion_fx_tilt_direction\":\"negative\"",
+      "color-mix(in srgb,#333333"
+    ],
+    "_expect_codes": [
+      "ext.converted.threed_text"
+    ]
+  }
+}

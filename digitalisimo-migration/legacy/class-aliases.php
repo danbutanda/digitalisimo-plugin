@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 final class Aliases {
 	const TRAIT = 'Digitalisimo\\Elements\\Widget_Alias';
 	/** Metadatos que repiten el contenido pintado o son de la propia migración: no son CSS escrito por nadie. */
-	const SKIP_META = array( '_elementor_data', '_elementor_css', '_elementor_element_cache', '_elementor_page_assets', '_elementor_controls_usage', '_elementor_version', '_elementor_pro_version', '_digitalisimo_ep_backup' );
+	const SKIP_META = array( '_elementor_data', '_elementor_css', '_elementor_element_cache', '_elementor_page_assets', '_elementor_controls_usage', '_elementor_version', '_elementor_pro_version', '_digitalisimo_ep_backup', '_digitalisimo_ep_backup_page', '_digitalisimo_ep_backup_f8', '_digitalisimo_ep_f8' );
 	/** Tope de archivos del tema que se revisan y de bytes por archivo. */
 	const THEME_FILES = 3000;
 	const THEME_BYTES = 2097152;

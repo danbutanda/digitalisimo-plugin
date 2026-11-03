@@ -1,0 +1,57 @@
+{
+  "_widget": "prime-slider-fluent",
+  "_family": "E",
+  "_comentario": "Datos sintéticos con la forma que guarda el editor (research-ps.md §3.1): sin los valores por defecto, que rellena la conversión. Los marcadores {{…}} los expande la prueba: perfiles del proveedor con los patrones de vendors.json y {{ps_assets}} con la carpeta de Lite del sitio simulado. Términos por term_taxonomy_id (52 es el de «Noticias» en la prueba; 999 no existe).",
+  "defaults": {
+    "social_link_list": [
+      {
+        "_id": "v1",
+        "social_link_title": "Facebook",
+        "social_icon_link": {
+          "url": "{{vendor_profile:facebook}}"
+        },
+        "social_icon": {
+          "value": "fab fa-facebook",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "v2",
+        "social_link_title": "Twitter",
+        "social_icon_link": {
+          "url": "{{vendor_profile:twitter}}"
+        },
+        "social_icon": {
+          "value": "fab fa-twitter",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "v3",
+        "social_link_title": "Instagram",
+        "social_icon_link": {
+          "url": "{{vendor_profile:instagram}}"
+        },
+        "social_icon": {
+          "value": "fab fa-instagram",
+          "library": "fa-brands"
+        }
+      }
+    ],
+    "section_id": "my-header",
+    "scroll_button_text": "Scroll Down"
+  },
+  "custom": {
+    "posts_source": "manual_selection",
+    "posts_selected_ids": [
+      "11",
+      "12",
+      "x"
+    ],
+    "show_thumb_scroller": "",
+    "show_avatar": "",
+    "show_social_icon": "",
+    "show_scroll_button": "",
+    "show_date": ""
+  }
+}

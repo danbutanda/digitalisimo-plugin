@@ -1,0 +1,40 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Fija",
+    "_section": {
+      "section_sticky_on": "yes",
+      "section_sticky_active_bg": "#ffffff"
+    },
+    "_expect_css_converted": [
+      ".elementor-sticky--active{background-color:#ffffff}"
+    ],
+    "_expect_json": [
+      "\"sticky\":\"top\"",
+      "transition:background-color 250ms ease-out,padding 300ms ease-out"
+    ],
+    "_expect_codes": [
+      "ext.converted.section_sticky"
+    ]
+  },
+  "abajo-movil": {
+    "_widget": "button",
+    "text": "Fijo",
+    "section_sticky_on": "yes",
+    "section_sticky_position": "end",
+    "section_sticky_off_media": "768",
+    "section_sticky_offset": {
+      "size": 20
+    },
+    "section_sticky_on_scroll_up": "yes",
+    "_expect_json": [
+      "\"sticky\":\"bottom\"",
+      "\"sticky_on\":[\"desktop\",\"tablet\"]",
+      "\"sticky_offset\":20"
+    ],
+    "_expect_codes": [
+      "ext.converted.section_sticky",
+      "ext.loss.section_sticky"
+    ]
+  }
+}

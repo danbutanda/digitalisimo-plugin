@@ -11,7 +11,8 @@
 // - Si hay python3, el generador (`legacy-styles.py --check` y `rewrite()`) da lo mismo que esta prueba.
 // Uso: (ulimit -v 3000000; timeout 150 node --max-old-space-size=600 tests/migration-legacy-styles.mjs)
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir, homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,7 +94,10 @@ for (const [id, base] of Object.entries(baseline.maps)) {
   const baseKeys = new Map(base.map(([name, sha]) => { const n = seen[name] = (seen[name] ?? -1) + 1; return [keyOf(name, n), sha]; }));
   for (const row of entry.controls) {
     if (baseKeys.get(keyOf(row.name, row.index)) !== hash(row.before)) problems.push(`${row.name}: before no es el de la línea base`);
-    if (!row.dead.length || !row.dead.every((cls) => !tokens.has(cls) && !dynamic.some((p) => p.re.test(cls)) && checked(cls))) problems.push(`${row.name}: clase no muerta en dead`);
+    // En los 6 mapas y Advanced Icon Box también cambian controles vivos (clases corregidas): sólo una baja exige clase muerta.
+    const needsDead = entry.mode === 'prune' || (row.after === null && !(row.unmatched || []).length);
+    if (entry.mode === 'prune' && row.unmatched) problems.push(`${row.name}: una poda no usa el marcado de destino`);
+    if ((needsDead && !row.dead.length) || !row.dead.every((cls) => !tokens.has(cls) && !dynamic.some((p) => p.re.test(cls)) && checked(cls))) problems.push(`${row.name}: clase no muerta en dead`);
     const beforeClasses = new Set(selectorParts(row.before).flatMap(({ part }) => classesOf(part)));
     if (!row.dead.every((cls) => beforeClasses.has(cls))) problems.push(`${row.name}: dead no está en sus selectores`);
   }
@@ -105,7 +109,10 @@ for (const [id, base] of Object.entries(baseline.maps)) {
       const name = key.replace(/#\d+$/, '');
       if (now.has(name)) continue;
       const row = rows.get(key);
-      if (!row || row.after !== null || prune(row.before, tokens, dynamic) !== null) problems.push(`${name}: retirado sin estar muerto`);
+      // Muerto por sus clases o, en lo que no casa con el marcado de destino, por estructura (lo mide la prueba en Chrome).
+      const structural = new Set(row?.unmatched || []);
+      const deadEntirely = row && selectorParts(row.before).every(({ part }) => deadClasses(part, tokens, dynamic).length || structural.has(part));
+      if (!row || row.after !== null || !deadEntirely) problems.push(`${name}: retirado sin estar muerto`);
     }
   } else {
     // Mismo orden; un control cambiado o retirado es exactamente su poda.
@@ -135,6 +142,20 @@ ok(Object.values(deadMaps).every((e) => JSON.stringify(Object.keys(e.classes).so
 ok(Object.values(deadMaps).every((e) => Object.values(e.classes).every((ev) => ev.literal === false && ev.dynamic === false && Array.isArray(ev.near))), 'La evidencia de cada clase muerta dice por qué y qué hay cerca');
 ok(deadClassUnion.size > 150 && Object.keys(deadMaps).length > 40, `dead.json documenta ${deadClassUnion.size} clases en ${Object.keys(deadMaps).length} mapas`);
 ok(!Object.keys(deadMaps).some((id) => !(id in baseline.maps)), 'dead.json sólo habla de mapas de la línea base');
+
+// --- Marcado de destino de los 6 mapas y Advanced Icon Box (tests/fixtures/legacy-styles/*.html) --------------------
+const FIXTURES = { 'bdt-fancy-slider': 'digitalisimo-fancy-slider', 'bdt-trailer-box': 'digitalisimo-fancy-card', 'bdt-animated-card': 'digitalisimo-fancy-card', 'bdt-interactive-card': 'digitalisimo-fancy-card', 'bdt-advanced-progress-bar': 'digitalisimo-progress-bars', 'bdt-profile-card': 'author-box', 'bdt-advanced-icon-box': 'digitalisimo-advanced-icon-box' };
+for (const fixture of new Set(Object.values(FIXTURES))) {
+  const html = read(`tests/fixtures/legacy-styles/${fixture}.html`);
+  const sources = [...new Set([...html.matchAll(/data-sources="([^"]+)"/g)].flatMap((m) => m[1].split(' ')))];
+  ok(sources.length > 0 && sources.every((f) => existsSync(join(root, f))), `${fixture}.html dice de qué archivos sale su marcado`);
+  const own = new Set(sources.flatMap((f) => [...read(f).matchAll(/(?<![A-Za-z0-9_-])((?:digi|elementor)-[A-Za-z0-9_-]+)/g)].map((m) => m[1])));
+  const stems = [...own].filter((t) => /[-_]$/.test(t));
+  const classes = [...new Set([...html.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)))].filter((c) => /^(?:digi|elementor)-/.test(c) && !/^elementor-(?:element|widget)(?:-|$)/.test(c));
+  const missing = classes.filter((c) => !own.has(c) && !stems.some((t) => c.startsWith(t)) && !dynamic.some((p) => p.re.test(c)));
+  ok(missing.length === 0, `${fixture}.html: clases que su PHP no imprime: ${missing.join(', ')}`);
+}
+for (const [id, fixture] of Object.entries(FIXTURES)) ok(read(`digitalisimo-migration/legacy/maps/${id}.php`).includes(`'target'`) && new RegExp(`'target'\\s*=>\\s*'${fixture}'`).test(read(`digitalisimo-migration/legacy/maps/${id}.php`)), `${id} va a ${fixture}`);
 
 // --- Los 6 mapas: clases corregidas ---------------------------------------------------------------------------------
 const mapClasses = (id) => {
@@ -208,6 +229,40 @@ ok(/^\t\t'bdt-mega-menu' => Bdt_MegaMenu::class,$/m.test(adapters) && /final cla
 ok(styles['bdt-mega-menu'].length >= 30 && sels(control('bdt-mega-menu', 'menu_item_typography')).includes('.elementor-nav-menu--main > .elementor-nav-menu > li > .elementor-item'), 'Los estilos del Mega Menu van al menú de PRO');
 ok(!JSON.stringify(styles['bdt-mega-menu']).match(/\.(?:ep|bdt)-|offcanvas/), 'El panel lateral y las clases de Element Pack no pasan al Mega Menu');
 
+// La traducción real del Mega Menu (Translator::translate con el mapa), si hay PHP (en CI) o php-wasm (local).
+const phpCmd = (() => {
+  if (!spawnSync('php', ['-v'], { encoding: 'utf8' }).error) return ['php'];
+  const wasm = join(homedir(), '.npm/_npx/98db5c2db358871c/node_modules/.bin/php-wasm-cli');
+  return existsSync(wasm) ? [process.execPath, wasm] : null;
+})();
+if (!phpCmd) {
+  console.log('AVISO: sin PHP, no se traduce un Mega Menu de ejemplo.');
+} else {
+  const dir = mkdtempSync(join(process.env.DIGI_TMP || tmpdir(), 'legacy-styles-'));
+  const file = join(dir, 'mega.php');
+  writeFileSync(file, `<?php
+define( 'ABSPATH', __DIR__ );
+function wp_json_encode( $v ) { return json_encode( $v ); }
+function wp_strip_all_tags( $t ) { return strip_tags( (string) $t ); }
+require ${JSON.stringify(join(root, 'digitalisimo-migration/legacy/class-translator.php'))};
+use Digitalisimo\\Elements\\Legacy\\Translator;
+echo json_encode( array(
+  Translator::translate( 'bdt-mega-menu', array( 'navbar' => 'principal', 'ep_megamenu_mode' => 'click', 'offcanvas_overlay' => 'yes', 'template_id' => 9, 'menu_text_color' => '#123456' ) ),
+  Translator::translate( 'bdt-mega-menu', array( 'ep_megamenu_direction' => 'vertical', 'show_hamburger_menu' => 'tablet' ) ),
+  Translator::translate( 'bdt-mega-menu', array( 'navbar' => '0', 'show_hamburger_menu' => 'a b<' ) ),
+  Translator::translate( 'bdt-mega-menu', array( 'navbar' => 'x" onload="y' ) ),
+) );
+`);
+  const run = spawnSync(phpCmd[0], [...phpCmd.slice(1), file], { encoding: 'utf8', timeout: 120000 });
+  rmSync(dir, { recursive: true, force: true });
+  const json = (run.stdout.match(/\[\{.*\}\]/s) || [])[0];
+  const [one, two, three, four] = JSON.parse(json || '[]');
+  ok(one && one.menu === 'principal' && one.layout === 'horizontal' && one.dropdown === 'mobile' && one.pointer === 'none' && one.menu_text_color === '#123456', `Mega Menu: mismo menú, horizontal y menú móvil desde «mobile» (${run.stderr.slice(-200)})`);
+  ok(one && !('ep_megamenu_mode' in one) && !('offcanvas_overlay' in one) && !('template_id' in one) && !('navbar' in one), 'Mega Menu: sin las opciones de Element Pack que no existen en el destino');
+  ok(two && two.layout === 'vertical' && two.dropdown === 'tablet', 'Mega Menu: dirección vertical y punto de corte guardados');
+  ok(three && three.menu === '' && three.dropdown === 'mobile' && four && four.menu === '', 'Mega Menu: «Select Menu» (0), un slug no válido o un punto de corte inventado no pasan');
+}
+
 // --- IDs del Addon --------------------------------------------------------------------------------------------------
 const inventory = JSON.parse(read('docs/element-pack-inventory.json')).widgets;
 const moved = inventory.filter((w) => w.moved_to_addon).map((w) => w.legacy_widget_id).sort();
@@ -227,7 +282,6 @@ ok(JSON.stringify(skins['prime-slider-general']) === JSON.stringify(['crelly', '
 const DEFAULTS = join(root, 'digitalisimo-migration/legacy/prime-slider/defaults');
 const defaultFiles = readdirSync(DEFAULTS).filter((f) => f.endsWith('.php')).sort();
 ok(JSON.stringify(defaultFiles.map((f) => f.slice(0, -4))) === JSON.stringify([...psIds].sort()), 'Un archivo de valores por defecto por ID');
-const vendor = JSON.parse(read('tests/playground/brand-audit/vendors.json'));
 let withRows = 0;
 for (const file of defaultFiles) {
   const id = file.slice(0, -4);
@@ -237,7 +291,9 @@ for (const file of defaultFiles) {
   ok(data.id === id && data.plugin === meta.plugin && data.version === '4.7.0' && JSON.stringify(data.skins) === JSON.stringify(meta.skins), `${id}: cabecera C9`);
   ok(data.controls && typeof data.controls === 'object' && !Array.isArray(data.controls) && Object.keys(data.controls).length > 0 && (Array.isArray(data.repeaters) ? data.repeaters.length === 0 : typeof data.repeaters === 'object') && (Array.isArray(data.styles) ? data.styles.length === 0 : typeof data.styles === 'object'), `${id}: controls, repeaters y styles`);
   const json = JSON.stringify(data);
-  ok(!/wp-content\/plugins|BDTPS|\/\/[^"]*bdthemes/i.test(json.replace(/"https?:\/\/[^"]*"/g, (u) => (vendor.domains || []).some((d) => u.includes(d)) ? u : '""')), `${id}: las URL de recursos van como {{ps_assets}}, sin carpeta de plugin ni constantes`);
+  // Los valores del proveedor van tal cual (los limpia la conversión), pero nunca una ruta a la carpeta del plugin ni
+  // una constante sin resolver: los recursos van como {{ps_assets}}.
+  ok(!/wp-content\/plugins|plugins\/bdthemes|BDTPS_|Utils::/.test(json), `${id}: sin carpeta de plugin ni constantes sin resolver`);
   const bad = Object.values(data.repeaters || {}).filter((r) => !r || typeof r.fields !== 'object' || !Array.isArray(r.rows));
   ok(bad.length === 0, `${id}: cada repetidor con fields y rows`);
   if (Object.values(data.repeaters || {}).some((r) => r.rows.length)) withRows++;
@@ -252,8 +308,9 @@ ok(blog.controls.posts_limit === 3 && blog.controls.posts_source === 'post', 'bl
 const woo = parsePhp(readFileSync(join(DEFAULTS, 'prime-slider-woocommerce.php'), 'utf8').replace(/\$placeholder\b/g, "'{{placeholder}}'"));
 ok(woo.controls.posts_source === 'product' && woo.controls.posts_limit === 3, 'woocommerce: posts_source product y posts_limit 3');
 ok(withRows >= 25, `${withRows} widgets traen filas por defecto`);
-const assets = defaultFiles.some((f) => readFileSync(join(DEFAULTS, f), 'utf8').includes('{{ps_assets}}'));
-ok(assets, 'Las imágenes de demostración se marcan con {{ps_assets}}');
+const assets = defaultFiles.filter((f) => readFileSync(join(DEFAULTS, f), 'utf8').includes("'{{ps_assets}}images/"));
+ok(assets.length >= 20, `Las imágenes de demostración se marcan con {{ps_assets}} (${assets.length} widgets)`);
+ok(defaultFiles.some((f) => /'url' => \$placeholder,/.test(readFileSync(join(DEFAULTS, f), 'utf8'))), 'La imagen de relleno de Elementor va como $placeholder');
 
 // --- El generador da lo mismo (si hay python3) ----------------------------------------------------------------------
 const py = spawnSync('python3', ['-I', join(root, 'scripts/legacy-styles.py'), '--check'], { encoding: 'utf8', timeout: 120000 });

@@ -1,0 +1,8 @@
+{
+  "defaults": {
+    "_widget": "button",
+    "text": "Onda",
+    "ep_ripple_enable": "yes",
+    "_expect_codes": []
+  }
+}

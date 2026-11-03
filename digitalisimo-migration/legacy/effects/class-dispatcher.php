@@ -188,7 +188,7 @@ final class Dispatcher {
 		if ( null === self::$installed ) {
 			self::$installed = false;
 			$retire          = 'Digitalisimo\\Elements\\Legacy\\Retire';
-			if ( class_exists( $retire ) && function_exists( 'get_plugins' ) ) {
+			if ( class_exists( $retire ) && method_exists( $retire, 'installed' ) ) {
 				foreach ( (array) $retire::installed() as $info ) {
 					if ( ! empty( $info['element_pack'] ) ) {
 						self::$installed = true;

@@ -1,0 +1,12 @@
+{
+  "pagina": {
+    "_widget": "heading",
+    "title": "Con JS",
+    "_page": {
+      "ep_custom_footer_script": "<script>console.log(\"hola\")</script>"
+    },
+    "_expect_codes": [
+      "ext.review.customjs"
+    ]
+  }
+}

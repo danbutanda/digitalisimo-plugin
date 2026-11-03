@@ -6,7 +6,7 @@ sobre `$s`, los ajustes ya completados con los defaults) y el ajuste obligatorio
 Pack mostraba un aviso en lugar del shortcode. El destino es el widget Shortcode de Elementor; la
 clase envolvente de Element Pack se reescribe a `.elementor-shortcode` para los estilos heredados.
 
-Uso: python3 scripts/legacy-shortcode-maps.py [bdt-id …]   (sin argumentos, todos)
+Uso: python3 -I scripts/legacy-shortcode-maps.py [bdt-id …]   (sin argumentos, todos)
 """
 import re
 import subprocess
@@ -15,7 +15,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from legacy_controls import detail, ROOT  # noqa: E402
+from legacy_controls import detail, require_source, ROOT  # noqa: E402
 
 UI = ('HEADING', 'RAW_HTML', 'DIVIDER', 'NOTICE', 'ALERT', 'DEPRECATED_NOTICE', 'BUTTON', 'POPOVER_TOGGLE')
 URL = "( is_array( $s['%s'] ?? null ) ? (string) ( $s['%s']['url'] ?? '' ) : '' )"
@@ -159,10 +159,9 @@ def php_literal(value, indent):
 
 
 def generate(legacy_id):
-    skeleton = subprocess.run(['python3', str(HERE / 'legacy-map-skeleton.py'), legacy_id, '--target=shortcode'], capture_output=True, text=True, check=True).stdout
+    skeleton = subprocess.run([sys.executable, '-I', str(HERE / 'legacy-map-skeleton.py'), legacy_id, '--target=shortcode'], capture_output=True, text=True, check=True).stdout
     defaults = re.search(r"\t'defaults'  => (array\(.*?\n\t\)|array\(\)),\n", skeleton, re.S)
-    inventory = __import__('json').loads((ROOT / 'docs/element-pack-inventory.json').read_text())
-    source = ROOT / next(w['source_file'] for w in inventory['widgets'] if w['legacy_widget_id'] == legacy_id)
+    source = require_source(legacy_id)
     src = source.read_text(errors='ignore')
     content, conditions = [], {}
     for c in detail(source):

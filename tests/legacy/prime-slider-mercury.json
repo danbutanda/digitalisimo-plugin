@@ -1,0 +1,30 @@
+{
+  "_widget": "prime-slider-mercury",
+  "_family": "F",
+  "_comentario": "Datos sintéticos con la forma que guarda el editor (research-ps.md §3.1): sin los valores por defecto, que rellena la conversión. Los marcadores {{…}} los expande la prueba: perfiles del proveedor con los patrones de vendors.json y {{ps_assets}} con la carpeta de Lite del sitio simulado. Términos por term_taxonomy_id (52 es el de «Noticias» en la prueba; 999 no existe).",
+  "defaults": {},
+  "custom": {
+    "effect": "fade",
+    "show_excerpt": "",
+    "posts_exclude_by": [
+      "current_post",
+      "terms"
+    ],
+    "posts_exclude_term_ids": [
+      "52"
+    ],
+    "posts_select_date": "exact",
+    "posts_date_after": "2026-01-01",
+    "posts_date_before": "2026-06-30 23:59",
+    "item_height": {
+      "unit": "px",
+      "size": 640,
+      "sizes": []
+    },
+    "item_height_mobile": {
+      "unit": "px",
+      "size": 420,
+      "sizes": []
+    }
+  }
+}

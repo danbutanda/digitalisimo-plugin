@@ -6,7 +6,7 @@ defecto), resuelve las imágenes de ejemplo con la de Elementor y lista como com
 claves sin control equivalente en el widget propio y las clases CSS a mapear. El resultado se
 revisa a mano: renombres, valores, descartes y filtros dependen del render de ambos widgets.
 
-Uso: python3 scripts/legacy-map-skeleton.py bdt-fancy-card [--write]
+Uso: python3 -I scripts/legacy-map-skeleton.py bdt-fancy-card [--write]
 """
 import importlib.util
 import json
@@ -17,7 +17,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from legacy_controls import detail, ROOT  # noqa: E402
+from legacy_controls import detail, require_source, ROOT  # noqa: E402
 
 spec = importlib.util.spec_from_file_location('legacy_styles', HERE / 'legacy-styles.py')
 styles = importlib.util.module_from_spec(spec)
@@ -56,7 +56,7 @@ def main(legacy_id, write):
     else:
         own_file = None
     own = {c['name'] for c in detail(own_file)} if own_file and own_file.exists() else set()
-    controls = detail(ROOT / inventory[legacy_id]['source_file'])
+    controls = detail(require_source(legacy_id))
     top, unparsed, missing, repeaters, fields = {}, [], [], {}, {}
     for c in controls:
         ctype = c.get('type', '').split('::')[-1].strip()

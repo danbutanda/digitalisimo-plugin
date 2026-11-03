@@ -23,10 +23,11 @@ unset( $digitalisimo_ps_part );
  * widget (por `Native::element()` sobre el principal) → informe.
  *
  * Devuelve el elemento convertido, un fragmento (`elType` = `__fragment`: hermanos antes y después del principal, que
- * conserva el ID del original), un marcador de K (descartes declarados, `source: migration`) o null (sin destino
- * ahora: el widget se queda como está y Prime Slider no se retira, V.10.6). En el editor (`Context::mode()` =
- * `editor`) la conversión es pura y devuelve sólo el principal: los hermanos se pierden (límite declarado) y los
- * descartes se quedan en su marcador.
+ * conserva el ID del original), un marcador de K (`source: migration`: descartes declarados, y sin destino cuando
+ * Prime Slider ya no está cargado) o null (sin destino con Prime Slider cargado: el widget se queda como está, se
+ * sigue viendo y Prime Slider no se retira, V.10.6). En el editor (`Context::mode()` = `editor`) la conversión es
+ * pura y devuelve sólo el principal o null: los hermanos se pierden (límite declarado) y lo que no se convierte se
+ * queda en su marcador.
  */
 final class Converter {
 	/** Familias del frente F (contrato C15: `Dynamic::FAMILIES`). */
@@ -69,12 +70,12 @@ final class Converter {
 		$editor = class_exists( Context::class, false ) && 'editor' === Context::mode();
 		if ( ! $map ) {
 			$codes[] = array( 'ps.blocked.no_target', array() );
-			self::report( $post_id, $type, $codes );
-			return null;
+			self::report( $post_id, $type, $codes, $element );
+			return self::blocked( $element, $editor );
 		}
 		if ( 'DESCARTAR' === $map['decision'] ) {
 			$codes[] = array( (string) ( $map['drop_code'] ?? 'ps.dropped.widget' ), array() );
-			self::report( $post_id, $type, $codes );
+			self::report( $post_id, $type, $codes, $element );
 			return $editor || ! class_exists( self::MARKER ) ? null : call_user_func( array( self::MARKER, 'marker' ), $element, 'unknown', 'migration' );
 		}
 		$original = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
@@ -91,13 +92,15 @@ final class Converter {
 
 		$filled = self::drop_unused( $map, $filled );
 
-		if ( in_array( $map['family'], self::DYNAMIC_FAMILIES, true ) ) {
+		$dynamic = in_array( $map['family'], self::DYNAMIC_FAMILIES, true );
+		if ( $dynamic ) {
+			// F informa sus propios códigos (`ps.dyn.*`), también las claves comunes, las redes y los estilos.
 			$resolved = Demo_Media::resolve( $type, $filled );
 			$built    = self::dynamic( $type, $resolved, $element, $post_id );
 		} else {
 			// Las decisiones de C y H, antes de resolver las imágenes (C1-29).
 			$plan     = Static_Families::plan( $type, $map, $filled );
-			$resolved = Demo_Media::resolve( $type, $filled );
+			$resolved = Demo_Media::resolve( $type, Static_Families::prune( $map, $filled ) );
 			$built    = Static_Families::build( $type, $map, $resolved, $element, $post_id, $parent, $plan );
 			$codes    = array_merge( $codes, Static_Families::$codes );
 		}
@@ -107,13 +110,19 @@ final class Converter {
 		if ( Demo_Media::$skipped ) {
 			$codes[] = array( 'ps.demo.skipped', array( 'count' => Demo_Media::$skipped ) );
 		}
+		if ( null === $built && $dynamic ) {
+			// Descarte declarado de F (`event-calendar` sin The Events Calendar): a su marcador; si no, F ya lo informó.
+			self::report( $post_id, $type, $codes, $element );
+			$state = method_exists( self::DYNAMIC, 'state' ) ? call_user_func( array( self::DYNAMIC, 'state' ), $type ) : '';
+			return 'declared' === $state && ! $editor && class_exists( self::MARKER ) ? call_user_func( array( self::MARKER, 'marker' ), $element, 'unknown', 'migration' ) : null;
+		}
 		if ( null === $built ) {
 			$codes[] = array( 'ps.blocked.no_target', array( 'target' => (string) $map['target'] ) );
-			self::report( $post_id, $type, $codes );
-			return null;
+			self::report( $post_id, $type, $codes, $element );
+			return self::blocked( $element, $editor );
 		}
 		if ( self::is_marker( $built ) ) {
-			self::report( $post_id, $type, $codes );
+			self::report( $post_id, $type, $codes, $element );
 			return $editor ? null : $built;
 		}
 
@@ -126,7 +135,7 @@ final class Converter {
 				break;
 			}
 		}
-		$main = self::finish_main( (array) $parts[ $index ], $original, $element, $post_id, $parent, $codes );
+		$main = self::finish_main( (array) $parts[ $index ], $original, $post_id, $parent, $codes, ! $dynamic );
 		foreach ( $parts as $i => $part ) {
 			if ( $i !== $index && is_array( $part ) ) {
 				$parts[ $i ]['settings'] = (array) ( $part['settings'] ?? array() ) + self::visibility( $original );
@@ -140,13 +149,15 @@ final class Converter {
 				$codes[] = array( $code, array() );
 			}
 		}
-		$lost = self::lost_styles( $type, $original );
-		if ( $lost ) {
-			$codes[] = array( 'ps.loss.styles', array( 'count' => $lost ) );
+		if ( ! $dynamic ) {
+			$lost = self::lost_styles( $type, $map, $original );
+			if ( $lost ) {
+				$codes[] = array( 'ps.loss.styles', array( 'count' => $lost ) );
+			}
+			$target  = (string) ( $main['widgetType'] ?? ( $main['elType'] ?? '' ) );
+			$codes[] = array( 'ADAPTAR' === $map['decision'] ? 'ps.converted' : 'ps.approx', array( 'target' => $target ) );
 		}
-		$target  = (string) ( $main['widgetType'] ?? ( $main['elType'] ?? '' ) );
-		$codes[] = array( 'ADAPTAR' === $map['decision'] ? 'ps.converted' : 'ps.approx', array( 'target' => $target ) );
-		self::report( $post_id, $type, $codes );
+		self::report( $post_id, $type, self::group_losses( $codes ), $element );
 
 		if ( $editor || 1 === count( $parts ) ) {
 			return $main;
@@ -175,10 +186,31 @@ final class Converter {
 		return $s;
 	}
 
+	/**
+	 * Las diferencias declaradas del widget (`ps.loss.feature`) en una sola anotación, con la lista en `note`: el informe
+	 * guarda 12 anotaciones por documento como mucho.
+	 */
+	private static function group_losses( array $codes ): array {
+		$names = array();
+		$out   = array();
+		foreach ( $codes as $code ) {
+			if ( 'ps.loss.feature' === $code[0] ) {
+				$names[] = (string) ( $code[1]['name'] ?? '' );
+				continue;
+			}
+			$out[] = $code;
+		}
+		$names = array_values( array_unique( array_filter( $names ) ) );
+		if ( $names ) {
+			$out[] = array( 'ps.loss.feature', array( 'count' => count( $names ), 'note' => implode( '; ', $names ) ) );
+		}
+		return $out;
+	}
+
 	/** Claves comunes, CSS del original y extensiones de Element Pack del widget sobre el elemento principal. */
-	private static function finish_main( array $main, array $original, array $element, int $post_id, string $parent, array &$codes ): array {
+	private static function finish_main( array $main, array $original, int $post_id, string $parent, array &$codes, bool $common ): array {
 		$settings = (array) ( $main['settings'] ?? array() );
-		foreach ( Builder::common( $original, true ) as $key => $value ) {
+		foreach ( $common ? Builder::common( $original, true ) : array() as $key => $value ) {
 			if ( 'custom_css' === $key ) {
 				$own = trim( (string) $value );
 				if ( '' !== $own ) {
@@ -203,6 +235,17 @@ final class Converter {
 			$key = (string) $key;
 			if ( self::legacy_key( $key ) && ! array_key_exists( $key, $settings ) ) {
 				$legacy[ $key ] = $value;
+			}
+		}
+		if ( 'container' === ( $main['elType'] ?? '' ) ) {
+			// Un contenedor (familia K) nombra sin guion bajo sus márgenes, rellenos, capa y clases.
+			foreach ( array( '_margin' => 'margin', '_padding' => 'padding', '_z_index' => 'z_index', '_css_classes' => 'css_classes' ) as $from => $to ) {
+				foreach ( array_keys( $settings ) as $key ) {
+					if ( $key === $from || 0 === strpos( (string) $key, $from . '_' ) ) {
+						$settings[ $to . substr( (string) $key, strlen( $from ) ) ] = $settings[ $key ];
+						unset( $settings[ $key ] );
+					}
+				}
 			}
 		}
 		$main['settings'] = $settings + $legacy;
@@ -236,15 +279,17 @@ final class Converter {
 	}
 
 	/** Ajustes de estilo guardados que no tienen equivalente (`ps.loss.styles`). */
-	private static function lost_styles( string $type, array $original ): int {
+	private static function lost_styles( string $type, array $map, array $original ): int {
 		$styles = Defaults::style_keys( $type );
 		if ( ! $styles ) {
 			return 0;
 		}
+		$used  = array_flip( Static_Families::used_keys( $map ) );
 		$count = 0;
-		foreach ( array_keys( $original ) as $key ) {
-			$key = (string) $key;
-			if ( isset( Static_Families::$consumed[ $key ] ) || Builder::is_common( $key ) ) {
+		foreach ( $original as $key => $value ) {
+			$key  = (string) $key;
+			$base = (string) preg_replace( '/_(?:widescreen|laptop|tablet_extra|tablet|mobile_extra|mobile)$/', '', $key );
+			if ( isset( Static_Families::$consumed[ $key ] ) || isset( $used[ $base ] ) || Builder::is_common( $key ) || '' === $value || null === $value || array() === $value ) {
 				continue;
 			}
 			foreach ( $styles as $style ) {
@@ -271,13 +316,14 @@ final class Converter {
 	}
 
 	/** Pasa los códigos al informe (nunca en modo puro: el informe ya los descarta en el editor). */
-	private static function report( int $post_id, string $type, array $codes ): void {
+	private static function report( int $post_id, string $type, array $codes, array $element ): void {
 		self::$last = $codes;
 		if ( ( class_exists( Context::class, false ) && Context::pure() ) || ! class_exists( Report::class, false ) ) {
 			return;
 		}
+		$id = isset( $element['id'] ) && is_scalar( $element['id'] ) ? (string) $element['id'] : '';
 		foreach ( $codes as $code ) {
-			Report::add( $post_id, (string) $code[0], array( 'widget' => $type ) + (array) $code[1] );
+			Report::add( $post_id, (string) $code[0], (array) $code[1] + array( 'widget' => $type, 'element' => $id ) );
 		}
 	}
 
@@ -334,6 +380,18 @@ final class Converter {
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Sin destino ahora (§3.E.0.8): con Prime Slider cargado el widget se queda tal cual (sigue viéndose, y Prime
+	 * Slider no se retira mientras quede uno, V.10.6); sin él no se pinta, así que va a su marcador (`source:
+	 * migration`), donde el editor no lo borra y la etapa `markers` lo convertirá cuando el destino exista.
+	 */
+	private static function blocked( array $element, bool $editor ): ?array {
+		if ( $editor || Defaults::prime_slider_active() || ! class_exists( self::MARKER ) ) {
+			return null;
+		}
+		return call_user_func( array( self::MARKER, 'marker' ), $element, 'unknown', 'migration' );
 	}
 
 	/** ¿Es un marcador de K (`digitalisimo-unconverted`)? Sin K cargado, por su forma. */

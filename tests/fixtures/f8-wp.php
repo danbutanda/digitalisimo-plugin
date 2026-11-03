@@ -1525,7 +1525,7 @@ if ( ! class_exists( 'F8_Wpdb' ) ) {
 				$blog = $this->table_blog( $sql, 'options' );
 				$name = (string) $args[1];
 				$have = $GLOBALS['wp']['options'][ $blog ][ $name ] ?? null;
-				if ( null === $have || ( '=' === $m[3] ? (string) $have !== (string) $args[2] : ! self::like( (string) $have, (string) $args[2] ) ) ) {
+				if ( null === $have || ( '=' === $m[2] ? (string) $have !== (string) $args[2] : ! self::like( (string) $have, (string) $args[2] ) ) ) {
 					return 0;
 				}
 				$GLOBALS['wp']['options'][ $blog ][ $name ] = (string) $args[0];

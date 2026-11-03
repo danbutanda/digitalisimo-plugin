@@ -34,6 +34,9 @@ final class Fonts {
 	/** Caracteres que no pueden ir en un nombre de familia que el destino interpola entre comillas simples. */
 	const UNSAFE = '/[\'"\\\\<>{};\x00-\x1F\x7F]/';
 
+	/** @var array<string, array{count:int, names:string[]}> lo creado en esta petición, por código. */
+	private static $tally = array();
+
 	/** Fuentes publicadas del origen, por ID ascendente. */
 	public static function sources(): array {
 		return array_map(
@@ -186,6 +189,7 @@ final class Fonts {
 				continue;
 			}
 			if ( Inventory::late( $deadline ) ) {
+				self::emit();
 				return false;
 			}
 			if ( self::convert( $id ) ) {
@@ -196,6 +200,7 @@ final class Fonts {
 		if ( ! empty( $cursor['changed'] ) ) {
 			self::clear_lists();
 		}
+		self::emit();
 		return true;
 	}
 
@@ -216,6 +221,11 @@ final class Fonts {
 			$codes = self::codes( $plan, self::existing( $plan['family'] ) );
 			if ( 'plat.font.created' !== $codes[0][0] ) {
 				Inventory::site_code( $codes[0][0], $codes[0][1] );
+				return false;
+			}
+			// Sin el gestor de fuentes del destino cargado, la fuente se crearía sin su tipo y nadie la vería.
+			if ( function_exists( 'taxonomy_exists' ) && ! taxonomy_exists( self::TAXONOMY ) ) {
+				Inventory::site_code( 'plat.font.failed', array( 'name' => Inventory::plain( $plan['family'], 80 ), 'note' => __( 'El gestor de fuentes propias no está cargado.', 'digitalisimo-migration' ) ) );
 				return false;
 			}
 			Inventory::reg_put( self::KIND, (string) $id, array( 'state' => 'pending', 'extra' => array( 'family' => $plan['family'] ) ) );
@@ -252,9 +262,19 @@ final class Fonts {
 			)
 		);
 		foreach ( self::codes( $plan, 0, $dest ) as $pair ) {
-			Inventory::site_code( $pair[0], $pair[1] );
+			self::$tally[ $pair[0] ]            = self::$tally[ $pair[0] ] ?? array( 'count' => 0, 'names' => array() );
+			self::$tally[ $pair[0] ]['count']  += max( 1, (int) ( $pair[1]['count'] ?? 1 ) );
+			self::$tally[ $pair[0] ]['names'][] = (string) $pair[1]['name'];
 		}
 		return true;
+	}
+
+	/** Lo creado, un elemento del informe por código (con las familias en la nota), no uno por fuente. */
+	private static function emit(): void {
+		foreach ( self::$tally as $code => $row ) {
+			Inventory::site_code( $code, array( 'count' => $row['count'], 'note' => Inventory::plain( implode( ', ', array_unique( $row['names'] ) ), 200 ) ) );
+		}
+		self::$tally = array();
 	}
 
 	/** Huella de lo creado: familia y archivos. */

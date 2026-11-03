@@ -1,0 +1,164 @@
+{
+  "_": "Sitio sintético para la migración del Theme Builder de Element Pack (F8, frente G). Nada real ni del proveedor. `data` con `__json` se guarda como el JSON de esa estructura (sin escapar Unicode ni barras), como lo guarda el constructor.",
+  "post_types": {
+    "post": { "public": true, "show_in_nav_menus": true, "hierarchical": false, "archive": true },
+    "page": { "public": true, "show_in_nav_menus": true, "hierarchical": true, "archive": false },
+    "attachment": { "public": true, "show_in_nav_menus": false, "hierarchical": false, "archive": false },
+    "book": { "public": true, "show_in_nav_menus": true, "hierarchical": false, "archive": true },
+    "bdt-template-builder": { "public": true, "show_in_nav_menus": false, "hierarchical": false, "archive": false },
+    "elementor_library": { "public": false, "show_in_nav_menus": false, "hierarchical": false, "archive": false }
+  },
+  "woo_post_types": {
+    "product": { "public": true, "show_in_nav_menus": true, "hierarchical": false, "archive": true }
+  },
+  "taxonomies": {
+    "category": { "object_type": ["post"], "public": true, "publicly_queryable": true, "show_in_nav_menus": true, "hierarchical": true },
+    "post_tag": { "object_type": ["post"], "public": true, "publicly_queryable": true, "show_in_nav_menus": true, "hierarchical": false },
+    "post_format": { "object_type": ["post"], "public": true, "publicly_queryable": true, "show_in_nav_menus": false, "hierarchical": false },
+    "series": { "object_type": ["post"], "public": true, "publicly_queryable": true, "show_in_nav_menus": true, "hierarchical": false },
+    "genre": { "object_type": ["book"], "public": true, "publicly_queryable": true, "show_in_nav_menus": true, "hierarchical": true }
+  },
+  "woo_taxonomies": {
+    "product_cat": { "object_type": ["product"], "public": true, "publicly_queryable": true, "show_in_nav_menus": true, "hierarchical": true },
+    "product_tag": { "object_type": ["product"], "public": true, "publicly_queryable": true, "show_in_nav_menus": true, "hierarchical": false },
+    "pa_color": { "object_type": ["product"], "public": true, "publicly_queryable": true, "show_in_nav_menus": false, "hierarchical": false }
+  },
+  "terms": {
+    "5": { "taxonomy": "category", "parent": 0 },
+    "6": { "taxonomy": "category", "parent": 5 },
+    "7": { "taxonomy": "post_tag", "parent": 0 },
+    "8": { "taxonomy": "genre", "parent": 0 },
+    "9": { "taxonomy": "product_cat", "parent": 0 },
+    "31": { "taxonomy": "pa_color", "parent": 0 },
+    "40": { "taxonomy": "series", "parent": 0 }
+  },
+  "users": [1, 3, 4],
+  "posts": [
+    { "ID": 10, "post_type": "page", "post_status": "publish", "post_title": "Inicio" },
+    { "ID": 11, "post_type": "page", "post_status": "publish", "post_title": "Contacto", "meta": { "_wp_page_template": "templates/full.php" } },
+    { "ID": 12, "post_type": "page", "post_status": "publish", "post_title": "Carrito" },
+    { "ID": 13, "post_type": "page", "post_status": "publish", "post_title": "Pago" },
+    { "ID": 14, "post_type": "page", "post_status": "publish", "post_title": "Mi cuenta" },
+    { "ID": 15, "post_type": "page", "post_status": "publish", "post_title": "Ofertas", "post_content": "[woocommerce_cart]" },
+    { "ID": 16, "post_type": "page", "post_status": "publish", "post_title": "Aterrizaje", "meta": { "_wp_page_template": "elementor_header_footer" } },
+    { "ID": 20, "post_type": "post", "post_status": "publish", "post_title": "Hola", "post_author": 3 },
+    { "ID": 21, "post_type": "attachment", "post_status": "inherit", "post_title": "Foto", "post_parent": 20 },
+    { "ID": 22, "post_type": "book", "post_status": "publish", "post_title": "Libro" },
+    { "ID": 23, "post_type": "product", "post_status": "publish", "post_title": "Camiseta" },
+
+    { "ID": 100, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Cabecera principal", "meta": {
+      "_bdthemes_builder_template_type": "themes|header", "_bdthemes_builder_edit_with": "elementor",
+      "_bdthemes_builder_template_conditions": "[{\"polarity\":\"include\",\"condition_a\":\"entire_site\"},{\"polarity\":\"exclude\",\"condition_a\":\"singular\",\"condition_singular\":\"selective\",\"condition_singular_id\":\"16\"}]",
+      "_elementor_data": { "__json": [ { "id": "h1", "elType": "container", "settings": { "custom_css": "selector a:after{content:\"\\f105\"}" }, "elements": [ { "id": "h2", "elType": "widget", "widgetType": "html", "settings": { "html": "<a href=\"#\" class=\"menú\">Menú á</a>", "path": "C:\\temp\\logo" }, "elements": [] } ] } ] },
+      "_elementor_page_settings": { "custom_css": "selector{content:\"\\201C\"}", "background_color": "#101010" } } },
+    { "ID": 101, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Cabecera de la tienda", "meta": {
+      "_bdthemes_builder_template_type": "themes|header", "_bdthemes_builder_edit_with": "elementor",
+      "_bdthemes_builder_template_conditions": "[{\"polarity\":\"include\",\"condition_a\":\"woocommerce\",\"condition_woo\":\"all\"}]",
+      "_elementor_data": { "__json": [ { "id": "s1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Tienda" }, "elements": [] } ] } } },
+    { "ID": 102, "post_type": "bdt-template-builder", "post_status": "draft", "post_title": "Cabecera antigua", "meta": {
+      "_bdthemes_builder_template_type": "themes|header", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "o1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Antigua" }, "elements": [] } ] } } },
+    { "ID": 103, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Pie", "meta": {
+      "_bdthemes_builder_template_type": "themes|footer", "_bdthemes_builder_edit_with": "elementor",
+      "_bdthemes_builder_template_condition_a": "",
+      "_elementor_data": { "__json": [ { "id": "f1", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>© Pie</p>" }, "elements": [] } ] } } },
+    { "ID": 104, "post_type": "bdt-template-builder", "post_status": "draft", "post_title": "Pie de bloques", "post_content": "<!-- wp:paragraph --><p>Pie</p><!-- /wp:paragraph -->", "meta": {
+      "_bdthemes_builder_template_type": "themes|footer", "_bdthemes_builder_edit_with": "gutenberg" } },
+
+    { "ID": 110, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Entrada", "meta": {
+      "_bdthemes_builder_template_type": "post|single", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "p1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Entrada" }, "elements": [] } ] },
+      "_elementor_page_settings": { "bdt_builder_sample_post_id": 20, "background_color": "#fafafa" } } },
+    { "ID": 111, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Libro", "meta": {
+      "_bdthemes_builder_template_type": "book|single", "_bdthemes_builder_edit_with": "elementor",
+      "_bdthemes_builder_template_conditions": "[{\"polarity\":\"include\",\"condition_a\":\"singular\",\"condition_singular\":\"all\"}]",
+      "_elementor_data": { "__json": [ { "id": "b1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Libro" }, "elements": [] } ] } } },
+    { "ID": 112, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Producto", "meta": {
+      "_bdthemes_builder_template_type": "product|single", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "r1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Producto" }, "elements": [] } ] } } },
+    { "ID": 113, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Página", "meta": {
+      "_bdthemes_builder_template_type": "page|single", "_bdthemes_builder_edit_with": "elementor",
+      "_bdthemes_builder_template_conditions": "[{\"polarity\":\"include\",\"condition_a\":\"singular\",\"condition_singular\":\"all\"},{\"polarity\":\"exclude\",\"condition_a\":\"singular\",\"condition_singular\":\"front_page\"}]",
+      "_elementor_data": { "__json": [ { "id": "g1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Página" }, "elements": [] } ] } } },
+    { "ID": 114, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Error A", "meta": {
+      "_bdthemes_builder_template_type": "page|404", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "e1", "elType": "widget", "widgetType": "heading", "settings": { "title": "No existe (A)" }, "elements": [] } ] } } },
+    { "ID": 115, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Error B", "meta": {
+      "_bdthemes_builder_template_type": "page|404", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "e2", "elType": "widget", "widgetType": "heading", "settings": { "title": "No existe (B)" }, "elements": [] } ] } } },
+    { "ID": 116, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Archivo", "meta": {
+      "_bdthemes_builder_template_type": "post|archive", "_bdthemes_builder_edit_with": "elementor",
+      "_bdthemes_builder_template_conditions": "[{\"polarity\":\"include\",\"condition_a\":\"archive\",\"condition_archive\":\"all\"}]",
+      "_elementor_data": { "__json": [ { "id": "a1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Archivo" }, "elements": [] } ] } } },
+    { "ID": 117, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Archivo de libros", "meta": {
+      "_bdthemes_builder_template_type": "book|archive", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "a2", "elType": "widget", "widgetType": "heading", "settings": { "title": "Libros" }, "elements": [] } ] } } },
+    { "ID": 118, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Búsqueda", "meta": {
+      "_bdthemes_builder_template_type": "page|search", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "q1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Resultados" }, "elements": [] } ] } } },
+    { "ID": 119, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Tienda", "meta": {
+      "_bdthemes_builder_template_type": "product|shop", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "t1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Tienda" }, "elements": [] } ] } } },
+    { "ID": 120, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Carrito", "meta": {
+      "_bdthemes_builder_template_type": "product|cart", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "c1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Tu carrito" }, "elements": [] } ] } } },
+    { "ID": 121, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Rara", "meta": {
+      "_bdthemes_builder_template_type": "unknown|thing", "_bdthemes_builder_edit_with": "elementor",
+      "_elementor_data": { "__json": [ { "id": "u1", "elType": "widget", "widgetType": "heading", "settings": { "title": "?" }, "elements": [] } ] } } },
+    { "ID": 122, "post_type": "bdt-template-builder", "post_status": "draft", "post_title": "Cabecera vacía", "meta": {
+      "_bdthemes_builder_template_type": "themes|header", "_bdthemes_builder_edit_with": "elementor", "_elementor_data": "[]" } },
+    { "ID": 123, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Categorías", "meta": {
+      "_bdthemes_builder_template_type": "post|category", "_bdthemes_builder_edit_with": "elementor",
+      "_bdthemes_builder_template_conditions": "[{\"polarity\":\"include\",\"condition_a\":\"archive\",\"condition_archive\":\"category\",\"condition_singular_id\":\"5, 999\"}]",
+      "_elementor_data": { "__json": [ { "id": "k1", "elType": "widget", "widgetType": "heading", "settings": { "title": "Categoría" }, "elements": [] } ] } } },
+    { "ID": 124, "post_type": "bdt-template-builder", "post_status": "publish", "post_title": "Libro destacado", "meta": {
+      "_bdthemes_builder_template_type": "book|single", "_bdthemes_builder_edit_with": "elementor",
+      "_bdthemes_builder_template_conditions": "[{\"polarity\":\"include\",\"condition_a\":\"singular\",\"condition_singular\":\"selective\",\"condition_singular_id\":\"22\"}]",
+      "_elementor_data": { "__json": [ { "id": "b2", "elType": "widget", "widgetType": "heading", "settings": { "title": "Destacado" }, "elements": [] } ] } } }
+  ],
+  "options": [
+    ["woocommerce_cart_page_id", "12"],
+    ["woocommerce_checkout_page_id", "13"],
+    ["woocommerce_myaccount_page_id", "14"],
+    ["_bdthemes_builder_themes|header__100", "100"],
+    ["_bdthemes_builder_themes|header__101", "101"],
+    ["_bdthemes_builder_themes|footer", "103"],
+    ["_bdthemes_builder_post|single__110", "110"],
+    ["_bdthemes_builder_book|single__111", "111"],
+    ["_bdthemes_builder_product|single__112", "112"],
+    ["_bdthemes_builder_page|single__113", "113"],
+    ["_bdthemes_builder_page|404__114", "114"],
+    ["_bdthemes_builder_page|404__115", "115"],
+    ["_bdthemes_builder_post|archive__116", "116"],
+    ["_bdthemes_builder_book|archive__117", "117"],
+    ["_bdthemes_builder_page|search__118", "118"],
+    ["_bdthemes_builder_product|shop__119", "119"],
+    ["_bdthemes_builder_product|cart__120", "120"],
+    ["_bdthemes_builder_unknown|thing__121", "121"],
+    ["_bdthemes_builder_post|category__123", "123"],
+    ["_bdthemes_builder_book|single__124", "124"]
+  ],
+  "expect": {
+    "publishable": { "100": 1, "101": 2, "103": 1, "124": 1, "112": 2, "111": 3, "115": 4, "113": 5, "110": 6, "118": 1, "117": 2, "123": 3, "119": 4, "116": 5 },
+    "reasons": { "102": "tb.inactive", "104": "tb.review.gutenberg", "114": "tb.duplicate", "120": "tb.review.woo_page", "121": "tb.review.unknown_type", "122": "tb.review.empty" },
+    "types": { "100": "header", "101": "header", "102": "header", "103": "footer", "104": "footer", "110": "single-post", "111": "single", "112": "product", "113": "single-page", "114": "error-404", "115": "error-404", "116": "archive", "117": "archive", "118": "search-results", "119": "product-archive", "120": "single-page", "121": "page", "122": "header", "123": "archive", "124": "single" },
+    "conditions": {
+      "100": ["include/general", "exclude/singular/page/16"],
+      "101": ["include/woocommerce"],
+      "103": ["include/general"],
+      "110": ["include/singular", "exclude/singular/page", "exclude/singular/not_found404", "exclude/singular/attachment"],
+      "111": ["include/singular/book"],
+      "112": ["include/woocommerce/product"],
+      "113": ["include/singular/page", "exclude/singular/front_page", "exclude/singular/page/11", "exclude/singular/page/12", "exclude/singular/page/13", "exclude/singular/page/14", "exclude/singular/page/15"],
+      "115": ["include/singular/not_found404"],
+      "116": ["include/archive", "exclude/archive/search", "exclude/archive/series"],
+      "117": ["include/archive/book_archive"],
+      "118": ["include/archive/search", "include/woocommerce/product_search"],
+      "119": ["include/woocommerce/shop_page", "include/woocommerce/product_cat", "include/woocommerce/product_tag", "exclude/woocommerce/product_search"],
+      "120": [],
+      "121": [],
+      "123": ["include/archive/category/5", "exclude/archive/search", "exclude/archive/series"],
+      "124": ["include/singular/book/22"]
+    }
+  }
+}

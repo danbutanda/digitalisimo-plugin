@@ -233,7 +233,6 @@ return array( array(
 			'{{WRAPPER}} .digi-advanced-icon-box--left .digi-advanced-icon-box__visual' => 'margin-right: {{SIZE}}{{UNIT}};',
 			'{{WRAPPER}} .digi-advanced-icon-box--top .digi-advanced-icon-box__visual' => 'margin-bottom: {{SIZE}}{{UNIT}};',
 			'{{WRAPPER}} .digi-advanced-icon-box--bottom .digi-advanced-icon-box__visual' => 'margin-top: {{SIZE}}{{UNIT}};',
-			'(mobile){{WRAPPER}} .digi-advanced-icon-box__visual' => 'margin-bottom: {{SIZE}}{{UNIT}};',
 		),
 		'default' => array(
 			'size' => 15,
@@ -661,7 +660,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-advanced-icon-box__more' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-advanced-icon-box__more svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'readmore_background',
@@ -701,7 +699,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-advanced-icon-box__more:hover' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-advanced-icon-box__more:hover svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'readmore_hover_background',

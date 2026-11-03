@@ -1,0 +1,53 @@
+{
+  "defaults": {
+    "_widget": "image",
+    "ep_global_badge_enable": "yes",
+    "_expect_json": [
+      "\"digitalisimo_badge\":\"yes\"",
+      "\"digitalisimo_badge_text\":\"New\"",
+      "\"digitalisimo_badge_rotate\":{\"unit\":\"deg\",\"size\":15",
+      "\"digitalisimo_badge_bg_color\":\"#1e87f0\"",
+      "\"digitalisimo_badge_min_width\":{\"unit\":\"px\",\"size\":100"
+    ],
+    "_expect_codes": [
+      "ext.converted.global_badge"
+    ]
+  },
+  "personalizado": {
+    "_widget": "heading",
+    "title": "Oferta",
+    "ep_global_badge_enable": "yes",
+    "ep_global_badge_text": "Oferta",
+    "ep_global_badge_horizontal": "left",
+    "ep_global_badge_vertical": "bottom",
+    "ep_global_badge_offset_x": {
+      "unit": "px",
+      "size": 5
+    },
+    "ep_global_badge_offset_y": {
+      "unit": "px",
+      "size": 4
+    },
+    "ep_global_badge_style": "custom-layout",
+    "ep_global_badge_clip_path": "yes",
+    "ep_global_badge_clip_path_value": "polygon(0% 0%, 100% 0%, 90% 50%, 100% 100%, 0% 100%)",
+    "ep_global_badge_icon": "yes",
+    "ep_global_badge_icon_selected": {
+      "value": "fas fa-bolt",
+      "library": "fa-solid"
+    },
+    "ep_global_badge_floating": "yes",
+    "ep_global_badge_floating_translate_toggle": "yes",
+    "_expect_json": [
+      "\"digitalisimo_badge_corner\":\"bottom-start\"",
+      "\"digitalisimo_badge_offset_x\":{\"unit\":\"px\",\"size\":5",
+      "\"digitalisimo_badge_offset_y\":{\"unit\":\"px\",\"size\":-4",
+      "\"digitalisimo_badge_shape\":\"custom\"",
+      "\"digitalisimo_badge_icon\":{\"value\":\"fas fa-bolt\",\"library\":\"fa-solid\"}",
+      "\"digitalisimo_badge_float\":\"yes\""
+    ],
+    "_expect_codes": [
+      "ext.converted.global_badge"
+    ]
+  }
+}

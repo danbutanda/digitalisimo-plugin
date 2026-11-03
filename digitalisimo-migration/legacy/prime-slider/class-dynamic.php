@@ -1,9 +1,6 @@
 <?php
 namespace Digitalisimo\Elements\Legacy\Prime_Slider;
 
-use Digitalisimo\Elements\Legacy\Context;
-use Digitalisimo\Elements\Legacy\Report;
-
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -52,6 +49,16 @@ final class Dynamic {
 
 	/** Lista blanca de claves comunes (V.10.2), si `Builder::common()` de E no está. */
 	const COMMON = '/^(_margin|_padding|_z_index|_element_width|_element_custom_width|_flex_|_position$|_offset_|_background_|_border_|_box_shadow_|_animation|animation_duration$|_transform_|hide_(desktop|tablet|mobile)$|_attributes$|_mask_|motion_fx_|sticky|custom_css$)/';
+
+	/** Claves de contenido o de disposición que se traducen (no cuentan como estilo sin equivalente). */
+	const CONTENT = '/^(item_gap|item_height|slider_height|slider_item_height|viewport_height|slider_min_height|slider_size_ratio|enable_height|columns|overlay_color|content_alignment|content_align|thumbnail_size|primary_thumbnail_size|duration|offset)(_|$)|_toggle$/';
+
+	/**
+	 * Rasgos propios de DIGITALÍSIMO Elements que el widget de Prime Slider pudo tener (se registran en todos los
+	 * widgets): siguen en el principal. Las extensiones de Element Pack no: las añade y convierte `Converter` (E) con
+	 * `Native::element()` sobre el principal (§3.E.0.5), y sólo si el principal no las trae ya.
+	 */
+	const CARRY = '/^digitalisimo_(visibility_|figures|element_link|tooltip|badge|preset)/';
 
 	/** Claves de estilo (para contar lo que no tiene equivalente). */
 	const STYLE = '/(color|typography|_border|radius|padding|margin|shadow|spacing|_size$|_size_|width|height|background|opacity|_gap|offset|text_stroke|blur|glassmorphism)/';
@@ -110,7 +117,7 @@ final class Dynamic {
 				$main = self::wc_widget( $s, $cfg, $element, $codes, 'ps.dyn.products_carousel' );
 				break;
 			case 'hotspot':
-				$main = self::hotspot( $s, $cfg, $element, $codes );
+				$main = self::hotspot( $s, $cfg, $element, $codes, $post_id );
 				break;
 			case 'events':
 				$main = self::events( $id, $s, $cfg, $element, $codes );
@@ -170,6 +177,31 @@ final class Dynamic {
 				return self::nested_possible() ? 'target' : 'fallback';
 		}
 		return 'blocked';
+	}
+
+	/**
+	 * Análisis previo de un widget de F (sin escribir nada), por `state()`: el código principal que dejaría la tarea.
+	 * Para `Converter::describe()` (E) y el análisis por trozos (A).
+	 *
+	 * @return array<string, int>
+	 */
+	public static function describe( string $id ): array {
+		$map  = self::map( $id );
+		$kind = (string) ( $map['dynamic']['kind'] ?? '' );
+		switch ( self::state( $id ) ) {
+			case 'target':
+				$code = array( 'posts' => 'ps.dyn.loop', 'products' => 'ps.dyn.loop', 'wc' => 'ps.dyn.products_carousel', 'hotspot' => 'ps.dyn.hotspot', 'events' => 'ps.dyn.events' )[ $kind ] ?? 'ps.dyn.loop';
+				break;
+			case 'fallback':
+				$code = array( 'posts' => 'ps.dyn.fallback_posts', 'events' => 'ps.dyn.fallback_posts', 'products' => 'ps.dyn.fallback_products', 'hotspot' => 'ps.dyn.hotspot_fragment' )[ $kind ] ?? 'ps.dyn.blocked';
+				break;
+			case 'declared':
+				$code = 'ps.dyn.events_unavailable';
+				break;
+			default:
+				$code = in_array( $kind, array( 'products', 'wc' ), true ) && ! self::woocommerce() ? 'ps.dyn.no_woocommerce' : 'ps.dyn.blocked';
+		}
+		return array( $code => 1 );
 	}
 
 	/** Mapa de un widget de F (por `Maps::get()` de E si existe; si no, el archivo). */
@@ -452,7 +484,7 @@ final class Dynamic {
 	 * `hotspot` por diapositiva: imagen, puntos (`hotspot_offset_x/_y` ← `marker_x/_y_position`) y globo con el título,
 	 * el texto, el precio y el enlace. Con el slider anidado y `Builder` de E, dentro del slider; si no, en un fragmento.
 	 */
-	private static function hotspot( array $s, array $cfg, array $element, array &$codes ): ?array {
+	private static function hotspot( array $s, array $cfg, array $element, array &$codes, int $post_id ): ?array {
 		if ( false === self::ready( 'hotspot' ) ) {
 			$codes[] = array( 'ps.dyn.blocked', array( 'target' => 'hotspot' ) );
 			return null;
@@ -488,7 +520,7 @@ final class Dynamic {
 			foreach ( $spots as $spot ) {
 				$children[] = $builder::container( array(), array( $spot ) );
 			}
-			$slider = $builder::nested_slider( $s, $children );
+			$slider = $builder::nested_slider( self::nested_settings( $s, count( $children ), $post_id, $codes ), $children );
 			if ( is_array( $slider ) && $slider ) {
 				$slider['id'] = $base;
 				$codes[]      = array( 'ps.dyn.hotspot', array( 'target' => 'digitalisimo-nested-slider', 'count' => count( $children ) ) );
@@ -552,6 +584,36 @@ final class Dynamic {
 			$html    .= '<p><a href="' . ( function_exists( 'esc_url' ) ? esc_url( $url ) : self::esc( $url ) ) . '"' . $external . '>' . self::esc( $label ) . '</a></p>';
 		}
 		return $html;
+	}
+
+	/**
+	 * Ajustes del slider anidado para woohotspot (la tabla de §3.E.2 con sus claves de Swiper): transición, velocidad,
+	 * reproducción automática acotada a 2 000–20 000 ms, pausa, bucle, navegación y nombre accesible.
+	 */
+	private static function nested_settings( array $s, int $count, int $post_id, array &$codes ): array {
+		$auto    = self::autoplay( $s, array( 'engine' => 'swiper' ) );
+		$effects = array( 'slide' => 'slide', 'fade' => 'fade', 'cube' => 'slide', 'flip' => 'slide', 'coverflow' => 'slide', 'creative' => 'fade', 'cards' => 'fade', 'tinder' => 'fade', 'shutters' => 'fade', 'slicer' => 'fade', 'gl' => 'fade' );
+		$out     = array( 'effect' => $effects[ $auto['effect'] ] ?? 'slide' );
+		if ( ! in_array( $auto['effect'], array( 'slide', 'fade' ), true ) ) {
+			$codes[] = array( 'ps.dyn.loss.effect', array( 'type' => $auto['effect'] ) );
+		}
+		if ( 'slide' !== $out['effect'] && null !== $auto['speed'] ) {
+			$out['speed'] = max( 0, min( 3000, $auto['speed'] ) );
+		}
+		$out['autoplay']       = $auto['on'] ? 'yes' : '';
+		$out['autoplay_delay'] = max( 2000, min( 20000, $auto['delay'] ) );
+		$out['pause_on_hover'] = $auto['pause'] ? 'yes' : '';
+		$out['loop']           = $auto['loop'] ? 'yes' : '';
+		$nav                   = self::navigation( $s, array( 'nav' => array( 'arrows' => 'show_navigation_arrows', 'dots' => 'show_navigation_dots' ) ) );
+		$out['navigation']     = $nav['arrows'] && $nav['dots'] ? 'both' : ( $nav['arrows'] ? 'arrows' : 'dots' );
+		if ( ! $nav['arrows'] && ! $nav['dots'] && $count > 1 ) {
+			$codes[] = array( 'ps.dyn.nav_none', array() );
+		}
+		$title = $post_id && function_exists( 'get_the_title' ) ? trim( self::plain( get_the_title( $post_id ) ) ) : '';
+		if ( '' !== $title ) {
+			$out['carousel_label'] = function_exists( 'mb_substr' ) ? mb_substr( $title, 0, 80, 'UTF-8' ) : substr( $title, 0, 80 );
+		}
+		return $out;
 	}
 
 	/* ---------------------------------------------------------------- Loop Carousel */
@@ -841,11 +903,11 @@ final class Dynamic {
 		$original = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
 		if ( '__fragment' === ( $main['elType'] ?? '' ) ) {
 			if ( isset( $main['elements'][0]['settings'] ) ) {
-				$main['elements'][0]['settings'] = array_merge( self::common( $original, true, $codes ), (array) $main['elements'][0]['settings'] );
+				$main['elements'][0]['settings'] = self::merge( self::common( $original, true, $codes ), self::carry( $original ), (array) $main['elements'][0]['settings'] );
 			}
 			return $main;
 		}
-		$main['settings'] = array_merge( self::common( $original, true, $codes ), (array) ( $main['settings'] ?? array() ) );
+		$main['settings'] = self::merge( self::common( $original, true, $codes ), self::carry( $original ), (array) ( $main['settings'] ?? array() ) );
 		$siblings         = array();
 		if ( ! empty( $cfg['social'] ) ) {
 			$social = self::social( $s, $element, $codes );
@@ -868,9 +930,15 @@ final class Dynamic {
 	/** Claves comunes del widget origen (`Builder::common()` de E o la misma lista blanca). */
 	private static function common( array $from, bool $main, array &$codes ): array {
 		$builder = self::BUILDER;
-		if ( class_exists( $builder ) && method_exists( $builder, 'common' ) ) {
-			return (array) $builder::common( $from, $main );
+		$out     = class_exists( $builder ) && method_exists( $builder, 'common' ) ? (array) $builder::common( $from, $main ) : self::whitelist( $from, $main );
+		if ( isset( $out['custom_css'] ) && is_string( $out['custom_css'] ) && 1 === preg_match( '/(^|[^a-z0-9_-])(bdt-|prime-slider)/i', $out['custom_css'] ) ) {
+			$codes[] = array( 'ps.dyn.review.custom_css', array() );
 		}
+		return $out;
+	}
+
+	/** La lista blanca de V.10.2, si `Builder::common()` de E no está. */
+	private static function whitelist( array $from, bool $main ): array {
 		$out = array();
 		foreach ( $from as $key => $value ) {
 			$key = (string) $key;
@@ -891,8 +959,41 @@ final class Dynamic {
 				}
 			}
 		}
-		if ( isset( $out['custom_css'] ) && is_string( $out['custom_css'] ) && 1 === preg_match( '/(^|[^a-z0-9_-])(bdt-|prime-slider)/i', $out['custom_css'] ) ) {
-			$codes[] = array( 'ps.dyn.review.custom_css', array() );
+		return $out;
+	}
+
+	/** Rasgos propios del elemento origen (`CARRY`), con sus entradas de `__globals__`/`__dynamic__`. */
+	private static function carry( array $from ): array {
+		$match = static function ( string $key ): bool {
+			return 1 === preg_match( self::CARRY, $key );
+		};
+		$out = array();
+		foreach ( $from as $key => $value ) {
+			if ( '__globals__' !== $key && '__dynamic__' !== $key && $match( (string) $key ) ) {
+				$out[ $key ] = $value;
+			}
+		}
+		foreach ( array( '__globals__', '__dynamic__' ) as $bag ) {
+			foreach ( (array) ( $from[ $bag ] ?? array() ) as $key => $value ) {
+				if ( $match( (string) $key ) ) {
+					$out[ $bag ][ $key ] = $value;
+				}
+			}
+		}
+		return $out;
+	}
+
+	/** Une ajustes (el último gana) con `__globals__` y `__dynamic__` unidos clave a clave. */
+	private static function merge( array ...$parts ): array {
+		$out = array();
+		foreach ( $parts as $part ) {
+			foreach ( $part as $key => $value ) {
+				if ( ( '__globals__' === $key || '__dynamic__' === $key ) && is_array( $value ) ) {
+					$out[ $key ] = array_merge( (array) ( $out[ $key ] ?? array() ), $value );
+				} else {
+					$out[ $key ] = $value;
+				}
+			}
 		}
 		return $out;
 	}
@@ -991,6 +1092,7 @@ final class Dynamic {
 			}
 		}
 		$original = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
+		$carried  = self::carry( $original );
 		$used     = array_flip( (array) ( $cfg['consumed'] ?? array() ) );
 		foreach ( (array) ( $cfg['colors'] ?? array() ) as $keys ) {
 			foreach ( (array) $keys as $key ) {
@@ -1003,7 +1105,7 @@ final class Dynamic {
 			if ( '' === $key || '_' === $key[0] || isset( $used[ $key ] ) || 1 === preg_match( self::COMMON, $key ) || 1 !== preg_match( self::STYLE, $key ) ) {
 				continue;
 			}
-			if ( preg_match( '/^(item_gap|item_height|slider_height|slider_item_height|viewport_height|slider_min_height|slider_size_ratio|columns|overlay_color|content_alignment|content_align|thumbnail_size|primary_thumbnail_size)(_|$)/', $key ) ) {
+			if ( 1 === preg_match( self::CONTENT, $key ) || isset( $carried[ $key ] ) ) {
 				continue;
 			}
 			if ( '' === $value || null === $value || array() === $value ) {
@@ -1019,7 +1121,7 @@ final class Dynamic {
 	/** Informa los códigos del documento (el informe descarta todo en el editor). */
 	private static function report( int $post_id, array $codes, string $widget, array $element ): void {
 		$report = self::REPORT;
-		if ( ! class_exists( $report, false ) || ! method_exists( $report, 'add' ) ) {
+		if ( self::pure() || ! class_exists( $report, false ) || ! method_exists( $report, 'add' ) ) {
 			return;
 		}
 		$element_id = self::element_id( $element );

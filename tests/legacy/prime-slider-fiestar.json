@@ -1,0 +1,15 @@
+{
+  "_widget": "prime-slider-fiestar",
+  "_family": "F",
+  "_comentario": "Datos sintéticos con la forma que guarda el editor (research-ps.md §3.1): sin los valores por defecto, que rellena la conversión. Los marcadores {{…}} los expande la prueba: perfiles del proveedor con los patrones de vendors.json y {{ps_assets}} con la carpeta de Lite del sitio simulado. Términos por term_taxonomy_id (52 es el de «Noticias» en la prueba; 999 no existe).",
+  "defaults": {},
+  "custom": {
+    "wrapper_link": "yes",
+    "show_navigation_arrows": "",
+    "item_gap": {
+      "unit": "px",
+      "size": 30,
+      "sizes": []
+    }
+  }
+}

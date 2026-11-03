@@ -1,0 +1,10 @@
+{
+  "pagina": {
+    "_widget": "heading",
+    "title": "Anuncios",
+    "_page": {
+      "ep_adblock_detector_enable": "yes"
+    },
+    "_expect_codes": []
+  }
+}

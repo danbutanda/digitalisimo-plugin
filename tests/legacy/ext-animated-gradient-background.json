@@ -1,0 +1,43 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Degradado",
+    "_section": {
+      "element_pack_agbg_show": "yes"
+    },
+    "_expect_json": [
+      "linear-gradient(135deg,#0591F9,#fefefe,#567445,#1D1BE0)",
+      "animation:digi-agbg 11000ms ease-in-out infinite alternate",
+      "selector::after{",
+      "prefers-reduced-motion:reduce"
+    ],
+    "_expect_codes": [
+      "ext.converted.animated_gradient_background"
+    ]
+  },
+  "radial-fusion": {
+    "_widget": "heading",
+    "title": "Radial",
+    "_section": {
+      "element_pack_agbg_show": "yes",
+      "background_background": "classic",
+      "background_color": "#000000",
+      "element_pack_agbg_direction": "radial",
+      "element_pack_agbg_blending_mode": "multiply",
+      "element_pack_agbg_color_list": [
+        {
+          "_id": "g1",
+          "start_color": "#ff0000",
+          "end_color": "#00ff00"
+        }
+      ]
+    },
+    "_expect_json": [
+      "radial-gradient(circle,#ff0000,#00ff00)",
+      "mix-blend-mode:multiply"
+    ],
+    "_expect_codes": [
+      "ext.converted.animated_gradient_background"
+    ]
+  }
+}

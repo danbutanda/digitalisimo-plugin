@@ -16,9 +16,8 @@ final class Expand {
 	const CLASS_NAME = 'bx-active';
 
 	public static function convert( Out $out ): bool {
-		$s     = $out->orig;
-		$on    = $out->s['_digitalisimo_actions_on'] ?? '';
-		$rows  = is_array( $out->s['_digitalisimo_actions'] ?? null ) ? $out->s['_digitalisimo_actions'] : array();
+		$on   = $out->s['_digitalisimo_actions_on'] ?? '';
+		$rows = is_array( $out->s['_digitalisimo_actions'] ?? null ) ? $out->s['_digitalisimo_actions'] : array();
 		if ( 'yes' !== $on && $rows ) {
 			// Acciones guardadas pero apagadas: encenderlas las activaría todas.
 			$out->note( 'ext.conflict', array( 'type' => Dispatcher::label( 'background-expand' ), 'name' => '_digitalisimo_actions_on' ) );

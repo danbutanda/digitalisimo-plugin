@@ -1,0 +1,11 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Partículas",
+    "_section": {
+      "section_particles_on": "yes",
+      "section_particles_js": "{\"particles\":{}}"
+    },
+    "_expect_codes": []
+  }
+}

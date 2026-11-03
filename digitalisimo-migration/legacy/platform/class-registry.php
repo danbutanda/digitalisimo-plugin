@@ -9,7 +9,7 @@ defined( 'ABSPATH' ) || exit;
  *
  *     source => { dest:int, hash:string, state:'pending'|'draft'|'done'|'reverted'|'failed', extra:array }
  *
- * `kind` ∈ `tb`, `font`, `icons`, `snippet`, `mega`, `sidebar`, `swatch`, `loop`, `demo`, `css` (u otro nombre corto en
+ * `kind` ∈ `tb`, `font`, `icons`, `snippet`, `mega`, `sidebar`, `swatch`, `kit`, `loop`, `demo`, `css` (u otro nombre corto en
  * minúsculas). `source` es el ID de origen o una huella sha256. Cada paso consulta el registro antes de crear: reanudar
  * no duplica. Los respaldos no van aquí: van en metas u opciones propias, escritos antes de modificar.
  *
@@ -19,7 +19,7 @@ final class Registry {
 	const PREFIX = 'digitalisimo_migration_reg_';
 	const STATES = array( 'pending', 'draft', 'done', 'reverted', 'failed' );
 	/** Tipos conocidos (para listar y para que --revert los recorra). */
-	const KINDS = array( 'tb', 'font', 'icons', 'snippet', 'css', 'mega', 'sidebar', 'swatch', 'loop', 'demo' );
+	const KINDS = array( 'tb', 'font', 'icons', 'snippet', 'css', 'mega', 'sidebar', 'swatch', 'kit', 'loop', 'demo' );
 
 	/** @var array<string, array> caché de la petición, por sitio y tipo. */
 	private static $cache = array();

@@ -1,0 +1,45 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Paralaje",
+    "ep_parallax_effects_show": "yes",
+    "ep_parallax_effects_y": "yes",
+    "_expect_json": [
+      "\"motion_fx_motion_fx_scrolling\":\"yes\"",
+      "\"motion_fx_translateY_effect\":\"yes\"",
+      "\"motion_fx_translateY_speed\":{\"unit\":\"px\",\"size\":0.5",
+      "\"motion_fx_translateY_direction\":\"\"",
+      "\"_transform_translateY_effect\":{\"unit\":\"px\",\"size\":25"
+    ],
+    "_expect_codes": [
+      "ext.converted.parallax_effects"
+    ]
+  },
+  "custom": {
+    "_widget": "image",
+    "ep_parallax_effects_show": "yes",
+    "ep_parallax_effects_x": "yes",
+    "ep_parallax_effects_x_start": {
+      "unit": "px",
+      "size": -100
+    },
+    "ep_parallax_effects_x_end": {
+      "unit": "px",
+      "size": 100
+    },
+    "ep_parallax_effects_opacity_toggole": "yes",
+    "ep_parallax_effects_opacity": "vtoh",
+    "ep_parallax_effects_media_query": "@m",
+    "ep_parallax_effects_hue": "yes",
+    "_expect_json": [
+      "\"motion_fx_translateX_speed\":{\"unit\":\"px\",\"size\":2",
+      "\"motion_fx_translateX_direction\":\"negative\"",
+      "\"motion_fx_opacity_direction\":\"in-out\"",
+      "\"motion_fx_devices\":[\"desktop\",\"tablet\"]"
+    ],
+    "_expect_codes": [
+      "ext.converted.parallax_effects",
+      "ext.loss.parallax_effects"
+    ]
+  }
+}

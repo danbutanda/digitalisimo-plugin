@@ -6,7 +6,7 @@ Cada entrada nombra los ajustes del widget que alimentan la piel «classic» pro
 se traduce con `Translator::posts_query()`. Las clases de sus selectores se reescriben por sufijo
 (-item, -title, -excerpt…) hacia el marcado de `posts`.
 
-Uso: python3 scripts/legacy-posts-maps.py [bdt-id …]   (sin argumentos, todos)
+Uso: python3 -I scripts/legacy-posts-maps.py [bdt-id …]   (sin argumentos, todos)
 """
 import json
 import re
@@ -16,7 +16,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from legacy_controls import detail, ROOT  # noqa: E402
+from legacy_controls import detail, require_source, ROOT  # noqa: E402
 
 UI = ('HEADING', 'RAW_HTML', 'DIVIDER', 'NOTICE', 'ALERT', 'DEPRECATED_NOTICE', 'BUTTON', 'POPOVER_TOGGLE')
 
@@ -73,13 +73,12 @@ def classes_for(src, wid):
 
 def generate(wid):
     source_name, per_page, spec = SPEC[wid]
-    skeleton = subprocess.run(['python3', str(HERE / 'legacy-map-skeleton.py'), wid, '--target=posts'], capture_output=True, text=True, check=True).stdout
+    skeleton = subprocess.run([sys.executable, '-I', str(HERE / 'legacy-map-skeleton.py'), wid, '--target=posts'], capture_output=True, text=True, check=True).stdout
     defaults = re.search(r"\t'defaults'  => (array\(.*?\n\t\)|array\(\)),\n", skeleton, re.S)
     defaults_php = defaults.group(1) if defaults else 'array()'
     query = "\t\t'posts_source' => '%s',\n\t\t'posts_per_page' => %d,\n\t\t'posts_orderby' => 'date',\n\t\t'posts_order' => 'desc',\n" % (source_name, per_page)
     defaults_php = defaults_php.replace('array(\n', 'array(\n' + query, 1) if defaults_php != 'array()' else 'array(\n' + query + '\t)'
-    inventory = json.loads((ROOT / 'docs/element-pack-inventory.json').read_text())
-    source = ROOT / next(w['source_file'] for w in inventory['widgets'] if w['legacy_widget_id'] == wid)
+    source = require_source(wid)
     content = []
     for c in detail(source):
         ctype = c.get('type', '').split('::')[-1].strip()

@@ -15,6 +15,10 @@ Reglas (F8, frente B):
   con límite de clase, en el PHP o el JS de DIGITALÍSIMO Elements o de Migración (sin los mapas), o
   casar con un patrón de `tests/fixtures/legacy-styles-dynamic.json`, cada uno con su evidencia
   `archivo:línea`. Si no, la parte del selector está muerta: se omite y se anota.
+- En los 6 mapas corregidos y Advanced Icon Box (`--merge`), cada parte debe además casar con el marcado de su widget de
+  destino (`tests/fixtures/legacy-styles/<widget>.html`, copia de su render()); lo que no casa (un hijo que el destino
+  no tiene, Swiper en un carrusel propio) se omite y se anota (`unmatched`). tests/migration-legacy-styles-chrome.mjs
+  lo mide en Chrome.
 - Nunca se retira un control vivo. Las bajas y los cambios de los mapas existentes se anotan en
   `tests/fixtures/f8-legacy-styles-dead.json` con el control anterior completo (su JSON coincide con
   la huella de `tests/fixtures/f8-legacy-styles-baseline.json`).
@@ -22,6 +26,7 @@ Reglas (F8, frente B):
 Uso (siempre con -I; las referencias en reference/ o DIGITALISIMO_REFERENCE_DIR):
   python3 -I scripts/legacy-styles.py bdt-x [bdt-y …]        mapa nuevo: genera su .styles.php desde 10.0.1
   python3 -I scripts/legacy-styles.py --merge bdt-x …        V.13: vivos del .styles.php actual ∪ 10.0.1 corregido
+                                                             (idempotente: el `before` de cada fila se conserva)
   python3 -I scripts/legacy-styles.py --prune [bdt-x …]      quita lo muerto de un .styles.php sin leer la fuente
                                                              (sin IDs: los 201)
   python3 -I scripts/legacy-styles.py --check                lista los selectores muertos; sale con 1 si hay
@@ -201,8 +206,9 @@ def php(value, indent=1):
 def normalize(value):
     """Como PHP: un array con claves 0..n-1 en orden es una lista. Así el JSON coincide con el de la prueba de Node."""
     if isinstance(value, dict):
-        keys = list(value.keys())
-        if keys and all(isinstance(k, int) and k == i for i, k in enumerate(keys)):
+        # PHP convierte en entero una clave de texto decimal canónica ('0', '12', '-3'; no '05').
+        keys = [int(k) if isinstance(k, str) and re.fullmatch(r'0|-?[1-9][0-9]*', k) else k for k in value.keys()]
+        if keys and all(isinstance(k, int) and not isinstance(k, bool) and k == i for i, k in enumerate(keys)):
             return [normalize(v) for v in value.values()]
         return {str(k): normalize(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -344,14 +350,19 @@ def dead_classes(part):
     return [c for c in classes_of(part) if CHECKED.match(c) and c not in tokens and not any(p.search(c) for p in dynamic)]
 
 
-def prune(control):
-    """Quita las partes de selector muertas; None si no queda ninguna. Igual que prune() de la prueba de Node."""
+def part_alive(part, nodes=None):
+    return not dead_classes(part) and (nodes is None or part_matches(part, nodes))
+
+
+def prune(control, nodes=None):
+    """Quita las partes de selector muertas; None si no queda ninguna. Igual que prune() de la prueba de Node; con el
+    marcado de destino (sólo en --merge), también las que no casan con él."""
     if 'group' in control:
-        parts = [p for p in split_selector(control['selector']) if not dead_classes(p)]
+        parts = [p for p in split_selector(control['selector']) if part_alive(p, nodes)]
         return dict(control, selector=', '.join(parts)) if parts else None
     selectors = {}
     for key, css in (control.get('selectors') or {}).items():
-        parts = [p for p in split_selector(key) if not dead_classes(p)]
+        parts = [p for p in split_selector(key) if part_alive(p, nodes)]
         if parts:
             selectors[', '.join(parts)] = css
     return dict(control, selectors=selectors) if selectors else None
@@ -360,6 +371,123 @@ def prune(control):
 def control_dead(control):
     parts = split_selector(control['selector']) if 'group' in control else [p for key in (control.get('selectors') or {}) for p in split_selector(key)]
     return sorted({c for p in parts for c in dead_classes(p)})
+
+
+# ------------------------------------------------------------------------------ marcado de destino (merge)
+
+FIXTURES = ROOT / 'tests' / 'fixtures' / 'legacy-styles'
+VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr', 'path'}
+
+
+class _Node:
+    def __init__(self, tag, attrs, parent):
+        self.tag = tag
+        self.attrs = dict(attrs)
+        self.classes = set((self.attrs.get('class') or '').split())
+        self.parent = parent
+        self.children = []
+
+
+def fixture_nodes(target):
+    """Nodos del HTML de destino (tests/fixtures/legacy-styles/<widget>.html), o None si no hay copia del marcado."""
+    from html.parser import HTMLParser
+    path = FIXTURES / (target + '.html')
+    if not path.exists():
+        return None
+    nodes, stack = [], [_Node('#root', [], None)]
+
+    class Builder(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            node = _Node(tag, [(k, v if v is not None else '') for k, v in attrs], stack[-1])
+            stack[-1].children.append(node)
+            nodes.append(node)
+            if tag not in VOID:
+                stack.append(node)
+
+        def handle_startendtag(self, tag, attrs):
+            node = _Node(tag, [(k, v if v is not None else '') for k, v in attrs], stack[-1])
+            stack[-1].children.append(node)
+            nodes.append(node)
+
+        def handle_endtag(self, tag):
+            for i in range(len(stack) - 1, 0, -1):
+                if stack[i].tag == tag:
+                    del stack[i:]
+                    break
+
+    Builder().feed(path.read_text(encoding='utf-8'))
+    return nodes
+
+
+COMPOUND = re.compile(r'([a-zA-Z*][\w-]*)|\.(-?[_a-zA-Z][\w-]*)|#([\w-]+)|\[\s*([\w-]+)\s*(?:([*^$~|]?=)\s*["\']?([^"\'\]]*)["\']?)?\s*\]')
+
+
+def _compound_ok(node, compound):
+    pos = 0
+    while pos < len(compound):
+        m = COMPOUND.match(compound, pos)
+        if not m:
+            return False
+        tag, cls, ident, attr, op, value = m.groups()
+        if tag and tag != '*' and node.tag != tag.lower():
+            return False
+        if cls and cls not in node.classes:
+            return False
+        if ident and node.attrs.get('id') != ident:
+            return False
+        if attr:
+            if attr not in node.attrs:
+                return False
+            have = node.attrs[attr]
+            if op == '=' and have != value or op == '*=' and value not in have or op == '^=' and not have.startswith(value) \
+                    or op == '$=' and not have.endswith(value) or op == '~=' and value not in have.split():
+                return False
+        pos = m.end()
+    return True
+
+
+def _chain_ok(node, chain):
+    """chain = [compuesto, combinador, compuesto, …] de izquierda a derecha; node casa con el último."""
+    if not _compound_ok(node, chain[-1]):
+        return False
+    if len(chain) == 1:
+        return True
+    comb, rest = chain[-2], chain[:-2]
+    if comb == '>':
+        return node.parent is not None and node.parent.tag != '#root' and _chain_ok(node.parent, rest)
+    if comb in '+~':
+        sibs = node.parent.children if node.parent else []
+        before = sibs[:sibs.index(node)]
+        return any(_chain_ok(sib, rest) for sib in (before[-1:] if comb == '+' else before))
+    anc = node.parent
+    while anc is not None and anc.tag != '#root':
+        if _chain_ok(anc, rest):
+            return True
+        anc = anc.parent
+    return False
+
+
+def part_matches(part, nodes):
+    """Si una parte de selector casa con algún elemento del marcado de destino. Los estados (:hover, :focus…) y los
+    pseudoelementos no cuentan: se estilan sobre el mismo elemento. Igual que la prueba en Chrome, que lo mide."""
+    sel = part.replace('{{WRAPPER}}', '.elementor-element-legacy').replace('{{CURRENT_ITEM}}', '.elementor-repeater-item-legacy')
+    if '{{' in sel:
+        return False
+    for _ in range(3):
+        sel = re.sub(r':{1,2}[a-zA-Z-]+(?:\([^()]*\))?', '', sel)
+    sel = re.sub(r'\s*([>+~])\s*', r' \1 ', sel).strip()
+    tokens = sel.split()
+    chain = []
+    for tok in tokens:
+        if tok in ('>', '+', '~'):
+            chain.append(tok)
+        else:
+            if chain and chain[-1] not in ('>', '+', '~', ' '):
+                chain.append(' ')
+            chain.append(tok)
+    if not chain or chain[-1] in ('>', '+', '~', ' '):
+        return False
+    return any(_chain_ok(node, chain) for node in nodes)
 
 
 # -------------------------------------------------------------------------------------- reescritura
@@ -383,7 +511,7 @@ def rewrite(selector, classes):
     return re.sub(r'\s+', ' ', selector).strip()
 
 
-def rewrite_parts(selector, classes, notes):
+def rewrite_parts(selector, classes, notes, nodes=None):
     out = []
     for part in split_selector(selector):
         new = rewrite(part, classes)
@@ -394,11 +522,14 @@ def rewrite_parts(selector, classes, notes):
         if dead:
             notes.append(('clase inexistente ' + ', '.join(dead), part))
             continue
+        if nodes is not None and not part_matches(new, nodes):
+            notes.append(('no casa con el marcado del destino', part))
+            continue
         out.append(new)
     return out
 
 
-def from_reference(legacy_id, classes):
+def from_reference(legacy_id, classes, nodes=None):
     """Controles con selectores del widget de 10.0.1 (o de 9.9.1 si se movió al Addon), reescritos y validados."""
     sys.path.insert(0, str(HERE))
     import legacy_controls  # noqa: E402
@@ -420,7 +551,7 @@ def from_reference(legacy_id, classes):
                 selector = literal(control['selector']) if control['selector'] else None
                 if not group or not isinstance(selector, str):
                     raise Unparsable('grupo')
-                new = ', '.join(rewrite_parts(selector, classes, notes))
+                new = ', '.join(rewrite_parts(selector, classes, notes, nodes))
                 if not new:
                     raise Unparsable('selector')
                 entry = {'name': control['name'], 'group': group, 'selector': new}
@@ -435,7 +566,7 @@ def from_reference(legacy_id, classes):
                 raise Unparsable('sin selectores')
             new_selectors = {}
             for selector, css in selectors.items():
-                parts = rewrite_parts(str(selector), classes, notes)
+                parts = rewrite_parts(str(selector), classes, notes, nodes)
                 if parts and isinstance(css, str):
                     new_selectors[', '.join(parts)] = css
             if not new_selectors:
@@ -545,7 +676,7 @@ def canonical(value):
     return json.dumps(value, ensure_ascii=False)
 
 
-def record(dead, legacy_id, mode, changes, omitted=None):
+def record(dead, legacy_id, mode, changes, omitted=None, nodes=None):
     entry = dead['maps'].get(legacy_id) or {'mode': mode, 'classes': {}, 'controls': []}
     entry['mode'] = mode
     known = {(c['name'], c['index']): c for c in entry['controls']}
@@ -553,6 +684,12 @@ def record(dead, legacy_id, mode, changes, omitted=None):
         prev = known.get((name, index))
         row = {'name': name, 'index': index, 'before': prev['before'] if prev else normalize(before),
                'after': sha(after) if after is not None else None, 'dead': control_dead(before)}
+        if nodes is not None:
+            # Partes sin clase muerta que no casan con el marcado de destino (un hijo que no existe, Swiper…).
+            parts = split_selector(before['selector']) if 'group' in before else [p for k in (before.get('selectors') or {}) for p in split_selector(k)]
+            unmatched = [p for p in parts if not dead_classes(p) and not part_matches(p, nodes)]
+            if unmatched:
+                row['unmatched'] = unmatched
         if prev:
             prev.update(row)
         else:
@@ -589,7 +726,10 @@ def merge(legacy_id, dead):
     conserva tal cual los vivos que 10.0.1 no tiene o no traduce y añade los que sólo tiene 10.0.1."""
     _header, old = read_styles(legacy_id)
     classes = classes_for(legacy_id)
-    fresh, skipped, names, source = from_reference(legacy_id, classes)
+    nodes = fixture_nodes(target_of(legacy_id))
+    if nodes is None:
+        raise SystemExit('%s: falta tests/fixtures/legacy-styles/%s.html, el marcado de destino' % (legacy_id, target_of(legacy_id)))
+    fresh, skipped, names, source = from_reference(legacy_id, classes, nodes)
     pool = {}
     for key, control in zip(occurrences(fresh), fresh):
         pool[key] = control
@@ -601,7 +741,7 @@ def merge(legacy_id, dead):
             if sha(new) != sha(control):
                 changes.append((key, control, new))
             continue
-        alive = prune(control)
+        alive = prune(control, nodes)
         if alive is not None and alive == control:
             out.append(control)
             kept += 1
@@ -617,7 +757,7 @@ def merge(legacy_id, dead):
               "defined( 'ABSPATH' ) || exit;\n\n") % legacy_id
     write_styles(legacy_id, header, out)
     omitted = [{'name': s['name'], 'reason': s['reason'], 'selectors': s['selectors']} for s in skipped if s['reason'] != 'parte omitida' and s['name'] not in {c['name'] for c in out}]
-    record(dead, legacy_id, 'merge', changes, omitted)
+    record(dead, legacy_id, 'merge', changes, omitted, nodes)
     removed = [k[0] for k, _b, a in changes if a is None]
     print('%s: %d controles (%d de %s, %d vivos sólo de antes, %d nuevos), %d retirados por muertos: %s' % (
         legacy_id, len(out), len(out) - kept - len(added), source, kept, len(added), len(removed), ', '.join(removed) or '—'))

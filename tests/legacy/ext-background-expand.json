@@ -1,0 +1,34 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Expandir",
+    "_section": {
+      "ep_bg_expand_enable": "yes"
+    },
+    "_options": {
+      "element_pack_elementor_extend": {
+        "background-expand": "on"
+      }
+    },
+    "_expect_json": [
+      "\"_digitalisimo_actions_on\":\"yes\"",
+      "\"class_name\":\"bx-active\"",
+      "max-width:1300px",
+      "max-width 350ms ease",
+      "selector.bx-active{max-width:100%}"
+    ],
+    "_expect_codes": [
+      "ext.converted.background_expand"
+    ]
+  },
+  "apagada": {
+    "_widget": "heading",
+    "title": "Apagada",
+    "_section": {
+      "ep_bg_expand_enable": "yes"
+    },
+    "_expect_codes": [
+      "ext.disabled"
+    ]
+  }
+}

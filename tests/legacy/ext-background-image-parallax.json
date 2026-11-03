@@ -1,0 +1,10 @@
+{
+  "defaults": {
+    "_widget": "image",
+    "ep_background_image_parallax_on": "yes",
+    "ep_background_image_parallax_scale": {
+      "size": 1.5
+    },
+    "_expect_codes": []
+  }
+}

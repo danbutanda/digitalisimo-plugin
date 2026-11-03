@@ -1,0 +1,58 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Con ayuda",
+    "element_pack_widget_tooltip": "yes",
+    "_expect_json": [
+      "\"digitalisimo_tooltip\":\"yes\"",
+      "\"digitalisimo_tooltip_text\":\"This is Tooltip\"",
+      "\"digitalisimo_tooltip_align\":\"center\""
+    ],
+    "_expect_codes": [
+      "ext.converted.tooltip"
+    ]
+  },
+  "custom": {
+    "_widget": "button",
+    "text": "Más",
+    "element_pack_widget_tooltip": "yes",
+    "element_pack_widget_tooltip_text": "Texto <strong>importante</strong>",
+    "element_pack_widget_tooltip_placement": "right-start",
+    "element_pack_widget_tooltip_trigger": "click",
+    "element_pack_widget_tooltip_arrow": "yes",
+    "element_pack_widget_tooltip_y_offset": {
+      "unit": "px",
+      "size": 14
+    },
+    "element_pack_widget_tooltip_width": {
+      "unit": "px",
+      "size": 240
+    },
+    "element_pack_widget_tooltip_color": "#ffffff",
+    "element_pack_widget_tooltip_background_background": "classic",
+    "element_pack_widget_tooltip_background_color": "#222222",
+    "element_pack_widget_tooltip_padding": {
+      "top": "6",
+      "right": "10",
+      "bottom": "6",
+      "left": "10",
+      "unit": "px",
+      "isLinked": false
+    },
+    "_expect_css": [
+      "max-width:calc(240px-10px)!important"
+    ],
+    "_expect_json": [
+      "\"digitalisimo_tooltip_placement\":\"right\"",
+      "\"digitalisimo_tooltip_trigger\":\"click\"",
+      "\"digitalisimo_tooltip_arrow\":\"yes\"",
+      "\"digitalisimo_tooltip_offset\":{\"unit\":\"px\",\"size\":14",
+      "\"digitalisimo_tooltip_bg_color\":\"#222222\"",
+      "Texto <strong>importante</strong>"
+    ],
+    "_expect_codes": [
+      "ext.converted.tooltip",
+      "ext.loss.tooltip"
+    ]
+  }
+}

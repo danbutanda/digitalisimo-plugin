@@ -1,0 +1,16 @@
+{
+  "defaults": {
+    "_widget": "heading",
+    "title": "Mosaico",
+    "_section": {
+      "element_pack_tile_scroll_show": "yes",
+      "element_pack_tile_scroll_elements": [
+        {
+          "_id": "t1",
+          "element_pack_tile_scroll_title": "Item #1"
+        }
+      ]
+    },
+    "_expect_codes": []
+  }
+}

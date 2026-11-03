@@ -1,0 +1,22 @@
+{
+  "pagina": {
+    "_widget": "heading",
+    "title": "Cuadrícula",
+    "_page": {
+      "ep_grid_line_enable": "yes",
+      "ep_grid_line_line_color": "#00ff00",
+      "ep_grid_line_columns": 6,
+      "ep_grid_line_columns_mobile": 2
+    },
+    "_expect_json": [
+      "--digi-grid-color:#00ff00",
+      "--digi-grid-columns:6",
+      "@media (max-width:767px){selector{--digi-grid-columns:2}}",
+      "body::before{content:",
+      "@media print{body::before,body::after{display:none}}"
+    ],
+    "_expect_codes": [
+      "ext.converted.grid_line"
+    ]
+  }
+}

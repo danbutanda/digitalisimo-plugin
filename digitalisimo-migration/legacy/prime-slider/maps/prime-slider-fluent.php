@@ -38,11 +38,7 @@ return array(
 			'button'    => array( 'slide_button_text_color', 'button_text_color' ),
 			'button_bg' => array( 'slide_button_background_color', 'button_background_color' ),
 		),
-		'loss'       => array(
-			'ps.dyn.loss.thumbs'   => 'show_thumb_scroller',
-			'ps.dyn.loss.avatar'   => 'show_avatar',
-			'ps.dyn.loss.kenburns' => 'kenburns_animation',
-		),
+		'loss'       => array( 'ps.dyn.loss.thumbs' => 'show_thumb_scroller', 'ps.dyn.loss.avatar' => 'show_avatar' ),
 		'defaults'   => array(
 			'posts_source'              => 'post',
 			'posts_limit'               => 9,

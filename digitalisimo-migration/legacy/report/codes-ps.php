@@ -6,6 +6,8 @@
  * deja el sitio con asuntos pendientes. `review_if_published`: el elemento pasa a «Pendiente de revisar» si el
  * documento está publicado (C2-27). Los textos nombran Prime Slider sin enlace y nunca llevan valores de ajustes.
  */
+namespace Digitalisimo\Elements\Legacy;
+
 defined( 'ABSPATH' ) || exit;
 
 return array(

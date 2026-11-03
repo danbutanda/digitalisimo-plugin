@@ -506,7 +506,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-fancy-card a.digi-fancy-card__link' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-fancy-card a.digi-fancy-card__link svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'background_color',
@@ -633,14 +632,6 @@ return array( array(
 			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__link' => 'transition-delay: {{SIZE}}s;',
 		),
 	), array(
-		'name' => 'background_overlay',
-		'group' => 'background',
-		'selector' => '{{WRAPPER}} .elementor-background-overlay',
-	), array(
-		'name' => 'background_overlay_hover',
-		'group' => 'background',
-		'selector' => '{{WRAPPER}}:hover .elementor-background-overlay',
-	), array(
 		'name' => 'width',
 		'type' => 'slider',
 		'responsive' => true,
@@ -653,7 +644,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}}:hover a.digi-fancy-card__link' => 'color: {{VALUE}};',
-			'{{WRAPPER}}:hover a.digi-fancy-card__link svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'button_background_hover_color',
@@ -671,31 +661,5 @@ return array( array(
 		),
 		'condition' => array(
 			'border_border!' => '',
-		),
-	), array(
-		'name' => 'background_overlay_opacity',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-background-overlay' => 'opacity: {{SIZE}};',
-		),
-		'default' => array(
-			'size' => 0.5,
-		),
-		'condition' => array(
-			'background_overlay_background' => array( 'classic', 'gradient' ),
-		),
-	), array(
-		'name' => 'background_overlay_hover_opacity',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}}:hover .elementor-background-overlay' => 'opacity: {{SIZE}};',
-		),
-		'default' => array(
-			'size' => 0.5,
-		),
-		'condition' => array(
-			'background_overlay_hover_background' => array( 'classic', 'gradient' ),
 		),
 	) );

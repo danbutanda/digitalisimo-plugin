@@ -36,7 +36,7 @@ TRAIT_GLOBS = {
     'ep': (r'traits/.*\.php$', r'includes/.*trait.*\.php$'),
     'ep-lite': (r'traits/.*\.php$', r'includes/.*trait.*\.php$'),
     'ep991': (r'traits/.*\.php$', r'includes/.*trait.*\.php$'),
-    'ps-lite': (r'traits/global-widget-controls\.php$',),
+    'ps-lite': (r'traits/global-widget-controls\.php$', r'traits/query-controls/group-query/group-control-query\.php$'),
     'ps-pro': (r'traits/.*\.php$', r'includes/class-animation-controls\.php$', r'includes/class-swiper-effects\.php$'),
 }
 _OPEN = {}
@@ -141,6 +141,14 @@ def plugin(key, required=True):
         return None
     _OPEN[key] = Plugin(key, path)
     return _OPEN[key]
+
+
+def require_source(legacy_id):
+    """Como widget_source(), pero termina con un mensaje si el widget sólo está en 9.9.1 y no hay copia de 9.9.1."""
+    source = widget_source(legacy_id)
+    if source is None:
+        raise SystemExit(f'{legacy_id}: no está en Element Pack 10.0.1 (pasó al Addon); indica una copia de 9.9.1 con DIGITALISIMO_EP991=<zip|carpeta>')
+    return source
 
 
 def widget_source(legacy_id, versions=('ep', 'ep991')):
@@ -408,7 +416,8 @@ def _walk(body, own, out, state, seen, env=None):
                 name = top_value(inner, 'name') or ''
                 out.append({'var': var, 'kind': 'group', 'gen': state['repeaters'].get(var, 0), 'group': gm.group(1).split('\\')[-1].strip(), 'name': name.strip('\'"'),
                             'tab': state['tab'], 'section': state['section'], 'selector': top_value(inner, 'selector'),
-                            'types': top_value(inner, 'types'), 'exclude': top_value(inner, 'exclude'), 'raw_default': top_value(inner, 'default')})
+                            'types': top_value(inner, 'types'), 'exclude': top_value(inner, 'exclude'), 'raw_default': top_value(inner, 'default'),
+                            'raw_fields_options': top_value(inner, 'fields_options')})
                 continue
             nm = re.match(r"'([^']+)'\s*,\s*", rest)
             if not nm:
@@ -441,6 +450,9 @@ def _walk(body, own, out, state, seen, env=None):
                     value = concat(a, env, own)
                     if value is not None and i < len(params):
                         local[params[i]] = value
+                    elif i < len(params) and re.fullmatch(r'\$\w+', a) and a != '$this' and a != '$' + params[i]:
+                        # Un repetidor pasado como argumento: dentro del método se llama como su parámetro.
+                        src = re.sub(r'\$' + params[i] + r'(?=->)', lambda _m, a=a: a, src)
                 _walk(src, own, out, state, seen | {name}, local)
 
 

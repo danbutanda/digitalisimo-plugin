@@ -1,0 +1,13 @@
+{
+  "pagina": {
+    "_widget": "heading",
+    "title": "Anclas",
+    "_page": {
+      "ep_hash_link_enable": "yes",
+      "ep_hash_link_selector": [
+        "h2"
+      ]
+    },
+    "_expect_codes": []
+  }
+}

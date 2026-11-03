@@ -1,0 +1,10 @@
+{
+  "pagina": {
+    "_widget": "heading",
+    "title": "Protegido",
+    "_page": {
+      "ep_content_protector_enable": "yes"
+    },
+    "_expect_codes": []
+  }
+}

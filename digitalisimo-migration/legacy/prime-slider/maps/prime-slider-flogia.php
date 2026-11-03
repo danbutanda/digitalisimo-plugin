@@ -36,7 +36,7 @@ return array(
 			'button'    => array( 'slide_button_text_color', 'button_text_color' ),
 			'button_bg' => array( 'slide_button_background_color', 'button_background_color' ),
 		),
-		'loss'       => array( 'ps.dyn.loss.thumbs' => 'show_thumbnav', 'ps.dyn.loss.kenburns' => 'kenburns_animation' ),
+		'loss'       => array( 'ps.dyn.loss.thumbs' => 'show_thumbnav' ),
 		'defaults'   => array(
 			'posts_source'                => 'post',
 			'posts_limit'                 => 5,

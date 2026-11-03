@@ -26,7 +26,12 @@ final class Cli {
 	 * : Convierte todos los documentos pendientes al formato propio, con copia del original (Element Pack desactivado).
 	 *
 	 * [--revert]
-	 * : Restaura los documentos convertidos a su versión original.
+	 * : Restaura lo convertido: primero la plataforma (plantillas, fuentes, iconos, fragmentos, kit, barra lateral),
+	 * después los documentos. Exige Element Pack activo (si no, el sitio se quedaría sin cabecera) y omite lo editado
+	 * después de migrar. Los plugins se reactivan a mano.
+	 *
+	 * [--force]
+	 * : Con --revert: restaura también lo editado después de migrar, y sin Element Pack activo.
 	 *
 	 * [--network]
 	 * : En Multisite: con --run, migra toda la red (cada sitio en su propio proceso); sin --run, sólo muestra el
@@ -89,11 +94,16 @@ final class Cli {
 			return;
 		}
 		if ( ! empty( $assoc['revert'] ) ) {
-			$count = 0;
-			foreach ( Migration::backups() as $post_id ) {
-				$count += Migration::revert_document( $post_id ) ? 1 : 0;
+			$result = Runner::revert( ! empty( $assoc['force'] ) );
+			if ( $result['refused'] ) {
+				\WP_CLI::error( 'Restaurar exige Element Pack activo en este sitio o en la red: sin él, el sitio se quedaría sin la cabecera y el pie de Element Pack. Actívalo y vuelve a ejecutar la orden, o usa --force.' );
 			}
-			\WP_CLI::success( sprintf( 'Documentos restaurados: %d', $count ) );
+			foreach ( $result['codes'] as $code ) {
+				if ( is_array( $code ) && 'core.revert_skipped' === ( $code[0] ?? '' ) ) {
+					\WP_CLI::warning( sprintf( 'No se restauró el documento %d: cambió después de migrar (usa --force para restaurarlo igualmente).', (int) ( $code[1]['id'] ?? 0 ) ) );
+				}
+			}
+			\WP_CLI::success( sprintf( 'Documentos restaurados: %d. Omitidos por haber cambiado después de migrar: %d.', (int) $result['documents'], (int) $result['skipped'] ) );
 			return;
 		}
 		\WP_CLI\Utils\format_items( 'table', self::rows(), array( 'widget', 'elementos', 'documentos', 'adaptador' ) );
@@ -116,6 +126,9 @@ final class Cli {
 		if ( $kept['idle'] ) {
 			\WP_CLI::log( Dropped::idle_message( $kept['idle'] ) );
 		}
+		// El análisis previo de F8, entero (en la pantalla va por trozos).
+		$analysis = Migration::analyze_step( 0 );
+		\WP_CLI::log( self::text( Report::render( (array) $analysis['report'], 'cli' ) ) );
 		if ( empty( $assoc['convert'] ) ) {
 			return;
 		}
@@ -142,9 +155,21 @@ final class Cli {
 	 * proceso nuevo de WP-CLI (con los mismos parámetros globales, --url incluido), que ya arranca sin ellos.
 	 */
 	private static function run_site() {
+		$reason = Runner::requirements();
+		if ( null !== $reason ) {
+			\WP_CLI::error( $reason );
+		}
 		$state = Runner::run( true, true );
 		if ( ! empty( $state['busy'] ) ) {
 			\WP_CLI::error( 'Otra petición está ejecutando la migración de este sitio: espera a que termine.' );
+		}
+		if ( ! empty( $state['wait_network'] ) && empty( $state['done'] ) ) {
+			// La barrera de la red: este sitio ya preparó lo suyo y la red lo libera (aquí no se relanza nada).
+			\WP_CLI::log( 'Esperando a la migración de la red.' );
+			return;
+		}
+		if ( ! empty( $state['elements_old'] ) ) {
+			\WP_CLI::error( (string) $state['elements_old'] );
 		}
 		if ( ! empty( $state['pause'] ) ) {
 			\WP_CLI::log( 'Plugins desactivados: ' . implode( ', ', (array) $state['counts']['deactivated'] ) . '. La migración continúa en un proceso nuevo.' );
@@ -159,22 +184,33 @@ final class Cli {
 		\WP_CLI::success( Runner::has_pending( $state ) ? 'Migración completada, con asuntos por revisar (arriba).' : 'Migración completada.' );
 	}
 
-	/** Migración de la red: desactiva lo activado en toda la red, encola cada sitio y migra cada uno en su propio proceso. */
+	/**
+	 * Migración de la red (V.6): arranca la de red, migra cada sitio en su propio proceso, libera la barrera (y relanza
+	 * una vez los sitios sin preparar), migra cada sitio otra vez y cierra la red (Prime Slider al final).
+	 */
 	private static function run_network() {
 		if ( ! is_multisite() ) {
 			\WP_CLI::error( 'Esta instalación no es una red: usa --run sin --network.' );
 		}
-		$job    = Runner::network_start( true );
-		$failed = array();
-		foreach ( (array) ( $job['status'] ?? array() ) as $site_id => $row ) {
-			if ( 'running' !== $row['status'] ) {
-				continue;
-			}
-			\WP_CLI::log( sprintf( '— %s (%s)', $row['name'], $row['url'] ) );
-			// Con la salida en directo; si el proceso de un sitio falla, su estado final lo dice.
-			\WP_CLI::runcommand( \WP_CLI\Utils\esc_cmd( 'digitalisimo-migration --run --url=%s', $row['url'] ), array( 'launch' => true, 'exit_error' => false, 'return' => false ) );
+		$reason = Runner::requirements();
+		if ( null !== $reason ) {
+			\WP_CLI::error( $reason );
 		}
-		$job = Runner::network_summary();
+		$job = Runner::network_start( true );
+		if ( ! empty( $job['error'] ) ) {
+			\WP_CLI::error( (string) $job['error'] );
+		}
+		self::run_sites( $job );
+		$job = Runner::network_release();
+		if ( ! empty( $job['barrier'] ) && empty( $job['released'] ) && empty( $job['done'] ) ) {
+			// Sitios que aún no prepararon: se relanzan una vez y se aplica la misma regla.
+			self::run_sites( Runner::network_summary( false ) );
+			Runner::network_release();
+		}
+		self::run_sites( Runner::network_summary( false ) );
+		Runner::network_finish();
+		$job    = Runner::network_summary();
+		$failed = array();
 		foreach ( (array) ( $job['status'] ?? array() ) as $row ) {
 			if ( 'done' !== $row['status'] ) {
 				$failed[] = $row['url'];
@@ -182,9 +218,20 @@ final class Cli {
 		}
 		\WP_CLI::log( self::text( Runner::render_network( $job ) ) );
 		if ( $failed || empty( $job['done'] ) ) {
-			\WP_CLI::error( 'La migración de la red no terminó' . ( $failed ? ' (falló en ' . implode( ', ', $failed ) . ')' : '' ) . ': vuelve a ejecutar la orden; cada sitio sigue donde quedó.' );
+			\WP_CLI::error( 'La migración de la red no terminó' . ( $failed ? ' (falta en ' . implode( ', ', $failed ) . ')' : '' ) . ': vuelve a ejecutar la orden; cada sitio sigue donde quedó (los que esperan a la red se liberan con el WP-Cron del sitio principal al vencer el plazo).' );
 		}
 		\WP_CLI::success( 'Migración de la red completada.' );
+	}
+
+	/** Cada sitio en marcha, en su propio proceso, con la salida en directo (el estado final de cada uno lo dice). */
+	private static function run_sites( $job ) {
+		foreach ( (array) ( $job['status'] ?? array() ) as $row ) {
+			if ( 'running' !== $row['status'] ) {
+				continue;
+			}
+			\WP_CLI::log( sprintf( '— %s (%s)', $row['name'], $row['url'] ) );
+			\WP_CLI::runcommand( \WP_CLI\Utils\esc_cmd( 'digitalisimo-migration --run --url=%s', $row['url'] ), array( 'launch' => true, 'exit_error' => false, 'return' => false ) );
+		}
 	}
 
 	/** El informe en texto para la terminal. */
