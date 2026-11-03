@@ -7,6 +7,8 @@
  * elemento pasa a «Pendiente de revisar» si el documento está publicado (un cambio visible en el sitio). Ningún texto
  * lleva valores de ajustes ni enlaces.
  */
+namespace Digitalisimo\Elements\Legacy;
+
 defined( 'ABSPATH' ) || exit;
 
 return array(

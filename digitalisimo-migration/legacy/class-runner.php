@@ -729,7 +729,9 @@ final class Runner {
 			$skip = array();
 		} elseif ( null === $gate ) {
 			$skip = array();
-			if ( Retire::group_active( 'element-pack', 'any' ) || ! Translator::element_pack_active() ) {
+			// Sólo se permite publicar si tras esta etapa Element Pack deja de estar en el sitio: activado en toda la red
+			// fuera de una migración de red, lo retira la red y las copias siguen en borrador hasta entonces.
+			if ( ( $job || ! Retire::group_active( 'element-pack', 'network' ) ) && ( Retire::group_active( 'element-pack', 'any' ) || ! Translator::element_pack_active() ) ) {
 				$state = self::before_ep_retire( $state );
 			}
 		} else {

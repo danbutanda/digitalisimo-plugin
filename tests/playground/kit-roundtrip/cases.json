@@ -2788,6 +2788,51 @@
         "title": "Página: {post:title}",
         "digitalisimo_inline_tags": "yes"
       }
+    },
+    "tooltip": {
+      "widget": "heading",
+      "settings": {
+        "title": "Con información emergente",
+        "digitalisimo_tooltip": "yes",
+        "digitalisimo_tooltip_text": "Ayuda <strong>breve</strong>",
+        "digitalisimo_tooltip_placement": "bottom",
+        "digitalisimo_tooltip_trigger": "click",
+        "digitalisimo_tooltip_arrow": "yes",
+        "digitalisimo_tooltip_offset": {
+          "unit": "px",
+          "size": 12
+        },
+        "digitalisimo_tooltip_bg_background": "classic",
+        "digitalisimo_tooltip_bg_color": "#1D3A8A"
+      }
+    },
+    "badge": {
+      "widget": "heading",
+      "container": {
+        "digitalisimo_badge": "yes",
+        "digitalisimo_badge_text": "Contenedor",
+        "digitalisimo_badge_corner": "bottom-end"
+      },
+      "settings": {
+        "title": "Con distintivo",
+        "digitalisimo_badge": "yes",
+        "digitalisimo_badge_text": "Nuevo",
+        "digitalisimo_badge_corner": "top-start",
+        "digitalisimo_badge_shape": "custom",
+        "digitalisimo_badge_clip": "polygon(0 0, 100% 0, 90% 100%, 0 100%)",
+        "digitalisimo_badge_icon": {
+          "value": "fas fa-star",
+          "library": "fa-solid"
+        },
+        "digitalisimo_badge_float": "yes"
+      }
+    },
+    "export-skip": {
+      "widget": "heading",
+      "settings": {
+        "title": "Documento migrado"
+      },
+      "motivo": "No es un ajuste: Export_Skip deja fuera del WXR las metas _digitalisimo_ep_* y _digitalisimo_migration_* de un documento migrado (V.11, C17); se comprueba en tests/elements-export-skip.php y en P4."
     }
   },
   "woo": {

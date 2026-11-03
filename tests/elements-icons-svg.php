@@ -76,6 +76,11 @@ namespace {
 			$sheets[ $style[1] ] = $root . '/' . $own[1];
 			$sets[] = array( $style[1] );
 		}
+		// Rasgo (no widget) que encola su hoja por la declaración `assets` de su control: HANDLE + CSS.
+		if ( ! $sets && preg_match( "/const HANDLE\s*=\s*'(digitalisimo-[a-z0-9-]+)'/", $source, $handle ) && preg_match( "/const CSS\s*=\s*'([^']+\.css)'/", $source, $css ) ) {
+			$sheets[ $handle[1] ] = $root . '/' . $css[1];
+			$sets[] = array( $handle[1] );
+		}
 		if ( ! $sets ) { $errors[] = $name . ': pinta iconos y no declara ninguna hoja propia.'; continue; }
 		foreach ( $sets as $set ) {
 			$rules = array();

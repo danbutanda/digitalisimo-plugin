@@ -177,8 +177,13 @@ namespace {
 	f8_reset();
 	Dispatcher::force_signal( true );
 	list( $converted ) = Migration::convert_data( $doc, 10 );
-	$after = wp_json_encode( $converted );
+	// El elemento v4 no se toca (F8-D26): se comprueba aparte y el resto no debe conservar ninguna clave de Element Pack.
+	$v4    = array_values( array_filter( $converted[0]['elements'], static function ( $el ) { return 'v4' === ( $el['id'] ?? '' ); } ) )[0] ?? array();
+	$plain = $converted;
+	$plain[0]['elements'] = array_values( array_filter( $plain[0]['elements'], static function ( $el ) { return 'v4' !== ( $el['id'] ?? '' ); } ) );
+	$after = wp_json_encode( $plain );
 	f8_check( ! preg_match( '/"(ep_|element_pack_|bdt_)/', $after ) && false === strpos( $after, 'section_particles_on' ) && false === strpos( $after, 'section_sticky_on' ), 'La conversión retira las claves de los descartes (también la sin prefijo de las partículas) y convierte las demás.' );
+	f8_check( isset( $v4['settings']['ep_sound_effects_active'] ), 'Un elemento v4 conserva sus claves de Element Pack: se informa y no se toca (F8-D26).' );
 	f8_check( 'top' === ( $converted[0]['settings']['sticky'] ?? '' ) && 'yes' === ( $converted[0]['elements'][0]['settings']['digitalisimo_tooltip'] ?? '' ), 'Lo que tiene equivalente se convierte (fijo, información emergente).' );
 	$atomic = Dispatcher::element( $doc[0]['elements'][3], 10 );
 	f8_check( $doc[0]['elements'][3] === $atomic, 'Las extensiones no tocan un elemento atómico (se informa con ext.v4).' );

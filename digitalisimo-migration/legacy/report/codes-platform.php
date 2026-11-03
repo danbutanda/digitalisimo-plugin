@@ -7,6 +7,8 @@
  * detalle sólo lo ve un superadministrador en una red (o quien gestiona el sitio fuera de ella). Ningún texto lleva
  * valores de ajustes, claves ni contraseñas.
  */
+namespace Digitalisimo\Elements\Legacy;
+
 defined( 'ABSPATH' ) || exit;
 
 return array(

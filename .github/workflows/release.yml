@@ -141,6 +141,22 @@ jobs:
           php tests/migration-conditions-repair.php
           php tests/migration-runner.php
           php tests/migration-dropped-extensions.php
+          php tests/migration-detection.php
+          php tests/migration-report.php
+          php tests/migration-legacy-baseline.php
+          php tests/migration-end-to-end.php
+          php tests/migration-scale.php
+          php tests/migration-network.php
+          node tests/migration-static.mjs
+          node tests/migration-drive.mjs
+          node tests/migration-legacy-styles.mjs
+          node tests/migration-legacy-styles-chrome.mjs
+          php tests/migration-effects.php
+          php tests/migration-platform.php
+          php tests/migration-theme-builder.php
+          php tests/migration-prime-slider.php
+          php tests/migration-prime-slider-decisions.php
+          php tests/migration-prime-slider-dynamic.php
           php tests/elements-visitor-counters.php
           php tests/elements-identity.php
           php tests/elements-vendor-guard.php
@@ -313,6 +329,12 @@ jobs:
           node tests/elements-f7b-forms.mjs
           node tests/elements-f7b-forms-chrome.mjs
           php tests/elements-f7b-kit.php
+          php tests/elements-tooltip.php
+          node tests/elements-tooltip.mjs
+          node tests/elements-tooltip-chrome.mjs
+          php tests/elements-badge.php
+          node tests/elements-badge-chrome.mjs
+          php tests/elements-export-skip.php
       - name: Seleccionar plugins modificados
         id: modules
         env:

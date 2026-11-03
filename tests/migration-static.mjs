@@ -135,13 +135,13 @@ function spec(text, code) {
 const demo = spec(catalogs.ps, 'ps.demo.skipped');
 check(demo === null || /review_if_published'\s*=>\s*true|'section'\s*=>\s*'review'/.test(demo), 'ps.demo.skipped en una página publicada va a «Pendiente de revisar» (C2-27).');
 const tags = spec(catalogs.platform, 'plat.tags.dropped');
-check(tags === null || /'section'\s*=>\s*'review'/.test(tags), 'plat.tags.dropped va a «Pendiente de revisar» (C2-27).');
+check(tags === null || /'section'\s*=>\s*'review'|review_if_published'\s*=>\s*true/.test(tags), 'plat.tags.dropped va a «Pendiente de revisar» (C2-27; en una página publicada).');
 const css = Object.entries(catalogs.platform ? { x: catalogs.platform } : {}).map(([, t]) => spec(t, 'plat.code.css_draft')).filter(Boolean)[0];
 check(css === undefined || /'section'\s*=>\s*'review'/.test(css), 'El CSS global en borrador va a «Pendiente de revisar» (C2-27).');
 const core = catalogs.core;
 const coreCodes = [...core.matchAll(/'(core\.[a-z0-9_.]+)'\s*=>\s*array\(\s*'section'\s*=>\s*'([a-z]+)'/g)];
 check(coreCodes.length >= 15 && coreCodes.every(([, , s]) => ['converted', 'approx', 'created', 'dropped', 'review'].includes(s)), 'Los códigos `core.` tienen sección válida: ' + coreCodes.length);
-check(coreCodes.every(([c]) => core.includes("'" + c + "'") && new RegExp("'" + c.replace(/\./g, '\\.') + "'[^\\n]*__\\( '[^']+', 'digitalisimo-migration' \\)").test(core)), 'Cada texto del catálogo `core.` es traducible con el dominio de Migración.');
+check(coreCodes.every(([, c]) => core.includes("'" + c + "'") && new RegExp("'" + c.replace(/\./g, '\\.') + "'[^\\n]*__\\( '[^']+', 'digitalisimo-migration' \\)").test(core)), 'Cada texto del catálogo `core.` es traducible con el dominio de Migración.');
 const used = new Set();
 for (const text of [runnerCode, code(migration), code(native), code(retire)]) {
 	for (const m of text.matchAll(/'(core\.[a-z0-9_.]+)'/g)) used.add(m[1]);
