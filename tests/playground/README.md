@@ -18,6 +18,7 @@ tiene en los sitios). No forman parte de los workflows: se corren a mano antes d
 | `design.sh` | Capacidades de diseño de DIGITALÍSIMO Elements (F7a, DS1–DS13): presets, degradados, máscaras y patrones, «Visitó la página», prioridad del Theme Builder, controles de documento, sticky «al fijarse», caché de elementos, plugin original, v4, red y vuelta a 4.3.0.163. |
 | `kit-roundtrip.sh`, `brand-audit.sh STATE=kit` | Kits de Elementor con DIGITALÍSIMO Elements (etapa K): ida y vuelta, terceros, «sólo agregar», red, reversión, entradas hostiles y marca. Obligatorias antes de publicar K y después de cada `sync-elementor-core.sh`. |
 | `woo-flow.sh` | WooCommerce visual de DIGITALÍSIMO Elements (F4-Woo, W0–W13) con WooCommerce 11.2.1 fijado: tienda de prueba, compra en modo de prueba y, cuando existan los widgets, lista de deseos, vista rápida, muestras, barra de envío, cupón, filtros y vuelta atrás. |
+| `f8.sh` | Element Pack 10.x y Prime Slider en DIGITALÍSIMO Migración (F8, P0–P10): A/B de Prime Slider Lite y Element Pack Lite oficiales, Prime Slider Pro y Element Pack sintéticos (plugins falsos con sólo la cabecera y la cabecera simulada *clean-room*), una cabecera y un pie en cada paso de «Migrar», barrera de red, marcadores de K, presupuesto, interacción, marca, vuelta atrás y reversión. Bloque de puertos 9510–9519. |
 | `f7b.sh` | Capacidades de F7b en DIGITALÍSIMO Elements (B0–B12): acciones con destino, interacciones PRO, consultas guardadas y contextos, «Desvincular» y borrado bloqueado, filtros nuevos (también con F4-Woo, `WOO=1`), destino «Archivo», sobrescrituras del Template, datos dentro del texto, formulario condicional, slider anidado y presentación, y vuelta a 4.3.0.168. Bloque de puertos 9500–9509. |
 
 ## WooCommerce en los arneses (F4-Woo)
@@ -559,3 +560,61 @@ un contenedor; en el editor, la búsqueda «diapositivas» del panel), `brand-au
 editor de `digi-marca-f7b` con cada control nuevo seleccionado, el menú contextual «Aplicar a todos», la plantilla con su clave,
 «Consultas», «Dónde se usa» y su frontal; `ONLY=f7b` sólo eso y los frontales, `ONLY=base` todo menos eso: cada mitad cabe en
 10 min), `shared-ui.sh` («Consultas» y «Dónde se usa») y `woo-flow.sh` (acepta también 9500–9509 para W9 y W10).
+
+## F8 (`f8.sh`)
+
+`f8.sh` corre cada escenario en su propio Playground (modo servidor, un worker) con una **copia fija** de
+`digitalisimo-elements/`, `digitalisimo-migration/` y `digitalisimo-theme/` (`$OUT/src`) en la que la cabecera y la
+constante llevan las versiones que publica la etapa (Elements 4.3.0.170 y Migración 1.0.21; `STAMP=0` lo evita): Migración
+exige Elements ≥ 4.3.0.170 y trata como «tarea de 1.0.20» la que crea una versión anterior a 1.0.21. Cada escenario vive en
+`f8/pN.php` (preparación: `digi_f8_activate()`, `digi_f8_content()` y las operaciones de la sonda `digi_f8_ops()`) y
+`f8/pN.cjs` (conductor); P5, P6, P7 y P10 delegan en otro arnés (`f8/pN.sh`) y su `pN.cjs` lee el resultado. La sonda
+(`f8/probe.php`, mu-plugin con el token de `mode.json`) corta toda petición saliente (las de un dominio de `vendors.json`
+hacen fallar), apaga WP-Cron (el conductor lo pide a mano) y atiende `?digi_f8=ping|ids|state|doc|posts|option|due|clearcss`
+y las operaciones de cada escenario. «Migrar» se conduce por el mismo AJAX que la pantalla (`digitalisimo_migration_step`,
+con el nonce de la herramienta), y `--revert` por WP-CLI dentro del sitio (`f8/cli.php`). Los registros de PHP de cada tanda
+(`fatal.log`, `php-errors.log`, peticiones salientes) se conservan en `$OUT/logs/<P>-<tanda>-…`: nunca se vacían entre tandas.
+
+Copias oficiales que se instalan **sólo en estos Playground efímeros**, con su sha256 comprobada contra
+`reference/OFFICIAL-SOURCES.txt`: Prime Slider Lite 4.7.0 (P0, P1), Element Pack Lite 10.0.1 (P10, `ep-lite-pin.sh`) y
+WooCommerce 11.2.1. Element Pack Pro, el Addon y Prime Slider Pro **nunca** se instalan: se simulan con datos sintéticos y
+con los plugins falsos de `f8/fake-plugins/` (sólo la cabecera; el de Element Pack Pro define `BDTEP_VER`), y la cabecera y
+el pie del origen los pinta `f8/mu-ep-header.php`, una imitación *clean-room* del comportamiento documentado (consulta por
+ID descendente, activación por `_bdthemes_builder_<tipo>__<ID>`, la última coincidencia gana), más estricta que el origen
+porque no descarta el `header.php` del tema. P8 usa los ZIP publicados de Elements 4.3.0.169 y Migración 1.0.20 (Release
+v2026.11.01.444 o `dist/`, sha256 comprobada) y los sustituye en caliente en la copia montada.
+
+| Escenario | Puerto | Qué comprueba |
+|---|---|---|
+| P0 | 9510 | A/B de Prime Slider Lite 4.7.0: A con Lite activo (texto, enlaces, imágenes, estilos computados, tres anchos), B tras «Migrar» (Lite convertido activo y retirado al final, nunca borrado); diferencias sólo las declaradas por familia; imágenes de demostración en Medios; ningún rastro del proveedor; editor, Loop Carousel y puerta de PRO. `P0_PART=a,b1,b2,c` |
+| P1 | 9511 | Documentos con los 35 IDs de Prime Slider Pro (sin Pro, con Lite oficial): conversión sin errores, destinos que pintan, teclado y movimiento reducido del slider anidado |
+| P2 | 9512 | Element Pack sintético en un sitio: Theme Builder (cabeceras con exclusión, pie heredado, entrada, archivo, búsqueda, 404, tienda y carrito), fuente, iconos, kit, CSS y JavaScript globales, barra lateral, contraseña de aplicación y las 18 extensiones; un sondeo de la portada y de una página especial **en cada paso** de «Migrar» (exactamente una cabecera y un pie); copias, condiciones y prioridades; sin secretos en ningún HTML; sin rastro del proveedor. `PRO=1`: con un «Elementor Pro» falso activo |
+| P3 | 9513 | Red (`http://playground.test`): barrera con el sitio archivado y el que no tiene nada que preparar fuera, la pantalla cerrada tras el clic y todo con WP-Cron (`main`), plazo relativo con un sitio que no responde (`deadline`), sitio bloqueado (`blocked`), Addon en la red y Pro por sitio (`addon-net`) y al revés (`pro-net`), y `SITES=24` |
+| P4 | 9514 | Kit sintético (`f8/p4.prebuild.mjs`) con widgets del origen importado sin Migración (marcadores); con Migración, el editor real los convierte o restaura y K recuenta; el front no convierte; «Migrar» deja 0; un kit exportado no lleva las metas de Migración |
+| P5 | 9515 | `front-budget.sh` (`f8/p5.sh`): los casos existentes iguales a 4.3.0.169 (`COMPARE_FILE`, también con `CACHE=1`) y `f8-tooltip`, `f8-badge`, `f8-nested-counter` y `f8-marker` en su tope y con CLS 0. `P5_PARTS` |
+| P6 | 9516 | `interaction.sh` (`f8/p6.sh`): `f8-tooltip` (foco y Escape), `f8-badge-rtl` y `f8-nested-counter` (autoplay y pausa con el foco), y los casos existentes |
+| P7 | 9517 | `brand-audit.sh ONLY=f8` (`f8/p7.sh`, `setup-f8.php`): el editor de los rasgos nuevos y su frontal, una tanda por idioma (`P7_LOCALE=es_MX|en_US`) |
+| P8 | 9518 | `P8_CASE=migration`: 1.0.20 hasta pasar `deactivate`, actualización a 1.0.21 (copias tardías, `tb.late`) y vuelta a 1.0.20 con las copias publicadas (límite declarado con el origen reactivado). `P8_CASE=elements`: 4.3.0.169 con una tarea en curso (pausa `core.elements_old`, el botón se niega) y con los rasgos guardados |
+| P9 | 9519 | `--revert` tras la migración de P2: se niega sin el origen activo; con él, documentos, plantillas, fuentes, iconos, fragmentos, kit y barra lateral como antes, salvo la copia editada (omitida e informada) |
+| P10 | 9510 | A/B con Element Pack Lite 10.0.1 (`f8/p10.sh`): `legacy-ab.sh` (`w1`, `w2`, `ext`; la firma de estilos computados de los mapas corregidos) y `migrate.sh` (`mg-base`, `mg-lite`). Comparte 9510 con P0 (cerrojo `/var/tmp/digi-f8/pg/port-9510.lock`) |
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `SCENARIOS` | P0–P10 | escenarios de la tanda; ninguna tanda pasa de 10 min, la corrida entera sí |
+| `APPEND=1` | — | conserva `$OUT/summary.json` y le suma los escenarios de esta tanda |
+| `OUT`, `TMPDIR` | `/var/tmp/digi-f8/pg/f8`, `/var/tmp/digi-f8/pg/tmp` | resultados y temporales (2 GB libres); dos tandas a la vez necesitan `OUT` distintos |
+| `PRO=1`, `SITES`, `P3_CASE`, `P8_CASE` | — | variantes de P2, P3 y P8 (arriba) |
+| `P0_PART`, `P5_PARTS`, `P7_LOCALE`, `P10_PART` | — | tandas de los escenarios que no caben en una llamada |
+| `STAMP=0`, `LIVE=1`, `KEEP=1` | — | sin versiones de publicación; el árbol de trabajo montado; deja el sitio arrancado |
+
+```bash
+OUT=/var/tmp/digi-f8/pg/f8 SCENARIOS=P2 bash tests/playground/f8.sh
+OUT=/var/tmp/digi-f8/pg/f8 APPEND=1 PRO=1 SCENARIOS=P2 bash tests/playground/f8.sh
+for c in main deadline blocked addon-net pro-net; do OUT=/var/tmp/digi-f8/pg/f8 APPEND=1 P3_CASE=$c SCENARIOS=P3 bash tests/playground/f8.sh; done
+```
+
+`legacy-ab.sh` y `migrate.sh` montan desde F8 **Element Pack Lite 10.0.1 oficial** (`ep-lite-pin.sh`) en lugar de la copia
+local de Pro (`EP_DIR` la sigue aceptando, pero Pro nunca se instala), y `interaction.sh`, `front-budget.sh` y
+`brand-audit.sh` llevan los casos de F8 (`f8-*`, `setup-f8.php`, `ONLY=f8`); `kit-roundtrip/cases.json` lleva los rasgos
+`tooltip`, `badge` y `export-skip` y la página `digi-k-tooltip-badge`.
+
