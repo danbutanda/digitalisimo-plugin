@@ -734,6 +734,35 @@ namespace {
 	$state = run_until( 4 );
 	f8c( ! empty( $state['done'] ) && in_array( 'bdthemes-element-pack/bdthemes-element-pack.php', get_option( 'active_plugins' ), true ) && array() === $GLOBALS['t']['converted'], 'Saltar `deactivate` no desactiva Element Pack ni convierte con él cargado.' );
 
+	// Segunda vuelta de J (P2 con PRO=1): Elementor Pro activo en el sitio y el Theme Builder de Elements sin cargar
+	// (tb.no_builder). `deactivate` desactiva primero Elementor Pro, sin el grupo de Element Pack, y se repite en la
+	// petición siguiente; ya con el Theme Builder, permite publicar y desactiva Element Pack, y la tarea convierte.
+	t_reset();
+	Aliases::set_map( $aliases );
+	$GLOBALS['t']['docs']                         = array( 10 );
+	$GLOBALS['t']['tb']                           = array( 'steps' => 1 );
+	$GLOBALS['t']['plugins']                      = array( 'bdthemes-element-pack/bdthemes-element-pack.php' => $family['bdthemes-element-pack/bdthemes-element-pack.php'], 'elementor-pro/elementor-pro.php' => $family['elementor-pro/elementor-pro.php'] );
+	$GLOBALS['t']['options'][1]['active_plugins'] = array( 'bdthemes-element-pack/bdthemes-element-pack.php', 'elementor-pro/elementor-pro.php' );
+	$GLOBALS['t']['ep_loaded']                    = true;
+	Runner::$builder                              = false;
+	$state = array();
+	for ( $i = 0; $i < 6 && 'deactivate' !== ( $state['stage'] ?? '' ); $i++ ) {
+		new_request();
+		$state = Runner::site_step( 0 === $i, 100 );
+	}
+	$active = (array) get_option( 'active_plugins' );
+	f8c( 'deactivate' === ( $state['stage'] ?? '' ) && ! empty( $state['pause'] ) && empty( $state['done'] ) && ! in_array( 'elementor-pro/elementor-pro.php', $active, true ) && in_array( 'bdthemes-element-pack/bdthemes-element-pack.php', $active, true ), 'Con Elementor Pro activo y sin el Theme Builder, `deactivate` desactiva primero Elementor Pro y espera en la misma etapa: ' . wp_json_encode( array( $state['stage'] ?? '', $active ) ) );
+	f8c( array() === $GLOBALS['t']['converted'] && 0 === \Digitalisimo\Elements\Legacy\Report::count_code( \Digitalisimo\Elements\Legacy\Report::stored(), 'tb.no_builder' ), 'Sin convertir todavía y sin informar tb.no_builder (es un paso intermedio).' );
+	Runner::$builder           = true;
+	$GLOBALS['t']['ep_loaded'] = true;
+	new_request();
+	$state = Runner::site_step( false, 100 );
+	$GLOBALS['t']['ep_loaded'] = in_array( 'bdthemes-element-pack/bdthemes-element-pack.php', (array) get_option( 'active_plugins' ), true );
+	$state = run_until();
+	f8c( ! empty( $state['done'] ) && ! in_array( 'bdthemes-element-pack/bdthemes-element-pack.php', (array) get_option( 'active_plugins' ), true ) && array( true ) === $GLOBALS['t']['allowed'], 'En la petición siguiente, ya con el Theme Builder, permite publicar y desactiva Element Pack.' );
+	f8c( array( 900, 10 ) === $GLOBALS['t']['converted'], 'Y la tarea convierte la copia y el documento sin volver a pulsar Migrar.' );
+	Runner::$builder = null;
+
 	// La consulta de documentos corre una vez por etapa (V.3.5), aunque la etapa ocupe varias peticiones.
 	t_reset();
 	Aliases::set_map( $aliases );

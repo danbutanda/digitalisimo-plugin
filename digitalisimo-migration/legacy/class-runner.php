@@ -653,10 +653,18 @@ final class Runner {
 				return 'tb.conflict';
 			}
 		}
-		if ( ! class_exists( '\\ElementorPro\\Modules\\ThemeBuilder\\Module' ) ) {
+		if ( ! self::builder_loaded() ) {
 			return 'tb.no_builder';
 		}
 		return null;
+	}
+
+	/** @var bool|null pruebas: simula si el Theme Builder de Elements está cargado en esta petición (null: la clase real). */
+	public static $builder = null;
+
+	/** ¿Está cargado el Theme Builder de DIGITALÍSIMO Elements (condición 5 de V.5.3)? */
+	private static function builder_loaded(): bool {
+		return null !== self::$builder ? (bool) self::$builder : class_exists( '\\ElementorPro\\Modules\\ThemeBuilder\\Module' );
 	}
 
 	/** Permite publicar las copias (sólo con las cinco condiciones) y deja la barra lateral lista, justo antes de desactivar. */

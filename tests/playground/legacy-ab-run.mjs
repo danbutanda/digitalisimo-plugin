@@ -86,7 +86,7 @@ async function styles(id, side) {
         await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});
         entry.signature.styles = await page.evaluate(collectStyles, pairs, side, STYLE_PROPS);
         // Diagnóstico (SAVE_HTML=1): el HTML pintado de cada página medida, para ver qué hojas y reglas aplican.
-        if (process.env.SAVE_HTML === '1') { mkdirSync(`${OUT}/html-${id}`, { recursive: true }); writeFileSync(`${OUT}/html-${id}/${widget}-${name}-${blog}.html`, await page.content()); }
+        if (process.env.SAVE_HTML === '1') { mkdirSync(`${OUT}/html-${id}`, { recursive: true }); writeFileSync(`${OUT}/html-${id}/${widget}-${name}-${blog}.html`, await page.content()); writeFileSync(`${OUT}/html-${id}/${widget}-${name}-${blog}.css.txt`, await page.evaluate(async () => (await Promise.all([...document.querySelectorAll('link[rel=stylesheet][href*="/elementor/css/post-"]')].map(async (l) => `/* ${l.href} */\n` + await (await fetch(l.href)).text()))).join('\n'))); }
         entry.styles_http = res && res.status ? res.status() : 0;
         const found = Object.values(entry.signature.styles).filter(Boolean).length;
         (run.styles[`${widget}·${name}`] = run.styles[`${widget}·${name}`] || {})[id] = { parts: pairs.length, found, http: entry.styles_http };

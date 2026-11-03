@@ -171,6 +171,18 @@ namespace {
 	Runner::revert( true );
 	f8_check( count( f8_writes() ) === $writes_before && in_array( EP, get_option( 'active_plugins' ), true ) && ! in_array( ADDON, (array) get_option( 'active_plugins' ), true ), 'Restaurar no reactiva ni desactiva plugins (se reactivan a mano).' );
 	f8_check( null === f8_meta( $p_ext, Migration::BACKUP ) && null === Migration::f8_mark( $p_ext ), 'Tras restaurar no quedan copias ni marca.' );
+	// Segunda vuelta de J (P9): la etapa `aliases` cambia un documento ya convertido por la misma tarea; su huella F8 se
+	// actualiza, así que --revert lo restaura en vez de omitirlo como «editado después» (core.revert_skipped).
+	Aliases::set_map( array( 'digitalisimo-creative-button' => array( 'target' => 'digitalisimo-advanced-button', 'class' => '', 'prefix' => '', 'target_prefix' => '', 'elements' => array() ) ) );
+	$p_alias  = e2e_doc( array( e2e_el( 'bdt-accordion', array( 'tabs' => array() ), 'al1' ), e2e_el( 'digitalisimo-creative-button', array( 'text' => 'Crear' ), 'al2' ) ), array( 'post_title' => 'Con alias' ) );
+	$original = (string) f8_meta( $p_alias, '_elementor_data' );
+	Migration::convert_document( $p_alias );
+	Aliases::convert_document( $p_alias );
+	f8_check( str_contains( (string) f8_meta( $p_alias, '_elementor_data' ), '"digitalisimo-advanced-button"' ) && is_array( Migration::f8_mark( $p_alias ) ) && md5( (string) f8_meta( $p_alias, '_elementor_data' ) ) === Migration::f8_mark( $p_alias )['hash'], 'La etapa de alias deja la huella F8 al día con lo que escribe.' );
+	$rev2    = Runner::revert();
+	$skipped = array_filter( (array) $rev2['codes'], static function ( $code ) use ( $p_alias ) { return 'core.revert_skipped' === ( $code[0] ?? '' ) && (int) ( $code[1]['id'] ?? 0 ) === $p_alias; } );
+	f8_check( $original === (string) f8_meta( $p_alias, '_elementor_data' ) && ! $skipped, '--revert restaura el documento con alias a su original, sin core.revert_skipped.' );
+	Aliases::set_map( array() );
 
 	/* ================================================================ La red: el Addon en toda la red, Prime Slider por sitio */
 	e2e_reset( array( 'multisite' => true, 'sites' => 2 ) );

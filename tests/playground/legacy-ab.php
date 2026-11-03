@@ -87,6 +87,15 @@ $result = array( 'phase' => $phase, 'element_pack' => defined( 'BDTEP_VER' ), 'e
 $blogs = (int) getenv( 'DIGI_BLOG' ) > 0 ? array( (int) getenv( 'DIGI_BLOG' ) ) : array( 1, 2 );
 foreach ( $blogs as $blog ) {
 	switch_to_blog( $blog );
+	// El gestor de archivos del núcleo guarda cada CSS por clase e ID de entrada, sin el sitio
+	// (elementor/core/files/manager.php:53-62): al convertir el sitio 2 en la misma petición, clear_css() de su entrada N
+	// recibía el objeto del sitio 1, borraba su post-N.css y dejaba su meta, y la página del sitio 1 enlazaba un CSS
+	// inexistente (P10 w1, Animated Card «estilo», fase C). Migración convierte cada sitio en sus propias peticiones; aquí
+	// se vacía esa caché al cambiar de sitio.
+	if ( class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->files_manager ) ) {
+		$digi_files = new ReflectionProperty( \Elementor\Plugin::$instance->files_manager, 'files' );
+		$digi_files->setValue( \Elementor\Plugin::$instance->files_manager, array() );
+	}
 	update_option( 'elementor_element_cache_ttl', 'disable' );
 	$registered = \Elementor\Plugin::$instance->widgets_manager->get_widget_types();
 	foreach ( $fixtures as $widget => $cases ) {
