@@ -129,7 +129,7 @@ conf() {
     P2) PORT=9512 WOO=1 EP_HEADER=1 FAKES='bdthemes-element-pack bdthemes-element-pack-addon bdthemes-prime-slider bdthemes-prime-slider-lite'
         [ "${PRO:-0}" = 1 ] && FAKES="$FAKES elementor-pro";;
     P3) PORT=9513 NET=1 EP_HEADER=1 FAKES='bdthemes-element-pack bdthemes-element-pack-addon bdthemes-prime-slider bdthemes-prime-slider-lite';;
-    P4) PORT=9514 PSLITE=1;;
+    P4) PORT=9514;;
     P5) PORT=9515 DELEGATE=1;;
     P6) PORT=9516 DELEGATE=1;;
     P7) PORT=9517 DELEGATE=1;;
@@ -246,6 +246,8 @@ require("fs").writeFileSync(out + "/mode.json", JSON.stringify({ scenario, scena
     mounts[0]="--mount=$run/mnt/digitalisimo-elements:/wordpress/wp-content/plugins/digitalisimo-elements"
     mounts[1]="--mount=$run/mnt/digitalisimo-migration:/wordpress/wp-content/plugins/digitalisimo-migration"
   fi
+  # Datos que el escenario genera antes de arrancar (P4: el kit sintético de los marcadores).
+  if [ -f "$F/$p.prebuild.mjs" ]; then node "$F/$p.prebuild.mjs" "$run" || return 1; fi
   echo "f8 · $P · Elements $ELEMENTS_VERSION ($ELEMENTS_SHA) · Migración $MIGRATION_VERSION ($MIGRATION_SHA) · $site_url"
   local t0; t0="$(date +%s)"
   $CLI server --port="$PORT" --workers=1 --site-url="$site_url" --blueprint="$run/blueprint.json" "${mounts[@]}" > "$run/server.log" 2>&1 &

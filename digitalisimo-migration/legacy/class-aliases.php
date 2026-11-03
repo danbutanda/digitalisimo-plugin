@@ -476,7 +476,16 @@ final class Aliases {
 		if ( '' === (string) get_metadata( 'post', $post_id, Migration::BACKUP, true ) ) {
 			add_metadata( 'post', $post_id, Migration::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ), true );
 		}
-		update_metadata( 'post', $post_id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+		$json = (string) wp_json_encode( $data );
+		update_metadata( 'post', $post_id, '_elementor_data', wp_slash( $json ) );
+		// La marca F8 guarda la huella de lo que escribió la migración para que --revert no pise lo editado después
+		// (V.8). Esta conversión es de la misma tarea: se actualiza la huella; si no, --revert tomaba el documento por
+		// editado y no lo restauraba (Playground P9, frente J).
+		$mark = method_exists( Migration::class, 'f8_mark' ) ? Migration::f8_mark( $post_id ) : null;
+		if ( is_array( $mark ) && defined( Migration::class . '::F8_MARK' ) ) {
+			$mark['hash'] = md5( $json );
+			update_metadata( 'post', $post_id, Migration::F8_MARK, wp_slash( wp_json_encode( $mark ) ) );
+		}
 		Migration::clear_css( $post_id );
 		return $changes;
 	}

@@ -33,7 +33,7 @@ module.exports = (api) => async (s) => {
   const live = copies.filter(([, v]) => v.status === 'publish');
   const editedNow = copies.find(([, v]) => v.id === (edited && edited.id));
   check(s, 'P9.6', 'las copias del Theme Builder dejan de publicarse (papelera o borrador) y la editada se conserva', !live.length && !!editedNow && editedNow[1].status !== 'trash', JSON.stringify(copies.map(([k, v]) => `${k}:${v.status}`)));
-  check(s, 'P9.7', 'la reversión informa de la copia editada que omitió', /omit|cambió después|editad/i.test(out.stdout + out.stderr), (out.stdout + out.stderr).slice(0, 400));
+  check(s, 'P9.7', 'la reversión informa de la copia editada que omitió (por su ID)', !!edited && new RegExp(`documento ${edited.id}: cambió después de migrar`).test(out.stdout + out.stderr), (out.stdout + out.stderr).slice(0, 400));
   check(s, 'P9.8', 'el kit y la barra lateral vuelven a como estaban', after.kit === before.kit && after.sidebars === before.sidebars, JSON.stringify({ kit: [before.kit, mid.kit, after.kit], sidebars: [before.sidebars, mid.sidebars, after.sidebars] }));
   const plat = await control('platform');
   check(s, 'P9.9', 'fuentes, iconos y CSS global creados por la migración retirados (papelera o borrador) y la copia de iconos sin alias', plat.fonts.every((f) => f.status !== 'publish') && plat.icons.every((f) => f.status !== 'publish') && plat.snippets.every((f) => f.status !== 'publish') && !plat.alias, JSON.stringify({ fonts: plat.fonts.map((f) => f.status), icons: plat.icons.map((f) => f.status), snippets: plat.snippets.map((f) => f.status), alias: plat.alias }));

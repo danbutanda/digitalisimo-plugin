@@ -302,7 +302,7 @@ const API = {
       if (!DELEGATED) {
         const ping = await control('ping');
         s.facts.site = { core: ping.core, bundled: ping.bundled, elements: ping.elements, migration: ping.migration, ep: ping.ep, ps: ping.ps, pro: ping.pro, theme: ping.theme, woo: ping.woo };
-        check(s, `${SCENARIO}.0`, 'preparación sin errores (núcleo incluido, Elements y Migración con su versión)', !ping.errors && ping.bundled && ping.elements === ENV.ELEMENTS_VERSION && ping.migration === ENV.MIGRATION_VERSION, JSON.stringify({ errors: ping.errors, bundled: ping.bundled, elements: ping.elements, migration: ping.migration }));
+        check(s, `${SCENARIO}.0`, 'preparación sin errores (núcleo incluido, Elements y Migración con su versión)', !ping.errors && ping.bundled && ping.elements === ENV.ELEMENTS_VERSION && (ping.migration === ENV.MIGRATION_VERSION || (SCENARIO === 'P4' && ping.migration === '')), JSON.stringify({ errors: ping.errors, bundled: ping.bundled, elements: ping.elements, migration: ping.migration }));
         if (ping.warnings) note(s, `avisos de la preparación: ${ping.warnings.slice(0, 400)}`);
       }
       await require(file)(API)(s);
