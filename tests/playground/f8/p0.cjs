@@ -327,14 +327,17 @@ module.exports = (api) => async (s) => {
         };
       });
       loopSeen[key] = facts;
-      const dynamic = facts && facts.items > 0 && facts.titles.some((t) => /Noticia F8|F8$/.test(t)) && facts.images.some((i) => /noticia-|producto-/.test(i)) && facts.buttons.some((h) => /digi-f8-noticia-|\/product\/|producto|camisa|gorra|taza|libro/i.test(h));
+      // Botón sólo donde el origen lo tiene (fiestar, flogia, mercury y vertex no llevan): si lo hay, enlaza a cada
+      // entrada o compra cada producto.
+      const linked = facts && facts.buttons.filter(Boolean);
+      const dynamic = facts && facts.items > 0 && facts.titles.some((t) => /Noticia F8|F8$/.test(t)) && facts.images.some((i) => /noticia-|producto-/.test(i)) && linked.every((h) => /digi-f8-noticia-|hello-world|\/product\/|add-to-cart=\d+/i.test(h));
       if (!dynamic || v.facts.errors.length) loopBad[key] = { facts, errors: v.facts.errors.slice(0, 3) };
       await shot(v.page, `p0-loop-${key}`);
       await v.close();
     }
     fs.writeFileSync(path.join(RUN, 'loop.json'), JSON.stringify(loopSeen, null, 1));
     if (!loopKeys.length) pending(s, 'P0.C5', 'Loop Carousel generado con datos dinámicos', 'ningún documento convertido a loop-carousel');
-    else check(s, 'P0.C5', `el Loop Carousel generado (${loopKeys.length} páginas) pinta título, imagen destacada y botón dinámicos de cada entrada o producto, sin errores de JavaScript`, !Object.keys(loopBad).length, JSON.stringify(loopBad).slice(0, 1500));
+    else check(s, 'P0.C5', `el Loop Carousel generado (${loopKeys.length} páginas) pinta título e imagen destacada dinámicos de cada entrada o producto, y su botón donde el origen lo tiene, sin errores de JavaScript`, !Object.keys(loopBad).length, JSON.stringify(loopBad).slice(0, 1500));
     // Puerta de PRO: los paquetes que piden los widgets generados llegan al front.
     if (loopKeys.length) {
       const html = (await request('GET', m.urls[loopKeys[0]])).text;
