@@ -7,7 +7,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **Ningún widget de los plugins de referencia.** Los widgets de PRO Elements que trae Elements (102: 94 con su `get_name()` más 8 del Theme Builder que heredan de una base) pasan, todos, a widgets propios. Theme Builder, popups, condiciones de visualización, efectos de movimiento, fijados y Código personalizado no son widgets: siguen siendo funciones del constructor.
 - **«Migrar» deja un sitio existente perfecto:** tema, kit, widgets, plantillas del Theme Builder, popups y bucles, con el mismo botón único de siempre (`docs/ELEMENT_PACK_RETIREMENT.md`, `AGENTS.md`).
 - **Tras migrar, los widgets de PRO quedan ocultos del panel pero registrados.** Un sitio sin migrar, una revisión antigua o un kit de terceros (Envato) se siguen viendo, y Migración o el importador de kits los convierten. Ningún widget de PRO se borra del plugin dentro de este programa.
-- **Origen de los sitios:** Elementor Pro o PRO Elements, Element Pack y Prime Slider (ya convertidos por F8), Hello (ya trasladado por el tema, `inc/switch.php`) y **otro tema aún sin identificar** (la etapa C0 lo detecta por sitio).
+- **Origen de los sitios:** Elementor Pro o PRO Elements, Element Pack y Prime Slider (ya convertidos por F8) y Hello (ya trasladado por el tema, `inc/switch.php`). **El tema se cierra con lo planificado al inicio:** sólo Hello. No se migra ningún otro tema (decisión del 2026-11-03).
 - **El tema lo sigue activando el propietario** en Apariencia: «Migrar» no lo activa (regla de `AGENTS.md`, sin cambios).
 
 ## Reglas del programa
@@ -42,7 +42,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C8 · Botones flotantes y Link in Bio | 17 |
 | C9 · Otros | 8 |
 
-- **C0 · Inventario, método y arnés.** «Analizar» de Migración cuenta, por sitio y red, cada widget de PRO usado (también dentro de plantillas, popups, Loop Items y revisiones), los tipos de plantilla del Theme Builder, el kit y el tema activo con su padre y su `Update URI`: así se identifica el otro tema y se ordenan las familias por uso real. Se crean el módulo de convertidores de Elements, el mecanismo para ocultar del panel, el arnés A/B y la plantilla de etapa. El orden de C1–C9 se revisa con esos datos.
+- **C0 · Inventario, método y arnés.** «Analizar» de Migración cuenta, por sitio y red, cada widget de PRO usado (también dentro de plantillas, popups, Loop Items y revisiones), los tipos de plantilla del Theme Builder y el kit: así se ordenan las familias por uso real. Se crean el módulo de convertidores de Elements, el mecanismo para ocultar del panel, el arnés A/B y la plantilla de etapa. El orden de C1–C9 se revisa con esos datos.
 - **C1 · Carruseles.** Slides y Nested carousel ya tienen equivalente (Slider Optimizado y Slider anidado ligero); Media carousel, Testimonial carousel y Reviews se construyen sobre el motor del slider anidado, sin Swiper. Es la familia que más pesa en el front (Swiper, 144 KB).
 - **C2 · Contenido.** Quince widgets sueltos; cinco tienen equivalente total o parcial. Lottie necesita su librería (253 KB): el widget propio la carga al acercarse a la pantalla, como hace hoy `lazy_libs`.
 - **C3 · Navegación y búsqueda.** Menú y Mega Menu (los más usados en cabeceras), el Off-Canvas de contenedor anidado y la búsqueda.
@@ -52,7 +52,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
 - **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en dos widgets propios con presentaciones.
 - **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b).
-- **T · Tema.** Hello ya se traslada al activar el tema. El otro tema, cuando C0 lo identifique: su cabecera y su pie pasan a plantillas del Theme Builder, y sus colores y tipografías, al kit, sin activar nada.
+- **Tema.** Cerrado con lo planificado al inicio: Hello se traslada al activar el tema DIGITALÍSIMO (tema 1.0.0). No hay etapa para otros temas.
 
 ## Inventario (2026-11-03, Elements 4.3.0.171)
 
@@ -169,4 +169,4 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 |---|---|
 | C0 | Pendiente |
 | C1–C9 | Pendientes |
-| T | Hello hecho (tema 1.0.0); otro tema por identificar |
+| Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |
