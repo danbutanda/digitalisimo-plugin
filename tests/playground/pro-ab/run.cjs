@@ -134,7 +134,16 @@ async function measure(browser, url, sel, slug, side, forbid) {
   });
   page.on('pageerror', (e) => errors.push(String(e.message || e)));
   page.on('console', (m) => { if (m.type() === 'error' && !/favicon|Failed to load resource/.test(m.text())) errors.push(m.text()); });
-  page.on('response', (r) => { if (r.status() >= 400 && sameOrigin(r.url())) failed.push(`${r.status()} ${r.url()}`); });
+  const sheets = [];
+  const transient = [];
+  page.on('response', (r) => {
+    if (r.status() >= 400 && sameOrigin(r.url())) failed.push(`${r.status()} ${r.url()}`);
+    // Una hoja o un script del sitio que llega con redirección o como HTML no es el recurso (Playground lo sirvió por
+    // WordPress): la medición de esa página no vale y se repite.
+    const type = r.request().resourceType();
+    if (sameOrigin(r.url()) && ['stylesheet', 'script'].includes(type) && (r.status() >= 300 && r.status() < 400 || /text\/html/.test(r.headers()['content-type'] || ''))) transient.push(`${r.status()} ${r.url()}`);
+    if (sameOrigin(r.url()) && type === 'stylesheet') sheets.push(r.buffer().then((b) => `${new URL(r.url()).pathname} ${r.status()} ${b.length}`).catch(() => `${new URL(r.url()).pathname} ${r.status()} ?`));
+  });
   page.on('requestfailed', (r) => { if (sameOrigin(r.url())) failed.push(`${(r.failure() || {}).errorText || 'falló'} ${r.url()}`); });
   const result = { url, status: 0, widths: {}, assets: {}, errors, failed, third: [] };
   try {
@@ -159,10 +168,12 @@ async function measure(browser, url, sel, slug, side, forbid) {
       const w = { signature: await page.evaluate(pageSignature, sel, slug) };
       const handle = await page.$(sel);
       if (!w.signature || !handle) { result.widths[width] = w; continue; }
-      const snap = await page.accessibility.snapshot({ root: handle, interestingOnly: true }).catch(() => null);
+      // Rol y nombre accesible de cada enlace o botón, del árbol de accesibilidad de Chrome.
       const names = [];
-      const walk = (n) => { if (!n) return; if (['link', 'button'].includes(n.role)) names.push(`${n.role} «${String(n.name || '').replace(/\s+/g, ' ').trim()}»`); (n.children || []).forEach(walk); };
-      walk(snap);
+      for (const el of await handle.$$('a[href], button, [role="button"], [role="link"]')) {
+        const n = await page.accessibility.snapshot({ root: el, interestingOnly: false }).catch(() => null);
+        if (n) names.push(`${n.role} «${String(n.name || '').replace(/\s+/g, ' ').trim()}»`);
+      }
       w.signature.names = names;
       const shot = async (state) => {
         const clip = await page.evaluate((s, m) => { const r = document.querySelector(s).getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, sel, MARGIN);
@@ -197,6 +208,8 @@ async function measure(browser, url, sel, slug, side, forbid) {
     result.error = String(e.message || e);
   }
   result.third = [...new Set(third)];
+  result.sheets = await Promise.all(sheets);
+  result.transient = transient;
   await context.close().catch(() => {});
   return result;
 }
@@ -301,6 +314,7 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
   const summary = { started: new Date(+process.env.STARTED * 1000).toISOString(), elements: process.env.ELEMENTS_VERSION, git: process.env.GIT_SHA, elementor: CONV.elementor, map_override: CONV.override || '', widths: WIDTHS, pixels: { max: PIXEL_MAX, tolerance: PIXEL_TOLERANCE }, cases: {}, problems, notes };
   if (CONV.override) notes.push(`MAP: mapa de prueba fijado con Registry::set() para «${CONV.override}» (no es el mapa del repositorio)`);
   const slugs = Object.keys(CONV.cases);
+  const thirdAll = new Set();
   console.log(`pro-ab · ${slugs.length} casos · ${WIDTHS.join(', ')} px · umbral de píxeles ${(PIXEL_MAX * 100).toFixed(2)} % (tolerancia ${PIXEL_TOLERANCE})`);
   for (const slug of slugs) {
     const c = CONFIG.cases[slug] || {};
@@ -315,11 +329,21 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     if (!e.registered.a) fail(`el widget de PRO «${e.widget}» no está registrado: A no pinta nada`);
     for (const code of codes.filter((x) => x.section === 'review')) fail(`${code.code} ${code.key}: ${code.reason}`);
     const forbid = (c.forbid || CONFIG.forbid_b || []).map((f) => ({ name: f.name.split('{widget}').join(e.widget), id: f.id.split('{widget}').join(e.widget), url: f.url.split('{widget}').join(e.widget) }));
-    const A = await measure(browser, `${BASE}/pro-ab-${slug}-a/`, sel, slug, 'a', forbid);
-    const B = await measure(browser, `${BASE}/pro-ab-${slug}-b/`, sel, slug, 'b', forbid);
+    const once = async (side) => {
+      let r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid);
+      for (let i = 0; i < 2 && r.transient.length; i++) {
+        notes.push(`${slug}-${side}: recursos servidos con redirección o como HTML (${r.transient[0]}); se repite la medición`);
+        r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid);
+      }
+      if (r.transient.length) fail(`${side.toUpperCase()}: recursos del sitio servidos con redirección o como HTML: ${r.transient.slice(0, 3).join(' | ')}`);
+      return r;
+    };
+    const A = await once('a');
+    const B = await once('b');
     res.assets = { a: A.assets, b: B.assets };
     res.errors = { a: A.errors.concat(A.failed), b: B.errors.concat(B.failed) };
     res.third = { a: A.third, b: B.third };
+    res.sheets = { a: A.sheets, b: B.sheets };
     for (const [side, r] of [['A', A], ['B', B]]) {
       if (r.error) fail(`${side}: ${r.error}`);
       if (r.status !== 200) fail(`${side}: la página respondió ${r.status}`);
@@ -329,7 +353,7 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     for (const [name, loaded] of Object.entries(B.assets)) if (loaded) fail(`B carga ${name}`);
     const newThird = B.third.filter((u) => !A.third.includes(u));
     if (newThird.length) fail(`B pide recursos de terceros que A no pedía: ${newThird.slice(0, 4).join(', ')}`);
-    if (A.third.length) notes.push(`${slug}: A y B piden a terceros (cortado por el arnés): ${[...new Set(A.third.concat(B.third))].slice(0, 3).join(', ')}`);
+    for (const u of A.third.concat(B.third)) thirdAll.add(u);
     const widgetCss = Object.keys(A.assets).find((n) => /^widget-/.test(n));
     if (widgetCss && !A.assets[widgetCss]) notes.push(`${slug}: A no cargó ${widgetCss} (¿la página A es representativa?)`);
 
@@ -390,6 +414,7 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     if (own.length > 8) console.log(`         … y ${own.length - 8} más (pro-ab.json)`);
   }
   await browser.close();
+  if (thirdAll.size) notes.push(`peticiones a terceros cortadas por el arnés (A y B): ${[...thirdAll].slice(0, 5).join(', ')}`);
   summary.duration_s = Math.round(Date.now() / 1000 - +process.env.STARTED);
   fs.writeFileSync(path.join(OUT, 'pro-ab.json'), JSON.stringify(summary, null, 1));
   for (const n of [...new Set(notes)].slice(0, 12)) console.log(`nota: ${n}`);

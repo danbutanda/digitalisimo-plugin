@@ -44,7 +44,7 @@ namespace {
 	\Digitalisimo\Migration\Plugin::register_adapters( $manager );
 	\Digitalisimo\Migration\Plugin::register_adapters( $manager );
 	$adapters = array_diff( array_keys( $manager->widgets ), preg_grep( '/^digitalisimo-/', array_keys( $manager->widgets ) ) );
-	check_legacy( in_array( 'bdt-animated-link', $adapters, true ) && in_array( 'bdt-accordion', $adapters, true ) && 51 === count( preg_grep( '/^digitalisimo-/', array_keys( $manager->widgets ) ) ), 'DIGITALÍSIMO Migración añade los IDs heredados una sola vez.' );
+	check_legacy( in_array( 'bdt-animated-link', $adapters, true ) && in_array( 'bdt-accordion', $adapters, true ) && 52 === count( preg_grep( '/^digitalisimo-/', array_keys( $manager->widgets ) ) ), 'DIGITALÍSIMO Migración añade los IDs heredados una sola vez.' );
 	check_legacy( $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Legacy\Bdt_AnimatedLink && $manager->widgets['bdt-animated-link'] instanceof \Digitalisimo\Elements\Animated_Link_Widget, 'El ID legacy debe usar el adaptador sobre nuestra implementación.' );
 	$widget = $manager->widgets['bdt-animated-link'];
 	$widget->settings = array( 'link_style' => 'leda', 'link_text' => 'Ejemplo', 'link_url' => array( 'url' => 'https://example.test/' ) );

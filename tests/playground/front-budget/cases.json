@@ -6737,5 +6737,26 @@
     }
    }
   }
+ },
+ "blockquote": {
+  "title": "Cita (programa sin widgets de PRO, C0)",
+  "since": "4.3.0.172",
+  "widgets": [
+   {
+    "type": "digitalisimo-blockquote",
+    "settings": {
+     "blockquote_content": "Una cita de medición con <strong>énfasis</strong>.",
+     "author_name": "Autora de prueba",
+     "share_button": "yes"
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false
+   }
+  }
  }
 }

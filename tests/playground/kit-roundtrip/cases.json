@@ -2333,6 +2333,9 @@
         ]
       }
     },
+    "digitalisimo-blockquote": {
+      "base": "front-budget:blockquote"
+    },
     "digitalisimo-breadcrumbs": {
       "base": "front-budget:breadcrumbs"
     },
