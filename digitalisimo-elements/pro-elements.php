@@ -134,6 +134,9 @@ function pro_elements_load_plugin_func() {
 	// Capacidades de F7b (acciones, consultas, anidados…): base de usos y contadores, y cada submódulo sólo si existe.
 	require_once __DIR__ . '/modules/digitalisimo-f7b/class-module.php';
 	\Digitalisimo\Elements\F7b\Module::init();
+	// Sustitución de los widgets de PRO por widgets propios (docs/PRO_WIDGETS_OBJECTIVE.md): conversión y panel.
+	require_once __DIR__ . '/modules/digitalisimo-convert/class-module.php';
+	\Digitalisimo\Elements\Convert\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

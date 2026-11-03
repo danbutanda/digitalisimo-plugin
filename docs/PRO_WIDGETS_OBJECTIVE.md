@@ -56,7 +56,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 
 ## Inventario (2026-11-03, Elements 4.3.0.171)
 
-«Existe»: hay un widget propio equivalente. «Parcial»: lo hay, pero le faltan opciones que el convertidor necesita. «Nuevo»: hay que crearlo. «Contenido» y «Función»: no se sustituye por un widget.
+«Existe»: hay un widget propio con la misma función. «Parcial»: lo hay, pero le faltan opciones. En los dos casos el widget propio suele tener muchas menos opciones que el de PRO (el Progreso de lectura, 4 controles frente a 27; el Encabezado animado no tiene las formas de resaltado ni los ocho tipos de rotación): para una migración fiel, cada familia lo amplía con controles opcionales que no cambian su comportamiento por defecto. «Nuevo»: hay que crearlo. «Contenido» y «Función»: no se sustituye por un widget.
 
 | Etapa | Módulo de PRO | Widget (`get_name()`) | Título en PRO | Equivalente propio | Nota |
 |---|---|---|---|---|---|
@@ -85,8 +85,8 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C3 | `off-canvas` | `off-canvas` | Off-Canvas | Parcial | Panel lateral (PRO usa un contenedor anidado) |
 | C3 | `search` | `search` | Search | Nuevo |  |
 | C4 | `theme-builder` | `archive-posts` | Archive Posts | Nuevo |  |
-| C4 | `theme-builder` | `archive-title` | Archive Title | Nuevo |  |
-| C4 | `theme-builder` | `page-title` | Page Title | Nuevo |  |
+| C4 | `theme-builder` | `theme-archive-title` | Archive Title | Nuevo |  |
+| C4 | `theme-builder` | `theme-page-title` | Page Title | Nuevo |  |
 | C4 | `theme-builder` | `theme-post-content` | Post Content | Nuevo |  |
 | C4 | `theme-builder` | `theme-post-excerpt` | Post Excerpt | Nuevo |  |
 | C4 | `theme-builder` | `theme-post-featured-image` | Featured Image | Nuevo |  |
