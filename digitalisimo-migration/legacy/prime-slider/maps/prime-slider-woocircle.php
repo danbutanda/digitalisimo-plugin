@@ -28,7 +28,8 @@ return array(
 			'price'   => 'show_price',
 			'cart'    => 'show_cart',
 		),
-		'loss'           => array( 'ps.dyn.loss.circular' => true ),
+		// El destino (Productos en carrusel) no tiene selector de cantidad: con el botón de compra se pierde (P0.B2.9).
+		'loss'           => array( 'ps.dyn.loss.circular' => true, 'ps.dyn.loss.quantity' => 'show_cart' ),
 		'defaults'       => array(
 			'posts_source'              => 'product',
 			'posts_limit'               => 3,

@@ -22,8 +22,8 @@ module.exports = (api) => async (s) => {
   const { OUT, RUN, check, pending, note, control, login, migrate, request, open, shot, vendorTrace, sleep, text } = api;
   // Tandas: a, b1 (B de la primera mitad), b2 (B de la segunda mitad) y c; P0_PART=a,b1 o una sola.
   // `ed` (diagnóstico de C2): el editor real de cada documento convertido de P0_ED_KEYS, uno a uno, con la traza de errores.
-  const PARTS = (process.env.P0_PART || 'a,b1,b2,c').split(',').map((x) => x.trim()).filter((p) => ['a', 'b1', 'b2', 'c', 'ed', 'svg'].includes(p));
-  const PREFIX = { a: 'P0.A', b1: 'P0.B1.', b2: 'P0.B2.', c: 'P0.C', ed: 'P0.ED', svg: 'P0.SVG' };
+  const PARTS = (process.env.P0_PART || 'a,b1,b2,c').split(',').map((x) => x.trim()).filter((p) => ['a', 'b1', 'b2', 'c', 'ed', 'svg', 'dump'].includes(p));
+  const PREFIX = { a: 'P0.A', b1: 'P0.B1.', b2: 'P0.B2.', c: 'P0.C', ed: 'P0.ED', svg: 'P0.SVG', dump: 'P0.DUMP' };
   const DATA = path.join(OUT, 'P0-data');
   fs.mkdirSync(DATA, { recursive: true });
   const WIDTHS = [360, 768, 1280];
@@ -187,6 +187,18 @@ module.exports = (api) => async (s) => {
       check(s, `${P}9`, `A/B de ${half.length} páginas: toda diferencia de texto, enlace o imagen está declarada (${declared} declaradas)`, !unexplained.length, JSON.stringify(unexplained.slice(0, 6).map(([k, d]) => [k, d.unexplained.slice(0, 6)])));
       const styleDiff = Object.values(diff).reduce((n, d) => n + d.styles, 0);
       note(s, `A/B ${token}: ${styleDiff} textos con estilo computado distinto; los estilos propios de cada widget no se trasladan (ps.loss.styles, informado por documento)`);
+    }
+  }
+
+  // ── dump · Documentos convertidos y su HTML (diagnóstico de las diferencias de A/B; P0_ED_KEYS) ─────────────────
+  if (PARTS.includes('dump')) {
+    await doMigrate('P0.DUMP');
+    for (const key of (process.env.P0_ED_KEYS || '').split(',').filter(Boolean)) {
+      const d = await control('doc', { key, full: '1' });
+      const r = await request('GET', m.urls[key]);
+      fs.writeFileSync(path.join(RUN, `dump-${key}.json`), JSON.stringify({ doc: d.doc, status: r.status }, null, 1));
+      fs.writeFileSync(path.join(RUN, `dump-${key}.html`), r.text);
+      note(s, `${key}: volcado`);
     }
   }
 
@@ -394,6 +406,11 @@ function explain(kind, value, side, doc, a) {
     if (['scroll', 'down'].includes(value)) return 'botón de desplazamiento del origen (sólo icono en isolate) → Botón de desplazamiento con su texto por defecto (F8-D16)';
     if (dyn && ['no', 'comments', 'one', 'comment', 'by', 'admin'].includes(value)) return 'metadatos de Información de la entrada de PRO en el Loop Item (§3.E.4)';
   }
+  // Familia G (productos), segunda vuelta de J: el origen compra con el formulario del producto (botón sin enlace) y el
+  // destino con el botón de bucle `?add-to-cart=ID`: la misma acción. En woocircle (widget Productos en carrusel) el
+  // selector de cantidad se pierde y el informe lo declara (ps.dyn.loss.quantity).
+  if (kind === 'enlace' && side === 'B' && doc.family === 'G' && /\?add-to-cart=\d+$/.test(value)) return 'botón de compra del bucle (?add-to-cart): la misma acción que el formulario de compra del origen';
+  if (kind === 'palabra' && side === 'A' && doc.widget === 'prime-slider-woocircle' && value === 'quantity') return 'selector de cantidad del origen sin equivalente en Productos en carrusel (ps.dyn.loss.quantity, declarado en el informe)';
   if (kind === 'enlace' && side === 'A') {
     if (/^https?:\/\/(www\.)?(facebook|twitter|instagram|linkedin|youtube)\.com\/[a-z]+\/?$/i.test(value)) return 'perfil del proveedor retirado (§3.E.0.3, Sanitizer)';
     if (/youtu\.?be|vimeo/i.test(value)) return 'vídeo de demostración del proveedor retirado (§3.E.0.3, Sanitizer)';

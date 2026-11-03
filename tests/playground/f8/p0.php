@@ -199,6 +199,14 @@ function digi_f8_ps_expand( $value, $widget, array $terms ) {
 		}
 		$out = array();
 		foreach ( $value as $key => $item ) {
+			// Selección manual de productos (woolamp «custom»): los IDs del fixture son de otro sitio; aquí, dos productos
+			// reales de este (sin esto, eran páginas de la prueba y el origen las listaba: P0.B2.9 de la segunda vuelta).
+			if ( 'posts_selected_ids' === $key && is_array( $item ) && false !== strpos( $widget, '-woo' ) ) {
+				$ids  = digi_f8_ids();
+				$item = array_values( array_filter( array( (string) ( $ids['digi-f8-producto-5'] ?? '' ), (string) ( $ids['digi-f8-producto-2'] ?? '' ) ) ) );
+				$out[ $key ] = $item;
+				continue;
+			}
 			if ( is_string( $key ) && preg_match( '/term_ids$/', $key ) && is_array( $item ) ) {
 				$tt   = false !== strpos( $widget, '-woo' ) && ! empty( $terms['product'] ) ? $terms['product'] : $terms['post'];
 				$item = array_map( static function ( $t ) use ( $tt ) {

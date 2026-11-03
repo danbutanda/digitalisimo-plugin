@@ -387,7 +387,9 @@ final class Loop_Item {
 			$children[] = self::widget( $id(), 'woocommerce-product-price', array( 'price_color' => $colors['text'] ) + ( '' !== $align ? array( 'text_align' => $align ) : array() ) );
 		}
 		if ( $parts['cart'] ) {
-			$children[] = self::widget( $id(), 'woocommerce-product-add-to-cart', array() );
+			// El origen pinta el formulario de compra del producto (woocommerce_template_single_add_to_cart(): cantidad y
+			// botón); en un Loop Item, el widget sólo pinta la cantidad con `show_quantity` (Playground P0.B2.9, frente J).
+			$children[] = self::widget( $id(), 'woocommerce-product-add-to-cart', array( 'show_quantity' => 'yes' ) );
 		}
 		if ( '' !== $parts['button'] ) {
 			$button = array( 'text' => $parts['button'] );

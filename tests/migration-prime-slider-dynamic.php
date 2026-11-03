@@ -644,6 +644,8 @@ namespace {
 	$tree = loop_data( (int) $main['settings']['template_id'] );
 	$check( 'product' === get_post_meta( (int) $main['settings']['template_id'], '_elementor_source', true ), 'Loop Item de producto (source = product)' );
 	$check( array( 'post-info', 'woocommerce-product-title', 'theme-post-excerpt', 'woocommerce-product-price', 'woocommerce-product-add-to-cart' ) === widgets_of( $tree[0]['elements'] ) && 'product_cat' === $tree[0]['elements'][0]['settings']['icon_list'][0]['taxonomy'][0], 'categorías, título, extracto, precio y formulario de compra' );
+	$cart = end( $tree[0]['elements'] );
+	$check( 'woocommerce-product-add-to-cart' === ( $cart['widgetType'] ?? '' ) && 'yes' === ( $cart['settings']['show_quantity'] ?? '' ), 'el formulario de compra lleva la cantidad, como el del origen (P0.B2.9)' );
 	$check( '__fragment' !== ( $out['elType'] ?? '' ) && in_array( 'ps.dyn.loss.layout', codes( $shop ), true ), 'sin redes del usuario; composición informada' );
 	$out  = build( 'woocommerce', fx( 'woocommerce', 'custom' ), $shop );
 	$main = main_of( $out );

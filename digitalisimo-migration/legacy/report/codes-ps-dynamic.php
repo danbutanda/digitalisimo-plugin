@@ -43,6 +43,7 @@ return array(
 	'ps.dyn.loss.effect'          => array( 'section' => 'dropped', 'label' => __( 'Efecto de transición sin equivalente: el carrusel de bucle se desplaza', 'digitalisimo-migration' ) ),
 	'ps.dyn.loss.effect_material' => array( 'section' => 'dropped', 'label' => __( 'Efecto Material sin equivalente (biblioteca con licencia que no se puede redistribuir)', 'digitalisimo-migration' ) ),
 	'ps.dyn.loss.skin'            => array( 'section' => 'dropped', 'label' => __( 'Diseño propio de la variante (skin) del original sin equivalente', 'digitalisimo-migration' ) ),
+	'ps.dyn.loss.quantity'        => array( 'section' => 'dropped', 'label' => __( 'Selector de cantidad del formulario de compra sin equivalente: el botón añade una unidad', 'digitalisimo-migration' ) ),
 	'ps.dyn.loss.thumbs'          => array( 'section' => 'dropped', 'label' => __( 'Miniaturas de navegación sin equivalente', 'digitalisimo-migration' ) ),
 	'ps.dyn.loss.avatar'          => array( 'section' => 'dropped', 'label' => __( 'Avatar del autor sin equivalente', 'digitalisimo-migration' ) ),
 	'ps.dyn.loss.featured'        => array( 'section' => 'dropped', 'label' => __( 'Franja de entradas destacadas sin equivalente', 'digitalisimo-migration' ) ),
