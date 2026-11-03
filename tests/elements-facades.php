@@ -260,6 +260,8 @@ namespace {
 	check_fc( false === $filter( false, array( 'settings' => $mapw->settings ), $element ), 'Con la imagen guardada, sí.' );
 	$element->name = 'heading';
 	check_fc( false === $filter( false, array( 'settings' => array() ), $element ) && true === $filter( true, array(), $element ), 'Otro widget no cambia, y lo que ya era dinámico sigue siéndolo.' );
+	$resolved = new class() { public function get_name() { return 'digitalisimo-map'; } public function get_settings_for_display() { return array( 'zoom' => array( 'size' => 9 ), 'markers' => array( array( 'lat' => '19.4326', 'lng' => '-99.1332' ) ) ); } };
+	check_fc( true === $filter( false, array( 'settings' => array() ), $resolved ), 'Usa los ajustes resueltos del elemento: un Mapa con su marcador por defecto (sin guardar) y la imagen pendiente tampoco entra en la caché.' );
 
 	// 7. Script y hoja.
 	$js = (string) file_get_contents( $front . 'assets/facade.js' );

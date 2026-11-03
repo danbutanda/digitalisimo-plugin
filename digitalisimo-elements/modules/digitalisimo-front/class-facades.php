@@ -189,7 +189,8 @@ final class Facades {
 		if ( '' === $class || ! class_exists( $class ) || ! method_exists( $class, 'facade_jobs' ) ) {
 			return $is_dynamic;
 		}
-		$settings = is_array( $raw ) && isset( $raw['settings'] ) && is_array( $raw['settings'] ) ? $raw['settings'] : array();
+		// Los ajustes resueltos llevan los valores por defecto (el marcador de un Mapa que nunca se cambió); los guardados no.
+		$settings = method_exists( $element, 'get_settings_for_display' ) ? (array) $element->get_settings_for_display() : ( is_array( $raw ) && isset( $raw['settings'] ) && is_array( $raw['settings'] ) ? $raw['settings'] : array() );
 		foreach ( (array) $class::facade_jobs( $settings ) as $job ) {
 			if ( is_array( $job ) && Facade_Images::pending( $job ) ) {
 				return true;
