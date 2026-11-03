@@ -88,11 +88,11 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 		$this->start_controls_tabs( 'tabs_button_style' );
 		$this->start_controls_tab( 'tab_button_normal', array( 'label' => 'Normal' ) );
 		$this->add_control( 'button_background_color', array( 'label' => 'Color de fondo', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-blockquote__button' => 'background-color: {{VALUE}}' ), 'condition' => array( 'share_skin!' => 'link' ) ) );
-		$this->add_control( 'button_text_color', array( 'label' => 'Color del texto', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-blockquote__button' => 'color: {{VALUE}}' ) ) );
+		$this->add_control( 'button_text_color', array( 'label' => 'Color del texto', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-blockquote__button' => 'color: {{VALUE}}', '{{WRAPPER}} .digi-blockquote__icon' => 'fill: {{VALUE}}' ) ) );
 		$this->end_controls_tab();
 		$this->start_controls_tab( 'tab_button_hover', array( 'label' => 'Al pasar el cursor' ) );
 		$this->add_control( 'button_background_color_hover', array( 'label' => 'Color de fondo', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-blockquote__button:hover' => 'background-color: {{VALUE}}' ), 'condition' => array( 'share_skin!' => 'link' ) ) );
-		$this->add_control( 'button_text_color_hover', array( 'label' => 'Color del texto', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-blockquote__button:hover' => 'color: {{VALUE}}' ) ) );
+		$this->add_control( 'button_text_color_hover', array( 'label' => 'Color del texto', 'type' => $c::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-blockquote__button:hover' => 'color: {{VALUE}}', '{{WRAPPER}} .digi-blockquote__button:hover .digi-blockquote__icon' => 'fill: {{VALUE}}' ) ) );
 		$this->add_control( 'button_transition_duration', $time + array( 'selectors' => array( '{{WRAPPER}} .digi-blockquote__button' => '--digi-bq-bt: {{SIZE}}{{UNIT}};' ) ) );
 		$this->end_controls_tab();
 		$this->end_controls_tabs();
@@ -194,7 +194,10 @@ class Blockquote_Widget extends \Elementor\Widget_Base {
 				$view  = in_array( $s['share_view'] ?? '', self::VIEWS, true ) ? $s['share_view'] : 'icon-text';
 				$label = self::plain( $s['share_label'] ?? '' );
 				$named = 'icon' !== $view && '' !== $label;
-				echo '<a class="digi-blockquote__button" href="' . esc_url( self::share_url( $s ) ) . '" target="_blank" rel="noopener noreferrer"' . ( $named ? '' : ' aria-label="' . esc_attr( '' !== $label ? $label : 'Compartir en X' ) . '"' ) . '>';
+				// En la vista «Icono» el texto no se muestra (su control está oculto y llega vacío), pero sigue siendo el
+				// nombre del enlace: el guardado («Tweet» en lo convertido desde PRO) o, sin él, uno descriptivo.
+				$name = '' !== $label ? $label : self::plain( (string) ( $this->get_settings( 'share_label' ) ?? '' ) );
+				echo '<a class="digi-blockquote__button" href="' . esc_url( self::share_url( $s ) ) . '" target="_blank" rel="noopener noreferrer"' . ( $named ? '' : ' aria-label="' . esc_attr( '' !== $name ? $name : 'Compartir en X' ) . '"' ) . '>';
 				if ( 'text' !== $view ) {
 					echo self::ICON; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Constante propia.
 				}

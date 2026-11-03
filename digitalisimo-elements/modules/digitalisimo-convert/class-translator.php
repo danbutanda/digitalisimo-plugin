@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Traduce los ajustes guardados de un widget de PRO a los de su widget propio con un mapa declarativo
- * (`maps/<widget de PRO>.php`). Mismas reglas que el traductor de Element Pack de DIGITALÍSIMO Migración, más los
+ * (`maps/<widget de PRO>.php`). Mismas reglas que los traductores de DIGITALÍSIMO Migración, más los
  * colores y tipografías globales del kit (`__globals__`) y la cobertura obligatoria: **cada clave que el sitio guardó
  * se traduce, se conserva, se aproxima o se descarta con su motivo**; una clave que el mapa no declara se informa en
  * «Pendiente de revisar» (`pro.unmapped`) y no pasa al widget propio.

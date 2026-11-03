@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'   => 'blockquote',
 	'target'   => 'digitalisimo-blockquote',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valores por defecto de los controles del Blockquote de PRO (Elementor no guarda lo que coincide con ellos).
 	'defaults' => array(

@@ -346,7 +346,9 @@ checks['f8-nested-counter'] = async (page) => {
   const c2 = await count();
   await new Promise((r) => setTimeout(r, 3500));
   const c3 = await count();
-  if (!/^1 \/ 3$/.test(c0) || c1 === c0 || c3 !== c2) throw new Error(`contador ${JSON.stringify({ c0, c1, c2, c3 })}`);
+  // El autoplay (1,5 s) puede haber avanzado antes de la primera lectura: la carga espera a que la red quede quieta y las
+  // fuentes de terceros que el arnés corta tardan lo que tardan. Lo que se comprueba es el formato, el avance y la pausa.
+  if (!/^[1-3] \/ 3$/.test(c0) || c1 === c0 || c3 !== c2) throw new Error(`contador ${JSON.stringify({ c0, c1, c2, c3 })}`);
   return `el contador sigue al autoplay («${c0}» → «${c1}») y se detiene con el foco dentro (WCAG 2.2.2: «${c2}» tras 3,5 s)`;
 };
 const presentation = (key, wrapper, title, cls) => async (page) => {
@@ -464,6 +466,17 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
+      // Programa «sin widgets de PRO» (C0): el Blockquote de PRO, ya sustituido por la Cita, sigue registrado pero fuera
+      // del panel; la búsqueda «cita» ofrece la Cita y la de «blockquote», ningún widget de PRO.
+      const pro = await page.evaluate(async () => {
+        const cache = (window.elementor && window.elementor.widgetsCache) || {};
+        const input = document.querySelector('#elementor-panel-elements-search-input');
+        const search = async (q) => { input.value = q; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true })); await new Promise((r) => setTimeout(r, 1200)); return [...document.querySelectorAll('#elementor-panel-elements .elementor-element .title')].map((t) => t.textContent.trim()); };
+        return { registered: !!cache.blockquote, shown: cache.blockquote ? cache.blockquote.show_in_panel : null, own: !!cache['digitalisimo-blockquote'], cita: input ? await search('cita') : null, quote: input ? await search('blockquote') : null };
+      });
+      if (!pro.registered || pro.shown !== false || !pro.own || !(pro.cita || []).includes('Cita') || (pro.quote || []).some((t) => /^(Blockquote|Cita en bloque)$/i.test(t) && t !== 'Cita')) throw new Error(`el Blockquote de PRO debe seguir registrado y fuera del panel, con la Cita en su lugar: ${JSON.stringify(pro)}`);
+      results.editorPro = { ok: true, note: `Blockquote de PRO registrado y oculto; «cita» → ${pro.cita.join(', ')}; «blockquote» → ${pro.quote.join(', ') || 'nada'}` };
+      console.log(`OK     editor-pro · ${results.editorPro.note}`);
       console.log(`OK     editor-f7b · ${results.editorF7b.note}`);
       results.editor = { ok: true, note: `el editor de Elementor ${core} carga con panel y vista previa` };
       console.log(`OK     editor · ${results.editor.note}`);

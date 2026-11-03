@@ -18,6 +18,12 @@
 #     mismo origen ni peticiones a terceros nuevas en B;
 #   - una clave que el mapa no declara (`pro.unmapped`) falla.
 #
+# El sitio es uno recién instalado: WP-Cron no se dispara desde las visitas (como en front-budget.sh) y setup.php aplica
+# los ajustes de «Rendimiento» (`Transition::run_now()`), así la puerta de PRO actúa; sin ella la corrida falla. Los
+# enlaces se comparan por su destino canónico (la consulta decodificada: `+` y `%20` son el mismo espacio), la página
+# propia se normaliza (`pro-ab-<caso>-X`) y el navegador no sale del Playground (lo de otros orígenes se corta y se
+# anota). Una hoja o un script del sitio servido con redirección o como HTML repite la medición de esa página.
+#
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos
 #      KEEP=1 bash ...                                 prepara el sitio y lo deja arrancado (depuración; Ctrl+C)

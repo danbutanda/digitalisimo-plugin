@@ -18,6 +18,9 @@ const CONFIG = JSON.parse(fs.readFileSync(path.join(PROBE, 'cases.json'), 'utf8'
 const CONV = JSON.parse(fs.readFileSync(path.join(PROBE, 'conversion.json'), 'utf8'));
 const WIDTHS = CONFIG.widths || [375, 768, 1280];
 const PIXEL_MAX = process.env.PIXEL_MAX !== '' && process.env.PIXEL_MAX !== undefined ? Number(process.env.PIXEL_MAX) : Number((CONFIG.pixels || {}).max ?? 0.02);
+// Umbral del estado con foco: el foco visible propio de un widget (criterio del estándar del front) dibuja otro contorno;
+// sólo vale con su motivo en `pixels.focus_reason`.
+const FOCUS_MAX = (CONFIG.pixels || {}).focus_reason ? Number((CONFIG.pixels || {}).focus_max ?? 0) : 0;
 const PIXEL_TOLERANCE = process.env.PIXEL_TOLERANCE ? Number(process.env.PIXEL_TOLERANCE) : Number((CONFIG.pixels || {}).tolerance ?? 48);
 const MARGIN = 12; // px alrededor del widget en cada captura (sombras y contorno del foco)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -32,8 +35,20 @@ function pageSignature(sel, slug) {
   const root = document.querySelector(sel);
   if (!root) return null;
   const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  // Destino canónico: la consulta se decodifica y se vuelve a codificar igual en A y en B (`+` y `%20` son el mismo
+  // espacio en una consulta; un carácter sin codificar, el mismo carácter). El destino no cambia.
+  const canon = (v) => {
+    const i = v.indexOf('?');
+    if (i < 0) return v;
+    const hash = v.indexOf('#', i);
+    const query = hash < 0 ? v.slice(i + 1) : v.slice(i + 1, hash);
+    try {
+      const pairs = [...new URLSearchParams(query)].map(([k, x]) => `${encodeURIComponent(k)}=${encodeURIComponent(x)}`);
+      return v.slice(0, i) + '?' + pairs.join('&') + (hash < 0 ? '' : v.slice(hash));
+    } catch (e) { return v; }
+  };
   const href = (h) => {
-    let v = String(h || '');
+    let v = canon(String(h || ''));
     v = v.split(location.origin).join('').split(encodeURIComponent(location.origin)).join('__SITE__');
     return v.replace(new RegExp(`pro-ab-${slug}-[ab]`, 'g'), `pro-ab-${slug}-X`);
   };
@@ -94,7 +109,13 @@ function pageSignature(sel, slug) {
     const bg = getComputedStyle(el).backgroundImage;
     if (bg && bg !== 'none') for (const m of bg.matchAll(/url\("?([^")]+)"?\)/g)) images.push(base(m[1]));
   }
-  const controls = focusables.map((el) => { const s = boxStyle(el); const cs = getComputedStyle(el); delete s['text-align']; return { tag: el.tagName.toLowerCase(), color: cs.color, size: cs.fontSize, ...s }; });
+  const controls = focusables.map((el) => {
+    const s = boxStyle(el);
+    const cs = getComputedStyle(el);
+    delete s['text-align'];
+    const svg = el.querySelector('svg');
+    return { tag: el.tagName.toLowerCase(), color: cs.color, size: cs.fontSize, ...s, ...(svg ? { 'icon-fill': getComputedStyle(svg).fill } : {}) };
+  });
   const r = root.getBoundingClientRect();
   return { texts: [...new Set(texts)], hidden: [...new Set(hidden)], styles, links: [...new Set(links)], images: [...new Set(images.filter(Boolean))], box: boxStyle(box), boxTag: box.tagName.toLowerCase(), controls, focusables: focusables.length, height: Math.round(r.height) };
 }
@@ -312,6 +333,8 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
   const diffPage = await browser.newPage();
   await diffPage.goto('about:blank');
   const summary = { started: new Date(+process.env.STARTED * 1000).toISOString(), elements: process.env.ELEMENTS_VERSION, git: process.env.GIT_SHA, elementor: CONV.elementor, map_override: CONV.override || '', widths: WIDTHS, pixels: { max: PIXEL_MAX, tolerance: PIXEL_TOLERANCE }, cases: {}, problems, notes };
+  summary.front = CONV.front || {};
+  if (!(CONV.front || {}).pro_conditional) problems.push(`ajustes de rendimiento sin aplicar (pro_conditional: ${JSON.stringify((CONV.front || {}).pro_conditional)}; pendiente ${!!CONV.front_pending}): la puerta de PRO no actúa y la comprobación de los paquetes de B no vale`);
   if (CONV.override) notes.push(`MAP: mapa de prueba fijado con Registry::set() para «${CONV.override}» (no es el mapa del repositorio)`);
   const slugs = Object.keys(CONV.cases);
   const thirdAll = new Set();
@@ -399,7 +422,7 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
         const key = state || 'normal';
         w.pixels[key] = p || { error: 'sin captura de A o de B' };
         if (!p) fail(`píxeles ${width} ${key}: sin captura de A o de B`);
-        else if (p.ratio > max) fail(`píxeles ${width} ${key}: ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(max * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
+        else if (p.ratio > (key === 'focus' && FOCUS_MAX > max ? FOCUS_MAX : max)) fail(`píxeles ${width} ${key}: ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(max * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
       }
       w.signature = { a: sa, b: sb };
       w.states = { a: { hover: (wa.hover || {}).styles || null, focus: (wa.focus || {}).styles || null }, b: { hover: (wb.hover || {}).styles || null, focus: (wb.focus || {}).styles || null } };

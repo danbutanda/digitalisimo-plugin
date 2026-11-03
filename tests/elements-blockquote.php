@@ -16,6 +16,7 @@ namespace Elementor {
 		public $groups   = array();
 		public $sections = array();
 		public function get_settings_for_display() { return $this->settings; }
+		public function get_settings( $key = null ) { return null === $key ? $this->settings : ( $this->settings[ $key ] ?? null ); }
 		public function start_controls_section( $name, $args ) { $this->sections[ $name ] = $args; }
 		public function end_controls_section() {}
 		public function start_controls_tabs( $name ) {}
@@ -155,7 +156,7 @@ namespace {
 
 	// 4. Conversión de Blockquote de PRO con el mapa (borrador: sólo pruebas).
 	Registry::reset();
-	check_bq( null === Registry::map( 'blockquote' ) && null !== Registry::map( 'blockquote', true ) && 'draft' === $map['status'] && 'hide' === $map['panel'], 'El mapa está en borrador hasta el A/B y oculta el widget de PRO cuando esté listo.' );
+	check_bq( null !== Registry::map( 'blockquote' ) && 'ready' === $map['status'] && 'hide' === $map['panel'], 'El mapa está listo (A/B de tests/playground/pro-ab.sh en verde) y oculta del panel el widget de PRO.' );
 	$own_keys = array_keys( $widget->controls );
 	$lands    = static function ( $key ) use ( $own_keys, $widget ) {
 		$base = \Digitalisimo\Elements\Convert\Translator::base( (string) $key );

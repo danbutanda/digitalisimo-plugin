@@ -5,18 +5,53 @@
     "Píxeles: `pixels.max` (proporción de píxeles distintos entre A y B, por defecto la de arriba o PIXEL_MAX) y `pixels.tolerance` (diferencia por canal). Un caso que sube `max` necesita `pixels.reason`.",
     "`forbid`: recursos que B no puede cargar (por defecto los de `forbid_b`, con `{widget}` sustituido por el widget de PRO). `interact: false` omite hover y foco. `pending`: el caso no se mide (motivo)."
   ],
-  "widths": [375, 768, 1280],
-  "pixels": { "max": 0.02, "tolerance": 48 },
+  "widths": [
+    375,
+    768,
+    1280
+  ],
+  "pixels": {
+    "max": 0.02,
+    "tolerance": 48,
+    "focus_max": 0.04,
+    "focus_reason": "Foco visible propio del widget (criterio del estándar del front): contorno de 2 px con separación de 2 px donde PRO dejaba el del navegador."
+  },
   "container": {
     "content_width": "full",
-    "padding": { "unit": "px", "top": "24", "right": "24", "bottom": "24", "left": "24", "isLinked": true }
+    "padding": {
+      "unit": "px",
+      "top": "24",
+      "right": "24",
+      "bottom": "24",
+      "left": "24",
+      "isLinked": true
+    }
   },
   "forbid_b": [
-    { "name": "pro-elements-handlers", "id": "pro-elements-handlers-js", "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js" },
-    { "name": "elementor-pro-frontend", "id": "elementor-pro-frontend-js", "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js" },
-    { "name": "widget-{widget}.min.css de PRO", "id": "widget-{widget}-css", "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css" }
+    {
+      "name": "pro-elements-handlers",
+      "id": "pro-elements-handlers-js",
+      "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+      "name": "elementor-pro-frontend",
+      "id": "elementor-pro-frontend-js",
+      "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+      "name": "widget-{widget}.min.css de PRO",
+      "id": "widget-{widget}-css",
+      "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    }
   ],
-  "declared": [],
+  "declared": [
+    {
+      "kind": "foco",
+      "match": "^outline(-offset)?:",
+      "reason": "Foco visible propio del widget (criterio del estándar del front de docs/ELEMENTS_FRONT_OBJECTIVE.md): PRO dejaba el contorno del navegador.",
+      "widget": "blockquote"
+    }
+  ],
   "cases": {
     "bq-defaults": {
       "title": "Blockquote con todos sus valores por defecto",
@@ -31,9 +66,21 @@
         "blockquote_content": "La sencillez es la máxima sofisticación en cada página.",
         "author_name": "Ana Rivera",
         "border_color": "#2155CF",
-        "border_width": { "unit": "px", "size": 6, "sizes": [] },
-        "border_gap": { "unit": "px", "size": 24, "sizes": [] },
-        "border_vertical_padding": { "unit": "px", "size": 10, "sizes": [] },
+        "border_width": {
+          "unit": "px",
+          "size": 6,
+          "sizes": []
+        },
+        "border_gap": {
+          "unit": "px",
+          "size": 24,
+          "sizes": []
+        },
+        "border_vertical_padding": {
+          "unit": "px",
+          "size": 10,
+          "sizes": []
+        },
         "border_color_hover": "#C0392B"
       }
     },
@@ -45,8 +92,16 @@
         "blockquote_content": "Las palabras correctas en el orden correcto cambian una conversación.",
         "author_name": "Luis Méndez",
         "quote_text_color": "#C0392B",
-        "quote_size": { "unit": "px", "size": 1.2, "sizes": [] },
-        "quote_gap": { "unit": "px", "size": 30, "sizes": [] }
+        "quote_size": {
+          "unit": "px",
+          "size": 1.2,
+          "sizes": []
+        },
+        "quote_gap": {
+          "unit": "px",
+          "size": 30,
+          "sizes": []
+        }
       }
     },
     "bq-boxed": {
@@ -56,14 +111,35 @@
         "blockquote_skin": "boxed",
         "blockquote_content": "Un buen diseño es tan poco diseño como sea posible.",
         "author_name": "Marta Solís",
-        "box_padding": { "unit": "px", "size": 30, "sizes": [] },
+        "box_padding": {
+          "unit": "px",
+          "size": 30,
+          "sizes": []
+        },
         "box_background_color": "#F3F0E8",
         "box_border_border": "solid",
-        "box_border_width": { "unit": "px", "top": "2", "right": "2", "bottom": "2", "left": "2", "isLinked": true },
+        "box_border_width": {
+          "unit": "px",
+          "top": "2",
+          "right": "2",
+          "bottom": "2",
+          "left": "2",
+          "isLinked": true
+        },
         "box_border_color": "#333333",
-        "box_border_radius": { "unit": "px", "size": 12, "sizes": [] },
+        "box_border_radius": {
+          "unit": "px",
+          "size": 12,
+          "sizes": []
+        },
         "box_box_shadow_box_shadow_type": "yes",
-        "box_box_shadow_box_shadow": { "horizontal": 0, "vertical": 4, "blur": 12, "spread": 0, "color": "rgba(0,0,0,0.2)" },
+        "box_box_shadow_box_shadow": {
+          "horizontal": 0,
+          "vertical": 4,
+          "blur": 12,
+          "spread": 0,
+          "color": "rgba(0,0,0,0.2)"
+        },
         "box_background_color_hover": "#E8E1CF"
       }
     },
@@ -84,8 +160,16 @@
         "author_name": "Sofía Torres",
         "tweet_button_view": "icon",
         "tweet_button_skin": "bubble",
-        "button_size": { "unit": "px", "size": 1.6, "sizes": [] },
-        "button_border_radius": { "unit": "px", "size": 6, "sizes": [] },
+        "button_size": {
+          "unit": "px",
+          "size": 1.6,
+          "sizes": []
+        },
+        "button_border_radius": {
+          "unit": "px",
+          "size": 6,
+          "sizes": []
+        },
         "button_background_color": "#0B6E4F",
         "button_text_color": "#FFFFFF",
         "button_background_color_hover": "#084C37",
@@ -146,9 +230,17 @@
         "button_background_color": "#2155CF",
         "button_text_color": "#FFFFFF",
         "button_background_color_hover": "#C0392B",
-        "button_transition_duration": { "unit": "ms", "size": 200, "sizes": [] },
+        "button_transition_duration": {
+          "unit": "ms",
+          "size": 200,
+          "sizes": []
+        },
         "button_typography_typography": "custom",
-        "button_typography_font_size": { "unit": "px", "size": 14, "sizes": [] },
+        "button_typography_font_size": {
+          "unit": "px",
+          "size": 14,
+          "sizes": []
+        },
         "button_typography_font_weight": "700"
       }
     },
@@ -169,7 +261,11 @@
         "blockquote_content": "El centro también es una decisión.",
         "author_name": "Tomás Ledo",
         "alignment": "center",
-        "author_gap": { "unit": "px", "size": 32, "sizes": [] }
+        "author_gap": {
+          "unit": "px",
+          "size": 32,
+          "sizes": []
+        }
       }
     },
     "bq-align-right": {
@@ -190,13 +286,25 @@
         "author_name": "Julia Ortega",
         "content_text_color": "#7A1FA2",
         "content_typography_typography": "custom",
-        "content_typography_font_size": { "unit": "px", "size": 22, "sizes": [] },
+        "content_typography_font_size": {
+          "unit": "px",
+          "size": 22,
+          "sizes": []
+        },
         "content_typography_font_style": "italic",
         "content_typography_font_weight": "300",
-        "content_gap": { "unit": "px", "size": 28, "sizes": [] },
+        "content_gap": {
+          "unit": "px",
+          "size": 28,
+          "sizes": []
+        },
         "author_text_color": "#1E8449",
         "author_typography_typography": "custom",
-        "author_typography_font_size": { "unit": "px", "size": 18, "sizes": [] },
+        "author_typography_font_size": {
+          "unit": "px",
+          "size": 18,
+          "sizes": []
+        },
         "author_typography_text_transform": "uppercase",
         "button_text_color": "#C0392B",
         "button_text_color_hover": "#2155CF"
@@ -248,15 +356,73 @@
         "alignment_tablet": "center",
         "alignment_mobile": "right",
         "content_typography_typography": "custom",
-        "content_typography_font_size": { "unit": "px", "size": 24, "sizes": [] },
-        "content_typography_font_size_tablet": { "unit": "px", "size": 20, "sizes": [] },
-        "content_typography_font_size_mobile": { "unit": "px", "size": 16, "sizes": [] },
-        "content_gap": { "unit": "px", "size": 30, "sizes": [] },
-        "content_gap_mobile": { "unit": "px", "size": 10, "sizes": [] },
-        "border_width": { "unit": "px", "size": 8, "sizes": [] },
-        "border_width_mobile": { "unit": "px", "size": 3, "sizes": [] },
-        "border_gap_tablet": { "unit": "px", "size": 40, "sizes": [] },
-        "border_vertical_padding_mobile": { "unit": "px", "size": 4, "sizes": [] }
+        "content_typography_font_size": {
+          "unit": "px",
+          "size": 24,
+          "sizes": []
+        },
+        "content_typography_font_size_tablet": {
+          "unit": "px",
+          "size": 20,
+          "sizes": []
+        },
+        "content_typography_font_size_mobile": {
+          "unit": "px",
+          "size": 16,
+          "sizes": []
+        },
+        "content_gap": {
+          "unit": "px",
+          "size": 30,
+          "sizes": []
+        },
+        "content_gap_mobile": {
+          "unit": "px",
+          "size": 10,
+          "sizes": []
+        },
+        "border_width": {
+          "unit": "px",
+          "size": 8,
+          "sizes": []
+        },
+        "border_width_mobile": {
+          "unit": "px",
+          "size": 3,
+          "sizes": []
+        },
+        "border_gap_tablet": {
+          "unit": "px",
+          "size": 40,
+          "sizes": []
+        },
+        "border_vertical_padding_mobile": {
+          "unit": "px",
+          "size": 4,
+          "sizes": []
+        }
+      },
+      "declared": [
+        {
+          "kind": "estilo",
+          "width": 768,
+          "match": " align: ",
+          "code": "alignment_tablet"
+        },
+        {
+          "kind": "estilo",
+          "match": " align: ",
+          "code": "alignment_mobile"
+        },
+        {
+          "kind": "caja",
+          "match": "^text-align: ",
+          "code": "alignment_mobile"
+        }
+      ],
+      "pixels": {
+        "max": 0.16,
+        "reason": "Alineación por dispositivo (approx de alignment_tablet y alignment_mobile en el mapa): PRO pintaba las clases de tablet y móvil en todos los tamaños a la vez (el pie se apila en columna y el texto cambia de lado); la Cita aplica cada una sólo en su dispositivo, así que cambian la alineación y el alto del widget en los tres anchos."
       }
     }
   }

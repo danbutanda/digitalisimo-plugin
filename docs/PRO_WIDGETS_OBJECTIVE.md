@@ -66,7 +66,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C1 | `nested-carousel` | `nested-carousel` | Carousel | Existe | Slider anidado ligero (F7b) |
 | C1 | `slides` | `slides` | Slides | Existe | Slider Optimizado |
 | C2 | `animated-headline` | `animated-headline` | Animated Headline | Existe | Encabezado animado |
-| C2 | `blockquote` | `blockquote` | Blockquote | Nuevo |  |
+| C2 | `blockquote` | `blockquote` | Blockquote | **Sustituido** | Cita (`digitalisimo-blockquote`), C0 |
 | C2 | `call-to-action` | `call-to-action` | Call to Action | Parcial | Llamada a la acción |
 | C2 | `code-highlight` | `code-highlight` | Code Highlight | Nuevo |  |
 | C2 | `countdown` | `countdown` | Countdown | Nuevo |  |
@@ -167,6 +167,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 
 | Etapa | Estado |
 |---|---|
-| C0 | Pendiente |
+| C0 | **Publicado** · Elements 4.3.0.172 y Migración 1.0.22 · @C0_TAG@. Núcleo de conversión, inventario y etapa `pro` de «Migrar», arnés A/B (`tests/playground/pro-ab.sh`) y de punta a punta (`pro-migrate.sh`), y el piloto: Blockquote → Cita, listo y oculto del panel. Detalle en `docs/pro/c0.md` |
 | C1–C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

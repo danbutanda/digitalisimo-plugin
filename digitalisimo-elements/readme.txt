@@ -64,6 +64,10 @@ Volver a una versión anterior nunca muestra a más visitantes lo que ocultaba u
 
 Las consultas y estos ajustes viajan en los kits.
 
+== Sin widgets de PRO ==
+
+Los widgets que DIGITALÍSIMO Elements trae de PRO se sustituyen, familia por familia, por widgets propios más ligeros, con las mismas opciones y el mismo aspecto. El primero es la Cita, que sustituye al Blockquote: el Blockquote deja de ofrecerse en el panel, pero el contenido que ya lo usa se sigue viendo y editando igual, y DIGITALÍSIMO Migración lo convierte a la Cita con «Migrar» (con copia del original y vuelta atrás).
+
 == Formularios ==
 
 * Campos condicionales: cada campo del Formulario puede mostrarse sólo si otros campos cumplen unas reglas (es, no es, contiene, está vacío, mayor que, menor que…), todas o alguna. Un campo oculto no se valida, no se guarda y no se envía en el correo ni en los webhooks, aunque el navegador lo mande. Los valores con los que comparan las reglas se ven en el código de la página: no los uses para nada privado.

@@ -1,0 +1,212 @@
+{
+ "fecha": "2026-11-03",
+ "etapa": "C0",
+ "pro_ab": {
+  "casos": {
+   "bq-defaults": {
+    "pixeles_normal": {
+     "375": 0.0013,
+     "768": 0.0009,
+     "1280": 0.0006
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-border": {
+    "pixeles_normal": {
+     "375": 0.002,
+     "768": 0.0011,
+     "1280": 0.0006
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-quotation": {
+    "pixeles_normal": {
+     "375": 0.0014,
+     "768": 0.0007,
+     "1280": 0.0004
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-boxed": {
+    "pixeles_normal": {
+     "375": 0.0016,
+     "768": 0.0008,
+     "1280": 0.0005
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-clean": {
+    "pixeles_normal": {
+     "375": 0.0028,
+     "768": 0.0013,
+     "1280": 0.0007
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-tweet-icon-bubble": {
+    "pixeles_normal": {
+     "375": 0.0052,
+     "768": 0.0024,
+     "1280": 0.0014
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-tweet-text-link": {
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-tweet-icon-link": {
+    "pixeles_normal": {
+     "375": 0.0044,
+     "768": 0.0023,
+     "1280": 0.0015
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-tweet-text-classic": {
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-tweet-icontext-bubble": {
+    "pixeles_normal": {
+     "375": 0.0017,
+     "768": 0.0009,
+     "1280": 0.0005
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-tweet-off": {
+    "pixeles_normal": {
+     "375": 0,
+     "768": 0,
+     "1280": 0
+    },
+    "declaradas": 0,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-align-center": {
+    "pixeles_normal": {
+     "375": 0.0018,
+     "768": 0.0008,
+     "1280": 0.0005
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-align-right": {
+    "pixeles_normal": {
+     "375": 0.0018,
+     "768": 0.0009,
+     "1280": 0.0005
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-colors": {
+    "pixeles_normal": {
+     "375": 0.0022,
+     "768": 0.001,
+     "1280": 0.0006
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-global": {
+    "pixeles_normal": {
+     "375": 0.0029,
+     "768": 0.0016,
+     "1280": 0.0009
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-dynamic": {
+    "pixeles_normal": {
+     "375": 0.0024,
+     "768": 0.0013,
+     "1280": 0.0007
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": []
+   },
+   "bq-custom-css": {
+    "pixeles_normal": {
+     "375": 0.0015,
+     "768": 0.0008,
+     "1280": 0.0005
+    },
+    "declaradas": 6,
+    "sin_motivo": 0,
+    "codigos": [
+     "pro.css:custom_css"
+    ]
+   },
+   "bq-responsive": {
+    "pixeles_normal": {
+     "375": 0.1371,
+     "768": 0.0321,
+     "1280": 0.0741
+    },
+    "declaradas": 14,
+    "sin_motivo": 0,
+    "codigos": [
+     "pro.approx:alignment_tablet",
+     "pro.approx:alignment_mobile"
+    ]
+   }
+  },
+  "problemas": [],
+  "umbral": {
+   "max": 0.02,
+   "tolerance": 48
+  },
+  "notas": [
+   "peticiones a terceros cortadas por el arnés (A y B): https://fonts.googleapis.com/css"
+  ]
+ },
+ "pro_migrate": {
+  "problemas": [],
+  "pasos": [
+   "inventory",
+   "run",
+   "run",
+   "revert"
+  ]
+ },
+ "interaction": "CORE=bundled: 38 comprobaciones en verde, entre ellas editor-pro (Blockquote registrado y fuera del panel; «cita» → Cita). El contador del slider anidado se hizo tolerante al avance del autoplay antes de la primera lectura (carrera del arnés: pasaba o fallaba según tardaran las fuentes cortadas; 4.3.0.171 publicado también la tiene).",
+ "suite": "288 pruebas de validate.yml en verde en la rama"
+}

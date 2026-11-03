@@ -155,6 +155,18 @@ foreach ( $cases['cases'] as $slug => $case ) {
 if ( ! $out['cases'] ) {
 	digi_ab_fail( 'Ningún caso que medir (CASES no coincide con cases.json)' );
 }
+// Ajustes de «Rendimiento» de un sitio recién instalado (la puerta de PRO entre ellos), aplicados ya: su transición
+// corre por WP-Cron, que aquí no se dispara desde las visitas. Sin la puerta, B cargaría los paquetes de PRO igual que A.
+$transition = '\\Digitalisimo\\Elements\\Front\\Transition';
+if ( class_exists( $transition ) ) {
+	for ( $i = 0; $i < 10 && $transition::pending(); $i++ ) {
+		$transition::run_now();
+	}
+	$out['front'] = $transition::applied();
+	$out['front_pending'] = $transition::pending();
+} else {
+	$out['front'] = array();
+}
 // Página que el arnés consulta para saber que el sitio está listo.
 if ( ! get_page_by_path( 'pro-ab-ready' ) ) {
 	wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'pro-ab-ready', 'post_name' => 'pro-ab-ready', 'post_content' => 'listo' ) );
