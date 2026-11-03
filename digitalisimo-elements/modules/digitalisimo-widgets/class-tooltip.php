@@ -190,7 +190,10 @@ final class Tooltip {
 			array(
 				'name'      => 'digitalisimo_tooltip_bg',
 				'types'     => array( 'classic', 'gradient' ),
-				'exclude'   => array( 'image' ),
+				// `types` no retira los campos de vídeo (el núcleo hace `unset( $field )` sobre la referencia en
+				// Group_Control_Background::filter_fields()): se excluyen aquí, o su `placeholder` con el vídeo del
+				// proveedor quedaría en el panel (brand-audit.sh ONLY=f8, frente J). Nunca se podían elegir: no cambia nada.
+				'exclude'   => array( 'image', 'video_link', 'video_start', 'video_end', 'play_once', 'play_on_mobile', 'privacy_mode', 'video_fallback' ),
 				'selector'  => $sel,
 				'condition' => $on,
 			)
