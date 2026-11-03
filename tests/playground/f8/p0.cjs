@@ -320,8 +320,10 @@ module.exports = (api) => async (s) => {
           items: items.length,
           init: !!w.querySelector('.swiper-initialized, .swiper-wrapper'),
           titles: items.map((i) => (i.querySelector('h1,h2,h3,h4,h5,h6,.elementor-heading-title') || { textContent: '' }).textContent.trim()).slice(0, 4),
-          images: items.map((i) => ((i.querySelector('img') || {}).currentSrc || '').split('/').pop()).slice(0, 4),
-          buttons: items.map((i) => { const a = i.querySelector('a.elementor-button, .elementor-button-link, a[href]'); return a ? a.getAttribute('href') : ''; }).slice(0, 4),
+          // La imagen destacada va como fondo del contenedor del Loop Item (o en un <img> en los de producto).
+          images: items.map((i) => { const img = i.querySelector('img'); if (img && img.currentSrc) return img.currentSrc.split('/').pop(); const bg = [i, ...i.querySelectorAll('*')].map((e) => getComputedStyle(e).backgroundImage).find((b) => /url\(/.test(b)); return bg ? bg.replace(/^url\("?|"?\)$/g, '').split('/').pop() : ''; }).slice(0, 4),
+          // El botón es el enlace .elementor-button (el primer enlace del elemento es el de sus términos).
+          buttons: items.map((i) => { const a = i.querySelector('a.elementor-button, .elementor-button-link, form.cart button, a.add_to_cart_button'); return a ? (a.getAttribute('href') || a.getAttribute('value') || a.textContent.trim()) : ''; }).slice(0, 4),
         };
       });
       loopSeen[key] = facts;
