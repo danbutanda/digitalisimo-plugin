@@ -38,6 +38,12 @@ class Slider_Widget extends Widget_Nested_Base {
 	/** Hoja y script del front (los registra `Module::register_assets()`). */
 	const HANDLE = 'digitalisimo-nested-slider';
 
+	/**
+	 * Hoja y script del contador opcional (F8, F8-D14; V.10.4): los registra `Module::register_assets()` y los encola el
+	 * cargador del núcleo sólo en las páginas que activan `counter` (declaración `assets` del control).
+	 */
+	const COUNTER = 'digitalisimo-nested-slider-counter';
+
 	const EFFECTS = array( 'slide', 'fade', 'scale' );
 
 	/** Sin «ninguna»: siempre queda una forma de cambiar de diapositiva sin arrastrar (WCAG 2.1.1 y 2.5.7). */
@@ -238,6 +244,8 @@ class Slider_Widget extends Widget_Nested_Base {
 			)
 		);
 
+		$this->add_control( 'counter', self::counter_control() );
+
 		$this->add_control(
 			'arrows_position',
 			array(
@@ -410,6 +418,44 @@ class Slider_Widget extends Widget_Nested_Base {
 		$this->end_controls_section();
 	}
 
+	/**
+	 * Contador «2 / 5» (F8, F8-D14; V.10.4): opcional y sin `default`, así que un slider existente pinta el mismo HTML que
+	 * en 4.3.0.169. No es de estilo (`style_transfer => false`). Su hoja y su script llegan por `assets`, sólo a las
+	 * páginas que lo activan; en la vista previa del editor los encola `Module::preview_counter_*()`.
+	 */
+	public static function counter_control(): array {
+		$active = array(
+			'terms' => array(
+				array(
+					'name'     => 'counter',
+					'operator' => '!==',
+					'value'    => '',
+				),
+			),
+		);
+		return array(
+			'label'          => esc_html__( 'Contador (2 / 5)', 'pro-elements' ),
+			'description'    => esc_html__( 'Muestra el número de la diapositiva actual y el total. Los lectores de pantalla no lo repiten: cada diapositiva ya se anuncia como «N de M». Sin JavaScript no se ve.', 'pro-elements' ),
+			'type'           => Controls_Manager::SWITCHER,
+			'return_value'   => 'yes',
+			'style_transfer' => false,
+			'assets'         => array(
+				'styles'  => array(
+					array(
+						'name'       => self::COUNTER,
+						'conditions' => $active,
+					),
+				),
+				'scripts' => array(
+					array(
+						'name'       => self::COUNTER,
+						'conditions' => $active,
+					),
+				),
+			),
+		);
+	}
+
 	/** Nombre de cada punto, con `%d` en lugar del número (traducible y escapado para un atributo). */
 	public static function dot_label(): string {
 		/* translators: %d: número de la diapositiva. */
@@ -445,6 +491,7 @@ class Slider_Widget extends Widget_Nested_Base {
 			'delay'    => max( self::DELAY_MIN, min( self::DELAY_MAX, $delay ) ),
 			'hover'    => 'yes' === ( $settings['pause_on_hover'] ?? '' ),
 			'label'    => '' !== $label ? $label : self::default_label(),
+			'counter'  => $multi && 'yes' === ( $settings['counter'] ?? '' ),
 		);
 	}
 
@@ -489,6 +536,11 @@ class Slider_Widget extends Widget_Nested_Base {
 			echo '<button type="button" class="digi-nslider__dot" aria-controls="' . esc_attr( $track ) . '" aria-label="' . esc_attr( sprintf( $dot_label, $i + 1 ) ) . '"' . ( 0 === $i ? ' aria-current="true"' : '' ) . '></button>';
 		}
 		echo '</div>';
+		if ( $s['counter'] ) {
+			// Tras los puntos (la hoja lo coloca en la rejilla con `+`). `aria-hidden`: cada diapositiva ya se anuncia como
+			// «N de M»; `hidden` hasta que el script lo pone al día.
+			echo '<p class="digi-nslider__count" aria-hidden="true" hidden><span data-digi-count>1</span> / ' . (int) $count . '</p>';
+		}
 		if ( $s['arrows'] ) {
 			echo '<button type="button" class="digi-nslider__btn digi-nslider__next" aria-controls="' . esc_attr( $track ) . '" aria-label="' . esc_attr__( 'Diapositiva siguiente', 'pro-elements' ) . '">' . self::ICON_NEXT . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono propio constante.
 		}
@@ -583,6 +635,7 @@ class Slider_Widget extends Widget_Nested_Base {
 			digiDots = digiMulti && 'arrows' !== digiNav,
 			digiSides = 'sides' === settings.arrows_position && 'dots' !== digiNav,
 			digiAuto = digiMulti && 'yes' === settings.autoplay,
+			digiCounter = digiMulti && 'yes' === settings.counter,
 			digiDelay = Math.max( <?php echo (int) self::DELAY_MIN; ?>, Math.min( <?php echo (int) self::DELAY_MAX; ?>, parseInt( settings.autoplay_delay, 10 ) || <?php echo (int) self::DELAY_DEFAULT; ?> ) ),
 			digiLabel = _.isString( settings.carousel_label ) && settings.carousel_label.trim() ? settings.carousel_label.trim() : '<?php echo esc_js( self::default_label() ); ?>',
 			digiTrack = 'digi-nslider-' + view.getID(),
@@ -594,6 +647,7 @@ class Slider_Widget extends Widget_Nested_Base {
 			<# if ( digiAuto ) { #><button type="button" class="digi-nslider__btn digi-nslider__pause" aria-controls="{{ digiTrack }}" aria-label="<?php echo esc_attr__( 'Pausar', 'pro-elements' ); ?>" data-digi-pause="<?php echo esc_attr__( 'Pausar', 'pro-elements' ); ?>" data-digi-play="<?php echo esc_attr__( 'Reanudar', 'pro-elements' ); ?>" hidden><?php echo self::ICON_PAUSE; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono propio constante. ?></button><# } #>
 			<# if ( digiArrows ) { #><button type="button" class="digi-nslider__btn digi-nslider__prev" aria-controls="{{ digiTrack }}" aria-label="<?php echo esc_attr__( 'Diapositiva anterior', 'pro-elements' ); ?>"><?php echo self::ICON_PREV; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono propio constante. ?></button><# } #>
 			<div class="digi-nslider__dots" data-digi-dot="<?php echo self::dot_label(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en dot_label(). ?>"<# if ( ! digiDots ) { #> hidden<# } #>><# _.each( settings.slides, function( item, index ) { #><button type="button" class="digi-nslider__dot" aria-controls="{{ digiTrack }}" aria-label="<?php echo str_replace( '%d', '{{ index + 1 }}', self::dot_label() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado en dot_label(). ?>"<# if ( index + 1 === digiStart ) { #> aria-current="true"<# } #>></button><# } ); #></div>
+			<# if ( digiCounter ) { #><p class="digi-nslider__count" aria-hidden="true" hidden><span data-digi-count>{{ digiStart }}</span> / {{ digiCount }}</p><# } #>
 			<# if ( digiArrows ) { #><button type="button" class="digi-nslider__btn digi-nslider__next" aria-controls="{{ digiTrack }}" aria-label="<?php echo esc_attr__( 'Diapositiva siguiente', 'pro-elements' ); ?>"><?php echo self::ICON_NEXT; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icono propio constante. ?></button><# } #>
 			<div class="digi-nslider__track" id="{{ digiTrack }}" aria-live="<# if ( digiAuto ) { #>off<# } else { #>polite<# } #>"></div>
 		</section>

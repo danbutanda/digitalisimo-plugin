@@ -5,6 +5,8 @@ defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/class-translator.php';
 require_once __DIR__ . '/class-masks.php';
+require_once __DIR__ . '/class-context.php';
+require_once __DIR__ . '/class-report.php';
 
 /**
  * Conversión completa de un documento de Element Pack al formato propio.
@@ -32,18 +34,48 @@ final class Native {
 	const ELEMENT_KEYS = '/^(ep_display_conditions|ep_condition_|bdt_shape_builder_|element_pack_(wrapper_link|backdrop_filter|bf_|liquid_glass|tgb_|ris_)|ep_floating_effects_|ep_notation_)/';
 
 	/**
-	 * Convierte un elemento y sus hijos.
+	 * Modo restringido (V.3.4): un documento migrado por Migración ≤ 1.0.20 sólo recibe la conversión de 1.0.20 y las
+	 * reparaciones de referencias (iconos, etiquetas dinámicas, marcadores); los efectos que F8 convierte por primera
+	 * vez se informan (`core.residual`) y no se tocan. Lo fija Migration::convert_document().
+	 */
+	public static $restricted = false;
+
+	/** Tipo de los marcadores de K (`digitalisimo-unconverted`). */
+	const MARKER_WIDGET = 'digitalisimo-unconverted';
+
+	/**
+	 * Convierte un elemento y sus hijos. `$parent` es el `elType` del padre (`section`, `column`, `container` o '' en la
+	 * raíz). Un hijo convertido puede ser un fragmento (`elType` = `__fragment`): sus elementos ocupan su lugar.
+	 *
+	 * Las clases de los demás frentes se llaman sólo si existen (`class_exists`): sin ellas, la conversión es la de 1.0.20.
 	 *
 	 * @return array{0:array,1:int} elemento convertido y número de cambios.
 	 */
-	public static function element( array $element, $post_id ) {
+	public static function element( array $element, $post_id, string $parent = '' ) {
 		$changes  = 0;
+		$post_id  = (int) $post_id;
 		$settings = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
-		if ( 'widget' === ( $element['elType'] ?? '' ) && Translator::is_legacy_id( (string) ( $element['widgetType'] ?? '' ) ) && Translator::map( (string) $element['widgetType'] ) ) {
+		$type     = (string) ( $element['widgetType'] ?? '' );
+		$widget   = 'widget' === ( $element['elType'] ?? '' );
+		if ( $widget && Translator::is_prime_slider_id( $type ) && self::has( 'Prime_Slider\\Converter', 'element' ) ) {
+			// Prime Slider: elemento, fragmento o null (sin cambio; el convertidor ya lo informó).
+			$converted = Prime_Slider\Converter::element( $element, $post_id, $parent );
+			if ( is_array( $converted ) ) {
+				return array( $converted, 1 + self::count_children( $converted ) );
+			}
+			return array( $element, 0 );
+		}
+		if ( $widget && Translator::is_legacy_id( $type ) && Translator::map( $type ) ) {
+			$target = Translator::target( $type );
+			if ( false === self::target_ready( $target ) ) {
+				// Destino no registrado en este sitio (F8-D8): sin convertir, en un marcador que el editor no borra.
+				Report::add( $post_id, 'core.target_missing', array( 'widget' => $type, 'target' => $target ) );
+				return array( self::wrap( $element ), 1 );
+			}
 			// Los ajustes de elemento (visibilidad, figuras, enlace, efectos) no pasan por el traductor del widget.
 			$bag = array();
 			foreach ( $settings as $key => $value ) {
-				if ( preg_match( self::ELEMENT_KEYS, (string) $key ) ) {
+				if ( preg_match( self::ELEMENT_KEYS, (string) $key ) || self::effect_key( (string) $key ) ) {
 					$bag[ $key ] = $value;
 					unset( $settings[ $key ] );
 				}
@@ -51,35 +83,184 @@ final class Native {
 			$element['settings'] = $settings;
 			$element             = self::widget( $element, $post_id );
 			if ( $bag ) {
-				$element['settings'] = self::element_settings( array( 'settings' => $element['settings'] + $bag ) + $element, $post_id );
+				$element['settings'] = $element['settings'] + $bag;
+				$element             = self::effects( $element, $post_id );
+				$element['settings'] = self::element_settings( $element, $post_id );
 			}
 			++$changes;
+		} elseif ( $widget && Translator::is_legacy_id( $type ) && ! self::$restricted && self::can_wrap() ) {
+			// Widget de Element Pack sin adaptador: en un marcador (`source: migration`) con su motivo. El editor no lo
+			// borra al guardar, y K lo devuelve solo si Element Pack vuelve a estar activo.
+			Report::add( $post_id, 'core.no_adapter', array( 'widget' => $type, 'note' => self::reason( $type ) ) );
+			return array( self::wrap( $element ), 1 );
 		} elseif ( self::has_legacy_element_settings( $settings ) ) {
+			$element             = self::effects( $element, $post_id );
 			$element['settings'] = self::element_settings( $element, $post_id );
 			++$changes;
+		} elseif ( self::$restricted && self::effect_detect( $settings ) ) {
+			Report::add( $post_id, 'core.residual', array( 'element' => trim( (string) ( $element['elType'] ?? '' ) . ' #' . (string) ( $element['id'] ?? '' ) ) ) );
 		}
 		// Máscaras y separadores con figuras de Element Pack, en cualquier elemento (también en los ya convertidos).
 		if ( Masks::is_legacy( $element ) ) {
 			$element['settings'] = Masks::convert( $element, self::$errors );
 			$changes            += $changes ? 0 : 1;
 		}
-		if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
-			foreach ( $element['elements'] as $index => $child ) {
-				if ( is_array( $child ) ) {
-					list( $element['elements'][ $index ], $child_changes ) = self::element( $child, $post_id );
-					$changes += $child_changes;
+		// Referencias que no cambian el contenido editado: iconos y etiquetas dinámicas de Element Pack.
+		foreach ( array( 'Platform\\Icons', 'Platform\\Dynamic_Tags' ) as $class ) {
+			if ( self::has( $class, 'rewrite' ) ) {
+				$rewritten = call_user_func( array( __NAMESPACE__ . '\\' . $class, 'rewrite' ), $element );
+				if ( is_array( $rewritten ) && $rewritten !== $element ) {
+					$element  = $rewritten;
+					$changes += $changes ? 0 : 1;
 				}
 			}
+		}
+		if ( ! empty( $element['elements'] ) && is_array( $element['elements'] ) ) {
+			$children = array();
+			$el_type  = (string) ( $element['elType'] ?? '' );
+			foreach ( $element['elements'] as $child ) {
+				if ( ! is_array( $child ) ) {
+					$children[] = $child;
+					continue;
+				}
+				list( $child, $child_changes ) = self::element( $child, $post_id, $el_type );
+				$changes                     += $child_changes;
+				// Un fragmento (Prime Slider con hermanos: redes, «Scroll Down») se aplana en el padre.
+				if ( '__fragment' === ( $child['elType'] ?? '' ) ) {
+					foreach ( (array) ( $child['elements'] ?? array() ) as $part ) {
+						if ( is_array( $part ) ) {
+							$children[] = $part;
+						}
+					}
+					continue;
+				}
+				$children[] = $child;
+			}
+			$element['elements'] = $children;
 		}
 		return array( $element, $changes );
 	}
 
-	/** ¿El documento (o el elemento) contiene algo heredado? */
-	public static function is_legacy( array $element ) {
-		if ( 'widget' === ( $element['elType'] ?? '' ) && Translator::is_legacy_id( (string) ( $element['widgetType'] ?? '' ) ) ) {
-			return true;
+	/** Lista de elementos de primer nivel (un documento) con los fragmentos aplanados. */
+	public static function flatten( array $elements ) {
+		$out = array();
+		foreach ( $elements as $element ) {
+			if ( is_array( $element ) && '__fragment' === ( $element['elType'] ?? '' ) ) {
+				foreach ( (array) ( $element['elements'] ?? array() ) as $part ) {
+					if ( is_array( $part ) ) {
+						$out[] = $part;
+					}
+				}
+				continue;
+			}
+			$out[] = $element;
 		}
-		if ( self::has_legacy_element_settings( (array) ( $element['settings'] ?? array() ) ) || Masks::is_legacy( $element ) ) {
+		return $out;
+	}
+
+	/** ¿Existe la clase de otro frente con ese método? (`Platform\Icons`, `Effects\Dispatcher`…) */
+	private static function has( $class, $method ) {
+		$class = __NAMESPACE__ . '\\' . $class;
+		return class_exists( $class ) && method_exists( $class, $method );
+	}
+
+	private static function count_children( array $element ) {
+		$count = 0;
+		foreach ( (array) ( $element['elements'] ?? array() ) as $child ) {
+			$count += is_array( $child ) ? 1 + self::count_children( $child ) : 0;
+		}
+		return $count;
+	}
+
+	/** ¿Es una clave de una extensión que convierte el frente C (también sin prefijo)? */
+	private static function effect_key( $key ) {
+		return ! self::$restricted && self::has( 'Effects\\Dispatcher', 'is_key' ) && Effects\Dispatcher::is_key( $key );
+	}
+
+	/** ¿Tiene el elemento ajustes de las extensiones de C (con o sin prefijo)? */
+	private static function effect_detect( array $settings ) {
+		return self::has( 'Effects\\Dispatcher', 'detect' ) && Effects\Dispatcher::detect( $settings );
+	}
+
+	/** Las extensiones de C convierten y retiran lo suyo antes de element_settings() (no en modo restringido). */
+	private static function effects( array $element, $post_id ) {
+		if ( self::$restricted || ! self::has( 'Effects\\Dispatcher', 'element' ) ) {
+			return $element;
+		}
+		$converted = Effects\Dispatcher::element( $element, (int) $post_id );
+		return is_array( $converted ) ? $converted : $element;
+	}
+
+	/** ¿Puede envolverse en un marcador? Sólo con K cargado (sin Elementor, en las pruebas, el comportamiento de 1.0.20). */
+	private static function can_wrap() {
+		return class_exists( '\\Digitalisimo\\Elements\\Import\\Kits\\Preserve' ) && class_exists( '\\Elementor\\Plugin' );
+	}
+
+	/** Marcador de K (`source: migration`) con el elemento original. */
+	private static function wrap( array $element ) {
+		if ( ! class_exists( '\\Digitalisimo\\Elements\\Import\\Kits\\Preserve' ) ) {
+			return $element;
+		}
+		return \Digitalisimo\Elements\Import\Kits\Preserve::marker( $element, 'unknown', 'migration' );
+	}
+
+	/** Motivo de un widget sin adaptador (texto de unsupported.php). */
+	private static function reason( $type ) {
+		static $list = null;
+		if ( null === $list ) {
+			$file = __DIR__ . '/unsupported.php';
+			$list = is_file( $file ) ? (array) require $file : array();
+		}
+		return (string) ( $list[ $type ] ?? '' );
+	}
+
+	/**
+	 * ¿Está registrado el widget de destino en este sitio? null si no se puede saber (sin Elementor cargado: las pruebas;
+	 * cuenta como disponible), false si falta.
+	 */
+	public static function target_ready( string $widget ): ?bool {
+		if ( '' === $widget ) {
+			return false;
+		}
+		if ( ! class_exists( '\\Elementor\\Plugin' ) || ! isset( \Elementor\Plugin::$instance ) || ! is_object( \Elementor\Plugin::$instance ) || ! isset( \Elementor\Plugin::$instance->widgets_manager ) || ! is_object( \Elementor\Plugin::$instance->widgets_manager ) ) {
+			return null;
+		}
+		// Contenedores y elementos que no son widgets (fragmentos de Prime Slider) no se comprueban aquí.
+		return (bool) \Elementor\Plugin::$instance->widgets_manager->get_widget_types( $widget );
+	}
+
+	/**
+	 * ¿El widget conserva el envoltorio interno `.elementor-widget-container`? null si no se sabe (V.9: el destino se
+	 * elige entonces con :is() para los dos marcados).
+	 */
+	public static function inner_wrapper( string $widget ): ?bool {
+		if ( true !== self::target_ready( $widget ) ) {
+			return null;
+		}
+		$instance = \Elementor\Plugin::$instance->widgets_manager->get_widget_types( $widget );
+		if ( ! is_object( $instance ) || ! method_exists( $instance, 'has_widget_inner_wrapper' ) ) {
+			return null;
+		}
+		try {
+			return (bool) $instance->has_widget_inner_wrapper();
+		} catch ( \Throwable $e ) {
+			return null;
+		}
+	}
+
+	/** ¿El documento (o el elemento) contiene algo heredado? (Element Pack, Prime Slider o un marcador con ellos.) */
+	public static function is_legacy( array $element ) {
+		$type = (string) ( $element['widgetType'] ?? '' );
+		if ( 'widget' === ( $element['elType'] ?? '' ) ) {
+			if ( Translator::is_known_id( $type ) ) {
+				return true;
+			}
+			if ( self::MARKER_WIDGET === $type ) {
+				$groups = self::marker_groups( $element );
+				return (bool) ( $groups['convertible'] || $groups['blocked'] );
+			}
+		}
+		if ( self::has_legacy_element_settings( (array) ( $element['settings'] ?? array() ) ) || self::effect_detect( (array) ( $element['settings'] ?? array() ) ) || Masks::is_legacy( $element ) ) {
 			return true;
 		}
 		foreach ( (array) ( $element['elements'] ?? array() ) as $child ) {
@@ -92,14 +273,28 @@ final class Native {
 
 	/**
 	 * ¿La conversión cambiaría algo en el elemento o en sus hijos? Espejo de element(): un widget sin adaptador se queda
-	 * tal cual, así que un documento que sólo conserva widgets así es heredado pero no convertible, y los lotes lo saltan.
+	 * tal cual (o en su marcador), así que un documento que sólo conserva widgets así es heredado pero no convertible, y
+	 * los lotes lo saltan. Un widget de Prime Slider cuenta si tiene mapa no descartado; un marcador, si `Markers` lo
+	 * clasifica como convertible.
 	 */
 	public static function is_convertible( array $element ) {
 		$settings = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
-		if ( 'widget' === ( $element['elType'] ?? '' ) && Translator::is_legacy_id( (string) ( $element['widgetType'] ?? '' ) ) && Translator::map( (string) $element['widgetType'] ) ) {
-			return true;
+		$type     = (string) ( $element['widgetType'] ?? '' );
+		if ( 'widget' === ( $element['elType'] ?? '' ) ) {
+			if ( Translator::is_legacy_id( $type ) && Translator::map( $type ) ) {
+				return true;
+			}
+			if ( Translator::is_legacy_id( $type ) && self::can_wrap() && ! self::$restricted ) {
+				return true;
+			}
+			if ( Translator::is_prime_slider_id( $type ) && self::prime_slider_convertible( $type ) ) {
+				return true;
+			}
+			if ( self::MARKER_WIDGET === $type ) {
+				return (bool) self::marker_groups( $element )['convertible'];
+			}
 		}
-		if ( self::has_legacy_element_settings( $settings ) || Masks::is_legacy( $element ) ) {
+		if ( self::has_legacy_element_settings( $settings ) || ( ! self::$restricted && self::effect_detect( $settings ) ) || Masks::is_legacy( $element ) ) {
 			return true;
 		}
 		foreach ( (array) ( $element['elements'] ?? array() ) as $child ) {
@@ -110,7 +305,29 @@ final class Native {
 		return false;
 	}
 
+	/** Un widget de Prime Slider se convierte si su mapa existe y no es un descarte (Prime_Slider\Maps de E). */
+	private static function prime_slider_convertible( $type ) {
+		if ( ! self::has( 'Prime_Slider\\Maps', 'get' ) ) {
+			return false;
+		}
+		$map = Prime_Slider\Maps::get( (string) $type );
+		return is_array( $map ) && 'discard' !== ( $map['decision'] ?? '' ) && 'DESCARTAR' !== ( $map['decision'] ?? '' );
+	}
+
+	/** Clasificación de un marcador por `Markers` (I): sin la clase, ni convertible ni bloqueado (1.0.20). */
+	private static function marker_groups( array $marker ) {
+		$none = array( 'convertible' => array(), 'blocked' => array(), 'declared' => array() );
+		if ( ! self::has( 'Markers', 'classify' ) ) {
+			return $none;
+		}
+		$groups = Markers::classify( array( $marker ) );
+		return is_array( $groups ) ? $groups + $none : $none;
+	}
+
 	private static function has_legacy_element_settings( array $settings ) {
+		if ( ! self::$restricted && self::effect_detect( $settings ) ) {
+			return true;
+		}
 		foreach ( array_keys( $settings ) as $key ) {
 			foreach ( self::ELEMENT_PREFIXES as $prefix ) {
 				if ( 0 === strpos( (string) $key, $prefix ) ) {

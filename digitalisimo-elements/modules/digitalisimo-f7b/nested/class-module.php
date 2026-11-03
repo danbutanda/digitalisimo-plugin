@@ -43,6 +43,16 @@ final class Module {
 		'digitalisimo-nested-slider' => 'Slider anidado ligero',
 	);
 
+	/**
+	 * Contador opcional del slider (F8, F8-D14; V.10.4): hoja (≤ 256 B) y script (≤ 512 B, `defer`, sin dependencias) con
+	 * el mismo handle, `Slider_Widget::COUNTER`. Sólo se registran: los encola el cargador del núcleo por la declaración
+	 * `assets` del control `counter`, en las páginas que lo activan, y en la vista previa del editor `preview_counter_*()`
+	 * (allí el núcleo no aplica los recursos de página).
+	 */
+	const COUNTER_HANDLE = 'digitalisimo-nested-slider-counter';
+	const COUNTER_CSS    = 'modules/digitalisimo-f7b/assets/css/nested-slider-counter.css';
+	const COUNTER_JS     = 'modules/digitalisimo-f7b/assets/js/nested-slider-counter.js';
+
 	/** Script del editor: registra el tipo sobre `NestedElementBase`, como `nested-tabs.js` del núcleo. */
 	const EDITOR_HANDLE = 'digitalisimo-nested-slider-editor';
 	const EDITOR_SCRIPT = 'modules/digitalisimo-f7b/assets/js/nested-slider-editor.js';
@@ -76,6 +86,8 @@ final class Module {
 		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'register_assets' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), self::PRIORITY );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'editor_script' ) );
+		add_action( 'elementor/preview/enqueue_styles', array( __CLASS__, 'preview_counter_style' ) );
+		add_action( 'elementor/preview/enqueue_scripts', array( __CLASS__, 'preview_counter_script' ) );
 	}
 
 	/**
@@ -132,6 +144,32 @@ final class Module {
 			if ( ! wp_script_is( $name, 'registered' ) && is_file( self::path( $widget['js'] ) ) ) {
 				wp_register_script( $name, plugins_url( $widget['js'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 			}
+		}
+		if ( ! wp_style_is( self::COUNTER_HANDLE, 'registered' ) && is_file( self::path( self::COUNTER_CSS ) ) ) {
+			wp_register_style( self::COUNTER_HANDLE, plugins_url( self::COUNTER_CSS, DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
+		}
+		if ( ! wp_script_is( self::COUNTER_HANDLE, 'registered' ) && is_file( self::path( self::COUNTER_JS ) ) ) {
+			wp_register_script( self::COUNTER_HANDLE, plugins_url( self::COUNTER_JS, DIGITALISIMO_ELEMENTS_FILE ), array(), $version, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+		}
+	}
+
+	/**
+	 * `elementor/preview/enqueue_styles` y `…_scripts`: en la vista previa del editor el núcleo no aplica los recursos de
+	 * página (`elementor/core/base/elements-iteration-actions/assets.php`), así que el contador se encola siempre, como la
+	 * hoja de la presentación (`Presentation::preview_style()`). Sólo con el slider disponible.
+	 */
+	public static function preview_counter_style(): void {
+		if ( self::ready() ) {
+			self::register_assets();
+			wp_enqueue_style( self::COUNTER_HANDLE );
+		}
+	}
+
+	/** Ídem, el script (`elementor/preview/enqueue_scripts`). */
+	public static function preview_counter_script(): void {
+		if ( self::ready() ) {
+			self::register_assets();
+			wp_enqueue_script( self::COUNTER_HANDLE );
 		}
 	}
 

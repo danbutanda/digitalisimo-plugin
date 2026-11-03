@@ -326,6 +326,51 @@ namespace {
 	check_nested( ! str_contains( $one, 'digi-nslider__prev' ) && ! str_contains( $one, 'digi-nslider__pause' ) && str_contains( $one, ' hidden>' ) && ! str_contains( $one, 'data-digi-autoplay' ), 'Una sola diapositiva: sin flechas, sin pausa, sin reproducción automática y puntos ocultos.' );
 	check_nested( str_contains( slider_html( $class, array(), array() ), '<div class="digi-nslider__track" id="digi-nslider-a1b2c3d" aria-live="polite"></div></section>' ), 'Sin hijos, una pista vacía y nada más que romper.' );
 
+	// 4b. Instantánea versionada de 4.3.0.169 (F8, V.10.4 y V.17.11): sin el contador, el HTML es byte a byte el de la
+	// versión publicada. Las huellas se tomaron con el widget de 4.3.0.169 (`--print-baseline` las vuelve a calcular);
+	// no dependen del historial de git. `counter` vacío, «no», o con una sola diapositiva, tampoco cambian nada.
+	$baseline_cases = array(
+		'defaults'   => array( array(), 3, true, 'a1b2c3d' ),
+		'autoplay'   => array( array( 'autoplay' => 'yes', 'autoplay_delay' => 100, 'effect' => 'fade' ), 3, false, 'a1b2c3d' ),
+		'arrows'     => array( array( 'navigation' => 'arrows', 'arrows_position' => 'sides', 'loop' => '' ), 3, false, 'a1b2c3d' ),
+		'dots'       => array( array( 'navigation' => 'dots', 'arrows_position' => 'sides' ), 3, false, 'a1b2c3d' ),
+		'forged'     => array( array( 'navigation' => 'none', 'effect' => 'cube', 'arrows_position' => 'x', 'carousel_label' => '<b>Novedades</b> "del" mes' ), 3, false, 'a1b2c3d' ),
+		'two'        => array( array( 'carousel_label' => '   ' ), 2, false, 'a1b2c3d' ),
+		'one'        => array( array( 'autoplay' => 'yes' ), 1, false, 'a1b2c3d' ),
+		'none'       => array( array(), 0, false, 'a1b2c3d' ),
+		'w1slide'    => array( array( 'loop' => '', 'carousel_label' => 'Novedades' ), 3, false, 'w1slide' ),
+		'w2fade'     => array( array( 'effect' => 'fade', 'autoplay' => 'yes', 'autoplay_delay' => 2000, 'carousel_label' => 'Destacados' ), 3, false, 'w2fade' ),
+		'w3scale'    => array( array( 'effect' => 'scale', 'navigation' => 'arrows', 'arrows_position' => 'sides', 'carousel_label' => 'Opiniones' ), 3, false, 'w3scale' ),
+	);
+	$baseline = array(
+		'defaults' => 'e18d28f8b43af350ae4481755381ae74e9b4324a2245c0df42f29d1f499b529b',
+		'autoplay' => 'efa6b71597fb2a4b3847f661c652da0056ecb48e843602ab5d0e0c6836d7355f',
+		'arrows'   => 'f554a802c0f717152f0c8ef4486dea071692aafab9a38e5ecc0b7ab1b4dd70ee',
+		'dots'     => '49092345dc29049a5f5d40d7570130f531dadfb0bad22886671d6441c5ace218',
+		'forged'   => '096e5b43354dce4692daeaa9470505f6b71f8c0b5549d184d6805b4eebca9d65',
+		'two'      => '8470ead07bfe45a5bc2d22960054a351982c0aff139480f23b7062569749c0a2',
+		'one'      => 'a2df4f95c4ac561f35e2cd0c0d699362beff702e1bc91277d215b55c93d579ac',
+		'none'     => 'd0afe0e5e1ba634064449dc7dccc57729defb489ed0e07791a22e3cafc75bf96',
+		// Los tres sliders del fixture publicado con 4.3.0.169 (`tests/fixtures/f7b-nested-slider.html`).
+		'w1slide'  => '566e034a1ab3f047d10110e9b360d31f16af531a98fa90c7ae4448e5942daf00',
+		'w2fade'   => '7beb5614f735613e4743f21901f0d8ba438ce258960d0caa8a5517e41fc23db1',
+		'w3scale'  => 'ac58978b301552ca44e35d90070edb117bd01028ac726fb1e277c74a41270ebf',
+	);
+	$computed = array();
+	foreach ( $baseline_cases as $key => $case ) {
+		$computed[ $key ] = hash( 'sha256', slider_html( $class, $case[0], slides( $case[1], $case[2] ), $case[3] ) );
+	}
+	if ( in_array( '--print-baseline', $argv ?? array(), true ) ) {
+		foreach ( $computed as $key => $sha ) { echo "\t\t'" . $key . "' => '" . $sha . "',\n"; }
+	}
+	foreach ( $baseline_cases as $key => $case ) {
+		check_nested( isset( $baseline[ $key ] ) && $baseline[ $key ] === $computed[ $key ], $key . ': sin contador, el HTML es el de 4.3.0.169 (instantánea versionada).' );
+		foreach ( array( '', 'no', 'yes ' ) as $off ) {
+			check_nested( $computed[ $key ] === hash( 'sha256', slider_html( $class, $case[0] + array( 'counter' => $off ), slides( $case[1], $case[2] ), $case[3] ) ), $key . ': counter = «' . $off . '» no cambia el HTML.' );
+		}
+	}
+	check_nested( $computed['one'] === hash( 'sha256', slider_html( $class, $baseline_cases['one'][0] + array( 'counter' => 'yes' ), slides( 1 ) ) ), 'Con una sola diapositiva, el contador activo no pinta nada.' );
+
 	// 5. Plantilla del editor y punto nuevo del repetidor.
 	$template = $widget->template();
 	check_nested( str_contains( $template, "_.contains( [ 'slide', 'fade', 'scale' ], settings.effect )" ) && str_contains( $template, "_.contains( [ 'both', 'arrows', 'dots' ], settings.navigation )" ), 'La plantilla aplica las mismas listas cerradas que el servidor.' );

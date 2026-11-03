@@ -5,6 +5,8 @@ defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/class-translator.php';
 require_once __DIR__ . '/class-native.php';
+require_once __DIR__ . '/class-context.php';
+require_once __DIR__ . '/class-report.php';
 // Las pantallas usan la tarea de Migrar, la retirada de plugins y los alias (sin efectos al cargarse).
 require_once __DIR__ . '/class-runner.php';
 require_once __DIR__ . '/class-retire.php';
@@ -27,7 +29,37 @@ final class Migration {
 	const PAGE   = 'digitalisimo-ep-migration';
 	const ACTION = 'digitalisimo_ep_migration';
 	const BACKUP = '_digitalisimo_ep_backup';
-	const BATCH  = 20;
+	/** Copia de los ajustes de la página (`{time, data:<array>}` en JSON, una sola codificación), la primera vez. */
+	const BACKUP_PAGE = '_digitalisimo_ep_backup_page';
+	/** Copia del estado de 1.0.20 de un documento en modo restringido, antes de la primera escritura de F8 (V.3.4). */
+	const BACKUP_F8 = '_digitalisimo_ep_backup_f8';
+	/** Marca de F8 tras cada escritura: `{v, time, hash, page_hash, restricted}` (md5 de lo escrito). */
+	const F8_MARK = '_digitalisimo_ep_f8';
+	const BATCH   = 20;
+	/** Agujas de los documentos con contenido heredado (`_elementor_data`, JSON guardado tal cual). */
+	const NEEDLES = array(
+		'"widgetType":"bdt-',
+		'"widgetType":"fooevents-calendar"',
+		'"widgetType":"lightbox"',
+		'"widgetType":"prime-slider-',
+		'"ep_',
+		'"element_pack_',
+		'"bdt_',
+		'"_mask_shape":"shape-',
+		'"shape_divider_top":"ep-',
+		'"shape_divider_bottom":"ep-',
+		'"image_mask_',
+		'"section_sticky_on"',
+		'"section_parallax_on"',
+		'"section_parallax_elements"',
+		'"section_equal_height_on"',
+		'"section_particles_on"',
+		'"library":"bdt-custom-',
+		// Etiqueta dinámica: dentro del JSON guardado lleva la comilla escapada.
+		'name=\\"element-pack-',
+	);
+	/** Agujas de los ajustes de página heredados (`_elementor_page_settings`, PHP serializado: `s:N:"clave"`). */
+	const PAGE_NEEDLES = array( '"ep_grid_line_enable"', '"ep_custom_header_script"', '"ep_custom_footer_script"', '"ep_hash_link_enable"', '"ep_content_protector_enable"', '"ep_adblock_detector_enable"', '"element_pack_', '"ep_context_menu_' );
 
 	/** Opción del sitio que recuerda que las reglas perdidas ya se recuperaron una vez. */
 	const REPAIRED = 'digitalisimo_ep_conditions_repaired';
@@ -303,10 +335,31 @@ final class Migration {
 		return self::query_documents( true );
 	}
 
+	/**
+	 * Documentos (no revisiones, o sólo revisiones) cuyos ajustes de página tienen claves heredadas de Element Pack. La
+	 * etapa de conversión recorre la unión ordenada con documents().
+	 *
+	 * @return int[]
+	 */
+	public static function page_documents( $revisions = false ) {
+		return self::query_meta( '_elementor_page_settings', self::PAGE_NEEDLES, (bool) $revisions, 0 );
+	}
+
+	/** Unión ordenada de documents() y page_documents(): lo que recorre la etapa de conversión. */
+	public static function all_documents() {
+		$ids = array_values( array_unique( array_merge( self::documents(), self::page_documents() ) ) );
+		sort( $ids );
+		return $ids;
+	}
+
 	private static function query_documents( $revisions, $limit = 0 ) {
+		return self::query_meta( '_elementor_data', self::NEEDLES, (bool) $revisions, (int) $limit );
+	}
+
+	/** IDs con una meta que contiene alguna aguja; revisiones aparte. */
+	private static function query_meta( $meta_key, array $needles, $revisions, $limit ) {
 		global $wpdb;
-		$needles = array( '"widgetType":"bdt-', '"widgetType":"fooevents-calendar"', '"widgetType":"lightbox"', '"ep_', '"element_pack_', '"bdt_', '"_mask_shape":"shape-', '"shape_divider_top":"ep-', '"shape_divider_bottom":"ep-', '"image_mask_' );
-		$sql     = "SELECT DISTINCT m.post_id FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE m.meta_key = '_elementor_data' AND p.post_type " . ( $revisions ? '=' : '<>' ) . " 'revision' AND ( " . implode( ' OR ', array_fill( 0, count( $needles ), 'm.meta_value LIKE %s' ) ) . ' ) ORDER BY m.post_id';
+		$sql     = "SELECT DISTINCT m.post_id FROM {$wpdb->postmeta} m INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id WHERE m.meta_key = '" . ( '_elementor_page_settings' === $meta_key ? '_elementor_page_settings' : '_elementor_data' ) . "' AND p.post_type " . ( $revisions ? '=' : '<>' ) . " 'revision' AND ( " . implode( ' OR ', array_fill( 0, count( $needles ), 'm.meta_value LIKE %s' ) ) . ' ) ORDER BY m.post_id';
 		if ( $limit ) {
 			$sql .= ' LIMIT ' . absint( $limit );
 		}
@@ -329,12 +382,19 @@ final class Migration {
 			$data = self::data( $post_id );
 			$seen = array();
 			self::walk( $data, static function ( $element ) use ( &$rows, &$seen, $post_id ) {
-				$type = (string) ( $element['widgetType'] ?? '' );
+				$type   = (string) ( $element['widgetType'] ?? '' );
+				$marker = false;
+				if ( Native::MARKER_WIDGET === $type ) {
+					// Un marcador de K con un widget de Element Pack dentro cuenta como ese widget (V.12, C13).
+					$type   = self::marker_type( $element );
+					$marker = true;
+				}
 				if ( ! Translator::is_legacy_id( $type ) ) {
 					return $element;
 				}
-				$rows[ $type ] = $rows[ $type ] ?? array( 'elements' => 0, 'documents' => 0, 'map' => (bool) Translator::map( $type ) );
+				$rows[ $type ] = $rows[ $type ] ?? array( 'elements' => 0, 'documents' => 0, 'map' => (bool) Translator::map( $type ), 'markers' => 0 );
 				$rows[ $type ]['elements']++;
+				$rows[ $type ]['markers'] += $marker ? 1 : 0;
 				if ( empty( $seen[ $type ] ) ) {
 					$rows[ $type ]['documents']++;
 					$seen[ $type ] = true;
@@ -344,6 +404,18 @@ final class Migration {
 		}
 		ksort( $rows );
 		return $rows;
+	}
+
+	/** Tipo del widget que guarda un marcador de K (`bdt-…`, `prime-slider-…`), o ''. */
+	public static function marker_type( array $marker ) {
+		$preserve = '\\Digitalisimo\\Elements\\Import\\Kits\\Preserve';
+		if ( class_exists( $preserve ) ) {
+			$info = $preserve::info( $marker );
+			$type = is_array( $info ) ? (string) $info['type'] : '';
+		} else {
+			$type = (string) ( $marker['settings']['digitalisimo_unconverted']['type'] ?? '' );
+		}
+		return 0 === strpos( $type, 'widget/' ) ? substr( $type, 7 ) : '';
 	}
 
 	/** Elementos (de cualquier tipo) con máscaras o separadores de Element Pack, y figuras que ya no tienen archivo. */
@@ -413,45 +485,188 @@ final class Migration {
 		$changes = 0;
 		foreach ( $data as $index => $element ) {
 			if ( is_array( $element ) ) {
-				list( $data[ $index ], $count ) = Native::element( $element, $post_id );
+				list( $data[ $index ], $count ) = Native::element( $element, $post_id, '' );
 				$changes += $count;
 			}
 		}
-		return array( $data, $changes );
+		// Un fragmento en la raíz (Prime Slider con hermanos) se aplana.
+		return array( Native::flatten( array_values( $data ) ), $changes );
 	}
 
 	/**
 	 * Convierte un documento al formato propio y guarda una copia del original la primera vez. Las escrituras van al id
 	 * indicado (update_metadata), nunca al padre de una revisión como haría update_post_meta().
 	 *
-	 * @return array{native:int} número de elementos convertidos.
+	 * - Los ajustes de la página se convierten antes que nada (C1-17), con su propia copia (BACKUP_PAGE).
+	 * - Un documento migrado por ≤ 1.0.20 (copia sin marca F8) va en modo restringido (V.3.4): conversión de 1.0.20 y
+	 *   reparaciones de referencias; antes de escribir, BACKUP_F8 una sola vez.
+	 * - Un documento con la marca F8 cuyo contenido no cambió desde entonces no se vuelve a tocar.
+	 * - Si el resultado tiene marcadores de K, o el documento tenía la meta, se recuentan (nunca en revisiones).
+	 *
+	 * @return array{native:int, page:bool} elementos convertidos y si cambió la página.
 	 */
 	public static function convert_document( $post_id ) {
-		$raw = get_metadata( 'post', $post_id, '_elementor_data', true );
-		if ( ! is_string( $raw ) || '' === $raw ) {
-			return array( 'native' => 0 );
+		$post_id  = (int) $post_id;
+		$revision = function_exists( 'wp_is_post_revision' ) && wp_is_post_revision( $post_id );
+		Context::begin( $post_id, 'run' );
+		$restricted         = self::restricted( $post_id );
+		Native::$restricted = $restricted;
+		try {
+			$page = self::convert_page( $post_id, $restricted );
+			$raw  = get_metadata( 'post', $post_id, '_elementor_data', true );
+			if ( ! is_string( $raw ) || '' === $raw ) {
+				if ( $page ) {
+					self::mark( $post_id, $restricted );
+				}
+				return array( 'native' => 0, 'page' => $page );
+			}
+			$mark = self::f8_mark( $post_id );
+			if ( $mark && md5( $raw ) === (string) ( $mark['hash'] ?? '' ) && false === strpos( $raw, '"widgetType":"' . Native::MARKER_WIDGET . '"' ) ) {
+				// Ya convertido por F8 y sin cambios desde entonces: nada heredado nuevo.
+				if ( $page ) {
+					self::mark( $post_id, $restricted );
+				}
+				return array( 'native' => 0, 'page' => $page );
+			}
+			list( $data, $changes ) = self::convert_data( self::decode( $raw ), $post_id );
+			if ( ! $changes ) {
+				if ( $page ) {
+					self::mark( $post_id, $restricted );
+				}
+				return array( 'native' => 0, 'page' => $page );
+			}
+			if ( '' === (string) get_metadata( 'post', $post_id, self::BACKUP, true ) ) {
+				add_metadata( 'post', $post_id, self::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ), true );
+			} elseif ( $restricted && '' === (string) get_metadata( 'post', $post_id, self::BACKUP_F8, true ) ) {
+				add_metadata( 'post', $post_id, self::BACKUP_F8, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ), true );
+			}
+			update_metadata( 'post', $post_id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+			self::clear_css( $post_id );
+			if ( ! $revision ) {
+				self::recount_markers( $post_id, $data );
+			}
+			self::mark( $post_id, $restricted );
+			return array( 'native' => $changes, 'page' => $page );
+		} finally {
+			Native::$restricted = false;
+			Context::end();
 		}
-		list( $data, $changes ) = self::convert_data( self::decode( $raw ), $post_id );
-		if ( ! $changes ) {
-			return array( 'native' => 0 );
-		}
-		if ( '' === (string) get_metadata( 'post', $post_id, self::BACKUP, true ) ) {
-			add_metadata( 'post', $post_id, self::BACKUP, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $raw ) ) ), true );
-		}
-		update_metadata( 'post', $post_id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
-		self::clear_css( $post_id );
-		return array( 'native' => $changes );
 	}
 
-	public static function revert_document( $post_id ) {
-		$backup = json_decode( (string) get_metadata( 'post', $post_id, self::BACKUP, true ), true );
-		if ( ! is_array( $backup ) || ! isset( $backup['data'] ) || ! is_string( $backup['data'] ) ) {
+	/** ¿Documento migrado por ≤ 1.0.20? Copia original sin marca F8 (o con una marca de modo restringido). */
+	public static function restricted( $post_id ) {
+		if ( '' === (string) get_metadata( 'post', (int) $post_id, self::BACKUP, true ) ) {
 			return false;
 		}
-		update_metadata( 'post', $post_id, '_elementor_data', wp_slash( $backup['data'] ) );
-		delete_metadata( 'post', $post_id, self::BACKUP );
-		self::clear_css( $post_id );
+		$mark = self::f8_mark( $post_id );
+		return ! $mark || ! empty( $mark['restricted'] );
+	}
+
+	/** Marca F8 del documento, o null. */
+	public static function f8_mark( $post_id ) {
+		$raw  = get_metadata( 'post', (int) $post_id, self::F8_MARK, true );
+		$mark = is_string( $raw ) && '' !== $raw ? json_decode( $raw, true ) : ( is_array( $raw ) ? $raw : null );
+		return is_array( $mark ) ? $mark : null;
+	}
+
+	/** Deja la marca F8 con la huella de lo escrito (datos y página). */
+	private static function mark( $post_id, $restricted ) {
+		$raw  = (string) get_metadata( 'post', $post_id, '_elementor_data', true );
+		$page = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
+		$mark = array(
+			'v'          => 1,
+			'time'       => time(),
+			'hash'       => '' !== $raw ? md5( $raw ) : '',
+			'page_hash'  => is_array( $page ) ? md5( serialize( $page ) ) : '', // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- sólo huella.
+			'restricted' => $restricted ? 1 : 0,
+		);
+		update_metadata( 'post', $post_id, self::F8_MARK, wp_slash( wp_json_encode( $mark ) ) );
+	}
+
+	/** ¿Tienen los ajustes de la página claves heredadas de Element Pack? */
+	public static function page_has_legacy( $settings ) {
+		if ( ! is_array( $settings ) ) {
+			return false;
+		}
+		foreach ( array_keys( $settings ) as $key ) {
+			if ( 0 === strpos( (string) $key, 'ep_' ) || 0 === strpos( (string) $key, 'element_pack_' ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Ajustes de la página: Effects\Page (C) y después Platform\Kit::clean_page (H), con copia la primera vez. En modo
+	 * restringido sólo se informan. Sin esas clases no cambia nada (1.0.20).
+	 */
+	private static function convert_page( $post_id, $restricted ) {
+		$settings = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
+		if ( ! self::page_has_legacy( $settings ) ) {
+			return false;
+		}
+		if ( $restricted ) {
+			Report::add( $post_id, 'core.residual', array( 'element' => 'page' ) );
+			return false;
+		}
+		$new = $settings;
+		if ( class_exists( __NAMESPACE__ . '\\Effects\\Page' ) && method_exists( __NAMESPACE__ . '\\Effects\\Page', 'convert' ) ) {
+			$new = (array) Effects\Page::convert( $new, $post_id );
+		}
+		if ( class_exists( __NAMESPACE__ . '\\Platform\\Kit' ) && method_exists( __NAMESPACE__ . '\\Platform\\Kit', 'clean_page' ) ) {
+			$new = (array) Platform\Kit::clean_page( $new, $post_id );
+		}
+		if ( $new === $settings ) {
+			return false;
+		}
+		if ( '' === (string) get_metadata( 'post', $post_id, self::BACKUP_PAGE, true ) ) {
+			add_metadata( 'post', $post_id, self::BACKUP_PAGE, wp_slash( wp_json_encode( array( 'time' => time(), 'data' => $settings ) ) ), true );
+		}
+		update_metadata( 'post', $post_id, '_elementor_page_settings', wp_slash( $new ) );
 		return true;
+	}
+
+	/** Recuento de marcadores de K del documento (V.12), si los tiene o los tuvo. */
+	private static function recount_markers( $post_id, array $data ) {
+		$preserve = '\\Digitalisimo\\Elements\\Import\\Kits\\Preserve';
+		if ( ! class_exists( $preserve ) ) {
+			return;
+		}
+		$had = (int) get_metadata( 'post', $post_id, '_digitalisimo_unconverted', true );
+		if ( $had || $preserve::contains_markers( $data ) ) {
+			$preserve::recount_document( (int) $post_id, $data );
+		}
+	}
+
+	/**
+	 * Restaura un documento convertido: `_elementor_data` (BACKUP_F8 si existe, si no BACKUP) y los ajustes de la
+	 * página (BACKUP_PAGE). Sin copia, false.
+	 */
+	public static function revert_document( $post_id ) {
+		$post_id  = (int) $post_id;
+		$restored = false;
+		$f8       = json_decode( (string) get_metadata( 'post', $post_id, self::BACKUP_F8, true ), true );
+		$backup   = is_array( $f8 ) && isset( $f8['data'] ) && is_string( $f8['data'] ) ? $f8 : json_decode( (string) get_metadata( 'post', $post_id, self::BACKUP, true ), true );
+		if ( is_array( $backup ) && isset( $backup['data'] ) && is_string( $backup['data'] ) ) {
+			update_metadata( 'post', $post_id, '_elementor_data', wp_slash( $backup['data'] ) );
+			if ( is_array( $f8 ) && isset( $f8['data'] ) ) {
+				delete_metadata( 'post', $post_id, self::BACKUP_F8 );
+			} else {
+				delete_metadata( 'post', $post_id, self::BACKUP );
+			}
+			$restored = true;
+		}
+		$page = json_decode( (string) get_metadata( 'post', $post_id, self::BACKUP_PAGE, true ), true );
+		if ( is_array( $page ) && isset( $page['data'] ) && is_array( $page['data'] ) ) {
+			update_metadata( 'post', $post_id, '_elementor_page_settings', wp_slash( $page['data'] ) );
+			delete_metadata( 'post', $post_id, self::BACKUP_PAGE );
+			$restored = true;
+		}
+		if ( $restored ) {
+			delete_metadata( 'post', $post_id, self::F8_MARK );
+			self::clear_css( $post_id );
+		}
+		return $restored;
 	}
 
 	/** Cachés de Elementor del documento: su CSS, el HTML de sus elementos y la lista de recursos que encola. */

@@ -1,15 +1,158 @@
-"""Extrae por análisis estático los controles Elementor de un widget de Element Pack.
+"""Extrae por análisis estático los controles Elementor de un widget de Element Pack o de Prime Slider.
 
 Sigue las llamadas `$this->metodo()` dentro de `register_controls()`, incluidos los traits de la
 referencia, y devuelve por control su pestaña, tipo y el texto PHP literal de sus argumentos.
 No ejecuta código de la referencia.
+
+Las referencias se leen de sus ZIP sin extraerlos (`reference_archive.ReferenceArchive`, que rechaza
+el archivo entero ante rutas peligrosas o bombas) o, si se indica, de una carpeta ya extraída. La
+carpeta de los ZIP es `reference/` del repositorio o `DIGITALISIMO_REFERENCE_DIR`; cada ZIP puede
+cambiarse con su variable (`DIGITALISIMO_EP_ZIP`, `DIGITALISIMO_EP_LITE_ZIP`, `DIGITALISIMO_PS_LITE_ZIP`,
+`DIGITALISIMO_PS_PRO_ZIP`). Element Pack 9.9.1 es opcional (`use_ep991()` o `DIGITALISIMO_EP991`) y
+sólo sirve para comprobar: ningún archivo generado depende de él. Los scripts que lo usan se ejecutan
+con `python3 -I`.
 """
+import os
 import re
-from pathlib import Path
+import sys
+from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parent.parent
-EP = ROOT / 'reference' / 'bdthemes-element-pack'
-_TRAITS = None
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from reference_archive import ReferenceArchive, UnsafeArchive  # noqa: E402
+
+REFERENCE = Path(os.environ.get('DIGITALISIMO_REFERENCE_DIR') or ROOT / 'reference')
+# clave: (variable de entorno, nombre del ZIP en REFERENCE, carpeta raíz del plugin, fuentes de traits)
+PLUGINS = {
+    'ep': ('DIGITALISIMO_EP_ZIP', 'bdthemes-element-pack-2.zip', 'bdthemes-element-pack', ('ep',)),
+    'ep-lite': ('DIGITALISIMO_EP_LITE_ZIP', 'bdthemes-element-pack-lite.10.0.1.zip', 'bdthemes-element-pack-lite', ('ep-lite',)),
+    'ep991': ('DIGITALISIMO_EP991', None, 'bdthemes-element-pack', ('ep991',)),
+    'ps-lite': ('DIGITALISIMO_PS_LITE_ZIP', 'bdthemes-prime-slider-lite.4.7.0.zip', 'bdthemes-prime-slider-lite', ('ps-lite',)),
+    # Pro usa los traits de Lite (Global_Widget_Controls, Group_Control_Query) además de los suyos.
+    'ps-pro': ('DIGITALISIMO_PS_PRO_ZIP', 'bdthemes-prime-slider.zip', 'bdthemes-prime-slider', ('ps-pro', 'ps-lite')),
+}
+TRAIT_GLOBS = {
+    'ep': (r'traits/.*\.php$', r'includes/.*trait.*\.php$'),
+    'ep-lite': (r'traits/.*\.php$', r'includes/.*trait.*\.php$'),
+    'ep991': (r'traits/.*\.php$', r'includes/.*trait.*\.php$'),
+    'ps-lite': (r'traits/global-widget-controls\.php$',),
+    'ps-pro': (r'traits/.*\.php$', r'includes/class-animation-controls\.php$', r'includes/class-swiper-effects\.php$'),
+}
+_OPEN = {}
+_OVERRIDE = {}
+
+
+class Plugin:
+    """Un plugin de referencia: ZIP (sin extraer) o carpeta, con su carpeta raíz."""
+
+    def __init__(self, key, path):
+        self.key = key
+        self.path = Path(path)
+        self.top = PLUGINS[key][2]
+        if self.path.is_dir():
+            self.archive = None
+            base = self.path / self.top if (self.path / self.top).is_dir() else self.path
+            self.base = base.resolve()
+        else:
+            self.archive = ReferenceArchive(self.path)
+            tops = self.archive.top_dirs()
+            if len(tops) != 1:
+                raise UnsafeArchive(f'{self.path.name}: se esperaba una sola carpeta raíz y hay {len(tops)}')
+            self.top = tops[0]
+            self.base = None
+
+    def _local(self, rel):
+        target = (self.base / rel).resolve()
+        if self.base not in target.parents or target.is_symlink():
+            raise UnsafeArchive(f'{rel}: fuera de la referencia')
+        return target
+
+    def exists(self, rel):
+        rel = clean(rel)
+        if self.archive:
+            return self.archive.exists(f'{self.top}/{rel}')
+        return self._local(rel).is_file()
+
+    def read(self, rel):
+        rel = clean(rel)
+        if self.archive:
+            return self.archive.read_text(f'{self.top}/{rel}')
+        return self._local(rel).read_text(encoding='utf-8', errors='replace')
+
+    def files(self, prefix=''):
+        prefix = clean(prefix) if prefix else ''
+        if self.archive:
+            start = f'{self.top}/'
+            return [name[len(start):] for name in self.archive.files(start + prefix)]
+        return sorted(str(p.relative_to(self.base)) for p in (self.base / prefix).rglob('*') if p.is_file() and not p.is_symlink()) if (self.base / prefix).is_dir() else []
+
+    def file(self, rel):
+        return RefFile(self, clean(rel))
+
+    def __str__(self):
+        return f'{self.path.name}:{self.top}'
+
+
+def clean(rel):
+    rel = str(rel).replace('\\', '/')
+    parts = PurePosixPath(rel).parts
+    if not parts or rel.startswith('/') or any(part in ('..', '.', '') for part in parts):
+        raise UnsafeArchive(f'{rel!r}: ruta no válida')
+    return '/'.join(parts)
+
+
+class RefFile:
+    """Archivo dentro de una referencia; se lee como un Path (`read_text`)."""
+
+    def __init__(self, plugin, rel):
+        self.plugin = plugin
+        self.rel = rel
+
+    def read_text(self, encoding='utf-8', errors='replace'):
+        return self.plugin.read(self.rel)
+
+    def exists(self):
+        return self.plugin.exists(self.rel)
+
+    @property
+    def name(self):
+        return self.rel.rsplit('/', 1)[-1]
+
+    def __str__(self):
+        return f'{self.plugin.top}/{self.rel}'
+
+
+
+def use_ep991(path):
+    """Copia opcional de Element Pack 9.9.1 (ZIP o carpeta), sólo para comprobar."""
+    _OVERRIDE['ep991'] = Path(path)
+    _OPEN.pop('ep991', None)
+
+
+def plugin(key, required=True):
+    if key in _OPEN:
+        return _OPEN[key]
+    env, name, _top, _traits = PLUGINS[key]
+    path = _OVERRIDE.get(key) or (Path(os.environ[env]) if os.environ.get(env) else (REFERENCE / name if name else None))
+    if path is None or not path.exists():
+        if required:
+            raise SystemExit(f'Falta la referencia {key}: {path or env} (DIGITALISIMO_REFERENCE_DIR o {env})')
+        return None
+    _OPEN[key] = Plugin(key, path)
+    return _OPEN[key]
+
+
+def widget_source(legacy_id, versions=('ep', 'ep991')):
+    """Archivo del widget de Element Pack: primero 10.0.1 y, si se movió al Addon, 9.9.1 si está disponible."""
+    import json
+    inventory = {w['legacy_widget_id']: w for w in json.loads((ROOT / 'docs/element-pack-inventory.json').read_text())['widgets']}
+    rel = inventory[legacy_id]['source_file'].split('/bdthemes-element-pack/', 1)[1]
+    for key in versions:
+        source = plugin(key, required=(key == 'ep'))
+        if source and source.exists(rel):
+            return source.file(rel)
+    return None
 
 
 def strip_comments(src):
@@ -119,14 +262,42 @@ def resolve(body, env, own):
     return re.sub(r'\$(\w+)\b(?!\s*(?:=[^=>]|\[|->))', sub, body), env
 
 
+_TRAIT_CACHE = {}
+_CURRENT = {'traits': ('ep',)}
+
+
+def _traits_of(key):
+    """Métodos y firmas de los traits de una referencia (leídos una vez)."""
+    if key not in _TRAIT_CACHE:
+        found, params = {}, {}
+        source = plugin(key, required=False)
+        if source:
+            saved = dict(PARAMS)
+            PARAMS.clear()
+            patterns = [re.compile(p) for p in TRAIT_GLOBS[key]]
+            for rel in source.files():
+                if rel.endswith('.php') and any(p.search(rel) for p in patterns):
+                    for k, v in methods(strip_comments(source.read(rel))).items():
+                        found.setdefault(k, v)
+            params = dict(PARAMS)
+            PARAMS.clear()
+            PARAMS.update(saved)
+        _TRAIT_CACHE[key] = (found, params)
+    return _TRAIT_CACHE[key]
+
+
+_MERGED = {}
+
+
 def trait_methods():
-    global _TRAITS
-    if _TRAITS is None:
-        _TRAITS = {}
-        for f in sorted(list((EP / 'traits').rglob('*.php')) + list((EP / 'includes').rglob('*trait*.php'))):
-            for k, v in methods(strip_comments(f.read_text(errors='ignore'))).items():
-                _TRAITS.setdefault(k, v)
-    return _TRAITS
+    keys = _CURRENT['traits']
+    if keys not in _MERGED:
+        out = {}
+        for key in keys:
+            for name, body in _traits_of(key)[0].items():
+                out.setdefault(name, body)
+        _MERGED[keys] = out
+    return _MERGED[keys]
 
 
 def bracket(src, i):
@@ -273,8 +444,17 @@ def _walk(body, own, out, state, seen, env=None):
                 _walk(src, own, out, state, seen | {name}, local)
 
 
-def detail(path):
-    src = strip_comments(Path(path).read_text(encoding='utf-8', errors='ignore'))
+def detail(path, traits=None):
+    """Controles de un widget. `path` es un archivo local (p. ej. un widget propio) o un `RefFile` de una referencia."""
+    if isinstance(path, RefFile):
+        keys = traits or PLUGINS[path.plugin.key][3]
+    else:
+        keys = traits or ()
+    _CURRENT['traits'] = tuple(keys)
+    PARAMS.clear()
+    for key in reversed(_CURRENT['traits']):
+        PARAMS.update(_traits_of(key)[1])
+    src = strip_comments(path.read_text(encoding='utf-8', errors='ignore'))
     own = methods(src)
     body = own.get('register_controls') or own.get('_register_controls') or src
     out = []

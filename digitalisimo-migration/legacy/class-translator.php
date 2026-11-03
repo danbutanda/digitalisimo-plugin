@@ -17,16 +17,34 @@ final class Translator {
 
 	/** IDs de Element Pack: todos con prefijo `bdt-` salvo el calendario de FooEvents y Lightbox. */
 	const ID_PATTERN = '/^(bdt-[a-z0-9-]+|fooevents-calendar|lightbox)$/';
+	/** IDs de Prime Slider (Lite y Pro). Sus mapas viven en `prime-slider/maps/`, fuera de `maps/` (F8-D18). */
+	const PS_PATTERN = '/^prime-slider-[a-z0-9-]+$/';
 
 	private static $maps = array();
 
+	/** ¿Es un ID de Element Pack? (Sólo Element Pack: `ids()`, `map()` y los adaptadores siguen siendo suyos.) */
 	public static function is_legacy_id( $id ) {
 		return 1 === preg_match( self::ID_PATTERN, (string) $id );
+	}
+
+	/** ¿Es un ID de Prime Slider? */
+	public static function is_prime_slider_id( $id ) {
+		return 1 === preg_match( self::PS_PATTERN, (string) $id );
+	}
+
+	/** ¿Es un ID que la migración conoce (Element Pack o Prime Slider)? */
+	public static function is_known_id( $id ) {
+		return self::is_legacy_id( $id ) || self::is_prime_slider_id( $id );
 	}
 
 	/** Element Pack conserva sus IDs mientras esté cargado; ni adaptadores ni migración compiten con él. */
 	public static function element_pack_active() {
 		return defined( 'BDTEP_VER' ) || class_exists( '\\ElementPack\\Element_Pack_Loader', false );
+	}
+
+	/** Prime Slider cargado: Lite define BDTPS_CORE_VER y Pro no carga sin Lite. */
+	public static function prime_slider_active() {
+		return defined( 'BDTPS_CORE_VER' );
 	}
 
 	/** @return string[] IDs heredados con mapa disponible. */
@@ -65,10 +83,22 @@ final class Translator {
 	 */
 	public static function translate( $legacy_id, array $settings ) {
 		$map = self::map( $legacy_id );
-		if ( ! is_array( $map ) || isset( $settings[ self::MARKER ] ) ) {
+		if ( ! is_array( $map ) ) {
 			return $settings;
 		}
-		$out = self::apply( $settings, $map );
+		return self::translate_map( $map, (string) $legacy_id, $settings );
+	}
+
+	/**
+	 * Cuerpo de translate() con un mapa dado (los de Prime Slider viven fuera de `maps/`): defaults, renombres,
+	 * repetidores, condiciones y filtro del mapa. Un ajuste ya traducido (con el marcador) no se traduce otra vez.
+	 */
+	public static function translate_map( array $map, string $id, array $settings ): array {
+		if ( isset( $settings[ self::MARKER ] ) ) {
+			return $settings;
+		}
+		$legacy_id = $id;
+		$out       = self::apply( $settings, $map );
 		foreach ( $map['repeaters'] ?? array() as $key => $spec ) {
 			$rows = array_key_exists( $key, $settings ) ? $settings[ $key ] : ( $spec['default_rows'] ?? array() );
 			unset( $out[ $key ] );
@@ -95,7 +125,7 @@ final class Translator {
 	 * los campos `posts_*` del widget `posts`. Element Pack filtra términos por `term_id` y PRO
 	 * Elements por `term_taxonomy_id`.
 	 */
-	public static function posts_query( array $out ) {
+	public static function posts_query( array $out, bool $tt_ids = false ) {
 		$sources = array( 'manual_selection' => 'by_id', '_related_post_type' => 'related' );
 		$source  = (string) ( $out['posts_source'] ?? 'post' );
 		$out['posts_post_type'] = $sources[ $source ] ?? ( '' !== $source ? $source : 'post' );
@@ -114,7 +144,11 @@ final class Translator {
 			}
 		}
 		foreach ( array( 'posts_include_term_ids', 'posts_exclude_term_ids' ) as $key ) {
-			if ( ! isset( $out[ $key ] ) ) {
+			// Prime Slider ya guarda `term_taxonomy_id`: no se traduce.
+			if ( ! isset( $out[ $key ] ) || $tt_ids ) {
+				if ( isset( $out[ $key ] ) ) {
+					$out[ $key ] = array_values( array_map( 'strval', (array) $out[ $key ] ) );
+				}
 				continue;
 			}
 			$ids = array();
@@ -132,15 +166,15 @@ final class Translator {
 	}
 
 	/** Consulta de Element Pack (`posts_*`) en los widgets Loop de PRO Elements (`post_query_*`). */
-	public static function loop_query( array $out ) {
-		$out = self::posts_query( $out );
+	public static function loop_query( array $out, bool $tt_ids = false, string $skin = 'post' ) {
+		$out = self::posts_query( $out, $tt_ids );
 		foreach ( array_keys( $out ) as $key ) {
 			if ( 0 === strpos( $key, 'posts_' ) && 'posts_per_page' !== $key ) {
 				$out[ 'post_query_' . substr( $key, 6 ) ] = $out[ $key ];
 				unset( $out[ $key ] );
 			}
 		}
-		$out['_skin'] = 'post';
+		$out['_skin'] = '' !== $skin ? $skin : 'post';
 		return $out;
 	}
 
@@ -152,7 +186,7 @@ final class Translator {
 	 * defecto] o un valor fijo. Las partes visibles viajan en `digitalisimo_wc_parts` y el adaptador
 	 * las aplica con los hooks del bucle de WooCommerce.
 	 */
-	public static function wc_products( array $out, array $spec ) {
+	public static function wc_products( array $out, array $spec, bool $tt_ids = false ) {
 		$get    = static function ( $name, $fallback = '' ) use ( $out, $spec ) {
 			if ( ! isset( $spec[ $name ] ) ) {
 				return $fallback;
@@ -163,10 +197,10 @@ final class Translator {
 		$source = (string) ( $out['posts_source'] ?? 'product' );
 		$types  = array( 'onsale' => 'sale', 'featured' => 'featured' );
 		$type   = array( 'manual_selection' => 'by_id', 'current_query' => 'current_query', '_related_post_type' => 'related_products' )[ $source ] ?? ( $types[ (string) ( $out['product_show_product_type'] ?? 'all' ) ] ?? 'product' );
-		$terms  = static function ( $ids ) {
+		$terms  = static function ( $ids ) use ( $tt_ids ) {
 			$out = array();
 			foreach ( (array) $ids as $id ) {
-				$term  = function_exists( 'get_term' ) ? get_term( (int) $id ) : null;
+				$term  = ! $tt_ids && function_exists( 'get_term' ) ? get_term( (int) $id ) : null;
 				$out[] = is_object( $term ) && ! empty( $term->term_taxonomy_id ) ? (string) $term->term_taxonomy_id : (string) $id;
 			}
 			return $out;
