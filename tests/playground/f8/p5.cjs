@@ -38,7 +38,10 @@ module.exports = (api) => async (s) => {
     const cmp = p.res.compare;
     const ok = !!cmp && cmp.against && cmp.against.version === '4.3.0.169' && !cmp.different.length && !cmp.missing.length && cmp.same.length > 0;
     check(s, `P5.${part}`, `${part}: ${cmp ? cmp.same.length : 0} casos existentes con el mismo HTML y CSS que 4.3.0.169${cmp && Object.keys(cmp.strict || {}).length ? ` (estrictos: ${Object.keys(cmp.strict).join(', ')})` : ''}`, ok, cmp ? JSON.stringify({ different: cmp.different.slice(0, 4), missing: cmp.missing }) : 'sin bloque compare');
-    const own = (p.res.problems || []).filter((x) => !/^DISTINTO /.test(x));
+    // La comparación con la línea base corre después de escribir el JSON: sus «PEOR …» sólo están en el registro.
+    let logged = [];
+    try { logged = fs.readFileSync(path.join(DATA, part, 'front-budget.log'), 'utf8').split('\n').filter((l) => /^FALLA\s+PEOR /.test(l)).map((l) => l.replace(/^FALLA\s+/, '')); } catch (e) { /* sin registro */ }
+    const own = (p.res.problems || []).filter((x) => !/^DISTINTO /.test(x)).concat(logged);
     check(s, `P5.${part}.e`, `${part}: sin problemas de expectativas ni regresiones frente a la línea base`, !own.length, own.slice(0, 5).join(' | '));
   }
   // Casos de F8 en su tope (modo normal y caché).

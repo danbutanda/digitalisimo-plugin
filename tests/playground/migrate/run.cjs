@@ -114,14 +114,16 @@ async function probe(page, blog) {
     const started = Date.now();
     await page.click('#digi-migrate .digi-migrate__button');
     try {
-      await page.waitForFunction(() => { const done = document.querySelector('#digi-migrate .digi-migrate__done'); return done && /Migración de la red completada/.test(done.textContent); }, { timeout: 1500000, polling: 2000 });
+      await page.waitForFunction(() => { const done = document.querySelector('#digi-migrate .digi-migrate__done'); return done && /Migración de la red completada/.test(done.textContent); }, { timeout: Number(process.env.NETWORK_WAIT_MS || 300000), polling: 2000 });
     } catch (e) {
       // Diagnóstico: dónde quedó la pantalla y qué dice, y el estado de cada sitio.
       results.waitError = { message: String(e.message || e), url: page.url(), errors: page.errors.slice(0, 10), seconds: Math.round((Date.now() - started) / 1000) };
       results.waitError.status = await page.$eval('#digi-migrate', (el) => el.innerText).catch((x) => `sin pantalla: ${x.message}`);
-      const diag = await newPage(admin);
+      // La sonda por HTTP (sin el navegador, que puede haberse cerrado).
+      const http = require('http');
+      const raw = (path) => new Promise((resolve) => { const r = http.request({ host: '127.0.0.1', port, path, headers: { Host: 'playground.test' }, timeout: 120000 }, (res) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => resolve(Buffer.concat(c).toString('utf8'))); }); r.on('error', (x) => resolve(String(x))); r.end(); });
       results.waitError.sites = {};
-      for (const blog of Object.keys(blogs)) results.waitError.sites[blog] = await probe(diag, blog).then((st) => ({ job: st.job, network_job: st.network_job, active: st.active, network: st.network })).catch((x) => String(x));
+      for (const [blog, path] of Object.entries(blogs)) { const t = await raw(`${path}/?digi-migrate-probe=1`); try { const st = JSON.parse(t); results.waitError.sites[blog] = { job: st.job, network_job: st.network_job, active: st.active, network: st.network }; } catch (x) { results.waitError.sites[blog] = t.slice(0, 500); } }
       throw e;
     }
     results.seconds = Math.round((Date.now() - started) / 1000);
