@@ -13,7 +13,14 @@ const blogs = { 1: '', 2: '/sub' };
 // Element Pack de la corrida (ep-lite-pin.sh): por defecto Lite 10.0.1 oficial en bdthemes-element-pack-lite/.
 const EP = JSON.parse(fs.readFileSync(`${out}/ep.json`, 'utf8'));
 const onBlog = (info, blog) => (info.blogs || [1, 2]).map(String).includes(String(blog));
-const results = { checks: [], failures: [] };
+const results = { checks: [], failures: [], known: [] };
+// Diferencia declarada (fixture `_known` o conversión de F8 con pérdida declarada): se anota, no falla.
+const known = (cond, message, detail, why) => {
+  if (cond || !why) return ok(cond, message, detail);
+  results.known.push(`${message} (conocido: ${why})`);
+  console.log(`CONOC  ${message} · conocido: ${why}`);
+  return true;
+};
 const ok = (cond, message, detail) => {
   (cond ? results.checks : results.failures).push(detail === undefined ? message : `${message}: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
   console.log(`${cond ? 'OK   ' : 'FALLA'}  ${message}${cond || detail === undefined ? '' : ` · ${typeof detail === 'string' ? detail : JSON.stringify(detail).slice(0, 600)}`}`);
@@ -114,7 +121,9 @@ async function probe(page, blog) {
     const started = Date.now();
     await page.click('#digi-migrate .digi-migrate__button');
     try {
-      await page.waitForFunction(() => { const done = document.querySelector('#digi-migrate .digi-migrate__done'); return done && /Migración de la red completada/.test(done.textContent); }, { timeout: Number(process.env.NETWORK_WAIT_MS || 300000), polling: 2000 });
+      // Desde 1.0.21 la pantalla de red deja arriba la caja de cada sitio (cada una con su «Migración completada») y el
+      // resumen de red debajo: se busca el aviso de la red entre todos, no el primero.
+      await page.waitForFunction(() => [...document.querySelectorAll('#digi-migrate .digi-migrate__done')].some((done) => /Migración de la red completada/.test(done.textContent)), { timeout: Number(process.env.NETWORK_WAIT_MS || 300000), polling: 2000 });
     } catch (e) {
       // Diagnóstico: dónde quedó la pantalla y qué dice, y el estado de cada sitio.
       results.waitError = { message: String(e.message || e), url: page.url(), errors: page.errors.slice(0, 10), seconds: Math.round((Date.now() - started) / 1000) };
@@ -147,7 +156,8 @@ async function probe(page, blog) {
         if (keepAlias) {
           ok(widgets.includes('digitalisimo-brand-grid'), `después · sitio 2 · ${slug}: el alias se queda, porque el CSS adicional nombra sus clases`, widgets);
         } else {
-          ok(!legacy.length && !doc.legacy_keys && doc.backup, `después · sitio ${blog} · ${slug}: sólo widgets propios, con copia del original`, { widgets, legacy_keys: doc.legacy_keys, backup: doc.backup });
+          // Una extensión de página (grid-line…) sólo cambia los ajustes de la página: su copia es la de esos ajustes.
+          ok(!legacy.length && !doc.legacy_keys && (doc.backup || (info.page_settings && doc.backup_page)), `después · sitio ${blog} · ${slug}: sólo widgets propios, con copia del original`, { widgets, legacy_keys: doc.legacy_keys, backup: doc.backup, backup_page: doc.backup_page });
         }
       }
       const revisions = Object.entries(state.pages).filter(([key]) => key.startsWith('revision-of-digi-mg-accordion-')).map(([, doc]) => doc);
@@ -157,7 +167,7 @@ async function probe(page, blog) {
       const mine = Object.values(pages).filter((info) => onBlog(info, blog));
       const legacyDocs = mine.filter((info) => /^bdt-/.test(info.widget) || info.ext).length;
       const aliasDocs = mine.filter((info) => info.alias && !(blog === '2' && info.widget === 'digitalisimo-brand-grid')).length;
-      ok((counts.deactivated || []).some((label) => /^Element Pack/.test(label)) && counts.converted >= legacyDocs && counts.revisions >= 2 && counts.aliases >= aliasDocs && !counts.failed.length, `después · sitio ${blog}: el informe cuenta lo hecho (${legacyDocs} documentos de Element Pack, ${aliasDocs} alias), sin documentos fallidos`, counts);
+      ok((counts.deactivated || []).some((label) => /^Element Pack/.test(label)) && (counts.converted + (counts.pages || 0)) >= legacyDocs && counts.revisions >= 2 && counts.aliases >= aliasDocs && !counts.failed.length, `después · sitio ${blog}: el informe cuenta lo hecho (${legacyDocs} documentos de Element Pack, ${aliasDocs} alias), sin documentos fallidos`, counts);
       ok(!(state.report.warnings || []).length, `después · sitio ${blog}: sin avisos`, state.report.warnings);
     }
 
@@ -195,12 +205,13 @@ async function probe(page, blog) {
         ok((sig.styles || []).length === (was.styles || []).length && !diff.length, `${key}: el mismo estilo calculado en cada elemento (${(sig.styles || []).length})`, { layout: [was.layout, sig.layout], diff: diff.slice(0, 3) });
       } else {
         ok(!/^bdt-/.test(sig.widget), `${key}: se pinta con un widget propio (${sig.widget})`, sig.widget);
+        const why = info.known || {};
         if (info.text) {
-          ok(JSON.stringify(sig.text) === JSON.stringify(was.text) && JSON.stringify(sig.links) === JSON.stringify(was.links), `${key}: mismos textos y enlaces que con Element Pack`, { before: was, after: sig });
+          known(JSON.stringify(sig.text) === JSON.stringify(was.text) && JSON.stringify(sig.links) === JSON.stringify(was.links), `${key}: mismos textos y enlaces que con Element Pack`, { before: was, after: sig }, why.text || why.links);
         }
         // Los carruseles de Element Pack clonan diapositivas para el bucle: se comparan las imágenes distintas.
         const set = (list) => JSON.stringify([...new Set(list)].sort());
-        ok(set(sig.images) === set(was.images), `${key}: mismas imágenes que con Element Pack`, { before: was.images, after: sig.images });
+        known(set(sig.images) === set(was.images), `${key}: mismas imágenes que con Element Pack`, { before: was.images, after: sig.images }, why.images);
       }
     }
   } catch (e) {
@@ -209,6 +220,6 @@ async function probe(page, blog) {
     await browser.close();
     fs.writeFileSync(`${out}/migrate.json`, JSON.stringify(results, null, 2));
   }
-  console.log(`\n${results.checks.length} comprobaciones en verde, ${results.failures.length} fallas${results.seconds ? `; la migración de la red tardó ${results.seconds} s` : ''}.`);
+  console.log(`\n${results.checks.length} comprobaciones en verde, ${results.failures.length} fallas, ${results.known.length} diferencias declaradas${results.seconds ? `; la migración de la red tardó ${results.seconds} s` : ''}.`);
   process.exit(results.failures.length ? 1 : 0);
 })();

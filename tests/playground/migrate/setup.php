@@ -44,7 +44,7 @@ add_action( 'init', static function () {
 		$key           = 'revision' === $post->post_type ? 'revision-of-' . get_post( $post->post_parent )->post_name . '-' . $post->ID : $post->post_name;
 		// Los ajustes de la página cuentan también (extensiones de página de F8).
 		$page_settings = wp_json_encode( get_metadata( 'post', $post->ID, '_elementor_page_settings', true ) );
-		$pages[ $key ] = array( 'widgets' => array_values( array_unique( $m[1] ) ), 'backup' => '' !== (string) get_metadata( 'post', $post->ID, '_digitalisimo_ep_backup', true ), 'legacy_keys' => (bool) preg_match( '/"(ep_|element_pack_|bdt_)[a-z0-9_]*"/', $raw . $page_settings ) );
+		$pages[ $key ] = array( 'widgets' => array_values( array_unique( $m[1] ) ), 'backup' => '' !== (string) get_metadata( 'post', $post->ID, '_digitalisimo_ep_backup', true ), 'backup_page' => '' !== (string) maybe_serialize( get_metadata( 'post', $post->ID, '_digitalisimo_ep_backup_page', true ) ), 'legacy_keys' => (bool) preg_match( '/"(ep_|element_pack_|bdt_)[a-z0-9_]*"/', $raw . $page_settings ) );
 	}
 	// CSS generado por Elementor: estado guardado de cada documento y si su archivo existe.
 	$css     = array();
@@ -131,11 +131,17 @@ $pages = array(
 $lite = 'bdthemes-element-pack-lite' === $ep['slug'];
 if ( $lite ) {
 	foreach ( array( 'bdt-trailer-box' => 'custom', 'bdt-animated-card' => 'custom', 'bdt-interactive-card' => 'defaults' ) as $widget => $case ) {
-		$pages[ 'digi-mg-' . substr( $widget, 4 ) ] = array( 'widget' => $widget, 'settings' => $fixture( $widget, $case ), 'text' => 'bdt-trailer-box' === $widget, 'blogs' => array( 1 ) );
+		$cases = json_decode( (string) file_get_contents( '/wordpress/wp-content/digi-legacy-fixtures/' . $widget . '.json' ), true );
+		$pages[ 'digi-mg-' . substr( $widget, 4 ) ] = array( 'widget' => $widget, 'settings' => $fixture( $widget, $case ), 'text' => true, 'blogs' => array( 1 ), 'known' => (array) ( $cases[ $case ]['_known'] ?? array() ) );
 	}
+	// Diferencias declaradas de la conversión de F8 (spec §3.C.2 y V.10.5).
+	$ext_known = array(
+		'tooltip'     => array( 'text' => 'el globo de la información emergente está ahora en el DOM (accesible), no en un atributo' ),
+		'threed-text' => array( 'text' => 'el origen repite el texto en capas para el relieve; la conversión lo pinta una vez con sombras de texto en capas' ),
+	);
 	foreach ( array( 'tooltip', 'transform-effects', 'background-overlay', 'equal-height', 'grid-line', 'image-hover-effects', 'threed-text', 'animated-gradient-background' ) as $ext ) {
 		$case = $ext_case( 'ext-' . $ext );
-		$pages[ 'digi-mg-ext-' . $ext ] = array( 'widget' => $case['widget'], 'settings' => $case['settings'], 'section' => $case['section'], 'page' => $case['page'], 'text' => 'tooltip' !== $ext, 'blogs' => array( 1 ), 'ext' => $ext );
+		$pages[ 'digi-mg-ext-' . $ext ] = array( 'widget' => $case['widget'], 'settings' => $case['settings'], 'section' => $case['section'], 'page' => $case['page'], 'text' => true, 'blogs' => array( 1 ), 'ext' => $ext, 'known' => $ext_known[ $ext ] ?? array() );
 	}
 }
 // Juego de páginas: `base` (las de antes de F8), `lite` (sólo las de Lite, con el acordeón como base en los dos sitios).
@@ -191,7 +197,7 @@ foreach ( array( 1, 2 ) as $blog ) {
 	restore_current_blog();
 }
 foreach ( $pages as $slug => $page ) {
-	$manifest[ $slug ] = array( 'widget' => $page['widget'], 'text' => ! empty( $page['text'] ), 'alias' => 0 === strpos( $page['widget'], 'digitalisimo-' ), 'blogs' => $page['blogs'] ?? array( 1, 2 ), 'ext' => $page['ext'] ?? '' );
+	$manifest[ $slug ] = array( 'widget' => $page['widget'], 'text' => ! empty( $page['text'] ), 'alias' => 0 === strpos( $page['widget'], 'digitalisimo-' ), 'blogs' => $page['blogs'] ?? array( 1, 2 ), 'ext' => $page['ext'] ?? '', 'page_settings' => ! empty( $page['page'] ), 'known' => (object) ( $page['known'] ?? array() ) );
 }
 file_put_contents( $out . '/pages.json', wp_json_encode( $manifest ) );
 update_site_option( 'digi_migrate_ready', 1 );

@@ -18,21 +18,21 @@ module.exports = (api) => async (s) => {
   };
   const parts = {};
   s.facts.parts = {};
-  for (const part of ['ref-A', 'ref-B', 'tree-A', 'tree-B', 'tree-f8', 'ref-cache', 'tree-cache', 'tree-migration']) {
+  for (const part of ['ref-A', 'ref-B', 'tree-A', 'tree-B', 'tree-f8', 'ref-cache-A', 'ref-cache-B', 'tree-cache-A', 'tree-cache-B', 'tree-cache-f8', 'tree-migration']) {
     parts[part] = read(part);
     if (parts[part]) s.facts.parts[part] = { status: parts[part].done.status, seconds: parts[part].done.seconds, measured: parts[part].res ? Object.keys(parts[part].res.results || {}).length : 0, problems: parts[part].res ? (parts[part].res.problems || []).length : null, version: parts[part].res && parts[part].res.elements ? parts[part].res.elements.version : null };
   }
   const missing = (part, id, what) => { pending(s, id, what, `falta la parte ${part} (P5_PARTS=${part} con APPEND=1)`); };
 
   // Referencias de 4.3.0.169: cada página carga.
-  for (const part of ['ref-A', 'ref-B', 'ref-cache']) {
+  for (const part of ['ref-A', 'ref-B', 'ref-cache-A', 'ref-cache-B']) {
     const p = parts[part];
     if (!p || !p.res) { missing(part, `P5.${part}`, `referencia 4.3.0.169 (${part})`); continue; }
     const failed = Object.entries(p.res.results || {}).filter(([, r]) => !r.ok).map(([k, r]) => `${k}: ${r.error}`);
     check(s, `P5.${part}`, `referencia ${p.res.elements.version} (${part}): ${Object.keys(p.res.results).length} páginas medidas sin fallos de carga`, p.res.elements.version === '4.3.0.169' && !failed.length, failed.join(' | '));
   }
   // Casos existentes: iguales a 4.3.0.169.
-  for (const part of ['tree-A', 'tree-B', 'tree-cache']) {
+  for (const part of ['tree-A', 'tree-B', 'tree-cache-A', 'tree-cache-B']) {
     const p = parts[part];
     if (!p || !p.res) { missing(part, `P5.${part}`, `casos existentes iguales a 4.3.0.169 (${part})`); continue; }
     const cmp = p.res.compare;
@@ -46,7 +46,7 @@ module.exports = (api) => async (s) => {
   }
   // Casos de F8 en su tope (modo normal y caché).
   const f8 = ['f8-tooltip', 'f8-badge', 'f8-nested-counter', 'f8-marker'];
-  for (const [part, label] of [['tree-f8', 'normal'], ['tree-cache', 'cache']]) {
+  for (const [part, label] of [['tree-f8', 'normal'], ['tree-cache-f8', 'cache']]) {
     const p = parts[part];
     if (!p || !p.res) { missing(part, `P5.f8.${label}`, `casos de F8 en su tope (${label})`); continue; }
     for (const slug of f8) {

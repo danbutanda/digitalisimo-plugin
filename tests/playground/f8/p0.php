@@ -107,6 +107,13 @@ function digi_f8_ps_posts( array $mode ) {
 		set_post_thumbnail( $post, $img['id'] );
 		digi_f8_set_id( 'digi-f8-noticia-' . $n, $post );
 	}
+	// Una entrada fuera de «Noticias» y dentro del primer semestre de 2026: la encuentran las consultas que excluyen
+	// «Noticias» o filtran por fechas (mercury `custom`).
+	$other = wp_insert_term( 'Otra', 'category' );
+	$other = is_wp_error( $other ) ? get_term_by( 'name', 'Otra', 'category', ARRAY_A ) : $other;
+	$arch  = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'publish', 'post_title' => 'Archivo F8', 'post_name' => 'digi-f8-archivo', 'post_excerpt' => 'Resumen del archivo.', 'post_content' => 'Contenido del archivo de prueba.', 'post_category' => array( (int) $other['term_id'] ), 'post_date' => '2026-03-15 10:00:00' ) );
+	set_post_thumbnail( $arch, digi_f8_ps_image( 'archivo.jpg', array( 90, 90, 90 ) )['id'] );
+	digi_f8_set_id( 'digi-f8-archivo', $arch );
 	if ( ! empty( $mode['woo'] ) && class_exists( 'WC_Product_Simple' ) ) {
 		$pcat = wp_insert_term( 'Noticias', 'product_cat' );
 		$pcat = is_wp_error( $pcat ) ? get_term_by( 'name', 'Noticias', 'product_cat', ARRAY_A ) : $pcat;
@@ -127,6 +134,18 @@ function digi_f8_ps_posts( array $mode ) {
 			$product->set_featured( 0 === $i );
 			digi_f8_set_id( 'digi-f8-producto-' . ( $i + 1 ), $product->save() );
 		}
+		// Un producto fuera de «Noticias» (lo encuentran las consultas que la excluyen: woocircle `custom`).
+		$ocat = wp_insert_term( 'Otros', 'product_cat' );
+		$ocat = is_wp_error( $ocat ) ? get_term_by( 'name', 'Otros', 'product_cat', ARRAY_A ) : $ocat;
+		$lamp = new WC_Product_Simple();
+		$lamp->set_name( 'Lámpara F8' );
+		$lamp->set_slug( 'lampara-f8' );
+		$lamp->set_status( 'publish' );
+		$lamp->set_regular_price( '40' );
+		$lamp->set_short_description( 'Descripción corta de Lámpara F8.' );
+		$lamp->set_category_ids( array( (int) $ocat['term_id'] ) );
+		$lamp->set_image_id( digi_f8_ps_image( 'producto-5.jpg', array( 160, 120, 40 ) )['id'] );
+		digi_f8_set_id( 'digi-f8-producto-5', $lamp->save() );
 	}
 	update_option( 'digi_f8_ps_terms', $terms, false );
 	return $terms;

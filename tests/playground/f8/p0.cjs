@@ -20,7 +20,9 @@ const path = require('path');
 
 module.exports = (api) => async (s) => {
   const { OUT, RUN, check, pending, note, control, login, migrate, request, open, shot, vendorTrace, sleep, text } = api;
-  const PARTS = (process.env.P0_PART || 'abc').split('').filter((p) => 'abc'.includes(p));
+  // Tandas: a, b1 (B de la primera mitad), b2 (B de la segunda mitad) y c; P0_PART=a,b1 o una sola.
+  const PARTS = (process.env.P0_PART || 'a,b1,b2,c').split(',').map((x) => x.trim()).filter((p) => ['a', 'b1', 'b2', 'c'].includes(p));
+  const PREFIX = { a: 'P0.A', b1: 'P0.B1.', b2: 'P0.B2.', c: 'P0.C' };
   const DATA = path.join(OUT, 'P0-data');
   fs.mkdirSync(DATA, { recursive: true });
   const WIDTHS = [360, 768, 1280];
@@ -31,17 +33,17 @@ module.exports = (api) => async (s) => {
     if (prev && prev.checks) {
       const prevPart = (prev.facts && prev.facts.parts) || '?';
       for (const c of prev.checks) {
-        const mine = PARTS.some((p) => c.id.startsWith(`P0.${p.toUpperCase()}`));
+        const mine = PARTS.some((p) => c.id.startsWith(PREFIX[p]));
         if (mine) continue;
         if (/^P0\.(0|z1|z2|x)$/.test(c.id)) c.id = `${c.id} · tanda ${prevPart}`;
-        if (/ · tanda /.test(c.id) && PARTS.some((p) => c.id.endsWith(`tanda ${p}`))) continue;
+        if (/ · tanda /.test(c.id) && PARTS.some((p) => c.id.endsWith(`tanda ${p}`) || c.id.endsWith(`tanda ${PARTS.join(',')}`))) continue;
         s.checks.push(c);
         if (c.status === 'falla') s.problems.push(`${c.id} · ${c.what}`);
       }
       Object.assign(s.facts, Object.fromEntries(Object.entries(prev.facts || {}).filter(([k]) => !['site', 'php_notices', 'php_notices_top', 'parts'].includes(k))));
     }
   } catch (e) { /* primera tanda */ }
-  s.facts.parts = PARTS.join('');
+  s.facts.parts = PARTS.join(',');
 
   const m = await control('ids');
   const ps = await control('psdocs');
@@ -78,18 +80,20 @@ module.exports = (api) => async (s) => {
     return { texts: [...new Set(texts)], links: [...new Set(links)], images: [...new Set(images.filter(Boolean))], media, styles };
   });
 
-  async function capture(label) {
+  async function capture(label, list = keys) {
     const out = {};
     const shots = path.join(DATA, `shots-${label}`);
     fs.mkdirSync(shots, { recursive: true });
-    for (const key of keys) {
-      const v = await open(m.urls[key], { width: 1280, before: (pg) => pg.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]) });
-      await sleep(400);
+    for (const key of list) {
+      // `load` y una pausa fija: networkidle0 cuesta segundos por página con un solo proceso de PHP.
+      const v = await open(m.urls[key], { width: 1280, wait: 'load', before: (pg) => pg.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]) });
+      await sleep(900);
       const sig = await signature(v.page);
       sig.status = v.status;
       sig.errors = v.facts.errors.slice(0, 5);
       sig.failed = v.facts.failed.slice(0, 5);
       sig.outside = v.facts.outside.slice(0, 5);
+      sig.vendor = vendorTrace(v.html);
       for (const width of WIDTHS) {
         await v.page.setViewport({ width, height: 900 });
         await sleep(250);
@@ -131,46 +135,54 @@ module.exports = (api) => async (s) => {
     migrated = true;
   }
 
-  // ── b · B tras migrar y comparación con A ─────────────────────────────────────────────────────────────────────
-  if (PARTS.includes('b')) {
+  // ── b1 y b2 · B tras migrar (cada mitad en su tanda) y comparación con A ─────────────────────────────────────
+  for (const token of ['b1', 'b2'].filter((t) => PARTS.includes(t))) {
+    const P = PREFIX[token];
+    const half = token === 'b1' ? keys.slice(0, Math.ceil(keys.length / 2)) : keys.slice(Math.ceil(keys.length / 2));
     let A = null;
     try { A = JSON.parse(fs.readFileSync(path.join(DATA, 'A.json'), 'utf8')); } catch (e) { /* sin A */ }
-    await doMigrate('P0.B');
-    const st = await control('psdocs');
-    check(s, 'P0.B2', 'Lite desactivado al final (se convirtió activo y se retiró en la etapa tardía) y nunca borrado', !st.lite.active && st.lite.installed, JSON.stringify(st.lite));
-    const info = (await control('psinfo', { full: '1' })).docs;
-    const left = keys.filter((k) => !info[k] || info[k].legacy || info[k].markers);
-    check(s, 'P0.B3', 'ningún widget de Lite queda en los 44 documentos (sin marcadores: los 22 tienen destino)', !left.length, JSON.stringify(left.map((k) => [k, info[k] && info[k].widgets])));
-    const rawTrace = keys.filter((k) => info[k] && /\/plugins\/bdthemes-prime-slider/.test(JSON.stringify(info[k].data)));
-    check(s, 'P0.B4', 'ningún documento convertido guarda una URL a la carpeta de Lite', !rawTrace.length, JSON.stringify(rawTrace));
-    const media = (await control('psmedia')).media;
-    const demo = media.filter((x) => /_digitalisimo_migration_demo/.test(x.meta));
-    check(s, 'P0.B5', `imágenes de demostración copiadas a Medios (${demo.length}), con archivo y sin script`, demo.length > 0 && demo.every((x) => x.exists && !x.script && /\/uploads\//.test(x.url)), JSON.stringify(demo.slice(0, 6)));
-    fs.writeFileSync(path.join(RUN, 'media.json'), JSON.stringify(media, null, 1));
-    const t0 = Date.now();
-    const B = await capture('B');
-    fs.writeFileSync(path.join(DATA, 'B.json'), JSON.stringify({ at: new Date().toISOString(), run: api.ENV.RUN_ID, pages: B, info: Object.fromEntries(keys.map((k) => [k, info[k] && info[k].widgets])) }, null, 1));
-    const broken = Object.entries(B).filter(([, v]) => v.status !== 200 || v.errors.length || v.failed.length);
-    check(s, 'P0.B6', `B: las 44 páginas responden 200 sin errores de JavaScript ni recursos rotos (${Math.round((Date.now() - t0) / 1000)} s, capturas en tres anchos)`, !broken.length, JSON.stringify(broken.map(([k, v]) => ({ k, status: v.status, errors: v.errors, failed: v.failed })).slice(0, 6)));
-    const trace = {};
-    for (const key of keys) {
-      const r = await request('GET', m.urls[key]);
-      const found = vendorTrace(r.text);
-      if (found.length) trace[key] = found;
+    await doMigrate(P);
+    if (token === 'b1' || !PARTS.includes('b1')) {
+      const st = await control('psdocs');
+      check(s, `${P}2`, 'Lite desactivado al final (se convirtió activo y se retiró en la etapa tardía) y nunca borrado', !st.lite.active && st.lite.installed, JSON.stringify(st.lite));
+      const info = (await control('psinfo', { full: '1' })).docs;
+      const left = keys.filter((k) => !info[k] || info[k].legacy || info[k].markers);
+      check(s, `${P}3`, 'ningún widget de Lite queda en los 44 documentos (sin marcadores: los 22 tienen destino)', !left.length, JSON.stringify(left.map((k) => [k, info[k] && info[k].widgets])));
+      const rawTrace = keys.filter((k) => info[k] && /\/plugins\/bdthemes-prime-slider/.test(JSON.stringify(info[k].data)));
+      check(s, `${P}4`, 'ningún documento convertido guarda una URL a la carpeta de Lite', !rawTrace.length, JSON.stringify(rawTrace));
+      const media = (await control('psmedia')).media;
+      const demo = media.filter((x) => /_digitalisimo_migration_demo/.test(x.meta));
+      check(s, `${P}5`, `imágenes de demostración copiadas a Medios (${demo.length}), con archivo y sin script`, demo.length > 0 && demo.every((x) => x.exists && !x.script && /\/uploads\//.test(x.url)), JSON.stringify(demo.slice(0, 6)));
+      fs.writeFileSync(path.join(RUN, 'media.json'), JSON.stringify(media, null, 1));
+      fs.writeFileSync(path.join(DATA, 'B-info.json'), JSON.stringify(Object.fromEntries(keys.map((k) => [k, info[k] && info[k].widgets])), null, 1));
     }
-    check(s, 'P0.B7', 'B: ninguna página nombra un dominio, perfil, vídeo o carpeta del proveedor (HTML del servidor)', !Object.keys(trace).length, JSON.stringify(trace));
+    const t0 = Date.now();
+    const B = await capture('B', half);
+    let all = {};
+    try { all = JSON.parse(fs.readFileSync(path.join(DATA, 'B.json'), 'utf8')).pages || {}; } catch (e) { /* primera mitad */ }
+    Object.assign(all, B);
+    fs.writeFileSync(path.join(DATA, 'B.json'), JSON.stringify({ at: new Date().toISOString(), run: api.ENV.RUN_ID, pages: all }, null, 1));
+    const broken = Object.entries(B).filter(([, v]) => v.status !== 200 || v.errors.length || v.failed.length);
+    check(s, `${P}6`, `B (${half.length} páginas): responden 200 sin errores de JavaScript ni recursos rotos (${Math.round((Date.now() - t0) / 1000)} s, capturas en tres anchos)`, !broken.length, JSON.stringify(broken.map(([k, v]) => ({ k, status: v.status, errors: v.errors, failed: v.failed })).slice(0, 6)));
+    const trace = Object.fromEntries(Object.entries(B).filter(([, v]) => v.vendor.length).map(([k, v]) => [k, v.vendor]));
+    check(s, `${P}7`, 'B: ninguna página nombra un dominio, perfil, vídeo o carpeta del proveedor (HTML del servidor)', !Object.keys(trace).length, JSON.stringify(trace));
     const outsideB = Object.entries(B).filter(([, v]) => v.outside.length);
-    check(s, 'P0.B8', 'B: el navegador no pide nada fuera del sitio', !outsideB.length, JSON.stringify(outsideB.map(([k, v]) => [k, v.outside])).slice(0, 600));
+    check(s, `${P}8`, 'B: el navegador no pide nada fuera del sitio', !outsideB.length, JSON.stringify(outsideB.map(([k, v]) => [k, v.outside])).slice(0, 600));
     if (!A) {
-      pending(s, 'P0.B9', 'A/B: diferencias sólo las declaradas por familia', 'falta $OUT/P0-data/A.json (corre antes P0_PART=a con el mismo OUT)');
+      pending(s, `${P}9`, 'A/B: diferencias sólo las declaradas por familia', 'falta $OUT/P0-data/A.json (corre antes P0_PART=a con el mismo OUT)');
     } else {
-      const diff = compare(A.pages, B, docs);
-      fs.writeFileSync(path.join(DATA, 'diff.json'), JSON.stringify(diff, null, 1));
+      const sub = Object.fromEntries(half.map((k) => [k, docs[k]]));
+      const diff = compare(A.pages, B, sub);
+      let allDiff = {};
+      try { allDiff = JSON.parse(fs.readFileSync(path.join(DATA, 'diff.json'), 'utf8')); } catch (e) { /* */ }
+      Object.assign(allDiff, diff);
+      fs.writeFileSync(path.join(DATA, 'diff.json'), JSON.stringify(allDiff, null, 1));
       const unexplained = Object.entries(diff).filter(([, d]) => d.unexplained.length);
-      s.facts.ab = { pages: keys.length, declared: Object.values(diff).reduce((n, d) => n + d.declared.length, 0), unexplained: unexplained.length };
-      check(s, 'P0.B9', `A/B de las 44 páginas: toda diferencia de texto, enlace o imagen está declarada (${s.facts.ab.declared} declaradas)`, !unexplained.length, JSON.stringify(unexplained.slice(0, 6).map(([k, d]) => [k, d.unexplained.slice(0, 6)])));
+      const declared = Object.values(diff).reduce((n, d) => n + d.declared.length, 0);
+      s.facts[`ab_${token}`] = { pages: half.length, declared, unexplained: unexplained.length };
+      check(s, `${P}9`, `A/B de ${half.length} páginas: toda diferencia de texto, enlace o imagen está declarada (${declared} declaradas)`, !unexplained.length, JSON.stringify(unexplained.slice(0, 6).map(([k, d]) => [k, d.unexplained.slice(0, 6)])));
       const styleDiff = Object.values(diff).reduce((n, d) => n + d.styles, 0);
-      note(s, `A/B: ${styleDiff} textos con estilo computado distinto; los estilos propios de cada widget no se trasladan (ps.loss.styles, informado por documento)`);
+      note(s, `A/B ${token}: ${styleDiff} textos con estilo computado distinto; los estilos propios de cada widget no se trasladan (ps.loss.styles, informado por documento)`);
     }
   }
 

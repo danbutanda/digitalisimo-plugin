@@ -9,7 +9,9 @@
 #                        mitades A y B de los casos del modo normal (cada una con `empty`)
 #   tree-A, tree-B       la copia de f8.sh con COMPARE_FILE de su mitad (en B, COMPARE_STRICT es `empty`)
 #   tree-f8              `empty` y los cuatro casos de F8 (f8-tooltip, f8-badge, f8-nested-counter y f8-marker)
-#   ref-cache, tree-cache   CACHE=1: los casos del modo con caché frente a 4.3.0.169, y los de F8
+#   ref-cache-A, ref-cache-B, tree-cache-A, tree-cache-B   CACHE=1: los casos del modo con caché frente a 4.3.0.169,
+#                        en dos mitades (cada una con `empty`)
+#   tree-cache-f8        CACHE=1: `empty` y los casos de F8
 #   tree-migration       MIGRATION=1: f8-marker con DIGITALÍSIMO Migración activo (el front nunca convierte el marcador)
 set -euo pipefail
 : "${ROOT:?}" "${PORT:?}" "${SRC:?}" "${OUT_F8:?}"
@@ -26,7 +28,7 @@ fi
 grep -q "Version: 4.3.0.169" "$REL_DIR/digitalisimo-elements/pro-elements.php" || { echo "La referencia no es 4.3.0.169"; exit 1; }
 
 # Mitades del modo normal (las de F7b: A hasta all-own; B el resto), cada una con `empty`.
-read -r HALF_A HALF_B CACHE_OLD <<< "$(node -e '
+read -r HALF_A HALF_B CACHE_A CACHE_B <<< "$(node -e '
 const c = require(process.argv[1]);
 const runs = (k, m) => !c[k].pending && (m === "normal" ? (!Array.isArray(c[k].modes) || c[k].modes.includes("normal")) : Array.isArray(c[k].modes) && c[k].modes.includes(m));
 const f8 = (k) => k.startsWith("f8-");
@@ -34,13 +36,14 @@ const normal = Object.keys(c).filter((k) => runs(k, "normal") && !f8(k));
 const cut = normal.indexOf("all-own") + 1;
 const a = normal.slice(0, cut);
 const b = ["empty", ...normal.slice(cut).filter((k) => k !== "empty")];
-const cache = Object.keys(c).filter((k) => runs(k, "cache") && !f8(k));
-console.log([a.join(","), b.join(","), cache.join(",")].join(" "));
+const cache = Object.keys(c).filter((k) => runs(k, "cache") && !f8(k) && k !== "empty");
+const half = Math.ceil(cache.length / 2);
+console.log([a.join(","), b.join(","), ["empty", ...cache.slice(0, half)].join(","), ["empty", ...cache.slice(half)].join(",")].join(" "));
 ' "$ROOT/tests/playground/front-budget/cases.json")"
 F8_CASES="f8-tooltip,f8-badge,f8-nested-counter,f8-marker"
 PARTS="${P5_PARTS:-}"
 if [ -z "$PARTS" ]; then
-  for part in ref-A ref-B tree-A tree-B tree-f8 ref-cache tree-cache tree-migration; do
+  for part in ref-A ref-B tree-A tree-B tree-f8 ref-cache-A ref-cache-B tree-cache-A tree-cache-B tree-cache-f8 tree-migration; do
     [ -s "$DATA/$part/done.json" ] || { PARTS="$part"; break; }
   done
 fi
@@ -57,12 +60,15 @@ run_part() {
     tree-A) env+=(ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="$HALF_A" COMPARE_FILE="$DATA/ref-A/front-budget.json");;
     tree-B) env+=(ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="$HALF_B" COMPARE_FILE="$DATA/ref-B/front-budget.json" COMPARE_STRICT=empty);;
     tree-f8) env+=(ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="empty,$F8_CASES");;
-    ref-cache)  env+=(CACHE=1 EXPECT=0 ELEMENTS_DIR="$REL_DIR/digitalisimo-elements" CASES="$CACHE_OLD");;
-    tree-cache) env+=(CACHE=1 ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="$CACHE_OLD,$F8_CASES" COMPARE_FILE="$DATA/ref-cache/front-budget-cache.json");;
+    ref-cache-A)  env+=(CACHE=1 EXPECT=0 ELEMENTS_DIR="$REL_DIR/digitalisimo-elements" CASES="$CACHE_A");;
+    ref-cache-B)  env+=(CACHE=1 EXPECT=0 ELEMENTS_DIR="$REL_DIR/digitalisimo-elements" CASES="$CACHE_B");;
+    tree-cache-A) env+=(CACHE=1 ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="$CACHE_A" COMPARE_FILE="$DATA/ref-cache-A/front-budget-cache.json" COMPARE_STRICT=empty);;
+    tree-cache-B) env+=(CACHE=1 ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="$CACHE_B" COMPARE_FILE="$DATA/ref-cache-B/front-budget-cache.json" COMPARE_STRICT=empty);;
+    tree-cache-f8) env+=(CACHE=1 ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="empty,$F8_CASES");;
     tree-migration) env+=(MIGRATION=1 ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="empty,f8-marker");;
     *) echo "Parte desconocida: $part"; return 1;;
   esac
-  case "$part" in tree-A|tree-B|tree-cache)
+  case "$part" in tree-A|tree-B|tree-cache-A|tree-cache-B)
     local ref; ref="$(printf '%s\n' "${env[@]}" | sed -n 's/^COMPARE_FILE=//p')"
     [ -s "$ref" ] || { echo "P5 $part: falta la referencia $ref (correr antes su parte ref-)"; return 1; };;
   esac
