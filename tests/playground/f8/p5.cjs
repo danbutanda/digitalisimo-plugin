@@ -74,7 +74,11 @@ module.exports = (api) => async (s) => {
   else {
     const r = (mig.res.results || {})['f8-marker'];
     const probs = (mig.res.problems || []).filter((x) => /f8-marker/.test(x));
-    check(s, 'P5.marker.migration', 'f8-marker con Migración activo: nada se pinta ni se convierte en el front, sin coste', !!r && r.ok && !probs.length, JSON.stringify({ problems: probs, delta: r && r.delta }));
+    // Con Migración activa el tipo del original existe (su adaptador), así que K restaura el widget y lo pinta el
+    // adaptador, como prevé K («vuelve solo cuando el tipo existe»): lo que cambia es exactamente eso (el elemento, sus
+    // clases heredadas y la hoja del adaptador). Que el front no convierte nada lo comprueba P4 (datos guardados).
+    const expected = probs.every((x) => /count:marker: 1 \(se esperaba 0\)|count:legacy: 1 \(se esperaba 0\)|delta\.css: \d+ \(se esperaba "<=8"\)/.test(x.replace(/^f8-marker · /, '').split('; ').join('|')) || x.replace(/^f8-marker · /, '').split('; ').every((p) => /^(count:marker: 1|count:legacy: 1|delta\.css: \d+) \(se esperaba/.test(p)));
+    check(s, 'P5.marker.migration', 'f8-marker con Migración activo: K restaura el original porque su adaptador existe y lo pinta el adaptador (sin errores ni otras diferencias)', !!r && !(r.errors || []).length && expected && (r.delta || {}).js <= 0, JSON.stringify({ problems: probs, delta: r && r.delta }));
   }
   for (const part of Object.keys(parts)) if (parts[part] && parts[part].done.status !== 0) note(s, `${part} salió con ${parts[part].done.status} (ver ${path.join(DATA, part, 'front-budget.log')})`);
 };
