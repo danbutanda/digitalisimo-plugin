@@ -208,6 +208,9 @@ foreach ( $blogs as $blog ) {
 				if ( 'B' === $phase && $entry['registered'] ) {
 					wp_set_current_user( 1 );
 					$original = (string) get_post_meta( $id, '_elementor_data', true );
+					// El guardado del editor reescribe también los ajustes de la página (aquí, vacíos): se conservan
+					// los del caso para las fases C, E y D (extensiones de página de F8).
+					$original_page = get_post_meta( $id, '_elementor_page_settings', true );
 					try {
 						$document = \Elementor\Plugin::$instance->documents->get( $id, false );
 						\Elementor\Plugin::$instance->documents->ajax_save( array( 'editor_post_id' => $id, 'status' => 'publish', 'elements' => $document->get_elements_raw_data(), 'settings' => array() ) );
@@ -222,6 +225,11 @@ foreach ( $blogs as $blog ) {
 						$entry['editor_resave'] = array( 'ok' => false, 'error' => $e->getMessage() );
 					}
 					update_post_meta( $id, '_elementor_data', wp_slash( $original ) );
+					if ( is_array( $original_page ) && $original_page ) {
+						update_post_meta( $id, '_elementor_page_settings', wp_slash( $original_page ) );
+					} else {
+						delete_post_meta( $id, '_elementor_page_settings' );
+					}
 					delete_post_meta( $id, '_elementor_element_cache' );
 					delete_post_meta( $id, '_elementor_css' );
 					// Las páginas se comparan como visitante: formularios de acceso y de bbPress cambian con sesión.

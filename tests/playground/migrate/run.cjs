@@ -10,6 +10,9 @@ const port = process.argv[2];
 const out = process.env.OUT || '/tmp';
 const pages = JSON.parse(fs.readFileSync(`${out}/pages.json`, 'utf8'));
 const blogs = { 1: '', 2: '/sub' };
+// Element Pack de la corrida (ep-lite-pin.sh): por defecto Lite 10.0.1 oficial en bdthemes-element-pack-lite/.
+const EP = JSON.parse(fs.readFileSync(`${out}/ep.json`, 'utf8'));
+const onBlog = (info, blog) => (info.blogs || [1, 2]).map(String).includes(String(blog));
 const results = { checks: [], failures: [] };
 const ok = (cond, message, detail) => {
   (cond ? results.checks : results.failures).push(detail === undefined ? message : `${message}: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
@@ -64,6 +67,7 @@ async function snapshot(context, label) {
   const page = await newPage(context);
   for (const [blog, path] of Object.entries(blogs)) {
     for (const [slug, info] of Object.entries(pages)) {
+      if (!onBlog(info, blog)) continue;
       const url = `${base}${path}/${slug}/`;
       const response = await page.goto(url, { waitUntil: 'networkidle0', timeout: 180000 });
       await page.evaluate(() => document.fonts && document.fonts.ready);
@@ -89,7 +93,7 @@ async function probe(page, blog) {
     const probePage = await newPage(guest);
     for (const blog of Object.keys(blogs)) {
       const state = await probe(probePage, blog);
-      ok(state.ep_loaded && !state.bundled && state.network.includes('elementor/elementor.php') && state.active.includes('bdthemes-element-pack/bdthemes-element-pack.php'), `antes · sitio ${blog}: Element Pack activo y Elementor (plugin ${state.elementor}) en la red`, state);
+      ok(state.ep_loaded && !state.bundled && state.network.includes('elementor/elementor.php') && state.active.includes(EP.plugin), `antes · sitio ${blog}: ${EP.label} ${EP.version} activo y Elementor (plugin ${state.elementor}) en la red`, { active: state.active, network: state.network, ep_loaded: state.ep_loaded, bundled: state.bundled });
     }
     results.elementorPlugin = (await probe(probePage, 1)).elementor;
     await probePage.close();
@@ -112,16 +116,17 @@ async function probe(page, blog) {
     results.seconds = Math.round((Date.now() - started) / 1000);
     const summary = await page.$eval('#digi-migrate .digi-migrate__status', (el) => el.innerText);
     results.networkSummary = summary;
-    ok(/Ya no están activos en ningún sitio/.test(summary) && /Element Pack Pro/.test(summary) && /Elementor/.test(summary), 'el resumen de red dice qué plugins ya pueden borrarse', summary);
+    ok(/Ya no están activos en ningún sitio/.test(summary) && /Element Pack/.test(summary) && /Elementor/.test(summary), 'el resumen de red dice qué plugins ya pueden borrarse', summary);
     ok(!page.errors.length, 'la pantalla de red no tuvo errores de JavaScript', page.errors);
 
     // 3. Estado de cada sitio tras migrar.
     for (const blog of Object.keys(blogs)) {
       const state = await probe(page, blog);
-      ok(!state.ep_loaded && state.bundled && !state.network.includes('elementor/elementor.php') && !state.active.includes('bdthemes-element-pack/bdthemes-element-pack.php') && !state.active.includes('elementor/elementor.php'), `después · sitio ${blog}: sin Element Pack ni Elementor, con el núcleo incluido ${state.elementor}`, { active: state.active, network: state.network, bundled: state.bundled });
+      ok(!state.ep_loaded && state.bundled && !state.network.includes('elementor/elementor.php') && !state.active.includes(EP.plugin) && !state.active.includes('elementor/elementor.php'), `después · sitio ${blog}: sin Element Pack ni Elementor, con el núcleo incluido ${state.elementor}`, { active: state.active, network: state.network, bundled: state.bundled });
       ok(!state.job && !state.lock && state.report && state.report.done, `después · sitio ${blog}: tarea terminada, sin cerrojo, con informe`, { job: state.job, lock: state.lock });
       results[`css-after-migration-${blog}`] = { kit: state.kit, mode: state.mode, css: state.css };
       for (const [slug, info] of Object.entries(pages)) {
+        if (!onBlog(info, blog)) continue;
         const doc = state.pages[slug] || {};
         const widgets = doc.widgets || [];
         const keepAlias = blog === '2' && info.widget === 'digitalisimo-brand-grid';
@@ -135,14 +140,19 @@ async function probe(page, blog) {
       const revisions = Object.entries(state.pages).filter(([key]) => key.startsWith('revision-of-digi-mg-accordion-')).map(([, doc]) => doc);
       ok(revisions.length === 2 && revisions.every((doc) => doc.widgets && !doc.widgets.some((w) => /^bdt-/.test(w)) && doc.backup), `después · sitio ${blog}: las dos revisiones con Element Pack también se convirtieron`, revisions);
       const counts = state.report.counts;
-      ok(counts.deactivated.includes('Element Pack Pro') && counts.converted >= 3 && counts.revisions >= 2 && counts.aliases >= (blog === '2' ? 4 : 5) && !counts.failed.length, `después · sitio ${blog}: el informe cuenta lo hecho, sin documentos fallidos`, counts);
+      // Lo esperado sale del juego de páginas de este sitio: documentos de Element Pack (widgets y extensiones) y alias.
+      const mine = Object.values(pages).filter((info) => onBlog(info, blog));
+      const legacyDocs = mine.filter((info) => /^bdt-/.test(info.widget) || info.ext).length;
+      const aliasDocs = mine.filter((info) => info.alias && !(blog === '2' && info.widget === 'digitalisimo-brand-grid')).length;
+      ok((counts.deactivated || []).some((label) => /^Element Pack/.test(label)) && counts.converted >= legacyDocs && counts.revisions >= 2 && counts.aliases >= aliasDocs && !counts.failed.length, `después · sitio ${blog}: el informe cuenta lo hecho (${legacyDocs} documentos de Element Pack, ${aliasDocs} alias), sin documentos fallidos`, counts);
       ok(!(state.report.warnings || []).length, `después · sitio ${blog}: sin avisos`, state.report.warnings);
     }
 
     // 4. El informe del subsitio explica el alias que se quedó.
     await page.goto(`${base}/sub/wp-admin/tools.php?page=digitalisimo-ep-migration`, { waitUntil: 'networkidle0', timeout: 180000 });
     const report = await page.$eval('#digi-migrate', (el) => el.innerText);
-    ok(/Migración completada/.test(report) && /digitalisimo-brand-grid siguen como alias/.test(report) && /CSS adicional/.test(report), 'el informe del subsitio dice qué alias se quedó y dónde está el CSS', report.slice(0, 1500));
+    if (pages['digi-mg-alias-brand-grid']) ok(/Migración completada/.test(report) && /digitalisimo-brand-grid siguen como alias/.test(report) && /CSS adicional/.test(report), 'el informe del subsitio dice qué alias se quedó y dónde está el CSS', report.slice(0, 1500));
+    else ok(/Migración completada/.test(report), 'el informe del subsitio dice que la migración terminó', report.slice(0, 600));
     const siteButtons = await page.$$eval('#digi-migrate button', (els) => els.map((el) => el.textContent.trim()));
     ok(siteButtons.length === 1 && siteButtons[0] === 'Migrar', 'la herramienta del sitio tiene un solo botón: «Migrar»', siteButtons);
     await admin.close();

@@ -23,50 +23,57 @@ module.exports = (api) => async (s) => {
   const last = res.last && res.last.data;
   check(s, 'P1.2', `«Migrar» termina por el AJAX de la pantalla (${res.steps.length} pasos, ${Math.round((Date.now() - t0) / 1000)} s) sin respuestas de error`, !!(last && last.done) && res.steps.every((x) => x.ok), JSON.stringify(res.steps.filter((x) => !x.ok).slice(0, 3).concat([res.steps[res.steps.length - 1]])));
 
-  // Documento a documento: sin widgets de Pro sueltos; descartes declarados como marcadores.
-  const after = (await control('psdocs')).docs;
+  // Documento a documento (una sola petición): sin widgets de Pro sueltos; descartes declarados como marcadores.
+  const info = (await control('psinfo')).docs;
   const rows = {};
   const loose = [];
   const declaredOk = [];
+  const isDeclared = (k) => docs[k].decision === 'DESCARTAR' || docs[k].widget === 'prime-slider-event-calendar';
   for (const key of keys) {
-    const d = (await control('doc', { key })).doc;
+    const d = info[key];
+    if (!d) { loose.push(`${key}: sin documento`); continue; }
     const ps = Object.keys(d.widgets).filter((w) => /^prime-slider-/.test(w));
     rows[key] = { widgets: d.widgets, markers: d.markers, legacy: d.legacy };
-    const info = docs[key];
-    const declared = info.decision === 'DESCARTAR' || info.widget === 'prime-slider-event-calendar';
-    if (declared) { if (d.markers >= 1) declaredOk.push(key); else loose.push(`${key}: sin marcador`); continue; }
-    if (ps.length && !d.markers) loose.push(`${key}: ${ps.join(',')}`);
+    if (isDeclared(key)) { if (d.markers >= 1) declaredOk.push(key); else loose.push(`${key}: sin marcador`); continue; }
+    if (ps.length) loose.push(`${key}: ${ps.join(',')}`);
     if (d.markers) loose.push(`${key}: marcador inesperado`);
   }
   fs.writeFileSync(path.join(RUN, 'docs-after.json'), JSON.stringify(rows, null, 1));
   check(s, 'P1.3a', 'ningún widget de Pro queda sin convertir (salvo los descartes declarados)', !loose.length, JSON.stringify(loose.slice(0, 10)));
-  const declaredKeys = keys.filter((k) => docs[k].decision === 'DESCARTAR' || docs[k].widget === 'prime-slider-event-calendar');
+  const declaredKeys = keys.filter(isDeclared);
   check(s, 'P1.3b', `los descartes declarados (familia M y event-calendar sin The Events Calendar) quedan como marcadores (${declaredOk.length}/${declaredKeys.length})`, declaredOk.length === declaredKeys.length && declaredKeys.length === 10, JSON.stringify(declaredKeys));
 
-  // Cada página pinta su destino (o el respaldo declarado) sin errores ni rastro del proveedor.
+  // Cada documento pinta su destino (o el respaldo declarado) sin excepciones ni rastro del proveedor: el HTML del
+  // constructor de los 70, en lotes (una petición por lote); después Chrome con un documento de cada destino.
   const bad = [];
   const trace = {};
   const targets = {};
   const html = {};
-  for (const key of keys) {
-    const info = docs[key];
-    const r = await request('GET', m.urls[key]);
-    html[key] = r.text;
-    if (r.status !== 200 || /critical error|Fatal error|Parse error/i.test(r.text)) { bad.push(`${key}: ${r.status}`); continue; }
-    const found = vendorTrace(r.text);
-    if (found.length) trace[key] = found;
-    if (info.decision === 'DESCARTAR' || info.widget === 'prime-slider-event-calendar') continue;
-    const want = info.target === 'container' ? /class="[^"]*\be-con\b/ : new RegExp(`elementor-widget-${info.target}\\b`);
-    const fb = info.fallback ? new RegExp(`elementor-widget-${info.fallback}\\b`) : null;
-    const hit = want.test(r.text) ? info.target : (fb && fb.test(r.text) ? `${info.fallback} (respaldo)` : '');
-    targets[key] = hit;
-    if (!hit) bad.push(`${key}: sin ${info.target}`);
+  for (let i = 0; i < keys.length; i += 15) {
+    const batch = keys.slice(i, i + 15);
+    const out = (await control('psrender', { keys: batch.join(',') })).render;
+    for (const key of batch) {
+      const r = out[key] || { error: 'sin respuesta' };
+      if (r.error) { bad.push(`${key}: ${r.error}`); continue; }
+      html[key] = r.html;
+      const found = vendorTrace(r.html);
+      if (found.length) trace[key] = found;
+      if (isDeclared(key)) { if (r.bytes > 0 && /digitalisimo-unconverted/.test(r.html)) bad.push(`${key}: el marcador pinta algo`); continue; }
+      const t = docs[key];
+      // Familia H: una galería con texto pasa a Logotipos en carrusel (V.19.3 a, Static_Families::plan).
+      if (t.family === 'H' && /elementor-widget-digitalisimo-logos\b/.test(r.html)) { targets[key] = 'digitalisimo-logos (galería con texto)'; continue; }
+      const want = t.target === 'container' ? /class="[^"]*\be-con\b/ : new RegExp(`elementor-widget-${t.target}\\b`);
+      const fb = t.fallback ? new RegExp(`elementor-widget-${t.fallback}\\b`) : null;
+      const hit = want.test(r.html) ? t.target : (fb && fb.test(r.html) ? `${t.fallback} (respaldo)` : '');
+      targets[key] = hit;
+      if (!hit) bad.push(`${key}: sin ${t.target}`);
+    }
   }
   fs.writeFileSync(path.join(RUN, 'targets.json'), JSON.stringify(targets, null, 1));
-  check(s, 'P1.4a', 'cada página convertida responde 200 y pinta su destino del mapa (o su respaldo)', !bad.length, JSON.stringify(bad.slice(0, 12)));
+  check(s, 'P1.4a', 'cada documento convertido pinta su destino del mapa (o su respaldo), sin excepciones', !bad.length, JSON.stringify(bad.slice(0, 12)));
   const fallbacks = Object.entries(targets).filter(([, v]) => /respaldo/.test(v));
   if (fallbacks.length) note(s, `con respaldo: ${fallbacks.map(([k, v]) => `${k} → ${v}`).join(', ')}`);
-  check(s, 'P1.4b', 'ninguna página convertida nombra un dominio, perfil, vídeo o carpeta del proveedor', !Object.keys(trace).length, JSON.stringify(trace));
+  check(s, 'P1.4b', 'ningún documento convertido nombra un dominio, perfil, vídeo o carpeta del proveedor', !Object.keys(trace).length, JSON.stringify(trace));
 
   const st = await control('psdocs');
   check(s, 'P1.5', 'Prime Slider (Lite) desactivado al final (retirada tardía) y nunca borrado', !st.lite.active && st.lite.installed, JSON.stringify(st.lite));
@@ -77,11 +84,11 @@ module.exports = (api) => async (s) => {
   const jsBad = {};
   for (const [tg, key] of Object.entries(sample)) {
     const v = await open(m.urls[key], { before: (pg) => pg.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]) });
-    if (v.facts.errors.length || v.facts.failed.length) jsBad[key] = { errors: v.facts.errors.slice(0, 3), failed: v.facts.failed.slice(0, 3) };
+    if (v.status !== 200 || v.facts.errors.length || v.facts.failed.length) jsBad[key] = { status: v.status, errors: v.facts.errors.slice(0, 3), failed: v.facts.failed.slice(0, 3) };
     await shot(v.page, `p1-${key}`);
     await v.close();
   }
-  check(s, 'P1.6', `un destino de cada tipo (${Object.keys(sample).length}) pinta en Chrome sin errores de JavaScript ni recursos rotos`, !Object.keys(jsBad).length, JSON.stringify({ sample, jsBad }));
+  check(s, 'P1.6', `un destino de cada tipo (${Object.keys(sample).length}) responde 200 y pinta en Chrome sin errores de JavaScript ni recursos rotos`, !Object.keys(jsBad).length, JSON.stringify({ sample, jsBad }));
 
   // Slider anidado: teclado y movimiento reducido.
   const nestedKey = keys.find((k) => targets[k] === 'digitalisimo-nested-slider' && docs[k].case === 'custom' && /<button[^>]*digi-nslider__dot/.test(html[k] || '')) || keys.find((k) => targets[k] === 'digitalisimo-nested-slider');
@@ -111,25 +118,33 @@ module.exports = (api) => async (s) => {
   await sleep(3500);
   const s1 = await state(v.page);
   check(s, 'P1.7a', `movimiento reducido (${nestedKey}): no rota solo y, si tiene reproducción automática, ofrece «Reanudar»`, !!s0 && s0.ready && s1.visible === s0.visible && (s0.pause === null || s0.pause === 'Reanudar') && s0.live === 'polite', JSON.stringify({ s0, s1 }));
-  let kb = null;
-  if (await v.page.$('.digi-nslider__dot')) {
-    await v.page.focus('.digi-nslider__dot');
+  // El primer punto visible (o, sin puntos, «Diapositiva siguiente»).
+  const control0 = await v.page.evaluate(() => {
+    const r = document.querySelector('.digi-nslider');
+    const dot = [...r.querySelectorAll('.digi-nslider__dot')].find((d) => d.offsetParent);
+    if (dot) { dot.setAttribute('data-f8-focus', '1'); return 'dot'; }
+    const next = [...r.querySelectorAll('button')].find((b) => b.offsetParent && /siguiente/i.test(b.getAttribute('aria-label') || ''));
+    if (next) { next.setAttribute('data-f8-focus', '1'); return 'next'; }
+    return '';
+  });
+  if (control0 === 'dot') {
+    await v.page.focus('[data-f8-focus]');
     await v.page.keyboard.press('ArrowRight');
     await settle(v.page);
     const k1 = await state(v.page);
     await v.page.keyboard.press('End');
     await settle(v.page);
     const k2 = await state(v.page);
-    kb = { k1, k2 };
-    check(s, 'P1.7b', 'teclado: flecha derecha y Fin sobre los puntos cambian de diapositiva (aria-current e inert al día)', k1.current !== s0.current && k1.current.indexOf('X') === 1 && k2.current.endsWith('X') && k2.inert === k2.current, JSON.stringify(kb));
-  } else if (await v.page.$('.digi-nslider__next, .digi-nslider [aria-label="Diapositiva siguiente"]')) {
-    await v.page.focus('.digi-nslider [aria-label="Diapositiva siguiente"]');
+    const active = await v.page.evaluate(() => (document.activeElement && document.activeElement.className) || '');
+    check(s, 'P1.7b', 'teclado: flecha derecha y Fin sobre los puntos cambian de diapositiva (aria-current e inert al día)', k1.current.indexOf('X') === 1 && k2.current.endsWith('X') && k2.inert === k2.current, JSON.stringify({ s0, k1, k2, active }));
+  } else if (control0 === 'next') {
+    await v.page.focus('[data-f8-focus]');
     await v.page.keyboard.press('Enter');
     await settle(v.page);
     const k1 = await state(v.page);
     check(s, 'P1.7b', 'teclado: Intro sobre «Diapositiva siguiente» pasa a la segunda', k1.visible.indexOf('X') === 1, JSON.stringify({ s0, k1 }));
   } else {
-    pending(s, 'P1.7b', 'teclado del slider anidado', `${nestedKey} sin puntos ni flechas`);
+    pending(s, 'P1.7b', 'teclado del slider anidado', `${nestedKey} sin puntos ni flechas visibles`);
   }
   check(s, 'P1.7c', 'sin errores de JavaScript en el slider anidado', !v.facts.errors.length, JSON.stringify(v.facts.errors.slice(0, 3)));
   await shot(v.page, `p1-teclado-${nestedKey}`);

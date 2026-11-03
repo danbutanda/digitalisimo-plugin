@@ -32,7 +32,9 @@ register_shutdown_function( static function () { $e = error_get_last(); if ( $e 
 // Con CORE=bundled el plugin Elementor no está instalado: DIGITALÍSIMO Elements trae su núcleo.
 foreach ( array( 'elementor/elementor.php', 'digitalisimo-elements/pro-elements.php', 'digitalisimo-migration/digitalisimo-migration.php', $digi_ab_ep['plugin'] ) as $plugin ) {
 	if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin ) ) {
-		$activated = activate_plugin( $plugin, '', true );
+		// Element Pack Lite redirige a su pantalla y sale en `activated_plugin`: se activa en silencio (no tiene gancho
+		// de activación propio) para que la preparación siga hasta el final.
+		$activated = activate_plugin( $plugin, '', true, $plugin === $digi_ab_ep['plugin'] );
 		if ( is_wp_error( $activated ) ) {
 			file_put_contents( '/wordpress/wp-content/digi-ab/setup-error.txt', $plugin . ': ' . $activated->get_error_message() . "\n", FILE_APPEND );
 		}
@@ -52,7 +54,10 @@ foreach ( get_plugins() as $file => $plugin ) {
 	}
 }
 if ( ! get_site( 2 ) ) {
-	wpmu_create_blog( DOMAIN_CURRENT_SITE, PATH_CURRENT_SITE . 'sub/', 'Subsitio', 1 );
+	$digi_ab_blog = wpmu_create_blog( DOMAIN_CURRENT_SITE, PATH_CURRENT_SITE . 'sub/', 'Subsitio', 1 );
+	if ( is_wp_error( $digi_ab_blog ) || ! get_site( 2 ) ) {
+		file_put_contents( '/wordpress/wp-content/digi-ab/setup-error.txt', 'Subsitio: ' . ( is_wp_error( $digi_ab_blog ) ? $digi_ab_blog->get_error_message() : 'no se creó (' . wp_json_encode( $digi_ab_blog ) . ')' ) . "\n", FILE_APPEND );
+	}
 }
 // Element Pack trae módulos apagados por defecto: se encienden todos para comparar.
 $modules = array();

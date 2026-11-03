@@ -18,7 +18,7 @@ module.exports = (api) => async (s) => {
   };
   const parts = {};
   s.facts.parts = {};
-  for (const part of ['ref-A', 'ref-B', 'tree-A', 'tree-B', 'ref-cache', 'tree-cache', 'tree-migration']) {
+  for (const part of ['ref-A', 'ref-B', 'tree-A', 'tree-B', 'tree-f8', 'ref-cache', 'tree-cache', 'tree-migration']) {
     parts[part] = read(part);
     if (parts[part]) s.facts.parts[part] = { status: parts[part].done.status, seconds: parts[part].done.seconds, measured: parts[part].res ? Object.keys(parts[part].res.results || {}).length : 0, problems: parts[part].res ? (parts[part].res.problems || []).length : null, version: parts[part].res && parts[part].res.elements ? parts[part].res.elements.version : null };
   }
@@ -43,7 +43,7 @@ module.exports = (api) => async (s) => {
   }
   // Casos de F8 en su tope (modo normal y caché).
   const f8 = ['f8-tooltip', 'f8-badge', 'f8-nested-counter', 'f8-marker'];
-  for (const [part, label] of [['tree-B', 'normal'], ['tree-cache', 'cache']]) {
+  for (const [part, label] of [['tree-f8', 'normal'], ['tree-cache', 'cache']]) {
     const p = parts[part];
     if (!p || !p.res) { missing(part, `P5.f8.${label}`, `casos de F8 en su tope (${label})`); continue; }
     for (const slug of f8) {
@@ -55,7 +55,7 @@ module.exports = (api) => async (s) => {
       check(s, `P5.${slug}.${label}`, `${slug} (${label}): mide, cumple su «expect» (topes de §5, CLS 0, sin errores)`, !!r && r.ok && !probs.length, JSON.stringify({ problems: probs.slice(0, 3), facts }));
     }
   }
-  const base = parts['tree-B'] && parts['tree-B'].res;
+  const base = parts['tree-f8'] && parts['tree-f8'].res;
   if (base) {
     const r = base.results || {};
     const empty = r.empty;

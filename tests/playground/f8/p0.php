@@ -124,6 +124,7 @@ function digi_f8_ps_posts( array $mode ) {
 			$product->set_category_ids( array( (int) $pcat['term_id'] ) );
 			$product->set_image_id( digi_f8_ps_image( 'producto-' . ( $i + 1 ) . '.jpg', $colors[ $i ] )['id'] );
 			$product->set_date_created( time() - $i * HOUR_IN_SECONDS );
+			$product->set_featured( 0 === $i );
 			digi_f8_set_id( 'digi-f8-producto-' . ( $i + 1 ), $product->save() );
 		}
 	}
@@ -143,8 +144,21 @@ function digi_f8_ps_vendor() {
 			}
 		}
 	}
+	// El vídeo de demostración es el que trae el propio Prime Slider (el primero de vendors.json que aparece en el
+	// código de Lite montado), no otro del constructor que vendors.json también lista.
 	$videos = (array) ( $v['vendorVideos'] ?? array() );
-	return array( $vendor, (string) end( $videos ) );
+	$source = '';
+	foreach ( (array) glob( WP_PLUGIN_DIR . '/bdthemes-prime-slider-lite/modules/*/widgets/*.php' ) as $file ) {
+		$source .= (string) file_get_contents( $file ); // phpcs:ignore
+	}
+	$video = (string) end( $videos );
+	foreach ( $videos as $id ) {
+		if ( '' !== $id && false !== strpos( $source, (string) $id ) ) {
+			$video = (string) $id;
+			break;
+		}
+	}
+	return array( $vendor, $video );
 }
 
 /** Expande los marcadores de un fixture para este sitio (ver la cabecera). */
@@ -241,6 +255,41 @@ function digi_f8_ps_ops() {
 				'terms'     => get_option( 'digi_f8_ps_terms', array() ),
 				'registered' => class_exists( '\\Elementor\\Plugin' ) ? array_values( array_filter( array_keys( \Elementor\Plugin::$instance->widgets_manager->get_widget_types() ), static function ( $t ) { return 0 === strpos( $t, 'prime-slider-' ); } ) ) : array(),
 			);
+		},
+		// Resumen de todos los documentos del manifiesto en una sola petición (cada petición cuesta segundos).
+		'psinfo'  => static function ( $arg ) {
+			$ids = digi_f8_ids();
+			$out = array();
+			foreach ( array_keys( (array) get_option( 'digi_f8_ps_docs', array() ) ) as $key ) {
+				$out[ $key ] = isset( $ids[ $key ] ) ? digi_f8_doc_info( (int) $ids[ $key ], '1' === $arg( 'full' ) ) : null;
+			}
+			return array( 'docs' => $out );
+		},
+		// HTML del constructor de varios documentos, pintado en esta petición como en el front (visitante, sin caché).
+		'psrender' => static function ( $arg ) {
+			$ids = digi_f8_ids();
+			$out = array();
+			wp_set_current_user( 0 );
+			foreach ( array_filter( explode( ',', $arg( 'keys' ) ) ) as $key ) {
+				$id = (int) ( $ids[ $key ] ?? 0 );
+				if ( ! $id || ! class_exists( '\\Elementor\\Plugin' ) ) {
+					$out[ $key ] = array( 'error' => 'sin documento' );
+					continue;
+				}
+				$GLOBALS['wp_query']     = new WP_Query( array( 'page_id' => $id ) );
+				$GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
+				$GLOBALS['post']         = get_post( $id );
+				setup_postdata( $GLOBALS['post'] );
+				delete_post_meta( $id, '_elementor_element_cache' );
+				try {
+					$html        = (string) \Elementor\Plugin::$instance->frontend->get_builder_content( $id, false );
+					$out[ $key ] = array( 'html' => $html, 'bytes' => strlen( $html ) );
+				} catch ( \Throwable $e ) {
+					$out[ $key ] = array( 'error' => get_class( $e ) . ': ' . $e->getMessage() );
+				}
+				wp_reset_postdata();
+			}
+			return array( 'render' => $out );
 		},
 		// Imágenes de demostración copiadas a Medios (meta de Demo_Media) y adjuntos SVG.
 		'psmedia' => static function ( $arg ) {

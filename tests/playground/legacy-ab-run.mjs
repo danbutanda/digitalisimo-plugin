@@ -93,6 +93,30 @@ async function styles(id, side) {
     }
   }
   await ctx.close();
+  // Fase A: sólo cuenta lo que el caso cambia frente al caso `defaults` del mismo widget en Element Pack (lo que el
+  // mapa debe trasladar). El estilo por defecto de cada widget es propio de su diseño y no se compara: el caso
+  // `defaults` queda vacío y, sin él, el widget no tiene línea base (`styles_full` guarda la medida completa).
+  if (side === 'legacy') {
+    for (const [widget, cases] of Object.entries(data.widgets || {})) {
+      for (const [name, blogs] of Object.entries(cases)) {
+        for (const [blog, entry] of Object.entries(blogs)) {
+          if (!entry.signature || !entry.signature.styles) continue;
+          const base = cases.defaults && cases.defaults[blog] && cases.defaults[blog].signature && (cases.defaults[blog].styles_full || cases.defaults[blog].signature.styles);
+          entry.styles_full = entry.styles_full || entry.signature.styles;
+          if (name === 'defaults' || !base) { entry.signature.styles = {}; continue; }
+          const delta = {};
+          for (const [part, values] of Object.entries(entry.styles_full)) {
+            // Una parte que el caso `defaults` no pinta no tiene línea base: no se compara (queda como «sin la parte»).
+            const ref = base[part];
+            if (!values || !ref) { delta[part] = null; continue; }
+            const changed = Object.fromEntries(Object.entries(values).filter(([prop, value]) => ref[prop] !== value));
+            if (Object.keys(changed).length) delta[part] = changed;
+          }
+          entry.signature.styles = delta;
+        }
+      }
+    }
+  }
   writeFileSync(file, JSON.stringify(data, null, 1));
   run.steps.push({ step: `estilos ${id} (${side})`, ok: !errors.length, pages: measured, ms: Date.now() - t0, errors: errors.slice(0, 5) });
   log(`estilos ${id}: ${measured} páginas en ${Math.round((Date.now() - t0) / 1000)} s${errors.length ? ` · errores de JavaScript: ${errors.slice(0, 2).join(' | ')}` : ''}`);

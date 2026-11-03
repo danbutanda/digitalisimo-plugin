@@ -7,8 +7,8 @@
 # una llamada de 10 min; la corrida completa no: se parte en tandas con APPEND=1 de f8.sh.
 #   ref-A, ref-B         4.3.0.169 publicado (ZIP de la Release, sha256 comprobada por f8.sh/P8 o aquí) sin `expect`,
 #                        mitades A y B de los casos del modo normal (cada una con `empty`)
-#   tree-A, tree-B       la copia de f8.sh con COMPARE_FILE de su mitad; B suma los cuatro casos de F8 (f8-tooltip,
-#                        f8-badge, f8-nested-counter y f8-marker) y su COMPARE_STRICT es `empty`
+#   tree-A, tree-B       la copia de f8.sh con COMPARE_FILE de su mitad (en B, COMPARE_STRICT es `empty`)
+#   tree-f8              `empty` y los cuatro casos de F8 (f8-tooltip, f8-badge, f8-nested-counter y f8-marker)
 #   ref-cache, tree-cache   CACHE=1: los casos del modo con caché frente a 4.3.0.169, y los de F8
 #   tree-migration       MIGRATION=1: f8-marker con DIGITALÍSIMO Migración activo (el front nunca convierte el marcador)
 set -euo pipefail
@@ -40,7 +40,7 @@ console.log([a.join(","), b.join(","), cache.join(",")].join(" "));
 F8_CASES="f8-tooltip,f8-badge,f8-nested-counter,f8-marker"
 PARTS="${P5_PARTS:-}"
 if [ -z "$PARTS" ]; then
-  for part in ref-A ref-B tree-A tree-B ref-cache tree-cache tree-migration; do
+  for part in ref-A ref-B tree-A tree-B tree-f8 ref-cache tree-cache tree-migration; do
     [ -s "$DATA/$part/done.json" ] || { PARTS="$part"; break; }
   done
 fi
@@ -55,7 +55,8 @@ run_part() {
     ref-A)  env+=(EXPECT=0 ELEMENTS_DIR="$REL_DIR/digitalisimo-elements" CASES="$HALF_A");;
     ref-B)  env+=(EXPECT=0 ELEMENTS_DIR="$REL_DIR/digitalisimo-elements" CASES="$HALF_B");;
     tree-A) env+=(ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="$HALF_A" COMPARE_FILE="$DATA/ref-A/front-budget.json");;
-    tree-B) env+=(ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="$HALF_B,$F8_CASES" COMPARE_FILE="$DATA/ref-B/front-budget.json" COMPARE_STRICT=empty);;
+    tree-B) env+=(ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="$HALF_B" COMPARE_FILE="$DATA/ref-B/front-budget.json" COMPARE_STRICT=empty);;
+    tree-f8) env+=(ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="empty,$F8_CASES");;
     ref-cache)  env+=(CACHE=1 EXPECT=0 ELEMENTS_DIR="$REL_DIR/digitalisimo-elements" CASES="$CACHE_OLD");;
     tree-cache) env+=(CACHE=1 ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="$CACHE_OLD,$F8_CASES" COMPARE_FILE="$DATA/ref-cache/front-budget-cache.json");;
     tree-migration) env+=(MIGRATION=1 ELEMENTS_DIR="$SRC/digitalisimo-elements" CASES="empty,f8-marker");;
