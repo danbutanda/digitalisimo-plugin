@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-post-block` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -23,7 +24,6 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .featured-part .elementor-posts-container-img-wrapper img' => 'height: {{SIZE}}px',
 			'{{WRAPPER}} .featured-part .elementor-post__thumbnail img' => 'height: {{SIZE}}px',
 		),
 	), array(
@@ -35,51 +35,6 @@ return array( array(
 			'{{WRAPPER}} .skin-genesis .list-part ul li > div' => 'padding-top: {{SIZE}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'featured_image_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .featured-part .elementor-posts-container-img-wrapper img',
-	), array(
-		'name' => 'featured_image_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .featured-part .elementor-posts-container-img-wrapper img' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'featured_image_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .featured-part .elementor-posts-container-img-wrapper img',
-	), array(
-		'name' => 'opacity',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .featured-part .elementor-posts-container-img-wrapper img' => 'opacity: {{SIZE}};',
-		),
-	), array(
-		'name' => 'css_filters',
-		'group' => 'css-filter',
-		'selector' => '{{WRAPPER}} .featured-part .elementor-posts-container-img-wrapper img',
-	), array(
-		'name' => 'opacity_hover',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .featured-part .elementor-posts-container-img-wrapper:hover img' => 'opacity: {{SIZE}};',
-		),
-	), array(
-		'name' => 'css_filters_hover',
-		'group' => 'css-filter',
-		'selector' => '{{WRAPPER}} .featured-part .elementor-posts-container-img-wrapper:hover img',
-	), array(
-		'name' => 'background_hover_transition',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .featured-part .elementor-posts-container-img-wrapper img' => 'transition-duration: {{SIZE}}s',
-		),
 	), array(
 		'name' => 'featured_title_color',
 		'type' => 'color',
@@ -94,48 +49,6 @@ return array( array(
 		'name' => 'featured_title_typography',
 		'group' => 'typography',
 		'selector' => '{{WRAPPER}} .featured-part .elementor-post__title a',
-	), array(
-		'name' => 'tag_background_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container-tag-wrap span' => 'background-color: {{VALUE}};',
-		),
-		'condition' => array(
-			'featured_show_tag' => 'yes',
-			'_skin' => 'trinity',
-		),
-	), array(
-		'name' => 'tag_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container-tag-wrap span a' => 'color: {{VALUE}};',
-		),
-		'default' => '#fff',
-		'condition' => array(
-			'featured_show_tag' => 'yes',
-			'_skin' => 'trinity',
-		),
-	), array(
-		'name' => 'tag_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .elementor-posts-container-tag-wrap span',
-	), array(
-		'name' => 'tag_border_radius',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container-tag-wrap span' => 'border-radius: {{SIZE}}{{UNIT}}',
-		),
-		'condition' => array(
-			'featured_show_tag' => 'yes',
-			'_skin' => 'trinity',
-		),
-	), array(
-		'name' => 'tag_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .elementor-posts-container-tag-wrap span',
 	), array(
 		'name' => 'featured_date_color',
 		'type' => 'color',
@@ -198,17 +111,6 @@ return array( array(
 			'{{WRAPPER}} .list-part .elementor-post__thumbnail img' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'list_layout_title_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .list-part .elementor-post__title .elementor-posts-container-link' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'list_layout_title_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .list-part .elementor-post__title .elementor-posts-container-link',
 	), array(
 		'name' => 'list_layout_date_color',
 		'type' => 'color',

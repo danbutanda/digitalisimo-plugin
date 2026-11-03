@@ -1,0 +1,10 @@
+{
+  "_": "Conjunto de iconos propio sintético (dos glifos inventados) con el formato que guarda el origen en la meta bdt_custom_icon_set_config.",
+  "config": {"name":"glifos","label":"glifos","prefix":"gl-","displayPrefix":"gl-","type":"icomoon","icons":["estrella","nube"],"count":2,"ver":"1730000000","fetchJson":"selection.json","native":false},
+  "icofont": {"name":"duo-prueba","label":"duo","prefix":"icofont-","displayPrefix":"icofont-","type":"icofont","icons":["tono","plano"],"count":2,"ver":"1","native":false,"duotone_icons":["tono"]},
+  "document": [{"id":"a1","elType":"container","settings":{},"elements":[
+    {"id":"b1","elType":"widget","widgetType":"icon","settings":{"selected_icon":{"value":"gl gl-estrella","library":"bdt-custom-glifos-ID"}},"elements":[]},
+    {"id":"b2","elType":"widget","widgetType":"icon-list","settings":{"icon_list":[{"_id":"r1","text":"Uno","selected_icon":{"value":"gl gl-nube","library":"bdt-custom-glifos-ID"}},{"_id":"r2","text":"Dos","selected_icon":{"value":"fas fa-star","library":"fa-solid"}}]},"elements":[]},
+    {"id":"b3","elType":"widget","widgetType":"icon","settings":{"selected_icon":{"value":"x x-y","library":"bdt-custom-borrado-999"}},"elements":[]}
+  ]}]
+}

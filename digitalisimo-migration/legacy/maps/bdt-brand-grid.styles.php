@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-brand-grid` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -111,55 +112,12 @@ return array( array(
 			'{{WRAPPER}} .digi-brand-grid__summary' => 'color: {{VALUE}};',
 		),
 	), array(
-		'name' => 'icon_background',
-		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-brand-grid__list-checkbox, {{WRAPPER}} .digi-brand-grid__list-content',
-	), array(
-		'name' => 'icon_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-brand-grid__list-checkbox, {{WRAPPER}} .digi-brand-grid__list-content',
-	), array(
-		'name' => 'iamge_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-brand-grid__list-checkbox, {{WRAPPER}} .digi-brand-grid__list-content' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'iamge_radius',
-		'type' => 'dimensions',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-brand-grid__list-checkbox, {{WRAPPER}} .digi-brand-grid__list-content' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'iamge_margin',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-brand-grid__list-checkbox, {{WRAPPER}} .digi-brand-grid__list-content' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'icon_size',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-brand-grid__list-checkbox, {{WRAPPER}} .digi-brand-grid__list-content' => 'height: {{SIZE}}{{UNIT}}; width: {{SIZE}}{{UNIT}};',
-		),
-	), array(
 		'name' => 'icon_font_size',
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-brand-grid__summary' => 'font-size: {{SIZE}}{{UNIT}};',
 		),
-	), array(
-		'name' => 'img_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-brand-grid__list-checkbox, {{WRAPPER}} .digi-brand-grid__list-content',
 	), array(
 		'name' => 'name_color',
 		'type' => 'color',

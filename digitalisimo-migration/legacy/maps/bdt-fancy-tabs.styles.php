@@ -1,22 +1,12 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-fancy-tabs` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
 return array( array(
-		'name' => 'tabs_content_height',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs-height-fixed .digi-fancy-tabs__panel' => 'max-height: {{SIZE}}{{UNIT}};',
-			'{{WRAPPER}} .digi-fancy-tabs-height-fixed' => 'height: {{SIZE}}{{UNIT}};',
-		),
-		'condition' => array(
-			'tabs_content_height_show' => 'yes',
-		),
-	), array(
 		'name' => 'tabs_content_align',
 		'type' => 'choose',
 		'responsive' => true,
@@ -358,42 +348,6 @@ return array( array(
 		'name' => 'title_text_stroke',
 		'group' => 'text-stroke',
 		'selector' => '{{WRAPPER}} .digi-fancy-tabs__label',
-	), array(
-		'name' => 'sub_title_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs-sub-title' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'sub_title_spacing',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs-sub-title' => 'margin-bottom: {{SIZE}}{{UNIT}}',
-		),
-	), array(
-		'name' => 'sub_title_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-fancy-tabs-sub-title',
-	), array(
-		'name' => 'description_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs-text' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'description_spacing',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs-text' => 'padding-bottom: {{SIZE}}{{UNIT}}',
-		),
-	), array(
-		'name' => 'description_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-fancy-tabs-text',
 	), array(
 		'name' => 'button_text_color',
 		'type' => 'color',

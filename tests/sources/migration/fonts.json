@@ -1,0 +1,14 @@
+{
+  "_": "Fuentes propias sintéticas con el formato de la meta ep_font_files (variantes con woff, woff2, ttf, otf, svg, eot = '' o {id,url}). Los ID de adjunto los asigna la prueba.",
+  "fonts": [
+    {"title": "Letra Prueba", "files": [
+      {"font_weight": "400", "font_style": "normal", "woff": {"id": "ATT_WOFF", "url": "https://otro.example/x.woff"}, "woff2": {"id": "ATT_WOFF2", "url": ""}, "ttf": "", "otf": "", "svg": "", "eot": ""},
+      {"font_weight": "700", "font_style": "italic", "woff": "", "woff2": "", "ttf": "", "otf": {"id": "ATT_OTF", "url": ""}, "svg": "", "eot": ""},
+      {"font_weight": "950", "font_style": "slanted", "woff": {"id": "999999", "url": "https://s1.test/perdido.woff"}, "woff2": "", "ttf": "", "otf": "", "svg": "", "eot": ""}
+    ]},
+    {"title": "Ya Existe", "files": [{"font_weight": "400", "font_style": "normal", "woff": {"id": "ATT_WOFF", "url": ""}, "woff2": "", "ttf": "", "otf": "", "svg": "", "eot": ""}]},
+    {"title": "Mala'; } body { display:none", "files": [{"font_weight": "400", "font_style": "normal", "woff": {"id": "ATT_WOFF", "url": ""}, "woff2": "", "ttf": "", "otf": "", "svg": "", "eot": ""}]},
+    {"title": "Vacía", "files": [{"font_weight": "400", "font_style": "normal", "woff": "", "woff2": "", "ttf": "", "otf": "", "svg": "", "eot": ""}]},
+    {"title": "<img src=x onerror=alert(1)>", "files": [{"font_weight": "400", "font_style": "normal", "woff": {"id": "ATT_WOFF", "url": ""}, "woff2": "", "ttf": "", "otf": "", "svg": "", "eot": ""}]}
+  ]
+}

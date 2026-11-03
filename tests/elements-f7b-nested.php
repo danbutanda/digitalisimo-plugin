@@ -148,6 +148,17 @@ namespace {
 		return $value;
 	}
 	function hooked( $hook ) { $n = 0; foreach ( $GLOBALS['wp_filters'][ $hook ] ?? array() as $entries ) { $n += count( $entries ); } return $n; }
+	/** Cuerpo de un método, con sus llaves emparejadas. */
+	function budget_body( $source, $name ) {
+		$start = strpos( $source, 'function ' . $name . '(' );
+		if ( false === $start ) { return ''; }
+		$open  = strpos( $source, '{', $start );
+		$depth = 0;
+		for ( $i = $open, $n = strlen( $source ); $i < $n; $i++ ) {
+			if ( '{' === $source[ $i ] ) { $depth++; } elseif ( '}' === $source[ $i ] && 0 === --$depth ) { return substr( $source, $open, $i - $open + 1 ); }
+		}
+		return '';
+	}
 	function __( $text, $domain = 'default' ) { $GLOBALS['domains'][ $domain ] = true; return $text; }
 	function esc_attr( $text ) { return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8', false ); }
 	function esc_html( $text ) { return esc_attr( $text ); }
@@ -182,10 +193,11 @@ namespace {
 	$M::init();
 	check_nested( array() === \Digitalisimo\Elements\F7b\Module::$calls && ! array_intersect( array( 'Elementor\Modules\NestedElements\Base\Widget_Nested_Base', 'Elementor\Modules\NestedElements\Controls\Control_Nested_Repeater', 'Elementor\Widget_Base' ), $autoloaded ), 'El arranque no carga clases del núcleo ni pasa la guarda (todavía no puede responder).' );
 	check_nested( 1 === \Digitalisimo\Elements\F7b\Nested\Presentation::$inits, 'La presentación del frente G arranca una sola vez desde aquí.' );
-	foreach ( array( 'elementor/frontend/after_register_styles', 'elementor/frontend/after_register_scripts', 'elementor/widgets/register', 'elementor/editor/after_enqueue_scripts' ) as $hook ) {
+	$module_hooks = array( 'elementor/frontend/after_register_styles', 'elementor/frontend/after_register_scripts', 'elementor/widgets/register', 'elementor/editor/after_enqueue_scripts', 'elementor/preview/enqueue_styles', 'elementor/preview/enqueue_scripts' );
+	foreach ( $module_hooks as $hook ) {
 		check_nested( 1 === hooked( $hook ), 'Un solo enganche en ' . $hook . '.' );
 	}
-	check_nested( array( 'elementor/frontend/after_register_styles', 'elementor/frontend/after_register_scripts', 'elementor/widgets/register', 'elementor/editor/after_enqueue_scripts' ) === array_keys( $GLOBALS['wp_filters'] ), 'Nada más: ni wp_enqueue_scripts, ni el contenido, ni el render de otros elementos (coste cero donde no se usa).' );
+	check_nested( $module_hooks === array_keys( $GLOBALS['wp_filters'] ), 'Nada más: ni wp_enqueue_scripts, ni el contenido, ni el render de otros elementos (coste cero donde no se usa); la vista previa del editor encola el contador (F8, V.10.4).' );
 	check_nested( isset( $GLOBALS['wp_filters']['elementor/widgets/register'][20] ), 'Registra los widgets a prioridad 20, como Widget_Registry y Woo\Registry.' );
 
 	// Formato del registro, el de Widget_Registry::WIDGETS (lo leen front-budget y kit-inventory con la misma expresión).
@@ -204,8 +216,16 @@ namespace {
 	$script = $GLOBALS['scripts']['digitalisimo-nested-slider'] ?? null;
 	check_nested( $style && str_ends_with( $style['src'], 'modules/digitalisimo-f7b/assets/css/nested-slider.css' ) && array() === $style['deps'], 'La hoja se registra con su ruta y sin dependencias.' );
 	check_nested( $script && str_ends_with( $script['src'], 'modules/digitalisimo-f7b/assets/js/nested-slider.js' ) && array() === $script['deps'] && 'defer' === ( $script['args']['strategy'] ?? '' ) && true === ( $script['args']['in_footer'] ?? false ), 'El script se registra en el pie, con defer y sin dependencias (ni jQuery ni el frontend del núcleo).' );
-	check_nested( array() === $GLOBALS['enqueued'], 'Registrar no encola nada: lo encola el núcleo donde se pinta el widget.' );
-	check_nested( ! preg_match( '/wp_enqueue_style\(/', $module_src ) && 1 === preg_match_all( '/wp_enqueue_script\(/', $module_src ), 'El módulo sólo encola el script del editor.' );
+	$counter_style  = $GLOBALS['styles']['digitalisimo-nested-slider-counter'] ?? null;
+	$counter_script = $GLOBALS['scripts']['digitalisimo-nested-slider-counter'] ?? null;
+	check_nested( $counter_style && str_ends_with( $counter_style['src'], 'modules/digitalisimo-f7b/assets/css/nested-slider-counter.css' ) && array() === $counter_style['deps'], 'F8: la hoja del contador se registra con su ruta y sin dependencias.' );
+	check_nested( $counter_script && str_ends_with( $counter_script['src'], 'modules/digitalisimo-f7b/assets/js/nested-slider-counter.js' ) && array() === $counter_script['deps'] && 'defer' === ( $counter_script['args']['strategy'] ?? '' ) && true === ( $counter_script['args']['in_footer'] ?? false ), 'F8: el script del contador se registra en el pie, con defer y sin dependencias.' );
+	check_nested( array() === $GLOBALS['enqueued'], 'Registrar no encola nada: lo encola el núcleo donde se pinta el widget (y el contador, por la declaración assets de su control).' );
+	check_nested( 1 === preg_match_all( '/wp_enqueue_style\(/', $module_src ) && 2 === preg_match_all( '/wp_enqueue_script\(/', $module_src ) && str_contains( budget_body( $module_src, 'preview_counter_style' ), 'wp_enqueue_style( self::COUNTER_HANDLE )' ) && str_contains( budget_body( $module_src, 'preview_counter_script' ), 'wp_enqueue_script( self::COUNTER_HANDLE )' ), 'El módulo sólo encola el script del editor y, en la vista previa, el contador.' );
+	foreach ( array( 'css' => 256, 'js' => 512 ) as $ext => $cap ) {
+		$size = filesize( $root . '/modules/digitalisimo-f7b/assets/' . $ext . '/nested-slider-counter.' . $ext );
+		check_nested( $size > 0 && $size <= $cap, "nested-slider-counter.$ext pesa $size B (tope $cap B, §5)." );
+	}
 
 	// 2. Guarda en elementor/widgets/register y en el editor: experimento, base de anidados y repetidor.
 	\Elementor\Plugin::$instance              = new \stdClass();
@@ -213,7 +233,9 @@ namespace {
 	$manager = new \Elementor\Widgets_Manager_Double();
 	check_nested( array() === $M::widgets( $manager ) && array() === $manager->types && array() === \Digitalisimo\Elements\F7b\Module::$calls, 'Sin el experimento de anidados no se registra el widget (ni se anota como símbolo que falta).' );
 	$M::editor_script();
-	check_nested( array() === $GLOBALS['enqueued'], 'Sin el experimento no se encola el script del editor.' );
+	$M::preview_counter_style();
+	$M::preview_counter_script();
+	check_nested( array() === $GLOBALS['enqueued'], 'Sin el experimento no se encola el script del editor ni el contador en la vista previa.' );
 	\Elementor\Plugin::$instance->experiments->active['nested-elements'] = true;
 	$M::reset();
 	check_nested( array() === $M::widgets( $manager ) && array( array( 'nested', array( 'Elementor\Modules\NestedElements\Base\Widget_Nested_Base', 'Elementor\Modules\NestedElements\Controls\Control_Nested_Repeater' ) ) ) === \Digitalisimo\Elements\F7b\Module::$calls, 'Con el experimento pero sin la base de anidados: F7b\Module::requires() anota lo que falta y no se registra nada.' );
@@ -230,6 +252,10 @@ namespace {
 	$M::editor_script();
 	$editor = $GLOBALS['scripts']['digitalisimo-nested-slider-editor'] ?? null;
 	check_nested( array( 'script:digitalisimo-nested-slider-editor' ) === $GLOBALS['enqueued'] && array( 'nested-elements' ) === $editor['deps'] && str_ends_with( $editor['src'], 'modules/digitalisimo-f7b/assets/js/nested-slider-editor.js' ), 'En el editor, el script detrás de nested-elements (el que define NestedElementBase).' );
+	$GLOBALS['enqueued'] = array();
+	$M::preview_counter_style();
+	$M::preview_counter_script();
+	check_nested( array( 'style:digitalisimo-nested-slider-counter', 'script:digitalisimo-nested-slider-counter' ) === $GLOBALS['enqueued'], 'En la vista previa del editor (donde el núcleo no aplica los recursos de página) se encolan la hoja y el script del contador.' );
 	$inline = $GLOBALS['inline']['digitalisimo-nested-slider-editor'][0] ?? array( '', '' );
 	check_nested( 'before' === $inline[1] && 'window.digitalisimoNestedSlider={"slide":"diapositiva","of":"%1$s de %2$s"};' === $inline[0], 'El editor recibe los textos de las diapositivas, los mismos del servidor.' );
 
@@ -271,6 +297,18 @@ namespace {
 		}
 	}
 	check_nested( $styled >= 6, 'Hay controles de estilo (' . $styled . ').' );
+
+	// F8 (F8-D14, §3.E.3 y V.10.4): el contador, opcional, detrás de la navegación y sin nada que cambie el HTML o el CSS.
+	$keys    = array_keys( $controls );
+	$counter = $controls['counter'] ?? array();
+	check_nested( array_search( 'counter', $keys, true ) === array_search( 'navigation', $keys, true ) + 1 && 'content' === ( $counter['tab'] ?? '' ), 'F8: «Contador» va en «Ajustes», justo detrás de la navegación.' );
+	check_nested( 'switcher' === ( $counter['type'] ?? '' ) && 'yes' === ( $counter['return_value'] ?? '' ) && 'Contador (2 / 5)' === ( $counter['label'] ?? '' ), 'F8: el contador es un interruptor «Contador (2 / 5)» con return_value yes.' );
+	check_nested( ! array_key_exists( 'default', $counter ) && empty( $counter['selectors'] ) && empty( $counter['condition'] ) && empty( $counter['prefix_class'] ), 'F8: sin default, selectors ni prefix_class: un slider existente no cambia.' );
+	check_nested( false === ( $counter['style_transfer'] ?? null ), 'F8: el contador no es de estilo (style_transfer => false).' );
+	$want_terms = array( 'terms' => array( array( 'name' => 'counter', 'operator' => '!==', 'value' => '' ) ) );
+	check_nested( array( 'styles', 'scripts' ) === array_keys( $counter['assets'] ?? array() ) && array( array( 'name' => 'digitalisimo-nested-slider-counter', 'conditions' => $want_terms ) ) === $counter['assets']['styles'] && $counter['assets']['styles'] === $counter['assets']['scripts'], 'F8: declara en assets la hoja y el script digitalisimo-nested-slider-counter, sólo con counter activo.' );
+	check_nested( $class::COUNTER === $M::COUNTER_HANDLE && 'digitalisimo-nested-slider-counter' === $M::COUNTER_HANDLE, 'F8: el widget y el módulo usan el mismo handle (contrato C12).' );
+	check_nested( str_contains( (string) ( $counter['description'] ?? '' ), 'N de M' ), 'F8: la descripción explica por qué los lectores de pantalla no lo repiten.' );
 
 	// 4. Marcado del servidor.
 	function slides( $n, $nested = false ) {
@@ -370,6 +408,26 @@ namespace {
 		}
 	}
 	check_nested( $computed['one'] === hash( 'sha256', slider_html( $class, $baseline_cases['one'][0] + array( 'counter' => 'yes' ), slides( 1 ) ) ), 'Con una sola diapositiva, el contador activo no pinta nada.' );
+	check_nested( $computed['none'] === hash( 'sha256', slider_html( $class, array( 'counter' => 'yes' ), array() ) ), 'Sin hijos, el contador activo no pinta nada.' );
+	foreach ( array( array( 'yes' ), 1, true, '<script>' ) as $forged_counter ) {
+		check_nested( $computed['w1slide'] === hash( 'sha256', slider_html( $class, $baseline_cases['w1slide'][0] + array( 'counter' => $forged_counter ), slides( 3 ), 'w1slide' ) ), 'Un counter forjado (' . gettype( $forged_counter ) . ') no pinta nada.' );
+	}
+	$normalized = $class::normalize( array( 'counter' => 'yes' ), 3 );
+	check_nested( true === $normalized['counter'] && false === $class::normalize( array( 'counter' => 'yes' ), 1 )['counter'] && false === $class::normalize( array(), 3 )['counter'], 'normalize() devuelve counter sólo con varias diapositivas y counter = yes.' );
+	check_nested( array( 'effect', 'arrows', 'dots', 'sides', 'loop', 'autoplay', 'delay', 'hover', 'label', 'counter' ) === array_keys( $normalized ), 'normalize() conserva sus claves y sólo añade counter al final.' );
+
+	// 4c. Con el contador (F8, §3.E.3): tras la caja de puntos, oculto hasta el script, fuera del árbol de accesibilidad.
+	$count_tag = '<p class="digi-nslider__count" aria-hidden="true" hidden><span data-digi-count>1</span> / 3</p>';
+	$with      = slider_html( $class, array( 'counter' => 'yes' ), slides( 3 ) );
+	check_nested( 1 === substr_count( $with, 'digi-nslider__count' ) && str_contains( $with, '</button></div>' . $count_tag . '<button type="button" class="digi-nslider__btn digi-nslider__next"' ), 'Con el contador: <p aria-hidden hidden> con «1 / 3», justo después de los puntos y antes de «siguiente».' );
+	check_nested( str_replace( $count_tag, '', $with ) === slider_html( $class, array(), slides( 3 ) ), 'Quitando el contador queda exactamente el HTML de 4.3.0.169: no cambia nada más.' );
+	$with_arrows = slider_html( $class, array( 'counter' => 'yes', 'navigation' => 'arrows', 'arrows_position' => 'sides' ), slides( 3 ) );
+	check_nested( str_contains( $with_arrows, 'data-digi-dot="Ir a la diapositiva %d" hidden>' ) && str_contains( $with_arrows, '</button></div>' . $count_tag . '<button type="button" class="digi-nslider__btn digi-nslider__next"' ), 'Sólo flechas a los lados: el contador sigue a los puntos ocultos (la hoja lo sube a su fila).' );
+	$with_dots = slider_html( $class, array( 'counter' => 'yes', 'navigation' => 'dots' ), slides( 3 ) );
+	check_nested( str_contains( $with_dots, '</div>' . $count_tag . '<div class="digi-nslider__track"' ), 'Sólo puntos: el contador va entre los puntos y la pista.' );
+	$with_auto = slider_html( $class, array( 'counter' => 'yes', 'autoplay' => 'yes' ), slides( 2 ) );
+	check_nested( str_contains( $with_auto, '<p class="digi-nslider__count" aria-hidden="true" hidden><span data-digi-count>1</span> / 2</p>' ) && str_contains( $with_auto, 'aria-live="off"' ), 'Con dos diapositivas y reproducción automática: «1 / 2» (la región viva no lo anuncia: es aria-hidden).' );
+	check_nested( ! preg_match( '/digi-nslider__count[^>]*(aria-live|role=|tabindex)/', $with . $with_arrows . $with_dots ), 'El contador no es región viva, ni tiene rol, ni se enfoca: cada diapositiva ya se anuncia como «N de M».' );
 
 	// 5. Plantilla del editor y punto nuevo del repetidor.
 	$template = $widget->template();
@@ -379,6 +437,8 @@ namespace {
 		check_nested( str_contains( $template, $token ), 'La plantilla lleva ' . $token . '.' );
 	}
 	check_nested( substr_count( $template, '<#' ) === substr_count( $template, '#>' ), 'Bloques <# #> equilibrados en la plantilla.' );
+	check_nested( str_contains( $template, "digiCounter = digiMulti && 'yes' === settings.counter," ), 'F8: la plantilla aplica la misma regla del contador (varias diapositivas y counter = yes).' );
+	check_nested( 1 === preg_match( '/<\/div>\s*<# if \( digiCounter \) \{ #><p class="digi-nslider__count" aria-hidden="true" hidden><span data-digi-count>\{\{ digiStart \}\}<\/span> \/ \{\{ digiCount \}\}<\/p><# \} #>\s*<# if \( digiArrows \) \{ #><button type="button" class="digi-nslider__btn digi-nslider__next"/', $template ), 'F8: la plantilla pinta el contador en el mismo sitio que el servidor, con la diapositiva que se edita.' );
 	$single = $widget->single_template();
 	check_nested( 1 === preg_match( '/<button type="button" class="digi-nslider__dot" aria-controls="\{\{ digiTrack \}\}" aria-label="Ir a la diapositiva \{\{ digiN \}\}"><\/button>/', $single ) && str_contains( $single, 'view.collection.length + 1' ), 'El punto nuevo del repetidor: un botón con su número.' );
 
@@ -388,28 +448,49 @@ namespace {
 	check_nested( count( $domains[1] ) >= 30 && array( 'pro-elements' ) === array_values( array_unique( $domains[1] ) ), 'Todos los textos con el dominio pro-elements.' );
 	check_nested( ! preg_match( '/swiper|bricks|elementor\.com|https?:\/\//i', $widget_src . file_get_contents( $root . '/modules/digitalisimo-f7b/assets/js/nested-slider.js' ) . file_get_contents( $root . '/modules/digitalisimo-f7b/assets/css/nested-slider.css' ) ), 'Sin nombres de librerías de terceros ni URL en el widget, la hoja y el script.' );
 	check_nested( ! preg_match( "/__\(\s*'(Slides?|Carousel|Next|Previous|Pause|Play|Go to)\\b/", $widget_src ), 'Textos visibles en español.' );
+	$counter_assets = file_get_contents( $root . '/modules/digitalisimo-f7b/assets/js/nested-slider-counter.js' ) . file_get_contents( $root . '/modules/digitalisimo-f7b/assets/css/nested-slider-counter.css' );
+	check_nested( ! preg_match( '/jQuery|https?:\/\/|url\(/i', $counter_assets ), 'F8: el contador, sin jQuery, URL ni url().' );
+	check_nested( ! preg_match( '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i', $widget_src . $module_src . $counter_assets ), 'F8: el widget, el módulo y el contador pasan la guarda de menciones del paquete (scripts/build-packages.sh).' );
 
-	// 7. Fixture del navegador: tres sliders con el HTML de render() y la plantilla del editor.
+	// 7. Fixture del navegador: tres sliders, cuatro con contador (F8) con el HTML de render() y la plantilla del editor.
 	$cases = array(
 		'w1slide' => array( 'settings' => array( 'loop' => '', 'carousel_label' => 'Novedades' ), 'title' => 'slide, flechas y puntos, sin bucle' ),
 		'w2fade'  => array( 'settings' => array( 'effect' => 'fade', 'autoplay' => 'yes', 'autoplay_delay' => 2000, 'carousel_label' => 'Destacados' ), 'title' => 'fade con reproducción automática' ),
 		'w3scale' => array( 'settings' => array( 'effect' => 'scale', 'navigation' => 'arrows', 'arrows_position' => 'sides', 'carousel_label' => 'Opiniones' ), 'title' => 'scale, sólo flechas a los lados, con bucle' ),
 	);
+	// F8 (V.10.4): los sliders con contador van después del enlace final, para no cambiar el orden del foco de los tres
+	// primeros; el script del contador se carga antes que el del slider (debe funcionar en cualquier orden).
+	$counter_cases = array(
+		'w4both'   => array( 'settings' => array( 'counter' => 'yes', 'carousel_label' => 'Contador con flechas y puntos' ), 'title' => 'contador: flechas y puntos debajo' ),
+		'w5arrows' => array( 'settings' => array( 'counter' => 'yes', 'navigation' => 'arrows', 'carousel_label' => 'Contador con flechas' ), 'title' => 'contador: sólo flechas debajo' ),
+		'w6sides'  => array( 'settings' => array( 'counter' => 'yes', 'navigation' => 'arrows', 'arrows_position' => 'sides', 'loop' => '', 'carousel_label' => 'Contador con flechas a los lados' ), 'title' => 'contador: sólo flechas a los lados, sin bucle' ),
+		'w7auto'   => array( 'settings' => array( 'counter' => 'yes', 'arrows_position' => 'sides', 'effect' => 'fade', 'autoplay' => 'yes', 'autoplay_delay' => 2000, 'carousel_label' => 'Contador automático' ), 'title' => 'contador: flechas a los lados y puntos, fade automático' ),
+	);
+	$block = static function ( $id, $case ) use ( $class ) {
+		$section = slider_html( $class, $case['settings'], slides( 3 ), $id );
+		return "<!-- {$case['title']} -->\n<div class=\"elementor-element elementor-element-{$id} elementor-widget elementor-widget-digitalisimo-nested-slider\" data-id=\"{$id}\" data-element_type=\"widget\" data-widget_type=\"digitalisimo-nested-slider.default\">\n<!-- digi:server:{$id} -->" . $section . "<!-- /digi:server -->\n</div>\n";
+	};
 	$blocks = '';
 	foreach ( $cases as $id => $case ) {
-		$section = slider_html( $class, $case['settings'], slides( 3 ), $id );
-		$blocks .= "<!-- {$case['title']} -->\n<div class=\"elementor-element elementor-element-{$id} elementor-widget elementor-widget-digitalisimo-nested-slider\" data-id=\"{$id}\" data-element_type=\"widget\" data-widget_type=\"digitalisimo-nested-slider.default\">\n<!-- digi:server:{$id} -->" . $section . "<!-- /digi:server -->\n</div>\n";
+		$blocks .= $block( $id, $case );
+	}
+	$counter_blocks = '';
+	foreach ( $counter_cases as $id => $case ) {
+		$counter_blocks .= $block( $id, $case );
 	}
 	$expected_template = "<script type=\"text/template\" id=\"tmpl-digi-nslider\">\n" . trim( $template ) . "\n</script>";
 	$page = "<!doctype html>\n<html lang=\"es\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Slider anidado ligero</title>\n"
 		. "<!-- Generado por tests/elements-f7b-nested.php --write-fixture: no editar a mano. Lo usan elements-f7b-nested-slider.mjs y elements-f7b-nested-slider-chrome.mjs. -->\n"
 		. "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/elementor/assets/css/frontend.min.css\">\n"
 		. "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-f7b/assets/css/nested-slider.css\">\n"
+		. "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-f7b/assets/css/nested-slider-counter.css\">\n"
 		. "<style>body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#1a1a1a;background:#fff}.e-con{--display:flex;--flex-direction:column;--padding-top:16px;--padding-bottom:16px;--padding-left:16px;--padding-right:16px;flex-direction:var(--flex-direction)}.elementor-widget-digitalisimo-nested-slider{margin:24px 16px}.digi-test-grid{--display:grid}.digi-after{padding:16px}</style>\n</head>\n<body>\n"
 		. "<div class=\"elementor elementor-1\" data-elementor-type=\"wp-page\" data-elementor-id=\"1\">\n" . $blocks . "</div>\n"
 		. "<p class=\"digi-after\"><a href=\"#fin\" id=\"fin\">Enlace después de los sliders</a></p>\n"
+		. "<div class=\"elementor elementor-2 digi-test-counter\" data-elementor-type=\"wp-page\" data-elementor-id=\"2\">\n" . $counter_blocks . "</div>\n"
 		. "<div class=\"digi-test-hidden\"><div class=\"elementor-element e-con e-flex\" hidden>Contenedor flex oculto</div><div class=\"elementor-element e-con e-grid digi-test-grid\" hidden>Contenedor grid oculto</div><div class=\"elementor-column\" hidden>Columna oculta</div></div>\n"
 		. $expected_template . "\n"
+		. "<script src=\"../../digitalisimo-elements/modules/digitalisimo-f7b/assets/js/nested-slider-counter.js\" defer></script>\n"
 		. "<script src=\"../../digitalisimo-elements/modules/digitalisimo-f7b/assets/js/nested-slider.js\" defer></script>\n</body>\n</html>\n";
 	if ( in_array( '--write-fixture', $argv ?? array(), true ) ) {
 		file_put_contents( $fixture, $page );

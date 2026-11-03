@@ -3,41 +3,41 @@ namespace Digitalisimo\Elements\Legacy;
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/class-context.php';
+require_once __DIR__ . '/class-report.php';
+
 /**
  * «Migrar» en un clic: la migración completa de un sitio como una tarea por etapas, reanudable y con cerrojo. Avanza
  * en peticiones AJAX mientras la pantalla está abierta y, si se cierra, con el WP-Cron del sitio;
  * `wp digitalisimo-migration --run` la ejecuta entera. Etapas, en orden:
  *
- *  1. prepare    — qué plugins sustituidos están instalados y dónde están activos; fija el corte de la reparación de
- *                  reglas para que las copias que crea esta migración nunca cuenten como dañadas.
- *  2. deactivate — desactiva en este sitio Element Pack, Elementor Pro, PRO Elements y Elementor (éste sólo si el
- *                  núcleo incluido puede sustituirlo). Si desactivó algo, la petición termina ahí, y cualquier proceso
- *                  que hubiera arrancado antes (con esos plugins cargados) se pausa sin trabajar.
- *  3. recover    — páginas sobrescritas por conversiones antiguas (Migración ≤ 1.0.13), revisión a revisión.
- *  4. repair     — reglas de visibilidad perdidas por conversiones antiguas (Migración ≤ 1.0.10), una sola vez.
- *  5. convert    — documentos con contenido de Element Pack, al formato propio, con copia del original. Las
- *                  extensiones heredadas sin equivalente que la conversión retira se leen después de esa copia
- *                  (Dropped); antes de convertir sólo se anota lo que una copia anterior no recoge.
- *  6. revisions  — revisiones y autoguardados con contenido de Element Pack, cada uno en su propio registro: restaurar
- *                  una revisión ya no devuelve widgets que dejaron de existir. Se dejan las que delatan una página
- *                  sobrescrita que no pudo recuperarse, para que siga listada hasta que alguien la revise.
- *  7. references — qué alias de widgets fusionados no pueden convertirse porque otro CSS del sitio nombra sus clases.
- *  8. aliases    — los demás alias, del alias oculto al widget que lo absorbió (Aliases).
- *  9. finish     — cachés de Elementor vaciadas e informe, que lista también, como información, cada extensión
- *                  heredada sin equivalente por documento y los plugins de la familia que la migración todavía no
- *                  desactiva (Element Pack Addon, Prime Slider) con los widgets de Prime Slider que quedan.
+ *  1. prepare          — qué plugins sustituidos están instalados y dónde están activos; quién lanzó la tarea; fija el
+ *                        corte de la reparación de reglas.
+ *  2. platform_prepare — con Element Pack aún cargado, los pasos de plataforma (PREPARE_STEPS) crean borradores
+ *                        (plantillas, fragmentos) y registran fuentes e iconos. Nada visible cambia.
+ *  3. deactivate       — desactiva los grupos de plugins (Element Pack, Elementor Pro/PRO Elements, Elementor), cada
+ *                        uno en una escritura. El grupo de Element Pack sólo cae si sus plantillas tienen copia
+ *                        publicable (V.5.3), y sólo entonces se permite publicarlas (Publisher). En una red con
+ *                        Element Pack activado en toda la red, el sitio espera aquí a la barrera (`wait_network`).
+ *  4. platform_convert — las copias del registro `tb`, primero.
+ *  5. recover, repair  — páginas sobrescritas y reglas perdidas por versiones antiguas.
+ *  6. convert          — documentos con contenido de Element Pack o Prime Slider, y ajustes de página, con copia.
+ *  7. revisions        — revisiones y autoguardados, cada uno en su registro.
+ *  8. markers          — marcadores de K con Element Pack o Prime Slider dentro (Markers).
+ *  9. platform         — pasos de plataforma tras convertir (PLATFORM_STEPS).
+ * 10. references, aliases — widgets fusionados.
+ * 11. retire_late      — Prime Slider, sólo sin widgets suyos por convertir.
+ * 12. report           — el informe de lo convertido en pasadas anteriores, por trozos.
+ * 13. finish           — cachés e informe.
  *
- * Cada documento y cada etapa sin documentos se anotan antes de empezar con su número de intento: si una petición
- * muere en ellos dos veces, se saltan y se listan. El cerrojo es atómico, propio de cada petición y se renueva con cada
- * documento. La continuación queda programada antes de trabajar. Lo que no puede migrarse solo (widgets sin
- * equivalente, CSS que nombra clases de un alias) se lista con su lugar. La tarea nunca borra plugins.
+ * Protocolo (V.3.1): una etapa sin documentos suma un intento al entrar y se salta tras dos entradas sin progreso; si
+ * avanzó (cursor guardado) o espera con motivo, pone `stage_attempts = 0`. El salto es seguro: nunca desactiva Element
+ * Pack ni da por convertido lo que no se convirtió. Una espera pone `pause` y no suma `pauses`.
  *
- * Sólo toca el sitio en curso. En una red, cada petición carga los plugins del sitio que la atiende, así que la
- * migración de red (network_start) no convierte otros sitios desde la petición de red: desactiva lo activado en toda
- * la red (y antes, en cada sitio, Elementor Pro y PRO Elements, sin los que DIGITALÍSIMO Elements no carga los widgets
- * de los adaptadores), encola la tarea de cada sitio con la autorización de quien la lanzó, y la pantalla de red
- * conduce cada sitio con peticiones a la administración de ese sitio; un sitio que el navegador no alcanza (dominio
- * propio) la completa con su WP-Cron o al abrir su herramienta.
+ * Sólo toca el sitio en curso. En una red, cada petición carga los plugins del sitio que la atiende: la petición de red
+ * desactiva al inicio lo retirable activado en toda la red (salvo Element Pack, que cae en la liberación de la barrera,
+ * y Prime Slider, al final), encola la tarea de cada sitio con la autorización de quien la lanzó, libera la barrera y
+ * lee. Cada sitio se convierte en sus propias peticiones.
  */
 final class Runner {
 	const JOB         = 'digitalisimo_migration_job';
@@ -46,19 +46,40 @@ final class Runner {
 	const CRON        = 'digitalisimo_migration_continue';
 	const NETWORK_JOB = 'digitalisimo_migration_network_job';
 	const AJAX        = 'digitalisimo_migration_step';
-	const STAGES      = array( 'prepare', 'deactivate', 'recover', 'repair', 'convert', 'revisions', 'references', 'aliases', 'finish' );
-	/** Etapas que recorren documentos con loop(): sus intentos se cuentan por documento. */
-	const LOOP_STAGES = array( 'recover', 'convert', 'revisions', 'aliases' );
+	/** Evento de WP-Cron del sitio principal que libera la barrera y cierra la red sin pantalla (V.6). */
+	const NETWORK_TICK = 'digitalisimo_migration_network_tick';
+	/** Cerrojo de la red: en `options` del sitio principal, con INSERT IGNORE y token; se roba a los 300 s. */
+	const NETWORK_LOCK  = 'digitalisimo_migration_network_lock';
+	const NETWORK_STALE = 300;
+	/** Listas de IDs por etapa, en trozos sin carga automática (V.3.5). */
+	const IDS        = 'digitalisimo_migration_ids_';
+	const IDS_CHUNK  = 5000;
+	/** DIGITALÍSIMO Elements mínimo (V.3.3). */
+	const ELEMENTS_MIN = '4.3.0.170';
+	const STAGES      = array( 'prepare', 'platform_prepare', 'deactivate', 'platform_convert', 'recover', 'repair', 'convert', 'revisions', 'markers', 'platform', 'references', 'aliases', 'retire_late', 'report', 'finish' );
+	/** Etapas que recorren documentos (o avanzan con cursor): sus intentos se cuentan por documento. */
+	const LOOP_STAGES = array( 'platform_convert', 'recover', 'convert', 'revisions', 'markers', 'aliases', 'retire_late', 'report' );
+	/** Pasos de plataforma (clases de `Legacy\Platform`, V.14 C5): con Element Pack cargado y tras convertir el contenido. */
+	const PREPARE_STEPS  = array( 'Theme_Builder', 'Fonts', 'Icons', 'Snippets', 'Sidebar' );
+	const PLATFORM_STEPS = array( 'Theme_Builder', 'Mega_Menu', 'Kit', 'Snippets', 'Swatches', 'Inventory' );
+	/** Lo que se revierte tras los pasos de plataforma y antes de los documentos (V.8). */
+	const REVERT_EXTRA = array( 'Prime_Slider\\Loop_Item', 'Prime_Slider\\Demo_Media' );
 	const LABELS      = array(
-		'prepare'    => 'Revisando el sitio',
-		'deactivate' => 'Desactivando los plugins sustituidos',
-		'recover'    => 'Recuperando páginas sobrescritas',
-		'repair'     => 'Recuperando reglas de visibilidad',
-		'convert'    => 'Convirtiendo el contenido de Element Pack',
-		'revisions'  => 'Convirtiendo revisiones y autoguardados',
-		'references' => 'Buscando CSS que nombre widgets fusionados',
-		'aliases'    => 'Actualizando widgets fusionados',
-		'finish'     => 'Vaciando cachés y preparando el informe',
+		'prepare'          => 'Revisando el sitio',
+		'platform_prepare' => 'Preparando plantillas, fuentes e iconos',
+		'deactivate'       => 'Desactivando los plugins sustituidos',
+		'platform_convert' => 'Convirtiendo las plantillas copiadas',
+		'recover'          => 'Recuperando páginas sobrescritas',
+		'repair'           => 'Recuperando reglas de visibilidad',
+		'convert'          => 'Convirtiendo el contenido de Element Pack y Prime Slider',
+		'revisions'        => 'Convirtiendo revisiones y autoguardados',
+		'markers'          => 'Convirtiendo el contenido conservado de kits importados',
+		'platform'         => 'Terminando plantillas, menús, kit y código',
+		'references'       => 'Buscando CSS que nombre widgets fusionados',
+		'aliases'          => 'Actualizando widgets fusionados',
+		'retire_late'      => 'Retirando Prime Slider',
+		'report'           => 'Preparando el informe',
+		'finish'           => 'Vaciando cachés y preparando el informe',
 	);
 	/** Segundos de trabajo por petición (filtro digitalisimo_migration_step_seconds). */
 	const BUDGET = 20;
@@ -70,13 +91,18 @@ final class Runner {
 	/** Espera del WP-Cron que continúa una tarea abandonada, y documentos por consulta en la etapa de alias. */
 	const CRON_DELAY = 120;
 	const BATCH      = 200;
+	/** Tope del cursor de un paso de plataforma (V.14 C5). */
+	const CURSOR_MAX = 4096;
 
 	/** @var string token del cerrojo de esta petición, por sitio. */
 	private static $tokens = array();
+	/** @var string token del cerrojo de red de esta petición. */
+	private static $network_token = '';
 
 	public static function init() {
 		add_action( 'wp_ajax_' . self::AJAX, array( __CLASS__, 'ajax' ) );
 		add_action( self::CRON, array( __CLASS__, 'cron' ) );
+		add_action( self::NETWORK_TICK, array( __CLASS__, 'network_tick' ) );
 		add_filter( 'allowed_http_origins', array( __CLASS__, 'allowed_origins' ) );
 	}
 
@@ -85,10 +111,13 @@ final class Runner {
 		require_once __DIR__ . '/class-migration.php';
 		require_once __DIR__ . '/class-retire.php';
 		require_once __DIR__ . '/class-aliases.php';
+		if ( is_readable( __DIR__ . '/class-markers.php' ) ) {
+			require_once __DIR__ . '/class-markers.php';
+		}
 		self::dropped();
 	}
 
-	/** Lo que la migración aún no convierte (extensiones sin equivalente, Prime Slider): sólo cuando hace falta. */
+	/** Lo que la migración aún no convierte (extensiones sin equivalente): sólo cuando hace falta. */
 	private static function dropped() {
 		require_once __DIR__ . '/class-dropped.php';
 	}
@@ -110,9 +139,24 @@ final class Runner {
 		return array_values( array_unique( (array) $origins ) );
 	}
 
+	/**
+	 * Motivo por el que no puede migrarse con esta versión de DIGITALÍSIMO Elements (V.3.3), o null. Sin la constante
+	 * (las pruebas) no se comprueba.
+	 */
+	public static function requirements(): ?string {
+		if ( ! defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ) {
+			return null;
+		}
+		$version = (string) constant( 'DIGITALISIMO_ELEMENTS_VERSION' );
+		if ( version_compare( $version, self::ELEMENTS_MIN, '<' ) ) {
+			return sprintf( 'Migrar necesita DIGITALÍSIMO Elements %1$s o posterior (este sitio tiene %2$s): actualízalo y vuelve a pulsar Migrar.', self::ELEMENTS_MIN, $version );
+		}
+		return null;
+	}
+
 	/* ------------------------------------------------------------------ Entradas */
 
-	/** Un paso desde la pantalla: la tarea del sitio, o con `network` el arranque y el resumen de la red. */
+	/** Un paso desde la pantalla: la tarea del sitio, o con `network` el arranque, la barrera y el resumen de la red. */
 	public static function ajax() {
 		$network = ! empty( $_POST['network'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- el nonce se comprueba a continuación según el ámbito.
 		if ( $network ) {
@@ -127,28 +171,59 @@ final class Runner {
 			check_ajax_referer( self::AJAX . '_' . get_current_blog_id() );
 		}
 		self::load();
+		$start = ! empty( $_POST['start'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verificado arriba.
+		// Con un DIGITALÍSIMO Elements anterior, el botón no arranca nada ni toca el informe guardado.
+		$reason = $start ? self::requirements() : null;
+		if ( null !== $reason ) {
+			wp_send_json_error( $reason, 409 );
+		}
 		if ( $network ) {
-			$job = ! empty( $_POST['start'] ) ? self::network_start() : self::network_summary();
-			wp_send_json_success( array(
-				'done'  => ! empty( $job['done'] ),
-				'idle'  => ! empty( $job['idle'] ),
-				'sites' => self::network_pending_sites( $job ),
-				'html'  => self::render_network( $job ),
-			) );
+			if ( $start ) {
+				$job = self::network_start();
+			} else {
+				self::network_release();
+				$job = self::network_summary();
+			}
+			wp_send_json_success( self::network_response( $job ) );
 		}
 		// El clic genera un identificador: si se perdió la respuesta de una pasada que sí terminó, el reintento no lanza otra.
 		$run   = isset( $_POST['run'] ) ? sanitize_key( wp_unslash( $_POST['run'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verificado arriba.
-		$state = self::site_step( ! empty( $_POST['start'] ), null, null, $run );
+		$state = self::site_step( $start, null, null, $run );
+		wp_send_json_success( self::site_response( $state ) );
+	}
+
+	/** Respuesta del paso de un sitio para la pantalla (también la de red, que conduce cada sitio). */
+	public static function site_response( array $state ) {
 		// Sin tarea en marcha (otra pestaña, el cron o la red la terminaron), se muestra el informe guardado.
 		$html = empty( $state['stage'] ) || ! empty( $state['idle'] ) ? self::render( self::report() ) : self::render( $state );
-		wp_send_json_success( array(
-			'done'  => ! empty( $state['done'] ) || ( empty( $state['stage'] ) && ! empty( $state['idle'] ) && self::report() ),
-			'idle'  => ! empty( $state['idle'] ),
-			'busy'  => ! empty( $state['busy'] ),
-			'pause' => ! empty( $state['pause'] ),
-			'stage' => (string) ( $state['stage'] ?? '' ),
-			'html'  => $html,
-		) );
+		return array(
+			'done'         => ! empty( $state['done'] ) || ( empty( $state['stage'] ) && ! empty( $state['idle'] ) && self::report() ),
+			'idle'         => ! empty( $state['idle'] ),
+			'busy'         => ! empty( $state['busy'] ),
+			'pause'        => ! empty( $state['pause'] ),
+			'wait_network' => ! empty( $state['wait_network'] ) && empty( $state['done'] ),
+			'stage'        => (string) ( $state['stage'] ?? '' ),
+			'html'         => $html,
+		);
+	}
+
+	/** Respuesta del paso de red: sitios que conducir (no los que esperan a la barrera) y estado de la barrera. */
+	public static function network_response( $job ) {
+		$job     = is_array( $job ) ? $job : array();
+		$waiting = 0;
+		foreach ( (array) ( $job['status'] ?? array() ) as $row ) {
+			$waiting += ! empty( $row['waiting'] ) ? 1 : 0;
+		}
+		return array(
+			'done'     => ! empty( $job['done'] ),
+			'idle'     => ! empty( $job['idle'] ),
+			'error'    => (string) ( $job['error'] ?? '' ),
+			'barrier'  => ! empty( $job['barrier'] ),
+			'released' => ! empty( $job['released'] ),
+			'waiting'  => $waiting,
+			'sites'    => self::network_pending_sites( $job ),
+			'html'     => isset( $job['error'] ) ? '<div class="notice notice-error inline"><p>' . esc_html( (string) $job['error'] ) . '</p></div>' : self::render_network( $job ),
+		);
 	}
 
 	/** Continuación en segundo plano de la tarea del sitio en curso, con el mismo límite de tiempo que una petición. */
@@ -189,11 +264,15 @@ final class Runner {
 			}
 			return array( 'busy' => true ) + (array) $state;
 		}
+		Report::begin( 'run' );
 		try {
 			self::raise_memory();
 			$state = self::state();
 			$last  = self::report();
 			if ( $start && ( ! $state || ! empty( $state['done'] ) ) && ( '' === (string) $run || (string) $run !== (string) ( $last['run'] ?? '' ) ) ) {
+				if ( null !== self::requirements() ) {
+					return array( 'idle' => true, 'error' => self::requirements() );
+				}
 				$state        = self::fresh( $capable );
 				$state['run'] = (string) $run;
 				self::save( $state );
@@ -203,13 +282,29 @@ final class Runner {
 			}
 			// La continuación se programa antes de trabajar: si esta petición muere, el WP-Cron la retoma.
 			self::schedule();
+			// Una tarea en curso con un DIGITALÍSIMO Elements anterior se pausa (nunca se cierra) hasta actualizarlo.
+			$reason = self::requirements();
+			if ( null !== $reason ) {
+				$state['pause']        = true;
+				$state['elements_old'] = $reason;
+				Report::site( 'core.elements_old' );
+				self::save( $state );
+				return $state;
+			}
+			unset( $state['elements_old'] );
 			// Un proceso que arrancó antes de que la tarea desactivara plugins aún los tiene cargados: no trabaja.
 			if ( ! empty( $state['deactivated_at'] ) && self::request_started() < (float) $state['deactivated_at'] ) {
 				$state['pause'] = true;
 				return $state;
 			}
+			// La primera petición posterior a cada desactivación empieza sin pausas acumuladas (V.3.2).
+			if ( ! empty( $state['deactivated_at'] ) && (string) ( $state['pauses_reset_at'] ?? '' ) !== (string) $state['deactivated_at'] ) {
+				$state['pauses']          = 0;
+				$state['pauses_reset_at'] = (string) $state['deactivated_at'];
+			}
 			$state = self::advance( $state, $budget );
 		} finally {
+			Report::flush();
 			self::unlock();
 		}
 		if ( ! empty( $state['done'] ) && function_exists( 'wp_clear_scheduled_hook' ) ) {
@@ -228,33 +323,38 @@ final class Runner {
 	}
 
 	/** Tarea nueva. $capable: si puede desactivar plugins (por defecto, si quien la lanza puede). */
-	public static function fresh( $capable = null, $network = 0 ) {
+	public static function fresh( $capable = null, $network = 0, $user = null ) {
 		return array(
-			'version'        => defined( 'DIGITALISIMO_MIGRATION_VERSION' ) ? DIGITALISIMO_MIGRATION_VERSION : '',
-			'started'        => time(),
-			'updated'        => time(),
-			'network'        => (int) $network,
-			'stage'          => 'prepare',
-			'done'           => false,
-			'pause'          => false,
-			'pauses'         => 0,
-			'deactivated_at' => 0,
-			'cursor'         => 0,
-			'processed'      => 0,
-			'total'          => 0,
-			'current'        => 0,
-			'attempts'       => 0,
-			'stage_attempts' => 0,
-			'capable'        => null === $capable ? ( function_exists( 'current_user_can' ) && current_user_can( 'activate_plugins' ) ) : (bool) $capable,
-			'counts'         => array( 'deactivated' => array(), 'recovered' => 0, 'repaired' => 0, 'converted' => 0, 'elements' => 0, 'revisions' => 0, 'aliases' => 0, 'alias_elements' => 0, 'failed' => array() ),
-			'warnings'       => array(),
-			'review'         => array(),
-			'keep_revisions' => array(),
-			'plugins'        => array(),
-			'blocked'        => array(),
+			'version'         => defined( 'DIGITALISIMO_MIGRATION_VERSION' ) ? DIGITALISIMO_MIGRATION_VERSION : '',
+			'started'         => time(),
+			'updated'         => time(),
+			'network'         => (int) $network,
+			'stage'           => 'prepare',
+			'done'            => false,
+			'pause'           => false,
+			'pauses'          => 0,
+			'deactivated_at'  => 0,
+			'cursor'          => 0,
+			'processed'       => 0,
+			'total'           => 0,
+			'current'         => 0,
+			'attempts'        => 0,
+			'stage_attempts'  => 0,
+			'capable'         => null === $capable ? ( function_exists( 'current_user_can' ) && current_user_can( 'activate_plugins' ) ) : (bool) $capable,
+			// Quien pulsó (o quien lanzó la red): Snippets lo revalida al publicar CSS (V.7). 0 en WP-CLI sin --user.
+			'user'            => null === $user ? ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) : (int) $user,
+			'counts'          => array( 'deactivated' => array(), 'recovered' => 0, 'repaired' => 0, 'converted' => 0, 'elements' => 0, 'revisions' => 0, 'aliases' => 0, 'alias_elements' => 0, 'pages' => 0, 'copies' => 0, 'markers' => 0, 'failed' => array() ),
+			'warnings'        => array(),
+			'review'          => array(),
+			'keep_revisions'  => array(),
+			'plugins'         => array(),
+			'blocked'         => array(),
 			// Extensiones heredadas sin equivalente que la conversión retira y la copia original no recoge (Dropped::uncovered()).
-			'dropped'        => array( 'docs' => array(), 'omitted' => 0 ),
-			'report'         => array(),
+			'dropped'         => array( 'docs' => array(), 'omitted' => 0 ),
+			'report'          => array(),
+			// Pasos de plataforma: cursores por clase y los ya terminados.
+			'platform'        => array(),
+			'platform_done'   => array(),
 		);
 	}
 
@@ -272,25 +372,66 @@ final class Runner {
 		$state['pause'] = false;
 		while ( empty( $state['done'] ) && empty( $state['pause'] ) && microtime( true ) < $deadline ) {
 			$stage = in_array( $state['stage'] ?? '', self::STAGES, true ) ? $state['stage'] : 'prepare';
+			// Una tarea de Migración ≤ 1.0.20 que ya pasó `deactivate` prepara y convierte sus copias antes de seguir (V.3.4).
+			if ( self::legacy_task( $state ) && empty( $state['late_checked'] ) && array_search( $stage, self::STAGES, true ) > array_search( 'platform_convert', self::STAGES, true ) ) {
+				$state['late_checked'] = true;
+				$state['late']         = true;
+				$state                 = self::next( $state, 'platform_convert' );
+				self::save( $state );
+				continue;
+			}
 			if ( ! in_array( $stage, self::LOOP_STAGES, true ) ) {
-				// Una etapa sin documentos que tumba la petición dos veces se salta (finish cierra con un informe mínimo).
+				// Una etapa sin documentos que tumba la petición dos veces se salta, sin desactivar Element Pack.
 				$state['stage_attempts'] = (int) ( $state['stage_attempts'] ?? 0 ) + 1;
 				if ( $state['stage_attempts'] > self::MAX_ATTEMPTS ) {
-					$state = self::warn( $state, sprintf( 'La etapa «%s» no pudo completarse (la petición se cortó dos veces) y se saltó.', self::LABELS[ $stage ] ) );
-					$state = 'finish' === $stage ? self::close( $state, array() ) : self::next( $state, self::STAGES[ array_search( $stage, self::STAGES, true ) + 1 ] );
+					$state = self::skip( $state, $stage );
 					self::save( $state );
 					continue;
 				}
 				self::save( $state );
 			}
-			$state            = call_user_func( array( __CLASS__, 'stage_' . $stage ), $state, $deadline );
-			$state['updated'] = time();
+			$state = call_user_func( array( __CLASS__, 'stage_' . $stage ), $state, $deadline );
+			// Esperar a la barrera no es avanzar: el plazo de la red mide el último avance de verdad.
+			if ( empty( $state['wait_network'] ) ) {
+				$state['updated'] = time();
+			}
 			self::save( $state );
 		}
 		return $state;
 	}
 
+	/** ¿Tarea creada por Migración ≤ 1.0.20? */
+	private static function legacy_task( array $state ) {
+		$version = (string) ( $state['version'] ?? '' );
+		return '' !== $version && version_compare( $version, '1.0.21', '<' );
+	}
+
+	/** Salto seguro de una etapa que cayó dos veces (V.3.1). */
+	private static function skip( array $state, $stage ) {
+		$state = self::warn( $state, sprintf( 'La etapa «%s» no pudo completarse (la petición se cortó dos veces) y se saltó.', self::LABELS[ $stage ] ?? $stage ) );
+		switch ( $stage ) {
+			case 'platform_prepare':
+				// Sin preparación, el grupo de Element Pack no se desactiva (sí los demás).
+				$state['platform_failed'] = true;
+				Report::site( 'core.tb_unprepared' );
+				return self::next( $state, 'deactivate' );
+			case 'deactivate':
+				// Lo ya desactivado queda; si Element Pack sigue cargado, la conversión lleva al informe.
+				unset( $state['wait_network'] );
+				return self::next( $state, 'platform_convert' );
+			case 'platform':
+				Report::site( 'core.stage_skipped', array( 'name' => self::LABELS['platform'] ) );
+				return self::next( $state, 'references' );
+			case 'finish':
+				return self::close( $state, array() );
+		}
+		$index = array_search( $stage, self::STAGES, true );
+		return self::next( $state, self::STAGES[ false === $index ? 0 : $index + 1 ] ?? 'finish' );
+	}
+
 	private static function next( array $state, $stage, $total = 0 ) {
+		self::drop_ids( (string) ( $state['stage'] ?? '' ) );
+		Report::flush();
 		$state['stage']          = $stage;
 		$state['cursor']         = 0;
 		$state['processed']      = 0;
@@ -312,45 +453,321 @@ final class Runner {
 		return isset( $_SERVER['REQUEST_TIME_FLOAT'] ) ? (float) $_SERVER['REQUEST_TIME_FLOAT'] : microtime( true );
 	}
 
+	/** Etapa que espera con motivo: se repite en la siguiente petición sin contar como intento ni como pausa. */
+	private static function hold( array $state ) {
+		$state['pause']          = true;
+		$state['stage_attempts'] = 0;
+		return $state;
+	}
+
+	/** Etapa que avanzó por partes: sigue en la siguiente vuelta (o petición) sin contar como intento. */
+	private static function progressed( array $state ) {
+		$state['stage_attempts'] = 0;
+		return $state;
+	}
+
+	/* ------------------------------------------------------------------ Listas de IDs por etapa (V.3.5) */
+
+	/**
+	 * IDs de la etapa, calculados una vez (la consulta LIKE corre una vez por etapa) y guardados en trozos de
+	 * IDS_CHUNK sin carga automática. Se borran al cerrar la etapa.
+	 *
+	 * @return int[]
+	 */
+	private static function ids( $stage, callable $compute ) {
+		$meta = get_option( self::IDS . $stage, null );
+		if ( is_array( $meta ) && isset( $meta['chunks'] ) ) {
+			$ids = array();
+			for ( $i = 0; $i < (int) $meta['chunks']; $i++ ) {
+				$ids = array_merge( $ids, array_map( 'intval', (array) get_option( self::IDS . $stage . '_' . $i, array() ) ) );
+			}
+			return $ids;
+		}
+		$ids = array_values( array_unique( array_map( 'intval', (array) $compute() ) ) );
+		sort( $ids );
+		$chunks = array_chunk( $ids, self::IDS_CHUNK );
+		foreach ( $chunks as $i => $chunk ) {
+			update_option( self::IDS . $stage . '_' . $i, $chunk, false );
+		}
+		update_option( self::IDS . $stage, array( 'chunks' => count( $chunks ), 'total' => count( $ids ) ), false );
+		return $ids;
+	}
+
+	private static function drop_ids( $stage ) {
+		if ( '' === $stage ) {
+			return;
+		}
+		$meta = get_option( self::IDS . $stage, null );
+		if ( ! is_array( $meta ) ) {
+			return;
+		}
+		for ( $i = 0; $i < (int) ( $meta['chunks'] ?? 0 ); $i++ ) {
+			delete_option( self::IDS . $stage . '_' . $i );
+		}
+		delete_option( self::IDS . $stage );
+	}
+
+	/* ------------------------------------------------------------------ Etapas */
+
 	private static function stage_prepare( array $state, $deadline ) {
 		$state['plugins'] = array();
 		foreach ( Retire::status() as $file => $info ) {
-			$state['plugins'][ $file ] = array( 'label' => $info['label'], 'site' => $info['site'], 'network' => $info['network'], 'core' => $info['core'] );
+			$state['plugins'][ $file ] = array( 'label' => $info['label'], 'site' => $info['site'], 'network' => $info['network'], 'core' => $info['core'], 'group' => $info['group'], 'late' => $info['late'] );
 		}
+		// ¿Estaba activo algún miembro del grupo de Element Pack, en cualquier ámbito? (C1-4: sólo entonces se publica.)
+		$state['ep_was_active'] = self::ep_was_active( $state );
 		// Sólo los documentos convertidos antes de esta migración pueden haber perdido sus reglas de visibilidad.
 		if ( ! (int) get_option( Migration::REPAIR_CUTOFF, 0 ) ) {
 			update_option( Migration::REPAIR_CUTOFF, (int) $state['started'], false );
 		}
+		// El informe de F8 empieza con la tarea (el anterior queda resumido en el informe guardado).
+		Report::clear();
+		return self::next( $state, 'platform_prepare' );
+	}
+
+	/** ¿Algún miembro del grupo de Element Pack estaba activo al preparar? Lee también tareas de 1.0.20 (sin `group`). */
+	private static function ep_was_active( array $state ) {
+		foreach ( (array) ( $state['plugins'] ?? array() ) as $file => $info ) {
+			$group = (string) ( $info['group'] ?? ( 0 === strpos( basename( (string) $file ), 'bdthemes-element-pack' ) ? 'element-pack' : '' ) );
+			if ( 'element-pack' === $group && ( ! empty( $info['site'] ) || ! empty( $info['network'] ) ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Llama a un método de un paso de plataforma (`Legacy\Platform\<Paso>`) si existe; si no, null. */
+	private static function platform_call( $step, $method, array $args = array() ) {
+		$class = __NAMESPACE__ . '\\Platform\\' . $step;
+		if ( ! class_exists( $class ) || ! method_exists( $class, $method ) ) {
+			return null;
+		}
+		return call_user_func_array( array( $class, $method ), $args );
+	}
+
+	/** ¿Existe el método de una clase de otro frente? */
+	private static function has( $class, $method ) {
+		$class = __NAMESPACE__ . '\\' . $class;
+		return class_exists( $class ) && method_exists( $class, $method );
+	}
+
+	/**
+	 * Recorre los pasos de plataforma con su método (`prepare` o `finish`) y su cursor (V.14 C5). Devuelve el estado y
+	 * si terminaron todos. Una excepción se informa y el paso se da por terminado (falla cerrado: el de plantillas en
+	 * la preparación deja Element Pack activo).
+	 */
+	private static function run_steps( array $state, array $steps, $method, $deadline ) {
+		foreach ( $steps as $step ) {
+			if ( ! empty( $state['platform_done'][ $method ][ $step ] ) ) {
+				continue;
+			}
+			$class = __NAMESPACE__ . '\\Platform\\' . $step;
+			if ( ! class_exists( $class ) || ! method_exists( $class, $method ) ) {
+				$state['platform_done'][ $method ][ $step ] = true;
+				continue;
+			}
+			$cursor = (array) ( $state['platform'][ $method . ':' . $step ] ?? array() );
+			Context::begin( 0, 'run' );
+			try {
+				$done = (bool) $class::$method( $cursor, (float) $deadline );
+			} catch ( \Throwable $e ) {
+				$done = true;
+				Report::site( 'core.step_failed', array( 'name' => $step, 'note' => $e->getMessage() ) );
+				if ( 'Theme_Builder' === $step && 'prepare' === $method ) {
+					$state['platform_failed'] = true;
+				}
+			} finally {
+				Context::end();
+			}
+			if ( strlen( (string) serialize( $cursor ) ) > self::CURSOR_MAX ) {
+				// Un cursor que no cabe no se guarda: el paso vuelve a empezar (y debe consultar el registro).
+				$cursor = array();
+			}
+			$state['platform'][ $method . ':' . $step ] = $cursor;
+			if ( ! $done ) {
+				return array( $state, false );
+			}
+			$state['platform_done'][ $method ][ $step ] = true;
+			unset( $state['platform'][ $method . ':' . $step ] );
+			if ( microtime( true ) >= $deadline ) {
+				return array( $state, false );
+			}
+		}
+		return array( $state, true );
+	}
+
+	/** Con Element Pack aún cargado: borradores y registros de plantillas, fuentes, iconos, código y barra lateral. */
+	private static function stage_platform_prepare( array $state, $deadline ) {
+		list( $state, $complete ) = self::run_steps( $state, self::PREPARE_STEPS, 'prepare', $deadline );
+		if ( ! $complete ) {
+			return self::progressed( $state );
+		}
+		$state['platform_prepared'] = empty( $state['platform_failed'] );
 		return self::next( $state, 'deactivate' );
 	}
 
+	/**
+	 * Las cinco condiciones para permitir la publicación de las copias y desactivar el grupo de Element Pack (V.5.3).
+	 * Devuelve null si se cumplen o el código que falla. `plugin_inactive` no impide desactivar (no había nada activo).
+	 */
+	private static function ep_gate( array $state ) {
+		if ( empty( $state['ep_was_active'] ) ) {
+			return 'tb.plugin_inactive';
+		}
+		if ( empty( $state['platform_prepared'] ) || ! empty( $state['platform_failed'] ) ) {
+			return 'tb.unprepared';
+		}
+		$copies = self::has( 'Platform\\Registry', 'all' ) ? Platform\Registry::all( 'tb' ) : array();
+		$blocks = self::platform_call( 'Theme_Builder', 'blocked' );
+		if ( null === $blocks ) {
+			$blocks = false;
+			foreach ( $copies as $row ) {
+				$blocks = $blocks || ! empty( $row['extra']['blocks'] );
+			}
+		}
+		if ( $blocks ) {
+			return 'tb.blocked_retire';
+		}
+		if ( ! $copies ) {
+			// Sin plantillas copiadas no queda ningún hueco que guardar.
+			return null;
+		}
+		// Tras esta etapa no puede quedar Elementor Pro ni PRO Elements: el sitio sólo quita los suyos.
+		foreach ( Retire::status() as $info ) {
+			if ( 'pro' === $info['group'] && ( $info['network'] || ( $info['site'] && empty( $state['capable'] ) && ! self::network_authorizes() ) ) ) {
+				return 'tb.conflict';
+			}
+		}
+		if ( ! class_exists( '\\ElementorPro\\Modules\\ThemeBuilder\\Module' ) ) {
+			return 'tb.no_builder';
+		}
+		return null;
+	}
+
+	/** Permite publicar las copias (sólo con las cinco condiciones) y deja la barra lateral lista, justo antes de desactivar. */
+	private static function before_ep_retire( array $state ) {
+		if ( Translator::element_pack_active() ) {
+			$result = self::platform_call( 'Sidebar', 'before_deactivate' );
+			foreach ( is_array( $result ) ? $result : array() as $code ) {
+				if ( is_array( $code ) && isset( $code[0] ) ) {
+					Report::site( (string) $code[0], (array) ( $code[1] ?? array() ) );
+				}
+			}
+		}
+		self::platform_call( 'Publisher', 'allow', array( true ) );
+		$state['allowed'] = true;
+		return $state;
+	}
+
+	/** Desactiva en este sitio; anota lo desactivado, los avisos y los códigos. */
+	private static function retire_site( array $state, array $skip ) {
+		$result                         = Retire::deactivate( false, false, $skip );
+		$state['counts']['deactivated'] = array_values( array_unique( array_merge( (array) $state['counts']['deactivated'], array_values( $result['deactivated'] ) ) ) );
+		foreach ( $result['warnings'] as $warning ) {
+			$state = self::warn( $state, $warning );
+		}
+		foreach ( (array) ( $result['codes'] ?? array() ) as $code ) {
+			Report::site( (string) $code[0], (array) ( $code[1] ?? array() ) );
+		}
+		if ( in_array( 'element-pack', (array) ( $result['kept'] ?? array() ), true ) ) {
+			$state['ep_kept'] = true;
+		}
+		if ( $result['deactivated'] ) {
+			// La siguiente petición ya corre sin estos plugins; ésta y las que arrancaron antes no pueden convertir.
+			$state['pause']          = true;
+			$state['deactivated_at'] = microtime( true );
+		}
+		return $state;
+	}
+
 	private static function stage_deactivate( array $state, $deadline ) {
+		// Sin preparación (tarea de 1.0.20, o preparación que nunca corrió) se vuelve a preparar antes.
+		if ( empty( $state['platform_prepared'] ) && empty( $state['platform_failed'] ) ) {
+			return self::next( $state, 'platform_prepare' );
+		}
+		$job = self::barrier_job( $state );
+		if ( $job && ! empty( $job['released'] ) ) {
+			// La red ya liberó: una petición anterior a la liberación aún tiene Element Pack cargado (V.3.2).
+			if ( self::request_started() < (float) $job['released'] ) {
+				$state['deactivated_at'] = (float) $job['released'];
+				return self::hold( $state );
+			}
+			unset( $state['wait_network'] );
+		}
+		$status      = Retire::status();
 		$site_active = array();
-		foreach ( $state['plugins'] as $info ) {
+		foreach ( $status as $info ) {
 			if ( ! empty( $info['site'] ) ) {
 				$site_active[] = $info['label'];
 			}
 			if ( ! empty( $info['network'] ) ) {
-				$state = self::warn( $state, sprintf( '%s está activo en toda la red: lo desactiva la migración de la red (Red → Ajustes → Migrar a DIGITALÍSIMO Elements).', $info['label'] ) );
+				// En una migración de red, lo activado en toda la red lo retira la red (es información); fuera de ella, un aviso.
+				if ( self::network_authorizes() ) {
+					Report::site( 'core.network_scope', array( 'name' => $info['label'] ) );
+				} else {
+					$state = self::warn( $state, sprintf( '%s está activo en toda la red: lo desactiva la migración de la red (Red → Ajustes → Migrar a DIGITALÍSIMO Elements).', $info['label'] ) );
+				}
 			}
 		}
-		if ( $site_active ) {
-			if ( ! empty( $state['capable'] ) || self::network_authorizes() ) {
-				$result                         = Retire::deactivate( false );
-				$state['counts']['deactivated'] = array_values( array_unique( array_merge( (array) $state['counts']['deactivated'], array_values( $result['deactivated'] ) ) ) );
-				foreach ( $result['warnings'] as $warning ) {
-					$state = self::warn( $state, $warning );
-				}
-				if ( $result['deactivated'] ) {
-					// La siguiente petición ya corre sin estos plugins; ésta y las que arrancaron antes no pueden convertir.
-					$state['pause']          = true;
-					$state['deactivated_at'] = microtime( true );
-				}
-			} else {
+		$capable = ! empty( $state['capable'] ) || self::network_authorizes();
+		if ( ! $capable ) {
+			if ( $site_active ) {
 				$state = self::warn( $state, sprintf( 'Quien lanzó la migración no puede desactivar plugins, así que siguen activos: %s.', implode( ', ', $site_active ) ) );
 			}
+			return self::next( $state, 'platform_convert' );
 		}
-		return self::next( $state, 'recover', count( Migration::recover_candidates() ) );
+		$gate = self::ep_gate( $state );
+		if ( 'tb.plugin_inactive' === $gate ) {
+			// No había Element Pack activo: las copias se quedan en borrador y lo demás se desactiva.
+			if ( self::has( 'Platform\\Registry', 'all' ) && Platform\Registry::all( 'tb' ) ) {
+				Report::site( 'tb.plugin_inactive' );
+			}
+			$gate = null;
+			$skip = array();
+		} elseif ( null === $gate ) {
+			$skip = array();
+			if ( Retire::group_active( 'element-pack', 'any' ) || ! Translator::element_pack_active() ) {
+				$state = self::before_ep_retire( $state );
+			}
+		} else {
+			// Quedaría un hueco: el grupo de Element Pack no cae (sí los demás) y el sitio sigue como estaba.
+			Report::site( $gate );
+			$skip             = array( 'element-pack' );
+			$state['ep_kept'] = true;
+		}
+		if ( $job && empty( $job['released'] ) ) {
+			// Barrera de red: el sitio desactiva lo suyo (salvo lo que dependa de la red) y espera la liberación.
+			$state                   = self::retire_site( $state, $skip );
+			$state['barrier_ready']  = null === $gate;
+			$state['barrier_blocked'] = in_array( $gate, array( 'tb.blocked_retire', 'tb.conflict', 'tb.no_builder' ), true ) ? $gate : '';
+			$state['wait_network']   = true;
+			$state                   = self::hold( $state );
+			// Un sitio que espera puede liberar la barrera, como mucho cada minuto (con la autorización de la red).
+			if ( ! empty( $job['capable'] ) && time() - (int) ( $job['checked'] ?? 0 ) >= 60 ) {
+				self::save( $state );
+				self::network_release();
+			}
+			return $state;
+		}
+		if ( $site_active ) {
+			$state = self::retire_site( $state, $skip );
+		}
+		return self::next( $state, 'platform_convert' );
+	}
+
+	/**
+	 * Tarea de red con barrera que incluye este sitio (V.6), o null. Sólo dentro de una tarea de red: «Migrar» de un
+	 * sitio con Element Pack activado en toda la red sigue como siempre (aviso).
+	 */
+	private static function barrier_job( array $state ) {
+		if ( ! is_multisite() || empty( $state['network'] ) ) {
+			return null;
+		}
+		$job = self::network_state();
+		if ( ! $job || ! empty( $job['done'] ) || empty( $job['barrier'] ) || (int) $job['started'] !== (int) $state['network'] ) {
+			return null;
+		}
+		return in_array( self::blog(), array_map( 'intval', (array) ( $job['barrier_sites'] ?? array() ) ), true ) ? $job : null;
 	}
 
 	/**
@@ -368,7 +785,7 @@ final class Runner {
 			}
 			$stale = $stale || ! $listed;
 			if ( $listed ) {
-				$state = self::warn( $state, 'Element Pack sigue activo (en toda la red, o sin permiso para desactivarlo aquí): su contenido no se convirtió y se sigue viendo con Element Pack. Cuando esté desactivado, vuelve a pulsar Migrar.' );
+				$state = self::warn( $state, 'Element Pack sigue activo (en toda la red, sin permiso para desactivarlo aquí, o porque sus plantillas aún no tienen copia publicable): su contenido no se convirtió y se sigue viendo con Element Pack. Cuando esté desactivado, vuelve a pulsar Migrar.' );
 			}
 			$ok = false;
 		}
@@ -402,10 +819,62 @@ final class Runner {
 		return $job && empty( $job['done'] ) && ! empty( $job['capable'] ) && in_array( self::blog(), array_map( 'intval', (array) $job['sites'] ), true );
 	}
 
-	/** Etapa en pausa: se repite en la siguiente petición. */
+	/** Etapa en pausa por un proceso viejo: se repite en la siguiente petición. */
 	private static function wait( array $state ) {
 		$state['pause'] = true;
 		return $state;
+	}
+
+	/**
+	 * Copias del Theme Builder (registro `tb`), antes que nada: se convierten y su huella pasa al registro (C1-28). Una
+	 * tarea de 1.0.20 que llega aquí sin copias las prepara ahora (V.3.4) y las publica en la misma petición.
+	 */
+	private static function stage_platform_convert( array $state, $deadline ) {
+		$can = self::can_convert( $state );
+		if ( 'pause' === $can ) {
+			return self::wait( $state );
+		}
+		if ( true !== $can ) {
+			return self::next( $state, 'recover' );
+		}
+		$registry = self::has( 'Platform\\Registry', 'all' );
+		if ( ! empty( $state['late'] ) && empty( $state['late_prepared'] ) ) {
+			// Preparación tardía: EP ya no está; las copias nacen, se permiten (si EP figuraba activo) y se convierten.
+			if ( ! $registry || ! Platform\Registry::all( 'tb' ) ) {
+				list( $state, $complete ) = self::run_steps( $state, array( 'Theme_Builder' ), 'prepare', $deadline );
+				if ( ! $complete ) {
+					return self::progressed( $state );
+				}
+				if ( $registry && Platform\Registry::all( 'tb' ) ) {
+					Report::site( 'tb.late' );
+				}
+			}
+			if ( self::ep_was_active( $state ) ) {
+				self::platform_call( 'Publisher', 'allow', array( true ) );
+				self::platform_call( 'Publisher', 'sync' );
+			}
+			$state['late_prepared']     = true;
+			$state['platform_prepared'] = true;
+		}
+		$ids = array();
+		foreach ( $registry ? Platform\Registry::all( 'tb' ) : array() as $row ) {
+			if ( (int) $row['dest'] > 0 && ! in_array( $row['state'], array( 'reverted', 'failed' ), true ) ) {
+				$ids[] = (int) $row['dest'];
+			}
+		}
+		sort( $ids );
+		list( $state, $complete ) = self::loop( $state, $ids, $deadline, static function ( $post_id, array &$state ) {
+			$result = Migration::convert_document( $post_id );
+			if ( ! empty( $result['native'] ) || ! empty( $result['page'] ) ) {
+				++$state['counts']['copies'];
+			}
+			$found = Platform\Registry::by_dest( 'tb', (int) $post_id );
+			if ( $found && self::has( 'Platform\\Documents', 'hash' ) ) {
+				$found[1]['hash'] = Platform\Documents::hash( (int) $post_id );
+				Platform\Registry::put( 'tb', $found[0], $found[1] );
+			}
+		} );
+		return $complete ? self::next( $state, 'recover' ) : $state;
 	}
 
 	private static function stage_recover( array $state, $deadline ) {
@@ -445,11 +914,15 @@ final class Runner {
 			} while ( empty( $step['done'] ) && microtime( true ) < $deadline );
 			if ( empty( $step['done'] ) ) {
 				// Continúa desde su cursor en la siguiente petición; no cuenta como intento fallido.
-				$state['stage_attempts'] = 0;
-				return $state;
+				return self::progressed( $state );
 			}
 		}
-		return self::next( $state, 'convert', count( Migration::documents() ) );
+		return self::next( $state, 'convert' );
+	}
+
+	/** Documentos de la etapa de conversión: con contenido heredado o con ajustes de página heredados (V.9). */
+	private static function documents_to_convert() {
+		return method_exists( __NAMESPACE__ . '\\Migration', 'all_documents' ) ? Migration::all_documents() : Migration::documents();
 	}
 
 	private static function stage_convert( array $state, $deadline ) {
@@ -460,10 +933,12 @@ final class Runner {
 		if ( true !== $can ) {
 			// Sin convertir Element Pack tampoco se tocan los alias: una página sobrescrita por una conversión antigua
 			// dejaría de reconocerse, y se hará todo junto al volver a pulsar Migrar.
-			return self::next( $state, 'finish' );
+			return self::next( $state, 'report' );
 		}
 		self::dropped();
-		list( $state, $complete ) = self::loop( $state, Migration::documents(), $deadline, static function ( $post_id, array &$state ) {
+		$ids            = self::ids( 'convert', array( __CLASS__, 'documents_to_convert' ) );
+		$state['total'] = count( $ids );
+		list( $state, $complete ) = self::loop( $state, $ids, $deadline, static function ( $post_id, array &$state ) {
 			// La conversión retira las claves heredadas y el informe las lee de la copia original: sólo se anota antes lo
 			// que una copia guardada por una conversión anterior no recoge.
 			$found = Dropped::uncovered( $post_id );
@@ -475,8 +950,18 @@ final class Runner {
 				++$state['counts']['converted'];
 				$state['counts']['elements'] += (int) $result['native'];
 			}
+			if ( ! empty( $result['page'] ) ) {
+				++$state['counts']['pages'];
+			}
 		} );
-		return $complete ? self::next( $state, 'revisions', count( self::revisions_to_convert( $state ) ) ) : $state;
+		if ( ! $complete ) {
+			return $state;
+		}
+		$state = self::next( $state, 'revisions' );
+		$state['total'] = count( self::ids( 'revisions', static function () use ( $state ) {
+			return self::revisions_to_convert( $state );
+		} ) );
+		return $state;
 	}
 
 	private static function revisions_to_convert( array $state ) {
@@ -484,20 +969,68 @@ final class Runner {
 	}
 
 	private static function stage_revisions( array $state, $deadline ) {
-		list( $state, $complete ) = self::loop( $state, self::revisions_to_convert( $state ), $deadline, static function ( $post_id, array &$state ) {
+		$ids = self::ids( 'revisions', static function () use ( $state ) {
+			return self::revisions_to_convert( $state );
+		} );
+		list( $state, $complete ) = self::loop( $state, $ids, $deadline, static function ( $post_id, array &$state ) {
 			$result = Migration::convert_document( $post_id );
 			if ( ! empty( $result['native'] ) ) {
 				++$state['counts']['revisions'];
 			}
 		} );
-		return $complete ? self::next( $state, 'references' ) : $state;
+		return $complete ? self::next( $state, 'markers' ) : $state;
+	}
+
+	/**
+	 * Marcadores de K con Element Pack o Prime Slider dentro (V.12): la etapa es de Markers (I), que devuelve el estado
+	 * y pone `markers_done` al terminar. Dos caídas seguidas sin volver la saltan.
+	 */
+	private static function stage_markers( array $state, $deadline ) {
+		if ( ! self::has( 'Markers', 'stage' ) ) {
+			return self::next( $state, 'platform' );
+		}
+		$state['markers_attempts'] = (int) ( $state['markers_attempts'] ?? 0 ) + 1;
+		if ( $state['markers_attempts'] > self::MAX_ATTEMPTS ) {
+			unset( $state['markers_attempts'], $state['markers_cursor'], $state['markers_done'] );
+			Report::site( 'core.stage_skipped', array( 'name' => self::LABELS['markers'] ) );
+			return self::next( $state, 'platform' );
+		}
+		self::save( $state );
+		$state = (array) Markers::stage( $state, (float) $deadline );
+		unset( $state['markers_attempts'] );
+		if ( ! empty( $state['markers_done'] ) ) {
+			unset( $state['markers_done'], $state['markers_cursor'] );
+			return self::next( $state, 'platform' );
+		}
+		return self::progressed( $state );
+	}
+
+	/** Pasos de plataforma tras convertir el contenido (Element Pack ya no está cargado). */
+	private static function stage_platform( array $state, $deadline ) {
+		$can = self::can_convert( $state );
+		if ( 'pause' === $can ) {
+			return self::wait( $state );
+		}
+		if ( true !== $can ) {
+			return self::next( $state, 'references' );
+		}
+		$steps = self::PLATFORM_STEPS;
+		if ( empty( $state['ep_was_active'] ) ) {
+			// Las muestras de variación sólo se activan si Element Pack estaba activo al empezar (V.11).
+			$steps = array_values( array_diff( $steps, array( 'Swatches' ) ) );
+		}
+		list( $state, $complete ) = self::run_steps( $state, $steps, 'finish', $deadline );
+		if ( ! $complete ) {
+			return self::progressed( $state );
+		}
+		return self::next( $state, 'references' );
 	}
 
 	/** Qué alias no pueden convertirse en este sitio (CSS que nombra sus clases) y cuántos documentos hay. */
 	private static function stage_references( array $state, $deadline ) {
 		if ( Aliases::unreadable() ) {
 			$state = self::warn( $state, 'No se pudieron leer los widgets fusionados de DIGITALÍSIMO Elements en esta petición: los alias no se actualizaron. Vuelve a pulsar Migrar.' );
-			return self::next( $state, 'finish' );
+			return self::next( $state, 'retire_late' );
 		}
 		$total            = count( Aliases::documents() );
 		$state['blocked'] = $total ? Aliases::references() : array();
@@ -514,7 +1047,160 @@ final class Runner {
 				$state['counts']['alias_elements'] += (int) $changes;
 			}
 		} );
-		return $complete && count( $batch ) < self::BATCH ? self::next( $state, 'finish' ) : $state;
+		return $complete && count( $batch ) < self::BATCH ? self::next( $state, 'retire_late' ) : $state;
+	}
+
+	/** Documentos (no revisiones) con widgets de Prime Slider, para la retirada tardía. */
+	public static function prime_slider_documents() {
+		return method_exists( __NAMESPACE__ . '\\Migration', 'documents_with' ) ? Migration::documents_with( array( '"widgetType":"prime-slider-' ) ) : array();
+	}
+
+	/**
+	 * Prime Slider se retira al final (V.10.6), sólo si no queda ningún widget suyo fuera de un marcador ni ningún
+	 * marcador suyo sin destino. Lo activado en toda la red lo retira la red (network_finish()).
+	 */
+	private static function stage_retire_late( array $state, $deadline ) {
+		if ( ! Retire::group_installed( 'prime-slider' ) ) {
+			return self::next( $state, 'report' );
+		}
+		$ids = self::ids( 'retire_late', array( __CLASS__, 'prime_slider_documents' ) );
+		list( $state, $complete ) = self::loop( $state, $ids, $deadline, static function ( $post_id, array &$state ) {
+			list( $loose, $blocked ) = self::prime_slider_left( (int) $post_id );
+			if ( $loose || $blocked ) {
+				$state['late_count'] = (int) ( $state['late_count'] ?? 0 ) + $loose + $blocked;
+				Report::add( (int) $post_id, 'core.late_kept', array( 'count' => $loose + $blocked ) );
+				if ( $blocked ) {
+					Report::add( (int) $post_id, 'ps.blocked.no_target', array( 'count' => $blocked ) );
+				}
+			}
+		} );
+		if ( ! $complete ) {
+			return $state;
+		}
+		if ( empty( $state['late_count'] ) ) {
+			unset( $state['late_kept'] );
+			if ( Retire::group_active( 'prime-slider', 'site' ) && ( ! empty( $state['capable'] ) || self::network_authorizes() ) ) {
+				$result = Retire::deactivate( false, true );
+				if ( $result['deactivated'] ) {
+					$state['counts']['deactivated'] = array_values( array_unique( array_merge( (array) $state['counts']['deactivated'], array_values( $result['deactivated'] ) ) ) );
+					Report::site( 'core.late_retired' );
+				}
+			}
+		} else {
+			$state['late_kept'] = true;
+			Report::site( 'core.late_kept', array( 'count' => (int) $state['late_count'] ) );
+		}
+		return self::next( $state, 'report' );
+	}
+
+	/**
+	 * Widgets de Prime Slider de un documento: los que siguen sueltos (fuera de un marcador) y los marcadores con Prime
+	 * Slider sin destino según Markers (los descartes declarados no cuentan).
+	 *
+	 * @return array{0:int,1:int}
+	 */
+	public static function prime_slider_left( int $post_id ) {
+		$raw  = get_metadata( 'post', $post_id, '_elementor_data', true );
+		$data = is_string( $raw ) ? json_decode( $raw, true ) : null;
+		if ( ! is_array( $data ) ) {
+			return array( 0, 0 );
+		}
+		$loose   = 0;
+		$markers = array();
+		$walk    = static function ( array $elements ) use ( &$walk, &$loose, &$markers ) {
+			foreach ( $elements as $element ) {
+				if ( ! is_array( $element ) ) {
+					continue;
+				}
+				$type = (string) ( $element['widgetType'] ?? '' );
+				if ( Native::MARKER_WIDGET === $type ) {
+					if ( Translator::is_prime_slider_id( Migration::marker_type( $element ) ) ) {
+						$markers[] = $element;
+					}
+					continue;
+				}
+				if ( 'widget' === ( $element['elType'] ?? '' ) && Translator::is_prime_slider_id( $type ) ) {
+					++$loose;
+				}
+				$walk( (array) ( $element['elements'] ?? array() ) );
+			}
+		};
+		$walk( $data );
+		$blocked = 0;
+		if ( $markers && self::has( 'Markers', 'classify' ) ) {
+			$groups  = (array) Markers::classify( $markers );
+			$blocked = count( array_filter( (array) ( $groups['blocked'] ?? array() ), static function ( $type ) {
+				return Translator::is_prime_slider_id( preg_replace( '#^widget/#', '', (string) $type ) );
+			} ) );
+		}
+		return array( $loose, $blocked );
+	}
+
+	/**
+	 * El informe de lo convertido en pasadas anteriores (V.3.5): volver a pulsar Migrar no borra nada. Se relee de la
+	 * copia original de cada documento con la descripción de cada frente, por trozos.
+	 */
+	private static function stage_report( array $state, $deadline ) {
+		$ids     = self::ids( 'report', array( Migration::class, 'backups' ) );
+		$started = (int) $state['started'];
+		list( $state, $complete ) = self::loop( $state, $ids, $deadline, static function ( $post_id ) use ( $started ) {
+			$mark = Migration::f8_mark( $post_id );
+			if ( $mark && (int) ( $mark['time'] ?? 0 ) >= $started ) {
+				// Convertido en esta pasada: lo suyo ya está en el informe.
+				return;
+			}
+			self::describe_backup( (int) $post_id );
+		} );
+		return $complete ? self::next( $state, 'finish' ) : $state;
+	}
+
+	/** Describe la copia original de un documento (sin escribir nada) y lo añade al informe. */
+	public static function describe_backup( int $post_id ) {
+		$backup = json_decode( (string) get_metadata( 'post', $post_id, Migration::BACKUP, true ), true );
+		$data   = is_array( $backup ) && isset( $backup['data'] ) && is_string( $backup['data'] ) ? json_decode( $backup['data'], true ) : null;
+		if ( ! is_array( $data ) ) {
+			return;
+		}
+		Context::begin( $post_id, 'analysis' );
+		try {
+			foreach ( self::describe( $data ) as $code => $count ) {
+				Report::add( $post_id, (string) $code, array( 'count' => (int) $count ) );
+			}
+		} finally {
+			Context::end();
+		}
+	}
+
+	/**
+	 * Descripción estática de unos elementos (código => recuento) por las clases de los frentes que la ofrecen:
+	 * Effects\Dispatcher::describe() y Prime_Slider\Converter::describe() de cada widget de Prime Slider.
+	 *
+	 * @return array<string,int>
+	 */
+	public static function describe( array $elements ) {
+		$out = array();
+		if ( self::has( 'Effects\\Dispatcher', 'describe' ) ) {
+			foreach ( (array) Effects\Dispatcher::describe( $elements ) as $code => $count ) {
+				$out[ (string) $code ] = (int) ( $out[ (string) $code ] ?? 0 ) + (int) $count;
+			}
+		}
+		if ( self::has( 'Prime_Slider\\Converter', 'describe' ) ) {
+			$walk = static function ( array $list ) use ( &$walk, &$out ) {
+				foreach ( $list as $element ) {
+					if ( ! is_array( $element ) ) {
+						continue;
+					}
+					if ( 'widget' === ( $element['elType'] ?? '' ) && Translator::is_prime_slider_id( (string) ( $element['widgetType'] ?? '' ) ) ) {
+						foreach ( (array) Prime_Slider\Converter::describe( $element ) as $code => $count ) {
+							$out[ (string) $code ] = (int) ( $out[ (string) $code ] ?? 0 ) + (int) $count;
+						}
+					}
+					$walk( (array) ( $element['elements'] ?? array() ) );
+				}
+			};
+			$walk( $elements );
+		}
+		return $out;
 	}
 
 	private static function stage_finish( array $state, $deadline ) {
@@ -542,6 +1228,7 @@ final class Runner {
 		$state['done']     = true;
 		$state['pause']    = false;
 		$state['finished'] = time();
+		unset( $state['platform'], $state['wait_network'] );
 		update_option( self::REPORT, $state, false );
 		delete_option( self::JOB );
 		if ( function_exists( 'wp_clear_scheduled_hook' ) ) {
@@ -599,6 +1286,9 @@ final class Runner {
 		}
 		$figures = Migration::figures();
 		$failed  = (array) $state['counts']['failed'];
+		foreach ( $failed as $post_id ) {
+			Report::add( (int) $post_id, 'core.document_failed' );
+		}
 		$plugins = array();
 		$others  = is_multisite() ? Retire::network_summary() : array();
 		foreach ( Retire::status() as $file => $info ) {
@@ -607,6 +1297,7 @@ final class Runner {
 				'site'         => $info['site'],
 				'network'      => $info['network'],
 				'element_pack' => $info['element_pack'],
+				'late'         => ! empty( $info['late'] ),
 				// En una red, cuántos sitios lo tienen activo (este incluido).
 				'sites'        => (int) ( $others[ $file ]['sites'] ?? 0 ),
 			);
@@ -618,6 +1309,8 @@ final class Runner {
 		self::dropped();
 		$dropped = Dropped::merge( Dropped::analyze(), (array) ( $state['dropped'] ?? array() ) );
 		$kept    = Dropped::kept();
+		Report::flush();
+		$f8 = Report::stored();
 		return array(
 			'convertible'     => count( $groups['convertible'] ),
 			'blocked'         => self::documents_info( $groups['blocked'] ),
@@ -631,7 +1324,8 @@ final class Runner {
 				return array( 'target' => $spec['target'], 'prefix' => $spec['prefix'], 'target_prefix' => $spec['target_prefix'] );
 			}, array_intersect_key( $map, (array) $state['blocked'] ) ),
 			// Element Pack aún hace falta (sus ajustes y figuras) mientras quede contenido suyo por convertir.
-			'ep_needed'       => count( $groups['convertible'] ) > 0 || (bool) array_intersect( $failed, Migration::documents() ),
+			'ep_needed'       => count( $groups['convertible'] ) > 0 || (bool) array_intersect( $failed, Migration::documents() ) || ! empty( $state['ep_kept'] ),
+			'late_kept'       => ! empty( $state['late_kept'] ),
 			'plugins'         => $plugins,
 			'dropped'         => Dropped::describe( $dropped ),
 			'dropped_omitted' => (int) $dropped['omitted'],
@@ -640,6 +1334,8 @@ final class Runner {
 			'kept_idle'       => array_values( array_filter( $kept, static function ( $row ) {
 				return ! Dropped::kept_pending( $row );
 			} ) ),
+			// Resumen del informe de F8 (el detalle sigue en su opción): marca también que el informe es de F8.
+			'f8'              => array( 'v' => Report::VERSION ) + Report::summary( $f8 ),
 		);
 	}
 
@@ -666,9 +1362,15 @@ final class Runner {
 		return $out;
 	}
 
-	/** ¿Quedó algo para una persona en el informe de una tarea terminada? */
+	/**
+	 * ¿Quedó algo para una persona en el informe de una tarea terminada? Con un informe de F8, además de lo de siempre,
+	 * cuenta su sección «Pendiente de revisar»; un informe de 1.0.20 (sin `f8`) usa la regla anterior.
+	 */
 	public static function has_pending( array $state ) {
 		$r = (array) ( $state['report'] ?? array() );
+		if ( ! empty( $r['f8']['pending'] ) ) {
+			return true;
+		}
 		// Los efectos heredados sin equivalente y los plugins de la familia activos son información: nadie podría hacerlos
 		// desaparecer. Sólo cuentan los widgets de Prime Slider que hoy no se ven.
 		foreach ( array( 'blocked', 'unsupported', 'review', 'failed', 'alias_blocked', 'missing_figures' ) as $key ) {
@@ -685,6 +1387,10 @@ final class Runner {
 			}
 		}
 		foreach ( (array) ( $r['plugins'] ?? array() ) as $plugin ) {
+			// Prime Slider activado en toda la red lo retira la red al final (network_finish()): no es del sitio.
+			if ( ! empty( $plugin['late'] ) && ! empty( $plugin['network'] ) && empty( $plugin['site'] ) && empty( $r['late_kept'] ) ) {
+				continue;
+			}
 			if ( ! empty( $plugin['site'] ) || ! empty( $plugin['network'] ) ) {
 				return true;
 			}
@@ -709,12 +1415,34 @@ final class Runner {
 		return in_array( $file, (array) get_blog_option( (int) $site_id, 'active_plugins', array() ), true );
 	}
 
+	/** ¿Sitio archivado, marcado como spam o borrado? (No entra en la tarea ni en la barrera.) */
+	private static function site_excluded( $site_id ) {
+		$site = function_exists( 'get_site' ) ? get_site( (int) $site_id ) : null;
+		return is_object( $site ) && ( ! empty( $site->archived ) || ! empty( $site->spam ) || ! empty( $site->deleted ) );
+	}
+
+	/**
+	 * ¿Tiene el sitio en curso algo de Element Pack que preparar antes de la liberación? Plantillas del Theme Builder
+	 * activas (`_bdthemes_builder_%`) o CSS global de Element Pack o Prime Slider. Sólo lectura.
+	 */
+	private static function has_preparation() {
+		global $wpdb;
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s", $wpdb->esc_like( '_bdthemes_builder_' ) . '%', $wpdb->esc_like( 'ep_custom_css' ) . '%', $wpdb->esc_like( 'ps_custom_css' ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		foreach ( $rows as $row ) {
+			$value = maybe_unserialize( $row->option_value );
+			if ( is_array( $value ) ? (bool) array_filter( $value ) : ( '' !== trim( (string) $value ) && '0' !== (string) $value ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * Arranca la migración de red (o devuelve la que está en marcha). Si DIGITALÍSIMO Elements está activado en toda la
-	 * red (si no, algún sitio se quedaría sin constructor): en cada sitio con él desactiva Elementor Pro y PRO Elements
-	 * (sin ellos activos, sus adaptadores pintan Element Pack desde ya) y después desactiva lo activado en toda la red.
-	 * Encola en cada sitio con DIGITALÍSIMO Elements su tarea, autorizada a desactivar plugins por quien lanzó la de red.
-	 * La conversión corre después en peticiones de cada sitio. Sólo los sitios de esta red.
+	 * red (si no, algún sitio se quedaría sin constructor): en cada sitio con él desactiva Elementor Pro y PRO Elements y
+	 * después lo retirable activado en toda la red, salvo Element Pack (cae en la liberación de la barrera, V.6) y Prime
+	 * Slider (al final). Encola en cada sitio con DIGITALÍSIMO Elements su tarea, autorizada a desactivar plugins por
+	 * quien lanzó la de red. Los sitios archivados, marcados como spam o borrados se listan y no se tocan.
 	 */
 	public static function network_start( $capable = null ) {
 		$job = self::network_state();
@@ -731,89 +1459,309 @@ final class Runner {
 				return $summary;
 			}
 		}
-		$capable          = null === $capable ? ( function_exists( 'current_user_can' ) && current_user_can( 'manage_network_plugins' ) ) : (bool) $capable;
-		$job              = array(
-			'version'     => defined( 'DIGITALISIMO_MIGRATION_VERSION' ) ? DIGITALISIMO_MIGRATION_VERSION : '',
-			'started'     => time(),
-			'done'        => false,
-			'sites'       => array(),
-			'skipped'     => array(),
-			'deactivated' => array(),
-			'warnings'    => array(),
-			'capable'     => $capable,
-		);
-		$file             = defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ? plugin_basename( DIGITALISIMO_ELEMENTS_FILE ) : '';
-		$elements_network = '' !== $file && isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $file ] );
-		$retire_network   = $elements_network && $capable;
-		if ( ! $elements_network ) {
-			$job['warnings'][] = 'DIGITALÍSIMO Elements no está activado en toda la red: los plugins activados en toda la red no se desactivaron, porque los sitios sin DIGITALÍSIMO Elements se quedarían sin ellos. Actívalo en toda la red y vuelve a pulsar Migrar toda la red.';
-		} elseif ( ! $capable ) {
-			$job['warnings'][] = 'Quien lanzó la migración no puede gestionar los plugins de la red: los activados en toda la red siguen activos.';
+		$reason = self::requirements();
+		if ( null !== $reason ) {
+			return array( 'idle' => true, 'error' => $reason );
 		}
-		$conflicts = array();
-		foreach ( Retire::sites() as $site_id ) {
-			if ( ! self::elements_active_on( $site_id ) ) {
-				$job['skipped'][] = $site_id;
-				continue;
+		if ( ! self::network_lock() ) {
+			return self::network_summary();
+		}
+		try {
+			$capable          = null === $capable ? ( function_exists( 'current_user_can' ) && current_user_can( 'manage_network_plugins' ) ) : (bool) $capable;
+			$job              = array(
+				'version'       => defined( 'DIGITALISIMO_MIGRATION_VERSION' ) ? DIGITALISIMO_MIGRATION_VERSION : '',
+				'started'       => time(),
+				'done'          => false,
+				'sites'         => array(),
+				'skipped'       => array(),
+				'excluded'      => array(),
+				'deactivated'   => array(),
+				'warnings'      => array(),
+				'capable'       => $capable,
+				'user'          => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
+				'barrier'       => false,
+				'barrier_sites' => array(),
+				'released'      => 0,
+				'unprepared'    => array(),
+				'checked'       => 0,
+			);
+			$file             = defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ? plugin_basename( DIGITALISIMO_ELEMENTS_FILE ) : '';
+			$elements_network = '' !== $file && isset( ( (array) get_site_option( 'active_sitewide_plugins', array() ) )[ $file ] );
+			$retire_network   = $elements_network && $capable;
+			if ( ! $elements_network ) {
+				$job['warnings'][] = 'DIGITALÍSIMO Elements no está activado en toda la red: los plugins activados en toda la red no se desactivaron, porque los sitios sin DIGITALÍSIMO Elements se quedarían sin ellos. Actívalo en toda la red y vuelve a pulsar Migrar toda la red.';
+			} elseif ( ! $capable ) {
+				$job['warnings'][] = 'Quien lanzó la migración no puede gestionar los plugins de la red: los activados en toda la red siguen activos.';
 			}
-			$job['sites'][] = $site_id;
-			switch_to_blog( $site_id );
-			try {
-				$conflicts[ $site_id ] = $retire_network ? Retire::deactivate_conflicts() : array();
-			} finally {
-				restore_current_blog();
-			}
-		}
-		if ( $retire_network ) {
-			$result             = Retire::deactivate( true );
-			$job['deactivated'] = array_values( $result['deactivated'] );
-			$job['warnings']    = array_merge( $job['warnings'], $result['warnings'] );
-		}
-		$now = microtime( true );
-		foreach ( $job['sites'] as $site_id ) {
-			switch_to_blog( $site_id );
-			try {
-				// Bajo el cerrojo del sitio, para no pisar a una petición que esté avanzando su tarea. Si está ocupado, esa
-				// tarea sigue y la autorización de la red le llega por network_authorizes().
-				if ( self::lock() ) {
-					try {
-						$state = self::state();
-						if ( ! $state || ! empty( $state['done'] ) ) {
-							$state = self::fresh( $capable, $job['started'] );
-						} elseif ( $capable && empty( $state['capable'] ) ) {
-							// Una tarea en marcha sin permiso para desactivar recibe la autorización de la red y, si ya pasó
-							// esa etapa con plugins sustituidos aún activos, vuelve a empezar (las etapas son repetibles).
-							$state['capable'] = true;
-							$active           = array_filter( Retire::status(), static function ( $info ) {
-								return $info['site'];
-							} );
-							if ( $active && array_search( $state['stage'], self::STAGES, true ) > array_search( 'deactivate', self::STAGES, true ) ) {
-								$state = self::next( $state, 'prepare' );
-							}
-						}
-						if ( $conflicts[ $site_id ] || $job['deactivated'] ) {
-							$state['counts']['deactivated'] = array_values( array_unique( array_merge( (array) $state['counts']['deactivated'], $conflicts[ $site_id ] ) ) );
-							$state['deactivated_at']        = $now;
-						}
-						update_option( self::JOB, $state, false );
-					} finally {
-						self::unlock();
-					}
+			// Barrera: sólo con Element Pack activado en toda la red y quien puede retirarlo.
+			$job['barrier'] = $retire_network && Retire::group_active( 'element-pack', 'network' );
+			$conflicts      = array();
+			foreach ( Retire::sites() as $site_id ) {
+				if ( self::site_excluded( $site_id ) ) {
+					$job['excluded'][] = (int) $site_id;
+					continue;
 				}
-				self::schedule();
-			} finally {
-				restore_current_blog();
+				if ( ! self::elements_active_on( $site_id ) ) {
+					$job['skipped'][] = $site_id;
+					continue;
+				}
+				$job['sites'][] = $site_id;
+				switch_to_blog( $site_id );
+				try {
+					$conflicts[ $site_id ] = $retire_network ? Retire::deactivate_conflicts() : array();
+					if ( $job['barrier'] && self::has_preparation() ) {
+						$job['barrier_sites'][] = (int) $site_id;
+					}
+				} finally {
+					restore_current_blog();
+				}
 			}
+			if ( $retire_network ) {
+				// Elementor Pro, PRO Elements y Elementor al inicio: nunca conviven con copias publicables (C1-6).
+				$result             = Retire::deactivate( true, false, array( 'element-pack' ) );
+				$job['deactivated'] = array_values( $result['deactivated'] );
+				$job['warnings']    = array_merge( $job['warnings'], $result['warnings'] );
+			}
+			if ( $job['barrier'] && ! $job['barrier_sites'] ) {
+				// Ningún sitio tiene nada que preparar: se libera ya.
+				$job = self::release( $job );
+			}
+			$now = microtime( true );
+			foreach ( $job['sites'] as $site_id ) {
+				switch_to_blog( $site_id );
+				try {
+					// Bajo el cerrojo del sitio, para no pisar a una petición que esté avanzando su tarea. Si está ocupado, esa
+					// tarea sigue y la autorización de la red le llega por network_authorizes().
+					if ( self::lock() ) {
+						try {
+							$state = self::state();
+							if ( ! $state || ! empty( $state['done'] ) ) {
+								$state = self::fresh( $capable, $job['started'], $job['user'] );
+							} else {
+								$state['network'] = (int) $job['started'];
+								$state['user']    = (int) $job['user'];
+								if ( $capable && empty( $state['capable'] ) ) {
+									// Una tarea en marcha sin permiso para desactivar recibe la autorización de la red y, si ya pasó
+									// esa etapa con plugins sustituidos aún activos, vuelve a empezar (las etapas son repetibles).
+									$state['capable'] = true;
+									$active           = array_filter( Retire::status(), static function ( $info ) {
+										return $info['site'];
+									} );
+									if ( $active && array_search( $state['stage'], self::STAGES, true ) > array_search( 'deactivate', self::STAGES, true ) ) {
+										$state = self::next( $state, 'prepare' );
+									}
+								}
+							}
+							if ( $conflicts[ $site_id ] || $job['deactivated'] ) {
+								$state['counts']['deactivated'] = array_values( array_unique( array_merge( (array) $state['counts']['deactivated'], $conflicts[ $site_id ] ) ) );
+								$state['deactivated_at']        = $now;
+							}
+							update_option( self::JOB, $state, false );
+						} finally {
+							self::unlock();
+						}
+					}
+					self::schedule();
+				} finally {
+					restore_current_blog();
+				}
+			}
+			$job['updated'] = time();
+			update_site_option( self::NETWORK_JOB, $job );
+			self::schedule_tick();
+		} finally {
+			self::network_unlock();
 		}
-		update_site_option( self::NETWORK_JOB, $job );
 		return self::network_summary();
 	}
 
+	/** Programa el evento de red en el WP-Cron del sitio principal (cada 5 minutos mientras dure la tarea de red). */
+	private static function schedule_tick() {
+		if ( ! function_exists( 'wp_next_scheduled' ) ) {
+			return;
+		}
+		$main   = function_exists( 'get_main_site_id' ) ? (int) get_main_site_id() : 1;
+		$switch = is_multisite() && $main !== self::blog();
+		if ( $switch ) {
+			switch_to_blog( $main );
+		}
+		try {
+			if ( ! wp_next_scheduled( self::NETWORK_TICK ) ) {
+				wp_schedule_single_event( time() + 300, self::NETWORK_TICK );
+			}
+		} finally {
+			if ( $switch ) {
+				restore_current_blog();
+			}
+		}
+	}
+
+	/** WP-Cron del sitio principal: libera la barrera y cierra la red sin pantalla; se reprograma hasta terminar. */
+	public static function network_tick() {
+		if ( ! is_multisite() ) {
+			return;
+		}
+		self::load();
+		self::network_release();
+		self::network_finish();
+		$job = self::network_state();
+		if ( $job && empty( $job['done'] ) ) {
+			self::schedule_tick();
+		}
+	}
+
 	/**
-	 * Estado de cada sitio de la migración de red (en marcha, terminado o pendiente) y, si todos terminaron, la da por
-	 * terminada. Sólo lee datos de cada sitio.
+	 * Libera la barrera de red (V.6), idempotente y bajo el cerrojo de red: con todos los sitios de la barrera listos y
+	 * ninguno bloqueado, o al vencer el plazo (relativo al último avance, con un tope absoluto). Con un sitio bloqueado
+	 * al vencer el plazo, la tarea de red se detiene (V.19.1 a).
+	 *
+	 * @return array la tarea de red (releída).
 	 */
-	public static function network_summary() {
+	public static function network_release(): array {
+		if ( ! is_multisite() ) {
+			return array();
+		}
+		$job = self::network_state();
+		if ( ! $job || ! empty( $job['done'] ) || empty( $job['barrier'] ) || ! empty( $job['released'] ) ) {
+			return (array) $job;
+		}
+		if ( ! self::network_lock() ) {
+			return $job;
+		}
+		try {
+			$job = (array) self::network_state();
+			if ( ! empty( $job['done'] ) || ! empty( $job['released'] ) ) {
+				return $job;
+			}
+			$ready   = array();
+			$blocked = array();
+			$pending = array();
+			$last    = (int) ( $job['started'] ?? 0 );
+			foreach ( (array) $job['barrier_sites'] as $site_id ) {
+				switch_to_blog( (int) $site_id );
+				try {
+					$state  = self::state();
+					$report = self::report();
+				} finally {
+					restore_current_blog();
+				}
+				if ( $state && empty( $state['done'] ) ) {
+					$last = max( $last, (int) ( $state['updated'] ?? 0 ) );
+					if ( 'deactivate' === ( $state['stage'] ?? '' ) && ! empty( $state['wait_network'] ) ) {
+						if ( ! empty( $state['barrier_blocked'] ) ) {
+							$blocked[] = (int) $site_id;
+						} elseif ( ! empty( $state['barrier_ready'] ) ) {
+							$ready[] = (int) $site_id;
+						} else {
+							$pending[] = (int) $site_id;
+						}
+					} else {
+						$pending[] = (int) $site_id;
+					}
+				} elseif ( $report && (int) ( $report['finished'] ?? 0 ) >= (int) $job['started'] ) {
+					// Terminado: ya no necesita a Element Pack para su cabecera (o no la tenía).
+					$ready[] = (int) $site_id;
+				} else {
+					$pending[] = (int) $site_id;
+				}
+			}
+			$job['checked'] = time();
+			$count          = max( 1, count( (array) $job['barrier_sites'] ) );
+			$idle           = (int) apply_filters( 'digitalisimo_migration_barrier_idle', 900 );
+			$max            = (int) apply_filters( 'digitalisimo_migration_barrier_max', max( 3600, 120 * $count ) );
+			$expired        = time() - $last >= $idle || time() >= (int) $job['started'] + $max;
+			if ( ! $pending && ! $blocked ) {
+				$job = self::release( $job );
+			} elseif ( $expired && ! $blocked ) {
+				$job['unprepared'] = $pending;
+				$job               = self::release( $job );
+			} elseif ( $expired && $blocked ) {
+				// Un sitio con una cabecera o un pie visibles sin copia publicable: la red se detiene con su informe.
+				$job['done']     = true;
+				$job['stopped']  = true;
+				$job['blocked']  = $blocked;
+				$job['finished'] = time();
+				$job['warnings'][] = 'La migración de la red se detuvo: hay sitios con una cabecera o un pie de Element Pack visibles sin copia que pueda publicarse. Revisa su informe, corrígelo y vuelve a pulsar Migrar toda la red.';
+			} else {
+				$job['blocked'] = $blocked;
+			}
+			$job['updated'] = time();
+			update_site_option( self::NETWORK_JOB, $job );
+			return $job;
+		} finally {
+			self::network_unlock();
+		}
+	}
+
+	/** Desactiva Element Pack en toda la red, en una escritura (llamar bajo el cerrojo de red). */
+	private static function release( array $job ) {
+		$result             = Retire::deactivate( true, false, array( 'pro', 'core' ) );
+		$job['deactivated'] = array_values( array_unique( array_merge( (array) $job['deactivated'], array_values( $result['deactivated'] ) ) ) );
+		$job['warnings']    = array_merge( (array) $job['warnings'], $result['warnings'] );
+		$job['released']    = microtime( true );
+		return $job;
+	}
+
+	/**
+	 * Cierra la migración de red: con todos los sitios terminados y ninguno con widgets de Prime Slider por convertir,
+	 * desactiva Prime Slider activado en toda la red; marca la tarea terminada. Bajo el cerrojo de red.
+	 *
+	 * @return array la tarea de red.
+	 */
+	public static function network_finish(): array {
+		if ( ! is_multisite() ) {
+			return array();
+		}
+		$summary = self::network_summary( false );
+		$job     = self::network_state();
+		if ( ! $job || ! empty( $job['done'] ) || empty( $summary['all_done'] ) ) {
+			return (array) $job;
+		}
+		if ( ! self::network_lock() ) {
+			return $job;
+		}
+		try {
+			$job = (array) self::network_state();
+			if ( ! empty( $job['done'] ) ) {
+				return $job;
+			}
+			$late = false;
+			foreach ( (array) ( $summary['status'] ?? array() ) as $row ) {
+				$late = $late || ! empty( $row['late_kept'] );
+			}
+			if ( ! empty( $job['capable'] ) && Retire::group_active( 'prime-slider', 'network' ) ) {
+				if ( $late ) {
+					$job['warnings'][] = 'Prime Slider sigue activo en toda la red: algún sitio conserva widgets suyos sin convertir (su informe dice cuáles).';
+				} else {
+					$result             = Retire::deactivate( true, true );
+					$job['deactivated'] = array_values( array_unique( array_merge( (array) $job['deactivated'], array_values( $result['deactivated'] ) ) ) );
+				}
+			}
+			$job['done']     = true;
+			$job['finished'] = time();
+			update_site_option( self::NETWORK_JOB, $job );
+			if ( function_exists( 'wp_clear_scheduled_hook' ) ) {
+				$main   = function_exists( 'get_main_site_id' ) ? (int) get_main_site_id() : 1;
+				$switch = $main !== self::blog();
+				if ( $switch ) {
+					switch_to_blog( $main );
+				}
+				wp_clear_scheduled_hook( self::NETWORK_TICK );
+				if ( $switch ) {
+					restore_current_blog();
+				}
+			}
+			return $job;
+		} finally {
+			self::network_unlock();
+		}
+	}
+
+	/**
+	 * Estado de cada sitio de la migración de red (en marcha, esperando a la barrera, terminado o pendiente). Sólo lee;
+	 * con todos terminados llama a network_finish(), que escribe `done` bajo el cerrojo de red.
+	 */
+	public static function network_summary( $finish = true ) {
 		$job = self::network_state();
 		if ( ! $job ) {
 			return array( 'idle' => true );
@@ -826,7 +1774,7 @@ final class Runner {
 				$state  = self::state();
 				$report = self::report();
 				if ( $state && empty( $state['done'] ) ) {
-					$row = array( 'status' => 'running', 'stage' => (string) $state['stage'] );
+					$row = array( 'status' => 'running', 'stage' => (string) $state['stage'], 'waiting' => ! empty( $state['wait_network'] ) && empty( $job['released'] ) );
 				} elseif ( $report && (int) ( $report['finished'] ?? 0 ) >= (int) $job['started'] ) {
 					$done = (array) ( $report['report'] ?? array() );
 					$row  = array(
@@ -834,10 +1782,13 @@ final class Runner {
 						'counts'    => (array) $report['counts'],
 						'pending'   => self::has_pending( $report ),
 						'ep_needed' => ! empty( $done['ep_needed'] ),
+						'late_kept' => ! empty( $done['late_kept'] ),
 						// Lo que el informe del sitio lista como información: documentos con efectos heredados descartados
 						// y plugins de la familia sin desactivar.
 						'dropped'   => count( (array) ( $done['dropped'] ?? array() ) ) + (int) ( $done['dropped_omitted'] ?? 0 ),
 						'kept'      => array_values( array_map( 'strval', array_column( (array) ( $done['kept'] ?? array() ), 'label' ) ) ),
+						// Columnas de F8, leídas de lo guardado (V.3.5).
+						'f8'        => (array) ( $done['f8'] ?? array() ),
 					);
 				} else {
 					$row = array( 'status' => 'missing' );
@@ -852,12 +1803,12 @@ final class Runner {
 			$all_done                        = $all_done && 'done' === $row['status'];
 			$job['status'][ (int) $site_id ] = $row;
 		}
-		if ( $all_done && empty( $job['done'] ) ) {
-			$job['done']     = true;
-			$job['finished'] = time();
-			$stored          = $job;
-			unset( $stored['status'] );
-			update_site_option( self::NETWORK_JOB, $stored );
+		$job['all_done'] = $all_done;
+		if ( $finish && $all_done && empty( $job['done'] ) ) {
+			$closed = self::network_finish();
+			if ( ! empty( $closed['done'] ) ) {
+				$job = array_merge( $job, $closed, array( 'status' => $job['status'], 'all_done' => true ) );
+			}
 		}
 		return $job;
 	}
@@ -867,10 +1818,132 @@ final class Runner {
 		$out = array();
 		foreach ( (array) ( $job['status'] ?? array() ) as $site_id => $row ) {
 			if ( 'running' === $row['status'] ) {
-				$out[] = array( 'id' => (int) $site_id, 'name' => $row['name'], 'url' => $row['url'], 'ajax' => $row['ajax'], 'nonce' => wp_create_nonce( self::AJAX . '_' . (int) $site_id ) );
+				$out[] = array( 'id' => (int) $site_id, 'name' => $row['name'], 'url' => $row['url'], 'ajax' => $row['ajax'], 'nonce' => wp_create_nonce( self::AJAX . '_' . (int) $site_id ), 'waiting' => ! empty( $row['waiting'] ) );
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Cerrojo de la red (C16): INSERT IGNORE con token en `options` del sitio principal; se roba a los NETWORK_STALE s
+	 * sólo si nadie lo renovó entre la lectura y el robo. Nunca `add_option` ni sitemeta.
+	 */
+	public static function network_lock(): bool {
+		global $wpdb;
+		$table = $wpdb->get_blog_prefix( function_exists( 'get_main_site_id' ) ? (int) get_main_site_id() : 1 ) . 'options';
+		$token = function_exists( 'wp_generate_password' ) ? wp_generate_password( 20, false ) : bin2hex( random_bytes( 10 ) );
+		$value = time() . '|' . $token;
+		$taken = (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$table} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'off' )", self::NETWORK_LOCK, $value ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( 1 !== $taken ) {
+			$held = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$table} WHERE option_name = %s", self::NETWORK_LOCK ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			if ( '' !== $held && time() - (int) $held < self::NETWORK_STALE ) {
+				return false;
+			}
+			if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET option_value = %s WHERE option_name = %s AND option_value = %s", $value, self::NETWORK_LOCK, $held ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				return false;
+			}
+		}
+		self::$network_token = $token;
+		return true;
+	}
+
+	/** Suelta el cerrojo de red propio; nunca el de otra petición. */
+	public static function network_unlock(): void {
+		global $wpdb;
+		$token               = self::$network_token;
+		self::$network_token = '';
+		if ( '' === $token ) {
+			return;
+		}
+		$table = $wpdb->get_blog_prefix( function_exists( 'get_main_site_id' ) ? (int) get_main_site_id() : 1 ) . 'options';
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE option_name = %s AND option_value LIKE %s", self::NETWORK_LOCK, '%|' . $wpdb->esc_like( $token ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
+	/* ------------------------------------------------------------------ Reversión (V.8) */
+
+	/**
+	 * `--revert`: primero la plataforma (pasos en orden inverso y REVERT_EXTRA), después los documentos, sin tocar
+	 * nunca lo que creó la migración. Exige el grupo de Element Pack activo en algún ámbito (si no, el sitio se quedaría
+	 * sin cabecera) salvo con $force. Lo editado después de migrar se omite y se informa, salvo con $force.
+	 *
+	 * @return array{refused:bool, documents:int, skipped:int, codes:array}
+	 */
+	public static function revert( bool $force = false ): array {
+		self::load();
+		$out = array( 'refused' => false, 'documents' => 0, 'skipped' => 0, 'codes' => array() );
+		if ( ! $force && ! Retire::group_active( 'element-pack', 'any' ) && Retire::group_installed( 'element-pack' ) ) {
+			$out['refused']  = true;
+			$out['codes'][] = array( 'core.revert_refused', array() );
+			return $out;
+		}
+		Report::begin( 'run' );
+		$steps = array_values( array_unique( array_merge( self::PREPARE_STEPS, self::PLATFORM_STEPS ) ) );
+		foreach ( array_reverse( $steps ) as $step ) {
+			$codes = self::platform_call( $step, 'revert' );
+			foreach ( is_array( $codes ) ? $codes : array() as $code ) {
+				$out['codes'][] = $code;
+			}
+		}
+		foreach ( self::REVERT_EXTRA as $class ) {
+			if ( self::has( $class, 'revert' ) ) {
+				foreach ( (array) call_user_func( array( __NAMESPACE__ . '\\' . $class, 'revert' ) ) as $code ) {
+					$out['codes'][] = $code;
+				}
+			}
+		}
+		$touched = array();
+		foreach ( array_unique( array_merge( Migration::backups(), Migration::page_backups() ) ) as $post_id ) {
+			$post_id = (int) $post_id;
+			if ( self::has( 'Platform\\Documents', 'origin' ) && null !== Platform\Documents::origin( $post_id ) ) {
+				continue;
+			}
+			$mark = Migration::f8_mark( $post_id );
+			if ( $mark && ! $force ) {
+				$raw = (string) get_metadata( 'post', $post_id, '_elementor_data', true );
+				if ( '' !== (string) ( $mark['hash'] ?? '' ) && '' !== $raw && md5( $raw ) !== (string) $mark['hash'] ) {
+					++$out['skipped'];
+					$out['codes'][] = array( 'core.revert_skipped', array( 'id' => $post_id ) );
+					continue;
+				}
+			}
+			if ( Migration::revert_document( $post_id ) ) {
+				++$out['documents'];
+				$touched[] = $post_id;
+			}
+		}
+		$preserve = '\\Digitalisimo\\Elements\\Import\\Kits\\Preserve';
+		foreach ( $touched as $post_id ) {
+			if ( class_exists( $preserve ) && ! ( function_exists( 'wp_is_post_revision' ) && wp_is_post_revision( $post_id ) ) ) {
+				$data = json_decode( (string) get_metadata( 'post', $post_id, '_elementor_data', true ), true );
+				$preserve::recount_document( $post_id, is_array( $data ) ? $data : array() );
+			}
+		}
+		self::clear_platform_caches();
+		Report::flush();
+		return $out;
+	}
+
+	/** Caché de condiciones regenerada y cachés de fuentes, iconos y CSS vacías (tras revertir). */
+	private static function clear_platform_caches() {
+		try {
+			if ( class_exists( '\\ElementorPro\\Plugin' ) && isset( \ElementorPro\Plugin::$instance ) && is_object( \ElementorPro\Plugin::$instance ) && method_exists( \ElementorPro\Plugin::$instance, 'modules_manager' ) ) {
+				$module = \ElementorPro\Plugin::$instance->modules_manager->get_modules( 'theme-builder' );
+				if ( $module && method_exists( $module, 'get_conditions_manager' ) ) {
+					$cache = $module->get_conditions_manager()->get_cache();
+					if ( $cache && method_exists( $cache, 'regenerate' ) ) {
+						$cache->regenerate();
+					}
+				}
+			}
+			if ( class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->files_manager ) && method_exists( \Elementor\Plugin::$instance->files_manager, 'clear_cache' ) ) {
+				\Elementor\Plugin::$instance->files_manager->clear_cache();
+			}
+		} catch ( \Throwable $e ) {
+			unset( $e );
+		}
+		foreach ( array( 'elementor_fonts_manager_fonts', 'elementor_fonts_manager_font_types', 'elementor_custom_icon_sets_config' ) as $option ) {
+			delete_option( $option );
+		}
 	}
 
 	/* ------------------------------------------------------------------ Cerrojo, presupuesto, memoria y cron */
@@ -992,6 +2065,12 @@ final class Runner {
 		} else {
 			$html .= '</p>';
 		}
+		if ( ! empty( $state['wait_network'] ) ) {
+			$html .= '<p>' . esc_html( 'Plantillas preparadas. Esperando a que los demás sitios de la red preparen las suyas para desactivar Element Pack en toda la red sin dejar ningún sitio sin cabecera.' ) . '</p>';
+		}
+		if ( ! empty( $state['elements_old'] ) ) {
+			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( (string) $state['elements_old'] ) . '</p></div>';
+		}
 		$html .= self::render_counts( (array) $state['counts'] );
 		if ( ! empty( $state['busy'] ) ) {
 			$html .= '<p>Otra petición está trabajando en esta migración; se muestra su avance.</p>';
@@ -1004,8 +2083,17 @@ final class Runner {
 		if ( ! empty( $c['deactivated'] ) ) {
 			$rows[] = 'Plugins desactivados en este sitio: ' . implode( ', ', (array) $c['deactivated'] ) . '.';
 		}
+		if ( ! empty( $c['copies'] ) ) {
+			$rows[] = sprintf( 'Plantillas copiadas del Theme Builder de Element Pack convertidas: %d.', (int) $c['copies'] );
+		}
 		if ( ! empty( $c['converted'] ) ) {
-			$rows[] = sprintf( 'Documentos de Element Pack convertidos: %d (%d elementos).', (int) $c['converted'], (int) $c['elements'] );
+			$rows[] = sprintf( 'Documentos de Element Pack y Prime Slider convertidos: %d (%d elementos).', (int) $c['converted'], (int) $c['elements'] );
+		}
+		if ( ! empty( $c['pages'] ) ) {
+			$rows[] = sprintf( 'Ajustes de página con efectos de Element Pack convertidos: %d.', (int) $c['pages'] );
+		}
+		if ( ! empty( $c['markers'] ) ) {
+			$rows[] = sprintf( 'Contenido conservado de kits importados convertido: %d documentos.', (int) $c['markers'] );
 		}
 		if ( ! empty( $c['revisions'] ) ) {
 			$rows[] = sprintf( 'Revisiones y autoguardados convertidos: %d.', (int) $c['revisions'] );
@@ -1056,7 +2144,9 @@ final class Runner {
 		$deletable = array();
 		$later     = array();
 		foreach ( (array) ( $r['plugins'] ?? array() ) as $plugin ) {
-			if ( ! empty( $plugin['network'] ) ) {
+			if ( ! empty( $plugin['late'] ) && ! empty( $plugin['network'] ) && empty( $plugin['site'] ) && empty( $r['late_kept'] ) ) {
+				$later[] = $plugin['label'] . ' (activo en toda la red: lo desactiva la migración de la red al terminar todos los sitios)';
+			} elseif ( ! empty( $plugin['network'] ) ) {
 				$still[] = $plugin['label'] . ' (activo en toda la red)';
 			} elseif ( ! empty( $plugin['site'] ) ) {
 				$still[] = $plugin['label'] . ' (sigue activo en este sitio)';
@@ -1132,10 +2222,30 @@ final class Runner {
 			$pending .= '<p>' . esc_html( sprintf( 'Quedan %d documentos con widgets fusionados por actualizar: vuelve a pulsar Migrar cuando se resuelvan los avisos.', (int) $r['aliases_left'] ) ) . '</p>';
 		}
 		$info = '' !== $info ? '<h3>Sin equivalente</h3>' . $info : '';
+		// Informe de F8 (por documento y por sitio), leído de su opción: cada campo escapado por Report.
+		if ( isset( $r['f8'] ) ) {
+			$f8 = Report::stored();
+			if ( ! Report::is_empty( $f8 ) ) {
+				$info .= '<div class="digi-migrate__f8">' . Report::render( $f8, 'site' ) . '</div>';
+			}
+			if ( ! empty( $r['f8']['pending'] ) && '' === $pending ) {
+				$pending = '<p>' . esc_html( 'Hay asuntos en «Pendiente de revisar», más abajo.' ) . '</p>';
+			}
+		}
 		if ( '' !== $pending ) {
 			return $html . '<h3>Pendiente de revisar</h3>' . $pending . $info;
 		}
 		return $html . $info . '<div class="notice notice-success inline"><p>Este sitio ya no depende de Elementor, Elementor Pro, PRO Elements ni Element Pack. Si usas una caché de página o una CDN, vacíala. Cuando hayas comprobado el sitio, borra esos plugins y DIGITALÍSIMO Migración.</p></div>';
+	}
+
+	/** Nombres de sitios para un aviso. */
+	private static function site_names( array $ids ) {
+		$names = array();
+		foreach ( $ids as $site_id ) {
+			$details = function_exists( 'get_blog_details' ) ? get_blog_details( (int) $site_id ) : null;
+			$names[] = $details ? $details->blogname . ' (' . $details->siteurl . ')' : '#' . (int) $site_id;
+		}
+		return implode( ', ', $names );
 	}
 
 	/** Plugins de la familia que la migración no desactiva, con su estado en la red (para la pantalla de red). */
@@ -1173,6 +2283,22 @@ final class Runner {
 		foreach ( (array) $job['warnings'] as $warning ) {
 			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( (string) $warning ) . '</p></div>';
 		}
+		if ( ! empty( $job['barrier'] ) && empty( $job['released'] ) && empty( $job['done'] ) ) {
+			$waiting = 0;
+			foreach ( $status as $row ) {
+				$waiting += ! empty( $row['waiting'] ) ? 1 : 0;
+			}
+			$html .= '<p>' . esc_html( sprintf( 'Esperando a que los sitios preparen sus plantillas para desactivar Element Pack en toda la red (%d de %d listos).', $waiting, count( (array) ( $job['barrier_sites'] ?? array() ) ) ) ) . '</p>';
+		}
+		if ( ! empty( $job['unprepared'] ) ) {
+			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Element Pack se desactivó en la red al vencer el plazo sin que estos sitios terminaran de preparar sus plantillas (pueden haberse quedado un tiempo sin su cabecera de Element Pack): ' . self::site_names( (array) $job['unprepared'] ) . '.' ) . '</p></div>';
+		}
+		if ( ! empty( $job['blocked'] ) ) {
+			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Sitios con una cabecera o un pie de Element Pack visibles sin copia que pueda publicarse (Element Pack sigue activo en la red por ellos): ' . self::site_names( (array) $job['blocked'] ) . '.' ) . '</p></div>';
+		}
+		if ( ! empty( $job['excluded'] ) ) {
+			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Archivados, marcados como spam o borrados: no se migraron. Migrarán al volver a pulsar Migrar toda la red cuando estén activos: ' . self::site_names( (array) $job['excluded'] ) . '.' ) . '</p></div>';
+		}
 		if ( ! empty( $job['skipped'] ) ) {
 			$names = array();
 			foreach ( (array) $job['skipped'] as $site_id ) {
@@ -1188,12 +2314,15 @@ final class Runner {
 			if ( 'done' === $row['status'] ) {
 				$ep_needed = $ep_needed || ! empty( $row['ep_needed'] );
 				$state     = ! empty( $row['pending'] ) ? 'Terminado, con asuntos por revisar' : 'Terminado';
+				$f8        = (array) ( $row['f8'] ?? array() );
 				$result    = sprintf( '%d documentos y %d revisiones convertidos, %d con widgets fusionados actualizados', (int) ( $c['converted'] ?? 0 ), (int) ( $c['revisions'] ?? 0 ), (int) ( $c['aliases'] ?? 0 ) ) . ( ! empty( $c['deactivated'] ) ? '; desactivados: ' . implode( ', ', (array) $c['deactivated'] ) : '' )
+					. ( ! empty( $c['copies'] ) ? sprintf( '; plantillas: %d', (int) $c['copies'] ) : '' )
+					. ( $f8 ? sprintf( '; creado: %d, con diferencias: %d, pendientes: %d', (int) ( $f8['created'] ?? 0 ), (int) ( $f8['approx'] ?? 0 ), (int) ( $f8['review'] ?? 0 ) ) : '' )
 					. ( ! empty( $row['dropped'] ) ? sprintf( '; efectos heredados sin equivalente en %d documentos', (int) $row['dropped'] ) : '' )
 					. ( ! empty( $row['kept'] ) ? '; sin desactivar: ' . implode( ', ', (array) $row['kept'] ) : '' );
 			} elseif ( 'running' === $row['status'] ) {
 				$ep_needed = true;
-				$state     = 'En marcha';
+				$state     = ! empty( $row['waiting'] ) ? 'Esperando a la red' : 'En marcha';
 				$result    = self::LABELS[ $row['stage'] ] ?? (string) $row['stage'];
 			} else {
 				$ep_needed = true;

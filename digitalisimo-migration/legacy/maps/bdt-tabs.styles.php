@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-tabs` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -25,13 +26,5 @@ return array( array(
 				'title' => 'Right',
 				'icon' => 'eicon-h-align-right',
 			),
-		),
-	), array(
-		'name' => 'icon_hover_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-content-switcher .digi-content-switcher-item:hover .digi-content-switcher__tab i' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-content-switcher .digi-content-switcher-item:hover .digi-content-switcher__tab svg' => 'fill: {{VALUE}};',
 		),
 	) );

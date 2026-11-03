@@ -6,14 +6,18 @@ $placeholder_url = class_exists( '\Elementor\Utils' ) ? \Elementor\Utils::get_pl
 
 return array(
 	'target'    => 'digitalisimo-fancy-card',
+	// Clases del render de Element Pack (trailer-box.php) → tarjeta propia. `{{WRAPPER}}` ya es el widget, así que
+	// `.elementor-widget-bdt-trailer-box` desaparece; la caja interior (`-desc`, `-title-wrap`) no tiene equivalente.
 	'classes'   => array(
-		'.bdt-trailer-box-title'       => '.digi-fancy-card__title',
-		'.bdt-trailer-box-sub-title'   => '.digi-fancy-card__badge',
-		'.bdt-trailer-box-description' => '.digi-fancy-card__description',
-		'.bdt-trailer-box-readmore'    => '.digi-fancy-card__link',
-		'.bdt-trailer-box-image'       => '.digi-fancy-card__visual',
-		'.bdt-trailer-box-badge'       => '.digi-fancy-card__badge',
-		'.bdt-trailer-box'             => '.digi-fancy-card',
+		'.elementor-widget-bdt-trailer-box'                      => '',
+		'.bdt-trailer-box-desc-inner .bdt-trailer-box-pre-title' => '.digi-fancy-card__badge',
+		'.bdt-trailer-box-desc-inner .bdt-trailer-box-title'     => '.digi-fancy-card__title',
+		'.bdt-trailer-box-pre-title'                             => '.digi-fancy-card__badge',
+		'.bdt-trailer-box-title'                                 => '.digi-fancy-card__title',
+		'.bdt-trailer-box-text'                                  => '.digi-fancy-card__description',
+		'a.bdt-trailer-box-button'                               => 'a.digi-fancy-card__link',
+		'.bdt-trailer-box-button'                                => '.digi-fancy-card__link',
+		'.bdt-trailer-box'                                       => '.digi-fancy-card',
 	),
 	'defaults'  => array(
 		'title' => 'Trailer Box Title',

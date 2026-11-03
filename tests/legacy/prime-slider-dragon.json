@@ -1,0 +1,186 @@
+{
+  "_widget": "prime-slider-dragon",
+  "_family": "A",
+  "_comentario": "Datos sintéticos con la forma que guarda el editor (research-ps.md §3.1). Los marcadores {{…}} los expande la prueba: perfiles y vídeos con los patrones de vendors.json y {{ps_assets}} con la carpeta de Lite del sitio simulado.",
+  "defaults": {
+    "slides": [
+      {
+        "_id": "ddra1",
+        "sub_title": "Subtítulo 1",
+        "title": "Diapositiva 1",
+        "slide_button_text": "Leer más",
+        "image": {
+          "url": "{{ps_assets}}images/gallery/item-1.png"
+        }
+      },
+      {
+        "_id": "ddra2",
+        "sub_title": "Subtítulo 2",
+        "title": "Diapositiva 2",
+        "slide_button_text": "Leer más",
+        "image": {
+          "url": "{{ps_assets}}images/gallery/item-2.png"
+        }
+      },
+      {
+        "_id": "ddra3",
+        "sub_title": "Subtítulo 3",
+        "title": "Diapositiva 3",
+        "slide_button_text": "Leer más",
+        "image": {
+          "url": "{{ps_assets}}images/gallery/item-3.png"
+        }
+      }
+    ],
+    "social_link_list": [
+      {
+        "_id": "v1",
+        "social_link_title": "Facebook",
+        "social_icon_link": {
+          "url": "{{vendor_profile:facebook}}"
+        },
+        "social_icon": {
+          "value": "fab fa-facebook-f",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "v2",
+        "social_link_title": "Twitter",
+        "social_icon_link": {
+          "url": "{{vendor_profile:twitter}}"
+        },
+        "social_icon": {
+          "value": "fab fa-twitter",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "v3",
+        "social_link_title": "Instagram",
+        "social_icon_link": {
+          "url": "{{vendor_profile:instagram}}"
+        },
+        "social_icon": {
+          "value": "fab fa-instagram",
+          "library": "fa-brands"
+        }
+      }
+    ]
+  },
+  "custom": {
+    "slides": [
+      {
+        "_id": "cdra1",
+        "sub_title": "Novedad 1",
+        "title": "Hola 1",
+        "title_link": {
+          "url": "https://example.test/1/",
+          "is_external": "",
+          "nofollow": ""
+        },
+        "excerpt": "<p>Texto <strong>1</strong></p>",
+        "slide_button_text": "Ver más",
+        "button_link": {
+          "url": "/contacto/",
+          "is_external": "on",
+          "nofollow": ""
+        },
+        "image": {
+          "url": "https://s1.test/wp-content/uploads/2026/10/foto-1.jpg",
+          "id": 321,
+          "alt": "Foto 1"
+        }
+      },
+      {
+        "_id": "cdra2",
+        "sub_title": "Novedad 2",
+        "title": "Hola 2",
+        "title_link": {
+          "url": "https://example.test/2/",
+          "is_external": "",
+          "nofollow": ""
+        },
+        "excerpt": "<p>Texto <strong>2</strong></p>",
+        "slide_button_text": "Ver más",
+        "button_link": {
+          "url": "/contacto/",
+          "is_external": "on",
+          "nofollow": ""
+        },
+        "image": {
+          "url": "https://s1.test/wp-content/uploads/2026/10/foto-2.jpg",
+          "id": 322,
+          "alt": "Foto 2"
+        }
+      }
+    ],
+    "social_link_list": [
+      {
+        "_id": "v1",
+        "social_link_title": "Facebook",
+        "social_icon_link": {
+          "url": "{{vendor_profile:facebook}}"
+        },
+        "social_icon": {
+          "value": "fab fa-facebook-f",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "o1",
+        "social_link_title": "Mi página",
+        "social_icon_link": {
+          "url": "https://www.facebook.com/mi-negocio/",
+          "is_external": "on"
+        },
+        "social_icon": {
+          "value": "fab fa-facebook-f",
+          "library": "fa-brands"
+        }
+      },
+      {
+        "_id": "o2",
+        "social_link_title": "Tienda",
+        "social_icon_link": {
+          "url": "https://tienda.example.test/"
+        }
+      }
+    ],
+    "show_social_icon": "yes",
+    "_margin": {
+      "unit": "px",
+      "top": "20",
+      "right": "0",
+      "bottom": "20",
+      "left": "0",
+      "isLinked": ""
+    },
+    "_element_id": "portada",
+    "_css_classes": "hero",
+    "hide_mobile": "hidden-mobile",
+    "_skin": "locate",
+    "_title": "Mi slider",
+    "_digitalisimo_legacy": "x",
+    "custom_css": "selector .bdt-slideshow-item{opacity:.9}",
+    "title_color": "#123456",
+    "arrows_color": "red;}body{display:none}",
+    "__globals__": {
+      "_background_color": "globals/colors?id=primary",
+      "title_color": "globals/colors?id=secondary"
+    },
+    "show_navigation_dots": "",
+    "autoplay": "",
+    "enable_height": "yes",
+    "viewport_height": {
+      "unit": "vh",
+      "size": 80,
+      "sizes": []
+    },
+    "viewport_height_mobile": {
+      "unit": "vh",
+      "size": 60,
+      "sizes": []
+    }
+  }
+}

@@ -8,6 +8,10 @@
 //   botones de 24 × 24 px como mínimo, reproducción automática con sus pausas (botón, puntero, foco, fuera de pantalla),
 //   movimiento reducido, ningún desplazamiento de diseño entre pases (alturas, posición de lo que sigue y layout-shift)
 //   y el árbol de accesibilidad (región «carrusel», grupos «N de M», botones con nombre; lo inerte, fuera).
+// F8 (V.10.4): cuatro sliders más con el contador «N / M» (flechas y puntos debajo, sólo flechas debajo, sólo flechas a
+// los lados y flechas a los lados con puntos y reproducción automática): sin JavaScript no se ve pero guarda su sitio;
+// con JavaScript, su celda de la rejilla real, cifras tabulares, el color de la navegación, fuera del árbol de
+// accesibilidad, al día con botones, teclado y reproducción automática, y sin desplazamiento de diseño.
 // Sin Chrome o sin puppeteer-core (CI), se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
 // Uso: timeout 150 node tests/elements-f7b-nested-slider-chrome.mjs
 import assert from 'node:assert/strict';
@@ -40,7 +44,7 @@ async function open({ width = 1280, js = true, reduce = false } = {}) {
     new PerformanceObserver(list => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__shift += e.value; }).observe({ type: 'layout-shift', buffered: true });
   });
   await page.goto(fixture, { waitUntil: 'load' });
-  if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-nslider--ready').length === 3);
+  if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-nslider--ready').length === document.querySelectorAll('.digi-nslider').length && document.querySelectorAll('.digi-nslider').length === 7);
   return page;
 }
 // Estado de un slider: diapositiva actual, inertes, puntos y región viva.
@@ -210,6 +214,74 @@ try {
     const dot = flat.find(n => n.name === 'Ir a la diapositiva 1');
     ok(dot && !('selected' in dot), 'Los puntos son botones (sin aria-selected).');
     await page.close();
+  }
+  // 5. Contador (F8, V.10.4).
+  const counter = (page, id) => page.evaluate(id => {
+    const r = document.querySelector(`[data-id="${id}"] .digi-nslider`), c = r.querySelector(':scope>.digi-nslider__count');
+    const box = el => { if (!el) return null; const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, cx: (b.left + b.right) / 2, cy: (b.top + b.bottom) / 2, w: b.width, h: b.height }; };
+    const cs = getComputedStyle(c);
+    const kid = n => r.querySelector(':scope>.digi-nslider__' + n);
+    return {
+      text: c.textContent, hidden: c.hidden, visibility: cs.visibility, display: cs.display, nums: cs.fontVariantNumeric, color: cs.color, sectionColor: getComputedStyle(r).color,
+      area: [cs.gridRowStart, cs.gridColumnStart].join('/'), c: box(c), section: box(r), track: box(kid('track')), dots: kid('dots').hidden ? null : box(kid('dots')), prev: box(kid('prev')), next: box(kid('next')),
+    };
+  }, id);
+  {
+    // Sin JavaScript: no se ve, pero su sitio está reservado (la altura es la misma que con el script).
+    const noJs = await open({ js: false, width: 1280 });
+    const off = {};
+    for (const id of ['w4both', 'w5arrows', 'w6sides', 'w7auto']) off[id] = await counter(noJs, id);
+    ok(Object.values(off).every(c => c.hidden && c.visibility === 'hidden' && c.display === 'block'), 'Sin JavaScript el contador no se ve (visibility hidden), pero ocupa su celda.');
+    await noJs.close();
+    for (const width of [360, 1280]) {
+      const page = await open({ width, reduce: true });
+      const on = {};
+      for (const id of ['w4both', 'w5arrows', 'w6sides', 'w7auto']) on[id] = await counter(page, id);
+      for (const [id, c] of Object.entries(on)) {
+        ok(!c.hidden && c.visibility === 'visible' && c.text === '1 / 3', `${width} ${id}: con el script se ve «1 / 3» (${c.text}, ${c.visibility}).`);
+        ok(/tabular-nums/.test(c.nums) && c.color === c.sectionColor, `${width} ${id}: cifras tabulares y el color de la navegación (${c.nums}, ${c.color}).`);
+        ok(Math.abs(c.c.cx - c.section.cx) < 2 && c.c.l >= c.section.l && c.c.r <= c.section.r, `${width} ${id}: centrado en la columna central del slider.`);
+        if (width === 1280) ok(Math.round(c.section.h) === Math.round(off[id].section.h), `${id}: la misma altura con y sin JavaScript (${Math.round(off[id].section.h)} → ${Math.round(c.section.h)}): mostrarlo no desplaza nada.`);
+      }
+      const both = on.w4both, arrows = on.w5arrows, sides = on.w6sides, auto = on.w7auto;
+      ok(both.area === '3/2' && both.c.t >= both.dots.b && both.c.t >= both.prev.b - 1, `${width}: flechas y puntos debajo: el contador va en la fila 3, bajo los puntos (${both.area}).`);
+      ok(arrows.area === '2/2' && arrows.dots === null && Math.abs(arrows.c.cy - arrows.prev.cy) < 3 && arrows.prev.r <= arrows.c.l && arrows.c.r <= arrows.next.l, `${width}: sólo flechas debajo: el contador ocupa la celda de los puntos, entre las flechas y a su altura (${arrows.area}).`);
+      ok(sides.area === '2/2' && sides.dots === null && sides.c.t >= sides.track.b && sides.prev.cy < sides.track.b, `${width}: sólo flechas a los lados: el contador va bajo la pista, en la fila 2 (${sides.area}).`);
+      ok(auto.area === '3/2' && auto.c.t >= auto.dots.b && auto.prev.cy < auto.track.b, `${width}: flechas a los lados con puntos: el contador bajo los puntos (${auto.area}).`);
+      ok((await page.evaluate(() => window.__shift)) === 0, `${width}: ningún layout-shift con los contadores.`);
+      // Botones, teclado y bucle.
+      await page.click('[data-id="w4both"] .digi-nslider__next');
+      await settle(page);
+      ok((await counter(page, 'w4both')).text === '2 / 3', `${width}: «siguiente» lo pasa a «2 / 3».`);
+      await page.focus('[data-id="w4both"] .digi-nslider__dot');
+      await page.keyboard.press('End');
+      await settle(page);
+      ok((await counter(page, 'w4both')).text === '3 / 3', `${width}: Fin en un punto: «3 / 3».`);
+      await page.click('[data-id="w6sides"] .digi-nslider__next');
+      await page.click('[data-id="w6sides"] .digi-nslider__next');
+      await page.click('[data-id="w6sides"] .digi-nslider__next');
+      await settle(page);
+      ok((await counter(page, 'w6sides')).text === '3 / 3', `${width}: sin bucle, se queda en «3 / 3».`);
+      await page.click('[data-id="w5arrows"] .digi-nslider__prev');
+      await settle(page);
+      ok((await counter(page, 'w5arrows')).text === '3 / 3', `${width}: con bucle, «anterior» desde la primera: «3 / 3».`);
+      await page.close();
+    }
+    // Árbol de accesibilidad: el contador no está (aria-hidden); los grupos «N de M» siguen.
+    const a11y = await open({ width: 1024, reduce: true });
+    const tree = await a11y.accessibility.snapshot({ root: await a11y.$('[data-id="w4both"] .digi-nslider'), interestingOnly: false });
+    const flat = [];
+    const walk = n => { flat.push(n); (n.children || []).forEach(walk); };
+    walk(tree);
+    ok(!flat.some(n => /\d\s*\/\s*3/.test(n.name || '')) && flat.some(n => n.role === 'group' && n.name === '1 de 3'), 'El contador no está en el árbol de accesibilidad; la diapositiva sigue anunciándose como «1 de 3».');
+    await a11y.close();
+    // Reproducción automática: el contador la sigue.
+    const auto = await open({ width: 1024 });
+    await auto.evaluate(() => document.querySelector('[data-id="w7auto"]').scrollIntoView());
+    await auto.mouse.move(2, 2);
+    await sleep(2900);
+    ok((await counter(auto, 'w7auto')).text === '2 / 3', 'Con reproducción automática, el contador pasa solo a «2 / 3».');
+    await auto.close();
   }
   ok(errors.length === 0, 'Sin errores de JavaScript: ' + errors.join(' | '));
 } finally {

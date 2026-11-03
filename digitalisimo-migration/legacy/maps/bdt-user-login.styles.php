@@ -1,31 +1,12 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-user-login` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
 return array( array(
-		'name' => 'modal_avatar_size',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-login-button-avatar img' => 'width: {{SIZE}}{{UNIT}};',
-		),
-		'default' => array(
-			'size' => 24,
-		),
-	), array(
-		'name' => 'dropdown_avatar_size',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-login-button-avatar img' => 'width: {{SIZE}}{{UNIT}};',
-		),
-		'default' => array(
-			'size' => 24,
-		),
-	), array(
 		'name' => 'looged_text_color',
 		'type' => 'color',
 		'responsive' => false,

@@ -1,0 +1,79 @@
+{
+  "_widget": "prime-slider-ring",
+  "_family": "I",
+  "_comentario": "Datos sintéticos con la forma que guarda el editor (research-ps.md §3.1). Los marcadores {{…}} los expande la prueba: perfiles y vídeos con los patrones de vendors.json y {{ps_assets}} con la carpeta de Lite del sitio simulado.",
+  "defaults": {
+    "ring_slides": [
+      {
+        "_id": "drin1",
+        "image": {
+          "url": "{{ps_assets}}images/gallery/item-1.png"
+        },
+        "overlay_label_author": "Diapositiva 1",
+        "overlay_label_time": "Texto de ejemplo 1"
+      },
+      {
+        "_id": "drin2",
+        "image": {
+          "url": "{{ps_assets}}images/gallery/item-2.png"
+        },
+        "overlay_label_author": "Diapositiva 2",
+        "overlay_label_time": "Texto de ejemplo 2"
+      },
+      {
+        "_id": "drin3",
+        "image": {
+          "url": "{{ps_assets}}images/gallery/item-3.png"
+        },
+        "overlay_label_author": "Diapositiva 3",
+        "overlay_label_time": "Texto de ejemplo 3"
+      }
+    ]
+  },
+  "custom": {
+    "ring_slides": [
+      {
+        "_id": "crin1",
+        "image": {
+          "url": "https://s1.test/wp-content/uploads/2026/10/foto-1.jpg",
+          "id": 321,
+          "alt": "Foto 1"
+        },
+        "overlay_label_author": "Hola 1",
+        "overlay_label_time": "<p>Texto <strong>1</strong></p>"
+      },
+      {
+        "_id": "crin2",
+        "image": {
+          "url": "https://s1.test/wp-content/uploads/2026/10/foto-2.jpg",
+          "id": 322,
+          "alt": "Foto 2"
+        },
+        "overlay_label_author": "Hola 2",
+        "overlay_label_time": "<p>Texto <strong>2</strong></p>"
+      }
+    ],
+    "_margin": {
+      "unit": "px",
+      "top": "20",
+      "right": "0",
+      "bottom": "20",
+      "left": "0",
+      "isLinked": ""
+    },
+    "_element_id": "portada",
+    "_css_classes": "hero",
+    "hide_mobile": "hidden-mobile",
+    "_skin": "locate",
+    "_title": "Mi slider",
+    "_digitalisimo_legacy": "x",
+    "custom_css": "selector .bdt-slideshow-item{opacity:.9}",
+    "title_color": "#123456",
+    "arrows_color": "red;}body{display:none}",
+    "__globals__": {
+      "_background_color": "globals/colors?id=primary",
+      "title_color": "globals/colors?id=secondary"
+    },
+    "autoplay": ""
+  }
+}

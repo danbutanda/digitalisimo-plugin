@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-content-switcher` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -24,31 +25,6 @@ return array( array(
 			'right' => array(
 				'title' => 'Right',
 				'icon' => 'fa fa-align-right',
-			),
-		),
-	), array(
-		'name' => 'badge_align',
-		'type' => 'choose',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-content-switcher-badge' => '{{VALUE}};',
-		),
-		'default' => 'left',
-		'selectors_dictionary' => array(
-			'left' => 'left: 0;',
-			'right' => 'right: 0;',
-		),
-		'condition' => array(
-			'badge' => 'yes',
-		),
-		'options' => array(
-			'left' => array(
-				'title' => 'Left',
-				'icon' => 'eicon-h-align-left',
-			),
-			'right' => array(
-				'title' => 'Right',
-				'icon' => 'eicon-h-align-right',
 			),
 		),
 	), array(
@@ -210,14 +186,13 @@ return array( array(
 	), array(
 		'name' => 'switch_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-content-switcher-icon, {{WRAPPER}} .digi-content-switcher__tab',
+		'selector' => '{{WRAPPER}} .digi-content-switcher__tab',
 	), array(
 		'name' => 'switch_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-content-switcher-icon i, {{WRAPPER}} .digi-content-switcher__tab' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-content-switcher-icon svg' => 'fill: {{VALUE}};',
+			'{{WRAPPER}} .digi-content-switcher__tab' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'switcher_button_background',
@@ -266,7 +241,7 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-content-switcher__tab[aria-selected="true"] .digi-content-switcher-icon i, {{WRAPPER}} .digi-content-switcher__tab[aria-selected="true"]' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-content-switcher__tab[aria-selected="true"]' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'switcher_button_active_background',
@@ -403,60 +378,9 @@ return array( array(
 		),
 		'size_units' => array( 'px', '%', 'em' ),
 	), array(
-		'name' => 'switcher_content_margin',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-content-switcher__panel-wrapper' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%', 'em' ),
-	), array(
 		'name' => 'switcher_content_box_shadow',
 		'group' => 'box-shadow',
 		'selector' => '{{WRAPPER}} .digi-content-switcher__panel',
-	), array(
-		'name' => 'badge_text_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-content-switcher-badge' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'badge_background_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-content-switcher-badge' => 'background: {{VALUE}};',
-			'{{WRAPPER}} .digi-content-switcher-badge:before' => 'border-top-color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'badge_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-content-switcher-badge',
-	), array(
-		'name' => 'badge_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-content-switcher-badge' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'badge_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-content-switcher-badge' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'badge_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-content-switcher-badge',
-	), array(
-		'name' => 'badge_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-content-switcher-badge',
 	), array(
 		'name' => 'original_price_horizontal_offset',
 		'type' => 'slider',

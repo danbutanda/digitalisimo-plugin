@@ -5,8 +5,8 @@
 //   cuyas claves son 0..n-1 en orden es una lista; cualquier otro, un objeto.
 // - canonical()/hash(): JSON con las claves ordenadas y su sha256; es la huella de cada control en
 //   tests/fixtures/f8-legacy-styles-baseline.json.
-// - corpus(): las clases `digi-*`/`elementor-*` que aparecen literalmente, con límite de clase, en el PHP y el JS de
-//   DIGITALÍSIMO Elements y de Migración (sin los mapas). Es la misma regla que aplica scripts/legacy-styles.py
+// - corpus(): las clases `digi-*`/`elementor-*`/`ep-*` que aparecen literalmente, con límite de clase, en el PHP y el JS de
+//   DIGITALÍSIMO Elements y de Migración (sin los `.styles.php` ni el bloque `classes` de cada mapa). Es la misma regla que aplica scripts/legacy-styles.py
 //   (`corpus_tokens()`): una clase de un selector que no está aquí ni casa con un patrón dinámico de
 //   tests/fixtures/legacy-styles-dynamic.json no la pinta ningún widget, y el selector está muerto.
 import { createHash } from 'node:crypto';
@@ -127,7 +127,8 @@ export function classesOf(selector) {
   return [...clean.matchAll(/\.(-?[_a-zA-Z][_a-zA-Z0-9-]*)/g)].map((m) => m[1]);
 }
 
-export const checked = (cls) => /^(?:digi|elementor)-/.test(cls);
+// Los propios, los de Elementor y los de Element Pack que no son `bdt-` (`ep-*`), que ningún widget propio imprime.
+export const checked = (cls) => /^(?:digi|elementor|ep)-/.test(cls);
 
 // Todas las partes de selector de un control: [{ key, part }] (key = la clave de selectors o '' en un grupo).
 export function selectorParts(control) {
@@ -135,8 +136,9 @@ export function selectorParts(control) {
   return Object.keys(control.selectors || {}).flatMap((key) => splitSelector(key).map((part) => ({ key, part })));
 }
 
-const TOKEN = /(?<![A-Za-z0-9_-])((?:digi|elementor)-[A-Za-z0-9_-]+)/g;
+const TOKEN = /(?<![A-Za-z0-9_-])((?:digi|elementor|ep)-[A-Za-z0-9_-]+)/g;
 const SKIP_DIRS = new Set(['node_modules', '.git']);
+export const CLASSES_BLOCK = /^\t'classes'\s*=>[^\n]*?array\((?:[^\n]*\),[ \t]*$|\n[\s\S]*?\n\t\),[^\n]*$)/gm;
 
 export function corpusFiles(root) {
   const out = [];
@@ -144,12 +146,8 @@ export function corpusFiles(root) {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (SKIP_DIRS.has(entry.name) || entry.isSymbolicLink()) continue;
       const path = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (relative(root, path) === 'digitalisimo-migration/legacy/maps') continue;
-        walk(path);
-      } else if (/\.(?:php|js)$/.test(entry.name)) {
-        out.push(path);
-      }
+      if (entry.isDirectory()) walk(path);
+      else if (/\.(?:php|js)$/.test(entry.name) && !entry.name.endsWith('.styles.php')) out.push(path);
     }
   };
   walk(join(root, 'digitalisimo-elements'));
@@ -161,7 +159,9 @@ export function corpus(root) {
   const tokens = new Set();
   for (const file of corpusFiles(root)) {
     if (statSync(file).size > 32 * 1024 * 1024) continue;
-    const text = readFileSync(file, 'latin1');
+    let text = readFileSync(file, 'latin1');
+    // Un mapa puede imprimir marcado propio en su filtro, pero su `classes` no prueba nada: es lo que se valida.
+    if (relative(root, file).startsWith('digitalisimo-migration/legacy/maps/')) text = text.replace(CLASSES_BLOCK, '');
     for (const m of text.matchAll(TOKEN)) tokens.add(m[1]);
   }
   return tokens;

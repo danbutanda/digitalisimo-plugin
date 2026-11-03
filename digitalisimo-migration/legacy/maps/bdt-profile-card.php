@@ -6,13 +6,22 @@ $placeholder_url = class_exists( '\Elementor\Utils' ) ? \Elementor\Utils::get_pl
 
 return array(
 	'target'    => 'author-box',
-	// Clases de Element Pack más usadas en sus selectores: .bdt-profile-card, .bdt-profile-card-share-link, .bdt-profile-card-button, .bdt-button, .bdt-profile-card-inner, .bdt-profile-card-name-info, .bdt-profile-card-pro, .bdt-profile-card-image, .bdt-profile-card-header, .bdt-profile-card-settings, .bdt-name, .bdt-profile-card-bio, .bdt-profile-card-status, .bdt-dropdown
+	// Clases del render de Element Pack (profile-card.php) → `author-box` de PRO y sus rasgos propios
+	// (class-author-box-extras.php). El cuerpo interior (`-inner`) y el menú (`details`) son aproximados.
 	'classes'   => array(
-		'.bdt-profile-card .bdt-profile-card-button .bdt-button' => '.elementor-author-box__button',
-		'.bdt-profile-card .bdt-profile-card-image img' => '.elementor-author-box__avatar img',
-		'.bdt-profile-card .bdt-profile-card-bio' => '.elementor-author-box__bio',
-		'.bdt-profile-card .bdt-profile-card-name' => '.elementor-author-box__name',
-		'.bdt-profile-card'                       => '.elementor-author-box',
+		'.bdt-profile-card .bdt-profile-card-button .bdt-button'        => '.elementor-author-box__button',
+		'.bdt-profile-card .bdt-profile-card-image img'                 => '.elementor-author-box__avatar img',
+		'.bdt-profile-card .bdt-profile-card-bio'                       => '.elementor-author-box__bio',
+		'.bdt-profile-card .bdt-profile-card-name-info .bdt-name'       => '.elementor-author-box__name',
+		'.bdt-profile-card .bdt-profile-card-name-info .bdt-username'   => '.digi-author-box__username',
+		'.bdt-profile-card .bdt-profile-card-status .bdt-profile-stat'  => '.digi-author-box__stat',
+		'.bdt-profile-card .bdt-profile-card-status .bdt-profile-label' => '.digi-author-box__stat-label',
+		'.bdt-profile-card .bdt-profile-card-share-link a'              => '.digi-author-box__social-link',
+		'.bdt-profile-card .bdt-profile-card-header'                    => '.digi-author-box__header',
+		'.bdt-profile-card .bdt-dropdown-nav>li>a'                      => '.digi-author-box__menu-link',
+		'.bdt-profile-card .bdt-profile-card-inner'                     => '.elementor-author-box',
+		'.bdt-profile-card-pro span'                                    => '.digi-author-box__badge',
+		'.bdt-profile-card'                                             => '.elementor-author-box',
 	),
 	'defaults'  => array(
 		'profile' => 'custom',

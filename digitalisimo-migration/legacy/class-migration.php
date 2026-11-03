@@ -352,6 +352,17 @@ final class Migration {
 		return $ids;
 	}
 
+	/** Documentos (no revisiones) cuyo `_elementor_data` contiene alguna de las agujas indicadas. */
+	public static function documents_with( array $needles, $revisions = false ) {
+		return $needles ? self::query_meta( '_elementor_data', array_values( array_map( 'strval', $needles ) ), (bool) $revisions, 0 ) : array();
+	}
+
+	/** Documentos con copia de sus ajustes de página. */
+	public static function page_backups() {
+		global $wpdb;
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s ORDER BY post_id", self::BACKUP_PAGE ) ) );
+	}
+
 	private static function query_documents( $revisions, $limit = 0 ) {
 		return self::query_meta( '_elementor_data', self::NEEDLES, (bool) $revisions, (int) $limit );
 	}

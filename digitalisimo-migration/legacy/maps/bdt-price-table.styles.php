@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-price-table` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -12,28 +13,6 @@ return array( array(
 		'selectors' => array(
 			'{{WRAPPER}} .elementor-price-table' => 'text-align: {{VALUE}};',
 		),
-		'options' => array(
-			'left' => array(
-				'title' => 'Left',
-				'icon' => 'eicon-text-align-left',
-			),
-			'center' => array(
-				'title' => 'Center',
-				'icon' => 'eicon-text-align-center',
-			),
-			'right' => array(
-				'title' => 'Right',
-				'icon' => 'eicon-text-align-right',
-			),
-		),
-	), array(
-		'name' => 'align',
-		'type' => 'choose',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-image' => 'text-align: {{VALUE}};',
-		),
-		'default' => 'center',
 		'options' => array(
 			'left' => array(
 				'title' => 'Left',
@@ -126,18 +105,6 @@ return array( array(
 		'condition' => array(
 			'show_ribbon' => 'yes',
 		),
-	), array(
-		'name' => 'image_bg_color',
-		'group' => 'background',
-		'selector' => '{{WRAPPER}} .elementor-price-table-image',
-	), array(
-		'name' => 'image_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-image' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%', 'em' ),
 	), array(
 		'name' => 'space',
 		'type' => 'slider',
@@ -352,13 +319,6 @@ return array( array(
 		'group' => 'background',
 		'selector' => '{{WRAPPER}} .elementor-price-table__price',
 	), array(
-		'name' => 'price_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-currency, {{WRAPPER}} .elementor-price-table-integer-part, {{WRAPPER}} .elementor-price-table-fractional-part' => 'color: {{VALUE}}',
-		),
-	), array(
 		'name' => 'pricing_border',
 		'group' => 'border',
 		'selector' => '{{WRAPPER}} .elementor-price-table__price',
@@ -387,139 +347,9 @@ return array( array(
 		),
 		'size_units' => array( 'px', '%', 'em' ),
 	), array(
-		'name' => 'price_shadow',
-		'group' => 'text-shadow',
-		'selector' => '{{WRAPPER}} .elementor-price-table-currency, {{WRAPPER}} .elementor-price-table-integer-part, {{WRAPPER}} .elementor-price-table-fractional-part',
-	), array(
 		'name' => 'price_typography',
 		'group' => 'typography',
 		'selector' => '{{WRAPPER}} .elementor-price-table__price',
-	), array(
-		'name' => 'currency_size',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-currency' => 'font-size: calc({{SIZE}}em/100)',
-		),
-		'condition' => array(
-			'currency_symbol!' => '',
-		),
-	), array(
-		'name' => 'currency_vertical_position',
-		'type' => 'choose',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-currency' => 'align-self: {{VALUE}}',
-		),
-		'default' => 'top',
-		'selectors_dictionary' => array(
-			'top' => 'flex-start',
-			'middle' => 'center',
-			'bottom' => 'flex-end',
-		),
-		'condition' => array(
-			'currency_symbol!' => '',
-		),
-		'options' => array(
-			'top' => array(
-				'title' => 'Top',
-				'icon' => 'eicon-v-align-top',
-			),
-			'middle' => array(
-				'title' => 'Middle',
-				'icon' => 'eicon-v-align-middle',
-			),
-			'bottom' => array(
-				'title' => 'Bottom',
-				'icon' => 'eicon-v-align-bottom',
-			),
-		),
-	), array(
-		'name' => 'fractional-part_size',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-fractional-part' => 'font-size: calc({{SIZE}}em/100)',
-		),
-		'condition' => array(
-			'currency_format' => '',
-		),
-	), array(
-		'name' => 'fractional_part_vertical_position',
-		'type' => 'choose',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-after-price' => 'justify-content: {{VALUE}}',
-		),
-		'default' => 'top',
-		'selectors_dictionary' => array(
-			'top' => 'flex-start',
-			'middle' => 'center',
-			'bottom' => 'flex-end',
-		),
-		'condition' => array(
-			'currency_format' => '',
-		),
-		'options' => array(
-			'top' => array(
-				'title' => 'Top',
-				'icon' => 'eicon-v-align-top',
-			),
-			'middle' => array(
-				'title' => 'Middle',
-				'icon' => 'eicon-v-align-middle',
-			),
-			'bottom' => array(
-				'title' => 'Bottom',
-				'icon' => 'eicon-v-align-bottom',
-			),
-		),
-	), array(
-		'name' => 'original_price_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-original-price' => 'color: {{VALUE}}',
-		),
-		'condition' => array(
-			'sale' => 'yes',
-			'original_price!' => '',
-		),
-	), array(
-		'name' => 'original_price_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .elementor-price-table-original-price',
-	), array(
-		'name' => 'original_price_vertical_position',
-		'type' => 'choose',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-original-price' => '{{VALUE}}',
-		),
-		'default' => 'middle',
-		'selectors_dictionary' => array(
-			'top' => 'top: 0;',
-			'middle' => 'top: 40%;',
-			'bottom' => 'bottom: 0;',
-		),
-		'condition' => array(
-			'sale' => 'yes',
-			'original_price!' => '',
-		),
-		'options' => array(
-			'top' => array(
-				'title' => 'Top',
-				'icon' => 'eicon-v-align-top',
-			),
-			'middle' => array(
-				'title' => 'Middle',
-				'icon' => 'eicon-v-align-middle',
-			),
-			'bottom' => array(
-				'title' => 'Bottom',
-				'icon' => 'eicon-v-align-bottom',
-			),
-		),
 	), array(
 		'name' => 'original_price_horizontal_offset',
 		'type' => 'slider',
@@ -584,20 +414,6 @@ return array( array(
 			'original_price!' => '',
 		),
 	), array(
-		'name' => 'period_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-period' => 'color: {{VALUE}}',
-		),
-		'condition' => array(
-			'period!' => '',
-		),
-	), array(
-		'name' => 'period_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .elementor-price-table-period',
-	), array(
 		'name' => 'pricing_element_hover_bg_color',
 		'group' => 'background',
 		'selector' => '{{WRAPPER}} .elementor-price-table:hover .elementor-price-table__price',
@@ -610,23 +426,6 @@ return array( array(
 		),
 		'condition' => array(
 			'pricing_border_border!' => '',
-		),
-	), array(
-		'name' => 'price_hover_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table:hover .elementor-price-table-currency, {{WRAPPER}} .elementor-price-table:hover .elementor-price-table-integer-part, {{WRAPPER}} .elementor-price-table:hover .elementor-price-table-fractional-part' => 'color: {{VALUE}}',
-		),
-	), array(
-		'name' => 'period_hover_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table:hover .elementor-price-table-period' => 'color: {{VALUE}}',
-		),
-		'condition' => array(
-			'period!' => '',
 		),
 	), array(
 		'name' => 'features_list_bg_color',
@@ -701,29 +500,6 @@ return array( array(
 				'icon' => 'eicon-text-align-right',
 			),
 		),
-	), array(
-		'name' => 'item_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-feature-inner' => 'margin-left: calc((100% - {{SIZE}}%)/2); margin-right: calc((100% - {{SIZE}}%)/2)',
-		),
-	), array(
-		'name' => 'features_list_inner_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table__features-list .elementor-price-table-feature-inner' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%', 'em' ),
-	), array(
-		'name' => 'features_list_inner_margin',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table__features-list .elementor-price-table-feature-inner' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%', 'em' ),
 	), array(
 		'name' => 'list_striped_color',
 		'type' => 'color',
@@ -973,22 +749,6 @@ return array( array(
 		),
 		'size_units' => array( 'px', 'vw', '%' ),
 	), array(
-		'name' => 'button_vertical_offset',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-btn-wrap' => 'transform: translateY({{SIZE}}px)',
-		),
-		'default' => array(
-			'size' => 0,
-		),
-		'tablet_default' => array(
-			'size' => 0,
-		),
-		'mobile_default' => array(
-			'size' => 0,
-		),
-	), array(
 		'name' => 'button_shadow',
 		'group' => 'box-shadow',
 		'selector' => '{{WRAPPER}} .elementor-price-table__button',
@@ -1020,92 +780,4 @@ return array( array(
 		'condition' => array(
 			'button_text!' => '',
 		),
-	), array(
-		'name' => 'additional_info_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-additional_info' => 'color: {{VALUE}}',
-		),
-		'condition' => array(
-			'footer_additional_info!' => '',
-			'_skin' => '',
-		),
-	), array(
-		'name' => 'additional_info_hover_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table:hover .elementor-price-table-additional_info' => 'color: {{VALUE}}',
-		),
-		'condition' => array(
-			'footer_additional_info!' => '',
-			'_skin' => '',
-		),
-	), array(
-		'name' => 'additional_info_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .elementor-price-table-additional_info',
-	), array(
-		'name' => 'additional_info_margin',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table-additional_info' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}',
-		),
-		'default' => array(
-			'top' => 15,
-			'right' => 30,
-			'bottom' => 0,
-			'left' => 30,
-		),
-		'condition' => array(
-			'footer_additional_info!' => '',
-			'_skin' => '',
-		),
-		'size_units' => array( 'px', '%', 'em' ),
-	), array(
-		'name' => 'ribbon_text_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table__ribbon-inner' => 'color: {{VALUE}}',
-		),
-		'default' => '#ffffff',
-	), array(
-		'name' => 'ribbon_bg_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table__ribbon-inner' => 'background-color: {{VALUE}}',
-		),
-		'default' => '#14ABF4',
-	), array(
-		'name' => 'ribbon_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .elementor-price-table__ribbon-inner',
-	), array(
-		'name' => 'ribbon_border_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table__ribbon-inner' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'ribbon_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-price-table__ribbon-inner' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%', 'em' ),
-	), array(
-		'name' => 'shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .elementor-price-table__ribbon-inner',
-	), array(
-		'name' => 'ribbon_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .elementor-price-table__ribbon-inner',
 	) );

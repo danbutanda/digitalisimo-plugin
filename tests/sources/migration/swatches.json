@@ -1,0 +1,25 @@
+{
+  "_": "Atributos y términos sintéticos con las metas swatches_* del origen.",
+  "attributes": [
+    {"attribute_name": "tono", "attribute_type": "color", "terms": [
+      {"name": "Rojo", "meta": {"swatches_color": "#ff0000"}},
+      {"name": "Azul", "meta": {"swatches_color": "rgba(0,0,255,.5)"}},
+      {"name": "Verde", "meta": {"swatches_color": "#00ff00", "swatches_label": "Verde lima"}, "own": {"color": "#00aa00"}},
+      {"name": "Sin muestra", "meta": {}}
+    ]},
+    {"attribute_name": "talla", "attribute_type": "button", "terms": [
+      {"name": "S", "meta": {"swatches_label": "S"}},
+      {"name": "M", "meta": {"swatches_label": "Mediana"}}
+    ]},
+    {"attribute_name": "foto", "attribute_type": "image", "terms": [
+      {"name": "Lona", "meta": {"swatches_image": "ATT_IMG"}}
+    ]},
+    {"attribute_name": "ajeno", "attribute_type": "color", "terms": [
+      {"name": "Negro", "meta": {}, "own": {"color": "#000000"}}
+    ]},
+    {"attribute_name": "material", "attribute_type": "select", "terms": [
+      {"name": "Algodón", "meta": {"swatches_label": "Algodón"}}
+    ]}
+  ],
+  "settings": {"variation-swatches": "on", "ep_variation_swatches_shape": "square", "ep_variation_swatches_size": "80", "ep_variation_swatches_tooltip": "yes"}
+}

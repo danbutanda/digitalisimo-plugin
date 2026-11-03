@@ -1,97 +1,16 @@
 <?php
 /**
- * Controles de estilo de Element Pack Pro 9.9.1 `bdt-animated-card` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Controles de estilo de Element Pack Pro 10.0.1 `bdt-animated-card` con selectores del widget propio, más los que sólo
+ * tenía 9.9.1 y siguen vivos. Generado con scripts/legacy-styles.py --merge; no editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
 return array( array(
-		'name' => 'item_height',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-item' => 'height: {{SIZE}}{{UNIT}};',
-		),
-		'default' => array(
-			'unit' => 'px',
-		),
-		'size_units' => array( 'px', 'vh' ),
-	), array(
-		'name' => 'content_max_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-content' => 'max-width: {{SIZE}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'text_align',
-		'type' => 'choose',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-content' => 'text-align: {{VALUE}} !important;',
-		),
-		'options' => array(
-			'left' => array(
-				'title' => 'Left',
-				'icon' => 'eicon-text-align-left',
-			),
-			'center' => array(
-				'title' => 'Center',
-				'icon' => 'eicon-text-align-center',
-			),
-			'right' => array(
-				'title' => 'Right',
-				'icon' => 'eicon-text-align-right',
-			),
-			'justify' => array(
-				'title' => 'Justified',
-				'icon' => 'eicon-text-align-justify',
-			),
-		),
-	), array(
-		'name' => 'content_background',
-		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-circle::before',
-	), array(
-		'name' => 'content_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-circle::before',
-	), array(
-		'name' => 'content_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-circle::before' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'content_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-content' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'content_hover_background',
-		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-circle::before',
-	), array(
-		'name' => 'content_hover_border_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-circle::before' => 'border-color: {{VALUE}};',
-		),
-		'condition' => array(
-			'content_border_border!' => '',
-		),
-	), array(
 		'name' => 'image_height',
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-img' => 'height: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card__image' => 'height: {{SIZE}}{{UNIT}};',
 		),
 		'default' => array(
 			'unit' => 'px',
@@ -102,7 +21,7 @@ return array( array(
 		'type' => 'select',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-img' => 'object-fit: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__image' => 'object-fit: {{VALUE}};',
 		),
 		'default' => 'contain',
 		'options' => array(
@@ -117,7 +36,7 @@ return array( array(
 		'type' => 'select',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-img' => 'object-position: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__image' => 'object-position: {{VALUE}};',
 		),
 		'default' => 'center center',
 		'options' => array(
@@ -134,45 +53,34 @@ return array( array(
 	), array(
 		'name' => 'css_filters',
 		'group' => 'css-filter',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-img',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__image',
 	), array(
 		'name' => 'image_opacity',
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-img' => 'opacity: {{SIZE}};',
+			'{{WRAPPER}} .digi-fancy-card__image' => 'opacity: {{SIZE}};',
 		),
 	), array(
 		'name' => 'image_hover_transition',
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-img' => 'transition-duration: {{SIZE}}s',
+			'{{WRAPPER}} .digi-fancy-card__image' => 'transition-duration: {{SIZE}}s',
 		),
 		'default' => array(
 			'size' => 0.3,
 		),
 	), array(
-		'name' => 'image_height_hover',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-item:hover .digi-fancy-card-img' => 'height: {{SIZE}}{{UNIT}};',
-		),
-		'default' => array(
-			'unit' => 'px',
-		),
-		'size_units' => array( 'px', 'vh' ),
-	), array(
 		'name' => 'css_filters_hover',
 		'group' => 'css-filter',
-		'selector' => '{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-img',
+		'selector' => '{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__image',
 	), array(
 		'name' => 'image_opacity_hover',
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-img' => 'opacity: {{SIZE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__image' => 'opacity: {{SIZE}};',
 		),
 	), array(
 		'name' => 'title_bottom_space',
@@ -241,77 +149,77 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-text' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__description' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'desc_bottom_space',
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-text' => 'padding-bottom: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card__description' => 'padding-bottom: {{SIZE}}{{UNIT}};',
 		),
 	), array(
 		'name' => 'description_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-text',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__description',
 	), array(
 		'name' => 'readmore_text_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-btn' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-fancy-card-btn svg' => 'fill: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__link' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__link svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'readmore_background',
 		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-btn',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__link',
 	), array(
 		'name' => 'readmore_border',
 		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-btn',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__link',
 	), array(
 		'name' => 'readmore_radius',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-btn' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card__link' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
 		'name' => 'readmore_shadow',
 		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-btn',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__link',
 	), array(
 		'name' => 'readmore_padding',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-btn' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card__link' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
 		'name' => 'readmore_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-btn',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__link',
 	), array(
 		'name' => 'readmore_hover_text_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-btn:hover' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-fancy-card-btn:hover svg' => 'fill: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__link:hover' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__link:hover svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'readmore_hover_background',
 		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-btn:hover',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__link:hover',
 	), array(
 		'name' => 'readmore_hover_border_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-btn:hover' => 'border-color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__link:hover' => 'border-color: {{VALUE}};',
 		),
 		'condition' => array(
 			'readmore_border_border!' => '',
@@ -319,5 +227,5 @@ return array( array(
 	), array(
 		'name' => 'readmore_hover_shadow',
 		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-btn:hover',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__link:hover',
 	) );

@@ -1,7 +1,7 @@
 <?php
 /**
- * Controles de estilo de Element Pack Pro 9.9.1 `bdt-advanced-icon-box` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Controles de estilo de Element Pack Pro 10.0.1 `bdt-advanced-icon-box` con selectores del widget propio, más los que sólo
+ * tenía 9.9.1 y siguen vivos. Generado con scripts/legacy-styles.py --merge; no editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -229,10 +229,10 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}}.elementor-position-right .digi-advanced-icon-box__visual' => 'margin-left: {{SIZE}}{{UNIT}};',
-			'{{WRAPPER}}.elementor-position-left .digi-advanced-icon-box__visual' => 'margin-right: {{SIZE}}{{UNIT}};',
-			'{{WRAPPER}}.elementor-position-top .digi-advanced-icon-box__visual' => 'margin-bottom: {{SIZE}}{{UNIT}};',
-			'{{WRAPPER}}.elementor-position-bottom .digi-advanced-icon-box__visual' => 'margin-top: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-advanced-icon-box--right .digi-advanced-icon-box__visual' => 'margin-left: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-advanced-icon-box--left .digi-advanced-icon-box__visual' => 'margin-right: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-advanced-icon-box--top .digi-advanced-icon-box__visual' => 'margin-bottom: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-advanced-icon-box--bottom .digi-advanced-icon-box__visual' => 'margin-top: {{SIZE}}{{UNIT}};',
 			'(mobile){{WRAPPER}} .digi-advanced-icon-box__visual' => 'margin-bottom: {{SIZE}}{{UNIT}};',
 		),
 		'default' => array(
@@ -608,56 +608,6 @@ return array( array(
 		'group' => 'typography',
 		'selector' => '{{WRAPPER}}:hover .digi-advanced-icon-box .digi-advanced-icon-box__description',
 	), array(
-		'name' => 'divider_align',
-		'type' => 'choose',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__separator-wrap' => 'text-align: {{VALUE}}; margin: 0 auto; margin-{{VALUE}}: 0;',
-		),
-		'default' => 'center',
-		'condition' => array(
-			'title_separator_type!' => array( 'line', 'dashed', 'line-circle', 'line-cross', 'line-dashed', 'line-star', 'slash', 'rectangle', 'triangle', 'wave', 'kiss-curl', 'zemik', 'finest', 'furrow' ),
-		),
-		'options' => array(
-			'left' => array(
-				'title' => 'Left',
-				'icon' => 'eicon-text-align-left',
-			),
-			'center' => array(
-				'title' => 'Center',
-				'icon' => 'eicon-text-align-center',
-			),
-			'right' => array(
-				'title' => 'Right',
-				'icon' => 'eicon-text-align-right',
-			),
-		),
-	), array(
-		'name' => 'divider_line_align',
-		'type' => 'choose',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__separator-wrap' => 'text-align: {{VALUE}}; margin: 0 auto; margin-{{VALUE}}: 0;',
-		),
-		'default' => 'center',
-		'condition' => array(
-			'title_separator_type' => array( 'line', 'dashed', 'line-circle', 'line-cross', 'line-dashed', 'line-star', 'slash', 'rectangle', 'triangle', 'wave', 'kiss-curl', 'zemik', 'finest', 'furrow' ),
-		),
-		'options' => array(
-			'left' => array(
-				'title' => 'Left',
-				'icon' => 'eicon-text-align-left',
-			),
-			'center' => array(
-				'title' => 'Center',
-				'icon' => 'eicon-text-align-center',
-			),
-			'right' => array(
-				'title' => 'Right',
-				'icon' => 'eicon-text-align-right',
-			),
-		),
-	), array(
 		'name' => 'title_separator_border_style',
 		'type' => 'select',
 		'responsive' => false,
@@ -705,73 +655,6 @@ return array( array(
 			'title_separator_type' => 'line',
 		),
 		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'title_separator_svg_fill_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__separator-wrap svg *' => 'fill: {{VALUE}};',
-		),
-		'condition' => array(
-			'title_separator_type!' => 'line',
-		),
-	), array(
-		'name' => 'title_separator_svg_stroke_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__separator-wrap svg *' => 'stroke: {{VALUE}};',
-		),
-		'condition' => array(
-			'title_separator_type!' => 'line',
-		),
-	), array(
-		'name' => 'max_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__separator-wrap' => 'max-width: {{SIZE}}{{UNIT}};',
-		),
-		'condition' => array(
-			'title_separator_type!' => 'line',
-		),
-	), array(
-		'name' => 'divider_svg_stroke_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__separator-wrap svg *' => 'stroke-width: {{SIZE}}{{UNIT}};',
-		),
-		'condition' => array(
-			'title_separator_type!' => 'line',
-		),
-	), array(
-		'name' => 'divider_crop',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__separator-wrap svg' => 'transform: scale({{SIZE}}) scale(0.01)',
-		),
-		'condition' => array(
-			'title_separator_type!' => 'line',
-		),
-	), array(
-		'name' => 'max_height',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__separator-wrap svg' => 'height: {{SIZE}}{{UNIT}};',
-		),
-		'condition' => array(
-			'title_separator_type!' => 'line',
-		),
-	), array(
-		'name' => 'title_separator_spacing',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__separator-wrap' => 'margin-bottom: {{SIZE}}{{UNIT}};',
-		),
 	), array(
 		'name' => 'readmore_text_color',
 		'type' => 'color',
@@ -838,27 +721,6 @@ return array( array(
 		'name' => 'readmore_hover_shadow',
 		'group' => 'box-shadow',
 		'selector' => '{{WRAPPER}} .digi-advanced-icon-box__more:hover',
-	), array(
-		'name' => 'indicator_fill_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box-indicator svg *' => 'fill: {{VALUE}};',
-		),
-	), array(
-		'name' => 'indicator_stroke_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box-indicator svg *' => 'stroke: {{VALUE}};',
-		),
-	), array(
-		'name' => 'indicator_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box-indicator' => 'width: {{SIZE}}{{UNIT}};',
-		),
 	), array(
 		'name' => 'indicator_horizontal_offset',
 		'type' => 'slider',
@@ -964,14 +826,28 @@ return array( array(
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
-		'name' => 'icon_inline_spacing',
-		'type' => 'slider',
-		'responsive' => true,
+		'name' => 'badge_text_hover_color',
+		'type' => 'color',
+		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-advanced-icon-box__visual-heading' => 'margin-bottom: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}}:hover .digi-advanced-icon-box__badge' => 'color: {{VALUE}};',
+		),
+	), array(
+		'name' => 'badge_background_hover',
+		'group' => 'background',
+		'selector' => '{{WRAPPER}}:hover .digi-advanced-icon-box__badge',
+	), array(
+		'name' => 'badge_border_hover_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}}:hover .digi-advanced-icon-box__badge' => 'border-color: {{VALUE}};',
 		),
 		'condition' => array(
-			'position' => array( 'left', 'right' ),
-			'icon_inline' => 'yes',
+			'badge_border_border!' => '',
 		),
+	), array(
+		'name' => 'badge_shadow_hover',
+		'group' => 'box-shadow',
+		'selector' => '{{WRAPPER}}:hover .digi-advanced-icon-box__badge',
 	) );

@@ -1,36 +1,11 @@
 <?php
 /**
- * Controles de estilo de Element Pack Pro 9.9.1 `bdt-interactive-card` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Controles de estilo de Element Pack Pro 10.0.1 `bdt-interactive-card` con selectores del widget propio, más los que sólo
+ * tenía 9.9.1 y siguen vivos. Generado con scripts/legacy-styles.py --merge; no editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
 return array( array(
-		'name' => 'text_align',
-		'type' => 'choose',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-content' => 'text-align: {{VALUE}};',
-		),
-		'options' => array(
-			'left' => array(
-				'title' => 'Left',
-				'icon' => 'eicon-text-align-left',
-			),
-			'center' => array(
-				'title' => 'Center',
-				'icon' => 'eicon-text-align-center',
-			),
-			'right' => array(
-				'title' => 'Right',
-				'icon' => 'eicon-text-align-right',
-			),
-			'justify' => array(
-				'title' => 'Justified',
-				'icon' => 'eicon-text-align-justify',
-			),
-		),
-	), array(
 		'name' => 'badge_horizontal_offset',
 		'type' => 'slider',
 		'responsive' => true,
@@ -210,28 +185,6 @@ return array( array(
 			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__visual img' => 'opacity: {{SIZE}};',
 		),
 	), array(
-		'name' => 'default_background',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-content' => 'background: {{VALUE}};',
-		),
-	), array(
-		'name' => 'content_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-content' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'default_hover_background',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-content' => 'background: {{VALUE}};',
-		),
-	), array(
 		'name' => 'title_color',
 		'type' => 'color',
 		'responsive' => false,
@@ -304,40 +257,25 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-text' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__description' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'description_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-fancy-card-text',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__description',
 	), array(
 		'name' => 'description_color_hover',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-text' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__description' => 'color: {{VALUE}};',
 		),
-	), array(
-		'name' => 'button_top_space',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-button' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
 	), array(
 		'name' => 'readmore_text_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-fancy-card__link' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'readmore_icon_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card__link span.ep-icon-long-arrow-right' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'readmore_background',
@@ -364,7 +302,7 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card__link:before, {{WRAPPER}} .digi-fancy-card__link span.ep-icon-long-arrow-right' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}}; line-height: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card__link:before' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}}; line-height: {{SIZE}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
@@ -377,13 +315,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-fancy-card__link:hover' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'readmore_hover_icon_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card__link:hover span.ep-icon-long-arrow-right' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'readmore_hover_background',
@@ -408,38 +339,38 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card__badge span' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card__badge' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'badge_background',
 		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-fancy-card__badge span',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__badge',
 	), array(
 		'name' => 'badge_border',
 		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-fancy-card__badge span',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__badge',
 	), array(
 		'name' => 'badge_radius',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card__badge span' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card__badge' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
 		'name' => 'badge_shadow',
 		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-fancy-card__badge span',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__badge',
 	), array(
 		'name' => 'badge_padding',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card__badge span' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card__badge' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
 		'name' => 'badge_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-fancy-card__badge span',
+		'selector' => '{{WRAPPER}} .digi-fancy-card__badge',
 	) );

@@ -1,0 +1,1184 @@
+{
+ "note": "Clases que DIGITALÍSIMO Elements arma por concatenación y que por eso no aparecen literalmente en su código. scripts/legacy-styles.py y tests/migration-legacy-styles.mjs las dan por vivas si casan con un patrón; la prueba comprueba que cada evidencia (archivo, línea, texto) sigue en su sitio. Un patrón sólo admite los valores que el código puede producir.",
+ "patterns": [
+  {
+   "pattern": "^digi\\-advanced\\-button__(?:badge|content|icon|text|wrap)$",
+   "widget": "digitalisimo-advanced-button",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 93,
+     "contains": "cls( 'badge' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 92,
+     "contains": "cls( 'content' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 94,
+     "contains": "cls( 'icon' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 95,
+     "contains": "cls( 'text' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 82,
+     "contains": "cls( 'wrap' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-advanced\\-button--(?:effect\\-a|effect\\-b|effect\\-c|effect\\-d|effect\\-e|effect\\-f|effect\\-fill|effect\\-g|effect\\-glow|effect\\-h|effect\\-i|effect\\-outline|effect\\-underline|icon\\-bottom|icon\\-left|icon\\-right|icon\\-top|lg|md|sm|xl|xs)$",
+   "widget": "digitalisimo-advanced-button",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 82,
+     "contains": "cls( '', array( $size, 'effect-' . $effect, 'icon-' . $position ) )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 73,
+     "contains": "array( 'xs', 'sm', 'md', 'lg', 'xl' ), 'md' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 16,
+     "contains": "const EFFECTS    = array( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'fill', 'outline', 'underline', 'glow' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 75,
+     "contains": "array( 'left', 'right', 'top', 'bottom' ), 'right' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-creative\\-button__(?:wrap)$",
+   "widget": "digitalisimo-creative-button",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento (prefijo heredado del alias y su mapa de elementos)",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-creative-button.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-creative-button'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 82,
+     "contains": "cls( 'wrap' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-creative\\-button--(?:effect\\-a|effect\\-b|effect\\-c|effect\\-d|effect\\-e|effect\\-f|effect\\-fill|effect\\-g|effect\\-glow|effect\\-h|effect\\-i|effect\\-outline|effect\\-underline|icon\\-bottom|icon\\-left|icon\\-right|icon\\-top|lg|md|sm|xl|xs)$",
+   "widget": "digitalisimo-creative-button",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-creative-button.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-creative-button'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 82,
+     "contains": "cls( '', array( $size, 'effect-' . $effect, 'icon-' . $position ) )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 73,
+     "contains": "array( 'xs', 'sm', 'md', 'lg', 'xl' ), 'md' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 16,
+     "contains": "const EFFECTS    = array( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'fill', 'outline', 'underline', 'glow' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-button.php",
+     "line": 75,
+     "contains": "array( 'left', 'right', 'top', 'bottom' ), 'right' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-fancy\\-tabs__(?:button|icon|label|panel|panels|tab|tabs)$",
+   "widget": "digitalisimo-fancy-tabs",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 122,
+     "contains": "cls( 'button' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 104,
+     "contains": "cls( 'icon' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 108,
+     "contains": "cls( 'label' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 117,
+     "contains": "cls( 'panel' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 113,
+     "contains": "cls( 'panels' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 102,
+     "contains": "cls( 'tab' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 99,
+     "contains": "cls( 'tabs' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-fancy\\-tabs--(?:cards|switcher)$",
+   "widget": "digitalisimo-fancy-tabs",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 99,
+     "contains": "cls( '', array( $style ) )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 95,
+     "contains": "'switcher' === ( $s['style'] ?? 'cards' ) ? 'switcher' : 'cards';"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-content\\-switcher__(?:panel|tab|tabs)$",
+   "widget": "digitalisimo-content-switcher",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento (prefijo heredado del alias y su mapa de elementos)",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-content-switcher.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-content-switcher'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 117,
+     "contains": "cls( 'panel' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 102,
+     "contains": "cls( 'tab' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 99,
+     "contains": "cls( 'tabs' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-content\\-switcher--(?:cards|switcher)$",
+   "widget": "digitalisimo-content-switcher",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-content-switcher.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-content-switcher'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 99,
+     "contains": "cls( '', array( $style ) )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-fancy-tabs.php",
+     "line": 95,
+     "contains": "'switcher' === ( $s['style'] ?? 'cards' ) ? 'switcher' : 'cards';"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-icon\\-nav__(?:brand|entry|icon|link|links|menu|panel|rail|text)$",
+   "widget": "digitalisimo-icon-nav",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 117,
+     "contains": "cls( 'brand' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 75,
+     "contains": "cls( 'entry' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 86,
+     "contains": "cls( 'icon' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 80,
+     "contains": "cls( 'link' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 105,
+     "contains": "cls( 'links' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 124,
+     "contains": "cls( 'menu' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 124,
+     "contains": "cls( 'panel' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 113,
+     "contains": "cls( 'rail' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 88,
+     "contains": "cls( 'text' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-icon\\-nav--(?:bar|left|right|style\\-1|style\\-2|style\\-3|style\\-4|with\\-text)$",
+   "widget": "digitalisimo-icon-nav",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 105,
+     "contains": "cls( '', array( 'bar', $style ) )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 17,
+     "contains": "const STYLES     = array( 'style-1', 'style-2', 'style-3', 'style-4' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 113,
+     "contains": "cls( '', array_merge( array( $position ), $show_text ? array( 'with-text' ) : array() ) )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-icon\\-mobile\\-menu__(?:entry|icon|item|list|text)$",
+   "widget": "digitalisimo-icon-mobile-menu",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento (prefijo heredado del alias y su mapa de elementos)",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-mobile-menu.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-icon-mobile-menu'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 75,
+     "contains": "cls( 'entry' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 86,
+     "contains": "cls( 'icon' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 80,
+     "contains": "cls( 'link' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 105,
+     "contains": "cls( 'links' )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 88,
+     "contains": "cls( 'text' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-icon\\-mobile\\-menu--(?:bar|left|right|style\\-1|style\\-2|style\\-3|style\\-4|with\\-text)$",
+   "widget": "digitalisimo-icon-mobile-menu",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-mobile-menu.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-icon-mobile-menu'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 105,
+     "contains": "cls( '', array( 'bar', $style ) )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 17,
+     "contains": "const STYLES     = array( 'style-1', 'style-2', 'style-3', 'style-4' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-icon-nav.php",
+     "line": 113,
+     "contains": "cls( '', array_merge( array( $position ), $show_text ? array( 'with-text' ) : array() ) )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logos__(?:card|content|description|details|figure|image|item|link|link\\-text|list|name|summary)$",
+   "widget": "digitalisimo-logos",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 172,
+     "contains": "cls( 'card'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 173,
+     "contains": "cls( 'content'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 191,
+     "contains": "cls( 'description'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 172,
+     "contains": "cls( 'details'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 175,
+     "contains": "cls( 'figure'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 128,
+     "contains": "cls( 'image'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 170,
+     "contains": "cls( 'item'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 195,
+     "contains": "cls( 'link'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 216,
+     "contains": "cls( 'link-text'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 156,
+     "contains": "cls( 'list'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 190,
+     "contains": "cls( 'name'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 172,
+     "contains": "cls( 'summary'"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logos--(?:always|border|box|carousel|click|cover|grid|overlay|plain|tictactoe|tooltip)$",
+   "widget": "digitalisimo-logos",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 156,
+     "contains": "cls( '', $mods )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 154,
+     "contains": "$mods    = array( 'grid', $style, $details );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 23,
+     "contains": "const STYLES     = array( 'plain', 'box', 'border', 'tictactoe' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 24,
+     "contains": "const DETAILS    = array( 'always', 'overlay', 'tooltip', 'click' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 202,
+     "contains": "cls( '', array( 'carousel' ) )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logos__item--(?:linked)$",
+   "widget": "digitalisimo-logos",
+   "why": "Legacy_Classes::cls(): modificador del elemento item",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 169,
+     "contains": "$item_mods = $linked ? array( 'linked' ) : array();"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logos__content--(?:tooltip)$",
+   "widget": "digitalisimo-logos",
+   "why": "Legacy_Classes::cls(): modificador del elemento content",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 179,
+     "contains": "cls( 'content', 'tooltip' === $details && $linked ? array( 'tooltip' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logos__card--(?:stretch)$",
+   "widget": "digitalisimo-logos",
+   "why": "Legacy_Classes::cls(): modificador del elemento card",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 211,
+     "contains": "cls( 'card', $stretch ? array( 'stretch' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-brand\\-carousel__(?:card|image|name|slide|website)$",
+   "widget": "digitalisimo-brand-carousel",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento (prefijo heredado del alias y su mapa de elementos)",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-brand-carousel.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-brand-carousel'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 172,
+     "contains": "cls( 'card'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 128,
+     "contains": "cls( 'image'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 190,
+     "contains": "cls( 'name'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 170,
+     "contains": "cls( 'item'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 216,
+     "contains": "cls( 'link-text'"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-brand\\-carousel--(?:always|border|box|carousel|click|cover|grid|overlay|plain|tictactoe|tooltip)$",
+   "widget": "digitalisimo-brand-carousel",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-brand-carousel.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-brand-carousel'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 156,
+     "contains": "cls( '', $mods )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 154,
+     "contains": "$mods    = array( 'grid', $style, $details );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 23,
+     "contains": "const STYLES     = array( 'plain', 'box', 'border', 'tictactoe' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 24,
+     "contains": "const DETAILS    = array( 'always', 'overlay', 'tooltip', 'click' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 202,
+     "contains": "cls( '', array( 'carousel' ) )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-brand\\-carousel__slide--(?:linked)$",
+   "widget": "digitalisimo-brand-carousel",
+   "why": "Legacy_Classes::cls(): modificador del elemento item",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-brand-carousel.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-brand-carousel'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 169,
+     "contains": "$item_mods = $linked ? array( 'linked' ) : array();"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-brand\\-carousel__card--(?:stretch)$",
+   "widget": "digitalisimo-brand-carousel",
+   "why": "Legacy_Classes::cls(): modificador del elemento card",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-brand-carousel.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-brand-carousel'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 211,
+     "contains": "cls( 'card', $stretch ? array( 'stretch' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-brand\\-grid__(?:content|details|image|item|link|list|logo|name|summary)$",
+   "widget": "digitalisimo-brand-grid",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento (prefijo heredado del alias y su mapa de elementos)",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-brand-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-brand-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 173,
+     "contains": "cls( 'content'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 172,
+     "contains": "cls( 'details'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 172,
+     "contains": "cls( 'card'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 170,
+     "contains": "cls( 'item'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 195,
+     "contains": "cls( 'link'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 156,
+     "contains": "cls( 'list'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 128,
+     "contains": "cls( 'image'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 190,
+     "contains": "cls( 'name'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 172,
+     "contains": "cls( 'summary'"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-brand\\-grid--(?:always|border|box|carousel|click|cover|grid|overlay|plain|tictactoe|tooltip)$",
+   "widget": "digitalisimo-brand-grid",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-brand-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-brand-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 156,
+     "contains": "cls( '', $mods )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 154,
+     "contains": "$mods    = array( 'grid', $style, $details );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 23,
+     "contains": "const STYLES     = array( 'plain', 'box', 'border', 'tictactoe' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 24,
+     "contains": "const DETAILS    = array( 'always', 'overlay', 'tooltip', 'click' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 202,
+     "contains": "cls( '', array( 'carousel' ) )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-brand\\-grid__item--(?:linked)$",
+   "widget": "digitalisimo-brand-grid",
+   "why": "Legacy_Classes::cls(): modificador del elemento item",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-brand-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-brand-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 169,
+     "contains": "$item_mods = $linked ? array( 'linked' ) : array();"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-brand\\-grid__content--(?:tooltip)$",
+   "widget": "digitalisimo-brand-grid",
+   "why": "Legacy_Classes::cls(): modificador del elemento content",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-brand-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-brand-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 179,
+     "contains": "cls( 'content', 'tooltip' === $details && $linked ? array( 'tooltip' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-brand\\-grid__image--(?:stretch)$",
+   "widget": "digitalisimo-brand-grid",
+   "why": "Legacy_Classes::cls(): modificador del elemento card",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-brand-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-brand-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 211,
+     "contains": "cls( 'card', $stretch ? array( 'stretch' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logo\\-carousel__(?:card|image|slide)$",
+   "widget": "digitalisimo-logo-carousel",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento (prefijo heredado del alias y su mapa de elementos)",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logo-carousel.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-logo-carousel'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 172,
+     "contains": "cls( 'card'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 128,
+     "contains": "cls( 'image'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 170,
+     "contains": "cls( 'item'"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logo\\-carousel--(?:always|border|box|carousel|click|cover|grid|overlay|plain|tictactoe|tooltip)$",
+   "widget": "digitalisimo-logo-carousel",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logo-carousel.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-logo-carousel'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 156,
+     "contains": "cls( '', $mods )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 154,
+     "contains": "$mods    = array( 'grid', $style, $details );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 23,
+     "contains": "const STYLES     = array( 'plain', 'box', 'border', 'tictactoe' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 24,
+     "contains": "const DETAILS    = array( 'always', 'overlay', 'tooltip', 'click' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 202,
+     "contains": "cls( '', array( 'carousel' ) )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logo\\-carousel__slide--(?:linked)$",
+   "widget": "digitalisimo-logo-carousel",
+   "why": "Legacy_Classes::cls(): modificador del elemento item",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logo-carousel.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-logo-carousel'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 169,
+     "contains": "$item_mods = $linked ? array( 'linked' ) : array();"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logo\\-carousel__card--(?:stretch)$",
+   "widget": "digitalisimo-logo-carousel",
+   "why": "Legacy_Classes::cls(): modificador del elemento card",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logo-carousel.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-logo-carousel'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 211,
+     "contains": "cls( 'card', $stretch ? array( 'stretch' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logo\\-grid__(?:caption|card|figure|image|item|list)$",
+   "widget": "digitalisimo-logo-grid",
+   "why": "Legacy_Classes::cls(): prefijo + «__» + elemento (prefijo heredado del alias y su mapa de elementos)",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logo-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-logo-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 103,
+     "contains": "$base  = '' === $element ? $prefix : $prefix . '__' . $name;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 173,
+     "contains": "cls( 'content'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 172,
+     "contains": "cls( 'card'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 175,
+     "contains": "cls( 'figure'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 128,
+     "contains": "cls( 'image'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 170,
+     "contains": "cls( 'item'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 156,
+     "contains": "cls( 'list'"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logo\\-grid--(?:always|border|box|carousel|click|cover|grid|overlay|plain|tictactoe|tooltip)$",
+   "widget": "digitalisimo-logo-grid",
+   "why": "Legacy_Classes::cls(): modificadores del bloque",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logo-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-logo-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 156,
+     "contains": "cls( '', $mods )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 154,
+     "contains": "$mods    = array( 'grid', $style, $details );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 23,
+     "contains": "const STYLES     = array( 'plain', 'box', 'border', 'tictactoe' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 24,
+     "contains": "const DETAILS    = array( 'always', 'overlay', 'tooltip', 'click' );"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 202,
+     "contains": "cls( '', array( 'carousel' ) )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logo\\-grid__item--(?:linked)$",
+   "widget": "digitalisimo-logo-grid",
+   "why": "Legacy_Classes::cls(): modificador del elemento item",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logo-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-logo-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 169,
+     "contains": "$item_mods = $linked ? array( 'linked' ) : array();"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logo\\-grid__caption--(?:tooltip)$",
+   "widget": "digitalisimo-logo-grid",
+   "why": "Legacy_Classes::cls(): modificador del elemento content",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logo-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-logo-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 179,
+     "contains": "cls( 'content', 'tooltip' === $details && $linked ? array( 'tooltip' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-logo\\-grid__card--(?:stretch)$",
+   "widget": "digitalisimo-logo-grid",
+   "why": "Legacy_Classes::cls(): modificador del elemento card",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logo-grid.php",
+     "line": 13,
+     "contains": "'prefix' => 'digi-logo-grid'"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-widget-alias.php",
+     "line": 107,
+     "contains": "$out[] = $base . '--' . $modifier;"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-logos.php",
+     "line": 211,
+     "contains": "cls( 'card', $stretch ? array( 'stretch' )"
+    }
+   ]
+  },
+  {
+   "pattern": "^digi\\-advanced\\-icon\\-box\\-\\-(?:bottom|left|right|top)$",
+   "widget": "digitalisimo-advanced-icon-box",
+   "why": "'digi-advanced-icon-box--' . esc_attr( $position ): el modificador de la posición del icono",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-icon-box.php",
+     "line": 115,
+     "contains": "digi-advanced-icon-box--' . esc_attr( $position )"
+    },
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-advanced-icon-box.php",
+     "line": 75,
+     "contains": "in_array( $value, array( 'top', 'bottom', 'left', 'right' ), true ) ? $value : 'top'"
+    }
+   ]
+  },
+  {
+   "pattern": "^elementor-post__terms--[a-z0-9_-]+$",
+   "widget": "posts",
+   "why": "'elementor-post__terms--' . esc_attr( $taxonomy ): una clase por taxonomía",
+   "evidence": [
+    {
+     "file": "digitalisimo-elements/modules/digitalisimo-widgets/class-posts-terms.php",
+     "line": 66,
+     "contains": "elementor-post__terms--' . esc_attr( $taxonomy )"
+    },
+    {
+     "file": "digitalisimo-migration/legacy/class-posts-skin.php",
+     "line": 63,
+     "contains": "elementor-post__terms--' . esc_attr( $taxonomy )"
+    }
+   ]
+  }
+ ]
+}

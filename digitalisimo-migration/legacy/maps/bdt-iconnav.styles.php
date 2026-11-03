@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-iconnav` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -73,13 +74,6 @@ return array( array(
 		),
 		'default' => array(
 			'size' => 80,
-		),
-	), array(
-		'name' => 'iconnav_gap',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-icon-nav-container ul.digi-icon-nav.digi-icon-nav-vertical li + li' => 'margin-top: {{SIZE}}{{UNIT}};',
 		),
 	), array(
 		'name' => 'glassmorphism_blur_level',
@@ -174,14 +168,6 @@ return array( array(
 			'{{WRAPPER}} .digi-icon-nav__link' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'iconnav_icon_hover_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-icon-nav__link:hover .digi-icon-nav-icon' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-icon-nav__link:hover .digi-icon-nav-icon svg' => 'fill: {{VALUE}};',
-		),
 	), array(
 		'name' => 'iconnav_icon_hover_background',
 		'type' => 'color',

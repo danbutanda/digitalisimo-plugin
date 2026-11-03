@@ -1,18 +1,12 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-thumb-gallery` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
 return array( array(
-		'name' => 'content_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-posts-container-content' => 'max-width: {{SIZE}}{{UNIT}};',
-		),
-	), array(
 		'name' => 'icon_indent',
 		'type' => 'slider',
 		'responsive' => false,
@@ -25,59 +19,6 @@ return array( array(
 		'condition' => array(
 			'thumb_gallery_icon[value]!' => '',
 		),
-	), array(
-		'name' => 'thumbnavs_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container-thumbnav a' => 'width: {{SIZE}}{{UNIT}};',
-		),
-		'default' => array(
-			'size' => 110,
-		),
-		'condition' => array(
-			'navigation!' => array( 'arrows', 'none' ),
-		),
-	), array(
-		'name' => 'thumbnavs_height',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container-thumbnav a' => 'height: {{SIZE}}{{UNIT}};',
-		),
-		'default' => array(
-			'size' => 80,
-		),
-		'condition' => array(
-			'navigation!' => array( 'arrows', 'none' ),
-		),
-	), array(
-		'name' => 'content_background',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-posts-container-content' => 'background-color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'content_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-posts-container-content' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'content_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .elementor-posts-container .elementor-posts-container-content',
-	), array(
-		'name' => 'content_radius',
-		'type' => 'dimensions',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-posts-container-content' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%' ),
 	), array(
 		'name' => 'title_background',
 		'type' => 'color',
@@ -211,59 +152,5 @@ return array( array(
 		),
 		'condition' => array(
 			'button_border_border!' => '',
-		),
-	), array(
-		'name' => 'thumbnavs_background',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container-thumbnav a:after' => 'background-color: {{VALUE}};',
-		),
-		'condition' => array(
-			'navigation!' => array( 'arrows', 'none' ),
-		),
-	), array(
-		'name' => 'thumbnavs_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .elementor-posts-container-thumbnav a',
-	), array(
-		'name' => 'thumbnavs_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .elementor-posts-container-thumbnav a',
-	), array(
-		'name' => 'thumbnavs_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container-thumbnav a' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}; overflow: hidden;',
-		),
-		'condition' => array(
-			'navigation!' => array( 'arrows', 'none' ),
-		),
-		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'thumbnavs_overlay_active',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container-thumbnav a:hover:after' => 'background-color: {{VALUE}};',
-		),
-		'condition' => array(
-			'navigation!' => array( 'arrows', 'none' ),
-		),
-	), array(
-		'name' => 'thumbnavs_hover_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .elementor-posts-container-thumbnav a:hover',
-	), array(
-		'name' => 'thumbnavs_hover_border_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container-thumbnav a:hover' => 'border-color: {{VALUE}};',
-		),
-		'condition' => array(
-			'thumbnavs_border_border!' => '',
-			'navigation!' => array( 'arrows', 'both', 'none' ),
 		),
 	) );

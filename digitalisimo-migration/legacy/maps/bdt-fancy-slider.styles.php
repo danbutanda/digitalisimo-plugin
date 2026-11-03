@@ -1,7 +1,7 @@
 <?php
 /**
- * Controles de estilo de Element Pack Pro 9.9.1 `bdt-fancy-slider` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Controles de estilo de Element Pack Pro 10.0.1 `bdt-fancy-slider` con selectores del widget propio, más los que sólo
+ * tenía 9.9.1 y siguen vivos. Generado con scripts/legacy-styles.py --merge; no editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -32,27 +32,27 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-slider__button a' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-slider__button' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'button_background',
 		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-fancy-slider__button a',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__button',
 		'types' => array( 'gradient' ),
 	), array(
 		'name' => 'button_box_shadow',
 		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-fancy-slider__button a',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__button',
 	), array(
 		'name' => 'button_border',
 		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-fancy-slider__button a',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__button',
 	), array(
 		'name' => 'button_border_radius',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-slider__button a' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-slider__button' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'condition' => array(
 			'border_radius_advanced_show!' => 'yes',
@@ -63,7 +63,7 @@ return array( array(
 		'type' => 'text',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-slider__button a' => 'border-radius: {{VALUE}}; overflow: hidden;',
+			'{{WRAPPER}} .digi-fancy-slider__button' => 'border-radius: {{VALUE}}; overflow: hidden;',
 		),
 		'default' => '30% 70% 82% 18% / 46% 62% 38% 54%',
 		'condition' => array(
@@ -75,31 +75,31 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-slider__button a' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-slider__button' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
 		'name' => 'button_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-fancy-slider__button a',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__button',
 	), array(
 		'name' => 'button_hover_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-slider__button a:hover' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-slider__button:hover' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'button_hover_background',
 		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-fancy-slider__button a:hover',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__button:hover',
 		'types' => array( 'gradient' ),
 	), array(
 		'name' => 'button_hover_border_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-slider__button a:hover' => 'border-color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-slider__button:hover' => 'border-color: {{VALUE}};',
 		),
 		'condition' => array(
 			'button_border_border!' => '',
@@ -107,7 +107,7 @@ return array( array(
 	), array(
 		'name' => 'button_hover_box_shadow',
 		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-fancy-slider__button a:hover',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__button:hover',
 	), array(
 		'name' => 'arrows_color',
 		'type' => 'color',
@@ -506,4 +506,120 @@ return array( array(
 		'condition' => array(
 			'show_scrollbar' => 'yes',
 		),
+	), array(
+		'name' => 'slide_text_align',
+		'type' => 'choose',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__content' => 'text-align: {{VALUE}};',
+		),
+		'options' => array(
+			'left' => array(
+				'title' => 'Left',
+				'icon' => 'eicon-text-align-left',
+			),
+			'center' => array(
+				'title' => 'Center',
+				'icon' => 'eicon-text-align-center',
+			),
+			'right' => array(
+				'title' => 'Right',
+				'icon' => 'eicon-text-align-right',
+			),
+			'justify' => array(
+				'title' => 'Justified',
+				'icon' => 'eicon-text-align-justify',
+			),
+		),
+	), array(
+		'name' => 'item_background',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__slide' => 'background-color: {{VALUE}};',
+		),
+	), array(
+		'name' => 'item_border',
+		'group' => 'border',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__slide',
+	), array(
+		'name' => 'item_border_radius',
+		'type' => 'dimensions',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__slide' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+		),
+		'size_units' => array( 'px', '%' ),
+	), array(
+		'name' => 'item_content_padding',
+		'type' => 'dimensions',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__content' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+		),
+		'size_units' => array( 'px', 'em', '%' ),
+	), array(
+		'name' => 'image_background',
+		'group' => 'background',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__media:after',
+		'types' => array( 'gradient' ),
+	), array(
+		'name' => 'iamge_bg_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__media' => 'background: {{VALUE}};',
+		),
+	), array(
+		'name' => 'iamge_border',
+		'group' => 'border',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__media, {{WRAPPER}} .digi-fancy-slider__media img',
+	), array(
+		'name' => 'iamge_border_radius',
+		'type' => 'dimensions',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__media, {{WRAPPER}} .digi-fancy-slider__media img, {{WRAPPER}} .digi-fancy-slider__media:after' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+		),
+		'size_units' => array( 'px', '%' ),
+	), array(
+		'name' => 'iamge_box_shadow',
+		'group' => 'box-shadow',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__media, {{WRAPPER}} .digi-fancy-slider__media img',
+	), array(
+		'name' => 'sub_title_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__subtitle' => 'color: {{VALUE}};',
+		),
+	), array(
+		'name' => 'sub_title_spacing',
+		'type' => 'slider',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__subtitle' => 'margin-bottom: {{SIZE}}{{UNIT}}',
+		),
+	), array(
+		'name' => 'sub_title_typography',
+		'group' => 'typography',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__subtitle',
+	), array(
+		'name' => 'description_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__description' => 'color: {{VALUE}};',
+		),
+	), array(
+		'name' => 'description_spacing',
+		'type' => 'slider',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-fancy-slider__description' => 'padding-bottom: {{SIZE}}{{UNIT}}',
+		),
+	), array(
+		'name' => 'description_typography',
+		'group' => 'typography',
+		'selector' => '{{WRAPPER}} .digi-fancy-slider__description',
 	) );

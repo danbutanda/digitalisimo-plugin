@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-interactive-tabs` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -11,34 +12,6 @@ return array( array(
 		'responsive' => false,
 		'selectors' => array(
 			'{{WRAPPER}}' => '--ep-space-between: {{SIZE}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'columns',
-		'type' => 'select',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs .digi-fancy-tabs-wrap' => 'grid-template-columns: repeat({{SIZE}}, 1fr);',
-		),
-		'default' => '2',
-		'tablet_default' => '1',
-		'mobile_default' => '1',
-		'options' => array(
-			'1' => '1',
-			'2' => '2',
-			'3' => '3',
-			'4' => '4',
-			'5' => '5',
-			'6' => '6',
-		),
-	), array(
-		'name' => 'column_gap',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs .digi-fancy-tabs-wrap' => 'grid-gap: {{SIZE}}{{UNIT}};',
-		),
-		'default' => array(
-			'size' => 15,
 		),
 	), array(
 		'name' => 'tabs_width',
@@ -55,32 +28,6 @@ return array( array(
 		),
 		'mobile_default' => array(
 			'size' => 100,
-		),
-	), array(
-		'name' => 'tabs_position',
-		'type' => 'choose',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs .digi-fancy-tabs-wrap' => 'align-self: {{VALUE}};',
-		),
-		'default' => 'center',
-		'options' => array(
-			'start' => array(
-				'title' => 'Top',
-				'icon' => 'eicon-v-align-top',
-			),
-			'center' => array(
-				'title' => 'Center',
-				'icon' => 'eicon-v-align-middle',
-			),
-			'end' => array(
-				'title' => 'Bottom',
-				'icon' => 'eicon-v-align-bottom',
-			),
-			'auto' => array(
-				'title' => 'Stretch',
-				'icon' => 'eicon-v-align-stretch',
-			),
 		),
 	), array(
 		'name' => 'tabs_text_alignment',
@@ -241,32 +188,11 @@ return array( array(
 		'group' => 'box-shadow',
 		'selector' => '{{WRAPPER}} .digi-fancy-tabs .digi-fancy-tabs__tab:hover',
 	), array(
-		'name' => 'css_filters',
-		'group' => 'css-filter',
-		'selector' => '{{WRAPPER}} .digi-fancy-tabs .swiper-slide .digi-fancy-tabs-main-img',
-	), array(
-		'name' => 'image_opacity',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs .swiper-slide .digi-fancy-tabs-main-img' => 'opacity: {{SIZE}};',
-		),
-	), array(
-		'name' => 'background_hover_transition',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs .swiper-slide .digi-fancy-tabs-main-img' => 'transition-duration: {{SIZE}}s',
-		),
-		'default' => array(
-			'size' => 0.3,
-		),
-	), array(
 		'name' => 'tabs_content_radius',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs .swiper-slide, {{WRAPPER}} .digi-fancy-tabs .swiper-slide .digi-fancy-tabs-main-img img' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}; overflow: hidden;',
+			'{{WRAPPER}} .digi-fancy-tabs .swiper-slide' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}; overflow: hidden;',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
@@ -275,34 +201,6 @@ return array( array(
 		'responsive' => true,
 		'selectors' => array(
 			'{{WRAPPER}} .digi-fancy-tabs embed, {{WRAPPER}} .digi-fancy-tabs iframe, {{WRAPPER}} .digi-fancy-tabs object, {{WRAPPER}} .digi-fancy-tabs video' => 'height: {{SIZE}}px',
-		),
-	), array(
-		'name' => 'tabs_content_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs-main-img' => 'width: {{SIZE}}{{UNIT}}; margin: auto;',
-		),
-		'default' => array(
-			'unit' => '%',
-		),
-		'tablet_default' => array(
-			'unit' => '%',
-		),
-		'mobile_default' => array(
-			'unit' => '%',
-		),
-		'size_units' => array( '%', 'px', 'vw' ),
-	), array(
-		'name' => 'css_filters_hover',
-		'group' => 'css-filter',
-		'selector' => '{{WRAPPER}} .digi-fancy-tabs .swiper-slide:hover .digi-fancy-tabs-main-img',
-	), array(
-		'name' => 'image_opacity_hover',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-tabs .swiper-slide:hover .digi-fancy-tabs-main-img' => 'opacity: {{SIZE}};',
 		),
 	), array(
 		'name' => 'icon_color',

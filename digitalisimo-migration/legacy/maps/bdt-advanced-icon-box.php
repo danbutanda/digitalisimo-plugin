@@ -4,7 +4,13 @@ defined( 'ABSPATH' ) || exit;
 
 return array(
 	'target'   => 'digitalisimo-advanced-icon-box',
+	// Element Pack marca la posición del icono en el envoltorio (`prefix_class` elementor-position-*); el widget propio,
+	// con un modificador de su bloque. Sin esta traducción, los márgenes del icono apuntaban a nada (F8).
 	'classes'  => array(
+		'{{WRAPPER}}.elementor-position-top'    => '{{WRAPPER}} .digi-advanced-icon-box--top',
+		'{{WRAPPER}}.elementor-position-bottom' => '{{WRAPPER}} .digi-advanced-icon-box--bottom',
+		'{{WRAPPER}}.elementor-position-left'   => '{{WRAPPER}} .digi-advanced-icon-box--left',
+		'{{WRAPPER}}.elementor-position-right'  => '{{WRAPPER}} .digi-advanced-icon-box--right',
 		'.bdt-ep-advanced-icon-box-icon-wrap' => '.digi-advanced-icon-box__visual',
 		'.bdt-ep-advanced-icon-box-icon'      => '.digi-advanced-icon-box__visual',
 		'.bdt-ep-advanced-icon-box-readmore'  => '.digi-advanced-icon-box__more',

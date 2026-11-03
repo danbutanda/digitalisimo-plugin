@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-post-gallery` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -23,7 +24,7 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-post__thumbnail, {{WRAPPER}} .elementor-posts-container .elementor-posts-container-inner' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .elementor-posts-container .elementor-post__thumbnail' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'condition' => array(
 			'_skin' => '',
@@ -80,65 +81,6 @@ return array( array(
 		'name' => 'excerpt_typography',
 		'group' => 'typography',
 		'selector' => '{{WRAPPER}} .elementor-posts-container .elementor-post__excerpt',
-	), array(
-		'name' => 'button_text_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-post-link' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'background_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-post-link' => 'background-color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'button_box_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .elementor-posts-container .elementor-post-link',
-	), array(
-		'name' => 'border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .elementor-posts-container .elementor-post-link',
-	), array(
-		'name' => 'button_border_radius',
-		'type' => 'dimensions',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-post-link' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'button_padding',
-		'type' => 'dimensions',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-post-link' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .elementor-posts-container .elementor-post-link',
-	), array(
-		'name' => 'hover_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-post-link:hover' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'button_hover_border_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-post-link:hover' => 'border-color: {{VALUE}};',
-		),
-		'condition' => array(
-			'border_border!' => '',
-		),
 	), array(
 		'name' => 'category_color',
 		'type' => 'color',

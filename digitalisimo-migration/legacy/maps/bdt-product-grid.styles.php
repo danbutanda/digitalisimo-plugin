@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-product-grid` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -465,14 +466,6 @@ return array( array(
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
-		'name' => 'rating_margin',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-product-grid__rating-time' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%' ),
-	), array(
 		'name' => 'rating_size',
 		'type' => 'slider',
 		'responsive' => true,
@@ -487,42 +480,6 @@ return array( array(
 			'{{WRAPPER}} .digi-product-grid__rating i + i' => 'margin-left: {{SIZE}}{{UNIT}};',
 			'{{WRAPPER}} .digi-product-grid__rating span' => 'margin-right: {{SIZE}}{{UNIT}};',
 		),
-	), array(
-		'name' => 'rating_count_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-product-grid__rating-count' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'rating_count_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-product-grid__rating-count',
-	), array(
-		'name' => 'time_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-product-grid__list-time' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'time_hover_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-product-grid__item:hover .digi-product-grid__list-time' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'time_bottom_space',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-product-grid__list-time i' => 'margin-right: {{SIZE}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'time_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-product-grid__list-time',
 	), array(
 		'name' => 'badge_text_color',
 		'type' => 'color',

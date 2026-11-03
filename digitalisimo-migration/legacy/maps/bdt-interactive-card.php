@@ -6,14 +6,16 @@ $placeholder_url = class_exists( '\Elementor\Utils' ) ? \Elementor\Utils::get_pl
 
 return array(
 	'target'    => 'digitalisimo-fancy-card',
+	// Clases del render de Element Pack (interactive-card.php) → tarjeta propia; el distintivo propio es el `span`.
 	'classes'   => array(
-		'.bdt-interactive-card-title'       => '.digi-fancy-card__title',
-		'.bdt-interactive-card-sub-title'   => '.digi-fancy-card__badge',
-		'.bdt-interactive-card-description' => '.digi-fancy-card__description',
-		'.bdt-interactive-card-readmore'    => '.digi-fancy-card__link',
-		'.bdt-interactive-card-image'       => '.digi-fancy-card__visual',
-		'.bdt-interactive-card-badge'       => '.digi-fancy-card__badge',
-		'.bdt-interactive-card'             => '.digi-fancy-card',
+		'.bdt-interactive-card-title'      => '.digi-fancy-card__title',
+		'.bdt-interactive-card-sub-title'  => '.digi-fancy-card__badge',
+		'.bdt-interactive-card-text'       => '.digi-fancy-card__description',
+		'.bdt-interactive-card-readmore'   => '.digi-fancy-card__link',
+		'.bdt-interactive-card-image'      => '.digi-fancy-card__visual',
+		'.bdt-interactive-card-badge span' => '.digi-fancy-card__badge',
+		'.bdt-interactive-card-badge'      => '.digi-fancy-card__badge',
+		'.bdt-interactive-card'            => '.digi-fancy-card',
 	),
 	'defaults'  => array(
 		'image' => array(

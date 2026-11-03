@@ -181,7 +181,8 @@ ok(gettext > 10, `Llamadas de traducción revisadas (${gettext}).`);
 
 // ── 3. Controles ─────────────────────────────────────────────────────────────────────────────────────────────────
 // V.12: controles que no son de estilo (más destino y clave de los filtros) y los que sí lo son.
-const NON_STYLE = new Set(['_digitalisimo_actions_on', '_digitalisimo_actions', '_digitalisimo_hidden_initial', 'digitalisimo_saved_query', '_digitalisimo_slot', 'digitalisimo_overrides', 'digitalisimo_inline_tags', 'digitalisimo_conditional', 'digitalisimo_rules', 'digitalisimo_logic', 'destination', 'selected_element']);
+// F8 (§3.E.3): el contador opcional del slider anidado (`counter`) tampoco es de estilo.
+const NON_STYLE = new Set(['_digitalisimo_actions_on', '_digitalisimo_actions', '_digitalisimo_hidden_initial', 'digitalisimo_saved_query', '_digitalisimo_slot', 'digitalisimo_overrides', 'digitalisimo_inline_tags', 'digitalisimo_conditional', 'digitalisimo_rules', 'digitalisimo_logic', 'destination', 'selected_element', 'counter']);
 const STYLE = new Set(['digitalisimo_presentation']);
 const UI_ONLY = /::(RAW_HTML|HEADING|DIVIDER|NOTICE|ALERT|BUTTON|DEPRECATED_NOTICE)\b|'type'\s*=>\s*'(raw_html|heading|divider|notice|alert|button|deprecated_notice)'/;
 let controls = 0;
@@ -220,11 +221,14 @@ for (const path of php) {
 }
 ok(controls > 10 && existing >= 1, `Controles revisados (${controls}; ${existing} en widgets existentes).`);
 ok(seenNames.has('digitalisimo_presentation'), 'Se revisó el control de la presentación.');
+ok(seenNames.has('counter'), 'Se revisó el control del contador del slider anidado (F8).');
 
 // ── 4. Scripts y topes ───────────────────────────────────────────────────────────────────────────────────────────
 const CAPS = {
   'actions.js': 6144, 'nested-slider.css': 4096, 'nested-slider.js': 6144, 'forms-conditions.js': 3072,
   'nested-presentation.css': 4096, 'f7b-filters.css': 2048, 'filters-form.js': 6144, 'filters.js': 8192,
+  // F8 (§5): el contador del slider anidado.
+  'nested-slider-counter.css': 256, 'nested-slider-counter.js': 512,
 };
 for (const path of [...js, ...cssFiles]) {
   const name = basename(path);

@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-featured-box` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -267,79 +268,6 @@ return array( array(
 		'name' => 'description_typography_hover',
 		'group' => 'typography',
 		'selector' => '{{WRAPPER}} .digi-featured-box:hover .digi-featured-box__content .digi-featured-box__description',
-	), array(
-		'name' => 'button_top_space',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button' => 'padding-top: {{SIZE}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'readmore_text_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button svg' => 'fill: {{VALUE}};',
-		),
-	), array(
-		'name' => 'readmore_background',
-		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button',
-	), array(
-		'name' => 'readmore_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button',
-	), array(
-		'name' => 'readmore_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'readmore_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button',
-	), array(
-		'name' => 'readmore_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'readmore_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button',
-	), array(
-		'name' => 'readmore_hover_text_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button:hover' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button:hover svg' => 'fill: {{VALUE}};',
-		),
-	), array(
-		'name' => 'readmore_hover_background',
-		'group' => 'background',
-		'selector' => '{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button:hover',
-	), array(
-		'name' => 'readmore_hover_border_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button:hover' => 'border-color: {{VALUE}};',
-		),
-		'condition' => array(
-			'readmore_border_border!' => '',
-		),
-	), array(
-		'name' => 'readmore_hover_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-featured-box .digi-featured-box__content .digi-featured-box-button .digi-featured-box__button:hover',
 	), array(
 		'name' => 'badge_text_color',
 		'type' => 'color',

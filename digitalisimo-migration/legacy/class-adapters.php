@@ -157,6 +157,7 @@ final class Adapters {
 		'bdt-user-login' => Bdt_UserLogin::class,
 		'bdt-profile-card' => Bdt_ProfileCard::class,
 		'bdt-navbar' => Bdt_Navbar::class,
+		'bdt-mega-menu' => Bdt_MegaMenu::class,
 		'bdt-vertical-menu' => Bdt_VerticalMenu::class,
 		'bdt-slinky-vertical-menu' => Bdt_SlinkyVerticalMenu::class,
 		'bdt-sub-menu' => Bdt_SubMenu::class,
@@ -473,6 +474,8 @@ if ( class_exists( '\\ElementorPro\\Modules\\ThemeElements\\Widgets\\Author_Box'
 }
 if ( class_exists( '\\ElementorPro\\Modules\\NavMenu\\Widgets\\Nav_Menu' ) ) {
 	final class Bdt_Navbar extends \ElementorPro\Modules\NavMenu\Widgets\Nav_Menu { use Legacy_Adapter; const LEGACY_ID = 'bdt-navbar'; }
+	// F8: el Mega Menu conserva la navegación con el mismo menú de WordPress; los paneles con contenido se rehacen aparte.
+	final class Bdt_MegaMenu extends \ElementorPro\Modules\NavMenu\Widgets\Nav_Menu { use Legacy_Adapter; const LEGACY_ID = 'bdt-mega-menu'; }
 }
 if ( class_exists( '\\Digitalisimo\\Elements\\Vertical_Menu_Widget' ) ) {
 	final class Bdt_VerticalMenu extends \Digitalisimo\Elements\Vertical_Menu_Widget { use Legacy_Adapter; const LEGACY_ID = 'bdt-vertical-menu'; }

@@ -1,18 +1,11 @@
 <?php
 /**
- * Controles de estilo de Element Pack Pro 9.9.1 `bdt-trailer-box` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Controles de estilo de Element Pack Pro 10.0.1 `bdt-trailer-box` con selectores del widget propio, más los que sólo
+ * tenía 9.9.1 y siguen vivos. Generado con scripts/legacy-styles.py --merge; no editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
 return array( array(
-		'name' => 'content_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card-desc' => 'width: {{SIZE}}{{UNIT}};',
-		),
-	), array(
 		'name' => 'height',
 		'type' => 'slider',
 		'responsive' => true,
@@ -27,7 +20,7 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-button' => 'gap: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__link' => 'gap: {{SIZE}}{{UNIT}};',
 		),
 		'default' => array(
 			'size' => 8,
@@ -36,37 +29,29 @@ return array( array(
 			'button_icon[value]!' => '',
 		),
 	), array(
-		'name' => 'trailer_box_content_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-desc' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
 		'name' => 'pre_title_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-pre-title' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__badge' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'pre_title_bg_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-pre-title' => 'background: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__badge' => 'background: {{VALUE}};',
 		),
 	), array(
 		'name' => 'pre_title_border',
 		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-fancy-card .digi-fancy-card-pre-title',
+		'selector' => '{{WRAPPER}} .digi-fancy-card .digi-fancy-card__badge',
 	), array(
 		'name' => 'pre_title_border_radius',
 		'type' => 'dimensions',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-pre-title' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__badge' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
@@ -74,31 +59,31 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-pre-title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__badge' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
 		'name' => 'tb_pre_title_shadow',
 		'group' => 'text-shadow',
-		'selector' => '{{WRAPPER}} .digi-fancy-card .digi-fancy-card-desc-inner .digi-fancy-card-pre-title',
+		'selector' => '{{WRAPPER}} .digi-fancy-card .digi-fancy-card__badge',
 	), array(
 		'name' => 'tb_pre_title_spacing',
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-desc-inner .digi-fancy-card-pre-title' => 'margin-bottom: {{SIZE}}px;',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__badge' => 'margin-bottom: {{SIZE}}px;',
 		),
 	), array(
 		'name' => 'tb_pre_title_opacity',
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-desc-inner .digi-fancy-card-pre-title' => 'opacity: {{SIZE}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__badge' => 'opacity: {{SIZE}};',
 		),
 	), array(
 		'name' => 'pre_title_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-fancy-card .digi-fancy-card-pre-title',
+		'selector' => '{{WRAPPER}} .digi-fancy-card .digi-fancy-card__badge',
 	), array(
 		'name' => 'pre_title_x_position',
 		'type' => 'slider',
@@ -161,21 +146,21 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-pre-title' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__badge' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'pre_title_bg__hover_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-pre-title' => 'background: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__badge' => 'background: {{VALUE}};',
 		),
 	), array(
 		'name' => 'pre_title_border_color_hover',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-pre-title' => 'border-color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__badge' => 'border-color: {{VALUE}};',
 		),
 		'condition' => array(
 			'pre_title_border_border!' => '',
@@ -183,13 +168,13 @@ return array( array(
 	), array(
 		'name' => 'tb_pre_title_shadow_hover',
 		'group' => 'text-shadow',
-		'selector' => '{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-desc-inner .digi-fancy-card-pre-title',
+		'selector' => '{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__badge',
 	), array(
 		'name' => 'tb_pre_title_opacity_hover',
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-desc-inner .digi-fancy-card-pre-title' => 'opacity: {{SIZE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__badge' => 'opacity: {{SIZE}};',
 		),
 	), array(
 		'name' => 'pre_title_hover_x_position',
@@ -226,7 +211,7 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-desc-inner .digi-fancy-card-pre-title' => 'transition-delay: {{SIZE}}s;',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__badge' => 'transition-delay: {{SIZE}}s;',
 		),
 	), array(
 		'name' => 'title_color',
@@ -330,7 +315,7 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-pre-title' => 'border-color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__badge' => 'border-color: {{VALUE}};',
 		),
 		'condition' => array(
 			'title_border_border!' => '',
@@ -377,28 +362,28 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-desc-inner .digi-fancy-card__title' => 'transition-delay: {{SIZE}}s;',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__title' => 'transition-delay: {{SIZE}}s;',
 		),
 	), array(
 		'name' => 'text_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-text' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__description' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'text_background_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-text' => 'background: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__description' => 'background: {{VALUE}};',
 		),
 	), array(
 		'name' => 'text_border_radius',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-text' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__description' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
@@ -406,7 +391,7 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-text' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__description' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
@@ -414,18 +399,18 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-text' => 'margin-top: {{SIZE}}px;',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__description' => 'margin-top: {{SIZE}}px;',
 		),
 	), array(
 		'name' => 'text_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-fancy-card .digi-fancy-card-text',
+		'selector' => '{{WRAPPER}} .digi-fancy-card .digi-fancy-card__description',
 	), array(
 		'name' => 'text_opacity',
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-text' => 'opacity: {{SIZE}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__description' => 'opacity: {{SIZE}};',
 		),
 	), array(
 		'name' => 'text_horizontal_offset',
@@ -462,21 +447,21 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-text' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__description' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'text_bg_color_hover',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-text' => 'background: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__description' => 'background: {{VALUE}};',
 		),
 	), array(
 		'name' => 'text_hover_opacity',
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-text' => 'opacity: {{SIZE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__description' => 'opacity: {{SIZE}};',
 		),
 	), array(
 		'name' => 'text_hover_horizontal_offset',
@@ -513,33 +498,33 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-text' => 'transition-delay: {{SIZE}}s;',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__description' => 'transition-delay: {{SIZE}}s;',
 		),
 	), array(
 		'name' => 'button_text_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card a.digi-fancy-card-button' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-fancy-card a.digi-fancy-card-button svg' => 'fill: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card a.digi-fancy-card__link' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-fancy-card a.digi-fancy-card__link svg' => 'fill: {{VALUE}};',
 		),
 	), array(
 		'name' => 'background_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} a.digi-fancy-card-button' => 'background-color: {{VALUE}};',
+			'{{WRAPPER}} a.digi-fancy-card__link' => 'background-color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'border',
 		'group' => 'border',
-		'selector' => '{{WRAPPER}} a.digi-fancy-card-button',
+		'selector' => '{{WRAPPER}} a.digi-fancy-card__link',
 	), array(
 		'name' => 'border_radius',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} a.digi-fancy-card-button' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} a.digi-fancy-card__link' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
@@ -547,7 +532,7 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} a.digi-fancy-card-button' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} a.digi-fancy-card__link' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
@@ -555,23 +540,23 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} a.digi-fancy-card-button' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} a.digi-fancy-card__link' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
 		'name' => 'button_shadow',
 		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} a.digi-fancy-card-button',
+		'selector' => '{{WRAPPER}} a.digi-fancy-card__link',
 	), array(
 		'name' => 'typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} a.digi-fancy-card-button',
+		'selector' => '{{WRAPPER}} a.digi-fancy-card__link',
 	), array(
 		'name' => 'button_opacity',
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card-button' => 'opacity: {{SIZE}};',
+			'{{WRAPPER}} .digi-fancy-card .digi-fancy-card__link' => 'opacity: {{SIZE}};',
 		),
 	), array(
 		'name' => 'button_horizontal_offset',
@@ -608,7 +593,7 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-button' => 'opacity: {{SIZE}};',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__link' => 'opacity: {{SIZE}};',
 		),
 	), array(
 		'name' => 'button_hover_horizontal_offset',
@@ -645,7 +630,7 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card-button' => 'transition-delay: {{SIZE}}s;',
+			'{{WRAPPER}} .digi-fancy-card:hover .digi-fancy-card__link' => 'transition-delay: {{SIZE}}s;',
 		),
 	), array(
 		'name' => 'background_overlay',
@@ -655,4 +640,62 @@ return array( array(
 		'name' => 'background_overlay_hover',
 		'group' => 'background',
 		'selector' => '{{WRAPPER}}:hover .elementor-background-overlay',
+	), array(
+		'name' => 'width',
+		'type' => 'slider',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}}' => 'max-width: {{SIZE}}{{UNIT}};',
+		),
+	), array(
+		'name' => 'hover_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}}:hover a.digi-fancy-card__link' => 'color: {{VALUE}};',
+			'{{WRAPPER}}:hover a.digi-fancy-card__link svg' => 'fill: {{VALUE}};',
+		),
+	), array(
+		'name' => 'button_background_hover_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}}:hover a.digi-fancy-card__link' => 'background-color: {{VALUE}};',
+		),
+	), array(
+		'name' => 'button_hover_border_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}}:hover a.digi-fancy-card__link' => 'border-color: {{VALUE}};',
+		),
+		'condition' => array(
+			'border_border!' => '',
+		),
+	), array(
+		'name' => 'background_overlay_opacity',
+		'type' => 'slider',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .elementor-background-overlay' => 'opacity: {{SIZE}};',
+		),
+		'default' => array(
+			'size' => 0.5,
+		),
+		'condition' => array(
+			'background_overlay_background' => array( 'classic', 'gradient' ),
+		),
+	), array(
+		'name' => 'background_overlay_hover_opacity',
+		'type' => 'slider',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}}:hover .elementor-background-overlay' => 'opacity: {{SIZE}};',
+		),
+		'default' => array(
+			'size' => 0.5,
+		),
+		'condition' => array(
+			'background_overlay_hover_background' => array( 'classic', 'gradient' ),
+		),
 	) );

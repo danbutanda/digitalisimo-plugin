@@ -1,21 +1,12 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-search` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
 return array( array(
-		'name' => 'search_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form-container .elementor-search-form-default' => 'width: {{SIZE}}{{UNIT}};',
-		),
-		'condition' => array(
-			'skin!' => array( 'modal' ),
-		),
-	), array(
 		'name' => 'button_position',
 		'type' => 'slider',
 		'responsive' => true,
@@ -84,73 +75,6 @@ return array( array(
 		'group' => 'box-shadow',
 		'selector' => '{{WRAPPER}} .elementor-search-form__toggle',
 	), array(
-		'name' => 'search_container_background',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form-container .elementor-search-form:not(.elementor-search-form-navbar)' => 'background-color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'search_container_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form-container .elementor-search-form' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'search_container_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form-container .elementor-search-form:not(.elementor-search-form-navbar)' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'search_container_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .elementor-search-form-container .elementor-search-form:not(.elementor-search-form-navbar)',
-	), array(
-		'name' => 'icon_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form .elementor-search-form-icon svg' => 'color: {{VALUE}};',
-		),
-		'condition' => array(
-			'skin' => 'default',
-		),
-	), array(
-		'name' => 'modal_search_icon_size',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'#modal-search-{{ID}} .elementor-search-form-icon svg' => 'width: {{SIZE}}{{UNIT}}; height: auto;',
-		),
-		'condition' => array(
-			'skin' => 'modal',
-		),
-	), array(
-		'name' => 'search_icon_size',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form .elementor-search-form-icon svg' => 'width: {{SIZE}}{{UNIT}};',
-		),
-		'condition' => array(
-			'skin' => 'default',
-		),
-	), array(
-		'name' => 'search_icon_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form .elementor-search-form-icon' => 'width: {{SIZE}}{{UNIT}};',
-		),
-		'condition' => array(
-			'skin' => 'default',
-		),
-	), array(
 		'name' => 'input_typography',
 		'group' => 'typography',
 		'selector' => '{{WRAPPER}} .elementor-search-form__input, #modal-search-{{ID}} .elementor-search-form__input',
@@ -159,18 +83,7 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form__input, #modal-search-{{ID}} .elementor-search-form-icon svg' => 'color: {{VALUE}}',
-		),
-	), array(
-		'name' => 'input_background_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form-container .elementor-search-form .elementor-search-form__input' => 'background-color: {{VALUE}}',
-			'#modal-search-{{ID}} .elementor-search-form-container .elementor-search-form .elementor-search-form__input' => 'background-color: {{VALUE}}',
-		),
-		'condition' => array(
-			'skin!' => 'modal',
+			'{{WRAPPER}} .elementor-search-form__input' => 'color: {{VALUE}}',
 		),
 	), array(
 		'name' => 'input_placeholder_color',
@@ -228,16 +141,6 @@ return array( array(
 		'selectors' => array(
 			'{{WRAPPER}} .elementor-search-form__input:focus' => 'color: {{VALUE}}',
 			'#modal-search-{{ID}} .elementor-search-form__input:focus' => 'color: {{VALUE}}',
-		),
-	), array(
-		'name' => 'input_background_color_focus',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-search-form-container .elementor-search-form .elementor-search-form__input:focus' => 'background-color: {{VALUE}}',
-		),
-		'condition' => array(
-			'skin!' => 'modal',
 		),
 	), array(
 		'name' => 'input_border_color_focus',

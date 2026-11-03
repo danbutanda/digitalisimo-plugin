@@ -6,14 +6,15 @@ $placeholder_url = class_exists( '\Elementor\Utils' ) ? \Elementor\Utils::get_pl
 
 return array(
 	'target'    => 'digitalisimo-fancy-card',
+	// Clases del render de Element Pack (animated-card.php) → tarjeta propia; `-img-wrap` es la figura y `-img` la imagen.
 	'classes'   => array(
-		'.bdt-ep-animated-card-title'       => '.digi-fancy-card__title',
-		'.bdt-ep-animated-card-sub-title'   => '.digi-fancy-card__badge',
-		'.bdt-ep-animated-card-description' => '.digi-fancy-card__description',
-		'.bdt-ep-animated-card-readmore'    => '.digi-fancy-card__link',
-		'.bdt-ep-animated-card-image'       => '.digi-fancy-card__visual',
-		'.bdt-ep-animated-card-badge'       => '.digi-fancy-card__badge',
-		'.bdt-ep-animated-card'             => '.digi-fancy-card',
+		'.bdt-ep-animated-card-title'     => '.digi-fancy-card__title',
+		'.bdt-ep-animated-card-sub-title' => '.digi-fancy-card__badge',
+		'.bdt-ep-animated-card-text'      => '.digi-fancy-card__description',
+		'.bdt-ep-animated-card-btn'       => '.digi-fancy-card__link',
+		'.bdt-ep-animated-card-img-wrap'  => '.digi-fancy-card__visual',
+		'.bdt-ep-animated-card-img'       => '.digi-fancy-card__image',
+		'.bdt-ep-animated-card'           => '.digi-fancy-card',
 	),
 	'defaults'  => array(
 		'image' => array(

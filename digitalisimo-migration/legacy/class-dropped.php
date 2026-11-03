@@ -6,69 +6,102 @@ defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-retire.php';
 
 /**
- * Lo que «Migrar» todavía no convierte y antes se perdía sin aviso: las extensiones de Element Pack sin equivalente en
- * DIGITALÍSIMO Elements, los widgets de Prime Slider y los plugins de la misma familia que la migración no desactiva
- * (Element Pack Addon y Prime Slider). No cambia ningún documento: lo encuentra, lo anota y lo presenta igual en el
- * análisis previo (Herramientas y Red → Ajustes → Migrar a DIGITALÍSIMO Elements, `wp digitalisimo-migration`) y en el
- * informe final de cada sitio.
+ * Lo que «Migrar» no convierte de las extensiones de Element Pack (F8, §3.C y V.9): las 10 extensiones descartadas
+ * con la aprobación del propietario (2026-11-01) y las claves sin prefijo que podrían ser de otro plugin. No cambia
+ * ningún documento: lo encuentra y lo anota en el informe de F8 (`Report`, códigos `ext.dropped.*` y
+ * `ext.ambiguous`), que lo presenta en el análisis previo y en el informe final de cada sitio y de la red.
  *
  * Una extensión se da por usada cuando su interruptor (o su repetidor, o su código) tiene valor en el elemento o en los
- * ajustes de la página. Al convertir, Native retira del elemento las claves con prefijo heredado (`ep_`,
- * `element_pack_`, `bdt_`); las que no lo tienen (`section_sticky_on`…) y las de los ajustes de la página quedan
- * guardadas sin efecto. Lo retirado se sigue leyendo de la copia original del documento (Migration::BACKUP), así que
- * volver a pulsar Migrar o migrar la red no lo borra del informe. Las extensiones que sí se convierten (visibilidad,
- * enlace del elemento, filtro de fondo, degradado del texto, sombra de imagen, flotación, anotación, figuras, máscaras
- * y separadores) no se listan aquí. La tabla sale de los módulos sin widget de Element Pack 10.0.1.
+ * ajustes de la página; un interruptor atómico (v4) apagado, `{"$$type":"boolean","value":false}`, no cuenta. Las
+ * claves sin prefijo (`section_particles_on`…) sólo cuentan con una señal de Element Pack (`Effects\Dispatcher::signal()`,
+ * C2-18). La conversión (`Effects\Dispatcher`, `Effects\Page`) retira las claves de las descartadas; lo retirado se sigue
+ * leyendo de la copia original del documento (`_digitalisimo_ep_backup`) y de la de sus ajustes de página
+ * (`_digitalisimo_ep_backup_page`), así que volver a pulsar Migrar o migrar la red no lo borra del informe.
  *
- * Es información, no un asunto pendiente: Elementor conserva al guardar las claves que ningún control declara, así que
- * nadie podría hacerlas desaparecer y el sitio nunca quedaría terminado. Sólo cuenta como pendiente el contenido que hoy
- * no se ve (widgets de Prime Slider con su plugin sin activar), porque una persona sí puede resolverlo.
+ * La tabla sale de `effects/keys.php` (una sola fuente con las 18 que sí se convierten): `extensions()`.
+ *
+ * Es información, no un asunto pendiente: el efecto no tiene equivalente y su dato queda en la copia.
  */
 final class Dropped {
-	/** Por extensión: nombre visible, claves que delatan su uso y si vive en los ajustes de la página. */
-	const EXTENSIONS = array(
-		'tooltip'                      => array( 'label' => 'Información emergente', 'keys' => array( 'element_pack_widget_tooltip' ) ),
-		'transform-effects'            => array( 'label' => 'Efectos de transformación', 'keys' => array( 'element_pack_widget_transform', 'element_pack_section_transform', 'element_pack_column_transform' ) ),
-		'parallax-effects'             => array( 'label' => 'Efectos de paralaje', 'keys' => array( 'ep_parallax_effects_show' ) ),
-		'background-parallax'          => array( 'label' => 'Paralaje del fondo', 'keys' => array( 'section_parallax_on' ) ),
-		'background-image-parallax'    => array( 'label' => 'Paralaje de la imagen', 'keys' => array( 'ep_background_image_parallax_on' ) ),
-		'image-parallax'               => array( 'label' => 'Capas de imágenes y colores con paralaje', 'keys' => array( 'section_parallax_elements', 'element_pack_sbgc_parallax_show', 'element_pack_sbc_parallax_show' ) ),
-		'background-overlay'           => array( 'label' => 'Superposición del fondo', 'keys' => array( 'element_pack_background_overlay' ) ),
-		'background-expand'            => array( 'label' => 'Fondo que se expande al desplazar', 'keys' => array( 'ep_bg_expand_enable' ) ),
-		'section-sticky'               => array( 'label' => 'Sección fija al desplazar', 'keys' => array( 'section_sticky_on' ) ),
-		'particles'                    => array( 'label' => 'Partículas en el fondo', 'keys' => array( 'section_particles_on' ) ),
-		'equal-height'                 => array( 'label' => 'Igualar alturas', 'keys' => array( 'section_equal_height_on' ) ),
-		'cursor-effects'               => array( 'label' => 'Efectos del cursor', 'keys' => array( 'element_pack_cursor_effects_show' ) ),
-		'reveal-effects'               => array( 'label' => 'Efecto de revelado', 'keys' => array( 'element_pack_reveal_effects_enable' ) ),
-		'ripple-effects'               => array( 'label' => 'Onda al pulsar', 'keys' => array( 'ep_ripple_enable' ) ),
-		'scroll-fill-effect'           => array( 'label' => 'Relleno del texto al desplazar', 'keys' => array( 'ep_widget_sf_fx_enable' ) ),
-		'scroll-box'                   => array( 'label' => 'Caja con desplazamiento propio', 'keys' => array( 'ep_scroll_box_enable' ) ),
-		'threed-text'                  => array( 'label' => 'Texto en 3D', 'keys' => array( 'ep_threed_text_active' ) ),
-		'tile-scroll'                  => array( 'label' => 'Mosaico al desplazar', 'keys' => array( 'element_pack_tile_scroll_show' ) ),
-		'global-badge'                 => array( 'label' => 'Insignia', 'keys' => array( 'ep_global_badge_enable' ) ),
-		'image-hover-effects'          => array( 'label' => 'Efectos de la imagen al pasar el cursor', 'keys' => array( 'ep_image_hover_effects_on' ) ),
-		'confetti-effects'             => array( 'label' => 'Confeti', 'keys' => array( 'ep_widget_cf_confetti' ) ),
-		'sound-effects'                => array( 'label' => 'Efectos de sonido', 'keys' => array( 'ep_sound_effects_active' ) ),
-		'animated-gradient-background' => array( 'label' => 'Fondo con degradado animado', 'keys' => array( 'element_pack_agbg_show' ) ),
-		'grid-line'                    => array( 'label' => 'Líneas de cuadrícula', 'keys' => array( 'ep_grid_line_enable' ), 'page' => true ),
-		'hash-link'                    => array( 'label' => 'Enlaces a anclas de la página', 'keys' => array( 'ep_hash_link_enable' ), 'page' => true ),
-		'content-protector'            => array( 'label' => 'Protección contra copiar el contenido', 'keys' => array( 'ep_content_protector_enable' ), 'page' => true ),
-		'custom-js'                    => array( 'label' => 'JavaScript personalizado de la página', 'keys' => array( 'ep_custom_header_script', 'ep_custom_footer_script' ), 'page' => true ),
-		'adblock-detector'             => array( 'label' => 'Detector de bloqueadores de anuncios', 'keys' => array( 'ep_adblock_detector_enable' ), 'page' => true ),
-	);
-
 	/** Ajustes listados por documento y documentos listados (lo demás se cuenta): el informe vive en una opción. */
 	const MAX_ITEMS     = 12;
 	const MAX_DOCUMENTS = 100;
 
 	/** Presentación común del análisis previo y del informe (en el sitio, en la red y en la terminal). */
-	const INTRO = 'Efectos heredados sin equivalente en DIGITALÍSIMO Elements: sin el plugin anterior no se aplican, y al convertir se retiran del elemento (los que no llevan prefijo heredado y los de los ajustes de la página quedan guardados sin efecto). En los documentos ya convertidos se leen de su copia original, así que siguen en la lista después de migrar. Revisa cómo se ven estos documentos y, si hace falta, recrea el efecto con las opciones propias.';
+	const INTRO = 'Efectos heredados sin equivalente en DIGITALÍSIMO Elements (descartados por su accesibilidad, su rendimiento, su privacidad o su licencia): al convertir se retiran del elemento o de los ajustes de la página y quedan en la copia original del documento, así que siguen en la lista después de migrar. Revisa cómo se ven estos documentos y, si hace falta, recrea el efecto con las opciones propias.';
 
 	/** Copia original de un documento convertido (la misma meta que Migration::BACKUP). */
 	const BACKUP = '_digitalisimo_ep_backup';
 
+	/** Copia de los ajustes de la página antes de convertirlos (`{time, data}` en JSON, codificado una vez). */
+	const BACKUP_PAGE = '_digitalisimo_ep_backup_page';
+
 	/** Widgets de Prime Slider en `_elementor_data`. */
 	const PRIME_SLIDER = '/^prime-slider-[a-z0-9-]+$/';
+
+	/** @var array|null tabla cargada. */
+	private static $extensions = null;
+
+	/**
+	 * Las 10 extensiones descartadas: nombre visible, claves que delatan su uso, si viven en los ajustes de la página y
+	 * si su interruptor no lleva prefijo (sólo cuenta con una señal de Element Pack).
+	 *
+	 * @return array<string, array{label:string, keys:string[], page:bool, bare:bool}>
+	 */
+	public static function extensions() {
+		if ( null === self::$extensions ) {
+			self::$extensions = array();
+			foreach ( self::table() as $slug => $spec ) {
+				if ( 'dropped' !== ( $spec['treatment'] ?? '' ) ) {
+					continue;
+				}
+				$bare = false;
+				foreach ( (array) $spec['switch'] as $switch ) {
+					foreach ( (array) ( $spec['bare'] ?? array() ) as $item ) {
+						$bare = $bare || $switch === $item || ( '_' === substr( $item, -1 ) && 0 === strpos( $switch, $item ) );
+					}
+				}
+				self::$extensions[ $slug ] = array(
+					'label' => (string) $spec['label'],
+					'keys'  => array_values( (array) $spec['switch'] ),
+					'page'  => 'page' === ( $spec['scope'][0] ?? '' ),
+					'bare'  => $bare,
+				);
+			}
+		}
+		return self::$extensions;
+	}
+
+	/** Interruptores sin prefijo de las extensiones que sí se convierten (sólo para `ext.ambiguous`). */
+	private static function ambiguous_switches() {
+		$out = array();
+		foreach ( self::table() as $slug => $spec ) {
+			if ( 'dropped' === ( $spec['treatment'] ?? '' ) || ! empty( $spec['generic'] ) || 'page' === ( $spec['scope'][0] ?? '' ) ) {
+				continue;
+			}
+			foreach ( (array) $spec['switch'] as $switch ) {
+				foreach ( (array) ( $spec['bare'] ?? array() ) as $item ) {
+					if ( $switch === $item || ( '_' === substr( $item, -1 ) && 0 === strpos( $switch, $item ) ) ) {
+						$out[ $switch ] = $slug;
+					}
+				}
+			}
+		}
+		return $out;
+	}
+
+	/** `effects/keys.php`. */
+	private static function table() {
+		if ( class_exists( __NAMESPACE__ . '\\Effects\\Dispatcher' ) ) {
+			return Effects\Dispatcher::keys();
+		}
+		static $keys = null;
+		if ( null === $keys ) {
+			$keys = include __DIR__ . '/effects/keys.php';
+			$keys = is_array( $keys ) ? $keys : array();
+		}
+		return $keys;
+	}
 
 	/* ---------------------------------------------------------------- Detección (pura) */
 

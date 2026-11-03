@@ -1,21 +1,21 @@
 <?php
 /**
- * Controles de estilo de Element Pack Pro 9.9.1 `bdt-profile-card` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Controles de estilo de Element Pack Pro 10.0.1 `bdt-profile-card` con selectores del widget propio, más los que sólo
+ * tenía 9.9.1 y siguen vivos. Generado con scripts/legacy-styles.py --merge; no editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
 return array( array(
 		'name' => 'profile_card_header_background',
 		'group' => 'background',
-		'selector' => '{{WRAPPER}} .elementor-author-box .elementor-author-box-header',
+		'selector' => '{{WRAPPER}} .digi-author-box__header',
 		'types' => array( 'gradient' ),
 	), array(
 		'name' => 'profile_card_header_border_radius',
 		'type' => 'dimensions',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-header' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-author-box__header' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
@@ -23,7 +23,7 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-header' => 'padding-bottom: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-author-box__header' => 'padding-bottom: {{SIZE}}{{UNIT}};',
 		),
 		'condition' => array(
 			'_skin' => '',
@@ -34,7 +34,7 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-header' => 'padding-right: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-author-box__header' => 'padding-right: {{SIZE}}{{UNIT}};',
 		),
 		'condition' => array(
 			'_skin' => 'heline',
@@ -45,18 +45,18 @@ return array( array(
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box-pro span' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-author-box__badge' => 'color: {{VALUE}};',
 		),
 	), array(
 		'name' => 'profile_badge_border',
 		'group' => 'border',
-		'selector' => '{{WRAPPER}} .elementor-author-box-pro span',
+		'selector' => '{{WRAPPER}} .digi-author-box__badge',
 	), array(
 		'name' => 'profile_badge_border_radius',
 		'type' => 'dimensions',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box-pro span' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-author-box__badge' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
@@ -64,62 +64,28 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box-pro span' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-author-box__badge' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
 		'name' => 'profile_badge_typography',
 		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .elementor-author-box-pro span',
-	), array(
-		'name' => 'settings_menu_size',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box-settings i' => 'font-size: {{SIZE}}{{UNIT}}',
-		),
-	), array(
-		'name' => 'settings_icon_color',
-		'type' => 'color',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box-settings i' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'profile_card_user_menu_left_spacing',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box.skin-heline .elementor-author-box-settings' => 'left: {{SIZE}}{{UNIT}};',
-		),
-		'condition' => array(
-			'_skin!' => '',
-		),
-	), array(
-		'name' => 'profile_card_user_menu_top_spacing',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box.skin-heline .elementor-author-box-settings' => 'top: {{SIZE}}{{UNIT}};',
-		),
-		'condition' => array(
-			'_skin!' => '',
-		),
+		'selector' => '{{WRAPPER}} .digi-author-box__badge',
 	), array(
 		'name' => 'profile_card_inner_background',
 		'group' => 'background',
-		'selector' => '{{WRAPPER}} .elementor-author-box .elementor-author-box-inner',
+		'selector' => '{{WRAPPER}} .elementor-author-box',
 		'types' => array( 'classic', 'gradient' ),
 	), array(
 		'name' => 'profile_card_inner_border',
 		'group' => 'border',
-		'selector' => '{{WRAPPER}} .elementor-author-box .elementor-author-box-inner',
+		'selector' => '{{WRAPPER}} .elementor-author-box',
 	), array(
 		'name' => 'profile_card_inner_border_radius',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-inner' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .elementor-author-box' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
@@ -127,7 +93,7 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-inner' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .elementor-author-box' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
@@ -135,13 +101,13 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-inner' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .elementor-author-box' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
 		'name' => 'profile_inner_box_shadow',
 		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .elementor-author-box .elementor-author-box-inner',
+		'selector' => '{{WRAPPER}} .elementor-author-box',
 	), array(
 		'name' => 'profile_card_image_width',
 		'type' => 'slider',
@@ -177,7 +143,6 @@ return array( array(
 		'responsive' => true,
 		'selectors' => array(
 			'{{WRAPPER}} .elementor-author-box__avatar img' => 'margin-top: -{{SIZE}}{{UNIT}};',
-			'{{WRAPPER}} .elementor-author-box.skin-heline .elementor-author-box-image' => 'left: {{SIZE}}{{UNIT}};',
 		),
 	), array(
 		'name' => 'profile_card_text_color',
@@ -204,13 +169,6 @@ return array( array(
 		'responsive' => true,
 		'selectors' => array(
 			'{{WRAPPER}} .elementor-author-box__bio' => 'padding-bottom: {{SIZE}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'follow_button_spacing',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-button' => 'margin-top: {{SIZE}}{{UNIT}} !important;',
 		),
 	), array(
 		'name' => 'button_text_color',
@@ -276,37 +234,30 @@ return array( array(
 			'{{WRAPPER}} .elementor-author-box__button:hover' => 'border-color: {{VALUE}};',
 		),
 	), array(
-		'name' => 'social_icon_spacing',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-button' => 'margin-bottom: {{SIZE}}{{UNIT}} !important;',
-		),
-	), array(
 		'name' => 'icon_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a' => 'color: {{VALUE}}',
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a svg' => 'fill: {{VALUE}}',
+			'{{WRAPPER}} .digi-author-box__social-link' => 'color: {{VALUE}}',
+			'{{WRAPPER}} .digi-author-box__social-link svg' => 'fill: {{VALUE}}',
 		),
 	), array(
 		'name' => 'icon_background',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a' => 'background-color: {{VALUE}}',
+			'{{WRAPPER}} .digi-author-box__social-link' => 'background-color: {{VALUE}}',
 		),
 	), array(
 		'name' => 'social_icon_border',
 		'group' => 'border',
-		'selector' => '{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a',
+		'selector' => '{{WRAPPER}} .digi-author-box__social-link',
 	), array(
 		'name' => 'social_icon_border_radius',
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-author-box__social-link' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', '%' ),
 	), array(
@@ -314,7 +265,7 @@ return array( array(
 		'type' => 'dimensions',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+			'{{WRAPPER}} .digi-author-box__social-link' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
 		'size_units' => array( 'px', 'em', '%' ),
 	), array(
@@ -322,45 +273,108 @@ return array( array(
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a' => 'font-size: {{SIZE}}{{UNIT}};',
+			'{{WRAPPER}} .digi-author-box__social-link' => 'font-size: {{SIZE}}{{UNIT}};',
 		),
 	), array(
 		'name' => 'social_icon_indent',
 		'type' => 'slider',
 		'responsive' => true,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a + a' => 'margin-left: {{SIZE}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'social_line_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link:before, {{WRAPPER}} .elementor-author-box .elementor-author-box-share-link:after' => 'background: {{VALUE}}',
+			'{{WRAPPER}} .digi-author-box__social-link + a' => 'margin-left: {{SIZE}}{{UNIT}};',
 		),
 	), array(
 		'name' => 'icon_hover_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a:hover' => 'color: {{VALUE}}',
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a:hover svg' => 'fill: {{VALUE}}',
+			'{{WRAPPER}} .digi-author-box__social-link:hover' => 'color: {{VALUE}}',
+			'{{WRAPPER}} .digi-author-box__social-link:hover svg' => 'fill: {{VALUE}}',
 		),
 	), array(
 		'name' => 'icon_hover_background',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a:hover' => 'background-color: {{VALUE}}',
+			'{{WRAPPER}} .digi-author-box__social-link:hover' => 'background-color: {{VALUE}}',
 		),
 	), array(
 		'name' => 'icon_hover_border_color',
 		'type' => 'color',
 		'responsive' => false,
 		'selectors' => array(
-			'{{WRAPPER}} .elementor-author-box .elementor-author-box-share-link a:hover' => 'border-color: {{VALUE}}',
+			'{{WRAPPER}} .digi-author-box__social-link:hover' => 'border-color: {{VALUE}}',
 		),
 		'condition' => array(
 			'social_icon_border_border!' => '',
 		),
+	), array(
+		'name' => 'settings_dropdown_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-author-box__menu-link' => 'color: {{VALUE}};',
+			'{{WRAPPER}} .digi-author-box__menu-link svg' => 'fill: {{VALUE}};',
+		),
+	), array(
+		'name' => 'settings_dropdown_hover_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-author-box__menu-link:hover' => 'color: {{VALUE}};',
+		),
+	), array(
+		'name' => 'profile_card_name_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .elementor-author-box__name, {{WRAPPER}} .elementor-author-box__name a' => 'color: {{VALUE}};',
+		),
+		'default' => '',
+	), array(
+		'name' => 'name_typography',
+		'group' => 'typography',
+		'selector' => '{{WRAPPER}} .elementor-author-box__name',
+	), array(
+		'name' => 'profile_card_name_spacing',
+		'type' => 'slider',
+		'responsive' => true,
+		'selectors' => array(
+			'{{WRAPPER}} .elementor-author-box__name' => 'padding-top: {{SIZE}}{{UNIT}};',
+		),
+	), array(
+		'name' => 'profile_card_username_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-author-box__username' => 'color: {{VALUE}};',
+		),
+		'default' => '',
+	), array(
+		'name' => 'username_typography',
+		'group' => 'typography',
+		'selector' => '{{WRAPPER}} .digi-author-box__username',
+	), array(
+		'name' => 'profile_card_stat_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-author-box__stat' => 'color: {{VALUE}};',
+		),
+		'default' => '',
+	), array(
+		'name' => 'stat_typography',
+		'group' => 'typography',
+		'selector' => '{{WRAPPER}} .digi-author-box__stat',
+	), array(
+		'name' => 'profile_card_label_color',
+		'type' => 'color',
+		'responsive' => false,
+		'selectors' => array(
+			'{{WRAPPER}} .digi-author-box__stat-label' => 'color: {{VALUE}};',
+		),
+		'default' => '',
+	), array(
+		'name' => 'label_typography',
+		'group' => 'typography',
+		'selector' => '{{WRAPPER}} .digi-author-box__stat-label',
 	) );

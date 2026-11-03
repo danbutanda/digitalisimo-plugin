@@ -1,0 +1,894 @@
+{
+ "source": "reference/bdthemes-prime-slider-lite.4.7.0.zip y reference/bdthemes-prime-slider.zip",
+ "method": "static source inspection read from ZIP archives; nothing was extracted or executed (scripts/inventory-element-pack.py --prime-slider-docs)",
+ "sources": [
+  {
+   "plugin_name": "Prime Slider",
+   "version": "4.7.0",
+   "edition": "lite",
+   "archive": "bdthemes-prime-slider-lite.4.7.0.zip",
+   "sha256": "a6e86226b2919ec736b2c7dd2c611511bc4cd1ebc5ad260123565ba5704a1601"
+  },
+  {
+   "plugin_name": "Prime Slider Pro",
+   "version": "4.7.0",
+   "edition": "pro",
+   "archive": "bdthemes-prime-slider.zip",
+   "sha256": "e93d93089b2249fe478a5c0965e2e57b6b7967514737fded16b8c5c783faee49"
+  }
+ ],
+ "note": "Pro no carga sin Lite y usa sus rasgos; `module_default` es el valor por defecto del interruptor del módulo en Lite (admin/module-settings.php). Las skins son su get_id().",
+ "widget_count": 57,
+ "by_plugin": {
+  "lite": 22,
+  "pro": 35
+ },
+ "widgets": [
+  {
+   "legacy_widget_id": "prime-slider-blog",
+   "name": "Blog",
+   "module": "blog",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [
+    "coral",
+    "folio",
+    "zinest"
+   ],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider-lite/modules/blog/widgets/blog.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query",
+    "PrimeSlider\\Traits\\QueryControls\\SelectInput\\Dynamic_Select"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-dragon",
+   "name": "Dragon",
+   "module": "dragon",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider-lite/modules/dragon/widgets/dragon.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-elysium",
+   "name": "Elysium",
+   "module": "elysium",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/elysium/widgets/elysium.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-fiestar",
+   "name": "Fiestar",
+   "module": "fiestar",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/fiestar/widgets/fiestar.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-flogia",
+   "name": "Flogia",
+   "module": "flogia",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider-lite/modules/flogia/widgets/flogia.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-general",
+   "name": "General",
+   "module": "general",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [
+    "crelly",
+    "meteor",
+    "slide"
+   ],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider-lite/modules/general/widgets/general.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-isolate",
+   "name": "Isolate",
+   "module": "isolate",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [
+    "locate",
+    "slice"
+   ],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider-lite/modules/isolate/widgets/isolate.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-mercury",
+   "name": "Mercury",
+   "module": "mercury",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/mercury/widgets/mercury.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-mount",
+   "name": "Mount",
+   "module": "mount",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/mount/widgets/mount.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-multiscroll",
+   "name": "Multiscroll",
+   "module": "multiscroll",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider-lite/modules/multiscroll/widgets/multiscroll.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-omatic",
+   "name": "Omatic",
+   "module": "omatic",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/omatic/widgets/omatic.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-pacific",
+   "name": "Pacific",
+   "module": "pacific",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/pacific/widgets/pacific.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-pagepiling",
+   "name": "Pagepiling",
+   "module": "pagepiling",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/pagepiling/widgets/pagepiling.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-rubix",
+   "name": "Rubix",
+   "module": "rubix",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/rubix/widgets/rubix.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-sequester",
+   "name": "Sequester",
+   "module": "sequester",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/sequester/widgets/sequester.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-sniper",
+   "name": "Sniper",
+   "module": "sniper",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/sniper/widgets/sniper.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-storker",
+   "name": "Storker",
+   "module": "storker",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/storker/widgets/storker.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-tango",
+   "name": "Tango",
+   "module": "tango",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/tango/widgets/tango.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-vertex",
+   "name": "Vertex",
+   "module": "vertex",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/vertex/widgets/vertex.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-woocircle",
+   "name": "WooCircle",
+   "module": "woocircle",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider-lite/modules/woocircle/widgets/woocircle.php",
+   "other_plugin_dependency": "WooCommerce",
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-woocommerce",
+   "name": "WooCommerce",
+   "module": "woocommerce",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider-lite/modules/woocommerce/widgets/woocommerce.php",
+   "other_plugin_dependency": "WooCommerce",
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-woolamp",
+   "name": "WooLamp",
+   "module": "woolamp",
+   "plugin": "lite",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider-lite/modules/woolamp/widgets/woolamp.php",
+   "other_plugin_dependency": "WooCommerce",
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-astoria",
+   "name": "Astoria",
+   "module": "astoria",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/astoria/widgets/astoria.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-avatar",
+   "name": "Avatar",
+   "module": "avatar",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/avatar/widgets/avatar.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-cards-stack",
+   "name": "Cards Stack",
+   "module": "cards-stack",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/cards-stack/widgets/cards-stack.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-cloud",
+   "name": "Cloud",
+   "module": "cloud",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/cloud/widgets/cloud.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-coddle",
+   "name": "Coddle",
+   "module": "coddle",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/coddle/widgets/coddle.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-crossroad",
+   "name": "Crossroad",
+   "module": "crossroad",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/crossroad/widgets/crossroad.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-custom",
+   "name": "Custom",
+   "module": "custom",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider/modules/custom/widgets/custom.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-escape",
+   "name": "Escape",
+   "module": "escape",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/escape/widgets/escape.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-event-calendar",
+   "name": "Event Calendar",
+   "module": "event-calendar",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/event-calendar/widgets/event-calendar.php",
+   "other_plugin_dependency": "The Events Calendar",
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-expo-slider",
+   "name": "Expo",
+   "module": "expo",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/expo/widgets/expo.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": []
+  },
+  {
+   "legacy_widget_id": "prime-slider-flexure",
+   "name": "Flexure",
+   "module": "flexure",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/flexure/widgets/flexure.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-fluent",
+   "name": "Fluent",
+   "module": "fluent",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider/modules/fluent/widgets/fluent.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-fortune",
+   "name": "Fortune",
+   "module": "fortune",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/fortune/widgets/fortune.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-knily",
+   "name": "Knily",
+   "module": "knily",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/knily/widgets/knily.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-marble",
+   "name": "Marble",
+   "module": "marble",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/marble/widgets/marble.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-material",
+   "name": "Material",
+   "module": "material",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/material/widgets/material.php",
+   "other_plugin_dependency": null,
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-monster",
+   "name": "Monster",
+   "module": "monster",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/monster/widgets/monster.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-motion",
+   "name": "Motion",
+   "module": "motion",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/motion/widgets/motion.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": []
+  },
+  {
+   "legacy_widget_id": "prime-slider-pandora",
+   "name": "Pandora",
+   "module": "pandora",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/pandora/widgets/pandora.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-panorama",
+   "name": "Panorama",
+   "module": "panorama",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/panorama/widgets/panorama.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": []
+  },
+  {
+   "legacy_widget_id": "prime-slider-paranoia",
+   "name": "Paranoia",
+   "module": "paranoia",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/paranoia/widgets/paranoia.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-pieces",
+   "name": "Pieces",
+   "module": "pieces",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/pieces/widgets/pieces.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-prism",
+   "name": "Prism",
+   "module": "prism",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/prism/widgets/prism.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-remote-arrows",
+   "name": "Remote Arrows",
+   "module": "remote-arrows",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/remote-arrows/widgets/remote-arrows.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": []
+  },
+  {
+   "legacy_widget_id": "prime-slider-remote-fraction",
+   "name": "Remote Fraction",
+   "module": "remote-fraction",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/remote-fraction/widgets/remote-fraction.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": []
+  },
+  {
+   "legacy_widget_id": "prime-slider-remote-pagination",
+   "name": "Remote Pagination",
+   "module": "remote-pagination",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/remote-pagination/widgets/remote-pagination.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": []
+  },
+  {
+   "legacy_widget_id": "prime-slider-remote-thumbs",
+   "name": "Remote Thumbs",
+   "module": "remote-thumbs",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/remote-thumbs/widgets/remote-thumbs.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": []
+  },
+  {
+   "legacy_widget_id": "prime-slider-reveal",
+   "name": "Reveal",
+   "module": "reveal",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/reveal/widgets/reveal.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-ring",
+   "name": "Ring",
+   "module": "ring",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/ring/widgets/ring.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": []
+  },
+  {
+   "legacy_widget_id": "prime-slider-super-flow",
+   "name": "Super Flow",
+   "module": "super-flow",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/super-flow/widgets/super-flow.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-titanic",
+   "name": "Titanic",
+   "module": "titanic",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/titanic/widgets/titanic.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-turnar",
+   "name": "Turnar",
+   "module": "turnar",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/turnar/widgets/turnar.php",
+   "other_plugin_dependency": null,
+   "wp_query": false,
+   "custom_controls_and_traits": []
+  },
+  {
+   "legacy_widget_id": "prime-slider-wooexpand",
+   "name": "WooExpand",
+   "module": "wooexpand",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider/modules/wooexpand/widgets/wooexpand.php",
+   "other_plugin_dependency": "WooCommerce",
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-woohotspot",
+   "name": "Woo HotSpot",
+   "module": "woohotspot",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "off",
+   "source_file": "bdthemes-prime-slider/modules/woohotspot/widgets/woohotspot.php",
+   "other_plugin_dependency": "WooCommerce",
+   "wp_query": false,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls"
+   ]
+  },
+  {
+   "legacy_widget_id": "prime-slider-woostand",
+   "name": "WooStand",
+   "module": "woostand",
+   "plugin": "pro",
+   "version": "4.7.0",
+   "skins": [],
+   "module_default": "on",
+   "source_file": "bdthemes-prime-slider/modules/woostand/widgets/woostand.php",
+   "other_plugin_dependency": "WooCommerce",
+   "wp_query": true,
+   "custom_controls_and_traits": [
+    "PrimeSlider\\Traits\\Global_Widget_Controls",
+    "PrimeSlider\\Traits\\QueryControls\\GroupQuery\\Group_Control_Query"
+   ]
+  }
+ ]
+}

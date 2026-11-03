@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-dual-button` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -326,22 +327,6 @@ return array( array(
 		'name' => 'button_b_hover_shadow',
 		'group' => 'box-shadow',
 		'selector' => '{{WRAPPER}} .digi-dual-button__action--b:hover',
-	), array(
-		'name' => 'button_b_icon_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-dual-button__action--b .digi-dual-button__action--b-icon' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-dual-button__action--b .digi-dual-button__action--b-icon svg' => 'fill: {{VALUE}};',
-		),
-	), array(
-		'name' => 'button_b_icon_hover_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-dual-button__action--b:hover .digi-dual-button__action--b-icon' => 'color: {{VALUE}};',
-			'{{WRAPPER}} .digi-dual-button__action--b:hover .digi-dual-button__action--b-icon svg' => 'fill: {{VALUE}};',
-		),
 	), array(
 		'name' => 'middle_text_color',
 		'type' => 'color',

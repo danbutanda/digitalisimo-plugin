@@ -1,0 +1,19 @@
+{
+  "_widget": "prime-slider-remote-fraction",
+  "_family": "M",
+  "_comentario": "Datos sintéticos con la forma que guarda el editor (research-ps.md §3.1). Los marcadores {{…}} los expande la prueba: perfiles y vídeos con los patrones de vendors.json y {{ps_assets}} con la carpeta de Lite del sitio simulado.",
+  "defaults": {
+    "remote_id": "#mi-slider"
+  },
+  "custom": {
+    "remote_id": "#otro-slider",
+    "_margin": {
+      "unit": "px",
+      "top": "10",
+      "right": "0",
+      "bottom": "0",
+      "left": "0",
+      "isLinked": ""
+    }
+  }
+}

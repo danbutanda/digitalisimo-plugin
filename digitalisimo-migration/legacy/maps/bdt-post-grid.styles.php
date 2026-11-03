@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-post-grid` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -228,17 +229,6 @@ return array( array(
 		'name' => 'author_typography',
 		'group' => 'typography',
 		'selector' => '{{WRAPPER}} .elementor-posts-container .elementor-post-author a',
-	), array(
-		'name' => 'date_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .elementor-posts-container .elementor-posts-container-date' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'date_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .elementor-posts-container .elementor-posts-container-date',
 	), array(
 		'name' => 'comments_color',
 		'type' => 'color',
@@ -547,27 +537,6 @@ return array( array(
 		),
 		'condition' => array(
 			'_skin' => 'bdt-trosia',
-		),
-	), array(
-		'name' => 'alignment',
-		'type' => 'choose',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .ep-pagination .elementor-pagination' => 'justify-content: {{VALUE}}',
-		),
-		'options' => array(
-			'flex-start' => array(
-				'title' => 'Left',
-				'icon' => 'eicon-text-align-left',
-			),
-			'center' => array(
-				'title' => 'Center',
-				'icon' => 'eicon-text-align-center',
-			),
-			'flex-end' => array(
-				'title' => 'Right',
-				'icon' => 'eicon-text-align-right',
-			),
 		),
 	), array(
 		'name' => 'pagination_color',

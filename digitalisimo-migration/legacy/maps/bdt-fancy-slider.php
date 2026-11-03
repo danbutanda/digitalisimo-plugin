@@ -6,15 +6,20 @@ $placeholder_url = class_exists( '\Elementor\Utils' ) ? \Elementor\Utils::get_pl
 
 return array(
 	'target'    => 'digitalisimo-fancy-slider',
-	// Clases de Element Pack más usadas en sus selectores: .bdt-navigation-prev, .bdt-navigation-next, .bdt-dots-container, .bdt-ep-fancy-slider-button, .bdt-ep-fancy-slider-img, .bdt-ep-fancy-slider-title, .bdt-ep-fancy-slider-item, .bdt-ep-fancy-slider-subtitle, .bdt-ep-fancy-slider-text, .bdt-ep-fancy-slider-content
+	// Clases del render de Element Pack 9.9.1 y 10.0.1 (idéntico) → marcado propio. Las usa scripts/legacy-styles.py
+	// con límite de clase: `-img` no toca `-img-wrap`, y `-button a` va al enlace, que en el propio es el botón.
 	'classes'   => array(
-		'.bdt-ep-fancy-slider-title'       => '.digi-fancy-slider__title',
-		'.bdt-ep-fancy-slider-sub-title'   => '.digi-fancy-slider__subtitle',
-		'.bdt-ep-fancy-slider-description' => '.digi-fancy-slider__description',
-		'.bdt-ep-fancy-slider-button'      => '.digi-fancy-slider__button',
-		'.bdt-ep-fancy-slider-image'       => '.digi-fancy-slider__media',
-		'.bdt-navigation-prev'             => '.digi-carousel__button[data-digi-carousel-prev]',
-		'.bdt-navigation-next'             => '.digi-carousel__button[data-digi-carousel-next]',
+		'.bdt-ep-fancy-slider-title'    => '.digi-fancy-slider__title',
+		'.bdt-ep-fancy-slider-subtitle' => '.digi-fancy-slider__subtitle',
+		'.bdt-ep-fancy-slider-text'     => '.digi-fancy-slider__description',
+		'.bdt-ep-fancy-slider-button a' => '.digi-fancy-slider__button',
+		'.bdt-ep-fancy-slider-button'   => '.digi-fancy-slider__button',
+		'.bdt-ep-fancy-slider-content'  => '.digi-fancy-slider__content',
+		'.bdt-ep-fancy-slider-item'     => '.digi-fancy-slider__slide',
+		'.bdt-ep-fancy-slider-img'      => '.digi-fancy-slider__media',
+		'.bdt-ep-fancy-slider-image'    => '.digi-fancy-slider__media',
+		'.bdt-navigation-prev'          => '.digi-carousel__button[data-digi-carousel-prev]',
+		'.bdt-navigation-next'          => '.digi-carousel__button[data-digi-carousel-next]',
 	),
 	'defaults'  => array(
 		'thumbnail_size_size' => 'full',

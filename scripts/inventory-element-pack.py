@@ -785,6 +785,87 @@ def render_docs_markdown(payload, family_payload):
     return '\n'.join(lines)
 
 
+PS_DOCS = DOCS / 'prime-slider-inventory.json'
+MOVED_PHP = ROOT / 'digitalisimo-migration' / 'legacy' / 'moved-to-addon.php'
+MODULE_SETTING = re.compile(r"'name'\s*=>\s*'([a-z0-9-]+)'.*?'default'\s*=>\s*[\"']([a-z]+)[\"']", re.S)
+
+
+def prime_slider_extra(archive, meta, item):
+    """Skins por ID (su get_id()) y el valor por defecto de cada módulo (admin/module-settings.php de Lite)."""
+    top = meta['plugin_dir']
+    skins = {}
+    for widget_id, widget in item['widgets'].items():
+        ids = []
+        for skin_file in widget['skins']:
+            match = re.search(r"function\s+get_id\s*\(\s*\)\s*\{\s*return\s*['\"]([a-z0-9_-]+)", archive.read_text(skin_file))
+            if match:
+                ids.append(match.group(1))
+        skins[widget_id] = sorted(ids)
+    defaults = {}
+    settings = f'{top}/admin/module-settings.php'
+    if archive.exists(settings):
+        for name, value in MODULE_SETTING.findall(archive.read_text(settings)):
+            defaults.setdefault(name, value)
+    return {'skins': skins, 'module_defaults': defaults}
+
+
+def prime_slider_docs(items):
+    """Inventario de los 57 IDs de Prime Slider (22 de Lite y 35 de Pro) que leen Migración y sus pruebas."""
+    lite = next(item for item in items if item['meta']['edition'] == 'lite')
+    module_defaults = lite['ps_extra']['module_defaults']
+    widgets = []
+    for item in sorted(items, key=lambda it: it['meta']['edition']):
+        meta = item['meta']
+        for widget_id, widget in sorted(item['widgets'].items()):
+            slug = widget['directory'].rsplit('/', 1)[1]
+            if slug not in module_defaults:
+                raise SystemExit(f'{widget_id}: el módulo {slug} no está en admin/module-settings.php de Lite')
+            widgets.append({
+                'legacy_widget_id': widget_id,
+                'name': widget['name'],
+                'module': slug,
+                'plugin': meta['edition'],
+                'version': meta['version'],
+                'skins': item['ps_extra']['skins'][widget_id],
+                'module_default': module_defaults[slug],
+                'source_file': widget['source_file'],
+                'other_plugin_dependency': widget['other_plugin_dependency'],
+                'wp_query': widget['wp_query'],
+                'custom_controls_and_traits': widget['custom_controls_and_traits'],
+            })
+    ids = [w['legacy_widget_id'] for w in widgets]
+    if len(ids) != len(set(ids)):
+        raise SystemExit('Prime Slider: un ID está en Lite y en Pro')
+    return {
+        'source': 'reference/' + ' y reference/'.join(item['meta']['archive'] for item in sorted(items, key=lambda it: it['meta']['edition'])),
+        'method': 'static source inspection read from ZIP archives; nothing was extracted or executed (scripts/inventory-element-pack.py --prime-slider-docs)',
+        'sources': [{key: item['meta'][key] for key in ('plugin_name', 'version', 'edition', 'archive', 'sha256')} for item in sorted(items, key=lambda it: it['meta']['edition'])],
+        'note': 'Pro no carga sin Lite y usa sus rasgos; `module_default` es el valor por defecto del interruptor del módulo en Lite (admin/module-settings.php). Las skins son su get_id().',
+        'widget_count': len(widgets),
+        'by_plugin': {'lite': sum(1 for w in widgets if w['plugin'] == 'lite'), 'pro': sum(1 for w in widgets if w['plugin'] == 'pro')},
+        'widgets': widgets,
+    }
+
+
+def write_moved_to_addon():
+    payload = json.loads(DOCS_INVENTORY.read_text(encoding='utf-8'))
+    moved = sorted(w['legacy_widget_id'] for w in payload['widgets'] if w.get('moved_to_addon'))
+    lines = [
+        '<?php',
+        '/**',
+        f" * IDs de Element Pack que la versión 10 pasó al plugin Element Pack Addon ({len(moved)}, `moved_to_addon` de",
+        ' * docs/element-pack-inventory.json). Con Element Pack ≥ 10 instalado sin el Addon, esos widgets ya no se pintan',
+        ' * antes de migrar: el análisis previo cuenta los documentos que los usan. Generado con',
+        ' * scripts/inventory-element-pack.py --moved-to-addon; no editar a mano.',
+        ' */',
+        "defined( 'ABSPATH' ) || exit;",
+        '',
+        'return array(',
+    ] + [f"\t'{widget_id}'," for widget_id in moved] + [');', '']
+    MOVED_PHP.write_text('\n'.join(lines), encoding='utf-8')
+    print(f'Escrito {MOVED_PHP.relative_to(ROOT)}: {len(moved)} IDs.')
+
+
 def parse_archive_argument(argument):
     path = Path(argument)
     if path.exists() or '@' not in argument:
@@ -797,13 +878,22 @@ def parse_archive_argument(argument):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Inventario estático de Element Pack y Prime Slider leído de sus ZIP, sin extraer ni ejecutar nada.')
-    parser.add_argument('archives', nargs='+', metavar='ZIP[@VERSIÓN]', help='ZIP del plugin; @VERSIÓN reemplaza la versión de la cabecera')
+    parser.add_argument('archives', nargs='*', metavar='ZIP[@VERSIÓN]', help='ZIP del plugin; @VERSIÓN reemplaza la versión de la cabecera')
     parser.add_argument('--out', type=Path, help='carpeta donde escribir <familia>-inventory.json y .md (no puede ser docs/)')
     parser.add_argument('--baseline', type=Path, default=DOCS_INVENTORY, help='inventario anterior de Element Pack (por defecto docs/element-pack-inventory.json)')
     parser.add_argument('--baseline-version', help=f'versión de la base si el JSON no la guarda (por defecto {DEFAULT_BASELINE_VERSION})')
     parser.add_argument('--no-baseline', action='store_true', help='no comparar con el inventario anterior')
     parser.add_argument('--update-docs', action='store_true', help='anotar docs/element-pack-inventory.json y regenerar su .md sin cambiar sus IDs')
+    parser.add_argument('--prime-slider-docs', action='store_true', help='escribir docs/prime-slider-inventory.json con los ZIP de Prime Slider Lite y Pro')
+    parser.add_argument('--moved-to-addon', action='store_true', help='escribir digitalisimo-migration/legacy/moved-to-addon.php desde docs/element-pack-inventory.json (sin ZIP)')
     args = parser.parse_args(argv)
+
+    if args.moved_to_addon:
+        write_moved_to_addon()
+        if not args.archives:
+            return
+    if not args.archives:
+        parser.error('hace falta al menos un ZIP')
 
     own_ids = own_widget_ids()
     parsed = defaultdict(list)
@@ -816,6 +906,9 @@ def main(argv=None):
         except UnsafeArchive as error:
             raise SystemExit(f'ZIP rechazado: {error}') from None
         parsed[meta['family']].append(item)
+        if meta['family'] == 'prime-slider':
+            with ReferenceArchive(path) as archive:
+                item['ps_extra'] = prime_slider_extra(archive, meta, item)
         meta = item['meta']
         print(f"{meta['plugin_name']} {meta['version']} ({meta['archive']}, sha256 {meta['sha256'][:12]}…): {meta['widget_ids']} IDs en {meta['widget_files']} archivos de widget, {meta['extension_count']} extensiones, {len(item['unclassified'])} archivos sin get_name().")
 
@@ -846,6 +939,14 @@ def main(argv=None):
             (out / f'{family}-inventory.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
             (out / f'{family}-inventory.md').write_text(render_family_markdown(payload), encoding='utf-8')
             print(f'Escrito {out / (family + "-inventory.json")} y .md')
+
+    if args.prime_slider_docs:
+        items = parsed.get('prime-slider', [])
+        if sorted(item['meta']['edition'] for item in items) != ['lite', 'pro']:
+            raise SystemExit('--prime-slider-docs necesita el ZIP de Prime Slider Lite y el de Pro')
+        payload = prime_slider_docs(items)
+        PS_DOCS.write_text(json.dumps(payload, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
+        print(f"Escrito {PS_DOCS.relative_to(ROOT)}: {payload['widget_count']} IDs ({payload['by_plugin']['lite']} de Lite y {payload['by_plugin']['pro']} de Pro).")
 
     if args.update_docs:
         payload = families.get('element-pack')

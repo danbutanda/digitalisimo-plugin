@@ -6,13 +6,15 @@ $placeholder_url = class_exists( '\Elementor\Utils' ) ? \Elementor\Utils::get_pl
 
 return array(
 	'target'    => 'digitalisimo-progress-bars',
+	// Clases del render de Element Pack (advanced-progress-bar.php; «parcentage» es suyo) → barras propias.
 	'classes'   => array(
-		'.bdt-ep-advanced-progress-bar-fill' => '.digi-progress__fill',
-		'.bdt-ep-advanced-progress-bar-bar'  => '.digi-progress__track',
-		'.bdt-ep-advanced-progress-bar-name' => '.digi-progress__label',
-		'.bdt-ep-advanced-progress-bar-percentage' => '.digi-progress__value',
-		'.bdt-ep-advanced-progress-bar-item' => '.digi-progress__item',
-		'.bdt-ep-advanced-progress-bar'      => '.digi-progress',
+		'.bdt-ep-advanced-progress-bar-fill'       => '.digi-progress__fill',
+		'.bdt-ep-advanced-progress-bar-level'      => '.digi-progress__track',
+		'.bdt-ep-advanced-progress-bar-name'       => '.digi-progress__label',
+		'.bdt-ep-advanced-progress-bar-parcentage' => '.digi-progress__value',
+		'.bdt-ep-advanced-progress-bar-content'    => '.digi-progress__head',
+		'.bdt-ep-advanced-progress-bar-item'       => '.digi-progress__item',
+		'.bdt-ep-advanced-progress-bar'            => '.digi-progress',
 	),
 	'defaults'  => array(
 		'skills_style' => 'default',

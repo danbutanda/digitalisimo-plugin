@@ -1,0 +1,17 @@
+{
+  "_": "Código global sintético del origen: CSS válido con escapes, CSS hostil y JavaScript.",
+  "valid": "body .aviso{color:#245eff;content:\"\\f105\";} @media (max-width:600px){.aviso{display:none}}",
+  "footer": ".pie{margin:0 auto}",
+  "js": "document.documentElement.classList.add('js-migrado');",
+  "hostile": [
+    "</style><script>alert(1)</script>",
+    "@import url(https://otro.example/x.css);",
+    "@\\69mport url(x.css);",
+    ".a{width:expression(alert(1))}",
+    ".a{background:url(javascript:alert(1))}",
+    ".a{be\\68 avior:url(x.htc)}",
+    ".a{color:red}}",
+    ".a{color:red",
+    ".a{-moz-binding:url(x.xml#y)}"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "_": "Ajustes de página del kit con la pestaña global del origen (10.0.1), el menú contextual y valores con barras invertidas.",
+  "kit": {
+    "system_colors": [{"_id": "primary", "title": "Principal", "color": "#245EFF"}],
+    "custom_css": "selector .x:after{content:\"\\f105\";} .y{font-family:\"A\\\\B\";}",
+    "site_name": "Mi \\\"sitio\\\" con barra \\\\ y comillas",
+    "element_pack_lightbox_bg": "#000000",
+    "element_pack_cb_color": "#ffffff",
+    "element_pack_toolbar_typography_typography": "custom",
+    "element_pack_navigation_size": {"unit": "px", "size": 40},
+    "element_pack_global_tooltip_color": "#111111",
+    "element_pack_global_tooltip_width": {"unit": "px", "size": ""},
+    "ep_context_menu_enable": "yes",
+    "ep_context_menu_page_ids": "",
+    "menus": [{"_id": "m1", "menu_title": "Copiar", "menu_type": "copy"}],
+    "menu_background_background": "classic",
+    "menu_padding": {"unit": "px", "top": "4"},
+    "lightbox_color": "#222222"
+  },
+  "page": {
+    "element_pack_lightbox_bg": "#123456",
+    "element_pack_global_tooltip_color": "",
+    "hide_title": "yes",
+    "custom_css": "a{content:\"\\e900\"}"
+  }
+}

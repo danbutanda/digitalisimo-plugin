@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-google-reviews` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -143,13 +144,6 @@ return array( array(
 			),
 		),
 	), array(
-		'name' => 'content_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews-desc' => 'width: {{SIZE}}{{UNIT}}; max-width: {{SIZE}}{{UNIT}};  margin: 0 auto;',
-		),
-	), array(
 		'name' => 'google_reviews_item_background',
 		'group' => 'background',
 		'selector' => '{{WRAPPER}} .digi-google-reviews__item',
@@ -195,56 +189,6 @@ return array( array(
 		'name' => 'google_reviews_item_hover_shadow',
 		'group' => 'box-shadow',
 		'selector' => '{{WRAPPER}} .digi-google-reviews__item:hover',
-	), array(
-		'name' => 'image_size',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews__item .digi-google-reviews-img img' => 'height: {{SIZE}}{{UNIT}}; width: {{SIZE}}{{UNIT}}; min-width: {{SIZE}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'name_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews__item .digi-google-reviews-name a' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'name_hover_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews__item .digi-google-reviews-name a:hover' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'name_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-google-reviews__item .digi-google-reviews-name a',
-	), array(
-		'name' => 'time_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews__item .digi-google-reviews-date' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'time_spacing',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews__item .digi-google-reviews-date' => 'padding-top: {{SIZE}}{{UNIT}}',
-		),
-	), array(
-		'name' => 'time_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-google-reviews__item .digi-google-reviews-date',
-	), array(
-		'name' => 'rating_spacing',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews__item .digi-google-reviews-rating' => 'padding-top: {{SIZE}}{{UNIT}}',
-		),
 	), array(
 		'name' => 'excerpt_color',
 		'type' => 'color',
@@ -319,42 +263,4 @@ return array( array(
 		'selectors' => array(
 			'{{WRAPPER}} .digi-google-reviews span.epsc-rating' => 'gap: {{SIZE}}{{UNIT}};',
 		),
-	), array(
-		'name' => 'rating_number_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews span.ep-rating-text' => 'color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'rating_background_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews span.ep-rating-text' => 'background-color: {{VALUE}};',
-		),
-	), array(
-		'name' => 'rating_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-google-reviews span.ep-rating-text',
-	), array(
-		'name' => 'rating_border_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews span.ep-rating-text' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'rating_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-google-reviews span.ep-rating-text' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', 'em', '%' ),
-	), array(
-		'name' => 'rating_number_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-google-reviews span.ep-rating-text',
 	) );

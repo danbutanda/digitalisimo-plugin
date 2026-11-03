@@ -6,6 +6,9 @@
 // idempotencia, un slider anidado dentro de otro y topes de tamaño. La plantilla del editor del fixture
 // (`tests/fixtures/f7b-nested-slider.html`, generado por elements-f7b-nested.php) se compila con los delimitadores del
 // editor y debe dar el mismo marcado que el servidor para los tres sliders del fixture.
+// F8 (V.10.4): el contador opcional (`nested-slider-counter.{js,css}`) en el mismo DOM falso, con un MutationObserver
+// simulado: «1 / N» al arrancar, sigue el aria-current de los puntos (botones, teclado, reproducción automática, editor),
+// en cualquier orden de carga respecto del script del slider, sin tocar otro slider ni otro aria-current de la página.
 // Uso: (ulimit -v 3000000; timeout 150 node --max-old-space-size=600 tests/elements-f7b-nested-slider.mjs)
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
@@ -14,6 +17,8 @@ import vm from 'node:vm';
 const base = new URL('../digitalisimo-elements/modules/digitalisimo-f7b/assets/', import.meta.url);
 const jsFile = new URL('js/nested-slider.js', base), cssFile = new URL('css/nested-slider.css', base), editorFile = new URL('js/nested-slider-editor.js', base);
 const source = readFileSync(jsFile, 'utf8'), css = readFileSync(cssFile, 'utf8'), editorSource = readFileSync(editorFile, 'utf8');
+const counterJsFile = new URL('js/nested-slider-counter.js', base), counterCssFile = new URL('css/nested-slider-counter.css', base);
+const counterSource = readFileSync(counterJsFile, 'utf8'), counterCss = readFileSync(counterCssFile, 'utf8');
 let checks = 0;
 const ok = (value, message) => { assert.ok(value, message); checks++; };
 
@@ -65,10 +70,13 @@ class Node {
     this.dir = '';
   }
   get hidden() { return 'hidden' in this.attrs; }
+  get previousElementSibling() { const l = this.parentNode ? this.parentNode.children : []; return l[l.indexOf(this) - 1] || null; }
+  get nextElementSibling() { const l = this.parentNode ? this.parentNode.children : []; const i = l.indexOf(this); return i < 0 ? null : l[i + 1] || null; }
+  matches(sel) { const m = /^\.([\w-]+)$/.exec(sel); if (!m) throw new Error('Selector no previsto: ' + sel); return this.classList.contains(m[1]); }
   set hidden(v) { if (v) this.attrs.hidden = ''; else delete this.attrs.hidden; }
   getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }
-  setAttribute(n, v) { this.attrs[n] = String(v); }
-  removeAttribute(n) { delete this.attrs[n]; }
+  setAttribute(n, v) { this.attrs[n] = String(v); Node.mutated?.(this, n); }
+  removeAttribute(n) { const had = n in this.attrs; delete this.attrs[n]; if (had) Node.mutated?.(this, n); }
   hasAttribute(n) { return n in this.attrs; }
   toggleAttribute(n, force) { const want = force === undefined ? !(n in this.attrs) : !!force; if (want) this.attrs[n] = ''; else delete this.attrs[n]; return want; }
   append(...kids) { for (const k of kids) { k.parentNode = this; this.children.push(k); } return this; }
@@ -117,7 +125,7 @@ function slider({ effect = 'slide', loop = false, autoplay = 0, hover = false, n
   return parts;
 }
 
-function page(roots, { reduce = false, frontend = null, ready = 'complete', io = true } = {}) {
+function page(roots, { reduce = false, frontend = null, ready = 'complete', io = true, counter = '' } = {}) {
   const timers = new Map();
   let now = 0, seq = 0;
   const observers = [];
@@ -145,8 +153,22 @@ function page(roots, { reduce = false, frontend = null, ready = 'complete', io =
   for (const r of roots) { body.append(r); }
   walk(body);
   vm.createContext(ctx);
-  vm.runInContext(source, ctx, { filename: 'nested-slider.js' });
+  // MutationObserver simulado (F8): registra los cambios de atributos que filtra cada observador y los entrega en flush().
+  const records = [], mutationObservers = [];
+  ctx.MutationObserver = class { constructor(cb) { this.cb = cb; mutationObservers.push(this); } observe(target, opts) { this.target = target; this.opts = opts; } };
+  Node.mutated = (node, name) => {
+    for (const o of mutationObservers) {
+      if (!o.opts || !(o.opts.attributeFilter || []).includes(name)) continue;
+      if (o.target === node || (o.opts.subtree && (o.target === document ? node.ownerDocument === document : o.target.contains(node)))) records.push([o, { type: 'attributes', target: node, attributeName: name }]);
+    }
+  };
+  const run = (text, name) => vm.runInContext(text, ctx, { filename: name });
+  if (counter === 'first') run(counterSource, 'nested-slider-counter.js');
+  run(source, 'nested-slider.js');
+  if (counter === 'after') run(counterSource, 'nested-slider-counter.js');
   return {
+    mutationObservers,
+    flush() { while (records.length) { const batch = records.splice(0); for (const o of new Set(batch.map(b => b[0]))) o.cb(batch.filter(b => b[0] === o).map(b => b[1])); } },
     ctx, document, observers,
     pending: () => [...timers.values()].map(t => t.ms),
     tick(ms) { now += ms; for (const [id, t] of [...timers].sort((a, b) => a[1].at - b[1].at)) { if (t.at <= now && timers.has(id)) { timers.delete(id); t.fn(); } } },
@@ -473,6 +495,10 @@ const classOf = (n, c) => n.classList.contains(c);
     w1slide: { loop: '', carousel_label: 'Novedades' },
     w2fade: { effect: 'fade', autoplay: 'yes', autoplay_delay: 2000, carousel_label: 'Destacados' },
     w3scale: { effect: 'scale', navigation: 'arrows', arrows_position: 'sides', carousel_label: 'Opiniones' },
+    w4both: { counter: 'yes', carousel_label: 'Contador con flechas y puntos' },
+    w5arrows: { counter: 'yes', navigation: 'arrows', carousel_label: 'Contador con flechas' },
+    w6sides: { counter: 'yes', navigation: 'arrows', arrows_position: 'sides', loop: '', carousel_label: 'Contador con flechas a los lados' },
+    w7auto: { counter: 'yes', arrows_position: 'sides', effect: 'fade', autoplay: 'yes', autoplay_delay: 2000, carousel_label: 'Contador automático' },
   };
   const norm = h => h.replace(/>\s+</g, '><').replace(/\s+>/g, '>').replace(/ data-digi-start="1"/, '').replace(/(<div class="digi-nslider__track"[^>]*>)[\s\S]*<\/div><\/section>$/, '$1</div></section>').trim();
   for (const [id, settings] of Object.entries(cases)) {
@@ -484,6 +510,96 @@ const classOf = (n, c) => n.classList.contains(c);
   }
   const forged = render({ settings: { ...defaults, effect: 'cube', navigation: 'none', carousel_label: '<b>x</b>' }, view: { getID: () => 'z', getEditModel: () => null } }, _);
   ok(forged.includes('data-digi-effect="slide"') && forged.includes('digi-nslider__prev') && forged.includes('aria-label="&lt;b&gt;x&lt;/b&gt;"') && !/<b>/.test(forged), 'La plantilla también cierra las listas y escapa el nombre.');
+}
+
+// 14. F8: contador opcional (V.10.4). Recursos, hoja sobre la rejilla real y script con un solo MutationObserver.
+{
+  ok(statSync(counterJsFile).size <= 512 && statSync(counterCssFile).size <= 256, `Contador en sus topes de §5 (${statSync(counterJsFile).size} B de script ≤ 512, ${statSync(counterCssFile).size} B de hoja ≤ 256).`);
+  ok(statSync(jsFile).size === 5119 && statSync(cssFile).size === 3066, 'nested-slider.js y nested-slider.css no cambian (5 119 B y 3 066 B, docs/ELEMENTS_FRONT_OBJECTIVE.md:144).');
+  assert.doesNotThrow(() => new vm.Script(counterSource, { filename: 'nested-slider-counter.js' }), 'El script del contador compila.');
+  ok(!/jQuery|\$\(|https?:\/\/|elementorFrontend/.test(counterSource), 'Contador sin jQuery, sin URL y sin depender del frontend del núcleo.');
+  ok(/\.digi-nslider>\.digi-nslider__count\{grid-area:3\/2;justify-self:center;margin:0;color:var\(--digi-ns-fg\);font-variant-numeric:tabular-nums\}/.test(counterCss), 'Hoja: el contador va en la fila 3, columna central (la rejilla de 3 columnas de nested-slider.css), con el color de la navegación y cifras tabulares.');
+  ok(/\.digi-nslider__dots\[hidden\]\+p\{grid-area:2\/2\}/.test(counterCss), 'Hoja: con los puntos ocultos (sólo flechas), el contador sube a su celda de la fila 2.');
+  ok(/p\.digi-nslider__count\[hidden\]\{display:block!important;visibility:hidden\}/.test(counterCss), 'Hoja: oculto hasta el script, pero con su sitio reservado (sin desplazamiento de diseño al mostrarlo).');
+  ok(!/#[0-9a-f]{3,8}\b|rgba?\(|url\(|--e-global|--digi-nslider-nav/i.test(counterCss) && (counterCss.match(/\.([a-z][a-z0-9_-]*)/g) || []).every(c => /^\.digi-/.test(c)), 'Hoja sin paleta propia, url() ni variables que no existen; sólo clases digi-.');
+
+  const withCounter = (s, start = 1) => {
+    const p = new Node('p', { class: 'digi-nslider__count', 'aria-hidden': 'true', hidden: '' });
+    const span = new Node('span', { 'data-digi-count': '' });
+    span.textContent = String(start);
+    p.firstChild = span;
+    span.nextSibling = { nodeType: 3, data: ' / ' + s.dots.length };
+    const kids = s.root.children;
+    kids.splice(kids.indexOf(s.box) + 1, 0, p);
+    p.parentNode = s.root;
+    s.count = p;
+    return s;
+  };
+  const shown = s => (s.count.hidden ? 'oculto' : String(s.count.firstChild.textContent) + s.count.firstChild.nextSibling.data);
+
+  // Cargado después del slider (orden habitual).
+  {
+    const s = withCounter(slider({ id: 'ca' }));
+    const p = page([s.root], { counter: 'after' });
+    ok(shown(s) === '1 / 3', `Al arrancar: «1 / 3» y sin hidden (${shown(s)}).`);
+    ok(p.mutationObservers.length === 1 && p.mutationObservers[0].target === p.document && p.mutationObservers[0].opts.subtree && p.mutationObservers[0].opts.attributeFilter.join() === 'aria-current' && !p.mutationObservers[0].opts.childList, 'Un solo MutationObserver para toda la página, sólo sobre aria-current.');
+    s.next.emit('click'); p.flush();
+    ok(shown(s) === '2 / 3', '«Siguiente»: «2 / 3».');
+    s.box.children[1].emit('keydown', { key: 'End' }); p.flush();
+    ok(shown(s) === '3 / 3', 'Fin desde un punto: «3 / 3».');
+    s.track.scrollLeft = 0; s.track.emit('scroll'); p.tick(120); p.flush();
+    ok(shown(s) === '1 / 3', 'El desplazamiento táctil asentado también lo actualiza.');
+  }
+  // Cargado antes que el slider y con la diapositiva que se edita (data-digi-start).
+  {
+    const s = withCounter(slider({ id: 'cb', start: 2, effect: 'fade' }));
+    const p = page([s.root], { counter: 'first' });
+    ok(shown(s) === '1 / 3', 'Cargado antes que el slider, muestra «1 / 3» en cuanto corre.');
+    p.flush();
+    ok(shown(s) === '2 / 3', 'Cuando el slider arranca en la segunda (data-digi-start), el contador la sigue: no depende del orden de carga.');
+  }
+  // Reproducción automática y sólo flechas (los puntos ocultos siguen moviendo aria-current).
+  {
+    const s = withCounter(slider({ id: 'cc', autoplay: 3000, effect: 'fade', nav: 'arrows' }));
+    const p = page([s.root], { counter: 'after' });
+    ok(s.box.hidden && shown(s) === '1 / 3', 'Sólo flechas: puntos ocultos y contador visible.');
+    p.tick(3000); p.flush();
+    ok(shown(s) === '2 / 3', 'La reproducción automática lo avanza.');
+    s.prev.emit('click'); p.flush();
+    ok(shown(s) === '1 / 3', 'Las flechas también.');
+  }
+  // Editor: diapositiva añadida (el repetidor inserta su punto) y aria-current ajeno.
+  {
+    const actions = [];
+    const s = withCounter(slider({ id: 'cd' }));
+    const p = page([s.root], { counter: 'after', frontend: { isEditMode: () => true, hooks: { addAction: (n, fn) => actions.push(fn) } } });
+    const dot = new Node('button', { type: 'button', class: 'digi-nslider__dot', 'aria-label': 'Ir a la diapositiva 4' });
+    s.box.children.push(dot); dot.parentNode = s.box; dot.ownerDocument = p.document;
+    const slide = new Node('div', { class: 'e-con' }); s.track.children.push(slide); slide.parentNode = s.track; slide.ownerDocument = p.document;
+    s.root.digiNslider.paint(); p.flush();
+    ok(shown(s) === '1 / 4', 'Al añadir una diapositiva en el editor, el total pasa a 4.');
+    const nav = new Node('a', { href: '#x' }); const menu = new Node('nav'); menu.append(nav); p.document.body.append(menu); nav.ownerDocument = p.document; menu.ownerDocument = p.document;
+    nav.setAttribute('aria-current', 'page');
+    assert.doesNotThrow(() => p.flush(), 'Un aria-current ajeno (un menú) no rompe nada.');
+    ok(shown(s) === '1 / 4', 'Y no toca el contador.');
+  }
+  // Un slider con contador dentro de otro: cada contador sigue sólo sus puntos.
+  {
+    const outer = withCounter(slider({ id: 'co', loop: true }));
+    const inner = withCounter(slider({ id: 'ci' }));
+    outer.slides[0].append(inner.root);
+    const p = page([outer.root], { counter: 'after' });
+    inner.next.emit('click'); p.flush();
+    ok(shown(inner) === '2 / 3' && shown(outer) === '1 / 3', 'El contador interior sigue a su slider; el exterior no cambia.');
+    outer.prev.emit('click'); p.flush();
+    ok(shown(outer) === '3 / 3' && shown(inner) === '2 / 3', 'Y al revés.');
+  }
+  // Sin el script del contador, se queda oculto (sin JavaScript no se ve).
+  {
+    const s = withCounter(slider({ id: 'ce' }));
+    page([s.root]);
+    ok(shown(s) === 'oculto', 'Sin su script, el contador sigue oculto.');
+  }
 }
 
 console.log(`F7b, slider anidado (vm): ${checks} comprobaciones en verde.`);

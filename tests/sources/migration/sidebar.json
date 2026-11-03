@@ -1,0 +1,6 @@
+{
+  "_": "Barras laterales sintéticas con el widget de plantilla del origen.",
+  "sidebars_widgets": {"wp_inactive_widgets": ["elementortemplate_widget-4"], "sidebar-1": ["search-2", "elementortemplate_widget-2", "elementortemplate_widget-3"], "sidebar-2": [], "array_version": 3},
+  "widget_elementortemplate_widget": {"2": {"title": "Promo <b>nueva</b>", "template_id": "TPL"}, "3": {"title": "Con \\ barra", "template_id": "TPL"}, "4": {"title": "Inactivo", "template_id": "TPL"}, "_multiwidget": 1},
+  "widget_elementor-library": {"2": {"title": "Ya estaba", "template_id": "9"}, "_multiwidget": 1}
+}

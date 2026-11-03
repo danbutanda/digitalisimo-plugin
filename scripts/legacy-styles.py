@@ -11,7 +11,7 @@ Reglas (F8, frente B):
 - `rewrite()` respeta el límite de la clase: `.bdt-x` no toca `.bdt-x-title`. Una clase sin entrada
   conserva `bdt-` y el selector se omite; la entrada `''` quita la clase (`.elementor-widget-bdt-x`,
   porque `{{WRAPPER}}` ya es el elemento).
-- Validación del destino: cada clase `digi-*`/`elementor-*` resultante debe aparecer literalmente,
+- Validación del destino: cada clase `digi-*`/`elementor-*`/`ep-*` resultante debe aparecer literalmente,
   con límite de clase, en el PHP o el JS de DIGITALÍSIMO Elements o de Migración (sin los mapas), o
   casar con un patrón de `tests/fixtures/legacy-styles-dynamic.json`, cada uno con su evidencia
   `archivo:línea`. Si no, la parte del selector está muerta: se omite y se anota.
@@ -272,29 +272,39 @@ def write_styles(legacy_id, header, styles):
 # ------------------------------------------------------------------------------------- validación
 
 
-TOKEN = re.compile(r'(?<![A-Za-z0-9_-])((?:digi|elementor)-[A-Za-z0-9_-]+)')
+TOKEN = re.compile(r'(?<![A-Za-z0-9_-])((?:digi|elementor|ep)-[A-Za-z0-9_-]+)')
+# Espacios de clases que se validan: los propios, los de Elementor y los de Element Pack que no son `bdt-` (`ep-*`),
+# que ningún widget propio imprime y antes pasaban sin control.
+CHECKED = re.compile(r'(?:digi|elementor|ep)-')
+CLASSES_BLOCK = re.compile(r"^\t'classes'\s*=>[^\n]*?array\((?:[^\n]*\),[ \t]*$|\n[\s\S]*?\n\t\),[^\n]*$)", re.M)
 _CORPUS = None
 _DYNAMIC = None
 
 
 def corpus_tokens():
-    """Clases digi-*/elementor-* que aparecen literalmente en el PHP y el JS de Elements y de Migración (sin los mapas).
+    """Clases digi-*/elementor-*/ep-* que aparecen literalmente en el PHP y el JS de Elements y de Migración.
+
+    Sin los `.styles.php` y sin el bloque `classes` de cada mapa (lo que se valida no puede validarse a sí mismo).
 
     Es la misma regla que `corpus()` de tests/fixtures/legacy-styles/styles-lib.mjs: no la cambies en un solo lado.
     """
     global _CORPUS
     if _CORPUS is None:
         tokens = set()
-        skip = MAPS.resolve()
+        maps = MAPS.resolve()
         for top in ('digitalisimo-elements', 'digitalisimo-migration'):
             for dirpath, dirnames, filenames in os.walk(ROOT / top):
                 here = Path(dirpath)
-                dirnames[:] = sorted(d for d in dirnames if d not in ('node_modules', '.git') and not (here / d).is_symlink() and (here / d).resolve() != skip)
+                dirnames[:] = sorted(d for d in dirnames if d not in ('node_modules', '.git') and not (here / d).is_symlink())
                 for name in filenames:
                     path = here / name
-                    if not name.endswith(('.php', '.js')) or path.is_symlink() or path.stat().st_size > 32 * 1024 * 1024:
+                    if not name.endswith(('.php', '.js')) or name.endswith('.styles.php') or path.is_symlink() or path.stat().st_size > 32 * 1024 * 1024:
                         continue
-                    tokens.update(TOKEN.findall(path.read_text(encoding='latin-1')))
+                    text = path.read_text(encoding='latin-1')
+                    if here.resolve() == maps:
+                        # Un mapa puede imprimir marcado propio en su filtro, pero su `classes` no prueba nada: es lo que se valida.
+                        text = CLASSES_BLOCK.sub('', text)
+                    tokens.update(TOKEN.findall(text))
         _CORPUS = tokens
     return _CORPUS
 
@@ -331,7 +341,7 @@ def classes_of(selector):
 
 def dead_classes(part):
     tokens, dynamic = corpus_tokens(), dynamic_patterns()
-    return [c for c in classes_of(part) if re.match(r'(?:digi|elementor)-', c) and c not in tokens and not any(p.search(c) for p in dynamic)]
+    return [c for c in classes_of(part) if CHECKED.match(c) and c not in tokens and not any(p.search(c) for p in dynamic)]
 
 
 def prune(control):
@@ -361,10 +371,12 @@ def rewrite(selector, classes):
     Una clave que empieza por `.` ya tiene su límite izquierdo en el punto (y así casa también en `.a.bdt-x`); otra
     (`a.bdt-x`) no puede ir precedida de un carácter de identificador. Por la derecha nunca puede seguir `[\\w-]`.
     """
+    # Espacios normalizados: las claves de varias clases se escriben con un solo espacio.
+    selector = re.sub(r'\s+', ' ', selector).strip()
     for old, new in sorted(classes.items(), key=lambda item: -len(item[0])):
         left = '' if old[:1] in '.#[' else r'(?<![\w-])'
-        selector = re.sub(left + re.escape(old) + r'(?![\w-])', lambda _m: new, selector)
-    selector = re.sub(r'\}\}\s+(?=[:\[])', '}}', selector)
+        # Una clase que desaparece ('') se lleva el espacio que la separaba: `{{WRAPPER}} .x:hover` → `{{WRAPPER}}:hover`.
+        selector = re.sub((r'\s*' if new == '' else '') + left + re.escape(old) + r'(?![\w-])', lambda _m: new, selector)
     # Un selector sin {{WRAPPER}} ni {{ID}} afectaría a toda la página: no se reproduce.
     if re.search(r'\.bdt-|bdt-[a-z]', selector) or ('{{WRAPPER}}' not in selector and '{{ID}}' not in selector):
         return None
@@ -458,15 +470,51 @@ def save_dead(data):
                     'la línea base, `before` el control anterior completo, cuya huella es la de f8-legacy-styles-baseline.json, '
                     '`after` la huella nueva o null si se retiró, y `dead` sus clases muertas). En merge, `omitted` lista los '
                     'controles de Element Pack 10.0.1 que no tienen destino (sin clase propia).')
-    data['rule'] = ('Una clase digi-*/elementor-* de un selector está muerta si no aparece literalmente, con límite de clase, en el PHP '
-                    'ni en el JS de digitalisimo-elements/ ni de digitalisimo-migration/ (sin legacy/maps/) y no casa con ningún '
+    data['rule'] = ('Una clase digi-*/elementor-*/ep-* de un selector está muerta si no aparece literalmente, con límite de clase, en el PHP '
+                    'ni en el JS de digitalisimo-elements/ ni de digitalisimo-migration/ (sin los .styles.php ni el bloque `classes` de cada mapa) y no casa con ningún '
                     'patrón de tests/fixtures/legacy-styles-dynamic.json. Ningún widget la imprime: el selector no aplica a nada.')
     data['maps'] = dict(sorted(data['maps'].items()))
-    DEAD.write_text(json.dumps(data, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
+    # Un control o una omisión por línea: el archivo se lee y se compara en una revisión sin perder el detalle.
+    one = lambda v: json.dumps(v, ensure_ascii=False, separators=(', ', ': '))
+    out = ['{', ' "note": %s,' % one(data['note']), ' "rule": %s,' % one(data['rule']), ' "maps": {']
+    ids = list(data['maps'])
+    for n, legacy_id in enumerate(ids):
+        entry = data['maps'][legacy_id]
+        out.append('  %s: {' % one(legacy_id))
+        out.append('   "mode": %s,' % one(entry['mode']))
+        classes = list(entry['classes'].items())
+        out.append('   "classes": {' + ('' if classes else '},'))
+        for i, (cls, ev) in enumerate(classes):
+            out.append('    %s: %s%s' % (one(cls), one(ev), ',' if i < len(classes) - 1 else ''))
+        if classes:
+            out.append('   },')
+        rows = entry['controls']
+        tail = ',' if 'omitted' in entry else ''
+        out.append('   "controls": [' + ('' if rows else ']' + tail))
+        for i, row in enumerate(rows):
+            out.append('    ' + one(row) + (',' if i < len(rows) - 1 else ''))
+        if rows:
+            out.append('   ]' + tail)
+        if 'omitted' in entry:
+            rows = entry['omitted']
+            out.append('   "omitted": [' + ('' if rows else ']'))
+            for i, row in enumerate(rows):
+                out.append('    ' + one(row) + (',' if i < len(rows) - 1 else ''))
+            if rows:
+                out.append('   ]')
+        out.append('  }' + (',' if n < len(ids) - 1 else ''))
+    out += [' }', '}']
+    text = '\n'.join(out) + '\n'
+    json.loads(text)
+    DEAD.write_text(text, encoding='utf-8')
 
 
 def evidence(cls):
-    return 'sin literal en el PHP/JS de Elements ni de Migración y sin patrón dinámico'
+    """Por qué está muerta y, para corregirla en otra etapa, las clases reales del mismo bloque."""
+    tokens = corpus_tokens()
+    block = max((t for t in tokens if cls.startswith(t) and len(cls) > len(t) and cls[len(t)] in '-_'), key=len, default='')
+    near = sorted(t for t in tokens if block and t.startswith(block) and (t == block or t[len(block)] in '-_') and not t.endswith(('-', '_')))[:12]
+    return {'literal': False, 'dynamic': False, 'block': block or None, 'near': near}
 
 
 def occurrences(styles):

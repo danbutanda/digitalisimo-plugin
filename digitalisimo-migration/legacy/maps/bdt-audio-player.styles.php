@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-audio-player` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -88,79 +89,6 @@ return array( array(
 		'selectors' => array(
 			'{{WRAPPER}} .skin-poster' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 		),
-	), array(
-		'name' => 'skin_poster_css_filters',
-		'group' => 'css-filter',
-		'selector' => '{{WRAPPER}} .digi-audio-poster',
-	), array(
-		'name' => 'thumb_width',
-		'type' => 'slider',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-thumb' => 'width: {{SIZE}}{{UNIT}};',
-		),
-		'default' => array(
-			'size' => 150,
-		),
-	), array(
-		'name' => 'thumbnail_margin',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-thumb img' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'thumbnail_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-thumb img' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'opacity',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-thumb img' => 'opacity: {{SIZE}};',
-		),
-	), array(
-		'name' => 'css_filters',
-		'group' => 'css-filter',
-		'selector' => '{{WRAPPER}} .digi-audio-thumb img',
-	), array(
-		'name' => 'opacity_hover',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-thumb img:hover' => 'opacity: {{SIZE}};',
-		),
-	), array(
-		'name' => 'css_filters_hover',
-		'group' => 'css-filter',
-		'selector' => '{{WRAPPER}} .digi-audio-thumb img:hover',
-	), array(
-		'name' => 'background_hover_transition',
-		'type' => 'slider',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-thumb img' => 'transition-duration: {{SIZE}}s',
-		),
-	), array(
-		'name' => 'thumbnail_border',
-		'group' => 'border',
-		'selector' => '{{WRAPPER}} .digi-audio-thumb img',
-	), array(
-		'name' => 'thumbnail_radius',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-thumb img' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-		'size_units' => array( 'px', '%' ),
-	), array(
-		'name' => 'thumbnail_shadow',
-		'group' => 'box-shadow',
-		'selector' => '{{WRAPPER}} .digi-audio-thumb img',
 	), array(
 		'name' => 'play_button_icon_color',
 		'type' => 'color',
@@ -430,50 +358,6 @@ return array( array(
 		'selectors' => array(
 			'{{WRAPPER}} .jp-audio .jp-volume-bar .jp-volume-bar-value' => 'background-color: {{VALUE}};',
 		),
-	), array(
-		'name' => 'skin_audio_title_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-title' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'skin_audio_title_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-title' => 'color: {{VALUE}}',
-		),
-	), array(
-		'name' => 'skin_audio_title_text_shadow',
-		'group' => 'text-shadow',
-		'selector' => '{{WRAPPER}} .digi-audio-title',
-	), array(
-		'name' => 'skin_audio_title_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-audio-title',
-	), array(
-		'name' => 'skin_author_name_padding',
-		'type' => 'dimensions',
-		'responsive' => true,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-artist' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-		),
-	), array(
-		'name' => 'skin_author_name_color',
-		'type' => 'color',
-		'responsive' => false,
-		'selectors' => array(
-			'{{WRAPPER}} .digi-audio-artist span' => 'color: {{VALUE}}',
-		),
-	), array(
-		'name' => 'skin_author_name_text_shadow',
-		'group' => 'text-shadow',
-		'selector' => '{{WRAPPER}} .digi-audio-artist span',
-	), array(
-		'name' => 'skin_author_name_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .digi-audio-artist span',
 	), array(
 		'name' => 'showcase_min_height',
 		'type' => 'slider',

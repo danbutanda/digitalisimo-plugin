@@ -19,7 +19,10 @@ final class Plugin {
 			return;
 		}
 		$legacy = DIGITALISIMO_MIGRATION_DIR . 'legacy/';
+		spl_autoload_register( array( __CLASS__, 'autoload' ) );
 		require_once $legacy . 'class-translator.php';
+		require_once $legacy . 'class-context.php';
+		require_once $legacy . 'class-report.php';
 		require_once $legacy . 'class-extensions.php';
 		\Digitalisimo\Elements\Legacy\Extensions::init();
 		require_once $legacy . 'class-shapes.php';
@@ -34,6 +37,17 @@ final class Plugin {
 		// Migrar en un clic: su paso AJAX, su continuación con WP-Cron y el origen de la pantalla de red.
 		require_once $legacy . 'class-runner.php';
 		\Digitalisimo\Elements\Legacy\Runner::init();
+		// Plantillas copiadas del Theme Builder: publicadas sólo sin Element Pack cargado (V.5, frente G).
+		self::call( 'Platform\\Publisher', 'init' );
+		// Alias de los conjuntos de iconos copiados mientras quedan documentos sin convertir (V.11, frente H).
+		self::call( 'Platform\\Icons', 'init' );
+		// Marcadores de K con Element Pack o Prime Slider dentro: el editor los convierte con la conversión pura (V.12).
+		if ( is_readable( $legacy . 'class-markers.php' ) ) {
+			require_once $legacy . 'class-markers.php';
+			if ( method_exists( '\\Digitalisimo\\Elements\\Legacy\\Markers', 'convert' ) ) {
+				add_filter( 'digitalisimo_elements_unconverted_convert', array( '\\Digitalisimo\\Elements\\Legacy\\Markers', 'convert' ), 10, 3 );
+			}
+		}
 		if ( is_admin() ) {
 			require_once $legacy . 'class-migration.php';
 			\Digitalisimo\Elements\Legacy\Migration::init();
@@ -41,6 +55,35 @@ final class Plugin {
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			require_once $legacy . 'class-cli.php';
 			\WP_CLI::add_command( 'digitalisimo-migration', \Digitalisimo\Elements\Legacy\Cli::class );
+		}
+	}
+
+	/**
+	 * Autocarga de los subespacios de F8 (V.14 C1): `Legacy\Effects\Foo_Bar` → `legacy/effects/class-foo-bar.php`, e
+	 * igual con `Prime_Slider` (`legacy/prime-slider/`) y `Platform` (`legacy/platform/`). Las clases de primer nivel
+	 * siguen con require_once. El nombre se valida antes de construir la ruta.
+	 */
+	public static function autoload( $class ) {
+		$prefix = 'Digitalisimo\\Elements\\Legacy\\';
+		if ( 0 !== strpos( (string) $class, $prefix ) ) {
+			return;
+		}
+		$parts = explode( '\\', substr( (string) $class, strlen( $prefix ) ) );
+		$dirs  = array( 'Effects' => 'effects', 'Prime_Slider' => 'prime-slider', 'Platform' => 'platform' );
+		if ( 2 !== count( $parts ) || ! isset( $dirs[ $parts[0] ] ) || 1 !== preg_match( '/^[A-Za-z0-9_]+$/', $parts[1] ) ) {
+			return;
+		}
+		$file = DIGITALISIMO_MIGRATION_DIR . 'legacy/' . $dirs[ $parts[0] ] . '/class-' . str_replace( '_', '-', strtolower( $parts[1] ) ) . '.php';
+		if ( is_readable( $file ) ) {
+			require_once $file;
+		}
+	}
+
+	/** Llama a un método estático de una clase de otro frente sólo si existe (sin ella, el comportamiento de 1.0.20). */
+	private static function call( $class, $method ) {
+		$class = '\\Digitalisimo\\Elements\\Legacy\\' . $class;
+		if ( class_exists( $class ) && method_exists( $class, $method ) ) {
+			call_user_func( array( $class, $method ) );
 		}
 	}
 

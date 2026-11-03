@@ -1,7 +1,8 @@
 <?php
 /**
  * Controles de estilo de Element Pack Pro 9.9.1 `bdt-portfolio-carousel` con selectores del widget propio.
- * Generado con scripts/legacy-styles.py; no editar a mano.
+ * Generado con scripts/legacy-styles.py; selectores muertos podados con scripts/legacy-styles.py --prune
+ * (F8; ver tests/fixtures/f8-legacy-styles-dead.json). No editar a mano.
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -15,14 +16,6 @@ return array( array(
 		'condition' => array(
 			'show_hidden_item' => 'yes',
 		),
-	), array(
-		'name' => 'title_typography',
-		'group' => 'typography',
-		'selector' => '{{WRAPPER}} .elementor-post .elementor-post-title',
-	), array(
-		'name' => 'title_shadow',
-		'group' => 'text-shadow',
-		'selector' => '{{WRAPPER}} .elementor-post .elementor-post-title',
 	), array(
 		'name' => 'dots_space_between',
 		'type' => 'slider',
