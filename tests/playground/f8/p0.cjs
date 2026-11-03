@@ -220,11 +220,16 @@ module.exports = (api) => async (s) => {
 
   // ── c · Editor, proporción, SVG, Loop Carousel y puerta de PRO ────────────────────────────────────────────────
   if (PARTS.includes('c')) {
+    // Con la subida sin filtrar encendida, Migración copia también las imágenes de demostración SVG (saneadas).
+    await control('unfiltered', { on: '1' });
     await doMigrate('P0.C');
     const info = (await control('psinfo', { full: '1' })).docs;
     const walkEls = (els, out = []) => { for (const e of els || []) { out.push(e); walkEls(e.elements, out); } return out; };
     // Slider anidado convertido (familia A, caso custom).
     const sliderKey = keys.find((k) => docs[k].family === 'A' && docs[k].case === 'custom' && info[k] && info[k].widgets['digitalisimo-nested-slider']);
+    // La proporción se mide en un slider visible en los tres anchos: los casos «custom» llevan `hide_mobile`
+    // (hidden-mobile), así que a 360 px el original y el convertido están ocultos (C3 de la primera vuelta).
+    const ratioKey = keys.find((k) => docs[k].family === 'A' && docs[k].case === 'defaults' && info[k] && info[k].widgets['digitalisimo-nested-slider']) || sliderKey;
     if (!sliderKey) {
       pending(s, 'P0.C2', 'el slider convertido en el editor real', 'ningún documento de la familia A con el slider anidado');
     } else {
@@ -247,7 +252,7 @@ module.exports = (api) => async (s) => {
       // Proporción con su pista (tres anchos).
       const ratio = [];
       for (const width of WIDTHS) {
-        const v = await open(m.urls[sliderKey], { width, before: (pg) => pg.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]) });
+        const v = await open(m.urls[ratioKey], { width, before: (pg) => pg.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]) });
         ratio.push(await v.page.evaluate((w) => {
           const r = document.querySelector('.digi-nslider');
           const t = r && r.querySelector(':scope>.digi-nslider__track');
@@ -255,11 +260,19 @@ module.exports = (api) => async (s) => {
           const box = (e) => e.getBoundingClientRect();
           return r ? { w, ratio: getComputedStyle(t).aspectRatio + ' | ' + getComputedStyle(sl[0] || t).aspectRatio, minH: getComputedStyle(sl[0] || t).minHeight, track: [Math.round(box(t).width), Math.round(box(t).height)], slide: sl[0] ? [Math.round(box(sl[0]).width), Math.round(box(sl[0]).height)] : null, scroll: document.documentElement.scrollWidth <= innerWidth } : null;
         }, width));
-        await shot(v.page, `p0-ratio-${sliderKey}-${width}`);
+        await shot(v.page, `p0-ratio-${ratioKey}-${width}`);
         await v.close();
       }
       const okRatio = ratio.every((x) => x && x.slide && x.track[1] > 0 && Math.abs(x.slide[1] - x.track[1]) <= 2 && Math.abs(x.slide[0] - x.track[0]) <= 2 && x.scroll);
-      check(s, 'P0.C3', 'la proporción del slider: cada diapositiva ocupa la pista entera en 360, 768 y 1280 px, sin desbordar la página', okRatio, JSON.stringify(ratio));
+      check(s, 'P0.C3', `la proporción del slider (${ratioKey}): cada diapositiva ocupa la pista entera en 360, 768 y 1280 px, sin desbordar la página`, okRatio, JSON.stringify(ratio));
+      // El caso «custom» con `hide_mobile`: oculto a 360 px como el original (clase del núcleo), visible en 768 px.
+      const hid = [];
+      for (const width of [360, 768]) {
+        const v = await open(m.urls[sliderKey], { width });
+        hid.push(await v.page.evaluate((w) => { const r = document.querySelector('.digi-nslider'); const el = r && r.closest('.elementor-element'); return { w, cls: !!el && el.classList.contains('elementor-hidden-mobile'), shown: !!el && el.checkVisibility() }; }, width));
+        await v.close();
+      }
+      check(s, 'P0.C3b', `«ocultar en móvil» del origen (${sliderKey}): oculto a 360 px y visible a 768 px, con la clase del núcleo`, hid[0].cls && !hid[0].shown && hid[1].shown, JSON.stringify(hid));
     }
     // Copias SVG de las imágenes de demostración (subida sin filtrar encendida).
     const media = (await control('psmedia')).media;

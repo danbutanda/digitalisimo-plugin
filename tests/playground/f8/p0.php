@@ -263,6 +263,12 @@ function digi_f8_ps_documents( array $widgets, array $cases, $edition, array $mo
 /** Operaciones de la sonda de P0 y P1. */
 function digi_f8_ps_ops() {
 	return array(
+		// Tanda c de P0: la «subida sin filtrar» del constructor, la única con la que Migración copia las imágenes de
+		// demostración SVG (Demo_Media::unfiltered_svg()); el resto de las tandas la deja apagada (se informan).
+		'unfiltered' => static function ( $arg ) {
+			update_option( 'elementor_unfiltered_files_upload', '1' === $arg( 'on' ) ? 1 : 0 );
+			return array( 'on' => (int) get_option( 'elementor_unfiltered_files_upload' ) );
+		},
 		// Manifiesto de documentos y estado de Lite (activo e instalado).
 		'psdocs' => static function ( $arg ) {
 			if ( ! function_exists( 'get_plugins' ) ) {
@@ -344,6 +350,14 @@ if ( 'P0' === ( digi_f8_mode()['scenario'] ?? '' ) ) {
 			WC_Install::create_pages();
 		}
 		digi_f8_ps_documents( digi_f8_ps_inventory( 'lite' ), array( 'defaults', 'custom' ), 'lite', $mode );
+		// Kit por defecto, como lo tiene todo sitio que viene del constructor: sin él, el editor se detiene en «Your site
+		// doesn't have a default kit» (P0.C2 de la primera vuelta).
+		if ( ! (int) get_option( 'elementor_active_kit' ) && class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->kits_manager ) ) {
+			update_option( 'elementor_active_kit', (int) \Elementor\Plugin::$instance->kits_manager->create_default() );
+		}
+		if ( ! (int) get_option( 'elementor_active_kit' ) ) {
+			digi_f8_fail( 'Sin kit por defecto: el editor no cargaría' );
+		}
 	}
 	function digi_f8_ops() {
 		return digi_f8_ps_ops();
