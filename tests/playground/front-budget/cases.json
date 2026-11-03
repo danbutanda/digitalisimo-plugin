@@ -6367,8 +6367,8 @@
    }
   }
  },
- "facade-offcanvas": {
-  "title": "Panel lateral con un vídeo de Vimeo y fachadas: ni el panel oculto ni su apertura piden nada a Vimeo (sin fachada, Chrome descarga el iframe oculto al abrir la página)",
+ "facade-panel": {
+  "title": "Panel lateral con un vídeo de Vimeo y fachadas: ni la página ni la apertura del panel piden nada a Vimeo (en 4.3.0.170 la preconexión conectaba con player.vimeo.com al cargar y abrir el panel cargaba el reproductor)",
   "since": "4.3.0.171",
   "modes": [
    "facades",
@@ -6438,7 +6438,7 @@
    }
   }
  },
- "facade-offcanvas-play": {
+ "facade-panel-play": {
   "title": "Panel lateral con un vídeo de Vimeo y fachadas: abrir el panel y pulsar la portada carga el reproductor con reproducción automática",
   "since": "4.3.0.171",
   "modes": [

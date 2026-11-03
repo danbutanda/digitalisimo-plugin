@@ -1,0 +1,276 @@
+{
+ "fecha": "2026-11-03",
+ "elements": "4.3.0.171 (rama front/fase3-fachadas)",
+ "arnes": "tests/playground/front-budget.sh",
+ "antes": "Elements 4.3.0.170 publicado (dist/), modo normal, mismos casos",
+ "casos": {
+  "facade-video": {
+   "antes": {
+    "requests": 37,
+    "bytes": 1925953,
+    "js": 1311617,
+    "css": 249031,
+    "cls": 0,
+    "thirdHosts": [
+     "jnn-pa.googleapis.com",
+     "ssl.gstatic.com",
+     "www.google.com",
+     "www.youtube-nocookie.com"
+    ]
+   },
+   "despues": {
+    "requests": 26,
+    "bytes": 700067,
+    "js": 328984,
+    "css": 191287,
+    "cls": 0,
+    "thirdHosts": []
+   },
+   "llamadas_al_servicio": {
+    "al_cargar": 0,
+    "tras_las_acciones": 9
+   },
+   "tras_las_acciones": {
+    "count:facade": 0,
+    "count:frames": 1,
+    "count:cover": 0,
+    "count:button": 0,
+    "count:focused": 1,
+    "count:player": 1
+   }
+  },
+  "facade-playlist": {
+   "antes": {
+    "requests": 38,
+    "bytes": 1930663,
+    "js": 1315680,
+    "css": 249031,
+    "cls": 0,
+    "thirdHosts": [
+     "jnn-pa.googleapis.com",
+     "ssl.gstatic.com",
+     "www.google.com",
+     "www.youtube-nocookie.com"
+    ]
+   },
+   "despues": {
+    "requests": 27,
+    "bytes": 706021,
+    "js": 333582,
+    "css": 191287,
+    "cls": 0,
+    "thirdHosts": []
+   },
+   "llamadas_al_servicio": {
+    "al_cargar": 0,
+    "tras_las_acciones": 0
+   },
+   "tras_las_acciones": {
+    "count:facade": 0,
+    "count:frames": 0,
+    "count:marked": 1,
+    "count:file": 1,
+    "count:now": 1
+   }
+  },
+  "facade-device": {
+   "antes": {
+    "requests": 38,
+    "bytes": 1932102,
+    "js": 1313634,
+    "css": 253037,
+    "cls": 0,
+    "thirdHosts": [
+     "jnn-pa.googleapis.com",
+     "ssl.gstatic.com",
+     "www.google.com",
+     "www.youtube-nocookie.com"
+    ]
+   },
+   "despues": {
+    "requests": 27,
+    "bytes": 701782,
+    "js": 328984,
+    "css": 192231,
+    "cls": 0,
+    "thirdHosts": []
+   },
+   "llamadas_al_servicio": {
+    "al_cargar": 0,
+    "tras_las_acciones": 9
+   },
+   "tras_las_acciones": {
+    "count:facade": 0,
+    "count:frames": 1,
+    "count:cover": 0,
+    "count:player": 1
+   }
+  },
+  "facade-panel": {
+   "antes": {
+    "requests": 24,
+    "bytes": 701599,
+    "js": 332779,
+    "css": 190339,
+    "cls": 0,
+    "thirdHosts": []
+   },
+   "despues": {
+    "requests": 27,
+    "bytes": 707100,
+    "js": 333784,
+    "css": 191858,
+    "cls": 0,
+    "thirdHosts": []
+   },
+   "llamadas_al_servicio": {
+    "al_cargar": 0,
+    "tras_las_acciones": 0
+   },
+   "tras_las_acciones": {
+    "count:facade": 1,
+    "count:frames": 0,
+    "count:visible": 1,
+    "count:cover": 1
+   }
+  },
+  "facade-panel-play": {
+   "antes": null,
+   "despues": {
+    "requests": 27,
+    "bytes": 707130,
+    "js": 333784,
+    "css": 191858,
+    "cls": 0,
+    "thirdHosts": []
+   },
+   "llamadas_al_servicio": {
+    "al_cargar": 0,
+    "tras_las_acciones": 1
+   },
+   "tras_las_acciones": {
+    "count:facade": 0,
+    "count:frames": 1,
+    "count:player": 1
+   }
+  },
+  "facade-map": {
+   "antes": {
+    "requests": 36,
+    "bytes": 1810032,
+    "js": 1116083,
+    "css": 197100,
+    "cls": 0,
+    "thirdHosts": [
+     "tile.openstreetmap.org",
+     "www.openstreetmap.org"
+    ]
+   },
+   "despues": {
+    "requests": 26,
+    "bytes": 701485,
+    "js": 328984,
+    "css": 189518,
+    "cls": 0,
+    "thirdHosts": []
+   },
+   "llamadas_al_servicio": {
+    "al_cargar": 0,
+    "tras_las_acciones": 12
+   },
+   "tras_las_acciones": {
+    "count:facade": 0,
+    "count:frames": 1,
+    "count:image": 0,
+    "count:pin": 0,
+    "count:attribution": 0,
+    "count:label": 0,
+    "count:list": 1,
+    "count:player": 1,
+    "count:focused": 1
+   }
+  },
+  "facade-map-queued": {
+   "antes": null,
+   "despues": {
+    "requests": 25,
+    "bytes": 696537,
+    "js": 328984,
+    "css": 189518,
+    "cls": 0,
+    "thirdHosts": []
+   },
+   "llamadas_al_servicio": {
+    "al_cargar": 0,
+    "tras_las_acciones": 0
+   },
+   "tras_las_acciones": {
+    "count:facade": 1,
+    "count:frames": 0,
+    "count:image": 1,
+    "count:pin": 1,
+    "count:label": 1
+   }
+  },
+  "facade-document": {
+   "antes": {
+    "requests": 25,
+    "bytes": 694913,
+    "js": 329942,
+    "css": 188039,
+    "cls": 0,
+    "thirdHosts": [
+     "example.com"
+    ]
+   },
+   "despues": {
+    "requests": 25,
+    "bytes": 696273,
+    "js": 328984,
+    "css": 189558,
+    "cls": 0,
+    "thirdHosts": []
+   },
+   "llamadas_al_servicio": {
+    "al_cargar": 0,
+    "tras_las_acciones": 2
+   },
+   "tras_las_acciones": {
+    "count:facade": 0,
+    "count:frames": 1,
+    "count:label": 0,
+    "count:link": 1,
+    "count:player": 1
+   }
+  }
+ },
+ "empty": {
+  "antes": {
+   "requests": 24,
+   "bytes": 694904,
+   "js": 327979,
+   "css": 187692,
+   "cls": 0,
+   "thirdHosts": []
+  },
+  "despues": {
+   "requests": 24,
+   "bytes": 694904,
+   "js": 327979,
+   "css": 187692,
+   "cls": 0,
+   "thirdHosts": []
+  }
+ },
+ "corridas": {
+  "FACADES=1": "0 problemas en los ocho casos facade-* y empty (facade-panel y facade-panel-play, con su nombre corto, en una corrida aparte: 0 problemas)",
+  "FACADES=1 CACHE=1": "0 problemas (facade-map-queued: la visita agenda la imagen, wp-cron.php la compone y la recarga la muestra con la caché de elementos activa)",
+  "normal frente a 4.3.0.170 (empty, all-own, video-player, map, document-viewer, offcanvas, device-slider)": "mismo HTML y CSS, y en empty y all-own los mismos bytes, peticiones, handles y consultas, salvo device-slider.css: --digi-carousel-gap:0 → 0px (corrección declarada, +2 B)",
+  "interaction.sh CORE=bundled": "37 comprobaciones en verde",
+  "interaction.sh CORE=bundled FACADES=1": "37 comprobaciones en verde; la galería de vídeos empieza con la portada de YouTube, sin iframe, y cambia a Vimeo y al archivo como siempre"
+ },
+ "notas": [
+  "Un primer intento dio CLS 0,027 en el caso del panel por su título largo, que cambiaba de línea al llegar la fuente de Google (se desplazaban el título y el contenido, no la fachada); el caso se renombró a facade-panel-play.",
+  "La primera corrida halló que la fachada del Slider de dispositivos medía 0 px de ancho: --digi-carousel-gap:0 sin unidad invalidaba el calc() del ancho de la diapositiva (con 4.3.0.170 un iframe de YouTube se quedaba en 300 px). Corregido."
+ ]
+}
