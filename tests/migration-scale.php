@@ -129,7 +129,9 @@ namespace {
 	}
 	f8_check( ! empty( $state['done'] ), 'Migrar termina con 5 000 documentos: ' . $requests . ' peticiones.' );
 	f8_check( DOCS === (int) $state['counts']['converted'], 'Convierte los 5 000: ' . (int) $state['counts']['converted'] );
-	f8_check( $requests > 2, 'En varias peticiones (el presupuesto se respeta): ' . $requests );
+	// En una máquina rápida los 5 000 documentos sintéticos caben en un solo presupuesto: entonces basta con que ninguna
+	// petición lo haya agotado. Si alguna lo agotó, la conversión tuvo que repartirse en varias peticiones.
+	f8_check( $requests > 2 || $slowest < BUDGET, sprintf( 'En varias peticiones, o todo dentro del presupuesto (el presupuesto se respeta): %d peticiones, la más lenta %.2f s.', $requests, $slowest ) );
 	f8_check( $slowest < BUDGET + 1.5, sprintf( 'Ninguna petición se pasa de su presupuesto más un documento y el cierre (sin la búsqueda en memoria del doble): %.2f s en %s.', $slowest, $slowest_stage ) );
 	f8_check( ! $excess, 'Ninguna petición decodifica más documentos de los que procesa: ' . implode( '; ', array_slice( $excess, 0, 3 ) ) );
 	f8_check( max( $GLOBALS['scale']['total'] ) <= 6, 'Cada documento se lee unas pocas veces en toda la migración (convertir, informe): ' . max( $GLOBALS['scale']['total'] ) );
