@@ -45,7 +45,8 @@ module.exports = (api) => async (s) => {
   check(s, 'P4.4', 'al guardar desde el editor desaparecen los marcadores convertidos y K recuenta', !!saved && saved.ok && ed1.markers < ed0.markers && m1.count < m0.count, JSON.stringify({ saved, before: ed0.markers, after: ed1.markers, count: [m0.count, m1.count], widgets: ed1.widgets }));
 
   // Una visita del front con Migración activa no convierte nada guardado (sólo el editor y «Migrar» convierten).
-  const front = await api.request('GET', `/?page_id=${mg0.id}`);
+  // La página importada en «sólo agregar» es un borrador: se pinta como vista previa con la sesión del administrador.
+  const front = await api.request('GET', `/?page_id=${mg0.id}&preview=true`, { jar: 'admin' });
   const mf = await control('markers');
   check(s, 'P4.4b', 'el front con Migración activa no convierte los marcadores guardados (la página para Migrar sigue con 3)', front.status === 200 && pageOf(mf, 'Marcadores para Migrar').markers === 3, JSON.stringify({ status: front.status, markers: pageOf(mf, 'Marcadores para Migrar').markers }));
 

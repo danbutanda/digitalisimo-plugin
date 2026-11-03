@@ -774,5 +774,141 @@
         "required": "true"
       }
     ]
+  },
+  "f8-tooltip": {
+    "$widget": "button",
+    "text": "Ayuda",
+    "link": {
+      "url": "#"
+    },
+    "digitalisimo_tooltip": "yes",
+    "digitalisimo_tooltip_text": "Texto <strong>breve</strong> de ayuda",
+    "digitalisimo_tooltip_placement": "top",
+    "digitalisimo_tooltip_arrow": "yes"
+  },
+  "f8-badge-rtl": {
+    "$widget": "heading",
+    "title": "Con distintivo",
+    "digitalisimo_badge": "yes",
+    "digitalisimo_badge_text": "Nuevo",
+    "digitalisimo_badge_corner": "top-start"
+  },
+  "f8-nested-counter": {
+    "$widget": "digitalisimo-nested-slider",
+    "effect": "slide",
+    "autoplay": "yes",
+    "autoplay_delay": 1500,
+    "carousel_label": "Novedades",
+    "slides": [
+      {
+        "_id": "s1",
+        "slide_title": "Uno"
+      },
+      {
+        "_id": "s2",
+        "slide_title": "Dos"
+      },
+      {
+        "_id": "s3",
+        "slide_title": "Tres"
+      }
+    ],
+    "navigation": "both",
+    "counter": "yes",
+    "$elements": [
+      {
+        "id": "ixc0000",
+        "elType": "container",
+        "isInner": true,
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixc00h0",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Diapositiva uno"
+            },
+            "elements": []
+          },
+          {
+            "id": "ixc00b0",
+            "elType": "widget",
+            "widgetType": "button",
+            "settings": {
+              "text": "Ir uno",
+              "link": {
+                "url": "#uno"
+              }
+            },
+            "elements": []
+          }
+        ]
+      },
+      {
+        "id": "ixc0001",
+        "elType": "container",
+        "isInner": true,
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixc00h1",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Diapositiva dos"
+            },
+            "elements": []
+          },
+          {
+            "id": "ixc00b1",
+            "elType": "widget",
+            "widgetType": "button",
+            "settings": {
+              "text": "Ir dos",
+              "link": {
+                "url": "#dos"
+              }
+            },
+            "elements": []
+          }
+        ]
+      },
+      {
+        "id": "ixc0002",
+        "elType": "container",
+        "isInner": true,
+        "settings": {
+          "content_width": "full"
+        },
+        "elements": [
+          {
+            "id": "ixc00h2",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Diapositiva tres"
+            },
+            "elements": []
+          },
+          {
+            "id": "ixc00b2",
+            "elType": "widget",
+            "widgetType": "button",
+            "settings": {
+              "text": "Ir tres",
+              "link": {
+                "url": "#tres"
+              }
+            },
+            "elements": []
+          }
+        ]
+      }
+    ]
   }
 }

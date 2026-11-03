@@ -25,7 +25,8 @@ const V = fs.existsSync(`${OUT}/vendors.json`) ? JSON.parse(fs.readFileSync(`${O
 const ALLOW = (JSON.parse(fs.readFileSync(path.join(__dirname, 'allow.json'), 'utf8')).excepciones || []).map((a) => ({
   ...a, used: 0, reUrl: new RegExp(a.url), reScreen: a.pantalla ? new RegExp(a.pantalla) : null, reSource: a.origen ? new RegExp(a.origen) : null,
 }));
-const F7B_ONLY = process.env.ONLY === 'f7b';
+// ONLY=f7b u ONLY=f8: sólo el recorrido de esa etapa y los frontales.
+const F7B_ONLY = process.env.ONLY === 'f7b' || process.env.ONLY === 'f8';
 const IDS = fs.existsSync(`${OUT}/ids.json`) ? JSON.parse(fs.readFileSync(`${OUT}/ids.json`, 'utf8')) : {};
 // STATE=kit (etapa K): la sesión de «wp digitalisimo-elements kit import» y lo que importó (setup.php, fase kit).
 const STATE = process.env.STATE || 'nuevo';
@@ -867,7 +868,27 @@ if (require.main === module) (async () => {
     // F7b: el editor de la página con un elemento por capacidad, cada control nuevo seleccionado en su sección (con
     // cualquier SCOPE: un control o una sección que falta es un error), el menú contextual con «Aplicar a todos», la
     // plantilla con su clave de sobrescritura, las pantallas «Consultas» y «Dónde se usa», y su frontal.
-    if (IDS.f7b && process.env.ONLY !== 'base') {
+    // F8: el editor de digi-marca-f8 con cada control nuevo (información emergente, distintivo y contador) seleccionado
+    // en su sección, y su frontal. Con ONLY=f8 es lo único del editor que se recorre.
+    if (IDS.f8 && process.env.ONLY !== 'base' && process.env.ONLY !== 'f7b') {
+      try {
+        await editorAt(IDS.f8, 'editor-f8');
+        for (const [what, id, t, sec, need] of [
+          ['información emergente', 'mf8001', 'advanced', 'digitalisimo_tooltip_section', ['.elementor-control-digitalisimo_tooltip', '.elementor-control-digitalisimo_tooltip_text']],
+          ['distintivo', 'mf8002', 'advanced', 'digitalisimo_badge_section', ['.elementor-control-digitalisimo_badge', '.elementor-control-digitalisimo_badge_text']],
+          ['distintivo del contenedor', 'mf8c000', 'advanced', 'digitalisimo_badge_section', ['.elementor-control-digitalisimo_badge']],
+          ['contador del slider anidado', 'mf8003', 'content', 'section_options', ['.elementor-control-counter']],
+        ]) {
+          await f7aStep(`editor-f8 · ${what}`, [[settle, null], [reset, null], [settle, null], [pick, id], [tab, t], [section, sec]], { need: need.map((x) => `#elementor-panel ${x}`) });
+        }
+      } catch (e) {
+        notes.push(`${state.locale} editor-f8: ${e.message}`);
+        f7aError('editor-f8', `el editor no se pudo recorrer: ${String(e.message).slice(0, 160)}`);
+      }
+      await page.evaluate(() => { try { window.onbeforeunload = null; if (window.elementor && elementor.saver && elementor.saver.setFlagEditorChange) elementor.saver.setFlagEditorChange(false); } catch (e) { /* nada */ } }).catch(() => {});
+      await screenAt(`${base}/digi-marca-f8/`, 'frontal-f8-admin');
+    }
+    if (IDS.f7b && process.env.ONLY !== 'base' && process.env.ONLY !== 'f8') {
       try {
         await editorAt(IDS.f7b, 'editor-f7b');
         const f7b = [

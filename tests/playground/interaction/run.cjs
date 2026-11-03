@@ -303,6 +303,46 @@ checks['f7b-nested-slider'] = async (page) => {
   if (!sizes.length || sizes.some((x) => x < 24)) throw new Error(`botones de menos de 24 px: ${sizes}`);
   return 'el slider anidado ligero cambia de diapositiva con las flechas sobre los puntos (aria-current, inert) y sus botones miden 24 px o más';
 };
+// F8 (frente D, V.10.4–V.10.5): información emergente con teclado y Escape, distintivo en RTL y contador con autoplay.
+checks['f8-tooltip'] = async (page) => {
+  await page.waitForSelector('[data-digi-tooltip] .digi-tooltip[role="tooltip"]', { timeout: 5000 });
+  const st = () => page.evaluate(() => { const t = document.querySelector('[data-digi-tooltip] .digi-tooltip'); const a = document.querySelector('[data-digi-tooltip] a'); const r = t.getBoundingClientRect(); return { open: t.classList.contains('digi-tooltip--open') || (!t.classList.contains('digi-tooltip--shut') && r.width > 2 && r.height > 2), shut: t.classList.contains('digi-tooltip--shut'), w: Math.round(r.width), described: (a.getAttribute('aria-describedby') || '').trim() === t.id && !!t.id, focus: document.activeElement === a, text: t.textContent.trim() }; });
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.focus('[data-digi-tooltip] a');
+  await new Promise((r) => setTimeout(r, 400));
+  const s1 = await st();
+  if (!s1.described || !s1.focus || s1.shut || s1.w < 3) throw new Error(`con el foco ${JSON.stringify(s1)}`);
+  await page.keyboard.press('Escape');
+  await new Promise((r) => setTimeout(r, 300));
+  const s2 = await st();
+  if (!s2.shut || !s2.focus) throw new Error(`tras Escape ${JSON.stringify(s2)}`);
+  return `la información emergente se abre con el foco (aria-describedby → role=tooltip, «${s1.text}») y Escape la cierra sin mover el foco`;
+};
+checks['f8-badge-rtl'] = async (page) => {
+  await page.waitForSelector('[data-digi-badge] > .digi-badge', { timeout: 5000 });
+  const side = () => page.evaluate(() => { const h = document.querySelector('[data-digi-badge]'); const b = h.querySelector(':scope > .digi-badge'); const hr = h.getBoundingClientRect(); const br = b.getBoundingClientRect(); return { left: Math.round(br.left - hr.left), right: Math.round(hr.right - br.right), hidden: b.getAttribute('aria-hidden'), text: b.textContent.trim() }; });
+  const ltr = await side();
+  await page.evaluate(() => { document.documentElement.dir = 'rtl'; });
+  await new Promise((r) => setTimeout(r, 200));
+  const rtl = await side();
+  if (!(ltr.left < ltr.right) || !(rtl.right < rtl.left) || ltr.hidden !== null || ltr.text !== 'Nuevo') throw new Error(`LTR ${JSON.stringify(ltr)} · RTL ${JSON.stringify(rtl)}`);
+  return 'el distintivo «inicio-arriba» va a la izquierda en LTR y a la derecha en RTL (propiedades lógicas), con su texto legible';
+};
+checks['f8-nested-counter'] = async (page) => {
+  await page.waitForSelector('.digi-nslider--ready .digi-nslider__count:not([hidden])', { timeout: 8000 });
+  const count = () => page.$eval('.digi-nslider__count', (c) => c.textContent.replace(/\s+/g, ' ').trim());
+  const c0 = await count();
+  await page.waitForFunction((c) => document.querySelector('.digi-nslider__count').textContent.replace(/\s+/g, ' ').trim() !== c, { timeout: 6000 }, c0);
+  const c1 = await count();
+  // Foco en el punto actual (las diapositivas ocultas son `inert` y no lo aceptan): el foco dentro del slider lo pausa.
+  await page.focus('.digi-nslider__dot[aria-current="true"]');
+  await new Promise((r) => setTimeout(r, 400));
+  const c2 = await count();
+  await new Promise((r) => setTimeout(r, 3500));
+  const c3 = await count();
+  if (!/^1 \/ 3$/.test(c0) || c1 === c0 || c3 !== c2) throw new Error(`contador ${JSON.stringify({ c0, c1, c2, c3 })}`);
+  return `el contador sigue al autoplay («${c0}» → «${c1}») y se detiene con el foco dentro (WCAG 2.2.2: «${c2}» tras 3,5 s)`;
+};
 const presentation = (key, wrapper, title, cls) => async (page) => {
   const got = await page.$eval(wrapper, (el, c) => el.classList.contains(c), cls).catch(() => false);
   if (!got) throw new Error(`el envoltorio no lleva ${cls}`);
