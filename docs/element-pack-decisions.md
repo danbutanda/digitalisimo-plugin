@@ -2,9 +2,9 @@
 
 Tabla generada por `scripts/legacy-decisions-doc.py` desde `docs/migration-map.json`; `tests/elements-legacy-decisions.mjs` exige una decisión válida en cada uno de los 263 IDs del inventario.
 
-Decisiones: ADAPTAR 186, COMPARTIR 6, DESCARTAR 57, RECONSTRUIR 14.
+Decisiones: ADAPTAR 187, COMPARTIR 5, DESCARTAR 57, RECONSTRUIR 14.
 
-Documentos heredados: adaptador publicado 201, no se reproduce 62.
+Documentos heredados: adaptador publicado 202, no se reproduce 61.
 
 - **ADAPTAR**: los documentos `bdt-*` siguen funcionando sin Element Pack sobre el destino (adaptador con mapa, estilos heredados y migración reversible).
 - **RECONSTRUIR**: widget propio nuevo; los documentos heredados pasan a él con adaptador.
@@ -20,7 +20,7 @@ Documentos heredados: adaptador publicado 201, no se reproduce 62.
 | `bdt-acf-slider` | ADAPTAR | `digitalisimo-fancy-slider` | adaptador publicado | Carrusel de un campo galería ACF hacia el carrusel de medios con etiqueta dinámica. |
 | `bdt-acf-tabs` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Pestañas desde un repetidor ACF hacia las pestañas propias. |
 | `bdt-advanced-button` | ADAPTAR | `digitalisimo-advanced-button` | adaptador publicado | new CSS-only button with safe link, icon, badge and nine lightweight effects; responsive border and max-width, typography and shadow controls since 4.3.0.71; legacy adapter, full style parity and installed multisite runtime pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
-| `bdt-advanced-calculator` | DESCARTAR | — | no se reproduce | Calculadora basada en fórmulas propias de Element Pack evaluadas con su script; no hay un motor equivalente seguro sin reimplementar el evaluador. Para contenido nuevo: formulario de PRO Elements con campos calculados o un plugin de calculadoras. |
+| `bdt-advanced-calculator` | DESCARTAR | — | no se reproduce | Calculadora basada en fórmulas propias de Element Pack evaluadas con su script; no hay un motor equivalente seguro sin reimplementar el evaluador. Para contenido nuevo: formulario de DIGITALÍSIMO Elements con campos calculados o un plugin de calculadoras. |
 | `bdt-advanced-counter` | ADAPTAR | `counter` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.110 adapter and the per-site reversible migration tool |
 | `bdt-advanced-divider` | ADAPTAR | `digitalisimo-advanced-divider` | adaptador publicado | independent decorative widget with responsive circle, cross and star symbols and WordPress-managed image loading; main-site and subsite Elementor frontend render checked in Multisite since 4.3.0.72; remaining legacy shape parity, SVG animation and editor/browser comparison pending; legacy documents keep rendering without Element Pack through the 4.3.0.94 adapter (defaults, settings and inherited style controls translated) and the per-site reversible migration tool |
 | `bdt-advanced-gmap` | COMPARTIR | `google_maps` | adaptador publicado | Mapa de Google con marcadores y estilos; Elementor ofrece el mapa por dirección. Adaptador previsto para el primer marcador. |
@@ -143,7 +143,7 @@ Documentos heredados: adaptador publicado 201, no se reproduce 62.
 | `bdt-give-totals` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-google-reviews` | ADAPTAR | `digitalisimo-google-reviews` | adaptador publicado | own Places API (New) widget with site/network key and deferred fetch; installed multisite rendering verified with test key in 4.3.0.90; real Places response, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.99 adapter and the per-site reversible migration tool |
 | `bdt-gravity-form` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
-| `bdt-helpdesk` | DESCARTAR | — | no se reproduce | Botones flotantes de contacto (WhatsApp, Messenger, etc.); PRO Elements incluye botones flotantes para contenido nuevo. |
+| `bdt-helpdesk` | DESCARTAR | — | no se reproduce | Botones flotantes de contacto (WhatsApp, Messenger, etc.); DIGITALÍSIMO Elements incluye botones flotantes para contenido nuevo. |
 | `bdt-honeycombs` | DESCARTAR | — | no se reproduce | Rejilla hexagonal decorativa con su script; uso marginal. |
 | `bdt-horizontal-scroller` | DESCARTAR | — | no se reproduce | Desplazamiento horizontal de secciones con su script; cambia el comportamiento de la página. |
 | `bdt-hover-box` | ADAPTAR | `digitalisimo-fancy-tabs` | adaptador publicado | Cajas que cambian el fondo al pasar el cursor; las pestañas propias conservan el contenido. |
@@ -171,7 +171,7 @@ Documentos heredados: adaptador publicado 201, no se reproduce 62.
 | `bdt-mailchimp-for-wp` | ADAPTAR | `shortcode` | adaptador publicado | pending; legacy documents keep rendering without Element Pack through the 4.3.0.108 adapter and the per-site reversible migration tool |
 | `bdt-marker` | ADAPTAR | `hotspot` | adaptador publicado | Hotspot de PRO Elements con cada marcador en la misma posición (% desde arriba y la izquierda), su icono o texto, su enlace y su tooltip (posición, clic o siempre visible). La leyenda de la imagen, el enlace al lightbox y los marcadores de imagen no se trasladan. |
 | `bdt-marquee` | RECONSTRUIR | `digitalisimo-marquee` | adaptador publicado | Texto o imágenes en movimiento continuo; se reconstruye con CSS y pausa accesible. |
-| `bdt-mega-menu` | COMPARTIR | `mega-menu` | no se reproduce | Mega menú con plantillas por elemento de menú; el Mega Menu de PRO Elements es anidado y no recibe la configuración heredada sin reestructurar el documento. |
+| `bdt-mega-menu` | ADAPTAR | `nav-menu` | adaptador publicado | El mega menú pasa al widget de menú de DIGITALÍSIMO Elements con el mismo menú de WordPress: la navegación se conserva; los paneles con contenido de cada elemento quedan como plantillas sin condiciones para rehacerlos (plat.mega.rebuild). |
 | `bdt-member` | ADAPTAR | `digitalisimo-fancy-card` | adaptador publicado | Miembro de equipo con foto, nombre, cargo y redes; la Fancy Card propia cubre el contenido. |
 | `bdt-modal` | ADAPTAR | `digitalisimo-offcanvas` | adaptador publicado | Ventana modal con botón y contenido o plantilla; el Panel lateral propio puede presentarse centrado. |
 | `bdt-navbar` | ADAPTAR | `nav-menu` | adaptador publicado | share existing ElementorPro nav-menu for new content; auto-hide effects, visual parity and legacy conversion pending; legacy documents keep rendering without Element Pack through the 4.3.0.103 adapter and the per-site reversible migration tool |

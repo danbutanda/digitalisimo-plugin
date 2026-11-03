@@ -1,0 +1,852 @@
+{
+    "source": "digitalisimo-migration/legacy/prime-slider/maps/*.php (57 mapas de los frentes E y F de F8), leídos con Prime_Slider\\Maps::all()",
+    "method": "Generado por el frente K de F8 al publicar, desde Maps::all(): family, decision, target, fallback, alt_target, reason, las pérdidas declaradas (losses) y los códigos de pérdida del informe (loss_codes) de cada mapa; owner es el frente dueño del mapa (V.10.7); name y plugin, de docs/prime-slider-inventory.json. No se edita a mano: si cambia un mapa, se vuelve a generar. tests/migration-prime-slider-decisions.php valida los 57 mapas contra el inventario.",
+    "families": {
+        "A": "héroe UIkit",
+        "B": "Swiper, una por vista",
+        "C": "varias por vista con contenido",
+        "D": "plantillas",
+        "E": "entradas con UIkit",
+        "F": "entradas con Swiper",
+        "G": "WooCommerce",
+        "H": "galerías",
+        "I": "efectos de autor",
+        "J": "paneles",
+        "K": "pantalla completa",
+        "L": "eventos",
+        "M": "controles remotos"
+    },
+    "widget_count": 57,
+    "missing_from_inventory": [],
+    "counts": {
+        "decision": {
+            "ADAPTAR": 1,
+            "APROXIMAR": 52,
+            "DESCARTAR": 4
+        },
+        "family": {
+            "A": 5,
+            "B": 7,
+            "C": 3,
+            "D": 1,
+            "E": 3,
+            "F": 9,
+            "G": 6,
+            "H": 5,
+            "I": 9,
+            "J": 2,
+            "K": 2,
+            "L": 1,
+            "M": 4
+        },
+        "target": {
+            "(ninguno)": 4,
+            "container": 2,
+            "digitalisimo-fancy-tabs": 2,
+            "digitalisimo-logos": 3,
+            "digitalisimo-nested-slider": 23,
+            "loop-carousel": 16,
+            "media-carousel": 5,
+            "woocommerce-products": 2
+        },
+        "plugin": {
+            "lite": 22,
+            "pro": 35
+        }
+    },
+    "widgets": {
+        "prime-slider-astoria": {
+            "name": "Astoria",
+            "plugin": "pro",
+            "family": "I",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Efecto de autor: el contenido de cada fila pasa a un contenedor del slider anidado con fundido; la animación propia se pierde.",
+            "losses": [
+                "animación de autor (GSAP, anime.js o Codrops)",
+                "estilo de la primera palabra del título"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-avatar": {
+            "name": "Avatar",
+            "plugin": "pro",
+            "family": "B",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe Swiper: cada fila pasa a un contenedor del slider anidado; la reproducción automática «no» por defecto se mantiene apagada.",
+            "losses": [
+                "animación del texto letra a letra (Splitting)",
+                "miniaturas de las diapositivas"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-blog": {
+            "name": "Blog",
+            "plugin": "lite",
+            "family": "E",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de entradas: el Loop Carousel de PRO pinta una plantilla «Loop Item» que Migración genera (imagen destacada de fondo, términos, título, metadatos, extracto y botón); sin contenedores o sin los widgets del creador de temas, la rejilla del widget Entradas. Se pierden las skins coral, zinest y folio, la animación de UIkit y el paralaje.",
+            "loss_codes": [
+                "ps.dyn.loss.featured",
+                "ps.dyn.loss.skin"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-cards-stack": {
+            "name": "Cards Stack",
+            "plugin": "pro",
+            "family": "H",
+            "decision": "APROXIMAR",
+            "target": "media-carousel",
+            "fallback": "",
+            "alt_target": "digitalisimo-logos",
+            "reason": "Galería de imágenes: sólo imágenes → Carrusel multimedia; con títulos o textos visibles → carrusel de Logotipos.",
+            "losses": [
+                "cara trasera de cada tarjeta",
+                "efecto de pila de tarjetas (UI Initiative)",
+                "dirección de la pila"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-cloud": {
+            "name": "Cloud",
+            "plugin": "pro",
+            "family": "H",
+            "decision": "APROXIMAR",
+            "target": "media-carousel",
+            "fallback": "",
+            "alt_target": "digitalisimo-logos",
+            "reason": "Galería de imágenes: sólo imágenes → Carrusel multimedia; con títulos o textos visibles → carrusel de Logotipos.",
+            "losses": [
+                "efecto de nube con opacidad y escala de las laterales"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-coddle": {
+            "name": "Coddle",
+            "plugin": "pro",
+            "family": "B",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe Swiper con miniaturas: cada fila pasa a un contenedor del slider anidado; la fracción pasa al contador y el botón de reproducción a un botón con enlace.",
+            "losses": [
+                "segundo carrusel de miniaturas con el texto",
+                "transiciones con licencia de terceros (se usan deslizar o fundido)"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-crossroad": {
+            "name": "Crossroad",
+            "plugin": "pro",
+            "family": "I",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Efecto de autor: cada fila pasa a un contenedor del slider anidado; la ventana modal y el contador se pierden.",
+            "losses": [
+                "animación de autor (GSAP, anime.js o Codrops)",
+                "ventana modal con el detalle",
+                "contador de las diapositivas"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-custom": {
+            "name": "Custom",
+            "plugin": "pro",
+            "family": "D",
+            "decision": "ADAPTAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Plantillas por diapositiva: cada fila pasa a un contenedor del slider anidado con un widget Plantilla; en el respaldo, Diapositivas con su plantilla.",
+            "losses": [
+                "estilos propios de las flechas",
+                "velocidad de la animación de UIkit"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-dragon": {
+            "name": "Dragon",
+            "plugin": "lite",
+            "family": "A",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe UIkit: cada fila pasa a un contenedor del slider anidado con la imagen de fondo; las redes van junto al slider.",
+            "losses": [
+                "desenfoque del fondo",
+                "velocidad de la animación de UIkit",
+                "estilo de la primera palabra del título",
+                "navegación numerada"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-elysium": {
+            "name": "Elysium",
+            "plugin": "lite",
+            "family": "C",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-logos",
+            "fallback": "",
+            "alt_target": "digitalisimo-nested-slider",
+            "reason": "Carrusel de varias por vista con contenido: pasa al carrusel de Logotipos (imagen, nombre, descripción y enlace) sin Swiper; si alguna fila no tiene imagen, al slider anidado.",
+            "losses": [
+                "1,8 diapositivas por vista (se redondea a 2 columnas)",
+                "desenfoque y escala de las diapositivas inactivas"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-escape": {
+            "name": "Escape",
+            "plugin": "pro",
+            "family": "B",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe Swiper: cada fila pasa a un contenedor del slider anidado; la fracción pasa al contador.",
+            "losses": [
+                "1,25 diapositivas por vista (pasa a una)",
+                "transiciones con licencia de terceros (se usan deslizar o fundido)"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-event-calendar": {
+            "name": "Event Calendar",
+            "plugin": "pro",
+            "family": "L",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Eventos de The Events Calendar: con el plugin activo, el Loop Carousel de PRO sobre `tribe_events` con una plantilla «Loop Item» de origen `post` generada (imagen, título, extracto y el botón de entradas con su enlace fijo). Se pierden las fechas, la cuenta atrás, el lugar y las formas decorativas. Sin The Events Calendar, descarte declarado: el widget queda en un marcador con su original.",
+            "owner": "F"
+        },
+        "prime-slider-expo-slider": {
+            "name": "Expo",
+            "plugin": "pro",
+            "family": "H",
+            "decision": "APROXIMAR",
+            "target": "media-carousel",
+            "fallback": "",
+            "alt_target": "digitalisimo-logos",
+            "reason": "Galería de imágenes: sólo imágenes → Carrusel multimedia; con títulos o textos visibles → carrusel de Logotipos.",
+            "losses": [
+                "efecto Expo (UI Initiative)",
+                "dirección vertical",
+                "escala, gris y giro de las imágenes"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-fiestar": {
+            "name": "Fiestar",
+            "plugin": "lite",
+            "family": "F",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de varias entradas por vista: el Loop Carousel de PRO con tantas diapositivas por vista como columnas tenía el origen y una plantilla «Loop Item» generada; sin ella, la rejilla del widget Entradas. Se pierden las diapositivas centradas y el enlace de toda la diapositiva.",
+            "loss_codes": [
+                "ps.dyn.loss.centered",
+                "ps.dyn.loss.wrapper_link"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-flexure": {
+            "name": "Flexure",
+            "plugin": "pro",
+            "family": "J",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-fancy-tabs",
+            "fallback": "",
+            "reason": "Paneles al pasar el puntero: pasan a Pestañas destacadas con sus columnas; las redes van junto a ellas.",
+            "losses": [
+                "activación al pasar el puntero (pasa a pestañas)",
+                "fondo a pantalla completa",
+                "efectos de la imagen"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-flogia": {
+            "name": "Flogia",
+            "plugin": "lite",
+            "family": "E",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de entradas: el Loop Carousel de PRO pinta una plantilla «Loop Item» que Migración genera (imagen destacada de fondo, términos, título, metadatos, extracto y botón); sin contenedores o sin los widgets del creador de temas, la rejilla del widget Entradas. Se pierden las miniaturas de navegación y la animación de UIkit.",
+            "loss_codes": [
+                "ps.dyn.loss.thumbs"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-fluent": {
+            "name": "Fluent",
+            "plugin": "pro",
+            "family": "E",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de entradas: el Loop Carousel de PRO pinta una plantilla «Loop Item» que Migración genera (imagen destacada de fondo, términos, título, metadatos, extracto y botón); sin contenedores o sin los widgets del creador de temas, la rejilla del widget Entradas. Se pierden el desplazador de miniaturas, el avatar del autor y la animación avanzada.",
+            "loss_codes": [
+                "ps.dyn.loss.avatar",
+                "ps.dyn.loss.thumbs"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-fortune": {
+            "name": "Fortune",
+            "plugin": "pro",
+            "family": "B",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe Swiper: cada fila pasa a un contenedor del slider anidado; la fracción pasa al contador y la dirección vertical a horizontal.",
+            "losses": [
+                "dirección vertical (pasa a horizontal)",
+                "transiciones con licencia de terceros (se usan deslizar o fundido)"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-general": {
+            "name": "General",
+            "plugin": "lite",
+            "family": "A",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe UIkit: cada fila pasa a un contenedor del slider anidado con su fondo de color, imagen o vídeo; push y pull se convierten en deslizar.",
+            "losses": [
+                "paralaje del contenido",
+                "arrastre con el puntero",
+                "velocidad de la animación de UIkit",
+                "diseño propio de cada estilo (slide, crelly, meteor)",
+                "estilo de la primera palabra del título",
+                "botones «otra vista» y «compartir» del estilo crelly"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-isolate": {
+            "name": "Isolate",
+            "plugin": "lite",
+            "family": "A",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe UIkit con la imagen delante del texto: cada fila pasa a un contenedor con título, extracto, botón e imagen; el botón de reproducción pasa a un botón con enlace.",
+            "losses": [
+                "paralaje del contenido",
+                "velocidad de la animación de UIkit",
+                "igualar la altura de la imagen",
+                "diseño propio de los estilos locate y slice",
+                "estilo de la primera palabra del título"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-knily": {
+            "name": "Knily",
+            "plugin": "pro",
+            "family": "F",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de entradas con Swiper: el Loop Carousel de PRO (Swiper por necesidad demostrada: contenido dinámico) con una plantilla «Loop Item» generada; sin ella, la rejilla del widget Entradas. Una entrada por vista; se pierden las miniaturas, los botones de compartir y los efectos con licencia.",
+            "loss_codes": [
+                "ps.dyn.loss.share",
+                "ps.dyn.loss.thumbs"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-marble": {
+            "name": "Marble",
+            "plugin": "pro",
+            "family": "F",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de varias entradas por vista: el Loop Carousel de PRO con tantas diapositivas por vista como columnas tenía el origen y una plantilla «Loop Item» generada; sin ella, la rejilla del widget Entradas. Se pierden el contador de diapositivas y las diapositivas centradas.",
+            "loss_codes": [
+                "ps.dyn.loss.centered",
+                "ps.dyn.loss.count"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-material": {
+            "name": "Material",
+            "plugin": "pro",
+            "family": "F",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de varias entradas por vista: el Loop Carousel de PRO con tantas diapositivas por vista como columnas tenía el origen y una plantilla «Loop Item» generada; sin ella, la rejilla del widget Entradas. Se pierde el efecto Material You (UI Initiative, no redistribuible).",
+            "loss_codes": [
+                "ps.dyn.loss.effect_material"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-mercury": {
+            "name": "Mercury",
+            "plugin": "lite",
+            "family": "F",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de entradas con Swiper: el Loop Carousel de PRO (Swiper por necesidad demostrada: contenido dinámico) con una plantilla «Loop Item» generada; sin ella, la rejilla del widget Entradas. Una entrada por vista; se pierde el efecto de transición si no es «slide».",
+            "loss_codes": [
+                "ps.dyn.loss.layout"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-monster": {
+            "name": "Monster",
+            "plugin": "pro",
+            "family": "C",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-logos",
+            "fallback": "",
+            "alt_target": "digitalisimo-nested-slider",
+            "reason": "Carrusel de varias por vista con contenido: pasa al carrusel de Logotipos con sus columnas y las redes junto a él; si alguna fila no tiene imagen, al slider anidado.",
+            "losses": [
+                "efecto coverflow",
+                "lightbox de la imagen",
+                "sombras de las diapositivas"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-motion": {
+            "name": "Motion",
+            "plugin": "pro",
+            "family": "I",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Disposición circular: cada elemento de la lista pasa a un contenedor del slider anidado con imagen, título, texto y botón.",
+            "losses": [
+                "disposición circular y giro automático",
+                "animación de autor (GSAP, anime.js o Codrops)"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-mount": {
+            "name": "Mount",
+            "plugin": "lite",
+            "family": "A",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe UIkit sin extracto ni botón: cada fila pasa a un contenedor del slider anidado; las redes van junto al slider.",
+            "losses": [
+                "velocidad de la animación de UIkit",
+                "estilo de la primera palabra del título",
+                "navegación numerada"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-multiscroll": {
+            "name": "Multiscroll",
+            "plugin": "lite",
+            "family": "K",
+            "decision": "APROXIMAR",
+            "target": "container",
+            "fallback": "slides",
+            "alt_target": "digitalisimo-nested-slider",
+            "reason": "Pantalla completa: en un contenedor, un contenedor de 100 vh por fila con desplazamiento nativo; en una columna, el slider anidado.",
+            "losses": [
+                "secuestro del desplazamiento de la página (se gana el nativo)",
+                "reproducción automática por secciones"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-omatic": {
+            "name": "Omatic",
+            "plugin": "lite",
+            "family": "B",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe Swiper de una por vista: cada fila pasa a un contenedor del slider anidado con su imagen; los efectos 3D pasan a deslizar.",
+            "losses": [
+                "efecto cubo por defecto (se desliza)",
+                "efecto de vidrio esmerilado",
+                "líneas decorativas del subtítulo y del texto"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-pacific": {
+            "name": "Pacific",
+            "plugin": "lite",
+            "family": "F",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de varias entradas por vista: el Loop Carousel de PRO con tantas diapositivas por vista como columnas tenía el origen y una plantilla «Loop Item» generada; sin ella, la rejilla del widget Entradas. Se pierden la ventana modal y las diapositivas centradas.",
+            "loss_codes": [
+                "ps.dyn.loss.centered",
+                "ps.dyn.loss.modal"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-pagepiling": {
+            "name": "Pagepiling",
+            "plugin": "lite",
+            "family": "K",
+            "decision": "APROXIMAR",
+            "target": "container",
+            "fallback": "slides",
+            "alt_target": "digitalisimo-nested-slider",
+            "reason": "Pantalla completa: en un contenedor, un contenedor de 100 vh por fila con desplazamiento nativo; en una columna, el slider anidado.",
+            "losses": [
+                "secuestro del desplazamiento de la página (se gana el nativo)",
+                "reproducción automática por secciones",
+                "estilo de la primera palabra del título"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-pandora": {
+            "name": "Pandora",
+            "plugin": "pro",
+            "family": "J",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-fancy-tabs",
+            "fallback": "",
+            "reason": "Paneles al pasar el puntero: pasan a Pestañas destacadas (pestaña = título; panel = imagen y contenido).",
+            "losses": [
+                "activación al pasar el puntero (pasa a pestañas)",
+                "fondo a pantalla completa"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-panorama": {
+            "name": "Panorama",
+            "plugin": "pro",
+            "family": "H",
+            "decision": "APROXIMAR",
+            "target": "media-carousel",
+            "fallback": "",
+            "alt_target": "digitalisimo-logos",
+            "reason": "Galería de imágenes: sólo imágenes → Carrusel multimedia; con títulos o textos visibles → carrusel de Logotipos.",
+            "losses": [
+                "efecto panorámico con profundidad y giro (UI Initiative)"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-paranoia": {
+            "name": "Paranoia",
+            "plugin": "pro",
+            "family": "I",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Efecto de autor: el contenido de cada fila pasa a un contenedor del slider anidado con fundido; la animación propia se pierde.",
+            "losses": [
+                "animación de autor (GSAP, anime.js o Codrops)",
+                "desplazamientos de los textos"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-pieces": {
+            "name": "Pieces",
+            "plugin": "pro",
+            "family": "I",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Efecto de autor: cada fila pasa a un contenedor del slider anidado con su imagen y su título.",
+            "losses": [
+                "animación de autor (GSAP, anime.js o Codrops)",
+                "alto y ancho propios de la imagen"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-prism": {
+            "name": "Prism",
+            "plugin": "pro",
+            "family": "I",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Efecto de autor: el contenido de cada fila pasa a un contenedor del slider anidado con fundido.",
+            "losses": [
+                "animación de autor (GSAP, anime.js o Codrops)",
+                "cuenta de las diapositivas",
+                "título de vista previa"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-remote-arrows": {
+            "name": "Remote Arrows",
+            "plugin": "pro",
+            "family": "M",
+            "decision": "DESCARTAR",
+            "target": "",
+            "fallback": "",
+            "reason": "Control remoto de otro slider por su selector: el destino ya trae sus propios controles; queda en un marcador con su original.",
+            "owner": "E"
+        },
+        "prime-slider-remote-fraction": {
+            "name": "Remote Fraction",
+            "plugin": "pro",
+            "family": "M",
+            "decision": "DESCARTAR",
+            "target": "",
+            "fallback": "",
+            "reason": "Control remoto de otro slider por su selector: el destino ya trae sus propios controles; queda en un marcador con su original.",
+            "owner": "E"
+        },
+        "prime-slider-remote-pagination": {
+            "name": "Remote Pagination",
+            "plugin": "pro",
+            "family": "M",
+            "decision": "DESCARTAR",
+            "target": "",
+            "fallback": "",
+            "reason": "Control remoto de otro slider por su selector: el destino ya trae sus propios controles; queda en un marcador con su original.",
+            "owner": "E"
+        },
+        "prime-slider-remote-thumbs": {
+            "name": "Remote Thumbs",
+            "plugin": "pro",
+            "family": "M",
+            "decision": "DESCARTAR",
+            "target": "",
+            "fallback": "",
+            "reason": "Control remoto de otro slider por su selector: el destino ya trae sus propios controles; queda en un marcador con su original.",
+            "owner": "E"
+        },
+        "prime-slider-reveal": {
+            "name": "Reveal",
+            "plugin": "pro",
+            "family": "I",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Efecto de autor: cada fila pasa a un contenedor del slider anidado; el contenido fijo de la cabecera pasa a un título y un texto antes del slider.",
+            "losses": [
+                "animación de autor (GSAP, anime.js o Codrops)",
+                "pie de cada imagen"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-ring": {
+            "name": "Ring",
+            "plugin": "pro",
+            "family": "I",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Anillo de imágenes: cada imagen pasa a un contenedor del slider anidado con sus etiquetas como texto.",
+            "losses": [
+                "anillo giratorio con máscara",
+                "etiquetas superpuestas al pasar el puntero"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-rubix": {
+            "name": "Rubix",
+            "plugin": "lite",
+            "family": "F",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de varias entradas por vista: el Loop Carousel de PRO con tantas diapositivas por vista como columnas tenía el origen y una plantilla «Loop Item» generada; sin ella, la rejilla del widget Entradas. Se pierden las miniaturas de navegación y las diapositivas centradas.",
+            "loss_codes": [
+                "ps.dyn.loss.centered",
+                "ps.dyn.loss.thumbs"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-sequester": {
+            "name": "Sequester",
+            "plugin": "lite",
+            "family": "A",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe UIkit: cada fila pasa a un contenedor del slider anidado con la imagen de fondo; las redes van junto al slider.",
+            "losses": [
+                "igualar la altura de la imagen",
+                "velocidad de la animación de UIkit",
+                "estilo de la primera palabra del título"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-sniper": {
+            "name": "Sniper",
+            "plugin": "lite",
+            "family": "B",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe Swiper de una por vista: cada fila pasa a un contenedor del slider anidado con su imagen; sin miniaturas.",
+            "losses": [
+                "miniaturas",
+                "diapositiva centrada con las vecinas visibles",
+                "barra de desplazamiento"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-storker": {
+            "name": "Storker",
+            "plugin": "lite",
+            "family": "F",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de entradas con Swiper: el Loop Carousel de PRO (Swiper por necesidad demostrada: contenido dinámico) con una plantilla «Loop Item» generada; sin ella, la rejilla del widget Entradas. Una entrada por vista; el fundido de Swiper pasa a desplazamiento.",
+            "owner": "F"
+        },
+        "prime-slider-super-flow": {
+            "name": "Super Flow",
+            "plugin": "pro",
+            "family": "H",
+            "decision": "APROXIMAR",
+            "target": "media-carousel",
+            "fallback": "",
+            "alt_target": "digitalisimo-logos",
+            "reason": "Galería de imágenes: sólo imágenes → Carrusel multimedia; con títulos o textos visibles → carrusel de Logotipos.",
+            "losses": [
+                "fragmentos de la imagen (efecto propio)"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-tango": {
+            "name": "Tango",
+            "plugin": "lite",
+            "family": "C",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-logos",
+            "fallback": "",
+            "alt_target": "digitalisimo-nested-slider",
+            "reason": "Carrusel de varias por vista con contenido: pasa al carrusel de Logotipos con sus columnas; si alguna fila no tiene imagen, al slider anidado.",
+            "losses": [
+                "efecto coverflow",
+                "sombras de las diapositivas"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-titanic": {
+            "name": "Titanic",
+            "plugin": "pro",
+            "family": "B",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Héroe Swiper: cada fila pasa a un contenedor del slider anidado; la fracción pasa al contador y las cartas a fundido.",
+            "losses": [
+                "efecto «cartas» por defecto (pasa a fundido)",
+                "transiciones con licencia de terceros (se usan deslizar o fundido)",
+                "miniaturas"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-turnar": {
+            "name": "Turnar",
+            "plugin": "pro",
+            "family": "I",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "slides",
+            "reason": "Disposición circular: cada elemento pasa a un contenedor del slider anidado con imagen, título, texto y botón; la imagen central se pierde.",
+            "losses": [
+                "círculo giratorio",
+                "imagen central",
+                "ventana modal",
+                "animación de autor (GSAP, anime.js o Codrops)"
+            ],
+            "owner": "E"
+        },
+        "prime-slider-vertex": {
+            "name": "Vertex",
+            "plugin": "lite",
+            "family": "F",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "posts",
+            "reason": "Carrusel de varias entradas por vista: el Loop Carousel de PRO con tantas diapositivas por vista como columnas tenía el origen y una plantilla «Loop Item» generada; sin ella, la rejilla del widget Entradas. Se pierden las diapositivas centradas y el tamaño de imagen por diapositiva.",
+            "loss_codes": [
+                "ps.dyn.loss.centered"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-woocircle": {
+            "name": "WooCircle",
+            "plugin": "lite",
+            "family": "G",
+            "decision": "APROXIMAR",
+            "target": "woocommerce-products",
+            "fallback": "",
+            "reason": "Fichas de producto: el widget Productos de PRO en la presentación «Carrusel» propia (sin Swiper), con las partes del producto que mostraba el origen. Se pierde la disposición circular animada.",
+            "loss_codes": [
+                "ps.dyn.loss.circular"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-woocommerce": {
+            "name": "WooCommerce",
+            "plugin": "lite",
+            "family": "G",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "woocommerce-products",
+            "reason": "Héroe de productos: el Loop Carousel de PRO con la piel de productos, una por vista, y una plantilla «Loop Item» de producto generada (imagen de fondo, título, términos, extracto, precio y el formulario de compra de PRO); sin ella, el widget Productos en carrusel. Se pierde la composición de imagen y texto en dos columnas.",
+            "loss_codes": [
+                "ps.dyn.loss.layout"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-wooexpand": {
+            "name": "WooExpand",
+            "plugin": "pro",
+            "family": "G",
+            "decision": "APROXIMAR",
+            "target": "woocommerce-products",
+            "fallback": "",
+            "reason": "Fichas de producto: el widget Productos de PRO en la presentación «Carrusel» propia (sin Swiper), con las partes del producto que mostraba el origen. Se pierden los paneles que se expanden al pulsar o al pasar el puntero.",
+            "loss_codes": [
+                "ps.dyn.loss.expand"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-woohotspot": {
+            "name": "Woo HotSpot",
+            "plugin": "pro",
+            "family": "G",
+            "decision": "APROXIMAR",
+            "target": "digitalisimo-nested-slider",
+            "fallback": "hotspot",
+            "reason": "Tres diapositivas fijas con una imagen y sus puntos: el slider anidado con un contenedor por diapositiva y, en cada uno, el widget Puntos de interés de PRO (posición, título, texto, precio y enlace en el globo); sin el slider anidado, los tres widgets uno tras otro. Se pierden la animación del globo y las transiciones con licencia.",
+            "owner": "F"
+        },
+        "prime-slider-woolamp": {
+            "name": "WooLamp",
+            "plugin": "lite",
+            "family": "G",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "woocommerce-products",
+            "reason": "Héroe de productos: el Loop Carousel de PRO con la piel de productos, una por vista, y una plantilla «Loop Item» de producto generada (imagen de fondo, título, términos, extracto, precio y el formulario de compra de PRO); sin ella, el widget Productos en carrusel. Se pierden los botones de compartir y la composición en dos columnas.",
+            "loss_codes": [
+                "ps.dyn.loss.layout",
+                "ps.dyn.loss.share"
+            ],
+            "owner": "F"
+        },
+        "prime-slider-woostand": {
+            "name": "WooStand",
+            "plugin": "pro",
+            "family": "G",
+            "decision": "APROXIMAR",
+            "target": "loop-carousel",
+            "fallback": "woocommerce-products",
+            "reason": "Héroe de productos: el Loop Carousel de PRO con la piel de productos, una por vista, y una plantilla «Loop Item» de producto generada (imagen de fondo, título, términos, extracto, precio y el formulario de compra de PRO); sin ella, el widget Productos en carrusel. Se pierden el efecto de vidrio y la posición lateral del contenido.",
+            "loss_codes": [
+                "ps.dyn.loss.glass",
+                "ps.dyn.loss.layout"
+            ],
+            "owner": "F"
+        }
+    }
+}
