@@ -6068,7 +6068,7 @@
   }
  },
  "f8-marker": {
-  "title": "Marcador de K (F8, frente I): un widget del origen sin destino envuelto en digitalisimo-unconverted; no pinta nada y no añade peticiones, scripts ni hojas (coste de los ganchos de K en el front, medido; con MIGRATION=1 tampoco se convierte en el front)",
+  "title": "Marcador de K (F8, frente I): un widget del origen sin destino envuelto en digitalisimo-unconverted; no pinta nada y no añade peticiones, scripts ni hojas (el CSS del documento sólo cambia en las cifras de su ID: ≤ 8 B); coste de los ganchos de K en el front, medido; con MIGRATION=1 tampoco se convierte en el front",
   "since": "4.3.0.170",
   "widgets": [
    {
@@ -6117,7 +6117,7 @@
     "count:legacy": 0,
     "delta.requests": "<=0",
     "delta.js": "<=0",
-    "delta.css": "<=0",
+    "delta.css": "<=8",
     "delta.cls": "<=0"
    }
   }

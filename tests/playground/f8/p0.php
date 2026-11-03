@@ -153,7 +153,8 @@ function digi_f8_ps_vendor() {
 	}
 	$video = (string) end( $videos );
 	foreach ( $videos as $id ) {
-		if ( '' !== $id && false !== strpos( $source, (string) $id ) ) {
+		// `{{demo_video}}` es un enlace de YouTube (https://youtu.be/<id>): el ID tiene que aparecer como vídeo de YouTube.
+		if ( '' !== $id && preg_match( '#(?:youtube\.com/watch\?v=|youtu\.be/)' . preg_quote( (string) $id, '#' ) . '\b#', $source ) ) {
 			$video = (string) $id;
 			break;
 		}

@@ -86,7 +86,8 @@ async function probe(page, blog) {
 }
 
 (async () => {
-  const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', `--host-resolver-rules=MAP playground.test 127.0.0.1:${port}`] });
+  // protocolTimeout: la espera del resumen de red (waitForFunction) dura más que los 180 s por defecto de puppeteer.
+  const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', protocolTimeout: 1800000, args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', `--host-resolver-rules=MAP playground.test 127.0.0.1:${port}`] });
   try {
     // 1. Antes: Element Pack activo en cada sitio y Elementor (plugin) en toda la red.
     const guest = await browser.createBrowserContext();
@@ -112,7 +113,17 @@ async function probe(page, blog) {
     ok(buttons.length === 1 && buttons[0] === 'Migrar toda la red', 'la pantalla de red tiene un solo botón: «Migrar toda la red»', buttons);
     const started = Date.now();
     await page.click('#digi-migrate .digi-migrate__button');
-    await page.waitForFunction(() => { const done = document.querySelector('#digi-migrate .digi-migrate__done'); return done && /Migración de la red completada/.test(done.textContent); }, { timeout: 1500000, polling: 2000 });
+    try {
+      await page.waitForFunction(() => { const done = document.querySelector('#digi-migrate .digi-migrate__done'); return done && /Migración de la red completada/.test(done.textContent); }, { timeout: 1500000, polling: 2000 });
+    } catch (e) {
+      // Diagnóstico: dónde quedó la pantalla y qué dice, y el estado de cada sitio.
+      results.waitError = { message: String(e.message || e), url: page.url(), errors: page.errors.slice(0, 10), seconds: Math.round((Date.now() - started) / 1000) };
+      results.waitError.status = await page.$eval('#digi-migrate', (el) => el.innerText).catch((x) => `sin pantalla: ${x.message}`);
+      const diag = await newPage(admin);
+      results.waitError.sites = {};
+      for (const blog of Object.keys(blogs)) results.waitError.sites[blog] = await probe(diag, blog).then((st) => ({ job: st.job, network_job: st.network_job, active: st.active, network: st.network })).catch((x) => String(x));
+      throw e;
+    }
     results.seconds = Math.round((Date.now() - started) / 1000);
     const summary = await page.$eval('#digi-migrate .digi-migrate__status', (el) => el.innerText);
     results.networkSummary = summary;

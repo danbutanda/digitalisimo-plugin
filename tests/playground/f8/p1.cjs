@@ -91,7 +91,10 @@ module.exports = (api) => async (s) => {
   check(s, 'P1.6', `un destino de cada tipo (${Object.keys(sample).length}) responde 200 y pinta en Chrome sin errores de JavaScript ni recursos rotos`, !Object.keys(jsBad).length, JSON.stringify({ sample, jsBad }));
 
   // Slider anidado: teclado y movimiento reducido.
-  const nestedKey = keys.find((k) => targets[k] === 'digitalisimo-nested-slider' && docs[k].case === 'custom' && /<button[^>]*digi-nslider__dot/.test(html[k] || '')) || keys.find((k) => targets[k] === 'digitalisimo-nested-slider');
+  // Preferencia: uno con reproducción automática (botón de pausa) y puntos; si no, cualquiera.
+  const nested = keys.filter((k) => targets[k] === 'digitalisimo-nested-slider');
+  const nestedKey = nested.find((k) => /digi-nslider__pause/.test(html[k] || '') && /digi-nslider__dot/.test(html[k] || '')) || nested.find((k) => /digi-nslider__pause/.test(html[k] || '')) || nested[0];
+  s.facts.nested_autoplay = nested.filter((k) => /digi-nslider__pause/.test(html[k] || '')).length;
   if (!nestedKey) { pending(s, 'P1.7', 'slider anidado con teclado y movimiento reducido', 'ningún documento convertido al slider anidado'); return; }
   const state = (pg) => pg.evaluate(() => {
     const r = document.querySelector('.digi-nslider');
