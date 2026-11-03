@@ -167,6 +167,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 
 | Etapa | Estado |
 |---|---|
-| C0 | **Publicado** · Elements 4.3.0.172 y Migración 1.0.22 · @C0_TAG@. Núcleo de conversión, inventario y etapa `pro` de «Migrar», arnés A/B (`tests/playground/pro-ab.sh`) y de punta a punta (`pro-migrate.sh`), y el piloto: Blockquote → Cita, listo y oculto del panel. Detalle en `docs/pro/c0.md` |
+| C0 | **Publicado** · Elements 4.3.0.172 y Migración 1.0.22 · `v2026.11.03.448`. Núcleo de conversión, inventario y etapa `pro` de «Migrar», arnés A/B (`tests/playground/pro-ab.sh`) y de punta a punta (`pro-migrate.sh`), y el piloto: Blockquote → Cita, listo y oculto del panel. Detalle en `docs/pro/c0.md` |
 | C1–C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |
