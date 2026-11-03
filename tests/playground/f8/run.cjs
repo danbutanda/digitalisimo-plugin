@@ -32,7 +32,9 @@ const log = (...a) => { const line = `[${String(Math.round((Date.now() - T0) / 1
 // ── Resultados ─────────────────────────────────────────────────────────────────────────────────────────────────
 const SUMMARY_FILE = path.join(OUT, 'summary.json');
 function readSummary() { try { return JSON.parse(fs.readFileSync(SUMMARY_FILE, 'utf8')); } catch (e) { return null; } }
-const s = { id: SCENARIO, title: TITLES[SCENARIO] || SCENARIO, status: 'pendiente', checks: [], problems: [], notes: [], facts: {}, ms: 0, run: ENV.RUN_ID, git: ENV.GIT_SHA };
+// Variante PRO=1 de P2 (conflicto de Elementor Pro): se guarda aparte para no pisar la corrida normal.
+const KEY = SCENARIO === 'P2' && ENV.PRO === '1' ? 'P2-PRO' : SCENARIO;
+const s = { id: KEY, title: TITLES[SCENARIO] || SCENARIO, status: 'pendiente', checks: [], problems: [], notes: [], facts: {}, ms: 0, run: ENV.RUN_ID, git: ENV.GIT_SHA };
 function check(sc, id, what, ok, detail = '') {
   const d = detail === '' || detail === undefined ? undefined : (typeof detail === 'string' ? detail : JSON.stringify(detail));
   sc.checks.push({ id, what, status: ok ? 'ok' : 'falla', detail: d ? d.slice(0, 2000) : undefined });
@@ -58,12 +60,12 @@ function write() {
   summary.elements = { version: ENV.ELEMENTS_VERSION, tree: ENV.TREE_ELEMENTS || summary.elements && summary.elements.tree, sha: ENV.ELEMENTS_SHA, stamped: ENV.STAMP === '1' };
   summary.migration = { version: ENV.MIGRATION_VERSION, tree: ENV.TREE_MIGRATION || summary.migration && summary.migration.tree, sha: ENV.MIGRATION_SHA, stamped: ENV.STAMP === '1' };
   summary.scenarios = summary.scenarios || {};
-  summary.scenarios[SCENARIO] = s;
+  summary.scenarios[KEY] = s;
   summary.runs = summary.runs || [];
   const logs = {};
   for (const f of ['fatal.log', 'php-errors.log', 'http-blocked.log', 'http-out.log']) logs[f] = serverLog(f).split('\n').filter(Boolean).length;
-  summary.runs = summary.runs.filter((r) => !(r.scenario === SCENARIO && r.run === ENV.RUN_ID));
-  summary.runs.push({ scenario: SCENARIO, run: ENV.RUN_ID, git: ENV.GIT_SHA, elements_sha: ENV.ELEMENTS_SHA, migration_sha: ENV.MIGRATION_SHA, status: s.status, duration_s: Math.round(s.ms / 1000), logs });
+  summary.runs = summary.runs.filter((r) => !(r.scenario === KEY && r.run === ENV.RUN_ID));
+  summary.runs.push({ scenario: KEY, run: ENV.RUN_ID, git: ENV.GIT_SHA, elements_sha: ENV.ELEMENTS_SHA, migration_sha: ENV.MIGRATION_SHA, status: s.status, duration_s: Math.round(s.ms / 1000), logs });
   const failed = Object.values(summary.scenarios).filter((x) => x.status === 'falla');
   summary.status = failed.length ? 'falla' : 'ok';
   summary.finished = new Date().toISOString();

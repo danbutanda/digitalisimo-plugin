@@ -104,7 +104,7 @@ module.exports = (api) => async (s) => {
   check(s, 'P2.7a', 'la fuente propia es una fuente de Elements publicada con su archivo', !!font && font.status === 'publish' && /woff/.test(JSON.stringify(font.files || '')), JSON.stringify(font || plat.fonts));
   const vf = await open(m.urls['digi-f8-fuente']);
   const fontUse = await vf.page.evaluate(async () => {
-    const h = document.querySelector('.elementor-heading-title');
+    const h = document.querySelector('[data-elementor-type="wp-page"] .elementor-heading-title');
     const faces = [];
     for (const sheet of document.styleSheets) { let rules = []; try { rules = [...sheet.cssRules]; } catch (e) { continue; } for (const r of rules) if (r.type === CSSRule.FONT_FACE_RULE) faces.push(r.style.getPropertyValue('font-family')); }
     const rules = [];
