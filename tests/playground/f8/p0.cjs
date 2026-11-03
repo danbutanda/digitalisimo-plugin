@@ -21,8 +21,9 @@ const path = require('path');
 module.exports = (api) => async (s) => {
   const { OUT, RUN, check, pending, note, control, login, migrate, request, open, shot, vendorTrace, sleep, text } = api;
   // Tandas: a, b1 (B de la primera mitad), b2 (B de la segunda mitad) y c; P0_PART=a,b1 o una sola.
-  const PARTS = (process.env.P0_PART || 'a,b1,b2,c').split(',').map((x) => x.trim()).filter((p) => ['a', 'b1', 'b2', 'c'].includes(p));
-  const PREFIX = { a: 'P0.A', b1: 'P0.B1.', b2: 'P0.B2.', c: 'P0.C' };
+  // `ed` (diagnóstico de C2): el editor real de cada documento convertido de P0_ED_KEYS, uno a uno, con la traza de errores.
+  const PARTS = (process.env.P0_PART || 'a,b1,b2,c').split(',').map((x) => x.trim()).filter((p) => ['a', 'b1', 'b2', 'c', 'ed'].includes(p));
+  const PREFIX = { a: 'P0.A', b1: 'P0.B1.', b2: 'P0.B2.', c: 'P0.C', ed: 'P0.ED' };
   const DATA = path.join(OUT, 'P0-data');
   fs.mkdirSync(DATA, { recursive: true });
   const WIDTHS = [360, 768, 1280];
@@ -186,6 +187,34 @@ module.exports = (api) => async (s) => {
       check(s, `${P}9`, `A/B de ${half.length} páginas: toda diferencia de texto, enlace o imagen está declarada (${declared} declaradas)`, !unexplained.length, JSON.stringify(unexplained.slice(0, 6).map(([k, d]) => [k, d.unexplained.slice(0, 6)])));
       const styleDiff = Object.values(diff).reduce((n, d) => n + d.styles, 0);
       note(s, `A/B ${token}: ${styleDiff} textos con estilo computado distinto; los estilos propios de cada widget no se trasladan (ps.loss.styles, informado por documento)`);
+    }
+  }
+
+  // ── ed · Editor real de cada documento, solo y con su traza (diagnóstico de P0.C2) ─────────────────────────────
+  if (PARTS.includes('ed')) {
+    await doMigrate('P0.ED');
+    const want = (process.env.P0_ED_KEYS || 'digi-f8-ps-dragon-custom,digi-f8-ps-general-custom,digi-f8-ps-dragon-defaults').split(',');
+    for (const key of want) {
+      if (!m.ids[key]) { pending(s, `P0.ED.${key}`, `editor de ${key}`, 'sin documento'); continue; }
+      const ctx = await api.context('admin');
+      const page = await api.newPage(ctx, { width: 1640, height: 1000 });
+      const traces = [];
+      page.on('pageerror', (e) => traces.push(String(e && e.stack || e).slice(0, 1500)));
+      page.on('console', (msg) => { if (msg.type() === 'error') traces.push(`console: ${msg.text().slice(0, 600)}`); });
+      const t0 = Date.now();
+      let state = null;
+      try {
+        await page.goto(`${api.BASE}/wp-admin/post.php?post=${m.ids[key]}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+        await page.waitForFunction(() => { const l = document.querySelector('#elementor-loading'); return window.elementor && window.$e && window.elementor.documents && window.elementor.documents.getCurrent() && (!l || getComputedStyle(l).display === 'none'); }, { timeout: 300000 });
+        await sleep(2000);
+        state = await page.evaluate(() => { const out = []; const walk = (c) => (c.children || []).forEach((ch) => { out.push(`${ch.model.get('elType')}:${ch.model.get('widgetType') || ''}`); walk(ch); }); walk(window.elementor.getPreviewContainer()); return out; });
+      } catch (e) {
+        traces.push(`arnés: ${e.message}`);
+      }
+      await shot(page, `p0-ed-${key}`);
+      await ctx.close();
+      fs.writeFileSync(path.join(RUN, `editor-${key}.json`), JSON.stringify({ state, traces, ms: Date.now() - t0 }, null, 1));
+      check(s, `P0.ED.${key}`, `el editor real abre ${key} y lo pinta en el modelo (${Math.round((Date.now() - t0) / 1000)} s)`, Array.isArray(state) && state.length > 0 && !traces.some((t) => /pageerror|TypeError|arnés/.test(t) || /^TypeError|^Error/.test(t)), JSON.stringify({ state: state && state.slice(0, 12), traces: traces.slice(0, 4) }));
     }
   }
 
