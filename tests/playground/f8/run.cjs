@@ -147,7 +147,9 @@ const PAGE = 'digitalisimo-ep-migration';
 /** Pantalla de la herramienta del sitio (o de la red): `{ ajax, nonce, html, buttons }`. */
 async function tool(jar, { site = '', network = false } = {}) {
   const url = network ? '/wp-admin/network/settings.php?page=' + PAGE : `${site}/wp-admin/tools.php?page=${PAGE}`;
-  const res = await request('GET', url, { jar });
+  let res = await request('GET', url, { jar });
+  // La primera visita a la administración tras activar WooCommerce redirige una vez a su asistente: se repite.
+  for (let i = 0; i < 2 && res.status === 302 && !/wp-login\.php/.test(String(res.headers.location || '')); i++) res = await request('GET', url, { jar });
   const box = (res.text.match(/<div id="digi-migrate"[^>]*>/) || [''])[0];
   const attr = (n) => ((box.match(new RegExp(`${n}="([^"]*)"`)) || [])[1] || '').replace(/&amp;/g, '&');
   // Botones del contenido de la pantalla (sin el menú de la administración ni las plantillas del constructor).
