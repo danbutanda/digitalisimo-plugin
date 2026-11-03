@@ -33,7 +33,9 @@ const log = (...a) => { const line = `[${String(Math.round((Date.now() - T0) / 1
 const SUMMARY_FILE = path.join(OUT, 'summary.json');
 function readSummary() { try { return JSON.parse(fs.readFileSync(SUMMARY_FILE, 'utf8')); } catch (e) { return null; } }
 // Variante PRO=1 de P2 (conflicto de Elementor Pro): se guarda aparte para no pisar la corrida normal.
-const KEY = SCENARIO === 'P2' && ENV.PRO === '1' ? 'P2-PRO' : SCENARIO;
+const KEY = SCENARIO === 'P2' && ENV.PRO === '1' ? 'P2-PRO'
+  : SCENARIO === 'P3' ? ['P3', ENV.P3_CASE && ENV.P3_CASE !== 'main' ? ENV.P3_CASE : '', +ENV.SITES ? `${ENV.SITES}sitios` : ''].filter(Boolean).join('-')
+    : SCENARIO === 'P8' && ENV.P8_CASE ? `P8-${ENV.P8_CASE}` : SCENARIO;
 const s = { id: KEY, title: TITLES[SCENARIO] || SCENARIO, status: 'pendiente', checks: [], problems: [], notes: [], facts: {}, ms: 0, run: ENV.RUN_ID, git: ENV.GIT_SHA };
 function check(sc, id, what, ok, detail = '') {
   const d = detail === '' || detail === undefined ? undefined : (typeof detail === 'string' ? detail : JSON.stringify(detail));

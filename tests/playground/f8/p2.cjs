@@ -101,6 +101,12 @@ module.exports = (api) => async (s) => {
   // Plataforma.
   fs.writeFileSync(path.join(RUN, 'platform-after.json'), JSON.stringify(plat, null, 1));
   const font = plat.fonts.find((f) => f.title === 'Letra Prueba');
+  const siteCodes = ((st.report_f8 || {}).site || {}).items || [];
+  if (PRO) {
+    // El «Elementor Pro» falso sólo tiene la cabecera: mientras está activo no hay gestor de fuentes (ni el de Elements
+    // ni el suyo), y la fuente falla cerrada con su aviso. Con el plugin real, su gestor sí existe.
+    check(s, 'P2.7a', 'PRO=1: sin gestor de fuentes durante la preparación, la fuente falla cerrada e informada (plat.font.failed)', !font && siteCodes.some((c) => c.code === 'plat.font.failed'), JSON.stringify(siteCodes.map((c) => c.code)));
+  } else {
   check(s, 'P2.7a', 'la fuente propia es una fuente de Elements publicada con su archivo', !!font && font.status === 'publish' && /woff/.test(JSON.stringify(font.files || '')), JSON.stringify(font || plat.fonts));
   const vf = await open(m.urls['digi-f8-fuente']);
   const fontUse = await vf.page.evaluate(async () => {
@@ -113,6 +119,7 @@ module.exports = (api) => async (s) => {
   });
   check(s, 'P2.7b', 'la página con la fuente la declara con @font-face y el título la usa', !!fontUse.family && /Letra Prueba/.test(fontUse.family) && fontUse.faces.some((f) => /Letra Prueba/.test(f)), JSON.stringify(fontUse));
   await vf.close();
+  }
   const iconDirs = Object.entries(plat.icon_dirs || {});
   check(s, 'P2.7c', 'el conjunto de iconos se copió a uploads/elementor/custom-icons/ con sus archivos', iconDirs.length === 1 && iconDirs[0][1].includes('style.css'), JSON.stringify(plat.icon_dirs));
   const doc = await control('doc', { key: 'digi-f8-iconos', full: '1' });

@@ -33,6 +33,8 @@
 #                    1.0.21 (las que publicará la etapa): Migración exige Elements ≥ 4.3.0.170 y trata como «tarea de
 #                    1.0.20» la creada por una versión anterior a 1.0.21
 #   PRO=1            P2 con el conflicto de Elementor Pro      SITES=24   P3 con 24 sitios más
+#   P3_CASE          main (por defecto), deadline, blocked, addon-net o pro-net (ver f8/p3.php)
+#   P8_CASE          migration (1.0.20 ↔ 1.0.21) o elements (4.3.0.169 con una tarea en curso y con los rasgos)
 #   LIVE=1           monta el árbol de trabajo (sin STAMP; P8 queda fuera)
 #   KEEP=1           sólo prepara el primer escenario y lo deja arrancado
 #   REF_DIR          copias oficiales (por defecto reference/ del repositorio principal)
@@ -204,7 +206,7 @@ run_scenario() {
   if [ "$NET" = 1 ]; then host='playground.test'; site_url='http://playground.test'; else host="127.0.0.1:$PORT"; site_url="http://$host"; fi
   node -e '
 const [out, scenario, file, token, net, woo, epHeader, pro, sites, host] = process.argv.slice(1);
-require("fs").writeFileSync(out + "/mode.json", JSON.stringify({ scenario, scenario_file: file, token, net: net === "1", woo: woo === "1", ep_header: epHeader === "1", pro: pro === "1", sites: Number(sites) || 0, host, writable: ["elementor_active_kit"] }, null, 1));
+require("fs").writeFileSync(out + "/mode.json", JSON.stringify({ scenario, scenario_file: file, token, net: net === "1", woo: woo === "1", ep_header: epHeader === "1", pro: pro === "1", sites: Number(sites) || 0, host, p3_case: process.env.P3_CASE || "main", p8_case: process.env.P8_CASE || "", writable: ["elementor_active_kit"] }, null, 1));
 ' "$run" "$P" "$p.php" "$token" "$NET" "$WOO" "$EP_HEADER" "${PRO:-0}" "${SITES:-0}" "$host"
   steps=''
   [ "$NET" = 1 ] && steps='{"step":"enableMultisite"},'
@@ -266,7 +268,7 @@ fs.writeFileSync(f, JSON.stringify(s, null, 1) + "\n");' "$OUT" "$P" "$(cat "$ru
   echo "  sitio listo en $(( $(date +%s) - t0 )) s"
   node -e 'require("fs").writeFileSync(process.argv[1] + "/env.json", JSON.stringify(Object.fromEntries(process.argv.slice(2).map((kv) => [kv.slice(0, kv.indexOf("=")), kv.slice(kv.indexOf("=") + 1)])), null, 1))' "$run" \
     "OUT=$OUT" "RUN=$run" "ROOT=$ROOT" "SCENARIO=$P" "BASE=$site_url" "PORT=$PORT" "HOST=$host" "TOKEN=$token" "NET=$NET" "WOO=$WOO" \
-    "PRO=${PRO:-0}" "SITES=${SITES:-0}" "GIT_SHA=$GIT_SHA" "STARTED=$t0" "RUN_ID=$RUN_ID" "SRC=$SRC" "VENDOR=$VENDOR" \
+    "PRO=${PRO:-0}" "SITES=${SITES:-0}" "P3_CASE=${P3_CASE:-main}" "P8_CASE=${P8_CASE:-}" "GIT_SHA=$GIT_SHA" "STARTED=$t0" "RUN_ID=$RUN_ID" "SRC=$SRC" "VENDOR=$VENDOR" \
     "ELEMENTS_VERSION=$ELEMENTS_VERSION" "ELEMENTS_SHA=$ELEMENTS_SHA" "MIGRATION_VERSION=$MIGRATION_VERSION" "MIGRATION_SHA=$MIGRATION_SHA" \
     "TREE_ELEMENTS=$TREE_ELEMENTS" "TREE_MIGRATION=$TREE_MIGRATION" "STAMP=$STAMP" "LIVE=${LIVE:-0}"
   if [ "${KEEP:-0}" = 1 ]; then

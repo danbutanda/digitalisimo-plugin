@@ -16,6 +16,7 @@ require_once ABSPATH . 'wp-admin/includes/plugin.php';
 require_once ABSPATH . 'wp-admin/includes/image.php';
 require_once ABSPATH . 'wp-admin/includes/file.php';
 require_once ABSPATH . 'wp-admin/includes/media.php';
+require_once ABSPATH . 'wp-admin/includes/taxonomy.php';
 require_once WP_CONTENT_DIR . '/probe/lib.php';
 
 $mode  = digi_f8_mode();

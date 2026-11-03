@@ -723,6 +723,23 @@ final class Runner {
 			return self::next( $state, 'platform_convert' );
 		}
 		$gate = self::ep_gate( $state );
+		// Elementor Pro o PRO Elements activos en este sitio: mientras sigan cargados, el Theme Builder de Elements no
+		// carga y la condición 5 nunca se cumple en esta petición (V.5.3). Se desactivan primero (sin el grupo de
+		// Element Pack) y la etapa se repite en la petición siguiente, ya con el Theme Builder; antes, la tarea cerraba
+		// con Element Pack activo y sin convertir, y había que volver a pulsar Migrar (Playground P2 con PRO=1, frente J).
+		if ( 'tb.no_builder' === $gate && empty( $state['pro_first'] ) ) {
+			$pro_active = false;
+			foreach ( Retire::status() as $info ) {
+				$pro_active = $pro_active || ( 'pro' === $info['group'] && ! empty( $info['site'] ) );
+			}
+			if ( $pro_active ) {
+				$state['pro_first'] = true;
+				$state              = self::retire_site( $state, array( 'element-pack' ) );
+				if ( ! empty( $state['deactivated_at'] ) ) {
+					return self::hold( $state );
+				}
+			}
+		}
 		if ( 'tb.plugin_inactive' === $gate ) {
 			// No había Element Pack activo: las copias se quedan en borrador y lo demás se desactiva.
 			if ( self::has( 'Platform\\Registry', 'all' ) && Platform\Registry::all( 'tb' ) ) {
