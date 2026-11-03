@@ -6154,7 +6154,7 @@
    "cover": "/digitalisimo-elements/facades/youtube-dQw4w9WgXcQ\\.(webp|jpg)"
   },
   "calls": {
-   "service": "youtube|ytimg|googlevideo|ggpht|doubleclick"
+   "service": "^https://([a-z0-9-]+\\.)*(youtube(-nocookie)?\\.com|ytimg\\.com|googlevideo\\.com)/"
   },
   "counts": {
    "facade": ".digi-facade[data-digi-facade]",
@@ -6247,7 +6247,7 @@
    "facade-css": "/digitalisimo-front/assets/facade\\.css"
   },
   "calls": {
-   "service": "youtube|ytimg|googlevideo|ggpht|doubleclick|vimeo|vimeocdn"
+   "service": "^https://([a-z0-9-]+\\.)*(youtube(-nocookie)?\\.com|ytimg\\.com|googlevideo\\.com|vimeo\\.com|vimeocdn\\.com)/"
   },
   "counts": {
    "facade": ".digi-facade[data-digi-facade]",
@@ -6330,7 +6330,7 @@
    "facade-css": "/digitalisimo-front/assets/facade\\.css"
   },
   "calls": {
-   "service": "youtube|ytimg|googlevideo|ggpht|doubleclick"
+   "service": "^https://([a-z0-9-]+\\.)*(youtube(-nocookie)?\\.com|ytimg\\.com|googlevideo\\.com)/"
   },
   "counts": {
    "facade": ".digi-facade[data-digi-facade]",
@@ -6400,7 +6400,7 @@
    "facade-css": "/digitalisimo-front/assets/facade\\.css"
   },
   "calls": {
-   "service": "vimeo|vimeocdn"
+   "service": "^https://([a-z0-9-]+\\.)*(vimeo\\.com|vimeocdn\\.com)/"
   },
   "counts": {
    "facade": ".digi-facade[data-digi-facade]",
@@ -6471,7 +6471,7 @@
    "facade-css": "/digitalisimo-front/assets/facade\\.css"
   },
   "calls": {
-   "service": "vimeo|vimeocdn"
+   "service": "^https://([a-z0-9-]+\\.)*(vimeo\\.com|vimeocdn\\.com)/"
   },
   "counts": {
    "facade": ".digi-facade[data-digi-facade]",
@@ -6554,7 +6554,7 @@
    "map": "/digitalisimo-elements/facades/map-[0-9a-f]{16}\\.(webp|jpg)"
   },
   "calls": {
-   "service": "openstreetmap\\.org"
+   "service": "^https://([a-z0-9-]+\\.)*openstreetmap\\.org/"
   },
   "counts": {
    "facade": ".digi-facade[data-digi-facade]",
@@ -6634,7 +6634,7 @@
    "map": "/digitalisimo-elements/facades/map-[0-9a-f]{16}\\.(webp|jpg)"
   },
   "calls": {
-   "service": "openstreetmap\\.org"
+   "service": "^https://([a-z0-9-]+\\.)*openstreetmap\\.org/"
   },
   "counts": {
    "facade": ".digi-facade[data-digi-facade]",
@@ -6698,7 +6698,7 @@
    "facade-css": "/digitalisimo-front/assets/facade\\.css"
   },
   "calls": {
-   "service": "example\\.com"
+   "service": "^https?://example\\.com/"
   },
   "counts": {
    "facade": ".digi-facade[data-digi-facade]",

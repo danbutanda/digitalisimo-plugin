@@ -4,7 +4,7 @@ Constructor visual completo: editor, funciones avanzadas, kits, plantillas y wid
 
 Incluye software libre de terceros bajo GPLv3. Sus avisos de copyright y licencias están en license.txt y COPYING; los cambios de DIGITALÍSIMO se describen en DIGITALISIMO_CHANGES.md.
 
-Todo funciona en el sitio: el constructor no se conecta con servicios ni cuentas externas.
+Todo funciona en el sitio: el constructor no se conecta con servicios ni cuentas externas. Sólo los widgets que incrustan un servicio que eliges (un vídeo de YouTube, Vimeo, Dailymotion o Wistia, un mapa de OpenStreetMap, un visor de documentos) lo contactan; con las fachadas activas, el visitante no lo hace hasta pulsar, y el servidor descarga una sola vez la portada o la imagen del mapa para servirla desde el sitio.
 
 == Kits ==
 
@@ -29,6 +29,7 @@ Las páginas sólo cargan lo que usan: una página hecha con el constructor y lo
 * Iconos en línea (SVG) sin fuentes de iconos: en un sitio que ya existe nunca se aplican solos. Primero se analiza el sitio, se muestra lo que podría depender de las fuentes de iconos y se aplican con un botón que se puede revertir.
 * Opcional: Lottie y el resaltado de código pueden cargar su librería al acercarse a la pantalla.
 * Opcional: los vídeos de fondo y los del widget Vídeo con reproducción automática (archivos alojados, no YouTube ni Vimeo) pueden esperar a estar a una pantalla de distancia para descargarse; hasta entonces no cuestan ni un byte.
+* Opcional, fachadas: el Reproductor de video, el Slider de dispositivos, el Panel lateral, el Mapa y el Visor de documentos muestran una portada con un botón («Reproducir el vídeo», «Ver mapa interactivo», «Ver el documento aquí») en lugar del reproductor, el mapa o el visor de otro sitio. Hasta que el visitante pulsa, la página no pide nada a ese servicio; entonces el vídeo arranca solo y el foco pasa a él. La portada de cada vídeo y la imagen de cada mapa (con su marcador y la atribución de OpenStreetMap) se descargan una sola vez al servidor, en segundo plano, y se sirven desde el sitio; mientras tanto la fachada se ve sin imagen. Sin JavaScript se ve el contenido de siempre.
 
 Todo se ajusta en la pantalla «Rendimiento» de DIGITALÍSIMO Elements, en cada sitio y, en una red, también en la administración de la red, cuyos valores heredan los sitios que no los cambian. Al actualizar, cada sitio vacía una vez los archivos generados del constructor para aplicar los cambios.
 

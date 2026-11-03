@@ -158,7 +158,7 @@ Paridad sitio/red con los cuatro puntos de `AGENTS.md` trasladados a Elements: `
 
 - La carga condicional de PRO puede dejar sin script un popup o una plantilla del Theme Builder: se detecta por documento, plantillas asignadas y popups de la página, con un filtro para forzar la carga y pruebas de cada combinación en Playground. Falla abierta, y el interruptor `pro_conditional` la apaga por sitio o por red.
 - **Volver a 4.3.0.162** (desde `rollback/`): las páginas guardadas por una caché de página quedarían sin los paquetes de PRO. Tras instalarla, «Vaciar archivos y datos» en Herramientas del constructor, que dispara `elementor/core/files/clear_cache` (la acción que escuchan los plugins de caché de página y DIGITALÍSIMO SEO). Es un paso manual.
-- Las fachadas cambian la experiencia (un clic para reproducir): opción por widget, activa sólo en contenido nuevo.
+- Las fachadas cambian la experiencia (un clic para reproducir y, en iOS, a veces un segundo toque, porque el gesto no cruza al iframe de otro origen): por eso son un interruptor de «Rendimiento» apagado por defecto, con paridad sitio/red, como `lazy_videos`; nada cambia en un sitio hasta que su administrador (o la red) lo activa, y apagarlo vuelve a los iframes de siempre tras la transición.
 - Los defaults del núcleo se aplican sólo donde el sitio nunca eligió y se revierten desde Elementor; «Marcado optimizado» queda fuera de los defaults.
 - Toda fase se publica como versión de Elements con su ZIP anterior en `rollback/`.
 

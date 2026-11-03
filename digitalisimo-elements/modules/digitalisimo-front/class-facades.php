@@ -142,13 +142,27 @@ final class Facades {
 			. ( '' !== $allow ? ' allow="' . esc_attr( $allow ) . '"' : '' ) . ( $fullscreen ? ' allowfullscreen' : '' )
 			. ( '' !== $referrer ? ' referrerpolicy="' . esc_attr( $referrer ) . '"' : '' ) . '></iframe>';
 		$out  = '<div class="digi-facade digi-facade--' . esc_attr( $kind ) . ( '' !== $image ? ' digi-facade--image' : '' ) . ( '' !== $class ? ' ' . esc_attr( $class ) : '' ) . '" data-digi-facade>';
-		$out .= '' !== $image ? '<img class="digi-facade__image" src="' . esc_url( $image ) . '" alt="" width="1280" height="720" loading="lazy" decoding="async">' : '';
+		$out .= '' !== $image ? self::image( $image ) : '';
 		$out .= '' !== $image && ! empty( $face['pin'] ) ? '<span class="digi-facade__pin" aria-hidden="true"></span>' : '';
 		$out .= '<button type="button" class="digi-facade__button" aria-label="' . esc_attr( (string) ( $face['name'] ?? $label ) ) . '"' . $data . '>';
 		$out .= '' !== $label ? '<span class="digi-facade__label">' . esc_html( $label ) . '</span>' : '<span class="digi-facade__play" aria-hidden="true"></span>';
 		$out .= '</button>';
 		$out .= ! empty( $face['note'] ) ? '<span class="digi-facade__note">' . $face['note'] . '</span>' : '';
 		return $out . '<noscript>' . $iframe . '</noscript></div>';
+	}
+
+	/**
+	 * Imagen decorativa de la fachada (el botón lleva el nombre). La carga diferida o la prioridad las decide WordPress
+	 * como en las demás imágenes de los widgets: una fachada en la primera pantalla puede ser el LCP.
+	 */
+	private static function image( string $url ): string {
+		$attrs = array( 'class' => 'digi-facade__image', 'src' => $url, 'alt' => '', 'width' => '1280', 'height' => '720', 'decoding' => 'async' );
+		$extra = function_exists( 'wp_get_loading_optimization_attributes' ) ? (array) wp_get_loading_optimization_attributes( 'img', $attrs, 'digitalisimo_elements' ) : array( 'loading' => 'lazy' );
+		$out   = '<img';
+		foreach ( $attrs + $extra as $name => $value ) {
+			$out .= ' ' . $name . '="' . ( 'src' === $name ? esc_url( $value ) : esc_attr( (string) $value ) ) . '"';
+		}
+		return $out . '>';
 	}
 
 	/**
