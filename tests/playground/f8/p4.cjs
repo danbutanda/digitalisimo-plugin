@@ -37,7 +37,9 @@ module.exports = (api) => async (s) => {
   }
   await ctx.close();
   fs.writeFileSync(path.join(RUN, 'editor.json'), JSON.stringify({ model, saved, errors: page.facts.errors.slice(0, 10) }, null, 1));
-  check(s, 'P4.3', 'el editor carga el documento con los widgets del origen ya convertidos (sin marcadores del acordeón)', Array.isArray(model) && model.length > 0 && !model.some((t) => /^bdt-/.test(t)) && model.filter((t) => t === 'digitalisimo-unconverted').length < 2, JSON.stringify({ model, errors: page.facts.errors.slice(0, 3) }));
+  // Con Migración activa, el acordeón del origen tiene adaptador (su tipo existe): K lo restaura tal cual y lo pinta el
+  // adaptador hasta «Migrar»; Prime Slider no tiene adaptador y lo convierte el filtro puro (slider anidado).
+  check(s, 'P4.3', 'el editor carga el documento sin marcadores: el acordeón restaurado (su adaptador) y Prime Slider convertido al slider anidado', Array.isArray(model) && !model.includes('digitalisimo-unconverted') && model.includes('bdt-accordion') && model.includes('digitalisimo-nested-slider') && !model.some((t) => /^prime-slider-/.test(t)) && !page.facts.errors.length, JSON.stringify({ model, errors: page.facts.errors.slice(0, 3) }));
   const m1 = await control('markers');
   const ed1 = pageOf(m1, 'Marcadores en el editor');
   check(s, 'P4.4', 'al guardar desde el editor desaparecen los marcadores convertidos y K recuenta', !!saved && saved.ok && ed1.markers < ed0.markers && m1.count < m0.count, JSON.stringify({ saved, before: ed0.markers, after: ed1.markers, count: [m0.count, m1.count], widgets: ed1.widgets }));
