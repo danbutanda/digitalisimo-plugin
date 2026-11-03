@@ -525,6 +525,17 @@ foreach ( $cases as $slug => $case ) {
 if ( $conditions_manager ) {
 	$conditions_manager->get_cache()->regenerate();
 }
+// Marcadores de K en una página (caso f8-marker de F8): se cuentan como tras una importación (meta del documento y total
+// del sitio), así el widget marcador existe en el front y sus ganchos corren en todas las páginas, que es lo que se mide.
+if ( class_exists( '\\Digitalisimo\\Elements\\Import\\Kits\\Preserve' ) && method_exists( '\\Digitalisimo\\Elements\\Import\\Kits\\Preserve', 'recount_document' ) ) {
+	foreach ( $cases as $slug => $case ) {
+		if ( false === strpos( (string) wp_json_encode( $case['widgets'] ?? array() ), '"digitalisimo-unconverted"' ) ) {
+			continue;
+		}
+		$saved = json_decode( (string) get_post_meta( $pages[ $slug ], '_elementor_data', true ), true );
+		\Digitalisimo\Elements\Import\Kits\Preserve::recount_document( (int) $pages[ $slug ], is_array( $saved ) ? $saved : array() );
+	}
+}
 // SEO=guard: la tipografía del kit pasa a una familia de archivos estáticos por peso (Lato 400 y 700). Con una familia
 // variable (Roboto, la del kit por defecto) todos los pesos comparten archivo y el blindaje no tiene nada que recortar.
 if ( 'guard' === ( $mode['seo'] ?? '' ) && isset( \Elementor\Plugin::$instance->kits_manager ) ) {

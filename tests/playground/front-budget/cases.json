@@ -2825,7 +2825,7 @@
     "proHandlers": true,
     "proFrontend": true,
     "reason": "require:f7b-action",
-     "count:ready": 1,
+    "count:ready": 1,
     "asset:actions-js": "<=6144",
     "after": {
      "popupShown": true
@@ -5822,6 +5822,303 @@
     "after": {
      "asset:mp4": ">0"
     }
+   }
+  }
+ },
+ "f8-tooltip": {
+  "title": "Información emergente (F8, frente D): un botón con el rasgo; hoja ≤ 1,5 KB y script ≤ 1 KB sólo en esta página, globo recortado (sin desplazamiento) y visible al enfocar",
+  "since": "4.3.0.170",
+  "widgets": [
+   {
+    "type": "button",
+    "id": "fbtt001",
+    "settings": {
+     "text": "Ayuda",
+     "link": {
+      "url": "#"
+     },
+     "digitalisimo_tooltip": "yes",
+     "digitalisimo_tooltip_text": "Texto <strong>breve</strong> de ayuda",
+     "digitalisimo_tooltip_placement": "top",
+     "digitalisimo_tooltip_arrow": "yes"
+    }
+   }
+  ],
+  "assets": {
+   "tooltip-css": "/digitalisimo-widgets/assets/css/tooltip\\.css",
+   "tooltip-js": "/digitalisimo-widgets/assets/js/tooltip\\.js",
+   "badge-css": "/digitalisimo-widgets/assets/css/badge\\.css"
+  },
+  "counts": {
+   "host": ".elementor-element-fbtt001[data-digi-tooltip]",
+   "bubble": ".elementor-element-fbtt001 .digi-tooltip[role=\"tooltip\"]",
+   "described": ".elementor-element-fbtt001 a[aria-describedby]"
+  },
+  "actions": [
+   {
+    "do": "hover",
+    "selector": ".elementor-element-fbtt001 a"
+   },
+   {
+    "do": "wait",
+    "ms": 400
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "count:host": 1,
+    "count:bubble": 1,
+    "count:described": 1,
+    "asset:tooltip-css": "<=1536",
+    "asset:tooltip-js": "<=1024",
+    "asset:badge-css": "<=0",
+    "delta.requests": "<=2",
+    "delta.cls": "<=0",
+    "after": {
+     "cls": "<=0"
+    }
+   }
+  }
+ },
+ "f8-badge": {
+  "title": "Distintivo (F8, frente D): en un encabezado y en su contenedor; hoja ≤ 1 KB, 0 JS, texto legible (sin aria-hidden) y sin desplazamiento",
+  "since": "4.3.0.170",
+  "container": {
+   "digitalisimo_badge": "yes",
+   "digitalisimo_badge_text": "Contenedor",
+   "digitalisimo_badge_corner": "bottom-end"
+  },
+  "widgets": [
+   {
+    "type": "heading",
+    "id": "fbbd001",
+    "settings": {
+     "title": "Con distintivo",
+     "digitalisimo_badge": "yes",
+     "digitalisimo_badge_text": "Nuevo",
+     "digitalisimo_badge_corner": "top-start",
+     "digitalisimo_badge_icon": {
+      "value": "fas fa-star",
+      "library": "fa-solid"
+     }
+    }
+   }
+  ],
+  "assets": {
+   "badge-css": "/digitalisimo-widgets/assets/css/badge\\.css",
+   "tooltip-css": "/digitalisimo-widgets/assets/css/tooltip\\.css",
+   "tooltip-js": "/digitalisimo-widgets/assets/js/tooltip\\.js"
+  },
+  "counts": {
+   "badges": ".digi-badge",
+   "text": ".digi-badge > .digi-badge__text:not([aria-hidden])",
+   "widget": ".elementor-element-fbbd001[data-digi-badge] > .digi-badge"
+  },
+  "visible": {
+   "badge": ".elementor-element-fbbd001 .digi-badge"
+  },
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "count:badges": 2,
+    "count:text": 2,
+    "count:widget": 1,
+    "shown:badge": true,
+    "asset:badge-css": "<=1024",
+    "asset:tooltip-css": "<=0",
+    "asset:tooltip-js": "<=0",
+    "delta.js": "<=0",
+    "delta.cls": "<=0"
+   }
+  }
+ },
+ "f8-nested-counter": {
+  "title": "Contador del slider anidado (F8, frente D): «2 / 3» con la navegación de puntos y flechas, hoja ≤ 256 B y script ≤ 512 B; sin el control, nada más",
+  "since": "4.3.0.170",
+  "widgets": [
+   {
+    "type": "digitalisimo-nested-slider",
+    "id": "fbnc001",
+    "settings": {
+     "effect": "fade",
+     "autoplay": "yes",
+     "autoplay_delay": 2000,
+     "carousel_label": "Medición",
+     "slides": [
+      {
+       "_id": "s1",
+       "slide_title": "Uno"
+      },
+      {
+       "_id": "s2",
+       "slide_title": "Dos"
+      },
+      {
+       "_id": "s3",
+       "slide_title": "Tres"
+      }
+     ],
+     "navigation": "both",
+     "counter": "yes"
+    },
+    "elements": [
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full"
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Diapositiva uno"
+        }
+       }
+      ]
+     },
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full",
+       "min_height": {
+        "unit": "px",
+        "size": 200,
+        "sizes": []
+       }
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Diapositiva dos"
+        }
+       }
+      ]
+     },
+     {
+      "elType": "container",
+      "settings": {
+       "content_width": "full"
+      },
+      "elements": [
+       {
+        "type": "heading",
+        "settings": {
+         "title": "Diapositiva tres"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "assets": {
+   "slider-css": "/digitalisimo-f7b/assets/css/nested-slider\\.css",
+   "slider-js": "/digitalisimo-f7b/assets/js/nested-slider\\.js",
+   "counter-css": "/digitalisimo-f7b/assets/css/nested-slider-counter\\.css",
+   "counter-js": "/digitalisimo-f7b/assets/js/nested-slider-counter\\.js"
+  },
+  "counts": {
+   "ready": ".digi-nslider--ready",
+   "slides": ".digi-nslider__track > .e-con",
+   "counter": ".digi-nslider__count",
+   "counterShown": ".digi-nslider__count:not([hidden])"
+  },
+  "actions": [
+   {
+    "do": "wait",
+    "ms": 4500
+   }
+  ],
+  "modes": [
+   "normal",
+   "cache"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "swiper": false,
+    "proHandlers": false,
+    "count:ready": 1,
+    "count:slides": 3,
+    "count:counter": 1,
+    "asset:counter-css": "<=256",
+    "asset:counter-js": "<=512",
+    "asset:slider-css": "<=4096",
+    "asset:slider-js": "<=6144",
+    "delta.cls": "<=0",
+    "after": {
+     "cls": "<=0",
+     "count:counterShown": 1
+    }
+   }
+  }
+ },
+ "f8-marker": {
+  "title": "Marcador de K (F8, frente I): un widget del origen sin destino envuelto en digitalisimo-unconverted; no pinta nada y no añade peticiones, scripts ni hojas (coste de los ganchos de K en el front, medido; con MIGRATION=1 tampoco se convierte en el front)",
+  "since": "4.3.0.170",
+  "widgets": [
+   {
+    "type": "digitalisimo-unconverted",
+    "id": "fbmk001",
+    "settings": {
+     "digitalisimo_unconverted": {
+      "v": 1,
+      "type": "widget/bdt-accordion",
+      "reason": "unknown",
+      "source": "kit",
+      "element": {
+       "id": "fbmk001",
+       "elType": "widget",
+       "widgetType": "bdt-accordion",
+       "settings": {
+        "tabs": [
+         {
+          "_id": "a1",
+          "tab_title": "Pregunta",
+          "tab_content": "<p>Respuesta</p>"
+         }
+        ]
+       },
+       "elements": []
+      }
+     }
+    }
+   }
+  ],
+  "counts": {
+   "marker": ".elementor-element-fbmk001",
+   "legacy": "[class*=\"bdt-\"]"
+  },
+  "modes": [
+   "normal",
+   "cache",
+   "migration"
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "count:marker": 0,
+    "count:legacy": 0,
+    "delta.requests": "<=0",
+    "delta.js": "<=0",
+    "delta.css": "<=0",
+    "delta.cls": "<=0"
    }
   }
  }

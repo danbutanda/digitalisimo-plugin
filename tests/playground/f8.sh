@@ -123,7 +123,7 @@ conf() {
   NET=0 WOO=0 PSLITE=0 EPLITE=0 FAKES='' EP_HEADER=0 DELEGATE=0
   case "$1" in
     P0) PORT=9510 PSLITE=1 WOO=1;;
-    P1) PORT=9511 PSLITE=1;;
+    P1) PORT=9511 PSLITE=1 WOO=1;;
     P2) PORT=9512 WOO=1 EP_HEADER=1 FAKES='bdthemes-element-pack bdthemes-element-pack-addon bdthemes-prime-slider bdthemes-prime-slider-lite'
         [ "${PRO:-0}" = 1 ] && FAKES="$FAKES elementor-pro";;
     P3) PORT=9513 NET=1 EP_HEADER=1 FAKES='bdthemes-element-pack bdthemes-element-pack-addon bdthemes-prime-slider bdthemes-prime-slider-lite';;

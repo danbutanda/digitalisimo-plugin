@@ -3,6 +3,7 @@
  * Contenido de prueba que depende de plugins reales instalados con EXTRA_PLUGINS, creado en una
  * petición posterior a su activación. Guarda en `digi_ab_markers` los IDs que los casos usan como
  * marcadores (`__BBP_FORUM__`, `__BBP_TOPIC__`, `__BBP_REPLY__`, `__BBP_TAG__`, `__WC_PRODUCT__`, `__ACF_IMAGE_1__`, `__ACF_IMAGE_2__`).
+ * Es el último paso del blueprint: deja `ready.txt` en la carpeta de resultados (legacy-ab.sh espera a él).
  */
 require '/wordpress/wp-load.php';
 wp_set_current_user( 1 );
@@ -75,3 +76,4 @@ foreach ( array( 1, 2 ) as $blog ) {
 	update_option( 'digi_ab_markers', $markers );
 	restore_current_blog();
 }
+file_put_contents( '/wordpress/wp-content/digi-ab/ready.txt', gmdate( 'c' ) );

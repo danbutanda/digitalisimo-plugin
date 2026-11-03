@@ -120,6 +120,12 @@ namespace {
 		}
 	}
 	check_cases( isset( $by_name['countdown'], $by_name['nav-menu'], $by_name['heading'], $by_name['global'], $by_name['digitalisimo-accordion'], $by_name['e-heading'] ), 'el índice de widgets no encontró countdown, nav-menu, heading, global, digitalisimo-accordion o e-heading' );
+	// Marcador de K (caso f8-marker de F8, frente J): su get_name() devuelve la constante Module::WIDGET, que la
+	// expresión de arriba no lee. Se declara a mano con su clase y su padre reales.
+	if ( is_file( $elements . '/modules/digitalisimo-import/class-unconverted-widget.php' ) ) {
+		$classes['Digitalisimo\\Elements\\Import\\Unconverted_Widget'] = array( 'parent' => 'Elementor\\Widget_Base', 'name' => 'digitalisimo-unconverted', 'file' => $elements . '/modules/digitalisimo-import/class-unconverted-widget.php' );
+		$by_name['digitalisimo-unconverted']                          = array( 'Digitalisimo\\Elements\\Import\\Unconverted_Widget', 'own' );
+	}
 
 	// Adaptadores de Migración: `final class Bdt_X extends \Padre { … const LEGACY_ID = 'bdt-x'; }`.
 	$adapters_file = $root . '/digitalisimo-migration/legacy/class-adapters.php';

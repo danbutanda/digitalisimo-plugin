@@ -1,6 +1,7 @@
 // Comparación de dos corridas de front-budget.sh (F7a, criterios 1 y 2 de la especificación): cada caso que ya
-// existía (sin `since`) da el mismo HTML y el mismo CSS normalizados y, en los casos estrictos (por defecto empty y
-// all-own), además los mismos bytes, peticiones, handles y $wpdb->num_queries.
+// existía en la referencia (sin `since`, o con un `since` que la referencia ya tenía) da el mismo HTML y el mismo CSS
+// normalizados y, en los casos estrictos (por defecto empty y all-own), además los mismos bytes, peticiones, handles y
+// $wpdb->num_queries.
 //
 // La usan run.cjs (COMPARE_FILE, al final de una corrida) y compare.cjs (dos corridas ya hechas). Las huellas se
 // recalculan siempre desde las páginas guardadas en <corrida>/pages con la normalización de aquí, así que una
@@ -104,14 +105,28 @@ const pageBase = (key, r) => (r && r.pageFile) || key.replace(/[^a-z0-9-]/gi, '_
  * @param {string[]} o.strict casos con bytes, peticiones, handles y consultas iguales
  * @returns {{ out: object, problems: string[] }}
  */
+/** ¿`a` ≥ `b`? Versiones de números separados por puntos (4.3.0.169). */
+function versionAtLeast(a, b) {
+  const x = String(a).split('.').map(Number);
+  const y = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] || 0) - (y[i] || 0);
+    if (d) return d > 0;
+  }
+  return true;
+}
+
 function compareRuns({ ref, refDir, now, nowDir, cases, strict }) {
   const problems = [];
+  const refVersion = (ref.elements || {}).version || '';
   const out = { against: ref.elements || {}, mode: ref.mode, same: [], different: [], missing: [], strict: {} };
   if (ref.mode !== now.mode) problems.push(`COMPARE_FILE: la referencia es del modo ${ref.mode} y esta corrida del modo ${now.mode}`);
   for (const [key, b] of Object.entries(ref.results || {})) {
     const slug = b.slug || key.split('@')[0];
     const c = cases[slug];
-    if (!c || c.since) continue;
+    // Un caso con `since` se compara sólo si la referencia ya lo tenía (su versión ≥ `since`): así una referencia
+    // 4.3.0.169 compara también los casos de F7b, y una anterior los sigue saltando.
+    if (!c || (c.since && !(refVersion && versionAtLeast(refVersion, c.since)))) continue;
     const r = (now.results || {})[key];
     if (!r) { out.missing.push(key); continue; }
     const diffs = [];
@@ -166,4 +181,4 @@ function summaryLines(file, out) {
   return lines;
 }
 
-module.exports = { sha, normalizeHtml, normalizeCss, hashes, compareRuns, summaryLines };
+module.exports = { sha, normalizeHtml, normalizeCss, hashes, compareRuns, summaryLines, versionAtLeast };

@@ -107,7 +107,9 @@ module.exports = (api) => async (s) => {
     const h = document.querySelector('.elementor-heading-title');
     const faces = [];
     for (const sheet of document.styleSheets) { let rules = []; try { rules = [...sheet.cssRules]; } catch (e) { continue; } for (const r of rules) if (r.type === CSSRule.FONT_FACE_RULE) faces.push(r.style.getPropertyValue('font-family')); }
-    return { family: h ? getComputedStyle(h).fontFamily : null, faces };
+    const rules = [];
+    for (const sheet of document.styleSheets) { let list = []; try { list = [...sheet.cssRules]; } catch (e) { continue; } for (const r of list) if (/font-family/.test(r.cssText) && /heading-title|Letra/.test(r.cssText)) rules.push(`${(sheet.href || 'inline').split('/').pop()} ${r.cssText.slice(0, 200)}`); }
+    return { family: h ? getComputedStyle(h).fontFamily : null, faces, rules: rules.slice(0, 8), cls: h ? h.closest('.elementor-element').className : null };
   });
   check(s, 'P2.7b', 'la página con la fuente la declara con @font-face y el título la usa', !!fontUse.family && /Letra Prueba/.test(fontUse.family) && fontUse.faces.some((f) => /Letra Prueba/.test(f)), JSON.stringify(fontUse));
   await vf.close();

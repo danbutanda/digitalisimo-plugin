@@ -5,7 +5,26 @@
  * Fase A (Element Pack activo) y fase B (sólo Elements) renderizan los mismos documentos con los
  * casos de tests/legacy/bdt-*.json en dos sitios de una red y guardan una firma de contenido:
  * textos visibles, enlaces e imágenes. Uso: ver tests/playground/README.md.
+ *
+ * Se lanza por HTTP desde legacy-ab-run.mjs (`?phase=A&token=…&only=…&blog=…`, con el token de `token.txt`; F8, P10:
+ * entre fases el navegador mide el estilo computado de las partes mapeadas) o, como antes, desde un paso `runPHP` con
+ * `DIGI_PHASE`, `DIGI_ONLY` y `DIGI_BLOG`. Con la lista de widgets de la copia montada (`ep-widgets.txt`, la deja
+ * ep-lite-pin.sh), sólo se prueban los casos de lo que esa copia registra: con Element Pack Lite 10.0.1, sus widgets y
+ * sus extensiones.
  */
+// Por HTTP sólo con el token de la corrida (la carpeta de resultados se monta en digi-ab).
+$digi_ab_http = isset( $_SERVER['REQUEST_METHOD'], $_GET['phase'] ); // php-wasm declara la SAPI «cli» también en las peticiones HTTP.
+if ( $digi_ab_http ) {
+	$digi_ab_token = trim( (string) @file_get_contents( '/wordpress/wp-content/digi-ab/token.txt' ) );
+	if ( '' === $digi_ab_token || ! hash_equals( $digi_ab_token, (string) ( $_GET['token'] ?? '' ) ) ) {
+		http_response_code( 403 );
+		exit;
+	}
+	foreach ( array( 'phase' => 'DIGI_PHASE', 'only' => 'DIGI_ONLY', 'blog' => 'DIGI_BLOG' ) as $digi_ab_key => $digi_ab_env ) {
+		putenv( $digi_ab_env . '=' . preg_replace( '/[^A-Za-z0-9,_-]/', '', (string) ( $_GET[ $digi_ab_key ] ?? '' ) ) );
+	}
+	@set_time_limit( 0 );
+}
 // Todas las combinaciones se renderizan en un solo proceso: con Element Pack activo no bastan 256 MB.
 ini_set( 'memory_limit', '2048M' );
 // Como index.php en una visita real: algunos plugins (bbPress) sólo cargan sus plantillas con temas activos.
@@ -26,18 +45,31 @@ register_shutdown_function( static function () use ( $phase ) {
 } );
 $out_dir  = '/wordpress/wp-content/digi-ab';
 $fixtures = array();
+// Lo que registra la copia montada de Element Pack (ep-lite-pin.sh): widgets `bdt-*` y carpetas de módulos. Sin las
+// listas, todos los casos, como antes.
+$ep_widgets = is_file( $out_dir . '/ep-widgets.txt' ) ? array_filter( array_map( 'trim', file( $out_dir . '/ep-widgets.txt' ) ) ) : null;
+$ep_modules = is_file( $out_dir . '/ep-modules.txt' ) ? array_filter( array_map( 'trim', file( $out_dir . '/ep-modules.txt' ) ) ) : null;
+$skipped    = array();
 foreach ( array_merge( glob( '/wordpress/wp-content/digi-legacy-fixtures/bdt-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/fooevents-*.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/lightbox.json' ), glob( '/wordpress/wp-content/digi-legacy-fixtures/ext-*.json' ) ) as $file ) {
 	$only = getenv( 'DIGI_ONLY' );
 	$id   = basename( $file, '.json' );
 	if ( $only && ! in_array( $id, explode( ',', $only ), true ) ) {
 		continue;
 	}
+	if ( null !== $ep_widgets ) {
+		$module = 0 === strpos( $id, 'ext-' ) ? substr( $id, 4 ) : $id;
+		$known  = 0 === strpos( $id, 'bdt-' ) ? in_array( $id, $ep_widgets, true ) : in_array( $module, (array) $ep_modules, true );
+		if ( ! $known ) {
+			$skipped[] = $id;
+			continue;
+		}
+	}
 	$fixtures[ $id ] = json_decode( file_get_contents( $file ), true );
 }
 
 require_once __DIR__ . '/legacy-signature.php';
 
-$result = array( 'phase' => $phase, 'element_pack' => defined( 'BDTEP_VER' ), 'widgets' => array() );
+$result = array( 'phase' => $phase, 'element_pack' => defined( 'BDTEP_VER' ), 'element_pack_version' => defined( 'BDTEP_VER' ) ? BDTEP_VER : '', 'skipped' => $skipped, 'widgets' => array() );
 // DIGI_BLOG limita la ejecución a un sitio: bbPress arrastra estado entre sitios dentro del mismo proceso.
 $blogs = (int) getenv( 'DIGI_BLOG' ) > 0 ? array( (int) getenv( 'DIGI_BLOG' ) ) : array( 1, 2 );
 foreach ( $blogs as $blog ) {
@@ -48,11 +80,22 @@ foreach ( $blogs as $blog ) {
 		foreach ( $cases as $case => $settings ) {
 			$expect_css  = (array) ( $settings['_expect_css'] ?? array() );
 			$expect_html = (array) ( $settings['_expect_html'] ?? array() );
+			// Casos de F8 (llevan `_expect_codes`: extensiones que la migración convierte, sin adaptador en el front).
+			// `_expect_css` es el CSS que pinta Element Pack (fase A) y `_expect_css_converted`, el del documento
+			// convertido (fases C y E); la fase B no tiene nada que comprobar (frente C, informe «I, J y K»).
+			$f8_case = array_key_exists( '_expect_codes', $settings );
+			if ( $f8_case ) {
+				$expect_css = in_array( $phase, array( 'C', 'E' ), true ) ? (array) ( $settings['_expect_css_converted'] ?? array() ) : ( 'A' === $phase ? $expect_css : array() );
+			}
 			// Tras convertir, los nombres heredados pasan a los propios: la fixture puede declarar qué buscar entonces.
-			if ( 'E' === $phase ) {
+			if ( 'E' === $phase && ! $f8_case ) {
 				$expect_css  = (array) ( $settings['_expect_css_converted'] ?? $expect_css );
 				$expect_html = (array) ( $settings['_expect_html_converted'] ?? $expect_html );
+			} elseif ( 'E' === $phase ) {
+				$expect_html = (array) ( $settings['_expect_html_converted'] ?? $expect_html );
 			}
+			// Ajustes de la página del caso (extensiones de página: grid-line, custom-js…), como `_elementor_page_settings`.
+			$page_settings = (array) ( $settings['_page'] ?? array() );
 			$section     = (array) ( $settings['_section'] ?? array() );
 			$known      = (array) ( $settings['_known'] ?? array() );
 			$type       = (string) ( $settings['_widget'] ?? $widget );
@@ -63,7 +106,7 @@ foreach ( $blogs as $blog ) {
 				$previous[ $option ] = get_option( $option, null );
 				update_option( $option, $value );
 			}
-			unset( $settings['_expect_css'], $settings['_expect_html'], $settings['_expect_css_converted'], $settings['_expect_html_converted'], $settings['_known'], $settings['_widget'], $settings['_section'], $settings['_options'] );
+			unset( $settings['_expect_css'], $settings['_expect_html'], $settings['_expect_css_converted'], $settings['_expect_html_converted'], $settings['_known'], $settings['_widget'], $settings['_section'], $settings['_options'], $settings['_page'], $settings['_expect_json'], $settings['_expect_codes'] );
 			// Marcadores «__X__»: IDs del contenido de prueba de este sitio.
 			$template = get_page_by_path( 'digi-ab-template', OBJECT, 'elementor_library' );
 			$sample   = get_page_by_path( 'digi-ab-post-1', OBJECT, 'post' );
@@ -92,24 +135,37 @@ foreach ( $blogs as $blog ) {
 				update_post_meta( $id, '_elementor_template_type', 'wp-page' );
 				update_post_meta( $id, '_elementor_version', ELEMENTOR_VERSION );
 				update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+				if ( $page_settings ) {
+					update_post_meta( $id, '_elementor_page_settings', wp_slash( $page_settings ) );
+				} else {
+					delete_post_meta( $id, '_elementor_page_settings' );
+				}
 			}
 			$entry_extra = array();
 			if ( 'C' === $phase ) {
-				\Digitalisimo\Elements\Legacy\Native::$errors = array();
+				// `Native::$errors` ya no existe en 1.0.21: sólo se lee si la versión montada lo tiene.
+				$has_errors = property_exists( '\\Digitalisimo\\Elements\\Legacy\\Native', 'errors' );
+				if ( $has_errors ) {
+					\Digitalisimo\Elements\Legacy\Native::$errors = array();
+				}
 				$entry_extra['migration'] = \Digitalisimo\Elements\Legacy\Migration::convert_document( $id );
-				$entry_extra['native_errors'] = \Digitalisimo\Elements\Legacy\Native::$errors;
+				$entry_extra['native_errors'] = $has_errors ? \Digitalisimo\Elements\Legacy\Native::$errors : array();
 				$entry_extra['converted'] = json_decode( (string) get_post_meta( $id, '_elementor_data', true ), true );
 			}
 			if ( 'D' === $phase ) {
 				$entry_extra['reverted'] = \Digitalisimo\Elements\Legacy\Migration::revert_document( $id );
 				$entry_extra['data_md5'] = md5( (string) get_post_meta( $id, '_elementor_data', true ) );
+				$entry_extra['page_md5'] = md5( maybe_serialize( get_post_meta( $id, '_elementor_page_settings', true ) ) );
 			}
 			if ( 'A' === $phase ) {
 				$entry_extra['data_md5'] = md5( (string) get_post_meta( $id, '_elementor_data', true ) );
+				$entry_extra['page_md5'] = md5( maybe_serialize( get_post_meta( $id, '_elementor_page_settings', true ) ) );
 			}
 			if ( 'E' === $phase ) {
 				// Tras convertir no debe quedar ningún identificador heredado en el documento.
 				$saved = (string) get_post_meta( $id, '_elementor_data', true );
+				// Los ajustes de la página también (extensiones de página de F8).
+				$saved .= wp_json_encode( get_post_meta( $id, '_elementor_page_settings', true ) );
 				preg_match_all( '/"widgetType":"(?:bdt-[a-z0-9-]+|fooevents-calendar|lightbox)"|"(?:ep_|element_pack_|bdt_|_digitalisimo_legacy|image_mask_)[a-z0-9_]*"|"_mask_shape":"shape-\d+"|"shape_divider_(?:top|bottom)":"ep-[a-z0-9-]+"/', $saved, $left );
 				$entry_extra['legacy_left'] = array_values( array_unique( $left[0] ) );
 			}
@@ -119,7 +175,22 @@ foreach ( $blogs as $blog ) {
 			setup_postdata( $GLOBALS['post'] );
 			delete_post_meta( $id, '_elementor_element_cache' );
 			$html  = \Elementor\Plugin::$instance->frontend->get_builder_content( $id, false );
-			$entry = array( 'registered' => isset( $registered[ $type ] ), 'signature' => digi_ab_signature( $html ), 'bytes' => strlen( $html ), 'known' => $known ) + $entry_extra;
+			$entry = array( 'registered' => isset( $registered[ $type ] ), 'signature' => digi_ab_signature( $html ), 'bytes' => strlen( $html ), 'known' => $known, 'page_id' => (int) $id, 'url' => (string) get_permalink( $id ) ) + $entry_extra;
+			// Fase A de un caso de F8: el CSS que pinta Element Pack (con su extensión cargada) debe tener `_expect_css`.
+			if ( 'A' === $phase && $f8_case && $expect_css ) {
+				try {
+					// Documento recién escrito: se vuelve a leer sin la caché antes de generar su CSS (como en la fase B).
+					\Elementor\Plugin::$instance->documents->get( $id, false );
+					$css = \Elementor\Core\Files\CSS\Post::create( $id );
+					$css->update();
+					$content = preg_replace( '/\s+/', '', (string) $css->get_content() );
+					$entry['css_missing'] = array_values( array_filter( $expect_css, static function ( $fragment ) use ( $content ) {
+						return false === strpos( $content, preg_replace( '/\s+/', '', $fragment ) );
+					} ) );
+				} catch ( \Throwable $e ) {
+					$entry['css_error'] = $e->getMessage();
+				}
+			}
 			if ( in_array( $phase, array( 'B', 'C', 'E' ), true ) ) {
 				$raw = \Elementor\Plugin::$instance->documents->get( $id, false )->get_elements_raw_data( null, true );
 				$entry['editor_settings'] = array_keys( (array) ( $raw[0]['elements'][0]['elements'][0]['settings'] ?? array() ) );
