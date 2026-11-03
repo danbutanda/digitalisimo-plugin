@@ -102,7 +102,7 @@ module.exports = (api) => async (s) => {
   if (CASE === 'blocked') {
     check(s, 'P3.4a', 'sitio bloqueado: la barrera no se libera y el origen sigue activo en la red', !j.released && plugins.network.includes('bdthemes-element-pack/bdthemes-element-pack.php'), JSON.stringify({ released: j.released, network: plugins.network }));
     const html = (await tool('admin', { network: true })).html;
-    check(s, 'P3.4b', 'la tarea de red queda detenida con el aviso del sitio bloqueado (core.barrier_blocked)', /bloque/i.test(html) || JSON.stringify(j).includes('barrier_blocked'), JSON.stringify({ stopped: j.stopped, status: (j.status || []).map((x) => x.status) }));
+    check(s, 'P3.4b', 'la tarea de red queda detenida con /dos/ como bloqueado y el aviso en la pantalla de red', !!j.stopped && (j.blocked || []).includes(paths['/dos/']) && /se detuvo/.test(JSON.stringify(j.warnings || [])) && /se detuvo/.test(html), JSON.stringify({ stopped: j.stopped, blocked: j.blocked, warnings: j.warnings }));
     check(s, 'P3.4c', 'ningún sitio se quedó sin cabecera ni con dos en ninguna vuelta', !bad.length, JSON.stringify(bad.slice(0, 6)));
     return;
   }
