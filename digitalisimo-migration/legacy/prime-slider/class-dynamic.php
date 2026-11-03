@@ -436,8 +436,11 @@ final class Dynamic {
 		if ( '' !== $title ) {
 			$parts[] = 'title';
 		}
+		// El origen pinta get_the_excerpt() (la descripción corta del producto); en Productos eso es «summary» (extracto
+		// manual o, si no hay, el contenido recortado). «excerpt» recorta sólo el contenido y, con la descripción corta
+		// sola, no pintaba nada (Playground P0.B2.9, frente J).
 		if ( isset( $p['excerpt'][0] ) && $on( $p['excerpt'][0] ) ) {
-			$parts[] = 'excerpt';
+			$parts[] = 'summary';
 		}
 		foreach ( array( 'category' => 'terms', 'rating' => 'rating', 'price' => 'price', 'cart' => 'cart', 'badge' => 'badge' ) as $part => $key ) {
 			if ( isset( $p[ $key ] ) && $on( $p[ $key ] ) ) {

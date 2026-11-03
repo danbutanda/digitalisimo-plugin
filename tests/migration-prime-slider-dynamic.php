@@ -669,7 +669,7 @@ namespace {
 	$out  = build( 'woocommerce', fx( 'woocommerce', 'custom' ), $shop );
 	$main = main_of( $out );
 	$check( 'woocommerce-products' === $main['widgetType'] && 'carousel' === $main['settings']['digitalisimo_wc_layout'] && 'yes' === $main['settings']['digitalisimo_wc_custom'], 'woocommerce sin Loop Item: Productos en carrusel' );
-	$check( array( 'image', 'title', 'excerpt', 'category', 'price', 'cart' ) === $main['settings']['digitalisimo_wc_parts'] && 'h1' === $main['settings']['digitalisimo_wc_title_tag'] && 12 === $main['settings']['digitalisimo_wc_excerpt_length'], 'partes del producto (lista) y etiqueta' );
+	$check( array( 'image', 'title', 'summary', 'category', 'price', 'cart' ) === $main['settings']['digitalisimo_wc_parts'] && 'h1' === $main['settings']['digitalisimo_wc_title_tag'] && 12 === $main['settings']['digitalisimo_wc_excerpt_length'], 'partes del producto (lista) y etiqueta' );
 	$check( 8 === $main['settings']['digitalisimo_products_limit'] && 'sale' === $main['settings']['query_post_type'] && '1' === $main['settings']['columns'] && 8 === $main['settings']['rows'], 'consulta y límite del respaldo' );
 	$check( 'yes' === $main['settings']['digitalisimo_wc_navigation'], 'flechas en el carrusel propio' );
 	$c = codes( $shop );
@@ -678,14 +678,14 @@ namespace {
 	$out  = build( 'woocircle', fx( 'woocircle', 'custom' ), $shop );
 	$main = main_of( $out );
 	$check( 'woocommerce-products' === $main['widgetType'] && 6 === $main['settings']['digitalisimo_products_limit'] && '3' === $main['settings']['columns'] && 2 === $main['settings']['rows'], 'woocircle → Productos en carrusel, 6 en 3 columnas' );
-	$check( array( 'terms' ) === $main['settings']['query_exclude'] && array( '52' ) === $main['settings']['query_exclude_term_ids'] && ! in_array( 'excerpt', $main['settings']['digitalisimo_wc_parts'], true ), 'woocircle: exclusión por términos, sin extracto' );
+	$check( array( 'terms' ) === $main['settings']['query_exclude'] && array( '52' ) === $main['settings']['query_exclude_term_ids'] && ! array_intersect( array( 'excerpt', 'summary' ), $main['settings']['digitalisimo_wc_parts'] ), 'woocircle: exclusión por términos, sin extracto' );
 	$c = codes( $shop );
 	$check( in_array( 'ps.dyn.loss.circular', $c, true ) && in_array( 'ps.dyn.query_authors', $c, true ) && in_array( 'ps.dyn.nav_none', $c, true ) && 'yes' === $main['settings']['digitalisimo_wc_navigation'], 'woocircle: disposición circular, autores y navegación añadida' );
 	$out  = build( 'wooexpand', fx( 'wooexpand', 'defaults' ), $shop );
 	$main = main_of( $out );
-	$check( array( 'image', 'title', 'excerpt', 'category', 'rating', 'price', 'cart', 'badge' ) === $main['settings']['digitalisimo_wc_parts'] && 'yes' === $main['settings']['show_onsale_flash'] && '4' === $main['settings']['columns'] && 30 === $main['settings']['digitalisimo_wc_excerpt_length'], 'wooexpand: todas sus partes, 4 columnas' );
+	$check( array( 'image', 'title', 'summary', 'category', 'rating', 'price', 'cart', 'badge' ) === $main['settings']['digitalisimo_wc_parts'] && 'yes' === $main['settings']['show_onsale_flash'] && '4' === $main['settings']['columns'] && 30 === $main['settings']['digitalisimo_wc_excerpt_length'], 'wooexpand: todas sus partes, 4 columnas' );
 	$main = main_of( build( 'wooexpand', fx( 'wooexpand', 'custom' ), $shop ) );
-	$check( array( 'image', 'title', 'excerpt', 'price', 'cart' ) === $main['settings']['digitalisimo_wc_parts'] && 'featured' === $main['settings']['query_post_type'] && '' === $main['settings']['show_onsale_flash'], 'wooexpand editado: destacados, sin valoración, insignia ni categoría' );
+	$check( array( 'image', 'title', 'summary', 'price', 'cart' ) === $main['settings']['digitalisimo_wc_parts'] && 'featured' === $main['settings']['query_post_type'] && '' === $main['settings']['show_onsale_flash'], 'wooexpand editado: destacados, sin valoración, insignia ni categoría' );
 	env( array( 'woocommerce' => false ) );
 	$check( null === build( 'woocommerce', array(), $shop ) && null === build( 'woocircle', array(), $shop ) && in_array( 'ps.dyn.no_woocommerce', codes( $shop ), true ), 'sin WooCommerce: null y a revisar' );
 	$check( 'blocked' === Dynamic::state( 'woolamp' ) && 'blocked' === Dynamic::state( 'wooexpand' ), 'state() sin WooCommerce: bloqueado' );
