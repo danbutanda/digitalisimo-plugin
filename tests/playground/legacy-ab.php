@@ -101,7 +101,8 @@ foreach ( $blogs as $blog ) {
 				$expect_css = in_array( $phase, array( 'C', 'E' ), true ) ? (array) ( $settings['_expect_css_converted'] ?? array() ) : ( 'A' === $phase ? $expect_css : array() );
 			}
 			// Tras convertir, los nombres heredados pasan a los propios: la fixture puede declarar qué buscar entonces.
-			if ( 'E' === $phase && ! $f8_case ) {
+			// La fase C también pinta el documento ya convertido (con Migración activa): mismas expectativas que E.
+			if ( in_array( $phase, array( 'C', 'E' ), true ) && ! $f8_case ) {
 				$expect_css  = (array) ( $settings['_expect_css_converted'] ?? $expect_css );
 				$expect_html = (array) ( $settings['_expect_html_converted'] ?? $expect_html );
 			} elseif ( 'E' === $phase ) {

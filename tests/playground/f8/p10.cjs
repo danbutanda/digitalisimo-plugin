@@ -20,6 +20,9 @@ const DECLARED = [
   // `alt` del logotipo; 9.9.1 no lo hacía (el fixture es de 9.9.1). La Cuadrícula de marcas de Elements deja `alt` vacío
   // porque el nombre ya se lee como texto del elemento, y ningún widget existente cambia su HTML (regla de Elements).
   { widget: /^bdt-brand-grid$/, problem: /^(images (ausente|adicional)|(tras la migración|convertido y sin capa heredada) cambia images)/, motivo: 'Element Pack 10.x usa el nombre de la marca como alt del logotipo; Elements deja alt vacío (el nombre ya es texto visible) y no cambia el HTML de un widget existente' },
+  // El origen convierte el elemento en enlace con JavaScript al pulsarlo (sin `<a>` en el HTML); el adaptador y la
+  // conversión, que ya existían antes de F8, lo pintan como un enlace real con el mismo destino.
+  { widget: /^ext-wrapper-link$/, problem: /^(links adicional|(tras la migración|convertido y sin capa heredada) cambia links)/, motivo: 'el enlace del elemento pasa a ser un <a> real (antes, JavaScript del origen al pulsar), con el mismo destino y accesible por teclado' },
 ];
 
 module.exports = (api) => async (s) => {
