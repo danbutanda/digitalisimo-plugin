@@ -64,7 +64,7 @@ final class Cli {
 					$rows[] = array( 'sitio' => home_url( '/' ) ) + $row;
 				}
 				// Lo que la migración no convierte en ese sitio, como en la columna «Sin equivalente» de la pantalla de red.
-				$line = Dropped::summary( Dropped::analyze(), Dropped::kept() );
+				$line = Migration::without_summary( Runner::report() );
 				if ( '' !== $line ) {
 					$without[] = home_url( '/' ) . ': ' . $line;
 				}
@@ -113,18 +113,6 @@ final class Cli {
 		}
 		if ( $figures['missing'] ) {
 			\WP_CLI::warning( 'Sin archivo (la conversión los retira): ' . implode( ', ', $figures['missing'] ) . '. Mantén Element Pack instalado y desactivado hasta convertir.' );
-		}
-		// Lo que Migrar no convierte, con el mismo listado que la herramienta del sitio.
-		$dropped = Dropped::analyze();
-		if ( $dropped['docs'] || $dropped['omitted'] ) {
-			\WP_CLI::warning( self::text( Dropped::render( Dropped::describe( $dropped ), $dropped['omitted'], Dropped::INTRO ) ) );
-		}
-		$kept = Dropped::kept_messages( Dropped::kept() );
-		foreach ( array_merge( $kept['pending'], $kept['info'] ) as $message ) {
-			\WP_CLI::warning( $message );
-		}
-		if ( $kept['idle'] ) {
-			\WP_CLI::log( Dropped::idle_message( $kept['idle'] ) );
 		}
 		// El análisis previo de F8, entero (en la pantalla va por trozos).
 		$analysis = Migration::analyze_step( 0 );

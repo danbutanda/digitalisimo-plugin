@@ -60,6 +60,12 @@ final class Dynamic {
 	 */
 	const CARRY = '/^digitalisimo_(visibility_|figures|element_link|tooltip|badge|preset)/';
 
+	/**
+	 * Extensiones de Prime Slider (revelado, animación avanzada, fondo adaptable y Ken Burns): las descarta e informa
+	 * `Converter` (E) con `ps.dropped.*` también en las familias de F, así que F no las cuenta ni las informa otra vez.
+	 */
+	const PS_EXTENSIONS = '/^(reveal_effects_|animation_(status|of|on|options)$|anim_|ps_widget_abg|kenburns_)/';
+
 	/** Claves de estilo (para contar lo que no tiene equivalente). */
 	const STYLE = '/(color|typography|_border|radius|padding|margin|shadow|spacing|_size$|_size_|width|height|background|opacity|_gap|offset|text_stroke|blur|glassmorphism)/';
 
@@ -1083,6 +1089,9 @@ final class Dynamic {
 	 */
 	private static function losses( array $s, array $cfg, array $element, array &$codes ): void {
 		foreach ( (array) ( $cfg['loss'] ?? array() ) as $code => $rule ) {
+			if ( is_string( $rule ) && 1 === preg_match( self::PS_EXTENSIONS, ltrim( $rule, '!' ) ) ) {
+				continue;
+			}
 			$hit = true === $rule;
 			if ( is_string( $rule ) && '' !== $rule ) {
 				$hit = '!' === $rule[0] ? ! self::truthy( $s[ substr( $rule, 1 ) ] ?? '' ) : self::truthy( $s[ $rule ] ?? '' );
@@ -1105,7 +1114,7 @@ final class Dynamic {
 			if ( '' === $key || '_' === $key[0] || isset( $used[ $key ] ) || 1 === preg_match( self::COMMON, $key ) || 1 !== preg_match( self::STYLE, $key ) ) {
 				continue;
 			}
-			if ( 1 === preg_match( self::CONTENT, $key ) || isset( $carried[ $key ] ) ) {
+			if ( 1 === preg_match( self::CONTENT, $key ) || 1 === preg_match( self::PS_EXTENSIONS, $key ) || isset( $carried[ $key ] ) ) {
 				continue;
 			}
 			if ( '' === $value || null === $value || array() === $value ) {

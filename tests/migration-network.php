@@ -354,25 +354,51 @@ namespace {
 	f8_check( ! empty( $rel['released'] ), 'Con digitalisimo_migration_barrier_idle a 0, vence en seguida.' );
 	remove_all_filters( 'digitalisimo_migration_barrier_idle' );
 
-	/* ================================================================ Sitio bloqueado (V.19.1 a) */
+	/* ================================================================ Sitio bloqueado (V.19.1 a, decisión del propietario) */
 	net( array( 'tb_blocks' => array( 2 => true ) ) );
 	Runner::network_start( true );
-	step( 1 );
+	$GLOBALS['wp']['site_options'][ Runner::NETWORK_JOB ]['checked'] = time(); // los sitios no liberan por su cuenta.
 	$s2 = step( 2 );
 	f8_check( ! empty( $s2['wait_network'] ) && 'tb.blocked_retire' === $s2['barrier_blocked'] && empty( $s2['barrier_ready'] ), 'Una cabecera visible sin copia publicable bloquea el sitio.' );
 	f8_check( empty( $GLOBALS['wp']['allowed'][2] ), 'Y no permite publicar.' );
 	$rel = Runner::network_release();
-	f8_check( empty( $rel['released'] ) && array( 2 ) === $rel['blocked'] && active_network( EP ), 'Con un bloqueado, no se libera antes del plazo.' );
+	f8_check( empty( $rel['released'] ) && empty( $rel['done'] ) && array( 2 ) === $rel['blocked'] && active_network( EP ), 'Con un bloqueado y otro sitio aún preparando, la red espera sin liberar.' );
+	step( 1 );
+	$rel = Runner::network_release();
+	f8_check( ! empty( $rel['done'] ) && ! empty( $rel['stopped'] ) && empty( $rel['released'] ), 'En cuanto sólo queda el bloqueado, la red se detiene sin liberar (no espera al plazo).' );
+	f8_check( active_network( EP ) && 0 === network_writes( EP ), 'Element Pack sigue en la red: ningún visitante pierde la cabecera.' );
+	$html = Runner::render_network( Runner::network_summary() );
+	$text = wp_strip_all_tags( $html );
+	f8_check( str_contains( $text, 'se detuvo' ) && str_contains( $text, 'sin copia que pueda publicarse' ), 'La pantalla de red explica por qué.' );
+	f8_check( str_contains( $html, 'href="https://s2.test/wp-admin/tools.php?page=digitalisimo-ep-migration"' ), 'Y enlaza la herramienta del sitio bloqueado, cuyo informe nombra la plantilla.' );
+	// Corregido el sitio, volver a pulsar sigue: la barrera se libera.
+	$GLOBALS['wp']['tb_blocks'] = array();
+	switch_to_blog( 2 );
+	\Digitalisimo\Elements\Legacy\Platform\Registry::put( 'tb', '12', array( 'dest' => (int) \Digitalisimo\Elements\Legacy\Platform\Registry::get( 'tb', '12' )['dest'], 'state' => 'draft', 'extra' => array( 'blocks' => false ) ) );
+	restore_current_blog();
+	$again = Runner::network_start( true );
+	$raw   = Runner::network_state();
+	f8_check( empty( $raw['done'] ) && ! empty( $raw['barrier'] ) && array( 1, 2 ) === $raw['barrier_sites'], 'Volver a pulsar Migrar toda la red arranca otra vez la barrera.' );
+	f8_check( (int) $raw['started'] === (int) job_state( 2 )['network'], 'Las tareas de los sitios pasan a la tarea de red nueva.' );
+	$GLOBALS['wp']['site_options'][ Runner::NETWORK_JOB ]['checked'] = time();
+	step( 1 );
+	$s2 = step( 2 );
+	f8_check( ! empty( $s2['barrier_ready'] ) && empty( $s2['barrier_blocked'] ), 'Resuelta la plantilla, el sitio queda listo.' );
+	$rel = Runner::network_release();
+	f8_check( ! empty( $rel['released'] ) && ! active_network( EP ), 'Y la red libera.' );
+
+	// Al vencer el plazo con un bloqueado (y otro sin preparar), también se detiene sin liberar.
+	net( array( 'tb_blocks' => array( 2 => true ) ) );
+	Runner::network_start( true );
+	$GLOBALS['wp']['site_options'][ Runner::NETWORK_JOB ]['checked'] = time();
+	step( 2 );
 	$GLOBALS['wp']['site_options'][ Runner::NETWORK_JOB ]['started'] = time() - 5000;
 	foreach ( array( 1, 2, 3 ) as $site ) {
 		$GLOBALS['wp']['options'][ $site ][ Runner::JOB ]['updated'] = time() - 5000;
 		$GLOBALS['wp']['options'][ $site ][ Runner::JOB ]['network'] = $GLOBALS['wp']['site_options'][ Runner::NETWORK_JOB ]['started'];
 	}
 	$rel = Runner::network_release();
-	f8_check( ! empty( $rel['done'] ) && ! empty( $rel['stopped'] ) && empty( $rel['released'] ), 'Al vencer el plazo con un bloqueado, la red se detiene sin liberar.' );
-	f8_check( active_network( EP ), 'Element Pack sigue en la red: ningún sitio pierde su cabecera.' );
-	$text = wp_strip_all_tags( Runner::render_network( Runner::network_summary() ) );
-	f8_check( str_contains( $text, 'se detuvo' ) && str_contains( $text, 'sin copia que pueda publicarse' ), 'La pantalla de red explica por qué.' );
+	f8_check( ! empty( $rel['done'] ) && ! empty( $rel['stopped'] ) && empty( $rel['released'] ) && active_network( EP ), 'Al vencer el plazo con un bloqueado, la red se detiene sin liberar.' );
 	switch_to_blog( 2 );
 	$state2 = Runner::state();
 	restore_current_blog();

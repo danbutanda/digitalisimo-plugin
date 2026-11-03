@@ -52,6 +52,7 @@ return array(
 	/* ------------------------------------------------------------------ Código global */
 	'plat.code.css_published' => array( 'section' => 'created', 'label' => __( 'CSS global convertido en Código personalizado: se publica en cuanto el plugin anterior deja de estar cargado', 'digitalisimo-migration' ) ),
 	'plat.code.css_draft'     => array( 'section' => 'review', 'label' => __( 'CSS global convertido en Código personalizado en borrador: revísalo y publícalo', 'digitalisimo-migration' ) ),
+	'plat.code.css_denied'    => array( 'section' => 'review', 'label' => __( 'CSS global que no se publicó: al publicarlo, quien lanzó la migración ya no podía publicar código sin filtrar o el código guardado no superó la comprobación de seguridad; sigue en borrador', 'digitalisimo-migration' ) ),
 	'plat.code.exclusions'    => array( 'section' => 'review', 'label' => __( 'Páginas excluidas del código global sin una condición equivalente: el fragmento quedó en borrador', 'digitalisimo-migration' ) ),
 	'plat.code.inactive'      => array( 'section' => 'review', 'label' => __( 'Código global de un plugin que no estaba activo: queda en borrador para no cambiar el sitio', 'digitalisimo-migration' ) ),
 	'plat.code.js'            => array( 'section' => 'review', 'label' => __( 'JavaScript global copiado a un borrador de Código personalizado: no se ejecuta hasta que alguien lo revise y lo publique', 'digitalisimo-migration' ) ),

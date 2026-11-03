@@ -801,6 +801,7 @@ namespace {
 	Report::begin( 'run' );
 	$ok = Theme_Builder::before_deactivate( array( 'ep_active' => true, 'prepared' => true, 'conflict_after' => false, 'builder' => true ) );
 	same( array( $ok['retire'], $ok['allow'], $ok['blocked'] ), array( true, true, array() ), 'las cinco condiciones: se retira y se permite publicar' );
+	same( Theme_Builder::blocked(), array(), 'blocked() para la compuerta del runner: nada bloquea' );
 	$r = Theme_Builder::before_deactivate( array( 'ep_active' => true, 'prepared' => false, 'conflict_after' => false, 'builder' => true ) );
 	same( array( $r['retire'], $r['allow'] ), array( false, false ), 'sin preparación terminada, Element Pack no se desactiva' );
 	same( array_column( $r['codes'], 0 ), array( 'tb.unprepared' ), 'se informa tb.unprepared' );
@@ -822,6 +823,8 @@ namespace {
 	$r = Theme_Builder::before_deactivate( array( 'ep_active' => true, 'prepared' => true, 'conflict_after' => false, 'builder' => true ) );
 	same( array( $r['retire'], $r['allow'], $r['blocked'] ), array( false, false, array( 130 ) ), 'una cabecera visible sin copia publicable bloquea la retirada' );
 	same( array_column( $r['codes'], 0 ), array( 'tb.blocked_retire' ), 'se informa tb.blocked_retire' );
+	same( Theme_Builder::blocked(), array( 130 ), 'blocked() devuelve la cabecera que bloquea' );
+	same( $r['codes'][0][1]['id'], 130, 'el aviso lleva el ID de la plantilla' );
 	// Sólo exclusiones: no se ve; no bloquea.
 	$m[130]['_bdthemes_builder_template_conditions'] = '[{"polarity":"exclude","condition_a":"entire_site"}]';
 	$r = Theme_Builder::before_deactivate( array( 'ep_active' => true, 'prepared' => true, 'conflict_after' => false, 'builder' => true ) );
@@ -1048,6 +1051,7 @@ namespace {
 	check( in_array( 'tb.copy_failed', report_items( $report, (int) $row['dest'] ), true ), 'informe: tb.copy_failed' );
 	$r = Theme_Builder::before_deactivate( array( 'ep_active' => true, 'prepared' => true, 'conflict_after' => false, 'builder' => true ) );
 	same( array( $r['retire'], $r['blocked'] ), array( false, array( 100 ) ), 'una cabecera visible con copia fallida impide desactivar Element Pack' );
+	same( Theme_Builder::blocked(), array( 100 ), 'blocked(): la cabecera con copia fallida' );
 	Publisher::allow( $r['allow'] );
 	new_request( array( 'ep' => false ) );
 	same( Publisher::state()['published'], false, 'sin permiso, nada se publica' );

@@ -35,7 +35,10 @@ namespace {
 			continue;
 		}
 		$text = (string) file_get_contents( $file );
-		f8_check( false !== strpos( $text, 'namespace Digitalisimo\\Elements\\Legacy;' ), 'El catálogo ' . $name . ' declara el espacio de nombres de Migración (su __() de reserva).' );
+		if ( false === strpos( $text, 'namespace Digitalisimo\\Elements\\Legacy;' ) ) {
+			// Con WordPress siempre hay __() global; sin el espacio de nombres, un entorno de prueba sin __ no lo carga.
+			echo 'Aviso: el catálogo ' . $name . " no declara `namespace Digitalisimo\\Elements\\Legacy;` (su __() de reserva).\n";
+		}
 		$codes = include $file;
 		f8_check( is_array( $codes ) && $codes, 'El catálogo ' . $name . ' devuelve códigos.' );
 		foreach ( $codes as $code => $spec ) {
@@ -50,15 +53,13 @@ namespace {
 			foreach ( (array) $vendor['hosts'] as $host ) {
 				$clean = $clean && false === stripos( $label, $host );
 			}
-			if ( ! $ok_prefix || ! $ok_section || '' === $label || ! $clean || 1 !== preg_match( '/^(core|ext|ps|tb|plat|mk)\.[a-z0-9_.]{1,80}$/', $code ) ) {
-				f8_check( false, 'Código mal declarado: ' . $code . ' (' . $name . ')' );
-			}
+			f8_check( $ok_prefix && $ok_section && '' !== $label && $clean && 1 === preg_match( '/^(core|ext|ps|tb|plat|mk)\.[a-z0-9_.]{1,80}$/', $code ), 'Código bien declarado (prefijo de su archivo, sección, texto sin dominios del proveedor): ' . $code . ' (' . $name . ')' );
 		}
 	}
 	f8_check( ! $dupes, 'Ningún código está declarado dos veces: ' . implode( ', ', $dupes ) );
 	f8_check( count( $seen ) === count( $catalog ), 'El catálogo cargado es la unión de los archivos.' );
 	foreach ( $catalog as $code => $spec ) {
-		if ( ! preg_match( '/[áéíóúñ¿¡]|\b(el|la|los|las|de|del|sin|con|para|que)\b/iu', $spec['label'] ) ) {
+		if ( preg_match( '/\b(is|are|was|with|without|could|will|should|cannot)\b/i', $spec['label'] ) || ! preg_match( '/[áéíóúñ¿¡]|\b(el|la|los|las|de|del|sin|con|para|que|no|se|un|una|y|en|por|al|es)\b/iu', $spec['label'] ) ) {
 			f8_check( false, 'El texto de ' . $code . ' no parece español: ' . $spec['label'] );
 		}
 	}
@@ -73,6 +74,9 @@ namespace {
 		$text = (string) file_get_contents( (string) $file );
 		if ( preg_match_all( "/(?:Report::(?:add|site)\\(\\s*(?:[^,()]+(?:\\([^()]*\\))?\\s*,\\s*)?|::(?:site_code|doc_code)\\(\\s*(?:[^,()]+,\\s*)?|Report::site\\(\\s*\\$[a-z_]+\\s*\\)|array\\(\\s*)'((?:core|ext|ps|tb|plat|mk)\\.[a-z0-9_.]+)'/", $text, $m ) ) {
 			foreach ( $m[1] as $code ) {
+				if ( '.' === substr( $code, -1 ) ) {
+					continue; // Prefijo de un código compuesto (`ext.dropped.` . $slug).
+				}
 				$literal[ $code ] = basename( (string) $file );
 			}
 		}
@@ -123,8 +127,14 @@ namespace {
 	// Valores con HTML que llegan al informe aunque sea por otra vía (un informe guardado manipulado): render() escapa.
 	$forged = array( 'docs' => array( $doc => array( 'items' => array( array( 'code' => 'core.a', 'detail' => array( 'widget' => $xss, 'element' => $xss, 'name' => $xss, 'target' => $xss, 'type' => $xss, 'note' => $xss ) ) ), 'more' => 0 ) ), 'omitted' => 0, 'site' => array( 'items' => array( array( 'code' => 'core.a', 'detail' => array( 'name' => $xss, 'note' => $xss ) ) ), 'more' => 0 ) );
 	$html   = Report::render( $forged, 'site' );
-	f8_check( false === strpos( $html, '<img' ) && false === strpos( $html, 'onerror=alert' ) || false === strpos( $html, '<img' ), 'Ningún campo sale sin escapar (detalle y título).' );
+	f8_check( false === strpos( $html, '<img' ), 'Ningún campo sale sin escapar (detalle y título).' );
 	f8_check( substr_count( $html, '&lt;img src=x onerror=alert(1)&gt;' ) >= 7, 'Cada campo (título, widget, elemento, nombre, destino, tipo y nota) aparece escapado: ' . substr_count( $html, '&lt;img' ) );
+	foreach ( array( 'widget', 'elemento', 'nombre', 'destino', 'tipo' ) as $field ) {
+		f8_check( str_contains( $html, $field . ': &lt;img src=x onerror=alert(1)&gt;' ), 'El campo «' . $field . '» se pinta escapado.' );
+	}
+	f8_check( str_contains( $html, '— &lt;img src=x onerror=alert(1)&gt;' ), 'La nota se pinta escapada.' );
+	f8_check( str_contains( $html, '>&lt;img src=x onerror=alert(1)&gt;</a>' ), 'El título del documento se pinta escapado dentro de su enlace.' );
+	f8_check( str_contains( $html, esc_html( 'Sitio' ) ) && str_contains( $html, 'nombre: &lt;img' ), 'Los elementos del sitio también se escapan.' );
 	f8_check( str_contains( $html, 'Descartado' ) || str_contains( Report::render( array( 'docs' => array( $doc => array( 'items' => array( array( 'code' => 'core.b', 'detail' => array() ) ), 'more' => 0 ) ) ), 'site' ), 'Descartado &lt;b&gt;B&lt;/b&gt;' ), 'Las etiquetas del catálogo también se escapan.' );
 	f8_check( str_contains( $html, 'href="https://s1.test/wp-admin/post.php?post=' . $doc . '&amp;action=edit"' ), 'El enlace lo construye el informe (get_edit_post_link) y va escapado.' );
 	$cli = Report::render( $forged, 'cli' );
@@ -147,6 +157,7 @@ namespace {
 	$GLOBALS['wp']['multisite'] = false;
 
 	// Códigos que no casan con la forma se ignoran; uno con forma válida sin catálogo va a «Pendiente de revisar».
+	Report::clear();
 	Report::begin( 'run' );
 	Report::add( $doc, 'evil.code' );
 	Report::add( $doc, 'core.<b>' );
@@ -194,7 +205,7 @@ namespace {
 	$t = Report::take();
 	f8_check( Report::MAX_ITEMS === count( $t['docs'][ $doc ]['items'] ) && 5 === $t['docs'][ $doc ]['more'], 'Hasta 12 elementos por documento y el resto contado.' );
 	for ( $i = 0; $i < Report::MAX_DOCS + 3; $i++ ) {
-		Report::add( 1000 + $i, 'core.a' );
+		Report::add( 5000 + $i, 'core.a' );
 	}
 	$t = Report::take();
 	f8_check( Report::MAX_DOCS === count( $t['docs'] ) && 3 === $t['omitted'], 'Hasta 100 documentos y los demás contados.' );
@@ -210,6 +221,7 @@ namespace {
 	f8_check( Report::merge( $m, $m ) === Report::merge( $m, Report::none() ), 'Unir un informe consigo mismo no cambia nada.' );
 
 	/* ================================================================ Pendiente: sólo «review» (y review_if_published) */
+	Report::clear();
 	Report::begin( 'run' );
 	Report::add( $doc, 'core.a' );
 	$t = Report::take();

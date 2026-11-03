@@ -353,7 +353,19 @@ final class Converter {
 			if ( $map && 'DESCARTAR' === $map['decision'] ) {
 				$code = (string) ( $map['drop_code'] ?? 'ps.dropped.widget' );
 			} elseif ( $map && in_array( $map['family'], self::DYNAMIC_FAMILIES, true ) ) {
+				// F distingue destino, respaldo, descarte y bloqueo (`Dynamic::describe()`); sin su clase, lo de la decisión.
 				$code = 'ADAPTAR' === $map['decision'] ? 'ps.converted' : 'ps.approx';
+				$class = self::DYNAMIC;
+				if ( ! class_exists( $class ) && is_file( __DIR__ . '/class-dynamic.php' ) ) {
+					require_once __DIR__ . '/class-dynamic.php';
+				}
+				if ( class_exists( $class ) && method_exists( $class, 'describe' ) ) {
+					$codes = (array) $class::describe( $type );
+					foreach ( $codes as $dyn => $count ) {
+						$out[ (string) $dyn ] = ( $out[ (string) $dyn ] ?? 0 ) + (int) $count;
+					}
+					$code = $codes ? '' : $code;
+				}
 			} elseif ( $map ) {
 				$primary  = Builder::NESTED === $map['target'] ? Builder::usable( Builder::NESTED ) : ( 'container' === $map['target'] || Builder::usable( (string) $map['target'] ) );
 				$fallback = '' !== $map['fallback'] && Builder::usable( (string) $map['fallback'] );
@@ -364,8 +376,10 @@ final class Converter {
 					$out['ps.fallback.slides'] = ( $out['ps.fallback.slides'] ?? 0 ) + 1;
 				}
 			}
-			$out[ $code ] = ( $out[ $code ] ?? 0 ) + 1;
-			$settings     = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
+			if ( '' !== $code ) {
+				$out[ $code ] = ( $out[ $code ] ?? 0 ) + 1;
+			}
+			$settings = is_array( $element['settings'] ?? null ) ? $element['settings'] : array();
 			foreach ( self::EXTENSIONS as $key => $drop ) {
 				if ( 'yes' === ( $settings[ $key ] ?? '' ) ) {
 					$out[ $drop ] = ( $out[ $drop ] ?? 0 ) + 1;

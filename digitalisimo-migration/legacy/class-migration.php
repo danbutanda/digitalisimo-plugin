@@ -1052,6 +1052,20 @@ final class Migration {
 			foreach ( Runner::describe( $data ) as $code => $count ) {
 				Report::add( $post_id, (string) $code, array( 'count' => (int) $count ) );
 			}
+			// Ajustes de página (C) y descartes del documento (Dropped de C), sin escribir nada.
+			$page = get_metadata( 'post', $post_id, '_elementor_page_settings', true );
+			if ( is_array( $page ) && class_exists( __NAMESPACE__ . '\\Effects\\Page' ) && method_exists( __NAMESPACE__ . '\\Effects\\Page', 'describe' ) ) {
+				foreach ( (array) Effects\Page::describe( $page, $post_id ) as $code => $count ) {
+					Report::add( $post_id, (string) $code, array( 'count' => (int) $count ) );
+				}
+			}
+			if ( method_exists( __NAMESPACE__ . '\\Dropped', 'report_items' ) ) {
+				foreach ( (array) Dropped::report_items( $post_id ) as $item ) {
+					if ( is_array( $item ) && isset( $item[0] ) ) {
+						Report::add( $post_id, (string) $item[0], (array) ( $item[1] ?? array() ) );
+					}
+				}
+			}
 			$markers = array();
 			$addon   = array();
 			self::walk( $data, static function ( $element ) use ( &$markers, &$addon, $moved ) {
@@ -1112,6 +1126,26 @@ final class Migration {
 		return '' !== $html ? '<h3>' . esc_html( 'Lo que hará Migrar' ) . '</h3>' . $html : '<p>' . esc_html( 'Nada más que convertir en plantillas, efectos, Prime Slider ni contenido conservado.' ) . '</p>';
 	}
 
+	/**
+	 * Columna «Sin equivalente» de la red: lo descartado y lo pendiente según el último informe de F8 del sitio o, si no
+	 * lo hay, su análisis previo guardado. Nunca relee documentos.
+	 */
+	public static function without_summary( $report ) {
+		$summary = is_array( $report ) && isset( $report['report']['f8'] ) ? (array) $report['report']['f8'] : array();
+		if ( ! $summary ) {
+			$cached  = get_option( self::ANALYSIS, null );
+			$summary = is_array( $cached ) && ! empty( $cached['done'] ) ? Report::summary( (array) $cached['report'] ) : array();
+		}
+		$parts = array();
+		if ( ! empty( $summary['dropped'] ) ) {
+			$parts[] = sprintf( 'sin equivalente: %d', (int) $summary['dropped'] );
+		}
+		if ( ! empty( $summary['review'] ) ) {
+			$parts[] = sprintf( 'pendiente de revisar: %d', (int) $summary['review'] );
+		}
+		return implode( '; ', $parts );
+	}
+
 	/** Plugins que se retiran, con su grupo y su momento (al inicio o al final). */
 	private static function retire_plan() {
 		$groups = array( 'element-pack' => 'Element Pack', 'pro' => 'Elementor Pro / PRO Elements', 'core' => 'Elementor', 'prime-slider' => 'Prime Slider' );
@@ -1162,24 +1196,12 @@ final class Migration {
 		if ( $groups['blocked'] ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( '%d documentos no cambian al migrar porque sólo les quedan widgets sin equivalente (en la tabla, «Sin adaptador»): sin Element Pack esos widgets no se muestran. Sustitúyelos en el editor por la alternativa que indica la tabla, o acepta que desaparezcan.', count( $groups['blocked'] ) ) ) . '</p></div>';
 		}
-		// Lo que Migrar no convierte: el mismo listado que dará el informe final. Es información; sólo el contenido que
-		// hoy no se ve (widgets de Prime Slider sin su plugin) impide dar el sitio por terminado.
-		$dropped = Dropped::analyze();
-		echo Dropped::render( Dropped::describe( $dropped ), $dropped['omitted'], Dropped::INTRO ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML ya escapado por Dropped.
-		$kept = Dropped::kept_messages( Dropped::kept() );
-		foreach ( $kept['pending'] as $message ) {
-			echo '<div class="notice notice-warning inline"><p>' . esc_html( $message ) . '</p></div>';
-		}
-		foreach ( $kept['info'] as $message ) {
-			echo '<div class="notice notice-info inline"><p>' . esc_html( $message ) . '</p></div>';
-		}
-		if ( $kept['idle'] ) {
-			echo '<p>' . esc_html( Dropped::idle_message( $kept['idle'] ) ) . '</p>';
-		}
+		// Lo que Migrar no convierte (efectos sin equivalente, Prime Slider, marcadores…) lo dice el análisis previo de
+		// F8, por trozos y con el mismo formato que el informe final (V.3.5, §3.G).
 		$active = array_filter( $status, static function ( $info ) {
 			return $info['site'] || $info['network'];
 		} );
-		if ( ! $inventory && ! $groups['convertible'] && ! $revisions && ! $aliases && ! $active && ! $kept['pending'] ) {
+		if ( ! $inventory && ! $groups['convertible'] && ! $revisions && ! $aliases && ! $active ) {
 			echo '<div class="notice notice-success inline"><p>Este sitio ya no tiene contenido heredado ni plugins sustituidos activos. Cuando lo hayas comprobado, puedes desinstalar Element Pack, Elementor, Elementor Pro y DIGITALÍSIMO Migración.</p></div>';
 		}
 	}
@@ -1223,9 +1245,9 @@ final class Migration {
 					$plugins[] = $info['label'];
 				}
 			}
-			// Efectos heredados que se descartan y plugins de la familia que la migración no desactiva.
-			$without = Dropped::summary( Dropped::analyze(), Dropped::kept() );
+			// Lo que no tiene equivalente, del último informe o del análisis guardado (sin releer documentos aquí).
 			$report  = Runner::report();
+			$without = self::without_summary( $report );
 			$state   = Runner::state();
 			$last    = $state && empty( $state['done'] ) ? 'En marcha' : ( $report && ! empty( $report['finished'] ) ? wp_date( 'd/m/Y H:i', (int) $report['finished'] ) : 'Nunca' );
 			$name    = get_bloginfo( 'name' );
@@ -1243,10 +1265,6 @@ final class Migration {
 			}
 		}
 		echo '<p>' . esc_html( ( $network_active ? 'Activos en toda la red: ' . implode( ', ', $network_active ) . '. ' : '' ) . ( $total_missing ? 'Hay widgets sin adaptador: la herramienta de cada sitio explica el motivo y la alternativa de cada uno.' : 'Ningún sitio usa widgets de Element Pack sin adaptador.' ) ) . '</p>';
-		$kept = Runner::kept_network();
-		if ( $kept ) {
-			echo '<div class="notice notice-info inline"><p>' . esc_html( Dropped::kept_notice( $kept, 'La columna «Sin equivalente» y la herramienta de cada sitio dicen qué usa cada uno.' ) ) . '</p></div>';
-		}
 		// Contraseñas de aplicación, una vez por usuario de la red (sólo un superadministrador ve los nombres).
 		if ( class_exists( __NAMESPACE__ . '\\Platform\\Inventory' ) && method_exists( __NAMESPACE__ . '\\Platform\\Inventory', 'network_app_passwords' ) ) {
 			echo Platform\Inventory::app_passwords_html( (array) Platform\Inventory::network_app_passwords(), 'network' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Inventory.

@@ -227,9 +227,13 @@ final class Tooltip {
 						'title' => __( 'Centro', 'pro-elements' ),
 						'icon'  => 'eicon-text-align-center',
 					),
-					'right'  => array(
+					'right'   => array(
 						'title' => __( 'Derecha', 'pro-elements' ),
 						'icon'  => 'eicon-text-align-right',
+					),
+					'justify' => array(
+						'title' => __( 'Justificado', 'pro-elements' ),
+						'icon'  => 'eicon-text-align-justify',
 					),
 				),
 				'selectors' => array( $sel => 'text-align: {{VALUE}};' ),

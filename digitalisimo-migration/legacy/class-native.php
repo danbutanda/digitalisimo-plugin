@@ -80,9 +80,23 @@ final class Native {
 					unset( $settings[ $key ] );
 				}
 			}
+			// Sus colores globales y textos dinámicos también: widget() filtra esas bolsas por los controles del destino.
+			foreach ( array( '__globals__', '__dynamic__' ) as $refs ) {
+				foreach ( (array) ( $settings[ $refs ] ?? array() ) as $key => $value ) {
+					if ( preg_match( self::ELEMENT_KEYS, (string) $key ) || self::effect_key( (string) $key ) ) {
+						$bag[ $refs ][ $key ] = $value;
+					}
+				}
+			}
 			$element['settings'] = $settings;
 			$element             = self::widget( $element, $post_id );
 			if ( $bag ) {
+				foreach ( array( '__globals__', '__dynamic__' ) as $refs ) {
+					if ( isset( $bag[ $refs ] ) ) {
+						$element['settings'][ $refs ] = (array) ( $element['settings'][ $refs ] ?? array() ) + $bag[ $refs ];
+						unset( $bag[ $refs ] );
+					}
+				}
 				$element['settings'] = $element['settings'] + $bag;
 				$element             = self::effects( $element, $post_id );
 				$element['settings'] = self::element_settings( $element, $post_id );
@@ -93,6 +107,9 @@ final class Native {
 			// borra al guardar, y K lo devuelve solo si Element Pack vuelve a estar activo.
 			Report::add( $post_id, 'core.no_adapter', array( 'widget' => $type, 'note' => self::reason( $type ) ) );
 			return array( self::wrap( $element ), 1 );
+		} elseif ( ! self::$restricted && self::has( 'Effects\\Dispatcher', 'is_atomic' ) && Effects\Dispatcher::is_atomic( $element ) && self::effect_detect( $settings ) && ! self::other_legacy( $settings ) ) {
+			// Elemento atómico (v4) con sólo extensiones de Element Pack: se informa (ext.v4) y no se toca.
+			$element = self::effects( $element, $post_id );
 		} elseif ( self::has_legacy_element_settings( $settings ) ) {
 			$element             = self::effects( $element, $post_id );
 			$element['settings'] = self::element_settings( $element, $post_id );
@@ -170,6 +187,16 @@ final class Native {
 			$count += is_array( $child ) ? 1 + self::count_children( $child ) : 0;
 		}
 		return $count;
+	}
+
+	/** ¿Claves con prefijo heredado que no son de las extensiones de C (visibilidad, máscaras…)? */
+	private static function other_legacy( array $settings ) {
+		foreach ( array_keys( $settings ) as $key ) {
+			if ( preg_match( '/^(ep_|element_pack_|bdt_)/', (string) $key ) && ! self::effect_key( (string) $key ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** ¿Es una clave de una extensión que convierte el frente C (también sin prefijo)? */
@@ -465,7 +492,7 @@ final class Native {
 	private static function target_controls( $target ) {
 		static $cache = array();
 		if ( ! array_key_exists( $target, $cache ) ) {
-			$widget           = class_exists( '\\Elementor\\Plugin' ) ? \Elementor\Plugin::$instance->widgets_manager->get_widget_types( $target ) : null;
+			$widget           = class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->widgets_manager ) ? \Elementor\Plugin::$instance->widgets_manager->get_widget_types( $target ) : null;
 			$cache[ $target ] = $widget ? self::with_style_controls( static function () use ( $widget ) {
 				return (array) $widget->get_controls();
 			} ) : null;

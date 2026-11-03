@@ -20,6 +20,9 @@
  *   viva según la reproducción automática, hijos con `role="group"` y «N de M» (y un contenedor anidado sin ellos);
  *   listas cerradas ante valores forjados; sin `inert`, `<script>` ni `<img>` en el HTML.
  * - Plantilla del editor: mismas listas, mismos textos y `data-digi-start`; el punto nuevo del repetidor.
+ * - F8 (V.10.4, frente D): el contador opcional (`counter`): sin default, `style_transfer => false`, hoja y script en
+ *   `assets` (y en la vista previa del editor), `normalize()` con `counter`, marcado tras los puntos con `aria-hidden` y
+ *   `hidden`, y una instantánea versionada de 4.3.0.169 (sha256 por caso): sin el contador, el HTML no cambia.
  * - Fixture del navegador (`tests/fixtures/f7b-nested-slider.html`): sus sliders son exactamente el HTML de este
  *   `render()` y su plantilla, la de `content_template()`. Con `--write-fixture` se regenera.
  */

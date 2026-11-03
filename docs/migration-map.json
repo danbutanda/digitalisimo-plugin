@@ -2723,7 +2723,7 @@
       "legacy_adapter": "digitalisimo-migration/legacy/maps/bdt-marquee.php (+ .styles.php); A/B multisite with Element Pack 9.9.1 in 4.3.0.119"
     },
     "bdt-mega-menu": {
-      "target": null,
+      "target": "nav-menu",
       "engine": "navigation",
       "classification": "E - REVIEW FOR DUPLICATION",
       "user_priority_tier": 2,

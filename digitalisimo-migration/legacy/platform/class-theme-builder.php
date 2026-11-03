@@ -73,7 +73,8 @@ final class Theme_Builder {
 	/**
 	 * Análisis previo, sin escribir nada: por plantilla, qué se hará y qué cambia.
 	 *
-	 * @return array<int, array{0:string, 1:array}> `[ código, detalle ]`; el detalle lleva `id` (plantilla de origen).
+	 * @return array<int, array> `[ código, detalle, ID de la plantilla de origen ]` (el tercero falta en los avisos del
+	 *                           sitio); el detalle lleva también `id`.
 	 */
 	public static function analyze(): array {
 		$out = array();
@@ -83,14 +84,14 @@ final class Theme_Builder {
 				continue;
 			}
 			$detail = self::detail( $info );
-			$out[]  = array( '' === $info['reason'] ? 'tb.created' : $info['reason'], $detail );
+			$out[]  = array( '' === $info['reason'] ? 'tb.created' : $info['reason'], $detail, $id );
 			foreach ( $info['items'] as $item ) {
-				$out[] = array( $item['code'], self::item_detail( $info, $item ) );
+				$out[] = array( $item['code'], self::item_detail( $info, $item ), $id );
 			}
 			if ( $info['visible'] && '' !== $info['reason'] ) {
-				$out[] = array( 'tb.blocked_retire', $detail );
+				$out[] = array( 'tb.blocked_retire', $detail, $id );
 			} elseif ( ! $info['header'] && $info['active'] && 'publish' === $info['status'] && '' !== $info['reason'] && 'tb.inactive' !== $info['reason'] ) {
-				$out[] = array( 'tb.review.type_lost', $detail );
+				$out[] = array( 'tb.review.type_lost', $detail, $id );
 			}
 		}
 		foreach ( self::site_notes() as $note ) {
@@ -172,17 +173,11 @@ final class Theme_Builder {
 			$codes[] = array( 'tb.unprepared', array() );
 			$retire  = false;
 		}
-		foreach ( self::visible_sources() as $id => $info ) {
-			$row = $copies[ (string) $id ] ?? null;
-			if ( ! self::publishable_row( $row ) ) {
-				$codes[]   = array( 'tb.blocked_retire', self::detail( $info ) );
-				$blocked[] = $id;
-				$retire    = false;
-				continue;
-			}
-			if ( '' !== (string) ( $row['extra']['src_hash'] ?? '' ) && $info['src_hash'] !== $row['extra']['src_hash'] ) {
-				$codes[] = array( 'tb.stale', self::detail( $info ) + array( 'target' => (string) $row['dest'] ) );
-			}
+		$check   = self::visible_without_copy();
+		$blocked = $check['blocked'];
+		$codes   = array_merge( $codes, $check['codes'] );
+		if ( $blocked ) {
+			$retire = false;
 		}
 		if ( $facts['conflict_after'] ) {
 			$codes[] = array( 'tb.conflict', array() );
@@ -194,6 +189,38 @@ final class Theme_Builder {
 		}
 		self::report_codes( $codes );
 		return array( 'retire' => $retire, 'allow' => $retire, 'codes' => $codes, 'blocked' => $blocked );
+	}
+
+	/**
+	 * Condición 3 de V.5.3, para la compuerta del runner (`Runner::ep_gate()`): cabeceras y pies de Element Pack
+	 * visibles hoy sin copia publicable. Vacío = no bloquea. Informa cada uno (`tb.blocked_retire`, con su ID, título y
+	 * tipo) y los originales que cambiaron después de copiarlos (`tb.stale`, sin bloquear).
+	 *
+	 * @return int[] IDs de origen que bloquean.
+	 */
+	public static function blocked(): array {
+		$check = self::visible_without_copy();
+		self::report_codes( $check['codes'] );
+		return $check['blocked'];
+	}
+
+	/** Cabeceras y pies visibles hoy sin copia publicable, y los que cambiaron tras copiarlos. */
+	private static function visible_without_copy(): array {
+		$copies  = Registry::all( self::KIND );
+		$codes   = array();
+		$blocked = array();
+		foreach ( self::visible_sources() as $id => $info ) {
+			$row = $copies[ (string) $id ] ?? null;
+			if ( ! self::publishable_row( $row ) ) {
+				$codes[]   = array( 'tb.blocked_retire', self::detail( $info ) );
+				$blocked[] = (int) $id;
+				continue;
+			}
+			if ( '' !== (string) ( $row['extra']['src_hash'] ?? '' ) && $info['src_hash'] !== $row['extra']['src_hash'] ) {
+				$codes[] = array( 'tb.stale', self::detail( $info ) );
+			}
+		}
+		return array( 'blocked' => $blocked, 'codes' => $codes );
 	}
 
 	/**

@@ -733,8 +733,11 @@ final class Runner {
 				$state = self::before_ep_retire( $state );
 			}
 		} else {
-			// Quedaría un hueco: el grupo de Element Pack no cae (sí los demás) y el sitio sigue como estaba.
-			Report::site( $gate );
+			// Quedaría un hueco: el grupo de Element Pack no cae (sí los demás) y el sitio sigue como estaba. Con una
+			// plantilla bloqueante, Theme_Builder::blocked() ya informó cada una con su detalle.
+			if ( 'tb.blocked_retire' !== $gate || ! self::has( 'Platform\\Theme_Builder', 'blocked' ) ) {
+				Report::site( $gate );
+			}
 			$skip             = array( 'element-pack' );
 			$state['ep_kept'] = true;
 		}
@@ -942,12 +945,20 @@ final class Runner {
 		self::dropped();
 		$ids            = self::ids( 'convert', array( __CLASS__, 'documents_to_convert' ) );
 		$state['total'] = count( $ids );
-		list( $state, $complete ) = self::loop( $state, $ids, $deadline, static function ( $post_id, array &$state ) {
+		// Con las extensiones de F8 (frente C), los descartes los informa su convertidor (`ext.dropped.*`) y la etapa
+		// `report` relee las copias por trozos (V.9, V.3.5); sin ellas, como en 1.0.20 (Dropped).
+		$legacy_dropped = ! self::has( 'Effects\\Dispatcher', 'element' );
+		list( $state, $complete ) = self::loop( $state, $ids, $deadline, static function ( $post_id, array &$state ) use ( $legacy_dropped ) {
 			// La conversión retira las claves heredadas y el informe las lee de la copia original: sólo se anota antes lo
 			// que una copia guardada por una conversión anterior no recoge.
-			$found = Dropped::uncovered( $post_id );
-			if ( $found ) {
-				$state['dropped'] = Dropped::add( (array) ( $state['dropped'] ?? array() ), $post_id, $found );
+			if ( $legacy_dropped ) {
+				$found = Dropped::uncovered( $post_id );
+				if ( $found ) {
+					$state['dropped'] = Dropped::add( (array) ( $state['dropped'] ?? array() ), $post_id, $found );
+				}
+			} elseif ( method_exists( __NAMESPACE__ . '\\Dropped', 'report' ) ) {
+				// Los descartes al informe de F8 antes de convertir (lo que la conversión retira ya no se vería).
+				Dropped::report( $post_id );
 			}
 			$result = Migration::convert_document( $post_id );
 			if ( ! empty( $result['native'] ) ) {
@@ -1123,7 +1134,7 @@ final class Runner {
 					}
 					continue;
 				}
-				if ( 'widget' === ( $element['elType'] ?? '' ) && Translator::is_prime_slider_id( $type ) ) {
+				if ( 'widget' === ( $element['elType'] ?? '' ) && Translator::is_prime_slider_id( $type ) && ! self::prime_slider_declared( $type ) ) {
 					++$loose;
 				}
 				$walk( (array) ( $element['elements'] ?? array() ) );
@@ -1141,13 +1152,32 @@ final class Runner {
 	}
 
 	/**
+	 * ¿Es un descarte declarado de Prime Slider (mapa `DESCARTAR`, o familia dinámica en estado `declared`, como
+	 * event-calendar sin The Events Calendar)? No impide retirar Prime Slider (V.10.6).
+	 */
+	private static function prime_slider_declared( $type ) {
+		if ( self::has( 'Prime_Slider\\Maps', 'get' ) ) {
+			$map = Prime_Slider\Maps::get( (string) $type );
+			if ( is_array( $map ) && in_array( strtoupper( (string) ( $map['decision'] ?? '' ) ), array( 'DESCARTAR', 'DISCARD' ), true ) ) {
+				return true;
+			}
+		}
+		return self::has( 'Prime_Slider\\Dynamic', 'state' ) && 'declared' === Prime_Slider\Dynamic::state( (string) $type );
+	}
+
+	/**
 	 * El informe de lo convertido en pasadas anteriores (V.3.5): volver a pulsar Migrar no borra nada. Se relee de la
 	 * copia original de cada documento con la descripción de cada frente, por trozos.
 	 */
 	private static function stage_report( array $state, $deadline ) {
-		$ids     = self::ids( 'report', array( Migration::class, 'backups' ) );
+		$ids     = self::ids( 'report', array( __CLASS__, 'report_documents' ) );
 		$started = (int) $state['started'];
-		list( $state, $complete ) = self::loop( $state, $ids, $deadline, static function ( $post_id ) use ( $started ) {
+		$dropped = method_exists( __NAMESPACE__ . '\\Dropped', 'report' ) && self::has( 'Effects\\Dispatcher', 'element' );
+		list( $state, $complete ) = self::loop( $state, $ids, $deadline, static function ( $post_id ) use ( $started, $dropped ) {
+			// Descartes y claves ambiguas de cada documento (también de los no convertidos), de la copia y de lo actual.
+			if ( $dropped ) {
+				Dropped::report( (int) $post_id );
+			}
 			$mark = Migration::f8_mark( $post_id );
 			if ( $mark && (int) ( $mark['time'] ?? 0 ) >= $started ) {
 				// Convertido en esta pasada: lo suyo ya está en el informe.
@@ -1156,6 +1186,17 @@ final class Runner {
 			self::describe_backup( (int) $post_id );
 		} );
 		return $complete ? self::next( $state, 'finish' ) : $state;
+	}
+
+	/** Documentos de la etapa `report`: con copia original y, con las extensiones de F8, los de Dropped::documents(). */
+	public static function report_documents() {
+		$ids = Migration::backups();
+		if ( method_exists( __NAMESPACE__ . '\\Dropped', 'documents' ) && self::has( 'Effects\\Dispatcher', 'element' ) ) {
+			$ids = array_merge( $ids, (array) Dropped::documents( 0, 0 ) );
+		}
+		$ids = array_values( array_unique( array_map( 'intval', $ids ) ) );
+		sort( $ids );
+		return $ids;
 	}
 
 	/** Describe la copia original de un documento (sin escribir nada) y lo añade al informe. */
@@ -1318,8 +1359,10 @@ final class Runner {
 		// Extensiones sin equivalente: lo que guarda cada documento y su copia original (claves sin prefijo heredado,
 		// ajustes de la página, lo retirado al convertir) más lo anotado que esa copia no recoge.
 		self::dropped();
-		$dropped = Dropped::merge( Dropped::analyze(), (array) ( $state['dropped'] ?? array() ) );
-		$kept    = Dropped::kept();
+		// Sin las extensiones de F8, el listado de 1.0.20; con ellas, los descartes van en el informe de F8 (sin releer
+		// aquí todas las copias, V.3.5).
+		$dropped = self::has( 'Effects\\Dispatcher', 'element' ) ? array( 'docs' => array(), 'omitted' => 0 ) : Dropped::merge( Dropped::analyze(), (array) ( $state['dropped'] ?? array() ) );
+		$kept    = self::has( 'Effects\\Dispatcher', 'element' ) ? array() : Dropped::kept();
 		Report::flush();
 		$f8 = Report::stored();
 		return array(
@@ -1686,8 +1729,10 @@ final class Runner {
 			} elseif ( $expired && ! $blocked ) {
 				$job['unprepared'] = $pending;
 				$job               = self::release( $job );
-			} elseif ( $expired && $blocked ) {
-				// Un sitio con una cabecera o un pie visibles sin copia publicable: la red se detiene con su informe.
+			} elseif ( $blocked && ( ! $pending || $expired ) ) {
+				// V.19.1 (a), decisión del propietario: un sitio con una cabecera o un pie visibles sin copia publicable no
+				// deja liberar. En cuanto no queda nadie más por preparar (o vence el plazo), la red se detiene con su
+				// informe; Element Pack sigue en la red y ningún visitante pierde la cabecera. Al volver a pulsar, sigue.
 				$job['done']     = true;
 				$job['stopped']  = true;
 				$job['blocked']  = $blocked;
@@ -2192,12 +2237,13 @@ final class Runner {
 		}
 		// Lo que no tiene equivalente es información (no deja el sitio pendiente), salvo el contenido que hoy no se ve.
 		$info = '';
-		if ( ! empty( $r['dropped'] ) || ! empty( $r['dropped_omitted'] ) ) {
+		// Con el informe de F8 los descartes van en él (`ext.dropped.*`): la tabla antigua sólo para informes anteriores.
+		if ( ( ! empty( $r['dropped'] ) || ! empty( $r['dropped_omitted'] ) ) && ! isset( $r['f8'] ) ) {
 			self::dropped();
 			$info .= Dropped::render( (array) ( $r['dropped'] ?? array() ), (int) ( $r['dropped_omitted'] ?? 0 ), Dropped::INTRO );
 		}
 		$kept = array( 'pending' => array(), 'info' => array(), 'idle' => array() );
-		if ( ! empty( $r['kept'] ) || ! empty( $r['kept_idle'] ) ) {
+		if ( ( ! empty( $r['kept'] ) || ! empty( $r['kept_idle'] ) ) && ! isset( $r['f8'] ) ) {
 			self::dropped();
 			$kept = Dropped::kept_messages( array_merge( (array) ( $r['kept'] ?? array() ), (array) ( $r['kept_idle'] ?? array() ) ) );
 		}
@@ -2305,7 +2351,15 @@ final class Runner {
 			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Element Pack se desactivó en la red al vencer el plazo sin que estos sitios terminaran de preparar sus plantillas (pueden haberse quedado un tiempo sin su cabecera de Element Pack): ' . self::site_names( (array) $job['unprepared'] ) . '.' ) . '</p></div>';
 		}
 		if ( ! empty( $job['blocked'] ) ) {
-			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Sitios con una cabecera o un pie de Element Pack visibles sin copia que pueda publicarse (Element Pack sigue activo en la red por ellos): ' . self::site_names( (array) $job['blocked'] ) . '.' ) . '</p></div>';
+			// Cada sitio enlaza a su herramienta, donde el informe dice qué plantilla bloquea (con su enlace).
+			$links = array();
+			foreach ( (array) $job['blocked'] as $site_id ) {
+				$details = function_exists( 'get_blog_details' ) ? get_blog_details( (int) $site_id ) : null;
+				$name    = $details ? $details->blogname . ' (' . $details->siteurl . ')' : '#' . (int) $site_id;
+				$url     = function_exists( 'get_admin_url' ) ? get_admin_url( (int) $site_id, 'tools.php?page=' . Migration::PAGE ) : '';
+				$links[] = '' !== $url ? '<a href="' . esc_url( $url ) . '">' . esc_html( $name ) . '</a>' : esc_html( $name );
+			}
+			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Sitios con una cabecera o un pie de Element Pack visibles sin copia que pueda publicarse; Element Pack sigue activo en la red por ellos y nadie pierde su cabecera. Corrige la plantilla que indica su informe y vuelve a pulsar Migrar toda la red:' ) . ' ' . implode( ', ', $links ) . '.</p></div>';
 		}
 		if ( ! empty( $job['excluded'] ) ) {
 			$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Archivados, marcados como spam o borrados: no se migraron. Migrarán al volver a pulsar Migrar toda la red cuando estén activos: ' . self::site_names( (array) $job['excluded'] ) . '.' ) . '</p></div>';
@@ -2363,11 +2417,7 @@ final class Runner {
 			if ( $still ) {
 				$html .= '<div class="notice notice-warning inline"><p>' . esc_html( 'Aún no: ' . implode( ', ', $still ) . '. El informe de cada sitio explica por qué.' ) . '</p></div>';
 			}
-			$kept = self::kept_network();
-			if ( $kept ) {
-				self::dropped();
-				$html .= '<div class="notice notice-info inline"><p>' . esc_html( Dropped::kept_notice( $kept, 'El informe de cada sitio dice qué usa cada uno.' ) ) . '</p></div>';
-			}
+
 		}
 		return $html;
 	}

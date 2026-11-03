@@ -42,6 +42,10 @@
     "_expect_css": [
       "max-width:calc(240px-10px)!important"
     ],
+    "_expect_css_converted": [
+      "max-width:240px",
+      "--digi-tt-gap:14px"
+    ],
     "_expect_json": [
       "\"digitalisimo_tooltip_placement\":\"right\"",
       "\"digitalisimo_tooltip_trigger\":\"click\"",

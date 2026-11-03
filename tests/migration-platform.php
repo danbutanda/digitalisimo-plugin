@@ -698,6 +698,42 @@ namespace {
 	h_job( array( 'user' => 3 ) );
 	$check( 0 === Snippets::draft( 'x', 'z()', 'elementor_head', array(), array() ), 'código: draft() exige permiso de código sin filtrar' );
 
+	// Revalidación al publicar (frente G): el CSS que el publicador rechaza se informa una vez, escapado y sin código.
+	$publisher = 'Digitalisimo\\Elements\\Legacy\\Platform\\Publisher';
+	if ( method_exists( $publisher, 'set_environment' ) && method_exists( $publisher, 'denied' ) ) {
+		h_reset();
+		h_job();
+		h_fresh_report();
+		update_option( 'ep_custom_css', $code_fx['valid'] );
+		update_option( 'ep_custom_css_2', $code_fx['footer'] );
+		$cursor = array();
+		Snippets::prepare( $cursor, microtime( true ) + 30 );
+		$bad_id = (int) Registry::get( 'snippet', 'ep_custom_css' )['dest'];
+		$ok_id  = (int) Registry::get( 'snippet', 'ep_custom_css_2' )['dest'];
+		$check( h_tracked( $bad_id ) && h_tracked( $ok_id ), 'denegado: los dos CSS en la lista del publicador' );
+		update_post_meta( $bad_id, '_elementor_code', "<style>\n.a{}</style><img src=x onerror=alert(1)>\n</style>" );
+		$publisher::set_environment( array( 'ep' => false, 'conflict' => false, 'builder' => true, 'switched' => false ) );
+		$publisher::allow( true );
+		$publisher::sync();
+		$check( 'publish' === get_post_status( $ok_id ) && 'draft' === get_post_status( $bad_id ), 'denegado: el publicador publica el válido y deja el alterado en borrador' );
+		$check( array( $bad_id ) === array_map( 'intval', $publisher::denied() ), 'denegado: Publisher::denied() lo lista' );
+		h_fresh_report();
+		$cursor = array();
+		Snippets::finish( $cursor, microtime( true ) + 30 );
+		$r      = Report::take();
+		$denied = h_item( $r, 'plat.code.css_denied' );
+		$check( $denied && $bad_id === $denied['detail']['id'] && 'elementor_head' === $denied['detail']['target'] && 'css' === $denied['detail']['type'], 'denegado: plat.code.css_denied con el fragmento y su ubicación' );
+		$check( 1 === count( array_keys( h_codes( $r ), 'plat.code.css_denied', true ) ) && 'review' === Report::section_of( $denied ) && Report::pending( $r ), 'denegado: uno solo, en «Pendiente de revisar»' );
+		$html = Report::render( $r, 'site' );
+		$check( false !== strpos( $html, esc_html( $catalog['plat.code.css_denied']['label'] ) ) && false === stripos( $html, '<img' ) && false === stripos( $html, '<style' ) && false === strpos( serialize( $r ), 'onerror' ), 'denegado: escapado y sin el código' );
+		$check( ! empty( Registry::get( 'snippet', 'ep_custom_css' )['extra']['denied'] ) && empty( Registry::get( 'snippet', 'ep_custom_css_2' )['extra']['denied'] ), 'denegado: anotado en el registro sólo el rechazado' );
+		h_fresh_report();
+		$cursor = array();
+		Snippets::finish( $cursor, microtime( true ) + 30 );
+		$check( null === h_item( Report::take(), 'plat.code.css_denied' ), 'denegado: volver a pasar por la etapa no lo repite' );
+		$publisher::set_environment( null );
+	}
+
 	// Sin permiso: el JS sólo se informa y el CSS queda en borrador.
 	h_reset();
 	h_job( array( 'user' => 3 ) );

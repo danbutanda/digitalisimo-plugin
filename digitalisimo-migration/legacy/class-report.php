@@ -38,6 +38,8 @@ final class Report {
 	const MAX_DOCS    = 100;
 	/** Tope de los elementos del sitio (plantillas, fuentes, iconos, fragmentos…: la plataforma lo llena antes). */
 	const MAX_SITE_ITEMS = 60;
+	/** Huellas guardadas de lo que no cupo, por lista (para no contarlo dos veces). */
+	const OVER_MAX = 100;
 	const FLUSH_EVERY = 20;
 	const DETAIL_KEYS = array( 'widget', 'element', 'count', 'name', 'target', 'id', 'type', 'note' );
 	const NOTE_MAX    = 200;
@@ -167,15 +169,15 @@ final class Report {
 		$a += self::none();
 		$b += self::none();
 		foreach ( (array) $b['docs'] as $post_id => $doc ) {
-			$a = self::add_doc_items( $a, (int) $post_id, (array) ( $doc['items'] ?? array() ), (int) ( $doc['more'] ?? 0 ) );
+			$a = self::add_doc_items( $a, (int) $post_id, (array) ( $doc['items'] ?? array() ), (int) ( $doc['more'] ?? 0 ), (array) ( $doc['over'] ?? array() ) );
 		}
 		$a['omitted'] = max( (int) $a['omitted'], (int) $b['omitted'] );
-		$a['site']    = self::add_items( (array) $a['site'] + array( 'items' => array(), 'more' => 0 ), (array) ( $b['site']['items'] ?? array() ), (int) ( $b['site']['more'] ?? 0 ), self::MAX_SITE_ITEMS );
+		$a['site']    = self::add_items( (array) $a['site'] + array( 'items' => array(), 'more' => 0 ), (array) ( $b['site']['items'] ?? array() ), (int) ( $b['site']['more'] ?? 0 ), self::MAX_SITE_ITEMS, (array) ( $b['site']['over'] ?? array() ) );
 		return $a;
 	}
 
-	private static function add_doc_items( array $report, int $post_id, array $items, int $more ): array {
-		if ( ! $items && ! $more ) {
+	private static function add_doc_items( array $report, int $post_id, array $items, int $more, array $hashes = array() ): array {
+		if ( ! $items && ! $more && ! $hashes ) {
 			return $report;
 		}
 		if ( ! isset( $report['docs'][ $post_id ] ) ) {
@@ -185,35 +187,55 @@ final class Report {
 			}
 			$report['docs'][ $post_id ] = array( 'items' => array(), 'more' => 0 );
 		}
-		$report['docs'][ $post_id ] = self::add_items( $report['docs'][ $post_id ], $items, $more );
+		$report['docs'][ $post_id ] = self::add_items( $report['docs'][ $post_id ], $items, $more, self::MAX_ITEMS, $hashes );
 		ksort( $report['docs'] );
 		return $report;
 	}
 
-	/** Añade elementos a una lista con tope, sin repetir; lo que no cabe se cuenta (lo mayor, nunca la suma). */
-	private static function add_items( array $list, array $items, int $more, int $max = self::MAX_ITEMS ): array {
+	/**
+	 * Añade elementos a una lista con tope, sin repetir. Lo que no cabe se cuenta en `more` y su huella corta queda en
+	 * `over` (hasta OVER_MAX), así que reintentar o unir dos pasadas no lo cuenta dos veces; pasado ese tope se cuenta
+	 * lo mayor, nunca la suma.
+	 */
+	private static function add_items( array $list, array $items, int $more, int $max = self::MAX_ITEMS, array $hashes = array() ): array {
 		$list += array( 'items' => array(), 'more' => 0 );
+		$over  = array_flip( array_map( 'strval', (array) ( $list['over'] ?? array() ) ) );
+		$extra = max( 0, (int) $list['more'] - count( $over ) );
 		$seen  = array();
 		foreach ( $list['items'] as $item ) {
 			$seen[ self::signature( (array) $item ) ] = true;
 		}
-		$overflow = 0;
+		$new_extra = 0;
 		foreach ( $items as $item ) {
 			if ( ! is_array( $item ) || ! isset( $item['code'] ) ) {
 				continue;
 			}
 			$signature = self::signature( $item );
-			if ( isset( $seen[ $signature ] ) ) {
+			$short     = substr( md5( $signature ), 0, 10 );
+			if ( isset( $seen[ $signature ] ) || isset( $over[ $short ] ) ) {
 				continue;
 			}
-			$seen[ $signature ] = true;
 			if ( count( $list['items'] ) < $max ) {
-				$list['items'][] = $item;
+				$seen[ $signature ] = true;
+				$list['items'][]    = $item;
+			} elseif ( count( $over ) < self::OVER_MAX ) {
+				$over[ $short ] = true;
 			} else {
-				++$overflow;
+				++$new_extra;
 			}
 		}
-		$list['more'] = max( (int) $list['more'], $overflow, $more );
+		foreach ( $hashes as $short ) {
+			if ( ! isset( $over[ (string) $short ] ) && count( $over ) < self::OVER_MAX ) {
+				$over[ (string) $short ] = true;
+			}
+		}
+		// Lo que no tiene huella (pasado el tope, o de un informe sin `over`) se cuenta como lo mayor.
+		$extra        = max( $extra + $new_extra, $more - count( $hashes ) );
+		$list['over'] = array_keys( $over );
+		$list['more'] = count( $over ) + max( 0, $extra );
+		if ( ! $list['over'] ) {
+			unset( $list['over'] );
+		}
 		return $list;
 	}
 
@@ -474,7 +496,7 @@ final class Report {
 			$link = function_exists( 'get_edit_post_link' ) ? (string) get_edit_post_link( $id, 'raw' ) : '';
 			$link = '' !== $link ? $link : ( function_exists( 'admin_url' ) ? admin_url( 'post.php?post=' . $id . '&action=elementor' ) : '' );
 		}
-		$text = esc_html( wp_strip_all_tags_safe( $title ) );
+		$text = esc_html( $title );
 		return $links && '' !== $link ? '<a href="' . esc_url( $link ) . '">' . $text . '</a>' : $text;
 	}
 
@@ -520,7 +542,3 @@ final class Report {
 	}
 }
 
-/** strip_tags tolerante a los entornos de prueba (wp_strip_all_tags si existe). */
-function wp_strip_all_tags_safe( string $text ): string {
-	return function_exists( 'wp_strip_all_tags' ) ? (string) wp_strip_all_tags( $text ) : strip_tags( $text );
-}

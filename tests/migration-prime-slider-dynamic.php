@@ -455,6 +455,19 @@ namespace {
 	$check( in_array( 'ps.dyn.loss.skin', $c, true ) && ! in_array( 'ps.dyn.loss.kenburns', $c, true ) && in_array( 'ps.dyn.social', $c, true ) && in_array( 'ps.dyn.scroll', $c, true ), 'skin, redes y botón informados (Ken Burns lo informa Converter: ps.dropped.kenburns)' );
 	$check( ! in_array( 'ps.dyn.loss.styles', $c, true ), 'ajustes de contenido (altura, alineación, duración) no cuentan como estilos perdidos' );
 
+	// Extensiones de Prime Slider: las informa Converter (E) con ps.dropped.*; F no las repite ni las cuenta como estilos.
+	$psx = array( 'reveal_effects_enable' => 'yes', 'reveal_effects_color' => '#FF0000', 'reveal_effects_direction' => 'tb', 'reveal_effects_speed' => array( 'size' => 800 ), 'animation_status' => 'yes', 'animation_of' => array( '.x' ), 'anim_duration' => array( 'size' => 2 ), 'anim_scale' => array( 'size' => 1.2 ), 'ps_widget_abg' => 'yes', 'ps_widget_abg_parent' => '.hero', 'kenburns_animation' => 'yes', 'kenburns_reverse' => 'yes' );
+	foreach ( array( 'blog', 'fluent', 'mercury', 'pacific', 'woostand', 'event-calendar' ) as $id ) {
+		$out  = build( $id, fx( $id, 'defaults' ) + $psx, $page );
+		$c    = codes( $page );
+		$dupe = array_filter( $c, static function ( $x ) {
+			return 0 === strpos( $x, 'ps.dropped.' ) || 1 === preg_match( '/^ps\.dyn\..*(reveal|animation|abg|adaptive|kenburns)/', $x );
+		} );
+		$check( is_array( $out ) && ! $dupe && ! in_array( 'ps.dyn.loss.styles', $c, true ), $id . ': las extensiones de Prime Slider no dejan códigos ps.dyn.* ni cuentan como estilos perdidos' );
+		$s = (array) main_of( $out )['settings'];
+		$check( ! array_intersect_key( $s, $psx ), $id . ': sus claves no pasan al destino' );
+	}
+
 	// Rasgos propios del elemento siguen en el principal; las extensiones de Element Pack las añade y convierte Converter (§3.E.0.5).
 	$ext  = array( 'ep_display_conditions_enable' => 'yes', 'element_pack_wrapper_link' => array( 'url' => '/x/' ), 'digitalisimo_tooltip' => 'yes', '_padding' => array( 'unit' => 'px', 'top' => '5' ), '__dynamic__' => array( 'digitalisimo_tooltip_text' => '[elementor-tag id="1" name="post-title" settings="%7B%7D"]', 'button_text' => 'x' ), '__globals__' => array( '_background_color' => 'globals/colors?id=primary' ) );
 	$main = main_of( build( 'blog', $ext, $page, 'e1e2e3e' ) );
@@ -861,6 +874,16 @@ namespace {
 		codes( $page );
 		list( $conv ) = Digitalisimo\Elements\Legacy\Native::element( el( 'woohotspot', fx( 'woohotspot', 'custom' ) ), $page, 'container' );
 		$check( 'digitalisimo-nested-slider' === ( main_of( $conv )['widgetType'] ?? '' ) && vendor_free( $conv ), 'woohotspot por la tubería completa' );
+		$psx = array( 'reveal_effects_enable' => 'yes', 'reveal_effects_color' => '#FF0000', 'animation_status' => 'yes', 'anim_duration' => array( 'size' => 2 ), 'ps_widget_abg' => 'yes', 'ps_widget_abg_parent' => '.hero', 'kenburns_animation' => 'yes' );
+		foreach ( array( 'blog', 'storker', 'woocommerce', 'woohotspot' ) as $id ) {
+			codes( $page );
+			list( $conv ) = Digitalisimo\Elements\Legacy\Native::element( el( $id, fx( $id, 'defaults' ) + $psx, 'p' . substr( md5( $id ), 0, 6 ) ), $page, 'container' );
+			$c      = codes( $page );
+			$counts = array_count_values( $c );
+			$once   = 1 === ( $counts['ps.dropped.reveal'] ?? 0 ) && 1 === ( $counts['ps.dropped.advanced_animation'] ?? 0 ) && 1 === ( $counts['ps.dropped.adaptive_bg'] ?? 0 ) && 1 === ( $counts['ps.dropped.kenburns'] ?? 0 );
+			$dyn    = preg_grep( '/^ps\.dyn\..*(reveal|animation|abg|adaptive|kenburns)|^ps\.dyn\.loss\.styles$/', $c );
+			$check( is_array( $conv ) && $once && ! $dyn, $id . ': por la tubería, cada ps.dropped.* de E una sola vez y ningún ps.dyn.* que lo repita' );
+		}
 		env( array( 'events' => false ) );
 		$orig = el( 'event-calendar', fx( 'event-calendar', 'custom' ) );
 		list( $conv ) = Digitalisimo\Elements\Legacy\Native::element( $orig, $page, 'container' );

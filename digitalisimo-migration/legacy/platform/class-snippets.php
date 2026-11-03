@@ -416,8 +416,12 @@ final class Snippets {
 		return self::validate_css( $m[1] );
 	}
 
-	/** Etapa `platform`: publica el CSS de un sitio con Prime Slider y sin Element Pack (el publicador no lo hará). */
+	/**
+	 * Etapa `platform`: informa el CSS que el publicador no publicó al revalidarlo (`Publisher::denied()`, frente G) y
+	 * publica el CSS de un sitio con Prime Slider y sin Element Pack (el publicador no lo hará).
+	 */
 	public static function finish( array &$cursor, float $deadline ): bool {
+		self::report_denied();
 		foreach ( Inventory::reg_all( self::KIND ) as $option => $row ) {
 			$id = (int) ( $row['dest'] ?? 0 );
 			if ( empty( $row['extra']['publish'] ) || 'draft' !== ( $row['state'] ?? '' ) || ! Inventory::exists( $id ) ) {
@@ -432,6 +436,31 @@ final class Snippets {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * CSS de la lista del publicador que no pasó `revalidate()` al publicar: sigue en borrador y se informa una vez
+	 * (`plat.code.css_denied`, «Pendiente de revisar»). El detalle sólo lleva el ID y la ubicación, nunca el código.
+	 */
+	private static function report_denied(): void {
+		$publisher = __NAMESPACE__ . '\\Publisher';
+		if ( ! class_exists( $publisher ) || ! method_exists( $publisher, 'denied' ) ) {
+			return;
+		}
+		$denied = array_map( 'intval', (array) $publisher::denied() );
+		if ( ! $denied ) {
+			return;
+		}
+		foreach ( Inventory::reg_all( self::KIND ) as $option => $row ) {
+			$id = (int) ( $row['dest'] ?? 0 );
+			if ( empty( $row['extra']['tracked'] ) || ! empty( $row['extra']['denied'] ) || ! in_array( $id, $denied, true ) ) {
+				continue;
+			}
+			$location = (string) ( self::SOURCES[ (string) $option ]['location'] ?? get_post_meta( $id, '_elementor_location', true ) );
+			Inventory::site_code( 'plat.code.css_denied', array( 'id' => $id, 'type' => 'css', 'target' => $location ) );
+			$row['extra']['denied'] = 1;
+			Inventory::reg_put( self::KIND, (string) $option, $row );
+		}
 	}
 
 	/** `--revert`: retira los fragmentos creados que nadie cambió. */

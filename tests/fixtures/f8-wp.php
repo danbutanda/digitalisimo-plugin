@@ -692,9 +692,6 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 		$text = strip_tags( $text );
 		return trim( $remove_breaks ? preg_replace( '/[\r\n\t ]+/', ' ', $text ) : $text );
 	}
-	function wp_kses_post( $text ) {
-		return preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text );
-	}
 	function sanitize_key( $key ) {
 		return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
 	}
@@ -712,6 +709,11 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 	}
 	function remove_accents_f8( $text ) {
 		return strtr( $text, array( 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n', 'ü' => 'u', 'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N' ) );
+	}
+}
+if ( ! function_exists( 'wp_kses_post' ) ) {
+	function wp_kses_post( $text ) {
+		return preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text );
 	}
 }
 if ( ! function_exists( 'remove_accents' ) ) {

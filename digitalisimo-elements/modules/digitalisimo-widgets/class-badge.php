@@ -120,8 +120,8 @@ final class Badge {
 				'label'     => __( 'Posición del icono', 'pro-elements' ),
 				'type'      => $c::SELECT,
 				'options'   => array(
-					''    => __( 'Antes del texto', 'pro-elements' ),
-					'end' => __( 'Después del texto', 'pro-elements' ),
+					'start' => __( 'Antes del texto', 'pro-elements' ),
+					'end'   => __( 'Después del texto', 'pro-elements' ),
 				),
 				'condition' => $on,
 			)

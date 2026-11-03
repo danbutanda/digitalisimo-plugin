@@ -24,6 +24,9 @@
     "_expect_css": [
       "--ep-effect-trans-y-normal:-10px"
     ],
+    "_expect_css_converted": [
+      "--e-transform-translateY:-10px"
+    ],
     "_expect_json": [
       "\"_transform_translateY_effect\":{\"unit\":\"px\",\"size\":-10",
       "\"_transform_scale_effect_hover\":{\"unit\":\"px\",\"size\":1.1",

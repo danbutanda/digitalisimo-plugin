@@ -55,36 +55,51 @@ namespace {
 
 	/*
 	 * El bloque de cadenas de f8-wp.php va entero tras un solo `function_exists( 'wp_strip_all_tags' )`: para tener un
-	 * `wp_kses_post` que quite los manejadores de eventos hay que declarar aquí el bloque completo.
+	 * `wp_kses_post` que quite los manejadores de eventos se declara aquí, antes de incluirlo, y cada función sólo si
+	 * nadie la declaró antes (así no choca con ninguna otra definición).
 	 */
-	function wp_strip_all_tags( $text, $remove_breaks = false ) {
-		$text = preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text );
-		$text = strip_tags( $text );
-		return trim( $remove_breaks ? preg_replace( '/[\r\n\t ]+/', ' ', $text ) : $text );
+	if ( ! function_exists( 'wp_strip_all_tags' ) ) {
+		function wp_strip_all_tags( $text, $remove_breaks = false ) {
+			$text = preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text );
+			$text = strip_tags( $text );
+			return trim( $remove_breaks ? preg_replace( '/[\r\n\t ]+/', ' ', $text ) : $text );
+		}
 	}
-	function sanitize_key( $key ) {
-		return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
+	if ( ! function_exists( 'sanitize_key' ) ) {
+		function sanitize_key( $key ) {
+			return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
+		}
 	}
-	function sanitize_text_field( $text ) {
-		return trim( preg_replace( '/[\r\n\t ]+/', ' ', strip_tags( (string) $text ) ) );
+	if ( ! function_exists( 'sanitize_text_field' ) ) {
+		function sanitize_text_field( $text ) {
+			return trim( preg_replace( '/[\r\n\t ]+/', ' ', strip_tags( (string) $text ) ) );
+		}
 	}
-	function sanitize_title( $title ) {
-		$title = strtolower( remove_accents_f8( strip_tags( (string) $title ) ) );
-		$title = preg_replace( '/[^a-z0-9_\-]+/', '-', $title );
-		return trim( preg_replace( '/-+/', '-', $title ), '-' );
+	if ( ! function_exists( 'remove_accents_f8' ) ) {
+		function remove_accents_f8( $text ) {
+			return strtr( $text, array( 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n' ) );
+		}
 	}
-	function sanitize_file_name( $name ) {
-		$name = preg_replace( '/[^A-Za-z0-9._\-]+/', '-', remove_accents_f8( (string) $name ) );
-		return trim( $name, '.-' );
+	if ( ! function_exists( 'sanitize_title' ) ) {
+		function sanitize_title( $title ) {
+			$title = strtolower( remove_accents_f8( strip_tags( (string) $title ) ) );
+			$title = preg_replace( '/[^a-z0-9_\-]+/', '-', $title );
+			return trim( preg_replace( '/-+/', '-', $title ), '-' );
+		}
 	}
-	function remove_accents_f8( $text ) {
-		return strtr( $text, array( 'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n' ) );
+	if ( ! function_exists( 'sanitize_file_name' ) ) {
+		function sanitize_file_name( $name ) {
+			$name = preg_replace( '/[^A-Za-z0-9._\-]+/', '-', remove_accents_f8( (string) $name ) );
+			return trim( $name, '.-' );
+		}
 	}
-	/** Como el kses de WordPress en lo que importa aquí: sin scripts, estilos, manejadores de eventos ni `javascript:`. */
-	function wp_kses_post( $text ) {
-		$text = preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text );
-		$text = preg_replace( '/\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $text );
-		return preg_replace( '/(href|src)\s*=\s*(["\']?)\s*javascript:[^"\'>\s]*/i', '$1=$2', $text );
+	if ( ! function_exists( 'wp_kses_post' ) ) {
+		/** Como el kses de WordPress en lo que importa aquí: sin scripts, estilos, manejadores de eventos ni `javascript:`. */
+		function wp_kses_post( $text ) {
+			$text = preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text );
+			$text = preg_replace( '/\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $text );
+			return preg_replace( '/(href|src)\s*=\s*(["\']?)\s*javascript:[^"\'>\s]*/i', '$1=$2', $text );
+		}
 	}
 	function determine_locale() {
 		return $GLOBALS['ps_locale'];
@@ -1003,6 +1018,8 @@ namespace {
 	$check( 2 === ( $d['ps.fallback.slides'] ?? 0 ), 'describe(): respaldo previsto sin slider anidado' );
 	Builder::reset();
 	$check( array() === Converter::describe( array( 'elType' => 'widget', 'widgetType' => 'heading' ) ), 'describe(): nada sin Prime Slider' );
+	$d = Converter::describe( array( 'elType' => 'widget', 'widgetType' => 'prime-slider-blog', 'settings' => array() ) );
+	$check( 1 === array_sum( $d ) && 0 === strpos( (string) key( $d ), 'ps.dyn.' ) && ! isset( $d['ps.approx'] ), 'describe(): las familias de F, con el código de Dynamic::describe() (' . key( $d ) . ')' );
 
 	/* ================================================================= 14. Informe */
 
@@ -1016,7 +1033,8 @@ namespace {
 	$check( in_array( 'ps.approx', $codes, true ) && 'prime-slider-dragon' === $report['docs'][ $post ]['items'][0]['detail']['widget'] && 'r1r2r3r' === $report['docs'][ $post ]['items'][0]['detail']['element'], 'informe: códigos del documento con el widget y el elemento' );
 	$catalog = Report::catalog();
 	$missing = array();
-	foreach ( glob( dirname( __DIR__ ) . '/digitalisimo-migration/legacy/prime-slider/class-{converter,static,demo-media,builder,defaults,sanitizer}.php', GLOB_BRACE ) as $file ) {
+	foreach ( array( 'converter', 'static', 'demo-media', 'builder', 'defaults', 'sanitizer' ) as $part ) {
+		$file = dirname( __DIR__ ) . '/digitalisimo-migration/legacy/prime-slider/class-' . $part . '.php';
 		preg_match_all( "/'(ps\.[a-z_.]+)'/", file_get_contents( $file ), $m );
 		foreach ( $m[1] as $code ) {
 			if ( 0 !== strpos( $code, 'ps.dyn.' ) && ! isset( $catalog[ $code ] ) ) {

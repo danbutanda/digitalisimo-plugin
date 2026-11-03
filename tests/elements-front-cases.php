@@ -358,6 +358,26 @@ namespace {
 		check_cases( isset( $categories['PRO con controlador'][ $handled ] ), "$handled debe clasificarse como PRO con controlador" );
 	}
 
+	// F8 (frente D): los rasgos «Información emergente» y «Distintivo» y el contador del slider anidado son ajustes de
+	// elementos propios o del núcleo, no tipos nuevos: se clasifican por su elemento y nunca piden los paquetes de PRO
+	// (ni sus claves están entre las de movimiento o de plantilla de la puerta).
+	$traits_tree = array(
+		array(
+			'id'       => 'f8c1',
+			'elType'   => 'container',
+			'settings' => array( 'digitalisimo_badge' => 'yes', 'digitalisimo_badge_text' => 'Nuevo', 'digitalisimo_badge_float' => 'yes', 'digitalisimo_badge_shape' => 'custom', 'digitalisimo_badge_clip' => 'circle(50%)' ),
+			'elements' => array(
+				array( 'id' => 'f8w1', 'elType' => 'widget', 'widgetType' => 'heading', 'settings' => array( 'digitalisimo_tooltip' => 'yes', 'digitalisimo_tooltip_text' => 'Ayuda', 'digitalisimo_tooltip_trigger' => 'click', 'digitalisimo_badge' => 'yes' ), 'elements' => array() ),
+				array( 'id' => 'f8w2', 'elType' => 'widget', 'widgetType' => 'digitalisimo-nested-slider', 'settings' => array( 'counter' => 'yes', 'navigation' => 'arrows' ), 'elements' => array( array( 'id' => 'f8c2', 'elType' => 'container', 'settings' => array(), 'elements' => array() ) ) ),
+			),
+		),
+	);
+	$traits_reasons = \Digitalisimo\Elements\Front\Pro_Gate::walk( $traits_tree, $class_of, $walk_load );
+	check_cases( array() === $traits_reasons, 'F8: información emergente, distintivo y contador no piden los paquetes de PRO: [' . implode( ', ', $traits_reasons ) . ']' );
+	check_cases( '' !== $class_of( 'widget', 'digitalisimo-nested-slider' ) && isset( $categories['propio'] ), 'F8: el slider anidado con contador sigue clasificado como widget propio.' );
+	$trait_keys = array( 'digitalisimo_tooltip', 'digitalisimo_tooltip_text', 'digitalisimo_tooltip_trigger', 'digitalisimo_badge', 'digitalisimo_badge_text', 'digitalisimo_badge_float', 'counter' );
+	check_cases( ! array_intersect( $trait_keys, array_merge( \Digitalisimo\Elements\Front\Pro_Gate::MOTION_KEYS, \Digitalisimo\Elements\Front\Pro_Gate::TEMPLATE_KEYS ) ), 'F8: ninguna clave de los rasgos está entre las de movimiento o de plantilla de la puerta.' );
+
 	foreach ( $categories as $category => $types ) {
 		ksort( $types );
 		echo str_pad( $category, 20 ) . ' ' . implode( ', ', array_keys( $types ) ) . "\n";
