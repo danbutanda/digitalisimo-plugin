@@ -63,7 +63,7 @@ Núcleo incluido (Elementor 4.3.5, copia sin cambios): Elements no fija sus ajus
 
 **Fase 3 · Fachadas.** Reproductor de video, Slider de dispositivos y Panel lateral con fachada para YouTube, Vimeo, Dailymotion y Wistia; Mapa como imagen estática con «Ver mapa interactivo»; Visor de documentos como enlace con iframe al pulsar. Puerta: ninguna petición al dominio del vídeo antes del clic; teclado y lector de pantalla; `interaction.sh` ampliado. **Hecha:** carga diferida de los vídeos alojados en Elements 4.3.0.168 y fachadas en Elements 4.3.0.171 (ver «Fase 3 · resultado»).
 
-**Fase 4 · Decisiones de producto.** Ocultar del panel los widgets PRO con equivalente propio más ligero (Media carousel, Testimonial carousel, Reviews, Slides, Nested carousel, Lottie), conservándolos registrados para el contenido existente; «Marcado optimizado» como opción. Requiere aprobación del propietario con las cifras de las fases anteriores.
+**Fase 4 · Decisiones de producto.** Ocultar del panel los widgets PRO con equivalente propio más ligero (Media carousel, Testimonial carousel, Reviews, Slides, Nested carousel, Lottie), conservándolos registrados para el contenido existente; «Marcado optimizado» como opción. Requiere aprobación del propietario con las cifras de las fases anteriores. **Sustituida el 2026-11-03** por decisión del propietario: todos los widgets de PRO pasan a widgets propios y Migración convierte el contenido existente, en el programa de `docs/PRO_WIDGETS_OBJECTIVE.md`. «Marcado optimizado» sigue pendiente de decisión.
 
 ## Fase 2 · resultado (Elements 4.3.0.163, SEO 1.0.232 · `v2026.10.21.417`)
 

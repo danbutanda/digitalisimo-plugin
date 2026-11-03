@@ -1,0 +1,172 @@
+# Objetivo: DIGITALÍSIMO Elements sin widgets de PRO
+
+Este documento es el punto de entrada para continuar el programa que sustituye los widgets derivados de PRO Elements por widgets propios de DIGITALÍSIMO Elements, con la conversión del contenido existente en DIGITALÍSIMO Migración. Sustituye a la «Fase 4 · Decisiones de producto» de `docs/ELEMENTS_FRONT_OBJECTIVE.md` (ocultar seis widgets de PRO), que queda absorbida aquí; «Marcado optimizado» sigue siendo una decisión aparte de ese documento.
+
+## Decisiones del propietario (2026-11-03)
+
+- **Ningún widget de los plugins de referencia.** Los widgets de PRO Elements que trae Elements (102: 94 con su `get_name()` más 8 del Theme Builder que heredan de una base) pasan, todos, a widgets propios. Theme Builder, popups, condiciones de visualización, efectos de movimiento, fijados y Código personalizado no son widgets: siguen siendo funciones del constructor.
+- **«Migrar» deja un sitio existente perfecto:** tema, kit, widgets, plantillas del Theme Builder, popups y bucles, con el mismo botón único de siempre (`docs/ELEMENT_PACK_RETIREMENT.md`, `AGENTS.md`).
+- **Tras migrar, los widgets de PRO quedan ocultos del panel pero registrados.** Un sitio sin migrar, una revisión antigua o un kit de terceros (Envato) se siguen viendo, y Migración o el importador de kits los convierten. Ningún widget de PRO se borra del plugin dentro de este programa.
+- **Origen de los sitios:** Elementor Pro o PRO Elements, Element Pack y Prime Slider (ya convertidos por F8), Hello (ya trasladado por el tema, `inc/switch.php`) y **otro tema aún sin identificar** (la etapa C0 lo detecta por sitio).
+- **El tema lo sigue activando el propietario** en Apariencia: «Migrar» no lo activa (regla de `AGENTS.md`, sin cambios).
+
+## Reglas del programa
+
+1. **Widget propio de verdad.** Nombre `digitalisimo-*`, clase propia, marcado y recursos propios que cumplen el estándar de `docs/ELEMENTS_FRONT_OBJECTIVE.md` (recursos sólo donde se usan, `defer`, sin jQuery ni Swiper, imágenes por WordPress, foco visible, movimiento reducido, presupuesto por widget en `tests/elements-front-budget.php`). Puede partir del código GPL de PRO Elements que ya está en Elements, con atribución en `docs/third-party-licenses.md`, pero el resultado no depende de `pro-elements-handlers` ni de `elementor-pro-frontend`.
+2. **Un convertidor por widget, en Elements.** La traducción de los ajustes de cada widget de PRO a su widget propio vive en Elements (que ya contiene PRO, así que puede nombrarlo), en un módulo propio y declarativo como los mapas de F8. La usan las dos entradas: **Migración** («Migrar», por sitio y red, reversible con `--revert` por huella) y **K** (al importar un kit, por su filtro de conversión). Migración sólo orquesta; no se crea otro plugin.
+3. **Conversión fiel o declarada.** Cada ajuste se traduce, se aproxima con un código en el informe o se descarta con informe por documento; nunca en silencio. El contenido, los enlaces, las imágenes, los textos accesibles y el comportamiento con teclado se conservan.
+4. **Ocultar sólo lo sustituido.** Un widget de PRO se oculta del panel (configuración del editor, sin editar su archivo) cuando su equivalente propio y su convertidor están publicados y validados. Hasta entonces sigue a la vista.
+5. **Fallar cerrado y reversible.** Lo que no se puede convertir queda como estaba (widget de PRO registrado) y aparece en «Pendiente de revisar». Las mismas garantías de F8: copias, registro, procedencia y `--revert` sin pisar lo editado.
+6. **Destinos de F8.** Lo que F8 convierte a widgets de PRO (Carrusel multimedia, Loop Carousel, Productos…) pasa a apuntar al widget propio cuando su familia se publique, y Migración convierte también lo ya migrado.
+7. **Paridad, publicación y pruebas** como siempre: versión sólo de lo modificado, pruebas nuevas en `validate.yml` y `release.yml`, fila en `docs/PLUGIN_ROADMAP.md` y estado aquí.
+
+## Aceptación de cada widget
+
+- **A/B en Playground** (arnés nuevo de C0, sobre la base de `tests/playground/f8/` y `front-budget.sh`): la misma página con el widget de PRO y con el convertido, a 375, 768 y 1 280 px; mismos textos, enlaces, imágenes y nombres accesibles; diferencia visual dentro del umbral del arnés, o declarada; interacciones con ratón y teclado; sin errores ni peticiones a terceros nuevas.
+- **Front:** la página con sólo widgets propios no carga los paquetes de PRO (puerta de la Fase 2), ni Swiper, ni jQuery propio; el widget cabe en su presupuesto.
+- **Ida y vuelta de kits:** exportar e importar una página con el widget propio no pierde nada (`kit-roundtrip.sh`), y un kit con el widget de PRO llega convertido.
+- **Escala y red:** la conversión por lotes de F8 (miles de documentos, red con barrera) sigue en verde.
+
+## Etapas
+
+| Etapa | Widgets de PRO |
+|---|---:|
+| C0 · Inventario, método y arnés | — |
+| C1 · Carruseles | 5 |
+| C2 · Contenido | 15 |
+| C3 · Navegación y búsqueda | 4 |
+| C4 · Theme Builder y elementos de tema | 16 |
+| C5 · Entradas y bucles | 5 |
+| C6 · Formularios | 2 |
+| C7 · WooCommerce | 30 |
+| C8 · Botones flotantes y Link in Bio | 17 |
+| C9 · Otros | 8 |
+
+- **C0 · Inventario, método y arnés.** «Analizar» de Migración cuenta, por sitio y red, cada widget de PRO usado (también dentro de plantillas, popups, Loop Items y revisiones), los tipos de plantilla del Theme Builder, el kit y el tema activo con su padre y su `Update URI`: así se identifica el otro tema y se ordenan las familias por uso real. Se crean el módulo de convertidores de Elements, el mecanismo para ocultar del panel, el arnés A/B y la plantilla de etapa. El orden de C1–C9 se revisa con esos datos.
+- **C1 · Carruseles.** Slides y Nested carousel ya tienen equivalente (Slider Optimizado y Slider anidado ligero); Media carousel, Testimonial carousel y Reviews se construyen sobre el motor del slider anidado, sin Swiper. Es la familia que más pesa en el front (Swiper, 144 KB).
+- **C2 · Contenido.** Quince widgets sueltos; cinco tienen equivalente total o parcial. Lottie necesita su librería (253 KB): el widget propio la carga al acercarse a la pantalla, como hace hoy `lazy_libs`.
+- **C3 · Navegación y búsqueda.** Menú y Mega Menu (los más usados en cabeceras), el Off-Canvas de contenedor anidado y la búsqueda.
+- **C4 · Theme Builder y elementos de tema.** Logo, título, contenido, extracto, imagen destacada, títulos de archivo, entradas del archivo, información, navegación, autor, comentarios y mapa del sitio: los widgets de las plantillas de cabecera, pie, entrada y archivo.
+- **C5 · Entradas y bucles.** Posts, Portfolio, Loop Grid, Loop Carousel y el filtro de taxonomías, con las consultas guardadas y los filtros de F7b y los Loop Items.
+- **C6 · Formularios.** Formulario (campos, acciones, envíos guardados, integraciones y campos condicionales de F7b) e inicio de sesión. Es la familia con más riesgo de datos: ninguna acción se pierde ni se duplica.
+- **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
+- **C8 · Botones flotantes y Link in Bio.** Diecisiete variantes de dos widgets; se agrupan en dos widgets propios con presentaciones.
+- **C9 · Otros.** Los cuatro de Facebook (con fachada, como la Fase 3), PayPal y Stripe (sus claves nunca vuelven al navegador), el widget global (se convierte en su contenido) y el widget Plantilla (función del constructor, con las sobrescrituras de F7b).
+- **T · Tema.** Hello ya se traslada al activar el tema. El otro tema, cuando C0 lo identifique: su cabecera y su pie pasan a plantillas del Theme Builder, y sus colores y tipografías, al kit, sin activar nada.
+
+## Inventario (2026-11-03, Elements 4.3.0.171)
+
+«Existe»: hay un widget propio equivalente. «Parcial»: lo hay, pero le faltan opciones que el convertidor necesita. «Nuevo»: hay que crearlo. «Contenido» y «Función»: no se sustituye por un widget.
+
+| Etapa | Módulo de PRO | Widget (`get_name()`) | Título en PRO | Equivalente propio | Nota |
+|---|---|---|---|---|---|
+| C1 | `carousel` | `media-carousel` | Media Carousel | Nuevo | sobre el motor del slider anidado |
+| C1 | `carousel` | `reviews` | Reviews | Nuevo | sobre el motor del slider anidado |
+| C1 | `carousel` | `testimonial-carousel` | Testimonial Carousel | Nuevo | sobre el motor del slider anidado |
+| C1 | `nested-carousel` | `nested-carousel` | Carousel | Existe | Slider anidado ligero (F7b) |
+| C1 | `slides` | `slides` | Slides | Existe | Slider Optimizado |
+| C2 | `animated-headline` | `animated-headline` | Animated Headline | Existe | Encabezado animado |
+| C2 | `blockquote` | `blockquote` | Blockquote | Nuevo |  |
+| C2 | `call-to-action` | `call-to-action` | Call to Action | Parcial | Llamada a la acción |
+| C2 | `code-highlight` | `code-highlight` | Code Highlight | Nuevo |  |
+| C2 | `countdown` | `countdown` | Countdown | Nuevo |  |
+| C2 | `flip-box` | `flip-box` | Flip Box | Parcial | Tarjeta destacada |
+| C2 | `gallery` | `gallery` | Gallery | Parcial | Galería personalizada |
+| C2 | `hotspot` | `hotspot` | Hotspot | Nuevo |  |
+| C2 | `lottie` | `lottie` | Lottie | Nuevo |  |
+| C2 | `pricing` | `price-list` | Price List | Nuevo |  |
+| C2 | `pricing` | `price-table` | Price Table | Nuevo |  |
+| C2 | `progress-tracker` | `progress-tracker` | Progress Tracker | Existe | Progreso de lectura |
+| C2 | `share-buttons` | `share-buttons` | Share Buttons | Nuevo |  |
+| C2 | `table-of-contents` | `table-of-contents` | Table of Contents | Nuevo |  |
+| C2 | `video-playlist` | `video-playlist` | Video Playlist | Parcial | Reproductor de video (lista) |
+| C3 | `mega-menu` | `mega-menu` | Menu | Nuevo |  |
+| C3 | `nav-menu` | `nav-menu` | WordPress Menu | Nuevo |  |
+| C3 | `off-canvas` | `off-canvas` | Off-Canvas | Parcial | Panel lateral (PRO usa un contenedor anidado) |
+| C3 | `search` | `search` | Search | Nuevo |  |
+| C4 | `theme-builder` | `archive-posts` | Archive Posts | Nuevo |  |
+| C4 | `theme-builder` | `archive-title` | Archive Title | Nuevo |  |
+| C4 | `theme-builder` | `page-title` | Page Title | Nuevo |  |
+| C4 | `theme-builder` | `theme-post-content` | Post Content | Nuevo |  |
+| C4 | `theme-builder` | `theme-post-excerpt` | Post Excerpt | Nuevo |  |
+| C4 | `theme-builder` | `theme-post-featured-image` | Featured Image | Nuevo |  |
+| C4 | `theme-builder` | `theme-post-title` | Post Title | Nuevo |  |
+| C4 | `theme-builder` | `theme-site-logo` | Site Logo | Nuevo |  |
+| C4 | `theme-builder` | `theme-site-title` | Site Title | Nuevo |  |
+| C4 | `theme-elements` | `author-box` | Author Box | Parcial | extras propios sobre el de PRO (`class-author-box-extras.php`) |
+| C4 | `theme-elements` | `breadcrumbs` | Breadcrumbs | Existe | Ruta de navegación |
+| C4 | `theme-elements` | `post-comments` | Post Comments | Nuevo |  |
+| C4 | `theme-elements` | `post-info` | Post Info | Nuevo |  |
+| C4 | `theme-elements` | `post-navigation` | Post Navigation | Nuevo |  |
+| C4 | `theme-elements` | `search-form` | Search Form | Nuevo |  |
+| C4 | `theme-elements` | `sitemap` | Sitemap | Nuevo |  |
+| C5 | `loop-builder` | `loop-carousel` | Loop Carousel | Nuevo |  |
+| C5 | `loop-builder` | `loop-grid` | Loop Grid | Nuevo |  |
+| C5 | `loop-filter` | `taxonomy-filter` | Taxonomy Filter | Nuevo |  |
+| C5 | `posts` | `portfolio` | Portfolio | Nuevo |  |
+| C5 | `posts` | `posts` | Posts | Nuevo |  |
+| C6 | `forms` | `form` | Form | Nuevo |  |
+| C6 | `forms` | `login` | Login | Nuevo |  |
+| C7 | `woocommerce` | `wc-add-to-cart` | Custom Add To Cart | Nuevo |  |
+| C7 | `woocommerce` | `wc-archive-products` | Archive Products | Nuevo |  |
+| C7 | `woocommerce` | `wc-categories` | Product Categories | Nuevo |  |
+| C7 | `woocommerce` | `wc-elements` | WooCommerce Pages | Nuevo |  |
+| C7 | `woocommerce` | `wc-products` | Woo - Products- | Parcial | Cuadrícula de productos y partes de F4-Woo |
+| C7 | `woocommerce` | `wc-single-elements` | Woo - Single Elements | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-archive-description` | Archive Description | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-archive-products` | Archive Products (deprecated) | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-breadcrumb` | WooCommerce Breadcrumbs | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-cart` | Cart | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-category-image` | Category Image | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-checkout-page` | Checkout | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-menu-cart` | Menu Cart | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-my-account` | My Account | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-notices` | WooCommerce Notices | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-add-to-cart` | Add To Cart | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-additional-information` | Additional Information | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-content` | Product Content | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-data-tabs` | Product Data Tabs | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-images` | Product Images | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-meta` | Product Meta | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-price` | Product Price | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-rating` | Product Rating | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-related` | Product Related | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-short-description` | Short Description | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-stock` | Product Stock | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-title` | Product Title | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-product-upsell` | Upsells | Nuevo |  |
+| C7 | `woocommerce` | `woocommerce-products` | Products | Parcial | Cuadrícula de productos y partes de F4-Woo |
+| C7 | `woocommerce` | `woocommerce-purchase-summary` | Purchase Summary | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-1` | Multi Chat | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-10` | Interactive | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-3` | Info Button Box | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-4` | Vertical Links | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-5` | Classic | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-6` | Quick Access Bar | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-7` | Mobile Bar | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-8` | Resource Box | Nuevo |  |
+| C8 | `floating-buttons` | `contact-buttons-var-9` | Animated Classic | Nuevo |  |
+| C8 | `floating-buttons` | `floating-bars-var-2` | Ticker | Nuevo |  |
+| C8 | `floating-buttons` | `floating-bars-var-3` | Coupon | Nuevo |  |
+| C8 | `link-in-bio` | `link-in-bio-var-2` | Classic | Nuevo |  |
+| C8 | `link-in-bio` | `link-in-bio-var-3` | Showcase | Nuevo |  |
+| C8 | `link-in-bio` | `link-in-bio-var-4` | Links | Nuevo |  |
+| C8 | `link-in-bio` | `link-in-bio-var-5` | Services | Nuevo |  |
+| C8 | `link-in-bio` | `link-in-bio-var-6` | Portfolio Bio | Nuevo |  |
+| C8 | `link-in-bio` | `link-in-bio-var-7` | Business Card | Nuevo |  |
+| C9 | `global-widget` | `global` | Global | Contenido | se convierte en su contenido |
+| C9 | `library` | `template` | Template | Función | Plantilla (sobrescrituras de F7b) |
+| C9 | `payments` | `paypal-button` | PayPal Button | Nuevo |  |
+| C9 | `payments` | `stripe-button` | Stripe Button | Nuevo |  |
+| C9 | `social` | `facebook-button` | Facebook Button | Nuevo |  |
+| C9 | `social` | `facebook-comments` | Facebook Comments | Nuevo |  |
+| C9 | `social` | `facebook-embed` | Facebook Embed | Nuevo |  |
+| C9 | `social` | `facebook-page` | Facebook Page | Nuevo |  |
+
+## Estado
+
+| Etapa | Estado |
+|---|---|
+| C0 | Pendiente |
+| C1–C9 | Pendientes |
+| T | Hello hecho (tema 1.0.0); otro tema por identificar |
