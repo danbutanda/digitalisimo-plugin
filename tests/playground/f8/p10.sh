@@ -55,7 +55,9 @@ lock=/var/tmp/digi-f8/pg/port-9510.lock
 case "$part" in
   w1|w2|ext)
     echo "$only" > "$dest/only.txt"
-    flock -n "$lock" env OUT="$dest" PORT="$PORT" CORE=bundled ELEMENTS_DIR="$RUN/src/digitalisimo-elements" MIGRATION_DIR="$RUN/src/digitalisimo-migration" \
+    # FAKE_PLUGINS=1: los widgets de formularios de Lite sólo se registran con su plugin activo (plugins falsos de
+    # tests/playground/fake-plugins/, que sólo registran el shortcode).
+    flock -n "$lock" env OUT="$dest" PORT="$PORT" CORE=bundled FAKE_PLUGINS=1 ELEMENTS_DIR="$RUN/src/digitalisimo-elements" MIGRATION_DIR="$RUN/src/digitalisimo-migration" \
       PUPPETEER_PATH="$PUPPETEER_PATH" bash "$ROOT/tests/playground/legacy-ab.sh" "$only" > "$dest/out.log" 2>&1
     rc=$?;;
   mg-base|mg-lite)

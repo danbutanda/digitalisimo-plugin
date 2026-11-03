@@ -101,9 +101,12 @@ async function styles(id, side) {
       for (const [name, blogs] of Object.entries(cases)) {
         for (const [blog, entry] of Object.entries(blogs)) {
           if (!entry.signature || !entry.signature.styles) continue;
-          const base = cases.defaults && cases.defaults[blog] && cases.defaults[blog].signature && (cases.defaults[blog].styles_full || cases.defaults[blog].signature.styles);
+          // Línea base: `<caso>-base` si existe (casos de estilo de P10, f8/legacy-styled/) o `defaults`.
+          const baseCase = cases[`${name}-base`] ? `${name}-base` : 'defaults';
+          const ref0 = cases[baseCase] && cases[baseCase][blog];
+          const base = ref0 && ref0.signature && (ref0.styles_full || ref0.signature.styles);
           entry.styles_full = entry.styles_full || entry.signature.styles;
-          if (name === 'defaults' || !base) { entry.signature.styles = {}; continue; }
+          if (name === 'defaults' || /-base$/.test(name) || !base) { entry.signature.styles = {}; continue; }
           const delta = {};
           for (const [part, values] of Object.entries(entry.styles_full)) {
             // Una parte que el caso `defaults` no pinta no tiene línea base: no se compara (queda como «sin la parte»).

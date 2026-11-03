@@ -1,0 +1,55 @@
+{
+ "_comentario": "Casos sólo de P10 (f8.sh, frente J): «estilo» fija controles de estilo que el mapa traduce y «estilo-base» es el mismo contenido sin ellos; la firma de estilos compara lo que «estilo» cambia frente a «estilo-base» con Element Pack Lite 10.0.1 y con el widget propio. Datos sintéticos.",
+ "estilo-base": {
+  "title_text": "Servicio",
+  "sub_title_text": "Nuevo",
+  "description_text": "Descripción",
+  "readmore_link": {
+   "url": "https://example.test/s/",
+   "is_external": "",
+   "nofollow": "",
+   "custom_attributes": ""
+  },
+  "_known": {
+   "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor"
+  }
+ },
+ "estilo": {
+  "title_text": "Servicio",
+  "sub_title_text": "Nuevo",
+  "description_text": "Descripción",
+  "readmore_link": {
+   "url": "https://example.test/s/",
+   "is_external": "",
+   "nofollow": "",
+   "custom_attributes": ""
+  },
+  "_known": {
+   "images": "Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor"
+  },
+  "title_color": "#0a3d62",
+  "sub_title_color": "#aa0000",
+  "description_color": "#2d3436",
+  "readmore_text_color": "#e17055",
+  "readmore_padding": {
+   "top": "6",
+   "right": "14",
+   "bottom": "6",
+   "left": "14",
+   "unit": "px",
+   "isLinked": false
+  },
+  "readmore_radius": {
+   "top": "4",
+   "right": "4",
+   "bottom": "4",
+   "left": "4",
+   "unit": "px",
+   "isLinked": false
+  },
+  "title_bottom_space": {
+   "unit": "px",
+   "size": 18
+  }
+ }
+}

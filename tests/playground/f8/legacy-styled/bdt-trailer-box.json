@@ -1,0 +1,84 @@
+{
+ "_comentario": "Casos sólo de P10 (f8.sh, frente J): «estilo» fija controles de estilo que el mapa traduce y «estilo-base» es el mismo contenido sin ellos; la firma de estilos compara lo que «estilo» cambia frente a «estilo-base» con Element Pack Lite 10.0.1 y con el widget propio. Datos sintéticos.",
+ "estilo-base": {
+  "title": "Tráiler",
+  "pre_title": "Estreno",
+  "content": "Texto",
+  "button": {
+   "url": "https://example.test/t/",
+   "is_external": "",
+   "nofollow": "",
+   "custom_attributes": ""
+  },
+  "button_text": "Ver",
+  "link_type": "button"
+ },
+ "estilo": {
+  "title": "Tráiler",
+  "pre_title": "Estreno",
+  "content": "Texto",
+  "button": {
+   "url": "https://example.test/t/",
+   "is_external": "",
+   "nofollow": "",
+   "custom_attributes": ""
+  },
+  "button_text": "Ver",
+  "link_type": "button",
+  "pre_title_color": "#aa0000",
+  "pre_title_bg_color": "#ffeeaa",
+  "pre_title_padding": {
+   "top": "5",
+   "right": "12",
+   "bottom": "5",
+   "left": "12",
+   "unit": "px",
+   "isLinked": false
+  },
+  "pre_title_border_radius": {
+   "top": "6",
+   "right": "6",
+   "bottom": "6",
+   "left": "6",
+   "unit": "px",
+   "isLinked": false
+  },
+  "title_color": "#0a3d62",
+  "text_color": "#2d3436",
+  "text_background_color": "#dfe6e9",
+  "text_padding": {
+   "top": "8",
+   "right": "8",
+   "bottom": "8",
+   "left": "8",
+   "unit": "px",
+   "isLinked": false
+  },
+  "text_border_radius": {
+   "top": "4",
+   "right": "4",
+   "bottom": "4",
+   "left": "4",
+   "unit": "px",
+   "isLinked": false
+  },
+  "button_text_color": "#ffffff",
+  "background_color": "#e17055",
+  "button_padding": {
+   "top": "10",
+   "right": "20",
+   "bottom": "10",
+   "left": "20",
+   "unit": "px",
+   "isLinked": false
+  },
+  "border_radius": {
+   "top": "3",
+   "right": "3",
+   "bottom": "3",
+   "left": "3",
+   "unit": "px",
+   "isLinked": false
+  }
+ }
+}

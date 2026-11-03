@@ -67,6 +67,19 @@ foreach ( array_merge( glob( '/wordpress/wp-content/digi-legacy-fixtures/bdt-*.j
 	$fixtures[ $id ] = json_decode( file_get_contents( $file ), true );
 }
 
+// Casos sólo de P10 (f8/legacy-styled/: «estilo» y «estilo-base» de los mapas corregidos por F8), añadidos a los widgets
+// que ya entraron en esta corrida (ONLY y la copia montada mandan).
+foreach ( glob( __DIR__ . '/f8/legacy-styled/*.json' ) ?: array() as $file ) {
+	$id = basename( $file, '.json' );
+	if ( isset( $fixtures[ $id ] ) ) {
+		foreach ( (array) json_decode( (string) file_get_contents( $file ), true ) as $case => $settings ) {
+			if ( '_' !== substr( (string) $case, 0, 1 ) && is_array( $settings ) ) {
+				$fixtures[ $id ][ $case ] = $settings;
+			}
+		}
+	}
+}
+
 require_once __DIR__ . '/legacy-signature.php';
 
 $result = array( 'phase' => $phase, 'element_pack' => defined( 'BDTEP_VER' ), 'element_pack_version' => defined( 'BDTEP_VER' ) ? BDTEP_VER : '', 'skipped' => $skipped, 'widgets' => array() );

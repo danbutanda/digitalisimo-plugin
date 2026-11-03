@@ -58,9 +58,12 @@ module.exports = (api) => async (s) => {
     const texts = [];
     const styles = {};
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const hidden = [];
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const value = node.nodeValue.replace(/\s+/g, ' ').trim();
       if (!value || skip(node)) continue;
+      // Lo que no se pinta (display:none en el elemento o un antecesor: partes ocultas por dispositivo) va aparte.
+      if (node.parentElement.checkVisibility && !node.parentElement.checkVisibility()) { hidden.push(value); continue; }
       texts.push(value);
       if (!styles[value] && Object.keys(styles).length < 40) {
         const cs = getComputedStyle(node.parentElement);
@@ -77,7 +80,7 @@ module.exports = (api) => async (s) => {
       if (bg && bg !== 'none') for (const mm of bg.matchAll(/url\("?([^")]+)"?\)/g)) images.push(base(mm[1]));
     }
     const media = [...root.querySelectorAll('iframe[src], video[src], video source[src]')].map((e) => e.getAttribute('src'));
-    return { texts: [...new Set(texts)], links: [...new Set(links)], images: [...new Set(images.filter(Boolean))], media, styles };
+    return { texts: [...new Set(texts)], hidden: [...new Set(hidden)], links: [...new Set(links)], images: [...new Set(images.filter(Boolean))], media, styles };
   });
 
   async function capture(label, list = keys) {
@@ -269,60 +272,73 @@ module.exports = (api) => async (s) => {
   }
 };
 
-/** Comparación A/B por página con las diferencias declaradas (motivo y familia). */
+/**
+ * Comparación A/B por página. El texto se compara por palabras (el origen parte los títulos en varios nodos para
+ * estilar la primera palabra); enlaces e imágenes, por valor (imágenes por nombre de archivo, que una copia en Medios
+ * conserva). Cada diferencia necesita un motivo declarado (`DECLARED`); las que no lo tienen hacen fallar.
+ */
 function compare(A, B, docs) {
   const out = {};
   const stem = (b) => String(b || '').toLowerCase().replace(/\.(png|jpe?g|gif|webp|svg)$/, '').replace(/-\d+x\d+$/, '').replace(/-scaled$/, '');
+  const words = (list) => new Set(list.join(' ').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean));
   for (const key of Object.keys(docs)) {
     const a = A[key];
     const b = B[key];
-    const d = { family: docs[key].family, widget: docs[key].widget, declared: [], unexplained: [], styles: 0 };
+    const doc = docs[key];
+    const d = { family: doc.family, widget: doc.widget, case: doc.case, declared: [], unexplained: [], styles: 0 };
     out[key] = d;
     if (!a || !b) { d.unexplained.push('sin firma A o B'); continue; }
-    const fam = docs[key].family;
-    const bText = new Set(b.texts);
+    const wa = words(a.texts);
+    const wb = words(b.texts);
+    const add = (kind, value, side) => {
+      const why = explain(kind, value, side, doc, a);
+      (why ? d.declared : d.unexplained).push(`${kind} ${side === 'A' ? 'perdido' : 'nuevo'} «${value}»${why ? ': ' + why : ''}`);
+    };
+    for (const w of wa) if (!wb.has(w)) add('palabra', w, 'A');
+    for (const w of wb) if (!wa.has(w)) add('palabra', w, 'B');
     const bLinks = new Set(b.links);
+    for (const l of a.links) if (!bLinks.has(l)) add('enlace', l, 'A');
+    const aLinks = new Set(a.links);
+    for (const l of b.links) if (!aLinks.has(l)) add('enlace', l, 'B');
     const bImg = b.images.map(stem);
-    for (const t of a.texts) {
-      if (bText.has(t)) { if (a.styles[t] && b.styles[t] && JSON.stringify(a.styles[t]) !== JSON.stringify(b.styles[t])) d.styles++; continue; }
-      const why = explainText(t, fam, docs[key]);
-      (why ? d.declared : d.unexplained).push(why ? `texto «${t}»: ${why}` : `texto perdido «${t}»`);
-    }
-    for (const l of a.links) {
-      if (bLinks.has(l)) continue;
-      const why = explainLink(l);
-      (why ? d.declared : d.unexplained).push(why ? `enlace ${l}: ${why}` : `enlace perdido ${l}`);
-    }
-    for (const i of a.images) {
-      const st = stem(i);
-      if (bImg.some((x) => x === st || x.startsWith(st + '-'))) continue;
-      const why = explainImage(i, fam);
-      (why ? d.declared : d.unexplained).push(why ? `imagen ${i}: ${why}` : `imagen perdida ${i}`);
-    }
-    const aText = new Set(a.texts);
-    for (const t of b.texts) {
-      if (aText.has(t)) continue;
-      const why = explainExtra(t);
-      (why ? d.declared : d.unexplained).push(why ? `texto nuevo «${t}»: ${why}` : `texto nuevo «${t}»`);
-    }
+    for (const i of a.images) { const st = stem(i); if (!bImg.some((x) => x === st || x.startsWith(st + '-'))) add('imagen', i, 'A'); }
+    const aImg = a.images.map(stem);
+    for (const i of b.images) { const st = stem(i); if (!aImg.some((x) => x === st || st.startsWith(x + '-'))) add('imagen', i, 'B'); }
+    for (const t of a.texts) if (b.styles[t] && a.styles[t] && JSON.stringify(a.styles[t]) !== JSON.stringify(b.styles[t])) d.styles++;
   }
   return out;
 }
-// Motivos declarados (se completan tras ver cada diferencia; cada uno cita su origen).
-function explainText(t, fam) {
-  if (/^(facebook|twitter|instagram|linkedin|youtube|x|behance|dribbble|pinterest)$/i.test(t)) return 'red del perfil del proveedor retirada (Sanitizer, «ningún perfil del proveedor»)';
-  if (/^(0?\d{1,2}|\/|\d+\s*\/\s*\d+)$/.test(t)) return 'navegación numerada del origen (pérdida declarada de la familia)';
-  return '';
-}
-function explainLink(l) {
-  if (/^https?:\/\/(www\.)?(facebook|twitter|instagram|linkedin|youtube)\.com\/[a-z]+\/?$/i.test(l)) return 'perfil del proveedor retirado (Sanitizer)';
-  if (/youtu\.?be|vimeo/i.test(l)) return 'vídeo de demostración del proveedor retirado (Sanitizer)';
-  return '';
-}
-function explainImage(i, fam) {
-  return '';
-}
-function explainExtra(t) {
+
+/**
+ * Diferencias declaradas: cada regla dice qué cubre y de dónde sale el motivo (especificación, decisión o pérdida del
+ * mapa de la familia). Devuelve el motivo o '' si la diferencia no está declarada.
+ */
+const SOCIAL = /^(facebook|twitter|instagram|linkedin|youtube|behance|dribbble|pinterest|f)$/;
+function explain(kind, value, side, doc, a) {
+  const dyn = ['E', 'F', 'G', 'L'].includes(doc.family);
+  if (kind === 'palabra' && side === 'A') {
+    if (/^\d{1,2}$/.test(value)) return 'navegación numerada del origen (el slider anidado numera con «N de M» accesible; §3.E.1)';
+    if (['prev', 'next'].includes(value)) return 'flechas con texto del origen → flechas del slider con nombre accesible («Diapositiva anterior/siguiente»)';
+    if (SOCIAL.test(value) && doc.case === 'defaults') return 'redes del proveedor retiradas (§3.E.0.3, Sanitizer: ningún perfil del proveedor)';
+    if (['follow', 'us', 'mi', 'página', 'tienda'].includes(value)) return 'redes como Iconos sociales hermanos (F8-D16, V.19.4 a): sin el rótulo «Follow Us» ni el título de cada red de los fixtures («Mi página», «Tienda»)';
+    if (['leer', 'más', 'read', 'more'].includes(value) && doc.case === 'defaults') return 'botón por defecto con enlace «#» (§3.E.0.3 «sin enlace»): la conversión no crea el botón (Static_Families::slide_widgets exige enlace; hallazgo de J: no se informa)';
+    if (['bajar', 'scroll', 'down'].includes(value) && doc.case === 'defaults') return 'botón de desplazamiento hacia «my-header», la sección por defecto: no se crea el hermano (F8-D16)';
+    if (dyn && ['written', 'by', 'published', 'on', 'comments', 'comment', 'no'].includes(value)) return 'rótulos de los metadatos del origen («Written by», «Published on», «by»): el Loop Item los pinta con Información de la entrada de PRO (familias E, F y G, §3.E.4)';
+    if (dyn && /^(january|february|march|april|may|june|july|august|september|october|november|december|\d{4}|admin)$/.test(value)) return 'fecha o autor del origen con otro formato en Información de la entrada (§3.E.4)';
+  }
+  if (kind === 'palabra' && side === 'B') {
+    if (['facebook', 'f', 'link', 'instagram', 'twitter'].includes(value)) return 'nombre accesible de Iconos sociales (texto sólo para lectores de pantalla, F8-D16)';
+    if (['scroll', 'down'].includes(value)) return 'botón de desplazamiento del origen (sólo icono en isolate) → Botón de desplazamiento con su texto por defecto (F8-D16)';
+    if (dyn && ['no', 'comments', 'one', 'comment', 'by', 'admin'].includes(value)) return 'metadatos de Información de la entrada de PRO en el Loop Item (§3.E.4)';
+  }
+  if (kind === 'enlace' && side === 'A') {
+    if (/^https?:\/\/(www\.)?(facebook|twitter|instagram|linkedin|youtube)\.com\/[a-z]+\/?$/i.test(value)) return 'perfil del proveedor retirado (§3.E.0.3, Sanitizer)';
+    if (/youtu\.?be|vimeo/i.test(value)) return 'vídeo de demostración del proveedor retirado (§3.E.0.3, Sanitizer)';
+  }
+  if (kind === 'imagen' && side === 'A') {
+    if (/^[0-9a-f]{40,64}$/.test(value)) return 'avatar del autor de un servicio externo (el navegador no sale; el Loop Item no lo pinta)';
+    if (value === 'placeholder.png' && dyn) return 'imagen de relleno del origen para entradas sin imagen destacada (el Loop Item no la pinta)';
+  }
   return '';
 }
 
