@@ -3,9 +3,13 @@ namespace Digitalisimo\Elements\Legacy;
 
 defined( 'ABSPATH' ) || exit;
 
-require_once __DIR__ . '/class-translator.php';
-require_once __DIR__ . '/class-context.php';
-require_once __DIR__ . '/class-report.php';
+// Sólo si faltan: el arranque y el runner ya las cargan (y una prueba puede haber declarado su doble).
+foreach ( array( 'Translator' => 'translator', 'Context' => 'context', 'Report' => 'report' ) as $digitalisimo_markers_class => $digitalisimo_markers_file ) {
+	if ( ! class_exists( __NAMESPACE__ . '\\' . $digitalisimo_markers_class, false ) ) {
+		require_once __DIR__ . '/class-' . $digitalisimo_markers_file . '.php';
+	}
+}
+unset( $digitalisimo_markers_class, $digitalisimo_markers_file );
 
 /**
  * Marcadores de K (`digitalisimo-unconverted`) que guardan un widget de Element Pack o de Prime Slider (F8-D19, V.12).
@@ -646,9 +650,17 @@ final class Markers {
 
 	/** Carga la conversión (Native y sus dependencias) sólo cuando hace falta. */
 	private static function load(): bool {
-		if ( ! class_exists( __NAMESPACE__ . '\\Native', false ) ) {
-			require_once __DIR__ . '/class-native.php';
+		if ( class_exists( __NAMESPACE__ . '\\Native', false ) ) {
+			return true;
 		}
+		// Una clase de la que depende Native, declarada desde otro archivo (el doble de una prueba): no se carga nada.
+		$included = array_map( 'realpath', get_included_files() );
+		foreach ( array( 'Translator' => 'translator', 'Masks' => 'masks', 'Context' => 'context', 'Report' => 'report' ) as $class => $file ) {
+			if ( class_exists( __NAMESPACE__ . '\\' . $class, false ) && ! in_array( realpath( __DIR__ . '/class-' . $file . '.php' ), $included, true ) ) {
+				return false;
+			}
+		}
+		require_once __DIR__ . '/class-native.php';
 		return class_exists( __NAMESPACE__ . '\\Native', false );
 	}
 
