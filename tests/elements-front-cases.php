@@ -222,11 +222,12 @@ namespace {
 	$cases = json_decode( (string) file_get_contents( $root . '/tests/playground/front-budget/cases.json' ), true );
 	check_cases( is_array( $cases ) && count( $cases ) > 48, 'cases.json debe ser JSON válido y conservar los casos de la medición anterior' );
 	$cases       = is_array( $cases ) ? $cases : array();
-	$modes       = array( 'normal', 'cache', 'plugin', 'seo', 'guard', 'theme', 'migration', 'lazy', 'v4', 'woo', 'old', 'old-applied', 'old-dirty', 'old-inactive', 'off' );
-	// Combinaciones que un caso nombra tal cual: los casos de WOO=1 sólo corren con WooCommerce (F4-Woo, V.16.3).
-	$combos      = array( 'old-applied+cache', 'woo+cache', 'plugin+woo', 'v4+woo' );
+	$modes       = array( 'normal', 'cache', 'plugin', 'seo', 'guard', 'theme', 'migration', 'lazy', 'v4', 'woo', 'facades', 'old', 'old-applied', 'old-dirty', 'old-inactive', 'off' );
+	// Combinaciones que un caso nombra tal cual: los casos de WOO=1 sólo corren con WooCommerce (F4-Woo, V.16.3), y los de
+	// FACADES=1 sólo con las fachadas aplicadas (Fase 3).
+	$combos      = array( 'old-applied+cache', 'woo+cache', 'plugin+woo', 'v4+woo', 'facades+cache' );
 	$expect_keys = array_merge( array( '*', 'pre', 'warm', 'before', 'after', 'guard+old' ), $combos, $modes );
-	$actions     = array( 'click', 'scroll', 'wait', 'waitFor', 'waitCount', 'mark', 'waitChange', 'hover', 'openSubmenu', 'viewport', 'fill', 'fillAll', 'reload', 'visit' );
+	$actions     = array( 'click', 'scroll', 'wait', 'waitFor', 'waitCount', 'mark', 'waitChange', 'hover', 'openSubmenu', 'viewport', 'fill', 'fillAll', 'reload', 'visit', 'press', 'cron' );
 	// `product`: plantilla de «Producto individual» (la vista rápida de F4-Woo en «Plantilla de producto»).
 	$extra_types = array( 'popup', 'section', 'page', 'container', 'widget', 'loop-item', 'header', 'footer', 'product' );
 	foreach ( $cases as $slug => $case ) {
