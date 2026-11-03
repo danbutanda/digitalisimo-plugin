@@ -26,9 +26,10 @@ require_once __DIR__ . '/class-report.php';
  *  8. markers          — marcadores de K con Element Pack o Prime Slider dentro (Markers).
  *  9. platform         — pasos de plataforma tras convertir (PLATFORM_STEPS).
  * 10. references, aliases — widgets fusionados.
- * 11. retire_late      — Prime Slider, sólo sin widgets suyos por convertir.
- * 12. report           — el informe de lo convertido en pasadas anteriores, por trozos.
- * 13. finish           — cachés e informe.
+ * 11. pro              — widgets de PRO con widget propio publicado (Pro), por lotes.
+ * 12. retire_late      — Prime Slider, sólo sin widgets suyos por convertir.
+ * 13. report           — el informe de lo convertido en pasadas anteriores, por trozos.
+ * 14. finish           — cachés e informe.
  *
  * Protocolo (V.3.1): una etapa sin documentos suma un intento al entrar y se salta tras dos entradas sin progreso; si
  * avanzó (cursor guardado) o espera con motivo, pone `stage_attempts = 0`. El salto es seguro: nunca desactiva Element
@@ -56,9 +57,9 @@ final class Runner {
 	const IDS_CHUNK  = 5000;
 	/** DIGITALÍSIMO Elements mínimo (V.3.3). */
 	const ELEMENTS_MIN = '4.3.0.170';
-	const STAGES      = array( 'prepare', 'platform_prepare', 'deactivate', 'platform_convert', 'recover', 'repair', 'convert', 'revisions', 'markers', 'platform', 'references', 'aliases', 'retire_late', 'report', 'finish' );
+	const STAGES      = array( 'prepare', 'platform_prepare', 'deactivate', 'platform_convert', 'recover', 'repair', 'convert', 'revisions', 'markers', 'platform', 'references', 'aliases', 'pro', 'retire_late', 'report', 'finish' );
 	/** Etapas que recorren documentos (o avanzan con cursor): sus intentos se cuentan por documento. */
-	const LOOP_STAGES = array( 'platform_convert', 'recover', 'convert', 'revisions', 'markers', 'aliases', 'retire_late', 'report' );
+	const LOOP_STAGES = array( 'platform_convert', 'recover', 'convert', 'revisions', 'markers', 'aliases', 'pro', 'retire_late', 'report' );
 	/** Pasos de plataforma (clases de `Legacy\Platform`, V.14 C5): con Element Pack cargado y tras convertir el contenido. */
 	const PREPARE_STEPS  = array( 'Theme_Builder', 'Fonts', 'Icons', 'Snippets', 'Sidebar' );
 	const PLATFORM_STEPS = array( 'Theme_Builder', 'Mega_Menu', 'Kit', 'Snippets', 'Swatches', 'Inventory' );
@@ -77,6 +78,7 @@ final class Runner {
 		'platform'         => 'Terminando plantillas, menús, kit y código',
 		'references'       => 'Buscando CSS que nombre widgets fusionados',
 		'aliases'          => 'Actualizando widgets fusionados',
+		'pro'              => 'Convirtiendo los widgets de PRO a widgets propios',
 		'retire_late'      => 'Retirando Prime Slider',
 		'report'           => 'Preparando el informe',
 		'finish'           => 'Vaciando cachés y preparando el informe',
@@ -110,7 +112,7 @@ final class Runner {
 
 	/** Carga el motor de conversión sólo cuando hace falta (AJAX, cron, CLI y las pantallas). */
 	public static function load() {
-		foreach ( array( 'Migration' => 'migration', 'Retire' => 'retire', 'Aliases' => 'aliases', 'Markers' => 'markers' ) as $class => $file ) {
+		foreach ( array( 'Migration' => 'migration', 'Retire' => 'retire', 'Aliases' => 'aliases', 'Markers' => 'markers', 'Pro' => 'pro' ) as $class => $file ) {
 			if ( ! class_exists( __NAMESPACE__ . '\\' . $class, false ) && is_readable( __DIR__ . '/class-' . $file . '.php' ) ) {
 				require_once __DIR__ . '/class-' . $file . '.php';
 			}
@@ -344,7 +346,7 @@ final class Runner {
 			'capable'         => null === $capable ? ( function_exists( 'current_user_can' ) && current_user_can( 'activate_plugins' ) ) : (bool) $capable,
 			// Quien pulsó (o quien lanzó la red): Snippets lo revalida al publicar CSS (V.7). 0 en WP-CLI sin --user.
 			'user'            => null === $user ? ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) : (int) $user,
-			'counts'          => array( 'deactivated' => array(), 'recovered' => 0, 'repaired' => 0, 'converted' => 0, 'elements' => 0, 'revisions' => 0, 'aliases' => 0, 'alias_elements' => 0, 'pages' => 0, 'copies' => 0, 'markers' => 0, 'failed' => array() ),
+			'counts'          => array( 'deactivated' => array(), 'recovered' => 0, 'repaired' => 0, 'converted' => 0, 'elements' => 0, 'revisions' => 0, 'aliases' => 0, 'alias_elements' => 0, 'pro' => 0, 'pro_elements' => 0, 'pages' => 0, 'copies' => 0, 'markers' => 0, 'failed' => array() ),
 			'warnings'        => array(),
 			'review'          => array(),
 			'keep_revisions'  => array(),
@@ -1084,7 +1086,7 @@ final class Runner {
 	private static function stage_references( array $state, $deadline ) {
 		if ( Aliases::unreadable() ) {
 			$state = self::warn( $state, 'No se pudieron leer los widgets fusionados de DIGITALÍSIMO Elements en esta petición: los alias no se actualizaron. Vuelve a pulsar Migrar.' );
-			return self::next( $state, 'retire_late' );
+			return self::next( $state, 'pro', self::pro_total() );
 		}
 		$total            = count( Aliases::documents() );
 		$state['blocked'] = $total ? Aliases::references() : array();
@@ -1099,6 +1101,36 @@ final class Runner {
 			if ( $changes ) {
 				++$state['counts']['aliases'];
 				$state['counts']['alias_elements'] += (int) $changes;
+			}
+		} );
+		return $complete && count( $batch ) < self::BATCH ? self::next( $state, 'pro', self::pro_total() ) : $state;
+	}
+
+	/** ¿Puede convertir los widgets de PRO esta petición? (Pro cargado y el núcleo de conversión de Elements) */
+	private static function pro_ready() {
+		return self::has( 'Pro', 'convert_document' ) && Pro::available();
+	}
+
+	/** Documentos con widgets de PRO por convertir, para el avance de la etapa. */
+	private static function pro_total() {
+		return self::pro_ready() ? count( Pro::documents() ) : 0;
+	}
+
+	/**
+	 * Widgets de PRO con widget propio publicado (Pro, docs/PRO_WIDGETS_OBJECTIVE.md), por lotes como los alias. Sin el
+	 * núcleo de conversión de DIGITALÍSIMO Elements no se toca nada (el análisis pide actualizarlo); lo que no tiene
+	 * mapa listo se queda como está y se sigue viendo con el widget de PRO registrado.
+	 */
+	private static function stage_pro( array $state, $deadline ) {
+		if ( ! self::pro_ready() ) {
+			return self::next( $state, 'retire_late' );
+		}
+		$batch = Pro::documents( (int) $state['cursor'], self::BATCH );
+		list( $state, $complete ) = self::loop( $state, $batch, $deadline, static function ( $post_id, array &$state ) {
+			$result = Pro::convert_document( $post_id );
+			if ( ! empty( $result['converted'] ) ) {
+				$state['counts']['pro']          = (int) ( $state['counts']['pro'] ?? 0 ) + 1;
+				$state['counts']['pro_elements'] = (int) ( $state['counts']['pro_elements'] ?? 0 ) + (int) $result['converted'];
 			}
 		} );
 		return $complete && count( $batch ) < self::BATCH ? self::next( $state, 'retire_late' ) : $state;
@@ -1249,6 +1281,10 @@ final class Runner {
 		try {
 			foreach ( self::describe( $data ) as $code => $count ) {
 				Report::add( $post_id, (string) $code, array( 'count' => (int) $count ) );
+			}
+			// Widgets de PRO convertidos en una pasada anterior: sólo si el documento lleva hoy widgets convertidos desde PRO.
+			if ( self::has( 'Pro', 'describe_backup' ) ) {
+				Pro::describe_backup( $post_id, $data );
 			}
 		} finally {
 			Context::end();
@@ -1413,6 +1449,8 @@ final class Runner {
 			'failed'          => self::documents_info( $failed ),
 			'aliases_left'    => $map ? count( Aliases::documents( array_values( array_diff( array_keys( $map ), $blocked ) ) ) ) : count( Aliases::documents_with( Aliases::KNOWN ) ),
 			'alias_blocked'   => (array) $state['blocked'],
+			// Documentos con widgets de PRO que tienen widget propio y siguen sin convertir (fallaron o sin destino).
+			'pro_left'        => self::pro_ready() ? count( Pro::documents() ) : 0,
 			'alias_targets'   => array_map( static function ( $spec ) {
 				return array( 'target' => $spec['target'], 'prefix' => $spec['prefix'], 'target_prefix' => $spec['target_prefix'] );
 			}, array_intersect_key( $map, (array) $state['blocked'] ) ),
@@ -1488,7 +1526,7 @@ final class Runner {
 				return true;
 			}
 		}
-		return ! empty( $r['convertible'] ) || ! empty( $r['aliases_left'] ) || ! empty( $state['warnings'] );
+		return ! empty( $r['convertible'] ) || ! empty( $r['aliases_left'] ) || ! empty( $r['pro_left'] ) || ! empty( $state['warnings'] );
 	}
 
 	/* ------------------------------------------------------------------ Red */
@@ -2196,6 +2234,9 @@ final class Runner {
 		if ( ! empty( $c['aliases'] ) ) {
 			$rows[] = sprintf( 'Documentos con widgets fusionados actualizados: %d (%d widgets).', (int) $c['aliases'], (int) $c['alias_elements'] );
 		}
+		if ( ! empty( $c['pro'] ) ) {
+			$rows[] = sprintf( 'Documentos con widgets de PRO convertidos a widgets propios: %d (%d widgets).', (int) $c['pro'], (int) ( $c['pro_elements'] ?? 0 ) );
+		}
 		if ( ! empty( $c['recovered'] ) ) {
 			$rows[] = sprintf( 'Páginas sobrescritas recuperadas: %d.', (int) $c['recovered'] );
 		}
@@ -2232,7 +2273,7 @@ final class Runner {
 		$c    = (array) $state['counts'];
 		$html = '<div class="digi-migrate__done notice notice-success inline"><p><strong>Migración completada</strong>' . ( ! empty( $state['finished'] ) ? ' el ' . esc_html( self::date( $state['finished'] ) ) : '' ) . '.</p></div>';
 		$html .= self::render_counts( $c );
-		if ( empty( $c['deactivated'] ) && empty( $c['converted'] ) && empty( $c['revisions'] ) && empty( $c['aliases'] ) && empty( $c['recovered'] ) && empty( $c['repaired'] ) ) {
+		if ( empty( $c['deactivated'] ) && empty( $c['converted'] ) && empty( $c['revisions'] ) && empty( $c['aliases'] ) && empty( $c['pro'] ) && empty( $c['recovered'] ) && empty( $c['repaired'] ) ) {
 			$html .= '<p>No había nada que migrar en este sitio.</p>';
 		}
 		$still     = array();
@@ -2316,6 +2357,9 @@ final class Runner {
 		}
 		if ( ! empty( $r['aliases_left'] ) ) {
 			$pending .= '<p>' . esc_html( sprintf( 'Quedan %d documentos con widgets fusionados por actualizar: vuelve a pulsar Migrar cuando se resuelvan los avisos.', (int) $r['aliases_left'] ) ) . '</p>';
+		}
+		if ( ! empty( $r['pro_left'] ) ) {
+			$pending .= '<p>' . esc_html( sprintf( 'Quedan %d documentos con widgets de PRO que ya tienen widget propio sin convertir: se siguen viendo igual; el informe dice por qué. Vuelve a pulsar Migrar cuando se resuelva.', (int) $r['pro_left'] ) ) . '</p>';
 		}
 		$info = '' !== $info ? '<h3>Sin equivalente</h3>' . $info : '';
 		// Informe de F8 (por documento y por sitio), leído de su opción: cada campo escapado por Report.
@@ -2419,7 +2463,8 @@ final class Runner {
 				$ep_needed = $ep_needed || ! empty( $row['ep_needed'] );
 				$state     = ! empty( $row['pending'] ) ? 'Terminado, con asuntos por revisar' : 'Terminado';
 				$f8        = (array) ( $row['f8'] ?? array() );
-				$result    = sprintf( '%d documentos y %d revisiones convertidos, %d con widgets fusionados actualizados', (int) ( $c['converted'] ?? 0 ), (int) ( $c['revisions'] ?? 0 ), (int) ( $c['aliases'] ?? 0 ) ) . ( ! empty( $c['deactivated'] ) ? '; desactivados: ' . implode( ', ', (array) $c['deactivated'] ) : '' )
+				$result    = sprintf( '%d documentos y %d revisiones convertidos, %d con widgets fusionados actualizados', (int) ( $c['converted'] ?? 0 ), (int) ( $c['revisions'] ?? 0 ), (int) ( $c['aliases'] ?? 0 ) )
+					. ( ! empty( $c['pro'] ) ? sprintf( ', %d con widgets de PRO convertidos', (int) $c['pro'] ) : '' ) . ( ! empty( $c['deactivated'] ) ? '; desactivados: ' . implode( ', ', (array) $c['deactivated'] ) : '' )
 					. ( ! empty( $c['copies'] ) ? sprintf( '; plantillas: %d', (int) $c['copies'] ) : '' )
 					. ( $f8 ? sprintf( '; creado: %d, con diferencias: %d, pendientes: %d', (int) ( $f8['created'] ?? 0 ), (int) ( $f8['approx'] ?? 0 ), (int) ( $f8['review'] ?? 0 ) ) : '' )
 					. ( ! empty( $row['dropped'] ) ? sprintf( '; efectos heredados sin equivalente en %d documentos', (int) $row['dropped'] ) : '' )

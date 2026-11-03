@@ -12,6 +12,7 @@ require_once __DIR__ . '/class-runner.php';
 require_once __DIR__ . '/class-retire.php';
 require_once __DIR__ . '/class-aliases.php';
 require_once __DIR__ . '/class-dropped.php';
+require_once __DIR__ . '/class-pro.php';
 
 /**
  * Migración de documentos de Element Pack en el sitio actual.
@@ -937,7 +938,7 @@ final class Migration {
 		$state   = Runner::state();
 		$running = $state && empty( $state['done'] );
 		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements</h1>';
-		echo '<p>Un solo paso. <strong>Migrar</strong> desactiva en este sitio los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider), convierte al formato propio el contenido de Element Pack y de Prime Slider, sus plantillas, fuentes e iconos y el de los widgets fusionados, vacía las cachés y deja aquí el informe. Guarda una copia de cada documento antes de tocarlo y no borra ningún plugin: los deja desactivados para que los elimines desde Plugins cuando hayas comprobado el sitio. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver. Sólo afecta a este sitio' . ( is_multisite() ? '; Red → Ajustes → Migrar a DIGITALÍSIMO Elements hace lo mismo en todos los sitios de la red' : '' ) . '.</p>';
+		echo '<p>Un solo paso. <strong>Migrar</strong> desactiva en este sitio los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro, PRO Elements, Element Pack con su Addon y, al final, Prime Slider), convierte al formato propio el contenido de Element Pack y de Prime Slider, sus plantillas, fuentes e iconos, el de los widgets fusionados y los widgets de PRO que ya tienen widget propio, vacía las cachés y deja aquí el informe. Guarda una copia de cada documento antes de tocarlo y no borra ningún plugin: los deja desactivados para que los elimines desde Plugins cuando hayas comprobado el sitio. Si cierras esta pantalla, la migración sigue sola y se reanuda al volver. Sólo afecta a este sitio' . ( is_multisite() ? '; Red → Ajustes → Migrar a DIGITALÍSIMO Elements hace lo mismo en todos los sitios de la red' : '' ) . '.</p>';
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- sólo muestra el resultado de la acción.
 		if ( isset( $_GET['done'] ) && 'acknowledge' === sanitize_key( wp_unslash( $_GET['done'] ) ) ) {
 			echo '<div class="notice notice-success"><p>' . esc_html( absint( $_GET['count'] ?? 0 ) ? 'Página dada por revisada: deja de listarse mientras su contenido no cambie.' : 'No se indicó ninguna página.' ) . '</p></div>';
@@ -957,8 +958,10 @@ final class Migration {
 		}
 		// El análisis de F8 se completa por trozos con la acción AJAX de la herramienta (no hay botón).
 		$cached = get_option( self::ANALYSIS, null );
-		$html   = is_array( $cached ) && ! empty( $cached['done'] ) ? self::analysis_html( array( 'done' => true, 'report' => (array) $cached['report'] ) ) : self::analysis_html( array( 'done' => false, 'processed' => 0, 'total' => 0 ) );
-		echo '<div class="digi-migrate__analysis" data-action="' . esc_attr( self::ANALYZE ) . '" data-done="' . ( is_array( $cached ) && ! empty( $cached['done'] ) ? '1' : '0' ) . '">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Report.
+		// Completo si lo está el de Element Pack y el inventario de PRO sigue al día (si no, la pantalla lo rehace).
+		$done = is_array( $cached ) && ! empty( $cached['done'] ) && Pro::current( $cached['pro'] ?? null );
+		$html = $done ? self::analysis_html( self::analysis_result( $cached ) ) : self::analysis_html( array( 'done' => false, 'processed' => 0, 'total' => 0 ) );
+		echo '<div class="digi-migrate__analysis" data-action="' . esc_attr( self::ANALYZE ) . '" data-done="' . ( $done ? '1' : '0' ) . '">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado por Report y Pro.
 		echo '</div>';
 	}
 
@@ -1047,7 +1050,39 @@ final class Migration {
 			$cache['done']   = (int) $cache['processed'] >= count( $ids );
 			update_option( self::ANALYSIS, $cache, false );
 		}
-		return array( 'done' => ! empty( $cache['done'] ), 'processed' => (int) $cache['processed'], 'total' => (int) $cache['total'], 'report' => (array) $cache['report'] );
+		// Después, el inventario de los widgets de PRO (Pro), con su propio cursor y su propia huella: al menos un lote
+		// por vuelta, como el de Element Pack, aunque el plazo se haya agotado.
+		if ( ! empty( $cache['done'] ) ) {
+			$before       = $cache['pro'] ?? null;
+			$cache['pro'] = Pro::step( is_array( $before ) ? $before : null, (float) $deadline, $budget > 0 ? Pro::ANALYSIS_MAX : 0 );
+			if ( $cache['pro'] !== $before ) {
+				update_option( self::ANALYSIS, $cache, false );
+			}
+		}
+		return self::analysis_result( $cache );
+	}
+
+	/**
+	 * Resultado del análisis para la pantalla y WP-CLI: el de Element Pack y, cuando termina, el inventario de PRO, con
+	 * el informe previsto de los dos.
+	 *
+	 * @return array{done:bool, processed:int, total:int, report:array, pro:array|null}
+	 */
+	public static function analysis_result( array $cache ) {
+		$pro    = isset( $cache['pro'] ) && is_array( $cache['pro'] ) ? $cache['pro'] : null;
+		$ep     = ! empty( $cache['done'] );
+		$report = (array) ( $cache['report'] ?? Report::none() );
+		if ( $pro && ! empty( $pro['report'] ) ) {
+			$report = Report::merge( $report, (array) $pro['report'] );
+		}
+		return array(
+			'done'      => $ep && $pro && ! empty( $pro['done'] ),
+			'processed' => (int) ( $cache['processed'] ?? 0 ),
+			'total'     => (int) ( $cache['total'] ?? 0 ),
+			'report'    => $report,
+			'pro'       => $pro,
+			'pro_stage' => $ep,
+		);
 	}
 
 	/**
@@ -1131,11 +1166,18 @@ final class Migration {
 	/** HTML del análisis: avance mientras dura y, al terminar, el informe previsto (escapado por Report). */
 	public static function analysis_html( array $result ) {
 		if ( empty( $result['done'] ) ) {
+			if ( ! empty( $result['pro_stage'] ) ) {
+				return Pro::progress_html( isset( $result['pro'] ) && is_array( $result['pro'] ) ? $result['pro'] : null );
+			}
 			return '<p class="digi-migrate__analyzing">' . esc_html( sprintf( 'Analizando… (%d de %d)', (int) $result['processed'], (int) $result['total'] ) ) . '</p>';
 		}
 		$report = (array) ( $result['report'] ?? array() );
 		$html   = Report::render( $report, 'site' );
-		return '' !== $html ? '<h3>' . esc_html( 'Lo que hará Migrar' ) . '</h3>' . $html : '<p>' . esc_html( 'Nada más que convertir en plantillas, efectos, Prime Slider ni contenido conservado.' ) . '</p>';
+		$html   = '' !== $html ? '<h3>' . esc_html( 'Lo que hará Migrar' ) . '</h3>' . $html : '<p>' . esc_html( 'Nada más que convertir en plantillas, efectos, Prime Slider, contenido conservado ni widgets de PRO.' ) . '</p>';
+		if ( isset( $result['pro'] ) && is_array( $result['pro'] ) ) {
+			$html .= Pro::table_html( Pro::describe( $result['pro'] ) );
+		}
+		return $html;
 	}
 
 	/**
@@ -1228,14 +1270,14 @@ final class Migration {
 		$running = $job && empty( $job['done'] );
 		$sites   = get_sites( array( 'number' => 500, 'fields' => 'ids' ) );
 		echo '<div class="wrap digi-migrate-wrap"><h1>Migrar a DIGITALÍSIMO Elements en la red</h1>';
-		echo '<p>Un solo paso para toda la red. <strong>Migrar toda la red</strong> desactiva en toda la red los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro y PRO Elements al empezar; Element Pack y su Addon cuando cada sitio tiene listas sus plantillas; Prime Slider al final) y después hace en cada uno de los ' . count( $sites ) . ' sitios lo mismo que el botón de su herramienta: desactiva los que tenga activos por sitio, convierte su contenido de Element Pack y sus widgets fusionados, vacía sus cachés y deja su informe en Herramientas → Migrar a DIGITALÍSIMO Elements. <strong>Modifica todos los sitios de la red.</strong> No borra ningún plugin: cuando hayas comprobado los sitios, los eliminas desde Red → Plugins.</p>';
+		echo '<p>Un solo paso para toda la red. <strong>Migrar toda la red</strong> desactiva en toda la red los plugins que DIGITALÍSIMO Elements sustituye (Elementor, Elementor Pro y PRO Elements al empezar; Element Pack y su Addon cuando cada sitio tiene listas sus plantillas; Prime Slider al final) y después hace en cada uno de los ' . count( $sites ) . ' sitios lo mismo que el botón de su herramienta: desactiva los que tenga activos por sitio, convierte su contenido de Element Pack, sus widgets fusionados y sus widgets de PRO con widget propio, vacía sus cachés y deja su informe en Herramientas → Migrar a DIGITALÍSIMO Elements. <strong>Modifica todos los sitios de la red.</strong> No borra ningún plugin: cuando hayas comprobado los sitios, los eliminas desde Red → Plugins.</p>';
 		self::assets();
 		echo '<div id="digi-migrate" class="digi-migrate" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( Runner::AJAX . '_network' ) ) . '" data-network="1" data-running="' . ( $running ? '1' : '0' ) . '">';
 		echo '<p><button type="button" class="button button-primary button-hero digi-migrate__button"' . ( $running ? ' disabled' : '' ) . '>Migrar toda la red</button></p>';
 		echo '<div class="digi-migrate__status">' . Runner::render_network( $job ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML ya escapado por Runner.
 		echo '</div>';
 		echo '<h2>Estado de cada sitio</h2>';
-		echo '<table class="widefat striped"><thead><tr><th>Sitio</th><th>Elementos compatibles</th><th>Sin adaptador</th><th>Documentos pendientes de convertir</th><th>Widgets fusionados</th><th>Plugins sustituidos activos en el sitio</th><th>Sin equivalente</th><th>Última migración</th><th></th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>Sitio</th><th>Elementos compatibles</th><th>Sin adaptador</th><th>Documentos pendientes de convertir</th><th>Widgets fusionados</th><th>Widgets de PRO</th><th>Plugins sustituidos activos en el sitio</th><th>Sin equivalente</th><th>Última migración</th><th></th></tr></thead><tbody>';
 		$total_missing = 0;
 		foreach ( $sites as $site_id ) {
 			switch_to_blog( (int) $site_id );
@@ -1251,6 +1293,8 @@ final class Migration {
 			$groups  = self::classify();
 			$pending = count( $groups['convertible'] ) . ( $groups['blocked'] ? ' (+' . count( $groups['blocked'] ) . ' sólo con widgets sin adaptador)' : '' );
 			$aliases = Aliases::map() ? count( Aliases::documents() ) : count( Aliases::documents_with( Aliases::KNOWN ) );
+			// Widgets de PRO: documentos por convertir y, del análisis guardado del sitio, los que usa (sin releer nada).
+			$pro     = Pro::network_cell( get_option( self::ANALYSIS, null ) );
 			$plugins = array();
 			foreach ( Retire::status() as $info ) {
 				if ( $info['site'] ) {
@@ -1267,7 +1311,7 @@ final class Migration {
 			$tool    = admin_url( 'tools.php?page=' . self::PAGE );
 			restore_current_blog();
 			$total_missing += count( $missing );
-			echo '<tr><td><strong>' . esc_html( $name ) . '</strong><br><code>' . esc_html( $url ) . '</code></td><td>' . absint( $compatible ) . '</td><td>' . ( $missing ? esc_html( implode( ', ', $missing ) ) : '—' ) . '</td><td>' . esc_html( $pending ) . '</td><td>' . absint( $aliases ) . '</td><td>' . esc_html( $plugins ? implode( ', ', $plugins ) : '—' ) . '</td><td>' . esc_html( '' !== $without ? $without : '—' ) . '</td><td>' . esc_html( $last ) . '</td><td><a href="' . esc_url( $tool ) . '">Abrir la herramienta del sitio</a></td></tr>';
+			echo '<tr><td><strong>' . esc_html( $name ) . '</strong><br><code>' . esc_html( $url ) . '</code></td><td>' . absint( $compatible ) . '</td><td>' . ( $missing ? esc_html( implode( ', ', $missing ) ) : '—' ) . '</td><td>' . esc_html( $pending ) . '</td><td>' . absint( $aliases ) . '</td><td>' . esc_html( $pro ) . '</td><td>' . esc_html( $plugins ? implode( ', ', $plugins ) : '—' ) . '</td><td>' . esc_html( '' !== $without ? $without : '—' ) . '</td><td>' . esc_html( $last ) . '</td><td><a href="' . esc_url( $tool ) . '">Abrir la herramienta del sitio</a></td></tr>';
 		}
 		echo '</tbody></table>';
 		$network_active = array();

@@ -67,6 +67,8 @@ jobs:
           php tests/elements-front-settings.php
           php tests/elements-lazy-videos.php
           php tests/elements-facades.php
+          php tests/elements-convert.php
+          php tests/elements-blockquote.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php
@@ -148,6 +150,7 @@ jobs:
           php tests/migration-end-to-end.php
           php tests/migration-scale.php
           php tests/migration-network.php
+          php tests/migration-pro.php
           node tests/migration-static.mjs
           node tests/migration-drive.mjs
           node tests/migration-legacy-styles.mjs

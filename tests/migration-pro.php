@@ -1,0 +1,509 @@
+<?php
+/**
+ * Widgets de PRO en DIGITALÍSIMO Migración (docs/PRO_WIDGETS_OBJECTIVE.md, C0, frente C): `legacy/class-pro.php`.
+ *
+ * Cubre:
+ * - sin el núcleo de conversión de DIGITALÍSIMO Elements: el análisis pide actualizarlo y nada se convierte (ni la
+ *   etapa, ni convert_document(), ni los documentos por convertir);
+ * - el inventario: widgets de PRO a cualquier profundidad (sección/columna y contenedores anidados), en páginas,
+ *   cabeceras, popups y Loop Items, con su familia, sus documentos y su tipo; revisiones y autoguardados aparte;
+ *   por lotes con cursor (varias vueltas dan lo mismo que una), con huella que lo rehace al cambiar los documentos;
+ * - la conversión con un mapa inyectado como listo (`Registry::set( 'blockquote', … )`): mismo `id`, anidados, sólo lo
+ *   que tiene mapa, copia del original con la marca F8 dentro, huella al día cuando la migración ya tocó el documento,
+ *   copias de ≤ 1.0.20 sin marca nueva, cachés del documento, idempotencia, revisiones intactas, destino sin registrar
+ *   (falla cerrado con `pro.target_missing`) e informe con su sección (`pro.converted`, `pro.dropped`, `pro.approx`,
+ *   `pro.unmapped`, `pro.css`);
+ * - la etapa `pro` del runner (entre `aliases` y `retire_late`, por lotes, con su recuento) dentro de Migrar completo, y
+ *   `--revert`, que devuelve lo convertido y omite lo editado después;
+ * - el análisis («Lo que hará Migrar» y la tabla «Widgets de PRO»), la celda de la pantalla de red y el catálogo `pro.`.
+ *
+ * Se ejecuta con php-wasm (`node …/php-wasm-cli tests/migration-pro.php`): sale con 0 aunque haya un error fatal, así
+ * que se juzga por la línea final.
+ */
+
+namespace Elementor {
+	if ( ! class_exists( Plugin::class, false ) ) {
+		/** Sin el constructor: `$instance` nulo (destinos «desconocidos», que cuentan como registrados). */
+		class Plugin {
+			public static $instance;
+		}
+	}
+}
+
+namespace Digitalisimo\Elements {
+	/** Los widgets propios están cargados (la conversión de Migrar lo exige). */
+	final class Widget_Registry {}
+}
+
+namespace {
+	require __DIR__ . '/fixtures/f8-wp.php';
+
+	/**
+	 * $wpdb en memoria con las dos consultas propias del inventario: la de filas por lotes (con el tipo de entrada y el
+	 * de plantilla) y la de la huella. Lo demás, como el de A.
+	 */
+	class Pro_Wpdb extends F8_Wpdb {
+		public $inventory_rows = array();
+
+		private function parts( $query ) {
+			$pos = strpos( (string) $query, "\0" );
+			return false === $pos ? array( (string) $query, array() ) : array( substr( $query, 0, $pos ), (array) unserialize( substr( $query, $pos + 1 ) ) );
+		}
+
+		/** Documentos con `_elementor_data` del sitio en curso, por id. */
+		private function documents() {
+			$blog = (int) $GLOBALS['wp']['blog'];
+			$out  = array();
+			foreach ( $GLOBALS['wp']['meta'][ $blog ] ?? array() as $id => $meta ) {
+				if ( array_key_exists( '_elementor_data', $meta ) && isset( $GLOBALS['wp']['posts'][ $blog ][ $id ] ) ) {
+					$out[ (int) $id ] = $meta;
+				}
+			}
+			ksort( $out );
+			return $out;
+		}
+
+		public function get_results( $query, $output = 'OBJECT' ) {
+			list( $sql, $args ) = $this->parts( $query );
+			if ( false === strpos( $sql, 'AS template_type' ) ) {
+				return parent::get_results( $query, $output );
+			}
+			$this->queries[] = $sql;
+			preg_match( '/LIMIT\s+(\d+)/', $sql, $m );
+			$limit = isset( $m[1] ) ? (int) $m[1] : PHP_INT_MAX;
+			$blog  = (int) $GLOBALS['wp']['blog'];
+			$rows  = array();
+			foreach ( $this->documents() as $id => $meta ) {
+				if ( $id <= (int) $args[0] ) {
+					continue;
+				}
+				if ( count( $rows ) >= $limit ) {
+					break;
+				}
+				$rows[] = (object) array( 'post_id' => $id, 'post_type' => $GLOBALS['wp']['posts'][ $blog ][ $id ]['post_type'], 'template_type' => $meta['_elementor_template_type'] ?? null, 'meta_value' => (string) $meta['_elementor_data'] );
+			}
+			$this->inventory_rows[] = count( $rows );
+			return $rows;
+		}
+
+		public function get_row( $query, $output = 'OBJECT', $y = 0 ) {
+			list( $sql ) = $this->parts( $query );
+			if ( false === strpos( $sql, 'AS last_id' ) ) {
+				return parent::get_row( $query, $output, $y );
+			}
+			$this->queries[] = $sql;
+			$docs     = $this->documents();
+			$modified = '';
+			foreach ( array_keys( $docs ) as $id ) {
+				$modified = max( $modified, (string) $GLOBALS['wp']['posts'][ (int) $GLOBALS['wp']['blog'] ][ $id ]['post_modified_gmt'] );
+			}
+			// Sin meta_id en el doble: una huella del contenido hace su papel (cambia con cada escritura).
+			return (object) array( 'n' => count( $docs ), 'last_id' => md5( serialize( array_column( $docs, '_elementor_data' ) ) ), 'modified' => $modified );
+		}
+	}
+
+	f8_wpdb( 'Pro_Wpdb' );
+	f8_load_migration( array( 'translator', 'context', 'report', 'native', 'migration', 'retire', 'aliases', 'runner', 'pro' ) );
+
+	use Digitalisimo\Elements\Legacy\Context;
+	use Digitalisimo\Elements\Legacy\Migration;
+	use Digitalisimo\Elements\Legacy\Pro;
+	use Digitalisimo\Elements\Legacy\Report;
+	use Digitalisimo\Elements\Legacy\Runner;
+	use Digitalisimo\Elements\Legacy\Aliases;
+
+	$check = 'f8_check';
+
+	/* -------------------------------------------------------------- Ayudas */
+
+	function w( string $type, array $settings = array(), string $id = 'w1' ): array {
+		return array( 'id' => $id, 'elType' => 'widget', 'widgetType' => $type, 'settings' => $settings, 'elements' => array() );
+	}
+	function box( string $type, array $children, string $id ): array {
+		return array( 'id' => $id, 'elType' => $type, 'settings' => array(), 'elements' => $children, 'isInner' => false );
+	}
+	/** Un documento con esos elementos tal cual (raíz), del tipo indicado. */
+	function doc( array $elements, array $post = array(), array $meta = array() ): int {
+		return f8_post( $post + array( 'post_type' => 'page', 'post_title' => 'Página' ), array( '_elementor_data' => wp_json_encode( $elements ) ) + $meta );
+	}
+	function tree( int $id ): array {
+		$out = json_decode( (string) get_metadata( 'post', $id, '_elementor_data', true ), true );
+		return is_array( $out ) ? $out : array();
+	}
+	function find( array $elements, string $id ): ?array {
+		foreach ( $elements as $el ) {
+			if ( ! is_array( $el ) ) {
+				continue;
+			}
+			if ( (string) ( $el['id'] ?? '' ) === $id ) {
+				return $el;
+			}
+			$hit = find( (array) ( $el['elements'] ?? array() ), $id );
+			if ( $hit ) {
+				return $hit;
+			}
+		}
+		return null;
+	}
+	/** Códigos guardados por el informe para un documento: `código:widget:clave`. */
+	function doc_codes( int $id, ?array $report = null ): array {
+		if ( null === $report ) {
+			Report::flush();
+			$report = Report::stored();
+		}
+		$out = array();
+		foreach ( (array) ( $report['docs'][ $id ]['items'] ?? array() ) as $item ) {
+			$out[] = $item['code'] . ':' . (string) ( $item['detail']['widget'] ?? '' ) . ':' . (string) ( $item['detail']['name'] ?? '' );
+		}
+		sort( $out );
+		return $out;
+	}
+	class Test_Manager {
+		public $known;
+		public function __construct( array $known ) {
+			$this->known = $known;
+		}
+		public function get_widget_types( $name = null ) {
+			return null === $name ? array() : ( in_array( $name, $this->known, true ) ? new stdClass() : null );
+		}
+	}
+	function manager( ?array $known ): void {
+		\Elementor\Plugin::$instance = null === $known ? null : (object) array( 'widgets_manager' => new Test_Manager( $known ) );
+		Pro::reset();
+	}
+	function fresh(): void {
+		f8_reset();
+		f8_wpdb( 'Pro_Wpdb' );
+		Runner::init();
+		Aliases::set_map( array() );
+		Report::reset_catalog();
+		Report::clear();
+		Report::begin( 'run' );
+		Context::reset();
+		manager( null );
+	}
+	/** La etapa `pro` del runner, como en una petición, hasta que pasa a la siguiente. */
+	function run_pro_stage( array $state = array() ): array {
+		$state          = $state + Runner::fresh( true, 0, 1 );
+		$state['stage'] = 'pro';
+		$stage          = new ReflectionMethod( Runner::class, 'stage_pro' );
+		if ( PHP_VERSION_ID < 80100 ) {
+			$stage->setAccessible( true );
+		}
+		for ( $i = 0; $i < 50 && 'pro' === $state['stage']; $i++ ) {
+			$state = $stage->invoke( null, $state, microtime( true ) + 30 );
+		}
+		return $state;
+	}
+	/** Migrar hasta terminar (cada paso en una petición nueva). */
+	function migrate( $limit = 30 ): array {
+		$state = array();
+		for ( $i = 0; $i < $limit; $i++ ) {
+			f8_new_request();
+			$state = Runner::site_step( 0 === $i, 100, true );
+			if ( ! empty( $state['done'] ) || ! empty( $state['idle'] ) ) {
+				break;
+			}
+		}
+		return $state;
+	}
+
+	/** Un sitio con widgets de PRO en todos los sitios donde pueden estar. */
+	function site(): array {
+		$quote = array(
+			'blockquote_content' => 'Citar es <b>recordar</b>',
+			'author_name'        => 'Ana',
+			'blockquote_skin'    => 'quotation',
+			'tweet_button'       => '',
+			'mystery_key'        => 'x',
+			'custom_css'         => 'selector .elementor-blockquote__content { color: red; }',
+			'_margin'            => array( 'top' => '10' ),
+		);
+		$ids = array();
+		// Página: sección/columna y contenedores anidados, con un widget de PRO sin mapa al lado.
+		$ids['page'] = doc(
+			array(
+				box( 'section', array( box( 'column', array( w( 'blockquote', $quote, 'q1' ), w( 'nav-menu', array( 'menu' => 'principal' ), 'n1' ) ), 'c1' ) ), 's1' ),
+				box( 'container', array( box( 'container', array( w( 'blockquote', array( 'blockquote_content' => 'Anidada' ), 'q2' ) ), 'k2' ) ), 'k1' ),
+			),
+			array( 'post_title' => 'Inicio' )
+		);
+		$ids['header'] = doc( array( box( 'container', array( w( 'nav-menu', array(), 'n2' ) ), 'h1' ) ), array( 'post_type' => 'elementor_library', 'post_title' => 'Cabecera' ), array( '_elementor_template_type' => 'header' ) );
+		$ids['popup']  = doc( array( box( 'container', array( w( 'form', array( 'form_name' => 'Contacto' ), 'f1' ) ), 'p1' ) ), array( 'post_type' => 'elementor_library', 'post_title' => 'Popup' ), array( '_elementor_template_type' => 'popup' ) );
+		$ids['loop']   = doc( array( box( 'container', array( w( 'blockquote', array( 'blockquote_content' => 'En bucle' ), 'q3' ) ), 'l1' ) ), array( 'post_type' => 'elementor_library', 'post_title' => 'Elemento de bucle' ), array( '_elementor_template_type' => 'loop-item' ) );
+		$ids['plain']  = doc( array( box( 'container', array( w( 'heading', array( 'title' => 'Sin PRO' ), 'h9' ) ), 'x1' ) ), array( 'post_title' => 'Normal' ) );
+		$ids['empty']  = doc( array(), array( 'post_title' => 'Vacía' ) );
+		// Revisión y autoguardado de la página: se cuentan aparte y nunca se convierten.
+		$ids['revision'] = doc( array( w( 'blockquote', array( 'blockquote_content' => 'Vieja' ), 'q1' ) ), array( 'post_type' => 'revision', 'post_parent' => $ids['page'], 'post_name' => $ids['page'] . '-revision-v1' ) );
+		$ids['autosave'] = doc( array( w( 'blockquote', array(), 'q1' ), w( 'blockquote', array(), 'q2' ) ), array( 'post_type' => 'revision', 'post_parent' => $ids['page'], 'post_name' => $ids['page'] . '-autosave-v1' ) );
+		return $ids;
+	}
+
+	/** Mapa del piloto, inyectado como listo (el de verdad lo publica el frente B). */
+	function pilot_map(): array {
+		return array(
+			'source'   => 'blockquote',
+			'target'   => 'digitalisimo-blockquote',
+			'status'   => 'ready',
+			'panel'    => 'hide',
+			'defaults' => array( 'blockquote_skin' => 'border', 'tweet_button' => 'yes' ),
+			'keep'     => array( 'blockquote_content', 'author_name' ),
+			'rename'   => array( 'blockquote_skin' => 'skin' ),
+			'approx'   => array( 'blockquote_skin' => 'Las presentaciones del widget propio no son idénticas.' ),
+			'drop'     => array( 'tweet_button' => 'El widget propio no comparte en redes.' ),
+			'classes'  => array( '.elementor-blockquote__content' => '.digi-blockquote__content' ),
+		);
+	}
+
+	/* ================================================================ 1. Sin el núcleo de conversión de Elements */
+	fresh();
+	$ids = site();
+	$raw = get_metadata( 'post', $ids['page'], '_elementor_data', true );
+	$check( ! Pro::available() && array() === Pro::ready() && array() === Pro::documents(), 'Sin el núcleo de Elements no hay nada que convertir.' );
+	$check( array( 'converted' => 0, 'blocked' => array() ) === Pro::convert_document( $ids['page'] ) && $raw === get_metadata( 'post', $ids['page'], '_elementor_data', true ) && null === f8_meta( $ids['page'], Migration::BACKUP ), 'convert_document() no toca nada sin el núcleo.' );
+	$inventory = Pro::inventory();
+	$check( false === $inventory['available'] && array() === $inventory['widgets'], 'El inventario dice que no está disponible.' );
+	$html = Pro::table_html( $inventory );
+	$check( false !== strpos( $html, 'actualizar DIGITALÍSIMO Elements' ) && false !== strpos( $html, 'Widgets de PRO' ), 'El análisis pide actualizar DIGITALÍSIMO Elements: ' . $html );
+	$check( 'Actualiza DIGITALÍSIMO Elements' === Pro::network_cell( null ), 'La pantalla de red también.' );
+	$check( Pro::current( Pro::step( null ) ), 'El inventario sin núcleo está «completo» (la pantalla no lo pide en bucle).' );
+	$state = run_pro_stage();
+	$check( 'retire_late' === $state['stage'] && 0 === (int) $state['counts']['pro'] && $raw === get_metadata( 'post', $ids['page'], '_elementor_data', true ), 'La etapa pro pasa a retire_late sin tocar nada.' );
+
+	/* ================================================================ El núcleo de Elements (autocarga acotada a Convert\) */
+	require_once dirname( __DIR__ ) . '/digitalisimo-elements/modules/digitalisimo-convert/class-module.php';
+	\Digitalisimo\Elements\Convert\Module::init();
+	use Digitalisimo\Elements\Convert\Registry;
+	Registry::reset();
+	Pro::reset();
+	$check( Pro::available(), 'Con el núcleo de Elements, Pro está disponible.' );
+
+	/* ================================================================ 2. Inventario */
+	fresh();
+	Registry::set( 'blockquote', pilot_map() );
+	$ids       = site();
+	$inventory = Pro::inventory();
+	$rows      = array_column( $inventory['widgets'], null, 'widget' );
+	$check( true === $inventory['available'] && 8 === $inventory['scanned'], 'Revisa los 8 documentos con _elementor_data (también revisiones): ' . $inventory['scanned'] );
+	$check( 3 === $rows['blockquote']['elements'] && 2 === $rows['blockquote']['documents'], 'Blockquote: 3 elementos (anidados y en el Loop Item) en 2 documentos: ' . wp_json_encode( $rows['blockquote'] ) );
+	$check( 3 === $rows['blockquote']['revision_elements'] && 2 === $rows['blockquote']['revisions'], 'Revisión y autoguardado aparte: 3 elementos en 2 revisiones.' );
+	$check( 2 === $rows['nav-menu']['elements'] && 2 === $rows['nav-menu']['documents'] && 1 === $rows['form']['elements'] && 0 === $rows['form']['revisions'], 'El menú en la página y en la cabecera; el formulario en el popup.' );
+	$check( 4 === $inventory['documents'] && 2 === $inventory['revisions'], 'Documentos con widgets de PRO: 4 (página, cabecera, popup, Loop Item); revisiones: 2.' );
+	$check( array( 'header' => 1, 'loop-item' => 1, 'page' => 1, 'popup' => 1 ) == $inventory['where'], 'Por tipo: plantillas por su tipo, entradas por el suyo: ' . wp_json_encode( $inventory['where'] ) );
+	$check( 'C2' === $rows['blockquote']['family'] && 'C3' === $rows['nav-menu']['family'] && 'C6' === $rows['form']['family'], 'Cada widget con su familia (Catalog::family()).' );
+	$check( 'digitalisimo-blockquote' === $rows['blockquote']['target'] && 'Se convierte a digitalisimo-blockquote' === $rows['blockquote']['status'], 'Con mapa listo: «Se convierte a <widget propio>».' );
+	$check( '' === $rows['nav-menu']['target'] && 'Pendiente: familia C3' === $rows['nav-menu']['status'], 'Sin mapa: «Pendiente: familia Cn».' );
+	$check( array( 'C2', 'C3', 'C6' ) === array_keys( $inventory['families'] ) && 3 === $inventory['families']['C2']['elements'] && 2 === $inventory['families']['C2']['documents'] && 'Contenido' === $inventory['families']['C2']['label'], 'Familias de más a menos usadas, con su nombre.' );
+	$check( array( 'C2', 'C3', 'C6' ) === array_column( $inventory['widgets'], 'family' ), 'Filas por familia.' );
+	// Lo que haría Migrar: el informe previsto, sin escribir nada.
+	$expected = array( 'pro.approx:blockquote:blockquote_skin', 'pro.converted:blockquote:', 'pro.css:blockquote:custom_css', 'pro.dropped:blockquote:tweet_button', 'pro.unmapped:blockquote:mystery_key' );
+	$check( $expected === doc_codes( $ids['page'], $inventory['report'] ), 'Informe previsto de la página: ' . wp_json_encode( doc_codes( $ids['page'], $inventory['report'] ) ) );
+	$check( array( 'pro.converted:blockquote:' ) === doc_codes( $ids['loop'], $inventory['report'] ) && ! doc_codes( $ids['revision'], $inventory['report'] ) && ! doc_codes( $ids['header'], $inventory['report'] ), 'Sólo lo que se convierte; nada de revisiones ni de widgets sin mapa.' );
+	$check( null === f8_meta( $ids['page'], Migration::BACKUP ) && Report::is_empty( Report::stored() ) && 'run' === Report::mode(), 'El inventario no escribe nada (ni copias ni informe) y devuelve el informe a su modo.' );
+	// Por lotes: el recorrido nunca pide todo de una vez y varias vueltas cortas dan lo mismo que una.
+	for ( $i = 0; $i < 230; $i++ ) {
+		doc( array( w( 'heading', array( 'title' => 'Relleno ' . $i ), 'r' . $i ) ), array( 'post_title' => 'Relleno' ) );
+	}
+	$last = doc( array( w( 'countdown', array(), 'cd' ) ), array( 'post_title' => 'Al final' ) );
+	$GLOBALS['wpdb']->inventory_rows = array();
+	$GLOBALS['wpdb']->queries        = array();
+	$state = Pro::step( null, 0, 60 );
+	$check( empty( $state['done'] ) && 100 === $state['processed'] && 239 === $state['total'], 'Una vuelta con tope de 60 documentos termina su lote de 100 y se detiene: ' . $state['processed'] . ' de ' . $state['total'] );
+	$turns = 1;
+	while ( empty( $state['done'] ) && $turns < 20 ) {
+		$state = Pro::step( $state, 0, 60 );
+		++$turns;
+	}
+	$sliced = Pro::describe( $state );
+	$check( ! empty( $state['done'] ) && 239 === $sliced['scanned'] && $turns >= 3, 'Termina en varias vueltas: ' . $turns );
+	$check( max( $GLOBALS['wpdb']->inventory_rows ) <= Pro::INVENTORY_BATCH && false !== strpos( implode( "\n", $GLOBALS['wpdb']->queries ), 'LIMIT 100' ), 'Cada consulta trae como mucho un lote (LIMIT 100).' );
+	$whole = Pro::inventory();
+	$check( $whole['widgets'] === $sliced['widgets'] && $whole['families'] === $sliced['families'] && isset( array_column( $whole['widgets'], null, 'widget' )['countdown'] ), 'Por trozos o entero, el mismo inventario (también el último documento).' );
+	$check( Pro::current( $state ), 'Un inventario completo sigue al día mientras no cambie nada.' );
+	update_metadata( 'post', $last, '_elementor_data', wp_slash( wp_json_encode( array( w( 'countdown', array(), 'cd' ), w( 'lottie', array(), 'lt' ) ) ) ) );
+	$check( ! Pro::current( $state ), 'Al cambiar un documento, la huella cambia y el inventario se rehace.' );
+	$again = Pro::step( $state, 0, 0 );
+	$check( 1 === array_column( Pro::describe( $again )['widgets'], null, 'widget' )['lottie']['elements'], 'El inventario rehecho ve el cambio.' );
+
+	/* ================================================================ 3. Conversión de un documento */
+	fresh();
+	Registry::set( 'blockquote', pilot_map() );
+	$ids = site();
+	update_metadata( 'post', $ids['page'], '_elementor_css', array( 'status' => 'file' ) );
+	update_metadata( 'post', $ids['page'], '_elementor_page_settings', array( 'hide_title' => 'yes' ) );
+	$original = (string) get_metadata( 'post', $ids['page'], '_elementor_data', true );
+	$check( array( $ids['page'], $ids['loop'] ) === Pro::documents(), 'Documentos por convertir: los que tienen un widget con mapa listo, sin revisiones ni los que sólo tienen widgets pendientes.' );
+	$check( array( $ids['loop'] ) === Pro::documents( $ids['page'] ) && array( $ids['page'] ) === Pro::documents( 0, 1 ), 'Con cursor y límite, como los alias.' );
+	$result = Pro::convert_document( $ids['page'] );
+	$after  = tree( $ids['page'] );
+	$q1     = find( $after, 'q1' );
+	$q2     = find( $after, 'q2' );
+	$check( 2 === $result['converted'] && array() === $result['blocked'], 'Convierte los dos Blockquote de la página: ' . wp_json_encode( $result ) );
+	$check( $q1 && 'digitalisimo-blockquote' === $q1['widgetType'] && 'widget' === $q1['elType'] && 'Citar es <b>recordar</b>' === $q1['settings']['blockquote_content'] && 'Ana' === $q1['settings']['author_name'] && 'quotation' === $q1['settings']['skin'], 'Mismo id y contenido; ajustes traducidos por el mapa.' );
+	$check( ! isset( $q1['settings']['mystery_key'] ) && ! isset( $q1['settings']['tweet_button'] ) && array( 'top' => '10' ) === $q1['settings']['_margin'] && 'blockquote' === $q1['settings']['_digitalisimo_pro'], 'Lo no declarado y lo descartado no pasan; lo común sí; queda la marca del traductor.' );
+	$check( false !== strpos( $q1['settings']['custom_css'], '.digi-blockquote__content' ) && false === strpos( $q1['settings']['custom_css'], 'elementor-blockquote' ), 'El CSS personalizado del elemento pasa a las clases del widget propio.' );
+	$check( $q2 && 'digitalisimo-blockquote' === $q2['widgetType'] && 'k2' === find( $after, 'k2' )['id'], 'También dentro de contenedores anidados.' );
+	$check( 'nav-menu' === find( $after, 'n1' )['widgetType'] && array( 'menu' => 'principal' ) === find( $after, 'n1' )['settings'], 'El widget de PRO sin mapa queda tal cual.' );
+	$backup = json_decode( (string) f8_meta( $ids['page'], Migration::BACKUP ), true );
+	$mark   = Migration::f8_mark( $ids['page'] );
+	$check( is_array( $backup ) && $original === $backup['data'] && is_array( $backup['f8'] ?? null ), 'Copia del original con la marca F8 dentro (una escritura menos, como Migration).' );
+	$check( is_array( $mark ) && md5( (string) get_metadata( 'post', $ids['page'], '_elementor_data', true ) ) === $mark['hash'] && 0 === (int) $mark['restricted'] && 1 === (int) $mark['v'], 'La marca F8 lleva la huella de lo escrito y no es de modo restringido.' );
+	$check( false === Migration::restricted( $ids['page'] ), 'El documento no pasa por migrado con una versión antigua.' );
+	$check( null === f8_meta( $ids['page'], '_elementor_css' ) && array( 'hide_title' => 'yes' ) === f8_meta( $ids['page'], '_elementor_page_settings' ), 'Vacía la caché de CSS del documento y no toca sus ajustes de página.' );
+	$codes = doc_codes( $ids['page'] );
+	$check( $expected === $codes, 'Informe del documento, con el widget y la clave: ' . wp_json_encode( $codes ) );
+	$catalog = Report::catalog();
+	$sections = array();
+	foreach ( (array) Report::stored()['docs'][ $ids['page'] ]['items'] as $item ) {
+		$sections[ $item['code'] ] = Report::section_of( $item );
+	}
+	$check( array( 'pro.approx' => 'approx', 'pro.converted' => 'converted', 'pro.css' => 'converted', 'pro.dropped' => 'dropped', 'pro.unmapped' => 'review' ) == $sections, 'Cada código en su sección: ' . wp_json_encode( $sections ) );
+	$converted = null;
+	foreach ( (array) Report::stored()['docs'][ $ids['page'] ]['items'] as $item ) {
+		if ( 'pro.converted' === $item['code'] ) {
+			$converted = $item['detail'];
+		}
+	}
+	$check( array( 'count' => 2, 'target' => 'digitalisimo-blockquote', 'widget' => 'blockquote' ) == $converted, 'pro.converted agrupado por widget, con su destino y recuento.' );
+	$check( Report::pending( Report::stored() ), 'Una clave sin declarar deja el sitio con «Pendiente de revisar».' );
+	// Idempotencia.
+	$written = (string) get_metadata( 'post', $ids['page'], '_elementor_data', true );
+	$copy    = (string) f8_meta( $ids['page'], Migration::BACKUP );
+	Report::clear();
+	Report::begin( 'run' );
+	$check( 0 === Pro::convert_document( $ids['page'] )['converted'] && $written === get_metadata( 'post', $ids['page'], '_elementor_data', true ) && $copy === f8_meta( $ids['page'], Migration::BACKUP ) && ! doc_codes( $ids['page'] ), 'Una segunda vez no cambia nada ni repite el informe.' );
+	$check( ! in_array( $ids['page'], Pro::documents(), true ), 'Ya no figura entre los documentos por convertir.' );
+	// Revisiones: nunca se convierten.
+	$rev_raw = (string) get_metadata( 'post', $ids['revision'], '_elementor_data', true );
+	$check( 0 === Pro::convert_document( $ids['revision'] )['converted'] && $rev_raw === get_metadata( 'post', $ids['revision'], '_elementor_data', true ) && null === f8_meta( $ids['revision'], Migration::BACKUP ), 'Una revisión no se convierte (el widget de PRO sigue registrado y se ve).' );
+	// Documento ya tocado por la migración (copia con su marca F8 en la meta): la copia no cambia; la huella, sí.
+	$ep_raw  = wp_json_encode( array( w( 'bdt-accordion', array(), 'e1' ) ) );
+	$touched = doc( array( w( 'blockquote', array( 'blockquote_content' => 'Tras F8' ), 'q7' ) ), array( 'post_title' => 'Migrada' ) );
+	add_metadata( 'post', $touched, Migration::BACKUP, wp_slash( wp_json_encode( array( 'time' => 1000, 'data' => $ep_raw ) ) ) );
+	update_metadata( 'post', $touched, Migration::F8_MARK, wp_slash( wp_json_encode( array( 'v' => 1, 'time' => 1000, 'hash' => md5( (string) get_metadata( 'post', $touched, '_elementor_data', true ) ), 'page_hash' => '', 'restricted' => 0 ) ) ) );
+	Pro::convert_document( $touched );
+	$mark = Migration::f8_mark( $touched );
+	$check( $ep_raw === json_decode( (string) f8_meta( $touched, Migration::BACKUP ), true )['data'] && md5( (string) get_metadata( 'post', $touched, '_elementor_data', true ) ) === $mark['hash'] && 1000 === (int) $mark['time'], 'Ya migrado: conserva la copia original (de antes de Element Pack) y pone la huella al día sin cambiar la fecha.' );
+	// Copia de ≤ 1.0.20 sin marca: no se le crea una (seguiría siendo de modo restringido).
+	$old = doc( array( w( 'blockquote', array(), 'q8' ) ), array( 'post_title' => 'Antigua' ) );
+	add_metadata( 'post', $old, Migration::BACKUP, wp_slash( wp_json_encode( array( 'time' => 900, 'data' => $ep_raw ) ) ) );
+	Pro::convert_document( $old );
+	$check( 'digitalisimo-blockquote' === tree( $old )[0]['widgetType'] && null === Migration::f8_mark( $old ) && Migration::restricted( $old ), 'Migrado con ≤ 1.0.20: se convierte y sigue en modo restringido.' );
+	// Destino sin registrar: falla cerrado.
+	manager( array( 'heading' ) );
+	$loop_raw = (string) get_metadata( 'post', $ids['loop'], '_elementor_data', true );
+	$check( array() === Pro::ready() && array( 'blockquote' => 'digitalisimo-blockquote' ) === Pro::missing_targets() && array() === Pro::documents(), 'Sin el widget propio registrado, nada está listo ni por convertir.' );
+	Report::clear();
+	Report::begin( 'run' );
+	$blocked = Pro::convert_document( $ids['loop'] );
+	$check( array( 'blockquote' ) === $blocked['blocked'] && 0 === $blocked['converted'] && $loop_raw === get_metadata( 'post', $ids['loop'], '_elementor_data', true ) && null === f8_meta( $ids['loop'], Migration::BACKUP ), 'convert_document() no escribe nada si falta el destino.' );
+	$check( array( 'pro.target_missing:blockquote:' ) === doc_codes( $ids['loop'] ) && 'review' === Report::catalog()['pro.target_missing']['section'], 'Y lo informa en «Pendiente de revisar» (pro.target_missing).' );
+	$check( 'Pendiente: digitalisimo-blockquote no está registrado en este sitio' === Pro::status( 'blockquote', '', 'C2' ), 'El análisis dice que el destino no está registrado.' );
+	manager( array( 'heading', 'digitalisimo-blockquote' ) );
+	$check( array( 'blockquote' => 'digitalisimo-blockquote' ) === Pro::ready(), 'Con el widget propio registrado, vuelve a estar listo.' );
+	manager( null );
+
+	/* ================================================================ 4. La etapa pro y Migrar completo, y --revert */
+	$stages = Runner::STAGES;
+	$check( array_search( 'pro', $stages, true ) === array_search( 'aliases', $stages, true ) + 1 && array_search( 'retire_late', $stages, true ) === array_search( 'pro', $stages, true ) + 1 && in_array( 'pro', Runner::LOOP_STAGES, true ), 'La etapa pro va entre aliases y retire_late y recorre documentos.' );
+	fresh();
+	Registry::set( 'blockquote', pilot_map() );
+	$ids      = site();
+	$original = (string) get_metadata( 'post', $ids['page'], '_elementor_data', true );
+	$loop_raw = (string) get_metadata( 'post', $ids['loop'], '_elementor_data', true );
+	$state    = run_pro_stage();
+	$check( 'retire_late' === $state['stage'] && 2 === $state['counts']['pro'] && 3 === $state['counts']['pro_elements'], 'La etapa convierte 2 documentos (3 widgets) y pasa a retire_late: ' . wp_json_encode( array( $state['counts']['pro'], $state['counts']['pro_elements'] ) ) );
+	$check( 'digitalisimo-blockquote' === find( tree( $ids['loop'] ), 'q3' )['widgetType'] && 'blockquote' === tree( $ids['revision'] )[0]['widgetType'], 'El Loop Item convertido; la revisión intacta.' );
+	// Por lotes: con más documentos que un lote, la etapa avanza con su cursor.
+	fresh();
+	Registry::set( 'blockquote', pilot_map() );
+	$many = array();
+	for ( $i = 0; $i < Runner::BATCH + 5; $i++ ) {
+		$many[] = doc( array( w( 'blockquote', array( 'blockquote_content' => 'n' . $i ), 'b' . $i ) ), array( 'post_title' => 'Lote ' . $i ) );
+	}
+	$state = run_pro_stage();
+	$left  = array_filter( $many, static function ( $id ) {
+		return 'blockquote' === tree( $id )[0]['widgetType'];
+	} );
+	$check( 'retire_late' === $state['stage'] && Runner::BATCH + 5 === $state['counts']['pro'] && ! $left, 'Más de un lote: los ' . ( Runner::BATCH + 5 ) . ' documentos convertidos.' );
+
+	// Migrar de punta a punta (sin Element Pack): la etapa corre dentro de la tarea y el informe lo dice.
+	fresh();
+	Registry::set( 'blockquote', pilot_map() );
+	f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.171' ), 'site' );
+	$ids      = site();
+	$original = (string) get_metadata( 'post', $ids['page'], '_elementor_data', true );
+	$loop_raw = (string) get_metadata( 'post', $ids['loop'], '_elementor_data', true );
+	$state    = migrate();
+	$check( ! empty( $state['done'] ) && 2 === (int) $state['counts']['pro'] && 3 === (int) $state['counts']['pro_elements'], 'Migrar termina con 2 documentos y 3 widgets de PRO convertidos: ' . wp_json_encode( $state['counts'] ) );
+	$check( 0 === (int) ( $state['report']['pro_left'] ?? -1 ), 'El informe no deja documentos de PRO por convertir.' );
+	$html = Runner::render( $state );
+	$check( false !== strpos( $html, 'Documentos con widgets de PRO convertidos a widgets propios: 2 (3 widgets).' ) && false !== strpos( $html, 'Pendiente de revisar' ), 'El informe cuenta lo convertido y deja la clave sin declarar en «Pendiente de revisar».' );
+	$check( Runner::has_pending( $state ), 'Con una clave sin declarar, el sitio queda con asuntos por revisar.' );
+	$check( in_array( 'pro.converted', array_column( (array) Report::stored()['docs'][ $ids['page'] ]['items'], 'code' ), true ), 'El informe guardado de F8 tiene los códigos pro.' );
+	// Volver a pulsar Migrar: nada cambia y el informe sigue diciendo lo convertido (relee la copia).
+	$written = (string) get_metadata( 'post', $ids['page'], '_elementor_data', true );
+	// La pasada anterior fue antes (en la prueba, el mismo segundo): su copia lleva una marca con fecha anterior.
+	foreach ( array( $ids['page'], $ids['loop'] ) as $id ) {
+		$backup             = json_decode( (string) f8_meta( $id, Migration::BACKUP ), true );
+		$backup['f8']['time'] = (int) $backup['f8']['time'] - 60;
+		update_metadata( 'post', $id, Migration::BACKUP, wp_slash( wp_json_encode( $backup ) ) );
+	}
+	$state2  = migrate();
+	$check( ! empty( $state2['done'] ) && 0 === (int) $state2['counts']['pro'] && $written === get_metadata( 'post', $ids['page'], '_elementor_data', true ), 'Volver a pulsar Migrar no reconvierte.' );
+	$check( in_array( 'pro.converted:blockquote:', doc_codes( $ids['page'] ), true ), 'Y el informe nuevo vuelve a listar lo convertido en la primera pasada.' );
+	// Un documento editado después de migrar.
+	$edited = doc( array( w( 'blockquote', array( 'blockquote_content' => 'Editable' ), 'q9' ) ), array( 'post_title' => 'Editada' ) );
+	$edited_raw = (string) get_metadata( 'post', $edited, '_elementor_data', true );
+	Pro::convert_document( $edited );
+	update_metadata( 'post', $edited, '_elementor_data', wp_slash( wp_json_encode( array( w( 'heading', array( 'title' => 'Editado a mano' ), 'x' ) ) ) ) );
+	$rev = Runner::revert();
+	$check( empty( $rev['refused'] ) && $rev['documents'] >= 2, '--revert restaura lo convertido: ' . wp_json_encode( array( $rev['documents'], $rev['skipped'] ) ) );
+	$check( $original === get_metadata( 'post', $ids['page'], '_elementor_data', true ) && $loop_raw === get_metadata( 'post', $ids['loop'], '_elementor_data', true ), 'La página y el Loop Item vuelven a su widget de PRO original.' );
+	$check( null === f8_meta( $ids['page'], Migration::BACKUP ) && null === Migration::f8_mark( $ids['page'] ), 'Sin copia ni marca tras restaurar.' );
+	$check( str_contains( (string) get_metadata( 'post', $edited, '_elementor_data', true ), 'Editado a mano' ) && $rev['skipped'] >= 1, 'Lo editado después de migrar se omite.' );
+	Runner::revert( true );
+	$check( $edited_raw === get_metadata( 'post', $edited, '_elementor_data', true ), 'Con --force, también vuelve.' );
+
+	/* ================================================================ 5. Análisis, pantalla de red y catálogo */
+	fresh();
+	Registry::set( 'blockquote', pilot_map() );
+	$ids    = site();
+	$result = Migration::analyze_step( 0 );
+	$check( ! empty( $result['done'] ) && is_array( $result['pro'] ) && ! empty( $result['pro']['done'] ), 'El análisis entero (WP-CLI) incluye el inventario de PRO.' );
+	$html = Migration::analysis_html( $result );
+	$check( false !== strpos( $html, '<h3>Widgets de PRO</h3>' ) && false !== strpos( $html, 'Se convierte a digitalisimo-blockquote' ) && false !== strpos( $html, 'Pendiente: familia C3' ) && false !== strpos( $html, '<code>nav-menu</code>' ), 'La pantalla muestra la tabla con su estado.' );
+	$check( false !== strpos( $html, 'Lo que hará Migrar' ) && false !== strpos( $html, 'Pendiente de revisar' ), '«Lo que hará Migrar» incluye los códigos de PRO.' );
+	$check( false !== strpos( $html, 'C2 Contenido: 3 elementos en 2 documentos' ) && false !== strpos( $html, 'header: 1' ), 'Con el resumen por familia y por tipo de documento.' );
+	$cache = get_option( Migration::ANALYSIS );
+	$check( Pro::current( $cache['pro'] ?? null ), 'El inventario se guarda en la caché del análisis y sigue al día.' );
+	$cell = Pro::network_cell( $cache );
+	$check( '2 documentos por convertir; en uso: 6 elementos de 3 widgets (3 pendientes de su familia)' === $cell, 'Celda de la red: ' . $cell );
+	// Por trozos, como la pantalla: la primera respuesta puede no estar completa, pero termina.
+	delete_option( Migration::ANALYSIS );
+	$turns = 0;
+	do {
+		$result = Migration::analyze_step( 0.000001 );
+		++$turns;
+	} while ( empty( $result['done'] ) && $turns < 50 );
+	$check( ! empty( $result['done'] ) && false !== strpos( Migration::analysis_html( $result ), 'Widgets de PRO' ), 'Por trozos también termina: ' . $turns . ' vueltas.' );
+	$check( false !== strpos( Migration::analysis_html( array( 'done' => false, 'pro_stage' => true, 'pro' => array( 'processed' => 3, 'total' => 9 ) ) ), 'Contando los widgets de PRO… (3 de 9 documentos)' ), 'Mientras cuenta, la pantalla dice el avance.' );
+	// Escape campo a campo.
+	$xss  = '<img src=x onerror=alert(1)>';
+	$html = Pro::table_html( array( 'available' => true, 'scanned' => 1, 'documents' => 1, 'revisions' => 0, 'widgets' => array( array( 'widget' => $xss, 'family' => 'C2', 'family_label' => $xss, 'elements' => 1, 'documents' => 1, 'revision_elements' => 0, 'revisions' => 0, 'target' => '', 'status' => $xss ) ), 'families' => array( 'C2' => array( 'label' => $xss, 'elements' => 1, 'documents' => 1 ) ), 'where' => array( $xss => 1 ) ) );
+	$check( false === strpos( $html, '<img' ), 'La tabla escapa cada campo.' );
+	// Catálogo.
+	Report::reset_catalog();
+	$catalog = Report::catalog();
+	$codes   = include dirname( __DIR__ ) . '/digitalisimo-migration/legacy/report/codes-pro.php';
+	$check( 'pro.' === Report::CATALOGS['pro'], 'El informe declara el catálogo pro con su prefijo.' );
+	$mine = array_keys( $codes );
+	sort( $mine );
+	$check( array( 'pro.approx', 'pro.converted', 'pro.css', 'pro.dropped', 'pro.target_missing', 'pro.unmapped' ) === $mine, 'Catálogo pro: ' . implode( ', ', $mine ) );
+	foreach ( $codes as $code => $spec ) {
+		$check( isset( $catalog[ $code ] ) && $catalog[ $code ]['section'] === $spec['section'], 'El informe carga ' . $code . ' con su sección.' );
+	}
+	$check( 'dropped' === $catalog['pro.dropped']['section'] && 'approx' === $catalog['pro.approx']['section'] && 'review' === $catalog['pro.unmapped']['section'] && 'converted' === $catalog['pro.css']['section'], 'Las secciones coinciden con las del traductor de Elements.' );
+
+	f8_done( 'Widgets de PRO en DIGITALÍSIMO Migración', 70 );
+}

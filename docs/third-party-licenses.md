@@ -198,3 +198,7 @@ Reglas para lo que se genere a partir de estas referencias:
 - **Lo que no se reutiliza:** el código de los widgets de Prime Slider (sus mapas son propios: nombres de controles y huellas de las URL de demostración para reconocerlas), UIkit, Swiper GL, GSAP y SplitText, los efectos de UI Initiative, las imágenes y SVG de Element Pack, y su cargador y licenciamiento.
 
 DIGITALÍSIMO Elements no contiene nada de Element Pack ni de Prime Slider: los rasgos «Información emergente» y «Distintivo» y el contador del slider anidado son implementación propia, escrita desde cero sobre APIs públicas del núcleo incluido, sin su CSS, JavaScript, Tippy, Popper ni UIkit, y `scripts/build-packages.sh` aborta el ZIP de Elements si los menciona.
+
+## Programa «sin widgets de PRO»: Cita (`digitalisimo-blockquote`)
+
+`class-blockquote.php` y `assets/css/blockquote.css` sustituyen al widget Blockquote derivado de PRO Elements (`modules/blockquote/widgets/blockquote.php` y `widget-blockquote.min.css`, GPLv3), que ya forma parte de DIGITALÍSIMO Elements. Parten de su lista de controles, valores por defecto y reglas de estilo para que el contenido convertido se vea igual (`docs/PRO_WIDGETS_OBJECTIVE.md`), con nombre, clases, marcado e icono propios. El widget de PRO sigue incluido y registrado para el contenido que no se haya convertido.

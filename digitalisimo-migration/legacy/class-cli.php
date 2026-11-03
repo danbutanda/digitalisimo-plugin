@@ -35,7 +35,22 @@ final class Cli {
 	 *
 	 * [--network]
 	 * : En Multisite: con --run, migra toda la red (cada sitio en su propio proceso); sin --run, sólo muestra el
-	 * inventario de todos los sitios (no convierte ni restaura).
+	 * inventario de todos los sitios (no convierte ni restaura). Con --pro, el inventario de PRO de todos los sitios.
+	 *
+	 * [--pro]
+	 * : Sólo muestra el inventario de los widgets de PRO del sitio (no convierte nada): por widget, su familia, elementos
+	 * y documentos que lo usan (entradas, páginas, plantillas, popups y Loop Items), los de revisiones y autoguardados
+	 * aparte, y si Migrar lo convierte a un widget propio o queda pendiente de su familia. Sirve para ordenar las
+	 * familias por uso real.
+	 *
+	 * [--format=<format>]
+	 * : Con --pro: `table` (por defecto) o `json`.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 * ---
 	 *
 	 * ## EXAMPLES
 	 *
@@ -46,10 +61,20 @@ final class Cli {
 	 *     wp digitalisimo-migration --repair --url=https://sitio.example/   (reglas de visibilidad perdidas, desde la copia original)
 	 *     wp digitalisimo-migration --recover --url=https://sitio.example/  (páginas sobrescritas por la conversión de una revisión, desde su última revisión guardada)
 	 *     wp digitalisimo-migration --network
+	 *     wp digitalisimo-migration --pro --url=https://sitio.example/
+	 *     wp digitalisimo-migration --pro --format=json --url=https://sitio.example/
+	 *     wp digitalisimo-migration --pro --network --format=json
 	 */
 	public function __invoke( $args, $assoc ) {
 		if ( ! empty( $assoc['run'] ) ) {
 			empty( $assoc['network'] ) ? self::run_site() : self::run_network();
+			return;
+		}
+		if ( ! empty( $assoc['pro'] ) ) {
+			if ( ! empty( $assoc['convert'] ) || ! empty( $assoc['revert'] ) || ! empty( $assoc['repair'] ) || ! empty( $assoc['recover'] ) ) {
+				\WP_CLI::error( '--pro sólo muestra el inventario: los widgets de PRO se convierten con --run (o con el botón Migrar).' );
+			}
+			self::pro( ! empty( $assoc['network'] ), 'json' === ( $assoc['format'] ?? 'table' ) ? 'json' : 'table' );
 			return;
 		}
 		if ( ! empty( $assoc['network'] ) ) {
@@ -227,6 +252,72 @@ final class Cli {
 		$text = str_replace( array( '</p>', '</li>', '</tr>', '</h3>', '</div>' ), "\n", (string) $html );
 		$text = html_entity_decode( wp_strip_all_tags( str_replace( '</td>', ' · ', $text ) ), ENT_QUOTES, 'UTF-8' );
 		return trim( (string) preg_replace( "/\n\s*\n+/", "\n", $text ) );
+	}
+
+	/**
+	 * Inventario de los widgets de PRO del sitio en curso o, con $network, de cada sitio de la red (Pro::inventory(),
+	 * por lotes). En tabla, una fila por widget y sitio, y los totales por familia de más a menos usada; en JSON, el
+	 * inventario completo de cada sitio.
+	 */
+	private static function pro( $network, $format ) {
+		$sites = $network && is_multisite() ? get_sites( array( 'number' => 0, 'fields' => 'ids' ) ) : array( get_current_blog_id() );
+		$all   = array();
+		foreach ( $sites as $site_id ) {
+			$switch = (int) $site_id !== (int) get_current_blog_id();
+			if ( $switch ) {
+				switch_to_blog( (int) $site_id );
+			}
+			try {
+				$inventory = Pro::inventory();
+				unset( $inventory['report'] );
+				$all[] = array( 'site' => home_url( '/' ) ) + $inventory;
+			} finally {
+				if ( $switch ) {
+					restore_current_blog();
+				}
+			}
+		}
+		if ( 'json' === $format ) {
+			\WP_CLI::line( (string) wp_json_encode( $network ? $all : $all[0], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
+			return;
+		}
+		if ( ! Pro::available() ) {
+			\WP_CLI::error( 'Para contar los widgets de PRO hay que actualizar DIGITALÍSIMO Elements: esta versión no trae el núcleo de conversión.' );
+		}
+		$rows     = array();
+		$families = array();
+		foreach ( $all as $site ) {
+			foreach ( $site['widgets'] as $row ) {
+				$rows[] = ( $network ? array( 'sitio' => $site['site'] ) : array() ) + array(
+					'familia'    => $row['family'],
+					'widget'     => $row['widget'],
+					'elementos'  => $row['elements'],
+					'documentos' => $row['documents'],
+					'revisiones' => $row['revision_elements'],
+					'estado'     => $row['status'],
+				);
+			}
+			foreach ( $site['families'] as $family => $row ) {
+				$families[ $family ] = $families[ $family ] ?? array( 'label' => $row['label'], 'elements' => 0, 'documents' => 0 );
+				$families[ $family ]['elements']  += $row['elements'];
+				$families[ $family ]['documents'] += $row['documents'];
+			}
+			\WP_CLI::log( sprintf( '%s: %d documentos revisados; widgets de PRO en %d documentos y en %d revisiones o autoguardados.', $site['site'], $site['scanned'], $site['documents'], $site['revisions'] ) );
+		}
+		if ( ! $rows ) {
+			\WP_CLI::success( 'Ningún documento usa widgets de PRO.' );
+			return;
+		}
+		\WP_CLI\Utils\format_items( 'table', $rows, array_keys( $rows[0] ) );
+		uasort( $families, static function ( $a, $b ) {
+			return array( -$a['elements'], -$a['documents'] ) <=> array( -$b['elements'], -$b['documents'] );
+		} );
+		$lines = array();
+		foreach ( $families as $family => $row ) {
+			$lines[] = array( 'familia' => $family, 'nombre' => $row['label'], 'elementos' => $row['elements'], 'documentos' => $row['documents'] );
+		}
+		\WP_CLI::log( 'Por familia, de más a menos usada:' );
+		\WP_CLI\Utils\format_items( 'table', $lines, array( 'familia', 'nombre', 'elementos', 'documentos' ) );
 	}
 
 	/** Inventario del sitio en curso; un widget sin adaptador muestra su motivo. */

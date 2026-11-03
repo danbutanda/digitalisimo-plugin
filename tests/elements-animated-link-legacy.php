@@ -36,7 +36,7 @@ namespace {
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
 	\Digitalisimo\Elements\Widget_Registry::widgets( $manager );
 	$own = count( preg_grep( '/^digitalisimo-/', array_keys( $manager->widgets ) ) );
-	check_legacy( 51 === $own && count( $manager->widgets ) === $own, 'El núcleo registra sus cincuenta y un widgets propios (alias incluidos) y ningún ID heredado.' );
+	check_legacy( 52 === $own && count( $manager->widgets ) === $own, 'El núcleo registra sus cincuenta y dos widgets propios (alias incluidos) y ningún ID heredado.' );
 	// Los IDs heredados los registra DIGITALÍSIMO Migración, después de los widgets propios.
 	define( 'DIGITALISIMO_MIGRATION_DIR', __DIR__ . '/../digitalisimo-migration/' );
 	require DIGITALISIMO_MIGRATION_DIR . 'legacy/class-translator.php';

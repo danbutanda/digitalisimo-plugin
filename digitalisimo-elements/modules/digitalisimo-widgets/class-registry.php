@@ -237,6 +237,11 @@ final class Widget_Registry {
 			'class' => Scroll_Button_Widget::class,
 			'css'   => 'assets/css/scroll-button.css',
 		),
+		'digitalisimo-blockquote' => array(
+			'file'  => 'class-blockquote.php',
+			'class' => Blockquote_Widget::class,
+			'css'   => 'assets/css/blockquote.css',
+		),
 	);
 
 	/** Hojas por variante: cada instancia declara sólo la suya (ver docs/ELEMENTS_FRONT_OBJECTIVE.md). */

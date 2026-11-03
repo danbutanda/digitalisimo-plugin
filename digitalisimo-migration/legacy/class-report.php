@@ -14,8 +14,8 @@ if ( ! function_exists( '__' ) ) {
 /**
  * Informe de F8 por documento y por sitio (V.14 C2, §3.G).
  *
- * Cada frente añade códigos con un prefijo propio (`core.` A, `ext.` C, `ps.` E, `ps.dyn.` F, `tb.` G, `plat.` H y
- * `mk.` I) y los declara en su catálogo `report/codes-<frente>.php`:
+ * Cada frente añade códigos con un prefijo propio (`core.` A, `ext.` C, `ps.` E, `ps.dyn.` F, `tb.` G, `plat.` H,
+ * `mk.` I y `pro.` los widgets de PRO) y los declara en su catálogo `report/codes-<frente>.php`:
  *
  *     return array( 'core.target_missing' => array( 'section' => 'review', 'label' => __( '…', 'digitalisimo-migration' ) ) );
  *
@@ -52,6 +52,7 @@ final class Report {
 		'tb'         => 'tb.',
 		'platform'   => 'plat.',
 		'markers'    => 'mk.',
+		'pro'        => 'pro.',
 	);
 
 	/** @var string modo en curso: `run`, `analysis` o `editor`. */
@@ -247,7 +248,7 @@ final class Report {
 
 	/** Código con forma válida (`prefijo.nombre`, minúsculas, puntos y guiones bajos). */
 	private static function valid_code( string $code ): bool {
-		return 1 === preg_match( '/^(core|ext|ps|tb|plat|mk)\.[a-z0-9_.]{1,80}$/', $code );
+		return 1 === preg_match( '/^(core|ext|ps|tb|plat|mk|pro)\.[a-z0-9_.]{1,80}$/', $code );
 	}
 
 	/** Elemento del informe con el detalle saneado: sólo escalares de DETAIL_KEYS. */

@@ -53,7 +53,7 @@ namespace {
 			foreach ( (array) $vendor['hosts'] as $host ) {
 				$clean = $clean && false === stripos( $label, $host );
 			}
-			f8_check( $ok_prefix && $ok_section && '' !== $label && $clean && 1 === preg_match( '/^(core|ext|ps|tb|plat|mk)\.[a-z0-9_.]{1,80}$/', $code ), 'Código bien declarado (prefijo de su archivo, sección, texto sin dominios del proveedor): ' . $code . ' (' . $name . ')' );
+			f8_check( $ok_prefix && $ok_section && '' !== $label && $clean && 1 === preg_match( '/^(core|ext|ps|tb|plat|mk|pro)\.[a-z0-9_.]{1,80}$/', $code ), 'Código bien declarado (prefijo de su archivo, sección, texto sin dominios del proveedor): ' . $code . ' (' . $name . ')' );
 		}
 	}
 	f8_check( ! $dupes, 'Ningún código está declarado dos veces: ' . implode( ', ', $dupes ) );
@@ -72,7 +72,7 @@ namespace {
 			continue;
 		}
 		$text = (string) file_get_contents( (string) $file );
-		if ( preg_match_all( "/(?:Report::(?:add|site)\\(\\s*(?:[^,()]+(?:\\([^()]*\\))?\\s*,\\s*)?|::(?:site_code|doc_code)\\(\\s*(?:[^,()]+,\\s*)?|Report::site\\(\\s*\\$[a-z_]+\\s*\\)|array\\(\\s*)'((?:core|ext|ps|tb|plat|mk)\\.[a-z0-9_.]+)'/", $text, $m ) ) {
+		if ( preg_match_all( "/(?:Report::(?:add|site)\\(\\s*(?:[^,()]+(?:\\([^()]*\\))?\\s*,\\s*)?|::(?:site_code|doc_code)\\(\\s*(?:[^,()]+,\\s*)?|Report::site\\(\\s*\\$[a-z_]+\\s*\\)|array\\(\\s*)'((?:core|ext|ps|tb|plat|mk|pro)\\.[a-z0-9_.]+)'/", $text, $m ) ) {
 			foreach ( $m[1] as $code ) {
 				if ( '.' === substr( $code, -1 ) ) {
 					continue; // Prefijo de un código compuesto (`ext.dropped.` . $slug).

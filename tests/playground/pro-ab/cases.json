@@ -1,0 +1,263 @@
+{
+  "_doc": [
+    "Casos del A/B de pro-ab.sh. Cada caso da dos páginas con la plantilla «Lienzo»: A con el widget de PRO (`widget`) y sus ajustes guardados (`settings`, como los guarda el editor: sin lo que coincide con el default, con `__globals__` y `__dynamic__`), y B con los mismos datos convertidos por Converter::tree( …, true ).",
+    "Diferencias declaradas (`declared`, en el caso o arriba con `widget`): cada una con `kind` (palabra, enlace, imagen, nombre, estilo, caja, hover, foco, interacción), `width` opcional, `match` (expresión regular sobre la línea de la diferencia, tal como la imprime el arnés) y su motivo: `reason` (texto) o `code` (clave del `drop` o del `approx` del mapa: el motivo sale del mapa, y si el mapa no la declara la diferencia no queda explicada).",
+    "Píxeles: `pixels.max` (proporción de píxeles distintos entre A y B, por defecto la de arriba o PIXEL_MAX) y `pixels.tolerance` (diferencia por canal). Un caso que sube `max` necesita `pixels.reason`.",
+    "`forbid`: recursos que B no puede cargar (por defecto los de `forbid_b`, con `{widget}` sustituido por el widget de PRO). `interact: false` omite hover y foco. `pending`: el caso no se mide (motivo)."
+  ],
+  "widths": [375, 768, 1280],
+  "pixels": { "max": 0.02, "tolerance": 48 },
+  "container": {
+    "content_width": "full",
+    "padding": { "unit": "px", "top": "24", "right": "24", "bottom": "24", "left": "24", "isLinked": true }
+  },
+  "forbid_b": [
+    { "name": "pro-elements-handlers", "id": "pro-elements-handlers-js", "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js" },
+    { "name": "elementor-pro-frontend", "id": "elementor-pro-frontend-js", "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js" },
+    { "name": "widget-{widget}.min.css de PRO", "id": "widget-{widget}-css", "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css" }
+  ],
+  "declared": [],
+  "cases": {
+    "bq-defaults": {
+      "title": "Blockquote con todos sus valores por defecto",
+      "widget": "blockquote",
+      "settings": {}
+    },
+    "bq-border": {
+      "title": "Piel «border» con color, ancho, separación y relleno vertical, y color al pasar el ratón",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "border",
+        "blockquote_content": "La sencillez es la máxima sofisticación en cada página.",
+        "author_name": "Ana Rivera",
+        "border_color": "#2155CF",
+        "border_width": { "unit": "px", "size": 6, "sizes": [] },
+        "border_gap": { "unit": "px", "size": 24, "sizes": [] },
+        "border_vertical_padding": { "unit": "px", "size": 10, "sizes": [] },
+        "border_color_hover": "#C0392B"
+      }
+    },
+    "bq-quotation": {
+      "title": "Piel «quotation» con color, tamaño y separación de las comillas",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "quotation",
+        "blockquote_content": "Las palabras correctas en el orden correcto cambian una conversación.",
+        "author_name": "Luis Méndez",
+        "quote_text_color": "#C0392B",
+        "quote_size": { "unit": "px", "size": 1.2, "sizes": [] },
+        "quote_gap": { "unit": "px", "size": 30, "sizes": [] }
+      }
+    },
+    "bq-boxed": {
+      "title": "Piel «boxed» con relleno, fondo, borde, radio, sombra y fondo al pasar el ratón",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "boxed",
+        "blockquote_content": "Un buen diseño es tan poco diseño como sea posible.",
+        "author_name": "Marta Solís",
+        "box_padding": { "unit": "px", "size": 30, "sizes": [] },
+        "box_background_color": "#F3F0E8",
+        "box_border_border": "solid",
+        "box_border_width": { "unit": "px", "top": "2", "right": "2", "bottom": "2", "left": "2", "isLinked": true },
+        "box_border_color": "#333333",
+        "box_border_radius": { "unit": "px", "size": 12, "sizes": [] },
+        "box_box_shadow_box_shadow_type": "yes",
+        "box_box_shadow_box_shadow": { "horizontal": 0, "vertical": 4, "blur": 12, "spread": 0, "color": "rgba(0,0,0,0.2)" },
+        "box_background_color_hover": "#E8E1CF"
+      }
+    },
+    "bq-clean": {
+      "title": "Piel «clean»",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "clean",
+        "blockquote_content": "Menos, pero mejor.",
+        "author_name": "Dieter R."
+      }
+    },
+    "bq-tweet-icon-bubble": {
+      "title": "Botón de compartir: vista «icon», piel «bubble», con colores, tamaño y radio",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_content": "Compartir una idea la hace crecer.",
+        "author_name": "Sofía Torres",
+        "tweet_button_view": "icon",
+        "tweet_button_skin": "bubble",
+        "button_size": { "unit": "px", "size": 1.6, "sizes": [] },
+        "button_border_radius": { "unit": "px", "size": 6, "sizes": [] },
+        "button_background_color": "#0B6E4F",
+        "button_text_color": "#FFFFFF",
+        "button_background_color_hover": "#084C37",
+        "button_text_color_hover": "#FFEEAA"
+      }
+    },
+    "bq-tweet-text-link": {
+      "title": "Botón de compartir: vista «text», piel «link», con rótulo, usuario y URL propia (piel «quotation»)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "quotation",
+        "blockquote_content": "Un enlace bien puesto vale más que mil.",
+        "author_name": "Pablo Ruiz",
+        "tweet_button_view": "text",
+        "tweet_button_skin": "link",
+        "tweet_button_label": "Compartir",
+        "user_name": "@digitalisimo",
+        "url_type": "custom",
+        "url": "https://example.com/cita-compartida",
+        "button_text_color": "#7A1FA2",
+        "button_text_color_hover": "#2155CF"
+      }
+    },
+    "bq-tweet-icon-link": {
+      "title": "Botón de compartir: vista «icon», piel «link», sin URL (piel «clean»)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "clean",
+        "blockquote_content": "Lo esencial es invisible a los ojos.",
+        "author_name": "Antoine S.",
+        "tweet_button_view": "icon",
+        "tweet_button_skin": "link",
+        "url_type": "none"
+      }
+    },
+    "bq-tweet-text-classic": {
+      "title": "Botón de compartir: vista «text», piel «classic» (piel «boxed»)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "boxed",
+        "blockquote_content": "Cada detalle cuenta cuando nadie lo nota.",
+        "author_name": "Elena Paz",
+        "tweet_button_view": "text",
+        "tweet_button_skin": "classic",
+        "tweet_button_label": "Publicar",
+        "button_background_color": "#1D1D1F",
+        "button_text_color": "#FFFFFF"
+      }
+    },
+    "bq-tweet-icontext-bubble": {
+      "title": "Botón de compartir: vista «icon-text», piel «bubble», con tipografía y transición (piel «boxed»)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "boxed",
+        "blockquote_content": "La constancia convierte lo difícil en costumbre.",
+        "author_name": "Raúl Vega",
+        "tweet_button_skin": "bubble",
+        "button_background_color": "#2155CF",
+        "button_text_color": "#FFFFFF",
+        "button_background_color_hover": "#C0392B",
+        "button_transition_duration": { "unit": "ms", "size": 200, "sizes": [] },
+        "button_typography_typography": "custom",
+        "button_typography_font_size": { "unit": "px", "size": 14, "sizes": [] },
+        "button_typography_font_weight": "700"
+      }
+    },
+    "bq-tweet-off": {
+      "title": "Sin botón de compartir (piel «border»)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_content": "A veces, quitar es la mejor forma de añadir.",
+        "author_name": "Irene Gil",
+        "tweet_button": ""
+      }
+    },
+    "bq-align-center": {
+      "title": "Alineación centrada con el espacio del autor (sólo con centro y botón)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "clean",
+        "blockquote_content": "El centro también es una decisión.",
+        "author_name": "Tomás Ledo",
+        "alignment": "center",
+        "author_gap": { "unit": "px", "size": 32, "sizes": [] }
+      }
+    },
+    "bq-align-right": {
+      "title": "Alineación a la derecha (piel «quotation»)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "quotation",
+        "blockquote_content": "Lo que se alinea, se entiende.",
+        "author_name": "Nora Díaz",
+        "alignment": "right"
+      }
+    },
+    "bq-colors": {
+      "title": "Colores y tipografías propios del contenido, del autor y del botón",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_content": "El color no decora: comunica.",
+        "author_name": "Julia Ortega",
+        "content_text_color": "#7A1FA2",
+        "content_typography_typography": "custom",
+        "content_typography_font_size": { "unit": "px", "size": 22, "sizes": [] },
+        "content_typography_font_style": "italic",
+        "content_typography_font_weight": "300",
+        "content_gap": { "unit": "px", "size": 28, "sizes": [] },
+        "author_text_color": "#1E8449",
+        "author_typography_typography": "custom",
+        "author_typography_font_size": { "unit": "px", "size": 18, "sizes": [] },
+        "author_typography_text_transform": "uppercase",
+        "button_text_color": "#C0392B",
+        "button_text_color_hover": "#2155CF"
+      }
+    },
+    "bq-global": {
+      "title": "Colores y tipografía globales del kit (`__globals__`)",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_content": "Lo global se cambia una vez y se nota en todas partes.",
+        "author_name": "Kit del sitio",
+        "tweet_button_skin": "bubble",
+        "__globals__": {
+          "content_text_color": "globals/colors?id=accent",
+          "author_text_color": "globals/colors?id=primary",
+          "button_background_color": "globals/colors?id=secondary",
+          "content_typography_typography": "globals/typography?id=secondary"
+        }
+      }
+    },
+    "bq-dynamic": {
+      "title": "Etiquetas dinámicas: el contenido es la descripción del sitio y el autor, su título",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_content": "Texto de respaldo",
+        "author_name": "Autor de respaldo",
+        "__dynamic__": {
+          "blockquote_content": "[elementor-tag id=\"d1a2b3c\" name=\"site-tagline\" settings=\"%7B%7D\"]",
+          "author_name": "[elementor-tag id=\"d4e5f6a\" name=\"site-title\" settings=\"%7B%7D\"]"
+        }
+      }
+    },
+    "bq-custom-css": {
+      "title": "CSS personalizado del elemento con clases del widget de PRO",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_skin": "boxed",
+        "blockquote_content": "El CSS propio también tiene que llegar.",
+        "author_name": "Hoja del elemento",
+        "custom_css": "selector .elementor-blockquote {\n  background-color: #FFF4D6;\n  border-radius: 8px;\n}\nselector .elementor-blockquote__content {\n  color: #8E44AD;\n  font-style: italic;\n}\nselector .elementor-blockquote__author {\n  text-transform: uppercase;\n  letter-spacing: 2px;\n  color: #1E8449;\n}\nselector .elementor-blockquote__tweet-button {\n  color: #C0392B;\n}"
+      }
+    },
+    "bq-responsive": {
+      "title": "Valores por dispositivo: alineación, tamaño de letra, separaciones, relleno y ancho del borde",
+      "widget": "blockquote",
+      "settings": {
+        "blockquote_content": "Lo que se lee bien en un teléfono se lee bien en todas partes.",
+        "author_name": "Valores responsivos",
+        "alignment_tablet": "center",
+        "alignment_mobile": "right",
+        "content_typography_typography": "custom",
+        "content_typography_font_size": { "unit": "px", "size": 24, "sizes": [] },
+        "content_typography_font_size_tablet": { "unit": "px", "size": 20, "sizes": [] },
+        "content_typography_font_size_mobile": { "unit": "px", "size": 16, "sizes": [] },
+        "content_gap": { "unit": "px", "size": 30, "sizes": [] },
+        "content_gap_mobile": { "unit": "px", "size": 10, "sizes": [] },
+        "border_width": { "unit": "px", "size": 8, "sizes": [] },
+        "border_width_mobile": { "unit": "px", "size": 3, "sizes": [] },
+        "border_gap_tablet": { "unit": "px", "size": 40, "sizes": [] },
+        "border_vertical_padding_mobile": { "unit": "px", "size": 4, "sizes": [] }
+      }
+    }
+  }
+}
