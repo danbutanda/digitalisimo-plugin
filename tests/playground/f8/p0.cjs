@@ -204,7 +204,8 @@ module.exports = (api) => async (s) => {
       const before = flags(info[sliderKey].data);
       const ed = await openEditor(api, id);
       const model = ed.ok ? await ed.page.evaluate(() => { const doc = window.elementor.getPreviewContainer(); const out = []; const walk = (c) => { for (const ch of c.children || []) { const m = ch.model; if (m.get('widgetType') === 'digitalisimo-nested-slider') out.push((ch.children || []).map((x) => `${x.model.get('elType')}:${x.model.get('isInner') ? 'inner' : '-'}:${x.model.get('isLocked') ? 'locked' : '-'}`)); walk(ch); } }; walk(doc); return out; }).catch((e) => String(e)) : null;
-      const preview = ed.ok ? await ed.frame.evaluate(() => { const r = document.querySelector('.digi-nslider'); return r ? { slides: r.querySelectorAll('.digi-nslider__track > .e-con').length, h: Math.round(r.getBoundingClientRect().height) } : null; }).catch(() => null) : null;
+      const pframe = ed.ok ? await (await ed.page.$('#elementor-preview-iframe')).contentFrame() : null;
+      const preview = ed.ok ? await pframe.evaluate(() => { const r = document.querySelector('.digi-nslider'); return r ? { slides: r.querySelectorAll('.digi-nslider__track > .e-con').length, h: Math.round(r.getBoundingClientRect().height) } : null; }).catch(() => null) : null;
       const saved = ed.ok ? await ed.page.evaluate(async () => { try { await window.$e.run('document/save/update', { force: true }); return { ok: true }; } catch (e) { return { ok: false, error: String(e && e.message || e) }; } }) : { ok: false };
       const errs = ed.ok ? ed.facts.errors.filter((x) => !/Failed to load resource/.test(x)) : [ed.error];
       if (ed.ok) await shot(ed.page, `p0-editor-${sliderKey}`);
@@ -350,9 +351,11 @@ async function openEditor(api, id) {
   try {
     await page.goto(`${BASE}/wp-admin/post.php?post=${id}&action=elementor`, { waitUntil: 'domcontentloaded', timeout: 240000 });
     await page.waitForSelector('#elementor-panel', { timeout: 180000 });
-    const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
-    await frame.waitForSelector('.elementor-element', { timeout: 180000 }).catch(() => {});
     await page.waitForFunction(() => { const l = document.querySelector('#elementor-loading'); return window.elementor && window.$e && (!l || getComputedStyle(l).display === 'none'); }, { timeout: 240000 }).catch(() => {});
+    // La vista previa se vuelve a crear al terminar de cargar el editor: el marco se toma después (si no, queda
+    // «detached» y cada espera sobre él consume su tope entero).
+    const frame = await (await page.waitForSelector('#elementor-preview-iframe', { timeout: 180000 })).contentFrame();
+    await frame.waitForSelector('.elementor-element', { timeout: 60000 }).catch(() => {});
     await sleep(2500);
     return { ok: true, page, frame, facts: page.facts, close: () => ctx.close().catch(() => {}) };
   } catch (e) {

@@ -1,0 +1,1915 @@
+{
+ "_comentario": "Evidencia depurada de la etapa F8 (Migración 1.0.21 y Elements 4.3.0.170). Playground a mano (no en CI), tests/playground/f8.sh y los arneses que delega. Aquí sólo el estado, los recuentos, la duración y lo que falla o queda pendiente de cada corrida; el detalle completo queda en las carpetas de corrida (/var/tmp/digi-f8/pg/, fuera de Git). Las corridas montan una copia del árbol con la cabecera y la constante ya en 4.3.0.170 y 1.0.21 (STAMP=1 de f8.sh); la huella identifica el árbol medido.",
+ "fecha": "2026-11-03",
+ "puertos": "9510–9519 (P0 y P10 comparten 9510, con cerrojo)",
+ "versiones_montadas": {
+  "elements": "4.3.0.170 (árbol 4.3.0.169 con la versión fijada en la copia)",
+  "migration": "1.0.21 (árbol 1.0.20 con la versión fijada en la copia)",
+  "nucleo": "4.3.5–4.3.6 incluido",
+  "woocommerce": "11.2.1 (reference/, sha256 comprobada)",
+  "prime_slider_lite": "4.7.0 oficial (sha256 a6e86226…1601)",
+  "element_pack_lite": "10.0.1 oficial (sha256 476b853d…d9d7)",
+  "vuelta_atras": "Elements 4.3.0.169 y Migración 1.0.20 de la Release v2026.11.01.444 (sha256 29221de3… y 32ce3fd2…; dist/ tiene el mismo contenido)"
+ },
+ "escenarios": {
+  "P0": {
+   "estado": "falla",
+   "comprobaciones": 33,
+   "fallan": 7,
+   "titulo": "A/B de Prime Slider Lite 4.7.0",
+   "carpeta": "f8-C",
+   "tandas": [
+    {
+     "tanda": "20261102-234746",
+     "git": "90bdb5f7",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 517,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261102-235819",
+     "git": "1d42e4c1",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "ok",
+     "duracion_s": 508,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-000832",
+     "git": "1d42e4c1",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 298,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-001706",
+     "git": "ef25807b",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 433,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-002521",
+     "git": "ef25807b",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 252,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-061345",
+     "git": "a4b260f5",
+     "huella_elements": "2d483152ec7065f7",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 204,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-061747",
+     "git": "a4b260f5",
+     "huella_elements": "2d483152ec7065f7",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 563,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-062800",
+     "git": "1cb62fae",
+     "huella_elements": "2d483152ec7065f7",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 561,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "fallos": [
+    {
+     "P0.B1.9": "A/B de 22 páginas: toda diferencia de texto, enlace o imagen está declarada (94 declaradas): [[\"digi-f8-ps-blog-custom\",[\"palabra nuevo «2»\",\"palabra nuevo «3»\",\"palabra nuevo «4»\",\"enlace nuevo «/2026/10/01»\",\"enlace nuevo «/2026/10/02»\",\"enlace nuevo «/2026/10/03»\"]],[\"digi-f8-ps-blog-defaults\",[\"palabra nuevo «noticias»\",\"palabra nuevo «noticia»\",\"palabra nuevo «f8»\",\"palabra nuevo «4»\",\"palabra nuevo «october»\",\"palabra nuevo «resumen»\"]],[\"digi-f8-ps-dragon-custom\",[\"palabra nuevo «2"
+    },
+    {
+     "P0.B2.9": "A/B de 22 páginas: toda diferencia de texto, enlace o imagen está declarada (68 declaradas): [[\"digi-f8-ps-pacific-custom\",[\"palabra nuevo «resumen»\",\"palabra nuevo «de»\",\"palabra nuevo «la»\",\"palabra nuevo «welcome»\",\"palabra nuevo «to»\",\"palabra nuevo «wordpress»\"]],[\"digi-f8-ps-pacific-defaults\",[\"palabra nuevo «resumen»\",\"palabra nuevo «de»\",\"palabra nuevo «la»\",\"palabra nuevo «welcome»\",\"palabra nuevo «to»\",\"palabra nuevo «wordpress»\"]],[\"digi-f8-ps-rubix-custom\",[\"enlace nuevo «/202"
+    },
+    {
+     "P0.C2b": "el editor real lo abre con esos indicadores y pinta sus diapositivas en la vista previa: {\"model\":\"TypeError: Cannot read properties of undefined (reading 'children')\",\"preview\":null,\"errors\":[\"[object Object]\",\"pageerror: Object\",\"TypeError: Cannot read properties of undefined (reading 'toJSON')\"]}"
+    },
+    {
+     "P0.C2c": "guardar desde el editor conserva isInner e isLocked y el front sigue pintando el slider: {\"saved\":{\"ok\":false,\"error\":\"Cannot read properties of undefined (reading 'toJSON')\"},\"after\":[[\"container:inner:locked\",\"container:inner:locked\"]]}"
+    },
+    {
+     "P0.C3": "la proporción del slider: cada diapositiva ocupa la pista entera en 360, 768 y 1280 px, sin desbordar la página: [{\"w\":360,\"ratio\":\"auto | auto\",\"minH\":\"0px\",\"track\":[0,0],\"slide\":[0,0],\"scroll\":true},{\"w\":768,\"ratio\":\"auto | auto\",\"minH\":\"auto\",\"track\":[748,720],\"slide\":[748,720],\"scroll\":true},{\"w\":1280,\"ratio\":\"auto | auto\",\"minH\":\"auto\",\"track\":[1140,720],\"slide\":[1140,720],\"scroll\":true}]"
+    },
+    {
+     "P0.C4": "las imágenes de demostración SVG pasan wp_check_filetype_and_ext() real y quedan en Medios saneadas (0): []"
+    },
+    {
+     "P0.x": "el escenario termina sin excepción del arnés: Error: Navigating frame was detached |     at <instance_members_initializer> (file:///home/digitalisimo/.npm/_npx/0f94ee7615faf582/node_modules/puppeteer-core/lib/puppeteer/cdp/LifecycleWatcher.js:33:14) |     at new LifecycleWatcher (file:///home/digitalisimo/.npm/_npx/0f94ee7615faf582/node_modules/puppeteer-core/lib/puppeteer/cdp/LifecycleWatcher.js:37:16) |     at CdpFrame.goto (file:///home/di"
+    }
+   ],
+   "nota": "Tandas a, b1, b2 y c (P0_PART). a y b en verde salvo B1.9/B2.9: las diferencias sin declarar son todas añadidos en B (nunca texto, enlace o imagen perdidos): texto de las diapositivas que el origen pinta con JavaScript y el slider anidado deja en el DOM (inert), números de diapositiva, y en las familias dinámicas (E, F, G) la fecha enlazada a su archivo, el enlace a los comentarios, la categoría y el extracto que pinta Información de la entrada de PRO en el Loop Item; en flogia «custom» (posts_source = page) la lista incluye otras páginas, por revisar. La tanda c no quedó validada: en este Playground el editor real del documento convertido (dragon «custom») no terminó de cargar (437 s; getPreviewContainer indefinido) y arrastró C2b, C2c, C3, C4 y la excepción del marco. En P4 el editor real sí abre y guarda un slider anidado convertido desde Prime Slider (general). Corrida sobre el árbol de la oleada de las bifurcaciones (huella 0e99f6a2…/350c7f15…, anterior a las correcciones de J).",
+   "hechos": {
+    "a_outside": 4,
+    "ab_b1": {
+     "pages": 22,
+     "declared": 94,
+     "unexplained": 15
+    },
+    "ab_b2": {
+     "pages": 22,
+     "declared": 68,
+     "unexplained": 16
+    },
+    "parts": "c",
+    "php_notices": 0
+   }
+  },
+  "P1": {
+   "estado": "ok",
+   "comprobaciones": 15,
+   "titulo": "Prime Slider Pro sintético",
+   "carpeta": "f8-C",
+   "tandas": [
+    {
+     "tanda": "20261102-232116",
+     "git": "28776e4c",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 195,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261102-232553",
+     "git": "12a61838",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "ok",
+     "duracion_s": 207,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261102-233039",
+     "git": "12a61838",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "ok",
+     "duracion_s": 205,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-060919",
+     "git": "6226e0ad",
+     "huella_elements": "2d483152ec7065f7",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 152,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "Repetida sobre el árbol final.",
+   "hechos": {
+    "nested_autoplay": 6,
+    "php_notices": 0
+   }
+  },
+  "P2": {
+   "estado": "ok",
+   "comprobaciones": 41,
+   "titulo": "Element Pack sintético en un sitio",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-022930",
+     "git": "8166a6af",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 308,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-044954",
+     "git": "046aecdf",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 279,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "Dos pasos de «Migrar» (presupuesto de 5 s por paso): la primera respuesta desactiva el origen y la segunda termina; la portada y la página especial tienen exactamente una cabecera y un pie en cada sondeo, y la copia aparece en la misma petición que deja de pintar el origen.",
+   "hechos": {
+    "steps": 2,
+    "stages": [
+     "platform_convert",
+     "finish"
+    ],
+    "php_notices": 0
+   }
+  },
+  "P2-PRO": {
+   "estado": "ok",
+   "comprobaciones": 41,
+   "titulo": "Element Pack sintético en un sitio",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-023532",
+     "git": "8166a6af",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 269,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-024135",
+     "git": "52159efa",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e02269a1afd41ba4",
+     "estado": "falla",
+     "duracion_s": 294,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-050039",
+     "git": "2e08facb",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 236,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "Con un «Elementor Pro» falso (sólo la cabecera) activo: tres pasos. Revela y valida la corrección 1 (antes, la tarea cerraba con el origen activo y sin convertir). La fuente propia falla cerrada (plat.font.failed) porque el plugin falso no trae gestor de fuentes; con el real, sí.",
+   "hechos": {
+    "steps": 3,
+    "stages": [
+     "deactivate",
+     "platform_convert",
+     "finish"
+    ],
+    "php_notices": 0
+   }
+  },
+  "P3": {
+   "estado": "ok",
+   "comprobaciones": 15,
+   "titulo": "Red: barrera y retirada",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-025105",
+     "git": "52159efa",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e02269a1afd41ba4",
+     "estado": "falla",
+     "duracion_s": 416,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-025921",
+     "git": "5bdf08a3",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e02269a1afd41ba4",
+     "estado": "falla",
+     "duracion_s": 418,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-030745",
+     "git": "5bdf08a3",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e02269a1afd41ba4",
+     "estado": "ok",
+     "duracion_s": 142,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "La pantalla de red se cierra tras el clic (Chrome); el resto sólo con WP-Cron: la continuación de cada sitio y el evento de red del sitio principal. Playground no sirve /<sitio>/wp-cron.php en una red de subdirectorios (404): la sonda incluye wp-cron.php en una petición del propio sitio.",
+   "hechos": {
+    "rounds": 2,
+    "released_by": "vuelta 1",
+    "php_notices": 0
+   }
+  },
+  "P3-deadline": {
+   "estado": "ok",
+   "comprobaciones": 17,
+   "titulo": "Red: barrera y retirada",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-031106",
+     "git": "5bdf08a3",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e02269a1afd41ba4",
+     "estado": "falla",
+     "duracion_s": 406,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-031913",
+     "git": "5bdf08a3",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "falla",
+     "duracion_s": 106,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-032154",
+     "git": "5bdf08a3",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "ok",
+     "duracion_s": 127,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "/dos/ no responde: la barrera vence por el plazo relativo (20 s en la prueba) y se libera con /dos/ como «sin preparar»; cuando vuelve, prepara tarde y publica sus copias (corrección 2). El principal nunca se quedó sin cabecera.",
+   "hechos": {
+    "rounds": 3,
+    "released_by": "vuelta 2",
+    "php_notices": 0
+   }
+  },
+  "P3-blocked": {
+   "estado": "ok",
+   "comprobaciones": 11,
+   "titulo": "Red: barrera y retirada",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-032447",
+     "git": "5bdf08a3",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "falla",
+     "duracion_s": 60,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-032644",
+     "git": "7e80c3b6",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "ok",
+     "duracion_s": 57,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "Exclusión intraducible en la cabecera visible de /dos/: la barrera no se libera, la red queda detenida con el aviso y ningún sitio pierde su cabecera (V.19.1 a).",
+   "hechos": {
+    "rounds": 1,
+    "released_by": "",
+    "php_notices": 0
+   }
+  },
+  "P3-addon-net": {
+   "estado": "ok",
+   "comprobaciones": 15,
+   "titulo": "Red: barrera y retirada",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-032829",
+     "git": "7e80c3b6",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "ok",
+     "duracion_s": 131,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "hechos": {
+    "rounds": 3,
+    "released_by": "vuelta 1",
+    "php_notices": 0
+   }
+  },
+  "P3-pro-net": {
+   "estado": "ok",
+   "comprobaciones": 15,
+   "titulo": "Red: barrera y retirada",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-033129",
+     "git": "7e80c3b6",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "ok",
+     "duracion_s": 117,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "hechos": {
+    "rounds": 2,
+    "released_by": "vuelta 1",
+    "php_notices": 0
+   }
+  },
+  "P3-24sitios": {
+   "estado": "ok",
+   "comprobaciones": 15,
+   "titulo": "Red: barrera y retirada",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-033413",
+     "git": "7e80c3b6",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "falla",
+     "duracion_s": 236,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-033921",
+     "git": "7e80c3b6",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "ok",
+     "duracion_s": 458,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "hechos": {
+    "rounds": 2,
+    "released_by": "vuelta 1",
+    "php_notices": 0
+   }
+  },
+  "P4": {
+   "estado": "ok",
+   "comprobaciones": 12,
+   "titulo": "Marcadores de K",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-040827",
+     "git": "bb6abb8a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 131,
+     "php": {
+      "fatales": 0,
+      "avisos": 1,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-041115",
+     "git": "bb6abb8a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 125,
+     "php": {
+      "fatales": 0,
+      "avisos": 1,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-041400",
+     "git": "c5ef7c69",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 129,
+     "php": {
+      "fatales": 0,
+      "avisos": 1,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-051224",
+     "git": "2e08facb",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 117,
+     "php": {
+      "fatales": 0,
+      "avisos": 1,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-055651",
+     "git": "6226e0ad",
+     "huella_elements": "2d483152ec7065f7",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 119,
+     "php": {
+      "fatales": 0,
+      "avisos": 1,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "Con Migración activa, el acordeón del origen tiene adaptador (su tipo existe) y K lo restaura tal cual; Prime Slider no tiene adaptador y lo convierte el filtro puro al slider anidado. El aviso de PHP de la corrida es de PRO derivado (documentado).",
+   "hechos": {
+    "php_notices": 1
+   }
+  },
+  "P5": {
+   "estado": "ok",
+   "comprobaciones": 21,
+   "titulo": "Presupuesto del front",
+   "carpeta": "f8-A",
+   "tandas": [
+    {
+     "tanda": "20261102-230316",
+     "git": "a532fbc6",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "parcial",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261102-230950",
+     "git": "a532fbc6",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "parcial",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261102-231628",
+     "git": "28776e4c",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "parcial",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261102-232404",
+     "git": "28776e4c",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261102-232624",
+     "git": "12a61838",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261102-235518",
+     "git": "90bdb5f7",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-000819",
+     "git": "1d42e4c1",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-001542",
+     "git": "ef25807b",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-002152",
+     "git": "ef25807b",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-042328",
+     "git": "c5ef7c69",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "parcial",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-043244",
+     "git": "f296bbed",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "parcial",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-043949",
+     "git": "f296bbed",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-044347",
+     "git": "046aecdf",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "front-budget.sh en tandas (P5_PARTS): ref-A/B y ref-cache-A/B con el ZIP publicado de 4.3.0.169, tree-A/B y tree-cache-A/B con COMPARE_FILE, tree-f8, tree-cache-f8 y tree-migration. La regresión de CLS de pro-popup-views (0 → 0,663) de la primera tanda tree-B no se repitió: medición intermitente del popup. Con Migración activa, f8-marker vuelve como el original porque su adaptador existe (diseño de K); que el front no convierte lo comprueba P4.4b.",
+   "hechos": {
+    "parts": {
+     "ref-A": {
+      "status": 0,
+      "seconds": 382,
+      "measured": 47,
+      "problems": 0,
+      "version": "4.3.0.169"
+     },
+     "ref-B": {
+      "status": 0,
+      "seconds": 441,
+      "measured": 47,
+      "problems": 0,
+      "version": "4.3.0.169"
+     },
+     "tree-A": {
+      "status": 0,
+      "seconds": 391,
+      "measured": 47,
+      "problems": 0,
+      "version": "4.3.0.170"
+     },
+     "tree-B": {
+      "status": 0,
+      "seconds": 411,
+      "measured": 47,
+      "problems": 0,
+      "version": "4.3.0.170"
+     },
+     "tree-f8": {
+      "status": 0,
+      "seconds": 133,
+      "measured": 5,
+      "problems": 0,
+      "version": "4.3.0.170"
+     },
+     "ref-cache-A": {
+      "status": 0,
+      "seconds": 433,
+      "measured": 20,
+      "problems": 0,
+      "version": "4.3.0.169"
+     },
+     "ref-cache-B": {
+      "status": 0,
+      "seconds": 361,
+      "measured": 20,
+      "problems": 0,
+      "version": "4.3.0.169"
+     },
+     "tree-cache-A": {
+      "status": 0,
+      "seconds": 377,
+      "measured": 20,
+      "problems": 0,
+      "version": "4.3.0.170"
+     },
+     "tree-cache-B": {
+      "status": 0,
+      "seconds": 292,
+      "measured": 20,
+      "problems": 0,
+      "version": "4.3.0.170"
+     },
+     "tree-cache-f8": {
+      "status": 0,
+      "seconds": 124,
+      "measured": 5,
+      "problems": 0,
+      "version": "4.3.0.170"
+     },
+     "tree-migration": {
+      "status": 1,
+      "seconds": 86,
+      "measured": 2,
+      "problems": 1,
+      "version": "4.3.0.170"
+     }
+    },
+    "f8-tooltip@normal": {
+     "delta": {
+      "requests": 0,
+      "bytes": 540,
+      "css": 1737,
+      "js": 1023,
+      "img": -3241,
+      "third": 0,
+      "nodes": 8,
+      "cls": 0
+     },
+     "cls": 0,
+     "assets": {
+      "asset:tooltip-css": 1512,
+      "asset:tooltip-js": 1023,
+      "asset:badge-css": 0
+     },
+     "counts": {
+      "count:host": 1,
+      "count:bubble": 1,
+      "count:described": 1
+     },
+     "after": {
+      "cls": 0,
+      "counts": {
+       "count:host": 1,
+       "count:bubble": 1,
+       "count:described": 1
+      }
+     },
+     "queries": 139,
+     "handles": [
+      "digitalisimo-tooltip"
+     ]
+    },
+    "f8-badge@normal": {
+     "delta": {
+      "requests": -1,
+      "bytes": -1098,
+      "css": 952,
+      "js": 0,
+      "img": -3241,
+      "third": 0,
+      "nodes": 10,
+      "cls": 0
+     },
+     "cls": 0,
+     "assets": {
+      "asset:badge-css": 951,
+      "asset:tooltip-css": 0,
+      "asset:tooltip-js": 0
+     },
+     "counts": {
+      "count:badges": 2,
+      "count:text": 2,
+      "count:widget": 1
+     },
+     "after": null,
+     "queries": 141,
+     "handles": [
+      "digitalisimo-badge"
+     ]
+    },
+    "f8-nested-counter@normal": {
+     "delta": {
+      "requests": 2,
+      "bytes": 10531,
+      "css": 3566,
+      "js": 5600,
+      "img": -3241,
+      "third": 0,
+      "nodes": 32,
+      "cls": 0
+     },
+     "cls": 0,
+     "assets": {
+      "asset:slider-css": 3066,
+      "asset:slider-js": 5119,
+      "asset:counter-css": 252,
+      "asset:counter-js": 481
+     },
+     "counts": {
+      "count:ready": 1,
+      "count:slides": 3,
+      "count:counter": 1,
+      "count:counterShown": 1
+     },
+     "after": {
+      "cls": 0,
+      "counts": {
+       "count:ready": 1,
+       "count:slides": 3,
+       "count:counter": 1,
+       "count:counterShown": 1
+      }
+     },
+     "queries": 139,
+     "handles": [
+      "digitalisimo-nested-slider",
+      "digitalisimo-nested-slider-counter"
+     ]
+    },
+    "f8-marker@normal": {
+     "delta": {
+      "requests": -2,
+      "bytes": -3227,
+      "css": 1,
+      "js": 0,
+      "img": -3241,
+      "third": 0,
+      "nodes": 0,
+      "cls": 0
+     },
+     "cls": 0,
+     "assets": {},
+     "counts": {
+      "count:marker": 0,
+      "count:legacy": 0
+     },
+     "after": null,
+     "queries": 139,
+     "handles": []
+    },
+    "f8-tooltip@cache": {
+     "delta": {
+      "requests": 2,
+      "bytes": 3781,
+      "css": 1737,
+      "js": 1023,
+      "img": 0,
+      "third": 0,
+      "nodes": 8,
+      "cls": 0
+     },
+     "cls": 0,
+     "assets": {
+      "asset:tooltip-css": 1512,
+      "asset:tooltip-js": 1023,
+      "asset:badge-css": 0
+     },
+     "counts": {
+      "count:host": 1,
+      "count:bubble": 1,
+      "count:described": 1
+     },
+     "after": {
+      "cls": 0,
+      "counts": {
+       "count:host": 1,
+       "count:bubble": 1,
+       "count:described": 1
+      }
+     },
+     "queries": 114,
+     "handles": [
+      "digitalisimo-tooltip"
+     ]
+    },
+    "f8-badge@cache": {
+     "delta": {
+      "requests": 1,
+      "bytes": 2143,
+      "css": 952,
+      "js": 0,
+      "img": 0,
+      "third": 0,
+      "nodes": 10,
+      "cls": 0
+     },
+     "cls": 0,
+     "assets": {
+      "asset:badge-css": 951,
+      "asset:tooltip-css": 0,
+      "asset:tooltip-js": 0
+     },
+     "counts": {
+      "count:badges": 2,
+      "count:text": 2,
+      "count:widget": 1
+     },
+     "after": null,
+     "queries": 114,
+     "handles": [
+      "digitalisimo-badge"
+     ]
+    },
+    "f8-nested-counter@cache": {
+     "delta": {
+      "requests": 4,
+      "bytes": 13772,
+      "css": 3566,
+      "js": 5600,
+      "img": 0,
+      "third": 0,
+      "nodes": 32,
+      "cls": 0
+     },
+     "cls": 0,
+     "assets": {
+      "asset:slider-css": 3066,
+      "asset:slider-js": 5119,
+      "asset:counter-css": 252,
+      "asset:counter-js": 481
+     },
+     "counts": {
+      "count:ready": 1,
+      "count:slides": 3,
+      "count:counter": 1,
+      "count:counterShown": 1
+     },
+     "after": {
+      "cls": 0,
+      "counts": {
+       "count:ready": 1,
+       "count:slides": 3,
+       "count:counter": 1,
+       "count:counterShown": 1
+      }
+     },
+     "queries": 114,
+     "handles": [
+      "digitalisimo-nested-slider",
+      "digitalisimo-nested-slider-counter"
+     ]
+    },
+    "f8-marker@cache": {
+     "delta": {
+      "requests": 0,
+      "bytes": 14,
+      "css": 1,
+      "js": 0,
+      "img": 0,
+      "third": 0,
+      "nodes": 0,
+      "cls": 0
+     },
+     "cls": 0,
+     "assets": {},
+     "counts": {
+      "count:marker": 0,
+      "count:legacy": 0
+     },
+     "after": null,
+     "queries": 114,
+     "handles": []
+    },
+    "marker_cost": {
+     "requests": -2,
+     "bytes": -3227,
+     "js": 0,
+     "css": 1,
+     "nodes": 0,
+     "queries": [
+      150,
+      139
+     ]
+    }
+   }
+  },
+  "P6": {
+   "estado": "ok",
+   "comprobaciones": 5,
+   "titulo": "Interacción",
+   "carpeta": "f8-A",
+   "tandas": [
+    {
+     "tanda": "20261103-051544",
+     "git": "2e08facb",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-052057",
+     "git": "2e08facb",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "interaction.sh: los tres casos de F8 y los 34 existentes."
+  },
+  "P7": {
+   "estado": "ok",
+   "comprobaciones": 8,
+   "titulo": "Marca y proveedores",
+   "carpeta": "f8-A",
+   "tandas": [
+    {
+     "tanda": "20261103-053720",
+     "git": "377081dc",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-054747",
+     "git": "f5e6b79d",
+     "huella_elements": "2d483152ec7065f7",
+     "huella_migration": "260d7137f2883286",
+     "estado": "parcial",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-055917",
+     "git": "6226e0ad",
+     "huella_elements": "2d483152ec7065f7",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "brand-audit.sh ONLY=f8, una tanda por idioma. Revela y valida la corrección 4 (vídeo del proveedor en el panel de los rasgos nuevos). Lo migrado de P0 y P2 lo auditan esos escenarios (P0.B*.7/8, P2.10)."
+  },
+  "P8-migration": {
+   "estado": "ok",
+   "comprobaciones": 11,
+   "titulo": "Vuelta atrás",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-040030",
+     "git": "bb6abb8a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 58,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-040208",
+     "git": "bb6abb8a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 48,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "1.0.20 deja la portada sin cabecera tras desactivar (el hueco que F8 cierra); 1.0.21 reanuda la tarea, prepara tarde (tb.late) y publica; vuelta a 1.0.20: las copias siguen; con el origen reactivado y 1.0.20, dos cabeceras (límite declarado de V.18); con 1.0.21 otra vez, una.",
+   "hechos": {
+    "php_notices": 0
+   }
+  },
+  "P8-elements": {
+   "estado": "ok",
+   "comprobaciones": 12,
+   "titulo": "Vuelta atrás",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-040327",
+     "git": "bb6abb8a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 75,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-040516",
+     "git": "bb6abb8a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 77,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "hechos": {
+    "php_notices": 0
+   }
+  },
+  "P9": {
+   "estado": "ok",
+   "comprobaciones": 13,
+   "titulo": "Reversión",
+   "carpeta": "f8-main",
+   "tandas": [
+    {
+     "tanda": "20261103-034843",
+     "git": "d85dcc4a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "falla",
+     "duracion_s": 20,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-034952",
+     "git": "d85dcc4a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "falla",
+     "duracion_s": 79,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-035201",
+     "git": "d85dcc4a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "falla",
+     "duracion_s": 83,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-035430",
+     "git": "d85dcc4a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "e8c9cfd65305bfab",
+     "estado": "falla",
+     "duracion_s": 82,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-035713",
+     "git": "bb6abb8a",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 84,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-051042",
+     "git": "2e08facb",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "ok",
+     "duracion_s": 72,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "nota": "Revela y valida la corrección 3 (un documento cambiado por la etapa «aliases» se omitía como «editado después»).",
+   "hechos": {
+    "php_notices": 0
+   }
+  },
+  "P10": {
+   "estado": "falla",
+   "comprobaciones": 17,
+   "fallan": 1,
+   "titulo": "A/B con Element Pack Lite 10.0.1",
+   "carpeta": "f8-B",
+   "tandas": [
+    {
+     "tanda": "20261103-000833",
+     "git": "1d42e4c1",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-001453",
+     "git": "ef25807b",
+     "huella_elements": "0e99f6a256d3fcce",
+     "huella_migration": "350c7f15b280ea49",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-041729",
+     "git": "c5ef7c69",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-043054",
+     "git": "f296bbed",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-043817",
+     "git": "f296bbed",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-044358",
+     "git": "046aecdf",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-045526",
+     "git": "046aecdf",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    },
+    {
+     "tanda": "20261103-050509",
+     "git": "2e08facb",
+     "huella_elements": "f94303033a912d58",
+     "huella_migration": "260d7137f2883286",
+     "estado": "falla",
+     "duracion_s": 0,
+     "php": {
+      "fatales": 0,
+      "avisos": 0,
+      "peticiones_proveedor": 0
+     }
+    }
+   ],
+   "fallos": [
+    {
+     "P10.w1.2": "legacy-ab.sh w1: 100 combinaciones comparadas, 97 iguales y el resto sólo con diferencias declaradas: [\"bdt-animated-card · estilo · sitio 1: estilos (C) distintos: [\\\".bdt-ep-animated-card-title color: rgb(10, 61, 98) → rgb(32, 41, 68)\\\",\\\".bdt-ep-animated-card-title padding-bottom: 18px → 0px\\\",\\\".bdt-ep-animated-card-title border-top-color: rgb(10, 61, 98) → rgb(32, 41, 68)\\\",\\\".bdt-ep-animated-card-sub-title color: rgb(170, 0, 0) → rgb(32, 4\"]"
+    }
+   ],
+   "nota": "legacy-ab.sh en tres tandas (w1, w2, ext) y migrate.sh en dos (mg-base, mg-lite), con Element Pack Lite 10.0.1 oficial y los plugins falsos de formularios. Falla una combinación de 100 en w1: Animated Card, caso «estilo», sitio 1, sólo en la fase C (estilos de título, subtítulo y botón con sus valores por defecto). Se repite igual en dos corridas; el documento convertido lleva los valores (title_color y el CSS del elemento) y el sitio 2 y la fase E con los mismos datos coinciden con A: queda por diagnosticar en el arnés (CSS del documento del sitio 1 en la fase C), sin indicio de defecto en la conversión.",
+   "hechos": {
+    "element_pack": {
+     "source": "reference",
+     "slug": "bdthemes-element-pack-lite",
+     "plugin": "bdthemes-element-pack-lite/bdthemes-element-pack-lite.php",
+     "label": "Element Pack Lite - Addons for Elementor",
+     "version": "10.0.1",
+     "sha256": "476b853d8d936787991b8983c2b5407b84796e37fc33a5da5774ad914e6dd9d7",
+     "src": "/var/tmp/digi-f8/pg/ep-lite/bdthemes-element-pack-lite",
+     "note": "copia oficial de wordpress.org con la sha256 anotada en reference/OFFICIAL-SOURCES.txt"
+    },
+    "parts": {
+     "w1": {
+      "duration_s": 330,
+      "exit": 1,
+      "cases": 26,
+      "steps": [
+       "fase A:ok:16s",
+       "estilos A (legacy):ok:46s",
+       "desactivar ep:ok:2s",
+       "fase B:ok:40s",
+       "estilos B (own):ok:45s",
+       "fase C:ok:13s",
+       "estilos C (own):ok:53s",
+       "desactivar migration:ok:2s",
+       "fase E:ok:7s",
+       "estilos E (own):ok:43s",
+       "activar migration:ok:2s",
+       "fase D:ok:11s"
+      ],
+      "combinations": 100,
+      "equal": 97,
+      "declared": 8,
+      "differences": [
+       "bdt-animated-card · estilo · sitio 1: estilos (C) distintos: [\".bdt-ep-animated-card-title color: rgb(10, 61, 98) → rgb(32, 41, 68)\",\".bdt-ep-animated-card-title padding-bottom: 18px → 0px\",\".bdt-ep-animated-card-title border-top-color: rgb(10, 61, 98) → rgb(32, 41, 68)\",\".bdt-ep-animated-card-sub-title color: rgb(170, 0, 0) → rgb(32, 4"
+      ],
+      "skipped": 0
+     },
+     "w2": {
+      "duration_s": 262,
+      "exit": 0,
+      "cases": 27,
+      "steps": [
+       "fase A:ok:23s",
+       "estilos A (legacy):ok:17s",
+       "desactivar ep:ok:2s",
+       "fase B:ok:58s",
+       "estilos B (own):ok:17s",
+       "fase C:ok:20s",
+       "estilos C (own):ok:22s",
+       "desactivar migration:ok:3s",
+       "fase E:ok:10s",
+       "estilos E (own):ok:14s",
+       "activar migration:ok:3s",
+       "fase D:ok:17s"
+      ],
+      "combinations": 88,
+      "equal": 88,
+      "declared": 0,
+      "differences": [],
+      "skipped": 0
+     },
+     "ext": {
+      "duration_s": 90,
+      "exit": 1,
+      "cases": 11,
+      "steps": [
+       "fase A:ok:7s",
+       "estilos A (legacy):ok:1s",
+       "desactivar ep:ok:2s",
+       "fase B:ok:15s",
+       "estilos B (own):ok:0s",
+       "fase C:ok:6s",
+       "estilos C (own):ok:0s",
+       "desactivar migration:ok:2s",
+       "fase E:ok:4s",
+       "estilos E (own):ok:0s",
+       "activar migration:ok:3s",
+       "fase D:ok:5s"
+      ],
+      "combinations": 36,
+      "equal": 30,
+      "declared": 14,
+      "differences": [],
+      "skipped": 0
+     },
+     "mg-base": {
+      "duration_s": 343,
+      "exit": 0,
+      "checks": 115,
+      "failures": [],
+      "known": [],
+      "network_seconds": 26
+     },
+     "mg-lite": {
+      "duration_s": 307,
+      "exit": 0,
+      "checks": 95,
+      "failures": [],
+      "known": [
+       "1:digi-mg-animated-card: mismas imágenes que con Element Pack (conocido: Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor)",
+       "1:digi-mg-interactive-card: mismas imágenes que con Element Pack (conocido: Las imágenes de ejemplo eran recursos de Element Pack; se usa la de Elementor)",
+       "1:digi-mg-ext-tooltip: mismos textos y enlaces que con Element Pack (conocido: el globo de la información emergente está ahora en el DOM (accesible), no en un atributo)",
+       "1:digi-mg-ext-threed-text: mismos textos y enlaces que con Element Pack (conocido: el origen repite el texto en capas para el relieve; la conversión lo pinta una vez con sombras de texto en capas)"
+      ],
+      "network_seconds": 18
+     }
+    },
+    "styles": {
+     "bdt-animated-card·defaults": {
+      "A": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "B": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "C": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "E": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      }
+     },
+     "bdt-animated-card·custom": {
+      "A": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "B": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "C": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "E": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      }
+     },
+     "bdt-animated-card·estilo-base": {
+      "A": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "B": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "C": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "E": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      }
+     },
+     "bdt-animated-card·estilo": {
+      "A": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "B": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "C": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      },
+      "E": {
+       "parts": 7,
+       "found": 7,
+       "http": 200
+      }
+     },
+     "bdt-interactive-card·defaults": {
+      "A": {
+       "parts": 8,
+       "found": 6,
+       "http": 200
+      },
+      "B": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      },
+      "C": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      },
+      "E": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      }
+     },
+     "bdt-interactive-card·estilo-base": {
+      "A": {
+       "parts": 8,
+       "found": 6,
+       "http": 200
+      },
+      "B": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      },
+      "C": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      },
+      "E": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      }
+     },
+     "bdt-interactive-card·estilo": {
+      "A": {
+       "parts": 8,
+       "found": 6,
+       "http": 200
+      },
+      "B": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      },
+      "C": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      },
+      "E": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      }
+     },
+     "bdt-trailer-box·defaults": {
+      "A": {
+       "parts": 8,
+       "found": 4,
+       "http": 200
+      },
+      "B": {
+       "parts": 8,
+       "found": 4,
+       "http": 200
+      },
+      "C": {
+       "parts": 8,
+       "found": 4,
+       "http": 200
+      },
+      "E": {
+       "parts": 8,
+       "found": 4,
+       "http": 200
+      }
+     },
+     "bdt-trailer-box·custom": {
+      "A": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      },
+      "B": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      },
+      "C": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      },
+      "E": {
+       "parts": 8,
+       "found": 8,
+       "http": 200
+      }
+     }
+    }
+   }
+  }
+ },
+ "defectos_corregidos": [
+  {
+   "n": 1,
+   "archivo": "digitalisimo-migration/legacy/class-runner.php (stage_deactivate)",
+   "causa": "Con Elementor Pro o PRO Elements activos en el sitio, la condición 5 de V.5.3 (Theme Builder de Elements cargado) se evalúa en la misma petición en la que el plugin en conflicto sigue cargado y nunca se cumple: el grupo del origen no se desactivaba y la tarea cerraba sin convertir (había que volver a pulsar Migrar).",
+   "correccion": "Si la puerta da tb.no_builder y hay un plugin del grupo `pro` activo en el sitio, se desactivan primero los demás (sin el grupo del origen) y la etapa se repite en la petición siguiente (hold), ya con el Theme Builder.",
+   "prueba": "P2 PRO=1 (41/41); migration-runner.php (59), migration-network.php (106), migration-end-to-end.php (61), migration-theme-builder.php (855) en verde."
+  },
+  {
+   "n": 2,
+   "archivo": "digitalisimo-migration/legacy/class-runner.php (stage_prepare)",
+   "causa": "Un sitio de la barrera que prepara después de la liberación por plazo ve el grupo del origen ya desactivado por la propia red: ep_was_active quedaba falso y sus copias se quedaban en borrador para siempre (el sitio sin cabecera), en lugar de «hasta su turno» (V.18).",
+   "correccion": "En una tarea de red ya liberada, un sitio de barrier_sites cuenta como «origen activo al preparar».",
+   "prueba": "P3 deadline (17/17); unitarias del runner y de la red en verde."
+  },
+  {
+   "n": 3,
+   "archivo": "digitalisimo-migration/legacy/class-aliases.php (convert_document)",
+   "causa": "La etapa `aliases` cambia documentos ya convertidos por la misma tarea sin actualizar la huella de la marca F8: --revert los tomaba por «editados después de migrar» y no los restauraba.",
+   "correccion": "Tras escribir, si el documento tiene marca F8, se actualiza su `hash` con lo escrito.",
+   "prueba": "P9 (13/13: 21 documentos restaurados y sólo la copia editada omitida); migration-runner.php, migration-end-to-end.php, migration-network.php, migration-scale.php, migration-report.php y migration-static.mjs (1241) en verde."
+  },
+  {
+   "n": 4,
+   "archivo": "digitalisimo-elements/modules/digitalisimo-widgets/class-tooltip.php y class-badge.php",
+   "causa": "Group_Control_Background::filter_fields() del núcleo no retira los campos de vídeo aunque `types` sea classic y gradient (`unset( $field )` sobre la referencia): el panel de la información emergente y del distintivo llevaba el `placeholder` con el vídeo de demostración del proveedor (brand-audit.sh ONLY=f8, 2 fallas).",
+   "correccion": "`exclude` con los campos de vídeo del grupo (nunca se podían elegir: no cambia HTML ni CSS).",
+   "prueba": "P7 es_MX y en_US (8/8, 0 fallas de proveedor); elements-tooltip.php (119), elements-badge.php (135), elements-tooltip.mjs (44), elements-front-budget.php y elements-vendor-static.mjs en verde."
+  }
+ ],
+ "defectos_documentados": [
+  {
+   "donde": "digitalisimo-elements/elementor/includes/controls/groups/background.php:796-808 (núcleo)",
+   "que": "filter_fields() hace `unset( $field )` sobre la variable de referencia: `types` no retira ningún campo. Se esquiva en los rasgos de F8 con `exclude`; cualquier otro grupo de fondo restringido del núcleo o de PRO sigue registrando sus campos de vídeo."
+  },
+  {
+   "donde": "digitalisimo-elements/core/app/modules/import-export-customization/module.php:120 (PRO derivado)",
+   "que": "«Trying to access array offset on null» al exportar un kit por WP-CLI sin datos de personalización (P4.8). Aviso, sin efecto en el kit."
+  },
+  {
+   "donde": "Playground (red de subdirectorios)",
+   "que": "/<sitio>/wp-cron.php responde 404; el arnés dispara el WP-Cron de cada sitio desde su propia petición."
+  }
+ ],
+ "sin_completar": [
+  "P0 tanda c (editor real del slider convertido con isInner/isLocked, proporción con su pista en tres anchos, copias SVG de demostración con wp_check_filetype_and_ext() real, Loop Carousel generado y puerta de PRO): no validada; queda «sintético» (unitarias de E y F) salvo lo que cubre P4 (editor real con un slider anidado convertido).",
+  "P0 B1.9 y B2.9: diferencias de A/B sin declarar (todas añadidos en B); las de flogia «custom» (páginas listadas) por revisar.",
+  "P10 w1: Animated Card «estilo», sitio 1, fase C, por diagnosticar en el arnés.",
+  "kit-roundtrip.sh R1 con el caso digi-k-tooltip-badge: no corrido (sus puertos son los de K y una corrida no cabe en 10 min); el caso y los rasgos pasan elements-kit-inventory.mjs."
+ ],
+ "casos_de_otros_arneses": {
+  "front-budget/cases.json": "f8-tooltip, f8-badge, f8-nested-counter (since 4.3.0.170) y f8-marker (modos normal, cache y migration)",
+  "interaction/cases.json": "f8-tooltip, f8-badge-rtl, f8-nested-counter",
+  "brand-audit/setup-f8.php": "página digi-marca-f8 y ONLY=f8",
+  "kit-roundtrip/cases.json": "rasgos tooltip, badge y export-skip y página digi-k-tooltip-badge; tests/elements-kit-inventory.mjs en verde"
+ },
+ "resumen": {
+  "P0": "falla (33 ok, 7 fallan)",
+  "P1": "ok (15 ok)",
+  "P2": "ok (41 ok)",
+  "P2-PRO": "ok (41 ok)",
+  "P3": "ok (15 ok)",
+  "P3-deadline": "ok (17 ok)",
+  "P3-blocked": "ok (11 ok)",
+  "P3-addon-net": "ok (15 ok)",
+  "P3-pro-net": "ok (15 ok)",
+  "P3-24sitios": "ok (15 ok)",
+  "P4": "ok (12 ok)",
+  "P5": "ok (21 ok)",
+  "P6": "ok (5 ok)",
+  "P7": "ok (8 ok)",
+  "P8-migration": "ok (11 ok)",
+  "P8-elements": "ok (12 ok)",
+  "P9": "ok (13 ok)",
+  "P10": "falla (17 ok, 1 fallan)"
+ }
+}
