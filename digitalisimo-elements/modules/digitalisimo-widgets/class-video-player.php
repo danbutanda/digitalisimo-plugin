@@ -9,7 +9,9 @@ require_once __DIR__ . '/class-image-markup.php';
  * o vídeo incrustado de YouTube, Vimeo, Dailymotion o Wistia (con el dominio sin rastreo cuando el servicio
  * lo ofrece y carga diferida). Con una lista de dos o más vídeos muestra sus títulos y descripciones como
  * botones que cambian el vídeo al pulsarlos o, si se elige, al pasar el cursor o enfocarlos (entonces se
- * reproduce silenciado).
+ * reproduce silenciado). Con las fachadas de «Rendimiento» (`Front\Facades`), un vídeo incrustado se pinta como
+ * portada con un botón y el servicio no recibe ninguna petición hasta que se pulsa; al pasar el cursor por la lista
+ * sólo se previsualizan los archivos.
  */
 class Video_Player_Widget extends \Elementor\Widget_Base {
 	const SOURCES = array( 'media' => 'Biblioteca de Medios', 'url' => 'URL externa', 'embed' => 'YouTube, Vimeo, Dailymotion o Wistia' );
@@ -19,20 +21,25 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 	public function get_icon() { return 'eicon-video-camera'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'video', 'reproductor', 'mp4', 'webm', 'youtube', 'vimeo', 'lista' ); }
-	public function get_style_depends() { return array( 'digitalisimo-video-player' ); }
+	/** La hoja de la fachada sólo se añade cuando el escenario pinta una. */
+	public function get_style_depends() {
+		return array_merge( array( 'digitalisimo-video-player' ), $this->is_type_instance() ? array() : self::facade_depends( (array) $this->get_settings_for_display() ) );
+	}
 	/**
-	 * El script sólo hace falta para cambiar de vídeo en una lista, o en la vista previa del editor. La instancia
-	 * de registro del widget no tiene ajustes (leerlos provoca un error fatal en Elementor): devuelve el script.
+	 * El script sólo hace falta para cambiar de vídeo en una lista, o en la vista previa del editor, y el de la fachada
+	 * cuando el escenario pinta una. La instancia de registro del widget no tiene ajustes (leerlos provoca un error
+	 * fatal en Elementor): devuelve el script.
 	 */
 	public function get_script_depends() {
 		if ( $this->is_type_instance() ) {
 			return array( 'digitalisimo-video-player' );
 		}
-		if ( count( self::playlist( (array) $this->get_settings() ) ) > 1 ) {
-			return array( 'digitalisimo-video-player' );
+		$settings = (array) $this->get_settings();
+		if ( count( self::playlist( $settings ) ) > 1 ) {
+			return array_merge( array( 'digitalisimo-video-player' ), self::facade_depends( (array) $this->get_settings_for_display() ) );
 		}
 		$preview = class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->preview ) && \Elementor\Plugin::$instance->preview->is_preview_mode();
-		return $preview ? array( 'digitalisimo-video-player' ) : array();
+		return $preview ? array( 'digitalisimo-video-player' ) : self::facade_depends( (array) $this->get_settings_for_display() );
 	}
 
 	private static function source_controls( $stack, $c ) {
@@ -66,20 +73,26 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 	 * cuando el servicio lo ofrece; '' si el enlace no es de ninguno.
 	 */
 	public static function embed_url( $url ) {
+		$parts = self::embed_parts( $url );
+		return $parts ? $parts['src'] : '';
+	}
+
+	/** Servicio, ID y dirección para incrustar (`src`) de un enlace de vídeo; [] si no es de ninguno de los cuatro. */
+	public static function embed_parts( $url ) {
 		$url = trim( (string) $url );
 		if ( preg_match( '%(?:youtube(?:-nocookie)?\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?|shorts)/|.*[?&]v=)|youtu\.be/)([A-Za-z0-9_-]{11})%i', $url, $m ) ) {
-			return 'https://www.youtube-nocookie.com/embed/' . $m[1] . '?rel=0';
+			return array( 'service' => 'youtube', 'id' => $m[1], 'src' => 'https://www.youtube-nocookie.com/embed/' . $m[1] . '?rel=0' );
 		}
 		if ( preg_match( '%vimeo\.com/(?:video/|channels/[^/]+/|groups/[^/]+/videos/)?(\d+)%i', $url, $m ) ) {
-			return 'https://player.vimeo.com/video/' . $m[1] . '?dnt=1';
+			return array( 'service' => 'vimeo', 'id' => $m[1], 'src' => 'https://player.vimeo.com/video/' . $m[1] . '?dnt=1' );
 		}
 		if ( preg_match( '%(?:dailymotion\.com/(?:embed/)?video/|dai\.ly/)([A-Za-z0-9]+)%i', $url, $m ) ) {
-			return 'https://www.dailymotion.com/embed/video/' . $m[1];
+			return array( 'service' => 'dailymotion', 'id' => $m[1], 'src' => 'https://www.dailymotion.com/embed/video/' . $m[1] );
 		}
 		if ( preg_match( '%(?:wistia\.(?:com|net)/(?:medias|embed/iframe)/|wi\.st/)([A-Za-z0-9]+)%i', $url, $m ) ) {
-			return 'https://fast.wistia.net/embed/iframe/' . $m[1];
+			return array( 'service' => 'wistia', 'id' => $m[1], 'src' => 'https://fast.wistia.net/embed/iframe/' . $m[1] );
 		}
-		return '';
+		return array();
 	}
 
 	private static function source_url( $settings ) {
@@ -99,9 +112,9 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 	private static function media( $settings ) {
 		$source = (string) ( $settings['source'] ?? 'media' );
 		if ( 'embed' === $source || 'url' === $source ) {
-			$embed = self::embed_url( 'embed' === $source ? ( $settings['embed_url'] ?? '' ) : ( $settings['video_url']['url'] ?? '' ) );
-			if ( '' !== $embed ) {
-				return array( 'kind' => 'embed', 'url' => $embed );
+			$embed = self::embed_parts( 'embed' === $source ? ( $settings['embed_url'] ?? '' ) : ( $settings['video_url']['url'] ?? '' ) );
+			if ( $embed ) {
+				return array( 'kind' => 'embed', 'url' => $embed['src'], 'service' => $embed['service'], 'id' => $embed['id'] );
 			}
 			if ( 'embed' === $source ) {
 				return null;
@@ -142,11 +155,49 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 		return $items;
 	}
 
+	/** ¿Están aplicadas las fachadas en esta petición? */
+	private static function facades() {
+		return class_exists( '\\Digitalisimo\\Elements\\Front\\Facades' ) && \Digitalisimo\Elements\Front\Facades::active();
+	}
+
+	/** Vídeo que ocupa el escenario: el primero de una lista de dos o más, o el principal; null si no hay uno válido. */
+	private static function current_media( array $settings ) {
+		$list = self::playlist( $settings );
+		return count( $list ) > 1 ? $list[0] : self::media( $settings );
+	}
+
 	/**
-	 * Elemento del escenario: <video> nativo o <iframe> del servicio, con nombre accesible. Es lo único que va en el
-	 * escenario, porque el script de la lista lo sustituye al cambiar de vídeo: la preconexión se pinta antes del reproductor.
+	 * Trabajo de la portada de la fachada que pinta el escenario (un vídeo incrustado), o []. Lo usan la caché de
+	 * elementos (`Front\Facades::dynamic()`) y las dependencias.
+	 */
+	public static function facade_jobs( array $settings ) {
+		$item = self::current_media( $settings );
+		if ( ! $item || 'embed' !== $item['kind'] || ! class_exists( '\\Digitalisimo\\Elements\\Front\\Facade_Images' ) ) {
+			return array();
+		}
+		$job = \Digitalisimo\Elements\Front\Facade_Images::video( $item['service'], $item['id'] );
+		return $job ? array( $job ) : array();
+	}
+
+	/** Hoja o script de la fachada si el escenario pinta una. */
+	private static function facade_depends( array $settings ) {
+		if ( ! self::facades() ) {
+			return array();
+		}
+		$item = self::current_media( $settings );
+		return \Digitalisimo\Elements\Front\Facades::depends( $item && 'embed' === $item['kind'] );
+	}
+
+	/**
+	 * Elemento del escenario: <video> nativo o <iframe> del servicio, con nombre accesible (o, con las fachadas, la
+	 * portada con su botón). Es lo único que va en el escenario, porque el script de la lista lo sustituye al cambiar de
+	 * vídeo: la preconexión se pinta antes del reproductor.
 	 */
 	private static function stage( array $item ) {
+		if ( 'embed' === $item['kind'] && self::facades() ) {
+			$job = \Digitalisimo\Elements\Front\Facade_Images::video( (string) ( $item['service'] ?? '' ), (string) ( $item['id'] ?? '' ) );
+			return \Digitalisimo\Elements\Front\Facades::video( $item['url'], $item['title'], 'digi-video-player__embed', $job );
+		}
 		if ( 'embed' === $item['kind'] ) {
 			return '<iframe class="digi-video-player__embed" src="' . esc_url( $item['url'] ) . '" title="' . esc_attr( $item['title'] ) . '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>';
 		}
@@ -168,13 +219,14 @@ class Video_Player_Widget extends \Elementor\Widget_Base {
 		}
 		$ratio = (string) ( $settings['ratio'] ?? '16/9' );
 		if ( ! in_array( $ratio, array( '16/9', '4/3', '1/1', 'auto' ), true ) ) { $ratio = '16/9'; }
-		$preconnect = 'embed' === $current['kind'] ? Image_Markup::preconnect( $current['url'] ) : '';
+		$facades    = self::facades();
+		$preconnect = 'embed' === $current['kind'] && ! $facades ? Image_Markup::preconnect( $current['url'] ) : '';
 		if ( ! $list ) {
 			echo $preconnect . '<div class="digi-video-player" data-ratio="' . esc_attr( $ratio ) . '">' . self::stage( $current ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- preconnect() y stage() escapan cada atributo.
 			return;
 		}
 		$trigger = 'hover' === ( $settings['playlist_trigger'] ?? 'click' ) ? 'hover' : 'click';
-		echo $preconnect . '<div class="digi-video-player digi-video-player--playlist" data-digi-playlist="' . esc_attr( $trigger ) . '" data-ratio="' . esc_attr( $ratio ) . '"><div class="digi-video-player__stage">' . self::stage( $current ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- preconnect() y stage() escapan cada atributo.
+		echo $preconnect . '<div class="digi-video-player digi-video-player--playlist" data-digi-playlist="' . esc_attr( $trigger ) . '"' . ( $facades ? ' data-digi-playlist-facade' : '' ) . ' data-ratio="' . esc_attr( $ratio ) . '"><div class="digi-video-player__stage">' . self::stage( $current ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- preconnect() y stage() escapan cada atributo.
 		if ( 'yes' === ( $settings['playlist_caption'] ?? '' ) ) {
 			echo '<div class="digi-video-player__now" aria-live="polite"><p class="digi-video-player__now-title">' . esc_html( $current['title'] ) . '</p><p class="digi-video-player__now-description"' . ( '' === $current['description'] ? ' hidden' : '' ) . '>' . esc_html( $current['description'] ) . '</p></div>';
 		}

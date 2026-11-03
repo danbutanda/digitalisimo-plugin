@@ -157,14 +157,16 @@ final class Lazy_Videos {
 		return is_array( $applied ) && isset( $applied['lazy_videos'] ) && true === $applied['lazy_videos'];
 	}
 
-	private static function front(): bool {
+	/** Petición del front: ni administración, AJAX, cron, REST ni WP-CLI. También la usan las fachadas. */
+	public static function front(): bool {
 		if ( is_admin() || ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) || ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) ) {
 			return false;
 		}
 		return ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) && ! ( defined( 'WP_CLI' ) && WP_CLI );
 	}
 
-	private static function editing(): bool {
+	/** Editor, su vista previa, el Personalizador o la vista previa de una entrada. También la usan las fachadas. */
+	public static function editing(): bool {
 		if ( isset( $_GET['elementor-preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Sólo decide si se reescribe el marcado.
 			return true;
 		}

@@ -376,6 +376,10 @@ async function runActions(page, actions) {
     else if (a.do === 'mark') marks[a.selector] = await page.$$eval(a.selector, (els) => els.map((el) => el.textContent.trim()).join('|'));
     else if (a.do === 'waitChange') await page.waitForFunction((sel, before) => [...document.querySelectorAll(sel)].map((el) => el.textContent.trim()).join('|') !== before, { timeout: a.ms || 15000 }, a.selector, marks[a.selector] || '').catch(() => {});
     else if (a.do === 'viewport') await page.setViewport({ width: a.width, height: a.height });
+    // Teclado (fachadas, Fase 3): el foco en `selector` y la tecla `key`, como un usuario que navega con Tab.
+    else if (a.do === 'press') { await page.waitForSelector(a.selector, { timeout: a.ms || 10000 }); await page.focus(a.selector); await page.keyboard.press(a.key || 'Enter'); }
+    // Una pasada de wp-cron.php (la sonda apaga su disparo desde las visitas): la cola de las imágenes de las fachadas.
+    else if (a.do === 'cron') { await request('GET', '/wp-cron.php'); await sleep(a.ms || 300); }
     else if (a.do === 'fill') { await page.waitForSelector(a.selector, { timeout: 10000 }); await page.type(a.selector, a.value); }
     else if (a.do === 'fillAll') await page.$$eval(a.selector, (els, v) => els.forEach((el) => { if (!el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } }), a.value);
     // Segunda visita a la misma URL en el mismo perfil (cookies de la primera): «Visitó la página» de F7a.
@@ -395,6 +399,10 @@ async function visit(context, slug, url, { measure = true } = {}) {
   // Sin caché: cada página paga todos sus recursos, como la primera visita de un usuario.
   await page.setCacheEnabled(false);
   const requests = [];
+  // Toda petición que el navegador inicia, también la que falla o no llega a responder (`calls`: «ninguna petición al
+  // dominio del vídeo antes del clic», Fase 3), con el iframe de otro origen incluido.
+  const calls = [];
+  page.on('request', (r) => calls.push(r.url()));
   const errors = [];
   const failed = [];
   // Cuerpos de las hojas del mismo origen de la primera carga (huella del CSS, F7a criterio 1).
@@ -448,6 +456,7 @@ async function visit(context, slug, url, { measure = true } = {}) {
       // origen y en los <style> (una sola definición de variable por documento, F7a V.5).
       const extra = {};
       for (const [name, re] of Object.entries(c.assets || {})) extra[`asset:${name}`] = requests.filter((r) => new RegExp(re).test(r.url)).reduce((s, r) => s + r.bytes, 0);
+      for (const [name, re] of Object.entries(c.calls || {})) extra[`call:${name}`] = calls.filter((u) => new RegExp(re).test(u)).length;
       const allCss = Object.values(cssBodies).join('\n') + '\n' + inlineCss;
       for (const [name, re] of Object.entries(c.cssCount || {})) extra[`css:${name}`] = (allCss.match(new RegExp(re, 'g')) || []).length;
       const doc = dom.docId ? requests.find((r) => new RegExp(`/elementor/css/post-${dom.docId}\\.css`).test(r.url)) : null;
@@ -775,6 +784,7 @@ function modeChecks(states) {
   } else if (!s.bundled) problem(`${LABEL}: se esperaba el núcleo incluido`);
   if (!DEFAULTS && !MODE.lazy && applied.pro_conditional !== true) problem(`${LABEL}: pro_conditional no quedó aplicado`);
   if (MODE.lazy && applied.lazy_libs !== true) problem('lazy: lazy_libs no quedó aplicado');
+  if (MODE.facades && applied.facades !== true) problem('facades: las fachadas no quedaron aplicadas');
   if (DEFAULTS === 'old' || DEFAULTS === 'old-dirty' || DEFAULTS === 'old-inactive' || DEFAULTS === 'old-applied') {
     if (applied.font_swap !== true) problem(`${LABEL}: font_swap no quedó aplicado (fila elementor_font_display ${s.rows && s.rows.elementor_font_display})`);
     if (!(s.filters || {}).elementor_font_display) problem(`${LABEL}: falta el filtro default_option_elementor_font_display`);

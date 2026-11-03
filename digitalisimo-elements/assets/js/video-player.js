@@ -2,7 +2,8 @@
   'use strict';
   // Lista de vídeos: cada título cambia el vídeo del escenario al pulsarlo o, con data-digi-playlist="hover",
   // al pasar el cursor o enfocarlo; en ese caso se reproduce silenciado, como una vista previa. El escenario
-  // alterna entre <video> (archivo) e <iframe> (YouTube, Vimeo, Dailymotion o Wistia) según el vídeo elegido.
+  // alterna entre <video> (archivo) e <iframe> (YouTube, Vimeo, Dailymotion o Wistia) según el vídeo elegido. Con las
+  // fachadas (data-digi-playlist-facade), pasar el cursor o enfocar un vídeo incrustado no lo carga: sólo pulsarlo.
   function withParams(url, params) {
     return url + (url.indexOf('?') === -1 ? '?' : '&') + params;
   }
@@ -12,8 +13,12 @@
     if (!stage) return;
     // El vídeo actual es el <iframe> o <video> del escenario, no su primer hijo: el HTML que una caché guardó con
     // una versión anterior lleva la preconexión <link> dentro del escenario.
-    var current = stage.querySelector(':scope > iframe, :scope > video');
+    var current = stage.querySelector(':scope > iframe, :scope > video, :scope > .digi-facade');
+    if (muted && button.getAttribute('data-kind') === 'embed' && player.hasAttribute('data-digi-playlist-facade')) return;
     if (button.getAttribute('aria-pressed') === 'true') {
+      // Pulsar el vídeo elegido cuando aún es una fachada equivale a pulsar su botón.
+      var face = play && !muted && current && current.matches('.digi-facade') && current.querySelector('[data-digi-facade-src]');
+      if (face) { face.click(); return; }
       if (play && current && current.tagName === 'VIDEO') { current.muted = !!muted || current.muted; current.play().catch(function () {}); }
       return;
     }

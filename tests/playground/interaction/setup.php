@@ -18,6 +18,14 @@ activate_plugin( 'digitalisimo-elements/pro-elements.php' );
 activate_plugin( 'digitalisimo-migration/digitalisimo-migration.php' );
 update_option( 'elementor_element_cache_ttl', 'disable' );
 update_option( 'elementor_onboarded', true );
+// FACADES=1 (Fase 3 del front): las fachadas como propias del sitio; transition.php las aplica antes del recorrido.
+if ( is_file( '/wordpress/wp-content/probe/facades.flag' ) ) {
+	$front = get_option( 'digitalisimo_elements_front', array() );
+	$front = is_array( $front ) ? $front : array();
+	$front['facades'] = true;
+	$front['own']     = array_values( array_unique( array_merge( isset( $front['own'] ) && is_array( $front['own'] ) ? $front['own'] : array(), array( 'facades' ) ) ) );
+	update_option( 'digitalisimo_elements_front', $front, true );
+}
 // Productos de prueba para el carrusel de WooCommerce.
 if ( class_exists( 'WC_Product_Simple' ) && ! get_posts( array( 'post_type' => 'product', 'posts_per_page' => 1, 'fields' => 'ids' ) ) ) {
 	foreach ( array( 'Camisa', 'Gorra', 'Taza', 'Libro', 'Bolsa', 'Lámpara' ) as $i => $name ) {

@@ -4,14 +4,39 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-image-markup.php';
 
-/** Mapa de OpenStreetMap (visor oficial, sin librerías ni clave) con la lista de ubicaciones. */
+/**
+ * Mapa de OpenStreetMap (visor oficial, sin librerías ni clave) con la lista de ubicaciones. Con las fachadas de
+ * «Rendimiento» (`Front\Facades`) se pinta como imagen estática guardada en el sitio, con el marcador, la atribución y
+ * «Ver mapa interactivo»: OpenStreetMap no recibe ninguna petición del visitante hasta que lo pulsa.
+ */
 class Map_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-map'; }
 	public function get_title() { return 'Mapa (OpenStreetMap)'; }
 	public function get_icon() { return 'eicon-google-maps'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'mapa', 'openstreetmap', 'ubicación', 'marcador' ); }
-	public function get_style_depends() { return array( 'digitalisimo-map' ); }
+	public function get_style_depends() { return array_merge( array( 'digitalisimo-map' ), $this->facade_depends() ); }
+	public function get_script_depends() { return $this->facade_depends(); }
+
+	/** ¿Están aplicadas las fachadas en esta petición? */
+	private static function facades() {
+		return class_exists( '\\Digitalisimo\\Elements\\Front\\Facades' ) && \Digitalisimo\Elements\Front\Facades::active();
+	}
+
+	/** Hoja o script de la fachada (con fachadas, todo mapa con una ubicación válida pinta una). */
+	private function facade_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! self::facades() ) { return array(); }
+		$s = (array) $this->get_settings_for_display();
+		return \Digitalisimo\Elements\Front\Facades::depends( (bool) self::points( is_array( $s['markers'] ?? null ) ? $s['markers'] : array() ) );
+	}
+
+	/** Trabajo de la imagen del mapa: la primera ubicación con su acercamiento (caché de elementos), o []. */
+	public static function facade_jobs( array $settings ) {
+		$points = self::points( is_array( $settings['markers'] ?? null ) ? $settings['markers'] : array() );
+		if ( ! $points || ! class_exists( '\\Digitalisimo\\Elements\\Front\\Facade_Images' ) ) { return array(); }
+		$job = \Digitalisimo\Elements\Front\Facade_Images::map( $points[0][1], $points[0][2], (int) ( $settings['zoom']['size'] ?? 15 ) );
+		return $job ? array( $job ) : array();
+	}
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';
@@ -63,6 +88,18 @@ class Map_Widget extends \Elementor\Widget_Base {
 				$list .= '<li class="digi-map__place">' . ( '' !== $point[0] ? '<strong>' . esc_html( $point[0] ) . '</strong>' : '' ) . ( '' !== $point[3] ? '<span>' . esc_html( $point[3] ) . '</span>' : '' ) . '<a href="' . esc_url( $link ) . '" target="_blank" rel="noopener noreferrer">Ver en OpenStreetMap</a></li>';
 			}
 			$list = '<ul class="digi-map__places">' . $list . '</ul>';
+		}
+		if ( self::facades() ) {
+			$job    = \Digitalisimo\Elements\Front\Facade_Images::map( $first[1], $first[2], $zoom );
+			$image  = $job ? \Digitalisimo\Elements\Front\Facade_Images::url( $job ) : '';
+			$note   = '' !== $image ? '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>' : '';
+			$facade = \Digitalisimo\Elements\Front\Facades::markup(
+				'map',
+				array( 'src' => self::embed_url( $first[1], $first[2], $zoom ), 'title' => 'Mapa: ' . $title, 'class' => 'digi-map__frame', 'referrer' => 'no-referrer' ),
+				array( 'name' => 'Ver mapa interactivo: ' . $title, 'label' => 'Ver mapa interactivo', 'image' => $image, 'pin' => true, 'note' => $note )
+			);
+			echo '<div class="digi-map">' . $facade . $list . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup() y la lista escapan cada valor.
+			return;
 		}
 		echo '<div class="digi-map">' . Image_Markup::preconnect( 'https://www.openstreetmap.org/' ) . '<iframe class="digi-map__frame" src="' . esc_url( self::embed_url( $first[1], $first[2], $zoom ) ) . '" title="' . esc_attr( 'Mapa: ' . $title ) . '" loading="lazy" referrerpolicy="no-referrer"></iframe>' . $list . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- lista escapada al construirse.
 	}

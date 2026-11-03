@@ -37,6 +37,12 @@ final class Transition {
 	/** Cambiarlo obliga a transitar de nuevo todos los sitios (nueva huella). 2: entra `lazy_videos` (Fase 3). */
 	const FORMAT = 2;
 
+	/**
+	 * Claves que sólo entran en la huella cuando están activas (`:clave` tras los bits), sin cambiar el formato: un sitio
+	 * que no las usa conserva su huella y no vacía cachés al actualizar. Entrar o salir de una sí transita.
+	 */
+	const LATE_KEYS = array( 'facades' );
+
 	/** Entradas por lote del análisis de iconos. */
 	const BATCH = 200;
 
@@ -228,13 +234,18 @@ final class Transition {
 		return class_exists( '\Digitalisimo_Elements_Core' ) && \Digitalisimo_Elements_Core::bundled();
 	}
 
-	/** Huella de un efectivo. */
+	/** Huella de un efectivo: un bit por clave y, detrás, las de `LATE_KEYS` que estén activas. */
 	public static function fingerprint( array $effective ): string {
 		$bits = '';
+		$late = '';
 		foreach ( Settings::KEYS as $key ) {
+			if ( in_array( $key, self::LATE_KEYS, true ) ) {
+				$late .= empty( $effective[ $key ] ) ? '' : ':' . $key;
+				continue;
+			}
 			$bits .= empty( $effective[ $key ] ) ? '0' : '1';
 		}
-		return 'v' . self::FORMAT . ':' . $bits;
+		return 'v' . self::FORMAT . ':' . $bits . $late;
 	}
 
 	/** Suelta los cerrojos propios que quedaran tomados (registrada al tomar el primero). */

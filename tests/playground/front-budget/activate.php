@@ -102,6 +102,17 @@ if ( 'old-dirty' === $defaults ) {
 if ( ! empty( $mode['lazy'] ) ) {
 	update_option( 'digitalisimo_elements_front', array( 'pro_conditional' => true, 'font_swap' => true, 'svg_icons' => false, 'lazy_libs' => true, 'element_cache_off' => false, 'image_loading_off' => false, 'own' => array( 'pro_conditional', 'font_swap', 'svg_icons', 'lazy_libs', 'element_cache_off', 'image_loading_off' ) ), true );
 }
+// FACADES=1: las fachadas aplicadas como propias del sitio, sin tocar las demás claves; el mu-plugin simula sus descargas.
+if ( ! empty( $mode['facades'] ) ) {
+	$front = get_option( 'digitalisimo_elements_front', array() );
+	$front = is_array( $front ) ? $front : array();
+	$front['facades'] = true;
+	$front['own']     = array_values( array_unique( array_merge( isset( $front['own'] ) && is_array( $front['own'] ) ? $front['own'] : array(), array( 'facades' ) ) ) );
+	update_option( 'digitalisimo_elements_front', $front, true );
+	copy( DIGI_FB_PROBE . '/facades-http.php', WPMU_PLUGIN_DIR . '/digi-fb-facades-http.php' );
+} elseif ( is_file( WPMU_PLUGIN_DIR . '/digi-fb-facades-http.php' ) ) {
+	unlink( WPMU_PLUGIN_DIR . '/digi-fb-facades-http.php' );
+}
 if ( ! empty( $mode['v4'] ) ) {
 	update_option( 'elementor_experiment-e_atomic_elements', 'active' );
 }

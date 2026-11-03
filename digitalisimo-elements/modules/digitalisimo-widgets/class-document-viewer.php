@@ -4,15 +4,41 @@ namespace Digitalisimo\Elements;
 defined( 'ABSPATH' ) || exit;
 require_once __DIR__ . '/class-image-markup.php';
 
-/** Visor de documentos independiente: incrusta un PDF u otro archivo público en la página. */
+/**
+ * Visor de documentos independiente: incrusta un PDF u otro archivo público en la página. Con las fachadas de
+ * «Rendimiento» (`Front\Facades`) el documento no se carga hasta pulsar «Ver el documento aquí» (con la vista previa
+ * de la primera página si es un PDF de la biblioteca que la tiene); «Abrir documento» sigue debajo.
+ */
 class Document_Viewer_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-document-viewer'; }
 	public function get_title() { return 'Visor de documentos'; }
 	public function get_icon() { return 'eicon-document-file'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'documento', 'pdf', 'visor', 'archivo' ); }
-	public function get_style_depends() { return array( 'digitalisimo-document-viewer' ); }
-	public function get_script_depends() { return array(); }
+	public function get_style_depends() { return array_merge( array( 'digitalisimo-document-viewer' ), $this->facade_depends() ); }
+	public function get_script_depends() { return $this->facade_depends(); }
+
+	/** ¿Están aplicadas las fachadas en esta petición? */
+	private static function facades() {
+		return class_exists( '\\Digitalisimo\\Elements\\Front\\Facades' ) && \Digitalisimo\Elements\Front\Facades::active();
+	}
+
+	/** Hoja o script de la fachada si hay un documento válido. */
+	private function facade_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! self::facades() ) { return array(); }
+		$s    = (array) $this->get_settings_for_display();
+		$file = isset( $s['file_source'] ) && is_array( $s['file_source'] ) ? $s['file_source'] : array();
+		return \Digitalisimo\Elements\Front\Facades::depends( '' !== self::safe_source( $file['url'] ?? '' ) );
+	}
+
+	/** Vista previa de la primera página de un PDF de la biblioteca de este sitio, o ''. Sólo consulta si está en uploads. */
+	private static function preview( $source ) {
+		$uploads = function_exists( 'wp_get_upload_dir' ) ? wp_get_upload_dir() : array();
+		$base    = set_url_scheme( (string) ( $uploads['baseurl'] ?? '' ), 'https' );
+		if ( '' === $base || 0 !== strpos( set_url_scheme( $source, 'https' ), $base . '/' ) ) { return ''; }
+		$id = attachment_url_to_postid( $source );
+		return $id && 'application/pdf' === get_post_mime_type( $id ) ? (string) wp_get_attachment_image_url( $id, 'large' ) : '';
+	}
 
 	protected function register_controls() {
 		$c = '\\Elementor\\Controls_Manager';
@@ -66,8 +92,13 @@ class Document_Viewer_Widget extends \Elementor\Widget_Base {
 		if ( '' === $frame_url ) { $frame_url = $source; }
 		$title = trim( (string) ( $settings['frame_title'] ?? '' ) );
 		if ( '' === $title ) { $title = 'Visor de documento'; }
+		$facade = self::facades() ? \Digitalisimo\Elements\Front\Facades::markup(
+			'document',
+			array( 'src' => $frame_url, 'title' => $title, 'class' => 'digi-document-viewer__frame' ),
+			array( 'name' => 'Ver el documento aquí: ' . $title, 'label' => 'Ver el documento aquí', 'image' => self::preview( $source ) )
+		) : '';
 		echo '<div class="digi-document-viewer">';
-		echo Image_Markup::preconnect( $frame_url ) . '<iframe class="digi-document-viewer__frame" src="' . esc_url( $frame_url ) . '" title="' . esc_attr( $title ) . '" loading="lazy"></iframe>';
+		echo '' !== $facade ? $facade : Image_Markup::preconnect( $frame_url ) . '<iframe class="digi-document-viewer__frame" src="' . esc_url( $frame_url ) . '" title="' . esc_attr( $title ) . '" loading="lazy"></iframe>';
 		echo '<a class="digi-document-viewer__link" href="' . esc_url( $source ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( 'Abrir documento' ) . '</a>';
 		echo '</div>';
 	}

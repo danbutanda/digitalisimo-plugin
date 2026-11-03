@@ -7,7 +7,9 @@ require_once __DIR__ . '/class-image-markup.php';
 /**
  * Panel lateral que se abre con su botón o con cualquier elemento indicado por un selector. Muestra
  * una plantilla publicada, una barra lateral de widgets o texto; es un diálogo con foco atrapado,
- * cierre con Escape, con el fondo o con su botón, y devuelve el foco al elemento que lo abrió.
+ * cierre con Escape, con el fondo o con su botón, y devuelve el foco al elemento que lo abrió. Con las
+ * fachadas de «Rendimiento» (`Front\Facades`), el contenido insertado de otro sitio (YouTube, Vimeo, un mapa…) se
+ * pinta como portada con un botón: ni el panel oculto ni su apertura piden nada a ese sitio hasta que se pulsa.
  */
 class Offcanvas_Widget extends \Elementor\Widget_Base {
 	private static $template_options = array();
@@ -34,8 +36,35 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 	public function get_icon() { return 'eicon-sidebar'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'panel', 'lateral', 'offcanvas', 'menú', 'cajón' ); }
-	public function get_style_depends() { return array( 'digitalisimo-offcanvas' ); }
-	public function get_script_depends() { return array( 'digitalisimo-offcanvas' ); }
+	public function get_style_depends() { return array_merge( array( 'digitalisimo-offcanvas' ), $this->facade_depends() ); }
+	public function get_script_depends() { return array_merge( array( 'digitalisimo-offcanvas' ), $this->facade_depends() ); }
+
+	/** Hoja o script de la fachada si el panel inserta contenido de otro sitio y las fachadas están aplicadas. */
+	private function facade_depends() {
+		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings_for_display' ) || ! self::facades() ) { return array(); }
+		$s = (array) $this->get_settings_for_display();
+		return \Digitalisimo\Elements\Front\Facades::depends( 'media' === ( $s['source'] ?? 'template' ) && 'embed' === ( $s['media_type'] ?? 'image' ) && '' !== (string) ( $s['media_url']['url'] ?? '' ) );
+	}
+
+	/** ¿Están aplicadas las fachadas en esta petición? */
+	private static function facades() {
+		return class_exists( '\\Digitalisimo\\Elements\\Front\\Facades' ) && \Digitalisimo\Elements\Front\Facades::active();
+	}
+
+	/** Trabajo de la portada de un vídeo de YouTube o Vimeo insertado (caché de elementos), o []. */
+	public static function facade_jobs( array $settings ) {
+		if ( 'media' !== ( $settings['source'] ?? 'template' ) || 'embed' !== ( $settings['media_type'] ?? 'image' ) || ! class_exists( '\\Digitalisimo\\Elements\\Front\\Facade_Images' ) ) { return array(); }
+		$video = self::embed_video( (string) ( $settings['media_url']['url'] ?? '' ) );
+		$job   = $video ? \Digitalisimo\Elements\Front\Facade_Images::video( $video[0], $video[1] ) : array();
+		return $job ? array( $job ) : array();
+	}
+
+	/** Servicio e ID de un enlace de YouTube o Vimeo, o []. */
+	private static function embed_video( $url ) {
+		if ( preg_match( '~(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)([\w-]{11})~', $url, $m ) ) { return array( 'youtube', $m[1] ); }
+		if ( preg_match( '~vimeo\.com/(?:video/)?(\d+)~', $url, $m ) ) { return array( 'vimeo', $m[1] ); }
+		return array();
+	}
 
 	private static function template_options() {
 		if ( ! function_exists( 'is_admin' ) || ! is_admin() || ! function_exists( 'post_type_exists' ) || ! post_type_exists( 'elementor_library' ) ) { return array(); }
@@ -117,13 +146,30 @@ class Offcanvas_Widget extends \Elementor\Widget_Base {
 		if ( '' === $url ) { return ''; }
 		if ( 'image' === $type ) { return Image_Markup::img( array( 'url' => $url ), array( 'class' => 'digi-offcanvas__media', 'alt_exact' => $label ) ); }
 		if ( 'video' === $type ) { return '<video class="digi-offcanvas__media" src="' . esc_url( $url ) . '" controls playsinline></video>'; }
-		if ( preg_match( '~(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)([\w-]{11})~', $url, $m ) ) {
-			$url = 'https://www.youtube-nocookie.com/embed/' . $m[1];
-		} elseif ( preg_match( '~vimeo\.com/(?:video/)?(\d+)~', $url, $m ) ) {
-			$url = 'https://player.vimeo.com/video/' . $m[1];
+		$video = self::embed_video( $url );
+		if ( $video ) {
+			$url = 'youtube' === $video[0] ? 'https://www.youtube-nocookie.com/embed/' . $video[1] : 'https://player.vimeo.com/video/' . $video[1];
+		}
+		if ( self::facades() ) {
+			return self::media_facade( esc_url_raw( $url, array( 'https' ) ), $label, $video );
 		}
 		$url = esc_url( $url, array( 'https' ) );
 		return '' === $url ? '' : Image_Markup::preconnect( $url ) . '<iframe class="digi-offcanvas__media digi-offcanvas__media--embed" src="' . $url . '" title="' . esc_attr( $label ) . '" loading="lazy" allowfullscreen></iframe>';
+	}
+
+	/**
+	 * Fachada del contenido insertado: la portada de un vídeo de YouTube o Vimeo (que arranca al pulsar) o, para otro
+	 * sitio, un botón que nombra su dominio.
+	 */
+	private static function media_facade( $src, $label, array $video ) {
+		if ( '' === $src ) { return ''; }
+		$class = 'digi-offcanvas__media digi-offcanvas__media--embed';
+		if ( $video ) {
+			return \Digitalisimo\Elements\Front\Facades::video( $src, $label, $class, \Digitalisimo\Elements\Front\Facade_Images::video( $video[0], $video[1] ) );
+		}
+		$host = (string) wp_parse_url( $src, PHP_URL_HOST );
+		$text = 'Cargar el contenido de ' . $host;
+		return \Digitalisimo\Elements\Front\Facades::markup( 'embed', array( 'src' => $src, 'title' => $label, 'class' => $class, 'fullscreen' => true ), array( 'name' => $text . ': ' . $label, 'label' => $text ) );
 	}
 
 	private static function sidebar_content( $sidebar ) {

@@ -8,6 +8,8 @@
 # F7b: el slider anidado ligero (teclado, inert, aria-current, 24 px), las pestañas y el acordeón anidados con
 # presentación (clase, foco visible, 24 px) y el formulario condicional; en el editor, la búsqueda «diapositivas».
 # Uso: bash tests/playground/interaction.sh   (PUPPETEER_PATH apunta al node_modules con puppeteer-core)
+# FACADES=1 aplica las fachadas de «Rendimiento» (Fase 3 del front) y repite todo el recorrido con ellas: las
+# comprobaciones de siempre deben seguir pasando; la galería de vídeos empieza con la portada de YouTube y no le pide nada.
 # CORE=bundled no instala el plugin Elementor: todo corre sobre el núcleo incluido en DIGITALÍSIMO Elements, que se
 # activa con él, y además se abre el editor de Elementor como administrador (sin errores ni recursos 404).
 # WooCommerce es el fijado de tests/playground/woocommerce-pin.sh (11.2.1 de reference/, con su sha256, montado; WOO_ZIP
@@ -29,6 +31,8 @@ WOO_MOUNT=()
 cp "$ROOT/tests/playground/interaction/cases.json" "$OUT/cases.json"
 cp "$ROOT/tests/playground/interaction/setup.php" "$OUT/setup.php"
 cp "$ROOT/tests/playground/interaction/transition.php" "$OUT/transition.php"
+rm -f "$OUT/facades.flag"
+[ "${FACADES:-}" = 1 ] && touch "$OUT/facades.flag"
 ELEMENTOR_STEP='{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"elementor"},"options":{"activate":true}},'
 [ "${CORE:-}" = "bundled" ] && ELEMENTOR_STEP=''
 cat > "$OUT/blueprint.json" <<JSON
@@ -54,4 +58,4 @@ for i in $(seq 1 200); do
 done
 curl -s -m 20 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/digi-ix-bdt-accordion/" | grep -q '^200$' || { echo 'El servidor no sirvió las páginas de prueba'; tail -20 "$OUT/server.log"; exit 1; }
 [ -f "$OUT/setup-error.txt" ] && { echo "Preparación incompleta:"; cat "$OUT/setup-error.txt"; exit 1; }
-OUT="$OUT" CORE="${CORE:-}" NODE_PATH="$PUPPETEER_PATH" node "$ROOT/tests/playground/interaction/run.cjs" "http://127.0.0.1:$PORT"
+OUT="$OUT" CORE="${CORE:-}" FACADES="${FACADES:-}" NODE_PATH="$PUPPETEER_PATH" node "$ROOT/tests/playground/interaction/run.cjs" "http://127.0.0.1:$PORT"

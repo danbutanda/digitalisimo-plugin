@@ -8,7 +8,8 @@ require_once __DIR__ . '/class-carousel-engine.php';
 /**
  * Capturas en marco de dispositivo con el motor nativo compartido. Cada diapositiva puede ser una imagen,
  * un color, un vídeo MP4 o un vídeo de YouTube; los vídeos se reproducen silenciados y en bucle, con
- * controles para poder pausarlos.
+ * controles para poder pausarlos. Con las fachadas de «Rendimiento» (`Front\Facades`), un vídeo de YouTube se pinta
+ * como portada con un botón y YouTube no recibe ninguna petición hasta que se pulsa.
  */
 class Device_Slider_Widget extends \Elementor\Widget_Base {
 	public function get_name() { return 'digitalisimo-device-slider'; }
@@ -16,12 +17,38 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 	public function get_icon() { return 'eicon-slider-device'; }
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'dispositivo', 'capturas', 'slider', 'móvil' ); }
-	public function get_style_depends() { return array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider' ); }
-	/** El motor sólo mueve las flechas: sin navegación no se carga. */
+	/** La hoja de la fachada sólo se añade con una diapositiva de YouTube. */
+	public function get_style_depends() {
+		$facade = method_exists( $this, 'is_type_instance' ) && ! $this->is_type_instance() && method_exists( $this, 'get_settings_for_display' ) ? self::facade_depends( (array) $this->get_settings_for_display() ) : array();
+		return array_merge( array( 'digitalisimo-carousel-engine', 'digitalisimo-device-slider' ), $facade );
+	}
+	/** El motor sólo mueve las flechas: sin navegación no se carga. El script de la fachada, sólo con YouTube. */
 	public function get_script_depends() {
 		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) { return array( 'digitalisimo-carousel-engine' ); }
 		$s = (array) $this->get_settings();
-		return 'none' === ( $s['navigation'] ?? 'arrows' ) ? array() : array( 'digitalisimo-carousel-engine' );
+		return array_merge( 'none' === ( $s['navigation'] ?? 'arrows' ) ? array() : array( 'digitalisimo-carousel-engine' ), method_exists( $this, 'get_settings_for_display' ) ? self::facade_depends( (array) $this->get_settings_for_display() ) : array() );
+	}
+
+	/** ¿Están aplicadas las fachadas en esta petición? */
+	private static function facades() {
+		return class_exists( '\\Digitalisimo\\Elements\\Front\\Facades' ) && \Digitalisimo\Elements\Front\Facades::active();
+	}
+
+	/** Trabajos de las portadas de las diapositivas de YouTube (caché de elementos y dependencias). */
+	public static function facade_jobs( array $settings ) {
+		if ( ! class_exists( '\\Digitalisimo\\Elements\\Front\\Facade_Images' ) ) { return array(); }
+		$jobs = array();
+		foreach ( self::items( $settings ) as $item ) {
+			if ( 'youtube' === $item['background'] ) { $jobs[] = \Digitalisimo\Elements\Front\Facade_Images::video( 'youtube', self::youtube_id( $item['youtube_url'] ?? '' ) ); }
+		}
+		return array_values( array_filter( $jobs ) );
+	}
+
+	private static function facade_depends( array $settings ) {
+		if ( ! self::facades() ) { return array(); }
+		$youtube = false;
+		foreach ( self::items( $settings ) as $item ) { $youtube = $youtube || 'youtube' === $item['background']; }
+		return \Digitalisimo\Elements\Front\Facades::depends( $youtube );
 	}
 
 	protected function register_controls() {
@@ -86,7 +113,10 @@ class Device_Slider_Widget extends \Elementor\Widget_Base {
 				$markup = '<video class="digi-device-slider__video" src="' . esc_url( $item['video']['url'] ) . '" autoplay muted loop playsinline controls preload="metadata"' . ( '' !== $title ? ' aria-label="' . esc_attr( $title ) . '"' : '' ) . '></video>';
 			} elseif ( 'youtube' === $item['background'] ) {
 				$yt = self::youtube_id( $item['youtube_url'] ?? '' );
-				$markup = Image_Markup::preconnect( 'https://www.youtube-nocookie.com/' ) . '<iframe class="digi-device-slider__video" src="' . esc_url( 'https://www.youtube-nocookie.com/embed/' . $yt . '?autoplay=1&mute=1&loop=1&playlist=' . $yt . '&playsinline=1&rel=0' ) . '" title="' . esc_attr( '' !== $title ? $title : 'Vídeo de YouTube' ) . '" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen' . ( $index > 0 ? ' loading="lazy"' : '' ) . '></iframe>';
+				$src = 'https://www.youtube-nocookie.com/embed/' . $yt . '?autoplay=1&mute=1&loop=1&playlist=' . $yt . '&playsinline=1&rel=0';
+				$markup = self::facades()
+					? \Digitalisimo\Elements\Front\Facades::video( $src, '' !== $title ? $title : 'Vídeo de YouTube', 'digi-device-slider__video', \Digitalisimo\Elements\Front\Facade_Images::video( 'youtube', $yt ), 'autoplay; encrypted-media; picture-in-picture' )
+					: Image_Markup::preconnect( 'https://www.youtube-nocookie.com/' ) . '<iframe class="digi-device-slider__video" src="' . esc_url( $src ) . '" title="' . esc_attr( '' !== $title ? $title : 'Vídeo de YouTube' ) . '" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen' . ( $index > 0 ? ' loading="lazy"' : '' ) . '></iframe>';
 			} else {
 				$markup = Image_Markup::img( $item['image'], array( 'size' => $size, 'class' => 'digi-device-slider__image', 'alt' => $title, 'columns' => array( 1 ) ) );
 			}

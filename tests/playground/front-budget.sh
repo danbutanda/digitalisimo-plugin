@@ -17,7 +17,7 @@
 #   EXPECT=0         sólo mide: no exige `expect` ni compara (medición «antes» de una versión sin la puerta)
 #   CASES=a,b        casos a medir (por defecto, los del modo: los que lo nombran en `modes`; sin `modes`, sólo normal)
 #   LIGHTHOUSE_PATH  carpeta node_modules con lighthouse 13.5.0 (por defecto la de puppeteer-core); otra versión falla
-#   Modos: CACHE=1 · CORE=plugin · SEO=1|guard · THEME=1 · MIGRATION=1 · LAZY=1 · V4=1 · WOO=1 ·
+#   Modos: CACHE=1 · CORE=plugin · SEO=1|guard · THEME=1 · MIGRATION=1 · LAZY=1 · V4=1 · WOO=1 · FACADES=1 ·
 #          DEFAULTS=old|old-applied|old-dirty|old-inactive|off (se combinan: DEFAULTS=old-applied CACHE=1)
 #   WOO=1            WooCommerce activo, con productos, categorías y un variable (F4-Woo, V.16.3): sólo los casos con
 #                    «woo» en `modes`; la página de referencia es `woo-empty` (se mide en toda combinación, también
@@ -30,6 +30,10 @@
 #                    estado de recién instalado (`woocommerce_newly_installed` = no: sin mini carrito del tema a mitad
 #                    de corrida). Una corrida completa con WOO=1 tarda unos 8,5 min; con CACHE=1 o CORE=plugin, partirla
 #                    con CASES (con woo-empty en cada parte; la primera página medida paga el favicon)
+#   FACADES=1        fachadas (`facades`, Fase 3) aplicadas: sólo los casos con «facades» en `modes` y la página vacía.
+#                    Un mu-plugin sirve teselas y portadas generadas para tile.openstreetmap.org, i.ytimg.com y el oEmbed
+#                    de Vimeo (ninguna descarga sale del Playground) y setup.php guarda de antemano las imágenes de los
+#                    casos que las piden (`facade_images`); `facade-map-pending` mide la fachada sin imagen.
 #   WOO_ZIP          WooCommerce fijado (tests/playground/woocommerce-pin.sh): por defecto reference/woocommerce.11.2.1.zip,
 #                    comprobado con su sha256 y montado; sin copia local, la última de wordpress.org (anotado en el resumen)
 #   ELEMENTOR_PIN    versión del plugin Elementor de CORE=plugin (por defecto 4.3.5, la del núcleo incluido)
@@ -51,7 +55,7 @@ CLI="${PLAYGROUND_CLI:-npx --yes @wp-playground/cli@3.1.56}"
 ELEMENTS_DIR="${ELEMENTS_DIR:-$ROOT/digitalisimo-elements}"
 BASELINE_FILE="${BASELINE_FILE:-$ROOT/tests/playground/front-budget/baseline.json}"
 ELEMENTOR_PIN="${ELEMENTOR_PIN:-4.3.5}"
-CACHE="${CACHE:-}" CORE="${CORE:-bundled}" SEO="${SEO:-}" THEME="${THEME:-}" MIGRATION="${MIGRATION:-}" LAZY="${LAZY:-}" V4="${V4:-}" DEFAULTS="${DEFAULTS:-}" WOO="${WOO:-}"
+CACHE="${CACHE:-}" CORE="${CORE:-bundled}" SEO="${SEO:-}" THEME="${THEME:-}" MIGRATION="${MIGRATION:-}" LAZY="${LAZY:-}" V4="${V4:-}" DEFAULTS="${DEFAULTS:-}" WOO="${WOO:-}" FACADES="${FACADES:-}"
 PUPPETEER_PATH="${PUPPETEER_PATH:-$(ls -d "$HOME"/.npm/_npx/*/node_modules 2>/dev/null | while read -r d; do [ -d "$d/puppeteer-core" ] && echo "$d" && break; done)}"
 [ -n "$PUPPETEER_PATH" ] || { echo "No se encontró puppeteer-core: exportar PUPPETEER_PATH"; exit 1; }
 LIGHTHOUSE_PATH="${LIGHTHOUSE_PATH:-$PUPPETEER_PATH}"
@@ -75,6 +79,7 @@ PARTS=()
 [ "${LAZY:-0}" = 1 ] && PARTS+=(lazy)
 [ "${V4:-0}" = 1 ] && PARTS+=(v4)
 [ -n "$WOO" ] && PARTS+=(woo)
+[ "${FACADES:-0}" = 1 ] && PARTS+=(facades)
 [ -n "$DEFAULTS" ] && PARTS+=("$DEFAULTS")
 [ "${CACHE:-0}" = 1 ] && PARTS+=(cache)
 MODE_LABEL="$(IFS=+; echo "${PARTS[*]:-normal}")"
@@ -106,7 +111,7 @@ free_port "$PORT"
 mkdir -p "$OUT" "$TMPDIR"
 rm -f "$OUT"/*.png "$OUT/setup-error.txt" "$OUT/setup-notes.txt" "$OUT/fatal.log" "$OUT/ready.txt" "$OUT/server.log" "$OUT/queries.jsonl" "$OUT/markers.json"
 rm -rf "$OUT/pages"
-cp "$ROOT/tests/playground/front-budget/"{cases.json,setup.php,activate.php,lib.php,probe.php,digi-medicion.mp4} "$OUT/"
+cp "$ROOT/tests/playground/front-budget/"{cases.json,setup.php,activate.php,lib.php,probe.php,digi-medicion.mp4,facades-http.php} "$OUT/"
 
 # Copia fija de lo que se mide (como kit-roundtrip.sh): un cambio a mitad de corrida no mezcla versiones.
 if [ "${LIVE:-0}" = 1 ]; then
@@ -143,9 +148,9 @@ STEPS+=('{"step":"runPHP","code":"<?php require '"'"'/wordpress/wp-content/probe
 printf '{"steps":[%s]}\n' "$(IFS=,; echo "${STEPS[*]}")" > "$OUT/blueprint.json"
 
 node -e '
-const [out, label, parts, token, core, seo, theme, migration, lazy, v4, defaults, cache, network, host, pin, woo] = process.argv.slice(1);
-require("fs").writeFileSync(out + "/mode.json", JSON.stringify({ label, parts: parts ? parts.split(",") : [], token, core, seo, theme: theme === "1", migration: migration === "1", lazy: lazy === "1", v4: v4 === "1", defaults, cache: cache === "1", network: network === "1", host, elementor_pin: pin, woo: woo === "1" }, null, 1));
-' "$OUT" "$MODE_LABEL" "$(IFS=,; echo "${PARTS[*]:-}")" "$TOKEN" "$CORE" "$SEO" "${THEME:-0}" "${MIGRATION:-0}" "${LAZY:-0}" "${V4:-0}" "$DEFAULTS" "${CACHE:-0}" "$NETWORK" "$SITE_HOST" "$ELEMENTOR_PIN" "$([ -n "$WOO" ] && echo 1 || echo 0)"
+const [out, label, parts, token, core, seo, theme, migration, lazy, v4, defaults, cache, network, host, pin, woo, facades] = process.argv.slice(1);
+require("fs").writeFileSync(out + "/mode.json", JSON.stringify({ label, parts: parts ? parts.split(",") : [], token, core, seo, theme: theme === "1", migration: migration === "1", lazy: lazy === "1", v4: v4 === "1", defaults, cache: cache === "1", network: network === "1", host, elementor_pin: pin, woo: woo === "1", facades: facades === "1" }, null, 1));
+' "$OUT" "$MODE_LABEL" "$(IFS=,; echo "${PARTS[*]:-}")" "$TOKEN" "$CORE" "$SEO" "${THEME:-0}" "${MIGRATION:-0}" "${LAZY:-0}" "${V4:-0}" "$DEFAULTS" "${CACHE:-0}" "$NETWORK" "$SITE_HOST" "$ELEMENTOR_PIN" "$([ -n "$WOO" ] && echo 1 || echo 0)" "${FACADES:-0}"
 
 MOUNTS=(--mount="$SRC_ELEMENTS:/wordpress/wp-content/plugins/digitalisimo-elements" --mount="$OUT/fake-addon:/wordpress/wp-content/plugins/digi-fb-fake-addon" --mount="$OUT:/wordpress/wp-content/probe")
 [ -n "$SEO" ] && MOUNTS+=(--mount="$SRC/digitalisimo-seo:/wordpress/wp-content/plugins/digitalisimo-seo")

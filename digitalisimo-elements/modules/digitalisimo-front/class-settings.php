@@ -4,7 +4,8 @@ namespace Digitalisimo\Elements\Front;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Ajustes de rendimiento del front (§3.2): seis interruptores booleanos, por sitio y por red, más los de privacidad
+ * Ajustes de rendimiento del front (§3.2): ocho interruptores booleanos (`KEYS`: los seis de la Fase 2, `lazy_videos` y
+ * `facades` de la Fase 3), por sitio y por red, más los de privacidad
  * (F7a: `page_visits_no_consent`, «Registrar visitas sin gestor de consentimiento»).
  *
  * Paridad sitio/red, los cuatro puntos de `AGENTS.md` trasladados a Elements, para todas las claves (`keys()`):
@@ -27,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
 final class Settings {
 	const OPTION         = 'digitalisimo_elements_front';
 	const NETWORK_OPTION = 'digitalisimo_elements_front_defaults';
-	const KEYS           = array( 'pro_conditional', 'font_swap', 'svg_icons', 'lazy_libs', 'lazy_videos', 'element_cache_off', 'image_loading_off' );
+	const KEYS           = array( 'pro_conditional', 'font_swap', 'svg_icons', 'lazy_libs', 'lazy_videos', 'facades', 'element_cache_off', 'image_loading_off' );
 
 	/** Claves de la sección «Privacidad» (F7a): fuera de la transición y de su huella. */
 	const PRIVACY_KEYS = array( 'page_visits_no_consent' );
@@ -42,6 +43,7 @@ final class Settings {
 		'svg_icons'              => 'Iconos en línea (SVG)',
 		'lazy_libs'              => 'Cargar Lottie y el resaltado de código al acercarse a la pantalla',
 		'lazy_videos'            => 'Cargar los vídeos de fondo y con reproducción automática al acercarse a la pantalla',
+		'facades'                => 'Cargar los vídeos, mapas y documentos incrustados al pulsarlos',
 		'element_cache_off'      => 'Desactivar la caché de elementos donde el sitio no la eligió',
 		'image_loading_off'      => 'Desactivar la carga optimizada de imágenes donde el sitio no la eligió',
 		'page_visits_no_consent' => 'Registrar visitas sin gestor de consentimiento',
@@ -56,6 +58,7 @@ final class Settings {
 		'svg_icons'              => 'Los iconos se pintan como SVG y no se cargan las fuentes de iconos. Nunca se aplican solos en un sitio que ya existe: se analizan antes y se aplican con «Aplicar».',
 		'lazy_libs'              => 'La animación y el resaltado de código piden su librería cuando el elemento está a una pantalla de distancia. Una animación visible al abrir la página puede tardar un poco más en empezar.',
 		'lazy_videos'            => 'Los vídeos MP4 de fondo de contenedores y secciones, y los del widget Vídeo con archivo alojado y reproducción automática, no se descargan hasta que el elemento está a una pantalla de distancia; entonces arrancan solos, como siempre. Los de YouTube y Vimeo no cambian (el widget Vídeo ya tiene «Lazy Load» para ellos).',
+		'facades'                => 'El Reproductor de video, el Slider de dispositivos, el Panel lateral, el Mapa y el Visor de documentos muestran una portada con un botón en lugar del reproductor, el mapa o el visor de otro sitio: la página no pide nada a YouTube, Vimeo, Dailymotion, Wistia, OpenStreetMap ni al visor hasta que el visitante pulsa. La portada de cada vídeo y la imagen de cada mapa se descargan una sola vez al servidor, en segundo plano, y se sirven desde el sitio. El widget Vídeo del constructor no cambia.',
 		'element_cache_off'      => 'El constructor vuelve a pintar cada elemento en cada visita, como antes de su caché. Sólo donde el sitio no eligió el valor en los ajustes del constructor.',
 		'image_loading_off'      => 'Las imágenes dejan de recibir la prioridad y la carga diferida que decide el constructor. Sólo donde el sitio no eligió el valor en los ajustes del constructor.',
 		'page_visits_no_consent' => 'La condición «Visitó una página» recuerda en una cookie propia del sitio qué páginas abrió el visitante. Con la WP Consent API sólo se escribe si el visitante aceptó las cookies de preferencias; sin ella, sólo si activas esta opción. Actívala sólo si tu aviso de privacidad cubre esa cookie.',
@@ -78,6 +81,7 @@ final class Settings {
 			'svg_icons'              => false,
 			'lazy_libs'              => false,
 			'lazy_videos'            => false,
+			'facades'                => false,
 			'element_cache_off'      => false,
 			'image_loading_off'      => false,
 			'page_visits_no_consent' => false,

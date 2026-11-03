@@ -358,7 +358,7 @@ namespace {
 
 	// 2. Efectivo según el contexto.
 	tr_reset();
-	$check( array( 'pro_conditional' => true, 'font_swap' => true, 'svg_icons' => false, 'lazy_libs' => false, 'lazy_videos' => false, 'element_cache_off' => false, 'image_loading_off' => false ) === Transition::effective(), 'Efectivo con el núcleo incluido y sin filas del núcleo: los neutros.' );
+	$check( array( 'pro_conditional' => true, 'font_swap' => true, 'svg_icons' => false, 'lazy_libs' => false, 'lazy_videos' => false, 'facades' => false, 'element_cache_off' => false, 'image_loading_off' => false ) === Transition::effective(), 'Efectivo con el núcleo incluido y sin filas del núcleo: los neutros.' );
 	$GLOBALS['tr']['site'][ $network ] = array( 'element_cache_off' => true, 'image_loading_off' => true, 'lazy_libs' => true, 'svg_icons' => true );
 	$effective = Transition::effective();
 	$check( true === $effective['element_cache_off'] && true === $effective['image_loading_off'] && true === $effective['lazy_libs'] && false === $effective['svg_icons'], 'Lo heredado de la red rige; los iconos heredados esperan al análisis.' );

@@ -66,6 +66,7 @@ jobs:
           node tests/elements-popup-counter.mjs
           php tests/elements-front-settings.php
           php tests/elements-lazy-videos.php
+          php tests/elements-facades.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php

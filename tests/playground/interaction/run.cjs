@@ -1,6 +1,8 @@
 // Interacciones en navegador real (Chrome sin interfaz) sobre páginas con widgets heredados sin Element Pack.
 const puppeteer = require('puppeteer-core');
 const base = process.argv[2];
+// FACADES=1: el sitio tiene las fachadas aplicadas (Fase 3 del front); sólo cambia lo esperado de los vídeos incrustados.
+const FACADES = process.env.FACADES === '1';
 const checks = {
   'bdt-accordion': async (page) => {
     const items = await page.$$('details.digi-accordion__item');
@@ -162,9 +164,13 @@ checks['bdt-hover-video'] = async (page) => {
 // Element Pack y no se pinta. El escenario sólo contiene el vídeo actual (la preconexión va antes del reproductor),
 // y cambiar de vídeo lo sustituye sin dejar el anterior debajo.
 checks['bdt-video-gallery'] = async (page) => {
-  const stage = () => page.$eval('.digi-video-player__stage', (s) => ({ children: s.children.length, tag: s.firstElementChild.tagName, src: s.firstElementChild.getAttribute('src'), now: (document.querySelector('.digi-video-player__now-title') || {}).textContent }));
+  const stage = () => page.$eval('.digi-video-player__stage', (s) => ({ children: s.children.length, tag: s.firstElementChild.tagName, src: s.firstElementChild.getAttribute('src'), facade: (s.firstElementChild.querySelector('[data-digi-facade-src]') || { getAttribute: () => '' }).getAttribute('data-digi-facade-src'), now: (document.querySelector('.digi-video-player__now-title') || {}).textContent }));
   const before = await stage();
-  if (before.children !== 1 || before.tag !== 'IFRAME' || !before.src.includes('youtube-nocookie.com/embed/aqz-KE-bpKQ') || before.now !== 'Youtube Video') throw new Error(`al cargar debe verse sólo el primer vídeo, de YouTube: ${JSON.stringify(before)}`);
+  if (FACADES) {
+    // Con las fachadas el primer vídeo es una portada con su botón: el iframe de YouTube sólo existe tras pulsarlo.
+    const frames = await page.$$eval('iframe', (list) => list.length);
+    if (before.children !== 1 || before.tag !== 'DIV' || !before.facade.includes('youtube-nocookie.com/embed/aqz-KE-bpKQ') || frames !== 0 || before.now !== 'Youtube Video') throw new Error(`al cargar debe verse la portada del primer vídeo, de YouTube, sin iframe: ${JSON.stringify(before)}`);
+  } else if (before.children !== 1 || before.tag !== 'IFRAME' || !before.src.includes('youtube-nocookie.com/embed/aqz-KE-bpKQ') || before.now !== 'Youtube Video') throw new Error(`al cargar debe verse sólo el primer vídeo, de YouTube: ${JSON.stringify(before)}`);
   await page.click('li:nth-child(2) .digi-video-player__item');
   await page.waitForFunction(() => document.querySelector('.digi-video-player__now-title').textContent === 'Vimeo Video', { timeout: 3000 });
   const vimeo = await stage();

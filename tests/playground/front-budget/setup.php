@@ -556,6 +556,22 @@ if ( 'guard' === ( $mode['seo'] ?? '' ) && isset( \Elementor\Plugin::$instance->
 		digi_fb_fail( 'SEO=guard: no hay kit activo' );
 	}
 }
+// FACADES=1: las imágenes que piden los casos (`facade_images`: portadas de vídeo y mapas) se guardan de antemano con el
+// editor de imágenes y GD de este WordPress, como lo haría su evento en cola; las descargas las sirve el mu-plugin
+// digi-fb-facades-http.php. Un caso sin `facade_images` mide la fachada con la imagen pendiente.
+$digi_fb_images = '\Digitalisimo\Elements\Front\Facade_Images';
+if ( ! empty( $mode['facades'] ) && ! class_exists( $digi_fb_images ) ) {
+	digi_fb_fail( 'FACADES=1: no existe Front\\Facade_Images en esta versión' );
+} elseif ( ! empty( $mode['facades'] ) ) {
+	foreach ( $cases as $slug => $case ) {
+		foreach ( (array) ( $case['facade_images'] ?? array() ) as $job ) {
+			$job = 'map' === ( $job['kind'] ?? '' ) ? $digi_fb_images::map( (float) $job['lat'], (float) $job['lng'], (int) $job['zoom'] ) : $digi_fb_images::video( (string) $job['service'], (string) $job['id'] );
+			if ( ! $job || ! $digi_fb_images::run( $job ) ) {
+				digi_fb_fail( 'FACADES=1: no se guardó la imagen de ' . $slug . ' (' . wp_json_encode( $job ) . ')' );
+			}
+		}
+	}
+}
 flush_rewrite_rules( false );
 // El primer paso cargó WordPress antes de que existiera la sonda: su WP-Cron dejó el cerrojo `doing_cron` (60 s) con un
 // lazo de red que Playground no atiende. Se suelta para que el arnés pueda ejecutar wp-cron.php en cuanto arranque.

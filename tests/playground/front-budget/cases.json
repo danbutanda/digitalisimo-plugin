@@ -13,7 +13,9 @@
    "old-applied",
    "old-dirty",
    "old-inactive",
-   "off"
+   "off",
+   "facades",
+   "facades+cache"
   ],
   "expect": {
    "*": {
@@ -6119,6 +6121,620 @@
     "delta.js": "<=0",
     "delta.css": "<=8",
     "delta.cls": "<=0"
+   }
+  }
+ },
+ "facade-video": {
+  "title": "Reproductor de video (YouTube) con fachadas (Fase 3): portada servida por el sitio y botón con nombre accesible; YouTube no recibe ninguna petición hasta pulsar Intro, y entonces el iframe arranca y recibe el foco",
+  "since": "4.3.0.171",
+  "modes": [
+   "facades",
+   "facades+cache"
+  ],
+  "widgets": [
+   {
+    "type": "digitalisimo-video-player",
+    "settings": {
+     "source": "embed",
+     "embed_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+     "title": "Vídeo de medición"
+    }
+   }
+  ],
+  "facade_images": [
+   {
+    "kind": "video",
+    "service": "youtube",
+    "id": "dQw4w9WgXcQ"
+   }
+  ],
+  "assets": {
+   "facade-js": "/digitalisimo-front/assets/facade\\.js",
+   "facade-css": "/digitalisimo-front/assets/facade\\.css",
+   "cover": "/digitalisimo-elements/facades/youtube-dQw4w9WgXcQ\\.(webp|jpg)"
+  },
+  "calls": {
+   "service": "youtube|ytimg|googlevideo|ggpht|doubleclick"
+  },
+  "counts": {
+   "facade": ".digi-facade[data-digi-facade]",
+   "frames": "iframe",
+   "cover": ".digi-facade > img.digi-facade__image[alt=\"\"]",
+   "button": "button.digi-facade__button[aria-label=\"Reproducir el vídeo: Vídeo de medición\"]",
+   "focused": "iframe:focus",
+   "player": "iframe.digi-video-player__embed[src^=\"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0\"][src*=\"autoplay=1\"][allowfullscreen]"
+  },
+  "actions": [
+   {
+    "do": "press",
+    "selector": ".digi-facade__button",
+    "key": "Enter"
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "count:frames": 0,
+    "call:service": "<=0",
+    "asset:facade-js": "<=1024",
+    "asset:facade-css": "<=1536",
+    "delta.cls": "<=0",
+    "count:facade": 1,
+    "count:cover": 1,
+    "count:button": 1,
+    "asset:cover": ">0",
+    "after": {
+     "count:facade": 0,
+     "count:player": 1,
+     "count:focused": 1,
+     "call:service": ">0"
+    }
+   }
+  }
+ },
+ "facade-playlist": {
+  "title": "Lista de vídeos con fachadas: el primero (YouTube) es una portada; pasar el cursor por el de Vimeo no lo carga y pulsar el archivo lo reproduce sin pedir nada a ningún servicio",
+  "since": "4.3.0.171",
+  "modes": [
+   "facades",
+   "facades+cache"
+  ],
+  "widgets": [
+   {
+    "type": "digitalisimo-video-player",
+    "settings": {
+     "playlist_trigger": "hover",
+     "playlist_caption": "yes",
+     "playlist": [
+      {
+       "_id": "fp1",
+       "source": "embed",
+       "embed_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+       "title": "YouTube"
+      },
+      {
+       "_id": "fp2",
+       "source": "embed",
+       "embed_url": "https://vimeo.com/76979871",
+       "title": "Vimeo"
+      },
+      {
+       "_id": "fp3",
+       "source": "url",
+       "video_url": {
+        "url": "__VIDEO__"
+       },
+       "title": "Archivo"
+      }
+     ]
+    }
+   }
+  ],
+  "facade_images": [
+   {
+    "kind": "video",
+    "service": "youtube",
+    "id": "dQw4w9WgXcQ"
+   }
+  ],
+  "assets": {
+   "facade-js": "/digitalisimo-front/assets/facade\\.js",
+   "facade-css": "/digitalisimo-front/assets/facade\\.css"
+  },
+  "calls": {
+   "service": "youtube|ytimg|googlevideo|ggpht|doubleclick|vimeo|vimeocdn"
+  },
+  "counts": {
+   "facade": ".digi-facade[data-digi-facade]",
+   "frames": "iframe",
+   "marked": ".digi-video-player[data-digi-playlist-facade]",
+   "file": ".digi-video-player__stage > video",
+   "now": ".digi-video-player__now-title"
+  },
+  "actions": [
+   {
+    "do": "hover",
+    "selector": "li:nth-child(2) .digi-video-player__item"
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   },
+   {
+    "do": "click",
+    "selector": "li:nth-child(3) .digi-video-player__item"
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "count:frames": 0,
+    "call:service": "<=0",
+    "asset:facade-js": "<=1024",
+    "asset:facade-css": "<=1536",
+    "delta.cls": "<=0",
+    "count:facade": 1,
+    "count:marked": 1,
+    "after": {
+     "count:facade": 0,
+     "count:frames": 0,
+     "count:file": 1,
+     "call:service": "<=0"
+    }
+   }
+  }
+ },
+ "facade-device": {
+  "title": "Slider de dispositivos con una diapositiva de YouTube y fachadas: portada y botón; al pulsar, el vídeo silenciado en bucle de siempre",
+  "since": "4.3.0.171",
+  "modes": [
+   "facades",
+   "facades+cache"
+  ],
+  "widgets": [
+   {
+    "type": "digitalisimo-device-slider",
+    "settings": {
+     "device_type": "desktop",
+     "navigation": "none",
+     "slides": [
+      {
+       "_id": "fd1",
+       "background": "youtube",
+       "youtube_url": "https://youtu.be/dQw4w9WgXcQ",
+       "title": "Demostración"
+      }
+     ]
+    }
+   }
+  ],
+  "facade_images": [
+   {
+    "kind": "video",
+    "service": "youtube",
+    "id": "dQw4w9WgXcQ"
+   }
+  ],
+  "assets": {
+   "facade-js": "/digitalisimo-front/assets/facade\\.js",
+   "facade-css": "/digitalisimo-front/assets/facade\\.css"
+  },
+  "calls": {
+   "service": "youtube|ytimg|googlevideo|ggpht|doubleclick"
+  },
+  "counts": {
+   "facade": ".digi-facade[data-digi-facade]",
+   "frames": "iframe",
+   "cover": ".digi-facade > img.digi-facade__image",
+   "player": "iframe.digi-device-slider__video[src*=\"autoplay=1&mute=1&loop=1\"]"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".digi-facade__button"
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "count:frames": 0,
+    "call:service": "<=0",
+    "asset:facade-js": "<=1024",
+    "asset:facade-css": "<=1536",
+    "delta.cls": "<=0",
+    "count:facade": 1,
+    "count:cover": 1,
+    "after": {
+     "count:facade": 0,
+     "count:player": 1,
+     "call:service": ">0"
+    }
+   }
+  }
+ },
+ "facade-offcanvas": {
+  "title": "Panel lateral con un vídeo de Vimeo y fachadas: ni el panel oculto ni su apertura piden nada a Vimeo (sin fachada, Chrome descarga el iframe oculto al abrir la página)",
+  "since": "4.3.0.171",
+  "modes": [
+   "facades",
+   "facades+cache"
+  ],
+  "widgets": [
+   {
+    "type": "digitalisimo-offcanvas",
+    "settings": {
+     "source": "media",
+     "media_type": "embed",
+     "media_url": {
+      "url": "https://vimeo.com/76979871"
+     },
+     "button_text": "Abrir vídeo",
+     "panel_label": "Vídeo de medición"
+    }
+   }
+  ],
+  "facade_images": [
+   {
+    "kind": "video",
+    "service": "vimeo",
+    "id": "76979871"
+   }
+  ],
+  "assets": {
+   "facade-js": "/digitalisimo-front/assets/facade\\.js",
+   "facade-css": "/digitalisimo-front/assets/facade\\.css"
+  },
+  "calls": {
+   "service": "vimeo|vimeocdn"
+  },
+  "counts": {
+   "facade": ".digi-facade[data-digi-facade]",
+   "frames": "iframe",
+   "visible": ".digi-offcanvas__panel:not([hidden]) .digi-facade",
+   "cover": ".digi-facade__image[src*=\"/vimeo-76979871.\"]"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": "[data-digi-offcanvas-open]"
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "count:frames": 0,
+    "call:service": "<=0",
+    "asset:facade-js": "<=1024",
+    "asset:facade-css": "<=1536",
+    "delta.cls": "<=0",
+    "count:facade": 1,
+    "count:cover": 1,
+    "count:visible": 0,
+    "after": {
+     "count:visible": 1,
+     "count:frames": 0,
+     "call:service": "<=0"
+    }
+   }
+  }
+ },
+ "facade-offcanvas-play": {
+  "title": "Panel lateral con un vídeo de Vimeo y fachadas: abrir el panel y pulsar la portada carga el reproductor con reproducción automática",
+  "since": "4.3.0.171",
+  "modes": [
+   "facades",
+   "facades+cache"
+  ],
+  "widgets": [
+   {
+    "type": "digitalisimo-offcanvas",
+    "settings": {
+     "source": "media",
+     "media_type": "embed",
+     "media_url": {
+      "url": "https://vimeo.com/76979871"
+     },
+     "button_text": "Abrir vídeo",
+     "panel_label": "Vídeo de medición"
+    }
+   }
+  ],
+  "facade_images": [
+   {
+    "kind": "video",
+    "service": "vimeo",
+    "id": "76979871"
+   }
+  ],
+  "assets": {
+   "facade-js": "/digitalisimo-front/assets/facade\\.js",
+   "facade-css": "/digitalisimo-front/assets/facade\\.css"
+  },
+  "calls": {
+   "service": "vimeo|vimeocdn"
+  },
+  "counts": {
+   "facade": ".digi-facade[data-digi-facade]",
+   "frames": "iframe",
+   "player": "iframe.digi-offcanvas__media--embed[src^=\"https://player.vimeo.com/video/76979871?autoplay=1\"]"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": "[data-digi-offcanvas-open]"
+   },
+   {
+    "do": "wait",
+    "ms": 800
+   },
+   {
+    "do": "click",
+    "selector": ".digi-offcanvas__panel .digi-facade__button"
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "count:frames": 0,
+    "call:service": "<=0",
+    "asset:facade-js": "<=1024",
+    "asset:facade-css": "<=1536",
+    "delta.cls": "<=0",
+    "count:facade": 1,
+    "after": {
+     "count:facade": 0,
+     "count:player": 1,
+     "call:service": ">0"
+    }
+   }
+  }
+ },
+ "facade-map": {
+  "title": "Mapa con fachadas: imagen estática servida por el sitio con marcador, atribución y «Ver mapa interactivo»; OpenStreetMap no recibe nada hasta pulsar",
+  "since": "4.3.0.171",
+  "modes": [
+   "facades",
+   "facades+cache"
+  ],
+  "widgets": [
+   {
+    "type": "digitalisimo-map",
+    "settings": {
+     "zoom": {
+      "size": 15
+     },
+     "markers": [
+      {
+       "_id": "fm1",
+       "title": "Oficina",
+       "lat": "19.4326",
+       "lng": "-99.1332",
+       "content": "Centro"
+      }
+     ]
+    }
+   }
+  ],
+  "facade_images": [
+   {
+    "kind": "map",
+    "lat": 19.4326,
+    "lng": -99.1332,
+    "zoom": 15
+   }
+  ],
+  "assets": {
+   "facade-js": "/digitalisimo-front/assets/facade\\.js",
+   "facade-css": "/digitalisimo-front/assets/facade\\.css",
+   "map": "/digitalisimo-elements/facades/map-[0-9a-f]{16}\\.(webp|jpg)"
+  },
+  "calls": {
+   "service": "openstreetmap\\.org"
+  },
+  "counts": {
+   "facade": ".digi-facade[data-digi-facade]",
+   "frames": "iframe",
+   "image": ".digi-facade--map > img.digi-facade__image",
+   "pin": ".digi-facade__pin",
+   "attribution": ".digi-facade__note a[href=\"https://www.openstreetmap.org/copyright\"]",
+   "label": "button.digi-facade__button[aria-label=\"Ver mapa interactivo: Oficina\"] .digi-facade__label",
+   "list": ".digi-map__place",
+   "player": "iframe.digi-map__frame[src^=\"https://www.openstreetmap.org/export/embed.html\"][referrerpolicy=\"no-referrer\"]",
+   "focused": "iframe:focus"
+  },
+  "actions": [
+   {
+    "do": "click",
+    "selector": ".digi-facade__button"
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "count:frames": 0,
+    "call:service": "<=0",
+    "asset:facade-js": "<=1024",
+    "asset:facade-css": "<=1536",
+    "delta.cls": "<=0",
+    "count:facade": 1,
+    "count:image": 1,
+    "count:pin": 1,
+    "count:attribution": 1,
+    "count:label": 1,
+    "count:list": 1,
+    "asset:map": ">0",
+    "after": {
+     "count:facade": 0,
+     "count:player": 1,
+     "count:focused": 1,
+     "call:service": ">0"
+    }
+   }
+  }
+ },
+ "facade-map-queued": {
+  "title": "Mapa con fachadas y la imagen aún sin guardar: fachada neutra (sin marcador ni atribución); la visita agenda la imagen, una pasada de WP-Cron la compone y la visita siguiente ya la ve (también con la caché de elementos)",
+  "since": "4.3.0.171",
+  "modes": [
+   "facades",
+   "facades+cache"
+  ],
+  "widgets": [
+   {
+    "type": "digitalisimo-map",
+    "settings": {
+     "zoom": {
+      "size": 14
+     },
+     "markers": [
+      {
+       "_id": "fm1",
+       "title": "Sede",
+       "lat": "40.4168",
+       "lng": "-3.7038",
+       "content": "Centro"
+      }
+     ]
+    }
+   }
+  ],
+  "assets": {
+   "facade-js": "/digitalisimo-front/assets/facade\\.js",
+   "facade-css": "/digitalisimo-front/assets/facade\\.css",
+   "map": "/digitalisimo-elements/facades/map-[0-9a-f]{16}\\.(webp|jpg)"
+  },
+  "calls": {
+   "service": "openstreetmap\\.org"
+  },
+  "counts": {
+   "facade": ".digi-facade[data-digi-facade]",
+   "frames": "iframe",
+   "image": ".digi-facade--map > img.digi-facade__image",
+   "pin": ".digi-facade__pin",
+   "label": ".digi-facade__label"
+  },
+  "actions": [
+   {
+    "do": "cron",
+    "ms": 500
+   },
+   {
+    "do": "reload"
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "count:frames": 0,
+    "call:service": "<=0",
+    "asset:facade-js": "<=1024",
+    "asset:facade-css": "<=1536",
+    "delta.cls": "<=0",
+    "count:facade": 1,
+    "count:image": 0,
+    "count:pin": 0,
+    "count:label": 1,
+    "after": {
+     "count:facade": 1,
+     "count:image": 1,
+     "count:pin": 1,
+     "asset:map": ">0",
+     "call:service": "<=0"
+    }
+   }
+  }
+ },
+ "facade-document": {
+  "title": "Visor de documentos con fachadas: «Ver el documento aquí» y «Abrir documento»; el PDF de otro sitio no se pide hasta pulsar Espacio",
+  "since": "4.3.0.171",
+  "modes": [
+   "facades",
+   "facades+cache"
+  ],
+  "widgets": [
+   {
+    "type": "digitalisimo-document-viewer",
+    "settings": {
+     "file_source": {
+      "url": "https://example.com/documento.pdf"
+     },
+     "frame_title": "Documento de medición"
+    }
+   }
+  ],
+  "assets": {
+   "facade-js": "/digitalisimo-front/assets/facade\\.js",
+   "facade-css": "/digitalisimo-front/assets/facade\\.css"
+  },
+  "calls": {
+   "service": "example\\.com"
+  },
+  "counts": {
+   "facade": ".digi-facade[data-digi-facade]",
+   "frames": "iframe",
+   "label": "button.digi-facade__button[aria-label=\"Ver el documento aquí: Documento de medición\"] .digi-facade__label",
+   "link": "a.digi-document-viewer__link[href=\"https://example.com/documento.pdf\"]",
+   "player": "iframe.digi-document-viewer__frame[src=\"https://example.com/documento.pdf\"]"
+  },
+  "actions": [
+   {
+    "do": "press",
+    "selector": ".digi-facade__button",
+    "key": " "
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "count:frames": 0,
+    "call:service": "<=0",
+    "asset:facade-js": "<=1024",
+    "asset:facade-css": "<=1536",
+    "delta.cls": "<=0",
+    "count:facade": 1,
+    "count:label": 1,
+    "count:link": 1,
+    "after": {
+     "count:facade": 0,
+     "count:player": 1,
+     "call:service": ">0"
+    }
    }
   }
  }
