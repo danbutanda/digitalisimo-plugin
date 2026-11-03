@@ -30,7 +30,7 @@ module.exports = (api) => async (s) => {
   /** WP-Cron de un sitio: adelanta sus eventos de Migración y pide /wp-cron.php (como una visita con WP-Cron real). */
   async function cron(site, hook) {
     await control('due', { hook }, { site: prefix(site) });
-    const r = await request('GET', `${prefix(site)}/wp-cron.php`);
+    const r = await request('GET', `${prefix(site)}/?digi_f8=cron&token=${ENV.TOKEN}`);
     return r.status;
   }
 
@@ -73,13 +73,22 @@ module.exports = (api) => async (s) => {
   const limit = CASE === 'blocked' ? 150000 : 330000;
   while (Date.now() - t0 < limit) {
     rounds++;
-    for (const p of drive) await cron(p, 'digitalisimo_migration_continue');
+    const row = { round: rounds };
+    for (const p of drive) {
+      const code = await cron(p, 'digitalisimo_migration_continue');
+      const sx = await control('state', {}, { site: prefix(p) });
+      row[p] = `${code} ${sx.job ? `${sx.job.stage}${sx.job.done ? ' done' : ''}${sx.job.pause ? ' pausa' : ''}${sx.job.wait_network ? ' espera' : ''}` : (sx.report ? 'terminada' : 'sin tarea')} ${(sx.crons || []).map((c) => `${c.hook.replace('digitalisimo_migration_', '')}@${c.in}`).join(',')}`;
+    }
+    lastLog.push(row);
+    log(`  ${JSON.stringify(row)}`);
     bad.push(...await poll(`vuelta ${rounds}`, CASE === 'deadline' && j.released ? ['/dos/'] : []));
     const before = !!j.released;
     await cron('/', 'digitalisimo_migration_network_tick');
     j = await netJob();
     if (!before && j.released) releasedBy = `vuelta ${rounds}`;
     if (j.done || (CASE === 'blocked' && j.stopped)) break;
+    // Con /dos/ sin responder la red no puede terminar: tras la liberación por plazo se sale y /dos/ «vuelve».
+    if (CASE === 'deadline' && j.released && drive.every((p) => /terminada/.test(String(row[p])))) break;
     if (CASE === 'deadline' && !j.released) await sleep(6000);
   }
   fs.writeFileSync(path.join(RUN, 'network-end.json'), JSON.stringify(j, null, 1));
@@ -88,8 +97,8 @@ module.exports = (api) => async (s) => {
   s.facts.released_by = releasedBy;
   log(`red: ${rounds} vueltas, liberada en ${releasedBy || '—'}, done=${!!j.done}`);
 
-  const st1 = await control('state');
-  const plugins = st1.plugins;
+  let st1 = await control('state');
+  let plugins = st1.plugins;
   if (CASE === 'blocked') {
     check(s, 'P3.4a', 'sitio bloqueado: la barrera no se libera y el origen sigue activo en la red', !j.released && plugins.network.includes('bdthemes-element-pack/bdthemes-element-pack.php'), JSON.stringify({ released: j.released, network: plugins.network }));
     const html = (await tool('admin', { network: true })).html;
@@ -97,12 +106,17 @@ module.exports = (api) => async (s) => {
     check(s, 'P3.4c', 'ningún sitio se quedó sin cabecera ni con dos en ninguna vuelta', !bad.length, JSON.stringify(bad.slice(0, 6)));
     return;
   }
-  check(s, 'P3.4a', 'la barrera se libera sin la pantalla (sólo WP-Cron) y la red termina', !!j.released && !!j.done, JSON.stringify({ released: j.released, done: j.done, rounds, unprepared: j.unprepared }));
+  if (CASE !== 'deadline') check(s, 'P3.4a', 'la barrera se libera sin la pantalla (sólo WP-Cron) y la red termina', !!j.released && !!j.done, JSON.stringify({ released: j.released, done: j.done, rounds, unprepared: j.unprepared }));
+  else check(s, 'P3.4a', 'la barrera se libera por el plazo relativo, sin la pantalla (sólo WP-Cron)', !!j.released, JSON.stringify({ released: j.released, rounds, unprepared: j.unprepared }));
   if (CASE === 'deadline') {
     check(s, 'P3.4b', 'plazo relativo: /dos/ (que no respondió) queda listado como sin preparar', (j.unprepared || []).includes(paths['/dos/']), JSON.stringify(j.unprepared));
     check(s, 'P3.4c', 'el principal nunca se quedó sin cabecera ni con dos; /dos/ sólo sin la suya tras la liberación (ventana declarada)', !bad.length, JSON.stringify(bad.slice(0, 6)));
     // /dos/ migra cuando vuelve a responder: se conduce ahora.
-    for (let i = 0; i < 12; i++) { await cron('/dos/', 'digitalisimo_migration_continue'); const sd = await control('state', {}, { site: '/dos' }); if (sd.job && sd.job.done) break; }
+    for (let i = 0; i < 12; i++) { await cron('/dos/', 'digitalisimo_migration_continue'); const sd = await control('state', {}, { site: '/dos' }); if ((sd.job && sd.job.done) || (!sd.job && sd.report)) break; }
+    for (let i = 0; i < 3 && !j.done; i++) { await cron('/', 'digitalisimo_migration_network_tick'); j = await netJob(); }
+    check(s, 'P3.4d', 'cuando /dos/ vuelve, migra y la red termina', !!j.done, JSON.stringify({ done: j.done, status: j.status }));
+    st1 = await control('state');
+    plugins = st1.plugins;
   } else {
     check(s, 'P3.4b', 'ningún sitio se quedó sin cabecera ni con dos en ninguna vuelta', !bad.length, JSON.stringify(bad.slice(0, 6)));
   }
@@ -111,7 +125,8 @@ module.exports = (api) => async (s) => {
   const per = {};
   for (const x of info.sites.filter((y) => !y.archived)) {
     const sx = await control('state', {}, { site: prefix(x.path) });
-    per[x.path] = { done: !!(sx.job && sx.job.done), site: sx.plugins.site.filter((p) => /bdthemes/.test(p)), ep: sx.ep };
+    // Una tarea terminada se cierra: queda el informe (`report`) y no la tarea.
+    per[x.path] = { done: !!((sx.job && sx.job.done) || (!sx.job && sx.report)), site: sx.plugins.site.filter((p) => /bdthemes/.test(p)), ep: sx.ep };
   }
   check(s, 'P3.5b', 'cada sitio no archivado terminó su tarea y no le queda nada del origen activo por sitio', Object.values(per).every((x) => x.done && !x.site.length && !x.ep), JSON.stringify(per));
   const arch = await control('state', {}, { site: '/archivado' });

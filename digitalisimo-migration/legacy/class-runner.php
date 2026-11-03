@@ -520,6 +520,15 @@ final class Runner {
 		}
 		// ¿Estaba activo algún miembro del grupo de Element Pack, en cualquier ámbito? (C1-4: sólo entonces se publica.)
 		$state['ep_was_active'] = self::ep_was_active( $state );
+		// Un sitio de la barrera que prepara después de la liberación (vencido el plazo sin haber respondido) ya no ve
+		// el grupo activo porque lo desactivó la propia red, no el administrador: cuenta como activo, para que sus copias
+		// se publiquen en su turno (V.18) en lugar de quedarse en borrador sin cabecera (Playground P3 «deadline»).
+		if ( ! $state['ep_was_active'] ) {
+			$job = self::barrier_job( $state );
+			if ( $job && ! empty( $job['released'] ) && in_array( self::blog(), array_map( 'intval', (array) ( $job['barrier_sites'] ?? array() ) ), true ) ) {
+				$state['ep_was_active'] = true;
+			}
+		}
 		// Sólo los documentos convertidos antes de esta migración pueden haber perdido sus reglas de visibilidad.
 		if ( ! (int) get_option( Migration::REPAIR_CUTOFF, 0 ) ) {
 			update_option( Migration::REPAIR_CUTOFF, (int) $state['started'], false );

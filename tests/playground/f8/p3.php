@@ -120,6 +120,14 @@ if ( 'P3' === ( digi_f8_mode()['scenario'] ?? '' ) ) {
 
 	function digi_f8_ops() {
 		return digi_f8_p2_ops() + array(
+			// WP-Cron de este sitio: Playground no sirve /<sitio>/wp-cron.php en una red de subdirectorios (404), así
+			// que la sonda incluye wp-cron.php en la petición del sitio, como lo haría su propia visita con WP-Cron.
+			'cron'  => static function ( $arg ) {
+				delete_transient( 'doing_cron' );
+				wp_set_current_user( 0 );
+				require ABSPATH . 'wp-cron.php';
+				return array( 'ran' => true );
+			},
 			'sites' => static function ( $arg ) {
 				$out = array();
 				foreach ( digi_f8_p3_sites() as $path => $id ) {
