@@ -21,6 +21,41 @@
    "kind": "foco",
    "match": "^outline(-offset)?:",
    "reason": "Foco visible propio de flechas, puntos y enlaces (contorno de 2 px)."
+  },
+  {
+   "widget": "media-carousel",
+   "kind": "control",
+   "reason": "Controles del motor digi-crs (frente E, docs/pro/c1.md §1 y su informe, diferencias 4, 5 y 7): flechas y puntos son <button> y van antes de la pista (otro orden), los puntos son botones de 24 × 24 px con el punto dibujado en ::before, el color de las flechas es #eeeeeee6 (PRO: hsla(0,0%,93%,.9), un punto de diferencia por redondeo) y con autoplay hay botón Pausar/Reanudar."
+  },
+  {
+   "widget": "media-carousel",
+   "kind": "hover",
+   "match": "^(transform|color|border-color|outline|fill|background|radius|size):",
+   "reason": "Primer control del motor digi-crs (flecha o pausa, <button>): se centra con la propiedad translate y no con transform, y su color es #eeeeeee6 (PRO: hsla(0,0%,93%,.9)); ver el informe del frente E."
+  },
+  {
+   "widget": "media-carousel",
+   "kind": "foco",
+   "match": "^(transform|color|border-color|fill|background|radius|size):",
+   "reason": "Primer control del motor digi-crs (flecha o pausa, <button>): se centra con la propiedad translate y no con transform, y su color es #eeeeeee6; ver el informe del frente E."
+  },
+  {
+   "widget": "media-carousel",
+   "kind": "imagen",
+   "match": "-\\d+x\\d+\\.png|pro-ab-image-\\d+\\.png",
+   "reason": "Cada imagen es un <img> con srcset y sizes (wp_get_attachment_image): el navegador elige el archivo del tamaño de la diapositiva; PRO pintaba siempre el archivo completo como fondo CSS."
+  },
+  {
+   "widget": "media-carousel",
+   "kind": "nombre",
+   "match": "Texto alternativo|Imagen de prueba",
+   "reason": "El motor pone inert en las diapositivas fuera de la ventana visible (frente E): sus enlaces e imágenes salen del árbol de accesibilidad hasta que se ven; Swiper los dejaba."
+  },
+  {
+   "widget": "media-carousel",
+   "kind": "palabra",
+   "match": "^(perdida|nueva) «\\d+»$",
+   "reason": "Fracción del motor digi-crs: cuenta páginas (diapositivas − visibles + 1); Swiper en bucle contaba diapositivas."
   }
  ],
  "cases": {
@@ -36,6 +71,7 @@
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
+    "loop": "",
     "slides": [
      {
       "_id": "mc01",
@@ -242,6 +278,7 @@
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
+    "loop": "",
     "skin": "coverflow",
     "slides": [
      {
@@ -299,7 +336,7 @@
    ]
   },
   "mc-video": {
-   "title": "Vídeos de YouTube y Vimeo con su imagen, icono de reproducir con color, tamaño y sombra; ninguna petición al servicio antes del clic",
+   "title": "Vídeos de YouTube y Vimeo con su imagen e icono de reproducir en color; ninguna petición al servicio antes del clic",
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
@@ -342,7 +379,23 @@
       }
      }
     ],
-    "play_icon_color": "#FFD166",
+    "loop": "",
+    "play_icon_color": "#FFD166"
+   },
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "Play|Reproducir",
+     "reason": "El texto oculto del icono de reproducir está en español («Reproducir el vídeo»)."
+    }
+   ]
+  },
+  "mc-play-icon": {
+   "title": "Icono de reproducir de 64 px con sombra propia (PRO no los aplicaba al icono SVG)",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "loop": "",
     "play_icon_size": {
      "unit": "px",
      "size": 64,
@@ -354,7 +407,39 @@
      "vertical": 2,
      "blur": 8,
      "color": "rgba(0,0,0,0.6)"
-    }
+    },
+    "slides": [
+     {
+      "_id": "mc01",
+      "type": "video",
+      "image": {
+       "$image": 8
+      },
+      "video": {
+       "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+      }
+     },
+     {
+      "_id": "mc02",
+      "type": "video",
+      "image": {
+       "$image": 9
+      },
+      "video": {
+       "url": "https://youtu.be/aqz-KE-bpKQ"
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 10
+      }
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "El tamaño y la sombra del icono de reproducir se aplican al icono SVG; PRO los fijaba en la etiqueta <i> de la fuente de iconos, que con los iconos en SVG del núcleo no existe, así que su icono quedaba en 100 px con la sombra por defecto."
    },
    "declared": [
     {
@@ -476,6 +561,7 @@
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
+    "loop": "",
     "pagination": "fraction",
     "pagination_position": "inside",
     "pagination_color": "#E63946",
@@ -627,6 +713,7 @@
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
+    "loop": "",
     "show_arrows": "",
     "pagination_size": {
      "unit": "px",
@@ -686,6 +773,7 @@
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
+    "loop": "",
     "effect": "fade",
     "slides": [
      {
@@ -721,6 +809,7 @@
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
+    "loop": "",
     "effect": "cube",
     "slides": [
      {

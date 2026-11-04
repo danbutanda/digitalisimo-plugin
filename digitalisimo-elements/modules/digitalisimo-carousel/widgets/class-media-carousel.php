@@ -161,7 +161,13 @@ class Media_Carousel extends Base_Widget {
 	 */
 	public static function engine_args( array $settings, bool $thumbs, string $id ): array {
 		$skin = (string) ( $settings['skin'] ?? 'carousel' );
-		$args = array( 'center' => 'coverflow' === $skin, 'dir' => function_exists( 'is_rtl' ) && is_rtl() ? 'rtl' : '' );
+		$args = array(
+			'center'     => 'coverflow' === $skin,
+			'dir'        => function_exists( 'is_rtl' ) && is_rtl() ? 'rtl' : '',
+			// Como PRO (`Math.min( slidesCount, slidesPerView )`): con menos diapositivas que las visibles, la hoja las
+			// ensancha hasta llenar la pista.
+			'attributes' => array( 'data-digi-count' => (string) count( (array) ( $settings['slides'] ?? array() ) ) ),
+		);
 		if ( 'coverflow' === $skin ) {
 			$args['effect'] = 'slide';
 		}
@@ -556,9 +562,13 @@ class Media_Carousel extends Base_Widget {
 				'label'              => esc_html__( 'Diapositivas visibles', 'pro-elements' ),
 				'options'            => array( '' => esc_html__( 'Predeterminado', 'pro-elements' ) ) + array_combine( $per_view, $per_view ),
 				// Los de PRO cuando el valor era «Predeterminado»: 5 miniaturas (4 en tableta, 3 en móvil).
-				'desktop_default'    => '5',
-				'tablet_default'     => '4',
-				'mobile_default'     => '3',
+				'widescreen_default'   => '5',
+				'desktop_default'      => '5',
+				'laptop_default'       => '5',
+				'tablet_extra_default' => '5',
+				'tablet_default'       => '4',
+				'mobile_extra_default' => '4',
+				'mobile_default'       => '3',
 				'condition'          => array( 'skin' => 'slideshow' ),
 				'selectors'          => array( '{{WRAPPER}} .digi-media-carousel__thumbs' => '--digi-crs-view: {{VALUE}};' ),
 				'frontend_available' => true,
@@ -575,9 +585,23 @@ class Media_Carousel extends Base_Widget {
 		foreach ( array( 'width', 'height', 'slides_per_view' ) as $control ) {
 			$this->update_responsive_control( $control, array( 'condition' => array( 'skin!' => 'slideshow' ) ), array( 'recursive' => true ) );
 		}
-		// PRO usaba 3 diapositivas visibles (2 en tableta, 1 en móvil) cuando el valor era «Predeterminado»; aquí son los
-		// valores por defecto de cada dispositivo, que el núcleo pinta en su consulta de medios.
-		$this->update_responsive_control( 'slides_per_view', array( 'desktop_default' => '3', 'tablet_default' => '2', 'mobile_default' => '1' ) );
+		// PRO usaba 3 diapositivas visibles (2 en tableta, 1 en móvil) cuando un dispositivo quedaba en «Predeterminado»;
+		// aquí son los valores por defecto de cada dispositivo, que el núcleo pinta en su consulta de medios.
+		// Lo mismo con «Diapositivas por paso» (1 en cada dispositivo que no lo fija). Así un valor del escritorio no se
+		// hereda en la tableta ni en el móvil, como en PRO.
+		$per_view = array( 'widescreen' => '3', 'desktop' => '3', 'laptop' => '3', 'tablet_extra' => '3', 'tablet' => '2', 'mobile_extra' => '2', 'mobile' => '1' );
+		$view     = array();
+		$scroll   = array();
+		foreach ( self::active_devices() as $device ) {
+			$view[ $device . '_default' ] = $per_view[ $device ] ?? '3';
+			if ( 'desktop' !== $device ) {
+				$scroll[ $device . '_default' ] = '1';
+			}
+		}
+		$this->update_responsive_control( 'slides_per_view', $view );
+		if ( $scroll ) {
+			$this->update_responsive_control( 'slides_to_scroll', $scroll );
+		}
 		$this->update_responsive_control(
 			'space_between',
 			array(

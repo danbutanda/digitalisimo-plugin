@@ -30,13 +30,14 @@ class Testimonial_Carousel extends Base_Widget {
 
 	/**
 	 * Variables de cada alineación: alineación del texto, dirección y reparto del pie (imagen en línea o arriba),
-	 * alineación del nombre junto a la imagen, y posición del pico de la burbuja. Cada valor fija todas: un dispositivo
-	 * nunca hereda las de otro.
+	 * alineación del nombre junto a la imagen, y posición del pico de la burbuja. Cada valor fija todas (un dispositivo
+	 * nunca hereda las de otro) salvo `--digi-t-cta`, que sólo fija «centro»: como en PRO, el nombre junto a la imagen
+	 * queda al inicio también en los dispositivos menores que no vuelven a centrar.
 	 */
 	const ALIGNMENT = array(
-		'left'   => '--digi-t-ta:left;--digi-t-fd:row;--digi-t-jc:start;--digi-t-cta:left;--digi-t-l:var(--digi-t-al,calc(20px + 50px / 2));--digi-t-r:auto;--digi-t-x:0',
+		'left'   => '--digi-t-ta:left;--digi-t-fd:row;--digi-t-jc:start;--digi-t-l:var(--digi-t-al,calc(20px + 50px / 2));--digi-t-r:auto;--digi-t-x:0',
 		'center' => '--digi-t-ta:center;--digi-t-fd:row;--digi-t-jc:center;--digi-t-cta:start;--digi-t-l:50%;--digi-t-r:auto;--digi-t-x:-50%',
-		'right'  => '--digi-t-ta:right;--digi-t-fd:row-reverse;--digi-t-jc:end;--digi-t-cta:right;--digi-t-l:auto;--digi-t-r:var(--digi-t-ar,calc(20px + 50px / 2));--digi-t-x:0',
+		'right'  => '--digi-t-ta:right;--digi-t-fd:row-reverse;--digi-t-jc:end;--digi-t-l:auto;--digi-t-r:var(--digi-t-ar,calc(20px + 50px / 2));--digi-t-x:0',
 	);
 
 	const LAYOUTS = array( 'image_inline', 'image_stacked', 'image_above', 'image_left', 'image_right' );

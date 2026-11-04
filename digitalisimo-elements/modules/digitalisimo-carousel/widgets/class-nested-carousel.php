@@ -177,7 +177,10 @@ class Nested_Carousel extends Widget_Nested_Base {
 						'{{WRAPPER}}' => '--digi-crs-view: {{VALUE}}',
 					),
 				),
-				'slides_to_scroll_custom_settings' => array(),
+				// PRO (Swiper) sólo aplica en escritorio el paso de escritorio: en los demás dispositivos, sin valor propio, 1.
+				'slides_to_scroll_custom_settings' => array(
+					'device_args' => array_fill_keys( array( 'widescreen', 'laptop', 'tablet_extra', 'tablet', 'mobile_extra', 'mobile' ), array( 'default' => '1' ) ),
+				),
 				'equal_height_custom_settings'     => array(
 					'selectors' => array(
 						'{{WRAPPER}}' => '--digi-crs-align: stretch;',

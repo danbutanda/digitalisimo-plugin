@@ -128,6 +128,11 @@ namespace Elementor {
 		public static function get_attachment_image_src( $id, $key, $settings ) { return $id ? 'https://sitio.test/wp-content/uploads/custom-' . $id . '.png' : ''; }
 	}
 	class Group_Control_Text_Shadow { public static function get_type() { return 'text-shadow'; } }
+	class Plugin {
+		public static $instance;
+		public $breakpoints;
+	}
+	class Breakpoints_Stub { public function get_active_breakpoints() { return array( 'mobile' => 767, 'tablet' => 1024 ); } }
 	class Group_Control_Typography { public static function get_type() { return 'typography'; } }
 	class Utils { public static function get_placeholder_image_src() { return 'https://sitio.test/wp-content/plugins/digitalisimo-elements/elementor/assets/images/placeholder.png'; } }
 	class Control_Media {
@@ -192,6 +197,8 @@ namespace {
 	}
 	function check_mc( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
+	\Elementor\Plugin::$instance              = new \Elementor\Plugin();
+	\Elementor\Plugin::$instance->breakpoints = new \Elementor\Breakpoints_Stub();
 	$root = __DIR__ . '/../digitalisimo-elements/';
 	require $root . 'modules/digitalisimo-carousel/class-engine.php';
 	require $root . 'modules/digitalisimo-carousel/class-module.php';
@@ -229,7 +236,9 @@ namespace {
 	check_mc( 'widgets/class-media-carousel.php' === Carousel_Module::WIDGETS['digitalisimo-media-carousel']['file'] && Media_Carousel::class === Carousel_Module::WIDGETS['digitalisimo-media-carousel']['class'], 'El módulo de carruseles registra la clase.' );
 	$css = (string) file_get_contents( $root . 'modules/digitalisimo-carousel/assets/css/media-carousel.css' );
 	check_mc( strlen( $css ) > 0 && strlen( $css ) <= 4096, 'La hoja pesa ' . strlen( $css ) . ' B (tope 4 096).' );
-	check_mc( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( $css, 'elementor' ) && ! str_contains( $css, 'swiper' ), 'La hoja no usa el kit, url(), ni clases del proveedor o de Swiper.' );
+	check_mc( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( str_replace( '.elementor-widget-digitalisimo-media-carousel', '', $css ), 'elementor' ) && ! str_contains( $css, 'swiper' ), 'La hoja no usa el kit, url(), ni clases del proveedor o de Swiper (sólo la del envoltorio del widget).' );
+	check_mc( (bool) preg_match( '/^\.elementor-widget-digitalisimo-media-carousel\{[^}]*--digi-crs-view:1;[^}]*--digi-crs-gap:0px/', $css ), 'La hoja corta la herencia de las variables de maquetación de un carrusel exterior.' );
+	check_mc( str_contains( $css, '.digi-media-carousel[data-digi-count="2"]>.digi-crs__track{--_v:min(var(--digi-crs-view,1),2)}' ), 'Con menos diapositivas que las visibles, se ensanchan (como PRO).' );
 	check_mc( (bool) preg_match( '/@media \(prefers-reduced-motion:reduce\)\{[^}]*\.digi-media-carousel__overlay[^}]*\{transition:none\}\}/', $css ) && str_contains( $css, '.digi-media-carousel__link:focus-visible{outline:2px solid' ), 'Movimiento reducido en las transiciones y foco visible propio del enlace.' );
 	preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
 	check_mc( array() === array_diff( array_unique( array_map( 'strtolower', $colors[0] ) ), array( '#fff' ) ), 'Sólo los colores que PRO usaba por defecto: ' . implode( ', ', $colors[0] ) );
@@ -271,7 +280,7 @@ namespace {
 		check_mc( $value === $def( $name ), "$name: el valor por defecto es el de PRO." );
 	}
 	check_mc( array( 'size' => 20 ) === $def( 'arrows_size' ) && array( 'unit' => '%' ) === $def( 'width' ) && array( 'unit' => '%' ) === $def( 'lightbox_video_width' ) && 10 === $w->controls['space_between']['desktop_default']['size'] && 'full' === $w->groups['image_size']['default'], 'Flechas de 20, ancho en %, separación de 10 y tamaño de imagen completo, como en PRO.' );
-	check_mc( '3' === $def( 'slides_per_view' ) && '2' === $w->controls['slides_per_view']['tablet_default'] && '1' === $w->controls['slides_per_view']['mobile_default'] && '5' === $def( 'slideshow_slides_per_view' ) && '4' === $w->controls['slideshow_slides_per_view']['tablet_default'] && '3' === $w->controls['slideshow_slides_per_view']['mobile_default'], 'Diapositivas visibles por dispositivo: las que PRO usaba con «Predeterminado» (3/2/1 y 5/4/3 en las miniaturas).' );
+	check_mc( '3' === $def( 'slides_per_view' ) && '2' === $w->controls['slides_per_view']['tablet_default'] && '1' === $w->controls['slides_per_view']['mobile_default'] && '5' === $def( 'slideshow_slides_per_view' ) && '4' === $w->controls['slideshow_slides_per_view']['tablet_default'] && '3' === $w->controls['slideshow_slides_per_view']['mobile_default'] && '1' === $w->controls['slides_to_scroll']['tablet_default'] && '1' === $w->controls['slides_to_scroll']['mobile_default'] && ! isset( $w->controls['slides_to_scroll']['default'] ), 'Diapositivas visibles y por paso de cada dispositivo: las que PRO usaba con «Predeterminado» (3/2/1, 5/4/3 en las miniaturas y paso 1 fuera del escritorio).' );
 	check_mc( 5 === count( $def( 'slides' ) ) && str_ends_with( $def( 'slides' )[0]['image']['url'], 'placeholder.png' ), 'Cinco diapositivas con la imagen de muestra, como PRO.' );
 	$opts = static function ( $name ) use ( $w ) { return array_keys( $w->controls[ $name ]['options'] ); };
 	check_mc( array( 'carousel', 'slideshow', 'coverflow' ) === $opts( 'skin' ) && array( 'slide', 'fade', 'cube' ) === $opts( 'effect' ) && array( '', 'bullets', 'fraction', 'progressbar' ) === $opts( 'pagination' ) && array( '', 'contain', 'auto' ) === $opts( 'image_fit' ) && array( '', 'text', 'icon' ) === $opts( 'overlay' ) && array( 'title', 'caption', 'description' ) === $opts( 'caption' ) && array( 'search-plus', 'plus-circle', 'eye', 'link' ) === $opts( 'icon' ) && array( 'fade', 'slide-up', 'slide-down', 'slide-right', 'slide-left', 'zoom-in' ) === $opts( 'overlay_animation' ) && array( 169, 219, 43, 11 ) === $opts( 'thumbs_ratio' ) && array( 'outside', 'inside' ) === $opts( 'pagination_position' ), 'Las mismas opciones que PRO: el mapa no traduce valores.' );
@@ -351,6 +360,7 @@ namespace {
 
 	// Una sola diapositiva, fundido, cubo, RTL.
 	$one = $render( array( 'slides' => array( $img( 11 ) ) ) );
+	check_mc( str_contains( $one, 'style="--digi-crs-speed:500ms" data-digi-count="1">' ) && str_contains( $render( array( 'slides' => array( $img( 11 ), $img( 12 ) ) ) ), 'data-digi-count="2"' ), 'La raíz lleva el número de diapositivas (la hoja acota las visibles).' );
 	check_mc( ! str_contains( $one, 'digi-crs__prev' ) && ! str_contains( $one, 'digi-crs__pagination' ) && ! str_contains( $one, 'digi-crs__pause' ) && 1 === $count( 'digi-crs__slide', $one ), 'Una diapositiva: sin flechas, paginación ni pausa.' );
 	check_mc( str_contains( $render( array( 'effect' => 'fade', 'slides' => array( $img( 11 ), $img( 12 ) ) ) ), 'data-digi-effect="fade"' ) && str_contains( $render( array( 'effect' => 'cube', 'slides' => array( $img( 11 ), $img( 12 ) ) ) ), 'data-digi-effect="slide"' ), 'Fundido como fundido; cubo, aproximado como deslizamiento.' );
 	$GLOBALS['mc_rtl'] = true;

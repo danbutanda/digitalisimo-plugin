@@ -174,7 +174,7 @@
     }
    ],
    "pixels": {
-    "max": 0.35,
+    "max": 0.65,
     "reason": "Ken Burns es un zoom lineal de 20 s: el fotograma capturado depende del instante en que arrancó en cada página; además, en PRO el fondo ampliado de la diapositiva siguiente («alejar», escala 1,3) asoma sobre la actual porque la diapositiva no recorta su fondo, y la propia lo recorta."
    },
    "declared": [
@@ -186,7 +186,7 @@
    ]
   },
   "sl-content": {
-   "title": "Contenido: etiquetas h2 y p, enlace en toda la diapositiva o sólo en el botón, estilo propio por diapositiva y estilos del widget",
+   "title": "Contenido: etiquetas h2 y p, estilo propio por diapositiva y estilos del widget (los enlaces se miden en sl-button y sl-link-slide)",
    "widget": "slides",
    "settings": {
     "autoplay": "",
@@ -267,31 +267,17 @@
     "slides": [
      {
       "_id": "sl01",
-      "heading": "Diapositiva enlazada",
+      "heading": "Primera con estilo general",
       "description": "Texto de la diapositiva 1 con una idea breve.",
       "button_text": "Ver más",
-      "background_color": "#2C3E50",
-      "link": {
-       "url": "https://example.com/uno",
-       "is_external": "",
-       "nofollow": "",
-       "custom_attributes": ""
-      },
-      "link_click": "slide"
+      "background_color": "#2C3E50"
      },
      {
       "_id": "sl02",
-      "heading": "Botón enlazado",
+      "heading": "Estilo propio",
       "description": "Texto de la diapositiva 2 con una idea breve.",
       "button_text": "Ver más",
       "background_color": "#8E44AD",
-      "link": {
-       "url": "https://example.com/dos",
-       "is_external": "on",
-       "nofollow": "on",
-       "custom_attributes": ""
-      },
-      "link_click": "button",
       "custom_style": "yes",
       "horizontal_position": "right",
       "vertical_position": "top",
@@ -326,15 +312,6 @@
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next",
      "wait": 2200
-    }
-   ],
-   "interact": false,
-   "_interact": "Sin hover ni foco: el primer control del widget propio es la flecha anterior (los controles del motor van antes de la pista) y en PRO la diapositiva enlazada; el botón se mide en sl-button.",
-   "declared": [
-    {
-     "kind": "nombre",
-     "match": "Ver más",
-     "reason": "Las diapositivas fuera de la vista son `inert` (motor digi-crs): el enlace del botón de la segunda sale del orden de foco y del árbol de accesibilidad hasta que se muestra; en PRO seguía enfocable fuera de la vista."
     }
    ]
   },
@@ -705,11 +682,11 @@
    }
   },
   "sl-autoplay": {
-   "title": "Reproducción automática cada 3 s con pausa al pasar el cursor",
+   "title": "Reproducción automática (cada 60 s, para que la captura sea determinista) con pausa al pasar el cursor: atributos y botón Pausar/Reanudar",
    "widget": "slides",
    "settings": {
     "autoplay": "yes",
-    "autoplay_speed": 3000,
+    "autoplay_speed": 60000,
     "slides": [
      {
       "_id": "sl01",
@@ -735,8 +712,8 @@
     ]
    },
    "pixels": {
-    "max": 0.25,
-    "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), y la diapositiva visible depende del momento de la captura."
+    "max": 0.03,
+    "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
    },
    "declared": [
     {
@@ -748,21 +725,11 @@
      "kind": "palabra",
      "match": "Pausar|Reanudar",
      "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
-    },
-    {
-     "kind": "interacción",
-     "match": ".*",
-     "reason": "La diapositiva visible depende del momento de la captura."
-    },
-    {
-     "kind": "palabra",
-     "match": "diapositiva",
-     "reason": "La diapositiva visible depende del momento de la captura."
     }
    ]
   },
   "sl-button": {
-   "title": "Botón enlazado con colores y fondo al pasar el cursor, foco del teclado; sin navegación (el primer control es el botón en los dos lados)",
+   "title": "Botón enlazado con colores y fondo al pasar el cursor, foco del teclado; sin navegación (el primer control es el botón en los dos lados); sin bucle (los clones del bucle de Swiper añadían enlaces fuera de la vista antes del botón)",
    "widget": "slides",
    "settings": {
     "autoplay": "",
@@ -810,6 +777,39 @@
       "description": "Sin enlace.",
       "button_text": "",
       "background_color": "#2A9D8F"
+     }
+    ],
+    "infinite": ""
+   }
+  },
+  "sl-link-slide": {
+   "title": "Enlace en toda la diapositiva (pestaña nueva y nofollow), hover y foco; sin navegación ni bucle",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "navigation": "none",
+    "infinite": "",
+    "slides": [
+     {
+      "_id": "ls01",
+      "heading": "Toda la diapositiva enlaza",
+      "description": "Pulsa en cualquier punto.",
+      "button_text": "Leer",
+      "background_color": "#3D405B",
+      "link": {
+       "url": "https://example.com/todo",
+       "is_external": "on",
+       "nofollow": "on",
+       "custom_attributes": ""
+      },
+      "link_click": "slide"
+     },
+     {
+      "_id": "ls02",
+      "heading": "Segunda",
+      "description": "Sin enlace.",
+      "button_text": "",
+      "background_color": "#81B29A"
      }
     ]
    }

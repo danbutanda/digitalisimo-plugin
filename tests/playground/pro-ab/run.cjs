@@ -143,7 +143,9 @@ async function settle(page, sel, extra) {
     const root = document.querySelector(s);
     if (!root) return true;
     if (x && !root.querySelector(x)) return false;
-    if (root.querySelector('.swiper:not(.swiper-initialized), .swiper-container:not(.swiper-initialized):not(.swiper-container-initialized)')) return false;
+    // Swiper sólo arranca con más de una diapositiva: con una (o ninguna), PRO no lo inicia y no hay nada que esperar.
+    const waiting = [...root.querySelectorAll('.swiper:not(.swiper-initialized), .swiper-container:not(.swiper-initialized):not(.swiper-container-initialized)')];
+    if (waiting.some((sw) => sw.querySelectorAll('.swiper-slide').length > 1)) return false;
     return !root.querySelector('.digi-crs:not(.digi-crs--ready)');
   }, { timeout: 8000, polling: 100 }, sel, extra || '').then(() => true).catch(() => false);
   await sleep(400);

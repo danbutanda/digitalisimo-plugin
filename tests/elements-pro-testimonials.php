@@ -160,7 +160,9 @@ namespace {
 		check_t( ! is_file( $mod . 'assets/js/' . substr( $w['name'], 13 ) . '.js' ), "$pro: sin script propio." );
 		$css = (string) file_get_contents( $mod . 'assets/css/' . $w['css'] );
 		check_t( strlen( $css ) > 0 && strlen( $css ) <= 4096, "$pro: la hoja pesa " . strlen( $css ) . ' B (tope 4 096).' );
-		check_t( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( $css, 'elementor' ) && ! str_contains( $css, 'swiper' ), "$pro: la hoja no usa el kit, url() ni clases del proveedor." );
+		check_t( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( str_replace( '.elementor-widget-' . $w['name'] . '{', '', $css ), 'elementor' ) && ! str_contains( $css, 'swiper' ), "$pro: la hoja no usa el kit, url() ni clases del proveedor." );
+		check_t( (bool) preg_match( '/^\.elementor-widget-' . preg_quote( $w['name'], '/' ) . '\{--digi-crs-view:1;--digi-crs-gap:10px;[^}]*--digi-crs-prev-x:0px;--digi-crs-next-x:0px;--digi-crs-pag-space:40px\}/', $css ), "$pro: la hoja declara en el envoltorio las variables de maquetación del motor (un carrusel anidado no hereda las de fuera), con las flechas en los bordes y 40 px para la paginación, como PRO." );
+		check_t( ! preg_match( '/--digi-crs-(prev|next)-(px|cs)|--digi-crs-pag-oy|dot-hover-opacity/', $css ), "$pro: sin variables que el motor ya no lee." );
 		preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
 		check_t( array() === array_diff( array_unique( array_map( 'strtolower', $colors[0] ) ), $colors_ok[ $pro ] ), "$pro: sólo los colores que PRO usaba por defecto: " . implode( ', ', $colors[0] ) );
 		$source = '';
@@ -249,9 +251,11 @@ namespace {
 	check_t( 'digi-testimonial--skin-' === $t->controls['skin']['prefix_class'] && 'digi-testimonial--layout-' === $t->controls['layout']['prefix_class'] && 'digi-testimonial-%s-align-' === $t->controls['alignment']['prefix_class'] && ! empty( $t->controls['alignment']['responsive'] ), 'Testimonios: clases de piel, disposición y alineación (con su dispositivo) en el envoltorio.' );
 	check_t( array( 'top' => '20', 'bottom' => '20', 'left' => '20', 'right' => '20', 'unit' => 'px' ) === $t->controls['text_padding']['default'] && '#000' === $t->controls['border_color']['default'] && '#000' === $t->controls['image_border_color']['default'] && false === $t->controls['background_color']['alpha'], 'Testimonios: relleno, colores del borde y fondo sin transparencia como en PRO.' );
 	foreach ( $t->controls['alignment']['selectors_dictionary'] as $value => $rules ) {
-		foreach ( array( '--digi-t-ta:', '--digi-t-fd:', '--digi-t-jc:', '--digi-t-cta:', '--digi-t-l:', '--digi-t-r:', '--digi-t-x:' ) as $rule ) {
+		foreach ( array( '--digi-t-ta:', '--digi-t-fd:', '--digi-t-jc:', '--digi-t-l:', '--digi-t-r:', '--digi-t-x:' ) as $rule ) {
 			check_t( str_contains( $rules, $rule ), "Alineación $value: falta $rule (cada dispositivo fija todas)." );
 		}
+		// Como PRO: sólo «centro» alinea al inicio el nombre junto a la imagen, y lo hereda un dispositivo menor.
+		check_t( ( 'center' === $value ) === str_contains( $rules, '--digi-t-cta:start' ) && ( 'center' === $value || ! str_contains( $rules, '--digi-t-cta' ) ), "Alineación $value: --digi-t-cta sólo con «centro»." );
 	}
 	foreach ( array( '--digi-t-ta', '--digi-t-fd', '--digi-t-jc', '--digi-t-cta', '--digi-t-l', '--digi-t-r', '--digi-t-x', '--digi-t-at', '--digi-t-gap', '--digi-t-w' ) as $var ) {
 		check_t( str_contains( $tcss, 'var(' . $var ), "La hoja de testimonios lee $var." );

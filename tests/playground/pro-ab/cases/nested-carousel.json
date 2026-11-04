@@ -6,6 +6,18 @@
  "declared": [
   {
    "widget": "nested-carousel",
+   "kind": "hover",
+   "match": "^transform: ",
+   "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles)."
+  },
+  {
+   "widget": "nested-carousel",
+   "kind": "foco",
+   "match": "^transform: ",
+   "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles)."
+  },
+  {
+   "widget": "nested-carousel",
    "kind": "caja",
    "match": "^(\\[acción [^\\]]*\\] )?padding: ",
    "reason": "La reserva de la paginación fuera (dots_position/fraction_position = outside) es el padding-bottom de la raíz del motor; en PRO, el del contenedor de Swiper, que no es la caja medida. La altura total es la misma."
@@ -242,9 +254,9 @@
      "b": ".digi-crs__next"
     },
     {
-     "label": "punto 3",
-     "a": ".swiper-pagination-bullet:nth-child(3)",
-     "b": ".digi-crs__dot:nth-of-type(3)"
+     "label": "punto 2",
+     "a": ".swiper-pagination-bullet:nth-child(2)",
+     "b": ".digi-crs__dot:nth-of-type(2)"
     },
     {
      "label": "tecla → en la flecha siguiente",
@@ -981,6 +993,13 @@
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next"
     }
+   ],
+   "declared": [
+    {
+     "kind": "foco",
+     "match": "^(color|border-color|fill): ",
+     "reason": "El motor pinta las flechas con el color «al pasar el puntero» también cuando tienen el foco (PRO sólo con el puntero)."
+    }
    ]
   },
   "nc-positions": {
@@ -1544,8 +1563,7 @@
      "b": ".digi-crs__next"
     },
     {
-     "label": "tecla → en la flecha siguiente",
-     "key": "ArrowRight",
+     "label": "flecha siguiente otra vez",
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next"
     }
@@ -1770,12 +1788,12 @@
     }
    ],
    "pixels": {
-    "max": 0.45,
+    "max": 0.1,
     "reason": "Asomo lateral (approx de offset_sides): el propio reserva el ancho a los dos lados desde el principio; PRO desplaza la primera diapositiva bajo el asomo izquierdo."
    }
   },
   "nc-single": {
-   "title": "Una sola diapositiva: sin flechas ni paginación",
+   "title": "Una sola diapositiva: sin flechas ni paginación (a todo el ancho, como PRO sin Swiper)",
    "widget": "nested-carousel",
    "settings": {
     "autoplay": "",
@@ -1822,7 +1840,10 @@
       }
      ]
     }
-   ]
+   ],
+   "ready": {
+    "a": ".e-n-carousel"
+   }
   },
   "nc-responsive": {
    "title": "Valores por dispositivo: 4 / 2 / 1 visibles y separaciones distintas",
@@ -2087,7 +2108,23 @@
       }
      ]
     }
-   ]
+   ],
+   "declared": [
+    {
+     "kind": "hover",
+     "match": "^(color|background|border-color|outline): ",
+     "reason": "Puntos: cada uno es un botón de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8); en PRO, el span del punto."
+    },
+    {
+     "kind": "foco",
+     "match": "^(color|background|border-color|outline): ",
+     "reason": "Puntos: cada uno es un botón de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8); en PRO, el span del punto."
+    }
+   ],
+   "pixels": {
+    "max": 0.05,
+    "reason": "A 1 280 px PRO separa las diapositivas con la separación de tableta (12 px) en lugar de la de escritorio (20 px): la configuración de puntos de ruptura que PRO pasa a Swiper; el propio aplica la de escritorio, como el CSS del editor."
+   }
   },
   "nc-autoplay": {
    "title": "Autoplay (20 s, para medir antes del primer paso) con pausa al pasar el puntero",
@@ -2257,6 +2294,16 @@
     }
    ],
    "declared": [
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior."
+    },
     {
      "kind": "nombre",
      "match": "Pausar|Reanudar",
