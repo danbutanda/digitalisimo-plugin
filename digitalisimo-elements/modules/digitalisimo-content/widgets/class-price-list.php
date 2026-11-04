@@ -20,9 +20,10 @@ defined( 'ABSPATH' ) || exit;
  * mismas condiciones; el marcado, las clases y la hoja (`assets/css/price-list.css`, sin JavaScript) son propios.
  * Controles derivados de PRO Elements (GPL); textos en español con el dominio `pro-elements`.
  *
- * - Cada elemento: imagen (con el tamaño del grupo `image_size`, `srcset` y las decisiones de carga de WordPress; su
- *   texto alternativo es el de Medios o, si no tiene, el título, que PRO usaba siempre), título y precio unidos por el
- *   separador, y descripción. Con enlace, todo el elemento es el enlace (como PRO).
+ * - Cada elemento: imagen (con el tamaño del grupo `image_size`, `srcset` y las decisiones de carga de WordPress),
+ *   título y precio unidos por el separador, y descripción. Con enlace, todo el elemento es el enlace (como PRO). La
+ *   imagen de un elemento con título es decorativa (`alt=""`): el título está al lado y PRO lo repetía como texto
+ *   alternativo, así que el enlace se anunciaba con el título dos veces; sin título, lleva el texto de Medios.
  * - El espacio de la imagen usa propiedades lógicas (también en RTL), sin depender de la clase `rtl` del `body`.
  * - Sin plantilla JS del editor: el editor pinta lo mismo que el servidor.
  */
@@ -57,6 +58,11 @@ class Price_List extends \Elementor\Widget_Base {
 
 	protected function is_dynamic_content(): bool {
 		return false;
+	}
+
+	/** Como PRO: sin envoltorio interior con el marcado optimizado del núcleo. */
+	public function has_widget_inner_wrapper(): bool {
+		return ! Module::feature( 'e_optimized_markup' );
 	}
 
 	protected function register_controls() {
@@ -602,7 +608,7 @@ class Price_List extends \Elementor\Widget_Base {
 			}
 			$image = (array) ( $item['image'] ?? array() );
 			if ( '' !== (string) ( $image['url'] ?? '' ) ) {
-				$img = Cards::image( $image, $settings, 'image_size', array( 'alt' => Cards::plain( $title ) ) );
+				$img = Cards::image( $image, $settings, 'image_size', array( 'decorative' => '' !== Cards::plain( $title ) ) );
 				if ( '' !== $img ) {
 					echo '<div class="digi-price-list__image">' . $img . '</div>';
 				}

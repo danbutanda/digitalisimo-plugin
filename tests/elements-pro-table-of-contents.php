@@ -218,7 +218,7 @@ namespace {
 
 	// 4. Conversión del Table of Contents de PRO.
 	Registry::reset();
-	check_toc( null !== Registry::map( 'table-of-contents', true ) && 'digitalisimo-table-of-contents' === $map['target'] && 'hide' === $map['panel'], 'Mapa hacia el widget propio; oculta el de PRO.' );
+	check_toc( null !== Registry::map( 'table-of-contents' ) && 'ready' === $map['status'] && 'digitalisimo-table-of-contents' === $map['target'] && 'hide' === $map['panel'], 'Mapa listo tras el A/B de C2 hacia el widget propio; oculta el de PRO.' );
 	$own_keys = array_keys( $widget->controls );
 	$lands    = static function ( $key ) use ( $own_keys, $widget ) {
 		$base = Translator::base( (string) $key );

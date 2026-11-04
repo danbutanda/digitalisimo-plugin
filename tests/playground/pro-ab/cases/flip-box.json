@@ -15,6 +15,12 @@
    "match": "size: (\\d+)\\.\\d+px → \\1\\.\\d+px$",
    "reason": "Tamaño fluido del tema (clamp con vw) heredado por el texto: diferencias de milésimas de píxel entre la página A y la B, sin cambio visible.",
    "widget": "flip-box"
+  },
+  {
+   "widget": "flip-box",
+   "kind": "imagen",
+   "match": "srcset|sizes|loading|decoding|width|height|«pro-ab-image-\\d+(-\\d+x\\d+)?\\.png»",
+   "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa)."
   }
  ],
  "cases": {
@@ -43,7 +49,15 @@
      "match": ".",
      "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
     }
-   ]
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.07,
+      "reason": "Sin enlace, la tarjeta es el elemento enfocado en A y en B: B le dibuja el contorno propio de 2 px con separación de 2 px alrededor de toda la tarjeta, donde A dejaba el del navegador."
+     }
+    }
+   }
   },
   "flipbox-push-image": {
    "title": "Empujar hacia la izquierda, imagen en el anverso, enlace en el botón y estilos de cada cara",
@@ -167,6 +181,14 @@
     "description_text_b": "Más ventas.",
     "button_text": "",
     "vertical_position_a": "bottom"
+   },
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.07,
+      "reason": "Sin enlace, la tarjeta es el elemento enfocado en A y en B: B le dibuja el contorno propio de 2 px con separación de 2 px alrededor de toda la tarjeta, donde A dejaba el del navegador."
+     }
+    }
    }
   }
  }

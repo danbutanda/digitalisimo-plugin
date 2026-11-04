@@ -357,7 +357,7 @@
    }
   },
   "vpl-inner": {
-   "title": "Pestañas internas plegables del primer vídeo, con la segunda pestaña elegida por clic",
+   "title": "Pestañas internas plegables del primer vídeo (alojado), con la segunda pestaña elegida por clic en 768 y 1280 px (en el móvil PRO las apila)",
    "widget": "video-playlist",
    "settings": {
     "inner_tab_is_content_collapsible": "collapsible",
@@ -389,7 +389,11 @@
     {
      "label": "segunda pestaña interna",
      "a": ".e-inner-tabs-wrapper .e-inner-tab-title:nth-child(2) a",
-     "b": ".digi-vpl__in-tab:nth-child(2)"
+     "b": ".digi-vpl__in-tab:nth-child(2)",
+     "widths": [
+      768,
+      1280
+     ]
     }
    ],
    "pixels": {
@@ -401,6 +405,11 @@
     }
    },
    "declared": [
+    {
+     "kind": "palabra",
+     "match": "^(\\[acción [^\\]]*\\] )?perdida «(sorry|your|browser|doesn|t|support|embedded)»$",
+     "reason": "PRO escribe dentro de cada <video> que crea el texto en inglés «Sorry, your browser doesn't support embedded videos.» (el navegador no lo pinta; el arnés lo lee como texto)."
+    },
     {
      "kind": "palabra",
      "width": 375,

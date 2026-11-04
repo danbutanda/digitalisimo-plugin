@@ -105,6 +105,11 @@ class Call_To_Action extends \Elementor\Widget_Base {
 		return false;
 	}
 
+	/** Como PRO: sin envoltorio interior con el marcado optimizado del núcleo. */
+	public function has_widget_inner_wrapper(): bool {
+		return ! Module::feature( 'e_optimized_markup' );
+	}
+
 	protected function register_controls() {
 
 		$this->start_controls_section(

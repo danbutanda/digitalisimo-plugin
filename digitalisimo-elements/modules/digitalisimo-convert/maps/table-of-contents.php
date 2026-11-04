@@ -44,7 +44,7 @@ foreach ( array( 'mobile', 'mobile_extra', 'tablet', 'tablet_extra', 'laptop', '
 return array(
 	'source'   => 'table-of-contents',
 	'target'   => 'digitalisimo-table-of-contents',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valores por defecto de PRO que el widget propio escribe en español: los textos que PRO pintaba traducidos.
 	'defaults' => array(

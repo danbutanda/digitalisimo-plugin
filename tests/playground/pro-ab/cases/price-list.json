@@ -14,6 +14,18 @@
    "match": "size: (\\d+)\\.\\d+px → \\1\\.\\d+px$",
    "reason": "Tamaño fluido del tema (clamp con vw) heredado por el texto: diferencias de milésimas de píxel entre la página A y la B, sin cambio visible.",
    "widget": "price-list"
+  },
+  {
+   "widget": "price-list",
+   "kind": "nombre",
+   "match": "^(perdido|nuevo) link «",
+   "reason": "La imagen de un elemento con título es decorativa (alt=\"\"): PRO repetía el título como texto alternativo y el enlace se anunciaba con el título dos veces."
+  },
+  {
+   "widget": "price-list",
+   "kind": "imagen",
+   "match": "srcset|sizes|loading|decoding|width|height|«pro-ab-image-\\d+(-\\d+x\\d+)?\\.png»",
+   "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa): el navegador elige el tamaño registrado que corresponde."
   }
  ],
  "cases": {

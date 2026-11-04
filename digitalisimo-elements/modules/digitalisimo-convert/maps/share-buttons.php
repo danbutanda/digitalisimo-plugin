@@ -36,7 +36,7 @@ foreach ( array( 'facebook', 'twitter', 'linkedin', 'pinterest', 'reddit', 'vk',
 return array(
 	'source'    => 'share-buttons',
 	'target'    => 'digitalisimo-share-buttons',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Valores por defecto de PRO (Elementor no guarda lo que coincide con ellos); los del widget propio son los mismos.
 	'defaults'  => array(

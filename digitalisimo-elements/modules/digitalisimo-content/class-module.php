@@ -26,6 +26,7 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		'digitalisimo-animated-headline' => array( 'file' => 'widgets/class-animated-headline.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Animated_Headline', 'css' => 'modules/digitalisimo-content/assets/css/animated-headline.css', 'js' => 'modules/digitalisimo-content/assets/js/animated-headline.js' ),
 		'digitalisimo-code-highlight' => array( 'file' => 'widgets/class-code-highlight.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Code_Highlight', 'css' => 'modules/digitalisimo-content/assets/css/code-highlight.css', 'js' => 'modules/digitalisimo-content/assets/js/code-highlight.js' ),
 		'digitalisimo-gallery' => array( 'file' => 'widgets/class-gallery.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Gallery', 'css' => 'modules/digitalisimo-content/assets/css/gallery.css', 'js' => 'modules/digitalisimo-content/assets/js/gallery.js' ),
 		'digitalisimo-share-buttons' => array( 'file' => 'widgets/class-share-buttons.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Share_Buttons', 'css' => 'modules/digitalisimo-content/assets/css/share-buttons.css', 'js' => 'modules/digitalisimo-content/assets/js/share-buttons.js' ),
@@ -42,6 +43,7 @@ final class Module {
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		'digitalisimo-animated-headline' => 'Titular animado',
 		'digitalisimo-code-highlight' => 'Código resaltado',
 		'digitalisimo-gallery' => 'Galería avanzada',
 		'digitalisimo-share-buttons' => 'Botones para compartir',

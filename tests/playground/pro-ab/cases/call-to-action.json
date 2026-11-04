@@ -15,6 +15,12 @@
    "match": "size: (\\d+)\\.\\d+px → \\1\\.\\d+px$",
    "reason": "Tamaño fluido del tema (clamp con vw) heredado por el texto: diferencias de milésimas de píxel entre la página A y la B, sin cambio visible.",
    "widget": "call-to-action"
+  },
+  {
+   "widget": "call-to-action",
+   "kind": "imagen",
+   "match": "srcset|sizes|loading|decoding|width|height|«pro-ab-image-\\d+(-\\d+x\\d+)?\\.png»",
+   "reason": "Las imágenes se pintan con wp_get_attachment_image() (srcset, tamaños, carga nativa); la de fondo es un <img> en lugar de un fondo CSS."
   }
  ],
  "cases": {

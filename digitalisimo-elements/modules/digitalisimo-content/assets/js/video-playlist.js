@@ -42,7 +42,7 @@ pause(){v?v.pause():o.f&&send(o.f,yt(src)?{event:'command',func:'pauseVideo',arg
 v?.addEventListener('ended',()=>o.end());
 all.add(o);return p.digi=o};
 const url=t=>{try{const q=new URLSearchParams(location.search);q.set('playlist',id);q.set('video',t.dataset.item);history.replaceState(history.state,'',location.pathname+'?'+q+location.hash)}catch(x){}};
-const more=b=>b&&b.querySelectorAll('.digi-vpl__in-panel--fold:not([hidden])').forEach(p=>{const m=p.querySelector('.digi-vpl__more'),x=p.querySelector('.digi-vpl__in-text');if(m&&x)m.hidden=!p.classList.contains('digi-vpl__in-panel--open')&&x.scrollHeight<=x.clientHeight+1});
+const more=b=>b&&b.querySelectorAll('.digi-vpl__in-panel--fold:not([hidden])').forEach(p=>{const m=p.querySelector('.digi-vpl__more'),x=p.querySelector('.digi-vpl__in-text');if(m&&x)m.hidden=!p.classList.contains('digi-vpl__in-panel--open')&&x.firstElementChild.offsetHeight<=x.clientHeight});
 const pick=(t,play)=>{
 if(!t)return;
 if(t!==cur){player(cur)?.pause();tabs.forEach(x=>{const on=x===t,p=panel(x),i=inner(x);mark(x,on);if(p)p.hidden=!on;if(i)i.hidden=!on});cur=t;more(inner(t))}

@@ -79,6 +79,11 @@ class Flip_Box extends \Elementor\Widget_Base {
 		return false;
 	}
 
+	/** Como PRO: sin envoltorio interior con el marcado optimizado del núcleo. */
+	public function has_widget_inner_wrapper(): bool {
+		return ! Module::feature( 'e_optimized_markup' );
+	}
+
 	protected function register_controls() {
 
 
