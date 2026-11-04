@@ -135,6 +135,20 @@ function digi_ab_children( array $elements, $seed ) {
 	return $elements;
 }
 
+/** El elemento con ese id en un árbol (el widget del caso, entre sus hermanos `before`/`after`). */
+function digi_ab_find( array $elements, $id ) {
+	foreach ( $elements as $element ) {
+		if ( isset( $element['id'] ) && $id === $element['id'] ) {
+			return $element;
+		}
+		$found = digi_ab_find( (array) ( $element['elements'] ?? array() ), $id );
+		if ( null !== $found ) {
+			return $found;
+		}
+	}
+	return null;
+}
+
 /** `drop` y `approx` de un mapa (y de sus repetidores, con `repetidor.clave`): motivos que un caso puede citar. */
 function digi_ab_reasons( array $map ) {
 	$out = array( 'drop' => array(), 'approx' => array() );
@@ -202,6 +216,11 @@ foreach ( $cases['cases'] as $slug => $case ) {
 			),
 		),
 	);
+	// `before` y `after` del caso (C2): elementos hermanos del widget en el mismo contenedor (los encabezados que lee una
+	// tabla de contenido, por ejemplo), con IDs deterministas e imágenes de prueba; no son de PRO y no se convierten.
+	if ( ! empty( $case['before'] ) || ! empty( $case['after'] ) ) {
+		$tree[0]['elements'] = array_merge( digi_ab_children( (array) ( $case['before'] ?? array() ), $slug . '-before' ), $tree[0]['elements'], digi_ab_children( (array) ( $case['after'] ?? array() ), $slug . '-after' ) );
+	}
 	$map    = \Digitalisimo\Elements\Convert\Registry::map( $source, true );
 	$target = null !== $map ? (string) $map['target'] : '';
 	$log    = array();
@@ -219,7 +238,7 @@ foreach ( $cases['cases'] as $slug => $case ) {
 		),
 		'reasons'    => null !== $map ? digi_ab_reasons( $map ) : array( 'drop' => array(), 'approx' => array() ),
 		'log'        => $log,
-		'settings_b' => $b_tree[0]['elements'][0]['settings'] ?? array(),
+		'settings_b' => digi_ab_find( $b_tree, $id )['settings'] ?? array(),
 		'error'      => '',
 	);
 	if ( null === $map ) {

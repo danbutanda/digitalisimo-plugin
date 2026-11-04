@@ -190,6 +190,8 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
   const result = { url, status: 0, widths: {}, assets: {}, errors, failed, third: [] };
   try {
     await page.setViewport({ width: WIDTHS[WIDTHS.length - 1], height: 900 });
+    // `reducedMotion` del caso (C2): A y B con «reducir movimiento», para comparar el estado final de una animación.
+    if (c.reducedMotion) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
     const response = await page.goto(url, { waitUntil: 'networkidle0', timeout: 180000 });
     result.status = response ? response.status() : 0;
     const html = response ? await response.text().catch(() => '') : '';

@@ -26,10 +26,32 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		'digitalisimo-code-highlight' => array( 'file' => 'widgets/class-code-highlight.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Code_Highlight', 'css' => 'modules/digitalisimo-content/assets/css/code-highlight.css', 'js' => 'modules/digitalisimo-content/assets/js/code-highlight.js' ),
+		'digitalisimo-gallery' => array( 'file' => 'widgets/class-gallery.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Gallery', 'css' => 'modules/digitalisimo-content/assets/css/gallery.css', 'js' => 'modules/digitalisimo-content/assets/js/gallery.js' ),
+		'digitalisimo-share-buttons' => array( 'file' => 'widgets/class-share-buttons.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Share_Buttons', 'css' => 'modules/digitalisimo-content/assets/css/share-buttons.css', 'js' => 'modules/digitalisimo-content/assets/js/share-buttons.js' ),
+		'digitalisimo-table-of-contents' => array( 'file' => 'widgets/class-table-of-contents.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Table_Of_Contents', 'css' => 'modules/digitalisimo-content/assets/css/table-of-contents.css', 'js' => 'modules/digitalisimo-content/assets/js/table-of-contents.js' ),
+		'digitalisimo-countdown' => array( 'file' => 'widgets/class-countdown.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Countdown', 'css' => 'modules/digitalisimo-content/assets/css/countdown.css', 'js' => 'modules/digitalisimo-content/assets/js/countdown.js' ),
+		'digitalisimo-progress-tracker' => array( 'file' => 'widgets/class-progress-tracker.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Progress_Tracker', 'css' => 'modules/digitalisimo-content/assets/css/progress-tracker.css', 'js' => 'modules/digitalisimo-content/assets/js/progress-tracker.js' ),
+		'digitalisimo-hotspot' => array( 'file' => 'widgets/class-hotspot.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Hotspot', 'css' => 'modules/digitalisimo-content/assets/css/hotspot.css', 'js' => 'modules/digitalisimo-content/assets/js/hotspot.js' ),
+		'digitalisimo-call-to-action' => array( 'file' => 'widgets/class-call-to-action.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Call_To_Action', 'css' => 'modules/digitalisimo-content/assets/css/call-to-action.css', 'js' => 'modules/digitalisimo-content/assets/js/call-to-action.js' ),
+		'digitalisimo-flip-box' => array( 'file' => 'widgets/class-flip-box.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Flip_Box', 'css' => 'modules/digitalisimo-content/assets/css/flip-box.css', 'js' => 'modules/digitalisimo-content/assets/js/flip-box.js' ),
+		'digitalisimo-price-list' => array( 'file' => 'widgets/class-price-list.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Price_List', 'css' => 'modules/digitalisimo-content/assets/css/price-list.css', 'js' => 'modules/digitalisimo-content/assets/js/price-list.js' ),
+		'digitalisimo-price-table' => array( 'file' => 'widgets/class-price-table.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Price_Table', 'css' => 'modules/digitalisimo-content/assets/css/price-table.css', 'js' => 'modules/digitalisimo-content/assets/js/price-table.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		'digitalisimo-code-highlight' => 'Código resaltado',
+		'digitalisimo-gallery' => 'Galería avanzada',
+		'digitalisimo-share-buttons' => 'Botones para compartir',
+		'digitalisimo-table-of-contents' => 'Tabla de contenido',
+		'digitalisimo-countdown' => 'Cuenta regresiva',
+		'digitalisimo-progress-tracker' => 'Indicador de progreso',
+		'digitalisimo-hotspot' => 'Puntos de interés',
+		'digitalisimo-call-to-action' => 'Llamada a la acción con imagen',
+		'digitalisimo-flip-box' => 'Tarjeta giratoria',
+		'digitalisimo-price-list' => 'Lista de precios',
+		'digitalisimo-price-table' => 'Tabla de precios',
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */
