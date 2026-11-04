@@ -1,6 +1,7 @@
 {
  "_doc": [
-  "Menú anidado de PRO (`mega-menu`) frente al propio (`digitalisimo-mega-menu`), C3 frente E (docs/pro/c3.md). Los contenidos son contenedores hijos (`elements`) con un título y enlaces. A espera al script de PRO (`data-layout`) y B al propio (`digi-mm--ready`). Las acciones de escritorio dejan el puntero y el foco donde quedan (`stay`): con «Abrir con: ratón», los dos cierran el contenido al salir el ratón."
+  "Menú anidado de PRO (`mega-menu`) frente al propio (`digitalisimo-mega-menu`), C3 frente E (docs/pro/c3.md). Los contenidos son contenedores hijos (`elements`) con un título y enlaces. A espera al script de PRO (`data-layout`) y B al propio (`digi-mm--ready`). Las acciones de escritorio dejan el puntero y el foco donde quedan (`stay`): con «Abrir con: ratón», los dos cierran el contenido al salir el ratón.",
+  "Las acciones de escritorio usan el clic en el título y no el paso del ratón: PRO decide al cargar la página si abre con el ratón o con clic (con el ancho de ese momento) y el arnés vuelve a cargar la página al ancho anterior; el propio lo decide en cada evento. Un clic en el título abre en los dos modos de PRO y en el propio. El paso del ratón lo prueba tests/elements-pro-mega-menu-chrome.mjs."
  ],
  "cases": {
   "mm-defaults": {
@@ -175,8 +176,7 @@
    ],
    "actions": [
     {
-     "label": "ratón sobre Servicios",
-     "hover": true,
+     "label": "clic en el título de Servicios",
      "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-title-text",
      "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__title-text",
      "stay": true,
@@ -717,8 +717,7 @@
    ],
    "actions": [
     {
-     "label": "ratón sobre Servicios",
-     "hover": true,
+     "label": "clic en el título de Servicios",
      "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-title-text",
      "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__title-text",
      "stay": true,
@@ -930,7 +929,8 @@
      "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-dropdown-icon",
      "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__dropdown-icon"
     }
-   ]
+   ],
+   "empty": "Sólo desplegable: cerrado, el menú no pinta más que la hamburguesa (en PRO y en el propio); los textos se comparan tras las acciones."
   },
   "mm-mobile-bp": {
    "title": "Punto de corte móvil, elementos estirados, separación y menú sin nombre",
@@ -1112,8 +1112,7 @@
    ],
    "actions": [
     {
-     "label": "ratón sobre Servicios",
-     "hover": true,
+     "label": "clic en el título de Servicios",
      "a": ".e-n-menu-heading > .e-n-menu-item:nth-child(1) > .e-n-menu-title .e-n-menu-title-text",
      "b": ".digi-mm__heading > .digi-mm__item:nth-child(1) > .digi-mm__title .digi-mm__title-text",
      "stay": true,
@@ -1141,5 +1140,30 @@
    ]
   }
  },
- "declared": []
+ "declared": [
+  {
+   "widget": "mega-menu",
+   "kind": "nombre",
+   "match": "^(\\[acción [^\\]]*\\] )?(perdido button «Menu Toggle»|nuevo button «Menú»)$",
+   "reason": "Nombre accesible propio en español de la hamburguesa: «Menú» (PRO: «Menu Toggle»)."
+  },
+  {
+   "widget": "mega-menu",
+   "kind": "nombre",
+   "match": "^(\\[acción [^\\]]*\\] )?(perdido button «(Open|Close) [^»]+»|nuevo button «Submenú de [^»]+»)$",
+   "reason": "El botón de cada submenú se llama «Submenú de …» siempre y su estado lo da aria-expanded; PRO cambiaba el nombre («Open …»/«Close …») con el estado."
+  },
+  {
+   "widget": "mega-menu",
+   "kind": "nombre",
+   "match": "^(\\[acción [^\\]]*\\] )?perdido none «»$",
+   "reason": "Un control oculto (display:none: la hamburguesa en escritorio) que el árbol de accesibilidad de Chrome da en A como «none» sin nombre y en B no da: ni se ve ni recibe el foco en ninguno de los dos."
+  },
+  {
+   "widget": "mega-menu",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de la hamburguesa y de los botones de submenú (contorno de 2 px con separación de 2 px); PRO dejaba el del navegador o lo quitaba."
+  }
+ ]
 }
