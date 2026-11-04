@@ -76,7 +76,15 @@
      "id": "e-transitions-css",
      "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.6,
+      "reason": "Sólo el estado hover a 375 px (normal y foco: 0,00 %): la librería de galería de PRO vuelve a colocar las imágenes con cada «resize» de la ventana (antirrebote de 300 ms y un paso intermedio con las posiciones del ancho anterior). Al medir 375 px después de 1 280 px, ese paso intermedio deja la segunda imagen bajo el puntero: en A el fondo oscuro pasa de la primera imagen a la segunda; en B (sin recolocación) queda en la primera, que es la que el puntero señala."
+     }
+    }
+   }
   },
   "gal-justified": {
    "title": "Justificada (altura de fila 200/150, separación 10) sin carga diferida",
@@ -535,7 +543,15 @@
      "id": "e-transitions-css",
      "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
     }
-   ]
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.6,
+      "reason": "Sólo el estado hover a 375 px (normal y foco: 0,00 %): la librería de galería de PRO vuelve a colocar las imágenes con cada «resize» de la ventana (antirrebote de 300 ms y un paso intermedio con las posiciones del ancho anterior). Al medir 375 px después de 1 280 px, ese paso intermedio deja la segunda imagen bajo el puntero: en A el fondo oscuro pasa de la primera imagen a la segunda; en B (sin recolocación) queda en la primera, que es la que el puntero señala."
+     }
+    }
+   }
   },
   "gal-filters": {
    "title": "Varias galerías con «All», indicador subrayado; clic en «Playas» y teclado (Intro) en «Faros»",

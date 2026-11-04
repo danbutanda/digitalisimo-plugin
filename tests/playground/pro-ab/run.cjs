@@ -458,6 +458,8 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     const max = pix.max !== undefined ? Number(pix.max) : PIXEL_MAX;
     const tol = pix.tolerance !== undefined ? Number(pix.tolerance) : PIXEL_TOLERANCE;
     if (max > PIXEL_MAX && !pix.reason) fail(`pixels.max ${max} sube el umbral sin «reason»`);
+    // Umbral de un ancho (`pixels.widths: { "375": { max, reason } }`, C2): sólo ese ancho, siempre con su motivo.
+    const wmax = (width) => { const x = (pix.widths || {})[width]; if (!x || x.max === undefined) return max; if (!x.reason) fail(`pixels.widths.${width}.max sin «reason»`); return Number(x.max); };
     let declaredCount = 0;
     let unexplainedCount = 0;
     for (const width of WIDTHS) {
@@ -510,8 +512,8 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
         entry.pixels = p || { error: 'sin captura de A o de B' };
         // Umbral propio de una acción (`pixels: { max, reason }` en la acción), con su motivo como el del caso.
         const conf = (c.actions || []).find((x) => (x.label || x[side_a(x)] || x.key) === label) || {};
-        const amax = conf.pixels && conf.pixels.max !== undefined ? Number(conf.pixels.max) : max;
-        if (amax > max && !(conf.pixels || {}).reason) fail(`acción ${label}: pixels.max ${amax} sube el umbral sin «reason»`);
+        const amax = conf.pixels && conf.pixels.max !== undefined ? Number(conf.pixels.max) : wmax(width);
+        if ((conf.pixels || {}).max !== undefined && amax > max && !(conf.pixels || {}).reason) fail(`acción ${label}: pixels.max ${amax} sube el umbral sin «reason»`);
         if (!p) fail(`píxeles ${width} acción ${i + 1} (${label}): sin captura de A o de B`);
         else if (p.ratio > amax) fail(`píxeles ${width} acción ${i + 1} (${label}): ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(amax * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
         w.actions.push(entry);
@@ -524,7 +526,10 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
         const key = state || 'normal';
         w.pixels[key] = p || { error: 'sin captura de A o de B' };
         if (!p) fail(`píxeles ${width} ${key}: sin captura de A o de B`);
-        else if (p.ratio > (key === 'focus' && FOCUS_MAX > max ? FOCUS_MAX : max)) fail(`píxeles ${width} ${key}: ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(max * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
+        // `pixels.states.<hover|focus>`: umbral propio de un estado (con `reason`), p. ej. cuando B muestra con el foco del
+        // teclado lo que A sólo mostraba al pasar el ratón.
+        else if (key !== 'normal' && (pix.states || {})[key] && (pix.states[key].max !== undefined)) { if (!pix.states[key].reason) fail(`pixels.states.${key}.max sin «reason»`); else if (p.ratio > Number(pix.states[key].max)) fail(`píxeles ${width} ${key}: ${(p.ratio * 100).toFixed(2)} % distintos (umbral del estado ${(Number(pix.states[key].max) * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`); }
+        else if (p.ratio > (key === 'focus' && FOCUS_MAX > wmax(width) ? FOCUS_MAX : wmax(width))) fail(`píxeles ${width} ${key}: ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(wmax(width) * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
       }
       w.signature = { a: sa, b: sb };
       w.states = { a: { hover: (wa.hover || {}).styles || null, focus: (wa.focus || {}).styles || null }, b: { hover: (wb.hover || {}).styles || null, focus: (wb.focus || {}).styles || null } };

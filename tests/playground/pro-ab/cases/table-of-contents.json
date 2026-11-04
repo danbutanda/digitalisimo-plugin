@@ -2,7 +2,26 @@
  "_doc": [
   "Casos A/B de la Tabla de contenido (frente A de C2): A con `table-of-contents` de PRO, B con `digitalisimo-table-of-contents`. Los encabezados son widgets `heading` del núcleo hermanos del widget (`after`, sin convertir). La lista se construye en el navegador: `ready` espera a que exista en A y en B. Con la página corta, todos los encabezados están a la vista y todos los enlaces quedan activos en A y en B."
  ],
- "declared": [],
+ "declared": [
+  {
+   "widget": "table-of-contents",
+   "kind": "nombre",
+   "match": "^(perdido button «(Close|Open) table of contents»|nuevo button «Mostrar u ocultar la tabla de contenido»)$",
+   "reason": "Un solo <button> real con aria-expanded y un nombre constante en español (patrón de divulgación); PRO pintaba dos div con role=\"button\" que se alternaban, con los nombres «Close/Open table of contents»."
+  },
+  {
+   "widget": "table-of-contents",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control (div 1 sólo en A \\(div\\)|button 1 sólo en B \\(button\\))$",
+   "reason": "El control para minimizar es un <button> nativo (teclado y rol sin script); en PRO era un div con role=\"button\" y tabindex. Mismo lugar y mismo icono (píxeles)."
+  },
+  {
+   "widget": "table-of-contents",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del botón y de los enlaces (contorno de 2 px con separación de 2 px, estándar del front); PRO dejaba el del navegador o lo quitaba."
+  }
+ ],
  "cases": {
   "toc-defaults": {
    "title": "Valores por defecto: jerárquica con números, título h4, caja minimizable (tableta)",
@@ -271,6 +290,14 @@
      "key": "Enter",
      "wait": 1200
     }
+   ],
+   "declared": [
+    {
+     "widget": "table-of-contents",
+     "kind": "caja",
+     "match": "^(\\[acción [^\\]]*\\] )?(radius|padding|border-(top|right|bottom|left)):",
+     "reason": "Minimizada, sólo queda a la vista el botón: el arnés toma como caja el primer antecesor decorado dentro del widget. La caja propia es el <nav> (borde y radio); PRO, con el marcado optimizado, decora el propio envoltorio del widget (excluido de la medición) y el arnés toma su cabecera. Se ven igual (píxeles 0 %)."
+    }
    ]
   },
   "toc-collapse": {
@@ -334,6 +361,10 @@
    "ready": {
     "a": ".elementor-toc__list-wrapper",
     "b": ".digi-toc__list"
+   },
+   "pixels": {
+    "max": 0.05,
+    "reason": "PRO abre cada subelemento con slideDown de jQuery y lo interrumpe con stop() en cada aviso del IntersectionObserver: la lista queda con una altura fija en línea mayor que su contenido (129 px para 120 px de contenido a 375 px), que deja huecos de unos 9 px. La propia muestra la lista con su altura natural, sin animación."
    }
   },
   "toc-ellipsis": {

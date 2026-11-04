@@ -1,14 +1,90 @@
 {
  "_doc": [
   "Casos A/B de la Lista de videos (frente C de C2): A con `video-playlist` de PRO, B con `digitalisimo-video-playlist`. Imágenes de prueba con `{\"$image\": n}`.",
-  "El arnés corta toda petición a otro origen: en A la API de YouTube no llega y el reproductor queda en negro (como la fachada de B sin portada). Los vídeos de un servicio se prueban sin pulsar; las acciones usan filas sin dirección o el vídeo alojado."
+  "El arnés corta toda petición a otro origen: en A la API de YouTube no llega y el reproductor queda en negro (como la fachada de B sin portada). Los vídeos de un servicio se prueban sin pulsar; las acciones usan filas sin dirección o el vídeo alojado.",
+  "En el móvil (375 px) el reproductor de A queda con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio); B reserva 16:9: cada caso sube sólo el umbral de 375 px con `pixels.widths` y su motivo."
  ],
- "declared": [],
+ "declared": [
+  {
+   "widget": "video-playlist",
+   "kind": "nombre",
+   "match": "^perdido button «(?!Play Video»)",
+   "reason": "Cada vídeo es una pestaña (role=tab) que lleva su título; PRO metía un <button> con el título dentro del div con role=tab (un control dentro de otro). La pestaña se anuncia con el mismo título."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "nombre",
+   "match": "^nuevo button «Mostrar la lista de vídeos»$",
+   "reason": "Botón accesible (aria-expanded, 24 × 24 px) que pliega la lista en el móvil; en PRO era un icono sin nombre que no alcanzaba el teclado."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "nombre",
+   "match": "^(perdido button «Play Video»|nuevo button «Reproducir el vídeo: .*»)$",
+   "reason": "Botón de reproducir nativo con el título del vídeo, en español (PRO: «Play Video» en un div con role=button)."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "nombre",
+   "match": "^nuevo tab «",
+   "reason": "Las pestañas internas son pestañas (role=tab, tablist, flechas); en PRO, enlaces sin destino ni rol."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "imagen",
+   "match": "-\\d+x\\d+\\.png|pro-ab-image-\\d+\\.png",
+   "reason": "Miniaturas con wp_get_attachment_image() (srcset y sizes=75px): el navegador elige el archivo del tamaño de la miniatura; PRO pintaba siempre el archivo completo."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "estilo",
+   "match": "» size: 13\\.3333px → 14px$",
+   "reason": "El título del vídeo usa los 14 px que la hoja de PRO fija en su contenedor (.e-tab-title-text); en PRO el texto está en un <button> que no hereda la fuente y queda con los 13,33 px del navegador (o los que fije el tema)."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "estilo",
+   "match": "» spacing: normal → -?[\\d.]+px$",
+   "reason": "El título hereda el espaciado de letras del encabezado del tema (h4, la etiqueta elegida); el <button> de PRO lo reiniciaba."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control (button|a) \\d+ ",
+   "reason": "Controles distintos por accesibilidad: PRO tenía un <button> por título dentro de cada pestaña y enlaces sin destino (tabindex) en las pestañas internas; el propio tiene el botón que pliega la lista, los de reproducir y botones role=tab en las pestañas internas. El arnés los empareja por etiqueta y orden, así que se comparan controles que no hacen lo mismo."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control div \\d+ sólo en A",
+   "reason": "PRO: div con role=button para reproducir y paneles internos con tabindex=0 copiados del reproductor; el propio usa <button> y paneles internos sin tabindex."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "hover",
+   "match": "^(color|border-color|outline|outline-offset|background|label-color|fill):",
+   "reason": "El primer botón de B es el que pliega la lista (oculto en el escritorio) o el de reproducir; en A, el <button> del título de la primera pestaña: no son el mismo control."
+  },
+  {
+   "widget": "video-playlist",
+   "kind": "foco",
+   "match": "^(color|border-color|outline|outline-offset|background|label-color|fill):",
+   "reason": "Foco visible propio (contorno de 2 px) y, como en hover, el primer botón de B no es el <button> del título de PRO."
+  }
+ ],
  "cases": {
   "vpl-defaults": {
    "title": "Valores por defecto: tres vídeos de muestra sin dirección, miniaturas, número de vídeos y la primera pestaña elegida",
    "widget": "video-playlist",
-   "settings": {}
+   "settings": {},
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.62,
+      "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
+     }
+    }
+   }
   },
   "vpl-services": {
    "title": "YouTube, Vimeo y alojado con miniaturas del sitio y duración; sin pulsar",
@@ -16,10 +92,47 @@
    "settings": {
     "playlist_title": "Curso de prueba",
     "tabs": [
-     { "_id": "a1", "type": "youtube", "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "title": "Introducción", "duration": "3:32", "thumbnail": { "$image": 1 } },
-     { "_id": "a2", "type": "vimeo", "vimeo_url": "https://vimeo.com/76979871", "title": "Segundo vídeo con un título bastante largo para recortarlo", "duration": "12:05", "thumbnail": { "$image": 2 } },
-     { "_id": "a3", "type": "hosted", "hosted_url": { "url": "$image-url:3" }, "title": "Alojado", "duration": "0:02", "thumbnail": { "$image": 3 } }
+     {
+      "_id": "a1",
+      "type": "youtube",
+      "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "title": "Introducción",
+      "duration": "3:32",
+      "thumbnail": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "a2",
+      "type": "vimeo",
+      "vimeo_url": "https://vimeo.com/76979871",
+      "title": "Segundo vídeo con un título bastante largo para recortarlo",
+      "duration": "12:05",
+      "thumbnail": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "a3",
+      "type": "hosted",
+      "hosted_url": {
+       "url": "$image-url:3"
+      },
+      "title": "Alojado",
+      "duration": "0:02",
+      "thumbnail": {
+       "$image": 3
+      }
+     }
     ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.62,
+      "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
+     }
+    }
    }
   },
   "vpl-sections": {
@@ -30,18 +143,51 @@
     "show_thumbnail": "",
     "show_duration": "",
     "tabs": [
-     { "_id": "b1", "type": "youtube", "youtube_url": "", "title": "Primero", "duration": "1:00" },
-     { "_id": "b2", "type": "section", "title": "Parte dos" },
-     { "_id": "b3", "type": "youtube", "youtube_url": "", "title": "Segundo", "duration": "2:00" },
-     { "_id": "b4", "type": "youtube", "youtube_url": "", "title": "Tercero", "duration": "3:00" }
+     {
+      "_id": "b1",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Primero",
+      "duration": "1:00"
+     },
+     {
+      "_id": "b2",
+      "type": "section",
+      "title": "Parte dos"
+     },
+     {
+      "_id": "b3",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Segundo",
+      "duration": "2:00"
+     },
+     {
+      "_id": "b4",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Tercero",
+      "duration": "3:00"
+     }
     ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.62,
+      "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
+     }
+    }
    }
   },
   "vpl-styles": {
    "title": "Estilos más usados: alturas, fondos, colores, separadores, tipografías y sección",
    "widget": "video-playlist",
    "settings": {
-    "layout_height": { "unit": "px", "size": 360 },
+    "layout_height": {
+     "unit": "px",
+     "size": 360
+    },
     "playlist_name_background": "#222831",
     "playlist_name_color": "#ffffff",
     "videos_amount_color": "#eeeeee",
@@ -51,19 +197,64 @@
     "active_color": "#111111",
     "normal_duration_color": "#777777",
     "normal_separator_style": "solid",
-    "normal_separator_weight": { "unit": "px", "size": 1 },
+    "normal_separator_weight": {
+     "unit": "px",
+     "size": 1
+    },
     "normal_separator_color": "#cccccc",
     "normal_typography_typography": "custom",
-    "normal_typography_font_size": { "unit": "px", "size": 15 },
+    "normal_typography_font_size": {
+     "unit": "px",
+     "size": 15
+    },
     "normal_typography_font_weight": "600",
     "section_background": "#393e46",
     "section_color": "#ffffff",
     "tabs": [
-     { "_id": "c0", "type": "section", "title": "Módulo 1" },
-     { "_id": "c1", "type": "youtube", "youtube_url": "", "title": "Lección uno", "duration": "4:10", "thumbnail": { "$image": 4 } },
-     { "_id": "c2", "type": "youtube", "youtube_url": "", "title": "Lección dos", "duration": "5:20", "thumbnail": { "$image": 5 } },
-     { "_id": "c3", "type": "youtube", "youtube_url": "", "title": "Lección tres", "duration": "6:30", "thumbnail": { "$image": 6 } }
+     {
+      "_id": "c1",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Lección uno",
+      "duration": "4:10",
+      "thumbnail": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "c0",
+      "type": "section",
+      "title": "Módulo 1"
+     },
+     {
+      "_id": "c2",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Lección dos",
+      "duration": "5:20",
+      "thumbnail": {
+       "$image": 5
+      }
+     },
+     {
+      "_id": "c3",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Lección tres",
+      "duration": "6:30",
+      "thumbnail": {
+       "$image": 6
+      }
+     }
     ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.62,
+      "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
+     }
+    }
    }
   },
   "vpl-overlay": {
@@ -71,11 +262,39 @@
    "widget": "video-playlist",
    "settings": {
     "show_image_overlay": "yes",
-    "image_overlay": { "$image": 7 },
+    "image_overlay": {
+     "$image": 7
+    },
     "tabs": [
-     { "_id": "d1", "type": "youtube", "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "title": "Con imagen", "duration": "1:11", "thumbnail": { "$image": 7 } },
-     { "_id": "d2", "type": "youtube", "youtube_url": "", "title": "Sin imagen", "duration": "2:22", "thumbnail": { "$image": 8 } }
+     {
+      "_id": "d1",
+      "type": "youtube",
+      "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "title": "Con imagen",
+      "duration": "1:11",
+      "thumbnail": {
+       "$image": 7
+      }
+     },
+     {
+      "_id": "d2",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Sin imagen",
+      "duration": "2:22",
+      "thumbnail": {
+       "$image": 8
+      }
+     }
     ]
+   },
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.62,
+      "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
+     }
+    }
    }
   },
   "vpl-actions": {
@@ -83,15 +302,59 @@
    "widget": "video-playlist",
    "settings": {
     "tabs": [
-     { "_id": "e1", "type": "youtube", "youtube_url": "", "title": "Uno", "duration": "1:00", "thumbnail": { "$image": 9 } },
-     { "_id": "e2", "type": "youtube", "youtube_url": "", "title": "Dos", "duration": "2:00", "thumbnail": { "$image": 10 } },
-     { "_id": "e3", "type": "youtube", "youtube_url": "", "title": "Tres", "duration": "3:00", "thumbnail": { "$image": 11 } }
+     {
+      "_id": "e1",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Uno",
+      "duration": "1:00",
+      "thumbnail": {
+       "$image": 9
+      }
+     },
+     {
+      "_id": "e2",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Dos",
+      "duration": "2:00",
+      "thumbnail": {
+       "$image": 10
+      }
+     },
+     {
+      "_id": "e3",
+      "type": "youtube",
+      "youtube_url": "",
+      "title": "Tres",
+      "duration": "3:00",
+      "thumbnail": {
+       "$image": 11
+      }
+     }
     ]
    },
    "actions": [
-    { "label": "clic en la segunda", "a": ".e-tab-title[data-tab=\"2\"]", "b": ".digi-vpl__tab[data-tab=\"2\"]" },
-    { "label": "Intro en la tercera", "a": ".e-tab-title[data-tab=\"3\"]", "b": ".digi-vpl__tab[data-tab=\"3\"]", "key": "Enter" }
-   ]
+    {
+     "label": "clic en la segunda",
+     "a": ".e-tab-title[data-tab=\"2\"]",
+     "b": ".digi-vpl__tab[data-tab=\"2\"]"
+    },
+    {
+     "label": "Intro en la tercera",
+     "a": ".e-tab-title[data-tab=\"3\"]",
+     "b": ".digi-vpl__tab[data-tab=\"3\"]",
+     "key": "Enter"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.62,
+      "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
+     }
+    }
+   }
   },
   "vpl-inner": {
    "title": "Pestañas internas plegables del primer vídeo, con la segunda pestaña elegida por clic",
@@ -99,12 +362,63 @@
    "settings": {
     "inner_tab_is_content_collapsible": "collapsible",
     "tabs": [
-     { "_id": "f1", "type": "youtube", "youtube_url": "", "title": "Con contenido", "duration": "9:99", "inner_tab_is_content_visible": "show", "inner_tab_content_1": "<p>Descripción del vídeo con varias líneas de texto para que no quepa en la altura plegada y aparezca el botón de mostrar más. Descripción del vídeo con varias líneas de texto para que no quepa en la altura plegada. Descripción del vídeo con varias líneas de texto.</p>", "inner_tab_content_2": "<p>Transcripción</p>" },
-     { "_id": "f2", "type": "youtube", "youtube_url": "", "title": "Otro", "duration": "1:00" }
+     {
+      "_id": "f1",
+      "type": "hosted",
+      "title": "Con contenido",
+      "duration": "9:99",
+      "inner_tab_is_content_visible": "show",
+      "inner_tab_content_1": "<p>Descripción del vídeo con varias líneas de texto para que no quepa en la altura plegada y aparezca el botón de mostrar más. Descripción del vídeo con varias líneas de texto para que no quepa en la altura plegada. Descripción del vídeo con varias líneas de texto.</p>",
+      "inner_tab_content_2": "<p>Transcripción</p>",
+      "hosted_url": {
+       "url": "$image-url:1"
+      }
+     },
+     {
+      "_id": "f2",
+      "type": "hosted",
+      "title": "Otro",
+      "duration": "1:00",
+      "hosted_url": {
+       "url": "$image-url:1"
+      }
+     }
     ]
    },
    "actions": [
-    { "label": "segunda pestaña interna", "a": ".e-inner-tabs-wrapper .e-inner-tab-title:nth-child(2) a", "b": ".digi-vpl__in-tab:nth-child(2)" }
+    {
+     "label": "segunda pestaña interna",
+     "a": ".e-inner-tabs-wrapper .e-inner-tab-title:nth-child(2) a",
+     "b": ".digi-vpl__in-tab:nth-child(2)"
+    }
+   ],
+   "pixels": {
+    "widths": {
+     "375": {
+      "max": 0.62,
+      "reason": "En el móvil A pinta el reproductor con alto 0 (el arnés corta la API del servicio y PRO no reserva espacio hasta que el reproductor carga); B reserva el 16:9 del reproductor encima de la lista."
+     }
+    }
+   },
+   "declared": [
+    {
+     "kind": "palabra",
+     "width": 375,
+     "match": "^nueva «(show|more)»$",
+     "reason": "En el móvil PRO cambia las pestañas internas por títulos apilados y no muestra «Show More»; el widget propio conserva las mismas pestañas y su botón en todos los anchos."
+    },
+    {
+     "kind": "nombre",
+     "width": 375,
+     "match": "^nuevo button «Show More»$",
+     "reason": "En el móvil PRO no muestra «Show More» (ver la palabra)."
+    },
+    {
+     "kind": "estilo",
+     "width": 375,
+     "match": "^«Tab #\\d» ",
+     "reason": "En el móvil PRO pinta los títulos apilados con otro estilo (sin la tipografía de las pestañas); el propio conserva las pestañas."
+    }
    ]
   }
  }
