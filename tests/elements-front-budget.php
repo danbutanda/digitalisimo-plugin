@@ -315,7 +315,49 @@ namespace {
 	}
 	check_budget( 5 === $crs_count, 'Deben revisarse los cinco carruseles propios (' . $crs_count . ').' );
 	$count += $crs_count;
-	check_budget( $count >= 62, 'Deben revisarse los 62 widgets propios (' . $count . ').' );
+	// Elementos de tema propios (programa «sin widgets de PRO», C4, docs/pro/c4.md): los quince widgets de
+	// modules/digitalisimo-theme-elements/ con las mismas reglas. Sus recursos los registra Theme_Elements\Module (con
+	// defer y sin dependencias): hoja ≤ 4 KB por widget y script sólo donde hace falta (el buscador, ≤ 2 KB, sólo con la
+	// pantalla completa o en el editor). Excepciones documentadas: los títulos, el logotipo y la imagen destacada heredan
+	// la hoja del widget del núcleo del que derivan, la misma que cargaba PRO (`parent::get_style_depends()`); la
+	// Información de la entrada pide las hojas de Font Awesome del núcleo sólo con iconos de fuente, como PRO; la Caja de
+	// autor encola `digitalisimo-author-box-extras` sólo cuando se usa el Perfil ampliado.
+	$te_dir    = $root . '/modules/digitalisimo-theme-elements/';
+	$te_module = (string) file_get_contents( $te_dir . 'class-module.php' );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $te_module, $te_entries, PREG_SET_ORDER );
+	check_budget( 15 === count( $te_entries ), 'Theme_Elements\\Module::WIDGETS declara los quince elementos de tema (' . count( $te_entries ) . ').' );
+	preg_match_all( '/wp_register_script\(.*?\);/s', $te_module, $te_scripts );
+	foreach ( $te_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Theme_Elements\\Module: script sin defer o con jQuery.' ); }
+	$te_count   = 0;
+	$te_scripts = 0;
+	foreach ( $te_entries as $m ) {
+		$name   = $m[1];
+		$source = (string) file_get_contents( $te_dir . $m[2] );
+		check_budget( '' !== $source, $name . ': falta ' . $m[2] );
+		$te_count++;
+		$code = preg_replace( '/^\s*(\*|\/\/).*$/m', '', $source );
+		check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery|elementor-pro-frontend|pro-elements-handlers/i', $code ), $name . ': ni Swiper, ni jQuery, ni los paquetes de PRO.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ) && ! preg_match( '/itemscope|<title[\s>]|<meta\s|rel=["\']canonical/i', $code ), $name . ': sin JSON-LD, <script>, microdatos ni señales SEO propias en la salida.' );
+		foreach ( array( 3 => 4096, 4 => 2048 ) as $i => $cap ) {
+			$path = $root . '/' . $m[ $i ];
+			if ( ! is_file( $path ) ) { continue; }
+			check_budget( filesize( $path ) <= $cap, $m[ $i ] . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
+			$text = (string) file_get_contents( $path );
+			if ( 3 === $i ) {
+				check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ) && ! str_contains( $text, '--e-global-' ), $m[ $i ] . ': sin url() ni la paleta del kit.' );
+				check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ), $m[ $i ] . ': anima sin respetar el movimiento reducido.' );
+			} else {
+				$te_scripts++;
+				check_budget( ! preg_match( '/jQuery|\$\(/', $text ), $m[ $i ] . ': sin jQuery.' );
+			}
+		}
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", preg_replace( "/'(full_screen|skin|classic|e_font_icon_svg|is_type_instance|get_settings)'/", '', $declared ), $handles );
+		foreach ( $handles[1] as $handle ) { check_budget( str_starts_with( $handle, 'digitalisimo-' ) || in_array( $handle, array( 'elementor-icons-fa-regular', 'elementor-icons-fa-solid' ), true ), $name . ': sólo recursos propios o del núcleo (' . $handle . ').' ); }
+	}
+	check_budget( 15 === $te_count && 1 === $te_scripts, 'Deben revisarse los quince elementos de tema, con un solo script (' . $te_count . ', ' . $te_scripts . ').' );
+	$count += $te_count;
+	check_budget( $count >= 78, 'Deben revisarse los 78 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );

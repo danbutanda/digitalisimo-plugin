@@ -2794,7 +2794,38 @@
           { "_id": "sl0001", "heading": "Diapositiva del kit", "description": "Texto de la diapositiva.", "button_text": "Ver más", "link": { "url": "@url:/" }, "background_image": "@media:fondo-kit" }
         ]
       }
-    }
+    },
+    "digitalisimo-site-logo": { "settings": { "__dynamic__": { "image": "[elementor-tag id=\"a1b2c3d\" name=\"site-logo\" settings=\"%7B%7D\"]" } } },
+    "digitalisimo-site-title": { "settings": { "__dynamic__": { "title": "[elementor-tag id=\"b1c2d3e\" name=\"site-title\" settings=\"%7B%7D\"]", "link": "[elementor-tag id=\"b4c5d6e\" name=\"site-url\" settings=\"%7B%7D\"]" } } },
+    "digitalisimo-page-title": { "settings": { "title": "Título del kit", "header_size": "h1" } },
+    "digitalisimo-post-title": { "settings": { "__dynamic__": { "title": "[elementor-tag id=\"d1e2f3a\" name=\"post-title\" settings=\"%7B%7D\"]" } } },
+    "digitalisimo-archive-title": { "settings": { "title": "Archivo del kit" } },
+    "digitalisimo-post-excerpt": { "settings": { "excerpt": "Extracto del kit." } },
+    "digitalisimo-post-content": { "settings": { "align": "center" } },
+    "digitalisimo-featured-image": { "settings": { "image": "@media:imagen-a", "image_size": "medium" } },
+    "digitalisimo-post-info": {
+      "settings": {
+        "view": "inline",
+        "icon_list": [
+          { "_id": "pi0001", "type": "author" },
+          { "_id": "pi0002", "type": "date" },
+          { "_id": "pi0003", "type": "terms", "taxonomy": "category" }
+        ]
+      }
+    },
+    "digitalisimo-post-navigation": { "settings": { "prev_label": "Anterior", "next_label": "Siguiente", "in_same_term": "yes", "post_taxonomy": "category" } },
+    "digitalisimo-author-box": { "settings": { "source": "custom", "digitalisimo_author_user": "@user:autora", "author_name": "Autora del kit", "author_bio": "Biografía del kit." } },
+    "digitalisimo-post-comments": { "settings": { "source_type": "current_post" } },
+    "digitalisimo-search-form": { "settings": { "skin": "classic", "placeholder": "Buscar en el kit", "button_type": "icon" } },
+    "digitalisimo-sitemap": {
+      "settings": {
+        "sitemap_items": [
+          { "_id": "sm0001", "sitemap_type_selector": "post_type", "sitemap_source_post_type": "page", "sitemap_title": "Páginas" },
+          { "_id": "sm0002", "sitemap_type_selector": "taxonomy", "sitemap_source_taxonomy": "category", "sitemap_title": "Categorías" }
+        ]
+      }
+    },
+    "digitalisimo-yoast-breadcrumbs": { "settings": { "html_tag": "nav", "align": "center" } }
   },
   "traits": {
     "backdrop-filter": {

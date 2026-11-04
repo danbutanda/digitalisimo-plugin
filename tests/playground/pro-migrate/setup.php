@@ -1,6 +1,6 @@
 <?php
 // Sitio con widgets Blockquote de PRO: una página (con uno anidado), una plantilla de cabecera y una revisión; y una
-// página con los cinco carruseles de PRO (C1).
+// página con los cinco carruseles de PRO (C1); y una plantilla de entrada con los elementos de tema (C4).
 require '/wordpress/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 activate_plugin( 'digitalisimo-elements/pro-elements.php' );
@@ -43,5 +43,30 @@ $carousels_data = array( array( 'id' => 'c5', 'elType' => 'container', 'settings
 $carousels = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Página con carruseles', 'post_name' => 'pm-carruseles' ) );
 update_post_meta( $carousels, '_elementor_edit_mode', 'builder' );
 update_post_meta( $carousels, '_elementor_data', wp_slash( wp_json_encode( $carousels_data ) ) );
-update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels ) );
+// C4: plantilla de entrada del Theme Builder con los quince elementos de tema de PRO y la Información de la entrada de
+// Element Pack (`bdt-post-info`), que F8 lleva a la de PRO y la etapa `pro` a la propia en la misma pasada.
+$single_data = array( array( 'id' => 'c7', 'elType' => 'container', 'settings' => array(), 'elements' => array(
+	$w( 'g1', 'theme-site-logo', array( 'width' => array( 'unit' => 'px', 'size' => 120 ) ) ),
+	$w( 'g2', 'theme-site-title', array( 'header_size' => 'p' ) ),
+	$w( 'g3', 'theme-page-title', array() ),
+	$w( 'g4', 'theme-post-title', array( 'header_size' => 'h1', 'custom_css' => 'selector.elementor-widget-theme-post-title{margin:0}' ) ),
+	$w( 'g5', 'theme-archive-title', array() ),
+	$w( 'g6', 'theme-post-excerpt', array( 'align' => 'center' ) ),
+	$w( 'g7', 'theme-post-content', array() ),
+	$w( 'g8', 'theme-post-featured-image', array( 'image_size' => 'medium' ) ),
+	$w( 'h1', 'post-info', array( 'icon_list' => array( array( '_id' => 'pa', 'type' => 'author' ), array( '_id' => 'pb', 'type' => 'date' ) ), 'custom_css' => 'selector .elementor-icon-list-item{gap:4px}' ) ),
+	$w( 'h2', 'post-navigation', array( 'prev_label' => 'Anterior', 'next_label' => 'Siguiente' ) ),
+	$w( 'h3', 'author-box', array( 'source' => 'custom', 'author_name' => 'Ana' ) ),
+	$w( 'h4', 'post-comments', array() ),
+	$w( 'h5', 'search-form', array( 'placeholder' => 'Buscar' ) ),
+	$w( 'h6', 'sitemap', array( 'sitemap_items' => array( array( '_id' => 'sx', 'sitemap_type_selector' => 'post_type', 'sitemap_source_post_type' => 'page', 'sitemap_title' => 'Páginas' ) ) ) ),
+	$w( 'h7', 'breadcrumbs', array( 'html_tag' => 'nav' ) ),
+	$w( 'e1', 'bdt-post-info', array() ),
+) ) );
+$single = wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => 'Entrada individual', 'post_name' => 'pm-entrada' ) );
+update_post_meta( $single, '_elementor_template_type', 'single-post' );
+update_post_meta( $single, '_elementor_edit_mode', 'builder' );
+update_post_meta( $single, '_elementor_data', wp_slash( wp_json_encode( $single_data ) ) );
+wp_set_object_terms( $single, 'single-post', 'elementor_library_type' );
+update_option( 'pm_ids', array( 'page' => $page, 'header' => $header, 'revision' => (int) $rev, 'carousels' => $carousels, 'single' => $single ) );
 file_put_contents( '/wordpress/wp-content/probe/setup.json', wp_json_encode( get_option( 'pm_ids' ) ) );

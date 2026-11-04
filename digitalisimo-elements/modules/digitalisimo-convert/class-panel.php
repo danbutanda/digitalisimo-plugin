@@ -26,11 +26,16 @@ final class Panel {
 		return $out;
 	}
 
-	/** `elementor/document/config`: `show_in_panel` en falso para cada widget oculto. */
+	/**
+	 * `elementor/document/config`: `show_in_panel` en falso para cada widget oculto. Las plantillas individuales de PRO
+	 * vuelven a mostrar algunos widgets con `panel.widgets_settings` (C4: el contenido de la entrada), que el editor
+	 * aplica después de `widgets`: también ahí se ocultan.
+	 */
 	public static function document_config( $config, $post_id = 0 ) {
 		$config = is_array( $config ) ? $config : array();
 		foreach ( self::hidden() as $type ) {
-			$config['widgets'][ $type ]['show_in_panel'] = false;
+			$config['widgets'][ $type ]['show_in_panel']                     = false;
+			$config['panel']['widgets_settings'][ $type ]['show_in_panel'] = false;
 		}
 		return $config;
 	}

@@ -30,6 +30,18 @@
 # (`{a, b}`: selectores que deben existir dentro del widget antes de medir; por defecto se espera a que Swiper y el motor
 # `digi-crs` hayan arrancado) y `actions` (pulsar o teclear tras medir cada ancho, con firma y píxeles después de cada
 # una; ver run.cjs).
+# C4 (elementos de tema) añade, todos opcionales y sin efecto en los casos que no los traen:
+#   - `context`: mide A y B dentro de una consulta, como la vista previa del Theme Builder (`switch_to_query()` en el
+#     primer elemento de nivel superior): `"post"` o `{"post": "full"}` (entrada completa: autora con biografía,
+#     categoría y etiqueta, extracto, bloques, imagen destacada con leyenda, comentarios con respuesta, anterior y
+#     siguiente), `{"post": "bare"}` (sin extracto, imagen, etiqueta ni comentarios), `"page"` o
+#     `{"archive": "category"|"tag"|"author"|"date"|"search"}`. Los datos de prueba (fijos e idempotentes) y el
+#     mu-plugin `digi-ab-context.php` sólo se crean si algún caso de la corrida trae `context`; los avatares salen de
+#     una imagen local. La consulta queda en conversion.json y pro-ab.json;
+#   - `blank` (con su motivo): un widget que por diseño no pinta texto ni imágenes (el buscador con botón de icono) se
+#     acepta si A tiene controles enfocables;
+#   - `"yoast": true`: activate.php escribe el mu-plugin `digi-ab-yoast.php`, con `WPSEO_Breadcrumbs::breadcrumb()` y
+#     `yoast_breadcrumb()` de prueba (una ruta fija en el formato de Yoast), para que PRO registre sus migas.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos
