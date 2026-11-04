@@ -21,7 +21,7 @@ $digi_pt_icon = array( 'value' => 'far fa-check-circle', 'library' => 'fa-regula
 return array(
 	'source'    => 'price-table',
 	'target'    => 'digitalisimo-price-table',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Textos por defecto de PRO (el propio tiene los suyos, en español).
 	'defaults'  => array(

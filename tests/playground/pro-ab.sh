@@ -35,6 +35,10 @@
 # También `clock` (fecha ISO: el reloj del navegador fijado, para una cuenta regresiva) y, en `actions`, `scroll` (píxeles o
 # `end`: desplaza la página en lugar de pulsar, para un indicador de progreso) y `shape` (motivo: el widget sólo dibuja una forma
 # al cargar; basta con que su caja tenga alto).
+# Umbrales de píxeles, siempre con `reason`: `pixels.max` (todo el caso), `pixels.widths` (`{"<ancho>": {max, reason}}`:
+# sólo ese ancho) y `pixels.states` (`{hover|focus: {max, reason} | {skip: true, reason}}`: umbral propio de un estado, u
+# omitir sus píxeles cuando sólo B tiene algo que enfocar o que lleva el puntero fuera del widget). Medios de Lottie en los
+# ajustes: `{"$lottie": 1}` da `{id, url}` de un adjunto JSON de prueba y `"$lottie-url"`, su URL.
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

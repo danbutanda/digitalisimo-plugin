@@ -19,7 +19,7 @@ $digi_pl_lorem = $digi_pl_t( 'Lorem ipsum dolor sit amet consectetur adipiscing 
 return array(
 	'source'    => 'price-list',
 	'target'    => 'digitalisimo-price-list',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	'keep'      => array(
 		'title_tag', 'description_tag', 'vertical_align', 'row_gap', 'image_spacing', 'content_spacing', 'heading_color', 'price_color',

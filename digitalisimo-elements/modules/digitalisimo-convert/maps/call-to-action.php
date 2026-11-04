@@ -57,7 +57,7 @@ foreach ( array( 'enter-from-right', 'enter-from-left', 'enter-from-top', 'enter
 return array(
 	'source'   => 'call-to-action',
 	'target'   => 'digitalisimo-call-to-action',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Textos por defecto de PRO (el propio tiene los suyos, en español).
 	'defaults' => array(

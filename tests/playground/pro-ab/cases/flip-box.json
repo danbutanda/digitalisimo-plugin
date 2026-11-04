@@ -198,11 +198,6 @@
      "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
     },
     {
-     "kind": "control",
-     "match": "control a 1 sólo en A",
-     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
-    },
-    {
      "kind": "hover",
      "match": ".",
      "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."

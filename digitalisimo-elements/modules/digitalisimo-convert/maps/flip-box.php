@@ -42,7 +42,7 @@ foreach ( array( 'left', 'right', 'up', 'down' ) as $digi_fb_x ) {
 return array(
 	'source'   => 'flip-box',
 	'target'   => 'digitalisimo-flip-box',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Textos por defecto de PRO (el propio tiene los suyos, en español).
 	'defaults' => array(

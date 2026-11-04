@@ -263,7 +263,7 @@ namespace {
 		foreach ( $map['ui'] ?? array() as $control ) {
 			check_cards( 'heading' === $widget->controls[ $control ]['type'], "$type: $control es un encabezado del panel." );
 		}
-		check_cards( $name === $map['target'] && 'hide' === $map['panel'] && in_array( $map['status'], array( 'ready', 'draft' ), true ), "$type: el mapa apunta al widget propio y lo oculta del panel." );
+		check_cards( $name === $map['target'] && 'hide' === $map['panel'] && 'ready' === $map['status'] && null !== Registry::map( $type ), "$type: el mapa, listo tras el A/B, apunta al widget propio y oculta el de PRO del panel." );
 		$own[ $type ] = $widget;
 		$total['controls'] += count( $widget->controls );
 		$total['groups']   += count( $widget->groups );

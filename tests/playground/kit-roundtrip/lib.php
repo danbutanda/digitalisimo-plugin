@@ -74,6 +74,10 @@ function digi_k_media_bytes( array $spec ) {
 	if ( isset( $spec['csv'] ) ) {
 		return array( (string) $spec['csv'], 'csv', 'text/csv' );
 	}
+	if ( isset( $spec['json'] ) ) {
+		// Animación Lottie (C2): el adjunto JSON que usa la Animación Lottie propia.
+		return array( wp_json_encode( $spec['json'] ), 'json', 'application/json' );
+	}
 	if ( isset( $spec['pdf'] ) ) {
 		$text = preg_replace( '/[^A-Za-z0-9 ]/', '', (string) $spec['pdf'] );
 		$body = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]/Contents 4 0 R>>endobj\n4 0 obj<</Length " . ( 26 + strlen( $text ) ) . ">>stream\nBT /F1 12 Tf 10 50 Td (" . $text . ") Tj ET\nendstream endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n";
@@ -109,9 +113,9 @@ function digi_k_attachment( $name, array $spec ) {
 		return (int) $existing[0];
 	}
 	list( $bytes, $ext, $mime ) = digi_k_media_bytes( $spec );
-	// El arnés sube como lo haría un administrador con los tipos que el constructor habilita (SVG, fuentes, CSV).
+	// El arnés sube como lo haría un administrador con los tipos que el constructor habilita (SVG, fuentes, CSV, JSON de Lottie).
 	$allow = static function ( $mimes ) {
-		return $mimes + array( 'svg' => 'image/svg+xml', 'woff2' => 'font/woff2', 'csv' => 'text/csv' );
+		return $mimes + array( 'svg' => 'image/svg+xml', 'woff2' => 'font/woff2', 'csv' => 'text/csv', 'json' => 'application/json' );
 	};
 	add_filter( 'upload_mimes', $allow, 99 );
 	$upload = wp_upload_bits( 'digi-k-' . $name . '.' . $ext, null, $bytes );
