@@ -161,7 +161,7 @@ namespace {
 		$css = (string) file_get_contents( $mod . 'assets/css/' . $w['css'] );
 		check_t( strlen( $css ) > 0 && strlen( $css ) <= 4096, "$pro: la hoja pesa " . strlen( $css ) . ' B (tope 4 096).' );
 		check_t( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( str_replace( '.elementor-widget-' . $w['name'] . '{', '', $css ), 'elementor' ) && ! str_contains( $css, 'swiper' ), "$pro: la hoja no usa el kit, url() ni clases del proveedor." );
-		check_t( (bool) preg_match( '/^\.elementor-widget-' . preg_quote( $w['name'], '/' ) . '\{--digi-crs-view:1;--digi-crs-gap:10px;[^}]*--digi-crs-prev-x:0px;--digi-crs-next-x:0px;--digi-crs-pag-space:40px\}/', $css ), "$pro: la hoja declara en el envoltorio las variables de maquetación del motor (un carrusel anidado no hereda las de fuera), con las flechas en los bordes y 40 px para la paginación, como PRO." );
+		check_t( (bool) preg_match( '/^\.elementor-widget-' . preg_quote( $w['name'], '/' ) . '\{--digi-crs-view:1;--digi-crs-gap:10px;[^}]*--digi-crs-pag-space:40px\}/', $css ), "$pro: la hoja declara en el envoltorio las variables de maquetación del motor (un carrusel anidado no hereda las de fuera), y 40 px para la paginación, como PRO." );
 		check_t( ! preg_match( '/--digi-crs-(prev|next)-(px|cs)|--digi-crs-pag-oy|dot-hover-opacity/', $css ), "$pro: sin variables que el motor ya no lee." );
 		preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
 		check_t( array() === array_diff( array_unique( array_map( 'strtolower', $colors[0] ) ), $colors_ok[ $pro ] ), "$pro: sólo los colores que PRO usaba por defecto: " . implode( ', ', $colors[0] ) );

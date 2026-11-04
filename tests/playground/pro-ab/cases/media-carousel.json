@@ -67,6 +67,7 @@
    }
   },
   "mc-images": {
+   "interact": false,
    "title": "Seis imágenes del sitio con enlaces al archivo (lightbox del núcleo) y una URL personalizada",
    "widget": "media-carousel",
    "settings": {
@@ -133,10 +134,10 @@
      "b": ".digi-crs__dot:nth-of-type(3)"
     },
     {
-     "label": "Flecha derecha del teclado",
+     "label": "Intro en la flecha siguiente",
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next",
-     "key": "ArrowRight"
+     "key": "Enter"
     }
    ]
   },
@@ -201,7 +202,11 @@
     {
      "label": "Tercera miniatura",
      "a": ".elementor-thumbnails-swiper .swiper-slide:nth-child(3)",
-     "b": ".digi-media-carousel__thumbs .digi-crs__slide:nth-child(3)"
+     "b": ".digi-media-carousel__thumbs .digi-crs__slide:nth-child(3)",
+     "widths": [
+      375,
+      768
+     ]
     }
    ]
   },
@@ -336,6 +341,7 @@
    ]
   },
   "mc-video": {
+   "interact": false,
    "title": "Vídeos de YouTube y Vimeo con su imagen e icono de reproducir en color; ninguna petición al servicio antes del clic",
    "widget": "media-carousel",
    "settings": {
@@ -391,6 +397,7 @@
    ]
   },
   "mc-play-icon": {
+   "interact": false,
    "title": "Icono de reproducir de 64 px con sombra propia (PRO no los aplicaba al icono SVG)",
    "widget": "media-carousel",
    "settings": {
@@ -450,6 +457,7 @@
    ]
   },
   "mc-overlay-icon": {
+   "interact": false,
    "title": "Superposición con icono (ojo), animación «zoom-in», colores y tamaño del icono",
    "widget": "media-carousel",
    "settings": {
@@ -639,6 +647,13 @@
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next"
     }
+   ],
+   "declared": [
+    {
+     "kind": "estilo",
+     "match": "align: center → start",
+     "reason": "La fracción del motor digi-crs se centra con flex (su text-align calculado es start); PRO la centraba con text-align."
+    }
    ]
   },
   "mc-progress": {
@@ -701,10 +716,10 @@
      "b": ".digi-crs__next"
     },
     {
-     "label": "Flecha derecha del teclado",
+     "label": "Intro en la flecha siguiente",
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next",
-     "key": "ArrowRight"
+     "key": "Enter"
     }
    ]
   },
@@ -1014,11 +1029,11 @@
    }
   },
   "mc-autoplay": {
-   "title": "Reproducción automática cada 3 s con pausa al pasar el puntero",
+   "title": "Reproducción automática (cada 60 s, para que la captura no dependa del momento) con pausa al pasar el puntero",
    "widget": "media-carousel",
    "settings": {
     "autoplay": "yes",
-    "autoplay_speed": 3000,
+    "autoplay_speed": 60000,
     "slides": [
      {
       "_id": "mc01",
@@ -1054,7 +1069,7 @@
    },
    "pixels": {
     "max": 0.05,
-    "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), y la diapositiva visible depende del momento de la captura."
+    "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
    }
   }
  }

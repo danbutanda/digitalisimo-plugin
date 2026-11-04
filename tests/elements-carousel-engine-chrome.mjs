@@ -42,7 +42,7 @@ async function open({ width = 1280, js = true, reduce = false, editor = false } 
     if (editor) window.elementorFrontend = { isEditMode: () => true, hooks: { addAction: (n, f) => { window.__hook = [n, f]; } } };
   }, editor);
   await page.goto(fixture, { waitUntil: 'load' });
-  if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-crs').length === 9 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
+  if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-crs').length === 12 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
   return page;
 }
 // Estado de un carrusel.
@@ -70,7 +70,8 @@ const state = (page, id) => page.evaluate(id => {
     opacity: [...t.children].map(s => getComputedStyle(s).opacity),
   };
 }, id);
-const settle = page => page.waitForFunction(() => [...document.querySelectorAll('.digi-crs__track')].every(t => { const v = t.scrollLeft; const same = t.__last === v; t.__last = v; return same; }), { polling: 200, timeout: 5000 });
+// Pistas quietas: sin desplazamiento propio en curso (lo marca el imán apagado en línea) y sin cambios entre dos lecturas.
+const settle = async page => { await sleep(60); await page.waitForFunction(() => [...document.querySelectorAll('.digi-crs__track')].every(t => { const v = t.scrollLeft; const same = t.__last === v && t.style.scrollSnapType !== 'none'; t.__last = v; return same; }), { polling: 200, timeout: 5000 }); };
 const click = async (page, id, sel) => { await page.click(`[data-id="${id}"] .digi-crs > ${sel}`); await sleep(50); };
 
 try {
@@ -103,7 +104,13 @@ try {
     ok(geo.prev.width >= 24 && geo.prev.height >= 24 && geo.dot.width >= 24 && geo.dot.height >= 24, `${width}: flechas y puntos de 24 × 24 px como mínimo: ${JSON.stringify([geo.prev, geo.dot])}`);
     ok(Math.abs(geo.icon.left - geo.root.left - 10) <= 1 && Math.abs(geo.icon.top + geo.icon.height / 2 - (geo.track.top + geo.track.height / 2)) <= 1.5 && Math.abs(geo.icon.width - 25) <= 1, `${width}: icono de 25 px a 10 px del borde y centrado en la pista (paginación fuera): ${JSON.stringify([geo.icon, geo.track])}`);
     ok(Math.abs(geo.root.bottom - geo.track.bottom - 30) <= 1 && geo.pag.bottom <= geo.root.bottom - 4 && geo.pag.top >= geo.track.bottom - 1, `${width}: paginación fuera: 30 px bajo la pista y los puntos a 5 px del borde.`);
-    ok(geo.color === 'rgba(238, 238, 238, 0.9)' && geo.bg === 'rgba(0, 0, 0, 0)', `${width}: flechas del color de PRO sin el fondo del tema: ${geo.color} ${geo.bg}`);
+    ok(geo.color === 'rgba(237, 237, 237, 0.9)' && geo.bg === 'rgba(0, 0, 0, 0)', `${width}: flechas del color de PRO sin el fondo del tema: ${geo.color} ${geo.bg}`);
+    const dg = await page.evaluate(() => {
+      const r = document.querySelector('[data-id="w1"] .digi-crs'), R = r.getBoundingClientRect();
+      const ds = [...r.querySelectorAll('.digi-crs__dot:not([hidden])')].map(d => { const b = d.getBoundingClientRect(), a = getComputedStyle(d, '::before'); return { x: b.left + b.width / 2, y: b.bottom - parseFloat(getComputedStyle(d).paddingBottom) - parseFloat(a.height) / 2, w: b.width, h: b.height }; });
+      return { gap: ds[1].x - ds[0].x, bottom: R.bottom - ds[0].y, center: (ds[0].x + ds[2].x) / 2 - (R.left + R.width / 2), w: ds[0].w, h: ds[0].h };
+    });
+    ok(Math.abs(dg.gap - 18) < 0.6 && Math.abs(dg.bottom - 15) < 1 && Math.abs(dg.center) < 1 && dg.w >= 24 && dg.h >= 24, `${width}: puntos como en PRO: 18 px entre centros, centro a 15 px del borde inferior y centrados (botones de 24 px): ${JSON.stringify(dg)}`);
 
     await click(page, 'w1', '.digi-crs__next');
     await settle(page);
@@ -144,12 +151,33 @@ try {
     s = await state(page, 'w1');
     const changes = await page.evaluate(() => window.__changes.filter(c => c[0] === 'w1').map(c => c[1]).join(','));
     ok(s.current === 0 && changes.endsWith('3,0') && changes.startsWith('2,3'), `${width}: digi-crs-go y digi-crs-change con su índice (${changes}).`);
-    // Deslizamiento del usuario.
-    await page.evaluate(() => { const t = document.querySelector('[data-id="w1"] .digi-crs__track'); t.scrollTo({ left: t.children[2].offsetLeft - t.children[0].offsetLeft, behavior: 'instant' }); });
+    // Deslizamiento del usuario (rueda y desplazamiento).
+    await page.evaluate(() => { const t = document.querySelector('[data-id="w1"] .digi-crs__track'); t.dispatchEvent(new WheelEvent('wheel', { deltaX: 300 })); t.scrollTo({ left: t.children[2].offsetLeft - t.children[0].offsetLeft, behavior: 'instant' }); });
     await settle(page);
     await sleep(250);
     s = await state(page, 'w1');
     ok(s.current === 2 && s.dots === '-X-___', `${width}: deslizar la pista actualiza el estado: ${JSON.stringify(s)}`);
+    // Un reajuste del navegador sin acción del usuario no cambia de página: la pista vuelve a la suya.
+    await page.evaluate(() => { document.querySelector('[data-id="w1"] .digi-crs__track').scrollLeft = 0; });
+    await settle(page);
+    await sleep(250);
+    s = await state(page, 'w1');
+    ok(s.current === 2 && Math.abs(s.scroll - s.off[2]) <= 1, `${width}: un desplazamiento que no hizo el usuario se deshace: ${JSON.stringify(s)}`);
+    // Clic perdido (A/B de S): el diseño cambia en pleno movimiento y dos clics seguidos; la pista llega a su página.
+    for (let round = 0; round < 3; round++) {
+      await page.evaluate(() => document.querySelector('[data-id="w1"] .digi-crs').digiCrs.go(0));
+      await settle(page);
+      await page.click('[data-id="w1"] .digi-crs > .digi-crs__next');
+      await page.evaluate(r => { for (const e of document.querySelectorAll('[data-id="w1"] .s')) e.style.height = 100 + 30 * (r + 1) + 'px'; }, round);
+      await sleep(60);
+      await page.click('[data-id="w1"] .digi-crs > .digi-crs__next');
+      await settle(page);
+      await sleep(250);
+      s = await state(page, 'w1');
+      ok(s.current === 3 && s.dots === '--X___' && Math.abs(s.scroll - s.off[3]) <= 1, `${width}: dos clics seguidos con el diseño cambiando: la pista llega a la última página (vuelta ${round}): ${JSON.stringify(s)}`);
+    }
+    await page.evaluate(() => document.querySelector('[data-id="w1"] .digi-crs').digiCrs.go(2));
+    await settle(page);
 
     // 3. Fundido con fracción y autoplay de 1 s, bucle y pausa con el puntero.
     s = w2start;
@@ -231,6 +259,48 @@ try {
     s = await state(page, 'w8');
     const hiddenCtl = await page.evaluate(() => [...document.querySelectorAll('[data-id="w8"] .digi-crs > :not(.digi-crs__track)')].every(e => getComputedStyle(e).display === 'none'));
     ok(s.locked && s.inert === 'XXX' && hiddenCtl, `${width}: tres diapositivas con cuatro visibles: todo a la vista y controles ocultos.`);
+
+    // Bucle con 2 visibles de 4: como Swiper, puntos y fracción cuentan diapositivas (4), no páginas; la última se ve con
+    // la anterior (sin clones) y la siguiente rebobina.
+    s = await state(page, 'w12');
+    ok(s.dots === 'X---' && s.inert === 'XX--', `${width}: bucle: un punto por diapositiva: ${JSON.stringify(s)}`);
+    let f = await state(page, 'w13');
+    ok(f.total === '4' && f.now === '1', `${width}: bucle: fracción «1 / 4»: ${f.now} / ${f.total}`);
+    for (let k = 0; k < 3; k++) await click(page, 'w13', '.digi-crs__next');
+    await settle(page);
+    f = await state(page, 'w13');
+    ok(f.now === '4' && f.current === 3 && f.inert === '--XX' && Math.abs(f.scroll - f.off[2]) <= 1, `${width}: bucle: «4 / 4» muestra la última con la anterior: ${JSON.stringify(f)}`);
+    await click(page, 'w13', '.digi-crs__next');
+    await settle(page);
+    f = await state(page, 'w13');
+    ok(f.now === '1' && f.inert === 'XX--' && Math.abs(f.scroll) <= 1, `${width}: bucle: desde la última, rebobina.`);
+    await page.click('[data-id="w12"] .digi-crs__dot:nth-child(4)');
+    await settle(page);
+    s = await state(page, 'w12');
+    ok(s.dots === '---X' && s.current === 3 && JSON.stringify(s.api) === '[3,4]', `${width}: bucle: el cuarto punto lleva a la cuarta: ${JSON.stringify(s)}`);
+    const flex = await page.evaluate(() => { const t = document.querySelector('[data-id="w12"] .digi-crs__track'), c = t.children[0]; c.classList.add('e-con', 'e-flex'); const st = document.createElement('style'); st.textContent = '.e-con.e-flex{--flex-basis:auto;--flex-grow:0;--flex-shrink:1;flex:var(--flex-grow) var(--flex-shrink) var(--flex-basis)}'; document.head.append(st); const w = [c.getBoundingClientRect().width, t.children[1].getBoundingClientRect().width]; st.remove(); c.classList.remove('e-con', 'e-flex'); return w; });
+    ok(Math.abs(flex[0] - flex[1]) < 0.5, `${width}: el ancho de la diapositiva gana a la regla .e-con.e-flex del núcleo: ${flex}`);
+
+    // 7. Autoplay con deslizamiento y los valores de PRO (pausa con el puntero, detener tras una interacción): arranca,
+    // avanza sin detenerse solo, también al cambiar el ancho, y la pista acompaña al estado (A/B de S).
+    await page.mouse.move(1, 1);
+    await page.$eval('[data-id="w11"]', e => e.scrollIntoView({ block: 'center' }));
+    s = await state(page, 'w11');
+    ok(!s.paused && s.pause.label === 'Pausar', `${width}: autoplay en marcha al cargar: ${JSON.stringify(s.pause)}`);
+    const visited = new Set([s.current]);
+    for (let round = 0; round < 4; round++) {
+      if (round === 2) {
+        await page.setViewport({ width: width === 1280 ? 900 : 420, height: 900 });
+        await page.$eval('[data-id="w11"]', e => e.scrollIntoView({ block: 'center' }));
+      }
+      await sleep(1050);
+      s = await state(page, 'w11');
+      visited.add(s.current);
+      ok(!s.paused && s.pause.label === 'Pausar', `${width}: el autoplay no se detiene solo (vuelta ${round}): ${JSON.stringify(s)}`);
+    }
+    await page.waitForFunction(() => { const t = document.querySelector('[data-id="w11"] .digi-crs__track'), c = t.querySelector('.digi-crs__current'); return Math.abs(t.scrollLeft - (c.offsetLeft - t.children[0].offsetLeft)) <= 1; }, { timeout: 2000 });
+    s = await state(page, 'w11');
+    ok(visited.size >= 3 && s.dots.indexOf('X') === s.current, `${width}: avanza y la pista acompaña al estado: ${[...visited]} ${JSON.stringify(s)}`);
     await page.close();
   }
 

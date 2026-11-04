@@ -308,6 +308,9 @@ namespace {
 	$fixture .= $carousel( 'w6', array( 'arrows' => true, 'pagination' => 'bullets' ), 1 );
 	$fixture .= $carousel( 'w7', array( 'autoplay' => 800, 'interaction' => true, 'arrows' => true, 'pagination' => 'bullets', 'speed' => 0 ), 3 );
 	$fixture .= $carousel( 'w8', array( 'arrows' => true, 'pagination' => 'bullets' ), 3, '--digi-crs-view:4' );
+	$fixture .= $carousel( 'w12', array( 'loop' => true, 'arrows' => true, 'pagination' => 'bullets', 'speed' => 0 ), 4, '--digi-crs-view:2;--digi-crs-gap:10px' );
+	$fixture .= $carousel( 'w13', array( 'loop' => true, 'arrows' => true, 'pagination' => 'fraction', 'speed' => 0 ), 4, '--digi-crs-view:2;--digi-crs-gap:10px' );
+	$fixture .= $carousel( 'w11', array( 'autoplay' => 700, 'loop' => true, 'hover' => true, 'interaction' => true, 'arrows' => true, 'pagination' => 'bullets', 'speed' => 300 ), 4 );
 	$fixture .= "<div class=\"spacer\"></div>\n";
 	$fixture .= $carousel( 'w9', array( 'autoplay' => 600, 'arrows' => true, 'speed' => 0 ), 3 );
 	$fixture .= "<script src=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/js/carousel.js\" defer></script>\n</body></html>\n";

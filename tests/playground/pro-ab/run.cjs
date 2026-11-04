@@ -114,7 +114,11 @@ function pageSignature(sel, slug) {
     const cs = getComputedStyle(el);
     delete s['text-align'];
     const svg = el.querySelector('svg');
-    return { tag: el.tagName.toLowerCase(), color: cs.color, size: cs.fontSize, ...s, ...(svg ? { 'icon-fill': getComputedStyle(svg).fill } : {}) };
+    // Función del control, para emparejar A y B por lo que hacen y no por su orden en el documento (el motor propio
+    // pone los controles antes de la pista; Swiper, después): anterior, siguiente, punto, pausa o el resto por etiqueta.
+    const cls = `${el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
+    const role = /prev|anterior/.test(cls) ? 'prev' : /next|siguiente/.test(cls) ? 'next' : /bullet|__dot|-dot\b/.test(cls) ? 'dot' : /pause|pausar|reanudar/.test(cls) ? 'pause' : el.tagName.toLowerCase();
+    return { tag: el.tagName.toLowerCase(), role, color: cs.color, size: cs.fontSize, ...s, ...(svg ? { 'icon-fill': getComputedStyle(svg).fill } : {}) };
   });
   const r = root.getBoundingClientRect();
   return { texts: [...new Set(texts)], hidden: [...new Set(hidden)], styles, links: [...new Set(links)], images: [...new Set(images.filter(Boolean))], box: boxStyle(box), boxTag: box.tagName.toLowerCase(), controls, focusables: focusables.length, height: Math.round(r.height) };
@@ -316,6 +320,9 @@ async function pixelDiff(diffPage, fileA, fileB, out, tolerance) {
   return r;
 }
 
+// Etiqueta de una acción sin `label`: su selector de A (o el común), como en measure().
+const side_a = (x) => (x.a ? 'a' : 'selector');
+
 // ── Comparación de firmas ─────────────────────────────────────────────────────────────────────────────────────────
 const words = (list) => new Set(list.join(' ').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean));
 function diffSignatures(sa, sb, width) {
@@ -337,12 +344,15 @@ function diffSignatures(sa, sb, width) {
     for (const [p, v] of Object.entries(sa.styles[t])) if (sb.styles[t][p] !== v) add('estilo', `«${t.slice(0, 50)}» ${p}: ${v} → ${sb.styles[t][p]}`);
   }
   for (const [p, v] of Object.entries(sa.box)) if (sb.box[p] !== v) add('caja', `${p}: ${v} → ${sb.box[p]}`);
-  const n = Math.max(sa.controls.length, sb.controls.length);
-  for (let i = 0; i < n; i++) {
-    const a = sa.controls[i];
-    const b = sb.controls[i];
-    if (!a || !b) { add('control', `control ${i + 1} sólo en ${a ? 'A' : 'B'} (${(a || b).tag})`); continue; }
-    for (const [p, v] of Object.entries(a)) if (p !== 'tag' && b[p] !== v) add('control', `control ${i + 1} ${p}: ${v} → ${b[p]}`);
+  // Controles emparejados por función y número de orden dentro de ella (`prev 1`, `dot 3`, `a 2`…).
+  const keyed = (list) => { const seen = {}; const out = new Map(); for (const c of list) { const r = c.role || c.tag; seen[r] = (seen[r] || 0) + 1; out.set(`${r} ${seen[r]}`, c); } return out; };
+  const ka = keyed(sa.controls);
+  const kb = keyed(sb.controls);
+  for (const key of new Set([...ka.keys(), ...kb.keys()])) {
+    const a = ka.get(key);
+    const b = kb.get(key);
+    if (!a || !b) { add('control', `control ${key} sólo en ${a ? 'A' : 'B'} (${(a || b).tag})`); continue; }
+    for (const [p, v] of Object.entries(a)) if (p !== 'tag' && p !== 'role' && b[p] !== v) add('control', `control ${key} ${p}: ${v} → ${b[p]}`);
   }
   return out;
 }
@@ -481,8 +491,12 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
         unexplainedCount += entry.unexplained.length;
         const p = await pixelDiff(diffPage, xa.shot, xb.shot, path.join(SHOTS, `${slug}-diff-${width}-act${i + 1}.png`), tol);
         entry.pixels = p || { error: 'sin captura de A o de B' };
+        // Umbral propio de una acción (`pixels: { max, reason }` en la acción), con su motivo como el del caso.
+        const conf = (c.actions || []).find((x) => (x.label || x[side_a(x)] || x.key) === label) || {};
+        const amax = conf.pixels && conf.pixels.max !== undefined ? Number(conf.pixels.max) : max;
+        if (amax > max && !(conf.pixels || {}).reason) fail(`acción ${label}: pixels.max ${amax} sube el umbral sin «reason»`);
         if (!p) fail(`píxeles ${width} acción ${i + 1} (${label}): sin captura de A o de B`);
-        else if (p.ratio > max) fail(`píxeles ${width} acción ${i + 1} (${label}): ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(max * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
+        else if (p.ratio > amax) fail(`píxeles ${width} acción ${i + 1} (${label}): ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(amax * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
         w.actions.push(entry);
       }
       for (const state of ['', 'hover', 'focus']) {

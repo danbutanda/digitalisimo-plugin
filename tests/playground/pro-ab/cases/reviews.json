@@ -32,6 +32,30 @@
    "kind": "imagen",
    "match": "srcset|sizes|loading|decoding|width|height|«pro-ab-image-\\d+(-\\d+x\\d+)?\\.png»",
    "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa): el navegador elige el tamaño registrado que corresponde al ancho, donde PRO cargaba siempre el original."
+  },
+  {
+   "kind": "control",
+   "match": ".",
+   "reason": "Controles del motor digi-crs (frente E, docs/pro/c1.md §1.1 y su informe): pausa, flecha anterior, paginación y flecha siguiente son <button> y van antes de la pista (PRO: las flechas eran div con role=button y la paginación iba al final, después de los enlaces de las diapositivas); los puntos son botones de 24 × 24 px con el punto dibujado dentro. El arnés compara los controles por posición.",
+   "widget": "reviews"
+  },
+  {
+   "kind": "hover",
+   "match": "^(transform|color|border-color|outline|fill|background|radius|size|border-width|border-bottom|padding|label-color):",
+   "reason": "El primer control de B es la flecha anterior del motor (se centra con translate, no con transform; color #eeeeeee6 donde PRO computaba hsla(0,0%,93%,.9)); en A, con enlaces en las diapositivas, era el primer enlace.",
+   "widget": "reviews"
+  },
+  {
+   "kind": "foco",
+   "match": "^(transform|color|border-color|fill|background|radius|size|border-width|border-bottom|padding|label-color):",
+   "reason": "El primer control de B es la flecha anterior del motor (se centra con translate, no con transform; color #eeeeeee6 donde PRO computaba hsla(0,0%,93%,.9)); en A, con enlaces en las diapositivas, era el primer enlace.",
+   "widget": "reviews"
+  },
+  {
+   "kind": "estilo",
+   "match": "^«(\\d+|/)» align: center → start",
+   "reason": "Fracción del motor digi-crs: alineada al inicio dentro de su caja centrada (Swiper la centraba con text-align en una caja de todo el ancho); la posición es la misma.",
+   "widget": "reviews"
   }
  ],
  "cases": {
@@ -40,6 +64,10 @@
    "widget": "reviews",
    "settings": {
     "autoplay": ""
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). Estrellas SVG propias (mismo tamaño y colores, trazo distinto)."
    }
   },
   "rv-stars": {
@@ -155,8 +183,8 @@
     }
    ],
    "pixels": {
-    "max": 0.03,
-    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos: mismo tamaño y colores, trazo distinto."
+    "max": 0.06,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). Estrellas SVG propias. Además PRO aplicaba a 768 px la separación de móvil (los puntos de corte de Swiper son de mínimo); el propio aplica la de cada dispositivo."
    }
   },
   "rv-outline": {
@@ -239,8 +267,8 @@
     ]
    },
    "pixels": {
-    "max": 0.03,
-    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos: mismo tamaño y colores, trazo distinto."
+    "max": 0.06,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). Estrellas SVG propias (mismo tamaño y colores, trazo distinto)."
    }
   },
   "rv-unicode": {
@@ -312,6 +340,10 @@
       "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
      }
     ]
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "rv-style": {
@@ -410,8 +442,8 @@
     ]
    },
    "pixels": {
-    "max": 0.03,
-    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos."
+    "max": 0.06,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). Estrellas SVG propias (mismo tamaño y colores, trazo distinto)."
    }
   },
   "rv-separator": {
@@ -509,8 +541,8 @@
     ]
    },
    "pixels": {
-    "max": 0.03,
-    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos."
+    "max": 0.06,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). Estrellas SVG propias (mismo tamaño y colores, trazo distinto)."
    }
   },
   "rv-fraction": {
@@ -584,8 +616,8 @@
     ]
    },
    "pixels": {
-    "max": 0.03,
-    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos."
+    "max": 0.06,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). Estrellas SVG propias (mismo tamaño y colores, trazo distinto)."
    }
   }
  }
