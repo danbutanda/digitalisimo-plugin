@@ -14,6 +14,7 @@ let view=1,step=1,page=0,timer=0,wait=0,lw=-1,stop=!delay||!moves(),held=0,focus
 const max=()=>Math.max(0,slides.length-(center?1:view)),pages=()=>Math.ceil(max() / step)+1,pos=p=>Math.min(p * step,max()),
 off=i=>slides[i]?slides[i].offsetLeft-slides[0].offsetLeft:0,
 emit=(n,d,el)=>(el||root).dispatchEvent(new CustomEvent(E+n,{bubbles: n=='change',detail: d}));
+// Estado: inert fuera de la ventana visible, actual, puntos, fracción, barra y extremos sin bucle.
 const paint=()=>{
 const n=pages(),p0=pos(page=Math.max(0,Math.min(page,n-1))),lo=center?p0-(view-1 >> 1):p0,label=box?.getAttribute('data-digi-dot');
 cl.toggle(R+'--locked',n<2);
@@ -41,6 +42,7 @@ sa(pause,'aria-label',pause?.getAttribute(stop?'data-digi-play':'data-digi-pause
 sa(icon,'d',stop?'M8 5v14l11-7z':pd);
 };
 const user=()=>{if (quit&&delay) stop=1;};
+// Visibles y paso: variables calculadas por dispositivo; imán sólo al inicio de cada página.
 const fit=()=>{
 view=fade?1:parseInt(css('view'))||1;
 step=fade?1:parseInt(css('scroll'))||1;
@@ -68,6 +70,7 @@ b.parentNode==box&&dots[page]?.focus();
 on('focusin',e=>{focus=e.target!=pause; run();});
 on('focusout',e=>{if (!root.contains(e.relatedTarget)){focus=0; run();}});
 if (attr('hover')) for (const [t,v] of [['pointerenter',1],['pointerleave',0]]) on(t,e=>{if (e.pointerType=='mouse'){held=v; run();}});
+// Deslizamiento del usuario: al asentarse, la página más cercana; el foco sale de lo inerte.
 fade||on('scroll',()=>{
 clearTimeout(wait);
 wait=setTimeout(()=>{
@@ -83,6 +86,7 @@ lost&&(dots[page]&&!dots[page].hidden?dots[page]:next)?.focus({preventScroll: tr
 },track);
 const api=root.digiCrs={go: i=>{i=+i||0; to(i>=max()?pages()-1:Math.floor(i / step)); run();},index: ()=>pos(page),count: ()=>slides.length,fit,see: v=>{seen=v; run();}};
 on(E+'go',e=>e.target==root&&api.go(e.detail));
+// Miniaturas sincronizadas con el carrusel principal (data-digi-sync="#id").
 let main;
 try{main=D.querySelector(attr('sync'));} catch (x){}
 if (main){

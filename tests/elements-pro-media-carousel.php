@@ -323,9 +323,12 @@ namespace {
 	check_mc( str_contains( (string) json_encode( $w->groups['play_icon_text_shadow']['fields_options'] ), '--digi-mc-play-shadow: drop-shadow(' ) && str_contains( $css, 'var(--digi-mc-play-shadow,' ), 'La sombra del icono de reproducir llega al SVG como drop-shadow.' );
 	// Cada clase propia del CSS personalizado convertido existe en el marcado, en la hoja o como clase del envoltorio.
 	$markup = $render( array( 'skin' => 'slideshow', 'slides' => array( $img( 11, array( 'type' => 'video', 'video' => array( 'url' => 'https://youtu.be/aqz-KE-bpKQ' ) ) ), $img( 12 ) ) ) ) . $render( array( 'overlay' => 'icon', 'pagination' => 'progressbar', 'slides' => array( $img( 11, array( 'image_link_to_type' => 'file' ) ), $img( 12 ) ) ) ) . $render( array( 'pagination' => 'fraction', 'slides' => array( $img( 11 ), $img( 12 ) ) ) );
+	$engine_css = (string) file_get_contents( $root . 'modules/digitalisimo-carousel/assets/css/carousel.css' );
 	foreach ( $map['classes'] as $from => $to ) {
-		$class = substr( $to, 1 );
-		check_mc( str_contains( $markup, $class ) || str_contains( $css, $to ) || 0 === strpos( $class, 'digi-media-carousel--skin-' ) || 'elementor-widget-digitalisimo-media-carousel' === $class || 0 === strpos( $class, 'digi-crs' ), "La clase $to (de $from) no existe en el Carrusel multimedia." );
+		preg_match_all( '/\.([\w-]+)/', $to, $own_classes );
+		foreach ( $own_classes[1] as $class ) {
+			check_mc( str_contains( $markup, $class ) || str_contains( $css, '.' . $class ) || str_contains( $engine_css, '.' . $class ) || 0 === strpos( $class, 'digi-media-carousel--skin-' ) || 'elementor-widget-digitalisimo-media-carousel' === $class, "La clase .$class (de $from) no existe en el Carrusel multimedia ni en el motor." );
+		}
 	}
 
 	// 3. Marcado del servidor: carrusel por defecto.

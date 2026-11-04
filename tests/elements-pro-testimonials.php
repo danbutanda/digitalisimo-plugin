@@ -207,7 +207,7 @@ namespace {
 		foreach ( array( 'effect', 'height', 'pagination_position' ) as $gone ) {
 			check_t( ! isset( $widget->controls[ $gone ] ), "$pro: $gone se quita como en PRO." );
 		}
-		check_t( null === $widget->controls['slides_per_view']['condition'] && null === $widget->controls['slides_to_scroll']['condition'] && '--digi-t-w: {{SIZE}}{{UNIT}};' === $widget->controls['width']['selectors']['{{WRAPPER}}'], "$pro: diapositivas visibles y por paso sin condición; el ancho pasa por --digi-t-w (con flechas, 40 px menos)." );
+		check_t( null === $widget->controls['slides_per_view']['condition'] && null === $widget->controls['slides_to_scroll']['condition'] && '--digi-t-w: {{SIZE}}{{UNIT}}; --digi-t-wa: calc({{SIZE}}{{UNIT}} - 40px);' === $widget->controls['width']['selectors']['{{WRAPPER}}'], "$pro: diapositivas visibles y por paso sin condición; el ancho elegido pasa por --digi-t-w y, con flechas, --digi-t-wa (40 px menos)." );
 		// Mismo valor por defecto y mismas opciones que PRO en cada control propio que los declara.
 		$seen = array( 'default' => 0, 'condition' => 0, 'options' => 0, 'global' => 0 );
 		foreach ( $widget->controls as $name => $control ) {

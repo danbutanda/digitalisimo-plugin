@@ -123,7 +123,7 @@ final class Engine {
 	 *                    `fraction`|`progressbar`), `pagination_position` (`inside`|`outside`), `arrows`,
 	 *                    `arrows_position` (`inside`|`outside`), `prev` y `next` (HTML del icono, ya seguro, o `null` para
 	 *                    el propio), `dir` (''|`ltr`|`rtl`, en la pista), `classes` (array|string, en la raíz),
-	 *                    `attributes` (nombre => valor, en la raíz), `id`, `sync` (`#id` del carrusel principal).
+	 *                    `attributes` (nombre => valor, en la raíz; nunca `on*` ni los propios), `id`, `sync` (`#id` del carrusel principal).
 	 */
 	public static function open( array $args ): string {
 		$a     = array_merge( self::DEFAULTS, $args );
@@ -183,7 +183,7 @@ final class Engine {
 		}
 		$attrs['style'] = '--digi-crs-speed:' . max( 0, (int) $a['speed'] ) . 'ms';
 		foreach ( (array) $a['attributes'] as $name => $value ) {
-			if ( is_string( $name ) && preg_match( '/^[a-z][a-z0-9_:.-]*$/', $name ) && ! isset( $attrs[ $name ] ) ) {
+			if ( is_string( $name ) && preg_match( '/^[a-z][a-z0-9_:.-]*$/', $name ) && 0 !== strpos( $name, 'on' ) && ! isset( $attrs[ $name ] ) ) {
 				$attrs[ $name ] = (string) $value;
 			}
 		}

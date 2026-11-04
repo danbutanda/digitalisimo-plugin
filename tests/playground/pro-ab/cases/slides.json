@@ -15,12 +15,6 @@
    "kind": "foco",
    "match": "^outline(-offset)?:",
    "reason": "Foco visible propio de flechas, puntos, botón y diapositiva enlazada (contorno de 2 px)."
-  },
-  {
-   "widget": "slides",
-   "kind": "hover",
-   "match": ".*",
-   "reason": "El primer control del widget propio es la flecha anterior (los controles van antes de la pista); en PRO, la primera diapositiva enlazada o la flecha."
   }
  ],
  "cases": {
@@ -64,13 +58,6 @@
      "label": "Tercer punto",
      "a": ".swiper-pagination-bullet:nth-child(3)",
      "b": ".digi-crs__dot:nth-of-type(3)",
-     "wait": 2200
-    },
-    {
-     "label": "Flecha derecha del teclado",
-     "a": ".elementor-swiper-button-next",
-     "b": ".digi-crs__next",
-     "key": "ArrowRight",
      "wait": 2200
     }
    ]
@@ -188,7 +175,7 @@
    ],
    "pixels": {
     "max": 0.35,
-    "reason": "Ken Burns es un zoom lineal de 20 s: el fotograma capturado depende del instante en que arrancó en cada página."
+    "reason": "Ken Burns es un zoom lineal de 20 s: el fotograma capturado depende del instante en que arrancó en cada página; además, en PRO el fondo ampliado de la diapositiva siguiente («alejar», escala 1,3) asoma sobre la actual porque la diapositiva no recorta su fondo, y la propia lo recorta."
    },
    "declared": [
     {
@@ -339,6 +326,15 @@
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next",
      "wait": 2200
+    }
+   ],
+   "interact": false,
+   "_interact": "Sin hover ni foco: el primer control del widget propio es la flecha anterior (los controles del motor van antes de la pista) y en PRO la diapositiva enlazada; el botón se mide en sl-button.",
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "Ver más",
+     "reason": "Las diapositivas fuera de la vista son `inert` (motor digi-crs): el enlace del botón de la segunda sale del orden de foco y del árbol de accesibilidad hasta que se muestra; en PRO seguía enfocable fuera de la vista."
     }
    ]
   },
@@ -764,6 +760,59 @@
      "reason": "La diapositiva visible depende del momento de la captura."
     }
    ]
+  },
+  "sl-button": {
+   "title": "Botón enlazado con colores y fondo al pasar el cursor, foco del teclado; sin navegación (el primer control es el botón en los dos lados)",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "navigation": "none",
+    "button_size": "lg",
+    "button_border_width": {
+     "unit": "px",
+     "size": 2,
+     "sizes": []
+    },
+    "button_border_radius": {
+     "unit": "px",
+     "size": 6,
+     "sizes": []
+    },
+    "button_text_color": "#FFFFFF",
+    "button_border_color": "#FFFFFF",
+    "button_hover_text_color": "#1D1D1D",
+    "button_hover_background_background": "classic",
+    "button_hover_background_color": "#FFD166",
+    "button_hover_border_color": "#FFD166",
+    "button_hover_transition_duration": {
+     "unit": "ms",
+     "size": 0,
+     "sizes": []
+    },
+    "slides": [
+     {
+      "_id": "bt01",
+      "heading": "Oferta de temporada",
+      "description": "Pulsa el botón para ver los detalles.",
+      "button_text": "Ver la oferta",
+      "background_color": "#264653",
+      "link": {
+       "url": "https://example.com/oferta",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "link_click": "button"
+     },
+     {
+      "_id": "bt02",
+      "heading": "Segunda",
+      "description": "Sin enlace.",
+      "button_text": "",
+      "background_color": "#2A9D8F"
+     }
+    ]
+   }
   }
  }
 }

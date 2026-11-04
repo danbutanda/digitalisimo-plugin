@@ -532,12 +532,12 @@ class Reviews extends Base_Widget {
 
 		$this->end_injection();
 
-		// Como PRO: con flechas, la pista es 40 px más estrecha (la hoja calcula `--digi-crs-width` con `--digi-t-w`).
+		// Como PRO: 95 % por defecto (su regla de las flechas no alcanzaba la pista) y, con un ancho elegido y flechas, 40 px menos.
 		$this->update_responsive_control(
 			'width',
 			array(
 				'selectors' => array(
-					'{{WRAPPER}}' => '--digi-t-w: {{SIZE}}{{UNIT}};',
+					'{{WRAPPER}}' => '--digi-t-w: {{SIZE}}{{UNIT}}; --digi-t-wa: calc({{SIZE}}{{UNIT}} - 40px);',
 				),
 			)
 		);

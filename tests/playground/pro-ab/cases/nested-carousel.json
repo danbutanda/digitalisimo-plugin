@@ -6,6 +6,18 @@
  "declared": [
   {
    "widget": "nested-carousel",
+   "kind": "caja",
+   "match": "^(\\[acción [^\\]]*\\] )?padding: ",
+   "reason": "La reserva de la paginación fuera (dots_position/fraction_position = outside) es el padding-bottom de la raíz del motor; en PRO, el del contenedor de Swiper, que no es la caja medida. La altura total es la misma."
+  },
+  {
+   "widget": "nested-carousel",
+   "kind": "control",
+   "match": ".",
+   "reason": "Orden de los controles: el propio pone pausa, flecha anterior, paginación y flecha siguiente antes de la pista (orden de foco, docs/pro/c1.md §1.1); PRO ponía las flechas y después la paginación detrás de las diapositivas. Los estilos de cada control se comparan en hover, foco y píxeles."
+  },
+  {
+   "widget": "nested-carousel",
    "kind": "nombre",
    "match": "Diapositiva (anterior|siguiente)|Ir a la diapositiva|Previous|Next|Go to slide",
    "reason": "Nombres accesibles propios de flechas y puntos, en español (PRO usaba los textos de Swiper)."
@@ -112,19 +124,6 @@
         "title": "Diapositiva dos",
         "header_size": "h3",
         "title_color": "#FFFFFF"
-       },
-       "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
        },
        "elements": []
       }
@@ -350,19 +349,6 @@
         "title_color": "#FFFFFF"
        },
        "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
-       },
-       "elements": []
       }
      ]
     },
@@ -559,19 +545,6 @@
         "title": "Diapositiva dos",
         "header_size": "h3",
         "title_color": "#FFFFFF"
-       },
-       "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
        },
        "elements": []
       }
@@ -893,19 +866,6 @@
         "title_color": "#FFFFFF"
        },
        "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
-       },
-       "elements": []
       }
      ]
     },
@@ -1067,7 +1027,8 @@
      "size": -20,
      "sizes": []
     },
-    "dots_position": "inside"
+    "dots_position": "inside",
+    "infinite": ""
    },
    "elements": [
     {
@@ -1135,19 +1096,6 @@
         "title": "Diapositiva dos",
         "header_size": "h3",
         "title_color": "#FFFFFF"
-       },
-       "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
        },
        "elements": []
       }
@@ -1339,19 +1287,6 @@
         "title_color": "#FFFFFF"
        },
        "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
-       },
-       "elements": []
       }
      ]
     },
@@ -1526,19 +1461,6 @@
         "title": "Diapositiva dos",
         "header_size": "h3",
         "title_color": "#FFFFFF"
-       },
-       "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
        },
        "elements": []
       }
@@ -1731,19 +1653,6 @@
         "title_color": "#FFFFFF"
        },
        "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
-       },
-       "elements": []
       }
      ]
     },
@@ -1861,8 +1770,8 @@
     }
    ],
    "pixels": {
-    "max": 0.06,
-    "reason": "El asomo lateral de PRO deja ver además una milésima de la diapositiva siguiente (approx de offset_sides)."
+    "max": 0.45,
+    "reason": "Asomo lateral (approx de offset_sides): el propio reserva el ancho a los dos lados desde el principio; PRO desplaza la primera diapositiva bajo el asomo izquierdo."
    }
   },
   "nc-single": {
@@ -1964,7 +1873,8 @@
      "size": 0,
      "sizes": []
     },
-    "arrows": ""
+    "arrows": "",
+    "infinite": ""
    },
    "elements": [
     {
@@ -2032,19 +1942,6 @@
         "title": "Diapositiva dos",
         "header_size": "h3",
         "title_color": "#FFFFFF"
-       },
-       "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
        },
        "elements": []
       }
@@ -2193,7 +2090,7 @@
    ]
   },
   "nc-autoplay": {
-   "title": "Autoplay a 3 s con pausa al pasar el puntero (antes del primer paso)",
+   "title": "Autoplay (20 s, para medir antes del primer paso) con pausa al pasar el puntero",
    "widget": "nested-carousel",
    "settings": {
     "autoplay": "yes",
@@ -2215,7 +2112,7 @@
       "slide_title": "Slide #4"
      }
     ],
-    "autoplay_speed": 3000
+    "autoplay_speed": 20000
    },
    "elements": [
     {
@@ -2283,19 +2180,6 @@
         "title": "Diapositiva dos",
         "header_size": "h3",
         "title_color": "#FFFFFF"
-       },
-       "elements": []
-      },
-      {
-       "elType": "widget",
-       "widgetType": "button",
-       "settings": {
-        "text": "Ver más",
-        "link": {
-         "url": "#ver-mas",
-         "is_external": "",
-         "nofollow": ""
-        }
        },
        "elements": []
       }

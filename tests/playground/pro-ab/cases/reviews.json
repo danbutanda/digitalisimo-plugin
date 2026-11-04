@@ -30,8 +30,8 @@
   {
    "widget": "reviews",
    "kind": "imagen",
-   "match": "srcset|sizes|loading|decoding|width|height",
-   "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa) en lugar de un <img> con sólo src."
+   "match": "srcset|sizes|loading|decoding|width|height|«pro-ab-image-\\d+(-\\d+x\\d+)?\\.png»",
+   "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa): el navegador elige el tamaño registrado que corresponde al ancho, donde PRO cargaba siempre el original."
   }
  ],
  "cases": {
