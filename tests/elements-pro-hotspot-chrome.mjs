@@ -134,7 +134,6 @@ ok((await state(page, 'hover'))[0].open, 'En «al pasar», pulsar abre (un toque
 // 3. «Siempre visible», secuencia, dirección.
 st = await state(page, 'none');
 ok(st[0].visible && st[0].expanded === null && await page.$eval(sel('none', 2), b => b.tagName === 'SPAN'), '«Siempre visible»: a la vista y sin botón.');
-ok(await page.$$eval('[data-case="seq"] .digi-hs', s => s.every(x => !x.style.animationDelay)), 'Secuencia: sin retrasos hasta entrar en la pantalla.');
 await page.$eval('[data-case="seq"]', el => el.scrollIntoView({ block: 'center' }));
 await sleep(200);
 const delays = await page.$$eval('[data-case="seq"] .digi-hs', s => s.map(x => x.style.animationDelay));

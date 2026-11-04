@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'   => 'lottie',
 	'target'   => 'digitalisimo-lottie',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valores por defecto de PRO (Elementor no guarda lo que coincide con ellos).
 	'defaults' => array(

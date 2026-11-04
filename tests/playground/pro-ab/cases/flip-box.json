@@ -112,12 +112,16 @@
      "focus": {
       "max": 0.08,
       "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
+     },
+     "hover": {
+      "skip": true,
+      "reason": "El arnés lleva el puntero al enlace del reverso, que en reposo está fuera de la tarjeta (empujar lo deja desplazado al 100 %). En A la caja recorta con overflow:hidden y el navegador la desplaza para alcanzarlo (queda girada y corrida); en B recorta con overflow:clip, que no se desplaza (así tampoco lo hace al llegar con el teclado), y el puntero queda fuera. Con el puntero sobre la tarjeta gira igual: lo miden flipbox-defaults, flipbox-fade y flipbox-slide-down."
      }
     }
    }
   },
   "flipbox-flip-3d": {
-   "title": "Giro a la derecha con profundidad 3D, icono enmarcado, enlace en todo el reverso",
+   "title": "Giro a la derecha con profundidad 3D, icono enmarcado, enlace en todo el reverso; con «reducir movimiento» (A y B), para comparar el estado final del giro y no un instante de la transición",
    "widget": "flip-box",
    "settings": {
     "flip_effect": "flip",
@@ -154,11 +158,6 @@
      "kind": "control",
      "match": "control div 1 sólo en A",
      "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
-    },
-    {
-     "kind": "foco",
-     "match": "^transform: matrix3d\\(",
-     "reason": "Giro 3D capturado a mitad de la transición de 0,6 s (el arnés espera 0,5 s tras el foco): el ángulo depende del instante, en A y en B."
     }
    ],
    "pixels": {
@@ -168,7 +167,8 @@
       "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
      }
     }
-   }
+   },
+   "reducedMotion": true
   },
   "flipbox-fade": {
    "title": "Fundido, sin elemento gráfico, título h2, botón grande sin enlace con colores al pasar el ratón",
@@ -194,7 +194,7 @@
    "declared": [
     {
      "kind": "nombre",
-     "match": "button «Click Here»",
+     "match": "^perdido button «Ver precios»$",
      "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
     },
     {
@@ -218,6 +218,10 @@
      "focus": {
       "max": 0.07,
       "reason": "Sin enlace, la tarjeta es el elemento enfocado en A y en B: B le dibuja el contorno propio de 2 px con separación de 2 px alrededor de toda la tarjeta, donde A dejaba el del navegador."
+     },
+     "hover": {
+      "max": 0.1,
+      "reason": "El primer control es distinto (ver la declaración del falso botón): en A el puntero queda sobre el botón y lo pinta con sus colores al pasar el ratón; en B queda en el centro de la tarjeta, que se muestra igual, con el botón en reposo."
      }
     }
    }

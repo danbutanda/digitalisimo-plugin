@@ -46,7 +46,7 @@ foreach ( array( 'left', 'right', 'top', 'bottom' ) as $digi_hs_side ) {
 return array(
 	'source'    => 'hotspot',
 	'target'    => 'digitalisimo-hotspot',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Valores por defecto de PRO: el texto de la información emergente, que PRO traduce al pintarlo, y los que el
 	// widget propio también tiene (para que una fila sin guardar llegue igual).

@@ -382,7 +382,7 @@ namespace {
 
 	// 4. Conversión de Hotspot de PRO con el mapa.
 	Registry::reset();
-	check_hs( null !== Registry::map( 'hotspot', true ) && 'hide' === $map['panel'] && 'digitalisimo-hotspot' === $map['target'] && in_array( $map['status'], array( 'ready', 'draft' ), true ), 'Mapa del Hotspot hacia los Puntos de interés; oculta el widget de PRO.' );
+	check_hs( null !== Registry::map( 'hotspot', true ) && 'hide' === $map['panel'] && 'digitalisimo-hotspot' === $map['target'] && 'ready' === $map['status'], 'Mapa del Hotspot listo tras el A/B; oculta el widget de PRO.' );
 	$own    = $widget();
 	$fields = array_keys( $own->controls['hotspot']['fields'] );
 	$lands  = static function ( $key, $in_row = false ) use ( $own, $fields ) {
