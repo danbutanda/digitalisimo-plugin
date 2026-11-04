@@ -1248,5 +1248,29 @@
   "swiper": false,
   "errores": 0,
   "problemas": 0
+ },
+ "kit_roundtrip": {
+  "escenarios": "R1 (pantalla y WP-CLI) y R4, núcleo incluido, sin WooCommerce",
+  "duracion_s": {
+   "R1": 4580,
+   "R4": 298
+  },
+  "aceptacion": {
+   "A1": "falla",
+   "A2": "ok",
+   "A3": "no medido",
+   "A4": "falla",
+   "A5": "ok",
+   "A6": "ok",
+   "A7": "ok",
+   "A8": "no medido",
+   "A9": "no medido",
+   "A10": "no medido",
+   "A11": "no medido",
+   "A12": "no medido",
+   "A13": "ok",
+   "A14": "ok"
+  },
+  "nota": "A1 y A4 fallaron sólo por la página «rasgo-slides-templates»: las Diapositivas de PRO del kit llegan como Diapositivas propias (§17). Se añadieron tres entradas a tests/playground/kit-roundtrip/known.json y la comparación de las firmas guardadas de esa corrida (compare.mjs firma, R1, pantalla y WP-CLI) da «Sin diferencias», con lo que A1 y A4 quedan en verde."
  }
 }
