@@ -48,7 +48,7 @@ const open = (p, ev) => {
 	stack.push(p);
 	lock();
 	const h = F() && F().elementsHandler;
-	if (!p.ran && h && h.runReadyTrigger) p.content.querySelectorAll('.elementor-element').forEach(n => h.runReadyTrigger(n));
+	if (!p.ran && h && h.runReadyTrigger) p.content.querySelectorAll('.elementor-element').forEach(n => { try { h.runReadyTrigger(n); } catch (e) {} });
 	p.ran = true;
 	if (edit()) return;
 	const f = focusables(p)[0];
