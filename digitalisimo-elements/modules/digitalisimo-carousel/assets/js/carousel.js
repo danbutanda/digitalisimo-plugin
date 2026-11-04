@@ -1,4 +1,4 @@
-/* DIGITALÍSIMO Elements · motor de carrusel digi-crs (C1). Documentación: class-engine.php. */
+/* DIGITALÍSIMO Elements · motor de carrusel digi-crs (C1); ver class-engine.php. */
 (()=>{
 const W=window,D=document,M=Math,A=M.abs,R='digi-crs',E=R+'-',C=R+'__',cs=getComputedStyle,moves=()=>!W.matchMedia?.('(prefers-reduced-motion:reduce)').matches,each=(l,f)=>[].forEach.call(l,f),sa=(e,a,v)=>e?.setAttribute(a,v);
 let io,ro;
@@ -25,7 +25,7 @@ sa(prev,'aria-disabled',!loop&&page<1);
 sa(next,'aria-disabled',!loop&&page>=n-1);
 };
 const halt=()=>{cancelAnimationFrame(anim);anim=0;track.style.scrollSnapType=''},glide=jump=>{
-const x=off(page),from=track.scrollLeft,sp=css('speed'),ms=jump||!moves()?0:parseFloat(sp)*(/ms/.test(sp)?1:1e3)||0,t0=performance.now(),
+const x=off(page),from=track.scrollLeft,sp=css('speed'),ms=jump||D.hidden||!moves()?0:parseFloat(sp)*(/ms/.test(sp)?1:1e3)||0,t0=performance.now(),
 end=()=>{halt();track.scrollLeft=x},go=()=>anim=requestAnimationFrame(f),f=t=>{const k=M.min(1,(t-t0)/ms);track.scrollLeft=from+(x-from)*(k<.5?2*k*k:1-(2-2*k)**2/2);k<1?go():end()};
 halt();
 if(!ms||A(x-from)<1)return end();

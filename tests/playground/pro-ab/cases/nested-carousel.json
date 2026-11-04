@@ -33,6 +33,12 @@
    "kind": "foco",
    "match": "^outline(-offset)?:",
    "reason": "Foco visible propio de flechas y puntos (contorno de 2 px con separación de 2 px)."
+  },
+  {
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control (prev 1|next 1|dot \\d+|pause 1) sólo en A",
+   "reason": "Con todas las diapositivas a la vista (una sola página), el motor oculta flechas, paginación y pausa (digi-crs--locked, como watchOverflow de Swiper): los botones que no hacen nada no se pintan ni entran en el orden de foco. En PRO quedaban deshabilitados a la vista porque la hoja de Swiper que los oculta no se carga.",
+   "widget": "nested-carousel"
   }
  ],
  "cases": {

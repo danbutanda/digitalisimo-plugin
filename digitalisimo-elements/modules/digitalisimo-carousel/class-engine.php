@@ -77,7 +77,7 @@ defined( 'ABSPATH' ) || exit;
  * **Páginas** (como Swiper): sin bucle, 0, paso, 2 × paso… y la última en `count − view` (o `count − 1` centrado); con
  * bucle, una por cada `paso` diapositivas (`ceil(count / paso)`, también en puntos y fracción), y las que no caben se ven
  * desde la última posición posible (no hay clones). El desplazamiento lo anima el script con la duración de
- * `--digi-crs-speed` y el imán apagado mientras dura; un desplazamiento sin toque, rueda ni tecla del usuario (un
+ * `--digi-crs-speed` y el imán apagado mientras dura (con la página oculta, sin fotogramas, salta directamente); un desplazamiento sin toque, rueda ni tecla del usuario (un
  * reajuste del navegador) se deshace y nunca cambia de página ni detiene la reproducción automática. La regla de las
  * diapositivas lleva especificidad de id (`:not(#_)`) para ganar a `.e-con.e-flex` del núcleo.
  *

@@ -329,6 +329,7 @@ namespace {
 	$fixture .= $carousel( 'w8', array( 'arrows' => true, 'pagination' => 'bullets' ), 3, '--digi-crs-view:4' );
 	$fixture .= $carousel( 'w12', array( 'loop' => true, 'arrows' => true, 'pagination' => 'bullets', 'speed' => 0 ), 4, '--digi-crs-view:2;--digi-crs-gap:10px' );
 	$fixture .= $carousel( 'w13', array( 'loop' => true, 'arrows' => true, 'pagination' => 'fraction', 'speed' => 0 ), 4, '--digi-crs-view:2;--digi-crs-gap:10px' );
+	$fixture .= $carousel( 'w14', array( 'arrows' => true, 'pagination' => 'bullets', 'pagination_position' => 'outside' ), 6 );
 	$fixture .= $carousel( 'w11', array( 'autoplay' => 700, 'loop' => true, 'hover' => true, 'interaction' => true, 'arrows' => true, 'pagination' => 'bullets', 'speed' => 300 ), 4 );
 	$fixture .= "<div class=\"spacer\"></div>\n";
 	$fixture .= $carousel( 'w9', array( 'autoplay' => 600, 'arrows' => true, 'speed' => 0 ), 3 );

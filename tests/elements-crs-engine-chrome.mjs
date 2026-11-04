@@ -42,7 +42,7 @@ async function open({ width = 1280, js = true, reduce = false, editor = false } 
     if (editor) window.elementorFrontend = { isEditMode: () => true, hooks: { addAction: (n, f) => { window.__hook = [n, f]; } } };
   }, editor);
   await page.goto(fixture, { waitUntil: 'load' });
-  if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-crs').length === 12 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
+  if (js) await page.waitForFunction(() => document.querySelectorAll('.digi-crs').length === 13 && !document.querySelector('.digi-crs:not(.digi-crs--ready)'));
   return page;
 }
 // Estado de un carrusel.
@@ -318,6 +318,25 @@ try {
     await page.mouse.move(1, 899);
     await page.waitForFunction(() => document.querySelector('[data-id="w2"] .digi-crs__now').textContent === '2', { timeout: 3000 });
     ok(true, 'Movimiento reducido: al pedirlo, reproduce.');
+    await page.close();
+  }
+
+  // 7b. A/B de M (mc-images a 375 px): en una pestaña en segundo plano (el arnés abre A y B a la vez, y ahí no hay
+  // fotogramas) las acciones acumuladas —siguiente, tercer punto, foco en la flecha + Intro, quitar foco y puntero— dejan
+  // la pista en su página, sin quedarse a medio camino.
+  {
+    const page = await open({ width: 375 });
+    const front = await browser.newPage();
+    await front.goto('about:blank');
+    const hidden = await page.evaluate(() => document.visibilityState);
+    const act = async step => { await step(); await sleep(900); await page.mouse.move(0, 0); await page.evaluate(() => document.activeElement && document.activeElement !== document.body && document.activeElement.blur()); await sleep(300); return state(page, 'w14'); };
+    let s = await act(() => page.$eval('[data-id="w14"] .digi-crs__next', b => b.click()));
+    ok(s.current === 1 && Math.abs(s.scroll - s.off[1]) <= 1, `Segundo plano (${hidden}): siguiente → 2.ª en su sitio: ${JSON.stringify(s)}`);
+    s = await act(() => page.$eval('[data-id="w14"] .digi-crs__dot:nth-of-type(3)', b => b.click()));
+    ok(s.current === 2 && Math.abs(s.scroll - s.off[2]) <= 1, `Segundo plano: tercer punto → 3.ª en su sitio: ${JSON.stringify(s)}`);
+    s = await act(async () => { const b = await page.$('[data-id="w14"] .digi-crs__next'); await b.focus(); await page.keyboard.press('Enter'); });
+    ok(s.current === 3 && s.dots === '---X--' && s.prev === 'false' && Math.abs(s.scroll - s.off[3]) <= 1, `Segundo plano: foco en la flecha + Intro → 4.ª en su sitio, sin quedarse a medio camino: ${JSON.stringify(s)}`);
+    await front.close();
     await page.close();
   }
 
