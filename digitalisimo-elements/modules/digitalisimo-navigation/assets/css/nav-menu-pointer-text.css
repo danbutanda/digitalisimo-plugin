@@ -5,4 +5,4 @@
 .digi-nav--p-textA-sink .digi-nav__link:is(:hover,:focus){transform:translateY(8px)}
 .digi-nav--p-textA-rotate .digi-nav__link:is(:hover,:focus){transform:rotate(6deg)}
 .digi-nav--a-none,.digi-nav--a-none .digi-nav__link,.digi-nav--a-none .digi-nav__link:before,.digi-nav--a-none .digi-nav__link:after{transition-duration:0s}
-@media(prefers-reduced-motion:reduce){.digi-nav__link,.digi-nav__link:before,.digi-nav__link:after{transition-duration:0s}}
+@media(prefers-reduced-motion:reduce){.digi-nav__link,.digi-nav__link:before,.digi-nav__link:after{transition-duration:0s!important}}

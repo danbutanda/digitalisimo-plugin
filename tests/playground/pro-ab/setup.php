@@ -4,7 +4,8 @@
  *
  * - página A `pro-ab-<caso>-a`: un contenedor con el widget de PRO (`widget`), sus ajustes guardados (`settings`) y,
  *   en los anidados, sus hijos (`elements`); las imágenes de prueba (`{"$image": n}`, `{"$gallery": [n, …]}`,
- *   `"$image-url:n"`) se crean una vez con GD (`digi_ab_image()`);
+ *   `"$image-url:n"`) se crean una vez con GD (`digi_ab_image()`) y los menús de WordPress (`{"$menu": "nombre"}`, el
+ *   slug de un menú con submenús), con `digi_ab_menu()`;
  * - página B `pro-ab-<caso>-b`: el mismo árbol convertido con `Converter::tree( $data, $log, true )` (mapas en borrador
  *   incluidos); el `id` del widget es el mismo en A y en B;
  * - las dos con la plantilla «Lienzo» (sin cabecera ni pie del tema: el foco con teclado llega antes al widget) y su CSS
@@ -97,6 +98,45 @@ function digi_ab_image( $n ) {
 	return $cache[ $n ] = array( $id, (string) wp_get_attachment_url( $id ) );
 }
 
+/**
+ * Menú de WordPress de prueba (`{"$menu": "nombre"}`, C3): crea una vez el menú `pro-ab-<nombre>` y devuelve su slug.
+ * Estructura fija, con submenús de dos niveles, un padre sin destino («#») y un ancla: Inicio, Servicios (Diseño,
+ * Desarrollo web › Tiendas en línea, Aplicaciones), Equipo («#» › Personas, Valores), Blog y Contacto (`#contacto`).
+ * Los destinos son páginas del sitio que no existen: el A/B no navega.
+ */
+function digi_ab_menu( $name ) {
+	static $cache = array();
+	$name = preg_replace( '/[^a-z0-9-]/', '', strtolower( (string) $name ) );
+	$slug = 'pro-ab-' . ( '' === $name ? 'menu' : $name );
+	if ( isset( $cache[ $slug ] ) ) {
+		return $cache[ $slug ];
+	}
+	$menu = wp_get_nav_menu_object( $slug );
+	if ( $menu ) {
+		return $cache[ $slug ] = (string) $menu->slug;
+	}
+	$id = wp_create_nav_menu( $slug );
+	if ( is_wp_error( $id ) ) {
+		digi_ab_fail( "No se pudo crear el menú de prueba $slug: " . $id->get_error_message() );
+		return $cache[ $slug ] = '';
+	}
+	$add = static function ( $title, $url, $parent = 0 ) use ( $id ) {
+		return (int) wp_update_nav_menu_item( $id, 0, array( 'menu-item-title' => $title, 'menu-item-url' => $url, 'menu-item-status' => 'publish', 'menu-item-type' => 'custom', 'menu-item-parent-id' => $parent ) );
+	};
+	$add( 'Inicio', home_url( '/pro-ab-inicio/' ) );
+	$services = $add( 'Servicios', home_url( '/pro-ab-servicios/' ) );
+	$add( 'Diseño', home_url( '/pro-ab-diseno/' ), $services );
+	$dev = $add( 'Desarrollo web', home_url( '/pro-ab-desarrollo/' ), $services );
+	$add( 'Tiendas en línea', home_url( '/pro-ab-tiendas/' ), $dev );
+	$add( 'Aplicaciones', home_url( '/pro-ab-aplicaciones/' ), $services );
+	$team = $add( 'Equipo', '#' );
+	$add( 'Personas', home_url( '/pro-ab-personas/' ), $team );
+	$add( 'Valores', home_url( '/pro-ab-valores/' ), $team );
+	$add( 'Blog', home_url( '/pro-ab-blog/' ) );
+	$add( 'Contacto', '#contacto' );
+	return $cache[ $slug ] = (string) wp_get_nav_menu_object( $id )->slug;
+}
+
 /** Sustituye en unos ajustes las imágenes de prueba: `{"$image": n}`, `{"$gallery": [n, …]}` y `"$image-url:n"`. */
 function digi_ab_tokens( $value ) {
 	if ( is_string( $value ) && preg_match( '/^\$image-url:(\d+)$/', $value, $m ) ) {
@@ -108,6 +148,9 @@ function digi_ab_tokens( $value ) {
 	if ( array( '$image' ) === array_keys( $value ) ) {
 		list( $id, $url ) = digi_ab_image( (int) $value['$image'] );
 		return array( 'id' => $id, 'url' => $url, 'alt' => '', 'source' => 'library', 'size' => '' );
+	}
+	if ( array( '$menu' ) === array_keys( $value ) ) {
+		return digi_ab_menu( (string) $value['$menu'] );
 	}
 	if ( array( '$gallery' ) === array_keys( $value ) ) {
 		$out = array();

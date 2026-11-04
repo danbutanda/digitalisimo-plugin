@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
  * sustituye al «WordPress Menu» de PRO (`modules/nav-menu/widgets/nav-menu.php`, mapa
  * `modules/digitalisimo-convert/maps/nav-menu.php`).
  *
- * - **Controles**: los 56 del widget de PRO y sus 6 grupos, con el mismo nombre, tipo, valor por defecto, opciones,
+ * - **Controles**: los 56 del widget de PRO y sus 5 grupos, con el mismo nombre, tipo, valor por defecto, opciones,
  *   condiciones y dispositivos (estructura y controles derivados de PRO Elements, GPL); textos en español y selectores
  *   sobre el marcado propio. Las clases que PRO pone en el contenedor del widget (`prefix_class`) son propias:
  *   `digi-nav--align-*`, `digi-nav--dropdown-*`, `digi-nav--stretch`, `digi-nav--text-*`, `digi-nav--toggle`.
@@ -28,18 +28,36 @@ defined( 'ABSPATH' ) || exit;
  *   (`span.digi-nav__arrow`, decorativo, como el de PRO) y, después del enlace, `button.digi-nav__sub-toggle` con
  *   `aria-expanded`, `aria-controls` y nombre «Submenú de …»: el script lo coloca sobre el indicador, así el aspecto es el
  *   de PRO y el enlace sigue llevando a su página. Los submenús son `ul.digi-nav__dropdown`.
- * - **Recursos**: `assets/css/nav-menu.css` (diseño, submenús, hamburguesa, desplegable) y, sólo si hay puntero,
- *   `assets/css/nav-menu-pointer.css` (las animaciones del puntero); `assets/js/nav-menu.js` (`defer`, sin dependencias).
+ * - **Recursos**: `assets/css/nav-menu.css` (diseño, menú principal y submenús), sólo lo que el menú usa de
+ *   las de `SHEETS` (desplegable y familia del puntero, ≤ 4 KB cada una); `assets/js/nav-menu.js` (`defer`, sin
+ *   dependencias).
  *   Los puntos de corte que no son los predeterminados se imprimen una vez por página, junto al primer menú que los usa.
  */
 class Nav_Menu extends \Elementor\Widget_Base {
 
 	const NAME = 'digitalisimo-nav-menu';
 
-	/** Hoja de los punteros: sólo se encola si el menú principal tiene uno. */
-	const POINTER_HANDLE = 'digitalisimo-nav-menu-pointer';
+	/**
+	 * Hojas además de la propia (`nav-menu.css`): la del desplegable (hamburguesa, menú bajo el punto de corte) y una por
+	 * familia de puntero (líneas, marco, fondo, texto), cada una ≤ 4 KB. Sólo se encola lo que el menú usa.
+	 */
+	const SHEETS = array(
+		'digitalisimo-nav-menu-dropdown'           => 'modules/digitalisimo-navigation/assets/css/nav-menu-dropdown.css',
+		'digitalisimo-nav-menu-pointer-line'       => 'modules/digitalisimo-navigation/assets/css/nav-menu-pointer-line.css',
+		'digitalisimo-nav-menu-pointer-framed'     => 'modules/digitalisimo-navigation/assets/css/nav-menu-pointer-framed.css',
+		'digitalisimo-nav-menu-pointer-background' => 'modules/digitalisimo-navigation/assets/css/nav-menu-pointer-background.css',
+		'digitalisimo-nav-menu-pointer-text'       => 'modules/digitalisimo-navigation/assets/css/nav-menu-pointer-text.css',
+	);
 
-	const POINTER_CSS = 'modules/digitalisimo-navigation/assets/css/nav-menu-pointer.css';
+	/** Familia de hoja de cada puntero. */
+	const POINTER_SHEETS = array(
+		'underline'   => 'line',
+		'overline'    => 'line',
+		'double-line' => 'line',
+		'framed'      => 'framed',
+		'background'  => 'background',
+		'text'        => 'text',
+	);
 
 	/** Puntos de corte que la hoja ya cubre (los predeterminados del núcleo). */
 	const SHEET_BREAKPOINTS = array(
@@ -79,21 +97,28 @@ class Nav_Menu extends \Elementor\Widget_Base {
 	}
 
 	/**
-	 * La hoja propia y, con puntero en el menú principal, la de los punteros. La instancia de registro (editor) declara
-	 * las dos.
+	 * La hoja propia, la del desplegable si hay desplegable y la de la familia del puntero del menú principal. La
+	 * instancia de registro (editor) las declara todas.
 	 */
 	public function get_style_depends(): array {
-		$out = Module::style_depends( self::NAME );
-		if ( ! self::register_pointer_style() ) {
-			return $out;
-		}
+		self::register_sheets();
+		$all = array_merge( Module::style_depends( self::NAME ), array_keys( self::SHEETS ) );
 		if ( ! method_exists( $this, 'is_type_instance' ) || $this->is_type_instance() || ! method_exists( $this, 'get_settings' ) ) {
-			$out[] = self::POINTER_HANDLE;
-			return $out;
+			return $all;
 		}
-		$s = (array) $this->get_settings();
-		if ( 'dropdown' !== ( $s['layout'] ?? 'horizontal' ) && ! in_array( (string) ( $s['pointer'] ?? 'underline' ), array( '', 'none' ), true ) ) {
-			$out[] = self::POINTER_HANDLE;
+		return self::sheets_for( (array) $this->get_settings() );
+	}
+
+	/** Hojas que necesitan unos ajustes. */
+	public static function sheets_for( array $s ): array {
+		$out    = Module::style_depends( self::NAME );
+		$layout = (string) ( $s['layout'] ?? 'horizontal' );
+		if ( 'dropdown' === $layout || 'none' !== (string) ( $s['dropdown'] ?? 'tablet' ) ) {
+			$out[] = 'digitalisimo-nav-menu-dropdown';
+		}
+		$pointer = (string) ( $s['pointer'] ?? 'underline' );
+		if ( 'dropdown' !== $layout && isset( self::POINTER_SHEETS[ $pointer ] ) ) {
+			$out[] = 'digitalisimo-nav-menu-pointer-' . self::POINTER_SHEETS[ $pointer ];
 		}
 		return $out;
 	}
@@ -102,15 +127,17 @@ class Nav_Menu extends \Elementor\Widget_Base {
 		return Module::script_depends( self::NAME );
 	}
 
-	/** Registra la hoja de los punteros (idempotente). Devuelve si está disponible. */
-	public static function register_pointer_style(): bool {
-		if ( ! function_exists( 'wp_register_style' ) || ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) || ! is_file( Module::path( self::POINTER_CSS ) ) ) {
-			return false;
+	/** Registra las hojas adicionales (idempotente, sin encolarlas). */
+	public static function register_sheets(): void {
+		if ( ! function_exists( 'wp_register_style' ) || ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) ) {
+			return;
 		}
-		if ( ! wp_style_is( self::POINTER_HANDLE, 'registered' ) ) {
-			wp_register_style( self::POINTER_HANDLE, plugins_url( self::POINTER_CSS, DIGITALISIMO_ELEMENTS_FILE ), array(), defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false );
+		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
+		foreach ( self::SHEETS as $handle => $file ) {
+			if ( ! wp_style_is( $handle, 'registered' ) && is_file( Module::path( $file ) ) ) {
+				wp_register_style( $handle, plugins_url( $file, DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
+			}
 		}
-		return true;
 	}
 
 	protected function get_nav_menu_index() {
@@ -663,7 +690,7 @@ class Nav_Menu extends \Elementor\Widget_Base {
 				'global'   => array(
 					'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 				),
-				'selector' => '{{WRAPPER}} .digi-nav__main .digi-nav__link',
+				'selector' => '{{WRAPPER}} .digi-nav__list .digi-nav__link',
 			)
 		);
 

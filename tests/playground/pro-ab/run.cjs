@@ -220,7 +220,11 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
       }
       w.signature.names = names;
       const shot = async (state) => {
-        const clip = await page.evaluate((s, m) => { const r = document.querySelector(s).getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, sel, MARGIN);
+        // `shot: "viewport"` (caso): la ventana entera, para lo que el widget pinta fuera de su caja (un panel fijo o un
+        // desplegable de resultados, C3 · frente F).
+        const clip = c.shot === 'viewport'
+          ? await page.evaluate(() => ({ x: scrollX, y: scrollY, width: document.documentElement.clientWidth, height: innerHeight }))
+          : await page.evaluate((s, m) => { const r = document.querySelector(s).getBoundingClientRect(); const x = Math.max(0, r.left + scrollX - m); const y = Math.max(0, r.top + scrollY - m); return { x, y, width: Math.min(document.documentElement.scrollWidth - x, r.width + 2 * m), height: r.height + 2 * m }; }, sel, MARGIN);
         const file = path.join(SHOTS, `${slug}-${side}-${width}${state ? '-' + state : ''}.png`);
         if (clip.width < 1 || clip.height < 1) return null;
         await page.screenshot({ path: file, clip, captureBeyondViewport: true });
@@ -246,9 +250,10 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
         w.focus = { reached: inside, styles: inside ? await page.evaluate(stateStyles, sel) : null, shot: inside ? await shot('focus') : null };
         await page.evaluate(() => document.activeElement && document.activeElement.blur());
       }
-      // Acciones del caso (`actions`: `{ label, a, b, selector, key, wait, widths }`): pulsar el selector del lado
-      // (`a`/`b`, o `selector` común, relativo al widget) o, con `key`, enfocarlo y teclear. Tras cada una, sin foco ni
-      // puntero encima, firma y captura. Son acumulativas dentro de un ancho; después se recarga la página.
+      // Acciones del caso (`actions`: `{ label, a, b, selector, key, hover, stay, wait, widths }`): pulsar el selector del
+      // lado (`a`/`b`, o `selector` común, relativo al widget), con `key` enfocarlo y teclear o con `hover` pasar el
+      // puntero por encima. Tras cada una, sin foco ni puntero encima (salvo con `stay`), firma y captura. Son
+      // acumulativas dentro de un ancho; después se recarga la página.
       const actions = (c.actions || []).filter((act) => !act.widths || act.widths.map(Number).includes(width));
       if (actions.length) {
         w.actions = [];
@@ -256,13 +261,19 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           const target = act[side] || act.selector || '';
           const entry = { label: act.label || target || act.key, done: true };
           try {
-            const el = target ? await handle.$(target) : handle;
+            // `page`: el selector es de la página, no del widget (un disparador fuera de él, C3 · frente F).
+            const el = target ? await (act.page ? page : handle).$(target) : handle;
             if (!el) throw new Error(`no existe «${target}»`);
-            if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
+            if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else if (act.type) { await el.focus(); await page.keyboard.type(String(act.type), { delay: 60 }); } else if (act.hover) await el.hover(); else await el.click();
           } catch (e) { entry.done = false; entry.error = String(e.message || e); }
           await sleep(Number(act.wait || 900));
-          await page.mouse.move(0, 0);
-          await page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
+          // `focus`: dónde queda el foco tras la acción (en el widget, fuera o en el cuerpo), comparado entre A y B.
+          if (act.focus) entry.focus = await page.evaluate((s) => { const a = document.activeElement; const r = document.querySelector(s); if (!a || a === document.body) return 'cuerpo'; return `${r && r.contains(a) ? 'widget' : 'página'} ${a.tagName.toLowerCase()} «${String(a.getAttribute('aria-label') || a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40)}»`; }, sel);
+          // `stay`: el puntero y el foco se quedan donde los dejó la acción (menús que se cierran al salir el ratón).
+          if (!act.stay) {
+            await page.mouse.move(0, 0);
+            await page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
+          }
           await sleep(300);
           entry.signature = await page.evaluate(pageSignature, sel, slug);
           entry.shot = await shot(`act${w.actions.length + 1}`);
@@ -481,6 +492,7 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
         const label = xa.label || xb.label || String(i + 1);
         if (!xa.done || !xb.done) fail(`acción ${i + 1} (${label}) no se pudo hacer en ${!xa.done ? 'A' : 'B'}: ${(!xa.done ? xa : xb).error || 'sin datos'}`);
         const ad = diffSignatures(xa.signature, xb.signature, width).map((d) => ({ ...d, detail: `[acción ${i + 1} ${label}] ${d.detail}` }));
+        if ((xa.focus || xb.focus) && xa.focus !== xb.focus) ad.push({ kind: 'foco', width, detail: `[acción ${i + 1} ${label}] foco en ${xa.focus} → ${xb.focus}` });
         const entry = { label, declared: [], unexplained: [], pixels: null };
         for (const d of ad) {
           const ex = explain(d, declared, reasons, codes);

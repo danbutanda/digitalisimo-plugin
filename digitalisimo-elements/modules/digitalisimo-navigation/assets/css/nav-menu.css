@@ -42,4 +42,4 @@
 .digi-nav__dropdown a{color:#33373d}
 ul.digi-nav__dropdown a{border-inline-start:8px solid transparent;text-shadow:none}
 .digi-nav__dropdown :is(.digi-nav__link,.digi-nav__sublink):is(:hover,:focus,.digi-nav__active,.digi-nav__open){background-color:#3f444b;color:#fff}
-@media(prefers-reduced-motion:reduce){.digi-nav a,.digi-nav__container.digi-nav__dropdown{transition:none}}
+@media(prefers-reduced-motion:reduce){.digi-nav a{transition:none!important}}

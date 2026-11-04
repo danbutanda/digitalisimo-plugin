@@ -1,19 +1,19 @@
 .digi-nav__link:before,.digi-nav__link:after{display:block;position:absolute;transition:.3s;transition-timing-function:cubic-bezier(.58,.3,.005,1)}
-.digi-nav__link:not(:hover,:focus,.digi-nav__active,.digi-nav__open):before,.digi-nav__link:not(:hover,:focus,.digi-nav__active,.digi-nav__open):after{opacity:0}
+.digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before,.digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):after{opacity:0}
 .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):before,.digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):after{transform:scale(1)}
 .digi-nav--p-background .digi-nav__link:before,.digi-nav--p-background .digi-nav__link:after{content:"";transition:.3s}
 .digi-nav--p-background .digi-nav__link:before{background:#3f444b;inset:0;z-index:-1}
 .digi-nav--p-background .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open){color:#fff}
 .digi-nav--p-backgroundA-grow .digi-nav__link:before{transform:scale(.5)}
 .digi-nav--p-backgroundA-grow .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):before{opacity:1;transform:scale(1)}
-.digi-nav--p-backgroundA-shrink .digi-nav__link:not(:hover,:focus,.digi-nav__active,.digi-nav__open):before{transform:scale(1.2);transition:.3s}
+.digi-nav--p-backgroundA-shrink .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{transform:scale(1.2);transition:.3s}
 .digi-nav--p-backgroundA-shrink .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):before{transition:opacity .15s,transform .4s}
-.digi-nav--p-backgroundA-sweep-left .digi-nav__link:not(:hover,:focus,.digi-nav__active,.digi-nav__open):before{left:100%}
-.digi-nav--p-backgroundA-sweep-right .digi-nav__link:not(:hover,:focus,.digi-nav__active,.digi-nav__open):before{right:100%}
-.digi-nav--p-backgroundA-sweep-up .digi-nav__link:not(:hover,:focus,.digi-nav__active,.digi-nav__open):before{top:100%}
-.digi-nav--p-backgroundA-sweep-down .digi-nav__link:not(:hover,:focus,.digi-nav__active,.digi-nav__open):before{bottom:100%}
-.digi-nav--p-backgroundA-shutter-out-vertical .digi-nav__link:not(:hover,:focus,.digi-nav__active,.digi-nav__open):before{bottom:50%;top:50%}
-.digi-nav--p-backgroundA-shutter-out-horizontal .digi-nav__link:not(:hover,:focus,.digi-nav__active,.digi-nav__open):before{left:50%;right:50%}
+.digi-nav--p-backgroundA-sweep-left .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{left:100%}
+.digi-nav--p-backgroundA-sweep-right .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{right:100%}
+.digi-nav--p-backgroundA-sweep-up .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{top:100%}
+.digi-nav--p-backgroundA-sweep-down .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{bottom:100%}
+.digi-nav--p-backgroundA-shutter-out-vertical .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{bottom:50%;top:50%}
+.digi-nav--p-backgroundA-shutter-out-horizontal .digi-nav__link:not(:hover):not(:focus):not(.digi-nav__active):not(.digi-nav__open):before{left:50%;right:50%}
 .digi-nav--p-background:is(.digi-nav--a-shutter-in-horizontal,.digi-nav--a-shutter-in-vertical) .digi-nav__link:after{background:#3f444b;inset:0;z-index:-1}
 .digi-nav--p-backgroundA-shutter-in-vertical .digi-nav__link:before{bottom:100%;top:0}
 .digi-nav--p-backgroundA-shutter-in-vertical .digi-nav__link:after{bottom:0;top:100%}
@@ -24,4 +24,4 @@
 .digi-nav--p-backgroundA-shutter-in-horizontal .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):before{left:50%}
 .digi-nav--p-backgroundA-shutter-in-horizontal .digi-nav__link:is(:hover,:focus,.digi-nav__active,.digi-nav__open):after{right:50%}
 .digi-nav--a-none,.digi-nav--a-none .digi-nav__link,.digi-nav--a-none .digi-nav__link:before,.digi-nav--a-none .digi-nav__link:after{transition-duration:0s}
-@media(prefers-reduced-motion:reduce){.digi-nav__link,.digi-nav__link:before,.digi-nav__link:after{transition-duration:0s}}
+@media(prefers-reduced-motion:reduce){.digi-nav__link,.digi-nav__link:before,.digi-nav__link:after{transition-duration:0s!important}}

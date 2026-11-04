@@ -15,4 +15,4 @@ span.digi-nav__toggle-open,span.digi-nav__toggle-close{line-height:1}
 @media(min-width:768px){.digi-nav--dropdown-mobile .digi-nav__toggle,.digi-nav--dropdown-mobile .digi-nav__container.digi-nav__dropdown{display:none}}
 @media(max-width:1024px){.digi-nav--dropdown-tablet .digi-nav__main{display:none}}
 @media(min-width:1025px){.digi-nav--dropdown-tablet .digi-nav__toggle,.digi-nav--dropdown-tablet .digi-nav__container.digi-nav__dropdown{display:none}}
-@media(prefers-reduced-motion:reduce){.digi-nav__container.digi-nav__dropdown{transition:none}}
+@media(prefers-reduced-motion:reduce){.digi-nav__container.digi-nav__dropdown{transition:none!important}}

@@ -1,0 +1,504 @@
+{
+ "_doc": [
+  "Menú de WordPress de PRO (`nav-menu`) frente al propio (`digitalisimo-nav-menu`), C3 frente E (docs/pro/c3.md). El menú de prueba lo crea setup.php (`{\"$menu\": \"principal\"}`). A espera a SmartMenus (`data-smartmenus-id`) y B al script propio (`digi-nav--ready`). Las acciones de escritorio dejan el puntero y el foco donde quedan (`stay`): los dos menús cierran sus submenús cuando el ratón sale."
+ ],
+ "cases": {
+  "nm-defaults": {
+   "title": "Valores por defecto (subrayado con fundido, tableta, hamburguesa) con submenús de dos niveles",
+   "widget": "nav-menu",
+   "settings": {
+    "menu": {
+     "$menu": "principal"
+    }
+   },
+   "ready": {
+    "a": "[data-smartmenus-id]",
+    "b": ".digi-nav--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "SmartMenus (jQuery)",
+     "id": "smartmenus-js",
+     "url": "/digitalisimo-elements/assets/lib/smartmenus/"
+    }
+   ],
+   "actions": [
+    {
+     "label": "clic en el indicador de Servicios",
+     "a": ".elementor-nav-menu--main li.menu-item-has-children > a .sub-arrow",
+     "b": ".digi-nav__main .digi-nav__sub-toggle",
+     "stay": true,
+     "widths": [
+      1280
+     ]
+    },
+    {
+     "label": "Escape en el submenú",
+     "key": "Escape",
+     "a": ".elementor-nav-menu--main .sub-menu a",
+     "b": ".digi-nav__main .sub-menu a",
+     "stay": true,
+     "widths": [
+      1280
+     ]
+    },
+    {
+     "label": "Intro en Servicios",
+     "key": "Enter",
+     "a": ".elementor-nav-menu--main li.menu-item-has-children > a",
+     "b": ".digi-nav__main .digi-nav__sub-toggle",
+     "stay": true,
+     "widths": [
+      1280
+     ]
+    },
+    {
+     "label": "hamburguesa",
+     "a": ".elementor-menu-toggle",
+     "b": ".digi-nav__toggle",
+     "widths": [
+      375,
+      768
+     ]
+    },
+    {
+     "label": "submenú en el desplegable",
+     "a": "nav.elementor-nav-menu--dropdown li.menu-item-has-children > a",
+     "b": ".digi-nav__container.digi-nav__dropdown .digi-nav__sub-toggle",
+     "widths": [
+      375,
+      768
+     ]
+    },
+    {
+     "label": "Escape en el submenú del desplegable",
+     "key": "Escape",
+     "a": "nav.elementor-nav-menu--dropdown .sub-menu a",
+     "b": ".digi-nav__container.digi-nav__dropdown .sub-menu a",
+     "widths": [
+      375,
+      768
+     ]
+    }
+   ]
+  },
+  "nm-framed": {
+   "title": "Marco con dibujo, centrado, colores, tipografía, rellenos y separación; abre con el ratón",
+   "widget": "nav-menu",
+   "settings": {
+    "menu": {
+     "$menu": "principal"
+    },
+    "align_items": "center",
+    "pointer": "framed",
+    "animation_framed": "draw",
+    "menu_typography_typography": "custom",
+    "menu_typography_font_size": {
+     "unit": "px",
+     "size": 17,
+     "sizes": []
+    },
+    "menu_typography_font_weight": "600",
+    "color_menu_item": "#1D3557",
+    "color_menu_item_hover": "#E63946",
+    "pointer_color_menu_item_hover": "#E63946",
+    "pointer_width": {
+     "unit": "px",
+     "size": 2,
+     "sizes": []
+    },
+    "padding_horizontal_menu_item": {
+     "unit": "px",
+     "size": 14,
+     "sizes": []
+    },
+    "padding_vertical_menu_item": {
+     "unit": "px",
+     "size": 10,
+     "sizes": []
+    },
+    "menu_space_between": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "submenu_icon": {
+     "value": "fas fa-chevron-down",
+     "library": "fa-solid"
+    },
+    "color_dropdown_item": "#1D3557",
+    "background_color_dropdown_item": "#F1FAEE",
+    "color_dropdown_item_hover": "#FFFFFF",
+    "background_color_dropdown_item_hover": "#457B9D",
+    "dropdown_border_border": "solid",
+    "dropdown_border_width": {
+     "unit": "px",
+     "top": "1",
+     "right": "1",
+     "bottom": "1",
+     "left": "1",
+     "isLinked": true
+    },
+    "dropdown_border_color": "#A8DADC",
+    "padding_horizontal_dropdown_item": {
+     "unit": "px",
+     "size": 18,
+     "sizes": []
+    },
+    "dropdown_top_distance": {
+     "unit": "px",
+     "size": 6,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": "[data-smartmenus-id]",
+    "b": ".digi-nav--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "SmartMenus (jQuery)",
+     "id": "smartmenus-js",
+     "url": "/digitalisimo-elements/assets/lib/smartmenus/"
+    }
+   ],
+   "actions": [
+    {
+     "label": "ratón sobre Servicios",
+     "hover": true,
+     "a": ".elementor-nav-menu--main li.menu-item-has-children > a",
+     "b": ".digi-nav__main li.menu-item-has-children > a",
+     "stay": true,
+     "widths": [
+      1280
+     ]
+    },
+    {
+     "label": "hamburguesa",
+     "a": ".elementor-menu-toggle",
+     "b": ".digi-nav__toggle",
+     "widths": [
+      375,
+      768
+     ]
+    },
+    {
+     "label": "submenú en el desplegable",
+     "a": "nav.elementor-nav-menu--dropdown li.menu-item-has-children > a",
+     "b": ".digi-nav__container.digi-nav__dropdown .digi-nav__sub-toggle",
+     "widths": [
+      375,
+      768
+     ]
+    }
+   ]
+  },
+  "nm-background-stretch": {
+   "title": "Vertical con fondo, desplegable en móvil a todo el ancho, texto centrado y botón con colores",
+   "widget": "nav-menu",
+   "settings": {
+    "menu": {
+     "$menu": "principal"
+    },
+    "layout": "vertical",
+    "pointer": "background",
+    "animation_background": "sweep-right",
+    "dropdown": "mobile",
+    "full_width": "stretch",
+    "text_align": "center",
+    "toggle_align": "right",
+    "toggle_color": "#FFFFFF",
+    "toggle_background_color": "#264653",
+    "toggle_size": {
+     "unit": "px",
+     "size": 26,
+     "sizes": []
+    },
+    "toggle_border_radius": {
+     "unit": "px",
+     "size": 6,
+     "sizes": []
+    },
+    "background_color_dropdown_item": "#264653",
+    "color_dropdown_item": "#FFFFFF",
+    "dropdown_divider_border": "solid",
+    "dropdown_divider_color": "#2A9D8F",
+    "dropdown_divider_width": {
+     "unit": "px",
+     "size": 1,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": "[data-smartmenus-id]",
+    "b": ".digi-nav--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "SmartMenus (jQuery)",
+     "id": "smartmenus-js",
+     "url": "/digitalisimo-elements/assets/lib/smartmenus/"
+    }
+   ],
+   "actions": [
+    {
+     "label": "clic en el indicador de Servicios",
+     "a": ".elementor-nav-menu--main li.menu-item-has-children > a .sub-arrow",
+     "b": ".digi-nav__main .digi-nav__sub-toggle",
+     "stay": true,
+     "widths": [
+      768,
+      1280
+     ]
+    },
+    {
+     "label": "hamburguesa",
+     "a": ".elementor-menu-toggle",
+     "b": ".digi-nav__toggle",
+     "widths": [
+      375
+     ]
+    },
+    {
+     "label": "submenú en el desplegable",
+     "a": "nav.elementor-nav-menu--dropdown li.menu-item-has-children > a",
+     "b": ".digi-nav__container.digi-nav__dropdown .digi-nav__sub-toggle",
+     "widths": [
+      375
+     ]
+    }
+   ]
+  },
+  "nm-dropdown-layout": {
+   "title": "Sólo desplegable (en todos los anchos), botón a la izquierda con icono propio",
+   "widget": "nav-menu",
+   "settings": {
+    "menu": {
+     "$menu": "principal"
+    },
+    "layout": "dropdown",
+    "toggle_align": "left",
+    "toggle_icon_normal": {
+     "value": "fas fa-bars",
+     "library": "fa-solid"
+    },
+    "color_dropdown_item_hover": "#FFFFFF",
+    "background_color_dropdown_item_hover": "#E76F51",
+    "padding_vertical_dropdown_item": {
+     "unit": "px",
+     "size": 14,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": "[data-smartmenus-id]",
+    "b": ".digi-nav--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "SmartMenus (jQuery)",
+     "id": "smartmenus-js",
+     "url": "/digitalisimo-elements/assets/lib/smartmenus/"
+    }
+   ],
+   "actions": [
+    {
+     "label": "hamburguesa",
+     "a": ".elementor-menu-toggle",
+     "b": ".digi-nav__toggle"
+    },
+    {
+     "label": "submenú en el desplegable",
+     "a": "nav.elementor-nav-menu--dropdown li.menu-item-has-children > a",
+     "b": ".digi-nav__container.digi-nav__dropdown .digi-nav__sub-toggle"
+    }
+   ]
+  },
+  "nm-double-line": {
+   "title": "Doble línea que crece, separadores, nombre propio y punto de corte móvil",
+   "widget": "nav-menu",
+   "settings": {
+    "menu": {
+     "$menu": "principal"
+    },
+    "menu_name": "Principal",
+    "pointer": "double-line",
+    "animation_line": "grow",
+    "dropdown": "mobile",
+    "nav_menu_divider": "yes",
+    "nav_menu_divider_style": "dotted",
+    "nav_menu_divider_weight": {
+     "unit": "px",
+     "size": 2,
+     "sizes": []
+    },
+    "nav_menu_divider_height": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
+    "nav_menu_divider_color": "#8338EC",
+    "menu_space_between": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "color_menu_item_active": "#8338EC"
+   },
+   "ready": {
+    "a": "[data-smartmenus-id]",
+    "b": ".digi-nav--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "SmartMenus (jQuery)",
+     "id": "smartmenus-js",
+     "url": "/digitalisimo-elements/assets/lib/smartmenus/"
+    }
+   ],
+   "actions": [
+    {
+     "label": "clic en el indicador de Servicios",
+     "a": ".elementor-nav-menu--main li.menu-item-has-children > a .sub-arrow",
+     "b": ".digi-nav__main .digi-nav__sub-toggle",
+     "stay": true,
+     "widths": [
+      768,
+      1280
+     ]
+    },
+    {
+     "label": "hamburguesa",
+     "a": ".elementor-menu-toggle",
+     "b": ".digi-nav__toggle",
+     "widths": [
+      375
+     ]
+    }
+   ]
+  },
+  "nm-text-none": {
+   "title": "Puntero de texto que flota, sin punto de corte ni hamburguesa, alineado al final",
+   "widget": "nav-menu",
+   "settings": {
+    "menu": {
+     "$menu": "principal"
+    },
+    "pointer": "text",
+    "animation_text": "float",
+    "dropdown": "none",
+    "align_items": "end"
+   },
+   "ready": {
+    "a": "[data-smartmenus-id]",
+    "b": ".digi-nav--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-{widget}.min.css de PRO",
+     "id": "widget-{widget}-css",
+     "url": "/digitalisimo-elements/assets/css/widget-{widget}(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "SmartMenus (jQuery)",
+     "id": "smartmenus-js",
+     "url": "/digitalisimo-elements/assets/lib/smartmenus/"
+    }
+   ],
+   "actions": [
+    {
+     "label": "clic en el indicador de Servicios",
+     "a": ".elementor-nav-menu--main li.menu-item-has-children > a .sub-arrow",
+     "b": ".digi-nav__main .digi-nav__sub-toggle",
+     "stay": true
+    }
+   ]
+  }
+ },
+ "declared": []
+}

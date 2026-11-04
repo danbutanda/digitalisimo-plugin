@@ -26,12 +26,14 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		'digitalisimo-nav-menu'          => array( 'file' => 'widgets/class-nav-menu.php', 'class' => 'Digitalisimo\\Elements\\Navigation\\Widgets\\Nav_Menu', 'css' => 'modules/digitalisimo-navigation/assets/css/nav-menu.css', 'js' => 'modules/digitalisimo-navigation/assets/js/nav-menu.js' ),
 		'digitalisimo-nested-off-canvas' => array( 'file' => 'widgets/class-nested-off-canvas.php', 'class' => 'Digitalisimo\\Elements\\Navigation\\Widgets\\Nested_Off_Canvas', 'css' => 'modules/digitalisimo-navigation/assets/css/nested-off-canvas.css', 'js' => 'modules/digitalisimo-navigation/assets/js/nested-off-canvas.js' ),
 		'digitalisimo-search'            => array( 'file' => 'widgets/class-search.php', 'class' => 'Digitalisimo\\Elements\\Navigation\\Widgets\\Search', 'css' => 'modules/digitalisimo-navigation/assets/css/search.css', 'js' => 'modules/digitalisimo-navigation/assets/js/search.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		'digitalisimo-nav-menu'          => 'Menú de WordPress',
 		'digitalisimo-nested-off-canvas' => 'Panel fuera de lienzo',
 		'digitalisimo-search'            => 'Búsqueda',
 	);
@@ -64,6 +66,10 @@ final class Module {
 		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'register_assets' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), self::PRIORITY );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'editor_scripts' ) );
+		// Búsqueda (frente F): resultados en vivo por la REST del sitio (`Search_Rest`), sólo si su archivo existe.
+		if ( is_file( __DIR__ . '/class-search-rest.php' ) ) {
+			add_action( 'rest_api_init', array( __NAMESPACE__ . '\\Search_Rest', 'register' ) );
+		}
 	}
 
 	/**
