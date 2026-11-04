@@ -145,6 +145,7 @@ namespace {
 	function esc_url( $v ) { return preg_match( '~^(https?://|#)~', (string) $v ) ? htmlspecialchars( (string) $v, ENT_QUOTES, 'UTF-8' ) : ''; }
 	function wp_kses_post( $v ) { return preg_replace( '/\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', preg_replace( '@<script[^>]*?>.*?</script>@si', '', (string) $v ) ); }
 	function wp_strip_all_tags( $v ) { return strip_tags( (string) $v ); }
+	function wpautop( $v ) { return '<p>' . $v . '</p>'; }
 	function wp_json_encode( $v ) { return json_encode( $v ); }
 	function sanitize_html_class( $v ) { return preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $v ); }
 	function is_rtl() { return ! empty( $GLOBALS['hs_rtl'] ); }
@@ -161,6 +162,7 @@ namespace {
 	$root = __DIR__ . '/../digitalisimo-elements/';
 	require $root . 'elementor/includes/widgets/image.php';
 	require $root . 'modules/hotspot/widgets/hotspot.php';
+	require $root . 'modules/digitalisimo-widgets/class-media-text-extras.php';
 	require $root . 'modules/digitalisimo-content/class-module.php';
 	require $root . 'modules/digitalisimo-content/widgets/class-hotspot.php';
 	require $root . 'modules/digitalisimo-convert/class-module.php';
@@ -251,8 +253,23 @@ namespace {
 			check_hs( ! empty( $oc['label'] ) || in_array( $oc['type'], array( 'divider' ), true ), "$where.$name: con su etiqueta." );
 		}
 	};
+	// Leyenda que `Media_Text_Extras` añade al Hotspot de PRO (rasgo propio en section_image y su sección de estilo): los
+	// mismos controles, en las mismas secciones, con los mismos selectores.
+	$extras = new \Elementor\Widget_Base();
+	\Digitalisimo\Elements\Media_Text_Extras::hotspot_controls( $extras );
+	\Digitalisimo\Elements\Media_Text_Extras::hotspot_style( $extras );
+	check_hs( array( 'digitalisimo_hotspot_caption', 'digitalisimo_hotspot_caption_align', 'digitalisimo_hotspot_caption_color', 'digitalisimo_hotspot_caption_space' ) === array_keys( $extras->controls ) && array( 'digitalisimo_hotspot_caption_typography' ) === array_keys( $extras->groups ) && isset( $w->sections['digitalisimo_hotspot_caption_style'] ), 'Leyenda: los controles de Media_Text_Extras y su sección de estilo.' );
+	foreach ( $extras->controls as $name => $control ) {
+		unset( $control['label'], $control['description'], $w->controls[ $name ]['label'], $w->controls[ $name ]['description'] );
+		foreach ( (array) ( $control['options'] ?? array() ) as $k => $o ) {
+			unset( $control['options'][ $k ]['title'], $w->controls[ $name ]['options'][ $k ]['title'] );
+		}
+		check_hs( $control === $w->controls[ $name ], "Leyenda: $name igual que en Media_Text_Extras (salvo los textos traducibles)." );
+	}
+	check_hs( $extras->groups['digitalisimo_hotspot_caption_typography'] === $w->groups['digitalisimo_hotspot_caption_typography'], 'Leyenda: la misma tipografía.' );
+	$w = $widget();
 	$pro_main = $pro->controls;
-	$own_main = $w->controls;
+	$own_main = array_diff_key( $w->controls, $extras->controls );
 	$pro_rows = $pro_main['hotspot']['fields'];
 	$own_rows = $own_main['hotspot']['fields'];
 	unset( $pro_main['hotspot']['fields'], $own_main['hotspot']['fields'] );
@@ -267,7 +284,8 @@ namespace {
 	// `remove_control()` de PRO no quita los grupos de la leyenda (`caption_typography`, `caption_text_shadow`): quedan sin
 	// sección ni marcado que estilar, así que no tienen equivalente.
 	unset( $pro->groups['caption_typography'], $pro->groups['caption_text_shadow'] );
-	check_hs( array_keys( $pro->groups ) === array_keys( $w->groups ), 'Los mismos grupos: ' . implode( ',', array_keys( $w->groups ) ) );
+	$own_groups = array_diff_key( $w->groups, $extras->groups );
+	check_hs( array_keys( $pro->groups ) === array_keys( $own_groups ), 'Los mismos grupos: ' . implode( ',', array_keys( $own_groups ) ) );
 	foreach ( $pro->groups as $name => $group ) {
 		$own = $w->groups[ $name ];
 		check_hs( $group['type'] === $own['type'] && ( $group['default'] ?? null ) === ( $own['default'] ?? null ) && ( $group['condition'] ?? null ) === ( $own['condition'] ?? null ) && ( $group['global'] ?? null ) === ( $own['global'] ?? null ) && ( $group['exclude'] ?? null ) === ( $own['exclude'] ?? null ), "Grupo $name: tipo, valor por defecto, condición, global y exclusiones de PRO." );
@@ -329,6 +347,9 @@ namespace {
 	$img = $render( array( 'image' => array( 'id' => 11, 'url' => 'https://sitio.test/wp-content/uploads/img-11.png' ), 'image_size' => 'medium_large' ) );
 	check_hs( str_contains( $img, 'src="https://sitio.test/wp-content/uploads/img-11-medium_large.png" class="attachment-medium_large size-medium_large wp-image-11" loading="lazy" decoding="async" alt="Texto alternativo 11" srcset=' ), 'Imagen del adjunto con wp_get_attachment_image(): tamaño, srcset, alt, carga y decodificación.' );
 	check_hs( '' === $render( array( 'image' => array( 'url' => '' ) ) ), 'Sin imagen no se pinta nada, como PRO.' );
+	$cap = $render( array( 'digitalisimo_hotspot_caption' => 'Plano <b>de la planta</b> & baja' ) );
+	check_hs( str_ends_with( $cap, '</div><p class="digi-media-caption">Plano de la planta &amp; baja</p></div>' ), 'Leyenda bajo la imagen, dentro del contenedor y escapada, como la añadía Media_Text_Extras al Hotspot de PRO.' );
+	check_hs( '' === \Digitalisimo\Elements\Media_Text_Extras::kind( $widget() ), 'Media_Text_Extras no reconoce el widget propio: la leyenda no se pinta dos veces.' );
 	$evil = $render( array( 'tooltip_trigger' => 'mouseenter', 'hotspot' => array( array( '_id' => '"><x', 'hotspot_label' => '<img src=x onerror=alert(1)>Hola', 'hotspot_link' => array( 'url' => 'javascript:alert(1)' ) ) ) ) );
 	check_hs( ! str_contains( $evil, 'onerror' ) && ! str_contains( $evil, 'javascript:' ) && str_contains( $evil, 'id="digi-hotspot-abc1234-x"' ) && ! str_contains( $evil, '"><x' ), 'Texto, enlace e id escapados.' );
 	$GLOBALS['hs_rtl'] = true;
@@ -394,6 +415,7 @@ namespace {
 		'styles'   => array( 'align' => 'flex-start', 'align_mobile' => 'center', 'width' => $size( 80, '%' ), 'space' => $size( 900 ), 'height' => $size( 400 ), 'object-fit' => 'cover', 'object-position' => 'top center', 'opacity' => $size( 0.8 ), 'opacity_hover' => $size( 1 ), 'background_hover_transition' => $size( 0.4 ), 'css_filters_css_filter' => 'custom', 'css_filters_blur' => $size( 1 ), 'css_filters_hover_css_filter' => 'custom', 'css_filters_hover_saturate' => $size( 150 ), 'image_border_border' => 'solid', 'image_border_width' => $box( 2 ), 'image_border_color' => '#222222', 'image_border_radius' => $box( 12 ), 'image_box_shadow_box_shadow_type' => 'yes', 'image_box_shadow_box_shadow' => array( 'horizontal' => 0, 'vertical' => 4, 'blur' => 10, 'spread' => 0, 'color' => 'rgba(0,0,0,.3)' ), 'style_hotspot_color' => '#ff0055', 'style_hotspot_size' => $size( 24 ), 'style_hotspot_size_mobile' => $size( 14 ), 'style_typography_typography' => 'custom', 'style_typography_font_size' => $size( 15 ), 'style_hotspot_width' => $size( 40 ), 'style_hotspot_height' => $size( 20 ), 'style_hotspot_box_color' => '#ffffff', 'style_hotspot_padding' => $size( 6 ), 'style_hotspot_border_radius' => $box( 20 ), 'style_hotspot_box_shadow_box_shadow_type' => 'yes', 'style_hotspot_box_shadow_box_shadow' => array( 'horizontal' => 0, 'vertical' => 2, 'blur' => 6, 'spread' => 0, 'color' => 'rgba(0,0,0,.4)' ), 'style_tooltip_text_color' => '#111111', 'style_tooltip_typography_typography' => 'custom', 'style_tooltip_typography_font_weight' => '600', 'style_tooltip_align' => 'center', 'style_tooltip_width' => $size( 120 ), 'style_tooltip_max_width' => $size( 300 ), 'style_tooltip_padding' => $box( 12 ), 'style_tooltip_color' => '#fafafa', 'style_tooltip_border_radius' => $box( 6 ), 'style_tooltip_box_shadow_box_shadow_type' => 'yes', 'style_tooltip_box_shadow_box_shadow' => array( 'horizontal' => 0, 'vertical' => 8, 'blur' => 24, 'spread' => 0, 'color' => 'rgba(0,0,0,.2)' ) ),
 		'dynamic'  => array( 'hotspot' => array( array( '_id' => 'd1', '__dynamic__' => array( 'hotspot_label' => '[elementor-tag id="t1" name="post-title" settings="%7B%7D"]', 'hotspot_link' => '[elementor-tag id="t2" name="post-url" settings="%7B%7D"]' ) ) ), '__dynamic__' => array( 'image' => '[elementor-tag id="t3" name="post-featured-image" settings="%7B%7D"]' ) ),
 		'globals'  => array( '__globals__' => array( 'style_hotspot_color' => 'globals/colors?id=accent', 'style_hotspot_box_color' => 'globals/colors?id=text', 'style_tooltip_color' => 'globals/colors?id=primary', 'style_typography_typography' => 'globals/typography?id=accent', 'style_tooltip_typography_typography' => 'globals/typography?id=text', '_background_color' => 'globals/colors?id=text' ) ),
+		'caption'  => array( 'digitalisimo_hotspot_caption' => 'Planta baja', 'digitalisimo_hotspot_caption_align' => 'center', 'digitalisimo_hotspot_caption_color' => '#333333', 'digitalisimo_hotspot_caption_typography_typography' => 'custom', 'digitalisimo_hotspot_caption_typography_font_size' => $size( 14 ), 'digitalisimo_hotspot_caption_space_mobile' => $size( 6 ) ),
 		'css'      => array( 'custom_css' => "selector .e-hotspot__button{border-radius:50%}\nselector .e-hotspot--active .e-hotspot__tooltip{color:red}\nselector .e-hotspot__outer-circle,selector .e-hotspot--tooltip-animation-from-top{opacity:.5}\nselector .elementor-widget-container>img{filter:none}\n.elementor-widget-hotspot .e-hotspot--circle{z-index:3}", '_css_classes' => 'mi-plano' ),
 	);
 	$tree = array( array( 'id' => 'c1', 'elType' => 'container', 'settings' => array(), 'elements' => array() ) );
@@ -443,6 +465,10 @@ namespace {
 	foreach ( $cases['styles'] as $key => $value ) {
 		check_hs( array_key_exists( $key, $s ) && $s[ $key ] === $value, "Estilo $key: pasa tal cual." );
 	}
+	foreach ( $cases['caption'] as $key => $value ) {
+		check_hs( $out['caption'][ $key ] === $value, "Leyenda $key: pasa tal cual." );
+	}
+	check_hs( str_contains( $render( $out['caption'] ), '<p class="digi-media-caption">Planta baja</p></div>' ), 'La leyenda convertida se pinta.' );
 	$dy = $out['dynamic'];
 	check_hs( array( 'image' => '[elementor-tag id="t3" name="post-featured-image" settings="%7B%7D"]' ) === $dy['__dynamic__'] && array( 'hotspot_label', 'hotspot_link' ) === array_keys( $dy['hotspot'][0]['__dynamic__'] ), 'Las etiquetas dinámicas siguen a su control, también en las filas.' );
 	check_hs( $cases['globals']['__globals__'] === $out['globals']['__globals__'], 'Colores y tipografías globales del kit siguen a su control.' );

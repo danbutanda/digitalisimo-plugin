@@ -39,6 +39,7 @@ final class Module {
 		'digitalisimo-price-list' => array( 'file' => 'widgets/class-price-list.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Price_List', 'css' => 'modules/digitalisimo-content/assets/css/price-list.css', 'js' => 'modules/digitalisimo-content/assets/js/price-list.js' ),
 		'digitalisimo-price-table' => array( 'file' => 'widgets/class-price-table.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Price_Table', 'css' => 'modules/digitalisimo-content/assets/css/price-table.css', 'js' => 'modules/digitalisimo-content/assets/js/price-table.js' ),
 		'digitalisimo-video-playlist' => array( 'file' => 'widgets/class-video-playlist.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Video_Playlist', 'css' => 'modules/digitalisimo-content/assets/css/video-playlist.css', 'js' => 'modules/digitalisimo-content/assets/js/video-playlist.js' ),
+		'digitalisimo-lottie' => array( 'file' => 'widgets/class-lottie.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Lottie', 'css' => 'modules/digitalisimo-content/assets/css/lottie.css', 'js' => 'modules/digitalisimo-content/assets/js/lottie.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
@@ -56,6 +57,7 @@ final class Module {
 		'digitalisimo-price-list' => 'Lista de precios',
 		'digitalisimo-price-table' => 'Tabla de precios',
 		'digitalisimo-video-playlist' => 'Lista de videos',
+		'digitalisimo-lottie' => 'Animación Lottie',
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */

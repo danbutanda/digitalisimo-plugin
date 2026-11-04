@@ -125,7 +125,7 @@ try {
     let sel = false;
     for (let i = 0; i < 140; i++) { const x = await state(page, 'h3'); sel = sel || x.sel; seq.add(x.onAll + ' ' + x.letters.join('')); const c = await state(page, 'h4'); clip.add(c.onAll + ' ' + (c.width === '2px' ? 'cerrado' : 'abierto')); await sleep(25); }
     ok(sel, 'Escritura: la palabra se selecciona antes de borrarse.');
-    ok(seq.has('-X. 010') && seq.has('-X. 020') && seq.has('-X. 030') && seq.has('--X 004'), `Escritura: cada palabra siguiente se escribe letra a letra (${[...seq].join(' | ')}).`);
+    ok(seq.has('-X. 030') && seq.has('--X 004') && [...seq].some(x => /^(-X\. 0[12]0|--X 00[123])$/.test(x)) && seq.has('X-- 300'), `Escritura: cada palabra siguiente se escribe letra a letra (${[...seq].join(' | ')}).`);
 
     // Recorte: abre con 10 px de más y, tras la pausa, cierra a 2 px y abre la siguiente.
     const w0 = parseFloat((await state(page, 'h4')).width);
@@ -135,7 +135,7 @@ try {
     const h5 = await state(page, 'h5');
     ok(h5.on === 2 && h5.onAll === '--X' && h5.visible.join() === 'tres', `Giro sin bucle: termina en la última palabra (${h5.onAll}).`);
     ok(/^\d+(\.\d+)?px$/.test((await state(page, 'h9')).width), 'Deslizamiento hacia abajo: el ancho sigue a la palabra activa.');
-    ok(clip.has('X. cerrado') && clip.has('-X abierto') && clip.has('X- abierto'), `Recorte: cierra a 2 px, cambia de palabra, abre y vuelve a la primera con bucle (${[...clip].join(' | ')}).`);
+    ok(clip.has('-X cerrado') && clip.has('-X abierto') && clip.has('X- abierto'), `Recorte: cierra a 2 px, cambia de palabra, abre y vuelve a la primera con bucle (${[...clip].join(' | ')}).`);
 
     // Letras: remolino, ola y persianas alternan las letras de las dos palabras.
     for (const id of ['h6', 'h7', 'h8']) {
@@ -153,10 +153,12 @@ try {
     const page = await open({ reduce: true });
     await sleep(1600);
     const h1 = await state(page, 'h1');
-    ok(/digi-ah--drawn/.test(h1.cls) && !/digi-ah--hide/.test(h1.cls) && h1.pathAnim === 'none' && h1.pathOpacity === '0', 'Con movimiento reducido el resaltado no se anima.');
+    ok(/digi-ah--drawn/.test(h1.cls) && !/digi-ah--hide/.test(h1.cls) && h1.pathAnim === 'none' && h1.pathOpacity === '1', 'Con movimiento reducido el resaltado aparece dibujado, sin animación.');
+    ok(await page.$eval('[data-id="h1"] svg path', p => getComputedStyle(p).strokeDasharray === '1500px, 1500px'), 'Con movimiento reducido el trazo está completo (estado final).');
     for (const id of ['h3', 'h5', 'h6', 'h9']) {
       const s = await state(page, id);
-      ok(s.on === 0 && s.visible.length === 1 && !s.sel, `${id}: con movimiento reducido no rota (${s.onAll}).`);
+      const still = s.letters.some(Boolean) ? s.letters[0] > 0 && s.letters.slice(1).every(n => n === 0) && s.sr[0] !== null : s.visible.length === 1;
+      ok(s.on === 0 && still && !s.sel, `${id}: con movimiento reducido no rota, con sus letras partidas como PRO (${s.onAll} ${s.letters}).`);
     }
     await page.close();
   }

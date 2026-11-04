@@ -261,7 +261,7 @@ namespace {
 		check_vpl( in_array( $type, array( 'heading', 'button' ), true ), "$name: no guarda valor ($type)." );
 	}
 	check_vpl( ! isset( $mf['vimeo_fetch_data'] ), 'El botón que pedía los datos al servicio no se repite.' );
-	check_vpl( 'digitalisimo-video-playlist' === $map['target'] && 'hide' === $map['panel'], 'Destino y panel del mapa.' );
+	check_vpl( 'digitalisimo-video-playlist' === $map['target'] && 'ready' === $map['status'] && 'hide' === $map['panel'], 'Destino, estado listo (A/B en verde) y panel del mapa.' );
 	$markup = (string) file_get_contents( $root . 'modules/digitalisimo-content/widgets/class-video-playlist.php' );
 	foreach ( $map['classes'] as $from => $to ) {
 		$class = substr( $to, 1 );

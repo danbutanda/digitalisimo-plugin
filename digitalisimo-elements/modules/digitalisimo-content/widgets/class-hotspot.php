@@ -93,6 +93,8 @@ class Hotspot extends \Elementor\Widget_Base {
 				'condition' => array( 'image[url]!' => '' ),
 			)
 		);
+		// Leyenda bajo la imagen: el rasgo que `Media_Text_Extras` añade al Hotspot de PRO, con los mismos controles.
+		$this->add_control( 'digitalisimo_hotspot_caption', array( 'label' => esc_html__( 'Leyenda', 'pro-elements' ), 'type' => Controls_Manager::TEXT, 'dynamic' => array( 'active' => true ), 'description' => esc_html__( 'Texto bajo la imagen.', 'pro-elements' ) ) );
 		$this->end_controls_section();
 
 		// Puntos.
@@ -583,6 +585,14 @@ class Hotspot extends \Elementor\Widget_Base {
 		);
 		$this->end_controls_section();
 
+		// Estilo de la leyenda (`Media_Text_Extras::hotspot_style()`, los mismos controles y selectores).
+		$this->start_controls_section( 'digitalisimo_hotspot_caption_style', array( 'label' => esc_html__( 'Leyenda', 'pro-elements' ), 'tab' => Controls_Manager::TAB_STYLE ) );
+		$this->add_responsive_control( 'digitalisimo_hotspot_caption_align', array( 'label' => esc_html__( 'Alineación', 'pro-elements' ), 'type' => Controls_Manager::CHOOSE, 'options' => array( 'left' => array( 'title' => esc_html__( 'Izquierda', 'pro-elements' ), 'icon' => 'eicon-text-align-left' ), 'center' => array( 'title' => esc_html__( 'Centro', 'pro-elements' ), 'icon' => 'eicon-text-align-center' ), 'right' => array( 'title' => esc_html__( 'Derecha', 'pro-elements' ), 'icon' => 'eicon-text-align-right' ), 'justify' => array( 'title' => esc_html__( 'Justificado', 'pro-elements' ), 'icon' => 'eicon-text-align-justify' ) ), 'selectors' => array( '{{WRAPPER}} .digi-media-caption' => 'text-align: {{VALUE}};' ) ) );
+		$this->add_control( 'digitalisimo_hotspot_caption_color', array( 'label' => esc_html__( 'Color', 'pro-elements' ), 'type' => Controls_Manager::COLOR, 'selectors' => array( '{{WRAPPER}} .digi-media-caption' => 'color: {{VALUE}};' ) ) );
+		$this->add_group_control( Group_Control_Typography::get_type(), array( 'name' => 'digitalisimo_hotspot_caption_typography', 'selector' => '{{WRAPPER}} .digi-media-caption' ) );
+		$this->add_responsive_control( 'digitalisimo_hotspot_caption_space', array( 'label' => esc_html__( 'Separación', 'pro-elements' ), 'type' => Controls_Manager::SLIDER, 'size_units' => array( 'px', 'em' ), 'selectors' => array( '{{WRAPPER}} .digi-media-caption' => 'margin-top: {{SIZE}}{{UNIT}};' ) ) );
+		$this->end_controls_section();
+
 		// Estilo de los puntos.
 		$this->start_controls_section( 'section_style_hotspot', array( 'label' => esc_html__( 'Puntos de interés', 'pro-elements' ), 'tab' => Controls_Manager::TAB_STYLE ) );
 		$this->add_control(
@@ -907,6 +917,19 @@ class Hotspot extends \Elementor\Widget_Base {
 			}
 			echo '</div>';
 		}
+		echo $this->caption( $settings ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- texto escapado.
 		echo '</div>';
+	}
+
+	/**
+	 * Leyenda bajo la imagen (`digitalisimo_hotspot_caption`), dentro del contenedor como la que `Media_Text_Extras`
+	 * añadía al Hotspot de PRO: el mismo marcado, del mismo método si está cargado.
+	 */
+	private function caption( array $settings ): string {
+		if ( class_exists( '\\Digitalisimo\\Elements\\Media_Text_Extras' ) && method_exists( '\\Digitalisimo\\Elements\\Media_Text_Extras', 'extra' ) ) {
+			return (string) \Digitalisimo\Elements\Media_Text_Extras::extra( 'hotspot', $settings );
+		}
+		$caption = trim( wp_strip_all_tags( (string) ( $settings['digitalisimo_hotspot_caption'] ?? '' ) ) );
+		return '' !== $caption ? '<p class="digi-media-caption">' . esc_html( $caption ) . '</p>' : '';
 	}
 }

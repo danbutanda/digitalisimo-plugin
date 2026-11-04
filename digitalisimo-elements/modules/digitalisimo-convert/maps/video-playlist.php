@@ -23,7 +23,7 @@ $digi_vpl_row         = array(
 return array(
 	'source'    => 'video-playlist',
 	'target'    => 'digitalisimo-video-playlist',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Textos por defecto de PRO (Elementor no guarda lo que coincide con el default) y los controles aproximados.
 	'defaults'  => array(

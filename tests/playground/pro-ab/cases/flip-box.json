@@ -99,6 +99,21 @@
     },
     "title_color_a": "#FFFFFF",
     "alignment_b": "start"
+   },
+   "declared": [
+    {
+     "kind": "control",
+     "match": "control div 1 sólo en A",
+     "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.08,
+      "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
+     }
+    }
    }
   },
   "flipbox-flip-3d": {
@@ -133,10 +148,30 @@
      "left": "30",
      "isLinked": true
     }
+   },
+   "declared": [
+    {
+     "kind": "control",
+     "match": "control div 1 sólo en A",
+     "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
+    },
+    {
+     "kind": "foco",
+     "match": "^transform: matrix3d\\(",
+     "reason": "Giro 3D capturado a mitad de la transición de 0,6 s (el arnés espera 0,5 s tras el foco): el ángulo depende del instante, en A y en B."
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.08,
+      "reason": "Con un enlace en el reverso, la tarjeta no es una parada del tabulador (PRO le ponía siempre tabindex=\"0\"): el foco va directo al enlace, que la hace girar; el contorno se dibuja en el enlace y no alrededor de la tarjeta."
+     }
+    }
    }
   },
   "flipbox-fade": {
-   "title": "Fundido, sin elemento gráfico, título h2, botón grande con colores al pasar el ratón",
+   "title": "Fundido, sin elemento gráfico, título h2, botón grande sin enlace con colores al pasar el ratón",
    "widget": "flip-box",
    "settings": {
     "flip_effect": "fade",
@@ -147,12 +182,6 @@
     "title_text_b": "Sin sorpresas",
     "button_text": "Ver precios",
     "button_size": "lg",
-    "link": {
-     "url": "https://example.com/precios",
-     "is_external": "",
-     "nofollow": "",
-     "custom_attributes": ""
-    },
     "button_text_color": "#FFFFFF",
     "button_hover_text_color": "#1B2340",
     "button_hover_background_background": "classic",
@@ -160,6 +189,36 @@
     "button_border_radius": {
      "unit": "px",
      "size": 30
+    }
+   },
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "button «Click Here»",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    },
+    {
+     "kind": "control",
+     "match": "control a 1 sólo en A",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    },
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "Sin enlace, PRO pintaba el botón como un falso botón enfocable (a con role=\"button\" y tabindex, que no hacía nada); el propio es un span y la tarjeta es el grupo enfocable: el primer control (al que el arnés lleva el ratón y el foco) es otro elemento."
+    }
+   ],
+   "pixels": {
+    "states": {
+     "focus": {
+      "max": 0.07,
+      "reason": "Sin enlace, la tarjeta es el elemento enfocado en A y en B: B le dibuja el contorno propio de 2 px con separación de 2 px alrededor de toda la tarjeta, donde A dejaba el del navegador."
+     }
     }
    }
   },

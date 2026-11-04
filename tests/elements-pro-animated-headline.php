@@ -124,7 +124,7 @@ namespace {
 	preg_match_all( '/#[0-9a-f]{3,6}\b|\bred\b/i', $css, $colors );
 	$ok( array( '#aebcb9', 'red', '#0d0d0d' ) === array_values( array_unique( array_map( 'strtolower', $colors[0] ) ) ), 'Sólo los colores por defecto de PRO: ' . implode( ', ', array_unique( $colors[0] ) ) );
 	$ok( str_contains( $css, '.digi-ah-link:focus-visible{outline:2px solid;outline-offset:2px}' ), 'Foco visible propio del enlace.' );
-	$ok( str_contains( $css, '@media (prefers-reduced-motion:reduce){.digi-ah *,.digi-ah :after{animation:none!important;transition:none!important}}' ), 'Sin animaciones ni transiciones con movimiento reducido.' );
+	$ok( str_contains( $css, '@media (prefers-reduced-motion:reduce){.digi-ah *,.digi-ah :after{animation:none!important;transition:none!important}.digi-ah--drawn svg path{opacity:1;stroke-dasharray:1500 1500}}' ), 'Sin animaciones ni transiciones con movimiento reducido: el trazo, en su estado final.' );
 	$ok( str_contains( $css, '@keyframes digi-ah-in{' ) && str_contains( $css, '@keyframes digi-ah-out{' ) && 1 === substr_count( $css, '@keyframes digi-ah-in' ), 'Dos fotogramas comunes para las animaciones de palabras y letras.' );
 	foreach ( array( '--t', '--a', '--b', '--c', '--o0', '--o6', '--d', '--e', '--f', '--p6', '--p1' ) as $var ) {
 		$ok( str_contains( $css, 'var(' . $var . ')' ), "La hoja usa la variable $var del tipo." );

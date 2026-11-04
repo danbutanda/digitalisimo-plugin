@@ -32,7 +32,14 @@
   "plist-defaults": {
    "title": "Valores por defecto (tres elementos enlazados a «#», separador punteado)",
    "widget": "price-list",
-   "settings": {}
+   "settings": {},
+   "declared": [
+    {
+     "kind": "enlace",
+     "match": "^perdido «#( #)+»$",
+     "reason": "Error de PRO: con las filas por defecto (sin _id) acumulaba los atributos del enlace de una fila en la siguiente (href=\"# #\", \"# # #\"); la propia pinta href=\"#\" en cada fila, como dice su ajuste."
+    }
+   ]
   },
   "plist-images": {
    "title": "Elementos con imagen, uno sin enlace, título h4, separador continuo y colores",

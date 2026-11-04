@@ -411,18 +411,6 @@
      "reason": "PRO escribe dentro de cada <video> que crea el texto en inglés «Sorry, your browser doesn't support embedded videos.» (el navegador no lo pinta; el arnés lo lee como texto)."
     },
     {
-     "kind": "palabra",
-     "width": 375,
-     "match": "^nueva «(show|more)»$",
-     "reason": "En el móvil PRO cambia las pestañas internas por títulos apilados y no muestra «Show More»; el widget propio conserva las mismas pestañas y su botón en todos los anchos."
-    },
-    {
-     "kind": "nombre",
-     "width": 375,
-     "match": "^nuevo button «Show More»$",
-     "reason": "En el móvil PRO no muestra «Show More» (ver la palabra)."
-    },
-    {
      "kind": "estilo",
      "width": 375,
      "match": "^«Tab #\\d» ",

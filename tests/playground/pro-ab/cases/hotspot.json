@@ -655,6 +655,47 @@
      }
     ]
    }
+  },
+  "hs-caption": {
+   "title": "Leyenda bajo la imagen (rasgo DIGITALÍSIMO del Hotspot) con alineación, color, tipografía y separación",
+   "widget": "hotspot",
+   "settings": {
+    "image": {
+     "$image": 1
+    },
+    "hotspot_animation": "",
+    "digitalisimo_hotspot_caption": "Planta baja de la casa",
+    "digitalisimo_hotspot_caption_align": "center",
+    "digitalisimo_hotspot_caption_color": "#2155CF",
+    "digitalisimo_hotspot_caption_typography_typography": "custom",
+    "digitalisimo_hotspot_caption_typography_font_size": {
+     "unit": "px",
+     "size": 18,
+     "sizes": []
+    },
+    "digitalisimo_hotspot_caption_space": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "hotspot": [
+     {
+      "_id": "h1",
+      "hotspot_label": "Entrada",
+      "hotspot_tooltip_content": "Recibidor",
+      "hotspot_offset_x": {
+       "unit": "%",
+       "size": 40,
+       "sizes": []
+      },
+      "hotspot_offset_y": {
+       "unit": "%",
+       "size": 40,
+       "sizes": []
+      }
+     }
+    ]
+   }
   }
  }
 }

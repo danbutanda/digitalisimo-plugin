@@ -7,17 +7,23 @@ const C='digi-ah__',ON=C+'word--on',OFF=C+'word--off',IN=C+'letter--in',T=(f,ms)
 function start(h){
 const d=h.dataset,dyn=h.querySelector('.'+C+'dyn'),type=d.digiAhType,loop='1'===d.digiAhLoop;
 if(!dyn)return;
-h.classList.add('digi-ah--ready');
-if('highlight'===d.digiAhStyle){
+const ready=()=>h.classList.add('digi-ah--ready');
+if('highlight'===d.digiAhStyle){ready();
 const dur=+d.digiAhDuration||1200,wait=+d.digiAhWait||8e3;
 const draw=()=>{if(!h.isConnected)return;h.classList.add('digi-ah--drawn');if(R&&R.matches)return;h.classList.remove('digi-ah--hide');if(!loop)return;T(()=>h.classList.add('digi-ah--hide'),dur+.8*wait);T(draw,dur+wait);};
 return draw();}
-if(R&&R.matches)return;
 const words=[...dyn.querySelectorAll('.'+C+'word')],del=+d.digiAhDelay||0,s={anim:del||2500,letters:.02*del||50,typeL:.06*del||150,sel:.2*del||500,reveal:.24*del||600,revealWait:.6*del||1500};
 s.typeAnim=s.sel+800;
-if(!words.length)return;
 const letters=h.classList.contains('digi-ah--letters'),next=w=>words[(words.indexOf(w)+1)%words.length];
 const width=w=>parseFloat(getComputedStyle(w).width)||0;
+// Letras como PRO (también con movimiento reducido, que sólo deja de rotar).
+if(letters)words.forEach(w=>{
+const text=w.textContent,b=D.createElement('span'),sr=D.createElement('span'),act=w.classList.contains(ON);
+b.setAttribute('aria-hidden','true');sr.className='elementor-screen-only';sr.textContent=text;
+[...text].forEach(ch=>{const l=D.createElement('span');l.className=C+'letter'+(act?' '+IN:'');l.textContent=ch;b.append(l);});
+w.replaceChildren(sr,b);w.style.opacity=1;});
+ready();
+if(!words.length||R&&R.matches)return;
 const fit=w=>{if('clip'!==type&&'typing'!==type)dyn.style.width=width(w)+'px';};
 const box=w=>w.querySelector('[aria-hidden]');
 const first=w=>{const b=box(w);return b?b.firstElementChild:null;};
@@ -35,11 +41,6 @@ if('typing'===type){dyn.classList.add('digi-ah--sel');T(()=>{dyn.classList.remov
 else if(letters){const c=x=>(box(x)||x).children.length,bool=c(w)>=c(n);unshow(first(w),w,bool,s.letters);show(first(n),n,bool,s.letters);fit(n);}
 else if('clip'===type)clip(2,()=>{swap(w,n);reveal(n);});
 else{swap(w,n);T(()=>hide(n),s.anim);}}
-if(letters)words.forEach(w=>{
-const text=w.textContent,b=D.createElement('span'),sr=D.createElement('span'),act=w.classList.contains(ON);
-b.setAttribute('aria-hidden','true');sr.className='elementor-screen-only';sr.textContent=text;
-[...text].forEach(ch=>{const l=D.createElement('span');l.className=C+'letter'+(act?' '+IN:'');l.textContent=ch;b.append(l);});
-w.replaceChildren(sr,b);w.style.opacity=1;});
 if('clip'===type)dyn.style.width=width(dyn)+10+'px';else if('typing'!==type)fit(words[0]);
 T(()=>hide(words[0]),s.anim);}
 function scan(root){
