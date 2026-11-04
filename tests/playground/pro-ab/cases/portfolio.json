@@ -20,6 +20,29 @@
    "match": "All|Todos",
    "reason": "Texto propio en español del filtro «Todos».",
    "widget": "portfolio"
+  },
+  {
+   "widget": "portfolio",
+   "kind": "control",
+   "match": "control (li|button) \\d+ sólo en [AB] \\((li|button)\\)",
+   "reason": "El filtro son botones (`<button aria-pressed>`, activables con el teclado); PRO usaba elementos de lista con tabindex que el teclado no activaba."
+  },
+  {
+   "widget": "portfolio",
+   "kind": "nombre",
+   "match": "nuevo button «",
+   "reason": "Los botones del filtro tienen rol y nombre accesible; en PRO eran elementos de lista sin rol."
+  },
+  {
+   "widget": "portfolio",
+   "kind": "hover",
+   "reason": "El primer control del widget es otro: en B, el botón «Todos» del filtro (en A los elementos de lista no cuentan como controles y el arnés toma el primer enlace)."
+  },
+  {
+   "widget": "portfolio",
+   "kind": "foco",
+   "match": "^(color|border-color|outline):",
+   "reason": "El foco con teclado llega primero al botón «Todos» del filtro (en A, al primer enlace: los elementos de lista de PRO no son controles)."
   }
  ],
  "cases": {
@@ -128,7 +151,11 @@
      "label": "filtrar por el segundo término",
      "a": ".elementor-portfolio__filter:nth-child(2)",
      "b": ".digi-portfolio__filters > li:nth-child(2) .digi-portfolio__filter",
-     "wait": 2000
+     "wait": 2000,
+     "pixels": {
+      "max": 0.04,
+      "reason": "«Todos» (B) y «All» (A) tienen otro ancho y desplazan los demás botones de la barra; la rejilla filtrada es la misma."
+     }
     }
    ]
   }

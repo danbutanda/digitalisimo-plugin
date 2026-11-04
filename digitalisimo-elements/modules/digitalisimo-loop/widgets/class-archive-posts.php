@@ -42,6 +42,12 @@ class Archive_Posts extends Posts_Base {
 		return array( 'entradas', 'archivo', 'posts', 'blog', 'categoría', 'bucle', 'consulta', 'tarjetas', 'listado' );
 	}
 
+	/** Sin envoltorio interior con el marcado optimizado, como el widget de PRO. */
+	public function has_widget_inner_wrapper(): bool {
+		$plugin = class_exists( '\\Elementor\\Plugin' ) ? \Elementor\Plugin::$instance : null;
+		return ! ( $plugin && isset( $plugin->experiments ) && is_object( $plugin->experiments ) && $plugin->experiments->is_feature_active( 'e_optimized_markup' ) );
+	}
+
 	/** Usa la hoja de Entradas. */
 	protected function own_assets_name(): string {
 		return 'digitalisimo-posts';
