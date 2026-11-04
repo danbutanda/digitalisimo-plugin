@@ -46,7 +46,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 - **C1 · Carruseles.** Los cinco, sobre un motor de carrusel propio (`digi-crs`, derivado del slider anidado de F7b), sin Swiper. El Slider Optimizado (marquesina de logotipos) y el Slider anidado ligero no eran equivalentes completos y no cambian: Slides y Nested carousel tienen también widget propio nuevo. Incluye el punto de extensión de K que convierte los widgets de PRO al importar un kit. Es la familia que más pesa en el front (Swiper, 144 KB). Contrato y resultado en `docs/pro/c1.md`.
 - **C2 · Contenido.** Quince widgets sueltos; cinco tienen equivalente total o parcial. Lottie necesita su librería (253 KB): el widget propio la carga al acercarse a la pantalla, como hace hoy `lazy_libs`.
 - **C3 · Navegación y búsqueda.** Menú y Mega Menu (los más usados en cabeceras), el Off-Canvas de contenedor anidado y la búsqueda.
-- **C4 · Theme Builder y elementos de tema.** Logo, título, contenido, extracto, imagen destacada, títulos de archivo, entradas del archivo, información, navegación, autor, comentarios y mapa del sitio: los widgets de las plantillas de cabecera, pie, entrada y archivo.
+- **C4 · Theme Builder y elementos de tema.** Logo, título, contenido, extracto, imagen destacada, títulos de archivo, entradas del archivo, información, navegación, autor, comentarios y mapa del sitio: los widgets de las plantillas de cabecera, pie, entrada y archivo. Quince widgets propios que repiten los controles de PRO (los títulos, el logotipo y la imagen destacada heredan, como en PRO, los widgets Encabezado e Imagen del núcleo); «entradas del archivo» (`archive-posts`) hereda de Posts y pasa a C5. Contrato y resultado en `docs/pro/c4.md`.
 - **C5 · Entradas y bucles.** Posts, Portfolio, Loop Grid, Loop Carousel y el filtro de taxonomías, con las consultas guardadas y los filtros de F7b y los Loop Items.
 - **C6 · Formularios.** Formulario (campos, acciones, envíos guardados, integraciones y campos condicionales de F7b) e inicio de sesión. Es la familia con más riesgo de datos: ninguna acción se pierde ni se duplica.
 - **C7 · WooCommerce.** Treinta widgets de tienda, carrito, pago, cuenta y ficha, sobre lo que ya añadió F4-Woo.
@@ -86,22 +86,22 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C3 | `nav-menu` | `nav-menu` | WordPress Menu | Nuevo |  |
 | C3 | `off-canvas` | `off-canvas` | Off-Canvas | Parcial | Panel lateral (PRO usa un contenedor anidado) |
 | C3 | `search` | `search` | Search | Nuevo |  |
-| C4 | `theme-builder` | `archive-posts` | Archive Posts | Nuevo |  |
-| C4 | `theme-builder` | `theme-archive-title` | Archive Title | Nuevo |  |
-| C4 | `theme-builder` | `theme-page-title` | Page Title | Nuevo |  |
-| C4 | `theme-builder` | `theme-post-content` | Post Content | Nuevo |  |
-| C4 | `theme-builder` | `theme-post-excerpt` | Post Excerpt | Nuevo |  |
-| C4 | `theme-builder` | `theme-post-featured-image` | Featured Image | Nuevo |  |
-| C4 | `theme-builder` | `theme-post-title` | Post Title | Nuevo |  |
-| C4 | `theme-builder` | `theme-site-logo` | Site Logo | Nuevo |  |
-| C4 | `theme-builder` | `theme-site-title` | Site Title | Nuevo |  |
-| C4 | `theme-elements` | `author-box` | Author Box | Parcial | extras propios sobre el de PRO (`class-author-box-extras.php`) |
-| C4 | `theme-elements` | `breadcrumbs` | Breadcrumbs | Existe | Ruta de navegación |
-| C4 | `theme-elements` | `post-comments` | Post Comments | Nuevo |  |
-| C4 | `theme-elements` | `post-info` | Post Info | Nuevo |  |
-| C4 | `theme-elements` | `post-navigation` | Post Navigation | Nuevo |  |
-| C4 | `theme-elements` | `search-form` | Search Form | Nuevo |  |
-| C4 | `theme-elements` | `sitemap` | Sitemap | Nuevo |  |
+| C4 | `theme-builder` | `archive-posts` | Archive Posts | Nuevo | hereda de Posts: va con C5 |
+| C4 | `theme-builder` | `theme-archive-title` | Archive Title | **Sustituido** | Título del archivo (`digitalisimo-archive-title`), C4 |
+| C4 | `theme-builder` | `theme-page-title` | Page Title | **Sustituido** | Título de la página (`digitalisimo-page-title`), C4 |
+| C4 | `theme-builder` | `theme-post-content` | Post Content | **Sustituido** | Contenido de la entrada (`digitalisimo-post-content`), C4 |
+| C4 | `theme-builder` | `theme-post-excerpt` | Post Excerpt | **Sustituido** | Extracto (`digitalisimo-post-excerpt`), C4 |
+| C4 | `theme-builder` | `theme-post-featured-image` | Featured Image | **Sustituido** | Imagen destacada (`digitalisimo-featured-image`), C4 |
+| C4 | `theme-builder` | `theme-post-title` | Post Title | **Sustituido** | Título de la entrada (`digitalisimo-post-title`), C4 |
+| C4 | `theme-builder` | `theme-site-logo` | Site Logo | **Sustituido** | Logotipo del sitio (`digitalisimo-site-logo`), C4 |
+| C4 | `theme-builder` | `theme-site-title` | Site Title | **Sustituido** | Título del sitio (`digitalisimo-site-title`), C4 |
+| C4 | `theme-elements` | `author-box` | Author Box | **Sustituido** | Caja de autor (`digitalisimo-author-box`, con el Perfil ampliado de `class-author-box-extras.php`), C4 |
+| C4 | `theme-elements` | `breadcrumbs` | Breadcrumbs | **Sustituido** | Migas (Yoast o DIGITALÍSIMO SEO) (`digitalisimo-yoast-breadcrumbs`, la Ruta de navegación `digitalisimo-breadcrumbs` no cambia), C4 |
+| C4 | `theme-elements` | `post-comments` | Post Comments | **Sustituido** | Comentarios (`digitalisimo-post-comments`), C4 |
+| C4 | `theme-elements` | `post-info` | Post Info | **Sustituido** | Información de la entrada (`digitalisimo-post-info`), C4 |
+| C4 | `theme-elements` | `post-navigation` | Post Navigation | **Sustituido** | Navegación entre entradas (`digitalisimo-post-navigation`), C4 |
+| C4 | `theme-elements` | `search-form` | Search Form | **Sustituido** | Formulario de búsqueda (`digitalisimo-search-form`, fuera del panel, como en PRO), C4 |
+| C4 | `theme-elements` | `sitemap` | Sitemap | **Sustituido** | Mapa del sitio (`digitalisimo-sitemap`), C4 |
 | C5 | `loop-builder` | `loop-carousel` | Loop Carousel | Nuevo |  |
 | C5 | `loop-builder` | `loop-grid` | Loop Grid | Nuevo |  |
 | C5 | `loop-filter` | `taxonomy-filter` | Taxonomy Filter | Nuevo |  |
@@ -171,6 +171,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 |---|---|
 | C0 | **Publicado** · Elements 4.3.0.172 y Migración 1.0.22 · `v2026.11.03.448`. Núcleo de conversión, inventario y etapa `pro` de «Migrar», arnés A/B (`tests/playground/pro-ab.sh`) y de punta a punta (`pro-migrate.sh`), y el piloto: Blockquote → Cita, listo y oculto del panel. Detalle en `docs/pro/c0.md` |
 | C1 | **Publicado** · Elements 4.3.0.173 y Migración 1.0.23 · `v2026.11.04.449`. Motor `digi-crs` y los cinco carruseles propios (Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas) con sus mapas listos y fuera del panel; los kits convierten los widgets de PRO al importar (§17 de `docs/fusion/k-kits.md`). Detalle en `docs/pro/c1.md` |
-| C4 | **En curso** (rama `pro/c4`, contrato `docs/pro/c4.md`) |
+| C4 | **Publicado** · Elements @NEXT_ELEMENTS@ y Migración @NEXT_MIGRATION@ · `@C4_TAG@`. Quince elementos de tema propios (`modules/digitalisimo-theme-elements/`): logotipo, título del sitio, de la página, de la entrada y del archivo, extracto, contenido, imagen destacada, información de la entrada, navegación entre entradas, caja de autor, comentarios, formulario de búsqueda, mapa del sitio y migas (Yoast o DIGITALÍSIMO SEO), con sus mapas listos y los de PRO fuera del panel (también de `panel.widgets_settings` de las plantillas individuales). `archive-posts` va con C5. Detalle en `docs/pro/c4.md` |
 | C2–C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

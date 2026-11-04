@@ -6814,5 +6814,43 @@
     "swiper": false
    }
   }
+ },
+ "theme-elements": {
+  "title": "Plantilla de entrada del Theme Builder con los quince elementos de tema propios (programa sin widgets de PRO, C4), medida en una entrada",
+  "since": "@NEXT_ELEMENTS@",
+  "widgets": [],
+  "extra": [
+   {
+    "key": "single",
+    "type": "single-post",
+    "conditions": ["include/singular/post"],
+    "widgets": [
+     { "type": "digitalisimo-site-logo", "settings": {} },
+     { "type": "digitalisimo-site-title", "settings": { "header_size": "p" } },
+     { "type": "digitalisimo-search-form", "settings": { "skin": "classic", "placeholder": "Buscar" } },
+     { "type": "digitalisimo-yoast-breadcrumbs", "settings": {} },
+     { "type": "digitalisimo-post-title", "settings": {} },
+     { "type": "digitalisimo-post-info", "settings": {} },
+     { "type": "digitalisimo-featured-image", "settings": {} },
+     { "type": "digitalisimo-post-excerpt", "settings": {} },
+     { "type": "digitalisimo-post-content", "settings": {} },
+     { "type": "digitalisimo-author-box", "settings": {} },
+     { "type": "digitalisimo-post-navigation", "settings": {} },
+     { "type": "digitalisimo-post-comments", "settings": {} },
+     { "type": "digitalisimo-page-title", "settings": {} },
+     { "type": "digitalisimo-archive-title", "settings": {} },
+     { "type": "digitalisimo-sitemap", "settings": {} }
+    ]
+   }
+  ],
+  "views": ["/digi-fb-post-2/"],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false
+   }
+  }
  }
 }

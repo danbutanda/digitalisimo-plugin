@@ -70,6 +70,7 @@ Los widgets que DIGITALÍSIMO Elements trae de PRO se sustituyen, familia por fa
 
 * Cita, en lugar del Blockquote.
 * Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas, en lugar de los carruseles de PRO: un motor propio sin Swiper ni jQuery, con teclado, botón para pausar la reproducción automática y respeto por el movimiento reducido.
+* Elementos de tema para las plantillas de cabecera, pie, entrada y archivo, en lugar de los de PRO: Logotipo del sitio, Título del sitio, Título de la página, Título de la entrada, Título del archivo, Extracto, Contenido de la entrada, Imagen destacada, Información de la entrada, Navegación entre entradas, Caja de autor, Comentarios, Formulario de búsqueda (con la pantalla completa como diálogo accesible), Mapa del sitio y Migas, que muestran las de Yoast o, sin Yoast, las de DIGITALÍSIMO SEO. Muestran los mismos datos que los de PRO, con foco visible y sin señales SEO propias.
 
 == Formularios ==
 
