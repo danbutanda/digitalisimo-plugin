@@ -1,5 +1,5 @@
 // Motor de carrusel digi-crs (C1, frente E de docs/pro/c1.md §1.3) en Chrome real (sin interfaz) sobre
-// tests/fixtures/carousel-engine.html, que es el marcado de Engine (lo comprueba tests/elements-carousel-engine.php):
+// tests/fixtures/crs-engine.html, que es el marcado de Engine (lo comprueba tests/elements-crs-engine.php):
 // - sin JavaScript: pista con scroll-snap desplazable, nada inerte, controles a la vista;
 // - con JavaScript (1280 y 375 px): --ready en todos; páginas con varias diapositivas visibles y paso de 2 (puntos que
 //   sobran ocultos, aria-current, inert fuera de la ventana, flechas aria-disabled en los extremos sin bucle), flechas,
@@ -10,7 +10,7 @@
 // - RTL con barra de progreso y bucle (rebobina); miniaturas centradas sincronizadas con el carrusel principal; una sola
 //   diapositiva y todo en una página (--locked); el editor (sin autoplay y reinicio con frontend/element_ready/global).
 // Sin Chrome o sin puppeteer-core, se salta con un aviso. CHROME_PATH y PUPPETEER_PATH cambian las rutas.
-// Uso: timeout 150 node tests/elements-carousel-engine-chrome.mjs
+// Uso: timeout 150 node tests/elements-crs-engine-chrome.mjs
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -22,7 +22,7 @@ if (!existsSync(chrome) || !existsSync(pptrDir + '/package.json')) {
   process.exit(0);
 }
 const { default: puppeteer } = await import(pathToFileURL(pptrDir + '/lib/puppeteer/puppeteer-core.js').href);
-const fixture = new URL('./fixtures/carousel-engine.html', import.meta.url).href;
+const fixture = new URL('./fixtures/crs-engine.html', import.meta.url).href;
 let checks = 0;
 const ok = (value, message) => { assert.ok(value, message); checks++; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));

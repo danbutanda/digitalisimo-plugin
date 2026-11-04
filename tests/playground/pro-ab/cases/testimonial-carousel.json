@@ -22,12 +22,6 @@
    "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa): el navegador elige el tamaño registrado que corresponde al ancho, donde PRO cargaba siempre el original."
   },
   {
-   "kind": "control",
-   "match": ".",
-   "reason": "Controles del motor digi-crs (frente E, docs/pro/c1.md §1.1 y su informe): pausa, flecha anterior, paginación y flecha siguiente son <button> y van antes de la pista (PRO: las flechas eran div con role=button y la paginación iba al final, después de los enlaces de las diapositivas); los puntos son botones de 24 × 24 px con el punto dibujado dentro. El arnés compara los controles por posición.",
-   "widget": "testimonial-carousel"
-  },
-  {
    "kind": "hover",
    "match": "^(transform|color|border-color|outline|fill|background|radius|size|border-width|border-bottom|padding|label-color):",
    "reason": "El primer control de B es la flecha anterior del motor (se centra con translate, no con transform; color #eeeeeee6 donde PRO computaba hsla(0,0%,93%,.9)); en A, con enlaces en las diapositivas, era el primer enlace.",
@@ -52,10 +46,6 @@
    "widget": "testimonial-carousel",
    "settings": {
     "autoplay": ""
-   },
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-images": {
@@ -181,10 +171,6 @@
       }
      }
     ]
-   },
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-above-right": {
@@ -235,10 +221,6 @@
       }
      }
     ]
-   },
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-left": {
@@ -285,10 +267,6 @@
       }
      }
     ]
-   },
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-right": {
@@ -329,10 +307,6 @@
       }
      }
     ]
-   },
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-bubble": {
@@ -385,10 +359,6 @@
       }
      }
     ]
-   },
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-bubble-left": {
@@ -439,10 +409,6 @@
       }
      }
     ]
-   },
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-bubble-right": {
@@ -530,10 +496,6 @@
       }
      }
     ]
-   },
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-responsive": {
@@ -582,10 +544,6 @@
       }
      }
     ]
-   },
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
    }
   },
   "tc-progress": {
@@ -639,11 +597,7 @@
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next"
     }
-   ],
-   "pixels": {
-    "max": 0.04,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T)."
-   }
+   ]
   },
   "tc-autoplay": {
    "title": "Reproducción automática (B añade el botón Pausar, WCAG 2.2.2)",

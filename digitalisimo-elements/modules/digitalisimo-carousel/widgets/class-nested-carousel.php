@@ -445,7 +445,8 @@ class Nested_Carousel extends Widget_Nested_Base {
 					$open .= '<# if ( digiPag ) { #> data-digi-pagination="{{ digiPag }}"<# } #>';
 					break;
 				case 'style':
-					$open .= ' style="' . str_replace( '1234', '{{ digiSpeed }}', $value ) . '"';
+					// `--digi-crs-n` (número de diapositivas): el de la plantilla de base (2) pasa a la cuenta real.
+					$open .= ' style="' . str_replace( array( '1234', '--digi-crs-n:2' ), array( '{{ digiSpeed }}', '--digi-crs-n:{{ digiCount }}' ), $value ) . '"';
 					break;
 				default:
 					$open .= ' ' . $name . '="' . $value . '"';

@@ -24,11 +24,6 @@
   },
   {
    "widget": "media-carousel",
-   "kind": "control",
-   "reason": "Controles del motor digi-crs (frente E, docs/pro/c1.md §1 y su informe, diferencias 4, 5 y 7): flechas y puntos son <button> y van antes de la pista (otro orden), los puntos son botones de 24 × 24 px con el punto dibujado en ::before, el color de las flechas es #eeeeeee6 (PRO: hsla(0,0%,93%,.9), un punto de diferencia por redondeo) y con autoplay hay botón Pausar/Reanudar."
-  },
-  {
-   "widget": "media-carousel",
    "kind": "hover",
    "match": "^(transform|color|border-color|outline|fill|background|radius|size):",
    "reason": "Primer control del motor digi-crs (flecha o pausa, <button>): se centra con la propiedad translate y no con transform, y su color es #eeeeeee6 (PRO: hsla(0,0%,93%,.9)); ver el informe del frente E."

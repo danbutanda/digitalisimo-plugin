@@ -49,6 +49,13 @@ jobs:
           php tests/elements-facades.php
           php tests/elements-convert.php
           php tests/elements-blockquote.php
+          php tests/elements-crs-engine.php
+          node tests/elements-crs-engine-chrome.mjs
+          php tests/elements-pro-nested-carousel.php
+          node tests/elements-pro-nested-carousel-editor.mjs
+          php tests/elements-pro-media-carousel.php
+          php tests/elements-pro-testimonials.php
+          php tests/elements-pro-slides.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php
@@ -251,6 +258,7 @@ jobs:
           php tests/elements-kit-actions.php
           php tests/elements-kit-global-widget.php
           php tests/elements-kit-integration.php
+          php tests/elements-kit-pro-convert.php
           node tests/elements-kit-static.mjs
           node tests/elements-kit-inventory.mjs
           node tests/elements-kit-app-guard.mjs

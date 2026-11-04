@@ -24,12 +24,6 @@
   },
   {
    "widget": "nested-carousel",
-   "kind": "control",
-   "match": ".",
-   "reason": "Orden de los controles: el propio pone pausa, flecha anterior, paginación y flecha siguiente antes de la pista (orden de foco, docs/pro/c1.md §1.1); PRO ponía las flechas y después la paginación detrás de las diapositivas. Los estilos de cada control se comparan en hover, foco y píxeles."
-  },
-  {
-   "widget": "nested-carousel",
    "kind": "nombre",
    "match": "Diapositiva (anterior|siguiente)|Ir a la diapositiva|Previous|Next|Go to slide",
    "reason": "Nombres accesibles propios de flechas y puntos, en español (PRO usaba los textos de Swiper)."

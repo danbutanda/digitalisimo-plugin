@@ -12,9 +12,9 @@
  * - `Module`: autocarga, registro tolerante, recursos (≤ 4 KB de hoja y ≤ 6 KB de script, `defer`, sin dependencias) y el
  *   formato de `WIDGETS` que leen las pruebas de presupuesto;
  * - la guarda de `scripts/build-packages.sh` (ninguna mención del proveedor retirado) en los archivos del motor;
- * - `tests/fixtures/carousel-engine.html` (la que usa tests/elements-carousel-engine-chrome.mjs) es el marcado de `Engine`
+ * - `tests/fixtures/crs-engine.html` (la que usa tests/elements-crs-engine-chrome.mjs) es el marcado de `Engine`
  *   de hoy: con `--write`, se regenera.
- * Uso: php-wasm-cli tests/elements-carousel-engine.php [--write]
+ * Uso: php-wasm-cli tests/elements-crs-engine.php [--write]
  */
 namespace Elementor {
 	class Controls_Manager {
@@ -316,7 +316,7 @@ namespace {
 		return $html . Engine::close() . '</div>' . "\n";
 	};
 	$fixture  = "<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>digi-crs</title>\n";
-	$fixture .= "<!-- Generada por tests/elements-carousel-engine.php (--write); la usa tests/elements-carousel-engine-chrome.mjs. -->\n";
+	$fixture .= "<!-- Generada por tests/elements-crs-engine.php (--write); la usa tests/elements-crs-engine-chrome.mjs. -->\n";
 	$fixture .= "<style>:root{--direction-multiplier:1}html[dir=rtl],[dir=rtl]{--direction-multiplier:-1}body{margin:0;font:16px/1.5 sans-serif}.elementor-widget{position:relative;margin:0 0 40px;padding:0 20px}.s{background:#ddd;box-sizing:border-box;padding:8px}.spacer{height:1600px}button{border:1px solid #c36;padding:.5rem 1rem;border-radius:3px;color:#c36}[type=button]:hover,[type=button]:focus{background-color:#c36;color:#fff}</style>\n";
 	$fixture .= "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/css/carousel.css\">\n</head><body>\n";
 	$fixture .= $carousel( 'w1', array( 'arrows' => true, 'pagination' => 'bullets', 'pagination_position' => 'outside' ), 6, '--digi-crs-view:3;--digi-crs-scroll:2;--digi-crs-gap:10px' );
@@ -333,11 +333,11 @@ namespace {
 	$fixture .= "<div class=\"spacer\"></div>\n";
 	$fixture .= $carousel( 'w9', array( 'autoplay' => 600, 'arrows' => true, 'speed' => 0 ), 3 );
 	$fixture .= "<script src=\"../../digitalisimo-elements/modules/digitalisimo-carousel/assets/js/carousel.js\" defer></script>\n</body></html>\n";
-	$path = __DIR__ . '/fixtures/carousel-engine.html';
+	$path = __DIR__ . '/fixtures/crs-engine.html';
 	if ( in_array( '--write', $argv ?? array(), true ) ) {
 		file_put_contents( $path, $fixture );
 	}
-	check_ce( is_file( $path ) && file_get_contents( $path ) === $fixture, 'tests/fixtures/carousel-engine.html es el marcado de Engine de hoy (regenerar con --write).' );
+	check_ce( is_file( $path ) && file_get_contents( $path ) === $fixture, 'tests/fixtures/crs-engine.html es el marcado de Engine de hoy (regenerar con --write).' );
 
 	echo 'DIGITALÍSIMO Elements: motor de carrusel digi-crs (marcado, controles de base.php y del trait de PRO, recursos y página de prueba) validado: ' . $GLOBALS['ce']['n'] . " comprobaciones.\n";
 }
