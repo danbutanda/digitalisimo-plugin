@@ -102,6 +102,11 @@ function digi_ab_tokens( $value ) {
 	if ( is_string( $value ) && preg_match( '/^\$image-url:(\d+)$/', $value, $m ) ) {
 		return digi_ab_image( (int) $m[1] )[1];
 	}
+	// `"$fixture:clave"`: el ID (texto) de un dato de prueba del contexto (`digi_ab_fixtures()`: post, previous, next, bare,
+	// page, author, category, tag…), p. ej. la entrada elegida de un widget con origen «Personalizado» (frente H de C4).
+	if ( is_string( $value ) && preg_match( '/^\$fixture:([a-z]+)$/', $value, $m ) ) {
+		return (string) ( digi_ab_fixtures()[ $m[1] ] ?? '' );
+	}
 	if ( ! is_array( $value ) ) {
 		return $value;
 	}
@@ -151,6 +156,137 @@ function digi_ab_reasons( array $map ) {
 	return $out;
 }
 
+/**
+ * Contexto de los widgets de tema (C4, `docs/pro/c4.md` §3): datos de prueba fijos, creados una vez y sólo si algún
+ * caso de la corrida trae `context`. Una autora con biografía, una categoría y una etiqueta con descripción, la entrada
+ * completa «Entrada de prueba del A/B» (`entrada-ab`: extracto escrito, contenido con bloques, imagen destacada con
+ * leyenda, categoría, etiqueta, comentarios abiertos con dos comentarios aprobados y una respuesta) entre una anterior
+ * (`entrada-anterior-ab`) y una siguiente (`entrada-siguiente-ab`), una entrada sin extras (`entrada-sin-extras-ab`:
+ * sin extracto, imagen, etiqueta ni comentarios) y una página (`pagina-ab`). Fechas fijas de marzo de 2024, así la
+ * anterior y la siguiente no dependen del momento de la corrida. El logotipo del Personalizador es la imagen de prueba 12
+ * y la imagen destacada, la 11 (con leyenda); la 10 es el avatar de todos los usuarios en estas páginas. Devuelve los ID.
+ */
+function digi_ab_fixtures() {
+	static $ids = null;
+	if ( null !== $ids ) {
+		return $ids;
+	}
+	$ids  = array();
+	$user = get_user_by( 'login', 'autora-ab' );
+	$uid  = $user ? (int) $user->ID : (int) wp_insert_user( array( 'user_login' => 'autora-ab', 'user_pass' => wp_generate_password( 24 ), 'user_email' => 'autora-ab@example.org', 'display_name' => 'Ana Autora', 'first_name' => 'Ana', 'last_name' => 'Autora', 'nickname' => 'Ana Autora', 'description' => 'Biografía de la autora de prueba: escribe sobre diseño y accesibilidad.', 'user_url' => home_url( '/sobre-ana/' ), 'role' => 'author' ) );
+	$ids['author'] = $uid;
+	$term = static function ( $name, $slug, $taxonomy, $description ) {
+		$found = get_term_by( 'slug', $slug, $taxonomy );
+		if ( $found ) {
+			return (int) $found->term_id;
+		}
+		$made = wp_insert_term( $name, $taxonomy, array( 'slug' => $slug, 'description' => $description ) );
+		return is_wp_error( $made ) ? 0 : (int) $made['term_id'];
+	};
+	$ids['category'] = $term( 'Categoría de prueba', 'categoria-ab', 'category', 'Descripción de la categoría de prueba.' );
+	$ids['tag']      = $term( 'Etiqueta de prueba', 'etiqueta-ab', 'post_tag', 'Descripción de la etiqueta de prueba.' );
+	$post = static function ( $slug, array $data ) use ( $uid ) {
+		$found = get_page_by_path( $slug, OBJECT, $data['post_type'] ?? 'post' );
+		if ( $found ) {
+			return (int) $found->ID;
+		}
+		return (int) wp_insert_post( array_merge( array( 'post_type' => 'post', 'post_status' => 'publish', 'post_name' => $slug, 'post_author' => $uid ), $data ) );
+	};
+	$content = "<!-- wp:paragraph -->\n<p>Primer párrafo de la entrada de prueba, con un <a href=\"" . esc_url( home_url( '/pagina-ab/' ) ) . "\">enlace interno</a> y texto en <strong>negrita</strong>.</p>\n<!-- /wp:paragraph -->\n\n"
+		. "<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Un subtítulo del contenido</h2>\n<!-- /wp:heading -->\n\n"
+		. "<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Primer punto de la lista</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Segundo punto de la lista</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n"
+		. "<!-- wp:paragraph -->\n<p>Último párrafo de la entrada de prueba.</p>\n<!-- /wp:paragraph -->";
+	$ids['previous'] = $post( 'entrada-anterior-ab', array( 'post_title' => 'Entrada anterior de prueba', 'post_content' => '<p>Contenido de la entrada anterior.</p>', 'post_date' => '2024-03-10 10:00:00', 'post_category' => array( $ids['category'] ) ) );
+	$ids['post']     = $post( 'entrada-ab', array( 'post_title' => 'Entrada de prueba del A/B', 'post_excerpt' => 'Extracto escrito a mano de la entrada de prueba.', 'post_content' => $content, 'post_date' => '2024-03-15 10:00:00', 'post_category' => array( $ids['category'] ), 'tags_input' => array( 'etiqueta-ab' ), 'comment_status' => 'open' ) );
+	$ids['next']     = $post( 'entrada-siguiente-ab', array( 'post_title' => 'Entrada siguiente de prueba', 'post_content' => '<p>Contenido de la entrada siguiente.</p>', 'post_date' => '2024-03-20 10:00:00', 'post_category' => array( $ids['category'] ) ) );
+	$ids['bare']     = $post( 'entrada-sin-extras-ab', array( 'post_title' => 'Entrada sin extras', 'post_content' => "<!-- wp:paragraph -->\n<p>Contenido de una entrada sin extracto escrito ni imagen destacada: el extracto sale de este texto, que es lo bastante largo para que WordPress lo recorte en cincuenta y cinco palabras y le añada su marca de continuación al final, igual en los dos lados de la comparación, sin depender de nada más que del contenido de la entrada, que sigue un poco más para pasar el límite de palabras del extracto automático de WordPress.</p>\n<!-- /wp:paragraph -->", 'post_date' => '2024-03-05 10:00:00', 'comment_status' => 'closed' ) );
+	$ids['page']     = $post( 'pagina-ab', array( 'post_type' => 'page', 'post_title' => 'Página de prueba', 'post_content' => '<p>Contenido de la página de prueba.</p>' ) );
+	if ( ! get_post_thumbnail_id( $ids['post'] ) ) {
+		$image = digi_ab_image( 11 );
+		wp_update_post( array( 'ID' => $image[0], 'post_excerpt' => 'Leyenda de la imagen destacada' ) );
+		set_post_thumbnail( $ids['post'], $image[0] );
+	}
+	// Logotipo del sitio (Personalizador): la imagen de prueba 12. La 10 es el avatar de todos los usuarios.
+	if ( ! get_theme_mod( 'custom_logo' ) ) {
+		set_theme_mod( 'custom_logo', digi_ab_image( 12 )[0] );
+	}
+	$ids['logo'] = (int) get_theme_mod( 'custom_logo' );
+	if ( ! get_comments( array( 'post_id' => $ids['post'], 'count' => true ) ) ) {
+		$first = (int) wp_insert_comment( array( 'comment_post_ID' => $ids['post'], 'comment_author' => 'Lectora de prueba', 'comment_author_email' => 'lectora-ab@example.org', 'comment_content' => 'Primer comentario de prueba.', 'comment_date' => '2024-03-16 09:00:00', 'comment_approved' => 1 ) );
+		wp_insert_comment( array( 'comment_post_ID' => $ids['post'], 'comment_author' => 'Ana Autora', 'comment_author_email' => 'autora-ab@example.org', 'user_id' => $uid, 'comment_parent' => $first, 'comment_content' => 'Respuesta de la autora al primer comentario.', 'comment_date' => '2024-03-16 11:00:00', 'comment_approved' => 1 ) );
+		wp_insert_comment( array( 'comment_post_ID' => $ids['post'], 'comment_author' => 'Lector de prueba', 'comment_author_email' => 'lector-ab@example.org', 'comment_content' => 'Segundo comentario de prueba.', 'comment_date' => '2024-03-17 09:00:00', 'comment_approved' => 1 ) );
+	}
+	return $ids;
+}
+
+/**
+ * Consulta del contexto de un caso (`context`): `"post"` o `{"post": "full"}` (la entrada completa), `{"post":
+ * "bare"}` (la entrada sin extras), `"page"` (la página de prueba) o `{"archive": "category" | "tag" | "author" |
+ * "date" | "search"}`. Las dos páginas del caso pintan sus elementos con esta consulta (mu-plugin `digi-ab-context.php`,
+ * `Plugin::$instance->db->switch_to_query()`, como la vista previa del Theme Builder), así que A y B se miden en el
+ * mismo contexto. Devuelve `[consulta, descripción]` o `null` si el valor no es válido.
+ */
+function digi_ab_context( $context ) {
+	if ( 'post' === $context || 'page' === $context ) {
+		$context = array( $context => 'full' );
+	}
+	if ( ! is_array( $context ) || 1 !== count( $context ) ) {
+		return null;
+	}
+	$ids  = digi_ab_fixtures();
+	$kind = (string) key( $context );
+	$what = (string) current( $context );
+	if ( 'post' === $kind && in_array( $what, array( 'full', 'bare' ), true ) ) {
+		return array( array( 'p' => $ids[ 'full' === $what ? 'post' : 'bare' ] ), "entrada $what" );
+	}
+	if ( 'page' === $kind && 'full' === $what ) {
+		return array( array( 'page_id' => $ids['page'] ), 'página' );
+	}
+	$archives = array( 'category' => array( 'cat' => $ids['category'] ), 'tag' => array( 'tag_id' => $ids['tag'] ), 'author' => array( 'author' => $ids['author'] ), 'date' => array( 'year' => 2024, 'monthnum' => 3 ), 'search' => array( 's' => 'prueba' ) );
+	if ( 'archive' === $kind && isset( $archives[ $what ] ) ) {
+		return array( $archives[ $what ], "archivo $what" );
+	}
+	return null;
+}
+
+/** mu-plugin del contexto: en las páginas de `digi_ab_context` (opción), cada árbol de elementos se pinta con su consulta. */
+function digi_ab_context_plugin() {
+	$code = <<<'PHP'
+<?php
+// pro-ab.sh (setup.php, `context` de un caso): la página A o B de un caso con contexto pinta sus elementos con la
+// consulta del contexto, como la vista previa del Theme Builder (`switch_to_query`), desde el primer elemento de nivel
+// superior hasta que termina. El avatar de cualquier usuario es una imagen local (sin peticiones a terceros).
+add_action( 'wp', static function () {
+	$map = get_option( 'digi_ab_context' );
+	$id  = (int) get_queried_object_id();
+	if ( ! is_array( $map ) || ! $id || empty( $map[ $id ] ) || ! class_exists( '\Elementor\Plugin' ) ) {
+		return;
+	}
+	$vars  = (array) $map[ $id ]['vars'];
+	$depth = 0;
+	add_action( 'elementor/frontend/before_render', static function () use ( $vars, &$depth ) {
+		if ( 0 === $depth++ ) {
+			\Elementor\Plugin::$instance->db->switch_to_query( $vars, true );
+		}
+	}, -1000 );
+	add_action( 'elementor/frontend/after_render', static function () use ( &$depth ) {
+		if ( 0 === --$depth ) {
+			\Elementor\Plugin::$instance->db->restore_current_query();
+		}
+	}, 1000 );
+	$avatar = (string) ( $map[ $id ]['avatar'] ?? '' );
+	if ( '' !== $avatar ) {
+		add_filter( 'pre_get_avatar_data', static function ( $args ) use ( $avatar ) {
+			$args['url'] = $avatar;
+			$args['found_avatar'] = true;
+			return $args;
+		} );
+	}
+} );
+PHP;
+	file_put_contents( WPMU_PLUGIN_DIR . '/digi-ab-context.php', $code );
+}
+
 if ( ! class_exists( '\\Elementor\\Plugin' ) || ! class_exists( '\\Digitalisimo\\Elements\\Convert\\Converter' ) ) {
 	digi_ab_fail( 'El constructor o el módulo de conversión (Digitalisimo\\Elements\\Convert) no están cargados' );
 	return;
@@ -175,6 +311,7 @@ if ( is_file( DIGI_AB_DIR . '/map-override.php' ) ) {
 
 $widgets = \Elementor\Plugin::$instance->widgets_manager;
 $out     = array( 'elementor' => ELEMENTOR_VERSION, 'override' => $override, 'cases' => array() );
+$contexts = array();
 foreach ( $cases['cases'] as $slug => $case ) {
 	if ( $only ? ! in_array( $slug, $only, true ) : ! empty( $case['pending'] ) ) {
 		continue;
@@ -231,7 +368,22 @@ foreach ( $cases['cases'] as $slug => $case ) {
 	}
 	list( $entry['a'], $entry['css_a'] ) = digi_ab_page( "pro-ab-$slug-a", $tree );
 	list( $entry['b'], $entry['css_b'] ) = digi_ab_page( "pro-ab-$slug-b", $b_tree );
+	if ( isset( $case['context'] ) ) {
+		$context = digi_ab_context( $case['context'] );
+		if ( null === $context ) {
+			$entry['error'] = 'context no válido: ' . wp_json_encode( $case['context'] );
+		} else {
+			$contexts[ $entry['a'] ] = $contexts[ $entry['b'] ] = array( 'vars' => $context[0], 'avatar' => digi_ab_image( 10 )[1] );
+			$entry['context']        = array( 'query' => $context[0], 'label' => $context[1] );
+		}
+	}
 	$out['cases'][ $slug ] = $entry;
+}
+// Contexto de los casos que lo piden (`context`): la consulta de cada página A y B y el mu-plugin que la aplica.
+if ( $contexts ) {
+	update_option( 'digi_ab_context', $contexts, false );
+	digi_ab_context_plugin();
+	$out['fixtures'] = digi_ab_fixtures();
 }
 if ( ! $out['cases'] ) {
 	digi_ab_fail( 'Ningún caso que medir (CASES no coincide con cases.json)' );

@@ -1,0 +1,63 @@
+{
+ "_doc": [
+  "Casos A/B de la Caja de autor (frente H de C4): A con `author-box` de PRO, B con `digitalisimo-author-box`, en la entrada de prueba completa (`context`: autora con biografía y web; el avatar es la imagen de prueba 10, local)."
+ ],
+ "declared": [
+  {
+   "widget": "author-box",
+   "kind": "imagen",
+   "match": "alt|Picture of|Imagen de|Author picture|Imagen del autor|srcset|sizes|loading|decoding|width|height|«pro-ab-image-\\d+(-\\d+x\\d+)?\\.png»",
+   "reason": "Texto alternativo en español («Imagen de …»); el avatar lleva ancho y alto (sin salto de maquetación) y una imagen de la biblioteca sale de wp_get_attachment_image() (srcset y tamaños) donde PRO ponía la URL del tamaño mediano."
+  },
+  {
+   "widget": "author-box",
+   "kind": "nombre",
+   "match": "Picture of|Imagen de|Author picture|Imagen del autor",
+   "reason": "El nombre accesible del enlace de la imagen es su texto alternativo, en español."
+  },
+  {
+   "widget": "author-box",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los enlaces de la caja (contorno de 2 px con separación de 2 px); PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "ab-defaults": {
+   "title": "Valores por defecto: autora actual con avatar, nombre en h4 y biografía",
+   "widget": "author-box",
+   "context": "post",
+   "settings": {}
+  },
+  "ab-website-button": {
+   "title": "Nombre e imagen enlazados a la web de la autora, botón del archivo",
+   "widget": "author-box",
+   "context": "post",
+   "settings": { "link_to": "website", "show_link": "yes" }
+  },
+  "ab-above-center": {
+   "title": "Imagen arriba, centrado, borde de la imagen y botón al archivo",
+   "widget": "author-box",
+   "context": "post",
+   "settings": { "layout": "above", "alignment": "center", "link_to": "posts_archive", "show_link": "yes", "image_border": "yes", "image_border_color": "#dd3333", "image_border_width": { "unit": "px", "size": 3, "sizes": [] }, "image_border_radius": { "unit": "%", "size": 20, "sizes": [] } }
+  },
+  "ab-right-middle": {
+   "title": "Imagen a la derecha y centrada en vertical, tamaños, separaciones, colores y etiqueta h2",
+   "widget": "author-box",
+   "context": "post",
+   "settings": { "layout": "right", "image_vertical_align": "middle", "image_size": { "unit": "px", "size": 80, "sizes": [] }, "image_size_mobile": { "unit": "px", "size": 50, "sizes": [] }, "image_gap": { "unit": "px", "size": 40, "sizes": [] }, "name_color": "#7a0000", "name_gap": { "unit": "px", "size": 12, "sizes": [] }, "bio_color": "#333333", "author_name_tag": "h2", "alignment": "right" }
+  },
+  "ab-custom": {
+   "title": "Origen personalizado: imagen de la biblioteca, nombre, biografía en párrafos, enlace y botón propios",
+   "widget": "author-box",
+   "context": "post",
+   "settings": { "source": "custom", "author_avatar": { "$image": 10 }, "author_name": "Marta Personalizada", "author_bio": "Biografía escrita a mano.\n\nSegundo párrafo de la biografía.", "author_website": { "url": "/sobre-marta/", "is_external": "", "nofollow": "" }, "posts_url": { "url": "/blog-de-marta/", "is_external": "", "nofollow": "" }, "link_text": "Ver todo" }
+  },
+  "ab-button-style": {
+   "title": "Botón con colores, borde, radio, relleno, tipografía y colores al pasar el cursor",
+   "widget": "author-box",
+   "context": "post",
+   "settings": { "show_link": "yes", "link_text": "Todas sus entradas", "button_text_color": "#ffffff", "button_background_color": "#245eff", "button_border_width": { "unit": "px", "size": 1, "sizes": [] }, "button_border_radius": { "unit": "px", "size": 6, "sizes": [] }, "button_text_padding": { "unit": "px", "top": "12", "right": "20", "bottom": "12", "left": "20", "isLinked": false }, "button_typography_typography": "custom", "button_typography_font_size": { "unit": "px", "size": 16, "sizes": [] }, "button_typography_font_weight": "600", "button_hover_color": "#245eff", "button_background_hover_color": "#ffffff" }
+  }
+ }
+}

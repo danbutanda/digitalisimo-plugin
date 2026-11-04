@@ -26,10 +26,44 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		// Frente G (títulos y medios).
+		'digitalisimo-site-logo' => array( 'file' => 'widgets/class-site-logo.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Site_Logo', 'css' => 'modules/digitalisimo-theme-elements/assets/css/site-logo.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/site-logo.js' ),
+		'digitalisimo-site-title' => array( 'file' => 'widgets/class-site-title.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Site_Title', 'css' => 'modules/digitalisimo-theme-elements/assets/css/site-title.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/site-title.js' ),
+		'digitalisimo-page-title' => array( 'file' => 'widgets/class-page-title.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Page_Title', 'css' => 'modules/digitalisimo-theme-elements/assets/css/page-title.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/page-title.js' ),
+		'digitalisimo-post-title' => array( 'file' => 'widgets/class-post-title.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Post_Title', 'css' => 'modules/digitalisimo-theme-elements/assets/css/post-title.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/post-title.js' ),
+		'digitalisimo-archive-title' => array( 'file' => 'widgets/class-archive-title.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Archive_Title', 'css' => 'modules/digitalisimo-theme-elements/assets/css/archive-title.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/archive-title.js' ),
+		'digitalisimo-post-excerpt' => array( 'file' => 'widgets/class-post-excerpt.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Post_Excerpt', 'css' => 'modules/digitalisimo-theme-elements/assets/css/post-excerpt.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/post-excerpt.js' ),
+		'digitalisimo-post-content' => array( 'file' => 'widgets/class-post-content.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Post_Content', 'css' => 'modules/digitalisimo-theme-elements/assets/css/post-content.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/post-content.js' ),
+		'digitalisimo-featured-image' => array( 'file' => 'widgets/class-featured-image.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Featured_Image', 'css' => 'modules/digitalisimo-theme-elements/assets/css/featured-image.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/featured-image.js' ),
+		// Frente H (elementos de entrada).
+		'digitalisimo-post-info' => array( 'file' => 'widgets/class-post-info.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Post_Info', 'css' => 'modules/digitalisimo-theme-elements/assets/css/post-info.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/post-info.js' ),
+		'digitalisimo-post-navigation' => array( 'file' => 'widgets/class-post-navigation.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Post_Navigation', 'css' => 'modules/digitalisimo-theme-elements/assets/css/post-navigation.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/post-navigation.js' ),
+		'digitalisimo-author-box' => array( 'file' => 'widgets/class-author-box.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Author_Box', 'css' => 'modules/digitalisimo-theme-elements/assets/css/author-box.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/author-box.js' ),
+		'digitalisimo-post-comments' => array( 'file' => 'widgets/class-post-comments.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Post_Comments', 'css' => 'modules/digitalisimo-theme-elements/assets/css/post-comments.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/post-comments.js' ),
+		'digitalisimo-search-form' => array( 'file' => 'widgets/class-search-form.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Search_Form', 'css' => 'modules/digitalisimo-theme-elements/assets/css/search-form.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/search-form.js' ),
+		'digitalisimo-sitemap' => array( 'file' => 'widgets/class-sitemap.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Sitemap', 'css' => 'modules/digitalisimo-theme-elements/assets/css/sitemap.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/sitemap.js' ),
+		'digitalisimo-yoast-breadcrumbs' => array( 'file' => 'widgets/class-yoast-breadcrumbs.php', 'class' => 'Digitalisimo\\Elements\\Theme_Elements\\Widgets\\Yoast_Breadcrumbs', 'css' => 'modules/digitalisimo-theme-elements/assets/css/yoast-breadcrumbs.css', 'js' => 'modules/digitalisimo-theme-elements/assets/js/yoast-breadcrumbs.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		// Frente G.
+		'digitalisimo-site-logo' => 'Logotipo del sitio',
+		'digitalisimo-site-title' => 'Título del sitio',
+		'digitalisimo-page-title' => 'Título de la página',
+		'digitalisimo-post-title' => 'Título de la entrada',
+		'digitalisimo-archive-title' => 'Título del archivo',
+		'digitalisimo-post-excerpt' => 'Extracto',
+		'digitalisimo-post-content' => 'Contenido de la entrada',
+		'digitalisimo-featured-image' => 'Imagen destacada',
+		// Frente H.
+		'digitalisimo-post-info' => 'Información de la entrada',
+		'digitalisimo-post-navigation' => 'Navegación entre entradas',
+		'digitalisimo-author-box' => 'Caja de autor',
+		'digitalisimo-post-comments' => 'Comentarios',
+		'digitalisimo-search-form' => 'Formulario de búsqueda',
+		'digitalisimo-sitemap' => 'Mapa del sitio',
+		'digitalisimo-yoast-breadcrumbs' => 'Migas (Yoast o DIGITALÍSIMO SEO)',
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */

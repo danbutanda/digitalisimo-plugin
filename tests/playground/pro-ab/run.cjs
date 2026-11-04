@@ -403,7 +403,7 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     const codes = [].concat(...(e.log || []).map((l) => l.codes || []));
     const own = [];
     const fail = (m) => { own.push(m); problems.push(`${slug} · ${m}`); };
-    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: `/pro-ab-${slug}-a/`, b: `/pro-ab-${slug}-b/` }, widths: {}, problems: own };
+    const res = { title: c.title || slug, widget: e.widget, target: e.target, map: e.map ? e.status : 'sin mapa', registered: e.registered, css: { a: e.css_a, b: e.css_b }, codes, pages: { a: `/pro-ab-${slug}-a/`, b: `/pro-ab-${slug}-b/` }, context: e.context ? e.context.label : '', widths: {}, problems: own };
     summary.cases[slug] = res;
     if (e.error) fail(e.error);
     if (!e.registered.a) fail(`el widget de PRO «${e.widget}» no está registrado: A no pinta nada`);
