@@ -415,6 +415,14 @@ final class Report_Page {
 			self::section_close();
 		}
 
+		// 3 bis. Widgets convertidos a widgets propios (§17).
+		if ( isset( $groups['converted'] ) ) {
+			self::section_open( 'converted' );
+			echo '<p>' . esc_html( 'El kit traía widgets que DIGITALÍSIMO Elements sustituye por widgets propios: llegaron convertidos, con el mismo contenido y los mismos ajustes salvo lo que se indica.' ) . '</p>';
+			self::render_entries( $groups, 'converted' );
+			self::section_close();
+		}
+
 		// 4. Lo que el kit pedía y no se aplicó.
 		$requested = Report::requested( $detail );
 		if ( $requested['theme'] || $requested['experiments'] || $requested['plugins'] || isset( $groups['requested'] ) || isset( $analysis['requested'] ) ) {

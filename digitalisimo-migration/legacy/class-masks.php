@@ -33,19 +33,29 @@ final class Masks {
 	/** Imagen atómica (editor v4): Element Pack aplicaba su máscara con estilos en línea al pintar; no se traslada. */
 	const ATOMIC = 'e-image';
 
-	/** Imagen equivalente a la que Element Pack enmascaraba, en cada widget de destino. */
+	/**
+	 * Imagen equivalente a la que Element Pack enmascaraba, en cada widget de destino.
+	 *
+	 * Los carruseles propios de C1 (programa «sin widgets de PRO») tienen la suya: hoy F8 lleva a `media-carousel` y a
+	 * `reviews` de PRO y la etapa `pro` los convierte después en la misma pasada (el mapa pasa las clases del CSS
+	 * personalizado, `.elementor-carousel-image` → `.digi-media-carousel__image`); con un destino propio directo, la
+	 * máscara ya apunta a su imagen. Las Diapositivas no tienen máscara: su imagen es el fondo de cada diapositiva.
+	 */
 	const TARGETS = array(
-		'digitalisimo-custom-gallery' => '.digi-custom-gallery__image',
-		'digitalisimo-fancy-card'     => '.digi-fancy-card__image',
-		'digitalisimo-fancy-slider'   => '.digi-fancy-slider__image',
-		'digitalisimo-featured-box'   => '.digi-featured-box__image',
-		'digitalisimo-logo-carousel'  => '.digi-logo-carousel__image',
-		'digitalisimo-logo-grid'      => '.digi-logo-grid__image',
-		'digitalisimo-product-grid'   => '.digi-product-grid__image',
-		'image-gallery'               => '.gallery-item img',
-		'media-carousel'              => '.elementor-carousel-image',
-		'posts'                       => '.elementor-post__thumbnail img',
-		'reviews'                     => '.elementor-testimonial__image img',
+		'digitalisimo-custom-gallery'       => '.digi-custom-gallery__image',
+		'digitalisimo-fancy-card'           => '.digi-fancy-card__image',
+		'digitalisimo-fancy-slider'         => '.digi-fancy-slider__image',
+		'digitalisimo-featured-box'         => '.digi-featured-box__image',
+		'digitalisimo-logo-carousel'        => '.digi-logo-carousel__image',
+		'digitalisimo-logo-grid'            => '.digi-logo-grid__image',
+		'digitalisimo-media-carousel'       => '.digi-media-carousel__image',
+		'digitalisimo-product-grid'         => '.digi-product-grid__image',
+		'digitalisimo-reviews'              => '.digi-review__image img',
+		'digitalisimo-testimonial-carousel' => '.digi-testimonial__image img',
+		'image-gallery'                     => '.gallery-item img',
+		'media-carousel'                    => '.elementor-carousel-image',
+		'posts'                             => '.elementor-post__thumbnail img',
+		'reviews'                           => '.elementor-testimonial__image img',
 	);
 
 	/** Separadores de Element Pack → nombre del separador propio (`digi-<nombre>`). */

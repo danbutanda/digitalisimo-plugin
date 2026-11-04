@@ -15,7 +15,11 @@
  *   `pro.unmapped`, `pro.css`);
  * - la etapa `pro` del runner (entre `aliases` y `retire_late`, por lotes, con su recuento) dentro de Migrar completo, y
  *   `--revert`, que devuelve lo convertido y omite lo editado después;
- * - el análisis («Lo que hará Migrar» y la tabla «Widgets de PRO»), la celda de la pantalla de red y el catálogo `pro.`.
+ * - el análisis («Lo que hará Migrar» y la tabla «Widgets de PRO»), la celda de la pantalla de red y el catálogo `pro.`;
+ * - C1 (frente K): la etapa `pro` va después de las conversiones de F8, y un Expo de Prime Slider que F8 lleva al
+ *   Carrusel multimedia de PRO acaba en `digitalisimo-media-carousel` en la misma pasada de Migrar (mapa de prueba
+ *   listo y, si existe, el borrador real), con la copia del original y `--revert`; las máscaras de Element Pack de los
+ *   carruseles propios (`Masks::TARGETS`) coinciden con las clases de sus mapas.
  *
  * Se ejecuta con php-wasm (`node …/php-wasm-cli tests/migration-pro.php`): sale con 0 aunque haya un error fatal, así
  * que se juzga por la línea final.
@@ -505,5 +509,89 @@ namespace {
 	}
 	$check( 'dropped' === $catalog['pro.dropped']['section'] && 'approx' === $catalog['pro.approx']['section'] && 'review' === $catalog['pro.unmapped']['section'] && 'converted' === $catalog['pro.css']['section'], 'Las secciones coinciden con las del traductor de Elements.' );
 
-	f8_done( 'Widgets de PRO en DIGITALÍSIMO Migración', 70 );
+	/* ================================================================ 6. La cadena F8 → PRO → widget propio (C1, frente K) */
+	// La etapa `pro` corre después de todas las conversiones de F8 (Element Pack, Prime Slider, sus revisiones, los
+	// marcadores de K y la plataforma), así que lo que F8 lleva a un carrusel de PRO acaba en el propio en la misma pasada.
+	$at = array_flip( Runner::STAGES );
+	$check( $at['platform_convert'] < $at['pro'] && $at['convert'] < $at['pro'] && $at['revisions'] < $at['pro'] && $at['markers'] < $at['pro'] && $at['platform'] < $at['pro'], 'La etapa pro va después de las conversiones de F8 (platform_convert, convert, revisions, markers, platform).' );
+	/** Mapa de prueba del Carrusel multimedia, listo (el de verdad lo publica el frente M de C1 tras su A/B). */
+	function chain_map(): array {
+		return array(
+			'source'    => 'media-carousel',
+			'target'    => 'digitalisimo-media-carousel',
+			'status'    => 'ready',
+			'panel'     => 'hide',
+			'defaults'  => array( 'skin' => 'carousel', 'effect' => 'slide', 'loop' => 'yes', 'autoplay' => 'yes', 'autoplay_speed' => 5000, 'speed' => 500 ),
+			'keep'      => array( 'skin', 'effect', 'autoplay', 'loop', 'pause_on_hover', 'show_arrows', 'pagination', 'autoplay_speed', 'speed', 'slides_per_view' ),
+			'repeaters' => array( 'slides' => array( 'target' => 'slides', 'keep' => array( 'type', 'image', 'image_link_to_type', 'image_link_to', 'video' ) ) ),
+			'classes'   => array( '.elementor-carousel-image' => '.digi-media-carousel__image' ),
+		);
+	}
+	/** Un Expo de Prime Slider sólo con imágenes: F8 lo lleva al Carrusel multimedia de PRO (familia H). */
+	function expo_doc(): int {
+		$rows = array(
+			array( '_id' => 'x1', 'expo_image' => array( 'id' => 11, 'url' => 'https://sitio.test/wp-content/uploads/a.jpg' ), 'expo_title' => '' ),
+			array( '_id' => 'x2', 'expo_image' => array( 'id' => 12, 'url' => 'https://sitio.test/wp-content/uploads/b.jpg' ), 'expo_title' => '' ),
+		);
+		return doc( array( box( 'container', array( w( 'prime-slider-expo-slider', array( 'expo_slides' => $rows, 'expo_loop' => 'yes' ), 'ps1' ) ), 'pc1' ) ), array( 'post_title' => 'Expo' ) );
+	}
+	// Sin mapa listo del Carrusel multimedia: F8 deja el de PRO (registrado, se ve igual) y la etapa pro no lo toca.
+	fresh();
+	f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.172' ), 'site' );
+	Registry::set( 'media-carousel', array( 'status' => 'draft' ) + chain_map() );
+	$expo  = expo_doc();
+	$state = migrate();
+	$check( ! empty( $state['done'] ) && 1 === (int) $state['counts']['converted'] && 0 === (int) $state['counts']['pro'] && 'media-carousel' === find( tree( $expo ), 'ps1' )['widgetType'], 'Con el mapa en borrador, el Expo queda como Carrusel multimedia de PRO: ' . wp_json_encode( array( $state['counts']['converted'], $state['counts']['pro'], find( tree( $expo ), 'ps1' )['widgetType'] ) ) );
+	// Con el mapa listo: Prime Slider → media-carousel (F8) → digitalisimo-media-carousel (pro), en una sola pasada.
+	fresh();
+	f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.172' ), 'site' );
+	Registry::set( 'media-carousel', chain_map() );
+	$expo     = expo_doc();
+	$original = (string) get_metadata( 'post', $expo, '_elementor_data', true );
+	$state    = migrate();
+	$el       = find( tree( $expo ), 'ps1' );
+	$check( ! empty( $state['done'] ) && 1 === (int) $state['counts']['converted'] && 1 === (int) $state['counts']['pro'] && 1 === (int) $state['counts']['pro_elements'], 'Migrar convierte el Expo con F8 y después con la etapa pro en la misma pasada: ' . wp_json_encode( array( $state['counts']['converted'], $state['counts']['pro'], $state['counts']['pro_elements'] ) ) );
+	$check( is_array( $el ) && 'digitalisimo-media-carousel' === $el['widgetType'] && 'pc1' === tree( $expo )[0]['id'], 'El Expo acaba en el Carrusel multimedia propio, con el mismo id y en su contenedor: ' . wp_json_encode( $el['widgetType'] ?? null ) );
+	$check( 'media-carousel' === ( $el['settings']['_digitalisimo_pro'] ?? '' ) && 2 === count( (array) ( $el['settings']['slides'] ?? array() ) ) && 11 === (int) ( $el['settings']['slides'][0]['image']['id'] ?? 0 ) && 'yes' === ( $el['settings']['loop'] ?? '' ), 'Con la marca del traductor, sus dos imágenes y el bucle: ' . wp_json_encode( $el['settings'] ?? null ) );
+	$codes = doc_codes( $expo );
+	$check( in_array( 'pro.converted:media-carousel:', $codes, true ) && ! preg_grep( '/^pro\.unmapped:/', $codes ), 'El informe de F8 tiene pro.converted del Carrusel multimedia, sin claves sin declarar: ' . wp_json_encode( $codes ) );
+	$check( false === strpos( (string) get_metadata( 'post', $expo, '_elementor_data', true ), 'prime-slider' ) && 0 === Runner::prime_slider_left( $expo )[0], 'No queda nada de Prime Slider en el documento.' );
+	$backup = json_decode( (string) f8_meta( $expo, Migration::BACKUP ), true );
+	$check( is_array( $backup ) && $original === (string) ( $backup['data'] ?? '' ), 'La copia guarda el Expo original (antes de F8), no el paso intermedio de PRO.' );
+	Runner::revert( true );
+	$check( $original === get_metadata( 'post', $expo, '_elementor_data', true ), '--revert devuelve el Expo de Prime Slider original.' );
+	// El borrador real del frente M, si ya existe: la misma cadena sin claves sin declarar.
+	Registry::reset();
+	$real = Registry::map( 'media-carousel', true );
+	if ( null !== $real ) {
+		fresh();
+		f8_plugin( 'digitalisimo-elements/pro-elements.php', array( 'Name' => 'DIGITALÍSIMO Elements', 'Version' => '4.3.0.172' ), 'site' );
+		Registry::set( 'media-carousel', array( 'status' => 'ready' ) + $real );
+		$expo  = expo_doc();
+		$state = migrate();
+		$codes = doc_codes( $expo );
+		$check( 'digitalisimo-media-carousel' === find( tree( $expo ), 'ps1' )['widgetType'] && ! preg_grep( '/^pro\.unmapped:/', $codes ), 'Con el borrador real de maps/media-carousel.php, el Expo llega al Carrusel multimedia propio sin claves sin declarar: ' . wp_json_encode( $codes ) );
+	}
+
+	// Máscaras: la imagen que enmascaraba Element Pack en cada widget propio de C1, la misma a la que el mapa lleva la
+	// clase del widget de PRO (la máscara que F8 escribe para PRO sigue apuntando a su imagen tras la etapa pro).
+	require_once dirname( __DIR__ ) . '/digitalisimo-migration/legacy/class-masks.php';
+	$masks = \Digitalisimo\Elements\Legacy\Masks::TARGETS;
+	$check( '.digi-media-carousel__image' === ( $masks['digitalisimo-media-carousel'] ?? '' ) && '.digi-review__image img' === ( $masks['digitalisimo-reviews'] ?? '' ) && '.digi-testimonial__image img' === ( $masks['digitalisimo-testimonial-carousel'] ?? '' ), 'Masks::TARGETS tiene la imagen de los carruseles propios.' );
+	$mask_settings = array( 'image_mask_popover' => 'yes', 'image_mask_shape' => 'custom', 'image_mask_shape_custom' => array( 'url' => 'https://sitio.test/wp-content/uploads/figura.svg' ) );
+	$pro_css       = \Digitalisimo\Elements\Legacy\Masks::widget_css( 'media-carousel', $mask_settings );
+	$own_css       = \Digitalisimo\Elements\Legacy\Masks::widget_css( 'digitalisimo-media-carousel', $mask_settings );
+	$translated    = \Digitalisimo\Elements\Convert\Translator::translate( array( 'custom_css' => $pro_css ), chain_map() )[0]['custom_css'] ?? '';
+	$check( '' !== $own_css && false !== strpos( $own_css, 'selector .digi-media-carousel__image' ) && $own_css === $translated, 'La máscara escrita para el Carrusel multimedia de PRO, traducida por el mapa, es la del propio: ' . $translated );
+	// Cada par PRO ↔ propio de TARGETS coincide con las clases del mapa de C1 en cuanto existe (aunque sea en borrador).
+	foreach ( array( 'media-carousel' => 'digitalisimo-media-carousel', 'reviews' => 'digitalisimo-reviews' ) as $source => $target ) {
+		$map = Registry::map( $source, true );
+		if ( null === $map || empty( $map['classes'] ) ) {
+			continue;
+		}
+		$css = \Digitalisimo\Elements\Convert\Translator::translate( array( 'custom_css' => 'selector ' . $masks[ $source ] . '{}' ), array( 'status' => 'ready' ) + $map )[0]['custom_css'] ?? '';
+		$check( 'selector ' . $masks[ $target ] . '{}' === $css, "La imagen enmascarada de {$source} pasa a la de {$target} con las clases de su mapa: {$css}" );
+	}
+
+	f8_done( 'Widgets de PRO en DIGITALÍSIMO Migración', 100 );
 }

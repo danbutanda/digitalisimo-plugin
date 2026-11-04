@@ -2,7 +2,9 @@
 /**
  * Segundo paso del blueprint de pro-ab.sh (el constructor ya está cargado). Por cada caso de `cases.json`:
  *
- * - página A `pro-ab-<caso>-a`: un contenedor con el widget de PRO (`widget`) y sus ajustes guardados (`settings`);
+ * - página A `pro-ab-<caso>-a`: un contenedor con el widget de PRO (`widget`), sus ajustes guardados (`settings`) y,
+ *   en los anidados, sus hijos (`elements`); las imágenes de prueba (`{"$image": n}`, `{"$gallery": [n, …]}`,
+ *   `"$image-url:n"`) se crean una vez con GD (`digi_ab_image()`);
  * - página B `pro-ab-<caso>-b`: el mismo árbol convertido con `Converter::tree( $data, $log, true )` (mapas en borrador
  *   incluidos); el `id` del widget es el mismo en A y en B;
  * - las dos con la plantilla «Lienzo» (sin cabecera ni pie del tema: el foco con teclado llega antes al widget) y su CSS
@@ -52,6 +54,85 @@ function digi_ab_page( $slug, array $tree ) {
 	$css = \Elementor\Core\Files\CSS\Post::create( $id );
 	$css->update();
 	return array( $id, (string) $css->get_meta( 'status' ) );
+}
+
+/**
+ * Adjunto de prueba n (1–12): PNG de 1200 × 800 con un color y un número propios, creado una vez con GD. Devuelve
+ * `[ID, URL]`.
+ */
+function digi_ab_image( $n ) {
+	static $cache = array();
+	$n = max( 1, min( 12, (int) $n ) );
+	if ( isset( $cache[ $n ] ) ) {
+		return $cache[ $n ];
+	}
+	$slug     = 'pro-ab-image-' . $n;
+	$existing = get_posts( array( 'post_type' => 'attachment', 'name' => $slug, 'post_status' => 'inherit', 'numberposts' => 1, 'fields' => 'ids' ) );
+	if ( $existing ) {
+		return $cache[ $n ] = array( (int) $existing[0], (string) wp_get_attachment_url( (int) $existing[0] ) );
+	}
+	$colors = array( array( 36, 94, 255 ), array( 230, 57, 70 ), array( 42, 157, 143 ), array( 233, 196, 106 ), array( 38, 70, 83 ), array( 244, 162, 97 ), array( 131, 56, 236 ), array( 6, 214, 160 ), array( 17, 138, 178 ), array( 239, 71, 111 ), array( 255, 209, 102 ), array( 7, 59, 76 ) );
+	$im     = imagecreatetruecolor( 1200, 800 );
+	list( $r, $g, $b ) = $colors[ $n - 1 ];
+	imagefill( $im, 0, 0, imagecolorallocate( $im, $r, $g, $b ) );
+	$light = imagecolorallocate( $im, 255, 255, 255 );
+	imagefilledrectangle( $im, 100 + 60 * $n, 120, 500 + 60 * $n, 680, $light );
+	imagefilledellipse( $im, 980, 220, 260, 260, imagecolorallocate( $im, 0, 0, 0 ) );
+	for ( $i = 0; $i < $n; $i++ ) {
+		imagefilledrectangle( $im, 140 + 70 * $i, 720, 190 + 70 * $i, 770, $light );
+	}
+	ob_start();
+	imagepng( $im );
+	$png = (string) ob_get_clean();
+	imagedestroy( $im );
+	$upload = wp_upload_bits( $slug . '.png', null, $png );
+	if ( ! empty( $upload['error'] ) ) {
+		digi_ab_fail( "No se pudo crear la imagen de prueba $n: {$upload['error']}" );
+		return $cache[ $n ] = array( 0, '' );
+	}
+	$id = (int) wp_insert_attachment( array( 'post_title' => "Imagen de prueba $n", 'post_name' => $slug, 'post_mime_type' => 'image/png', 'post_status' => 'inherit' ), $upload['file'] );
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	wp_update_attachment_metadata( $id, wp_generate_attachment_metadata( $id, $upload['file'] ) );
+	update_post_meta( $id, '_wp_attachment_image_alt', "Texto alternativo $n" );
+	return $cache[ $n ] = array( $id, (string) wp_get_attachment_url( $id ) );
+}
+
+/** Sustituye en unos ajustes las imágenes de prueba: `{"$image": n}`, `{"$gallery": [n, …]}` y `"$image-url:n"`. */
+function digi_ab_tokens( $value ) {
+	if ( is_string( $value ) && preg_match( '/^\$image-url:(\d+)$/', $value, $m ) ) {
+		return digi_ab_image( (int) $m[1] )[1];
+	}
+	if ( ! is_array( $value ) ) {
+		return $value;
+	}
+	if ( array( '$image' ) === array_keys( $value ) ) {
+		list( $id, $url ) = digi_ab_image( (int) $value['$image'] );
+		return array( 'id' => $id, 'url' => $url, 'alt' => '', 'source' => 'library', 'size' => '' );
+	}
+	if ( array( '$gallery' ) === array_keys( $value ) ) {
+		$out = array();
+		foreach ( (array) $value['$gallery'] as $n ) {
+			list( $id, $url ) = digi_ab_image( (int) $n );
+			$out[] = array( 'id' => $id, 'url' => $url );
+		}
+		return $out;
+	}
+	foreach ( $value as $key => $item ) {
+		$value[ $key ] = digi_ab_tokens( $item );
+	}
+	return $value;
+}
+
+/** Hijos de un widget anidado (`elements` del caso), con IDs deterministas donde falten y las imágenes de prueba. */
+function digi_ab_children( array $elements, $seed ) {
+	foreach ( $elements as $i => $element ) {
+		$element['id']       = isset( $element['id'] ) ? (string) $element['id'] : digi_ab_eid( $seed . '-' . $i );
+		$element['isInner']  = $element['isInner'] ?? true;
+		$element['settings'] = digi_ab_tokens( (array) ( $element['settings'] ?? array() ) );
+		$element['elements'] = digi_ab_children( (array) ( $element['elements'] ?? array() ), $seed . '-' . $i );
+		$elements[ $i ]      = $element;
+	}
+	return $elements;
 }
 
 /** `drop` y `approx` de un mapa (y de sus repetidores, con `repetidor.clave`): motivos que un caso puede citar. */
@@ -115,8 +196,8 @@ foreach ( $cases['cases'] as $slug => $case ) {
 					'id'         => $id,
 					'elType'     => 'widget',
 					'widgetType' => $source,
-					'settings'   => (array) ( $case['settings'] ?? array() ),
-					'elements'   => array(),
+					'settings'   => digi_ab_tokens( (array) ( $case['settings'] ?? array() ) ),
+					'elements'   => digi_ab_children( (array) ( $case['elements'] ?? array() ), $slug ),
 				),
 			),
 		),

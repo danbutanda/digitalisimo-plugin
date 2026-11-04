@@ -137,6 +137,9 @@ function pro_elements_load_plugin_func() {
 	// Sustitución de los widgets de PRO por widgets propios (docs/PRO_WIDGETS_OBJECTIVE.md): conversión y panel.
 	require_once __DIR__ . '/modules/digitalisimo-convert/class-module.php';
 	\Digitalisimo\Elements\Convert\Module::init();
+	// Carruseles propios (C1): motor digi-crs y los widgets que sustituyen a los carruseles de PRO.
+	require_once __DIR__ . '/modules/digitalisimo-carousel/class-module.php';
+	\Digitalisimo\Elements\Carousel\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {

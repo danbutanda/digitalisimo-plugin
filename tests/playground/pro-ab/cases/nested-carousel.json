@@ -1,0 +1,2403 @@
+{
+ "_doc": [
+  "Casos A/B del Carrusel anidado (frente N de C1): A con `nested-carousel` de PRO, B con `digitalisimo-nested-carousel`. Cada caso trae sus contenedores hijos (`elements`, una diapositiva cada uno, con fondo y título) y las filas de `carousel_items` que les corresponden. Autoplay desactivado salvo en nc-autoplay.",
+  "`actions`: `click` pulsa el selector de cada lado (`a` en PRO, `b` en el propio); `key` enfoca `focus` y pulsa la tecla. Tras cada una se comparan firma y píxeles."
+ ],
+ "declared": [
+  {
+   "widget": "nested-carousel",
+   "kind": "nombre",
+   "match": "Diapositiva (anterior|siguiente)|Ir a la diapositiva|Previous|Next|Go to slide",
+   "reason": "Nombres accesibles propios de flechas y puntos, en español (PRO usaba los textos de Swiper)."
+  },
+  {
+   "widget": "nested-carousel",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de flechas y puntos (contorno de 2 px con separación de 2 px)."
+  }
+ ],
+ "cases": {
+  "nc-defaults": {
+   "title": "Valores por defecto (3 visibles, flechas, puntos, bucle) con 5 diapositivas; sin autoplay",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     },
+     {
+      "_id": "it05",
+      "slide_title": "Slide #5"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #5",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#8338EC",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cinco",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "click": {
+      "a": ".elementor-swiper-button-next",
+      "b": ".digi-crs__next"
+     }
+    },
+    {
+     "click": {
+      "a": ".swiper-pagination-bullet:nth-child(3)",
+      "b": ".digi-crs__dot:nth-of-type(3)"
+     }
+    },
+    {
+     "key": "ArrowRight",
+     "focus": {
+      "a": ".elementor-swiper-button-next",
+      "b": ".digi-crs__next"
+     }
+    }
+   ]
+  },
+  "nc-one-fraction": {
+   "title": "Una diapositiva visible, paginación de fracción y nombre propio",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     }
+    ],
+    "slides_to_show": "1",
+    "pagination": "fraction",
+    "carousel_name": "Novedades"
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "click": {
+      "a": ".elementor-swiper-button-next",
+      "b": ".digi-crs__next"
+     }
+    },
+    {
+     "key": "ArrowRight",
+     "focus": {
+      "a": ".elementor-swiper-button-next",
+      "b": ".digi-crs__next"
+     }
+    }
+   ]
+  },
+  "nc-progress": {
+   "title": "Dos visibles, paso de 2, barra de progreso, sin bucle, separación de 30 px y sin altura igual",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     },
+     {
+      "_id": "it05",
+      "slide_title": "Slide #5"
+     },
+     {
+      "_id": "it06",
+      "slide_title": "Slide #6"
+     }
+    ],
+    "slides_to_show": "2",
+    "slides_to_scroll": "2",
+    "pagination": "progressbar",
+    "infinite": "",
+    "image_spacing_custom": {
+     "unit": "px",
+     "size": 30,
+     "sizes": []
+    },
+    "equal_height": ""
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 280,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 240,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #5",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#8338EC",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cinco",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #6",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#118AB2",
+      "min_height": {
+       "unit": "px",
+       "size": 260,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva seis",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "click": {
+      "a": ".elementor-swiper-button-next",
+      "b": ".digi-crs__next"
+     }
+    }
+   ]
+  },
+  "nc-style": {
+   "title": "Estilo de diapositivas, flechas (fuera) y puntos",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     },
+     {
+      "_id": "it05",
+      "slide_title": "Slide #5"
+     }
+    ],
+    "content_background_background": "classic",
+    "content_background_color": "#F1F4FF",
+    "content_border_border": "solid",
+    "content_border_width": {
+     "unit": "px",
+     "top": "3",
+     "right": "3",
+     "bottom": "3",
+     "left": "3",
+     "isLinked": true
+    },
+    "content_border_color": "#111111",
+    "border_radius": {
+     "unit": "px",
+     "top": "16",
+     "right": "16",
+     "bottom": "16",
+     "left": "16",
+     "isLinked": true
+    },
+    "content_padding": {
+     "unit": "px",
+     "top": "32",
+     "right": "20",
+     "bottom": "32",
+     "left": "20",
+     "isLinked": false
+    },
+    "arrows_size": {
+     "unit": "px",
+     "size": 36,
+     "sizes": []
+    },
+    "arrow_normal_color": "#FFFFFF",
+    "arrows_normal_background_background": "classic",
+    "arrows_normal_background_color": "#111111",
+    "arrows_border_radius": {
+     "unit": "%",
+     "top": "50",
+     "right": "50",
+     "bottom": "50",
+     "left": "50",
+     "isLinked": true
+    },
+    "arrows_padding": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "arrows_position": "outside",
+    "arrow_hover_color": "#FFD166",
+    "dots_size": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "dots_gap": {
+     "unit": "px",
+     "size": 10,
+     "sizes": []
+    },
+    "dots_normal_color": "#245EFF",
+    "dots_hover_color": "#E63946",
+    "dots_pagination_spacing": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    }
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #5",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#8338EC",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cinco",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "click": {
+      "a": ".elementor-swiper-button-next",
+      "b": ".digi-crs__next"
+     }
+    }
+   ]
+  },
+  "nc-positions": {
+   "title": "Flechas y puntos en posiciones propias (arriba, a la izquierda) y puntos sin separación",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     }
+    ],
+    "navigation_previous_icon_vertical_orientation": "start",
+    "navigation_previous_icon_vertical_position": {
+     "unit": "px",
+     "size": 10,
+     "sizes": []
+    },
+    "navigation_next_icon_horizontal_orientation": "center",
+    "navigation_next_icon_vertical_orientation": "end",
+    "dots_custom_position": "yes",
+    "dots_horizontal_position": "start",
+    "dots_horizontal_offset": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "dots_vertical_position": "end",
+    "dots_vertical_offset": {
+     "unit": "px",
+     "size": -20,
+     "sizes": []
+    },
+    "dots_position": "inside"
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ]
+  },
+  "nc-icons": {
+   "title": "Iconos propios de las flechas (Font Awesome) y color de la fracción",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     }
+    ],
+    "navigation_previous_icon": {
+     "value": "fas fa-arrow-left",
+     "library": "fa-solid"
+    },
+    "navigation_next_icon": {
+     "value": "fas fa-arrow-right",
+     "library": "fa-solid"
+    },
+    "pagination": "fraction",
+    "fraction_color": "#E63946",
+    "typography_fraction_typography": "custom",
+    "typography_fraction_font_size": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "fraction_position": "outside",
+    "fraction_pagination_spacing": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    }
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "click": {
+      "a": ".elementor-swiper-button-next",
+      "b": ".digi-crs__next"
+     }
+    }
+   ]
+  },
+  "nc-rtl": {
+   "title": "Dirección de derecha a izquierda",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     }
+    ],
+    "direction": "rtl",
+    "slides_to_show": "2"
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "actions": [
+    {
+     "click": {
+      "a": ".elementor-swiper-button-next",
+      "b": ".digi-crs__next"
+     }
+    },
+    {
+     "key": "ArrowRight",
+     "focus": {
+      "a": ".elementor-swiper-button-next",
+      "b": ".digi-crs__next"
+     }
+    }
+   ]
+  },
+  "nc-offset": {
+   "title": "Asomo lateral a los dos lados (80 px por defecto, 40 px en móvil)",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     },
+     {
+      "_id": "it05",
+      "slide_title": "Slide #5"
+     }
+    ],
+    "offset_sides": "both",
+    "offset_width_mobile": {
+     "unit": "px",
+     "size": 40,
+     "sizes": []
+    }
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #5",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#8338EC",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cinco",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "declared": [
+    {
+     "kind": "caja",
+     "match": ".",
+     "code": "offset_sides"
+    }
+   ],
+   "pixels": {
+    "max": 0.06,
+    "reason": "El asomo lateral de PRO deja ver además una milésima de la diapositiva siguiente (approx de offset_sides)."
+   }
+  },
+  "nc-single": {
+   "title": "Una sola diapositiva: sin flechas ni paginación",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ]
+  },
+  "nc-responsive": {
+   "title": "Valores por dispositivo: 4 / 2 / 1 visibles y separaciones distintas",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     },
+     {
+      "_id": "it05",
+      "slide_title": "Slide #5"
+     },
+     {
+      "_id": "it06",
+      "slide_title": "Slide #6"
+     }
+    ],
+    "slides_to_show": "4",
+    "slides_to_show_tablet": "2",
+    "slides_to_show_mobile": "1",
+    "image_spacing_custom": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "image_spacing_custom_tablet": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "image_spacing_custom_mobile": {
+     "unit": "px",
+     "size": 0,
+     "sizes": []
+    },
+    "arrows": ""
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #5",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#8338EC",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cinco",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #6",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#118AB2",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva seis",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ]
+  },
+  "nc-autoplay": {
+   "title": "Autoplay a 3 s con pausa al pasar el puntero (antes del primer paso)",
+   "widget": "nested-carousel",
+   "settings": {
+    "autoplay": "yes",
+    "carousel_items": [
+     {
+      "_id": "it01",
+      "slide_title": "Slide #1"
+     },
+     {
+      "_id": "it02",
+      "slide_title": "Slide #2"
+     },
+     {
+      "_id": "it03",
+      "slide_title": "Slide #3"
+     },
+     {
+      "_id": "it04",
+      "slide_title": "Slide #4"
+     }
+    ],
+    "autoplay_speed": 3000
+   },
+   "elements": [
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #1",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#245EFF",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva uno",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #2",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#E63946",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva dos",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      },
+      {
+       "elType": "widget",
+       "widgetType": "button",
+       "settings": {
+        "text": "Ver más",
+        "link": {
+         "url": "#ver-mas",
+         "is_external": "",
+         "nofollow": ""
+        }
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #3",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#2A9D8F",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva tres",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    },
+    {
+     "elType": "container",
+     "isInner": true,
+     "settings": {
+      "_title": "Slide #4",
+      "content_width": "full",
+      "background_background": "classic",
+      "background_color": "#264653",
+      "min_height": {
+       "unit": "px",
+       "size": 200,
+       "sizes": []
+      },
+      "padding": {
+       "unit": "px",
+       "top": "24",
+       "right": "24",
+       "bottom": "24",
+       "left": "24",
+       "isLinked": true
+      }
+     },
+     "elements": [
+      {
+       "elType": "widget",
+       "widgetType": "heading",
+       "settings": {
+        "title": "Diapositiva cuatro",
+        "header_size": "h3",
+        "title_color": "#FFFFFF"
+       },
+       "elements": []
+      }
+     ]
+    }
+   ],
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "Pausar|Reanudar",
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2); PRO no lo tenía."
+    },
+    {
+     "kind": "palabra",
+     "match": "Pausar|Reanudar",
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
+    }
+   ],
+   "pixels": {
+    "max": 0.03,
+    "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
+   }
+  }
+ }
+}

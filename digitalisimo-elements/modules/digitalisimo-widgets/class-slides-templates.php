@@ -8,7 +8,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * Añade a cada diapositiva el campo «Plantilla en lugar del texto»: si se elige una plantilla
  * publicada, su contenido ocupa el lugar de la descripción. Una diapositiva sin plantilla se pinta
- * igual que antes.
+ * igual que antes. Vale para el widget Slides de PRO (aquí, antes de pintarlo) y para las Diapositivas
+ * propias (`digitalisimo-slides`, que llaman a content() al pintar cada diapositiva), con las mismas reglas.
  */
 final class Slides_Templates {
 	const FIELD = 'digitalisimo_template_id';
@@ -18,6 +19,7 @@ final class Slides_Templates {
 
 	public static function init() {
 		add_action( 'elementor/element/slides/section_slides/before_section_end', array( __CLASS__, 'register_field' ) );
+		add_action( 'elementor/element/digitalisimo-slides/section_slides/before_section_end', array( __CLASS__, 'register_field' ) );
 		add_action( 'elementor/frontend/widget/before_render', array( __CLASS__, 'before_render' ) );
 	}
 
@@ -61,20 +63,38 @@ final class Slides_Templates {
 		if ( ! is_array( $slides ) ) {
 			return;
 		}
-		++self::$depth;
 		foreach ( $slides as $index => $slide ) {
-			$id = absint( $slide[ self::FIELD ] ?? 0 );
+			$id = absint( is_array( $slide ) ? ( $slide[ self::FIELD ] ?? 0 ) : 0 );
 			if ( $id && 'publish' === get_post_status( $id ) ) {
-				$slides[ $index ]['description'] = \Elementor\Plugin::instance()->frontend->get_builder_content_for_display( $id, true );
+				$slides[ $index ]['description'] = self::builder( $id );
 				$changed                         = true;
 			}
 		}
-		--self::$depth;
 		if ( $changed ) {
 			$element->set_settings( 'slides', $slides );
 			if ( method_exists( $element, 'reset_render_state' ) ) {
 				$element->reset_render_state();
 			}
 		}
+	}
+
+	/**
+	 * Contenido de la plantilla de una diapositiva de las Diapositivas propias, o '' si no tiene una publicada (o si
+	 * se pinta dentro de otra plantilla de diapositiva más allá del mismo tope que el widget de PRO).
+	 */
+	public static function content( array $slide ): string {
+		$id = absint( $slide[ self::FIELD ] ?? 0 );
+		if ( ! $id || self::$depth > 1 || 'publish' !== get_post_status( $id ) ) {
+			return '';
+		}
+		return (string) self::builder( $id );
+	}
+
+	/** Contenido de una plantilla, con el contador que corta las plantillas que se incluyen a sí mismas. */
+	private static function builder( $id ) {
+		++self::$depth;
+		$html = \Elementor\Plugin::instance()->frontend->get_builder_content_for_display( $id, true );
+		--self::$depth;
+		return $html;
 	}
 }

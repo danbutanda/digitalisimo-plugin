@@ -466,16 +466,29 @@ checks['f7b-form-conditions'] = async (page) => {
       });
       if (!found || !found.slides.some((t) => /Slider anidado ligero/.test(t))) throw new Error(`la búsqueda «diapositivas» del panel no encuentra el slider anidado ligero: ${JSON.stringify(found)}`);
       results.editorF7b = { ok: true, note: `panel: «diapositivas» → ${found.slides.join(', ')}; «carousel» → ${found.carousel.join(', ')}` };
-      // Programa «sin widgets de PRO» (C0): el Blockquote de PRO, ya sustituido por la Cita, sigue registrado pero fuera
-      // del panel; la búsqueda «cita» ofrece la Cita y la de «blockquote», ningún widget de PRO.
-      const pro = await page.evaluate(async () => {
+      // Programa «sin widgets de PRO» (C0, C1): cada widget de PRO ya sustituido sigue registrado pero fuera del panel, y
+      // su búsqueda ofrece el widget propio; ningún widget de PRO sustituido aparece con su título.
+      const SUBSTITUTED = [
+        { pro: 'blockquote', own: 'digitalisimo-blockquote', title: 'Cita', query: 'cita' },
+        { pro: 'nested-carousel', own: 'digitalisimo-nested-carousel', title: 'Carrusel anidado', query: 'carrusel' },
+        { pro: 'media-carousel', own: 'digitalisimo-media-carousel', title: 'Carrusel multimedia', query: 'multimedia' },
+        { pro: 'testimonial-carousel', own: 'digitalisimo-testimonial-carousel', title: 'Carrusel de testimonios', query: 'testimonios' },
+        { pro: 'reviews', own: 'digitalisimo-reviews', title: 'Reseñas', query: 'reseñas' },
+        { pro: 'slides', own: 'digitalisimo-slides', title: 'Diapositivas', query: 'diapositivas' },
+      ];
+      const pro = await page.evaluate(async (list) => {
         const cache = (window.elementor && window.elementor.widgetsCache) || {};
         const input = document.querySelector('#elementor-panel-elements-search-input');
         const search = async (q) => { input.value = q; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true })); await new Promise((r) => setTimeout(r, 1200)); return [...document.querySelectorAll('#elementor-panel-elements .elementor-element .title')].map((t) => t.textContent.trim()); };
-        return { registered: !!cache.blockquote, shown: cache.blockquote ? cache.blockquote.show_in_panel : null, own: !!cache['digitalisimo-blockquote'], cita: input ? await search('cita') : null, quote: input ? await search('blockquote') : null };
-      });
-      if (!pro.registered || pro.shown !== false || !pro.own || !(pro.cita || []).includes('Cita') || (pro.quote || []).some((t) => /^(Blockquote|Cita en bloque)$/i.test(t) && t !== 'Cita')) throw new Error(`el Blockquote de PRO debe seguir registrado y fuera del panel, con la Cita en su lugar: ${JSON.stringify(pro)}`);
-      results.editorPro = { ok: true, note: `Blockquote de PRO registrado y oculto; «cita» → ${pro.cita.join(', ')}; «blockquote» → ${pro.quote.join(', ') || 'nada'}` };
+        const out = [];
+        for (const w of list) {
+          out.push({ ...w, registered: !!cache[w.pro], proTitle: cache[w.pro] ? cache[w.pro].title : '', shown: cache[w.pro] ? cache[w.pro].show_in_panel : null, ownRegistered: !!cache[w.own], found: input ? await search(w.query) : null });
+        }
+        return out;
+      }, SUBSTITUTED);
+      const bad = pro.filter((w) => !w.registered || w.shown !== false || !w.ownRegistered || !(w.found || []).includes(w.title) || (w.found || []).includes(w.proTitle));
+      if (bad.length) throw new Error(`cada widget de PRO sustituido debe seguir registrado y fuera del panel, con el propio en su lugar: ${JSON.stringify(bad)}`);
+      results.editorPro = { ok: true, note: `${pro.length} widgets de PRO registrados y ocultos; ${pro.map((w) => `«${w.query}» → ${w.title}`).join('; ')}` };
       console.log(`OK     editor-pro · ${results.editorPro.note}`);
       console.log(`OK     editor-f7b · ${results.editorF7b.note}`);
       results.editor = { ok: true, note: `el editor de Elementor ${core} carga con panel y vista previa` };

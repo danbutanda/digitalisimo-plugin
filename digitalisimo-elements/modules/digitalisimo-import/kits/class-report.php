@@ -50,6 +50,7 @@ final class Report {
 		'summary'      => 'Resumen',
 		'review'       => 'Revisar antes de publicar',
 		'preserved'    => 'Conservado sin mostrar',
+		'converted'    => 'Widgets convertidos a widgets propios',
 		'requested'    => 'Lo que el kit pedía y no se aplicó',
 		'unresolved'   => 'Referencias sin destino',
 		'media'        => 'Medios',
@@ -71,6 +72,7 @@ final class Report {
 	const SECTION_PREFIXES = array(
 		'review'       => array( 'review', 'gate' ),
 		'preserved'    => array( 'unconverted', 'preserve', 'preserved', 'original-type', 'unknown-type', 'unknown-defaults', 'component', 'kses', 'templates.unknown_type', 'content.missing_type', 'element-defaults.unconverted' ),
+		'converted'    => array( 'pro' ),
 		'unresolved'   => array( 'unresolved', 'map-conflict', 'reference', 'element-missing', 'route-changed', 'theme-builder', 'map.miss', 'never-exists' ),
 		'requested'    => array( 'requested', 'theme', 'experiment', 'experiments', 'plugin', 'plugins', 'v4', 'front', 'custom_code', 'taxonomies', 'woocommerce' ),
 		'media'        => array( 'media', 'files', 'file', 'svg', 'download', 'attachment', 'blocked-type', 'fonts', 'icons', 'assets' ),
@@ -161,6 +163,15 @@ final class Report {
 		'woocommerce'                  => 'Páginas de WooCommerce del kit: las del sitio no cambiaron',
 		'wxr.reused'                   => 'Contenido reutilizado: el mismo kit ya lo había importado sin cambios',
 		'content.missing_type'         => 'Contenido de un tipo que este sitio no tiene, conservado como plantilla en borrador',
+		// Widgets de PRO convertidos a widgets propios al importar (§17, `Kits\Pro_Convert`).
+		'pro.converted'                => 'Widget convertido a su widget propio',
+		'pro.approx'                   => 'Ajuste traducido de forma aproximada',
+		'pro.css'                      => 'CSS personalizado del elemento con las clases del widget propio',
+		'pro.dropped'                  => 'Ajuste que el widget propio no tiene: se descartó',
+		'pro.unmapped'                 => 'Ajuste sin traducción declarada: revísalo en el widget propio',
+		'pro.target_missing'           => 'El widget propio no está disponible en este sitio: se conservó el original',
+		'pro.error'                    => 'La conversión de un documento falló: se conservó tal como llegó',
+		'pro'                          => 'Widgets convertidos a widgets propios',
 	);
 
 	/** Motivos de `not_exported` (§8.3) con texto propio. */

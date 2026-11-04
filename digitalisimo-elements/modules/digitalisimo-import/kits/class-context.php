@@ -611,12 +611,21 @@ final class Context {
 	}
 
 	/**
-	 * `elementor/document/save/data` (5): el marcador `digitalisimo-unconverted` envuelve lo que el núcleo no puede
+	 * `elementor/document/save/data` (5): los widgets de PRO con mapa listo pasan a su widget propio (§17,
+	 * `Kits\Pro_Convert`) y después el marcador `digitalisimo-unconverted` envuelve lo que el núcleo no puede
 	 * instanciar, antes de la captura del núcleo en 10 (V-25). Lo implementa `Kits\Preserve`.
 	 */
 	public static function preserve( $data, $document = null ) {
 		if ( ! is_array( $data ) || ! isset( $data['elements'] ) || ! is_array( $data['elements'] ) ) {
 			return $data;
+		}
+		$convert = __NAMESPACE__ . '\\Pro_Convert';
+		try {
+			if ( class_exists( $convert ) && $convert::available() ) {
+				$data = $convert::on_save_data( $data, $document );
+			}
+		} catch ( \Throwable $error ) {
+			self::report( 'pro.error', array( 'message' => $error->getMessage() ), Part_Context::ERROR );
 		}
 		$class = __NAMESPACE__ . '\\Preserve';
 		try {

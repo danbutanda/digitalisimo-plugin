@@ -1,0 +1,972 @@
+{
+ "_doc": [
+  "Casos A/B del Carrusel multimedia (frente M de C1): A con `media-carousel` de PRO, B con `digitalisimo-media-carousel`. Imágenes de prueba con `{\"$image\": n}` (setup.php las crea con GD: título «Imagen de prueba n», alt «Texto alternativo n»). Autoplay desactivado salvo en mc-autoplay.",
+  "`actions`: `a`/`b` es el selector de cada lado (relativo al widget); con `key`, se enfoca y se pulsa la tecla. Tras cada una se comparan firma y píxeles."
+ ],
+ "declared": [
+  {
+   "widget": "media-carousel",
+   "kind": "nombre",
+   "match": "Diapositiva (anterior|siguiente)|Ir a la diapositiva|Previous|Next|Go to slide|Pausar|Reanudar",
+   "reason": "Nombres accesibles propios de flechas, puntos y pausa, en español (PRO usaba los textos de Swiper)."
+  },
+  {
+   "widget": "media-carousel",
+   "kind": "imagen",
+   "match": "alt|aria-label|role",
+   "reason": "Cada imagen es un <img> con su texto alternativo, no un <div role=\"img\"> con fondo CSS y aria-label."
+  },
+  {
+   "widget": "media-carousel",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de flechas, puntos y enlaces (contorno de 2 px)."
+  }
+ ],
+ "cases": {
+  "mc-defaults": {
+   "title": "Valores por defecto: 5 diapositivas con la imagen de muestra, 3 visibles, flechas, puntos fuera y bucle; sin autoplay",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": ""
+   }
+  },
+  "mc-images": {
+   "title": "Seis imágenes del sitio con enlaces al archivo (lightbox del núcleo) y una URL personalizada",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      },
+      "image_link_to_type": "file"
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      },
+      "image_link_to_type": "file"
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      },
+      "image_link_to_type": "custom",
+      "image_link_to": {
+       "url": "https://example.com/destino",
+       "is_external": "on",
+       "nofollow": "",
+       "custom_attributes": ""
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      },
+      "image_link_to_type": "file"
+     },
+     {
+      "_id": "mc06",
+      "image": {
+       "$image": 6
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Tercer punto",
+     "a": ".swiper-pagination-bullet:nth-child(3)",
+     "b": ".digi-crs__dot:nth-of-type(3)"
+    },
+    {
+     "label": "Flecha derecha del teclado",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "key": "ArrowRight"
+    }
+   ]
+  },
+  "mc-slideshow": {
+   "title": "Presentación «Slideshow»: principal con flechas y miniaturas 21:9 sincronizadas, sin bucle",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "slideshow",
+    "loop": "",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     },
+     {
+      "_id": "mc06",
+      "image": {
+       "$image": 6
+      }
+     },
+     {
+      "_id": "mc07",
+      "image": {
+       "$image": 7
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Tercera miniatura",
+     "a": ".elementor-thumbnails-swiper .swiper-slide:nth-child(3)",
+     "b": ".digi-media-carousel__thumbs .digi-crs__slide:nth-child(3)"
+    }
+   ]
+  },
+  "mc-slideshow-centered": {
+   "title": "«Slideshow» con miniaturas centradas, 4 visibles (3 en móvil), proporción 4:3, altura 360 px y separación 16 px",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "slideshow",
+    "loop": "",
+    "centered_slides": "yes",
+    "thumbs_ratio": "43",
+    "slideshow_slides_per_view": "4",
+    "slideshow_slides_per_view_mobile": "3",
+    "slideshow_height": {
+     "unit": "px",
+     "size": 360,
+     "sizes": []
+    },
+    "space_between": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     },
+     {
+      "_id": "mc06",
+      "image": {
+       "$image": 6
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    }
+   ]
+  },
+  "mc-coverflow": {
+   "title": "Presentación «Coverflow» (aproximada: diapositiva actual centrada, sin giro 3D)",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "coverflow",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.6,
+    "reason": "«Coverflow» se aproxima con la diapositiva actual centrada y sin el giro ni la profundidad 3D de Swiper (approx de skin)."
+   },
+   "declared": [
+    {
+     "kind": "estilo",
+     "match": ".*",
+     "code": "skin"
+    },
+    {
+     "kind": "caja",
+     "match": ".*",
+     "code": "skin"
+    },
+    {
+     "kind": "imagen",
+     "match": ".*",
+     "code": "skin"
+    }
+   ]
+  },
+  "mc-video": {
+   "title": "Vídeos de YouTube y Vimeo con su imagen, icono de reproducir con color, tamaño y sombra; ninguna petición al servicio antes del clic",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "mc01",
+      "type": "video",
+      "image": {
+       "$image": 8
+      },
+      "video": {
+       "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+      }
+     },
+     {
+      "_id": "mc02",
+      "type": "video",
+      "image": {
+       "$image": 9
+      },
+      "video": {
+       "url": "https://vimeo.com/76979871"
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 10
+      },
+      "image_link_to_type": "file"
+     },
+     {
+      "_id": "mc04",
+      "type": "video",
+      "image": {
+       "$image": 11
+      },
+      "video": {
+       "url": "https://youtu.be/aqz-KE-bpKQ"
+      }
+     }
+    ],
+    "play_icon_color": "#FFD166",
+    "play_icon_size": {
+     "unit": "px",
+     "size": 64,
+     "sizes": []
+    },
+    "play_icon_text_shadow_text_shadow_type": "yes",
+    "play_icon_text_shadow_text_shadow": {
+     "horizontal": 0,
+     "vertical": 2,
+     "blur": 8,
+     "color": "rgba(0,0,0,0.6)"
+    }
+   },
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "Play|Reproducir",
+     "reason": "El texto oculto del icono de reproducir está en español («Reproducir el vídeo»)."
+    }
+   ]
+  },
+  "mc-overlay-icon": {
+   "title": "Superposición con icono (ojo), animación «zoom-in», colores y tamaño del icono",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "overlay": "icon",
+    "icon": "eye",
+    "overlay_animation": "zoom-in",
+    "overlay_background_color": "rgba(36,94,255,0.7)",
+    "overlay_color": "#FFD166",
+    "icon_size": {
+     "unit": "px",
+     "size": 40,
+     "sizes": []
+    },
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      },
+      "image_link_to_type": "file"
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     }
+    ]
+   },
+   "declared": [
+    {
+     "kind": "hover",
+     "match": ".*",
+     "reason": "La superposición aparece también con el foco del teclado (`:focus-within`); PRO sólo con el puntero."
+    },
+    {
+     "kind": "foco",
+     "match": ".*",
+     "reason": "La superposición aparece también con el foco del teclado (`:focus-within`) y el enlace tiene foco visible propio."
+    }
+   ]
+  },
+  "mc-overlay-text": {
+   "title": "Superposición con el título del adjunto, animación «slide-up» y tipografía propia",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "overlay": "text",
+    "caption": "title",
+    "overlay_animation": "slide-up",
+    "overlay_color": "#FFFFFF",
+    "caption_typography_typography": "custom",
+    "caption_typography_font_size": {
+     "unit": "px",
+     "size": 22,
+     "sizes": []
+    },
+    "caption_typography_font_weight": "700",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 5
+      }
+     }
+    ]
+   },
+   "declared": [
+    {
+     "kind": "foco",
+     "match": ".*",
+     "reason": "La superposición aparece también con el foco del teclado (`:focus-within`)."
+    }
+   ]
+  },
+  "mc-style": {
+   "title": "Fracción dentro, flechas de 32 px en color, diapositivas con fondo, borde, radio y relleno, separación 20 px",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "pagination": "fraction",
+    "pagination_position": "inside",
+    "pagination_color": "#E63946",
+    "arrows_size": {
+     "unit": "px",
+     "size": 32,
+     "sizes": []
+    },
+    "arrows_color": "#FFD166",
+    "space_between": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "slide_background_color": "#073B4C",
+    "slide_border_size": {
+     "unit": "px",
+     "top": "4",
+     "right": "4",
+     "bottom": "4",
+     "left": "4",
+     "isLinked": true
+    },
+    "slide_border_color": "#E9C46A",
+    "slide_border_radius": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "slide_padding": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "image_fit": "contain",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    }
+   ]
+  },
+  "mc-progress": {
+   "title": "Barra de progreso de 6 px con colores, sin bucle, 2 por paso",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "loop": "",
+    "pagination": "progressbar",
+    "pagination_size": {
+     "unit": "px",
+     "size": 6,
+     "sizes": []
+    },
+    "pagination_color": "#245EFF",
+    "slides_to_scroll": "2",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     },
+     {
+      "_id": "mc06",
+      "image": {
+       "$image": 6
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Flecha derecha del teclado",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "key": "ArrowRight"
+    }
+   ]
+  },
+  "mc-dots-style": {
+   "title": "Puntos de 10 px con separación, colores normal y activo, sin flechas",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "show_arrows": "",
+    "pagination_size": {
+     "unit": "px",
+     "size": 10,
+     "sizes": []
+    },
+    "pagination_gap": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    },
+    "pagination_color_inactive": "#E9C46A",
+    "pagination_color": "#E63946",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Tercer punto",
+     "a": ".swiper-pagination-bullet:nth-child(3)",
+     "b": ".digi-crs__dot:nth-of-type(3)"
+    }
+   ]
+  },
+  "mc-fade": {
+   "title": "Efecto fundido (una diapositiva visible)",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "effect": "fade",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    }
+   ]
+  },
+  "mc-cube": {
+   "title": "Efecto cubo, aproximado como deslizamiento",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "effect": "cube",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.6,
+    "reason": "El efecto cubo de Swiper se pinta como deslizamiento (approx de effect): la sombra y el giro 3D de la diapositiva no existen."
+   },
+   "declared": [
+    {
+     "kind": "caja",
+     "match": ".*",
+     "code": "effect"
+    },
+    {
+     "kind": "estilo",
+     "match": ".*",
+     "code": "effect"
+    }
+   ]
+  },
+  "mc-responsive": {
+   "title": "Responsivo: 4/2/1 visibles, altura 300/240/200 px, ancho 90 %",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "slides_per_view": "4",
+    "slides_per_view_tablet": "2",
+    "slides_per_view_mobile": "1",
+    "height": {
+     "unit": "px",
+     "size": 300,
+     "sizes": []
+    },
+    "height_tablet": {
+     "unit": "px",
+     "size": 240,
+     "sizes": []
+    },
+    "height_mobile": {
+     "unit": "px",
+     "size": 200,
+     "sizes": []
+    },
+    "width": {
+     "unit": "%",
+     "size": 90,
+     "sizes": []
+    },
+    "space_between_mobile": {
+     "unit": "px",
+     "size": 0,
+     "sizes": []
+    },
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     },
+     {
+      "_id": "mc06",
+      "image": {
+       "$image": 6
+      }
+     }
+    ]
+   }
+  },
+  "mc-single": {
+   "title": "Una sola diapositiva: sin flechas ni paginación",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 7
+      }
+     }
+    ]
+   }
+  },
+  "mc-lazy": {
+   "title": "Carga diferida y tamaño «medium» de la imagen",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "lazyload": "yes",
+    "image_size_size": "medium",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     }
+    ]
+   },
+   "declared": [
+    {
+     "kind": "imagen",
+     "match": ".*",
+     "code": "lazyload"
+    }
+   ]
+  },
+  "mc-custom-css": {
+   "title": "CSS personalizado del elemento con las clases de PRO",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "custom_css": "selector .swiper-slide{border-radius:16px}\nselector .elementor-carousel-image{filter:grayscale(1)}\nselector.elementor-skin-carousel .elementor-main-swiper{height:260px}",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     }
+    ]
+   }
+  },
+  "mc-autoplay": {
+   "title": "Reproducción automática cada 3 s con pausa al pasar el puntero",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "yes",
+    "autoplay_speed": 3000,
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.05,
+    "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), y la diapositiva visible depende del momento de la captura."
+   }
+  }
+ }
+}

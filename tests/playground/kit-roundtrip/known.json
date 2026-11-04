@@ -148,6 +148,32 @@
     "R1c"
    ],
    "motivo": "F7b (V.10): los usuarios nunca viajan; la autora excluida de una consulta guardada no tiene destino, su lista queda vacía y la consulta entra en borrador para revisarla (una exclusión perdida mostraría de más). Ningún documento la usa, así que nada más cambia"
+  },
+  {
+   "ruta": "^documents\\.page:cita-de-pro\\.data\\.0\\.elements\\.(0|1\\.elements\\.0)\\.widgetType$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "valor_a": "^\"blockquote\"$",
+   "valor_b": "^\"digitalisimo-blockquote\"$",
+   "motivo": "§17 (C1 del programa «sin widgets de PRO»): al importar, el Blockquote de PRO con mapa listo llega como Cita (Convert\\Converter), con el mismo id y en cualquier profundidad"
+  },
+  {
+   "ruta": "^documents\\.page:cita-de-pro\\.data\\.0\\.elements\\.(0|1\\.elements\\.0)\\.settings\\.[a-z0-9_]+$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17: los ajustes los traduce el mapa de la Cita (digitalisimo-convert/maps/blockquote.php): completa los valores por defecto del Blockquote, renombra tweet_button* a share_*, pasa las clases del CSS personalizado a las propias y deja la marca _digitalisimo_pro"
+  },
+  {
+   "ruta": "^(documents\\.page:cita-de-pro\\.counts|counts\\.elements)\\.(blockquote|digitalisimo-blockquote)$",
+   "escenarios": [
+    "R1",
+    "R1c"
+   ],
+   "motivo": "§17: los dos Blockquote de PRO de la página cuentan en B como Cita; ningún elemento se pierde"
   }
  ],
  "_comentario_opciones": "«opciones»: opciones que WordPress o el constructor escriben solos al crear contenido o al entrar el administrador; pueden cambiar en cualquier escenario sin ser un cambio sin permiso (A6). No se exige que cambien, así que no cuentan como «sin usar». Cualquier otra opción que cambie falla. Las cachés derivadas (condiciones del Theme Builder y conjuntos de iconos) no van aquí: la instantánea las guarda decodificadas y se comparan por contenido (mu-kit.php, DIGI_K_CACHES).",

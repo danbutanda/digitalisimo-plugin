@@ -136,7 +136,21 @@ function stateStyles(sel) {
 }
 
 // ── Una página ────────────────────────────────────────────────────────────────────────────────────────────────────
-async function measure(browser, url, sel, slug, side, forbid) {
+// Espera a que los carruseles del widget hayan arrancado (Swiper en A, el motor `digi-crs` en B) y, si el caso lo pide,
+// a un selector propio (`ready.a` / `ready.b`).
+async function settle(page, sel, extra) {
+  const ok = await page.waitForFunction((s, x) => {
+    const root = document.querySelector(s);
+    if (!root) return true;
+    if (x && !root.querySelector(x)) return false;
+    if (root.querySelector('.swiper:not(.swiper-initialized), .swiper-container:not(.swiper-initialized):not(.swiper-container-initialized)')) return false;
+    return !root.querySelector('.digi-crs:not(.digi-crs--ready)');
+  }, { timeout: 8000, polling: 100 }, sel, extra || '').then(() => true).catch(() => false);
+  await sleep(400);
+  return ok;
+}
+
+async function measure(browser, url, sel, slug, side, forbid, c = {}) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
   await page.setCacheEnabled(false);
@@ -176,6 +190,8 @@ async function measure(browser, url, sel, slug, side, forbid) {
     fs.writeFileSync(path.join(OUT, 'html', `${slug}-${side}.html`), html);
     await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});
     await sleep(800);
+    const readySel = (c.ready || {})[side] || '';
+    if (!(await settle(page, sel, readySel))) result.unsettled = true;
     for (const f of forbid) {
       const byId = html.includes(`id="${f.id}"`) || html.includes(`id='${f.id}'`);
       const byUrl = requested.some((u) => new RegExp(f.url).test(new URL(u).pathname));
@@ -222,6 +238,34 @@ async function measure(browser, url, sel, slug, side, forbid) {
         await sleep(500);
         w.focus = { reached: inside, styles: inside ? await page.evaluate(stateStyles, sel) : null, shot: inside ? await shot('focus') : null };
         await page.evaluate(() => document.activeElement && document.activeElement.blur());
+      }
+      // Acciones del caso (`actions`: `{ label, a, b, selector, key, wait, widths }`): pulsar el selector del lado
+      // (`a`/`b`, o `selector` común, relativo al widget) o, con `key`, enfocarlo y teclear. Tras cada una, sin foco ni
+      // puntero encima, firma y captura. Son acumulativas dentro de un ancho; después se recarga la página.
+      const actions = (c.actions || []).filter((act) => !act.widths || act.widths.map(Number).includes(width));
+      if (actions.length) {
+        w.actions = [];
+        for (const act of actions) {
+          const target = act[side] || act.selector || '';
+          const entry = { label: act.label || target || act.key, done: true };
+          try {
+            const el = target ? await handle.$(target) : handle;
+            if (!el) throw new Error(`no existe «${target}»`);
+            if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
+          } catch (e) { entry.done = false; entry.error = String(e.message || e); }
+          await sleep(Number(act.wait || 900));
+          await page.mouse.move(0, 0);
+          await page.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
+          await sleep(300);
+          entry.signature = await page.evaluate(pageSignature, sel, slug);
+          entry.shot = await shot(`act${w.actions.length + 1}`);
+          w.actions.push(entry);
+        }
+        if (width !== WIDTHS[WIDTHS.length - 1]) {
+          await page.goto(url, { waitUntil: 'networkidle0', timeout: 180000 });
+          await sleep(500);
+          await settle(page, sel, readySel);
+        }
       }
       result.widths[width] = w;
     }
@@ -353,11 +397,12 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
     for (const code of codes.filter((x) => x.section === 'review')) fail(`${code.code} ${code.key}: ${code.reason}`);
     const forbid = (c.forbid || CONFIG.forbid_b || []).map((f) => ({ name: f.name.split('{widget}').join(e.widget), id: f.id.split('{widget}').join(e.widget), url: f.url.split('{widget}').join(e.widget) }));
     const once = async (side) => {
-      let r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid);
+      let r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid, c);
       for (let i = 0; i < 2 && r.transient.length; i++) {
         notes.push(`${slug}-${side}: recursos servidos con redirección o como HTML (${r.transient[0]}); se repite la medición`);
-        r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid);
+        r = await measure(browser, `${BASE}/pro-ab-${slug}-${side}/`, sel, slug, side, forbid, c);
       }
+      if (r.unsettled) fail(`${side.toUpperCase()}: el carrusel no arrancó en 8 s (Swiper, digi-crs o ready.${side})`);
       if (r.transient.length) fail(`${side.toUpperCase()}: recursos del sitio servidos con redirección o como HTML: ${r.transient.slice(0, 3).join(' | ')}`);
       return r;
     };
@@ -414,6 +459,30 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       declaredCount += w.declared.length;
       unexplainedCount += w.unexplained.length;
       for (const u of w.unexplained) fail(`diferencia sin motivo: ${u}`);
+      // Acciones: la misma comparación de firma y de píxeles en el estado que deja cada una.
+      const acts = Math.max((wa.actions || []).length, (wb.actions || []).length);
+      w.actions = [];
+      for (let i = 0; i < acts; i++) {
+        const xa = (wa.actions || [])[i] || {};
+        const xb = (wb.actions || [])[i] || {};
+        const label = xa.label || xb.label || String(i + 1);
+        if (!xa.done || !xb.done) fail(`acción ${i + 1} (${label}) no se pudo hacer en ${!xa.done ? 'A' : 'B'}: ${(!xa.done ? xa : xb).error || 'sin datos'}`);
+        const ad = diffSignatures(xa.signature, xb.signature, width).map((d) => ({ ...d, detail: `[acción ${i + 1} ${label}] ${d.detail}` }));
+        const entry = { label, declared: [], unexplained: [], pixels: null };
+        for (const d of ad) {
+          const ex = explain(d, declared, reasons, codes);
+          if (ex.bad) fail(`declaración no válida para «${line(d)}»: ${ex.bad}`);
+          if (ex.why) entry.declared.push(`${line(d)} — ${ex.why}`);
+          else { entry.unexplained.push(line(d)); fail(`diferencia sin motivo: ${line(d)}`); }
+        }
+        declaredCount += entry.declared.length;
+        unexplainedCount += entry.unexplained.length;
+        const p = await pixelDiff(diffPage, xa.shot, xb.shot, path.join(SHOTS, `${slug}-diff-${width}-act${i + 1}.png`), tol);
+        entry.pixels = p || { error: 'sin captura de A o de B' };
+        if (!p) fail(`píxeles ${width} acción ${i + 1} (${label}): sin captura de A o de B`);
+        else if (p.ratio > max) fail(`píxeles ${width} acción ${i + 1} (${label}): ${(p.ratio * 100).toFixed(2)} % distintos (umbral ${(max * 100).toFixed(2)} %; A ${p.a.join('×')}, B ${p.b.join('×')})`);
+        w.actions.push(entry);
+      }
       for (const state of ['', 'hover', 'focus']) {
         const fa = state ? (wa[state] || {}).shot : wa.shot;
         const fb = state ? (wb[state] || {}).shot : wb.shot;

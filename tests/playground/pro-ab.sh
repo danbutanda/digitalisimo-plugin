@@ -24,6 +24,13 @@
 # propia se normaliza (`pro-ab-<caso>-X`) y el navegador no sale del Playground (lo de otros orígenes se corta y se
 # anota). Una hoja o un script del sitio servido con redirección o como HTML repite la medición de esa página.
 #
+# Casos: pro-ab/cases.json más pro-ab/cases/*.json (uno por familia, con `cases` y, opcional, `declared` globales).
+# Un caso puede traer `elements` (hijos del widget, para los widgets anidados), imágenes de prueba en sus ajustes
+# (`{"$image": n}` da `{id, url}` del adjunto n; `{"$gallery": [n, …]}`, la lista; `"$image-url:n"`, la URL), `ready`
+# (`{a, b}`: selectores que deben existir dentro del widget antes de medir; por defecto se espera a que Swiper y el motor
+# `digi-crs` hayan arrancado) y `actions` (pulsar o teclear tras medir cada ancho, con firma y píxeles después de cada
+# una; ver run.cjs).
+#
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos
 #      KEEP=1 bash ...                                 prepara el sitio y lo deja arrancado (depuración; Ctrl+C)
@@ -79,7 +86,23 @@ rm -rf "$OUT/shots" "$OUT/probe" "$OUT/html"
 rm -f "$OUT/pro-ab.json" "$OUT/server.log"
 PROBE="$OUT/probe"
 mkdir -p "$PROBE"
-cp "$ROOT/tests/playground/pro-ab/"{cases.json,activate.php,setup.php} "$PROBE/"
+cp "$ROOT/tests/playground/pro-ab/"{activate.php,setup.php} "$PROBE/"
+# cases.json más los casos de cada familia (pro-ab/cases/*.json: `cases` y, opcional, `declared` globales).
+node -e '
+const fs = require("fs"), path = require("path");
+const [dir, out] = process.argv.slice(1);
+const all = JSON.parse(fs.readFileSync(path.join(dir, "cases.json"), "utf8"));
+const extra = path.join(dir, "cases");
+for (const f of fs.existsSync(extra) ? fs.readdirSync(extra).filter((x) => x.endsWith(".json")).sort() : []) {
+  const part = JSON.parse(fs.readFileSync(path.join(extra, f), "utf8"));
+  for (const [slug, c] of Object.entries(part.cases || {})) {
+    if (all.cases[slug]) { console.error(`Caso repetido: ${slug} (${f})`); process.exit(1); }
+    all.cases[slug] = c;
+  }
+  all.declared = (all.declared || []).concat(part.declared || []);
+}
+fs.writeFileSync(out, JSON.stringify(all, null, 1));
+' "$ROOT/tests/playground/pro-ab" "$PROBE/cases.json"
 [ -n "${MAP:-}" ] && cp "$MAP" "$PROBE/map-override.php"
 printf '%s\n' "${CASES:-}" > "$PROBE/only.txt"
 

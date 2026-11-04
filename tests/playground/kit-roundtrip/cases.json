@@ -2256,6 +2256,52 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "digi-k-pro-cita",
+      "title": "Cita de PRO",
+      "elements": [
+        {
+          "id": "c9c1001",
+          "elType": "container",
+          "settings": {},
+          "elements": [
+            {
+              "id": "e9c1001",
+              "elType": "widget",
+              "widgetType": "blockquote",
+              "settings": {
+                "blockquote_skin": "quotation",
+                "blockquote_content": "Un kit con widgets de PRO llega con los widgets propios.",
+                "author_name": "Equipo del kit",
+                "tweet_button": "",
+                "content_text_color": "#1D1D1F",
+                "custom_css": "selector .elementor-blockquote__content { letter-spacing: 0.5px; }"
+              },
+              "elements": []
+            },
+            {
+              "id": "c9c1002",
+              "elType": "container",
+              "settings": {},
+              "elements": [
+                {
+                  "id": "e9c1002",
+                  "elType": "widget",
+                  "widgetType": "blockquote",
+                  "settings": {
+                    "blockquote_content": "Anidada en un contenedor.",
+                    "author_name": "Kit",
+                    "tweet_button": "",
+                    "tweet_button_label": "Compartir"
+                  },
+                  "elements": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "widgets": {

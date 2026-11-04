@@ -133,8 +133,10 @@ final class References {
 			// Panel lateral: plantilla y barra lateral de widgets, que no viaja (class-offcanvas.php:77-78,142).
 			array( 'element', 'digitalisimo-offcanvas', 'template_id', 'template' ),
 			array( 'element', 'digitalisimo-offcanvas', 'sidebar', 'note:sidebar' ),
-			// Rasgo «plantilla en lugar del texto» del Deslizador (class-slides-templates.php:14,39-74).
+			// Rasgo «plantilla en lugar del texto» del Deslizador (class-slides-templates.php:14,39-74) y el mismo campo en
+			// las Diapositivas propias (C1, modules/digitalisimo-carousel/widgets/class-slides.php: mismo repetidor `slides`).
 			array( 'element', 'slides', 'slides.*.digitalisimo_template_id', 'template' ),
+			array( 'element', 'digitalisimo-slides', 'slides.*.digitalisimo_template_id', 'template' ),
 			// Navegación con iconos y su alias: ID del menú (class-icon-nav.php:51,110-125; class-icon-mobile-menu.php).
 			array( 'element', 'digitalisimo-icon-nav', 'navbar', 'menu' ),
 			array( 'element', 'digitalisimo-icon-mobile-menu', 'navbar', 'menu' ),
