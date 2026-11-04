@@ -26,7 +26,7 @@
 .digi-toc__body--collapsible>.digi-toc__list>.digi-toc__item>.digi-toc__list:not(.digi-toc__list--open){display:none}
 .digi-toc__body .digi-toc__link{color:var(--digi-toc-ic);text-decoration:var(--digi-toc-id);transition-duration:var(--digi-toc-it)}
 .digi-toc__body .digi-toc__link:hover{color:var(--digi-toc-hoc);text-decoration:var(--digi-toc-hod)}
-.digi-toc__body .digi-toc__link--active{color:var(--digi-toc-ac);text-decoration:var(--digi-toc-ad)}
+.digi-toc__body .digi-toc__link.digi-toc__link--active{color:var(--digi-toc-ac);text-decoration:var(--digi-toc-ad)}
 ol.digi-toc__list{counter-reset:item}
 ol.digi-toc__list .digi-toc__item{counter-increment:item}
 ol.digi-toc__list .digi-toc__row:before{content:counters(item,".") ". "}

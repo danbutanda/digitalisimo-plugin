@@ -1104,30 +1104,13 @@ class Gallery extends \Elementor\Widget_Base {
 			$filters[ (string) $index ] = wp_kses_post( (string) ( $rows[ $index ]['gallery_title'] ?? '' ) );
 		}
 		$active    = (string) array_key_first( $filters );
-		$animation = '';
-		foreach ( array( 'animation_line', 'animation_framed', 'animation_background', 'animation_text' ) as $key ) {
-			if ( ! empty( $settings[ $key ] ) && 'none' === $settings[ $key ] && $this->pointer_uses( $pointer, $key ) ) {
-				$animation = ' digi-gallery__filters--static';
-			}
-		}
-		echo '<div class="digi-gallery__filters digi-gallery__filters--' . esc_attr( $pointer ) . esc_attr( $animation ) . '" role="group" aria-label="' . esc_attr__( 'Filtro de la galería', 'pro-elements' ) . '">';
+		echo '<div class="digi-gallery__filters digi-gallery__filters--' . esc_attr( $pointer ) . '" role="group" aria-label="' . esc_attr__( 'Filtro de la galería', 'pro-elements' ) . '">';
 		foreach ( $filters as $index => $label ) {
 			$on = (string) $index === $active;
 			echo '<button type="button" class="digi-gallery__filter' . ( $on ? ' digi-gallery__filter--active' : '' ) . '" data-digi-filter="' . esc_attr( $index ) . '" aria-controls="' . esc_attr( $box_id ) . '" aria-pressed="' . ( $on ? 'true' : 'false' ) . '">' . $label . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- texto con wp_kses_post().
 		}
 		echo '</div>';
 		return $active;
-	}
-
-	/** ¿El control de animación corresponde al indicador elegido? */
-	private function pointer_uses( string $pointer, string $key ): bool {
-		$map = array(
-			'animation_line'       => array( 'underline', 'overline', 'double-line' ),
-			'animation_framed'     => array( 'framed' ),
-			'animation_background' => array( 'background' ),
-			'animation_text'       => array( 'text' ),
-		);
-		return in_array( $pointer, $map[ $key ], true );
 	}
 
 	/**

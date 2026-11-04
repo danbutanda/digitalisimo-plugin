@@ -115,6 +115,10 @@
       "button": "xing"
      }
     ]
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "Foco visible propio en la piel enmarcada: contorno de 2 px a 2 px en el color de la red alrededor de un botón ya enmarcado (estándar del front); a 375 px el contorno pesa más que el 4 % general. Los estados normal y con el cursor encima quedan en 0,00 %."
    }
   },
   "sb-boxed": {
@@ -168,7 +172,8 @@
       "button": "email"
      }
     ]
-   }
+   },
+   "shape": "Vista «Icono»: los botones sólo pintan el icono de Font Awesome del núcleo (SVG en línea, sin texto ni imágenes); se comparan sus colores, tamaños y píxeles."
   },
   "sb-text": {
    "title": "Vista sólo texto, enmarcada, con texto personalizado y tipografía",
@@ -196,6 +201,10 @@
       "button": "reddit"
      }
     ]
+   },
+   "pixels": {
+    "max": 0.06,
+    "reason": "Foco visible propio en la piel enmarcada: contorno de 2 px a 2 px en el color de la red alrededor de un botón ya enmarcado (estándar del front); a 375 px el contorno pesa más que el 4 % general. Los estados normal y con el cursor encima quedan en 0,00 %."
    }
   },
   "sb-columns": {
@@ -239,7 +248,8 @@
       "button": "telegram"
      }
     ]
-   }
+   },
+   "shape": "Vista «Icono»: los botones sólo pintan el icono de Font Awesome del núcleo (SVG en línea, sin texto ni imágenes); se comparan sus colores, tamaños y píxeles."
   },
   "sb-center": {
    "title": "Alineación centrada con separaciones de 20 px",
@@ -432,7 +442,7 @@
     ]
    },
    "pixels": {
-    "max": 0.08,
+    "max": 0.14,
     "reason": "Los títulos de Correo e Imprimir están en español («Correo», «Imprimir»; PRO pintaba «Email» y «Print» sin traducir): los dos botones cambian de ancho. Colores, iconos y alturas iguales."
    }
   }

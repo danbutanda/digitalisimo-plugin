@@ -96,9 +96,9 @@ return array(
 	),
 	'approx'    => array(
 		'lazyload'             => 'La carga diferida es la nativa del navegador (`loading="lazy"`), sin la aparición con zoom de la librería de galería.',
-		'animation_line'       => 'La animación del indicador de los filtros (subrayado, línea superior o doble) se pinta como un fundido.',
-		'animation_framed'     => 'La animación del marco de los filtros se pinta como un fundido.',
-		'animation_background' => 'La animación del fondo de los filtros se pinta como un fundido.',
+		'animation_line'       => 'La animación del indicador de los filtros (subrayado, línea superior o doble), también «Ninguna», se pinta como un fundido.',
+		'animation_framed'     => 'La animación del marco de los filtros, también «Ninguna», se pinta como un fundido.',
+		'animation_background' => 'La animación del fondo de los filtros, también «Ninguna», se pinta como un fundido.',
 		'animation_text'       => 'El indicador «Texto» de los filtros sólo cambia el color, sin transformar el texto.',
 	),
 	'repeaters' => array(

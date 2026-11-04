@@ -2,22 +2,42 @@
  "_doc": [
   "Casos A/B de la Galería avanzada (frente C de C2): A con `gallery` de PRO, B con `digitalisimo-gallery`. Imágenes de prueba con `{\"$gallery\": [n, …]}` (1200 × 800). `ready`: A espera a la librería de galería (y en carga diferida, a la primera imagen cargada), B a `digi-gallery--ready`. `forbid`: B no carga los paquetes de PRO, su hoja, la librería de galería del núcleo ni las transiciones de PRO."
  ],
- "declared": [],
+ "declared": [
+  {
+   "widget": "gallery",
+   "kind": "imagen",
+   "match": "-\\d+x\\d+\\.png|pro-ab-image-\\d+\\.png",
+   "reason": "Cada imagen es un <img> con srcset y sizes (wp_get_attachment_image): el navegador elige el archivo del ancho real; PRO pintaba siempre el archivo del tamaño elegido como fondo CSS."
+  },
+  {
+   "widget": "gallery",
+   "kind": "imagen",
+   "match": "alt|aria-label|role",
+   "reason": "Cada imagen es un <img> con su texto alternativo, no un <div role=\"img\"> con fondo CSS y aria-label."
+  },
+  {
+   "widget": "gallery",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de los enlaces y de los filtros (contorno de 2 px con separación de 2 px)."
+  },
+  {
+   "widget": "gallery",
+   "kind": "caja",
+   "match": "^padding: 0px 0px [\\d.]+px 0px → 0px 0px 0px 0px$",
+   "reason": "La librería de galería de PRO da el alto al contenedor con padding-bottom (justificada, mampostería y la cuadrícula mientras se anima); el script propio, con height. El tamaño es el mismo (píxeles)."
+  }
+ ],
  "cases": {
   "gal-defaults": {
-   "title": "Valores por defecto: una galería de 8 imágenes en cuadrícula 4/2/1, 3:2, tamaño medio, lightbox y fondo al pasar el cursor; carga diferida",
+   "title": "Valores por defecto: una galería de 3 imágenes en cuadrícula 4/2/1, 3:2, tamaño medio, lightbox y fondo al pasar el cursor; carga diferida (3 imágenes: a 375 px el widget cabe en la pantalla y la captura no cambia el alto de la ventana, que hace que la librería de PRO vuelva a colocar las imágenes bajo el puntero)",
    "widget": "gallery",
    "settings": {
     "gallery": {
      "$gallery": [
       1,
       2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8
+      3
      ]
     }
    },
@@ -602,6 +622,13 @@
      "a": ".elementor-gallery-title[data-gallery-index=\"all\"]",
      "b": ".digi-gallery__filter[data-digi-filter=\"all\"]"
     }
+   ],
+   "declared": [
+    {
+     "kind": "control",
+     "match": "^(\\[acción [^\\]]*\\] )?control (a|button) \\d+ ",
+     "reason": "Los filtros de PRO son <a role=\"button\"> y los propios <button>; el arnés empareja los controles por etiqueta, así que en los casos con filtros los filtros de A se emparejan con los enlaces de las imágenes de B. El aspecto de los filtros se compara en «estilo» (texto) y en los píxeles; el de los enlaces, en los casos sin filtros."
+    }
    ]
   },
   "gal-filters-styled": {
@@ -699,6 +726,18 @@
      "a": ".elementor-gallery-title[data-gallery-index=\"1\"]",
      "b": ".digi-gallery__filter[data-digi-filter=\"1\"]"
     }
+   ],
+   "declared": [
+    {
+     "kind": "control",
+     "match": "^(\\[acción [^\\]]*\\] )?control (a|button) \\d+ ",
+     "reason": "Los filtros de PRO son <a role=\"button\"> y los propios <button>; el arnés empareja los controles por etiqueta, así que en los casos con filtros los filtros de A se emparejan con los enlaces de las imágenes de B. El aspecto de los filtros se compara en «estilo» (texto) y en los píxeles; el de los enlaces, en los casos sin filtros."
+    },
+    {
+     "kind": "nombre",
+     "match": "^perdido link «Texto alternativo \\d+»$",
+     "reason": "Las imágenes que el filtro activo deja fuera llevan hidden (fuera del árbol de accesibilidad y del orden de foco); PRO las dejaba con opacidad 0 y escala 0, invisibles pero enfocables y con nombre."
+    }
    ]
   },
   "gal-filters-justified": {
@@ -776,6 +815,13 @@
      "a": ".elementor-gallery-title[data-gallery-index=\"0\"]",
      "b": ".digi-gallery__filter[data-digi-filter=\"0\"]",
      "wait": 1500
+    }
+   ],
+   "declared": [
+    {
+     "kind": "control",
+     "match": "^(\\[acción [^\\]]*\\] )?control (a|button) \\d+ ",
+     "reason": "Los filtros de PRO son <a role=\"button\"> y los propios <button>; el arnés empareja los controles por etiqueta, así que en los casos con filtros los filtros de A se emparejan con los enlaces de las imágenes de B. El aspecto de los filtros se compara en «estilo» (texto) y en los píxeles; el de los enlaces, en los casos sin filtros."
     }
    ]
   }
