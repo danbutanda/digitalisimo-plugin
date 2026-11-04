@@ -224,7 +224,7 @@
    ]
   },
   "nm-background-stretch": {
-   "title": "Vertical con fondo, desplegable en móvil a todo el ancho, texto centrado y botón con colores",
+   "title": "Vertical (en una columna de 260 px) con fondo, desplegable en móvil a todo el ancho, texto centrado y botón con colores",
    "widget": "nav-menu",
    "settings": {
     "menu": {
@@ -256,6 +256,12 @@
     "dropdown_divider_width": {
      "unit": "px",
      "size": 1,
+     "sizes": []
+    },
+    "_element_width": "initial",
+    "_element_custom_width": {
+     "unit": "px",
+     "size": 260,
      "sizes": []
     }
    },
@@ -500,5 +506,42 @@
    ]
   }
  },
- "declared": []
+ "declared": [
+  {
+   "widget": "nav-menu",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control div 1 sólo en A",
+   "reason": "La hamburguesa es un <button> nativo; PRO usaba un <div role=\"button\" tabindex=\"0\">."
+  },
+  {
+   "widget": "nav-menu",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control button \\d+ sólo en B",
+   "reason": "Botones propios: la hamburguesa nativa y un botón «Submenú de …» por elemento con hijos (patrón de navegación de divulgación, aria-expanded/aria-controls), colocado sobre el indicador de PRO y transparente."
+  },
+  {
+   "widget": "nav-menu",
+   "kind": "nombre",
+   "match": "^(\\[acción [^\\]]*\\] )?(perdido button «Menu Toggle»|nuevo button «Menú»|nuevo button «Submenú de [^»]+»)$",
+   "reason": "Nombres accesibles propios en español: «Menú» para la hamburguesa (PRO: «Menu Toggle») y «Submenú de …» para el botón de cada submenú, que PRO no tenía."
+  },
+  {
+   "widget": "nav-menu",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, estándar del front); PRO dejaba el del navegador."
+  },
+  {
+   "widget": "nav-menu",
+   "kind": "nombre",
+   "match": "^(\\[acción [^\\]]*\\] )?perdido none «»$",
+   "reason": "Los enlaces del desplegable cerrado (o del que no se usa en ese ancho): PRO los pinta con aria-hidden y tabindex=-1 y el árbol de accesibilidad de Chrome los da como «none» sin nombre; el propio los deja fuera con inert (o no los pinta sin punto de corte)."
+  },
+  {
+   "widget": "nav-menu",
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ icon-fill: ",
+   "reason": "El indicador de submenú sigue el color del texto de su enlace (currentColor). PRO lo dejaba con el relleno heredado: negro en el desplegable (también sobre el fondo oscuro del elemento abierto) y del color del puntero sobre el puntero de fondo, sin contraste."
+  }
+ ]
 }

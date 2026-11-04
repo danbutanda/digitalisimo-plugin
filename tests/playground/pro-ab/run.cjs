@@ -266,7 +266,12 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
             // `page`: el selector es de la página, no del widget (un disparador fuera de él, C3 · frente F).
             const el = target ? await (act.page ? page : handle).$(target) : handle;
             if (!el) throw new Error(`no existe «${target}»`);
-            if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else if (act.type) { await el.focus(); await page.keyboard.type(String(act.type), { delay: 60 }); } else if (act.hover) await el.hover(); else await el.click();
+            if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else if (act.type) { await el.focus(); await page.keyboard.type(String(act.type), { delay: 60 }); } else if (act.hover) {
+              // Dos movimientos cortos tras llegar: un ratón real (SmartMenus de PRO sólo abre con el ratón si lo detecta).
+              await el.hover();
+              const bb = await el.boundingBox();
+              if (bb) for (const d of [1, 2]) await page.mouse.move(bb.x + bb.width / 2 + d, bb.y + bb.height / 2 + d);
+            } else await el.click();
           } catch (e) { entry.done = false; entry.error = String(e.message || e); }
           await sleep(Number(act.wait || 900));
           // `focus`: dónde queda el foco tras la acción (en el widget, fuera o en el cuerpo), comparado entre A y B.

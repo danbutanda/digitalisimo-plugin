@@ -144,6 +144,14 @@ const SERV = '[href$="/servicios/"]', DESA = '[href$="/desarrollo/"]', EQUI = '[
   ok((await item(page, 'n1', 'main', 'Equipo')).open && !(await item(page, 'n1', 'main', 'Servicios')).open && (await page.evaluate(() => location.hash)) === '', 'El padre «#» abre su submenú sin navegar y cierra el hermano.');
   await page.mouse.click(5, 850);
   ok(!(await item(page, 'n1', 'main', 'Equipo')).open, 'Clic fuera: cierra.');
+  // Marco con dibujo (n3): el marco se dibuja entero con el ratón encima.
+  await page.hover('[data-id="n3"] .digi-nav__main a[href$="/servicios/"]');
+  await sleep(700);
+  const frame = await page.evaluate(() => { const a = document.querySelector('[data-id="n3"] .digi-nav__main a[href$="/servicios/"]'), b = getComputedStyle(a, '::before'), f = getComputedStyle(a, '::after'); return { w: parseFloat(b.width), lw: a.getBoundingClientRect().width, aw: parseFloat(f.width), op: b.opacity, bt: b.borderTopWidth, bl: b.borderLeftWidth }; });
+  ok(Math.abs(frame.w - frame.lw) < 1 && Math.abs(frame.aw - frame.lw) < 1 && frame.op === '1', 'Marco con dibujo: las dos mitades ocupan el enlace con el ratón encima: ' + JSON.stringify(frame));
+  await page.mouse.move(5, 880);
+  await sleep(1300); // 500 ms para cerrar el submenú y la transición del dibujo.
+  ok(await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-id="n3"] .digi-nav__main a[href$="/servicios/"]'), '::before').width) <= 3), 'Marco con dibujo: sin el ratón, vuelve a 3 px.');
   // Marco con dibujo (vertical): el submenú sale al lado.
   await page.click(btn('n3', 'main', SERV));
   const side = await page.evaluate(() => { const a = document.querySelector('[data-id="n3"] .digi-nav__main a[href$="/servicios/"]').getBoundingClientRect(), ul = document.querySelector('[data-id="n3"] .digi-nav__main a[href$="/servicios/"] ~ ul').getBoundingClientRect(); return { dx: ul.left - a.right, dy: ul.top - a.top }; });

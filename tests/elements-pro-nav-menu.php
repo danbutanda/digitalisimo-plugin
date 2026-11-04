@@ -493,7 +493,7 @@ namespace {
 	$fixture_cases = array(
 		'n1' => array( 'settings' => array( 'menu' => 'principal' ), 'wrapper' => 'digi-nav--dropdown-tablet digi-nav--toggle digi-nav--burger digi-nav--text-aside' ),
 		'n2' => array( 'settings' => array( 'menu' => 'principal', 'pointer' => 'background' ), 'wrapper' => 'digi-nav--dropdown-mobile digi-nav--toggle digi-nav--burger digi-nav--stretch digi-nav--text-center digi-nav--align-end' ),
-		'n3' => array( 'settings' => array( 'menu' => 'principal', 'layout' => 'vertical', 'pointer' => 'framed', 'animation_framed' => 'draw' ), 'wrapper' => 'digi-nav--dropdown-none" style="width:240px' ),
+		'n3' => array( 'settings' => array( 'menu' => 'principal', 'layout' => 'vertical', 'pointer' => 'framed', 'animation_framed' => 'draw', 'dropdown' => 'none' ), 'wrapper' => 'digi-nav--dropdown-none" style="width:240px' ),
 	);
 	$body = '';
 	foreach ( $fixture_cases as $fid => $fc ) {
