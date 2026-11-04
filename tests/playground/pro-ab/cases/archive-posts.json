@@ -18,7 +18,7 @@
  ],
  "cases": {
   "ap-defaults": {
-   "title": "Archivo clásico, números por defecto, 4 por página",
+   "title": "Archivo clásico, números (guardados: PRO sólo admite /2/ en un singular si están guardados), 4 por página",
    "widget": "archive-posts",
    "posts": 9,
    "archive": {
@@ -42,14 +42,20 @@
      "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
     }
    ],
-   "settings": {},
+   "settings": {
+    "pagination_type": "numbers"
+   },
    "actions": [
     {
      "label": "página 2",
      "selector": "a.page-numbers:not(.prev):not(.next)",
      "wait": 8000
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
+   }
   },
   "ap-cards": {
    "title": "Archivo en tarjetas, 2 columnas",
@@ -80,6 +86,10 @@
     "_skin": "archive_cards",
     "archive_cards_columns": "2",
     "pagination_type": ""
+   },
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
    }
   },
   "ap-nothing": {

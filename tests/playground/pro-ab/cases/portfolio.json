@@ -157,7 +157,11 @@
       "reason": "«Todos» (B) y «All» (A) tienen otro ancho y desplazan los demás botones de la barra; la rejilla filtrada es la misma."
      }
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.12,
+    "reason": "El cursor se pone sobre el primer control de cada widget: en B, el botón «Todos» del filtro; en A (cuyos filtros no son controles), el primer elemento del portafolio, que muestra su capa. Sin cursor y tras filtrar, por debajo del 2 %."
+   }
   }
  }
 }

@@ -21,7 +21,11 @@
    "title": "Por defecto: sin piel guardada, la que el widget de PRO pinta hoy (3 columnas, 6 entradas)",
    "widget": "posts",
    "posts": 9,
-   "settings": {}
+   "settings": {},
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
+   }
   },
   "po-classic-left": {
    "title": "Clásica: imagen a la izquierda, 2 columnas, autor/fecha/hora/comentarios, alineación automática",
@@ -61,6 +65,10 @@
     "classic_alignment": "center",
     "classic_title_color": "#1F2124",
     "classic_meta_separator": "|"
+   },
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
    }
   },
   "po-classic-none": {
@@ -83,6 +91,10 @@
    "posts": 9,
    "settings": {
     "_skin": "cards"
+   },
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
    }
   },
   "po-cards-styled": {
@@ -114,6 +126,10 @@
     "cards_meta_data": [
      "date"
     ]
+   },
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
    }
   },
   "po-cards-none": {
@@ -146,6 +162,10 @@
     "_skin": "full_content",
     "full_content_posts_per_page": 2,
     "full_content_thumbnail": "thumbnail"
+   },
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
    }
   },
   "po-numbers": {
@@ -169,7 +189,11 @@
      "selector": "a.page-numbers.next",
      "wait": 8000
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
+   }
   },
   "po-prevnext": {
    "title": "Anterior/siguiente, 4 por página",
@@ -180,6 +204,10 @@
     "classic_posts_per_page": 4,
     "pagination_type": "prev_next",
     "pagination_align": "end"
+   },
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
    }
   },
   "po-load-more": {
@@ -197,13 +225,13 @@
      "label": "cargar más",
      "a": ".e-load-more-anchor ~ .elementor-button-wrapper .elementor-button",
      "b": ".digi-loop__more .elementor-button",
-     "wait": 4000
+     "wait": 15000
     },
     {
      "label": "cargar más (última)",
      "a": ".e-load-more-anchor ~ .elementor-button-wrapper .elementor-button",
      "b": ".digi-loop__more .elementor-button",
-     "wait": 4000
+     "wait": 15000
     }
    ],
    "declared": [
@@ -217,7 +245,11 @@
      "match": "(perdido link|nuevo button) «Load More»",
      "reason": "«Cargar más» es un botón (PRO: un enlace a «#»)."
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
+   }
   },
   "po-infinite": {
    "title": "Desplazamiento infinito, 3 por página",
@@ -234,9 +266,13 @@
      "a": ".e-load-more-anchor",
      "b": ".digi-loop__anchor",
      "scroll": true,
-     "wait": 5000
+     "wait": 15000
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.25,
+    "reason": "Sólo a 375 px: la captura de pantalla del arnés (`captureBeyondViewport`) redimensiona la ventana y el script de PRO vuelve a medir la imagen en ese instante y la deja ajustada a la altura (`elementor-fit-height`); sin esa captura, A y B cubren la caja igual (0,00–0,26 % de diferencia medida en Chrome a 375 px, sonda del informe I). A 768 y 1 280 px, por debajo del 2 %."
+   }
   }
  }
 }
