@@ -185,7 +185,8 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
     if (sameOrigin(r.url()) && ['stylesheet', 'script'].includes(type) && (r.status() >= 300 && r.status() < 400 || /text\/html/.test(r.headers()['content-type'] || ''))) transient.push(`${r.status()} ${r.url()}`);
     if (sameOrigin(r.url()) && type === 'stylesheet') sheets.push(r.buffer().then((b) => `${new URL(r.url()).pathname} ${r.status()} ${b.length}`).catch(() => `${new URL(r.url()).pathname} ${r.status()} ?`));
   });
-  page.on('requestfailed', (r) => { if (sameOrigin(r.url())) failed.push(`${(r.failure() || {}).errorText || 'falló'} ${r.url()}`); });
+  // Una imagen abortada por el propio navegador (al cambiar de ancho elige otra de su `srcset`) no es un fallo del sitio.
+  page.on('requestfailed', (r) => { const why = (r.failure() || {}).errorText || 'falló'; if (sameOrigin(r.url()) && !(why === 'net::ERR_ABORTED' && r.resourceType() === 'image')) failed.push(`${why} ${r.url()}`); });
   const result = { url, status: 0, widths: {}, assets: {}, errors, failed, third: [] };
   try {
     await page.setViewport({ width: WIDTHS[WIDTHS.length - 1], height: 900 });
@@ -385,7 +386,7 @@ function explain(d, declared, reasons, codes) {
 const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
 
 (async () => {
-  const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--hide-scrollbars', '--font-render-hinting=none', '--force-color-profile=srgb'] });
+  const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--hide-scrollbars', '--font-render-hinting=none', '--force-color-profile=srgb', '--disable-lcd-text'] });
   const diffPage = await browser.newPage();
   await diffPage.goto('about:blank');
   const summary = { started: new Date(+process.env.STARTED * 1000).toISOString(), elements: process.env.ELEMENTS_VERSION, git: process.env.GIT_SHA, elementor: CONV.elementor, map_override: CONV.override || '', widths: WIDTHS, pixels: { max: PIXEL_MAX, tolerance: PIXEL_TOLERANCE }, cases: {}, problems, notes };

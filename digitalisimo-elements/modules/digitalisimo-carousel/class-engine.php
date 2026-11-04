@@ -50,7 +50,7 @@ defined( 'ABSPATH' ) || exit;
  *   `--digi-crs-align` (stretch, `align-items` de la pista: «misma altura»), `--digi-crs-speed` (500ms).
  *   `--digi-crs-basis` la calcula la pista (ancho de cada diapositiva: `flex-basis`); sólo se lee, p. ej. para dárselo a
  *   hijos con reglas propias más fuertes (los `.e-con` del carrusel anidado).
- * - Flechas: `--digi-crs-arrow-size` (25px, tamaño del icono), `--digi-crs-arrow-color` (#eeeeeee6),
+ * - Flechas: `--digi-crs-arrow-size` (25px, tamaño del icono), `--digi-crs-arrow-color` (rgba(237,237,237,.9)),
  *   `--digi-crs-arrow-hover` (el color normal). Posición: `--digi-crs-prev-x` (`inset-inline-start`; 10px, 0px con
  *   `--arrows-out`), `--digi-crs-prev-y` (`top`; 50%, o el centro de la pista con `--pag-out`), `--digi-crs-prev-t`
  *   (`translate`; `0 -50%`), y las mismas con `next` (`inset-inline-end`). Las compone `Nested_Controls` con sus
@@ -58,8 +58,9 @@ defined( 'ABSPATH' ) || exit;
  * - Paginación: `--digi-crs-pag-space` (30px, reserva con `--pag-out`); posición `--digi-crs-pag-x`
  *   (`inset-inline-start`; 50%), `--digi-crs-pag-y` (`top`; calc(100% - 5px)) y `--digi-crs-pag-t` (`translate`;
  *   -50% -100%, con `--direction-multiplier` del núcleo en RTL). Con `progressbar`, arriba y a todo el ancho.
- * - Puntos (botones de 24 × 24 px como mínimo con el punto dibujado abajo y centrado): `--digi-crs-dot-size` (6px),
- *   `--digi-crs-dot-gap` (6px a cada lado: entre centros, máx(24px, tamaño + 2 × separación)), `--digi-crs-dot-color`
+ * - Puntos (botones de 24 × 24 px como mínimo, sin solaparse: WCAG 2.5.8; el punto, en `::before`, a 7 px del pie de su
+ *   botón, con el centro a 15 px del borde como PRO): `--digi-crs-dot-size` (6px), `--digi-crs-dot-gap` (6px a cada lado:
+ *   entre centros, máx(24px, tamaño + 2 × separación); PRO, 18 px: diferencia declarada), `--digi-crs-dot-color`
  *   (#000) con `--digi-crs-dot-opacity` (.2), `--digi-crs-dot-hover` (el color normal), `--digi-crs-dot-active` (#000,
  *   opacidad 1).
  * - Fracción: hereda el color y la tipografía (los controles la pintan con un selector directo).
@@ -71,6 +72,13 @@ defined( 'ABSPATH' ) || exit;
  * `--digi-crs-dot-hover-opacity`, `--digi-crs-fraction-color`, `--digi-crs-bar-bg`, `--digi-crs-bar-hover` y
  * `--digi-crs-focus`. `--digi-crs-fraction-size` la escribe la tipografía de la fracción de `Nested_Controls`, pero el
  * motor no la lee.
+ *
+ * **Páginas** (como Swiper): sin bucle, 0, paso, 2 × paso… y la última en `count − view` (o `count − 1` centrado); con
+ * bucle, una por cada `paso` diapositivas (`ceil(count / paso)`, también en puntos y fracción), y las que no caben se ven
+ * desde la última posición posible (no hay clones). El desplazamiento lo anima el script con la duración de
+ * `--digi-crs-speed` y el imán apagado mientras dura; un desplazamiento sin toque, rueda ni tecla del usuario (un
+ * reajuste del navegador) se deshace y nunca cambia de página ni detiene la reproducción automática. La regla de las
+ * diapositivas lleva especificidad de id (`:not(#_)`) para ganar a `.e-con.e-flex` del núcleo.
  *
  * Foco visible: contorno de 2 px con 2 px de separación en el color del botón. Selectores: `scope()` devuelve el de la
  * raíz del propio widget (sin alcanzar un carrusel anidado en una diapositiva), para las reglas que no son variables.

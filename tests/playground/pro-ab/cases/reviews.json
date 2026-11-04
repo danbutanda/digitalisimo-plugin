@@ -183,8 +183,8 @@
     }
    ],
    "pixels": {
-    "max": 0.06,
-    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). Estrellas SVG propias. Además PRO aplicaba a 768 px la separación de móvil (los puntos de corte de Swiper son de mínimo); el propio aplica la de cada dispositivo."
+    "max": 0.07,
+    "reason": "Texto con suavizado subpíxel en B: Swiper componía la pista en una capa (translate3d) y Chrome pintaba el texto de A en escala de grises; el contenido, la posición y los colores son los mismos (ver el informe de T). Estrellas SVG propias. Además PRO aplicaba a 768 px la separación de móvil (los puntos de corte de Swiper son de mínimo); el propio aplica la de cada dispositivo. Con foco, A enfoca el enlace de la primera reseña y B la flecha anterior del motor (orden de los controles)."
    }
   },
   "rv-outline": {

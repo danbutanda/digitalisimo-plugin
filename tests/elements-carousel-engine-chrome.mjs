@@ -110,7 +110,7 @@ try {
       const ds = [...r.querySelectorAll('.digi-crs__dot:not([hidden])')].map(d => { const b = d.getBoundingClientRect(), a = getComputedStyle(d, '::before'); return { x: b.left + b.width / 2, y: b.bottom - parseFloat(getComputedStyle(d).paddingBottom) - parseFloat(a.height) / 2, w: b.width, h: b.height }; });
       return { gap: ds[1].x - ds[0].x, bottom: R.bottom - ds[0].y, center: (ds[0].x + ds[2].x) / 2 - (R.left + R.width / 2), w: ds[0].w, h: ds[0].h };
     });
-    ok(Math.abs(dg.gap - 18) < 0.6 && Math.abs(dg.bottom - 15) < 1 && Math.abs(dg.center) < 1 && dg.w >= 24 && dg.h >= 24, `${width}: puntos como en PRO: 18 px entre centros, centro a 15 px del borde inferior y centrados (botones de 24 px): ${JSON.stringify(dg)}`);
+    ok(Math.abs(dg.gap - 24) < 0.6 && dg.gap >= dg.w && Math.abs(dg.bottom - 15) < 1 && Math.abs(dg.center) < 1 && dg.w >= 24 && dg.h >= 24, `${width}: puntos sin solaparse (botones de 24 px, 24 px entre centros: WCAG 2.5.8), centro a 15 px del borde inferior como PRO y centrados: ${JSON.stringify(dg)}`);
 
     await click(page, 'w1', '.digi-crs__next');
     await settle(page);
@@ -266,6 +266,8 @@ try {
     ok(s.dots === 'X---' && s.inert === 'XX--', `${width}: bucle: un punto por diapositiva: ${JSON.stringify(s)}`);
     let f = await state(page, 'w13');
     ok(f.total === '4' && f.now === '1', `${width}: bucle: fracción «1 / 4»: ${f.now} / ${f.total}`);
+    const fr = await page.evaluate(() => { const r = document.querySelector('[data-id="w13"] .digi-crs'), e = r.querySelector('.digi-crs__fraction'), b = e.getBoundingClientRect(), R = r.getBoundingClientRect(); return { align: getComputedStyle(e).textAlign, center: b.left + b.width / 2 - (R.left + R.width / 2) }; });
+    ok(fr.align === 'center' && Math.abs(fr.center) < 1, `${width}: la fracción, centrada como en PRO: ${JSON.stringify(fr)}`);
     for (let k = 0; k < 3; k++) await click(page, 'w13', '.digi-crs__next');
     await settle(page);
     f = await state(page, 'w13');
