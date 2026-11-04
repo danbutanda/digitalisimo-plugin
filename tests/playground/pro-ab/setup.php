@@ -242,12 +242,13 @@ function digi_ab_loop( $name ) {
 /**
  * Elementos antes del widget en el contenedor (`before` del caso, C3 · frente F: los disparadores de un panel). En sus
  * cadenas, `{id}` es el `id` del widget del caso y `"$action:<acción>"` el enlace de acción del núcleo
- * (`#elementor-action:action=<acción>&settings=<base64 de {id, displayMode}>`) que lo nombra.
+ * (`#elementor-action:action=<acción>&settings=<base64 de {id, displayMode}>`, codificado tras la almohadilla como lo
+ * imprime el núcleo: `esc_url()` vacía la forma sin codificar) que lo nombra.
  */
 function digi_ab_before( array $elements, $slug, $id ) {
 	$place = static function ( $value ) use ( &$place, $id ) {
 		if ( is_string( $value ) && preg_match( '/^\$action:([a-z_]+):([a-z]+)$/', $value, $m ) ) {
-			return '#elementor-action:action=' . $m[1] . ':' . $m[2] . '&settings=' . base64_encode( wp_json_encode( array( 'id' => $id, 'displayMode' => $m[2] ) ) );
+			return '#elementor-action' . rawurlencode( ':action=' . $m[1] . ':' . $m[2] . '&settings=' . base64_encode( wp_json_encode( array( 'id' => $id, 'displayMode' => $m[2] ) ) ) );
 		}
 		if ( is_string( $value ) ) {
 			return str_replace( '{id}', $id, $value );

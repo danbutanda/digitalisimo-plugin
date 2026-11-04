@@ -27,29 +27,63 @@
    "kind": "foco",
    "match": "^outline(-offset)?:",
    "reason": "Foco visible propio (contorno de 2 px con separación de 2 px, estándar del front); PRO quitaba el contorno del campo."
+  },
+  {
+   "widget": "search",
+   "kind": "nombre",
+   "match": "^(perdido button «Search»|nuevo button «Buscar»)$",
+   "reason": "Botón de envío sin texto (con «Tecla Intro» o con el texto vacío): su nombre accesible propio está en español («Buscar»); PRO usaba «Search»."
   }
  ],
  "cases": {
   "se-defaults": {
    "title": "Búsqueda por defecto: escribir muestra «Borrar»; borrar vacía el campo y devuelve el foco",
    "widget": "search",
-   "control": { "a": ".e-search-submit", "b": ".digi-search__submit" },
+   "control": {
+    "a": ".e-search-submit",
+    "b": ".digi-search__submit"
+   },
    "settings": {},
    "actions": [
-    { "label": "escribir", "a": ".e-search-input", "b": ".digi-search__input", "type": "hola", "wait": 900 },
-    { "label": "borrar", "a": ".e-search-input-wrapper > :is(svg, i)", "b": ".digi-search__clear", "focus": true, "wait": 900 }
-   ]
+    {
+     "label": "escribir",
+     "a": ".e-search-input",
+     "b": ".digi-search__input",
+     "type": "hola",
+     "wait": 900
+    },
+    {
+     "label": "borrar",
+     "a": ".e-search-input-wrapper > :is(svg, i)",
+     "b": ".digi-search__clear",
+     "focus": true,
+     "wait": 900
+    }
+   ],
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
+   }
   },
   "se-styled": {
    "title": "Búsqueda con icono en el campo y en el botón, estilos de campo y botón, foco y radio",
    "widget": "search",
-   "control": { "a": ".e-search-submit", "b": ".digi-search__submit" },
+   "control": {
+    "a": ".e-search-submit",
+    "b": ".digi-search__submit"
+   },
    "settings": {
     "search_input_placeholder_text": "¿Qué buscas?",
-    "icon_search": { "value": "fas fa-search", "library": "fa-solid" },
+    "icon_search": {
+     "value": "fas fa-search",
+     "library": "fa-solid"
+    },
     "submit_trigger": "both",
     "submit_button_text": "Ir",
-    "icon_submit": { "value": "fas fa-arrow-right", "library": "fa-solid" },
+    "icon_submit": {
+     "value": "fas fa-arrow-right",
+     "library": "fa-solid"
+    },
     "icon_submit_position": "end",
     "placeholder_color": "#7A7A7A",
     "search_field_background_normal_background": "classic",
@@ -57,36 +91,115 @@
     "search_field_input_text_color_normal": "#111111",
     "search_field_icon_search_normal_color_normal": "#245EFF",
     "search_field_border_normal_border": "solid",
-    "search_field_border_normal_width": { "unit": "px", "top": "1", "right": "1", "bottom": "1", "left": "1", "isLinked": true },
+    "search_field_border_normal_width": {
+     "unit": "px",
+     "top": "1",
+     "right": "1",
+     "bottom": "1",
+     "left": "1",
+     "isLinked": true
+    },
     "search_field_border_normal_color": "#111111",
-    "search_field_border_radius": { "unit": "px", "top": "8", "right": "8", "bottom": "8", "left": "8", "isLinked": true },
-    "search_field_padding": { "unit": "px", "top": "12", "right": "12", "bottom": "12", "left": "12", "isLinked": true },
-    "search_field_icon_gap": { "unit": "px", "size": 8, "sizes": [] },
-    "search_field_submit_gap": { "unit": "px", "size": 12, "sizes": [] },
+    "search_field_border_radius": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "search_field_padding": {
+     "unit": "px",
+     "top": "12",
+     "right": "12",
+     "bottom": "12",
+     "left": "12",
+     "isLinked": true
+    },
+    "search_field_icon_gap": {
+     "unit": "px",
+     "size": 8,
+     "sizes": []
+    },
+    "search_field_submit_gap": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
     "submit_background_normal_background": "classic",
     "submit_background_normal_color": "#245EFF",
     "submit_text_color_normal": "#FFFFFF",
     "submit_icon_color_normal": "#FFFFFF",
-    "submit_border_radius": { "unit": "px", "top": "8", "right": "8", "bottom": "8", "left": "8", "isLinked": true },
-    "submit_padding": { "unit": "px", "top": "12", "right": "20", "bottom": "12", "left": "20", "isLinked": false },
-    "icon_submit_size": { "unit": "px", "size": 16, "sizes": [] },
-    "icon_clear_size": { "unit": "px", "size": 16, "sizes": [] },
+    "submit_border_radius": {
+     "unit": "px",
+     "top": "8",
+     "right": "8",
+     "bottom": "8",
+     "left": "8",
+     "isLinked": true
+    },
+    "submit_padding": {
+     "unit": "px",
+     "top": "12",
+     "right": "20",
+     "bottom": "12",
+     "left": "20",
+     "isLinked": false
+    },
+    "icon_submit_size": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
+    "icon_clear_size": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
     "icon_clear_normal_color": "#E63946"
    },
    "actions": [
-    { "label": "escribir", "a": ".e-search-input", "b": ".digi-search__input", "type": "mesa", "wait": 900 }
-   ]
+    {
+     "label": "escribir",
+     "a": ".e-search-input",
+     "b": ".digi-search__input",
+     "type": "mesa",
+     "wait": 900
+    }
+   ],
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
+   }
   },
   "se-enter": {
    "title": "Búsqueda que se envía con Intro: el botón sólo para lectores de pantalla",
    "widget": "search",
-   "settings": { "submit_trigger": "key_enter", "icon_clear": { "value": "", "library": "" } }
+   "settings": {
+    "submit_trigger": "key_enter",
+    "icon_clear": {
+     "value": "",
+     "library": ""
+    }
+   },
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
+   },
+   "empty": "Con «Tecla Intro» el botón es sólo para lectores de pantalla y el campo no tiene texto propio (el de ejemplo es un atributo): no hay texto a la vista, como en PRO.",
+   "control": {
+    "a": ".e-search-submit",
+    "b": ".digi-search__submit"
+   }
   },
   "se-live": {
    "title": "Resultados en vivo: escribir, paginación sin recargar, flechas entre resultados y Escape",
    "widget": "search",
    "shot": "viewport",
-   "control": { "a": ".e-search-submit", "b": ".digi-search__submit" },
+   "control": {
+    "a": ".e-search-submit",
+    "b": ".digi-search__submit"
+   },
    "settings": {
     "live_results": "yes",
     "template_id": "$loop:mesas",
@@ -95,25 +208,66 @@
     "pagination_type_options": "numbers_previous_next"
    },
    "actions": [
-    { "label": "escribir", "a": ".e-search-input", "b": ".digi-search__input", "type": "mesa", "wait": 3500 },
-    { "label": "página 2", "a": ".e-search-results a.page-numbers:not(.next):not(.prev)", "b": ".digi-search__box a.page-numbers:not(.next):not(.prev)", "wait": 3500 },
-    { "label": "flecha abajo", "a": ".e-search-input", "b": ".digi-search__input", "key": "ArrowDown", "focus": true, "stay": true, "wait": 600 },
-    { "label": "Escape", "key": "Escape", "focus": true, "wait": 600 }
-   ]
+    {
+     "label": "escribir",
+     "a": ".e-search-input",
+     "b": ".digi-search__input",
+     "type": "mesa",
+     "wait": 6000
+    },
+    {
+     "label": "página 2",
+     "a": ".e-search-results a.page-numbers:not(.next):not(.prev)",
+     "b": ".digi-search__box a.page-numbers:not(.next):not(.prev)",
+     "wait": 6000
+    },
+    {
+     "label": "flecha abajo",
+     "a": ".e-search-input",
+     "b": ".digi-search__input",
+     "key": "ArrowDown",
+     "focus": true,
+     "stay": true,
+     "wait": 600
+    },
+    {
+     "label": "Escape",
+     "key": "Escape",
+     "focus": true,
+     "wait": 600
+    }
+   ],
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
+   }
   },
   "se-none": {
    "title": "Resultados en vivo sin resultados: mensaje de PRO",
    "widget": "search",
    "shot": "viewport",
-   "control": { "a": ".e-search-submit", "b": ".digi-search__submit" },
+   "control": {
+    "a": ".e-search-submit",
+    "b": ".digi-search__submit"
+   },
    "settings": {
     "live_results": "yes",
     "template_id": "$loop:mesas",
     "nothing_found_message_color": "#E63946"
    },
    "actions": [
-    { "label": "escribir", "a": ".e-search-input", "b": ".digi-search__input", "type": "zzzz", "wait": 3500 }
-   ]
+    {
+     "label": "escribir",
+     "a": ".e-search-input",
+     "b": ".digi-search__input",
+     "type": "zzzz",
+     "wait": 3500
+    }
+   ],
+   "pixels": {
+    "max": 0.07,
+    "reason": "Foco visible propio del campo (contorno de 2 px con separación de 2 px alrededor del campo entero, estándar del front): PRO lo quitaba. En el estado normal y en las acciones la diferencia es 0,00 %."
+   }
   }
  }
 }

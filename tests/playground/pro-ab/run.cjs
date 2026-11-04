@@ -469,7 +469,8 @@ const line = (d) => `${d.kind} ${d.width} ${d.detail}`;
       const wb = B.widths[width] || {};
       const sa = wa.signature;
       const sb = wb.signature;
-      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length) fail('A no pinta texto ni imágenes en el widget');
+      // `empty` (caso, con su motivo): el widget no pinta nada a la vista hasta una acción (un panel cerrado, C3 · frente F).
+      if (width === WIDTHS[WIDTHS.length - 1] && sa && !sa.texts.length && !sa.images.length && !c.empty) fail('A no pinta texto ni imágenes en el widget');
       let diffs = diffSignatures(sa, sb, width);
       if (c.interact !== false && sa && sb) {
         diffs = diffs.concat(diffStates('hover', (wa.hover || {}).styles, (wb.hover || {}).styles, width));

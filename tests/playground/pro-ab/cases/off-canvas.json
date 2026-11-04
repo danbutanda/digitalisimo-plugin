@@ -162,7 +162,8 @@
       1280
      ]
     }
-   ]
+   ],
+   "empty": "El panel está cerrado al cargar: no pinta nada a la vista hasta que se abre (las acciones lo comparan abierto)."
   },
   "oc-right": {
    "title": "Panel a la derecha, ajustado al contenido, con animaciones, capa propia y bloqueo del desplazamiento",
@@ -273,7 +274,8 @@
       1280
      ]
     }
-   ]
+   ],
+   "empty": "El panel está cerrado al cargar: no pinta nada a la vista hasta que se abre (las acciones lo comparan abierto)."
   },
   "oc-locked": {
    "title": "Panel que no se cierra con Escape ni con la capa, sin capa visible y etiqueta nav",
@@ -372,7 +374,8 @@
       1280
      ]
     }
-   ]
+   ],
+   "empty": "El panel está cerrado al cargar: no pinta nada a la vista hasta que se abre (las acciones lo comparan abierto)."
   }
  }
 }

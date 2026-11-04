@@ -293,10 +293,12 @@
    ],
    "actions": [
     {
-     "label": "clic en el indicador de Servicios",
-     "a": ".elementor-nav-menu--main li.menu-item-has-children > a .sub-arrow",
-     "b": ".digi-nav__main .digi-nav__sub-toggle",
+     "label": "ratón sobre Servicios",
+     "hover": true,
+     "a": ".elementor-nav-menu--main li.menu-item-has-children > a",
+     "b": ".digi-nav__main li.menu-item-has-children > a",
      "stay": true,
+     "wait": 1500,
      "widths": [
       768,
       1280
@@ -439,10 +441,12 @@
    ],
    "actions": [
     {
-     "label": "clic en el indicador de Servicios",
-     "a": ".elementor-nav-menu--main li.menu-item-has-children > a .sub-arrow",
-     "b": ".digi-nav__main .digi-nav__sub-toggle",
+     "label": "ratón sobre Servicios",
+     "hover": true,
+     "a": ".elementor-nav-menu--main li.menu-item-has-children > a",
+     "b": ".digi-nav__main li.menu-item-has-children > a",
      "stay": true,
+     "wait": 1500,
      "widths": [
       768,
       1280
