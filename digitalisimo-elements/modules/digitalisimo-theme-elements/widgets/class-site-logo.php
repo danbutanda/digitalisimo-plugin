@@ -135,6 +135,10 @@ class Site_Logo extends \Elementor\Widget_Image {
 		);
 	}
 
+	protected function get_html_wrapper_class() {
+		return parent::get_html_wrapper_class() . ' elementor-widget-image';
+	}
+
 	/**
 	 * El mismo marcado que PRO (que repite el de la Imagen del núcleo con su propio enlace): `figure` sólo con leyenda,
 	 * enlace según `link_to` (lightbox sólo con «Archivo de medios») e imagen por `Group_Control_Image_Size`.

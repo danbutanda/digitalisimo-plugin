@@ -1,0 +1,115 @@
+{
+ "_doc": [
+  "Casos A/B de Navegación entre entradas (frente H de C4): A con `post-navigation` de PRO, B con `digitalisimo-post-navigation`. Contexto `post` (frente G): la entrada de prueba entre una anterior y una siguiente de la misma categoría."
+ ],
+ "declared": [
+  {
+   "widget": "post-navigation",
+   "kind": "nombre",
+   "match": "link «(Prev\\b.*|.*\\bNext|PREVIOUS .*|NEXT .*|Entrada (anterior|siguiente)( de prueba)?)»",
+   "reason": "PRO metía dentro de cada flecha un texto oculto en inglés («Prev», «Next») que se leía junto a la etiqueta y el título; las flechas propias son decorativas y el enlace se nombra con su etiqueta y su título («Entrada anterior»/«Entrada siguiente», ocultos, sólo si no se muestra ninguno)."
+  },
+  {
+   "widget": "post-navigation",
+   "kind": "hover",
+   "match": "^label-color:",
+   "reason": "El arnés toma el color del primer span con texto del enlace: en PRO era la flecha (por su texto oculto «Prev»), en el propio la envoltura de la etiqueta y el título, sin texto en la flecha. Colores y píxeles de cada parte iguales (0,00 %)."
+  },
+  {
+   "widget": "post-navigation",
+   "kind": "foco",
+   "match": "^label-color:",
+   "reason": "El arnés toma el color del primer span con texto del enlace: en PRO era la flecha (por su texto oculto «Prev»), en el propio la envoltura de la etiqueta y el título, sin texto en la flecha. Colores y píxeles de cada parte iguales (0,00 %)."
+  },
+  {
+   "widget": "post-navigation",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del enlace (contorno de 2 px, criterio del estándar del front), hacia dentro (-2 px): cada columna recorta lo que sobresale (overflow:hidden, como en PRO), y un contorno por fuera no se vería."
+  }
+ ],
+ "cases": {
+  "pn-defaults": {
+   "title": "Valores por defecto: etiquetas, flechas, títulos y separador",
+   "widget": "post-navigation",
+   "context": "post",
+   "settings": {}
+  },
+  "pn-labels": {
+   "title": "Etiquetas propias sin flechas ni bordes, en el mismo término (categoría)",
+   "widget": "post-navigation",
+   "context": "post",
+   "settings": {
+    "prev_label": "Anterior",
+    "next_label": "Siguiente",
+    "show_arrow": "",
+    "show_borders": "",
+    "in_same_term": [
+     "post"
+    ],
+    "post_taxonomy": "category"
+   }
+  },
+  "pn-styled": {
+   "title": "Colores, tipografías, tamaño y separación de las flechas, bordes de 3 px con espaciado",
+   "widget": "post-navigation",
+   "context": "post",
+   "settings": {
+    "label_color": "#b00020",
+    "label_hover_color": "#0047ab",
+    "label_typography_typography": "custom",
+    "label_typography_font_size": {
+     "unit": "px",
+     "size": 14
+    },
+    "label_typography_font_weight": "700",
+    "text_color": "#1b5e20",
+    "hover_color": "#e65100",
+    "title_typography_typography": "custom",
+    "title_typography_font_size": {
+     "unit": "px",
+     "size": 18
+    },
+    "arrow_color": "#6a1b9a",
+    "arrow_hover_color": "#000000",
+    "arrow_size": {
+     "unit": "px",
+     "size": 40
+    },
+    "arrow_size_mobile": {
+     "unit": "px",
+     "size": 24
+    },
+    "arrow_padding": {
+     "unit": "px",
+     "size": 24
+    },
+    "sep_color": "#ff9800",
+    "borders_width": {
+     "unit": "px",
+     "size": 3
+    },
+    "borders_spacing": {
+     "unit": "px",
+     "size": 16
+    }
+   }
+  },
+  "pn-title-only": {
+   "title": "Sólo flechas (chevron) y título, sin etiqueta",
+   "widget": "post-navigation",
+   "context": "post",
+   "settings": {
+    "show_label": "",
+    "arrow_previous_icon": {
+     "value": "fas fa-chevron-left",
+     "library": "fa-solid"
+    },
+    "arrow_next_icon": {
+     "value": "fas fa-chevron-right",
+     "library": "fa-solid"
+    }
+   }
+  }
+ }
+}

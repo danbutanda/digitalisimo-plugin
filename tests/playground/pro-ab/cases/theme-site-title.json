@@ -1,0 +1,81 @@
+{
+ "_doc": [
+  "Casos A/B de theme-site-title → digitalisimo-site-title (C4, docs/pro/c4.md, frente G). Usan `context` (setup.php): la entrada completa, la página o el archivo de prueba."
+ ],
+ "declared": [
+  {
+   "widget": "theme-site-title",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del enlace (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "tl-sitetitle-defaults": {
+   "title": "Título del sitio por defecto: nombre del sitio enlazado al inicio, h2",
+   "widget": "theme-site-title",
+   "context": "page",
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"b1c2d3e\" name=\"site-title\" settings=\"%7B%7D\"]",
+     "link": "[elementor-tag id=\"b4c5d6e\" name=\"site-url\" settings=\"%7B%7D\"]"
+    }
+   }
+  },
+  "tl-sitetitle-styled": {
+   "title": "Título del sitio h3 centrado, tipografía y colores propios, sombra, sin enlace y tamaño responsivo",
+   "widget": "theme-site-title",
+   "context": "page",
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"b1c2d3e\" name=\"site-title\" settings=\"%7B%7D\"]"
+    },
+    "header_size": "h3",
+    "align": "center",
+    "align_mobile": "left",
+    "title_color": "#7A1F1F",
+    "title_hover_color": "#0F5132",
+    "typography_typography": "custom",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 40,
+     "sizes": []
+    },
+    "typography_font_size_mobile": {
+     "unit": "px",
+     "size": 26,
+     "sizes": []
+    },
+    "typography_font_weight": "800",
+    "typography_text_transform": "uppercase",
+    "typography_letter_spacing": {
+     "unit": "px",
+     "size": 2,
+     "sizes": []
+    },
+    "text_shadow_text_shadow_type": "yes",
+    "text_shadow_text_shadow": {
+     "horizontal": 2,
+     "vertical": 2,
+     "blur": 4,
+     "color": "rgba(0,0,0,0.3)"
+    }
+   }
+  },
+  "tl-sitetitle-global": {
+   "title": "Título del sitio con color y tipografía globales del kit",
+   "widget": "theme-site-title",
+   "context": "page",
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"b1c2d3e\" name=\"site-title\" settings=\"%7B%7D\"]",
+     "link": "[elementor-tag id=\"b4c5d6e\" name=\"site-url\" settings=\"%7B%7D\"]"
+    },
+    "__globals__": {
+     "title_color": "globals/colors?id=accent",
+     "typography_typography": "globals/typography?id=secondary"
+    }
+   }
+  }
+ }
+}

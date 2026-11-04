@@ -1,0 +1,56 @@
+{
+ "_doc": [
+  "Casos A/B de theme-page-title → digitalisimo-page-title (C4, docs/pro/c4.md, frente G). Usan `context` (setup.php): la entrada completa, la página o el archivo de prueba."
+ ],
+ "declared": [
+  {
+   "widget": "theme-page-title",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio del enlace (contorno de 2 px con separación de 2 px, criterio del estándar del front); PRO dejaba el del navegador."
+  }
+ ],
+ "cases": {
+  "tl-pagetitle-defaults": {
+   "title": "Título de la página por defecto (h1 con el título de la página)",
+   "widget": "theme-page-title",
+   "context": "page",
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"c1d2e3f\" name=\"page-title\" settings=\"%7B%7D\"]"
+    }
+   }
+  },
+  "tl-pagetitle-post": {
+   "title": "Título de la página en una entrada, con enlace, h2, alineado al final y tamaño grande",
+   "widget": "theme-page-title",
+   "context": "post",
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"c1d2e3f\" name=\"page-title\" settings=\"%7B%7D\"]"
+    },
+    "link": {
+     "url": "https://example.org/",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    },
+    "header_size": "h2",
+    "size": "large",
+    "align": "end"
+   }
+  },
+  "tl-pagetitle-archive": {
+   "title": "Título de la página en un archivo de categoría (el título del archivo, con su contexto)",
+   "widget": "theme-page-title",
+   "context": {
+    "archive": "category"
+   },
+   "settings": {
+    "__dynamic__": {
+     "title": "[elementor-tag id=\"c1d2e3f\" name=\"page-title\" settings=\"%7B%22include_context%22%3A%22yes%22%7D\"]"
+    }
+   }
+  }
+ }
+}
