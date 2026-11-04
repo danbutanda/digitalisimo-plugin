@@ -140,6 +140,9 @@ function pro_elements_load_plugin_func() {
 	// Carruseles propios (C1): motor digi-crs y los widgets que sustituyen a los carruseles de PRO.
 	require_once __DIR__ . '/modules/digitalisimo-carousel/class-module.php';
 	\Digitalisimo\Elements\Carousel\Module::init();
+	// Elementos de tema propios (C4): widgets que sustituyen a los de PRO de la etapa.
+	require_once __DIR__ . '/modules/digitalisimo-theme-elements/class-module.php';
+	\Digitalisimo\Elements\Theme_Elements\Module::init();
 }
 
 function pro_elements_compare_major_version( $left, $right, $operator ) {
