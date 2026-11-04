@@ -7,7 +7,8 @@ defined( 'ABSPATH' ) || exit;
  * Mapas de conversión de los widgets de PRO a widgets propios: `maps/<widget de PRO>.php` devuelve el mapa que lee
  * `Translator`. El nombre del archivo es el del widget de PRO y sólo se aceptan los del catálogo, así que nada que
  * llegue de un documento decide una ruta. Sólo un mapa `ready` (validado con su A/B en Playground) lo usan Migración y
- * los kits; un `draft` sólo lo usan las pruebas (`all()` con `$drafts`).
+ * los kits; un `draft` sólo lo usan las pruebas (`all()` con `$drafts`). Los archivos `maps/_*.php` no son mapas: son
+ * piezas comunes que los mapas incluyen (`_carousel-classes.php`), y nunca se cargan como mapa.
  */
 final class Registry {
 	/** @var array<string, array|null> */
@@ -32,7 +33,10 @@ final class Registry {
 		$out   = array();
 		$names = array_keys( self::$maps );
 		foreach ( glob( __DIR__ . '/maps/*.php' ) ?: array() as $file ) {
-			$names[] = basename( $file, '.php' );
+			// `maps/_*.php` son piezas comunes que los mapas incluyen (p. ej. `_carousel-classes.php`), no mapas.
+			if ( '_' !== basename( $file )[0] ) {
+				$names[] = basename( $file, '.php' );
+			}
 		}
 		foreach ( array_unique( $names ) as $name ) {
 			$map = self::map( $name, $drafts );

@@ -136,27 +136,28 @@ namespace {
 	// 1. Registro y recursos.
 	$widget = new Slides();
 	check_sl( 'digitalisimo-slides' === $widget->get_name() && 'Diapositivas' === $widget->get_title() && array( 'digitalisimo' ) === $widget->get_categories(), 'Nombre, título y categoría propios.' );
-	check_sl( array( Engine::HANDLE, 'digitalisimo-slides' ) === $widget->get_style_depends() && array( Engine::HANDLE ) === $widget->get_script_depends(), 'La hoja del motor y la propia; sólo el script del motor.' );
+	check_sl( array( Engine::HANDLE, 'digitalisimo-slides' ) === $widget->get_style_depends() && array( Engine::HANDLE, 'digitalisimo-slides' ) === $widget->get_script_depends(), 'La hoja y el script del motor y los propios.' );
 	check_sl( 'Diapositivas' === Carousel::TITLES['digitalisimo-slides'] && 'widgets/class-slides.php' === Carousel::WIDGETS['digitalisimo-slides']['file'] && Slides::class === Carousel::WIDGETS['digitalisimo-slides']['class'], 'El módulo lo declara con su archivo, su clase y su título.' );
-	check_sl( ! is_file( $root . Carousel::WIDGETS['digitalisimo-slides']['js'] ), 'Sin script propio: la animación del contenido y Ken Burns son CSS.' );
+	$js = (string) file_get_contents( $root . Carousel::WIDGETS['digitalisimo-slides']['js'] );
+	check_sl( strlen( $js ) > 0 && strlen( $js ) <= 1024 && ! preg_match( '/jQuery|\$\(|swiper|fetch\(|XMLHttpRequest/i', $js ) && str_contains( $js, "addEventListener('digi-crs-change'" ) && str_contains( $js, 'prefers-reduced-motion: reduce' ) && str_contains( $js, "'--digi-crs-speed'" ), 'Script propio de ' . strlen( $js ) . ' B (tope 1 KB), sin jQuery ni Swiper: oculta el contenido con cada cambio y lo deja entrar al terminar la transición; nada con movimiento reducido.' );
 	$css = (string) file_get_contents( $root . Carousel::WIDGETS['digitalisimo-slides']['css'] );
 	check_sl( strlen( $css ) > 0 && strlen( $css ) <= 4096, 'La hoja pesa ' . strlen( $css ) . ' B (tope 4 096).' );
 	check_sl( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( $css, 'elementor' ) && ! str_contains( $css, 'swiper' ), 'La hoja no usa el kit, url(), clases del proveedor ni de Swiper.' );
-	check_sl( (bool) preg_match( '/@media \(prefers-reduced-motion:reduce\)\{\.digi-slides__bg--kb,\.digi-slides__contents\{transition:none!important;transform:none!important\}\}/', $css ), 'Ken Burns y la animación del contenido se apagan con movimiento reducido.' );
+	check_sl( str_contains( $css, '@media (prefers-reduced-motion:reduce){.digi-slides__bg--kb,.digi-slides__contents{transition:none!important}.digi-slides__bg--kb{transform:none!important}}' ), 'Ken Burns y la animación del contenido se apagan con movimiento reducido.' );
 	check_sl( str_contains( $css, '.digi-slides .digi-slides__button:focus-visible{outline:2px solid;outline-offset:2px}' ) && str_contains( $css, '.digi-slides .digi-slides__inner:focus-visible{outline:2px solid;' ), 'Foco visible propio en el botón y en la diapositiva enlazada.' );
 	preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
 	check_sl( array( '#fff' ) === array_values( array_unique( array_map( 'strtolower', $colors[0] ) ) ), 'Sólo el blanco que PRO usaba por defecto: ' . implode( ', ', $colors[0] ) );
 	foreach ( Slides::ANIMATIONS as $animation ) {
-		check_sl( str_contains( $css, '.digi-crs--ready[data-digi-animation=' . $animation . ']>.digi-crs__track>:not(.digi-crs__current) .digi-slides__contents{transform:' ), "La animación $animation tiene su estado de entrada." );
+		check_sl( str_contains( $css, '.digi-slides--out[data-digi-animation=' . $animation . ']{--digi-slides-t:' ), "La animación $animation tiene su estado de entrada." );
 	}
-	check_sl( str_contains( $css, 'transition:opacity 1.25s var(--digi-crs-speed,.5s),transform 1.25s var(--digi-crs-speed,.5s)' ), 'El contenido entra al terminar la transición (1,25 s, como `.animated`).' );
+	check_sl( str_contains( $css, '.digi-slides{--digi-slides-o:1;--digi-slides-t:none;--digi-slides-d:1.25s}' ) && str_contains( $css, '.digi-slides.digi-slides--out{--digi-slides-o:0;--digi-slides-d:0s}' ), 'El contenido se oculta al instante y entra en 1,25 s (como `.animated`); cada raíz restablece sus variables para un carrusel anidado.' );
 	$source = '';
 	foreach ( token_get_all( (string) file_get_contents( $root . 'modules/digitalisimo-carousel/widgets/class-slides.php' ) ) as $token ) {
 		$source .= is_array( $token ) ? ( in_array( $token[0], array( T_COMMENT, T_DOC_COMMENT ), true ) ? '' : $token[1] ) : $token;
 	}
-	check_sl( ! preg_match( '/jquery|swiper|wp_enqueue_script|wp_register_script|Icons_Manager|eicon-chevron|elementor-pro-frontend|ElementorPro\\\\/i', $source ), 'Sin jQuery, Swiper, scripts, iconos del proveedor ni clases de PRO.' );
+	check_sl( ! preg_match( '/jquery|swiper|wp_enqueue_script|wp_register_script|Icons_Manager|eicon-chevron|elementor-pro-frontend|ElementorPro\\\\/i', $source ), 'Sin jQuery, Swiper, scripts encolados a mano, iconos del proveedor ni clases de PRO.' );
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
-	foreach ( array( 'modules/digitalisimo-carousel/widgets/class-slides.php', 'modules/digitalisimo-carousel/assets/css/slides.css', 'modules/digitalisimo-convert/maps/slides.php', 'modules/digitalisimo-widgets/class-slides-templates.php' ) as $file ) {
+	foreach ( array( 'modules/digitalisimo-carousel/widgets/class-slides.php', 'modules/digitalisimo-carousel/assets/css/slides.css', 'modules/digitalisimo-carousel/assets/js/slides.js', 'modules/digitalisimo-convert/maps/slides.php', 'modules/digitalisimo-widgets/class-slides-templates.php' ) as $file ) {
 		check_sl( ! preg_match( $guard, (string) file_get_contents( $root . $file ) ), "$file pasa la guarda de build-packages.sh." );
 	}
 
@@ -265,7 +266,7 @@ namespace {
 	$GLOBALS['sl_loading'] = 0;
 	$html = $render( $base );
 	check_sl( 0 === strpos( $html, '<section class="digi-crs digi-slides" aria-roledescription="carrusel" aria-label="Portada" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="bullets" style="--digi-crs-speed:500ms" data-digi-animation="fadeInUp">' ), 'Raíz del motor con el nombre, el bucle, la paginación y la animación: ' . substr( $html, 0, 300 ) );
-	check_sl( 1 === substr_count( $html, 'class="digi-crs__prev"' ) && 1 === substr_count( $html, 'class="digi-crs__next"' ) && 3 === substr_count( $html, 'class="digi-crs__dot"' ) && ! str_contains( $html, 'digi-crs__pause' ) && str_contains( $html, '<div class="digi-crs__track" aria-live="polite">' ), 'Flechas, tres puntos y sin pausa (sin reproducción automática).' );
+	check_sl( 1 === substr_count( $html, ' digi-crs__prev"' ) && 1 === substr_count( $html, ' digi-crs__next"' ) && 3 === substr_count( $html, 'class="digi-crs__dot"' ) && ! str_contains( $html, 'digi-crs__pause' ) && str_contains( $html, '<div class="digi-crs__track" aria-live="polite">' ), 'Flechas, tres puntos y sin pausa (sin reproducción automática).' );
 	check_sl( str_ends_with( $html, '</div></section>' ) && 3 === substr_count( $html, 'role="group" aria-roledescription="diapositiva"' ) && str_contains( $html, 'aria-label="2 de 3"' ), 'Tres diapositivas con su nombre accesible.' );
 	$one = substr( $html, strpos( $html, '<div class="digi-crs__slide digi-slides__slide elementor-repeater-item-a1"' ) );
 	$one = substr( $one, 0, strpos( $one, '<div class="digi-crs__slide', 10 ) );

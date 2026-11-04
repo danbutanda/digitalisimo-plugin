@@ -1,0 +1,592 @@
+{
+ "_doc": [
+  "Casos A/B de Reseñas (frente T de C1): A con `reviews` de PRO, B con `digitalisimo-reviews`. Imágenes de prueba con `{\"$image\": n}` (setup.php). Autoplay desactivado."
+ ],
+ "declared": [
+  {
+   "widget": "reviews",
+   "kind": "nombre",
+   "match": "Diapositiva (anterior|siguiente)|Ir a la diapositiva|Previous|Next|Go to slide|Pausar|Reanudar|carrusel|diapositiva|carousel|slide|\\d+ de \\d+|\\d+ / \\d+",
+   "reason": "Nombres accesibles propios de flechas, puntos, pausa, carrusel y diapositivas, en español (PRO usaba los textos de Swiper)."
+  },
+  {
+   "widget": "reviews",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de flechas, puntos y enlaces (contorno de 2 px)."
+  },
+  {
+   "widget": "reviews",
+   "kind": "palabra",
+   "match": "[\\ue933\\ue934★☆]|Valoración",
+   "reason": "Las estrellas son SVG propios (o ★/☆ con Unicode) dentro de un grupo con role=\"img\" y el nombre «Valoración: n de 5»; PRO pintaba caracteres de la fuente de iconos sin nombre."
+  },
+  {
+   "widget": "reviews",
+   "kind": "nombre",
+   "match": "Read More|Valoración|\\d+ de 5",
+   "reason": "El icono social es decorativo (PRO le ponía aria-label=\"Read More\" a un div) y la valoración se anuncia con su nombre: cambia el nombre accesible de la cabecera enlazada."
+  },
+  {
+   "widget": "reviews",
+   "kind": "imagen",
+   "match": "srcset|sizes|loading|decoding|width|height",
+   "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa) en lugar de un <img> con sólo src."
+  }
+ ],
+ "cases": {
+  "rv-defaults": {
+   "title": "Valores por defecto: tres reseñas de muestra con imagen, nombre, @usuario e icono, separador, flechas y puntos",
+   "widget": "reviews",
+   "settings": {
+    "autoplay": ""
+   }
+  },
+  "rv-stars": {
+   "title": "Cuatro reseñas con valoración (5, 4,5, 3 y 4), iconos de distintas redes y enlaces en la cabecera",
+   "widget": "reviews",
+   "settings": {
+    "autoplay": "",
+    "slides_per_view": "2",
+    "slides_per_view_mobile": "1",
+    "space_between": {
+     "unit": "px",
+     "size": 16
+    },
+    "slides": [
+     {
+      "_id": "rv01",
+      "image": {
+       "$image": 1
+      },
+      "name": "Cliente 1",
+      "title": "@cliente1",
+      "rating": "5",
+      "selected_social_icon": {
+       "value": "fab fa-twitter",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "https://example.com/opinion",
+       "is_external": "on",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 1: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv02",
+      "image": {
+       "$image": 2
+      },
+      "name": "Cliente 2",
+      "title": "@cliente2",
+      "rating": "4.5",
+      "selected_social_icon": {
+       "value": "fab fa-facebook",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "https://example.com/opinion",
+       "is_external": "on",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 2: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv03",
+      "image": {
+       "$image": 3
+      },
+      "name": "Cliente 3",
+      "title": "@cliente3",
+      "rating": "3",
+      "selected_social_icon": {
+       "value": "fab fa-yelp",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "https://example.com/opinion",
+       "is_external": "on",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv04",
+      "image": {
+       "$image": 4
+      },
+      "name": "Cliente 4",
+      "title": "@cliente4",
+      "rating": "4",
+      "selected_social_icon": {
+       "value": "fab fa-linkedin",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "https://example.com/opinion",
+       "is_external": "on",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 4: atención rápida, precio justo y un resultado mejor del esperado."
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Segundo punto",
+     "a": ".swiper-pagination-bullet:nth-child(2)",
+     "b": ".digi-crs__dot:nth-of-type(2)"
+    },
+    {
+     "label": "Flecha derecha del teclado",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "key": "ArrowRight"
+    }
+   ],
+   "pixels": {
+    "max": 0.03,
+    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos: mismo tamaño y colores, trazo distinto."
+   }
+  },
+  "rv-outline": {
+   "title": "Estrellas sin marcar con contorno, tamaño, espaciado y colores propios",
+   "widget": "reviews",
+   "settings": {
+    "autoplay": "",
+    "unmarked_star_style": "outline",
+    "star_size": {
+     "unit": "px",
+     "size": 20
+    },
+    "star_space": {
+     "unit": "px",
+     "size": 3
+    },
+    "stars_color": "#e0a000",
+    "stars_unmarked_color": "#999999",
+    "slides": [
+     {
+      "_id": "rv01",
+      "image": {
+       "$image": 1
+      },
+      "name": "Cliente 1",
+      "title": "@cliente1",
+      "rating": "5",
+      "selected_social_icon": {
+       "value": "fab fa-twitter",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 1: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv02",
+      "image": {
+       "$image": 2
+      },
+      "name": "Cliente 2",
+      "title": "@cliente2",
+      "rating": "4.5",
+      "selected_social_icon": {
+       "value": "fab fa-facebook",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 2: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv03",
+      "image": {
+       "$image": 3
+      },
+      "name": "Cliente 3",
+      "title": "@cliente3",
+      "rating": "3",
+      "selected_social_icon": {
+       "value": "fab fa-yelp",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.03,
+    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos: mismo tamaño y colores, trazo distinto."
+   }
+  },
+  "rv-unicode": {
+   "title": "Estrellas Unicode (★/☆): los mismos caracteres que PRO",
+   "widget": "reviews",
+   "settings": {
+    "autoplay": "",
+    "star_style": "star_unicode",
+    "unmarked_star_style": "outline",
+    "slides": [
+     {
+      "_id": "rv01",
+      "image": {
+       "$image": 1
+      },
+      "name": "Cliente 1",
+      "title": "@cliente1",
+      "rating": "5",
+      "selected_social_icon": {
+       "value": "fab fa-twitter",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 1: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv02",
+      "image": {
+       "$image": 2
+      },
+      "name": "Cliente 2",
+      "title": "@cliente2",
+      "rating": "4.5",
+      "selected_social_icon": {
+       "value": "fab fa-facebook",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 2: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv03",
+      "image": {
+       "$image": 3
+      },
+      "name": "Cliente 3",
+      "title": "@cliente3",
+      "rating": "3",
+      "selected_social_icon": {
+       "value": "fab fa-yelp",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
+     }
+    ]
+   }
+  },
+  "rv-style": {
+   "title": "Cabecera con fondo y separación, sin separador, imagen grande, icono de color personalizado y textos con color",
+   "widget": "reviews",
+   "settings": {
+    "autoplay": "",
+    "header_background_color": "#f6f8fa",
+    "content_gap": {
+     "unit": "px",
+     "size": 24
+    },
+    "show_separator": "",
+    "image_size": {
+     "unit": "px",
+     "size": 48
+    },
+    "image_gap": {
+     "unit": "px",
+     "size": 14
+    },
+    "image_border_radius": {
+     "unit": "px",
+     "size": 6
+    },
+    "icon_color": "custom",
+    "icon_custom_color": "#00aa00",
+    "icon_size": {
+     "unit": "px",
+     "size": 24
+    },
+    "name_color": "#111111",
+    "title_color": "#777777",
+    "content_color": "#333333",
+    "slides": [
+     {
+      "_id": "rv01",
+      "image": {
+       "$image": 1
+      },
+      "name": "Cliente 1",
+      "title": "@cliente1",
+      "rating": "5",
+      "selected_social_icon": {
+       "value": "fab fa-twitter",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 1: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv02",
+      "image": {
+       "$image": 2
+      },
+      "name": "Cliente 2",
+      "title": "@cliente2",
+      "rating": "4.5",
+      "selected_social_icon": {
+       "value": "fab fa-facebook",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 2: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv03",
+      "image": {
+       "$image": 3
+      },
+      "name": "Cliente 3",
+      "title": "@cliente3",
+      "rating": "3",
+      "selected_social_icon": {
+       "value": "fab fa-yelp",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.03,
+    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos."
+   }
+  },
+  "rv-separator": {
+   "title": "Separador de color y grosor propios, relleno y borde de la diapositiva",
+   "widget": "reviews",
+   "settings": {
+    "autoplay": "",
+    "separator_color": "#3355aa",
+    "separator_size": {
+     "unit": "px",
+     "size": 3
+    },
+    "slide_padding": {
+     "unit": "px",
+     "top": "20",
+     "right": "20",
+     "bottom": "20",
+     "left": "20",
+     "isLinked": true
+    },
+    "slide_border_size": {
+     "unit": "px",
+     "top": "2",
+     "right": "2",
+     "bottom": "2",
+     "left": "2",
+     "isLinked": true
+    },
+    "slide_border_color": "#cccccc",
+    "slide_border_radius": {
+     "unit": "px",
+     "size": 12
+    },
+    "slides": [
+     {
+      "_id": "rv01",
+      "image": {
+       "$image": 1
+      },
+      "name": "Cliente 1",
+      "title": "@cliente1",
+      "rating": "5",
+      "selected_social_icon": {
+       "value": "fab fa-twitter",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 1: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv02",
+      "image": {
+       "$image": 2
+      },
+      "name": "Cliente 2",
+      "title": "@cliente2",
+      "rating": "4.5",
+      "selected_social_icon": {
+       "value": "fab fa-facebook",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 2: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv03",
+      "image": {
+       "$image": 3
+      },
+      "name": "Cliente 3",
+      "title": "@cliente3",
+      "rating": "3",
+      "selected_social_icon": {
+       "value": "fab fa-yelp",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.03,
+    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos."
+   }
+  },
+  "rv-fraction": {
+   "title": "Paginación de fracción sin flechas",
+   "widget": "reviews",
+   "settings": {
+    "autoplay": "",
+    "show_arrows": "",
+    "pagination": "fraction",
+    "slides": [
+     {
+      "_id": "rv01",
+      "image": {
+       "$image": 1
+      },
+      "name": "Cliente 1",
+      "title": "@cliente1",
+      "rating": "5",
+      "selected_social_icon": {
+       "value": "fab fa-twitter",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 1: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv02",
+      "image": {
+       "$image": 2
+      },
+      "name": "Cliente 2",
+      "title": "@cliente2",
+      "rating": "4.5",
+      "selected_social_icon": {
+       "value": "fab fa-facebook",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 2: atención rápida, precio justo y un resultado mejor del esperado."
+     },
+     {
+      "_id": "rv03",
+      "image": {
+       "$image": 3
+      },
+      "name": "Cliente 3",
+      "title": "@cliente3",
+      "rating": "3",
+      "selected_social_icon": {
+       "value": "fab fa-yelp",
+       "library": "fa-brands"
+      },
+      "link": {
+       "url": "",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "content": "Reseña 3: atención rápida, precio justo y un resultado mejor del esperado."
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.03,
+    "reason": "Estrellas SVG propias en lugar de los glifos de la fuente de iconos."
+   }
+  }
+ }
+}

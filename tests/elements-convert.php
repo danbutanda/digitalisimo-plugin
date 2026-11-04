@@ -22,6 +22,89 @@ namespace {
 	function add_filter( $hook, $cb, $priority = 10, $args = 1 ) { $GLOBALS['cv']['filters'][ $hook ][] = $cb; }
 	function check_cv( $ok, $message ) { if ( ! $ok ) { throw new RuntimeException( $message ); } }
 
+	/** Archivos de PRO de los que salen los controles de un widget: él, su clase padre de carrusel y el trait. */
+	function pro_sources( string $file, string $elements ): array {
+		$php   = (string) file_get_contents( $file );
+		$files = array( $file );
+		if ( preg_match( '/namespace ElementorPro\\\\Modules\\\\Carousel\\\\Widgets;/', $php ) && preg_match( '/\bextends\s+Base\b/', $php ) ) {
+			$files[] = $elements . 'modules/carousel/widgets/base.php';
+		}
+		if ( preg_match( '/\buse\s+Base_Carousel_Trait\s*;/', $php ) ) {
+			$files[] = $elements . 'base/base-carousel-trait.php';
+		}
+		return $files;
+	}
+
+	/** Valor de una concatenación PHP de literales y variables (`'a_' . $x . '_b'`) para cada combinación de valores. */
+	function pro_concat( string $expr, array $values ): array {
+		$parts = array_map( 'trim', preg_split( '/\s*\.\s*(?=(?:[^\']*\'[^\']*\')*[^\']*$)/', trim( $expr ) ) );
+		$out   = array( '' );
+		foreach ( $parts as $part ) {
+			if ( preg_match( "/^'([a-z0-9_-]*)'$/", $part, $m ) ) {
+				$opts = array( $m[1] );
+			} elseif ( preg_match( '/^\$([a-z_]+)$/', $part, $m ) && ! empty( $values[ $m[1] ] ) ) {
+				$opts = $values[ $m[1] ];
+			} else {
+				throw new RuntimeException( "Nombre de control armado sin valores conocidos: $expr" );
+			}
+			$next = array();
+			foreach ( $out as $prefix ) {
+				foreach ( $opts as $opt ) {
+					$next[] = $prefix . $opt;
+				}
+			}
+			$out = $next;
+		}
+		return $out;
+	}
+
+	/**
+	 * Nombres de los controles (y de los grupos) de un widget de PRO, con los heredados y los concatenados expandidos.
+	 * Los valores de cada variable salen de `foreach ( [ 'a', 'b' ] as $var )`, de los literales que recibe en las
+	 * llamadas al método que la declara como parámetro y de las asignaciones `$var = <concatenación>;`.
+	 */
+	function pro_controls( string $file, string $elements ): array {
+		$php = '';
+		foreach ( pro_sources( $file, $elements ) as $source ) {
+			$php .= "\n" . (string) file_get_contents( $source );
+		}
+		$values = array();
+		preg_match_all( "/foreach\s*\(\s*\[\s*((?:'[a-z0-9_-]+'\s*,?\s*)+)\]\s*as\s*\\$([a-z_]+)\s*\)/", $php, $loops, PREG_SET_ORDER );
+		foreach ( $loops as $loop ) {
+			preg_match_all( "/'([a-z0-9_-]+)'/", $loop[1], $lits );
+			$values[ $loop[2] ] = array_merge( $values[ $loop[2] ] ?? array(), $lits[1] );
+		}
+		preg_match_all( '/function\s+([a-z_]+)\s*\(([^)]*)\)/', $php, $functions, PREG_SET_ORDER );
+		foreach ( $functions as $function ) {
+			preg_match_all( '/\$([a-z_]+)/', $function[2], $params );
+			foreach ( $params[1] as $position => $param ) {
+				preg_match_all( '/->' . $function[1] . '\(([^;]*)\);/', $php, $calls );
+				foreach ( $calls[1] as $args ) {
+					$args = array_map( 'trim', explode( ',', $args ) );
+					if ( isset( $args[ $position ] ) && preg_match( "/^'([a-z0-9_-]+)'$/", $args[ $position ], $lit ) ) {
+						$values[ $param ][] = $lit[1];
+					}
+				}
+			}
+		}
+		preg_match_all( "/\\$([a-z_]+)\s*=\s*((?:'[a-z0-9_-]*'|\\$[a-z_]+)(?:\s*\.\s*(?:'[a-z0-9_-]*'|\\$[a-z_]+))+)\s*;/", $php, $assigns, PREG_SET_ORDER );
+		foreach ( $assigns as $assign ) {
+			try {
+				$values[ $assign[1] ] = pro_concat( $assign[2], $values );
+			} catch ( RuntimeException $unknown ) {
+				continue; // Una asignación que no da nombre a un control puede usar variables sin valores literales.
+			}
+		}
+		$values = array_map( 'array_unique', $values );
+		$names  = array();
+		preg_match_all( "/->add_(?:responsive_)?control\(\s*((?:'[a-z0-9_]*'|\\$[a-z_]+)(?:\s*\.\s*(?:'[a-z0-9_]*'|\\$[a-z_]+))*)\s*,/", $php, $controls );
+		preg_match_all( "/->add_group_control\([^;]*?'name'\s*=>\s*((?:'[a-z0-9_]*'|\\$[a-z_]+)(?:\s*\.\s*(?:'[a-z0-9_]*'|\\$[a-z_]+))*)\s*,/s", $php, $grouped );
+		foreach ( array_merge( $controls[1], $grouped[1] ) as $expr ) {
+			$names = array_merge( $names, pro_concat( $expr, $values ) );
+		}
+		return array_values( array_unique( $names ) );
+	}
+
 	$elements = __DIR__ . '/../digitalisimo-elements/';
 	require $elements . 'modules/digitalisimo-convert/class-module.php';
 	\Digitalisimo\Elements\Convert\Module::init();
@@ -138,11 +221,28 @@ namespace {
 	check_cv( array() === Panel::document_config( array(), 1 ), 'panel => show lo deja a la vista.' );
 	Registry::reset();
 
-	// 5. Cada mapa real: declara todos los controles de PRO y apunta a un widget propio.
+	// 5. Cada mapa real: declara todos los controles de PRO y apunta a un widget propio. Los controles de un widget de PRO
+	// incluyen los de su clase padre (`carousel/widgets/base.php` cuando extiende `Base`) y los de `Base_Carousel_Trait`
+	// cuando lo usa, y los nombres armados por concatenación (`'arrow_' . $state . '_color'`) se expanden con los valores
+	// que reciben en el código (literales de un `foreach` o de las llamadas al método que los declara como parámetro).
+	$nested = pro_controls( $files['nested-carousel'], $elements );
+	$media  = pro_controls( $files['media-carousel'], $elements );
+	foreach ( array( 'slides_to_show', 'equal_height', 'offset_width', 'navigation_previous_icon_vertical_position', 'arrow_normal_color', 'arrow_hover_color', 'arrows_normal_background', 'arrows_hover_border_type', 'arrows_hover_box_shadow', 'dots_custom_position', 'heading_dots_pagination_horizontal', 'heading_dotspagination_vertical', 'fraction_horizontal_offset', 'fraction_vertical_position', 'progressbar_hover_color', 'carousel_items', 'slide_title' ) as $name ) {
+		check_cv( in_array( $name, $nested, true ), "Cobertura: falta $name entre los controles del carrusel anidado de PRO (trait y concatenados)." );
+	}
+	foreach ( array( 'slides_name', 'slides_per_view', 'space_between', 'pagination_color', 'image_size', 'lazyload', 'skin', 'image_link_to' ) as $name ) {
+		check_cv( in_array( $name, $media, true ), "Cobertura: falta $name entre los controles del carrusel multimedia de PRO (con su clase padre)." );
+	}
+	check_cv( ! preg_grep( '/(^_|_$)/', array_merge( $nested, $media ) ) && 1 === count( pro_sources( $files['blockquote'], $elements ) ), 'Cobertura: ningún nombre a medias (`arrow_`, `heading_`) y un widget sin padre ni trait sólo aporta los suyos.' );
 	$own = array();
 	foreach ( glob( $elements . 'modules/digitalisimo-*/**/*.php' ) ?: array() as $file ) {
-		if ( preg_match_all( "/function get_name\(\)\s*\{\s*return\s+'(digitalisimo-[a-z0-9-]+)'/", (string) file_get_contents( $file ), $m ) ) {
+		$source = (string) file_get_contents( $file );
+		if ( preg_match_all( "/function get_name\(\)\s*\{\s*return\s+'(digitalisimo-[a-z0-9-]+)'/", $source, $m ) ) {
 			$own = array_merge( $own, $m[1] );
+		}
+		// También `return self::NAME;` con `const NAME = 'digitalisimo-…';` en la misma clase.
+		if ( preg_match( '/function get_name\(\)\s*\{\s*return\s+self::NAME;/', $source ) && preg_match( "/const NAME\s*=\s*'(digitalisimo-[a-z0-9-]+)'/", $source, $m ) ) {
+			$own[] = $m[1];
 		}
 	}
 	foreach ( glob( $elements . 'modules/digitalisimo-*/*.php' ) ?: array() as $file ) {
@@ -154,14 +254,12 @@ namespace {
 	foreach ( $maps as $type => $m ) {
 		check_cv( in_array( $m['target'], $own, true ), "$type: el destino {$m['target']} no es un widget propio" );
 		check_cv( in_array( $m['status'] ?? 'draft', array( 'ready', 'draft' ), true ) && in_array( $m['panel'] ?? 'show', array( 'hide', 'show' ), true ), "$type: status o panel no válidos" );
-		$php = (string) file_get_contents( $files[ $type ] );
-		preg_match_all( "/->add_(?:responsive_)?control\(\s*'([a-z0-9_]+)'/", $php, $controls );
-		preg_match_all( "/->add_group_control\([^;]*?'name'\s*=>\s*'([a-z0-9_]+)'/s", $php, $grouped );
+		$pro_controls = pro_controls( $files[ $type ], $elements );
 		$declared = array_merge( array_keys( (array) ( $m['rename'] ?? array() ) ), (array) ( $m['keep'] ?? array() ), array_keys( (array) ( $m['groups'] ?? array() ) ), array_keys( (array) ( $m['drop'] ?? array() ) ), array_keys( (array) ( $m['approx'] ?? array() ) ), array_keys( (array) ( $m['repeaters'] ?? array() ) ), (array) ( $m['ui'] ?? array() ) );
 		foreach ( (array) ( $m['repeaters'] ?? array() ) as $spec ) {
 			$declared = array_merge( $declared, array_keys( (array) ( $spec['rename'] ?? array() ) ), (array) ( $spec['keep'] ?? array() ), array_keys( (array) ( $spec['drop'] ?? array() ) ), array_keys( (array) ( $spec['approx'] ?? array() ) ), array_keys( (array) ( $spec['groups'] ?? array() ) ) );
 		}
-		$missing = array_diff( array_unique( array_merge( $controls[1], $grouped[1] ) ), $declared );
+		$missing = array_diff( $pro_controls, $declared );
 		check_cv( ! $missing, "$type: el mapa no declara los controles " . implode( ', ', $missing ) );
 	}
 	echo 'DIGITALÍSIMO Elements: sustitución de los widgets de PRO (catálogo de ' . count( Catalog::WIDGETS ) . ', traductor, árboles, panel y ' . count( $maps ) . " mapas) validada.\n";

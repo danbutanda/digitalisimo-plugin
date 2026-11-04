@@ -28,7 +28,8 @@ defined( 'ABSPATH' ) || exit;
  * `digitalisimo-media-carousel`), y su script del editor `assets/js/<nombre sin digitalisimo->-editor.js` si existe (se
  * encola en el editor; el del carrusel anidado depende de `nested-elements`). Todo sólo se **registra** cuando el núcleo
  * registra los suyos; lo encola el núcleo por `get_style_depends()`/`get_script_depends()` de cada widget, que deben
- * devolver `array( Engine::HANDLE, '<su handle>' )`. Así, una página sin carruseles no carga nada.
+ * devolver `Module::style_depends( $this->get_name() )` y `Module::script_depends( $this->get_name() )` (el motor y lo
+ * propio que exista; `Base_Widget` ya lo hace). Así, una página sin carruseles no carga nada.
  *
  * **Registro** tolerante en `elementor/widgets/register` (20): un widget cuyo archivo falta, o que falla al cargarse, se
  * omite sin error; uno ya registrado no se registra otra vez. Los anidados (`NESTED`) sólo con el experimento

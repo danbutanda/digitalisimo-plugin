@@ -1,7 +1,7 @@
 {
  "_doc": [
   "Casos A/B del Carrusel anidado (frente N de C1): A con `nested-carousel` de PRO, B con `digitalisimo-nested-carousel`. Cada caso trae sus contenedores hijos (`elements`, una diapositiva cada uno, con fondo y título) y las filas de `carousel_items` que les corresponden. Autoplay desactivado salvo en nc-autoplay.",
-  "`actions`: `click` pulsa el selector de cada lado (`a` en PRO, `b` en el propio); `key` enfoca `focus` y pulsa la tecla. Tras cada una se comparan firma y píxeles."
+  "`actions` (formato de run.cjs): pulsar el selector de cada lado (`a` en PRO, `b` en el propio) o, con `key`, enfocarlo y teclear. Tras cada una se comparan firma y píxeles."
  ],
  "declared": [
   {
@@ -238,23 +238,20 @@
    ],
    "actions": [
     {
-     "click": {
-      "a": ".elementor-swiper-button-next",
-      "b": ".digi-crs__next"
-     }
+     "label": "flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     },
     {
-     "click": {
-      "a": ".swiper-pagination-bullet:nth-child(3)",
-      "b": ".digi-crs__dot:nth-of-type(3)"
-     }
+     "label": "punto 3",
+     "a": ".swiper-pagination-bullet:nth-child(3)",
+     "b": ".digi-crs__dot:nth-of-type(3)"
     },
     {
+     "label": "tecla → en la flecha siguiente",
      "key": "ArrowRight",
-     "focus": {
-      "a": ".elementor-swiper-button-next",
-      "b": ".digi-crs__next"
-     }
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     }
    ]
   },
@@ -442,17 +439,15 @@
    ],
    "actions": [
     {
-     "click": {
-      "a": ".elementor-swiper-button-next",
-      "b": ".digi-crs__next"
-     }
+     "label": "flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     },
     {
+     "label": "tecla → en la flecha siguiente",
      "key": "ArrowRight",
-     "focus": {
-      "a": ".elementor-swiper-button-next",
-      "b": ".digi-crs__next"
-     }
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     }
    ]
   },
@@ -725,10 +720,9 @@
    ],
    "actions": [
     {
-     "click": {
-      "a": ".elementor-swiper-button-next",
-      "b": ".digi-crs__next"
-     }
+     "label": "flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     }
    ]
   },
@@ -1023,10 +1017,9 @@
    ],
    "actions": [
     {
-     "click": {
-      "a": ".elementor-swiper-button-next",
-      "b": ".digi-crs__next"
-     }
+     "label": "flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     }
    ]
   },
@@ -1435,10 +1428,9 @@
    ],
    "actions": [
     {
-     "click": {
-      "a": ".elementor-swiper-button-next",
-      "b": ".digi-crs__next"
-     }
+     "label": "flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     }
    ]
   },
@@ -1625,17 +1617,15 @@
    ],
    "actions": [
     {
-     "click": {
-      "a": ".elementor-swiper-button-next",
-      "b": ".digi-crs__next"
-     }
+     "label": "flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     },
     {
+     "label": "tecla → en la flecha siguiente",
      "key": "ArrowRight",
-     "focus": {
-      "a": ".elementor-swiper-button-next",
-      "b": ".digi-crs__next"
-     }
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
     }
    ]
   },

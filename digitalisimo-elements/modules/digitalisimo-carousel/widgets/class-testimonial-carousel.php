@@ -28,6 +28,19 @@ defined( 'ABSPATH' ) || exit;
  */
 class Testimonial_Carousel extends Base_Widget {
 
+	/**
+	 * Variables de cada alineación: alineación del texto, dirección y reparto del pie (imagen en línea o arriba),
+	 * alineación del nombre junto a la imagen, y posición del pico de la burbuja. Cada valor fija todas: un dispositivo
+	 * nunca hereda las de otro.
+	 */
+	const ALIGNMENT = array(
+		'left'   => '--digi-t-ta:left;--digi-t-fd:row;--digi-t-jc:start;--digi-t-cta:left;--digi-t-l:var(--digi-t-al,calc(20px + 50px / 2));--digi-t-r:auto;--digi-t-x:0',
+		'center' => '--digi-t-ta:center;--digi-t-fd:row;--digi-t-jc:center;--digi-t-cta:start;--digi-t-l:50%;--digi-t-r:auto;--digi-t-x:-50%',
+		'right'  => '--digi-t-ta:right;--digi-t-fd:row-reverse;--digi-t-jc:end;--digi-t-cta:right;--digi-t-l:auto;--digi-t-r:var(--digi-t-ar,calc(20px + 50px / 2));--digi-t-x:0',
+	);
+
+	const LAYOUTS = array( 'image_inline', 'image_stacked', 'image_above', 'image_left', 'image_right' );
+
 	public function get_name() {
 		return 'digitalisimo-testimonial-carousel';
 	}
@@ -501,19 +514,6 @@ class Testimonial_Carousel extends Base_Widget {
 		$this->remove_control( 'pagination_position' );
 	}
 
-	/**
-	 * Variables de cada alineación: alineación del texto, dirección y reparto del pie (imagen en línea o arriba),
-	 * alineación del nombre junto a la imagen, y posición del pico de la burbuja. Cada valor fija todas: un dispositivo
-	 * nunca hereda las de otro.
-	 */
-	const ALIGNMENT = array(
-		'left'   => '--digi-t-ta:left;--digi-t-fd:row;--digi-t-jc:start;--digi-t-cta:left;--digi-t-l:var(--digi-t-al,calc(20px + 50px / 2));--digi-t-r:auto;--digi-t-x:0',
-		'center' => '--digi-t-ta:center;--digi-t-fd:row;--digi-t-jc:center;--digi-t-cta:start;--digi-t-l:50%;--digi-t-r:auto;--digi-t-x:-50%',
-		'right'  => '--digi-t-ta:right;--digi-t-fd:row-reverse;--digi-t-jc:end;--digi-t-cta:right;--digi-t-l:auto;--digi-t-r:var(--digi-t-ar,calc(20px + 50px / 2));--digi-t-x:0',
-	);
-
-	const LAYOUTS = array( 'image_inline', 'image_stacked', 'image_above', 'image_left', 'image_right' );
-
 	protected function add_repeater_controls( Repeater $repeater ) {
 		$repeater->add_control(
 			'content',
@@ -578,6 +578,16 @@ class Testimonial_Carousel extends Base_Widget {
 			),
 		);
 		return array( $slide, $slide, $slide );
+	}
+
+	/**
+	 * Como PRO en este widget: la paginación de puntos o de fracción reserva 40 px debajo de la pista (la hoja fija
+	 * `--digi-crs-pag-space`), y la barra de progreso va arriba sin reservar nada.
+	 */
+	protected function slider_args( array $settings ): array {
+		$args                        = parent::slider_args( $settings );
+		$args['pagination_position'] = 'progressbar' === ( $args['pagination'] ?? '' ) ? 'inside' : 'outside';
+		return $args;
 	}
 
 	protected function print_slider( ?array $settings = null ) {

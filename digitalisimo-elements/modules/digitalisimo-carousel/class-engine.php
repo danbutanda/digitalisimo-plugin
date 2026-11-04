@@ -10,17 +10,17 @@ defined( 'ABSPATH' ) || exit;
  * ```
  * section.digi-crs[.mods] aria-roledescription="carrusel" aria-label data-digi-* style="--digi-crs-speed:500ms"
  *   button.digi-crs__pause (sólo con autoplay; `hidden` hasta que el script arranca)
- *   button.digi-crs__prev  (sólo con flechas)
+ *   button.digi-crs__arrow.digi-crs__prev (sólo con flechas)
  *   div.digi-crs__pagination data-digi-dot (sólo con paginación) > button.digi-crs__dot × N | span.digi-crs__fraction
- *     > span.digi-crs__now + span.digi-crs__total | span.digi-crs__bar > span.digi-crs__fill
- *   button.digi-crs__next
+ *     > span.digi-crs__now + span.digi-crs__total | div.digi-crs__bar > div.digi-crs__fill
+ *   button.digi-crs__arrow.digi-crs__next
  *   div.digi-crs__track [dir] aria-live > .digi-crs__slide × N (role="group", aria-roledescription, aria-label «1 de N»)
  * ```
  *
  * Con una sola diapositiva no se imprimen flechas, paginación ni pausa (como PRO). Los controles van antes de la pista:
  * orden de foco, y un `querySelector( ':scope>…' )` desde la raíz nunca encuentra los de un carrusel anidado. El motor
  * trata como diapositiva cada hijo directo de `.digi-crs__track` (en el carrusel anidado, los contenedores `.e-con`,
- * con `slide_attribute_array()`).
+ * con `slide_attribute_array()`). Sin JavaScript la pista es un desplazamiento horizontal con `scroll-snap`.
  *
  * **Atributos de la raíz** (los escribe `open()`; el script los lee una vez): `data-digi-autoplay` (ms; ausente sin
  * reproducción automática), `data-digi-loop`, `data-digi-hover` (pausa con el puntero encima), `data-digi-interaction`
@@ -28,43 +28,53 @@ defined( 'ABSPATH' ) || exit;
  * `data-digi-pagination` (`bullets`|`fraction`|`progressbar`), `data-digi-sync` (`#id` del carrusel principal, en el de
  * miniaturas). `--digi-crs-speed` va en el `style` de la raíz.
  *
- * **Clases de estado que pone el script:** `digi-crs--ready` (cuando el carrusel quedó iniciado: el arnés A/B espera a que
- * no quede ningún `.digi-crs:not(.digi-crs--ready)`), `--paused`, `--locked` (todo cabe en una página: se ocultan
- * flechas, paginación y pausa, como `watchOverflow`), `--anim` (fundido tras el primer cambio), `--moving` (desplazamiento
- * programado en curso). En las diapositivas: `digi-crs__current` (la actual), `digi-crs__synced` (miniatura de la
+ * **Clases de estado que pone el script:** `digi-crs--ready` en la raíz cuando el carrusel quedó iniciado (el arnés A/B
+ * espera a que no quede ningún `.digi-crs:not(.digi-crs--ready)`), `--paused`, `--locked` (todo cabe en una página: se
+ * ocultan flechas, paginación y pausa, como `watchOverflow`), `--anim` (fundido tras el primer cambio). En las
+ * diapositivas: `digi-crs__current` (la primera visible, o la centrada), `digi-crs__synced` (en las miniaturas, la de la
  * diapositiva actual del carrusel principal) e `inert` (fuera de la ventana visible).
  *
- * **Modificadores** (args o `classes`): `digi-crs--fade`, `digi-crs--center`, `digi-crs--arrows-out` (pista 60 px más
- * estrecha y flechas en los bordes, como `arrows_position = outside`), `digi-crs--pag-out` (reserva
- * `--digi-crs-pag-space` debajo de la pista para la paginación, como `pagination_position = outside`).
+ * **Modificadores** (args o `classes`): `digi-crs--fade`, `digi-crs--center` (la actual centrada, con espacio a los
+ * lados), `digi-crs--arrows-out` (30 px a cada lado para las flechas, en el borde; `arrows_position = outside`),
+ * `digi-crs--pag-out` (reserva `--digi-crs-pag-space` debajo de la pista para la paginación;
+ * `pagination_position = outside`).
  *
- * **Variables** (cada widget las fija con `selectors`, por dispositivo, normalmente en `{{WRAPPER}}`; la hoja nunca las
- * declara en `.digi-crs`, sólo las lee con su valor por defecto, y las anula en cada `.digi-crs__slide` para que un
- * carrusel dentro de una diapositiva no herede las del de fuera). Entre paréntesis, el valor por defecto, que reproduce
- * los carruseles de PRO (`e-swiper.css` del núcleo y las hojas de PRO):
- * - Pista: `--digi-crs-view` (1, diapositivas visibles, entero), `--digi-crs-scroll` (1, diapositivas por paso),
- *   `--digi-crs-gap` (0px), `--digi-crs-offset-start` / `--digi-crs-offset-end` (0px, asomo lateral),
+ * **Variables.** Cada widget las fija con `selectors` (por dispositivo) en `{{WRAPPER}}`, o con su hoja en
+ * `.elementor-widget-<nombre>`; la hoja del motor nunca las declara, sólo las lee con su valor por defecto, que reproduce
+ * los carruseles de PRO (`e-swiper.css` del núcleo y las hojas de PRO). Como heredan, **cada hoja de widget declara en
+ * `.elementor-widget-<nombre>` las de maquetación que use** (al menos `--digi-crs-view` y `--digi-crs-gap`), para que un
+ * carrusel dentro de una diapositiva de otro no herede las del de fuera.
+ * - Pista: `--digi-crs-view` (1, diapositivas visibles, entero), `--digi-crs-scroll` (1, diapositivas por paso; lo lee
+ *   el script), `--digi-crs-gap` (0px), `--digi-crs-offset-start` / `--digi-crs-offset-end` (0px, asomo lateral),
  *   `--digi-crs-height` (auto, alto de la pista), `--digi-crs-width` (100%, ancho de la pista, centrada),
- *   `--digi-crs-align` (stretch, `align-items` de la pista), `--digi-crs-speed` (500ms).
- * - Flechas: `--digi-crs-arrow-size` (25px, tamaño del icono), `--digi-crs-arrow-color` (hsla(0,0%,93%,.9)),
- *   `--digi-crs-arrow-hover` (el color normal), `--digi-crs-focus` (currentColor, contorno del foco).
- *   Posición de la anterior (la siguiente igual con `next` y medida desde el borde final): `--digi-crs-prev-ax` (0%,
- *   alineación horizontal) + `--digi-crs-prev-px` (10px, desplazamiento) → `inset-inline-start`; `--digi-crs-prev-ay`
- *   (50%) + `--digi-crs-prev-py` (0px) − `--digi-crs-prev-cs` (la mitad de `--digi-crs-pag-space` con `--pag-out`, si
- *   no 0px) → `top`; `--digi-crs-prev-tx` (0px) y `--digi-crs-prev-ty` (-50%) → `translate`.
- * - Paginación: `--digi-crs-pag-space` (30px, reserva con `--pag-out`); posición `--digi-crs-pag-x` (50%,
- *   `inset-inline-start`), `--digi-crs-pag-y` (calc(100% - 5px), `top`), `--digi-crs-pag-tx` (-50%), `--digi-crs-pag-ty`
- *   (-100%).
+ *   `--digi-crs-align` (stretch, `align-items` de la pista: «misma altura»), `--digi-crs-speed` (500ms).
+ *   `--digi-crs-basis` la calcula la pista (ancho de cada diapositiva: `flex-basis`); sólo se lee, p. ej. para dárselo a
+ *   hijos con reglas propias más fuertes (los `.e-con` del carrusel anidado).
+ * - Flechas: `--digi-crs-arrow-size` (25px, tamaño del icono), `--digi-crs-arrow-color` (#eeeeeee6),
+ *   `--digi-crs-arrow-hover` (el color normal). Posición: `--digi-crs-prev-x` (`inset-inline-start`; 10px, 0px con
+ *   `--arrows-out`), `--digi-crs-prev-y` (`top`; 50%, o el centro de la pista con `--pag-out`), `--digi-crs-prev-t`
+ *   (`translate`; `0 -50%`), y las mismas con `next` (`inset-inline-end`). Las compone `Nested_Controls` con sus
+ *   piezas (`-ax`, `-px`, `-ay`, `-py`, `-tx`, `-ty`).
+ * - Paginación: `--digi-crs-pag-space` (30px, reserva con `--pag-out`); posición `--digi-crs-pag-x`
+ *   (`inset-inline-start`; 50%), `--digi-crs-pag-y` (`top`; calc(100% - 5px)) y `--digi-crs-pag-t` (`translate`;
+ *   -50% -100%, con `--direction-multiplier` del núcleo en RTL). Con `progressbar`, arriba y a todo el ancho.
  * - Puntos (botones de 24 × 24 px como mínimo con el punto dibujado abajo y centrado): `--digi-crs-dot-size` (6px),
- *   `--digi-crs-dot-gap` (6px, a cada lado: entre centros, máx(24px, tamaño + 2 × separación)), `--digi-crs-dot-color`
- *   (#000) con `--digi-crs-dot-opacity` (.2), `--digi-crs-dot-hover` (el color normal) con
- *   `--digi-crs-dot-hover-opacity` (la normal), `--digi-crs-dot-active` (#000, opacidad 1).
- * - Fracción: `--digi-crs-fraction-color` (el color heredado; si no, `--digi-crs-dot-active` no la toca).
- * - Barra: `--digi-crs-bar-size` (4px), `--digi-crs-bar-bg` (rgba(0,0,0,.25)), `--digi-crs-bar-color`
- *   (`--digi-crs-dot-active`), `--digi-crs-bar-hover` (el color de la barra); va arriba de la pista, como en PRO.
+ *   `--digi-crs-dot-gap` (6px a cada lado: entre centros, máx(24px, tamaño + 2 × separación)), `--digi-crs-dot-color`
+ *   (#000) con `--digi-crs-dot-opacity` (.2), `--digi-crs-dot-hover` (el color normal), `--digi-crs-dot-active` (#000,
+ *   opacidad 1).
+ * - Fracción: hereda el color y la tipografía (los controles la pintan con un selector directo).
+ * - Barra: `--digi-crs-bar-size` (4px), fondo #00000040, `--digi-crs-bar-color` (`--digi-crs-dot-active`).
  *
- * Selectores: `scope()` devuelve el de la raíz del propio widget (sin alcanzar un carrusel anidado en una diapositiva),
- * para las reglas que no son variables.
+ * **No existen** (las nombraba un borrador de esta cabecera; el motor no las lee): `--digi-crs-prev-px|ax|ay|py|cs|tx|ty`,
+ * `--digi-crs-next-…`, `--digi-crs-pag-ax|ox|ay|oy|tx|ty` (sólo piezas que componen `Nested_Controls`; para mover las
+ * flechas o la paginación se fijan `--digi-crs-prev-x|y|t`, `--digi-crs-next-x|y|t` y `--digi-crs-pag-x|y|t`),
+ * `--digi-crs-dot-hover-opacity`, `--digi-crs-fraction-color`, `--digi-crs-bar-bg`, `--digi-crs-bar-hover` y
+ * `--digi-crs-focus`. `--digi-crs-fraction-size` la escribe la tipografía de la fracción de `Nested_Controls`, pero el
+ * motor no la lee.
+ *
+ * Foco visible: contorno de 2 px con 2 px de separación en el color del botón. Selectores: `scope()` devuelve el de la
+ * raíz del propio widget (sin alcanzar un carrusel anidado en una diapositiva), para las reglas que no son variables.
+ * Los iconos propios de las flechas se invierten en RTL (como PRO, con `is_rtl()`).
  */
 final class Engine {
 	const HANDLE = 'digitalisimo-carousel';
@@ -75,7 +85,11 @@ final class Engine {
 	/** Iconos propios por defecto: los mismos trazos que el chevron de la biblioteca de iconos del núcleo. */
 	const ICON_PREV  = '<svg class="digi-crs__icon" viewBox="0 0 1000 1000" aria-hidden="true" focusable="false"><path d="M646 125C629 125 613 133 604 142L308 442C296 454 292 471 292 487 292 504 296 521 308 533L604 854C617 867 629 875 646 875 663 875 679 871 692 858 704 846 713 829 713 812 713 796 708 779 692 767L438 487 692 225C700 217 708 204 708 187 708 171 704 154 692 142 675 129 663 125 646 125Z"/></svg>';
 	const ICON_NEXT  = '<svg class="digi-crs__icon" viewBox="0 0 1000 1000" aria-hidden="true" focusable="false"><path d="M696 533C708 521 713 504 713 487 713 471 708 454 696 446L400 146C388 133 375 125 354 125 338 125 325 129 313 142 300 154 292 171 292 187 292 204 296 221 308 233L563 492 304 771C292 783 288 800 288 817 288 833 296 850 308 863 321 871 338 875 354 875 371 875 388 867 400 854L696 533Z"/></svg>';
-	const ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="digi-crs__i-pause" d="M7 5h4v14H7zm6 0h4v14h-4z"/><path class="digi-crs__i-play" d="M8 5v14l11-7z"/></svg>';
+	const ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>';
+
+	/** Trazos de los iconos Pausar y Reanudar del botón de pausa (el script cambia el `d` del trazo; `PATH_PLAY` está repetido en `carousel.js`). */
+	const PATH_PAUSE = 'M7 5h4v14H7zm6 0h4v14h-4z';
+	const PATH_PLAY  = 'M8 5v14l11-7z';
 
 	/** Valores por defecto de `open()`. */
 	const DEFAULTS = array(
@@ -119,6 +133,7 @@ final class Engine {
 		$fx    = in_array( $a['effect'], self::EFFECTS, true ) ? $a['effect'] : 'slide';
 		$pag   = in_array( $a['pagination'], self::PAGINATIONS, true ) ? $a['pagination'] : '';
 		$label = trim( (string) $a['label'] );
+		$rtl   = function_exists( 'is_rtl' ) && is_rtl();
 
 		$classes = array( 'digi-crs' );
 		if ( 'fade' === $fx ) {
@@ -179,7 +194,7 @@ final class Engine {
 			$html .= '<button type="button" class="digi-crs__pause" data-digi-pause="' . esc_attr( $pause ) . '" data-digi-play="' . esc_attr__( 'Reanudar', 'pro-elements' ) . '" aria-label="' . esc_attr( $pause ) . '" hidden>' . self::ICON_PAUSE . '</button>';
 		}
 		if ( $many && $a['arrows'] ) {
-			$html .= '<button type="button" class="digi-crs__prev" aria-label="' . esc_attr__( 'Diapositiva anterior', 'pro-elements' ) . '">' . ( null === $a['prev'] ? self::ICON_PREV : (string) $a['prev'] ) . '</button>';
+			$html .= '<button type="button" class="digi-crs__arrow digi-crs__prev" aria-label="' . esc_attr__( 'Diapositiva anterior', 'pro-elements' ) . '">' . ( null === $a['prev'] ? ( $rtl ? self::ICON_NEXT : self::ICON_PREV ) : (string) $a['prev'] ) . '</button>';
 		}
 		if ( $many && $pag ) {
 			/* translators: %d: número de la diapositiva. */
@@ -192,12 +207,12 @@ final class Engine {
 			} elseif ( 'fraction' === $pag ) {
 				$html .= '<span class="digi-crs__fraction"><span class="digi-crs__now">1</span> / <span class="digi-crs__total">' . $count . '</span></span>';
 			} else {
-				$html .= '<span class="digi-crs__bar" aria-hidden="true"><span class="digi-crs__fill"></span></span>';
+				$html .= '<div class="digi-crs__bar" aria-hidden="true"><div class="digi-crs__fill"></div></div>';
 			}
 			$html .= '</div>';
 		}
 		if ( $many && $a['arrows'] ) {
-			$html .= '<button type="button" class="digi-crs__next" aria-label="' . esc_attr__( 'Diapositiva siguiente', 'pro-elements' ) . '">' . ( null === $a['next'] ? self::ICON_NEXT : (string) $a['next'] ) . '</button>';
+			$html .= '<button type="button" class="digi-crs__arrow digi-crs__next" aria-label="' . esc_attr__( 'Diapositiva siguiente', 'pro-elements' ) . '">' . ( null === $a['next'] ? ( $rtl ? self::ICON_PREV : self::ICON_NEXT ) : (string) $a['next'] ) . '</button>';
 		}
 		$track = array( 'class' => 'digi-crs__track', 'aria-live' => $delay ? 'off' : 'polite' );
 		if ( in_array( $a['dir'], array( 'ltr', 'rtl' ), true ) ) {

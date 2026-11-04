@@ -12,12 +12,16 @@ defined( 'ABSPATH' ) || exit;
  * `{{CURRENT_ITEM}}`), y pinta sobre el motor propio `digi-crs` (`Engine`): sin Swiper, sin jQuery y sin los paquetes
  * de PRO. Controles y estructura derivados de PRO Elements (GPL); el marcado, las clases y la hoja son propios.
  *
- * - Fondo por diapositiva: color, imagen (un `<img>` de `Image_Markup`, con las decisiones de carga de WordPress, así la
+ * - Fondo por diapositiva: color, imagen (una etiqueta `img` de `Image_Markup`, con las decisiones de carga de WordPress, así la
  *   imagen de la primera diapositiva es descubrible y no retrasa el LCP como un fondo CSS), su ajuste (`object-fit`),
  *   Ken Burns con su dirección y superposición con color y mezcla.
- * - La animación del contenido y Ken Burns van sólo con CSS sobre el estado que pone el motor (`inert` en las
- *   diapositivas fuera de la vista): el contenido de la diapositiva que entra aparece con la animación elegida cuando
- *   termina la transición, como en PRO; la inicial no se anima (tampoco en PRO) y no retrasa el LCP.
+ * - Ken Burns va sólo con CSS sobre la diapositiva actual que marca el motor (`digi-crs__current`). La animación del
+ *   contenido la da `assets/js/slides.js` (748 B, sin dependencias): con cada `digi-crs-change` oculta el contenido
+ *   (`digi-slides--out`) y, al terminar la transición (`--digi-crs-speed`), lo deja entrar con la animación elegida, que
+ *   es una transición CSS. Como en PRO, la diapositiva inicial no se anima (y no retrasa el LCP) y el contenido de las
+ *   demás queda pintado fuera de la vista; con movimiento reducido no se oculta nada.
+ * - Los botones usan las clases del núcleo `elementor-button` y `elementor-size-*` (no son de PRO): así reciben los
+ *   estilos de botón del kit del sitio, como en PRO.
  * - El rasgo «Plantilla en lugar del texto» (`Slides_Templates`, campo `digitalisimo_template_id`) con las mismas reglas
  *   que en el widget de PRO: una plantilla publicada ocupa el lugar de la descripción.
  * - Sin plantilla JS del editor: el editor pinta lo mismo que el servidor (y así muestra las plantillas de cada
@@ -35,7 +39,7 @@ class Slides extends \Elementor\Widget_Base {
 	public function get_categories() { return array( 'digitalisimo' ); }
 	public function get_keywords() { return array( 'diapositivas', 'slides', 'carrusel', 'carousel', 'slider', 'imagen', 'título' ); }
 	public function get_style_depends() { return array( Engine::HANDLE, 'digitalisimo-slides' ); }
-	public function get_script_depends() { return array( Engine::HANDLE ); } // Sin script propio: la animación es CSS.
+	public function get_script_depends() { return array( Engine::HANDLE, 'digitalisimo-slides' ); }
 
 	/** Tamaños del botón (los del núcleo: `elementor-size-*`). */
 	public static function get_button_sizes() {
@@ -75,7 +79,7 @@ class Slides extends \Elementor\Widget_Base {
 		$repeater->start_controls_tabs( 'slides_repeater' );
 		$repeater->start_controls_tab( 'background', array( 'label' => 'Fondo' ) );
 		$repeater->add_control( 'background_color', array( 'label' => 'Color', 'type' => $c::COLOR, 'default' => '#bbbbbb', 'selectors' => array( '{{WRAPPER}} {{CURRENT_ITEM}} .digi-slides__bg' => 'background-color: {{VALUE}}' ) ) );
-		// La imagen se pinta como <img> (no como fondo CSS): sin `selectors`, para no descargarla dos veces.
+		// La imagen se pinta como etiqueta `img` (no como fondo CSS): sin `selectors`, para no descargarla dos veces.
 		$repeater->add_control( 'background_image', array( 'label' => 'Imagen', 'type' => $c::MEDIA, 'default' => array( 'url' => '' ) ) );
 		$repeater->add_control(
 			'background_size',
@@ -366,9 +370,10 @@ class Slides extends \Elementor\Widget_Base {
 			$inner .= '<' . $tag . ' class="' . esc_attr( $button ) . '"' . ( $on_button ? ' ' . $link_attrs : '' ) . '>' . wp_kses_post( (string) $slide['button_text'] ) . '</' . $tag . '>';
 		}
 		$wrap = $on_slide ? 'a' : 'div';
-		$id   = (string) ( $slide['_id'] ?? '' );
+		// Como PRO, la clase de `{{CURRENT_ITEM}}` va siempre (también en una fila sin `_id`, que el núcleo pinta igual).
+		$id = (string) ( $slide['_id'] ?? '' );
 
-		return '<div ' . Engine::slide_attributes( $index, $count, 'digi-slides__slide' . ( '' !== $id ? ' elementor-repeater-item-' . sanitize_html_class( $id ) : '' ) ) . '>'
+		return '<div ' . Engine::slide_attributes( $index, $count, 'digi-slides__slide elementor-repeater-item-' . sanitize_html_class( $id ) ) . '>'
 			. '<div class="' . $bg . '">' . $img . '</div>'
 			. ( 'yes' === ( $slide['background_overlay'] ?? '' ) ? '<div class="digi-slides__overlay"></div>' : '' )
 			. '<' . $wrap . ' class="digi-slides__inner"' . ( $on_slide ? ' ' . $link_attrs : '' ) . '><div class="digi-slides__contents">' . $inner . '</div></' . $wrap . '>'

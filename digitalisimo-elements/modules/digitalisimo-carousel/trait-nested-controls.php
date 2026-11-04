@@ -20,9 +20,14 @@ defined( 'ABSPATH' ) || exit;
  *
  * Lo propio: textos; selectores sobre las variables de `Engine` (documentadas en su cabecera) en `{{WRAPPER}}`, o sobre
  * `Engine::scope()` para las reglas directas; sin `prefix_class` (las posiciones son modificadores de la raíz, que pone
- * `carousel_args()`), y `css_prefix` se acepta pero no se usa. Los valores por defecto de las hojas de PRO que no salen
- * de un control (p. ej. el desplazamiento de 15 px de las flechas del carrusel anidado, `--digi-crs-prev-cs`, o
- * `--digi-crs-align: flex-start` cuando «Misma altura» está apagado) los pone la hoja de cada widget.
+ * `carousel_args()`), y `css_prefix` se acepta pero no se usa. Las posiciones de flechas y paginación las componen los
+ * diccionarios (`arrow_x()`, `arrow_y()`, `pagination_x()`, `pagination_y()`) en `--digi-crs-prev-x|y|t`,
+ * `--digi-crs-next-x|y|t` y `--digi-crs-pag-x|y|t`, con los valores de PRO (también su margen de 15 px de las flechas).
+ * Los valores por defecto de las hojas de PRO que no salen de un control los pone la hoja de cada widget en
+ * `.elementor-widget-<nombre>`: en el carrusel anidado, p. ej., `--digi-crs-view: 3`, `--digi-crs-gap: 10px`,
+ * `--digi-crs-pag-space` (tamaño + 10 px), `--digi-crs-pag-y: 100%` (puntos sin posición personalizada),
+ * `--digi-crs-arrow-color`, los colores #000 de puntos, fracción y barra, la opacidad 1 del punto con el puntero encima
+ * y `--digi-crs-align: flex-start` cuando «Misma altura» está apagado (el control sólo escribe `stretch` encendido).
  *
  * `carousel_args( array $settings ): array` devuelve los argumentos de `Engine::open()`: nombre (`carousel_name`),
  * diapositivas (`$this->num_of_carousel_items`, que fija el widget antes de pintar), reproducción automática, bucle
@@ -380,13 +385,13 @@ trait Nested_Controls {
 					'{{WRAPPER}}' => '{{VALUE}}',
 				),
 				'selectors_dictionary' => $prev ? array(
-					'start'  => '--digi-crs-prev-ax: 0%; --digi-crs-prev-tx: 0px;',
-					'center' => '--digi-crs-prev-ax: 50%; --digi-crs-prev-tx: -50%;',
-					'end'    => '--digi-crs-prev-ax: 100%; --digi-crs-prev-tx: -100%;',
+					'start'  => self::arrow_x( 'prev', '0%', '0px' ),
+					'center' => self::arrow_x( 'prev', '50%', '-50%' ),
+					'end'    => self::arrow_x( 'prev', '100%', '-100%' ),
 				) : array(
-					'start'  => '--digi-crs-next-ax: 100%; --digi-crs-next-tx: 100%;',
-					'center' => '--digi-crs-next-ax: 50%; --digi-crs-next-tx: 50%;',
-					'end'    => '--digi-crs-next-ax: 0%; --digi-crs-next-tx: 0%;',
+					'start'  => self::arrow_x( 'next', '100%', '100%' ),
+					'center' => self::arrow_x( 'next', '50%', '50%' ),
+					'end'    => self::arrow_x( 'next', '0%', '0%' ),
 				),
 				'condition'            => $on,
 			)
@@ -428,9 +433,9 @@ trait Nested_Controls {
 					'{{WRAPPER}}' => '{{VALUE}}',
 				),
 				'selectors_dictionary' => array(
-					'start'  => '--digi-crs-' . $v . '-ay: 0%; --digi-crs-' . $v . '-cs: 0px; --digi-crs-' . $v . '-ty: 0px;',
-					'center' => '--digi-crs-' . $v . '-ay: 50%; --digi-crs-' . $v . '-ty: -50%;',
-					'end'    => '--digi-crs-' . $v . '-ay: 100%; --digi-crs-' . $v . '-ty: -100%;',
+					'start'  => self::arrow_y( $v, '0%', '0px', '0px' ),
+					'center' => self::arrow_y( $v, '50%', '-50%', '15px' ),
+					'end'    => self::arrow_y( $v, '100%', '-100%', '15px' ),
 				),
 				'condition'            => $on,
 			)
@@ -826,7 +831,7 @@ trait Nested_Controls {
 				'label'     => esc_html__( 'Color', 'pro-elements' ),
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => array(
-					'{{WRAPPER}}' => '--digi-crs-fraction-color: {{VALUE}};',
+					Engine::scope( ' > .digi-crs__pagination' ) => 'color: {{VALUE}};',
 				),
 				'condition' => array(
 					'pagination' => 'fraction',
@@ -972,7 +977,7 @@ trait Nested_Controls {
 				'label'     => esc_html__( 'Color', 'pro-elements' ),
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => array(
-					'{{WRAPPER}}' => '--digi-crs-bar-hover: {{VALUE}};',
+					Engine::scope( ' > .digi-crs__pagination .digi-crs__bar:hover > .digi-crs__fill' ) => 'background: {{VALUE}};',
 				),
 				'condition' => array(
 					'pagination' => 'progressbar',
@@ -1158,9 +1163,9 @@ trait Nested_Controls {
 					'{{WRAPPER}}' => '{{VALUE}}',
 				),
 				'selectors_dictionary' => array(
-					'start'  => '--digi-crs-pag-ax: 0px; --digi-crs-pag-tx: 0%;',
-					'center' => '--digi-crs-pag-ax: 50%; --digi-crs-pag-tx: -50%;',
-					'end'    => '--digi-crs-pag-ax: 100%; --digi-crs-pag-tx: -100%;',
+					'start'  => self::pagination_x( '0px', '0%' ),
+					'center' => self::pagination_x( '50%', '-50%' ),
+					'end'    => self::pagination_x( '100%', '-100%' ),
 				),
 				'condition'            => array(
 					$pagination_type_custom_position_switcher => 'yes',
@@ -1211,9 +1216,9 @@ trait Nested_Controls {
 					'{{WRAPPER}}' => '{{VALUE}}',
 				),
 				'selectors_dictionary' => array(
-					'start'  => '--digi-crs-pag-ay: 0%; --digi-crs-pag-ty: 0%;',
-					'center' => '--digi-crs-pag-ay: 50%; --digi-crs-pag-ty: -50%;',
-					'end'    => '--digi-crs-pag-ay: 100%; --digi-crs-pag-ty: -100%;',
+					'start'  => self::pagination_y( '0%', '0%' ),
+					'center' => self::pagination_y( '50%', '-50%' ),
+					'end'    => self::pagination_y( '100%', '-100%' ),
 				),
 				'condition'            => array(
 					$pagination_type_custom_position_switcher => 'yes',
@@ -1241,6 +1246,32 @@ trait Nested_Controls {
 				)
 			)
 		);
+	}
+
+	/**
+	 * Posición horizontal de una flecha (`prev` o `next`): alineación + desplazamiento (`--digi-crs-<v>-px`, del
+	 * control de posición) en `--digi-crs-<v>-x`, y la traslación horizontal, con la vertical, en `--digi-crs-<v>-t`
+	 * (con `--direction-multiplier` del núcleo en RTL). Mismos valores que los `selectors_dictionary` de PRO.
+	 */
+	private static function arrow_x( string $v, string $align, string $translate ): string {
+		$p = '--digi-crs-' . $v;
+		return "$p-tx: $translate; $p-x: calc($align + var($p-px, 0px)); $p-t: calc(var($p-tx) * var(--direction-multiplier, 1)) var($p-ty, -50%);";
+	}
+
+	/** Posición vertical de una flecha: alineación + desplazamiento − el margen de 15 px de PRO (0 arriba). */
+	private static function arrow_y( string $v, string $align, string $translate, string $caption ): string {
+		$p = '--digi-crs-' . $v;
+		return "$p-ty: $translate; $p-y: calc($align + var($p-py, 0px) - $caption); $p-t: calc(var($p-tx, 0px) * var(--direction-multiplier, 1)) var($p-ty);";
+	}
+
+	/** Posición horizontal de la paginación personalizada (puntos o fracción). */
+	private static function pagination_x( string $align, string $translate ): string {
+		return "--digi-crs-pag-tx: $translate; --digi-crs-pag-x: calc($align + var(--digi-crs-pag-ox, 0px)); --digi-crs-pag-t: calc(var(--digi-crs-pag-tx) * var(--direction-multiplier, 1)) var(--digi-crs-pag-ty, -100%);";
+	}
+
+	/** Posición vertical de la paginación personalizada. */
+	private static function pagination_y( string $align, string $translate ): string {
+		return "--digi-crs-pag-ty: $translate; --digi-crs-pag-y: calc($align + var(--digi-crs-pag-oy, 0px)); --digi-crs-pag-t: calc(var(--digi-crs-pag-tx, -50%) * var(--direction-multiplier, 1)) var(--digi-crs-pag-ty);";
 	}
 
 	/** Opciones de orientación vertical (inicio, centro y final). */

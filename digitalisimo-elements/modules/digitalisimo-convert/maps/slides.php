@@ -10,7 +10,7 @@
  *
  * Diferencias que no son de clave (no generan código): el ajuste «Automático» del fondo (`background_size = auto`) se
  * pinta con `object-fit: none` sobre la imagen servida por `srcset`, que puede no ser la original completa; el contenido
- * de la primera diapositiva no se anima al cargar (en PRO tampoco, salvo con una sola diapositiva) y la flecha, los puntos
+ * de una diapositiva única no se anima al cargar (en PRO, sí) y la flecha, los puntos
  * y el botón de pausa son los del motor `digi-crs` (`_carousel-classes.php`).
  */
 defined( 'ABSPATH' ) || exit;
@@ -156,7 +156,7 @@ return array(
 	),
 	'approx'    => array(
 		'infinite'          => 'El bucle rebobina al llegar al final o al principio, sin clonar diapositivas como hacía PRO.',
-		'content_animation' => 'La animación del contenido es una transición CSS al entrar la diapositiva (la de «Zoom», sin su fase intermedia), y una diapositiva única no se anima al cargar.',
+		'content_animation' => 'La animación del contenido es una transición CSS al terminar el cambio de diapositiva (la de «Zoom», sin su fase intermedia), y una diapositiva única no se anima al cargar.',
 	),
 	// Encabezados del panel: no guardan valor.
 	'ui'        => array( 'heading_style_arrows', 'heading_style_dots' ),

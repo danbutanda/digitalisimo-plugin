@@ -567,7 +567,8 @@ abstract class Base_Widget extends \Elementor\Widget_Base {
 				'label'        => esc_html__( 'Color activo', 'pro-elements' ),
 				'type'         => Controls_Manager::COLOR,
 				'selectors'    => array(
-					'{{WRAPPER}}' => '--digi-crs-dot-active: {{VALUE}}; --digi-crs-fraction-color: {{VALUE}};',
+					'{{WRAPPER}}' => '--digi-crs-dot-active: {{VALUE}};',
+					'{{WRAPPER}} .digi-crs__fraction' => 'color: {{VALUE}}',
 				),
 				'condition'    => array(
 					'pagination!' => '',

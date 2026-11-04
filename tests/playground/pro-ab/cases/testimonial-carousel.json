@@ -1,0 +1,630 @@
+{
+ "_doc": [
+  "Casos A/B del Carrusel de testimonios (frente T de C1): A con `testimonial-carousel` de PRO, B con `digitalisimo-testimonial-carousel`. Imágenes de prueba con `{\"$image\": n}` (setup.php). Autoplay desactivado salvo en tc-autoplay."
+ ],
+ "declared": [
+  {
+   "widget": "testimonial-carousel",
+   "kind": "nombre",
+   "match": "Diapositiva (anterior|siguiente)|Ir a la diapositiva|Previous|Next|Go to slide|Pausar|Reanudar|carrusel|diapositiva|carousel|slide|\\d+ de \\d+|\\d+ / \\d+",
+   "reason": "Nombres accesibles propios de flechas, puntos, pausa, carrusel y diapositivas, en español (PRO usaba los textos de Swiper)."
+  },
+  {
+   "widget": "testimonial-carousel",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de flechas, puntos y enlaces (contorno de 2 px)."
+  },
+  {
+   "widget": "testimonial-carousel",
+   "kind": "imagen",
+   "match": "srcset|sizes|loading|decoding|width|height",
+   "reason": "La imagen se pinta con wp_get_attachment_image() (srcset, tamaños, carga nativa) en lugar de un <img> con sólo src."
+  }
+ ],
+ "cases": {
+  "tc-defaults": {
+   "title": "Valores por defecto: tres testimonios de muestra, piel predeterminada, imagen en línea, centrado, flechas y puntos",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": ""
+   }
+  },
+  "tc-images": {
+   "title": "Cuatro testimonios con imágenes del sitio, dos visibles en escritorio y uno en móvil, con navegación",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "slides_per_view": "2",
+    "slides_per_view_tablet": "1",
+    "slides_per_view_mobile": "1",
+    "space_between": {
+     "unit": "px",
+     "size": 20
+    },
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "tc04",
+      "content": "Testimonio número 4: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 4",
+      "title": "Cargo 4",
+      "image": {
+       "$image": 4
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    },
+    {
+     "label": "Segundo punto",
+     "a": ".swiper-pagination-bullet:nth-child(2)",
+     "b": ".digi-crs__dot:nth-of-type(2)"
+    },
+    {
+     "label": "Flecha derecha del teclado",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "key": "ArrowRight"
+    }
+   ]
+  },
+  "tc-stacked-left": {
+   "title": "Imagen apilada, alineada a la izquierda, con borde y radio de la imagen y colores del texto",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "layout": "image_stacked",
+    "alignment": "left",
+    "image_border": "yes",
+    "image_border_color": "#ff0000",
+    "image_border_width": {
+     "unit": "px",
+     "size": 2
+    },
+    "image_border_radius": {
+     "unit": "px",
+     "size": 6
+    },
+    "content_color": "#333333",
+    "name_color": "#111111",
+    "title_color": "#0055aa",
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   }
+  },
+  "tc-above-right": {
+   "title": "Imagen arriba, alineada a la derecha, separación del contenido y de la imagen",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "layout": "image_above",
+    "alignment": "right",
+    "content_gap": {
+     "unit": "px",
+     "size": 30
+    },
+    "image_gap": {
+     "unit": "px",
+     "size": 12
+    },
+    "image_size": {
+     "unit": "px",
+     "size": 70
+    },
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   }
+  },
+  "tc-left": {
+   "title": "Imagen a la izquierda (el nombre va con el texto) y relleno de la diapositiva",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "layout": "image_left",
+    "slide_padding": {
+     "unit": "px",
+     "top": "30",
+     "right": "30",
+     "bottom": "30",
+     "left": "30",
+     "isLinked": true
+    },
+    "slide_background_color": "#f4f4f4",
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   }
+  },
+  "tc-right": {
+   "title": "Imagen a la derecha, sin flechas y paginación de fracción",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "layout": "image_right",
+    "show_arrows": "",
+    "pagination": "fraction",
+    "pagination_color": "#cc0000",
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   }
+  },
+  "tc-bubble": {
+   "title": "Piel burbuja centrada con fondo, borde y radio",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "bubble",
+    "background_color": "#eef3ff",
+    "border": "yes",
+    "border_color": "#3355aa",
+    "border_width": {
+     "unit": "px",
+     "size": 2
+    },
+    "border_radius": {
+     "unit": "px",
+     "top": "10",
+     "right": "10",
+     "bottom": "10",
+     "left": "10",
+     "isLinked": true
+    },
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   }
+  },
+  "tc-bubble-left": {
+   "title": "Piel burbuja alineada a la izquierda con tamaño de imagen y relleno propios (el pico sigue a la imagen)",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "bubble",
+    "alignment": "left",
+    "text_padding": {
+     "unit": "px",
+     "top": "24",
+     "right": "24",
+     "bottom": "24",
+     "left": "24",
+     "isLinked": true
+    },
+    "image_size": {
+     "unit": "px",
+     "size": 64
+    },
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   }
+  },
+  "tc-bubble-right": {
+   "title": "Piel burbuja alineada a la derecha (diferencia declarada: el pico apunta a la imagen)",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "bubble",
+    "alignment": "right",
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   },
+   "declared": [
+    {
+     "kind": "caja",
+     "match": "left|right|inset",
+     "reason": "Con la burbuja alineada a la derecha, el pico apunta a la imagen; PRO lo dejaba a la izquierda salvo que se fijara el tamaño de la imagen."
+    }
+   ],
+   "pixels": {
+    "max": 0.03,
+    "reason": "Pico de la burbuja (14 px) bajo la imagen, a la derecha, en lugar de a la izquierda como PRO."
+   }
+  },
+  "tc-bubble-image-left": {
+   "title": "Piel burbuja con la disposición «imagen a la izquierda» (el pico apunta a la imagen; el nombre va junto a ella)",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "bubble",
+    "layout": "image_left",
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   }
+  },
+  "tc-responsive": {
+   "title": "Alineación por dispositivo: izquierda en escritorio, centro en tableta, derecha en móvil; tipografía del texto por dispositivo",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "alignment": "left",
+    "alignment_tablet": "center",
+    "alignment_mobile": "right",
+    "content_typography_typography": "custom",
+    "content_typography_font_size": {
+     "unit": "px",
+     "size": 20
+    },
+    "content_typography_font_size_mobile": {
+     "unit": "px",
+     "size": 15
+    },
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   }
+  },
+  "tc-progress": {
+   "title": "Barra de progreso arriba (sin reserva debajo) y ancho del 80 %",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "",
+    "pagination": "progressbar",
+    "width": {
+     "unit": "%",
+     "size": 80
+    },
+    "arrows_color": "#222222",
+    "arrows_size": {
+     "unit": "px",
+     "size": 28
+    },
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next"
+    }
+   ]
+  },
+  "tc-autoplay": {
+   "title": "Reproducción automática (B añade el botón Pausar, WCAG 2.2.2)",
+   "widget": "testimonial-carousel",
+   "settings": {
+    "autoplay": "yes",
+    "autoplay_speed": 60000,
+    "slides": [
+     {
+      "_id": "tc01",
+      "content": "Testimonio número 1: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 1",
+      "title": "Cargo 1",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "tc02",
+      "content": "Testimonio número 2: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 2",
+      "title": "Cargo 2",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "tc03",
+      "content": "Testimonio número 3: el equipo resolvió todo a tiempo y con mucha claridad.",
+      "name": "Persona 3",
+      "title": "Cargo 3",
+      "image": {
+       "$image": 3
+      }
+     }
+    ]
+   },
+   "interact": false,
+   "declared": [
+    {
+     "kind": "interacción",
+     "match": "Pausar|Reanudar|digi-crs__pause",
+     "reason": "Botón Pausar/Reanudar siempre que hay reproducción automática (WCAG 2.2.2); PRO no lo tenía."
+    }
+   ],
+   "pixels": {
+    "max": 0.03,
+    "reason": "Botón Pausar (28 px) en la esquina superior derecha, que PRO no tenía."
+   }
+  }
+ }
+}

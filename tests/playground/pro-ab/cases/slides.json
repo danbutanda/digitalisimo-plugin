@@ -1,0 +1,769 @@
+{
+ "_doc": [
+  "Casos A/B de las Diapositivas (frente S de C1): A con `slides` de PRO, B con `digitalisimo-slides`. Autoplay desactivado salvo en sl-autoplay. Las acciones esperan 2,2 s: la transición (0,5 s) más la animación del contenido (1,25 s) en los dos lados.",
+  "Imágenes de prueba con `{\"$image\": n}` (setup.php). Ken Burns va en un caso propio con umbral de píxeles mayor: es un zoom lineal de 20 s."
+ ],
+ "declared": [
+  {
+   "widget": "slides",
+   "kind": "nombre",
+   "match": "Diapositiva (anterior|siguiente)|Ir a la diapositiva|Previous|Next|Go to slide",
+   "reason": "Nombres accesibles propios de flechas y puntos, en español (PRO usaba los textos de Swiper)."
+  },
+  {
+   "widget": "slides",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio de flechas, puntos, botón y diapositiva enlazada (contorno de 2 px)."
+  },
+  {
+   "widget": "slides",
+   "kind": "hover",
+   "match": ".*",
+   "reason": "El primer control del widget propio es la flecha anterior (los controles van antes de la pista); en PRO, la primera diapositiva enlazada o la flecha."
+  }
+ ],
+ "cases": {
+  "sl-defaults": {
+   "title": "Valores por defecto con tres diapositivas de color, flechas, puntos y bucle; sin autoplay",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    },
+    {
+     "label": "Tercer punto",
+     "a": ".swiper-pagination-bullet:nth-child(3)",
+     "b": ".digi-crs__dot:nth-of-type(3)",
+     "wait": 2200
+    },
+    {
+     "label": "Flecha derecha del teclado",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "key": "ArrowRight",
+     "wait": 2200
+    }
+   ]
+  },
+  "sl-default-rows": {
+   "title": "Sin repetidor guardado: las tres diapositivas por defecto de PRO; sin autoplay",
+   "widget": "slides",
+   "settings": {
+    "autoplay": ""
+   }
+  },
+  "sl-images": {
+   "title": "Fondos con imagen de Medios (la primera, candidata a LCP), ajuste «contener» y superposición con mezcla; sin Ken Burns",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Con imagen",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#222222",
+      "background_image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "sl02",
+      "heading": "Imagen contenida",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#333333",
+      "background_image": {
+       "$image": 2
+      },
+      "background_size": "contain"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Con superposición",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#444444",
+      "background_image": {
+       "$image": 3
+      },
+      "background_overlay": "yes",
+      "background_overlay_color": "rgba(20,40,160,0.55)",
+      "background_overlay_blend_mode": "multiply"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    },
+    {
+     "label": "Flecha siguiente otra vez",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    }
+   ],
+   "declared": [
+    {
+     "kind": "imagen",
+     "match": ".*",
+     "reason": "El fondo es un <img> de Medios con su texto alternativo y las decisiones de carga de WordPress (descubrible para el LCP), no un <div role=\"img\"> con fondo CSS y aria-label."
+    }
+   ]
+  },
+  "sl-kenburns": {
+   "title": "Ken Burns hacia dentro y hacia fuera",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Acercar",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#222222",
+      "background_image": {
+       "$image": 4
+      },
+      "background_ken_burns": "yes",
+      "zoom_direction": "in"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Alejar",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#333333",
+      "background_image": {
+       "$image": 5
+      },
+      "background_ken_burns": "yes",
+      "zoom_direction": "out"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    }
+   ],
+   "pixels": {
+    "max": 0.35,
+    "reason": "Ken Burns es un zoom lineal de 20 s: el fotograma capturado depende del instante en que arrancó en cada página."
+   },
+   "declared": [
+    {
+     "kind": "imagen",
+     "match": ".*",
+     "reason": "El fondo es un <img> de Medios con su texto alternativo, no un <div role=\"img\"> con fondo CSS."
+    }
+   ]
+  },
+  "sl-content": {
+   "title": "Contenido: etiquetas h2 y p, enlace en toda la diapositiva o sólo en el botón, estilo propio por diapositiva y estilos del widget",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "slides_title_tag": "h2",
+    "slides_description_tag": "p",
+    "slides_height": {
+     "unit": "px",
+     "size": 460,
+     "sizes": []
+    },
+    "content_max_width": {
+     "unit": "px",
+     "size": 520,
+     "sizes": []
+    },
+    "slides_padding": {
+     "unit": "px",
+     "top": "40",
+     "right": "60",
+     "bottom": "40",
+     "left": "60",
+     "isLinked": false
+    },
+    "slides_horizontal_position": "left",
+    "slides_vertical_position": "bottom",
+    "slides_text_align": "start",
+    "text_shadow_text_shadow_type": "yes",
+    "text_shadow_text_shadow": {
+     "horizontal": 1,
+     "vertical": 1,
+     "blur": 3,
+     "color": "rgba(0,0,0,0.6)"
+    },
+    "heading_spacing": {
+     "unit": "px",
+     "size": 14,
+     "sizes": []
+    },
+    "heading_color": "#FFE9A8",
+    "heading_typography_typography": "custom",
+    "heading_typography_font_size": {
+     "unit": "px",
+     "size": 42,
+     "sizes": []
+    },
+    "heading_typography_font_weight": "800",
+    "description_spacing": {
+     "unit": "px",
+     "size": 22,
+     "sizes": []
+    },
+    "description_color": "#F1F1F1",
+    "description_typography_typography": "custom",
+    "description_typography_font_size": {
+     "unit": "px",
+     "size": 18,
+     "sizes": []
+    },
+    "button_size": "md",
+    "button_border_width": {
+     "unit": "px",
+     "size": 3,
+     "sizes": []
+    },
+    "button_border_radius": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    },
+    "button_text_color": "#111111",
+    "button_background_background": "classic",
+    "button_background_color": "#FFFFFF",
+    "button_border_color": "#FFFFFF",
+    "button_hover_text_color": "#FFFFFF",
+    "button_hover_background_background": "classic",
+    "button_hover_background_color": "#C0392B",
+    "button_hover_border_color": "#C0392B",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Diapositiva enlazada",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#2C3E50",
+      "link": {
+       "url": "https://example.com/uno",
+       "is_external": "",
+       "nofollow": "",
+       "custom_attributes": ""
+      },
+      "link_click": "slide"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Botón enlazado",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#8E44AD",
+      "link": {
+       "url": "https://example.com/dos",
+       "is_external": "on",
+       "nofollow": "on",
+       "custom_attributes": ""
+      },
+      "link_click": "button",
+      "custom_style": "yes",
+      "horizontal_position": "right",
+      "vertical_position": "top",
+      "text_align": "end",
+      "content_color": "#00E5FF",
+      "repeater_text_shadow_text_shadow_type": "yes",
+      "repeater_text_shadow_text_shadow": {
+       "horizontal": 0,
+       "vertical": 2,
+       "blur": 0,
+       "color": "#000000"
+      }
+     },
+     {
+      "_id": "sl03",
+      "heading": "Sin botón",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "",
+      "background_color": "#16A085"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    },
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    }
+   ]
+  },
+  "sl-nav-style": {
+   "title": "Navegación: flechas y puntos fuera, tamaños, colores y separación",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ],
+    "arrows_position": "outside",
+    "arrows_size": {
+     "unit": "px",
+     "size": 36,
+     "sizes": []
+    },
+    "arrows_color": "#E74C3C",
+    "dots_position": "outside",
+    "dots_gap": {
+     "unit": "px",
+     "size": 10,
+     "sizes": []
+    },
+    "dots_size": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "dots_color_inactive": "#BBBBBB",
+    "dots_color": "#E74C3C"
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    },
+    {
+     "label": "Tercer punto",
+     "a": ".swiper-pagination-bullet:nth-child(3)",
+     "b": ".digi-crs__dot:nth-of-type(3)",
+     "wait": 2200
+    }
+   ]
+  },
+  "sl-arrows": {
+   "title": "Sólo flechas, sin bucle (la anterior inactiva al principio)",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "infinite": "",
+    "navigation": "arrows",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    },
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2200
+    }
+   ]
+  },
+  "sl-dots": {
+   "title": "Sólo puntos",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "navigation": "dots",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Tercer punto",
+     "a": ".swiper-pagination-bullet:nth-child(3)",
+     "b": ".digi-crs__dot:nth-of-type(3)",
+     "wait": 2200
+    }
+   ]
+  },
+  "sl-none": {
+   "title": "Sin navegación",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "navigation": "none",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ]
+   }
+  },
+  "sl-fade": {
+   "title": "Transición de fundido de 800 ms y animación «Zoom»",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "transition": "fade",
+    "transition_speed": 800,
+    "content_animation": "zoomIn",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 2600
+    },
+    {
+     "label": "Tercer punto",
+     "a": ".swiper-pagination-bullet:nth-child(3)",
+     "b": ".digi-crs__dot:nth-of-type(3)",
+     "wait": 2600
+    }
+   ]
+  },
+  "sl-no-animation": {
+   "title": "Sin animación del contenido",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "content_animation": "",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ]
+   },
+   "actions": [
+    {
+     "label": "Flecha siguiente",
+     "a": ".elementor-swiper-button-next",
+     "b": ".digi-crs__next",
+     "wait": 1200
+    }
+   ]
+  },
+  "sl-single": {
+   "title": "Una sola diapositiva: sin flechas ni puntos",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "content_animation": "",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Única",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#34495E",
+      "background_image": {
+       "$image": 6
+      }
+     }
+    ]
+   },
+   "declared": [
+    {
+     "kind": "imagen",
+     "match": ".*",
+     "reason": "El fondo es un <img> de Medios con su texto alternativo, no un <div role=\"img\"> con fondo CSS."
+    }
+   ]
+  },
+  "sl-responsive": {
+   "title": "Altura, ancho del contenido y flechas por dispositivo",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "",
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ],
+    "slides_height": {
+     "unit": "vh",
+     "size": 50,
+     "sizes": []
+    },
+    "slides_height_tablet": {
+     "unit": "px",
+     "size": 360,
+     "sizes": []
+    },
+    "slides_height_mobile": {
+     "unit": "px",
+     "size": 280,
+     "sizes": []
+    },
+    "content_max_width_tablet": {
+     "unit": "%",
+     "size": 80,
+     "sizes": []
+    },
+    "content_max_width_mobile": {
+     "unit": "%",
+     "size": 100,
+     "sizes": []
+    },
+    "slides_padding_mobile": {
+     "unit": "px",
+     "top": "16",
+     "right": "16",
+     "bottom": "16",
+     "left": "16",
+     "isLinked": true
+    },
+    "arrows_size_mobile": {
+     "unit": "px",
+     "size": 18,
+     "sizes": []
+    },
+    "dots_size_tablet": {
+     "unit": "px",
+     "size": 9,
+     "sizes": []
+    }
+   }
+  },
+  "sl-autoplay": {
+   "title": "Reproducción automática cada 3 s con pausa al pasar el cursor",
+   "widget": "slides",
+   "settings": {
+    "autoplay": "yes",
+    "autoplay_speed": 3000,
+    "slides": [
+     {
+      "_id": "sl01",
+      "heading": "Primera diapositiva",
+      "description": "Texto de la diapositiva 1 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#833CA3"
+     },
+     {
+      "_id": "sl02",
+      "heading": "Segunda diapositiva",
+      "description": "Texto de la diapositiva 2 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#4054B2"
+     },
+     {
+      "_id": "sl03",
+      "heading": "Tercera diapositiva",
+      "description": "Texto de la diapositiva 3 con una idea breve.",
+      "button_text": "Ver más",
+      "background_color": "#1ABC9C"
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.25,
+    "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2), y la diapositiva visible depende del momento de la captura."
+   },
+   "declared": [
+    {
+     "kind": "nombre",
+     "match": "Pausar|Reanudar",
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2); PRO no lo tenía."
+    },
+    {
+     "kind": "palabra",
+     "match": "Pausar|Reanudar",
+     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
+    },
+    {
+     "kind": "interacción",
+     "match": ".*",
+     "reason": "La diapositiva visible depende del momento de la captura."
+    },
+    {
+     "kind": "palabra",
+     "match": "diapositiva",
+     "reason": "La diapositiva visible depende del momento de la captura."
+    }
+   ]
+  }
+ }
+}
