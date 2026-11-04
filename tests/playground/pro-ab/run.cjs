@@ -246,9 +246,10 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
         w.focus = { reached: inside, styles: inside ? await page.evaluate(stateStyles, sel) : null, shot: inside ? await shot('focus') : null };
         await page.evaluate(() => document.activeElement && document.activeElement.blur());
       }
-      // Acciones del caso (`actions`: `{ label, a, b, selector, key, wait, widths }`): pulsar el selector del lado
-      // (`a`/`b`, o `selector` común, relativo al widget) o, con `key`, enfocarlo y teclear. Tras cada una, sin foco ni
-      // puntero encima, firma y captura. Son acumulativas dentro de un ancho; después se recarga la página.
+      // Acciones del caso (`actions`: `{ label, a, b, selector, key, wait, widths, page }`): pulsar el selector del
+      // lado (`a`/`b`, o `selector` común, relativo al widget; con `page: true`, relativo a la página, p. ej. un filtro
+      // hermano del bucle medido) o, con `key`, enfocarlo y teclear. Tras cada una, sin foco ni puntero encima, firma y
+      // captura. Son acumulativas dentro de un ancho; después se recarga la página.
       const actions = (c.actions || []).filter((act) => !act.widths || act.widths.map(Number).includes(width));
       if (actions.length) {
         w.actions = [];
@@ -256,7 +257,7 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           const target = act[side] || act.selector || '';
           const entry = { label: act.label || target || act.key, done: true };
           try {
-            const el = target ? await handle.$(target) : handle;
+            const el = target ? await (act.page ? page : handle).$(target) : handle;
             if (!el) throw new Error(`no existe «${target}»`);
             if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
           } catch (e) { entry.done = false; entry.error = String(e.message || e); }

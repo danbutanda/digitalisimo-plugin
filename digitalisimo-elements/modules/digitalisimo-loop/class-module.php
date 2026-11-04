@@ -26,10 +26,26 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		'digitalisimo-posts' => array( 'file' => 'widgets/class-posts.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Posts', 'css' => 'modules/digitalisimo-loop/assets/css/posts.css', 'js' => 'modules/digitalisimo-loop/assets/js/posts.js' ),
+		'digitalisimo-archive-posts' => array( 'file' => 'widgets/class-archive-posts.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Archive_Posts', 'css' => 'modules/digitalisimo-loop/assets/css/posts.css', 'js' => 'modules/digitalisimo-loop/assets/js/posts.js' ),
+		'digitalisimo-portfolio' => array( 'file' => 'widgets/class-portfolio.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Portfolio', 'css' => 'modules/digitalisimo-loop/assets/css/portfolio.css', 'js' => 'modules/digitalisimo-loop/assets/js/portfolio.js' ),
+		'digitalisimo-taxonomy-filter' => array( 'file' => 'widgets/class-taxonomy-filter.php', 'class' => 'Digitalisimo\\Elements\\Loop\\Widgets\\Taxonomy_Filter', 'css' => 'modules/digitalisimo-loop/assets/css/taxonomy-filter.css', 'js' => 'modules/digitalisimo-loop/assets/js/taxonomy-filter.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		'digitalisimo-posts' => 'Entradas',
+		'digitalisimo-archive-posts' => 'Entradas del archivo',
+		'digitalisimo-portfolio' => 'Portafolio',
+		'digitalisimo-taxonomy-filter' => 'Filtro de taxonomías',
+	);
+
+	/**
+	 * Recursos compartidos por los listados (paginación, «Cargar más», infinita y mampostería; `Posts_Base`): se
+	 * registran como los de cada widget y los encolan los widgets que los piden.
+	 */
+	const SHARED = array(
+		'digitalisimo-loop' => array( 'css' => 'modules/digitalisimo-loop/assets/css/loop.css', 'js' => 'modules/digitalisimo-loop/assets/js/loop.js' ),
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */
@@ -60,6 +76,8 @@ final class Module {
 		add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'register_assets' ) );
 		add_action( 'elementor/widgets/register', array( __CLASS__, 'widgets' ), self::PRIORITY );
 		add_action( 'elementor/editor/after_enqueue_scripts', array( __CLASS__, 'editor_scripts' ) );
+		// Páginas `/2/` de un singular con un listado propio paginado (PRO sólo reconoce sus widgets).
+		add_filter( 'pre_handle_404', array( __NAMESPACE__ . '\\Posts_Base', 'allow_pagination' ), 10, 2 );
 	}
 
 	/**
@@ -97,7 +115,7 @@ final class Module {
 			return;
 		}
 		$version = defined( 'DIGITALISIMO_ELEMENTS_VERSION' ) ? DIGITALISIMO_ELEMENTS_VERSION : false;
-		foreach ( self::WIDGETS as $handle => $asset ) {
+		foreach ( self::SHARED + self::WIDGETS as $handle => $asset ) {
 			if ( ! wp_style_is( $handle, 'registered' ) && is_file( self::path( $asset['css'] ) ) ) {
 				wp_register_style( $handle, plugins_url( $asset['css'], DIGITALISIMO_ELEMENTS_FILE ), array(), $version );
 			}

@@ -1,0 +1,16 @@
+/* DIGITALÍSIMO Elements · Filtro de taxonomías (C5). Valores por defecto del filtro de PRO; variables --digi-tfilter-*. */
+.elementor-widget-digitalisimo-taxonomy-filter{--digi-tfilter-direction:row;--digi-tfilter-justify:center;--digi-tfilter-wrap:wrap;--digi-tfilter-align:center;--digi-tfilter-item-width:initial;--digi-tfilter-item-max-width:calc(100% - calc(var(--digi-tfilter-item-padding) * 3));--digi-tfilter-item-justify:center;--digi-tfilter-item-grow:0;--digi-tfilter-item-align:center;--digi-tfilter-radius:initial;--digi-tfilter-gap:20px;--digi-tfilter-color:#69727d;--digi-tfilter-active-color:#0c0d0e;--digi-tfilter-hover-color:#0c0d0e;--digi-tfilter-overflow-x:initial;--digi-tfilter-white-space:nowrap;--digi-tfilter-item-text:center;--digi-tfilter-item-padding:8px;--digi-tfilter-item-box-sizing:initial}
+.digi-tfilter{display:flex;flex-direction:var(--digi-tfilter-direction);flex-wrap:var(--digi-tfilter-wrap);flex-shrink:0;gap:var(--digi-tfilter-gap);justify-content:safe var(--digi-tfilter-justify);align-items:var(--digi-tfilter-align);overflow-x:var(--digi-tfilter-overflow-x);scrollbar-width:none}
+.digi-tfilter::-webkit-scrollbar{display:none}
+.digi-tfilter--drag{cursor:grabbing;user-select:none}
+.digi-tfilter__item{display:flex;align-items:var(--digi-tfilter-item-align);justify-content:var(--digi-tfilter-item-justify);flex-basis:content;flex-grow:var(--digi-tfilter-item-grow);flex-shrink:0;box-sizing:var(--digi-tfilter-item-box-sizing);width:var(--digi-tfilter-item-width);max-width:var(--digi-tfilter-item-max-width);min-block-size:24px;min-inline-size:24px;padding:var(--digi-tfilter-item-padding);overflow:hidden;overflow-wrap:break-word;white-space:var(--digi-tfilter-white-space);text-align:var(--digi-tfilter-item-text);line-height:normal;color:var(--digi-tfilter-color);background-color:transparent;border:1px #69727d;border-radius:var(--digi-tfilter-radius);cursor:pointer}
+.digi-tfilter__item[aria-pressed=true]{border-color:#0c0d0e;color:var(--digi-tfilter-active-color)}
+.digi-tfilter__item:hover:not([aria-pressed=true]){border-color:#0c0d0e;color:var(--digi-tfilter-hover-color)}
+.digi-tfilter__item:hover,.digi-tfilter__item[aria-pressed=true]{background-color:transparent}
+.digi-tfilter__item:focus:not(:focus-visible){outline:none}
+.digi-tfilter__item:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.digi-tfilter__empty{background-color:hsla(214,9%,85%,.8);color:#0c0d0e;font-size:1rem;padding:1rem 0;text-align:center}
+.digi-tfilter-status{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+[data-digi-loading]{animation:digi-tfilter-pulse 1s infinite alternate}
+@keyframes digi-tfilter-pulse{50%{opacity:.6}}
+@media (prefers-reduced-motion:reduce){[data-digi-loading]{animation:none;opacity:.6}}
