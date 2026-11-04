@@ -117,7 +117,7 @@ function pageSignature(sel, slug) {
     // Función del control, para emparejar A y B por lo que hacen y no por su orden en el documento (el motor propio
     // pone los controles antes de la pista; Swiper, después): anterior, siguiente, punto, pausa o el resto por etiqueta.
     const cls = `${el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
-    const role = /prev|anterior/.test(cls) ? 'prev' : /next|siguiente/.test(cls) ? 'next' : /bullet|__dot|-dot\b/.test(cls) ? 'dot' : /pause|pausar|reanudar/.test(cls) ? 'pause' : el.tagName.toLowerCase();
+    const role = /prev|anterior/.test(cls) ? 'prev' : /next|siguiente/.test(cls) ? 'next' : /bullet|__dot|-dot\b/.test(cls) ? 'dot' : /pause|pausar|reanudar/.test(cls) ? 'pause' : /__clear\b|borrar/.test(cls) ? 'clear' : el.tagName.toLowerCase();
     return { tag: el.tagName.toLowerCase(), role, color: cs.color, size: cs.fontSize, ...s, ...(svg ? { 'icon-fill': getComputedStyle(svg).fill } : {}) };
   });
   const r = root.getBoundingClientRect();
@@ -125,9 +125,10 @@ function pageSignature(sel, slug) {
 }
 
 // Estilos de estado (hover o foco) del control y de la caja.
-function stateStyles(sel) {
+// `ctl` (caso `control`, C3 · frente F): el control que se mide, cuando el primero del widget no es el comparable.
+function stateStyles(sel, ctl) {
   const root = document.querySelector(sel);
-  const el = root && (root.querySelector('a[href], button, [role="button"], [role="link"]') || root);
+  const el = root && ((ctl && root.querySelector(ctl)) || root.querySelector('a[href], button, [role="button"], [role="link"]') || root);
   if (!el) return null;
   const cs = getComputedStyle(el);
   const pick = (c) => ({ color: c.color, background: c.backgroundColor, 'border-color': c.borderColor, 'border-width': c.borderWidth, outline: `${c.outlineStyle} ${c.outlineWidth} ${c.outlineColor}`, 'outline-offset': c.outlineOffset, 'box-shadow': c.boxShadow, 'text-decoration': c.textDecorationLine, opacity: c.opacity, transform: c.transform });
@@ -232,10 +233,11 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
       };
       w.shot = await shot('');
       // Hover: sobre el primer enlace o botón (si no hay, sobre la caja del widget).
-      const target = (await handle.$('a[href], button, [role="button"], [role="link"]')) || handle;
+      const ctl = (c.control || {})[side] || '';
+      const target = (ctl && (await handle.$(ctl))) || (await handle.$('a[href], button, [role="button"], [role="link"]')) || handle;
       await target.hover().catch(() => {});
       await sleep(700);
-      w.hover = { styles: await page.evaluate(stateStyles, sel), shot: await shot('hover') };
+      w.hover = { styles: await page.evaluate(stateStyles, sel, ctl), shot: await shot('hover') };
       await page.mouse.move(0, 0);
       await sleep(700);
       // Foco con teclado (Tab desde el principio del documento, como :focus-visible).
@@ -247,7 +249,7 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           inside = await page.evaluate((s) => { const r = document.querySelector(s); return !!(r && document.activeElement && r.contains(document.activeElement)); }, sel);
         }
         await sleep(500);
-        w.focus = { reached: inside, styles: inside ? await page.evaluate(stateStyles, sel) : null, shot: inside ? await shot('focus') : null };
+        w.focus = { reached: inside, styles: inside ? await page.evaluate(stateStyles, sel, ctl) : null, shot: inside ? await shot('focus') : null };
         await page.evaluate(() => document.activeElement && document.activeElement.blur());
       }
       // Acciones del caso (`actions`: `{ label, a, b, selector, key, hover, stay, wait, widths }`): pulsar el selector del

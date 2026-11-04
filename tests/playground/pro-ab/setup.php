@@ -5,7 +5,9 @@
  * - página A `pro-ab-<caso>-a`: un contenedor con el widget de PRO (`widget`), sus ajustes guardados (`settings`) y,
  *   en los anidados, sus hijos (`elements`); las imágenes de prueba (`{"$image": n}`, `{"$gallery": [n, …]}`,
  *   `"$image-url:n"`) se crean una vez con GD (`digi_ab_image()`) y los menús de WordPress (`{"$menu": "nombre"}`, el
- *   slug de un menú con submenús), con `digi_ab_menu()`;
+ *   slug de un menú con submenús), con `digi_ab_menu()`; una plantilla de bucle con tres entradas (`"$loop:nombre"`),
+ *   con `digi_ab_loop()`, y elementos antes del widget (`before`: disparadores, con `{id}` y `"$action:…"`), con
+ *   `digi_ab_before()`;
  * - página B `pro-ab-<caso>-b`: el mismo árbol convertido con `Converter::tree( $data, $log, true )` (mapas en borrador
  *   incluidos); el `id` del widget es el mismo en A y en B;
  * - las dos con la plantilla «Lienzo» (sin cabecera ni pie del tema: el foco con teclado llega antes al widget) y su CSS
@@ -139,6 +141,9 @@ function digi_ab_menu( $name ) {
 
 /** Sustituye en unos ajustes las imágenes de prueba: `{"$image": n}`, `{"$gallery": [n, …]}` y `"$image-url:n"`. */
 function digi_ab_tokens( $value ) {
+	if ( is_string( $value ) && preg_match( '/^\$loop:([a-z0-9-]+)$/', $value, $m ) ) {
+		return (string) digi_ab_loop( $m[1] );
+	}
 	if ( is_string( $value ) && preg_match( '/^\$image-url:(\d+)$/', $value, $m ) ) {
 		return digi_ab_image( (int) $m[1] )[1];
 	}
@@ -173,6 +178,92 @@ function digi_ab_children( array $elements, $seed ) {
 		$element['isInner']  = $element['isInner'] ?? true;
 		$element['settings'] = digi_ab_tokens( (array) ( $element['settings'] ?? array() ) );
 		$element['elements'] = digi_ab_children( (array) ( $element['elements'] ?? array() ), $seed . '-' . $i );
+		$elements[ $i ]      = $element;
+	}
+	return $elements;
+}
+
+/**
+ * Plantilla de bucle de prueba (`"$loop:nombre"`, C3 · frente F: resultados en vivo de la Búsqueda): crea una vez tres
+ * entradas publicadas («Mesa azul», «Mesa roja», «Mesa verde») y la plantilla `pro-ab-loop-<nombre>` (tipo `loop-item`)
+ * con un encabezado que enlaza la entrada con su título (etiquetas dinámicas del núcleo de funciones avanzadas), y
+ * devuelve su ID.
+ */
+function digi_ab_loop( $name ) {
+	static $cache = array();
+	$slug = 'pro-ab-loop-' . preg_replace( '/[^a-z0-9-]/', '', strtolower( (string) $name ) );
+	if ( isset( $cache[ $slug ] ) ) {
+		return $cache[ $slug ];
+	}
+	foreach ( array( 'azul', 'roja', 'verde' ) as $color ) {
+		if ( ! get_page_by_path( 'mesa-' . $color, OBJECT, 'post' ) ) {
+			wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'publish', 'post_title' => 'Mesa ' . $color, 'post_name' => 'mesa-' . $color, 'post_content' => 'Una mesa ' . $color . '.' ) );
+		}
+	}
+	$existing = get_page_by_path( $slug, OBJECT, 'elementor_library' );
+	$id       = $existing ? (int) $existing->ID : (int) wp_insert_post( array( 'post_type' => 'elementor_library', 'post_status' => 'publish', 'post_title' => $slug, 'post_name' => $slug ) );
+	if ( ! $id ) {
+		digi_ab_fail( "No se pudo crear la plantilla de bucle $slug" );
+		return $cache[ $slug ] = 0;
+	}
+	$data = array(
+		array(
+			'id'       => digi_ab_eid( $slug . '-c' ),
+			'elType'   => 'container',
+			'isInner'  => false,
+			'settings' => (object) array( 'content_width' => 'full', 'padding' => array( 'unit' => 'px', 'top' => '8', 'right' => '8', 'bottom' => '8', 'left' => '8', 'isLinked' => true ) ),
+			'elements' => array(
+				array(
+					'id'         => digi_ab_eid( $slug . '-h' ),
+					'elType'     => 'widget',
+					'widgetType' => 'heading',
+					'settings'   => array(
+						'title'       => 'Título',
+						'header_size' => 'h3',
+						'__dynamic__' => array(
+							'title' => '[elementor-tag id="' . digi_ab_eid( $slug . '-t' ) . '" name="post-title" settings="%7B%7D"]',
+							'link'  => '[elementor-tag id="' . digi_ab_eid( $slug . '-u' ) . '" name="post-url" settings="%7B%7D"]',
+						),
+					),
+					'elements'   => array(),
+				),
+			),
+		),
+	);
+	update_post_meta( $id, '_elementor_template_type', 'loop-item' );
+	update_post_meta( $id, '_elementor_edit_mode', 'builder' );
+	update_post_meta( $id, '_elementor_version', ELEMENTOR_VERSION );
+	update_post_meta( $id, '_elementor_data', wp_slash( wp_json_encode( $data ) ) );
+	wp_set_object_terms( $id, 'loop-item', 'elementor_library_type' );
+	\Elementor\Core\Files\CSS\Post::create( $id )->update();
+	return $cache[ $slug ] = $id;
+}
+
+/**
+ * Elementos antes del widget en el contenedor (`before` del caso, C3 · frente F: los disparadores de un panel). En sus
+ * cadenas, `{id}` es el `id` del widget del caso y `"$action:<acción>"` el enlace de acción del núcleo
+ * (`#elementor-action:action=<acción>&settings=<base64 de {id, displayMode}>`) que lo nombra.
+ */
+function digi_ab_before( array $elements, $slug, $id ) {
+	$place = static function ( $value ) use ( &$place, $id ) {
+		if ( is_string( $value ) && preg_match( '/^\$action:([a-z_]+):([a-z]+)$/', $value, $m ) ) {
+			return '#elementor-action:action=' . $m[1] . ':' . $m[2] . '&settings=' . base64_encode( wp_json_encode( array( 'id' => $id, 'displayMode' => $m[2] ) ) );
+		}
+		if ( is_string( $value ) ) {
+			return str_replace( '{id}', $id, $value );
+		}
+		if ( is_array( $value ) ) {
+			foreach ( $value as $key => $item ) {
+				$value[ $key ] = $place( $item );
+			}
+		}
+		return $value;
+	};
+	foreach ( $elements as $i => $element ) {
+		$element['id']       = isset( $element['id'] ) ? (string) $element['id'] : digi_ab_eid( $slug . '-before-' . $i );
+		$element['elType']   = $element['elType'] ?? 'widget';
+		$element['settings'] = $place( digi_ab_tokens( (array) ( $element['settings'] ?? array() ) ) );
+		$element['elements'] = (array) ( $element['elements'] ?? array() );
 		$elements[ $i ]      = $element;
 	}
 	return $elements;
@@ -234,14 +325,17 @@ foreach ( $cases['cases'] as $slug => $case ) {
 			'elType'   => 'container',
 			'isInner'  => false,
 			'settings' => (array) ( $cases['container'] ?? array() ),
-			'elements' => array(
+			'elements' => array_merge(
+				digi_ab_before( (array) ( $case['before'] ?? array() ), $slug, $id ),
 				array(
-					'id'         => $id,
-					'elType'     => 'widget',
-					'widgetType' => $source,
-					'settings'   => digi_ab_tokens( (array) ( $case['settings'] ?? array() ) ),
-					'elements'   => digi_ab_children( (array) ( $case['elements'] ?? array() ), $slug ),
-				),
+					array(
+						'id'         => $id,
+						'elType'     => 'widget',
+						'widgetType' => $source,
+						'settings'   => digi_ab_tokens( (array) ( $case['settings'] ?? array() ) ),
+						'elements'   => digi_ab_children( (array) ( $case['elements'] ?? array() ), $slug ),
+					),
+				)
 			),
 		),
 	);

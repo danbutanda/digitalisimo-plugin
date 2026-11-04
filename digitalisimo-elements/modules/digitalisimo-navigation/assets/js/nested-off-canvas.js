@@ -98,7 +98,7 @@ const init = el => {
 };
 const scan = r => {
 	if (!r || !r.querySelectorAll) return;
-	if (r.matches('.digi-noc')) init(r);
+	if (r.matches && r.matches('.digi-noc')) init(r);
 	r.querySelectorAll('.digi-noc').forEach(init);
 };
 w.addEventListener(EV, e => {

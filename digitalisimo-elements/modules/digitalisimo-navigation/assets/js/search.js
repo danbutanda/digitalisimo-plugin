@@ -134,7 +134,7 @@ const init = root => {
 };
 const scan = r => {
 	if (!r || !r.querySelectorAll) return;
-	if (r.matches('.digi-search')) init(r);
+	if (r.matches && r.matches('.digi-search')) init(r);
 	r.querySelectorAll('.digi-search').forEach(init);
 };
 const boot = () => F()?.hooks?.addAction('frontend/element_ready/digitalisimo-search.default', $ => scan($ && $[0] ? $[0] : $));

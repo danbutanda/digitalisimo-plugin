@@ -153,5 +153,12 @@ return array(
 		'dropdown_description',
 		'heading_dropdown_divider',
 	),
+	// Variables de PRO en el CSS personalizado del elemento (las clases, en `classes`).
+	'filter'   => static function ( array $out ) {
+		if ( isset( $out['custom_css'] ) && is_string( $out['custom_css'] ) ) {
+			$out['custom_css'] = str_replace( array( '--e-nav-menu-horizontal-menu-item-margin', '--e-nav-menu-divider-', '--nav-menu-icon-size' ), array( '--digi-nav-gap', '--digi-nav-divider-', '--digi-nav-toggle-size' ), $out['custom_css'] );
+		}
+		return $out;
+	},
 	'classes'  => $digi_nm_classes,
 );
