@@ -381,6 +381,11 @@ $out = Converter::tree( $tree( 'archive-posts', array() ), $log, true )[0]['elem
 $check( 'numbers' === $out['pagination_type'] && 'It seems we can’t find what you’re looking for.' === $out['nothing_found_message'], 'Archivo: la paginación por defecto (números) y el mensaje de PRO viajan explícitos.' );
 $out = Converter::tree( $tree( 'portfolio', $cases['portfolio'][1] ), $log, true )[0]['elements'][0]['settings'];
 $check( 'selector .digi-portfolio__filter[aria-pressed="true"]{color:red}' === $out['custom_css'] && array( '5' ) === $out['posts_include_term_ids'], 'Portafolio: el filtro activo pasa a aria-pressed; la consulta, tal cual.' );
+// Sin piel guardada: la que el widget de PRO pinta hoy (su primera piel registrada); sin el constructor, la de PRO.
+$check( 'classic' === Converter::tree( $tree( 'posts', array() ), $log, true )[0]['elements'][0]['settings']['_skin'] && 'archive_classic' === Converter::tree( $tree( 'archive-posts', array() ), $log, true )[0]['elements'][0]['settings']['_skin'], 'Sin piel guardada y sin el constructor cargado: la de por defecto de PRO.' );
+\Elementor\Plugin::$instance->widgets_manager = new class() { public function get_widget_types( $name = null ) { return 'posts' === $name ? new class() { public function get_skins() { return array( 'cards' => 1, 'full_content' => 1, 'classic' => 1 ); } } : null; } };
+$check( 'cards' === Converter::tree( $tree( 'posts', array() ), $log, true )[0]['elements'][0]['settings']['_skin'] && 'full_content' === Converter::tree( $tree( 'posts', array( '_skin' => 'full_content' ) ), $log, true )[0]['elements'][0]['settings']['_skin'], 'Sin piel guardada: la primera que el widget de PRO registra en el sitio (la que pinta); una piel guardada no cambia.' );
+\Elementor\Plugin::$instance->widgets_manager = null;
 foreach ( array( 'posts', 'archive-posts', 'portfolio' ) as $type ) {
 	$map = Registry::map( $type );
 	$check( null !== $map && 'ready' === $map['status'] && 'hide' === $map['panel'], "$type: mapa listo y oculto en el panel." );

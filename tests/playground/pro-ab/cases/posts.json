@@ -11,14 +11,14 @@
   },
   {
    "kind": "nombre",
-   "match": "Read more about|Leer más|Page|Página|Previous|Anterior|Next|Siguiente",
+   "match": "[Rr]ead [Mm]ore|READ MORE|Leer más|LEER MÁS|Page|Página|Previous|Anterior|Next|Siguiente",
    "reason": "Nombres accesibles propios en español; «Leer más» conserva su texto visible y añade el título sólo para lectores de pantalla (WCAG 2.5.3), donde PRO lo sustituía por «Read more about …».",
    "widget": "posts"
   }
  ],
  "cases": {
   "po-defaults": {
-   "title": "Clásica por defecto: 3 columnas, 6 entradas",
+   "title": "Por defecto: sin piel guardada, la que el widget de PRO pinta hoy (3 columnas, 6 entradas)",
    "widget": "posts",
    "posts": 9,
    "settings": {}
@@ -28,6 +28,7 @@
    "widget": "posts",
    "posts": 9,
    "settings": {
+    "_skin": "classic",
     "classic_thumbnail": "left",
     "classic_columns": "2",
     "classic_posts_per_page": 4,
@@ -67,6 +68,7 @@
    "widget": "posts",
    "posts": 9,
    "settings": {
+    "_skin": "classic",
     "classic_thumbnail": "none",
     "classic_columns": "1",
     "classic_posts_per_page": 3,
@@ -130,6 +132,7 @@
    "widget": "posts",
    "posts": 9,
    "settings": {
+    "_skin": "classic",
     "classic_masonry": "yes",
     "classic_posts_per_page": 6,
     "classic_excerpt_length": 12
@@ -150,6 +153,7 @@
    "widget": "posts",
    "posts": 9,
    "settings": {
+    "_skin": "classic",
     "classic_posts_per_page": 3,
     "pagination_type": "numbers_and_prev_next",
     "pagination_color": "#245EFF",
@@ -163,7 +167,7 @@
     {
      "label": "enlace siguiente",
      "selector": "a.page-numbers.next",
-     "wait": 4000
+     "wait": 8000
     }
    ]
   },
@@ -172,6 +176,7 @@
    "widget": "posts",
    "posts": 9,
    "settings": {
+    "_skin": "classic",
     "classic_posts_per_page": 4,
     "pagination_type": "prev_next",
     "pagination_align": "end"
@@ -207,6 +212,7 @@
    "widget": "posts",
    "posts": 9,
    "settings": {
+    "_skin": "classic",
     "classic_posts_per_page": 3,
     "pagination_type": "load_more_infinite_scroll"
    },

@@ -173,6 +173,48 @@
      "wait": 3000
     }
    ]
+  },
+  "lg-more": {
+   "title": "«Cargar más» con 3 por página",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "posts_per_page": 3,
+    "pagination_type": "load_more_on_click"
+   },
+   "actions": [
+    {
+     "label": "cargar más",
+     "a": ".e-loop__load-more .elementor-button",
+     "b": ".digi-loop__more .elementor-button",
+     "wait": 3000
+    }
+   ]
+  },
+  "lg-masonry": {
+   "title": "Mampostería con plantilla alterna más alta",
+   "widget": "loop-grid",
+   "posts": 9,
+   "settings": {
+    "template_id": {
+     "$loop_item": "card"
+    },
+    "masonry": "yes",
+    "alternate_template": "yes",
+    "alternate_templates": [
+     {
+      "_id": "alt0002",
+      "template_id": {
+       "$loop_item": "title"
+      },
+      "repeat_template": 2,
+      "show_once": ""
+     }
+    ]
+   }
   }
  }
 }

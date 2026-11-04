@@ -27,5 +27,6 @@ return array(
 	'keep'     => array_merge( $digi_archive['keep'], array( 'nothing_found_message', 'nothing_found_color' ) ),
 	'groups'   => array( 'nothing_found_typography' => 'nothing_found_typography' ) + $digi_archive['groups'],
 	'drop'     => $digi_archive['drop'],
+	'filter'   => $digi_archive['skin_filter']( 'archive-posts', 'archive_classic' ),
 	'classes'  => array( '.elementor-widget-archive-posts' => '.elementor-widget-digitalisimo-archive-posts' ) + $digi_archive['classes'],
 );

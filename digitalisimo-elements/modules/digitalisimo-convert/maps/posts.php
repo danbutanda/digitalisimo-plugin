@@ -26,5 +26,6 @@ return array(
 	// Grupo de consulta del constructor (mismo prefijo `posts_`), tamaños de imagen, tipografías, sombras y filtros.
 	'groups'   => array( 'posts' => 'posts' ) + $digi_posts['groups'],
 	'drop'     => $digi_posts['drop'],
+	'filter'   => $digi_posts['skin_filter']( 'posts', 'classic' ),
 	'classes'  => array( '.elementor-widget-posts' => '.elementor-widget-digitalisimo-posts' ) + $digi_posts['classes'],
 );

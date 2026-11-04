@@ -98,5 +98,22 @@ return static function ( array $skins ): array {
 	foreach ( array( 'left', 'center', 'right', 'justify', 'start', 'end' ) as $align ) {
 		$out['classes'][ '.load-more-align-' . $align ] = '.digi-loop--more-align-' . $align;
 	}
+	// Sin `_skin` guardado, la piel que el widget de PRO pinta hoy en este sitio (su primera piel registrada): así el
+	// widget propio se ve igual. Elementor no guarda la piel cuando coincide con la de por defecto.
+	$out['skin_filter'] = static function ( string $widget, string $fallback ) {
+		return static function ( array $own, array $source ) use ( $widget, $fallback ) {
+			if ( isset( $source['_skin'] ) && '' !== $source['_skin'] ) {
+				return $own;
+			}
+			$skin = $fallback;
+			if ( class_exists( '\\Elementor\\Plugin' ) && isset( \Elementor\Plugin::$instance->widgets_manager ) && is_object( \Elementor\Plugin::$instance->widgets_manager ) ) {
+				$type  = \Elementor\Plugin::$instance->widgets_manager->get_widget_types( $widget );
+				$skins = is_object( $type ) && method_exists( $type, 'get_skins' ) ? array_keys( (array) $type->get_skins() ) : array();
+				$skin  = $skins ? (string) $skins[0] : $fallback;
+			}
+			$own['_skin'] = $skin;
+			return $own;
+		};
+	};
 	return $out;
 };

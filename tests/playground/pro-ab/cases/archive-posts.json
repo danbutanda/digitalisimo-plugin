@@ -11,7 +11,7 @@
   },
   {
    "kind": "nombre",
-   "match": "Read more about|Leer más|Page|Página|Previous|Anterior|Next|Siguiente",
+   "match": "[Rr]ead [Mm]ore|READ MORE|Leer más|LEER MÁS|Page|Página|Previous|Anterior|Next|Siguiente",
    "reason": "Nombres accesibles propios en español; «Leer más» conserva su texto visible y añade el título sólo para lectores de pantalla (WCAG 2.5.3), donde PRO lo sustituía por «Read more about …».",
    "widget": "archive-posts"
   }
@@ -47,7 +47,7 @@
     {
      "label": "página 2",
      "selector": "a.page-numbers:not(.prev):not(.next)",
-     "wait": 4000
+     "wait": 8000
     }
    ]
   },
