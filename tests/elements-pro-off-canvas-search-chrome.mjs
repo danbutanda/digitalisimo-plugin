@@ -87,7 +87,7 @@ const panel = (id, cfg, extra = '') => `
 </div>`;
 const OC_PAGE = `<!doctype html><html><head><meta charset="utf-8"><style>${files.ocCss}
 .elementor-widget-digitalisimo-nested-off-canvas{--digi-noc-duration:.15s}.fadeIn{animation-name:fi}.slideInRight{animation-name:fi}.animated.reverse{animation-direction:reverse;animation-fill-mode:forwards}@keyframes fi{from{opacity:0}to{opacity:1}}
-body{margin:0;min-height:3000px}</style></head><body>
+body{margin:0;min-height:3000px}.digi-noc__content a{transition:all .3s}</style></head><body>
 <div data-elementor-id="10">
  <p><a id="t1" href="${encodeURIComponent('#elementor-action:action=off_canvas:open&settings=' + b64({ id: 'oc00001', displayMode: 'open' }))}">Abrir</a>
  <a id="t2" href="#elementor-action:action=off_canvas:toggle&settings=${b64({ id: 'oc00001', displayMode: 'toggle' })}">Alternar</a>

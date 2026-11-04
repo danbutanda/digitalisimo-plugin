@@ -7,8 +7,14 @@
   {
    "widget": "off-canvas",
    "kind": "foco",
-   "match": "^\\[acción \\d+ abrir con el (ratón|enlace de acción)\\] foco en (página a «[^»]*»|cuerpo) → widget a «Contacto»$",
+   "match": "^\\[acción \\d+ abrir con el (ratón|enlace de acción)\\] foco en (página a «[^»]*»|cuerpo) → widget a «[^»]*»$",
    "reason": "Al abrirse, el diálogo propio lleva el foco a su primer control también cuando se abre con el ratón (patrón de diálogo modal); PRO sólo lo hacía al abrirlo con el teclado. Con el teclado los dos hacen lo mismo (acción 3)."
+  },
+  {
+   "widget": "off-canvas",
+   "kind": "foco",
+   "match": "^\\[acción \\d+ cerrar con la capa\\] foco en página a «[^»]*» → cuerpo$",
+   "reason": "Al cerrarse con un clic en la capa, PRO devuelve el foco al disparador de una apertura anterior con el teclado (su gestor de teclado guarda el primero y no lo olvida); el propio sólo devuelve el foco si estaba dentro del panel, y aquí no lo estaba (abierto con el ratón)."
   }
  ],
  "cases": {

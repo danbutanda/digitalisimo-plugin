@@ -50,11 +50,15 @@ const open = (p, ev) => {
 	const h = F() && F().elementsHandler;
 	if (!p.ran && h && h.runReadyTrigger) p.content.querySelectorAll('.elementor-element').forEach(n => { try { h.runReadyTrigger(n); } catch (e) {} });
 	p.ran = true;
-	if (edit()) return;
-	const f = focusables(p)[0];
-	if (f) return f.focus();
-	p.content.setAttribute('tabindex', '-1');
-	p.content.focus();
+	if (!edit()) enter(p, 0);
+};
+// Foco dentro: un control con `transition` sigue invisible un instante (no admite el foco); se reintenta.
+const enter = (p, n) => {
+	if (!p.open || p.el.contains(d.activeElement)) return;
+	const f = focusables(p)[0] || p.content;
+	if (f === p.content) f.setAttribute('tabindex', '-1');
+	f.focus();
+	if (d.activeElement !== f && n < 4) setTimeout(() => enter(p, n + 1), 100);
 };
 const close = p => {
 	if (!p.open) return;
