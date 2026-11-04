@@ -66,7 +66,10 @@ Las consultas y estos ajustes viajan en los kits.
 
 == Sin widgets de PRO ==
 
-Los widgets que DIGITALÍSIMO Elements trae de PRO se sustituyen, familia por familia, por widgets propios más ligeros, con las mismas opciones y el mismo aspecto. El primero es la Cita, que sustituye al Blockquote: el Blockquote deja de ofrecerse en el panel, pero el contenido que ya lo usa se sigue viendo y editando igual, y DIGITALÍSIMO Migración lo convierte a la Cita con «Migrar» (con copia del original y vuelta atrás).
+Los widgets que DIGITALÍSIMO Elements trae de PRO se sustituyen, familia por familia, por widgets propios más ligeros, con las mismas opciones y el mismo aspecto. Un widget de PRO sustituido deja de ofrecerse en el panel, pero el contenido que ya lo usa se sigue viendo y editando igual, y DIGITALÍSIMO Migración lo convierte al widget propio con «Migrar» (con copia del original y vuelta atrás); un kit que lo trae llega ya convertido.
+
+* Cita, en lugar del Blockquote.
+* Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas, en lugar de los carruseles de PRO: un motor propio sin Swiper ni jQuery, con teclado, botón para pausar la reproducción automática y respeto por el movimiento reducido.
 
 == Formularios ==
 

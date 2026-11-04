@@ -43,7 +43,7 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | C9 · Otros | 8 |
 
 - **C0 · Inventario, método y arnés.** «Analizar» de Migración cuenta, por sitio y red, cada widget de PRO usado (también dentro de plantillas, popups, Loop Items y revisiones), los tipos de plantilla del Theme Builder y el kit: así se ordenan las familias por uso real. Se crean el módulo de convertidores de Elements, el mecanismo para ocultar del panel, el arnés A/B y la plantilla de etapa. El orden de C1–C9 se revisa con esos datos.
-- **C1 · Carruseles.** Slides y Nested carousel ya tienen equivalente (Slider Optimizado y Slider anidado ligero); Media carousel, Testimonial carousel y Reviews se construyen sobre el motor del slider anidado, sin Swiper. Es la familia que más pesa en el front (Swiper, 144 KB).
+- **C1 · Carruseles.** Los cinco, sobre un motor de carrusel propio (`digi-crs`, derivado del slider anidado de F7b), sin Swiper. El Slider Optimizado (marquesina de logotipos) y el Slider anidado ligero no eran equivalentes completos y no cambian: Slides y Nested carousel tienen también widget propio nuevo. Incluye el punto de extensión de K que convierte los widgets de PRO al importar un kit. Es la familia que más pesa en el front (Swiper, 144 KB). Contrato y resultado en `docs/pro/c1.md`.
 - **C2 · Contenido.** Quince widgets sueltos; cinco tienen equivalente total o parcial. Lottie necesita su librería (253 KB): el widget propio la carga al acercarse a la pantalla, como hace hoy `lazy_libs`.
 - **C3 · Navegación y búsqueda.** Menú y Mega Menu (los más usados en cabeceras), el Off-Canvas de contenedor anidado y la búsqueda.
 - **C4 · Theme Builder y elementos de tema.** Logo, título, contenido, extracto, imagen destacada, títulos de archivo, entradas del archivo, información, navegación, autor, comentarios y mapa del sitio: los widgets de las plantillas de cabecera, pie, entrada y archivo.
@@ -58,13 +58,15 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 
 «Existe»: hay un widget propio con la misma función. «Parcial»: lo hay, pero le faltan opciones. En los dos casos el widget propio suele tener muchas menos opciones que el de PRO (el Progreso de lectura, 4 controles frente a 27; el Encabezado animado no tiene las formas de resaltado ni los ocho tipos de rotación): para una migración fiel, cada familia lo amplía con controles opcionales que no cambian su comportamiento por defecto. «Nuevo»: hay que crearlo. «Contenido» y «Función»: no se sustituye por un widget.
 
+**Método que dejó C1:** cuando el widget propio existente es mucho más simple que el de PRO, la sustitución fiel es un widget propio nuevo que repite los controles de PRO con el mismo nombre (mapa casi todo `keep`), no ampliar el existente; el existente sigue igual. Así se hizo en C1 con Slides y Nested carousel, que el inventario daba como «Existe». Cada familia lo decide antes de empezar, con este criterio.
+
 | Etapa | Módulo de PRO | Widget (`get_name()`) | Título en PRO | Equivalente propio | Nota |
 |---|---|---|---|---|---|
-| C1 | `carousel` | `media-carousel` | Media Carousel | Nuevo | sobre el motor del slider anidado |
-| C1 | `carousel` | `reviews` | Reviews | Nuevo | sobre el motor del slider anidado |
-| C1 | `carousel` | `testimonial-carousel` | Testimonial Carousel | Nuevo | sobre el motor del slider anidado |
-| C1 | `nested-carousel` | `nested-carousel` | Carousel | Existe | Slider anidado ligero (F7b) |
-| C1 | `slides` | `slides` | Slides | Existe | Slider Optimizado |
+| C1 | `carousel` | `media-carousel` | Media Carousel | **Sustituido** | Carrusel multimedia (`digitalisimo-media-carousel`), C1 |
+| C1 | `carousel` | `reviews` | Reviews | **Sustituido** | Reseñas (`digitalisimo-reviews`), C1 |
+| C1 | `carousel` | `testimonial-carousel` | Testimonial Carousel | **Sustituido** | Carrusel de testimonios (`digitalisimo-testimonial-carousel`), C1 |
+| C1 | `nested-carousel` | `nested-carousel` | Carousel | **Sustituido** | Carrusel anidado (`digitalisimo-nested-carousel`), C1 |
+| C1 | `slides` | `slides` | Slides | **Sustituido** | Diapositivas (`digitalisimo-slides`), C1 |
 | C2 | `animated-headline` | `animated-headline` | Animated Headline | Existe | Encabezado animado |
 | C2 | `blockquote` | `blockquote` | Blockquote | **Sustituido** | Cita (`digitalisimo-blockquote`), C0 |
 | C2 | `call-to-action` | `call-to-action` | Call to Action | Parcial | Llamada a la acción |
@@ -168,5 +170,6 @@ Este documento es el punto de entrada para continuar el programa que sustituye l
 | Etapa | Estado |
 |---|---|
 | C0 | **Publicado** · Elements 4.3.0.172 y Migración 1.0.22 · `v2026.11.03.448`. Núcleo de conversión, inventario y etapa `pro` de «Migrar», arnés A/B (`tests/playground/pro-ab.sh`) y de punta a punta (`pro-migrate.sh`), y el piloto: Blockquote → Cita, listo y oculto del panel. Detalle en `docs/pro/c0.md` |
-| C1–C9 | Pendientes |
+| C1 | **Publicado** · Elements @NEXT_ELEMENTS@ y Migración @NEXT_MIGRATION@ · `@C1_TAG@`. Motor `digi-crs` y los cinco carruseles propios (Carrusel anidado, Carrusel multimedia, Carrusel de testimonios, Reseñas y Diapositivas) con sus mapas listos y fuera del panel; los kits convierten los widgets de PRO al importar (§17 de `docs/fusion/k-kits.md`). Detalle en `docs/pro/c1.md` |
+| C2–C9 | Pendientes |
 | Tema | Cerrado: sólo Hello, hecho en el tema 1.0.0 |

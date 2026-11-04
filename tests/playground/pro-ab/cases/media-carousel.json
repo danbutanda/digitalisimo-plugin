@@ -75,6 +75,18 @@
    "match": "^(\\[acción [^\\]]*\\] )?control (prev 1|next 1|dot \\d+|pause 1) sólo en A",
    "reason": "Con todas las diapositivas a la vista (una sola página), el motor oculta flechas, paginación y pausa (digi-crs--locked, como watchOverflow de Swiper): los botones que no hacen nada no se pintan ni entran en el orden de foco. En PRO quedaban deshabilitados a la vista porque la hoja de Swiper que los oculta no se carga.",
    "widget": "media-carousel"
+  },
+  {
+   "kind": "hover",
+   "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
+   "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
+   "widget": "media-carousel"
+  },
+  {
+   "kind": "foco",
+   "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
+   "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
+   "widget": "media-carousel"
   }
  ],
  "cases": {
@@ -1114,7 +1126,19 @@
    "pixels": {
     "max": 0.05,
     "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
-   }
+   },
+   "declared": [
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    }
+   ]
   }
  }
 }

@@ -39,6 +39,18 @@
    "match": "^(\\[acción [^\\]]*\\] )?control (prev 1|next 1|dot \\d+|pause 1) sólo en A",
    "reason": "Con todas las diapositivas a la vista (una sola página), el motor oculta flechas, paginación y pausa (digi-crs--locked, como watchOverflow de Swiper): los botones que no hacen nada no se pintan ni entran en el orden de foco. En PRO quedaban deshabilitados a la vista porque la hoja de Swiper que los oculta no se carga.",
    "widget": "nested-carousel"
+  },
+  {
+   "kind": "hover",
+   "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
+   "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
+   "widget": "nested-carousel"
+  },
+  {
+   "kind": "foco",
+   "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
+   "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
+   "widget": "nested-carousel"
   }
  ],
  "cases": {

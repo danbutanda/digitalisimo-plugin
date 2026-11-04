@@ -21,6 +21,18 @@
    "match": "^(\\[acción [^\\]]*\\] )?control (prev 1|next 1|dot \\d+|pause 1) sólo en A",
    "reason": "Con todas las diapositivas a la vista (una sola página), el motor oculta flechas, paginación y pausa (digi-crs--locked, como watchOverflow de Swiper): los botones que no hacen nada no se pintan ni entran en el orden de foco. En PRO quedaban deshabilitados a la vista porque la hoja de Swiper que los oculta no se carga.",
    "widget": "slides"
+  },
+  {
+   "kind": "hover",
+   "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
+   "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
+   "widget": "slides"
+  },
+  {
+   "kind": "foco",
+   "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
+   "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
+   "widget": "slides"
   }
  ],
  "cases": {
@@ -383,6 +395,13 @@
      "b": ".digi-crs__dot:nth-of-type(3)",
      "wait": 2200
     }
+   ],
+   "declared": [
+    {
+     "kind": "caja",
+     "match": "^(\\[acción [^\\]]*\\] )?padding: ",
+     "reason": "Con las flechas fuera, el motor reserva su sitio con relleno en la raíz; PRO estrechaba la pista con width. Las diapositivas quedan en el mismo lugar (píxeles)."
+    }
    ]
   },
   "sl-arrows": {
@@ -467,6 +486,18 @@
      "a": ".swiper-pagination-bullet:nth-child(3)",
      "b": ".digi-crs__dot:nth-of-type(3)",
      "wait": 2200
+    }
+   ],
+   "declared": [
+    {
+     "kind": "hover",
+     "match": "^background: rgb\\(0, 0, 0\\) → rgba\\(0, 0, 0, 0\\)$",
+     "reason": "El primer control es un punto: en el motor, un <button> transparente de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8); en PRO el punto era el propio elemento."
+    },
+    {
+     "kind": "foco",
+     "match": "^background: rgb\\(0, 0, 0\\) → rgba\\(0, 0, 0, 0\\)$",
+     "reason": "El primer control es un punto: en el motor, un <button> transparente de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8); en PRO el punto era el propio elemento."
     }
    ]
   },
@@ -731,6 +762,16 @@
      "kind": "palabra",
      "match": "Pausar|Reanudar",
      "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2)."
+    },
+    {
+     "kind": "hover",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
+    },
+    {
+     "kind": "foco",
+     "match": ".",
+     "reason": "El primer control del propio es el botón Pausar/Reanudar (WCAG 2.2.2); en PRO, la flecha anterior: el arnés compara elementos distintos."
     }
    ]
   },
