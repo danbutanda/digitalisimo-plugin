@@ -56,6 +56,15 @@ jobs:
           php tests/elements-pro-media-carousel.php
           php tests/elements-pro-testimonials.php
           php tests/elements-pro-slides.php
+          php tests/elements-pro-theme-titles-media.php
+          php tests/elements-pro-post-info.php
+          php tests/elements-pro-post-navigation.php
+          php tests/elements-pro-author-box.php
+          php tests/elements-pro-post-comments.php
+          php tests/elements-pro-search-form.php
+          node tests/elements-pro-search-form-chrome.mjs
+          php tests/elements-pro-sitemap.php
+          php tests/elements-pro-yoast-breadcrumbs.php
           php tests/elements-front-transition.php
           php tests/elements-core-defaults.php
           php tests/elements-icon-scan.php
