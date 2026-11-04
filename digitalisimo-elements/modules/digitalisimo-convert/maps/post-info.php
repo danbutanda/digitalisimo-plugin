@@ -48,7 +48,7 @@ foreach ( array( 'author', 'date', 'time', 'comments', 'terms', 'custom' ) as $d
 return array(
 	'source'    => 'post-info',
 	'target'    => 'digitalisimo-post-info',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	'keep'      => array(
 		'view',
@@ -67,6 +67,18 @@ return array(
 	),
 	'groups'    => array(
 		'icon_typography' => 'icon_typography',
+	),
+	// En PRO la alineación de cada dispositivo es una clase que la hoja del núcleo sólo atiende con «Centro», y la clase
+	// «Centro» de un tamaño mayor sigue centrando en los menores; la propia aplica cada valor sólo en su dispositivo.
+	'approx'    => array_fill_keys(
+		array( 'icon_align_widescreen', 'icon_align_laptop', 'icon_align_tablet_extra', 'icon_align_tablet', 'icon_align_mobile_extra', 'icon_align_mobile' ),
+		'En PRO la alineación «Centro» de un tamaño mayor seguía centrando en los menores aunque estos eligieran «Inicio» o «Fin»; el widget propio aplica cada valor sólo en su dispositivo.'
+	),
+	// Claves que DIGITALÍSIMO Migración (F8) deja al convertir la información de la entrada de origen y que el widget de
+	// PRO no tiene: en un sitio con el widget de PRO registrado F8 ya las quitó y pasó su CSS al CSS personalizado.
+	'drop'      => array(
+		'icon_color_hover' => 'Color del icono al pasar el ratón de la conversión de F8: el widget de PRO no lo tiene; F8 ya lo pasó al CSS personalizado del elemento.',
+		'text_color_hover' => 'Color del texto al pasar el ratón de la conversión de F8: el widget de PRO no lo tiene; F8 ya lo pasó al CSS personalizado del elemento.',
 	),
 	'repeaters' => array(
 		'icon_list' => array(

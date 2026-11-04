@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'   => 'theme-post-content',
 	'target'   => 'digitalisimo-post-content',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	'keep'     => array( 'align', 'text_color' ),
 	'groups'   => array(

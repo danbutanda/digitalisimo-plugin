@@ -66,7 +66,7 @@ class Post_Info extends \Elementor\Widget_Base {
 	 */
 	public function get_style_depends(): array {
 		$deps = Module::style_depends( $this->get_name() );
-		if ( class_exists( Icons_Manager::class ) && method_exists( Icons_Manager::class, 'is_font_icon_inline_svg' ) && ! Icons_Manager::is_font_icon_inline_svg() && Icons_Manager::is_migration_allowed() ) {
+		if ( ! Module::feature( 'e_font_icon_svg' ) && class_exists( Icons_Manager::class ) && Icons_Manager::is_migration_allowed() ) {
 			$deps[] = 'elementor-icons-fa-regular';
 			$deps[] = 'elementor-icons-fa-solid';
 		}

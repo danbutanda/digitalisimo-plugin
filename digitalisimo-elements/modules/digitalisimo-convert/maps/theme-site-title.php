@@ -16,7 +16,7 @@ $digi_th = (array) require __DIR__ . '/_theme-heading.php';
 return array(
 	'source'   => 'theme-site-title',
 	'target'   => 'digitalisimo-site-title',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	'keep'     => $digi_th['keep'],
 	'groups'   => $digi_th['groups'],

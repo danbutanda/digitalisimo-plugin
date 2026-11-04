@@ -15,7 +15,7 @@ $digi_ti = (array) require __DIR__ . '/_theme-image.php';
 return array(
 	'source'   => 'theme-post-featured-image',
 	'target'   => 'digitalisimo-featured-image',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	'keep'     => $digi_ti['keep'],
 	'groups'   => $digi_ti['groups'],

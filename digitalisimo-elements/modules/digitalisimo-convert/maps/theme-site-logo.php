@@ -16,7 +16,7 @@ $digi_ti = (array) require __DIR__ . '/_theme-image.php';
 return array(
 	'source'   => 'theme-site-logo',
 	'target'   => 'digitalisimo-site-logo',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valores por defecto que PRO cambia (Elementor no guarda lo que coincide con ellos).
 	'defaults' => array( 'image_size' => 'full', 'link_to' => 'site_url' ),

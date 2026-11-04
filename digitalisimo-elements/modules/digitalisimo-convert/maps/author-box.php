@@ -87,6 +87,11 @@ return array(
 		'button_typography' => 'button_typography',
 	),
 	// Encabezados del panel: no guardan valor.
+	// Clave que DIGITALÍSIMO Migración (F8) deja al convertir la tarjeta de perfil de origen y que el widget de PRO no
+	// tiene: en un sitio con el widget de PRO registrado F8 ya la quitó.
+	'drop'     => array(
+		'social_icon_tooltip' => 'Información emergente de los iconos sociales de la conversión de F8: el widget de PRO no la tiene (los perfiles sociales del «Perfil ampliado» llevan su nombre accesible).',
+	),
 	'ui'       => array( 'heading_name_style', 'heading_bio_style' ),
 	'classes'  => $digi_ab_classes,
 );

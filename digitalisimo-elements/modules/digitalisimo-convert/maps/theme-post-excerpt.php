@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 return array(
 	'source'   => 'theme-post-excerpt',
 	'target'   => 'digitalisimo-post-excerpt',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	'keep'     => array( 'excerpt', 'align', 'paragraph_spacing', 'title_color', 'link_color', 'link_hover_color', 'link_hover_color_transition_duration' ),
 	'groups'   => array(

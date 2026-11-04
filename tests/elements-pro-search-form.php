@@ -95,6 +95,7 @@ namespace {
 
 	// 4. Conversión con el mapa.
 	h_check( 'search-form' === $map['source'] && 'digitalisimo-search-form' === $map['target'] && in_array( $map['status'], array( 'draft', 'ready' ), true ) && 'hide' === $map['panel'], 'Mapa del Search Form hacia el Formulario de búsqueda, oculto del panel al estar listo.' );
+	h_check( false === $own->show_in_panel() && false === ( new \ElementorPro\Modules\ThemeElements\Widgets\Search_Form() )->show_in_panel(), 'Fuera del panel, como PRO (el buscador nuevo es el de la familia de búsqueda).' );
 	$cases = array(
 		'defaults'   => array(),
 		'text'       => array( 'button_type' => 'text', 'button_text' => 'Encontrar', 'button_typography_typography' => 'custom', 'button_typography_font_weight' => '700', 'button_text_color' => '#111111', 'button_background_color' => '#eeeeee', 'button_text_color_hover' => '#222222', 'button_background_color_hover' => '#dddddd', 'button_width' => array( 'unit' => 'px', 'size' => 2.5 ) ),

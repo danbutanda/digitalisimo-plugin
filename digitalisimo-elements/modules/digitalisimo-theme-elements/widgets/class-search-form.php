@@ -68,6 +68,14 @@ class Search_Form extends \Elementor\Widget_Base {
 		return ! Module::feature( 'e_optimized_markup' );
 	}
 
+	/**
+	 * Como PRO, fuera del panel: el formulario de búsqueda sólo existe para el contenido que ya lo usa (lo convertido y lo
+	 * importado se sigue pintando); para uno nuevo el panel ofrece el buscador de la familia de navegación y búsqueda.
+	 */
+	public function show_in_panel(): bool {
+		return false;
+	}
+
 	public function get_style_depends(): array {
 		return Module::style_depends( $this->get_name() );
 	}
