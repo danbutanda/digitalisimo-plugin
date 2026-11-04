@@ -174,6 +174,33 @@ namespace {
 	$html = $render( array( 'code' => 'x', 'language' => 'go', 'theme' => 'tomorrow' ) );
 	check_ch( str_contains( $html, 'class="digi-code digi-code--tomorrow"' ) && ! str_contains( $html, '--dc-sel' ), 'Tomorrow sin color de selección propio (PRO no lo fijaba).' );
 
+	// Espacios en blanco como los dejaba PRO (su plantilla ponía cinco tabuladores delante del código y el complemento de
+	// Prism quitaba la sangría común); comprobado contra el complemento real con 400 entradas al azar al escribirlo.
+	$n = array(
+		"// Saludo\n\tconst a = 1;\n\tif ( a ) {\n\t\tb();\n\t}" => "// Saludo\nconst a = 1;\nif ( a ) {\n\tb();\n}",
+		"\n\n  uno  \r\n    dos\t\r\n\n" => "uno\n  dos",
+		"a\nb" => "a\nb",
+		"\t\t\t\t\t\tx\n\ty" => "x\ny",
+		"  x\n\ty" => "x\ny",
+		"   " => '',
+	);
+	foreach ( $n as $in => $expected ) {
+		check_ch( $expected === Code_Highlight::normalize( $in ), 'normalize(' . json_encode( $in ) . ') = ' . json_encode( Code_Highlight::normalize( $in ) ) . ', no ' . json_encode( $expected ) );
+	}
+	check_ch( str_contains( $render( array( 'code' => '   ' ) ), '<code class="language-javascript"></code>' ), 'Un código sólo de espacios pinta el bloque vacío, como PRO.' );
+
+	// El marcado de la prueba en Chrome (tests/fixtures/pro-code-highlight.html) es el de render().
+	$fixture = (string) file_get_contents( __DIR__ . '/fixtures/pro-code-highlight.html' );
+	$fixture_cases = array(
+		'top'   => array( 'code' => "// Saludo\n\tconst re = /a+b/g;\n\tfunction f( a ) {\n\t\treturn 'x' + a;\n\t}", 'line_numbers' => '', 'theme' => 'default' ),
+		'lines' => array( 'code' => "<?php\n\$a = 1 < 2 && 3 > 2;\necho \"<p>&amp;</p>\";\n?>\n<b>fin</b>", 'language' => 'php', 'theme' => 'okaidia', 'line_numbers' => '', 'copy_to_clipboard' => '', 'highlight_lines' => '2, 4-5' ),
+		'far'   => array( 'code' => "const a = 1;\nconst b = 2;\nconst c = a + b;", 'theme' => 'twilight', 'highlight_lines' => '2' ),
+	);
+	foreach ( $fixture_cases as $id => $settings ) {
+		$html = str_replace( 'https://sitio.test/wp-content/plugins/digitalisimo-elements/', '../../digitalisimo-elements/', $render( $settings + $map['defaults'] ) );
+		check_ch( str_contains( $fixture, '<div class="elementor-widget" data-id="' . $id . '">' . $html . '</div>' ), "La fixture de Chrome tiene el marcado de render() para «{$id}»." );
+	}
+
 	// 5. Conversión con ajustes reales.
 	$cases = array(
 		'defaults' => array(),
@@ -215,7 +242,7 @@ namespace {
 	$f = $out['full'];
 	check_ch( 'php' === $f['language'] && '' === $f['line_numbers'] && '' === $f['copy_to_clipboard'] && '2' === $f['highlight_lines'] && 'word-wrap' === $f['word_wrap'] && 'okaidia' === $f['theme'] && 300 === $f['height']['size'] && 'vh' === $f['height_mobile']['unit'] && 15 === $f['font_size']['size'] && 0.9 === $f['font_size_tablet']['size'] && 'mi-codigo' === $f['_css_classes'], 'Ajustes y dispositivos pasan a su control.' );
 	check_ch( "selector .digi-code--okaidia .digi-code__pre{max-width:100%}\n.elementor-widget-digitalisimo-code-highlight .digi-code--copy .digi-code{margin:0}\nselector .digi-code--wrap code{color:red}" === $f['custom_css'], 'CSS personalizado con las clases propias: ' . $f['custom_css'] );
-	check_ch( str_contains( $render( $f ), '<div class="digi-code digi-code--okaidia digi-code--wrap"' ) && str_contains( $render( $f ), '<pre class="digi-code__pre language-php" data-line="2"><code class="language-php">&lt;?php' . "\n\techo &#039;Hola&#039;;</code>" ), 'Lo convertido se pinta con su tema, su idioma y sus líneas resaltadas.' );
+	check_ch( str_contains( $render( $f ), '<div class="digi-code digi-code--okaidia digi-code--wrap"' ) && str_contains( $render( $f ), '<pre class="digi-code__pre language-php" data-line="2"><code class="language-php">&lt;?php' . "\necho &#039;Hola&#039;;</code>" ), 'Lo convertido se pinta con su tema, su idioma y sus líneas resaltadas.' );
 	check_ch( 'visual-basic,' === $out['vb']['language'] && str_contains( $render( $out['vb'] ), 'language-visual-basic' ), 'La clave `visual-basic,` pasa tal cual y pinta su gramática.' );
 	check_ch( array( 'code', 'highlight_lines' ) === array_keys( $out['dynamic']['__dynamic__'] ), 'Las etiquetas dinámicas siguen a su control.' );
 	check_ch( $converted === Converter::tree( $converted, $again, true ) && array() === $again, 'Lo convertido no se convierte otra vez.' );

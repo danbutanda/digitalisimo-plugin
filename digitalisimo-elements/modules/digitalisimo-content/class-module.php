@@ -37,6 +37,7 @@ final class Module {
 		'digitalisimo-flip-box' => array( 'file' => 'widgets/class-flip-box.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Flip_Box', 'css' => 'modules/digitalisimo-content/assets/css/flip-box.css', 'js' => 'modules/digitalisimo-content/assets/js/flip-box.js' ),
 		'digitalisimo-price-list' => array( 'file' => 'widgets/class-price-list.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Price_List', 'css' => 'modules/digitalisimo-content/assets/css/price-list.css', 'js' => 'modules/digitalisimo-content/assets/js/price-list.js' ),
 		'digitalisimo-price-table' => array( 'file' => 'widgets/class-price-table.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Price_Table', 'css' => 'modules/digitalisimo-content/assets/css/price-table.css', 'js' => 'modules/digitalisimo-content/assets/js/price-table.js' ),
+		'digitalisimo-video-playlist' => array( 'file' => 'widgets/class-video-playlist.php', 'class' => 'Digitalisimo\\Elements\\Content\\Widgets\\Video_Playlist', 'css' => 'modules/digitalisimo-content/assets/css/video-playlist.css', 'js' => 'modules/digitalisimo-content/assets/js/video-playlist.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
@@ -52,6 +53,7 @@ final class Module {
 		'digitalisimo-flip-box' => 'Tarjeta giratoria',
 		'digitalisimo-price-list' => 'Lista de precios',
 		'digitalisimo-price-table' => 'Tabla de precios',
+		'digitalisimo-video-playlist' => 'Lista de videos',
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */

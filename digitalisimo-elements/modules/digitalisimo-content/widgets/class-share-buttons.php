@@ -580,7 +580,9 @@ class Share_Buttons extends \Elementor\Widget_Base {
 				$target = 0 === strpos( $link, 'mailto:' ) ? '' : ' target="_blank" rel="noopener noreferrer"';
 				$tag    = '<a ' . $attrs . ' href="' . esc_url( $link, array( 'http', 'https', 'mailto' ) ) . '"' . $target . '>' . $inner . '</a>';
 			}
-			$html .= '<div class="elementor-grid-item"' . ( $list ? ' role="listitem"' : '' ) . '>' . $tag . '</div>';
+			// Un espacio entre botones: con «Columnas: Automático» son bloques en línea y la rejilla del núcleo los separa con
+			// `word-spacing` (como el marcado de PRO, con saltos de línea entre ellos).
+			$html .= '<div class="elementor-grid-item"' . ( $list ? ' role="listitem"' : '' ) . '>' . $tag . "</div>\n";
 		}
 		echo '<div class="elementor-grid digi-share"' . ( $list ? ' role="list"' : '' ) . '>' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado arriba.
 	}

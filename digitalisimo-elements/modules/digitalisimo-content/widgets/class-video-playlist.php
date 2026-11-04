@@ -776,7 +776,10 @@ class Video_Playlist extends \Elementor\Widget_Base {
 			array(
 				'label'     => esc_html__( 'Color activo', 'pro-elements' ),
 				'type'      => Controls_Manager::COLOR,
-				'selectors' => array( $inner . '-list .digi-vpl__in-tab.digi-vpl__in-tab--on' => 'color: {{VALUE}}; border-color: {{VALUE}};' ),
+				'selectors' => array(
+					$inner . '-list .digi-vpl__in-tab--on'                     => 'color: {{VALUE}};',
+					$inner . '-list .digi-vpl__in-tab.digi-vpl__in-tab--on' => 'border-color: {{VALUE}};',
+				),
 			)
 		);
 		$this->add_group_control( Group_Control_Typography::get_type(), array( 'name' => 'inner_tab_title_typography', 'selector' => $inner . '-list .digi-vpl__in-tab', 'global' => $font ) );

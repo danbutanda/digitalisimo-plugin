@@ -24,10 +24,11 @@
 		const p = progress(t), bar = t.querySelector('.' + R + '__progress'), txt = t.querySelector('.' + R + '__percentage'), pct = t.hasAttribute('data-digi-percentage');
 		if (!bar) return;
 		if (t.classList.contains(R + '--circular')) {
-			const on = p > 0, c = bar.r.baseVal.value * 2 * Math.PI, off = c - p / 100 * c;
-			t.classList.toggle(R + '--on', on);
+			// Visible antes de medir: el radio en % de un círculo oculto vale 0.
+			t.classList.toggle(R + '--on', p > 0);
+			if (p <= 0) return;
+			const c = bar.r.baseVal.value * 2 * Math.PI, off = c - p / 100 * c;
 			bar.style.strokeDasharray = c + ' ' + c;
-			if (!on) { bar.style.strokeDashoffset = c; return; }
 			bar.style.strokeDashoffset = t.getAttribute('data-digi-direction') === 'ltr' ? -off : off;
 			if (pct && txt) txt.textContent = Math.round(p) + '%';
 			return;

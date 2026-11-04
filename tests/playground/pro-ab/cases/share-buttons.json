@@ -2,7 +2,38 @@
  "_doc": [
   "Casos A/B de los Botones para compartir (C2, frente A): A con `share-buttons` de PRO, B con `digitalisimo-share-buttons`. Los de PRO son `div role=\"button\"` sin destino (su script abre la ventana al hacer clic); los propios, enlaces normales con su destino."
  ],
- "declared": [],
+ "declared": [
+  {
+   "widget": "share-buttons",
+   "kind": "enlace",
+   "match": "^nuevo «(https://|mailto:)",
+   "reason": "Contrato C2: cada botón es un enlace normal con la URL de compartir de su red (codificada en el servidor) o un mailto; en PRO era un div role=\"button\" sin destino y su script abría la ventana al hacer clic."
+  },
+  {
+   "widget": "share-buttons",
+   "kind": "control",
+   "match": "^control (div|a|button) \\d+ sólo en (A|B) \\((div|a|button)\\)$",
+   "reason": "Los botones de PRO son div role=\"button\" con tabindex; los propios, enlaces (y un <button> para imprimir): el arnés empareja los controles por etiqueta. Colores, tamaños y bordes se comparan en los textos, en el hover y en los píxeles."
+  },
+  {
+   "widget": "share-buttons",
+   "kind": "nombre",
+   "match": "^(perdido button «Share on [a-z-]+»|nuevo (link|button) «(Compartir en [^»]+|Compartir por correo|Imprimir la página|Compártelo)»)$",
+   "reason": "Nombre accesible en español con el nombre de la red («Compartir en Facebook») o el texto personalizado visible; PRO usaba «Share on <identificador>» en inglés, y el rol es el de un enlace (o botón para imprimir)."
+  },
+  {
+   "widget": "share-buttons",
+   "kind": "palabra",
+   "match": "^(perdida «(email|print)»|nueva «(correo|imprimir)»)$",
+   "reason": "Los títulos de Correo e Imprimir, en español; PRO pintaba «Email» y «Print» sin traducir (las demás son marcas)."
+  },
+  {
+   "widget": "share-buttons",
+   "kind": "foco",
+   "match": "^outline(-offset)?:",
+   "reason": "Foco visible propio (contorno de 2 px a 2 px en el color del botón, estándar del front); PRO dejaba el anillo del navegador."
+  }
+ ],
  "cases": {
   "sb-defaults": {
    "title": "Valores por defecto: Facebook, X y LinkedIn, degradado, cuadrados, icono y texto, colores oficiales",
@@ -10,7 +41,7 @@
    "settings": {}
   },
   "sb-flat": {
-   "title": "Piel plana, cinco redes con correo e imprimir",
+   "title": "Piel plana, cinco redes",
    "widget": "share-buttons",
    "settings": {
     "skin": "flat",
@@ -29,11 +60,11 @@
      },
      {
       "_id": "sb03",
-      "button": "email"
+      "button": "pocket"
      },
      {
       "_id": "sb04",
-      "button": "print"
+      "button": "skype"
      }
     ]
    }
@@ -162,7 +193,7 @@
      },
      {
       "_id": "t3",
-      "button": "email"
+      "button": "reddit"
      }
     ]
    }
@@ -378,6 +409,31 @@
      "nofollow": ""
     },
     "skin": "flat"
+   }
+  },
+  "sb-mail-print": {
+   "title": "Correo e imprimir, piel plana y vista de icono y texto",
+   "widget": "share-buttons",
+   "settings": {
+    "skin": "flat",
+    "share_buttons": [
+     {
+      "_id": "sb00",
+      "button": "email"
+     },
+     {
+      "_id": "sb01",
+      "button": "print"
+     },
+     {
+      "_id": "sb02",
+      "button": "threads"
+     }
+    ]
+   },
+   "pixels": {
+    "max": 0.08,
+    "reason": "Los títulos de Correo e Imprimir están en español («Correo», «Imprimir»; PRO pintaba «Email» y «Print» sin traducir): los dos botones cambian de ancho. Colores, iconos y alturas iguales."
    }
   }
  }

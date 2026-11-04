@@ -1,0 +1,783 @@
+{
+ "_doc": [
+  "Casos A/B de la Galería avanzada (frente C de C2): A con `gallery` de PRO, B con `digitalisimo-gallery`. Imágenes de prueba con `{\"$gallery\": [n, …]}` (1200 × 800). `ready`: A espera a la librería de galería (y en carga diferida, a la primera imagen cargada), B a `digi-gallery--ready`. `forbid`: B no carga los paquetes de PRO, su hoja, la librería de galería del núcleo ni las transiciones de PRO."
+ ],
+ "declared": [],
+ "cases": {
+  "gal-defaults": {
+   "title": "Valores por defecto: una galería de 8 imágenes en cuadrícula 4/2/1, 3:2, tamaño medio, lightbox y fondo al pasar el cursor; carga diferida",
+   "widget": "gallery",
+   "settings": {
+    "gallery": {
+     "$gallery": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+     ]
+    }
+   },
+   "ready": {
+    "a": ".e-gallery-image-loaded",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ]
+  },
+  "gal-justified": {
+   "title": "Justificada (altura de fila 200/150, separación 10) sin carga diferida",
+   "widget": "gallery",
+   "settings": {
+    "gallery": {
+     "$gallery": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ]
+    },
+    "gallery_layout": "justified",
+    "lazyload": ""
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ]
+  },
+  "gal-justified-custom": {
+   "title": "Justificada con altura de fila 120 y separación 4 en el móvil, tamaño grande",
+   "widget": "gallery",
+   "settings": {
+    "gallery": {
+     "$gallery": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+     ]
+    },
+    "gallery_layout": "justified",
+    "lazyload": "",
+    "ideal_row_height": {
+     "unit": "px",
+     "size": 260,
+     "sizes": []
+    },
+    "ideal_row_height_mobile": {
+     "unit": "px",
+     "size": 120,
+     "sizes": []
+    },
+    "gap": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
+    "gap_mobile": {
+     "unit": "px",
+     "size": 4,
+     "sizes": []
+    },
+    "thumbnail_image_size": "large"
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ]
+  },
+  "gal-masonry": {
+   "title": "Mampostería de 3 columnas (2 en tableta) sin carga diferida",
+   "widget": "gallery",
+   "settings": {
+    "gallery": {
+     "$gallery": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ]
+    },
+    "gallery_layout": "masonry",
+    "lazyload": "",
+    "columns": 3
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ]
+  },
+  "gal-grid-styles": {
+   "title": "Cuadrícula 3 columnas 1:1, separación 20, borde, radio y animación de la imagen; sin enlace ni fondo",
+   "widget": "gallery",
+   "settings": {
+    "gallery": {
+     "$gallery": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+     ]
+    },
+    "lazyload": "",
+    "columns": 3,
+    "aspect_ratio": "1:1",
+    "gap": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "link_to": "",
+    "overlay_background": "",
+    "image_border_color": "#e63946",
+    "image_border_width": {
+     "unit": "px",
+     "size": 4,
+     "sizes": []
+    },
+    "image_border_radius": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "image_hover_animation": "grow",
+    "image_animation_duration": {
+     "unit": "px",
+     "size": 0,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ]
+  },
+  "gal-overlay": {
+   "title": "Superposición: título y descripción del adjunto siempre visibles, contenido abajo a la izquierda, fondo con color",
+   "widget": "gallery",
+   "settings": {
+    "gallery": {
+     "$gallery": [
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    "lazyload": "",
+    "overlay_title": "title",
+    "overlay_description": "alt",
+    "content_hover_animation": "",
+    "content_alignment": "left",
+    "content_vertical_position": "bottom",
+    "content_padding": {
+     "unit": "px",
+     "size": 12,
+     "sizes": []
+    },
+    "title_color": "#ffd166",
+    "description_color": "#ffffff",
+    "title_spacing": {
+     "unit": "px",
+     "size": 6,
+     "sizes": []
+    },
+    "overlay_background_background": "classic",
+    "overlay_background_color": "rgba(0,0,0,0.35)",
+    "background_overlay_animation_duration": {
+     "unit": "px",
+     "size": 0,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ]
+  },
+  "gal-overlay-hover": {
+   "title": "Superposición al pasar el cursor: título que aparece (duraciones 0 para medir el estado final)",
+   "widget": "gallery",
+   "settings": {
+    "gallery": {
+     "$gallery": [
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    "lazyload": "",
+    "overlay_title": "title",
+    "content_animation_duration": {
+     "unit": "px",
+     "size": 0,
+     "sizes": []
+    },
+    "background_overlay_animation_duration": {
+     "unit": "px",
+     "size": 0,
+     "sizes": []
+    }
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ]
+  },
+  "gal-custom-link": {
+   "title": "Enlace a una URL personalizada en todas las imágenes",
+   "widget": "gallery",
+   "settings": {
+    "gallery": {
+     "$gallery": [
+      1,
+      2,
+      3
+     ]
+    },
+    "lazyload": "",
+    "link_to": "custom",
+    "url": {
+     "url": "/destino-galeria/",
+     "is_external": "",
+     "nofollow": "",
+     "custom_attributes": ""
+    }
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ]
+  },
+  "gal-filters": {
+   "title": "Varias galerías con «All», indicador subrayado; clic en «Playas» y teclado (Intro) en «Faros»",
+   "widget": "gallery",
+   "settings": {
+    "gallery_type": "multiple",
+    "galleries": [
+     {
+      "_id": "ga1",
+      "gallery_title": "Faros",
+      "multiple_gallery": {
+       "$gallery": [
+        1,
+        2,
+        3,
+        4
+       ]
+      }
+     },
+     {
+      "_id": "ga2",
+      "gallery_title": "Playas",
+      "multiple_gallery": {
+       "$gallery": [
+        4,
+        5,
+        6
+       ]
+      }
+     }
+    ],
+    "lazyload": ""
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ],
+   "actions": [
+    {
+     "label": "clic en Playas",
+     "a": ".elementor-gallery-title[data-gallery-index=\"1\"]",
+     "b": ".digi-gallery__filter[data-digi-filter=\"1\"]"
+    },
+    {
+     "label": "Intro en Faros",
+     "a": ".elementor-gallery-title[data-gallery-index=\"0\"]",
+     "b": ".digi-gallery__filter[data-digi-filter=\"0\"]",
+     "key": "Enter"
+    },
+    {
+     "label": "clic en All",
+     "a": ".elementor-gallery-title[data-gallery-index=\"all\"]",
+     "b": ".digi-gallery__filter[data-digi-filter=\"all\"]"
+    }
+   ]
+  },
+  "gal-filters-styled": {
+   "title": "Filtros sin «All», alineados a la izquierda, colores y tipografía propios, separación; clic en «Playas»",
+   "widget": "gallery",
+   "settings": {
+    "gallery_type": "multiple",
+    "galleries": [
+     {
+      "_id": "ga1",
+      "gallery_title": "Faros",
+      "multiple_gallery": {
+       "$gallery": [
+        1,
+        2,
+        3,
+        4
+       ]
+      }
+     },
+     {
+      "_id": "ga2",
+      "gallery_title": "Playas",
+      "multiple_gallery": {
+       "$gallery": [
+        4,
+        5,
+        6
+       ]
+      }
+     }
+    ],
+    "lazyload": "",
+    "show_all_galleries": "",
+    "align_filter_bar_items": "left",
+    "galleries_title_color_normal": "#264653",
+    "galleries_title_color_active": "#e63946",
+    "galleries_titles_typography_typography": "custom",
+    "galleries_titles_typography_font_size": {
+     "unit": "px",
+     "size": 20,
+     "sizes": []
+    },
+    "galleries_titles_space_between": {
+     "unit": "px",
+     "size": 24,
+     "sizes": []
+    },
+    "galleries_titles_gap": {
+     "unit": "px",
+     "size": 32,
+     "sizes": []
+    },
+    "pointer": "none"
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ],
+   "actions": [
+    {
+     "label": "clic en Playas",
+     "a": ".elementor-gallery-title[data-gallery-index=\"1\"]",
+     "b": ".digi-gallery__filter[data-digi-filter=\"1\"]"
+    }
+   ]
+  },
+  "gal-filters-justified": {
+   "title": "Varias galerías en justificada; clic en «Faros» (vuelve a colocar las imágenes)",
+   "widget": "gallery",
+   "settings": {
+    "gallery_type": "multiple",
+    "galleries": [
+     {
+      "_id": "ga1",
+      "gallery_title": "Faros",
+      "multiple_gallery": {
+       "$gallery": [
+        1,
+        2,
+        3,
+        4
+       ]
+      }
+     },
+     {
+      "_id": "ga2",
+      "gallery_title": "Playas",
+      "multiple_gallery": {
+       "$gallery": [
+        4,
+        5,
+        6
+       ]
+      }
+     }
+    ],
+    "lazyload": "",
+    "gallery_layout": "justified"
+   },
+   "ready": {
+    "a": ".e-gallery-container",
+    "b": ".digi-gallery--ready"
+   },
+   "forbid": [
+    {
+     "name": "pro-elements-handlers",
+     "id": "pro-elements-handlers-js",
+     "url": "/digitalisimo-elements/assets/js/elements-handlers(\\.min)?\\.js"
+    },
+    {
+     "name": "elementor-pro-frontend",
+     "id": "elementor-pro-frontend-js",
+     "url": "/digitalisimo-elements/assets/js/frontend(\\.min)?\\.js"
+    },
+    {
+     "name": "widget-gallery.min.css de PRO",
+     "id": "widget-gallery-css",
+     "url": "/digitalisimo-elements/assets/css/widget-gallery(-rtl)?(\\.min)?\\.css"
+    },
+    {
+     "name": "librería de galería del núcleo (script)",
+     "id": "elementor-gallery-js",
+     "url": "/elementor/assets/lib/e-gallery/js/"
+    },
+    {
+     "name": "librería de galería del núcleo (hoja)",
+     "id": "elementor-gallery-css",
+     "url": "/elementor/assets/lib/e-gallery/css/"
+    },
+    {
+     "name": "transiciones de PRO",
+     "id": "e-transitions-css",
+     "url": "/digitalisimo-elements/assets/css/conditionals/transitions(\\.min)?\\.css"
+    }
+   ],
+   "actions": [
+    {
+     "label": "clic en Faros",
+     "a": ".elementor-gallery-title[data-gallery-index=\"0\"]",
+     "b": ".digi-gallery__filter[data-digi-filter=\"0\"]",
+     "wait": 1500
+    }
+   ]
+  }
+ }
+}

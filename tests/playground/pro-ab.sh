@@ -32,6 +32,8 @@
 # una; ver run.cjs).
 # C2: `before`/`after` (elementos hermanos del widget en su contenedor, sin convertir: los encabezados de una tabla de
 # contenido) y `reducedMotion` (A y B con «reducir movimiento», para comparar el estado final de una animación).
+# También `clock` (fecha ISO: el reloj del navegador fijado, para una cuenta regresiva) y, en `actions`, `scroll` (píxeles o
+# `end`: desplaza la página en lugar de pulsar, para un indicador de progreso).
 #
 # Uso: bash tests/playground/pro-ab.sh                 todos los casos
 #      CASES=bq-defaults,bq-boxed bash ...             sólo esos casos

@@ -1112,7 +1112,7 @@ class Gallery extends \Elementor\Widget_Base {
 		}
 		echo '<div class="digi-gallery__filters digi-gallery__filters--' . esc_attr( $pointer ) . esc_attr( $animation ) . '" role="group" aria-label="' . esc_attr__( 'Filtro de la galería', 'pro-elements' ) . '">';
 		foreach ( $filters as $index => $label ) {
-			$on = $index === $active;
+			$on = (string) $index === $active;
 			echo '<button type="button" class="digi-gallery__filter' . ( $on ? ' digi-gallery__filter--active' : '' ) . '" data-digi-filter="' . esc_attr( $index ) . '" aria-controls="' . esc_attr( $box_id ) . '" aria-pressed="' . ( $on ? 'true' : 'false' ) . '">' . $label . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- texto con wp_kses_post().
 		}
 		echo '</div>';

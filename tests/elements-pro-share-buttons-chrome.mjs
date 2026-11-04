@@ -58,11 +58,13 @@ try {
     }
     ok(links.filter(l => l.tag === 'BUTTON').length === 1 && links.filter(l => l.tag === 'SPAN').length === 1, 'Un botón (imprimir) y un elemento sin enlace (Mix).');
     // 2. Pieles y colores.
-    const s1 = await style(page, '[data-id="s1"] .digi-share__btn--facebook', ['background-color', 'color', 'height', 'font-size']);
+    const s1 = await style(page, '[data-id="s1"] .digi-share__btn--facebook', ['background-color', 'height', 'font-size']);
+    s1.color = (await style(page, '[data-id="s1"] .digi-share__btn--facebook .digi-share__title', ['color'])).color;
     ok(s1['background-color'] === 'rgb(59, 89, 152)' && s1.color === 'rgb(255, 255, 255)' && s1.height === '45px' && s1['font-size'] === '10px', `Degradado oficial: el azul de la red, texto blanco y 45 px de alto (${JSON.stringify(s1)}).`);
     ok((await style(page, '[data-id="s1"] .digi-share__btn--facebook .digi-share__text', ['background-image']))['background-image'].startsWith('linear-gradient'), 'Degradado sobre el texto.');
     ok((await style(page, '[data-id="s1"] .digi-share__btn--facebook .digi-share__icon svg', ['fill']))['fill'] === 'rgb(255, 255, 255)', 'Icono blanco.');
-    const s2 = await style(page, '[data-id="s2"] .digi-share__btn--whatsapp', ['background-color', 'color', 'border-radius']);
+    const s2 = await style(page, '[data-id="s2"] .digi-share__btn--whatsapp', ['background-color', 'border-radius']);
+    s2.color = (await style(page, '[data-id="s2"] .digi-share__btn--whatsapp .digi-share__title', ['color'])).color;
     ok(s2['background-color'] === 'rgb(17, 34, 51)' && s2.color === 'rgb(255, 238, 221)' && s2['border-radius'] === '5px', `Plana personalizada y redondeada (${JSON.stringify(s2)}).`);
     await page.hover('[data-id="s2"] .digi-share__btn--whatsapp');
     await sleep(350);

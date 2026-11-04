@@ -225,7 +225,7 @@ namespace {
 		check_gl( str_contains( $css, $look ), "La hoja reproduce el aspecto de PRO ($look)." );
 	}
 	$js = (string) file_get_contents( $root . 'modules/digitalisimo-content/assets/js/gallery.js' );
-	check_gl( strlen( $js ) <= 6144 && ! preg_match( '/jquery|\$\(|EGallery|elementsHandler|swiper/i', $js ) && str_contains( $js, 'ResizeObserver' ) && str_contains( $js, "'aria-pressed'" ) && str_contains( $js, 'data-elementor-lightbox-slideshow' ), 'El script pesa ' . strlen( $js ) . ' B (tope 6 144), sin jQuery, sin la librería de galería ni el gestor de handlers.' );
+	check_gl( strlen( $js ) <= 6144 && ! preg_match( '/\bjquery\s*\(|\bjquery\.[a-z]|\$\(|EGallery|elementsHandler|swiper/i', $js ) && str_contains( $js, 'ResizeObserver' ) && str_contains( $js, "'aria-pressed'" ) && str_contains( $js, 'data-elementor-lightbox-slideshow' ), 'El script pesa ' . strlen( $js ) . ' B (tope 6 144), sin jQuery, sin la librería de galería ni el gestor de handlers.' );
 	$source = (string) file_get_contents( $root . 'modules/digitalisimo-content/widgets/class-gallery.php' );
 	check_gl( ! preg_match( '/jquery\(|swiper|wp_enqueue_script|e-gallery|<iframe|ElementorPro/i', $source ), 'El widget no usa jQuery, Swiper, la librería de galería ni clases de PRO.' );
 	$guard = '/bdthemes|element[ _-]?pack|elementpack|prime[ _-]?slider|primeslider|(^|[^a-z0-9_-])bdt[-_][a-z]|(^|[^a-z0-9_])ep_[a-z]/i';
@@ -252,6 +252,11 @@ namespace {
 		foreach ( $same as $arg ) {
 			if ( 'selectors_dictionary' === $arg && in_array( $name, array( 'aspect_ratio' ), true ) ) {
 				continue; // PRO no tenía selectors en la proporción (la aplicaba su script); la propia la traduce a CSS.
+			}
+			if ( 'default' === $arg && in_array( $name, array( 'galleries', 'show_all_galleries_label' ), true ) ) {
+				// Textos por defecto traducidos («New Gallery» → «Nueva galería», «All» → «Todas»): el mapa conserva los de PRO.
+				check_gl( count( (array) $control['default'] ) === count( (array) $mine['default'] ), "$name: default con la misma forma." );
+				continue;
 			}
 			check_gl( ( $control[ $arg ] ?? null ) === ( $mine[ $arg ] ?? null ), "$name: $arg distinto de PRO (" . var_export( $control[ $arg ] ?? null, true ) . ' ≠ ' . var_export( $mine[ $arg ] ?? null, true ) . ').' );
 		}

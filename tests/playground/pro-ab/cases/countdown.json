@@ -1,0 +1,226 @@
+{
+ "_doc": [
+  "Casos A/B de la Cuenta regresiva (frente D de C2): A con `countdown` de PRO, B con `digitalisimo-countdown`. El reloj del navegador está fijado (`clock`: 2030-01-01 00:00 UTC; el sitio de prueba está en UTC), así que A y B marcan los mismos dígitos en cada medición: la fecha límite de los casos es 2030-01-04 10:05:06 (3 días, 10 h, 5 min, 6 s) y las vencidas, de 2029. `ready.a` espera a que el script de PRO haya escrito los días."
+ ],
+ "declared": [
+  {
+   "widget": "countdown",
+   "kind": "palabra",
+   "match": "^(perdida «(days|hours|minutes|seconds)»|nueva «(días|horas|minutos|segundos)»)$",
+   "reason": "Sin «Etiquetas personalizadas» las etiquetas son las del widget propio, en español (las de PRO salen de su traducción al idioma del sitio; el sitio de prueba está en inglés)."
+  }
+ ],
+ "cases": {
+  "cd-defaults": {
+   "title": "Valores por defecto: fecha límite, cuatro cajas en bloque con etiquetas",
+   "widget": "countdown",
+   "clock": "2030-01-01T00:00:00Z",
+   "settings": {
+    "due_date": "2030-01-04 10:05:06"
+   },
+   "ready": {
+    "a": ".elementor-countdown-days:not(:empty)"
+   },
+   "pixels": {
+    "max": 0.2,
+    "reason": "Las etiquetas por defecto son otras palabras (en español, declaradas): «Segundos» es más ancha que «Seconds» y, a 375 px, las cajas flexibles se reparten el ancho de otra forma. Con las mismas palabras (cd-labels, cd-styled, cd-message) la diferencia es 0,00 %."
+   }
+  },
+  "cd-labels": {
+   "title": "Etiquetas personalizadas, sin segundos, en bloque con ancho del contenedor y separación",
+   "widget": "countdown",
+   "clock": "2030-01-01T00:00:00Z",
+   "settings": {
+    "due_date": "2030-01-04 10:05:06",
+    "show_seconds": "",
+    "custom_labels": "yes",
+    "label_days": "Días",
+    "label_hours": "Horas",
+    "label_minutes": "Minutos",
+    "container_width": {
+     "unit": "px",
+     "size": 600
+    },
+    "box_spacing": {
+     "unit": "px",
+     "size": 30
+    }
+   },
+   "ready": {
+    "a": ".elementor-countdown-days:not(:empty)"
+   }
+  },
+  "cd-inline": {
+   "title": "Disposición en línea alineada al final, sin etiquetas y sin días",
+   "widget": "countdown",
+   "clock": "2030-01-01T00:00:00Z",
+   "settings": {
+    "due_date": "2030-01-04 10:05:06",
+    "label_display": "inline",
+    "boxes_alignment": "end",
+    "show_days": "",
+    "show_labels": ""
+   },
+   "ready": {
+    "a": ".elementor-countdown-hours:not(:empty)"
+   }
+  },
+  "cd-styled": {
+   "title": "Estilos de las cajas, dígitos y etiquetas (relleno, fondo, borde, radio, sombra, tipografías, contorno)",
+   "widget": "countdown",
+   "clock": "2030-01-01T00:00:00Z",
+   "settings": {
+    "due_date": "2030-01-04 10:05:06",
+    "custom_labels": "yes",
+    "label_days": "Días",
+    "label_hours": "Horas",
+    "label_minutes": "Minutos",
+    "label_seconds": "Segundos",
+    "box_padding": {
+     "unit": "px",
+     "top": "12",
+     "right": "8",
+     "bottom": "12",
+     "left": "8",
+     "isLinked": false
+    },
+    "box_padding_mobile": {
+     "unit": "px",
+     "top": "6",
+     "right": "4",
+     "bottom": "6",
+     "left": "4",
+     "isLinked": false
+    },
+    "box_background_color": "#1d2b53",
+    "box_border_border": "solid",
+    "box_border_width": {
+     "unit": "px",
+     "top": "3",
+     "right": "3",
+     "bottom": "3",
+     "left": "3",
+     "isLinked": true
+    },
+    "box_border_color": "#ffcc00",
+    "box_border_radius": {
+     "unit": "px",
+     "top": "12",
+     "right": "12",
+     "bottom": "12",
+     "left": "12",
+     "isLinked": true
+    },
+    "box_shadow_box_shadow_type": "yes",
+    "box_shadow_box_shadow": {
+     "horizontal": 0,
+     "vertical": 4,
+     "blur": 10,
+     "spread": 0,
+     "color": "rgba(0,0,0,0.4)"
+    },
+    "digits_color": "#ffcc00",
+    "digits_typography_typography": "custom",
+    "digits_typography_font_size": {
+     "unit": "px",
+     "size": 48
+    },
+    "digits_typography_font_size_mobile": {
+     "unit": "px",
+     "size": 28
+    },
+    "digits_typography_font_weight": "700",
+    "label_color": "#dddddd",
+    "label_typography_typography": "custom",
+    "label_typography_font_size": {
+     "unit": "px",
+     "size": 14
+    },
+    "label_typography_text_transform": "uppercase",
+    "label_typography_letter_spacing": {
+     "unit": "px",
+     "size": 2
+    },
+    "text_stroke_text_stroke_type": "yes",
+    "text_stroke_text_stroke": {
+     "unit": "px",
+     "size": 1
+    },
+    "text_stroke_stroke_color": "#000000"
+   },
+   "ready": {
+    "a": ".elementor-countdown-days:not(:empty)"
+   }
+  },
+  "cd-message": {
+   "title": "Vencida: mostrar el mensaje con sus estilos",
+   "widget": "countdown",
+   "clock": "2030-01-01T00:00:00Z",
+   "settings": {
+    "due_date": "2029-06-01 10:00",
+    "custom_labels": "yes",
+    "label_days": "Días",
+    "label_hours": "Horas",
+    "label_minutes": "Minutos",
+    "label_seconds": "Segundos",
+    "expire_actions": [
+     "message"
+    ],
+    "message_after_expire": "La oferta terminó. ¡Gracias por tu interés!",
+    "align": "start",
+    "text_color": "#7a1fa2",
+    "typography_typography": "custom",
+    "typography_font_size": {
+     "unit": "px",
+     "size": 22
+    },
+    "message_padding": {
+     "unit": "px",
+     "top": "10",
+     "right": "10",
+     "bottom": "10",
+     "left": "10",
+     "isLinked": true
+    }
+   },
+   "ready": {
+    "a": ".elementor-countdown-days:not(:empty)"
+   }
+  },
+  "cd-hide": {
+   "title": "Vencida: ocultar la cuenta y mostrar el mensaje",
+   "widget": "countdown",
+   "clock": "2030-01-01T00:00:00Z",
+   "settings": {
+    "due_date": "2029-06-01 10:00",
+    "expire_actions": [
+     "hide",
+     "message"
+    ],
+    "message_after_expire": "Fin de la cuenta"
+   },
+   "ready": {
+    "a": ".elementor-countdown-days:not(:empty)"
+   }
+  },
+  "cd-evergreen": {
+   "title": "Temporizador perpetuo de 2 h 30 min (visitante nuevo), en línea",
+   "widget": "countdown",
+   "clock": "2030-01-01T00:00:00Z",
+   "settings": {
+    "countdown_type": "evergreen",
+    "evergreen_counter_hours": 2,
+    "evergreen_counter_minutes": 30,
+    "label_display": "inline",
+    "custom_labels": "yes",
+    "label_days": "Días",
+    "label_hours": "Horas",
+    "label_minutes": "Minutos",
+    "label_seconds": "Segundos"
+   },
+   "ready": {
+    "a": ".elementor-countdown-hours:not(:empty)"
+   }
+  }
+ }
+}

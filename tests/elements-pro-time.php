@@ -13,7 +13,10 @@
  * - conversión con `Converter::tree()` de ajustes reales (por defecto, completos, `__globals__`, `__dynamic__`, CSS
  *   personalizado con clases de PRO, dispositivos): ningún `pro.unmapped`, cada clave cae en un control propio.
  *
- * Se ejecuta con php-wasm: sale con 0 aunque haya un error fatal, así que se juzga por la línea final.
+ * - `tests/fixtures/pro-time.html` (la usa tests/elements-pro-time-chrome.mjs) es el marcado del servidor de hoy: con
+ *   `--write`, se regenera.
+ *
+ * Uso: php-wasm-cli tests/elements-pro-time.php [--write]. Se ejecuta con php-wasm: sale con 0 aunque haya un error fatal, así que se juzga por la línea final.
  */
 namespace Elementor {
 	class Widget_Base {
@@ -374,6 +377,38 @@ namespace {
 	$r = $out['pt-bar'];
 	check_pt( 'post_content' === $r['relative_to'] && 'ltr' === $r['percentage_position_mobile'] && 'gradient' === $r['horizontal_color_background'] && '#0000aa' === $r['horizontal_color_color_b'] && 'dashed' === $r['horizontal_tracker_border_style'] && 6 === $r['horizontal_height_mobile']['size'] && 'fixed' === $r['_position'] && 'top' === $r['sticky'] && array( 'horizontal_color_color' => 'globals/colors?id=accent', 'percentage_color' => 'globals/colors?id=secondary', 'percentage_typography_typography' => 'globals/typography?id=accent' ) === $r['__globals__'], 'La barra conserva fondos, bordes, alto por dispositivo, globales, posición fija y fijado.' );
 	check_pt( $converted === Converter::tree( $converted, $again, false ) && array() === $again, 'Lo convertido no se convierte otra vez.' );
+
+	// 7. Página de prueba de Chrome (tests/elements-pro-time-chrome.mjs): el marcado del servidor de hoy, con los dígitos
+	// iniciales a cero (dependen de la hora; el script los pone al día). Con `--write`, se regenera.
+	$wrap = static function ( $name, $id, $html, $classes = '', $style = '' ) {
+		return '<div class="elementor-element elementor-widget elementor-widget-' . $name . ( $classes ? ' ' . $classes : '' ) . '" data-id="' . $id . '" data-widget_type="' . $name . '.default"' . ( $style ? ' style="' . $style . '"' : '' ) . '><div class="elementor-widget-container">' . preg_replace( '#(digi-countdown__(?:days|hours|minutes|seconds)">)\d+#', '${1}00', $html ) . "</div></div>\n";
+	};
+	$c        = 'digitalisimo-countdown';
+	$t        = 'digitalisimo-progress-tracker';
+	$fixture  = "<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Tiempo</title>\n";
+	$fixture .= "<!-- Generada por tests/elements-pro-time.php (--write); la usa tests/elements-pro-time-chrome.mjs. -->\n";
+	$fixture .= "<style>body{margin:0;font:16px/1.5 sans-serif}.elementor-widget{margin:0 0 20px}.tall{height:2400px}#objetivo{height:1200px;background:#eee}.snap,.snap body{height:100vh;margin:0;overflow:hidden}.snap body{overflow:auto}</style>\n";
+	$fixture .= "<script>if(/snap/.test(location.search))document.documentElement.className='snap'</script>\n";
+	$fixture .= "<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-content/assets/css/countdown.css\">\n<link rel=\"stylesheet\" href=\"../../digitalisimo-elements/modules/digitalisimo-content/assets/css/progress-tracker.css\">\n</head><body>\n";
+	$fixture .= $wrap( $c, 'cd1', $render( $cd, array( 'due_date' => '2030-01-04 04:05:06' ) + $base ), 'digi-countdown--label-block' );
+	$fixture .= $wrap( $c, 'cd2', $render( $cd, array( 'due_date' => '2029-12-31 17:00', 'expire_actions' => array( 'hide', 'message' ), 'message_after_expire' => 'Terminó' ) + $base ), 'digi-countdown--label-block' );
+	$fixture .= $wrap( $c, 'ev1', $render( $cd, array( 'countdown_type' => 'evergreen', 'evergreen_counter_hours' => 2, 'evergreen_counter_minutes' => 30 ) + $base ), 'digi-countdown--label-inline' );
+	$fixture .= $wrap( $t, 'pt1', $render( $pt, array( 'type' => 'horizontal', 'relative_to' => 'entire_page', 'percentage' => 'yes' ) ) );
+	$fixture .= $wrap( $t, 'pt2', $render( $pt, array( 'type' => 'circular', 'relative_to' => 'selector', 'selector' => '#objetivo', 'direction' => 'ltr', 'percentage' => 'yes' ) ) );
+	$fixture .= $wrap( $t, 'pt3', $render( $pt, array( 'type' => 'horizontal', 'relative_to' => 'selector', 'selector' => '###', 'percentage' => 'yes' ) ) );
+	$fixture .= $wrap( $t, 'pt4', $render( $pt, array( 'type' => 'horizontal', 'relative_to' => 'post_content' ) ) );
+	$fixture .= $wrap( $t, 'pt5', $render( $pt, array( 'type' => 'horizontal', 'relative_to' => 'entire_page', 'direction' => 'rtl', 'percentage' => 'yes' ) ), '', '--direction: rtl' );
+	$fixture .= $wrap( $t, 'pt6', $render( $pt, array( 'type' => 'horizontal', 'relative_to' => 'entire_page', 'percentage' => 'yes' ) ), '', 'width:60px' );
+	$fixture .= $wrap( $t, 'pt7', $render( $pt, array( 'type' => 'circular', 'relative_to' => 'entire_page', 'percentage' => 'yes' ) ) );
+	$fixture .= "<div class=\"tall\"></div>\n<div id=\"objetivo\"></div>\n<div class=\"tall\"></div>\n";
+	$fixture .= '<template id="redirigir">' . $wrap( $c, 'cd3', $render( $cd, array( 'due_date' => '2029-12-31 17:00', 'expire_actions' => array( 'redirect' ), 'expire_redirect_url' => array( 'url' => 'https://destino.test/fin' ) ) + $base ) ) . "</template>\n";
+	$fixture .= "<script>if(/redirect/.test(location.search))document.body.prepend(document.getElementById('redirigir').content)</script>\n";
+	$fixture .= "<script src=\"../../digitalisimo-elements/modules/digitalisimo-content/assets/js/countdown.js\" defer></script>\n<script src=\"../../digitalisimo-elements/modules/digitalisimo-content/assets/js/progress-tracker.js\" defer></script>\n</body></html>\n";
+	$path = __DIR__ . '/fixtures/pro-time.html';
+	if ( in_array( '--write', $argv ?? array(), true ) ) {
+		file_put_contents( $path, $fixture );
+	}
+	check_pt( is_file( $path ) && file_get_contents( $path ) === $fixture, 'tests/fixtures/pro-time.html es el marcado de hoy (regenerar con --write).' );
 
 	echo 'DIGITALÍSIMO Elements: Cuenta regresiva (' . count( $cd->controls ) . ' controles, ' . count( $cd->groups ) . ' grupos, hoja de ' . $sizes['digitalisimo-countdown'][0] . ' B, script de ' . $sizes['digitalisimo-countdown'][1] . ' B) e Indicador de progreso (' . count( $pt->controls ) . ' controles, ' . count( $pt->groups ) . ' grupos, hoja de ' . $sizes['digitalisimo-progress-tracker'][0] . ' B, script de ' . $sizes['digitalisimo-progress-tracker'][1] . ' B) y sus mapas desde PRO (' . count( $cases ) . " casos) validados.\n";
 }

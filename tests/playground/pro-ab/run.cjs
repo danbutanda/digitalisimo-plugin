@@ -192,6 +192,15 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
     await page.setViewport({ width: WIDTHS[WIDTHS.length - 1], height: 900 });
     // `reducedMotion` del caso (C2): A y B con «reducir movimiento», para comparar el estado final de una animación.
     if (c.reducedMotion) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+    // `clock` del caso (C2): reloj del navegador fijado (Date y Date.now) en esa fecha ISO, para comparar una cuenta
+    // regresiva sin depender del segundo en que se mide cada página.
+    if (c.clock) {
+      await page.evaluateOnNewDocument((t) => {
+        const D = Date;
+        class Fixed extends D { constructor(...a) { super(...(a.length ? a : [t])); } static now() { return t; } }
+        window.Date = Fixed;
+      }, Date.parse(c.clock));
+    }
     const response = await page.goto(url, { waitUntil: 'networkidle0', timeout: 180000 });
     result.status = response ? response.status() : 0;
     const html = response ? await response.text().catch(() => '') : '';
@@ -250,7 +259,8 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
       }
       // Acciones del caso (`actions`: `{ label, a, b, selector, key, wait, widths }`): pulsar el selector del lado
       // (`a`/`b`, o `selector` común, relativo al widget) o, con `key`, enfocarlo y teclear. Tras cada una, sin foco ni
-      // puntero encima, firma y captura. Son acumulativas dentro de un ancho; después se recarga la página.
+      // puntero encima, firma y captura; con `scroll` (C2), desplaza la página. Son acumulativas dentro de un ancho;
+      // después se recarga la página.
       const actions = (c.actions || []).filter((act) => !act.widths || act.widths.map(Number).includes(width));
       if (actions.length) {
         w.actions = [];
@@ -260,7 +270,9 @@ async function measure(browser, url, sel, slug, side, forbid, c = {}) {
           try {
             const el = target ? await handle.$(target) : handle;
             if (!el) throw new Error(`no existe «${target}»`);
-            if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
+            // `scroll` (C2): desplaza la página (píxeles, o `end` hasta el final) en lugar de pulsar.
+            if (act.scroll !== undefined) await page.evaluate((y) => window.scrollTo(0, y === 'end' ? document.documentElement.scrollHeight : Number(y)), act.scroll);
+            else if (act.key) { await el.focus(); await page.keyboard.press(act.key); } else await el.click();
           } catch (e) { entry.done = false; entry.error = String(e.message || e); }
           await sleep(Number(act.wait || 900));
           await page.mouse.move(0, 0);

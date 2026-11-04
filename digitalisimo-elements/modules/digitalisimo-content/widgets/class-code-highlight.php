@@ -29,17 +29,17 @@ class Code_Highlight extends \Elementor\Widget_Base {
 
 	/**
 	 * Paleta de cada tema de PRO (sus colores efectivos, medidos en su hoja): `0` texto, `bg` fondo, `ts` sombra del
-	 * texto, `bd`/`r`/`sh` borde, radio y sombra del bloque, `sel` selección, `no`/`po` opacidad del espacio de nombres y
+	 * texto, `bd`/`br`/`sh` borde, radio y sombra del bloque, `sel` selección, `no`/`po` opacidad del espacio de nombres y
 	 * de la puntuación, `cs` cadenas de CSS, `ob`/`eb` fondo de operadores y entidades, `l*` líneas resaltadas y `a`–`x`
 	 * los grupos de tokens de la hoja (un grupo que falta hereda el color, como en PRO).
 	 */
 	const THEMES = array(
 		'default'        => array( '0' => '#000', 'bg' => '#f5f2f0', 'ts' => '0 1px #fff', 'sel' => '#b3d4fc', 'cs' => '#9a6e3a', 'ob' => '#ffffff80', 'a' => '#708090', 'c' => '#999', 'd' => '#905', 'e' => '#905', 'f' => '#905', 'g' => '#905', 'h' => '#690', 'i' => '#690', 'j' => '#690', 'k' => '#690', 'l' => '#9a6e3a', 'm' => '#9a6e3a', 'n' => '#9a6e3a', 'o' => '#e90', 'p' => '#07a', 'q' => '#07a', 'r' => '#07a', 's' => '#e90', 't' => '#e90', 'u' => '#dd4a68', 'v' => '#dd4a68' ),
-		'dark'           => array( '0' => '#fff', 'bg' => '#4c3f33', 'ts' => '0 -.1em .2em #000', 'bd' => '.3em solid #7a6651', 'r' => '.5em', 'sh' => 'inset 1px 1px .5em #000', 'po' => '.7', 'cs' => '#f4b73d', 'a' => '#997f66', 'd' => '#d1939e', 'e' => '#d1939e', 'f' => '#d1939e', 'g' => '#f00', 'h' => '#bce051', 'i' => '#bce051', 'j' => '#bce051', 'k' => '#bce051', 'l' => '#f4b73d', 'm' => '#f4b73d', 'n' => '#f4b73d', 'o' => '#f4b73d', 'p' => '#d1939e', 'q' => '#d1939e', 'r' => '#d1939e', 's' => '#e90', 't' => '#e90' ),
-		'okaidia'        => array( '0' => '#f8f8f2', 'bg' => '#272822', 'ts' => '0 1px #0000004d', 'r' => '.3em', 'cs' => '#f8f8f2', 'a' => '#8292a2', 'c' => '#f8f8f2', 'd' => '#ae81ff', 'e' => '#f92672', 'f' => '#f92672', 'g' => '#f92672', 'h' => '#a6e22e', 'i' => '#a6e22e', 'j' => '#a6e22e', 'k' => '#a6e22e', 'l' => '#f8f8f2', 'm' => '#f8f8f2', 'n' => '#f8f8f2', 'o' => '#f8f8f2', 'p' => '#e6db74', 'q' => '#e6db74', 'r' => '#66d9ef', 's' => '#fd971f', 't' => '#fd971f', 'u' => '#e6db74', 'v' => '#e6db74' ),
-		'solarizedlight' => array( '0' => '#657b83', 'bg' => '#fdf6e3', 'r' => '.3em', 'sel' => '#073642', 'eb' => '#eee8d5', 'a' => '#93a1a1', 'c' => '#586e75', 'd' => '#268bd2', 'e' => '#268bd2', 'f' => '#268bd2', 'g' => '#268bd2', 'h' => '#2aa198', 'i' => '#2aa198', 'j' => '#2aa198', 'k' => '#2aa198', 'l' => '#657b83', 'n' => '#2aa198', 'o' => '#cb4b16', 'p' => '#859900', 'q' => '#859900', 'r' => '#859900', 's' => '#cb4b16', 't' => '#cb4b16', 'u' => '#b58900', 'v' => '#b58900' ),
+		'dark'           => array( '0' => '#fff', 'bg' => '#4c3f33', 'ts' => '0 -.1em .2em #000', 'bd' => '.3em solid #7a6651', 'br' => '.5em', 'sh' => 'inset 1px 1px .5em #000', 'po' => '.7', 'cs' => '#f4b73d', 'a' => '#997f66', 'd' => '#d1939e', 'e' => '#d1939e', 'f' => '#d1939e', 'g' => '#f00', 'h' => '#bce051', 'i' => '#bce051', 'j' => '#bce051', 'k' => '#bce051', 'l' => '#f4b73d', 'm' => '#f4b73d', 'n' => '#f4b73d', 'o' => '#f4b73d', 'p' => '#d1939e', 'q' => '#d1939e', 'r' => '#d1939e', 's' => '#e90', 't' => '#e90' ),
+		'okaidia'        => array( '0' => '#f8f8f2', 'bg' => '#272822', 'ts' => '0 1px #0000004d', 'br' => '.3em', 'cs' => '#f8f8f2', 'a' => '#8292a2', 'c' => '#f8f8f2', 'd' => '#ae81ff', 'e' => '#f92672', 'f' => '#f92672', 'g' => '#f92672', 'h' => '#a6e22e', 'i' => '#a6e22e', 'j' => '#a6e22e', 'k' => '#a6e22e', 'l' => '#f8f8f2', 'm' => '#f8f8f2', 'n' => '#f8f8f2', 'o' => '#f8f8f2', 'p' => '#e6db74', 'q' => '#e6db74', 'r' => '#66d9ef', 's' => '#fd971f', 't' => '#fd971f', 'u' => '#e6db74', 'v' => '#e6db74' ),
+		'solarizedlight' => array( '0' => '#657b83', 'bg' => '#fdf6e3', 'br' => '.3em', 'sel' => '#073642', 'eb' => '#eee8d5', 'a' => '#93a1a1', 'c' => '#586e75', 'd' => '#268bd2', 'e' => '#268bd2', 'f' => '#268bd2', 'g' => '#268bd2', 'h' => '#2aa198', 'i' => '#2aa198', 'j' => '#2aa198', 'k' => '#2aa198', 'l' => '#657b83', 'n' => '#2aa198', 'o' => '#cb4b16', 'p' => '#859900', 'q' => '#859900', 'r' => '#859900', 's' => '#cb4b16', 't' => '#cb4b16', 'u' => '#b58900', 'v' => '#b58900' ),
 		'tomorrow'       => array( '0' => '#ccc', 'bg' => '#2d2d2d', 'no' => '1', 'a' => '#999', 'b' => '#e2777a', 'c' => '#ccc', 'd' => '#f08d49', 'e' => '#f8c555', 'f' => '#e2777a', 'g' => '#e2777a', 'h' => '#e2777a', 'i' => '#cc99cd', 'j' => '#7ec699', 'k' => '#008000', 'l' => '#67cdcc', 'm' => '#67cdcc', 'n' => '#67cdcc', 'o' => '#7ec699', 'p' => '#cc99cd', 'q' => '#7ec699', 'r' => '#cc99cd', 's' => '#cc99cd', 't' => '#7ec699', 'u' => '#f8c555', 'v' => '#f08d49', 'w' => '#999', 'x' => '#6196cc' ),
-		'twilight'       => array( '0' => '#fff', 'bg' => '#141414', 'ts' => '0 -.1em .2em #000', 'bd' => '.3em solid #545454', 'r' => '.5em', 'sh' => 'inset 1px 1px .5em #000', 'po' => '.7', 'sel' => '#eeeeee26', 'lp' => '.8em', 'lh' => '#5454541a', 'lb' => '1px dashed #545454', 'lm' => '.75em', 'lc' => '#8693a6', 'a' => '#777', 'd' => '#ce6849', 'e' => '#f9ed99', 'f' => '#ce6849', 'g' => '#ce6849', 'h' => '#909e6a', 'i' => '#f9ed99', 'j' => '#909e6a', 'k' => '#909e6a', 'l' => '#909e6a', 'm' => '#909e6a', 'n' => '#909e6a', 'o' => '#909e6a', 'p' => '#7385a5', 'q' => '#909e6a', 'r' => '#f9ed99', 's' => '#e8c062', 't' => '#e8c062' ),
+		'twilight'       => array( '0' => '#fff', 'bg' => '#141414', 'ts' => '0 -.1em .2em #000', 'bd' => '.3em solid #545454', 'br' => '.5em', 'sh' => 'inset 1px 1px .5em #000', 'po' => '.7', 'sel' => '#eeeeee26', 'lp' => '.8em', 'lh' => '#5454541a', 'lb' => '1px dashed #545454', 'lm' => '.75em', 'lc' => '#8693a6', 'a' => '#777', 'd' => '#ce6849', 'e' => '#f9ed99', 'f' => '#ce6849', 'g' => '#ce6849', 'h' => '#909e6a', 'i' => '#f9ed99', 'j' => '#909e6a', 'k' => '#909e6a', 'l' => '#909e6a', 'm' => '#909e6a', 'n' => '#909e6a', 'o' => '#909e6a', 'p' => '#7385a5', 'q' => '#909e6a', 'r' => '#f9ed99', 's' => '#e8c062', 't' => '#e8c062' ),
 	);
 
 	public function get_name() {
@@ -284,6 +284,30 @@ class Code_Highlight extends \Elementor\Widget_Base {
 		return $out;
 	}
 
+	/**
+	 * El código tal como lo dejaba PRO tras el complemento de espacios en blanco de Prism: PRO lo imprimía con cinco
+	 * tabuladores delante (la sangría de su plantilla), así que la sangría común de las demás líneas se quitaba aunque la
+	 * primera no tuviera. Mismo orden que el complemento (espacios al final de cada línea, sangría común, inicio y
+	 * final), con los saltos de línea que deja el analizador HTML. El complemento, que también se carga, ya no cambia nada.
+	 */
+	public static function normalize( string $code ): string {
+		$text = "\t\t\t\t\t" . str_replace( array( "\r\n", "\r" ), "\n", $code );
+		$u    = 1 === preg_match( '//u', $text ) ? 'u' : '';
+		$ucp  = $u ? '(*UCP)' : '';
+		$text = (string) preg_replace( '/' . $ucp . '\s*?$/m' . $u, '', $text );
+		if ( preg_match_all( '/' . $ucp . '^[^\S\n\r]*(?=\S)/m' . $u, $text, $found ) && '' !== $found[0][0] ) {
+			$indents = $found[0];
+			$lengths = array_map( $u && function_exists( 'mb_strlen' ) ? 'mb_strlen' : 'strlen', $indents );
+			asort( $lengths ); // Estable, como el `sort` de JavaScript: el primero de los más cortos.
+			$shortest = $indents[ (int) key( $lengths ) ];
+			if ( '' !== $shortest ) {
+				$text = (string) preg_replace( '/^' . preg_quote( $shortest, '/' ) . '/m' . $u, '', $text );
+			}
+		}
+		$text = (string) preg_replace( '/' . $ucp . '^\s+/' . $u, '', $text );
+		return (string) preg_replace( '/' . $ucp . '\s+$/D' . $u, '', $text );
+	}
+
 	/** URL de la carpeta de Prism del plugin (con barra final), o '' si no se conoce. */
 	public static function prism_url(): string {
 		if ( ! defined( 'DIGITALISIMO_ELEMENTS_FILE' ) || ! function_exists( 'plugins_url' ) ) {
@@ -318,8 +342,9 @@ class Code_Highlight extends \Elementor\Widget_Base {
 
 		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '" style="' . esc_attr( self::palette( $theme ) ) . '" data-digi-prism="' . esc_url( self::prism_url() ) . '">';
 		echo '<pre class="' . esc_attr( $pre ) . '"' . ( '' !== $lines ? ' data-line="' . esc_attr( $lines ) . '"' : '' ) . '>';
-		// El código se escapa entero (también las entidades que ya traiga): se lee tal cual, con o sin JavaScript.
-		echo '<code class="language-' . esc_attr( $language ) . '">' . htmlspecialchars( $code, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', true ) . '</code></pre>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado con htmlspecialchars().
+		// El código, normalizado como en PRO, se escapa entero (también las entidades que ya traiga): se lee tal cual, con
+		// o sin JavaScript.
+		echo '<code class="language-' . esc_attr( $language ) . '">' . htmlspecialchars( self::normalize( $code ), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', true ) . '</code></pre>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escapado con htmlspecialchars().
 		if ( $copy ) {
 			echo '<button type="button" class="digi-code__copy" aria-live="polite" data-digi-done="' . esc_attr__( 'Copiado', 'pro-elements' ) . '" data-digi-fail="' . esc_attr__( 'Pulsa Ctrl+C para copiar', 'pro-elements' ) . '" hidden>' . esc_html__( 'Copiar', 'pro-elements' ) . '</button>';
 		}

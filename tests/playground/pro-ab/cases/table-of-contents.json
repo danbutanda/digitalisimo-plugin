@@ -1,0 +1,600 @@
+{
+ "_doc": [
+  "Casos A/B de la Tabla de contenido (frente A de C2): A con `table-of-contents` de PRO, B con `digitalisimo-table-of-contents`. Los encabezados son widgets `heading` del núcleo hermanos del widget (`after`, sin convertir). La lista se construye en el navegador: `ready` espera a que exista en A y en B. Con la página corta, todos los encabezados están a la vista y todos los enlaces quedan activos en A y en B."
+ ],
+ "declared": [],
+ "cases": {
+  "toc-defaults": {
+   "title": "Valores por defecto: jerárquica con números, título h4, caja minimizable (tableta)",
+   "widget": "table-of-contents",
+   "settings": {},
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Introducción",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Primer punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Segundo punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Detalle del segundo punto",
+      "header_size": "h4"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Conclusión",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Nota que se excluye",
+      "header_size": "h3",
+      "_css_classes": "no-toc"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__list-wrapper",
+    "b": ".digi-toc__list"
+   }
+  },
+  "toc-bullets": {
+   "title": "Viñetas en vista plana, sin caja minimizable",
+   "widget": "table-of-contents",
+   "settings": {
+    "marker_view": "bullets",
+    "hierarchical_view": "",
+    "minimize_box": ""
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Introducción",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Primer punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Segundo punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Detalle del segundo punto",
+      "header_size": "h4"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Conclusión",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Nota que se excluye",
+      "header_size": "h3",
+      "_css_classes": "no-toc"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__list-wrapper",
+    "b": ".digi-toc__list"
+   }
+  },
+  "toc-exclude": {
+   "title": "Sólo h2 y h3, exclusión por selector, título propio en h2",
+   "widget": "table-of-contents",
+   "settings": {
+    "title": "Índice",
+    "html_tag": "h2",
+    "headings_by_tags": [
+     "h2",
+     "h3"
+    ],
+    "exclude_headings_by_selector": ".no-toc"
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Introducción",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Primer punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Segundo punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Detalle del segundo punto",
+      "header_size": "h4"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Conclusión",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Nota que se excluye",
+      "header_size": "h3",
+      "_css_classes": "no-toc"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__list-wrapper",
+    "b": ".digi-toc__list"
+   }
+  },
+  "toc-minimized": {
+   "title": "Minimizada en todos los tamaños («Escritorio»): desplegar con clic y plegar con Intro",
+   "widget": "table-of-contents",
+   "settings": {
+    "minimized_on": "desktop"
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Introducción",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Primer punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Segundo punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Detalle del segundo punto",
+      "header_size": "h4"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Conclusión",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Nota que se excluye",
+      "header_size": "h3",
+      "_css_classes": "no-toc"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__list-wrapper",
+    "b": ".digi-toc__list"
+   },
+   "actions": [
+    {
+     "label": "Desplegar con clic",
+     "a": ".elementor-toc__toggle-button--expand",
+     "b": ".digi-toc__toggle",
+     "wait": 1200
+    },
+    {
+     "label": "Plegar con Intro",
+     "a": ".elementor-toc__toggle-button--collapse",
+     "b": ".digi-toc__toggle",
+     "key": "Enter",
+     "wait": 1200
+    }
+   ]
+  },
+  "toc-collapse": {
+   "title": "Plegar subelementos (sólo los de la sección a la vista)",
+   "widget": "table-of-contents",
+   "settings": {
+    "collapse_subitems": "yes",
+    "minimize_box": ""
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Introducción",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Primer punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Segundo punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Detalle del segundo punto",
+      "header_size": "h4"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Conclusión",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Nota que se excluye",
+      "header_size": "h3",
+      "_css_classes": "no-toc"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__list-wrapper",
+    "b": ".digi-toc__list"
+   }
+  },
+  "toc-ellipsis": {
+   "title": "Recortar en una línea y altura máxima de la lista",
+   "widget": "table-of-contents",
+   "settings": {
+    "word_wrap": "ellipsis",
+    "max_height": {
+     "unit": "px",
+     "size": 150,
+     "sizes": []
+    }
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Una sección con un título bastante largo que no cabe en una sola línea de la tabla de contenido",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Otra sección",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Tercera sección del documento",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Cuarta",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Quinta",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Sexta",
+      "header_size": "h2"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__list-wrapper",
+    "b": ".digi-toc__list"
+   }
+  },
+  "toc-styles": {
+   "title": "Estilos de caja, cabecera, lista y marcador",
+   "widget": "table-of-contents",
+   "settings": {
+    "background_color": "#F7F9FC",
+    "border_color": "#3355AA",
+    "border_width": {
+     "unit": "px",
+     "size": 3,
+     "sizes": []
+    },
+    "border_radius": {
+     "unit": "px",
+     "size": 10,
+     "sizes": []
+    },
+    "header_separator_width": {
+     "unit": "px",
+     "size": 2,
+     "sizes": []
+    },
+    "padding": {
+     "unit": "px",
+     "size": 28,
+     "sizes": []
+    },
+    "header_text_align": "center",
+    "header_background_color": "#E8EEF9",
+    "header_text_color": "#1D2B4F",
+    "header_typography_typography": "custom",
+    "header_typography_font_size": {
+     "unit": "px",
+     "size": 22,
+     "sizes": []
+    },
+    "header_typography_font_weight": "700",
+    "toggle_button_color": "#AA3355",
+    "toggle_button_position": "row-reverse",
+    "heading_gap": {
+     "unit": "px",
+     "size": 16,
+     "sizes": []
+    },
+    "list_typography_typography": "custom",
+    "list_typography_font_size": {
+     "unit": "px",
+     "size": 17,
+     "sizes": []
+    },
+    "list_indent": {
+     "unit": "em",
+     "size": 2,
+     "sizes": []
+    },
+    "item_text_color_normal": "#224488",
+    "item_text_underline_normal": "yes",
+    "item_text_color_active": "#AA2200",
+    "marker_color": "#3355AA",
+    "marker_view": "bullets",
+    "marker_size": {
+     "unit": "px",
+     "size": 10,
+     "sizes": []
+    },
+    "box_shadow_box_shadow_type": "yes",
+    "box_shadow_box_shadow": {
+     "horizontal": 0,
+     "vertical": 4,
+     "blur": 12,
+     "spread": 0,
+     "color": "rgba(0,0,0,0.25)"
+    }
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Introducción",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Primer punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Segundo punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Detalle del segundo punto",
+      "header_size": "h4"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Conclusión",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Nota que se excluye",
+      "header_size": "h3",
+      "_css_classes": "no-toc"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__list-wrapper",
+    "b": ".digi-toc__list"
+   }
+  },
+  "toc-empty": {
+   "title": "Sin encabezados (sólo h1): mensaje",
+   "widget": "table-of-contents",
+   "settings": {
+    "headings_by_tags": [
+     "h1"
+    ],
+    "no_headings_message": "Todavía no hay secciones."
+   },
+   "after": [
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Introducción",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Primer punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Segundo punto",
+      "header_size": "h3"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Detalle del segundo punto",
+      "header_size": "h4"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Conclusión",
+      "header_size": "h2"
+     }
+    },
+    {
+     "elType": "widget",
+     "widgetType": "heading",
+     "settings": {
+      "title": "Nota que se excluye",
+      "header_size": "h3",
+      "_css_classes": "no-toc"
+     }
+    }
+   ],
+   "ready": {
+    "a": ".elementor-toc__body:not(:has(.elementor-toc__spinner-container))",
+    "b": ".digi-toc__body:not(:has(.digi-toc__spinner))"
+   }
+  }
+ }
+}
