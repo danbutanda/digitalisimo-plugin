@@ -19,7 +19,7 @@ $digi_se_t = static function ( $text ) {
 return array(
 	'source'   => 'search',
 	'target'   => 'digitalisimo-search',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Textos por defecto de PRO: el widget propio tiene los suyos en español.
 	'defaults' => array(

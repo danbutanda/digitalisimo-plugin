@@ -20,7 +20,7 @@ $digi_oc_t = static function ( $text ) {
 return array(
 	'source'   => 'off-canvas',
 	'target'   => 'digitalisimo-nested-off-canvas',
-	'status'   => 'draft',
+	'status'   => 'ready',
 	'panel'    => 'hide',
 	// Valores por defecto de PRO que el traductor necesita (el nombre es el nombre accesible del diálogo).
 	'defaults' => array(
