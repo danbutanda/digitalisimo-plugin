@@ -6811,8 +6811,7 @@
     "errors": 0,
     "proHandlers": false,
     "proFrontend": false,
-    "swiper": false,
-    "jquery": false
+    "swiper": false
    }
   }
  }
