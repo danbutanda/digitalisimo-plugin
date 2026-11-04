@@ -69,17 +69,18 @@ for (const name of Object.keys(woo)) {
   if (!c.base && !c.settings) problems.push(`${name}: el caso no tiene ajustes ni «base»`);
 }
 // Widgets de F7b con su propio registro (mismo formato): los cuatro filtros ampliados de modules/digitalisimo-filters/
-// (Filters\Registry::WIDGETS) y el slider anidado de modules/digitalisimo-f7b/nested/ (Nested\Module::WIDGETS). Cada uno
+// (Filters\Registry::WIDGETS), el slider anidado de modules/digitalisimo-f7b/nested/ (Nested\Module::WIDGETS) y los cinco
+// carruseles propios de C1 (Carousel\Module::WIDGETS, programa «sin widgets de PRO»). Cada uno
 // con su caso sin «woo» (no dependen de WooCommerce) y sin alias.
 const f7b = {};
-for (const file of ['modules/digitalisimo-filters/class-registry.php', 'modules/digitalisimo-f7b/nested/class-module.php']) {
+for (const file of ['modules/digitalisimo-filters/class-registry.php', 'modules/digitalisimo-f7b/nested/class-module.php', 'modules/digitalisimo-carousel/class-module.php']) {
   const path = join(E, file);
   if (!existsSync(path)) continue;
   const text = readFileSync(path, 'utf8');
   const start = text.indexOf('const WIDGETS = array(');
   assert.ok(start >= 0, `${file}: falta const WIDGETS`);
   const f7bBlock = text.slice(start, text.indexOf(');', text.indexOf("\n\t);", start)) + 2);
-  for (const m of f7bBlock.matchAll(/^\t\t'(digitalisimo-[a-z0-9-]+)' => array\(/gm)) f7b[m[1]] = file;
+  for (const m of f7bBlock.matchAll(/^\t\t'(digitalisimo-[a-z0-9-]+)'\s*=> array\(/gm)) f7b[m[1]] = file;
 }
 for (const [name, file] of Object.entries(f7b)) {
   const c = cases.widgets[name];
@@ -148,6 +149,6 @@ for (const entry of noRef.controles || []) {
 
 assert.deepEqual(problems, [], `Inventario de kits incompleto:\n  ${problems.join('\n  ')}`);
 const externalNote = Object.keys(external).length ? `, ${Object.keys(external).length} parte(s) de fuera de K (${Object.keys(external).join(', ')})` : '';
-console.log(`Kits: inventario con ${visible} widgets propios visibles (con el Slider Optimizado), ${aliases} alias, ${Object.keys(woo).length} de WooCommerce y ${Object.keys(f7b).length} de F7b en kit-roundtrip, ${Object.keys(cases.traits).length} rasgos, ${parts.length} partes de K con caso${externalNote} y ${(noRef.controles || []).length} controles sin referencia justificados.`);
+console.log(`Kits: inventario con ${visible} widgets propios visibles (con el Slider Optimizado), ${aliases} alias, ${Object.keys(woo).length} de WooCommerce y ${Object.keys(f7b).length} de F7b y C1 (filtros, slider anidado y carruseles) en kit-roundtrip, ${Object.keys(cases.traits).length} rasgos, ${parts.length} partes de K con caso${externalNote} y ${(noRef.controles || []).length} controles sin referencia justificados.`);
 // El caso de cada parte de fuera de K lo añade el frente de Playground de su etapa (para F7a, el frente M).
 if (pending.length) console.log(`Kits: sin caso en kit-roundtrip/cases.json todavía: ${pending.map((part) => `${part} (${external[part]})`).join(', ')}.`);

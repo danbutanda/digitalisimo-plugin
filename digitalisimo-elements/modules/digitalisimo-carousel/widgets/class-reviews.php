@@ -93,6 +93,11 @@ class Reviews extends Base_Widget {
 		return 'digitalisimo-reviews';
 	}
 
+	/** Como PRO (su script de testimonios, que usan también las reseñas): una visible en cada dispositivo con «Predeterminado». */
+	protected function slides_per_view_defaults(): array {
+		return array( 'desktop' => '1' );
+	}
+
 	public function get_title() {
 		return esc_html__( 'Reseñas', 'pro-elements' );
 	}

@@ -272,7 +272,50 @@ namespace {
 	}
 	check_budget( 4 === $filters_count, 'Deben revisarse los cuatro filtros ampliados (' . $filters_count . ').' );
 	$count += $filters_count;
-	check_budget( $count >= 57, 'Deben revisarse los 57 widgets propios (' . $count . ').' );
+	// Carruseles propios (programa «sin widgets de PRO», C1, docs/pro/c1.md): los cinco widgets de
+	// modules/digitalisimo-carousel/ sobre el motor `digi-crs`. Sus recursos los registra Carousel\Module (con defer y sin
+	// dependencias): el motor (hoja ≤ 4 KB, script ≤ 6 KB) y la hoja de cada widget (≤ 4 KB), con script sólo donde hace
+	// falta. Nada de Swiper ni de jQuery. Excepción documentada: la «Carga diferida» de los carruseles de PRO
+	// (`lazyload`) es una opción que el usuario elige, y la base la respeta con `loading="lazy"`.
+	$crs_dir    = $root . '/modules/digitalisimo-carousel/';
+	$crs_module = (string) file_get_contents( $crs_dir . 'class-module.php' );
+	preg_match_all( "/'(digitalisimo-[a-z0-9-]+)'\s*=>\s*array\(\s*'file'\s*=>\s*'([^']+)'\s*,\s*'class'\s*=>\s*'[^']+'\s*,\s*'css'\s*=>\s*'([^']+)'\s*,\s*'js'\s*=>\s*'([^']+)'/", $crs_module, $crs_entries, PREG_SET_ORDER );
+	check_budget( 5 === count( $crs_entries ), 'Carousel\\Module::WIDGETS declara los cinco carruseles (' . count( $crs_entries ) . ').' );
+	preg_match_all( '/wp_register_script\(.*?\);/s', $crs_module, $crs_scripts );
+	foreach ( $crs_scripts[0] as $registration ) { check_budget( str_contains( $registration, "'strategy' => 'defer'" ) && ! str_contains( $registration, "'jquery'" ), 'Carousel\\Module: script sin defer o con jQuery.' ); }
+	foreach ( array( 'modules/digitalisimo-carousel/assets/css/carousel.css' => 4096, 'modules/digitalisimo-carousel/assets/js/carousel.js' => 6144 ) as $file => $cap ) {
+		$path = $root . '/' . $file;
+		check_budget( is_file( $path ) && filesize( $path ) <= $cap, $file . ' pesa ' . ( is_file( $path ) ? filesize( $path ) : 0 ) . ' B, más de ' . $cap . '.' );
+	}
+	check_budget( str_contains( (string) file_get_contents( $root . '/modules/digitalisimo-carousel/assets/css/carousel.css' ), 'prefers-reduced-motion' ) || str_contains( (string) file_get_contents( $root . '/modules/digitalisimo-carousel/assets/js/carousel.js' ), 'prefers-reduced-motion' ), 'El motor respeta el movimiento reducido.' );
+	$crs_count = 0;
+	foreach ( $crs_entries as $m ) {
+		$name   = $m[1];
+		$source = (string) file_get_contents( $crs_dir . $m[2] );
+		check_budget( '' !== $source, $name . ': falta ' . $m[2] );
+		$crs_count++;
+		// Ni el handle ni la clase de Swiper ni jQuery (las clases `.elementor-swiper-button` del lightbox del núcleo sí).
+		check_budget( ! preg_match( '/[\'"]swiper[\'"]|new\s+Swiper|jquery/i', preg_replace( '/^\s*(\*|\/\/).*$/m', '', $source ) ), $name . ': ni Swiper ni jQuery en el código.' );
+		check_budget( ! str_contains( $source, 'ld+json' ) && ! preg_match( '/<script(?!\s+type="text\/template")/', $source ), $name . ': sin JSON-LD ni <script> propios en la salida.' );
+		foreach ( array( 3 => 4096, 4 => 2048 ) as $i => $cap ) {
+			$path = $root . '/' . $m[ $i ];
+			if ( ! is_file( $path ) ) { check_budget( 4 === $i, $name . ': falta su hoja ' . $m[ $i ] ); continue; }
+			check_budget( filesize( $path ) <= $cap, $m[ $i ] . ' pesa ' . filesize( $path ) . ' B, más de ' . $cap . '.' );
+			$text = (string) file_get_contents( $path );
+			if ( 3 === $i ) {
+				check_budget( ! preg_match( '/url\((?!\s*["\']?data:)/i', $text ), $m[ $i ] . ': sin url().' );
+				check_budget( ! preg_match( '/@keyframes|animation:|transition:/', $text ) || str_contains( $text, 'prefers-reduced-motion' ), $m[ $i ] . ': anima sin respetar el movimiento reducido.' );
+			} else {
+				check_budget( ! preg_match( '/jQuery|\$\(/', $text ), $m[ $i ] . ': sin jQuery.' );
+			}
+		}
+		$declared = budget_method( $source, 'get_style_depends' ) . budget_method( $source, 'get_script_depends' );
+		preg_match_all( "/'([a-z][a-z0-9_-]*)'/", $declared, $handles );
+		foreach ( $handles[1] as $handle ) { check_budget( str_starts_with( $handle, 'digitalisimo-' ), $name . ': sólo recursos propios (' . $handle . ').' ); }
+	}
+	check_budget( 5 === $crs_count, 'Deben revisarse los cinco carruseles propios (' . $crs_count . ').' );
+	$count += $crs_count;
+	check_budget( $count >= 62, 'Deben revisarse los 62 widgets propios (' . $count . ').' );
 	// El generador único: ALT de Medios, decoding y las decisiones de carga de WordPress; sizes sólo con srcset.
 	$helper = file_get_contents( $dir . 'class-image-markup.php' );
 	check_budget( str_contains( $helper, 'wp_get_attachment_image(' ) && str_contains( $helper, 'wp_get_loading_optimization_attributes' ) && str_contains( $helper, "'decoding'" ) && ! preg_match( "/'loading'\s*=>\s*'/", $helper ), 'Image_Markup delega la carga en WordPress y no la fuerza.' );

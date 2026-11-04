@@ -266,7 +266,7 @@ namespace {
 	);
 	$GLOBALS['sl_loading'] = 0;
 	$html = $render( $base );
-	check_sl( 0 === strpos( $html, '<section class="digi-crs digi-slides" aria-roledescription="carrusel" aria-label="Portada" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="bullets" style="--digi-crs-speed:500ms" data-digi-animation="fadeInUp">' ), 'Raíz del motor con el nombre, el bucle, la paginación y la animación: ' . substr( $html, 0, 300 ) );
+	check_sl( 0 === strpos( $html, '<section class="digi-crs digi-slides" aria-roledescription="carrusel" aria-label="Portada" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="bullets" style="--digi-crs-speed:500ms;--digi-crs-n:3" data-digi-animation="fadeInUp">' ), 'Raíz del motor con el nombre, el bucle, la paginación y la animación: ' . substr( $html, 0, 300 ) );
 	check_sl( 1 === substr_count( $html, ' digi-crs__prev"' ) && 1 === substr_count( $html, ' digi-crs__next"' ) && 3 === substr_count( $html, 'class="digi-crs__dot"' ) && ! str_contains( $html, 'digi-crs__pause' ) && str_contains( $html, '<div class="digi-crs__track" aria-live="polite">' ), 'Flechas, tres puntos y sin pausa (sin reproducción automática).' );
 	check_sl( str_ends_with( $html, '</div></section>' ) && 3 === substr_count( $html, 'role="group" aria-roledescription="diapositiva"' ) && str_contains( $html, 'aria-label="2 de 3"' ), 'Tres diapositivas con su nombre accesible.' );
 	$one = substr( $html, strpos( $html, '<div class="digi-crs__slide digi-slides__slide elementor-repeater-item-a1"' ) );

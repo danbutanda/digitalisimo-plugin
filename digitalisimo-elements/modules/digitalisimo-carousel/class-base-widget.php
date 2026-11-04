@@ -104,9 +104,21 @@ abstract class Base_Widget extends \Elementor\Widget_Base {
 		$slides_per_view = range( 1, 10 );
 		$slides_per_view = array_combine( $slides_per_view, $slides_per_view );
 
+		// «Predeterminado» en PRO lo resolvía su script por dispositivo (y nunca heredaba el valor del escritorio en tableta
+		// o móvil); aquí son los valores por defecto de cada dispositivo activo, que el núcleo pinta en su consulta de medios.
+		$view_defaults   = array();
+		$scroll_defaults = array();
+		$per_view        = $this->slides_per_view_defaults();
+		foreach ( self::active_devices() as $device ) {
+			$view_defaults[ $device . '_default' ] = (string) ( $per_view[ $device ] ?? $per_view['desktop'] ?? '1' );
+			if ( 'desktop' !== $device ) {
+				$scroll_defaults[ $device . '_default' ] = '1';
+			}
+		}
+
 		$this->add_responsive_control(
 			'slides_per_view',
-			array(
+			$view_defaults + array(
 				'type'                 => Controls_Manager::SELECT,
 				'label'                => esc_html__( 'Diapositivas visibles', 'pro-elements' ),
 				'options'              => array( '' => esc_html__( 'Predeterminado', 'pro-elements' ) ) + $slides_per_view,
@@ -123,7 +135,7 @@ abstract class Base_Widget extends \Elementor\Widget_Base {
 
 		$this->add_responsive_control(
 			'slides_to_scroll',
-			array(
+			$scroll_defaults + array(
 				'type'                 => Controls_Manager::SELECT,
 				'label'                => esc_html__( 'Diapositivas por paso', 'pro-elements' ),
 				'description'          => esc_html__( 'Cuántas diapositivas avanza cada paso.', 'pro-elements' ),
@@ -580,6 +592,17 @@ abstract class Base_Widget extends \Elementor\Widget_Base {
 		$this->end_controls_section();
 	}
 
+	/**
+	 * Diapositivas visibles por dispositivo cuando el control queda en «Predeterminado»: las que aplicaba el script de PRO
+	 * (`carousel/assets/js/frontend/handlers/base.js`: 3, 2 en tableta y 1 en móvil). Los testimonios y las reseñas la
+	 * redefinen (PRO: 1 en todos). «Diapositivas por paso» vale 1 en cada dispositivo que no la fija (como PRO).
+	 *
+	 * @return array<string,string> Dispositivo => valor.
+	 */
+	protected function slides_per_view_defaults(): array {
+		return array( 'widescreen' => '3', 'desktop' => '3', 'laptop' => '3', 'tablet_extra' => '3', 'tablet' => '2', 'mobile_extra' => '2', 'mobile' => '1' );
+	}
+
 	/** Dispositivos activos, del mayor al menor (`widescreen`, `desktop`, …), como los recorre PRO. */
 	protected static function active_devices(): array {
 		$devices = array();
@@ -668,8 +691,10 @@ abstract class Base_Widget extends \Elementor\Widget_Base {
 
 	/**
 	 * `<img>` de la diapositiva: `wp_get_attachment_image()` con el tamaño de `image_size` (con `srcset`), o, con un
-	 * tamaño personalizado o sin adjunto, la URL de `get_slide_image_url()`. `decoding="async"`; `loading="lazy"` con
-	 * «Carga diferida» (si no, decide WordPress). `$attrs` se suma (p. ej. `class`).
+	 * tamaño personalizado o sin adjunto, la URL de `get_slide_image_url()`. `decoding="async"`. `loading` lo decide
+	 * WordPress (o la optimización de carga de imágenes del núcleo, que lo añade aunque ya exista: por eso aquí no se pasa
+	 * nunca con medidas); con «Carga diferida», sólo una imagen sin medidas lleva `loading="lazy"` propio. `$attrs` se
+	 * suma (p. ej. `class`).
 	 */
 	protected function get_slide_image( array $slide, array $settings, array $attrs = array() ): string {
 		$image = (array) ( $slide['image'] ?? array() );
@@ -678,9 +703,9 @@ abstract class Base_Widget extends \Elementor\Widget_Base {
 				'alt'      => (string) $this->get_slide_image_alt_attribute( $slide ),
 				'decoding' => 'async',
 			),
-			'yes' === ( $settings['lazyload'] ?? '' ) ? array( 'loading' => 'lazy' ) : array(),
 			$attrs
 		);
+		$lazy  = 'yes' === ( $settings['lazyload'] ?? '' );
 		$size  = (string) ( $settings['image_size_size'] ?? 'full' );
 		$id    = (int) ( $image['id'] ?? 0 );
 		if ( $id && 'custom' !== $size && function_exists( 'wp_get_attachment_image' ) ) {
@@ -699,6 +724,9 @@ abstract class Base_Widget extends \Elementor\Widget_Base {
 			if ( ! empty( $settings['image_size_custom_dimension']['height'] ) ) {
 				$attrs['height'] = (string) (int) $settings['image_size_custom_dimension']['height'];
 			}
+		}
+		if ( $lazy && ! isset( $attrs['loading'] ) && ! isset( $attrs['width'], $attrs['height'] ) ) {
+			$attrs['loading'] = 'lazy';
 		}
 		return '<img ' . Engine::attributes( $attrs ) . '>';
 	}

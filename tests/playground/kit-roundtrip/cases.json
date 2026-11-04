@@ -2754,6 +2754,46 @@
         "navigation": "dots",
         "carousel_label": "Slider del kit"
       }
+    },
+    "digitalisimo-nested-carousel": {
+      "settings": {
+        "carousel_name": "Carrusel anidado del kit",
+        "slides_to_show": "2",
+        "autoplay": ""
+      }
+    },
+    "digitalisimo-media-carousel": {
+      "settings": {
+        "autoplay": "",
+        "slides": [
+          { "_id": "mc0001", "type": "image", "image": "@media:imagen-a" },
+          { "_id": "mc0002", "type": "image", "image": "@media:imagen-b" }
+        ]
+      }
+    },
+    "digitalisimo-testimonial-carousel": {
+      "settings": {
+        "autoplay": "",
+        "slides": [
+          { "_id": "tc0001", "content": "Testimonio del kit.", "name": "Persona de prueba", "title": "Cargo de prueba", "image": "@media:imagen-a" }
+        ]
+      }
+    },
+    "digitalisimo-reviews": {
+      "settings": {
+        "autoplay": "",
+        "slides": [
+          { "_id": "rv0001", "content": "Reseña del kit.", "name": "Persona de prueba", "title": "Cliente", "rating": 4.5, "image": "@media:imagen-b" }
+        ]
+      }
+    },
+    "digitalisimo-slides": {
+      "settings": {
+        "autoplay": "",
+        "slides": [
+          { "_id": "sl0001", "heading": "Diapositiva del kit", "description": "Texto de la diapositiva.", "button_text": "Ver más", "link": { "url": "@url:/" }, "background_image": "@media:fondo-kit" }
+        ]
+      }
     }
   },
   "traits": {

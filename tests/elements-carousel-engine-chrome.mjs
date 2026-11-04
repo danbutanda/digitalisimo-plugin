@@ -259,6 +259,8 @@ try {
     s = await state(page, 'w8');
     const hiddenCtl = await page.evaluate(() => [...document.querySelectorAll('[data-id="w8"] .digi-crs > :not(.digi-crs__track)')].every(e => getComputedStyle(e).display === 'none'));
     ok(s.locked && s.inert === 'XXX' && hiddenCtl, `${width}: tres diapositivas con cuatro visibles: todo a la vista y controles ocultos.`);
+    const fill = await page.evaluate(() => { const t = document.querySelector('[data-id="w8"] .digi-crs__track'); return [t.clientWidth, [...t.children].reduce((a, c) => a + c.getBoundingClientRect().width, 0)]; });
+    ok(Math.abs(fill[0] - fill[1]) <= 1, `${width}: las visibles se acotan al número de diapositivas (--digi-crs-n, como el Math.min de PRO): ${fill}`);
 
     // Bucle con 2 visibles de 4: como Swiper, puntos y fracción cuentan diapositivas (4), no páginas; la última se ve con
     // la anterior (sin clones) y la siguiente rebobina.

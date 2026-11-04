@@ -26,7 +26,8 @@ defined( 'ABSPATH' ) || exit;
  * reproducción automática), `data-digi-loop`, `data-digi-hover` (pausa con el puntero encima), `data-digi-interaction`
  * (se para tras una acción del usuario), `data-digi-effect` (`slide`|`fade`), `data-digi-center`,
  * `data-digi-pagination` (`bullets`|`fraction`|`progressbar`), `data-digi-sync` (`#id` del carrusel principal, en el de
- * miniaturas). `--digi-crs-speed` va en el `style` de la raíz.
+ * miniaturas). `--digi-crs-speed` y `--digi-crs-n` (número de diapositivas) van en el `style` de la raíz; la hoja acota
+ * las visibles a `min( --digi-crs-view, --digi-crs-n )`, como el `Math.min` de Swiper en PRO.
  *
  * **Clases de estado que pone el script:** `digi-crs--ready` en la raíz cuando el carrusel quedó iniciado (el arnés A/B
  * espera a que no quede ningún `.digi-crs:not(.digi-crs--ready)`), `--paused`, `--locked` (todo cabe en una página: se
@@ -189,7 +190,7 @@ final class Engine {
 		if ( '' !== (string) $a['sync'] ) {
 			$attrs['data-digi-sync'] = (string) $a['sync'];
 		}
-		$attrs['style'] = '--digi-crs-speed:' . max( 0, (int) $a['speed'] ) . 'ms';
+		$attrs['style'] = '--digi-crs-speed:' . max( 0, (int) $a['speed'] ) . 'ms;--digi-crs-n:' . $count;
 		foreach ( (array) $a['attributes'] as $name => $value ) {
 			if ( is_string( $name ) && preg_match( '/^[a-z][a-z0-9_:.-]*$/', $name ) && 0 !== strpos( $name, 'on' ) && ! isset( $attrs[ $name ] ) ) {
 				$attrs[ $name ] = (string) $value;

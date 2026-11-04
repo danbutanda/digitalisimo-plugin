@@ -43,6 +43,7 @@ final class Facades {
 		'digitalisimo-device-slider'  => '\Digitalisimo\Elements\Device_Slider_Widget',
 		'digitalisimo-offcanvas'      => '\Digitalisimo\Elements\Offcanvas_Widget',
 		'digitalisimo-map'            => '\Digitalisimo\Elements\Map_Widget',
+		'digitalisimo-media-carousel' => '\Digitalisimo\Elements\Carousel\Widgets\Media_Carousel',
 	);
 
 	private static $initialized = false;

@@ -6758,5 +6758,62 @@
     "proFrontend": false
    }
   }
+ },
+ "carousels": {
+  "title": "Carruseles propios (programa sin widgets de PRO, C1)",
+  "since": "4.3.0.173",
+  "widgets": [
+   {
+    "type": "digitalisimo-slides",
+    "settings": {
+     "autoplay": "",
+     "slides": [
+      { "_id": "fbsl001", "heading": "Primera diapositiva", "description": "Texto de medición.", "button_text": "Ver más", "background_color": "#245eff" },
+      { "_id": "fbsl002", "heading": "Segunda diapositiva", "description": "Otro texto.", "button_text": "Leer", "background_color": "#1f2937" }
+     ]
+    }
+   },
+   {
+    "type": "digitalisimo-media-carousel",
+    "settings": {
+     "autoplay": "",
+     "slides": [
+      { "_id": "fbmc001", "type": "image", "image": "__IMAGE__" },
+      { "_id": "fbmc002", "type": "image", "image": "__IMAGE__" },
+      { "_id": "fbmc003", "type": "image", "image": "__IMAGE__" },
+      { "_id": "fbmc004", "type": "image", "image": "__IMAGE__" }
+     ]
+    }
+   },
+   {
+    "type": "digitalisimo-testimonial-carousel",
+    "settings": {
+     "autoplay": "",
+     "slides": [
+      { "_id": "fbtc001", "content": "Un testimonio de medición.", "name": "Persona uno", "title": "Cargo" },
+      { "_id": "fbtc002", "content": "Otro testimonio de medición.", "name": "Persona dos", "title": "Cargo" }
+     ]
+    }
+   },
+   {
+    "type": "digitalisimo-reviews",
+    "settings": {
+     "autoplay": "",
+     "slides": [
+      { "_id": "fbrv001", "content": "Una reseña de medición.", "name": "Persona uno", "title": "Cliente", "rating": 4.5 },
+      { "_id": "fbrv002", "content": "Otra reseña de medición.", "name": "Persona dos", "title": "Cliente", "rating": 5 }
+     ]
+    }
+   }
+  ],
+  "expect": {
+   "*": {
+    "errors": 0,
+    "proHandlers": false,
+    "proFrontend": false,
+    "swiper": false,
+    "jquery": false
+   }
+  }
  }
 }

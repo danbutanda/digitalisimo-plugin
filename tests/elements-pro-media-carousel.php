@@ -238,7 +238,7 @@ namespace {
 	check_mc( strlen( $css ) > 0 && strlen( $css ) <= 4096, 'La hoja pesa ' . strlen( $css ) . ' B (tope 4 096).' );
 	check_mc( ! str_contains( $css, '--e-global' ) && ! preg_match( '/url\(/i', $css ) && ! str_contains( str_replace( '.elementor-widget-digitalisimo-media-carousel', '', $css ), 'elementor' ) && ! str_contains( $css, 'swiper' ), 'La hoja no usa el kit, url(), ni clases del proveedor o de Swiper (sólo la del envoltorio del widget).' );
 	check_mc( (bool) preg_match( '/^\.elementor-widget-digitalisimo-media-carousel\{[^}]*--digi-crs-view:1;[^}]*--digi-crs-gap:0px/', $css ), 'La hoja corta la herencia de las variables de maquetación de un carrusel exterior.' );
-	check_mc( str_contains( $css, '.digi-media-carousel[data-digi-count="2"]>.digi-crs__track{--_v:min(var(--digi-crs-view,1),2)}' ), 'Con menos diapositivas que las visibles, se ensanchan (como PRO).' );
+	check_mc( ! str_contains( $css, 'data-digi-count' ) && str_contains( (string) file_get_contents( $root . 'modules/digitalisimo-carousel/assets/css/carousel.css' ), 'min(var(--digi-crs-view,1),var(--digi-crs-n,99))' ), 'Con menos diapositivas que las visibles, se ensanchan (como PRO): lo acota el motor con --digi-crs-n.' );
 	check_mc( (bool) preg_match( '/@media \(prefers-reduced-motion:reduce\)\{[^}]*\.digi-media-carousel__overlay[^}]*\{transition:none\}\}/', $css ) && str_contains( $css, '.digi-media-carousel__link:focus-visible{outline:2px solid' ), 'Movimiento reducido en las transiciones y foco visible propio del enlace.' );
 	preg_match_all( '/#[0-9a-f]{3,6}\b/i', $css, $colors );
 	check_mc( array() === array_diff( array_unique( array_map( 'strtolower', $colors[0] ) ), array( '#fff' ) ), 'Sólo los colores que PRO usaba por defecto: ' . implode( ', ', $colors[0] ) );
@@ -356,11 +356,13 @@ namespace {
 	$medium = $render( array( 'lazyload' => 'yes', 'image_size_size' => 'medium', 'slides' => array( $img( 11 ), $img( 12 ) ) ) );
 	check_mc( str_contains( $medium, 'img-11-medium.png' ) && 2 === $count( 'loading="lazy"', $medium ), 'Tamaño de image_size y carga diferida nativa.' );
 	$custom = $render( array( 'image_size_size' => 'custom', 'image_size_custom_dimension' => array( 'width' => '300', 'height' => '200' ), 'lazyload' => 'yes', 'slides' => array( $img( 11 ) ) ) );
-	check_mc( str_contains( $custom, 'src="https://sitio.test/wp-content/uploads/custom-11.png"' ) && str_contains( $custom, 'width="300"' ) && str_contains( $custom, 'loading="lazy"' ), 'Tamaño personalizado: la imagen recortada con sus medidas.' );
+	check_mc( str_contains( $custom, 'src="https://sitio.test/wp-content/uploads/custom-11.png"' ) && str_contains( $custom, 'width="300"' ) && 0 === $count( 'loading=', $custom ), 'Tamaño personalizado: la imagen recortada con sus medidas, sin `loading` propio (con medidas lo pone la optimización de carga del núcleo o WordPress, y uno propio saldría duplicado).' );
+	$nodims = $render( array( 'lazyload' => 'yes', 'slides' => array( array( 'image' => array( 'url' => 'https://sitio.test/x.png' ) ) ) ) );
+	check_mc( 1 === $count( 'loading="lazy"', $nodims ), 'Una imagen sin medidas con «Carga diferida» lleva un solo loading="lazy".' );
 
 	// Una sola diapositiva, fundido, cubo, RTL.
 	$one = $render( array( 'slides' => array( $img( 11 ) ) ) );
-	check_mc( str_contains( $one, 'style="--digi-crs-speed:500ms" data-digi-count="1">' ) && str_contains( $render( array( 'slides' => array( $img( 11 ), $img( 12 ) ) ) ), 'data-digi-count="2"' ), 'La raíz lleva el número de diapositivas (la hoja acota las visibles).' );
+	check_mc( str_contains( $one, 'style="--digi-crs-speed:500ms;--digi-crs-n:1">' ) && str_contains( $render( array( 'slides' => array( $img( 11 ), $img( 12 ) ) ) ), '--digi-crs-n:2"' ), 'La raíz lleva el número de diapositivas (el motor acota las visibles).' );
 	check_mc( ! str_contains( $one, 'digi-crs__prev' ) && ! str_contains( $one, 'digi-crs__pagination' ) && ! str_contains( $one, 'digi-crs__pause' ) && 1 === $count( 'digi-crs__slide', $one ), 'Una diapositiva: sin flechas, paginación ni pausa.' );
 	check_mc( str_contains( $render( array( 'effect' => 'fade', 'slides' => array( $img( 11 ), $img( 12 ) ) ) ), 'data-digi-effect="fade"' ) && str_contains( $render( array( 'effect' => 'cube', 'slides' => array( $img( 11 ), $img( 12 ) ) ) ), 'data-digi-effect="slide"' ), 'Fundido como fundido; cubo, aproximado como deslizamiento.' );
 	$GLOBALS['mc_rtl'] = true;

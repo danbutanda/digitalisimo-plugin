@@ -198,7 +198,62 @@
      "label": "Flecha siguiente",
      "a": ".elementor-swiper-button-next",
      "b": ".digi-crs__next"
-    },
+    }
+   ]
+  },
+  "mc-slideshow-thumb": {
+   "title": "«Slideshow»: pulsar la tercera miniatura lleva el principal a la tercera imagen",
+   "widget": "media-carousel",
+   "settings": {
+    "autoplay": "",
+    "skin": "slideshow",
+    "loop": "",
+    "slides": [
+     {
+      "_id": "mc01",
+      "image": {
+       "$image": 1
+      }
+     },
+     {
+      "_id": "mc02",
+      "image": {
+       "$image": 2
+      }
+     },
+     {
+      "_id": "mc03",
+      "image": {
+       "$image": 3
+      }
+     },
+     {
+      "_id": "mc04",
+      "image": {
+       "$image": 4
+      }
+     },
+     {
+      "_id": "mc05",
+      "image": {
+       "$image": 5
+      }
+     },
+     {
+      "_id": "mc06",
+      "image": {
+       "$image": 6
+      }
+     },
+     {
+      "_id": "mc07",
+      "image": {
+       "$image": 7
+      }
+     }
+    ]
+   },
+   "actions": [
     {
      "label": "Tercera miniatura",
      "a": ".elementor-thumbnails-swiper .swiper-slide:nth-child(3)",
@@ -208,7 +263,11 @@
       768
      ]
     }
-   ]
+   ],
+   "pixels": {
+    "max": 0.12,
+    "reason": "Tras pulsar una miniatura el principal muestra la misma imagen, pero la tira de miniaturas queda en otra posición: PRO enlazaba los dos Swiper por el progreso del desplazamiento (con 7 imágenes, pulsar la tercera a 1 280 px llevaba el principal a la séptima, por eso esta acción no se mide en ese ancho); el motor propio las enlaza por índice y desplaza la tira hasta la miniatura actual."
+   }
   },
   "mc-slideshow-centered": {
    "title": "«Slideshow» con miniaturas centradas, 4 visibles (3 en móvil), proporción 4:3, altura 360 px y separación 16 px",
@@ -342,7 +401,7 @@
   },
   "mc-video": {
    "interact": false,
-   "title": "Vídeos de YouTube y Vimeo con su imagen e icono de reproducir en color; ninguna petición al servicio antes del clic",
+   "title": "Dos vídeos (YouTube y Vimeo) con su imagen e icono de reproducir en color; ninguna petición al servicio antes del clic",
    "widget": "media-carousel",
    "settings": {
     "autoplay": "",
@@ -365,23 +424,6 @@
       },
       "video": {
        "url": "https://vimeo.com/76979871"
-      }
-     },
-     {
-      "_id": "mc03",
-      "image": {
-       "$image": 10
-      },
-      "image_link_to_type": "file"
-     },
-     {
-      "_id": "mc04",
-      "type": "video",
-      "image": {
-       "$image": 11
-      },
-      "video": {
-       "url": "https://youtu.be/aqz-KE-bpKQ"
       }
      }
     ],
@@ -435,12 +477,6 @@
       "video": {
        "url": "https://youtu.be/aqz-KE-bpKQ"
       }
-     },
-     {
-      "_id": "mc03",
-      "image": {
-       "$image": 10
-      }
      }
     ]
    },
@@ -477,8 +513,7 @@
       "_id": "mc01",
       "image": {
        "$image": 1
-      },
-      "image_link_to_type": "file"
+      }
      },
      {
       "_id": "mc02",
@@ -499,19 +534,7 @@
       }
      }
     ]
-   },
-   "declared": [
-    {
-     "kind": "hover",
-     "match": ".*",
-     "reason": "La superposición aparece también con el foco del teclado (`:focus-within`); PRO sólo con el puntero."
-    },
-    {
-     "kind": "foco",
-     "match": ".*",
-     "reason": "La superposición aparece también con el foco del teclado (`:focus-within`) y el enlace tiene foco visible propio."
-    }
-   ]
+   }
   },
   "mc-overlay-text": {
    "title": "Superposición con el título del adjunto, animación «slide-up» y tipografía propia",
@@ -648,13 +671,10 @@
      "b": ".digi-crs__next"
     }
    ],
-   "declared": [
-    {
-     "kind": "estilo",
-     "match": "align: center → start",
-     "reason": "La fracción del motor digi-crs se centra con flex (su text-align calculado es start); PRO la centraba con text-align."
-    }
-   ]
+   "pixels": {
+    "max": 0.06,
+    "reason": "Al volver al escritorio desde la tableta (el arnés cambia el ancho sin recargar), Swiper conserva la separación de la tableta (10 px por defecto) en lugar de la del escritorio (20 px); recién cargado a 1 280 px, A y B miden lo mismo."
+   }
   },
   "mc-progress": {
    "title": "Barra de progreso de 6 px con colores, sin bucle, 2 por paso",

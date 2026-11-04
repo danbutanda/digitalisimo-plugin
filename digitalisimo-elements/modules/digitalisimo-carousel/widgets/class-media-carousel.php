@@ -26,6 +26,13 @@ defined( 'ABSPATH' ) || exit;
  * - **Superposición** con el título, la leyenda o la descripción del adjunto, o un icono propio en SVG, y sus
  *   animaciones; aparece también con el foco del teclado (PRO sólo con el puntero).
  *
+ * Diferencias declaradas con PRO: «Diapositivas visibles» y «por paso» llevan como valor por defecto de cada
+ * dispositivo lo que PRO aplicaba con «Predeterminado» (3/2/1, 5/4/3 en las miniaturas, paso 1 fuera del escritorio),
+ * así un valor del escritorio no se hereda en la tableta ni en el móvil; el tamaño y la sombra del icono de reproducir
+ * alcanzan al SVG (en PRO sólo a la fuente de iconos); la superposición aparece también con el foco; las miniaturas
+ * siguen al principal por índice (PRO, por el progreso del desplazamiento); los enlaces externos llevan
+ * `rel="noopener noreferrer"`; YouTube se abre en el lightbox con el dominio sin cookies.
+ *
  * Deriva de PRO Elements (GPL): `modules/carousel/widgets/media-carousel.php` (controles, textos, enlaces y lightbox) y
  * `assets/css/widget-media-carousel.min.css` (aspecto por defecto).
  */
@@ -164,9 +171,7 @@ class Media_Carousel extends Base_Widget {
 		$args = array(
 			'center'     => 'coverflow' === $skin,
 			'dir'        => function_exists( 'is_rtl' ) && is_rtl() ? 'rtl' : '',
-			// Como PRO (`Math.min( slidesCount, slidesPerView )`): con menos diapositivas que las visibles, la hoja las
-			// ensancha hasta llenar la pista.
-			'attributes' => array( 'data-digi-count' => (string) count( (array) ( $settings['slides'] ?? array() ) ) ),
+			// Con menos diapositivas que las visibles, el motor las ensancha (`--digi-crs-n`, como el `Math.min` de PRO).
 		);
 		if ( 'coverflow' === $skin ) {
 			$args['effect'] = 'slide';
@@ -585,23 +590,7 @@ class Media_Carousel extends Base_Widget {
 		foreach ( array( 'width', 'height', 'slides_per_view' ) as $control ) {
 			$this->update_responsive_control( $control, array( 'condition' => array( 'skin!' => 'slideshow' ) ), array( 'recursive' => true ) );
 		}
-		// PRO usaba 3 diapositivas visibles (2 en tableta, 1 en móvil) cuando un dispositivo quedaba en «Predeterminado»;
-		// aquí son los valores por defecto de cada dispositivo, que el núcleo pinta en su consulta de medios.
-		// Lo mismo con «Diapositivas por paso» (1 en cada dispositivo que no lo fija). Así un valor del escritorio no se
-		// hereda en la tableta ni en el móvil, como en PRO.
-		$per_view = array( 'widescreen' => '3', 'desktop' => '3', 'laptop' => '3', 'tablet_extra' => '3', 'tablet' => '2', 'mobile_extra' => '2', 'mobile' => '1' );
-		$view     = array();
-		$scroll   = array();
-		foreach ( self::active_devices() as $device ) {
-			$view[ $device . '_default' ] = $per_view[ $device ] ?? '3';
-			if ( 'desktop' !== $device ) {
-				$scroll[ $device . '_default' ] = '1';
-			}
-		}
-		$this->update_responsive_control( 'slides_per_view', $view );
-		if ( $scroll ) {
-			$this->update_responsive_control( 'slides_to_scroll', $scroll );
-		}
+		// Diapositivas visibles y por paso por dispositivo con «Predeterminado» (3/2/1; paso 1): ya los pone Base_Widget.
 		$this->update_responsive_control(
 			'space_between',
 			array(

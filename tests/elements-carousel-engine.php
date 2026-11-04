@@ -143,7 +143,7 @@ namespace {
 
 	// 3. Engine: marcado.
 	$html = Engine::open( array( 'count' => 3, 'label' => 'Mi <carrusel> "x"', 'arrows' => true, 'pagination' => 'bullets', 'autoplay' => 4000, 'loop' => true, 'hover' => true, 'interaction' => true, 'speed' => 300, 'id' => 'c1', 'classes' => 'mia otra', 'attributes' => array( 'data-x' => '1', 'onclick' => 'mal()', 'bad name' => 'x', 'class' => 'no' ) ) );
-	check_ce( 0 === strpos( $html, '<section class="digi-crs mia otra" aria-roledescription="carrusel" aria-label="Mi &lt;carrusel&gt; &quot;x&quot;" id="c1" data-digi-autoplay="4000" data-digi-hover="1" data-digi-interaction="1" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="bullets" style="--digi-crs-speed:300ms" data-x="1">' ), 'Raíz: clases, nombre escapado, datos del script, velocidad y atributos extra (sin pisar los propios, ni `on*` ni nombres no válidos): ' . substr( $html, 0, 400 ) );
+	check_ce( 0 === strpos( $html, '<section class="digi-crs mia otra" aria-roledescription="carrusel" aria-label="Mi &lt;carrusel&gt; &quot;x&quot;" id="c1" data-digi-autoplay="4000" data-digi-hover="1" data-digi-interaction="1" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="bullets" style="--digi-crs-speed:300ms;--digi-crs-n:3" data-x="1">' ), 'Raíz: clases, nombre escapado, datos del script, velocidad y atributos extra (sin pisar los propios, ni `on*` ni nombres no válidos): ' . substr( $html, 0, 400 ) );
 	$order = array( 'digi-crs__pause', 'digi-crs__prev', 'digi-crs__pagination', 'digi-crs__next', 'digi-crs__track' );
 	$at    = array_map( static function ( $c ) use ( $html ) { return strpos( $html, $c ); }, $order );
 	check_ce( ! in_array( false, $at, true ) && $at === array_values( array_unique( $at ) ) && $at == array_values( ( function ( $a ) { sort( $a ); return $a; } )( $at ) ), 'Controles antes de la pista: pausa, anterior, paginación, siguiente.' );
@@ -179,7 +179,8 @@ namespace {
 				}
 			}
 			foreach ( $a as $k => $v ) {
-				if ( preg_match( '/_default$/', $k ) ) {
+				// Diferencia declarada: «Predeterminado» de visibles y paso, por dispositivo (se comprueba aparte).
+				if ( preg_match( '/_default$/', $k ) && ! in_array( $id, array( 'slides_per_view', 'slides_to_scroll' ), true ) ) {
 					$keep[ $k ] = $v;
 				}
 			}
@@ -242,6 +243,23 @@ namespace {
 		$own_log = $own->reg();
 		$d       = $diff( $fields( $own_log ), $fields( $pro_log ) );
 		check_ce( '' === $d, 'Base_Widget repite base.php de PRO' . ( $rtl_mode ? ' (RTL)' : '' ) . ': ' . $d );
+		$defaults_of = static function ( array $log, string $id ): array {
+			foreach ( $log as $row ) {
+				if ( $id === $row[1] ) {
+					return array_filter( $row[2], static function ( $k ) { return (bool) preg_match( '/_default$/', $k ); }, ARRAY_FILTER_USE_KEY );
+				}
+			}
+			return array();
+		};
+		check_ce( array() === $defaults_of( $pro_log, 'slides_per_view' ) && array( 'desktop_default' => '3', 'tablet_default' => '2', 'mobile_default' => '1' ) === $defaults_of( $own_log, 'slides_per_view' ) && array( 'tablet_default' => '1', 'mobile_default' => '1' ) === $defaults_of( $own_log, 'slides_to_scroll' ), 'Visibles y paso por dispositivo con los valores que PRO aplicaba en «Predeterminado» (3/2/1 y paso 1): ' . json_encode( array( $defaults_of( $own_log, 'slides_per_view' ), $defaults_of( $own_log, 'slides_to_scroll' ) ) ) );
+		$one_view = new class() extends \Digitalisimo\Elements\Carousel\Base_Widget {
+			protected function add_repeater_controls( \Elementor\Repeater $r ) {}
+			protected function get_repeater_defaults() { return array(); }
+			protected function print_slide( array $slide, array $settings, $element_key ) {}
+			protected function slides_per_view_defaults(): array { return array( 'desktop' => '1' ); }
+			public function reg() { $this->register_controls(); return $this->log; }
+		};
+		check_ce( array( 'desktop_default' => '1', 'tablet_default' => '1', 'mobile_default' => '1' ) === $defaults_of( $one_view->reg(), 'slides_per_view' ), 'slides_per_view_defaults() redefinible (testimonios y reseñas: 1 en cada dispositivo).' );
 		check_ce( 31 <= count( array_filter( $pro_log, static function ( $r ) { return in_array( $r[0], array( 'control', 'responsive', 'group' ), true ); } ) ), 'base.php de PRO aporta sus 31 controles.' );
 		check_ce( ! preg_match( '/swiper|elementor-arrows|elementor-pagination/i', $css_rules( $own_log ) ), 'Base_Widget: sin selectores ni clases de PRO o de Swiper.' );
 
@@ -275,11 +293,12 @@ namespace {
 
 	// 5. Traducción de los ajustes al motor.
 	$out = $own->slider( array( 'slides' => array( array( 'x' => 'a' ), array( 'x' => 'b' ), array( 'x' => 'c' ) ), 'effect' => 'cube', 'pagination' => 'fraction', 'container_class' => 'digi-mc', 'slide_class' => 'digi-mc__s', 'engine' => array( 'id' => 'p1' ) ) + $own->get_settings_for_display() );
-	check_ce( false !== strpos( $out, 'class="digi-crs digi-crs--pag-out digi-mc"' ) && false !== strpos( $out, 'aria-label="Diapositivas" id="p1" data-digi-autoplay="5000" data-digi-hover="1" data-digi-interaction="1" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="fraction" style="--digi-crs-speed:500ms"' ), 'print_slider(): valores por defecto de PRO al motor (autoplay 5 s con sus pausas, bucle, cubo como slide, paginación fuera) y los extra: ' . substr( $out, 0, 500 ) );
+	check_ce( false !== strpos( $out, 'class="digi-crs digi-crs--pag-out digi-mc"' ) && false !== strpos( $out, 'aria-label="Diapositivas" id="p1" data-digi-autoplay="5000" data-digi-hover="1" data-digi-interaction="1" data-digi-loop="1" data-digi-effect="slide" data-digi-pagination="fraction" style="--digi-crs-speed:500ms;--digi-crs-n:3"' ), 'print_slider(): valores por defecto de PRO al motor (autoplay 5 s con sus pausas, bucle, cubo como slide, paginación fuera) y los extra: ' . substr( $out, 0, 500 ) );
 	check_ce( 3 === substr_count( $out, 'class="digi-crs__slide digi-mc__s" role="group"' ) && false !== strpos( $out, '<p>b|slide-1-2</p>' ) && '</div></section>' === substr( $out, -16 ) && 2 === substr_count( $out, 'digi-crs__arrow' ), 'print_slider(): una diapositiva por fila con la clave de PRO, flechas por defecto.' );
 	$off = $own->slider( array( 'slides' => array( array(), array() ), 'autoplay' => '', 'loop' => '', 'show_arrows' => '', 'pagination' => '', 'effect' => 'fade' ) + $own->get_settings_for_display() );
 	check_ce( false === strpos( $off, 'data-digi-autoplay' ) && false === strpos( $off, 'data-digi-loop' ) && false === strpos( $off, '<button' ) && false !== strpos( $off, 'digi-crs--fade' ), 'Sin autoplay, bucle, flechas ni paginación; fundido.' );
-	check_ce( false !== strpos( $own->image( array( 'image' => array( 'id' => 7, 'url' => 'u', 'alt' => 'Alt' ) ), array( 'image_size_size' => 'large', 'lazyload' => 'yes' ) ), 'src="https://sitio.test/7-large.jpg" srcset="https://sitio.test/7-300.jpg 300w" alt="Alt" decoding="async" loading="lazy"' ) && 'src="https://x.test/a.jpg" alt="" decoding="async" width="300" height="200"' === substr( $own->image( array( 'image' => array( 'url' => 'https://x.test/a.jpg' ) ), array( 'image_size_size' => 'custom', 'image_size_custom_dimension' => array( 'width' => 300, 'height' => 200 ) ) ), 5, -1 ), 'Imágenes: wp_get_attachment_image con srcset, decoding y carga diferida; sin adjunto, la URL con sus medidas.' );
+	check_ce( false !== strpos( $own->image( array( 'image' => array( 'id' => 7, 'url' => 'u', 'alt' => 'Alt' ) ), array( 'image_size_size' => 'large', 'lazyload' => 'yes' ) ), 'src="https://sitio.test/7-large.jpg" srcset="https://sitio.test/7-300.jpg 300w" alt="Alt" decoding="async">' ) && 'src="https://x.test/a.jpg" alt="" decoding="async" width="300" height="200"' === substr( $own->image( array( 'image' => array( 'url' => 'https://x.test/a.jpg' ) ), array( 'image_size_size' => 'custom', 'image_size_custom_dimension' => array( 'width' => 300, 'height' => 200 ) ) ), 5, -1 ), 'Imágenes: wp_get_attachment_image con srcset y decoding, sin `loading` propio (lo pone WordPress o el núcleo; uno propio saldría duplicado); sin adjunto, la URL con sus medidas.' );
+	check_ce( 'src="https://x.test/b.jpg" alt="" decoding="async" loading="lazy"' === substr( $own->image( array( 'image' => array( 'url' => 'https://x.test/b.jpg' ) ), array( 'lazyload' => 'yes' ) ), 5, -1 ) && false === strpos( $own->image( array( 'image' => array( 'url' => 'https://x.test/a.jpg' ) ), array( 'lazyload' => 'yes', 'image_size_size' => 'custom', 'image_size_custom_dimension' => array( 'width' => 3, 'height' => 2 ) ) ), 'loading' ), 'Carga diferida: `loading="lazy"` propio sólo en una imagen sin medidas, una sola vez.' );
 	$own_t->settings = array( 'carousel_name' => 'Galería', 'navigation_previous_icon' => array( 'value' => 'fas fa-arrow-left', 'library' => 'fa-solid' ), 'pagination' => 'bullets', 'dots_position' => 'inside', 'arrows_position' => 'outside', 'infinite' => '' );
 	$own_t->num_of_carousel_items = 4;
 	$args = $own_t->carousel_args( $own_t->get_settings_for_display() );
