@@ -164,13 +164,13 @@ const SERV = '[href$="/servicios/"]', DESA = '[href$="/desarrollo/"]', EQUI = '[
 // 3. A 375 px.
 {
   const page = await open({ width: 375 });
-  const tog = id => page.evaluate(id => { const t = document.querySelector(`[data-id="${id}"] .digi-nav__toggle`), d = document.querySelector(`[data-id="${id}"] .digi-nav__container.digi-nav__dropdown`); return { shown: !!t.offsetParent, expanded: t.getAttribute('aria-expanded'), controls: t.getAttribute('aria-controls') === d.id, dd: getComputedStyle(d).visibility, h: d.getBoundingClientRect().height, w: t.getBoundingClientRect().width, main: getComputedStyle(document.querySelector(`[data-id="${id}"] .digi-nav__main`)).display }; }, id);
+  const tog = id => page.evaluate(id => { const t = document.querySelector(`[data-id="${id}"] .digi-nav__toggle`), d = document.querySelector(`[data-id="${id}"] .digi-nav__container.digi-nav__dropdown`); return { shown: !!t.offsetParent, expanded: t.getAttribute('aria-expanded'), controls: t.getAttribute('aria-controls') === d.id, dd: d.inert ? 'inert' : 'open', h: d.getBoundingClientRect().height, w: t.getBoundingClientRect().width, main: getComputedStyle(document.querySelector(`[data-id="${id}"] .digi-nav__main`)).display }; }, id);
   let t = await tog('n1');
-  ok(t.shown && t.expanded === 'false' && t.controls && t.dd === 'hidden' && t.main === 'none' && t.w >= 24, 'Móvil: hamburguesa (≥ 24 px) que controla el desplegable, cerrado; sin menú principal: ' + JSON.stringify(t));
+  ok(t.shown && t.expanded === 'false' && t.controls && t.dd === 'inert' && t.main === 'none' && t.w >= 24, 'Móvil: hamburguesa (≥ 24 px) que controla el desplegable, cerrado; sin menú principal: ' + JSON.stringify(t));
   await page.click('[data-id="n1"] .digi-nav__toggle');
   await sleep(400);
   t = await tog('n1');
-  ok(t.expanded === 'true' && t.dd === 'visible' && t.h > 100, 'Hamburguesa: abre el desplegable: ' + JSON.stringify(t));
+  ok(t.expanded === 'true' && t.dd === 'open' && t.h > 100, 'Hamburguesa: abre el desplegable: ' + JSON.stringify(t));
   ok(await page.evaluate(() => getComputedStyle(document.querySelector('[data-id="n1"] .digi-nav__toggle .digi-nav__toggle-close')).display !== 'none' && getComputedStyle(document.querySelector('[data-id="n1"] .digi-nav__toggle .digi-nav__toggle-open')).display === 'none'), 'Hamburguesa abierta: icono de cerrar.');
   await page.click(btn('n1', 'dd', SERV));
   await page.click(btn('n1', 'dd', EQUI));
@@ -179,7 +179,7 @@ const SERV = '[href$="/servicios/"]', DESA = '[href$="/desarrollo/"]', EQUI = '[
   await page.focus('[data-id="n1"] .digi-nav__container.digi-nav__dropdown a[href="https://ejemplo.test/"]');
   await page.keyboard.press('Escape');
   t = await tog('n1');
-  ok(t.expanded === 'false' && (await page.evaluate(() => document.activeElement.classList.contains('digi-nav__toggle'))), 'Escape en el desplegable: lo cierra y el foco vuelve a la hamburguesa.');
+  ok(t.expanded === 'false' && t.dd === 'inert' && (await page.evaluate(() => document.activeElement.classList.contains('digi-nav__toggle'))), 'Escape en el desplegable: lo cierra y el foco vuelve a la hamburguesa.');
   await page.click('[data-id="n1"] .digi-nav__toggle');
   await page.click('[data-id="n1"] .digi-nav__toggle');
   ok((await tog('n1')).expanded === 'false' && !(await item(page, 'n1', 'dd', 'Servicios')).open, 'Hamburguesa: segundo clic cierra, también los submenús.');
@@ -189,7 +189,7 @@ const SERV = '[href$="/servicios/"]', DESA = '[href$="/desarrollo/"]', EQUI = '[
   const st = await page.evaluate(() => { const d = document.querySelector('[data-id="n2"] .digi-nav__container.digi-nav__dropdown'), r = d.getBoundingClientRect(), t = document.querySelector('[data-id="n2"] .digi-nav__toggle').getBoundingClientRect(); return { left: r.left, width: r.width, vw: document.documentElement.clientWidth, pos: getComputedStyle(d).position, below: r.top - t.bottom, center: getComputedStyle(d.querySelector('a')).justifyContent }; });
   ok(Math.abs(st.left) < 1 && Math.abs(st.width - st.vw) < 1 && st.pos === 'absolute' && Math.abs(st.below - 10) < 1.5 && st.center === 'center', 'Ancho completo: el desplegable ocupa la ventana, 10 px bajo la hamburguesa, con el texto centrado: ' + JSON.stringify(st));
   // Sin punto de corte: el menú principal sigue y no hay hamburguesa.
-  ok(await page.evaluate(() => !document.querySelector('[data-id="n3"] .digi-nav__toggle') || getComputedStyle(document.querySelector('[data-id="n3"] .digi-nav__toggle')).display === 'none') && (await page.evaluate(() => getComputedStyle(document.querySelector('[data-id="n3"] .digi-nav__main')).display !== 'none' && getComputedStyle(document.querySelector('[data-id="n3"] .digi-nav__container.digi-nav__dropdown')).display === 'none')), 'Sin punto de corte: menú principal en móvil, sin desplegable.');
+  ok(await page.evaluate(() => !document.querySelector('[data-id="n3"] .digi-nav__toggle') && !document.querySelector('[data-id="n3"] .digi-nav__container.digi-nav__dropdown') && getComputedStyle(document.querySelector('[data-id="n3"] .digi-nav__main')).display !== 'none'), 'Sin punto de corte: menú principal en móvil, sin desplegable.');
   await page.close();
 }
 

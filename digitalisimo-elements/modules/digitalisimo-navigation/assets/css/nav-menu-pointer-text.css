@@ -1,8 +1,8 @@
-.digi-nav--p-textA-skew .digi-nav__link:is(:hover,:focus){transform:skew(-8deg)}
-.digi-nav--p-textA-grow .digi-nav__link:is(:hover,:focus){transform:scale(1.2)}
-.digi-nav--p-textA-shrink .digi-nav__link:is(:hover,:focus){transform:scale(.8)}
-.digi-nav--p-textA-float .digi-nav__link:is(:hover,:focus){transform:translateY(-8px)}
-.digi-nav--p-textA-sink .digi-nav__link:is(:hover,:focus){transform:translateY(8px)}
-.digi-nav--p-textA-rotate .digi-nav__link:is(:hover,:focus){transform:rotate(6deg)}
+.digi-nav--p-textA-skew .digi-nav__link:is(:hover,:focus,:has(+.digi-nav__sub-toggle:is(:hover,:focus))){transform:skew(-8deg)}
+.digi-nav--p-textA-grow .digi-nav__link:is(:hover,:focus,:has(+.digi-nav__sub-toggle:is(:hover,:focus))){transform:scale(1.2)}
+.digi-nav--p-textA-shrink .digi-nav__link:is(:hover,:focus,:has(+.digi-nav__sub-toggle:is(:hover,:focus))){transform:scale(.8)}
+.digi-nav--p-textA-float .digi-nav__link:is(:hover,:focus,:has(+.digi-nav__sub-toggle:is(:hover,:focus))){transform:translateY(-8px)}
+.digi-nav--p-textA-sink .digi-nav__link:is(:hover,:focus,:has(+.digi-nav__sub-toggle:is(:hover,:focus))){transform:translateY(8px)}
+.digi-nav--p-textA-rotate .digi-nav__link:is(:hover,:focus,:has(+.digi-nav__sub-toggle:is(:hover,:focus))){transform:rotate(6deg)}
 .digi-nav--a-none,.digi-nav--a-none .digi-nav__link,.digi-nav--a-none .digi-nav__link:before,.digi-nav--a-none .digi-nav__link:after{transition-duration:0s}
 @media(prefers-reduced-motion:reduce){.digi-nav__link,.digi-nav__link:before,.digi-nav__link:after{transition-duration:0s!important}}

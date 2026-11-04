@@ -1507,7 +1507,12 @@ class Nav_Menu extends \Elementor\Widget_Base {
 		if ( 'fa ' === substr( $value, 0, 3 ) && Icons_Manager::is_migration_allowed() ) {
 			$icon['value'] = 'fas ' . substr( $value, 3 );
 		}
-		$html = (string) Icons_Manager::try_get_icon_html( $icon, array( 'aria-hidden' => 'true' ) );
+		$attrs = array( 'aria-hidden' => 'true' );
+		// Como PRO con los iconos en SVG: el chevrón, más pequeño.
+		if ( false !== strpos( (string) $icon['value'], 'chevron-down' ) && Module::feature( 'e_font_icon_svg' ) ) {
+			$attrs['class'] = 'fa-svg-chevron-down';
+		}
+		$html = (string) Icons_Manager::try_get_icon_html( $icon, $attrs );
 		return '' === $html ? '' : '<span class="digi-nav__arrow" aria-hidden="true">' . $html . '</span>';
 	}
 
@@ -1577,8 +1582,13 @@ class Nav_Menu extends \Elementor\Widget_Base {
 			}
 			printf( '<nav class="%s"%s>%s</nav>', esc_attr( implode( ' ', $classes ) ), '' !== $label ? ' aria-label="' . esc_attr( $label ) . '"' : '', $menu_html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nav_menu escapa.
 		}
-		$this->render_menu_toggle( $settings, 'digi-nav-dd-' . $id );
-		printf( '<nav class="digi-nav__dropdown digi-nav__container" id="%s"%s>%s</nav>', esc_attr( 'digi-nav-dd-' . $id ), '' !== $label ? ' aria-label="' . esc_attr( $label ) . '"' : '', $dropdown_html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nav_menu escapa.
+		// Sin punto de corte (y con menú principal), PRO pintaba el desplegable oculto; aquí no se pinta.
+		if ( 'dropdown' === $layout || 'none' !== (string) ( $settings['dropdown'] ?? 'tablet' ) ) {
+			$this->render_menu_toggle( $settings, 'digi-nav-dd-' . $id );
+			// Cerrado tras la hamburguesa: `inert` (fuera del foco y de los lectores de pantalla) hasta que se abre.
+			$inert = 'burger' === ( $settings['toggle'] ?? '' ) ? ' inert' : '';
+			printf( '<nav class="digi-nav__dropdown digi-nav__container" id="%s"%s%s>%s</nav>', esc_attr( 'digi-nav-dd-' . $id ), '' !== $label ? ' aria-label="' . esc_attr( $label ) . '"' : '', $inert, $dropdown_html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nav_menu escapa.
+		}
 		echo '</div>';
 	}
 
@@ -1694,7 +1704,7 @@ class Nav_Menu extends \Elementor\Widget_Base {
 			return $output;
 		}
 		$title = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) ( $item->title ?? '' ) ) ) );
-		return $output . '<button type="button" class="digi-nav__sub-toggle" aria-expanded="false" aria-label="' . esc_attr( self::sub_label( $title ) ) . '"></button>';
+		return $output . '<button type="button" class="digi-nav__sub-toggle" aria-expanded="false" aria-label="' . esc_attr( self::sub_label( $title ) ) . '" hidden></button>';
 	}
 
 	public function render_plain_content() {}

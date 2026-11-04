@@ -1,20 +1,21 @@
-.digi-nav{display:flex;flex-direction:column}
+.digi-nav{display:contents}
+.elementor-widget-digitalisimo-nav-menu>.elementor-widget-container,.elementor-widget-digitalisimo-nav-menu:not(:has(.elementor-widget-container)):not([class*=elementor-hidden-]){display:flex;flex-direction:column}
 .digi-nav ul,.digi-nav li{display:block;line-height:normal;list-style:none;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 .digi-nav__list{position:relative;z-index:2}
 .digi-nav li{position:relative;border-width:0}
 .digi-nav ul ul{display:none}
 .digi-nav li.digi-nav__item--open>ul,.digi-nav:not(.digi-nav--ready) li:is(:hover,:focus-within)>ul{display:block}
 .digi-nav a{position:relative;display:flex;align-items:center;line-height:20px;padding:10px 20px}
-.digi-nav ul ul a{border-left:16px solid transparent}
-.digi-nav ul ul ul a{border-left:24px solid transparent}
-.digi-nav ul ul ul ul a{border-left:32px solid transparent}
+.digi-nav__list ul ul a{border-left:16px solid transparent}
+.digi-nav__list ul ul ul a{border-left:24px solid transparent}
+.digi-nav__list ul ul ul ul a{border-left:32px solid transparent}
 .digi-nav__arrow{display:flex;align-items:center;line-height:1;margin-block:-10px;padding:10px;padding-inline-end:0}
 .digi-nav__arrow svg{width:1em;height:1em;fill:currentColor}
-.digi-nav__sub-toggle{position:absolute;top:0;left:0;z-index:1;width:24px;height:24px;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;cursor:pointer;color:inherit}
-.digi-nav:not(.digi-nav--ready) .digi-nav__sub-toggle{display:none}
+.digi-nav__arrow :is(.fa-chevron-down,.fa-svg-chevron-down){font-size:.7em}
+.digi-nav__sub-toggle{position:absolute;top:0;left:0;width:24px;height:24px;margin:0;padding:0;border:0;background:none;box-shadow:none;cursor:pointer}
 .digi-nav :is(a,button):focus-visible{outline:2px solid currentColor;outline-offset:2px}
 .digi-nav__main .digi-nav__list a{transition:.4s;padding:13px 20px}
-.digi-nav__main .digi-nav__list ul{position:absolute;z-index:3;width:auto;min-width:10em;max-width:1000px;border:0 solid;padding:0;inset-inline-start:0;top:0}
+.digi-nav__main .digi-nav__list ul{position:absolute;z-index:3;min-width:10em;max-width:1000px;border:0 solid;padding:0;inset-inline-start:0;top:0}
 .digi-nav__main .digi-nav__list ul ul,.digi-nav--layout-vertical .digi-nav__list ul{inset-inline-start:100%}
 .digi-nav__main ul.digi-nav__flip{inset-inline:auto 0}
 .digi-nav__main ul ul.digi-nav__flip{inset-inline:auto 100%}
@@ -32,7 +33,6 @@
 .digi-nav--align-start .digi-nav__list{justify-content:flex-start;margin-inline-end:auto}
 .digi-nav--align-end .digi-nav__list{justify-content:flex-end;margin-inline-start:auto}
 .digi-nav--align-center .digi-nav__list{justify-content:center;margin-inline:auto}
-.digi-nav--align-start .digi-nav--layout-vertical>ul>li>a{justify-content:flex-start}
 .digi-nav--align-end .digi-nav--layout-vertical>ul>li>a{justify-content:flex-end}
 .digi-nav--align-center .digi-nav--layout-vertical>ul>li>a{justify-content:center}
 .digi-nav--align-justify .digi-nav--layout-horizontal .digi-nav__list{width:100%}

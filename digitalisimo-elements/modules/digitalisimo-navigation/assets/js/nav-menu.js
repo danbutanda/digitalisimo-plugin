@@ -18,6 +18,7 @@ const ar = a.querySelector(C('arrow')), l = box(li), r = box(a), s = ar && box(a
 let x0 = back ? r.left : s ? s.left : r.right - 34, x1 = back ? (s ? s.right : r.left + 34) : r.right;
 if (x1 - x0 < 24) x0 = x1 - 24;
 const h = Math.max(24, r.height);
+b.hidden = false;
 b.style.cssText = `left:${x0 - l.left - li.clientLeft}px;top:${r.top - l.top - li.clientTop + (r.height - h) / 2}px;width:${x1 - x0}px;height:${h}px`;
 });
 const set = (li, open) => {
@@ -76,6 +77,7 @@ if (toggle) dd.style.top = toggle.offsetHeight + 'px';
 const menu = open => {
 if (!toggle) return;
 toggle.setAttribute(E, open);
+dd.inert = !open;
 if (open) stretch(); else closeAll(dd);
 root.style.setProperty('--digi-nav-h', open ? (root.closest('.elementor-sticky') ? W.innerHeight - box(dd).top + 'px' : '1000vmax') : '');
 open && place(dd);
@@ -94,7 +96,7 @@ en.isIntersecting ? a.setAttribute('aria-current', 'location') : a.removeAttribu
 }), { rootMargin: `${t.offsetHeight > vh / 2 ? m : 0}px 0px ${m}px 0px` }).observe(t);
 });
 const fit = () => { place(); stretch(); };
-W.ResizeObserver ? new ResizeObserver(fit).observe(root) : W.addEventListener('resize', fit);
+W.ResizeObserver ? new ResizeObserver(fit).observe(root.parentNode) : W.addEventListener('resize', fit);
 root.classList.add(R + '--ready');
 fit();
 };
