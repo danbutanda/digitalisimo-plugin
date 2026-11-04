@@ -51,6 +51,24 @@
    "match": "^transform: matrix\\(1, 0, 0, 1, -?[\\d.]+, -?[\\d.]+\\) → none$",
    "reason": "El motor coloca flechas y paginación con la propiedad translate; PRO, con transform. La posición es la misma (píxeles).",
    "widget": "nested-carousel"
+  },
+  {
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control dot \\d+ (color|size|background|radius|padding|border-(top|right|bottom|left)):",
+   "reason": "Puntos del motor digi-crs: cada punto es un <button> transparente de 24 × 24 px con el punto dibujado en ::before (WCAG 2.5.8 y estándar del front); en PRO el punto era el propio elemento. Se ven en el mismo lugar con el mismo color (píxeles).",
+   "widget": "nested-carousel"
+  },
+  {
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control pause 1 sólo en B",
+   "reason": "Botón Pausar/Reanudar propio con reproducción automática (WCAG 2.2.2).",
+   "widget": "nested-carousel"
+  },
+  {
+   "kind": "control",
+   "match": "^(\\[acción [^\\]]*\\] )?control a \\d+ sólo en A",
+   "reason": "Bucle (approx de loop): Swiper clonaba diapositivas y sus enlaces; el motor rebobina sin clones. El HTML de A y B tiene los mismos enlaces.",
+   "widget": "nested-carousel"
   }
  ],
  "cases": {

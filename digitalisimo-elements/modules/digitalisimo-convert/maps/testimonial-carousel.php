@@ -55,7 +55,7 @@ $digi_tc_common = is_file( __DIR__ . '/_carousel-classes.php' ) ? (array) requir
 return array(
 	'source'    => 'testimonial-carousel',
 	'target'    => 'digitalisimo-testimonial-carousel',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Valores por defecto de PRO: los textos que PRO pinta traducidos y los de los controles aproximados.
 	'defaults'  => array(

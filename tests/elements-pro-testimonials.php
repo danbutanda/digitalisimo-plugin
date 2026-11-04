@@ -273,7 +273,7 @@ namespace {
 	// Cobertura de los mapas (también lo heredado de la base): cada control de PRO está declarado.
 	foreach ( $widgets as $pro => $w ) {
 		$map = require $root . 'modules/digitalisimo-convert/maps/' . $pro . '.php';
-		check_t( $pro === $map['source'] && $w['name'] === $map['target'] && 'draft' === $map['status'] && 'hide' === $map['panel'], "$pro: mapa en borrador que oculta el widget de PRO." );
+		check_t( $pro === $map['source'] && $w['name'] === $map['target'] && 'ready' === $map['status'] && 'hide' === $map['panel'], "$pro: mapa listo que oculta el widget de PRO." );
 		$php = (string) file_get_contents( $root . 'modules/carousel/widgets/' . $pro . '.php' ) . $base_php;
 		preg_match_all( "/->add_(?:responsive_)?control\(\s*'([a-z0-9_]+)'/", $php, $controls );
 		preg_match_all( "/->add_group_control\([^;]*?'name'\s*=>\s*'([a-z0-9_]+)'/s", $php, $grouped );
@@ -354,7 +354,7 @@ namespace {
 	$revil = $render( Reviews::class, array( 'slides' => array( array( '_id' => 'e1', 'image' => array( 'url' => '' ), 'name' => '<script>x</script>Ana', 'title' => '<i onmouseover="x()">t</i>', 'rating' => '"><script>', 'selected_social_icon' => array( 'value' => 'fab fa-"><x', 'library' => 'fa-brands' ), 'link' => array( 'url' => 'https://a.test/"><script>' ), 'content' => '<script>y</script>Bien' ) ) ) + $rset );
 	check_t( ! str_contains( $revil, '<script' ) && ! str_contains( $revil, 'onmouseover' ) && ! str_contains( $revil, '"><x' ) && str_contains( $revil, 'href="https://a.test/&quot;&gt;&lt;script&gt;"' ), 'Reseñas: escape del nombre, cargo, valoración, icono y enlace.' );
 
-	// 4. Conversión de ajustes reales de PRO con los mapas (borrador: sólo pruebas).
+	// 4. Conversión de ajustes reales de PRO con los mapas (listos tras el A/B de C1).
 	Registry::reset();
 	$lands = static function ( $widget, $key ) {
 		$base = Translator::base( (string) $key );

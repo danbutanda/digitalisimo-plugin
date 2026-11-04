@@ -35,7 +35,7 @@ $digi_sl_row = static function ( $n, $color ) use ( $digi_sl_t ) {
 return array(
 	'source'    => 'slides',
 	'target'    => 'digitalisimo-slides',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Valores por defecto de PRO que el traductor necesita para saber si el sitio los cambió.
 	'defaults'  => array(

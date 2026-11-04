@@ -305,9 +305,9 @@ namespace {
 	check_sl( '' === Slides_Templates::content( array( 'digitalisimo_template_id' => 'x' ) ) && '' === Slides_Templates::content( array() ), 'Sin un ID válido, no hay plantilla.' );
 	check_sl( true === \Digitalisimo\Elements\Conditions\Visitor_Content::is_dynamic_content( false, array( 'widgetType' => 'digitalisimo-slides', 'settings' => array( 'slides' => array( array( 'digitalisimo_template_id' => '40' ) ) ) ) ) && false === \Digitalisimo\Elements\Conditions\Visitor_Content::is_dynamic_content( false, array( 'widgetType' => 'digitalisimo-slides', 'settings' => array( 'slides' => array( array( 'heading' => 'x' ) ) ) ) ), 'La caché de elementos no guarda unas Diapositivas con plantilla (y sí las que no la tienen).' );
 
-	// 5. Conversión de Slides de PRO con el mapa (borrador: sólo pruebas).
+	// 5. Conversión de Slides de PRO con el mapa (listo tras el A/B de C1).
 	Registry::reset();
-	check_sl( null !== Registry::map( 'slides', true ) && 'draft' === $map['status'] && 'hide' === $map['panel'] && 'digitalisimo-slides' === $map['target'], 'Mapa en borrador hasta el A/B; oculta el de PRO cuando esté listo.' );
+	check_sl( null !== Registry::map( 'slides', true ) && 'ready' === $map['status'] && 'hide' === $map['panel'] && 'digitalisimo-slides' === $map['target'], 'Mapa listo tras el A/B de C1; oculta el widget de PRO.' );
 	$own_keys = array_keys( $widget->controls );
 	$lands    = static function ( $key, array $controls, array $groups ) {
 		$base = Translator::base( (string) $key );

@@ -21,7 +21,7 @@ $digi_nc_classes = is_file( __DIR__ . '/_carousel-classes.php' ) ? (array) requi
 return array(
 	'source'    => 'nested-carousel',
 	'target'    => 'digitalisimo-nested-carousel',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Valores por defecto de PRO que el traductor necesita para saber si el sitio los cambió.
 	'defaults'  => array(

@@ -416,9 +416,9 @@ namespace {
 	$evil = $render( array( 'slides_name' => '"><script>alert(1)</script>', 'slides' => array( array( '_id' => 'e', 'image' => array( 'url' => 'javascript:alert(1)' ), 'image_link_to_type' => 'file' ), $img( 12 ) ) ) );
 	check_mc( ! str_contains( $evil, '<script' ) && str_contains( $evil, 'aria-label="&quot;&gt;&lt;script&gt;' ) && ! str_contains( $evil, 'javascript:' ), 'Nombre del carrusel y URL escapados.' );
 
-	// 4. Conversión de Media Carousel de PRO con el mapa (borrador: sólo pruebas).
+	// 4. Conversión de Media Carousel de PRO con el mapa (listo tras el A/B de C1).
 	Registry::reset();
-	check_mc( null !== Registry::map( 'media-carousel', true ) && 'draft' === $map['status'] && 'hide' === $map['panel'] && 'digitalisimo-media-carousel' === $map['target'], 'Mapa en borrador (el coordinador lo pasa a ready tras el A/B), oculta el widget de PRO.' );
+	check_mc( null !== Registry::map( 'media-carousel', true ) && 'ready' === $map['status'] && 'hide' === $map['panel'] && 'digitalisimo-media-carousel' === $map['target'], 'Mapa listo tras el A/B de C1; oculta el widget de PRO.' );
 	$own    = $widget();
 	$fields = array_keys( $own->controls['slides']['fields'] );
 	$lands  = static function ( $key, $in_row = false ) use ( $own, $fields ) {

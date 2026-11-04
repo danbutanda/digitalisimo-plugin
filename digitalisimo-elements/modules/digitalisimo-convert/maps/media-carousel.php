@@ -42,7 +42,7 @@ $digi_mc_common = is_file( __DIR__ . '/_carousel-classes.php' ) ? (array) requir
 return array(
 	'source'    => 'media-carousel',
 	'target'    => 'digitalisimo-media-carousel',
-	'status'    => 'draft',
+	'status'    => 'ready',
 	'panel'     => 'hide',
 	// Valores por defecto de PRO de los controles que se aproximan (para informar sólo lo que el sitio cambió) y de los
 	// textos que PRO traduce al pintarlos.

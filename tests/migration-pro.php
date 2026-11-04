@@ -396,7 +396,7 @@ namespace {
 	// Destino sin registrar: falla cerrado.
 	manager( array( 'heading' ) );
 	$loop_raw = (string) get_metadata( 'post', $ids['loop'], '_elementor_data', true );
-	$check( array() === Pro::ready() && array( 'blockquote' => 'digitalisimo-blockquote' ) === Pro::missing_targets() && array() === Pro::documents(), 'Sin el widget propio registrado, nada está listo ni por convertir.' );
+	$check( array() === Pro::ready() && 'digitalisimo-blockquote' === ( Pro::missing_targets()['blockquote'] ?? '' ) && ! array_diff_key( Pro::missing_targets(), Registry::all() ) && array() === Pro::documents(), 'Sin el widget propio registrado, nada está listo ni por convertir.' );
 	Report::clear();
 	Report::begin( 'run' );
 	$blocked = Pro::convert_document( $ids['loop'] );

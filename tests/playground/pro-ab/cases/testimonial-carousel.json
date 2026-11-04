@@ -631,7 +631,11 @@
     {
      "label": "Flecha siguiente",
      "a": ".elementor-swiper-button-next",
-     "b": ".digi-crs__next"
+     "b": ".digi-crs__next",
+     "pixels": {
+      "max": 0.04,
+      "reason": "Mismo contenido en la misma posición: tras moverse, Swiper deja la pista en una fracción de píxel (translate3d) y el motor en un píxel entero (desplazamiento); el texto cambia sólo en el suavizado de sus bordes."
+     }
     }
    ]
   },
