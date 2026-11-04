@@ -1,0 +1,18 @@
+.digi-nav__container.digi-nav__dropdown{margin-top:10px;overflow-x:hidden;overflow-y:auto;transform-origin:top;transition:max-height .3s,transform .3s,visibility .3s}
+.digi-nav__container.digi-nav__dropdown .digi-nav__sublink{font-size:.85em}
+.digi-nav--text-center .digi-nav__dropdown .digi-nav__list a{justify-content:center}
+.digi-nav__toggle{align-items:center;background-color:rgba(0,0,0,.05);border:0 solid;border-radius:3px;color:#33373d;cursor:pointer;display:flex;font-size:var(--digi-nav-toggle-size,22px);justify-content:center;padding:.25em;margin:0;min-width:0;min-height:0;font-family:inherit;line-height:normal;letter-spacing:normal;text-transform:none;box-shadow:none;-webkit-appearance:none;appearance:none}
+.digi-nav__toggle[aria-expanded=true] .digi-nav__toggle-open,.digi-nav__toggle:not([aria-expanded=true]) .digi-nav__toggle-close{display:none}
+.digi-nav__toggle .e-font-icon-svg{fill:#33373d;height:1em;width:1em}
+.digi-nav__toggle svg{fill:var(--nav-menu-icon-color,currentColor);height:auto;width:1em}
+span.digi-nav__toggle-open,span.digi-nav__toggle-close{line-height:1}
+.digi-nav--toggle{--digi-nav-h:100vh}
+.digi-nav--toggle .digi-nav__toggle:not([aria-expanded=true])+.digi-nav__container{max-height:0;overflow:hidden;transform:scaleY(0);visibility:hidden}
+.digi-nav--toggle .digi-nav__toggle[aria-expanded=true]+.digi-nav__container{max-height:var(--digi-nav-h);transform:scaleY(1)}
+.digi-nav--stretch .digi-nav__container.digi-nav__dropdown{position:absolute;z-index:9997}
+.digi-nav--dropdown-none .digi-nav__toggle,.digi-nav--dropdown-none .digi-nav__container.digi-nav__dropdown{display:none}
+@media(max-width:767px){.digi-nav--dropdown-mobile .digi-nav__main{display:none}}
+@media(min-width:768px){.digi-nav--dropdown-mobile .digi-nav__toggle,.digi-nav--dropdown-mobile .digi-nav__container.digi-nav__dropdown{display:none}}
+@media(max-width:1024px){.digi-nav--dropdown-tablet .digi-nav__main{display:none}}
+@media(min-width:1025px){.digi-nav--dropdown-tablet .digi-nav__toggle,.digi-nav--dropdown-tablet .digi-nav__container.digi-nav__dropdown{display:none}}
+@media(prefers-reduced-motion:reduce){.digi-nav__container.digi-nav__dropdown{transition:none}}

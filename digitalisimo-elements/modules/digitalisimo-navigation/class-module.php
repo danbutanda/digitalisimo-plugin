@@ -26,14 +26,18 @@ final class Module {
 	 * es relativo a este módulo; `css` y `js`, a la raíz del plugin.
 	 */
 	const WIDGETS = array(
+		'digitalisimo-nested-off-canvas' => array( 'file' => 'widgets/class-nested-off-canvas.php', 'class' => 'Digitalisimo\\Elements\\Navigation\\Widgets\\Nested_Off_Canvas', 'css' => 'modules/digitalisimo-navigation/assets/css/nested-off-canvas.css', 'js' => 'modules/digitalisimo-navigation/assets/js/nested-off-canvas.js' ),
+		'digitalisimo-search'            => array( 'file' => 'widgets/class-search.php', 'class' => 'Digitalisimo\\Elements\\Navigation\\Widgets\\Search', 'css' => 'modules/digitalisimo-navigation/assets/css/search.css', 'js' => 'modules/digitalisimo-navigation/assets/js/search.js' ),
 	);
 
 	/** Títulos del panel, para quien los liste sin cargar la clase. */
 	const TITLES = array(
+		'digitalisimo-nested-off-canvas' => 'Panel fuera de lienzo',
+		'digitalisimo-search'            => 'Búsqueda',
 	);
 
 	/** Widgets anidados: necesitan el experimento `nested-elements` y `Widget_Nested_Base`. */
-	const NESTED = array();
+	const NESTED = array( 'digitalisimo-nested-off-canvas' );
 
 	const NESTED_BASE = 'Elementor\\Modules\\NestedElements\\Base\\Widget_Nested_Base';
 
